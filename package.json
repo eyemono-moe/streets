@@ -1,0 +1,30 @@
+{
+  "name": "solid-template",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "check": "biome check .",
+    "fix": "biome check --write .",
+    "fix:force": "biome check --write --unsafe .",
+    "test": "vitest",
+    "analyze": "pnpm dlx vite-bundle-visualizer -o .stats.html"
+  },
+  "dependencies": {
+    "@unocss/reset": "^0.62.3",
+    "solid-js": "^1.8.22"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.5.3",
+    "unocss": "^0.62.3",
+    "vite": "^5.4.2",
+    "vite-plugin-solid": "^2.10.2",
+    "vitest": "^2.0.5"
+  },
+  "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
+}
