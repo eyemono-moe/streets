@@ -1,8 +1,7 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
-import { type Component, createMemo } from "solid-js";
+import type { Component } from "solid-js";
 import { dateHuman, diffHuman } from "../../../libs/format";
-import { pickLatestEvent } from "../../../libs/latestEvent";
 import Profile from "../../Profile/components/Profile";
 import { useQueryProfile } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
@@ -11,7 +10,6 @@ const Text: Component<{
   shortText: ReturnType<typeof parseShortTextNote>;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
-  const latestProfile = createMemo(() => pickLatestEvent(profile.data ?? []));
 
   const diff = diffHuman(new Date(props.shortText.created_at * 1000));
 
@@ -21,9 +19,9 @@ const Text: Component<{
         class="text-zinc-9 p-2 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-2"
         style={{
           "grid-template-areas": `
-        "image name"
-        "image content"
-        `,
+            "image name"
+            "image content"
+          `,
         }}
       >
         <HoverCard.Trigger class="grid-area-[image]">
@@ -32,21 +30,21 @@ const Text: Component<{
             fallbackDelay={500}
           >
             <Image.Img
-              src={latestProfile()?.picture}
-              alt={latestProfile()?.name}
+              src={profile.data?.picture}
+              alt={profile.data?.name}
               loading="lazy"
             />
             <Image.Fallback class="w-full h-full flex items-center justify-center">
-              {latestProfile()?.name.slice(0, 2)}
+              {profile.data?.name.slice(0, 2)}
             </Image.Fallback>
           </Image>
         </HoverCard.Trigger>
         <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
           <div class="truncate">
             <HoverCard.Trigger>
-              <span>{latestProfile()?.display_name ?? "..."}</span>
+              <span>{profile.data?.display_name ?? "..."}</span>
               <span class="text-80% text-zinc-5">
-                @{latestProfile()?.name ?? "..."}
+                @{profile.data?.name ?? props.shortText.pubkey}
               </span>
             </HoverCard.Trigger>
           </div>
@@ -67,7 +65,7 @@ const Text: Component<{
         <HoverCard.Content class="max-w-[min(calc(100vw-32px),360px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-hidden">
           <HoverCard.Arrow />
           <div class="bg-white">
-            <Profile pubkey={latestProfile()?.pubkey} />
+            <Profile pubkey={profile.data?.pubkey} />
           </div>
         </HoverCard.Content>
       </HoverCard.Portal>

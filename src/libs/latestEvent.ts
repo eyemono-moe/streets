@@ -1,4 +1,4 @@
-interface ComparableEvent {
+export interface ComparableEvent {
   created_at: number;
   id: string;
 }

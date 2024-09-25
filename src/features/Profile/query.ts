@@ -1,9 +1,9 @@
 import { kinds } from "nostr-tools";
-import { createFilterQuery } from "../../libs/query";
+import { createLatestFilterQuery } from "../../libs/query";
 import { parseProfile } from "./event";
 
 export const useQueryProfile = (pubkey: () => string | undefined) => {
-  return createFilterQuery(
+  return createLatestFilterQuery(
     () => ({
       kinds: [kinds.Metadata],
       authors: [pubkey() ?? ""],
