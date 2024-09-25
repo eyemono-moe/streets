@@ -3,12 +3,16 @@ import { createFilterQuery, createInfiniteFilterQuery } from "../../libs/query";
 import { parseFollowList, parseShortTextNote } from "./event";
 
 // TODO: filter/search
-export const useQueryShortText = (authors: () => string[] | undefined) => {
+
+// 現在以降の最新のShortTextNoteを取得する
+export const useQueryLatestShortText = (
+  authors: () => string[] | undefined,
+) => {
   return createFilterQuery(
     () => ({
       kinds: [kinds.ShortTextNote],
       authors: authors(),
-      limit: 10,
+      since: Math.floor(Date.now() / 1000),
     }),
     () => ["shortTextNote", authors()],
     parseShortTextNote,
