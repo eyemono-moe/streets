@@ -15,23 +15,23 @@
   },
   "dependencies": {
     "@kobalte/core": "^0.13.6",
-    "@solidjs/router": "^0.14.3",
-    "@tanstack/solid-query": "^5.54.2",
+    "@solidjs/router": "^0.14.5",
+    "@tanstack/solid-query": "^5.56.2",
     "@tanstack/solid-query-devtools": "^5.56.2",
-    "@unocss/reset": "^0.62.3",
+    "@unocss/reset": "^0.62.4",
     "bech32": "^2.0.0",
     "nostr-tools": "^2.7.2",
-    "solid-js": "^1.8.22",
-    "valibot": "^0.41.0"
+    "solid-js": "^1.9.0",
+    "valibot": "^0.42.1"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.8.3",
-    "jsdom": "^25.0.0",
-    "typescript": "^5.5.3",
-    "unocss": "^0.62.3",
-    "vite": "^5.4.2",
+    "@biomejs/biome": "1.9.2",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.6.2",
+    "unocss": "^0.62.4",
+    "vite": "^5.4.7",
     "vite-plugin-solid": "^2.10.2",
-    "vitest": "^2.0.5"
+    "vitest": "^2.1.1"
   },
   "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
 }
