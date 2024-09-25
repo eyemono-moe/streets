@@ -14,8 +14,15 @@
     "analyze": "pnpm dlx vite-bundle-visualizer -o .stats.html"
   },
   "dependencies": {
+    "@kobalte/core": "^0.13.6",
+    "@solidjs/router": "^0.14.3",
+    "@tanstack/solid-query": "^5.54.2",
+    "@tanstack/solid-query-devtools": "^5.56.2",
     "@unocss/reset": "^0.62.3",
-    "solid-js": "^1.8.22"
+    "bech32": "^2.0.0",
+    "nostr-tools": "^2.7.2",
+    "solid-js": "^1.8.22",
+    "valibot": "^0.41.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
