@@ -5,8 +5,6 @@ import {
   matchFilter,
 } from "nostr-tools";
 
-// TODO: 同じfilterを指定しても複数回subされてしまう
-
 export type BatchExecutorConstructor<Req> = {
   executor: (reqs: Req[]) => void;
   interval: number;
@@ -54,12 +52,12 @@ export class BatchExecutor<Req> {
 
 export class BatchSubscriber {
   private batchExecutor: BatchExecutor<Filter>;
-  private eventsMap = new Map<Filter, unknown[]>();
-  private parserMap = new Map<Filter, (e: NostrEvent) => unknown>();
+  private eventsMap = new Map<string, unknown[]>();
+  private parserMap = new Map<string, (e: NostrEvent) => unknown>();
   // biome-ignore lint/suspicious/noExplicitAny: can't infer type
-  private resolverMap = new Map<Filter, (events: any[]) => void>();
+  private resolversMap = new Map<string, ((events: any[]) => void)[]>();
   // biome-ignore lint/suspicious/noExplicitAny: can't infer type
-  private onEventMap = new Map<Filter, (event: any[]) => void>();
+  private onEventMap = new Map<string, ((event: any[]) => void) | undefined>();
 
   constructor(pool: SimplePool, relays: string[]) {
     this.batchExecutor = new BatchExecutor({
@@ -69,44 +67,64 @@ export class BatchSubscriber {
           onevent: (event) => {
             for (const filter of filters) {
               if (matchFilter(filter, event)) {
-                const parser = this.parserMap.get(filter);
-                const events = this.eventsMap.get(filter);
+                const parser = this.parserMap.get(serializeFilter(filter));
+                const events = this.eventsMap.get(serializeFilter(filter));
                 if (events) {
                   const parsed = parser ? parser(event) : event;
                   events.push(parsed);
-                  this.onEventMap.get(filter)?.([...events]);
+                  this.onEventMap.get(serializeFilter(filter))?.([...events]);
                 }
               }
             }
           },
           oneose: () => {
             for (const filter of filters) {
-              const resolve = this.resolverMap.get(filter);
-              const events = this.eventsMap.get(filter);
-              if (resolve && events) {
-                resolve(events);
+              const resolvers = this.resolversMap.get(serializeFilter(filter));
+              const events = this.eventsMap.get(serializeFilter(filter));
+              if (resolvers && events) {
+                for (const resolver of resolvers) {
+                  resolver(events);
+                }
               }
             }
           },
         });
       },
-      interval: 1000,
+      interval: 2000,
       size: 10,
     });
   }
 
-  public sub<T>(
-    filter: Filter,
-    onEvent: (event: T[]) => void,
-    parser: (e: NostrEvent) => T,
-  ) {
+  public sub<T>({
+    filter,
+    parser,
+    onEvent,
+  }: {
+    filter: Filter;
+    parser: (e: NostrEvent) => T;
+    onEvent?: (event: T[]) => void;
+  }) {
     return new Promise<T[]>((resolve) => {
-      this.eventsMap.set(filter, []);
-      this.parserMap.set(filter, parser);
-      this.resolverMap.set(filter, resolve);
-      this.onEventMap.set(filter, onEvent);
+      if (!this.resolversMap.has(serializeFilter(filter))) {
+        this.resolversMap.set(serializeFilter(filter), []);
+      }
+      this.resolversMap.get(serializeFilter(filter))?.push(resolve);
 
-      this.batchExecutor.push(filter);
+      if (!this.eventsMap.has(serializeFilter(filter))) {
+        this.eventsMap.set(serializeFilter(filter), []);
+        this.parserMap.set(serializeFilter(filter), parser);
+        this.onEventMap.set(serializeFilter(filter), onEvent);
+        this.batchExecutor.push(filter);
+      }
     });
   }
 }
+
+const serializeFilter = (filter: Filter) => {
+  return JSON.stringify({
+    ...filter,
+    ids: filter.ids?.sort(),
+    kinds: filter.kinds?.sort(),
+    authors: filter.authors?.sort(),
+  });
+};

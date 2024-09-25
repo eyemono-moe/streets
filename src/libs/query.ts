@@ -1,5 +1,6 @@
 import {
   type QueryKey,
+  createInfiniteQuery,
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
@@ -21,18 +22,16 @@ export const createFilterQuery = <T>(
   return createQuery(() => ({
     queryKey: keys(),
     queryFn: () =>
-      subscriber.sub(
-        filter(),
-        (events) => {
+      subscriber.sub({
+        filter: filter(),
+        parser,
+        onEvent: (events) => {
           queryClient.setQueryData(keys(), events);
         },
-        parser,
-      ),
+      }),
     enabled: enable(),
   }));
 };
-
-// TODO: createLatestFilterQuery
 
 export const createLatestFilterQuery = <T extends ComparableEvent>(
   filter: () => Filter,
@@ -48,17 +47,49 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
   return createQuery(() => ({
     queryKey: keys(),
     queryFn: async () => {
-      const events = await subscriber.sub(
-        filter(),
-        (events) => {
+      const events = await subscriber.sub({
+        filter: filter(),
+        parser,
+        onEvent: (events) => {
           queryClient.setQueryData(keys(), pickLatestEvent(events));
         },
-        parser,
-      );
+      });
       return pickLatestEvent(events);
     },
     enabled: enable(),
   }));
 };
 
-// TODO: createInfiniteFilterQuery
+export const createInfiniteFilterQuery = <T extends ComparableEvent>(
+  filter: () => Filter,
+  keys: () => QueryKey,
+  parser: (e: NostrEvent) => T,
+  enable: () => boolean = () => true,
+  limit = 10,
+) => {
+  const subscriber = useSubscriber();
+  if (!subscriber) {
+    throw new Error("Subscriber not found");
+  }
+
+  return createInfiniteQuery(() => ({
+    queryKey: keys(),
+    queryFn: async ({ pageParam: until }) => {
+      const res = await subscriber.sub({
+        filter: {
+          ...filter(),
+          limit,
+          until,
+        },
+        parser,
+      });
+      return res;
+    },
+    initialPageParam: Math.floor(new Date().getTime() / 1000),
+    getNextPageParam: (lastPage) => {
+      const minCreatedAt = Math.min(...lastPage.map((e) => e.created_at)) - 1;
+      return minCreatedAt;
+    },
+    enabled: enable(),
+  }));
+};

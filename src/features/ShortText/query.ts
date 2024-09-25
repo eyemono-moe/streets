@@ -1,5 +1,5 @@
 import { kinds } from "nostr-tools";
-import { createFilterQuery } from "../../libs/query";
+import { createFilterQuery, createInfiniteFilterQuery } from "../../libs/query";
 import { parseFollowList, parseShortTextNote } from "./event";
 
 // TODO: filter/search
@@ -11,6 +11,24 @@ export const useQueryShortText = (authors: () => string[] | undefined) => {
       limit: 10,
     }),
     () => ["shortTextNote", authors()],
+    parseShortTextNote,
+    () => {
+      const a = authors();
+      return !!a && a.length > 0;
+    },
+  );
+};
+
+export const useQueryInfiniteShortText = (
+  authors: () => string[] | undefined,
+) => {
+  return createInfiniteFilterQuery(
+    () => ({
+      kinds: [kinds.ShortTextNote],
+      authors: authors(),
+      limit: 10,
+    }),
+    () => ["infiniteShortTextNote", authors()],
     parseShortTextNote,
     () => {
       const a = authors();
