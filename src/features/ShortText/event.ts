@@ -1,31 +1,38 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
+import { eventTag, userTag } from "../../libs/commonTag";
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 
-// TODO: tags
+const tags = v.array(
+  v.union([
+    userTag,
+    eventTag,
+    // fallback
+    v.pipe(
+      v.array(v.string()),
+      v.transform((input) => ({ kind: "unknown", data: input }) as const),
+    ),
+  ]),
+);
 
 export const parseShortTextNote = (input: NostrEvent) => {
   if (input.kind !== kinds.ShortTextNote) {
     throw new Error("kind is not ShortTextNote");
   }
+
+  const tagsRes = v.safeParse(tags, input.tags);
   return {
     content: input.content,
     id: input.id,
     created_at: input.created_at,
     pubkey: input.pubkey,
+    tags: tagsRes.success ? tagsRes.output : [],
   };
 };
 
 // https://github.com/nostr-protocol/nips/blob/master/02.md
-const followListTags = v.array(
-  v.tuple([
-    v.literal("p"),
-    v.string(), // user pubkey
-    v.optional(v.string()), // main relay url
-    v.optional(v.string()), // petname
-  ]),
-);
+const followListTags = v.array(userTag);
 
 export const parseFollowList = (input: NostrEvent) => {
   if (input.kind !== kinds.Contacts) {

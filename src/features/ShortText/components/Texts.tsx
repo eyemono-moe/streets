@@ -13,7 +13,7 @@ const Texts: Component = () => {
   const pubKey = useQueryPubKey();
   const follows = useQueryFollowList(() => pubKey.data);
   const followPubKeys = () =>
-    pickLatestEvent(follows.data ?? [])?.tags.map((tag) => tag[1]);
+    pickLatestEvent(follows.data ?? [])?.tags.map((tag) => tag.pubkey);
 
   const texts = useQueryLatestShortText(followPubKeys);
   const oldTexts = useQueryInfiniteShortText(followPubKeys);
