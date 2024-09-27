@@ -75,10 +75,12 @@ const Reply: Component<{
             <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
               <div class="truncate">
                 <HoverCard.Trigger>
-                  <span>{profile.data?.display_name ?? "..."}</span>
-                  <span class="text-80% text-zinc-5">
-                    @{profile.data?.name ?? text.data?.pubkey}
-                  </span>
+                  <Show when={profile.data} fallback={text.data?.pubkey}>
+                    <span>{profile.data?.display_name}</span>
+                    <span class="text-80% text-zinc-5">
+                      @{profile.data?.name}
+                    </span>
+                  </Show>
                 </HoverCard.Trigger>
               </div>
               <span

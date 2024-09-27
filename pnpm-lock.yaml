@@ -42,6 +42,9 @@ importers:
       '@biomejs/biome':
         specifier: 1.8.3
         version: 1.8.3
+      '@iconify-json/material-symbols':
+        specifier: ^1.2.1
+        version: 1.2.1
       jsdom:
         specifier: ^25.0.0
         version: 25.0.0
@@ -575,6 +578,9 @@ packages:
 
   '@floating-ui/utils@0.2.8':
     resolution: {integrity: sha512-kym7SodPp8/wloecOpcmSnWJsK7M0E5Wg8UcFA+uO4B9s5d0ywXOEro/8HM9x0rW+TljRzul/14UYz3TleT3ig==}
+
+  '@iconify-json/material-symbols@1.2.1':
+    resolution: {integrity: sha512-r9yaBzlUmN87aCTSoCNtDCd7R9F0iVDjNPL9QHHhm1WglFJvTUKx9iBC5xcZpP0qN0bg9R5FkM90CndWxEBAnw==}
 
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
@@ -2169,6 +2175,10 @@ snapshots:
       '@floating-ui/utils': 0.2.8
 
   '@floating-ui/utils@0.2.8': {}
+
+  '@iconify-json/material-symbols@1.2.1':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/types@2.0.0': {}
 

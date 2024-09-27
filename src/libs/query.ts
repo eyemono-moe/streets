@@ -106,7 +106,6 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
   return createInfiniteQuery(() => ({
     queryKey: keys(),
     queryFn: async ({ pageParam: until }) => {
-      console.log("sub", until, limit);
       const res = await subscriber.sub({
         filter: {
           ...filter(),
@@ -120,7 +119,6 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
     initialPageParam: Math.floor(new Date().getTime() / 1000),
     getNextPageParam: (lastPage) => {
       const minCreatedAt = Math.min(...lastPage.map((e) => e.created_at)) - 1;
-      console.log(`check last ${lastPage.length} events: ${minCreatedAt}`);
       return minCreatedAt;
     },
     enabled: enable(),

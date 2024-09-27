@@ -11,6 +11,7 @@ import Reply from "./Reply";
 
 const Text: Component<{
   shortText: ReturnType<typeof parseShortTextNote>;
+  repostBy?: string;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
   const diff = diffHuman(new Date(props.shortText.created_at * 1000));
@@ -47,25 +48,52 @@ const Text: Component<{
     if (replyTargets().length > 0) return "mention";
     return "normal";
   };
+  const reposterProfile = useQueryProfile(() => props.repostBy);
 
   return (
-    <HoverCard>
-      <div class="p-2">
-        <Show when={textType() === "reply"}>
-          <Reply id={replyOrRoot()?.id} />
-          <div class="ml-[calc(1rem-1px)] b-l-2 mr-2 pt-4 pb-2 pl-2 text-80% text-zinc-5">
-            <For each={replyTargets()}>
-              {/* TODO: ユーザーページへのリンクにする */}
-              {(target) => (
-                <span class="not-last:after:(content-[',_'])">
-                  @{target.display_name}
-                </span>
-              )}
-            </For>
-            への返信
-          </div>
-        </Show>
-        {/* TODO: embeddingsの有無を見てareaを変える */}
+    <div class="p-2">
+      <Show when={props.repostBy}>
+        <div class="text-80% text-zinc-5 pb-2">
+          <HoverCard>
+            <div class="flex items-center gap-1">
+              <div class="i-material-symbols:repeat-rounded w-4 h-auto aspect-square c-green" />
+              <HoverCard.Trigger class="cursor-pointer">
+                <Show when={reposterProfile.data} fallback={props.repostBy}>
+                  <span>{reposterProfile.data?.display_name}</span>
+                  <span class="text-80% text-zinc-5">
+                    @{reposterProfile.data?.name}
+                  </span>
+                </Show>
+              </HoverCard.Trigger>
+              <span>がリポスト</span>
+            </div>
+            <HoverCard.Portal>
+              <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] max-h-[min(calc(100vh-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-auto">
+                <HoverCard.Arrow />
+                <div class="bg-white">
+                  <Profile pubkey={reposterProfile.data?.pubkey} />
+                </div>
+              </HoverCard.Content>
+            </HoverCard.Portal>
+          </HoverCard>
+        </div>
+      </Show>
+      <Show when={textType() === "reply"}>
+        <Reply id={replyOrRoot()?.id} />
+        <div class="ml-[calc(1rem-1px)] b-l-2 mr-2 pt-4 pb-2 pl-2 text-80% text-zinc-5">
+          <For each={replyTargets()}>
+            {/* TODO: ユーザーページへのリンクにする */}
+            {(target) => (
+              <span class="not-last:after:(content-[',_'])">
+                @{target.display_name}
+              </span>
+            )}
+          </For>
+          への返信
+        </div>
+      </Show>
+      {/* TODO: embeddingsの有無を見てareaを変える */}
+      <HoverCard>
         <div
           class="text-zinc-9 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-2"
           style={{
@@ -96,10 +124,12 @@ const Text: Component<{
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
               <HoverCard.Trigger class="cursor-pointer">
-                <span>{profile.data?.display_name ?? "..."}</span>
-                <span class="text-80% text-zinc-5">
-                  @{profile.data?.name ?? props.shortText.pubkey}
-                </span>
+                <Show when={profile.data} fallback={props.shortText.pubkey}>
+                  <span>{profile.data?.display_name}</span>
+                  <span class="text-80% text-zinc-5">
+                    @{profile.data?.name}
+                  </span>
+                </Show>
               </HoverCard.Trigger>
             </div>
             <span
@@ -154,8 +184,8 @@ const Text: Component<{
             </div>
           </HoverCard.Content>
         </HoverCard.Portal>
-      </div>
-    </HoverCard>
+      </HoverCard>
+    </div>
   );
 };
 

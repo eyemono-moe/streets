@@ -4,10 +4,10 @@ import { pickLatestEvent, sortEvents } from "../../../libs/latestEvent";
 import { useQueryPubKey } from "../../../libs/useNIP07";
 import {
   useQueryFollowList,
-  useQueryInfiniteShortText,
-  useQueryLatestShortText,
+  useQueryInfiniteTextOrRepost,
+  useQueryLatestTextOrRepost,
 } from "../query";
-import Text from "./Text";
+import TextOrRepost from "./TextOrRepost";
 
 const Texts: Component = () => {
   const pubKey = useQueryPubKey();
@@ -15,8 +15,8 @@ const Texts: Component = () => {
   const followPubKeys = () =>
     pickLatestEvent(follows.data ?? [])?.tags.map((tag) => tag.pubkey);
 
-  const texts = useQueryLatestShortText(followPubKeys);
-  const oldTexts = useQueryInfiniteShortText(followPubKeys);
+  const texts = useQueryLatestTextOrRepost(followPubKeys);
+  const oldTexts = useQueryInfiniteTextOrRepost(followPubKeys);
 
   const [intersectionObserver] = createViewportObserver();
 
@@ -31,12 +31,12 @@ const Texts: Component = () => {
   return (
     <div class="divide-y">
       <For each={sortEvents(texts.data ?? [])}>
-        {(text) => <Text shortText={text} />}
+        {(text) => <TextOrRepost textOrRepost={text} />}
       </For>
       <For each={oldTexts.data?.pages}>
         {(page) => (
           <For each={sortEvents(page)}>
-            {(text) => <Text shortText={text} />}
+            {(text) => <TextOrRepost textOrRepost={text} />}
           </For>
         )}
       </For>

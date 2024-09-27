@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.8.3",
+    "@iconify-json/material-symbols": "^1.2.1",
     "jsdom": "^25.0.0",
     "typescript": "^5.5.3",
     "unocss": "^0.62.3",
