@@ -1,6 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
-import { eventTag, userTag } from "../../libs/commonTag";
+import { eventTag, quoteTag, userTag } from "../../libs/commonTag";
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 
@@ -8,6 +8,7 @@ const tags = v.array(
   v.union([
     userTag,
     eventTag,
+    quoteTag,
     // fallback
     v.pipe(
       v.array(v.string()),
@@ -28,6 +29,7 @@ export const parseShortTextNote = (input: NostrEvent) => {
     created_at: input.created_at,
     pubkey: input.pubkey,
     tags: tagsRes.success ? tagsRes.output : [],
+    raw: input,
   };
 };
 
@@ -44,6 +46,7 @@ export const parseFollowList = (input: NostrEvent) => {
       tags: res.output,
       id: input.id,
       created_at: input.created_at,
+      raw: input,
     };
   }
   throw new Error(`failed to parse short text note: ${res.issues}`);

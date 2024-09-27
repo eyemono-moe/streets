@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+// https://github.com/nostr-protocol/nips?tab=readme-ov-file#standardized-tags
+
 // https://github.com/nostr-protocol/nips/blob/master/01.md#tags
 // https://github.com/nostr-protocol/nips/blob/master/10.md#marked-e-tags-preferred
 export const eventTag = v.pipe(
@@ -45,3 +47,20 @@ export const userTag = v.pipe(
 );
 
 export type UserTag = v.InferOutput<typeof userTag>;
+
+// https://github.com/nostr-protocol/nips/blob/master/18.md#nip-18
+export const quoteTag = v.pipe(
+  v.tuple([
+    v.literal("q"),
+    v.string(), // event id
+    v.optional(v.string()), // recommended relay url
+  ]),
+  v.transform(
+    (input) =>
+      ({
+        kind: input[0],
+        id: input[1],
+        relay: input[2],
+      }) as const,
+  ),
+);

@@ -6,6 +6,7 @@ import { dateHuman, diffHuman } from "../../../libs/format";
 import Profile from "../../Profile/components/Profile";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
+import Quote from "./Quote";
 import Reply from "./Reply";
 
 const Text: Component<{
@@ -33,6 +34,12 @@ const Text: Component<{
     return reply ?? root;
   });
 
+  const quoteTargets = createMemo(() =>
+    props.shortText.tags.filter((t) => t.kind === "q"),
+  );
+
+  const hasEmbeddings = createMemo(() => quoteTargets().length > 0);
+
   const textType = () => {
     // e tagがあればreply
     if (replyOrRoot()) return "reply";
@@ -58,17 +65,19 @@ const Text: Component<{
             への返信
           </div>
         </Show>
+        {/* TODO: embeddingsの有無を見てareaを変える */}
         <div
           class="text-zinc-9 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-2"
           style={{
             "grid-template-areas": `
-            "image name"
-            "image content"
+            "avatar name"
+            "avatar content"
+            ${hasEmbeddings() ? '"avatar embeddings"' : ""}
             `,
           }}
         >
           {/* TODO: ユーザーページへのリンクにする */}
-          <HoverCard.Trigger class="grid-area-[image] cursor-pointer">
+          <HoverCard.Trigger class="grid-area-[avatar] cursor-pointer">
             <Image
               class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square rounded bg-zinc-2"
               fallbackDelay={500}
@@ -117,7 +126,17 @@ const Text: Component<{
               {props.shortText.content}
             </pre>
           </div>
-          {/* TODO: embeddings */}
+          <Show when={hasEmbeddings()}>
+            <div class="grid-area-[embeddings]">
+              <For each={quoteTargets()}>
+                {(quote) => (
+                  <div class="rounded b-1 b-zinc-2 overflow-hidden p-1">
+                    <Quote id={quote.id} />
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
           {/* TODO: actions */}
           {/* <div class="grid-area-[action]">
             <Show when={props.shortText.tags.length > 0}>
