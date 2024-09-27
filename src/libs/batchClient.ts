@@ -63,6 +63,10 @@ export class BatchSubscriber {
     this.batchExecutor = new BatchExecutor({
       executor: (filters) => {
         // TODO: close
+
+        if (filters.length === 0) {
+          return;
+        }
         pool.subscribeMany(relays, filters, {
           onevent: (event) => {
             for (const filter of filters) {
