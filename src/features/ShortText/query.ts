@@ -78,5 +78,6 @@ export const useQueryFollowList = (user: () => string | undefined) => {
     keys: ["follow", user()],
     parser: parseFollowList,
     enable: !!user(),
+    immediate: true,
   }));
 };

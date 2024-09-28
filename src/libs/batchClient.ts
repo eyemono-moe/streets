@@ -44,7 +44,7 @@ export class BatchExecutor<Req> {
     }
   }
 
-  private flush() {
+  public flush() {
     this.executor(this.queue);
     this.queue = [];
   }
@@ -112,11 +112,14 @@ export class BatchSubscriber {
     parser,
     onEvent,
     closeOnEOS = true,
+    immediate = false,
   }: {
     filter: Filter;
     parser: (e: NostrEvent) => T;
     onEvent?: (event: T[]) => void;
     closeOnEOS?: boolean;
+    /** Immediately fetch the data */
+    immediate?: boolean;
   }) {
     return new Promise<T[]>((resolve) => {
       if (!this.resolversMap.has(serializeFilter(filter))) {
@@ -132,6 +135,10 @@ export class BatchSubscriber {
         this.closeOnEOSMap.set(serializeFilter(filter), closeOnEOS);
 
         this.batchExecutor.push(filter);
+
+        if (immediate) {
+          this.batchExecutor.flush();
+        }
       } else {
         // cache hit
         const events = this.eventsMap.get(serializeFilter(filter)) as T[];

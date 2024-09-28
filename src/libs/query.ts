@@ -48,6 +48,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
     parser: (e: NostrEvent) => T;
     enable?: boolean;
     closeOnEOS?: boolean;
+    immediate?: boolean;
   },
 ) => {
   const queryClient = useQueryClient();
@@ -65,6 +66,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
           queryClient.setQueryData(props().keys, pickLatestEvent(events));
         },
         closeOnEOS: props().closeOnEOS,
+        immediate: props().immediate,
       });
       return pickLatestEvent(events);
     },
