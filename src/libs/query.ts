@@ -138,16 +138,12 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
       until: Math.floor(new Date().getTime() / 1000),
       since: Math.floor(new Date().getTime() / 1000) - 60 * 60 * 1, // 1 hours
     },
-    getNextPageParam: (lastPage, allPages) => {
-      // もっとも古いイベントの1秒前
-      const minCreatedAt =
-        lastPage.length > 0
-          ? Math.min(...lastPage.map((e) => e.created_at)) - 1
-          : Math.min(...allPages.flatMap((p) => p.map((e) => e.created_at))) -
-            1;
+    // @ts-ignore: TS6133
+    getNextPageParam: (lastPage, allPages, lastPageParam) => {
+      // 最後に使用したsinceから1時間前まで取得
       return {
-        until: minCreatedAt,
-        since: minCreatedAt - 60 * 60 * 1, // 1 hours
+        until: lastPageParam.since,
+        since: lastPageParam.since - 60 * 60 * 1, // 1 hours
       };
     },
     enabled: props().enable,
