@@ -1,5 +1,11 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
-import { type Component, For, Show, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  Show,
+  createEffect,
+  createSignal,
+} from "solid-js";
 import { sortEvents } from "../../../libs/latestEvent";
 import { useQueryPubKey } from "../../../libs/useNIP07";
 import {
@@ -20,13 +26,20 @@ const Texts: Component = () => {
   // @ts-ignore TS6133: ts can't detect functions used in directives
   const [intersectionObserver] = createViewportObserver();
 
-  const [canFetch, setCanFetch] = createSignal(true);
-  const fetchNextPage = () => {
+  const [intersecting, setIntersecting] = createSignal(false);
+  const [fetchTimeout, setFetchTimeout] = createSignal(true);
+  const canFetch = () => fetchTimeout() && !texts.isFetching;
+
+  const fetchNextPage = async () => {
     if (!canFetch()) return;
-    oldTexts.fetchNextPage();
-    setCanFetch(false);
-    setTimeout(() => setCanFetch(true), 1000);
+    await oldTexts.fetchNextPage();
+    setFetchTimeout(false);
+    setTimeout(() => setFetchTimeout(true), 1000);
   };
+
+  createEffect(() => {
+    if (canFetch() && intersecting()) fetchNextPage();
+  });
 
   return (
     <div class="divide-y">
@@ -40,20 +53,18 @@ const Texts: Component = () => {
           </For>
         )}
       </For>
-      <Show
-        when={oldTexts.isFetching}
-        fallback={
-          <div
-            use:intersectionObserver={() => {
-              fetchNextPage();
-            }}
-          />
-        }
+      <div
+        use:intersectionObserver={(e) => {
+          setIntersecting(e.isIntersecting);
+          fetchNextPage();
+        }}
       >
-        <div class="flex items-center justify-center p-2">
-          <div class="animate-spin rounded-full w-8 h-auto aspect-square b-4 b-zinc-3 b-r-violet" />
-        </div>
-      </Show>
+        <Show when={fetchTimeout() || texts.isFetching}>
+          <div class="flex items-center justify-center p-2">
+            <div class="animate-spin rounded-full w-8 h-auto aspect-square b-4 b-zinc-3 b-r-violet" />
+          </div>
+        </Show>
+      </div>
     </div>
   );
 };
