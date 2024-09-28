@@ -17,6 +17,7 @@ const Texts: Component = () => {
   const texts = useQueryLatestTextOrRepost(followPubKeys);
   const oldTexts = useQueryInfiniteTextOrRepost(followPubKeys);
 
+  // @ts-ignore TS6133: ts can't detect functions used in directives
   const [intersectionObserver] = createViewportObserver();
 
   const [canFetch, setCanFetch] = createSignal(true);
