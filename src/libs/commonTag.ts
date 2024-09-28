@@ -97,3 +97,22 @@ export const imetaTag = v.pipe(
 );
 
 export type ImetaTag = v.InferOutput<typeof imetaTag>;
+
+// https://github.com/nostr-protocol/nips/blob/master/30.md
+export const emojiTag = v.pipe(
+  v.tuple([
+    v.literal("emoji"),
+    v.string(), // short code
+    v.string(), // image url
+  ]),
+  v.transform(
+    (input) =>
+      ({
+        kind: input[0],
+        name: input[1],
+        url: input[2],
+      }) as const,
+  ),
+);
+
+export type EmojiTag = v.InferOutput<typeof emojiTag>;

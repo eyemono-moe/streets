@@ -6,6 +6,7 @@ import {
 } from "../../libs/query";
 import {
   parseFollowList,
+  parseReaction,
   parseShortTextNote,
   parseTextNoteOrRepost,
 } from "./event";
@@ -79,5 +80,22 @@ export const useQueryFollowList = (user: () => string | undefined) => {
     parser: parseFollowList,
     enable: !!user(),
     immediate: true,
+  }));
+};
+
+export const useQueryReactions = (targetEventId: () => string | undefined) => {
+  return createFilterQuery(() => ({
+    filter: {
+      kinds: [kinds.Reaction],
+      "#e": [targetEventId() ?? ""],
+    },
+    keys: [
+      "reactions",
+      {
+        eventId: targetEventId(),
+      },
+    ],
+    parser: parseReaction,
+    enable: !!targetEventId(),
   }));
 };

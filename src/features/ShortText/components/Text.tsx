@@ -1,6 +1,5 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
-import { parseReferences } from "nostr-tools";
 import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, diffHuman } from "../../../libs/format";
@@ -8,6 +7,7 @@ import { parseTextContent } from "../../../libs/parseTextContent";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
+import { useQueryReactions } from "../query";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
 
@@ -39,23 +39,6 @@ const Text: Component<{
 
   const parsedContents = createMemo(() => parseTextContent(props.shortText));
 
-  const quoteTargetIDs = createMemo(() => {
-    const fromTag = props.shortText.tags
-      .filter((t) => t.kind === "q")
-      .map((t) => t.id);
-
-    const references = props.shortText.raw
-      ? parseReferences(props.shortText.raw)
-      : [];
-    const fromRef = references
-      .map((e) => e.event?.id)
-      .filter((id): id is string => !!id);
-
-    return Array.from(new Set([...fromTag, ...fromRef]));
-  });
-
-  const hasEmbeddings = createMemo(() => quoteTargetIDs().length > 0);
-
   const textType = () => {
     // e tagがあればreply
     if (replyOrRoot()) return "reply";
@@ -64,6 +47,56 @@ const Text: Component<{
     return "normal";
   };
   const reposterProfile = useQueryProfile(() => props.repostBy);
+
+  const reactions = useQueryReactions(() => props.shortText.id);
+  const parsedReactions = createMemo(() => {
+    const reactionMap = reactions.data?.reduce<
+      Map<
+        string,
+        {
+          count: number;
+          users: string[];
+          content:
+            | {
+                type: "string";
+                value: string;
+              }
+            | {
+                type: "emoji";
+                value: string;
+                src: string;
+              };
+        }
+      >
+    >((acc, reaction) => {
+      if (!acc.has(reaction.content)) {
+        acc.set(reaction.content, {
+          count: 0,
+          users: [],
+          content: reaction.emoji
+            ? {
+                type: "emoji",
+                src: reaction.emoji.url,
+                value: reaction.emoji.name,
+              }
+            : { type: "string", value: reaction.content },
+        });
+      }
+
+      const current = acc.get(reaction.content);
+      if (!current) return acc;
+
+      acc.set(reaction.content, {
+        count: current.count + 1,
+        users: [...current.users, reaction.pubkey],
+        content: current.content,
+      });
+
+      return acc;
+    }, new Map());
+
+    return Array.from(reactionMap?.values() ?? []);
+  });
 
   return (
     <div class="p-2">
@@ -120,8 +153,7 @@ const Text: Component<{
             "grid-template-areas": `
             "avatar name"
             "avatar content"
-            ${hasEmbeddings() ? '"avatar embeddings"' : ""}
-            "action action"
+            ${parsedReactions().length > 0 ? '"avatar reaction"' : ""}
             `,
           }}
         >
@@ -177,6 +209,48 @@ const Text: Component<{
             </Show>
             <ShortTextContent contents={parsedContents()} />
           </div>
+          <Show when={parsedReactions().length > 0}>
+            <div class="grid-area-[reaction] flex gap-1 flex-wrap">
+              <For each={parsedReactions()}>
+                {(reaction) => (
+                  <button
+                    class="appearance-none bg-transparent p-0.5 b-1 b-zinc-2 rounded flex items-center gap-1"
+                    type="button"
+                  >
+                    <div class="h-5 flex items-center justify-center">
+                      <Show
+                        when={
+                          reaction.content.type === "emoji" && reaction.content
+                        }
+                        fallback={
+                          <span class="h-5 leading-5 truncate">
+                            {reaction.content.value}
+                          </span>
+                        }
+                      >
+                        {(emoji) => (
+                          <img
+                            src={emoji().src}
+                            class="h-full w-auto inline-block"
+                            alt={emoji().value}
+                          />
+                        )}
+                      </Show>
+                    </div>
+                    <span class="text-zinc-5 h-5 leading-5">
+                      {reaction.count}
+                    </span>
+                  </button>
+                )}
+              </For>
+              <button
+                class="appearance-none bg-transparent p-0.5 b-1 b-zinc-2 rounded flex items-center gap-1"
+                type="button"
+              >
+                <div class="i-material-symbols:add-rounded h-5 w-auto aspect-square c-zinc-5" />
+              </button>
+            </div>
+          </Show>
           {/* TODO: actions */}
         </div>
         <HoverCard.Portal>

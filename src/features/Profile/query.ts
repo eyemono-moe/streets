@@ -5,6 +5,7 @@ import {
 } from "../../libs/query";
 import { parseProfile } from "./event";
 
+// TODO: https://tanstack.com/query/latest/docs/framework/react/reference/useQueries を使う
 export const useQueryProfiles = (pubkey: () => string[] | undefined) => {
   return createLatestByPubkeyQuery(() => {
     const p = pubkey();
