@@ -4,11 +4,12 @@ import { parseReferences } from "nostr-tools";
 import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, diffHuman } from "../../../libs/format";
+import { parseTextContent } from "../../../libs/parseTextContent";
 import Profile from "../../Profile/components/Profile";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
-import Quote from "./Quote";
 import Reply from "./Reply";
+import ShortTextContent from "./ShortTextContent";
 
 const Text: Component<{
   shortText: ReturnType<typeof parseShortTextNote>;
@@ -35,6 +36,8 @@ const Text: Component<{
 
     return reply ?? root;
   });
+
+  const parsedContents = createMemo(() => parseTextContent(props.shortText));
 
   const quoteTargetIDs = createMemo(() => {
     const fromTag = props.shortText.tags
@@ -113,6 +116,7 @@ const Text: Component<{
             "avatar name"
             "avatar content"
             ${hasEmbeddings() ? '"avatar embeddings"' : ""}
+            "action action"
             `,
           }}
         >
@@ -164,30 +168,9 @@ const Text: Component<{
                 </For>
               </div>
             </Show>
-            <pre class="whitespace-pre-wrap break-anywhere">
-              {props.shortText.content}
-            </pre>
+            <ShortTextContent contents={parsedContents()} />
           </div>
-          {/* TODO: nostr:note1 で埋め込まれている場合はその位置に表示する */}
-          <Show when={hasEmbeddings()}>
-            <div class="grid-area-[embeddings]">
-              <For each={quoteTargetIDs()}>
-                {(id) => (
-                  <div class="rounded b-1 b-zinc-2 overflow-hidden p-1">
-                    <Quote id={id} />
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
           {/* TODO: actions */}
-          {/* <div class="grid-area-[action]">
-            <Show when={props.shortText.tags.length > 0}>
-              <pre class="text-80% text-zinc-5">
-                {JSON.stringify(props.shortText, null, 2)}
-              </pre>
-            </Show>
-          </div> */}
         </div>
         <HoverCard.Portal>
           <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] max-h-[min(calc(100vh-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-auto">

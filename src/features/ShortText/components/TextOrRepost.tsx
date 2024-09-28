@@ -1,6 +1,6 @@
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
-import type { parseShortTextNote, parseTextNoteOrRepost } from "../event";
+import { parseShortTextNote, type parseTextNoteOrRepost } from "../event";
 import { useQueryShortTextById } from "../query";
 import Text from "./Text";
 
@@ -25,9 +25,7 @@ const TextOrRepost: Component<{
   const repostedEvent = createMemo(() => {
     try {
       // TODO: valibotでパースする
-      return JSON.parse(props.textOrRepost.content) as ReturnType<
-        typeof parseShortTextNote
-      >;
+      return parseShortTextNote(JSON.parse(props.textOrRepost.content));
     } catch {
       return text.data;
     }

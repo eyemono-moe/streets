@@ -79,14 +79,21 @@ export const imetaTag = v.pipe(
       }),
     ),
   ),
-  v.transform((input) => {
-    const [kind, ...rest] = input;
-    const kv = Object.fromEntries(rest.map((i) => [i.key, i.value]));
-    return {
-      kind,
-      ...kv,
-    };
-  }),
+  v.transform(
+    (
+      input,
+    ): {
+      kind: "imeta";
+      [key: string]: string;
+    } => {
+      const [kind, ...rest] = input;
+      const kv = Object.fromEntries(rest.map((i) => [i.key, i.value]));
+      return {
+        kind,
+        ...kv,
+      };
+    },
+  ),
 );
 
 export type ImetaTag = v.InferOutput<typeof imetaTag>;

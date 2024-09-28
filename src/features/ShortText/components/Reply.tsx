@@ -2,14 +2,20 @@ import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
 import { type Component, For, Show, createMemo } from "solid-js";
 import { dateHuman, diffHuman } from "../../../libs/format";
+import { parseTextContent } from "../../../libs/parseTextContent";
 import Profile from "../../Profile/components/Profile";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import { useQueryShortTextById } from "../query";
+import ShortTextContent from "./ShortTextContent";
 
 const Reply: Component<{
   id?: string;
 }> = (props) => {
   const text = useQueryShortTextById(() => props.id);
+
+  const parsedContents = createMemo(() =>
+    text.data ? parseTextContent(text.data) : [],
+  );
 
   const replyTargetsQuery = useQueryProfiles(() =>
     text.data?.tags.filter((tag) => tag.kind === "p").map((tag) => tag.pubkey),
@@ -94,9 +100,9 @@ const Reply: Component<{
                 {diff()}
               </span>
             </div>
-            <pre class="grid-area-[content] whitespace-pre-wrap break-anywhere">
-              {text.data?.content}
-            </pre>
+            <div class="grid-area-[content]">
+              <ShortTextContent contents={parsedContents()} />
+            </div>
           </div>
           <HoverCard.Portal>
             <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-hidden">
