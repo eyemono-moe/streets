@@ -18,6 +18,8 @@ export type ImageContent = {
   src: string;
   blurhash?: string;
   alt?: string;
+  thumb?: string;
+  size?: { width: number; height: number };
 };
 export type LinkContent = {
   type: "link";
@@ -116,6 +118,13 @@ export const splitTextByLinks = (
           src: matchedContent,
           blurhash: imetaTag?.blurhash,
           alt: imetaTag?.alt,
+          thumb: imetaTag?.thumb,
+          size: imetaTag?.dim
+            ? {
+                width: Number(imetaTag.dim.split("x")[0]),
+                height: Number(imetaTag.dim.split("x")[1]),
+              }
+            : undefined,
         });
         lastIdx = end;
       } else {
