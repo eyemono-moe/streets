@@ -1,6 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Show } from "solid-js";
-import Profile from "../../Profile/components/Profile";
+import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile } from "../../Profile/query";
 
 const EmbedUser: Component<{ pubkey: string }> = (props) => {
@@ -14,12 +14,7 @@ const EmbedUser: Component<{ pubkey: string }> = (props) => {
         </Show>
       </HoverCard.Trigger>
       <HoverCard.Portal>
-        <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] max-h-[min(calc(100vh-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-auto">
-          <HoverCard.Arrow />
-          <div class="bg-white">
-            <Profile pubkey={props.pubkey} />
-          </div>
-        </HoverCard.Content>
+        <ProfileHoverContent pubkey={props.pubkey} />
       </HoverCard.Portal>
     </HoverCard>
   );

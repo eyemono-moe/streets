@@ -3,7 +3,7 @@ import { Image } from "@kobalte/core/image";
 import { type Component, For, Show, createMemo } from "solid-js";
 import { dateHuman, diffHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
-import Profile from "../../Profile/components/Profile";
+import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import { useQueryShortTextById } from "../query";
 import ShortTextContent from "./ShortTextContent";
@@ -38,16 +38,26 @@ const Reply: Component<{
             <div class="ml-[calc(1rem-1px)] b-dashed b-l-2 mr-2 py-2 pl-2 text-80% text-zinc-5 flex flex-col gap-2">
               {/* TODO: リプライツリーの全体表示 */}
               <div>リプライを読み込む</div>
-              <div>
+              <div class="text-80%">
+                {"To "}
                 <For each={replyTargets()}>
                   {/* TODO: ユーザーページへのリンクにする */}
-                  {(target) => (
-                    <span class="not-last:after:(content-[',_'])">
-                      @{target.display_name}
-                    </span>
+                  {(target, i) => (
+                    <>
+                      <Show when={i() !== 0}>
+                        <span>, </span>
+                      </Show>
+                      <HoverCard>
+                        <HoverCard.Trigger class="cursor-pointer hover:(underline)">
+                          @{target.name}
+                        </HoverCard.Trigger>
+                        <HoverCard.Portal>
+                          <ProfileHoverContent pubkey={target.pubkey} />
+                        </HoverCard.Portal>
+                      </HoverCard>
+                    </>
                   )}
                 </For>
-                への返信
               </div>
             </div>
           </Show>
@@ -80,7 +90,7 @@ const Reply: Component<{
             </div>
             <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
               <div class="truncate">
-                <HoverCard.Trigger>
+                <HoverCard.Trigger class="cursor-pointer hover:(underline)">
                   <Show when={profile.data} fallback={text.data?.pubkey}>
                     <span>{profile.data?.display_name}</span>
                     <span class="text-80% text-zinc-5">
@@ -105,12 +115,7 @@ const Reply: Component<{
             </div>
           </div>
           <HoverCard.Portal>
-            <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-hidden">
-              <HoverCard.Arrow />
-              <div class="bg-white">
-                <Profile pubkey={profile.data?.pubkey} />
-              </div>
-            </HoverCard.Content>
+            <ProfileHoverContent pubkey={text.data?.pubkey} />
           </HoverCard.Portal>
         </div>
       </HoverCard>

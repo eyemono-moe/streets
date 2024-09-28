@@ -5,7 +5,7 @@ import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, diffHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
-import Profile from "../../Profile/components/Profile";
+import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
 import Reply from "./Reply";
@@ -72,7 +72,7 @@ const Text: Component<{
           <HoverCard>
             <div class="flex items-center gap-1">
               <div class="i-material-symbols:repeat-rounded w-4 h-auto aspect-square c-green" />
-              <HoverCard.Trigger class="cursor-pointer">
+              <HoverCard.Trigger class="cursor-pointer hover:(underline)">
                 <Show when={reposterProfile.data} fallback={props.repostBy}>
                   <span>{reposterProfile.data?.display_name}</span>
                   <span class="text-80% text-zinc-5">
@@ -83,12 +83,7 @@ const Text: Component<{
               <span>がリポスト</span>
             </div>
             <HoverCard.Portal>
-              <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] max-h-[min(calc(100vh-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-auto">
-                <HoverCard.Arrow />
-                <div class="bg-white">
-                  <Profile pubkey={reposterProfile.data?.pubkey} />
-                </div>
-              </HoverCard.Content>
+              <ProfileHoverContent pubkey={props.repostBy} />
             </HoverCard.Portal>
           </HoverCard>
         </div>
@@ -96,15 +91,25 @@ const Text: Component<{
       <Show when={textType() === "reply"}>
         <Reply id={replyOrRoot()?.id} />
         <div class="ml-[calc(1rem-1px)] b-l-2 mr-2 pt-4 pb-2 pl-2 text-80% text-zinc-5">
+          {"To "}
           <For each={replyTargets()}>
             {/* TODO: ユーザーページへのリンクにする */}
-            {(target) => (
-              <span class="not-last:after:(content-[',_'])">
-                @{target.display_name}
-              </span>
+            {(target, i) => (
+              <>
+                <Show when={i() !== 0}>
+                  <span>, </span>
+                </Show>
+                <HoverCard>
+                  <HoverCard.Trigger class="cursor-pointer hover:(underline)">
+                    @{target.name}
+                  </HoverCard.Trigger>
+                  <HoverCard.Portal>
+                    <ProfileHoverContent pubkey={target.pubkey} />
+                  </HoverCard.Portal>
+                </HoverCard>
+              </>
             )}
           </For>
-          への返信
         </div>
       </Show>
       {/* TODO: embeddingsの有無を見てareaを変える */}
@@ -139,7 +144,7 @@ const Text: Component<{
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
-              <HoverCard.Trigger class="cursor-pointer">
+              <HoverCard.Trigger class="cursor-pointer hover:(underline)">
                 <Show when={profile.data} fallback={props.shortText.pubkey}>
                   <span>{profile.data?.display_name}</span>
                   <span class="text-80% text-zinc-5">
@@ -173,12 +178,7 @@ const Text: Component<{
           {/* TODO: actions */}
         </div>
         <HoverCard.Portal>
-          <HoverCard.Content class="max-w-[min(calc(100vw-32px),520px)] max-h-[min(calc(100vh-32px),520px)] shadow-xl transform-origin-[--kb-hovercard-content-transform-origin] rounded-2 overflow-auto">
-            <HoverCard.Arrow />
-            <div class="bg-white">
-              <Profile pubkey={profile.data?.pubkey} />
-            </div>
-          </HoverCard.Content>
+          <ProfileHoverContent pubkey={props.shortText.pubkey} />
         </HoverCard.Portal>
       </HoverCard>
     </div>
