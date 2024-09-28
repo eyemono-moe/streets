@@ -17,12 +17,13 @@ const Quote: Component<{
     text.data ? parseTextContent(text.data) : [],
   );
 
-  const replyTargetsQuery = useQueryProfiles(() =>
-    text.data?.tags.filter((tag) => tag.kind === "p").map((tag) => tag.pubkey),
+  const replyTargetPubkeys = createMemo(
+    () =>
+      text.data?.tags
+        .filter((tag) => tag.kind === "p")
+        .map((tag) => tag.pubkey) ?? [],
   );
-  const replyTargets = createMemo(() =>
-    Array.from(replyTargetsQuery.data?.values() ?? []),
-  );
+  const replyTargetQueries = useQueryProfiles(() => replyTargetPubkeys());
 
   const profile = useQueryProfile(() => text.data?.pubkey);
   const diff = () =>
@@ -33,13 +34,13 @@ const Quote: Component<{
   return (
     <div>
       <HoverCard>
-        <Show when={replyTargets().length > 0}>
+        <Show when={replyTargetPubkeys().length > 0}>
           <div class="ml-[calc(1rem-1px)] b-dashed b-l-2 mr-2 py-2 pl-2 text-80% text-zinc-5 flex flex-col gap-2">
             {/* TODO: リプライツリーの全体表示 */}
             <div>リプライを読み込む</div>
             <div>
               {"To "}
-              <For each={replyTargets()}>
+              <For each={replyTargetQueries}>
                 {/* TODO: ユーザーページへのリンクにする */}
                 {(target, i) => (
                   <>
@@ -48,10 +49,10 @@ const Quote: Component<{
                     </Show>
                     <HoverCard>
                       <HoverCard.Trigger class="cursor-pointer hover:(underline)">
-                        @{target.name}
+                        @{target.data?.name ?? replyTargetPubkeys()[i()]}
                       </HoverCard.Trigger>
                       <HoverCard.Portal>
-                        <ProfileHoverContent pubkey={target.pubkey} />
+                        <ProfileHoverContent pubkey={target.data?.pubkey} />
                       </HoverCard.Portal>
                     </HoverCard>
                   </>

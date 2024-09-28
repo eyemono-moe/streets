@@ -18,14 +18,14 @@ const Text: Component<{
   const profile = useQueryProfile(() => props.shortText.pubkey);
   const diff = diffHuman(new Date(props.shortText.created_at * 1000));
 
-  const replyTargetsQuery = useQueryProfiles(() =>
-    props.shortText.tags
-      .filter((tag) => tag.kind === "p")
-      .map((tag) => tag.pubkey),
+  const replyTargetPubkeys = createMemo(
+    () =>
+      props.shortText.tags
+        .filter((tag) => tag.kind === "p")
+        .map((tag) => tag.pubkey) ?? [],
   );
-  const replyTargets = createMemo(() =>
-    Array.from(replyTargetsQuery.data?.values() ?? []),
-  );
+  const replyTargetQueries = useQueryProfiles(() => replyTargetPubkeys());
+
   const replyOrRoot = createMemo(() => {
     const reply = props.shortText.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
@@ -43,7 +43,7 @@ const Text: Component<{
     // e tagがあればreply
     if (replyOrRoot()) return "reply";
     // p tagのみがあればmention
-    if (replyTargets().length > 0) return "mention";
+    if (replyTargetPubkeys().length > 0) return "mention";
     return "normal";
   };
   const reposterProfile = useQueryProfile(() => props.repostBy);
@@ -125,7 +125,7 @@ const Text: Component<{
         <Reply id={replyOrRoot()?.id} />
         <div class="ml-[calc(1rem-1px)] b-l-2 mr-2 pt-4 pb-2 pl-2 text-80% text-zinc-5">
           {"To "}
-          <For each={replyTargets()}>
+          <For each={replyTargetQueries}>
             {/* TODO: ユーザーページへのリンクにする */}
             {(target, i) => (
               <>
@@ -134,10 +134,10 @@ const Text: Component<{
                 </Show>
                 <HoverCard>
                   <HoverCard.Trigger class="cursor-pointer hover:(underline)">
-                    @{target.name}
+                    @{target.data?.name ?? replyTargetPubkeys()[i()]}
                   </HoverCard.Trigger>
                   <HoverCard.Portal>
-                    <ProfileHoverContent pubkey={target.pubkey} />
+                    <ProfileHoverContent pubkey={target.data?.pubkey} />
                   </HoverCard.Portal>
                 </HoverCard>
               </>
@@ -197,12 +197,22 @@ const Text: Component<{
           <div class="grid-area-[content]">
             <Show when={textType() === "mention"}>
               <div class="text-80% text-zinc-5 pb-2">
-                <For each={replyTargets()}>
+                <For each={replyTargetQueries}>
                   {/* TODO: ユーザーページへのリンクにする */}
-                  {(target) => (
-                    <span class="not-last:after:(content-[',_'])">
-                      @{target.display_name}
-                    </span>
+                  {(target, i) => (
+                    <>
+                      <Show when={i() !== 0}>
+                        <span>, </span>
+                      </Show>
+                      <HoverCard>
+                        <HoverCard.Trigger class="cursor-pointer hover:(underline)">
+                          @{target.data?.name ?? replyTargetPubkeys()[i()]}
+                        </HoverCard.Trigger>
+                        <HoverCard.Portal>
+                          <ProfileHoverContent pubkey={target.data?.pubkey} />
+                        </HoverCard.Portal>
+                      </HoverCard>
+                    </>
                   )}
                 </For>
               </div>

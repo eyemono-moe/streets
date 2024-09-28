@@ -1,6 +1,7 @@
 import {
   type QueryKey,
   createInfiniteQuery,
+  createQueries,
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
@@ -71,6 +72,41 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
       return pickLatestEvent(events);
     },
     enabled: props().enable,
+  }));
+};
+
+export const createLatestFilterQueries = <T extends ComparableEvent>(
+  props: () => {
+    filter: Filter;
+    keys: QueryKey;
+    parser: (e: NostrEvent) => T;
+    enable?: boolean;
+    closeOnEOS?: boolean;
+    immediate?: boolean;
+  }[],
+) => {
+  const queryClient = useQueryClient();
+  const subscriber = useSubscriber();
+  if (!subscriber) {
+    throw new Error("Subscriber not found");
+  }
+  return createQueries(() => ({
+    queries: props().map((p) => ({
+      queryKey: p.keys,
+      queryFn: async () => {
+        const events = await subscriber.sub({
+          filter: p.filter,
+          parser: p.parser,
+          onEvent: (events) => {
+            queryClient.setQueryData(p.keys, pickLatestEvent(events));
+          },
+          closeOnEOS: p.closeOnEOS,
+          immediate: p.immediate,
+        });
+        return pickLatestEvent(events);
+      },
+      enabled: p.enable,
+    })),
   }));
 };
 

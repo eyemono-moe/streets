@@ -1,24 +1,26 @@
 import { kinds } from "nostr-tools";
 import {
-  createLatestByPubkeyQuery,
+  createLatestFilterQueries,
   createLatestFilterQuery,
 } from "../../libs/query";
 import { parseProfile } from "./event";
 
 // TODO: https://tanstack.com/query/latest/docs/framework/react/reference/useQueries を使う
 export const useQueryProfiles = (pubkey: () => string[] | undefined) => {
-  return createLatestByPubkeyQuery(() => {
-    const p = pubkey();
-    const enable = !!p && p.length > 0;
-    return {
+  const tmpPubkey = pubkey();
+  if (!tmpPubkey) {
+    return [];
+  }
+  return createLatestFilterQueries(() => {
+    return tmpPubkey.map((p) => ({
       filter: {
         kinds: [kinds.Metadata],
-        authors: pubkey(),
+        authors: [p],
       },
-      keys: ["profile", pubkey()],
+      keys: ["profile", p],
       parser: parseProfile,
-      enable,
-    };
+      enable: true,
+    }));
   });
 };
 export const useQueryProfile = (pubkey: () => string | undefined) => {
