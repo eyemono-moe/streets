@@ -1,6 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
-import { eventTag, quoteTag, userTag } from "../../libs/commonTag";
+import { eventTag, imetaTag, quoteTag, userTag } from "../../libs/commonTag";
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 
@@ -9,6 +9,7 @@ const textNoteTags = v.array(
     userTag,
     eventTag,
     quoteTag,
+    imetaTag,
     // fallback
     v.pipe(
       v.array(v.string()),

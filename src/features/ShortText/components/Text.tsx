@@ -1,5 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
+import { parseReferences } from "nostr-tools";
 import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, diffHuman } from "../../../libs/format";
@@ -35,11 +36,22 @@ const Text: Component<{
     return reply ?? root;
   });
 
-  const quoteTargets = createMemo(() =>
-    props.shortText.tags.filter((t) => t.kind === "q"),
-  );
+  const quoteTargetIDs = createMemo(() => {
+    const fromTag = props.shortText.tags
+      .filter((t) => t.kind === "q")
+      .map((t) => t.id);
 
-  const hasEmbeddings = createMemo(() => quoteTargets().length > 0);
+    const references = props.shortText.raw
+      ? parseReferences(props.shortText.raw)
+      : [];
+    const fromRef = references
+      .map((e) => e.event?.id)
+      .filter((id): id is string => !!id);
+
+    return Array.from(new Set([...fromTag, ...fromRef]));
+  });
+
+  const hasEmbeddings = createMemo(() => quoteTargetIDs().length > 0);
 
   const textType = () => {
     // e tagがあればreply
@@ -156,12 +168,13 @@ const Text: Component<{
               {props.shortText.content}
             </pre>
           </div>
+          {/* TODO: nostr:note1 で埋め込まれている場合はその位置に表示する */}
           <Show when={hasEmbeddings()}>
             <div class="grid-area-[embeddings]">
-              <For each={quoteTargets()}>
-                {(quote) => (
+              <For each={quoteTargetIDs()}>
+                {(id) => (
                   <div class="rounded b-1 b-zinc-2 overflow-hidden p-1">
-                    <Quote id={quote.id} />
+                    <Quote id={id} />
                   </div>
                 )}
               </For>
@@ -171,7 +184,7 @@ const Text: Component<{
           {/* <div class="grid-area-[action]">
             <Show when={props.shortText.tags.length > 0}>
               <pre class="text-80% text-zinc-5">
-                {JSON.stringify(props.shortText.tags, null, 2)}
+                {JSON.stringify(props.shortText, null, 2)}
               </pre>
             </Show>
           </div> */}

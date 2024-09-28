@@ -64,3 +64,29 @@ export const quoteTag = v.pipe(
       }) as const,
   ),
 );
+
+export type QuoteTag = v.InferOutput<typeof quoteTag>;
+
+// https://github.com/nostr-protocol/nips/blob/master/92.md
+export const imetaTag = v.pipe(
+  v.tupleWithRest(
+    [v.literal("imeta")],
+    v.pipe(
+      v.string(),
+      v.transform((input) => {
+        const [key, value] = input.split(/\s(.*)/s);
+        return { key, value };
+      }),
+    ),
+  ),
+  v.transform((input) => {
+    const [kind, ...rest] = input;
+    const kv = Object.fromEntries(rest.map((i) => [i.key, i.value]));
+    return {
+      kind,
+      ...kv,
+    };
+  }),
+);
+
+export type ImetaTag = v.InferOutput<typeof imetaTag>;
