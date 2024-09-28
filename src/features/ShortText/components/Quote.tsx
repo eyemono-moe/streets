@@ -108,7 +108,7 @@ const Quote: Component<{
               {diff()}
             </span>
           </div>
-          <div class="grid-area-[content]">
+          <div class="grid-area-[content] text-125%">
             <ShortTextContent contents={parsedContents()} />
           </div>
         </div>
