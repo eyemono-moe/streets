@@ -23,7 +23,12 @@ export const useQueryLatestTextOrRepost = (
       authors: authors(),
       since: Math.floor(Date.now() / 1000),
     }),
-    () => ["shortTextNote", authors()],
+    () => [
+      "shortTextNote",
+      {
+        authors: authors(),
+      },
+    ],
     parseTextNoteOrRepost,
     () => {
       const a = authors();
@@ -40,7 +45,7 @@ export const useQueryInfiniteTextOrRepost = (
       kinds: [kinds.ShortTextNote, kinds.Repost],
       authors: authors(),
     }),
-    () => ["infiniteShortTextNote", authors()],
+    () => ["infiniteShortTextNote", { authors: authors() }],
     parseTextNoteOrRepost,
     () => {
       const a = authors();
@@ -55,7 +60,7 @@ export const useQueryShortTextById = (id: () => string | undefined) => {
       kinds: [kinds.ShortTextNote],
       ids: [id() ?? ""],
     }),
-    () => ["shortTextNote", id()],
+    () => ["shortTextNote", { id: id() }],
     parseShortTextNote,
     () => !!id(),
   );
