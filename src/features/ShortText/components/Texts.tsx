@@ -1,6 +1,6 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
 import { type Component, For, Show, createSignal } from "solid-js";
-import { pickLatestEvent, sortEvents } from "../../../libs/latestEvent";
+import { sortEvents } from "../../../libs/latestEvent";
 import { useQueryPubKey } from "../../../libs/useNIP07";
 import {
   useQueryFollowList,
@@ -12,8 +12,7 @@ import TextOrRepost from "./TextOrRepost";
 const Texts: Component = () => {
   const pubKey = useQueryPubKey();
   const follows = useQueryFollowList(() => pubKey.data);
-  const followPubKeys = () =>
-    pickLatestEvent(follows.data ?? [])?.tags.map((tag) => tag.pubkey);
+  const followPubKeys = () => follows.data?.tags.map((tag) => tag.pubkey);
 
   const texts = useQueryLatestTextOrRepost(followPubKeys);
   const oldTexts = useQueryInfiniteTextOrRepost(followPubKeys);

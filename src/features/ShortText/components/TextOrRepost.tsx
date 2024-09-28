@@ -1,4 +1,4 @@
-import { type Component, Match, Switch, createMemo } from "solid-js";
+import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import type { parseShortTextNote, parseTextNoteOrRepost } from "../event";
 import { useQueryShortTextById } from "../query";
@@ -42,13 +42,15 @@ const TextOrRepost: Component<{
           }
         />
       </Match>
-      <Match when={props.textOrRepost.kind === "Repost" && repostedEvent()}>
-        {(nonNullText) => (
-          <Text
-            shortText={nonNullText()}
-            repostBy={props.textOrRepost.pubkey}
-          />
-        )}
+      <Match when={props.textOrRepost.kind === "Repost"}>
+        <Show when={repostedEvent()}>
+          {(nonNullText) => (
+            <Text
+              shortText={nonNullText()}
+              repostBy={props.textOrRepost.pubkey}
+            />
+          )}
+        </Show>
       </Match>
     </Switch>
   );

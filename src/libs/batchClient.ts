@@ -58,6 +58,7 @@ export class BatchSubscriber {
   private resolversMap = new Map<string, ((events: any[]) => void)[]>();
   // biome-ignore lint/suspicious/noExplicitAny: can't infer type
   private onEventMap = new Map<string, ((event: any[]) => void) | undefined>();
+  private closeOnEOSMap = new Map<string, boolean>();
 
   constructor(pool: SimplePool, relays: string[]) {
     this.batchExecutor = new BatchExecutor({
@@ -67,7 +68,7 @@ export class BatchSubscriber {
         if (filters.length === 0) {
           return;
         }
-        pool.subscribeMany(relays, filters, {
+        const sub = pool.subscribeMany(relays, filters, {
           onevent: (event) => {
             for (const filter of filters) {
               if (matchFilter(filter, event)) {
@@ -85,10 +86,17 @@ export class BatchSubscriber {
             for (const filter of filters) {
               const resolvers = this.resolversMap.get(serializeFilter(filter));
               const events = this.eventsMap.get(serializeFilter(filter));
+              const closeOnEOS = this.closeOnEOSMap.get(
+                serializeFilter(filter),
+              );
+
               if (resolvers && events) {
                 for (const resolver of resolvers) {
                   resolver(events);
                 }
+              }
+              if (closeOnEOS) {
+                sub.close();
               }
             }
           },
@@ -103,10 +111,12 @@ export class BatchSubscriber {
     filter,
     parser,
     onEvent,
+    closeOnEOS = true,
   }: {
     filter: Filter;
     parser: (e: NostrEvent) => T;
     onEvent?: (event: T[]) => void;
+    closeOnEOS?: boolean;
   }) {
     return new Promise<T[]>((resolve) => {
       if (!this.resolversMap.has(serializeFilter(filter))) {
@@ -118,6 +128,8 @@ export class BatchSubscriber {
         this.eventsMap.set(serializeFilter(filter), []);
         this.parserMap.set(serializeFilter(filter), parser);
         this.onEventMap.set(serializeFilter(filter), onEvent);
+        this.closeOnEOSMap.set(serializeFilter(filter), closeOnEOS);
+
         this.batchExecutor.push(filter);
       }
     });

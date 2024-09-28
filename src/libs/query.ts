@@ -13,10 +13,13 @@ import {
 } from "./latestEvent";
 
 export const createFilterQuery = <T>(
-  filter: () => Filter,
-  keys: () => QueryKey,
-  parser: (e: NostrEvent) => T,
-  enable: () => boolean = () => true,
+  props: () => {
+    filter: Filter;
+    keys: QueryKey;
+    parser: (e: NostrEvent) => T;
+    enable?: boolean;
+    closeOnEOS?: boolean;
+  },
 ) => {
   const queryClient = useQueryClient();
   const subscriber = useSubscriber();
@@ -24,24 +27,28 @@ export const createFilterQuery = <T>(
     throw new Error("Subscriber not found");
   }
   return createQuery(() => ({
-    queryKey: keys(),
+    queryKey: props().keys,
     queryFn: () =>
       subscriber.sub({
-        filter: filter(),
-        parser,
+        filter: props().filter,
+        parser: props().parser,
         onEvent: (events) => {
-          queryClient.setQueryData(keys(), events);
+          queryClient.setQueryData(props().keys, events);
         },
+        closeOnEOS: props().closeOnEOS,
       }),
-    enabled: enable(),
+    enabled: props().enable,
   }));
 };
 
 export const createLatestFilterQuery = <T extends ComparableEvent>(
-  filter: () => Filter,
-  keys: () => QueryKey,
-  parser: (e: NostrEvent) => T,
-  enable: () => boolean = () => true,
+  props: () => {
+    filter: Filter;
+    keys: QueryKey;
+    parser: (e: NostrEvent) => T;
+    enable?: boolean;
+    closeOnEOS?: boolean;
+  },
 ) => {
   const queryClient = useQueryClient();
   const subscriber = useSubscriber();
@@ -49,18 +56,19 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
     throw new Error("Subscriber not found");
   }
   return createQuery(() => ({
-    queryKey: keys(),
+    queryKey: props().keys,
     queryFn: async () => {
       const events = await subscriber.sub({
-        filter: filter(),
-        parser,
+        filter: props().filter,
+        parser: props().parser,
         onEvent: (events) => {
-          queryClient.setQueryData(keys(), pickLatestEvent(events));
+          queryClient.setQueryData(props().keys, pickLatestEvent(events));
         },
+        closeOnEOS: props().closeOnEOS,
       });
       return pickLatestEvent(events);
     },
-    enabled: enable(),
+    enabled: props().enable,
   }));
 };
 
@@ -69,34 +77,39 @@ export const createLatestByPubkeyQuery = <
     pubkey: string;
   },
 >(
-  filter: () => Filter,
-  keys: () => QueryKey,
-  parser: (e: NostrEvent) => T,
-  enable: () => boolean = () => true,
+  props: () => {
+    filter: Filter;
+    keys: QueryKey;
+    parser: (e: NostrEvent) => T;
+    enable?: boolean;
+    closeOnEOS?: boolean;
+  },
 ) => {
   const subscriber = useSubscriber();
   if (!subscriber) {
     throw new Error("Subscriber not found");
   }
   return createQuery(() => ({
-    queryKey: keys(),
+    queryKey: props().keys,
     queryFn: async () => {
       const events = await subscriber.sub({
-        filter: filter(),
-        parser,
+        filter: props().filter,
+        parser: props().parser,
+        closeOnEOS: props().closeOnEOS,
       });
-      return pickLatestEventByPubkey(Array.from(events.values()));
+      return pickLatestEventByPubkey(events);
     },
-    enabled: enable(),
+    enabled: props().enable,
   }));
 };
 
 export const createInfiniteFilterQuery = <T extends ComparableEvent>(
-  filter: () => Filter,
-  keys: () => QueryKey,
-  parser: (e: NostrEvent) => T,
-  enable: () => boolean = () => true,
-  limit = 50,
+  props: () => {
+    filter: Filter;
+    keys: QueryKey;
+    parser: (e: NostrEvent) => T;
+    enable?: boolean;
+  },
 ) => {
   const subscriber = useSubscriber();
   if (!subscriber) {
@@ -104,23 +117,33 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
   }
 
   return createInfiniteQuery(() => ({
-    queryKey: keys(),
-    queryFn: async ({ pageParam: until }) => {
+    queryKey: props().keys,
+    queryFn: async ({ pageParam }) => {
       const res = await subscriber.sub({
         filter: {
-          ...filter(),
-          limit,
-          until,
+          ...props().filter,
+          until: pageParam.until,
+          since: pageParam.since,
         },
-        parser,
+        parser: props().parser,
       });
       return res;
     },
-    initialPageParam: Math.floor(new Date().getTime() / 1000),
-    getNextPageParam: (lastPage) => {
-      const minCreatedAt = Math.min(...lastPage.map((e) => e.created_at)) - 1;
-      return minCreatedAt;
+    // リレー毎に保存されているイベントが異なるので複数のリレーから limit で取ってくるとかなり古いイベントが含まれることがある
+    // TODO: limitを使わずにsince/untilで取得するか、すべてのリレーのEOSEを待ってlimit件数を超えたものを削る必要がある
+    // see: nostr:note1u0tjptue0p2dkd420dtgneg4z5yysaw0u0ht9a3tt9snzu8kdk7s2fs4uf
+    initialPageParam: {
+      until: Math.floor(new Date().getTime() / 1000),
+      since: Math.floor(new Date().getTime() / 1000) - 60 * 60 * 1, // 1 hours
     },
-    enabled: enable(),
+    getNextPageParam: (lastPage) => {
+      // もっとも古いイベントの1秒前
+      const minCreatedAt = Math.min(...lastPage.map((e) => e.created_at)) - 1;
+      return {
+        until: minCreatedAt,
+        since: minCreatedAt - 60 * 60 * 1, // 1 hours
+      };
+    },
+    enabled: props().enable,
   }));
 };

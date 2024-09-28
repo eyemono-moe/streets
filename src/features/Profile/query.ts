@@ -6,30 +6,32 @@ import {
 import { parseProfile } from "./event";
 
 export const useQueryProfiles = (pubkey: () => string[] | undefined) => {
-  return createLatestByPubkeyQuery(
-    () => ({
-      kinds: [kinds.Metadata],
-      authors: pubkey(),
-    }),
-    () => ["profile", pubkey()],
-    parseProfile,
-    () => {
-      const p = pubkey();
-      return !!p && p.length > 0;
-    },
-  );
+  return createLatestByPubkeyQuery(() => {
+    const p = pubkey();
+    const enable = !!p && p.length > 0;
+    return {
+      filter: {
+        kinds: [kinds.Metadata],
+        authors: pubkey(),
+      },
+      keys: ["profile", pubkey()],
+      parser: parseProfile,
+      enable,
+    };
+  });
 };
 export const useQueryProfile = (pubkey: () => string | undefined) => {
-  return createLatestFilterQuery(
-    () => ({
-      kinds: [kinds.Metadata],
-      authors: [pubkey() ?? ""],
-    }),
-    () => ["profile", pubkey()],
-    parseProfile,
-    () => {
-      const p = pubkey();
-      return !!p && p.length > 0;
-    },
-  );
+  return createLatestFilterQuery(() => {
+    const p = pubkey();
+    const enable = !!p && p.length > 0;
+    return {
+      filter: {
+        kinds: [kinds.Metadata],
+        authors: [pubkey() ?? ""],
+      },
+      keys: ["profile", pubkey()],
+      parser: parseProfile,
+      enable,
+    };
+  });
 };

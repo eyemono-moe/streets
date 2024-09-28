@@ -17,63 +17,66 @@ import {
 export const useQueryLatestTextOrRepost = (
   authors: () => string[] | undefined,
 ) => {
-  return createFilterQuery(
-    () => ({
-      kinds: [kinds.ShortTextNote, kinds.Repost],
-      authors: authors(),
-      since: Math.floor(Date.now() / 1000),
-    }),
-    () => [
-      "shortTextNote",
-      {
+  return createFilterQuery(() => {
+    const a = authors();
+    const enable = !!a && a.length > 0;
+    return {
+      filter: {
+        kinds: [kinds.ShortTextNote, kinds.Repost],
         authors: authors(),
+        since: Math.floor(Date.now() / 1000),
       },
-    ],
-    parseTextNoteOrRepost,
-    () => {
-      const a = authors();
-      return !!a && a.length > 0;
-    },
-  );
+      keys: [
+        "shortTextNote",
+        {
+          authors: authors(),
+        },
+      ],
+      parser: parseTextNoteOrRepost,
+      enable,
+      closeOnEOS: false,
+    };
+  });
 };
 
 export const useQueryInfiniteTextOrRepost = (
   authors: () => string[] | undefined,
 ) => {
-  return createInfiniteFilterQuery(
-    () => ({
-      kinds: [kinds.ShortTextNote, kinds.Repost],
-      authors: authors(),
-    }),
-    () => ["infiniteShortTextNote", { authors: authors() }],
-    parseTextNoteOrRepost,
-    () => {
-      const a = authors();
-      return !!a && a.length > 0;
-    },
-  );
+  return createInfiniteFilterQuery(() => {
+    const a = authors();
+    const enable = !!a && a.length > 0;
+    return {
+      filter: {
+        kinds: [kinds.ShortTextNote, kinds.Repost],
+        authors: authors(),
+      },
+      keys: ["infiniteShortTextNote", { authors: authors() }],
+      parser: parseTextNoteOrRepost,
+      enable,
+    };
+  });
 };
 
 export const useQueryShortTextById = (id: () => string | undefined) => {
-  return createLatestFilterQuery(
-    () => ({
+  return createLatestFilterQuery(() => ({
+    filter: {
       kinds: [kinds.ShortTextNote],
       ids: [id() ?? ""],
-    }),
-    () => ["shortTextNote", { id: id() }],
-    parseShortTextNote,
-    () => !!id(),
-  );
+    },
+    keys: ["shortTextNote", { id: id() }],
+    parser: parseShortTextNote,
+    enable: !!id(),
+  }));
 };
 
 export const useQueryFollowList = (user: () => string | undefined) => {
-  return createFilterQuery(
-    () => ({
+  return createLatestFilterQuery(() => ({
+    filter: {
       kinds: [kinds.Contacts],
       authors: [user() ?? ""],
-    }),
-    () => ["follow", user()],
-    parseFollowList,
-    () => !!user(),
-  );
+    },
+    keys: ["follow", user()],
+    parser: parseFollowList,
+    enable: !!user(),
+  }));
 };
