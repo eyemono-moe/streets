@@ -125,12 +125,19 @@ export class BatchSubscriber {
       this.resolversMap.get(serializeFilter(filter))?.push(resolve);
 
       if (!this.eventsMap.has(serializeFilter(filter))) {
+        // no cache
         this.eventsMap.set(serializeFilter(filter), []);
         this.parserMap.set(serializeFilter(filter), parser);
         this.onEventMap.set(serializeFilter(filter), onEvent);
         this.closeOnEOSMap.set(serializeFilter(filter), closeOnEOS);
 
         this.batchExecutor.push(filter);
+      } else {
+        // cache hit
+        const events = this.eventsMap.get(serializeFilter(filter)) as T[];
+        if (events) {
+          resolve(events);
+        }
       }
     });
   }
