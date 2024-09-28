@@ -39,17 +39,20 @@ const Texts: Component = () => {
           </For>
         )}
       </For>
-      <div
-        use:intersectionObserver={() => {
-          fetchNextPage();
-        }}
+      <Show
+        when={oldTexts.isFetching}
+        fallback={
+          <div
+            use:intersectionObserver={() => {
+              fetchNextPage();
+            }}
+          />
+        }
       >
-        <Show when={oldTexts.isFetching}>
-          <div class="flex items-center justify-center p-2">
-            <div class="animate-spin rounded-full w-8 h-auto aspect-square b-4 b-zinc-3 b-r-violet" />
-          </div>
-        </Show>
-      </div>
+        <div class="flex items-center justify-center p-2">
+          <div class="animate-spin rounded-full w-8 h-auto aspect-square b-4 b-zinc-3 b-r-violet" />
+        </div>
+      </Show>
     </div>
   );
 };
