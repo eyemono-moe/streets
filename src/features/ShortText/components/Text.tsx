@@ -158,23 +158,25 @@ const Text: Component<{
           }}
         >
           {/* TODO: ユーザーページへのリンクにする */}
-          <HoverCard.Trigger class="grid-area-[avatar] cursor-pointer">
-            <Image
-              class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square rounded bg-zinc-2"
-              fallbackDelay={500}
-            >
-              <Image.Img
-                src={profile.data?.picture}
-                alt={profile.data?.name}
-                loading="lazy"
-                class="object-cover w-full h-full"
-              />
-              <Image.Fallback class="w-full h-full flex items-center justify-center">
-                {profile.data?.name.slice(0, 2) ??
-                  props.shortText.pubkey.slice(0, 2)}
-              </Image.Fallback>
-            </Image>
-          </HoverCard.Trigger>
+          <div class="grid-area-[avatar]">
+            <HoverCard.Trigger class="cursor-pointer">
+              <Image
+                class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square rounded bg-zinc-2"
+                fallbackDelay={500}
+              >
+                <Image.Img
+                  src={profile.data?.picture}
+                  alt={profile.data?.name}
+                  loading="lazy"
+                  class="object-cover w-full h-full"
+                />
+                <Image.Fallback class="w-full h-full flex items-center justify-center">
+                  {profile.data?.name.slice(0, 2) ??
+                    props.shortText.pubkey.slice(0, 2)}
+                </Image.Fallback>
+              </Image>
+            </HoverCard.Trigger>
+          </div>
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
