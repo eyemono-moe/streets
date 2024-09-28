@@ -135,9 +135,11 @@ const Text: Component<{
                 src={profile.data?.picture}
                 alt={profile.data?.name}
                 loading="lazy"
+                class="object-cover w-full h-full"
               />
               <Image.Fallback class="w-full h-full flex items-center justify-center">
-                {profile.data?.name.slice(0, 2)}
+                {profile.data?.name.slice(0, 2) ??
+                  props.shortText.pubkey.slice(0, 2)}
               </Image.Fallback>
             </Image>
           </HoverCard.Trigger>

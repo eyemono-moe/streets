@@ -17,9 +17,13 @@ const Profile: Component<{
           class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square shrink-0 rounded bg-zinc-2"
           fallbackDelay={0}
         >
-          <Image.Img src={profile.data?.picture} alt={profile.data?.name} />
+          <Image.Img
+            src={profile.data?.picture}
+            alt={profile.data?.name}
+            class="object-cover w-full h-full"
+          />
           <Image.Fallback class="w-full h-full flex items-center justify-center">
-            {profile.data?.name.slice(0, 2)}
+            {profile.data?.name.slice(0, 2) ?? props.pubkey?.slice(0, 2)}
           </Image.Fallback>
         </Image>
         <div class="overflow-hidden">
