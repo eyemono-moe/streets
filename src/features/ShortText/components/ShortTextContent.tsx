@@ -34,6 +34,8 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
                   class="w-auto max-w-full h-full max-h-50vh object-contain b-1 b-zinc-2 rounded"
                   src={(content as ImageContent).src}
                   alt={(content as ImageContent).alt ?? ""}
+                  width={(content as ImageContent).size?.width}
+                  height={(content as ImageContent).size?.height}
                   loading="lazy"
                 />
               </a>
