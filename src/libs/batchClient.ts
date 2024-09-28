@@ -63,8 +63,6 @@ export class BatchSubscriber {
   constructor(pool: SimplePool, relays: string[]) {
     this.batchExecutor = new BatchExecutor({
       executor: (filters) => {
-        // TODO: close
-
         if (filters.length === 0) {
           return;
         }
