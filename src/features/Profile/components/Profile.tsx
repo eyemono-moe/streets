@@ -16,18 +16,18 @@ const Profile: Component<{
   );
 
   return (
-    <div class="text-zinc-9 p-2 grid grid-rows-[auto_minmax(0,1fr)] gap-2 h-full max-h-inherit text-4">
-      <div class="grid gap-2 grid-cols-[auto_1fr]">
+    <div class="grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] gap-2 p-2 text-4 text-zinc-9">
+      <div class="grid grid-cols-[auto_1fr] gap-2">
         <Image
-          class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square shrink-0 rounded bg-zinc-2"
+          class="inline-flex aspect-square h-auto w-12 shrink-0 select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
           fallbackDelay={0}
         >
           <Image.Img
             src={profile.data?.picture}
             alt={profile.data?.name}
-            class="object-cover w-full h-full"
+            class="h-full w-full object-cover"
           />
-          <Image.Fallback class="w-full h-full flex items-center justify-center">
+          <Image.Fallback class="flex h-full w-full items-center justify-center">
             {profile.data?.name.slice(0, 2) ?? props.pubkey?.slice(0, 2)}
           </Image.Fallback>
         </Image>

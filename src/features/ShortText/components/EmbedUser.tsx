@@ -8,7 +8,7 @@ const EmbedUser: Component<{ pubkey: string }> = (props) => {
 
   return (
     <HoverCard>
-      <HoverCard.Trigger class="cursor-pointer hover:(underline) c-blue-5 font-bold">
+      <HoverCard.Trigger class="hover:(underline) c-blue-5 cursor-pointer font-bold">
         <Show when={profile.data} fallback={`@${props.pubkey}`}>
           @{profile.data?.display_name}
         </Show>

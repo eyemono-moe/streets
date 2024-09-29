@@ -111,18 +111,18 @@ const Text: Component<{
         <Show
           when={!props.isReplyTarget}
           fallback={
-            <div class="ml-[calc(1rem-1px)] b-l-2 b-dashed pl-2 py-1 text-zinc-5">
+            <div class="b-l-2 b-dashed ml-[calc(1rem-1px)] py-1 pl-2 text-zinc-5">
               load more
             </div>
           }
         >
           <Reply id={replyOrRoot()?.id} />
-          <div class="ml-[calc(1rem-1px)] b-l-2 h-4" />
+          <div class="b-l-2 ml-[calc(1rem-1px)] h-4" />
         </Show>
       </Show>
       <HoverCard>
         <div
-          class="text-zinc-9 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
+          class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-zinc-9"
           style={{
             "grid-template-areas": `
             "avatar name"
@@ -136,7 +136,7 @@ const Text: Component<{
           <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
             <HoverCard.Trigger class="cursor-pointer">
               <Image
-                class="inline-flex items-center justify-center align-mid overflow-hidden select-none h-auto aspect-square rounded bg-zinc-2"
+                class="inline-flex aspect-square h-auto select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
                 classList={{
                   "w-12": !props.small,
                   "w-8": props.small,
@@ -147,22 +147,22 @@ const Text: Component<{
                   src={profile.data?.picture}
                   alt={profile.data?.name}
                   loading="lazy"
-                  class="object-cover w-full h-full"
+                  class="h-full w-full object-cover"
                 />
-                <Image.Fallback class="w-full h-full flex items-center justify-center">
+                <Image.Fallback class="flex h-full w-full items-center justify-center">
                   {profile.data?.name.slice(0, 2) ??
                     props.shortText.pubkey.slice(0, 2)}
                 </Image.Fallback>
               </Image>
             </HoverCard.Trigger>
             <Show when={props.isReplyTarget}>
-              <div class="ml-[calc(1rem-1px)] b-l-2" />
+              <div class="b-l-2 ml-[calc(1rem-1px)]" />
             </Show>
           </div>
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
-              <HoverCard.Trigger class="cursor-pointer hover:(underline)">
+              <HoverCard.Trigger class="hover:(underline) cursor-pointer">
                 <Show when={profile.data} fallback={props.shortText.pubkey}>
                   <span>{profile.data?.display_name}</span>
                   <span class="text-3.5 text-zinc-5">
@@ -189,7 +189,7 @@ const Text: Component<{
                         <span>, </span>
                       </Show>
                       <HoverCard>
-                        <HoverCard.Trigger class="cursor-pointer hover:(underline)">
+                        <HoverCard.Trigger class="hover:(underline) cursor-pointer">
                           @{target.data?.name ?? replyTargetPubkeys()[i()]}
                         </HoverCard.Trigger>
                         <HoverCard.Portal>
@@ -205,20 +205,20 @@ const Text: Component<{
             {/* TODO: OGP */}
           </div>
           <Show when={parsedReactions().length > 0}>
-            <div class="grid-area-[reaction] flex gap-1 flex-wrap">
+            <div class="grid-area-[reaction] flex flex-wrap gap-1">
               <For each={parsedReactions()}>
                 {(reaction) => (
                   <button
-                    class="appearance-none bg-transparent p-0.5 b-1 b-zinc-2 rounded flex items-center gap-1"
+                    class="b-1 b-zinc-2 flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                     type="button"
                   >
-                    <div class="h-5 flex items-center justify-center">
+                    <div class="flex h-5 items-center justify-center">
                       <Show
                         when={
                           reaction.content.type === "emoji" && reaction.content
                         }
                         fallback={
-                          <span class="h-5 leading-5 truncate">
+                          <span class="h-5 truncate leading-5">
                             {reaction.content.value}
                           </span>
                         }
@@ -226,58 +226,58 @@ const Text: Component<{
                         {(emoji) => (
                           <img
                             src={emoji().src}
-                            class="h-full w-auto inline-block"
+                            class="inline-block h-full w-auto"
                             alt={emoji().value}
                           />
                         )}
                       </Show>
                     </div>
-                    <span class="text-zinc-5 h-5 leading-5">
+                    <span class="h-5 text-zinc-5 leading-5">
                       {reaction.count}
                     </span>
                   </button>
                 )}
               </For>
               <button
-                class="appearance-none bg-transparent p-0.5 b-1 b-zinc-2 rounded flex items-center gap-1"
+                class="b-1 b-zinc-2 flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                 type="button"
               >
-                <div class="i-material-symbols:add-rounded h-5 w-auto aspect-square c-zinc-5" />
+                <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
               </button>
             </div>
           </Show>
           <Show when={props.showActions}>
             <div class="grid-area-[actions]">
-              <div class="flex items-center justify-between max-w-100 w-full">
+              <div class="flex w-full max-w-100 items-center justify-between">
                 <button
-                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:mode-comment-outline-rounded h-4 w-auto aspect-square c-zinc-5" />
+                  <div class="i-material-symbols:mode-comment-outline-rounded c-zinc-5 aspect-square h-4 w-auto" />
                 </button>
                 <button
-                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:repeat-rounded h-4 w-auto aspect-square c-zinc-5" />
+                  <div class="i-material-symbols:repeat-rounded c-zinc-5 aspect-square h-4 w-auto" />
                 </button>
                 <button
-                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:add-rounded h-4 w-auto aspect-square c-zinc-5" />
+                  <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-4 w-auto" />
                 </button>
                 <button
-                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:bookmark-outline-rounded h-4 w-auto aspect-square c-zinc-5" />
+                  <div class="i-material-symbols:bookmark-outline-rounded c-zinc-5 aspect-square h-4 w-auto" />
                 </button>
                 <button
-                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:more-horiz h-4 w-auto aspect-square c-zinc-5" />
+                  <div class="i-material-symbols:more-horiz c-zinc-5 aspect-square h-4 w-auto" />
                 </button>
               </div>
             </div>

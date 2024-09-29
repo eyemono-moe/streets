@@ -12,6 +12,9 @@
       "correctness": {
         "noUnusedImports": "error"
       },
+      "nursery": {
+        "useSortedClasses": "error"
+      },
       "recommended": true
     }
   },

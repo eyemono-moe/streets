@@ -61,7 +61,7 @@ const Texts: Component = () => {
       >
         <Show when={fetchTimeout() || texts.isFetching}>
           <div class="flex items-center justify-center p-2">
-            <div class="animate-spin rounded-full w-8 h-auto aspect-square b-4 b-zinc-3 b-r-violet" />
+            <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
           </div>
         </Show>
       </div>

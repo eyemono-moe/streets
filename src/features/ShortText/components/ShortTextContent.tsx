@@ -16,7 +16,7 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
       {(content) => (
         <Switch>
           <Match when={content.type === "text"}>
-            <span class="whitespace-pre-wrap break-anywhere">
+            <span class="break-anywhere whitespace-pre-wrap">
               {(content as TextContent).content}
             </span>
           </Match>
@@ -30,7 +30,7 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
             >
               {/* TODO: display blurhash */}
               <img
-                class="w-auto max-w-full h-full max-h-50vh object-contain b-1 b-zinc-2 rounded"
+                class="b-1 b-zinc-2 h-full max-h-50vh w-auto max-w-full rounded object-contain"
                 src={(content as ImageContent).src}
                 alt={(content as ImageContent).alt ?? ""}
                 width={(content as ImageContent).size?.width}
@@ -44,7 +44,7 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
               href={(content as LinkContent).href}
               target="_blank"
               rel="noopener noreferrer"
-              class="c-blue-5 underline visited:c-violet-7 whitespace-pre-wrap break-anywhere"
+              class="c-blue-5 visited:c-violet-7 break-anywhere whitespace-pre-wrap underline"
             >
               {(content as LinkContent).content}
             </a>
@@ -53,7 +53,7 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
             <EmbedUser pubkey={(content as MentionContent).pubkey} />
           </Match>
           <Match when={content.type === "quote"}>
-            <div class="rounded b-1 b-zinc-2 overflow-hidden p-1">
+            <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
               <Quote id={(content as QuoteContent).id} />
             </div>
           </Match>
