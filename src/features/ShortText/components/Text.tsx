@@ -13,7 +13,10 @@ import ShortTextContent from "./ShortTextContent";
 
 const Text: Component<{
   shortText: ReturnType<typeof parseShortTextNote>;
-  repostBy?: string;
+  showActions?: boolean;
+  showReply?: boolean;
+  small?: boolean;
+  isReplyTarget?: boolean;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
   const diff = diffHuman(new Date(props.shortText.created_at * 1000));
@@ -46,7 +49,6 @@ const Text: Component<{
     if (replyTargetPubkeys().length > 0) return "mention";
     return "normal";
   };
-  const reposterProfile = useQueryProfile(() => props.repostBy);
 
   const reactions = useQueryReactions(() => props.shortText.id);
   const parsedReactions = createMemo(() => {
@@ -99,69 +101,46 @@ const Text: Component<{
   });
 
   return (
-    <div class="p-2">
-      <Show when={props.repostBy}>
-        <div class="text-80% text-zinc-5 pb-2">
-          <HoverCard>
-            <div class="flex items-center gap-1">
-              <div class="i-material-symbols:repeat-rounded w-4 h-auto aspect-square c-green" />
-              <HoverCard.Trigger class="cursor-pointer hover:(underline)">
-                <Show when={reposterProfile.data} fallback={props.repostBy}>
-                  <span>{reposterProfile.data?.display_name}</span>
-                  <span class="text-80% text-zinc-5">
-                    @{reposterProfile.data?.name}
-                  </span>
-                </Show>
-              </HoverCard.Trigger>
-              <span>がリポスト</span>
+    <div
+      classList={{
+        "text-4": !props.small,
+        "text-3.5": props.small,
+      }}
+    >
+      <Show when={textType() === "reply" && props.showReply}>
+        <Show
+          when={!props.isReplyTarget}
+          fallback={
+            <div class="ml-[calc(1rem-1px)] b-l-2 b-dashed pl-2 py-1 text-zinc-5">
+              load more
             </div>
-            <HoverCard.Portal>
-              <ProfileHoverContent pubkey={props.repostBy} />
-            </HoverCard.Portal>
-          </HoverCard>
-        </div>
+          }
+        >
+          <Reply id={replyOrRoot()?.id} />
+          <div class="ml-[calc(1rem-1px)] b-l-2 h-4" />
+        </Show>
       </Show>
-      <Show when={textType() === "reply"}>
-        <Reply id={replyOrRoot()?.id} />
-        <div class="ml-[calc(1rem-1px)] b-l-2 mr-2 pt-4 pb-2 pl-2 text-80% text-zinc-5">
-          {"To "}
-          <For each={replyTargetQueries}>
-            {/* TODO: ユーザーページへのリンクにする */}
-            {(target, i) => (
-              <>
-                <Show when={i() !== 0}>
-                  <span>, </span>
-                </Show>
-                <HoverCard>
-                  <HoverCard.Trigger class="cursor-pointer hover:(underline)">
-                    @{target.data?.name ?? replyTargetPubkeys()[i()]}
-                  </HoverCard.Trigger>
-                  <HoverCard.Portal>
-                    <ProfileHoverContent pubkey={target.data?.pubkey} />
-                  </HoverCard.Portal>
-                </HoverCard>
-              </>
-            )}
-          </For>
-        </div>
-      </Show>
-      {/* TODO: embeddingsの有無を見てareaを変える */}
       <HoverCard>
         <div
-          class="text-zinc-9 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-2"
+          class="text-zinc-9 grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
           style={{
             "grid-template-areas": `
             "avatar name"
             "avatar content"
             ${parsedReactions().length > 0 ? '"avatar reaction"' : ""}
+            ${props.showActions ? '"avatar actions"' : ""}
             `,
           }}
         >
           {/* TODO: ユーザーページへのリンクにする */}
-          <div class="grid-area-[avatar]">
+          <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
             <HoverCard.Trigger class="cursor-pointer">
               <Image
-                class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square rounded bg-zinc-2"
+                class="inline-flex items-center justify-center align-mid overflow-hidden select-none h-auto aspect-square rounded bg-zinc-2"
+                classList={{
+                  "w-12": !props.small,
+                  "w-8": props.small,
+                }}
                 fallbackDelay={500}
               >
                 <Image.Img
@@ -176,6 +155,9 @@ const Text: Component<{
                 </Image.Fallback>
               </Image>
             </HoverCard.Trigger>
+            <Show when={props.isReplyTarget}>
+              <div class="ml-[calc(1rem-1px)] b-l-2" />
+            </Show>
           </div>
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
@@ -183,22 +165,22 @@ const Text: Component<{
               <HoverCard.Trigger class="cursor-pointer hover:(underline)">
                 <Show when={profile.data} fallback={props.shortText.pubkey}>
                   <span>{profile.data?.display_name}</span>
-                  <span class="text-80% text-zinc-5">
+                  <span class="text-3.5 text-zinc-5">
                     @{profile.data?.name}
                   </span>
                 </Show>
               </HoverCard.Trigger>
             </div>
             <span
-              class="text-80% text-zinc-5"
+              class="text-3.5 text-zinc-5"
               title={dateHuman(new Date(props.shortText.created_at * 1000))}
             >
               {diff()}
             </span>
           </div>
           <div class="grid-area-[content]">
-            <Show when={textType() === "mention"}>
-              <div class="text-80% text-zinc-5 pb-2">
+            <Show when={textType() === "mention" || textType() === "reply"}>
+              <div class="text-3.5 text-blue-5">
                 <For each={replyTargetQueries}>
                   {/* TODO: ユーザーページへのリンクにする */}
                   {(target, i) => (
@@ -264,7 +246,42 @@ const Text: Component<{
               </button>
             </div>
           </Show>
-          {/* TODO: actions */}
+          <Show when={props.showActions}>
+            <div class="grid-area-[actions]">
+              <div class="flex items-center justify-between max-w-100 w-full">
+                <button
+                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  type="button"
+                >
+                  <div class="i-material-symbols:mode-comment-outline-rounded h-4 w-auto aspect-square c-zinc-5" />
+                </button>
+                <button
+                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  type="button"
+                >
+                  <div class="i-material-symbols:repeat-rounded h-4 w-auto aspect-square c-zinc-5" />
+                </button>
+                <button
+                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  type="button"
+                >
+                  <div class="i-material-symbols:add-rounded h-4 w-auto aspect-square c-zinc-5" />
+                </button>
+                <button
+                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  type="button"
+                >
+                  <div class="i-material-symbols:bookmark-outline-rounded h-4 w-auto aspect-square c-zinc-5" />
+                </button>
+                <button
+                  class="appearance-none bg-transparent p-0.5 rounded flex items-center gap-1"
+                  type="button"
+                >
+                  <div class="i-material-symbols:more-horiz h-4 w-auto aspect-square c-zinc-5" />
+                </button>
+              </div>
+            </div>
+          </Show>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.shortText.pubkey} />

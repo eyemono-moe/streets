@@ -3,6 +3,7 @@ import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { parseShortTextNote, type parseTextNoteOrRepost } from "../event";
 import { useQueryShortTextById } from "../query";
+import RepostUserName from "./RepostUserName";
 import Text from "./Text";
 
 const TextOrRepost: Component<{
@@ -25,7 +26,6 @@ const TextOrRepost: Component<{
 
   const repostedEvent = createMemo(() => {
     try {
-      // TODO: valibotでパースする
       return parseShortTextNote(JSON.parse(props.textOrRepost.content));
     } catch {
       return text.data;
@@ -33,25 +33,29 @@ const TextOrRepost: Component<{
   });
 
   return (
-    <Switch fallback={<div>Unknown</div>}>
-      <Match when={props.textOrRepost.kind === kinds.ShortTextNote}>
-        <Text
-          shortText={
-            props.textOrRepost as ReturnType<typeof parseShortTextNote>
-          }
-        />
-      </Match>
-      <Match when={props.textOrRepost.kind === kinds.Repost}>
-        <Show when={repostedEvent()}>
-          {(nonNullText) => (
-            <Text
-              shortText={nonNullText()}
-              repostBy={props.textOrRepost.pubkey}
-            />
-          )}
-        </Show>
-      </Match>
-    </Switch>
+    <div class="p-2">
+      <Switch>
+        <Match when={props.textOrRepost.kind === kinds.ShortTextNote}>
+          <Text
+            shortText={
+              props.textOrRepost as ReturnType<typeof parseShortTextNote>
+            }
+            showActions
+            showReply
+          />
+        </Match>
+        <Match when={props.textOrRepost.kind === kinds.Repost}>
+          <Show when={repostedEvent()}>
+            {(nonNullText) => (
+              <>
+                <RepostUserName pubKey={props.textOrRepost.pubkey} />
+                <Text shortText={nonNullText()} showActions />
+              </>
+            )}
+          </Show>
+        </Match>
+      </Switch>
+    </div>
   );
 };
 

@@ -16,7 +16,7 @@ const Profile: Component<{
   );
 
   return (
-    <div class="text-zinc-9 p-2 grid grid-rows-[auto_minmax(0,1fr)] gap-2 h-full max-h-inherit">
+    <div class="text-zinc-9 p-2 grid grid-rows-[auto_minmax(0,1fr)] gap-2 h-full max-h-inherit text-4">
       <div class="grid gap-2 grid-cols-[auto_1fr]">
         <Image
           class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square shrink-0 rounded bg-zinc-2"
@@ -33,7 +33,7 @@ const Profile: Component<{
         </Image>
         <div class="overflow-hidden">
           <span>{profile.data?.display_name ?? "..."}</span>
-          <span class="text-80% text-zinc-5">
+          <span class="text-3.5 text-zinc-5">
             @{profile.data?.name ?? "..."}
           </span>
           <div class="truncate">
