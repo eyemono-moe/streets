@@ -1,4 +1,5 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
+import type { Filter } from "nostr-tools";
 import {
   type Component,
   For,
@@ -7,21 +8,17 @@ import {
   createSignal,
 } from "solid-js";
 import { sortEvents } from "../../../libs/latestEvent";
-import { useQueryPubKey } from "../../../libs/useNIP07";
 import {
-  useQueryFollowList,
   useQueryInfiniteTextOrRepost,
   useQueryLatestTextOrRepost,
 } from "../query";
 import TextOrRepost from "./TextOrRepost";
 
-const Texts: Component = () => {
-  const pubKey = useQueryPubKey();
-  const follows = useQueryFollowList(() => pubKey.data);
-  const followPubKeys = () => follows.data?.tags.map((tag) => tag.pubkey);
-
-  const texts = useQueryLatestTextOrRepost(followPubKeys);
-  const oldTexts = useQueryInfiniteTextOrRepost(followPubKeys);
+const Texts: Component<{
+  filter: Omit<Filter, "kinds" | "since">;
+}> = (props) => {
+  const texts = useQueryLatestTextOrRepost(() => props.filter);
+  const oldTexts = useQueryInfiniteTextOrRepost(() => props.filter);
 
   // @ts-ignore TS6133: ts can't detect functions used in directives
   const [intersectionObserver] = createViewportObserver();

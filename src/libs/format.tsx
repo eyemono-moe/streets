@@ -1,3 +1,5 @@
+import { hex2bech32 } from "./bech32";
+
 export const dateHuman = (date: Date): string => {
   // yyyy/MM/dd HH:mm
   return date.toLocaleString("ja-JP", {
@@ -42,4 +44,8 @@ export const dateTimeHuman = (date: Date): string => {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
+
+export const readablePubkey = (pubkey: string) => {
+  return hex2bech32(pubkey).slice(0, 14);
 };

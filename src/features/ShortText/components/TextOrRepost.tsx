@@ -48,7 +48,7 @@ const TextOrRepost: Component<{
           <Show when={repostedEvent()}>
             {(nonNullText) => (
               <>
-                <RepostUserName pubKey={props.textOrRepost.pubkey} />
+                <RepostUserName pubkey={props.textOrRepost.pubkey} />
                 <Text shortText={nonNullText()} showActions />
               </>
             )}

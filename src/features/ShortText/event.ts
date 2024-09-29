@@ -1,6 +1,7 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
 import {
+  type EventTag,
   emojiTag,
   eventTag,
   imetaTag,
@@ -10,19 +11,65 @@ import {
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 
-const textNoteTags = v.array(
-  v.union([
-    userTag,
-    eventTag,
-    quoteTag,
-    imetaTag,
-    emojiTag,
-    // fallback
-    v.pipe(
-      v.array(v.string()),
-      v.transform((input) => ({ kind: "unknown", data: input }) as const),
-    ),
-  ]),
+const textNoteTags = v.pipe(
+  v.array(
+    v.union([
+      userTag,
+      eventTag,
+      quoteTag,
+      imetaTag,
+      emojiTag,
+      // fallback
+      v.pipe(
+        v.array(v.string()),
+        v.transform((input) => ({ kind: "unknown", data: input }) as const),
+      ),
+    ]),
+  ),
+  v.transform((input) => {
+    const eTags = input.filter((tag) => tag.kind === "e");
+    const otherTags = input.filter((tag) => tag.kind !== "e");
+
+    if (eTags.length === 0) {
+      return otherTags;
+    }
+
+    // positional e tags (deprecated)の対応
+    // 一つでもmarkerを持っていれば marked e tagsが用いられていると判定
+    const isMarkedETags = eTags.some((tag) => tag.marker !== undefined);
+
+    if (isMarkedETags) {
+      return [...otherTags, ...eTags];
+    }
+
+    // positional e tagsの場合
+    // 長さが1の場合はそれをreplyとする
+    if (eTags.length === 1) {
+      return [
+        ...otherTags,
+        {
+          ...eTags[0],
+          marker: "reply",
+        } satisfies EventTag,
+      ];
+    }
+    // 長さが2以上の場合は、最初のものをroot、最後のものをreply、それ以外をmentionとする
+    return [
+      ...otherTags,
+      {
+        ...eTags[0],
+        marker: "root",
+      } satisfies EventTag,
+      ...eTags.slice(1, -1).map((tag) => ({
+        ...tag,
+        marker: "mention",
+      })),
+      {
+        ...eTags[eTags.length - 1],
+        marker: "reply",
+      } satisfies EventTag,
+    ];
+  }),
 );
 
 export const parseShortTextNote = (input: NostrEvent) => {

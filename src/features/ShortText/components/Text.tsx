@@ -4,10 +4,12 @@ import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, dateTimeHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
+import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
-import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
+import { useQueryProfile } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
 import { useQueryReactions, useQueryReposts } from "../query";
+import EmbedUser from "./EmbedUser";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
 
@@ -19,6 +21,7 @@ const Text: Component<{
   isReplyTarget?: boolean;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
+  const openUserColumn = useOpenUserColumn();
 
   const replyTargetPubkeys = createMemo(
     () =>
@@ -26,8 +29,8 @@ const Text: Component<{
         .filter((tag) => tag.kind === "p")
         .map((tag) => tag.pubkey) ?? [],
   );
-  const replyTargetQueries = useQueryProfiles(() => replyTargetPubkeys());
 
+  // TODO: 別ファイルに切り出す?
   const replyOrRoot = createMemo(() => {
     const reply = props.shortText.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
@@ -35,7 +38,6 @@ const Text: Component<{
     const root = props.shortText.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
     );
-
     return reply ?? root;
   });
 
@@ -124,7 +126,7 @@ const Text: Component<{
       </Show>
       <HoverCard>
         <div
-          class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-zinc-9"
+          class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
           style={{
             "grid-template-areas": `
             "avatar name"
@@ -136,12 +138,18 @@ const Text: Component<{
         >
           {/* TODO: ユーザーページへのリンクにする */}
           <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
-            <HoverCard.Trigger class="cursor-pointer">
+            <HoverCard.Trigger
+              class="cursor-pointer appearance-none bg-transparent"
+              as="button"
+              onClick={() => {
+                openUserColumn(props.shortText.pubkey);
+              }}
+            >
               <Image
                 class="inline-flex aspect-square h-auto select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
                 classList={{
-                  "w-12": !props.small,
-                  "w-8": props.small,
+                  "w-10": !props.small,
+                  "w-6": props.small,
                 }}
                 fallbackDelay={500}
               >
@@ -164,7 +172,13 @@ const Text: Component<{
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
-              <HoverCard.Trigger class="cursor-pointer hover:underline">
+              <HoverCard.Trigger
+                class="cursor-pointer appearance-none bg-transparent hover:underline"
+                as="button"
+                onClick={() => {
+                  openUserColumn(props.shortText.pubkey);
+                }}
+              >
                 <Show when={profile.data} fallback={props.shortText.pubkey}>
                   <span>{profile.data?.display_name}</span>
                   <span class="text-3.5 text-zinc-5">
@@ -182,22 +196,15 @@ const Text: Component<{
           </div>
           <div class="grid-area-[content]">
             <Show when={textType() === "mention" || textType() === "reply"}>
-              <div class="text-3.5 text-blue-5">
-                <For each={replyTargetQueries}>
+              <div class="text-3">
+                <For each={replyTargetPubkeys()}>
                   {/* TODO: ユーザーページへのリンクにする */}
                   {(target, i) => (
                     <>
                       <Show when={i() !== 0}>
                         <span>, </span>
                       </Show>
-                      <HoverCard>
-                        <HoverCard.Trigger class="cursor-pointer hover:underline">
-                          @{target.data?.name ?? replyTargetPubkeys()[i()]}
-                        </HoverCard.Trigger>
-                        <HoverCard.Portal>
-                          <ProfileHoverContent pubkey={target.data?.pubkey} />
-                        </HoverCard.Portal>
-                      </HoverCard>
+                      <EmbedUser pubkey={target} />
                     </>
                   )}
                 </For>
@@ -248,6 +255,7 @@ const Text: Component<{
               </button>
             </div>
           </Show>
+
           <Show when={props.showActions}>
             <div class="grid-area-[actions]">
               <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">

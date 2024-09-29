@@ -1,4 +1,4 @@
-import { kinds } from "nostr-tools";
+import { type Filter, kinds } from "nostr-tools";
 import {
   createFilterQuery,
   createInfiniteFilterQuery,
@@ -17,44 +17,40 @@ import {
 
 // 現在以降の最新のShortTextNoteを取得する
 export const useQueryLatestTextOrRepost = (
-  authors: () => string[] | undefined,
+  filter: () => Omit<Filter, "kinds" | "since"> | undefined,
 ) => {
   return createFilterQuery(() => {
-    const a = authors();
-    const enable = !!a && a.length > 0;
     return {
       filter: {
         kinds: [kinds.ShortTextNote, kinds.Repost],
-        authors: authors(),
         since: Math.floor(Date.now() / 1000),
+        ...filter(),
       },
       keys: [
         "shortTextNote",
         {
-          authors: authors(),
+          ...filter(),
         },
       ],
       parser: parseTextNoteOrRepost,
-      enable,
+      enable: !!filter(),
       closeOnEOS: false,
     };
   });
 };
 
 export const useQueryInfiniteTextOrRepost = (
-  authors: () => string[] | undefined,
+  filter: () => Omit<Filter, "kinds"> | undefined,
 ) => {
   return createInfiniteFilterQuery(() => {
-    const a = authors();
-    const enable = !!a && a.length > 0;
     return {
       filter: {
         kinds: [kinds.ShortTextNote, kinds.Repost],
-        authors: authors(),
+        ...filter(),
       },
-      keys: ["infiniteShortTextNote", { authors: authors() }],
+      keys: ["infiniteShortTextNote", { ...filter() }],
       parser: parseTextNoteOrRepost,
-      enable,
+      enable: !!filter(),
     };
   });
 };

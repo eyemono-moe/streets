@@ -8,9 +8,9 @@ export const useNIP07 = () => {
   throw new Error("NIP-07 implementation not found");
 };
 
-export const useQueryPubKey = () =>
+export const useQueryPubkey = () =>
   createQuery(() => ({
-    queryKey: ["pubKey"],
+    queryKey: ["pubkey"],
     queryFn: () => useNIP07().getPublicKey(),
   }));
 

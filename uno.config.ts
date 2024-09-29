@@ -22,4 +22,13 @@ export default defineConfig({
     }),
   ],
   transformers: [transformerVariantGroup()],
+  preflights: [
+    {
+      getCSS: () => `
+        * {
+          scrollbar-width: thin;
+        }
+      `,
+    },
+  ],
 });
