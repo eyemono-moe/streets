@@ -1,5 +1,6 @@
 import * as linkify from "linkifyjs";
-import { parseReferences } from "nostr-tools";
+import { kinds, parseReferences } from "nostr-tools";
+import type { parseProfile } from "../features/Profile/event";
 import type { parseShortTextNote } from "../features/ShortText/event";
 import type { ImetaTag } from "./commonTag";
 
@@ -47,14 +48,19 @@ export type ParsedContent =
   | HashtagContent;
 
 export const parseTextContent = (
-  event: ReturnType<typeof parseShortTextNote>,
+  event:
+    | ReturnType<typeof parseShortTextNote>
+    | ReturnType<typeof parseProfile>,
 ) => {
   try {
     const references = parseReferences(event.raw);
 
-    const imetaTags = event.tags.filter((tag) => tag.kind === "imeta");
+    const imetaTags =
+      event.kind === kinds.ShortTextNote
+        ? event.tags.filter((tag) => tag.kind === "imeta")
+        : [];
     const splittedContent = splitTextByLinks(
-      event.content,
+      event.kind === kinds.ShortTextNote ? event.content : event.about,
       references,
       imetaTags,
     );
@@ -65,7 +71,8 @@ export const parseTextContent = (
     return [
       {
         type: "text" as const,
-        content: event.content,
+        content:
+          event.kind === kinds.ShortTextNote ? event.content : event.about,
       },
     ];
   }

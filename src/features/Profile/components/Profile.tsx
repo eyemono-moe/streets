@@ -1,6 +1,8 @@
 import { Image } from "@kobalte/core/image";
-import { type Component, Show } from "solid-js";
+import { type Component, Show, createMemo } from "solid-js";
 import { hex2bech32 } from "../../../libs/bech32";
+import { parseTextContent } from "../../../libs/parseTextContent";
+import ShortTextContent from "../../ShortText/components/ShortTextContent";
 import { useQueryProfile } from "../query";
 
 // TODO: fallbackでskeletonを表示する
@@ -9,9 +11,12 @@ const Profile: Component<{
   pubkey?: string;
 }> = (props) => {
   const profile = useQueryProfile(() => props.pubkey);
+  const parsedContents = createMemo(() =>
+    profile.data ? parseTextContent(profile.data) : [],
+  );
 
   return (
-    <div class="text-zinc-9 p-2 overflow-hidden flex flex-col gap-2">
+    <div class="text-zinc-9 p-2 grid grid-rows-[auto_minmax(0,1fr)] gap-2 h-full max-h-inherit">
       <div class="grid gap-2 grid-cols-[auto_1fr]">
         <Image
           class="inline-flex items-center justify-center align-mid overflow-hidden select-none w-12 h-auto aspect-square shrink-0 rounded bg-zinc-2"
@@ -38,9 +43,9 @@ const Profile: Component<{
           </div>
         </div>
       </div>
-      <pre class="grid-area-[content] whitespace-pre-wrap break-anywhere">
-        {profile.data?.about}
-      </pre>
+      <div class="overflow-y-auto">
+        <ShortTextContent contents={parsedContents()} />
+      </div>
     </div>
   );
 };
