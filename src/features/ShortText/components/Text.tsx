@@ -2,7 +2,7 @@ import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
 import { type Component, For, Show, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
-import { dateHuman, diffHuman } from "../../../libs/format";
+import { dateHuman, dateTimeHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
@@ -19,7 +19,6 @@ const Text: Component<{
   isReplyTarget?: boolean;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
-  const diff = diffHuman(new Date(props.shortText.created_at * 1000));
 
   const replyTargetPubkeys = createMemo(
     () =>
@@ -178,7 +177,7 @@ const Text: Component<{
               class="text-3.5 text-zinc-5"
               title={dateHuman(new Date(props.shortText.created_at * 1000))}
             >
-              {diff()}
+              {dateTimeHuman(new Date(props.shortText.created_at * 1000))}
             </span>
           </div>
           <div class="grid-area-[content]">
