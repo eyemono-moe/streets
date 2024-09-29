@@ -220,6 +220,7 @@ const Text: Component<{
               </div>
             </Show>
             <ShortTextContent contents={parsedContents()} />
+            {/* TODO: OGP */}
           </div>
           <Show when={parsedReactions().length > 0}>
             <div class="grid-area-[reaction] flex gap-1 flex-wrap">
