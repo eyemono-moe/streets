@@ -49,10 +49,12 @@ export const parseProfile = (input: NostrEvent) => {
   if (res.success) {
     return {
       ...res.output,
+      kind: input.kind,
       pubkey: input.pubkey,
       id: input.id,
       created_at: input.created_at,
-    };
+      raw: input,
+    } as const;
   }
   throw new Error(`failed to parse profile: ${res.issues}`);
 };

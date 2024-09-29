@@ -1,3 +1,4 @@
+import { kinds } from "nostr-tools";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { parseShortTextNote, type parseTextNoteOrRepost } from "../event";
@@ -33,14 +34,14 @@ const TextOrRepost: Component<{
 
   return (
     <Switch fallback={<div>Unknown</div>}>
-      <Match when={props.textOrRepost.kind === "ShortTextNote"}>
+      <Match when={props.textOrRepost.kind === kinds.ShortTextNote}>
         <Text
           shortText={
             props.textOrRepost as ReturnType<typeof parseShortTextNote>
           }
         />
       </Match>
-      <Match when={props.textOrRepost.kind === "Repost"}>
+      <Match when={props.textOrRepost.kind === kinds.Repost}>
         <Show when={repostedEvent()}>
           {(nonNullText) => (
             <Text

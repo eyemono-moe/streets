@@ -32,7 +32,7 @@ export const parseShortTextNote = (input: NostrEvent) => {
 
   const tagsRes = v.safeParse(textNoteTags, input.tags);
   return {
-    kind: "ShortTextNote",
+    kind: input.kind,
     content: input.content,
     id: input.id,
     created_at: input.created_at,
@@ -61,7 +61,7 @@ export const parseRepost = (input: NostrEvent) => {
 
   const tagsRes = v.safeParse(repostTags, input.tags);
   return {
-    kind: "Repost",
+    kind: input.kind,
     content: input.content,
     id: input.id,
     created_at: input.created_at,
