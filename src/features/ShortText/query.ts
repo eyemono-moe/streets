@@ -1,4 +1,7 @@
+import { createQuery } from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
+import { fetchOEmbed } from "../../libs/fetchOEmbed";
+import { fetchOgp } from "../../libs/fetchOgp";
 import {
   createFilterQuery,
   createInfiniteFilterQuery,
@@ -76,7 +79,6 @@ export const useQueryFollowList = (user: () => string | undefined) => {
     keys: ["follow", user()],
     parser: parseFollowList,
     enable: !!user(),
-    immediate: true,
   }));
 };
 
@@ -111,5 +113,35 @@ export const useQueryReposts = (targetEventId: () => string | undefined) => {
     ],
     parser: parseRepost,
     enable: !!targetEventId(),
+  }));
+};
+
+export const useQueryEmbed = (url: () => string | undefined) => {
+  return createQuery(() => ({
+    queryKey: ["embed", url()],
+    queryFn: async () => {
+      const oEmbed = await fetchOEmbed(url() ?? "");
+      if (oEmbed)
+        return {
+          type: "oEmbed" as const,
+          value: oEmbed,
+        };
+
+      const ogp = await fetchOgp(url() ?? "");
+      if (ogp)
+        return {
+          type: "ogp" as const,
+          value: ogp,
+        };
+
+      const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
+      if (ogpWithoutProxy)
+        return {
+          type: "ogp" as const,
+          value: ogpWithoutProxy,
+        };
+      return null;
+    },
+    enabled: !!url(),
   }));
 };

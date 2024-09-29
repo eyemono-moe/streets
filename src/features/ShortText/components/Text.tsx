@@ -19,6 +19,7 @@ const Text: Component<{
   showReply?: boolean;
   small?: boolean;
   isReplyTarget?: boolean;
+  showQuotes?: boolean;
 }> = (props) => {
   const profile = useQueryProfile(() => props.shortText.pubkey);
   const openUserColumn = useOpenUserColumn();
@@ -210,8 +211,7 @@ const Text: Component<{
                 </For>
               </div>
             </Show>
-            <ShortTextContent contents={parsedContents()} />
-            {/* TODO: OGP */}
+            <ShortTextContent contents={parsedContents()} showLinkEmbeds />
           </div>
           <Show when={parsedReactions().length > 0}>
             <div class="grid-area-[reaction] flex flex-wrap gap-1">

@@ -1,4 +1,4 @@
-import { type Component, For, Match, Switch } from "solid-js";
+import { type Component, For, Match, Show, Switch } from "solid-js";
 import type {
   ImageContent,
   LinkContent,
@@ -8,9 +8,13 @@ import type {
   TextContent,
 } from "../../../libs/parseTextContent";
 import EmbedUser from "./EmbedUser";
+import Link from "./Link";
 import Quote from "./Quote";
 
-const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
+const ShortTextContent: Component<{
+  contents: ParsedContent[];
+  showLinkEmbeds?: boolean;
+}> = (props) => {
   return (
     <For each={props.contents}>
       {(content) => (
@@ -40,14 +44,24 @@ const ShortTextContent: Component<{ contents: ParsedContent[] }> = (props) => {
             </a>
           </Match>
           <Match when={content.type === "link"}>
-            <a
-              href={(content as LinkContent).href}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="c-blue-5 visited:c-violet-7 break-anywhere whitespace-pre-wrap underline"
+            <Show
+              when={props.showLinkEmbeds}
+              fallback={
+                <a
+                  href={(content as LinkContent).href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="c-blue-5 visited:c-violet-7 break-anywhere whitespace-pre-wrap underline"
+                >
+                  {(content as LinkContent).content}
+                </a>
+              }
             >
-              {(content as LinkContent).content}
-            </a>
+              <Link
+                href={(content as LinkContent).href}
+                content={(content as LinkContent).content}
+              />
+            </Show>
           </Match>
           <Match when={content.type === "mention"}>
             <EmbedUser pubkey={(content as MentionContent).pubkey} />
