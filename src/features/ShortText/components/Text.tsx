@@ -7,7 +7,7 @@ import { parseTextContent } from "../../../libs/parseTextContent";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile, useQueryProfiles } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
-import { useQueryReactions } from "../query";
+import { useQueryReactions, useQueryReposts } from "../query";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
 
@@ -50,6 +50,9 @@ const Text: Component<{
     return "normal";
   };
 
+  const reposts = useQueryReposts(() => props.shortText.id);
+
+  // TODO: 別コンポーネントに切り出し?
   const reactions = useQueryReactions(() => props.shortText.id);
   const parsedReactions = createMemo(() => {
     const reactionMap = reactions.data?.reduce<
@@ -162,7 +165,7 @@ const Text: Component<{
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
             <div class="truncate">
               {/* TODO: ユーザーページへのリンクにする */}
-              <HoverCard.Trigger class="hover:(underline) cursor-pointer">
+              <HoverCard.Trigger class="cursor-pointer hover:underline">
                 <Show when={profile.data} fallback={props.shortText.pubkey}>
                   <span>{profile.data?.display_name}</span>
                   <span class="text-3.5 text-zinc-5">
@@ -189,7 +192,7 @@ const Text: Component<{
                         <span>, </span>
                       </Show>
                       <HoverCard>
-                        <HoverCard.Trigger class="hover:(underline) cursor-pointer">
+                        <HoverCard.Trigger class="cursor-pointer hover:underline">
                           @{target.data?.name ?? replyTargetPubkeys()[i()]}
                         </HoverCard.Trigger>
                         <HoverCard.Portal>
@@ -248,36 +251,37 @@ const Text: Component<{
           </Show>
           <Show when={props.showActions}>
             <div class="grid-area-[actions]">
-              <div class="flex w-full max-w-100 items-center justify-between">
+              <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:mode-comment-outline-rounded c-zinc-5 aspect-square h-4 w-auto" />
+                  <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
                 </button>
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:repeat-rounded c-zinc-5 aspect-square h-4 w-auto" />
+                  <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
+                  <span>{reposts.data?.length || ""}</span>
                 </button>
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-4 w-auto" />
+                  <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
                 </button>
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:bookmark-outline-rounded c-zinc-5 aspect-square h-4 w-auto" />
+                  <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
                 </button>
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                   type="button"
                 >
-                  <div class="i-material-symbols:more-horiz c-zinc-5 aspect-square h-4 w-auto" />
+                  <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
                 </button>
               </div>
             </div>

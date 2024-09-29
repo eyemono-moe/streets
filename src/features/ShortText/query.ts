@@ -7,6 +7,7 @@ import {
 import {
   parseFollowList,
   parseReaction,
+  parseRepost,
   parseShortTextNote,
   parseTextNoteOrRepost,
 } from "./event";
@@ -96,6 +97,23 @@ export const useQueryReactions = (targetEventId: () => string | undefined) => {
       },
     ],
     parser: parseReaction,
+    enable: !!targetEventId(),
+  }));
+};
+
+export const useQueryReposts = (targetEventId: () => string | undefined) => {
+  return createFilterQuery(() => ({
+    filter: {
+      kinds: [kinds.Repost],
+      "#e": [targetEventId() ?? ""],
+    },
+    keys: [
+      "reposts",
+      {
+        eventId: targetEventId(),
+      },
+    ],
+    parser: parseRepost,
     enable: !!targetEventId(),
   }));
 };
