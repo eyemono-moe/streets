@@ -15,6 +15,7 @@ export const createFilterQuery = <T>(
     parser: (e: NostrEvent) => T;
     enable?: boolean;
     closeOnEOS?: boolean;
+    relay?: string;
   },
 ) => {
   const queryClient = useQueryClient();
@@ -32,6 +33,7 @@ export const createFilterQuery = <T>(
           queryClient.setQueryData(props().keys, events);
         },
         closeOnEOS: props().closeOnEOS,
+        relay: props().relay,
       }),
     enabled: props().enable,
   }));
@@ -45,6 +47,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
     enable?: boolean;
     closeOnEOS?: boolean;
     immediate?: boolean;
+    relay?: string;
   },
 ) => {
   const queryClient = useQueryClient();
@@ -63,6 +66,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
         },
         closeOnEOS: props().closeOnEOS,
         immediate: props().immediate,
+        relay: props().relay,
       });
       return pickLatestEvent(events) ?? null;
     },
@@ -142,6 +146,7 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
     keys: QueryKey;
     parser: (e: NostrEvent) => T;
     enable?: boolean;
+    relay?: string;
   },
 ) => {
   const subscriber = useSubscriber();

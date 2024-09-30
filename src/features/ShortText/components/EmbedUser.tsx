@@ -5,8 +5,11 @@ import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile } from "../../Profile/query";
 
-const EmbedUser: Component<{ pubkey: string }> = (props) => {
-  const profile = useQueryProfile(() => props.pubkey);
+const EmbedUser: Component<{ pubkey: string; relay?: string }> = (props) => {
+  const profile = useQueryProfile(
+    () => props.pubkey,
+    () => props.relay,
+  );
   const openUserColumn = useOpenUserColumn();
 
   return (

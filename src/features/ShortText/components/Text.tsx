@@ -25,11 +25,8 @@ const Text: Component<{
   const profile = useQueryProfile(() => props.shortText.pubkey);
   const openUserColumn = useOpenUserColumn();
 
-  const replyTargetPubkeys = createMemo(
-    () =>
-      props.shortText.tags
-        .filter((tag) => tag.kind === "p")
-        .map((tag) => tag.pubkey) ?? [],
+  const replyTarget = createMemo(
+    () => props.shortText.tags.filter((tag) => tag.kind === "p") ?? [],
   );
 
   // TODO: 別ファイルに切り出す?
@@ -49,7 +46,7 @@ const Text: Component<{
     // e tagがあればreply
     if (replyOrRoot()) return "reply";
     // p tagのみがあればmention
-    if (replyTargetPubkeys().length > 0) return "mention";
+    if (replyTarget().length > 0) return "mention";
     return "normal";
   };
 
@@ -66,13 +63,13 @@ const Text: Component<{
         <Show
           when={!props.isReplyTarget}
           fallback={
-            <div class="b-l-2 b-dashed ml-[calc(1rem-1px)] py-1 pl-2 text-zinc-5">
+            <div class="b-l-2 b-dashed ml-[calc(0.75rem-1px)] py-1 pl-2 text-zinc-5">
               load more
             </div>
           }
         >
           <Reply id={replyOrRoot()?.id} />
-          <div class="b-l-2 ml-[calc(1rem-1px)] h-4" />
+          <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
         </Show>
       </Show>
       <HoverCard>
@@ -115,7 +112,7 @@ const Text: Component<{
               </Image>
             </HoverCard.Trigger>
             <Show when={props.isReplyTarget}>
-              <div class="b-l-2 ml-[calc(1rem-1px)]" />
+              <div class="b-l-2 ml-[calc(0.75rem-1px)]" />
             </Show>
           </div>
           <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
@@ -146,14 +143,14 @@ const Text: Component<{
           <div class="grid-area-[content] flex flex-col gap-2">
             <Show when={textType() === "mention" || textType() === "reply"}>
               <div class="text-3">
-                <For each={replyTargetPubkeys()}>
+                <For each={replyTarget()}>
                   {/* TODO: ユーザーページへのリンクにする */}
                   {(target, i) => (
                     <>
                       <Show when={i() !== 0}>
                         <span>, </span>
                       </Show>
-                      <EmbedUser pubkey={target} />
+                      <EmbedUser pubkey={target.pubkey} relay={target.relay} />
                     </>
                   )}
                 </For>

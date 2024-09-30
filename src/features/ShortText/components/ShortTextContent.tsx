@@ -72,7 +72,10 @@ const ShortTextContent: Component<{
               </Show>
             </Match>
             <Match when={content.type === "mention"}>
-              <EmbedUser pubkey={(content as MentionContent).pubkey} />
+              <EmbedUser
+                pubkey={(content as MentionContent).pubkey}
+                relay={(content as MentionContent).relay}
+              />
             </Match>
             <Match when={content.type === "quote"}>
               <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">

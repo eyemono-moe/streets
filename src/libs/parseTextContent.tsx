@@ -30,6 +30,7 @@ export type LinkContent = {
 export type MentionContent = {
   type: "mention";
   pubkey: string;
+  relay?: string;
 };
 export type QuoteContent = {
   type: "quote";
@@ -107,6 +108,7 @@ export const splitTextByLinks = (
         parsedContent.push({
           type: "mention",
           pubkey: linkOrRef.profile.pubkey,
+          relay: linkOrRef.profile.relays?.at(0),
         });
       }
       if (linkOrRef.event) {
