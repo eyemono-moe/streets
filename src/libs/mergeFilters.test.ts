@@ -3,7 +3,7 @@ import { expect, test } from "vitest";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 
 test("Merge filters automatically", () => {
-  const filters: Filter[] = [
+  const filters: (Filter & { relay?: string; closeOnEos?: boolean })[] = [
     { authors: ["pub1"], kinds: [0, 2] },
     { ids: ["1"] },
     { "#p": ["p1", "p2"] },
@@ -11,9 +11,12 @@ test("Merge filters automatically", () => {
     { ids: ["5"] },
     { "#p": ["p2", "p3"] },
     { kinds: [6, 7], "#e": ["e1"] },
+    { kinds: [6], "#e": ["e4"] },
+    { kinds: [7], "#e": ["e4"] },
     { kinds: [6, 7], "#e": ["e2"] },
-    { kinds: [6], "#e": ["e3"] },
-    { kinds: [7], "#e": ["e3"] },
+    { kinds: [6, 7], "#e": ["e3"], relay: "wss:test" },
+    { kinds: [1], closeOnEos: false, authors: ["pub1"] },
+    { kinds: [1], closeOnEos: true, authors: ["pub1"] },
   ];
 
   const result = mergeSimilarAndRemoveEmptyFilters(filters);
@@ -22,8 +25,11 @@ test("Merge filters automatically", () => {
     { ids: ["1", "5"] },
     { "#p": ["p1", "p2", "p3"] },
     { kinds: [6, 7], "#e": ["e1", "e2"] },
-    { kinds: [6], "#e": ["e3"] },
-    { kinds: [7], "#e": ["e3"] },
+    { kinds: [6], "#e": ["e4"] },
+    { kinds: [7], "#e": ["e4"] },
+    { kinds: [6, 7], "#e": ["e3"], relay: "wss:test" },
+    { kinds: [1], closeOnEos: false, authors: ["pub1"] },
+    { kinds: [1], closeOnEos: true, authors: ["pub1"] },
   ]);
 });
 
@@ -93,7 +99,6 @@ test("concat error", () => {
     },
   ];
   const _result = mergeSimilarAndRemoveEmptyFilters(filters);
-  console.log(_result);
   expect(_result.length).toBe(3);
 });
 

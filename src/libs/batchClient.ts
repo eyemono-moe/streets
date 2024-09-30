@@ -73,19 +73,19 @@ export class BatchExecutor<Req> {
 
 type Req = ({
   relay?: string;
+  closeOnEOS: boolean;
 } & Filter)[];
 export class BatchSubscriber {
   private batchExecutor: BatchExecutor<Req>;
-  private eventsMap = new Map<string, unknown[]>();
+  public eventsMap = new Map<string, unknown[]>();
   private parserMap = new Map<string, (e: NostrEvent) => unknown>();
   // biome-ignore lint/suspicious/noExplicitAny: can't infer type
   private resolversMap = new Map<string, ((events: any[]) => void)[]>();
   // biome-ignore lint/suspicious/noExplicitAny: can't infer type
   private onEventMap = new Map<string, ((event: any[]) => void) | undefined>();
-  private closeOnEOSMap = new Map<string, boolean>();
 
-  private originalReqMap = new Map<string, Req[]>();
-  private originalReqs: Req[] = [];
+  public originalReqMap = new Map<string, Req[]>();
+  public originalReqs: Req[] = [];
 
   constructor(pool: SimplePool) {
     const [, { getReadRelays }] = useRelays();
@@ -98,36 +98,36 @@ export class BatchSubscriber {
         mergeSimilarAndRemoveEmptyFilters(requests.flat()),
       ],
       executor: (requests) => {
-        const mergedFilters = requests.flat();
-        this.originalReqMap.set(stringify(mergedFilters), [
+        const mergedRequests = requests.flat();
+        this.originalReqMap.set(stringify(mergedRequests), [
           ...this.originalReqs,
         ]);
         this.originalReqs = [];
 
-        const relayFilterMap = mergedFilters.reduce<
-          {
-            relay?: string;
-            /** merged filters */
-            filters: Filter[];
-          }[]
-        >((acc, filter) => {
-          const relay = filter.relay;
-          const existing = acc.find((f) => f.relay === relay);
-          if (existing) {
-            existing.filters.push(filter);
-          } else {
-            acc.push({ relay, filters: [filter] });
+        const filtersMap = new Map<
+          string,
+          { filters: Filter[]; relay?: string; closeOnEOS: boolean }
+        >();
+        for (const request of mergedRequests) {
+          const key = stringify([request.relay, request.closeOnEOS]);
+          if (!filtersMap.has(key)) {
+            filtersMap.set(key, {
+              filters: [],
+              relay: request.relay,
+              closeOnEOS: request.closeOnEOS,
+            });
           }
-          return acc;
-        }, []);
+          const { relay, closeOnEOS, ...filter } = request;
+          filtersMap.get(key)?.filters.push(filter);
+        }
 
-        for (const { relay, filters } of relayFilterMap) {
+        for (const { relay, filters, closeOnEOS } of filtersMap.values()) {
           const relays = relay ? [relay] : getReadRelays();
 
           const sub = pool.subscribeMany(relays, filters, {
             onevent: (event) => {
               const originalReqs = this.originalReqMap.get(
-                stringify(mergedFilters),
+                stringify(mergedRequests),
               );
               if (!originalReqs) {
                 console.error("originalReqs not found");
@@ -148,7 +148,7 @@ export class BatchSubscriber {
               }
             },
             oneose: () => {
-              const originalReqMapKey = stringify(mergedFilters);
+              const originalReqMapKey = stringify(mergedRequests);
               const originalReqs = this.originalReqMap.get(originalReqMapKey);
               if (!originalReqs) {
                 console.error("originalReqs not found");
@@ -156,13 +156,10 @@ export class BatchSubscriber {
                 return;
               }
 
-              let close = true;
               for (const req of originalReqs) {
                 const mapKey = stringify(req);
                 const resolvers = this.resolversMap.get(mapKey);
                 const events = this.eventsMap.get(mapKey);
-                const closeOnEOS = this.closeOnEOSMap.get(mapKey) ?? true;
-                close = close && closeOnEOS;
 
                 if (resolvers && events) {
                   for (const resolver of resolvers) {
@@ -171,14 +168,13 @@ export class BatchSubscriber {
                   this.resolversMap.delete(mapKey);
                 }
               }
-              if (close) {
+              if (closeOnEOS) {
                 sub.close();
                 for (const req of originalReqs) {
                   const mapKey = stringify(req);
                   this.eventsMap.delete(mapKey);
                   this.parserMap.delete(mapKey);
                   this.onEventMap.delete(mapKey);
-                  this.closeOnEOSMap.delete(mapKey);
                 }
                 this.originalReqMap.delete(originalReqMapKey);
               }
@@ -209,7 +205,7 @@ export class BatchSubscriber {
     immediate?: boolean;
   }) {
     return new Promise<T[]>((resolve) => {
-      const req: Req = filters.map((f) => ({ relay, ...f }));
+      const req: Req = filters.map((f) => ({ relay, closeOnEOS, ...f }));
       const mapKey = stringify(req);
 
       if (!this.resolversMap.has(mapKey)) {
@@ -222,7 +218,6 @@ export class BatchSubscriber {
         this.eventsMap.set(mapKey, []);
         this.parserMap.set(mapKey, parser);
         this.onEventMap.set(mapKey, onEvent);
-        this.closeOnEOSMap.set(mapKey, closeOnEOS);
 
         this.batchExecutor.push(req);
 
