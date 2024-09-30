@@ -144,12 +144,12 @@ export const useQueryEmbed = (url: () => string | undefined) => {
           value: ogp,
         };
 
-      const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
-      if (ogpWithoutProxy)
-        return {
-          type: "ogp" as const,
-          value: ogpWithoutProxy,
-        };
+      // const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
+      // if (ogpWithoutProxy)
+      //   return {
+      //     type: "ogp" as const,
+      //     value: ogpWithoutProxy,
+      //   };
       return null;
     },
     enabled: !!url(),
