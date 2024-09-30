@@ -42,7 +42,7 @@ const Texts: Component<{
           class="flex w-full items-center justify-center p-2"
           type="button"
           onClick={() => oldTexts.fetchNextPage()}
-          use:intersectionObserver={(e) => {
+          use:intersectionObserver={() => {
             oldTexts.fetchNextPage();
           }}
           disabled={!oldTexts.hasNextPage || oldTexts.isFetchingNextPage}
