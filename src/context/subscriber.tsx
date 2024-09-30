@@ -6,7 +6,6 @@ import {
   useContext,
 } from "solid-js";
 import { BatchSubscriber } from "../libs/batchClient";
-import { useNIP07 } from "../libs/useNIP07";
 import { usePool } from "../libs/usePool";
 
 const SubscriberContext = createContext<BatchSubscriber>();
@@ -14,13 +13,7 @@ const SubscriberContext = createContext<BatchSubscriber>();
 export const SubscriberProvider: ParentComponent = (props) => {
   const pool = () => usePool();
   const [subscriber] = createResource(async () => {
-    const relays = await useNIP07().getRelays();
-    return new BatchSubscriber(
-      pool(),
-      Object.entries(relays)
-        .filter(([, { read }]) => read)
-        .map(([relay]) => relay),
-    );
+    return new BatchSubscriber(pool());
   });
 
   return (

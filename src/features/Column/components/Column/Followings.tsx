@@ -10,9 +10,12 @@ const Followings: Component<{
 }> = () => {
   const pubkey = useQueryPubkey();
   const follows = useQueryFollowList(() => pubkey.data);
-  const filter = (): Omit<Filter, "kinds" | "since"> => ({
-    authors: follows.data?.tags.map((tag) => tag.pubkey),
-  });
+  const filter = (): Omit<Filter, "kinds" | "since"> | undefined =>
+    follows.data
+      ? {
+          authors: follows.data.tags.map((tag) => tag.pubkey),
+        }
+      : undefined;
 
   return <Texts filter={filter()} />;
 };

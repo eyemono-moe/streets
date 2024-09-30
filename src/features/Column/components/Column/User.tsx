@@ -12,9 +12,11 @@ const User: Component<{
   });
 
   return (
-    <div class="divide-y">
+    <div class="flex h-full flex-col divide-y">
       <Profile pubkey={props.state.pubkey} />
-      <Texts filter={filter()} />
+      <div class="h-full shrink-0">
+        <Texts filter={filter()} />
+      </div>
     </div>
   );
 };

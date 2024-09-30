@@ -46,7 +46,7 @@ const Column: Component<{
           </button>
         </Collapsible.Content>
       </Collapsible>
-      <div class="overflow-y-auto">
+      <div class="h-full overflow-y-auto">
         <Switch>
           <Match when={props.column.type === "follow"}>
             <Followings state={props.column as PickColumnState<"follow">} />
