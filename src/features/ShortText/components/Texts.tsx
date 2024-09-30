@@ -1,12 +1,6 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
 import type { Filter } from "nostr-tools";
-import {
-  type Component,
-  For,
-  Show,
-  createEffect,
-  createSignal,
-} from "solid-js";
+import { type Component, For, Match, Show, Switch } from "solid-js";
 import { sortEvents } from "../../../libs/latestEvent";
 import {
   useQueryInfiniteTextOrRepost,
@@ -23,45 +17,46 @@ const Texts: Component<{
   // @ts-ignore TS6133: ts can't detect functions used in directives
   const [intersectionObserver] = createViewportObserver();
 
-  const [intersecting, setIntersecting] = createSignal(false);
-  const [fetchTimeout, setFetchTimeout] = createSignal(true);
-  const canFetch = () => fetchTimeout() && !texts.isFetching;
-
-  const fetchNextPage = async () => {
-    if (!canFetch()) return;
-    await oldTexts.fetchNextPage();
-    setFetchTimeout(false);
-    setTimeout(() => setFetchTimeout(true), 1000);
-  };
-
-  createEffect(() => {
-    if (canFetch() && intersecting()) fetchNextPage();
-  });
-
   return (
-    <div class="divide-y">
+    <div class="h-full divide-y">
       <For each={sortEvents(texts.data ?? [])}>
         {(text) => <TextOrRepost textOrRepost={text} />}
       </For>
-      <For each={oldTexts.data?.pages}>
-        {(page) => (
-          <For each={sortEvents(page)}>
-            {(text) => <TextOrRepost textOrRepost={text} />}
-          </For>
-        )}
-      </For>
-      <div
-        use:intersectionObserver={(e) => {
-          setIntersecting(e.isIntersecting);
-          fetchNextPage();
-        }}
-      >
-        <Show when={fetchTimeout() || texts.isFetching}>
-          <div class="flex items-center justify-center p-2">
+      <Show
+        when={oldTexts.status !== "pending"}
+        // when={false}
+        fallback={
+          <div class="grid h-full w-full place-items-center">
             <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
           </div>
-        </Show>
-      </div>
+        }
+      >
+        <For each={oldTexts.data?.pages}>
+          {(page) => (
+            <For each={sortEvents(page)}>
+              {(text) => <TextOrRepost textOrRepost={text} />}
+            </For>
+          )}
+        </For>
+        <button
+          class="flex w-full items-center justify-center p-2"
+          type="button"
+          onClick={() => oldTexts.fetchNextPage()}
+          use:intersectionObserver={(e) => {
+            oldTexts.fetchNextPage();
+          }}
+          disabled={!oldTexts.hasNextPage || oldTexts.isFetchingNextPage}
+        >
+          <Switch fallback="Load more...">
+            <Match when={oldTexts.isFetchingNextPage}>
+              <div>
+                <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
+              </div>
+            </Match>
+            <Match when={!oldTexts.hasNextPage}>Nothing to load</Match>
+          </Switch>
+        </button>
+      </Show>
     </div>
   );
 };

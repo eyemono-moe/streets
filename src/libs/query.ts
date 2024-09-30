@@ -6,7 +6,11 @@ import {
 } from "@tanstack/solid-query";
 import type { Filter, NostrEvent } from "nostr-tools";
 import { useSubscriber } from "../context/subscriber";
-import { type ComparableEvent, pickLatestEvent } from "./latestEvent";
+import {
+  type ComparableEvent,
+  pickLatestEvent,
+  sortEvents,
+} from "./latestEvent";
 
 export const createFilterQuery = <T>(
   props: () => {
@@ -140,6 +144,8 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
 //   }));
 // };
 
+const defaultLimit = 50;
+
 export const createInfiniteFilterQuery = <T extends ComparableEvent>(
   props: () => {
     filter: Filter;
@@ -147,6 +153,7 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
     parser: (e: NostrEvent) => T;
     enable?: boolean;
     relay?: string;
+    limit?: number;
   },
 ) => {
   const subscriber = useSubscriber();
@@ -162,26 +169,26 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
           {
             ...props().filter,
             until: pageParam.until,
-            since: pageParam.since,
+            limit: props().limit ?? defaultLimit,
           },
         ],
         parser: props().parser,
+        relay: props().relay,
       });
-      return res;
+      return sortEvents(res).slice(0, props().limit ?? defaultLimit);
     },
     // リレー毎に保存されているイベントが異なるので複数のリレーから limit で取ってくるとかなり古いイベントが含まれることがある
     // TODO: limitを使わずにsince/untilで取得するか、すべてのリレーのEOSEを待ってlimit件数を超えたものを削る必要がある
     // see: nostr:note1u0tjptue0p2dkd420dtgneg4z5yysaw0u0ht9a3tt9snzu8kdk7s2fs4uf
     initialPageParam: {
       until: Math.floor(new Date().getTime() / 1000),
-      since: Math.floor(new Date().getTime() / 1000) - 60 * 60 * 1, // 1 hours
     },
-    // @ts-ignore: TS6133
-    getNextPageParam: (lastPage, allPages, lastPageParam) => {
-      // 最後に使用したsinceから1時間前まで取得
+    getNextPageParam: (lastPage) => {
+      const oldestCreatedAt = lastPage.at(-1)?.created_at;
+      if (!oldestCreatedAt) return;
+
       return {
-        until: lastPageParam.since,
-        since: lastPageParam.since - 60 * 60 * 1, // 1 hours
+        until: oldestCreatedAt - 1,
       };
     },
     enabled: props().enable,
