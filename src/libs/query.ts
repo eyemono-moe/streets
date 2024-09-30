@@ -1,17 +1,12 @@
 import {
   type QueryKey,
   createInfiniteQuery,
-  createQueries,
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
 import type { Filter, NostrEvent } from "nostr-tools";
 import { useSubscriber } from "../context/subscriber";
-import {
-  type ComparableEvent,
-  pickLatestEvent,
-  pickLatestEventByPubkey,
-} from "./latestEvent";
+import { type ComparableEvent, pickLatestEvent } from "./latestEvent";
 
 export const createFilterQuery = <T>(
   props: () => {
@@ -69,77 +64,77 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
         closeOnEOS: props().closeOnEOS,
         immediate: props().immediate,
       });
-      return pickLatestEvent(events);
+      return pickLatestEvent(events) ?? null;
     },
     enabled: props().enable,
   }));
 };
 
-export const createLatestFilterQueries = <T extends ComparableEvent>(
-  props: () => {
-    filters: Filter[];
-    keys: QueryKey;
-    parser: (e: NostrEvent) => T;
-    enable?: boolean;
-    closeOnEOS?: boolean;
-    immediate?: boolean;
-  }[],
-) => {
-  const queryClient = useQueryClient();
-  const subscriber = useSubscriber();
-  if (!subscriber) {
-    throw new Error("Subscriber not found");
-  }
-  return createQueries(() => ({
-    queries: props().map((p) => ({
-      queryKey: p.keys,
-      queryFn: async () => {
-        const events = await subscriber.sub({
-          filters: p.filters,
-          parser: p.parser,
-          onEvent: (events) => {
-            queryClient.setQueryData(p.keys, pickLatestEvent(events));
-          },
-          closeOnEOS: p.closeOnEOS,
-          immediate: p.immediate,
-        });
-        return pickLatestEvent(events);
-      },
-      enabled: p.enable,
-    })),
-  }));
-};
+// export const createLatestFilterQueries = <T extends ComparableEvent>(
+//   props: () => {
+//     filters: Filter[];
+//     keys: QueryKey;
+//     parser: (e: NostrEvent) => T;
+//     enable?: boolean;
+//     closeOnEOS?: boolean;
+//     immediate?: boolean;
+//   }[],
+// ) => {
+//   const queryClient = useQueryClient();
+//   const subscriber = useSubscriber();
+//   if (!subscriber) {
+//     throw new Error("Subscriber not found");
+//   }
+//   return createQueries(() => ({
+//     queries: props().map((p) => ({
+//       queryKey: p.keys,
+//       queryFn: async () => {
+//         const events = await subscriber.sub({
+//           filters: p.filters,
+//           parser: p.parser,
+//           onEvent: (events) => {
+//             queryClient.setQueryData(p.keys, pickLatestEvent(events));
+//           },
+//           closeOnEOS: p.closeOnEOS,
+//           immediate: p.immediate,
+//         });
+//         return pickLatestEvent(events) ?? null;
+//       },
+//       enabled: p.enable,
+//     })),
+//   }));
+// };
 
-export const createLatestByPubkeyQuery = <
-  T extends ComparableEvent & {
-    pubkey: string;
-  },
->(
-  props: () => {
-    filters: Filter[];
-    keys: QueryKey;
-    parser: (e: NostrEvent) => T;
-    enable?: boolean;
-    closeOnEOS?: boolean;
-  },
-) => {
-  const subscriber = useSubscriber();
-  if (!subscriber) {
-    throw new Error("Subscriber not found");
-  }
-  return createQuery(() => ({
-    queryKey: props().keys,
-    queryFn: async () => {
-      const events = await subscriber.sub({
-        filters: props().filters,
-        parser: props().parser,
-        closeOnEOS: props().closeOnEOS,
-      });
-      return pickLatestEventByPubkey(events);
-    },
-    enabled: props().enable,
-  }));
-};
+// export const createLatestByPubkeyQuery = <
+//   T extends ComparableEvent & {
+//     pubkey: string;
+//   },
+// >(
+//   props: () => {
+//     filters: Filter[];
+//     keys: QueryKey;
+//     parser: (e: NostrEvent) => T;
+//     enable?: boolean;
+//     closeOnEOS?: boolean;
+//   },
+// ) => {
+//   const subscriber = useSubscriber();
+//   if (!subscriber) {
+//     throw new Error("Subscriber not found");
+//   }
+//   return createQuery(() => ({
+//     queryKey: props().keys,
+//     queryFn: async () => {
+//       const events = await subscriber.sub({
+//         filters: props().filters,
+//         parser: props().parser,
+//         closeOnEOS: props().closeOnEOS,
+//       });
+//       return pickLatestEventByPubkey(events) ?? null;
+//     },
+//     enabled: props().enable,
+//   }));
+// };
 
 export const createInfiniteFilterQuery = <T extends ComparableEvent>(
   props: () => {
