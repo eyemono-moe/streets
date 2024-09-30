@@ -1,5 +1,12 @@
 import { kinds } from "nostr-tools";
-import { type Component, Match, Show, Switch, createMemo } from "solid-js";
+import {
+  type Component,
+  Match,
+  Show,
+  Suspense,
+  Switch,
+  createMemo,
+} from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { parseShortTextNote, type parseTextNoteOrRepost } from "../event";
 import { useQueryShortTextById } from "../query";
@@ -49,7 +56,9 @@ const TextOrRepost: Component<{
             {(nonNullText) => (
               <>
                 <RepostUserName pubkey={props.textOrRepost.pubkey} />
-                <Text shortText={nonNullText()} showActions />
+                <Suspense>
+                  <Text shortText={nonNullText()} showActions />
+                </Suspense>
               </>
             )}
           </Show>

@@ -1,6 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
-import { type Component, For, Show, createMemo } from "solid-js";
+import { type Component, For, Show, Suspense, createMemo } from "solid-js";
 import type { EventTag } from "../../../libs/commonTag";
 import { dateHuman, dateTimeHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
@@ -8,8 +8,9 @@ import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import { useQueryProfile } from "../../Profile/query";
 import type { parseShortTextNote } from "../event";
-import { useQueryReactions, useQueryReposts } from "../query";
+import { useQueryReposts } from "../query";
 import EmbedUser from "./EmbedUser";
+import Reactions from "./Reactions";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
 
@@ -54,57 +55,6 @@ const Text: Component<{
 
   const reposts = useQueryReposts(() => props.shortText.id);
 
-  // TODO: 別コンポーネントに切り出し?
-  const reactions = useQueryReactions(() => props.shortText.id);
-  const parsedReactions = createMemo(() => {
-    const reactionMap = reactions.data?.reduce<
-      Map<
-        string,
-        {
-          count: number;
-          users: string[];
-          content:
-            | {
-                type: "string";
-                value: string;
-              }
-            | {
-                type: "emoji";
-                value: string;
-                src: string;
-              };
-        }
-      >
-    >((acc, reaction) => {
-      if (!acc.has(reaction.content)) {
-        acc.set(reaction.content, {
-          count: 0,
-          users: [],
-          content: reaction.emoji
-            ? {
-                type: "emoji",
-                src: reaction.emoji.url,
-                value: reaction.emoji.name,
-              }
-            : { type: "string", value: reaction.content },
-        });
-      }
-
-      const current = acc.get(reaction.content);
-      if (!current) return acc;
-
-      acc.set(reaction.content, {
-        count: current.count + 1,
-        users: [...current.users, reaction.pubkey],
-        content: current.content,
-      });
-
-      return acc;
-    }, new Map());
-
-    return Array.from(reactionMap?.values() ?? []);
-  });
-
   return (
     <div
       classList={{
@@ -132,8 +82,6 @@ const Text: Component<{
             "grid-template-areas": `
             "avatar name"
             "avatar content"
-            ${parsedReactions().length > 0 ? '"avatar reaction"' : ""}
-            ${props.showActions ? '"avatar actions"' : ""}
             `,
           }}
         >
@@ -195,7 +143,7 @@ const Text: Component<{
               {dateTimeHuman(new Date(props.shortText.created_at * 1000))}
             </span>
           </div>
-          <div class="grid-area-[content]">
+          <div class="grid-area-[content] flex flex-col gap-2">
             <Show when={textType() === "mention" || textType() === "reply"}>
               <div class="text-3">
                 <For each={replyTargetPubkeys()}>
@@ -211,53 +159,13 @@ const Text: Component<{
                 </For>
               </div>
             </Show>
-            <ShortTextContent contents={parsedContents()} showLinkEmbeds />
-          </div>
-          <Show when={parsedReactions().length > 0}>
-            <div class="grid-area-[reaction] flex flex-wrap gap-1">
-              <For each={parsedReactions()}>
-                {(reaction) => (
-                  <button
-                    class="b-1 b-zinc-2 flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                    type="button"
-                  >
-                    <div class="flex h-5 items-center justify-center">
-                      <Show
-                        when={
-                          reaction.content.type === "emoji" && reaction.content
-                        }
-                        fallback={
-                          <span class="h-5 truncate leading-5">
-                            {reaction.content.value}
-                          </span>
-                        }
-                      >
-                        {(emoji) => (
-                          <img
-                            src={emoji().src}
-                            class="inline-block h-full w-auto"
-                            alt={emoji().value}
-                          />
-                        )}
-                      </Show>
-                    </div>
-                    <span class="h-5 text-zinc-5 leading-5">
-                      {reaction.count}
-                    </span>
-                  </button>
-                )}
-              </For>
-              <button
-                class="b-1 b-zinc-2 flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                type="button"
-              >
-                <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
-              </button>
+            <div>
+              <ShortTextContent contents={parsedContents()} showLinkEmbeds />
             </div>
-          </Show>
-
-          <Show when={props.showActions}>
-            <div class="grid-area-[actions]">
+            <Suspense>
+              <Reactions eventId={props.shortText.id} />
+            </Suspense>
+            <Show when={props.showActions}>
               <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
@@ -291,8 +199,8 @@ const Text: Component<{
                   <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
                 </button>
               </div>
-            </div>
-          </Show>
+            </Show>
+          </div>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.shortText.pubkey} />
