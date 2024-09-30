@@ -24,11 +24,13 @@ export const useQueryLatestTextOrRepost = (
 ) => {
   return createFilterQuery(() => {
     return {
-      filter: {
-        kinds: [kinds.ShortTextNote, kinds.Repost],
-        since: Math.floor(Date.now() / 1000),
-        ...filter(),
-      },
+      filters: [
+        {
+          kinds: [kinds.ShortTextNote, kinds.Repost],
+          since: Math.floor(Date.now() / 1000),
+          ...filter(),
+        },
+      ],
       keys: [
         "shortTextNote",
         {
@@ -60,10 +62,12 @@ export const useQueryInfiniteTextOrRepost = (
 
 export const useQueryShortTextById = (id: () => string | undefined) => {
   return createLatestFilterQuery(() => ({
-    filter: {
-      kinds: [kinds.ShortTextNote],
-      ids: [id() ?? ""],
-    },
+    filters: [
+      {
+        kinds: [kinds.ShortTextNote],
+        ids: [id() ?? ""],
+      },
+    ],
     keys: ["shortTextNote", { id: id() }],
     parser: parseShortTextNote,
     enable: !!id(),
@@ -72,10 +76,12 @@ export const useQueryShortTextById = (id: () => string | undefined) => {
 
 export const useQueryFollowList = (user: () => string | undefined) => {
   return createLatestFilterQuery(() => ({
-    filter: {
-      kinds: [kinds.Contacts],
-      authors: [user() ?? ""],
-    },
+    filters: [
+      {
+        kinds: [kinds.Contacts],
+        authors: [user() ?? ""],
+      },
+    ],
     keys: ["follow", user()],
     parser: parseFollowList,
     enable: !!user(),
@@ -84,10 +90,12 @@ export const useQueryFollowList = (user: () => string | undefined) => {
 
 export const useQueryReactions = (targetEventId: () => string | undefined) => {
   return createFilterQuery(() => ({
-    filter: {
-      kinds: [kinds.Reaction],
-      "#e": [targetEventId() ?? ""],
-    },
+    filters: [
+      {
+        kinds: [kinds.Reaction],
+        "#e": [targetEventId() ?? ""],
+      },
+    ],
     keys: [
       "reactions",
       {
@@ -101,10 +109,12 @@ export const useQueryReactions = (targetEventId: () => string | undefined) => {
 
 export const useQueryReposts = (targetEventId: () => string | undefined) => {
   return createFilterQuery(() => ({
-    filter: {
-      kinds: [kinds.Repost],
-      "#e": [targetEventId() ?? ""],
-    },
+    filters: [
+      {
+        kinds: [kinds.Repost],
+        "#e": [targetEventId() ?? ""],
+      },
+    ],
     keys: [
       "reposts",
       {

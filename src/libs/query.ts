@@ -15,7 +15,7 @@ import {
 
 export const createFilterQuery = <T>(
   props: () => {
-    filter: Filter;
+    filters: Filter[];
     keys: QueryKey;
     parser: (e: NostrEvent) => T;
     enable?: boolean;
@@ -31,7 +31,7 @@ export const createFilterQuery = <T>(
     queryKey: props().keys,
     queryFn: () =>
       subscriber.sub({
-        filter: props().filter,
+        filters: props().filters,
         parser: props().parser,
         onEvent: (events) => {
           queryClient.setQueryData(props().keys, events);
@@ -44,7 +44,7 @@ export const createFilterQuery = <T>(
 
 export const createLatestFilterQuery = <T extends ComparableEvent>(
   props: () => {
-    filter: Filter;
+    filters: Filter[];
     keys: QueryKey;
     parser: (e: NostrEvent) => T;
     enable?: boolean;
@@ -61,7 +61,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
     queryKey: props().keys,
     queryFn: async () => {
       const events = await subscriber.sub({
-        filter: props().filter,
+        filters: props().filters,
         parser: props().parser,
         onEvent: (events) => {
           queryClient.setQueryData(props().keys, pickLatestEvent(events));
@@ -77,7 +77,7 @@ export const createLatestFilterQuery = <T extends ComparableEvent>(
 
 export const createLatestFilterQueries = <T extends ComparableEvent>(
   props: () => {
-    filter: Filter;
+    filters: Filter[];
     keys: QueryKey;
     parser: (e: NostrEvent) => T;
     enable?: boolean;
@@ -95,7 +95,7 @@ export const createLatestFilterQueries = <T extends ComparableEvent>(
       queryKey: p.keys,
       queryFn: async () => {
         const events = await subscriber.sub({
-          filter: p.filter,
+          filters: p.filters,
           parser: p.parser,
           onEvent: (events) => {
             queryClient.setQueryData(p.keys, pickLatestEvent(events));
@@ -116,7 +116,7 @@ export const createLatestByPubkeyQuery = <
   },
 >(
   props: () => {
-    filter: Filter;
+    filters: Filter[];
     keys: QueryKey;
     parser: (e: NostrEvent) => T;
     enable?: boolean;
@@ -131,7 +131,7 @@ export const createLatestByPubkeyQuery = <
     queryKey: props().keys,
     queryFn: async () => {
       const events = await subscriber.sub({
-        filter: props().filter,
+        filters: props().filters,
         parser: props().parser,
         closeOnEOS: props().closeOnEOS,
       });
@@ -158,11 +158,13 @@ export const createInfiniteFilterQuery = <T extends ComparableEvent>(
     queryKey: props().keys,
     queryFn: async ({ pageParam }) => {
       const res = await subscriber.sub({
-        filter: {
-          ...props().filter,
-          until: pageParam.until,
-          since: pageParam.since,
-        },
+        filters: [
+          {
+            ...props().filter,
+            until: pageParam.until,
+            since: pageParam.since,
+          },
+        ],
         parser: props().parser,
       });
       return res;

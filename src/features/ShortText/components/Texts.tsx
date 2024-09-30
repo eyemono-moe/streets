@@ -15,7 +15,7 @@ import {
 import TextOrRepost from "./TextOrRepost";
 
 const Texts: Component<{
-  filter: Omit<Filter, "kinds" | "since">;
+  filter?: Omit<Filter, "kinds" | "since">;
 }> = (props) => {
   const texts = useQueryLatestTextOrRepost(() => props.filter);
   const oldTexts = useQueryInfiniteTextOrRepost(() => props.filter);

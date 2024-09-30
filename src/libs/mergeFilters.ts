@@ -20,9 +20,9 @@ export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
     let added = false;
     for (const key in filter) {
       if (
-        // @ts-ignore
         filter[key] &&
-        (["ids", "authors", "kinds"].includes(key) || key.startsWith("#"))
+        // TODO: すべてのイベントをパース可能なvalidatorを作ったらkindもmerge可能にする
+        (["ids", "authors"].includes(key) || key.startsWith("#"))
       ) {
         // @ts-ignore
         if (filter[key].length === 0) {
@@ -32,7 +32,6 @@ export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
         const index_by = indexForFilter(filter, key);
         const index = indexByFilter.get(index_by);
         if (index !== undefined) {
-          // @ts-ignore
           const extendedFilter = r[index];
           // remove all other groupings for r[index]
           for (const key2 in extendedFilter) {
@@ -65,7 +64,6 @@ export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
     if (!added) {
       for (const key in filter) {
         if (
-          // @ts-ignore
           filter[key] &&
           (["ids", "authors", "kinds"].includes(key) || key.startsWith("#"))
         ) {
