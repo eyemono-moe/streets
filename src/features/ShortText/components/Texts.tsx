@@ -1,6 +1,14 @@
-import { createViewportObserver } from "@solid-primitives/intersection-observer";
+import { createVirtualizer } from "@tanstack/solid-virtual";
 import type { Filter } from "nostr-tools";
-import { type Component, For, Match, Show, Switch } from "solid-js";
+import {
+  type Component,
+  For,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+} from "solid-js";
 import { sortEvents } from "../../../libs/latestEvent";
 import {
   useQueryInfiniteTextOrRepost,
@@ -14,49 +22,92 @@ const Texts: Component<{
   const texts = useQueryLatestTextOrRepost(() => props.filter);
   const oldTexts = useQueryInfiniteTextOrRepost(() => props.filter);
 
-  // @ts-ignore TS6133: ts can't detect functions used in directives
-  const [intersectionObserver] = createViewportObserver();
+  // const [parentRef, setParentRef] = createSignal<HTMLDivElement | null>(null);
+  let parentRef: HTMLDivElement | null;
+
+  const allRows = createMemo(() => {
+    return sortEvents(texts.data ?? []).concat(
+      oldTexts.data?.pages.flat() ?? [],
+    );
+  });
+
+  const rowVirtualizer = createVirtualizer({
+    get count() {
+      return oldTexts.hasNextPage ? allRows().length + 1 : allRows().length;
+    },
+    estimateSize: () => 96,
+    getScrollElement: () => parentRef,
+    overscan: 5,
+  });
+
+  const items = createMemo(() => rowVirtualizer.getVirtualItems());
+
+  createEffect(() => {
+    const lastItem = rowVirtualizer.getVirtualItems().at(-1);
+    if (!lastItem) return;
+
+    if (
+      lastItem.index >= allRows().length - 1 &&
+      oldTexts.hasNextPage &&
+      !oldTexts.isFetchingNextPage
+    ) {
+      oldTexts.fetchNextPage();
+    }
+  });
 
   return (
-    <div class="h-full divide-y">
-      <For each={sortEvents(texts.data ?? [])}>
-        {(text) => <TextOrRepost textOrRepost={text} />}
-      </For>
-      <Show
-        when={oldTexts.status !== "pending"}
-        // when={false}
-        fallback={
-          <div class="grid h-full w-full place-items-center">
-            <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
-          </div>
-        }
+    <div class="h-full overflow-auto contain-strict" ref={parentRef}>
+      <div
+        class="relative w-full"
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+        }}
       >
-        <For each={oldTexts.data?.pages}>
-          {(page) => (
-            <For each={sortEvents(page)}>
-              {(text) => <TextOrRepost textOrRepost={text} />}
-            </For>
-          )}
-        </For>
-        <button
-          class="flex w-full items-center justify-center p-2"
-          type="button"
-          onClick={() => oldTexts.fetchNextPage()}
-          use:intersectionObserver={() => {
-            oldTexts.fetchNextPage();
+        <div
+          class="absolute top-0 left-0 w-full divide-y"
+          style={{
+            transform: `translateY(${rowVirtualizer.getVirtualItems().at(0)?.start ?? 0}px)`,
           }}
-          disabled={!oldTexts.hasNextPage || oldTexts.isFetchingNextPage}
         >
-          <Switch fallback="Load more...">
-            <Match when={oldTexts.isFetchingNextPage}>
-              <div>
-                <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
+          <For each={rowVirtualizer.getVirtualItems()}>
+            {(row) => (
+              <div
+                data-index={row.index}
+                ref={(el) =>
+                  queueMicrotask(() => rowVirtualizer.measureElement(el))
+                }
+              >
+                <Show
+                  when={row.index > allRows().length - 1} // if loader row
+                  fallback={
+                    <TextOrRepost textOrRepost={allRows()[row.index]} />
+                  }
+                >
+                  <button
+                    class="flex w-full items-center justify-center p-2"
+                    type="button"
+                    onClick={() => oldTexts.fetchNextPage()}
+                    disabled={
+                      !oldTexts.hasNextPage || oldTexts.isFetchingNextPage
+                    }
+                  >
+                    <Switch fallback="Load more...">
+                      <Match when={oldTexts.isFetchingNextPage}>
+                        <div>
+                          <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
+                        </div>
+                      </Match>
+                      <Match when={!oldTexts.hasNextPage}>
+                        Nothing to load
+                      </Match>
+                    </Switch>
+                  </button>
+                </Show>
               </div>
-            </Match>
-            <Match when={!oldTexts.hasNextPage}>Nothing to load</Match>
-          </Switch>
-        </button>
-      </Show>
+            )}
+          </For>
+        </div>
+      </div>
     </div>
   );
 };
