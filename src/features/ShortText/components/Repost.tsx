@@ -8,9 +8,6 @@ const Repost: Component<{
 }> = (props) => {
   return (
     <div class="p-2">
-      <pre>
-        <code>{JSON.stringify(props.repost, null, 2)}</code>
-      </pre>
       <RepostUserName pubkey={props.repost.pubkey} />
       <Text id={props.repost.tags.find((tag) => tag.kind === "e")?.id} />
       {/* <Show
