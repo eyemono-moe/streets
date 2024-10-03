@@ -2,6 +2,11 @@ import * as v from "valibot";
 
 // https://github.com/nostr-protocol/nips?tab=readme-ov-file#standardized-tags
 
+export const unknownTag = v.pipe(
+  v.array(v.string()),
+  v.transform((input) => ({ kind: "unknown", data: input }) as const),
+);
+
 // https://github.com/nostr-protocol/nips/blob/master/01.md#tags
 // https://github.com/nostr-protocol/nips/blob/master/10.md#marked-e-tags-preferred
 export const eventTag = v.pipe(

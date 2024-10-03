@@ -1,17 +1,10 @@
-import { type Component, Show } from "solid-js";
-import { useQueryShortTextById } from "../query";
+import type { Component } from "solid-js";
 import Text from "./Text";
 
 const Quote: Component<{
   id?: string;
 }> = (props) => {
-  const text = useQueryShortTextById(() => props.id);
-
-  return (
-    <Show when={text.data}>
-      {(nonNullData) => <Text shortText={nonNullData()} small />}
-    </Show>
-  );
+  return <Text id={props.id} small />;
 };
 
 export default Quote;

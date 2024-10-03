@@ -1,129 +1,170 @@
-import { createQuery } from "@tanstack/solid-query";
-import { type Filter, kinds } from "nostr-tools";
+import { createQuery, useQueryClient } from "@tanstack/solid-query";
+import { kinds } from "nostr-tools";
+import { createRxBackwardReq, latest, now, tie, uniq } from "rx-nostr";
+import { filter, map } from "rxjs";
+import { createEffect, from } from "solid-js";
+import { useRxNostr } from "../../context/rxNostr";
 import { fetchOEmbed } from "../../libs/fetchOEmbed";
 import { fetchOgp } from "../../libs/fetchOgp";
-import {
-  createFilterQuery,
-  createInfiniteFilterQuery,
-  createLatestFilterQuery,
-} from "../../libs/query";
+import { signal2observable, toArrayScan } from "../../libs/rxjs";
 import {
   parseFollowList,
   parseReaction,
   parseRepost,
   parseShortTextNote,
-  parseTextNoteOrRepost,
 } from "./event";
 
 // TODO: filter/search
 // TODO: authorsではなくfilterを指定させる?
 
-// 現在以降の最新のShortTextNoteを取得する
-export const useQueryLatestTextOrRepost = (
-  filter: () => Omit<Filter, "kinds" | "since"> | undefined,
-) => {
-  return createFilterQuery(() => {
-    return {
-      filters: [
-        {
-          kinds: [kinds.ShortTextNote, kinds.Repost],
-          since: Math.floor(Date.now() / 1000),
-          ...filter(),
-        },
-      ],
-      keys: [
-        "shortTextNote",
-        {
-          ...filter(),
-        },
-      ],
-      parser: parseTextNoteOrRepost,
-      enable: !!filter(),
-      closeOnEOS: false,
-    };
-  });
-};
-
-export const useQueryInfiniteTextOrRepost = (
-  filter: () => Omit<Filter, "kinds"> | undefined,
-) => {
-  return createInfiniteFilterQuery(() => {
-    return {
-      filter: {
-        kinds: [kinds.ShortTextNote, kinds.Repost],
-        ...filter(),
-      },
-      keys: ["infiniteShortTextNote", { ...filter() }],
-      parser: parseTextNoteOrRepost,
-      enable: !!filter(),
-    };
-  });
-};
-
 export const useQueryShortTextById = (id: () => string | undefined) => {
-  return createLatestFilterQuery(() => ({
-    filters: [
-      {
+  const targetId$ = signal2observable(id);
+
+  const rxNostr = useRxNostr();
+  const rxReq = createRxBackwardReq();
+
+  targetId$
+    .pipe(filter((v): v is Exclude<typeof v, undefined> => !!v))
+    .subscribe((targetId) => {
+      rxReq.emit({
         kinds: [kinds.ShortTextNote],
-        ids: [id() ?? ""],
-      },
-    ],
-    keys: ["shortTextNote", { id: id() }],
-    parser: parseShortTextNote,
-    enable: !!id(),
-  }));
+        ids: [targetId],
+      });
+      rxReq.over();
+    });
+
+  return from(
+    rxNostr.use(rxReq).pipe(
+      latest(),
+      map((e) => parseShortTextNote(e.event)),
+    ),
+  );
 };
 
-export const useQueryFollowList = (user: () => string | undefined) => {
-  return createLatestFilterQuery(() => ({
-    filters: [
-      {
+export const useQueryFollowList = (pubkey: () => string | undefined) => {
+  const pubkey$ = signal2observable(pubkey);
+
+  const rxNostr = useRxNostr();
+  const rxReq = createRxBackwardReq();
+
+  pubkey$
+    .pipe(filter((v): v is Exclude<typeof v, undefined> => !!v))
+    .subscribe((pubkey) => {
+      rxReq.emit({
         kinds: [kinds.Contacts],
-        authors: [user() ?? ""],
-      },
-    ],
-    keys: ["follow", user()],
-    parser: parseFollowList,
-    enable: !!user(),
-  }));
+        authors: [pubkey],
+      });
+      rxReq.over();
+    });
+
+  return from(
+    rxNostr.use(rxReq).pipe(
+      latest(),
+      map((e) => parseFollowList(e.event).followees.map((f) => f.pubkey)),
+    ),
+  );
 };
 
 export const useQueryReactions = (targetEventId: () => string | undefined) => {
-  return createFilterQuery(() => ({
-    filters: [
-      {
-        kinds: [kinds.Reaction],
-        "#e": [targetEventId() ?? ""],
-      },
-    ],
-    keys: [
-      "reactions",
-      {
-        eventId: targetEventId(),
-      },
-    ],
-    parser: parseReaction,
-    enable: !!targetEventId(),
+  // const targetEventId$ = signal2observable(targetEventId);
+
+  // const rxNostr = useRxNostr();
+  // const rxReq = createRxBackwardReq();
+
+  // targetEventId$
+  //   .pipe(filter((v): v is Exclude<typeof v, undefined> => !!v))
+  //   .subscribe((targetEventId) => {
+  //     rxReq.emit({
+  //       kinds: [kinds.Reaction],
+  //       "#e": [targetEventId],
+  //     });
+  //     rxReq.over();
+  //   });
+
+  // return from(
+  //   rxNostr.use(rxReq).pipe(
+  //     tie(),
+  //     map((e) => parseReaction(e.event)),
+  //     scan(
+  //       (acc, cur) => acc.concat(cur),
+  //       [] as ReturnType<typeof parseReaction>[],
+  //     ),
+  //   ),
+  // );
+
+  type Res = ReturnType<typeof parseReaction>[];
+
+  const queryClient = useQueryClient();
+
+  const rxNostr = useRxNostr();
+  const rxReq = createRxBackwardReq();
+  const queryKey = () => ["reactions", { targetEventId: targetEventId() }];
+
+  const queryRes = createQuery(() => ({
+    queryKey: queryKey(),
+    queryFn: () => {
+      return new Promise<Res | null>((resolve) => {
+        let latestData: Res | null = null;
+        rxNostr
+          .use(rxReq)
+          .pipe(
+            uniq(),
+            map((e) => parseReaction(e.event)),
+            toArrayScan(),
+          )
+          .subscribe({
+            next: (e) => {
+              latestData = e;
+              queryClient.setQueryData(queryKey(), e);
+            },
+            complete: () => {
+              resolve(latestData);
+            },
+          });
+      });
+    },
+    enabled: !!targetEventId(),
   }));
+
+  createEffect(() => {
+    if (queryRes.isStale) {
+      const _target = targetEventId();
+      if (!_target) return;
+      rxReq.emit({
+        kinds: [kinds.Reaction],
+        "#e": [_target],
+        until: now(),
+      });
+      rxReq.over();
+    }
+  });
+
+  return queryRes;
 };
 
 export const useQueryReposts = (targetEventId: () => string | undefined) => {
-  return createFilterQuery(() => ({
-    filters: [
-      {
+  const targetEventId$ = signal2observable(targetEventId);
+
+  const rxNostr = useRxNostr();
+  const rxReq = createRxBackwardReq();
+
+  targetEventId$
+    .pipe(filter((v): v is Exclude<typeof v, undefined> => !!v))
+    .subscribe((targetEventId) => {
+      rxReq.emit({
         kinds: [kinds.Repost],
-        "#e": [targetEventId() ?? ""],
-      },
-    ],
-    keys: [
-      "reposts",
-      {
-        eventId: targetEventId(),
-      },
-    ],
-    parser: parseRepost,
-    enable: !!targetEventId(),
-  }));
+        "#e": [targetEventId],
+      });
+      rxReq.over();
+    });
+
+  return from(
+    rxNostr.use(rxReq).pipe(
+      tie(),
+      map((e) => parseRepost(e.event)),
+      toArrayScan(),
+    ),
+  );
 };
 
 export const useQueryEmbed = (url: () => string | undefined) => {
@@ -144,12 +185,12 @@ export const useQueryEmbed = (url: () => string | undefined) => {
           value: ogp,
         };
 
-      const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
-      if (ogpWithoutProxy)
-        return {
-          type: "ogp" as const,
-          value: ogpWithoutProxy,
-        };
+      // const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
+      // if (ogpWithoutProxy)
+      //   return {
+      //     type: "ogp" as const,
+      //     value: ogpWithoutProxy,
+      //   };
       return null;
     },
     enabled: !!url(),

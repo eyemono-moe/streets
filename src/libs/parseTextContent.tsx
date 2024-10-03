@@ -1,8 +1,9 @@
 import * as linkify from "linkifyjs";
 import { kinds, parseReferences } from "nostr-tools";
-import type { parseProfile } from "../features/Profile/event";
-import type { parseShortTextNote } from "../features/ShortText/event";
-import type { ImetaTag } from "./commonTag";
+import type { ParsedEventPacket } from "./parser";
+import type { Metadata } from "./parser/0_metadata";
+import type { ShortTextNote } from "./parser/1_shortTextNote";
+import type { ImetaTag } from "./parser/commonTag";
 
 const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
 const isImageUrl = (url: string) => {
@@ -49,19 +50,20 @@ export type ParsedContent =
   | HashtagContent;
 
 export const parseTextContent = (
-  event:
-    | ReturnType<typeof parseShortTextNote>
-    | ReturnType<typeof parseProfile>,
+  event: ParsedEventPacket<Metadata> | ParsedEventPacket<ShortTextNote>,
 ) => {
   try {
+    // TODO: たまに解析できてないので自前で実装する
     const references = parseReferences(event.raw);
 
     const imetaTags =
-      event.kind === kinds.ShortTextNote
-        ? event.tags.filter((tag) => tag.kind === "imeta")
+      event.parsed.kind === kinds.ShortTextNote
+        ? event.parsed.tags.filter((tag) => tag.kind === "imeta")
         : [];
     const splittedContent = splitTextByLinks(
-      event.kind === kinds.ShortTextNote ? event.content : event.about,
+      event.parsed.kind === kinds.ShortTextNote
+        ? event.parsed.content
+        : event.parsed.about,
       references,
       imetaTags,
     );
@@ -73,7 +75,9 @@ export const parseTextContent = (
       {
         type: "text" as const,
         content:
-          event.kind === kinds.ShortTextNote ? event.content : event.about,
+          event.parsed.kind === kinds.ShortTextNote
+            ? event.parsed.content
+            : event.parsed.about,
       },
     ];
   }

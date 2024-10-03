@@ -2,10 +2,10 @@ import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import { hex2bech32 } from "../../../libs/bech32";
 import { parseTextContent } from "../../../libs/parseTextContent";
-import { useQueryPubkey } from "../../../libs/useNIP07";
+import { useProfile } from "../../../libs/rxQuery";
+import { useMyPubkey } from "../../../libs/useMyPubkey";
 import ShortTextContent from "../../ShortText/components/ShortTextContent";
 import { useQueryFollowList } from "../../ShortText/query";
-import { useQueryProfile } from "../query";
 
 // TODO: fallbackでskeletonを表示する
 
@@ -13,17 +13,19 @@ const Profile: Component<{
   pubkey?: string;
   small?: boolean;
 }> = (props) => {
-  const profile = useQueryProfile(() => props.pubkey);
+  const profile = useProfile(() => props.pubkey);
 
-  const myPubkey = useQueryPubkey();
-  const followings = useQueryFollowList(() => myPubkey.data);
+  const myPubkey = useMyPubkey();
+  const followings = useQueryFollowList(myPubkey);
   const isFollowing = createMemo(() =>
-    followings.data?.tags.some((tag) => tag.pubkey === props.pubkey),
+    followings()?.some((pubkey) => pubkey === props.pubkey),
   );
 
-  const parsedContents = createMemo(() =>
-    profile.data ? parseTextContent(profile.data) : [],
-  );
+  const parsedContents = createMemo(() => {
+    const p = profile.data;
+    if (p) return parseTextContent(p);
+    return [];
+  });
 
   return (
     <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
@@ -35,8 +37,8 @@ const Profile: Component<{
         }}
       >
         <Image.Img
-          src={profile.data?.banner}
-          alt={`${profile.data?.name}'s banner`}
+          src={profile.data?.parsed.banner}
+          alt={`${profile.data?.parsed.name}'s banner`}
           class="h-full w-full object-cover"
         />
         <Image.Fallback class="flex h-full w-ful bg-zinc" />
@@ -48,18 +50,19 @@ const Profile: Component<{
               class="bottom-0 inline-flex aspect-square w-auto shrink-0 select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
               fallbackDelay={0}
               classList={{
-                absolute: profile.data?.banner !== undefined,
+                absolute: profile.data?.parsed.banner !== undefined,
                 "h-32": !props.small,
                 "h-24": props.small,
               }}
             >
               <Image.Img
-                src={profile.data?.picture}
-                alt={profile.data?.name}
+                src={profile.data?.parsed.picture}
+                alt={profile.data?.parsed.name}
                 class="h-full w-full object-cover"
               />
               <Image.Fallback class="flex h-full w-full items-center justify-center">
-                {profile.data?.name.slice(0, 2) ?? props.pubkey?.slice(0, 2)}
+                {profile.data?.parsed.name.slice(0, 2) ??
+                  props.pubkey?.slice(0, 2)}
               </Image.Fallback>
             </Image>
           </div>
@@ -92,9 +95,9 @@ const Profile: Component<{
           </div>
         </div>
         <div class="overflow-hidden">
-          <span>{profile.data?.display_name ?? "..."}</span>
+          <span>{profile.data?.parsed.display_name ?? "..."}</span>
           <span class="text-3.5 text-zinc-5">
-            @{profile.data?.name ?? "..."}
+            @{profile.data?.parsed.name ?? "..."}
           </span>
           <div class="c-zinc-4 truncate text-3">
             <Show when={props.pubkey} fallback="nostr1...">

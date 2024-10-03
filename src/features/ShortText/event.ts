@@ -7,7 +7,7 @@ import {
   imetaTag,
   quoteTag,
   userTag,
-} from "../../libs/commonTag";
+} from "../../libs/parser/commonTag";
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 
@@ -138,19 +138,32 @@ export const parseFollowList = (input: NostrEvent) => {
   const res = v.safeParse(followListTags, input.tags);
   if (res.success) {
     return {
-      tags: res.output,
+      followees: res.output,
       id: input.id,
       created_at: input.created_at,
       raw: input,
     };
   }
-  throw new Error(`failed to parse short text note: ${res.issues}`);
+  throw new Error(
+    `failed to parse short text note: ${JSON.stringify(res.issues, null, 2)}`,
+  );
 };
 
 // https://github.com/nostr-protocol/nips/blob/master/25.md
 
 const reactionTags = v.pipe(
-  v.array(v.union([userTag, eventTag, emojiTag])),
+  v.array(
+    v.union([
+      userTag,
+      eventTag,
+      emojiTag,
+      // fallback
+      v.pipe(
+        v.array(v.string()),
+        v.transform((input) => ({ kind: "unknown", data: input }) as const),
+      ),
+    ]),
+  ),
   v.transform((input) => {
     const pubkeys = input.filter((tag) => tag.kind === "p");
     const events = input.filter((tag) => tag.kind === "e");
@@ -182,5 +195,7 @@ export const parseReaction = (input: NostrEvent) => {
       raw: input,
     };
   }
-  throw new Error(`failed to parse short text note: ${res.issues}`);
+  throw new Error(
+    `failed to parse short text note: ${JSON.stringify(res.issues, null, 2)}`,
+  );
 };

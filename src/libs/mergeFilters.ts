@@ -1,7 +1,7 @@
-import type { Filter } from "nostr-tools";
+import type { LazyFilter } from "rx-nostr";
 import { stringify } from "safe-stable-stringify";
 
-const indexForFilter = (filter: Filter, key: string): string => {
+const indexForFilter = (filter: LazyFilter, key: string): string => {
   const new_filter = { ...filter };
   // @ts-ignore
   delete new_filter[key];
@@ -10,20 +10,22 @@ const indexForFilter = (filter: Filter, key: string): string => {
 
 // Combines filters that are similar, and removes empty filters
 // Similarity is defined as having the same values for all keys except one
-export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
-  filters: T[],
-): T[] => {
+export const mergeSimilarAndRemoveEmptyFilters = (
+  filters: LazyFilter[],
+): LazyFilter[] => {
   const r = [];
   const indexByFilter = new Map<string, number>();
   const sets = [];
   for (const filter of filters) {
     let added = false;
     for (const key in filter) {
+      // valueが配列であるkeyの場合
       if (
-        filter[key] &&
-        // TODO: すべてのイベントをパース可能なvalidatorを作ったらkindもmerge可能にする
+        filter[key as keyof typeof filter] &&
+        // TODO: 全kindのイベントをパースできるようになったらkindsの値も比較対象にする
         (["ids", "authors"].includes(key) || key.startsWith("#"))
       ) {
+        // 配列の長さが0の場合無視する
         // @ts-ignore
         if (filter[key].length === 0) {
           added = true;
@@ -32,6 +34,7 @@ export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
         const index_by = indexForFilter(filter, key);
         const index = indexByFilter.get(index_by);
         if (index !== undefined) {
+          // @ts-ignore
           const extendedFilter = r[index];
           // remove all other groupings for r[index]
           for (const key2 in extendedFilter) {
@@ -64,8 +67,9 @@ export const mergeSimilarAndRemoveEmptyFilters = <T extends Filter>(
     if (!added) {
       for (const key in filter) {
         if (
-          filter[key] &&
-          (["ids", "authors", "kinds"].includes(key) || key.startsWith("#"))
+          filter[key as keyof typeof filter] &&
+          // TODO: 全kindのイベントをパースできるようになったらkindsの値も比較対象にする
+          (["ids", "authors"].includes(key) || key.startsWith("#"))
         ) {
           const index_by = indexForFilter(filter, key);
           indexByFilter.set(index_by, r.length);

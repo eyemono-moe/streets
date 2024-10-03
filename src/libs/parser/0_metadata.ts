@@ -12,19 +12,19 @@ const NIP01 = v.object({
 
 // https://github.com/nostr-protocol/nips/blob/master/24.md#kind-0
 const NIP24 = v.object({
-  display_name: v.nullish(v.string()),
-  website: v.nullish(v.string()),
+  display_name: v.nullish(v.string(), undefined),
+  website: v.nullish(v.string(), undefined),
   banner: v.nullish(v.string(), undefined),
-  bot: v.nullish(v.boolean()),
+  bot: v.nullish(v.boolean(), undefined),
 });
 
 // https://github.com/nostr-protocol/nips/blob/master/24.md#deprecated-fields
 const NIP24Deprecated = v.object({
-  displayName: v.nullish(v.string()),
-  username: v.nullish(v.string()),
+  displayName: v.nullish(v.string(), undefined),
+  username: v.nullish(v.string(), undefined),
 });
 
-const profileContentSchema = v.pipe(
+const metadataContentSchema = v.pipe(
   v.object({
     ...NIP01.entries,
     ...NIP24.entries,
@@ -40,23 +40,24 @@ const profileContentSchema = v.pipe(
   })),
 );
 
-export const parseProfile = (input: NostrEvent) => {
+export const parseMetadata = (input: NostrEvent) => {
   if (input.kind !== kinds.Metadata) {
-    throw new Error("kind is not Metadata");
+    throw new Error(`kind is not Metadata: ${input.kind}`);
   }
-  const content = JSON.parse(input.content);
-  const res = v.safeParse(profileContentSchema, content);
+  let content: string;
+  try {
+    content = JSON.parse(input.content);
+  } catch (e) {
+    throw new Error(`failed to parse profile: ${e}`);
+  }
+
+  const res = v.safeParse(metadataContentSchema, content);
   if (res.success) {
-    return {
-      ...res.output,
-      kind: input.kind,
-      pubkey: input.pubkey,
-      id: input.id,
-      created_at: input.created_at,
-      raw: input,
-    } as const;
+    return { ...res.output, kind: input.kind } as const;
   }
   throw new Error(
     `failed to parse profile: ${JSON.stringify(res.issues, null, 2)}`,
   );
 };
+
+export type Metadata = ReturnType<typeof parseMetadata>;

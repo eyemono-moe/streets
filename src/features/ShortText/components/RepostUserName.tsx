@@ -1,14 +1,14 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Show } from "solid-js";
 import { readablePubkey } from "../../../libs/format";
+import { useProfile } from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
-import { useQueryProfile } from "../../Profile/query";
 
 const RepostUserName: Component<{
   pubkey: string;
 }> = (props) => {
-  const reposterProfile = useQueryProfile(() => props.pubkey);
+  const reposterProfile = useProfile(() => props.pubkey);
   const openUserColumn = useOpenUserColumn();
 
   return (

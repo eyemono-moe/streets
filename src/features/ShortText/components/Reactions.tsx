@@ -1,10 +1,10 @@
 import { type Component, For, Show, createMemo } from "solid-js";
-import { useQueryReactions } from "../query";
+import { useReactionsOfEvent } from "../../../libs/rxQuery";
 
 const Reactions: Component<{
   eventId: string;
 }> = (props) => {
-  const reactions = useQueryReactions(() => props.eventId);
+  const reactions = useReactionsOfEvent(() => props.eventId);
   const parsedReactions = createMemo(() => {
     const reactionMap = reactions.data?.reduce<
       Map<
@@ -24,27 +24,27 @@ const Reactions: Component<{
               };
         }
       >
-    >((acc, reaction) => {
-      if (!acc.has(reaction.content)) {
-        acc.set(reaction.content, {
+    >((acc, { parsed }) => {
+      if (!acc.has(parsed.content)) {
+        acc.set(parsed.content, {
           count: 0,
           users: [],
-          content: reaction.emoji
+          content: parsed.emoji
             ? {
                 type: "emoji",
-                src: reaction.emoji.url,
-                value: reaction.emoji.name,
+                src: parsed.emoji.url,
+                value: parsed.emoji.name,
               }
-            : { type: "string", value: reaction.content },
+            : { type: "string", value: parsed.content },
         });
       }
 
-      const current = acc.get(reaction.content);
+      const current = acc.get(parsed.content);
       if (!current) return acc;
 
-      acc.set(reaction.content, {
+      acc.set(parsed.content, {
         count: current.count + 1,
-        users: [...current.users, reaction.pubkey],
+        users: [...current.users, parsed.pubkey],
         content: current.content,
       });
 

@@ -57,7 +57,7 @@ const Link: Component<{
         <Match when={embed.data?.type === "ogp" && embed.data}>
           {(embed) => (
             <a
-              href={embed().value.url}
+              href={embed().value.url ?? props.href}
               target="_blank"
               rel="noopener noreferrer"
               class="b-1 block flex w-full flex-col overflow-hidden rounded bg-white hover:bg-zinc-50"
@@ -79,7 +79,7 @@ const Link: Component<{
                 <div class="c-zinc-6 grid grid-cols-[auto_1fr] items-center gap-1 text-3.5">
                   <div class="i-material-symbols:link-rounded aspect-square h-3.5 w-auto" />
                   <span class="w-full truncate">
-                    {new URL(embed().value.url).hostname}
+                    {new URL(embed().value.url ?? props.href).hostname}
                   </span>
                 </div>
               </div>

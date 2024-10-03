@@ -1,46 +1,51 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
-import { type Component, For, Show, Suspense, createMemo } from "solid-js";
-import type { EventTag } from "../../../libs/commonTag";
+import { type Component, For, Show, createMemo } from "solid-js";
 import { dateHuman, dateTimeHuman } from "../../../libs/format";
 import { parseTextContent } from "../../../libs/parseTextContent";
+import type { EventTag } from "../../../libs/parser/commonTag";
+import {
+  useProfile,
+  useRepostsOfEvent,
+  useShortTextByID,
+} from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
-import { useQueryProfile } from "../../Profile/query";
-import type { parseShortTextNote } from "../event";
-import { useQueryReposts } from "../query";
 import EmbedUser from "./EmbedUser";
 import Reactions from "./Reactions";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
 
 const Text: Component<{
-  shortText: ReturnType<typeof parseShortTextNote>;
+  id: string;
   showActions?: boolean;
   showReply?: boolean;
   small?: boolean;
   isReplyTarget?: boolean;
   showQuotes?: boolean;
 }> = (props) => {
-  const profile = useQueryProfile(() => props.shortText.pubkey);
+  const text = useShortTextByID(() => props.id);
+  const profile = useProfile(() => text.data?.parsed.pubkey);
   const openUserColumn = useOpenUserColumn();
 
   const replyTarget = createMemo(
-    () => props.shortText.tags.filter((tag) => tag.kind === "p") ?? [],
+    () => text.data?.parsed.tags.filter((tag) => tag.kind === "p") ?? [],
   );
 
   // TODO: 別ファイルに切り出す?
   const replyOrRoot = createMemo(() => {
-    const reply = props.shortText.tags.find(
+    const reply = text.data?.parsed.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
     );
-    const root = props.shortText.tags.find(
+    const root = text.data?.parsed.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
     );
     return reply ?? root;
   });
 
-  const parsedContents = createMemo(() => parseTextContent(props.shortText));
+  const parsedContents = createMemo(() =>
+    text.data ? parseTextContent(text.data) : [],
+  );
 
   const textType = () => {
     // e tagがあればreply
@@ -50,7 +55,7 @@ const Text: Component<{
     return "normal";
   };
 
-  const reposts = useQueryReposts(() => props.shortText.id);
+  const reposts = useRepostsOfEvent(() => text.data?.raw.id);
 
   return (
     <div
@@ -88,7 +93,7 @@ const Text: Component<{
               class="cursor-pointer appearance-none bg-transparent"
               as="button"
               onClick={() => {
-                openUserColumn(props.shortText.pubkey);
+                openUserColumn(text.data?.parsed.pubkey);
               }}
             >
               <Image
@@ -100,14 +105,14 @@ const Text: Component<{
                 fallbackDelay={500}
               >
                 <Image.Img
-                  src={profile.data?.picture}
-                  alt={profile.data?.name}
+                  src={profile.data?.parsed.picture}
+                  alt={profile.data?.parsed.name}
                   loading="lazy"
                   class="h-full w-full object-cover"
                 />
                 <Image.Fallback class="flex h-full w-full items-center justify-center">
-                  {profile.data?.name.slice(0, 2) ??
-                    props.shortText.pubkey.slice(0, 2)}
+                  {profile.data?.parsed.name?.slice(0, 2) ??
+                    text.data?.parsed.pubkey.slice(0, 2)}
                 </Image.Fallback>
               </Image>
             </HoverCard.Trigger>
@@ -122,22 +127,22 @@ const Text: Component<{
                 class="cursor-pointer appearance-none bg-transparent hover:underline"
                 as="button"
                 onClick={() => {
-                  openUserColumn(props.shortText.pubkey);
+                  openUserColumn(text.data?.parsed.pubkey);
                 }}
               >
-                <Show when={profile.data} fallback={props.shortText.pubkey}>
-                  <span>{profile.data?.display_name}</span>
+                <Show when={profile.data} fallback={text.data?.parsed.pubkey}>
+                  <span>{profile.data?.parsed.display_name}</span>
                   <span class="text-3.5 text-zinc-5">
-                    @{profile.data?.name}
+                    @{profile.data?.parsed.name}
                   </span>
                 </Show>
               </HoverCard.Trigger>
             </div>
             <span
               class="text-3.5 text-zinc-5"
-              title={dateHuman(new Date(props.shortText.created_at * 1000))}
+              title={dateHuman(new Date(text.data?.raw.created_at * 1000))}
             >
-              {dateTimeHuman(new Date(props.shortText.created_at * 1000))}
+              {dateTimeHuman(new Date(text.data?.raw.created_at * 1000))}
             </span>
           </div>
           <div class="grid-area-[content] flex flex-col gap-2">
@@ -159,9 +164,7 @@ const Text: Component<{
             <div>
               <ShortTextContent contents={parsedContents()} showLinkEmbeds />
             </div>
-            <Suspense>
-              <Reactions eventId={props.shortText.id} />
-            </Suspense>
+            <Reactions eventId={text.data?.parsed.id} />
             <Show when={props.showActions}>
               <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                 <button
@@ -200,7 +203,7 @@ const Text: Component<{
           </div>
         </div>
         <HoverCard.Portal>
-          <ProfileHoverContent pubkey={props.shortText.pubkey} />
+          <ProfileHoverContent pubkey={text.data?.parsed.pubkey} />
         </HoverCard.Portal>
       </HoverCard>
     </div>
