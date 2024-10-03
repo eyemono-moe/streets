@@ -27,9 +27,9 @@ const RepostUserName: Component<{
               when={reposterProfile.data}
               fallback={`@${readablePubkey(props.pubkey)}`}
             >
-              <span>{reposterProfile.data?.display_name}</span>
+              <span>{reposterProfile.data?.parsed.display_name}</span>
               <span class="text-3.5 text-zinc-5">
-                {`@${reposterProfile.data?.name}`}
+                {`@${reposterProfile.data?.parsed.name}`}
               </span>
             </Show>
           </HoverCard.Trigger>
