@@ -1,4 +1,10 @@
-import { type ParentComponent, createContext, useContext } from "solid-js";
+import {
+  type ParentComponent,
+  createContext,
+  onMount,
+  useContext,
+} from "solid-js";
+import { reconcile } from "solid-js/store";
 import * as v from "valibot";
 import { createLocalStore } from "../libs/createLocalStore";
 import { useNIP07 } from "../libs/useNIP07";
@@ -19,7 +25,15 @@ type RelaysState = v.InferOutput<typeof relaysState>;
 const initialState: RelaysState = {
   version: "0.0",
   defaultRelays: {
-    "wss://relay-jp.nostr.wirednet.jp": {
+    "wss://relay.nostr.band/": {
+      read: true,
+      write: true,
+    },
+    "wss://nos.lol/": {
+      read: true,
+      write: true,
+    },
+    "wss://relay.damus.io/": {
       read: true,
       write: true,
     },
@@ -60,13 +74,12 @@ export const RelaysProvider: ParentComponent = (props) => {
 
   const syncWithNIP07 = async () => {
     const nip07Relays = await useNIP07().getRelays();
-    // TODO: mergeにする
-    setState("defaultRelays", nip07Relays);
+    setState("defaultRelays", reconcile(nip07Relays));
   };
 
-  // onMount(() => {
-  //   syncWithNIP07();
-  // })
+  onMount(() => {
+    syncWithNIP07();
+  });
 
   return (
     <RelaysContext.Provider

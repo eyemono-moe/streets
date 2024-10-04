@@ -1,70 +1,25 @@
 import { kinds } from "nostr-tools";
-import {
-  type Component,
-  Match,
-  Show,
-  Suspense,
-  Switch,
-  createMemo,
-} from "solid-js";
-import type { EventTag } from "../../../libs/commonTag";
-import { parseShortTextNote, type parseTextNoteOrRepost } from "../event";
-import { useQueryShortTextById } from "../query";
-import RepostUserName from "./RepostUserName";
+import { type Component, Match, Switch } from "solid-js";
+import type { ParsedEventPacket } from "../../../libs/parser";
+import type { ShortTextNote } from "../../../libs/parser/1_shortTextNote";
+import type { Repost as TRepost } from "../../../libs/parser/6_repost";
+import Repost from "./Repost";
 import Text from "./Text";
 
 const TextOrRepost: Component<{
-  textOrRepost: ReturnType<typeof parseTextNoteOrRepost>;
+  textOrRepost: ParsedEventPacket<ShortTextNote | TRepost>;
 }> = (props) => {
-  const targetId = () => {
-    // contentのパースに成功したらそのcontentを使うため、subscribeしないようにする
-    try {
-      JSON.parse(props.textOrRepost.content);
-      return;
-    } catch {
-      return (
-        props.textOrRepost.tags.find((tag) => tag.kind === "e") as
-          | EventTag
-          | undefined
-      )?.id;
-    }
-  };
-  const text = useQueryShortTextById(targetId);
-
-  const repostedEvent = createMemo(() => {
-    try {
-      return parseShortTextNote(JSON.parse(props.textOrRepost.content));
-    } catch {
-      return text.data;
-    }
-  });
-
   return (
-    <div class="p-2">
-      <Switch>
-        <Match when={props.textOrRepost.kind === kinds.ShortTextNote}>
-          <Text
-            shortText={
-              props.textOrRepost as ReturnType<typeof parseShortTextNote>
-            }
-            showActions
-            showReply
-          />
-        </Match>
-        <Match when={props.textOrRepost.kind === kinds.Repost}>
-          <Show when={repostedEvent()}>
-            {(nonNullText) => (
-              <>
-                <RepostUserName pubkey={props.textOrRepost.pubkey} />
-                <Suspense>
-                  <Text shortText={nonNullText()} showActions />
-                </Suspense>
-              </>
-            )}
-          </Show>
-        </Match>
-      </Switch>
-    </div>
+    <Switch>
+      <Match when={props.textOrRepost.parsed.kind === kinds.ShortTextNote}>
+        <div class="p-2">
+          <Text id={props.textOrRepost.raw.id} showActions showReply />
+        </div>
+      </Match>
+      <Match when={props.textOrRepost.parsed.kind === kinds.Repost}>
+        <Repost repost={props.textOrRepost.parsed as TRepost} />
+      </Match>
+    </Switch>
   );
 };
 

@@ -2,6 +2,11 @@ import * as v from "valibot";
 
 // https://github.com/nostr-protocol/nips?tab=readme-ov-file#standardized-tags
 
+export const unknownTag = v.pipe(
+  v.array(v.string()),
+  v.transform((input) => ({ kind: "unknown", data: input }) as const),
+);
+
 // https://github.com/nostr-protocol/nips/blob/master/01.md#tags
 // https://github.com/nostr-protocol/nips/blob/master/10.md#marked-e-tags-preferred
 export const eventTag = v.pipe(
@@ -10,8 +15,23 @@ export const eventTag = v.pipe(
     v.string(), // event id
     v.optional(v.string()), // recommended relay url
     v.optional(
-      v.union([v.literal("reply"), v.literal("root"), v.literal("mention")]),
-    ), // marker
+      v.union([
+        // marker
+        v.pipe(
+          v.union([
+            v.literal("reply"),
+            v.literal("root"),
+            v.literal("mention"),
+          ]),
+          v.transform((i) => ({ type: "marker", value: i })),
+        ),
+        // pubkey (voyageのrepostイベントではここにpubkeyが入る)
+        v.pipe(
+          v.string(),
+          v.transform((i) => ({ type: "pubkey", value: i })),
+        ),
+      ]),
+    ),
     v.optional(v.string()), // pubkey
   ]),
   v.transform(
@@ -20,8 +40,11 @@ export const eventTag = v.pipe(
         kind: input[0],
         id: input[1],
         relay: input[2],
-        marker: input[3],
-        pubkey: input[4],
+        marker: input[3]?.type === "marker" ? input[3].value : undefined,
+        pubkey:
+          (input[4] ?? input[3]?.type === "pubkey")
+            ? input[3]?.value
+            : undefined,
       }) as const,
   ),
 );

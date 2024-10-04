@@ -1,23 +1,24 @@
-import type { Filter } from "nostr-tools";
-import type { Component } from "solid-js";
-import { useQueryPubkey } from "../../../../libs/useNIP07";
-import Texts from "../../../ShortText/components/Texts";
-import { useQueryFollowList } from "../../../ShortText/query";
+import { type Component, Show } from "solid-js";
+import { useFollowees } from "../../../../libs/rxQuery";
+import { useMyPubkey } from "../../../../libs/useMyPubkey";
+import InfinitePosts from "../../../ShortText/components/InfinitePosts";
 import type { PickColumnState } from "../../context/deck";
 
 const Followings: Component<{
   state: PickColumnState<"follow">;
 }> = () => {
-  const pubkey = useQueryPubkey();
-  const follows = useQueryFollowList(() => pubkey.data);
-  const filter = (): Omit<Filter, "kinds" | "since"> | undefined =>
-    follows.data
-      ? {
-          authors: follows.data.tags.map((tag) => tag.pubkey),
-        }
-      : undefined;
+  const myPubkey = useMyPubkey();
+  const followees = useFollowees(myPubkey);
 
-  return <Texts filter={filter()} />;
+  return (
+    <Show when={followees.data}>
+      <InfinitePosts
+        filter={{
+          authors: followees.data?.parsed.followees.map((f) => f.pubkey),
+        }}
+      />
+    </Show>
+  );
 };
 
 export default Followings;

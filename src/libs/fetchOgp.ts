@@ -2,8 +2,8 @@ import * as v from "valibot";
 
 const ogpScheme = v.object({
   title: v.string(),
-  description: v.string(),
-  url: v.string(),
+  description: v.optional(v.string()),
+  url: v.optional(v.string()),
   image: v.optional(v.string()),
   site_name: v.optional(v.string()),
 });
