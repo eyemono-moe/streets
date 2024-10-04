@@ -9,7 +9,7 @@ const Repost: Component<{
   return (
     <div class="p-2">
       <RepostUserName pubkey={props.repost.pubkey} />
-      <Text id={props.repost.tags.find((tag) => tag.kind === "e")?.id} />
+      <Text id={props.repost.targetEventID} />
       {/* <Show
         when={parsedContent()}
         fallback={

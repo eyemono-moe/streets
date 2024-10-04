@@ -26,11 +26,20 @@ export const parseRepost = (input: NostrEvent) => {
 
   const tagsRes = v.safeParse(repostTags, input.tags);
   if (tagsRes.success) {
+    const tagetEventID = tagsRes.output.find((tag) => tag.kind === "e")?.id;
+    if (!tagetEventID) {
+      // The repost event MUST include an e tag with the id of the note that is being reposted.
+      throw new Error(
+        `missing event tag in repost: ${JSON.stringify(input, null, 2)}`,
+      );
+    }
+
     return {
       kind: input.kind,
       rawContent: input.content,
       pubkey: input.pubkey,
       parsedContent,
+      targetEventID: tagetEventID,
       tags: tagsRes.output,
     } as const;
   }

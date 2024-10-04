@@ -76,6 +76,7 @@ export const parseShortTextNote = (input: NostrEvent) => {
   const tagsRes = v.safeParse(textNoteTags, input.tags);
   if (tagsRes.success) {
     return {
+      id: input.id,
       kind: input.kind,
       content: input.content,
       pubkey: input.pubkey,

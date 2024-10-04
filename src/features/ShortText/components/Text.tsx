@@ -55,158 +55,170 @@ const Text: Component<{
     return "normal";
   };
 
-  const reposts = useRepostsOfEvent(() => text.data?.raw.id);
+  const reposts = useRepostsOfEvent(() => text.data?.parsed.id);
 
   return (
-    <div
-      classList={{
-        "text-4": !props.small,
-        "text-3.5": props.small,
-      }}
+    <Show
+      when={text.data}
+      // TODO: placeholder
     >
-      <Show when={textType() === "reply" && props.showReply}>
-        <Show
-          when={!props.isReplyTarget}
-          fallback={
-            <div class="b-l-2 b-dashed ml-[calc(0.75rem-1px)] py-1 pl-2 text-zinc-5">
-              load more
-            </div>
-          }
-        >
-          <Reply id={replyOrRoot()?.id} />
-          <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
+      <div
+        classList={{
+          "text-4": !props.small,
+          "text-3.5": props.small,
+        }}
+      >
+        <Show when={textType() === "reply" && props.showReply}>
+          <Show
+            when={!props.isReplyTarget}
+            fallback={
+              <div class="b-l-2 b-dashed ml-[calc(0.75rem-1px)] py-1 pl-2 text-zinc-5">
+                load more
+              </div>
+            }
+          >
+            {/* biome-ignore lint/style/noNonNullAssertion: textType() === "reply" */}
+            <Reply id={replyOrRoot()!.id} />
+            <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
+          </Show>
         </Show>
-      </Show>
-      <HoverCard>
-        <div
-          class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
-          style={{
-            "grid-template-areas": `
+        <HoverCard>
+          <div
+            class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
+            style={{
+              "grid-template-areas": `
             "avatar name"
             "avatar content"
             `,
-          }}
-        >
-          {/* TODO: ユーザーページへのリンクにする */}
-          <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
-            <HoverCard.Trigger
-              class="cursor-pointer appearance-none bg-transparent"
-              as="button"
-              onClick={() => {
-                openUserColumn(text.data?.parsed.pubkey);
-              }}
-            >
-              <Image
-                class="inline-flex aspect-square h-auto select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
-                classList={{
-                  "w-10": !props.small,
-                  "w-6": props.small,
-                }}
-                fallbackDelay={500}
-              >
-                <Image.Img
-                  src={profile.data?.parsed.picture}
-                  alt={profile.data?.parsed.name}
-                  loading="lazy"
-                  class="h-full w-full object-cover"
-                />
-                <Image.Fallback class="flex h-full w-full items-center justify-center">
-                  {profile.data?.parsed.name?.slice(0, 2) ??
-                    text.data?.parsed.pubkey.slice(0, 2)}
-                </Image.Fallback>
-              </Image>
-            </HoverCard.Trigger>
-            <Show when={props.isReplyTarget}>
-              <div class="b-l-2 ml-[calc(0.75rem-1px)]" />
-            </Show>
-          </div>
-          <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
-            <div class="truncate">
-              {/* TODO: ユーザーページへのリンクにする */}
+            }}
+          >
+            <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
               <HoverCard.Trigger
-                class="cursor-pointer appearance-none bg-transparent hover:underline"
+                class="cursor-pointer appearance-none bg-transparent"
                 as="button"
                 onClick={() => {
-                  openUserColumn(text.data?.parsed.pubkey);
+                  // biome-ignore lint/style/noNonNullAssertion: when={text.data}
+                  openUserColumn(text.data!.parsed.pubkey);
                 }}
               >
-                <Show when={profile.data} fallback={text.data?.parsed.pubkey}>
-                  <span>{profile.data?.parsed.display_name}</span>
-                  <span class="text-3.5 text-zinc-5">
-                    @{profile.data?.parsed.name}
-                  </span>
-                </Show>
+                <Image
+                  class="inline-flex aspect-square h-auto select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
+                  classList={{
+                    "w-10": !props.small,
+                    "w-6": props.small,
+                  }}
+                  fallbackDelay={500}
+                >
+                  <Image.Img
+                    src={profile.data?.parsed.picture}
+                    alt={profile.data?.parsed.name}
+                    loading="lazy"
+                    class="h-full w-full object-cover"
+                  />
+                  <Image.Fallback class="flex h-full w-full items-center justify-center">
+                    {profile.data?.parsed.name?.slice(0, 2) ??
+                      text.data?.parsed.pubkey.slice(0, 2)}
+                  </Image.Fallback>
+                </Image>
               </HoverCard.Trigger>
+              <Show when={props.isReplyTarget}>
+                <div class="b-l-2 ml-[calc(0.75rem-1px)]" />
+              </Show>
             </div>
-            <span
-              class="text-3.5 text-zinc-5"
-              title={dateHuman(new Date(text.data?.raw.created_at * 1000))}
-            >
-              {dateTimeHuman(new Date(text.data?.raw.created_at * 1000))}
-            </span>
-          </div>
-          <div class="grid-area-[content] flex flex-col gap-2">
-            <Show when={textType() === "mention" || textType() === "reply"}>
-              <div class="text-3">
-                <For each={replyTarget()}>
-                  {/* TODO: ユーザーページへのリンクにする */}
-                  {(target, i) => (
-                    <>
-                      <Show when={i() !== 0}>
-                        <span>, </span>
-                      </Show>
-                      <EmbedUser pubkey={target.pubkey} relay={target.relay} />
-                    </>
-                  )}
-                </For>
+            <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
+              <div class="truncate">
+                <HoverCard.Trigger
+                  class="cursor-pointer appearance-none bg-transparent hover:underline"
+                  as="button"
+                  onClick={() => {
+                    // biome-ignore lint/style/noNonNullAssertion: when={text.data}
+                    openUserColumn(text.data!.parsed.pubkey);
+                  }}
+                >
+                  <Show when={profile.data} fallback={text.data?.parsed.pubkey}>
+                    <span>{profile.data?.parsed.display_name}</span>
+                    <span class="text-3.5 text-zinc-5">
+                      @{profile.data?.parsed.name}
+                    </span>
+                  </Show>
+                </HoverCard.Trigger>
               </div>
-            </Show>
-            <div>
-              <ShortTextContent contents={parsedContents()} showLinkEmbeds />
+              <span
+                class="text-3.5 text-zinc-5"
+                // biome-ignore lint/style/noNonNullAssertion: when={text.data}
+                title={dateHuman(new Date(text.data!.raw.created_at * 1000))}
+              >
+                {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
+                {dateTimeHuman(new Date(text.data!.raw.created_at * 1000))}
+              </span>
             </div>
-            <Reactions eventId={text.data?.parsed.id} />
-            <Show when={props.showActions}>
-              <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
-                <button
-                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                  type="button"
-                >
-                  <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
-                </button>
-                <button
-                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                  type="button"
-                >
-                  <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
-                  <span>{reposts.data?.length || ""}</span>
-                </button>
-                <button
-                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                  type="button"
-                >
-                  <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
-                </button>
-                <button
-                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                  type="button"
-                >
-                  <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
-                </button>
-                <button
-                  class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                  type="button"
-                >
-                  <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
-                </button>
+            <div class="grid-area-[content] flex flex-col gap-2">
+              <Show when={textType() === "mention" || textType() === "reply"}>
+                <div class="text-3">
+                  <For each={replyTarget()}>
+                    {/* TODO: ユーザーページへのリンクにする */}
+                    {(target, i) => (
+                      <>
+                        <Show when={i() !== 0}>
+                          <span>, </span>
+                        </Show>
+                        <EmbedUser
+                          pubkey={target.pubkey}
+                          relay={target.relay}
+                        />
+                      </>
+                    )}
+                  </For>
+                </div>
+              </Show>
+              <div>
+                <ShortTextContent contents={parsedContents()} showLinkEmbeds />
               </div>
-            </Show>
+              {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
+              <Reactions eventId={text.data!.parsed.id} />
+              <Show when={props.showActions}>
+                <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
+                  <button
+                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    type="button"
+                  >
+                    <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
+                  </button>
+                  <button
+                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    type="button"
+                  >
+                    <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
+                    <span>{reposts.data?.length || ""}</span>
+                  </button>
+                  <button
+                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    type="button"
+                  >
+                    <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
+                  </button>
+                  <button
+                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    type="button"
+                  >
+                    <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
+                  </button>
+                  <button
+                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    type="button"
+                  >
+                    <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
+                  </button>
+                </div>
+              </Show>
+            </div>
           </div>
-        </div>
-        <HoverCard.Portal>
-          <ProfileHoverContent pubkey={text.data?.parsed.pubkey} />
-        </HoverCard.Portal>
-      </HoverCard>
-    </div>
+          <HoverCard.Portal>
+            <ProfileHoverContent pubkey={text.data?.parsed.pubkey} />
+          </HoverCard.Portal>
+        </HoverCard>
+      </div>
+    </Show>
   );
 };
 
