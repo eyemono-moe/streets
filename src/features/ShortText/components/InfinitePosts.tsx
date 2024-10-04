@@ -8,7 +8,10 @@ import { useRxQuery } from "../../../context/rxQuery";
 import { type ParsedEventPacket, parseEventPacket } from "../../../libs/parser";
 import type { ShortTextNote } from "../../../libs/parser/1_shortTextNote";
 import type { Repost } from "../../../libs/parser/6_repost";
-import { createInfiniteRxQuery } from "../../../libs/rxQuery";
+import {
+  cacheAndEmitRelatedEvent,
+  createInfiniteRxQuery,
+} from "../../../libs/rxQuery";
 import { toArrayScan } from "../../../libs/rxjs";
 import TextOrRepost from "./TextOrRepost";
 
@@ -28,25 +31,7 @@ const InfinitePosts: Component<{
       uniq(),
       tap({
         next: (e) => {
-          // TODO: 各イベントについて自動でemitする関数を作る
-          const ps = e.event.tags.filter((t) => t[0] === "p").map((t) => t[1]);
-          ps.push(e.event.pubkey);
-          if (ps.length) {
-            emit({ kinds: [kinds.Metadata], authors: ps });
-          }
-
-          const es = e.event.tags.filter((t) => t[0] === "e").map((t) => t[1]);
-          if (es.length) {
-            emit({ kinds: [kinds.ShortTextNote], "#e": es });
-          }
-          emit({ kinds: [kinds.Repost, kinds.Reaction], "#e": [e.event.id] });
-
-          queryClient.prefetchQuery({
-            queryKey: [e.event.kind, e.event.id],
-            queryFn: () => {
-              return parseEventPacket(e);
-            },
-          });
+          cacheAndEmitRelatedEvent(e, emit, queryClient);
         },
       }),
       map(
