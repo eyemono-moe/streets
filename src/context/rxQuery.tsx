@@ -32,7 +32,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
         batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
       ),
     )
-    .pipe(uniq(), share());
+    .pipe(share());
 
   // pubkeyごとに最新のイベントをフィルター
   const latestByPubkey$ = backwardEvent$.pipe(
@@ -57,7 +57,10 @@ export const RxQueryProvider: ParentComponent = (props) => {
     });
 
   // IDごとに最新のイベントをフィルター
-  const latestByID$ = backwardEvent$.pipe(latest(), share());
+  const latestByID$ = backwardEvent$.pipe(
+    latestEach((e) => e.event.id),
+    share(),
+  );
 
   // 最新1件を取得できれば良いkindのイベント
   latestByID$.pipe(filterByKinds([kinds.ShortTextNote])).subscribe({
