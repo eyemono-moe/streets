@@ -12,6 +12,7 @@ import {
 import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import EmbedUser from "./EmbedUser";
+import PlaceholderText from "./PlaceholderText";
 import Reactions from "./Reactions";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
@@ -64,7 +65,16 @@ const Text: Component<{
   return (
     <Show
       when={text.data}
-      // TODO: placeholder
+      fallback={
+        <PlaceholderText
+          id={props.id}
+          pubkey={text.data?.parsed.pubkey}
+          showActions={props.showActions}
+          showReply={props.showReply}
+          small={props.small}
+          isReplyTarget={props.isReplyTarget}
+        />
+      }
     >
       <div
         classList={{
