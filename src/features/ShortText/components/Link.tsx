@@ -37,6 +37,14 @@ const Link: Component<{
     }
   });
 
+  const hostname = (url?: string) => {
+    try {
+      return new URL(url ?? props.href).hostname;
+    } catch {
+      return props.href;
+    }
+  };
+
   return (
     <>
       <Switch
@@ -79,7 +87,7 @@ const Link: Component<{
                 <div class="c-zinc-6 grid grid-cols-[auto_1fr] items-center gap-1 text-3.5">
                   <div class="i-material-symbols:link-rounded aspect-square h-3.5 w-auto" />
                   <span class="w-full truncate">
-                    {new URL(embed().value.url ?? props.href).hostname}
+                    {hostname(embed().value.url)}
                   </span>
                 </div>
               </div>
