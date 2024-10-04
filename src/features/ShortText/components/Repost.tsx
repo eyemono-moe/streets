@@ -16,15 +16,8 @@ const Repost: Component<{
           // @ts-ignore
           // biome-ignore lint/style/noNonNullAssertion: filterでundefinedを除外しているため
           .map((tag) => tag.relay!)}
+        showActions
       />
-      {/* <Show
-        when={parsedContent()}
-        fallback={
-          <Text id={props.repost.tags.find((tag) => tag.kind === "e")?.id} />
-        }
-      >
-        {(nonNullData) => <Text shortText={nonNullData()} />}
-      </Show> */}
     </div>
   );
 };
