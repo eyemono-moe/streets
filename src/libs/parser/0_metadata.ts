@@ -53,7 +53,7 @@ export const parseMetadata = (input: NostrEvent) => {
 
   const res = v.safeParse(metadataContentSchema, content);
   if (res.success) {
-    return { ...res.output, kind: input.kind } as const;
+    return { ...res.output, kind: input.kind, pubkey: input.pubkey } as const;
   }
   throw new Error(
     `failed to parse profile: ${JSON.stringify(res.issues, null, 2)}`,

@@ -13,6 +13,7 @@ export const parseContacts = (input: NostrEvent) => {
   if (res.success) {
     return {
       kind: input.kind,
+      pubkey: input.pubkey,
       followees: res.output,
     } as const;
   }

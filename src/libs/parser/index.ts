@@ -19,7 +19,7 @@ export const parseNostrEvent = (input: NostrEvent) => {
     case kinds.Reaction:
       return parseReaction(input);
     default:
-      throw new Error(`unknown kind: ${input.kind}`);
+      throw new Error(`[parseNostrEvent] unknown kind: ${input.kind}`);
   }
 };
 

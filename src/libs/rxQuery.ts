@@ -1,4 +1,5 @@
 import {
+  type QueryClient,
   type QueryKey,
   createQuery,
   useQueryClient,
@@ -6,17 +7,20 @@ import {
 import { type Filter, kinds } from "nostr-tools";
 import {
   type EventPacket,
+  type LazyFilter,
+  type RxReqEmittable,
   compareEvents,
   createRxBackwardReq,
   uniq,
 } from "rx-nostr";
-import { createSignal } from "solid-js";
+import { createEffect, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import { useRxNostr } from "../context/rxNostr";
 import { useRxQuery } from "../context/rxQuery";
 import { type ParsedEventPacket, parseEventPacket } from "./parser";
 import type { Metadata } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
+import type { FollowList } from "./parser/3_contacts";
 import type { Repost } from "./parser/6_repost";
 import type { Reaction } from "./parser/7_reaction";
 
@@ -48,6 +52,7 @@ export const createInfiniteRxQuery = <T>(
   const fetchNextPage = async () => {
     const rxReq = createRxBackwardReq();
     setIsFetching(true);
+
     const page = await new Promise<T[]>((resolve) => {
       const events: EventPacket[] = [];
       rxNostr
@@ -56,30 +61,7 @@ export const createInfiniteRxQuery = <T>(
         .subscribe({
           next: (e) => {
             events.push(e);
-
-            // TODO: 各イベントについて自動でemitする関数を作る
-            const ps = e.event.tags
-              .filter((t) => t[0] === "p")
-              .map((t) => t[1]);
-            ps.push(e.event.pubkey);
-            if (ps.length) {
-              emit({ kinds: [kinds.Metadata], authors: ps });
-            }
-
-            const es = e.event.tags
-              .filter((t) => t[0] === "e")
-              .map((t) => t[1]);
-            if (es.length) {
-              emit({ kinds: [kinds.ShortTextNote], "#e": es });
-            }
-            emit({ kinds: [kinds.Repost, kinds.Reaction], "#e": [e.event.id] });
-
-            queryClient.prefetchQuery({
-              queryKey: [e.event.kind, e.event.id],
-              queryFn: () => {
-                return parseEventPacket(e);
-              },
-            });
+            cacheAndEmitRelatedEvent(e, emit, queryClient);
           },
           complete: () => {
             const sliced = events
@@ -123,6 +105,147 @@ export const createInfiniteRxQuery = <T>(
   };
 };
 
+export const getQueryKey = (
+  parsed: ReturnType<typeof parseEventPacket>,
+): {
+  single?: QueryKey[];
+  multiple?: QueryKey[];
+} => {
+  switch (parsed.parsed.kind) {
+    case kinds.Metadata:
+      return { single: [[kinds.Metadata, parsed.parsed.pubkey]] };
+    case kinds.ShortTextNote:
+      return { single: [[kinds.ShortTextNote, parsed.parsed.id]] };
+    case kinds.Contacts:
+      return { single: [[kinds.Contacts, parsed.parsed.pubkey]] };
+    case kinds.Repost: {
+      // そのidのShortTextNoteのリポスト一覧
+      const repostsOf = parsed.parsed.tags
+        .filter((tag) => tag.kind === "e")
+        .map((tag) => ["repostsOf", tag.id]);
+      return { multiple: repostsOf };
+    }
+    case kinds.Reaction: {
+      // そのidのShortTextNoteのリアクション一覧
+      return { multiple: [["reactionsOf", parsed.parsed.targetEvent.id]] };
+    }
+    default:
+      console.warn(`[getQueryKey] unknown kind: ${parsed.raw.kind}`);
+      return {
+        multiple: [[parsed.raw.kind, parsed.raw.id]],
+      };
+  }
+};
+
+export const getRelatedEventFilters = (
+  parsed: ReturnType<typeof parseEventPacket>,
+): LazyFilter[] => {
+  switch (parsed.parsed.kind) {
+    case kinds.Metadata:
+      return [];
+    case kinds.ShortTextNote: {
+      const authors = parsed.parsed.tags
+        .filter((tag) => tag.kind === "p")
+        .map((tag) => tag.pubkey);
+      authors.push(parsed.parsed.pubkey);
+
+      // const relatedEvents = parsed.parsed.tags
+      //   .filter((tag) => tag.kind === "e" || tag.kind === "q")
+      //   .map((tag) => tag.id);
+
+      return [
+        {
+          kinds: [kinds.Metadata],
+          authors: authors,
+        },
+        // TODO: これを入れると無限ループする?
+        // {
+        //   kinds: [kinds.ShortTextNote],
+        //   ids: relatedEvents,
+        // },
+        {
+          kinds: [kinds.Reaction, kinds.Repost],
+          "#e": [parsed.parsed.id],
+        },
+      ];
+    }
+    case kinds.Contacts:
+      // TODO: 一旦なにもemitしない
+      // 本来ならpubkey一覧をemitしたいが、staleTimeを使った実装をできていないので無限ループしそう
+      return [];
+    case kinds.Repost: {
+      return [
+        {
+          kinds: [kinds.ShortTextNote],
+          ids: [parsed.parsed.targetEventID],
+          // limit: 1,
+        },
+      ];
+    }
+    case kinds.Reaction:
+      return [
+        {
+          kinds: [kinds.Metadata],
+          authors: [parsed.parsed.pubkey],
+        },
+      ];
+    default:
+      console.warn(`[relatedEventFilters] unknown kind: ${parsed.raw.kind}`);
+      return [];
+  }
+};
+
+export const cacheAndEmitRelatedEvent = (
+  e: EventPacket,
+  emit: RxReqEmittable<{ relays: string[] }>["emit"],
+  queryClient: QueryClient,
+) => {
+  const parsed = parseEventPacket(e);
+  const queryKeys = getQueryKey(parsed);
+
+  // 最新1件のみをcacheに保存する
+  for (const queryKey of queryKeys.single ?? []) {
+    queryClient.prefetchQuery({
+      queryKey,
+      queryFn: () => {
+        return parsed;
+      },
+    });
+  }
+
+  // すべてのイベントをcacheに保存する
+  for (const queryKey of queryKeys.multiple ?? []) {
+    // queryClient.prefetchQuery({
+    //   queryKey,
+    //   queryFn: () => {
+    //     const prev = queryClient.getQueryData<
+    //       ReturnType<typeof parseEventPacket>[] | undefined
+    //     >(queryKey);
+    //     if (prev) {
+    //       // TODO: sort?
+    //       return [...prev, parsed];
+    //     }
+    //     return [parsed];
+    //   },
+    // });
+
+    // prefetchを使うとprevをうまく取得できないのでsetQueryDataを使う
+    // TODO: fixme
+    queryClient.setQueryData<ReturnType<typeof parseEventPacket>[] | undefined>(
+      queryKey,
+      (prev) => {
+        if (prev) {
+          return [...prev, parsed];
+        }
+        return [parsed];
+      },
+    );
+  }
+
+  const relatedEventFilters = getRelatedEventFilters(parsed);
+  emit(relatedEventFilters);
+};
+
 const isStale = (queryKey: QueryKey) => {
   const queryClient = useQueryClient();
   const state = queryClient.getQueryState(queryKey);
@@ -140,21 +263,51 @@ export const useShortTextByID = (
     actions: { emit },
   } = useRxQuery();
 
-  if (isStale(queryKey())) {
-    const _id = id();
-    if (_id) {
-      emit(
-        { kinds: [kinds.ShortTextNote], ids: [_id], limit: 1 },
-        {
-          relays: relays?.() ?? [],
-        },
-      );
+  createEffect(() => {
+    if (isStale(queryKey())) {
+      const _id = id();
+      if (_id) {
+        const _relays = relays?.() ?? [];
+        emit(
+          { kinds: [kinds.ShortTextNote], ids: [_id] },
+          _relays.length > 0
+            ? {
+                relays: _relays,
+              }
+            : undefined,
+        );
+      }
     }
-  }
+  });
 
   return createQuery<ParsedEventPacket<ShortTextNote>>(() => ({
     queryKey: queryKey(),
     enabled: !!id(),
+  }));
+};
+
+export const useFollowees = (pubkey: () => string | undefined) => {
+  const queryKey = () => [kinds.Contacts, pubkey()];
+
+  const {
+    actions: { emit },
+  } = useRxQuery();
+
+  createEffect(() => {
+    if (isStale(queryKey())) {
+      const _pubkey = pubkey();
+      if (_pubkey) {
+        emit({
+          kinds: [kinds.Contacts],
+          authors: [_pubkey],
+        });
+      }
+    }
+  });
+
+  return createQuery<ParsedEventPacket<FollowList>>(() => ({
+    queryKey: queryKey(),
+    enabled: !!pubkey(),
   }));
 };
 

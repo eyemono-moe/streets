@@ -1,4 +1,4 @@
-import { type QueryKey, useQueryClient } from "@tanstack/solid-query";
+import { useQueryClient } from "@tanstack/solid-query";
 import { kinds } from "nostr-tools";
 import {
   type RxReqEmittable,
@@ -10,7 +10,7 @@ import {
 import { bufferWhen, interval, share } from "rxjs";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import { mergeSimilarAndRemoveEmptyFilters } from "../libs/mergeFilters";
-import { parseEventPacket } from "../libs/parser";
+import { cacheAndEmitRelatedEvent } from "../libs/rxQuery";
 import { useRxNostr } from "./rxNostr";
 
 const RxQueryContext = createContext<{
@@ -22,7 +22,9 @@ const RxQueryContext = createContext<{
 export const RxQueryProvider: ParentComponent = (props) => {
   const rxNostr = useRxNostr();
   const rxBackwardReq = createRxBackwardReq();
+  const emit = rxBackwardReq.emit;
   const queryClient = useQueryClient();
+
   // すべてのbackwardReq由来のイベント
   const backwardEvent$ = rxNostr
     .use(
@@ -33,90 +35,33 @@ export const RxQueryProvider: ParentComponent = (props) => {
     )
     .pipe(share());
 
-  // pubkeyごとに最新のイベントをフィルター
-  const latestByPubkey$ = backwardEvent$.pipe(
-    latestEach((e) => e.event.pubkey),
-    share(),
-  );
-
-  // 最新1件を取得/保存するkind
-  latestByPubkey$
-    .pipe(filterByKinds([kinds.Metadata, kinds.Contacts, kinds.RelayList]))
+  // pubkeyごとの最新イベントが必要なkind
+  backwardEvent$
+    .pipe(
+      // TODO: 対応するkindを定数で持つ
+      filterByKinds([kinds.Metadata, kinds.Contacts, kinds.RelayList]),
+      latestEach((e) => e.event.pubkey),
+      share(),
+    )
     .subscribe({
-      // 最新1件のみをcacheに保存する
       next: (e) => {
-        // TODO: gen queryKey automatically
-        queryClient.prefetchQuery({
-          queryKey: [e.event.kind, e.event.pubkey],
-          queryFn: () => {
-            return parseEventPacket(e);
-          },
-        });
+        cacheAndEmitRelatedEvent(e, emit, queryClient);
       },
     });
 
-  // IDごとに最新のイベントをフィルター
-  const latestByID$ = backwardEvent$.pipe(
-    latestEach((e) => e.event.id),
-    share(),
-  );
-
-  // 最新1件を取得できれば良いkindのイベント
-  latestByID$.pipe(filterByKinds([kinds.ShortTextNote])).subscribe({
-    // 最新1件のみをcacheに保存する
-    next: (e) => {
-      // TODO: gen queryKey automatically
-      queryClient.prefetchQuery({
-        queryKey: [e.event.kind, e.event.id],
-        queryFn: () => {
-          return parseEventPacket(e);
-        },
-      });
-    },
-  });
-
-  // 過去全件を取得するkindのイベント
-  latestByID$.pipe(filterByKinds([kinds.Repost, kinds.Reaction])).subscribe({
-    next: (e) => {
-      const parsed = parseEventPacket(e);
-      // TODO: gen queryKey automatically
-      let queryKeys: QueryKey[];
-      // TODO: 関数に切り出し, 各イベントのkindについてtestする
-      switch (parsed.parsed.kind) {
-        case kinds.Repost:
-          queryKeys = parsed.parsed.tags
-            .filter((tag) => tag.kind === "e")
-            .map((tag) => ["repostsOf", tag.id]);
-          break;
-        case kinds.Reaction:
-          queryKeys = [
-            ["reactionsOf", parsed.parsed.targetEvent.id],
-            ["reactionsBy", parsed.raw.pubkey],
-          ];
-          break;
-        default:
-          throw new Error(`unknown kind: ${parsed.parsed.kind}`);
-      }
-
-      for (const queryKey of queryKeys) {
-        queryClient.prefetchQuery({
-          queryKey,
-          queryFn: () => {
-            const prev = queryClient.getQueryData<
-              ReturnType<typeof parseEventPacket>[] | undefined
-            >(queryKeys);
-            if (prev) {
-              // TODO: sort?
-              return [...prev, parsed];
-            }
-            return [parsed];
-          },
-        });
-      }
-    },
-  });
-
-  const emit = rxBackwardReq.emit;
+  // IDごとの最新イベントが必要なkind
+  backwardEvent$
+    .pipe(
+      // TODO: 対応するkindを定数で持つ
+      filterByKinds([kinds.ShortTextNote, kinds.Repost, kinds.Reaction]),
+      latestEach((e) => e.event.id),
+      share(),
+    )
+    .subscribe({
+      next: (e) => {
+        cacheAndEmitRelatedEvent(e, emit, queryClient);
+      },
+    });
 
   return (
     <RxQueryContext.Provider

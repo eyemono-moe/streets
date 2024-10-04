@@ -94,7 +94,9 @@ const PlaceholderText: Component<{
           </div>
           <div class="grid-area-[content] flex flex-col gap-2">
             <div>
-              <div class="text-3.5 text-zinc-5">Loading...</div>
+              <div class="break-anywhere text-3.5 text-zinc-5">
+                Loading... {props.id}
+              </div>
             </div>
             <Reactions eventId={props.id} />
             <Show when={props.showActions}>
