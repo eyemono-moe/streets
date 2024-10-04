@@ -23,8 +23,12 @@ const Text: Component<{
   small?: boolean;
   isReplyTarget?: boolean;
   showQuotes?: boolean;
+  relay?: string[];
 }> = (props) => {
-  const text = useShortTextByID(() => props.id);
+  const text = useShortTextByID(
+    () => props.id,
+    () => props.relay,
+  );
   const profile = useProfile(() => text.data?.parsed.pubkey);
   const openUserColumn = useOpenUserColumn();
 

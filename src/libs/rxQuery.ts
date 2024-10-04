@@ -1,4 +1,8 @@
-import { createQuery, useQueryClient } from "@tanstack/solid-query";
+import {
+  type QueryKey,
+  createQuery,
+  useQueryClient,
+} from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
 import {
   type EventPacket,
@@ -119,9 +123,34 @@ export const createInfiniteRxQuery = <T>(
   };
 };
 
-export const useShortTextByID = (id: () => string | undefined) => {
+const isStale = (queryKey: QueryKey) => {
+  const queryClient = useQueryClient();
+  const state = queryClient.getQueryState(queryKey);
+  // TODO: stale timeをちゃんと見る
+  return state === undefined || state.data === undefined;
+};
+
+export const useShortTextByID = (
+  id: () => string | undefined,
+  relays?: () => string[] | undefined,
+) => {
   const queryKey = () => [kinds.ShortTextNote, id()];
-  // TODO: staleかどうか判定し、staleならemitする
+
+  const {
+    actions: { emit },
+  } = useRxQuery();
+
+  if (isStale(queryKey())) {
+    const _id = id();
+    if (_id) {
+      emit(
+        { kinds: [kinds.ShortTextNote], ids: [_id], limit: 1 },
+        {
+          relays: relays?.() ?? [],
+        },
+      );
+    }
+  }
 
   return createQuery<ParsedEventPacket<ShortTextNote>>(() => ({
     queryKey: queryKey(),

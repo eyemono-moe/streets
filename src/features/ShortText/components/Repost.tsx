@@ -9,7 +9,14 @@ const Repost: Component<{
   return (
     <div class="p-2">
       <RepostUserName pubkey={props.repost.pubkey} />
-      <Text id={props.repost.targetEventID} />
+      <Text
+        id={props.repost.targetEventID}
+        relay={props.repost.parsedContent?.tags
+          .filter((tag) => tag.kind === "e" && !!tag.relay)
+          // @ts-ignore
+          // biome-ignore lint/style/noNonNullAssertion: filterでundefinedを除外しているため
+          .map((tag) => tag.relay!)}
+      />
       {/* <Show
         when={parsedContent()}
         fallback={

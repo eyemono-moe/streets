@@ -1,12 +1,11 @@
 import { type QueryKey, useQueryClient } from "@tanstack/solid-query";
-import { type Filter, kinds } from "nostr-tools";
+import { kinds } from "nostr-tools";
 import {
+  type RxReqEmittable,
   batch,
   createRxBackwardReq,
   filterByKinds,
-  latest,
   latestEach,
-  uniq,
 } from "rx-nostr";
 import { bufferWhen, interval, share } from "rxjs";
 import { type ParentComponent, createContext, useContext } from "solid-js";
@@ -16,7 +15,7 @@ import { useRxNostr } from "./rxNostr";
 
 const RxQueryContext = createContext<{
   actions: {
-    emit: (filter: Filter) => void;
+    emit: RxReqEmittable<{ relays: string[] }>["emit"];
   };
 }>();
 
@@ -117,9 +116,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
     },
   });
 
-  const emit = (filter: Filter) => {
-    rxBackwardReq.emit(filter);
-  };
+  const emit = rxBackwardReq.emit;
 
   return (
     <RxQueryContext.Provider
