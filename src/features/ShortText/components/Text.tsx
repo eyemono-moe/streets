@@ -24,6 +24,7 @@ const Text: Component<{
   small?: boolean;
   isReplyTarget?: boolean;
   showQuotes?: boolean;
+  showReactions?: boolean;
   relay?: string[];
 }> = (props) => {
   const text = useShortTextByID(
@@ -188,8 +189,10 @@ const Text: Component<{
               <div>
                 <ShortTextContent contents={parsedContents()} showLinkEmbeds />
               </div>
-              {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
-              <Reactions eventId={text.data!.parsed.id} />
+              <Show when={props.showReactions}>
+                {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
+                <Reactions eventId={text.data!.parsed.id} />
+              </Show>
               <Show when={props.showActions}>
                 <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                   <button

@@ -17,6 +17,7 @@ const Repost: Component<{
           // biome-ignore lint/style/noNonNullAssertion: filterでundefinedを除外しているため
           .map((tag) => tag.relay!)}
         showActions
+        showReactions
       />
     </div>
   );

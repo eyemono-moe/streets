@@ -13,7 +13,12 @@ const TextOrRepost: Component<{
     <Switch>
       <Match when={props.textOrRepost.parsed.kind === kinds.ShortTextNote}>
         <div class="p-2">
-          <Text id={props.textOrRepost.raw.id} showActions showReply />
+          <Text
+            id={props.textOrRepost.raw.id}
+            showActions
+            showReply
+            showReactions
+          />
         </div>
       </Match>
       <Match when={props.textOrRepost.parsed.kind === kinds.Repost}>
