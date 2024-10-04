@@ -2,10 +2,9 @@ import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import { hex2bech32 } from "../../../libs/bech32";
 import { parseTextContent } from "../../../libs/parseTextContent";
-import { useProfile } from "../../../libs/rxQuery";
+import { useFollowees, useProfile } from "../../../libs/rxQuery";
 import { useMyPubkey } from "../../../libs/useMyPubkey";
 import ShortTextContent from "../../ShortText/components/ShortTextContent";
-import { useQueryFollowList } from "../../ShortText/query";
 
 // TODO: fallbackでskeletonを表示する
 
@@ -16,9 +15,11 @@ const Profile: Component<{
   const profile = useProfile(() => props.pubkey);
 
   const myPubkey = useMyPubkey();
-  const followings = useQueryFollowList(myPubkey);
+  const followings = useFollowees(myPubkey);
   const isFollowing = createMemo(() =>
-    followings()?.some((pubkey) => pubkey === props.pubkey),
+    followings.data?.parsed.followees.some(
+      (pubkey) => pubkey.pubkey === props.pubkey,
+    ),
   );
 
   const parsedContents = createMemo(() => {
