@@ -18,6 +18,7 @@ const Repost: Component<{
           .map((tag) => tag.relay!)}
         showActions
         showReactions
+        showEmbeddings
       />
     </div>
   );

@@ -6,6 +6,7 @@ import {
   SuspenseList,
   Switch,
 } from "solid-js";
+import { hex2bech32 } from "../../../libs/bech32";
 import type {
   ImageContent,
   LinkContent,
@@ -21,6 +22,7 @@ import Quote from "./Quote";
 const ShortTextContent: Component<{
   contents: ParsedContent[];
   showLinkEmbeds?: boolean;
+  showQuoteEmbeds?: boolean;
 }> = (props) => {
   return (
     <SuspenseList revealOrder="forwards">
@@ -78,9 +80,19 @@ const ShortTextContent: Component<{
               />
             </Match>
             <Match when={content.type === "quote"}>
-              <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
-                <Quote id={(content as QuoteContent).id} />
-              </div>
+              <Show
+                when={props.showQuoteEmbeds}
+                fallback={
+                  // TODO: 隣のカラムでリプライツリーを表示する
+                  <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
+                    {hex2bech32((content as QuoteContent).id)}
+                  </span>
+                }
+              >
+                <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
+                  <Quote id={(content as QuoteContent).id} />
+                </div>
+              </Show>
             </Match>
           </Switch>
         )}

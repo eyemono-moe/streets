@@ -18,6 +18,7 @@ const TextOrRepost: Component<{
             showActions
             showReply
             showReactions
+            showEmbeddings
           />
         </div>
       </Match>

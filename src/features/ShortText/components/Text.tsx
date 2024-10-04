@@ -23,7 +23,7 @@ const Text: Component<{
   showReply?: boolean;
   small?: boolean;
   isReplyTarget?: boolean;
-  showQuotes?: boolean;
+  showEmbeddings?: boolean;
   showReactions?: boolean;
   relay?: string[];
 }> = (props) => {
@@ -187,7 +187,11 @@ const Text: Component<{
                 </div>
               </Show>
               <div>
-                <ShortTextContent contents={parsedContents()} showLinkEmbeds />
+                <ShortTextContent
+                  contents={parsedContents()}
+                  showLinkEmbeds={props.showEmbeddings}
+                  showQuoteEmbeds={props.showEmbeddings}
+                />
               </div>
               <Show when={props.showReactions}>
                 {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
