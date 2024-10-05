@@ -1,8 +1,8 @@
-import { useQueryClient } from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
 import { createRxForwardReq, now, uniq } from "rx-nostr";
 import { map, tap } from "rxjs";
 import { type Component, For, Match, Switch, from, onMount } from "solid-js";
+import { eventCacheSetter } from "../../../context/eventCache";
 import { useRxNostr } from "../../../context/rxNostr";
 import { useRxQuery } from "../../../context/rxQuery";
 import { type ParsedEventPacket, parseEventPacket } from "../../../libs/parser";
@@ -20,18 +20,18 @@ const InfinitePosts: Component<{
 }> = (props) => {
   const rxNostr = useRxNostr();
   const latestRxReq = createRxForwardReq();
+  const setter = eventCacheSetter();
 
   const {
     actions: { emit },
   } = useRxQuery();
-  const queryClient = useQueryClient();
 
   const latestPosts = from(
     rxNostr.use(latestRxReq).pipe(
       uniq(),
       tap({
         next: (e) => {
-          cacheAndEmitRelatedEvent(e, emit, queryClient);
+          cacheAndEmitRelatedEvent(e, emit, setter);
         },
       }),
       map(

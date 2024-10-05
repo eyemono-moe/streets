@@ -31,27 +31,28 @@ const Text: Component<{
     () => props.id,
     () => props.relay,
   );
-  const profile = useProfile(() => text.data?.parsed.pubkey);
+  const profile = useProfile(() => text().data?.parsed.pubkey);
   const openUserColumn = useOpenUserColumn();
 
   const replyTarget = createMemo(
-    () => text.data?.parsed.tags.filter((tag) => tag.kind === "p") ?? [],
+    () => text().data?.parsed.tags.filter((tag) => tag.kind === "p") ?? [],
   );
 
   // TODO: 別ファイルに切り出す?
   const replyOrRoot = createMemo(() => {
-    const reply = text.data?.parsed.tags.find(
+    const reply = text().data?.parsed.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
     );
-    const root = text.data?.parsed.tags.find(
+    const root = text().data?.parsed.tags.find(
       (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
     );
     return reply ?? root;
   });
 
-  const parsedContents = createMemo(() =>
-    text.data ? parseTextContent(text.data) : [],
-  );
+  const parsedContents = createMemo(() => {
+    const _data = text().data;
+    return _data ? parseTextContent(_data) : [];
+  });
 
   const textType = () => {
     // e tagがあればreply
@@ -61,15 +62,15 @@ const Text: Component<{
     return "normal";
   };
 
-  const reposts = useRepostsOfEvent(() => text.data?.parsed.id);
+  const reposts = useRepostsOfEvent(() => text().data?.parsed.id);
 
   return (
     <Show
-      when={text.data}
+      when={text().data}
       fallback={
         <PlaceholderText
           id={props.id}
-          pubkey={text.data?.parsed.pubkey}
+          pubkey={text().data?.parsed.pubkey}
           showActions={props.showActions}
           showReply={props.showReply}
           small={props.small}
@@ -112,8 +113,8 @@ const Text: Component<{
                 class="cursor-pointer appearance-none bg-transparent"
                 as="button"
                 onClick={() => {
-                  // biome-ignore lint/style/noNonNullAssertion: when={text.data}
-                  openUserColumn(text.data!.parsed.pubkey);
+                  // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                  openUserColumn(text().data!.parsed.pubkey);
                 }}
               >
                 <Image
@@ -125,14 +126,14 @@ const Text: Component<{
                   fallbackDelay={500}
                 >
                   <Image.Img
-                    src={profile.data?.parsed.picture}
-                    alt={profile.data?.parsed.name}
+                    src={profile().data?.parsed.picture}
+                    alt={profile().data?.parsed.name}
                     loading="lazy"
                     class="h-full w-full object-cover"
                   />
                   <Image.Fallback class="flex h-full w-full items-center justify-center">
-                    {profile.data?.parsed.name?.slice(0, 2) ??
-                      text.data?.parsed.pubkey.slice(0, 2)}
+                    {profile().data?.parsed.name?.slice(0, 2) ??
+                      text().data?.parsed.pubkey.slice(0, 2)}
                   </Image.Fallback>
                 </Image>
               </HoverCard.Trigger>
@@ -146,25 +147,28 @@ const Text: Component<{
                   class="cursor-pointer appearance-none bg-transparent hover:underline"
                   as="button"
                   onClick={() => {
-                    // biome-ignore lint/style/noNonNullAssertion: when={text.data}
-                    openUserColumn(text.data!.parsed.pubkey);
+                    // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                    openUserColumn(text().data!.parsed.pubkey);
                   }}
                 >
-                  <Show when={profile.data} fallback={text.data?.parsed.pubkey}>
-                    <span>{profile.data?.parsed.display_name}</span>
+                  <Show
+                    when={profile().data}
+                    fallback={text().data?.parsed.pubkey}
+                  >
+                    <span>{profile().data?.parsed.display_name}</span>
                     <span class="text-3.5 text-zinc-5">
-                      @{profile.data?.parsed.name}
+                      @{profile().data?.parsed.name}
                     </span>
                   </Show>
                 </HoverCard.Trigger>
               </div>
               <span
                 class="text-3.5 text-zinc-5"
-                // biome-ignore lint/style/noNonNullAssertion: when={text.data}
-                title={dateHuman(new Date(text.data!.raw.created_at * 1000))}
+                // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                title={dateHuman(new Date(text().data!.raw.created_at * 1000))}
               >
-                {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
-                {dateTimeHuman(new Date(text.data!.raw.created_at * 1000))}
+                {/* biome-ignore lint/style/noNonNullAssertion: when={text().data} */}
+                {dateTimeHuman(new Date(text().data!.raw.created_at * 1000))}
               </span>
             </div>
             <div class="grid-area-[content] flex flex-col gap-2">
@@ -194,8 +198,8 @@ const Text: Component<{
                 />
               </div>
               <Show when={props.showReactions}>
-                {/* biome-ignore lint/style/noNonNullAssertion: when={text.data} */}
-                <Reactions eventId={text.data!.parsed.id} />
+                {/* biome-ignore lint/style/noNonNullAssertion: when={text().data} */}
+                <Reactions eventId={text().data!.parsed.id} />
               </Show>
               <Show when={props.showActions}>
                 <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
@@ -210,7 +214,7 @@ const Text: Component<{
                     type="button"
                   >
                     <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
-                    <span>{reposts.data?.length || ""}</span>
+                    <span>{reposts().data?.length || ""}</span>
                   </button>
                   <button
                     class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
@@ -235,7 +239,7 @@ const Text: Component<{
             </div>
           </div>
           <HoverCard.Portal>
-            <ProfileHoverContent pubkey={text.data?.parsed.pubkey} />
+            <ProfileHoverContent pubkey={text().data?.parsed.pubkey} />
           </HoverCard.Portal>
         </HoverCard>
       </div>

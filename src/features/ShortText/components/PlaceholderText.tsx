@@ -54,13 +54,13 @@ const PlaceholderText: Component<{
                 fallbackDelay={500}
               >
                 <Image.Img
-                  src={profile.data?.parsed.picture}
-                  alt={profile.data?.parsed.name}
+                  src={profile().data?.parsed.picture}
+                  alt={profile().data?.parsed.name}
                   loading="lazy"
                   class="h-full w-full object-cover"
                 />
                 <Image.Fallback class="flex h-full w-full items-center justify-center">
-                  {profile.data?.parsed.name?.slice(0, 2) ??
+                  {profile().data?.parsed.name?.slice(0, 2) ??
                     props.pubkey?.slice(0, 2)}
                 </Image.Fallback>
               </Image>
@@ -81,12 +81,12 @@ const PlaceholderText: Component<{
                 }}
               >
                 <Show
-                  when={profile.data}
+                  when={profile().data}
                   fallback={props.pubkey ?? "loading..."}
                 >
-                  <span>{profile.data?.parsed.display_name}</span>
+                  <span>{profile().data?.parsed.display_name}</span>
                   <span class="text-3.5 text-zinc-5">
-                    @{profile.data?.parsed.name}
+                    @{profile().data?.parsed.name}
                   </span>
                 </Show>
               </HoverCard.Trigger>
@@ -112,7 +112,7 @@ const PlaceholderText: Component<{
                   type="button"
                 >
                   <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
-                  <span>{reposts.data?.length || ""}</span>
+                  <span>{reposts().data?.length || ""}</span>
                 </button>
                 <button
                   class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"

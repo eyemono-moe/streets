@@ -18,8 +18,11 @@ const EmbedUser: Component<{ pubkey: string; relay?: string }> = (props) => {
           openUserColumn(props.pubkey);
         }}
       >
-        <Show when={profile.data} fallback={`@${readablePubkey(props.pubkey)}`}>
-          {`@${profile.data?.parsed.display_name}`}
+        <Show
+          when={profile().data}
+          fallback={`@${readablePubkey(props.pubkey)}`}
+        >
+          {`@${profile().data?.parsed.display_name}`}
         </Show>
       </HoverCard.Trigger>
       <HoverCard.Portal>

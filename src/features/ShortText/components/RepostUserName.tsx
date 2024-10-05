@@ -24,12 +24,12 @@ const RepostUserName: Component<{
             }}
           >
             <Show
-              when={reposterProfile.data}
+              when={reposterProfile().data}
               fallback={`@${readablePubkey(props.pubkey)}`}
             >
-              <span>{reposterProfile.data?.parsed.display_name}</span>
+              <span>{reposterProfile().data?.parsed.display_name}</span>
               <span class="text-3.5 text-zinc-5">
-                {`@${reposterProfile.data?.parsed.name}`}
+                {`@${reposterProfile().data?.parsed.name}`}
               </span>
             </Show>
           </HoverCard.Trigger>
