@@ -31,10 +31,12 @@ const Profile: Component<{
   return (
     <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
       <Image
-        class="w-full select-none bg-zinc-2"
+        // margin-bottom: アイコンの高さ(32/24)+padding(2)-ボタンの高さ(8)-ボタンとの距離(2)
+        class="h-auto w-full select-none"
         fallbackDelay={0}
         classList={{
-          "max-h-16": props.small,
+          "max-h-24 mb--16": props.small,
+          "max-h-50 mb--24": !props.small,
         }}
       >
         <Image.Img
@@ -42,16 +44,20 @@ const Profile: Component<{
           alt={`${profile.data?.parsed.name}'s banner`}
           class="h-full w-full object-cover"
         />
-        <Image.Fallback class="flex h-full w-ful bg-zinc" />
       </Image>
       <div class="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-1 p-2">
         <div class="flex items-end justify-between">
-          <div class="relative">
+          <div
+            class="relative"
+            classList={{
+              "mt-32": !props.small,
+              "mt-24": props.small,
+            }}
+          >
             <Image
-              class="bottom-0 inline-flex aspect-square w-auto shrink-0 select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
+              class="absolute bottom-0 inline-flex aspect-square w-auto shrink-0 select-none items-center justify-center overflow-hidden rounded align-mid"
               fallbackDelay={0}
               classList={{
-                absolute: profile.data?.parsed.banner !== undefined,
                 "h-32": !props.small,
                 "h-24": props.small,
               }}
@@ -61,7 +67,7 @@ const Profile: Component<{
                 alt={profile.data?.parsed.name}
                 class="h-full w-full object-cover"
               />
-              <Image.Fallback class="flex h-full w-full items-center justify-center">
+              <Image.Fallback class="flex h-full w-full items-center justify-center bg-zinc-2">
                 {profile.data?.parsed.name.slice(0, 2) ??
                   props.pubkey?.slice(0, 2)}
               </Image.Fallback>
@@ -96,7 +102,9 @@ const Profile: Component<{
           </div>
         </div>
         <div class="overflow-hidden">
-          <span>{profile.data?.parsed.display_name ?? "..."}</span>
+          <span class="font-500 text-5">
+            {profile.data?.parsed.display_name}
+          </span>
           <span class="text-3.5 text-zinc-5">
             @{profile.data?.parsed.name ?? "..."}
           </span>
