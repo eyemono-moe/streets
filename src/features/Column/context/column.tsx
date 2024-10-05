@@ -32,4 +32,10 @@ export const ColumnProvider: ParentComponent<{
   );
 };
 
-export const useColumn = () => useContext(ColumnContext);
+export const useColumn = () => {
+  const ctx = useContext(ColumnContext);
+  if (!ctx) {
+    throw new Error("ColumnProvider is not found");
+  }
+  return ctx;
+};

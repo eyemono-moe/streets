@@ -12,9 +12,9 @@ export const columnIcon = (type: ColumnState["type"]) => {
       return "i-material-symbols:favorite-outline";
     case "user":
       return "i-material-symbols:person-outline";
-    case "follow":
+    case "timeline":
       return "i-material-symbols:directions-run-rounded";
-    case "followings":
+    case "followees":
       return "i-material-symbols:person-check-outline-rounded";
     case "followers":
       return "i-material-symbols:person-check-outline-rounded";
@@ -37,9 +37,9 @@ export const columnName = (type: ColumnState["type"]) => {
       return "リアクション";
     case "user":
       return "ユーザー";
-    case "follow":
+    case "timeline":
       return "フォロー";
-    case "followings":
+    case "followees":
       return "フォロー中";
     case "followers":
       return "フォロワー";

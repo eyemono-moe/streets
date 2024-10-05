@@ -29,10 +29,10 @@ const columnScheme = v.intersect([
       pubkey: v.string(),
     }),
     v.object({
-      type: v.literal("follow"),
+      type: v.literal("timeline"),
     }),
     v.object({
-      type: v.literal("followings"),
+      type: v.literal("followees"),
       pubkey: v.string(),
     }),
     v.object({
@@ -65,7 +65,7 @@ const initialState: DeckState = {
   version: "0.0",
   columns: [
     {
-      type: "follow",
+      type: "timeline",
       size: "medium",
     },
     {
