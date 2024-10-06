@@ -2,6 +2,7 @@ import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import type { Component } from "solid-js";
+import { EventCacheProvider } from "./context/eventCache";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrDevtools, RxNostrProvider } from "./context/rxNostr";
 import { RxQueryProvider } from "./context/rxQuery";
@@ -20,15 +21,17 @@ const queryClient = new QueryClient({
 const App: Component = () => {
   return (
     <QueryClientProvider client={queryClient}>
-      <RelaysProvider>
-        <RxNostrProvider>
-          <RxQueryProvider>
-            <Router>{routes}</Router>
-          </RxQueryProvider>
-          <RxNostrDevtools />
-        </RxNostrProvider>
-        <SolidQueryDevtools />
-      </RelaysProvider>
+      <EventCacheProvider>
+        <RelaysProvider>
+          <RxNostrProvider>
+            <RxQueryProvider>
+              <Router>{routes}</Router>
+            </RxQueryProvider>
+            <RxNostrDevtools />
+          </RxNostrProvider>
+          <SolidQueryDevtools />
+        </RelaysProvider>
+      </EventCacheProvider>
     </QueryClientProvider>
   );
 };

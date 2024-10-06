@@ -1,9 +1,3 @@
-import {
-  type QueryClient,
-  type QueryKey,
-  createQuery,
-  useQueryClient,
-} from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
 import {
   type EventPacket,
@@ -13,8 +7,13 @@ import {
   createRxBackwardReq,
   uniq,
 } from "rx-nostr";
-import { createEffect, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
+import {
+  type CacheKey,
+  createGetter,
+  eventCacheSetter,
+} from "../context/eventCache";
 import { useRxNostr } from "../context/rxNostr";
 import { useRxQuery } from "../context/rxQuery";
 import { type ParsedEventPacket, parseEventPacket } from "./parser";
@@ -36,7 +35,7 @@ export const createInfiniteRxQuery = <T>(
   const {
     actions: { emit },
   } = useRxQuery();
-  const queryClient = useQueryClient();
+  const setter = eventCacheSetter();
 
   const [data, setData] = createStore<{
     pages: T[][];
@@ -61,7 +60,7 @@ export const createInfiniteRxQuery = <T>(
         .subscribe({
           next: (e) => {
             events.push(e);
-            cacheAndEmitRelatedEvent(e, emit, queryClient);
+            cacheAndEmitRelatedEvent(e, emit, setter);
           },
           complete: () => {
             const sliced = events
@@ -105,11 +104,11 @@ export const createInfiniteRxQuery = <T>(
   };
 };
 
-export const getQueryKey = (
+export const getCacheKey = (
   parsed: ReturnType<typeof parseEventPacket>,
 ): {
-  single?: QueryKey[];
-  multiple?: QueryKey[];
+  single?: CacheKey[];
+  multiple?: CacheKey[];
 } => {
   switch (parsed.parsed.kind) {
     case kinds.Metadata:
@@ -198,59 +197,28 @@ export const getRelatedEventFilters = (
 export const cacheAndEmitRelatedEvent = (
   e: EventPacket,
   emit: RxReqEmittable<{ relays: string[] }>["emit"],
-  queryClient: QueryClient,
+  cacheSetter: ReturnType<typeof eventCacheSetter>,
 ) => {
   const parsed = parseEventPacket(e);
-  const queryKeys = getQueryKey(parsed);
+  const queryKeys = getCacheKey(parsed);
 
   // 最新1件のみをcacheに保存する
   for (const queryKey of queryKeys.single ?? []) {
-    queryClient.prefetchQuery({
-      queryKey,
-      queryFn: () => {
-        return parsed;
-      },
-    });
+    cacheSetter(queryKey, parsed);
   }
 
   // すべてのイベントをcacheに保存する
   for (const queryKey of queryKeys.multiple ?? []) {
-    // queryClient.prefetchQuery({
-    //   queryKey,
-    //   queryFn: () => {
-    //     const prev = queryClient.getQueryData<
-    //       ReturnType<typeof parseEventPacket>[] | undefined
-    //     >(queryKey);
-    //     if (prev) {
-    //       // TODO: sort?
-    //       return [...prev, parsed];
-    //     }
-    //     return [parsed];
-    //   },
-    // });
-
-    // prefetchを使うとprevをうまく取得できないのでsetQueryDataを使う
-    // TODO: fixme
-    queryClient.setQueryData<ReturnType<typeof parseEventPacket>[] | undefined>(
-      queryKey,
-      (prev) => {
-        if (prev) {
-          return [...prev, parsed];
-        }
-        return [parsed];
-      },
-    );
+    cacheSetter<ReturnType<typeof parseEventPacket>[]>(queryKey, (prev) => {
+      if (prev) {
+        return [...prev, parsed];
+      }
+      return [parsed];
+    });
   }
 
   const relatedEventFilters = getRelatedEventFilters(parsed);
   emit(relatedEventFilters);
-};
-
-const isStale = (queryKey: QueryKey) => {
-  const queryClient = useQueryClient();
-  const state = queryClient.getQueryState(queryKey);
-  // TODO: stale timeをちゃんと見る
-  return state === undefined || state.data === undefined;
 };
 
 export const useShortTextByID = (
@@ -263,26 +231,24 @@ export const useShortTextByID = (
     actions: { emit },
   } = useRxQuery();
 
-  createEffect(() => {
-    if (isStale(queryKey())) {
-      const _id = id();
-      if (_id) {
-        const _relays = relays?.() ?? [];
-        emit(
-          { kinds: [kinds.ShortTextNote], ids: [_id] },
-          _relays.length > 0
-            ? {
-                relays: _relays,
-              }
-            : undefined,
-        );
-      }
+  const emitter = () => {
+    const _id = id();
+    if (_id) {
+      const _relays = relays?.() ?? [];
+      emit(
+        { kinds: [kinds.ShortTextNote], ids: [_id] },
+        _relays.length > 0
+          ? {
+              relays: _relays,
+            }
+          : undefined,
+      );
     }
-  });
+  };
 
-  return createQuery<ParsedEventPacket<ShortTextNote>>(() => ({
+  return createGetter<ParsedEventPacket<ShortTextNote>>(() => ({
     queryKey: queryKey(),
-    enabled: !!id(),
+    emitter,
   }));
 };
 
@@ -293,52 +259,86 @@ export const useFollowees = (pubkey: () => string | undefined) => {
     actions: { emit },
   } = useRxQuery();
 
-  createEffect(() => {
-    if (isStale(queryKey())) {
-      const _pubkey = pubkey();
-      if (_pubkey) {
-        emit({
-          kinds: [kinds.Contacts],
-          authors: [_pubkey],
-        });
-      }
+  const emitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      emit({
+        kinds: [kinds.Contacts],
+        authors: [_pubkey],
+      });
     }
-  });
+  };
 
-  return createQuery<ParsedEventPacket<FollowList>>(() => ({
+  return createGetter<ParsedEventPacket<FollowList>>(() => ({
     queryKey: queryKey(),
-    enabled: !!pubkey(),
+    emitter,
   }));
 };
 
 export const useProfile = (pubkey: () => string | undefined) => {
   const queryKey = () => [kinds.Metadata, pubkey()];
-  // TODO: staleかどうか判定し、staleならemitする
 
-  return createQuery<ParsedEventPacket<Metadata>>(() => ({
+  const {
+    actions: { emit },
+  } = useRxQuery();
+
+  const emitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      emit({
+        kinds: [kinds.Metadata],
+        authors: [_pubkey],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<Metadata>>(() => ({
     queryKey: queryKey(),
-    enabled: !!pubkey(),
+    emitter,
   }));
 };
 
 export const useReactionsOfEvent = (eventID: () => string | undefined) => {
   const queryKey = () => ["reactionsOf", eventID()];
-  // const queryClient = useQueryClient();
-  // TODO: staleかどうか判定し、staleならemitする
 
-  return createQuery<ParsedEventPacket<Reaction>[]>(() => ({
+  const {
+    actions: { emit },
+  } = useRxQuery();
+
+  const emitter = () => {
+    const _eventID = eventID();
+    if (_eventID) {
+      emit({
+        kinds: [kinds.Reaction],
+        "#e": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<Reaction>[]>(() => ({
     queryKey: queryKey(),
-    enabled: !!eventID(),
+    emitter,
   }));
 };
 
 export const useRepostsOfEvent = (eventID: () => string | undefined) => {
   const queryKey = () => ["repostsOf", eventID()];
-  // const queryClient = useQueryClient();
-  // TODO: staleかどうか判定し、staleならemitする
 
-  return createQuery<ParsedEventPacket<Repost>[]>(() => ({
+  const {
+    actions: { emit },
+  } = useRxQuery();
+  const emitter = () => {
+    const _eventID = eventID();
+    if (_eventID) {
+      emit({
+        kinds: [kinds.Repost],
+        "#e": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<Repost>[]>(() => ({
     queryKey: queryKey(),
-    enabled: !!eventID(),
+    emitter,
   }));
 };

@@ -14,8 +14,8 @@ const User: Component<{
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader
         name={
-          profile.data?.parsed.name
-            ? `ユーザー (@${profile.data?.parsed.name})`
+          profile().data?.parsed.name
+            ? `ユーザー (@${profile().data?.parsed.name})`
             : "ユーザー"
         }
       />

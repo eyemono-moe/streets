@@ -17,13 +17,13 @@ const Profile: Component<{
   const myPubkey = useMyPubkey();
   const followings = useFollowees(myPubkey);
   const isFollowing = createMemo(() =>
-    followings.data?.parsed.followees.some(
+    followings().data?.parsed.followees.some(
       (pubkey) => pubkey.pubkey === props.pubkey,
     ),
   );
 
   const parsedContents = createMemo(() => {
-    const p = profile.data;
+    const p = profile().data;
     if (p) return parseTextContent(p);
     return [];
   });
@@ -40,8 +40,8 @@ const Profile: Component<{
         }}
       >
         <Image.Img
-          src={profile.data?.parsed.banner}
-          alt={`${profile.data?.parsed.name}'s banner`}
+          src={profile().data?.parsed.banner}
+          alt={`${profile().data?.parsed.name}'s banner`}
           class="h-full w-full object-cover"
         />
       </Image>
@@ -63,12 +63,12 @@ const Profile: Component<{
               }}
             >
               <Image.Img
-                src={profile.data?.parsed.picture}
-                alt={profile.data?.parsed.name}
+                src={profile().data?.parsed.picture}
+                alt={profile().data?.parsed.name}
                 class="h-full w-full object-cover"
               />
               <Image.Fallback class="flex h-full w-full items-center justify-center bg-zinc-2">
-                {profile.data?.parsed.name.slice(0, 2) ??
+                {profile().data?.parsed.name.slice(0, 2) ??
                   props.pubkey?.slice(0, 2)}
               </Image.Fallback>
             </Image>
@@ -103,10 +103,10 @@ const Profile: Component<{
         </div>
         <div class="overflow-hidden">
           <span class="font-500 text-5">
-            {profile.data?.parsed.display_name}
+            {profile().data?.parsed.display_name}
           </span>
           <span class="text-3.5 text-zinc-5">
-            @{profile.data?.parsed.name ?? "..."}
+            @{profile().data?.parsed.name ?? "..."}
           </span>
           <div class="c-zinc-4 truncate text-3">
             <Show when={props.pubkey} fallback="nostr1...">

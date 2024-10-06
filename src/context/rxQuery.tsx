@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/solid-query";
 import { kinds } from "nostr-tools";
 import {
   type RxReqEmittable,
@@ -11,6 +10,7 @@ import { bufferWhen, interval, share } from "rxjs";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import { mergeSimilarAndRemoveEmptyFilters } from "../libs/mergeFilters";
 import { cacheAndEmitRelatedEvent } from "../libs/rxQuery";
+import { eventCacheSetter } from "./eventCache";
 import { useRxNostr } from "./rxNostr";
 
 const RxQueryContext = createContext<{
@@ -23,7 +23,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
   const rxNostr = useRxNostr();
   const rxBackwardReq = createRxBackwardReq();
   const emit = rxBackwardReq.emit;
-  const queryClient = useQueryClient();
+  const setter = eventCacheSetter();
 
   // すべてのbackwardReq由来のイベント
   const backwardEvent$ = rxNostr
@@ -45,7 +45,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
     )
     .subscribe({
       next: (e) => {
-        cacheAndEmitRelatedEvent(e, emit, queryClient);
+        cacheAndEmitRelatedEvent(e, emit, setter);
       },
     });
 
@@ -59,7 +59,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
     )
     .subscribe({
       next: (e) => {
-        cacheAndEmitRelatedEvent(e, emit, queryClient);
+        cacheAndEmitRelatedEvent(e, emit, setter);
       },
     });
 

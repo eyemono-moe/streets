@@ -15,10 +15,10 @@ const Followings: Component<{
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader />
       <div class="h-full overflow-y-auto">
-        <Show when={followees.data}>
+        <Show when={followees().data}>
           <InfinitePosts
             filter={{
-              authors: followees.data?.parsed.followees.map((f) => f.pubkey),
+              authors: followees().data?.parsed.followees.map((f) => f.pubkey),
             }}
           />
         </Show>

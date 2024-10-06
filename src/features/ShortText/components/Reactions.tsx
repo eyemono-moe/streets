@@ -6,7 +6,7 @@ const Reactions: Component<{
 }> = (props) => {
   const reactions = useReactionsOfEvent(() => props.eventId);
   const parsedReactions = createMemo(() => {
-    const reactionMap = reactions.data?.reduce<
+    const reactionMap = reactions().data?.reduce<
       Map<
         string,
         {
@@ -55,7 +55,7 @@ const Reactions: Component<{
   });
 
   return (
-    <Show when={(reactions.data?.length ?? 0) > 0}>
+    <Show when={(reactions().data?.length ?? 0) > 0}>
       <div class="flex flex-wrap gap-1">
         <For each={parsedReactions()}>
           {(reaction) => (
@@ -85,7 +85,7 @@ const Reactions: Component<{
             </button>
           )}
         </For>
-        <Show when={(reactions.data?.length ?? 0) > 0}>
+        <Show when={(reactions().data?.length ?? 0) > 0}>
           <button
             class="b-1 b-zinc-2 flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
             type="button"
