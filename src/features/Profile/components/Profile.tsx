@@ -36,7 +36,7 @@ const Profile: Component<{
     <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
       <Image
         // margin-bottom: アイコンの高さ(32/24)+padding(2)-ボタンの高さ(8)-ボタンとの距離(2)
-        class="h-50 w-full select-none"
+        class="h-auto w-full select-none"
         fallbackDelay={0}
         classList={{
           "max-h-24 mb--16": props.small,
