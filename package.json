@@ -21,6 +21,7 @@
     "@solidjs/router": "^0.14.7",
     "@tanstack/solid-query": "^5.56.2",
     "@tanstack/solid-query-devtools": "^5.58.0",
+    "@tanstack/solid-virtual": "^3.10.8",
     "@unocss/reset": "^0.63.1",
     "bech32": "^2.0.0",
     "linkifyjs": "^4.1.3",

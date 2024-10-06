@@ -10,12 +10,17 @@ const NIP01 = v.object({
   picture: v.nullish(v.string(), undefined),
 });
 
+const strBoolean = v.pipe(
+  v.union([v.literal("true"), v.literal("false")]),
+  v.transform((input) => input === "true"),
+);
+
 // https://github.com/nostr-protocol/nips/blob/master/24.md#kind-0
 const NIP24 = v.object({
   display_name: v.nullish(v.string(), undefined),
   website: v.nullish(v.string(), undefined),
   banner: v.nullish(v.string(), undefined),
-  bot: v.nullish(v.boolean(), undefined),
+  bot: v.nullish(v.union([v.boolean(), strBoolean]), undefined),
 });
 
 // https://github.com/nostr-protocol/nips/blob/master/24.md#deprecated-fields

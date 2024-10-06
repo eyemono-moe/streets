@@ -1,9 +1,9 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
-import { userTag } from "./commonTag";
+import { unknownTag, userTag } from "./commonTag";
 
 // https://github.com/nostr-protocol/nips/blob/master/02.md
-const followListTags = v.array(userTag);
+const followListTags = v.array(v.union([userTag, unknownTag]));
 
 export const parseContacts = (input: NostrEvent) => {
   if (input.kind !== kinds.Contacts) {
@@ -14,7 +14,7 @@ export const parseContacts = (input: NostrEvent) => {
     return {
       kind: input.kind,
       pubkey: input.pubkey,
-      followees: res.output,
+      followees: res.output.filter((tag) => tag.kind === "p"),
     } as const;
   }
   throw new Error(

@@ -9,7 +9,7 @@ import {
   useRepostsOfEvent,
   useShortTextByID,
 } from "../../../libs/rxQuery";
-import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
+import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import EmbedUser from "./EmbedUser";
 import PlaceholderText from "./PlaceholderText";

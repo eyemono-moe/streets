@@ -2,7 +2,7 @@ import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Show } from "solid-js";
 import { readablePubkey } from "../../../libs/format";
 import { useProfile } from "../../../libs/rxQuery";
-import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
+import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 
 const EmbedUser: Component<{ pubkey: string; relay?: string }> = (props) => {

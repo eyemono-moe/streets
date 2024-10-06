@@ -1,9 +1,9 @@
 import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
-import { hex2bech32 } from "../../../libs/bech32";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../libs/rxQuery";
 import { useMyPubkey } from "../../../libs/useMyPubkey";
+import { useOpenFolloweesColumn } from "../../Column/libs/useOpenColumn";
 import ShortTextContent from "../../ShortText/components/ShortTextContent";
 
 // TODO: fallbackでskeletonを表示する
@@ -15,12 +15,15 @@ const Profile: Component<{
   const profile = useProfile(() => props.pubkey);
 
   const myPubkey = useMyPubkey();
-  const followings = useFollowees(myPubkey);
+  const myFollowees = useFollowees(myPubkey);
   const isFollowing = createMemo(() =>
-    followings().data?.parsed.followees.some(
+    myFollowees().data?.parsed.followees.some(
       (pubkey) => pubkey.pubkey === props.pubkey,
     ),
   );
+
+  const followees = useFollowees(() => props.pubkey);
+  const openFolloweesColumn = useOpenFolloweesColumn();
 
   const parsedContents = createMemo(() => {
     const p = profile().data;
@@ -43,6 +46,7 @@ const Profile: Component<{
           src={profile().data?.parsed.banner}
           alt={`${profile().data?.parsed.name}'s banner`}
           class="h-full w-full object-cover"
+          loading="lazy"
         />
       </Image>
       <div class="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-1 p-2">
@@ -108,15 +112,24 @@ const Profile: Component<{
           <span class="text-3.5 text-zinc-5">
             @{profile().data?.parsed.name ?? "..."}
           </span>
-          <div class="c-zinc-4 truncate text-3">
-            <Show when={props.pubkey} fallback="nostr1...">
-              {(pubkey) => hex2bech32(pubkey())}
-            </Show>
-          </div>
         </div>
         <div class="overflow-y-auto">
           <ShortTextContent contents={parsedContents()} />
         </div>
+        <Show when={followees().data}>
+          <button
+            class="inline w-fit appearance-none bg-transparent hover:underline"
+            type="button"
+            onClick={() => {
+              if (props.pubkey) openFolloweesColumn(props.pubkey);
+            }}
+          >
+            <span class="font-500">
+              {followees().data?.parsed.followees.length ?? 0}
+            </span>
+            <span class="ml-1 text-3.5 text-zinc-5">フォロー中</span>
+          </button>
+        </Show>
       </div>
     </div>
   );

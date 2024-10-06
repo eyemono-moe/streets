@@ -2,7 +2,7 @@ import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
 import { type Component, Show } from "solid-js";
 import { useProfile, useRepostsOfEvent } from "../../../libs/rxQuery";
-import { useOpenUserColumn } from "../../Column/libs/useOpenUserColumn";
+import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import Reactions from "./Reactions";
 

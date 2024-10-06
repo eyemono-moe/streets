@@ -14,7 +14,9 @@ const ColumnHeader: ParentComponent<{
         <div
           class={`${columnIcon(state?.type)} c-zinc-6 aspect-square h-6 w-auto`}
         />
-        {props.name ?? columnName(state.type)}
+        <span class="w-full truncate">
+          {props.name ?? columnName(state.type)}
+        </span>
         <Collapsible.Trigger class="appearance-none bg-transparent">
           <div
             class={

@@ -1,5 +1,6 @@
 import { type Component, Match, Switch } from "solid-js";
 import type { ColumnState, PickColumnState } from "../context/deck";
+import Followees from "./Column/Followees";
 import Followings from "./Column/Followings";
 import User from "./Column/User";
 
@@ -21,6 +22,9 @@ const Column: Component<{
         </Match>
         <Match when={props.column.type === "user"}>
           <User state={props.column as PickColumnState<"user">} />
+        </Match>
+        <Match when={props.column.type === "followees"}>
+          <Followees state={props.column as PickColumnState<"followees">} />
         </Match>
       </Switch>
     </div>
