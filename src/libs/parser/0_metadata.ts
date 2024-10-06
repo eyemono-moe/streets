@@ -1,13 +1,18 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
 
-// TODO: NIP-05,NIP-57
+// TODO: NIP-57
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
 const NIP01 = v.object({
   name: v.nullish(v.string(), ""),
   about: v.nullish(v.string(), ""),
   picture: v.nullish(v.string(), undefined),
+});
+
+// https://github.com/nostr-protocol/nips/blob/master/05.md
+const NIP05 = v.object({
+  nip05: v.nullish(v.string(), undefined),
 });
 
 const strBoolean = v.pipe(
@@ -32,6 +37,7 @@ const NIP24Deprecated = v.object({
 const metadataContentSchema = v.pipe(
   v.object({
     ...NIP01.entries,
+    ...NIP05.entries,
     ...NIP24.entries,
     ...NIP24Deprecated.entries,
   }),

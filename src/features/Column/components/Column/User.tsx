@@ -20,7 +20,7 @@ const User: Component<{
         }
       />
       <div class="h-full divide-y overflow-y-auto">
-        <div class="max-h-100">
+        <div class="max-h-140">
           <Profile pubkey={props.state.pubkey} />
         </div>
         <div class="h-full shrink-0">

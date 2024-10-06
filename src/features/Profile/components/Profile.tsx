@@ -5,6 +5,7 @@ import { useFollowees, useProfile } from "../../../libs/rxQuery";
 import { useMyPubkey } from "../../../libs/useMyPubkey";
 import { useOpenFolloweesColumn } from "../../Column/libs/useOpenColumn";
 import ShortTextContent from "../../ShortText/components/ShortTextContent";
+import Nip05Badge from "./Nip05Badge";
 
 // TODO: fallbackでskeletonを表示する
 
@@ -35,7 +36,7 @@ const Profile: Component<{
     <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
       <Image
         // margin-bottom: アイコンの高さ(32/24)+padding(2)-ボタンの高さ(8)-ボタンとの距離(2)
-        class="h-auto w-full select-none"
+        class="h-50 w-full select-none"
         fallbackDelay={0}
         classList={{
           "max-h-24 mb--16": props.small,
@@ -49,7 +50,7 @@ const Profile: Component<{
           loading="lazy"
         />
       </Image>
-      <div class="grid grid-rows-[auto_auto_minmax(0,1fr)] gap-1 p-2">
+      <div class="flex w-full flex-col gap-1 overflow-hidden p-2">
         <div class="flex items-end justify-between">
           <div
             class="relative"
@@ -105,14 +106,17 @@ const Profile: Component<{
             </button>
           </div>
         </div>
-        <div class="overflow-hidden">
-          <span class="font-500 text-5">
+        <div class="flex flex-col">
+          <span class="line-clamp-3 text-ellipsis font-500 text-5">
             {profile().data?.parsed.display_name}
           </span>
-          <span class="text-3.5 text-zinc-5">
+          <span class="truncate text-3.5 text-zinc-5">
             @{profile().data?.parsed.name ?? "..."}
           </span>
         </div>
+        <Show when={profile().data?.parsed.nip05}>
+          <Nip05Badge pubkey={props.pubkey} />
+        </Show>
         <div class="overflow-y-auto">
           <ShortTextContent contents={parsedContents()} />
         </div>
