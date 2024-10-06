@@ -1,9 +1,4 @@
-import {
-  type ParentComponent,
-  createContext,
-  onMount,
-  useContext,
-} from "solid-js";
+import { type ParentComponent, createContext, useContext } from "solid-js";
 import { reconcile } from "solid-js/store";
 import * as v from "valibot";
 import { createLocalStore } from "../libs/createLocalStore";
@@ -77,9 +72,9 @@ export const RelaysProvider: ParentComponent = (props) => {
     setState("defaultRelays", reconcile(nip07Relays));
   };
 
-  onMount(() => {
-    syncWithNIP07();
-  });
+  // onMount(() => {
+  //   syncWithNIP07();
+  // });
 
   return (
     <RelaysContext.Provider
