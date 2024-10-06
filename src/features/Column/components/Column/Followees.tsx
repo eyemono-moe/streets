@@ -1,5 +1,4 @@
-import { createVirtualizer } from "@tanstack/solid-virtual";
-import { type Component, For, createMemo, createSignal } from "solid-js";
+import { type Component, For } from "solid-js";
 import { useFollowees, useProfile } from "../../../../libs/rxQuery";
 import ProfileRow from "../../../Profile/components/ProfileRow";
 import type { PickColumnState } from "../../context/deck";
@@ -8,21 +7,21 @@ import ColumnHeader from "../ColumnHeader";
 const Followees: Component<{
   state: PickColumnState<"followees">;
 }> = (props) => {
-  const [scrollParent, setScrollParent] = createSignal<HTMLDivElement | null>(
-    null,
-  );
+  // const [scrollParent, setScrollParent] = createSignal<HTMLDivElement | null>(
+  //   null,
+  // );
 
   const profile = useProfile(() => props.state.pubkey);
   const followees = useFollowees(() => props.state.pubkey);
 
-  const rowVirtualizer = createMemo(() => {
-    return createVirtualizer({
-      count: followees().data?.parsed.followees.length ?? 0,
-      estimateSize: () => 41,
-      getScrollElement: scrollParent,
-      overscan: 5,
-    });
-  });
+  // const rowVirtualizer = createMemo(() => {
+  //   return createVirtualizer({
+  //     count: followees().data?.parsed.followees.length ?? 0,
+  //     estimateSize: () => 41,
+  //     getScrollElement: scrollParent,
+  //     overscan: 5,
+  //   });
+  // });
 
   return (
     <div class="flex w-full flex-col divide-y">
@@ -33,7 +32,12 @@ const Followees: Component<{
             : "フォロー中"
         }
       />
-      <div class="h-full w-full overflow-y-auto" ref={setScrollParent}>
+      <div class="h-full w-full overflow-y-auto">
+        <For each={followees().data?.parsed.followees}>
+          {(followee) => <ProfileRow pubkey={followee.pubkey} />}
+        </For>
+      </div>
+      {/* <div class="h-full w-full overflow-y-auto" ref={setScrollParent}>
         <div
           class="relative divide-y"
           style={{
@@ -56,7 +60,7 @@ const Followees: Component<{
             )}
           </For>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 };
