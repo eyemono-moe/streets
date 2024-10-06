@@ -142,26 +142,24 @@ const Text: Component<{
               </Show>
             </div>
             <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
-              <div class="truncate">
-                <HoverCard.Trigger
-                  class="cursor-pointer appearance-none bg-transparent hover:underline"
-                  as="button"
-                  onClick={() => {
-                    // biome-ignore lint/style/noNonNullAssertion: when={text().data}
-                    openUserColumn(text().data!.parsed.pubkey);
-                  }}
+              <HoverCard.Trigger
+                class="w-fit max-w-full cursor-pointer appearance-none truncate bg-transparent hover:underline"
+                as="button"
+                onClick={() => {
+                  // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                  openUserColumn(text().data!.parsed.pubkey);
+                }}
+              >
+                <Show
+                  when={profile().data}
+                  fallback={text().data?.parsed.pubkey}
                 >
-                  <Show
-                    when={profile().data}
-                    fallback={text().data?.parsed.pubkey}
-                  >
-                    <span>{profile().data?.parsed.display_name}</span>
-                    <span class="text-3.5 text-zinc-5">
-                      @{profile().data?.parsed.name}
-                    </span>
-                  </Show>
-                </HoverCard.Trigger>
-              </div>
+                  <span>{profile().data?.parsed.display_name}</span>
+                  <span class="text-3.5 text-zinc-5">
+                    @{profile().data?.parsed.name}
+                  </span>
+                </Show>
+              </HoverCard.Trigger>
               <span
                 class="text-3.5 text-zinc-5"
                 // biome-ignore lint/style/noNonNullAssertion: when={text().data}
