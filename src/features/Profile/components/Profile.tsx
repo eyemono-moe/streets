@@ -97,8 +97,8 @@ const Profile: Component<{
                 }
               >
                 <Match when={isFollowing() === undefined}>
-                  <div class="flex items-center justify-center p-2">
-                    <div class="b-4 b-zinc-3 b-r-violet aspect-square h-auto w-8 animate-spin rounded-full" />
+                  <div class="flex items-center justify-center p-1">
+                    <div class="b-2 b-zinc-3 b-r-violet aspect-square h-auto w-4 animate-spin rounded-full" />
                   </div>
                 </Match>
                 <Match when={isFollowing()}>フォロー中</Match>
