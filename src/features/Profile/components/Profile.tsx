@@ -1,5 +1,6 @@
 import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
+import { useI18n } from "../../../i18n";
 import { showLoginModal } from "../../../libs/nostrLogin";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../libs/rxQuery";
@@ -17,6 +18,8 @@ const Profile: Component<{
   pubkey?: string;
   small?: boolean;
 }> = (props) => {
+  const t = useI18n();
+
   const profile = useProfile(() => props.pubkey);
 
   const myPubkey = useMyPubkey();
@@ -111,20 +114,20 @@ const Profile: Component<{
                 fallback={
                   <>
                     <div class="i-material-symbols:person-add-outline-rounded aspect-square h-6 w-auto" />
-                    フォロー
+                    {t("profile.follow")}
                   </>
                 }
               >
                 <Match when={!isLogged()}>
                   <div class="i-material-symbols:person-add-outline-rounded aspect-square h-6 w-auto" />
-                  ログインしてフォロー
+                  {t("profile.loginAndFollow")}
                 </Match>
                 <Match when={isFollowing() === undefined}>
                   <div class="flex items-center justify-center p-1">
                     <div class="b-2 b-zinc-3 b-r-violet aspect-square h-auto w-4 animate-spin rounded-full" />
                   </div>
                 </Match>
-                <Match when={isFollowing()}>フォロー中</Match>
+                <Match when={isFollowing()}>{t("profile.following")}</Match>
               </Switch>
             </button>
           </div>
@@ -156,7 +159,9 @@ const Profile: Component<{
                 <span class="font-500">
                   {followees().data?.parsed.followees.length ?? 0}
                 </span>
-                <span class="ml-1 text-3.5 text-zinc-5">フォロー中</span>
+                <span class="ml-1 text-3.5 text-zinc-5">
+                  {t("profile.followees")}
+                </span>
               </div>
               <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
             </button>
@@ -169,7 +174,7 @@ const Profile: Component<{
                 if (props.pubkey) openReactionsColumn(props.pubkey);
               }}
             >
-              <span class="font-500">リアクション</span>
+              <span class="font-500">{t("profile.reactions")}</span>
               <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
             </button>
           </Show>

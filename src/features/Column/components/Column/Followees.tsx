@@ -1,4 +1,5 @@
 import { type Component, For } from "solid-js";
+import { useI18n } from "../../../../i18n";
 import { useFollowees, useProfile } from "../../../../libs/rxQuery";
 import ProfileRow from "../../../Profile/components/ProfileRow";
 import type { PickColumnState } from "../../context/deck";
@@ -13,6 +14,7 @@ const Followees: Component<{
 
   const profile = useProfile(() => props.state.pubkey);
   const followees = useFollowees(() => props.state.pubkey);
+  const t = useI18n();
 
   // const rowVirtualizer = createMemo(() => {
   //   return createVirtualizer({
@@ -26,11 +28,8 @@ const Followees: Component<{
   return (
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader
-        name={
-          profile().data?.parsed.name
-            ? `フォロー中 (@${profile().data?.parsed.name})`
-            : "フォロー中"
-        }
+        title={t("column.followees.title")}
+        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
       />
       <div class="h-full w-full overflow-y-auto">
         <For each={followees().data?.parsed.followees}>

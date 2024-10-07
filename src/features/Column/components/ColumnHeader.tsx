@@ -1,10 +1,11 @@
 import { Collapsible } from "@kobalte/core/collapsible";
 import type { ParentComponent } from "solid-js";
 import { useColumn } from "../context/column";
-import { columnIcon, columnName } from "../libs/columnName";
+import { columnIcon } from "../libs/columnName";
 
 const ColumnHeader: ParentComponent<{
-  name?: string;
+  title?: string;
+  subTitle?: string;
 }> = (props) => {
   const [state, actions] = useColumn() ?? [];
 
@@ -14,9 +15,10 @@ const ColumnHeader: ParentComponent<{
         <div
           class={`${columnIcon(state?.type)} c-zinc-6 aspect-square h-6 w-auto`}
         />
-        <span class="w-full truncate">
-          {props.name ?? columnName(state.type)}
-        </span>
+        <div class="truncate text-3">
+          <span class="w-full truncate font-500 text-4">{props.title}</span>
+          <span class="ml-1 w-full truncate text-zinc-5">{props.subTitle}</span>
+        </div>
         <Collapsible.Trigger class="appearance-none bg-transparent">
           <div
             class={

@@ -1,5 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Match, Show, Switch } from "solid-js";
+import { useI18n } from "../../../i18n";
 import { readablePubkey } from "../../../libs/format";
 import { useProfile } from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
@@ -18,6 +19,8 @@ const ReactionUserName: Component<{
         src: string;
       };
 }> = (props) => {
+  const t = useI18n();
+
   const reposterProfile = useProfile(() => props.pubkey);
   const openUserColumn = useOpenUserColumn();
 
@@ -64,7 +67,7 @@ const ReactionUserName: Component<{
               </span>
             </Show>
           </HoverCard.Trigger>
-          <span class="shrink-0">がリアクション</span>
+          <span class="shrink-0">{t("reaction.reactedBy")}</span>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.pubkey} />

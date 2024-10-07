@@ -1,0 +1,32 @@
+{
+  "column": {
+    "followees": {
+      "title": "フォロー中"
+    },
+    "notifications": {
+      "title": "通知"
+    },
+    "profile": {
+      "title": "ユーザー"
+    },
+    "reactions": {
+      "title": "リアクション"
+    },
+    "timeline": {
+      "title": "ホーム"
+    }
+  },
+  "profile": {
+    "follow": "フォローする",
+    "followees": "フォロー中",
+    "following": "フォロー中",
+    "loginAndFollow": "ログインしてフォロー",
+    "reactions": "リアクション"
+  },
+  "reaction": {
+    "reactedBy": "さんがリアクション"
+  },
+  "repost": {
+    "repostedBy": "さんがリポスト"
+  }
+}

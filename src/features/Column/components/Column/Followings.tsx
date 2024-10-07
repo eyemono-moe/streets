@@ -1,4 +1,5 @@
 import { type Component, Show } from "solid-js";
+import { useI18n } from "../../../../i18n";
 import { useFollowees } from "../../../../libs/rxQuery";
 import { useMyPubkey } from "../../../../libs/useMyPubkey";
 import InfinitePosts from "../../../ShortText/components/InfinitePosts";
@@ -10,10 +11,11 @@ const Followings: Component<{
 }> = () => {
   const myPubkey = useMyPubkey();
   const followees = useFollowees(myPubkey);
+  const t = useI18n();
 
   return (
     <div class="flex w-full flex-col divide-y">
-      <ColumnHeader />
+      <ColumnHeader title={t("column.timeline.title")} />
       <div class="h-full overflow-y-auto">
         <Show when={followees().data}>
           <InfinitePosts

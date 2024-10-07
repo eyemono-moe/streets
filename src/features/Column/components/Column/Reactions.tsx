@@ -1,4 +1,5 @@
 import type { Component } from "solid-js";
+import { useI18n } from "../../../../i18n";
 import { useProfile } from "../../../../libs/rxQuery";
 import InfiniteReactions from "../../../ShortText/components/InfiniteReactions";
 import type { PickColumnState } from "../../context/deck";
@@ -8,15 +9,13 @@ const Reactions: Component<{
   state: PickColumnState<"reactions">;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
+  const t = useI18n();
 
   return (
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader
-        name={
-          profile().data?.parsed.name
-            ? `リアクション (@${profile().data?.parsed.name})`
-            : "リアクション"
-        }
+        title={t("column.reactions.title")}
+        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
       />
       <div class="h-full overflow-y-auto">
         <InfiniteReactions

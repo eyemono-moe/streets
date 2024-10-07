@@ -1,0 +1,32 @@
+{
+  "column": {
+    "followees": {
+      "title": "Followees"
+    },
+    "notifications": {
+      "title": "Notifications"
+    },
+    "profile": {
+      "title": "Profile"
+    },
+    "reactions": {
+      "title": "Reactions"
+    },
+    "timeline": {
+      "title": "Home"
+    }
+  },
+  "profile": {
+    "follow": "Follow",
+    "followees": "Following",
+    "following": "Following",
+    "loginAndFollow": "Login and Follow",
+    "reactions": "Reactions"
+  },
+  "reaction": {
+    "reactedBy": "reacted"
+  },
+  "repost": {
+    "repostedBy": "reposted"
+  }
+}

@@ -1,4 +1,5 @@
 import type { Component } from "solid-js";
+import { useI18n } from "../../../../i18n";
 import { useProfile } from "../../../../libs/rxQuery";
 import Profile from "../../../Profile/components/Profile";
 import InfinitePosts from "../../../ShortText/components/InfinitePosts";
@@ -9,15 +10,13 @@ const User: Component<{
   state: PickColumnState<"user">;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
+  const t = useI18n();
 
   return (
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader
-        name={
-          profile().data?.parsed.name
-            ? `ユーザー (@${profile().data?.parsed.name})`
-            : "ユーザー"
-        }
+        title={t("column.profile.title")}
+        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
       />
       <div class="h-full divide-y overflow-y-auto">
         <div class="max-h-140">

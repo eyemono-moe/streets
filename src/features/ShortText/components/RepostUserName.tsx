@@ -1,5 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Show } from "solid-js";
+import { useI18n } from "../../../i18n";
 import { readablePubkey } from "../../../libs/format";
 import { useProfile } from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
@@ -8,6 +9,8 @@ import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 const RepostUserName: Component<{
   pubkey: string;
 }> = (props) => {
+  const t = useI18n();
+
   const reposterProfile = useProfile(() => props.pubkey);
   const openUserColumn = useOpenUserColumn();
 
@@ -33,7 +36,7 @@ const RepostUserName: Component<{
               </span>
             </Show>
           </HoverCard.Trigger>
-          <span class="shrink-0">がリポスト</span>
+          <span class="shrink-0">{t("repost.repostedBy")}</span>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.pubkey} />
