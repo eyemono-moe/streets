@@ -110,7 +110,7 @@ const Text: Component<{
           >
             <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
               <HoverCard.Trigger
-                class="cursor-pointer appearance-none bg-transparent"
+                class="sticky top-2 cursor-pointer appearance-none bg-transparent"
                 as="button"
                 onClick={() => {
                   // biome-ignore lint/style/noNonNullAssertion: when={text().data}
