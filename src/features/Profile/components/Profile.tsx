@@ -1,6 +1,7 @@
 import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import { useI18n } from "../../../i18n";
+import { readablePubkey } from "../../../libs/format";
 import { showLoginModal } from "../../../libs/nostrLogin";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../libs/rxQuery";
@@ -31,6 +32,12 @@ const Profile: Component<{
   );
 
   const followees = useFollowees(() => props.pubkey);
+  const isFollowed = createMemo(() => {
+    return followees().data?.parsed.followees.some(
+      (pubkey) => pubkey.pubkey === myPubkey(),
+    );
+  });
+
   const openFolloweesColumn = useOpenFolloweesColumn();
   const openReactionsColumn = useOpenReactionsColumn();
 
@@ -134,15 +141,38 @@ const Profile: Component<{
         </div>
         <div class="flex flex-col">
           <span class="line-clamp-3 text-ellipsis font-500 text-5">
-            {profile().data?.parsed.display_name}
+            {profile().data?.parsed.display_name ??
+              (props.pubkey ? readablePubkey(props.pubkey) : "...")}
           </span>
-          <span class="truncate text-3.5 text-zinc-5">
-            @{profile().data?.parsed.name ?? "..."}
-          </span>
+          <div>
+            <span class="truncate text-3.5 text-zinc-5">
+              @{profile().data?.parsed.name ?? "..."}
+            </span>
+            <Show when={isFollowed()}>
+              <span class="ml-1 rounded bg-zinc-2 px-1 py-0.5 text-3 text-zinc-5">
+                {t("profile.followsYou")}
+              </span>
+            </Show>
+          </div>
         </div>
-        <Show when={profile().data?.parsed.nip05}>
-          <Nip05Badge pubkey={props.pubkey} />
-        </Show>
+        <div class="flex w-full flex-wrap gap-2">
+          <Show when={profile().data?.parsed.nip05}>
+            <Nip05Badge pubkey={props.pubkey} />
+          </Show>
+          <Show when={profile().data?.parsed.website}>
+            <div class="flex max-w-full items-center gap-1">
+              <div class="i-material-symbols:link-rounded c-zinc-5 aspect-square h-4 w-auto" />
+              <a
+                href={profile().data?.parsed.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="c-blue-5 visited:c-violet-7 truncate text-3.5 underline"
+              >
+                {profile().data?.parsed.website}
+              </a>
+            </div>
+          </Show>
+        </div>
         <div class="overflow-y-auto">
           <ShortTextContent contents={parsedContents()} />
         </div>
