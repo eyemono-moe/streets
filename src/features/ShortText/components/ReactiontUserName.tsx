@@ -1,12 +1,22 @@
 import { HoverCard } from "@kobalte/core/hover-card";
-import { type Component, Show } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { readablePubkey } from "../../../libs/format";
 import { useProfile } from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 
-const RepostUserName: Component<{
+const ReactionUserName: Component<{
   pubkey: string;
+  reaction:
+    | {
+        type: "string";
+        value: string;
+      }
+    | {
+        type: "emoji";
+        value: string;
+        src: string;
+      };
 }> = (props) => {
   const reposterProfile = useProfile(() => props.pubkey);
   const openUserColumn = useOpenUserColumn();
@@ -14,8 +24,29 @@ const RepostUserName: Component<{
   return (
     <div class="pb-2 text-3 text-zinc-5">
       <HoverCard>
-        <div class="flex items-center gap-1">
-          <div class="i-material-symbols:repeat-rounded c-green aspect-square h-auto w-4" />
+        <div class="flex h-5 items-center gap-1">
+          <Switch
+            fallback={
+              <span class="h-5 truncate leading-5">{props.reaction.value}</span>
+            }
+          >
+            <Match when={props.reaction.type === "emoji" && props.reaction}>
+              {(emoji) => (
+                <img
+                  src={emoji().src}
+                  class="inline-block h-full w-auto"
+                  alt={emoji().value}
+                />
+              )}
+            </Match>
+            <Match
+              when={
+                props.reaction.type === "string" && props.reaction.value === "+"
+              }
+            >
+              <div class="i-material-symbols:favorite-rounded c-pink aspect-square h-5 w-auto" />
+            </Match>
+          </Switch>
           <HoverCard.Trigger
             class="hover:(underline) break-anywhere cursor-pointer appearance-none bg-transparent font-bold"
             as="button"
@@ -33,7 +64,7 @@ const RepostUserName: Component<{
               </span>
             </Show>
           </HoverCard.Trigger>
-          <span>がリポスト</span>
+          <span>がリアクション</span>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.pubkey} />
@@ -43,4 +74,4 @@ const RepostUserName: Component<{
   );
 };
 
-export default RepostUserName;
+export default ReactionUserName;

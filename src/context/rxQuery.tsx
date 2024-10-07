@@ -14,6 +14,7 @@ import { eventCacheSetter } from "./eventCache";
 import { useRxNostr } from "./rxNostr";
 
 const RxQueryContext = createContext<{
+  rxBackwardReq: ReturnType<typeof createRxBackwardReq>;
   actions: {
     emit: RxReqEmittable<{ relays: string[] }>["emit"];
   };
@@ -33,14 +34,16 @@ export const RxQueryProvider: ParentComponent = (props) => {
         batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
       ),
     )
-    .pipe(share());
+    .pipe(
+      latestEach((e) => e.event.id),
+      share(),
+    );
 
   // pubkeyごとの最新イベントが必要なkind
   backwardEvent$
     .pipe(
       // TODO: 対応するkindを定数で持つ
       filterByKinds([kinds.Metadata, kinds.Contacts, kinds.RelayList]),
-      latestEach((e) => e.event.pubkey),
       share(),
     )
     .subscribe({
@@ -54,7 +57,6 @@ export const RxQueryProvider: ParentComponent = (props) => {
     .pipe(
       // TODO: 対応するkindを定数で持つ
       filterByKinds([kinds.ShortTextNote, kinds.Repost, kinds.Reaction]),
-      latestEach((e) => e.event.id),
       share(),
     )
     .subscribe({
@@ -66,6 +68,7 @@ export const RxQueryProvider: ParentComponent = (props) => {
   return (
     <RxQueryContext.Provider
       value={{
+        rxBackwardReq,
         actions: {
           emit,
         },

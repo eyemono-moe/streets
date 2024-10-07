@@ -1,4 +1,4 @@
-import { type Component, For, Show, createMemo } from "solid-js";
+import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
 import { useReactionsOfEvent } from "../../../libs/rxQuery";
 
 const Reactions: Component<{
@@ -64,22 +64,33 @@ const Reactions: Component<{
               type="button"
             >
               <div class="flex h-5 items-center justify-center">
-                <Show
-                  when={reaction.content.type === "emoji" && reaction.content}
+                <Switch
                   fallback={
                     <span class="h-5 truncate leading-5">
                       {reaction.content.value}
                     </span>
                   }
                 >
-                  {(emoji) => (
-                    <img
-                      src={emoji().src}
-                      class="inline-block h-full w-auto"
-                      alt={emoji().value}
-                    />
-                  )}
-                </Show>
+                  <Match
+                    when={reaction.content.type === "emoji" && reaction.content}
+                  >
+                    {(emoji) => (
+                      <img
+                        src={emoji().src}
+                        class="inline-block h-full w-auto"
+                        alt={emoji().value}
+                      />
+                    )}
+                  </Match>
+                  <Match
+                    when={
+                      reaction.content.type === "string" &&
+                      reaction.content.value === "+"
+                    }
+                  >
+                    <div class="i-material-symbols:favorite-rounded c-pink aspect-square h-5 w-auto" />
+                  </Match>
+                </Switch>
               </div>
               <span class="h-5 text-zinc-5 leading-5">{reaction.count}</span>
             </button>

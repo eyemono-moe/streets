@@ -1,6 +1,8 @@
 import stringify from "safe-stable-stringify";
 import {
   type Accessor,
+  type Component,
+  For,
   type ParentComponent,
   createContext,
   createEffect,
@@ -9,6 +11,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
+import { Portal } from "solid-js/web";
 
 export type CacheKey = (string | number | boolean | undefined)[];
 
@@ -169,35 +172,35 @@ export const invalidateEventCache = (queryKey: CacheKey) => {
   invalidate(queryKey);
 };
 
-// const EventCacheDevTool: Component<{
-//   cache: { [key: string]: CacheDataBase | undefined };
-// }> = (props) => {
-//   return (
-//     <div>
-//       <Portal>
-//         <div class="fixed top-0 right-0 bottom-0 max-w-100 border bg-white p-4">
-//           <h2>EventCache</h2>
-//           <div class="h-full w-full divide-y overflow-auto">
-//             <For each={Object.entries(props.cache)}>
-//               {([key, cache]) => (
-//                 <div class="grid">
-//                   <div>{key}</div>
-//                   <div>{JSON.stringify(cache?.data)}</div>
-//                   <div>
-//                     {cache?.isFetching
-//                       ? "fetching"
-//                       : cache?.isInvalidated
-//                         ? "invalidated"
-//                         : "valid"}
-//                   </div>
-//                   <div>{cache?.dataUpdatedAt}</div>
-//                   <div>{cache?.staleTime}</div>
-//                 </div>
-//               )}
-//             </For>
-//           </div>
-//         </div>
-//       </Portal>
-//     </div>
-//   );
-// };
+const EventCacheDevTool: Component<{
+  cache: { [key: string]: CacheDataBase | undefined };
+}> = (props) => {
+  return (
+    <div>
+      <Portal>
+        <div class="fixed top-0 right-0 bottom-0 max-w-100 border bg-white p-4">
+          <h2>EventCache</h2>
+          <div class="h-full w-full divide-y overflow-auto">
+            <For each={Object.entries(props.cache)}>
+              {([key, cache]) => (
+                <div class="grid">
+                  <div>{key}</div>
+                  <div>{JSON.stringify(cache?.data)}</div>
+                  <div>
+                    {cache?.isFetching
+                      ? "fetching"
+                      : cache?.isInvalidated
+                        ? "invalidated"
+                        : "valid"}
+                  </div>
+                  <div>{cache?.dataUpdatedAt}</div>
+                  <div>{cache?.staleTime}</div>
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Portal>
+    </div>
+  );
+};

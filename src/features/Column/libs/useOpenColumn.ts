@@ -40,3 +40,23 @@ export const useOpenFolloweesColumn = () => {
     addColumn(newCol, index);
   };
 };
+
+export const useOpenReactionsColumn = () => {
+  const columnActions = useColumn()?.[1];
+  const [, { addColumn }] = useDeck();
+
+  return (pubkey: string, index?: number) => {
+    const newCol: ColumnState = {
+      type: "reactions",
+      pubkey,
+      size: "medium",
+    };
+
+    if (columnActions) {
+      columnActions.addColumnAfterThis(newCol);
+      return;
+    }
+
+    addColumn(newCol, index);
+  };
+};

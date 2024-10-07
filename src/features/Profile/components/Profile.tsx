@@ -4,7 +4,10 @@ import { showLoginModal } from "../../../libs/nostrLogin";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../libs/rxQuery";
 import { isLogged, useMyPubkey } from "../../../libs/useMyPubkey";
-import { useOpenFolloweesColumn } from "../../Column/libs/useOpenColumn";
+import {
+  useOpenFolloweesColumn,
+  useOpenReactionsColumn,
+} from "../../Column/libs/useOpenColumn";
 import ShortTextContent from "../../ShortText/components/ShortTextContent";
 import Nip05Badge from "./Nip05Badge";
 
@@ -26,6 +29,7 @@ const Profile: Component<{
 
   const followees = useFollowees(() => props.pubkey);
   const openFolloweesColumn = useOpenFolloweesColumn();
+  const openReactionsColumn = useOpenReactionsColumn();
 
   const parsedContents = createMemo(() => {
     const p = profile().data;
@@ -139,20 +143,37 @@ const Profile: Component<{
         <div class="overflow-y-auto">
           <ShortTextContent contents={parsedContents()} />
         </div>
-        <Show when={followees().data}>
-          <button
-            class="inline w-fit appearance-none bg-transparent hover:underline"
-            type="button"
-            onClick={() => {
-              if (props.pubkey) openFolloweesColumn(props.pubkey);
-            }}
-          >
-            <span class="font-500">
-              {followees().data?.parsed.followees.length ?? 0}
-            </span>
-            <span class="ml-1 text-3.5 text-zinc-5">フォロー中</span>
-          </button>
-        </Show>
+        <div class="flex items-center gap-4">
+          <Show when={followees().data}>
+            <button
+              class="inline-flex w-fit appearance-none items-center gap-1 bg-transparent hover:underline"
+              type="button"
+              onClick={() => {
+                if (props.pubkey) openFolloweesColumn(props.pubkey);
+              }}
+            >
+              <div>
+                <span class="font-500">
+                  {followees().data?.parsed.followees.length ?? 0}
+                </span>
+                <span class="ml-1 text-3.5 text-zinc-5">フォロー中</span>
+              </div>
+              <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
+            </button>
+          </Show>
+          <Show when={!props.small}>
+            <button
+              class="inline-flex w-fit appearance-none items-center gap-1 bg-transparent hover:underline"
+              type="button"
+              onClick={() => {
+                if (props.pubkey) openReactionsColumn(props.pubkey);
+              }}
+            >
+              <span class="font-500">リアクション</span>
+              <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
+            </button>
+          </Show>
+        </div>
       </div>
     </div>
   );

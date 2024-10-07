@@ -126,7 +126,13 @@ export const getCacheKey = (
     }
     case kinds.Reaction: {
       // そのidのShortTextNoteのリアクション一覧
-      return { multiple: [["reactionsOf", parsed.parsed.targetEvent.id]] };
+      // そのユーザーのリアクション一覧
+      return {
+        multiple: [
+          ["reactionsOf", parsed.parsed.targetEvent.id],
+          ["reactionsBy", parsed.parsed.pubkey],
+        ],
+      };
     }
     default:
       console.warn(`[getQueryKey] unknown kind: ${parsed.raw.kind}`);
@@ -141,7 +147,12 @@ export const getRelatedEventFilters = (
 ): LazyFilter[] => {
   switch (parsed.parsed.kind) {
     case kinds.Metadata:
-      return [];
+      return [
+        // {
+        //   kinds: [kinds.Contacts],
+        //   authors: [parsed.parsed.pubkey],
+        // },
+      ];
     case kinds.ShortTextNote: {
       const authors = parsed.parsed.tags
         .filter((tag) => tag.kind === "p")
@@ -311,6 +322,29 @@ export const useReactionsOfEvent = (eventID: () => string | undefined) => {
       emit({
         kinds: [kinds.Reaction],
         "#e": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<Reaction>[]>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useReactionsByPubkey = (pubkey: () => string | undefined) => {
+  const queryKey = () => ["reactionsBy", pubkey()];
+
+  const {
+    actions: { emit },
+  } = useRxQuery();
+
+  const emitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      emit({
+        kinds: [kinds.Reaction],
+        authors: [_pubkey],
       });
     }
   };
