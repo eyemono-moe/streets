@@ -7,6 +7,8 @@ export const unknownTag = v.pipe(
   v.transform((input) => ({ kind: "unknown", data: input }) as const),
 );
 
+export type UnknownTag = v.InferOutput<typeof unknownTag>;
+
 // https://github.com/nostr-protocol/nips/blob/master/01.md#tags
 // https://github.com/nostr-protocol/nips/blob/master/10.md#marked-e-tags-preferred
 export const eventTag = v.pipe(
@@ -139,3 +141,11 @@ export const emojiTag = v.pipe(
 );
 
 export type EmojiTag = v.InferOutput<typeof emojiTag>;
+
+export type Tag =
+  | UnknownTag
+  | EventTag
+  | UserTag
+  | QuoteTag
+  | ImetaTag
+  | EmojiTag;

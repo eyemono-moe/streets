@@ -1,9 +1,7 @@
 import * as linkify from "linkifyjs";
-import { kinds, parseReferences } from "nostr-tools";
-import type { ParsedEventPacket } from "./parser";
-import type { Metadata } from "./parser/0_metadata";
-import type { ShortTextNote } from "./parser/1_shortTextNote";
-import type { ImetaTag } from "./parser/commonTag";
+import { kinds } from "nostr-tools";
+import { decode } from "nostr-tools/nip19";
+import type { ImetaTag, Tag } from "./parser/commonTag";
 
 const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
 const isImageUrl = (url: string) => {
@@ -41,43 +39,154 @@ export type HashtagContent = {
   type: "hashtag";
   tag: string;
 };
+export type EmojiContent = {
+  type: "emoji";
+  tag: string;
+};
 export type ParsedContent =
   | TextContent
   | ImageContent
   | LinkContent
   | MentionContent
   | QuoteContent
-  | HashtagContent;
+  | HashtagContent
+  | EmojiContent;
 
-export const parseTextContent = (
-  event: ParsedEventPacket<Metadata> | ParsedEventPacket<ShortTextNote>,
-) => {
+// https://github.com/nostr-protocol/nips/blob/master/27.md
+
+const mentionRegex =
+  /\b(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)|#([a-zA-Z0-9]+)\b/g;
+
+type Refecence = {
+  start: number;
+  end: number;
+} & (
+  | {
+      type: "quote";
+      value: {
+        id: string;
+      };
+    }
+  | {
+      type: "hashtag";
+      value: {
+        tag: string;
+      };
+    }
+  | {
+      type: "mention";
+      value: {
+        pubkey: string;
+      };
+    }
+);
+
+const parseReferences = (text: string): Refecence[] => {
+  const refs: Refecence[] = [];
+  for (const match of text.matchAll(mentionRegex)) {
+    const length = match[0].length;
+    const start = match.index;
+    const end = start + length;
+    const hex = match.at(1);
+
+    if (hex) {
+      const { data, type } = decode(hex);
+      switch (type) {
+        case "note":
+          refs.push({
+            start,
+            end,
+            type: "quote",
+            value: {
+              id: data,
+            },
+          });
+          break;
+        case "nevent":
+          refs.push({
+            start,
+            end,
+            type: "quote",
+            value: {
+              id: data.id,
+            },
+          });
+          break;
+        case "npub":
+          refs.push({
+            start,
+            end,
+            type: "mention",
+            value: {
+              pubkey: data,
+            },
+          });
+          break;
+        case "nprofile":
+          refs.push({
+            start,
+            end,
+            type: "mention",
+            value: {
+              pubkey: data.pubkey,
+            },
+          });
+          break;
+        case "naddr": {
+          switch (data.kind) {
+            case kinds.ShortTextNote:
+              refs.push({
+                start,
+                end,
+                type: "quote",
+                value: {
+                  id: data.identifier,
+                },
+              });
+              break;
+            case kinds.Metadata:
+              refs.push({
+                start,
+                end,
+                type: "mention",
+                value: {
+                  pubkey: data.identifier,
+                },
+              });
+              break;
+          }
+          break;
+        }
+      }
+    }
+
+    const hashtag = match.at(3);
+    if (hashtag) {
+      refs.push({
+        start,
+        end,
+        type: "hashtag",
+        value: {
+          tag: hashtag,
+        },
+      });
+    }
+  }
+  return refs;
+};
+
+export const parseTextContent = (content: string, tags: Tag[]) => {
   try {
-    // TODO: たまに解析できてないので自前で実装する
-    const references = parseReferences(event.raw);
-
-    const imetaTags =
-      event.parsed.kind === kinds.ShortTextNote
-        ? event.parsed.tags.filter((tag) => tag.kind === "imeta")
-        : [];
-    const splittedContent = splitTextByLinks(
-      event.parsed.kind === kinds.ShortTextNote
-        ? event.parsed.content
-        : event.parsed.about,
-      references,
-      imetaTags,
-    );
-
+    const references = parseReferences(content);
+    const imetaTags = tags.filter((tag) => tag.kind === "imeta");
+    const splittedContent = splitTextByLinks(content, references, imetaTags);
     return splittedContent;
   } catch (e) {
     console.error("failed to parse contents: ", e);
     return [
       {
         type: "text" as const,
-        content:
-          event.parsed.kind === kinds.ShortTextNote
-            ? event.parsed.content
-            : event.parsed.about,
+        content,
       },
     ];
   }
@@ -85,13 +194,12 @@ export const parseTextContent = (
 
 export const splitTextByLinks = (
   text: string,
-  refs: ReturnType<typeof parseReferences>,
+  refs: Refecence[],
   imetaTags: ImetaTag[],
 ): ParsedContent[] => {
   const links = linkify.find(text, {});
-  const refsWithStartAndEnd = calcStartAndEnd(text, refs);
 
-  const sortedLinkOrRefs = [...links, ...refsWithStartAndEnd].sort(
+  const sortedLinkOrRefs = [...links, ...refs].sort(
     (a, b) => a.start - b.start,
   );
 
@@ -108,20 +216,26 @@ export const splitTextByLinks = (
 
     const matchedContent = text.slice(start, end);
     if (isRef(linkOrRef)) {
-      if (linkOrRef.profile) {
-        parsedContent.push({
-          type: "mention",
-          pubkey: linkOrRef.profile.pubkey,
-          relay: linkOrRef.profile.relays?.at(0),
-        });
+      switch (linkOrRef.type) {
+        case "mention":
+          parsedContent.push({
+            type: "mention",
+            pubkey: linkOrRef.value.pubkey,
+          });
+          break;
+        case "quote":
+          parsedContent.push({
+            type: "quote",
+            id: linkOrRef.value.id,
+          });
+          break;
+        case "hashtag":
+          parsedContent.push({
+            type: "hashtag",
+            tag: linkOrRef.value.tag,
+          });
+          break;
       }
-      if (linkOrRef.event) {
-        parsedContent.push({
-          type: "quote",
-          id: linkOrRef.event.id,
-        });
-      }
-      // TODO: hashtag
     } else {
       if (isImageUrl(matchedContent)) {
         const imetaTag = imetaTags.find((tag) => tag.url === matchedContent);
@@ -162,27 +276,10 @@ export const splitTextByLinks = (
   return parsedContent;
 };
 
-export const calcStartAndEnd = (
-  text: string,
-  refs: ReturnType<typeof parseReferences>,
-) => {
-  const refsWithStartAndEnd = refs.map((ref) => {
-    const start = text.indexOf(ref.text);
-    return {
-      ...ref,
-      start,
-      end: start + ref.text.length,
-      type: "ref",
-    } as const;
-  });
 
-  return refsWithStartAndEnd;
-};
 
 const isRef = (
-  ref:
-    | ReturnType<typeof parseReferences>[number]
-    | ReturnType<typeof linkify.find>[number],
+  ref: Refecence | ReturnType<typeof linkify.find>[number],
 ): ref is ReturnType<typeof parseReferences>[number] => {
-  return "text" in ref;
+  return !("href" in ref);
 };

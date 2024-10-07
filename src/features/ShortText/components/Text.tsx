@@ -51,7 +51,9 @@ const Text: Component<{
 
   const parsedContents = createMemo(() => {
     const _data = text().data;
-    return _data ? parseTextContent(_data) : [];
+    return _data
+      ? parseTextContent(_data.parsed.content, _data.parsed.tags)
+      : [];
   });
 
   const textType = () => {

@@ -36,7 +36,7 @@ const Profile: Component<{
 
   const parsedContents = createMemo(() => {
     const p = profile().data;
-    if (p) return parseTextContent(p);
+    if (p) return parseTextContent(p.parsed.about, []);
     return [];
   });
 

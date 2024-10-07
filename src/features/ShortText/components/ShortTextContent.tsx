@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { hex2bech32 } from "../../../libs/bech32";
 import type {
+  HashtagContent,
   ImageContent,
   LinkContent,
   MentionContent,
@@ -93,6 +94,12 @@ const ShortTextContent: Component<{
                   <Quote id={(content as QuoteContent).id} />
                 </div>
               </Show>
+            </Match>
+            <Match when={content.type === "hashtag"}>
+              {/* TODO: 隣のカラムでハッシュタグ検索結果を表示する */}
+              <span class="break-anywhere c-blue cursor-pointer whitespace-pre-wrap hover:underline">
+                #{(content as HashtagContent).tag}
+              </span>
             </Match>
           </Switch>
         )}
