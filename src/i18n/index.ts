@@ -11,7 +11,7 @@ const fetchDictionary = async (locale: string): Promise<Dictionary> => {
     if (locale === "en-US") {
       _locale = "en";
     }
-    const dict = (await import(`./locales/${locale}.json`)).default;
+    const dict = (await import(`./locales/${_locale}.json`)).default;
     return i18n.flatten<Dictionary>(dict);
   } catch (e) {
     console.warn(`Failed to load dictionary for locale: ${locale}`);
