@@ -276,8 +276,6 @@ export const splitTextByLinks = (
   return parsedContent;
 };
 
-
-
 const isRef = (
   ref: Refecence | ReturnType<typeof linkify.find>[number],
 ): ref is ReturnType<typeof parseReferences>[number] => {
