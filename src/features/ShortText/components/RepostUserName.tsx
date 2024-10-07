@@ -17,7 +17,7 @@ const RepostUserName: Component<{
         <div class="flex items-center gap-1">
           <div class="i-material-symbols:repeat-rounded c-green aspect-square h-auto w-4" />
           <HoverCard.Trigger
-            class="hover:(underline) break-anywhere cursor-pointer appearance-none bg-transparent font-bold"
+            class="hover:(underline) break-anywhere cursor-pointer appearance-none truncate bg-transparent font-bold"
             as="button"
             onClick={() => {
               openUserColumn(props.pubkey);
@@ -33,7 +33,7 @@ const RepostUserName: Component<{
               </span>
             </Show>
           </HoverCard.Trigger>
-          <span>がリポスト</span>
+          <span class="shrink-0">がリポスト</span>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.pubkey} />

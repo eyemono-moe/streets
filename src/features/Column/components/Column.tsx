@@ -2,6 +2,7 @@ import { type Component, Match, Switch } from "solid-js";
 import type { ColumnState, PickColumnState } from "../context/deck";
 import Followees from "./Column/Followees";
 import Followings from "./Column/Followings";
+import Notifications from "./Column/Notifications";
 import Reactions from "./Column/Reactions";
 import User from "./Column/User";
 
@@ -29,6 +30,11 @@ const Column: Component<{
         </Match>
         <Match when={props.column.type === "reactions"}>
           <Reactions state={props.column as PickColumnState<"reactions">} />
+        </Match>
+        <Match when={props.column.type === "notifications"}>
+          <Notifications
+            state={props.column as PickColumnState<"notifications">}
+          />
         </Match>
       </Switch>
     </div>

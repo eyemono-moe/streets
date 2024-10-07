@@ -48,7 +48,7 @@ const ReactionUserName: Component<{
             </Match>
           </Switch>
           <HoverCard.Trigger
-            class="hover:(underline) break-anywhere cursor-pointer appearance-none bg-transparent font-bold"
+            class="hover:(underline) break-anywhere cursor-pointer appearance-none truncate bg-transparent font-bold"
             as="button"
             onClick={() => {
               openUserColumn(props.pubkey);
@@ -64,7 +64,7 @@ const ReactionUserName: Component<{
               </span>
             </Show>
           </HoverCard.Trigger>
-          <span>がリアクション</span>
+          <span class="shrink-0">がリアクション</span>
         </div>
         <HoverCard.Portal>
           <ProfileHoverContent pubkey={props.pubkey} />
