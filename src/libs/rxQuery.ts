@@ -8,7 +8,7 @@ import {
   createRxBackwardReq,
   uniq,
 } from "rx-nostr";
-import { createMemo, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   type CacheKey,
@@ -242,8 +242,13 @@ export const cacheAndEmitRelatedEvent = (
   for (const queryKey of queryKeys.multiple ?? []) {
     cacheSetter<ReturnType<typeof parseEventPacket>[]>(queryKey, (prev) => {
       if (prev) {
-        // todo sort and uniq
-        return [...prev, parsed];
+        // 既に同じイベントがあれば追加しない
+        if (prev.some((p) => p.raw.id === parsed.raw.id)) {
+          return prev;
+        }
+
+        // TODO: sort
+        return [parsed, ...prev];
       }
       return [parsed];
     });
@@ -433,24 +438,10 @@ export const useEmojis = (pubkey: () => string | undefined) => {
     );
   });
 
-  const emoji = createMemo(() => {
-    const emojisFromList = emojiList().data?.parsed.emojis.map((e) => ({
-      name: e.name,
-      url: e.url,
-    }));
-
-    const emojisFromSets = emojiSets().flatMap(
-      (set) =>
-        set().data?.parsed.emojis.map((e) => ({
-          name: e.name,
-          url: e.url,
-        })) ?? [],
-    );
-
-    return emojisFromList?.concat(emojisFromSets);
-  });
-
-  return emoji;
+  return {
+    emojiList,
+    emojiSets,
+  };
 };
 
 const createSender = () => {

@@ -1,4 +1,6 @@
+import { Popover } from "@kobalte/core/popover";
 import { type Component, Show, createSignal } from "solid-js";
+import EmojiPicker from "../../../components/EmojiPicker";
 import { useI18n } from "../../../i18n";
 import { showLoginModal } from "../../../libs/nostrLogin";
 import { useSendShortText } from "../../../libs/rxQuery";
@@ -13,6 +15,7 @@ const PostInput: Component<{
   const t = useI18n();
 
   const [content, setContent] = createSignal(props.defaultContent ?? "");
+  const [textarea, setTextarea] = createSignal<HTMLTextAreaElement>();
 
   const { sendShortText, sendState } = useSendShortText();
 
@@ -24,6 +27,18 @@ const PostInput: Component<{
       content: content(),
     });
     setContent("");
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const _textarea = textarea();
+    if (!_textarea) return;
+    const start = _textarea.selectionStart;
+    const end = _textarea.selectionEnd;
+    const text = content();
+    const newText = text.slice(0, start) + emoji + text.slice(end);
+    setContent(newText);
+    _textarea.focus();
+    _textarea.setSelectionRange(start + emoji.length, start + emoji.length);
   };
 
   const textareaStyle =
@@ -51,17 +66,37 @@ const PostInput: Component<{
             {`${content()}\u200b`}
           </div>
           <textarea
-            class={`${textareaStyle} absolute top-0 left-0 h-full focus:outline-2 focus:outline-purple`}
+            ref={setTextarea}
+            class={`${textareaStyle} absolute top-0 left-0 h-full focus:outline-2 focus:outline-purple disabled:cursor-progress disabled:bg-zinc-2`}
             placeholder={t("postInput.placeholder")}
             value={content()}
             onInput={(e) => setContent(e.currentTarget.value)}
+            disabled={sendState.sending}
           />
         </div>
         <div class="flex">
+          <Popover>
+            <Popover.Trigger
+              class="c-white inline-flex w-fit items-center justify-center gap-1 rounded-full bg-purple-5 p-1 font-500 enabled:hover:bg-purple-6"
+              disabled={sendState.sending}
+            >
+              <div class="i-material-symbols:add-reaction-outline-rounded aspect-square h-6 w-auto" />
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">
+                <Popover.Arrow />
+                <EmojiPicker
+                  onSelect={(v) => {
+                    insertEmoji(v.native ?? v.shortcodes);
+                  }}
+                />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover>
           <button
             type="button"
             onClick={postText}
-            class="c-white ml-auto inline-flex w-fit items-center justify-center gap-1 rounded-full bg-purple-5 px-2 py-1 font-500 enabled:hover:bg-purple-6 disabled:cursor-not-allowed disabled:bg-zinc-4"
+            class="c-white ml-auto inline-flex w-fit items-center justify-center gap-1 rounded-full bg-purple-5 px-2 py-1 font-500 enabled:hover:bg-purple-6 disabled:cursor-progress disabled:bg-zinc-4"
             disabled={sendState.sending}
           >
             {t("postInput.post")}
