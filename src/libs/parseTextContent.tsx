@@ -281,3 +281,33 @@ const isRef = (
 ): ref is ReturnType<typeof parseReferences>[number] => {
   return !("href" in ref);
 };
+
+export const parsedContents2Tags = (
+  parsedContents: ParsedContent[],
+): string[][] => {
+  const tags: string[][] = [];
+  for (const parsedContent of parsedContents) {
+    switch (parsedContent.type) {
+      case "text":
+      case "image":
+      case "emoji":
+        // do nothing
+        break;
+      case "quote":
+        // TODO: get relay, pubkey from cache
+        tags.push(["q", parsedContent.id]);
+        break;
+      case "hashtag":
+        tags.push(["t", parsedContent.tag]);
+        break;
+      case "mention":
+        // TODO: get relay from cache
+        tags.push(["p", parsedContent.pubkey]);
+        break;
+      case "link":
+        tags.push(["r", parsedContent.href]);
+        break;
+    }
+  }
+  return tags;
+};

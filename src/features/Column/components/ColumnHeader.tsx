@@ -13,7 +13,7 @@ const ColumnHeader: ParentComponent<{
     <Collapsible class="divide-y">
       <div class="c-zinc-8 grid grid-cols-[auto_1fr_auto] items-center gap-1 p-1">
         <div
-          class={`${columnIcon(state?.type)} c-zinc-6 aspect-square h-6 w-auto`}
+          class={`${state?.type ? columnIcon(state?.type) : ""} c-zinc-6 aspect-square h-6 w-auto`}
         />
         <div class="truncate text-3">
           <span class="w-full truncate font-500 text-4">{props.title}</span>

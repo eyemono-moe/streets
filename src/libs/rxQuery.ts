@@ -402,27 +402,30 @@ const createSender = () => {
   const sender = (event: EventParameters) => {
     setSendState("sending", true);
     setSendState("successAny", false);
-    rxNostr.send(event).subscribe({
-      next: (e) => {
-        if (e.ok && e.done) {
-          setSendState("successAny", true);
-          setSendState("relayStates", e.from, {
-            done: true,
-          });
-        }
-        if (e.notice) {
-          setSendState("relayStates", e.from, {
-            notice: e.notice,
-          });
-        }
-      },
-      error(err) {
-        console.error("[send] error on sending", err);
-        setSendState("error", err);
-      },
-      complete: () => {
-        setSendState("sending", false);
-      },
+    return new Promise<void>((resolve) => {
+      rxNostr.send(event).subscribe({
+        next: (e) => {
+          if (e.ok && e.done) {
+            setSendState("successAny", true);
+            setSendState("relayStates", e.from, {
+              done: true,
+            });
+          }
+          if (e.notice) {
+            setSendState("relayStates", e.from, {
+              notice: e.notice,
+            });
+          }
+        },
+        error(err) {
+          console.error("[send] error on sending", err);
+          setSendState("error", err);
+        },
+        complete: () => {
+          setSendState("sending", false);
+          resolve();
+        },
+      });
     });
   };
 

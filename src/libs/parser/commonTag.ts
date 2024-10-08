@@ -142,10 +142,28 @@ export const emojiTag = v.pipe(
 
 export type EmojiTag = v.InferOutput<typeof emojiTag>;
 
+// https://github.com/nostr-protocol/nips/blob/master/24.md#tags
+export const hashtagTag = v.pipe(
+  v.tuple([
+    v.literal("t"),
+    v.string(), // hashtag
+  ]),
+  v.transform(
+    (input) =>
+      ({
+        kind: input[0],
+        tag: input[1],
+      }) as const,
+  ),
+);
+
+export type HashtagTag = v.InferOutput<typeof hashtagTag>;
+
 export type Tag =
   | UnknownTag
   | EventTag
   | UserTag
   | QuoteTag
   | ImetaTag
-  | EmojiTag;
+  | EmojiTag
+  | HashtagTag;

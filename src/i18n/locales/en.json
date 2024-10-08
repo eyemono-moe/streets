@@ -16,6 +16,14 @@
       "title": "Home"
     }
   },
+  "postInput": {
+    "login": "Login",
+    "needLogin": "You need to log in to post.",
+    "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",
+    "placeholder": "What is happening?!",
+    "post": "Post",
+    "preview": "Preview"
+  },
   "profile": {
     "follow": "Follow",
     "followees": "Following",
