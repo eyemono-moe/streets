@@ -1,12 +1,10 @@
-import { kinds } from "nostr-tools";
 import {
   type RxReqEmittable,
   batch,
   createRxBackwardReq,
-  filterByKinds,
   latestEach,
 } from "rx-nostr";
-import { bufferWhen, interval, share } from "rxjs";
+import { bufferWhen, interval } from "rxjs";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import { mergeSimilarAndRemoveEmptyFilters } from "../libs/mergeFilters";
 import { cacheAndEmitRelatedEvent } from "../libs/rxQuery";
@@ -27,38 +25,14 @@ export const RxQueryProvider: ParentComponent = (props) => {
   const setter = eventCacheSetter();
 
   // すべてのbackwardReq由来のイベント
-  const backwardEvent$ = rxNostr
+  rxNostr
     .use(
       rxBackwardReq.pipe(
         bufferWhen(() => interval(1000)),
         batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
       ),
     )
-    .pipe(
-      latestEach((e) => e.event.id),
-      share(),
-    );
-
-  // pubkeyごとの最新イベントが必要なkind
-  backwardEvent$
-    .pipe(
-      // TODO: 対応するkindを定数で持つ
-      filterByKinds([kinds.Metadata, kinds.Contacts, kinds.RelayList]),
-      share(),
-    )
-    .subscribe({
-      next: (e) => {
-        cacheAndEmitRelatedEvent(e, emit, setter);
-      },
-    });
-
-  // IDごとの最新イベントが必要なkind
-  backwardEvent$
-    .pipe(
-      // TODO: 対応するkindを定数で持つ
-      filterByKinds([kinds.ShortTextNote, kinds.Repost, kinds.Reaction]),
-      share(),
-    )
+    .pipe(latestEach((e) => e.event.id))
     .subscribe({
       next: (e) => {
         cacheAndEmitRelatedEvent(e, emit, setter);

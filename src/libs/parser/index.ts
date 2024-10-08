@@ -5,6 +5,8 @@ import { parseShortTextNote } from "./1_shortTextNote";
 import { parseContacts } from "./3_contacts";
 import { parseRepost } from "./6_repost";
 import { parseReaction } from "./7_reaction";
+import { parseEmojiList } from "./10030_emojiList";
+import { parseEmojiSet } from "./30030_emojiSet";
 
 export const parseNostrEvent = (input: NostrEvent) => {
   switch (input.kind) {
@@ -18,6 +20,10 @@ export const parseNostrEvent = (input: NostrEvent) => {
       return parseRepost(input);
     case kinds.Reaction:
       return parseReaction(input);
+    case kinds.UserEmojiList:
+      return parseEmojiList(input);
+    case kinds.Emojisets:
+      return parseEmojiSet(input);
     default:
       throw new Error(`[parseNostrEvent] unknown kind: ${input.kind}`);
   }

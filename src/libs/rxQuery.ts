@@ -8,11 +8,12 @@ import {
   createRxBackwardReq,
   uniq,
 } from "rx-nostr";
-import { createSignal } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
   type CacheKey,
   createGetter,
+  createGetters,
   eventCacheSetter,
 } from "../context/eventCache";
 import { useRxNostr } from "../context/rxNostr";
@@ -23,6 +24,8 @@ import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { FollowList } from "./parser/3_contacts";
 import type { Repost } from "./parser/6_repost";
 import type { Reaction } from "./parser/7_reaction";
+import type { EmojiList } from "./parser/10030_emojiList";
+import type { EmojiSet } from "./parser/30030_emojiSet";
 
 export const createInfiniteRxQuery = <T>(
   props: () => {
@@ -118,6 +121,14 @@ export const getCacheKey = (
       return { single: [[kinds.ShortTextNote, parsed.parsed.id]] };
     case kinds.Contacts:
       return { single: [[kinds.Contacts, parsed.parsed.pubkey]] };
+    case kinds.UserEmojiList:
+      return { single: [[kinds.UserEmojiList, parsed.parsed.pubkey]] };
+    case kinds.Emojisets:
+      return {
+        single: [
+          [kinds.Emojisets, parsed.parsed.pubkey, parsed.parsed.identifier],
+        ],
+      };
     case kinds.Repost: {
       // そのidのShortTextNoteのリポスト一覧
       const repostsOf = parsed.parsed.tags
@@ -147,12 +158,16 @@ export const getRelatedEventFilters = (
   parsed: ReturnType<typeof parseEventPacket>,
 ): LazyFilter[] => {
   switch (parsed.parsed.kind) {
+    // 何もemitしないkind
+    case kinds.Contacts:
+    case kinds.Emojisets:
+      return [];
     case kinds.Metadata:
       return [
-        // {
-        //   kinds: [kinds.Contacts],
-        //   authors: [parsed.parsed.pubkey],
-        // },
+        {
+          kinds: [kinds.Contacts],
+          authors: [parsed.parsed.pubkey],
+        },
       ];
     case kinds.ShortTextNote: {
       const authors = parsed.parsed.tags
@@ -180,10 +195,6 @@ export const getRelatedEventFilters = (
         },
       ];
     }
-    case kinds.Contacts:
-      // TODO: 一旦なにもemitしない
-      // 本来ならpubkey一覧をemitしたいが、staleTimeを使った実装をできていないので無限ループしそう
-      return [];
     case kinds.Repost: {
       return [
         {
@@ -200,6 +211,14 @@ export const getRelatedEventFilters = (
           authors: [parsed.parsed.pubkey],
         },
       ];
+    case kinds.UserEmojiList: {
+      const referencedSets = parsed.parsed.emojiSets;
+      return referencedSets.map((set) => ({
+        kinds: [kinds.Emojisets],
+        authors: [set.pubkey],
+        "#d": [set.tag],
+      }));
+    }
     default:
       console.warn(`[relatedEventFilters] unknown kind: ${parsed.raw.kind}`);
       return [];
@@ -223,6 +242,7 @@ export const cacheAndEmitRelatedEvent = (
   for (const queryKey of queryKeys.multiple ?? []) {
     cacheSetter<ReturnType<typeof parseEventPacket>[]>(queryKey, (prev) => {
       if (prev) {
+        // todo sort and uniq
         return [...prev, parsed];
       }
       return [parsed];
@@ -376,6 +396,61 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
     queryKey: queryKey(),
     emitter,
   }));
+};
+
+export const useEmojis = (pubkey: () => string | undefined) => {
+  const queryKey = () => [kinds.UserEmojiList, pubkey()];
+
+  const {
+    actions: { emit },
+  } = useRxQuery();
+  const emojiListEmitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      emit({
+        kinds: [kinds.UserEmojiList],
+        authors: [_pubkey],
+      });
+    }
+  };
+  const emojiList = createGetter<ParsedEventPacket<EmojiList>>(() => ({
+    queryKey: queryKey(),
+    emitter: emojiListEmitter,
+  }));
+
+  const emojiSets = createGetters<ParsedEventPacket<EmojiSet>>(() => {
+    return (
+      emojiList().data?.parsed.emojiSets?.map((set) => ({
+        queryKey: [kinds.Emojisets, set.pubkey, set.tag],
+        emitter: () => {
+          emit({
+            kinds: [kinds.Emojisets],
+            authors: [set.pubkey],
+            "#d": [set.tag],
+          });
+        },
+      })) ?? []
+    );
+  });
+
+  const emoji = createMemo(() => {
+    const emojisFromList = emojiList().data?.parsed.emojis.map((e) => ({
+      name: e.name,
+      url: e.url,
+    }));
+
+    const emojisFromSets = emojiSets().flatMap(
+      (set) =>
+        set().data?.parsed.emojis.map((e) => ({
+          name: e.name,
+          url: e.url,
+        })) ?? [],
+    );
+
+    return emojisFromList?.concat(emojisFromSets);
+  });
+
+  return emoji;
 };
 
 const createSender = () => {

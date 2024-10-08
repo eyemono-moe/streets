@@ -159,6 +159,47 @@ export const hashtagTag = v.pipe(
 
 export type HashtagTag = v.InferOutput<typeof hashtagTag>;
 
+// https://github.com/nostr-protocol/nips/blob/master/01.md#tags
+export const addressTag = v.pipe(
+  v.tuple([
+    v.literal("a"),
+    v.string(), // kind:pubkey:d tag
+    v.optional(v.string()), // relay url
+  ]),
+  v.transform((input) => {
+    const [kind, pubkey, tag] = input[1].split(":");
+
+    return {
+      kind: input[0],
+      data: {
+        kind: Number(kind),
+        pubkey,
+        tag,
+      },
+      relay: input[2],
+    } as const;
+  }),
+);
+
+export type AddressTag = v.InferOutput<typeof addressTag>;
+
+// https://github.com/nostr-protocol/nips/blob/master/01.md#tags
+export const identifierTag = v.pipe(
+  v.tuple([
+    v.literal("d"),
+    v.string(), // identifier
+  ]),
+  v.transform(
+    (input) =>
+      ({
+        kind: input[0],
+        identifier: input[1],
+      }) as const,
+  ),
+);
+
+export type IdentifierTag = v.InferOutput<typeof identifierTag>;
+
 export type Tag =
   | UnknownTag
   | EventTag
@@ -166,4 +207,6 @@ export type Tag =
   | QuoteTag
   | ImetaTag
   | EmojiTag
-  | HashtagTag;
+  | HashtagTag
+  | AddressTag
+  | IdentifierTag;

@@ -162,6 +162,18 @@ export const createGetter = <T,>(
   return get<T>(props);
 };
 
+export const createGetters = <T,>(
+  props: () => {
+    readonly queryKey: CacheKey;
+    emitter: () => void;
+  }[],
+) => {
+  const { get } = useEventCache();
+  return createMemo(() => {
+    return props().map((p) => get<T>(() => p));
+  });
+};
+
 export const eventCacheSetter = () => {
   const { set } = useEventCache();
   return set;
