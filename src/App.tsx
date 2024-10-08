@@ -6,6 +6,7 @@ import { EventCacheProvider } from "./context/eventCache";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrDevtools, RxNostrProvider } from "./context/rxNostr";
 import { RxQueryProvider } from "./context/rxQuery";
+import { Toaster } from "./libs/toast";
 import routes from "./router";
 
 const queryClient = new QueryClient({
@@ -20,19 +21,22 @@ const queryClient = new QueryClient({
 
 const App: Component = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <EventCacheProvider>
-        <RelaysProvider>
-          <RxNostrProvider>
-            <RxQueryProvider>
-              <Router>{routes}</Router>
-            </RxQueryProvider>
-            <RxNostrDevtools />
-          </RxNostrProvider>
-          <SolidQueryDevtools />
-        </RelaysProvider>
-      </EventCacheProvider>
-    </QueryClientProvider>
+    <>
+      <QueryClientProvider client={queryClient}>
+        <EventCacheProvider>
+          <RelaysProvider>
+            <RxNostrProvider>
+              <RxQueryProvider>
+                <Router>{routes}</Router>
+              </RxQueryProvider>
+              <RxNostrDevtools />
+            </RxNostrProvider>
+            <SolidQueryDevtools />
+          </RelaysProvider>
+        </EventCacheProvider>
+      </QueryClientProvider>
+      <Toaster />
+    </>
   );
 };
 

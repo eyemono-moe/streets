@@ -142,7 +142,7 @@ export const EventCacheProvider: ParentComponent = (props) => {
       }}
     >
       {props.children}
-      <EventCacheDevTool cache={cacheStore} />
+      {/* <EventCacheDevTool cache={cacheStore} /> */}
     </EventCacheContext.Provider>
   );
 };

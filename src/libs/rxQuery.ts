@@ -1,4 +1,5 @@
 import { type Filter, kinds } from "nostr-tools";
+import type { EventParameters } from "nostr-typedef";
 import {
   type EventPacket,
   type LazyFilter,
@@ -375,4 +376,75 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
     queryKey: queryKey(),
     emitter,
   }));
+};
+
+const createSender = () => {
+  const rxNostr = useRxNostr();
+  const [sendState, setSendState] = createStore<{
+    sending: boolean;
+    successAny: boolean;
+    error: unknown;
+    relayStates: {
+      [relay: string]:
+        | {
+            done: boolean;
+            notice?: string;
+          }
+        | undefined;
+    };
+  }>({
+    sending: false,
+    successAny: false,
+    relayStates: {},
+    error: undefined,
+  });
+
+  const sender = (event: EventParameters) => {
+    setSendState("sending", true);
+    setSendState("successAny", false);
+    rxNostr.send(event).subscribe({
+      next: (e) => {
+        if (e.ok && e.done) {
+          setSendState("successAny", true);
+          setSendState("relayStates", e.from, {
+            done: true,
+          });
+        }
+        if (e.notice) {
+          setSendState("relayStates", e.from, {
+            notice: e.notice,
+          });
+        }
+      },
+      error(err) {
+        console.error("[send] error on sending", err);
+        setSendState("error", err);
+      },
+      complete: () => {
+        setSendState("sending", false);
+      },
+    });
+  };
+
+  return {
+    sendState,
+    sender,
+  };
+};
+
+export const useSendShortText = () => {
+  const { sender, sendState } = createSender();
+
+  const sendShortText = (props: {
+    content: string;
+  }) =>
+    sender({
+      kind: kinds.ShortTextNote,
+      content: props.content,
+    });
+
+  return {
+    sendShortText,
+    sendState,
+  };
 };

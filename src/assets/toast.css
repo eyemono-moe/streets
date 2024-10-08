@@ -1,0 +1,9 @@
+@keyframes swipeOut {
+  from {
+    transform: translateX(var(--kb-toast-swipe-end-x));
+  }
+
+  to {
+    transform: translateX(calc(100% + var(--toast-padding)));
+  }
+}

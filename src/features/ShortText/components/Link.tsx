@@ -1,11 +1,4 @@
-import {
-  type Component,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createSignal,
-} from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { useQueryEmbed } from "../query";
 
 const Link: Component<{
@@ -14,28 +7,28 @@ const Link: Component<{
 }> = (props) => {
   const embed = useQueryEmbed(() => props.href);
 
-  const [oEmbedRef, setOEmbedRef] = createSignal<HTMLDivElement>();
-  createEffect(() => {
-    const ref = oEmbedRef();
-    if (ref && embed.data?.type === "oEmbed") {
-      const oEmbed = embed.data.value;
-      ref.innerHTML = oEmbed.html;
-      (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
-        "width",
-        "100%",
-      );
-      if (oEmbed.width && oEmbed.height) {
-        (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
-          "height",
-          "auto",
-        );
-        (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
-          "aspect-ratio",
-          `${oEmbed.width}/${oEmbed.height}`,
-        );
-      }
-    }
-  });
+  // const [oEmbedRef, setOEmbedRef] = createSignal<HTMLDivElement>();
+  // createEffect(() => {
+  //   const ref = oEmbedRef();
+  //   if (ref && embed.data?.type === "oEmbed") {
+  //     const oEmbed = embed.data.value;
+  //     ref.innerHTML = oEmbed.html;
+  //     (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
+  //       "width",
+  //       "100%",
+  //     );
+  //     if (oEmbed.width && oEmbed.height) {
+  //       (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
+  //         "height",
+  //         "auto",
+  //       );
+  //       (ref.firstChild as HTMLElement | undefined)?.style.setProperty(
+  //         "aspect-ratio",
+  //         `${oEmbed.width}/${oEmbed.height}`,
+  //       );
+  //     }
+  //   }
+  // });
 
   const hostname = (url?: string) => {
     try {
@@ -59,8 +52,8 @@ const Link: Component<{
           </a>
         }
       >
-        <Match when={embed.data?.type === "oEmbed"}>
-          <div ref={setOEmbedRef} />
+        <Match when={embed.data?.type === "oEmbed" && embed.data}>
+          {(embed) => <div innerHTML={embed().value.html} />}
         </Match>
         <Match when={embed.data?.type === "ogp" && embed.data}>
           {(embed) => (
