@@ -193,10 +193,10 @@ export const getRelatedEventFilters = (
       return [];
     case kinds.Metadata:
       return [
-        {
-          kinds: [kinds.Contacts],
-          authors: [parsed.parsed.pubkey],
-        },
+        // {
+        //   kinds: [kinds.Contacts],
+        //   authors: [parsed.parsed.pubkey],
+        // },
       ];
     case kinds.ShortTextNote: {
       const authors = parsed.parsed.tags
@@ -264,7 +264,12 @@ export const cacheAndEmitRelatedEvent = (
 
   // 最新1件のみをcacheに保存する
   for (const queryKey of queryKeys.single ?? []) {
-    cacheSetter(queryKey, parsed);
+    cacheSetter<ReturnType<typeof parseEventPacket>>(queryKey, (prev) => {
+      if (prev && prev.raw.created_at > parsed.raw.created_at) {
+        return prev;
+      }
+      return parsed;
+    });
   }
 
   // すべてのイベントをcacheに保存する
