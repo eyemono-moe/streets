@@ -1,8 +1,9 @@
+import { kinds } from "nostr-tools";
 import { type Component, Show } from "solid-js";
 import { useI18n } from "../../../../i18n";
-import { useFollowees } from "../../../../libs/rxQuery";
-import { useMyPubkey } from "../../../../libs/useMyPubkey";
-import InfinitePosts from "../../../ShortText/components/InfinitePosts";
+import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
+import { useFollowees } from "../../../../shared/libs/query";
+import { useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
@@ -18,8 +19,9 @@ const Followings: Component<{
       <ColumnHeader title={t("column.timeline.title")} />
       <div class="h-full overflow-y-auto">
         <Show when={followees().data}>
-          <InfinitePosts
+          <InfiniteEvents
             filter={{
+              kinds: [kinds.ShortTextNote, kinds.Repost],
               authors: followees().data?.parsed.followees.map((f) => f.pubkey),
             }}
           />

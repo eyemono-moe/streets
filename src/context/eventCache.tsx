@@ -11,7 +11,7 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
-import type EventCacheDevToolsComp from "../components/devtools/EventCacheDevTools";
+import type EventCacheDevToolsComp from "../shared/components/devtools/EventCacheDevTools";
 
 export type CacheKey = (string | number | boolean | undefined)[];
 
@@ -185,5 +185,5 @@ export const useInvalidateEventCache = () => {
 };
 
 const EventCacheDevTools: typeof EventCacheDevToolsComp = isDev
-  ? lazy(() => import("../components/devtools/EventCacheDevTools"))
+  ? lazy(() => import("../shared/components/devtools/EventCacheDevTools"))
   : () => null;

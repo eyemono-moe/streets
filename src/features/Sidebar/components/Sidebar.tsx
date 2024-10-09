@@ -1,7 +1,7 @@
 import { Collapsible } from "@kobalte/core/collapsible";
 import type { Component } from "solid-js";
 import Logo from "../../../assets/logo.svg";
-import PostInput from "../../ShortText/components/PostInput";
+import PostInput from "../../CreatePost/components/PostInput";
 
 const Sidebar: Component = () => {
   return (

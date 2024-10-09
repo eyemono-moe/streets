@@ -1,8 +1,8 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import { reconcile } from "solid-js/store";
 import * as v from "valibot";
-import { createLocalStore } from "../libs/createLocalStore";
-import { useNIP07 } from "../libs/useNIP07";
+import { createLocalStore } from "../shared/libs/createLocalStore";
+import { useNIP07 } from "../shared/libs/useNIP07";
 
 const relaysState = v.object({
   version: v.literal("0.0"),

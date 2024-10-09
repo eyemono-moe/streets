@@ -3,11 +3,15 @@ import {
   type ConnectionState,
   Nip11Registry,
   type RxNostr,
+  type RxReqEmittable,
+  batch,
+  createRxBackwardReq,
   createRxNostr,
   filterByType,
+  latestEach,
 } from "rx-nostr";
 import { verifier } from "rx-nostr-crypto";
-import { scan } from "rxjs";
+import { bufferWhen, interval, scan } from "rxjs";
 import {
   For,
   type ParentComponent,
@@ -16,9 +20,18 @@ import {
   from,
   useContext,
 } from "solid-js";
+import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
+import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
+import { eventCacheSetter } from "./eventCache";
 import { useRelays } from "./relays";
 
-const RxNostrContext = createContext<RxNostr>();
+const RxNostrContext = createContext<{
+  rxNostr: RxNostr;
+  rxBackwardReq: ReturnType<typeof createRxBackwardReq>;
+  actions: {
+    emit: RxReqEmittable<{ relays: string[] }>["emit"];
+  };
+}>();
 
 export const RxNostrProvider: ParentComponent = (props) => {
   Nip11Registry.setDefault({
@@ -51,8 +64,35 @@ export const RxNostrProvider: ParentComponent = (props) => {
       },
     });
 
+  const rxBackwardReq = createRxBackwardReq();
+  const emit = rxBackwardReq.emit;
+  const setter = eventCacheSetter();
+
+  // すべてのbackwardReq由来のイベント
+  rxNostr
+    .use(
+      rxBackwardReq.pipe(
+        bufferWhen(() => interval(1000)),
+        batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
+      ),
+    )
+    .pipe(latestEach((e) => e.event.id))
+    .subscribe({
+      next: (e) => {
+        cacheAndEmitRelatedEvent(e, emit, setter);
+      },
+    });
+
   return (
-    <RxNostrContext.Provider value={rxNostr}>
+    <RxNostrContext.Provider
+      value={{
+        rxNostr,
+        rxBackwardReq,
+        actions: {
+          emit,
+        },
+      }}
+    >
       {props.children}
     </RxNostrContext.Provider>
   );
@@ -67,7 +107,7 @@ export const useRxNostr = () => {
 };
 
 export const RxNostrDevtools = () => {
-  const rxNostr = useRxNostr();
+  const { rxNostr } = useRxNostr();
 
   const connectionState = from(
     rxNostr.createConnectionStateObservable().pipe(
