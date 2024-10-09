@@ -14,7 +14,7 @@ const Avatar: Component<{
   return (
     <HoverCard>
       <HoverCard.Trigger
-        class="sticky top-2 cursor-pointer appearance-none bg-transparent"
+        class="sticky top-2 aspect-square h-auto w-full cursor-pointer appearance-none bg-transparent"
         as="button"
         onClick={() => {
           if (props.pubkey) {
@@ -23,7 +23,7 @@ const Avatar: Component<{
         }}
       >
         <Image
-          class="inline-flex aspect-square h-auto w-full select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
+          class="inline-flex h-full w-full select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
           fallbackDelay={500}
         >
           <Image.Img
