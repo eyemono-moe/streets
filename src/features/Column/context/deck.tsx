@@ -82,6 +82,7 @@ const DeckContext =
       actions: {
         addColumn: (column: ColumnState, index?: number) => void;
         removeColumn: (index: number) => void;
+        moveColumn: (from: number, to: number) => void;
       },
     ]
   >();
@@ -122,6 +123,16 @@ export const DeckProvider: ParentComponent = (props) => {
     );
   };
 
+  const moveColumn = (from: number, to: number) => {
+    setState(
+      "columns",
+      produce((columns) => {
+        const [removed] = columns.splice(from, 1);
+        columns.splice(to, 0, removed);
+      }),
+    );
+  };
+
   return (
     <DeckContext.Provider
       value={[
@@ -129,6 +140,7 @@ export const DeckProvider: ParentComponent = (props) => {
         {
           addColumn,
           removeColumn,
+          moveColumn,
         },
       ]}
     >
