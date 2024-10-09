@@ -16,7 +16,7 @@ const RepostUserName: Component<{
           <div class="i-material-symbols:repeat-rounded c-green aspect-square h-auto w-4" />
           <EmbedUser
             pubkey={props.pubkey}
-            class="truncate font-bold text-zinc-5"
+            class="truncate font-700 text-zinc-5"
           />
           <span class="shrink-0">{t("repost.repostedBy")}</span>
         </div>

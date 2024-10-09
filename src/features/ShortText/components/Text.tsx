@@ -156,7 +156,9 @@ const Text: Component<{
                   when={profile().data}
                   fallback={text().data?.parsed.pubkey}
                 >
-                  <span>{profile().data?.parsed.display_name}</span>
+                  <span class="font-500">
+                    {profile().data?.parsed.display_name}
+                  </span>
                   <span class="text-3.5 text-zinc-5">
                     @{profile().data?.parsed.name}
                   </span>
@@ -172,29 +174,31 @@ const Text: Component<{
               </span>
             </div>
             <div class="grid-area-[content] flex flex-col gap-2">
-              <Show when={textType() === "mention" || textType() === "reply"}>
-                <div class="text-3">
-                  <For each={replyTarget()}>
-                    {/* TODO: ユーザーページへのリンクにする */}
-                    {(target, i) => (
-                      <>
-                        <Show when={i() !== 0}>
-                          <span>, </span>
-                        </Show>
-                        <EmbedUser
-                          pubkey={target.pubkey}
-                          relay={target.relay}
-                        />
-                      </>
-                    )}
-                  </For>
-                </div>
-              </Show>
-              <ShortTextContent
-                contents={parsedContents()}
-                showLinkEmbeds={props.showEmbeddings}
-                showQuoteEmbeds={props.showEmbeddings}
-              />
+              <div>
+                <Show when={textType() === "mention" || textType() === "reply"}>
+                  <div class="text-3">
+                    <For each={replyTarget()}>
+                      {/* TODO: ユーザーページへのリンクにする */}
+                      {(target, i) => (
+                        <>
+                          <Show when={i() !== 0}>
+                            <span>, </span>
+                          </Show>
+                          <EmbedUser
+                            pubkey={target.pubkey}
+                            relay={target.relay}
+                          />
+                        </>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+                <ShortTextContent
+                  contents={parsedContents()}
+                  showLinkEmbeds={props.showEmbeddings}
+                  showQuoteEmbeds={props.showEmbeddings}
+                />
+              </div>
               <Show when={props.showReactions}>
                 {/* biome-ignore lint/style/noNonNullAssertion: when={text().data} */}
                 <Reactions eventId={text().data!.parsed.id} />

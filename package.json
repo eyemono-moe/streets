@@ -45,6 +45,7 @@
     "solid-devtools": "0.30.1",
     "typescript": "5.6.2",
     "unocss": "0.63.4",
+    "unplugin-fonts": "1.1.1",
     "vite": "5.4.8",
     "vite-plugin-solid": "2.10.2",
     "vitest": "2.1.2",

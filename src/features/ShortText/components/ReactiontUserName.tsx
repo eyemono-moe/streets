@@ -47,7 +47,7 @@ const ReactionUserName: Component<{
           </Switch>
           <EmbedUser
             pubkey={props.pubkey}
-            class="truncate font-bold text-zinc-5"
+            class="truncate font-700 text-zinc-5"
           />
           <span class="shrink-0">{t("reaction.reactedBy")}</span>
         </div>

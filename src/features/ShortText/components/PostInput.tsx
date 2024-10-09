@@ -67,7 +67,7 @@ const PostInput: Component<{
           <button
             onClick={showLoginModal}
             type="button"
-            class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-bold"
+            class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700"
           >
             {t("postInput.login")}
           </button>

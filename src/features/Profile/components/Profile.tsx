@@ -110,7 +110,7 @@ const Profile: Component<{
             <button
               type="button"
               disabled={isLogged() && isFollowing() === undefined}
-              class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-bold"
+              class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700"
               classList={{
                 "bg-zinc-9 text-white hover:bg-zinc-8": isFollowing(),
                 "b-1 bg-white text-zinc-9 hover:bg-zinc-1": !isFollowing(),
@@ -140,7 +140,7 @@ const Profile: Component<{
           </div>
         </div>
         <div class="flex flex-col">
-          <span class="line-clamp-3 text-ellipsis font-500 text-5">
+          <span class="line-clamp-3 text-ellipsis font-700 text-5">
             {profile().data?.parsed.display_name ??
               (props.pubkey ? readablePubkey(props.pubkey) : "...")}
           </span>
