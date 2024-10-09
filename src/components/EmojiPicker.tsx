@@ -13,15 +13,22 @@ type Props = {
   onSelect?: (emoji: Emoji) => void;
 };
 
-type Emoji = {
+export type Emoji = {
   id: string;
   keywords: undefined;
   name: string;
-  native?: string;
   shortcodes: string;
-  src?: string;
   unified?: string;
-};
+} & (
+  | {
+      native: string;
+      src: undefined;
+    }
+  | {
+      native: undefined;
+      src: string;
+    }
+);
 
 type CustomEmojiGroup = {
   id: string;

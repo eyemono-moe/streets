@@ -98,7 +98,6 @@ const PostInput: Component<{
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">
-                <Popover.Arrow />
                 <EmojiPicker
                   onSelect={(v) => {
                     insertEmoji(v.native ?? v.shortcodes);

@@ -15,6 +15,7 @@ import {
   createGetter,
   createGetters,
   eventCacheSetter,
+  useInvalidateEventCache,
 } from "../context/eventCache";
 import { useRxNostr } from "../context/rxNostr";
 import { useRxQuery } from "../context/rxQuery";
@@ -139,12 +140,8 @@ export const getCacheKey = (
     }
     case kinds.Reaction: {
       // そのidのShortTextNoteのリアクション一覧
-      // そのユーザーのリアクション一覧
       return {
-        multiple: [
-          ["reactionsOf", parsed.parsed.targetEvent.id],
-          ["reactionsBy", parsed.parsed.pubkey],
-        ],
+        multiple: [["reactionsOf", parsed.parsed.targetEvent.id]],
       };
     }
     default:
@@ -466,7 +463,7 @@ const createSender = () => {
     error: undefined,
   });
 
-  const sender = (event: EventParameters) => {
+  const sender = (event: EventParameters, onComplete?: () => void) => {
     setSendState("sending", true);
     setSendState("successAny", false);
     return new Promise<void>((resolve) => {
@@ -490,6 +487,7 @@ const createSender = () => {
         },
         complete: () => {
           setSendState("sending", false);
+          onComplete?.();
           resolve();
         },
       });
@@ -515,6 +513,52 @@ export const useSendShortText = () => {
 
   return {
     sendShortText,
+    sendState,
+  };
+};
+
+export const useSendReaction = () => {
+  const { sender, sendState } = createSender();
+  const invalidate = useInvalidateEventCache();
+
+  const sendReaction = (props: {
+    content:
+      | {
+          type: "string";
+          value: string;
+        }
+      | {
+          type: "emoji";
+          /** `:`を含む文字列 */
+          value: string;
+          src: string;
+        };
+    targetEventId: string;
+    targetEventPubkey: string;
+    kind?: number;
+  }) => {
+    const tags = [
+      ["e", props.targetEventId, ""],
+      ["p", props.targetEventPubkey],
+      ["k", props.kind?.toString() ?? "1"],
+    ];
+    if (props.content.type === "emoji") {
+      tags.push(["emoji", props.content.value, props.content.src]);
+    }
+    return sender(
+      {
+        kind: kinds.Reaction,
+        content: props.content.value,
+        tags,
+      },
+      () => {
+        invalidate(["reactionsOf", props.targetEventId]);
+      },
+    );
+  };
+
+  return {
+    sendReaction,
     sendState,
   };
 };

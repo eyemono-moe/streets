@@ -179,9 +179,9 @@ export const eventCacheSetter = () => {
   return set;
 };
 
-export const invalidateEventCache = (queryKey: CacheKey) => {
+export const useInvalidateEventCache = () => {
   const { invalidate } = useEventCache();
-  invalidate(queryKey);
+  return invalidate;
 };
 
 const EventCacheDevTools: typeof EventCacheDevToolsComp = isDev

@@ -4,7 +4,6 @@ import { type Component, Show } from "solid-js";
 import { useProfile, useRepostsOfEvent } from "../../../libs/rxQuery";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
-import Reactions from "./Reactions";
 
 const PlaceholderText: Component<{
   id: string;
@@ -98,7 +97,6 @@ const PlaceholderText: Component<{
                 Loading... {props.id}
               </div>
             </div>
-            <Reactions eventId={props.id} />
             <Show when={props.showActions}>
               <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                 <button

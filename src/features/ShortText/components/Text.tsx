@@ -1,14 +1,19 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
+import { Popover } from "@kobalte/core/popover";
 import { type Component, For, Show, createMemo } from "solid-js";
+import EmojiPicker, { type Emoji } from "../../../components/EmojiPicker";
 import { dateHuman, dateTimeHuman } from "../../../libs/format";
+import { showLoginModal } from "../../../libs/nostrLogin";
 import { parseTextContent } from "../../../libs/parseTextContent";
 import type { EventTag } from "../../../libs/parser/commonTag";
 import {
   useProfile,
   useRepostsOfEvent,
+  useSendReaction,
   useShortTextByID,
 } from "../../../libs/rxQuery";
+import { isLogged } from "../../../libs/useMyPubkey";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import EmbedUser from "./EmbedUser";
@@ -16,7 +21,6 @@ import PlaceholderText from "./PlaceholderText";
 import Reactions from "./Reactions";
 import Reply from "./Reply";
 import ShortTextContent from "./ShortTextContent";
-
 const Text: Component<{
   id: string;
   showActions?: boolean;
@@ -65,6 +69,39 @@ const Text: Component<{
   };
 
   const reposts = useRepostsOfEvent(() => text().data?.parsed.id);
+
+  const { sendReaction } = useSendReaction();
+  const handleReaction = async (e: Emoji) => {
+    if (!isLogged()) {
+      showLoginModal();
+      return;
+    }
+
+    const _pubkey = text().data?.parsed.pubkey;
+    if (!_pubkey) return;
+
+    if (!e.native && !e.src) {
+      console.error("emoji src is not found");
+      return;
+    }
+
+    await sendReaction({
+      targetEventId: props.id,
+      targetEventPubkey: _pubkey,
+      content:
+        e.native !== undefined
+          ? {
+              type: "string",
+              value: e.native,
+            }
+          : {
+              type: "emoji",
+              value: e.name,
+              src: e.src,
+            },
+      kind: 1,
+    });
+  };
 
   return (
     <Show
@@ -200,8 +237,12 @@ const Text: Component<{
                 />
               </div>
               <Show when={props.showReactions}>
-                {/* biome-ignore lint/style/noNonNullAssertion: when={text().data} */}
-                <Reactions eventId={text().data!.parsed.id} />
+                <Reactions
+                  // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                  eventId={text().data!.parsed.id}
+                  // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                  eventPubkey={text().data!.parsed.pubkey}
+                />
               </Show>
               <Show when={props.showActions}>
                 <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
@@ -218,12 +259,20 @@ const Text: Component<{
                     <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
                     <span>{reposts().data?.length || ""}</span>
                   </button>
-                  <button
-                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-                    type="button"
-                  >
-                    <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
-                  </button>
+                  <Popover>
+                    <Popover.Trigger class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5">
+                      <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
+                    </Popover.Trigger>
+                    <Popover.Portal>
+                      <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">
+                        <EmojiPicker
+                          onSelect={(v) => {
+                            handleReaction(v);
+                          }}
+                        />
+                      </Popover.Content>
+                    </Popover.Portal>
+                  </Popover>
                   <button
                     class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
                     type="button"
