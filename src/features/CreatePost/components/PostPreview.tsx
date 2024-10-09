@@ -42,14 +42,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
 
   return (
     <div class="text-4">
-      <Show
-        when={textType() === "reply"}
-        fallback={
-          <div class="b-l-2 b-dashed ml-[calc(0.75rem-1px)] py-1 pl-2 text-zinc-5">
-            load more
-          </div>
-        }
-      >
+      <Show when={textType() === "reply"}>
         {/* biome-ignore lint/style/noNonNullAssertion: textType() === "reply" */}
         <Reply id={replyOrRoot()!.id} />
         <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
@@ -64,7 +57,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
         }}
       >
         <div class="grid-area-[avatar] grid grid-rows-[auto_minmax(0,1fr)]">
-          <div class="sticky top-2">
+          <div class="sticky top-2 w-10">
             <Avatar pubkey={myPubkey()} />
           </div>
         </div>
