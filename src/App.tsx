@@ -4,7 +4,7 @@ import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import type { Component } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
 import { RelaysProvider } from "./context/relays";
-import { RxNostrDevtools, RxNostrProvider } from "./context/rxNostr";
+import { RxNostrProvider } from "./context/rxNostr";
 import routes from "./router";
 import { Toaster } from "./shared/libs/toast";
 
@@ -26,7 +26,6 @@ const App: Component = () => {
           <RelaysProvider>
             <RxNostrProvider>
               <Router>{routes}</Router>
-              <RxNostrDevtools />
             </RxNostrProvider>
             <SolidQueryDevtools />
           </RelaysProvider>
