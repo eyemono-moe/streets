@@ -7,7 +7,7 @@ const Sidebar: Component = () => {
   return (
     <Collapsible>
       <div class="flex h-full divide-x">
-        <div class="c-zinc-6 grid grid-rows-[auto_1fr_auto]">
+        <div class="c-zinc-6 grid grid-rows-[auto_minmax(0,1fr)_auto]">
           <div class="flex flex-col">
             <Collapsible.Trigger class="appearance-none bg-transparent p-1">
               <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />

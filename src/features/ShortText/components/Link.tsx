@@ -77,7 +77,7 @@ const Link: Component<{
                 <div class="c-zinc-6 line-clamp-3 text-ellipsis text-3.5">
                   {embed().value.description}
                 </div>
-                <div class="c-zinc-6 grid grid-cols-[auto_1fr] items-center gap-1 text-3.5">
+                <div class="c-zinc-6 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1 text-3.5">
                   <div class="i-material-symbols:link-rounded aspect-square h-3.5 w-auto" />
                   <span class="w-full truncate">
                     {hostname(embed().value.url)}

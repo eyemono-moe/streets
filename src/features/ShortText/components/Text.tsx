@@ -102,7 +102,7 @@ const Text: Component<{
         </Show>
         <HoverCard>
           <div
-            class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
+            class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1"
             style={{
               "grid-template-areas": `
             "avatar name"
@@ -110,7 +110,7 @@ const Text: Component<{
             `,
             }}
           >
-            <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
+            <div class="grid-area-[avatar] grid grid-rows-[auto_minmax(0,1fr)]">
               <HoverCard.Trigger
                 class="sticky top-2 cursor-pointer appearance-none bg-transparent"
                 as="button"
@@ -143,7 +143,7 @@ const Text: Component<{
                 <div class="b-l-2 ml-[calc(0.75rem-1px)]" />
               </Show>
             </div>
-            <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
+            <div class="grid-area-[name] grid grid-cols-[minmax(0,1fr)_auto]">
               <HoverCard.Trigger
                 class="w-fit max-w-full cursor-pointer appearance-none truncate bg-transparent hover:underline"
                 as="button"

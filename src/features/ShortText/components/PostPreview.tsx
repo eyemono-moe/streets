@@ -45,7 +45,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
         <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
       </Show>
       <div
-        class="grid grid-cols-[auto_1fr] grid-cols-[auto_1fr] gap-x-2 gap-y-1"
+        class="grid grid-cols-[auto_minmax(0,1fr)] grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1"
         style={{
           "grid-template-areas": `
       "avatar name"
@@ -53,7 +53,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
       `,
         }}
       >
-        <div class="grid-area-[avatar] grid grid-rows-[auto_1fr]">
+        <div class="grid-area-[avatar] grid grid-rows-[auto_minmax(0,1fr)]">
           <span class="sticky top-2 cursor-pointer appearance-none bg-transparent">
             <Image
               class="inline-flex aspect-square h-auto w-10 select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
@@ -72,7 +72,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
             </Image>
           </span>
         </div>
-        <div class="grid-area-[name] grid grid-cols-[1fr_auto]">
+        <div class="grid-area-[name] grid grid-cols-[minmax(0,1fr)_auto]">
           <span class="w-fit max-w-full cursor-pointer appearance-none truncate bg-transparent hover:underline">
             <Show when={profile().data} fallback={myPubkey()}>
               <span>{profile().data?.parsed.display_name}</span>
