@@ -190,13 +190,11 @@ const Text: Component<{
                   </For>
                 </div>
               </Show>
-              <div>
-                <ShortTextContent
-                  contents={parsedContents()}
-                  showLinkEmbeds={props.showEmbeddings}
-                  showQuoteEmbeds={props.showEmbeddings}
-                />
-              </div>
+              <ShortTextContent
+                contents={parsedContents()}
+                showLinkEmbeds={props.showEmbeddings}
+                showQuoteEmbeds={props.showEmbeddings}
+              />
               <Show when={props.showReactions}>
                 {/* biome-ignore lint/style/noNonNullAssertion: when={text().data} */}
                 <Reactions eventId={text().data!.parsed.id} />

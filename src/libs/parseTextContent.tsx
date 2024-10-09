@@ -42,7 +42,10 @@ export type HashtagContent = {
 export type EmojiContent = {
   type: "emoji";
   tag: string;
+  url: string;
 };
+// TODO: nrelay, nprofile, naddr, nevent
+
 export type ParsedContent =
   | TextContent
   | ImageContent
@@ -79,10 +82,50 @@ type Refecence = {
         pubkey: string;
       };
     }
+  | {
+      type: "emoji";
+      value: {
+        name: string;
+        url: string;
+      };
+    }
 );
 
-const parseReferences = (text: string): Refecence[] => {
+const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
   const refs: Refecence[] = [];
+
+  const emojiTags = tags.filter((tag) => tag.kind === "emoji");
+
+  if (emojiTags.length > 0) {
+    const emojiRegex = new RegExp(
+      `:(${emojiTags.map((tag) => tag.name).join("|")}):`,
+      "g",
+    );
+    const emojiUrlMap = new Map(
+      emojiTags.map((tag) => [tag.name, tag.url] as const),
+    );
+
+    for (const match of text.matchAll(emojiRegex)) {
+      const length = match[0].length;
+      const start = match.index;
+      const end = start + length;
+      const emojiTag = match[1];
+      const url = emojiUrlMap.get(emojiTag);
+
+      if (emojiTag && url) {
+        refs.push({
+          start,
+          end,
+          type: "emoji",
+          value: {
+            name: emojiTag,
+            url,
+          },
+        });
+      }
+    }
+  }
+
   for (const match of text.matchAll(mentionRegex)) {
     const length = match[0].length;
     const start = match.index;
@@ -177,7 +220,7 @@ const parseReferences = (text: string): Refecence[] => {
 
 export const parseTextContent = (content: string, tags: Tag[]) => {
   try {
-    const references = parseReferences(content);
+    const references = parseReferences(content, tags);
     const imetaTags = tags.filter((tag) => tag.kind === "imeta");
     const splittedContent = splitTextByLinks(content, references, imetaTags);
     return splittedContent;
@@ -235,6 +278,17 @@ export const splitTextByLinks = (
             tag: linkOrRef.value.tag,
           });
           break;
+        case "emoji":
+          parsedContent.push({
+            type: "emoji",
+            tag: linkOrRef.value.name,
+            url: linkOrRef.value.url,
+          });
+          break;
+        default: {
+          const _unreachable: never = linkOrRef;
+          throw new Error(`Unknown ref type: ${_unreachable}`);
+        }
       }
     } else {
       if (isImageUrl(matchedContent)) {
