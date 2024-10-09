@@ -1,8 +1,9 @@
+import { kinds } from "nostr-tools";
 import type { Component } from "solid-js";
 import { useI18n } from "../../../../i18n";
-import { useProfile } from "../../../../libs/rxQuery";
-import Profile from "../../../Profile/components/Profile";
-import InfinitePosts from "../../../ShortText/components/InfinitePosts";
+import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
+import { useProfile } from "../../../../shared/libs/query";
+import Profile from "../../../User/components/Profile";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
@@ -23,8 +24,9 @@ const User: Component<{
           <Profile pubkey={props.state.pubkey} />
         </div>
         <div class="h-full shrink-0">
-          <InfinitePosts
+          <InfiniteEvents
             filter={{
+              kinds: [kinds.ShortTextNote, kinds.Repost],
               authors: [props.state.pubkey],
             }}
           />

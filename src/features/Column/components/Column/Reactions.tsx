@@ -1,7 +1,8 @@
+import { kinds } from "nostr-tools";
 import type { Component } from "solid-js";
 import { useI18n } from "../../../../i18n";
-import { useProfile } from "../../../../libs/rxQuery";
-import InfiniteReactions from "../../../ShortText/components/InfiniteReactions";
+import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
+import { useProfile } from "../../../../shared/libs/query";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
@@ -18,8 +19,9 @@ const Reactions: Component<{
         subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
       />
       <div class="h-full overflow-y-auto">
-        <InfiniteReactions
+        <InfiniteEvents
           filter={{
+            kinds: [kinds.Reaction],
             authors: [props.state.pubkey],
           }}
         />

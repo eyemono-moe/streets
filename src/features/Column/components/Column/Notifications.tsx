@@ -1,7 +1,8 @@
+import { kinds } from "nostr-tools";
 import { type Component, Show } from "solid-js";
 import { useI18n } from "../../../../i18n";
-import { useMyPubkey } from "../../../../libs/useMyPubkey";
-import InfiniteNotifications from "../../../ShortText/components/InfiniteNotifications";
+import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
+import { useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
@@ -17,8 +18,9 @@ const Notifications: Component<{
       <div class="h-full overflow-y-auto">
         <Show when={myPubkey()}>
           {(nonNullPubkey) => (
-            <InfiniteNotifications
+            <InfiniteEvents
               filter={{
+                kinds: [kinds.ShortTextNote, kinds.Repost, kinds.Reaction],
                 "#p": [nonNullPubkey()],
               }}
             />

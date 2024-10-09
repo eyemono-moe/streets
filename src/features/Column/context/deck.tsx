@@ -1,7 +1,7 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
 import { produce } from "solid-js/store";
 import * as v from "valibot";
-import { createLocalStore } from "../../../libs/createLocalStore";
+import { createLocalStore } from "../../../shared/libs/createLocalStore";
 
 // TODO: StandardListとSetの両方を使用できるように
 const columnScheme = v.intersect([

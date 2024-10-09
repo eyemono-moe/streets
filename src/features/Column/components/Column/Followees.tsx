@@ -1,7 +1,7 @@
 import { type Component, For } from "solid-js";
 import { useI18n } from "../../../../i18n";
-import { useFollowees, useProfile } from "../../../../libs/rxQuery";
-import ProfileRow from "../../../Profile/components/ProfileRow";
+import { useFollowees, useProfile } from "../../../../shared/libs/query";
+import ProfileRow from "../../../User/components/ProfileRow";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
