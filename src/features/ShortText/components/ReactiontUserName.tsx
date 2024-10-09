@@ -1,10 +1,8 @@
 import { HoverCard } from "@kobalte/core/hover-card";
-import { type Component, Match, Show, Switch } from "solid-js";
+import { type Component, Match, Switch } from "solid-js";
 import { useI18n } from "../../../i18n";
-import { readablePubkey } from "../../../libs/format";
-import { useProfile } from "../../../libs/rxQuery";
-import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
+import EmbedUser from "./EmbedUser";
 
 const ReactionUserName: Component<{
   pubkey: string;
@@ -20,9 +18,6 @@ const ReactionUserName: Component<{
       };
 }> = (props) => {
   const t = useI18n();
-
-  const reposterProfile = useProfile(() => props.pubkey);
-  const openUserColumn = useOpenUserColumn();
 
   return (
     <div class="pb-2 text-3 text-zinc-5">
@@ -50,23 +45,10 @@ const ReactionUserName: Component<{
               <div class="i-material-symbols:favorite-rounded c-pink aspect-square h-5 w-auto" />
             </Match>
           </Switch>
-          <HoverCard.Trigger
-            class="hover:(underline) break-anywhere cursor-pointer appearance-none truncate bg-transparent font-bold"
-            as="button"
-            onClick={() => {
-              openUserColumn(props.pubkey);
-            }}
-          >
-            <Show
-              when={reposterProfile().data}
-              fallback={`@${readablePubkey(props.pubkey)}`}
-            >
-              <span>{reposterProfile().data?.parsed.display_name}</span>
-              <span class="text-zinc-5">
-                {`@${reposterProfile().data?.parsed.name}`}
-              </span>
-            </Show>
-          </HoverCard.Trigger>
+          <EmbedUser
+            pubkey={props.pubkey}
+            class="truncate font-bold text-zinc-5"
+          />
           <span class="shrink-0">{t("reaction.reactedBy")}</span>
         </div>
         <HoverCard.Portal>

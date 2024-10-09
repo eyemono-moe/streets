@@ -108,6 +108,7 @@ export const createInfiniteRxQuery = <T>(
   };
 };
 
+// TODO: ここで各kindのstaleTimeも設定する
 export const getCacheKey = (
   parsed: ReturnType<typeof parseEventPacket>,
 ): {
