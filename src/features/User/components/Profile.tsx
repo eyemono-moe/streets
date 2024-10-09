@@ -83,8 +83,8 @@ const Profile: Component<{
           <div
             class="relative"
             classList={{
-              "mt-32": !props.small,
-              "mt-24": props.small,
+              "mt-32 mr-34": !props.small,
+              "mt-24 mr-26": props.small,
             }}
           >
             <Image
