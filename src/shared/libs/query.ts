@@ -420,7 +420,7 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
     const _eventID = eventID();
     if (_eventID) {
       emit({
-        kinds: [kinds.Repost],
+        kinds: [kinds.Repost, kinds.GenericRepost],
         "#e": [_eventID],
       });
     }

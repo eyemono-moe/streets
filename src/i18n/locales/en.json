@@ -16,6 +16,9 @@
       "title": "Home"
     }
   },
+  "event": {
+    "unknown": "Unsupported event"
+  },
   "postInput": {
     "login": "Login",
     "needLogin": "You need to log in to post.",

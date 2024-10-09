@@ -16,6 +16,9 @@
       "title": "ホーム"
     }
   },
+  "event": {
+    "unknown": "対応していないイベント"
+  },
   "postInput": {
     "login": "ログインする",
     "needLogin": "投稿にはログインが必要です",
