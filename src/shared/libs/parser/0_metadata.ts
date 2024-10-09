@@ -1,6 +1,17 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import * as v from "valibot";
 
+const fallbackUnknown = <TIn, TOut, TIssue>(
+  s: v.BaseSchema<TIn, TOut, v.BaseIssue<TIssue>>,
+) =>
+  v.union([
+    s,
+    v.pipe(
+      v.unknown(),
+      v.transform(() => undefined),
+    ),
+  ]);
+
 // TODO: NIP-57
 
 // https://github.com/nostr-protocol/nips/blob/master/01.md#kinds
@@ -12,7 +23,7 @@ const NIP01 = v.object({
 
 // https://github.com/nostr-protocol/nips/blob/master/05.md
 const NIP05 = v.object({
-  nip05: v.nullish(v.string(), undefined),
+  nip05: v.nullish(fallbackUnknown(v.string()), undefined),
 });
 
 const strBoolean = v.pipe(
