@@ -4,6 +4,7 @@ import {
   type EventTag,
   emojiTag,
   eventTag,
+  hashtagTag,
   imetaTag,
   quoteTag,
   unknownTag,
@@ -20,6 +21,7 @@ const textNoteTags = v.pipe(
       quoteTag,
       imetaTag,
       emojiTag,
+      hashtagTag,
       // fallback
       unknownTag,
     ]),

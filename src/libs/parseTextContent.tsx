@@ -58,7 +58,7 @@ export type ParsedContent =
 // https://github.com/nostr-protocol/nips/blob/master/27.md
 
 const mentionRegex =
-  /\b(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)|#([a-zA-Z0-9]+)\b/g;
+  /\b(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)|#(\w+)\b/g;
 
 type Refecence = {
   start: number;
@@ -95,6 +95,7 @@ const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
   const refs: Refecence[] = [];
 
   const emojiTags = tags.filter((tag) => tag.kind === "emoji");
+  const hashtagTags = tags.filter((tag) => tag.kind === "t");
 
   if (emojiTags.length > 0) {
     const emojiRegex = new RegExp(
@@ -204,7 +205,8 @@ const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
     }
 
     const hashtag = match.at(3);
-    if (hashtag) {
+    // postのtagに["t", content]として含まれているかどうか判定する
+    if (hashtag && hashtagTags.some((tag) => tag.tag === hashtag)) {
       refs.push({
         start,
         end,
