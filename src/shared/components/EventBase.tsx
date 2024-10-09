@@ -137,9 +137,9 @@ const EventBase: ParentComponent<{
                 <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
               </button>
               <button
-                class="hover:c-green-8 data-[expanded]:c-green-8 flex inline-flex appearance-none items-center items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-green-2/50 data-[expanded]:bg-green-3/50"
+                class="hover:c-green-5 data-[expanded]:c-green-5 flex inline-flex appearance-none items-center items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-green-2/50 data-[expanded]:bg-green-3/50"
                 classList={{
-                  "c-green-8": isReposted(),
+                  "c-green-5": isReposted(),
                 }}
                 type="button"
               >

@@ -13,7 +13,7 @@ const RepostUserName: Component<{
     <div class="pb-2 text-3 text-zinc-5">
       <HoverCard>
         <div class="flex items-center gap-1">
-          <div class="i-material-symbols:repeat-rounded c-green aspect-square h-auto w-4" />
+          <div class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4" />
           <EmbedUser
             pubkey={props.pubkey}
             class="truncate font-700 text-zinc-5"
