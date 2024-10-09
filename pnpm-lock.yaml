@@ -32,6 +32,9 @@ importers:
       '@tanstack/solid-virtual':
         specifier: 3.10.8
         version: 3.10.8(solid-js@1.9.2)
+      '@thisbeyond/solid-dnd':
+        specifier: 0.7.5
+        version: 0.7.5(solid-js@1.9.2)
       '@unocss/reset':
         specifier: 0.63.4
         version: 0.63.4
@@ -913,6 +916,12 @@ packages:
 
   '@tanstack/virtual-core@3.10.8':
     resolution: {integrity: sha512-PBu00mtt95jbKFi6Llk9aik8bnR3tR/oQP1o3TSi+iG//+Q2RTIzCEgKkHG8BB86kxMNW6O8wku+Lmi+QFR6jA==}
+
+  '@thisbeyond/solid-dnd@0.7.5':
+    resolution: {integrity: sha512-DfI5ff+yYGpK9M21LhYwIPlbP2msKxN2ARwuu6GF8tT1GgNVDTI8VCQvH4TJFoVApP9d44izmAcTh/iTCH2UUw==}
+    engines: {node: '>=18.0.0', pnpm: '>=8.6.0'}
+    peerDependencies:
+      solid-js: ^1.5
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -2629,6 +2638,10 @@ snapshots:
       solid-js: 1.9.2
 
   '@tanstack/virtual-core@3.10.8': {}
+
+  '@thisbeyond/solid-dnd@0.7.5(solid-js@1.9.2)':
+    dependencies:
+      solid-js: 1.9.2
 
   '@types/babel__core@7.20.5':
     dependencies:
