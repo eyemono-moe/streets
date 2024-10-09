@@ -28,7 +28,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
   });
 
   const parsedContents = createMemo(() =>
-    parseTextContent(props.content, [], true),
+    parseTextContent(props.content, props.tags, true),
   );
 
   const textType = () => {

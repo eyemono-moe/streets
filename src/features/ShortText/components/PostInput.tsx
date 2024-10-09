@@ -1,10 +1,11 @@
 import { Popover } from "@kobalte/core/popover";
-import { type Component, Show, createSignal } from "solid-js";
+import { type Component, Show, createMemo, createSignal } from "solid-js";
 import EmojiPicker from "../../../components/EmojiPicker";
 import { useI18n } from "../../../i18n";
 import { showLoginModal } from "../../../libs/nostrLogin";
-import { useSendShortText } from "../../../libs/rxQuery";
-import { isLogged } from "../../../libs/useMyPubkey";
+import type { EmojiTag } from "../../../libs/parser/commonTag";
+import { useEmojis, useSendShortText } from "../../../libs/rxQuery";
+import { isLogged, useMyPubkey } from "../../../libs/useMyPubkey";
 import PostPreview from "./PostPreview";
 
 const PostInput: Component<{
@@ -28,6 +29,19 @@ const PostInput: Component<{
     });
     setContent("");
   };
+
+  const myPubkey = useMyPubkey();
+  const myEmoji = useEmojis(myPubkey);
+  const flatEmojis = createMemo<EmojiTag[]>(() => {
+    return myEmoji.emojiSets().flatMap(
+      (emojiSet) =>
+        emojiSet().data?.parsed.emojis.map((emoji) => ({
+          kind: "emoji",
+          name: emoji.name,
+          url: emoji.url,
+        })) ?? [],
+    );
+  });
 
   const insertEmoji = (emoji: string) => {
     const _textarea = textarea();
@@ -106,7 +120,7 @@ const PostInput: Component<{
         <div class="flex flex-col gap-1">
           <div class="text-zinc-5">{t("postInput.preview")}</div>
           <div class="b-1 min-h-20 p-2">
-            <PostPreview content={content()} tags={[]} />
+            <PostPreview content={content()} tags={flatEmojis()} />
           </div>
           <div class="text-3 text-zinc-5">{t("postInput.note")}</div>
         </div>
