@@ -70,6 +70,7 @@ const Text: Component<{
 
   const reposts = useRepostsOfEvent(() => text().data?.parsed.id);
 
+  // TODO: Reactionsとの共通化
   const { sendReaction } = useSendReaction();
   const handleReaction = async (e: Emoji) => {
     if (!isLogged()) {
@@ -96,7 +97,7 @@ const Text: Component<{
             }
           : {
               type: "emoji",
-              value: e.name,
+              value: `:${e.name}:`,
               src: e.src,
             },
       kind: 1,

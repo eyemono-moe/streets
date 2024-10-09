@@ -1,5 +1,9 @@
+import { Popover } from "@kobalte/core/popover";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
-import { useReactionsOfEvent } from "../../../libs/rxQuery";
+import EmojiPicker, { type Emoji } from "../../../components/EmojiPicker";
+import { showLoginModal } from "../../../libs/nostrLogin";
+import { useReactionsOfEvent, useSendReaction } from "../../../libs/rxQuery";
+import { isLogged } from "../../../libs/useMyPubkey";
 import type { ReactionButtonProps } from "./ReactionButton";
 import ReactionButton from "./ReactionButton";
 
@@ -18,13 +22,14 @@ const Reactions: Component<{
         acc.set(parsed.content, {
           count: 0,
           users: [],
-          content: parsed.emoji
-            ? {
-                type: "emoji",
-                src: parsed.emoji.url,
-                value: parsed.content,
-              }
-            : { type: "string", value: parsed.content },
+          content:
+            parsed.emoji && `:${parsed.emoji.name}:` === parsed.content
+              ? {
+                  type: "emoji",
+                  src: parsed.emoji.url,
+                  value: parsed.content,
+                }
+              : { type: "string", value: parsed.content },
         });
       }
 
@@ -42,6 +47,37 @@ const Reactions: Component<{
 
     return Array.from(reactionMap?.values() ?? []);
   });
+
+  // TODO: Text.tsxとの共通化
+  const { sendReaction } = useSendReaction();
+  const handleReaction = async (e: Emoji) => {
+    if (!isLogged()) {
+      showLoginModal();
+      return;
+    }
+
+    if (!e.native && !e.src) {
+      console.error("emoji src is not found");
+      return;
+    }
+
+    await sendReaction({
+      targetEventId: props.eventId,
+      targetEventPubkey: props.eventPubkey,
+      content:
+        e.native !== undefined
+          ? {
+              type: "string",
+              value: e.native,
+            }
+          : {
+              type: "emoji",
+              value: `:${e.name}:`,
+              src: e.src,
+            },
+      kind: 1,
+    });
+  };
 
   return (
     <Show when={(reactions().data?.length ?? 0) > 0}>
@@ -75,12 +111,20 @@ const Reactions: Component<{
             )}
           </For>
           <Show when={(reactions().data?.length ?? 0) > 0 && !expand()}>
-            <button
-              class="b-1 b-zinc-2 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5"
-              type="button"
-            >
-              <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
-            </button>
+            <Popover>
+              <Popover.Trigger class="b-1 b-zinc-2 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5">
+                <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
+              </Popover.Trigger>
+              <Popover.Portal>
+                <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">
+                  <EmojiPicker
+                    onSelect={(v) => {
+                      handleReaction(v);
+                    }}
+                  />
+                </Popover.Content>
+              </Popover.Portal>
+            </Popover>
           </Show>
         </div>
       </div>

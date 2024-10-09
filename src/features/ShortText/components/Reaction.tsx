@@ -9,18 +9,7 @@ const Reaction: Component<{
 }> = (props) => {
   return (
     <div class="p-2">
-      <ReactionUserName
-        pubkey={props.reaction.raw.pubkey}
-        reaction={
-          props.reaction.parsed.emoji
-            ? {
-                type: "emoji",
-                src: props.reaction.parsed.emoji.url,
-                value: props.reaction.parsed.emoji.name,
-              }
-            : { type: "string", value: props.reaction.parsed.content }
-        }
-      />
+      <ReactionUserName reaction={props.reaction.parsed} />
       <Text
         id={props.reaction.parsed.targetEvent.id}
         showActions

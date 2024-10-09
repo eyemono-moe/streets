@@ -60,6 +60,7 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
           "b-pink-6 bg-pink-6/10": isReacted(),
         }}
         type="button"
+        title={props.reaction.content.value}
         disabled={sendState.sending}
         onClick={handleReaction}
       >
