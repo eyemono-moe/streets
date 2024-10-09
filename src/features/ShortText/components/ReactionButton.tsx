@@ -56,8 +56,8 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
       <button
         class="b-1 flex w-fit appearance-none items-center gap-1 rounded p-0.5 disabled:cursor-progress disabled:opacity-50"
         classList={{
-          "b-zinc-2 bg-transparent": !isReacted(),
-          "b-pink-6 bg-pink-6/10": isReacted(),
+          "b-zinc-2 bg-transparent hover:bg-zinc-1/50": !isReacted(),
+          "b-purple-6 bg-purple-6/10": isReacted(),
         }}
         type="button"
         title={props.reaction.content.value}
@@ -92,7 +92,7 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
                 props.reaction.content.value === "+"
               }
             >
-              <div class="i-material-symbols:favorite-rounded c-pink aspect-square h-5 w-auto" />
+              <div class="i-material-symbols:favorite-rounded c-purple aspect-square h-5 w-auto" />
             </Match>
           </Switch>
         </div>

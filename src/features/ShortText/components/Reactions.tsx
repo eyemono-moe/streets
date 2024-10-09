@@ -112,7 +112,7 @@ const Reactions: Component<{
           </For>
           <Show when={(reactions().data?.length ?? 0) > 0 && !expand()}>
             <Popover>
-              <Popover.Trigger class="b-1 b-zinc-2 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5">
+              <Popover.Trigger class="b-1 b-zinc-2 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5 hover:bg-zinc-1/50">
                 <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
               </Popover.Trigger>
               <Popover.Portal>

@@ -13,7 +13,7 @@ import {
   useSendReaction,
   useShortTextByID,
 } from "../../../libs/rxQuery";
-import { isLogged } from "../../../libs/useMyPubkey";
+import { isLogged, useMyPubkey } from "../../../libs/useMyPubkey";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "../../Profile/components/ProfileHoverContent";
 import EmbedUser from "./EmbedUser";
@@ -68,7 +68,11 @@ const Text: Component<{
     return "normal";
   };
 
+  const myPubkey = useMyPubkey();
   const reposts = useRepostsOfEvent(() => text().data?.parsed.id);
+  const isReposted = createMemo(() =>
+    reposts().data?.some((r) => r.parsed.pubkey === myPubkey()),
+  );
 
   // TODO: Reactionsとの共通化
   const { sendReaction } = useSendReaction();
@@ -211,7 +215,7 @@ const Text: Component<{
                 {dateTimeHuman(new Date(text().data!.raw.created_at * 1000))}
               </span>
             </div>
-            <div class="grid-area-[content] flex flex-col gap-2">
+            <div class="grid-area-[content] flex flex-col gap-1">
               <div>
                 <Show when={textType() === "mention" || textType() === "reply"}>
                   <div class="text-3">
@@ -248,20 +252,25 @@ const Text: Component<{
               <Show when={props.showActions}>
                 <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
                   <button
-                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    class="hover:c-purple-8 data-[expanded]:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50 data-[expanded]:bg-purple-3/50"
                     type="button"
                   >
                     <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
                   </button>
                   <button
-                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    class="hover:c-green-8 data-[expanded]:c-green-8 flex inline-flex appearance-none items-center items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-green-2/50 data-[expanded]:bg-green-3/50"
+                    classList={{
+                      "c-green-8": isReposted(),
+                    }}
                     type="button"
                   >
                     <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
-                    <span>{reposts().data?.length || ""}</span>
+                    <Show when={reposts().data?.length}>
+                      <span class="lh-4 text-3">{reposts().data?.length}</span>
+                    </Show>
                   </button>
                   <Popover>
-                    <Popover.Trigger class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5">
+                    <Popover.Trigger class="hover:c-purple-8 data-[expanded]:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-2/50 data-[expanded]:bg-purple-3/50">
                       <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
                     </Popover.Trigger>
                     <Popover.Portal>
@@ -275,13 +284,13 @@ const Text: Component<{
                     </Popover.Portal>
                   </Popover>
                   <button
-                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    class="hover:c-purple-8 data-[expanded]:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50 data-[expanded]:bg-purple-3/50"
                     type="button"
                   >
                     <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
                   </button>
                   <button
-                    class="flex appearance-none items-center gap-1 rounded bg-transparent p-0.5"
+                    class="hover:c-purple-8 data-[expanded]:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50 data-[expanded]:bg-purple-3/50"
                     type="button"
                   >
                     <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />

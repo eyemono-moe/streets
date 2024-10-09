@@ -72,7 +72,7 @@ const ReactionUserName: Component<{
               )}
             </Match>
             <Match when={reaction().isLike}>
-              <div class="i-material-symbols:favorite-rounded c-pink aspect-square h-5 w-auto" />
+              <div class="i-material-symbols:favorite-rounded c-purple aspect-square h-5 w-auto" />
             </Match>
           </Switch>
           <EmbedUser
