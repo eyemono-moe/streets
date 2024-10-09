@@ -27,7 +27,9 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
     return reply ?? root;
   });
 
-  const parsedContents = createMemo(() => parseTextContent(props.content, []));
+  const parsedContents = createMemo(() =>
+    parseTextContent(props.content, [], true),
+  );
 
   const textType = () => {
     // e tagがあればreply

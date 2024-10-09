@@ -57,8 +57,7 @@ export type ParsedContent =
 
 // https://github.com/nostr-protocol/nips/blob/master/27.md
 
-const mentionRegex =
-  /\b(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)|#(\w+)\b/g;
+const mentionRegex = /(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)/g;
 
 type Refecence = {
   start: number;
@@ -91,12 +90,14 @@ type Refecence = {
     }
 );
 
-const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
+const parseReferences = (
+  text: string,
+  tags: Tag[],
+  ignoreHashtagTag?: boolean,
+): Refecence[] => {
   const refs: Refecence[] = [];
 
   const emojiTags = tags.filter((tag) => tag.kind === "emoji");
-  const hashtagTags = tags.filter((tag) => tag.kind === "t");
-
   if (emojiTags.length > 0) {
     const emojiRegex = new RegExp(
       `:(${emojiTags.map((tag) => tag.name).join("|")}):`,
@@ -121,6 +122,30 @@ const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
           value: {
             name: emojiTag,
             url,
+          },
+        });
+      }
+    }
+  }
+
+  const hashtagTags = tags.filter((tag) => tag.kind === "t");
+  const hashtagRegex = ignoreHashtagTag
+    ? /#(\S+)/g
+    : new RegExp(`#(${hashtagTags.map((tag) => tag.tag).join("|")})`, "g");
+  if (ignoreHashtagTag || hashtagTags.length > 0) {
+    for (const match of text.matchAll(hashtagRegex)) {
+      const length = match[0].length;
+      const start = match.index;
+      const end = start + length;
+      const hashtag = match.at(1);
+
+      if (hashtag) {
+        refs.push({
+          start,
+          end,
+          type: "hashtag",
+          value: {
+            tag: hashtag,
           },
         });
       }
@@ -203,26 +228,17 @@ const parseReferences = (text: string, tags: Tag[]): Refecence[] => {
         }
       }
     }
-
-    const hashtag = match.at(3);
-    // postのtagに["t", content]として含まれているかどうか判定する
-    if (hashtag && hashtagTags.some((tag) => tag.tag === hashtag)) {
-      refs.push({
-        start,
-        end,
-        type: "hashtag",
-        value: {
-          tag: hashtag,
-        },
-      });
-    }
   }
   return refs;
 };
 
-export const parseTextContent = (content: string, tags: Tag[]) => {
+export const parseTextContent = (
+  content: string,
+  tags: Tag[],
+  ignoreHashtagTag?: boolean,
+) => {
   try {
-    const references = parseReferences(content, tags);
+    const references = parseReferences(content, tags, ignoreHashtagTag);
     const imetaTags = tags.filter((tag) => tag.kind === "imeta");
     const splittedContent = splitTextByLinks(content, references, imetaTags);
     return splittedContent;
