@@ -31,7 +31,7 @@ const Followees: Component<{
         title={t("column.followees.title")}
         subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
       />
-      <div class="h-full w-full overflow-y-auto">
+      <div class="h-full w-full divide-y overflow-y-auto">
         <For each={followees().data?.parsed.followees}>
           {(followee) => <ProfileRow pubkey={followee.pubkey} />}
         </For>

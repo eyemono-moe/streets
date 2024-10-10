@@ -3,6 +3,9 @@
     "followees": {
       "title": "Followees"
     },
+    "followers": {
+      "title": "Followers"
+    },
     "notifications": {
       "title": "Notifications"
     },
@@ -30,8 +33,10 @@
   "profile": {
     "follow": "Follow",
     "followees": "Following",
+    "followers": "Followers",
     "following": "Following",
     "followsYou": "Follows you",
+    "loadFollowers": "Load followers",
     "loginAndFollow": "Login and Follow",
     "reactions": "Reactions"
   },

@@ -127,6 +127,10 @@ export const EventCacheProvider: ParentComponent = (props) => {
 
   const invalidate = (queryKey: CacheKey) => {
     const key = hash(queryKey);
+    // create new cache if not exists
+    if (!cacheStore[key]) {
+      setCacheStore(key, createCacheData());
+    }
     setCacheStore(key, "isInvalidated", true);
   };
 

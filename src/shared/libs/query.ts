@@ -5,10 +5,13 @@ import {
   type EventPacket,
   type LazyFilter,
   type RxReqEmittable,
+  batch,
   compareEvents,
   createRxBackwardReq,
+  latestEach,
   uniq,
 } from "rx-nostr";
+import { bufferWhen, interval } from "rxjs";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
@@ -21,6 +24,7 @@ import {
 import { useRxNostr } from "../../context/rxNostr";
 import { fetchOEmbed } from "./fetchOEmbed";
 import { fetchOgp } from "./fetchOgp";
+import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import { type ParsedEventPacket, parseEventPacket } from "./parser";
 import type { Metadata } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
@@ -341,6 +345,58 @@ export const useFollowees = (pubkey: () => string | undefined) => {
   };
 
   return createGetter<ParsedEventPacket<FollowList>>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useFollowers = (pubkey: () => string | undefined) => {
+  // フォロワー取得は個別に行う
+  // TODO: refactoring
+
+  const queryKey = () => ["followers", pubkey()];
+  const { rxNostr } = useRxNostr();
+  const setter = eventCacheSetter();
+
+  const req = createRxBackwardReq();
+
+  const emitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      req.emit({
+        kinds: [kinds.Contacts],
+        "#p": [_pubkey],
+      });
+    }
+  };
+
+  rxNostr
+    .use(
+      req.pipe(
+        bufferWhen(() => interval(1000)),
+        batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
+      ),
+    )
+    .pipe(
+      uniq(),
+      latestEach((e) => e.event.pubkey),
+    )
+    .subscribe({
+      next: (e) => {
+        setter<string[]>(queryKey(), (prev) => {
+          if (prev) {
+            if (prev.includes(e.event.pubkey)) {
+              return prev;
+            }
+
+            return [...prev, e.event.pubkey];
+          }
+          return [e.event.pubkey];
+        });
+      },
+    });
+
+  return createGetter<string[]>(() => ({
     queryKey: queryKey(),
     emitter,
   }));

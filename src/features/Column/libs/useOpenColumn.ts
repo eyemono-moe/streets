@@ -41,6 +41,26 @@ export const useOpenFolloweesColumn = () => {
   };
 };
 
+export const useOpenFollowersColumn = () => {
+  const columnActions = useColumn()?.[1];
+  const [, { addColumn }] = useDeck();
+
+  return (pubkey: string, index?: number) => {
+    const newCol: ColumnState = {
+      type: "followers",
+      pubkey,
+      size: "medium",
+    };
+
+    if (columnActions) {
+      columnActions.addColumnAfterThis(newCol);
+      return;
+    }
+
+    addColumn(newCol, index);
+  };
+};
+
 export const useOpenReactionsColumn = () => {
   const columnActions = useColumn()?.[1];
   const [, { addColumn }] = useDeck();

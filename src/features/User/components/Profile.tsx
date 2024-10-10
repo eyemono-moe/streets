@@ -11,6 +11,7 @@ import {
   useOpenFolloweesColumn,
   useOpenReactionsColumn,
 } from "../../Column/libs/useOpenColumn";
+import FollowerCounter from "./FollowerCounter";
 import Nip05Badge from "./Nip05Badge";
 
 // TODO: fallbackでskeletonを表示する
@@ -195,9 +196,10 @@ const Profile: Component<{
                   {t("profile.followees")}
                 </span>
               </div>
-              <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
             </button>
           </Show>
+          <FollowerCounter pubkey={props.pubkey} />
+          {/* TODO: ポスト一覧, リアクション一覧, メディア一覧等を出し分けるようにする */}
           <Show when={!props.small}>
             <button
               class="inline-flex w-fit appearance-none items-center gap-1 bg-transparent hover:underline"
@@ -207,7 +209,6 @@ const Profile: Component<{
               }}
             >
               <span class="font-500">{t("profile.reactions")}</span>
-              <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-4 w-auto text-zinc-5" />
             </button>
           </Show>
         </div>

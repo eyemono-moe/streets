@@ -3,6 +3,9 @@
     "followees": {
       "title": "フォロー中"
     },
+    "followers": {
+      "title": "フォロワー"
+    },
     "notifications": {
       "title": "通知"
     },
@@ -30,8 +33,10 @@
   "profile": {
     "follow": "フォローする",
     "followees": "フォロー中",
+    "followers": "フォロワー",
     "following": "フォロー中",
     "followsYou": "フォローされています",
+    "loadFollowers": "フォロワーを確認",
     "loginAndFollow": "ログインしてフォロー",
     "reactions": "リアクション"
   },
