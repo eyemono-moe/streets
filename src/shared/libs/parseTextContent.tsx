@@ -171,89 +171,93 @@ const parseReferences = (
     const hex = match.at(1);
 
     if (hex) {
-      const { data, type } = decode(hex);
-      switch (type) {
-        case "note":
-          refs.push({
-            start,
-            end,
-            type: "quote",
-            value: {
-              id: data,
-            },
-          });
-          break;
-        case "nevent":
-          refs.push({
-            start,
-            end,
-            type: "quote",
-            value: {
-              id: data.id,
-            },
-          });
-          break;
-        case "npub":
-          refs.push({
-            start,
-            end,
-            type: "mention",
-            value: {
-              pubkey: data,
-            },
-          });
-          break;
-        case "nprofile":
-          refs.push({
-            start,
-            end,
-            type: "mention",
-            value: {
-              pubkey: data.pubkey,
-            },
-          });
-          break;
-        case "nrelay":
-          refs.push({
-            start,
-            end,
-            type: "relay",
-            value: {
-              url: data,
-            },
-          });
-          break;
-        case "naddr": {
-          switch (data.kind) {
-            case kinds.ShortTextNote:
-              refs.push({
-                start,
-                end,
-                type: "quote",
-                value: {
-                  id: data.identifier,
-                },
-              });
-              break;
-            case kinds.Metadata:
-              refs.push({
-                start,
-                end,
-                type: "mention",
-                value: {
-                  pubkey: data.identifier,
-                },
-              });
-              break;
-            default: {
-              console.warn(
-                "[parseTextContent] Unknown naddr kind: ",
-                data.kind,
-              );
+      try {
+        const { data, type } = decode(hex);
+        switch (type) {
+          case "note":
+            refs.push({
+              start,
+              end,
+              type: "quote",
+              value: {
+                id: data,
+              },
+            });
+            break;
+          case "nevent":
+            refs.push({
+              start,
+              end,
+              type: "quote",
+              value: {
+                id: data.id,
+              },
+            });
+            break;
+          case "npub":
+            refs.push({
+              start,
+              end,
+              type: "mention",
+              value: {
+                pubkey: data,
+              },
+            });
+            break;
+          case "nprofile":
+            refs.push({
+              start,
+              end,
+              type: "mention",
+              value: {
+                pubkey: data.pubkey,
+              },
+            });
+            break;
+          case "nrelay":
+            refs.push({
+              start,
+              end,
+              type: "relay",
+              value: {
+                url: data,
+              },
+            });
+            break;
+          case "naddr": {
+            switch (data.kind) {
+              case kinds.ShortTextNote:
+                refs.push({
+                  start,
+                  end,
+                  type: "quote",
+                  value: {
+                    id: data.identifier,
+                  },
+                });
+                break;
+              case kinds.Metadata:
+                refs.push({
+                  start,
+                  end,
+                  type: "mention",
+                  value: {
+                    pubkey: data.identifier,
+                  },
+                });
+                break;
+              default: {
+                console.warn(
+                  "[parseTextContent] Unknown naddr kind: ",
+                  data.kind,
+                );
+              }
             }
+            break;
           }
-          break;
         }
+      } catch {
+        // 不正なhexの場合は無視
       }
     }
   }
