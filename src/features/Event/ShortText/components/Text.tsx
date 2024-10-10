@@ -5,7 +5,11 @@ import EmojiPicker, {
   type Emoji,
 } from "../../../../shared/components/EmojiPicker";
 import RichContent from "../../../../shared/components/RichContents";
-import { dateHuman, dateTimeHuman } from "../../../../shared/libs/format";
+import {
+  dateHuman,
+  dateTimeHuman,
+  hex2bech32,
+} from "../../../../shared/libs/format";
 import { showLoginModal } from "../../../../shared/libs/nostrLogin";
 import { parseTextContent } from "../../../../shared/libs/parseTextContent";
 import type { EventTag } from "../../../../shared/libs/parser/commonTag";
@@ -180,7 +184,11 @@ const Text: Component<{
               >
                 <Show
                   when={profile().data}
-                  fallback={text().data?.parsed.pubkey}
+                  fallback={hex2bech32(
+                    // biome-ignore lint/style/noNonNullAssertion: when={text().data}
+                    text().data!.parsed.pubkey,
+                    "npub",
+                  ).slice(0, 12)}
                 >
                   <span class="font-500">
                     {profile().data?.parsed.display_name}

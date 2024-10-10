@@ -1,6 +1,6 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { type Component, Show, mergeProps } from "solid-js";
-import { readablePubkey } from "../../../shared/libs/format";
+import { hex2bech32 } from "../../../shared/libs/format";
 import { useProfile } from "../../../shared/libs/query";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "./ProfileHoverContent";
@@ -25,9 +25,9 @@ const EmbedUser: Component<{
       >
         <Show
           when={profile().data}
-          fallback={`@${readablePubkey(props.pubkey)}`}
+          fallback={`@${hex2bech32(props.pubkey, "npub").slice(0, 12)}`}
         >
-          {`@${profile().data?.parsed.display_name || profile().data?.parsed.name || readablePubkey(props.pubkey)}`}
+          {`@${profile().data?.parsed.display_name || profile().data?.parsed.name || hex2bech32(props.pubkey, "npub").slice(0, 12)}`}
         </Show>
       </HoverCard.Trigger>
       <HoverCard.Portal>

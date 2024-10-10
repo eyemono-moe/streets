@@ -9,7 +9,7 @@ import {
 import Quote from "../../features/Event/ShortText/components/Quote";
 import RichLink from "../../features/Event/ShortText/components/RichLink";
 import EmbedUser from "../../features/User/components/EmbedUser";
-import { hex2bech32 } from "../libs/bech32";
+import { hex2bech32 } from "../libs/format";
 import type {
   EmojiContent,
   HashtagContent,

@@ -1,4 +1,4 @@
-import { hex2bech32 } from "./bech32";
+import { bech32 } from "bech32";
 
 export const dateHuman = (date: Date): string => {
   // yyyy/MM/dd HH:mm
@@ -46,6 +46,18 @@ export const dateTimeHuman = (date: Date): string => {
   });
 };
 
-export const readablePubkey = (pubkey: string) => {
-  return hex2bech32(pubkey).slice(0, 14);
+const hex2bytes = (hex: string): number[] => {
+  if (hex.length % 2 !== 0) {
+    throw new Error("hex length must be even");
+  }
+  const bytes = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(Number.parseInt(hex.slice(i, i + 2), 16));
+  }
+  return bytes;
+};
+
+export const hex2bech32 = (hex: string, prefix?: string): string => {
+  const words = hex2bytes(hex);
+  return bech32.encode(prefix ?? "", bech32.toWords(words));
 };

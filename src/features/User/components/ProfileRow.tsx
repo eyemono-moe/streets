@@ -1,7 +1,7 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
 import type { Component } from "solid-js";
-import { hex2bech32 } from "../../../shared/libs/bech32";
+import { hex2bech32 } from "../../../shared/libs/format";
 import { useProfile } from "../../../shared/libs/query";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import ProfileHoverContent from "./ProfileHoverContent";
@@ -46,7 +46,7 @@ const ProfileRow: Component<{
           <span class="text-3.5 text-zinc-5">
             @
             {profile().data?.parsed.name ??
-              (props.pubkey ? hex2bech32(props.pubkey) : "")}
+              (props.pubkey ? hex2bech32(props.pubkey, "npub") : "")}
           </span>
         </HoverCard.Trigger>
         <HoverCard.Portal>

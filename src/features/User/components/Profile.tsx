@@ -2,7 +2,7 @@ import { Image } from "@kobalte/core/image";
 import { type Component, Match, Show, Switch, createMemo } from "solid-js";
 import { useI18n } from "../../../i18n";
 import RichContent from "../../../shared/components/RichContents";
-import { readablePubkey } from "../../../shared/libs/format";
+import { hex2bech32 } from "../../../shared/libs/format";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import { parseTextContent } from "../../../shared/libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../shared/libs/query";
@@ -142,7 +142,9 @@ const Profile: Component<{
         <div class="flex flex-col">
           <span class="line-clamp-3 text-ellipsis font-700 text-5">
             {profile().data?.parsed.display_name ??
-              (props.pubkey ? readablePubkey(props.pubkey) : "...")}
+              (props.pubkey
+                ? hex2bech32(props.pubkey, "npub").slice(0, 12)
+                : "...")}
           </span>
           <div>
             <span class="truncate text-3.5 text-zinc-5">
