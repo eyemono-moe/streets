@@ -8,7 +8,7 @@ const ProfileHoverContent: Component<{
   return (
     <HoverCard.Content
       class="transform-origin-[--kb-hovercard-content-transform-origin] b-1 b-zinc-2 max-h-[min(calc(100vh-32px),360px)] min-h-0 max-w-[min(calc(100vw-32px),360px)] overflow-hidden rounded-2 bg-white shadow-xl"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e: MouseEvent) => e.stopPropagation()}
     >
       <Profile pubkey={props.pubkey} small />
     </HoverCard.Content>
