@@ -1,7 +1,14 @@
-import { type Component, Match, Switch, createMemo } from "solid-js";
+import {
+  type Component,
+  Match,
+  Show,
+  Switch,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { useI18n } from "../../../i18n";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
-import { useFollowees } from "../../../shared/libs/query";
+import { useFollowees, useSendContacts } from "../../../shared/libs/query";
 import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
 
 const FollowButton: Component<{ pubkey?: string }> = (props) => {
@@ -14,48 +21,73 @@ const FollowButton: Component<{ pubkey?: string }> = (props) => {
       (pubkey) => pubkey.pubkey === props.pubkey,
     ),
   );
-  const handleFollow = () => {
+
+  const { sendContacts, sendState: followSendState } = useSendContacts();
+  const isLoading = () =>
+    myFollowees().isInvalidated || followSendState.sending;
+
+  const handleFollow = (e: MouseEvent) => {
+    e.stopPropagation();
+
     if (!isLogged()) {
       showLoginModal();
       return;
     }
 
+    const prevFollowees = myFollowees().data;
+    const _myPubkey = myPubkey();
+
+    if (!props.pubkey || !prevFollowees || !_myPubkey) {
+      return;
+    }
+
     if (isFollowing()) {
-      // unfollow
+      const newFollowees = prevFollowees.parsed.followees
+        .map((f) => f.pubkey)
+        .filter((f) => f !== props.pubkey);
+
+      sendContacts({
+        content: prevFollowees.parsed.content,
+        newFollowees,
+        pubkey: _myPubkey,
+      });
     } else {
-      // follow
+      const newFollowees = prevFollowees.parsed.followees
+        .map((f) => f.pubkey)
+        .concat([props.pubkey]);
+
+      sendContacts({
+        content: prevFollowees.parsed.content,
+        newFollowees,
+        pubkey: _myPubkey,
+      });
     }
   };
+
+  const [hover, setHover] = createSignal(false);
 
   return (
     <button
       type="button"
-      disabled={isLogged() && isFollowing() === undefined}
-      class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700"
+      disabled={isLoading()}
+      class="inline-flex w-14ch cursor-pointer appearance-none items-center justify-center gap-1 rounded-full py-1 font-700"
       classList={{
-        "bg-zinc-9 text-white hover:bg-zinc-8": isFollowing(),
-        "b-1 bg-white text-zinc-9 hover:bg-zinc-1": !isFollowing(),
+        "bg-zinc-9 text-white hover:bg-zinc-8": !isFollowing(),
+        "b-1 bg-white text-zinc-9 hover:(b-red-3 bg-red-1/50 c-red-7)":
+          isFollowing(),
+        "op-50 cursor-progress": isLoading(),
       }}
       onClick={handleFollow}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      <Switch
-        fallback={
-          <>
-            <div class="i-material-symbols:person-add-outline-rounded aspect-square h-1lh w-auto" />
-            {t("profile.follow")}
-          </>
-        }
-      >
-        <Match when={!isLogged()}>
-          <div class="i-material-symbols:person-add-outline-rounded aspect-square h-1lh w-auto" />
-          {t("profile.loginAndFollow")}
+      <Switch fallback={t("profile.follow")}>
+        <Match when={!isLogged()}>{t("profile.follow")}</Match>
+        <Match when={isFollowing()}>
+          <Show when={hover()} fallback={t("profile.following")}>
+            {t("profile.unfollow")}
+          </Show>
         </Match>
-        <Match when={isFollowing() === undefined}>
-          <div class="flex items-center justify-center p-1">
-            <div class="b-2 b-zinc-3 b-r-violet aspect-square h-auto w-4 animate-spin rounded-full" />
-          </div>
-        </Match>
-        <Match when={isFollowing()}>{t("profile.following")}</Match>
       </Switch>
     </button>
   );

@@ -39,8 +39,8 @@
     "following": "フォロー中",
     "followsYou": "フォローされています",
     "loadFollowers": "フォロワーを確認",
-    "loginAndFollow": "ログインしてフォロー",
-    "reactions": "リアクション"
+    "reactions": "リアクション",
+    "unfollow": "フォロー解除"
   },
   "reaction": {
     "reactedBy": "さんがリアクション"

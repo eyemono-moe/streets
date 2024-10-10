@@ -13,6 +13,7 @@ export const parseContacts = (input: NostrEvent) => {
   if (res.success) {
     return {
       kind: input.kind,
+      content: input.content,
       pubkey: input.pubkey,
       followees: res.output.filter((tag) => tag.kind === "p"),
     } as const;

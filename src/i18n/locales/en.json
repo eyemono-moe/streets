@@ -39,8 +39,8 @@
     "following": "Following",
     "followsYou": "Follows you",
     "loadFollowers": "Load followers",
-    "loginAndFollow": "Login and Follow",
-    "reactions": "Reactions"
+    "reactions": "Reactions",
+    "unfollow": "Unfollow"
   },
   "reaction": {
     "reactedBy": "reacted"

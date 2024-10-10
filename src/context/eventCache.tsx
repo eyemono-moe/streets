@@ -6,7 +6,6 @@ import {
   createEffect,
   createMemo,
   lazy,
-  on,
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -34,7 +33,7 @@ const createCacheData = (): CacheDataBase => {
     data: undefined,
     dataUpdatedAt: 0,
     isFetching: false,
-    isInvalidated: true,
+    isInvalidated: false,
   };
 };
 
@@ -67,34 +66,32 @@ export const EventCacheProvider: ParentComponent = (props) => {
       () => (cacheStore[key()] ?? createCacheData()) as CacheDataBase<T>,
     );
 
-    createEffect(
-      on([cache, props, key], ([cache, props, key]) => {
-        emitterMap.set(key, props.emitter);
-        if (cache.data) {
-          if (cache.isInvalidated) {
-            emit(props.queryKey);
-            return;
-          }
-
-          if (cache.staleTime) {
-            const elapsed = Date.now() - cache.dataUpdatedAt;
-            // staleでなければcacheを返すだけ
-            if (elapsed < cache?.staleTime) {
-              return;
-            }
-            // staleならemitする
-            emit(props.queryKey);
-            return;
-          }
-
-          // staleTimeがない場合はcacheを返すだけ
+    createEffect(() => {
+      emitterMap.set(key(), props().emitter);
+      if (cache().data) {
+        // invalidateされたらemitする
+        if (cache().isInvalidated) {
+          emit(props().queryKey);
           return;
         }
-        // create new cache and emit
-        setCacheStore(key, createCacheData());
-        emit(props.queryKey);
-      }),
-    );
+        const staleTime = cache().staleTime;
+        if (staleTime) {
+          const elapsed = Date.now() - cache().dataUpdatedAt;
+          // staleでなければcacheを返すだけ
+          if (elapsed < staleTime) {
+            return;
+          }
+          // staleならemitする
+          emit(props().queryKey);
+          return;
+        }
+        // staleTimeがない場合はcacheを返すだけ
+        return;
+      }
+      // create new cache and emit
+      setCacheStore(key(), createCacheData());
+      emit(props().queryKey);
+    });
 
     return cache;
   };

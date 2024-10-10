@@ -689,3 +689,32 @@ export const useSendRepost = () => {
     sendState,
   };
 };
+
+export const useSendContacts = () => {
+  const { sender, sendState } = createSender();
+  const invalidate = useInvalidateEventCache();
+
+  const sendContacts = (props: {
+    pubkey: string;
+    newFollowees: string[];
+    content: string;
+  }) => {
+    const tags = props.newFollowees.map((pubkey) => ["p", pubkey]);
+
+    return sender(
+      {
+        kind: kinds.Contacts,
+        tags,
+        content: props.content,
+      },
+      () => {
+        invalidate([kinds.Contacts, props.pubkey]);
+      },
+    );
+  };
+
+  return {
+    sendContacts,
+    sendState,
+  };
+};
