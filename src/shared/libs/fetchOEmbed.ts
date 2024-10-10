@@ -26,14 +26,6 @@ const oEmbedProviders: {
     patterns: ["https?://open\\.spotify\\.com/.*", "spotify:.*"],
     endpoint: "https://open.spotify.com/oembed",
   },
-  {
-    name: "twitter",
-    patterns: [
-      "https?://twitter\\.com/.*/status/.*",
-      "https?://.*\\.twitter\\.com/.*/status/.*",
-    ],
-    endpoint: "https://publish.twitter.com/oembed",
-  },
 ];
 
 const getOEmbedProvider = (url: string) => {

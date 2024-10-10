@@ -6,6 +6,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Vite + Solid + TS</title>
   <script src='https://www.unpkg.com/nostr-login@latest/dist/unpkg.js'></script>
+  <script>
+    // see: https://developer.x.com/en/docs/x-for-websites/javascript-api/guides/set-up-twitter-for-websites
+    window.twttr = (function (d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0],
+        t = window.twttr || {};
+      if (d.getElementById(id)) return t;
+      js = d.createElement(s);
+      js.id = id;
+      js.src = "https://platform.twitter.com/widgets.js";
+      fjs.parentNode.insertBefore(js, fjs);
+      t._e = [];
+      t.ready = function (f) {
+        t._e.push(f);
+      };
+      return t;
+    }(document, "script", "twitter-wjs"));
+    console.log('twttr', window.twttr);
+  </script>
 </head>
 
 <body class="font-sans">

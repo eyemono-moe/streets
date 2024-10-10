@@ -1,4 +1,6 @@
 import { type Component, Match, Show, Switch } from "solid-js";
+import TweetEmbed from "../../../../shared/components/TweetEmbed";
+import { isTwitterUrl } from "../../../../shared/libs/url";
 import { useQueryEmbed } from "../query";
 
 const RichLink: Component<{
@@ -29,6 +31,9 @@ const RichLink: Component<{
           </a>
         }
       >
+        <Match when={isTwitterUrl(props.href)}>
+          <TweetEmbed url={props.href} />
+        </Match>
         <Match when={embed.data?.type === "oEmbed" && embed.data}>
           {(embed) => <div innerHTML={embed().value.html} />}
         </Match>
