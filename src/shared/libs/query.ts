@@ -1,6 +1,6 @@
 import { createQuery } from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
-import type { EventParameters } from "nostr-typedef";
+import type { Event, EventParameters } from "nostr-typedef";
 import {
   type EventPacket,
   type LazyFilter,
@@ -648,6 +648,43 @@ export const useSendReaction = () => {
 
   return {
     sendReaction,
+    sendState,
+  };
+};
+
+export const useSendRepost = () => {
+  const { sender, sendState } = createSender();
+  const invalidate = useInvalidateEventCache();
+
+  const sendRepost = (props: {
+    targetEvent: Event;
+  }) => {
+    const tags = [
+      ["e", props.targetEvent.id],
+      ["p", props.targetEvent.pubkey],
+    ];
+
+    if (props.targetEvent.kind !== kinds.ShortTextNote) {
+      tags.push(["k", props.targetEvent.kind.toString()]);
+    }
+
+    return sender(
+      {
+        kind:
+          props.targetEvent.kind === kinds.ShortTextNote
+            ? kinds.Repost
+            : kinds.GenericRepost,
+        tags,
+        content: JSON.stringify(props.targetEvent),
+      },
+      () => {
+        invalidate(["repostsOf", props.targetEvent.id]);
+      },
+    );
+  };
+
+  return {
+    sendRepost,
     sendState,
   };
 };

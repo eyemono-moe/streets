@@ -20,6 +20,8 @@
     }
   },
   "event": {
+    "quote": "Quote",
+    "repost": "Repost",
     "unknown": "Unsupported event"
   },
   "postInput": {
