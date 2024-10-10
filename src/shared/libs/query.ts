@@ -658,9 +658,10 @@ export const useSendRepost = () => {
 
   const sendRepost = (props: {
     targetEvent: Event;
+    relay: string;
   }) => {
     const tags = [
-      ["e", props.targetEvent.id],
+      ["e", props.targetEvent.id, props.relay],
       ["p", props.targetEvent.pubkey],
     ];
 

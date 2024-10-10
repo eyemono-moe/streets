@@ -98,10 +98,10 @@ const Text: Component<{
       return;
     }
 
-    const repostData = text().data?.raw;
+    const repostData = text().data;
     if (!repostData) return;
 
-    sendRepost({ targetEvent: repostData });
+    sendRepost({ targetEvent: repostData.raw, relay: repostData.from });
   };
 
   // TODO: Reactionsとの共通化
