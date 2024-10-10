@@ -18,6 +18,7 @@ import type {
   MentionContent,
   ParsedContent,
   QuoteContent,
+  RelayContent,
   TextContent,
 } from "../libs/parseTextContent";
 
@@ -106,8 +107,14 @@ const RichContent: Component<{
               </Match>
               <Match when={content.type === "hashtag"}>
                 {/* TODO: 隣のカラムでハッシュタグ検索結果を表示する */}
-                <span class="break-anywhere c-blue cursor-pointer whitespace-pre-wrap hover:underline">
+                <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
                   #{(content as HashtagContent).tag}
+                </span>
+              </Match>
+              <Match when={content.type === "relay"}>
+                {/* TODO: 隣のカラムでリレー内投稿一覧を表示する */}
+                <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
+                  {(content as RelayContent).url}
                 </span>
               </Match>
             </Switch>

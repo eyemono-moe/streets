@@ -3,6 +3,8 @@ import { kinds } from "nostr-tools";
 import { decode } from "nostr-tools/nip19";
 import type { ImetaTag, Tag } from "./parser/commonTag";
 
+linkify.registerCustomProtocol("wss");
+
 const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
 const isImageUrl = (url: string) => {
   const ext = url.split(".").pop();
@@ -44,7 +46,10 @@ export type EmojiContent = {
   tag: string;
   url: string;
 };
-// TODO: nrelay, nprofile, naddr, nevent
+export type RelayContent = {
+  type: "relay";
+  url: string;
+};
 
 export type ParsedContent =
   | TextContent
@@ -53,7 +58,8 @@ export type ParsedContent =
   | MentionContent
   | QuoteContent
   | HashtagContent
-  | EmojiContent;
+  | EmojiContent
+  | RelayContent;
 
 // https://github.com/nostr-protocol/nips/blob/master/27.md
 
@@ -85,6 +91,12 @@ type Refecence = {
       type: "emoji";
       value: {
         name: string;
+        url: string;
+      };
+    }
+  | {
+      type: "relay";
+      value: {
         url: string;
       };
     }
@@ -201,6 +213,16 @@ const parseReferences = (
             },
           });
           break;
+        case "nrelay":
+          refs.push({
+            start,
+            end,
+            type: "relay",
+            value: {
+              url: data,
+            },
+          });
+          break;
         case "naddr": {
           switch (data.kind) {
             case kinds.ShortTextNote:
@@ -223,6 +245,12 @@ const parseReferences = (
                 },
               });
               break;
+            default: {
+              console.warn(
+                "[parseTextContent] Unknown naddr kind: ",
+                data.kind,
+              );
+            }
           }
           break;
         }
@@ -258,7 +286,7 @@ export const splitTextByLinks = (
   refs: Refecence[],
   imetaTags: ImetaTag[],
 ): ParsedContent[] => {
-  const links = linkify.find(text, {});
+  const links = linkify.find(text, {}).filter((link) => link.type === "url");
 
   const sortedLinkOrRefs = [...links, ...refs].sort(
     (a, b) => a.start - b.start,
@@ -303,6 +331,12 @@ export const splitTextByLinks = (
             url: linkOrRef.value.url,
           });
           break;
+        case "relay":
+          parsedContent.push({
+            type: "relay",
+            url: linkOrRef.value.url,
+          });
+          break;
         default: {
           const _unreachable: never = linkOrRef;
           throw new Error(`Unknown ref type: ${_unreachable}`);
@@ -326,6 +360,11 @@ export const splitTextByLinks = (
             : undefined,
         });
         lastIdx = end;
+      } else if (linkOrRef.href.startsWith("wss://")) {
+        parsedContent.push({
+          type: "relay",
+          url: text.slice(start, end),
+        });
       } else {
         parsedContent.push({
           type: "link",
@@ -362,8 +401,10 @@ export const parsedContents2Tags = (
     switch (parsedContent.type) {
       case "text":
       case "image":
-      case "emoji":
         // do nothing
+        break;
+      case "emoji":
+        tags.push(["emoji", parsedContent.tag, parsedContent.url]);
         break;
       case "quote":
         // TODO: get relay, pubkey from cache

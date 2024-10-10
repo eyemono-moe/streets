@@ -597,10 +597,13 @@ export const useSendShortText = () => {
 
   const sendShortText = (props: {
     content: string;
+    // TODO: typing
+    tags?: string[][];
   }) =>
     sender({
       kind: kinds.ShortTextNote,
       content: props.content,
+      tags: props.tags ?? [],
     });
 
   return {

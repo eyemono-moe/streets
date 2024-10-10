@@ -3,6 +3,10 @@ import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
+import {
+  parseTextContent,
+  parsedContents2Tags,
+} from "../../../shared/libs/parseTextContent";
 import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
 import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
@@ -18,18 +22,6 @@ const PostInput: Component<{
   const [content, setContent] = createSignal(props.defaultContent ?? "");
   const [textarea, setTextarea] = createSignal<HTMLTextAreaElement>();
 
-  const { sendShortText, sendState } = useSendShortText();
-
-  const postText = async () => {
-    if (content() === "") {
-      return;
-    }
-    await sendShortText({
-      content: content(),
-    });
-    setContent("");
-  };
-
   const myPubkey = useMyPubkey();
   const myEmoji = useEmojis(myPubkey);
   const flatEmojis = createMemo<EmojiTag[]>(() => {
@@ -42,6 +34,23 @@ const PostInput: Component<{
         })) ?? [],
     );
   });
+
+  const referenceTags = createMemo(() => {
+    const parsed = parseTextContent(content(), flatEmojis(), true);
+    return parsedContents2Tags(parsed);
+  });
+
+  const { sendShortText, sendState } = useSendShortText();
+  const postText = async () => {
+    if (content() === "") {
+      return;
+    }
+    await sendShortText({
+      content: content(),
+      tags: referenceTags(),
+    });
+    setContent("");
+  };
 
   const insertEmoji = (emoji: string) => {
     const _textarea = textarea();
