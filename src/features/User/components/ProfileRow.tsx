@@ -4,6 +4,7 @@ import type { Component } from "solid-js";
 import { hex2bech32 } from "../../../shared/libs/format";
 import { useProfile } from "../../../shared/libs/query";
 import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
+import FollowButton from "./FollowButton";
 import ProfileHoverContent from "./ProfileHoverContent";
 
 const ProfileRow: Component<{
@@ -53,6 +54,9 @@ const ProfileRow: Component<{
           <ProfileHoverContent pubkey={props.pubkey} />
         </HoverCard.Portal>
       </HoverCard>
+      <div class="ml-auto shrink-0 text-3">
+        <FollowButton pubkey={props.pubkey} />
+      </div>
     </button>
   );
 };

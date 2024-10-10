@@ -1,16 +1,16 @@
 import { Image } from "@kobalte/core/image";
-import { type Component, Match, Show, Switch, createMemo } from "solid-js";
+import { type Component, Show, createMemo } from "solid-js";
 import { useI18n } from "../../../i18n";
 import RichContent from "../../../shared/components/RichContents";
 import { hex2bech32 } from "../../../shared/libs/format";
-import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import { parseTextContent } from "../../../shared/libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../shared/libs/query";
-import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
+import { useMyPubkey } from "../../../shared/libs/useMyPubkey";
 import {
   useOpenFolloweesColumn,
   useOpenReactionsColumn,
 } from "../../Column/libs/useOpenColumn";
+import FollowButton from "./FollowButton";
 import FollowerCounter from "./FollowerCounter";
 import Nip05Badge from "./Nip05Badge";
 
@@ -23,15 +23,7 @@ const Profile: Component<{
   const t = useI18n();
 
   const profile = useProfile(() => props.pubkey);
-
   const myPubkey = useMyPubkey();
-  const myFollowees = useFollowees(myPubkey);
-  const isFollowing = createMemo(() =>
-    myFollowees().data?.parsed.followees.some(
-      (pubkey) => pubkey.pubkey === props.pubkey,
-    ),
-  );
-
   const followees = useFollowees(() => props.pubkey);
   const isFollowed = createMemo(() => {
     return followees().data?.parsed.followees.some(
@@ -47,19 +39,6 @@ const Profile: Component<{
     if (p) return parseTextContent(p.parsed.about, []);
     return [];
   });
-
-  const handleFollow = () => {
-    if (!isLogged()) {
-      showLoginModal();
-      return;
-    }
-
-    if (isFollowing()) {
-      // unfollow
-    } else {
-      // follow
-    }
-  };
 
   return (
     <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
@@ -108,36 +87,7 @@ const Profile: Component<{
             </Image>
           </div>
           <div>
-            <button
-              type="button"
-              disabled={isLogged() && isFollowing() === undefined}
-              class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700"
-              classList={{
-                "bg-zinc-9 text-white hover:bg-zinc-8": isFollowing(),
-                "b-1 bg-white text-zinc-9 hover:bg-zinc-1": !isFollowing(),
-              }}
-              onClick={handleFollow}
-            >
-              <Switch
-                fallback={
-                  <>
-                    <div class="i-material-symbols:person-add-outline-rounded aspect-square h-6 w-auto" />
-                    {t("profile.follow")}
-                  </>
-                }
-              >
-                <Match when={!isLogged()}>
-                  <div class="i-material-symbols:person-add-outline-rounded aspect-square h-6 w-auto" />
-                  {t("profile.loginAndFollow")}
-                </Match>
-                <Match when={isFollowing() === undefined}>
-                  <div class="flex items-center justify-center p-1">
-                    <div class="b-2 b-zinc-3 b-r-violet aspect-square h-auto w-4 animate-spin rounded-full" />
-                  </div>
-                </Match>
-                <Match when={isFollowing()}>{t("profile.following")}</Match>
-              </Switch>
-            </button>
+            <FollowButton pubkey={props.pubkey} />
           </div>
         </div>
         <div class="flex flex-col">
