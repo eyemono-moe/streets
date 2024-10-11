@@ -19,6 +19,7 @@
     "@neodrag/solid": "2.0.4",
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
+    "@solid-primitives/scheduled": "1.4.3",
     "@solidjs/router": "0.14.7",
     "@tanstack/solid-query": "5.59.0",
     "@tanstack/solid-query-devtools": "5.59.0",

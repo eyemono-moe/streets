@@ -3,6 +3,7 @@ import stringify from "safe-stable-stringify";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
+import { createDebounced } from "../../../shared/libs/createDebounced";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import {
   parseTextContent,
@@ -23,6 +24,7 @@ const PostInput: Component<{
   const t = useI18n();
 
   const [content, setContent] = createSignal(props.defaultContent ?? "");
+  const debouncedContent = createDebounced(content, 1000, "");
   const [textarea, setTextarea] = createSignal<HTMLTextAreaElement>();
 
   const myPubkey = useMyPubkey();
@@ -52,7 +54,7 @@ const PostInput: Component<{
 
     return distinctTags;
   });
-  const parsedTags = createMemo(() => parseTextNoteTags(referenceTags()));
+  const tagsForPreview = createMemo(() => parseTextNoteTags(referenceTags()));
 
   const { sendShortText, sendState } = useSendShortText();
   const postText = async () => {
@@ -153,8 +155,8 @@ const PostInput: Component<{
           <div class="text-zinc-5">{t("postInput.preview")}</div>
           <div class="b-1 min-h-20 p-2">
             <PostPreview
-              content={content()}
-              tags={[...flatEmojis(), ...parsedTags()]}
+              content={debouncedContent()}
+              tags={[...flatEmojis(), ...tagsForPreview()]}
             />
           </div>
           <div class="text-3 text-zinc-5">{t("postInput.note")}</div>
