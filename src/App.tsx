@@ -5,6 +5,8 @@ import type { Component } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrProvider } from "./context/rxNostr";
+import { DeckProvider } from "./features/Column/context/deck";
+import { PostInputProvider } from "./features/CreatePost/context/postInputDialog";
 import routes from "./router";
 import { Toaster } from "./shared/libs/toast";
 
@@ -25,7 +27,11 @@ const App: Component = () => {
         <EventCacheProvider>
           <RelaysProvider>
             <RxNostrProvider>
-              <Router>{routes}</Router>
+              <DeckProvider>
+                <PostInputProvider>
+                  <Router>{routes}</Router>
+                </PostInputProvider>
+              </DeckProvider>
             </RxNostrProvider>
             <SolidQueryDevtools />
           </RelaysProvider>

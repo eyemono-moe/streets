@@ -1,10 +1,16 @@
 {
   "column": {
+    "bookmarks": {
+      "title": "ブックマーク"
+    },
     "followees": {
       "title": "フォロー中"
     },
     "followers": {
       "title": "フォロワー"
+    },
+    "lists": {
+      "title": "リスト"
     },
     "notifications": {
       "title": "通知"
@@ -15,8 +21,14 @@
     "reactions": {
       "title": "リアクション"
     },
+    "search": {
+      "title": "検索"
+    },
     "timeline": {
       "title": "ホーム"
+    },
+    "trends": {
+      "title": "トレンド"
     }
   },
   "event": {
@@ -25,6 +37,7 @@
     "unknown": "対応していないイベント"
   },
   "postInput": {
+    "enterToAddNewLine": "Enterで改行",
     "login": "ログインする",
     "needLogin": "投稿にはログインが必要です",
     "note": "このプレビューは投稿がStrandsクライアント上でどのように表示されるかを示しています。他のクライアントでは表示が異なる場合があります。",

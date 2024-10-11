@@ -1,9 +1,13 @@
 import { Collapsible } from "@kobalte/core/collapsible";
 import type { Component } from "solid-js";
 import Logo from "../../../assets/logo.svg";
+import { useDialog } from "../../../shared/libs/useDialog";
+import ColumnSelector from "../../Column/components/ColumnSelector";
 import PostInput from "../../CreatePost/components/PostInput";
 
 const Sidebar: Component = () => {
+  const { Dialog: AddColumnDialog, open: openAddColumnDialog } = useDialog();
+
   return (
     <Collapsible>
       <div class="flex h-full divide-x">
@@ -18,9 +22,16 @@ const Sidebar: Component = () => {
           </div>
           <div>{/* TODO: 開いているcolumnへのショートカット */}</div>
           <div class="flex flex-col">
-            <button class="appearance-none bg-transparent p-1" type="button">
+            <button
+              class="appearance-none bg-transparent p-1"
+              type="button"
+              onClick={openAddColumnDialog}
+            >
               <div class="i-material-symbols:add-rounded aspect-square h-auto w-8" />
             </button>
+            <AddColumnDialog title="Add Column">
+              <ColumnSelector />
+            </AddColumnDialog>
             <button class="appearance-none bg-transparent p-1" type="button">
               <img
                 src={Logo}

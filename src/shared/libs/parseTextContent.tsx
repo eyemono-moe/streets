@@ -184,16 +184,6 @@ const parseReferences = (
               },
             });
             break;
-          case "nevent":
-            refs.push({
-              start,
-              end,
-              type: "quote",
-              value: {
-                id: data.id,
-              },
-            });
-            break;
           case "npub":
             refs.push({
               start,
@@ -224,6 +214,27 @@ const parseReferences = (
               },
             });
             break;
+          case "nevent": {
+            switch (data.kind) {
+              case kinds.ShortTextNote:
+                refs.push({
+                  start,
+                  end,
+                  type: "quote",
+                  value: {
+                    id: data.id,
+                  },
+                });
+                break;
+              default: {
+                console.warn(
+                  "[parseTextContent] Unknown nevent kind: ",
+                  data.kind,
+                );
+              }
+            }
+            break;
+          }
           case "naddr": {
             switch (data.kind) {
               case kinds.ShortTextNote:

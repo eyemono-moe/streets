@@ -70,6 +70,16 @@ const textNoteTags = v.pipe(
   }),
 );
 
+export const parseTextNoteTags = (input: string[][]) => {
+  const res = v.safeParse(textNoteTags, input);
+  if (res.success) {
+    return res.output;
+  }
+  throw new Error(
+    `failed to parse text note tags: ${JSON.stringify(res.issues, null, 2)}`,
+  );
+};
+
 export const parseShortTextNote = (input: NostrEvent) => {
   if (input.kind !== kinds.ShortTextNote) {
     throw new Error(`kind is not ShortTextNote: ${input.kind}`);

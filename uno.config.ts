@@ -26,6 +26,10 @@ export default defineConfig({
         * {
           scrollbar-width: thin;
         }
+        nl-auth {
+          /* KobalteのDialogを開いた状態でもNostrLogin側でpointer eventを受け取れるようにする */
+          pointer-events: auto;
+        }
       `,
     },
   ],

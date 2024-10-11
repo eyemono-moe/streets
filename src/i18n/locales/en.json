@@ -1,10 +1,16 @@
 {
   "column": {
+    "bookmarks": {
+      "title": "Bookmarks"
+    },
     "followees": {
       "title": "Followees"
     },
     "followers": {
       "title": "Followers"
+    },
+    "lists": {
+      "title": "Lists"
     },
     "notifications": {
       "title": "Notifications"
@@ -15,8 +21,14 @@
     "reactions": {
       "title": "Reactions"
     },
+    "search": {
+      "title": "Search"
+    },
     "timeline": {
       "title": "Home"
+    },
+    "trends": {
+      "title": "Trends"
     }
   },
   "event": {
@@ -25,6 +37,7 @@
     "unknown": "Unsupported event"
   },
   "postInput": {
+    "enterToAddNewLine": "Enter to add a new line",
     "login": "Login",
     "needLogin": "You need to log in to post.",
     "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",

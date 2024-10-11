@@ -1,6 +1,7 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Popover } from "@kobalte/core/popover";
+import { neventEncode } from "nostr-tools/nip19";
 import { type Component, For, Show, createMemo } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import EmojiPicker, {
@@ -24,6 +25,7 @@ import {
 } from "../../../../shared/libs/query";
 import { isLogged, useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import { useOpenUserColumn } from "../../../Column/libs/useOpenColumn";
+import { usePostInput } from "../../../CreatePost/context/postInputDialog";
 import Avatar from "../../../User/components/Avatar";
 import EmbedUser from "../../../User/components/EmbedUser";
 import ProfileHoverContent from "../../../User/components/ProfileHoverContent";
@@ -135,6 +137,50 @@ const Text: Component<{
               url: e.src,
             },
       kind: 1,
+    });
+  };
+
+  const openPostInput = usePostInput();
+  const handleReply = () => {
+    const textData = text().data;
+    if (!textData) return;
+
+    // reply先にroot tagがあるならそれをrootにし, replyタグにこのポストのidを入れる
+    // root tagがないならrootタグにこのポストのidを入れる
+    const root = textData.parsed.tags.find(
+      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
+    );
+
+    const mentions = replyTarget().map((t) => t.pubkey);
+    mentions.push(textData.parsed.pubkey);
+
+    openPostInput({
+      text: "",
+      reply: root
+        ? {
+            rootId: root.id,
+            replyId: textData.parsed.id,
+          }
+        : {
+            rootId: textData.parsed.id,
+          },
+      mention: mentions,
+    });
+  };
+
+  const handleQuote = () => {
+    const textData = text().data;
+    if (!textData) return;
+
+    openPostInput({
+      text: `
+
+${neventEncode({
+  id: textData.parsed.id,
+  kind: textData.parsed.kind,
+  author: textData.parsed.pubkey,
+  relays: [textData.from],
+})}`,
     });
   };
 
@@ -274,6 +320,7 @@ const Text: Component<{
                 <button
                   class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50"
                   type="button"
+                  onClick={handleReply}
                 >
                   <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
                 </button>
@@ -304,6 +351,7 @@ const Text: Component<{
                       <DropdownMenu.Item
                         // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
                         class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+                        onSelect={handleQuote}
                       >
                         <div class="i-material-symbols:edit-outline-rounded aspect-square h-0.75lh w-auto" />
 
