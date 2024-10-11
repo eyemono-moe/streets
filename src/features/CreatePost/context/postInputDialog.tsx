@@ -3,10 +3,11 @@ import {
   createContext,
   createMemo,
   createSignal,
+  lazy,
   useContext,
 } from "solid-js";
 import { useDialog } from "../../../shared/libs/useDialog";
-import PostInput from "../components/PostInput";
+const PostInput = lazy(() => import("../components/PostInput"));
 
 type OpenPostInputProps = {
   text?: string;
