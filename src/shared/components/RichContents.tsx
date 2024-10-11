@@ -20,6 +20,7 @@ import type {
   QuoteContent,
   RelayContent,
   TextContent,
+  VideoContent,
 } from "../libs/parseTextContent";
 
 const RichContent: Component<{
@@ -54,6 +55,16 @@ const RichContent: Component<{
                     loading="lazy"
                   />
                 </a>
+              </Match>
+              <Match when={content.type === "video"}>
+                {/* TODO: 動画の拡大表示 */}
+                {/* biome-ignore lint/a11y/useMediaCaption: キャプションの投稿手段が無い */}
+                <video
+                  class="b-1 b-zinc-2 h-full max-h-50vh w-auto max-w-full rounded object-contain"
+                  controls
+                  preload="metadata"
+                  src={(content as VideoContent).href}
+                />
               </Match>
               <Match when={content.type === "emoji"}>
                 <img

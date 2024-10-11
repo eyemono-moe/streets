@@ -10,6 +10,11 @@ const isImageUrl = (url: string) => {
   const ext = url.split(".").pop();
   return ext && imageExtensions.includes(ext.toLowerCase());
 };
+const videoExtensions = ["mp4", "webm", "ogg"];
+const isVideoUrl = (url: string) => {
+  const ext = url.split(".").pop();
+  return ext && videoExtensions.includes(ext.toLowerCase());
+};
 
 export type TextContent = {
   type: "text";
@@ -22,6 +27,10 @@ export type ImageContent = {
   alt?: string;
   thumb?: string;
   size?: { width: number; height: number };
+};
+export type VideoContent = {
+  type: "video";
+  href: string;
 };
 export type LinkContent = {
   type: "link";
@@ -54,6 +63,7 @@ export type RelayContent = {
 export type ParsedContent =
   | TextContent
   | ImageContent
+  | VideoContent
   | LinkContent
   | MentionContent
   | QuoteContent
@@ -374,7 +384,11 @@ export const splitTextByLinks = (
               }
             : undefined,
         });
-        lastIdx = end;
+      } else if (isVideoUrl(matchedContent)) {
+        parsedContent.push({
+          type: "video",
+          href: matchedContent,
+        });
       } else if (linkOrRef.href.startsWith("wss://")) {
         parsedContent.push({
           type: "relay",
