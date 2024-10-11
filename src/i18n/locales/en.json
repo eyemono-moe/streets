@@ -36,6 +36,9 @@
     "repost": "Repost",
     "unknown": "Unsupported event"
   },
+  "loadMore": "Load more",
+  "loading": "Loading",
+  "noMoreEvents": "No more events",
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
     "login": "Login",

@@ -4,6 +4,7 @@ import { map, tap } from "rxjs";
 import { type Component, For, Match, Switch, from, onMount } from "solid-js";
 import { eventCacheSetter } from "../../context/eventCache";
 import { useRxNostr } from "../../context/rxNostr";
+import { useI18n } from "../../i18n";
 import { parseEventPacket } from "../libs/parser";
 import { cacheAndEmitRelatedEvent, createInfiniteRxQuery } from "../libs/query";
 import { toArrayScan } from "../libs/rxjs";
@@ -12,6 +13,8 @@ import Event from "./Event";
 const InfiniteEvents: Component<{
   filter: Omit<Filter, "since" | "until">;
 }> = (props) => {
+  const t = useI18n();
+
   const latestRxReq = createRxForwardReq();
   const setter = eventCacheSetter();
 
@@ -58,16 +61,14 @@ const InfiniteEvents: Component<{
         {(page) => <For each={page}>{(event) => <Event event={event} />}</For>}
       </For>
       <button
-        class="flex w-full items-center justify-center bg-white p-2 enabled:hover:bg-gray-100 disabled:cursor-progress disabled:opacity-50"
+        class="flex h-25vh w-full items-start justify-center bg-white p-2 enabled:hover:bg-gray-100 disabled:cursor-progress disabled:opacity-50"
         type="button"
         onClick={fetchNextPage}
         disabled={!hasNextPage()}
       >
-        <Switch fallback="Load more...">
-          <Match when={isFetching()}>
-            <div>Loading...</div>
-          </Match>
-          <Match when={!hasNextPage()}>Nothing to load</Match>
+        <Switch fallback={t("loadMore")}>
+          <Match when={isFetching()}>{t("loading")}</Match>
+          <Match when={!hasNextPage()}>{t("noMoreEvents")}</Match>
         </Switch>
       </button>
     </div>

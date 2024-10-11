@@ -36,6 +36,9 @@
     "repost": "リポスト",
     "unknown": "対応していないイベント"
   },
+  "loadMore": "さらに読み込む",
+  "loading": "読み込み中",
+  "noMoreEvents": "これ以上データがありません",
   "postInput": {
     "enterToAddNewLine": "Enterで改行",
     "login": "ログインする",
