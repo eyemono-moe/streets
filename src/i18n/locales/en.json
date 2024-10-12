@@ -32,6 +32,7 @@
     }
   },
   "event": {
+    "copyEventID": "Copy ID",
     "quote": "Quote",
     "repost": "Repost",
     "unknown": "Unsupported event"

@@ -29,7 +29,7 @@ const MyToast: ParentComponent<
   return (
     <Toast
       {...kobalteProps}
-      class="b-1 data-[opened]:(animate-slide-in-right! data-[closed]:(animate-fade-out-right data-[swipe=cancel]:(translate-x-0 data-[swipe=end]:(animate-[swipeOut] relative w-200px max-w-full animate-duration-100!) animate-duration-100) animate-duration-200) rounded bg-white p-2 shadow transition-transform-200) data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x]"
+      class="b-1 relative w-200px max-w-full rounded bg-white p-2 shadow data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x] data-[closed]:animate-duration-100! data-[closed]:animate-fade-out-right! data-[opened]:animate-duration-100! data-[opened]:animate-slide-in-right! data-[swipe=end]:animate-[swipeOut_100ms] data-[swipe=cancel]:transition-transform-100"
     >
       <Toast.CloseButton class="c-zinc-600 absolute right-2 bg-transparent">
         <div class="i-material-symbols:close-small-rounded h-6 w-6" />

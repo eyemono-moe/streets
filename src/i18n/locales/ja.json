@@ -32,6 +32,7 @@
     }
   },
   "event": {
+    "copyEventID": "IDをコピー",
     "quote": "引用",
     "repost": "リポスト",
     "unknown": "対応していないイベント"

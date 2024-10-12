@@ -26,6 +26,12 @@ export default defineConfig({
         * {
           scrollbar-width: thin;
         }
+        @media (prefers-reduced-motion) {
+          * {
+            animation-duration: 0ms !important;
+            transition-duration: 0ms !important;
+          }
+        }
         nl-auth {
           /* KobalteのDialogを開いた状態でもNostrLogin側でpointer eventを受け取れるようにする */
           pointer-events: auto;

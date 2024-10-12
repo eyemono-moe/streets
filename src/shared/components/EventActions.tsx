@@ -4,6 +4,7 @@ import { neventEncode } from "nostr-tools/nip19";
 import { type Component, Show, createMemo } from "solid-js";
 import { usePostInput } from "../../features/CreatePost/context/postInputDialog";
 import { useI18n } from "../../i18n";
+import { copyToClipboard } from "../libs/clipboard";
 import { showLoginModal } from "../libs/nostrLogin";
 import type { ParsedEventPacket } from "../libs/parser";
 import type { EventTag } from "../libs/parser/commonTag";
@@ -116,6 +117,17 @@ ${neventEncode({
     });
   };
 
+  const handleCopyEventID = () => {
+    copyToClipboard(
+      neventEncode({
+        id: props.event.raw.id,
+        kind: props.event.raw.kind,
+        relays: [props.event.from],
+        author: props.event.raw.pubkey,
+      }),
+    );
+  };
+
   return (
     <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
       <button
@@ -162,7 +174,7 @@ ${neventEncode({
         </DropdownMenu.Portal>
       </DropdownMenu>
       <Popover>
-        <Popover.Trigger class="hover:c-purple-8 data-[expanded]:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-2/50 data-[expanded]:bg-purple-2/50">
+        <Popover.Trigger class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50">
           <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
         </Popover.Trigger>
         <Popover.Portal>
@@ -181,12 +193,23 @@ ${neventEncode({
       >
         <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
       </button>
-      <button
-        class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50"
-        type="button"
-      >
-        <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
-      </button>
+      <DropdownMenu>
+        <DropdownMenu.Trigger class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50">
+          <div class="i-material-symbols:upload-rounded aspect-square h-4 w-auto" />
+        </DropdownMenu.Trigger>
+        <DropdownMenu.Portal>
+          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] c-zinc-8 rounded-2 bg-white p-1 shadow outline-none">
+            <DropdownMenu.Item
+              // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
+              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+              onSelect={handleCopyEventID}
+            >
+              <div class="aspect-square h-0.75lh w-auto i-material-symbols:content-copy-outline-rounded" />
+              {t("event.copyEventID")}
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
+      </DropdownMenu>
     </div>
   );
 };
