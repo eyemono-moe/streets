@@ -1,4 +1,5 @@
 import { Popover } from "@kobalte/core/popover";
+import { autofocus } from "@solid-primitives/autofocus";
 import stringify from "safe-stable-stringify";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useI18n } from "../../../i18n";
@@ -14,6 +15,9 @@ import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
 import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
 import PostPreview from "./PostPreview";
+
+// prevents from being tree-shaken by TS
+autofocus;
 
 const PostInput: Component<{
   defaultContent?: string;
@@ -111,6 +115,8 @@ const PostInput: Component<{
             {`${content()}\u200b`}
           </div>
           <textarea
+            use:autofocus
+            autofocus
             ref={setTextarea}
             class={`${textareaStyle} absolute top-0 left-0 h-full focus:outline-2 focus:outline-purple disabled:cursor-progress disabled:bg-zinc-2`}
             placeholder={t("postInput.placeholder")}

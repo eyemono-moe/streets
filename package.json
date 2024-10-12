@@ -17,6 +17,7 @@
   "dependencies": {
     "@kobalte/core": "0.13.7",
     "@neodrag/solid": "2.0.4",
+    "@solid-primitives/autofocus": "^0.0.111",
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
     "@solid-primitives/scheduled": "1.4.3",

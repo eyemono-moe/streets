@@ -14,6 +14,9 @@ importers:
       '@neodrag/solid':
         specifier: 2.0.4
         version: 2.0.4(solid-js@1.9.2)
+      '@solid-primitives/autofocus':
+        specifier: ^0.0.111
+        version: 0.0.111(solid-js@1.9.2)
       '@solid-primitives/i18n':
         specifier: 2.1.1
         version: 2.1.1(solid-js@1.9.2)
@@ -781,6 +784,11 @@ packages:
     resolution: {integrity: sha512-Y4uaC4EfTVwBR537MZwfaY/eiWAh+hW4mbtnwNuUw/LFmitHSkQhNQTUlLQv/S0chtwrYWQBxvXos1dC7e8R9g==}
     peerDependencies:
       solid-js: ^1.8.0
+
+  '@solid-primitives/autofocus@0.0.111':
+    resolution: {integrity: sha512-WQUCcBzUmLdmHeyN0Z1lH75IN1IGIbvOMTcBEmuCY5DXeahRJm3riTGqVj+XOA4G+NHCMt7wPOJoYOAuwUov/Q==}
+    peerDependencies:
+      solid-js: ^1.6.12
 
   '@solid-primitives/bounds@0.0.118':
     resolution: {integrity: sha512-Qj42w8LlnhJ3r/t+t0c0vrdwIvvQMPgjEFGmLiwREaA85ojLbgL9lSBq2tKvljeLCvRVkgj10KEUf+vc99VCIg==}
@@ -2497,6 +2505,11 @@ snapshots:
       '@solid-primitives/scheduled': 1.4.3(solid-js@1.9.2)
       '@solid-primitives/static-store': 0.0.5(solid-js@1.9.2)
       '@solid-primitives/styles': 0.0.111(solid-js@1.9.2)
+      '@solid-primitives/utils': 6.2.3(solid-js@1.9.2)
+      solid-js: 1.9.2
+
+  '@solid-primitives/autofocus@0.0.111(solid-js@1.9.2)':
+    dependencies:
       '@solid-primitives/utils': 6.2.3(solid-js@1.9.2)
       solid-js: 1.9.2
 
