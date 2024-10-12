@@ -49,7 +49,7 @@ const EventBase: ParentComponent<{
             />
           </Show>
           <div
-            class="sticky top-2"
+            class="sticky top-0"
             classList={{
               "w-10": !mergedProps.small,
               "w-6": mergedProps.small,

@@ -6,7 +6,6 @@ import {
   SuspenseList,
   Switch,
 } from "solid-js";
-import Quote from "../../features/Event/ShortText/components/Quote";
 import RichLink from "../../features/Event/ShortText/components/RichLink";
 import EmbedUser from "../../features/User/components/EmbedUser";
 import { hex2bech32 } from "../libs/format";
@@ -22,6 +21,7 @@ import type {
   TextContent,
   VideoContent,
 } from "../libs/parseTextContent";
+import EventByID from "./EventByID";
 
 const RichContent: Component<{
   contents: ParsedContent[];
@@ -111,8 +111,8 @@ const RichContent: Component<{
                     </span>
                   }
                 >
-                  <div class="b-1 b-zinc-2 overflow-hidden rounded">
-                    <Quote id={(content as QuoteByIDContent).id} />
+                  <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
+                    <EventByID id={(content as QuoteByIDContent).id} small />
                   </div>
                 </Show>
               </Match>

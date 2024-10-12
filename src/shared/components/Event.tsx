@@ -19,12 +19,7 @@ const Event: Component<{
   const t = useI18n();
 
   return (
-    <div
-      classList={{
-        "p-2": !props.small,
-        "p-1": props.small,
-      }}
-    >
+    <div>
       <Switch
         fallback={
           <EventBase
