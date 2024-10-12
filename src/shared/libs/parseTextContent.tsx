@@ -1,5 +1,4 @@
 import * as linkify from "linkifyjs";
-import { kinds } from "nostr-tools";
 import { decode } from "nostr-tools/nip19";
 import type { ImetaTag, Tag } from "./parser/commonTag";
 
@@ -42,9 +41,15 @@ export type MentionContent = {
   pubkey: string;
   relay?: string;
 };
-export type QuoteContent = {
-  type: "quote";
+export type QuoteByIDContent = {
+  type: "quoteByID";
   id: string;
+};
+export type QuoteByAddressContent = {
+  type: "quoteByAddress";
+  d: string;
+  pubkey: string;
+  kind: number;
 };
 export type HashtagContent = {
   type: "hashtag";
@@ -66,7 +71,8 @@ export type ParsedContent =
   | VideoContent
   | LinkContent
   | MentionContent
-  | QuoteContent
+  | QuoteByIDContent
+  | QuoteByAddressContent
   | HashtagContent
   | EmojiContent
   | RelayContent;
@@ -80,9 +86,17 @@ type Refecence = {
   end: number;
 } & (
   | {
-      type: "quote";
+      type: "quoteByID";
       value: {
         id: string;
+      };
+    }
+  | {
+      type: "quoteByAddress";
+      value: {
+        d: string;
+        pubkey: string;
+        kind: number;
       };
     }
   | {
@@ -188,7 +202,7 @@ const parseReferences = (
             refs.push({
               start,
               end,
-              type: "quote",
+              type: "quoteByID",
               value: {
                 id: data,
               },
@@ -224,58 +238,27 @@ const parseReferences = (
               },
             });
             break;
-          case "nevent": {
-            switch (data.kind) {
-              case kinds.ShortTextNote:
-                refs.push({
-                  start,
-                  end,
-                  type: "quote",
-                  value: {
-                    id: data.id,
-                  },
-                });
-                break;
-              default: {
-                console.warn(
-                  "[parseTextContent] Unknown nevent kind: ",
-                  data.kind,
-                );
-              }
-            }
+          case "nevent":
+            refs.push({
+              start,
+              end,
+              type: "quoteByID",
+              value: {
+                id: data.id,
+              },
+            });
             break;
-          }
-          case "naddr": {
-            switch (data.kind) {
-              case kinds.ShortTextNote:
-                refs.push({
-                  start,
-                  end,
-                  type: "quote",
-                  value: {
-                    id: data.identifier,
-                  },
-                });
-                break;
-              case kinds.Metadata:
-                refs.push({
-                  start,
-                  end,
-                  type: "mention",
-                  value: {
-                    pubkey: data.identifier,
-                  },
-                });
-                break;
-              default: {
-                console.warn(
-                  "[parseTextContent] Unknown naddr kind: ",
-                  data.kind,
-                );
-              }
-            }
-            break;
-          }
+          case "naddr":
+            refs.push({
+              start,
+              end,
+              type: "quoteByAddress",
+              value: {
+                d: data.identifier,
+                kind: data.kind,
+                pubkey: data.pubkey,
+              },
+            });
         }
       } catch {
         // 不正なhexの場合は無視
@@ -337,10 +320,18 @@ export const splitTextByLinks = (
             pubkey: linkOrRef.value.pubkey,
           });
           break;
-        case "quote":
+        case "quoteByID":
           parsedContent.push({
-            type: "quote",
+            type: "quoteByID",
             id: linkOrRef.value.id,
+          });
+          break;
+        case "quoteByAddress":
+          parsedContent.push({
+            type: "quoteByAddress",
+            d: linkOrRef.value.d,
+            pubkey: linkOrRef.value.pubkey,
+            kind: linkOrRef.value.kind,
           });
           break;
         case "hashtag":
@@ -430,14 +421,19 @@ export const parsedContents2Tags = (
     switch (parsedContent.type) {
       case "text":
       case "image":
+      case "video":
+      case "relay":
         // do nothing
         break;
       case "emoji":
         tags.push(["emoji", parsedContent.tag, parsedContent.url]);
         break;
-      case "quote":
+      case "quoteByID":
         // TODO: get relay, pubkey from cache
         tags.push(["q", parsedContent.id]);
+        break;
+      case "quoteByAddress":
+        // TODO: get event id from cache or fetch
         break;
       case "hashtag":
         tags.push(["t", parsedContent.tag]);
@@ -449,6 +445,10 @@ export const parsedContents2Tags = (
       case "link":
         tags.push(["r", parsedContent.href]);
         break;
+      default: {
+        const _unreachable: never = parsedContent;
+        throw new Error(`Unknown parsed content type: ${_unreachable}`);
+      }
     }
   }
   return tags;

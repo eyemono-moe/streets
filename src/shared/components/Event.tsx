@@ -12,19 +12,26 @@ import EventBase from "./EventBase";
 
 const Event: Component<{
   event: ParsedEventPacket;
+  small?: boolean;
+  showReactions?: boolean;
+  showActions?: boolean;
 }> = (props) => {
   const t = useI18n();
 
   return (
-    <Switch
-      fallback={
-        <div class="p-2">
+    <div
+      classList={{
+        "p-2": !props.small,
+        "p-1": props.small,
+      }}
+    >
+      <Switch
+        fallback={
           <EventBase
-            eventId={props.event.raw.id}
-            pubkey={props.event.raw.pubkey}
-            kind={props.event.raw.kind}
-            createdAt={props.event.raw.created_at}
-            showActions
+            eventPacket={props.event}
+            small={props.small}
+            showReactions={props.showReactions}
+            showActions={props.showActions}
           >
             <div class="flex items-center gap-0.5 text-zinc-5">
               <div class="i-material-symbols:error-circle-rounded aspect-square h-4 w-auto" />
@@ -34,47 +41,46 @@ const Event: Component<{
               {JSON.stringify(props.event.raw, null, 2)}
             </pre>
           </EventBase>
-        </div>
-      }
-    >
-      <Match
-        when={
-          props.event.parsed.kind === kinds.ShortTextNote &&
-          (props.event as ParsedEventPacket<ShortTextNote>)
         }
-        keyed
       >
-        {(event) => (
-          <div class="p-2">
+        <Match
+          when={
+            props.event.parsed.kind === kinds.ShortTextNote &&
+            (props.event as ParsedEventPacket<ShortTextNote>)
+          }
+          keyed
+        >
+          {(event) => (
             <Text
-              id={event.parsed.id}
-              showActions
-              showReply
-              showReactions
-              showEmbeddings
+              event={event}
+              small={props.small}
+              showReactions={props.showReactions}
+              showActions={props.showActions}
+              showReply={!props.small}
+              showEmbeddings={!props.small}
             />
-          </div>
-        )}
-      </Match>
-      <Match
-        when={
-          props.event.parsed.kind === kinds.Repost &&
-          (props.event as ParsedEventPacket<TRepost>)
-        }
-        keyed
-      >
-        {(event) => <Repost repost={event.parsed} />}
-      </Match>
-      <Match
-        when={
-          props.event.parsed.kind === kinds.Reaction &&
-          (props.event as ParsedEventPacket<TReaction>)
-        }
-        keyed
-      >
-        {(event) => <Reaction reaction={event} />}
-      </Match>
-    </Switch>
+          )}
+        </Match>
+        <Match
+          when={
+            props.event.parsed.kind === kinds.Repost &&
+            (props.event as ParsedEventPacket<TRepost>)
+          }
+          keyed
+        >
+          {(event) => <Repost repost={event.parsed} />}
+        </Match>
+        <Match
+          when={
+            props.event.parsed.kind === kinds.Reaction &&
+            (props.event as ParsedEventPacket<TReaction>)
+          }
+          keyed
+        >
+          {(event) => <Reaction reaction={event.parsed} />}
+        </Match>
+      </Switch>
+    </div>
   );
 };
 

@@ -26,4 +26,7 @@ export default defineConfig({
     UnoCSS(),
     solid(),
   ],
+  server: {
+    port: 5173,
+  },
 });

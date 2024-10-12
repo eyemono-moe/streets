@@ -56,9 +56,15 @@ const InfiniteEvents: Component<{
 
   return (
     <div class="h-full divide-y">
-      <For each={latestEvents()}>{(event) => <Event event={event} />}</For>
+      <For each={latestEvents()}>
+        {(event) => <Event event={event} showActions showReactions />}
+      </For>
       <For each={oldEvents.pages}>
-        {(page) => <For each={page}>{(event) => <Event event={event} />}</For>}
+        {(page) => (
+          <For each={page}>
+            {(event) => <Event event={event} showActions showReactions />}
+          </For>
+        )}
       </For>
       <button
         class="flex h-25vh w-full items-start justify-center bg-white p-2 enabled:hover:bg-gray-100 disabled:cursor-progress disabled:opacity-50"

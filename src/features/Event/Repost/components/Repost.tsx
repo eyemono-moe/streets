@@ -1,26 +1,22 @@
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
+import Event from "../../../../shared/components/Event";
 import type { Repost as TRepost } from "../../../../shared/libs/parser/6_repost";
-import Text from "../../ShortText/components/Text";
+import { useEventByID } from "../../../../shared/libs/query";
 import RepostUserName from "./RepostUserName";
 
 const Repost: Component<{
   repost: TRepost;
 }> = (props) => {
+  const event = useEventByID(() => props.repost.targetEventID);
+
   return (
-    <div class="p-2">
+    <>
       <RepostUserName pubkey={props.repost.pubkey} />
-      <Text
-        id={props.repost.targetEventID}
-        relay={props.repost.parsedContent?.tags
-          .filter((tag) => tag.kind === "e" && !!tag.relay)
-          // @ts-ignore
-          // biome-ignore lint/style/noNonNullAssertion: filterでundefinedを除外しているため
-          .map((tag) => tag.relay!)}
-        showActions
-        showReactions
-        showEmbeddings
-      />
-    </div>
+      {/* TODO: fallback */}
+      <Show when={event().data} keyed>
+        {(e) => <Event event={e} showReactions showActions />}
+      </Show>
+    </>
   );
 };
 

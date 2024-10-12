@@ -17,7 +17,7 @@ import type {
   LinkContent,
   MentionContent,
   ParsedContent,
-  QuoteContent,
+  QuoteByIDContent,
   RelayContent,
   TextContent,
   VideoContent,
@@ -101,18 +101,18 @@ const RichContent: Component<{
                   relay={(content as MentionContent).relay}
                 />
               </Match>
-              <Match when={content.type === "quote"}>
+              <Match when={content.type === "quoteByID"}>
                 <Show
                   when={props.showQuoteEmbeds}
                   fallback={
                     // TODO: 隣のカラムでリプライツリーを表示する
                     <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
-                      {hex2bech32((content as QuoteContent).id)}
+                      {hex2bech32((content as QuoteByIDContent).id, "nevent")}
                     </span>
                   }
                 >
-                  <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
-                    <Quote id={(content as QuoteContent).id} />
+                  <div class="b-1 b-zinc-2 overflow-hidden rounded">
+                    <Quote id={(content as QuoteByIDContent).id} />
                   </div>
                 </Show>
               </Match>

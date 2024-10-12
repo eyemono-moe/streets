@@ -1,22 +1,22 @@
-import type { Component } from "solid-js";
-import type { ParsedEventPacket } from "../../../../shared/libs/parser";
+import { type Component, Show } from "solid-js";
+import Event from "../../../../shared/components/Event";
 import type { Reaction as TReaction } from "../../../../shared/libs/parser/7_reaction";
-import Text from "../../ShortText/components/Text";
+import { useEventByID } from "../../../../shared/libs/query";
 import ReactionUserName from "./ReactiontUserName";
 
 const Reaction: Component<{
-  reaction: ParsedEventPacket<TReaction>;
+  reaction: TReaction;
 }> = (props) => {
+  const event = useEventByID(() => props.reaction.targetEvent.id);
+
   return (
-    <div class="p-2">
-      <ReactionUserName reaction={props.reaction.parsed} />
-      <Text
-        id={props.reaction.parsed.targetEvent.id}
-        showActions
-        showReactions
-        showEmbeddings
-      />
-    </div>
+    <>
+      <ReactionUserName reaction={props.reaction} />
+      {/* TODO: fallback */}
+      <Show when={event().data} keyed>
+        {(e) => <Event event={e} showReactions showActions />}
+      </Show>
+    </>
   );
 };
 

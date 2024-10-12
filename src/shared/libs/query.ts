@@ -152,14 +152,14 @@ export const getCacheKey = (
   multiple?: CacheKey[];
 } => {
   switch (parsed.parsed.kind) {
-    case kinds.Metadata:
-      return { single: [[kinds.Metadata, parsed.parsed.pubkey]] };
     case kinds.ShortTextNote:
-      return { single: [[kinds.ShortTextNote, parsed.parsed.id]] };
+      // 特定イベントについて最新1件を取得できれば良いもの
+      return { single: [["event", parsed.parsed.id]] };
+    case kinds.Metadata:
     case kinds.Contacts:
-      return { single: [[kinds.Contacts, parsed.parsed.pubkey]] };
     case kinds.UserEmojiList:
-      return { single: [[kinds.UserEmojiList, parsed.parsed.pubkey]] };
+      // 特定ユーザーについて最新1件を取得できれば良いもの
+      return { single: [[parsed.raw.kind, parsed.parsed.pubkey]] };
     case kinds.Emojisets:
       return {
         single: [
@@ -182,7 +182,7 @@ export const getCacheKey = (
     default:
       console.warn(`[getQueryKey] unknown kind: ${parsed.raw.kind}`);
       return {
-        multiple: [[parsed.raw.kind, parsed.raw.id]],
+        multiple: [["event", parsed.raw.id]],
       };
   }
 };
@@ -296,11 +296,43 @@ export const cacheAndEmitRelatedEvent = (
   emit(relatedEventFilters);
 };
 
+export const useEventByID = (
+  id: () => string | undefined,
+  relays?: () => string[] | undefined,
+) => {
+  const queryKey = () => ["event", id()];
+
+  const {
+    actions: { emit },
+  } = useRxNostr();
+
+  const emitter = () => {
+    const _id = id();
+    if (_id) {
+      const _relays = relays?.() ?? [];
+      emit(
+        { ids: [_id] },
+        _relays.length > 0
+          ? {
+              relays: _relays,
+            }
+          : undefined,
+      );
+    }
+  };
+
+  return createGetter<ParsedEventPacket>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+// TODO: useEventByIDsと統合
 export const useShortTextByID = (
   id: () => string | undefined,
   relays?: () => string[] | undefined,
 ) => {
-  const queryKey = () => [kinds.ShortTextNote, id()];
+  const queryKey = () => ["event", id()];
 
   const {
     actions: { emit },
@@ -668,12 +700,14 @@ export const useSendRepost = () => {
       ["p", props.targetEvent.pubkey],
     ];
 
+    // ShortTextNote以外のイベントの場合はkindを追加
     if (props.targetEvent.kind !== kinds.ShortTextNote) {
       tags.push(["k", props.targetEvent.kind.toString()]);
     }
 
     return sender(
       {
+        // ShortTextNote以外のイベントの場合はGenericRepostにする
         kind:
           props.targetEvent.kind === kinds.ShortTextNote
             ? kinds.Repost
