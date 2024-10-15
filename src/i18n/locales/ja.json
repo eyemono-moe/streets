@@ -32,10 +32,13 @@
     }
   },
   "event": {
+    "addUserToList": "{{ name }}さんをリストに追加/削除",
     "copyEventID": "IDをコピー",
+    "muteUser": "{{ name }}さんをミュート",
     "quote": "引用",
     "repost": "リポスト",
-    "unknown": "対応していないイベント"
+    "unknown": "対応していないイベント",
+    "viewEventData": "イベントデータを表示"
   },
   "loadMore": "さらに読み込む",
   "loading": "読み込み中",

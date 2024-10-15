@@ -32,10 +32,13 @@
     }
   },
   "event": {
+    "addUserToList": "Add/remove {{ name }} from list",
     "copyEventID": "Copy ID",
+    "muteUser": "Mute {{ name }}",
     "quote": "Quote",
     "repost": "Repost",
-    "unknown": "Unsupported event"
+    "unknown": "Unsupported event",
+    "viewEventData": "View event data"
   },
   "loadMore": "Load more",
   "loading": "Loading",
