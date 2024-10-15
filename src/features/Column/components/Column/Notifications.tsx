@@ -1,22 +1,23 @@
 import { kinds } from "nostr-tools";
 import { type Component, Show } from "solid-js";
+import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
-import { useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
 const Notifications: Component<{
   state: PickColumnState<"notifications">;
 }> = () => {
-  const myPubkey = useMyPubkey();
   const t = useI18n();
+
+  const [{ myPubkey: pubkey }] = useMe();
 
   return (
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader title={t("column.notifications.title")} />
       <div class="h-full overflow-y-auto">
-        <Show when={myPubkey()}>
+        <Show when={pubkey()}>
           {(nonNullPubkey) => (
             <InfiniteEvents
               filter={{

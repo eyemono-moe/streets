@@ -2,6 +2,7 @@ import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { Popover } from "@kobalte/core/popover";
 import { neventEncode } from "nostr-tools/nip19";
 import { type Component, Show, createMemo } from "solid-js";
+import { useMe } from "../../context/me";
 import { usePostInput } from "../../features/CreatePost/context/postInputDialog";
 import { useI18n } from "../../i18n";
 import { copyToClipboard } from "../libs/clipboard";
@@ -13,7 +14,6 @@ import {
   useSendReaction,
   useSendRepost,
 } from "../libs/query";
-import { isLogged, useMyPubkey } from "../libs/useMyPubkey";
 import EmojiPicker, { type Emoji } from "./EmojiPicker";
 
 const EventActions: Component<{
@@ -53,7 +53,7 @@ const EventActions: Component<{
     });
   };
 
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey, isLogged }] = useMe();
   const reposts = useRepostsOfEvent(() => props.event.raw.id);
   const isReposted = createMemo(() =>
     reposts().data?.some((r) => r.parsed.pubkey === myPubkey()),

@@ -6,8 +6,8 @@ import {
   createSignal,
   onMount,
 } from "solid-js";
+import { useMe } from "../../context/me";
 import { useEmojis } from "../libs/query";
-import { useMyPubkey } from "../libs/useMyPubkey";
 
 type Props = {
   onSelect?: (emoji: Emoji) => void;
@@ -43,7 +43,7 @@ type CustomEmojiGroup = {
 };
 
 const EmojiPicker: Component<Props> = (props) => {
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey }] = useMe();
   const { emojiList, emojiSets } = useEmojis(myPubkey);
   const customEmojis = createMemo<CustomEmojiGroup[]>(() => {
     return emojiSets()

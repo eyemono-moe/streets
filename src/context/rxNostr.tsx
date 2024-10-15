@@ -50,6 +50,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
 
   const [relays] = useRelays();
   // 使用するリレーを設定
+  rxNostr.setDefaultRelays(relays.defaultRelays);
   createEffect(() => {
     rxNostr.setDefaultRelays(relays.defaultRelays);
   });

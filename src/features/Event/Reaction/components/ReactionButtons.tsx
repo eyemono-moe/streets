@@ -1,5 +1,6 @@
 import { Popover } from "@kobalte/core/popover";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
+import { useMe } from "../../../../context/me";
 import EmojiPicker, {
   type Emoji,
 } from "../../../../shared/components/EmojiPicker";
@@ -8,7 +9,6 @@ import {
   useReactionsOfEvent,
   useSendReaction,
 } from "../../../../shared/libs/query";
-import { isLogged } from "../../../../shared/libs/useMyPubkey";
 import ReactionButton, { type ReactionButtonProps } from "./ReactionButton";
 
 const ReactionButtons: Component<{
@@ -16,6 +16,7 @@ const ReactionButtons: Component<{
   eventPubkey: string;
   eventKind: number;
 }> = (props) => {
+  const [{ isLogged }] = useMe();
   const [expand, setExpand] = createSignal(false);
 
   const reactions = useReactionsOfEvent(() => props.eventId);

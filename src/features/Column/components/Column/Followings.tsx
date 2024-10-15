@@ -1,17 +1,17 @@
 import { kinds } from "nostr-tools";
 import { type Component, Show } from "solid-js";
+import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useFollowees } from "../../../../shared/libs/query";
-import { useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import type { PickColumnState } from "../../context/deck";
 import ColumnHeader from "../ColumnHeader";
 
 const Followings: Component<{
   state: PickColumnState<"timeline">;
 }> = () => {
-  const myPubkey = useMyPubkey();
-  const followees = useFollowees(myPubkey);
+  const [{ myPubkey: pubkey }] = useMe();
+  const followees = useFollowees(() => pubkey());
   const t = useI18n();
 
   return (

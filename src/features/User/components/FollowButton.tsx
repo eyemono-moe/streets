@@ -6,15 +6,15 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import { useFollowees, useSendContacts } from "../../../shared/libs/query";
-import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
 
 const FollowButton: Component<{ pubkey?: string }> = (props) => {
   const t = useI18n();
 
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey, isLogged }] = useMe();
   const myFollowees = useFollowees(myPubkey);
   const isFollowing = createMemo(() =>
     myFollowees().data?.parsed.followees.some(

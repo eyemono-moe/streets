@@ -1,14 +1,14 @@
 import { type Component, For, Show, createMemo } from "solid-js";
+import { useMe } from "../../../context/me";
 import EventBase from "../../../shared/components/EventBase";
 import RichContent from "../../../shared/components/RichContents";
 import { parseTextContent } from "../../../shared/libs/parseTextContent";
 import type { EventTag, Tag } from "../../../shared/libs/parser/commonTag";
-import { useMyPubkey } from "../../../shared/libs/useMyPubkey";
 import Reply from "../../Event/ShortText/components/Reply";
 import EmbedUser from "../../User/components/EmbedUser";
 
 const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey: pubkey }] = useMe();
 
   const replyTarget = createMemo(
     () => props.tags.filter((tag) => tag.kind === "p") ?? [],
@@ -43,7 +43,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
           from: "",
           raw: {
             id: "",
-            pubkey: myPubkey() ?? "",
+            pubkey: pubkey() ?? "",
             content: props.content,
             tags: [],
             kind: 1,
@@ -54,7 +54,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
             kind: 1,
             content: props.content,
             id: "",
-            pubkey: myPubkey() ?? "",
+            pubkey: pubkey() ?? "",
             // @ts-ignore (2322): Type 'Tag[]' is not assignable to type TextNoteTags.
             tags: props.tags,
           },

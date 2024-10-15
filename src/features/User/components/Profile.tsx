@@ -1,11 +1,11 @@
 import { Image } from "@kobalte/core/image";
 import { type Component, Show, createMemo } from "solid-js";
+import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import RichContent from "../../../shared/components/RichContents";
 import { hex2bech32 } from "../../../shared/libs/format";
 import { parseTextContent } from "../../../shared/libs/parseTextContent";
 import { useFollowees, useProfile } from "../../../shared/libs/query";
-import { useMyPubkey } from "../../../shared/libs/useMyPubkey";
 import {
   useOpenFolloweesColumn,
   useOpenReactionsColumn,
@@ -23,7 +23,8 @@ const Profile: Component<{
   const t = useI18n();
 
   const profile = useProfile(() => props.pubkey);
-  const myPubkey = useMyPubkey();
+
+  const [{ myPubkey }] = useMe();
   const followees = useFollowees(() => props.pubkey);
   const isFollowed = createMemo(() => {
     return followees().data?.parsed.followees.some(
