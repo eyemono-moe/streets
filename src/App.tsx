@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import type { Component } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
+import { MeProvider } from "./context/me";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrProvider } from "./context/rxNostr";
 import { DeckProvider } from "./features/Column/context/deck";
@@ -25,16 +26,18 @@ const App: Component = () => {
     <>
       <QueryClientProvider client={queryClient}>
         <EventCacheProvider>
-          <RelaysProvider>
-            <RxNostrProvider>
-              <DeckProvider>
-                <PostInputProvider>
-                  <Router>{routes}</Router>
-                </PostInputProvider>
-              </DeckProvider>
-            </RxNostrProvider>
-            <SolidQueryDevtools />
-          </RelaysProvider>
+          <MeProvider>
+            <RelaysProvider>
+              <RxNostrProvider>
+                <DeckProvider>
+                  <PostInputProvider>
+                    <Router>{routes}</Router>
+                  </PostInputProvider>
+                </DeckProvider>
+              </RxNostrProvider>
+              <SolidQueryDevtools />
+            </RelaysProvider>
+          </MeProvider>
         </EventCacheProvider>
       </QueryClientProvider>
       <Toaster />

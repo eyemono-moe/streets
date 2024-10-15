@@ -1,8 +1,8 @@
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
+import { useMe } from "../../../../context/me";
 import { showLoginModal } from "../../../../shared/libs/nostrLogin";
 import type { Reaction } from "../../../../shared/libs/parser/7_reaction";
 import { useSendReaction } from "../../../../shared/libs/query";
-import { isLogged, useMyPubkey } from "../../../../shared/libs/useMyPubkey";
 import EmbedUser from "../../../User/components/EmbedUser";
 
 export type ReactionButtonProps = {
@@ -14,7 +14,7 @@ export type ReactionButtonProps = {
 };
 
 const ReactionButton: Component<ReactionButtonProps> = (props) => {
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey, isLogged }] = useMe();
 
   const isReacted = createMemo(() => {
     const _myPubkey = myPubkey();

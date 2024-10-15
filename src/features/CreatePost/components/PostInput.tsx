@@ -2,6 +2,7 @@ import { Popover } from "@kobalte/core/popover";
 import { autofocus } from "@solid-primitives/autofocus";
 import stringify from "safe-stable-stringify";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { createDebounced } from "../../../shared/libs/createDebounced";
@@ -13,7 +14,6 @@ import {
 import { parseTextNoteTags } from "../../../shared/libs/parser/1_shortTextNote";
 import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
-import { isLogged, useMyPubkey } from "../../../shared/libs/useMyPubkey";
 import PostPreview from "./PostPreview";
 
 // prevents from being tree-shaken by TS
@@ -31,7 +31,7 @@ const PostInput: Component<{
   const debouncedContent = createDebounced(content, 1000, "");
   const [textarea, setTextarea] = createSignal<HTMLTextAreaElement>();
 
-  const myPubkey = useMyPubkey();
+  const [{ myPubkey, isLogged }] = useMe();
   const myEmoji = useEmojis(myPubkey);
   const flatEmojis = createMemo<EmojiTag[]>(() => {
     return myEmoji.emojiSets().flatMap(
