@@ -10,9 +10,9 @@ const Root: ParentComponent = (props) => {
     <div class="flex h-svh w-screen divide-x text-zinc-8">
       <Sidebar />
       <div
-        class="relative h-full w-100 shrink-0 overflow-auto transition-width duration-100"
+        class="relative h-full shrink-0 overflow-auto transition-width duration-100"
         classList={{
-          "w-0": location.pathname === "/",
+          "w-0 b-x-0!": location.pathname === "/",
           "w-100": location.pathname !== "/",
         }}
       >
