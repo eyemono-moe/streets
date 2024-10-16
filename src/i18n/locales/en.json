@@ -91,6 +91,7 @@
         "nonEmpty": "Please enter a URL",
         "startWithWss": "Please start with wss://"
       },
+      "loadFromExtension": "Load from extension",
       "read": "Read",
       "relayHelp": "A relay is a server where users' posts and reactions are stored. Your posts and reactions are saved to the relay set as 'Write'. Other people's posts and reactions are retrieved from the relay set as 'Read'.",
       "relayToBeUsed": "My Relays",
