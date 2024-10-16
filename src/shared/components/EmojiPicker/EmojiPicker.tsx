@@ -6,29 +6,13 @@ import {
   createSignal,
   onMount,
 } from "solid-js";
-import { useMe } from "../../context/me";
-import { useEmojis } from "../libs/query";
+import type { Emoji } from ".";
+import { useMe } from "../../../context/me";
+import { useEmojis } from "../../libs/query";
 
 type Props = {
   onSelect?: (emoji: Emoji) => void;
 };
-
-export type Emoji = {
-  id: string;
-  keywords: undefined;
-  name: string;
-  shortcodes: string;
-  unified?: string;
-} & (
-  | {
-      native: string;
-      src: undefined;
-    }
-  | {
-      native: undefined;
-      src: string;
-    }
-);
 
 type CustomEmojiGroup = {
   id: string;
