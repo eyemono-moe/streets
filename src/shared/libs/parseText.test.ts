@@ -3,7 +3,10 @@ import { parseTextContent, parsedContents2Tags } from "./parseTextContent";
 
 describe("parseTextContent", () => {
   const parsed = parseTextContent(
-    "リンク https://eyemono.moe 引用 nostr:note1pyl5479w94dq7tksg2x3ggys3fzjat6kyd44pv5hkcvh93hzjjnqvk56mv 画像 https://image.nostr.build/b088913a823a197da6c15d37cdcbe15578f22711274c37fc5bd08b4fb538c721.jpg メンション nostr:npub1m0n0eyetgrflxghneeckkv95ukrn0fdpzyysscy4vha3gm64739qxn23sk ハッシュタグ #testHashtag emoji :naruhodo:",
+    `リンク https://eyemono.moe 引用 nostr:note1pyl5479w94dq7tksg2x3ggys3fzjat6kyd44pv5hkcvh93hzjjnqvk56mv 画像 https://image.nostr.build/b088913a823a197da6c15d37cdcbe15578f22711274c37fc5bd08b4fb538c721.jpg メンション nostr:npub1m0n0eyetgrflxghneeckkv95ukrn0fdpzyysscy4vha3gm64739qxn23sk ハッシュタグ #testHashtag emoji :naruhodo: ハッシュタグの前後には空白が必要#testHashtag
+改行時は空白不要
+#testHashtag
+`,
     [
       {
         kind: "imeta",
@@ -35,7 +38,7 @@ describe("parseTextContent", () => {
       },
       { type: "text", content: " 引用 " },
       {
-        type: "quote",
+        type: "quoteByID",
         id: "093f4af8ae2d5a0f2ed0428d1420908a452eaf56236b50b297b61972c6e294a6",
       },
       { type: "text", content: " 画像 " },
@@ -62,6 +65,13 @@ describe("parseTextContent", () => {
         tag: "naruhodo",
         url: "https://example.com/naruhodo.png",
       },
+      {
+        type: "text",
+        content:
+          " ハッシュタグの前後には空白が必要#testHashtag\n改行時は空白不要\n",
+      },
+      { type: "hashtag", tag: "testHashtag" },
+      { type: "text", content: "\n" },
     ]);
   });
 
@@ -73,6 +83,7 @@ describe("parseTextContent", () => {
       ["p", "dbe6fc932b40d3f322f3ce716b30b4e58737a5a1110908609565fb146f55f44a"],
       ["t", "testHashtag"],
       ["emoji", "naruhodo", "https://example.com/naruhodo.png"],
+      ["t", "testHashtag"],
     ]);
   });
 });

@@ -166,7 +166,7 @@ const parseReferences = (
 
   const hashtagTags = tags.filter((tag) => tag.kind === "t");
   const hashtagRegex = ignoreHashtagTag
-    ? /#(\S+)/g
+    ? /(?<=\s|^)#(\S+)/g
     : new RegExp(`#(${hashtagTags.map((tag) => tag.tag).join("|")})`, "g");
   if (ignoreHashtagTag || hashtagTags.length > 0) {
     for (const match of text.matchAll(hashtagRegex)) {
