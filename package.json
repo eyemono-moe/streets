@@ -18,6 +18,7 @@
     "@kobalte/core": "0.13.7",
     "@modular-forms/solid": "0.24.1",
     "@neodrag/solid": "2.0.4",
+    "@sentry/solid": "8.34.0",
     "@solid-primitives/autofocus": "^0.0.111",
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
