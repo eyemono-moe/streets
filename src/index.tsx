@@ -1,5 +1,5 @@
-import * as Sentry from "@sentry/solid";
 /* @refresh reload */
+import * as Sentry from "@sentry/solid";
 import { render } from "solid-js/web";
 import App from "./App";
 import "@unocss/reset/tailwind-compat.css";
@@ -12,7 +12,7 @@ Sentry.init({
   environment: import.meta.env.MODE,
   integrations: [
     Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration(),
+    // Sentry.replayIntegration(), // TODO: 重いので一旦コメントアウト
   ],
   // Tracing
   tracesSampleRate: 1.0, //  Capture 100% of the transactions
