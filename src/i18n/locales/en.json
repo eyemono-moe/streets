@@ -65,7 +65,40 @@
   "reaction": {
     "reactedBy": "reacted"
   },
+  "relayConnectionStatus": {
+    "connected": "Connected",
+    "connecting": "Connecting",
+    "dormant": "Dormant",
+    "error": "Error",
+    "initialized": "Initialized",
+    "not-connected": "Not connected",
+    "rejected": "Rejected",
+    "retrying": "Retrying",
+    "terminated": "Terminated",
+    "unknown": "Unknown",
+    "waiting-for-retrying": "Waiting for retrying"
+  },
   "repost": {
     "repostedBy": "reposted"
+  },
+  "settings": {
+    "relay": {
+      "add": "Add",
+      "connectionStatus": "Connection status",
+      "discard": "Discard changes",
+      "error": {
+        "duplicate": "URL is duplicated",
+        "nonEmpty": "Please enter a URL",
+        "startWithWss": "Please start with wss://"
+      },
+      "read": "Read",
+      "relayHelp": "A relay is a server where users' posts and reactions are stored. Your posts and reactions are saved to the relay set as 'Write'. Other people's posts and reactions are retrieved from the relay set as 'Read'.",
+      "relayToBeUsed": "My Relays",
+      "relayURL": "Relay URL",
+      "save": "Save",
+      "title": "Relay",
+      "write": "Write"
+    },
+    "title": "Settings"
   }
 }

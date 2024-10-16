@@ -1,28 +1,11 @@
 import { createDraggable } from "@neodrag/solid";
-import type { ConnectionState } from "rx-nostr";
-import { scan } from "rxjs";
-import { For, from } from "solid-js";
+import { For } from "solid-js";
 import { useRxNostr } from "../../../context/rxNostr";
 
 const RxNostrDevtools = () => {
-  const { rxNostr } = useRxNostr();
-
-  const connectionState = from(
-    rxNostr.createConnectionStateObservable().pipe(
-      scan(
-        (acc, v) => {
-          acc[v.from] = v.state;
-          return acc;
-        },
-        {} as {
-          [from: string]: ConnectionState;
-        },
-      ),
-    ),
-  );
+  const { connectionState } = useRxNostr();
 
   // @ts-ignore: TS6133 typescript can't detect use: directive
-
   const { draggable } = createDraggable();
 
   return (
@@ -39,7 +22,7 @@ const RxNostrDevtools = () => {
             <div class="p-1">relay</div>
             <div class="p-1">state</div>
           </div>
-          <For each={Object.entries(connectionState() ?? {})}>
+          <For each={Object.entries(connectionState)}>
             {([relay, state]) => (
               <div class="grid-col-span-2 grid grid-cols-subgrid divide-x">
                 <div class="p-1">{relay}</div>

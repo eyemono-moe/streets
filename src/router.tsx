@@ -19,6 +19,10 @@ const routes = [
         path: "/settings",
         component: lazy(() => import("./routes/settings")),
       },
+      {
+        path: "/settings/relay",
+        component: lazy(() => import("./routes/settings/relay")),
+      },
     ],
   },
 ] satisfies RouteDefinition[];

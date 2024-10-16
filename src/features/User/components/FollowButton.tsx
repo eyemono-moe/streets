@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
+import Button from "../../../shared/components/UI/Button";
 import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import { useFollowees, useSendContacts } from "../../../shared/libs/query";
 
@@ -67,29 +68,28 @@ const FollowButton: Component<{ pubkey?: string }> = (props) => {
   const [hover, setHover] = createSignal(false);
 
   return (
-    <button
-      type="button"
-      disabled={isLoading()}
-      class="inline-flex w-14ch cursor-pointer appearance-none items-center justify-center gap-1 rounded-full py-1 font-700"
-      classList={{
-        "bg-zinc-9 text-white hover:bg-zinc-8": !isFollowing(),
-        "b-1 bg-white text-zinc-9 hover:(b-red-3 bg-red-1/50 c-red-7)":
-          isFollowing(),
-        "op-50 cursor-progress": isLoading(),
-      }}
-      onClick={handleFollow}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-    >
-      <Switch fallback={t("profile.follow")}>
-        <Match when={!isLogged()}>{t("profile.follow")}</Match>
-        <Match when={isFollowing()}>
-          <Show when={hover()} fallback={t("profile.following")}>
-            {t("profile.unfollow")}
-          </Show>
-        </Match>
-      </Switch>
-    </button>
+    <div class="w-16ch">
+      <Button
+        type="button"
+        full
+        disabled={isLoading()}
+        onClick={handleFollow}
+        variant={
+          isFollowing() ? (hover() ? "dangerBorder" : "border") : "primary"
+        }
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+      >
+        <Switch fallback={t("profile.follow")}>
+          <Match when={!isLogged()}>{t("profile.follow")}</Match>
+          <Match when={isFollowing()}>
+            <Show when={hover()} fallback={t("profile.following")}>
+              {t("profile.unfollow")}
+            </Show>
+          </Match>
+        </Switch>
+      </Button>
+    </div>
   );
 };
 

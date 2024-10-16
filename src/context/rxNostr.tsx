@@ -1,4 +1,6 @@
+import { normalizeURL } from "nostr-tools/utils";
 import {
+  type ConnectionState,
   Nip11Registry,
   type RxNostr,
   type RxReqEmittable,
@@ -17,6 +19,7 @@ import {
   lazy,
   useContext,
 } from "solid-js";
+import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
@@ -27,6 +30,9 @@ import { useRelays } from "./relays";
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
   rxBackwardReq: ReturnType<typeof createRxBackwardReq>;
+  connectionState: {
+    [from: string]: ConnectionState | undefined;
+  };
   actions: {
     emit: RxReqEmittable<{ relays: string[] }>["emit"];
   };
@@ -83,11 +89,22 @@ export const RxNostrProvider: ParentComponent = (props) => {
       },
     });
 
+  const [connectionState, setConnectionState] = createStore<{
+    [from: string]: ConnectionState;
+  }>({});
+
+  rxNostr.createConnectionStateObservable().subscribe({
+    next(e) {
+      setConnectionState(normalizeURL(e.from), e.state);
+    },
+  });
+
   return (
     <RxNostrContext.Provider
       value={{
         rxNostr,
         rxBackwardReq,
+        connectionState,
         actions: {
           emit,
         },

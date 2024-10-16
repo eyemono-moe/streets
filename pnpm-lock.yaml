@@ -11,6 +11,9 @@ importers:
       '@kobalte/core':
         specifier: 0.13.7
         version: 0.13.7(solid-js@1.9.2)
+      '@modular-forms/solid':
+        specifier: 0.24.1
+        version: 0.24.1(solid-js@1.9.2)(typescript@5.6.2)
       '@neodrag/solid':
         specifier: 2.0.4
         version: 2.0.4(solid-js@1.9.2)
@@ -78,8 +81,8 @@ importers:
         specifier: 1.9.2
         version: 1.9.2
       valibot:
-        specifier: 0.42.1
-        version: 0.42.1(typescript@5.6.2)
+        specifier: 1.0.0-beta.0
+        version: 1.0.0-beta.0(typescript@5.6.2)
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.3
@@ -98,25 +101,25 @@ importers:
         version: 0.9.0
       solid-devtools:
         specifier: 0.30.1
-        version: 0.30.1(solid-js@1.9.2)(vite@5.4.8(terser@5.34.1))
+        version: 0.30.1(solid-js@1.9.2)(vite@5.4.8(terser@5.35.0))
       typescript:
         specifier: 5.6.2
         version: 5.6.2
       unocss:
         specifier: 0.63.4
-        version: 0.63.4(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))
+        version: 0.63.4(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))
       unplugin-fonts:
         specifier: 1.1.1
-        version: 1.1.1(vite@5.4.8(terser@5.34.1))
+        version: 1.1.1(vite@5.4.8(terser@5.35.0))
       vite:
         specifier: 5.4.8
-        version: 5.4.8(terser@5.34.1)
+        version: 5.4.8(terser@5.35.0)
       vite-plugin-solid:
         specifier: 2.10.2
-        version: 2.10.2(solid-js@1.9.2)(vite@5.4.8(terser@5.34.1))
+        version: 2.10.2(solid-js@1.9.2)(vite@5.4.8(terser@5.35.0))
       vitest:
         specifier: 2.1.2
-        version: 2.1.2(jsdom@25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.4))(terser@5.34.1)
+        version: 2.1.2(jsdom@25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.4))(terser@5.35.0)
       workbox-core:
         specifier: 7.1.0
         version: 7.1.0
@@ -623,6 +626,11 @@ packages:
     peerDependencies:
       solid-js: ^1.8.8
 
+  '@modular-forms/solid@0.24.1':
+    resolution: {integrity: sha512-xQKUoiRZKDjcJ6A+8aZcnRWePL0Ss8RWvlU0mxOggRtqswj8sqnZtXoKpKRxSWr/HODoWCjjze76FAH5jI0uwQ==}
+    peerDependencies:
+      solid-js: ^1.3.1
+
   '@neodrag/solid@2.0.4':
     resolution: {integrity: sha512-iTt2CaN1mEhvy7fMalizYWPzwUmt8FI6OUnNNTwjumn8I04uyfNMrBYOq8PMrf5QssYUL+LRWCrh7UQ1WOZ9+w==}
     peerDependencies:
@@ -1074,6 +1082,11 @@ packages:
 
   acorn@8.12.1:
     resolution: {integrity: sha512-tcpGyI9zbizT9JbV6oYE477V6mTlXvvi0T0G3SNIYE2apm/G5huBa1+K89VGeovbg+jycCrfhl3ADxErOuO6Jg==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
+  acorn@8.13.0:
+    resolution: {integrity: sha512-8zSiw54Oxrdym50NlZ9sUusyO1Z1ZchgRLWRaK6c86XJFClyCgFKetdowBg5bKxyp/u+CDBJG4Mpp0m3HLZl9w==}
     engines: {node: '>=0.4.0'}
     hasBin: true
 
@@ -1756,8 +1769,8 @@ packages:
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
-  terser@5.34.1:
-    resolution: {integrity: sha512-FsJZ7iZLd/BXkz+4xrRTGJ26o/6VTjQytUk8b8OxkwcD2I+79VPJlz7qss1+zE7h8GNIScFqXcDyJ/KqBYZFVA==}
+  terser@5.35.0:
+    resolution: {integrity: sha512-TmYbQnzVfrx3RQsPoItoPplymixIAtp2R2xlpyVBYmFmvI34IzLhCLj8SimRb/kZXlq4t1gA+vbcTqLQ3+5Q5g==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -1892,8 +1905,8 @@ packages:
     resolution: {integrity: sha512-ueuhzvWnp5JU5CiGSY4WdKbiN/PO2AZ/lpeLiz2l38qwdLy/cW40XobgyuIWucNyum0B33bVB0owjFCeGBSLqg==}
     engines: {node: '>=8'}
 
-  valibot@0.42.1:
-    resolution: {integrity: sha512-3keXV29Ar5b//Hqi4MbSdV7lfVp6zuYLZuA9V1PvQUsXqogr+u5lvLPLk3A4f74VUXDnf/JfWMN6sB+koJ/FFw==}
+  valibot@1.0.0-beta.0:
+    resolution: {integrity: sha512-Q/oine+NPMXdIy3vwluw0vidHLk0mTPUQBRHc+EHZXnEWF3KzLx1YLsVHPVrgHaMGRfV58P9eGOgxJvi0a059w==}
     peerDependencies:
       typescript: '>=5'
     peerDependenciesMeta:
@@ -2456,6 +2469,13 @@ snapshots:
       '@solid-primitives/utils': 6.2.3(solid-js@1.9.2)
       solid-js: 1.9.2
 
+  '@modular-forms/solid@0.24.1(solid-js@1.9.2)(typescript@5.6.2)':
+    dependencies:
+      solid-js: 1.9.2
+      valibot: 1.0.0-beta.0(typescript@5.6.2)
+    transitivePeerDependencies:
+      - typescript
+
   '@neodrag/solid@2.0.4(solid-js@1.9.2)':
     dependencies:
       solid-js: 1.9.2
@@ -2795,13 +2815,13 @@ snapshots:
 
   '@types/serviceworker@0.0.97': {}
 
-  '@unocss/astro@0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))':
+  '@unocss/astro@0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))':
     dependencies:
       '@unocss/core': 0.63.4
       '@unocss/reset': 0.63.4
-      '@unocss/vite': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))
+      '@unocss/vite': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))
     optionalDependencies:
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -2926,7 +2946,7 @@ snapshots:
     dependencies:
       '@unocss/core': 0.63.4
 
-  '@unocss/vite@0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))':
+  '@unocss/vite@0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@rollup/pluginutils': 5.1.2(rollup@4.24.0)
@@ -2936,7 +2956,7 @@ snapshots:
       chokidar: 3.6.0
       magic-string: 0.30.11
       tinyglobby: 0.2.9
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -2948,13 +2968,13 @@ snapshots:
       chai: 5.1.1
       tinyrainbow: 1.2.0
 
-  '@vitest/mocker@2.1.2(@vitest/spy@2.1.2)(vite@5.4.8(terser@5.34.1))':
+  '@vitest/mocker@2.1.2(@vitest/spy@2.1.2)(vite@5.4.8(terser@5.35.0))':
     dependencies:
       '@vitest/spy': 2.1.2
       estree-walker: 3.0.3
       magic-string: 0.30.11
     optionalDependencies:
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
 
   '@vitest/pretty-format@2.1.2':
     dependencies:
@@ -2982,6 +3002,9 @@ snapshots:
       tinyrainbow: 1.2.0
 
   acorn@8.12.1: {}
+
+  acorn@8.13.0:
+    optional: true
 
   agent-base@7.1.1:
     dependencies:
@@ -3658,7 +3681,7 @@ snapshots:
       mrmime: 2.0.0
       totalist: 3.0.1
 
-  solid-devtools@0.30.1(solid-js@1.9.2)(vite@5.4.8(terser@5.34.1)):
+  solid-devtools@0.30.1(solid-js@1.9.2)(vite@5.4.8(terser@5.35.0)):
     dependencies:
       '@babel/core': 7.25.7
       '@babel/plugin-syntax-typescript': 7.25.7(@babel/core@7.25.7)
@@ -3667,7 +3690,7 @@ snapshots:
       '@solid-devtools/shared': 0.13.2(solid-js@1.9.2)
       solid-js: 1.9.2
     optionalDependencies:
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -3721,10 +3744,10 @@ snapshots:
 
   symbol-tree@3.2.4: {}
 
-  terser@5.34.1:
+  terser@5.35.0:
     dependencies:
       '@jridgewell/source-map': 0.3.6
-      acorn: 8.12.1
+      acorn: 8.13.0
       commander: 2.20.3
       source-map-support: 0.5.21
     optional: true
@@ -3799,9 +3822,9 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  unocss@0.63.4(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.8(terser@5.34.1)):
+  unocss@0.63.4(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.8(terser@5.35.0)):
     dependencies:
-      '@unocss/astro': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))
+      '@unocss/astro': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))
       '@unocss/cli': 0.63.4(rollup@4.24.0)
       '@unocss/core': 0.63.4
       '@unocss/postcss': 0.63.4(postcss@8.4.47)
@@ -3817,19 +3840,19 @@ snapshots:
       '@unocss/transformer-compile-class': 0.63.4
       '@unocss/transformer-directives': 0.63.4
       '@unocss/transformer-variant-group': 0.63.4
-      '@unocss/vite': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.34.1))
+      '@unocss/vite': 0.63.4(rollup@4.24.0)(vite@5.4.8(terser@5.35.0))
     optionalDependencies:
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - postcss
       - rollup
       - supports-color
 
-  unplugin-fonts@1.1.1(vite@5.4.8(terser@5.34.1)):
+  unplugin-fonts@1.1.1(vite@5.4.8(terser@5.35.0)):
     dependencies:
       fast-glob: 3.3.2
       unplugin: 1.14.1
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - webpack-sources
 
@@ -3855,18 +3878,18 @@ snapshots:
 
   utf8-buffer@1.0.0: {}
 
-  valibot@0.42.1(typescript@5.6.2):
+  valibot@1.0.0-beta.0(typescript@5.6.2):
     optionalDependencies:
       typescript: 5.6.2
 
   validate-html-nesting@1.2.2: {}
 
-  vite-node@2.1.2(terser@5.34.1):
+  vite-node@2.1.2(terser@5.35.0):
     dependencies:
       cac: 6.7.14
       debug: 4.3.7
       pathe: 1.1.2
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
     transitivePeerDependencies:
       - '@types/node'
       - less
@@ -3878,7 +3901,7 @@ snapshots:
       - supports-color
       - terser
 
-  vite-plugin-solid@2.10.2(solid-js@1.9.2)(vite@5.4.8(terser@5.34.1)):
+  vite-plugin-solid@2.10.2(solid-js@1.9.2)(vite@5.4.8(terser@5.35.0)):
     dependencies:
       '@babel/core': 7.25.7
       '@types/babel__core': 7.20.5
@@ -3886,28 +3909,28 @@ snapshots:
       merge-anything: 5.1.7
       solid-js: 1.9.2
       solid-refresh: 0.6.3(solid-js@1.9.2)
-      vite: 5.4.8(terser@5.34.1)
-      vitefu: 0.2.5(vite@5.4.8(terser@5.34.1))
+      vite: 5.4.8(terser@5.35.0)
+      vitefu: 0.2.5(vite@5.4.8(terser@5.35.0))
     transitivePeerDependencies:
       - supports-color
 
-  vite@5.4.8(terser@5.34.1):
+  vite@5.4.8(terser@5.35.0):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.4.47
       rollup: 4.24.0
     optionalDependencies:
       fsevents: 2.3.3
-      terser: 5.34.1
+      terser: 5.35.0
 
-  vitefu@0.2.5(vite@5.4.8(terser@5.34.1)):
+  vitefu@0.2.5(vite@5.4.8(terser@5.35.0)):
     optionalDependencies:
-      vite: 5.4.8(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
 
-  vitest@2.1.2(jsdom@25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.4))(terser@5.34.1):
+  vitest@2.1.2(jsdom@25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.4))(terser@5.35.0):
     dependencies:
       '@vitest/expect': 2.1.2
-      '@vitest/mocker': 2.1.2(@vitest/spy@2.1.2)(vite@5.4.8(terser@5.34.1))
+      '@vitest/mocker': 2.1.2(@vitest/spy@2.1.2)(vite@5.4.8(terser@5.35.0))
       '@vitest/pretty-format': 2.1.2
       '@vitest/runner': 2.1.2
       '@vitest/snapshot': 2.1.2
@@ -3922,8 +3945,8 @@ snapshots:
       tinyexec: 0.3.0
       tinypool: 1.0.1
       tinyrainbow: 1.2.0
-      vite: 5.4.8(terser@5.34.1)
-      vite-node: 2.1.2(terser@5.34.1)
+      vite: 5.4.8(terser@5.35.0)
+      vite-node: 2.1.2(terser@5.35.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
       jsdom: 25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.4)

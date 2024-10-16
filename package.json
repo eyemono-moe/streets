@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@kobalte/core": "0.13.7",
+    "@modular-forms/solid": "0.24.1",
     "@neodrag/solid": "2.0.4",
     "@solid-primitives/autofocus": "^0.0.111",
     "@solid-primitives/i18n": "2.1.1",
@@ -38,7 +39,7 @@
     "rxjs": "7.8.1",
     "safe-stable-stringify": "2.5.0",
     "solid-js": "1.9.2",
-    "valibot": "0.42.1"
+    "valibot": "1.0.0-beta.0"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.3",

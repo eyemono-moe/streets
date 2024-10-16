@@ -65,7 +65,40 @@
   "reaction": {
     "reactedBy": "さんがリアクション"
   },
+  "relayConnectionStatus": {
+    "connected": "接続済み",
+    "connecting": "接続中",
+    "dormant": "休止中",
+    "error": "エラー",
+    "initialized": "初期化中",
+    "not-connected": "未接続",
+    "rejected": "拒否",
+    "retrying": "再接続中",
+    "terminated": "終了",
+    "unknown": "不明",
+    "waiting-for-retrying": "再接続待ち"
+  },
   "repost": {
     "repostedBy": "さんがリポスト"
+  },
+  "settings": {
+    "relay": {
+      "add": "追加",
+      "connectionStatus": "接続ステータス",
+      "discard": "変更を破棄",
+      "error": {
+        "duplicate": "URLが重複しています",
+        "nonEmpty": "URLを入力してください",
+        "startWithWss": "wss://で始めてください"
+      },
+      "read": "読取",
+      "relayHelp": "リレーはユーザーの投稿やリアクションが保存されるサーバーのことです。自分の投稿やリアクションは、\"書込\"に設定したリレーに保存されます。他人の投稿やリアクションは、\"読取\"に設定したリレーから取得されます。",
+      "relayToBeUsed": "使用するリレー",
+      "relayURL": "リレーURL",
+      "save": "保存",
+      "title": "リレー",
+      "write": "書込"
+    },
+    "title": "設定"
   }
 }

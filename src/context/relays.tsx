@@ -20,15 +20,15 @@ type RelaysState = v.InferOutput<typeof relaysState>;
 const initialState: RelaysState = {
   version: "0.0",
   defaultRelays: {
-    "wss://relay.nostr.band/": {
+    "wss://relay.nostr.band": {
       read: true,
       write: true,
     },
-    "wss://nos.lol/": {
+    "wss://nos.lol": {
       read: true,
       write: true,
     },
-    "wss://relay.damus.io/": {
+    "wss://relay.damus.io": {
       read: true,
       write: true,
     },
@@ -40,10 +40,8 @@ const RelaysContext =
     [
       state: RelaysState,
       actions: {
-        getReadRelays: () => string[];
         syncWithNIP07: () => Promise<void>;
-        // add
-        // remove
+        updateRelay: (newRelays: RelaysState["defaultRelays"]) => void;
       },
     ]
   >();
@@ -62,27 +60,24 @@ export const RelaysProvider: ParentComponent = (props) => {
     },
   );
 
-  const getReadRelays = () =>
-    Object.entries(state.defaultRelays)
-      .filter(([, { read }]) => read)
-      .map(([relay]) => relay);
+  // TODO: urlの正規化を行う
 
   const syncWithNIP07 = async () => {
     const nip07Relays = await useNIP07().getRelays();
     setState("defaultRelays", reconcile(nip07Relays));
   };
 
-  // onMount(() => {
-  //   syncWithNIP07();
-  // });
+  const updateRelay = (newRelays: RelaysState["defaultRelays"]) => {
+    setState("defaultRelays", reconcile(newRelays));
+  };
 
   return (
     <RelaysContext.Provider
       value={[
         state,
         {
-          getReadRelays,
           syncWithNIP07,
+          updateRelay,
         },
       ]}
     >

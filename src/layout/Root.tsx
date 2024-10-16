@@ -16,7 +16,7 @@ const Root: ParentComponent = (props) => {
           "w-100": location.pathname !== "/",
         }}
       >
-        <div class="absolute right-0 h-full w-100 overflow-hidden">
+        <div class="absolute right-0 h-full w-100 overflow-y-auto">
           {props.children}
         </div>
       </div>
