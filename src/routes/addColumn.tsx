@@ -73,27 +73,27 @@ const addColumn: Component = () => {
           <div class="i-material-symbols:favorite-outline-rounded c-zinc-7 parent-hover:c-purple-8 aspect-square h-8 w-auto transition-color duration-100" />
           <div class="text-3.5">{t("column.reactions.title")}</div>
         </button>
-        <button
+        {/* <button
           class="parent flex appearance-none flex-col items-center bg-transparent p-1"
           type="button"
         >
           <div class="i-material-symbols:bookmark-outline-rounded c-zinc-7 parent-hover:c-purple-8 aspect-square h-8 w-auto transition-color duration-100" />
           <div class="text-3.5">{t("column.bookmarks.title")}</div>
-        </button>
-        <button
+        </button> */}
+        {/* <button
           class="parent flex appearance-none flex-col items-center bg-transparent p-1"
           type="button"
         >
           <div class="c-zinc-7 parent-hover:c-purple-8 aspect-square h-8 w-auto i-material-symbols:list-alt-outline-rounded transition-color duration-100" />
           <div class="text-3.5">{t("column.lists.title")}</div>
-        </button>
-        <button
+        </button> */}
+        {/* <button
           class="parent flex appearance-none flex-col items-center bg-transparent p-1"
           type="button"
         >
           <div class="i-material-symbols:trending-up-rounded c-zinc-7 parent-hover:c-purple-8 aspect-square h-8 w-auto transition-color duration-100" />
           <div class="text-3.5">{t("column.trends.title")}</div>
-        </button>
+        </button> */}
       </div>
     </BasicLayout>
   );
