@@ -4,6 +4,7 @@ import Logo from "../../../assets/logo.svg";
 import { useDialog } from "../../../shared/libs/useDialog";
 import ColumnSelector from "../../Column/components/ColumnSelector";
 import NavigateButton from "./NavigateButton";
+import ShortcutButtons from "./ShortcutButtons";
 
 const Sidebar: Component = () => {
   const { Dialog: AddColumnDialog, open: openAddColumnDialog } = useDialog();
@@ -23,7 +24,7 @@ const Sidebar: Component = () => {
   };
 
   return (
-    <div class="c-zinc-6 grid grid-rows-[auto_minmax(0,1fr)_auto]">
+    <div class="c-zinc-6 grid grid-rows-[auto_minmax(0,1fr)_auto] divide-y">
       <div class="flex flex-col">
         <NavigateButton onClick={handleClickPanelButton}>
           <div
@@ -40,15 +41,13 @@ const Sidebar: Component = () => {
           <div class="i-material-symbols:search-rounded aspect-square h-auto w-8" />
         </NavigateButton>
       </div>
-      <div>{/* TODO: 開いているcolumnへのショートカット */}</div>
       <div class="flex flex-col">
-        <button
-          class="appearance-none bg-transparent p-1"
-          type="button"
-          onClick={openAddColumnDialog}
-        >
+        <ShortcutButtons />
+        <NavigateButton onClick={openAddColumnDialog}>
           <div class="i-material-symbols:add-rounded aspect-square h-auto w-8" />
-        </button>
+        </NavigateButton>
+      </div>
+      <div class="flex flex-col">
         <AddColumnDialog title="Add Column">
           <ColumnSelector />
         </AddColumnDialog>

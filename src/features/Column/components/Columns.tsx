@@ -31,6 +31,7 @@ const SortableColumn: Component<{
     <div
       ref={sortable.ref}
       class="sortable"
+      id={`col-${props.index}`}
       classList={{
         "transition-transform": !!ctx?.[0].active.draggable,
       }}
