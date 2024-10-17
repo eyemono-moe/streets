@@ -4,14 +4,7 @@ import { columnIcon } from "../../Column/libs/columnIcon";
 import NavigateButton from "./NavigateButton";
 
 const ShortcutButtons: Component = () => {
-  const [deckState] = useDeck();
-
-  const handleScrollIntoView = (index: number) => {
-    const el = document.getElementById(`col-${index}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", inline: "center" });
-    }
-  };
+  const [deckState, { scrollIntoView }] = useDeck();
 
   // TODO: shortcut keyをまとめて別ファイルで管理する
   const handleKeyDown = (e: KeyboardEvent) => {
@@ -24,31 +17,31 @@ const ShortcutButtons: Component = () => {
 
     switch (e.key) {
       case "1":
-        handleScrollIntoView(0);
+        scrollIntoView(0);
         break;
       case "2":
-        handleScrollIntoView(1);
+        scrollIntoView(1);
         break;
       case "3":
-        handleScrollIntoView(2);
+        scrollIntoView(2);
         break;
       case "4":
-        handleScrollIntoView(3);
+        scrollIntoView(3);
         break;
       case "5":
-        handleScrollIntoView(4);
+        scrollIntoView(4);
         break;
       case "6":
-        handleScrollIntoView(5);
+        scrollIntoView(5);
         break;
       case "7":
-        handleScrollIntoView(6);
+        scrollIntoView(6);
         break;
       case "8":
-        handleScrollIntoView(7);
+        scrollIntoView(7);
         break;
       case "9":
-        handleScrollIntoView(8);
+        scrollIntoView(8);
         break;
     }
   };
@@ -66,7 +59,7 @@ const ShortcutButtons: Component = () => {
       <For each={deckState.columns}>
         {(column, i) => (
           <div class="relative">
-            <NavigateButton onClick={() => handleScrollIntoView(i())}>
+            <NavigateButton onClick={() => scrollIntoView(i())}>
               <div
                 class={`${columnIcon(column.type)} aspect-square h-auto w-8`}
               />

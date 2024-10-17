@@ -23,7 +23,7 @@ const Button: Component<
   return (
     <button
       {...buttonProps}
-      class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700 disabled:cursor-not-allowed disabled:opacity-50"
+      class="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700 disabled:cursor-not-allowed disabled:opacity-50"
       classList={{
         "bg-purple-8 enabled:hover:bg-purple-7 text-white":
           addedProps.variant === "primary",

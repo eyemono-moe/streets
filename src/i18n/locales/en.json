@@ -1,36 +1,62 @@
 {
+  "addColumn": {
+    "title": "Add column"
+  },
   "column": {
     "bookmarks": {
-      "title": "Bookmarks"
+      "title": "Bookmarks",
+      "titleAddColumn": "Add bookmarks column"
     },
     "followees": {
-      "title": "Followees"
+      "add": "Add",
+      "addByPubkey": "Add by pubkey",
+      "searchByName": "Search by name",
+      "title": "Followees",
+      "titleAddColumn": "Add followees column"
     },
     "followers": {
-      "title": "Followers"
+      "add": "Add",
+      "addByPubkey": "Add by pubkey",
+      "searchByName": "Search by name",
+      "title": "Followers",
+      "titleAddColumn": "Add followers column"
     },
     "lists": {
-      "title": "Lists"
+      "title": "Lists",
+      "titleAddColumn": "Add lists column"
     },
     "notifications": {
       "needLogin": "You need to log in to check notifications",
       "title": "Notifications"
     },
     "profile": {
-      "title": "Profile"
+      "add": "Add",
+      "addByPubkey": "Add by pubkey",
+      "searchByName": "Search by name",
+      "title": "Profile",
+      "titleAddColumn": "Add profile column"
     },
     "reactions": {
-      "title": "Reactions"
+      "add": "Add",
+      "addByPubkey": "Add by pubkey",
+      "searchByName": "Search by name",
+      "title": "Reactions",
+      "titleAddColumn": "Add reactions column"
     },
     "search": {
       "title": "Search"
     },
     "timeline": {
+      "needLogin": "You need to log in to check the timeline",
       "title": "Home"
     },
     "trends": {
       "title": "Trends"
     }
+  },
+  "error": {
+    "invalidID": "Invalid ID",
+    "invalidPubkey": "Invalid pubkey"
   },
   "event": {
     "addUserToList": "Add/remove {{ name }} from list",
@@ -61,6 +87,7 @@
     "followsYou": "Follows you",
     "loadFollowers": "Load followers",
     "reactions": "Reactions",
+    "searchPlaceholder": "Search users",
     "unfollow": "Unfollow"
   },
   "reaction": {

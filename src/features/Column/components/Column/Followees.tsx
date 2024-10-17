@@ -3,6 +3,7 @@ import { useI18n } from "../../../../i18n";
 import { useFollowees, useProfile } from "../../../../shared/libs/query";
 import ProfileRow from "../../../User/components/ProfileRow";
 import type { PickColumnState } from "../../libs/deckSchema";
+import { useOpenUserColumn } from "../../libs/useOpenColumn";
 import ColumnHeader from "../ColumnHeader";
 
 const Followees: Component<{
@@ -12,9 +13,11 @@ const Followees: Component<{
   //   null,
   // );
 
+  const t = useI18n();
+
   const profile = useProfile(() => props.state.pubkey);
   const followees = useFollowees(() => props.state.pubkey);
-  const t = useI18n();
+  const openUserColumn = useOpenUserColumn();
 
   // const rowVirtualizer = createMemo(() => {
   //   return createVirtualizer({
@@ -33,7 +36,13 @@ const Followees: Component<{
       />
       <div class="h-full w-full divide-y overflow-y-auto">
         <For each={followees().data?.parsed.followees}>
-          {(followee) => <ProfileRow pubkey={followee.pubkey} />}
+          {(followee) => (
+            <ProfileRow
+              pubkey={followee.pubkey}
+              showFollowButton
+              onClick={() => openUserColumn(followee.pubkey)}
+            />
+          )}
         </For>
       </div>
       {/* <div class="h-full w-full overflow-y-auto" ref={setScrollParent}>

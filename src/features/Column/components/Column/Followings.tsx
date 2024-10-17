@@ -21,9 +21,7 @@ const Followings: Component<{
       <div class="h-full overflow-y-auto">
         <Switch>
           <Match when={pubkey() === undefined}>
-            <NeedLoginPlaceholder
-              message={t("column.notifications.needLogin")}
-            />
+            <NeedLoginPlaceholder message={t("column.timeline.needLogin")} />
           </Match>
           <Match when={followees().data}>
             <InfiniteEvents
