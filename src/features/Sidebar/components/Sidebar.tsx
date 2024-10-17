@@ -1,18 +1,15 @@
 import { useLocation, useNavigate } from "@solidjs/router";
 import { type Component, createSignal } from "solid-js";
 import Logo from "../../../assets/logo.svg";
-import { useDialog } from "../../../shared/libs/useDialog";
-import ColumnSelector from "../../Column/components/ColumnSelector";
 import NavigateButton from "./NavigateButton";
 import ShortcutButtons from "./ShortcutButtons";
 
 const Sidebar: Component = () => {
-  const { Dialog: AddColumnDialog, open: openAddColumnDialog } = useDialog();
-
   const [lastLocation, setLastLocation] = createSignal<string>("/post");
   const navigate = useNavigate();
   const location = useLocation();
 
+  // TODO: Collapsibleを使うようにする
   const handleClickPanelButton = () => {
     if (location.pathname === "/") {
       navigate(lastLocation());
@@ -43,14 +40,11 @@ const Sidebar: Component = () => {
       </div>
       <div class="flex flex-col">
         <ShortcutButtons />
-        <NavigateButton onClick={openAddColumnDialog}>
+        <NavigateButton onClick={() => navigate("/add-column")}>
           <div class="i-material-symbols:add-rounded aspect-square h-auto w-8" />
         </NavigateButton>
       </div>
       <div class="flex flex-col">
-        <AddColumnDialog title="Add Column">
-          <ColumnSelector />
-        </AddColumnDialog>
         <NavigateButton onClick={() => navigate("/settings")}>
           <div class="i-material-symbols:settings-outline-rounded aspect-square h-auto w-8" />
         </NavigateButton>

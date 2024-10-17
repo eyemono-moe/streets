@@ -1,37 +1,62 @@
 {
+  "addColumn": {
+    "title": "カラムを追加"
+  },
   "column": {
     "bookmarks": {
-      "title": "ブックマーク"
+      "title": "ブックマーク",
+      "titleAddColumn": "ブックマークカラムを追加"
     },
     "followees": {
-      "title": "フォロー中"
+      "add": "追加",
+      "addByPubkey": "Pubkeyで追加",
+      "searchByName": "名前で検索して追加",
+      "title": "フォロー中",
+      "titleAddColumn": "フォローカラムを追加"
     },
     "followers": {
-      "title": "フォロワー"
+      "add": "追加",
+      "addByPubkey": "Pubkeyで追加",
+      "searchByName": "名前で検索して追加",
+      "title": "フォロワー",
+      "titleAddColumn": "フォロワーカラムを追加"
     },
     "lists": {
-      "title": "リスト"
+      "title": "リスト",
+      "titleAddColumn": "リストカラムを追加"
     },
     "notifications": {
       "needLogin": "通知を確認するにはログインが必要です",
       "title": "通知"
     },
     "profile": {
-      "title": "ユーザー"
+      "add": "追加",
+      "addByPubkey": "Pubkeyで追加",
+      "searchByName": "名前で検索して追加",
+      "title": "ユーザー",
+      "titleAddColumn": "ユーザーカラムを追加"
     },
     "reactions": {
-      "title": "リアクション"
+      "add": "追加",
+      "addByPubkey": "Pubkeyで追加",
+      "searchByName": "名前で検索して追加",
+      "title": "リアクション",
+      "titleAddColumn": "リアクションカラムを追加"
     },
     "search": {
       "title": "検索"
     },
     "timeline": {
-      "title": "ホーム",
-      "needLogin": "ログインして友達の"
+      "needLogin": "タイムラインを確認するにはログインが必要です",
+      "title": "ホーム"
     },
     "trends": {
       "title": "トレンド"
     }
+  },
+  "error": {
+    "invalidID": "無効なIDです",
+    "invalidPubkey": "無効なPubkeyです"
   },
   "event": {
     "addUserToList": "{{ name }}さんをリストに追加/削除",
@@ -62,6 +87,7 @@
     "followsYou": "フォローされています",
     "loadFollowers": "フォロワーを確認",
     "reactions": "リアクション",
+    "searchPlaceholder": "ユーザーを検索",
     "unfollow": "フォロー解除"
   },
   "reaction": {

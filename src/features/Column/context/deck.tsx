@@ -27,9 +27,32 @@ const DeckContext =
     [
       state: DeckState,
       actions: {
+        /**
+         * Add a column to the deck
+         *
+         * @param column - The column to add
+         * @param index - The index to insert the column at. If not provided, the column will be added to the end
+         */
         addColumn: (column: ColumnState, index?: number) => void;
+        /**
+         * Remove a column from the deck
+         *
+         * @param index - The index of the column to remove
+         */
         removeColumn: (index: number) => void;
+        /**
+         * Move a column to a new index
+         *
+         * @param from - The index of the column to move
+         * @param to - The index to move the column to
+         */
         moveColumn: (from: number, to: number) => void;
+        /**
+         * Scroll a column into view
+         *
+         * @param index - The index of the column to scroll into view
+         */
+        scrollIntoView: (index: number) => void;
       },
     ]
   >();
@@ -48,9 +71,13 @@ export const DeckProvider: ParentComponent = (props) => {
     },
   );
 
-  const addColumn = (column: ColumnState, index?: number) => {
+  const addColumn = (column: ColumnState, index?: number, scroll = true) => {
     if (index === undefined) {
-      setState("columns", state.columns.length, column);
+      const _index = state.columns.length;
+      setState("columns", _index, column);
+      if (scroll) {
+        scrollIntoView(_index);
+      }
       return;
     }
     setState(
@@ -59,6 +86,9 @@ export const DeckProvider: ParentComponent = (props) => {
         columns.splice(index, 0, column);
       }),
     );
+    if (scroll) {
+      scrollIntoView(index);
+    }
   };
 
   const removeColumn = (index: number) => {
@@ -80,6 +110,15 @@ export const DeckProvider: ParentComponent = (props) => {
     );
   };
 
+  const scrollIntoView = (index: number) => {
+    console.log("scrollIntoView", index);
+    const el = document.getElementById(`col-${index}`);
+    console.log("el", el);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", inline: "center" });
+    }
+  };
+
   return (
     <DeckContext.Provider
       value={[
@@ -88,6 +127,7 @@ export const DeckProvider: ParentComponent = (props) => {
           addColumn,
           removeColumn,
           moveColumn,
+          scrollIntoView,
         },
       ]}
     >

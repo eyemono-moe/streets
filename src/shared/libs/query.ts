@@ -12,13 +12,16 @@ import {
   uniq,
 } from "rx-nostr";
 import { bufferWhen, interval } from "rxjs";
+import stringify from "safe-stable-stringify";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
 import {
+  type CacheDataBase,
   type CacheKey,
   createGetter,
   createGetters,
   eventCacheSetter,
+  useEventCacheStore,
   useInvalidateEventCache,
 } from "../../context/eventCache";
 import { useRxNostr } from "../../context/rxNostr";
@@ -564,6 +567,18 @@ export const useEmojis = (pubkey: () => string | undefined) => {
     emojiList,
     emojiSets,
   };
+};
+
+export const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
+  const cache = useEventCacheStore();
+
+  return () =>
+    Object.entries(cache)
+      .filter(
+        ([key, value]) =>
+          key.startsWith(stringify(queryKey()).slice(0, -1)) && !!value?.data,
+      )
+      .map(([_, value]) => value as CacheDataBase<T>);
 };
 
 const createSender = () => {

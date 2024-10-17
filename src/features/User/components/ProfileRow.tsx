@@ -1,25 +1,28 @@
 import { HoverCard } from "@kobalte/core/hover-card";
 import { Image } from "@kobalte/core/image";
-import type { Component } from "solid-js";
+import { type ParentComponent, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { hex2bech32 } from "../../../shared/libs/format";
 import { useProfile } from "../../../shared/libs/query";
-import { useOpenUserColumn } from "../../Column/libs/useOpenColumn";
 import FollowButton from "./FollowButton";
 import ProfileHoverContent from "./ProfileHoverContent";
 
-const ProfileRow: Component<{
+const ProfileRow: ParentComponent<{
   pubkey?: string;
+  showFollowButton?: boolean;
+  onClick?: () => void;
 }> = (props) => {
   const profile = useProfile(() => props.pubkey);
-  const openUserColumn = useOpenUserColumn();
 
   return (
-    <button
-      class="flex w-full items-center gap-1 overflow-hidden bg-white p-1 hover:bg-zinc-1 focus:bg-zinc-1 focus:outline-none"
-      type="button"
-      onClick={() => {
-        if (props.pubkey) openUserColumn(props.pubkey);
+    <Dynamic
+      component={props.onClick ? "button" : "div"}
+      class="flex w-full items-center gap-1 overflow-hidden bg-white p-1"
+      classList={{
+        "hover:bg-zinc-1 focus:bg-zinc-1 focus:outline-none": !!props.onClick,
       }}
+      type={props.onClick ? "button" : undefined}
+      onClick={props.onClick}
     >
       <HoverCard>
         <HoverCard.Trigger as="div" class="focus:outline-none">
@@ -54,10 +57,15 @@ const ProfileRow: Component<{
           <ProfileHoverContent pubkey={props.pubkey} />
         </HoverCard.Portal>
       </HoverCard>
-      <div class="ml-auto shrink-0 text-3">
-        <FollowButton pubkey={props.pubkey} />
-      </div>
-    </button>
+      <Show when={props.showFollowButton}>
+        <div class="ml-auto shrink-0 text-3">
+          <FollowButton pubkey={props.pubkey} />
+        </div>
+      </Show>
+      <Show when={props.children}>
+        <div class="ml-auto shrink-0">{props.children}</div>
+      </Show>
+    </Dynamic>
   );
 };
 

@@ -38,6 +38,7 @@ const createCacheData = (): CacheDataBase => {
 };
 
 const EventCacheContext = createContext<{
+  cacheStore: { [key: string]: CacheDataBase | undefined };
   get: <T>(
     props: Accessor<{ queryKey: CacheKey; emitter: () => void }>,
   ) => Accessor<CacheDataBase<T>>;
@@ -134,6 +135,7 @@ export const EventCacheProvider: ParentComponent = (props) => {
   return (
     <EventCacheContext.Provider
       value={{
+        cacheStore,
         get,
         set,
         invalidate,
@@ -185,6 +187,11 @@ export const eventCacheSetter = () => {
 export const useInvalidateEventCache = () => {
   const { invalidate } = useEventCache();
   return invalidate;
+};
+
+export const useEventCacheStore = () => {
+  const { cacheStore } = useEventCache();
+  return cacheStore;
 };
 
 const EventCacheDevTools: typeof EventCacheDevToolsComp = isDev

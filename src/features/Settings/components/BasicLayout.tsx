@@ -6,9 +6,9 @@ const BasicLayout: ParentComponent<{
   backTo?: string;
 }> = (props) => {
   return (
-    <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Header title={props.title} backTo={props.backTo} />
-      <div class="overflow-y-auto p-2">{props.children}</div>
+      <div class="w-full overflow-y-auto p-2">{props.children}</div>
     </div>
   );
 };

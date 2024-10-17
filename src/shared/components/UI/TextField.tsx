@@ -2,7 +2,7 @@ import { TextField as KTextField } from "@kobalte/core";
 import { type JSX, Show, splitProps } from "solid-js";
 
 type TextFieldProps = {
-  name: string;
+  name?: string;
   type?: "text" | "email" | "tel" | "password" | "url" | "date" | undefined;
   label?: string | undefined;
   placeholder?: string | undefined;
@@ -11,10 +11,13 @@ type TextFieldProps = {
   multiline?: boolean | undefined;
   required?: boolean | undefined;
   disabled?: boolean | undefined;
-  ref: (element: HTMLInputElement | HTMLTextAreaElement) => void;
-  onInput: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, InputEvent>;
-  onChange: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, Event>;
-  onBlur: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, FocusEvent>;
+  ref?: (element: HTMLInputElement | HTMLTextAreaElement) => void;
+  onInput?: JSX.EventHandler<
+    HTMLInputElement | HTMLTextAreaElement,
+    InputEvent
+  >;
+  onChange?: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, Event>;
+  onBlur?: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, FocusEvent>;
 };
 
 export function TextField(props: TextFieldProps) {
@@ -44,7 +47,7 @@ export function TextField(props: TextFieldProps) {
       >
         <KTextField.TextArea {...inputProps} autoResize />
       </Show>
-      <KTextField.ErrorMessage class="font-500 text-red-6">
+      <KTextField.ErrorMessage class="font-500 text-3.5 text-red-6">
         {props.error}
       </KTextField.ErrorMessage>
     </KTextField.Root>
