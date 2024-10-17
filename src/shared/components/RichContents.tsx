@@ -30,7 +30,7 @@ const RichContent: Component<{
 }> = (props) => {
   return (
     <SuspenseList revealOrder="forwards">
-      <div class="whitespace-pre-wrap break-all">
+      <div class="break-anywhere whitespace-pre-wrap [line-break:strict] [word-break:normal]">
         <For each={props.contents}>
           {(content) => (
             <Switch>
