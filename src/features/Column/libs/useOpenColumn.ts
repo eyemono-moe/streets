@@ -1,5 +1,6 @@
 import { useColumn } from "../context/column";
-import { type ColumnState, useDeck } from "../context/deck";
+import { useDeck } from "../context/deck";
+import type { ColumnState } from "./deckSchema";
 
 export const useOpenUserColumn = () => {
   const columnActions = useColumn()?.[1];

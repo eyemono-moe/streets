@@ -1,5 +1,6 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
-import { type ColumnState, useDeck } from "./deck";
+import type { ColumnState } from "../libs/deckSchema";
+import { useDeck } from "./deck";
 
 const ColumnContext =
   createContext<

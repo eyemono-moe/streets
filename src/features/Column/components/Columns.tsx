@@ -12,7 +12,8 @@ import {
 import stringify from "safe-stable-stringify";
 import { type Component, For } from "solid-js";
 import { ColumnProvider } from "../context/column";
-import { type ColumnState, useDeck } from "../context/deck";
+import { useDeck } from "../context/deck";
+import type { ColumnState } from "../libs/deckSchema";
 import Column from "./Column";
 
 export type HandleListeners = ReturnType<

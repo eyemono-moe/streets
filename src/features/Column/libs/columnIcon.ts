@@ -1,4 +1,4 @@
-import type { ColumnState } from "../context/deck";
+import type { ColumnState } from "./deckSchema";
 
 export const columnIcon = (type: ColumnState["type"]) => {
   switch (type) {

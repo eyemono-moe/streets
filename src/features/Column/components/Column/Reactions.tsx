@@ -3,7 +3,7 @@ import type { Component } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useProfile } from "../../../../shared/libs/query";
-import type { PickColumnState } from "../../context/deck";
+import type { PickColumnState } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 
 const Reactions: Component<{

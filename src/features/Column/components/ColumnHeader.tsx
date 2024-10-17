@@ -1,7 +1,7 @@
 import { Collapsible } from "@kobalte/core/collapsible";
 import type { ParentComponent } from "solid-js";
 import { useColumn } from "../context/column";
-import { columnIcon } from "../libs/columnName";
+import { columnIcon } from "../libs/columnIcon";
 
 const ColumnHeader: ParentComponent<{
   title?: string;

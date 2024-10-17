@@ -13,6 +13,7 @@
       "title": "リスト"
     },
     "notifications": {
+      "needLogin": "通知を確認するにはログインが必要です",
       "title": "通知"
     },
     "profile": {
@@ -25,7 +26,8 @@
       "title": "検索"
     },
     "timeline": {
-      "title": "ホーム"
+      "title": "ホーム",
+      "needLogin": "ログインして友達の"
     },
     "trends": {
       "title": "トレンド"
@@ -42,10 +44,10 @@
   },
   "loadMore": "さらに読み込む",
   "loading": "読み込み中",
+  "login": "ログインする",
   "noMoreEvents": "これ以上データがありません",
   "postInput": {
     "enterToAddNewLine": "Enterで改行",
-    "login": "ログインする",
     "needLogin": "投稿にはログインが必要です",
     "note": "このプレビューは投稿がStrandsクライアント上でどのように表示されるかを示しています。他のクライアントでは表示が異なる場合があります。",
     "placeholder": "いまどうしてる？",

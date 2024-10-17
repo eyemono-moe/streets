@@ -1,6 +1,6 @@
 import { type Component, For, onCleanup, onMount } from "solid-js";
 import { useDeck } from "../../Column/context/deck";
-import { columnIcon } from "../../Column/libs/columnName";
+import { columnIcon } from "../../Column/libs/columnIcon";
 import NavigateButton from "./NavigateButton";
 
 const ShortcutButtons: Component = () => {

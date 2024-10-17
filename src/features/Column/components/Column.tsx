@@ -1,5 +1,5 @@
 import { type Component, Match, Switch } from "solid-js";
-import type { ColumnState, PickColumnState } from "../context/deck";
+import type { ColumnState, PickColumnState } from "../libs/deckSchema";
 import Followees from "./Column/Followees";
 import Followers from "./Column/Followers";
 import Followings from "./Column/Followings";

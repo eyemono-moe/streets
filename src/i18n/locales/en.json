@@ -13,6 +13,7 @@
       "title": "Lists"
     },
     "notifications": {
+      "needLogin": "You need to log in to check notifications",
       "title": "Notifications"
     },
     "profile": {
@@ -42,11 +43,11 @@
   },
   "loadMore": "Load more",
   "loading": "Loading",
+  "login": "Login",
   "noMoreEvents": "No more events",
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
-    "login": "Login",
-    "needLogin": "You need to log in to post.",
+    "needLogin": "You need to log in to post",
     "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",
     "placeholder": "What is happening?!",
     "post": "Post",

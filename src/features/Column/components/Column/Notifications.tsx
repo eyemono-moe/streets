@@ -3,8 +3,9 @@ import { type Component, Show } from "solid-js";
 import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
-import type { PickColumnState } from "../../context/deck";
+import type { PickColumnState } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
+import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Notifications: Component<{
   state: PickColumnState<"notifications">;
@@ -17,7 +18,14 @@ const Notifications: Component<{
     <div class="flex w-full flex-col divide-y">
       <ColumnHeader title={t("column.notifications.title")} />
       <div class="h-full overflow-y-auto">
-        <Show when={pubkey()}>
+        <Show
+          when={pubkey()}
+          fallback={
+            <NeedLoginPlaceholder
+              message={t("column.notifications.needLogin")}
+            />
+          }
+        >
           {(nonNullPubkey) => (
             <InfiniteEvents
               filter={{

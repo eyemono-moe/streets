@@ -2,67 +2,14 @@ import { type ParentComponent, createContext, useContext } from "solid-js";
 import { produce } from "solid-js/store";
 import * as v from "valibot";
 import { createLocalStore } from "../../../shared/libs/createLocalStore";
-
-// TODO: StandardListとSetの両方を使用できるように
-const columnScheme = v.intersect([
-  v.variant("type", [
-    v.object({
-      type: v.literal("search"),
-      query: v.string(),
-    }),
-    v.object({
-      // kind: 10003
-      type: v.literal("bookmarks"),
-      pubkey: v.string(),
-    }),
-    v.object({
-      type: v.literal("notifications"),
-    }),
-    v.object({
-      // 特定ユーザーのいいね欄
-      type: v.literal("reactions"),
-      pubkey: v.string(),
-    }),
-    v.object({
-      // 特定ユーザーの投稿と固定ポストを表示
-      type: v.literal("user"),
-      pubkey: v.string(),
-    }),
-    v.object({
-      type: v.literal("timeline"),
-    }),
-    v.object({
-      type: v.literal("followees"),
-      pubkey: v.string(),
-    }),
-    v.object({
-      type: v.literal("followers"),
-      pubkey: v.string(),
-    }),
-  ]),
-  v.object({
-    size: v.union([
-      v.literal("small"),
-      v.literal("medium"),
-      v.literal("large"),
-    ]),
-  }),
-]);
-export type ColumnState = v.InferOutput<typeof columnScheme>;
-
-export type PickColumnState<T extends ColumnState["type"]> = Extract<
-  ColumnState,
-  { type: T }
->;
-
-const deckState = v.object({
-  version: v.literal("0.0"),
-  columns: v.array(columnScheme),
-});
-type DeckState = v.InferOutput<typeof deckState>;
+import {
+  type ColumnState,
+  type DeckState,
+  deckState,
+} from "../libs/deckSchema";
 
 const initialState: DeckState = {
-  version: "0.0",
+  version: 0,
   columns: [
     {
       type: "timeline",

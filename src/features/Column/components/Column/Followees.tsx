@@ -2,7 +2,7 @@ import { type Component, For } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import { useFollowees, useProfile } from "../../../../shared/libs/query";
 import ProfileRow from "../../../User/components/ProfileRow";
-import type { PickColumnState } from "../../context/deck";
+import type { PickColumnState } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 
 const Followees: Component<{

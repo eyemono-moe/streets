@@ -6,7 +6,6 @@ import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
 import { createDebounced } from "../../../shared/libs/createDebounced";
-import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import {
   parseTextContent,
   parsedContents2Tags,
@@ -14,6 +13,7 @@ import {
 import { parseTextNoteTags } from "../../../shared/libs/parser/1_shortTextNote";
 import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
+import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import PostPreview from "./PostPreview";
 
 // prevents from being tree-shaken by TS
@@ -96,18 +96,7 @@ const PostInput: Component<{
   return (
     <Show
       when={isLogged()}
-      fallback={
-        <div class="flex h-full w-full flex-col items-center justify-center gap-2">
-          <div>{t("postInput.needLogin")}</div>
-          <button
-            onClick={showLoginModal}
-            type="button"
-            class="inline-flex cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700"
-          >
-            {t("postInput.login")}
-          </button>
-        </div>
-      }
+      fallback={<NeedLoginPlaceholder message={t("postInput.needLogin")} />}
     >
       <div class="max-w-150 space-y-2 p-2">
         <div class="relative h-fit">
