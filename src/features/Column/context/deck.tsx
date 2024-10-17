@@ -152,7 +152,7 @@ export const DeckProvider: ParentComponent = (props) => {
 export const useDeck = () => {
   const ctx = useContext(DeckContext);
   if (!ctx) {
-    throw new Error("DeckProvider is not found");
+    throw new Error("[context provider not found] DeckProvider is not found");
   }
   return ctx;
 };

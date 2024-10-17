@@ -7,6 +7,12 @@ import "virtual:uno.css";
 import "solid-devtools";
 import "unfonts.css";
 
+const ignoreErrors = [];
+
+if (import.meta.env.DEV) {
+  ignoreErrors.push("[context provider not found]"); // viteのHMRでエラーが出るので無視
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.MODE,
@@ -21,6 +27,7 @@ Sentry.init({
   // Session Replay
   replaysSessionSampleRate: import.meta.env.DEV ? 1.0 : 0.1, // This sets the sample rate at 10%. You may want to change it to 100% while in development and then sample at a lower rate in production.
   replaysOnErrorSampleRate: 1.0, // If you're not already sampling the entire session, change the sample rate to 100% when sampling sessions where errors occur.
+  ignoreErrors,
 });
 
 // biome-ignore lint/style/noNonNullAssertion: div#root in index.html

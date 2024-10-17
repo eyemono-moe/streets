@@ -62,7 +62,9 @@ export const usePostInput = () => {
   const ctx = useContext(PostInputContext);
 
   if (!ctx) {
-    throw new Error("usePostInput must be used within a PostInputProvider");
+    throw new Error(
+      "[context provider not found] PostInputProvider is not found",
+    );
   }
 
   return ctx;

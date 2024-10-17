@@ -119,7 +119,9 @@ export const RxNostrProvider: ParentComponent = (props) => {
 export const useRxNostr = () => {
   const ctx = useContext(RxNostrContext);
   if (!ctx) {
-    throw new Error("RxNostrProvider is not found");
+    throw new Error(
+      "[context provider not found] RxNostrProvider is not found",
+    );
   }
   return ctx;
 };

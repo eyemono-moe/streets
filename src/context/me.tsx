@@ -53,7 +53,7 @@ export const MeProvider: ParentComponent = (props) => {
 export const useMe = () => {
   const ctx = useContext(MeContext);
   if (!ctx) {
-    throw new Error("MeProvider is not found");
+    throw new Error("[context provider not found] MeProvider is not found");
   }
   return ctx;
 };

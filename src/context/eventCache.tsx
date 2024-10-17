@@ -148,7 +148,9 @@ export const EventCacheProvider: ParentComponent = (props) => {
 const useEventCache = () => {
   const ctx = useContext(EventCacheContext);
   if (!ctx) {
-    throw new Error("EventCacheProvider is not found");
+    throw new Error(
+      "[context provider not found] EventCacheProvider is not found",
+    );
   }
   return ctx;
 };

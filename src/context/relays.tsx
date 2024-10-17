@@ -89,7 +89,7 @@ export const RelaysProvider: ParentComponent = (props) => {
 export const useRelays = () => {
   const ctx = useContext(RelaysContext);
   if (!ctx) {
-    throw new Error("RelaysProvider is not found");
+    throw new Error("[context provider not found] RelaysProvider is not found");
   }
   return ctx;
 };
