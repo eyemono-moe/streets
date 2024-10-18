@@ -1,4 +1,10 @@
-import { type ParentComponent, createContext, useContext } from "solid-js";
+import {
+  type ParentComponent,
+  createContext,
+  createEffect,
+  onMount,
+  useContext,
+} from "solid-js";
 import { produce } from "solid-js/store";
 import * as v from "valibot";
 import { createLocalStore } from "../../../shared/libs/createLocalStore";
@@ -20,6 +26,13 @@ const initialState: DeckState = {
       size: "medium",
     },
   ],
+  display: {
+    fontSize: 14,
+    theme: {
+      accent: "#1a73e8",
+      ui: "#fff",
+    },
+  },
 };
 
 const DeckContext =
@@ -53,6 +66,18 @@ const DeckContext =
          * @param index - The index of the column to scroll into view
          */
         scrollIntoView: (index: number) => void;
+        /**
+         * Set the accent color of the deck
+         *
+         * @param color - The new accent color
+         */
+        setAccentColor: (color: string) => void;
+        /**
+         * Set the UI color of the deck
+         *
+         * @param color - The new UI color
+         */
+        setUIColor: (color: string) => void;
       },
     ]
   >();
@@ -111,12 +136,49 @@ export const DeckProvider: ParentComponent = (props) => {
   };
 
   const scrollIntoView = (index: number) => {
-    console.log("scrollIntoView", index);
     const el = document.getElementById(`col-${index}`);
-    console.log("el", el);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", inline: "center" });
     }
+  };
+
+  let themeStyleTag: HTMLElement;
+  onMount(() => {
+    // biome-ignore lint/style/noNonNullAssertion: style#theme-style in index.html
+    themeStyleTag = document.getElementById("theme-style")!;
+
+    window.CSS.registerProperty({
+      name: "--theme-accent-color",
+      syntax: "<color>",
+      inherits: true,
+      initialValue: "#000",
+    });
+    window.CSS.registerProperty({
+      name: "--theme-ui-color",
+      syntax: "<color>",
+      inherits: true,
+      initialValue: "#000",
+    });
+  });
+
+  createEffect(() => {
+    const themeVariables: Record<`--${string}`, string> = {
+      "--theme-accent-color": state.display.theme.accent,
+      "--theme-ui-color": state.display.theme.ui,
+    };
+
+    themeStyleTag.textContent = `:root {
+      ${Object.entries(themeVariables)
+        .map(([key, value]) => `${key}:${value}`)
+        .join(";")}
+      }`;
+  });
+
+  const setAccentColor = (color: string) => {
+    setState("display", "theme", "accent", color);
+  };
+  const setUIColor = (color: string) => {
+    setState("display", "theme", "ui", color);
   };
 
   return (
@@ -128,6 +190,8 @@ export const DeckProvider: ParentComponent = (props) => {
           removeColumn,
           moveColumn,
           scrollIntoView,
+          setAccentColor,
+          setUIColor,
         },
       ]}
     >
