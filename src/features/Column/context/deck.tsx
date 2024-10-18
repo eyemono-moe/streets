@@ -27,7 +27,6 @@ const initialState: DeckState = {
     },
   ],
   display: {
-    fontSize: 14,
     theme: {
       accent: "#1a73e8",
       ui: "#fff",

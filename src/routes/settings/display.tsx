@@ -34,17 +34,6 @@ const display: Component = () => {
             />
           </label>
         </div>
-        <div>
-          <h4 class="flex items-center gap-1 font-500 text-h3">
-            {t("settings.display.fontSize")}
-          </h4>
-          <input
-            type="range"
-            min="1"
-            max="64"
-            value={deckState.display.fontSize}
-          />
-        </div>
       </div>
     </BasicLayout>
   );

@@ -50,7 +50,6 @@ export const deckState = v.object({
   version: v.literal(0),
   columns: v.array(columnSchemeV0),
   display: v.object({
-    fontSize: v.pipe(v.number(), v.minValue(1), v.maxValue(24)),
     theme: v.object({
       accent: v.string(),
       ui: v.string(),
