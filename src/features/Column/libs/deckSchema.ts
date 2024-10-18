@@ -49,6 +49,12 @@ const columnSchemeV0 = v.intersect([
 export const deckState = v.object({
   version: v.literal(0),
   columns: v.array(columnSchemeV0),
+  display: v.object({
+    theme: v.object({
+      accent: v.string(),
+      ui: v.string(),
+    }),
+  }),
 });
 
 export type DeckState = v.InferOutput<typeof deckState>;

@@ -14,14 +14,14 @@ const relay: Component = () => {
     <BasicLayout title={t("settings.relay.title")} backTo="/settings">
       <div class="space-y-4">
         <div class="space-y-2">
-          <h4 class="flex items-center gap-1 font-500 text-lg">
+          <h4 class="flex items-center gap-1 font-500 text-h3">
             {t("settings.relay.relayToBeUsed")}
             <HelpTooltip>{t("settings.relay.relayHelp")}</HelpTooltip>
           </h4>
           <RelaySettings />
         </div>
         <div class="space-y-2">
-          <h4 class="font-500 text-lg">
+          <h4 class="font-500 text-h3">
             {t("settings.relay.connectionStatus")}
           </h4>
           <div class="space-y-1">

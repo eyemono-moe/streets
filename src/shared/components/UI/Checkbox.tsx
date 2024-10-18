@@ -29,9 +29,12 @@ export function Checkbox(props: CheckboxProps) {
     >
       <KCheckbox.Input {...inputProps} />
       <KCheckbox.Label class="p-1 group-not-disabled:cursor-pointer">
-        <KCheckbox.Control class="rounded outline-purple-6/50 group-has-focus-visible:outline">
-          <KCheckbox.Indicator forceMount class="parent">
-            <div class="parent-data-[checked]:i-material-symbols:check-box-rounded parent-data-[checked]:c-purple-6 c-zinc-5 i-material-symbols:check-box-outline-blank aspect-square h-1lh parent-data-[checked]:h-1lh parent-data-[checked]:w-auto w-auto" />
+        <KCheckbox.Control class="rounded outline-accent-5/50 group-has-focus-visible:outline">
+          <KCheckbox.Indicator
+            forceMount
+            class="parent data-[checked]:c-accent-5 group-hover-not-disabled:data-[checked]:c-accent-6 children:aspect-square! children:h-1lh! children:w-auto!"
+          >
+            <div class="parent-data-[checked]:i-material-symbols:check-box-rounded i-material-symbols:check-box-outline-blank" />
           </KCheckbox.Indicator>
         </KCheckbox.Control>
         {props.label}

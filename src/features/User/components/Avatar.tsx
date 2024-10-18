@@ -23,7 +23,7 @@ const Avatar: Component<{
         }}
       >
         <Image
-          class="inline-flex h-full w-full select-none items-center justify-center overflow-hidden rounded bg-zinc-2 align-mid"
+          class="inline-flex h-full w-full select-none items-center justify-center overflow-hidden rounded bg-secondary align-mid"
           fallbackDelay={500}
         >
           <Image.Img

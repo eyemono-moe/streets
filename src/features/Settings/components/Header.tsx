@@ -7,7 +7,7 @@ const Header: Component<{
 }> = (props) => {
   const navigate = useNavigate();
   return (
-    <div class="flex w-full items-center gap-1 px-2 py-1 text-xl">
+    <div class="flex w-full items-center gap-1 px-2 py-1">
       <Show when={props.backTo} keyed>
         {(backTo) => (
           <button

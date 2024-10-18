@@ -5,9 +5,9 @@ const CopyablePre: Component<{
   content: string;
 }> = (props) => {
   return (
-    <div class="parent relative rounded-2 bg-zinc-1 px-2 py-1">
+    <div class="parent relative rounded-2 bg-secondary px-2 py-1">
       <button
-        class="parent-hover:op-100 op-0 b-1 c-zinc-5 absolute top-1 right-1 appearance-none rounded-2 bg-transparent bg-zinc-1 p-1 transition-opacity duration-100 enabled:hover:bg-zinc-2"
+        class="parent-hover:op-100 op-0 b-1 c-secondary absolute top-1 right-1 appearance-none rounded-2 bg-transparent p-1 transition-opacity duration-100 active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover"
         type="button"
         onClick={() => {
           copyToClipboard(props.content);

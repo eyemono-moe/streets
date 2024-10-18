@@ -110,6 +110,13 @@
     "repostedBy": "reposted"
   },
   "settings": {
+    "display": {
+      "accentColor": "Accent color",
+      "color": "Color theme",
+      "fontSize": "Font size",
+      "title": "Display",
+      "uiColor": "Text and background color"
+    },
     "relay": {
       "add": "Add",
       "connectionStatus": "Connection status",

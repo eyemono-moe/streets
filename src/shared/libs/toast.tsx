@@ -29,9 +29,9 @@ const MyToast: ParentComponent<
   return (
     <Toast
       {...kobalteProps}
-      class="b-1 relative w-200px max-w-full rounded bg-white p-2 shadow data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x] data-[closed]:animate-duration-100! data-[closed]:animate-fade-out-right! data-[opened]:animate-duration-100! data-[opened]:animate-slide-in-right! data-[swipe=end]:animate-[swipeOut_100ms] data-[swipe=cancel]:transition-transform-100"
+      class="b-1 relative w-200px max-w-full rounded bg-primary p-2 shadow shadow-ui/25 data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x] data-[closed]:animate-duration-100! data-[closed]:animate-fade-out-right! data-[opened]:animate-duration-100! data-[opened]:animate-slide-in-right! data-[swipe=end]:animate-[swipeOut_100ms] data-[swipe=cancel]:transition-transform-100"
     >
-      <Toast.CloseButton class="c-zinc-600 absolute right-2 bg-transparent">
+      <Toast.CloseButton class="c-secondary absolute right-2 bg-transparent">
         <div class="i-material-symbols:close-small-rounded h-6 w-6" />
       </Toast.CloseButton>
       <Toast.Description class="flex items-center gap-2">
@@ -47,7 +47,7 @@ const MyToast: ParentComponent<
             <div class="i-material-symbols:cancel-rounded c-red h-6 w-6" />
           </Match>
           <Match when={addedProps.variant === "pending"}>
-            <div class="i-material-symbols:pending c-gray h-6 w-6" />
+            <div class="i-material-symbols:pending c-secondary h-6 w-6" />
           </Match>
         </Switch>
         {props.children}

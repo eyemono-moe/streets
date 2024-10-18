@@ -41,13 +41,13 @@ export function TextField(props: TextFieldProps) {
           <KTextField.Input
             {...inputProps}
             type={props.type}
-            class="b-1 w-full rounded px-1 py-0.5"
+            class="b-1 w-full rounded bg-secondary px-1 py-0.5"
           />
         }
       >
         <KTextField.TextArea {...inputProps} autoResize />
       </Show>
-      <KTextField.ErrorMessage class="font-500 text-3.5 text-red-6">
+      <KTextField.ErrorMessage class="font-500 text-caption text-red-5">
         {props.error}
       </KTextField.ErrorMessage>
     </KTextField.Root>

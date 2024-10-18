@@ -10,14 +10,11 @@ const RepostUserName: Component<{
   const t = useI18n();
 
   return (
-    <div class="pb-2 text-3 text-zinc-5">
+    <div class="c-secondary pb-2 text-caption">
       <HoverCard>
         <div class="flex items-center gap-1">
           <div class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4" />
-          <EmbedUser
-            pubkey={props.pubkey}
-            class="truncate font-700 text-zinc-5"
-          />
+          <EmbedUser pubkey={props.pubkey} class="truncate font-700" />
           <span class="shrink-0">{t("repost.repostedBy")}</span>
         </div>
         <HoverCard.Portal>

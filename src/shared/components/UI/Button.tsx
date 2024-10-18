@@ -23,13 +23,13 @@ const Button: Component<
   return (
     <button
       {...buttonProps}
-      class="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center gap-1 rounded-full px-4 py-1 font-700 disabled:cursor-not-allowed disabled:opacity-50"
+      class="line-height-[1] inline-flex shrink-0 appearance-none items-center justify-center gap-1 rounded-full px-4 py-2 font-700 enabled:cursor-pointer disabled:opacity-50"
       classList={{
-        "bg-purple-8 enabled:hover:bg-purple-7 text-white":
+        "bg-accent-primary text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover":
           addedProps.variant === "primary",
-        "b-1 bg-white text-zinc-9 enabled:hover:bg-zinc-1":
+        "b-1 bg-transparent active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover":
           addedProps.variant === "border",
-        "b-1 b-red-3 bg-white text-red-9 enabled:hover:bg-red-1":
+        "b-1 b-red-6 bg-transparent text-red-8 active:bg-red-4/40 not-active:enabled:hover:bg-red-4/20 dark:text-red-4":
           addedProps.variant === "dangerBorder",
         "w-fit": !addedProps.full,
         "w-full": addedProps.full,

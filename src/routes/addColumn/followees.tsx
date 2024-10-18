@@ -42,7 +42,7 @@ const followees: Component = () => {
     >
       <div class="grid h-full w-full grid-cols-1 grid-rows-[auto_auto_minmax(0,1fr)]">
         <div>
-          <h4 class="font-500 text-lg">{t("column.followees.addByPubkey")}</h4>
+          <h4 class="font-500 text-h3">{t("column.followees.addByPubkey")}</h4>
           <Form onSubmit={handleSubmit}>
             <div class="flex items-center gap-1">
               <Field name="pubkey">
@@ -61,9 +61,9 @@ const followees: Component = () => {
             </div>
           </Form>
         </div>
-        <div class="text-center text-3.5">or</div>
+        <div class="text-center text-caption">or</div>
         <div class="grid h-full grid-rows-[auto_minmax(0,1fr)]">
-          <h4 class="font-500 text-lg">{t("column.followees.searchByName")}</h4>
+          <h4 class="font-500 text-h3">{t("column.followees.searchByName")}</h4>
           <UserSearchList
             onSelect={(pubkey) => {
               addColumn({

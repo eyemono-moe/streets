@@ -129,9 +129,9 @@ ${neventEncode({
   };
 
   return (
-    <div class="c-zinc-5 flex w-full max-w-100 items-center justify-between">
+    <div class="c-secondary flex w-full max-w-100 items-center justify-between">
       <button
-        class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50"
+        class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25"
         type="button"
         onClick={handleReply}
       >
@@ -139,21 +139,21 @@ ${neventEncode({
       </button>
       <DropdownMenu>
         <DropdownMenu.Trigger
-          class="hover:c-green-5 data-[expanded]:c-green-5 disabled:op-50 flex inline-flex appearance-none items-center items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-green-2/50 data-[expanded]:bg-green-2/50"
+          class="hover:c-green-5 data-[expanded]:c-green-5 disabled:op-50 inline-flex appearance-none items-center gap-1 rounded-full bg-transparent p-1 hover:bg-green-5/25 data-[expanded]:bg-green-5/25"
           classList={{
             "c-green-5": isReposted(),
           }}
         >
           <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
           <Show when={reposts().data?.length}>
-            <span class="lh-4 text-3">{reposts().data?.length}</span>
+            <span class="lh-4 text-caption">{reposts().data?.length}</span>
           </Show>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] c-zinc-8 rounded-2 bg-white p-1 shadow outline-none">
+          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
               onSelect={handleRepost}
               disabled={isReposted() || repostSendState.sending}
             >
@@ -162,7 +162,7 @@ ${neventEncode({
             </DropdownMenu.Item>
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
               onSelect={handleQuote}
             >
               <div class="i-material-symbols:edit-outline-rounded aspect-square h-0.75lh w-auto" />
@@ -174,7 +174,7 @@ ${neventEncode({
         </DropdownMenu.Portal>
       </DropdownMenu>
       <Popover>
-        <Popover.Trigger class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50">
+        <Popover.Trigger class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25">
           <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
         </Popover.Trigger>
         <Popover.Portal>
@@ -188,20 +188,20 @@ ${neventEncode({
         </Popover.Portal>
       </Popover>
       <button
-        class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50"
+        class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25"
         type="button"
       >
         <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
       </button>
       <DropdownMenu>
-        <DropdownMenu.Trigger class="hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50">
+        <DropdownMenu.Trigger class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25">
           <div class="i-material-symbols:upload-rounded aspect-square h-4 w-auto" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] c-zinc-8 rounded-2 bg-white p-1 shadow outline-none">
+          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
               onSelect={handleCopyEventID}
             >
               <div class="aspect-square h-0.75lh w-auto i-material-symbols:content-copy-outline-rounded" />

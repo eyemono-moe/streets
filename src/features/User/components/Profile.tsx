@@ -42,7 +42,7 @@ const Profile: Component<{
   });
 
   return (
-    <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)] text-4">
+    <div class="relative grid h-full max-h-inherit grid-rows-[auto_minmax(0,1fr)]">
       <Image
         // margin-bottom: アイコンの高さ(32/24)+padding(2)-ボタンの高さ(8)-ボタンとの距離(2)
         class="h-auto w-full select-none"
@@ -81,7 +81,7 @@ const Profile: Component<{
                 alt={profile().data?.parsed.name}
                 class="h-full w-full object-cover"
               />
-              <Image.Fallback class="flex h-full w-full items-center justify-center bg-zinc-2">
+              <Image.Fallback class="flex h-full w-full items-center justify-center bg-secondary">
                 {profile().data?.parsed.name.slice(0, 2) ??
                   props.pubkey?.slice(0, 2)}
               </Image.Fallback>
@@ -92,18 +92,18 @@ const Profile: Component<{
           </div>
         </div>
         <div class="flex flex-col">
-          <span class="line-clamp-3 text-ellipsis font-700 text-5">
+          <span class="line-clamp-3 text-ellipsis font-700 text-h3">
             {profile().data?.parsed.display_name ??
               (props.pubkey
                 ? hex2bech32(props.pubkey, "npub").slice(0, 12)
                 : "...")}
           </span>
           <div>
-            <span class="truncate text-3.5 text-zinc-5">
+            <span class="c-secondary truncate text-caption">
               @{profile().data?.parsed.name ?? "..."}
             </span>
             <Show when={isFollowed()}>
-              <span class="ml-1 rounded bg-zinc-2 px-1 py-0.5 text-3 text-zinc-5">
+              <span class="c-secondary ml-1 rounded bg-secondary px-1 py-0.5 text-caption">
                 {t("profile.followsYou")}
               </span>
             </Show>
@@ -115,12 +115,12 @@ const Profile: Component<{
           </Show>
           <Show when={profile().data?.parsed.website}>
             <div class="flex max-w-full items-center gap-1">
-              <div class="i-material-symbols:link-rounded c-zinc-5 aspect-square h-4 w-auto" />
+              <div class="i-material-symbols:link-rounded c-secondary aspect-square h-0.75lh w-auto" />
               <a
                 href={profile().data?.parsed.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="c-blue-5 visited:c-violet-7 truncate text-3.5 underline"
+                class="truncate text-caption text-link underline"
               >
                 {profile().data?.parsed.website}
               </a>
@@ -143,7 +143,7 @@ const Profile: Component<{
                 <span class="font-500">
                   {followees().data?.parsed.followees.length ?? 0}
                 </span>
-                <span class="ml-1 text-3.5 text-zinc-5">
+                <span class="c-secondary ml-1 text-caption">
                   {t("profile.followees")}
                 </span>
               </div>

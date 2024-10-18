@@ -22,6 +22,7 @@
     "@solid-primitives/autofocus": "^0.0.111",
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
+    "@solid-primitives/media": "2.2.9",
     "@solid-primitives/scheduled": "1.4.3",
     "@solidjs/router": "0.14.7",
     "@tanstack/solid-query": "5.59.0",

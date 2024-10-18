@@ -17,9 +17,10 @@ const ProfileRow: ParentComponent<{
   return (
     <Dynamic
       component={props.onClick ? "button" : "div"}
-      class="flex w-full items-center gap-1 overflow-hidden bg-white p-1"
+      class="flex w-full items-center gap-1 overflow-hidden bg-transparent p-1"
       classList={{
-        "hover:bg-zinc-1 focus:bg-zinc-1 focus:outline-none": !!props.onClick,
+        "active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover not-active:enabled:focus:bg-alpha-hover focus:outline-none":
+          !!props.onClick,
       }}
       type={props.onClick ? "button" : undefined}
       onClick={props.onClick}
@@ -27,7 +28,7 @@ const ProfileRow: ParentComponent<{
       <HoverCard>
         <HoverCard.Trigger as="div" class="focus:outline-none">
           <Image
-            class="inline-flex aspect-square h-8 w-auto shrink-0 select-none items-center justify-center overflow-hidden rounded align-mid"
+            class="inline-flex aspect-square h-8 w-auto shrink-0 select-none items-center justify-center overflow-hidden rounded bg-secondary align-mid"
             fallbackDelay={0}
           >
             <Image.Img
@@ -36,7 +37,7 @@ const ProfileRow: ParentComponent<{
               class="h-full w-full object-cover"
               loading="lazy"
             />
-            <Image.Fallback class="flex h-full w-full items-center justify-center bg-zinc-2">
+            <Image.Fallback class="flex h-full w-full items-center justify-center">
               {profile().data?.parsed.name.slice(0, 2) ??
                 props.pubkey?.slice(0, 2)}
             </Image.Fallback>
@@ -47,7 +48,7 @@ const ProfileRow: ParentComponent<{
           class="truncate hover:underline focus:outline-none"
         >
           <span class="font-500">{profile().data?.parsed.display_name}</span>
-          <span class="text-3.5 text-zinc-5">
+          <span class="c-secondary text-caption">
             @
             {profile().data?.parsed.name ??
               (props.pubkey ? hex2bech32(props.pubkey, "npub") : "")}
@@ -58,7 +59,7 @@ const ProfileRow: ParentComponent<{
         </HoverCard.Portal>
       </HoverCard>
       <Show when={props.showFollowButton}>
-        <div class="ml-auto shrink-0 text-3">
+        <div class="ml-auto shrink-0 text-caption">
           <FollowButton pubkey={props.pubkey} />
         </div>
       </Show>

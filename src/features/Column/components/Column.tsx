@@ -15,7 +15,7 @@ const Column: Component<{
 }> = (props) => {
   return (
     <div
-      class="relative flex h-full shrink-0 bg-white"
+      class="relative flex h-full shrink-0 bg-primary"
       classList={{
         "w-80": props.column.size === "small",
         "w-100": props.column.size === "medium",
@@ -23,10 +23,8 @@ const Column: Component<{
       }}
     >
       <div
-        class="c-zinc-5 absolute m-1 h-6 cursor-move rounded-full hover:bg-zinc-3/50"
-        classList={{
-          "bg-zinc-3/50": props.isMoving,
-        }}
+        class="c-secondary absolute m-1 h-6 cursor-move rounded-full hover:bg-alpha-hover data-[moving='true']:bg-alpha-active"
+        data-moving={props.isMoving}
         {...props.handleListeners}
       >
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />

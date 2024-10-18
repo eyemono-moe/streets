@@ -24,6 +24,10 @@ const routes = [
         component: lazy(() => import("./routes/settings/relay")),
       },
       {
+        path: "/settings/display",
+        component: lazy(() => import("./routes/settings/display")),
+      },
+      {
         path: "/add-column",
         component: lazy(() => import("./routes/addColumn")),
       },

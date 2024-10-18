@@ -35,7 +35,7 @@ const FollowerCounter: Component<{ pubkey?: string }> = (props) => {
       >
         <div>
           <span class="font-500">{followers().data?.length ?? 0}+</span>
-          <span class="ml-1 text-3.5 text-zinc-5">
+          <span class="c-secondary ml-1 text-caption">
             {t("profile.followers")}
           </span>
         </div>

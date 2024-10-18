@@ -75,10 +75,11 @@ const InfiniteEvents: Component<{
         )}
       </For>
       <button
-        class="flex h-25vh w-full items-start justify-center bg-white p-2 enabled:hover:bg-gray-100 disabled:cursor-progress disabled:opacity-50"
+        class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
         type="button"
         onClick={fetchNextPage}
-        disabled={!hasNextPage()}
+        disabled={!hasNextPage() || isFetching()}
+        data-loading={isFetching()}
       >
         <Switch fallback={t("loadMore")}>
           <Match when={isFetching()}>{t("loading")}</Match>

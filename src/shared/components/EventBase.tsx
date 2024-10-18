@@ -38,8 +38,8 @@ const EventBase: ParentComponent<{
     <>
       <div
         classList={{
-          "text-4": !mergedProps.small,
-          "text-3.5": mergedProps.small,
+          "text-body": !mergedProps.small,
+          "text-caption": mergedProps.small,
         }}
       >
         <div
@@ -92,7 +92,7 @@ const EventBase: ParentComponent<{
                     <span class="font-500">
                       {profile().data?.parsed.display_name}
                     </span>
-                    <span class="text-3.5 text-zinc-5">
+                    <span class="c-secondary text-caption">
                       @{profile().data?.parsed.name}
                     </span>
                   </Show>
@@ -104,7 +104,7 @@ const EventBase: ParentComponent<{
                 </HoverCard.Portal>
               </HoverCard>
               <span
-                class="text-nowrap text-3.5 text-zinc-5"
+                class="c-secondary text-nowrap text-caption"
                 title={dateHuman(
                   new Date(mergedProps.eventPacket.raw.created_at * 1000),
                 )}
@@ -115,28 +115,28 @@ const EventBase: ParentComponent<{
               </span>
             </div>
             <DropdownMenu>
-              <DropdownMenu.Trigger class="c-zinc-5 hover:c-purple-8 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-purple-3/50">
+              <DropdownMenu.Trigger class="c-secondary hover:c-accent-5 data-[expanded]:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent/25 data-[expanded]:bg-accent/25">
                 <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
               </DropdownMenu.Trigger>
               <DropdownMenu.Portal>
-                <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] c-zinc-8 rounded-2 bg-white p-1 shadow outline-none">
+                <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
                   <DropdownMenu.Item
                     // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
                   >
                     <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
                     {t("event.muteUser", { name: userName() })}
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
                   >
                     <div class="aspect-square h-0.75lh w-auto i-material-symbols:list-alt-add-outline-rounded" />
                     {t("event.addUserToList", { name: userName() })}
                   </DropdownMenu.Item>
                   <DropdownMenu.Item
                     // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-zinc-2/50"
+                    class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
                     onSelect={openDebugDialog}
                   >
                     <div class="i-material-symbols:bug-report-outline-rounded aspect-square h-0.75lh w-auto" />
@@ -174,19 +174,19 @@ const EventBase: ParentComponent<{
             <ul class="my-1 list-disc pl-5">
               <li>
                 hex:
-                <code class="break-anywhere rounded-2 bg-zinc-1 px-1 py-0.5">
+                <code class="break-anywhere rounded-2 bg-secondary px-1 py-0.5">
                   {mergedProps.eventPacket.raw.pubkey}
                 </code>
               </li>
               <li>
                 npub:
-                <code class="break-anywhere rounded-2 bg-zinc-1 px-1 py-0.5">
+                <code class="break-anywhere rounded-2 bg-secondary px-1 py-0.5">
                   {npubEncode(mergedProps.eventPacket.raw.pubkey)}
                 </code>
               </li>
               <li>
                 nprofile:
-                <code class="break-anywhere rounded-2 bg-zinc-1 px-1 py-0.5">
+                <code class="break-anywhere rounded-2 bg-secondary px-1 py-0.5">
                   {nprofileEncode({
                     pubkey: mergedProps.eventPacket.raw.pubkey,
                   })}
@@ -199,13 +199,13 @@ const EventBase: ParentComponent<{
             <ul class="my-1 list-disc pl-5">
               <li>
                 hex:
-                <code class="break-anywhere rounded-2 bg-zinc-1 px-1 py-0.5">
+                <code class="break-anywhere rounded-2 bg-secondary px-1 py-0.5">
                   {mergedProps.eventPacket.raw.id}
                 </code>
               </li>
               <li>
                 nevent:
-                <code class="break-anywhere rounded-2 bg-zinc-1 px-1 py-0.5">
+                <code class="break-anywhere rounded-2 bg-secondary px-1 py-0.5">
                   {neventEncode({
                     id: mergedProps.eventPacket.raw.id,
                     kind: mergedProps.eventPacket.raw.kind,

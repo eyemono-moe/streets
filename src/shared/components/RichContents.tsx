@@ -47,7 +47,7 @@ const RichContent: Component<{
                 >
                   {/* TODO: display blurhash */}
                   <img
-                    class="b-1 b-zinc-2 h-full max-h-50vh w-auto max-w-full rounded object-contain"
+                    class="b-1 h-full max-h-50vh w-auto max-w-full rounded object-contain"
                     src={(content as ImageContent).src}
                     alt={(content as ImageContent).alt ?? ""}
                     width={(content as ImageContent).size?.width}
@@ -60,7 +60,7 @@ const RichContent: Component<{
                 {/* TODO: 動画の拡大表示 */}
                 {/* biome-ignore lint/a11y/useMediaCaption: キャプションの投稿手段が無い */}
                 <video
-                  class="b-1 b-zinc-2 h-full max-h-50vh w-auto max-w-full rounded object-contain"
+                  class="b-1 h-full max-h-50vh w-auto max-w-full rounded object-contain"
                   controls
                   preload="metadata"
                   src={(content as VideoContent).href}
@@ -83,7 +83,7 @@ const RichContent: Component<{
                       href={(content as LinkContent).href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="c-blue-5 visited:c-violet-7 break-anywhere whitespace-pre-wrap underline"
+                      class="break-anywhere whitespace-pre-wrap text-link underline"
                     >
                       {(content as LinkContent).content}
                     </a>
@@ -106,25 +106,25 @@ const RichContent: Component<{
                   when={props.showQuoteEmbeds}
                   fallback={
                     // TODO: 隣のカラムでリプライツリーを表示する
-                    <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
+                    <span class="break-anywhere whitespace-pre-wrap text-link underline">
                       {hex2bech32((content as QuoteByIDContent).id, "nevent")}
                     </span>
                   }
                 >
-                  <div class="b-1 b-zinc-2 overflow-hidden rounded p-1">
+                  <div class="b-1 overflow-hidden rounded p-1">
                     <EventByID id={(content as QuoteByIDContent).id} small />
                   </div>
                 </Show>
               </Match>
               <Match when={content.type === "hashtag"}>
                 {/* TODO: 隣のカラムでハッシュタグ検索結果を表示する */}
-                <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
+                <span class="break-anywhere whitespace-pre-wrap text-link underline">
                   #{(content as HashtagContent).tag}
                 </span>
               </Match>
               <Match when={content.type === "relay"}>
                 {/* TODO: 隣のカラムでリレー内投稿一覧を表示する */}
-                <span class="c-blue-5 break-anywhere whitespace-pre-wrap underline">
+                <span class="break-anywhere whitespace-pre-wrap text-link underline">
                   {(content as RelayContent).url}
                 </span>
               </Match>

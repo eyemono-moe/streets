@@ -42,10 +42,11 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
   return (
     <div class="flex items-start gap-1">
       <button
-        class="b-1 flex w-fit appearance-none items-center gap-1 rounded p-0.5 disabled:cursor-progress disabled:opacity-50"
+        class="line-height-[1] b-1 inline-flex shrink-0 appearance-none items-center gap-1 rounded p-0.5 disabled:cursor-progress"
         classList={{
-          "b-zinc-2 bg-transparent hover:bg-zinc-1/50": !isReacted(),
-          "b-purple-6 bg-purple-6/10": isReacted(),
+          "bg-transparent active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover":
+            !isReacted(),
+          "b-1 b-accent-5 bg-accent-5/10": isReacted(),
         }}
         type="button"
         title={
@@ -83,11 +84,11 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
               )}
             </Match>
             <Match when={props.reaction.type === "like"}>
-              <div class="i-material-symbols:favorite-rounded c-purple aspect-square h-5 w-auto" />
+              <div class="i-material-symbols:favorite-rounded c-accent-5 aspect-square h-5 w-auto" />
             </Match>
           </Switch>
         </div>
-        <span class="h-5 text-zinc-5 leading-5">{props.users.length}</span>
+        <span class="c-secondary h-5 leading-5">{props.users.length}</span>
       </button>
       <Show when={props.showUsers}>
         <span>
@@ -97,7 +98,7 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
                 <Show when={i() !== 0}>
                   <span>, </span>
                 </Show>
-                <EmbedUser class="text-3 text-zinc-5" pubkey={user} />
+                <EmbedUser class="c-secondary text-caption" pubkey={user} />
               </>
             )}
           </For>
