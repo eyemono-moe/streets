@@ -45,7 +45,7 @@ const Text: Component<{
               <Show
                 when={props.showReply}
                 fallback={
-                  <div class="b-l-2 b-dashed ml-[calc(0.75rem-1px)] py-1 pl-2 text-zinc-5">
+                  <div class="b-l-2 b-dashed c-secondary ml-[calc(0.75rem-1px)] py-1 pl-2">
                     load more
                   </div>
                 }
@@ -66,7 +66,7 @@ const Text: Component<{
             hasChild={props.hasChild}
           >
             <div>
-              <div class="text-3">
+              <div class="text-caption">
                 <For each={replyTarget()}>
                   {(target, i) => (
                     <>

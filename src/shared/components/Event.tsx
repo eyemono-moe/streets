@@ -8,6 +8,7 @@ import type { ParsedEventPacket } from "../libs/parser";
 import type { ShortTextNote } from "../libs/parser/1_shortTextNote";
 import type { Repost as TRepost } from "../libs/parser/6_repost";
 import type { Reaction as TReaction } from "../libs/parser/7_reaction";
+import CopyablePre from "./CopyablePre";
 import EventBase from "./EventBase";
 
 const Event: Component<{
@@ -28,13 +29,11 @@ const Event: Component<{
             showReactions={props.showReactions}
             showActions={props.showActions}
           >
-            <div class="flex items-center gap-0.5 text-zinc-5">
+            <div class="c-secondary flex items-center gap-0.5">
               <div class="i-material-symbols:error-circle-rounded aspect-square h-4 w-auto" />
-              <span class="text-3">{t("event.unknown")}</span>
+              <span class="text-caption">{t("event.unknown")}</span>
             </div>
-            <pre class="c-white overflow-x-auto rounded bg-zinc-8 p-1 text-3">
-              {JSON.stringify(props.event.raw, null, 2)}
-            </pre>
+            <CopyablePre content={JSON.stringify(props.event.raw, null, 2)} />
           </EventBase>
         }
       >

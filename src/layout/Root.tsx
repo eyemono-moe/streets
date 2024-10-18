@@ -7,7 +7,7 @@ const Root: ParentComponent = (props) => {
   const location = useLocation();
 
   return (
-    <div class="flex h-svh w-screen divide-x text-zinc-8">
+    <div class="flex h-svh w-screen divide-x">
       <Sidebar />
       <div
         class="relative h-full shrink-0 overflow-auto transition-width duration-100"

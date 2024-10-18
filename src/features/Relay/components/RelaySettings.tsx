@@ -194,7 +194,7 @@ const RelaySettings: Component = () => {
                       onClick={() => {
                         remove(form, "relays", { at: index() });
                       }}
-                      class="c-red-6 appearance-none rounded-full bg-transparent p-1 hover:bg-red-1"
+                      class="c-red-5 appearance-none rounded-full bg-transparent p-1 hover:bg-red-5/25"
                     >
                       <div class="i-material-symbols:delete-outline-rounded aspect-square h-1lh w-auto" />
                     </button>
@@ -204,7 +204,7 @@ const RelaySettings: Component = () => {
             )}
           </FieldArray>
         </div>
-        <div class="flex w-full justify-center text-sm">
+        <div class="flex w-full justify-center text-caption">
           <Button variant="border" onClick={handleAddRelay}>
             <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
             {t("settings.relay.add")}

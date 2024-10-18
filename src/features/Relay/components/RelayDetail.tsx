@@ -31,17 +31,17 @@ const RelayDetail: Component<{
       <Collapsible.Content class="animate-[slideUp] animate-duration-100 overflow-hidden data-[expanded]:animate-[slideDown] data-[expanded]:animate-duration-100">
         <div>
           <div class="truncate font-500">{nip11.data?.name}</div>
-          <div class="line-clamp-3 text-ellipsis text-3.5 text-zinc-5">
+          <div class="c-secondary line-clamp-3 text-ellipsis text-caption">
             {nip11.data?.description}
           </div>
           <Show when={nip11.data?.pubkey} keyed>
             {(pubkey) => (
-              <div class="text-3.5">
+              <div class="text-caption">
                 admin: <EmbedUser pubkey={pubkey} />
               </div>
             )}
           </Show>
-          <div class="text-3.5">contact: {nip11.data?.contact}</div>
+          <div class="text-caption">contact: {nip11.data?.contact}</div>
         </div>
       </Collapsible.Content>
     </Collapsible>

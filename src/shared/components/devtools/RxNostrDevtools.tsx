@@ -14,7 +14,7 @@ const RxNostrDevtools = () => {
         use:draggable={{
           bounds: "body",
         }}
-        class="pointer-events-auto w-fit rounded bg-white/75 p-2 shadow backdrop-blur"
+        class="pointer-events-auto w-fit rounded bg-primary p-2 shadow backdrop-blur"
       >
         rxNostr ConnectionState
         <div class="b-1 grid divide-y">

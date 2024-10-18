@@ -62,7 +62,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
         hasParent={replyOrRoot() !== undefined}
       >
         <div>
-          <div class="text-3">
+          <div class="text-caption">
             <For each={replyTarget()}>
               {(target, i) => (
                 <>

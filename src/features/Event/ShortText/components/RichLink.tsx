@@ -25,7 +25,7 @@ const RichLink: Component<{
             href={props.href}
             target="_blank"
             rel="noopener noreferrer"
-            class="c-blue-5 visited:c-violet-7 break-anywhere whitespace-pre-wrap underline"
+            class="break-anywhere whitespace-pre-wrap text-link underline"
           >
             {props.content}
           </a>
@@ -41,7 +41,7 @@ const RichLink: Component<{
                 href={props.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="c-blue-5 visited:c-violet-7 break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap underline"
+                class="break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap text-link underline"
               >
                 {props.content}
               </a>
@@ -56,7 +56,7 @@ const RichLink: Component<{
                 href={props.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="c-blue-5 visited:c-violet-7 break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap underline"
+                class="break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap text-link underline"
               >
                 {props.content}
               </a>
@@ -64,7 +64,7 @@ const RichLink: Component<{
                 href={embed().value.url ?? props.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="b-1 block flex w-full flex-col overflow-hidden rounded bg-white hover:bg-zinc-50"
+                class="b-1 block flex w-full flex-col overflow-hidden rounded bg-primary hover:bg-alpha-hover"
               >
                 <Show when={embed().value.image}>
                   <img
@@ -77,10 +77,10 @@ const RichLink: Component<{
                   <div class="line-clamp-2 text-ellipsis font-500">
                     {embed().value.title}
                   </div>
-                  <div class="c-zinc-6 line-clamp-3 text-ellipsis text-3.5">
+                  <div class="c-secondary line-clamp-3 text-ellipsis text-caption">
                     {embed().value.description}
                   </div>
-                  <div class="c-zinc-6 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1 text-3.5">
+                  <div class="c-secondary grid grid-cols-[auto_minmax(0,1fr)] items-center gap-1 text-caption">
                     <div class="i-material-symbols:link-rounded aspect-square h-3.5 w-auto" />
                     <span class="w-full truncate">
                       {hostname(embed().value.url)}

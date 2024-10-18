@@ -95,7 +95,7 @@ const ReactionButtons: Component<{
           onClick={() => setExpand((prev) => !prev)}
         >
           <div
-            class="i-material-symbols:arrow-drop-down-rounded c-zinc-5 h-full w-full transition-transform"
+            class="i-material-symbols:arrow-drop-down-rounded c-secondary h-full w-full transition-transform"
             classList={{
               "rotate-180deg": expand(),
             }}
@@ -120,8 +120,8 @@ const ReactionButtons: Component<{
           </For>
           <Show when={(reactions().data?.length ?? 0) > 0 && !expand()}>
             <Popover>
-              <Popover.Trigger class="b-1 b-zinc-2 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5 hover:bg-zinc-1/50">
-                <div class="i-material-symbols:add-rounded c-zinc-5 aspect-square h-5 w-auto" />
+              <Popover.Trigger class="b-1 flex w-fit appearance-none items-center gap-1 rounded bg-transparent p-0.5 active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover">
+                <div class="i-material-symbols:add-rounded c-secondary aspect-square h-0.75lh w-auto" />
               </Popover.Trigger>
               <Popover.Portal>
                 <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">

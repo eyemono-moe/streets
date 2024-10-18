@@ -21,7 +21,7 @@ const Sidebar: Component = () => {
   };
 
   return (
-    <div class="c-zinc-6 grid grid-rows-[auto_minmax(0,1fr)_auto] divide-y">
+    <div class="c-secondary grid grid-rows-[auto_minmax(0,1fr)_auto] divide-y">
       <div class="flex flex-col">
         <NavigateButton onClick={handleClickPanelButton}>
           <div

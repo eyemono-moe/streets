@@ -11,18 +11,20 @@ const ColumnHeader: ParentComponent<{
 
   return (
     <Collapsible class="divide-y">
-      <div class="c-zinc-8 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 p-1 pl-8">
+      <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 p-1 pl-8">
         <div
-          class={`${state?.type ? columnIcon(state?.type) : ""} c-zinc-6 aspect-square h-6 w-auto`}
+          class={`${state?.type ? columnIcon(state?.type) : ""} c-secondary aspect-square h-6 w-auto`}
         />
-        <div class="truncate text-3">
-          <span class="w-full truncate font-500 text-4">{props.title}</span>
-          <span class="ml-1 w-full truncate text-zinc-5">{props.subTitle}</span>
+        <div class="truncate">
+          <span class="w-full truncate font-500">{props.title}</span>
+          <span class="c-secondary ml-1 w-full truncate text-caption">
+            {props.subTitle}
+          </span>
         </div>
         <Collapsible.Trigger class="appearance-none bg-transparent">
           <div
             class={
-              "i-material-symbols:more-horiz c-zinc-6 aspect-square h-6 w-auto"
+              "i-material-symbols:more-horiz c-secondary aspect-square h-6 w-auto"
             }
           />
         </Collapsible.Trigger>
@@ -35,7 +37,7 @@ const ColumnHeader: ParentComponent<{
             actions?.removeThisColumn();
           }}
         >
-          <div class="i-material-symbols:delete-outline-rounded c-red-7 aspect-square h-auto w-6" />
+          <div class="i-material-symbols:delete-outline-rounded c-red-5 aspect-square h-auto w-6" />
         </button>
       </Collapsible.Content>
     </Collapsible>

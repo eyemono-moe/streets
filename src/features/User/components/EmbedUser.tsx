@@ -10,7 +10,7 @@ const EmbedUser: Component<{
   relay?: string;
   class?: string;
 }> = (props) => {
-  const defaultProps = mergeProps({ class: "c-blue-5 font-700" }, props);
+  const defaultProps = mergeProps({ class: "text-link font-700" }, props);
 
   const profile = useProfile(() => props.pubkey);
   const openUserColumn = useOpenUserColumn();

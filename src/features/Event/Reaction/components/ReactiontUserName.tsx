@@ -11,7 +11,7 @@ const ReactionUserName: Component<{
   const t = useI18n();
 
   return (
-    <div class="pb-2 text-3 text-zinc-5">
+    <div class="c-secondary pb-2 text-caption ">
       <HoverCard>
         <div class="flex h-5 items-center gap-1">
           <Switch>
@@ -44,12 +44,12 @@ const ReactionUserName: Component<{
               )}
             </Match>
             <Match when={props.reaction.content.type === "like"}>
-              <div class="i-material-symbols:favorite-rounded c-purple aspect-square h-5 w-auto" />
+              <div class="i-material-symbols:favorite-rounded c-accent-5 aspect-square h-5 w-auto" />
             </Match>
           </Switch>
           <EmbedUser
             pubkey={props.reaction.pubkey}
-            class="truncate font-700 text-zinc-5"
+            class="c-secondary truncate font-700"
           />
           <span class="shrink-0">{t("reaction.reactedBy")}</span>
         </div>

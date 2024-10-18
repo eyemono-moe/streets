@@ -14,12 +14,12 @@ export const useDialog = () => {
         <KDialog.Portal>
           <KDialog.Overlay class="fixed inset-0 animate-duration-100 animate-fade-out bg-black/20 data-[expanded]:animate-duration-100 data-[expanded]:animate-fade-in" />
           <div class="fixed inset-0 grid place-items-center p-16">
-            <KDialog.Content class="b-1 relative grid max-h-full min-h-[min(100%,18rem)] min-w-[min(100%,24rem)] animate-[contentHide] animate-duration-100 grid-rows-[auto_minmax(0,1fr)] rounded-2 bg-white p-2 shadow data-[expanded]:animate-[contentShow] data-[expanded]:animate-duration-100">
+            <KDialog.Content class="b-1 relative grid max-h-full min-h-[min(100%,18rem)] min-w-[min(100%,24rem)] animate-[contentHide] animate-duration-100 grid-rows-[auto_minmax(0,1fr)] rounded-2 bg-primary p-2 shadow-lg shadow-ui/25 data-[expanded]:animate-[contentShow] data-[expanded]:animate-duration-100">
               <div class="flex items-center">
                 <Show when={props.title}>
                   <KDialog.Title class="font-500">{props.title}</KDialog.Title>
                 </Show>
-                <KDialog.CloseButton class="c-zinc-6 ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-zinc-3/50">
+                <KDialog.CloseButton class="c-secondary ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50">
                   <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
                 </KDialog.CloseButton>
               </div>

@@ -12,20 +12,20 @@ interface Colors {
 
 const colors: Colors = {
   // l: unocssのgray系を除いた色のlの平均値
-  // c: unocssのgray系を除いた色のcの平均値
+  // c: unocssのgray系を除いた色のcの平均値を大きめに調整した値
   // see: https://github.com/unocss/unocss/blob/75fd665273ff7f2ffb16be8841f7fcd89c9b27a5/packages/preset-mini/src/_theme/colors.ts#L15-L327
   accent: {
-    50: "oklch(from var(--theme-accent-color) 0.9558 0.01279 h / <alpha-value>)",
-    100: "oklch(from var(--theme-accent-color) 0.9311 0.02943 h / <alpha-value>)",
-    200: "oklch(from var(--theme-accent-color) 0.8882 0.05567 h / <alpha-value>)",
-    300: "oklch(from var(--theme-accent-color) 0.8298 0.08846 h / <alpha-value>)",
-    400: "oklch(from var(--theme-accent-color) 0.7388 0.11983 h / <alpha-value>)",
-    500: "oklch(from var(--theme-accent-color) 0.6487 0.13675 h / <alpha-value>)",
-    600: "oklch(from var(--theme-accent-color) 0.5653 0.13633 h / <alpha-value>)",
-    700: "oklch(from var(--theme-accent-color) 0.4907 0.12249 h / <alpha-value>)",
-    800: "oklch(from var(--theme-accent-color) 0.4196 0.10304 h / <alpha-value>)",
-    900: "oklch(from var(--theme-accent-color) 0.3679 0.08639 h / <alpha-value>)",
-    950: "oklch(from var(--theme-accent-color) 0.2684 0.06317 h / <alpha-value>)",
+    50: "oklch(from var(--theme-accent-color) 0.9558 0.018 h / <alpha-value>)",
+    100: "oklch(from var(--theme-accent-color) 0.9311 0.05 h / <alpha-value>)",
+    200: "oklch(from var(--theme-accent-color) 0.8882 0.09 h / <alpha-value>)",
+    300: "oklch(from var(--theme-accent-color) 0.8298 0.14 h / <alpha-value>)",
+    400: "oklch(from var(--theme-accent-color) 0.7388 0.195 h / <alpha-value>)",
+    500: "oklch(from var(--theme-accent-color) 0.6487 0.24 h / <alpha-value>)",
+    600: "oklch(from var(--theme-accent-color) 0.5653 0.235 h / <alpha-value>)",
+    700: "oklch(from var(--theme-accent-color) 0.4907 0.22 h / <alpha-value>)",
+    800: "oklch(from var(--theme-accent-color) 0.4196 0.185 h / <alpha-value>)",
+    900: "oklch(from var(--theme-accent-color) 0.3679 0.15 h / <alpha-value>)",
+    950: "oklch(from var(--theme-accent-color) 0.2684 0.11 h / <alpha-value>)",
   },
   accentOriginal: "var(--theme-accent-color)",
 
@@ -77,30 +77,29 @@ export default defineConfig({
   shortcuts: [
     {
       // text size
+      "text-h3": "text-lg",
       "text-body": "text-base",
-      "text-caption": "text-xs",
+      "text-caption": "text-sm",
 
       // text color
-      "text-accent": "text-accent-5",
-      "c-accent": "c-accent-500",
-      "text-primary": "text-ui-9 dark:text-ui-1",
       "c-primary": "c-ui-9 dark:c-ui-1",
-      "text-secondary": "text-ui-6 dark:text-ui-4",
       "c-secondary": "c-ui-6 dark:c-ui-4",
+      "text-link":
+        "text-accent-5 visited:text-accent-8 dark:text-accent-5 dark:visited:text-accent-4",
 
       // background color
-      "bg-accent": "bg-accent-5",
+      "bg-accent-primary": "bg-accent-5",
       "bg-accent-hover": "bg-accent-6",
       "bg-accent-active": "bg-accent-7",
 
       "bg-primary": "bg-white dark:bg-ui-950",
-      "bg-primary-hover": "bg-ui-50 dark:bg-ui-9",
-      "bg-primary-active": "bg-ui-50 dark:bg-ui-8",
+      "bg-secondary": "bg-ui-1 dark:bg-ui-8",
 
-      "bg-secondary": "bg-ui-2 dark:bg-ui-8",
+      "bg-alpha-hover": "bg-ui-2/40 dark:bg-ui-7/40",
+      "bg-alpha-active": "bg-ui-2/60 dark:bg-ui-7/60",
 
       // border color
-      "border-primary": "b-ui-9 dark:b-ui-1",
+      "border-primary": "b-ui-2 dark:b-ui-7",
     },
   ],
   transformers: [transformerVariantGroup()],
@@ -109,6 +108,7 @@ export default defineConfig({
       getCSS: () => `
         * {
           scrollbar-width: thin;
+          border-color: inherit;
         }
         @media (prefers-reduced-motion) {
           * {

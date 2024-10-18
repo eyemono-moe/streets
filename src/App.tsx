@@ -1,7 +1,8 @@
+import { usePrefersDark } from "@solid-primitives/media";
 import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
-import type { Component } from "solid-js";
+import { type Component, createEffect } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
 import { MeProvider } from "./context/me";
 import { RelaysProvider } from "./context/relays";
@@ -22,6 +23,11 @@ const queryClient = new QueryClient({
 });
 
 const App: Component = () => {
+  const prefersDark = usePrefersDark();
+  createEffect(() => {
+    document.documentElement.classList.toggle("dark", prefersDark());
+  });
+
   return (
     <>
       <QueryClientProvider client={queryClient}>

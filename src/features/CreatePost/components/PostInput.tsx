@@ -5,6 +5,7 @@ import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
+import Button from "../../../shared/components/UI/Button";
 import { createDebounced } from "../../../shared/libs/createDebounced";
 import {
   parseTextContent,
@@ -107,27 +108,27 @@ const PostInput: Component<{
             use:autofocus
             autofocus
             ref={setTextarea}
-            class={`${textareaStyle} absolute top-0 left-0 h-full focus:outline-2 focus:outline-purple disabled:cursor-progress disabled:bg-zinc-2`}
+            class={`${textareaStyle} disabled:op-50 absolute top-0 left-0 h-full bg-secondary focus:outline-2 focus:outline-accent-5 disabled:cursor-progress`}
             placeholder={t("postInput.placeholder")}
             value={content()}
             disabled={sendState.sending}
             onInput={(e) => setContent(e.currentTarget.value)}
             onKeyDown={handleCtrlEnter}
           />
-          <span class="absolute bottom-1 left-2 text-3 text-zinc-5">
+          <span class="c-secondary absolute bottom-1 left-2 text-caption">
             {t("postInput.enterToAddNewLine")}
           </span>
         </div>
         <div class="flex">
           <Popover>
             <Popover.Trigger
-              class="c-white inline-flex w-fit items-center justify-center gap-1 rounded-full bg-purple-5 p-1 font-500 enabled:hover:bg-purple-6"
+              class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover"
               disabled={sendState.sending}
             >
-              <div class="i-material-symbols:add-reaction-outline-rounded aspect-square h-6 w-auto" />
+              <div class="i-material-symbols:add-reaction-outline-rounded aspect-square h-1lh w-auto" />
             </Popover.Trigger>
             <Popover.Portal>
-              <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] z-50 outline-none">
+              <Popover.Content class="transform-origin-[var(--kb-popover-content-transform-origin)] outline-none">
                 <EmojiPicker
                   onSelect={(v) => {
                     insertEmoji(v.native ?? v.shortcodes);
@@ -136,25 +137,22 @@ const PostInput: Component<{
               </Popover.Content>
             </Popover.Portal>
           </Popover>
-          <button
-            type="button"
-            onClick={postText}
-            class="c-white ml-auto inline-flex w-fit items-center justify-center gap-1 rounded-full bg-purple-5 px-2 py-1 font-500 enabled:hover:bg-purple-6 disabled:cursor-progress disabled:bg-zinc-4"
-            disabled={sendState.sending}
-          >
-            {t("postInput.post")}
-            <div class="i-material-symbols:send-rounded aspect-square h-4 w-auto" />
-          </button>
+          <div class="ml-auto">
+            <Button onClick={postText} disabled={sendState.sending}>
+              {t("postInput.post")}
+              <div class="i-material-symbols:send-rounded aspect-square h-4 w-auto" />
+            </Button>
+          </div>
         </div>
         <div class="flex flex-col gap-1 overflow-auto">
-          <div class="text-zinc-5">{t("postInput.preview")}</div>
+          <div class="c-secondary">{t("postInput.preview")}</div>
           <div class="b-1 min-h-20 p-2">
             <PostPreview
               content={debouncedContent()}
               tags={[...flatEmojis(), ...tagsForPreview()]}
             />
           </div>
-          <div class="text-3 text-zinc-5">{t("postInput.note")}</div>
+          <div class="c-secondary text-caption">{t("postInput.note")}</div>
         </div>
       </div>
     </Show>

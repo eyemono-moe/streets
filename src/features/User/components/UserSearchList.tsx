@@ -46,7 +46,7 @@ const UserSearchList: Component<{
                 // biome-ignore lint/style/noNonNullAssertion: useCacheByQueryKey内でnullチェックしている
                 onClick={() => props.onSelect?.(followee.data!.parsed.pubkey)}
               >
-                <div class="i-material-symbols:chevron-right-rounded c-zinc-5 aspect-square h-1lh w-auto" />
+                <div class="i-material-symbols:chevron-right-rounded c-secondary aspect-square h-1lh w-auto" />
               </ProfileRow>
             </li>
           )}

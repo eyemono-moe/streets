@@ -4,7 +4,7 @@ import Tooltip from "./Tooltip";
 const HelpTooltip: ParentComponent = (props) => {
   return (
     <Tooltip content={props.children}>
-      <div class="i-material-symbols:help-outline-rounded c-zinc-5 aspect-square h-0.75lh w-auto" />
+      <div class="i-material-symbols:help-outline-rounded c-secondary aspect-square h-0.75lh w-auto" />
     </Tooltip>
   );
 };

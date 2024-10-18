@@ -110,6 +110,13 @@
     "repostedBy": "さんがリポスト"
   },
   "settings": {
+    "display": {
+      "accentColor": "アクセントカラー",
+      "color": "カラーテーマ",
+      "fontSize": "フォントサイズ",
+      "title": "表示",
+      "uiColor": "文字色と背景色"
+    },
     "relay": {
       "add": "追加",
       "connectionStatus": "接続ステータス",
