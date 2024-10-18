@@ -228,16 +228,6 @@ const parseReferences = (
               },
             });
             break;
-          case "nrelay":
-            refs.push({
-              start,
-              end,
-              type: "relay",
-              value: {
-                url: data,
-              },
-            });
-            break;
           case "nevent":
             refs.push({
               start,
