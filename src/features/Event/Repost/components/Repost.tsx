@@ -10,13 +10,13 @@ const Repost: Component<{
   const event = useEventByID(() => props.repost.targetEventID);
 
   return (
-    <>
+    <div class="space-y-1">
       <RepostUserName pubkey={props.repost.pubkey} />
       {/* TODO: fallback */}
       <Show when={event().data} keyed>
         {(e) => <Event event={e} showReactions showActions />}
       </Show>
-    </>
+    </div>
   );
 };
 

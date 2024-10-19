@@ -11,7 +11,7 @@ const ReactionUserName: Component<{
   const t = useI18n();
 
   return (
-    <div class="c-secondary pb-2 text-caption ">
+    <div class="c-secondary text-caption">
       <HoverCard>
         <div class="flex h-5 items-center gap-1">
           <Switch>

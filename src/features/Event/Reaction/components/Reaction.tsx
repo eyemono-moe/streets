@@ -10,13 +10,13 @@ const Reaction: Component<{
   const event = useEventByID(() => props.reaction.targetEvent.id);
 
   return (
-    <>
+    <div class="space-y-1">
       <ReactionUserName reaction={props.reaction} />
       {/* TODO: fallback */}
       <Show when={event().data} keyed>
         {(e) => <Event event={e} showReactions showActions />}
       </Show>
-    </>
+    </div>
   );
 };
 

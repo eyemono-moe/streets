@@ -1,11 +1,7 @@
-import { type Component, Match, Switch } from "solid-js";
-import type { ColumnContent, ColumnState } from "../libs/deckSchema";
-import Followees from "./Column/Followees";
-import Followers from "./Column/Followers";
-import Followings from "./Column/Followings";
-import Notifications from "./Column/Notifications";
-import Reactions from "./Column/Reactions";
-import User from "./Column/User";
+import { type Component, Show } from "solid-js";
+import { useColumn } from "../context/column";
+import type { ColumnState } from "../libs/deckSchema";
+import ColumnContent from "./ColumnContent";
 import type { HandleListeners } from "./Columns";
 
 const Column: Component<{
@@ -13,6 +9,9 @@ const Column: Component<{
   handleListeners: HandleListeners;
   isMoving: boolean;
 }> = (props) => {
+  // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
+  const [, { closeTempColumn, backOrCloseTempColumn }] = useColumn()!;
+
   return (
     <div
       class="relative flex h-full shrink-0 bg-primary"
@@ -29,36 +28,37 @@ const Column: Component<{
       >
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
-      <Switch>
-        <Match when={props.column.content.type === "timeline"}>
-          <Followings
-            state={props.column.content as ColumnContent<"timeline">}
-          />
-        </Match>
-        <Match when={props.column.content.type === "user"}>
-          <User state={props.column.content as ColumnContent<"user">} />
-        </Match>
-        <Match when={props.column.content.type === "followees"}>
-          <Followees
-            state={props.column.content as ColumnContent<"followees">}
-          />
-        </Match>
-        <Match when={props.column.content.type === "followers"}>
-          <Followers
-            state={props.column.content as ColumnContent<"followers">}
-          />
-        </Match>
-        <Match when={props.column.content.type === "reactions"}>
-          <Reactions
-            state={props.column.content as ColumnContent<"reactions">}
-          />
-        </Match>
-        <Match when={props.column.content.type === "notifications"}>
-          <Notifications
-            state={props.column.content as ColumnContent<"notifications">}
-          />
-        </Match>
-      </Switch>
+      <ColumnContent content={props.column.content} />
+      <Show when={props.column.tempContent}>
+        <button
+          type="button"
+          class="absolute inset-0 bg-op-50! bg-secondary"
+          onClick={closeTempColumn}
+        />
+        <div class="absolute inset-0 top-10">
+          <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-2 bg-primary">
+            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center">
+              <button
+                type="button"
+                class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={backOrCloseTempColumn}
+              >
+                <div class="i-material-symbols:chevron-left-rounded aspect-square h-6 w-auto" />
+              </button>
+              <div>test</div>
+              <button
+                type="button"
+                class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={closeTempColumn}
+              >
+                <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
+              </button>
+            </div>
+            {/* biome-ignore lint/style/noNonNullAssertion: open when props.column.tempContent is not null */}
+            <ColumnContent content={props.column.tempContent!} />
+          </div>
+        </div>
+      </Show>
     </div>
   );
 };

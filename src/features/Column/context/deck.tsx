@@ -47,6 +47,16 @@ const DeckContext =
          */
         addColumn: (column: ColumnState, index?: number) => void;
         /**
+         * Set a temporary column content to the deck
+         *
+         * @param content - The column content to add
+         * @param index - The index to insert the column at. If not provided, the column will be added to the end
+         */
+        setTempColumn: (
+          content: ColumnState["tempContent"],
+          index?: number,
+        ) => void;
+        /**
          * Remove a column from the deck
          *
          * @param index - The index of the column to remove
@@ -113,6 +123,14 @@ export const DeckProvider: ParentComponent = (props) => {
     if (scroll) {
       scrollIntoView(index);
     }
+  };
+
+  const setTempColumn = (
+    column: ColumnState["tempContent"],
+    index?: number,
+  ) => {
+    const _index = index ?? state.columns.length;
+    setState("columns", _index, "tempContent", column);
   };
 
   const removeColumn = (index: number) => {
@@ -186,6 +204,7 @@ export const DeckProvider: ParentComponent = (props) => {
         state,
         {
           addColumn,
+          setTempColumn,
           removeColumn,
           moveColumn,
           scrollIntoView,

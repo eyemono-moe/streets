@@ -13,7 +13,7 @@ const Reactions: Component<{
   const t = useI18n();
 
   return (
-    <div class="flex w-full flex-col divide-y">
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <ColumnHeader
         title={t("column.reactions.title")}
         subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}

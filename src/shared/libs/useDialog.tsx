@@ -12,7 +12,7 @@ export const useDialog = () => {
     return (
       <KDialog open={isOpen()} onOpenChange={setIsOpen}>
         <KDialog.Portal>
-          <KDialog.Overlay class="fixed inset-0 animate-duration-100 animate-fade-out bg-black/20 data-[expanded]:animate-duration-100 data-[expanded]:animate-fade-in" />
+          <KDialog.Overlay class="fixed inset-0 animate-duration-100 animate-fade-out bg-op-50! bg-secondary data-[expanded]:animate-duration-100 data-[expanded]:animate-fade-in" />
           <div class="fixed inset-0 grid place-items-center p-16">
             <KDialog.Content class="b-1 relative grid max-h-full min-h-[min(100%,18rem)] min-w-[min(100%,24rem)] animate-[contentHide] animate-duration-100 grid-rows-[auto_minmax(0,1fr)] rounded-2 bg-primary p-2 shadow-lg shadow-ui/25 data-[expanded]:animate-[contentShow] data-[expanded]:animate-duration-100">
               <div class="flex items-center">

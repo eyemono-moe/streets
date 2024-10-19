@@ -106,7 +106,10 @@ const RichContent: Component<{
                   when={props.showQuoteEmbeds}
                   fallback={
                     // TODO: 隣のカラムでリプライツリーを表示する
-                    <span class="break-anywhere whitespace-pre-wrap text-link">
+                    <span
+                      class="break-anywhere whitespace-pre-wrap text-link"
+                      data-embed
+                    >
                       {hex2bech32((content as QuoteByIDContent).id, "nevent")}
                     </span>
                   }
@@ -118,13 +121,19 @@ const RichContent: Component<{
               </Match>
               <Match when={content.type === "hashtag"}>
                 {/* TODO: 隣のカラムでハッシュタグ検索結果を表示する */}
-                <span class="break-anywhere whitespace-pre-wrap text-link">
+                <span
+                  class="break-anywhere whitespace-pre-wrap text-link"
+                  data-hashtag
+                >
                   #{(content as HashtagContent).tag}
                 </span>
               </Match>
               <Match when={content.type === "relay"}>
                 {/* TODO: 隣のカラムでリレー内投稿一覧を表示する */}
-                <span class="break-anywhere whitespace-pre-wrap text-link">
+                <span
+                  class="break-anywhere whitespace-pre-wrap text-link"
+                  data-relay
+                >
                   {(content as RelayContent).url}
                 </span>
               </Match>
