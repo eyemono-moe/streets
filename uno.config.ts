@@ -85,7 +85,7 @@ export default defineConfig({
       "c-primary": "c-ui-9 dark:c-ui-1",
       "c-secondary": "c-ui-6 dark:c-ui-4",
       "text-link":
-        "text-accent-5 visited:text-accent-8 dark:text-accent-5 dark:visited:text-accent-4",
+        "text-accent-5 visited:text-accent-8 dark:text-accent-5 dark:visited:text-accent-4 hover:underline",
 
       // background color
       "bg-accent-primary": "bg-accent-5",

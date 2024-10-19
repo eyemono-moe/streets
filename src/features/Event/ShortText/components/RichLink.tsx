@@ -25,7 +25,7 @@ const RichLink: Component<{
             href={props.href}
             target="_blank"
             rel="noopener noreferrer"
-            class="break-anywhere whitespace-pre-wrap text-link underline"
+            class="break-anywhere whitespace-pre-wrap text-link"
           >
             {props.content}
           </a>
@@ -41,7 +41,7 @@ const RichLink: Component<{
                 href={props.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap text-link underline"
+                class="break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap text-link"
               >
                 {props.content}
               </a>
@@ -56,7 +56,7 @@ const RichLink: Component<{
                 href={props.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="break-anywhere line-clamp-2 text-ellipsis whitespace-pre-wrap text-link underline"
+                class="break-anywhere line-clamp-2 w-fit text-ellipsis whitespace-pre-wrap text-link"
               >
                 {props.content}
               </a>

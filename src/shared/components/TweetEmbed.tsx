@@ -29,7 +29,7 @@ const TweetEmbed: Component<{ url: string }> = (props) => {
           href={detectableTwitterUrl(props.url)}
           target="_blank"
           rel="noopener noreferrer"
-          class="break-anywhere whitespace-pre-wrap text-link underline"
+          class="break-anywhere whitespace-pre-wrap text-link"
         >
           {props.url}
         </a>
