@@ -2,12 +2,12 @@ import { type Component, For } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import { useFollowees, useProfile } from "../../../../shared/libs/query";
 import ProfileRow from "../../../User/components/ProfileRow";
-import type { PickColumnState } from "../../libs/deckSchema";
+import type { ColumnContent } from "../../libs/deckSchema";
 import { useOpenUserColumn } from "../../libs/useOpenColumn";
 import ColumnHeader from "../ColumnHeader";
 
 const Followees: Component<{
-  state: PickColumnState<"followees">;
+  state: ColumnContent<"followees">;
 }> = (props) => {
   // const [scrollParent, setScrollParent] = createSignal<HTMLDivElement | null>(
   //   null,

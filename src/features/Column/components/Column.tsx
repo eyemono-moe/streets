@@ -1,5 +1,5 @@
 import { type Component, Match, Switch } from "solid-js";
-import type { ColumnState, PickColumnState } from "../libs/deckSchema";
+import type { ColumnContent, ColumnState } from "../libs/deckSchema";
 import Followees from "./Column/Followees";
 import Followers from "./Column/Followers";
 import Followings from "./Column/Followings";
@@ -30,24 +30,32 @@ const Column: Component<{
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
       <Switch>
-        <Match when={props.column.type === "timeline"}>
-          <Followings state={props.column as PickColumnState<"timeline">} />
+        <Match when={props.column.content.type === "timeline"}>
+          <Followings
+            state={props.column.content as ColumnContent<"timeline">}
+          />
         </Match>
-        <Match when={props.column.type === "user"}>
-          <User state={props.column as PickColumnState<"user">} />
+        <Match when={props.column.content.type === "user"}>
+          <User state={props.column.content as ColumnContent<"user">} />
         </Match>
-        <Match when={props.column.type === "followees"}>
-          <Followees state={props.column as PickColumnState<"followees">} />
+        <Match when={props.column.content.type === "followees"}>
+          <Followees
+            state={props.column.content as ColumnContent<"followees">}
+          />
         </Match>
-        <Match when={props.column.type === "followers"}>
-          <Followers state={props.column as PickColumnState<"followers">} />
+        <Match when={props.column.content.type === "followers"}>
+          <Followers
+            state={props.column.content as ColumnContent<"followers">}
+          />
         </Match>
-        <Match when={props.column.type === "reactions"}>
-          <Reactions state={props.column as PickColumnState<"reactions">} />
+        <Match when={props.column.content.type === "reactions"}>
+          <Reactions
+            state={props.column.content as ColumnContent<"reactions">}
+          />
         </Match>
-        <Match when={props.column.type === "notifications"}>
+        <Match when={props.column.content.type === "notifications"}>
           <Notifications
-            state={props.column as PickColumnState<"notifications">}
+            state={props.column.content as ColumnContent<"notifications">}
           />
         </Match>
       </Switch>

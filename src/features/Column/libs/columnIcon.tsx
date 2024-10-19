@@ -1,6 +1,6 @@
 import type { ColumnState } from "./deckSchema";
 
-export const columnIcon = (type: ColumnState["type"]) => {
+export const columnIcon = (type: ColumnState["content"]["type"]) => {
   switch (type) {
     case "search":
       return "i-material-symbols:search-rounded";

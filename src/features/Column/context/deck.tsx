@@ -18,18 +18,18 @@ const initialState: DeckState = {
   version: 0,
   columns: [
     {
-      type: "timeline",
+      content: { type: "timeline" },
       size: "medium",
     },
     {
-      type: "notifications",
+      content: { type: "notifications" },
       size: "medium",
     },
   ],
   display: {
     theme: {
-      accent: "#1a73e8",
-      ui: "#fff",
+      accent: "#8340bb",
+      ui: "#302070",
     },
   },
 };

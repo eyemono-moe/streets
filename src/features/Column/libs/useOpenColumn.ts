@@ -8,8 +8,10 @@ export const useOpenUserColumn = () => {
 
   return (pubkey: string, index?: number) => {
     const newCol: ColumnState = {
-      type: "user",
-      pubkey,
+      content: {
+        type: "user",
+        pubkey,
+      },
       size: "medium",
     };
 
@@ -28,8 +30,10 @@ export const useOpenFolloweesColumn = () => {
 
   return (pubkey: string, index?: number) => {
     const newCol: ColumnState = {
-      type: "followees",
-      pubkey,
+      content: {
+        type: "followees",
+        pubkey,
+      },
       size: "medium",
     };
 
@@ -48,8 +52,10 @@ export const useOpenFollowersColumn = () => {
 
   return (pubkey: string, index?: number) => {
     const newCol: ColumnState = {
-      type: "followers",
-      pubkey,
+      content: {
+        type: "followers",
+        pubkey,
+      },
       size: "medium",
     };
 
@@ -68,8 +74,10 @@ export const useOpenReactionsColumn = () => {
 
   return (pubkey: string, index?: number) => {
     const newCol: ColumnState = {
-      type: "reactions",
-      pubkey,
+      content: {
+        type: "reactions",
+        pubkey,
+      },
       size: "medium",
     };
 

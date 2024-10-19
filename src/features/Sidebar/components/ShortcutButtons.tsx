@@ -61,7 +61,7 @@ const ShortcutButtons: Component = () => {
           <div class="relative">
             <NavigateButton onClick={() => scrollIntoView(i())}>
               <div
-                class={`${columnIcon(column.type)} aspect-square h-auto w-8`}
+                class={`${columnIcon(column.content.type)} aspect-square h-auto w-8`}
               />
               <div class="absolute right-0.5 bottom-0 text-caption">
                 {i() + 1}

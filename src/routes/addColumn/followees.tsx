@@ -9,10 +9,10 @@ import Button from "../../shared/components/UI/Button";
 import { TextField } from "../../shared/components/UI/TextField";
 import { pubkeySchema } from "../../shared/libs/schema";
 
-const addFolloweesColumnformSchema = v.object({
+const addFolloweesColumnFormSchema = v.object({
   pubkey: pubkeySchema,
 });
-type AddFolloweesColumnForm = v.InferInput<typeof addFolloweesColumnformSchema>;
+type AddFolloweesColumnForm = v.InferInput<typeof addFolloweesColumnFormSchema>;
 
 const followees: Component = () => {
   const t = useI18n();
@@ -23,16 +23,22 @@ const followees: Component = () => {
     initialValues: {
       pubkey: "",
     },
-    validate: valiForm(addFolloweesColumnformSchema),
+    validate: valiForm(addFolloweesColumnFormSchema),
   });
 
-  const handleSubmit: SubmitHandler<AddFolloweesColumnForm> = (values) => {
-    const parsed = v.parse(addFolloweesColumnformSchema, values);
+  const handleAddColumn = (pubkey: string) => {
     addColumn({
-      type: "followees",
+      content: {
+        type: "followees",
+        pubkey,
+      },
       size: "medium",
-      pubkey: parsed.pubkey,
     });
+  };
+
+  const handleSubmit: SubmitHandler<AddFolloweesColumnForm> = (values) => {
+    const parsed = v.parse(addFolloweesColumnFormSchema, values);
+    handleAddColumn(parsed.pubkey);
   };
 
   return (
@@ -66,11 +72,7 @@ const followees: Component = () => {
           <h4 class="font-500 text-h3">{t("column.followees.searchByName")}</h4>
           <UserSearchList
             onSelect={(pubkey) => {
-              addColumn({
-                type: "followees",
-                size: "medium",
-                pubkey,
-              });
+              handleAddColumn(pubkey);
             }}
           />
         </div>

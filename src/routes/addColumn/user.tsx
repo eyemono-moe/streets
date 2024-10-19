@@ -26,13 +26,19 @@ const user: Component = () => {
     validate: valiForm(addUserColumnformSchema),
   });
 
+  const handleAddColumn = (pubkey: string) => {
+    addColumn({
+      content: {
+        type: "user",
+        pubkey,
+      },
+      size: "medium",
+    });
+  };
+
   const handleSubmit: SubmitHandler<AddUserColumnForm> = (values) => {
     const parsed = v.parse(addUserColumnformSchema, values);
-    addColumn({
-      type: "user",
-      size: "medium",
-      pubkey: parsed.pubkey,
-    });
+    handleAddColumn(parsed.pubkey);
   };
 
   return (
@@ -66,11 +72,7 @@ const user: Component = () => {
           <h4 class="font-500 text-h3">{t("column.profile.searchByName")}</h4>
           <UserSearchList
             onSelect={(pubkey) => {
-              addColumn({
-                type: "user",
-                size: "medium",
-                pubkey,
-              });
+              handleAddColumn(pubkey);
             }}
           />
         </div>

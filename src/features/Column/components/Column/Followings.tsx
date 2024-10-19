@@ -4,12 +4,12 @@ import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useFollowees } from "../../../../shared/libs/query";
-import type { PickColumnState } from "../../libs/deckSchema";
+import type { ColumnContent } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Followings: Component<{
-  state: PickColumnState<"timeline">;
+  state: ColumnContent<"timeline">;
 }> = () => {
   const [{ myPubkey: pubkey }] = useMe();
   const followees = useFollowees(() => pubkey());

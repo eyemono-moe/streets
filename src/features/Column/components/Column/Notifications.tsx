@@ -3,12 +3,12 @@ import { type Component, Show } from "solid-js";
 import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
-import type { PickColumnState } from "../../libs/deckSchema";
+import type { ColumnContent } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Notifications: Component<{
-  state: PickColumnState<"notifications">;
+  state: ColumnContent<"notifications">;
 }> = () => {
   const t = useI18n();
 
