@@ -23,6 +23,7 @@
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
     "@solid-primitives/media": "2.2.9",
+    "@solid-primitives/presence": "0.0.6",
     "@solid-primitives/scheduled": "1.4.3",
     "@solidjs/router": "0.14.10",
     "@tanstack/solid-query": "5.59.13",

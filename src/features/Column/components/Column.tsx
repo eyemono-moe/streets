@@ -1,3 +1,4 @@
+import { createPresence } from "@solid-primitives/presence";
 import { type Component, Show } from "solid-js";
 import { useColumn } from "../context/column";
 import type { ColumnState } from "../libs/deckSchema";
@@ -12,9 +13,13 @@ const Column: Component<{
   // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
   const [, { closeTempColumn, backOrCloseTempColumn }] = useColumn()!;
 
+  const presence = createPresence(() => !!props.column.tempContent, {
+    transitionDuration: 200,
+  });
+
   return (
     <div
-      class="relative flex h-full shrink-0 bg-primary"
+      class="relative flex h-full shrink-0 overflow-hidden bg-primary"
       classList={{
         "w-80": props.column.size === "small",
         "w-100": props.column.size === "medium",
@@ -29,13 +34,17 @@ const Column: Component<{
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
       <ColumnContent content={props.column.content} />
-      <Show when={props.column.tempContent}>
+      <Show when={presence.isMounted()}>
         <button
           type="button"
-          class="absolute inset-0 bg-op-50! bg-secondary"
+          class="absolute inset-0 bg-op-50! bg-secondary data-[expanded='false']:animate-duration-200 data-[expanded='false']:animate-fade-out data-[expanded='true']:animate-duration-200 data-[expanded='true']:animate-fade-in"
           onClick={closeTempColumn}
+          data-expanded={presence.isVisible()}
         />
-        <div class="absolute inset-0 top-10">
+        <div
+          class="absolute inset-0 top-10 transition-transform duration-200 data-[expanded='false']:translate-y-100% data-[expanded='true']:translate-y-0"
+          data-expanded={presence.isVisible()}
+        >
           <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-2 bg-primary">
             <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center">
               <button
@@ -54,8 +63,10 @@ const Column: Component<{
                 <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
               </button>
             </div>
-            {/* biome-ignore lint/style/noNonNullAssertion: open when props.column.tempContent is not null */}
-            <ColumnContent content={props.column.tempContent!} />
+            <Show when={props.column.tempContent}>
+              {/* biome-ignore lint/style/noNonNullAssertion: Show when props.column.tempContent is not null */}
+              <ColumnContent content={props.column.tempContent!} />
+            </Show>
           </div>
         </div>
       </Show>
