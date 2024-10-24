@@ -45,6 +45,7 @@ export type QuoteByIDContent = {
   type: "quoteByID";
   id: string;
 };
+// ts-remove-unused-skip
 export type QuoteByAddressContent = {
   type: "quoteByAddress";
   d: string;
@@ -279,7 +280,7 @@ export const parseTextContent = (
   }
 };
 
-export const splitTextByLinks = (
+const splitTextByLinks = (
   text: string,
   refs: Refecence[],
   imetaTags: ImetaTag[],

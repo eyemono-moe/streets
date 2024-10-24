@@ -2,8 +2,8 @@ import * as i18n from "@solid-primitives/i18n";
 import { createResource, createSignal } from "solid-js";
 import type ja from "./locales/ja.json";
 
-export type RawDictionary = typeof ja;
-export type Dictionary = i18n.Flatten<RawDictionary>;
+type RawDictionary = typeof ja;
+type Dictionary = i18n.Flatten<RawDictionary>;
 
 const fetchDictionary = async (locale: string): Promise<Dictionary> => {
   try {
