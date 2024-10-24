@@ -29,6 +29,7 @@
       "needLogin": "You need to log in to check notifications",
       "title": "Notifications"
     },
+    "openInNextColumn": "Open in the next column",
     "profile": {
       "add": "Add",
       "addByPubkey": "Add by pubkey",
@@ -45,6 +46,9 @@
     },
     "search": {
       "title": "Search"
+    },
+    "thread": {
+      "title": "Event thread"
     },
     "timeline": {
       "needLogin": "You need to log in to check the timeline",
@@ -68,6 +72,7 @@
     "viewEventData": "View event data"
   },
   "loadMore": "Load more",
+  "loadMoreReply": "Load more posts",
   "loading": "Loading",
   "login": "Login",
   "noMoreEvents": "No more events",

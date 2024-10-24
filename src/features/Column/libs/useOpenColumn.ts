@@ -16,7 +16,8 @@ export const useOpenUserColumn = () => {
     };
 
     if (columnActions) {
-      columnActions.addColumnAfterThis(newCol);
+      // columnActions.addColumnAfterThis(newCol);
+      columnActions.openTempColumn(newCol.content);
       return;
     }
 

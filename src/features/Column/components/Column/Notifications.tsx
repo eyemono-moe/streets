@@ -9,14 +9,17 @@ import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Notifications: Component<{
   state: ColumnContent<"notifications">;
-}> = () => {
+  showHeader?: boolean;
+}> = (props) => {
   const t = useI18n();
 
   const [{ myPubkey: pubkey }] = useMe();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
-      <ColumnHeader title={t("column.notifications.title")} />
+      <Show when={props.showHeader}>
+        <ColumnHeader title={t("column.notifications.title")} />
+      </Show>
       <div class="h-full overflow-y-auto">
         <Show
           when={pubkey()}

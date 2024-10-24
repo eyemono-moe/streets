@@ -11,7 +11,7 @@ import {
   latestEach,
   uniq,
 } from "rx-nostr";
-import { bufferWhen, interval } from "rxjs";
+import { bufferWhen, interval, map, tap } from "rxjs";
 import stringify from "safe-stable-stringify";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -28,7 +28,11 @@ import { useRxNostr } from "../../context/rxNostr";
 import { fetchOEmbed } from "./fetchOEmbed";
 import { fetchOgp } from "./fetchOgp";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
-import { type ParsedEventPacket, parseEventPacket } from "./parser";
+import {
+  type ParsedEventPacket,
+  parseEventPacket,
+  type parseNostrEvent,
+} from "./parser";
 import type { Metadata } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { FollowList } from "./parser/3_contacts";
@@ -299,7 +303,7 @@ export const cacheAndEmitRelatedEvent = (
   emit(relatedEventFilters);
 };
 
-export const useEventByID = (
+export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(
   id: () => string | undefined,
   relays?: () => string[] | undefined,
 ) => {
@@ -324,7 +328,7 @@ export const useEventByID = (
     }
   };
 
-  return createGetter<ParsedEventPacket>(() => ({
+  return createGetter<ParsedEventPacket<T>>(() => ({
     queryKey: queryKey(),
     emitter,
   }));
@@ -357,6 +361,55 @@ export const useShortTextByID = (
   };
 
   return createGetter<ParsedEventPacket<ShortTextNote>>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useEventsWithoutKey = (
+  filter: () => Filter | Filter[] | undefined,
+) => {
+  const queryKey = () => ["eventsWithoutKey", stringify(filter())];
+
+  const {
+    rxNostr,
+    actions: { emit },
+  } = useRxNostr();
+  const setter = eventCacheSetter();
+
+  const req = createRxBackwardReq();
+
+  const emitter = () => {
+    const _filter = filter();
+    if (_filter) {
+      req.emit(_filter);
+    }
+  };
+
+  rxNostr
+    .use(
+      req.pipe(
+        bufferWhen(() => interval(1000)),
+        batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
+      ),
+    )
+    .pipe(
+      latestEach((e) => e.event.id),
+      tap((e) => cacheAndEmitRelatedEvent(e, emit, setter)),
+      map((e) => parseEventPacket(e)),
+    )
+    .subscribe({
+      next: (e) => {
+        setter<ParsedEventPacket[]>(queryKey(), (prev) => {
+          if (prev) {
+            return [...prev, e];
+          }
+          return [e];
+        });
+      },
+    });
+
+  return createGetter<EventPacket[]>(() => ({
     queryKey: queryKey(),
     emitter,
   }));

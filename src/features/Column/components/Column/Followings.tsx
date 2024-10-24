@@ -1,5 +1,5 @@
 import { kinds } from "nostr-tools";
-import { type Component, Match, Switch } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
@@ -10,14 +10,17 @@ import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Followings: Component<{
   state: ColumnContent<"timeline">;
-}> = () => {
+  showHeader?: boolean;
+}> = (props) => {
   const [{ myPubkey: pubkey }] = useMe();
   const followees = useFollowees(() => pubkey());
   const t = useI18n();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
-      <ColumnHeader title={t("column.timeline.title")} />
+      <Show when={props.showHeader}>
+        <ColumnHeader title={t("column.timeline.title")} />
+      </Show>
       <div class="h-full overflow-y-auto">
         <Switch>
           <Match when={pubkey() === undefined}>

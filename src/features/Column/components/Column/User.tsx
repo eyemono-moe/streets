@@ -9,16 +9,19 @@ import ColumnHeader from "../ColumnHeader";
 
 const User: Component<{
   state: ColumnContent<"user">;
+  showHeader?: boolean;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
   const t = useI18n();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
-      <ColumnHeader
-        title={t("column.profile.title")}
-        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
-      />
+      <Show when={props.showHeader}>
+        <ColumnHeader
+          title={t("column.profile.title")}
+          subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+        />
+      </Show>
       <Show when={props.state.pubkey} keyed>
         {(nonNullPubkey) => (
           <div class="h-full divide-y overflow-y-auto">

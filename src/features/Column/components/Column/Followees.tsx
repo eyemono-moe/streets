@@ -1,4 +1,4 @@
-import { type Component, For } from "solid-js";
+import { type Component, For, Show } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import { useFollowees, useProfile } from "../../../../shared/libs/query";
 import ProfileRow from "../../../User/components/ProfileRow";
@@ -8,6 +8,7 @@ import ColumnHeader from "../ColumnHeader";
 
 const Followees: Component<{
   state: ColumnContent<"followees">;
+  showHeader?: boolean;
 }> = (props) => {
   // const [scrollParent, setScrollParent] = createSignal<HTMLDivElement | null>(
   //   null,
@@ -30,10 +31,12 @@ const Followees: Component<{
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
-      <ColumnHeader
-        title={t("column.followees.title")}
-        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
-      />
+      <Show when={props.showHeader}>
+        <ColumnHeader
+          title={t("column.followees.title")}
+          subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+        />
+      </Show>
       <div class="h-full w-full divide-y overflow-y-auto">
         <For each={followees().data?.parsed.followees}>
           {(followee) => (

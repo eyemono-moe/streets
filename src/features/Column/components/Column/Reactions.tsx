@@ -1,5 +1,5 @@
 import { kinds } from "nostr-tools";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useProfile } from "../../../../shared/libs/query";
@@ -8,16 +8,19 @@ import ColumnHeader from "../ColumnHeader";
 
 const Reactions: Component<{
   state: ColumnContent<"reactions">;
+  showHeader?: boolean;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
   const t = useI18n();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
-      <ColumnHeader
-        title={t("column.reactions.title")}
-        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
-      />
+      <Show when={props.showHeader}>
+        <ColumnHeader
+          title={t("column.reactions.title")}
+          subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+        />
+      </Show>
       <div class="h-full overflow-y-auto">
         <InfiniteEvents
           filter={{

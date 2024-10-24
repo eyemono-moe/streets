@@ -1,5 +1,5 @@
 import { HoverCard } from "@kobalte/core/hover-card";
-import { type ParentComponent, Show, mergeProps } from "solid-js";
+import { type JSX, type ParentComponent, Show, mergeProps } from "solid-js";
 import { useOpenUserColumn } from "../../features/Column/libs/useOpenColumn";
 import ReactionButtons from "../../features/Event/Reaction/components/ReactionButtons";
 import Avatar from "../../features/User/components/Avatar";
@@ -17,6 +17,7 @@ const EventBase: ParentComponent<{
   showActions?: boolean;
   hasParent?: boolean;
   hasChild?: boolean;
+  onSelected?: () => void;
 }> = (props) => {
   const mergedProps = mergeProps({ small: false }, props);
 
@@ -26,11 +27,36 @@ const EventBase: ParentComponent<{
 
   const openUserColumn = useOpenUserColumn();
 
+  const handleOnClick: JSX.EventHandler<HTMLButtonElement, MouseEvent> = (
+    e,
+  ) => {
+    // ネストしたbuttonがクリックされた場合は何もしない
+    if (e.target.closest("button") !== e.currentTarget) return;
+
+    // リンク, 画像, 動画, 埋め込み, ハッシュタグ, リレーリンクがクリックされた場合は何もしない
+    // see: project://src/shared/components/RichContents.tsx
+    if (
+      e.target.closest(
+        "a, img, video, [data-embed], [data-hashtag], [data-relay]",
+      )
+    )
+      return;
+
+    props.onSelected?.();
+  };
+
   return (
-    <div
+    <button
+      onClick={handleOnClick}
+      type="button"
+      // ネストしたイベント(リポスト内容, リアクション内容, リプライ先等)ではpaddingを削除する
+      // 引用表示ではpaddingを1にする
+      class="w-full appearance-none bg-transparent p-2 text-align-unset group-[_]/event:p-0 group-[_]/quote:p-1"
       classList={{
         "text-body": !mergedProps.small,
         "text-caption": mergedProps.small,
+        "pt-0!": mergedProps.hasParent,
+        "pb-0!": mergedProps.hasChild,
       }}
     >
       <div
@@ -43,15 +69,6 @@ const EventBase: ParentComponent<{
         }}
       >
         <div class="grid-area-[avatar] relative grid grid-rows-[auto_minmax(0,1fr)]">
-          <Show when={mergedProps.hasParent}>
-            <div
-              class="b-l-2 absolute ml-[calc(0.75rem-1px)]"
-              classList={{
-                "h-10": !mergedProps.small,
-                "h-6": mergedProps.small,
-              }}
-            />
-          </Show>
           <div
             class="sticky top-0"
             classList={{
@@ -110,7 +127,12 @@ const EventBase: ParentComponent<{
             userName={userName()}
           />
         </div>
-        <div class="grid-area-[content] flex flex-col gap-1">
+        <div
+          class="grid-area-[content] flex flex-col gap-1"
+          classList={{
+            "pb-2": mergedProps.hasChild,
+          }}
+        >
           {mergedProps.children}
           <Show when={mergedProps.showReactions}>
             <ReactionButtons
@@ -124,7 +146,7 @@ const EventBase: ParentComponent<{
           </Show>
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 

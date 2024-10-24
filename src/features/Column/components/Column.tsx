@@ -1,5 +1,6 @@
 import { createPresence } from "@solid-primitives/presence";
 import { type Component, Show } from "solid-js";
+import { useI18n } from "../../../i18n";
 import { useColumn } from "../context/column";
 import type { ColumnState } from "../libs/deckSchema";
 import ColumnContent from "./ColumnContent";
@@ -10,8 +11,11 @@ const Column: Component<{
   handleListeners: HandleListeners;
   isMoving: boolean;
 }> = (props) => {
-  // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
-  const [, { closeTempColumn, backOrCloseTempColumn }] = useColumn()!;
+  const t = useI18n();
+
+  const [, { closeTempColumn, backOrCloseTempColumn, transferTempColumn }] =
+    // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
+    useColumn()!;
 
   const presence = createPresence(() => !!props.column.tempContent, {
     transitionDuration: 200,
@@ -33,7 +37,7 @@ const Column: Component<{
       >
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
-      <ColumnContent content={props.column.content} />
+      <ColumnContent content={props.column.content} showHeader />
       <Show when={presence.isMounted()}>
         <button
           type="button"
@@ -46,7 +50,7 @@ const Column: Component<{
           data-expanded={presence.isVisible()}
         >
           <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-2 bg-primary">
-            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center">
+            <div class="flex items-center gap-1 p-1">
               <button
                 type="button"
                 class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
@@ -54,7 +58,14 @@ const Column: Component<{
               >
                 <div class="i-material-symbols:chevron-left-rounded aspect-square h-6 w-auto" />
               </button>
-              <div>test</div>
+              <button
+                type="button"
+                class="c-secondary ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={transferTempColumn}
+                title={t("column.openInNextColumn")}
+              >
+                <div class="i-material-symbols:open-in-new-rounded aspect-square h-6 w-auto" />
+              </button>
               <button
                 type="button"
                 class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"

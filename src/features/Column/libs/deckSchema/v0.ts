@@ -35,6 +35,10 @@ const columnContent = v.variant("type", [
     type: v.literal("followers"),
     pubkey: v.string(),
   }),
+  v.object({
+    type: v.literal("thread"),
+    targetEventID: v.string(),
+  }),
 ]);
 
 const columnsScheme = v.object({

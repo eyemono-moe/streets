@@ -114,7 +114,7 @@ const RichContent: Component<{
                     </span>
                   }
                 >
-                  <div class="b-1 overflow-hidden rounded">
+                  <div class="b-1 group/quote overflow-hidden rounded">
                     <EventByID id={(content as QuoteByIDContent).id} small />
                   </div>
                 </Show>

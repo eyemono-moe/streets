@@ -95,8 +95,8 @@ export default defineConfig({
       "bg-primary": "bg-white dark:bg-ui-950",
       "bg-secondary": "bg-ui-1 dark:bg-ui-8",
 
-      "bg-alpha-hover": "bg-ui-2/40 dark:bg-ui-7/40",
-      "bg-alpha-active": "bg-ui-2/60 dark:bg-ui-7/60",
+      "bg-alpha-hover": "bg-ui-2/20 dark:bg-ui-7/20",
+      "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
 
       // border color
       "border-primary": "b-ui-2 dark:b-ui-7",
