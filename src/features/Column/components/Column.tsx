@@ -41,7 +41,7 @@ const Column: Component<{
       <Show when={presence.isMounted()}>
         <button
           type="button"
-          class="absolute inset-0 bg-op-50! bg-secondary data-[expanded='false']:animate-duration-200 data-[expanded='false']:animate-fade-out data-[expanded='true']:animate-duration-200 data-[expanded='true']:animate-fade-in"
+          class="absolute inset-0 bg-op-80! bg-secondary data-[expanded='false']:animate-duration-200 data-[expanded='false']:animate-fade-out data-[expanded='true']:animate-duration-200 data-[expanded='true']:animate-fade-in"
           onClick={closeTempColumn}
           data-expanded={presence.isVisible()}
         />
