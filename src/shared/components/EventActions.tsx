@@ -10,6 +10,7 @@ import { showLoginModal } from "../libs/nostrLogin";
 import type { ParsedEventPacket } from "../libs/parser";
 import type { EventTag } from "../libs/parser/commonTag";
 import {
+  useRepliesOfEvent,
   useRepostsOfEvent,
   useSendReaction,
   useSendRepost,
@@ -22,6 +23,14 @@ const EventActions: Component<{
   const t = useI18n();
 
   const openPostInput = usePostInput();
+  const replies = useRepliesOfEvent(() => props.event.raw.id);
+  const replyCount = createMemo(
+    () =>
+      replies().data?.filter(
+        (r) => r.parsed.replyOrRoot?.id === props.event.raw.id,
+      ).length,
+  );
+
   const handleReply = () => {
     if (props.event.parsed.kind !== 1) return;
 
@@ -136,6 +145,9 @@ ${neventEncode({
         onClick={handleReply}
       >
         <div class="i-material-symbols:mode-comment-outline-rounded aspect-square h-4 w-auto" />
+        <Show when={replyCount()}>
+          <span class="lh-4 text-caption">{replyCount()}</span>
+        </Show>
       </button>
       <DropdownMenu>
         <DropdownMenu.Trigger
