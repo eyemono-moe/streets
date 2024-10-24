@@ -159,9 +159,16 @@ export const getCacheKey = (
   multiple?: CacheKey[];
 } => {
   switch (parsed.parsed.kind) {
-    case kinds.ShortTextNote:
-      // 特定イベントについて最新1件を取得できれば良いもの
-      return { single: [["event", parsed.parsed.id]] };
+    case kinds.ShortTextNote: {
+      const replyTarget = parsed.parsed.replyOrRoot
+        ? ["repliesOf", parsed.parsed.replyOrRoot.id]
+        : [];
+
+      return {
+        single: [["event", parsed.parsed.id]],
+        multiple: [replyTarget],
+      };
+    }
     case kinds.Metadata:
     case kinds.Contacts:
     case kinds.UserEmojiList:
@@ -576,6 +583,28 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
   };
 
   return createGetter<ParsedEventPacket<Repost>[]>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useRepliesOfEvent = (eventID: () => string | undefined) => {
+  const queryKey = () => ["repliesOf", eventID()];
+
+  const {
+    actions: { emit },
+  } = useRxNostr();
+  const emitter = () => {
+    const _eventID = eventID();
+    if (_eventID) {
+      emit({
+        kinds: [kinds.ShortTextNote],
+        "#e": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<ShortTextNote>[]>(() => ({
     queryKey: queryKey(),
     emitter,
   }));

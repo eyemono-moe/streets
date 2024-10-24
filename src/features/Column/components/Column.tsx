@@ -49,7 +49,7 @@ const Column: Component<{
           class="absolute inset-0 top-10 transition-transform duration-200 data-[expanded='false']:translate-y-100% data-[expanded='true']:translate-y-0"
           data-expanded={presence.isVisible()}
         >
-          <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-t-2 bg-primary">
+          <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] divide-y overflow-hidden rounded-t-2 bg-primary">
             <div class="flex items-center gap-1 p-1">
               <button
                 type="button"

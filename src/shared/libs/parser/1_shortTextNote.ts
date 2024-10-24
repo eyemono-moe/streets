@@ -87,12 +87,22 @@ export const parseShortTextNote = (input: NostrEvent) => {
 
   const tagsRes = v.safeParse(textNoteTags, input.tags);
   if (tagsRes.success) {
+    const reply = tagsRes.output.find(
+      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
+    );
+    const root = tagsRes.output.find(
+      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
+    );
+    const replyOrRoot = reply ?? root;
+
     return {
       id: input.id,
       kind: input.kind,
       content: input.content,
       pubkey: input.pubkey,
       tags: tagsRes.output,
+      /** 直接のリプライ先イベント */
+      replyOrRoot,
     } as const;
   }
   throw new Error(

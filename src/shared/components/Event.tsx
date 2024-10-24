@@ -16,7 +16,8 @@ const Event: Component<{
   small?: boolean;
   showReactions?: boolean;
   showActions?: boolean;
-  showReply?: boolean;
+  collapseReplies?: boolean;
+  showReplies?: boolean;
   hasChild?: boolean;
 }> = (props) => {
   const t = useI18n();
@@ -54,7 +55,8 @@ const Event: Component<{
               showActions={props.showActions}
               showEmbeddings={!props.small}
               hasChild={props.hasChild}
-              showReply={props.showReply}
+              collapseReplies={props.collapseReplies}
+              showReplies={props.showReplies}
             />
           </div>
         )}

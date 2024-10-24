@@ -40,7 +40,8 @@ const ReplyTargets: Component<{
               event={e}
               small
               hasChild
-              showReply={!collapsed()}
+              collapseReplies={collapsed()}
+              showReplies
               replyDepth={props.replyDepth + 1}
             />
           )}

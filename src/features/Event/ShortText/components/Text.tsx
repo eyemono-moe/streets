@@ -4,7 +4,6 @@ import RichContent from "../../../../shared/components/RichContents";
 import { parseTextContent } from "../../../../shared/libs/parseTextContent";
 import type { ParsedEventPacket } from "../../../../shared/libs/parser";
 import type { ShortTextNote } from "../../../../shared/libs/parser/1_shortTextNote";
-import type { EventTag } from "../../../../shared/libs/parser/commonTag";
 import { useColumn } from "../../../Column/context/column";
 import EmbedUser from "../../../User/components/EmbedUser";
 import ReplyTargets from "./ReplyTargets";
@@ -16,23 +15,14 @@ const Text: Component<{
   showEmbeddings?: boolean;
   showReactions?: boolean;
   showActions?: boolean;
-  showReply?: boolean;
+  collapseReplies?: boolean;
+  showReplies?: boolean;
   hasChild?: boolean;
   replyDepth?: number;
 }> = (props) => {
   const replyTarget = createMemo(
     () => props.event.parsed.tags.filter((tag) => tag.kind === "p") ?? [],
   );
-
-  const replyOrRoot = createMemo(() => {
-    const reply = props.event.parsed.tags.find(
-      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "reply",
-    );
-    const root = props.event.parsed.tags.find(
-      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
-    );
-    return reply ?? root;
-  });
 
   const parsedContents = createMemo(() =>
     parseTextContent(props.event.parsed.content, props.event.parsed.tags),
@@ -48,11 +38,11 @@ const Text: Component<{
 
   return (
     <>
-      <Show when={replyOrRoot()} keyed>
+      <Show when={props.showReplies && props.event.parsed.replyOrRoot} keyed>
         {(replyTarget) => (
           <ReplyTargets
             id={replyTarget.id}
-            defaultCollapsed={!props.showReply}
+            defaultCollapsed={props.collapseReplies}
             replyDepth={props.replyDepth ?? 0}
           />
         )}
@@ -62,7 +52,7 @@ const Text: Component<{
         small={props.small}
         showReactions={props.showReactions}
         showActions={props.showActions}
-        hasParent={replyOrRoot() !== undefined}
+        hasParent={props.event.parsed.replyOrRoot !== undefined}
         hasChild={props.hasChild}
         onSelected={handleOnSelect}
       >

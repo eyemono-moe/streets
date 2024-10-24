@@ -7,6 +7,8 @@ const EventByID: Component<{
   small?: boolean;
   showReactions?: boolean;
   showActions?: boolean;
+  collapseReplies?: boolean;
+  showReplies?: boolean;
 }> = (props) => {
   const event = useEventByID(() => props.id);
 
@@ -19,6 +21,8 @@ const EventByID: Component<{
           small={props.small}
           showReactions={props.showReactions}
           showActions={props.showActions}
+          collapseReplies={props.collapseReplies}
+          showReplies={props.showReplies}
         />
       )}
     </Show>
