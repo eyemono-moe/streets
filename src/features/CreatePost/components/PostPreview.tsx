@@ -4,7 +4,7 @@ import EventBase from "../../../shared/components/EventBase";
 import RichContent from "../../../shared/components/RichContents";
 import { parseTextContent } from "../../../shared/libs/parseTextContent";
 import type { EventTag, Tag } from "../../../shared/libs/parser/commonTag";
-import Reply from "../../Event/ShortText/components/Reply";
+import ReplyTargets from "../../Event/ShortText/components/ReplyTargets";
 import EmbedUser from "../../User/components/EmbedUser";
 
 const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
@@ -32,10 +32,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
     <>
       <Show when={replyOrRoot()} keyed>
         {(replyTarget) => (
-          <>
-            <Reply id={replyTarget.id} />
-            <div class="b-l-2 ml-[calc(0.75rem-1px)] h-4" />
-          </>
+          <ReplyTargets id={replyTarget.id} replyDepth={0} defaultCollapsed />
         )}
       </Show>
       <EventBase

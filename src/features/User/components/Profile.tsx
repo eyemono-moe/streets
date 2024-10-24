@@ -120,7 +120,7 @@ const Profile: Component<{
                 href={profile().data?.parsed.website}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="truncate text-caption text-link underline"
+                class="truncate text-caption text-link"
               >
                 {profile().data?.parsed.website}
               </a>

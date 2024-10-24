@@ -16,65 +16,70 @@ const Event: Component<{
   small?: boolean;
   showReactions?: boolean;
   showActions?: boolean;
+  collapseReplies?: boolean;
+  showReplies?: boolean;
+  hasChild?: boolean;
 }> = (props) => {
   const t = useI18n();
 
   return (
-    <div>
-      <Switch
-        fallback={
-          <EventBase
-            eventPacket={props.event}
-            small={props.small}
-            showReactions={props.showReactions}
-            showActions={props.showActions}
-          >
-            <div class="c-secondary flex items-center gap-0.5">
-              <div class="i-material-symbols:error-circle-rounded aspect-square h-4 w-auto" />
-              <span class="text-caption">{t("event.unknown")}</span>
-            </div>
-            <CopyablePre content={JSON.stringify(props.event.raw, null, 2)} />
-          </EventBase>
-        }
-      >
-        <Match
-          when={
-            props.event.parsed.kind === kinds.ShortTextNote &&
-            (props.event as ParsedEventPacket<ShortTextNote>)
-          }
-          keyed
+    <Switch
+      fallback={
+        <EventBase
+          eventPacket={props.event}
+          small={props.small}
+          showReactions={props.showReactions}
+          showActions={props.showActions}
         >
-          {(event) => (
+          <div class="c-secondary flex items-center gap-0.5">
+            <div class="i-material-symbols:error-circle-rounded aspect-square h-4 w-auto" />
+            <span class="text-caption">{t("event.unknown")}</span>
+          </div>
+          <CopyablePre content={JSON.stringify(props.event.raw, null, 2)} />
+        </EventBase>
+      }
+    >
+      <Match
+        when={
+          props.event.parsed.kind === kinds.ShortTextNote &&
+          (props.event as ParsedEventPacket<ShortTextNote>)
+        }
+        keyed
+      >
+        {(event) => (
+          <div>
             <Text
               event={event}
               small={props.small}
               showReactions={props.showReactions}
               showActions={props.showActions}
-              showReply={!props.small}
               showEmbeddings={!props.small}
+              hasChild={props.hasChild}
+              collapseReplies={props.collapseReplies}
+              showReplies={props.showReplies}
             />
-          )}
-        </Match>
-        <Match
-          when={
-            props.event.parsed.kind === kinds.Repost &&
-            (props.event as ParsedEventPacket<TRepost>)
-          }
-          keyed
-        >
-          {(event) => <Repost repost={event.parsed} />}
-        </Match>
-        <Match
-          when={
-            props.event.parsed.kind === kinds.Reaction &&
-            (props.event as ParsedEventPacket<TReaction>)
-          }
-          keyed
-        >
-          {(event) => <Reaction reaction={event.parsed} />}
-        </Match>
-      </Switch>
-    </div>
+          </div>
+        )}
+      </Match>
+      <Match
+        when={
+          props.event.parsed.kind === kinds.Repost &&
+          (props.event as ParsedEventPacket<TRepost>)
+        }
+        keyed
+      >
+        {(event) => <Repost repost={event.parsed} />}
+      </Match>
+      <Match
+        when={
+          props.event.parsed.kind === kinds.Reaction &&
+          (props.event as ParsedEventPacket<TReaction>)
+        }
+        keyed
+      >
+        {(event) => <Reaction reaction={event.parsed} />}
+      </Match>
+    </Switch>
   );
 };
 

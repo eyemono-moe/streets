@@ -32,6 +32,9 @@ importers:
       '@solid-primitives/media':
         specifier: 2.2.9
         version: 2.2.9(solid-js@1.9.2)
+      '@solid-primitives/presence':
+        specifier: 0.0.6
+        version: 0.0.6(solid-js@1.9.2)
       '@solid-primitives/scheduled':
         specifier: 1.4.3
         version: 1.4.3(solid-js@1.9.2)
@@ -895,6 +898,11 @@ packages:
 
   '@solid-primitives/platform@0.1.2':
     resolution: {integrity: sha512-sSxcZfuUrtxcwV0vdjmGnZQcflACzMfLriVeIIWXKp8hzaS3Or3tO6EFQkTd3L8T5dTq+kTtLvPscXIpL0Wzdg==}
+    peerDependencies:
+      solid-js: ^1.6.12
+
+  '@solid-primitives/presence@0.0.6':
+    resolution: {integrity: sha512-aQDOinJ+1H90jieShy8pgupUWOGCsk+2jN/EHnHOG0A7BnC8Q4q6eSSraqujAxpRPmqAQ5TyMncVnlLSwzXy3A==}
     peerDependencies:
       solid-js: ^1.6.12
 
@@ -2674,6 +2682,11 @@ snapshots:
 
   '@solid-primitives/platform@0.1.2(solid-js@1.9.2)':
     dependencies:
+      solid-js: 1.9.2
+
+  '@solid-primitives/presence@0.0.6(solid-js@1.9.2)':
+    dependencies:
+      '@solid-primitives/utils': 6.2.3(solid-js@1.9.2)
       solid-js: 1.9.2
 
   '@solid-primitives/props@3.1.11(solid-js@1.9.2)':

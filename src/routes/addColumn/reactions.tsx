@@ -9,10 +9,10 @@ import Button from "../../shared/components/UI/Button";
 import { TextField } from "../../shared/components/UI/TextField";
 import { pubkeySchema } from "../../shared/libs/schema";
 
-const addReactionsColumnformSchema = v.object({
+const addReactionsColumnFormSchema = v.object({
   pubkey: pubkeySchema,
 });
-type AddReactionsColumnForm = v.InferInput<typeof addReactionsColumnformSchema>;
+type AddReactionsColumnForm = v.InferInput<typeof addReactionsColumnFormSchema>;
 
 const reactions: Component = () => {
   const t = useI18n();
@@ -23,16 +23,22 @@ const reactions: Component = () => {
     initialValues: {
       pubkey: "",
     },
-    validate: valiForm(addReactionsColumnformSchema),
+    validate: valiForm(addReactionsColumnFormSchema),
   });
 
-  const handleSubmit: SubmitHandler<AddReactionsColumnForm> = (values) => {
-    const parsed = v.parse(addReactionsColumnformSchema, values);
+  const handleAddColumn = (pubkey: string) => {
     addColumn({
-      type: "reactions",
+      content: {
+        type: "reactions",
+        pubkey,
+      },
       size: "medium",
-      pubkey: parsed.pubkey,
     });
+  };
+
+  const handleSubmit: SubmitHandler<AddReactionsColumnForm> = (values) => {
+    const parsed = v.parse(addReactionsColumnFormSchema, values);
+    handleAddColumn(parsed.pubkey);
   };
 
   return (
@@ -66,11 +72,7 @@ const reactions: Component = () => {
           <h4 class="font-500 text-h3">{t("column.reactions.searchByName")}</h4>
           <UserSearchList
             onSelect={(pubkey) => {
-              addColumn({
-                type: "reactions",
-                size: "medium",
-                pubkey,
-              });
+              handleAddColumn(pubkey);
             }}
           />
         </div>

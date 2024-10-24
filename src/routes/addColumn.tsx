@@ -18,7 +18,7 @@ const addColumn: Component = () => {
           type="button"
           onClick={() =>
             addColumn({
-              type: "timeline",
+              content: { type: "timeline" },
               size: "medium",
             })
           }
@@ -44,7 +44,9 @@ const addColumn: Component = () => {
         <button
           class="parent flex appearance-none flex-col items-center bg-transparent p-1"
           type="button"
-          onClick={() => addColumn({ type: "notifications", size: "medium" })}
+          onClick={() =>
+            addColumn({ content: { type: "notifications" }, size: "medium" })
+          }
         >
           <div class="i-material-symbols:notifications-outline-rounded c-secondary parent-hover:c-accent-5 aspect-square h-8 w-auto transition-color duration-100" />
           <div class="text-caption">{t("column.notifications.title")}</div>

@@ -1,4 +1,3 @@
-import { createQuery } from "@tanstack/solid-query";
 import { type Filter, kinds } from "nostr-tools";
 import type { Event, EventParameters } from "nostr-typedef";
 import {
@@ -25,10 +24,12 @@ import {
   useInvalidateEventCache,
 } from "../../context/eventCache";
 import { useRxNostr } from "../../context/rxNostr";
-import { fetchOEmbed } from "./fetchOEmbed";
-import { fetchOgp } from "./fetchOgp";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
-import { type ParsedEventPacket, parseEventPacket } from "./parser";
+import {
+  type ParsedEventPacket,
+  parseEventPacket,
+  type parseNostrEvent,
+} from "./parser";
 import type { Metadata } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { FollowList } from "./parser/3_contacts";
@@ -36,36 +37,6 @@ import type { Repost } from "./parser/6_repost";
 import type { Reaction } from "./parser/7_reaction";
 import type { EmojiList } from "./parser/10030_emojiList";
 import type { EmojiSet } from "./parser/30030_emojiSet";
-
-export const useQueryEmbed = (url: () => string | undefined) => {
-  return createQuery(() => ({
-    queryKey: ["embed", url()],
-    queryFn: async () => {
-      const oEmbed = await fetchOEmbed(url() ?? "");
-      if (oEmbed)
-        return {
-          type: "oEmbed" as const,
-          value: oEmbed,
-        };
-
-      const ogp = await fetchOgp(url() ?? "");
-      if (ogp)
-        return {
-          type: "ogp" as const,
-          value: ogp,
-        };
-
-      // const ogpWithoutProxy = await fetchOgp(url() ?? "", false);
-      // if (ogpWithoutProxy)
-      //   return {
-      //     type: "ogp" as const,
-      //     value: ogpWithoutProxy,
-      //   };
-      return null;
-    },
-    enabled: !!url(),
-  }));
-};
 
 export const createInfiniteRxQuery = <T>(
   props: () => {
@@ -148,16 +119,23 @@ export const createInfiniteRxQuery = <T>(
 };
 
 // TODO: ここで各kindのstaleTimeも設定する
-export const getCacheKey = (
+const getCacheKey = (
   parsed: ReturnType<typeof parseEventPacket>,
 ): {
   single?: CacheKey[];
   multiple?: CacheKey[];
 } => {
   switch (parsed.parsed.kind) {
-    case kinds.ShortTextNote:
-      // 特定イベントについて最新1件を取得できれば良いもの
-      return { single: [["event", parsed.parsed.id]] };
+    case kinds.ShortTextNote: {
+      const replyTarget = parsed.parsed.replyOrRoot
+        ? ["repliesOf", parsed.parsed.replyOrRoot.id]
+        : [];
+
+      return {
+        single: [["event", parsed.parsed.id]],
+        multiple: [replyTarget],
+      };
+    }
     case kinds.Metadata:
     case kinds.Contacts:
     case kinds.UserEmojiList:
@@ -190,7 +168,7 @@ export const getCacheKey = (
   }
 };
 
-export const getRelatedEventFilters = (
+const getRelatedEventFilters = (
   parsed: ReturnType<typeof parseEventPacket>,
 ): LazyFilter[] => {
   switch (parsed.parsed.kind) {
@@ -299,7 +277,7 @@ export const cacheAndEmitRelatedEvent = (
   emit(relatedEventFilters);
 };
 
-export const useEventByID = (
+export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(
   id: () => string | undefined,
   relays?: () => string[] | undefined,
 ) => {
@@ -324,39 +302,7 @@ export const useEventByID = (
     }
   };
 
-  return createGetter<ParsedEventPacket>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
-};
-
-// TODO: useEventByIDsと統合
-export const useShortTextByID = (
-  id: () => string | undefined,
-  relays?: () => string[] | undefined,
-) => {
-  const queryKey = () => ["event", id()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
-    const _id = id();
-    if (_id) {
-      const _relays = relays?.() ?? [];
-      emit(
-        { kinds: [kinds.ShortTextNote], ids: [_id] },
-        _relays.length > 0
-          ? {
-              relays: _relays,
-            }
-          : undefined,
-      );
-    }
-  };
-
-  return createGetter<ParsedEventPacket<ShortTextNote>>(() => ({
+  return createGetter<ParsedEventPacket<T>>(() => ({
     queryKey: queryKey(),
     emitter,
   }));
@@ -483,29 +429,6 @@ export const useReactionsOfEvent = (eventID: () => string | undefined) => {
   }));
 };
 
-export const useReactionsByPubkey = (pubkey: () => string | undefined) => {
-  const queryKey = () => ["reactionsBy", pubkey()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
-    const _pubkey = pubkey();
-    if (_pubkey) {
-      emit({
-        kinds: [kinds.Reaction],
-        authors: [_pubkey],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<Reaction>[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
-};
-
 export const useRepostsOfEvent = (eventID: () => string | undefined) => {
   const queryKey = () => ["repostsOf", eventID()];
 
@@ -523,6 +446,28 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
   };
 
   return createGetter<ParsedEventPacket<Repost>[]>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useRepliesOfEvent = (eventID: () => string | undefined) => {
+  const queryKey = () => ["repliesOf", eventID()];
+
+  const {
+    actions: { emit },
+  } = useRxNostr();
+  const emitter = () => {
+    const _eventID = eventID();
+    if (_eventID) {
+      emit({
+        kinds: [kinds.ShortTextNote],
+        "#e": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<ShortTextNote>[]>(() => ({
     queryKey: queryKey(),
     emitter,
   }));

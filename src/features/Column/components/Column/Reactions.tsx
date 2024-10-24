@@ -1,23 +1,26 @@
 import { kinds } from "nostr-tools";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useProfile } from "../../../../shared/libs/query";
-import type { PickColumnState } from "../../libs/deckSchema";
+import type { ColumnContent } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 
 const Reactions: Component<{
-  state: PickColumnState<"reactions">;
+  state: ColumnContent<"reactions">;
+  showHeader?: boolean;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
   const t = useI18n();
 
   return (
-    <div class="flex w-full flex-col divide-y">
-      <ColumnHeader
-        title={t("column.reactions.title")}
-        subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
-      />
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show when={props.showHeader}>
+        <ColumnHeader
+          title={t("column.reactions.title")}
+          subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+        />
+      </Show>
       <div class="h-full overflow-y-auto">
         <InfiniteEvents
           filter={{

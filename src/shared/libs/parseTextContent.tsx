@@ -45,6 +45,7 @@ export type QuoteByIDContent = {
   type: "quoteByID";
   id: string;
 };
+// ts-remove-unused-skip
 export type QuoteByAddressContent = {
   type: "quoteByAddress";
   d: string;
@@ -81,7 +82,7 @@ export type ParsedContent =
 
 const mentionRegex = /(?:nostr:)?((note|npub|naddr|nevent|nprofile)1\w+)/g;
 
-type Refecence = {
+type Reference = {
   start: number;
   end: number;
 } & (
@@ -130,8 +131,8 @@ const parseReferences = (
   text: string,
   tags: Tag[],
   ignoreHashtagTag?: boolean,
-): Refecence[] => {
-  const refs: Refecence[] = [];
+): Reference[] => {
+  const refs: Reference[] = [];
 
   const emojiTags = tags.filter((tag) => tag.kind === "emoji");
   if (emojiTags.length > 0) {
@@ -266,8 +267,8 @@ export const parseTextContent = (
   try {
     const references = parseReferences(content, tags, ignoreHashtagTag);
     const imetaTags = tags.filter((tag) => tag.kind === "imeta");
-    const splittedContent = splitTextByLinks(content, references, imetaTags);
-    return splittedContent;
+    const spitedContent = splitTextByLinks(content, references, imetaTags);
+    return spitedContent;
   } catch (e) {
     console.error("failed to parse contents: ", e);
     return [
@@ -279,9 +280,9 @@ export const parseTextContent = (
   }
 };
 
-export const splitTextByLinks = (
+const splitTextByLinks = (
   text: string,
-  refs: Refecence[],
+  refs: Reference[],
   imetaTags: ImetaTag[],
 ): ParsedContent[] => {
   const links = linkify.find(text, {}).filter((link) => link.type === "url");
@@ -398,7 +399,7 @@ export const splitTextByLinks = (
 };
 
 const isRef = (
-  ref: Refecence | ReturnType<typeof linkify.find>[number],
+  ref: Reference | ReturnType<typeof linkify.find>[number],
 ): ref is ReturnType<typeof parseReferences>[number] => {
   return !("href" in ref);
 };

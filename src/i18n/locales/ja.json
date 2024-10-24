@@ -29,6 +29,7 @@
       "needLogin": "通知を確認するにはログインが必要です",
       "title": "通知"
     },
+    "openInNextColumn": "隣のカラムで開く",
     "profile": {
       "add": "追加",
       "addByPubkey": "Pubkeyで追加",
@@ -45,6 +46,9 @@
     },
     "search": {
       "title": "検索"
+    },
+    "thread": {
+      "title": "イベントスレッド"
     },
     "timeline": {
       "needLogin": "タイムラインを確認するにはログインが必要です",
@@ -68,6 +72,7 @@
     "viewEventData": "イベントデータを表示"
   },
   "loadMore": "さらに読み込む",
+  "loadMoreReply": "ポストをさらに読み込む",
   "loading": "読み込み中",
   "login": "ログインする",
   "noMoreEvents": "これ以上データがありません",

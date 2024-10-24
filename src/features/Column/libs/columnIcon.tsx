@@ -1,6 +1,6 @@
 import type { ColumnState } from "./deckSchema";
 
-export const columnIcon = (type: ColumnState["type"]) => {
+export const columnIcon = (type: ColumnState["content"]["type"]) => {
   switch (type) {
     case "search":
       return "i-material-symbols:search-rounded";
@@ -18,6 +18,8 @@ export const columnIcon = (type: ColumnState["type"]) => {
       return "i-material-symbols:person-check-outline-rounded";
     case "followers":
       return "i-material-symbols:group-outline-rounded";
+    case "thread":
+      return "i-material-symbols:format-list-bulleted-rounded";
     default: {
       const _unreachable: never = type;
       throw new Error(`Unknown column type: ${_unreachable}`);

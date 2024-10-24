@@ -9,10 +9,10 @@ import Button from "../../shared/components/UI/Button";
 import { TextField } from "../../shared/components/UI/TextField";
 import { pubkeySchema } from "../../shared/libs/schema";
 
-const addUserColumnformSchema = v.object({
+const addUserColumnFormSchema = v.object({
   pubkey: pubkeySchema,
 });
-type AddUserColumnForm = v.InferInput<typeof addUserColumnformSchema>;
+type AddUserColumnForm = v.InferInput<typeof addUserColumnFormSchema>;
 
 const user: Component = () => {
   const t = useI18n();
@@ -23,16 +23,22 @@ const user: Component = () => {
     initialValues: {
       pubkey: "",
     },
-    validate: valiForm(addUserColumnformSchema),
+    validate: valiForm(addUserColumnFormSchema),
   });
 
-  const handleSubmit: SubmitHandler<AddUserColumnForm> = (values) => {
-    const parsed = v.parse(addUserColumnformSchema, values);
+  const handleAddColumn = (pubkey: string) => {
     addColumn({
-      type: "user",
+      content: {
+        type: "user",
+        pubkey,
+      },
       size: "medium",
-      pubkey: parsed.pubkey,
     });
+  };
+
+  const handleSubmit: SubmitHandler<AddUserColumnForm> = (values) => {
+    const parsed = v.parse(addUserColumnFormSchema, values);
+    handleAddColumn(parsed.pubkey);
   };
 
   return (
@@ -66,11 +72,7 @@ const user: Component = () => {
           <h4 class="font-500 text-h3">{t("column.profile.searchByName")}</h4>
           <UserSearchList
             onSelect={(pubkey) => {
-              addColumn({
-                type: "user",
-                size: "medium",
-                pubkey,
-              });
+              handleAddColumn(pubkey);
             }}
           />
         </div>

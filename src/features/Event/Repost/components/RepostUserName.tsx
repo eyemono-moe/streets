@@ -10,7 +10,7 @@ const RepostUserName: Component<{
   const t = useI18n();
 
   return (
-    <div class="c-secondary pb-2 text-caption">
+    <div class="c-secondary text-caption">
       <HoverCard>
         <div class="flex items-center gap-1">
           <div class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4" />

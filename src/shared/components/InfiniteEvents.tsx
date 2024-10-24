@@ -58,18 +58,26 @@ const InfiniteEvents: Component<{
     <div class="h-full divide-y">
       <For each={latestEvents()}>
         {(event) => (
-          <div class="p-2">
-            <Event event={event} showActions showReactions />
-          </div>
+          <Event
+            event={event}
+            showActions
+            showReactions
+            collapseReplies
+            showReplies
+          />
         )}
       </For>
       <For each={oldEvents.pages}>
         {(page) => (
           <For each={page}>
             {(event) => (
-              <div class="p-2">
-                <Event event={event} showActions showReactions />
-              </div>
+              <Event
+                event={event}
+                showActions
+                showReactions
+                collapseReplies
+                showReplies
+              />
             )}
           </For>
         )}

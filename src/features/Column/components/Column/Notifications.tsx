@@ -3,20 +3,23 @@ import { type Component, Show } from "solid-js";
 import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
-import type { PickColumnState } from "../../libs/deckSchema";
+import type { ColumnContent } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
 const Notifications: Component<{
-  state: PickColumnState<"notifications">;
-}> = () => {
+  state: ColumnContent<"notifications">;
+  showHeader?: boolean;
+}> = (props) => {
   const t = useI18n();
 
   const [{ myPubkey: pubkey }] = useMe();
 
   return (
-    <div class="flex w-full flex-col divide-y">
-      <ColumnHeader title={t("column.notifications.title")} />
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show when={props.showHeader}>
+        <ColumnHeader title={t("column.notifications.title")} />
+      </Show>
       <div class="h-full overflow-y-auto">
         <Show
           when={pubkey()}

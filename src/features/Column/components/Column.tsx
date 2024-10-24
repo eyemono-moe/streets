@@ -1,11 +1,9 @@
-import { type Component, Match, Switch } from "solid-js";
-import type { ColumnState, PickColumnState } from "../libs/deckSchema";
-import Followees from "./Column/Followees";
-import Followers from "./Column/Followers";
-import Followings from "./Column/Followings";
-import Notifications from "./Column/Notifications";
-import Reactions from "./Column/Reactions";
-import User from "./Column/User";
+import { createPresence } from "@solid-primitives/presence";
+import { type Component, Show } from "solid-js";
+import { useI18n } from "../../../i18n";
+import { useColumn } from "../context/column";
+import type { ColumnState } from "../libs/deckSchema";
+import ColumnContent from "./ColumnContent";
 import type { HandleListeners } from "./Columns";
 
 const Column: Component<{
@@ -13,9 +11,19 @@ const Column: Component<{
   handleListeners: HandleListeners;
   isMoving: boolean;
 }> = (props) => {
+  const t = useI18n();
+
+  const [, { closeTempColumn, backOrCloseTempColumn, transferTempColumn }] =
+    // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
+    useColumn()!;
+
+  const presence = createPresence(() => !!props.column.tempContent, {
+    transitionDuration: 200,
+  });
+
   return (
     <div
-      class="relative flex h-full shrink-0 bg-primary"
+      class="relative flex h-full shrink-0 overflow-hidden bg-primary"
       classList={{
         "w-80": props.column.size === "small",
         "w-100": props.column.size === "medium",
@@ -29,28 +37,50 @@ const Column: Component<{
       >
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
-      <Switch>
-        <Match when={props.column.type === "timeline"}>
-          <Followings state={props.column as PickColumnState<"timeline">} />
-        </Match>
-        <Match when={props.column.type === "user"}>
-          <User state={props.column as PickColumnState<"user">} />
-        </Match>
-        <Match when={props.column.type === "followees"}>
-          <Followees state={props.column as PickColumnState<"followees">} />
-        </Match>
-        <Match when={props.column.type === "followers"}>
-          <Followers state={props.column as PickColumnState<"followers">} />
-        </Match>
-        <Match when={props.column.type === "reactions"}>
-          <Reactions state={props.column as PickColumnState<"reactions">} />
-        </Match>
-        <Match when={props.column.type === "notifications"}>
-          <Notifications
-            state={props.column as PickColumnState<"notifications">}
-          />
-        </Match>
-      </Switch>
+      <ColumnContent content={props.column.content} showHeader />
+      <Show when={presence.isMounted()}>
+        <button
+          type="button"
+          class="absolute inset-0 bg-op-50! bg-secondary data-[expanded='false']:animate-duration-200 data-[expanded='false']:animate-fade-out data-[expanded='true']:animate-duration-200 data-[expanded='true']:animate-fade-in"
+          onClick={closeTempColumn}
+          data-expanded={presence.isVisible()}
+        />
+        <div
+          class="absolute inset-0 top-10 transition-transform duration-200 data-[expanded='false']:translate-y-100% data-[expanded='true']:translate-y-0"
+          data-expanded={presence.isVisible()}
+        >
+          <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] divide-y overflow-hidden rounded-t-2 bg-primary">
+            <div class="flex items-center gap-1 p-1">
+              <button
+                type="button"
+                class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={backOrCloseTempColumn}
+              >
+                <div class="i-material-symbols:chevron-left-rounded aspect-square h-6 w-auto" />
+              </button>
+              <button
+                type="button"
+                class="c-secondary ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={transferTempColumn}
+                title={t("column.openInNextColumn")}
+              >
+                <div class="i-material-symbols:open-in-new-rounded aspect-square h-6 w-auto" />
+              </button>
+              <button
+                type="button"
+                class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
+                onClick={closeTempColumn}
+              >
+                <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
+              </button>
+            </div>
+            <Show when={props.column.tempContent}>
+              {/* biome-ignore lint/style/noNonNullAssertion: Show when props.column.tempContent is not null */}
+              <ColumnContent content={props.column.tempContent!} />
+            </Show>
+          </div>
+        </div>
+      </Show>
     </div>
   );
 };
