@@ -23,10 +23,10 @@ const ReplyTargets: Component<{
         when={!collapsed() || props.replyDepth === 0}
         fallback={
           <div class="relative">
-            <div class="b-l-2 b-dashed pointer-events-none absolute ml-[calc(1.25rem-1px)] h-full" />
+            <div class="b-l-2 b-dashed pointer-events-none absolute mt-2 ml-[calc(1.25rem-1px)] h-full" />
             <button
               type="button"
-              class="c-secondary w-full appearance-none bg-transparent py-1 pl-8 text-start text-caption"
+              class="c-secondary w-full appearance-none bg-transparent pt-3 pb-1 pl-8 text-start text-caption"
               onClick={() => setCollapsed(false)}
             >
               {t("loadMoreReply")}
