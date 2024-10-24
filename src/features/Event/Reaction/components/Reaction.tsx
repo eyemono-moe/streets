@@ -3,7 +3,7 @@ import Event from "../../../../shared/components/Event";
 import type { Reaction as TReaction } from "../../../../shared/libs/parser/7_reaction";
 import { useEventByID } from "../../../../shared/libs/query";
 import { useColumn } from "../../../Column/context/column";
-import ReactionUserName from "./ReactiontUserName";
+import ReactionUserName from "./ReactionUserName";
 
 const Reaction: Component<{
   reaction: TReaction;

@@ -9,10 +9,10 @@ import Button from "../../shared/components/UI/Button";
 import { TextField } from "../../shared/components/UI/TextField";
 import { pubkeySchema } from "../../shared/libs/schema";
 
-const addUserColumnformSchema = v.object({
+const addUserColumnFormSchema = v.object({
   pubkey: pubkeySchema,
 });
-type AddUserColumnForm = v.InferInput<typeof addUserColumnformSchema>;
+type AddUserColumnForm = v.InferInput<typeof addUserColumnFormSchema>;
 
 const user: Component = () => {
   const t = useI18n();
@@ -23,7 +23,7 @@ const user: Component = () => {
     initialValues: {
       pubkey: "",
     },
-    validate: valiForm(addUserColumnformSchema),
+    validate: valiForm(addUserColumnFormSchema),
   });
 
   const handleAddColumn = (pubkey: string) => {
@@ -37,7 +37,7 @@ const user: Component = () => {
   };
 
   const handleSubmit: SubmitHandler<AddUserColumnForm> = (values) => {
-    const parsed = v.parse(addUserColumnformSchema, values);
+    const parsed = v.parse(addUserColumnFormSchema, values);
     handleAddColumn(parsed.pubkey);
   };
 
