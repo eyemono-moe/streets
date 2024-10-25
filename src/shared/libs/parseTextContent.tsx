@@ -193,11 +193,11 @@ const parseReferences = (
     const length = match[0].length;
     const start = match.index;
     const end = start + length;
-    const hex = match.at(1);
+    const bech32 = match.at(1);
 
-    if (hex) {
+    if (bech32) {
       try {
-        const { data, type } = decode(hex);
+        const { data, type } = decode(bech32);
         switch (type) {
           case "note":
             refs.push({
