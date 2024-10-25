@@ -79,7 +79,6 @@ export const ColumnProvider: ParentComponent<{
   };
 
   const backOrCloseTempColumn = () => {
-    console.log("backOrCloseTempColumn");
     setTempColumnHistory((prev) => prev.slice(0, -1));
   };
 
@@ -89,7 +88,6 @@ export const ColumnProvider: ParentComponent<{
 
   createEffect(() => {
     // Historyの最後の要素を表示
-    // console.log(JSON.stringify(tempColumnHistory(), null, 2));
     setTempColumn(tempColumnHistory().at(-1), props.index);
   });
 
