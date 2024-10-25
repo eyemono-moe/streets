@@ -2,9 +2,7 @@ import Fuse from "fuse.js";
 import { type Component, For, createMemo, createSignal } from "solid-js";
 import { useI18n } from "../../../i18n";
 import { TextField } from "../../../shared/components/UI/TextField";
-import type { ParsedEventPacket } from "../../../shared/libs/parser";
-import type { Metadata } from "../../../shared/libs/parser/0_metadata";
-import { useCacheByQueryKey } from "../../../shared/libs/query";
+import { useUserList } from "../../../shared/libs/query";
 import ProfileRow from "./ProfileRow";
 
 const UserSearchList: Component<{
@@ -14,17 +12,16 @@ const UserSearchList: Component<{
 
   const [query, setQuery] = createSignal("");
 
-  const loadedUsers = useCacheByQueryKey<ParsedEventPacket<Metadata>>(() => [
-    0,
-  ]);
+  const users = useUserList();
+
   const fuse = createMemo(
     () =>
-      new Fuse(loadedUsers() ?? [], {
+      new Fuse(users() ?? [], {
         keys: ["data.parsed.name", "data.parsed.display_name"],
       }),
   );
   const filteredUsers = createMemo(() => {
-    if (!query()) return loadedUsers();
+    if (!query()) return users();
     return fuse()
       .search(query())
       .map((result) => result.item);

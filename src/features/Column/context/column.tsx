@@ -14,6 +14,9 @@ const ColumnContext =
     [
       state: ColumnState,
       actions: {
+        updateColumn: (
+          column: ColumnState | ((prev: ColumnState) => ColumnState),
+        ) => void;
         /**
          * 隣のカラムに新しいカラムを追加する
          *
@@ -43,15 +46,22 @@ const ColumnContext =
 export const ColumnProvider: ParentComponent<{
   index: number;
 }> = (props) => {
-  const [state, { addColumn, removeColumn, setTempColumn }] = useDeck();
+  const [state, { addColumn, updateColumn, removeColumn, setTempColumn }] =
+    useDeck();
 
-  const [tempColumnHistory, setTempColumnHistory] = createSignal<
-    Exclude<ColumnState["tempContent"], undefined>[]
-  >([]);
+  const updateColumnState = (
+    column: ColumnState | ((prev: ColumnState) => ColumnState),
+  ) => {
+    updateColumn(column, props.index);
+  };
 
   const addColumnAfterThis = (column: ColumnState) => {
     addColumn(column, props.index + 1);
   };
+
+  const [tempColumnHistory, setTempColumnHistory] = createSignal<
+    Exclude<ColumnState["tempContent"], undefined>[]
+  >([]);
 
   const openTempColumn = (
     column: Exclude<ColumnState["tempContent"], undefined>,
@@ -100,6 +110,7 @@ export const ColumnProvider: ParentComponent<{
         state.columns[props.index],
         {
           addColumnAfterThis,
+          updateColumn: updateColumnState,
           removeThisColumn: () => removeColumn(props.index),
           openTempColumn,
           backOrCloseTempColumn,

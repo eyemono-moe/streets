@@ -11,7 +11,7 @@ import { toArrayScan } from "../libs/rxjs";
 import Event from "./Event";
 
 const InfiniteEvents: Component<{
-  filter: Omit<Filter, "since" | "until">;
+  filter: Filter;
 }> = (props) => {
   const t = useI18n();
 
@@ -49,8 +49,7 @@ const InfiniteEvents: Component<{
     hasNextPage,
     isFetching,
   } = createInfiniteRxQuery(() => ({
-    parser: (e) => parseEventPacket(e),
-    filter: { ...props.filter },
+    filter: props.filter,
     limit: 10,
   }));
 
@@ -83,7 +82,7 @@ const InfiniteEvents: Component<{
         )}
       </For>
       <button
-        class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
+        class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 enabled:active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
         type="button"
         onClick={fetchNextPage}
         disabled={!hasNextPage() || isFetching()}
