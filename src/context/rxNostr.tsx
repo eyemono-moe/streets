@@ -10,13 +10,14 @@ import {
   filterByType,
   latestEach,
 } from "rx-nostr";
-import { verifier } from "rx-nostr-crypto";
+import { createVerificationServiceClient } from "rx-nostr-crypto";
 import { bufferWhen, interval } from "rxjs";
 import {
   type ParentComponent,
   createContext,
   createEffect,
   lazy,
+  onCleanup,
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -24,6 +25,7 @@ import { isDev } from "solid-js/web";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
 import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
+import workerUrl from "../shared/libs/verifierWorker?worker&url";
 import { eventCacheSetter } from "./eventCache";
 import { useRelays } from "./relays";
 
@@ -39,6 +41,15 @@ const RxNostrContext = createContext<{
 }>();
 
 export const RxNostrProvider: ParentComponent = (props) => {
+  const client = createVerificationServiceClient({
+    worker: new Worker(workerUrl, { type: "module" }),
+  });
+  client.start();
+
+  onCleanup(() => {
+    client.dispose();
+  });
+
   Nip11Registry.setDefault({
     limitation: {
       max_subscriptions: 10,
@@ -46,7 +57,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
   });
 
   const rxNostr = createRxNostr({
-    verifier,
+    verifier: client.verifier,
     eoseTimeout: 10 * 1000, // 10 sec
     okTimeout: 10 * 1000,
     connectionStrategy: "lazy-keep",
