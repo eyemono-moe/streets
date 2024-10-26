@@ -24,6 +24,12 @@ const ColumnContext =
          */
         addColumnAfterThis: (column: ColumnState) => void;
         /**
+         * カラムのサイズを変更する
+         *
+         * @param size 新しいサイズ
+         */
+        setColumnSize: (size: ColumnState["size"]) => void;
+        /**
          * このカラムを削除する
          */
         removeThisColumn: () => void;
@@ -46,14 +52,10 @@ const ColumnContext =
 export const ColumnProvider: ParentComponent<{
   index: number;
 }> = (props) => {
-  const [state, { addColumn, updateColumn, removeColumn, setTempColumn }] =
-    useDeck();
-
-  const updateColumnState = (
-    column: ColumnState | ((prev: ColumnState) => ColumnState),
-  ) => {
-    updateColumn(column, props.index);
-  };
+  const [
+    state,
+    { addColumn, updateColumn, setColumnSize, removeColumn, setTempColumn },
+  ] = useDeck();
 
   const addColumnAfterThis = (column: ColumnState) => {
     addColumn(column, props.index + 1);
@@ -108,7 +110,8 @@ export const ColumnProvider: ParentComponent<{
         state.columns[props.index],
         {
           addColumnAfterThis,
-          updateColumn: updateColumnState,
+          updateColumn: (column) => updateColumn(column, props.index),
+          setColumnSize: (size) => setColumnSize(size, props.index),
           removeThisColumn: () => removeColumn(props.index),
           openTempColumn,
           backOrCloseTempColumn,

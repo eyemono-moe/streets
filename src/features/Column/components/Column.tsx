@@ -23,7 +23,7 @@ const Column: Component<{
 
   return (
     <div
-      class="relative flex h-full shrink-0 overflow-hidden bg-primary"
+      class="relative flex h-full shrink-0 overflow-hidden bg-primary transition-width duration-100"
       classList={{
         "w-80": props.column.size === "small",
         "w-100": props.column.size === "medium",
@@ -31,7 +31,7 @@ const Column: Component<{
       }}
     >
       <div
-        class="c-secondary absolute m-1 h-6 cursor-move rounded-full hover:bg-alpha-hover data-[moving='true']:bg-alpha-active"
+        class="c-secondary absolute m-1 h-7.5 cursor-move rounded-full hover:bg-alpha-hover data-[moving='true']:bg-alpha-active"
         data-moving={props.isMoving}
         {...props.handleListeners}
       >

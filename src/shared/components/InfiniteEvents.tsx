@@ -12,6 +12,7 @@ import Event from "./Event";
 
 const InfiniteEvents: Component<{
   filter: Filter;
+  relays?: string[];
 }> = (props) => {
   const t = useI18n();
 
@@ -24,16 +25,23 @@ const InfiniteEvents: Component<{
   } = useRxNostr();
 
   const latestEvents = from(
-    rxNostr.use(latestRxReq).pipe(
-      uniq(),
-      tap({
-        next: (e) => {
-          cacheAndEmitRelatedEvent(e, emit, setter);
+    rxNostr
+      .use(latestRxReq, {
+        on: {
+          relays: props.relays,
+          defaultReadRelays: !props.relays,
         },
-      }),
-      map((e) => parseEventPacket(e)),
-      toArrayScan(true),
-    ),
+      })
+      .pipe(
+        uniq(),
+        tap({
+          next: (e) => {
+            cacheAndEmitRelatedEvent(e, emit, setter);
+          },
+        }),
+        map((e) => parseEventPacket(e)),
+        toArrayScan(true),
+      ),
   );
 
   onMount(() => {
@@ -51,6 +59,7 @@ const InfiniteEvents: Component<{
   } = createInfiniteRxQuery(() => ({
     filter: props.filter,
     limit: 10,
+    relays: props.relays,
   }));
 
   return (

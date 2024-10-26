@@ -45,7 +45,21 @@
       "titleAddColumn": "Add reactions column"
     },
     "search": {
-      "title": "Search"
+      "enterQuery": "Enter search query",
+      "from": "From",
+      "hashtag": "Hashtag",
+      "helpFrom": "Search posts from a specific user. Enter the user's pubkey (npub1...).",
+      "helpHashtag": "Search posts with a specific hashtag.",
+      "helpSince": "Search posts since a specific date and time.",
+      "helpTo": "Search posts to a specific user. Enter the user's pubkey (npub1...).",
+      "helpUntil": "Search posts until a specific date and time.",
+      "helpWord": "Search posts with a specific word.",
+      "search": "Search",
+      "since": "Since",
+      "title": "Search",
+      "to": "To",
+      "until": "Until",
+      "word": "Word"
     },
     "thread": {
       "title": "Event thread"
@@ -56,6 +70,15 @@
     },
     "trends": {
       "title": "Trends"
+    }
+  },
+  "columnConfig": {
+    "remove": "Remove",
+    "size": {
+      "large": "Large",
+      "medium": "Medium",
+      "small": "Small",
+      "title": "Column size"
     }
   },
   "error": {

@@ -42,6 +42,7 @@ export const createInfiniteRxQuery = (
   props: () => {
     filter: Filter;
     limit: number;
+    relays?: string[];
   },
 ) => {
   // TODO: propsが変化したら再取得する
@@ -75,7 +76,12 @@ export const createInfiniteRxQuery = (
     const page = await new Promise<ParsedEventPacket[]>((resolve) => {
       const events: ParsedEventPacket[] = [];
       rxNostr
-        .use(rxReq)
+        .use(rxReq, {
+          on: {
+            relays: props().relays,
+            defaultReadRelays: !props().relays,
+          },
+        })
         .pipe(
           uniq(),
           tap((e) => cacheAndEmitRelatedEvent(e, emit, setter)),

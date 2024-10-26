@@ -23,7 +23,9 @@ describe("parseQuery", () => {
     const query = "lorem ipsum after:2021-01-23";
     const queryObject = await parseQuery(query);
     expect(queryObject.word).toBe("lorem ipsum");
-    expect(queryObject.since).toEqual(new Date("2021-01-23T00:00:00.000"));
+    expect(queryObject.since).toEqual(
+      new Date("2021-01-23T00:00:00.000").getTime(),
+    );
   });
   test("can parse query with user-filter with bech32", async () => {
     const query = `lorem ipsum from:${mockUserBech32}`;
@@ -55,8 +57,8 @@ describe("toSearchMessageParam", () => {
   test("can convert query object to nostr filter", () => {
     const query = {
       word: "lorem ipsum",
-      since: new Date("2021-01-23T00:00:00.000"),
-      until: new Date("2021-01-23T00:00:00.000"),
+      since: new Date("2021-01-23T00:00:00.000").getTime(),
+      until: new Date("2021-01-23T00:00:00.000").getTime(),
       to: mockUserHex,
       from: mockUserHex,
       hashtag: "hashtag",

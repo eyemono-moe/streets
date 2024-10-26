@@ -67,6 +67,13 @@ const DeckContext =
           index?: number,
         ) => void;
         /**
+         * Set the size of a column
+         *
+         * @param size - The new size of the column
+         * @param index - The index of the column to update
+         */
+        setColumnSize: (size: ColumnState["size"], index: number) => void;
+        /**
          * Remove a column from the deck
          *
          * @param index - The index of the column to remove
@@ -150,6 +157,10 @@ export const DeckProvider: ParentComponent = (props) => {
     setState("columns", _index, "tempContent", column);
   };
 
+  const setColumnSize = (size: ColumnState["size"], index: number) => {
+    setState("columns", index, "size", size);
+  };
+
   const removeColumn = (index: number) => {
     setState(
       "columns",
@@ -223,6 +234,7 @@ export const DeckProvider: ParentComponent = (props) => {
           addColumn,
           updateColumn,
           setTempColumn,
+          setColumnSize,
           removeColumn,
           moveColumn,
           scrollIntoView,

@@ -1,41 +1,49 @@
 import { TextField as KTextField } from "@kobalte/core";
-import { type JSX, Show, splitProps } from "solid-js";
+import {
+  type Component,
+  type JSX,
+  Show,
+  createMemo,
+  splitProps,
+} from "solid-js";
 import HelpTooltip from "../HelpTooltip";
 
-type TextFieldProps = {
+type DatetimePickerProps = {
   name?: string;
-  type?: string;
   label?: string;
-  placeholder?: string;
-  value?: string;
+  /** Unix timestamp */
+  value?: number;
   help?: string;
   error?: string;
-  multiline?: boolean;
   required?: boolean;
   disabled?: boolean;
-  ref?: (element: HTMLInputElement | HTMLTextAreaElement) => void;
-  onInput?: JSX.EventHandler<
-    HTMLInputElement | HTMLTextAreaElement,
-    InputEvent
-  >;
-  onChange?: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, Event>;
-  onBlur?: JSX.EventHandler<HTMLInputElement | HTMLTextAreaElement, FocusEvent>;
+  ref?: (element: HTMLInputElement) => void;
+  onInput?: JSX.EventHandler<HTMLInputElement, InputEvent>;
+  onChange?: JSX.EventHandler<HTMLInputElement, Event>;
+  onBlur?: JSX.EventHandler<HTMLInputElement, FocusEvent>;
 };
 
-export function TextField(props: TextFieldProps) {
+const DatetimePicker: Component<DatetimePickerProps> = (props) => {
   const [rootProps, addedProps, inputProps] = splitProps(
     props,
     ["name", "value", "required", "disabled"],
     ["help"],
-    ["placeholder", "ref", "onInput", "onChange", "onBlur"],
+    ["ref", "onInput", "onChange", "onBlur"],
   );
+
+  const strValue = createMemo(() => {
+    if (!props.value) return "";
+    if (Number.isNaN(props.value)) return "";
+    // slice(0, 16) removes the seconds and milliseconds
+    return new Date(props.value).toISOString().slice(0, 16);
+  });
 
   return (
     <KTextField.Root
       {...rootProps}
       // undefined value causes the input to be uncontrolled
       // see: https://github.com/kobaltedev/kobalte/issues/413
-      value={rootProps.value ?? ""}
+      value={strValue()}
       validationState={props.error ? "invalid" : "valid"}
       class="w-full"
     >
@@ -49,21 +57,17 @@ export function TextField(props: TextFieldProps) {
           <HelpTooltip>{addedProps.help}</HelpTooltip>
         </Show>
       </div>
-      <Show
-        when={props.multiline}
-        fallback={
-          <KTextField.Input
-            {...inputProps}
-            type={props.type}
-            class="b-1 w-full rounded bg-secondary px-1 py-0.5"
-          />
-        }
-      >
-        <KTextField.TextArea {...inputProps} autoResize />
-      </Show>
+      <KTextField.Input
+        {...inputProps}
+        // datetime-localはlocalの日時を返すので、UTCに変換する必要がある
+        type="datetime-local"
+        class="b-1 w-full rounded bg-secondary px-1 py-0.5"
+      />
       <KTextField.ErrorMessage class="font-500 text-caption text-red-5">
         {props.error}
       </KTextField.ErrorMessage>
     </KTextField.Root>
   );
-}
+};
+
+export default DatetimePicker;

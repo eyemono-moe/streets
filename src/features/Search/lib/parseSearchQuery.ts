@@ -30,10 +30,10 @@ const makePrefixedFilterExtractor =
     return q;
   };
 
-// biome-ignore lint/complexity/noBannedTypes: TODO: 一旦実装見送り
-export type StoreForParser = {
-  // usernameToHexPubkey: (name: string) => string | undefined;
-};
+// TODO: 入力補完の実装
+// export type StoreForParser = {
+//   usernameToHexPubkey: (name: string) => string | undefined;
+// };
 
 const parseToFilter =
   <F, T extends string>(
@@ -60,18 +60,21 @@ const parseToFilter =
 // 時刻を含まない日付の正規表現
 const dateOnlyFormRegex = /^[0-9]{4}(-[0-9]{2}(-[0-9]{2})?)?$/;
 
+/**
+ * 日付様文字列を受け取ってUnix timeに変換する
+ */
 const dateParser = <T extends string>(
   extracted: ExtractedFilter<T>,
-): Date | undefined => {
+): number | undefined => {
   // 時刻を含まない日付の場合は、T00:00:00.000を付与する
   const dateQuery = dateOnlyFormRegex.test(extracted.value)
     ? `${extracted.value}T00:00:00.000`
     : extracted.value;
-  const date = new Date(dateQuery);
-  if (Number.isNaN(date.getTime())) {
+  const datetime = new Date(dateQuery).getTime();
+  if (Number.isNaN(datetime)) {
     return undefined;
   }
-  return date;
+  return datetime;
 };
 
 /**
@@ -87,7 +90,11 @@ const userParser = <T extends string>(
   //   return undefined;
   // }
 
-  if (nip19.BECH32_REGEX.test(extracted.value)) {
+  if (
+    nip19.BECH32_REGEX.test(extracted.value) &&
+    (extracted.value.startsWith("npub") ||
+      extracted.value.startsWith("nprofile"))
+  ) {
     try {
       const { data, type } = decode(extracted.value);
       switch (type) {
@@ -107,18 +114,19 @@ const userParser = <T extends string>(
 };
 
 type SearchQueryObject = {
-  kind?: number[];
   word?: string;
-  since?: Date;
-  until?: Date;
+  /** Unix time in milliseconds */
+  since?: number;
+  /** Unix time in milliseconds */
+  until?: number;
   from?: string;
   to?: string;
   hashtag?: string;
 };
 
 type SearchFilter =
-  | { type: "since"; raw: string; value: Date }
-  | { type: "until"; raw: string; value: Date }
+  | { type: "since"; raw: string; value: number }
+  | { type: "until"; raw: string; value: number }
   | { type: "from"; raw: string; value: string }
   | { type: "to"; raw: string; value: string }
   | { type: "hashtag"; raw: string; value: string };
@@ -222,14 +230,34 @@ const mergeQueryObject = (
   };
 };
 
+export const searchQueryObjectToString = (
+  queryObj: SearchQueryObject,
+): string => {
+  return [
+    queryObj.word,
+    // removes the seconds and milliseconds
+    queryObj.since
+      ? `since:${new Date(queryObj.since).toISOString().slice(0, 16)}`
+      : "",
+    queryObj.until
+      ? `until:${new Date(queryObj.until).toISOString().slice(0, 16)}`
+      : "",
+    queryObj.from ? `from:${queryObj.from}` : "",
+    queryObj.to ? `to:${queryObj.to}` : "",
+    queryObj.hashtag ? `#${queryObj.hashtag}` : "",
+  ]
+    .filter((q) => q)
+    .join(" ");
+};
+
 export const queryObjectToNostrFilter = (query: SearchQueryObject): Filter => {
   return {
     // kindは一旦ShortTextNoteのみ
     kinds: [kinds.ShortTextNote],
     // 空文字列の場合はundefinedを指定
     search: query.word || undefined,
-    since: query.since ? Math.floor(query.since.getTime() / 1000) : undefined,
-    until: query.until ? Math.floor(query.until.getTime() / 1000) : undefined,
+    since: query.since ? Math.floor(query.since / 1000) : undefined,
+    until: query.until ? Math.floor(query.until / 1000) : undefined,
     authors: query.from ? [query.from] : undefined,
     "#t": query.hashtag ? [query.hashtag] : undefined,
     "#p": query.to ? [query.to] : undefined,
