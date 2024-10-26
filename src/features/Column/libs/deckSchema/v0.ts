@@ -6,11 +6,12 @@ const columnContent = v.variant("type", [
     type: v.literal("search"),
     query: v.string(),
   }),
-  v.object({
-    // kind: 10003
-    type: v.literal("bookmarks"),
-    pubkey: v.string(),
-  }),
+  // TODO: 一旦実装見送り
+  // v.object({
+  //   // kind: 10003
+  //   type: v.literal("bookmarks"),
+  //   pubkey: v.string(),
+  // }),
   v.object({
     type: v.literal("notifications"),
   }),
