@@ -42,6 +42,9 @@ const EventBase: ParentComponent<{
     )
       return;
 
+    // テキスト選択時は何もしない
+    if (window.getSelection()?.toString()) return;
+
     props.onSelected?.();
   };
 
@@ -51,7 +54,7 @@ const EventBase: ParentComponent<{
       type="button"
       // ネストしたイベント(リポスト内容, リアクション内容, リプライ先等)ではpaddingを削除する
       // 引用表示ではpaddingを1にする
-      class="w-full appearance-none bg-transparent p-2 text-align-unset group-[_]/event:p-0 group-[_]/quote:p-1"
+      class="w-full select-text appearance-none bg-transparent p-2 text-align-unset group-[_]/event:p-0 group-[_]/quote:p-1"
       classList={{
         "text-body": !mergedProps.small,
         "text-caption": mergedProps.small,
