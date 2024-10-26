@@ -9,7 +9,6 @@ import {
   transformStyle,
   useDragDropContext,
 } from "@thisbeyond/solid-dnd";
-import stringify from "safe-stable-stringify";
 import { type Component, For } from "solid-js";
 import { ColumnProvider } from "../context/column";
 import { useDeck } from "../context/deck";
@@ -24,8 +23,7 @@ const SortableColumn: Component<{
   state: ColumnState;
   index: number;
 }> = (props) => {
-  // @ts-ignore: TS6133 typescript can't detect use: directive
-  const sortable = createSortable(stringify(props.state));
+  const sortable = createSortable(props.state.id);
   const ctx = useDragDropContext();
 
   return (
@@ -42,7 +40,7 @@ const SortableColumn: Component<{
         <Column
           column={props.state}
           handleListeners={sortable.dragActivators}
-          isMoving={ctx?.[0].active.draggable?.id === stringify(props.state)}
+          isMoving={ctx?.[0].active.draggable?.id === props.state.id}
         />
       </ColumnProvider>
     </div>
@@ -60,7 +58,7 @@ declare module "solid-js" {
 const Columns: Component = () => {
   const [state, { moveColumn }] = useDeck();
 
-  const ids = () => state.columns.map((s) => stringify(s));
+  const ids = () => state.columns.map((s) => s.id);
 
   const onDragEnd: DragEventHandler = ({ draggable, droppable }) => {
     if (draggable && droppable) {

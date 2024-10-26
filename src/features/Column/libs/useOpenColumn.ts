@@ -1,13 +1,13 @@
 import { useColumn } from "../context/column";
 import { useDeck } from "../context/deck";
-import type { ColumnState } from "./deckSchema";
+import type { ColumnStateWithoutID } from "./deckSchema";
 
 export const useOpenUserColumn = () => {
   const columnActions = useColumn()?.[1];
   const [, { addColumn }] = useDeck();
 
   return (pubkey: string, index?: number) => {
-    const newCol: ColumnState = {
+    const newCol: ColumnStateWithoutID = {
       content: {
         type: "user",
         pubkey,
@@ -30,7 +30,7 @@ export const useOpenFolloweesColumn = () => {
   const [, { addColumn }] = useDeck();
 
   return (pubkey: string, index?: number) => {
-    const newCol: ColumnState = {
+    const newCol: ColumnStateWithoutID = {
       content: {
         type: "followees",
         pubkey,
@@ -52,7 +52,7 @@ export const useOpenFollowersColumn = () => {
   const [, { addColumn }] = useDeck();
 
   return (pubkey: string, index?: number) => {
-    const newCol: ColumnState = {
+    const newCol: ColumnStateWithoutID = {
       content: {
         type: "followers",
         pubkey,
@@ -74,7 +74,7 @@ export const useOpenReactionsColumn = () => {
   const [, { addColumn }] = useDeck();
 
   return (pubkey: string, index?: number) => {
-    const newCol: ColumnState = {
+    const newCol: ColumnStateWithoutID = {
       content: {
         type: "reactions",
         pubkey,

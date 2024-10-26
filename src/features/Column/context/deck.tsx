@@ -8,8 +8,10 @@ import {
 import { produce } from "solid-js/store";
 import * as v from "valibot";
 import { createLocalStore } from "../../../shared/libs/createLocalStore";
+import { genID } from "../../../shared/libs/id";
 import {
   type ColumnState,
+  type ColumnStateWithoutID,
   type DeckState,
   deckState,
 } from "../libs/deckSchema";
@@ -20,10 +22,12 @@ const initialState: DeckState = {
     {
       content: { type: "timeline" },
       size: "medium",
+      id: genID(),
     },
     {
       content: { type: "notifications" },
       size: "medium",
+      id: genID(),
     },
   ],
   display: {
@@ -45,7 +49,7 @@ const DeckContext =
          * @param column - The column to add
          * @param index - The index to insert the column at. If not provided, the column will be added to the end
          */
-        addColumn: (column: ColumnState, index?: number) => void;
+        addColumn: (column: ColumnStateWithoutID, index?: number) => void;
         /**
          * Update a column in the deck
          *
@@ -53,7 +57,9 @@ const DeckContext =
          * @param index - The index of the column to update
          */
         updateColumn: (
-          column: ColumnState | ((prev: ColumnState) => ColumnState),
+          column:
+            | ColumnStateWithoutID
+            | ((prev: ColumnStateWithoutID) => ColumnStateWithoutID),
           index: number,
         ) => void;
         /**
@@ -122,10 +128,14 @@ export const DeckProvider: ParentComponent = (props) => {
     },
   );
 
-  const addColumn = (column: ColumnState, index?: number, scroll = true) => {
+  const addColumn = (
+    column: ColumnStateWithoutID,
+    index?: number,
+    scroll = true,
+  ) => {
     if (index === undefined) {
       const _index = state.columns.length;
-      setState("columns", _index, column);
+      setState("columns", _index, { ...column, id: genID() });
       if (scroll) {
         scrollIntoView(_index);
       }
@@ -134,7 +144,7 @@ export const DeckProvider: ParentComponent = (props) => {
     setState(
       "columns",
       produce((columns) => {
-        columns.splice(index, 0, column);
+        columns.splice(index, 0, { ...column, id: genID() });
       }),
     );
     if (scroll) {
@@ -143,7 +153,9 @@ export const DeckProvider: ParentComponent = (props) => {
   };
 
   const updateColumn = (
-    column: ColumnState | ((prev: ColumnState) => ColumnState),
+    column:
+      | ColumnStateWithoutID
+      | ((prev: ColumnStateWithoutID) => ColumnStateWithoutID),
     index: number,
   ) => {
     setState("columns", index, column);

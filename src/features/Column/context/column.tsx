@@ -6,7 +6,7 @@ import {
   createSignal,
   useContext,
 } from "solid-js";
-import type { ColumnState } from "../libs/deckSchema";
+import type { ColumnState, ColumnStateWithoutID } from "../libs/deckSchema";
 import { useDeck } from "./deck";
 
 const ColumnContext =
@@ -15,14 +15,16 @@ const ColumnContext =
       state: ColumnState,
       actions: {
         updateColumn: (
-          column: ColumnState | ((prev: ColumnState) => ColumnState),
+          column:
+            | ColumnStateWithoutID
+            | ((prev: ColumnStateWithoutID) => ColumnStateWithoutID),
         ) => void;
         /**
          * 隣のカラムに新しいカラムを追加する
          *
          * @param column 追加するカラム
          */
-        addColumnAfterThis: (column: ColumnState) => void;
+        addColumnAfterThis: (column: ColumnStateWithoutID) => void;
         /**
          * カラムのサイズを変更する
          *
@@ -57,7 +59,7 @@ export const ColumnProvider: ParentComponent<{
     { addColumn, updateColumn, setColumnSize, removeColumn, setTempColumn },
   ] = useDeck();
 
-  const addColumnAfterThis = (column: ColumnState) => {
+  const addColumnAfterThis = (column: ColumnStateWithoutID) => {
     addColumn(column, props.index + 1);
   };
 

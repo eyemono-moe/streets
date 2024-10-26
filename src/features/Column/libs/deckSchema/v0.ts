@@ -45,6 +45,7 @@ const columnsScheme = v.object({
   content: columnContent,
   tempContent: v.optional(columnContent),
   size: v.union([v.literal("small"), v.literal("medium"), v.literal("large")]),
+  id: v.string(),
 });
 
 export const deckStateV0 = v.object({
