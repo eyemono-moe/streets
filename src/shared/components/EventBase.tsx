@@ -23,7 +23,7 @@ const EventBase: ParentComponent<{
 
   const profile = useProfile(() => mergedProps.eventPacket.raw.pubkey);
   const userName = () =>
-    `@${profile().data?.parsed.display_name || profile().data?.parsed.name || hex2bech32(props.eventPacket.raw.pubkey, "npub").slice(0, 12)}`;
+    `@${profile().data?.parsed.name || hex2bech32(props.eventPacket.raw.pubkey, "npub").slice(0, 12)}`;
 
   const openUserColumn = useOpenUserColumn();
 

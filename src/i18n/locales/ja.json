@@ -86,9 +86,9 @@
     "invalidPubkey": "無効なPubkeyです"
   },
   "event": {
-    "addUserToList": "{{ name }}さんをリストに追加/削除",
+    "addUserToList": "<span class='truncate'>{{ name }}</span>さんをリストに追加/削除",
     "copyEventID": "IDをコピー",
-    "muteUser": "{{ name }}さんをミュート",
+    "muteUser": "<span class='truncate'>{{ name }}</span>さんをミュート",
     "quote": "引用",
     "repost": "リポスト",
     "unknown": "対応していないイベント",

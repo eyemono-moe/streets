@@ -21,20 +21,26 @@ const EventMenuButton: Component<{
           <div class="i-material-symbols:more-horiz aspect-square h-4 w-auto" />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
-          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
+          <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] max-w-[min(calc(100vw-32px),320px)] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
               class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
             >
               <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
-              {t("event.muteUser", { name: props.userName })}
+              <div
+                class="flex w-full items-baseline overflow-hidden whitespace-pre"
+                innerHTML={t("event.muteUser", { name: props.userName })}
+              />
             </DropdownMenu.Item>
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
               class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
             >
               <div class="aspect-square h-0.75lh w-auto i-material-symbols:list-alt-add-outline-rounded" />
-              {t("event.addUserToList", { name: props.userName })}
+              <div
+                class="flex w-full items-baseline overflow-hidden whitespace-pre"
+                innerHTML={t("event.addUserToList", { name: props.userName })}
+              />
             </DropdownMenu.Item>
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
