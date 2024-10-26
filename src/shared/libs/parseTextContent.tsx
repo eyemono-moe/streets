@@ -285,7 +285,15 @@ const splitTextByLinks = (
   refs: Reference[],
   imetaTags: ImetaTag[],
 ): ParsedContent[] => {
-  const links = linkify.find(text, {}).filter((link) => link.type === "url");
+  // TODO: r tagに含まれるリンクのみをリンクとして認識する
+  const links = linkify
+    .find(text, {
+      validate: {
+        // schemeを持つURLのみをリンクとして認識する
+        url: (value) => /^(?:https?|wss?):\/\//.test(value),
+      },
+    })
+    .filter((link) => link.type === "url");
 
   const sortedLinkOrRefs = [...links, ...refs].sort(
     (a, b) => a.start - b.start,
