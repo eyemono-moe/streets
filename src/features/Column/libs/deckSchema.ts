@@ -10,3 +10,4 @@ export type ColumnState = DeckState["columns"][number];
 export type ColumnContent<
   T extends ColumnState["content"]["type"] = ColumnState["content"]["type"],
 > = Extract<ColumnState["content"], { type: T }>;
+export type ColumnSize = ColumnState["size"];

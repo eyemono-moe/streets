@@ -14,12 +14,21 @@ const ColumnContext =
     [
       state: ColumnState,
       actions: {
+        updateColumn: (
+          column: ColumnState | ((prev: ColumnState) => ColumnState),
+        ) => void;
         /**
          * 隣のカラムに新しいカラムを追加する
          *
          * @param column 追加するカラム
          */
         addColumnAfterThis: (column: ColumnState) => void;
+        /**
+         * カラムのサイズを変更する
+         *
+         * @param size 新しいサイズ
+         */
+        setColumnSize: (size: ColumnState["size"]) => void;
         /**
          * このカラムを削除する
          */
@@ -43,15 +52,18 @@ const ColumnContext =
 export const ColumnProvider: ParentComponent<{
   index: number;
 }> = (props) => {
-  const [state, { addColumn, removeColumn, setTempColumn }] = useDeck();
-
-  const [tempColumnHistory, setTempColumnHistory] = createSignal<
-    Exclude<ColumnState["tempContent"], undefined>[]
-  >([]);
+  const [
+    state,
+    { addColumn, updateColumn, setColumnSize, removeColumn, setTempColumn },
+  ] = useDeck();
 
   const addColumnAfterThis = (column: ColumnState) => {
     addColumn(column, props.index + 1);
   };
+
+  const [tempColumnHistory, setTempColumnHistory] = createSignal<
+    Exclude<ColumnState["tempContent"], undefined>[]
+  >([]);
 
   const openTempColumn = (
     column: Exclude<ColumnState["tempContent"], undefined>,
@@ -69,7 +81,6 @@ export const ColumnProvider: ParentComponent<{
   };
 
   const backOrCloseTempColumn = () => {
-    console.log("backOrCloseTempColumn");
     setTempColumnHistory((prev) => prev.slice(0, -1));
   };
 
@@ -79,7 +90,6 @@ export const ColumnProvider: ParentComponent<{
 
   createEffect(() => {
     // Historyの最後の要素を表示
-    // console.log(JSON.stringify(tempColumnHistory(), null, 2));
     setTempColumn(tempColumnHistory().at(-1), props.index);
   });
 
@@ -100,6 +110,8 @@ export const ColumnProvider: ParentComponent<{
         state.columns[props.index],
         {
           addColumnAfterThis,
+          updateColumn: (column) => updateColumn(column, props.index),
+          setColumnSize: (size) => setColumnSize(size, props.index),
           removeThisColumn: () => removeColumn(props.index),
           openTempColumn,
           backOrCloseTempColumn,

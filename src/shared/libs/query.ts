@@ -10,7 +10,7 @@ import {
   latestEach,
   uniq,
 } from "rx-nostr";
-import { bufferWhen, interval } from "rxjs";
+import { bufferWhen, interval, map, tap } from "rxjs";
 import stringify from "safe-stable-stringify";
 import { createSignal } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -38,13 +38,16 @@ import type { Reaction } from "./parser/7_reaction";
 import type { EmojiList } from "./parser/10030_emojiList";
 import type { EmojiSet } from "./parser/30030_emojiSet";
 
-export const createInfiniteRxQuery = <T>(
+export const createInfiniteRxQuery = (
   props: () => {
-    parser: (e: EventPacket) => T;
     filter: Filter;
     limit: number;
+    relays?: string[];
   },
 ) => {
+  // TODO: propsが変化したら再取得する
+  // TODO: abort controller
+
   const {
     rxNostr,
     actions: { emit },
@@ -52,38 +55,50 @@ export const createInfiniteRxQuery = <T>(
   const setter = eventCacheSetter();
 
   const [data, setData] = createStore<{
-    pages: T[][];
+    pages: ParsedEventPacket[][];
   }>({
     pages: [],
   });
   const [isFetching, setIsFetching] = createSignal(false);
   const [hasNextPage, setHasNextPage] = createSignal(false);
-  let oldestCreatedAt: number | undefined = Math.floor(
-    new Date().getTime() / 1000,
+
+  /** 取得済みイベントの中で最も古いイベントのcreated_at */
+  let oldestCreatedAt: number | undefined = Math.min(
+    // 現在時刻とprops.filter.untilの小さい方で初期化
+    Math.floor(new Date().getTime() / 1000),
+    props().filter.until ?? Number.POSITIVE_INFINITY,
   );
 
   const fetchNextPage = async () => {
     const rxReq = createRxBackwardReq();
     setIsFetching(true);
 
-    const page = await new Promise<T[]>((resolve) => {
-      const events: EventPacket[] = [];
+    const page = await new Promise<ParsedEventPacket[]>((resolve) => {
+      const events: ParsedEventPacket[] = [];
       rxNostr
-        .use(rxReq)
-        .pipe(uniq())
+        .use(rxReq, {
+          on: {
+            relays: props().relays,
+            defaultReadRelays: !props().relays,
+          },
+        })
+        .pipe(
+          uniq(),
+          tap((e) => cacheAndEmitRelatedEvent(e, emit, setter)),
+          map((e) => parseEventPacket(e)),
+        )
         .subscribe({
           next: (e) => {
             events.push(e);
-            cacheAndEmitRelatedEvent(e, emit, setter);
           },
           complete: () => {
             const sliced = events
-              .sort((a, b) => -compareEvents(a.event, b.event))
+              .sort((a, b) => -compareEvents(a.raw, b.raw))
               .slice(0, props().limit);
 
-            oldestCreatedAt = sliced.at(-1)?.event.created_at;
+            oldestCreatedAt = sliced.at(-1)?.raw.created_at;
 
-            resolve(sliced.map(props().parser));
+            resolve(sliced);
           },
         });
 
@@ -514,7 +529,7 @@ export const useEmojis = (pubkey: () => string | undefined) => {
   };
 };
 
-export const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
+const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
   const cache = useEventCacheStore();
 
   return () =>
@@ -525,6 +540,9 @@ export const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
       )
       .map(([_, value]) => value as CacheDataBase<T>);
 };
+
+export const useUserList = () =>
+  useCacheByQueryKey<ParsedEventPacket<Metadata>>(() => [0]);
 
 const createSender = () => {
   const { rxNostr } = useRxNostr();

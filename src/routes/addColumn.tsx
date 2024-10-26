@@ -37,6 +37,12 @@ const addColumn: Component = () => {
         <button
           class="parent flex appearance-none flex-col items-center bg-transparent p-1"
           type="button"
+          onClick={() => {
+            addColumn({
+              content: { type: "search", query: "" },
+              size: "medium",
+            });
+          }}
         >
           <div class="i-material-symbols:search-rounded c-secondary parent-hover:c-accent-5 aspect-square h-8 w-auto transition-color duration-100" />
           <div class="text-caption">{t("column.search.title")}</div>

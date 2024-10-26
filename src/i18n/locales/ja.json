@@ -45,7 +45,21 @@
       "titleAddColumn": "リアクションカラムを追加"
     },
     "search": {
-      "title": "検索"
+      "enterQuery": "検索クエリを入力してください",
+      "from": "投稿ユーザー",
+      "hashtag": "ハッシュタグ",
+      "helpFrom": "指定したユーザーの投稿を検索します。ユーザーのpubkey(npub1...)を入力してください。",
+      "helpHashtag": "指定したハッシュタグを含む投稿を検索します。",
+      "helpSince": "指定した日時以降の投稿を検索します。",
+      "helpTo": "指定したユーザー宛の投稿を検索します。ユーザーのpubkey(npub1...)を入力してください。",
+      "helpUntil": "指定した日時以前の投稿を検索します。",
+      "helpWord": "指定した単語を含む投稿を検索します。",
+      "search": "検索",
+      "since": "開始日",
+      "title": "検索",
+      "to": "宛先ユーザー",
+      "until": "終了日",
+      "word": "検索単語"
     },
     "thread": {
       "title": "イベントスレッド"
@@ -56,6 +70,15 @@
     },
     "trends": {
       "title": "トレンド"
+    }
+  },
+  "columnConfig": {
+    "remove": "削除",
+    "size": {
+      "large": "大",
+      "medium": "中",
+      "small": "小",
+      "title": "カラム幅"
     }
   },
   "error": {

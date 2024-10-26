@@ -11,7 +11,8 @@ import { toArrayScan } from "../libs/rxjs";
 import Event from "./Event";
 
 const InfiniteEvents: Component<{
-  filter: Omit<Filter, "since" | "until">;
+  filter: Filter;
+  relays?: string[];
 }> = (props) => {
   const t = useI18n();
 
@@ -24,16 +25,23 @@ const InfiniteEvents: Component<{
   } = useRxNostr();
 
   const latestEvents = from(
-    rxNostr.use(latestRxReq).pipe(
-      uniq(),
-      tap({
-        next: (e) => {
-          cacheAndEmitRelatedEvent(e, emit, setter);
+    rxNostr
+      .use(latestRxReq, {
+        on: {
+          relays: props.relays,
+          defaultReadRelays: !props.relays,
         },
-      }),
-      map((e) => parseEventPacket(e)),
-      toArrayScan(true),
-    ),
+      })
+      .pipe(
+        uniq(),
+        tap({
+          next: (e) => {
+            cacheAndEmitRelatedEvent(e, emit, setter);
+          },
+        }),
+        map((e) => parseEventPacket(e)),
+        toArrayScan(true),
+      ),
   );
 
   onMount(() => {
@@ -49,9 +57,9 @@ const InfiniteEvents: Component<{
     hasNextPage,
     isFetching,
   } = createInfiniteRxQuery(() => ({
-    parser: (e) => parseEventPacket(e),
-    filter: { ...props.filter },
+    filter: props.filter,
     limit: 10,
+    relays: props.relays,
   }));
 
   return (
@@ -83,7 +91,7 @@ const InfiniteEvents: Component<{
         )}
       </For>
       <button
-        class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
+        class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 enabled:active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
         type="button"
         onClick={fetchNextPage}
         disabled={!hasNextPage() || isFetching()}

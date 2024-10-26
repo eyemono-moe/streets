@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "@solidjs/router";
 import { type Component, createSignal } from "solid-js";
 import Logo from "../../../assets/logo.svg";
 import NavigateButton from "./NavigateButton";
+import SearchPopover from "./SearchPopover";
 import ShortcutButtons from "./ShortcutButtons";
 
 const Sidebar: Component = () => {
@@ -34,9 +35,7 @@ const Sidebar: Component = () => {
         <NavigateButton onClick={() => navigate("/post")}>
           <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
         </NavigateButton>
-        <NavigateButton>
-          <div class="i-material-symbols:search-rounded aspect-square h-auto w-8" />
-        </NavigateButton>
+        <SearchPopover />
       </div>
       <div class="flex flex-col">
         <ShortcutButtons />

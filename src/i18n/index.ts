@@ -1,5 +1,6 @@
 import * as i18n from "@solid-primitives/i18n";
-import { createResource, createSignal } from "solid-js";
+import { createResource } from "solid-js";
+import { locale } from "../shared/libs/useLocale";
 import type ja from "./locales/ja.json";
 
 type RawDictionary = typeof ja;
@@ -19,12 +20,6 @@ const fetchDictionary = async (locale: string): Promise<Dictionary> => {
     return i18n.flatten(dict);
   }
 };
-
-const [locale, setLocale] = createSignal(navigator.language);
-
-window.addEventListener("languagechange", () => {
-  setLocale(navigator.language);
-});
 
 const [dict] = createResource(locale, fetchDictionary);
 
