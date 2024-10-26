@@ -88,9 +88,9 @@ const ReactionButtons: Component<{
 
   return (
     <Show when={(reactions().data?.length ?? 0) > 0}>
-      <div class="parent relative">
+      <div class="relative">
         <button
-          class="absolute top-0.25 left-0 flex parent-not-hover:hidden aspect-square h-6 w-auto translate-x--100% appearance-none items-center gap-1 rounded bg-transparent"
+          class="absolute top-0.25 left-0 flex aspect-square h-6 w-auto translate-x--100% appearance-none items-center gap-1 rounded bg-transparent group-not-hover/event:hidden"
           type="button"
           onClick={() => setExpand((prev) => !prev)}
         >
