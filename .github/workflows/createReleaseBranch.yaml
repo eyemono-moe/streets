@@ -35,7 +35,7 @@ jobs:
       - name: Get branch name
         id: get_branch_name
         run: |
-          BRANCH_NAME="release/${{ steps.get_tag_name.outputs.TAG_NAME }}"
+          BRANCH_NAME="release-${{ steps.get_tag_name.outputs.TAG_NAME }}"
           echo "BRANCH_NAME=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Create release branch from tag
