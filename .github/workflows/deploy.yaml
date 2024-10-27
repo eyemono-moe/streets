@@ -1,4 +1,4 @@
-name: CI
+name: Deploy
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: read
       deployments: write
-    environment: ${{ (github.event_name == 'release' && 'production') || 'preview' }}
+    environment: ${{ github.ref_name  == 'release' && 'production' || 'preview' }}
     strategy:
       matrix:
         node-version: [20]
@@ -30,7 +30,7 @@ jobs:
         env:
           NODE_ENV: production
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          VITE_SENTRY_ENV: ${{ (github.event_name == 'release' && 'production') || 'preview' }}
+          VITE_SENTRY_ENV: ${{ github.ref_name  == 'release' && 'production' || 'preview' }}
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
