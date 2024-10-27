@@ -40,6 +40,10 @@ const columnContent = v.variant("type", [
     type: v.literal("thread"),
     targetEventID: v.string(),
   }),
+  v.object({
+    type: v.literal("reposts"),
+    targetEventID: v.string(),
+  }),
 ]);
 
 const columnsScheme = v.object({
