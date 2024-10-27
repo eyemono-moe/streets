@@ -10,7 +10,7 @@ import "unfonts.css";
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(
     import.meta.env.MODE === "production"
-      ? "/service-worker.mjs"
+      ? "/service-worker.js"
       : "/dev-sw.js?dev-sw",
   );
 }
