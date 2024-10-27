@@ -8,6 +8,10 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   create_release_pr:
     runs-on: ubuntu-22.04
@@ -24,6 +28,8 @@ jobs:
 
       - name: Create release branch from tag
         run: |
+          git config --global user.name "${{ github.actor }}"
+          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           git checkout -b ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
           git push origin ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
         env:
