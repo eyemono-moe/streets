@@ -16,14 +16,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get tag name
-        id: get_tag_name
-        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
-
       - name: Get branch name
         id: get_branch_name
         run: |
-          BRANCH_NAME="release/${{ steps.get_tag_name.outputs.TAG_NAME }}"
+          BRANCH_NAME="release/${{ github.ref_name }}"
           echo "BRANCH_NAME=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Create release branch from tag
@@ -42,4 +38,4 @@ jobs:
           GIT_PR_RELEASE_LABELS: pr-release
           GIT_PR_RELEASE_TEMPLATE: .github/git-pr-release-template.erb
           TZ: Asia/Tokyo
-          TAG_NAME: ${{ steps.get_tag_name.outputs.TAG_NAME }}
+          TAG_NAME: ${{ github.ref_name }}
