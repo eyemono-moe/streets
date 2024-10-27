@@ -1,0 +1,45 @@
+# tagが作成されたらrelease/vx.x.xブランチを作成し、releaseブランチにprを作成する
+# このPRをマージするとcloudflare wranglerがデプロイする
+
+name: Create Release Branch and PR on Tag
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  create_release_pr:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag name
+        id: get_tag_name
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Get branch name
+        id: get_branch_name
+        run: |
+          BRANCH_NAME="release/${{ steps.get_tag_name.outputs.TAG_NAME }}"
+          echo "BRANCH_NAME=${BRANCH_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release branch from tag
+        run: |
+          git checkout -b ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
+          git push origin ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request to release branch
+        uses: bakunyo/git-pr-release-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_PR_RELEASE_BRANCH_PRODUCTION: release
+          GIT_PR_RELEASE_BRANCH_STAGING: ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
+          GIT_PR_RELEASE_LABELS: pr-release
+          GIT_PR_RELEASE_TEMPLATE: .github/git-pr-release-template.erb
+          TZ: Asia/Tokyo
+          TAG_NAME: ${{ steps.get_tag_name.outputs.TAG_NAME }}
