@@ -86,9 +86,9 @@
     "invalidPubkey": "Invalid pubkey"
   },
   "event": {
-    "addUserToList": "Add/remove {{ name }} from list",
+    "addUserToList": "Add/remove <span class='truncate'>{{ name }}</span> from list",
     "copyEventID": "Copy ID",
-    "muteUser": "Mute {{ name }}",
+    "muteUser": "Mute <span class='truncate'>{{ name }}</span>",
     "quote": "Quote",
     "repost": "Repost",
     "unknown": "Unsupported event",

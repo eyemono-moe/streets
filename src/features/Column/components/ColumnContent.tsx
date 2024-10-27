@@ -1,69 +1,37 @@
-import { type Component, Match, Switch } from "solid-js";
-import type { ColumnContent as TColumnContent } from "../libs/deckSchema";
-import Followees from "./Column/Followees";
-import Followers from "./Column/Followers";
-import Followings from "./Column/Followings";
-import Notifications from "./Column/Notifications";
-import Reactions from "./Column/Reactions";
-import Search from "./Column/Search";
-import Thread from "./Column/Thread";
-import User from "./Column/User";
+import { type Component, lazy } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import type {
+  ColumnState,
+  ColumnContent as TColumnContent,
+} from "../libs/deckSchema";
 
-const ColumnContent: Component<{
-  content: TColumnContent;
+const columnComponents = {
+  followees: lazy(() => import("./Column/Followees")),
+  timeline: lazy(() => import("./Column/Followings")),
+  followers: lazy(() => import("./Column/Followers")),
+  notifications: lazy(() => import("./Column/Notifications")),
+  reactions: lazy(() => import("./Column/Reactions")),
+  search: lazy(() => import("./Column/Search")),
+  thread: lazy(() => import("./Column/Thread")),
+  user: lazy(() => import("./Column/User")),
+} satisfies {
+  [K in TColumnContent["type"]]: Component<{
+    state: TColumnContent<K>;
+    showHeader?: boolean;
+  }>;
+};
+
+const ColumnContent = <T extends ColumnState["content"]["type"]>(props: {
+  content: TColumnContent<T>;
   showHeader?: boolean;
-}> = (props) => {
+}) => {
   return (
-    <Switch>
-      <Match when={props.content.type === "timeline"}>
-        <Followings
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"timeline">}
-        />
-      </Match>
-      <Match when={props.content.type === "user"}>
-        <User
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"user">}
-        />
-      </Match>
-      <Match when={props.content.type === "followees"}>
-        <Followees
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"followees">}
-        />
-      </Match>
-      <Match when={props.content.type === "followers"}>
-        <Followers
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"followers">}
-        />
-      </Match>
-      <Match when={props.content.type === "reactions"}>
-        <Reactions
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"reactions">}
-        />
-      </Match>
-      <Match when={props.content.type === "notifications"}>
-        <Notifications
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"notifications">}
-        />
-      </Match>
-      <Match when={props.content.type === "thread"}>
-        <Thread
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"thread">}
-        />
-      </Match>
-      <Match when={props.content.type === "search"}>
-        <Search
-          showHeader={props.showHeader}
-          state={props.content as TColumnContent<"search">}
-        />
-      </Match>
-    </Switch>
+    // @ts-ignore: @2322 cannot infer the type of this component
+    <Dynamic
+      component={columnComponents[props.content.type]}
+      showHeader={props.showHeader}
+      state={props.content}
+    />
   );
 };
 

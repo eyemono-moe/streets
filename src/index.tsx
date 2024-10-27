@@ -7,6 +7,14 @@ import "virtual:uno.css";
 import "solid-devtools";
 import "unfonts.css";
 
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register(
+    import.meta.env.MODE === "production"
+      ? "/service-worker.mjs"
+      : "/dev-sw.js?dev-sw",
+  );
+}
+
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
   environment: import.meta.env.VITE_SENTRY_ENV,

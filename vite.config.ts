@@ -2,6 +2,7 @@ import devtools from "solid-devtools/vite";
 import UnoCSS from "unocss/vite";
 import Unfonts from "unplugin-fonts/vite";
 import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 import solid from "vite-plugin-solid";
 
 export default defineConfig({
@@ -15,6 +16,20 @@ export default defineConfig({
             defer: true,
           },
         ],
+      },
+    }),
+    VitePWA({
+      srcDir: "src",
+      filename: "service-worker.ts",
+      strategies: "injectManifest",
+      injectRegister: false,
+      manifest: false,
+      injectManifest: {
+        injectionPoint: undefined,
+      },
+      devOptions: {
+        enabled: true,
+        type: "module",
       },
     }),
     devtools({

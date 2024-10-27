@@ -4,8 +4,8 @@ export const columnIcon = (type: ColumnState["content"]["type"]) => {
   switch (type) {
     case "search":
       return "i-material-symbols:search-rounded";
-    case "bookmarks":
-      return "i-material-symbols:bookmark-outline";
+    // case "bookmarks":
+    //   return "i-material-symbols:bookmark-outline";
     case "notifications":
       return "i-material-symbols:notifications-outline";
     case "reactions":
