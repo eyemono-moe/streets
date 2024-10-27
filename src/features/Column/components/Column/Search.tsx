@@ -30,6 +30,7 @@ import {
 import { useQueryParser } from "../../../Search/lib/useQueryParser";
 import { useColumn } from "../../context/column";
 import type { ColumnContent } from "../../libs/deckSchema";
+import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 const Search: Component<{
   state: ColumnContent<"search">;
@@ -126,6 +127,8 @@ const Search: Component<{
     track(() => queryObj());
   });
 
+  const { ScrollButton, setTarget } = useColumnScrollButton();
+
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show when={props.showHeader}>
@@ -151,7 +154,8 @@ const Search: Component<{
           </div>
         </ColumnHeader>
       </Show>
-      <div class="overflow-y-auto">
+      <div class="overflow-y-auto" ref={setTarget}>
+        <ScrollButton />
         <Show
           when={filter()}
           keyed

@@ -5,6 +5,7 @@ import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useProfile } from "../../../../shared/libs/query";
 import Profile from "../../../User/components/Profile";
 import type { ColumnContent } from "../../libs/deckSchema";
+import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 
 const User: Component<{
@@ -13,6 +14,8 @@ const User: Component<{
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
   const t = useI18n();
+
+  const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
@@ -24,7 +27,8 @@ const User: Component<{
       </Show>
       <Show when={props.state.pubkey} keyed>
         {(nonNullPubkey) => (
-          <div class="h-full divide-y overflow-y-auto">
+          <div class="h-full divide-y overflow-y-auto" ref={setTarget}>
+            <ScrollButton />
             <div class="max-h-140">
               <Profile pubkey={nonNullPubkey} />
             </div>

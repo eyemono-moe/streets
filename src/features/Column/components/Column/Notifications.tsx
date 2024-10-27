@@ -4,6 +4,7 @@ import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import type { ColumnContent } from "../../libs/deckSchema";
+import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 
@@ -15,12 +16,15 @@ const Notifications: Component<{
 
   const [{ myPubkey: pubkey }] = useMe();
 
+  const { ScrollButton, setTarget } = useColumnScrollButton();
+
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show when={props.showHeader}>
         <ColumnHeader title={t("column.notifications.title")} />
       </Show>
-      <div class="h-full overflow-y-auto">
+      <div class="h-full overflow-y-auto" ref={setTarget}>
+        <ScrollButton />
         <Show
           when={pubkey()}
           fallback={
