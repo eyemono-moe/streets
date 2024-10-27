@@ -146,9 +146,13 @@ const getCacheKey = (
         ? ["repliesOf", parsed.parsed.replyOrRoot.id]
         : [];
 
+      const quotes = parsed.parsed.tags
+        .filter((tag) => tag.kind === "q")
+        .map((tag) => ["quotesOf", tag.id]);
+
       return {
         single: [["event", parsed.parsed.id]],
-        multiple: [replyTarget],
+        multiple: [replyTarget, ...quotes],
       };
     }
     case kinds.Metadata:
@@ -461,6 +465,28 @@ export const useRepostsOfEvent = (eventID: () => string | undefined) => {
   };
 
   return createGetter<ParsedEventPacket<Repost>[]>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
+export const useQuotesOfEvent = (eventID: () => string | undefined) => {
+  const queryKey = () => ["quotesOf", eventID()];
+
+  const {
+    actions: { emit },
+  } = useRxNostr();
+  const emitter = () => {
+    const _eventID = eventID();
+    if (_eventID) {
+      emit({
+        kinds: [kinds.ShortTextNote],
+        "#q": [_eventID],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<ShortTextNote>[]>(() => ({
     queryKey: queryKey(),
     emitter,
   }));

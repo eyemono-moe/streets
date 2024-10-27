@@ -3,6 +3,7 @@ import { Popover } from "@kobalte/core/popover";
 import { neventEncode } from "nostr-tools/nip19";
 import { type Component, Show, createMemo } from "solid-js";
 import { useMe } from "../../context/me";
+import { useOpenRepostsColumn } from "../../features/Column/libs/useOpenColumn";
 import { usePostInput } from "../../features/CreatePost/context/postInputDialog";
 import { useI18n } from "../../i18n";
 import { copyToClipboard } from "../libs/clipboard";
@@ -10,6 +11,7 @@ import { showLoginModal } from "../libs/nostrLogin";
 import type { ParsedEventPacket } from "../libs/parser";
 import type { EventTag } from "../libs/parser/commonTag";
 import {
+  useQuotesOfEvent,
   useRepliesOfEvent,
   useRepostsOfEvent,
   useSendReaction,
@@ -67,6 +69,10 @@ const EventActions: Component<{
   const isReposted = createMemo(() =>
     reposts().data?.some((r) => r.parsed.pubkey === myPubkey()),
   );
+  const quotes = useQuotesOfEvent(() => props.event.raw.id);
+  const repostCount = createMemo(
+    () => (reposts().data?.length ?? 0) + (quotes().data?.length ?? 0),
+  );
 
   const { sendRepost, sendState: repostSendState } = useSendRepost();
   const handleRepost = () => {
@@ -86,14 +92,19 @@ const EventActions: Component<{
   const handleQuote = () => {
     openPostInput({
       text: `
-
-${neventEncode({
-  id: props.event.raw.id,
-  kind: props.event.raw.kind,
-  author: props.event.raw.pubkey,
-  relays: [props.event.from],
-})}`,
+      
+      ${neventEncode({
+        id: props.event.raw.id,
+        kind: props.event.raw.kind,
+        author: props.event.raw.pubkey,
+        relays: [props.event.from],
+      })}`,
     });
+  };
+
+  const openRepostsColumn = useOpenRepostsColumn();
+  const handleViewReposts = () => {
+    openRepostsColumn(props.event.raw.id);
   };
 
   const { sendReaction } = useSendReaction();
@@ -157,8 +168,8 @@ ${neventEncode({
           }}
         >
           <div class="i-material-symbols:repeat-rounded aspect-square h-4 w-auto" />
-          <Show when={reposts().data?.length}>
-            <span class="lh-4 text-caption">{reposts().data?.length}</span>
+          <Show when={repostCount()}>
+            <span class="lh-4 text-caption">{repostCount()}</span>
           </Show>
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
@@ -181,7 +192,14 @@ ${neventEncode({
 
               {t("event.quote")}
             </DropdownMenu.Item>
-            {/* TODO: リポストしたユーザーの一覧/引用リポストを別カラムで開く */}
+            <DropdownMenu.Item
+              // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
+              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
+              onSelect={handleViewReposts}
+            >
+              <div class="i-material-symbols:bar-chart-4-bars-rounded aspect-square h-0.75lh w-auto" />
+              {t("event.viewReposts")}
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu>

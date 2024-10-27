@@ -44,6 +44,13 @@
       "title": "リアクション",
       "titleAddColumn": "リアクションカラムを追加"
     },
+    "reposts": {
+      "noQuotes": "まだ引用されていません",
+      "noReposts": "まだリポストされていません",
+      "quotes": "引用",
+      "repostUsers": "リポスト",
+      "title": "リポスト"
+    },
     "search": {
       "enterQuery": "検索クエリを入力してください",
       "from": "投稿ユーザー",
@@ -92,7 +99,8 @@
     "quote": "引用",
     "repost": "リポスト",
     "unknown": "対応していないイベント",
-    "viewEventData": "イベントデータを表示"
+    "viewEventData": "イベントデータを表示",
+    "viewReposts": "リポストを表示"
   },
   "loadMore": "さらに読み込む",
   "loadMoreReply": "ポストをさらに読み込む",

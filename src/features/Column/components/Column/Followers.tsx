@@ -17,14 +17,20 @@ const Followers: Component<{
   const openUserColumn = useOpenUserColumn();
 
   return (
-    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+    <div
+      class="grid h-full w-full divide-y"
+      classList={{
+        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
+        "grid-rows-[1fr]": !props.showHeader,
+      }}
+    >
       <Show when={props.showHeader}>
         <ColumnHeader
           title={t("column.followers.title")}
           subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
         />
       </Show>
-      <div class="h-full w-full divide-y overflow-y-auto">
+      <div class="b-b-1 h-full w-full overflow-y-auto">
         <For each={followers().data}>
           {(followerPubkey) => (
             <ProfileRow

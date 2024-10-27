@@ -44,6 +44,13 @@
       "title": "Reactions",
       "titleAddColumn": "Add reactions column"
     },
+    "reposts": {
+      "noQuotes": "No quotes yet",
+      "noReposts": "No reposts yet",
+      "quotes": "Quotes",
+      "repostUsers": "Reposts",
+      "title": "Reposts"
+    },
     "search": {
       "enterQuery": "Enter search query",
       "from": "From",
@@ -92,7 +99,8 @@
     "quote": "Quote",
     "repost": "Repost",
     "unknown": "Unsupported event",
-    "viewEventData": "View event data"
+    "viewEventData": "View event data",
+    "viewReposts": "View reposts"
   },
   "loadMore": "Load more",
   "loadMoreReply": "Load more posts",
