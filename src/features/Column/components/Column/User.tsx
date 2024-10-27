@@ -18,7 +18,13 @@ const User: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+    <div
+      class="grid h-full w-full divide-y"
+      classList={{
+        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
+        "grid-rows-[1fr]": !props.showHeader,
+      }}
+    >
       <Show when={props.showHeader}>
         <ColumnHeader
           title={t("column.profile.title")}

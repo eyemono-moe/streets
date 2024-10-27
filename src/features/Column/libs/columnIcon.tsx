@@ -20,6 +20,8 @@ export const columnIcon = (type: ColumnState["content"]["type"]) => {
       return "i-material-symbols:group-outline-rounded";
     case "thread":
       return "i-material-symbols:format-list-bulleted-rounded";
+    case "reposts":
+      return "i-material-symbols:bar-chart-4-bars-rounded";
     default: {
       const _unreachable: never = type;
       throw new Error(`Unknown column type: ${_unreachable}`);

@@ -90,3 +90,25 @@ export const useOpenReactionsColumn = () => {
     addColumn(newCol, index);
   };
 };
+
+export const useOpenRepostsColumn = () => {
+  const columnActions = useColumn()?.[1];
+  const [, { addColumn }] = useDeck();
+
+  return (targetEventID: string, index?: number) => {
+    const newCol: ColumnStateWithoutID = {
+      content: {
+        type: "reposts",
+        targetEventID,
+      },
+      size: "medium",
+    };
+
+    if (columnActions) {
+      columnActions.openTempColumn(newCol.content);
+      return;
+    }
+
+    addColumn(newCol, index);
+  };
+};

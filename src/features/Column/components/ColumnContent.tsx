@@ -11,6 +11,7 @@ const columnComponents = {
   followers: lazy(() => import("./Column/Followers")),
   notifications: lazy(() => import("./Column/Notifications")),
   reactions: lazy(() => import("./Column/Reactions")),
+  reposts: lazy(() => import("./Column/Reposts")),
   search: lazy(() => import("./Column/Search")),
   thread: lazy(() => import("./Column/Thread")),
   user: lazy(() => import("./Column/User")),
