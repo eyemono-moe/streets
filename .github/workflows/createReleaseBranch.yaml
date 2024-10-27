@@ -40,6 +40,7 @@ jobs:
 
       - name: Create release branch from tag
         run: |
+          git remote set-url origin https://github-actions:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config --global user.name "${{ github.actor }}"
           git config --global user.email "${{ github.actor }}@users.noreply.github.com"
           git checkout -b ${{ steps.get_branch_name.outputs.BRANCH_NAME }}
