@@ -83,7 +83,7 @@ const RichContent: Component<{
                       href={(content as LinkContent).href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="break-anywhere whitespace-pre-wrap text-link"
+                      class="break-anywhere line-clamp-4 text-ellipsis whitespace-pre-wrap text-link"
                     >
                       {(content as LinkContent).content}
                     </a>
