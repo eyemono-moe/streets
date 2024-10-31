@@ -39,11 +39,17 @@ export const fetchOgp = async (url: string, proxy = true) => {
 
   const ogp = Object.fromEntries(
     metaTags
-      .filter((meta) => meta.getAttribute("property")?.startsWith("og:"))
+      .filter(
+        (meta) =>
+          meta.getAttribute("property")?.startsWith("og:") ||
+          meta.getAttribute("name")?.startsWith("og:"),
+      )
       .map(
         (meta) =>
           [
-            meta.getAttribute("property")?.replace(/^og:/, "") ?? "",
+            meta.getAttribute("property")?.replace(/^og:/, "") ??
+              meta.getAttribute("name")?.replace(/^og:/, "") ??
+              "",
             meta.getAttribute("content") ?? "",
           ] as const,
       ),
