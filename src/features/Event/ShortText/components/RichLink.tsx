@@ -25,7 +25,7 @@ const RichLink: Component<{
             href={props.href}
             target="_blank"
             rel="noopener noreferrer"
-            class="break-anywhere whitespace-pre-wrap text-link"
+            class="break-anywhere line-clamp-4 text-ellipsis whitespace-pre-wrap text-link"
           >
             {props.content}
           </a>
