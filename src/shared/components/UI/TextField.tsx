@@ -1,6 +1,11 @@
 import { TextField as KTextField } from "@kobalte/core";
-import { type JSX, Show, splitProps } from "solid-js";
+import { For, type JSX, Show, createUniqueId, splitProps } from "solid-js";
 import HelpTooltip from "../HelpTooltip";
+
+type Option = {
+  value: string;
+  label: string;
+};
 
 type TextFieldProps = {
   name?: string;
@@ -10,6 +15,7 @@ type TextFieldProps = {
   value?: string;
   help?: string;
   error?: string;
+  options?: Option[];
   multiline?: boolean;
   required?: boolean;
   disabled?: boolean;
@@ -29,6 +35,8 @@ export function TextField(props: TextFieldProps) {
     ["help"],
     ["placeholder", "ref", "onInput", "onChange", "onBlur"],
   );
+
+  const dataListID = createUniqueId();
 
   return (
     <KTextField.Root
@@ -54,6 +62,7 @@ export function TextField(props: TextFieldProps) {
         fallback={
           <KTextField.Input
             {...inputProps}
+            list={dataListID}
             type={props.type}
             class="b-1 w-full rounded bg-secondary px-1 py-0.5"
           />
@@ -61,6 +70,11 @@ export function TextField(props: TextFieldProps) {
       >
         <KTextField.TextArea {...inputProps} autoResize />
       </Show>
+      <datalist id={dataListID}>
+        <For each={props.options}>
+          {(option) => <option value={option.value} label={option.label} />}
+        </For>
+      </datalist>
       <KTextField.ErrorMessage class="font-500 text-caption text-red-5">
         {props.error}
       </KTextField.ErrorMessage>

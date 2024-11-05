@@ -29,6 +29,16 @@ const index: Component = () => {
             <div class="i-material-symbols:chevron-right-rounded ml-auto aspect-square h-1lh w-auto" />
           </A>
         </li>
+        <li>
+          <A
+            class="inline-flex w-full items-center gap-2 px-2 py-1 hover:bg-alpha-hover"
+            href="/settings/file"
+          >
+            <div class="i-material-symbols:perm-media-outline-rounded aspect-square h-1lh w-auto" />
+            {t("settings.file.title")}
+            <div class="i-material-symbols:chevron-right-rounded ml-auto aspect-square h-1lh w-auto" />
+          </A>
+        </li>
       </ul>
     </BasicLayout>
   );

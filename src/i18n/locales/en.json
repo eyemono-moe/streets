@@ -108,6 +108,7 @@
   "login": "Login",
   "noMoreEvents": "No more events",
   "postInput": {
+    "dropFile": "Drop to add a file",
     "enterToAddNewLine": "Enter to add a new line",
     "needLogin": "You need to log in to post",
     "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",

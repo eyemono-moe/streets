@@ -16,6 +16,7 @@
     "check-unused": "pnpm dlx @line/ts-remove-unused --skip 'src/index.tsx' --check --project tsconfig.app.json"
   },
   "dependencies": {
+    "@ark-ui/solid": "4.3.0",
     "@kobalte/core": "0.13.7",
     "@modular-forms/solid": "0.24.1",
     "@neodrag/solid": "2.0.4",
