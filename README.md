@@ -1,28 +1,26 @@
-## Usage
+# Streets :motorway:
 
-```bash
-$ npm install # or pnpm install or yarn install
-```
+Column based nostr client
 
-### Learn more on the [Solid Website](https://solidjs.com) and come chat with us on our [Discord](https://discord.com/invite/solidjs)
+## Getting Started
 
-## Available Scripts
-
-In the project directory, you can run:
-
-### `npm run dev`
-
-Runs the app in the development mode.<br>
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
-
-### `npm run build`
-
-Builds the app for production to the `dist` folder.<br>
-It correctly bundles Solid in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+build with [Solid](https://solidjs.com)
 
 ## Deployment
 
-Learn more about deploying your application with the [documentations](https://vitejs.dev/guide/static-deploy.html)
+```bash
+pnpm install
+
+pnpm run dev # development
+
+pnpm run build # production
+```
+
+### setup local relay and file server
+
+```bash
+docker compose up -d
+```
+
+- nostr-rs-relay: `ws://localhost:8080`
+- nostrcheck: `http://localhost:3000`
