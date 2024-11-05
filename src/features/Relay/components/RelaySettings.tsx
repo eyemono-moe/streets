@@ -32,7 +32,7 @@ const relayConfigFormSchema = v.object({
         url: v.pipe(
           v.string(t("settings.relay.error.nonEmpty")),
           v.nonEmpty(t("settings.relay.error.nonEmpty")),
-          v.startsWith("wss://", t("settings.relay.error.startWithWss")),
+          v.regex(/^ws(?:s)?:\/\//, t("settings.relay.error.startWithWss")),
           v.transform((value) => normalizeURL(value)),
         ),
         read: v.boolean(),
