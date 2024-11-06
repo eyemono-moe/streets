@@ -109,6 +109,19 @@
   "noMoreEvents": "これ以上データがありません",
   "postInput": {
     "enterToAddNewLine": "Enterで改行",
+    "fileUpload": {
+      "dropFile": "ドロップしてファイルを添付",
+      "failed": "ファイルのアップロードに失敗しました: {{ error }}",
+      "httpError": {
+        "badRequest": "リクエストが不正です",
+        "fileTooLarge": "ファイルサイズが大きすぎます",
+        "forbidden": "アクセスが拒否されました",
+        "paymentRequired": "支払いが必要です",
+        "unknown": "不明なエラーが発生しました"
+      },
+      "noServerConfigured": "ファイルアップロードサーバーが設定されていません。設定 > ファイル からファイルアップロードサーバーを設定してください。",
+      "unsupported": "設定中のファイルアップロードサーバーが対応していないファイル形式です: {{ filenames }}"
+    },
     "needLogin": "投稿にはログインが必要です",
     "note": "このプレビューは投稿がStrandsクライアント上でどのように表示されるかを示しています。他のクライアントでは表示が異なる場合があります。",
     "placeholder": "いまどうしてる？",
@@ -152,6 +165,18 @@
       "fontSize": "フォントサイズ",
       "title": "表示",
       "uiColor": "文字色と背景色"
+    },
+    "file": {
+      "availableFileType": "利用可能なファイルタイプ",
+      "checkServerUrl": "ファイルアップロードサーバーの読み込みに失敗しました。サーバーURLが正しいか確認してください。",
+      "help": "ポスト投稿時に添付した画像などのファイルをアップロードするサーバーを選択することができます。",
+      "serverStatus": {
+        "errored": "詠み込みに失敗しました",
+        "ready": "使用可能"
+      },
+      "serverToBeUsed": "使用するファイルアップロードサーバー",
+      "termOfService": "利用規約",
+      "title": "ファイル"
     },
     "relay": {
       "add": "追加",

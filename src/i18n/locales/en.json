@@ -109,6 +109,19 @@
   "noMoreEvents": "No more events",
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
+    "fileUpload": {
+      "dropFile": "Drop to attach a file",
+      "failed": "Failed to upload the file: {{ error }}",
+      "httpError": {
+        "badRequest": "Bad request",
+        "fileTooLarge": "File is too large",
+        "forbidden": "Forbidden",
+        "paymentRequired": "Payment required",
+        "unknown": "An unknown error occurred"
+      },
+      "noServerConfigured": "No file upload server is configured. Please set a file upload server from Settings > File.",
+      "unsupported": "The file format is not supported by the file upload server: {{ filenames }}"
+    },
     "needLogin": "You need to log in to post",
     "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",
     "placeholder": "What is happening?!",
@@ -152,6 +165,18 @@
       "fontSize": "Font size",
       "title": "Display",
       "uiColor": "Text and background color"
+    },
+    "file": {
+      "availableFileType": "Available file types",
+      "checkServerUrl": "Failed to connect to the server. Please check the server URL.",
+      "help": "You can select a server to upload files such as images when posting.",
+      "serverStatus": {
+        "errored": "Error",
+        "ready": "Ready"
+      },
+      "serverToBeUsed": "File servers",
+      "termOfService": "Terms of service",
+      "title": "File"
     },
     "relay": {
       "add": "Add",

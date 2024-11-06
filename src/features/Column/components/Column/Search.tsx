@@ -32,6 +32,7 @@ import { useColumn } from "../../context/column";
 import type { ColumnContent } from "../../libs/deckSchema";
 import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
+
 const Search: Component<{
   state: ColumnContent<"search">;
   showHeader?: boolean;

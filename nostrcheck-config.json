@@ -1,0 +1,131 @@
+{
+  "database": {
+    "database": "",
+    "droptables": false,
+    "host": "127.0.0.1",
+    "password": "",
+    "user": ""
+  },
+  "environment": "development",
+  "logger": {
+    "compression": "gzip",
+    "filename": "nostrcheck-api",
+    "interval": "60d",
+    "logPath": "logs/",
+    "minLevel": "5",
+    "size": "50M"
+  },
+  "media": {
+    "allowPublicUploads": true,
+    "maxMBfilesize": 100,
+    "mediaPath": "media/",
+    "notFoundFilePath": "resources/file-not-found.webp",
+    "returnURL": "",
+    "tempPath": "tmp/",
+    "transform": {
+      "avatar": {
+        "height": "400",
+        "width": "400"
+      },
+      "banner": {
+        "height": "300",
+        "width": "900"
+      },
+      "media": {
+        "image": {
+          "height": "960",
+          "width": "1280"
+        },
+        "undefined": {
+          "height": "480",
+          "width": "640"
+        },
+        "video": {
+          "height": "480",
+          "width": "720"
+        }
+      }
+    }
+  },
+  "redis": {
+    "expireTime": 300,
+    "host": "127.0.0.1",
+    "password": "",
+    "port": "6379",
+    "user": "default"
+  },
+  "server": {
+    "availableModules": {
+      "admin": {
+        "description": "Admin API, reboot, update remove and modify fields, server status, etc.",
+        "enabled": true,
+        "methods": ["GET", "POST"],
+        "name": "admin",
+        "path": "/admin"
+      },
+      "domains": {
+        "description": "This module handle lists of registered domains and usernames.",
+        "enabled": false,
+        "methods": ["GET", "PUT"],
+        "name": "domains",
+        "path": "/domains"
+      },
+      "frontend": {
+        "description": "This module handles the frontend, login page, register, dashboard, etc.",
+        "enabled": true,
+        "methods": ["GET", "POST"],
+        "name": "frontend",
+        "path": "/"
+      },
+      "lightning": {
+        "description": "This module handles ightning redirections for a nostraddress.",
+        "enabled": true,
+        "methods": ["GET", "PUT", "DELETE"],
+        "name": "lightning",
+        "path": "/lightningaddress"
+      },
+      "media": {
+        "description": "This module handles media uploads, downloads, media tags, etc.",
+        "enabled": true,
+        "methods": ["GET", "POST", "PUT", "DELETE"],
+        "name": "media",
+        "path": "/media"
+      },
+      "nostraddress": {
+        "description": "This module returns the pubkey for a nostraddress name for each domain.",
+        "enabled": false,
+        "methods": ["GET"],
+        "name": "nostraddress",
+        "path": "/nostraddress"
+      },
+      "register": {
+        "description": "This module handles usernames creation from trusted pubkeys.",
+        "enabled": false,
+        "methods": ["POST"],
+        "name": "register",
+        "path": "/register"
+      },
+      "verify": {
+        "description": "This module can verify a nostr note integrity and timestamp.",
+        "enabled": false,
+        "methods": ["POST"],
+        "name": "verify",
+        "path": "/verify"
+      }
+    },
+    "host": "localhost",
+    "port": 3000,
+    "pubkey": "5fff0d1a636fdbfb6651406126a7fb3fb956c50fc30d40d7c20d1fc96fd55f28",
+    "secretKey": "ea25c42842901dd6e0a69d1d5d0eb0983798f2c0098e730afbfa2738ff50d93d",
+    "tosFilePath": "resources/tos.md"
+  },
+  "session": {
+    "maxAge": 2592000000,
+    "secret": "f301d3035fa5a2a5d6c139363bede685813216b58d5c90043c311393df89804178033a84134a3e908c2389158843c5c505b46ba287fbeb1782731269f3e72c75"
+  },
+  "torrent": {
+    "dhtPort": 6882,
+    "enableTorrentSeeding": false,
+    "torrentPort": 6881
+  }
+}
