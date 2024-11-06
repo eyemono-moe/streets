@@ -41,14 +41,15 @@ services:
     image: nostrcheckme/nostrcheck-server:latest
     networks:
       - nostrcheck
-    build: .
     depends_on:
       - mariadb
       - redis
     volumes:
       - ./data/nostrcheck/media:/usr/src/app/media
       - ./data/nostrcheck/resources:/usr/src/app/resources
-      - ./data/nostrcheck/config:/usr/src/app/config
+      - type: bind
+        source: ./nostrcheck-config.json
+        target: /usr/src/app/config/local.json
     restart: always
     environment: 
       DATABASE_HOST: "mariadb"
