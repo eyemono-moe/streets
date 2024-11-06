@@ -102,6 +102,8 @@ services:
       MYSQL_DATABASE: nostrcheck
       MYSQL_USER: nostrcheck
       MYSQL_PASSWORD: nostrcheck
+    ports:
+      - 3306:3306
   redis:
     networks:
       - nostrcheck
