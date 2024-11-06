@@ -18,12 +18,12 @@ const fallbackUnknown = <TIn, TOut, TIssue>(
 const NIP01 = v.object({
   name: v.nullish(v.string(), ""),
   about: v.nullish(v.string(), ""),
-  picture: v.nullish(v.string(), undefined),
+  picture: v.nullish(v.string(), () => undefined),
 });
 
 // https://github.com/nostr-protocol/nips/blob/master/05.md
 const NIP05 = v.object({
-  nip05: v.nullish(fallbackUnknown(v.string()), undefined),
+  nip05: v.nullish(fallbackUnknown(v.string()), () => undefined),
 });
 
 const strBoolean = v.pipe(
@@ -33,16 +33,16 @@ const strBoolean = v.pipe(
 
 // https://github.com/nostr-protocol/nips/blob/master/24.md#kind-0
 const NIP24 = v.object({
-  display_name: v.nullish(v.string(), undefined),
-  website: v.nullish(v.string(), undefined),
-  banner: v.nullish(v.string(), undefined),
-  bot: v.nullish(v.union([v.boolean(), strBoolean]), undefined),
+  display_name: v.nullish(v.string(), () => undefined),
+  website: v.nullish(v.string(), () => undefined),
+  banner: v.nullish(v.string(), () => undefined),
+  bot: v.nullish(v.union([v.boolean(), strBoolean]), () => undefined),
 });
 
 // https://github.com/nostr-protocol/nips/blob/master/24.md#deprecated-fields
 const NIP24Deprecated = v.object({
-  displayName: v.nullish(v.string(), undefined),
-  username: v.nullish(v.string(), undefined),
+  displayName: v.nullish(v.string(), () => undefined),
+  username: v.nullish(v.string(), () => undefined),
 });
 
 const metadataContentSchema = v.pipe(
