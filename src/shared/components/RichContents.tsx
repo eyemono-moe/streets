@@ -1,3 +1,4 @@
+import { Image } from "@kobalte/core/image";
 import {
   type Component,
   For,
@@ -21,6 +22,7 @@ import type {
   TextContent,
   VideoContent,
 } from "../libs/parseTextContent";
+import Blurhash from "./Blurhash";
 import EventByID from "./EventByID";
 
 const RichContent: Component<{
@@ -43,17 +45,43 @@ const RichContent: Component<{
                   href={(content as ImageContent).src}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="block w-fit"
+                  class="block"
                 >
-                  {/* TODO: display blurhash */}
-                  <img
-                    class="b-1 h-full max-h-50vh w-auto max-w-full rounded object-contain"
-                    src={(content as ImageContent).src}
-                    alt={(content as ImageContent).alt ?? ""}
-                    width={(content as ImageContent).size?.width}
-                    height={(content as ImageContent).size?.height}
-                    loading="lazy"
-                  />
+                  <Image
+                    as="div"
+                    fallbackDelay={100}
+                    class="b-1 h-auto w-full overflow-hidden rounded"
+                    style={{
+                      "aspect-ratio":
+                        (content as ImageContent).size?.width &&
+                        (content as ImageContent).size?.height
+                          ? `${
+                              // biome-ignore lint/style/noNonNullAssertion: width and height are defined
+                              (content as ImageContent).size!.width
+                              // biome-ignore lint/style/noNonNullAssertion: width and height are defined
+                            }/${(content as ImageContent).size!.height}`
+                          : "auto",
+                    }}
+                  >
+                    <Image.Img
+                      class="b-1 aspect-ratio-[auto_16/9] h-auto max-w-full rounded object-contain"
+                      src={(content as ImageContent).src}
+                      alt={(content as ImageContent).alt ?? ""}
+                      width={(content as ImageContent).size?.width}
+                      height={(content as ImageContent).size?.height}
+                      loading="lazy"
+                    />
+                    <Image.Fallback as="div" class="h-full w-full bg-secondary">
+                      <Show when={(content as ImageContent).blurhash} keyed>
+                        {(nonNullBlurhash) => (
+                          <Blurhash
+                            blurhash={nonNullBlurhash}
+                            class="h-full w-full"
+                          />
+                        )}
+                      </Show>
+                    </Image.Fallback>
+                  </Image>
                 </a>
               </Match>
               <Match when={content.type === "video"}>
