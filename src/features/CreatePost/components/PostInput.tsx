@@ -273,21 +273,21 @@ const PostInput: Component<{
                           <ImagePreview file={file} />
                         </FileUpload.ItemPreview>
                         <FileUpload.ItemPreview
-                          class="h-full w-full p-4"
+                          class="grid h-full w-full place-items-center p-4"
                           type="video/*"
                         >
                           {/* TODO: video preview */}
                           <div class="i-material-symbols:video-file-outline-rounded aspect-square h-full w-auto" />
                         </FileUpload.ItemPreview>
                         <FileUpload.ItemPreview
-                          class="h-full w-full p-4"
+                          class="grid h-full w-full place-items-center p-4"
                           type="audio/*"
                         >
                           <div class="i-material-symbols:audio-file-outline-rounded aspect-square h-full w-auto" />
                         </FileUpload.ItemPreview>
                         {/* image, video, audio以外にマッチ */}
                         <FileUpload.ItemPreview
-                          class="h-full w-full p-4"
+                          class="grid h-full w-full place-items-center p-4"
                           type="^(?!(image)|(video)|(audio)).*"
                         >
                           <div class="i-material-symbols:file-present-outline-rounded aspect-square h-full w-auto" />
