@@ -29,12 +29,12 @@ const MyToast: ParentComponent<
   return (
     <Toast
       {...kobalteProps}
-      class="b-1 relative w-200px max-w-full rounded bg-primary p-2 shadow shadow-ui/25 data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x] data-[closed]:animate-duration-100! data-[closed]:animate-fade-out-right! data-[opened]:animate-duration-100! data-[opened]:animate-slide-in-right! data-[swipe=end]:animate-[swipeOut_100ms] data-[swipe=cancel]:transition-transform-100"
+      class="b-1 relative min-w-200px max-w-[min(400px,100%)] rounded bg-primary p-2 shadow shadow-ui/25 data-[swipe=cancel]:translate-x-0 data-[swipe=move]:translate-x-[--kb-toast-swipe-move-x] data-[closed]:animate-duration-100! data-[closed]:animate-fade-out-right! data-[opened]:animate-duration-100! data-[opened]:animate-slide-in-right! data-[swipe=end]:animate-[swipeOut_100ms] data-[swipe=cancel]:transition-transform-100"
     >
       <Toast.CloseButton class="c-secondary absolute right-2 bg-transparent">
         <div class="i-material-symbols:close-small-rounded h-6 w-6" />
       </Toast.CloseButton>
-      <Toast.Description class="flex items-center gap-2">
+      <Toast.Description class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2">
         <Switch
           fallback={
             <div class="i-material-symbols:info-rounded c-blue h-6 w-6" />
@@ -56,19 +56,19 @@ const MyToast: ParentComponent<
   );
 };
 
-const show = (message: string) => {
+const show = (message?: string) => {
   return toaster.show((props) => (
     <MyToast toastId={props.toastId}>{message}</MyToast>
   ));
 };
-const success = (message: string) => {
+const success = (message?: string) => {
   return toaster.show((props) => (
     <MyToast toastId={props.toastId} variant="success">
       {message}
     </MyToast>
   ));
 };
-const error = (message: string) => {
+const error = (message?: string) => {
   return toaster.show((props) => (
     <MyToast toastId={props.toastId} variant="error">
       {message}

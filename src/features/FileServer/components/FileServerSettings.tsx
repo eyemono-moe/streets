@@ -20,7 +20,7 @@ type FileServerSettingForm = v.InferInput<typeof fileServerSettingFormSchema>;
 const FileServerSettings: Component = () => {
   const t = useI18n();
 
-  const [fileServer, { setDefaultApi }] = useFileServer();
+  const [fileServer, _, { setServerUrl }] = useFileServer();
 
   const [form, { Form, Field }] = createForm<FileServerSettingForm>({
     validate: valiForm(fileServerSettingFormSchema),
@@ -28,7 +28,7 @@ const FileServerSettings: Component = () => {
 
   onMount(() => {
     setValues(form, {
-      api: fileServer.selectedApiURL,
+      api: fileServer.serverUrl,
     });
   });
 
@@ -37,14 +37,14 @@ const FileServerSettings: Component = () => {
       untrack(() => form),
       {
         initialValues: {
-          api: fileServer.selectedApiURL,
+          api: fileServer.serverUrl,
         },
       },
     );
   });
 
   const handleSubmit: SubmitHandler<FileServerSettingForm> = (values) => {
-    setDefaultApi(values.api);
+    setServerUrl(values.api);
   };
 
   return (

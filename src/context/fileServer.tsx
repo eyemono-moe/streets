@@ -1,17 +1,24 @@
-import { type ParentComponent, createContext, useContext } from "solid-js";
+import { type ServerConfiguration, readServerConfig } from "nostr-tools/nip96";
+import {
+  type ParentComponent,
+  type Resource,
+  createContext,
+  createResource,
+  useContext,
+} from "solid-js";
 import * as v from "valibot";
 import { createLocalStore } from "../shared/libs/createLocalStore";
 
 const fileServerState = v.object({
   version: v.literal(0),
-  selectedApiURL: v.string(),
+  serverUrl: v.string(),
 });
 
 type FileServerState = v.InferOutput<typeof fileServerState>;
 
 const initialState = (): FileServerState => ({
   version: 0,
-  selectedApiURL: "https://nostrcheck.me",
+  serverUrl: "https://nostrcheck.me",
 });
 
 export const defaultFileServers: string[] = [
@@ -29,8 +36,9 @@ const FileServerContext =
   createContext<
     [
       state: FileServerState,
+      serverConfig: Resource<ServerConfiguration>,
       actions: {
-        setDefaultApi: (api: string) => void;
+        setServerUrl: (api: string) => void;
         reset: () => void;
       },
     ]
@@ -51,13 +59,19 @@ export const FileServerProvider: ParentComponent = (props) => {
     },
   );
 
+  const [serverConfig] = createResource(
+    () => state.serverUrl,
+    (serverUrl) => readServerConfig(serverUrl),
+  );
+
   return (
     <FileServerContext.Provider
       value={[
         state,
+        serverConfig,
         {
-          setDefaultApi: (api) => {
-            setState("selectedApiURL", api);
+          setServerUrl: (api) => {
+            setState("serverUrl", api);
           },
           reset: () => {
             setState(initialState());

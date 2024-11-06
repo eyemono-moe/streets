@@ -1,8 +1,10 @@
 import { FileUpload, useFileUpload } from "@ark-ui/solid/file-upload";
 import { Popover } from "@kobalte/core/popover";
+import { Progress } from "@kobalte/core/progress";
 import { autofocus } from "@solid-primitives/autofocus";
 import stringify from "safe-stable-stringify";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
+import { useFileServer } from "../../../context/fileServer";
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import EmojiPicker from "../../../shared/components/EmojiPicker";
@@ -16,6 +18,12 @@ import {
 import { parseTextNoteTags } from "../../../shared/libs/parser/1_shortTextNote";
 import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
+import { toast } from "../../../shared/libs/toast";
+import {
+  extractFileUrl,
+  fileUploadResToImetaTag,
+  useUploadFiles,
+} from "../../../shared/libs/uploadFile";
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import { useFileDrop } from "../lib/useFileDrop";
 import ImagePreview from "./ImagePreview";
@@ -29,6 +37,7 @@ const PostInput: Component<{
   tags?: string[][];
 }> = (props) => {
   // TODO: reply target, image upload, pubkey/emoji auto complete
+  // TODO: component, hookの分割
 
   const t = useI18n();
 
@@ -68,18 +77,6 @@ const PostInput: Component<{
   });
   const tagsForPreview = createMemo(() => parseTextNoteTags(referenceTags()));
 
-  const { sendShortText, sendState } = useSendShortText();
-  const postText = async () => {
-    if (content() === "") {
-      return;
-    }
-    await sendShortText({
-      content: content(),
-      tags: referenceTags(),
-    });
-    setContent("");
-  };
-
   /**
    * カーソル位置にテキストを挿入する関数
    */
@@ -116,8 +113,34 @@ const PostInput: Component<{
     }
   };
 
+  const [isSending, setIsSending] = createSignal(false);
+  const { progress: fileUploadProgress, uploadFiles } = useUploadFiles();
+  const { sendShortText } = useSendShortText();
+
+  const [, serverConfig] = useFileServer();
+  const fileUpload = useFileUpload({
+    maxFiles: Number.POSITIVE_INFINITY,
+    capture: "environment",
+    directory: false,
+    accept: serverConfig()?.content_types,
+    onFileReject(details) {
+      if (details.files.length === 0) return;
+      toast.error(
+        t("postInput.fileUpload.unsupported", {
+          filenames: details.files
+            .filter((fileRejection) =>
+              fileRejection.errors.includes("FILE_INVALID_TYPE"),
+            )
+            .map((fileRejection) => fileRejection.file.name)
+            .join(", "),
+        }),
+      );
+    },
+  });
+
   const { isDragging, onDrop, canDrop, onDragOver, onDragLeave, onDragStart } =
     useFileDrop((textOrFiles) => {
+      if (isSending()) return;
       if (typeof textOrFiles === "string") {
         insertText(textOrFiles);
       } else {
@@ -125,13 +148,58 @@ const PostInput: Component<{
       }
     });
 
-  const fileUpload = useFileUpload({
-    maxFiles: Number.POSITIVE_INFINITY,
-    capture: "environment",
-    directory: false,
-  });
   const addAttachment = (files: File[]) => {
     fileUpload().setFiles(files);
+  };
+
+  const postText = async () => {
+    if (isSending()) return;
+    setIsSending(true);
+
+    // 何も入力されていない場合は何もしない
+    if (content() === "" && fileUpload().acceptedFiles.length === 0) {
+      setIsSending(false);
+      return;
+    }
+
+    // ファイルをアップロード
+    let iMetaTags: string[][] = [];
+    let fileUrls: string[] = [];
+    if (fileUpload().acceptedFiles.length > 0) {
+      const apiUrl = serverConfig()?.api_url;
+      if (!apiUrl) {
+        toast.error(t("postInput.fileUpload.noServerConfigured"));
+        setIsSending(false);
+        return;
+      }
+      try {
+        const uploadRes = await uploadFiles(fileUpload().acceptedFiles, apiUrl);
+        iMetaTags = uploadRes
+          .map((res) => fileUploadResToImetaTag(res))
+          .filter((v): v is NonNullable<typeof v> => !!v);
+        fileUrls = uploadRes
+          .map((res) => extractFileUrl(res))
+          .filter((v): v is NonNullable<typeof v> => !!v);
+      } catch (e) {
+        console.error(e);
+        setIsSending(false);
+        return;
+      }
+    }
+
+    // テキストを投稿
+    const textContent =
+      fileUrls.length > 0 ? `${content()}\n${fileUrls.join("\n")}` : content();
+
+    await sendShortText({
+      content: textContent,
+      tags: referenceTags().concat(iMetaTags),
+    });
+
+    setIsSending(false);
+    setContent("");
+    fileUpload().clearFiles();
+    fileUpload().clearRejectedFiles();
   };
 
   return (
@@ -140,6 +208,7 @@ const PostInput: Component<{
       fallback={<NeedLoginPlaceholder message={t("postInput.needLogin")} />}
     >
       <FileUpload.RootProvider value={fileUpload}>
+        <FileUpload.HiddenInput />
         <div class="max-w-150 space-y-2 p-2">
           <div
             class="b-1 relative rounded bg-secondary p-2 outline-accent-5 focus-within:outline"
@@ -159,7 +228,7 @@ const PostInput: Component<{
                 class={`${textareaStyle} disabled:op-50 absolute top-0 left-0 h-full bg-transparent focus:outline-none disabled:cursor-progress`}
                 placeholder={t("postInput.placeholder")}
                 value={content()}
-                disabled={sendState.sending}
+                disabled={isSending()}
                 onInput={(e) => setContent(e.currentTarget.value)}
                 onKeyDown={handleCtrlEnter}
                 onPaste={onPaste}
@@ -169,10 +238,19 @@ const PostInput: Component<{
             <span class="c-secondary text-caption">
               {t("postInput.enterToAddNewLine")}
             </span>
-            <Show when={isDragging() && canDrop()}>
+            <Show when={isDragging() && canDrop() && !isSending()}>
               <div class="b-2 b-accent-5 b-dashed absolute inset-0 flex flex-col items-center justify-center rounded backdrop-blur-2">
                 <div class="i-material-symbols:upload-file-outline-rounded aspect-square h-1lh w-auto" />
-                {t("postInput.dropFile")}
+                {t("postInput.fileUpload.dropFile")}
+              </div>
+            </Show>
+            <Show when={isSending()}>
+              <div class="absolute inset-0 flex flex-col items-center justify-center rounded backdrop-blur-2">
+                <Progress value={fileUploadProgress()} class="w-75%">
+                  <Progress.Track class="b-2 h-4 rounded-full">
+                    <Progress.Fill class="h-full w-[--kb-progress-fill-width] rounded-full bg-accent-primary transition-50 transition-width" />
+                  </Progress.Track>
+                </Progress>
               </div>
             </Show>
           </div>
@@ -219,7 +297,10 @@ const PostInput: Component<{
                         <FileUpload.ItemName class="truncate" />
                         <FileUpload.ItemSizeText class="c-secondary shrink-0 break-keep text-caption" />
                       </div>
-                      <FileUpload.ItemDeleteTrigger class="c-primary hover:c-red-5 absolute top-1 right-1 rounded-full bg-secondary p-1">
+                      <FileUpload.ItemDeleteTrigger
+                        disabled={isSending()}
+                        class="c-primary enabled:hover:c-red-5 disabled:op-50 absolute top-1 right-1 rounded-full bg-secondary p-1"
+                      >
                         <div class="i-material-symbols:close-rounded aspect-square h-4 w-auto" />
                       </FileUpload.ItemDeleteTrigger>
                     </FileUpload.Item>
@@ -229,13 +310,16 @@ const PostInput: Component<{
             </FileUpload.Context>
           </FileUpload.ItemGroup>
           <div class="flex gap-2">
-            <FileUpload.Trigger class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover">
+            <FileUpload.Trigger
+              disabled={isSending()}
+              class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover disabled:opacity-50"
+            >
               <div class="i-material-symbols:add-photo-alternate-outline-rounded aspect-square h-1lh w-auto" />
             </FileUpload.Trigger>
             <Popover>
               <Popover.Trigger
-                class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover"
-                disabled={sendState.sending}
+                class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover disabled:opacity-50"
+                disabled={isSending()}
               >
                 <div class="i-material-symbols:add-reaction-outline-rounded aspect-square h-1lh w-auto" />
               </Popover.Trigger>
@@ -250,13 +334,12 @@ const PostInput: Component<{
               </Popover.Portal>
             </Popover>
             <div class="ml-auto">
-              <Button onClick={postText} disabled={sendState.sending}>
+              <Button onClick={postText} disabled={isSending()}>
                 {t("postInput.post")}
                 <div class="i-material-symbols:send-rounded aspect-square h-4 w-auto" />
               </Button>
             </div>
           </div>
-          <FileUpload.HiddenInput />
           <div class="flex flex-col gap-1 overflow-auto">
             <div class="c-secondary">{t("postInput.preview")}</div>
             <div class="b-1 min-h-20">
