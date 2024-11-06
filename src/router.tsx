@@ -24,6 +24,10 @@ const routes = [
         component: lazy(() => import("./routes/settings/relay")),
       },
       {
+        path: "/settings/file",
+        component: lazy(() => import("./routes/settings/file")),
+      },
+      {
         path: "/settings/display",
         component: lazy(() => import("./routes/settings/display")),
       },

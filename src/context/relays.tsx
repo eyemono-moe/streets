@@ -47,6 +47,7 @@ const RelaysContext =
   >();
 
 export const RelaysProvider: ParentComponent = (props) => {
+  // TODO: アプリ固有データとして保存する (https://github.com/nostr-protocol/nips/blob/master/78.md)
   const [state, setState] = createLocalStore(
     "monostr.relays",
     initialState,

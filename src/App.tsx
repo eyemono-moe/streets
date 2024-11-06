@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import { type Component, createEffect } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
+import { FileServerProvider } from "./context/fileServer";
 import { MeProvider } from "./context/me";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrProvider } from "./context/rxNostr";
@@ -34,13 +35,15 @@ const App: Component = () => {
         <EventCacheProvider>
           <MeProvider>
             <RelaysProvider>
-              <RxNostrProvider>
-                <DeckProvider>
-                  <PostInputProvider>
-                    <Router>{routes}</Router>
-                  </PostInputProvider>
-                </DeckProvider>
-              </RxNostrProvider>
+              <FileServerProvider>
+                <RxNostrProvider>
+                  <DeckProvider>
+                    <PostInputProvider>
+                      <Router>{routes}</Router>
+                    </PostInputProvider>
+                  </DeckProvider>
+                </RxNostrProvider>
+              </FileServerProvider>
               <SolidQueryDevtools />
             </RelaysProvider>
           </MeProvider>
