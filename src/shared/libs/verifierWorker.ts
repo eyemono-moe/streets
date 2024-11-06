@@ -1,4 +1,4 @@
-import { Event, loadWasmSync } from "@rust-nostr/nostr";
+import { Event, loadWasmSync } from "@rust-nostr/nostr-sdk";
 import {
   type EventVerifier,
   startVerificationServiceHost,
