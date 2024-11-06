@@ -88,7 +88,7 @@ const RichContent: Component<{
                 {/* TODO: 動画の拡大表示 */}
                 {/* biome-ignore lint/a11y/useMediaCaption: キャプションの投稿手段が無い */}
                 <video
-                  class="b-1 h-full max-h-50vh w-auto max-w-full rounded object-contain"
+                  class="b-1 h-auto w-full rounded object-contain"
                   controls
                   preload="metadata"
                   src={(content as VideoContent).href}
