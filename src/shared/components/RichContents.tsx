@@ -64,7 +64,7 @@ const RichContent: Component<{
                     }}
                   >
                     <Image.Img
-                      class="aspect-ratio-[auto_16/9] h-auto max-w-full rounded bg-secondary object-contain"
+                      class="aspect-ratio-[auto_16/9] h-full w-full rounded bg-secondary [image-orientation:from-image]"
                       src={(content as ImageContent).src}
                       alt={(content as ImageContent).alt ?? ""}
                       width={(content as ImageContent).size?.width}
