@@ -6,8 +6,13 @@ linkify.registerCustomProtocol("wss");
 
 const imageExtensions = ["jpg", "jpeg", "png", "gif", "webp", "svg"];
 const isImageUrl = (url: string) => {
-  const ext = url.split(".").pop();
-  return ext && imageExtensions.includes(ext.toLowerCase());
+  try {
+    const path = new URL(url).pathname;
+    const ext = path.split(".").pop();
+    return ext && imageExtensions.includes(ext.toLowerCase());
+  } catch {
+    return false;
+  }
 };
 const videoExtensions = ["mp4", "webm", "ogg"];
 const isVideoUrl = (url: string) => {
