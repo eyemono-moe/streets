@@ -16,7 +16,7 @@
     "check-unused": "pnpm dlx @line/ts-remove-unused --skip 'src/index.tsx' --check --project tsconfig.app.json"
   },
   "dependencies": {
-    "@ark-ui/solid": "4.3.0",
+    "@ark-ui/solid": "4.4.0",
     "@kobalte/core": "0.13.7",
     "@modular-forms/solid": "0.24.1",
     "@neodrag/solid": "2.0.4",
@@ -36,6 +36,7 @@
     "@unocss/reset": "0.64.0",
     "bech32": "2.0.0",
     "blurhash": "2.0.5",
+    "browser-image-compression": "2.0.2",
     "emoji-mart": "5.6.0",
     "fuse.js": "7.0.0",
     "linkifyjs": "4.1.3",

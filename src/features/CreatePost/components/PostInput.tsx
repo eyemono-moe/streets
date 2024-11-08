@@ -27,7 +27,6 @@ import {
 } from "../../../shared/libs/uploadFile";
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import { useFileDrop } from "../lib/useFileDrop";
-import ImagePreview from "./ImagePreview";
 import PostPreview from "./PostPreview";
 
 // prevents from being tree-shaken by TS
@@ -167,7 +166,8 @@ const PostInput: Component<{
     let iMetaTags: string[][] = [];
     let fileUrls: string[] = [];
     if (fileUpload().acceptedFiles.length > 0) {
-      const apiUrl = serverConfig()?.api_url;
+      const apiUrl = "http://localhost:3000/api/v2/media";
+      // const apiUrl = serverConfig()?.api_url;
       if (!apiUrl) {
         toast.error(t("postInput.fileUpload.noServerConfigured"));
         setIsSending(false);
@@ -273,8 +273,7 @@ const PostInput: Component<{
                           class="h-full w-full"
                           type="image/*"
                         >
-                          {/* <FileUpload.ItemPreviewImage /> */}
-                          <ImagePreview file={file} />
+                          <FileUpload.ItemPreviewImage class="h-full w-full object-contain" />
                         </FileUpload.ItemPreview>
                         <FileUpload.ItemPreview
                           class="grid h-full w-full place-items-center p-4"
