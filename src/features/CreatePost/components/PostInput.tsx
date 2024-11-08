@@ -18,6 +18,7 @@ import {
 import { parseTextNoteTags } from "../../../shared/libs/parser/1_shortTextNote";
 import type { EmojiTag } from "../../../shared/libs/parser/commonTag";
 import { useEmojis, useSendShortText } from "../../../shared/libs/query";
+import { maxSizeMB, needResize, resize } from "../../../shared/libs/resize";
 import { toast } from "../../../shared/libs/toast";
 import {
   extractFileUrl,
@@ -173,7 +174,10 @@ const PostInput: Component<{
         return;
       }
       try {
-        const uploadRes = await uploadFiles(fileUpload().acceptedFiles, apiUrl);
+        const resized = await Promise.all(
+          fileUpload().acceptedFiles.map((file) => resize(file)),
+        );
+        const uploadRes = await uploadFiles(resized, apiUrl);
         iMetaTags = uploadRes
           .map((res) => fileUploadResToImetaTag(res))
           .filter((v): v is NonNullable<typeof v> => !!v);
@@ -295,7 +299,20 @@ const PostInput: Component<{
                       </div>
                       <div class="flex w-full items-baseline justify-between gap-2 overflow-hidden">
                         <FileUpload.ItemName class="truncate" />
-                        <FileUpload.ItemSizeText class="c-secondary shrink-0 break-keep text-caption" />
+                        <FileUpload.ItemSizeText
+                          class="shrink-0 break-keep text-caption"
+                          classList={{
+                            "c-yellow-6 dark:c-yellow-5": needResize(file),
+                            "c-secondary": !needResize(file),
+                          }}
+                          title={
+                            needResize(file)
+                              ? t("postInput.fileUpload.needResize", {
+                                  maxSizeMB,
+                                })
+                              : undefined
+                          }
+                        />
                       </div>
                       <FileUpload.ItemDeleteTrigger
                         disabled={isSending()}

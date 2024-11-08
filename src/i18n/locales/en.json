@@ -119,6 +119,7 @@
         "paymentRequired": "Payment required",
         "unknown": "An unknown error occurred"
       },
+      "needResize": "Images larger than {{ maxSizeMB }}MB will be compressed before uploading",
       "noServerConfigured": "No file upload server is configured. Please set a file upload server from Settings > File.",
       "unsupported": "The file format is not supported by the file upload server: {{ filenames }}"
     },
