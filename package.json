@@ -37,6 +37,7 @@
     "bech32": "2.0.0",
     "blurhash": "2.0.5",
     "browser-image-compression": "2.0.2",
+    "cropperjs": "1.6.2",
     "emoji-mart": "5.6.0",
     "fuse.js": "7.0.0",
     "linkifyjs": "4.1.3",

@@ -2,6 +2,7 @@
   "addColumn": {
     "title": "カラムを追加"
   },
+  "applyCrop": "適用",
   "column": {
     "bookmarks": {
       "title": "ブックマーク",
@@ -102,25 +103,27 @@
     "viewEventData": "イベントデータを表示",
     "viewReposts": "リポストを表示"
   },
+  "fileUpload": {
+    "failed": "ファイルのアップロードに失敗しました: {{ error }}",
+    "httpError": {
+      "badRequest": "リクエストが不正です",
+      "fileTooLarge": "ファイルサイズが大きすぎます",
+      "forbidden": "アクセスが拒否されました",
+      "paymentRequired": "支払いが必要です",
+      "unknown": "不明なエラーが発生しました"
+    }
+  },
   "loadMore": "さらに読み込む",
   "loadMoreReply": "ポストをさらに読み込む",
   "loading": "読み込み中",
   "login": "ログインする",
+  "noFileServerConfigured": "ファイルアップロードサーバーが設定されていません。設定 > ファイル からファイルアップロードサーバーを設定してください。",
   "noMoreEvents": "これ以上データがありません",
   "postInput": {
     "enterToAddNewLine": "Enterで改行",
     "fileUpload": {
       "dropFile": "ドロップしてファイルを添付",
-      "failed": "ファイルのアップロードに失敗しました: {{ error }}",
-      "httpError": {
-        "badRequest": "リクエストが不正です",
-        "fileTooLarge": "ファイルサイズが大きすぎます",
-        "forbidden": "アクセスが拒否されました",
-        "paymentRequired": "支払いが必要です",
-        "unknown": "不明なエラーが発生しました"
-      },
       "needResize": "{{ maxSizeMB }}MBを超える画像ファイルはアップロード前に圧縮されます",
-      "noServerConfigured": "ファイルアップロードサーバーが設定されていません。設定 > ファイル からファイルアップロードサーバーを設定してください。",
       "unsupported": "設定中のファイルアップロードサーバーが対応していないファイル形式です: {{ filenames }}"
     },
     "needLogin": "投稿にはログインが必要です",
@@ -178,6 +181,26 @@
       "serverToBeUsed": "使用するファイルアップロードサーバー",
       "termOfService": "利用規約",
       "title": "ファイル"
+    },
+    "profile": {
+      "discard": "変更を破棄",
+      "error": {
+        "invalidNip05": "\"ユーザー名@ドメイン\"の形で入力してください"
+      },
+      "label": {
+        "about": "自己紹介",
+        "banner": "バナー画像URL",
+        "displayName": "表示名",
+        "name": "ユーザー名",
+        "nip05": "Nostrアドレス",
+        "picture": "アイコン画像URL",
+        "website": "ウェブサイト"
+      },
+      "needLogin": "プロフィールの設定にはログインが必要です",
+      "nip05Help": "Nostrアドレスは自身の所有するドメインとアカウントを紐づけるために使用されます。ユーザーの識別や検索に使用されます。",
+      "save": "保存",
+      "title": "プロフィール",
+      "uploadFailed": "ファイルのアップロードに失敗しました"
     },
     "relay": {
       "add": "追加",

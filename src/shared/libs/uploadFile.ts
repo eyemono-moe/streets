@@ -36,7 +36,7 @@ const fileUploadResSchema = v.object({
 });
 type FileUploadRes = v.InferOutput<typeof fileUploadResSchema>;
 
-type UploadFileProps = {
+export type UploadFileProps = {
   apiUrl: string;
   file: File;
   mediaType?: OptionalFormDataFields["media_type"];
@@ -110,10 +110,23 @@ export const uploadFile = async (
   }
   throw new Error(`Invalid response: ${JSON.stringify(parsed.issues)}`);
 };
+export type FileUploadResponse = Awaited<ReturnType<typeof uploadFile>>;
 
 const t = useI18n();
 const httpErrorMessage = (type: HttpErrorType) => {
-  return t(`postInput.fileUpload.httpError.${type}`) ?? "";
+  return t(`fileUpload.httpError.${type}`) ?? "";
+};
+
+export const handleErrorResponse = (res: FileUploadResponse) => {
+  if (res.status === "httpError") {
+    toast.error(t("fileUpload.failed", { error: httpErrorMessage(res.type) }));
+    throw new Error(`HTTP error: ${res.type}`);
+  }
+  if (res.status === "error") {
+    toast.error(t("fileUpload.failed", { error: res.message }));
+    throw new Error(`Upload failed: ${res.message}`);
+  }
+  return res;
 };
 
 export const useUploadFiles = () => {
@@ -126,20 +139,9 @@ export const useUploadFiles = () => {
 
     const ps = files.map(async (file) => {
       const res = await uploadFile({ file, apiUrl });
-      if (res.status === "httpError") {
-        toast.error(
-          t("postInput.fileUpload.failed", {
-            error: httpErrorMessage(res.type),
-          }),
-        );
-        throw new Error(`HTTP error: ${res.type}`);
-      }
-      if (res.status === "error") {
-        toast.error(t("postInput.fileUpload.failed", { error: res.message }));
-        throw new Error(`Upload failed: ${res.message}`);
-      }
+      const handled = handleErrorResponse(res);
       setProgress((prev) => prev + 100 / files.length);
-      return res;
+      return handled;
     });
 
     return Promise.all(ps).finally(() => {
