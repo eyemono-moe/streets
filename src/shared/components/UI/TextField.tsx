@@ -68,13 +68,19 @@ export function TextField(props: TextFieldProps) {
           />
         }
       >
-        <KTextField.TextArea {...inputProps} autoResize />
+        <KTextField.TextArea
+          {...inputProps}
+          autoResize
+          class="b-1 w-full rounded bg-secondary px-1 py-0.5"
+        />
       </Show>
-      <datalist id={dataListID}>
-        <For each={props.options}>
-          {(option) => <option value={option.value} label={option.label} />}
-        </For>
-      </datalist>
+      <Show when={props.options}>
+        <datalist id={dataListID}>
+          <For each={props.options}>
+            {(option) => <option value={option.value} label={option.label} />}
+          </For>
+        </datalist>
+      </Show>
       <KTextField.ErrorMessage class="font-500 text-caption text-red-5">
         {props.error}
       </KTextField.ErrorMessage>

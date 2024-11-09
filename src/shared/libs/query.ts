@@ -30,7 +30,7 @@ import {
   parseEventPacket,
   type parseNostrEvent,
 } from "./parser";
-import type { Metadata } from "./parser/0_metadata";
+import type { Metadata, ProfileSettingsOutput } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { FollowList } from "./parser/3_contacts";
 import type { Repost } from "./parser/6_repost";
@@ -756,6 +756,31 @@ export const useSendContacts = () => {
 
   return {
     sendContacts,
+    sendState,
+  };
+};
+
+export const useSendProfile = () => {
+  const { sender, sendState } = createSender();
+  const invalidate = useInvalidateEventCache();
+
+  const sendProfile = (props: {
+    pubkey: string;
+    profile: ProfileSettingsOutput;
+  }) => {
+    return sender(
+      {
+        kind: kinds.Metadata,
+        content: JSON.stringify(props.profile),
+      },
+      () => {
+        invalidate([kinds.Metadata, props.pubkey]);
+      },
+    );
+  };
+
+  return {
+    sendProfile,
     sendState,
   };
 };

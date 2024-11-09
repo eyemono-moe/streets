@@ -1,5 +1,7 @@
 import { type NostrEvent, kinds } from "nostr-tools";
+import { NIP05_REGEX } from "nostr-tools/nip05";
 import * as v from "valibot";
+import { useI18n } from "../../../i18n";
 
 const fallbackUnknown = <TIn, TOut, TIssue>(
   s: v.BaseSchema<TIn, TOut, v.BaseIssue<TIssue>>,
@@ -83,3 +85,23 @@ export const parseMetadata = (input: NostrEvent) => {
 };
 
 export type Metadata = ReturnType<typeof parseMetadata>;
+
+const t = useI18n();
+export const profileSettingsSchema = v.object({
+  name: v.string(),
+  about: v.string(),
+  picture: v.string(),
+  nip05: v.union([
+    v.literal(""),
+    v.pipe(
+      v.string(),
+      v.regex(NIP05_REGEX, t("settings.profile.error.invalidNip05")),
+    ),
+  ]),
+  display_name: v.string(),
+  website: v.string(),
+  banner: v.string(),
+});
+
+export type ProfileSettingsInput = v.InferInput<typeof profileSettingsSchema>;
+export type ProfileSettingsOutput = v.InferOutput<typeof profileSettingsSchema>;

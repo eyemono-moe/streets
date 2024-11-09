@@ -12,6 +12,16 @@ const index: Component = () => {
         <li>
           <A
             class="inline-flex w-full items-center gap-2 px-2 py-1 hover:bg-alpha-hover"
+            href="/settings/profile"
+          >
+            <div class="i-material-symbols:manage-accounts-rounded aspect-square h-1lh w-auto" />
+            {t("settings.profile.title")}
+            <div class="i-material-symbols:chevron-right-rounded ml-auto aspect-square h-1lh w-auto" />
+          </A>
+        </li>
+        <li>
+          <A
+            class="inline-flex w-full items-center gap-2 px-2 py-1 hover:bg-alpha-hover"
             href="/settings/relay"
           >
             <div class="i-material-symbols:globe aspect-square h-1lh w-auto" />
