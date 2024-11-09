@@ -28,6 +28,10 @@ const routes = [
         component: lazy(() => import("./routes/settings/file")),
       },
       {
+        path: "/settings/profile",
+        component: lazy(() => import("./routes/settings/profile")),
+      },
+      {
         path: "/settings/display",
         component: lazy(() => import("./routes/settings/display")),
       },

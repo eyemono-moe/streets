@@ -8,7 +8,7 @@ const BasicLayout: ParentComponent<{
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Header title={props.title} backTo={props.backTo} />
-      <div class="w-full overflow-y-auto p-2">{props.children}</div>
+      <div class="relative w-full overflow-y-auto p-2">{props.children}</div>
     </div>
   );
 };

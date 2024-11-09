@@ -169,7 +169,7 @@ const PostInput: Component<{
       const apiUrl = "http://localhost:3000/api/v2/media";
       // const apiUrl = serverConfig()?.api_url;
       if (!apiUrl) {
-        toast.error(t("postInput.fileUpload.noServerConfigured"));
+        toast.error(t("noFileServerConfigured"));
         setIsSending(false);
         return;
       }

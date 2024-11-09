@@ -2,6 +2,7 @@
   "addColumn": {
     "title": "Add column"
   },
+  "applyCrop": "Apply",
   "column": {
     "bookmarks": {
       "title": "Bookmarks",
@@ -102,25 +103,27 @@
     "viewEventData": "View event data",
     "viewReposts": "View reposts"
   },
+  "fileUpload": {
+    "failed": "Failed to upload the file: {{ error }}",
+    "httpError": {
+      "badRequest": "Bad request",
+      "fileTooLarge": "File is too large",
+      "forbidden": "Forbidden",
+      "paymentRequired": "Payment required",
+      "unknown": "An unknown error occurred"
+    }
+  },
   "loadMore": "Load more",
   "loadMoreReply": "Load more posts",
   "loading": "Loading",
   "login": "Login",
+  "noFileServerConfigured": "No file upload server is configured. Please set a file upload server from Settings > File.",
   "noMoreEvents": "No more events",
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
     "fileUpload": {
       "dropFile": "Drop to attach a file",
-      "failed": "Failed to upload the file: {{ error }}",
-      "httpError": {
-        "badRequest": "Bad request",
-        "fileTooLarge": "File is too large",
-        "forbidden": "Forbidden",
-        "paymentRequired": "Payment required",
-        "unknown": "An unknown error occurred"
-      },
       "needResize": "Images larger than {{ maxSizeMB }}MB will be compressed before uploading",
-      "noServerConfigured": "No file upload server is configured. Please set a file upload server from Settings > File.",
       "unsupported": "The file format is not supported by the file upload server: {{ filenames }}"
     },
     "needLogin": "You need to log in to post",
@@ -178,6 +181,26 @@
       "serverToBeUsed": "File servers",
       "termOfService": "Terms of service",
       "title": "File"
+    },
+    "profile": {
+      "discard": "Discard Changes",
+      "error": {
+        "invalidNip05": "Please enter in the format \"username@domain\""
+      },
+      "label": {
+        "about": "Bio",
+        "banner": "Banner URL",
+        "displayName": "Display Name",
+        "name": "Name",
+        "nip05": "Nostr Address",
+        "picture": "Icon URL",
+        "website": "Website"
+      },
+      "needLogin": "You need to log in to set your profile",
+      "nip05Help": "The Nostr address is used to link your domain and account. It is used for user identification and search.",
+      "save": "Save",
+      "title": "Profile",
+      "uploadFailed": "File upload failed"
     },
     "relay": {
       "add": "Add",
