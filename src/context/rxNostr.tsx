@@ -31,7 +31,6 @@ import { useRelays } from "./relays";
 
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
-  rxBackwardReq: ReturnType<typeof createRxBackwardReq>;
   connectionState: {
     [from: string]: ConnectionState | undefined;
   };
@@ -114,7 +113,6 @@ export const RxNostrProvider: ParentComponent = (props) => {
     <RxNostrContext.Provider
       value={{
         rxNostr,
-        rxBackwardReq,
         connectionState,
         actions: {
           emit,

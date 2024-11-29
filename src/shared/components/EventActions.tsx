@@ -12,6 +12,7 @@ import type { ParsedEventPacket } from "../libs/parser";
 import type { EventTag } from "../libs/parser/commonTag";
 import {
   useQuotesOfEvent,
+  useReactionsOfEvent,
   useRepliesOfEvent,
   useRepostsOfEvent,
   useSendReaction,
@@ -22,6 +23,8 @@ import EmojiPicker, { type Emoji } from "./EmojiPicker";
 const EventActions: Component<{
   event: ParsedEventPacket;
 }> = (props) => {
+  // TODO: 各アクション毎にファイル分割
+
   const t = useI18n();
 
   const openPostInput = usePostInput();
@@ -92,8 +95,8 @@ const EventActions: Component<{
   const handleQuote = () => {
     openPostInput({
       text: `
-      
-      ${neventEncode({
+
+nostr:${neventEncode({
         id: props.event.raw.id,
         kind: props.event.raw.kind,
         author: props.event.raw.pubkey,
@@ -105,6 +108,38 @@ const EventActions: Component<{
   const openRepostsColumn = useOpenRepostsColumn();
   const handleViewReposts = () => {
     openRepostsColumn(props.event.raw.id);
+  };
+
+  const reactions = useReactionsOfEvent(() => props.event.raw.id);
+  const isFavorite = createMemo(() => {
+    const _myPubkey = myPubkey();
+    return (
+      !!_myPubkey &&
+      !!reactions().data?.some(
+        (r) =>
+          r.parsed.pubkey === _myPubkey && r.parsed.content.type === "like",
+      )
+    );
+  });
+  const handleFavorite = () => {
+    if (!isLogged()) {
+      showLoginModal();
+      return;
+    }
+
+    if (isFavorite()) {
+      // TODO: delete reaction
+      return;
+    }
+
+    sendReaction({
+      targetEventId: props.event.raw.id,
+      targetEventPubkey: props.event.raw.pubkey,
+      content: {
+        type: "like",
+      },
+      kind: props.event.raw.kind,
+    });
   };
 
   const { sendReaction } = useSendReaction();
@@ -203,6 +238,20 @@ const EventActions: Component<{
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu>
+      <button
+        class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25"
+        type="button"
+        onClick={handleFavorite}
+      >
+        <Show
+          when={isFavorite()}
+          fallback={
+            <div class="i-material-symbols:favorite-outline-rounded aspect-square h-4 w-auto" />
+          }
+        >
+          <div class="i-material-symbols:favorite-rounded c-accent-5 aspect-square h-4 w-auto" />
+        </Show>
+      </button>
       <Popover>
         <Popover.Trigger class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25">
           <div class="i-material-symbols:add-rounded aspect-square h-4 w-auto" />
@@ -217,12 +266,12 @@ const EventActions: Component<{
           </Popover.Content>
         </Popover.Portal>
       </Popover>
-      <button
+      {/* <button
         class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25"
         type="button"
       >
         <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
-      </button>
+      </button> */}
       <DropdownMenu>
         <DropdownMenu.Trigger class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25">
           <div class="i-material-symbols:upload-rounded aspect-square h-4 w-auto" />

@@ -7,6 +7,7 @@ import {
   SuspenseList,
   Switch,
 } from "solid-js";
+import { useDeck } from "../../features/Column/context/deck";
 import RichLink from "../../features/Event/ShortText/components/RichLink";
 import EmbedUser from "../../features/User/components/EmbedUser";
 import { hex2bech32 } from "../libs/format";
@@ -30,6 +31,17 @@ const RichContent: Component<{
   showLinkEmbeds?: boolean;
   showQuoteEmbeds?: boolean;
 }> = (props) => {
+  const [, { addColumn }] = useDeck();
+  const handleOpenHashtagCol = (hashtag: string) => {
+    addColumn({
+      content: {
+        type: "search",
+        query: `#${hashtag}`,
+      },
+      size: "medium",
+    });
+  };
+
   return (
     <SuspenseList revealOrder="forwards">
       <div class="break-anywhere whitespace-pre-wrap [line-break:strict] [word-break:normal]">
@@ -136,7 +148,7 @@ const RichContent: Component<{
                     // TODO: 隣のカラムでリプライツリーを表示する
                     <span
                       class="break-anywhere whitespace-pre-wrap text-link"
-                      data-embed
+                      data-embed // see: project://src/features/Event/Reaction/components/Reaction.tsx
                     >
                       {hex2bech32((content as QuoteByIDContent).id, "nevent")}
                     </span>
@@ -148,19 +160,22 @@ const RichContent: Component<{
                 </Show>
               </Match>
               <Match when={content.type === "hashtag"}>
-                {/* TODO: 隣のカラムでハッシュタグ検索結果を表示する */}
-                <span
-                  class="break-anywhere whitespace-pre-wrap text-link"
-                  data-hashtag
+                <button
+                  class="break-anywhere inline max-w-full appearance-none whitespace-pre-wrap bg-transparent text-start text-link"
+                  data-hashtag // see: project://src/features/Event/Reaction/components/Reaction.tsx
+                  type="button"
+                  onClick={() =>
+                    handleOpenHashtagCol((content as HashtagContent).tag)
+                  }
                 >
                   #{(content as HashtagContent).tag}
-                </span>
+                </button>
               </Match>
               <Match when={content.type === "relay"}>
                 {/* TODO: 隣のカラムでリレー内投稿一覧を表示する */}
                 <span
                   class="break-anywhere whitespace-pre-wrap text-link"
-                  data-relay
+                  data-relay // see: project://src/features/Event/Reaction/components/Reaction.tsx
                 >
                   {(content as RelayContent).url}
                 </span>

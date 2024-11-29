@@ -6,6 +6,7 @@ import { type Component, createEffect } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
 import { FileServerProvider } from "./context/fileServer";
 import { MeProvider } from "./context/me";
+import { MuteProvider } from "./context/mute";
 import { RelaysProvider } from "./context/relays";
 import { RxNostrProvider } from "./context/rxNostr";
 import { DeckProvider } from "./features/Column/context/deck";
@@ -37,11 +38,13 @@ const App: Component = () => {
             <RelaysProvider>
               <FileServerProvider>
                 <RxNostrProvider>
-                  <DeckProvider>
-                    <PostInputProvider>
-                      <Router>{routes}</Router>
-                    </PostInputProvider>
-                  </DeckProvider>
+                  <MuteProvider>
+                    <DeckProvider>
+                      <PostInputProvider>
+                        <Router>{routes}</Router>
+                      </PostInputProvider>
+                    </DeckProvider>
+                  </MuteProvider>
                 </RxNostrProvider>
               </FileServerProvider>
               <SolidQueryDevtools />
