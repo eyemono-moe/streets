@@ -132,6 +132,7 @@ type Reference = {
     }
 );
 
+// TODO: refactor
 const parseReferences = (
   text: string,
   tags: Tag[],
@@ -276,10 +277,10 @@ const parseReferences = (
 export const parseTextContent = (
   content: string,
   tags: Tag[],
-  ignoreHashtagTag?: boolean,
+  _ignoreHashtagTag?: boolean,
 ) => {
   try {
-    const references = parseReferences(content, tags, ignoreHashtagTag);
+    const references = parseReferences(content, tags, true);
     const imetaTags = tags.filter((tag) => tag.kind === "imeta");
     const spitedContent = splitTextByLinks(content, references, imetaTags);
     return spitedContent;
