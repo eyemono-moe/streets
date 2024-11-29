@@ -92,13 +92,13 @@ const EventActions: Component<{
   const handleQuote = () => {
     openPostInput({
       text: `
-      
-      ${neventEncode({
-        id: props.event.raw.id,
-        kind: props.event.raw.kind,
-        author: props.event.raw.pubkey,
-        relays: [props.event.from],
-      })}`,
+
+nostr:${neventEncode({
+  id: props.event.raw.id,
+  kind: props.event.raw.kind,
+  author: props.event.raw.pubkey,
+  relays: [props.event.from],
+})}`,
     });
   };
 
