@@ -5,6 +5,7 @@ import { parseShortTextNote } from "./1_shortTextNote";
 import { parseContacts } from "./3_contacts";
 import { parseRepost } from "./6_repost";
 import { parseReaction } from "./7_reaction";
+import { parseMuteList } from "./10000_muteList";
 import { parseEmojiList } from "./10030_emojiList";
 import { parseEmojiSet } from "./30030_emojiSet";
 
@@ -20,6 +21,8 @@ export const parseNostrEvent = (input: NostrEvent) => {
       return parseRepost(input);
     case kinds.Reaction:
       return parseReaction(input);
+    case kinds.Mutelist:
+      return parseMuteList(input);
     case kinds.UserEmojiList:
       return parseEmojiList(input);
     case kinds.Emojisets:

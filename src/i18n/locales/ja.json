@@ -96,9 +96,15 @@
   "event": {
     "addUserToList": "<span class='truncate'>{{ name }}</span>さんをリストに追加/削除",
     "copyEventID": "IDをコピー",
+    "muteEvent": "このイベントをミュート",
     "muteUser": "<span class='truncate'>{{ name }}</span>さんをミュート",
+    "mutedEvent": "ミュートしているイベントです",
+    "mutedHashtag": "ミュートしているハッシュタグを含むイベントです",
+    "mutedUser": "ミュートしているユーザーのイベントです",
+    "mutedWord": "ミュートしている単語を含むイベントです",
     "quote": "引用",
     "repost": "リポスト",
+    "showMutedEvent": "表示する",
     "unknown": "対応していないイベント",
     "viewEventData": "イベントデータを表示",
     "viewReposts": "リポストを表示"
@@ -181,6 +187,17 @@
       "serverToBeUsed": "使用するファイルアップロードサーバー",
       "termOfService": "利用規約",
       "title": "ファイル"
+    },
+    "mute": {
+      "add": "追加",
+      "discard": "変更を破棄",
+      "muteEvents": "ミュートするイベント",
+      "muteHashtags": "ミュートするハッシュタグ",
+      "muteUsers": "ミュートするユーザー",
+      "muteWords": "ミュートする単語",
+      "needLogin": "ミュート設定にはログインが必要です",
+      "save": "保存",
+      "title": "ミュート"
     },
     "profile": {
       "discard": "変更を破棄",
