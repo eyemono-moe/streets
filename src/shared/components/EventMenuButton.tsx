@@ -38,6 +38,7 @@ const EventMenuButton: Component<{
               <DropdownMenu.Item
                 // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
                 class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
+                onSelect={handleMuteUser}
               >
                 <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
                 <div
@@ -55,17 +56,16 @@ const EventMenuButton: Component<{
                   {t("event.muteEvent")}
                 </div>
               </DropdownMenu.Item>
-              <DropdownMenu.Item
+              {/* <DropdownMenu.Item
                 // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
                 class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
-                onSelect={handleMuteUser}
               >
                 <div class="aspect-square h-0.75lh w-auto i-material-symbols:list-alt-add-outline-rounded" />
                 <div
                   class="flex w-full items-baseline overflow-hidden whitespace-pre"
                   innerHTML={t("event.addUserToList", { name: props.userName })}
                 />
-              </DropdownMenu.Item>
+              </DropdownMenu.Item> */}
             </Show>
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
