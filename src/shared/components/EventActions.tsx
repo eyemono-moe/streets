@@ -29,8 +29,8 @@ const EventActions: Component<{
   const replyCount = createMemo(
     () =>
       replies().data?.filter(
-        (r) => r.parsed.replyOrRoot?.id === props.event.raw.id,
-      ).length,
+        (r) => r.parsed.replyOrRoot?.id === props.event.raw.id
+      ).length
   );
 
   const handleReply = () => {
@@ -42,7 +42,7 @@ const EventActions: Component<{
     // reply先にroot tagがあるならそれをrootにし, replyタグにこのポストのidを入れる
     // root tagがないならrootタグにこのポストのidを入れる
     const root = textData.tags.find(
-      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root",
+      (tag): tag is EventTag => tag.kind === "e" && tag.marker === "root"
     );
 
     const mentions = textData.tags
@@ -67,11 +67,11 @@ const EventActions: Component<{
   const [{ myPubkey, isLogged }] = useMe();
   const reposts = useRepostsOfEvent(() => props.event.raw.id);
   const isReposted = createMemo(() =>
-    reposts().data?.some((r) => r.parsed.pubkey === myPubkey()),
+    reposts().data?.some((r) => r.parsed.pubkey === myPubkey())
   );
   const quotes = useQuotesOfEvent(() => props.event.raw.id);
   const repostCount = createMemo(
-    () => (reposts().data?.length ?? 0) + (quotes().data?.length ?? 0),
+    () => (reposts().data?.length ?? 0) + (quotes().data?.length ?? 0)
   );
 
   const { sendRepost, sendState: repostSendState } = useSendRepost();
@@ -94,11 +94,11 @@ const EventActions: Component<{
       text: `
 
 nostr:${neventEncode({
-  id: props.event.raw.id,
-  kind: props.event.raw.kind,
-  author: props.event.raw.pubkey,
-  relays: [props.event.from],
-})}`,
+        id: props.event.raw.id,
+        kind: props.event.raw.kind,
+        author: props.event.raw.pubkey,
+        relays: [props.event.from],
+      })}`,
     });
   };
 
@@ -144,7 +144,7 @@ nostr:${neventEncode({
         kind: props.event.raw.kind,
         relays: [props.event.from],
         author: props.event.raw.pubkey,
-      }),
+      })
     );
   };
 
