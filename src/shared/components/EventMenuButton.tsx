@@ -1,6 +1,8 @@
 import { DropdownMenu } from "@kobalte/core/dropdown-menu";
 import { neventEncode, nprofileEncode, npubEncode } from "nostr-tools/nip19";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
+import { useMe } from "../../context/me";
+import { useMute } from "../../context/mute";
 import { useI18n } from "../../i18n";
 import type { ParsedEventPacket } from "../libs/parser";
 import { useDialog } from "../libs/useDialog";
@@ -14,6 +16,16 @@ const EventMenuButton: Component<{
 
   const { Dialog: DebugDialog, open: openDebugDialog } = useDialog();
 
+  const [{ isLogged }] = useMe();
+
+  const [, { addMuteTarget }] = useMute();
+  const handleMuteEvent = () => {
+    addMuteTarget("events", props.event.raw.id);
+  };
+  const handleMuteUser = () => {
+    addMuteTarget("users", props.event.raw.pubkey);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -22,26 +34,39 @@ const EventMenuButton: Component<{
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content class="b-1 transform-origin-[--kb-menu-content-transform-origin] max-w-[min(calc(100vw-32px),320px)] rounded-2 bg-primary p-1 shadow-lg shadow-ui/25 outline-none">
-            <DropdownMenu.Item
-              // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
-            >
-              <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
-              <div
-                class="flex w-full items-baseline overflow-hidden whitespace-pre"
-                innerHTML={t("event.muteUser", { name: props.userName })}
-              />
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
-              class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
-            >
-              <div class="aspect-square h-0.75lh w-auto i-material-symbols:list-alt-add-outline-rounded" />
-              <div
-                class="flex w-full items-baseline overflow-hidden whitespace-pre"
-                innerHTML={t("event.addUserToList", { name: props.userName })}
-              />
-            </DropdownMenu.Item>
+            <Show when={isLogged()}>
+              <DropdownMenu.Item
+                // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
+                class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
+              >
+                <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
+                <div
+                  class="flex w-full items-baseline overflow-hidden whitespace-pre"
+                  innerHTML={t("event.muteUser", { name: props.userName })}
+                />
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
+                class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
+                onSelect={handleMuteEvent}
+              >
+                <div class="i-material-symbols:volume-off-rounded aspect-square h-0.75lh w-auto" />
+                <div class="flex w-full items-baseline overflow-hidden whitespace-pre">
+                  {t("event.muteEvent")}
+                </div>
+              </DropdownMenu.Item>
+              <DropdownMenu.Item
+                // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
+                class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"
+                onSelect={handleMuteUser}
+              >
+                <div class="aspect-square h-0.75lh w-auto i-material-symbols:list-alt-add-outline-rounded" />
+                <div
+                  class="flex w-full items-baseline overflow-hidden whitespace-pre"
+                  innerHTML={t("event.addUserToList", { name: props.userName })}
+                />
+              </DropdownMenu.Item>
+            </Show>
             <DropdownMenu.Item
               // biome-ignore lint/nursery/useSortedClasses: sort with paren not supported
               class="data-[disabled]:(op-50 pointer-events-none cursor-default) flex cursor-pointer items-center gap-1 rounded px-1 py-0.5 outline-none data-[highlighted]:bg-alpha-hover"

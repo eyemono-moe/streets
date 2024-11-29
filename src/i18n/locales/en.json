@@ -96,9 +96,15 @@
   "event": {
     "addUserToList": "Add/remove <span class='truncate'>{{ name }}</span> from list",
     "copyEventID": "Copy ID",
+    "muteEvent": "mute this event",
     "muteUser": "Mute <span class='truncate'>{{ name }}</span>",
+    "mutedEvent": "This event is muted",
+    "mutedHashtag": "This event contains a muted hashtag",
+    "mutedUser": "This event is from a muted user",
+    "mutedWord": "This event contains a muted word",
     "quote": "Quote",
     "repost": "Repost",
+    "showMutedEvent": "Show",
     "unknown": "Unsupported event",
     "viewEventData": "View event data",
     "viewReposts": "View reposts"
@@ -181,6 +187,17 @@
       "serverToBeUsed": "File servers",
       "termOfService": "Terms of service",
       "title": "File"
+    },
+    "mute": {
+      "add": "Add",
+      "discard": "Discard changes",
+      "muteEvents": "Muted events",
+      "muteHashtags": "Muted hashtags",
+      "muteUsers": "Muted users",
+      "muteWords": "Muted words",
+      "needLogin": "You need to log in to set mute",
+      "save": "Save",
+      "title": "Mute"
     },
     "profile": {
       "discard": "Discard Changes",

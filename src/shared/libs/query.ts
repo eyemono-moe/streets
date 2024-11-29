@@ -35,8 +35,14 @@ import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { FollowList } from "./parser/3_contacts";
 import type { Repost } from "./parser/6_repost";
 import type { Reaction } from "./parser/7_reaction";
+import {
+  type MuteItems,
+  type MuteList,
+  muteItemsToTags,
+} from "./parser/10000_muteList";
 import type { EmojiList } from "./parser/10030_emojiList";
 import type { EmojiSet } from "./parser/30030_emojiSet";
+import { useNIP07 } from "./useNIP07";
 
 export const createInfiniteRxQuery = (
   props: () => {
@@ -135,7 +141,7 @@ export const createInfiniteRxQuery = (
 
 // TODO: ここで各kindのstaleTimeも設定する
 const getCacheKey = (
-  parsed: ReturnType<typeof parseEventPacket>,
+  parsed: ParsedEventPacket,
 ): {
   single?: CacheKey[];
   multiple?: CacheKey[];
@@ -157,6 +163,7 @@ const getCacheKey = (
     }
     case kinds.Metadata:
     case kinds.Contacts:
+    case kinds.Mutelist:
     case kinds.UserEmojiList:
       // 特定ユーザーについて最新1件を取得できれば良いもの
       return { single: [[parsed.raw.kind, parsed.parsed.pubkey]] };
@@ -187,12 +194,11 @@ const getCacheKey = (
   }
 };
 
-const getRelatedEventFilters = (
-  parsed: ReturnType<typeof parseEventPacket>,
-): LazyFilter[] => {
+const getRelatedEventFilters = (parsed: ParsedEventPacket): LazyFilter[] => {
   switch (parsed.parsed.kind) {
     // 何もemitしないkind
     case kinds.Contacts:
+    case kinds.Mutelist:
     case kinds.Emojisets:
       return [];
     case kinds.Metadata:
@@ -268,7 +274,7 @@ export const cacheAndEmitRelatedEvent = (
 
   // 最新1件のみをcacheに保存する
   for (const queryKey of queryKeys.single ?? []) {
-    cacheSetter<ReturnType<typeof parseEventPacket>>(queryKey, (prev) => {
+    cacheSetter<ParsedEventPacket>(queryKey, (prev) => {
       if (prev && prev.raw.created_at > parsed.raw.created_at) {
         return prev;
       }
@@ -278,7 +284,7 @@ export const cacheAndEmitRelatedEvent = (
 
   // すべてのイベントをcacheに保存する
   for (const queryKey of queryKeys.multiple ?? []) {
-    cacheSetter<ReturnType<typeof parseEventPacket>[]>(queryKey, (prev) => {
+    cacheSetter<ParsedEventPacket[]>(queryKey, (prev) => {
       if (prev) {
         // 既に同じイベントがあれば追加しない
         if (prev.some((p) => p.raw.id === parsed.raw.id)) {
@@ -555,6 +561,29 @@ export const useEmojis = (pubkey: () => string | undefined) => {
   };
 };
 
+export const useMuteList = (pubkey: () => string | undefined) => {
+  const queryKey = () => [kinds.Mutelist, pubkey()];
+
+  const {
+    actions: { emit },
+  } = useRxNostr();
+
+  const emitter = () => {
+    const _pubkey = pubkey();
+    if (_pubkey) {
+      emit({
+        kinds: [kinds.Mutelist],
+        authors: [_pubkey],
+      });
+    }
+  };
+
+  return createGetter<ParsedEventPacket<MuteList>>(() => ({
+    queryKey: queryKey(),
+    emitter,
+  }));
+};
+
 const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
   const cache = useEventCacheStore();
 
@@ -781,6 +810,37 @@ export const useSendProfile = () => {
 
   return {
     sendProfile,
+    sendState,
+  };
+};
+
+export const useSendMuteList = () => {
+  const { sender, sendState } = createSender();
+  const invalidate = useInvalidateEventCache();
+
+  const sendMuteList = async (props: {
+    pubkey: string;
+    publicItems: MuteItems;
+    privateItems: MuteItems;
+  }) => {
+    const encrypted = await useNIP07().nip04?.encrypt(
+      props.pubkey,
+      JSON.stringify(muteItemsToTags(props.privateItems)),
+    );
+    return sender(
+      {
+        kind: kinds.Mutelist,
+        content: encrypted ?? "",
+        tags: muteItemsToTags(props.publicItems),
+      },
+      () => {
+        invalidate([kinds.Mutelist, props.pubkey]);
+      },
+    );
+  };
+
+  return {
+    sendMuteList,
     sendState,
   };
 };
