@@ -142,7 +142,10 @@ const parseReferences = (
   const emojiTags = tags.filter((tag) => tag.kind === "emoji");
   if (emojiTags.length > 0) {
     const emojiRegex = new RegExp(
-      `:(${emojiTags.map((tag) => tag.name).join("|")}):`,
+      `:(${emojiTags
+        .sort((a, b) => b.name.length - a.name.length)
+        .map((tag) => tag.name)
+        .join("|")}):`,
       "g",
     );
     const emojiUrlMap = new Map(
@@ -173,7 +176,13 @@ const parseReferences = (
   const hashtagTags = tags.filter((tag) => tag.kind === "t");
   const hashtagRegex = ignoreHashtagTag
     ? /(?<=\s|^)#(\S+)/g
-    : new RegExp(`#(${hashtagTags.map((tag) => tag.tag).join("|")})`, "g");
+    : new RegExp(
+        `#(${hashtagTags
+          .sort((a, b) => b.tag.length - a.tag.length)
+          .map((tag) => tag.tag)
+          .join("|")})`,
+        "g",
+      );
   if (ignoreHashtagTag || hashtagTags.length > 0) {
     for (const match of text.matchAll(hashtagRegex)) {
       const length = match[0].length;
