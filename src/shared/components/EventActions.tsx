@@ -92,8 +92,8 @@ const EventActions: Component<{
   const handleQuote = () => {
     openPostInput({
       text: `
-      
-      ${neventEncode({
+
+nostr:${neventEncode({
         id: props.event.raw.id,
         kind: props.event.raw.kind,
         author: props.event.raw.pubkey,
