@@ -4,10 +4,11 @@ import Event from "../../../../shared/components/Event";
 import { useEventByID, useRepliesOfEvent } from "../../../../shared/libs/query";
 import type { ColumnContent } from "../../libs/deckSchema";
 import ColumnHeader from "../ColumnHeader";
+import TempColumnHeader from "../TempColumnHeader";
 
 const Thread: Component<{
   state: ColumnContent<"thread">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -24,12 +25,15 @@ const Thread: Component<{
     <div
       class="grid h-full w-full divide-y"
       classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
+        "grid-rows-[1fr]": props.isTempColumn,
+        "grid-rows-[auto_minmax(0,1fr)]": !props.isTempColumn,
       }}
     >
-      <Show when={props.showHeader}>
-        <ColumnHeader title={t("column.thread.title")} />
+      <Show
+        when={props.isTempColumn}
+        fallback={<ColumnHeader title={t("column.thread.title")} />}
+      >
+        <TempColumnHeader title={t("column.thread.title")} />
       </Show>
       <div class="children-b-b-1 h-full overflow-y-auto">
         <Show when={targetEvent().data}>

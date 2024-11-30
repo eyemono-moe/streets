@@ -35,7 +35,7 @@ import ColumnHeader from "../ColumnHeader";
 
 const Search: Component<{
   state: ColumnContent<"search">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -134,11 +134,11 @@ const Search: Component<{
     <div
       class="grid h-full w-full divide-y"
       classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
+        "grid-rows-[1fr]": props.isTempColumn,
+        "grid-rows-[auto_minmax(0,1fr)]": !props.isTempColumn,
       }}
     >
-      <Show when={props.showHeader}>
+      <Show when={!props.isTempColumn}>
         <ColumnHeader
           overrideContent={
             <form

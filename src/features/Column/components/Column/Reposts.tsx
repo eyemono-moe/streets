@@ -10,10 +10,11 @@ import ProfileRow from "../../../User/components/ProfileRow";
 import type { ColumnContent } from "../../libs/deckSchema";
 import { useOpenUserColumn } from "../../libs/useOpenColumn";
 import ColumnHeader from "../ColumnHeader";
+import TempColumnHeader from "../TempColumnHeader";
 
 const Reposts: Component<{
   state: ColumnContent<"reposts">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -30,12 +31,15 @@ const Reposts: Component<{
     <div
       class="grid h-full w-full divide-y"
       classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
+        "grid-rows-[1fr]": props.isTempColumn,
+        "grid-rows-[auto_minmax(0,1fr)]": !props.isTempColumn,
       }}
     >
-      <Show when={props.showHeader}>
-        <ColumnHeader title={t("column.reposts.title")} />
+      <Show
+        when={props.isTempColumn}
+        fallback={<ColumnHeader title={t("column.reposts.title")} />}
+      >
+        <TempColumnHeader title={t("column.reposts.title")} />
       </Show>
       <Tabs
         class="grid h-full grid-rows-[auto_minmax(0,1fr)]"
