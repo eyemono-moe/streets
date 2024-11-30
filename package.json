@@ -53,7 +53,9 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@iconify-json/material-symbols": "1.2.6",
+    "@iconify-json/mdi": "1.2.1",
     "@types/serviceworker": "0.0.102",
+    "@unocss/preset-mini": "0.65.0-beta.2",
     "jsdom": "25.0.1",
     "nostr-typedef": "0.11.0",
     "solid-devtools": "0.30.1",
