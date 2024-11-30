@@ -47,6 +47,7 @@
     "rxjs": "7.8.1",
     "safe-stable-stringify": "2.5.0",
     "solid-js": "1.9.3",
+    "text-field-edit": "4.1.1",
     "valibot": "1.0.0-beta.3"
   },
   "devDependencies": {

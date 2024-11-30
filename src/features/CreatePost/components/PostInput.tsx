@@ -11,6 +11,7 @@ import EmojiPicker from "../../../shared/components/EmojiPicker";
 import Button from "../../../shared/components/UI/Button";
 import { createDebounced } from "../../../shared/libs/createDebounced";
 import { getTextOrFile } from "../../../shared/libs/dataTransfer";
+import { useInsertText } from "../../../shared/libs/dom";
 import {
   parseTextContent,
   parsedContents2Tags,
@@ -77,20 +78,7 @@ const PostInput: Component<{
   });
   const tagsForPreview = createMemo(() => parseTextNoteTags(referenceTags()));
 
-  /**
-   * カーソル位置にテキストを挿入する関数
-   */
-  const insertText = (insert: string) => {
-    const _textarea = textarea();
-    if (!_textarea) return;
-    const start = _textarea.selectionStart;
-    const end = _textarea.selectionEnd;
-    const text = content();
-    const newText = text.slice(0, start) + insert + text.slice(end);
-    setContent(newText);
-    _textarea.focus();
-    _textarea.setSelectionRange(start + insert.length, start + insert.length);
-  };
+  const { insertText } = useInsertText(textarea);
 
   const textareaStyle =
     "w-full resize-none min-h-30 block overflow-hidden break-anywhere whitespace-pre-wrap";

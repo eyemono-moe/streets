@@ -101,6 +101,9 @@ importers:
       solid-js:
         specifier: 1.9.3
         version: 1.9.3
+      text-field-edit:
+        specifier: 4.1.1
+        version: 4.1.1
       valibot:
         specifier: 1.0.0-beta.3
         version: 1.0.0-beta.3(typescript@5.6.3)
@@ -2971,6 +2974,10 @@ packages:
     resolution: {integrity: sha512-IYV9eNMuFAV4THUspIRXkLakHnV6XO7FEdtKjf/mDyrnqUg9LnlOn6/RwRvM9SZjR4GUq8Nk8zj67FzVARr74w==}
     engines: {node: '>=10'}
     hasBin: true
+
+  text-field-edit@4.1.1:
+    resolution: {integrity: sha512-bgvsU5CFdBm8YuDdpLALNqS7Th8bVaRD5cww9VMYaBYab324iN3XOXvuQxTxp9JSPhHHF6zGCDEyF08JUV2hPw==}
+    engines: {node: '>=18'}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -6810,6 +6817,8 @@ snapshots:
       acorn: 8.14.0
       commander: 2.20.3
       source-map-support: 0.5.21
+
+  text-field-edit@4.1.1: {}
 
   tinybench@2.9.0: {}
 
