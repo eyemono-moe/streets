@@ -15,6 +15,7 @@ import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
 import { TextField } from "../../../shared/components/UI/TextField";
 import { useSendMuteList } from "../../../shared/libs/query";
+import { toast } from "../../../shared/libs/toast";
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import {
   type MuteTargetSettingsInput,
@@ -53,17 +54,23 @@ const MuteSettings: Component = () => {
     if (!_myPubkey) return;
 
     const transformedValues = v.parse(muteTargetSettingsSchema, values);
-    await sendMuteList({
-      pubkey: _myPubkey,
-      privateItems: transformedValues,
-      // TODO: もともと公開していたものはそのまま送る
-      publicItems: {
-        events: [],
-        users: [],
-        hashtags: [],
-        words: [],
+    toast.promise(
+      sendMuteList({
+        pubkey: _myPubkey,
+        privateItems: transformedValues,
+        // TODO: もともと公開していたものはそのまま送る
+        publicItems: {
+          events: [],
+          users: [],
+          hashtags: [],
+          words: [],
+        },
+      }),
+      {
+        success: () => t("settings.mute.saved"),
+        error: () => t("settings.mute.error"),
       },
-    });
+    );
   };
 
   return (

@@ -22,6 +22,7 @@ import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
 import { Checkbox } from "../../../shared/components/UI/Checkbox";
 import { TextField } from "../../../shared/components/UI/TextField";
+import { toast } from "../../../shared/libs/toast";
 
 const t = useI18n();
 
@@ -143,6 +144,7 @@ const RelaySettings: Component = () => {
     );
 
     updateRelay(relayRecord);
+    toast.success(t("settings.relay.saved"));
   };
 
   return (

@@ -11,6 +11,7 @@ import { defaultFileServers, useFileServer } from "../../../context/fileServer";
 import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
 import { TextField } from "../../../shared/components/UI/TextField";
+import { toast } from "../../../shared/libs/toast";
 
 const fileServerSettingFormSchema = v.object({
   api: v.pipe(v.string(), v.nonEmpty()),
@@ -45,6 +46,7 @@ const FileServerSettings: Component = () => {
 
   const handleSubmit: SubmitHandler<FileServerSettingForm> = (values) => {
     setServerUrl(values.api);
+    toast.success(t("settings.file.saved"));
   };
 
   return (

@@ -181,6 +181,7 @@
       "availableFileType": "Available file types",
       "checkServerUrl": "Failed to connect to the server. Please check the server URL.",
       "help": "You can select a server to upload files such as images when posting.",
+      "saved": "Saved changes",
       "serverStatus": {
         "errored": "Error",
         "ready": "Ready"
@@ -192,12 +193,14 @@
     "mute": {
       "add": "Add",
       "discard": "Discard changes",
+      "error": "Failed to save changes",
       "muteEvents": "Muted events",
       "muteHashtags": "Muted hashtags",
       "muteUsers": "Muted users",
       "muteWords": "Muted words",
       "needLogin": "You need to log in to set mute",
       "save": "Save",
+      "saved": "Saved changes",
       "title": "Mute"
     },
     "profile": {
@@ -217,6 +220,8 @@
       "needLogin": "You need to log in to set your profile",
       "nip05Help": "The Nostr address is used to link your domain and account. It is used for user identification and search.",
       "save": "Save",
+      "saveFailed": "Failed to save changes",
+      "saved": "Saved changes",
       "title": "Profile",
       "uploadFailed": "File upload failed"
     },
@@ -235,6 +240,7 @@
       "relayToBeUsed": "My Relays",
       "relayURL": "Relay URL",
       "save": "Save",
+      "saved": "Saved changes",
       "title": "Relay",
       "write": "Write"
     },

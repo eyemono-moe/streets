@@ -70,10 +70,16 @@ const ProfileSettings: Component = () => {
     const _myPubkey = myPubkey();
     if (!_myPubkey) return;
 
-    sendProfile({
-      profile: values,
-      pubkey: _myPubkey,
-    });
+    toast.promise(
+      sendProfile({
+        profile: values,
+        pubkey: _myPubkey,
+      }),
+      {
+        success: () => t("settings.profile.saved"),
+        error: () => t("settings.profile.saveFailed"),
+      },
+    );
   };
 
   return (
