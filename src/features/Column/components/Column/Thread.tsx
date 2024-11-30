@@ -29,7 +29,7 @@ const Thread: Component<{
       >
         <TempColumnHeader title={t("column.thread.title")} />
       </Show>
-      <div class="children-b-b-1 h-full overflow-y-auto">
+      <div class="h-full divide-y overflow-y-auto">
         <Show when={targetEvent().data}>
           <Event
             // biome-ignore lint/style/noNonNullAssertion: Show when targetEvent is loaded
