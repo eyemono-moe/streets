@@ -150,6 +150,7 @@ const RichContent: Component<{
                       class="break-anywhere whitespace-pre-wrap text-link"
                       data-embed // see: project://src/features/Event/Reaction/components/Reaction.tsx
                     >
+                      nostr:
                       {hex2bech32((content as QuoteByIDContent).id, "nevent")}
                     </span>
                   }
