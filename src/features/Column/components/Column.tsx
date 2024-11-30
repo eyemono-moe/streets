@@ -46,7 +46,7 @@ const Column: Component<{
             class="absolute inset-0 top-10 transition-transform duration-200 data-[expanded='false']:translate-y-100% data-[expanded='true']:translate-y-0"
             data-expanded={presence.isVisible()}
           >
-            <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] divide-y overflow-hidden rounded-t-2 bg-primary">
+            <div class="h-full divide-y overflow-hidden rounded-t-2 bg-primary">
               <Show when={props.column.tempContent}>
                 <ColumnContent
                   // biome-ignore lint/style/noNonNullAssertion: Show when props.column.tempContent is not null

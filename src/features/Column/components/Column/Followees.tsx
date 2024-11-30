@@ -31,13 +31,7 @@ const Followees: Component<{
   // });
 
   return (
-    <div
-      class="grid h-full w-full divide-y"
-      classList={{
-        "grid-rows-[1fr]": props.isTempColumn,
-        "grid-rows-[auto_minmax(0,1fr)]": !props.isTempColumn,
-      }}
-    >
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show
         when={props.isTempColumn}
         fallback={
