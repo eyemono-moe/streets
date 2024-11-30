@@ -31,6 +31,7 @@ jobs:
           NODE_ENV: production
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENV: ${{ github.ref_name  == 'release' && 'production' || 'preview' }}
+          VITE_BUILD_SHA: ${{ github.sha }}
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:
