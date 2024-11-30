@@ -102,7 +102,7 @@ const MuteSettings: Component = () => {
                     </div>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -110,7 +110,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -146,7 +146,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -154,7 +154,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -192,7 +192,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -200,7 +200,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -238,7 +238,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -246,7 +246,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>

@@ -206,7 +206,7 @@ const RelaySettings: Component = () => {
         </div>
         <div class="flex w-full justify-center text-caption">
           <Button variant="border" onClick={handleAddRelay}>
-            <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+            <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
             {t("settings.relay.add")}
           </Button>
         </div>

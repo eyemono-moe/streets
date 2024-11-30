@@ -55,7 +55,7 @@ const Event: Component<{
               setShowMuted(true);
             }}
           >
-            <div class="i-material-symbols:visibility-outline-rounded aspect-square h-1.25lh w-auto" />
+            <div class="i-material-symbols:visibility-outline-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
             {t("event.showMutedEvent")}
           </Button>
         </div>

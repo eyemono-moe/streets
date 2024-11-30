@@ -52,7 +52,7 @@ const ColumnConfigs: Component = () => {
           actions?.removeThisColumn();
         }}
       >
-        <div class="i-material-symbols:delete-outline-rounded c-red-5 aspect-square h-1lh w-auto" />
+        <div class="i-material-symbols:delete-outline-rounded c-red-5 m--0.125lh aspect-square h-1.25lh w-auto" />
         {t("columnConfig.remove")}
       </button>
     </div>
