@@ -104,6 +104,7 @@
     "mutedWord": "ミュートしている単語を含むイベントです",
     "quote": "引用",
     "repost": "リポスト",
+    "showMore": "さらに表示",
     "showMutedEvent": "表示する",
     "unknown": "対応していないイベント",
     "viewEventData": "イベントデータを表示",

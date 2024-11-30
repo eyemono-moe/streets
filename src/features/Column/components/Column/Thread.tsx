@@ -40,6 +40,7 @@ const Thread: Component<{
             showReplies
             showReactions
             showActions
+            defaultExpanded
           />
         </Show>
         <For each={directReplies()}>

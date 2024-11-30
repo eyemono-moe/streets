@@ -41,6 +41,9 @@ importers:
       '@solid-primitives/presence':
         specifier: 0.0.6
         version: 0.0.6(solid-js@1.9.3)
+      '@solid-primitives/resize-observer':
+        specifier: 2.0.26
+        version: 2.0.26(solid-js@1.9.3)
       '@solid-primitives/scheduled':
         specifier: 1.4.4
         version: 1.4.4(solid-js@1.9.3)
