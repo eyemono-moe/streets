@@ -45,6 +45,7 @@ const Thread: Component<{
         <For each={directReplies()}>
           {(reply) => <Event event={reply} small />}
         </For>
+        <div class="h-50%" />
       </div>
     </div>
   );
