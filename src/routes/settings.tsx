@@ -11,6 +11,10 @@ const index: Component = () => {
 
   const openUserColumn = useOpenUserColumn();
 
+  const commitSha = import.meta.env.DEV
+    ? "dev"
+    : import.meta.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+
   return (
     <BasicLayout title={t("settings.title")}>
       <div class="grid h-full grid-rows-[minmax(0,1fr)_auto]">
@@ -88,7 +92,7 @@ const index: Component = () => {
             </button>
           </div>
           <div class="flex items-center justify-center gap-2">
-            build:{import.meta.env.VITE_BUILD_SHA}
+            build:{commitSha}
             <a
               href="https://github.com/eyemono-moe/strands"
               target="_blank"
