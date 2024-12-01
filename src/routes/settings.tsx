@@ -13,7 +13,7 @@ const index: Component = () => {
 
   const commitSha = import.meta.env.DEV
     ? "dev"
-    : import.meta.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+    : import.meta.env.VITE_VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
 
   return (
     <BasicLayout title={t("settings.title")}>
