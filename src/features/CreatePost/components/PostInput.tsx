@@ -351,7 +351,7 @@ const PostInput: Component<{
             <div class="ml-auto">
               <Button onClick={postText} disabled={isSending()}>
                 {t("postInput.post")}
-                <div class="i-material-symbols:send-rounded aspect-square h-4 w-auto" />
+                <div class="i-material-symbols:send-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
               </Button>
             </div>
           </div>

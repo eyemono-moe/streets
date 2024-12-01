@@ -7,10 +7,11 @@ import type { ColumnContent } from "../../libs/deckSchema";
 import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
+import TempColumnHeader from "../TempColumnHeader";
 
 const Notifications: Component<{
   state: ColumnContent<"notifications">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -19,15 +20,12 @@ const Notifications: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div
-      class="grid h-full w-full divide-y"
-      classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
-      }}
-    >
-      <Show when={props.showHeader}>
-        <ColumnHeader title={t("column.notifications.title")} />
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show
+        when={props.isTempColumn}
+        fallback={<ColumnHeader title={t("column.notifications.title")} />}
+      >
+        <TempColumnHeader title={t("column.notifications.title")} />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
         <ScrollButton />

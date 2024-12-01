@@ -6,10 +6,11 @@ import { useProfile } from "../../../../shared/libs/query";
 import type { ColumnContent } from "../../libs/deckSchema";
 import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
+import TempColumnHeader from "../TempColumnHeader";
 
 const Reactions: Component<{
   state: ColumnContent<"reactions">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const profile = useProfile(() => props.state.pubkey);
   const t = useI18n();
@@ -17,15 +18,17 @@ const Reactions: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div
-      class="grid h-full w-full divide-y"
-      classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
-      }}
-    >
-      <Show when={props.showHeader}>
-        <ColumnHeader
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show
+        when={props.isTempColumn}
+        fallback={
+          <ColumnHeader
+            title={t("column.reactions.title")}
+            subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+          />
+        }
+      >
+        <TempColumnHeader
           title={t("column.reactions.title")}
           subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
         />

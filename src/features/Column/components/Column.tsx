@@ -1,6 +1,5 @@
 import { createPresence } from "@solid-primitives/presence";
 import { type Component, Show } from "solid-js";
-import { useI18n } from "../../../i18n";
 import { useColumn } from "../context/column";
 import type { ColumnState } from "../libs/deckSchema";
 import ColumnContent from "./ColumnContent";
@@ -11,11 +10,8 @@ const Column: Component<{
   handleListeners: HandleListeners;
   isMoving: boolean;
 }> = (props) => {
-  const t = useI18n();
-
-  const [, { closeTempColumn, backOrCloseTempColumn, transferTempColumn }] =
-    // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
-    useColumn()!;
+  // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
+  const [, { closeTempColumn }] = useColumn()!;
 
   const presence = createPresence(() => !!props.column.tempContent, {
     transitionDuration: 200,
@@ -37,7 +33,7 @@ const Column: Component<{
       >
         <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
       </div>
-      <ColumnContent content={props.column.content} showHeader />
+      <ColumnContent content={props.column.content} />
       <Show when={presence.isMounted()}>
         <div class="z-1">
           <button
@@ -50,34 +46,13 @@ const Column: Component<{
             class="absolute inset-0 top-10 transition-transform duration-200 data-[expanded='false']:translate-y-100% data-[expanded='true']:translate-y-0"
             data-expanded={presence.isVisible()}
           >
-            <div class="grid h-full grid-rows-[auto_minmax(0,1fr)] divide-y overflow-hidden rounded-t-2 bg-primary">
-              <div class="flex items-center gap-1 p-1">
-                <button
-                  type="button"
-                  class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
-                  onClick={backOrCloseTempColumn}
-                >
-                  <div class="i-material-symbols:chevron-left-rounded aspect-square h-6 w-auto" />
-                </button>
-                <button
-                  type="button"
-                  class="c-secondary ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
-                  onClick={transferTempColumn}
-                  title={t("column.openInNextColumn")}
-                >
-                  <div class="i-material-symbols:open-in-new-rounded aspect-square h-6 w-auto" />
-                </button>
-                <button
-                  type="button"
-                  class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
-                  onClick={closeTempColumn}
-                >
-                  <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
-                </button>
-              </div>
+            <div class="h-full divide-y overflow-hidden rounded-t-2 bg-primary">
               <Show when={props.column.tempContent}>
-                {/* biome-ignore lint/style/noNonNullAssertion: Show when props.column.tempContent is not null */}
-                <ColumnContent content={props.column.tempContent!} />
+                <ColumnContent
+                  // biome-ignore lint/style/noNonNullAssertion: Show when props.column.tempContent is not null
+                  content={props.column.tempContent!}
+                  isTempColumn
+                />
               </Show>
             </div>
           </div>

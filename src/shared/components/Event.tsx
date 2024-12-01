@@ -21,6 +21,7 @@ const Event: Component<{
   collapseReplies?: boolean;
   showReplies?: boolean;
   hasChild?: boolean;
+  defaultExpanded?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -55,7 +56,7 @@ const Event: Component<{
               setShowMuted(true);
             }}
           >
-            <div class="i-material-symbols:visibility-outline-rounded aspect-square h-1.25lh w-auto" />
+            <div class="i-material-symbols:visibility-outline-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
             {t("event.showMutedEvent")}
           </Button>
         </div>
@@ -68,6 +69,7 @@ const Event: Component<{
             small={props.small}
             showReactions={props.showReactions}
             showActions={props.showActions}
+            defaultExpanded={props.defaultExpanded}
           >
             <div class="c-secondary flex items-center gap-0.5">
               <div class="i-material-symbols:error-circle-rounded aspect-square h-4 w-auto" />
@@ -95,6 +97,7 @@ const Event: Component<{
                 hasChild={props.hasChild}
                 collapseReplies={props.collapseReplies}
                 showReplies={props.showReplies}
+                defaultExpanded={props.defaultExpanded}
               />
             </div>
           )}

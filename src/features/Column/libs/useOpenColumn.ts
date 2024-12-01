@@ -16,7 +16,6 @@ export const useOpenUserColumn = () => {
     };
 
     if (columnActions) {
-      // columnActions.addColumnAfterThis(newCol);
       columnActions.openTempColumn(newCol.content);
       return;
     }
@@ -39,7 +38,7 @@ export const useOpenFolloweesColumn = () => {
     };
 
     if (columnActions) {
-      columnActions.addColumnAfterThis(newCol);
+      columnActions.openTempColumn(newCol.content);
       return;
     }
 
@@ -61,7 +60,7 @@ export const useOpenFollowersColumn = () => {
     };
 
     if (columnActions) {
-      columnActions.addColumnAfterThis(newCol);
+      columnActions.openTempColumn(newCol.content);
       return;
     }
 
@@ -83,7 +82,7 @@ export const useOpenReactionsColumn = () => {
     };
 
     if (columnActions) {
-      columnActions.addColumnAfterThis(newCol);
+      columnActions.openTempColumn(newCol.content);
       return;
     }
 

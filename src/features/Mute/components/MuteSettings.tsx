@@ -15,6 +15,7 @@ import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
 import { TextField } from "../../../shared/components/UI/TextField";
 import { useSendMuteList } from "../../../shared/libs/query";
+import { toast } from "../../../shared/libs/toast";
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import {
   type MuteTargetSettingsInput,
@@ -53,17 +54,23 @@ const MuteSettings: Component = () => {
     if (!_myPubkey) return;
 
     const transformedValues = v.parse(muteTargetSettingsSchema, values);
-    await sendMuteList({
-      pubkey: _myPubkey,
-      privateItems: transformedValues,
-      // TODO: もともと公開していたものはそのまま送る
-      publicItems: {
-        events: [],
-        users: [],
-        hashtags: [],
-        words: [],
+    toast.promise(
+      sendMuteList({
+        pubkey: _myPubkey,
+        privateItems: transformedValues,
+        // TODO: もともと公開していたものはそのまま送る
+        publicItems: {
+          events: [],
+          users: [],
+          hashtags: [],
+          words: [],
+        },
+      }),
+      {
+        success: () => t("settings.mute.saved"),
+        error: () => t("settings.mute.error"),
       },
-    });
+    );
   };
 
   return (
@@ -102,7 +109,7 @@ const MuteSettings: Component = () => {
                     </div>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -110,7 +117,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -146,7 +153,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -154,7 +161,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -192,7 +199,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -200,7 +207,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>
@@ -238,7 +245,7 @@ const MuteSettings: Component = () => {
                     </Field>
                   )}
                 </For>
-                <div class="flex justify-center">
+                <div class="flex justify-center text-caption">
                   <Button
                     type="button"
                     onClick={() => {
@@ -246,7 +253,7 @@ const MuteSettings: Component = () => {
                     }}
                     variant="border"
                   >
-                    <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+                    <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
                     {t("settings.mute.add")}
                   </Button>
                 </div>

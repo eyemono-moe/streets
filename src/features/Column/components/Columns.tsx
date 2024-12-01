@@ -1,3 +1,4 @@
+import { A } from "@solidjs/router";
 import {
   DragDropProvider,
   DragDropSensors,
@@ -10,6 +11,7 @@ import {
   useDragDropContext,
 } from "@thisbeyond/solid-dnd";
 import { type Component, For } from "solid-js";
+import { useI18n } from "../../../i18n";
 import { ColumnProvider } from "../context/column";
 import { useDeck } from "../context/deck";
 import type { ColumnState } from "../libs/deckSchema";
@@ -56,6 +58,8 @@ declare module "solid-js" {
 }
 
 const Columns: Component = () => {
+  const t = useI18n();
+
   const [state, { moveColumn }] = useDeck();
 
   const ids = () => state.columns.map((s) => s.id);
@@ -80,6 +84,12 @@ const Columns: Component = () => {
             {(column, i) => <SortableColumn state={column} index={i()} />}
           </For>
         </SortableProvider>
+        <A href="/add-column">
+          <div class="flex h-full w-80 flex-col items-center justify-center">
+            <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-auto w-12" />
+            {t("addColumn.title")}
+          </div>
+        </A>
       </div>
       <DragOverlay>
         {/* DragOverlayを使用しない場合カラム全体を標示しようとして動作が重くなるため空文字列のDragOverlayを表示 */}

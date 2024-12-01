@@ -9,7 +9,7 @@ export type ReactionButtonProps = {
   eventId: string;
   eventPubkey: string;
   showUsers?: boolean;
-  users: string[];
+  users: Map<string, number>;
   reaction: Reaction["content"];
 };
 
@@ -18,8 +18,11 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
 
   const isReacted = createMemo(() => {
     const _myPubkey = myPubkey();
-    return !!_myPubkey && !!props.users.includes(_myPubkey);
+    return !!_myPubkey && !!props.users.has(_myPubkey);
   });
+  const reactionCount = createMemo(() =>
+    Array.from(props.users.values()).reduce((acc, v) => acc + v, 0),
+  );
 
   const { sendReaction, sendState } = useSendReaction();
   const handleReaction = async () => {
@@ -88,17 +91,18 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
             </Match>
           </Switch>
         </div>
-        <span class="c-secondary h-5 leading-5">{props.users.length}</span>
+        <span class="c-secondary h-5 leading-5">{reactionCount()}</span>
       </button>
       <Show when={props.showUsers}>
-        <span>
-          <For each={props.users}>
-            {(user, i) => (
+        <span class="c-secondary text-caption">
+          <For each={Array.from(props.users.entries())}>
+            {([user, count], i) => (
               <>
                 <Show when={i() !== 0}>
                   <span>, </span>
                 </Show>
-                <EmbedUser class="c-secondary text-caption" pubkey={user} />
+                <EmbedUser class="c-secondary text-caption" pubkey={user} />{" "}
+                <Show when={count > 1}>({count})</Show>
               </>
             )}
           </For>

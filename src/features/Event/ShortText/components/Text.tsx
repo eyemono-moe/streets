@@ -19,6 +19,7 @@ const Text: Component<{
   showReplies?: boolean;
   hasChild?: boolean;
   replyDepth?: number;
+  defaultExpanded?: boolean;
 }> = (props) => {
   const replyTarget = createMemo(
     () => props.event.parsed.tags.filter((tag) => tag.kind === "p") ?? [],
@@ -55,6 +56,7 @@ const Text: Component<{
         hasParent={props.event.parsed.replyOrRoot !== undefined}
         hasChild={props.hasChild}
         onSelected={handleOnSelect}
+        defaultExpanded={props.defaultExpanded}
       >
         <div>
           <div class="text-caption">

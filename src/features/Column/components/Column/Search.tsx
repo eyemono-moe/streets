@@ -35,7 +35,7 @@ import ColumnHeader from "../ColumnHeader";
 
 const Search: Component<{
   state: ColumnContent<"search">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const t = useI18n();
 
@@ -131,14 +131,8 @@ const Search: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div
-      class="grid h-full w-full divide-y"
-      classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
-      }}
-    >
-      <Show when={props.showHeader}>
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show when={!props.isTempColumn}>
         <ColumnHeader
           overrideContent={
             <form

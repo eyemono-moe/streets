@@ -21,36 +21,41 @@ const ReactionButtons: Component<{
 
   const reactions = useReactionsOfEvent(() => props.eventId);
   const groupedReactions = createMemo(() => {
-    const reactionMap = reactions().data?.reduce<
-      Map<
-        string,
-        {
-          reaction: ReactionButtonProps["reaction"];
-          users: ReactionButtonProps["users"];
+    const reactionMap = reactions()
+      .data?.sort((a, b) => a.raw.created_at - b.raw.created_at)
+      .reduce<
+        Map<
+          string,
+          {
+            reaction: ReactionButtonProps["reaction"];
+            users: Map<string, number>;
+          }
+        >
+      >((acc, { parsed }) => {
+        const contentKey =
+          parsed.content.type === "emoji"
+            ? parsed.content.name
+            : parsed.content.type === "text"
+              ? parsed.content.content
+              : "+";
+
+        if (!acc.has(contentKey)) {
+          acc.set(contentKey, {
+            users: new Map([[parsed.pubkey, 1]]),
+            reaction: parsed.content,
+          });
+          return acc;
         }
-      >
-    >((acc, { parsed }) => {
-      const contentKey =
-        parsed.content.type === "emoji"
-          ? parsed.content.name
-          : parsed.content.type === "text"
-            ? parsed.content.content
-            : "+";
+        const current = acc.get(contentKey);
+        if (!current) return acc;
 
-      if (!acc.has(contentKey)) {
-        acc.set(contentKey, {
-          users: [parsed.pubkey],
-          reaction: parsed.content,
-        });
+        current.users.set(
+          parsed.pubkey,
+          1 + (current.users.get(parsed.pubkey) ?? 0),
+        );
+
         return acc;
-      }
-      const current = acc.get(contentKey);
-      if (!current) return acc;
-
-      current.users.push(parsed.pubkey);
-
-      return acc;
-    }, new Map());
+      }, new Map());
 
     return Array.from(reactionMap?.values() ?? []);
   });

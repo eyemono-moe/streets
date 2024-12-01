@@ -5,6 +5,7 @@ import {
   presetUno,
   transformerVariantGroup,
 } from "unocss";
+import { presetScrollbar } from "./src/uno/presetScrollbar";
 
 interface Colors {
   [key: string]: (Colors & { DEFAULT?: string }) | string;
@@ -67,6 +68,7 @@ export default defineConfig({
       autoInstall: true,
     }),
     presetTypography(),
+    presetScrollbar(),
   ],
   theme: {
     fontFamily: {
@@ -94,12 +96,17 @@ export default defineConfig({
 
       "bg-primary": "bg-white dark:bg-ui-950",
       "bg-secondary": "bg-ui-1 dark:bg-ui-8",
+      "bg-tertiary": "bg-ui-2 dark:bg-ui-7",
 
       "bg-alpha-hover": "bg-ui-2/20 dark:bg-ui-7/20",
       "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
 
       // border color
       "border-primary": "b-ui-2 dark:b-ui-7",
+
+      // scrollbar
+      "scrollbar-color-theme":
+        "scrollbar-track:bg-ui-1 scrollbar-track-ui-1 scrollbar-thumb:bg-ui-4 scrollbar-thumb-ui-4 dark:scrollbar-track:bg-ui-9 dark:scrollbar-track-ui-9 dark:scrollbar-thumb:bg-ui-6 dark:scrollbar-thumb-ui-6",
     },
   ],
   transformers: [transformerVariantGroup()],
