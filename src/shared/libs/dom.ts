@@ -1,5 +1,5 @@
 // biome-ignore lint/suspicious/noExplicitAny: any is used for type checking
-export const isElement = (el: any): el is HTMLElement => {
+const isElement = (el: any): el is HTMLElement => {
   return (
     typeof el === "object" &&
     el?.nodeType === Node.ELEMENT_NODE &&

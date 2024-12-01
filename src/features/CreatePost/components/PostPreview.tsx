@@ -57,6 +57,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
           },
         }}
         hasParent={replyOrRoot() !== undefined}
+        defaultExpanded
       >
         <div>
           <div class="text-caption">

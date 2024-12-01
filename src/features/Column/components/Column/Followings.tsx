@@ -8,10 +8,11 @@ import type { ColumnContent } from "../../libs/deckSchema";
 import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
+import TempColumnHeader from "../TempColumnHeader";
 
 const Followings: Component<{
   state: ColumnContent<"timeline">;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }> = (props) => {
   const [{ myPubkey: pubkey }] = useMe();
   const followees = useFollowees(() => pubkey());
@@ -20,15 +21,12 @@ const Followings: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div
-      class="grid h-full w-full divide-y"
-      classList={{
-        "grid-rows-[auto_minmax(0,1fr)]": props.showHeader,
-        "grid-rows-[1fr]": !props.showHeader,
-      }}
-    >
-      <Show when={props.showHeader}>
-        <ColumnHeader title={t("column.timeline.title")} />
+    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+      <Show
+        when={props.isTempColumn}
+        fallback={<ColumnHeader title={t("column.timeline.title")} />}
+      >
+        <TempColumnHeader title={t("column.timeline.title")} />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
         <ScrollButton />

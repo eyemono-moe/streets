@@ -41,6 +41,9 @@ importers:
       '@solid-primitives/presence':
         specifier: 0.0.6
         version: 0.0.6(solid-js@1.9.3)
+      '@solid-primitives/resize-observer':
+        specifier: 2.0.26
+        version: 2.0.26(solid-js@1.9.3)
       '@solid-primitives/scheduled':
         specifier: 1.4.4
         version: 1.4.4(solid-js@1.9.3)
@@ -111,9 +114,15 @@ importers:
       '@iconify-json/material-symbols':
         specifier: 1.2.6
         version: 1.2.6
+      '@iconify-json/mdi':
+        specifier: 1.2.1
+        version: 1.2.1
       '@types/serviceworker':
         specifier: 0.0.102
         version: 0.0.102
+      '@unocss/preset-mini':
+        specifier: 0.65.0-beta.2
+        version: 0.65.0-beta.2
       jsdom:
         specifier: 25.0.1
         version: 25.0.1(bufferutil@4.0.8)(utf-8-validate@6.0.5)
@@ -1035,6 +1044,9 @@ packages:
   '@iconify-json/material-symbols@1.2.6':
     resolution: {integrity: sha512-eXqnY9DY8B/7Uw/INwhpN8gfBrC3BBaWBx7T/Yf4oHxQRiVto4qSlDF3MD46q7vqp4GjtyQW1IkZvhgWHn0LTA==}
 
+  '@iconify-json/mdi@1.2.1':
+    resolution: {integrity: sha512-dSkQU78gsZV6Yxnq78+LuX7jzeFC/5NAmz7O3rh558GimGFcwMVY/OtqRowIzjqJBmMmWZft7wkFV4TrwRXjlg==}
+
   '@iconify/types@2.0.0':
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
@@ -1542,8 +1554,14 @@ packages:
   '@unocss/core@0.64.0':
     resolution: {integrity: sha512-Qb8wWPYNlTagCdJGzULew+e3NMM8Bd7fr38lDLgrMj+njop+wzkSe1ZZOyMMH9yHSq/Rznn5eCjnyzyHwxGslQ==}
 
+  '@unocss/core@0.65.0-beta.2':
+    resolution: {integrity: sha512-Wq2IbocJrHx6QXBxSQLkqIzZbDMVAELC/NeMTxFj3OjtrfrjjPI/X/WTaOyBEtwTs6jLi7hBZ7kRYHy5AxKoyQ==}
+
   '@unocss/extractor-arbitrary-variants@0.64.0':
     resolution: {integrity: sha512-oVB8l8zM+x0MQJTkraRcsrfJnWEwyPVgMgtzmNUm//HqV+xTrjZCNtOqHFNIZdj/+w0gkErGQLxzRwyPjlHq4g==}
+
+  '@unocss/extractor-arbitrary-variants@0.65.0-beta.2':
+    resolution: {integrity: sha512-ne8UZPaf0KBEaz6z+5kiXKM/+UYrVJUE0gMIFk5g74EXLHX2Gf2K44ZLnJeB/O/LHBDz9JpCBkaMoD/Z+XIgEA==}
 
   '@unocss/inspector@0.64.0':
     resolution: {integrity: sha512-aFEfxEuPOpbPNH3j1CLLnN7ZyZkc64XoxZbz7RbG20Wy5oJxonOnlu+Wikz9SfGvIyF16MVAMCkHu12WFRRC+g==}
@@ -1562,6 +1580,9 @@ packages:
 
   '@unocss/preset-mini@0.64.0':
     resolution: {integrity: sha512-bc7zanalVQUrETJ06eyS7y/lhceRlY8kBG/lRCV/dYmKl4Ho/s57LrpZH0G63OcO6IfWIjwoZHVC8/RHAqnYvQ==}
+
+  '@unocss/preset-mini@0.65.0-beta.2':
+    resolution: {integrity: sha512-+U/x2gu4NuegUemxEoT1otBDPZxtNr5OeWt/B3YchENCQ9fWc/MYaZT7edtNzaHNibPDDwEm9tPz9whbmDIjrA==}
 
   '@unocss/preset-tagify@0.64.0':
     resolution: {integrity: sha512-WlRQXYgtVzJpVlZ+itXhrQyvMj6XW1InNIfvAHMorr5BGvMGETLRnuWwYYhGg2YDF/g+/EucU5PQmk9UkurBzg==}
@@ -1583,6 +1604,10 @@ packages:
 
   '@unocss/rule-utils@0.64.0':
     resolution: {integrity: sha512-R5b/uspq6XsmpEqhxSzOOePHsS+pdxya+0pkQw7m6thsUxNDL7kVDpBiz2iNX5lnwagvhyhUWYu85a8XmZ8ymw==}
+    engines: {node: '>=14'}
+
+  '@unocss/rule-utils@0.65.0-beta.2':
+    resolution: {integrity: sha512-MLNjy6+xJp4kIkqbBTAU85gq2SYJ+raXwQAt6Pikh7dcKS0Krvq0rySAwgKSy2/ut3DQecE82BJAAVRQOQGEMw==}
     engines: {node: '>=14'}
 
   '@unocss/transformer-attributify-jsx@0.64.0':
@@ -4318,6 +4343,10 @@ snapshots:
     dependencies:
       '@iconify/types': 2.0.0
 
+  '@iconify-json/mdi@1.2.1':
+    dependencies:
+      '@iconify/types': 2.0.0
+
   '@iconify/types@2.0.0': {}
 
   '@iconify/utils@2.1.33':
@@ -4879,9 +4908,15 @@ snapshots:
 
   '@unocss/core@0.64.0': {}
 
+  '@unocss/core@0.65.0-beta.2': {}
+
   '@unocss/extractor-arbitrary-variants@0.64.0':
     dependencies:
       '@unocss/core': 0.64.0
+
+  '@unocss/extractor-arbitrary-variants@0.65.0-beta.2':
+    dependencies:
+      '@unocss/core': 0.65.0-beta.2
 
   '@unocss/inspector@0.64.0(vue@3.5.12(typescript@5.6.3))':
     dependencies:
@@ -4922,6 +4957,12 @@ snapshots:
       '@unocss/extractor-arbitrary-variants': 0.64.0
       '@unocss/rule-utils': 0.64.0
 
+  '@unocss/preset-mini@0.65.0-beta.2':
+    dependencies:
+      '@unocss/core': 0.65.0-beta.2
+      '@unocss/extractor-arbitrary-variants': 0.65.0-beta.2
+      '@unocss/rule-utils': 0.65.0-beta.2
+
   '@unocss/preset-tagify@0.64.0':
     dependencies:
       '@unocss/core': 0.64.0
@@ -4954,6 +4995,11 @@ snapshots:
   '@unocss/rule-utils@0.64.0':
     dependencies:
       '@unocss/core': 0.64.0
+      magic-string: 0.30.12
+
+  '@unocss/rule-utils@0.65.0-beta.2':
+    dependencies:
+      '@unocss/core': 0.65.0-beta.2
       magic-string: 0.30.12
 
   '@unocss/transformer-attributify-jsx@0.64.0':

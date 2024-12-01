@@ -18,19 +18,19 @@ const columnComponents = {
 } satisfies {
   [K in TColumnContent["type"]]: Component<{
     state: TColumnContent<K>;
-    showHeader?: boolean;
+    isTempColumn?: boolean;
   }>;
 };
 
 const ColumnContent = <T extends ColumnState["content"]["type"]>(props: {
   content: TColumnContent<T>;
-  showHeader?: boolean;
+  isTempColumn?: boolean;
 }) => {
   return (
     // @ts-ignore: @2322 cannot infer the type of this component
     <Dynamic
       component={columnComponents[props.content.type]}
-      showHeader={props.showHeader}
+      isTempColumn={props.isTempColumn}
       state={props.content}
     />
   );

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "@solidjs/router";
 import { type Component, createSignal } from "solid-js";
-import Logo from "../../../assets/logo.svg";
+import Logo from "../../../assets/streets_logo.min.svg";
 import NavigateButton from "./NavigateButton";
 import SearchPopover from "./SearchPopover";
 import ShortcutButtons from "./ShortcutButtons";
@@ -48,7 +48,7 @@ const Sidebar: Component = () => {
           <div class="i-material-symbols:settings-outline-rounded aspect-square h-auto w-8" />
         </NavigateButton>
         <NavigateButton>
-          <img src={Logo} alt="strands logo" class="aspect-square h-auto w-8" />
+          <img src={Logo} alt="streets logo" class="aspect-square h-auto w-8" />
         </NavigateButton>
       </div>
     </div>

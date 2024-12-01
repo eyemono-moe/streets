@@ -4,7 +4,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Vite + Solid + TS</title>
+
+  <title>Streets</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="description" content="Column based Nostr client">
+  <!-- Facebook Meta Tags -->
+  <meta property="og:title" content="Streets">
+  <meta property="og:description" content="Column based Nostr client">
+  <meta property="og:image" content="https://streets.eyemono.moe/ogp.webp">
+  <meta property="og:url" content="https://streets.eyemono.moe">
+  <meta property="og:site_name" content="Streets">
+  <meta property="og:type" content="website">
+  <!-- Twitter Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Streets">
+  <meta name="twitter:description" content="Column based Nostr client">
+  <meta name="twitter:image" content="https://streets.eyemono.moe/ogp.webp">
   <script src='https://www.unpkg.com/nostr-login@latest/dist/unpkg.js'></script>
   <script>
     // see: https://developer.x.com/en/docs/x-for-websites/javascript-api/guides/set-up-twitter-for-websites
@@ -26,7 +41,7 @@
   <style id="theme-style"></style>
 </head>
 
-<body class="font-sans c-primary c-primary border-primary bg-primary">
+<body class="font-sans c-primary c-primary border-primary bg-primary scrollbar-color-theme">
   <div id="root"></div>
   <script type="module" src="/src/index.tsx"></script>
 </body>

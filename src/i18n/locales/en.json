@@ -104,6 +104,7 @@
     "mutedWord": "This event contains a muted word",
     "quote": "Quote",
     "repost": "Repost",
+    "showMore": "Show more",
     "showMutedEvent": "Show",
     "unknown": "Unsupported event",
     "viewEventData": "View event data",
@@ -133,7 +134,7 @@
       "unsupported": "The file format is not supported by the file upload server: {{ filenames }}"
     },
     "needLogin": "You need to log in to post",
-    "note": "This preview shows how the post will appear on the Strands client. It may look different on other clients.",
+    "note": "This preview shows how the post will appear on the Streets client. It may look different on other clients.",
     "placeholder": "What is happening?!",
     "post": "Post",
     "preview": "Preview"
@@ -180,6 +181,7 @@
       "availableFileType": "Available file types",
       "checkServerUrl": "Failed to connect to the server. Please check the server URL.",
       "help": "You can select a server to upload files such as images when posting.",
+      "saved": "Saved changes",
       "serverStatus": {
         "errored": "Error",
         "ready": "Ready"
@@ -191,12 +193,14 @@
     "mute": {
       "add": "Add",
       "discard": "Discard changes",
+      "error": "Failed to save changes",
       "muteEvents": "Muted events",
       "muteHashtags": "Muted hashtags",
       "muteUsers": "Muted users",
       "muteWords": "Muted words",
       "needLogin": "You need to log in to set mute",
       "save": "Save",
+      "saved": "Saved changes",
       "title": "Mute"
     },
     "profile": {
@@ -216,6 +220,8 @@
       "needLogin": "You need to log in to set your profile",
       "nip05Help": "The Nostr address is used to link your domain and account. It is used for user identification and search.",
       "save": "Save",
+      "saveFailed": "Failed to save changes",
+      "saved": "Saved changes",
       "title": "Profile",
       "uploadFailed": "File upload failed"
     },
@@ -234,6 +240,7 @@
       "relayToBeUsed": "My Relays",
       "relayURL": "Relay URL",
       "save": "Save",
+      "saved": "Saved changes",
       "title": "Relay",
       "write": "Write"
     },

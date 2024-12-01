@@ -1,14 +1,24 @@
 import { HoverCard } from "@kobalte/core/hover-card";
-import { type JSX, type ParentComponent, Show, mergeProps } from "solid-js";
+import { createElementSize } from "@solid-primitives/resize-observer";
+import {
+  type JSX,
+  type ParentComponent,
+  Show,
+  createSignal,
+  mergeProps,
+} from "solid-js";
 import { useOpenUserColumn } from "../../features/Column/libs/useOpenColumn";
 import ReactionButtons from "../../features/Event/Reaction/components/ReactionButtons";
 import Avatar from "../../features/User/components/Avatar";
 import ProfileHoverContent from "../../features/User/components/ProfileHoverContent";
+import { useI18n } from "../../i18n";
 import { dateHuman, dateTimeHuman, hex2bech32 } from "../libs/format";
 import type { ParsedEventPacket } from "../libs/parser";
 import { useProfile } from "../libs/query";
 import EventActions from "./EventActions";
 import EventMenuButton from "./EventMenuButton";
+
+const MAX_CONTENT_HEIGHT = 400;
 
 const EventBase: ParentComponent<{
   eventPacket: ParsedEventPacket;
@@ -18,12 +28,18 @@ const EventBase: ParentComponent<{
   hasParent?: boolean;
   hasChild?: boolean;
   onSelected?: () => void;
+  defaultExpanded?: boolean;
 }> = (props) => {
+  const t = useI18n();
+
   const mergedProps = mergeProps({ small: false }, props);
 
   const profile = useProfile(() => mergedProps.eventPacket.raw.pubkey);
   const userName = () =>
-    `@${profile().data?.parsed.name || hex2bech32(props.eventPacket.raw.pubkey, "npub").slice(0, 12)}`;
+    `@${
+      profile().data?.parsed.name ||
+      hex2bech32(props.eventPacket.raw.pubkey, "npub").slice(0, 12)
+    }`;
 
   const openUserColumn = useOpenUserColumn();
 
@@ -47,6 +63,16 @@ const EventBase: ParentComponent<{
 
     props.onSelected?.();
   };
+
+  const [contentWrapper, setContentWrapper] = createSignal<HTMLDivElement>();
+  const contentSize = createElementSize(contentWrapper);
+  // ユーザーがコンテンツを展開したかどうか
+  const [isExpanded, setIsExpanded] = createSignal(
+    props.defaultExpanded || false,
+  );
+  // コンテンツが最大の高さを超えているかどうか
+  const isOverflown = () =>
+    contentSize.height && contentSize.height >= MAX_CONTENT_HEIGHT;
 
   return (
     <button
@@ -136,7 +162,29 @@ const EventBase: ParentComponent<{
             "pb-2": mergedProps.hasChild,
           }}
         >
-          {mergedProps.children}
+          <div class="relative">
+            <div
+              ref={setContentWrapper}
+              class="overflow-hidden"
+              style={{
+                "max-height": isExpanded() ? "none" : `${MAX_CONTENT_HEIGHT}px`,
+              }}
+            >
+              {mergedProps.children}
+            </div>
+            <Show when={isOverflown() && !isExpanded()}>
+              <button
+                class="parent absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b bg-transparent from-transparent to-white pt-4 text-caption dark:to-ui-950"
+                type="button"
+                onClick={() => setIsExpanded(true)}
+              >
+                <div class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
+                  <div class="i-material-symbols:expand-more-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
+                  <div class="text-caption">{t("event.showMore")}</div>
+                </div>
+              </button>
+            </Show>
+          </div>
           <Show when={mergedProps.showReactions}>
             <ReactionButtons
               eventId={mergedProps.eventPacket.raw.id}

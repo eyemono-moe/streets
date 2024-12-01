@@ -22,6 +22,7 @@ import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
 import { Checkbox } from "../../../shared/components/UI/Checkbox";
 import { TextField } from "../../../shared/components/UI/TextField";
+import { toast } from "../../../shared/libs/toast";
 
 const t = useI18n();
 
@@ -143,6 +144,7 @@ const RelaySettings: Component = () => {
     );
 
     updateRelay(relayRecord);
+    toast.success(t("settings.relay.saved"));
   };
 
   return (
@@ -206,7 +208,7 @@ const RelaySettings: Component = () => {
         </div>
         <div class="flex w-full justify-center text-caption">
           <Button variant="border" onClick={handleAddRelay}>
-            <div class="i-material-symbols:add-rounded aspect-square h-1lh w-auto" />
+            <div class="i-material-symbols:add-rounded m--0.125lh aspect-square h-1.25lh w-auto" />
             {t("settings.relay.add")}
           </Button>
         </div>

@@ -2,6 +2,7 @@ version: "3.8"
 
 services:
   nostr-rs-relay:
+    user: "1000:1000"
     image: scsibug/nostr-rs-relay:latest
     sysctls:
       net.core.somaxconn: 8128
@@ -37,6 +38,7 @@ services:
       timeout: 5s
       retries: 5
   nostrcheck:
+    user: "1000:1000"
     # see: https://github.com/quentintaranpino/nostrcheck-server/blob/main/compose.yml
     image: nostrcheckme/nostrcheck-server:latest
     networks:
@@ -106,6 +108,7 @@ services:
     ports:
       - 3306:3306
   redis:
+    user: "1000:1000"
     networks:
       - nostrcheck
     image: redis:6
