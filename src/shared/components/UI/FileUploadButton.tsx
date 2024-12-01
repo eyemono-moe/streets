@@ -17,8 +17,8 @@ const FileUploadButton: ParentComponent<{
 }> = (props) => {
   const t = useI18n();
 
-  let inputRef: HTMLInputElement;
-  let imgRef: HTMLImageElement;
+  let inputRef!: HTMLInputElement;
+  let imgRef!: HTMLImageElement;
   let cropper: Cropper;
 
   const {
@@ -96,8 +96,7 @@ const FileUploadButton: ParentComponent<{
         </button>
       </Show>
       <input
-        // biome-ignore lint/style/noNonNullAssertion:
-        ref={inputRef!}
+        ref={inputRef}
         accept="image/*"
         type="file"
         aria-hidden
@@ -115,8 +114,7 @@ const FileUploadButton: ParentComponent<{
         <div class="grid h-full w-full grid-rows-[minmax(0,1fr)_auto] gap-2 p-2">
           <div class="">
             <img
-              // biome-ignore lint/style/noNonNullAssertion:
-              ref={imgRef!}
+              ref={imgRef}
               alt="cropper"
               class="h-auto max-h-full w-full object-contain"
             />

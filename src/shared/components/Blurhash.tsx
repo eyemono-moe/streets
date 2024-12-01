@@ -13,7 +13,7 @@ const Blurhash: Component<
   const mergedProps = mergeProps({ size: 32 }, props);
   const [_, canvasProps] = splitProps(mergedProps, ["blurhash", "size"]);
 
-  let canvasRef: HTMLCanvasElement;
+  let canvasRef!: HTMLCanvasElement;
 
   createEffect(() => {
     const pixels = decode(props.blurhash, mergedProps.size, mergedProps.size);
@@ -28,8 +28,7 @@ const Blurhash: Component<
 
   return (
     <canvas
-      // biome-ignore lint/style/noNonNullAssertion: canvasRef is defined on render
-      ref={canvasRef!}
+      ref={canvasRef}
       {...canvasProps}
       width={mergedProps.size}
       height={mergedProps.size}
