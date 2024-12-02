@@ -8,7 +8,7 @@ services:
     restart: unless-stopped
     volumes:
       - type: bind
-        source: ./nostr-rs-relay-config.toml
+        source: ./.local-dev/nostr-rs-relay-config.toml
         target: /usr/src/app/config.toml
       - ./data/nostr-rs-relay/db:/usr/src/app/db
     ports:
@@ -48,7 +48,7 @@ services:
       - ./data/nostrcheck/media:/usr/src/app/media
       - ./data/nostrcheck/resources:/usr/src/app/resources
       - type: bind
-        source: ./nostrcheck-config.json
+        source: ./.local-dev/nostrcheck-config.json
         target: /usr/src/app/config/local.json
     restart: always
     environment: 
