@@ -119,10 +119,14 @@ const PostInput: Component<{
 
   const [, serverConfig] = useFileServer();
   const fileUpload = useFileUpload({
+    disabled: serverConfig.state !== "ready",
     maxFiles: Number.POSITIVE_INFINITY,
     capture: "environment",
     directory: false,
-    accept: serverConfig()?.content_types,
+    accept:
+      serverConfig.state === "ready"
+        ? serverConfig()?.content_types
+        : undefined,
     onFileReject(details) {
       if (details.files.length === 0) return;
       toast.error(
@@ -149,6 +153,10 @@ const PostInput: Component<{
     });
 
   const addAttachment = (files: File[]) => {
+    if (serverConfig.state !== "ready") {
+      toast.error(t("noFileServerConfigured"));
+      return;
+    }
     fileUpload().setFiles(files);
   };
 
@@ -166,12 +174,12 @@ const PostInput: Component<{
     let iMetaTags: string[][] = [];
     let fileUrls: string[] = [];
     if (fileUpload().acceptedFiles.length > 0) {
-      const apiUrl = serverConfig()?.api_url;
-      if (!apiUrl) {
+      if (serverConfig.state !== "ready") {
         toast.error(t("noFileServerConfigured"));
         setIsSending(false);
         return;
       }
+      const apiUrl = serverConfig().api_url;
       try {
         const resized = await Promise.all(
           fileUpload().acceptedFiles.map((file) => resize(file)),
@@ -326,8 +334,9 @@ const PostInput: Component<{
           </FileUpload.ItemGroup>
           <div class="flex gap-2">
             <FileUpload.Trigger
-              disabled={isSending()}
+              disabled={isSending() || serverConfig.state !== "ready"}
               class="inline-flex shrink-0 appearance-none items-center justify-center rounded-full bg-accent-primary p-1 text-white active:bg-accent-active not-active:enabled:hover:bg-accent-hover disabled:opacity-50"
+              title={serverConfig.error ? t("noFileServerConfigured") : ""}
             >
               <div class="i-material-symbols:add-photo-alternate-outline-rounded aspect-square h-1lh w-auto" />
             </FileUpload.Trigger>

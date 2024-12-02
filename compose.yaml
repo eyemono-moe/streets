@@ -2,14 +2,13 @@ version: "3.8"
 
 services:
   nostr-rs-relay:
-    user: "1000:1000"
     image: scsibug/nostr-rs-relay:latest
     sysctls:
       net.core.somaxconn: 8128
     restart: unless-stopped
     volumes:
       - type: bind
-        source: ./nostr-rs-relay-config.toml
+        source: ./.local-dev/nostr-rs-relay-config.toml
         target: /usr/src/app/config.toml
       - ./data/nostr-rs-relay/db:/usr/src/app/db
     ports:
@@ -38,7 +37,6 @@ services:
       timeout: 5s
       retries: 5
   nostrcheck:
-    user: "1000:1000"
     # see: https://github.com/quentintaranpino/nostrcheck-server/blob/main/compose.yml
     image: nostrcheckme/nostrcheck-server:latest
     networks:
@@ -50,7 +48,7 @@ services:
       - ./data/nostrcheck/media:/usr/src/app/media
       - ./data/nostrcheck/resources:/usr/src/app/resources
       - type: bind
-        source: ./nostrcheck-config.json
+        source: ./.local-dev/nostrcheck-config.json
         target: /usr/src/app/config/local.json
     restart: always
     environment: 
@@ -108,7 +106,6 @@ services:
     ports:
       - 3306:3306
   redis:
-    user: "1000:1000"
     networks:
       - nostrcheck
     image: redis:6

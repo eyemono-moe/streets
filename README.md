@@ -48,6 +48,7 @@ This will start the following services:
 
 ## Acknowledgments
 
+- [rx-nostr](https://github.com/penpenpng/rx-nostr)
 - [nostr-tools](https://github.com/nbd-wtf/nostr-tools)
 - [rabbit](https://github.com/syusui-s/rabbit)
 - [nostter](https://github.com/SnowCait/nostter)

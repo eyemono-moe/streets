@@ -61,7 +61,15 @@ export const FileServerProvider: ParentComponent = (props) => {
 
   const [serverConfig] = createResource(
     () => state.serverUrl,
-    (serverUrl) => readServerConfig(serverUrl),
+    async (serverUrl) => {
+      try {
+        const t = await readServerConfig(serverUrl);
+        return t;
+      } catch (e) {
+        console.error("test", e);
+        throw e;
+      }
+    },
   );
 
   return (
