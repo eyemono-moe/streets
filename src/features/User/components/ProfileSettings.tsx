@@ -92,6 +92,7 @@ const ProfileSettings: Component = () => {
       <Form onSubmit={handleSubmit}>
         <div class="flex flex-col items-start">
           <FileUploadButton
+            accept="image/*"
             onUpload={handleBannerOnUpload}
             class="translate--2 mb--24 h-fit max-h-50 w-[calc(100%+1rem)] appearance-none bg-transparent"
           >
@@ -110,6 +111,7 @@ const ProfileSettings: Component = () => {
             </Image>
           </FileUploadButton>
           <FileUploadButton
+            accept="image/*"
             class="z-1 appearance-none bg-transparent"
             crop
             cropperOptions={{
@@ -209,6 +211,7 @@ const ProfileSettings: Component = () => {
                   error={field.error}
                 />
                 <FileUploadButton
+                  accept="image/*"
                   crop
                   cropperOptions={{
                     aspectRatio: 1,
@@ -231,7 +234,10 @@ const ProfileSettings: Component = () => {
                   value={field.value}
                   error={field.error}
                 />
-                <FileUploadButton onUpload={handleBannerOnUpload} />
+                <FileUploadButton
+                  accept="image/*"
+                  onUpload={handleBannerOnUpload}
+                />
               </div>
             )}
           </Field>

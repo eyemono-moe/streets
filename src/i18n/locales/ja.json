@@ -124,7 +124,7 @@
   "loadMoreReply": "ポストをさらに読み込む",
   "loading": "読み込み中",
   "login": "ログインする",
-  "noFileServerConfigured": "ファイルアップロードサーバーが設定されていません。設定 > ファイル からファイルアップロードサーバーを設定してください。",
+  "noFileServerConfigured": "ファイルアップロードサーバーの読み込みに失敗しました。設定 > ファイル からファイルアップロードサーバーを設定してください。",
   "noMoreEvents": "これ以上データがありません",
   "postInput": {
     "enterToAddNewLine": "Enterで改行",

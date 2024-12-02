@@ -124,7 +124,7 @@
   "loadMoreReply": "Load more posts",
   "loading": "Loading",
   "login": "Login",
-  "noFileServerConfigured": "No file upload server is configured. Please set a file upload server from Settings > File.",
+  "noFileServerConfigured": "Failed to load file upload server. \nConfigure the file upload server from Settings > Files.",
   "noMoreEvents": "No more events",
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
