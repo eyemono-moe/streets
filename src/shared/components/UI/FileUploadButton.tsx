@@ -10,6 +10,7 @@ import Button from "./Button";
 
 const FileUploadButton: ParentComponent<{
   class?: string;
+  accept?: string;
   crop?: boolean;
   cropperOptions?: Cropper.Options;
   onUpload?: (res: Awaited<ReturnType<typeof uploadFile>>) => void;
@@ -29,11 +30,11 @@ const FileUploadButton: ParentComponent<{
   const [, serverConfig] = useFileServer();
 
   const handleUploadFile = async (file: File) => {
-    const apiUrl = serverConfig()?.api_url;
-    if (!apiUrl) {
+    if (serverConfig.state !== "ready") {
       toast.error(t("noFileServerConfigured"));
       return;
     }
+    const apiUrl = serverConfig().api_url;
     const res = await uploadFile({
       apiUrl,
       file,
@@ -75,11 +76,13 @@ const FileUploadButton: ParentComponent<{
         when={props.children}
         fallback={
           <button
-            class="w-fit appearance-none rounded-full bg-accent-primary p-1"
+            class="w-fit appearance-none rounded-full bg-accent-primary p-1 disabled:opacity-50"
             onClick={() => {
               inputRef.click();
             }}
             type="button"
+            title={serverConfig.error ? t("noFileServerConfigured") : ""}
+            disabled={serverConfig.error}
           >
             <div class="i-material-symbols:add-photo-alternate-outline-rounded aspect-square h-1lh w-auto" />
           </button>
@@ -97,7 +100,7 @@ const FileUploadButton: ParentComponent<{
       </Show>
       <input
         ref={inputRef}
-        accept="image/*"
+        accept={props.accept}
         type="file"
         aria-hidden
         class="hidden"
