@@ -8,7 +8,7 @@ import {
   createRxBackwardReq,
   createRxNostr,
   filterByType,
-  latestEach,
+  uniq,
 } from "rx-nostr";
 import { createVerificationServiceClient } from "rx-nostr-crypto";
 import { bufferWhen, interval } from "rxjs";
@@ -92,7 +92,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
         batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
       ),
     )
-    .pipe(latestEach((e) => e.event.id))
+    .pipe(uniq())
     .subscribe({
       next: (e) => {
         cacheAndEmitRelatedEvent(e, emit, setter);
