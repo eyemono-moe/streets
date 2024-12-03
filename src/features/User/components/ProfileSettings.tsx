@@ -8,6 +8,7 @@ import {
   valiForm,
 } from "@modular-forms/solid";
 import { type Component, Show, createEffect, untrack } from "solid-js";
+import * as v from "valibot";
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
@@ -32,15 +33,22 @@ const ProfileSettings: Component = () => {
   const [{ myPubkey, isLogged }] = useMe();
   const myProfile = useProfile(myPubkey);
 
+  const schema = profileSettingsSchema(t);
   const [form, { Form, Field }] = createForm<ProfileSettingsInput>({
-    validate: valiForm(profileSettingsSchema),
+    validate: valiForm(schema),
   });
 
   createEffect(() => {
     reset(
       untrack(() => form),
       {
-        initialValues: myProfile().data?.parsed,
+        initialValues: {
+          ...myProfile().data?.parsed,
+          lightningAddress:
+            myProfile().data?.parsed.lud06 ??
+            myProfile().data?.parsed.lud16 ??
+            "",
+        },
       },
     );
   });
@@ -70,9 +78,14 @@ const ProfileSettings: Component = () => {
     const _myPubkey = myPubkey();
     if (!_myPubkey) return;
 
+    const parsedValues = v.safeParse(schema, values);
+    if (!parsedValues.success) {
+      return;
+    }
+
     toast.promise(
       sendProfile({
-        profile: values,
+        profile: parsedValues.output,
         pubkey: _myPubkey,
       }),
       {
@@ -239,6 +252,19 @@ const ProfileSettings: Component = () => {
                   onUpload={handleBannerOnUpload}
                 />
               </div>
+            )}
+          </Field>
+          <Field name="lightningAddress">
+            {(field, props) => (
+              <TextField
+                {...props}
+                label={t("settings.profile.label.lightningAddress")}
+                help={t("settings.profile.lightningAddressHelp")}
+                type="url"
+                placeholder="LNURL... / xxx@yyy.com"
+                value={field.value}
+                error={field.error}
+              />
             )}
           </Field>
           <div class="flex justify-end gap-1">
