@@ -21,9 +21,9 @@ const nip05 = v.object({
 });
 
 export const fetchNip05 = async (name: string, domain: string) => {
-  const url = `https://${domain}/.well-known/nostr.json?name=${name}`;
-
-  const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`);
+  const res = await fetch(
+    `https://${domain}/.well-known/nostr.json?name=${name}`,
+  );
 
   if (!res.ok || res.status < 200 || 300 <= res.status) {
     return;
