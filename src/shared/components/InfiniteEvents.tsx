@@ -1,3 +1,4 @@
+import { createViewportObserver } from "@solid-primitives/intersection-observer";
 import type { Filter } from "nostr-tools";
 import { createRxForwardReq, now, uniq } from "rx-nostr";
 import { map, tap } from "rxjs";
@@ -58,9 +59,12 @@ const InfiniteEvents: Component<{
     isFetching,
   } = createInfiniteRxQuery(() => ({
     filter: props.filter,
-    limit: 10,
+    limit: 20,
     relays: props.relays,
   }));
+
+  // @ts-ignore(6133) typescript can't detect `use` directive
+  const [intersectionObserver] = createViewportObserver();
 
   return (
     <div class="h-full divide-y">
@@ -90,6 +94,14 @@ const InfiniteEvents: Component<{
           </For>
         )}
       </For>
+      <div
+        use:intersectionObserver={(e) => {
+          if (hasNextPage() && !isFetching() && e.isIntersecting) {
+            console.log("fetching next page");
+            fetchNextPage();
+          }
+        }}
+      />
       <button
         class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 enabled:active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
         type="button"
