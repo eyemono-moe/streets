@@ -1,7 +1,13 @@
+import { waitNostr } from "nip07-awaiter";
+import {
+  init as initNostrLogin,
+  launch as launchNostrLoginDialog,
+} from "nostr-login";
 import {
   type ParentComponent,
   createContext,
-  createResource,
+  createSignal,
+  onMount,
   useContext,
 } from "solid-js";
 import { useNIP07 } from "../shared/libs/useNIP07";
@@ -19,19 +25,29 @@ const MeContext = createContext<[state: MeState]>([
 ]);
 
 export const MeProvider: ParentComponent = (props) => {
-  const [myPubkey, { refetch }] = createResource(async () => {
-    try {
-      const p = await useNIP07().getPublicKey();
-      return p;
-    } catch (e) {
-      console.error(e);
-      return;
+  const [myPubkey, setMyPubkey] = createSignal<string | undefined>();
+
+  // nip07の読み込み後にnostr loginを初期化しないとアカウント切り替え画面が表示されてしまう
+  onMount(async () => {
+    const n = await waitNostr(1000);
+    await initNostrLogin({
+      title: "test",
+      description: "test",
+    });
+    // nip07が見つからなかった時はwelcome screenを表示する
+    if (n === undefined) {
+      launchNostrLoginDialog("welcome");
     }
   });
 
   // nostr loginでのログイン/ログアウトが発生した際にpubkeyを再取得する
-  document.addEventListener("nlAuth", () => {
-    refetch();
+  document.addEventListener("nlAuth", async (e) => {
+    if (e.detail.type === "login" || e.detail.type === "signup") {
+      const p = await useNIP07().getPublicKey();
+      setMyPubkey(p);
+    } else {
+      setMyPubkey(undefined);
+    }
   });
 
   const isLogged = () => myPubkey() !== undefined;
