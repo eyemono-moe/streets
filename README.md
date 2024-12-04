@@ -17,6 +17,8 @@
   </p>
 </div>
 
+![Streets screenshot](/.github/assets/screenshot.png)
+
 ### Built With
 
 [![TypeScript][typescript-image]][typescript-url]
@@ -45,6 +47,10 @@ This will start the following services:
 
 - [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay): `ws://localhost:8080`
 - [nostrcheck](https://github.com/quentintaranpino/nostrcheck-server): `http://localhost:3000`
+
+### Contact
+
+- eyemono.moe: <nostr:npub1m0n0eyetgrflxghneeckkv95ukrn0fdpzyysscy4vha3gm64739qxn23sk>
 
 ## Acknowledgments
 
