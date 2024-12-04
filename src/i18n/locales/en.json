@@ -206,17 +206,20 @@
     "profile": {
       "discard": "Discard Changes",
       "error": {
+        "invalidLNAddress": "Invalid LNURL address",
         "invalidNip05": "Please enter in the format \"username@domain\""
       },
       "label": {
         "about": "Bio",
         "banner": "Banner URL",
         "displayName": "Display Name",
+        "lightningAddress": "LNURL Address/Lightning Address",
         "name": "Name",
         "nip05": "Nostr Address",
         "picture": "Icon URL",
         "website": "Website"
       },
+      "lightningAddressHelp": "Used to receive chips using Bitcoin. \nBy entering your Lightning address or LNURL address, you will be able to receive tips from other users.",
       "needLogin": "You need to log in to set your profile",
       "nip05Help": "The Nostr address is used to link your domain and account. It is used for user identification and search.",
       "save": "Save",
