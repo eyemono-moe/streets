@@ -126,6 +126,10 @@
   "login": "Login",
   "noFileServerConfigured": "Failed to load file upload server. \nConfigure the file upload server from Settings > Files.",
   "noMoreEvents": "No more events",
+  "nostrLogin": {
+    "description": "This website is part of the Nostr network. Log in with your Nostr profile or sign up to join.",
+    "title": "Welcome to Nostr!"
+  },
   "postInput": {
     "enterToAddNewLine": "Enter to add a new line",
     "fileUpload": {

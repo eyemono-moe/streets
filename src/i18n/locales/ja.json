@@ -126,6 +126,10 @@
   "login": "ログインする",
   "noFileServerConfigured": "ファイルアップロードサーバーの読み込みに失敗しました。設定 > ファイル からファイルアップロードサーバーを設定してください。",
   "noMoreEvents": "これ以上データがありません",
+  "nostrLogin": {
+    "description": "このウェブサイトは分散型ネットワークNostrを利用しています。Nostrアカウントでログインするか、新規登録して参加しましょう。",
+    "title": "Nostrへようこそ！"
+  },
   "postInput": {
     "enterToAddNewLine": "Enterで改行",
     "fileUpload": {
