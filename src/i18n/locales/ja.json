@@ -206,17 +206,20 @@
     "profile": {
       "discard": "変更を破棄",
       "error": {
+        "invalidLNAddress": "不正なLNURLアドレスです",
         "invalidNip05": "\"ユーザー名@ドメイン\"の形で入力してください"
       },
       "label": {
         "about": "自己紹介",
         "banner": "バナー画像URL",
         "displayName": "表示名",
+        "lightningAddress": "LNURLアドレス/ライトニングアドレス",
         "name": "ユーザー名",
         "nip05": "Nostrアドレス",
         "picture": "アイコン画像URL",
         "website": "ウェブサイト"
       },
+      "lightningAddressHelp": "ビットコインを使用したチップ受信に使用します。ライトニングアドレスまたはLNURLアドレスを入力することで他ユーザーからのチップを受け取ることができるようになります。",
       "needLogin": "プロフィールの設定にはログインが必要です",
       "nip05Help": "Nostrアドレスは自身の所有するドメインとアカウントを紐づけるために使用されます。ユーザーの識別や検索に使用されます。",
       "save": "保存",
