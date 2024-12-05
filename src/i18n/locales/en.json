@@ -131,6 +131,7 @@
     "title": "Welcome to Nostr!"
   },
   "postInput": {
+    "cancel": "Cancel",
     "enterToAddNewLine": "Enter to add a new line",
     "fileUpload": {
       "dropFile": "Drop to attach a file",

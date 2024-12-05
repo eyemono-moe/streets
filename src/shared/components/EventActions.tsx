@@ -27,7 +27,7 @@ const EventActions: Component<{
 
   const t = useI18n();
 
-  const openPostInput = usePostInput();
+  const postCtx = usePostInput();
   const replies = useRepliesOfEvent(() => props.event.raw.id);
   const replyCount = createMemo(
     () =>
@@ -53,7 +53,9 @@ const EventActions: Component<{
       .map((tag) => tag.pubkey);
     mentions.push(textData.pubkey);
 
-    openPostInput({
+    if (!postCtx) return;
+
+    postCtx.openPostInput({
       text: "",
       reply: root
         ? {
@@ -93,7 +95,7 @@ const EventActions: Component<{
   };
 
   const handleQuote = () => {
-    openPostInput({
+    postCtx?.openPostInput({
       text: `
 
 nostr:${neventEncode({
