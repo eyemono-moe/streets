@@ -23,9 +23,9 @@ const Column: Component<{
     <div
       class="relative flex h-full shrink-0 overflow-hidden bg-primary transition-width duration-100"
       classList={{
-        "w-80": props.column.size === "small",
-        "w-100": props.column.size === "medium",
-        "w-120": props.column.size === "large",
+        "w-80": layout() === "horizontal" && props.column.size === "small",
+        "w-100": layout() === "horizontal" && props.column.size === "medium",
+        "w-120": layout() === "horizontal" && props.column.size === "large",
         "w-100vw": layout() === "vertical",
       }}
     >
