@@ -25,6 +25,8 @@ const SortableColumn: Component<{
   state: ColumnState;
   index: number;
 }> = (props) => {
+  const [, , layout] = useDeck();
+
   const sortable = createSortable(props.state.id);
   const ctx = useDragDropContext();
 
@@ -35,6 +37,7 @@ const SortableColumn: Component<{
       id={`col-${props.index}`}
       classList={{
         "transition-transform": !!ctx?.[0].active.draggable,
+        "snap-start": layout() === "vertical",
       }}
       style={transformStyle(sortable.transform)}
     >
@@ -77,7 +80,7 @@ const Columns: Component = () => {
 
   return (
     <div class="relative h-full w-full overflow-hidden">
-      <div class="absolute right-2 bottom-4 z-1">
+      <div class="absolute right-2 bottom-4">
         <button
           onClick={() => navigate("/post")}
           type="button"
@@ -88,7 +91,7 @@ const Columns: Component = () => {
       </div>
       <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
         <DragDropSensors />
-        <div class="children:b-r flex h-full w-full overflow-x-scroll">
+        <div class="children:b-r flex h-full w-full snap-x snap-mandatory overflow-x-scroll">
           <SortableProvider ids={ids()}>
             <For each={state.columns}>
               {(column, i) => <SortableColumn state={column} index={i()} />}
