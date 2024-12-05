@@ -17,10 +17,13 @@ type OpenPostInputProps = {
   mention?: string[];
 };
 
-const PostInputContext = createContext<(props: OpenPostInputProps) => void>();
+const PostInputContext = createContext<{
+  openPostInput: (props: OpenPostInputProps) => void;
+  closePostInput: () => void;
+}>();
 
 export const PostInputProvider: ParentComponent = (props) => {
-  const { Dialog: PostInputDialog, open } = useDialog();
+  const { Dialog: PostInputDialog, open, close } = useDialog();
 
   const [state, setState] = createSignal<OpenPostInputProps>();
 
@@ -49,7 +52,7 @@ export const PostInputProvider: ParentComponent = (props) => {
   };
 
   return (
-    <PostInputContext.Provider value={openPostInput}>
+    <PostInputContext.Provider value={{ openPostInput, closePostInput: close }}>
       {props.children}
       <PostInputDialog>
         <PostInput defaultContent={state()?.text} tags={tags()} />
@@ -58,14 +61,4 @@ export const PostInputProvider: ParentComponent = (props) => {
   );
 };
 
-export const usePostInput = () => {
-  const ctx = useContext(PostInputContext);
-
-  if (!ctx) {
-    throw new Error(
-      "[context provider not found] PostInputProvider is not found",
-    );
-  }
-
-  return ctx;
-};
+export const usePostInput = () => useContext(PostInputContext);
