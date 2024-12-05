@@ -25,6 +25,8 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
   );
 
   const { sendReaction, sendState } = useSendReaction();
+  const isSending = () => sendState.sending && !sendState.successAny;
+
   const handleReaction = async () => {
     if (!isLogged()) {
       showLoginModal();
@@ -59,7 +61,7 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
               ? props.reaction.content
               : undefined
         }
-        disabled={sendState.sending}
+        disabled={isSending()}
         onClick={handleReaction}
       >
         <div class="flex h-5 items-center justify-center">
