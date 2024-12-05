@@ -11,7 +11,7 @@ const Post: Component = () => {
   const navigate = useNavigate();
 
   return (
-    <div class="grid h-full grid-rows-[auto_minmax(0,1fr)]">
+    <div class="flex h-full flex-col">
       <Show when={layout() === "vertical"}>
         <div class="flex">
           <button
@@ -23,7 +23,7 @@ const Post: Component = () => {
           </button>
         </div>
       </Show>
-      <div class="overflow-y-auto">
+      <div class="grow overflow-y-auto">
         <PostInput />
       </div>
     </div>
