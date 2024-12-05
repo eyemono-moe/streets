@@ -14,7 +14,7 @@ const Root: ParentComponent = (props) => {
     <Show
       when={layout() === "horizontal"}
       fallback={
-        <div class="grid-col-[minmax(0,1fr)_auto] grid h-100dvh w-screen divide-y-2">
+        <div class="grid h-100dvh w-screen grid-rows-[minmax(0,1fr)_auto] divide-y-2">
           <Columns />
           <Navbar />
           <Dialog open={location.pathname !== "/"}>

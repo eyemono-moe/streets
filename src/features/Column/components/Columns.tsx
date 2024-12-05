@@ -63,6 +63,8 @@ declare module "solid-js" {
 const Columns: Component = () => {
   const t = useI18n();
 
+  const [, , layout] = useDeck();
+
   const [state, { moveColumn }] = useDeck();
   const ids = () => state.columns.map((s) => s.id);
   const navigate = useNavigate();
@@ -88,8 +90,19 @@ const Columns: Component = () => {
               {(column, i) => <SortableColumn state={column} index={i()} />}
             </For>
           </SortableProvider>
-          <A href="/add-column">
-            <div class="flex h-full w-80 flex-col items-center justify-center">
+          <A
+            href="/add-column"
+            classList={{
+              "snap-start": layout() === "vertical",
+            }}
+          >
+            <div
+              class="flex h-full flex-col items-center justify-center"
+              classList={{
+                "w-80": layout() === "horizontal",
+                "w-screen": layout() === "vertical",
+              }}
+            >
               <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-auto w-12" />
               {t("addColumn.title")}
             </div>
