@@ -10,7 +10,7 @@ const Header: Component<{
   const navigate = useNavigate();
 
   return (
-    <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 px-2 py-1">
+    <div class="flex items-center gap-1 px-2 py-1">
       <Show when={props.backTo}>
         {(backTo) => (
           <button
@@ -22,7 +22,7 @@ const Header: Component<{
           </button>
         )}
       </Show>
-      <div class="font-500">{props.title}</div>
+      <div class="grow font-500">{props.title}</div>
       <Show when={layout() === "vertical"}>
         <button
           type="button"
