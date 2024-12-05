@@ -10,7 +10,7 @@ import {
   transformStyle,
   useDragDropContext,
 } from "@thisbeyond/solid-dnd";
-import { type Component, For } from "solid-js";
+import { type Component, For, Show } from "solid-js";
 import { useI18n } from "../../../i18n";
 import { ColumnProvider } from "../context/column";
 import { useDeck } from "../context/deck";
@@ -113,15 +113,17 @@ const Columns: Component = () => {
           {""}
         </DragOverlay>
       </DragDropProvider>
-      <div class="absolute right-2 bottom-4">
-        <button
-          onClick={() => navigate("/post")}
-          type="button"
-          class="rounded-full bg-accent-primary p-2 shadow shadow-ui/25"
-        >
-          <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
-        </button>
-      </div>
+      <Show when={layout() === "vertical"}>
+        <div class="absolute right-2 bottom-4">
+          <button
+            onClick={() => navigate("/post")}
+            type="button"
+            class="rounded-full bg-accent-primary p-2 shadow shadow-ui/25"
+          >
+            <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
+          </button>
+        </div>
+      </Show>
     </div>
   );
 };
