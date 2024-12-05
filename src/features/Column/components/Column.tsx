@@ -1,6 +1,7 @@
 import { createPresence } from "@solid-primitives/presence";
 import { type Component, Show } from "solid-js";
 import { useColumn } from "../context/column";
+import { useDeck } from "../context/deck";
 import type { ColumnState } from "../libs/deckSchema";
 import ColumnContent from "./ColumnContent";
 import type { HandleListeners } from "./Columns";
@@ -10,6 +11,7 @@ const Column: Component<{
   handleListeners: HandleListeners;
   isMoving: boolean;
 }> = (props) => {
+  const [, , layout] = useDeck();
   // biome-ignore lint/style/noNonNullAssertion: Column component is always rendered inside ColumnProvider
   const [, { closeTempColumn }] = useColumn()!;
 
@@ -24,6 +26,7 @@ const Column: Component<{
         "w-80": props.column.size === "small",
         "w-100": props.column.size === "medium",
         "w-120": props.column.size === "large",
+        "w-100vw": layout() === "vertical",
       }}
     >
       <div

@@ -1,4 +1,4 @@
-import { A } from "@solidjs/router";
+import { A, useNavigate } from "@solidjs/router";
 import {
   DragDropProvider,
   DragDropSensors,
@@ -61,8 +61,8 @@ const Columns: Component = () => {
   const t = useI18n();
 
   const [state, { moveColumn }] = useDeck();
-
   const ids = () => state.columns.map((s) => s.id);
+  const navigate = useNavigate();
 
   const onDragEnd: DragEventHandler = ({ draggable, droppable }) => {
     if (draggable && droppable) {
@@ -76,26 +76,37 @@ const Columns: Component = () => {
   };
 
   return (
-    <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
-      <DragDropSensors />
-      <div class="children:b-r flex h-full w-full overflow-x-scroll">
-        <SortableProvider ids={ids()}>
-          <For each={state.columns}>
-            {(column, i) => <SortableColumn state={column} index={i()} />}
-          </For>
-        </SortableProvider>
-        <A href="/add-column">
-          <div class="flex h-full w-80 flex-col items-center justify-center">
-            <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-auto w-12" />
-            {t("addColumn.title")}
-          </div>
-        </A>
+    <div class="relative h-full w-full overflow-hidden">
+      <div class="absolute right-2 bottom-4 z-1">
+        <button
+          onClick={() => navigate("/post")}
+          type="button"
+          class="rounded-full bg-accent-primary p-2 shadow shadow-ui/25"
+        >
+          <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
+        </button>
       </div>
-      <DragOverlay>
-        {/* DragOverlayを使用しない場合カラム全体を標示しようとして動作が重くなるため空文字列のDragOverlayを表示 */}
-        {""}
-      </DragOverlay>
-    </DragDropProvider>
+      <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
+        <DragDropSensors />
+        <div class="children:b-r flex h-full w-full overflow-x-scroll">
+          <SortableProvider ids={ids()}>
+            <For each={state.columns}>
+              {(column, i) => <SortableColumn state={column} index={i()} />}
+            </For>
+          </SortableProvider>
+          <A href="/add-column">
+            <div class="flex h-full w-80 flex-col items-center justify-center">
+              <div class="i-material-symbols:add-column-right-outline-rounded aspect-square h-auto w-12" />
+              {t("addColumn.title")}
+            </div>
+          </A>
+        </div>
+        <DragOverlay>
+          {/* DragOverlayを使用しない場合カラム全体を標示しようとして動作が重くなるため空文字列のDragOverlayを表示 */}
+          {""}
+        </DragOverlay>
+      </DragDropProvider>
+    </div>
   );
 };
 
