@@ -1,7 +1,8 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { NIP05_REGEX } from "nostr-tools/nip05";
 import * as v from "valibot";
-import { useI18n } from "../../../i18n";
+import type { Translator } from "../../../i18n";
+import { isLud06, isLud16, lud06, lud16 } from "../zap";
 
 const fallbackUnknown = <TIn, TOut, TIssue>(
   s: v.BaseSchema<TIn, TOut, v.BaseIssue<TIssue>>,
@@ -47,12 +48,20 @@ const NIP24Deprecated = v.object({
   username: v.nullish(v.string(), () => undefined),
 });
 
+// https://github.com/nostr-protocol/nips/blob/master/57.md
+
+const NIP57 = v.object({
+  lud06: v.nullish(v.string(), () => undefined),
+  lud16: v.nullish(v.string(), () => undefined),
+});
+
 const metadataContentSchema = v.pipe(
   v.object({
     ...NIP01.entries,
     ...NIP05.entries,
     ...NIP24.entries,
     ...NIP24Deprecated.entries,
+    ...NIP57.entries,
   }),
   v.transform((output) => ({
     ...output,
@@ -86,22 +95,44 @@ export const parseMetadata = (input: NostrEvent) => {
 
 export type Metadata = ReturnType<typeof parseMetadata>;
 
-const t = useI18n();
-export const profileSettingsSchema = v.object({
-  name: v.string(),
-  about: v.string(),
-  picture: v.string(),
-  nip05: v.union([
-    v.literal(""),
-    v.pipe(
-      v.string(),
-      v.regex(NIP05_REGEX, t("settings.profile.error.invalidNip05")),
-    ),
-  ]),
-  display_name: v.string(),
-  website: v.string(),
-  banner: v.string(),
-});
+export const profileSettingsSchema = (t: Translator) =>
+  v.pipe(
+    v.object({
+      name: v.string(),
+      about: v.string(),
+      picture: v.string(),
+      nip05: v.union(
+        [
+          v.literal(""),
+          v.pipe(
+            v.string(),
+            v.regex(NIP05_REGEX, t("settings.profile.error.invalidNip05")),
+          ),
+        ],
+        t("settings.profile.error.invalidNip05"),
+      ),
+      display_name: v.string(),
+      website: v.string(),
+      banner: v.string(),
+      lightningAddress: v.union(
+        [v.literal(""), lud06, lud16],
+        t("settings.profile.error.invalidLNAddress"),
+      ),
+    }),
+    v.transform((input) => ({
+      ...input,
+      lud06: isLud06(input.lightningAddress)
+        ? input.lightningAddress
+        : undefined,
+      lud16: isLud16(input.lightningAddress)
+        ? input.lightningAddress
+        : undefined,
+    })),
+  );
 
-export type ProfileSettingsInput = v.InferInput<typeof profileSettingsSchema>;
-export type ProfileSettingsOutput = v.InferOutput<typeof profileSettingsSchema>;
+export type ProfileSettingsInput = v.InferInput<
+  ReturnType<typeof profileSettingsSchema>
+>;
+export type ProfileSettingsOutput = v.InferOutput<
+  ReturnType<typeof profileSettingsSchema>
+>;

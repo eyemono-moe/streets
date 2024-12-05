@@ -24,3 +24,5 @@ const fetchDictionary = async (locale: string): Promise<Dictionary> => {
 const [dict] = createResource(locale, fetchDictionary);
 
 export const useI18n = () => i18n.translator(dict, i18n.resolveTemplate);
+
+export type Translator = ReturnType<typeof useI18n>;

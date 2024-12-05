@@ -26,6 +26,7 @@ import {
   useUploadFiles,
 } from "../../../shared/libs/uploadFile";
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
+import { usePostInput } from "../context/postInputDialog";
 import { useFileDrop } from "../lib/useFileDrop";
 import PostPreview from "./PostPreview";
 
@@ -160,6 +161,8 @@ const PostInput: Component<{
     fileUpload().setFiles(files);
   };
 
+  const postCtx = usePostInput();
+
   const postText = async () => {
     if (isSending()) return;
     setIsSending(true);
@@ -211,6 +214,11 @@ const PostInput: Component<{
     setContent("");
     fileUpload().clearFiles();
     fileUpload().clearRejectedFiles();
+
+    // モーダル投稿欄から投稿していたらモーダルを閉じる
+    if (postCtx) {
+      postCtx.closePostInput();
+    }
   };
 
   return (

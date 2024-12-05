@@ -57,6 +57,10 @@ export const fetchOgp = async (url: string, proxy = true) => {
 
   const parseRes = v.safeParse(ogpScheme, ogp);
   if (parseRes.success) {
+    if (parseRes.output.url?.startsWith("/")) {
+      parseRes.output.url = new URL(parseRes.output.url, url).href;
+    }
+
     return parseRes.output;
   }
 };

@@ -3,6 +3,7 @@ import { Dialog as KDialog } from "@kobalte/core/dialog";
 import { type ParentComponent, Show } from "solid-js";
 import "../../assets/dialog.css";
 
+// TODO: モバイルではダイアログをフルスクリーンかdrawerで表示する
 export const useDialog = () => {
   const { isOpen, open, close, setIsOpen } = createDisclosureState();
 
