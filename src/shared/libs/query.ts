@@ -602,8 +602,10 @@ export const useUserList = () =>
 const createSender = () => {
   const { rxNostr } = useRxNostr();
   const [sendState, setSendState] = createStore<{
+    /** すべての送信先リレーについて送信中かどうか */
     sending: boolean;
-    successAny: boolean;
+    /** どれか1つでも成功したかどうか, 送信中でない場合は最後の送信の結果 */
+    successAny: boolean | undefined;
     error: unknown;
     relayStates: {
       [relay: string]:
@@ -615,7 +617,7 @@ const createSender = () => {
     };
   }>({
     sending: false,
-    successAny: false,
+    successAny: undefined,
     relayStates: {},
     error: undefined,
   });

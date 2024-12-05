@@ -114,9 +114,9 @@ const PostInput: Component<{
     }
   };
 
-  const [isSending, setIsSending] = createSignal(false);
   const { progress: fileUploadProgress, uploadFiles } = useUploadFiles();
-  const { sendShortText } = useSendShortText();
+  const { sendShortText, sendState } = useSendShortText();
+  const isSending = () => sendState.sending && !sendState.successAny;
 
   const [, serverConfig] = useFileServer();
   const fileUpload = useFileUpload({
@@ -165,11 +165,9 @@ const PostInput: Component<{
 
   const postText = async () => {
     if (isSending()) return;
-    setIsSending(true);
 
     // 何も入力されていない場合は何もしない
     if (content() === "" && fileUpload().acceptedFiles.length === 0) {
-      setIsSending(false);
       return;
     }
 
@@ -179,7 +177,6 @@ const PostInput: Component<{
     if (fileUpload().acceptedFiles.length > 0) {
       if (serverConfig.state !== "ready") {
         toast.error(t("noFileServerConfigured"));
-        setIsSending(false);
         return;
       }
       const apiUrl = serverConfig().api_url;
@@ -196,7 +193,6 @@ const PostInput: Component<{
           .filter((v): v is NonNullable<typeof v> => !!v);
       } catch (e) {
         console.error(e);
-        setIsSending(false);
         return;
       }
     }
@@ -210,7 +206,6 @@ const PostInput: Component<{
       tags: referenceTags().concat(iMetaTags),
     });
 
-    setIsSending(false);
     setContent("");
     fileUpload().clearFiles();
     fileUpload().clearRejectedFiles();
