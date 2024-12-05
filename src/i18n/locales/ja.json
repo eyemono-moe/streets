@@ -131,6 +131,7 @@
     "title": "Nostrへようこそ！"
   },
   "postInput": {
+    "cancel": "キャンセル",
     "enterToAddNewLine": "Enterで改行",
     "fileUpload": {
       "dropFile": "ドロップしてファイルを添付",

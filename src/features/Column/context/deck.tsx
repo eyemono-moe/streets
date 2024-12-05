@@ -1,4 +1,6 @@
+import { createMediaQuery } from "@solid-primitives/media";
 import {
+  type Accessor,
   type ParentComponent,
   createContext,
   createEffect,
@@ -111,6 +113,7 @@ const DeckContext =
          */
         setUIColor: (color: string) => void;
       },
+      layout: Accessor<"horizontal" | "vertical">,
     ]
   >();
 
@@ -238,6 +241,10 @@ export const DeckProvider: ParentComponent = (props) => {
     setState("display", "theme", "ui", color);
   };
 
+  // TODO: 外観設定で切り替えられるようにする
+  const isVertical = createMediaQuery("(max-aspect-ratio: 2/3)");
+  const layout = () => (isVertical() ? "vertical" : "horizontal");
+
   return (
     <DeckContext.Provider
       value={[
@@ -253,6 +260,7 @@ export const DeckProvider: ParentComponent = (props) => {
           setAccentColor,
           setUIColor,
         },
+        layout,
       ]}
     >
       {props.children}

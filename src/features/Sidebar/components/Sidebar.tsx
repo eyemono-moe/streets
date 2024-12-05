@@ -37,7 +37,7 @@ const Sidebar: Component = () => {
         </NavigateButton>
         <SearchPopover />
       </div>
-      <div class="flex flex-col">
+      <div class="flex flex-col overflow-y-auto">
         <ShortcutButtons />
         <NavigateButton onClick={() => navigate("/add-column")}>
           <div class="i-material-symbols:add-rounded aspect-square h-auto w-8" />
