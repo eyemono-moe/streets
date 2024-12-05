@@ -80,15 +80,6 @@ const Columns: Component = () => {
 
   return (
     <div class="relative h-full w-full overflow-hidden">
-      <div class="absolute right-2 bottom-4">
-        <button
-          onClick={() => navigate("/post")}
-          type="button"
-          class="rounded-full bg-accent-primary p-2 shadow shadow-ui/25"
-        >
-          <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
-        </button>
-      </div>
       <DragDropProvider onDragEnd={onDragEnd} collisionDetector={closestCenter}>
         <DragDropSensors />
         <div class="children:b-r flex h-full w-full snap-x snap-mandatory overflow-x-scroll">
@@ -109,6 +100,15 @@ const Columns: Component = () => {
           {""}
         </DragOverlay>
       </DragDropProvider>
+      <div class="absolute right-2 bottom-4">
+        <button
+          onClick={() => navigate("/post")}
+          type="button"
+          class="rounded-full bg-accent-primary p-2 shadow shadow-ui/25"
+        >
+          <div class="i-material-symbols:edit-square-outline-rounded aspect-square h-auto w-8" />
+        </button>
+      </div>
     </div>
   );
 };
