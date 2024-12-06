@@ -11,7 +11,7 @@ import {
   uniq,
 } from "rx-nostr";
 import { createVerificationServiceClient } from "rx-nostr-crypto";
-import { bufferWhen, interval } from "rxjs";
+import { bufferWhen, interval, share, tap } from "rxjs";
 import {
   type ParentComponent,
   createContext,
@@ -71,14 +71,21 @@ export const RxNostrProvider: ParentComponent = (props) => {
     rxNostr.setDefaultRelays(relays.defaultRelays);
   });
 
-  rxNostr
-    .createAllMessageObservable()
-    .pipe(filterByType("NOTICE"))
-    .subscribe({
-      next: (e) => {
-        console.warn(`NOTICE from:${e.from}: ${e.notice}`);
-      },
-    });
+  const allMessage$ = rxNostr.createAllMessageObservable().pipe(share());
+
+  // NOTICEイベントを監視
+  allMessage$.pipe(filterByType("NOTICE")).subscribe({
+    next: (e) => {
+      console.warn(`NOTICE from:${e.from}: ${e.notice}`);
+    },
+  });
+
+  // EOSEイベントを監視
+  allMessage$.pipe(filterByType("EOSE")).subscribe({
+    next: (e) => {
+      console.log("eose", e.subId);
+    },
+  });
 
   const rxBackwardReq = createRxBackwardReq();
   const emit = rxBackwardReq.emit;
@@ -90,11 +97,17 @@ export const RxNostrProvider: ParentComponent = (props) => {
       rxBackwardReq.pipe(
         bufferWhen(() => interval(1000)),
         batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
+        // TODO: max_filtersを尊重してchunkする
+        // see: https://penpenpng.github.io/rx-nostr/ja/v3/req-packet-operators.html#chunk
+        tap((e) => {
+          console.log("marged", e);
+        }),
       ),
     )
     .pipe(uniq())
     .subscribe({
       next: (e) => {
+        console.log(e.subId);
         cacheAndEmitRelatedEvent(e, emit, setter);
       },
     });
