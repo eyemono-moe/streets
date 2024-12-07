@@ -51,7 +51,7 @@ const EventCacheContext = createContext<{
 }>();
 
 export const EventCacheProvider: ParentComponent = (props) => {
-  const emitterMap = new Map<string, () => void>();
+  const emitterMap = new Map<string, () => void | Promise<void>>();
 
   // TODO: persist cache
   const [cacheStore, setCacheStore] = createStore<{
@@ -59,7 +59,7 @@ export const EventCacheProvider: ParentComponent = (props) => {
   }>();
 
   const get = <T,>(
-    props: () => { queryKey: CacheKey; emitter: () => void },
+    props: () => { queryKey: CacheKey; emitter: () => void | Promise<void> },
   ) => {
     const key = () => hash(props().queryKey);
 
@@ -102,7 +102,9 @@ export const EventCacheProvider: ParentComponent = (props) => {
     const emitter = emitterMap.get(key);
     if (emitter) {
       setCacheStore(key, "isFetching", true);
-      emitter();
+      emitter()?.finally(() => {
+        setCacheStore(key, "isFetching", false);
+      });
     } else {
       console.error(`emitter is not found for ${key}`);
     }

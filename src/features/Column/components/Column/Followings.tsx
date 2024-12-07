@@ -30,11 +30,17 @@ const Followings: Component<{
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
         <ScrollButton />
+        {/* TODO: loading表示 */}
         <Switch>
           <Match when={pubkey() === undefined}>
             <NeedLoginPlaceholder message={t("column.timeline.needLogin")} />
           </Match>
-          <Match when={followees().data}>
+          <Match when={followees().data?.parsed.followees.length === 0}>
+            <div class="flex h-full w-full flex-col items-center justify-center gap-2">
+              <div>{t("column.timeline.noFollowees")}</div>
+            </div>
+          </Match>
+          <Match when={followees().data?.parsed.followees.length}>
             <InfiniteEvents
               filter={{
                 kinds: [kinds.ShortTextNote, kinds.Repost],

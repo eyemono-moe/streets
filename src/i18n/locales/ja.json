@@ -74,6 +74,7 @@
     },
     "timeline": {
       "needLogin": "タイムラインを確認するにはログインが必要です",
+      "noFollowees": "誰もフォローしていません",
       "title": "ホーム"
     },
     "trends": {
