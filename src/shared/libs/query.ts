@@ -337,13 +337,13 @@ export const useFollowees = (pubkey: () => string | undefined) => {
   const queryKey = () => [kinds.Contacts, pubkey()];
 
   const {
-    actions: { emit },
+    actions: { emit, emitWithEOSE },
   } = useRxNostr();
 
   const emitter = () => {
     const _pubkey = pubkey();
     if (_pubkey) {
-      emit({
+      return emitWithEOSE({
         kinds: [kinds.Contacts],
         authors: [_pubkey],
       });

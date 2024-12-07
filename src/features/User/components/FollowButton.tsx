@@ -25,7 +25,9 @@ const FollowButton: Component<{ pubkey?: string }> = (props) => {
 
   const { sendContacts, sendState: followSendState } = useSendContacts();
   const isLoading = () =>
-    myFollowees().isInvalidated || followSendState.sending;
+    myFollowees().isFetching ||
+    myFollowees().isInvalidated ||
+    followSendState.sending;
 
   const handleFollow = (e: MouseEvent) => {
     e.stopPropagation();
@@ -35,30 +37,35 @@ const FollowButton: Component<{ pubkey?: string }> = (props) => {
       return;
     }
 
-    const prevFollowees = myFollowees().data;
+    if (isLoading()) {
+      return;
+    }
+
+    const prevFolloweesData = myFollowees().data;
+    const prevFollowees = prevFolloweesData?.parsed.followees || [];
     const _myPubkey = myPubkey();
 
-    if (!props.pubkey || !prevFollowees || !_myPubkey) {
+    if (!props.pubkey || !_myPubkey) {
       return;
     }
 
     if (isFollowing()) {
-      const newFollowees = prevFollowees.parsed.followees
+      const newFollowees = prevFollowees
         .map((f) => f.pubkey)
         .filter((f) => f !== props.pubkey);
 
       sendContacts({
-        content: prevFollowees.parsed.content,
+        content: prevFolloweesData?.parsed.content ?? "",
         newFollowees,
         pubkey: _myPubkey,
       });
     } else {
-      const newFollowees = prevFollowees.parsed.followees
+      const newFollowees = prevFollowees
         .map((f) => f.pubkey)
         .concat([props.pubkey]);
 
       sendContacts({
-        content: prevFollowees.parsed.content,
+        content: prevFolloweesData?.parsed.content ?? "",
         newFollowees,
         pubkey: _myPubkey,
       });
