@@ -178,6 +178,7 @@
     "display": {
       "accentColor": "Accent color",
       "color": "Color theme",
+      "customColor": "Set individually",
       "fontSize": "Font size",
       "title": "Display",
       "uiColor": "Text and background color"

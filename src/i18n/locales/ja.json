@@ -178,6 +178,7 @@
     "display": {
       "accentColor": "アクセントカラー",
       "color": "カラーテーマ",
+      "customColor": "個別に設定する",
       "fontSize": "フォントサイズ",
       "title": "表示",
       "uiColor": "文字色と背景色"
