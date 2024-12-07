@@ -11,7 +11,7 @@ import {
   uniq,
 } from "rx-nostr";
 import { createVerificationServiceClient } from "rx-nostr-crypto";
-import { bufferWhen, interval } from "rxjs";
+import { bufferWhen, interval, pipe, share } from "rxjs";
 import {
   type ParentComponent,
   createContext,
@@ -29,13 +29,17 @@ import workerUrl from "../shared/libs/verifierWorker?worker&url";
 import { eventCacheSetter } from "./eventCache";
 import { useRelays } from "./relays";
 
+type Emitter = RxReqEmittable<{ relays: string[] }>["emit"];
+type EmitParams = Parameters<Emitter>;
+
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
   connectionState: {
     [from: string]: ConnectionState | undefined;
   };
   actions: {
-    emit: RxReqEmittable<{ relays: string[] }>["emit"];
+    emit: Emitter;
+    emitWithEOSE: (...props: EmitParams) => Promise<void>;
   };
 }>();
 
@@ -71,33 +75,48 @@ export const RxNostrProvider: ParentComponent = (props) => {
     rxNostr.setDefaultRelays(relays.defaultRelays);
   });
 
-  rxNostr
-    .createAllMessageObservable()
-    .pipe(filterByType("NOTICE"))
-    .subscribe({
-      next: (e) => {
-        console.warn(`NOTICE from:${e.from}: ${e.notice}`);
-      },
-    });
+  const allMessage$ = rxNostr.createAllMessageObservable().pipe(share());
+
+  // NOTICEイベントを監視
+  allMessage$.pipe(filterByType("NOTICE")).subscribe({
+    next: (e) => {
+      console.warn(`NOTICE from:${e.from}: ${e.notice}`);
+    },
+  });
 
   const rxBackwardReq = createRxBackwardReq();
   const emit = rxBackwardReq.emit;
   const setter = eventCacheSetter();
 
+  allMessage$.pipe(filterByType("EVENT"), uniq()).subscribe({
+    next: (e) => {
+      cacheAndEmitRelatedEvent(e, emit, setter);
+    },
+  });
+
+  const batchReq = pipe(
+    bufferWhen(() => interval(1000)),
+    batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
+    // TODO: max_filtersを尊重してchunkする
+    // see: https://penpenpng.github.io/rx-nostr/ja/v3/req-packet-operators.html#chunk
+  );
+
   // すべてのbackwardReq由来のイベント
-  rxNostr
-    .use(
-      rxBackwardReq.pipe(
-        bufferWhen(() => interval(1000)),
-        batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
-      ),
-    )
-    .pipe(uniq())
-    .subscribe({
-      next: (e) => {
-        cacheAndEmitRelatedEvent(e, emit, setter);
-      },
+  rxNostr.use(rxBackwardReq.pipe(batchReq)).subscribe();
+
+  // EOSE時にresolveするemit
+  const emitWithEOSE = (...props: Parameters<typeof emit>) => {
+    return new Promise<void>((resolve) => {
+      const backwardReq = createRxBackwardReq();
+      rxNostr.use(backwardReq.pipe(batchReq)).subscribe({
+        complete() {
+          resolve();
+        },
+      });
+      backwardReq.emit(...props);
+      backwardReq.over();
     });
+  };
 
   const [connectionState, setConnectionState] = createStore<{
     [from: string]: ConnectionState;
@@ -116,6 +135,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
         connectionState,
         actions: {
           emit,
+          emitWithEOSE,
         },
       }}
     >

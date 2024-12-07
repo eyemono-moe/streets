@@ -74,6 +74,7 @@
     },
     "timeline": {
       "needLogin": "You need to log in to check the timeline",
+      "noFollowees": "no one is following",
       "title": "Home"
     },
     "trends": {
