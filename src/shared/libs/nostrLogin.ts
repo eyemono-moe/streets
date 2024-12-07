@@ -1,5 +1,5 @@
-import { launch } from "nostr-login";
-
 export const showLoginModal = () => {
-  launch();
+  import("nostr-login").then(({ launch }) => {
+    launch();
+  });
 };

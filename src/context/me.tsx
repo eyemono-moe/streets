@@ -1,9 +1,5 @@
 import { waitNostr } from "nip07-awaiter";
 import {
-  init as initNostrLogin,
-  launch as launchNostrLoginDialog,
-} from "nostr-login";
-import {
   type ParentComponent,
   createContext,
   createSignal,
@@ -32,14 +28,15 @@ export const MeProvider: ParentComponent = (props) => {
 
   // nip07の読み込み後にnostr loginを初期化しないとアカウント切り替え画面が表示されてしまう
   onMount(async () => {
+    const { init, launch } = await import("nostr-login");
     const n = await waitNostr(1000);
-    await initNostrLogin({
+    await init({
       title: t("nostrLogin.title"),
       description: t("nostrLogin.description"),
     });
     // nip07が見つからなかった時はwelcome screenを表示する
     if (n === undefined) {
-      launchNostrLoginDialog("welcome");
+      launch("welcome");
     }
   });
 
