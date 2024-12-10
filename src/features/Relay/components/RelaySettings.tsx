@@ -111,14 +111,14 @@ const RelaySettings: Component = () => {
   });
 
   createEffect(() => {
-    reset(
-      untrack(() => form),
-      {
+    const relays = relaysArray();
+    untrack(() => {
+      reset(form, {
         initialValues: {
-          relays: relaysArray(),
+          relays,
         },
-      },
-    );
+      });
+    });
   });
 
   // TODO: nostr-loginを使用するとgetRelaysが使えないため一旦実装を見送る

@@ -5,6 +5,7 @@ import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import { type Component, createEffect } from "solid-js";
 import { EventCacheProvider } from "./context/eventCache";
 import { FileServerProvider } from "./context/fileServer";
+import { LoadingProvider } from "./context/loading";
 import { MeProvider } from "./context/me";
 import { MuteProvider } from "./context/mute";
 import { RelaysProvider } from "./context/relays";
@@ -34,22 +35,24 @@ const App: Component = () => {
     <>
       <QueryClientProvider client={queryClient}>
         <EventCacheProvider>
-          <MeProvider>
-            <RelaysProvider>
-              <FileServerProvider>
-                <RxNostrProvider>
-                  <MuteProvider>
-                    <DeckProvider>
-                      <PostInputProvider>
-                        <Router>{routes}</Router>
-                      </PostInputProvider>
-                    </DeckProvider>
-                  </MuteProvider>
-                </RxNostrProvider>
-              </FileServerProvider>
-              <SolidQueryDevtools />
-            </RelaysProvider>
-          </MeProvider>
+          <LoadingProvider>
+            <MeProvider>
+              <RelaysProvider>
+                <FileServerProvider>
+                  <RxNostrProvider>
+                    <MuteProvider>
+                      <DeckProvider>
+                        <PostInputProvider>
+                          <Router>{routes}</Router>
+                        </PostInputProvider>
+                      </DeckProvider>
+                    </MuteProvider>
+                  </RxNostrProvider>
+                </FileServerProvider>
+                <SolidQueryDevtools />
+              </RelaysProvider>
+            </MeProvider>
+          </LoadingProvider>
         </EventCacheProvider>
       </QueryClientProvider>
       <Toaster />

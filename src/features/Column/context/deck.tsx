@@ -37,6 +37,7 @@ const initialState: DeckState = {
       accent: "#8340bb",
       ui: "#302070",
     },
+    showLoading: true,
   },
 };
 
@@ -112,13 +113,17 @@ const DeckContext =
          * @param color - The new UI color
          */
         setUIColor: (color: string) => void;
+        /**
+         * Toggle the loading indicator
+         */
+        toggleShowLoading: () => void;
       },
       layout: Accessor<"horizontal" | "vertical">,
     ]
   >();
 
 export const DeckProvider: ParentComponent = (props) => {
-  const [state, setState] = createLocalStore(
+  const [state, setState] = createLocalStore<DeckState>(
     "monostr.deckState",
     initialState,
     (str) => {
@@ -241,6 +246,10 @@ export const DeckProvider: ParentComponent = (props) => {
     setState("display", "theme", "ui", color);
   };
 
+  const toggleShowLoading = () => {
+    setState("display", "showLoading", (show) => !show);
+  };
+
   // TODO: 外観設定で切り替えられるようにする
   const isVertical = createMediaQuery("(max-aspect-ratio: 2/3)");
   const layout = () => (isVertical() ? "vertical" : "horizontal");
@@ -259,6 +268,7 @@ export const DeckProvider: ParentComponent = (props) => {
           scrollIntoView,
           setAccentColor,
           setUIColor,
+          toggleShowLoading,
         },
         layout,
       ]}
