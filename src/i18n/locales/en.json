@@ -181,6 +181,8 @@
       "color": "Color theme",
       "customColor": "Set individually",
       "fontSize": "Font size",
+      "loadingIndicator": "loading",
+      "showLoading": "Show loading indicator",
       "title": "Display",
       "uiColor": "Text and background color"
     },

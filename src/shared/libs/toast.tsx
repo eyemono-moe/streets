@@ -107,9 +107,14 @@ const promise = <T, U>(
     </MyToast>
   ));
 };
-const custom = (jsx: () => JSX.Element) => {
+const custom = (
+  jsx: () => JSX.Element,
+  options?: Omit<ComponentProps<typeof Toast>, "toastId">,
+) => {
   return toaster.show((props) => (
-    <Toast toastId={props.toastId}>{jsx()}</Toast>
+    <Toast {...options} toastId={props.toastId}>
+      {jsx()}
+    </Toast>
   ));
 };
 const dismiss = (id: number) => {

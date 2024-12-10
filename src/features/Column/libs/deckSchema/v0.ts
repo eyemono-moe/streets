@@ -61,5 +61,6 @@ export const deckStateV0 = v.object({
       accent: v.string(),
       ui: v.string(),
     }),
+    showLoading: v.optional(v.boolean(), true),
   }),
 });

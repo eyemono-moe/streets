@@ -1,4 +1,5 @@
 import { type Filter, kinds } from "nostr-tools";
+import { normalizeURL } from "nostr-tools/utils";
 import type { Event, EventParameters } from "nostr-typedef";
 import {
   type EventPacket,
@@ -12,8 +13,8 @@ import {
 } from "rx-nostr";
 import { bufferWhen, interval, map, tap } from "rxjs";
 import stringify from "safe-stable-stringify";
-import { createSignal } from "solid-js";
-import { createStore } from "solid-js/store";
+import { createEffect, createSignal } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import {
   type CacheDataBase,
   type CacheKey,
@@ -23,7 +24,9 @@ import {
   useEventCacheStore,
   useInvalidateEventCache,
 } from "../../context/eventCache";
+import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
+import { genID } from "./id";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import {
   type ParsedEventPacket,
@@ -599,43 +602,49 @@ const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
 export const useUserList = () =>
   useCacheByQueryKey<ParsedEventPacket<Metadata>>(() => [0]);
 
+const initialSendState = (): SendingState => ({
+  id: "",
+  sending: false,
+  successAny: undefined,
+  relayStates: {},
+  error: undefined,
+});
+
 const createSender = () => {
   const { rxNostr } = useRxNostr();
-  const [sendState, setSendState] = createStore<{
-    /** すべての送信先リレーについて送信中かどうか */
-    sending: boolean;
-    /** どれか1つでも成功したかどうか, 送信中でない場合は最後の送信の結果 */
-    successAny: boolean | undefined;
-    error: unknown;
-    relayStates: {
-      [relay: string]:
-        | {
-            done: boolean;
-            notice?: string;
-          }
-        | undefined;
-    };
-  }>({
-    sending: false,
-    successAny: undefined,
-    relayStates: {},
-    error: undefined,
-  });
+  const [sendState, setSendState] = createStore<SendingState>(
+    initialSendState(),
+  );
+  const [latestSendState, { setLatestSendState }] = useLoading();
 
   const sender = (event: EventParameters, onComplete?: () => void) => {
+    setSendState("id", genID());
     setSendState("sending", true);
     setSendState("successAny", false);
+    setSendState("relayStates", reconcile({}));
+    setSendState("error", undefined);
+
+    setLatestSendState(sendState);
+    createEffect(() => {
+      void sendState.sending;
+      const latestId = latestSendState.id;
+      if (latestId === sendState.id) {
+        setLatestSendState(sendState);
+      }
+    });
+
     return new Promise<void>((resolve) => {
       rxNostr.send(event).subscribe({
         next: (e) => {
           if (e.ok && e.done) {
             setSendState("successAny", true);
-            setSendState("relayStates", e.from, {
+            setSendState("relayStates", normalizeURL(e.from), {
               done: true,
             });
+            resolve();
           }
           if (e.notice) {
-            setSendState("relayStates", e.from, {
+            setSendState("relayStates", normalizeURL(e.from), {
               notice: e.notice,
             });
           }
@@ -647,7 +656,7 @@ const createSender = () => {
         complete: () => {
           setSendState("sending", false);
           onComplete?.();
-          resolve();
+          resolve(); // 一つも送信できなかった場合のためここでもresolveする
         },
       });
     });
@@ -726,10 +735,7 @@ export const useSendRepost = () => {
   const { sender, sendState } = createSender();
   const invalidate = useInvalidateEventCache();
 
-  const sendRepost = (props: {
-    targetEvent: Event;
-    relay: string;
-  }) => {
+  const sendRepost = (props: { targetEvent: Event; relay: string }) => {
     const tags = [
       ["e", props.targetEvent.id, props.relay],
       ["p", props.targetEvent.pubkey],
