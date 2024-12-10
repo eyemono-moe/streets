@@ -4,81 +4,15 @@ import { type Component, For, Show } from "solid-js";
 import { useLoading } from "../../../context/loading";
 import { useRxNostr } from "../../../context/rxNostr";
 
-const lookupTable: { r: number; a: number }[][] = [
-  [{ r: 3, a: 35 }],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 70 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 32 },
-    { r: 3, a: 70 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 27 },
-    { r: 3, a: 48 },
-    { r: 3, a: 70 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 38 },
-    { r: 3, a: 70 },
-    { r: 2, a: 21 },
-    { r: 2, a: 54 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 27 },
-    { r: 3, a: 48 },
-    { r: 3, a: 70 },
-    { r: 2, a: 15 },
-    { r: 2, a: 55 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 27 },
-    { r: 3, a: 48 },
-    { r: 3, a: 70 },
-    { r: 2, a: 15 },
-    { r: 2, a: 55 },
-    { r: 1, a: 35 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 27 },
-    { r: 3, a: 48 },
-    { r: 3, a: 70 },
-    { r: 2, a: 13 },
-    { r: 2, a: 45 },
-    { r: 2, a: 66 },
-    { r: 1, a: 37 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 27 },
-    { r: 3, a: 48 },
-    { r: 3, a: 70 },
-    { r: 2, a: 15 },
-    { r: 2, a: 42 },
-    { r: 2, a: 62 },
-    { r: 1, a: 20 },
-    { r: 1, a: 50 },
-  ],
-  [
-    { r: 3, a: 5 },
-    { r: 3, a: 20 },
-    { r: 3, a: 40 },
-    { r: 3, a: 59 },
-    { r: 3, a: 76 },
-    { r: 2, a: 15 },
-    { r: 2, a: 42 },
-    { r: 2, a: 63 },
-    { r: 1, a: 10 },
-    { r: 1, a: 55 },
-  ],
-];
+const goldenAngleRad = 2.399963229728653; // (3 - Math.sqrt(5)) * Math.PI
+const phase = 0.7; // 斜めにしていい感じに見えるように調整
+
+const ox = 65;
+const oy = 65;
+const M = 50;
+const m = 20;
+const l = (count: number, i: number) =>
+  m + ((M - m) * Math.sqrt(count * (count - i))) / count;
 
 const random = (seed: number) => {
   let s = seed % 2147483647;
@@ -101,10 +35,6 @@ const PublishingIndicators: Component = () => {
   const relays = () => Object.keys(connectionState).slice(0, 10);
   const relayCount = () => Math.min(relays().length, 10);
 
-  const ox = 6;
-  const oy = 124;
-  const l = 35;
-
   return (
     <Show when={isMounted()}>
       {/* biome-ignore lint/a11y/noSvgWithoutTitle: */}
@@ -126,11 +56,17 @@ const PublishingIndicators: Component = () => {
               return latestSendState.sending ? done : done !== undefined;
             };
 
-            const p = () => lookupTable[relayCount() - 1][i()];
+            // 黄金角を使って均等に配置
             const x = () =>
-              Math.floor(ox + l * p().r * Math.cos((p().a * Math.PI) / 180));
+              Math.floor(
+                ox +
+                  l(relayCount(), i()) * Math.cos(i() * goldenAngleRad + phase),
+              );
             const y = () =>
-              Math.floor(oy - l * p().r * Math.sin((p().a * Math.PI) / 180));
+              Math.floor(
+                oy -
+                  l(relayCount(), i()) * Math.sin(i() * goldenAngleRad + phase),
+              );
 
             const color = () =>
               success()
@@ -153,7 +89,7 @@ const PublishingIndicators: Component = () => {
                   <animate
                     attributeName="x2"
                     calcMode="spline"
-                    values={`${x() + 5}; ${x() - 5}; ${x() + 5}`}
+                    values={`${x() + 3}; ${x() - 3}; ${x() + 3}`}
                     keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
                     dur="2.41s"
                     begin={`-${i() * 127}s`}
@@ -162,7 +98,7 @@ const PublishingIndicators: Component = () => {
                   <animate
                     attributeName="y2"
                     calcMode="spline"
-                    values={`${y() + 5}; ${y() - 5}; ${y() + 5}`}
+                    values={`${y() + 3}; ${y() - 3}; ${y() + 3}`}
                     keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
                     dur="3.13s"
                     begin={`-${i() * 127}s`}
@@ -176,7 +112,7 @@ const PublishingIndicators: Component = () => {
                   <animate
                     attributeName="cx"
                     calcMode="spline"
-                    values={`${x() + 5}; ${x() - 5}; ${x() + 5}`}
+                    values={`${x() + 3}; ${x() - 3}; ${x() + 3}`}
                     keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
                     dur="2.41s"
                     begin={`-${i() * 127}s`}
@@ -185,7 +121,7 @@ const PublishingIndicators: Component = () => {
                   <animate
                     attributeName="cy"
                     calcMode="spline"
-                    values={`${y() + 5}; ${y() - 5}; ${y() + 5}`}
+                    values={`${y() + 3}; ${y() - 3}; ${y() + 3}`}
                     keySplines="0.4 0 0.6 1;0.4 0 0.6 1"
                     dur="3.13s"
                     begin={`-${i() * 127}s`}
@@ -196,6 +132,7 @@ const PublishingIndicators: Component = () => {
             );
           }}
         </For>
+        <circle r="10" cx="65" cy="65" class="fill-accent" />
       </svg>
     </Show>
   );

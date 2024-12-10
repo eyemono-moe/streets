@@ -47,21 +47,9 @@ const Sidebar: Component = () => {
         <NavigateButton onClick={() => navigate("/settings")}>
           <div class="i-material-symbols:settings-outline-rounded aspect-square h-auto w-8" />
         </NavigateButton>
-        {/* <div class="relative z-999">
-          <NavigateButton>
-            <img
-              src={Logo}
-              alt="streets logo"
-              class="aspect-square h-auto w-8"
-            />
-          </NavigateButton>
-          <div class="absolute bottom-5 left-5 z--1">
-            <PublishingIndicators />
-          </div>
-        </div> */}
-        <NavigateButton>
+        <div class="p-1.5">
           <img src={Logo} alt="streets logo" class="aspect-square h-auto w-8" />
-        </NavigateButton>
+        </div>
       </div>
     </div>
   );

@@ -5,10 +5,11 @@ import Columns from "../features/Column/components/Columns";
 import { useDeck } from "../features/Column/context/deck";
 import Navbar from "../features/Sidebar/components/Navbar";
 import Sidebar from "../features/Sidebar/components/Sidebar";
+import PublishingIndicators from "../shared/components/UI/PublishingIndicator";
 
 const Root: ParentComponent = (props) => {
   const location = useLocation();
-  const [, , layout] = useDeck();
+  const [state, , layout] = useDeck();
 
   return (
     <Show
@@ -45,6 +46,11 @@ const Root: ParentComponent = (props) => {
         </div>
         <Columns />
       </div>
+      <Show when={state.display.showLoading}>
+        <div class="pointer-events-none absolute right-0 bottom-1">
+          <PublishingIndicators />
+        </div>
+      </Show>
     </Show>
   );
 };

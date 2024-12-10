@@ -9,6 +9,7 @@ import { useDeck } from "../../features/Column/context/deck";
 import BasicLayout from "../../features/Settings/components/BasicLayout";
 import { useI18n } from "../../i18n";
 import "../../assets/collapsible.css";
+import { Switch } from "../../shared/components/UI/Switch";
 
 const defaultColorSet: {
   accent: string;
@@ -39,7 +40,8 @@ const defaultColorSet: {
 const display: Component = () => {
   const t = useI18n();
 
-  const [deckState, { setAccentColor, setUIColor }] = useDeck();
+  const [deckState, { setAccentColor, setUIColor, toggleShowLoading }] =
+    useDeck();
 
   const [tmpAccentColor, setTmpAccentColor] = createSignal<string>(
     deckState.display.theme.accent,
@@ -76,7 +78,7 @@ const display: Component = () => {
           <h4 class="flex items-center gap-1 font-500 text-h3">
             {t("settings.display.color")}
           </h4>
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <For each={defaultColorSet}>
               {(colorSet) => (
                 <button
@@ -133,6 +135,16 @@ const display: Component = () => {
               </label>
             </Collapsible.Content>
           </Collapsible>
+        </div>
+        <div class="flex flex-col gap-2">
+          <h4 class="flex items-center gap-1 font-500 text-h3">
+            {t("settings.display.loadingIndicator")}
+          </h4>
+          <Switch
+            label={t("settings.display.showLoading")}
+            checked={deckState.display.showLoading}
+            onChange={toggleShowLoading}
+          />
         </div>
       </div>
     </BasicLayout>

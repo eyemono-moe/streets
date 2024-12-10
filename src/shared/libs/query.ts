@@ -26,6 +26,7 @@ import {
 } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
+import { genID } from "./id";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import {
   type ParsedEventPacket,
@@ -601,9 +602,8 @@ const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
 export const useUserList = () =>
   useCacheByQueryKey<ParsedEventPacket<Metadata>>(() => [0]);
 
-const genId = () => Math.floor(Math.random() * 1000000);
 const initialSendState = (): SendingState => ({
-  id: -1,
+  id: "",
   sending: false,
   successAny: undefined,
   relayStates: {},
@@ -618,7 +618,7 @@ const createSender = () => {
   const [latestSendState, { setLatestSendState }] = useLoading();
 
   const sender = (event: EventParameters, onComplete?: () => void) => {
-    setSendState("id", genId());
+    setSendState("id", genID());
     setSendState("sending", true);
     setSendState("successAny", false);
     setSendState("relayStates", reconcile({}));

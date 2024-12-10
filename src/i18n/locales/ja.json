@@ -181,6 +181,8 @@
       "color": "カラーテーマ",
       "customColor": "個別に設定する",
       "fontSize": "フォントサイズ",
+      "loadingIndicator": "ローディング表示",
+      "showLoading": "ローディングインジケータを表示する",
       "title": "表示",
       "uiColor": "文字色と背景色"
     },

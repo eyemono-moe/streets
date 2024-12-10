@@ -2,7 +2,7 @@ import { type ParentComponent, createContext, useContext } from "solid-js";
 import { createStore } from "solid-js/store";
 
 export type SendingState = {
-  id: number;
+  id: string;
   /** すべての送信先リレーについて送信中かどうか */
   sending: boolean;
   /** どれか1つでも成功したかどうか, 送信中でない場合は最後の送信の結果 */
@@ -19,7 +19,7 @@ export type SendingState = {
 };
 
 const defaultState: SendingState = {
-  id: -1,
+  id: "",
   sending: false,
   successAny: undefined,
   relayStates: {},
