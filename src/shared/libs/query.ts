@@ -656,6 +656,7 @@ const createSender = () => {
         complete: () => {
           setSendState("sending", false);
           onComplete?.();
+          resolve(); // 一つも送信できなかった場合のためここでもresolveする
         },
       });
     });
