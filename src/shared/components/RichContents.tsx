@@ -49,7 +49,7 @@ const RichContent: Component<{
           {(content) => (
             <Switch>
               <Match when={content.type === "text"}>
-                <span>{(content as TextContent).content}</span>
+                <span class="blur-4">{(content as TextContent).content}</span>
               </Match>
               <Match when={content.type === "image"}>
                 {/* TODO: 画像の拡大表示 */}
@@ -76,7 +76,7 @@ const RichContent: Component<{
                     }}
                   >
                     <Image.Img
-                      class="aspect-ratio-[auto_16/9] h-full w-full rounded bg-secondary [image-orientation:from-image]"
+                      class="aspect-ratio-[auto_16/9] h-full w-full rounded bg-secondary blur [image-orientation:from-image]"
                       src={(content as ImageContent).src}
                       alt={(content as ImageContent).alt ?? ""}
                       width={(content as ImageContent).size?.width}
@@ -123,7 +123,7 @@ const RichContent: Component<{
                       href={(content as LinkContent).href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="break-anywhere line-clamp-4 text-ellipsis whitespace-pre-wrap text-link"
+                      class="break-anywhere line-clamp-4 text-ellipsis whitespace-pre-wrap text-link blur-4"
                     >
                       {(content as LinkContent).content}
                     </a>
@@ -147,7 +147,7 @@ const RichContent: Component<{
                   fallback={
                     // TODO: 隣のカラムでリプライツリーを表示する
                     <span
-                      class="break-anywhere whitespace-pre-wrap text-link"
+                      class="break-anywhere whitespace-pre-wrap text-link blur-4"
                       data-embed // see: project://src/features/Event/Reaction/components/Reaction.tsx
                     >
                       nostr:
@@ -162,7 +162,7 @@ const RichContent: Component<{
               </Match>
               <Match when={content.type === "hashtag"}>
                 <button
-                  class="break-anywhere inline max-w-full appearance-none whitespace-pre-wrap bg-transparent text-start text-link"
+                  class="break-anywhere inline max-w-full appearance-none whitespace-pre-wrap bg-transparent text-start text-link blur-4"
                   data-hashtag // see: project://src/features/Event/Reaction/components/Reaction.tsx
                   type="button"
                   onClick={() =>

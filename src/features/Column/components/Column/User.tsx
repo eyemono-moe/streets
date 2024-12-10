@@ -19,7 +19,7 @@ const User: Component<{
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
   return (
-    <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
+    <div class="all-blur-0! grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show
         when={props.isTempColumn}
         fallback={

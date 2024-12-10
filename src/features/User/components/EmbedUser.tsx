@@ -18,7 +18,7 @@ const EmbedUser: Component<{
   return (
     <HoverCard>
       <HoverCard.Trigger
-        class={`${defaultProps.class} hover:(underline) break-anywhere cursor-pointer cursor-pointer appearance-none bg-transparent`}
+        class={`${defaultProps.class} hover:(underline) break-anywhere cursor-pointer cursor-pointer appearance-none bg-transparent blur-4`}
         onClick={() => {
           openUserColumn(props.pubkey);
         }}
