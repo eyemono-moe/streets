@@ -34,6 +34,7 @@ const App: Component = () => {
     <>
       <QueryClientProvider client={queryClient}>
         <EventCacheProvider>
+          {/* <LoadingProvider> */}
           <MeProvider>
             <RelaysProvider>
               <FileServerProvider>
@@ -50,6 +51,7 @@ const App: Component = () => {
               <SolidQueryDevtools />
             </RelaysProvider>
           </MeProvider>
+          {/* </LoadingProvider> */}
         </EventCacheProvider>
       </QueryClientProvider>
       <Toaster />
