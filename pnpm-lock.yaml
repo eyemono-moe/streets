@@ -11,6 +11,9 @@ importers:
       '@ark-ui/solid':
         specifier: 4.5.1
         version: 4.5.1(solid-js@1.9.3)
+      '@floating-ui/dom':
+        specifier: 1.6.12
+        version: 1.6.12
       '@kobalte/core':
         specifier: 0.13.7
         version: 0.13.7(solid-js@1.9.3)
@@ -29,6 +32,9 @@ importers:
       '@solid-primitives/autofocus':
         specifier: 0.0.111
         version: 0.0.111(solid-js@1.9.3)
+      '@solid-primitives/event-listener':
+        specifier: 2.3.3
+        version: 2.3.3(solid-js@1.9.3)
       '@solid-primitives/i18n':
         specifier: 2.1.1
         version: 2.1.1(solid-js@1.9.3)
@@ -41,6 +47,9 @@ importers:
       '@solid-primitives/presence':
         specifier: 0.0.6
         version: 0.0.6(solid-js@1.9.3)
+      '@solid-primitives/refs':
+        specifier: 1.0.8
+        version: 1.0.8(solid-js@1.9.3)
       '@solid-primitives/resize-observer':
         specifier: 2.0.26
         version: 2.0.26(solid-js@1.9.3)
@@ -110,6 +119,9 @@ importers:
       solid-js:
         specifier: 1.9.3
         version: 1.9.3
+      text-field-edit:
+        specifier: 4.1.1
+        version: 4.1.1
       valibot:
         specifier: 1.0.0-beta.9
         version: 1.0.0-beta.9(typescript@5.7.2)
@@ -3099,6 +3111,10 @@ packages:
     resolution: {integrity: sha512-IYV9eNMuFAV4THUspIRXkLakHnV6XO7FEdtKjf/mDyrnqUg9LnlOn6/RwRvM9SZjR4GUq8Nk8zj67FzVARr74w==}
     engines: {node: '>=10'}
     hasBin: true
+
+  text-field-edit@4.1.1:
+    resolution: {integrity: sha512-bgvsU5CFdBm8YuDdpLALNqS7Th8bVaRD5cww9VMYaBYab324iN3XOXvuQxTxp9JSPhHHF6zGCDEyF08JUV2hPw==}
+    engines: {node: '>=18'}
 
   tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -7112,6 +7128,8 @@ snapshots:
       acorn: 8.14.0
       commander: 2.20.3
       source-map-support: 0.5.21
+
+  text-field-edit@4.1.1: {}
 
   tinybench@2.9.0: {}
 
