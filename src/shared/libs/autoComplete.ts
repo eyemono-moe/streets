@@ -1,4 +1,5 @@
 import { createEventListener } from "@solid-primitives/event-listener";
+import { createWritableMemo } from "@solid-primitives/memo";
 import {
   type Accessor,
   batch,
@@ -10,9 +11,9 @@ import getCaretPosition, { type CaretPos } from "./caretPosition";
 import { useInsertText } from "./dom";
 
 type TargetEl = HTMLInputElement | HTMLTextAreaElement;
-type Target = Accessor<TargetEl | undefined>;
+export type Target = Accessor<TargetEl | undefined>;
 
-type Option<T> = {
+export type Option<T> = {
   value: T;
   insertValue: string;
 };
@@ -29,7 +30,6 @@ export const createAutoComplete = <T extends string, U>(
 ) => {
   const [query, setQuery] = createSignal<string>();
   const [activePrefix, setActivePrefix] = createSignal<T>();
-  const [showSuggestion, setShowSuggestion] = createSignal(false);
   const [insertRange, setInsertRange] = createSignal<{
     start: number;
     end: number;
@@ -54,6 +54,10 @@ export const createAutoComplete = <T extends string, U>(
       // TODO: debounce
       return opts();
     },
+  );
+
+  const [showSuggestion, setShowSuggestion] = createWritableMemo(
+    () => query() && candidates.state === "ready" && candidates().length > 0,
   );
 
   // 選択中の候補のインデックス
@@ -83,13 +87,8 @@ export const createAutoComplete = <T extends string, U>(
 
   createEffect(() => {
     // 候補が変わったら選択中の候補をリセット
-    const latestCandidates = candidates();
+    void candidates();
     setActiveIndex(0);
-
-    // 候補がない場合は候補を非表示にする
-    if (!latestCandidates || latestCandidates?.length === 0) {
-      setShowSuggestion(false);
-    }
   });
 
   const updateTarget = (el: TargetEl) => {
@@ -107,7 +106,6 @@ export const createAutoComplete = <T extends string, U>(
         batch(() => {
           setQuery("");
           setActivePrefix();
-          setShowSuggestion(false);
         });
         return;
       }
@@ -119,7 +117,6 @@ export const createAutoComplete = <T extends string, U>(
         batch(() => {
           setQuery("");
           setActivePrefix();
-          setShowSuggestion(false);
         });
         return;
       }
@@ -137,7 +134,6 @@ export const createAutoComplete = <T extends string, U>(
           end: selectionStart,
         });
         setCaretPosition(getCaretPosition(el, textBeforePrefix.length));
-        setShowSuggestion(true);
       });
     }
   };
