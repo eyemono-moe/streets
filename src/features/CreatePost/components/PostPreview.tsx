@@ -29,7 +29,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
   );
 
   return (
-    <>
+    <div class="all-blur-0!">
       <Show when={replyOrRoot()} keyed>
         {(replyTarget) => (
           <ReplyTargets id={replyTarget.id} replyDepth={0} defaultCollapsed />
@@ -79,7 +79,7 @@ const PostPreview: Component<{ content: string; tags: Tag[] }> = (props) => {
           />
         </div>
       </EventBase>
-    </>
+    </div>
   );
 };
 
