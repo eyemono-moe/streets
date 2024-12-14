@@ -3,14 +3,14 @@ import { npubEncode } from "nostr-tools/nip19";
 import { For, Show, createMemo, createResource, createSignal } from "solid-js";
 import { useMe } from "../../context/me";
 import SuggestItem, {
+  type SuggestType,
   type EmojiSuggest,
   type UserSuggest,
 } from "../components/UI/SuggestItem";
 import { type Option, type Target, createAutoComplete } from "./autoComplete";
 import { getMatchedWithPriority } from "./basic/array";
+import type { Metadata } from "./parser/0_metadata";
 import { useEmojis, useUserList } from "./query";
-
-type SuggestType = EmojiSuggest | UserSuggest;
 
 export const createSuggestList = <T extends string>(
   target: Target,
@@ -112,7 +112,7 @@ export const useEmojiOptions = () => {
   return emojiOption;
 };
 
-export const useUserOptions = () => {
+export const useUserOptions = (format?: (metadata: Metadata) => string) => {
   const users = useUserList();
   const nonNullUsers = createMemo(() =>
     users()
@@ -132,7 +132,7 @@ export const useUserOptions = () => {
           name: v.value.name,
           displayName: v.value.display_name,
         },
-        insertValue: `nostr:${npubEncode(v.value.pubkey)}`,
+        insertValue: format?.(v.value) ?? `nostr:${npubEncode(v.value.pubkey)}`,
       }));
   };
 

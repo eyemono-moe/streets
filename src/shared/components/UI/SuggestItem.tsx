@@ -13,6 +13,8 @@ export type UserSuggest = {
   url?: string;
 };
 
+export type SuggestType = EmojiSuggest | UserSuggest;
+
 export type SuggestItemProps = {
   item: EmojiSuggest | UserSuggest;
   highlighted: boolean;
