@@ -176,6 +176,15 @@
     "repostedBy": "reposted"
   },
   "settings": {
+    "about": {
+      "about": "Streets is a web client application for Nostr. As it is currently under development, unexpected bugs or significant feature changes may occur. Please use it at your own risk, and we greatly appreciate any feedback you can provide!",
+      "author": "author",
+      "bugReport": "Bug report/feature request form",
+      "googleAnalytics": "About Google Analytics",
+      "privacy": "Privacy policy",
+      "source": "source code",
+      "title": "About Streets"
+    },
     "display": {
       "accentColor": "Accent color",
       "color": "Color theme",
@@ -211,6 +220,22 @@
       "save": "Save",
       "saved": "Saved changes",
       "title": "Mute"
+    },
+    "privacy": {
+      "accessAnalysisTool": "Access analysis tool",
+      "accessAnalysisToolDescription": "This app uses access analysis tools provided by third parties for the purpose of service improvement.\n\nWith access analysis tools, information on pages viewed and device information is sent to a third party and analyzed. \nThis data is collected anonymously and does not personally identify you.\n\nPlease see below for the provider name of the access analysis tool used in this app, information collected, purpose of use, privacy policy, and opt-out method.",
+      "gaInformationProvided": "User ID, cookies, device information, behavior history on the site",
+      "gaPurposeOfUse": "For user behavior analysis",
+      "informationProvided": "Information provided",
+      "optOutMethod": "How to opt out",
+      "privacyPolicy": "Privacy policy",
+      "providerName": "Provider name",
+      "purposeOfUse": "Purpose of use",
+      "sentryInformationProvided": "Terminal information, error log information",
+      "sentryPurposeOfUse": "For monitoring operating status",
+      "termsOfUse": "terms of service",
+      "title": "Privacy policy",
+      "useOfAccessAnalysisTools": "Regarding the use of access analysis tools"
     },
     "profile": {
       "discard": "Discard Changes",

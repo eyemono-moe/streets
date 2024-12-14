@@ -44,4 +44,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  define: {
+    BUILD_DATE: JSON.stringify(new Date().toISOString()),
+  },
 });
