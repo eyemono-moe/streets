@@ -58,6 +58,7 @@ This will start the following services:
 - [nostr-tools](https://github.com/nbd-wtf/nostr-tools)
 - [rabbit](https://github.com/syusui-s/rabbit)
 - [nostter](https://github.com/SnowCait/nostter)
+- [nostr-zap](https://github.com/SamSamskies/nostr-zap)
 
 [typescript-image]: https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white
 [typescript-url]: https://www.typescriptlang.org/

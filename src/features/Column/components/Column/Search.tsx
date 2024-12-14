@@ -17,7 +17,8 @@ import * as v from "valibot";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import Button from "../../../../shared/components/UI/Button";
-import { TextField } from "../../../../shared/components/UI/TextField";
+import SuggestTextField from "../../../../shared/components/UI/SuggestTextField";
+import { useUserOptions } from "../../../../shared/libs/createSuggestList";
 import { createSync } from "../../../../shared/libs/createSync";
 import SearchQueryDetailForm, {
   searchQueryDetailFormSchema,
@@ -130,6 +131,8 @@ const Search: Component<{
 
   const { ScrollButton, setTarget } = useColumnScrollButton();
 
+  const userOption = useUserOptions((m) => m.pubkey);
+
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show when={!props.isTempColumn}>
@@ -141,7 +144,16 @@ const Search: Component<{
                 handleSearch();
               }}
             >
-              <TextField value={query()} onInput={handleInput} />
+              <SuggestTextField
+                value={query()}
+                onInput={handleInput}
+                autoComplete={{
+                  prefixes: ["@"],
+                  options: {
+                    "@": userOption,
+                  },
+                }}
+              />
             </form>
           }
         >
