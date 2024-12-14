@@ -176,6 +176,15 @@
     "repostedBy": "さんがリポスト"
   },
   "settings": {
+    "about": {
+      "about": "StreetsはNostr用のWebクライアントアプリケーションです。現在開発中のため、予期せぬ不具合や大幅な機能変更が発生する可能性があります。ご利用は自己責任でお願いいたします。皆様からのフィードバックを心よりお待ちしております！",
+      "author": "作者",
+      "bugReport": "バグ報告/機能リクエストフォーム",
+      "googleAnalytics": "Googleアナリティクスについて",
+      "privacy": "プライバシーポリシー",
+      "source": "ソースコード",
+      "title": "Streetsについて"
+    },
     "display": {
       "accentColor": "アクセントカラー",
       "color": "カラーテーマ",
@@ -211,6 +220,22 @@
       "save": "保存",
       "saved": "変更を保存しました",
       "title": "ミュート"
+    },
+    "privacy": {
+      "accessAnalysisTool": "アクセス解析ツール",
+      "accessAnalysisToolDescription": "本アプリでは、サービス改善を目的とし、第三者が提供するアクセス解析ツールを利用しています。\nアクセス解析ツールでは、閲覧したページの情報や端末情報が第三者に送信され、分析されます。これらのデータは匿名で収集されており、個人を特定するものではありません。\n本アプリで利用しているアクセス解析ツールの提供事業者名、収集する情報、利用目的、プライバシーポリシー・オプトアウト方法は、以下をご覧ください。",
+      "gaInformationProvided": "ユーザーID, Cookie, 端末情報, サイト上での行動履歴",
+      "gaPurposeOfUse": "ユーザーの行動分析のため",
+      "informationProvided": "情報の提供内容",
+      "optOutMethod": "オプトアウト方法",
+      "privacyPolicy": "プライバシーポリシー",
+      "providerName": "提供事業者名",
+      "purposeOfUse": "利用目的",
+      "sentryInformationProvided": "端末情報, エラーログ情報",
+      "sentryPurposeOfUse": "稼働状態の監視のため",
+      "termsOfUse": "利用規約",
+      "title": "プライバシーポリシー",
+      "useOfAccessAnalysisTools": "アクセス解析ツールの利用について"
     },
     "profile": {
       "discard": "変更を破棄",
