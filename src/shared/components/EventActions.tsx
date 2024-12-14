@@ -5,6 +5,7 @@ import { type Component, Show, createMemo } from "solid-js";
 import { useMe } from "../../context/me";
 import { useOpenRepostsColumn } from "../../features/Column/libs/useOpenColumn";
 import { usePostInput } from "../../features/CreatePost/context/postInputDialog";
+import ZapButton from "../../features/Zap/components/ZapButton";
 import { useI18n } from "../../i18n";
 import { copyToClipboard } from "../libs/clipboard";
 import { showLoginModal } from "../libs/nostrLogin";
@@ -274,6 +275,14 @@ nostr:${neventEncode({
       >
         <div class="i-material-symbols:bookmark-outline-rounded aspect-square h-4 w-auto" />
       </button> */}
+      <ZapButton
+        class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25"
+        type="button"
+        pubkey={props.event.raw.pubkey}
+        noteId={props.event.raw.id}
+      >
+        <div class="i-material-symbols:electric-bolt-outline-rounded aspect-square h-4 w-auto" />
+      </ZapButton>
       <DropdownMenu>
         <DropdownMenu.Trigger class="hover:c-accent-5 flex appearance-none items-center gap-1 rounded rounded-full bg-transparent p-1 hover:bg-accent-5/25">
           <div class="i-material-symbols:upload-rounded aspect-square h-4 w-auto" />
