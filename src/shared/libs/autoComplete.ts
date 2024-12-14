@@ -24,7 +24,10 @@ export const createAutoComplete = <T extends string, U>(
   target: Target,
   prefixes: T[],
   options: {
-    [K in T]: Option<U>[] | (() => Promise<Option<U>[]>);
+    [K in T]:
+      | Option<U>[]
+      | ((query: string) => Option<U>[])
+      | ((query: string) => Promise<Option<U>[]>);
   },
   minQueryLength = 2,
 ) => {
@@ -52,7 +55,7 @@ export const createAutoComplete = <T extends string, U>(
       }
 
       // TODO: debounce
-      return opts();
+      return opts(q);
     },
   );
 

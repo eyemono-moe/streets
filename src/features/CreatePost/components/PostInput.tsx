@@ -4,6 +4,7 @@ import { Progress } from "@kobalte/core/progress";
 import { autofocus } from "@solid-primitives/autofocus";
 import stringify from "safe-stable-stringify";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
+import { insertTextIntoField } from "text-field-edit";
 import { useFileServer } from "../../../context/fileServer";
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
@@ -28,23 +29,24 @@ import {
 import NeedLoginPlaceholder from "../../Column/components/NeedLoginPlaceholder";
 import { usePostInput } from "../context/postInputDialog";
 import { useFileDrop } from "../lib/useFileDrop";
+import PostInputTextarea from "./PostInputTextarea";
 import PostPreview from "./PostPreview";
 
 // prevents from being tree-shaken by TS
-autofocus;
+void autofocus;
 
 const PostInput: Component<{
   defaultContent?: string;
   tags?: string[][];
 }> = (props) => {
-  // TODO: reply target, image upload, pubkey/emoji auto complete
+  // TODO: pubkey/emoji auto complete
   // TODO: component, hookの分割
 
   const t = useI18n();
 
   const [content, setContent] = createSignal(props.defaultContent ?? "");
   const debouncedContent = createDebounced(content, 1000, "");
-  const [textarea, setTextarea] = createSignal<HTMLTextAreaElement>();
+  let textarea: HTMLTextAreaElement | undefined;
 
   const [{ myPubkey, isLogged }] = useMe();
   const myEmoji = useEmojis(myPubkey);
@@ -82,19 +84,9 @@ const PostInput: Component<{
    * カーソル位置にテキストを挿入する関数
    */
   const insertText = (insert: string) => {
-    const _textarea = textarea();
-    if (!_textarea) return;
-    const start = _textarea.selectionStart;
-    const end = _textarea.selectionEnd;
-    const text = content();
-    const newText = text.slice(0, start) + insert + text.slice(end);
-    setContent(newText);
-    _textarea.focus();
-    _textarea.setSelectionRange(start + insert.length, start + insert.length);
+    if (!textarea) return;
+    insertTextIntoField(textarea, insert);
   };
-
-  const textareaStyle =
-    "w-full resize-none min-h-30 block overflow-hidden break-anywhere whitespace-pre-wrap";
 
   const handleCtrlEnter = (e: KeyboardEvent) => {
     if (e.key === "Enter" && e.ctrlKey) {
@@ -120,7 +112,6 @@ const PostInput: Component<{
 
   const [, serverConfig] = useFileServer();
   const fileUpload = useFileUpload({
-    disabled: serverConfig.state !== "ready",
     maxFiles: Number.POSITIVE_INFINITY,
     capture: "environment",
     directory: false,
@@ -225,33 +216,21 @@ const PostInput: Component<{
         <FileUpload.HiddenInput />
         <div class="max-w-150 space-y-2 p-2">
           <div
-            class="b-1 relative rounded bg-secondary p-2 outline-accent-5 focus-within:outline"
+            class="relative"
             onDrop={onDrop}
             onDragOver={onDragOver}
             onDragStart={onDragStart}
             onDragLeave={onDragLeave}
           >
-            <div class="relative h-fit">
-              <div class={textareaStyle} aria-hidden>
-                {`${content()}\u200b`}
-              </div>
-              <textarea
-                use:autofocus
-                autofocus
-                ref={setTextarea}
-                class={`${textareaStyle} disabled:op-50 absolute top-0 left-0 h-full bg-transparent focus:outline-none disabled:cursor-progress`}
-                placeholder={t("postInput.placeholder")}
-                value={content()}
-                disabled={isSending()}
-                onInput={(e) => setContent(e.currentTarget.value)}
-                onKeyDown={handleCtrlEnter}
-                onPaste={onPaste}
-              />
-            </div>
-
-            <span class="c-secondary text-caption">
-              {t("postInput.enterToAddNewLine")}
-            </span>
+            <PostInputTextarea
+              ref={textarea}
+              value={content()}
+              disabled={isSending()}
+              autofocus
+              onInput={(e) => setContent(e.currentTarget.value)}
+              onKeyDown={handleCtrlEnter}
+              onPaste={onPaste}
+            />
             <Show when={isDragging() && canDrop() && !isSending()}>
               <div class="b-2 b-accent-5 b-dashed absolute inset-0 flex flex-col items-center justify-center rounded backdrop-blur-2">
                 <div class="i-material-symbols:upload-file-outline-rounded aspect-square h-1lh w-auto" />
@@ -325,7 +304,7 @@ const PostInput: Component<{
                       </div>
                       <FileUpload.ItemDeleteTrigger
                         disabled={isSending()}
-                        class="c-primary enabled:hover:c-red-5 disabled:op-50 absolute top-1 right-1 rounded-full bg-secondary p-1"
+                        class="c-primary enabled:hover:c-red-5 disabled:op-50 data-[disabled]:op-50 absolute top-1 right-1 rounded-full bg-secondary p-1"
                       >
                         <div class="i-material-symbols:close-rounded aspect-square h-4 w-auto" />
                       </FileUpload.ItemDeleteTrigger>
@@ -372,7 +351,7 @@ const PostInput: Component<{
             <div class="b-1 min-h-20">
               <PostPreview
                 content={debouncedContent()}
-                tags={[...flatEmojis(), ...tagsForPreview()]}
+                tags={tagsForPreview()}
               />
             </div>
             <div class="c-secondary text-caption">{t("postInput.note")}</div>
