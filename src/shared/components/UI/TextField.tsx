@@ -7,7 +7,7 @@ type Option = {
   label: string;
 };
 
-type TextFieldProps = {
+export type TextFieldProps = {
   name?: string;
   type?: string;
   label?: string;

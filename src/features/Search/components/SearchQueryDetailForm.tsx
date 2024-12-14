@@ -3,7 +3,9 @@ import type { Component } from "solid-js";
 import * as v from "valibot";
 import { useI18n } from "../../../i18n";
 import DatetimePicker from "../../../shared/components/UI/DatetimePicker";
+import SuggestTextField from "../../../shared/components/UI/SuggestTextField";
 import { TextField } from "../../../shared/components/UI/TextField";
+import { useUserOptions } from "../../../shared/libs/createSuggestList";
 
 export const searchQueryDetailFormSchema = v.object({
   word: v.optional(v.string()),
@@ -54,6 +56,8 @@ const SearchQueryDetailForm: Component<{
 }> = (props) => {
   const t = useI18n();
 
+  const userOption = useUserOptions((m) => m.pubkey);
+
   return (
     <Form of={props.formStore} shouldActive={false} class="space-y-1">
       <Field of={props.formStore} name="word">
@@ -70,25 +74,37 @@ const SearchQueryDetailForm: Component<{
       </Field>
       <Field of={props.formStore} name="from">
         {(field, props) => (
-          <TextField
+          <SuggestTextField
             label={t("column.search.from")}
             help={t("column.search.helpFrom")}
             {...props}
             type="text"
             value={field.value}
             error={field.error}
+            autoComplete={{
+              prefixes: ["@"],
+              options: {
+                "@": userOption,
+              },
+            }}
           />
         )}
       </Field>
       <Field of={props.formStore} name="to">
         {(field, props) => (
-          <TextField
+          <SuggestTextField
             label={t("column.search.to")}
             help={t("column.search.helpTo")}
             {...props}
             type="text"
             value={field.value}
             error={field.error}
+            autoComplete={{
+              prefixes: ["@"],
+              options: {
+                "@": userOption,
+              },
+            }}
           />
         )}
       </Field>

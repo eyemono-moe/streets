@@ -17,16 +17,20 @@
   },
   "dependencies": {
     "@ark-ui/solid": "4.5.1",
+    "@floating-ui/dom": "1.6.12",
     "@kobalte/core": "0.13.7",
     "@modular-forms/solid": "0.25.0",
     "@neodrag/solid": "2.0.4",
     "@rust-nostr/nostr-sdk": "0.37.0",
     "@sentry/solid": "8.41.0",
     "@solid-primitives/autofocus": "0.0.111",
+    "@solid-primitives/event-listener": "2.3.3",
     "@solid-primitives/i18n": "2.1.1",
     "@solid-primitives/intersection-observer": "2.1.6",
     "@solid-primitives/media": "2.2.9",
+    "@solid-primitives/memo": "1.3.10",
     "@solid-primitives/presence": "0.0.6",
+    "@solid-primitives/refs": "1.0.8",
     "@solid-primitives/resize-observer": "2.0.26",
     "@solid-primitives/scheduled": "1.4.4",
     "@solidjs/router": "0.15.1",
@@ -50,6 +54,7 @@
     "rxjs": "7.8.1",
     "safe-stable-stringify": "2.5.0",
     "solid-js": "1.9.3",
+    "text-field-edit": "4.1.1",
     "valibot": "1.0.0-beta.9"
   },
   "devDependencies": {
