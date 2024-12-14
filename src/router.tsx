@@ -40,6 +40,14 @@ const routes = [
         component: lazy(() => import("./routes/settings/display")),
       },
       {
+        path: "/settings/about",
+        component: lazy(() => import("./routes/settings/about")),
+      },
+      {
+        path: "/settings/about/privacy",
+        component: lazy(() => import("./routes/settings/about/privacy")),
+      },
+      {
         path: "/add-column",
         component: lazy(() => import("./routes/addColumn")),
       },
