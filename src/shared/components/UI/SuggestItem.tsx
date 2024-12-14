@@ -1,3 +1,4 @@
+import { Image } from "@kobalte/core/image";
 import { type Component, Match, Switch, createEffect } from "solid-js";
 
 export type EmojiSuggest = {
@@ -64,11 +65,20 @@ const SuggestItem: Component<SuggestItemProps> = (props) => {
           <Match when={props.item.type === "user" && props.item}>
             {(user) => (
               <div class="flex items-center gap-1">
-                <img
-                  src={user().url}
-                  alt={user().name}
-                  class="h-8 w-8 object-contain"
-                />
+                <Image
+                  class="inline-flex h-8 w-8 shrink-0 select-none items-center justify-center overflow-hidden rounded bg-secondary align-mid"
+                  fallbackDelay={500}
+                >
+                  <Image.Img
+                    src={user().url}
+                    alt={user().name}
+                    loading="lazy"
+                    class="h-full w-full object-cover"
+                  />
+                  <Image.Fallback class="flex h-full w-full items-center justify-center">
+                    {user().name.slice(0, 2)}
+                  </Image.Fallback>
+                </Image>
                 <div
                   class="truncate text-caption"
                   classList={{
