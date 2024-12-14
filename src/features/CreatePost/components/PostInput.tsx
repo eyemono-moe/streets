@@ -39,7 +39,6 @@ const PostInput: Component<{
   defaultContent?: string;
   tags?: string[][];
 }> = (props) => {
-  // TODO: pubkey/emoji auto complete
   // TODO: component, hookの分割
 
   const t = useI18n();
