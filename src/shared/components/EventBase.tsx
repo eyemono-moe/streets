@@ -116,7 +116,7 @@ const EventBase: ParentComponent<{
             {/* TODO: EmbedUserを使う */}
             <HoverCard>
               <HoverCard.Trigger
-                class="w-fit max-w-full cursor-pointer appearance-none truncate bg-transparent hover:underline"
+                class="w-fit max-w-full cursor-pointer appearance-none truncate bg-transparent blur-4 hover:underline"
                 as="button"
                 onClick={() => {
                   openUserColumn(mergedProps.eventPacket.raw.pubkey);

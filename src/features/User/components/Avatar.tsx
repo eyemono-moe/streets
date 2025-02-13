@@ -30,7 +30,7 @@ const Avatar: Component<{
             src={profile().data?.parsed.picture}
             alt={profile().data?.parsed.name}
             loading="lazy"
-            class="h-full w-full object-cover"
+            class="h-full w-full object-cover blur"
           />
           <Image.Fallback class="flex h-full w-full items-center justify-center">
             {profile().data?.parsed.name?.slice(0, 2) ??
