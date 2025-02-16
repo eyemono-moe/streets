@@ -4,8 +4,8 @@ import { useMe } from "../../../../context/me";
 import { useI18n } from "../../../../i18n";
 import InfiniteEvents from "../../../../shared/components/InfiniteEvents";
 import { useFollowees } from "../../../../shared/libs/query";
+import { useScrollToTop } from "../../../../shared/libs/useScrollToTop";
 import type { ColumnContent } from "../../libs/deckSchema";
-import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 import NeedLoginPlaceholder from "../NeedLoginPlaceholder";
 import TempColumnHeader from "../TempColumnHeader";
@@ -18,18 +18,23 @@ const Followings: Component<{
   const followees = useFollowees(() => pubkey());
   const t = useI18n();
 
-  const { ScrollButton, setTarget } = useColumnScrollButton();
+  const { setTarget, isTop, scrollToTop } = useScrollToTop();
 
   return (
     <div class="grid h-full w-full grid-rows-[auto_minmax(0,1fr)] divide-y">
       <Show
         when={props.isTempColumn}
-        fallback={<ColumnHeader title={t("column.timeline.title")} />}
+        fallback={
+          <ColumnHeader
+            title={t("column.timeline.title")}
+            onClickScrollToTop={scrollToTop}
+            showScrollToTop={!isTop()}
+          />
+        }
       >
         <TempColumnHeader title={t("column.timeline.title")} />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
-        <ScrollButton />
         {/* TODO: loading表示 */}
         <Switch>
           <Match when={pubkey() === undefined}>
