@@ -1,3 +1,4 @@
+import { colorResolver } from "@unocss/preset-mini/utils";
 import {
   defineConfig,
   presetIcons,
@@ -5,7 +6,6 @@ import {
   presetUno,
   transformerVariantGroup,
 } from "unocss";
-import { presetScrollbar } from "./src/uno/presetScrollbar";
 
 interface Colors {
   [key: string]: (Colors & { DEFAULT?: string }) | string;
@@ -73,7 +73,6 @@ export default defineConfig({
       },
     }),
     presetTypography(),
-    presetScrollbar(),
   ],
   theme: {
     fontFamily: {
@@ -81,6 +80,45 @@ export default defineConfig({
     },
     colors,
   },
+  rules: [
+    [
+      /^scroll(?:bar)?-(track|thumb)-(.+)$/,
+      ([s, section, colorMatch], context) => {
+        const varName = `scroll${section}-bg`;
+        const opacityVarName = `--un-${varName}-opacity`;
+        const colorVarName = `--un-${varName}`;
+        const res = colorResolver("color", varName)([s, colorMatch], context);
+
+        if (!res) {
+          return;
+        }
+
+        // @ts-ignore
+        const color = res.color;
+        // @ts-ignore
+        const opacity = res[opacityVarName];
+
+        if (!color) {
+          return;
+        }
+
+        if (opacity) {
+          return {
+            [opacityVarName]: opacity,
+            [colorVarName]: color,
+            "scrollbar-color":
+              "var(--un-scrollthumb-bg) var(--un-scrolltrack-bg)",
+          };
+        }
+
+        return {
+          [colorVarName]: color,
+          "scrollbar-color":
+            "var(--un-scrollthumb-bg) var(--un-scrolltrack-bg)",
+        };
+      },
+    ],
+  ],
   shortcuts: [
     {
       // text size
@@ -111,7 +149,7 @@ export default defineConfig({
 
       // scrollbar
       "scrollbar-color-theme":
-        "scrollbar-track:bg-ui-1 scrollbar-track-ui-1 scrollbar-thumb:bg-ui-4 scrollbar-thumb-ui-4 dark:scrollbar-track:bg-ui-9 dark:scrollbar-track-ui-9 dark:scrollbar-thumb:bg-ui-6 dark:scrollbar-thumb-ui-6",
+        "scrollbar-track-ui-1 scrollbar-thumb-ui-4 dark:scrollbar-track-ui-9 dark:scrollbar-thumb-ui-6",
     },
   ],
   transformers: [transformerVariantGroup()],
