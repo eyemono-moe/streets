@@ -29,13 +29,6 @@ const Column: Component<{
         "w-100vw": layout() === "vertical",
       }}
     >
-      <div
-        class="c-secondary absolute m-1 h-7.5 cursor-move rounded-full hover:bg-alpha-hover data-[moving='true']:bg-alpha-active"
-        data-moving={props.isMoving}
-        {...props.handleListeners}
-      >
-        <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
-      </div>
       <ColumnContent content={props.column.content} />
       <Show when={presence.isMounted()}>
         <div class="z-1">
@@ -61,6 +54,13 @@ const Column: Component<{
           </div>
         </div>
       </Show>
+      <div
+        class="c-secondary absolute m-1 h-7.5 cursor-move rounded-full hover:bg-alpha-hover data-[moving='true']:bg-alpha-active"
+        data-moving={props.isMoving}
+        {...props.handleListeners}
+      >
+        <div class="i-material-symbols:drag-indicator aspect-square h-full w-auto" />
+      </div>
     </div>
   );
 };
