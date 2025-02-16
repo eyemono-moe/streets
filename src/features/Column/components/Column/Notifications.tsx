@@ -31,7 +31,11 @@ const Notifications: Component<{
           />
         }
       >
-        <TempColumnHeader title={t("column.notifications.title")} />
+        <TempColumnHeader
+          title={t("column.notifications.title")}
+          onClickScrollToTop={scrollToTop}
+          showScrollToTop={!isTop()}
+        />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
         <Show

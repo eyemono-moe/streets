@@ -32,7 +32,11 @@ const Followings: Component<{
           />
         }
       >
-        <TempColumnHeader title={t("column.timeline.title")} />
+        <TempColumnHeader
+          title={t("column.timeline.title")}
+          onClickScrollToTop={scrollToTop}
+          showScrollToTop={!isTop()}
+        />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>
         {/* TODO: loading表示 */}

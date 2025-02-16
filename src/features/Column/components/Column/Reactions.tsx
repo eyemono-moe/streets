@@ -33,6 +33,8 @@ const Reactions: Component<{
         <TempColumnHeader
           title={t("column.reactions.title")}
           subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+          onClickScrollToTop={scrollToTop}
+          showScrollToTop={!isTop()}
         />
       </Show>
       <div class="h-full overflow-y-auto" ref={setTarget}>

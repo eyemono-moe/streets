@@ -34,6 +34,8 @@ const User: Component<{
         <TempColumnHeader
           title={t("column.profile.title")}
           subTitle={`@${profile().data?.parsed.name ?? props.state.pubkey}`}
+          onClickScrollToTop={scrollToTop}
+          showScrollToTop={!isTop()}
         />
       </Show>
       <Show when={props.state.pubkey} keyed>
