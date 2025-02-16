@@ -1,10 +1,12 @@
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { useI18n } from "../../../i18n";
 import { useColumn } from "../context/column";
 
 const TempColumnHeader: Component<{
   title?: string;
   subTitle?: string;
+  showScrollToTop?: boolean;
+  onClickScrollToTop?: () => void;
 }> = (props) => {
   const t = useI18n();
 
@@ -13,7 +15,7 @@ const TempColumnHeader: Component<{
     useColumn()!;
 
   return (
-    <div class="flex items-center gap-1 p-1">
+    <div class="relative flex items-center gap-1 p-1">
       <button
         type="button"
         class="c-secondary appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
@@ -42,6 +44,18 @@ const TempColumnHeader: Component<{
       >
         <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
       </button>
+      <Show when={props.showScrollToTop}>
+        <button
+          class="absolute inset-0 h-full w-50% translate-x-50%"
+          style={{
+            background:
+              "radial-gradient(50% 50% at 50% 100%, var(--theme-accent-color) 0%, transparent 100%)",
+          }}
+          type="button"
+          aria-label="scroll to top"
+          onClick={props.onClickScrollToTop}
+        />
+      </Show>
     </div>
   );
 };

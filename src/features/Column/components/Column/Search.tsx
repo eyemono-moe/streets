@@ -31,7 +31,6 @@ import {
 import { useQueryParser } from "../../../Search/lib/useQueryParser";
 import { useColumn } from "../../context/column";
 import type { ColumnContent } from "../../libs/deckSchema";
-import { useColumnScrollButton } from "../../libs/useColumnScrollButton";
 import ColumnHeader from "../ColumnHeader";
 
 const Search: Component<{
@@ -129,8 +128,6 @@ const Search: Component<{
     track(() => queryObj());
   });
 
-  const { ScrollButton, setTarget } = useColumnScrollButton();
-
   const userOption = useUserOptions((m) => m.pubkey);
 
   return (
@@ -167,8 +164,7 @@ const Search: Component<{
           </div>
         </ColumnHeader>
       </Show>
-      <div class="overflow-y-auto" ref={setTarget}>
-        <ScrollButton />
+      <div class="overflow-y-auto">
         <Show
           when={filter()}
           keyed
