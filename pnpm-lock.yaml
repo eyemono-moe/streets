@@ -28,7 +28,7 @@ importers:
         version: 0.39.0(bufferutil@4.0.9)(utf-8-validate@6.0.5)
       '@sentry/solid':
         specifier: 9.1.0
-        version: 9.1.0(@solidjs/router@0.13.6(solid-js@1.9.4))(solid-js@1.9.4)
+        version: 9.1.0(@solidjs/router@0.15.3(solid-js@1.9.4))(solid-js@1.9.4)
       '@solid-primitives/autofocus':
         specifier: 0.1.0
         version: 0.1.0(solid-js@1.9.4)
@@ -60,8 +60,8 @@ importers:
         specifier: 1.5.0
         version: 1.5.0(solid-js@1.9.4)
       '@solidjs/router':
-        specifier: 0.13.6
-        version: 0.13.6(solid-js@1.9.4)
+        specifier: 0.15.3
+        version: 0.15.3(solid-js@1.9.4)
       '@tanstack/solid-query':
         specifier: 5.66.2
         version: 5.66.2(solid-js@1.9.4)
@@ -1531,8 +1531,8 @@ packages:
     peerDependencies:
       solid-js: ^1.6.12
 
-  '@solidjs/router@0.13.6':
-    resolution: {integrity: sha512-CdpFsBYoiJ/FQ4wZIamj3KEFRkmrYu5sVXM6PouNkmSENta1YJamsm9wa/VjaPmkw2RsnDnO0UvZ705v6EgOXQ==}
+  '@solidjs/router@0.15.3':
+    resolution: {integrity: sha512-iEbW8UKok2Oio7o6Y4VTzLj+KFCmQPGEpm1fS3xixwFBdclFVBvaQVeibl1jys4cujfAK5Kn6+uG2uBm3lxOMw==}
     peerDependencies:
       solid-js: ^1.8.6
 
@@ -4885,13 +4885,13 @@ snapshots:
 
   '@sentry/core@9.1.0': {}
 
-  '@sentry/solid@9.1.0(@solidjs/router@0.13.6(solid-js@1.9.4))(solid-js@1.9.4)':
+  '@sentry/solid@9.1.0(@solidjs/router@0.15.3(solid-js@1.9.4))(solid-js@1.9.4)':
     dependencies:
       '@sentry/browser': 9.1.0
       '@sentry/core': 9.1.0
       solid-js: 1.9.4
     optionalDependencies:
-      '@solidjs/router': 0.13.6(solid-js@1.9.4)
+      '@solidjs/router': 0.15.3(solid-js@1.9.4)
 
   '@solid-devtools/debugger@0.26.0(solid-js@1.9.4)':
     dependencies:
@@ -5044,7 +5044,7 @@ snapshots:
     dependencies:
       solid-js: 1.9.4
 
-  '@solidjs/router@0.13.6(solid-js@1.9.4)':
+  '@solidjs/router@0.15.3(solid-js@1.9.4)':
     dependencies:
       solid-js: 1.9.4
 
