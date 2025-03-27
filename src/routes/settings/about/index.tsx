@@ -62,6 +62,16 @@ const index: Component = () => {
               )}
             </For>
           </ul>
+          <div>
+            <a
+              href="https://github.com/eyemono-moe/streets/graphs/contributors"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-link"
+            >
+              {t("settings.about.contributors")}
+            </a>
+          </div>
         </div>
         <ul class="space-y-1">
           <li>
