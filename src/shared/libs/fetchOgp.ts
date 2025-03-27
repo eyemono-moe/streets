@@ -10,7 +10,7 @@ const ogpScheme = v.object({
 
 export const fetchOgp = async (url: string, proxy = true) => {
   const res = await fetch(
-    proxy ? `https://corsproxy.io/?${encodeURIComponent(url)}` : url,
+    proxy ? `https://corsproxy.io/?url=${encodeURIComponent(url)}` : url,
   );
   const contentType = res.headers.get("Content-Type");
   if (
