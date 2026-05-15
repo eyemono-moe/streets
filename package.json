@@ -34,6 +34,7 @@
     "@solid-primitives/resize-observer": "2.1.0",
     "@solid-primitives/scheduled": "1.5.0",
     "@solidjs/router": "0.13.6",
+    "@tanstack/db": "0.6.5",
     "@tanstack/solid-query": "5.66.2",
     "@tanstack/solid-query-devtools": "5.66.2",
     "@tanstack/solid-virtual": "3.13.0",

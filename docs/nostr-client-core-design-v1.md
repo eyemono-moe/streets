@@ -662,6 +662,52 @@ Use TanStack DB live queries for event/profile/timeline data.
 - IndexedDB cache internals
 ```
 
+### Column and Event Renderer Migration Boundaries
+
+The current UI has two important legacy entry points:
+
+```txt
+src/features/Column/components/ColumnContent.tsx
+src/shared/components/Event.tsx
+src/shared/components/EventByID.tsx
+src/shared/components/InfiniteEvents.tsx
+src/shared/libs/query.ts
+```
+
+For v1, keep `ColumnContent` and the individual column components as UI composition and layout owners. A column should describe what timeline/query it needs, but it should not directly create `rx-nostr` requests, parse relay packets, or write cache data. Column-local Solid state should remain limited to layout, temporary column state, dialogs, and view-local controls.
+
+Event renderers should become read-model consumers. `EventByID` should resolve an event row through the v1 Solid hook, then pass a parsed/renderable view model into `Event`. `Event` may continue to dispatch by event kind, but it should not fetch related events or mutate the repository. Rendering unknown events from the raw event row is acceptable as a fallback.
+
+The migration path should preserve compatibility exports so existing call sites can move gradually:
+
+```txt
+legacy column component
+  ↓ describes timeline/query params
+v1 hook ensures query through QueryClient
+  ↓ reads TanStack DB live query
+EventByID / InfiniteEvents render read-model rows
+```
+
+### Filter Issuance Policy
+
+Relay filters should be issued only by the v1 query layer:
+
+```txt
+UI / column params
+  ↓
+QueryClient.ensure* API
+  ↓
+QueryPlanner creates filters, relay choices, chunking, and priorities
+  ↓
+QueryRegistry reuses or reference-counts active work
+  ↓
+RxNostrTransport emits filters
+```
+
+Do not emit filters directly from column components, event renderers, projectors, or TanStack DB collection code. This prevents duplicate subscriptions across columns and keeps relay traffic policy testable.
+
+`cacheAndEmitRelatedEvent`-style behavior should be replaced by explicit related-event policy. Related event fetches may still be triggered, but only through `QueryClient`/`RelatedEventPolicy`, with clear reasons such as reply context, quoted event preview, repost source, or profile metadata. Projectors should record relationships into read models; they should not perform network fetches.
+
 ### Timeline Hook Sketch
 
 ```tsx
