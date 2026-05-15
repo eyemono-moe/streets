@@ -126,6 +126,26 @@ describe("MemoryNostrRepository", () => {
     ).resolves.toEqual(otherList);
   });
 
+  test("indexes parameterized replaceable events with a missing d tag under the empty d value", async () => {
+    const repository = new MemoryNostrRepository();
+    const eventWithoutD = event({
+      id: "without-d",
+      kind: 30000,
+      pubkey: "alice",
+      created_at: 100,
+      tags: [],
+    });
+
+    await repository.putEvent({
+      event: eventWithoutD,
+      relay: "wss://relay.example",
+    });
+
+    await expect(
+      repository.getParameterizedReplaceable(30000, "alice", ""),
+    ).resolves.toEqual(eventWithoutD);
+  });
+
   test("queries events by ids, authors, kinds, and tag filters", async () => {
     const repository = new MemoryNostrRepository();
     const aliceNote = event({

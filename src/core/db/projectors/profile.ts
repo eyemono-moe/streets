@@ -1,28 +1,12 @@
 import type { NostrEvent } from "nostr-tools";
-import type {
-  NostrEventRow,
-  NostrProfileRow,
-  ProjectionContext,
-} from "../types";
+import { shouldReplaceEvent } from "../../nostr/replaceable";
+import type { NostrProfileRow, ProjectionContext } from "../types";
 
 const getReceivedAt = (context?: ProjectionContext): number =>
   context?.receivedAt ?? Date.now();
 
 const getSeenRelays = (context?: ProjectionContext): readonly string[] =>
   context?.seenRelays ?? [];
-
-export const projectEventRow = (
-  event: NostrEvent,
-  context?: ProjectionContext,
-): NostrEventRow => ({
-  id: event.id,
-  pubkey: event.pubkey,
-  kind: event.kind,
-  createdAt: event.created_at,
-  raw: event,
-  seenRelays: getSeenRelays(context),
-  receivedAt: getReceivedAt(context),
-});
 
 const getString = (metadata: Record<string, unknown>, key: string) => {
   const value = metadata[key];
@@ -66,6 +50,16 @@ export const projectProfileRow = (
   };
 };
 
+const profileRowSourceEvent = (row: NostrProfileRow): NostrEvent => ({
+  id: row.sourceEventId,
+  pubkey: row.pubkey,
+  kind: 0,
+  created_at: row.updatedAt,
+  tags: [],
+  content: "",
+  sig: "",
+});
+
 export const shouldReplaceProfileRow = (
   next: NostrProfileRow | undefined,
   current: NostrProfileRow | undefined,
@@ -77,5 +71,8 @@ export const shouldReplaceProfileRow = (
     return true;
   }
 
-  return next.updatedAt > current.updatedAt;
+  return shouldReplaceEvent(
+    profileRowSourceEvent(next),
+    profileRowSourceEvent(current),
+  );
 };

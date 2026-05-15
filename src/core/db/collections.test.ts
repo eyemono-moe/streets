@@ -1,8 +1,8 @@
 import type { NostrEvent } from "nostr-tools";
 import { describe, expect, test } from "vitest";
 import { createNostrCollections } from "./collections";
+import { projectEventRow } from "./projectors/event";
 import {
-  projectEventRow,
   projectProfileRow,
   shouldReplaceProfileRow,
 } from "./projectors/profile";

@@ -1,4 +1,11 @@
 import type { NostrEvent } from "nostr-tools";
+import {
+  getParameterizedReplaceableEventKey,
+  getRegularReplaceableEventKey,
+  getReplaceableEventKey,
+  isParameterizedReplaceableKind,
+  shouldReplaceEvent,
+} from "../nostr/replaceable";
 import type {
   NostrEventQuery,
   NostrRepository,
@@ -8,36 +15,10 @@ import type {
   StoredNostrEvent,
 } from "./nostr-repository";
 
-const parameterizedReplaceableKindStart = 30_000;
-const parameterizedReplaceableKindEnd = 39_999;
-
-const regularReplaceableKinds = new Set([0, 3]);
-
-const isRegularReplaceableKind = (kind: number) =>
-  regularReplaceableKinds.has(kind) || (kind >= 10_000 && kind < 20_000);
-
-const isParameterizedReplaceableKind = (kind: number) =>
-  kind >= parameterizedReplaceableKindStart &&
-  kind <= parameterizedReplaceableKindEnd;
-
-const getDTag = (event: NostrEvent) =>
-  event.tags.find((tag) => tag[0] === "d")?.[1] ?? "";
-
-const regularReplaceableKey = (kind: number, pubkey: string) =>
-  `${kind}:${pubkey}`;
-
-const parameterizedReplaceableKey = (kind: number, pubkey: string, d: string) =>
-  `${kind}:${pubkey}:${d}`;
-
-const isNewer = (candidate: NostrEvent, current: NostrEvent | undefined) => {
-  if (!current) {
-    return true;
-  }
-  if (candidate.created_at !== current.created_at) {
-    return candidate.created_at > current.created_at;
-  }
-  return candidate.id > current.id;
-};
+const shouldReplaceIndexedEvent = (
+  candidate: NostrEvent,
+  current: NostrEvent | undefined,
+) => !current || shouldReplaceEvent(candidate, current);
 
 const eventMatchesQuery = (event: NostrEvent, query: NostrEventQuery) => {
   if (query.ids && !query.ids.includes(event.id)) {
@@ -121,7 +102,9 @@ export class MemoryNostrRepository implements NostrRepository {
     kind: number,
     pubkey: string,
   ): Promise<NostrEvent | undefined> {
-    const id = this.#latestReplaceable.get(regularReplaceableKey(kind, pubkey));
+    const id = this.#latestReplaceable.get(
+      getRegularReplaceableEventKey(kind, pubkey),
+    );
     return id ? this.#events.get(id)?.event : undefined;
   }
 
@@ -131,7 +114,7 @@ export class MemoryNostrRepository implements NostrRepository {
     d: string,
   ): Promise<NostrEvent | undefined> {
     const id = this.#latestParameterizedReplaceable.get(
-      parameterizedReplaceableKey(kind, pubkey, d),
+      getParameterizedReplaceableEventKey(kind, pubkey, d),
     );
     return id ? this.#events.get(id)?.event : undefined;
   }
@@ -144,27 +127,18 @@ export class MemoryNostrRepository implements NostrRepository {
   }
 
   #indexReplaceable(event: NostrEvent) {
-    if (isRegularReplaceableKind(event.kind)) {
-      const key = regularReplaceableKey(event.kind, event.pubkey);
-      const current = this.#eventForIndexedId(this.#latestReplaceable.get(key));
-      if (isNewer(event, current)) {
-        this.#latestReplaceable.set(key, event.id);
-      }
+    const key = getReplaceableEventKey(event);
+    if (!key) {
       return;
     }
 
-    if (isParameterizedReplaceableKind(event.kind)) {
-      const key = parameterizedReplaceableKey(
-        event.kind,
-        event.pubkey,
-        getDTag(event),
-      );
-      const current = this.#eventForIndexedId(
-        this.#latestParameterizedReplaceable.get(key),
-      );
-      if (isNewer(event, current)) {
-        this.#latestParameterizedReplaceable.set(key, event.id);
-      }
+    const index = isParameterizedReplaceableKind(event.kind)
+      ? this.#latestParameterizedReplaceable
+      : this.#latestReplaceable;
+    const current = this.#eventForIndexedId(index.get(key));
+
+    if (shouldReplaceIndexedEvent(event, current)) {
+      index.set(key, event.id);
     }
   }
 
