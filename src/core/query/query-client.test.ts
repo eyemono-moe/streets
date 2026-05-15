@@ -1,0 +1,144 @@
+import type { NostrEvent } from "nostr-tools";
+import { Subject } from "rxjs";
+import { describe, expect, test, vi } from "vitest";
+import { createNostrCollections } from "../db/collections";
+import { MemoryNostrRepository } from "../repository/memory-repository";
+import type {
+  NostrTransport,
+  NostrTransportEventPacket,
+  NostrTransportFilter,
+  NostrTransportSubscribeOptions,
+} from "../transport/transport";
+import { createNostrCoreQueryClient } from "./query-client";
+
+const createFakeTransport = () => {
+  const events$ = new Subject<NostrTransportEventPacket>();
+  const close = vi.fn(() => events$.complete());
+  const emit = vi.fn();
+  const subscribe = vi.fn((_options: NostrTransportSubscribeOptions) => ({
+    events$: events$.asObservable(),
+    emit,
+    close,
+  }));
+  const transport = {
+    setDefaultRelays: vi.fn(),
+    subscribe,
+    publish: vi.fn(),
+    observeMessages: vi.fn(),
+    observeConnectionState: vi.fn(),
+    dispose: vi.fn(),
+  } as unknown as NostrTransport;
+
+  return { transport, events$, emit, close, subscribe };
+};
+
+const createEvent = (overrides: Partial<NostrEvent> = {}): NostrEvent => ({
+  id: "event-1",
+  pubkey: "pubkey-1",
+  kind: 1,
+  content: "hello",
+  tags: [],
+  created_at: 1,
+  sig: "sig",
+  ...overrides,
+});
+
+describe("createNostrCoreQueryClient", () => {
+  test("returns cached events without opening a transport subscription", async () => {
+    const { transport, subscribe } = createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const collections = createNostrCollections();
+    const event = createEvent();
+    await repository.putEvent({ event, relay: "wss://relay.example" });
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      collections,
+    });
+
+    await expect(queryClient.ensureEvent({ id: event.id })).resolves.toBe(
+      event,
+    );
+
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  test("emits a backward id filter and closes the one-shot subscription after projecting an event", async () => {
+    const { transport, events$, emit, close, subscribe } =
+      createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      collections,
+      now: () => 123,
+    });
+    const event = createEvent();
+
+    await expect(
+      queryClient.ensureEvent({
+        id: event.id,
+        relays: ["wss://relay.example"],
+      }),
+    ).resolves.toBeUndefined();
+    events$.next({
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-1",
+      event,
+    });
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledOnce();
+    });
+
+    expect(subscribe).toHaveBeenCalledWith({
+      filters: { ids: [event.id] },
+      relays: ["wss://relay.example"],
+      mode: "backward",
+    });
+    expect(emit).toHaveBeenCalledWith({ ids: [event.id] });
+    expect(close).toHaveBeenCalledOnce();
+    await expect(repository.getEvent(event.id)).resolves.toBe(event);
+    expect(await collections.events.get(event.id)).toMatchObject({
+      id: event.id,
+      receivedAt: 123,
+      seenRelays: ["wss://relay.example"],
+    });
+  });
+
+  test("closes a missing profile one-shot subscription after the request timeout", async () => {
+    vi.useFakeTimers();
+    const { transport, emit, close, subscribe } = createFakeTransport();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections: createNostrCollections(),
+      requestTimeoutMs: 25,
+    });
+
+    await expect(
+      queryClient.ensureProfile({
+        pubkey: "pubkey-1",
+        relays: ["wss://relay.example"],
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(subscribe).toHaveBeenCalledWith({
+      filters: { authors: ["pubkey-1"], kinds: [0], limit: 1 },
+      relays: ["wss://relay.example"],
+      mode: "backward",
+    });
+    expect(emit).toHaveBeenCalledWith({
+      authors: ["pubkey-1"],
+      kinds: [0],
+      limit: 1,
+    } satisfies NostrTransportFilter);
+    expect(close).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(25);
+    expect(close).toHaveBeenCalledOnce();
+    queryClient.dispose();
+    expect(close).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+});
