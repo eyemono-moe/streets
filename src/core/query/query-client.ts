@@ -1,7 +1,11 @@
 import type { NostrEvent } from "nostr-tools";
 import { projectRepositoryEvent } from "../db/projectors/project-event";
 import type { NostrCollections } from "../db/types";
-import type { NostrRepository, RelayUrl } from "../repository/nostr-repository";
+import type {
+  NostrEventQuery,
+  NostrRepository,
+  RelayUrl,
+} from "../repository/nostr-repository";
 import { subscribeToTransportEvents } from "../transport/rx-nostr-transport";
 import type { NostrSubscription, NostrTransport } from "../transport/transport";
 
@@ -15,9 +19,17 @@ export type EnsureProfileOptions = {
   relays?: readonly RelayUrl[];
 };
 
+export type EnsureEventRelationsOptions = {
+  query: NostrEventQuery;
+  relays?: readonly RelayUrl[];
+};
+
 export type NostrCoreQueryClient = {
   ensureEvent(options: EnsureEventOptions): Promise<NostrEvent | undefined>;
   ensureProfile(options: EnsureProfileOptions): Promise<NostrEvent | undefined>;
+  ensureEventRelations(
+    options: EnsureEventRelationsOptions,
+  ): Promise<NostrEvent[]>;
   dispose(): void;
 };
 
@@ -119,6 +131,27 @@ export const createNostrCoreQueryClient = ({
         mode: "backward",
       });
       return undefined;
+    },
+
+    async ensureEventRelations({ query, relays }) {
+      const cached = await repository.queryEvents(query);
+      subscribeAndEmit({
+        filters: {
+          ids: query.ids ? [...query.ids] : undefined,
+          authors: query.authors ? [...query.authors] : undefined,
+          kinds: query.kinds ? [...query.kinds] : undefined,
+          limit: query.limit,
+          ...Object.fromEntries(
+            Object.entries(query.tags ?? {}).map(([name, values]) => [
+              `#${name}`,
+              [...values],
+            ]),
+          ),
+        },
+        relays,
+        mode: "backward",
+      });
+      return cached;
     },
 
     dispose() {
