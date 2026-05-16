@@ -1,14 +1,7 @@
-import { type Filter, kinds } from "nostr-tools";
+import { kinds } from "nostr-tools";
 import { normalizeURL } from "nostr-tools/utils";
 import type { Event, EventParameters } from "nostr-typedef";
-import { compareEvents } from "rx-nostr";
-import {
-  type Accessor,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-} from "solid-js";
+import { type Accessor, createEffect, createMemo } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { CacheDataBase } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
@@ -24,13 +17,8 @@ import {
   useCoreFollowers,
   useCoreUserList,
 } from "../../core/solid/use-social-read";
-import type { NostrTransportFilter } from "../../core/transport/transport";
 import { genID } from "./id";
-import {
-  type ParsedEventPacket,
-  parseEventPacket,
-  type parseNostrEvent,
-} from "./parser";
+import type { ParsedEventPacket, parseNostrEvent } from "./parser";
 import type { ProfileSettingsOutput } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
 import type { Repost } from "./parser/6_repost";
@@ -42,82 +30,6 @@ import {
 } from "./parser/10000_muteList";
 import type { EmojiSet } from "./parser/30030_emojiSet";
 import { useNIP07 } from "./useNIP07";
-
-export const createInfiniteRxQuery = (
-  props: () => {
-    filter: Filter;
-    limit: number;
-    relays?: string[];
-  },
-) => {
-  // TODO: propsが変化したら再取得する
-  // TODO: abort controller
-
-  const { core } = useRxNostr();
-
-  const [data, setData] = createStore<{
-    pages: ParsedEventPacket[][];
-  }>({
-    pages: [],
-  });
-  const [isFetching, setIsFetching] = createSignal(false);
-  const [hasNextPage, setHasNextPage] = createSignal(false);
-  let disposed = false;
-
-  /** 取得済みイベントの中で最も古いイベントのcreated_at */
-  let oldestCreatedAt: number | undefined = Math.min(
-    // 現在時刻とprops.filter.untilの小さい方で初期化
-    Math.floor(new Date().getTime() / 1000),
-    props().filter.until ?? Number.POSITIVE_INFINITY,
-  );
-
-  const fetchNextPage = async () => {
-    if (isFetching()) {
-      return;
-    }
-    setIsFetching(true);
-
-    const currentProps = props();
-    const packets = oldestCreatedAt
-      ? await core.queryClient.fetchEventPage({
-          filter: {
-            ...(currentProps.filter as NostrTransportFilter),
-            limit: currentProps.limit,
-            until: oldestCreatedAt - 1,
-          },
-          relays: currentProps.relays,
-        })
-      : [];
-
-    const page = packets
-      .map((packet) => parseEventPacket(packet))
-      .sort((a, b) => -compareEvents(a.raw, b.raw))
-      .slice(0, currentProps.limit);
-
-    oldestCreatedAt = page.at(-1)?.raw.created_at;
-
-    if (!disposed && page.length > 0) {
-      setData("pages", data.pages.length, page);
-    }
-    if (!disposed) {
-      setIsFetching(false);
-      setHasNextPage(page.length >= currentProps.limit);
-    }
-  };
-
-  void fetchNextPage();
-
-  onCleanup(() => {
-    disposed = true;
-  });
-
-  return {
-    data,
-    isFetching,
-    hasNextPage,
-    fetchNextPage,
-  };
-};
 
 export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(
   id: () => string | undefined,
