@@ -9,8 +9,6 @@ import type { Metadata } from "../../shared/libs/parser/0_metadata";
 import type { FollowList } from "../../shared/libs/parser/3_contacts";
 import type { EmojiList } from "../../shared/libs/parser/10030_emojiList";
 import type { EmojiSet } from "../../shared/libs/parser/30030_emojiSet";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrEventRow, NostrProfileRow } from "../db/types";
 import type { NostrEventQuery, RelayUrl } from "../repository/nostr-repository";
 import { useNostrCore } from "./provider";
 
@@ -38,57 +36,25 @@ const toParsedEventPacket = <T>(
   parsed: parseNostrEvent(event) as T,
 });
 
-const profileRowToEvent = (row: NostrProfileRow): NostrEvent => ({
-  id: row.sourceEventId,
-  pubkey: row.pubkey,
-  kind: kinds.Metadata,
-  content: JSON.stringify({
-    name: row.name,
-    display_name: row.displayName,
-    about: row.about,
-    picture: row.picture,
-    nip05: row.nip05,
-    lud16: row.lud16,
-  }),
-  tags: [],
-  created_at: row.updatedAt,
-  sig: "",
-});
-
-const eventMatchesQuery = (event: NostrEvent, query: NostrEventQuery) => {
-  if (query.ids && !query.ids.includes(event.id)) {
-    return false;
-  }
-  if (query.authors && !query.authors.includes(event.pubkey)) {
-    return false;
-  }
-  if (query.kinds && !query.kinds.includes(event.kind)) {
-    return false;
-  }
-  if (query.tags) {
-    for (const [name, values] of Object.entries(query.tags)) {
-      const hasTagValue = event.tags.some(
-        (tag) =>
-          tag[0] === name && tag[1] !== undefined && values.includes(tag[1]),
-      );
-      if (!hasTagValue) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
-
-const rowsForQuery = (
-  events: ReturnType<
-    ReturnType<typeof useNostrCore>["collections"]["events"]["values"]
-  >,
+const eventsForQuery = (
+  eventStore: ReturnType<typeof useNostrCore>["eventStore"],
   query: NostrEventQuery,
 ) => {
-  const rows = [...events]
-    .filter((candidate) => eventMatchesQuery(candidate.raw, query))
-    .sort((a, b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id));
-  return query.limit ? rows.slice(0, query.limit) : rows;
+  const events = eventStore
+    .queryEvents({
+      ids: query.ids ? [...query.ids] : undefined,
+      authors: query.authors ? [...query.authors] : undefined,
+      kinds: query.kinds ? [...query.kinds] : undefined,
+      limit: query.limit,
+      ...Object.fromEntries(
+        Object.entries(query.tags ?? {}).map(([name, values]) => [
+          `#${name}`,
+          [...values],
+        ]),
+      ),
+    })
+    .sort((a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id));
+  return query.limit ? events.slice(0, query.limit) : events;
 };
 
 const querySignature = (query: NostrEventQuery) =>
@@ -159,26 +125,24 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
   });
   let requestVersion = 0;
 
-  const syncFromCollection = (currentQueries: readonly NostrEventQuery[]) => {
-    const rowById = new Map(
+  const syncFromEventStore = (currentQueries: readonly NostrEventQuery[]) => {
+    const eventById = new Map(
       currentQueries
         .flatMap((currentQuery) =>
-          rowsForQuery(core.collections.events.values(), currentQuery),
+          eventsForQuery(core.eventStore, currentQuery),
         )
-        .map((row) => [row.id, row]),
+        .map((event) => [event.id, event]),
     );
-    const rows = [...rowById.values()].sort(
-      (a, b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id),
+    const events = [...eventById.values()].sort(
+      (a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id),
     );
-    const data = rows.map((row) =>
-      toParsedEventPacket<T>(row.raw, row.seenRelays[0]),
+    const data = events.map((event) =>
+      toParsedEventPacket<T>(event, core.eventStore.getSeenRelays(event.id)[0]),
     );
 
     setCache({
       data: data.length > 0 ? data : undefined,
-      dataUpdatedAt:
-        rows.reduce((latest, row) => Math.max(latest, row.receivedAt), 0) ||
-        Date.now(),
+      dataUpdatedAt: Date.now(),
       isFetching: false,
       isInvalidated: false,
     });
@@ -196,14 +160,11 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
       return;
     }
 
-    const subscription = core.collections.events.subscribeChanges(
-      () => {
-        syncFromCollection(currentQueries);
-      },
-      { includeInitialState: true },
-    );
+    const unsubscribe = core.eventStore.subscribe(() => {
+      syncFromEventStore(currentQueries);
+    });
 
-    syncFromCollection(currentQueries);
+    syncFromEventStore(currentQueries);
     setCache((prev) => ({ ...prev, isFetching: true }));
     void Promise.all(
       currentQueries.map((currentQuery) =>
@@ -217,18 +178,11 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
         if (requestVersion !== currentRequestVersion) {
           return;
         }
-        await Promise.all(
-          eventGroups.flat().map(async (event) => {
-            await projectRepositoryEvent(core.collections, event, {
-              receivedAt: Date.now(),
-              seenRelays: await core.repository.getSeenRelays(event.id),
-            });
-          }),
-        );
+        eventGroups;
         if (requestVersion !== currentRequestVersion) {
           return;
         }
-        syncFromCollection(currentQueries);
+        syncFromEventStore(currentQueries);
         setCache((prev) => ({ ...prev, isFetching: false }));
       })
       .catch(() => {
@@ -238,7 +192,7 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
       });
 
     onCleanup(() => {
-      subscription.unsubscribe();
+      unsubscribe();
     });
   });
 
@@ -283,27 +237,26 @@ export const useCoreFollowers = (pubkey: () => string | undefined) => {
   return createMemo<CacheDataBase<string[]>>(() => {
     const _pubkey = pubkey();
     authorContacts();
-    const latestContactRowByAuthor = new Map<string, NostrEventRow>();
-    for (const row of core.collections.events.values()) {
-      if (row.kind !== kinds.Contacts) {
-        continue;
-      }
-      const current = latestContactRowByAuthor.get(row.pubkey);
+    const latestContactByAuthor = new Map<string, NostrEvent>();
+    for (const event of core.eventStore.queryEvents({
+      kinds: [kinds.Contacts],
+    })) {
+      const current = latestContactByAuthor.get(event.pubkey);
       if (
         !current ||
-        row.createdAt > current.createdAt ||
-        (row.createdAt === current.createdAt &&
-          row.id.localeCompare(current.id) > 0)
+        event.created_at > current.created_at ||
+        (event.created_at === current.created_at &&
+          event.id.localeCompare(current.id) > 0)
       ) {
-        latestContactRowByAuthor.set(row.pubkey, row);
+        latestContactByAuthor.set(event.pubkey, event);
       }
     }
     const followers = _pubkey
-      ? [...latestContactRowByAuthor.values()]
-          .filter((row) =>
-            row.raw.tags.some((tag) => tag[0] === "p" && tag[1] === _pubkey),
+      ? [...latestContactByAuthor.values()]
+          .filter((event) =>
+            event.tags.some((tag) => tag[0] === "p" && tag[1] === _pubkey),
           )
-          .map((row) => row.pubkey)
+          .map((event) => event.pubkey)
       : undefined;
 
     return {
@@ -333,39 +286,26 @@ export const useCoreUserList = () => {
     CacheDataBase<ParsedEventPacket<Metadata>>[]
   >([]);
 
-  const syncFromCollection = () => {
+  const syncFromProfileView = () => {
     setUsers(
-      [...core.collections.profiles.values()]
-        .sort(
-          (a, b) =>
-            b.receivedAt - a.receivedAt || b.pubkey.localeCompare(a.pubkey),
-        )
-        .map((row) => {
-          const raw =
-            core.collections.events.get(row.sourceEventId)?.raw ??
-            profileRowToEvent(row);
-          return {
-            data: toParsedEventPacket<Metadata>(raw, row.seenRelays[0]),
-            dataUpdatedAt: row.receivedAt,
-            isFetching: false,
-            isInvalidated: false,
-          };
-        }),
+      core.profileView.listProfiles().map((event) => ({
+        data: toParsedEventPacket<Metadata>(
+          event,
+          core.eventStore.getSeenRelays(event.id)[0],
+        ),
+        dataUpdatedAt: Date.now(),
+        isFetching: false,
+        isInvalidated: false,
+      })),
     );
   };
 
-  // Keep the legacy user-list accessor backed by v1 profile projections instead of
-  // scanning the removed legacy event-cache store.
+  // User listing is derived from kind:0 events in EventStore through ProfileView.
   createEffect(() => {
-    const subscription = core.collections.profiles.subscribeChanges(
-      syncFromCollection,
-      { includeInitialState: true },
-    );
-    syncFromCollection();
+    const unsubscribe = core.profileView.subscribe(syncFromProfileView);
+    syncFromProfileView();
 
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    onCleanup(unsubscribe);
   });
 
   return users;

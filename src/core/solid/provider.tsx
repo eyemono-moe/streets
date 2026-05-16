@@ -14,12 +14,19 @@ import {
 } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type { NostrRepository } from "../repository/nostr-repository";
+import type { EventStore } from "../store/event-store";
+import type { FeedStateStore } from "../store/feed-state-store";
+import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import { RxNostrTransport } from "../transport/rx-nostr-transport";
 import type { NostrTransport } from "../transport/transport";
+import { EventStoreProfileView, type ProfileView } from "../view/profile-view";
 
 export type NostrCore = {
   transport: NostrTransport;
   repository: NostrRepository;
+  eventStore: EventStore;
+  feedStateStore: FeedStateStore;
+  profileView: ProfileView;
   collections: NostrCollections;
   queryClient: NostrCoreQueryClient;
   dispose(): void;
@@ -28,24 +35,54 @@ export type NostrCore = {
 export type CreateNostrCoreOptions = {
   rxNostr: RxNostr;
   repository?: NostrRepository;
+  eventStore?: EventStore;
+  feedStateStore?: FeedStateStore;
+  profileView?: ProfileView;
   collections?: NostrCollections;
   queryClient?: NostrCoreQueryClient;
 };
 
 export const createNostrCore = ({
   rxNostr,
-  repository = new MemoryNostrRepository(),
+  repository,
+  eventStore,
+  feedStateStore,
+  profileView,
   collections = createNostrCollections(),
   queryClient,
 }: CreateNostrCoreOptions): NostrCore => {
+  const resolvedRepository =
+    repository ?? new MemoryNostrRepository(eventStore);
+  const resolvedEventStore =
+    eventStore ??
+    (resolvedRepository instanceof MemoryNostrRepository
+      ? resolvedRepository.eventStore
+      : undefined);
+  if (!resolvedEventStore) {
+    throw new Error(
+      "createNostrCore requires eventStore when repository does not expose one",
+    );
+  }
+
   const transport = new RxNostrTransport(rxNostr);
+  const resolvedFeedStateStore = feedStateStore ?? new MemoryFeedStateStore();
+  const resolvedProfileView =
+    profileView ?? new EventStoreProfileView(resolvedEventStore);
   const coreQueryClient =
     queryClient ??
-    createNostrCoreQueryClient({ transport, repository, collections });
+    createNostrCoreQueryClient({
+      transport,
+      repository: resolvedRepository,
+      collections,
+      feedStateStore: resolvedFeedStateStore,
+    });
 
   return {
     transport,
-    repository,
+    repository: resolvedRepository,
+    eventStore: resolvedEventStore,
+    feedStateStore: resolvedFeedStateStore,
+    profileView: resolvedProfileView,
     collections,
     queryClient: coreQueryClient,
     dispose() {

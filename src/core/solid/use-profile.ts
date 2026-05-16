@@ -6,7 +6,6 @@ import {
   parseNostrEvent,
 } from "../../shared/libs/parser";
 import type { Metadata } from "../../shared/libs/parser/0_metadata";
-import type { NostrProfileRow } from "../db/types";
 import type { RelayUrl } from "../repository/nostr-repository";
 import { useNostrCore } from "./provider";
 
@@ -18,23 +17,6 @@ const createCacheData = <T>(
   dataUpdatedAt: data ? Date.now() : 0,
   isFetching,
   isInvalidated: false,
-});
-
-const profileRowToEvent = (row: NostrProfileRow): NostrEvent => ({
-  id: row.sourceEventId,
-  pubkey: row.pubkey,
-  kind: kinds.Metadata,
-  content: JSON.stringify({
-    name: row.name,
-    display_name: row.displayName,
-    about: row.about,
-    picture: row.picture,
-    nip05: row.nip05,
-    lud16: row.lud16,
-  }),
-  tags: [],
-  created_at: row.updatedAt,
-  sig: "",
 });
 
 const toParsedProfilePacket = <T>(
@@ -55,28 +37,28 @@ export const useCoreProfile = <T = Metadata>(
     createCacheData<T>(),
   );
 
-  const syncFromCollection = (profilePubkey: string) => {
-    const row = core.collections.profiles.get(profilePubkey);
-    if (!row) {
+  const syncFromProfileView = (profilePubkey: string) => {
+    const event = core.profileView.getProfile(profilePubkey);
+    if (!event) {
       setCache((prev) => ({ ...prev, data: undefined }));
       return undefined;
     }
 
     const data = toParsedProfilePacket<T>(
-      profileRowToEvent(row),
-      row.seenRelays[0],
+      event,
+      core.eventStore.getSeenRelays(event.id)[0],
     );
     setCache({
       data,
-      dataUpdatedAt: row.receivedAt,
+      dataUpdatedAt: Date.now(),
       isFetching: false,
       isInvalidated: false,
     });
     return data;
   };
 
-  // Keep the legacy cache-shaped accessor synchronized with the v1 profile collection
-  // and issue a profile metadata query through the core query client when missing.
+  // Keep the cache-shaped Solid accessor synchronized with ProfileView, which derives
+  // metadata from raw kind:0 events in EventStore instead of a profile collection.
   createEffect(() => {
     const profilePubkey = pubkey();
     if (!profilePubkey) {
@@ -84,14 +66,11 @@ export const useCoreProfile = <T = Metadata>(
       return;
     }
 
-    const subscription = core.collections.profiles.subscribeChanges(
-      () => {
-        syncFromCollection(profilePubkey);
-      },
-      { includeInitialState: true },
-    );
+    const unsubscribe = core.profileView.subscribe(() => {
+      syncFromProfileView(profilePubkey);
+    });
 
-    if (!syncFromCollection(profilePubkey)) {
+    if (!syncFromProfileView(profilePubkey)) {
       setCache((prev) => ({ ...prev, isFetching: true }));
       void core.queryClient
         .ensureProfile({ pubkey: profilePubkey, relays: relays?.() })
@@ -99,13 +78,8 @@ export const useCoreProfile = <T = Metadata>(
           if (pubkey() !== profilePubkey) {
             return;
           }
-          if (event) {
-            setCache({
-              data: toParsedProfilePacket<T>(event, relays?.()?.[0]),
-              dataUpdatedAt: Date.now(),
-              isFetching: false,
-              isInvalidated: false,
-            });
+          if (event?.kind === kinds.Metadata) {
+            syncFromProfileView(profilePubkey);
             return;
           }
           setCache((prev) => ({ ...prev, isFetching: false }));
@@ -115,9 +89,7 @@ export const useCoreProfile = <T = Metadata>(
         });
     }
 
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    onCleanup(unsubscribe);
   });
 
   return cache;

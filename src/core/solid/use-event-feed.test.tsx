@@ -1,12 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
-import { createNostrCollections } from "../db/collections";
-import {
-  upsertEventFeedItem,
-  upsertEventFeedState,
-} from "../db/projectors/event-feed";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
 import type { EventFeedDefinition } from "../query/event-feed";
 import type { NostrCoreQueryClient } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
@@ -58,10 +52,8 @@ const createCore = ({
   };
   const rxNostr = {} as Parameters<typeof createNostrCore>[0]["rxNostr"];
   const repository = new MemoryNostrRepository();
-  const collections = createNostrCollections();
-
   return {
-    core: createNostrCore({ rxNostr, repository, collections, queryClient }),
+    core: createNostrCore({ rxNostr, repository, queryClient }),
     ensuredFeeds,
     fetchedFeedIds,
     stoppedFeedIds,
@@ -82,29 +74,17 @@ describe("useCoreEventFeed", () => {
       content: "newer",
     });
 
-    await projectRepositoryEvent(core.collections, older, {
-      receivedAt: 1,
-      seenRelays: ["wss://relay.example"],
-    });
-    await projectRepositoryEvent(core.collections, newer, {
-      receivedAt: 2,
-      seenRelays: ["wss://relay.example"],
-    });
-    await upsertEventFeedItem(core.collections, {
-      feedId: "feed-a",
+    await core.repository.putEvent({
       event: older,
-      insertedAt: 1,
+      relay: "wss://relay.example",
     });
-    await upsertEventFeedItem(core.collections, {
-      feedId: "feed-a",
+    await core.repository.putEvent({
       event: newer,
-      insertedAt: 2,
+      relay: "wss://relay.example",
     });
-    await upsertEventFeedState(core.collections, {
-      feedId: "feed-a",
-      strategy: "liveBackfill",
-      status: "live",
-      updatedAt: 3,
+    core.feedStateStore.addItem("feed-a", older);
+    core.feedStateStore.addItem("feed-a", newer);
+    core.feedStateStore.setStatus("feed-a", "live", {
       hasMoreBackfill: true,
       activeRelays: ["wss://relay.example"],
       eoseRelays: [],
@@ -235,15 +215,11 @@ describe("useCoreEventFeed", () => {
               const firstFetch = feed.fetchNextPage();
               expect(feed.isFetching()).toBe(true);
 
-              await projectRepositoryEvent(core.collections, event, {
-                receivedAt: 1,
-                seenRelays: ["wss://relay.example"],
-              });
-              await upsertEventFeedItem(core.collections, {
-                feedId: "feed-d",
+              await core.repository.putEvent({
                 event,
-                insertedAt: 1,
+                relay: "wss://relay.example",
               });
+              core.feedStateStore.addItem("feed-d", event);
               await vi.waitFor(() => {
                 expect(feed.events().map((packet) => packet.raw.id)).toEqual([
                   "mid-fetch",
