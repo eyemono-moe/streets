@@ -26,6 +26,7 @@ import {
 } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
+import { useCoreEventByID } from "../../core/solid/use-event";
 import { genID } from "./id";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import {
@@ -308,33 +309,7 @@ export const cacheAndEmitRelatedEvent = (
 export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(
   id: () => string | undefined,
   relays?: () => string[] | undefined,
-) => {
-  const queryKey = () => ["event", id()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
-    const _id = id();
-    if (_id) {
-      const _relays = relays?.() ?? [];
-      emit(
-        { ids: [_id] },
-        _relays.length > 0
-          ? {
-              relays: _relays,
-            }
-          : undefined,
-      );
-    }
-  };
-
-  return createGetter<ParsedEventPacket<T>>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
-};
+) => useCoreEventByID<T>(id, relays);
 
 export const useFollowees = (pubkey: () => string | undefined) => {
   const queryKey = () => [kinds.Contacts, pubkey()];
