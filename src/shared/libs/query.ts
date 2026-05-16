@@ -21,7 +21,6 @@ import {
   type CacheDataBase,
   type CacheKey,
   eventCacheSetter,
-  useInvalidateEventCache,
 } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
@@ -478,8 +477,7 @@ export const useSendShortText = () => {
 };
 
 export const useSendReaction = () => {
-  const { sender, sendState } = createSender();
-  const invalidate = useInvalidateEventCache();
+  const { core, sender, sendState } = createSender();
 
   const sendReaction = (props: {
     content: Reaction["content"];
@@ -509,7 +507,12 @@ export const useSendReaction = () => {
         tags,
       },
       () => {
-        invalidate(["reactionsOf", props.targetEventId]);
+        void core.queryClient.ensureEventRelations({
+          query: {
+            kinds: [kinds.Reaction],
+            tags: { e: [props.targetEventId] },
+          },
+        });
       },
     );
   };
@@ -521,8 +524,7 @@ export const useSendReaction = () => {
 };
 
 export const useSendRepost = () => {
-  const { sender, sendState } = createSender();
-  const invalidate = useInvalidateEventCache();
+  const { core, sender, sendState } = createSender();
 
   const sendRepost = (props: { targetEvent: Event; relay: string }) => {
     const tags = [
@@ -546,7 +548,12 @@ export const useSendRepost = () => {
         content: JSON.stringify(props.targetEvent),
       },
       () => {
-        invalidate(["repostsOf", props.targetEvent.id]);
+        void core.queryClient.ensureEventRelations({
+          query: {
+            kinds: [kinds.Repost, kinds.GenericRepost],
+            tags: { e: [props.targetEvent.id] },
+          },
+        });
       },
     );
   };
@@ -559,7 +566,6 @@ export const useSendRepost = () => {
 
 export const useSendContacts = () => {
   const { core, sender, sendState } = createSender();
-  const invalidate = useInvalidateEventCache();
 
   const sendContacts = (props: {
     pubkey: string;
@@ -575,7 +581,6 @@ export const useSendContacts = () => {
         content: props.content,
       },
       () => {
-        invalidate([kinds.Contacts, props.pubkey]);
         void core.queryClient.ensureEventRelations({
           query: { kinds: [kinds.Contacts], authors: [props.pubkey], limit: 1 },
         });
@@ -591,7 +596,6 @@ export const useSendContacts = () => {
 
 export const useSendProfile = () => {
   const { core, sender, sendState } = createSender();
-  const invalidate = useInvalidateEventCache();
 
   const sendProfile = (props: {
     pubkey: string;
@@ -603,7 +607,6 @@ export const useSendProfile = () => {
         content: JSON.stringify(props.profile),
       },
       () => {
-        invalidate([kinds.Metadata, props.pubkey]);
         void core.queryClient.ensureProfile({ pubkey: props.pubkey });
       },
     );
@@ -617,7 +620,6 @@ export const useSendProfile = () => {
 
 export const useSendMuteList = () => {
   const { core, sender, sendState } = createSender();
-  const invalidate = useInvalidateEventCache();
 
   const sendMuteList = async (props: {
     pubkey: string;
@@ -635,7 +637,6 @@ export const useSendMuteList = () => {
         tags: muteItemsToTags(props.publicItems),
       },
       () => {
-        invalidate([kinds.Mutelist, props.pubkey]);
         void core.queryClient.ensureEventRelations({
           query: { kinds: [kinds.Mutelist], authors: [props.pubkey], limit: 1 },
         });
