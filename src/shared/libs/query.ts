@@ -27,6 +27,7 @@ import {
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
 import { useCoreEventByID } from "../../core/solid/use-event";
+import { useCoreEventRelations } from "../../core/solid/use-event-relations";
 import { useCoreProfile } from "../../core/solid/use-profile";
 import { genID } from "./id";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
@@ -391,92 +392,39 @@ export const useProfile = (pubkey: () => string | undefined) =>
   useCoreProfile(pubkey);
 
 export const useReactionsOfEvent = (eventID: () => string | undefined) => {
-  const queryKey = () => ["reactionsOf", eventID()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
+  return useCoreEventRelations<Reaction>(() => {
     const _eventID = eventID();
-    if (_eventID) {
-      emit({
-        kinds: [kinds.Reaction],
-        "#e": [_eventID],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<Reaction>[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+    return _eventID
+      ? { kinds: [kinds.Reaction], tags: { e: [_eventID] } }
+      : undefined;
+  });
 };
 
 export const useRepostsOfEvent = (eventID: () => string | undefined) => {
-  const queryKey = () => ["repostsOf", eventID()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-  const emitter = () => {
+  return useCoreEventRelations<Repost>(() => {
     const _eventID = eventID();
-    if (_eventID) {
-      emit({
-        kinds: [kinds.Repost, kinds.GenericRepost],
-        "#e": [_eventID],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<Repost>[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+    return _eventID
+      ? { kinds: [kinds.Repost, kinds.GenericRepost], tags: { e: [_eventID] } }
+      : undefined;
+  });
 };
 
 export const useQuotesOfEvent = (eventID: () => string | undefined) => {
-  const queryKey = () => ["quotesOf", eventID()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-  const emitter = () => {
+  return useCoreEventRelations<ShortTextNote>(() => {
     const _eventID = eventID();
-    if (_eventID) {
-      emit({
-        kinds: [kinds.ShortTextNote],
-        "#q": [_eventID],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<ShortTextNote>[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+    return _eventID
+      ? { kinds: [kinds.ShortTextNote], tags: { q: [_eventID] } }
+      : undefined;
+  });
 };
 
 export const useRepliesOfEvent = (eventID: () => string | undefined) => {
-  const queryKey = () => ["repliesOf", eventID()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-  const emitter = () => {
+  return useCoreEventRelations<ShortTextNote>(() => {
     const _eventID = eventID();
-    if (_eventID) {
-      emit({
-        kinds: [kinds.ShortTextNote],
-        "#e": [_eventID],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<ShortTextNote>[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+    return _eventID
+      ? { kinds: [kinds.ShortTextNote], tags: { e: [_eventID] } }
+      : undefined;
+  });
 };
 
 export const useEmojis = (pubkey: () => string | undefined) => {
