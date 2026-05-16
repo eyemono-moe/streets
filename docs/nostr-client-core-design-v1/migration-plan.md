@@ -57,15 +57,18 @@ This preserves code-level continuity while allowing the new core to take over.
 
 ### PR 1: Architecture Documents
 
-Add:
+Use the split v1 design docs as the implementation reference:
 
 ```txt
-docs/architecture/nostr-core-v1.md
-docs/architecture/rx-nostr-boundary.md
-docs/architecture/local-dev-seeding.md
+docs/nostr-client-core-design-v1.md
+docs/nostr-client-core-design-v1/overview.md
+docs/nostr-client-core-design-v1/runtime-architecture.md
+docs/nostr-client-core-design-v1/data-model.md
+docs/nostr-client-core-design-v1/local-development.md
+docs/nostr-client-core-design-v1/nip-automation.md
 ```
 
-No behavior change.
+Older one-off architecture notes under `docs/architecture/` may remain as historical references for specific topics, but they should not override the split v1 design docs.
 
 ### PR 2: Transport Boundary
 
