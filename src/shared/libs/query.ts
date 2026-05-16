@@ -27,6 +27,7 @@ import {
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
 import { useCoreEventByID } from "../../core/solid/use-event";
+import { useCoreProfile } from "../../core/solid/use-profile";
 import { genID } from "./id";
 import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import {
@@ -386,28 +387,8 @@ export const useFollowers = (pubkey: () => string | undefined) => {
   }));
 };
 
-export const useProfile = (pubkey: () => string | undefined) => {
-  const queryKey = () => [kinds.Metadata, pubkey()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
-    const _pubkey = pubkey();
-    if (_pubkey) {
-      emit({
-        kinds: [kinds.Metadata],
-        authors: [_pubkey],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<Metadata>>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
-};
+export const useProfile = (pubkey: () => string | undefined) =>
+  useCoreProfile(pubkey);
 
 export const useReactionsOfEvent = (eventID: () => string | undefined) => {
   const queryKey = () => ["reactionsOf", eventID()];
