@@ -1,5 +1,4 @@
 import type { NostrEvent } from "nostr-tools";
-import type { NostrCollections } from "../db/types";
 import type {
   NostrEventQuery,
   NostrRepository,
@@ -55,7 +54,6 @@ export type NostrCoreQueryClient = {
 export type NostrCoreQueryClientDependencies = {
   transport: NostrTransport;
   repository: NostrRepository;
-  collections: NostrCollections;
   feedStateStore?: FeedStateStore;
   now?: () => number;
   requestTimeoutMs?: number;
@@ -64,7 +62,6 @@ export type NostrCoreQueryClientDependencies = {
 export const createNostrCoreQueryClient = ({
   transport,
   repository,
-  collections: _collections,
   feedStateStore = new MemoryFeedStateStore(),
   now = Date.now,
   requestTimeoutMs = 10_000,

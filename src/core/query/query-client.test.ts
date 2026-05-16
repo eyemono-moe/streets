@@ -1,7 +1,6 @@
 import type { NostrEvent } from "nostr-tools";
 import { Subject } from "rxjs";
 import { describe, expect, test, vi } from "vitest";
-import { createNostrCollections } from "../db/collections";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import type {
@@ -50,13 +49,11 @@ describe("createNostrCoreQueryClient", () => {
   test("returns cached events without opening a transport subscription", async () => {
     const { transport, subscribe } = createFakeTransport();
     const repository = new MemoryNostrRepository();
-    const collections = createNostrCollections();
     const event = createEvent();
     await repository.putEvent({ event, relay: "wss://relay.example" });
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
     });
 
     await expect(queryClient.ensureEvent({ id: event.id })).resolves.toBe(
@@ -70,11 +67,9 @@ describe("createNostrCoreQueryClient", () => {
     const { transport, events$, emit, close, subscribe } =
       createFakeTransport();
     const repository = new MemoryNostrRepository();
-    const collections = createNostrCollections();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
       now: () => 123,
     });
     const event = createEvent();
@@ -113,11 +108,9 @@ describe("createNostrCoreQueryClient", () => {
     vi.useFakeTimers();
     const { transport, events$, close } = createFakeTransport();
     const repository = new MemoryNostrRepository();
-    const collections = createNostrCollections();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
       requestTimeoutMs: 25,
     });
     const first = createEvent({ id: "reply-1", tags: [["e", "root"]] });
@@ -158,11 +151,9 @@ describe("createNostrCoreQueryClient", () => {
     const { transport, events$, emit, complete, close, subscribe } =
       createFakeTransport();
     const repository = new MemoryNostrRepository();
-    const collections = createNostrCollections();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
       now: () => 456,
     });
     const event = createEvent({ id: "page-event" });
@@ -201,7 +192,6 @@ describe("createNostrCoreQueryClient", () => {
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
-      collections: createNostrCollections(),
     });
     const event = createEvent({ id: "duplicated-page-event" });
     const firstPacket = {
@@ -233,7 +223,6 @@ describe("createNostrCoreQueryClient", () => {
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
-      collections: createNostrCollections(),
       requestTimeoutMs: 25,
     });
 
@@ -256,7 +245,6 @@ describe("createNostrCoreQueryClient", () => {
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
-      collections: createNostrCollections(),
       requestTimeoutMs: 25,
     });
 
@@ -289,12 +277,10 @@ describe("createNostrCoreQueryClient", () => {
     const { transport, events$, emit, close, subscribe } =
       createFakeTransport();
     const repository = new MemoryNostrRepository();
-    const collections = createNostrCollections();
     const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
       feedStateStore,
       now: () => 1_000,
     });
@@ -348,13 +334,11 @@ describe("createNostrCoreQueryClient", () => {
   test("fetches more event feed rows with until cursor and closes the backward request", async () => {
     const { transport, events$, emit, complete, close, subscribe } =
       createFakeTransport();
-    const collections = createNostrCollections();
     const repository = new MemoryNostrRepository();
     const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
-      collections,
       feedStateStore,
       now: () => 2_000,
     });
@@ -411,12 +395,10 @@ describe("createNostrCoreQueryClient", () => {
 
   test("marks backfill complete after an empty event feed page", async () => {
     const { transport, events$, close } = createFakeTransport();
-    const collections = createNostrCollections();
     const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
-      collections,
       feedStateStore,
       now: () => 3_000,
     });
@@ -451,12 +433,10 @@ describe("createNostrCoreQueryClient", () => {
 
   test("settles fetchMore when pagination state persistence fails", async () => {
     const { transport, events$, close } = createFakeTransport();
-    const collections = createNostrCollections();
     const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
-      collections,
       feedStateStore,
     });
 
