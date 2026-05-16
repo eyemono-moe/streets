@@ -3,7 +3,6 @@ import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
 import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import { type Component, type ParentComponent, createEffect } from "solid-js";
-import { EventCacheProvider } from "./context/eventCache";
 import { FileServerProvider } from "./context/fileServer";
 import { LoadingProvider } from "./context/loading";
 import { MeProvider } from "./context/me";
@@ -42,28 +41,26 @@ const App: Component = () => {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <EventCacheProvider>
-          <LoadingProvider>
-            <MeProvider>
-              <RelaysProvider>
-                <FileServerProvider>
-                  <RxNostrProvider>
-                    <AppNostrProviders>
-                      <MuteProvider>
-                        <DeckProvider>
-                          <PostInputProvider>
-                            <Router>{routes}</Router>
-                          </PostInputProvider>
-                        </DeckProvider>
-                      </MuteProvider>
-                    </AppNostrProviders>
-                  </RxNostrProvider>
-                </FileServerProvider>
-                <SolidQueryDevtools />
-              </RelaysProvider>
-            </MeProvider>
-          </LoadingProvider>
-        </EventCacheProvider>
+        <LoadingProvider>
+          <MeProvider>
+            <RelaysProvider>
+              <FileServerProvider>
+                <RxNostrProvider>
+                  <AppNostrProviders>
+                    <MuteProvider>
+                      <DeckProvider>
+                        <PostInputProvider>
+                          <Router>{routes}</Router>
+                        </PostInputProvider>
+                      </DeckProvider>
+                    </MuteProvider>
+                  </AppNostrProviders>
+                </RxNostrProvider>
+              </FileServerProvider>
+              <SolidQueryDevtools />
+            </RelaysProvider>
+          </MeProvider>
+        </LoadingProvider>
       </QueryClientProvider>
       <Toaster />
     </>
