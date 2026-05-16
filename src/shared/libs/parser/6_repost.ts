@@ -18,10 +18,12 @@ export const parseRepost = (input: NostrEvent) => {
   }
 
   let parsedContent: ShortTextNote | undefined;
-  try {
-    parsedContent = parseShortTextNote(JSON.parse(input.content));
-  } catch (e) {
-    console.warn(`failed to parse repost content: ${e}`);
+  if (input.content.trim() !== "") {
+    try {
+      parsedContent = parseShortTextNote(JSON.parse(input.content));
+    } catch (e) {
+      console.warn(`failed to parse repost content: ${e}`);
+    }
   }
 
   const tagsRes = v.safeParse(repostTags, input.tags);
