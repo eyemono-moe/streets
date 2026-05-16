@@ -90,8 +90,8 @@ TanStack DB Collections
   - profiles
   - contactLists
   - relayLists
-  - timelineItems
-  - queryStates
+  - eventFeedItems
+  - eventFeedStates
   - relayStatuses
   ↓
 SolidJS UI
@@ -181,7 +181,7 @@ src/core/db/
     profile.ts
     contact-list.ts
     relay-list.ts
-    timeline.ts
+    event-feed.ts
     reaction.ts
 
 src/core/query/
@@ -196,7 +196,8 @@ src/core/solid/
   provider.tsx
   use-event.ts
   use-profile.ts
-  use-timeline.ts
+  use-event-feed.ts
+  use-home-timeline.ts
   use-live-query.ts
 
 src/features/
@@ -276,14 +277,14 @@ Backward request:
 
 Forward request:
   - Live subscription
-  - New timeline events
+  - New event feed events
   - Long-running column subscription
 ```
 
-A single timeline column may use both:
+A single `liveBackfill` event feed may use both:
 
 ```txt
-Home timeline column:
+Home timeline feature:
   - Backfill request for historical events
   - Forward request for new live events
 ```
@@ -503,56 +504,63 @@ export type RelayListRow = {
 }
 ```
 
-### `timelineItems`
+### `eventFeedItems`
 
-A UI-facing timeline item projection. This should not duplicate raw events.
+A UI-facing event feed item projection. This should not duplicate raw events.
+
+The core should not treat "timeline" as the generic list primitive. A timeline is only one feature-level use case: a feed that uses the `liveBackfill` strategy with filters for followee posts/reposts. Other columns, such as a user's reactions, a user's media events, notifications, and search results, should use the same feed primitive with different filters and sometimes different fetch strategies.
 
 ```ts
-export type TimelineItemRow = {
+export type EventFeedItemRow = {
   id: string
-  timelineId: string
+  feedId: string
   eventId: string
   pubkey: string
   kind: number
   createdAt: number
   insertedAt: number
 
-  reason:
-    | "home"
-    | "profile"
-    | "mention"
-    | "reply"
-    | "search"
-    | "list"
-
   score?: number
+  matchedFilterIndex?: number
 }
 ```
 
 Suggested id:
 
 ```ts
-const timelineItemId = `${timelineId}:${eventId}`
+const eventFeedItemId = `${feedId}:${eventId}`
 ```
 
-This allows the same event to appear in multiple columns/timelines without duplicating the event row itself.
+This allows the same event to appear in multiple columns/feeds without duplicating the event row itself.
 
-### `queryStates`
+### `eventFeedStates`
 
-Tracks fetch/live status for UI queries.
+Tracks fetch/live status for event feeds.
 
 ```ts
-export type QueryStateRow = {
+export type EventFeedStrategy =
+  | "liveBackfill"
+  | "latestOne"
+  | "backfillOnly"
+  | "liveOnly"
+  | "byIds"
+
+export type EventFeedStateRow = {
   id: string
+  feedId: string
+  strategy: EventFeedStrategy
   status: "idle" | "loading" | "live" | "error"
   error?: string
   oldestCreatedAt?: number
   newestCreatedAt?: number
+  hasMoreBackfill?: boolean
   eoseRelays: string[]
   activeRelays: string[]
   updatedAt: number
 }
 ```
+
+Initial implementations may keep this as one row per feed. Later, this can be split into feed definition state and per-request state if the query registry needs finer-grained lifecycle tracking.
 
 ### `relayStatuses`
 
@@ -620,7 +628,7 @@ async function projectEvent(event: NostrEvent, ctx: ProjectionContext) {
     await projectRelayList(event, ctx)
   }
 
-  await projectIntoActiveTimelines(event, ctx)
+  await projectIntoActiveEventFeeds(event, ctx)
 }
 ```
 
@@ -636,7 +644,7 @@ Do not store the entire raw event graph in Solid's `createStore`.
 
 Solid state should hold UI-only state.
 
-Use TanStack DB live queries for event/profile/timeline data.
+Use TanStack DB live queries for event, profile, and event-feed data.
 
 ### Solid Store Should Hold
 
@@ -674,7 +682,7 @@ src/shared/components/InfiniteEvents.tsx
 src/shared/libs/query.ts
 ```
 
-For v1, keep `ColumnContent` and the individual column components as UI composition and layout owners. A column should describe what timeline/query it needs, but it should not directly create `rx-nostr` requests, parse relay packets, or write cache data. Column-local Solid state should remain limited to layout, temporary column state, dialogs, and view-local controls.
+For v1, keep `ColumnContent` and the individual column components as UI composition and layout owners. A column should describe what event feed or one-shot query it needs, but it should not directly create `rx-nostr` requests, parse relay packets, or write cache data. Column-local Solid state should remain limited to layout, temporary column state, dialogs, and view-local controls.
 
 Event renderers should become read-model consumers. `EventByID` should resolve an event row through the v1 Solid hook, then pass a parsed/renderable view model into `Event`. `Event` may continue to dispatch by event kind, but it should not fetch related events or mutate the repository. Rendering unknown events from the raw event row is acceptable as a fallback.
 
@@ -682,7 +690,7 @@ The migration path should preserve compatibility exports so existing call sites 
 
 ```txt
 legacy column component
-  ↓ describes timeline/query params
+  ↓ describes event feed/query params
 v1 hook ensures query through QueryClient
   ↓ reads TanStack DB live query
 EventByID / InfiniteEvents render read-model rows
@@ -708,34 +716,36 @@ Do not emit filters directly from column components, event renderers, projectors
 
 `cacheAndEmitRelatedEvent`-style behavior should be replaced by explicit related-event policy. Related event fetches may still be triggered, but only through `QueryClient`/`RelatedEventPolicy`, with clear reasons such as reply context, quoted event preview, repost source, or profile metadata. Projectors should record relationships into read models; they should not perform network fetches.
 
-### Timeline Hook Sketch
+### Event Feed Hook Sketch
 
 ```tsx
-function useTimeline(params: Accessor<TimelineParams>) {
+function useEventFeed(params: Accessor<EventFeedParams>) {
   const client = useNostrClient()
 
+  // This effect ensures the feed's fetch/subscription strategy is active for the
+  // current feed definition; UI reads remain local TanStack DB live queries.
   createEffect(() => {
-    client.queryClient.ensureTimeline(params())
+    client.queryClient.ensureEventFeed(params())
   })
 
   return useLiveQuery((q) =>
     q
-      .from({ item: timelineItemsCollection })
-      .where(({ item }) => item.timelineId === timelineId(params()))
+      .from({ item: eventFeedItemsCollection })
+      .where(({ item }) => item.feedId === eventFeedId(params()))
       .orderBy(({ item }) => item.createdAt, "desc")
       .limit(params().limit),
   )
 }
 ```
 
-### Timeline Component Sketch
+### Event Feed Component Sketch
 
 ```tsx
-function TimelineColumn(props: { timelineId: string }) {
+function EventFeedColumn(props: { feedId: string }) {
   const items = useLiveQuery((q) =>
     q
-      .from({ item: timelineItemsCollection })
-      .where(({ item }) => item.timelineId === props.timelineId)
+      .from({ item: eventFeedItemsCollection })
+      .where(({ item }) => item.feedId === props.feedId)
       .orderBy(({ item }) => item.createdAt, "desc")
       .limit(100),
   )
@@ -747,6 +757,8 @@ function TimelineColumn(props: { timelineId: string }) {
   )
 }
 ```
+
+Feature-level hooks can wrap `useEventFeed`. For example, a home timeline hook can build a feed definition that uses the `liveBackfill` strategy with filters for the current followee set. A user reactions column can use the same strategy with `{ kinds: [7], authors: [pubkey] }`. The core feed layer should not need to know which feature is using it.
 
 ### Note Row Sketch
 
@@ -768,6 +780,152 @@ function NoteRow(props: { eventId: string }) {
 
 ---
 
+## Event Feed and Fetch Strategy Model
+
+### Purpose
+
+The generic core primitive for infinite/event-list columns is an event feed, not a timeline.
+
+A feed definition describes:
+
+```ts
+export type EventFeedDefinition = {
+  id: string
+  filters: NostrFilter[]
+  strategy: EventFeedStrategy
+  relays?: RelaySelectionPolicy
+  limit?: number
+}
+```
+
+- `filters` describe what events to retrieve.
+- `strategy` describes how to retrieve them.
+- Feature code decides why a feed exists: home timeline, user reactions, media column, notifications, search, or a future custom column.
+- The core query layer only needs to plan relay work for the definition.
+
+### Initial Strategies
+
+```txt
+liveBackfill:
+  - Fetch historical events backward with until/limit.
+  - Keep a forward/live subscription for newer events.
+  - Used by home timeline, user posts, user reactions, media-like columns, notifications, and many search columns.
+
+latestOne:
+  - Fetch only the newest event matching the filters.
+  - Used by metadata/contact/relay-list style views and other "current value" features.
+
+backfillOnly:
+  - Fetch historical events without a long-running live subscription.
+  - Used by archive/search/import views where new events are not needed.
+
+liveOnly:
+  - Subscribe only to events newer than the start point.
+  - Used by temporary monitors, badges, or live-only panels.
+
+byIds:
+  - Fetch specific event ids.
+  - Used by quote/reply/thread expansion and direct event references.
+```
+
+### Timeline as a Feature
+
+A home timeline is a feature-level wrapper around an event feed:
+
+```ts
+const homeTimelineFeed = createEventFeedDefinition({
+  id: "home:timeline",
+  strategy: "liveBackfill",
+  filters: [
+    {
+      kinds: [1, 6],
+      authors: followees,
+    },
+  ],
+})
+```
+
+A user's reactions can use the same strategy with different filters:
+
+```ts
+const userReactionsFeed = createEventFeedDefinition({
+  id: `user:${pubkey}:reactions`,
+  strategy: "liveBackfill",
+  filters: [
+    {
+      kinds: [7],
+      authors: [pubkey],
+    },
+  ],
+})
+```
+
+This keeps the fetch/infinite machinery reusable. Avoid encoding home timeline assumptions into the core feed layer.
+
+### `liveBackfill` Cursor Policy
+
+A `liveBackfill` feed usually owns two request lifecycles:
+
+```txt
+forward/live request:
+  - Starts near the current newest boundary.
+  - Stays open until the feed is stopped or replaced.
+
+backward request:
+  - Starts at the current oldest boundary.
+  - Uses until/limit for fetchMore.
+  - Closes on EOSE or timeout.
+```
+
+The initial cursor state can be:
+
+```txt
+oldestCreatedAt
+newestCreatedAt
+hasMoreBackfill
+eoseRelays
+activeRelays
+```
+
+Nostr relay filters do not provide a stable event-id tie-break cursor. Start with simple `until = oldestCreatedAt - 1` behavior and repository-level dedupe. If same-second boundary gaps become a real issue, add overlap fetching or local keyset pagination using `(createdAt, eventId)` without exposing that complexity to feature columns.
+
+### Dynamic Feed Definitions
+
+Many feed inputs may become reactive over time:
+
+- followee sets
+- `pubkey`
+- filters
+- strategy
+- relay policy
+- local post-filter/sort options
+
+Early iterations do not need deep special handling for signal-driven feed definitions. However, the design should not rule them out. `feedId` generation, query registry keys, and cleanup semantics should be able to handle a feed definition being replaced when a reactive input changes.
+
+### Publish and Optimistic Updates
+
+Publishing should also use the v1 data model. Do not keep publishing as a direct UI side effect around `rx-nostr.send()`.
+
+Preferred flow:
+
+```txt
+UI action
+  ↓
+TanStack DB mutation
+  ↓
+optimistic event row / eventFeedItem projection
+  ↓
+NostrPublisher signs + sends through transport
+  ↓
+OK/failed status updates
+  ↓
+repository confirms actual event / seen relays
+```
+
+This allows compose actions, reposts, reactions, deletes, and profile/contact-list updates to appear immediately while still reconciling against repository writes and relay acknowledgements.
+
+---
+
 ## Query Client and Query Planner
 
 TanStack DB handles local read queries. It does not decide what to fetch from relays.
@@ -779,10 +937,10 @@ A separate query planner is still required.
 ```txt
 QueryClient:
   - Public API for UI/features
-  - ensureTimeline
+  - ensureEventFeed
   - ensureProfile
   - ensureEventById
-  - fetchMore
+  - fetchMoreEventFeed
   - startLiveQuery
   - stopQuery
 
@@ -803,13 +961,13 @@ QueryRegistry:
 ### Query Flow
 
 ```txt
-UI calls useTimeline()
+UI calls useEventFeed() or a feature wrapper such as useHomeTimeline()
   ↓
-TanStack DB returns current local timeline rows
+TanStack DB returns current local event feed rows
   ↓
-createEffect calls queryClient.ensureTimeline()
+createEffect calls queryClient.ensureEventFeed()
   ↓
-QueryPlanner checks what is missing
+QueryPlanner checks what is missing for the feed's filters and strategy
   ↓
 RxNostrTransport subscribes/fetches if needed
   ↓
@@ -1266,21 +1424,23 @@ Migrate profile metadata to repository + TanStack DB projection.
 
 Migrate `kind:3` handling and followee queries.
 
-### PR 9: Migrate Timeline
+### PR 9: Migrate Event Feed / Infinite Columns
 
-Migrate timeline queries to:
+Migrate timeline-like infinite queries to the generic event feed model:
 
 ```txt
-QueryClient.ensureTimeline()
+QueryClient.ensureEventFeed()
   ↓
 rx-nostr transport fetch/live subscription
   ↓
 repository
   ↓
-TanStack DB timelineItems
+TanStack DB eventFeedItems
   ↓
 Solid live query
 ```
+
+The home timeline should become one feature wrapper around the event feed primitive, not the generic core abstraction.
 
 ### PR 10: Related Event Policy
 
@@ -1315,14 +1475,14 @@ Recommended development order:
 8. Implement useProfile with TanStack DB live query.
 9. Implement contact list and relay list projections.
 10. Implement QueryClient and QueryRegistry.
-11. Implement timeline backfill.
-12. Implement timeline live subscription.
+11. Implement `liveBackfill` event feed backfill.
+12. Implement `liveBackfill` event feed live subscription.
 13. Add local relay seed scenarios.
 14. Add IndexedDB repository.
 15. Add cross-tab improvements.
 ```
 
-Do not start with the timeline. Start with `useEventByID` and `useProfile`, then move to timeline.
+Do not start with a home timeline feature. Start with `useEventByID` and `useProfile`, then move to the generic event feed primitive and wrap it for home timeline later.
 
 ---
 
@@ -1490,7 +1650,7 @@ The first milestone should be small and prove the architecture.
 ```txt
 - RxNostrTransport
 - MemoryNostrRepository
-- TanStack DB collections: events, profiles, queryStates
+- TanStack DB collections: events, profiles, eventFeedStates
 - Projection for kind:0 profile events
 - useEventByID
 - useProfile
@@ -1517,7 +1677,8 @@ The first milestone should be small and prove the architecture.
 SolidJS UI
   ↓
 Feature hooks
-  - useTimeline
+  - useEventFeed
+  - useHomeTimeline
   - useProfile
   - useEventByID
   - useNotifications
