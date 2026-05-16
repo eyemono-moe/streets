@@ -79,7 +79,10 @@ export const createNostrCoreQueryClient = ({
     return close;
   };
 
-  const subscribeAndEmit: NostrTransport["subscribe"] = (options) => {
+  const subscribeAndEmit = (
+    options: Parameters<NostrTransport["subscribe"]>[0],
+    { closeOnFirstEvent }: { closeOnFirstEvent: boolean },
+  ) => {
     const closeTrackedSubscriptionRef: { current?: () => void } = {};
     const subscription = subscribeToTransportEvents(
       transport,
@@ -91,7 +94,7 @@ export const createNostrCoreQueryClient = ({
             // this boundary prevents fire-and-forget projection from creating unhandled rejections.
           })
           .finally(() => {
-            if (options.mode !== "forward") {
+            if (closeOnFirstEvent) {
               closeTrackedSubscriptionRef.current?.();
             }
           });
@@ -111,11 +114,14 @@ export const createNostrCoreQueryClient = ({
         return cached;
       }
 
-      subscribeAndEmit({
-        filters: { ids: [id] },
-        relays,
-        mode: "backward",
-      });
+      subscribeAndEmit(
+        {
+          filters: { ids: [id] },
+          relays,
+          mode: "backward",
+        },
+        { closeOnFirstEvent: true },
+      );
       return undefined;
     },
 
@@ -125,32 +131,38 @@ export const createNostrCoreQueryClient = ({
         return cached;
       }
 
-      subscribeAndEmit({
-        filters: { authors: [pubkey], kinds: [0], limit: 1 },
-        relays,
-        mode: "backward",
-      });
+      subscribeAndEmit(
+        {
+          filters: { authors: [pubkey], kinds: [0], limit: 1 },
+          relays,
+          mode: "backward",
+        },
+        { closeOnFirstEvent: true },
+      );
       return undefined;
     },
 
     async ensureEventRelations({ query, relays }) {
       const cached = await repository.queryEvents(query);
-      subscribeAndEmit({
-        filters: {
-          ids: query.ids ? [...query.ids] : undefined,
-          authors: query.authors ? [...query.authors] : undefined,
-          kinds: query.kinds ? [...query.kinds] : undefined,
-          limit: query.limit,
-          ...Object.fromEntries(
-            Object.entries(query.tags ?? {}).map(([name, values]) => [
-              `#${name}`,
-              [...values],
-            ]),
-          ),
+      subscribeAndEmit(
+        {
+          filters: {
+            ids: query.ids ? [...query.ids] : undefined,
+            authors: query.authors ? [...query.authors] : undefined,
+            kinds: query.kinds ? [...query.kinds] : undefined,
+            limit: query.limit,
+            ...Object.fromEntries(
+              Object.entries(query.tags ?? {}).map(([name, values]) => [
+                `#${name}`,
+                [...values],
+              ]),
+            ),
+          },
+          relays,
+          mode: "backward",
         },
-        relays,
-        mode: "backward",
-      });
+        { closeOnFirstEvent: false },
+      );
       return cached;
     },
 

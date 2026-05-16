@@ -5,23 +5,22 @@ import {
   type EventPacket,
   type LazyFilter,
   type RxReqEmittable,
-  batch,
   compareEvents,
   createRxBackwardReq,
-  latestEach,
   uniq,
 } from "rx-nostr";
-import { bufferWhen, interval, map, tap } from "rxjs";
-import stringify from "safe-stable-stringify";
-import { createEffect, createSignal } from "solid-js";
+import { map, tap } from "rxjs";
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
   type CacheDataBase,
   type CacheKey,
-  createGetter,
-  createGetters,
   eventCacheSetter,
-  useEventCacheStore,
   useInvalidateEventCache,
 } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
@@ -29,16 +28,22 @@ import { useRxNostr } from "../../context/rxNostr";
 import { useCoreEventByID } from "../../core/solid/use-event";
 import { useCoreEventRelations } from "../../core/solid/use-event-relations";
 import { useCoreProfile } from "../../core/solid/use-profile";
+import {
+  useCoreEmojiList,
+  useCoreEmojiSets,
+  useCoreEventList,
+  useCoreFollowees,
+  useCoreFollowers,
+  useCoreUserList,
+} from "../../core/solid/use-social-read";
 import { genID } from "./id";
-import { mergeSimilarAndRemoveEmptyFilters } from "./mergeFilters";
 import {
   type ParsedEventPacket,
   parseEventPacket,
   type parseNostrEvent,
 } from "./parser";
-import type { Metadata, ProfileSettingsOutput } from "./parser/0_metadata";
+import type { ProfileSettingsOutput } from "./parser/0_metadata";
 import type { ShortTextNote } from "./parser/1_shortTextNote";
-import type { FollowList } from "./parser/3_contacts";
 import type { Repost } from "./parser/6_repost";
 import type { Reaction } from "./parser/7_reaction";
 import {
@@ -46,7 +51,6 @@ import {
   type MuteList,
   muteItemsToTags,
 } from "./parser/10000_muteList";
-import type { EmojiList } from "./parser/10030_emojiList";
 import type { EmojiSet } from "./parser/30030_emojiSet";
 import { useNIP07 } from "./useNIP07";
 
@@ -314,78 +318,11 @@ export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(
 ) => useCoreEventByID<T>(id, relays);
 
 export const useFollowees = (pubkey: () => string | undefined) => {
-  const queryKey = () => [kinds.Contacts, pubkey()];
-
-  const {
-    actions: { emitWithEOSE },
-  } = useRxNostr();
-
-  const emitter = () => {
-    const _pubkey = pubkey();
-    if (_pubkey) {
-      return emitWithEOSE({
-        kinds: [kinds.Contacts],
-        authors: [_pubkey],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<FollowList>>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+  return useCoreFollowees(pubkey);
 };
 
 export const useFollowers = (pubkey: () => string | undefined) => {
-  // フォロワー取得は個別に行う
-  // TODO: refactoring
-
-  const queryKey = () => ["followers", pubkey()];
-  const { rxNostr } = useRxNostr();
-  const setter = eventCacheSetter();
-
-  const req = createRxBackwardReq();
-
-  const emitter = () => {
-    const _pubkey = pubkey();
-    if (_pubkey) {
-      req.emit({
-        kinds: [kinds.Contacts],
-        "#p": [_pubkey],
-      });
-    }
-  };
-
-  rxNostr
-    .use(
-      req.pipe(
-        bufferWhen(() => interval(1000)),
-        batch((a, b) => mergeSimilarAndRemoveEmptyFilters([...a, ...b])),
-      ),
-    )
-    .pipe(
-      uniq(),
-      latestEach((e) => e.event.pubkey),
-    )
-    .subscribe({
-      next: (e) => {
-        setter<string[]>(queryKey(), (prev) => {
-          if (prev) {
-            if (prev.includes(e.event.pubkey)) {
-              return prev;
-            }
-
-            return [...prev, e.event.pubkey];
-          }
-          return [e.event.pubkey];
-        });
-      },
-    });
-
-  return createGetter<string[]>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+  return useCoreFollowers(pubkey);
 };
 
 export const useProfile = (pubkey: () => string | undefined) =>
@@ -428,39 +365,13 @@ export const useRepliesOfEvent = (eventID: () => string | undefined) => {
 };
 
 export const useEmojis = (pubkey: () => string | undefined) => {
-  const queryKey = () => [kinds.UserEmojiList, pubkey()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-  const emojiListEmitter = () => {
-    const _pubkey = pubkey();
-    if (_pubkey) {
-      emit({
-        kinds: [kinds.UserEmojiList],
-        authors: [_pubkey],
-      });
-    }
-  };
-  const emojiList = createGetter<ParsedEventPacket<EmojiList>>(() => ({
-    queryKey: queryKey(),
-    emitter: emojiListEmitter,
-  }));
-
-  const emojiSets = createGetters<ParsedEventPacket<EmojiSet>>(() => {
-    return (
-      emojiList().data?.parsed.emojiSets?.map((set) => ({
-        queryKey: [kinds.Emojisets, set.pubkey, set.tag],
-        emitter: () => {
-          emit({
-            kinds: [kinds.Emojisets],
-            authors: [set.pubkey],
-            "#d": [set.tag],
-          });
-        },
-      })) ?? []
-    );
-  });
+  const emojiList = useCoreEmojiList(pubkey);
+  const coreEmojiSets = useCoreEmojiSets(
+    () => emojiList().data?.parsed.emojiSets ?? [],
+  );
+  const emojiSets = createMemo<
+    Accessor<CacheDataBase<ParsedEventPacket<EmojiSet>>>[]
+  >(() => coreEmojiSets().map((emojiSet) => () => emojiSet));
 
   return {
     emojiList,
@@ -469,42 +380,15 @@ export const useEmojis = (pubkey: () => string | undefined) => {
 };
 
 export const useMuteList = (pubkey: () => string | undefined) => {
-  const queryKey = () => [kinds.Mutelist, pubkey()];
-
-  const {
-    actions: { emit },
-  } = useRxNostr();
-
-  const emitter = () => {
+  return useCoreEventList<MuteList>(() => {
     const _pubkey = pubkey();
-    if (_pubkey) {
-      emit({
-        kinds: [kinds.Mutelist],
-        authors: [_pubkey],
-      });
-    }
-  };
-
-  return createGetter<ParsedEventPacket<MuteList>>(() => ({
-    queryKey: queryKey(),
-    emitter,
-  }));
+    return _pubkey
+      ? { kinds: [kinds.Mutelist], authors: [_pubkey], limit: 1 }
+      : undefined;
+  });
 };
 
-const useCacheByQueryKey = <T>(queryKey: () => CacheKey) => {
-  const cache = useEventCacheStore();
-
-  return () =>
-    Object.entries(cache)
-      .filter(
-        ([key, value]) =>
-          key.startsWith(stringify(queryKey()).slice(0, -1)) && !!value?.data,
-      )
-      .map(([_, value]) => value as CacheDataBase<T>);
-};
-
-export const useUserList = () =>
-  useCacheByQueryKey<ParsedEventPacket<Metadata>>(() => [0]);
+export const useUserList = () => useCoreUserList();
 
 const initialSendState = (): SendingState => ({
   id: "",
@@ -515,7 +399,7 @@ const initialSendState = (): SendingState => ({
 });
 
 const createSender = () => {
-  const { rxNostr } = useRxNostr();
+  const { core, rxNostr } = useRxNostr();
   const [sendState, setSendState] = createStore<SendingState>(
     initialSendState(),
   );
@@ -567,6 +451,7 @@ const createSender = () => {
   };
 
   return {
+    core,
     sendState,
     sender,
   };
@@ -673,7 +558,7 @@ export const useSendRepost = () => {
 };
 
 export const useSendContacts = () => {
-  const { sender, sendState } = createSender();
+  const { core, sender, sendState } = createSender();
   const invalidate = useInvalidateEventCache();
 
   const sendContacts = (props: {
@@ -691,6 +576,9 @@ export const useSendContacts = () => {
       },
       () => {
         invalidate([kinds.Contacts, props.pubkey]);
+        void core.queryClient.ensureEventRelations({
+          query: { kinds: [kinds.Contacts], authors: [props.pubkey], limit: 1 },
+        });
       },
     );
   };
@@ -702,7 +590,7 @@ export const useSendContacts = () => {
 };
 
 export const useSendProfile = () => {
-  const { sender, sendState } = createSender();
+  const { core, sender, sendState } = createSender();
   const invalidate = useInvalidateEventCache();
 
   const sendProfile = (props: {
@@ -716,6 +604,7 @@ export const useSendProfile = () => {
       },
       () => {
         invalidate([kinds.Metadata, props.pubkey]);
+        void core.queryClient.ensureProfile({ pubkey: props.pubkey });
       },
     );
   };
@@ -727,7 +616,7 @@ export const useSendProfile = () => {
 };
 
 export const useSendMuteList = () => {
-  const { sender, sendState } = createSender();
+  const { core, sender, sendState } = createSender();
   const invalidate = useInvalidateEventCache();
 
   const sendMuteList = async (props: {
@@ -747,6 +636,9 @@ export const useSendMuteList = () => {
       },
       () => {
         invalidate([kinds.Mutelist, props.pubkey]);
+        void core.queryClient.ensureEventRelations({
+          query: { kinds: [kinds.Mutelist], authors: [props.pubkey], limit: 1 },
+        });
       },
     );
   };

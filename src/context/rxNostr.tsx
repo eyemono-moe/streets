@@ -23,7 +23,8 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
-import { createNostrCore } from "../core/solid/provider";
+import { projectRepositoryEvent } from "../core/db/projectors/project-event";
+import { type NostrCore, createNostrCore } from "../core/solid/provider";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
 import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
@@ -33,6 +34,21 @@ import { useRelays } from "./relays";
 
 type Emitter = RxReqEmittable<{ relays: string[] }>["emit"];
 type EmitParams = Parameters<Emitter>;
+
+type CoreEvent = Parameters<NostrCore["repository"]["putEvent"]>[0]["event"];
+
+export const ingestNostrCoreEvent = async (
+  core: NostrCore,
+  event: CoreEvent,
+  relay: string,
+  now = Date.now,
+) => {
+  await core.repository.putEvent({ event, relay });
+  await projectRepositoryEvent(core.collections, event, {
+    receivedAt: now(),
+    seenRelays: await core.repository.getSeenRelays(event.id),
+  });
+};
 
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
@@ -99,6 +115,9 @@ export const RxNostrProvider: ParentComponent = (props) => {
   allMessage$.pipe(filterByType("EVENT"), uniq()).subscribe({
     next: (e) => {
       cacheAndEmitRelatedEvent(e, emit, setter);
+      void ingestNostrCoreEvent(core(), e.event, e.from).catch(() => {
+        // Keep the legacy rx-nostr stream alive even if v1 projection rejects.
+      });
     },
   });
 

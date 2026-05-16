@@ -107,6 +107,51 @@ describe("createNostrCoreQueryClient", () => {
     });
   });
 
+  test("keeps relation subscriptions open for multiple matching events until timeout", async () => {
+    vi.useFakeTimers();
+    const { transport, events$, close } = createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      collections,
+      requestTimeoutMs: 25,
+    });
+    const first = createEvent({ id: "reply-1", tags: [["e", "root"]] });
+    const second = createEvent({ id: "reply-2", tags: [["e", "root"]] });
+
+    await expect(
+      queryClient.ensureEventRelations({
+        query: { kinds: [1], tags: { e: ["root"] } },
+      }),
+    ).resolves.toEqual([]);
+
+    events$.next({
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-1",
+      event: first,
+    });
+    await vi.runAllTicks();
+    await expect(repository.getEvent(first.id)).resolves.toBe(first);
+    expect(close).not.toHaveBeenCalled();
+
+    events$.next({
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-1",
+      event: second,
+    });
+    await vi.runAllTicks();
+    await expect(repository.getEvent(second.id)).resolves.toBe(second);
+    expect(close).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(25);
+    expect(close).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
   test("closes a missing profile one-shot subscription after the request timeout", async () => {
     vi.useFakeTimers();
     const { transport, emit, close, subscribe } = createFakeTransport();
