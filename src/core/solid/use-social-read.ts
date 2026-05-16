@@ -186,7 +186,7 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
   };
 
   // Keep legacy accessor data synchronized with v1 events while query issuance goes through
-  // the core query client instead of EventCacheProvider createGetter/createGetters.
+  // the core query client instead of the removed legacy event-cache getter helpers.
   createEffect(() => {
     const currentQueries = stableQueries();
     const currentRelays = relays?.();
@@ -355,7 +355,7 @@ export const useCoreUserList = () => {
   };
 
   // Keep the legacy user-list accessor backed by v1 profile projections instead of
-  // scanning EventCacheProvider's serialized cache keys.
+  // scanning the removed legacy event-cache store.
   createEffect(() => {
     const subscription = core.collections.profiles.subscribeChanges(
       syncFromCollection,
