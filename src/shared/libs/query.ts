@@ -1,27 +1,16 @@
 import { type Filter, kinds } from "nostr-tools";
 import { normalizeURL } from "nostr-tools/utils";
 import type { Event, EventParameters } from "nostr-typedef";
-import {
-  type EventPacket,
-  type LazyFilter,
-  type RxReqEmittable,
-  compareEvents,
-  createRxBackwardReq,
-  uniq,
-} from "rx-nostr";
-import { map, tap } from "rxjs";
+import { compareEvents } from "rx-nostr";
 import {
   type Accessor,
   createEffect,
   createMemo,
   createSignal,
+  onCleanup,
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
-import {
-  type CacheDataBase,
-  type CacheKey,
-  eventCacheSetter,
-} from "../../context/eventCache";
+import type { CacheDataBase } from "../../context/eventCache";
 import { type SendingState, useLoading } from "../../context/loading";
 import { useRxNostr } from "../../context/rxNostr";
 import { useCoreEventByID } from "../../core/solid/use-event";
@@ -35,6 +24,7 @@ import {
   useCoreFollowers,
   useCoreUserList,
 } from "../../core/solid/use-social-read";
+import type { NostrTransportFilter } from "../../core/transport/transport";
 import { genID } from "./id";
 import {
   type ParsedEventPacket,
@@ -63,11 +53,7 @@ export const createInfiniteRxQuery = (
   // TODO: propsが変化したら再取得する
   // TODO: abort controller
 
-  const {
-    rxNostr,
-    actions: { emit },
-  } = useRxNostr();
-  const setter = eventCacheSetter();
+  const { core } = useRxNostr();
 
   const [data, setData] = createStore<{
     pages: ParsedEventPacket[][];
@@ -76,6 +62,7 @@ export const createInfiniteRxQuery = (
   });
   const [isFetching, setIsFetching] = createSignal(false);
   const [hasNextPage, setHasNextPage] = createSignal(false);
+  let disposed = false;
 
   /** 取得済みイベントの中で最も古いイベントのcreated_at */
   let oldestCreatedAt: number | undefined = Math.min(
@@ -85,60 +72,44 @@ export const createInfiniteRxQuery = (
   );
 
   const fetchNextPage = async () => {
-    const rxReq = createRxBackwardReq();
+    if (isFetching()) {
+      return;
+    }
     setIsFetching(true);
 
-    const page = await new Promise<ParsedEventPacket[]>((resolve) => {
-      const events: ParsedEventPacket[] = [];
-      rxNostr
-        .use(rxReq, {
-          on: {
-            relays: props().relays,
-            defaultReadRelays: !props().relays,
+    const currentProps = props();
+    const packets = oldestCreatedAt
+      ? await core.queryClient.fetchEventPage({
+          filter: {
+            ...(currentProps.filter as NostrTransportFilter),
+            limit: currentProps.limit,
+            until: oldestCreatedAt - 1,
           },
+          relays: currentProps.relays,
         })
-        .pipe(
-          uniq(),
-          tap((e) => cacheAndEmitRelatedEvent(e, emit, setter)),
-          map((e) => parseEventPacket(e)),
-        )
-        .subscribe({
-          next: (e) => {
-            events.push(e);
-          },
-          complete: () => {
-            const sliced = events
-              .sort((a, b) => -compareEvents(a.raw, b.raw))
-              .slice(0, props().limit);
+      : [];
 
-            oldestCreatedAt = sliced.at(-1)?.raw.created_at;
+    const page = packets
+      .map((packet) => parseEventPacket(packet))
+      .sort((a, b) => -compareEvents(a.raw, b.raw))
+      .slice(0, currentProps.limit);
 
-            resolve(sliced);
-          },
-        });
+    oldestCreatedAt = page.at(-1)?.raw.created_at;
 
-      if (oldestCreatedAt) {
-        rxReq.emit({
-          ...props().filter,
-          limit: props().limit,
-          until: oldestCreatedAt - 1,
-        });
-      }
-      rxReq.over();
-    });
-    if (page.length > 0) {
+    if (!disposed && page.length > 0) {
       setData("pages", data.pages.length, page);
     }
-    setIsFetching(false);
-
-    if (page.length < props().limit) {
-      setHasNextPage(false);
-    } else {
-      setHasNextPage(true);
+    if (!disposed) {
+      setIsFetching(false);
+      setHasNextPage(page.length >= currentProps.limit);
     }
   };
 
-  fetchNextPage();
+  void fetchNextPage();
+
+  onCleanup(() => {
+    disposed = true;
+  });
 
   return {
     data,
@@ -146,169 +117,6 @@ export const createInfiniteRxQuery = (
     hasNextPage,
     fetchNextPage,
   };
-};
-
-// TODO: ここで各kindのstaleTimeも設定する
-const getCacheKey = (
-  parsed: ParsedEventPacket,
-): {
-  single?: CacheKey[];
-  multiple?: CacheKey[];
-} => {
-  switch (parsed.parsed.kind) {
-    case kinds.ShortTextNote: {
-      const replyTarget = parsed.parsed.replyOrRoot
-        ? ["repliesOf", parsed.parsed.replyOrRoot.id]
-        : [];
-
-      const quotes = parsed.parsed.tags
-        .filter((tag) => tag.kind === "q")
-        .map((tag) => ["quotesOf", tag.id]);
-
-      return {
-        single: [["event", parsed.parsed.id]],
-        multiple: [replyTarget, ...quotes],
-      };
-    }
-    case kinds.Metadata:
-    case kinds.Contacts:
-    case kinds.Mutelist:
-    case kinds.UserEmojiList:
-      // 特定ユーザーについて最新1件を取得できれば良いもの
-      return { single: [[parsed.raw.kind, parsed.parsed.pubkey]] };
-    case kinds.Emojisets:
-      return {
-        single: [
-          [kinds.Emojisets, parsed.parsed.pubkey, parsed.parsed.identifier],
-        ],
-      };
-    case kinds.Repost: {
-      // そのidのShortTextNoteのリポスト一覧
-      const repostsOf = parsed.parsed.tags
-        .filter((tag) => tag.kind === "e")
-        .map((tag) => ["repostsOf", tag.id]);
-      return { multiple: repostsOf };
-    }
-    case kinds.Reaction: {
-      // そのidのShortTextNoteのリアクション一覧
-      return {
-        multiple: [["reactionsOf", parsed.parsed.targetEvent.id]],
-      };
-    }
-    default:
-      console.warn(`[getQueryKey] unknown kind: ${parsed.raw.kind}`);
-      return {
-        multiple: [["event", parsed.raw.id]],
-      };
-  }
-};
-
-const getRelatedEventFilters = (parsed: ParsedEventPacket): LazyFilter[] => {
-  switch (parsed.parsed.kind) {
-    // 何もemitしないkind
-    case kinds.Contacts:
-    case kinds.Mutelist:
-    case kinds.Emojisets:
-      return [];
-    case kinds.Metadata:
-      return [
-        // {
-        //   kinds: [kinds.Contacts],
-        //   authors: [parsed.parsed.pubkey],
-        // },
-      ];
-    case kinds.ShortTextNote: {
-      const authors = parsed.parsed.tags
-        .filter((tag) => tag.kind === "p")
-        .map((tag) => tag.pubkey);
-      authors.push(parsed.parsed.pubkey);
-
-      // const relatedEvents = parsed.parsed.tags
-      //   .filter((tag) => tag.kind === "e" || tag.kind === "q")
-      //   .map((tag) => tag.id);
-
-      return [
-        {
-          kinds: [kinds.Metadata],
-          authors: authors,
-        },
-        // TODO: これを入れると無限ループする?
-        // {
-        //   kinds: [kinds.ShortTextNote],
-        //   ids: relatedEvents,
-        // },
-        {
-          kinds: [kinds.Reaction, kinds.Repost],
-          "#e": [parsed.parsed.id],
-        },
-      ];
-    }
-    case kinds.Repost: {
-      return [
-        {
-          kinds: [kinds.ShortTextNote],
-          ids: [parsed.parsed.targetEventID],
-          // limit: 1,
-        },
-      ];
-    }
-    case kinds.Reaction:
-      return [
-        {
-          kinds: [kinds.Metadata],
-          authors: [parsed.parsed.pubkey],
-        },
-      ];
-    case kinds.UserEmojiList: {
-      const referencedSets = parsed.parsed.emojiSets;
-      return referencedSets.map((set) => ({
-        kinds: [kinds.Emojisets],
-        authors: [set.pubkey],
-        "#d": [set.tag],
-      }));
-    }
-    default:
-      console.warn(`[relatedEventFilters] unknown kind: ${parsed.raw.kind}`);
-      return [];
-  }
-};
-
-export const cacheAndEmitRelatedEvent = (
-  e: EventPacket,
-  emit: RxReqEmittable<{ relays: string[] }>["emit"],
-  cacheSetter: ReturnType<typeof eventCacheSetter>,
-) => {
-  const parsed = parseEventPacket(e);
-  const queryKeys = getCacheKey(parsed);
-
-  // 最新1件のみをcacheに保存する
-  for (const queryKey of queryKeys.single ?? []) {
-    cacheSetter<ParsedEventPacket>(queryKey, (prev) => {
-      if (prev && prev.raw.created_at > parsed.raw.created_at) {
-        return prev;
-      }
-      return parsed;
-    });
-  }
-
-  // すべてのイベントをcacheに保存する
-  for (const queryKey of queryKeys.multiple ?? []) {
-    cacheSetter<ParsedEventPacket[]>(queryKey, (prev) => {
-      if (prev) {
-        // 既に同じイベントがあれば追加しない
-        if (prev.some((p) => p.raw.id === parsed.raw.id)) {
-          return prev;
-        }
-
-        // TODO: sort
-        return [parsed, ...prev];
-      }
-      return [parsed];
-    });
-  }
-
-  const relatedEventFilters = getRelatedEventFilters(parsed);
-  emit(relatedEventFilters);
 };
 
 export const useEventByID = <T = ReturnType<typeof parseNostrEvent>>(

@@ -49,6 +49,11 @@ export class RxNostrTransport implements NostrTransport {
       emit(filters) {
         rxReq.emit(toLazyFilters(filters));
       },
+      complete() {
+        if ("over" in rxReq) {
+          rxReq.over();
+        }
+      },
       close() {
         subscriptions.unsubscribe();
         if ("over" in rxReq) {
@@ -101,6 +106,7 @@ export const subscribeToTransportEvents = (
   return {
     events$: subscription.events$,
     emit: subscription.emit,
+    complete: subscription.complete,
     close() {
       observableSubscription.unsubscribe();
       originalClose();
