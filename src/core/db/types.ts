@@ -36,6 +36,41 @@ export type NostrQueryStateRow = {
   error?: string;
 };
 
+export type EventFeedStrategy =
+  | "liveBackfill"
+  | "latestOne"
+  | "backfillOnly"
+  | "liveOnly"
+  | "byIds";
+
+export type EventFeedStatus = "idle" | "loading" | "live" | "error";
+
+export type EventFeedItemRow = {
+  id: string;
+  feedId: string;
+  eventId: string;
+  pubkey: string;
+  kind: number;
+  createdAt: number;
+  insertedAt: number;
+  score?: number;
+  matchedFilterIndex?: number;
+};
+
+export type EventFeedStateRow = {
+  id: string;
+  feedId: string;
+  strategy: EventFeedStrategy;
+  status: EventFeedStatus;
+  error?: string;
+  oldestCreatedAt?: number;
+  newestCreatedAt?: number;
+  hasMoreBackfill?: boolean;
+  eoseRelays: readonly RelayUrl[];
+  activeRelays: readonly RelayUrl[];
+  updatedAt: number;
+};
+
 export type NostrCollections = {
   events: Collection<
     NostrEventRow,
@@ -57,6 +92,20 @@ export type NostrCollections = {
     LocalOnlyCollectionUtils,
     never,
     NostrQueryStateRow
+  >;
+  eventFeedItems: Collection<
+    EventFeedItemRow,
+    string,
+    LocalOnlyCollectionUtils,
+    never,
+    EventFeedItemRow
+  >;
+  eventFeedStates: Collection<
+    EventFeedStateRow,
+    string,
+    LocalOnlyCollectionUtils,
+    never,
+    EventFeedStateRow
   >;
 };
 
