@@ -12,18 +12,19 @@ const normalizeRelayUrls = (relays?: readonly RelayUrl[]) =>
 
 const normalizeFilter = (filter: NostrTransportFilter) =>
   Object.fromEntries(
-    (Object.entries(filter) as Array<[string, unknown]>)
-      .map(([key, value]) => [
-        key,
-        Array.isArray(value) ? [...value].sort() : value,
-      ])
-      .sort(([a], [b]) => a.localeCompare(b)),
+    (Object.entries(filter) as Array<[string, unknown]>).sort(([a], [b]) =>
+      a.localeCompare(b),
+    ),
   );
+
+const isFilterArray = (
+  filters: NostrTransportFilter | readonly NostrTransportFilter[],
+): filters is readonly NostrTransportFilter[] => Array.isArray(filters);
 
 const normalizeFilters = (
   filters: NostrTransportFilter | readonly NostrTransportFilter[],
 ) => {
-  if (Array.isArray(filters)) {
+  if (isFilterArray(filters)) {
     return filters.map(normalizeFilter);
   }
   return normalizeFilter(filters);
