@@ -16,12 +16,14 @@ import {
   type ParentComponent,
   createContext,
   createEffect,
+  createMemo,
   lazy,
   onCleanup,
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
+import { createNostrCore } from "../core/solid/provider";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
 import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
@@ -34,6 +36,7 @@ type EmitParams = Parameters<Emitter>;
 
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
+  core: ReturnType<typeof createNostrCore>;
   connectionState: {
     [from: string]: ConnectionState | undefined;
   };
@@ -66,6 +69,11 @@ export const RxNostrProvider: ParentComponent = (props) => {
     connectionStrategy: "lazy-keep",
     retry: { strategy: "immediately", maxCount: 1 },
     authenticator: "auto",
+  });
+  const core = createMemo(() => createNostrCore({ rxNostr }));
+
+  onCleanup(() => {
+    core().dispose();
   });
 
   const [relays] = useRelays();
@@ -132,6 +140,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
     <RxNostrContext.Provider
       value={{
         rxNostr,
+        core: core(),
         connectionState,
         actions: {
           emit,
