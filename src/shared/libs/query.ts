@@ -399,7 +399,7 @@ const initialSendState = (): SendingState => ({
 });
 
 const createSender = () => {
-  const { core, rxNostr } = useRxNostr();
+  const { core } = useRxNostr();
   const [sendState, setSendState] = createStore<SendingState>(
     initialSendState(),
   );
@@ -422,7 +422,7 @@ const createSender = () => {
     });
 
     return new Promise<void>((resolve) => {
-      rxNostr.send(event).subscribe({
+      core.transport.publish(event).subscribe({
         next: (e) => {
           if (e.ok && e.done) {
             setSendState("successAny", true);
