@@ -1,210 +1,233 @@
-# TanStack DB Data Model
+# Event Store and Query Registry Data Model
 
 [Back to v1 design index](../nostr-client-core-design-v1.md)
 
-TanStack DB read-model responsibilities and collection shapes. Raw events still belong to the repository.
+Nostr-filter-first store responsibilities, feed state, and derived read-model shape. TanStack DB is not part of the target v1 architecture.
 
 ## In this file
 
-- [TanStack DB Layer](#tanstack-db-layer)
-- [TanStack DB Collection Design](#tanstack-db-collection-design)
+- [Core Data Principle](#core-data-principle)
+- [EventStore](#eventstore)
+- [FeedStateStore](#feedstatestore)
+- [QueryRegistry](#queryregistry)
+- [Derived Views](#derived-views)
+- [Persistence](#persistence)
 
 ---
 
-## TanStack DB Layer
+## Core Data Principle
+
+Nostr events are the source of truth.
+
+The core data layer should not model profile, contacts, reactions, reposts, or future NIP concepts as independent source-of-truth stores. Those are derived views over raw events.
+
+```txt
+Raw Nostr event
+  ↓
+EventStore
+  ↓
+Derived views
+  - ProfileView from kind:0
+  - ContactsView from kind:3
+  - RelayListView from NIP-65 events
+  - ReactionSummaryView from kind:7
+  - RepostView from repost kinds
+  - future NIP-specific views
+```
+
+This keeps the core event-centered and makes new kinds easier to support. A new NIP should usually add a parser/view/indexer, not a new root storage model.
+
+## EventStore
 
 ### Purpose
 
-TanStack DB should be the reactive read-model layer between the repository and SolidJS.
+`EventStore` owns raw events and Nostr-specific indexing.
 
-Use TanStack DB for:
-
-- UI-facing collections.
-- Live queries.
-- Reactive subscription management.
-- Derived read models.
-- Joining events with profiles and other projections.
-- Cross-tab collection synchronization where appropriate.
-
-Do not use Solid's `createStore` to hold the entire event graph.
-
-### Data Flow
+It should understand Nostr filter semantics directly:
 
 ```txt
-rx-nostr EVENT
-  ↓
-normalize / validate
-  ↓
-repository.putEvent(packet)
-  ↓
-projectEvent(event)
-  ↓
-TanStack DB collection upserts
-  ↓
-SolidJS live queries update UI
+- filters array is OR
+- fields inside one filter are AND
+- ids/authors/kinds/tag values are OR within that field
+- since/until/limit are Nostr filter concepts, not generic SQL concepts
 ```
 
-### Important Rule
-
-Do not make TanStack DB itself the raw event repository.
-
-Preferred:
+### Responsibilities
 
 ```txt
-repository.putEvent()
-  ↓
-project to TanStack DB collections
+EventStore:
+  - put raw events
+  - dedupe by event id
+  - track seen relays
+  - query by Nostr filters
+  - maintain indexes by id, author, kind, tags, and replaceable keys
+  - resolve regular replaceable events
+  - resolve parameterized replaceable events
+  - expose getSnapshot + subscribe adapters for UI/read-model layers
 ```
 
-Avoid:
+### Interface Sketch
+
+```ts
+export type StoreSubscription = () => void
+
+export interface ReadableStore<T> {
+  getSnapshot(): T
+  subscribe(listener: () => void): StoreSubscription
+}
+
+export interface EventStore {
+  putEvent(input: PutEventInput): PutEventResult
+  markSeen(id: string, relay: RelayUrl): void
+  getEvent(id: string): NostrEvent | undefined
+  getEvents(ids: readonly string[]): NostrEvent[]
+  getSeenRelays(id: string): RelayUrl[]
+  queryEvents(filters: NostrFilter | readonly NostrFilter[]): NostrEvent[]
+  getLatestReplaceable(kind: number, pubkey: string): NostrEvent | undefined
+  getParameterizedReplaceable(kind: number, pubkey: string, d: string): NostrEvent | undefined
+  subscribe(listener: () => void): StoreSubscription
+}
+```
+
+The initial implementation can be memory-only. IndexedDB should be added behind the same interface later.
+
+## FeedStateStore
+
+### Purpose
+
+`FeedStateStore` is the UI-facing state for feed/query results. It is separate from `EventStore` because the same event can belong to many feeds.
 
 ```txt
-eventsCollection is the repository
+event X
+  belongs to home timeline
+  belongs to alice profile posts
+  belongs to #nostr search
+  belongs to thread replies
 ```
 
-Reason: Nostr-specific behavior such as replaceable-event resolution, seen relay tracking, tag indexing, deletion handling, relay hints, and IndexedDB migrations should stay in the repository layer.
+The event is stored once in `EventStore`. Feed membership is stored per feed.
 
----
+### Responsibilities
 
-## TanStack DB Collection Design
-
-### `events`
-
-Raw or near-raw event rows.
-
-```ts
-export type EventRow = {
-  id: string
-  pubkey: string
-  kind: number
-  createdAt: number
-  content: string
-  tags: string[][]
-  sig: string
-
-  receivedAt: number
-  seenOn: string[]
-  deleted?: boolean
-}
+```txt
+FeedStateStore:
+  - keep event ids per feed
+  - preserve feed-specific ordering
+  - track loading/live/eose/error status per feed
+  - track oldest/newest cursors per feed
+  - track hasMoreBackfill
+  - include optimistic local event ids when publish pipeline inserts them
+  - expose getSnapshot + subscribe adapters
 ```
 
-### `profiles`
-
-Projection of `kind:0` metadata.
+### Interface Sketch
 
 ```ts
-export type ProfileRow = {
-  pubkey: string
-  eventId: string
-  name?: string
-  displayName?: string
-  picture?: string
-  banner?: string
-  about?: string
-  nip05?: string
-  lud16?: string
-  updatedAt: number
-}
-```
+export type FeedStatus = "idle" | "loading" | "live" | "complete" | "error"
 
-### `contactLists`
-
-Projection of `kind:3` contact lists.
-
-```ts
-export type ContactListRow = {
-  pubkey: string
-  eventId: string
-  followees: string[]
-  updatedAt: number
-}
-```
-
-### `relayLists`
-
-Projection of NIP-65 relay list metadata.
-
-```ts
-export type RelayListRow = {
-  pubkey: string
-  eventId: string
-  readRelays: string[]
-  writeRelays: string[]
-  updatedAt: number
-}
-```
-
-### `eventFeedItems`
-
-A UI-facing event feed item projection. This should not duplicate raw events.
-
-The core should not treat "timeline" as the generic list primitive. A timeline is only one feature-level use case: a feed that uses the `liveBackfill` strategy with filters for followee posts/reposts. Other columns, such as a user's reactions, a user's media events, notifications, and search results, should use the same feed primitive with different filters and sometimes different fetch strategies.
-
-```ts
-export type EventFeedItemRow = {
-  id: string
+export type FeedSnapshot = {
   feedId: string
-  eventId: string
-  pubkey: string
-  kind: number
-  createdAt: number
-  insertedAt: number
-
-  score?: number
-  matchedFilterIndex?: number
-}
-```
-
-Suggested id:
-
-```ts
-const eventFeedItemId = `${feedId}:${eventId}`
-```
-
-This allows the same event to appear in multiple columns/feeds without duplicating the event row itself.
-
-### `eventFeedStates`
-
-Tracks fetch/live status for event feeds.
-
-```ts
-export type EventFeedStrategy =
-  | "liveBackfill"
-  | "latestOne"
-  | "backfillOnly"
-  | "liveOnly"
-  | "byIds"
-
-export type EventFeedStateRow = {
-  id: string
-  feedId: string
-  strategy: EventFeedStrategy
-  status: "idle" | "loading" | "live" | "error"
+  eventIds: readonly string[]
+  status: FeedStatus
   error?: string
   oldestCreatedAt?: number
   newestCreatedAt?: number
-  hasMoreBackfill?: boolean
-  eoseRelays: string[]
-  activeRelays: string[]
-  updatedAt: number
+  hasMoreBackfill: boolean
+  eoseRelays: readonly RelayUrl[]
+  activeRelays: readonly RelayUrl[]
+}
+
+export interface FeedStateStore {
+  getSnapshot(feedId: string): FeedSnapshot
+  subscribe(feedId: string, listener: () => void): StoreSubscription
+  addItem(feedId: string, event: NostrEvent): void
+  setStatus(feedId: string, status: FeedStatus, options?: FeedStatusOptions): void
+  removeFeed(feedId: string): void
 }
 ```
 
-Initial implementations may keep this as one row per feed. Later, this can be split into feed definition state and per-request state if the query registry needs finer-grained lifecycle tracking.
+`FeedStateStore` does not decide which relay filters to emit. It only records feed-visible state.
 
-### `relayStatuses`
+## QueryRegistry
 
-Projection of transport connection state.
+### Purpose
+
+`QueryRegistry` owns relay-facing query lifecycle.
+
+It turns UI/feed intent into shared rx-nostr work and keeps UI feed state tied to the originating feed even when relay filters are deduplicated or batched.
+
+### Responsibilities
+
+```txt
+QueryRegistry:
+  - accept EventFeedDefinition from UI/features
+  - canonicalize filters
+  - dedupe identical subscriptions
+  - batch compatible relay work
+  - reference-count active work
+  - call RxNostrTransport
+  - route incoming events into EventStore
+  - add matching event ids to FeedStateStore
+  - update per-feed loading/eose/error state
+  - release unused feed/subscription work
+```
+
+### Difference from FeedStateStore
+
+```txt
+QueryRegistry = network/query lifecycle
+FeedStateStore = UI feed snapshot/read model
+EventStore = raw events and Nostr-filter-first indexes
+```
+
+Do not merge these responsibilities. Keeping them separate prevents relay optimization from erasing per-feed loading and empty-state information.
+
+## Derived Views
+
+Derived views provide convenient feature APIs without becoming source-of-truth stores.
+
+Examples:
 
 ```ts
-export type RelayStatusRow = {
-  relay: string
-  state: string
-  lastConnectedAt?: number
-  lastErrorAt?: number
-  lastError?: string
+export interface ProfileView {
+  get(pubkey: string): Profile | undefined
+  subscribe(pubkey: string, listener: () => void): StoreSubscription
 }
 ```
+
+`ProfileView` reads the latest replaceable kind:0 event from `EventStore`, parses the JSON content, and returns a renderable profile object. It should not own profile truth independently.
+
+The same pattern applies to contacts, relay lists, reaction summaries, repost summaries, thread views, and future NIP-specific views.
+
+## Persistence
+
+Persistence belongs behind EventStore interfaces.
+
+Start with:
+
+```txt
+MemoryEventStore
+MemoryFeedStateStore
+```
+
+Then add:
+
+```txt
+IndexedDbEventStore
+IndexedDbPersistentCache
+```
+
+Initial IndexedDB scope should stay small:
+
+```txt
+- profiles / kind:0 events
+- replaceable events
+- relay list metadata
+- contacts
+- feed cursors or lightweight cache metadata
+```
+
+Do not require a full offline-first sync model for the initial v1 milestone.
 
 ---
 

@@ -22,8 +22,8 @@ The existing repository should be preserved. Do not rewrite from scratch in a ne
 Prefer:
 
 - `git mv` when moving files.
-- Keeping legacy public APIs as compatibility wrappers.
-- Refactoring old modules into facades instead of deleting them immediately.
+- Keeping temporary compatibility wrappers only while a feature path is actively migrating.
+- Removing migrated legacy modules promptly instead of preserving long-term v0/v1 compatibility.
 - Small, reviewable PRs.
 - Clear migration comments.
 
@@ -78,28 +78,30 @@ src/core/transport/rx-nostr-transport.ts
 
 Keep existing provider and hooks working.
 
-### PR 3: Repository Interface and Memory Implementation
+### PR 3: EventStore and FeedStateStore Foundation
 
 Add:
 
 ```txt
-src/core/repository/nostr-repository.ts
-src/core/repository/memory-repository.ts
+src/core/store/event-store.ts
+src/core/store/memory-event-store.ts
+src/core/store/feed-state-store.ts
+src/core/store/memory-feed-state-store.ts
 ```
 
 Add unit tests.
 
-### PR 4: TanStack DB Collections
+### PR 4: QueryRegistry Skeleton
 
 Add:
 
 ```txt
-src/core/db/schema.ts
-src/core/db/collections.ts
-src/core/db/projectors/*
+src/core/query/query-registry.ts
+src/core/query/query-planner.ts
+src/core/query/query-policy.ts
 ```
 
-Implement projection from repository writes into collections.
+Implement feed intent registration, filter canonicalization, subscription reference counting, and EventStore/FeedStateStore integration.
 
 ### PR 5: Solid Provider
 
@@ -113,9 +115,10 @@ This provider should create and expose:
 
 ```txt
 - transport
-- repository
-- collections
-- queryClient
+- transport
+- eventStore
+- feedStateStore
+- queryRegistry
 ```
 
 ### PR 6: Migrate `useEventByID`
@@ -126,7 +129,7 @@ Keep the old export path as a compatibility wrapper.
 
 ### PR 7: Migrate `useProfile`
 
-Migrate profile metadata to repository + TanStack DB projection.
+Migrate profile metadata to ProfileView derived from latest kind:0 events.
 
 ### PR 8: Migrate Contact List / Followees
 
@@ -137,15 +140,15 @@ Migrate `kind:3` handling and followee queries.
 Migrate timeline-like infinite queries to the generic event feed model:
 
 ```txt
-QueryClient.ensureEventFeed()
+QueryRegistry.ensureEventFeed()
   ↓
 rx-nostr transport fetch/live subscription
   ↓
-repository
+EventStore
   ↓
-TanStack DB eventFeedItems
+FeedStateStore feed membership
   ↓
-Solid live query
+Solid getSnapshot + subscribe adapter
 ```
 
 The home timeline should become one feature wrapper around the event feed primitive, not the generic core abstraction.
@@ -164,7 +167,7 @@ Add deterministic local seed tooling and edge-case scenarios.
 
 ### PR 13: Cleanup Legacy Internals
 
-Turn old modules into thin wrappers or remove only truly dead code.
+Remove migrated legacy internals aggressively once feature paths use the v1 core. Do not keep long-term compatibility layers.
 
 ---
 
@@ -173,20 +176,20 @@ Turn old modules into thin wrappers or remove only truly dead code.
 Recommended development order:
 
 ```txt
-1. Define NostrRepository interface.
-2. Implement MemoryNostrRepository.
-3. Define TanStack DB collections.
-4. Implement repository → collection projectors.
+1. Define EventStore and ReadableStore interfaces.
+2. Implement MemoryEventStore with Nostr-filter-first query semantics.
+3. Define FeedStateStore interface.
+4. Implement MemoryFeedStateStore with per-feed snapshots.
 5. Implement RxNostrTransport.
-6. Wire EVENT → repository → projector.
-7. Implement useEventByID with TanStack DB live query.
-8. Implement useProfile with TanStack DB live query.
-9. Implement contact list and relay list projections.
-10. Implement QueryClient and QueryRegistry.
+6. Implement QueryRegistry and wire EVENT → EventStore → FeedStateStore.
+7. Implement ProfileView from latest kind:0 events.
+8. Implement useEventByID with getSnapshot + subscribe.
+9. Implement useProfile with ProfileView.
+10. Implement contact list and relay list derived views.
 11. Implement `liveBackfill` event feed backfill.
 12. Implement `liveBackfill` event feed live subscription.
 13. Add local relay seed scenarios.
-14. Add IndexedDB repository.
+14. Add IndexedDB EventStore.
 15. Add cross-tab improvements.
 ```
 
@@ -201,13 +204,13 @@ Do not start with a home timeline feature. Start with `useEventByID` and `usePro
 Test:
 
 ```txt
-- Repository deduplication
+- EventStore deduplication
 - Replaceable event resolution
 - Parameterized replaceable event resolution
 - Tag index lookup
 - Seen relay tracking
-- Projection idempotency
-- Timeline item insertion
+- Derived view idempotency
+- FeedStateStore item insertion
 - Query registry reference counting
 - Filter merge behavior
 ```
