@@ -1,4 +1,6 @@
+import { normalizeURL } from "nostr-tools/utils";
 import type { RxNostr } from "rx-nostr";
+import { BehaviorSubject, type Observable, Subscription } from "rxjs";
 import {
   type ParentComponent,
   createContext,
@@ -15,10 +17,25 @@ import {
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type { NostrRepository } from "../repository/nostr-repository";
 import { RxNostrTransport } from "../transport/rx-nostr-transport";
-import type { NostrTransport } from "../transport/transport";
+import type {
+  NostrTransport,
+  NostrTransportConnectionState,
+} from "../transport/transport";
+
+export type NostrCoreConnectionStateMap = Record<
+  string,
+  NostrTransportConnectionState | undefined
+>;
+
+export type NostrCoreConnectionStateStore = {
+  getSnapshot(): NostrCoreConnectionStateMap;
+  observe(): Observable<NostrCoreConnectionStateMap>;
+  dispose(): void;
+};
 
 export type NostrCore = {
   transport: NostrTransport;
+  connectionState: NostrCoreConnectionStateStore;
   repository: NostrRepository;
   collections: NostrCollections;
   queryClient: NostrCoreQueryClient;
@@ -39,18 +56,57 @@ export const createNostrCore = ({
   queryClient,
 }: CreateNostrCoreOptions): NostrCore => {
   const transport = new RxNostrTransport(rxNostr);
+  const connectionState = createNostrCoreConnectionStateStore(transport);
   const coreQueryClient =
     queryClient ??
     createNostrCoreQueryClient({ transport, repository, collections });
 
   return {
     transport,
+    connectionState,
     repository,
     collections,
     queryClient: coreQueryClient,
     dispose() {
+      connectionState.dispose();
       coreQueryClient.dispose();
       transport.dispose();
+    },
+  };
+};
+
+const createNostrCoreConnectionStateStore = (
+  transport: NostrTransport,
+): NostrCoreConnectionStateStore => {
+  let snapshot: NostrCoreConnectionStateMap = {};
+  const subject = new BehaviorSubject<NostrCoreConnectionStateMap>(snapshot);
+  const subscriptions = new Subscription();
+
+  subscriptions.add(
+    transport.observeConnectionState().subscribe({
+      next(packet) {
+        snapshot = {
+          ...snapshot,
+          [normalizeURL(packet.from)]: packet.state,
+        };
+        subject.next(snapshot);
+      },
+      error(error) {
+        subject.error(error);
+      },
+    }),
+  );
+
+  return {
+    getSnapshot() {
+      return snapshot;
+    },
+    observe() {
+      return subject.asObservable();
+    },
+    dispose() {
+      subscriptions.unsubscribe();
+      subject.complete();
     },
   };
 };

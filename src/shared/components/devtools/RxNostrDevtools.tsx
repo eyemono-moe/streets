@@ -1,9 +1,10 @@
 import { createDraggable } from "@neodrag/solid";
 import { For } from "solid-js";
-import { useRxNostr } from "../../../context/rxNostr";
+import type { NostrCore } from "../../../core/solid/provider";
+import { useCoreConnectionState } from "../../../core/solid/use-connection-state";
 
-const RxNostrDevtools = () => {
-  const { connectionState } = useRxNostr();
+const RxNostrDevtools = (props: { core: NostrCore }) => {
+  const connectionState = useCoreConnectionState(props.core);
 
   // @ts-ignore: TS6133 typescript can't detect use: directive
   const { draggable } = createDraggable();
@@ -22,7 +23,7 @@ const RxNostrDevtools = () => {
             <div class="p-1">relay</div>
             <div class="p-1">state</div>
           </div>
-          <For each={Object.entries(connectionState)}>
+          <For each={Object.entries(connectionState())}>
             {([relay, state]) => (
               <div class="grid-col-span-2 grid grid-cols-subgrid divide-x">
                 <div class="p-1">{relay}</div>

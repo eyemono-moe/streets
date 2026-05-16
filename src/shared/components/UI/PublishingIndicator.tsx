@@ -2,7 +2,7 @@ import { createPresence } from "@solid-primitives/presence";
 import { normalizeURL } from "nostr-tools/utils";
 import { type Component, For, Show } from "solid-js";
 import { useLoading } from "../../../context/loading";
-import { useRxNostr } from "../../../context/rxNostr";
+import { useCoreConnectionState } from "../../../core/solid/use-connection-state";
 
 const goldenAngleRad = 2.399963229728653; // (3 - Math.sqrt(5)) * Math.PI
 const phase = 0.7; // 斜めにしていい感じに見えるように調整
@@ -23,7 +23,7 @@ const random = (seed: number) => {
 const rnd = random(9883);
 
 const PublishingIndicators: Component = () => {
-  const { connectionState } = useRxNostr();
+  const connectionState = useCoreConnectionState();
   const [latestSendState] = useLoading();
   const { isVisible, isMounted } = createPresence(
     () => latestSendState.sending,
@@ -32,7 +32,7 @@ const PublishingIndicators: Component = () => {
     },
   );
 
-  const relays = () => Object.keys(connectionState).slice(0, 10);
+  const relays = () => Object.keys(connectionState()).slice(0, 10);
   const relayCount = () => Math.min(relays().length, 10);
 
   return (
