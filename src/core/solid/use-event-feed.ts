@@ -57,38 +57,30 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
   let activeFeedId: string | undefined;
   let fetchInFlight = false;
 
-  const syncFromCollections = (feedId: string) => {
-    const state = core.collections.eventFeedStates.get(feedId);
-    const rows = [...core.collections.eventFeedItems.values()]
-      .filter((row) => row.feedId === feedId)
-      .sort(
-        (a, b) =>
-          b.createdAt - a.createdAt ||
-          b.insertedAt - a.insertedAt ||
-          b.eventId.localeCompare(a.eventId),
-      );
-    const parsed = rows.flatMap((row) => {
-      const eventRow = core.collections.events.get(row.eventId);
-      if (!eventRow) {
+  const syncFromFeedState = (feedId: string) => {
+    const state = core.feedStateStore.getSnapshot(feedId);
+    const parsed = state.eventIds.flatMap((eventId) => {
+      const event = core.eventStore.getEvent(eventId);
+      if (!event) {
         return [];
       }
       return [
         parseEventPacket({
-          event: eventRow.raw,
-          from: eventRow.seenRelays[0] ?? "",
+          event,
+          from: core.eventStore.getSeenRelays(event.id)[0] ?? "",
         }) as ParsedEventPacket<T>,
       ];
     });
 
     setEvents(parsed);
-    setHasNextPage(state?.hasMoreBackfill ?? true);
+    setHasNextPage(state.hasMoreBackfill);
     if (!fetchInFlight) {
-      setIsFetching(false);
+      setIsFetching(state.status === "loading");
     }
   };
 
-  // Register the current feed with the core query client and keep this Solid accessor
-  // synchronized with EventFeed read-model collections while the component is mounted.
+  // Register the current feed and read UI feed state from FeedStateStore rather
+  // than TanStack collection projections.
   createEffect(() => {
     const currentDefinition = definition();
     if (!currentDefinition) {
@@ -103,25 +95,18 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
     core.queryClient.ensureEventFeed(currentDefinition);
 
     const sync = () => {
-      syncFromCollections(currentDefinition.id);
+      syncFromFeedState(currentDefinition.id);
     };
-    const itemSubscription = core.collections.eventFeedItems.subscribeChanges(
+    const unsubscribeFeed = core.feedStateStore.subscribe(
+      currentDefinition.id,
       sync,
-      { includeInitialState: true },
     );
-    const stateSubscription = core.collections.eventFeedStates.subscribeChanges(
-      sync,
-      { includeInitialState: true },
-    );
-    const eventSubscription = core.collections.events.subscribeChanges(sync, {
-      includeInitialState: true,
-    });
+    const unsubscribeEvents = core.eventStore.subscribe(sync);
     sync();
 
     onCleanup(() => {
-      itemSubscription.unsubscribe();
-      stateSubscription.unsubscribe();
-      eventSubscription.unsubscribe();
+      unsubscribeFeed();
+      unsubscribeEvents();
       core.queryClient.stopEventFeed(currentDefinition.id);
       if (activeFeedId === currentDefinition.id) {
         activeFeedId = undefined;
@@ -138,7 +123,7 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
     setIsFetching(true);
     try {
       const packets = await core.queryClient.fetchMoreEventFeed(feedId);
-      syncFromCollections(feedId);
+      syncFromFeedState(feedId);
       return packets;
     } finally {
       fetchInFlight = false;

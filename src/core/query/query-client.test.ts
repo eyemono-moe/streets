@@ -2,8 +2,8 @@ import type { NostrEvent } from "nostr-tools";
 import { Subject } from "rxjs";
 import { describe, expect, test, vi } from "vitest";
 import { createNostrCollections } from "../db/collections";
-import { upsertEventFeedState } from "../db/projectors/event-feed";
 import { MemoryNostrRepository } from "../repository/memory-repository";
+import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import type {
   NostrTransport,
   NostrTransportEventPacket,
@@ -103,11 +103,10 @@ describe("createNostrCoreQueryClient", () => {
     expect(emit).toHaveBeenCalledWith({ ids: [event.id] });
     expect(close).toHaveBeenCalledOnce();
     await expect(repository.getEvent(event.id)).resolves.toBe(event);
-    expect(await collections.events.get(event.id)).toMatchObject({
-      id: event.id,
-      receivedAt: 123,
-      seenRelays: ["wss://relay.example"],
-    });
+    expect(repository.eventStore.getEvent(event.id)).toBe(event);
+    expect(repository.eventStore.getSeenRelays(event.id)).toEqual([
+      "wss://relay.example",
+    ]);
   });
 
   test("keeps relation subscriptions open for multiple matching events until timeout", async () => {
@@ -191,11 +190,10 @@ describe("createNostrCoreQueryClient", () => {
     expect(complete).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
     await expect(repository.getEvent(event.id)).resolves.toBe(event);
-    expect(await collections.events.get(event.id)).toMatchObject({
-      id: event.id,
-      receivedAt: 456,
-      seenRelays: ["wss://relay.example"],
-    });
+    expect(repository.eventStore.getEvent(event.id)).toBe(event);
+    expect(repository.eventStore.getSeenRelays(event.id)).toEqual([
+      "wss://relay.example",
+    ]);
   });
 
   test("deduplicates event page packets by event id while preserving the first relay source", async () => {
@@ -292,10 +290,12 @@ describe("createNostrCoreQueryClient", () => {
       createFakeTransport();
     const repository = new MemoryNostrRepository();
     const collections = createNostrCollections();
+    const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository,
       collections,
+      feedStateStore,
       now: () => 1_000,
     });
     const event = createEvent({ id: "live-event", created_at: 200 });
@@ -314,13 +314,11 @@ describe("createNostrCoreQueryClient", () => {
     });
 
     await vi.waitFor(() => {
-      expect(
-        collections.eventFeedItems.get("feed:user:pubkey-1:live-event"),
-      ).toMatchObject({
-        feedId: "feed:user:pubkey-1",
-        eventId: "live-event",
-        createdAt: 200,
-        insertedAt: 1_000,
+      expect(feedStateStore.getSnapshot("feed:user:pubkey-1")).toMatchObject({
+        eventIds: ["live-event"],
+        status: "live",
+        newestCreatedAt: 200,
+        oldestCreatedAt: 200,
       });
     });
     expect(subscribe).toHaveBeenCalledWith({
@@ -334,15 +332,12 @@ describe("createNostrCoreQueryClient", () => {
       limit: 20,
       since: 1,
     });
-    expect(collections.eventFeedStates.get("feed:user:pubkey-1")).toMatchObject(
-      {
-        feedId: "feed:user:pubkey-1",
-        strategy: "liveBackfill",
-        status: "live",
-        newestCreatedAt: 200,
-        oldestCreatedAt: 200,
-      },
-    );
+    expect(feedStateStore.getSnapshot("feed:user:pubkey-1")).toMatchObject({
+      feedId: "feed:user:pubkey-1",
+      status: "live",
+      newestCreatedAt: 200,
+      oldestCreatedAt: 200,
+    });
     expect(close).not.toHaveBeenCalled();
 
     queryClient.stopEventFeed("feed:user:pubkey-1");
@@ -354,10 +349,13 @@ describe("createNostrCoreQueryClient", () => {
     const { transport, events$, emit, complete, close, subscribe } =
       createFakeTransport();
     const collections = createNostrCollections();
+    const repository = new MemoryNostrRepository();
+    const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
-      repository: new MemoryNostrRepository(),
+      repository,
       collections,
+      feedStateStore,
       now: () => 2_000,
     });
     const event = createEvent({ id: "backfill-event", created_at: 99 });
@@ -368,11 +366,15 @@ describe("createNostrCoreQueryClient", () => {
       strategy: "liveBackfill",
       limit: 20,
     });
-    await upsertEventFeedState(collections, {
-      feedId: "feed:user:pubkey-1",
-      strategy: "liveBackfill",
-      status: "live",
-      oldestCreatedAt: 99,
+    feedStateStore.addItem(
+      "feed:user:pubkey-1",
+      createEvent({
+        id: "cursor-event",
+        created_at: 99,
+      }),
+    );
+    feedStateStore.setStatus("feed:user:pubkey-1", "live", {
+      hasMoreBackfill: true,
     });
     const resultPromise = queryClient.fetchMoreEventFeed("feed:user:pubkey-1");
     events$.next({
@@ -398,15 +400,8 @@ describe("createNostrCoreQueryClient", () => {
     expect(complete).toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
     await vi.waitFor(() => {
-      expect(
-        collections.eventFeedItems.get("feed:user:pubkey-1:backfill-event"),
-      ).toMatchObject({
-        eventId: "backfill-event",
-        createdAt: 99,
-      });
-      expect(
-        collections.eventFeedStates.get("feed:user:pubkey-1"),
-      ).toMatchObject({
+      expect(feedStateStore.getSnapshot("feed:user:pubkey-1")).toMatchObject({
+        eventIds: ["cursor-event", "backfill-event"],
         hasMoreBackfill: false,
         oldestCreatedAt: 99,
         newestCreatedAt: 99,
@@ -417,10 +412,12 @@ describe("createNostrCoreQueryClient", () => {
   test("marks backfill complete after an empty event feed page", async () => {
     const { transport, events$, close } = createFakeTransport();
     const collections = createNostrCollections();
+    const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
       collections,
+      feedStateStore,
       now: () => 3_000,
     });
 
@@ -430,21 +427,22 @@ describe("createNostrCoreQueryClient", () => {
       strategy: "liveBackfill",
       limit: 20,
     });
-    await upsertEventFeedState(collections, {
-      feedId: "feed:empty",
-      strategy: "liveBackfill",
-      status: "live",
-      oldestCreatedAt: 99,
-      newestCreatedAt: 120,
-      hasMoreBackfill: true,
-    });
+    feedStateStore.addItem(
+      "feed:empty",
+      createEvent({ id: "older", created_at: 99 }),
+    );
+    feedStateStore.addItem(
+      "feed:empty",
+      createEvent({ id: "newer", created_at: 120 }),
+    );
+    feedStateStore.setStatus("feed:empty", "live", { hasMoreBackfill: true });
 
     const resultPromise = queryClient.fetchMoreEventFeed("feed:empty");
     events$.complete();
 
     await expect(resultPromise).resolves.toEqual([]);
     expect(close).toHaveBeenCalled();
-    expect(collections.eventFeedStates.get("feed:empty")).toMatchObject({
+    expect(feedStateStore.getSnapshot("feed:empty")).toMatchObject({
       hasMoreBackfill: false,
       oldestCreatedAt: 99,
       newestCreatedAt: 120,
@@ -454,14 +452,13 @@ describe("createNostrCoreQueryClient", () => {
   test("settles fetchMore when pagination state persistence fails", async () => {
     const { transport, events$, close } = createFakeTransport();
     const collections = createNostrCollections();
+    const feedStateStore = new MemoryFeedStateStore();
     const queryClient = createNostrCoreQueryClient({
       transport,
       repository: new MemoryNostrRepository(),
       collections,
+      feedStateStore,
     });
-    const originalUpdate = collections.eventFeedStates.update.bind(
-      collections.eventFeedStates,
-    );
 
     queryClient.ensureEventFeed({
       id: "feed:persistence-error",
@@ -469,21 +466,16 @@ describe("createNostrCoreQueryClient", () => {
       strategy: "liveBackfill",
       limit: 20,
     });
-    await upsertEventFeedState(collections, {
-      feedId: "feed:persistence-error",
-      strategy: "liveBackfill",
-      status: "live",
-      oldestCreatedAt: 99,
+    feedStateStore.addItem(
+      "feed:persistence-error",
+      createEvent({
+        id: "cursor-event",
+        created_at: 99,
+      }),
+    );
+    feedStateStore.setStatus("feed:persistence-error", "live", {
       hasMoreBackfill: true,
     });
-    vi.spyOn(collections.eventFeedStates, "update").mockImplementation(
-      (...args: Parameters<typeof collections.eventFeedStates.update>) => {
-        originalUpdate(...args);
-        return {
-          isPersisted: { promise: Promise.reject(new Error("persist failed")) },
-        } as ReturnType<typeof collections.eventFeedStates.update>;
-      },
-    );
 
     const resultPromise = queryClient.fetchMoreEventFeed(
       "feed:persistence-error",

@@ -1,8 +1,6 @@
 import type { NostrEvent } from "nostr-tools";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrCollections } from "../db/types";
 import type { NostrCoreQueryClient } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type { NostrRepository } from "../repository/nostr-repository";
@@ -60,7 +58,7 @@ describe("useCoreEventByID", () => {
               await vi.waitFor(() => {
                 expect(data().data?.raw).toBe(event);
               });
-              expect(ensured).toEqual([{ id: event.id, relays: undefined }]);
+              expect(ensured).toEqual([]);
               dispose();
               resolve();
             });
@@ -71,7 +69,7 @@ describe("useCoreEventByID", () => {
     });
   });
 
-  test("subscribes to the event collection and updates when projection inserts the event", async () => {
+  test("subscribes to EventStore and updates when the event is inserted", async () => {
     const repository = new MemoryNostrRepository();
     const { core, ensured } = createCore(repository);
     const event = createEvent();
@@ -93,14 +91,10 @@ describe("useCoreEventByID", () => {
               });
               expect(data().data).toBeUndefined();
 
-              await projectRepositoryEvent(
-                core.collections as NostrCollections,
+              await repository.putEvent({
                 event,
-                {
-                  receivedAt: 123,
-                  seenRelays: ["wss://relay.example"],
-                },
-              );
+                relay: "wss://relay.example",
+              });
 
               await vi.waitFor(() => {
                 expect(data().data?.raw).toBe(event);

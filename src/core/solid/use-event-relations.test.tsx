@@ -1,8 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrCollections } from "../db/types";
 import type { NostrCoreQueryClient } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type {
@@ -103,7 +101,7 @@ describe("useCoreEventRelations", () => {
     });
   });
 
-  test("subscribes to the event collection and updates when a matching relation is projected", async () => {
+  test("subscribes to EventStore and updates when a matching relation is inserted", async () => {
     const repository = new MemoryNostrRepository();
     const { core, ensuredRelations } = createCore(repository);
     const target = createEvent({ id: "target" });
@@ -141,14 +139,6 @@ describe("useCoreEventRelations", () => {
                 event: reply,
                 relay: "wss://relay.example",
               });
-              await projectRepositoryEvent(
-                core.collections as NostrCollections,
-                reply,
-                {
-                  receivedAt: 123,
-                  seenRelays: ["wss://relay.example"],
-                },
-              );
 
               await vi.waitFor(() => {
                 expect(data().data?.map((packet) => packet.raw.id)).toEqual([

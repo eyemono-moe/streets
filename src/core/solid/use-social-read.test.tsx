@@ -1,8 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrCollections } from "../db/types";
 import type { NostrCoreQueryClient } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type {
@@ -180,7 +178,7 @@ describe("social read core hooks", () => {
     });
   });
 
-  test("subscribes list hooks to collection updates", async () => {
+  test("subscribes list hooks to EventStore updates", async () => {
     const repository = new MemoryNostrRepository();
     const { core } = createCore(repository);
     const muteList = createEvent({
@@ -209,14 +207,6 @@ describe("social read core hooks", () => {
                 event: muteList,
                 relay: "wss://relay.example",
               });
-              await projectRepositoryEvent(
-                core.collections as NostrCollections,
-                muteList,
-                {
-                  receivedAt: 123,
-                  seenRelays: ["wss://relay.example"],
-                },
-              );
 
               await vi.waitFor(() => {
                 expect(data().data?.raw.id).toBe(muteList.id);
@@ -346,7 +336,7 @@ describe("social read core hooks", () => {
     });
   });
 
-  test("returns projected profiles as the legacy user list shape", async () => {
+  test("returns EventStore-derived profiles as the legacy user list shape", async () => {
     const repository = new MemoryNostrRepository();
     const profile = createEvent({
       id: "profile-alice",
@@ -380,14 +370,10 @@ describe("social read core hooks", () => {
             queueMicrotask(async () => {
               expect(users()).toEqual([]);
 
-              await projectRepositoryEvent(
-                core.collections as NostrCollections,
-                profile,
-                {
-                  receivedAt: 456,
-                  seenRelays: ["wss://relay.example"],
-                },
-              );
+              await repository.putEvent({
+                event: profile,
+                relay: "wss://relay.example",
+              });
 
               await vi.waitFor(() => {
                 expect(users().map((user) => user.data?.raw.id)).toEqual([
@@ -415,7 +401,7 @@ describe("social read core hooks", () => {
               expect(users()[0]?.data?.parsed.bot).toBe(true);
               expect(users()[0]?.data?.parsed.lud06).toBe("lnurl1test");
               expect(users()[0]?.data?.parsed.lud16).toBe("alice@example.com");
-              expect(users()[0]?.dataUpdatedAt).toBe(456);
+              expect(users()[0]?.dataUpdatedAt).toBeGreaterThan(0);
               dispose();
               resolve();
             });

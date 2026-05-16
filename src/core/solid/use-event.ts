@@ -36,25 +36,27 @@ export const useCoreEventByID = <T = ReturnType<typeof parseNostrEvent>>(
     createCacheData<T>(),
   );
 
-  const syncFromCollection = (eventId: string) => {
-    const row = core.collections.events.get(eventId);
-    if (!row) {
+  const syncFromEventStore = (eventId: string) => {
+    const event = core.eventStore.getEvent(eventId);
+    if (!event) {
       setCache((prev) => ({ ...prev, data: undefined }));
       return undefined;
     }
 
-    const data = toParsedEventPacket<T>(row.raw, row.seenRelays[0]);
+    const data = toParsedEventPacket<T>(
+      event,
+      core.eventStore.getSeenRelays(event.id)[0],
+    );
     setCache({
       data,
-      dataUpdatedAt: row.receivedAt,
+      dataUpdatedAt: Date.now(),
       isFetching: false,
       isInvalidated: false,
     });
     return data;
   };
 
-  // Keep the legacy cache-shaped accessor synchronized with the v1 event collection
-  // and issue an id query through the core query client when the event is missing.
+  // Keep the cache-shaped Solid accessor synchronized with the v1 EventStore.
   createEffect(() => {
     const eventId = id();
     if (!eventId) {
@@ -62,14 +64,11 @@ export const useCoreEventByID = <T = ReturnType<typeof parseNostrEvent>>(
       return;
     }
 
-    const subscription = core.collections.events.subscribeChanges(
-      () => {
-        syncFromCollection(eventId);
-      },
-      { includeInitialState: true },
-    );
+    const unsubscribe = core.eventStore.subscribe(() => {
+      syncFromEventStore(eventId);
+    });
 
-    if (!syncFromCollection(eventId)) {
+    if (!syncFromEventStore(eventId)) {
       setCache((prev) => ({ ...prev, isFetching: true }));
       void core.queryClient
         .ensureEvent({ id: eventId, relays: relays?.() })
@@ -78,12 +77,7 @@ export const useCoreEventByID = <T = ReturnType<typeof parseNostrEvent>>(
             return;
           }
           if (event) {
-            setCache({
-              data: toParsedEventPacket<T>(event, relays?.()?.[0]),
-              dataUpdatedAt: Date.now(),
-              isFetching: false,
-              isInvalidated: false,
-            });
+            syncFromEventStore(eventId);
             return;
           }
           setCache((prev) => ({ ...prev, isFetching: false }));
@@ -93,9 +87,7 @@ export const useCoreEventByID = <T = ReturnType<typeof parseNostrEvent>>(
         });
     }
 
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    onCleanup(unsubscribe);
   });
 
   return cache;
