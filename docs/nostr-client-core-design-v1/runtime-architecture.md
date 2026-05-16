@@ -176,7 +176,7 @@ dev/
     reset.ts
 ```
 
-The exact paths can be adjusted to match the current repository, but the responsibility boundaries should remain. Existing `src/core/db/*` TanStack DB code is a migration artifact, not the target architecture.
+The exact paths can be adjusted to match the current repository, but the responsibility boundaries should remain. The old `src/core/db/*` TanStack DB read-model surface has been removed from the v1 runtime; new read models should be implemented as EventStore-derived views or stores instead of reintroducing collection projectors.
 
 ---
 

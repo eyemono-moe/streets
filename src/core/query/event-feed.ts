@@ -1,6 +1,11 @@
-import type { EventFeedStrategy } from "../db/types";
 import type { RelayUrl } from "../repository/nostr-repository";
 import type { NostrTransportFilter } from "../transport/transport";
+
+export type EventFeedStrategy =
+  | "live"
+  | "liveOnly"
+  | "backfill"
+  | "liveBackfill";
 
 export type EventFeedDefinition = {
   id: string;

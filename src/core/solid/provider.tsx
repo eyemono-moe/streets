@@ -6,8 +6,6 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
-import { createNostrCollections } from "../db/collections";
-import type { NostrCollections } from "../db/types";
 import {
   type NostrCoreQueryClient,
   createNostrCoreQueryClient,
@@ -27,7 +25,6 @@ export type NostrCore = {
   eventStore: EventStore;
   feedStateStore: FeedStateStore;
   profileView: ProfileView;
-  collections: NostrCollections;
   queryClient: NostrCoreQueryClient;
   dispose(): void;
 };
@@ -38,7 +35,6 @@ export type CreateNostrCoreOptions = {
   eventStore?: EventStore;
   feedStateStore?: FeedStateStore;
   profileView?: ProfileView;
-  collections?: NostrCollections;
   queryClient?: NostrCoreQueryClient;
 };
 
@@ -48,7 +44,6 @@ export const createNostrCore = ({
   eventStore,
   feedStateStore,
   profileView,
-  collections = createNostrCollections(),
   queryClient,
 }: CreateNostrCoreOptions): NostrCore => {
   const resolvedRepository =
@@ -73,7 +68,6 @@ export const createNostrCore = ({
     createNostrCoreQueryClient({
       transport,
       repository: resolvedRepository,
-      collections,
       feedStateStore: resolvedFeedStateStore,
     });
 
@@ -83,7 +77,6 @@ export const createNostrCore = ({
     eventStore: resolvedEventStore,
     feedStateStore: resolvedFeedStateStore,
     profileView: resolvedProfileView,
-    collections,
     queryClient: coreQueryClient,
     dispose() {
       coreQueryClient.dispose();

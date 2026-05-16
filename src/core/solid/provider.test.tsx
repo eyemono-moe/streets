@@ -4,16 +4,16 @@ import { describe, expect, test } from "vitest";
 import { NostrCoreProvider, createNostrCore, useNostrCore } from "./provider";
 
 describe("NostrCoreProvider", () => {
-  test("creates a core context with transport, repository, collections, and query client", () => {
+  test("creates a core context with transport, repository, EventStore views, and query client", () => {
     createRoot((dispose) => {
       const rxNostr = createRxNostr();
       const core = createNostrCore({ rxNostr });
 
       expect(core.transport).toBeDefined();
       expect(core.repository).toBeDefined();
-      expect(core.collections.events.id).toBe("nostr-events");
-      expect(core.collections.profiles.id).toBe("nostr-profiles");
-      expect(core.collections.queryStates.id).toBe("nostr-query-states");
+      expect(core.eventStore).toBeDefined();
+      expect(core.feedStateStore).toBeDefined();
+      expect(core.profileView).toBeDefined();
       expect(core.queryClient.ensureEvent).toBeInstanceOf(Function);
       expect(core.queryClient.ensureProfile).toBeInstanceOf(Function);
 
