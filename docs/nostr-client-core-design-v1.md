@@ -11,8 +11,8 @@ The old single-file design document was too large for efficient LLM context use.
 ## Reading Guide
 
 - Start with [Overview](./nostr-client-core-design-v1/overview.md) for goals, requirements, decisions, non-goals, and the initial milestone.
-- Use [Runtime Architecture](./nostr-client-core-design-v1/runtime-architecture.md) for transport, repository, projection, and cross-tab boundaries.
-- Use [TanStack DB Data Model](./nostr-client-core-design-v1/data-model.md) for collections and read-model shape.
+- Use [Runtime Architecture](./nostr-client-core-design-v1/runtime-architecture.md) for transport, EventStore, QueryRegistry, FeedStateStore, derived views, and cross-tab boundaries.
+- Use [Event Store and Query Registry](./nostr-client-core-design-v1/data-model.md) for the Nostr-filter-first store, feed state, and derived read-model shape.
 - Use [SolidJS Integration](./nostr-client-core-design-v1/solid-integration.md) for UI state rules, hooks, and component migration boundaries.
 - Use [Event Feed Strategies and Query Planning](./nostr-client-core-design-v1/event-feed-strategies.md) for generalized infinite/event-list fetching, query planning, relay policy, and related-event fetch policy.
 - Use [Local Development and Seed Scenarios](./nostr-client-core-design-v1/local-development.md) for local relay, asset server, deterministic seeds, and harness work.
@@ -26,11 +26,9 @@ rx-nostr
   ↓
 RxNostrTransport
   ↓
-NostrRepository
+QueryRegistry
   ↓
-Projection Pipeline
-  ↓
-TanStack DB Collections
+EventStore / FeedStateStore / Derived Views
   ↓
 SolidJS UI
 ```
@@ -39,12 +37,14 @@ SolidJS UI
 
 1. Keep `rx-nostr`; do not reimplement relay subscription management.
 2. Hide `rx-nostr` behind a `NostrTransport` interface.
-3. Repository is the raw event source of truth.
-4. TanStack DB is the reactive UI read-model layer.
-5. Solid stores are for UI state only.
-6. v1 is a one-shot product migration, not a long-term mixed v0/v1 runtime.
-7. Infinite/event-list columns use generic event feed/fetch strategies; home timeline is only one feature-level wrapper.
-8. Publishing should use TanStack DB mutation and optimistic update semantics where appropriate.
+3. EventStore is the raw Nostr event source of truth and speaks Nostr filter semantics directly.
+4. QueryRegistry owns feed intent, relay subscription reuse, filter batching/deduplication, and fetch lifecycle.
+5. FeedStateStore owns per-feed UI state such as item membership, loading, EOSE, cursors, and errors.
+6. Derived views such as ProfileView are built from events; kind-specific data is not a separate core source of truth.
+7. Solid stores are for UI state only; data stores expose getSnapshot + subscribe adapters.
+8. v1 is a one-shot product migration, not a long-term mixed v0/v1 runtime.
+9. Infinite/event-list columns use generic event feed/fetch strategies; home timeline is only one feature-level wrapper.
+10. Publishing should use a project-owned PublishPipeline with optimistic local event overlays and per-relay publish state.
 
 ## Suggested Context Loading
 
@@ -54,7 +54,7 @@ For LLM implementation tasks, prefer this minimal loading pattern:
 Architecture boundary work:
   overview.md + runtime-architecture.md
 
-Collection/projector work:
+EventStore / FeedStateStore work:
   overview.md + data-model.md + runtime-architecture.md
 
 UI hook/component migration:
