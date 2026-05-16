@@ -1,5 +1,6 @@
 import type { NostrEvent } from "nostr-tools";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+import { MemoryEventStore } from "../store/memory-event-store";
 import { MemoryNostrRepository } from "./memory-repository";
 
 const event = (
@@ -15,6 +16,24 @@ const event = (
 });
 
 describe("MemoryNostrRepository", () => {
+  test("delegates repository writes and reads to the injected EventStore", async () => {
+    const eventStore = new MemoryEventStore();
+    const repository = new MemoryNostrRepository(eventStore);
+    const note = event({ id: "event-store-note" });
+    const listener = vi.fn();
+
+    eventStore.subscribe(listener);
+
+    await repository.putEvent({
+      event: note,
+      relay: "wss://relay-a.example",
+    });
+
+    expect(eventStore.getEvent("event-store-note")).toBe(note);
+    await expect(repository.getEvent("event-store-note")).resolves.toBe(note);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   test("stores raw events by id and reports duplicates without replacing the original event", async () => {
     const repository = new MemoryNostrRepository();
     const first = event({ id: "event-1", content: "first" });
