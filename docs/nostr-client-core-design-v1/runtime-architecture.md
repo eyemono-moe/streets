@@ -336,7 +336,7 @@ FeedStateStore = UI feed snapshot/read model
 EventStore = raw events and Nostr-filter-first indexes
 ```
 
-QueryRegistry handles feed definitions, filter canonicalization, relay selection, batching, deduplication, reference counts, and transport subscriptions.
+QueryRegistry handles feed definitions, filter canonicalization, relay selection, batching, deduplication, reference counts, and transport subscriptions. Identical canonical forward/live query keys share a single relay subscription; each consumer gets its own listener handle, and the underlying subscription is closed only when the last handle is closed or the registry is disposed. Backward/page requests intentionally remain non-shared for now so late callers cannot miss events delivered before their handle is registered.
 
 FeedStateStore handles feed membership and state:
 
