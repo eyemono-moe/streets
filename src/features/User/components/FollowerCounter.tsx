@@ -1,5 +1,4 @@
 import { type Component, Show, createSignal } from "solid-js";
-import { useInvalidateEventCache } from "../../../context/eventCache";
 import { useI18n } from "../../../i18n";
 import { useFollowers } from "../../../shared/libs/query";
 import { useOpenFollowersColumn } from "../../Column/libs/useOpenColumn";
@@ -12,11 +11,9 @@ const FollowerCounter: Component<{ pubkey?: string }> = (props) => {
     showFollowerCount() ? props.pubkey : undefined,
   );
   const openFollowers = useOpenFollowersColumn();
-  const invalidate = useInvalidateEventCache();
 
   const handleFollowerCountClick = () => {
     if (!showFollowerCount()) {
-      invalidate(["followers", props.pubkey]);
       setShowFollowerCount(true);
       return;
     }
