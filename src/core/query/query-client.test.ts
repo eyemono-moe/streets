@@ -2,6 +2,7 @@ import type { NostrEvent } from "nostr-tools";
 import { Subject } from "rxjs";
 import { describe, expect, test, vi } from "vitest";
 import { createNostrCollections } from "../db/collections";
+import { upsertEventFeedState } from "../db/projectors/event-feed";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type {
   NostrTransport,
@@ -284,5 +285,123 @@ describe("createNostrCoreQueryClient", () => {
     queryClient.dispose();
     expect(close).toHaveBeenCalledOnce();
     vi.useRealTimers();
+  });
+
+  test("ensures a liveBackfill event feed with a forward subscription and feed item projection", async () => {
+    const { transport, events$, emit, close, subscribe } =
+      createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      collections,
+      now: () => 1_000,
+    });
+    const event = createEvent({ id: "live-event", created_at: 200 });
+
+    queryClient.ensureEventFeed({
+      id: "feed:user:pubkey-1",
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      strategy: "liveBackfill",
+      relays: ["wss://relay.example"],
+    });
+    events$.next({
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-1",
+      event,
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        collections.eventFeedItems.get("feed:user:pubkey-1:live-event"),
+      ).toMatchObject({
+        feedId: "feed:user:pubkey-1",
+        eventId: "live-event",
+        createdAt: 200,
+        insertedAt: 1_000,
+      });
+    });
+    expect(subscribe).toHaveBeenCalledWith({
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      relays: ["wss://relay.example"],
+      mode: "forward",
+    });
+    expect(emit).toHaveBeenCalledWith({
+      authors: ["pubkey-1"],
+      kinds: [1],
+      limit: 20,
+    });
+    expect(collections.eventFeedStates.get("feed:user:pubkey-1")).toMatchObject(
+      {
+        feedId: "feed:user:pubkey-1",
+        strategy: "liveBackfill",
+        status: "live",
+        newestCreatedAt: 200,
+        oldestCreatedAt: 200,
+      },
+    );
+    expect(close).not.toHaveBeenCalled();
+
+    queryClient.stopEventFeed("feed:user:pubkey-1");
+    expect(close).toHaveBeenCalledOnce();
+    await expect(repository.getEvent(event.id)).resolves.toBe(event);
+  });
+
+  test("fetches more event feed rows with until cursor and closes the backward request", async () => {
+    const { transport, events$, emit, complete, close, subscribe } =
+      createFakeTransport();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections,
+      now: () => 2_000,
+    });
+    const event = createEvent({ id: "backfill-event", created_at: 99 });
+
+    queryClient.ensureEventFeed({
+      id: "feed:user:pubkey-1",
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      strategy: "liveBackfill",
+    });
+    await upsertEventFeedState(collections, {
+      feedId: "feed:user:pubkey-1",
+      strategy: "liveBackfill",
+      status: "live",
+      oldestCreatedAt: 99,
+    });
+    const resultPromise = queryClient.fetchMoreEventFeed("feed:user:pubkey-1");
+    events$.next({
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-2",
+      event,
+    });
+    events$.complete();
+
+    await expect(resultPromise).resolves.toHaveLength(1);
+    expect(subscribe).toHaveBeenLastCalledWith({
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20, until: 98 },
+      relays: undefined,
+      mode: "backward",
+    });
+    expect(emit).toHaveBeenLastCalledWith({
+      authors: ["pubkey-1"],
+      kinds: [1],
+      limit: 20,
+      until: 98,
+    });
+    expect(complete).toHaveBeenCalled();
+    expect(close).toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(
+        collections.eventFeedItems.get("feed:user:pubkey-1:backfill-event"),
+      ).toMatchObject({
+        eventId: "backfill-event",
+        createdAt: 99,
+      });
+    });
   });
 });

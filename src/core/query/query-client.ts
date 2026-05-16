@@ -1,4 +1,8 @@
 import type { NostrEvent } from "nostr-tools";
+import {
+  upsertEventFeedItem,
+  upsertEventFeedState,
+} from "../db/projectors/event-feed";
 import { projectRepositoryEvent } from "../db/projectors/project-event";
 import type { NostrCollections } from "../db/types";
 import type {
@@ -13,6 +17,8 @@ import type {
   NostrTransportEventPacket,
   NostrTransportFilter,
 } from "../transport/transport";
+import type { EventFeedDefinition } from "./event-feed";
+import { withBackfillCursor } from "./event-feed";
 
 export type EnsureEventOptions = {
   id: string;
@@ -43,6 +49,9 @@ export type NostrCoreQueryClient = {
   fetchEventPage(
     options: FetchEventPageOptions,
   ): Promise<NostrTransportEventPacket[]>;
+  ensureEventFeed(definition: EventFeedDefinition): void;
+  fetchMoreEventFeed(feedId: string): Promise<NostrTransportEventPacket[]>;
+  stopEventFeed(feedId: string): void;
   dispose(): void;
 };
 
@@ -62,12 +71,47 @@ export const createNostrCoreQueryClient = ({
   requestTimeoutMs = 10_000,
 }: NostrCoreQueryClientDependencies): NostrCoreQueryClient => {
   const activeSubscriptions = new Set<NostrSubscription>();
+  const eventFeeds = new Map<
+    string,
+    { definition: EventFeedDefinition; closeLive?: () => void }
+  >();
 
   const projectTransportEvent = async (event: NostrEvent, relay: RelayUrl) => {
     await repository.putEvent({ event, relay });
     await projectRepositoryEvent(collections, event, {
       receivedAt: now(),
       seenRelays: await repository.getSeenRelays(event.id),
+    });
+  };
+
+  const projectFeedEvent = async (
+    feedId: string,
+    event: NostrEvent,
+    relay: RelayUrl,
+  ) => {
+    await projectTransportEvent(event, relay);
+    await upsertEventFeedItem(collections, {
+      feedId,
+      event,
+      insertedAt: now(),
+    });
+    const current = collections.eventFeedStates.get(feedId);
+    await upsertEventFeedState(collections, {
+      feedId,
+      strategy: current?.strategy ?? "liveBackfill",
+      status: "live",
+      updatedAt: now(),
+      oldestCreatedAt:
+        current?.oldestCreatedAt === undefined
+          ? event.created_at
+          : Math.min(current.oldestCreatedAt, event.created_at),
+      newestCreatedAt:
+        current?.newestCreatedAt === undefined
+          ? event.created_at
+          : Math.max(current.newestCreatedAt, event.created_at),
+      hasMoreBackfill: current?.hasMoreBackfill ?? true,
+      activeRelays: current?.activeRelays ?? [],
+      eoseRelays: current?.eoseRelays ?? [],
     });
   };
 
@@ -209,7 +253,118 @@ export const createNostrCoreQueryClient = ({
       });
     },
 
+    ensureEventFeed(definition) {
+      const existing = eventFeeds.get(definition.id);
+      if (existing?.closeLive) {
+        eventFeeds.set(definition.id, { ...existing, definition });
+        return;
+      }
+
+      void upsertEventFeedState(collections, {
+        feedId: definition.id,
+        strategy: definition.strategy,
+        status: "loading",
+        updatedAt: now(),
+        activeRelays: definition.relays ?? [],
+        eoseRelays: [],
+        hasMoreBackfill: definition.strategy === "liveBackfill",
+      }).catch(() => {
+        // Feed state initialization is best-effort; callers observe later state rows.
+      });
+
+      if (
+        definition.strategy !== "liveBackfill" &&
+        definition.strategy !== "liveOnly"
+      ) {
+        eventFeeds.set(definition.id, { definition });
+        return;
+      }
+
+      const subscription = subscribeToTransportEvents(
+        transport,
+        {
+          filters: definition.filters,
+          relays: definition.relays,
+          mode: "forward",
+        },
+        (packet) => {
+          void projectFeedEvent(definition.id, packet.event, packet.from).catch(
+            () => {
+              // Feed projections are best-effort at the transport boundary; callers observe state rows.
+            },
+          );
+        },
+      );
+      const closeLive = trackSubscription(subscription);
+      subscription.emit(definition.filters);
+      eventFeeds.set(definition.id, { definition, closeLive });
+    },
+
+    async fetchMoreEventFeed(feedId) {
+      const registered = eventFeeds.get(feedId);
+      if (!registered) {
+        return [];
+      }
+      const state = collections.eventFeedStates.get(feedId);
+      const until =
+        state?.oldestCreatedAt === undefined
+          ? undefined
+          : state.oldestCreatedAt - 1;
+      const filter = withBackfillCursor(registered.definition.filters, until);
+
+      return new Promise((resolve) => {
+        const packetsByEventId = new Map<string, NostrTransportEventPacket>();
+        let done = false;
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+        const subscription = subscribeToTransportEvents(
+          transport,
+          {
+            filters: filter,
+            relays: registered.definition.relays,
+            mode: "backward",
+          },
+          (packet) => {
+            if (!packetsByEventId.has(packet.event.id)) {
+              packetsByEventId.set(packet.event.id, packet);
+            }
+            void projectFeedEvent(feedId, packet.event, packet.from).catch(
+              () => {
+                // Keep feed pagination resilient if one projection rejects.
+              },
+            );
+          },
+        );
+        const close = trackSubscription(subscription);
+        const finish = () => {
+          if (done) {
+            return;
+          }
+          done = true;
+          if (timeoutHandle !== undefined) {
+            clearTimeout(timeoutHandle);
+            timeoutHandle = undefined;
+          }
+          close();
+          resolve([...packetsByEventId.values()]);
+        };
+        timeoutHandle = setTimeout(finish, requestTimeoutMs);
+        subscription.events$.subscribe({ complete: finish });
+        subscription.emit(filter);
+        subscription.complete();
+      });
+    },
+
+    stopEventFeed(feedId) {
+      const registered = eventFeeds.get(feedId);
+      registered?.closeLive?.();
+      eventFeeds.delete(feedId);
+    },
+
     dispose() {
+      for (const registered of eventFeeds.values()) {
+        registered.closeLive?.();
+      }
+      eventFeeds.clear();
       for (const subscription of activeSubscriptions) {
         subscription.close();
       }

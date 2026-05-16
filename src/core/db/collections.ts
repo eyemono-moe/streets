@@ -1,6 +1,8 @@
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/db";
 import type { LocalOnlyCollectionUtils } from "@tanstack/db";
 import type {
+  EventFeedItemRow,
+  EventFeedStateRow,
   NostrCollections,
   NostrEventRow,
   NostrProfileRow,
@@ -27,6 +29,26 @@ export const createNostrCollections = (): NostrCollections => ({
   >(
     localOnlyCollectionOptions<NostrQueryStateRow, string>({
       id: "nostr-query-states",
+      getKey: (row) => row.id,
+    }),
+  ),
+  eventFeedItems: createCollection<
+    EventFeedItemRow,
+    string,
+    LocalOnlyCollectionUtils
+  >(
+    localOnlyCollectionOptions<EventFeedItemRow, string>({
+      id: "nostr-event-feed-items",
+      getKey: (row) => row.id,
+    }),
+  ),
+  eventFeedStates: createCollection<
+    EventFeedStateRow,
+    string,
+    LocalOnlyCollectionUtils
+  >(
+    localOnlyCollectionOptions<EventFeedStateRow, string>({
+      id: "nostr-event-feed-states",
       getKey: (row) => row.id,
     }),
   ),
