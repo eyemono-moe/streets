@@ -27,9 +27,7 @@ import { projectRepositoryEvent } from "../core/db/projectors/project-event";
 import { type NostrCore, createNostrCore } from "../core/solid/provider";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
-import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
 import workerUrl from "../shared/libs/verifierWorker?worker&url";
-import { eventCacheSetter } from "./eventCache";
 import { useRelays } from "./relays";
 
 type Emitter = RxReqEmittable<{ relays: string[] }>["emit"];
@@ -110,11 +108,9 @@ export const RxNostrProvider: ParentComponent = (props) => {
 
   const rxBackwardReq = createRxBackwardReq();
   const emit = rxBackwardReq.emit;
-  const setter = eventCacheSetter();
 
   allMessage$.pipe(filterByType("EVENT"), uniq()).subscribe({
     next: (e) => {
-      cacheAndEmitRelatedEvent(e, emit, setter);
       void ingestNostrCoreEvent(core(), e.event, e.from).catch(() => {
         // Keep the legacy rx-nostr stream alive even if v1 projection rejects.
       });
