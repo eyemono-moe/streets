@@ -54,9 +54,12 @@ const eventMatchesFilter = (event: NostrEvent, filter: EventStoreFilter) => {
       continue;
     }
 
+    const expectedTagValues = value as readonly string[];
     const tagName = key.slice(1);
     const eventTagValues = tagValuesFor(event, tagName);
-    if (!eventTagValues.some((tagValue) => value.includes(tagValue))) {
+    if (
+      !eventTagValues.some((tagValue) => expectedTagValues.includes(tagValue))
+    ) {
       return false;
     }
   }
