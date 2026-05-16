@@ -324,7 +324,7 @@ describe("createNostrCoreQueryClient", () => {
       });
     });
     expect(subscribe).toHaveBeenCalledWith({
-      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20, since: 1 },
       relays: ["wss://relay.example"],
       mode: "forward",
     });
@@ -332,6 +332,7 @@ describe("createNostrCoreQueryClient", () => {
       authors: ["pubkey-1"],
       kinds: [1],
       limit: 20,
+      since: 1,
     });
     expect(collections.eventFeedStates.get("feed:user:pubkey-1")).toMatchObject(
       {
@@ -363,8 +364,9 @@ describe("createNostrCoreQueryClient", () => {
 
     queryClient.ensureEventFeed({
       id: "feed:user:pubkey-1",
-      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      filters: { authors: ["pubkey-1"], kinds: [1] },
       strategy: "liveBackfill",
+      limit: 20,
     });
     await upsertEventFeedState(collections, {
       feedId: "feed:user:pubkey-1",
@@ -402,6 +404,93 @@ describe("createNostrCoreQueryClient", () => {
         eventId: "backfill-event",
         createdAt: 99,
       });
+      expect(
+        collections.eventFeedStates.get("feed:user:pubkey-1"),
+      ).toMatchObject({
+        hasMoreBackfill: false,
+        oldestCreatedAt: 99,
+        newestCreatedAt: 99,
+      });
     });
+  });
+
+  test("marks backfill complete after an empty event feed page", async () => {
+    const { transport, events$, close } = createFakeTransport();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections,
+      now: () => 3_000,
+    });
+
+    queryClient.ensureEventFeed({
+      id: "feed:empty",
+      filters: { kinds: [1] },
+      strategy: "liveBackfill",
+      limit: 20,
+    });
+    await upsertEventFeedState(collections, {
+      feedId: "feed:empty",
+      strategy: "liveBackfill",
+      status: "live",
+      oldestCreatedAt: 99,
+      newestCreatedAt: 120,
+      hasMoreBackfill: true,
+    });
+
+    const resultPromise = queryClient.fetchMoreEventFeed("feed:empty");
+    events$.complete();
+
+    await expect(resultPromise).resolves.toEqual([]);
+    expect(close).toHaveBeenCalled();
+    expect(collections.eventFeedStates.get("feed:empty")).toMatchObject({
+      hasMoreBackfill: false,
+      oldestCreatedAt: 99,
+      newestCreatedAt: 120,
+    });
+  });
+
+  test("settles fetchMore when pagination state persistence fails", async () => {
+    const { transport, events$, close } = createFakeTransport();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections,
+    });
+    const originalUpdate = collections.eventFeedStates.update.bind(
+      collections.eventFeedStates,
+    );
+
+    queryClient.ensureEventFeed({
+      id: "feed:persistence-error",
+      filters: { kinds: [1] },
+      strategy: "liveBackfill",
+      limit: 20,
+    });
+    await upsertEventFeedState(collections, {
+      feedId: "feed:persistence-error",
+      strategy: "liveBackfill",
+      status: "live",
+      oldestCreatedAt: 99,
+      hasMoreBackfill: true,
+    });
+    vi.spyOn(collections.eventFeedStates, "update").mockImplementation(
+      (...args: Parameters<typeof collections.eventFeedStates.update>) => {
+        originalUpdate(...args);
+        return {
+          isPersisted: { promise: Promise.reject(new Error("persist failed")) },
+        } as ReturnType<typeof collections.eventFeedStates.update>;
+      },
+    );
+
+    const resultPromise = queryClient.fetchMoreEventFeed(
+      "feed:persistence-error",
+    );
+    events$.complete();
+
+    await expect(resultPromise).resolves.toEqual([]);
+    expect(close).toHaveBeenCalled();
   });
 });

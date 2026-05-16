@@ -18,7 +18,7 @@ import type {
   NostrTransportFilter,
 } from "../transport/transport";
 import type { EventFeedDefinition } from "./event-feed";
-import { withBackfillCursor } from "./event-feed";
+import { withBackfillCursor, withLiveCursor } from "./event-feed";
 
 export type EnsureEventOptions = {
   id: string;
@@ -280,10 +280,14 @@ export const createNostrCoreQueryClient = ({
         return;
       }
 
+      const liveFilter = withLiveCursor(
+        definition.filters,
+        Math.floor(now() / 1_000),
+      );
       const subscription = subscribeToTransportEvents(
         transport,
         {
-          filters: definition.filters,
+          filters: liveFilter,
           relays: definition.relays,
           mode: "forward",
         },
@@ -296,7 +300,7 @@ export const createNostrCoreQueryClient = ({
         },
       );
       const closeLive = trackSubscription(subscription);
-      subscription.emit(definition.filters);
+      subscription.emit(liveFilter);
       eventFeeds.set(definition.id, { definition, closeLive });
     },
 
@@ -310,7 +314,11 @@ export const createNostrCoreQueryClient = ({
         state?.oldestCreatedAt === undefined
           ? undefined
           : state.oldestCreatedAt - 1;
-      const filter = withBackfillCursor(registered.definition.filters, until);
+      const filter = withBackfillCursor(
+        registered.definition.filters,
+        until,
+        registered.definition.limit,
+      );
 
       return new Promise((resolve) => {
         const packetsByEventId = new Map<string, NostrTransportEventPacket>();
@@ -335,7 +343,7 @@ export const createNostrCoreQueryClient = ({
           },
         );
         const close = trackSubscription(subscription);
-        const finish = () => {
+        const finish = async () => {
           if (done) {
             return;
           }
@@ -345,10 +353,44 @@ export const createNostrCoreQueryClient = ({
             timeoutHandle = undefined;
           }
           close();
-          resolve([...packetsByEventId.values()]);
+          const packets = [...packetsByEventId.values()];
+          const current = collections.eventFeedStates.get(feedId);
+          const createdAts = packets.map((packet) => packet.event.created_at);
+          const oldestCreatedAt =
+            current?.oldestCreatedAt === undefined
+              ? Math.min(...createdAts)
+              : Math.min(current.oldestCreatedAt, ...createdAts);
+          const newestCreatedAt =
+            current?.newestCreatedAt === undefined
+              ? Math.max(...createdAts)
+              : Math.max(current.newestCreatedAt, ...createdAts);
+          try {
+            await upsertEventFeedState(collections, {
+              feedId,
+              strategy: current?.strategy ?? registered.definition.strategy,
+              status: "live",
+              updatedAt: now(),
+              oldestCreatedAt: Number.isFinite(oldestCreatedAt)
+                ? oldestCreatedAt
+                : current?.oldestCreatedAt,
+              newestCreatedAt: Number.isFinite(newestCreatedAt)
+                ? newestCreatedAt
+                : current?.newestCreatedAt,
+              hasMoreBackfill:
+                registered.definition.limit === undefined
+                  ? packets.length > 0
+                  : packets.length >= registered.definition.limit,
+              activeRelays:
+                current?.activeRelays ?? registered.definition.relays ?? [],
+              eoseRelays: current?.eoseRelays ?? [],
+            });
+          } catch {
+            // Pagination state persistence is best-effort; callers still need the page request to settle.
+          }
+          resolve(packets);
         };
-        timeoutHandle = setTimeout(finish, requestTimeoutMs);
-        subscription.events$.subscribe({ complete: finish });
+        timeoutHandle = setTimeout(() => void finish(), requestTimeoutMs);
+        subscription.events$.subscribe({ complete: () => void finish() });
         subscription.emit(filter);
         subscription.complete();
       });
