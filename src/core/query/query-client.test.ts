@@ -14,10 +14,12 @@ import { createNostrCoreQueryClient } from "./query-client";
 const createFakeTransport = () => {
   const events$ = new Subject<NostrTransportEventPacket>();
   const close = vi.fn(() => events$.complete());
+  const complete = vi.fn();
   const emit = vi.fn();
   const subscribe = vi.fn((_options: NostrTransportSubscribeOptions) => ({
     events$: events$.asObservable(),
     emit,
+    complete,
     close,
   }));
   const transport = {
@@ -29,7 +31,7 @@ const createFakeTransport = () => {
     dispose: vi.fn(),
   } as unknown as NostrTransport;
 
-  return { transport, events$, emit, close, subscribe };
+  return { transport, events$, emit, complete, close, subscribe };
 };
 
 const createEvent = (overrides: Partial<NostrEvent> = {}): NostrEvent => ({
@@ -148,6 +150,103 @@ describe("createNostrCoreQueryClient", () => {
     expect(close).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(25);
+    expect(close).toHaveBeenCalledOnce();
+    vi.useRealTimers();
+  });
+
+  test("fetches a backward event page through transport and projects received events", async () => {
+    const { transport, events$, emit, complete, close, subscribe } =
+      createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const collections = createNostrCollections();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      collections,
+      now: () => 456,
+    });
+    const event = createEvent({ id: "page-event" });
+    const packet = {
+      type: "EVENT",
+      from: "wss://relay.example",
+      subId: "sub-1",
+      event,
+    } as const;
+    const resultPromise = queryClient.fetchEventPage({
+      filter: { kinds: [1], limit: 20, until: 100 },
+      relays: ["wss://relay.example"],
+    });
+
+    events$.next(packet);
+    events$.complete();
+
+    await expect(resultPromise).resolves.toEqual([packet]);
+    expect(subscribe).toHaveBeenCalledWith({
+      filters: { kinds: [1], limit: 20, until: 100 },
+      relays: ["wss://relay.example"],
+      mode: "backward",
+    });
+    expect(emit).toHaveBeenCalledWith({ kinds: [1], limit: 20, until: 100 });
+    expect(complete).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    await expect(repository.getEvent(event.id)).resolves.toBe(event);
+    expect(await collections.events.get(event.id)).toMatchObject({
+      id: event.id,
+      receivedAt: 456,
+      seenRelays: ["wss://relay.example"],
+    });
+  });
+
+  test("deduplicates event page packets by event id while preserving the first relay source", async () => {
+    const { transport, events$ } = createFakeTransport();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections: createNostrCollections(),
+    });
+    const event = createEvent({ id: "duplicated-page-event" });
+    const firstPacket = {
+      type: "EVENT",
+      from: "wss://first-relay.example",
+      subId: "sub-1",
+      event,
+    } as const;
+    const secondPacket = {
+      type: "EVENT",
+      from: "wss://second-relay.example",
+      subId: "sub-1",
+      event,
+    } as const;
+    const resultPromise = queryClient.fetchEventPage({
+      filter: { kinds: [1], limit: 20 },
+    });
+
+    events$.next(firstPacket);
+    events$.next(secondPacket);
+    events$.complete();
+
+    await expect(resultPromise).resolves.toEqual([firstPacket]);
+  });
+
+  test("resolves an empty event page after the request timeout", async () => {
+    vi.useFakeTimers();
+    const { transport, close } = createFakeTransport();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      collections: createNostrCollections(),
+      requestTimeoutMs: 25,
+    });
+
+    const resultPromise = queryClient.fetchEventPage({
+      filter: { kinds: [1], limit: 20 },
+    });
+
+    await vi.advanceTimersByTimeAsync(25);
+
+    await expect(resultPromise).resolves.toEqual([]);
+    expect(close).toHaveBeenCalledOnce();
+    queryClient.dispose();
     expect(close).toHaveBeenCalledOnce();
     vi.useRealTimers();
   });

@@ -72,6 +72,7 @@ export type NostrTransportPublishPacket = {
 export interface NostrSubscription {
   readonly events$: Observable<NostrTransportEventPacket>;
   emit(filters: NostrTransportFilter | readonly NostrTransportFilter[]): void;
+  complete(): void;
   close(): void;
 }
 

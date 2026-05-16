@@ -7,7 +7,12 @@ import type {
   RelayUrl,
 } from "../repository/nostr-repository";
 import { subscribeToTransportEvents } from "../transport/rx-nostr-transport";
-import type { NostrSubscription, NostrTransport } from "../transport/transport";
+import type {
+  NostrSubscription,
+  NostrTransport,
+  NostrTransportEventPacket,
+  NostrTransportFilter,
+} from "../transport/transport";
 
 export type EnsureEventOptions = {
   id: string;
@@ -24,12 +29,20 @@ export type EnsureEventRelationsOptions = {
   relays?: readonly RelayUrl[];
 };
 
+export type FetchEventPageOptions = {
+  filter: NostrTransportFilter;
+  relays?: readonly RelayUrl[];
+};
+
 export type NostrCoreQueryClient = {
   ensureEvent(options: EnsureEventOptions): Promise<NostrEvent | undefined>;
   ensureProfile(options: EnsureProfileOptions): Promise<NostrEvent | undefined>;
   ensureEventRelations(
     options: EnsureEventRelationsOptions,
   ): Promise<NostrEvent[]>;
+  fetchEventPage(
+    options: FetchEventPageOptions,
+  ): Promise<NostrTransportEventPacket[]>;
   dispose(): void;
 };
 
@@ -146,24 +159,54 @@ export const createNostrCoreQueryClient = ({
       const cached = await repository.queryEvents(query);
       subscribeAndEmit(
         {
-          filters: {
-            ids: query.ids ? [...query.ids] : undefined,
-            authors: query.authors ? [...query.authors] : undefined,
-            kinds: query.kinds ? [...query.kinds] : undefined,
-            limit: query.limit,
-            ...Object.fromEntries(
-              Object.entries(query.tags ?? {}).map(([name, values]) => [
-                `#${name}`,
-                [...values],
-              ]),
-            ),
-          },
+          filters: toTransportFilter(query),
           relays,
           mode: "backward",
         },
         { closeOnFirstEvent: false },
       );
       return cached;
+    },
+
+    async fetchEventPage({ filter, relays }) {
+      return new Promise((resolve) => {
+        const packetsByEventId = new Map<string, NostrTransportEventPacket>();
+        let done = false;
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+        const subscription = subscribeToTransportEvents(
+          transport,
+          {
+            filters: filter,
+            relays,
+            mode: "backward",
+          },
+          (packet) => {
+            if (!packetsByEventId.has(packet.event.id)) {
+              packetsByEventId.set(packet.event.id, packet);
+            }
+            void projectTransportEvent(packet.event, packet.from).catch(() => {
+              // Keep page collection resilient if one projection rejects.
+            });
+          },
+        );
+        const close = trackSubscription(subscription);
+        const finish = () => {
+          if (done) {
+            return;
+          }
+          done = true;
+          if (timeoutHandle !== undefined) {
+            clearTimeout(timeoutHandle);
+            timeoutHandle = undefined;
+          }
+          close();
+          resolve([...packetsByEventId.values()]);
+        };
+        timeoutHandle = setTimeout(finish, requestTimeoutMs);
+        subscription.events$.subscribe({ complete: finish });
+        subscription.emit(filter);
+        subscription.complete();
+      });
     },
 
     dispose() {
@@ -174,3 +217,16 @@ export const createNostrCoreQueryClient = ({
     },
   };
 };
+
+const toTransportFilter = (query: NostrEventQuery): NostrTransportFilter => ({
+  ids: query.ids ? [...query.ids] : undefined,
+  authors: query.authors ? [...query.authors] : undefined,
+  kinds: query.kinds ? [...query.kinds] : undefined,
+  limit: query.limit,
+  ...Object.fromEntries(
+    Object.entries(query.tags ?? {}).map(([name, values]) => [
+      `#${name}`,
+      [...values],
+    ]),
+  ),
+});

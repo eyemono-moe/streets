@@ -1,14 +1,20 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
 import type { Filter } from "nostr-tools";
-import { createRxForwardReq, now, uniq } from "rx-nostr";
-import { map, tap } from "rxjs";
-import { type Component, For, Match, Switch, from, onMount } from "solid-js";
-import { eventCacheSetter } from "../../context/eventCache";
-import { useRxNostr } from "../../context/rxNostr";
+import { compareEvents } from "rx-nostr";
+import {
+  type Component,
+  For,
+  Match,
+  Switch,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import { createStore } from "solid-js/store";
+import { ingestNostrCoreEvent, useRxNostr } from "../../context/rxNostr";
+import type { NostrTransportFilter } from "../../core/transport/transport";
 import { useI18n } from "../../i18n";
 import { parseEventPacket } from "../libs/parser";
-import { cacheAndEmitRelatedEvent, createInfiniteRxQuery } from "../libs/query";
-import { toArrayScan } from "../libs/rxjs";
+import { createInfiniteRxQuery } from "../libs/query";
 import Event from "./Event";
 
 const InfiniteEvents: Component<{
@@ -16,39 +22,43 @@ const InfiniteEvents: Component<{
   relays?: string[];
 }> = (props) => {
   const t = useI18n();
-
-  const latestRxReq = createRxForwardReq();
-  const setter = eventCacheSetter();
-
-  const {
-    rxNostr,
-    actions: { emit },
-  } = useRxNostr();
-
-  const latestEvents = from(
-    rxNostr
-      .use(latestRxReq, {
-        on: {
-          relays: props.relays,
-          defaultReadRelays: !props.relays,
-        },
-      })
-      .pipe(
-        uniq(),
-        tap({
-          next: (e) => {
-            cacheAndEmitRelatedEvent(e, emit, setter);
-          },
-        }),
-        map((e) => parseEventPacket(e)),
-        toArrayScan(true),
-      ),
-  );
+  const { core } = useRxNostr();
+  const [latestEvents, setLatestEvents] = createStore<
+    ReturnType<typeof parseEventPacket>[]
+  >([]);
 
   onMount(() => {
-    latestRxReq.emit({
-      ...props.filter,
-      since: now,
+    const subscription = core.transport.subscribe({
+      filters: {
+        ...(props.filter as NostrTransportFilter),
+        since: Math.floor(Date.now() / 1000),
+      },
+      relays: props.relays,
+      defaultReadRelays: !props.relays,
+      mode: "forward",
+    });
+    const observableSubscription = subscription.events$.subscribe({
+      next: (packet) => {
+        void ingestNostrCoreEvent(core, packet.event, packet.from).catch(() => {
+          // Keep the live feed stream alive if projection rejects.
+        });
+        const parsed = parseEventPacket(packet);
+        setLatestEvents((prev) => {
+          if (prev.some((event) => event.raw.id === parsed.raw.id)) {
+            return prev;
+          }
+          return [parsed, ...prev].sort((a, b) => -compareEvents(a.raw, b.raw));
+        });
+      },
+    });
+    subscription.emit({
+      ...(props.filter as NostrTransportFilter),
+      since: Math.floor(Date.now() / 1000),
+    });
+
+    onCleanup(() => {
+      observableSubscription.unsubscribe();
+      subscription.close();
     });
   });
 
@@ -68,7 +78,7 @@ const InfiniteEvents: Component<{
 
   return (
     <div class="h-full divide-y">
-      <For each={latestEvents()}>
+      <For each={latestEvents}>
         {(event) => (
           <Event
             event={event}
