@@ -1,7 +1,6 @@
 import { usePrefersDark } from "@solid-primitives/media";
 import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
 import { type Component, type ParentComponent, createEffect } from "solid-js";
 import { FileServerProvider } from "./context/fileServer";
 import { LoadingProvider } from "./context/loading";
@@ -13,6 +12,7 @@ import { NostrCoreProvider } from "./core/solid/provider";
 import { DeckProvider } from "./features/Column/context/deck";
 import { PostInputProvider } from "./features/CreatePost/context/postInputDialog";
 import routes from "./router";
+import AppDevtools from "./shared/components/devtools/AppDevtools";
 import { Toaster } from "./shared/libs/toast";
 
 const queryClient = new QueryClient({
@@ -57,7 +57,7 @@ const App: Component = () => {
                   </AppNostrProviders>
                 </RxNostrProvider>
               </FileServerProvider>
-              <SolidQueryDevtools />
+              <AppDevtools />
             </RelaysProvider>
           </MeProvider>
         </LoadingProvider>
