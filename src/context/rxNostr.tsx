@@ -1,4 +1,3 @@
-import { normalizeURL } from "nostr-tools/utils";
 import {
   type ConnectionState,
   Nip11Registry,
@@ -138,12 +137,22 @@ export const RxNostrProvider: ParentComponent = (props) => {
 
   const [connectionState, setConnectionState] = createStore<{
     [from: string]: ConnectionState;
-  }>({});
+  }>(core().connectionState.getSnapshot() as Record<string, ConnectionState>);
 
-  rxNostr.createConnectionStateObservable().subscribe({
-    next(e) {
-      setConnectionState(normalizeURL(e.from), e.state);
-    },
+  const connectionStateSubscription = core()
+    .connectionState.observe()
+    .subscribe({
+      next(snapshot) {
+        for (const [relay, state] of Object.entries(snapshot)) {
+          if (state) {
+            setConnectionState(relay, state);
+          }
+        }
+      },
+    });
+
+  onCleanup(() => {
+    connectionStateSubscription.unsubscribe();
   });
 
   return (
@@ -159,7 +168,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
       }}
     >
       {props.children}
-      <RxNostrDevtools />
+      <RxNostrDevtools core={core()} />
     </RxNostrContext.Provider>
   );
 };
@@ -174,6 +183,6 @@ export const useRxNostr = () => {
   return ctx;
 };
 
-const RxNostrDevtools: typeof RxNostrDevtoolsComp = isDev
+const RxNostrDevtools = isDev
   ? lazy(() => import("../shared/components/devtools/RxNostrDevtools"))
-  : () => null;
+  : (_props: Parameters<typeof RxNostrDevtoolsComp>[0]) => null;

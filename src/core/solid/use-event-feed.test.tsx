@@ -1,4 +1,5 @@
 import { type NostrEvent, kinds } from "nostr-tools";
+import { EMPTY } from "rxjs";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
 import type { EventFeedDefinition } from "../query/event-feed";
@@ -50,7 +51,9 @@ const createCore = ({
     },
     dispose() {},
   };
-  const rxNostr = {} as Parameters<typeof createNostrCore>[0]["rxNostr"];
+  const rxNostr = {
+    createConnectionStateObservable: () => EMPTY,
+  } as Parameters<typeof createNostrCore>[0]["rxNostr"];
   const repository = new MemoryNostrRepository();
   return {
     core: createNostrCore({ rxNostr, repository, queryClient }),

@@ -1,4 +1,6 @@
+import { normalizeURL } from "nostr-tools/utils";
 import type { RxNostr } from "rx-nostr";
+import { BehaviorSubject, type Observable, Subscription } from "rxjs";
 import {
   type ParentComponent,
   createContext,
@@ -18,11 +20,26 @@ import type { EventStore } from "../store/event-store";
 import type { FeedStateStore } from "../store/feed-state-store";
 import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import { RxNostrTransport } from "../transport/rx-nostr-transport";
-import type { NostrTransport } from "../transport/transport";
+import type {
+  NostrTransport,
+  NostrTransportConnectionState,
+} from "../transport/transport";
 import { EventStoreProfileView, type ProfileView } from "../view/profile-view";
+
+export type NostrCoreConnectionStateMap = Record<
+  string,
+  NostrTransportConnectionState | undefined
+>;
+
+export type NostrCoreConnectionStateStore = {
+  getSnapshot(): NostrCoreConnectionStateMap;
+  observe(): Observable<NostrCoreConnectionStateMap>;
+  dispose(): void;
+};
 
 export type NostrCore = {
   transport: NostrTransport;
+  connectionState: NostrCoreConnectionStateStore;
   repository: NostrRepository;
   eventStore: EventStore;
   feedStateStore: FeedStateStore;
@@ -65,6 +82,7 @@ export const createNostrCore = ({
   }
 
   const transport = new RxNostrTransport(rxNostr);
+  const connectionState = createNostrCoreConnectionStateStore(transport);
   const resolvedFeedStateStore = feedStateStore ?? new MemoryFeedStateStore();
   const resolvedProfileView =
     profileView ?? new EventStoreProfileView(resolvedEventStore);
@@ -81,6 +99,7 @@ export const createNostrCore = ({
 
   return {
     transport,
+    connectionState,
     repository: resolvedRepository,
     eventStore: resolvedEventStore,
     feedStateStore: resolvedFeedStateStore,
@@ -88,9 +107,46 @@ export const createNostrCore = ({
     queryRegistry: resolvedQueryRegistry,
     queryClient: coreQueryClient,
     dispose() {
+      connectionState.dispose();
       coreQueryClient.dispose();
       resolvedQueryRegistry.dispose();
       transport.dispose();
+    },
+  };
+};
+
+const createNostrCoreConnectionStateStore = (
+  transport: NostrTransport,
+): NostrCoreConnectionStateStore => {
+  let snapshot: NostrCoreConnectionStateMap = {};
+  const subject = new BehaviorSubject<NostrCoreConnectionStateMap>(snapshot);
+  const subscriptions = new Subscription();
+
+  subscriptions.add(
+    transport.observeConnectionState().subscribe({
+      next(packet) {
+        snapshot = {
+          ...snapshot,
+          [normalizeURL(packet.from)]: packet.state,
+        };
+        subject.next(snapshot);
+      },
+      error(error) {
+        subject.error(error);
+      },
+    }),
+  );
+
+  return {
+    getSnapshot() {
+      return snapshot;
+    },
+    observe() {
+      return subject.asObservable();
+    },
+    dispose() {
+      subscriptions.unsubscribe();
+      subject.complete();
     },
   };
 };
