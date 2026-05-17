@@ -41,13 +41,7 @@ const InfiniteEvents: Component<{
     <div class="h-full divide-y">
       <For each={feed.events()}>
         {(event) => (
-          <Event
-            event={event}
-            showActions
-            showReactions
-            collapseReplies
-            showReplies
-          />
+          <Event event={event} showActions collapseReplies showReplies />
         )}
       </For>
       <div

@@ -60,6 +60,14 @@ export type NostrCoreQueryClientDependencies = {
   queryRegistry?: QueryRegistry;
 };
 
+type InFlightRequest<T> = {
+  promise: Promise<T>;
+  close(): void;
+};
+
+const requestKeyFor = (options: Parameters<NostrTransport["subscribe"]>[0]) =>
+  JSON.stringify({ filters: options.filters, relays: options.relays });
+
 export const createNostrCoreQueryClient = ({
   transport,
   repository,
@@ -76,6 +84,7 @@ export const createNostrCoreQueryClient = ({
       backfillHandles: Set<QueryRegistryHandle>;
     }
   >();
+  const inFlightRelations = new Map<string, InFlightRequest<NostrEvent[]>>();
 
   const projectTransportEvent = async (event: NostrEvent, relay: RelayUrl) => {
     await repository.putEvent({ event, relay });
@@ -148,14 +157,32 @@ export const createNostrCoreQueryClient = ({
 
     async ensureEventRelations({ query, relays }) {
       const cached = await repository.queryEvents(query);
-      subscribeAndEmit(
-        {
-          filters: toTransportFilter(query),
-          relays,
-          mode: "backward",
+      const options = {
+        filters: toTransportFilter(query),
+        relays,
+        mode: "backward",
+      } as const;
+      const key = requestKeyFor(options);
+      if (inFlightRelations.has(key)) {
+        return cached;
+      }
+
+      const handle = subscribeAndEmit(options, { closeOnFirstEvent: false });
+      const timeoutHandle = setTimeout(() => {
+        inFlightRelations.delete(key);
+        handle.close();
+      }, requestTimeoutMs);
+      const request = new Promise<NostrEvent[]>((resolve) => {
+        timeoutHandle;
+        resolve(cached);
+      });
+      inFlightRelations.set(key, {
+        promise: request,
+        close: () => {
+          clearTimeout(timeoutHandle);
+          handle.close();
         },
-        { closeOnFirstEvent: false },
-      );
+      });
       return cached;
     },
 
