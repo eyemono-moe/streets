@@ -12,6 +12,8 @@ export const columnIcon = (type: ColumnState["content"]["type"]) => {
       return "i-material-symbols:favorite-outline";
     case "user":
       return "i-material-symbols:person-outline";
+    case "debug-user":
+      return "i-material-symbols:bug-report-outline-rounded";
     case "timeline":
       return "i-material-symbols:home-outline-rounded";
     case "followees":
