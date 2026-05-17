@@ -1,4 +1,5 @@
 import type { NostrEvent } from "nostr-tools";
+import { EMPTY } from "rxjs";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
 import type { NostrCoreQueryClient } from "../query/query-client";
@@ -34,7 +35,9 @@ const createCore = (repository: NostrRepository) => {
   return {
     ensured,
     core: createNostrCore({
-      rxNostr: {} as Parameters<typeof createNostrCore>[0]["rxNostr"],
+      rxNostr: {
+        createConnectionStateObservable: () => EMPTY,
+      } as Parameters<typeof createNostrCore>[0]["rxNostr"],
       repository,
       queryClient,
     }),
