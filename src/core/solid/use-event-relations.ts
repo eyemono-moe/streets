@@ -27,30 +27,6 @@ const toParsedEventPacket = <T>(
   parsed: parseNostrEvent(event) as T,
 });
 
-const eventMatchesQuery = (event: NostrEvent, query: NostrEventQuery) => {
-  if (query.ids && !query.ids.includes(event.id)) {
-    return false;
-  }
-  if (query.authors && !query.authors.includes(event.pubkey)) {
-    return false;
-  }
-  if (query.kinds && !query.kinds.includes(event.kind)) {
-    return false;
-  }
-  if (query.tags) {
-    for (const [name, values] of Object.entries(query.tags)) {
-      const hasTagValue = event.tags.some(
-        (tag) =>
-          tag[0] === name && tag[1] !== undefined && values.includes(tag[1]),
-      );
-      if (!hasTagValue) {
-        return false;
-      }
-    }
-  }
-  return true;
-};
-
 export const useCoreEventRelations = <T = ReturnType<typeof parseNostrEvent>>(
   query: () => NostrEventQuery | undefined,
   relays?: () => readonly RelayUrl[] | undefined,
@@ -61,19 +37,30 @@ export const useCoreEventRelations = <T = ReturnType<typeof parseNostrEvent>>(
   );
   let requestVersion = 0;
 
-  const syncFromCollection = (currentQuery: NostrEventQuery) => {
-    const rows = [...core.collections.events.values()]
-      .filter((row) => eventMatchesQuery(row.raw, currentQuery))
-      .sort((a, b) => b.createdAt - a.createdAt || b.id.localeCompare(a.id))
-      .slice(0, currentQuery.limit);
-    const data = rows.map((row) =>
-      toParsedEventPacket<T>(row.raw, row.seenRelays[0]),
+  const syncFromEventStore = (currentQuery: NostrEventQuery) => {
+    const events = core.eventStore
+      .queryEvents({
+        ids: currentQuery.ids ? [...currentQuery.ids] : undefined,
+        authors: currentQuery.authors ? [...currentQuery.authors] : undefined,
+        kinds: currentQuery.kinds ? [...currentQuery.kinds] : undefined,
+        limit: currentQuery.limit,
+        ...Object.fromEntries(
+          Object.entries(currentQuery.tags ?? {}).map(([name, values]) => [
+            `#${name}`,
+            [...values],
+          ]),
+        ),
+      })
+      .sort((a, b) => b.created_at - a.created_at || b.id.localeCompare(a.id));
+    const limited = currentQuery.limit
+      ? events.slice(0, currentQuery.limit)
+      : events;
+    const data = limited.map((event) =>
+      toParsedEventPacket<T>(event, core.eventStore.getSeenRelays(event.id)[0]),
     );
     setCache({
       data,
-      dataUpdatedAt:
-        rows.reduce((latest, row) => Math.max(latest, row.receivedAt), 0) ||
-        Date.now(),
+      dataUpdatedAt: Date.now(),
       isFetching: false,
       isInvalidated: false,
     });
@@ -91,14 +78,11 @@ export const useCoreEventRelations = <T = ReturnType<typeof parseNostrEvent>>(
       return;
     }
 
-    const subscription = core.collections.events.subscribeChanges(
-      () => {
-        syncFromCollection(currentQuery);
-      },
-      { includeInitialState: true },
-    );
+    const unsubscribe = core.eventStore.subscribe(() => {
+      syncFromEventStore(currentQuery);
+    });
 
-    syncFromCollection(currentQuery);
+    syncFromEventStore(currentQuery);
     setCache((prev) => ({ ...prev, isFetching: true }));
     void core.queryClient
       .ensureEventRelations({ query: currentQuery, relays: currentRelays })
@@ -125,9 +109,7 @@ export const useCoreEventRelations = <T = ReturnType<typeof parseNostrEvent>>(
         }
       });
 
-    onCleanup(() => {
-      subscription.unsubscribe();
-    });
+    onCleanup(unsubscribe);
   });
 
   return cache;

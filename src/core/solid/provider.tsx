@@ -8,19 +8,23 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
-import { createNostrCollections } from "../db/collections";
-import type { NostrCollections } from "../db/types";
 import {
   type NostrCoreQueryClient,
   createNostrCoreQueryClient,
 } from "../query/query-client";
+import { createQueryRegistry } from "../query/query-registry";
+import type { QueryRegistry } from "../query/query-registry";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type { NostrRepository } from "../repository/nostr-repository";
+import type { EventStore } from "../store/event-store";
+import type { FeedStateStore } from "../store/feed-state-store";
+import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import { RxNostrTransport } from "../transport/rx-nostr-transport";
 import type {
   NostrTransport,
   NostrTransportConnectionState,
 } from "../transport/transport";
+import { EventStoreProfileView, type ProfileView } from "../view/profile-view";
 
 export type NostrCoreConnectionStateMap = Record<
   string,
@@ -37,7 +41,10 @@ export type NostrCore = {
   transport: NostrTransport;
   connectionState: NostrCoreConnectionStateStore;
   repository: NostrRepository;
-  collections: NostrCollections;
+  eventStore: EventStore;
+  feedStateStore: FeedStateStore;
+  profileView: ProfileView;
+  queryRegistry: QueryRegistry;
   queryClient: NostrCoreQueryClient;
   dispose(): void;
 };
@@ -45,31 +52,64 @@ export type NostrCore = {
 export type CreateNostrCoreOptions = {
   rxNostr: RxNostr;
   repository?: NostrRepository;
-  collections?: NostrCollections;
+  eventStore?: EventStore;
+  feedStateStore?: FeedStateStore;
+  profileView?: ProfileView;
+  queryRegistry?: QueryRegistry;
   queryClient?: NostrCoreQueryClient;
 };
 
 export const createNostrCore = ({
   rxNostr,
-  repository = new MemoryNostrRepository(),
-  collections = createNostrCollections(),
+  repository,
+  eventStore,
+  feedStateStore,
+  profileView,
+  queryRegistry,
   queryClient,
 }: CreateNostrCoreOptions): NostrCore => {
+  const resolvedRepository =
+    repository ?? new MemoryNostrRepository(eventStore);
+  const resolvedEventStore =
+    eventStore ??
+    (resolvedRepository instanceof MemoryNostrRepository
+      ? resolvedRepository.eventStore
+      : undefined);
+  if (!resolvedEventStore) {
+    throw new Error(
+      "createNostrCore requires eventStore when repository does not expose one",
+    );
+  }
+
   const transport = new RxNostrTransport(rxNostr);
   const connectionState = createNostrCoreConnectionStateStore(transport);
+  const resolvedFeedStateStore = feedStateStore ?? new MemoryFeedStateStore();
+  const resolvedProfileView =
+    profileView ?? new EventStoreProfileView(resolvedEventStore);
+  const resolvedQueryRegistry =
+    queryRegistry ?? createQueryRegistry({ transport });
   const coreQueryClient =
     queryClient ??
-    createNostrCoreQueryClient({ transport, repository, collections });
+    createNostrCoreQueryClient({
+      transport,
+      repository: resolvedRepository,
+      feedStateStore: resolvedFeedStateStore,
+      queryRegistry: resolvedQueryRegistry,
+    });
 
   return {
     transport,
     connectionState,
-    repository,
-    collections,
+    repository: resolvedRepository,
+    eventStore: resolvedEventStore,
+    feedStateStore: resolvedFeedStateStore,
+    profileView: resolvedProfileView,
+    queryRegistry: resolvedQueryRegistry,
     queryClient: coreQueryClient,
     dispose() {
       connectionState.dispose();
       coreQueryClient.dispose();
+      resolvedQueryRegistry.dispose();
       transport.dispose();
     },
   };

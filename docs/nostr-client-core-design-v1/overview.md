@@ -20,7 +20,7 @@ Start here for the high-level direction, constraints, and milestone scope. Load 
 
 This document describes the proposed architecture for replacing the core relay/event/query system of the existing Nostr client application while preserving the existing repository history and prior contributor work.
 
-The application is a browser-based Nostr client, primarily targeting desktop usage with a TweetDeck-like multi-column UI, while remaining usable on mobile. It is built with SolidJS and already uses `rx-nostr`. The goal is to redesign the core system around `rx-nostr`, a repository layer, TanStack DB, and SolidJS integration.
+The application is a browser-based Nostr client, primarily targeting desktop usage with a TweetDeck-like multi-column UI, while remaining usable on mobile. It is built with SolidJS and already uses `rx-nostr`. The goal is to redesign the core system around `rx-nostr`, a Nostr-filter-first EventStore, QueryRegistry, FeedStateStore, derived views, and SolidJS adapters.
 
 This document is intended to be read by an LLM or developer before implementation. It should provide enough context to understand the intended architecture and implementation direction.
 
@@ -37,7 +37,7 @@ This document is intended to be read by an LLM or developer before implementatio
 - Continue development in the existing repository instead of creating a new repository from scratch.
 - Preserve prior contributor work as much as possible in code history and file structure.
 - Continue using `rx-nostr` for relay communication and subscription lifecycle management.
-- Use TanStack DB as the reactive read-model layer between the repository and SolidJS UI.
+- Use a project-owned Nostr-filter-first EventStore and FeedStateStore instead of TanStack DB as the target architecture.
 - Support local development with Docker-based local relays and asset server, including deterministic seed scenarios and edge-case testing.
 - Eventually automate NIP update tracking and LLM-generated PRs.
 - Support a VitePlus-based development workflow after the migration has been researched.
@@ -98,23 +98,27 @@ reconnection, AUTH, and relay status monitoring.
 
 Hide `rx-nostr` behind `NostrTransport` so the rest of the application is not tightly coupled to `rx-nostr` APIs.
 
-### Decision 3: Repository Is the Raw Event Source of Truth
+### Decision 3: EventStore Is the Raw Event Source of Truth
 
-The repository owns raw events, Nostr-specific indexes, seen relay tracking, and persistence.
+The EventStore owns raw events, Nostr-filter-first indexes, seen relay tracking, replaceable-event resolution, and persistence interfaces. It should query Nostr filters directly instead of translating them through a generic database query model.
 
-### Decision 4: TanStack DB Is the UI Read Model
+### Decision 4: QueryRegistry and FeedStateStore Are Separate
 
-TanStack DB collections are derived from repository writes and used by SolidJS live queries.
+QueryRegistry owns relay-facing feed intent, filter deduplication/batching, subscription reference counting, and fetch lifecycle. FeedStateStore owns UI-facing feed snapshots: event membership, loading, EOSE, cursors, errors, and optimistic local items.
 
-### Decision 5: Solid Store Is Only for UI State
+### Decision 5: Kind-Specific Data Is Derived from Events
+
+Profiles, contact lists, relay lists, reactions, reposts, and future NIP-specific concepts should be derived views over raw events. Core storage stays event-centered so new kinds can be added by adding views/indexers rather than changing the source of truth.
+
+### Decision 6: Solid Store Is Only for UI State
 
 Do not put the full event graph or indexes into Solid's `createStore`.
 
-### Decision 6: Preserve Existing Repository History
+### Decision 7: Preserve Existing Repository History
 
-Do not create a new repository. Do not delete old files immediately. Use compatibility wrappers and `git mv` where possible.
+Do not create a new repository. Prefer aggressive removal of migrated v0 paths, but keep PRs feature-sized and avoid unrelated rewrites.
 
-### Decision 7: Seed Local Edge Cases
+### Decision 8: Seed Local Edge Cases
 
 Local development must include deterministic relay and asset scenarios for edge cases, not just happy-path demo data.
 
@@ -146,12 +150,14 @@ The first milestone should be small and prove the architecture.
 
 ```txt
 - RxNostrTransport
-- MemoryNostrRepository
-- TanStack DB collections: events, profiles, eventFeedStates
-- Projection for kind:0 profile events
+- MemoryEventStore
+- MemoryFeedStateStore
+- QueryRegistry skeleton
+- ProfileView derived from kind:0 events
 - useEventByID
 - useProfile
-- Existing UI still works through compatibility exports
+- useEventFeed
+- Existing UI migrates behind v1 hooks without keeping long-term compatibility layers
 ```
 
 ### Success Criteria
@@ -159,10 +165,10 @@ The first milestone should be small and prove the architecture.
 ```txt
 - Existing app still builds.
 - Existing imports do not need large-scale rewrites.
-- A received event is written to repository.
-- The event is projected into TanStack DB.
-- Solid UI updates through live query.
-- Profile metadata updates correctly when newer kind:0 arrives.
+- A received event is written to EventStore.
+- FeedStateStore records which feed(s) the event belongs to.
+- Solid UI updates through getSnapshot + subscribe adapters.
+- Profile metadata is derived from the newest kind:0 event.
 - Duplicate relay events do not duplicate UI rows.
 ```
 
@@ -180,13 +186,15 @@ Feature hooks
   - useEventByID
   - useNotifications
   ↓
-TanStack DB live queries
+Solid adapters
+  - getSnapshot + subscribe
+  - optional ObservableLike/from interop
   ↓
-TanStack DB collections
+FeedStateStore + Derived Views
   ↓
-Projection pipeline
+EventStore
   ↓
-NostrRepository
+QueryRegistry / PublishPipeline
   ↓
 RxNostrTransport
   ↓
@@ -195,11 +203,11 @@ rx-nostr
 Nostr relays
 ```
 
-The implementation should preserve the existing repository and gradually move behavior behind the new core. The old API surface can remain as compatibility wrappers until all feature code has migrated.
+The implementation should preserve repository history while moving behavior behind the new core. Old API surfaces should be removed as soon as their feature paths migrate; long-term mixed v0/v1 compatibility is not a goal.
 
 ## Related Files
 
 - [Runtime Architecture](./runtime-architecture.md)
-- [TanStack DB Data Model](./data-model.md)
+- [Event Store and Query Registry](./data-model.md)
 - [Event Feed Strategies](./event-feed-strategies.md)
 - [Migration Plan](./migration-plan.md)

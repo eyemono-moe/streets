@@ -1,8 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrCollections } from "../db/types";
 import type { NostrCoreQueryClient } from "../query/query-client";
 import { MemoryNostrRepository } from "../repository/memory-repository";
 import type { NostrRepository } from "../repository/nostr-repository";
@@ -70,9 +68,7 @@ describe("useCoreProfile", () => {
                 expect(data().data?.raw).toBe(event);
                 expect(data().data?.parsed.name).toBe("alice");
               });
-              expect(ensured).toEqual([
-                { pubkey: event.pubkey, relays: undefined },
-              ]);
+              expect(ensured).toEqual([]);
               dispose();
               resolve();
             });
@@ -83,7 +79,7 @@ describe("useCoreProfile", () => {
     });
   });
 
-  test("subscribes to the profile collection and updates when projection inserts metadata", async () => {
+  test("subscribes to ProfileView and updates when metadata is inserted", async () => {
     const repository = new MemoryNostrRepository();
     const { core, ensured } = createCore(repository);
     const event = createProfileEvent();
@@ -105,14 +101,10 @@ describe("useCoreProfile", () => {
               });
               expect(data().data).toBeUndefined();
 
-              await projectRepositoryEvent(
-                core.collections as NostrCollections,
+              await repository.putEvent({
                 event,
-                {
-                  receivedAt: 123,
-                  seenRelays: ["wss://relay.example"],
-                },
-              );
+                relay: "wss://relay.example",
+              });
 
               await vi.waitFor(() => {
                 expect(data().data?.raw.id).toBe(event.id);

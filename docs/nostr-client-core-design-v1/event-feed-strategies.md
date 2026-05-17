@@ -144,15 +144,15 @@ Preferred flow:
 ```txt
 UI action
   ↓
-TanStack DB mutation
+PublishPipeline optimistic event insert
   ↓
-optimistic event row / eventFeedItem projection
+EventStore local event / FeedStateStore item update
   ↓
-NostrPublisher signs + sends through transport
+PublishPipeline signs + sends through RxNostrTransport
   ↓
 OK/failed status updates
   ↓
-repository confirms actual event / seen relays
+EventStore marks relay acknowledgements / seen relays
 ```
 
 This allows compose actions, reposts, reactions, deletes, and profile/contact-list updates to appear immediately while still reconciling against repository writes and relay acknowledgements.
@@ -161,9 +161,9 @@ This allows compose actions, reposts, reactions, deletes, and profile/contact-li
 
 ## Query Client and Query Planner
 
-TanStack DB handles local read queries. It does not decide what to fetch from relays.
+EventStore handles local Nostr-filter-first reads. It does not decide what to fetch from relays.
 
-A separate query planner is still required.
+A separate QueryRegistry/query planner is still required.
 
 ### Responsibilities
 
@@ -174,8 +174,8 @@ QueryClient:
   - ensureProfile
   - ensureEventById
   - fetchMoreEventFeed
-  - startLiveQuery
-  - stopQuery
+  - subscribeFeedSnapshot
+  - stopEventFeed
 
 QueryPlanner:
   - Convert app-level query into relay requests
@@ -196,17 +196,19 @@ QueryRegistry:
 ```txt
 UI calls useEventFeed() or a feature wrapper such as useHomeTimeline()
   ↓
-TanStack DB returns current local event feed rows
+Solid adapter reads FeedStateStore snapshot for the feed id
   ↓
-createEffect calls queryClient.ensureEventFeed()
+createEffect calls queryRegistry.ensureEventFeed()
   ↓
-QueryPlanner checks what is missing for the feed's filters and strategy
+QueryRegistry checks what relay work is missing for the feed's filters and strategy
   ↓
 RxNostrTransport subscribes/fetches if needed
   ↓
-Events enter repository and projection pipeline
+Events enter EventStore
   ↓
-TanStack DB live query updates UI
+QueryRegistry/FeedStateStore records feed membership and lifecycle state
+  ↓
+Solid adapter updates UI from getSnapshot + subscribe
 ```
 
 ---
@@ -291,6 +293,6 @@ Related event fetches should go through `QueryClient`, not directly call `rx-nos
 
 ## Related Files
 
-- [TanStack DB Data Model](./data-model.md)
+- [Event Store and Query Registry](./data-model.md)
 - [SolidJS Integration](./solid-integration.md)
 - [Runtime Architecture](./runtime-architecture.md)

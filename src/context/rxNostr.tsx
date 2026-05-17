@@ -22,7 +22,6 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
-import { projectRepositoryEvent } from "../core/db/projectors/project-event";
 import { type NostrCore, createNostrCore } from "../core/solid/provider";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
@@ -38,13 +37,9 @@ export const ingestNostrCoreEvent = async (
   core: NostrCore,
   event: CoreEvent,
   relay: string,
-  now = Date.now,
+  _now = Date.now,
 ) => {
   await core.repository.putEvent({ event, relay });
-  await projectRepositoryEvent(core.collections, event, {
-    receivedAt: now(),
-    seenRelays: await core.repository.getSeenRelays(event.id),
-  });
 };
 
 const RxNostrContext = createContext<{

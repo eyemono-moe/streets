@@ -2,7 +2,7 @@
 
 [Back to v1 design index](../nostr-client-core-design-v1.md)
 
-Architecture and ownership boundaries for rx-nostr, transport, repository, projection, and cross-tab behavior.
+Architecture and ownership boundaries for rx-nostr, transport, EventStore, QueryRegistry, FeedStateStore, derived views, publishing, and cross-tab behavior.
 
 ## In this file
 
@@ -10,36 +10,35 @@ Architecture and ownership boundaries for rx-nostr, transport, repository, proje
 - [Core Design Principle](#core-design-principle)
 - [Proposed Directory Structure](#proposed-directory-structure)
 - [Transport Layer](#transport-layer)
-- [NostrRepository Layer](#nostrrepository-layer)
-- [Projection Pipeline](#projection-pipeline)
+- [EventStore Layer](#eventstore-layer)
+- [QueryRegistry and FeedStateStore](#queryregistry-and-feedstatestore)
+- [Derived Views](#derived-views)
 - [Cross-Tab Strategy](#cross-tab-strategy)
 
 ---
 
 ## Core Architecture
 
-The proposed architecture is:
+The proposed target architecture is:
 
 ```txt
 rx-nostr
   ↓
 RxNostrTransport
   ↓
-NostrRepository
+QueryRegistry / PublishPipeline
+  ↓
+EventStore
   - Memory implementation
   - IndexedDB implementation
   - Seed/test implementation
   ↓
-Projection Pipeline
-  ↓
-TanStack DB Collections
-  - events
-  - profiles
-  - contactLists
-  - relayLists
-  - eventFeedItems
-  - eventFeedStates
-  - relayStatuses
+FeedStateStore + Derived Views
+  - ProfileView
+  - ContactsView
+  - RelayListView
+  - ReactionSummaryView
+  - ThreadView
   ↓
 SolidJS UI
 ```
@@ -69,29 +68,34 @@ Do **not** reimplement relay subscription management manually. It is very likely
 
 The application core should own:
 
-- Query planning.
+- Feed intent and query planning.
 - Relay selection policy.
 - Filter merge and chunk policy.
 - Outbox/NIP-65 logic.
-- Repository and persistent raw event storage.
-- Projection into TanStack DB collections.
+- EventStore and persistent raw event storage.
+- FeedStateStore for UI feed snapshots.
+- Derived views over raw events.
 - UI-facing query APIs.
 - Multi-column query reuse.
 - Related event fetch policy.
+- PublishPipeline and optimistic local event overlays.
 - Local development seed scenarios.
 
 ---
 
 ## Core Design Principle
 
-The application should not treat `rx-nostr` as the global app state manager.
+The application should not treat `rx-nostr` as the global app state manager, and should not force Nostr filters through a generic database query model.
 
 Instead:
 
 ```txt
 rx-nostr = relay transport
-NostrRepository = raw event repository and Nostr-specific storage/indexing
-TanStack DB = reactive UI read model
+RxNostrTransport = application adapter around rx-nostr
+QueryRegistry = feed intent, dedupe, batching, reference counts, relay work
+EventStore = raw events and Nostr-filter-first storage/indexing
+FeedStateStore = per-feed UI snapshot state
+Derived Views = kind-specific read models over EventStore
 SolidJS = UI rendering layer
 ```
 
@@ -114,22 +118,21 @@ src/core/transport/
   rx-nostr-transport.ts
   rx-nostr-client.ts
 
-src/core/repository/
-  nostr-repository.ts
-  memory-repository.ts
-  indexeddb-repository.ts
-  seeded-repository.ts
+src/core/store/
+  event-store.ts
+  memory-event-store.ts
+  feed-state-store.ts
+  memory-feed-state-store.ts
+  readable-store.ts
+  indexeddb-event-store.ts
+  seeded-event-store.ts
 
-src/core/db/
-  collections.ts
-  schema.ts
-  projectors/
-    event.ts
-    profile.ts
-    contact-list.ts
-    relay-list.ts
-    event-feed.ts
-    reaction.ts
+src/core/views/
+  profile-view.ts
+  contacts-view.ts
+  relay-list-view.ts
+  reaction-summary-view.ts
+  thread-view.ts
 
 src/core/query/
   query-client.ts
@@ -139,13 +142,17 @@ src/core/query/
   relay-selector.ts
   related-event-policy.ts
 
+src/core/publish/
+  publish-pipeline.ts
+  optimistic-events.ts
+
 src/core/solid/
   provider.tsx
+  use-store-snapshot.ts
   use-event.ts
   use-profile.ts
   use-event-feed.ts
   use-home-timeline.ts
-  use-live-query.ts
 
 src/features/
   timeline/
@@ -169,7 +176,7 @@ dev/
     reset.ts
 ```
 
-The exact paths can be adjusted to match the current repository, but the responsibility boundaries should remain.
+The exact paths can be adjusted to match the current repository, but the responsibility boundaries should remain. The old `src/core/db/*` TanStack DB read-model surface has been removed from the v1 runtime; new read models should be implemented as EventStore-derived views or stores instead of reintroducing collection projectors.
 
 ---
 
@@ -238,60 +245,51 @@ Home timeline feature:
 
 ---
 
-## NostrRepository Layer
+## EventStore Layer
 
 ### Purpose
 
-The repository layer is the source of truth for raw Nostr events and Nostr-specific indexes. It should be independent from SolidJS and mostly independent from TanStack DB.
+The EventStore is the source of truth for raw Nostr events and Nostr-specific indexes. It should be independent from SolidJS and independent from TanStack DB.
 
-TanStack DB collections are read models derived from repository writes.
+FeedStateStore and derived views read from EventStore; they do not own raw event truth.
 
 ### Interface Sketch
 
 ```ts
-export interface NostrRepository {
-  putEvent(packet: RelayEventPacket): Promise<PutEventResult>
-  getEvent(id: string): Promise<NostrEvent | undefined>
-  getEvents(ids: string[]): Promise<NostrEvent[]>
-
-  getLatestReplaceable(
-    kind: number,
-    pubkey: string,
-  ): Promise<NostrEvent | undefined>
-
-  getParameterizedReplaceable(
-    kind: number,
-    pubkey: string,
-    d: string,
-  ): Promise<NostrEvent | undefined>
-
-  queryEvents(query: RepositoryEventQuery): Promise<NostrEvent[]>
-
-  markSeen(eventId: string, relay: string): Promise<void>
-  getSeenRelays(eventId: string): Promise<string[]>
+export interface EventStore {
+  putEvent(input: PutEventInput): PutEventResult
+  markSeen(id: string, relay: RelayUrl): void
+  getEvent(id: string): NostrEvent | undefined
+  getEvents(ids: readonly string[]): NostrEvent[]
+  getSeenRelays(id: string): RelayUrl[]
+  queryEvents(filters: NostrFilter | readonly NostrFilter[]): NostrEvent[]
+  getLatestReplaceable(kind: number, pubkey: string): NostrEvent | undefined
+  getParameterizedReplaceable(kind: number, pubkey: string, d: string): NostrEvent | undefined
+  subscribe(listener: () => void): () => void
 }
 ```
 
-### Repository Implementations
+### Implementations
 
-#### `MemoryNostrRepository`
+#### `MemoryEventStore`
 
 Used for early development, tests, and fast in-memory operation.
 
-Should contain:
+Should contain indexes such as:
 
 ```ts
-class MemoryNostrRepository implements NostrRepository {
+class MemoryEventStore implements EventStore {
   private events = new Map<string, NostrEvent>()
   private replaceable = new Map<string, string>()
   private parameterizedReplaceable = new Map<string, string>()
-  private byAuthorKind = new Map<string, Set<string>>()
+  private byAuthor = new Map<string, Set<string>>()
+  private byKind = new Map<number, Set<string>>()
   private byTag = new Map<string, Set<string>>()
   private seenRelays = new Map<string, Set<string>>()
 }
 ```
 
-#### `IndexedDbNostrRepository`
+#### `IndexedDbEventStore`
 
 Used for real browser persistence.
 
@@ -320,75 +318,85 @@ queryCacheMeta
   key: query id
 ```
 
-The exact IndexedDB schema can evolve, but raw events should remain persistable so that derived TanStack DB collections can be rebuilt.
+The exact IndexedDB schema can evolve, but raw events should remain persistable so that FeedStateStore and derived views can be rebuilt.
 
-#### `SeededNostrRepository`
+#### `SeededEventStore`
 
 Used in local development and tests. It may be backed by memory and preloaded with deterministic seed data.
 
 ---
 
-## Projection Pipeline
+## QueryRegistry and FeedStateStore
 
-Projection should happen after repository writes.
+QueryRegistry and FeedStateStore must stay separate.
+
+```txt
+QueryRegistry = network/query lifecycle
+FeedStateStore = UI feed snapshot/read model
+EventStore = raw events and Nostr-filter-first indexes
+```
+
+QueryRegistry handles feed definitions, filter canonicalization, relay selection, batching, deduplication, reference counts, and transport subscriptions. Identical canonical forward/live query keys share a single relay subscription; each consumer gets its own listener handle, and the underlying subscription is closed only when the last handle is closed or the registry is disposed. Backward/page requests intentionally remain non-shared for now so late callers cannot miss events delivered before their handle is registered.
+
+FeedStateStore handles feed membership and state:
+
+```txt
+- event ids per feed
+- loading/live/complete/error status
+- EOSE relays
+- active relays
+- oldest/newest cursors
+- hasMoreBackfill
+- optimistic local items
+```
+
+Incoming event flow:
 
 ```ts
-async function onRelayEvent(packet: RelayEventPacket) {
-  const result = await repository.putEvent(packet)
+function onRelayEvent(feedId: string, packet: RelayEventPacket) {
+  const result = eventStore.putEvent({ event: packet.event, relay: packet.relay })
 
-  if (result.type === "duplicate") {
-    await repository.markSeen(packet.event.id, packet.relay)
-    await updateSeenOnCollection(packet)
-    return
+  if (result.type !== "duplicate") {
+    derivedViews.index(packet.event)
   }
 
-  await projectEvent(packet.event, {
-    repository,
-    collections,
-    relay: packet.relay,
-  })
+  if (queryRegistry.eventMatchesFeed(packet.event, feedId)) {
+    feedStateStore.addItem(feedId, packet.event)
+  }
 }
 ```
 
-Example projector:
+Real implementation should route one incoming event to every active feed it matches, not only the feed whose subscription delivered it. This keeps batched/deduplicated relay subscriptions from losing UI feed membership.
 
-```ts
-async function projectEvent(event: NostrEvent, ctx: ProjectionContext) {
-  await ctx.collections.events.upsert({
-    id: event.id,
-    pubkey: event.pubkey,
-    kind: event.kind,
-    createdAt: event.created_at,
-    content: event.content,
-    tags: event.tags,
-    sig: event.sig,
-    receivedAt: Date.now(),
-    seenOn: [ctx.relay],
-  })
+---
 
-  if (event.kind === 0) {
-    await projectProfile(event, ctx)
-  }
+## Derived Views
 
-  if (event.kind === 3) {
-    await projectContactList(event, ctx)
-  }
+Derived views provide kind-specific read APIs over EventStore. They are not separate source-of-truth stores.
 
-  if (event.kind === 10002) {
-    await projectRelayList(event, ctx)
-  }
+Examples:
 
-  await projectIntoActiveEventFeeds(event, ctx)
-}
+```txt
+ProfileView:
+  reads latest kind:0 event for pubkey
+
+ContactsView:
+  reads latest kind:3 event for pubkey
+
+RelayListView:
+  reads latest NIP-65 relay list metadata event
+
+ReactionSummaryView:
+  indexes kind:7 reactions by target event
 ```
 
-Projection should be idempotent.
+A new NIP or event kind should normally add a new parser/view/indexer rather than changing EventStore's fundamental model.
 
 ---
 
 ## Cross-Tab Strategy
 
-TanStack DB and IndexedDB can help with cross-tab data sharing, but relay connections need careful handling.
+IndexedDB and BroadcastChannel can help with cross-tab data sharing, but relay connections need careful handling.
 
 ### Initial Strategy
 
@@ -397,7 +405,7 @@ Allow each tab to connect independently.
 ```txt
 Phase 1:
   Each tab has its own rx-nostr instance.
-  Repository and TanStack DB persist/share local data where possible.
+  EventStore persistence shares local data where possible.
 ```
 
 This is simpler and good enough for early development.
@@ -425,6 +433,6 @@ Do not start with leader election unless needed.
 ## Related Files
 
 - [Overview](./overview.md)
-- [TanStack DB Data Model](./data-model.md)
+- [Event Store and Query Registry](./data-model.md)
 - [Event Feed Strategies](./event-feed-strategies.md)
 - [Migration Plan](./migration-plan.md)

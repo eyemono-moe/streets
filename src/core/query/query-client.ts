@@ -1,24 +1,20 @@
 import type { NostrEvent } from "nostr-tools";
-import {
-  upsertEventFeedItem,
-  upsertEventFeedState,
-} from "../db/projectors/event-feed";
-import { projectRepositoryEvent } from "../db/projectors/project-event";
-import type { NostrCollections } from "../db/types";
 import type {
   NostrEventQuery,
   NostrRepository,
   RelayUrl,
 } from "../repository/nostr-repository";
-import { subscribeToTransportEvents } from "../transport/rx-nostr-transport";
+import type { FeedStateStore } from "../store/feed-state-store";
+import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import type {
-  NostrSubscription,
   NostrTransport,
   NostrTransportEventPacket,
   NostrTransportFilter,
 } from "../transport/transport";
 import type { EventFeedDefinition } from "./event-feed";
 import { withBackfillCursor, withLiveCursor } from "./event-feed";
+import { createQueryRegistry } from "./query-registry";
+import type { QueryRegistry, QueryRegistryHandle } from "./query-registry";
 
 export type EnsureEventOptions = {
   id: string;
@@ -58,19 +54,20 @@ export type NostrCoreQueryClient = {
 export type NostrCoreQueryClientDependencies = {
   transport: NostrTransport;
   repository: NostrRepository;
-  collections: NostrCollections;
+  feedStateStore?: FeedStateStore;
   now?: () => number;
   requestTimeoutMs?: number;
+  queryRegistry?: QueryRegistry;
 };
 
 export const createNostrCoreQueryClient = ({
   transport,
   repository,
-  collections,
+  feedStateStore = new MemoryFeedStateStore(),
   now = Date.now,
   requestTimeoutMs = 10_000,
+  queryRegistry = createQueryRegistry({ transport, requestTimeoutMs }),
 }: NostrCoreQueryClientDependencies): NostrCoreQueryClient => {
-  const activeSubscriptions = new Set<NostrSubscription>();
   const eventFeeds = new Map<
     string,
     { definition: EventFeedDefinition; closeLive?: () => void }
@@ -78,10 +75,6 @@ export const createNostrCoreQueryClient = ({
 
   const projectTransportEvent = async (event: NostrEvent, relay: RelayUrl) => {
     await repository.putEvent({ event, relay });
-    await projectRepositoryEvent(collections, event, {
-      receivedAt: now(),
-      seenRelays: await repository.getSeenRelays(event.id),
-    });
   };
 
   const projectFeedEvent = async (
@@ -90,79 +83,29 @@ export const createNostrCoreQueryClient = ({
     relay: RelayUrl,
   ) => {
     await projectTransportEvent(event, relay);
-    await upsertEventFeedItem(collections, {
-      feedId,
-      event,
-      insertedAt: now(),
+    const current = feedStateStore.getSnapshot(feedId);
+    feedStateStore.addItem(feedId, event);
+    feedStateStore.setStatus(feedId, "live", {
+      hasMoreBackfill: current.hasMoreBackfill,
+      activeRelays: current.activeRelays,
+      eoseRelays: current.eoseRelays,
     });
-    const current = collections.eventFeedStates.get(feedId);
-    await upsertEventFeedState(collections, {
-      feedId,
-      strategy: current?.strategy ?? "liveBackfill",
-      status: "live",
-      updatedAt: now(),
-      oldestCreatedAt:
-        current?.oldestCreatedAt === undefined
-          ? event.created_at
-          : Math.min(current.oldestCreatedAt, event.created_at),
-      newestCreatedAt:
-        current?.newestCreatedAt === undefined
-          ? event.created_at
-          : Math.max(current.newestCreatedAt, event.created_at),
-      hasMoreBackfill: current?.hasMoreBackfill ?? true,
-      activeRelays: current?.activeRelays ?? [],
-      eoseRelays: current?.eoseRelays ?? [],
-    });
-  };
-
-  const trackSubscription = (
-    subscription: NostrSubscription,
-    { closeAfterMs }: { closeAfterMs?: number } = {},
-  ) => {
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const close = () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutId = undefined;
-      }
-      if (activeSubscriptions.delete(subscription)) {
-        subscription.close();
-      }
-    };
-    activeSubscriptions.add(subscription);
-    if (closeAfterMs !== undefined) {
-      timeoutId = setTimeout(close, closeAfterMs);
-    }
-    return close;
   };
 
   const subscribeAndEmit = (
     options: Parameters<NostrTransport["subscribe"]>[0],
     { closeOnFirstEvent }: { closeOnFirstEvent: boolean },
-  ) => {
-    const closeTrackedSubscriptionRef: { current?: () => void } = {};
-    const subscription = subscribeToTransportEvents(
-      transport,
+  ) =>
+    queryRegistry.open({
       options,
-      (packet) => {
-        void projectTransportEvent(packet.event, packet.from)
-          .catch(() => {
-            // Projection failures are handled by the caller-facing validation layer later;
-            // this boundary prevents fire-and-forget projection from creating unhandled rejections.
-          })
-          .finally(() => {
-            if (closeOnFirstEvent) {
-              closeTrackedSubscriptionRef.current?.();
-            }
-          });
+      closeOnFirstEvent,
+      onEvent: (packet) => {
+        void projectTransportEvent(packet.event, packet.from).catch(() => {
+          // Projection failures are handled by the caller-facing validation layer later;
+          // this boundary prevents fire-and-forget projection from creating unhandled rejections.
+        });
       },
-    );
-    closeTrackedSubscriptionRef.current = trackSubscription(subscription, {
-      closeAfterMs: options.mode === "forward" ? undefined : requestTimeoutMs,
     });
-    subscription.emit(options.filters);
-    return subscription;
-  };
 
   return {
     async ensureEvent({ id, relays }) {
@@ -217,14 +160,14 @@ export const createNostrCoreQueryClient = ({
         const packetsByEventId = new Map<string, NostrTransportEventPacket>();
         let done = false;
         let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-        const subscription = subscribeToTransportEvents(
-          transport,
-          {
+        const handle: QueryRegistryHandle = queryRegistry.open({
+          options: {
             filters: filter,
             relays,
             mode: "backward",
           },
-          (packet) => {
+          closeAfterMs: undefined,
+          onEvent: (packet) => {
             if (!packetsByEventId.has(packet.event.id)) {
               packetsByEventId.set(packet.event.id, packet);
             }
@@ -232,8 +175,8 @@ export const createNostrCoreQueryClient = ({
               // Keep page collection resilient if one projection rejects.
             });
           },
-        );
-        const close = trackSubscription(subscription);
+          onComplete: () => finish(),
+        });
         const finish = () => {
           if (done) {
             return;
@@ -243,13 +186,11 @@ export const createNostrCoreQueryClient = ({
             clearTimeout(timeoutHandle);
             timeoutHandle = undefined;
           }
-          close();
+          handle.close();
           resolve([...packetsByEventId.values()]);
         };
         timeoutHandle = setTimeout(finish, requestTimeoutMs);
-        subscription.events$.subscribe({ complete: finish });
-        subscription.emit(filter);
-        subscription.complete();
+        handle.complete();
       });
     },
 
@@ -260,16 +201,10 @@ export const createNostrCoreQueryClient = ({
         return;
       }
 
-      void upsertEventFeedState(collections, {
-        feedId: definition.id,
-        strategy: definition.strategy,
-        status: "loading",
-        updatedAt: now(),
+      feedStateStore.setStatus(definition.id, "loading", {
         activeRelays: definition.relays ?? [],
         eoseRelays: [],
         hasMoreBackfill: definition.strategy === "liveBackfill",
-      }).catch(() => {
-        // Feed state initialization is best-effort; callers observe later state rows.
       });
 
       if (
@@ -284,24 +219,24 @@ export const createNostrCoreQueryClient = ({
         definition.filters,
         Math.floor(now() / 1_000),
       );
-      const subscription = subscribeToTransportEvents(
-        transport,
-        {
+      const liveHandle = queryRegistry.open({
+        options: {
           filters: liveFilter,
           relays: definition.relays,
           mode: "forward",
         },
-        (packet) => {
+        onEvent: (packet) => {
           void projectFeedEvent(definition.id, packet.event, packet.from).catch(
             () => {
               // Feed projections are best-effort at the transport boundary; callers observe state rows.
             },
           );
         },
-      );
-      const closeLive = trackSubscription(subscription);
-      subscription.emit(liveFilter);
-      eventFeeds.set(definition.id, { definition, closeLive });
+      });
+      eventFeeds.set(definition.id, {
+        definition,
+        closeLive: liveHandle.close,
+      });
     },
 
     async fetchMoreEventFeed(feedId) {
@@ -309,9 +244,9 @@ export const createNostrCoreQueryClient = ({
       if (!registered) {
         return [];
       }
-      const state = collections.eventFeedStates.get(feedId);
+      const state = feedStateStore.getSnapshot(feedId);
       const until =
-        state?.oldestCreatedAt === undefined
+        state.oldestCreatedAt === undefined
           ? undefined
           : state.oldestCreatedAt - 1;
       const filter = withBackfillCursor(
@@ -324,14 +259,14 @@ export const createNostrCoreQueryClient = ({
         const packetsByEventId = new Map<string, NostrTransportEventPacket>();
         let done = false;
         let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-        const subscription = subscribeToTransportEvents(
-          transport,
-          {
+        const handle: QueryRegistryHandle = queryRegistry.open({
+          options: {
             filters: filter,
             relays: registered.definition.relays,
             mode: "backward",
           },
-          (packet) => {
+          closeAfterMs: undefined,
+          onEvent: (packet) => {
             if (!packetsByEventId.has(packet.event.id)) {
               packetsByEventId.set(packet.event.id, packet);
             }
@@ -341,8 +276,8 @@ export const createNostrCoreQueryClient = ({
               },
             );
           },
-        );
-        const close = trackSubscription(subscription);
+          onComplete: () => void finish(),
+        });
         const finish = async () => {
           if (done) {
             return;
@@ -352,47 +287,25 @@ export const createNostrCoreQueryClient = ({
             clearTimeout(timeoutHandle);
             timeoutHandle = undefined;
           }
-          close();
+          handle.close();
           const packets = [...packetsByEventId.values()];
-          const current = collections.eventFeedStates.get(feedId);
-          const createdAts = packets.map((packet) => packet.event.created_at);
-          const oldestCreatedAt =
-            current?.oldestCreatedAt === undefined
-              ? Math.min(...createdAts)
-              : Math.min(current.oldestCreatedAt, ...createdAts);
-          const newestCreatedAt =
-            current?.newestCreatedAt === undefined
-              ? Math.max(...createdAts)
-              : Math.max(current.newestCreatedAt, ...createdAts);
-          try {
-            await upsertEventFeedState(collections, {
-              feedId,
-              strategy: current?.strategy ?? registered.definition.strategy,
-              status: "live",
-              updatedAt: now(),
-              oldestCreatedAt: Number.isFinite(oldestCreatedAt)
-                ? oldestCreatedAt
-                : current?.oldestCreatedAt,
-              newestCreatedAt: Number.isFinite(newestCreatedAt)
-                ? newestCreatedAt
-                : current?.newestCreatedAt,
-              hasMoreBackfill:
-                registered.definition.limit === undefined
-                  ? packets.length > 0
-                  : packets.length >= registered.definition.limit,
-              activeRelays:
-                current?.activeRelays ?? registered.definition.relays ?? [],
-              eoseRelays: current?.eoseRelays ?? [],
-            });
-          } catch {
-            // Pagination state persistence is best-effort; callers still need the page request to settle.
-          }
+          const current = feedStateStore.getSnapshot(feedId);
+          const hasMoreBackfill =
+            registered.definition.limit === undefined
+              ? packets.length > 0
+              : packets.length >= registered.definition.limit;
+          feedStateStore.setStatus(feedId, "live", {
+            hasMoreBackfill,
+            activeRelays:
+              current.activeRelays.length > 0
+                ? current.activeRelays
+                : (registered.definition.relays ?? []),
+            eoseRelays: current.eoseRelays,
+          });
           resolve(packets);
         };
         timeoutHandle = setTimeout(() => void finish(), requestTimeoutMs);
-        subscription.events$.subscribe({ complete: () => void finish() });
-        subscription.emit(filter);
-        subscription.complete();
+        handle.complete();
       });
     },
 
@@ -407,10 +320,7 @@ export const createNostrCoreQueryClient = ({
         registered.closeLive?.();
       }
       eventFeeds.clear();
-      for (const subscription of activeSubscriptions) {
-        subscription.close();
-      }
-      activeSubscriptions.clear();
+      queryRegistry.dispose();
     },
   };
 };
