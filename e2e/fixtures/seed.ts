@@ -21,13 +21,131 @@ const authorSecretKey = Uint8Array.from(
 const followerSecretKey = Uint8Array.from(
   Array.from({ length: 32 }, (_, index) => index + 65),
 );
+const debugTimelineSecretKeys = Array.from({ length: 12 }, (_, userIndex) =>
+  Uint8Array.from(
+    Array.from(
+      { length: 32 },
+      (_, byteIndex) => 96 + userIndex * 8 + byteIndex,
+    ),
+  ),
+);
 
 export const e2eViewerPubkey = getPublicKey(viewerSecretKey);
 export const e2eAuthorPubkey = getPublicKey(authorSecretKey);
 export const e2eFollowerPubkey = getPublicKey(followerSecretKey);
+export const e2eDebugTimelinePubkeys = debugTimelineSecretKeys.map(
+  (secretKey) => getPublicKey(secretKey),
+);
 
 const sign = (template: EventTemplate, secretKey: Uint8Array) =>
   finalizeEvent(template, secretKey);
+
+const createDebugTimelineSeedEvents = () => {
+  const events = [];
+  const debugViewerContacts = sign(
+    {
+      kind: kinds.Contacts,
+      created_at: now + 20,
+      tags: e2eDebugTimelinePubkeys.map((pubkey) => ["p", pubkey]),
+      content: "",
+    },
+    viewerSecretKey,
+  );
+  events.push(debugViewerContacts);
+
+  for (
+    let userIndex = 0;
+    userIndex < debugTimelineSecretKeys.length;
+    userIndex++
+  ) {
+    const secretKey = debugTimelineSecretKeys[userIndex];
+    const pubkey = getPublicKey(secretKey);
+    const profile = sign(
+      {
+        kind: kinds.Metadata,
+        created_at: now + 21 + userIndex,
+        tags: [],
+        content: JSON.stringify({
+          name: `streets-debug-${userIndex}`,
+          display_name: `streets debug ${userIndex}`,
+        }),
+      },
+      secretKey,
+    );
+    events.push(profile);
+
+    const previousNoteIds: string[] = [];
+    for (let noteIndex = 0; noteIndex < 4; noteIndex++) {
+      const note = sign(
+        {
+          kind: kinds.ShortTextNote,
+          created_at: now + 100 + userIndex * 10 + noteIndex,
+          tags:
+            noteIndex === 0 || previousNoteIds.length === 0
+              ? [["t", "streets-debug-timeline"]]
+              : [
+                  ["e", previousNoteIds[previousNoteIds.length - 1]],
+                  ["p", pubkey],
+                  ["t", "streets-debug-timeline"],
+                ],
+          content: `streets debug timeline note ${userIndex}-${noteIndex}`,
+        },
+        secretKey,
+      );
+      previousNoteIds.push(note.id);
+      events.push(note);
+
+      events.push(
+        sign(
+          {
+            kind: kinds.Reaction,
+            created_at: now + 300 + userIndex * 10 + noteIndex,
+            tags: [
+              ["e", note.id, localRelayUrl],
+              ["p", pubkey],
+              ["k", String(kinds.ShortTextNote)],
+            ],
+            content: "+",
+          },
+          viewerSecretKey,
+        ),
+      );
+
+      events.push(
+        sign(
+          {
+            kind: kinds.Repost,
+            created_at: now + 500 + userIndex * 10 + noteIndex,
+            tags: [
+              ["e", note.id, localRelayUrl],
+              ["p", pubkey],
+            ],
+            content: "",
+          },
+          viewerSecretKey,
+        ),
+      );
+
+      events.push(
+        sign(
+          {
+            kind: kinds.ShortTextNote,
+            created_at: now + 700 + userIndex * 10 + noteIndex,
+            tags: [
+              ["q", note.id, localRelayUrl],
+              ["p", pubkey],
+              ["t", "streets-debug-timeline-quote"],
+            ],
+            content: `streets debug quote ${userIndex}-${noteIndex}`,
+          },
+          viewerSecretKey,
+        ),
+      );
+    }
+  }
+
+  return events;
+};
 
 export const createSmokeSeedEvents = () => {
   const profile = sign(
@@ -128,6 +246,7 @@ export const createSmokeSeedEvents = () => {
     authorContacts,
     followerContacts,
     emptyContentRepost,
+    ...createDebugTimelineSeedEvents(),
   ];
 };
 

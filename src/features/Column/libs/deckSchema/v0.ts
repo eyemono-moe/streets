@@ -45,6 +45,25 @@ const columnContent = v.variant("type", [
     relays: v.optional(v.array(v.string())),
   }),
   v.object({
+    // Debug-only timeline variants for isolating followee/feed/event fanout.
+    type: v.literal("debug-timeline"),
+    pubkey: v.string(),
+    mode: v.optional(
+      v.union([
+        v.literal("followees"),
+        v.literal("feed"),
+        v.literal("feed-plain-event"),
+        v.literal("feed-actions"),
+        v.literal("feed-reactions"),
+        v.literal("feed-replies"),
+        v.literal("feed-full"),
+      ]),
+      "feed-plain-event",
+    ),
+    limit: v.optional(v.number(), 20),
+    relays: v.optional(v.array(v.string())),
+  }),
+  v.object({
     type: v.literal("timeline"),
   }),
   v.object({

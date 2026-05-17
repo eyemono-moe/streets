@@ -16,6 +16,7 @@ const columnComponents = {
   thread: lazy(() => import("./Column/Thread")),
   user: lazy(() => import("./Column/User")),
   "debug-user": lazy(() => import("./Column/DebugUser")),
+  "debug-timeline": lazy(() => import("./Column/DebugTimeline")),
 } satisfies {
   [K in TColumnContent["type"]]: Component<{
     state: TColumnContent<K>;

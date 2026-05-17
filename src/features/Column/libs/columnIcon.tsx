@@ -13,6 +13,7 @@ export const columnIcon = (type: ColumnState["content"]["type"]) => {
     case "user":
       return "i-material-symbols:person-outline";
     case "debug-user":
+    case "debug-timeline":
       return "i-material-symbols:bug-report-outline-rounded";
     case "timeline":
       return "i-material-symbols:home-outline-rounded";
