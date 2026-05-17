@@ -70,7 +70,11 @@ export const createNostrCoreQueryClient = ({
 }: NostrCoreQueryClientDependencies): NostrCoreQueryClient => {
   const eventFeeds = new Map<
     string,
-    { definition: EventFeedDefinition; closeLive?: () => void }
+    {
+      definition: EventFeedDefinition;
+      closeLive?: () => void;
+      backfillHandles: Set<QueryRegistryHandle>;
+    }
   >();
 
   const projectTransportEvent = async (event: NostrEvent, relay: RelayUrl) => {
@@ -200,6 +204,8 @@ export const createNostrCoreQueryClient = ({
         eventFeeds.set(definition.id, { ...existing, definition });
         return;
       }
+      const backfillHandles =
+        existing?.backfillHandles ?? new Set<QueryRegistryHandle>();
 
       feedStateStore.setStatus(definition.id, "loading", {
         activeRelays: definition.relays ?? [],
@@ -211,7 +217,7 @@ export const createNostrCoreQueryClient = ({
         definition.strategy !== "liveBackfill" &&
         definition.strategy !== "liveOnly"
       ) {
-        eventFeeds.set(definition.id, { definition });
+        eventFeeds.set(definition.id, { definition, backfillHandles });
         return;
       }
 
@@ -236,7 +242,22 @@ export const createNostrCoreQueryClient = ({
       eventFeeds.set(definition.id, {
         definition,
         closeLive: liveHandle.close,
+        backfillHandles,
       });
+
+      if (definition.strategy === "liveBackfill") {
+        void this.fetchMoreEventFeed(definition.id).catch(() => {
+          if (!eventFeeds.has(definition.id)) {
+            return;
+          }
+          const current = feedStateStore.getSnapshot(definition.id);
+          feedStateStore.setStatus(definition.id, "error", {
+            activeRelays: current.activeRelays,
+            eoseRelays: current.eoseRelays,
+            hasMoreBackfill: current.hasMoreBackfill,
+          });
+        });
+      }
     },
 
     async fetchMoreEventFeed(feedId) {
@@ -267,6 +288,9 @@ export const createNostrCoreQueryClient = ({
           },
           closeAfterMs: undefined,
           onEvent: (packet) => {
+            if (!eventFeeds.has(feedId)) {
+              return;
+            }
             if (!packetsByEventId.has(packet.event.id)) {
               packetsByEventId.set(packet.event.id, packet);
             }
@@ -278,6 +302,7 @@ export const createNostrCoreQueryClient = ({
           },
           onComplete: () => void finish(),
         });
+        registered.backfillHandles.add(handle);
         const finish = async () => {
           if (done) {
             return;
@@ -288,7 +313,12 @@ export const createNostrCoreQueryClient = ({
             timeoutHandle = undefined;
           }
           handle.close();
+          registered.backfillHandles.delete(handle);
           const packets = [...packetsByEventId.values()];
+          if (!eventFeeds.has(feedId)) {
+            resolve(packets);
+            return;
+          }
           const current = feedStateStore.getSnapshot(feedId);
           const hasMoreBackfill =
             registered.definition.limit === undefined
@@ -311,15 +341,24 @@ export const createNostrCoreQueryClient = ({
 
     stopEventFeed(feedId) {
       const registered = eventFeeds.get(feedId);
-      registered?.closeLive?.();
       eventFeeds.delete(feedId);
+      registered?.closeLive?.();
+      for (const handle of registered?.backfillHandles ?? []) {
+        handle.close();
+      }
+      registered?.backfillHandles.clear();
     },
 
     dispose() {
-      for (const registered of eventFeeds.values()) {
-        registered.closeLive?.();
-      }
+      const registeredFeeds = [...eventFeeds.values()];
       eventFeeds.clear();
+      for (const registered of registeredFeeds) {
+        registered.closeLive?.();
+        for (const handle of registered.backfillHandles) {
+          handle.close();
+        }
+        registered.backfillHandles.clear();
+      }
       queryRegistry.dispose();
     },
   };

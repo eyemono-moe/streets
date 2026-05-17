@@ -324,11 +324,43 @@ describe("createNostrCoreQueryClient", () => {
       newestCreatedAt: 200,
       oldestCreatedAt: 200,
     });
-    expect(close).not.toHaveBeenCalled();
-
     queryClient.stopEventFeed("feed:user:pubkey-1");
-    expect(close).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledTimes(2);
     await expect(repository.getEvent(event.id)).resolves.toBe(event);
+  });
+
+  test("does not update a stopped feed from an in-flight initial backfill", () => {
+    vi.useFakeTimers();
+    const { transport, close } = createFakeTransport();
+    const feedStateStore = new MemoryFeedStateStore();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository: new MemoryNostrRepository(),
+      feedStateStore,
+      requestTimeoutMs: 25,
+    });
+
+    queryClient.ensureEventFeed({
+      id: "feed:stopped",
+      filters: { kinds: [1] },
+      strategy: "liveBackfill",
+      limit: 20,
+    });
+    queryClient.stopEventFeed("feed:stopped");
+
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(feedStateStore.getSnapshot("feed:stopped")).toMatchObject({
+      status: "loading",
+      hasMoreBackfill: true,
+    });
+
+    vi.advanceTimersByTime(25);
+
+    expect(feedStateStore.getSnapshot("feed:stopped")).toMatchObject({
+      status: "loading",
+      hasMoreBackfill: true,
+    });
+    vi.useRealTimers();
   });
 
   test("fetches more event feed rows with until cursor and closes the backward request", async () => {
