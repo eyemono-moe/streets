@@ -55,7 +55,7 @@
     "rx-nostr-crypto": "3.1.3",
     "rxjs": "7.8.1",
     "safe-stable-stringify": "2.5.0",
-    "solid-js": "1.9.4",
+    "solid-js": "1.9.13",
     "text-field-edit": "4.1.1",
     "valibot": "1.0.0-rc.0"
   },
@@ -64,6 +64,9 @@
     "@iconify-json/material-symbols": "1.2.14",
     "@iconify-json/mdi": "1.2.3",
     "@playwright/test": "1.60.0",
+    "@tanstack/devtools-event-client": "^0.4.3",
+    "@tanstack/devtools-vite": "^0.7.0",
+    "@tanstack/solid-devtools": "^0.8.5",
     "@types/node": "22",
     "@types/serviceworker": "0.0.120",
     "@unocss/preset-mini": "65.5.0",

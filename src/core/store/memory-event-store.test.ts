@@ -100,4 +100,30 @@ describe("MemoryEventStore", () => {
       store.queryEvents({ authors: ["alice"], kinds: [0], limit: 1 }),
     ).toEqual([newProfile]);
   });
+
+  it("exposes a summarized snapshot for devtools without exposing mutable internals", () => {
+    const store = new MemoryEventStore();
+    store.putEvent({ event: event({ id: "metadata", kind: 0 }) });
+    store.putEvent({
+      event: event({ id: "note", kind: 1, created_at: 200 }),
+      relay: "wss://relay-b",
+    });
+    store.putEvent({
+      event: event({ id: "note", kind: 1, created_at: 200 }),
+      relay: "wss://relay-a",
+    });
+
+    expect(store.getSnapshot()).toEqual({
+      eventCount: 2,
+      kindCounts: [
+        { kind: 0, count: 1 },
+        { kind: 1, count: 1 },
+      ],
+      relayCounts: [
+        { relay: "wss://relay-a", count: 1 },
+        { relay: "wss://relay-b", count: 1 },
+      ],
+      latestCreatedAt: 200,
+    });
+  });
 });

@@ -14,6 +14,13 @@ export type StoredNostrEvent = {
   seenRelays: readonly RelayUrl[];
 };
 
+export type EventStoreSnapshot = {
+  eventCount: number;
+  kindCounts: readonly { kind: number; count: number }[];
+  relayCounts: readonly { relay: RelayUrl; count: number }[];
+  latestCreatedAt?: number;
+};
+
 export type PutEventInput = {
   event: NostrEvent;
   relay?: RelayUrl;
@@ -27,6 +34,7 @@ export type EventStoreFilter = NostrTransportFilter;
 export type EventStoreQuery = EventStoreFilter | readonly EventStoreFilter[];
 
 export interface EventStore {
+  getSnapshot(): EventStoreSnapshot;
   putEvent(input: PutEventInput): PutEventResult;
   markSeen(id: string, relay: RelayUrl): void;
   getEvent(id: string): NostrEvent | undefined;

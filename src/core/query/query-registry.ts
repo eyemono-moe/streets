@@ -12,6 +12,19 @@ export type QueryRegistryHandle = {
   close(): void;
 };
 
+export type QueryRegistrySubscriptionSnapshot = {
+  key: string;
+  mode: NostrTransportSubscribeOptions["mode"];
+  listenerCount: number;
+  filters: readonly NostrTransportFilter[];
+  relays: readonly string[];
+};
+
+export type QueryRegistrySnapshot = {
+  activeSubscriptionCount: number;
+  subscriptions: readonly QueryRegistrySubscriptionSnapshot[];
+};
+
 export type QueryRegistryOpenOptions = {
   options: NostrTransportSubscribeOptions;
   closeOnFirstEvent?: boolean;
@@ -21,6 +34,8 @@ export type QueryRegistryOpenOptions = {
 };
 
 export type QueryRegistry = {
+  getSnapshot(): QueryRegistrySnapshot;
+  subscribe(listener: () => void): () => void;
   open(options: QueryRegistryOpenOptions): QueryRegistryHandle;
   dispose(): void;
 };
@@ -43,6 +58,7 @@ type SharedSubscription = {
   subscription: NostrSubscription;
   listeners: Set<Listener>;
   closed: boolean;
+  options: NostrTransportSubscribeOptions;
 };
 
 const sortedValues = <T extends string | number>(
@@ -91,6 +107,11 @@ const canonicalizeFilters = (
     );
 };
 
+const cloneSnapshotFilters = (
+  filters: NostrTransportSubscribeOptions["filters"],
+): readonly NostrTransportFilter[] =>
+  canonicalizeFilters(filters).map((filter) => ({ ...filter }));
+
 const sharedQueryKeyFor = (options: NostrTransportSubscribeOptions) => {
   if (options.mode !== "forward" || hasLazyFilterValues(options.filters)) {
     return undefined;
@@ -109,7 +130,14 @@ export const createQueryRegistry = ({
   requestTimeoutMs = 10_000,
 }: QueryRegistryDependencies): QueryRegistry => {
   const sharedSubscriptions = new Map<string, SharedSubscription>();
+  const listeners = new Set<() => void>();
   let requestSequence = 0;
+
+  const notify = () => {
+    for (const listener of listeners) {
+      listener();
+    }
+  };
 
   const closeSharedSubscription = (shared: SharedSubscription) => {
     if (shared.closed) {
@@ -126,6 +154,7 @@ export const createQueryRegistry = ({
     }
     shared.listeners.clear();
     shared.subscription.close();
+    notify();
   };
 
   const createSharedSubscription = (
@@ -137,6 +166,7 @@ export const createQueryRegistry = ({
       subscription: undefined as unknown as NostrSubscription,
       listeners: new Set(),
       closed: false,
+      options,
     };
 
     const subscription = subscribeToTransportEvents(
@@ -195,6 +225,30 @@ export const createQueryRegistry = ({
   };
 
   return {
+    getSnapshot() {
+      const subscriptions = [...sharedSubscriptions.values()]
+        .map((shared) => ({
+          key: shared.key,
+          mode: shared.options.mode,
+          listenerCount: shared.listeners.size,
+          filters: cloneSnapshotFilters(shared.options.filters),
+          relays: [...(shared.options.relays ?? [])].sort((left, right) =>
+            left.localeCompare(right),
+          ),
+        }))
+        .sort((left, right) => left.key.localeCompare(right.key));
+
+      return {
+        activeSubscriptionCount: subscriptions.length,
+        subscriptions,
+      };
+    },
+
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+
     open({
       options,
       closeOnFirstEvent = false,
@@ -227,6 +281,7 @@ export const createQueryRegistry = ({
       if (shared.listeners.size === 1) {
         shared.subscription.emit(options.filters);
       }
+      notify();
 
       return {
         complete: () => {

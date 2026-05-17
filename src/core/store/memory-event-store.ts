@@ -78,6 +78,37 @@ export class MemoryEventStore implements EventStore {
   readonly #latestParameterizedReplaceable = new Map<string, string>();
   readonly #listeners = new Set<() => void>();
 
+  getSnapshot() {
+    const kindCounts = new Map<number, number>();
+    const relayCounts = new Map<RelayUrl, number>();
+    let latestCreatedAt: number | undefined;
+
+    for (const stored of this.#events.values()) {
+      kindCounts.set(
+        stored.event.kind,
+        (kindCounts.get(stored.event.kind) ?? 0) + 1,
+      );
+      latestCreatedAt =
+        latestCreatedAt === undefined
+          ? stored.event.created_at
+          : Math.max(latestCreatedAt, stored.event.created_at);
+      for (const relay of stored.seenRelays) {
+        relayCounts.set(relay, (relayCounts.get(relay) ?? 0) + 1);
+      }
+    }
+
+    return {
+      eventCount: this.#events.size,
+      kindCounts: [...kindCounts.entries()]
+        .map(([kind, count]) => ({ kind, count }))
+        .sort((left, right) => left.kind - right.kind),
+      relayCounts: [...relayCounts.entries()]
+        .map(([relay, count]) => ({ relay, count }))
+        .sort((left, right) => left.relay.localeCompare(right.relay)),
+      latestCreatedAt,
+    };
+  }
+
   putEvent(input: PutEventInput): PutEventResult {
     const stored = this.#events.get(input.event.id);
     if (stored) {

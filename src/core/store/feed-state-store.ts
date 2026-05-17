@@ -30,7 +30,9 @@ export type FeedStatusOptions = {
 
 export interface FeedStateStore {
   getSnapshot(feedId: string): FeedSnapshot;
+  listSnapshots(): readonly FeedSnapshot[];
   subscribe(feedId: string, listener: () => void): StoreUnsubscribe;
+  subscribeAll(listener: () => void): StoreUnsubscribe;
   addItem(feedId: string, event: NostrEvent): void;
   setStatus(
     feedId: string,
