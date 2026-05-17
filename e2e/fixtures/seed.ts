@@ -29,6 +29,20 @@ const debugTimelineSecretKeys = Array.from({ length: 12 }, (_, userIndex) =>
     ),
   ),
 );
+const debugFeedViewerSecretKey = Uint8Array.from(
+  Array.from({ length: 32 }, (_, index) => 216 + index),
+);
+const createDeterministicSecretKey = (seed: number) =>
+  Uint8Array.from(
+    Array.from({ length: 32 }, (_, index) => ((seed + index * 73) % 255) + 1),
+  );
+const debugFeedMissingProfileSecretKeys = Array.from(
+  { length: 40 },
+  (_, index) => createDeterministicSecretKey(512 + index * 37),
+);
+
+const bytesToHex = (bytes: Uint8Array) =>
+  Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 
 export const e2eViewerPubkey = getPublicKey(viewerSecretKey);
 export const e2eAuthorPubkey = getPublicKey(authorSecretKey);
@@ -36,6 +50,12 @@ export const e2eFollowerPubkey = getPublicKey(followerSecretKey);
 export const e2eDebugTimelinePubkeys = debugTimelineSecretKeys.map(
   (secretKey) => getPublicKey(secretKey),
 );
+export const e2eDebugFeedViewerSecretKeyHex = bytesToHex(
+  debugFeedViewerSecretKey,
+);
+export const e2eDebugFeedViewerPubkey = getPublicKey(debugFeedViewerSecretKey);
+export const e2eDebugFeedMissingProfilePubkeys =
+  debugFeedMissingProfileSecretKeys.map((secretKey) => getPublicKey(secretKey));
 
 const sign = (template: EventTemplate, secretKey: Uint8Array) =>
   finalizeEvent(template, secretKey);
@@ -147,6 +167,81 @@ const createDebugTimelineSeedEvents = () => {
   return events;
 };
 
+const createDebugFeedSeedEvents = () => {
+  const events = [];
+
+  const debugFeedViewerContacts = sign(
+    {
+      kind: kinds.Contacts,
+      created_at: now + 1_000,
+      tags: e2eDebugFeedMissingProfilePubkeys.map((pubkey) => ["p", pubkey]),
+      content: "",
+    },
+    debugFeedViewerSecretKey,
+  );
+  events.push(debugFeedViewerContacts);
+
+  for (
+    let userIndex = 0;
+    userIndex < debugFeedMissingProfileSecretKeys.length;
+    userIndex++
+  ) {
+    const secretKey = debugFeedMissingProfileSecretKeys[userIndex];
+    const pubkey = getPublicKey(secretKey);
+    const noteCount = 8;
+
+    // Intentionally omit kind:0 metadata for these authors. This stresses the
+    // feed-plain-event path where EventBase and Avatar both request missing
+    // author profiles and can expose profile query fanout.
+    for (let noteIndex = 0; noteIndex < noteCount; noteIndex++) {
+      const note = sign(
+        {
+          kind: kinds.ShortTextNote,
+          created_at: now + 2_000 + userIndex * noteCount + noteIndex,
+          tags: [["t", "streets-debug-feed-missing-profile"]],
+          content: `streets debug feed missing profile ${userIndex}-${noteIndex}`,
+        },
+        secretKey,
+      );
+      events.push(note);
+
+      events.push(
+        sign(
+          {
+            kind: kinds.Reaction,
+            created_at: now + 3_000 + userIndex * noteCount + noteIndex,
+            tags: [
+              ["e", note.id, localRelayUrl],
+              ["p", pubkey],
+              ["k", String(kinds.ShortTextNote)],
+            ],
+            content: "+",
+          },
+          debugFeedViewerSecretKey,
+        ),
+      );
+    }
+  }
+
+  return events;
+};
+
+const logSeedDebugInfo = (eventCount: number) => {
+  console.log(
+    `[streets seed] published ${eventCount} events to ${localRelayUrl}`,
+  );
+  console.log("[streets seed] smoke viewer");
+  console.log(`  pubkey: ${e2eViewerPubkey}`);
+  console.log(`  seckey: ${bytesToHex(viewerSecretKey)}`);
+  console.log("[streets seed] debug feed viewer");
+  console.log(`  pubkey: ${e2eDebugFeedViewerPubkey}`);
+  console.log(`  seckey: ${e2eDebugFeedViewerSecretKeyHex}`);
+  console.log("[streets seed] debug feed followees without kind:0 metadata");
+  for (const [index, pubkey] of e2eDebugFeedMissingProfilePubkeys.entries()) {
+    console.log(`  ${index.toString().padStart(2, "0")}: ${pubkey}`);
+  }
+};
+
 export const createSmokeSeedEvents = () => {
   const profile = sign(
     {
@@ -247,6 +342,7 @@ export const createSmokeSeedEvents = () => {
     followerContacts,
     emptyContentRepost,
     ...createDebugTimelineSeedEvents(),
+    ...createDebugFeedSeedEvents(),
   ];
 };
 
@@ -270,10 +366,12 @@ const connectWithRetry = async () => {
 
 export const seedLocalRelay = async () => {
   const relay = await connectWithRetry();
+  const events = createSmokeSeedEvents();
   try {
-    for (const event of createSmokeSeedEvents()) {
+    for (const event of events) {
       await relay.publish(event);
     }
+    logSeedDebugInfo(events.length);
   } finally {
     relay.close();
   }
