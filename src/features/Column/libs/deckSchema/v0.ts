@@ -26,6 +26,25 @@ const columnContent = v.variant("type", [
     pubkey: v.string(),
   }),
   v.object({
+    // Debug-only user column variants for isolating query fanout.
+    type: v.literal("debug-user"),
+    pubkey: v.string(),
+    mode: v.optional(
+      v.union([
+        v.literal("single"),
+        v.literal("feed"),
+        v.literal("feed-plain-event"),
+        v.literal("feed-actions"),
+        v.literal("feed-reactions"),
+        v.literal("feed-replies"),
+        v.literal("feed-full"),
+      ]),
+      "feed-plain-event",
+    ),
+    limit: v.optional(v.number(), 1),
+    relays: v.optional(v.array(v.string())),
+  }),
+  v.object({
     type: v.literal("timeline"),
   }),
   v.object({

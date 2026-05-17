@@ -15,6 +15,7 @@ const columnComponents = {
   search: lazy(() => import("./Column/Search")),
   thread: lazy(() => import("./Column/Thread")),
   user: lazy(() => import("./Column/User")),
+  "debug-user": lazy(() => import("./Column/DebugUser")),
 } satisfies {
   [K in TColumnContent["type"]]: Component<{
     state: TColumnContent<K>;
