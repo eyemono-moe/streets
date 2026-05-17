@@ -39,7 +39,7 @@ const NostrCoreDevtoolsPanel = () => {
   });
 
   return (
-    <div class="h-full overflow-auto bg-base-100 p-4 text-base-content text-sm">
+    <div class="max-h-[--tsd-main-panel-height] overflow-auto bg-base-100 p-4 text-base-content text-sm">
       <Show
         when={snapshot()}
         fallback={
