@@ -1,3 +1,4 @@
+import { devtools as tanstackDevtools } from "@tanstack/devtools-vite";
 import devtools from "solid-devtools/vite";
 import UnoCSS from "unocss/vite";
 import Unfonts from "unplugin-fonts/vite";
@@ -38,6 +39,7 @@ export default defineConfig({
         targetIDE: "vscode",
       },
     }),
+    ...tanstackDevtools(),
     UnoCSS(),
     solid(),
   ],

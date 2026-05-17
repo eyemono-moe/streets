@@ -14,17 +14,14 @@ const detectableTwitterUrl = (urlString: string): string => {
 const TweetEmbed: Component<{ url: string }> = (props) => {
   let twitterRef: HTMLDivElement | undefined;
 
+  // Load Twitter widgets after Solid mounts or updates the embed container.
   createEffect(() => {
     window.twttr?.widgets?.load(twitterRef);
   });
 
   return (
     <div ref={twitterRef}>
-      <blockquote
-        ref={twitterRef}
-        class="twitter-tweet"
-        data-conversation="none"
-      >
+      <blockquote class="twitter-tweet" data-conversation="none">
         <a
           href={detectableTwitterUrl(props.url)}
           target="_blank"

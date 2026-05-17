@@ -349,6 +349,56 @@ describe("QueryRegistry", () => {
     vi.useRealTimers();
   });
 
+  test("exposes active subscription snapshots for devtools", () => {
+    const { transport } = createFakeTransport();
+    const registry = createQueryRegistry({ transport, requestTimeoutMs: 25 });
+
+    const first = registry.open({
+      options: {
+        filters: { kinds: [1] },
+        mode: "forward",
+        relays: ["wss://relay-b", "wss://relay-a"],
+      },
+      onEvent: vi.fn(),
+    });
+    registry.open({
+      options: {
+        filters: { kinds: [1] },
+        mode: "forward",
+        relays: ["wss://relay-a", "wss://relay-b"],
+      },
+      onEvent: vi.fn(),
+    });
+    registry.open({
+      options: { filters: { ids: ["event-1"] }, mode: "backward" },
+      closeAfterMs: undefined,
+      onEvent: vi.fn(),
+    });
+
+    expect(registry.getSnapshot()).toEqual({
+      activeSubscriptionCount: 2,
+      subscriptions: [
+        {
+          key: expect.stringContaining('"mode":"forward"'),
+          mode: "forward",
+          listenerCount: 2,
+          filters: [{ kinds: [1] }],
+          relays: ["wss://relay-a", "wss://relay-b"],
+        },
+        {
+          key: "request:1",
+          mode: "backward",
+          listenerCount: 1,
+          filters: [{ ids: ["event-1"] }],
+          relays: [],
+        },
+      ],
+    });
+
+    first.close();
+    expect(registry.getSnapshot().subscriptions[0]?.listenerCount).toBe(1);
+  });
+
   test("does not dedupe lazy time-dependent filters", () => {
     const { transport, subscribe } = createFakeTransport();
     const registry = createQueryRegistry({ transport, requestTimeoutMs: 25 });

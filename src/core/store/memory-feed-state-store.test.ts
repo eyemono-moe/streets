@@ -60,4 +60,22 @@ describe("MemoryFeedStateStore", () => {
       activeRelays: ["wss://relay-a"],
     });
   });
+
+  it("lists feed snapshots for devtools in stable order", () => {
+    const store = new MemoryFeedStateStore();
+    store.addItem("profile:alice", event({ id: "profile-note" }));
+    store.setStatus("home", "loading", {
+      activeRelays: ["wss://relay-a"],
+    });
+
+    expect(store.listSnapshots().map((snapshot) => snapshot.feedId)).toEqual([
+      "home",
+      "profile:alice",
+    ]);
+    expect(store.listSnapshots()[0]).toMatchObject({
+      feedId: "home",
+      status: "loading",
+      activeRelays: ["wss://relay-a"],
+    });
+  });
 });

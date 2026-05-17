@@ -42,9 +42,16 @@ const cloneSnapshot = (snapshot: MutableFeedSnapshot): FeedSnapshot => ({
 export class MemoryFeedStateStore implements FeedStateStore {
   readonly #feeds = new Map<string, MutableFeedSnapshot>();
   readonly #listeners = new Map<string, Set<() => void>>();
+  readonly #allListeners = new Set<() => void>();
 
   getSnapshot(feedId: string): FeedSnapshot {
     return cloneSnapshot(this.#getOrCreate(feedId));
+  }
+
+  listSnapshots(): readonly FeedSnapshot[] {
+    return [...this.#feeds.values()]
+      .map((snapshot) => cloneSnapshot(snapshot))
+      .sort((left, right) => left.feedId.localeCompare(right.feedId));
   }
 
   subscribe(feedId: string, listener: () => void): StoreUnsubscribe {
@@ -57,6 +64,11 @@ export class MemoryFeedStateStore implements FeedStateStore {
         this.#listeners.delete(feedId);
       }
     };
+  }
+
+  subscribeAll(listener: () => void): StoreUnsubscribe {
+    this.#allListeners.add(listener);
+    return () => this.#allListeners.delete(listener);
   }
 
   addItem(feedId: string, event: NostrEvent): void {
@@ -122,10 +134,12 @@ export class MemoryFeedStateStore implements FeedStateStore {
 
   #notify(feedId: string) {
     const listeners = this.#listeners.get(feedId);
-    if (!listeners) {
-      return;
+    if (listeners) {
+      for (const listener of listeners) {
+        listener();
+      }
     }
-    for (const listener of listeners) {
+    for (const listener of this.#allListeners) {
       listener();
     }
   }
