@@ -39,7 +39,7 @@ const NostrCoreDevtoolsPanel = () => {
   });
 
   return (
-    <div class="max-h-[--tsd-main-panel-height] overflow-auto bg-base-100 p-4 text-base-content text-sm">
+    <div class="max-h-[--tsd-main-panel-height] overflow-y-auto overflow-x-hidden p-4 text-sm">
       <Show
         when={snapshot()}
         fallback={
@@ -53,6 +53,15 @@ const NostrCoreDevtoolsPanel = () => {
               <div class="font-mono text-xs opacity-70">
                 updated {clockTime(data().updatedAt)}
               </div>
+              <button
+                type="button"
+                class="appearance-none rounded px-2 py-1 text-xs"
+                onClick={() =>
+                  navigator.clipboard.writeText(JSON.stringify(data(), null, 2))
+                }
+              >
+                copy current core summary
+              </button>
             </div>
 
             <Section title="Summary">
@@ -121,6 +130,17 @@ const NostrCoreDevtoolsPanel = () => {
             </Section>
 
             <Section title="FeedStateStore">
+              <button
+                type="button"
+                class="mb-2 appearance-none rounded px-2 py-1 text-xs"
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    JSON.stringify(data().feeds, null, 2),
+                  )
+                }
+              >
+                copy current feeds as JSON
+              </button>
               <div class="grid gap-2">
                 <For each={data().feeds}>
                   {(feed) => (
@@ -147,15 +167,26 @@ const NostrCoreDevtoolsPanel = () => {
             </Section>
 
             <Section title="QueryRegistry">
+              <button
+                type="button"
+                class="mb-2 appearance-none rounded px-2 py-1 text-xs"
+                onClick={() =>
+                  navigator.clipboard.writeText(
+                    JSON.stringify(data().queryRegistry, null, 2),
+                  )
+                }
+              >
+                copy current queries as JSON
+              </button>
               <div class="grid gap-2">
                 <For each={data().queryRegistry.subscriptions}>
                   {(subscription) => (
-                    <details class="rounded bg-base-200 p-2">
+                    <details class="rounded p-2">
                       <summary class="cursor-pointer font-mono text-xs">
                         {subscription.mode} · listeners{" "}
                         {subscription.listenerCount}
                       </summary>
-                      <pre class="mt-2 overflow-auto rounded bg-base-300 p-2 text-xs">
+                      <pre class="mt-2 overflow-auto text-wrap break-all rounded p-2 text-xs">
                         {JSON.stringify(subscription, null, 2)}
                       </pre>
                     </details>
