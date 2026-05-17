@@ -1,6 +1,6 @@
 import { type NostrEvent, kinds } from "nostr-tools";
 import { EMPTY } from "rxjs";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
 import type { EventFeedDefinition } from "../query/event-feed";
 import type { NostrCoreQueryClient } from "../query/query-client";
@@ -181,6 +181,44 @@ describe("useCoreEventFeed", () => {
               await feed.fetchNextPage();
               expect(fetchedFeedIds).toEqual(["feed-c"]);
               dispose();
+              resolve();
+            });
+            return null;
+          },
+        });
+      });
+    });
+  });
+
+  test("does not recreate a feed when the definition id is unchanged", async () => {
+    const { core, ensuredFeeds, stoppedFeedIds } = createCore();
+
+    await new Promise<void>((resolve) => {
+      createRoot((dispose) => {
+        const [tick, setTick] = createSignal(0);
+        NostrCoreProvider({
+          core,
+          get children() {
+            useCoreEventFeed(() => {
+              tick();
+              return {
+                id: "feed-stable",
+                filters: { authors: ["alice"] },
+                strategy: "liveBackfill",
+              };
+            });
+
+            queueMicrotask(async () => {
+              await vi.waitFor(() => {
+                expect(ensuredFeeds).toHaveLength(1);
+              });
+              setTick(1);
+              setTick(2);
+              await Promise.resolve();
+              expect(ensuredFeeds).toHaveLength(1);
+              expect(stoppedFeedIds).toEqual([]);
+              dispose();
+              expect(stoppedFeedIds).toEqual(["feed-stable"]);
               resolve();
             });
             return null;

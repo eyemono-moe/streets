@@ -79,17 +79,39 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
     }
   };
 
+  let unsubscribeFeed: (() => void) | undefined;
+  let unsubscribeEvents: (() => void) | undefined;
+
+  const stopActiveFeed = () => {
+    unsubscribeFeed?.();
+    unsubscribeFeed = undefined;
+    unsubscribeEvents?.();
+    unsubscribeEvents = undefined;
+    if (activeFeedId !== undefined) {
+      core.queryClient.stopEventFeed(activeFeedId);
+      activeFeedId = undefined;
+    }
+  };
+
   // Register the current feed and read UI feed state from FeedStateStore rather
-  // than TanStack collection projections.
+  // than TanStack collection projections. Definition factories may rebuild
+  // equivalent objects frequently while deriving large timeline filters, so only
+  // feed id changes recreate subscriptions.
   createEffect(() => {
     const currentDefinition = definition();
     if (!currentDefinition) {
+      stopActiveFeed();
       setEvents([]);
       setIsFetching(false);
       setHasNextPage(false);
       return;
     }
 
+    if (activeFeedId === currentDefinition.id) {
+      return;
+    }
+
+    stopActiveFeed();
     activeFeedId = currentDefinition.id;
     setIsFetching(true);
     core.queryClient.ensureEventFeed(currentDefinition);
@@ -97,22 +119,12 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
     const sync = () => {
       syncFromFeedState(currentDefinition.id);
     };
-    const unsubscribeFeed = core.feedStateStore.subscribe(
-      currentDefinition.id,
-      sync,
-    );
-    const unsubscribeEvents = core.eventStore.subscribe(sync);
+    unsubscribeFeed = core.feedStateStore.subscribe(currentDefinition.id, sync);
+    unsubscribeEvents = core.eventStore.subscribe(sync);
     sync();
-
-    onCleanup(() => {
-      unsubscribeFeed();
-      unsubscribeEvents();
-      core.queryClient.stopEventFeed(currentDefinition.id);
-      if (activeFeedId === currentDefinition.id) {
-        activeFeedId = undefined;
-      }
-    });
   });
+
+  onCleanup(stopActiveFeed);
 
   const fetchNextPage = async () => {
     const feedId = activeFeedId ?? definition()?.id;
