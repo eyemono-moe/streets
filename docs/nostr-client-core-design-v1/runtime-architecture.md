@@ -4,6 +4,8 @@
 
 Architecture and ownership boundaries for rx-nostr, transport, EventStore, QueryRegistry, FeedStateStore, derived views, publishing, and cross-tab behavior.
 
+Status: reference. For the next implementation step, prefer the shorter PoC contract in `core-contract.md`. This file contains broader target-shape notes and may include future work that should not block the debug PoC.
+
 ## In this file
 
 - [Core Architecture](#core-architecture)
@@ -336,7 +338,7 @@ FeedStateStore = UI feed snapshot/read model
 EventStore = raw events and Nostr-filter-first indexes
 ```
 
-QueryRegistry handles feed definitions, filter canonicalization, relay selection, batching, deduplication, reference counts, and transport subscriptions. Identical canonical forward/live query keys share a single relay subscription; each consumer gets its own listener handle, and the underlying subscription is closed only when the last handle is closed or the registry is disposed. Backward/page requests intentionally remain non-shared for now so late callers cannot miss events delivered before their handle is registered.
+QueryRegistry handles feed definitions, filter canonicalization, relay selection, batching, deduplication, reference counts, and transport subscriptions. Identical canonical forward/live query keys share a single relay subscription; each consumer gets its own listener handle, and the underlying subscription is closed only when the last handle is closed or the registry is disposed. Backward/page requests intentionally remain non-shared for now so late callers cannot miss events delivered before their handle is registered. For the current cache-warmer APIs, listener completion semantics, and planned short-window backward batching, see [QueryClient / QueryRegistry ライフサイクル整理](./query-lifecycle-ja.md).
 
 FeedStateStore handles feed membership and state:
 
