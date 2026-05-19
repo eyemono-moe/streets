@@ -16,6 +16,27 @@ const createTextNote = (overrides: Partial<NostrEvent> = {}): NostrEvent => ({
   ...overrides,
 });
 
+const DEFAULT_DEBUG_PROFILE_PUBKEY =
+  "34695541ee6485387a26fc35196106d9f5571e72a674e09f5ae0b1671aed801f";
+
+const createProfileEvent = (
+  overrides: Partial<NostrEvent> = {},
+): NostrEvent => ({
+  id: "debug-profile-event-1",
+  pubkey: DEFAULT_DEBUG_PROFILE_PUBKEY,
+  created_at: 1_700_000_100,
+  kind: 0,
+  tags: [],
+  content: JSON.stringify({
+    name: "debug-profile-name",
+    display_name: "Debug Profile Display",
+    picture: "https://example.com/avatar.png",
+    about: "profile loaded from v1 profile view",
+  }),
+  sig: "debug-profile-sig-1",
+  ...overrides,
+});
+
 describe("DebugV1CoreRoute", () => {
   test("renders the v1 core snapshot without legacy event cache APIs", () => {
     createRoot((dispose) => {
@@ -119,6 +140,66 @@ describe("DebugV1CoreRoute", () => {
       expect(stopFeed).toHaveBeenCalledWith("debug-feed");
 
       element?.remove();
+      core.dispose();
+      dispose();
+    });
+  });
+
+  test("renders a debug profile panel from the v1 profile view", () => {
+    createRoot((dispose) => {
+      const core = createNostrCore({ rxNostr: createRxNostr() });
+      const profile = createProfileEvent();
+      core.eventStore.putEvent({
+        event: profile,
+        relay: "wss://relay.example",
+      });
+      let element: HTMLElement | undefined;
+
+      NostrCoreProvider({
+        core,
+        get children() {
+          element = DebugV1CoreRoute() as HTMLElement;
+          return null;
+        },
+      });
+
+      expect(element?.textContent).toContain("DebugProfilePanel");
+      expect(element?.textContent).toContain(DEFAULT_DEBUG_PROFILE_PUBKEY);
+      expect(element?.textContent).toContain("debug-profile-name");
+      expect(element?.textContent).toContain("Debug Profile Display");
+      expect(element?.textContent).toContain("https://example.com/avatar.png");
+      expect(element?.textContent).toContain(
+        "profile loaded from v1 profile view",
+      );
+      expect(element?.textContent).toContain("debug-profile-event-1");
+
+      core.dispose();
+      dispose();
+    });
+  });
+
+  test("requests the default debug profile through the v1 query client", () => {
+    createRoot((dispose) => {
+      const core = createNostrCore({ rxNostr: createRxNostr() });
+      const ensureProfile = vi
+        .spyOn(core.queryClient, "ensureProfile")
+        .mockResolvedValue(undefined);
+      let element: HTMLElement | undefined;
+
+      NostrCoreProvider({
+        core,
+        get children() {
+          element = DebugV1CoreRoute() as HTMLElement;
+          return null;
+        },
+      });
+
+      expect(element?.textContent).toContain("DebugProfilePanel");
+      expect(ensureProfile).toHaveBeenCalledWith({
+        pubkey: DEFAULT_DEBUG_PROFILE_PUBKEY,
+        relays: undefined,
+      });
+
       core.dispose();
       dispose();
     });

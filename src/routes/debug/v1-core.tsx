@@ -1,6 +1,13 @@
 import type { NostrEvent } from "nostr-tools";
 import type { Component } from "solid-js";
-import { For, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import type { EventFeedDefinition } from "../../core/query/event-feed";
 import type { NostrCore } from "../../core/solid/provider";
 import { useNostrCore } from "../../core/solid/provider";
@@ -48,6 +55,9 @@ const DEFAULT_DEBUG_FEED: DebugFeedColumnProps = {
   limit: 20,
 };
 
+const DEFAULT_DEBUG_PROFILE_PUBKEY =
+  "34695541ee6485387a26fc35196106d9f5571e72a674e09f5ae0b1671aed801f";
+
 const missingFeedSnapshot = (feedId: string): FeedSnapshot => ({
   feedId,
   items: [],
@@ -60,6 +70,35 @@ const missingFeedSnapshot = (feedId: string): FeedSnapshot => ({
 
 const formatTimestamp = (createdAt?: number) =>
   createdAt === undefined ? "-" : new Date(createdAt * 1_000).toISOString();
+
+type DebugProfilePanelProps = {
+  pubkey?: string;
+  relays?: readonly string[];
+};
+
+type ParsedProfileMetadata = {
+  name?: string;
+  display_name?: string;
+  picture?: string;
+  about?: string;
+};
+
+const parseProfileMetadata = (event: NostrEvent): ParsedProfileMetadata => {
+  try {
+    const parsed = JSON.parse(event.content) as Record<string, unknown>;
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : undefined,
+      display_name:
+        typeof parsed.display_name === "string"
+          ? parsed.display_name
+          : undefined,
+      picture: typeof parsed.picture === "string" ? parsed.picture : undefined,
+      about: typeof parsed.about === "string" ? parsed.about : undefined,
+    };
+  } catch {
+    return {};
+  }
+};
 
 const DebugFeedColumn: Component<DebugFeedColumnProps> = (props) => {
   const core = useNostrCore();
@@ -156,6 +195,70 @@ const DebugFeedColumn: Component<DebugFeedColumnProps> = (props) => {
   );
 };
 
+const DebugProfilePanel: Component<DebugProfilePanelProps> = (props) => {
+  const core = useNostrCore();
+  const [version, setVersion] = createSignal(0);
+  const refresh = () => setVersion((current) => current + 1);
+  const cleanupProfiles = core.profileView.subscribe(refresh);
+
+  if (props.pubkey) {
+    void core.queryClient
+      .ensureProfile({
+        pubkey: props.pubkey,
+        relays: props.relays,
+      })
+      .catch(() => {
+        // DebugProfilePanel renders the store-backed profile view; failed fetches
+        // should remain visible through query snapshots, not crash the route.
+      });
+  }
+
+  onCleanup(cleanupProfiles);
+
+  const profileEvent = createMemo(() => {
+    version();
+    if (props.pubkey) {
+      return core.profileView.getProfile(props.pubkey);
+    }
+    return core.profileView.listProfiles()[0];
+  });
+
+  const metadata = createMemo(() => {
+    const event = profileEvent();
+    return event ? parseProfileMetadata(event) : undefined;
+  });
+
+  return (
+    <section class="space-y-3 rounded-2 border border-alpha-300 bg-alpha-50 p-3">
+      <header class="space-y-1">
+        <h2 class="font-bold text-sm">DebugProfilePanel</h2>
+        <p class="text-alpha-700 text-xs">
+          pubkey: {profileEvent()?.pubkey ?? props.pubkey ?? "-"}
+        </p>
+        <p class="text-alpha-700 text-xs">
+          source kind:0 event id: {profileEvent()?.id ?? "-"}
+        </p>
+      </header>
+
+      <Show
+        fallback={<p class="text-alpha-700 text-xs">profile loading: true</p>}
+        when={profileEvent()}
+      >
+        {(event) => (
+          <div class="space-y-1 text-xs">
+            <div>profile loading: false</div>
+            <div>name: {metadata()?.name ?? "-"}</div>
+            <div>display_name: {metadata()?.display_name ?? "-"}</div>
+            <div>picture: {metadata()?.picture ?? "-"}</div>
+            <div>about: {metadata()?.about ?? "-"}</div>
+            <DebugSection title="rawProfileEvent" value={event()} />
+          </div>
+        )}
+      </Show>
+    </section>
+  );
+};
+
 const DebugV1CoreRoute: Component = () => {
   if (!import.meta.env.DEV) {
     return (
@@ -201,6 +304,7 @@ const DebugV1CoreRoute: Component = () => {
         </header>
 
         <DebugFeedColumn {...DEFAULT_DEBUG_FEED} />
+        <DebugProfilePanel pubkey={DEFAULT_DEBUG_PROFILE_PUBKEY} />
 
         <div class="grid gap-4 lg:grid-cols-2">
           <DebugSection title="queryClient" value={snapshot().queryClient} />
