@@ -14,6 +14,7 @@
     "test": "vitest",
     "e2e": "playwright test",
     "e2e:seed": "tsx e2e/fixtures/seed.ts",
+    "dev:relay:reset": "node scripts/reset-local-relay-db.mjs",
     "analyze": "pnpm dlx vite-bundle-visualizer -o .stats.html",
     "check-unused": "pnpm dlx @line/ts-remove-unused --skip 'src/index.tsx' --check --project tsconfig.app.json"
   },
