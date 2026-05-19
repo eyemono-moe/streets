@@ -67,6 +67,10 @@ const routes = [
         path: "/add-column/reactions",
         component: lazy(() => import("./routes/addColumn/reactions")),
       },
+      {
+        path: "/debug/v1-core",
+        component: lazy(() => import("./routes/debug/v1-core")),
+      },
     ],
   },
 ] satisfies RouteDefinition[];
