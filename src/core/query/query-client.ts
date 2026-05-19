@@ -4,7 +4,8 @@ import type {
   NostrRepository,
   RelayUrl,
 } from "../repository/nostr-repository";
-import type { FeedStateStore } from "../store/feed-state-store";
+import type { EventStoreSnapshot } from "../store/event-store";
+import type { FeedSnapshot, FeedStateStore } from "../store/feed-state-store";
 import { MemoryFeedStateStore } from "../store/memory-feed-state-store";
 import type {
   NostrTransport,
@@ -14,7 +15,11 @@ import type {
 import type { EventFeedDefinition } from "./event-feed";
 import { withBackfillCursor, withLiveCursor } from "./event-feed";
 import { createQueryRegistry } from "./query-registry";
-import type { QueryRegistry, QueryRegistryHandle } from "./query-registry";
+import type {
+  QueryRegistry,
+  QueryRegistryHandle,
+  QueryRegistrySnapshot,
+} from "./query-registry";
 
 export type EnsureEventOptions = {
   id: string;
@@ -36,7 +41,25 @@ export type FetchEventPageOptions = {
   relays?: readonly RelayUrl[];
 };
 
+export type FeedStateStoreDebugSnapshot = {
+  feeds: readonly FeedSnapshot[];
+};
+
+export type QueryClientFeedSnapshot = {
+  feedId: string;
+  definition: EventFeedDefinition;
+  hasLiveSubscription: boolean;
+};
+
+export type NostrCoreQueryClientSnapshot = {
+  queryRegistry: QueryRegistrySnapshot;
+  eventStore?: EventStoreSnapshot;
+  feedStateStore: FeedStateStoreDebugSnapshot;
+  feeds: readonly QueryClientFeedSnapshot[];
+};
+
 export type NostrCoreQueryClient = {
+  getSnapshot(): NostrCoreQueryClientSnapshot;
   ensureEvent(options: EnsureEventOptions): Promise<NostrEvent | undefined>;
   ensureProfile(options: EnsureProfileOptions): Promise<NostrEvent | undefined>;
   ensureEventRelations(
@@ -107,7 +130,27 @@ export const createNostrCoreQueryClient = ({
       },
     });
 
+  const snapshotFeeds = (): readonly QueryClientFeedSnapshot[] =>
+    [...eventFeeds.entries()]
+      .map(([feedId, feed]) => ({
+        feedId,
+        definition: feed.definition,
+        hasLiveSubscription: feed.closeLive !== undefined,
+      }))
+      .sort((left, right) => left.feedId.localeCompare(right.feedId));
+
   return {
+    getSnapshot() {
+      return {
+        queryRegistry: queryRegistry.getSnapshot(),
+        eventStore: repository.getSnapshot?.(),
+        feedStateStore: {
+          feeds: feedStateStore.listSnapshots(),
+        },
+        feeds: snapshotFeeds(),
+      };
+    },
+
     async ensureEvent({ id, relays }) {
       const cached = await repository.getEvent(id);
       if (cached) {

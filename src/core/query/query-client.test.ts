@@ -273,6 +273,63 @@ describe("createNostrCoreQueryClient", () => {
     vi.useRealTimers();
   });
 
+  test("exposes a debug snapshot for registered feeds, query subscriptions, and store state", async () => {
+    const { transport } = createFakeTransport();
+    const repository = new MemoryNostrRepository();
+    const feedStateStore = new MemoryFeedStateStore();
+    const queryClient = createNostrCoreQueryClient({
+      transport,
+      repository,
+      feedStateStore,
+      now: () => 1_000,
+    });
+
+    expect(queryClient.getSnapshot()).toMatchObject({
+      queryRegistry: {
+        activeSubscriptionCount: 0,
+        subscriptions: [],
+      },
+      eventStore: {
+        eventCount: 0,
+      },
+      feedStateStore: {
+        feeds: [],
+      },
+      feeds: [],
+    });
+
+    queryClient.ensureEventFeed({
+      id: "feed:user:pubkey-1",
+      filters: { authors: ["pubkey-1"], kinds: [1], limit: 20 },
+      strategy: "liveBackfill",
+      relays: ["wss://relay.example"],
+    });
+
+    expect(queryClient.getSnapshot()).toMatchObject({
+      queryRegistry: {
+        activeSubscriptionCount: 1,
+      },
+      feedStateStore: {
+        feeds: [
+          {
+            feedId: "feed:user:pubkey-1",
+            status: "loading",
+            activeRelays: ["wss://relay.example"],
+          },
+        ],
+      },
+      feeds: [
+        {
+          feedId: "feed:user:pubkey-1",
+          hasLiveSubscription: true,
+          definition: {
+            strategy: "liveBackfill",
+          },
+        },
+      ],
+    });
+  });
+
   test("ensures a liveBackfill event feed with a forward subscription and feed item projection", async () => {
     const { transport, events$, emit, close, subscribe } =
       createFakeTransport();

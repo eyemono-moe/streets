@@ -1,4 +1,5 @@
 import type { NostrEvent } from "nostr-tools";
+import type { EventStoreSnapshot } from "../store/event-store";
 
 export type RelayUrl = string;
 
@@ -25,6 +26,7 @@ export type NostrEventQuery = {
 };
 
 export interface NostrRepository {
+  getSnapshot?(): EventStoreSnapshot;
   putEvent(input: PutEventInput): Promise<PutEventResult>;
   markSeen(id: string, relay: RelayUrl): Promise<void>;
   getEvent(id: string): Promise<NostrEvent | undefined>;
