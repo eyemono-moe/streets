@@ -1,7 +1,10 @@
+import type { NostrEvent } from "nostr-tools";
 import type { Component } from "solid-js";
-import { createSignal, onCleanup } from "solid-js";
+import { For, createMemo, createSignal, onCleanup, onMount } from "solid-js";
+import type { EventFeedDefinition } from "../../core/query/event-feed";
 import type { NostrCore } from "../../core/solid/provider";
 import { useNostrCore } from "../../core/solid/provider";
+import type { FeedSnapshot } from "../../core/store/feed-state-store";
 
 type V1CoreDebugRouteSnapshot = {
   queryClient: ReturnType<NostrCore["queryClient"]["getSnapshot"]>;
@@ -35,6 +38,123 @@ const DebugSection: Component<{ title: string; value: unknown }> = (props) => (
     </pre>
   </section>
 );
+
+type DebugFeedColumnProps = EventFeedDefinition;
+
+const DEFAULT_DEBUG_FEED: DebugFeedColumnProps = {
+  id: "debug-feed",
+  filters: { kinds: [1], limit: 20 },
+  strategy: "backfill",
+  limit: 20,
+};
+
+const missingFeedSnapshot = (feedId: string): FeedSnapshot => ({
+  feedId,
+  items: [],
+  eventIds: [],
+  status: "idle",
+  hasMoreBackfill: false,
+  eoseRelays: [],
+  activeRelays: [],
+});
+
+const formatTimestamp = (createdAt?: number) =>
+  createdAt === undefined ? "-" : new Date(createdAt * 1_000).toISOString();
+
+const DebugFeedColumn: Component<DebugFeedColumnProps> = (props) => {
+  const core = useNostrCore();
+  const [feedSnapshot, setFeedSnapshot] = createSignal(
+    core.feedStateStore.getSnapshot(props.id),
+  );
+  const [eventVersion, setEventVersion] = createSignal(0);
+  const refreshFeed = () =>
+    setFeedSnapshot(core.feedStateStore.getSnapshot(props.id));
+  const refreshEvents = () => setEventVersion((version) => version + 1);
+
+  onMount(() => {
+    core.queryClient.ensureEventFeed({
+      id: props.id,
+      filters: props.filters,
+      strategy: props.strategy,
+      relays: props.relays,
+      limit: props.limit,
+    });
+    refreshFeed();
+  });
+
+  const cleanupFeed = core.feedStateStore.subscribe(props.id, refreshFeed);
+  const cleanupEvents = core.eventStore.subscribe(refreshEvents);
+
+  onCleanup(() => {
+    cleanupFeed();
+    cleanupEvents();
+    core.queryClient.stopEventFeed(props.id);
+  });
+
+  const events = createMemo(() => {
+    eventVersion();
+    const snapshot = feedSnapshot() ?? missingFeedSnapshot(props.id);
+    return snapshot.eventIds
+      .map((eventId) => core.eventStore.getEvent(eventId))
+      .filter((event): event is NostrEvent => event !== undefined);
+  });
+
+  const fetchMore = () => {
+    void core.queryClient.fetchMoreEventFeed(props.id);
+  };
+  const stopFeed = () => core.queryClient.stopEventFeed(props.id);
+
+  return (
+    <section class="space-y-3 rounded-2 border border-alpha-300 bg-alpha-50 p-3">
+      <header class="space-y-1">
+        <h2 class="font-bold text-sm">DebugFeedColumn</h2>
+        <p class="text-alpha-700 text-xs">feed id: {props.id}</p>
+        <p class="text-alpha-700 text-xs">
+          status: {feedSnapshot().status} · events: {events().length} · has
+          more: {String(feedSnapshot().hasMoreBackfill)}
+        </p>
+        <p class="text-alpha-700 text-xs">
+          oldest: {formatTimestamp(feedSnapshot().oldestCreatedAt)} · newest:{" "}
+          {formatTimestamp(feedSnapshot().newestCreatedAt)}
+        </p>
+        <p class="text-alpha-700 text-xs">
+          relays: {feedSnapshot().activeRelays.join(", ") || "-"}
+        </p>
+      </header>
+
+      <div class="flex gap-2">
+        <button
+          class="rounded-2 border border-alpha-400 px-2 py-1 text-xs"
+          onClick={fetchMore}
+          type="button"
+        >
+          Fetch more
+        </button>
+        <button
+          class="rounded-2 border border-alpha-400 px-2 py-1 text-xs"
+          onClick={stopFeed}
+          type="button"
+        >
+          Stop feed
+        </button>
+      </div>
+
+      <ol class="space-y-2">
+        <For each={events()}>
+          {(event) => (
+            <li class="space-y-1 rounded-2 bg-alpha-100 p-2 text-xs">
+              <div>event id: {event.id}</div>
+              <div>pubkey: {event.pubkey}</div>
+              <div>kind: {event.kind}</div>
+              <div>created_at: {event.created_at}</div>
+              <pre class="whitespace-pre-wrap break-words">{event.content}</pre>
+            </li>
+          )}
+        </For>
+      </ol>
+    </section>
+  );
+};
 
 const DebugV1CoreRoute: Component = () => {
   if (!import.meta.env.DEV) {
@@ -79,6 +199,8 @@ const DebugV1CoreRoute: Component = () => {
             legacy EventCache/query APIs and production Event rendering.
           </p>
         </header>
+
+        <DebugFeedColumn {...DEFAULT_DEBUG_FEED} />
 
         <div class="grid gap-4 lg:grid-cols-2">
           <DebugSection title="queryClient" value={snapshot().queryClient} />
