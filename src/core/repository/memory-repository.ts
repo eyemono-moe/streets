@@ -27,6 +27,10 @@ const toEventStoreFilter = (query: NostrEventQuery): EventStoreFilter => {
 export class MemoryNostrRepository implements NostrRepository {
   constructor(readonly eventStore: EventStore = new MemoryEventStore()) {}
 
+  getSnapshot() {
+    return this.eventStore.getSnapshot();
+  }
+
   async putEvent(input: PutEventInput): Promise<PutEventResult> {
     return this.eventStore.putEvent(input);
   }
