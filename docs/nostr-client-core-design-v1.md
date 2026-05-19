@@ -1,88 +1,110 @@
-# Nostr Client Core v1 Design Proposal
+# Nostr Client Core v1
 
-> Status: v1 planning document. This is the implementation reference for the `streets v1` Linear project.
+> Status: current v1 direction.
 >
-> Start with the event/profile migration path. Do not begin with a full timeline rewrite.
+> v1 is a speed-first destructive migration. There are no existing users to protect, so compatibility with the old v0 UI interfaces is not a goal.
 
-This file is now the entrypoint for the split v1 core design docs.
+This is the entrypoint for the current streets v1 core work. Keep this file short and authoritative.
 
-The old single-file design document was too large for efficient LLM context use. Load only the topic file that matches the task, then follow cross-links as needed.
+## Current Direction
 
-## Reading Guide
+```txt
+Design the minimal ideal core
+  ↓
+Build a working read-path PoC
+  ↓
+Verify it through debug routes/columns, not the existing column UI
+  ↓
+Harden local deterministic validation
+  ↓
+Update or replace the existing UI to match the v1 core API
+  ↓
+Delete v0 cache/query/provider paths
+```
 
-- Start with [Overview](./nostr-client-core-design-v1/overview.md) for goals, requirements, decisions, non-goals, and the initial milestone.
-- Use [Runtime Architecture](./nostr-client-core-design-v1/runtime-architecture.md) for transport, EventStore, QueryRegistry, FeedStateStore, derived views, and cross-tab boundaries.
-- Use [Event Store and Query Registry](./nostr-client-core-design-v1/data-model.md) for the Nostr-filter-first store, feed state, and derived read-model shape.
-- Use [SolidJS Integration](./nostr-client-core-design-v1/solid-integration.md) for UI state rules, hooks, and component migration boundaries.
-- Use [Event Feed Strategies and Query Planning](./nostr-client-core-design-v1/event-feed-strategies.md) for generalized infinite/event-list fetching, query planning, relay policy, and related-event fetch policy.
-- Use [Local Development and Seed Scenarios](./nostr-client-core-design-v1/local-development.md) for local relay, asset server, deterministic seeds, and harness work.
-- Use [Migration Plan and Testing Strategy](./nostr-client-core-design-v1/migration-plan.md) for PR order, migration sequence, and validation strategy.
-- Use [NIP Update Automation](./nostr-client-core-design-v1/nip-automation.md) for the NIP monitoring/LLM impact-report workstream.
+## Non-Negotiables
 
-## Core Shape
+1. Do not shape v1 core APIs around old v0 hook return values.
+2. Do not preserve compatibility wrappers unless they are part of a short-lived removal PR.
+3. Do not use the existing column UI as the first proof that the core works.
+4. Do not reintroduce TanStack DB as the target core data architecture.
+5. Do not start with a full home timeline rewrite.
+6. Do keep `rx-nostr` behind a project-owned `NostrTransport` boundary.
+7. Do make local deterministic debug validation part of the implementation, not an afterthought.
+
+## Minimal Core Shape
+
+Read path:
 
 ```txt
 rx-nostr
   ↓
 RxNostrTransport
   ↓
-QueryRegistry
+QueryClient / QueryRegistry
   ↓
-EventStore / FeedStateStore / Derived Views
+EventStore
   ↓
-SolidJS UI
+FeedStateStore + Derived Views
+  ↓
+Debug UI first, then production Solid UI
 ```
 
-## Current Core Decisions
-
-1. Keep `rx-nostr`; do not reimplement relay subscription management.
-2. Hide `rx-nostr` behind a `NostrTransport` interface.
-3. EventStore is the raw Nostr event source of truth and speaks Nostr filter semantics directly.
-4. QueryRegistry owns feed intent, relay subscription reuse, filter batching/deduplication, and fetch lifecycle.
-5. FeedStateStore owns per-feed UI state such as item membership, loading, EOSE, cursors, and errors.
-6. Derived views such as ProfileView are built from events; kind-specific data is not a separate core source of truth.
-7. Solid stores are for UI state only; data stores expose getSnapshot + subscribe adapters.
-8. v1 is a one-shot product migration, not a long-term mixed v0/v1 runtime.
-9. Infinite/event-list columns use generic event feed/fetch strategies; home timeline is only one feature-level wrapper.
-10. Publishing should use a project-owned PublishPipeline with optimistic local event overlays and per-relay publish state.
-
-## Suggested Context Loading
-
-For LLM implementation tasks, prefer this minimal loading pattern:
+Write path is later:
 
 ```txt
-Architecture boundary work:
-  overview.md + runtime-architecture.md
-
-EventStore / FeedStateStore work:
-  overview.md + data-model.md + runtime-architecture.md
-
-UI hook/component migration:
-  overview.md + solid-integration.md + data-model.md
-
-Infinite/event-list/query planning work:
-  overview.md + event-feed-strategies.md + data-model.md
-
-Local relay/e2e harness work:
-  overview.md + local-development.md + migration-plan.md
-
-NIP automation work:
-  overview.md + nip-automation.md
+Solid UI
+  ↓
+PublishPipeline
+  ↓
+NostrTransport
+  ↓
+optimistic local event + per-relay publish state
+  ↓
+EventStore / Derived Views
 ```
 
-## File Map
+Publish is important, but read-path correctness comes first.
 
-```txt
-docs/nostr-client-core-design-v1.md
-  └─ this index
+## Canonical Docs
 
-docs/nostr-client-core-design-v1/
-  ├─ overview.md
-  ├─ runtime-architecture.md
-  ├─ data-model.md
-  ├─ solid-integration.md
-  ├─ event-feed-strategies.md
-  ├─ local-development.md
-  ├─ migration-plan.md
-  └─ nip-automation.md
-```
+Read these for current work:
+
+- [Overview](./nostr-client-core-design-v1/overview.md): current product/migration direction and scope.
+- [Core Contract](./nostr-client-core-design-v1/core-contract.md): minimal v1 core interfaces, responsibilities, and non-responsibilities.
+- [QueryClient / QueryRegistry Lifecycle](./nostr-client-core-design-v1/query-lifecycle-ja.md): `ensureXXX`, feed lifecycle, completion semantics, and safe batching rules.
+- [Debug PoC Plan](./nostr-client-core-design-v1/debug-poc.md): debug-first validation route/column plan.
+- [Migration Plan](./nostr-client-core-design-v1/migration-plan.md): destructive migration phases from docs cleanup to UI replacement.
+- [SolidJS Integration](./nostr-client-core-design-v1/solid-integration.md): debug-first Solid adapters and later production UI replacement.
+- [Local Development and Seed Scenarios](./nostr-client-core-design-v1/local-development.md): local relay, deterministic seeds, and e2e harness.
+
+Reference docs. Useful, but not allowed to override the current direction above:
+
+- [Runtime Architecture](./nostr-client-core-design-v1/runtime-architecture.md)
+- [Event Store and Query Registry](./nostr-client-core-design-v1/data-model.md)
+- [Event Feed Strategies and Query Planning](./nostr-client-core-design-v1/event-feed-strategies.md)
+- [NIP Update Automation](./nostr-client-core-design-v1/nip-automation.md)
+
+If a reference doc says to preserve v0 compatibility, prefer the current direction in this index instead.
+
+## Initial Implementation Slices
+
+1. Clean docs so agents stop following stale TanStack DB / v0 compatibility guidance.
+2. Freeze the minimal read-path core contract.
+3. Implement the core with fake transport tests.
+4. Wire `rx-nostr` through `RxNostrTransport`.
+5. Add `/debug/v1-core` and a plain debug feed column.
+6. Validate against deterministic local relay seed scenarios.
+7. Replace existing UI paths with v1 APIs and delete v0 internals.
+
+## Done Means
+
+The read-path PoC is not done when the old UI still builds. It is done when:
+
+- local seed events can be fetched through `QueryClient`,
+- raw events are stored in `EventStore`,
+- feed membership/loading/cursor state lives in `FeedStateStore`,
+- profile data is derived from kind:0 events,
+- a debug column can render events without the old EventCache/query stack,
+- active query/store state is inspectable,
+- the path works repeatedly in local validation.

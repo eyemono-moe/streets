@@ -1,262 +1,205 @@
-# Migration Plan and Testing Strategy
+# v1 Migration Plan
 
 [Back to v1 design index](../nostr-client-core-design-v1.md)
 
-Incremental migration order, PR breakdown, and verification strategy for the v1 core cutover.
+This is now a destructive, speed-first migration plan. Existing users do not need to be protected, so the project should stop paying compatibility costs that prevent the v1 core from becoming real.
 
-## In this file
+## Principles
 
-- [Migration Strategy for Existing Repository](#migration-strategy-for-existing-repository)
-- [Suggested PR Plan](#suggested-pr-plan)
-- [Implementation Order Inside the New Core](#implementation-order-inside-the-new-core)
-- [Testing Strategy](#testing-strategy)
+1. Core first, existing UI later.
+2. Debug PoC first, production columns later.
+3. v1 APIs do not preserve v0 hook return shapes.
+4. Temporary compatibility code is allowed only inside a PR whose purpose is to delete or replace it.
+5. TanStack DB-era docs and v0 compatibility plans are historical references, not current guidance.
+6. Local deterministic validation is required before migrating production UI paths.
 
----
+## Phases
 
-## Migration Strategy for Existing Repository
+### Phase 0: Docs Reset
 
-The existing repository should be preserved. Do not rewrite from scratch in a new repository.
+Goal:
 
-### Preserve Contributor Work
+- Make the current direction obvious to agents and humans.
+- Remove or demote stale guidance that recommends TanStack DB or v0 compatibility migration.
 
-Prefer:
+Work:
 
-- `git mv` when moving files.
-- Keeping temporary compatibility wrappers only while a feature path is actively migrating.
-- Removing migrated legacy modules promptly instead of preserving long-term v0/v1 compatibility.
-- Small, reviewable PRs.
-- Clear migration comments.
+- Keep the root index short and authoritative.
+- Add a minimal core contract doc.
+- Add a debug PoC doc.
+- Mark old long design notes as reference-only if they still contain useful details.
+- Archive or rewrite docs that tell implementers to preserve old call sites.
 
-Avoid:
+Done when:
 
-- Deleting large existing files and replacing them with unrelated new files in one PR.
-- Moving everything at once.
-- Rewriting history.
-- Creating a new repository unless absolutely necessary.
+- A new agent can read the index and understand that destructive v1 migration is preferred.
+- No current doc recommends shaping new core APIs around v0 UI interfaces.
 
-### Legacy Compatibility Layer
+### Phase 1: Minimal Core Contract Freeze
 
-Existing files such as query helpers or event cache modules can become compatibility layers.
+Goal:
 
-```ts
-/**
- * Legacy query API.
- *
- * Kept to preserve existing call sites and migration history.
- * New code should import from src/core/query or feature hooks.
- */
-export { useProfile } from "@/features/profile/useProfile"
-export { useEventByID } from "@/features/event/useEventByID"
+- Decide the smallest read-path API needed for a working PoC.
+
+Scope:
+
+- `NostrTransport`
+- `EventStore`
+- `FeedStateStore`
+- `ProfileView`
+- `QueryClient`
+- `QueryRegistry`
+- debug snapshots
+
+Out of scope:
+
+- publish pipeline,
+- IndexedDB persistence,
+- SharedWorker/cross-tab ownership,
+- production UI parity,
+- reaction/repost/quote fanout.
+
+Done when:
+
+- fake transport tests can be written against the interfaces without referencing old UI hooks.
+
+### Phase 2: Read Core PoC
+
+Goal:
+
+- Prove that the v1 read core can fetch, ingest, store, derive, and expose feed state.
+
+Work:
+
+- Implement memory `EventStore` if current implementation is not sufficient.
+- Implement memory `FeedStateStore` if current implementation is not sufficient.
+- Implement minimal `QueryClient` read APIs.
+- Keep `QueryRegistry` thin: active work, cleanup, timeout, listener routing.
+- Use fake transport tests first.
+
+Done when:
+
+- `ensureEvent` ingests a known event.
+- `ensureProfile` ingests kind:0 and `ProfileView` returns metadata.
+- `ensureEventFeed` / `fetchMoreEventFeed` updates feed item ids and loading/cursor state.
+- missing requests time out and clean up.
+
+### Phase 3: rx-nostr Wiring + Local Relay Seed
+
+Goal:
+
+- Replace fake transport with `RxNostrTransport` for local relay validation.
+
+Work:
+
+- Wire `rx-nostr` only through `NostrTransport`.
+- Run deterministic local seed scenarios.
+- Confirm local relay events reach `EventStore` and feed state.
+
+Done when:
+
+- local seeded notes can be fetched through the v1 read path,
+- no UI compatibility layer is needed to verify the result.
+
+### Phase 4: Debug UI PoC
+
+Goal:
+
+- Validate the core in the browser without production column complexity.
+
+Work:
+
+- Add `/debug/v1-core`.
+- Add a plain `DebugFeedColumn`.
+- Add `DebugProfilePanel`.
+- Add active query/store snapshots.
+
+Done when:
+
+- seeded feed renders,
+- fetch-more works,
+- profile derivation is visible,
+- active subscriptions can be inspected,
+- repeated local runs are stable.
+
+### Phase 5: Correctness Hardening
+
+Goal:
+
+- Fix the core before production UI migration hides problems.
+
+Cases:
+
+- duplicate event deliveries,
+- replaceable kind:0 newer-wins,
+- same event from multiple relays,
+- backward request timeout,
+- live subscription cleanup,
+- EOSE vs feed completion,
+- cursor updates,
+- relay disconnect/reconnect basics.
+
+Done when:
+
+- each case has a focused test or deterministic debug scenario.
+
+### Phase 6: Production UI Replacement
+
+Goal:
+
+- Make existing UI use v1 APIs directly.
+
+Work:
+
+- Change component props and hooks to match v1 data structures.
+- Simplify UI temporarily where needed.
+- Remove old EventCache/query/provider paths.
+- Delete compatibility wrappers instead of extending them.
+
+Order:
+
+1. simple event rendering,
+2. profile display,
+3. simple user/feed columns,
+4. home timeline wrapper,
+5. optional relation/action/hover/quote features.
+
+Done when:
+
+- production UI and debug UI read the same v1 core state,
+- old v0 cache/query paths are gone,
+- no component emits relay requests directly.
+
+## Suggested Linear Issues
+
+1. Clean v1 architecture docs for destructive migration.
+2. Define minimal v1 read core contract.
+3. Implement read core PoC with fake transport tests.
+4. Wire rx-nostr transport and local relay seed fetch.
+5. Add v1 debug route and debug feed column.
+6. Harden read correctness with deterministic local cases.
+7. Replace production columns with v1 feed APIs.
+
+## Validation Commands
+
+Use the smallest command that proves the current phase.
+
+Documentation-only:
+
+```bash
+pnpm run check
 ```
 
-This preserves code-level continuity while allowing the new core to take over.
+Core TypeScript changes:
 
----
-
-## Suggested PR Plan
-
-### PR 1: Architecture Documents
-
-Use the split v1 design docs as the implementation reference:
-
-```txt
-docs/nostr-client-core-design-v1.md
-docs/nostr-client-core-design-v1/overview.md
-docs/nostr-client-core-design-v1/runtime-architecture.md
-docs/nostr-client-core-design-v1/data-model.md
-docs/nostr-client-core-design-v1/local-development.md
-docs/nostr-client-core-design-v1/nip-automation.md
+```bash
+pnpm vitest run <focused-test-file>
+pnpm run build
 ```
 
-Older one-off architecture notes under `docs/architecture/` may remain as historical references for specific topics, but they should not override the split v1 design docs.
+Debug/local validation:
 
-### PR 2: Transport Boundary
-
-Add:
-
-```txt
-src/core/transport/transport.ts
-src/core/transport/rx-nostr-transport.ts
+```bash
+pnpm run dev
+# plus the local relay/seed command documented in local-development.md
 ```
-
-Keep existing provider and hooks working.
-
-### PR 3: EventStore and FeedStateStore Foundation
-
-Add:
-
-```txt
-src/core/store/event-store.ts
-src/core/store/memory-event-store.ts
-src/core/store/feed-state-store.ts
-src/core/store/memory-feed-state-store.ts
-```
-
-Add unit tests.
-
-### PR 4: QueryRegistry Skeleton
-
-Add:
-
-```txt
-src/core/query/query-registry.ts
-src/core/query/query-planner.ts
-src/core/query/query-policy.ts
-```
-
-Implement feed intent registration, filter canonicalization, subscription reference counting, and EventStore/FeedStateStore integration.
-
-### PR 5: Solid Provider
-
-Add:
-
-```txt
-src/core/solid/provider.tsx
-```
-
-This provider should create and expose:
-
-```txt
-- transport
-- transport
-- eventStore
-- feedStateStore
-- queryRegistry
-```
-
-### PR 6: Migrate `useEventByID`
-
-Migrate the simplest event fetch hook first.
-
-Keep the old export path as a compatibility wrapper.
-
-### PR 7: Migrate `useProfile`
-
-Migrate profile metadata to ProfileView derived from latest kind:0 events.
-
-### PR 8: Migrate Contact List / Followees
-
-Migrate `kind:3` handling and followee queries.
-
-### PR 9: Migrate Event Feed / Infinite Columns
-
-Migrate timeline-like infinite queries to the generic event feed model:
-
-```txt
-QueryRegistry.ensureEventFeed()
-  ↓
-rx-nostr transport fetch/live subscription
-  ↓
-EventStore
-  ↓
-FeedStateStore feed membership
-  ↓
-Solid getSnapshot + subscribe adapter
-```
-
-The home timeline should become one feature wrapper around the event feed primitive, not the generic core abstraction.
-
-### PR 10: Related Event Policy
-
-Move related event fetching out of unconditional event-cache side effects.
-
-### PR 11: IndexedDB Repository
-
-Add persistent repository implementation.
-
-### PR 12: Local Seed Scenarios
-
-Add deterministic local seed tooling and edge-case scenarios.
-
-### PR 13: Cleanup Legacy Internals
-
-Remove migrated legacy internals aggressively once feature paths use the v1 core. Do not keep long-term compatibility layers.
-
----
-
-## Implementation Order Inside the New Core
-
-Recommended development order:
-
-```txt
-1. Define EventStore and ReadableStore interfaces.
-2. Implement MemoryEventStore with Nostr-filter-first query semantics.
-3. Define FeedStateStore interface.
-4. Implement MemoryFeedStateStore with per-feed snapshots.
-5. Implement RxNostrTransport.
-6. Implement QueryRegistry and wire EVENT → EventStore → FeedStateStore.
-7. Implement ProfileView from latest kind:0 events.
-8. Implement useEventByID with getSnapshot + subscribe.
-9. Implement useProfile with ProfileView.
-10. Implement contact list and relay list derived views.
-11. Implement `liveBackfill` event feed backfill.
-12. Implement `liveBackfill` event feed live subscription.
-13. Add local relay seed scenarios.
-14. Add IndexedDB EventStore.
-15. Add cross-tab improvements.
-```
-
-Do not start with a home timeline feature. Start with `useEventByID` and `useProfile`, then move to the generic event feed primitive and wrap it for home timeline later.
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-Test:
-
-```txt
-- EventStore deduplication
-- Replaceable event resolution
-- Parameterized replaceable event resolution
-- Tag index lookup
-- Seen relay tracking
-- Derived view idempotency
-- FeedStateStore item insertion
-- Query registry reference counting
-- Filter merge behavior
-```
-
-### Integration Tests
-
-Use local relays and seed data.
-
-Test:
-
-```txt
-- Initial home timeline load
-- Infinite scroll
-- Live event arrival
-- Profile metadata update
-- Duplicate event across relays
-- Missing quote target
-- Late EOSE
-- Low max_subscriptions relay
-- AUTH/CLOSED behavior where possible
-```
-
-### UI Tests
-
-Use deterministic seed scenarios.
-
-Test:
-
-```txt
-- Multi-column layout
-- Timeline rendering
-- Profile rendering
-- Reaction/repost counters
-- Quote/reply rendering
-- Asset fallback
-- Loading states
-- Error states
-```
-
----
-
-## Related Files
-
-- [Overview](./overview.md)
-- [Runtime Architecture](./runtime-architecture.md)
-- [Local Development](./local-development.md)

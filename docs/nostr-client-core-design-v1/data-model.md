@@ -158,18 +158,27 @@ It turns UI/feed intent into shared rx-nostr work and keeps UI feed state tied t
 
 ### Responsibilities
 
+For the PoC, keep `QueryRegistry` thin:
+
 ```txt
 QueryRegistry:
-  - accept EventFeedDefinition from UI/features
-  - canonicalize filters
-  - dedupe identical subscriptions
-  - batch compatible relay work
-  - reference-count active work
-  - call RxNostrTransport
-  - route incoming events into EventStore
-  - add matching event ids to FeedStateStore
-  - update per-feed loading/eose/error state
-  - release unused feed/subscription work
+  - track active relay work
+  - call NostrTransport
+  - route incoming events to the logical listener/feed
+  - clean up handles, timeouts, and completion callbacks
+  - expose debug snapshots for active work
+```
+
+Do not block the PoC on advanced dedupe, batching, relay scoring, outbox planning, or request replay caches.
+
+Later, after the debug PoC is stable, it may grow:
+
+```txt
+- canonical filter keys
+- forward/live subscription dedupe
+- short-window batching
+- reference-counted shared subscriptions
+- smarter relay planning
 ```
 
 ### Difference from FeedStateStore
@@ -181,6 +190,8 @@ EventStore = raw events and Nostr-filter-first indexes
 ```
 
 Do not merge these responsibilities. Keeping them separate prevents relay optimization from erasing per-feed loading and empty-state information.
+
+For concrete current API names such as `ensureEvent`, `ensureProfile`, `ensureEventRelations`, and their relationship to FeedStateStore completion, see [QueryClient / QueryRegistry ライフサイクル整理](./query-lifecycle-ja.md).
 
 ## Derived Views
 
