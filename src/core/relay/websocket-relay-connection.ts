@@ -1,0 +1,175 @@
+import type { NostrEvent } from "../nostr/event";
+import type {
+  RelayConnection,
+  RelayFilter,
+  RelaySubscription,
+  RelaySubscriptionHandlers,
+  RelayUrl,
+} from "./relay-connection";
+
+export type WebSocketLike = {
+  readyState: number;
+  send(data: string): void;
+  close(): void;
+  onopen: (() => void) | null;
+  onmessage: ((event: { data: string }) => void) | null;
+  onclose: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+const OPEN = 1;
+
+type PendingPublish = {
+  resolve: () => void;
+  reject: (error: Error) => void;
+};
+
+/**
+ * NIP-01 を話す 1 リレー専用の接続 (ADR-0014, ADR-0020)。
+ * Nostr ライブラリには依存しない。
+ */
+export class WebSocketRelayConnection implements RelayConnection {
+  readonly #socket: WebSocketLike;
+  readonly #handlers = new Map<string, RelaySubscriptionHandlers>();
+  readonly #publishes = new Map<string, PendingPublish[]>();
+  readonly #outbox: string[] = [];
+  #nextSubId = 0;
+  #closed = false;
+
+  constructor(
+    readonly url: RelayUrl,
+    socket: WebSocketLike,
+  ) {
+    this.#socket = socket;
+
+    socket.onopen = () => {
+      const queued = this.#outbox.splice(0);
+      for (const message of queued) socket.send(message);
+    };
+
+    socket.onmessage = (event) => this.#onMessage(event.data);
+
+    const fail = () => {
+      if (this.#closed) return;
+      this.#closed = true;
+      for (const handlers of this.#handlers.values())
+        handlers.onClosed("socket closed");
+      this.#handlers.clear();
+      for (const pending of this.#publishes.values())
+        for (const { reject } of pending) reject(new Error("socket closed"));
+      this.#publishes.clear();
+      this.#outbox.length = 0;
+    };
+    socket.onclose = fail;
+    socket.onerror = fail;
+  }
+
+  subscribe(
+    filters: RelayFilter[],
+    handlers: RelaySubscriptionHandlers,
+  ): RelaySubscription {
+    if (this.#closed) {
+      // ソケットが既に閉じている場合は即座に閉じたことを通知する。
+      // そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
+      handlers.onClosed("socket closed");
+      return { close: () => {} };
+    }
+
+    const subId = `s${this.#nextSubId++}`;
+    this.#handlers.set(subId, handlers);
+    this.#send(JSON.stringify(["REQ", subId, ...filters]));
+
+    return {
+      close: () => {
+        if (!this.#handlers.delete(subId)) return;
+        this.#send(JSON.stringify(["CLOSE", subId]));
+      },
+    };
+  }
+
+  publish(event: NostrEvent): Promise<void> {
+    if (this.#closed) {
+      return Promise.reject(new Error("socket closed"));
+    }
+
+    return new Promise((resolve, reject) => {
+      const pending = this.#publishes.get(event.id);
+      if (pending) {
+        // 同じ id のイベントが同時に publish された場合、
+        // 先に登録された Promise を上書きして迷子にしないよう配列で保持する。
+        pending.push({ resolve, reject });
+      } else {
+        this.#publishes.set(event.id, [{ resolve, reject }]);
+      }
+      this.#send(JSON.stringify(["EVENT", event]));
+    });
+  }
+
+  close(): void {
+    this.#socket.close();
+  }
+
+  #send(message: string): void {
+    if (this.#socket.readyState === OPEN) this.#socket.send(message);
+    else this.#outbox.push(message);
+  }
+
+  #onMessage(raw: string): void {
+    let message: unknown;
+    try {
+      message = JSON.parse(raw);
+    } catch {
+      return; // 壊れたメッセージは黙って捨てる
+    }
+    if (!Array.isArray(message) || typeof message[0] !== "string") return;
+
+    switch (message[0]) {
+      case "EVENT": {
+        const [, subId, event] = message;
+        if (
+          typeof subId !== "string" ||
+          typeof event !== "object" ||
+          event === null
+        )
+          return;
+        this.#handlers.get(subId)?.onEvent(event as NostrEvent);
+        return;
+      }
+      case "EOSE": {
+        const [, subId] = message;
+        if (typeof subId !== "string") return;
+        this.#handlers.get(subId)?.onEose();
+        return;
+      }
+      case "CLOSED": {
+        const [, subId, reason] = message;
+        if (typeof subId !== "string") return;
+        const handlers = this.#handlers.get(subId);
+        this.#handlers.delete(subId);
+        handlers?.onClosed(typeof reason === "string" ? reason : "closed");
+        return;
+      }
+      case "OK": {
+        const [, eventId, ok, reason] = message;
+        if (typeof eventId !== "string") return;
+        const pending = this.#publishes.get(eventId);
+        if (!pending) return;
+        this.#publishes.delete(eventId);
+        for (const { resolve, reject } of pending) {
+          if (ok) {
+            resolve();
+          } else {
+            reject(new Error(typeof reason === "string" ? reason : "rejected"));
+          }
+        }
+        return;
+      }
+      default:
+        // NOTICE / AUTH などはこの計画では扱わない
+        return;
+    }
+  }
+}
+
+export const connectRelay = (url: RelayUrl): RelayConnection =>
+  new WebSocketRelayConnection(url, new WebSocket(url) as WebSocketLike);
