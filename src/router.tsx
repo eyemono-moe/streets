@@ -71,6 +71,10 @@ const routes = [
         path: "/debug/v1-core",
         component: lazy(() => import("./routes/debug/v1-core")),
       },
+      {
+        path: "/debug/v1-section",
+        component: lazy(() => import("./routes/debug/v1-section")),
+      },
     ],
   },
 ] satisfies RouteDefinition[];

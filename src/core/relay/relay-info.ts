@@ -32,7 +32,12 @@ export class RelayInfoRegistry {
   readonly #cache = new Map<RelayUrl, Promise<RelayInfo | undefined>>();
 
   constructor(fetchImpl: typeof fetch = fetch) {
-    this.#fetch = fetchImpl;
+    // `this.#fetch(...)` below is a method-style call, so it invokes
+    // `fetchImpl` with `this` bound to the RelayInfoRegistry instance rather
+    // than `window`. The real, native `fetch` requires `this` to be a
+    // fetch-capable global and throws "Illegal invocation" otherwise, so the
+    // unbound reference must be bound up front.
+    this.#fetch = fetchImpl.bind(globalThis);
   }
 
   get(url: RelayUrl): Promise<RelayInfo | undefined> {

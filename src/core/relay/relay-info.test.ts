@@ -164,4 +164,31 @@ describe("RelayInfoRegistry", () => {
 
     await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
   });
+
+  it("regression: does not lose `this` binding when calling the injected fetch (native fetch throws 'Illegal invocation' if called as a method of another object)", async () => {
+    // Native `fetch` is receiver-sensitive: it only works when invoked with
+    // `this` bound to a fetch-capable global (e.g. `window`). Storing the
+    // reference in a private field and calling it as `this.#fetch(...)`
+    // rebinds `this` to the class instance, which real browsers reject.
+    // This double models that behaviour so the regression is caught even in
+    // an environment (like vitest/jsdom) whose real `fetch` may not enforce
+    // the same restriction.
+    const fetchCapableGlobals = new WeakSet<object>();
+    fetchCapableGlobals.add(globalThis);
+
+    function fetchImpl(this: unknown) {
+      if (!fetchCapableGlobals.has(this as object)) {
+        throw new TypeError("Failed to execute 'fetch': Illegal invocation");
+      }
+      return Promise.resolve(json({ name: "test relay" }));
+    }
+
+    const registry = new RelayInfoRegistry(
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    await expect(registry.get("wss://relay.example")).resolves.toEqual({
+      name: "test relay",
+    });
+  });
 });
