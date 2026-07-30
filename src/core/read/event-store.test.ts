@@ -54,4 +54,14 @@ describe("EventStore", () => {
     expect(store.put(tampered, "wss://a")).toBe("rejected");
     expect(store.size).toBe(0);
   });
+
+  it("returns a copy of seenRelays to prevent external mutation", () => {
+    const store = new EventStore();
+    store.put(validEvent, "wss://a");
+
+    const relays = store.seenRelays(validEvent.id);
+    relays.push("wss://attacker.com");
+
+    expect(store.seenRelays(validEvent.id)).toEqual(["wss://a"]);
+  });
 });

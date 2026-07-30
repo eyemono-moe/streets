@@ -38,6 +38,6 @@ export class EventStore {
   }
 
   seenRelays(id: string): RelayUrl[] {
-    return this.#events.get(id)?.seenRelays ?? [];
+    return [...(this.#events.get(id)?.seenRelays ?? [])];
   }
 }
