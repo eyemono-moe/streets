@@ -18,6 +18,7 @@ export type WebSocketLike = {
 };
 
 const OPEN = 1;
+const CLOSING = 2;
 
 type PendingPublish = {
   resolve: () => void;
@@ -68,9 +69,9 @@ export class WebSocketRelayConnection implements RelayConnection {
     filters: RelayFilter[],
     handlers: RelaySubscriptionHandlers,
   ): RelaySubscription {
-    if (this.#closed) {
-      // ソケットが既に閉じている場合は即座に閉じたことを通知する。
-      // そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
+    if (this.#isClosed()) {
+      // ソケットが既に閉じている(またはクローズ中の)場合は即座に閉じたことを
+      // 通知する。そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
       handlers.onClosed("socket closed");
       return { close: () => {} };
     }
@@ -88,7 +89,7 @@ export class WebSocketRelayConnection implements RelayConnection {
   }
 
   publish(event: NostrEvent): Promise<void> {
-    if (this.#closed) {
+    if (this.#isClosed()) {
       return Promise.reject(new Error("socket closed"));
     }
 
@@ -112,6 +113,16 @@ export class WebSocketRelayConnection implements RelayConnection {
   #send(message: string): void {
     if (this.#socket.readyState === OPEN) this.#socket.send(message);
     else this.#outbox.push(message);
+  }
+
+  /**
+   * `onclose`/`onerror` はソケットが実際に閉じてからしか発火しないが、
+   * `readyState` は `.close()` 呼び出しと同時に CLOSING (2) 以上へ
+   * 同期的に切り替わる。そのギャップの間に登録された subscribe/publish が
+   * 二度と来ない onopen を待ち続けないよう、readyState も直接見る。
+   */
+  #isClosed(): boolean {
+    return this.#closed || this.#socket.readyState >= CLOSING;
   }
 
   #onMessage(raw: string): void {
@@ -156,7 +167,9 @@ export class WebSocketRelayConnection implements RelayConnection {
         if (!pending) return;
         this.#publishes.delete(eventId);
         for (const { resolve, reject } of pending) {
-          if (ok) {
+          // ok は仕様上 boolean。真偽値以外の値(壊れたリレー応答)は
+          // 成功として扱わない。
+          if (ok === true) {
             resolve();
           } else {
             reject(new Error(typeof reason === "string" ? reason : "rejected"));

@@ -20,7 +20,11 @@ const fakeSocket = () => {
   const socket: WebSocketLike = {
     readyState: 0,
     send: (data: string) => sent.push(data),
-    close: vi.fn(),
+    // Real WebSocket flips readyState to CLOSING synchronously on .close(),
+    // well before the async "close" event (onclose) fires. Mirror that here.
+    close: vi.fn(() => {
+      socket.readyState = 2;
+    }),
     onopen: null,
     onmessage: null,
     onclose: null,
@@ -152,5 +156,71 @@ describe("WebSocketRelayConnection", () => {
     receive(["OK", "note-1", false, "invalid: bad signature"]);
 
     await expect(published).rejects.toThrow("invalid: bad signature");
+  });
+
+  it("reports subscribe as closed instead of hanging once the socket has closed", () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+    socket.onclose?.();
+
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+
+    expect(handlers.onClosed).toHaveBeenCalledWith("socket closed");
+  });
+
+  it("rejects publish instead of hanging once the socket has closed", async () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+    socket.onclose?.();
+
+    const published = connection.publish(event("note-1"));
+
+    await expect(published).rejects.toThrow("socket closed");
+  });
+
+  it("settles every pending publish for the same event id when OK arrives", async () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+
+    const first = connection.publish(event("note-1"));
+    const second = connection.publish(event("note-1"));
+    receive(["OK", "note-1", true, ""]);
+
+    await expect(first).resolves.toBeUndefined();
+    await expect(second).resolves.toBeUndefined();
+  });
+
+  it("rejects publish when OK's ok field is a truthy non-boolean value", async () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+
+    const published = connection.publish(event("note-1"));
+    // A malformed relay response: "false" is a non-empty string, so it is
+    // truthy in JS even though the relay clearly means "not ok".
+    receive(["OK", "note-1", "false", "invalid: bad signature"]);
+
+    await expect(published).rejects.toThrow();
+  });
+
+  it("does not hang when subscribe/publish is called synchronously after close()", async () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+
+    connection.close();
+    // socket.onclose hasn't fired yet (it's async on a real WebSocket), but
+    // readyState already reflects CLOSING synchronously.
+
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    expect(handlers.onClosed).toHaveBeenCalledWith("socket closed");
+
+    const published = connection.publish(event("note-1"));
+    await expect(published).rejects.toThrow("socket closed");
   });
 });
