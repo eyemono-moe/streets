@@ -39,13 +39,14 @@ export class SectionReader {
   }
 
   get items(): NostrEvent[] {
-    return this.#items;
+    return [...this.#items];
   }
 
   get status(): SectionStatus {
     const unreachableRelays = this.#relays.filter((r) => r.unreachable).length;
     const live = this.#relays.filter((r) => !r.unreachable);
-    const allSettled = live.length > 0 && live.every((r) => r.eose);
+    // 待つべき生きたリレーが残っていなければ（全滅、または一つも無ければ）空虚に真として settled とする
+    const allSettled = live.every((r) => r.eose);
 
     const phase: SectionStatus["phase"] = allSettled
       ? "settled"
@@ -103,10 +104,12 @@ export class SectionReader {
     if (this.#ids.has(event.id)) return;
 
     this.#ids.add(event.id);
-    this.#items = this.#sorted([...this.#items, event]).slice(
-      0,
-      MAX_ITEMS_PER_SECTION,
-    );
+    // 上限は表示順に関わらず「新しい順」で決める。表示順でスライスすると
+    // 昇順表示時に古い方から採用してしまい、上限到達後キャップが凍結してしまう。
+    const mostRecent = [...this.#items, event]
+      .sort((a, b) => b.created_at - a.created_at)
+      .slice(0, MAX_ITEMS_PER_SECTION);
+    this.#items = this.#sorted(mostRecent);
 
     // 上限を超えて落ちた分は id 集合からも外す
     if (this.#ids.size > this.#items.length) {

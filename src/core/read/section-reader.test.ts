@@ -106,6 +106,16 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
   });
 
+  it("settles once every relay becomes unreachable, with no relays left to wait on", () => {
+    const { relay, reader } = setup();
+    reader.start();
+
+    relay.emitClosed(0, "blocked: rate limited");
+
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete?.unreachableRelays).toBe(1);
+  });
+
   it("keeps at most MAX_ITEMS_PER_SECTION items, dropping the oldest", () => {
     const { relay, reader } = setup();
     reader.start();
@@ -116,6 +126,28 @@ describe("SectionReader", () => {
 
     expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
     expect(reader.items.at(-1)?.id).toBe("note-10");
+  });
+
+  it("keeps the most recently arrived items when capped in ascending order", () => {
+    const relay = new FakeRelayConnection("wss://a");
+    const reader = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      order: "created-at-asc",
+      store: new PassThroughStore(),
+      openRelay: () => relay,
+    });
+    reader.start();
+
+    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
+      relay.emitEvent(0, event(`note-${i}`, 1000 + i));
+    }
+
+    // Ascending display order: oldest-kept item first, newest-arrived item last.
+    // If the cap wrongly kept the *oldest* 500 arrivals instead of the most
+    // recent 500, this would read "note-0" / "note-499" instead.
+    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
+    expect(reader.items[0]?.id).toBe("note-10");
+    expect(reader.items.at(-1)?.id).toBe(`note-${MAX_ITEMS_PER_SECTION + 9}`);
   });
 
   it("notifies listeners when items change", () => {
@@ -135,5 +167,17 @@ describe("SectionReader", () => {
     reader.stop();
 
     expect(relay.subscriptions[0].closed).toBe(true);
+  });
+
+  it("does not expose its internal items array by reference", () => {
+    const { relay, reader } = setup();
+    reader.start();
+
+    relay.emitEvent(0, event("first", 100));
+    const items = reader.items;
+    items.push(event("mutated", 999));
+    items.length = 0;
+
+    expect(reader.items.map((e) => e.id)).toEqual(["first"]);
   });
 });
