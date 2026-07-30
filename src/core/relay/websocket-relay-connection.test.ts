@@ -223,4 +223,84 @@ describe("WebSocketRelayConnection", () => {
     const published = connection.publish(event("note-1"));
     await expect(published).rejects.toThrow("socket closed");
   });
+
+  it("ignores an EVENT message whose event payload is missing", () => {
+    const { socket, sent, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    open();
+    const subId = JSON.parse(sent[0])[1];
+
+    expect(() => receive(["EVENT", subId])).not.toThrow();
+
+    expect(handlers.onEvent).not.toHaveBeenCalled();
+  });
+
+  it("ignores an EVENT message with a non-string subscription id", () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    open();
+
+    expect(() => receive(["EVENT", 5, event("note-1")])).not.toThrow();
+
+    expect(handlers.onEvent).not.toHaveBeenCalled();
+  });
+
+  it("ignores an EOSE message with a non-string subscription id", () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    open();
+
+    expect(() => receive(["EOSE", 5])).not.toThrow();
+
+    expect(handlers.onEose).not.toHaveBeenCalled();
+  });
+
+  it("ignores a CLOSED message with a non-string subscription id and non-string reason", () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    open();
+
+    expect(() => receive(["CLOSED", 5, 3])).not.toThrow();
+
+    expect(handlers.onClosed).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a default reason when CLOSED's reason is not a string", () => {
+    const { socket, sent, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    connection.subscribe([{ kinds: [1] }], handlers);
+    open();
+    const subId = JSON.parse(sent[0])[1];
+
+    // A malformed relay response: reason is a number, not a string. It must
+    // not be forwarded as-is to a handler that expects a string reason.
+    expect(() => receive(["CLOSED", subId, 3])).not.toThrow();
+
+    expect(handlers.onClosed).toHaveBeenCalledWith("closed");
+    expect(handlers.onClosed).not.toHaveBeenCalledWith(3);
+  });
+
+  it("ignores an OK message with a non-string event id", async () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    open();
+
+    const published = connection.publish(event("note-1"));
+
+    expect(() => receive(["OK", 5, true, ""])).not.toThrow();
+
+    // The bogus OK must not have settled (resolved or rejected) the
+    // pending publish; only the real, correctly-typed OK below may.
+    receive(["OK", "note-1", true, ""]);
+    await expect(published).resolves.toBeUndefined();
+  });
 });
