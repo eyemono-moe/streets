@@ -121,4 +121,47 @@ describe("RelayInfoRegistry", () => {
       supported_nips: [1, 11, 50],
     });
   });
+
+  it("returns undefined when response status is 404", async () => {
+    const registry = new RelayInfoRegistry(
+      (async () =>
+        new Response(JSON.stringify({ name: "test" }), {
+          status: 404,
+        })) as unknown as typeof fetch,
+    );
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+  });
+
+  it("returns undefined when response status is 500", async () => {
+    const registry = new RelayInfoRegistry(
+      (async () =>
+        new Response(JSON.stringify({ name: "test" }), {
+          status: 500,
+        })) as unknown as typeof fetch,
+    );
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+  });
+
+  it("returns undefined when the response body is null", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json(null)) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+  });
+
+  it("returns undefined when the response body is a number", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json(42)) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+  });
+
+  it("returns undefined when the response body is an array", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json([1, 2, 3])) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+  });
 });
