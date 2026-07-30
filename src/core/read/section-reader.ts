@@ -17,10 +17,17 @@ export type SectionReaderOptions = {
   order: Order;
   store: EventStore;
   openRelay: (url: RelayUrl) => RelayConnection;
+  /**
+   * `openRelay` が返した接続の所有権を返す先。省略時は呼び出し側が接続の
+   * 生死を管理する(このクラスは close() を呼ばない)。将来の接続プール
+   * (30 接続上限, ADR-0005/0011) はここに参照カウントの解放を差し込む。
+   */
+  releaseRelay?: (url: RelayUrl, connection: RelayConnection) => void;
 };
 
 type RelayState = {
   url: RelayUrl;
+  connection: RelayConnection;
   subscription: RelaySubscription | null;
   eose: boolean;
   unreachable: boolean;
@@ -66,15 +73,16 @@ export class SectionReader {
     this.#started = true;
 
     for (const url of this.#options.source.relays ?? []) {
+      const connection = this.#options.openRelay(url);
       const state: RelayState = {
         url,
+        connection,
         eose: false,
         unreachable: false,
         subscription: null,
       };
       this.#relays.push(state);
 
-      const connection = this.#options.openRelay(url);
       state.subscription = connection.subscribe(this.#options.source.filters, {
         onEvent: (event) => this.#onEvent(event, url),
         onEose: () => {
@@ -90,7 +98,10 @@ export class SectionReader {
   }
 
   stop(): void {
-    for (const relay of this.#relays) relay.subscription?.close();
+    for (const relay of this.#relays) {
+      relay.subscription?.close();
+      this.#options.releaseRelay?.(relay.url, relay.connection);
+    }
     this.#relays = [];
     this.#started = false;
   }

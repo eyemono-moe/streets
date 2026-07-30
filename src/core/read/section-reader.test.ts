@@ -177,6 +177,33 @@ describe("SectionReader", () => {
     expect(relay.subscriptions[0].closed).toBe(true);
   });
 
+  it("releases each relay's connection via releaseRelay on stop, passing the url and the connection openRelay returned", () => {
+    const relay = new FakeRelayConnection("wss://a");
+    const releaseRelay = vi.fn();
+    const reader = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      order: "created-at-desc",
+      store: new PassThroughStore(),
+      openRelay: () => relay,
+      releaseRelay,
+    });
+    reader.start();
+    reader.stop();
+
+    expect(relay.subscriptions[0].closed).toBe(true);
+    expect(releaseRelay).toHaveBeenCalledTimes(1);
+    expect(releaseRelay).toHaveBeenCalledWith("wss://a", relay);
+  });
+
+  it("does not close the underlying connection itself on stop when releaseRelay is not provided (borrow case: the connection may be shared/pooled)", () => {
+    const { relay, reader } = setup();
+    reader.start();
+    reader.stop();
+
+    expect(relay.subscriptions[0].closed).toBe(true);
+    expect(relay.closed).toBe(false);
+  });
+
   it("does not expose its internal items array by reference", () => {
     const { relay, reader } = setup();
     reader.start();

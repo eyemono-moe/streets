@@ -10,6 +10,8 @@ export type CreateSectionOptions = {
   order?: Order;
   store: EventStore;
   openRelay: (url: RelayUrl) => RelayConnection;
+  /** 接続の所有権を返す先。省略時は呼び出し側が接続の生死を管理する。 */
+  releaseRelay?: (url: RelayUrl, connection: RelayConnection) => void;
 };
 
 export type Section = {
@@ -34,6 +36,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       order: options.order ?? "created-at-desc",
       store: options.store,
       openRelay: options.openRelay,
+      releaseRelay: options.releaseRelay,
     });
 
     const sync = () => {

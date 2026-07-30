@@ -22,7 +22,14 @@ const V1SectionDebug = () => {
     relays: [relayUrl()],
   }));
 
-  const section = createSection({ source, store, openRelay: connectRelay });
+  const section = createSection({
+    source,
+    store,
+    openRelay: connectRelay,
+    // このルートは connectRelay で 1 セクション専用のソケットを開くだけ
+    // (プールで共有しない) ので、自分で開いた接続を自分で閉じてよい。
+    releaseRelay: (_url, connection) => connection.close(),
+  });
 
   return (
     <div style={{ padding: "16px", "font-family": "monospace" }}>
