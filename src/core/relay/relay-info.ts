@@ -37,11 +37,19 @@ export class RelayInfoRegistry {
 
   get(url: RelayUrl): Promise<RelayInfo | undefined> {
     const cached = this.#cache.get(url);
-    if (cached) return cached;
+    if (cached) {
+      // Wrap to make a copy for each caller, preventing state leakage
+      return cached.then((result) =>
+        result ? JSON.parse(JSON.stringify(result)) : undefined,
+      );
+    }
 
     const pending = this.#load(url);
     this.#cache.set(url, pending);
-    return pending;
+    // Wrap to make a copy, preventing state leakage
+    return pending.then((result) =>
+      result ? JSON.parse(JSON.stringify(result)) : undefined,
+    );
   }
 
   async supportsNip(url: RelayUrl, nip: number): Promise<boolean> {

@@ -99,4 +99,26 @@ describe("RelayInfoRegistry", () => {
 
     await expect(registry.maxLimit("wss://a")).resolves.toBe(250);
   });
+
+  it("prevents state leakage by making a copy for each caller", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({
+        name: "relay",
+        supported_nips: [1, 11, 50],
+      })) as unknown as typeof fetch);
+
+    const info1 = await registry.get("wss://a");
+    // Mutate the first result
+    if (info1) {
+      info1.name = "mutated";
+      info1.supported_nips?.push(999);
+    }
+
+    // Second caller should get the original data
+    const info2 = await registry.get("wss://a");
+    expect(info2).toEqual({
+      name: "relay",
+      supported_nips: [1, 11, 50],
+    });
+  });
 });
