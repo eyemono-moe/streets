@@ -45,8 +45,9 @@ export class SectionReader {
   get status(): SectionStatus {
     const unreachableRelays = this.#relays.filter((r) => r.unreachable).length;
     const live = this.#relays.filter((r) => !r.unreachable);
-    // 待つべき生きたリレーが残っていなければ（全滅、または一つも無ければ）空虚に真として settled とする
-    const allSettled = live.every((r) => r.eose);
+    // 待つべき生きたリレーが残っていなければ（全滅、または一つも無ければ）空虚に真として settled とする。
+    // ただし start() 前は #relays も空になるため、#started で「始まってすらいない」場合を除外する。
+    const allSettled = this.#started && live.every((r) => r.eose);
 
     const phase: SectionStatus["phase"] = allSettled
       ? "settled"

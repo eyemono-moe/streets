@@ -45,6 +45,14 @@ describe("SectionReader", () => {
     expect(reader.items).toEqual([]);
   });
 
+  it("reports initial phase with no incomplete block before start() is ever called", () => {
+    const { reader } = setup();
+
+    expect(reader.status.phase).toBe("initial");
+    expect(reader.status.incomplete).toBeUndefined();
+    expect(reader.items).toEqual([]);
+  });
+
   it("moves to streaming once the first event arrives", () => {
     const { relay, reader } = setup();
     reader.start();
