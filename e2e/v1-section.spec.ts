@@ -32,7 +32,12 @@ test("lists newest events first", async ({ page }) => {
 test("shows the NIP-11 document of the local relay", async ({ page }) => {
   await page.goto("/debug/v1-section");
 
-  await expect(page.getByTestId("relay-nips")).toContainText("1", {
-    timeout: 15_000,
-  });
+  // `toContainText("1")` would also pass for e.g. supported_nips: [21], so it
+  // does not actually prove the NIP-11 document was fetched. Require NIP 1
+  // to appear as its own comma-separated token (not merely as a substring of
+  // some other NIP number), which only a genuine document lists.
+  await expect(page.getByTestId("relay-nips")).toHaveText(
+    /supported_nips: (\d+,)*1(,\d+)*$/,
+    { timeout: 15_000 },
+  );
 });
