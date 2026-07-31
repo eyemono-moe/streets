@@ -1864,9 +1864,20 @@ git commit -m "feat(read): wire createSection and NIP-11 into a debug route veri
 
 1. **Outbox ルーティング** — `RoutingTable`、ブートストラップ専用経路、ログイン時ウォームアップ、クエリのリレー別分割、`unroutableAuthors` の計上（ADR-0005 / ADR-0016）
 2. **needs の波状解決とレンダラ登録** — `defineRenderer`、フォールバック表示、深さ上限 2 階層（ADR-0003 / ADR-0004 / ADR-0017）
-3. **ページネーションと上限制御** — `loadMore` の実装、リレー別カーソル、`limitation.max_limit` の尊重、30 接続上限（ADR-0005 / ADR-0011）
+3. **ページネーション・接続プール・再接続** — `loadMore` の実装、リレー別カーソル、`limitation.max_limit` の尊重、30 接続上限、**および再接続とバックオフ**（ADR-0005 / ADR-0011 / ADR-0021）
+   - `loadMore` は `source` の変更として実装してはならない。`createSection` は `source()` の同一性が変わると `SectionReader` ごと作り直すため、全アイテムを捨ててソケットを張り直してしまう。`SectionReader.loadMore()` として、リレーごとに追加の後方購読を張って追記する形にする。
+   - 再接続は接続プールと同じ計画に置く。**所有していない接続は再接続できない**ため、両者は同一の関心事。詳細は [ADR-0021](../../adr/0021-reconnection-policy.md)（proposed、実装前に確定させること）。
 4. **永続化** — `EventPersistence`、IndexedDB、2 バケット、`kind:5` の永続化と水和時適用（ADR-0018 / ADR-0019）
 5. **署名器と書き込み** — NIP-07 / NIP-46、楽観的更新、署名要求のデバウンス（ADR-0008 / ADR-0010）
 6. **NIP-19 の TLV 対応** — `nevent` / `naddr` / `nprofile`、リンク解決
 7. **セクション合成からデッキまで** — 複数セクションのカラム、デッキ、`kind:30078` 保存、既定デッキ（ADR-0009 / ADR-0013）
-8. **旧実装の削除** — `src/core/{transport,query,repository,view,store}`、`nostr-tools` / `rx-nostr` / `@rust-nostr/nostr-sdk` 依存、`deckSchema/v0.ts`
+8. **旧実装の削除** — 削除対象は以下の通り。**新旧が同居しているディレクトリがあるため、ディレクトリ単位では消せない。**
+   - `src/core/{transport,query,repository,view,store}` — ディレクトリごと
+   - `src/core/solid/` のうち `provider.tsx` と `use-*.ts`（`create-section.ts` と `create-section.test.tsx` は**新**、残す）
+   - `src/core/nostr/replaceable.ts` と `replaceable.test.ts`（`event.ts` / `nip19.ts` は**新**、残す）
+   - `src/routes/debug/v1-core.tsx` と `v1-core.test.tsx`
+   - `src/features/Column/libs/deckSchema/v0.ts`
+   - `nostr-tools` / `rx-nostr` / `rx-nostr-crypto` / `@rust-nostr/nostr-sdk` / `nostr-typedef` / `nip07-awaiter` の依存
+   - **注**: `e2e/fixtures/seed.ts` は `nostr-tools` を使うが、これはテスト用の共有インフラであり削除対象ではない。依存を落とす際は devDependency として残すか、`@noble` ベースに書き換えるかを決めること。
+
+   この一覧は忘れると腐る。**同居を構造的に解消する**ため、次の計画の冒頭で新読み取り層を `src/core/solid/` `src/core/nostr/` から独立したディレクトリへ移すことを検討する（レビュー済み差分を動かすので、このスライスの中ではやらない）。

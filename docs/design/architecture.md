@@ -35,6 +35,8 @@ RelayConnection   EventPersistence     署名器
 
 NIP-11 のリレー情報は `RelayInfoRegistry` が別に扱う。`wss://` を `https://` に置換して `Accept: application/nostr+json` で GET するだけ。ブラウザから relay のドメインへ直接投げるため CORS で失敗しうるので、**失敗しても `undefined` を返して動作を継続する**。用途は 3 つ — リレー詳細カラムの固定セクション、NIP-50 対応判定、`limitation.max_limit` を超える `limit` を送らないこと。
 
+**切断は現時点では終局的である。** `onclose` / `onerror` は接続を閉じた状態にし、全購読に `onClosed` を配る。再接続は行わないため、そのカラムはコンポーネントが再マウントされるまで復帰しない。ただし切断は `status.incomplete.unreachableRelays` として表面化するので、[ADR-0011](../adr/0011-performance-budget.md) の「黙って欠落させてはならない」は満たしている。**未実装であることと壊れていることは区別できる。** 再接続の方針は [ADR-0021](../adr/0021-reconnection-policy.md)（proposed）にあり、接続プールと同じ計画で実装する。
+
 ### `EventPersistence`
 
 IndexedDB への退避と起動時の水和。読み取り経路には介在しない（読み取りはメモリから同期で行う）。
