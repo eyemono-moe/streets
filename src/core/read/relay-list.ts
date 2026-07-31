@@ -19,6 +19,7 @@ export const parseRelayList = (event: NostrEvent): RelayListEntry[] => {
   const byUrl = new Map<RelayUrl, RelayListEntry>();
 
   for (const tag of event.tags) {
+    if (!Array.isArray(tag)) continue;
     if (tag[0] !== "r") continue;
     const raw = tag[1];
     if (typeof raw !== "string") continue;
