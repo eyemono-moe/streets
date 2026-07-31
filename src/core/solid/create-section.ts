@@ -3,15 +3,14 @@ import type { NostrEvent } from "../nostr/event";
 import type { EventStore } from "../read/event-store";
 import { SectionReader } from "../read/section-reader";
 import type { NostrSource, Order, SectionStatus } from "../read/source";
-import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
+import type { SubscriptionManager } from "../read/subscription-manager";
 
 export type CreateSectionOptions = {
   source: Accessor<NostrSource>;
   order?: Order;
   store: EventStore;
-  openRelay: (url: RelayUrl) => RelayConnection;
-  /** 接続の所有権を返す先。省略時は呼び出し側が接続の生死を管理する。 */
-  releaseRelay?: (url: RelayUrl, connection: RelayConnection) => void;
+  /** 接続と購読は manager が所有する (ADR-0023) */
+  manager: SubscriptionManager;
 };
 
 export type Section = {
@@ -35,8 +34,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       source: options.source(),
       order: options.order ?? "created-at-desc",
       store: options.store,
-      openRelay: options.openRelay,
-      releaseRelay: options.releaseRelay,
+      manager: options.manager,
     });
 
     const sync = () => {

@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import { EventStore } from "./event-store";
+import { RoutingTable } from "./routing-table";
 import { SectionReader } from "./section-reader";
 import { MAX_ITEMS_PER_SECTION } from "./source";
+import { SubscriptionManager } from "./subscription-manager";
 
 // Task 1/4 と同じく、その場で署名して自己整合的なイベントを作る。実 EventStore
 // は verifyEvent を通すため、PassThroughStore と違って本物の署名が要る。
@@ -53,15 +55,32 @@ const event = (id: string, createdAt: number): NostrEvent => ({
   sig: "sig",
 });
 
-const setup = () => {
-  const relay = new FakeRelayConnection("wss://a");
-  const reader = new SectionReader({
-    source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
-    order: "created-at-desc",
-    store: new PassThroughStore(),
-    openRelay: () => relay,
+const setup = (relayUrls = ["wss://a/"]) => {
+  const relays = new Map<string, FakeRelayConnection>();
+  const store = new PassThroughStore();
+  const manager = new SubscriptionManager({
+    store,
+    routing: new RoutingTable(store),
+    connect: (url) => {
+      const relay = new FakeRelayConnection(url);
+      relays.set(url, relay);
+      return relay;
+    },
+    fallbackRelays: ["wss://fallback/"],
   });
-  return { relay, reader };
+  const reader = new SectionReader({
+    source: { type: "nostr", filters: [{ kinds: [1] }], relays: relayUrls },
+    order: "created-at-desc",
+    store,
+    manager,
+  });
+  return {
+    relays,
+    store,
+    manager,
+    reader,
+    relay: () => relays.get(relayUrls[0]),
+  };
 };
 
 describe("SectionReader", () => {
@@ -85,7 +104,7 @@ describe("SectionReader", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitEvent(0, event("first", 100));
+    relay()?.emitEvent(0, event("first", 100));
 
     expect(reader.status.phase).toBe("streaming");
     expect(reader.items.map((e) => e.id)).toEqual(["first"]);
@@ -95,8 +114,8 @@ describe("SectionReader", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitEvent(0, event("first", 100));
-    relay.emitEose(0);
+    relay()?.emitEvent(0, event("first", 100));
+    relay()?.emitEose(0);
 
     expect(reader.status.phase).toBe("settled");
   });
@@ -105,30 +124,19 @@ describe("SectionReader", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitEvent(0, event("older", 100));
-    relay.emitEvent(0, event("newer", 200));
+    relay()?.emitEvent(0, event("older", 100));
+    relay()?.emitEvent(0, event("newer", 200));
 
     expect(reader.items.map((e) => e.id)).toEqual(["newer", "older"]);
   });
 
   it("does not list the same event twice when two relays deliver it", () => {
-    const relayA = new FakeRelayConnection("wss://a");
-    const relayB = new FakeRelayConnection("wss://b");
-    const reader = new SectionReader({
-      source: {
-        type: "nostr",
-        filters: [{ kinds: [1] }],
-        relays: ["wss://a", "wss://b"],
-      },
-      order: "created-at-desc",
-      store: new PassThroughStore(),
-      openRelay: (url) => (url === "wss://a" ? relayA : relayB),
-    });
+    const { relays, reader } = setup(["wss://a/", "wss://b/"]);
     reader.start();
 
     const shared = event("shared", 100);
-    relayA.emitEvent(0, shared);
-    relayB.emitEvent(0, shared);
+    relays.get("wss://a/")?.emitEvent(0, shared);
+    relays.get("wss://b/")?.emitEvent(0, shared);
 
     expect(reader.items).toHaveLength(1);
   });
@@ -137,7 +145,7 @@ describe("SectionReader", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitClosed(0, "blocked: rate limited");
+    relay()?.emitClosed(0, "blocked: rate limited");
 
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
   });
@@ -146,7 +154,7 @@ describe("SectionReader", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitClosed(0, "blocked: rate limited");
+    relay()?.emitClosed(0, "blocked: rate limited");
 
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
@@ -157,7 +165,7 @@ describe("SectionReader", () => {
     reader.start();
 
     for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
-      relay.emitEvent(0, event(`note-${i}`, 1000 + i));
+      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
     expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
@@ -165,17 +173,32 @@ describe("SectionReader", () => {
   });
 
   it("keeps the most recently arrived items when capped in ascending order", () => {
-    const relay = new FakeRelayConnection("wss://a");
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
     const reader = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
       order: "created-at-asc",
-      store: new PassThroughStore(),
-      openRelay: () => relay,
+      store,
+      manager,
     });
     reader.start();
 
     for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
-      relay.emitEvent(0, event(`note-${i}`, 1000 + i));
+      relays.get("wss://a/")?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
     // Ascending display order: oldest-kept item first, newest-arrived item last.
@@ -192,7 +215,7 @@ describe("SectionReader", () => {
     reader.subscribe(listener);
     reader.start();
 
-    relay.emitEvent(0, event("first", 100));
+    relay()?.emitEvent(0, event("first", 100));
 
     expect(listener).toHaveBeenCalled();
   });
@@ -202,41 +225,28 @@ describe("SectionReader", () => {
     reader.start();
     reader.stop();
 
-    expect(relay.subscriptions[0].closed).toBe(true);
+    expect(relay()?.subscriptions[0].closed).toBe(true);
   });
 
-  it("releases each relay's connection via releaseRelay on stop, passing the url and the connection openRelay returned", () => {
-    const relay = new FakeRelayConnection("wss://a");
-    const releaseRelay = vi.fn();
-    const reader = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
-      order: "created-at-desc",
-      store: new PassThroughStore(),
-      openRelay: () => relay,
-      releaseRelay,
-    });
+  // Connection ownership moved to SubscriptionManager (ADR-0023): the reader
+  // no longer holds a raw connection to release, it releases its handle and
+  // the manager decides whether the underlying connection actually closes
+  // (refcounted across sections sharing the same relay url). With only one
+  // section on this relay, releasing its handle drops the last reference.
+  it("closes the connection via the manager once the last section releases it on stop", () => {
+    const { manager, reader } = setup();
     reader.start();
+    expect(manager.connectionCount).toBe(1);
+
     reader.stop();
-
-    expect(relay.subscriptions[0].closed).toBe(true);
-    expect(releaseRelay).toHaveBeenCalledTimes(1);
-    expect(releaseRelay).toHaveBeenCalledWith("wss://a", relay);
-  });
-
-  it("does not close the underlying connection itself on stop when releaseRelay is not provided (borrow case: the connection may be shared/pooled)", () => {
-    const { relay, reader } = setup();
-    reader.start();
-    reader.stop();
-
-    expect(relay.subscriptions[0].closed).toBe(true);
-    expect(relay.closed).toBe(false);
+    expect(manager.connectionCount).toBe(0);
   });
 
   it("does not expose its internal items array by reference", () => {
     const { relay, reader } = setup();
     reader.start();
 
-    relay.emitEvent(0, event("first", 100));
+    relay()?.emitEvent(0, event("first", 100));
     const items = reader.items;
     items.push(event("mutated", 999));
     items.length = 0;
@@ -252,30 +262,47 @@ describe("SectionReader", () => {
   // column showing the same author).
   it("lists an event in every section sharing a real EventStore, not just the section that inserted it first", () => {
     const sharedStore = new EventStore();
-    const relayA = new FakeRelayConnection("wss://a");
-    const relayB = new FakeRelayConnection("wss://b");
+    const relays = new Map<string, FakeRelayConnection>();
+    const manager = new SubscriptionManager({
+      store: sharedStore,
+      routing: new RoutingTable(sharedStore),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
 
     const readerA = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
       order: "created-at-desc",
       store: sharedStore,
-      openRelay: () => relayA,
+      manager,
     });
     const readerB = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://b"] },
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://b/"],
+      },
       order: "created-at-desc",
       store: sharedStore,
-      openRelay: () => relayB,
+      manager,
     });
     readerA.start();
     readerB.start();
 
     const shared = signedEvent("hello from both sections", 100);
     // readerA's relay delivers first, inserting into the shared store...
-    relayA.emitEvent(0, shared);
+    relays.get("wss://a/")?.emitEvent(0, shared);
     // ...then readerB's relay delivers the very same event. Today this
     // returns "duplicate" from the store and readerB silently drops it.
-    relayB.emitEvent(0, shared);
+    relays.get("wss://b/")?.emitEvent(0, shared);
 
     expect(readerA.items.map((e) => e.id)).toEqual([shared.id]);
     expect(readerB.items.map((e) => e.id)).toEqual([shared.id]);
@@ -292,26 +319,43 @@ describe("SectionReader", () => {
   // cap, corrupting ordering/eviction for everyone reading that store.
   it("lists the store's verified copy, not a forged object a second relay resends under a genuine event's id", () => {
     const sharedStore = new EventStore();
-    const relayA = new FakeRelayConnection("wss://a");
-    const relayB = new FakeRelayConnection("wss://b");
+    const relays = new Map<string, FakeRelayConnection>();
+    const manager = new SubscriptionManager({
+      store: sharedStore,
+      routing: new RoutingTable(sharedStore),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
 
     const readerA = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
       order: "created-at-desc",
       store: sharedStore,
-      openRelay: () => relayA,
+      manager,
     });
     const readerB = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://b"] },
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://b/"],
+      },
       order: "created-at-desc",
       store: sharedStore,
-      openRelay: () => relayB,
+      manager,
     });
     readerA.start();
     readerB.start();
 
     const genuine = signedEvent("GENUINE", 100);
-    relayA.emitEvent(0, genuine);
+    relays.get("wss://a/")?.emitEvent(0, genuine);
 
     // relayB is malicious: it reuses genuine's id but swaps in a different
     // pubkey, content, a string created_at, and a bogus sig. EventStore.put
@@ -325,7 +369,7 @@ describe("SectionReader", () => {
       created_at: "1700000000" as any,
       sig: "00".repeat(64),
     };
-    relayB.emitEvent(0, forged);
+    relays.get("wss://b/")?.emitEvent(0, forged);
 
     expect(readerB.items).toHaveLength(1);
     expect(readerB.items[0]?.content).toBe("GENUINE");
@@ -333,67 +377,111 @@ describe("SectionReader", () => {
     expect(typeof readerB.items[0]?.created_at).toBe("number");
   });
 
-  // IMPORTANT 2: a source with no explicit `relays` opens nothing, so `live`
-  // is vacuously empty and the section reports "settled" with no incomplete
-  // block — indistinguishable from "checked everywhere, found nothing".
-  // `relays` is omitted precisely to mean "route via Outbox" (not implemented
-  // yet), so this is the shape every source will have once routing lands.
-  it("surfaces incomplete when a source has no relays (relays: undefined)", () => {
-    const reader = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }] },
-      order: "created-at-desc",
-      store: new EventStore(),
-      openRelay: () => {
-        throw new Error("must not open any relay when none are configured");
+  // An explicit `relays: []` bypasses Outbox routing entirely (NostrSource's
+  // `relays` doc comment) and asks for nothing: the manager opens no
+  // connection and reports zero unroutable authors, so the section has
+  // nothing to wait on and settles immediately with no incomplete block.
+  // (Contrast with `relays: undefined`, covered below, which does route.)
+  it("settles immediately with no incomplete block when the source explicitly lists zero relays", () => {
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: () => {
+        throw new Error("must not open any relay for an explicit empty list");
       },
+      fallbackRelays: ["wss://fallback/"],
     });
-    reader.start();
-
-    expect(reader.status.incomplete).toBeDefined();
-  });
-
-  it("surfaces incomplete when a source has no relays (relays: [])", () => {
     const reader = new SectionReader({
       source: { type: "nostr", filters: [{ kinds: [1] }], relays: [] },
       order: "created-at-desc",
-      store: new EventStore(),
-      openRelay: () => {
-        throw new Error("must not open any relay when none are configured");
-      },
+      store,
+      manager,
     });
     reader.start();
 
-    expect(reader.status.incomplete).toBeDefined();
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete).toBeUndefined();
   });
+});
 
-  it("reports unroutableAuthors as the number of distinct authors named across filters when there are no relays", () => {
+const relayListEvent = (seed: number, tags: string[][]): NostrEvent => {
+  const sk = Uint8Array.from(
+    Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
+  );
+  const unsigned = {
+    pubkey: bytesToHex(schnorr.getPublicKey(sk)),
+    created_at: 1_700_000_000,
+    kind: 10002,
+    tags,
+    content: "",
+  };
+  const id = computeEventId(unsigned);
+  return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
+};
+
+describe("SectionReader with Outbox routing", () => {
+  it("waits on the relays the routing table chose, not a hardcoded list", () => {
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new EventStore();
+    const authorList = relayListEvent(7, [["r", "wss://chosen/", "write"]]);
+    store.put(authorList, "wss://indexer/");
+
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
     const reader = new SectionReader({
       source: {
         type: "nostr",
-        filters: [{ authors: ["alice", "bob"] }, { authors: ["bob", "carol"] }],
+        filters: [{ kinds: [1], authors: [authorList.pubkey] }],
       },
       order: "created-at-desc",
-      store: new EventStore(),
-      openRelay: () => {
-        throw new Error("must not open any relay when none are configured");
-      },
+      store,
+      manager,
     });
     reader.start();
 
-    expect(reader.status.incomplete?.unroutableAuthors).toBe(3);
+    expect(relays.has("wss://chosen/")).toBe(true);
+    expect(relays.has("wss://fallback/")).toBe(false);
+
+    relays.get("wss://chosen/")?.emitEose(0);
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete).toBeUndefined();
   });
 
-  it("reports unroutableAuthors as 0 when no relays are configured and no filter names authors", () => {
-    const reader = new SectionReader({
-      source: { type: "nostr", filters: [{ kinds: [1] }] },
-      order: "created-at-desc",
-      store: new EventStore(),
-      openRelay: () => {
-        throw new Error("must not open any relay when none are configured");
+  it("reports authors it could not route", () => {
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
       },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1], authors: ["f".repeat(64)] }],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
     });
     reader.start();
+    relays.get("wss://fallback/")?.emitEose(0);
 
-    expect(reader.status.incomplete?.unroutableAuthors).toBe(0);
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete?.unroutableAuthors).toBe(1);
   });
 });

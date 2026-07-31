@@ -1,62 +1,63 @@
 import { createRoot, createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { EventStore } from "../read/event-store";
+import { RoutingTable } from "../read/routing-table";
 import type { NostrSource } from "../read/source";
+import { SubscriptionManager } from "../read/subscription-manager";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
-import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
+import type { RelayUrl } from "../relay/relay-connection";
 import { createSection } from "./create-section";
 
 describe("createSection", () => {
-  it("releases the previous relay before opening the next relay when source changes", async () => {
-    const relayA = new FakeRelayConnection("wss://a");
-    const relayB = new FakeRelayConnection("wss://b");
-    const calls: string[] = [];
-
-    const openRelay = vi.fn((url: RelayUrl): RelayConnection => {
-      calls.push(`open:${url}`);
-      return url === "wss://a" ? relayA : relayB;
-    });
-    const releaseRelay = vi.fn((url: RelayUrl) => {
-      calls.push(`release:${url}`);
+  it("keeps at most one live relay connection across a source change (previous relay closes before the next opens)", async () => {
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url: RelayUrl) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
     });
 
     const [source, setSource] = createSignal<NostrSource>({
       type: "nostr",
       filters: [{ kinds: [1] }],
-      relays: ["wss://a"],
+      relays: ["wss://a/"],
     });
-    const store = new EventStore();
 
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
-        createSection({ source, store, openRelay, releaseRelay });
+        createSection({ source, store, manager });
 
         queueMicrotask(async () => {
           try {
             await vi.waitFor(() => {
-              expect(openRelay).toHaveBeenCalledWith("wss://a");
+              expect(relays.has("wss://a/")).toBe(true);
             });
-            expect(releaseRelay).not.toHaveBeenCalled();
+            expect(manager.connectionCount).toBe(1);
+            expect(relays.get("wss://a/")?.closed).toBe(false);
 
             setSource({
               type: "nostr",
               filters: [{ kinds: [1] }],
-              relays: ["wss://b"],
+              relays: ["wss://b/"],
             });
 
             await vi.waitFor(() => {
-              expect(openRelay).toHaveBeenCalledWith("wss://b");
+              expect(relays.has("wss://b/")).toBe(true);
             });
-            expect(releaseRelay).toHaveBeenCalledWith("wss://a", relayA);
-            // The first relay must be released before the second is opened,
-            // otherwise a caller pooling connections could hand back the
-            // same socket while it's still considered in use by the old
-            // reader.
-            expect(calls).toEqual([
-              "open:wss://a",
-              "release:wss://a",
-              "open:wss://b",
-            ]);
+
+            // The previous relay's connection must be released (and closed,
+            // since nothing else in the pool holds it) before the next one
+            // is opened: connectionCount stays at 1 across the swap rather
+            // than briefly holding both, and the old socket is actually
+            // closed, not merely forgotten.
+            expect(relays.get("wss://a/")?.closed).toBe(true);
+            expect(manager.connectionCount).toBe(1);
             resolve();
           } catch (error) {
             reject(error);
@@ -68,31 +69,43 @@ describe("createSection", () => {
     });
   });
 
-  it("does not call releaseRelay when it is not provided (borrow case)", async () => {
-    const relay = new FakeRelayConnection("wss://a");
-    const openRelay = vi.fn(() => relay);
+  it("releases the connection via the manager when the section is disposed", async () => {
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url: RelayUrl) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
     const [source] = createSignal<NostrSource>({
       type: "nostr",
       filters: [{ kinds: [1] }],
-      relays: ["wss://a"],
+      relays: ["wss://a/"],
     });
-    const store = new EventStore();
 
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
-        createSection({ source, store, openRelay });
+        createSection({ source, store, manager });
 
         queueMicrotask(async () => {
           try {
             await vi.waitFor(() => {
-              expect(openRelay).toHaveBeenCalledWith("wss://a");
+              expect(relays.has("wss://a/")).toBe(true);
             });
+            expect(manager.connectionCount).toBe(1);
+
+            dispose();
+
+            expect(relays.get("wss://a/")?.closed).toBe(true);
+            expect(manager.connectionCount).toBe(0);
             resolve();
           } catch (error) {
             reject(error);
-          } finally {
-            dispose();
-            expect(relay.closed).toBe(false);
           }
         });
       });

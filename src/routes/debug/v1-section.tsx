@@ -1,6 +1,8 @@
 import { For, Show, createMemo, createResource, createSignal } from "solid-js";
 import { EventStore } from "../../core/read/event-store";
+import { RoutingTable } from "../../core/read/routing-table";
 import type { NostrSource } from "../../core/read/source";
+import { SubscriptionManager } from "../../core/read/subscription-manager";
 import type { RelayUrl } from "../../core/relay/relay-connection";
 import { RelayInfoRegistry } from "../../core/relay/relay-info";
 import { connectRelay } from "../../core/relay/websocket-relay-connection";
@@ -12,6 +14,13 @@ const V1SectionDebug = () => {
   const [relayUrl] = createSignal<RelayUrl>(DEFAULT_RELAY);
   const store = new EventStore();
   const registry = new RelayInfoRegistry();
+  // 接続と購読は manager が所有する (ADR-0023)。このデバッグルートは
+  // 1 画面につき 1 manager で十分 (30 接続上限やマージは後続の計画)。
+  const manager = new SubscriptionManager({
+    store,
+    routing: new RoutingTable(store),
+    connect: connectRelay,
+  });
 
   // NIP-11 セクション: Nostr イベントですらない供給元 (ADR-0003)
   const [relayInfo] = createResource(relayUrl, (url) => registry.get(url));
@@ -25,10 +34,7 @@ const V1SectionDebug = () => {
   const section = createSection({
     source,
     store,
-    openRelay: connectRelay,
-    // このルートは connectRelay で 1 セクション専用のソケットを開くだけ
-    // (プールで共有しない) ので、自分で開いた接続を自分で閉じてよい。
-    releaseRelay: (_url, connection) => connection.close(),
+    manager,
   });
 
   return (

@@ -1,10 +1,5 @@
 import type { NostrEvent } from "../nostr/event";
-import type {
-  RelayConnection,
-  RelayFilter,
-  RelaySubscription,
-  RelayUrl,
-} from "../relay/relay-connection";
+import type { RelayUrl } from "../relay/relay-connection";
 import type { EventStore } from "./event-store";
 import {
   MAX_ITEMS_PER_SECTION,
@@ -12,29 +7,21 @@ import {
   type Order,
   type SectionStatus,
 } from "./source";
-
-/** 複数フィルタにまたがる authors の重複を除いた人数 */
-const countUnroutableAuthors = (filters: RelayFilter[]): number =>
-  new Set(filters.flatMap((filter) => filter.authors ?? [])).size;
+import type {
+  SectionHandle,
+  SubscriptionManager,
+} from "./subscription-manager";
 
 export type SectionReaderOptions = {
   source: NostrSource;
   order: Order;
   store: EventStore;
-  openRelay: (url: RelayUrl) => RelayConnection;
-  /**
-   * `openRelay` が返した接続の所有権を返す先。省略時は呼び出し側が接続の
-   * 生死を管理する(このクラスは close() を呼ばない)。将来の接続プール
-   * (30 接続上限, ADR-0005/0011) はここに参照カウントの解放を差し込む。
-   */
-  releaseRelay?: (url: RelayUrl, connection: RelayConnection) => void;
+  /** 接続と購読は manager が所有する (ADR-0023) */
+  manager: SubscriptionManager;
 };
 
 type RelayState = {
-  url: RelayUrl;
-  connection: RelayConnection;
-  subscription: RelaySubscription | null;
-  eose: boolean;
+  complete: boolean;
   unreachable: boolean;
 };
 
@@ -42,7 +29,8 @@ export class SectionReader {
   readonly #options: SectionReaderOptions;
   readonly #listeners = new Set<() => void>();
   readonly #ids = new Set<string>();
-  #relays: RelayState[] = [];
+  #relays = new Map<RelayUrl, RelayState>();
+  #handle: SectionHandle | null = null;
   #items: NostrEvent[] = [];
   #started = false;
 
@@ -55,11 +43,10 @@ export class SectionReader {
   }
 
   get status(): SectionStatus {
-    const unreachableRelays = this.#relays.filter((r) => r.unreachable).length;
-    const live = this.#relays.filter((r) => !r.unreachable);
-    // 待つべき生きたリレーが残っていなければ（全滅、または一つも無ければ）空虚に真として settled とする。
-    // ただし start() 前は #relays も空になるため、#started で「始まってすらいない」場合を除外する。
-    const allSettled = this.#started && live.every((r) => r.eose);
+    const states = [...this.#relays.values()];
+    const unreachableRelays = states.filter((r) => r.unreachable).length;
+    const live = states.filter((r) => !r.unreachable);
+    const allSettled = this.#started && live.every((r) => r.complete);
 
     const phase: SectionStatus["phase"] = allSettled
       ? "settled"
@@ -67,20 +54,8 @@ export class SectionReader {
         ? "streaming"
         : "initial";
 
-    // `relays` を省略した source は Outbox ルーティングでリレーを選ぶ想定
-    // (source.ts の関連コメント参照) だが、ルーティングは未実装。start() は
-    // 何も開かないため #relays は空のまま推移し、上の allSettled は空虚に
-    // 真になる。「どこにも当たっていない」を「探して何も無かった」と
-    // 区別できないまま settled/未 incomplete を返すと、黙って欠落させて
-    // はならない (ADR-0011) に反する。ルーティングが入るまでは、常に
-    // incomplete を立てて状況そのものを報告する。
-    const noRelaysConfigured =
-      this.#started && (this.#options.source.relays?.length ?? 0) === 0;
-    const unroutableAuthors = noRelaysConfigured
-      ? countUnroutableAuthors(this.#options.source.filters)
-      : 0;
-
-    return unreachableRelays > 0 || noRelaysConfigured
+    const unroutableAuthors = this.#handle?.unroutableAuthors ?? 0;
+    return unreachableRelays > 0 || unroutableAuthors > 0
       ? { phase, incomplete: { unreachableRelays, unroutableAuthors } }
       : { phase };
   }
@@ -89,37 +64,38 @@ export class SectionReader {
     if (this.#started) return;
     this.#started = true;
 
-    for (const url of this.#options.source.relays ?? []) {
-      const connection = this.#options.openRelay(url);
-      const state: RelayState = {
-        url,
-        connection,
-        eose: false,
-        unreachable: false,
-        subscription: null,
-      };
-      this.#relays.push(state);
+    const { source, manager } = this.#options;
+    this.#handle = manager.subscribe(source.filters, source.relays, {
+      onEvent: (id, relay) => this.#onEvent(id, relay),
+      onRelayComplete: (relay) => {
+        this.#relayState(relay).complete = true;
+        this.#notify();
+      },
+      onRelayUnreachable: (relay) => {
+        this.#relayState(relay).unreachable = true;
+        this.#notify();
+      },
+    });
 
-      state.subscription = connection.subscribe(this.#options.source.filters, {
-        onEvent: (event) => this.#onEvent(event, url),
-        onEose: () => {
-          state.eose = true;
-          this.#notify();
-        },
-        onClosed: () => {
-          state.unreachable = true;
-          this.#notify();
-        },
-      });
-    }
+    for (const relay of this.#handle.relays) this.#relayState(relay);
+  }
+
+  /**
+   * 接続が開いた直後に EOSE が来る実装もありうるため、subscribe() が返る前に
+   * コールバックが発火しても取りこぼさないよう、無ければその場で作る。
+   */
+  #relayState(relay: RelayUrl): RelayState {
+    const existing = this.#relays.get(relay);
+    if (existing) return existing;
+    const created: RelayState = { complete: false, unreachable: false };
+    this.#relays.set(relay, created);
+    return created;
   }
 
   stop(): void {
-    for (const relay of this.#relays) {
-      relay.subscription?.close();
-      this.#options.releaseRelay?.(relay.url, relay.connection);
-    }
-    this.#relays = [];
+    this.#handle?.close();
+    this.#handle = null;
+    this.#relays = new Map();
     this.#started = false;
   }
 
@@ -128,27 +104,13 @@ export class SectionReader {
     return () => this.#listeners.delete(listener);
   }
 
-  #onEvent(event: NostrEvent, relay: RelayUrl): void {
-    // "duplicate" は「この EventStore の *どこかで* 既に見た」であって、
-    // 「このセクションで既に見た」ではない。EventStore は呼び出し側が渡す
-    // オプションであり、デッキの別カラムやユーザーカラムと共有されるのが
-    // 想定用途 (ADR-0018 の水和後は起動直後から全件が "duplicate" になる)。
-    // 弾いてよいのは検証に落ちた "rejected" だけ。
-    //
-    // "duplicate" は id 一致だけで確定し、EventStore.put は verifyEvent より
-    // *前に* それを返す (悪意あるリレーからの検証コスト、特に Outbox 経路で
-    // 同一イベントが複数リレーから届く分の schnorr 検証を避けるため)。
-    // つまりこの event 引数は「id は既知だが中身は未検証」でありうる。
-    // 悪意あるリレーが本物の id に別の pubkey/content/created_at/sig を
-    // 詰めて再送すれば、その未検証オブジェクトをそのまま載せてしまう。
-    // 必ず store から検証済みの正本を取り直して載せる。
-    const result = this.#options.store.put(event, relay);
-    if (result === "rejected") return;
-    const stored = this.#options.store.get(event.id);
+  #onEvent(id: string, _relay: RelayUrl): void {
+    if (this.#ids.has(id)) return;
+    // 本体は EventStore が持つ。ここに載せるのは検証済みのコピー (ADR-0024)
+    const stored = this.#options.store.get(id);
     if (!stored) return;
-    if (this.#ids.has(event.id)) return;
 
-    this.#ids.add(event.id);
+    this.#ids.add(id);
     // 上限は表示順に関わらず「新しい順」で決める。表示順でスライスすると
     // 昇順表示時に古い方から採用してしまい、上限到達後キャップが凍結してしまう。
     const mostRecent = [...this.#items, stored]
@@ -159,7 +121,7 @@ export class SectionReader {
     // 上限を超えて落ちた分は id 集合からも外す
     if (this.#ids.size > this.#items.length) {
       const kept = new Set(this.#items.map((e) => e.id));
-      for (const id of this.#ids) if (!kept.has(id)) this.#ids.delete(id);
+      for (const kid of this.#ids) if (!kept.has(kid)) this.#ids.delete(kid);
     }
 
     this.#notify();
