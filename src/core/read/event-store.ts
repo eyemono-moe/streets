@@ -19,6 +19,8 @@ export type PutResult = "inserted" | "duplicate" | "rejected";
  */
 export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
+  /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
+  readonly #replaceable = new Map<string, string>();
 
   get size(): number {
     return this.#events.size;
@@ -45,6 +47,7 @@ export class EventStore {
     if (!verifyEvent(event)) return "rejected";
 
     this.#events.set(event.id, { event, seenRelays: [relay] });
+    this.#indexReplaceable(event);
     return "inserted";
   }
 
@@ -54,5 +57,30 @@ export class EventStore {
 
   seenRelays(id: string): RelayUrl[] {
     return [...(this.#events.get(id)?.seenRelays ?? [])];
+  }
+
+  /**
+   * 置換可能イベント (10000-19999) と、kind:0 / kind:3 の最新版を索引する。
+   * ルーティング表 (ADR-0016) はこの索引から kind:10002 を導出する。
+   */
+  #indexReplaceable(event: NostrEvent): void {
+    const replaceable =
+      event.kind === 0 ||
+      event.kind === 3 ||
+      (event.kind >= 10000 && event.kind < 20000);
+    if (!replaceable) return;
+
+    const key = `${event.kind}:${event.pubkey}`;
+    const currentId = this.#replaceable.get(key);
+    const current = currentId ? this.#events.get(currentId)?.event : undefined;
+    // 同一 pubkey の複数版が届くリレーが実在する (purplepag.es で最大4版)。
+    // created_at 最大の版を採る (ADR-0016)。
+    if (current && current.created_at >= event.created_at) return;
+    this.#replaceable.set(key, event.id);
+  }
+
+  latestReplaceable(kind: number, pubkey: string): NostrEvent | undefined {
+    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+    return id ? this.get(id) : undefined;
   }
 }

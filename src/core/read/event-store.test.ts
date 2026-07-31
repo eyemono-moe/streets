@@ -8,11 +8,14 @@ import { EventStore } from "./event-store";
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
 
-const sign = (content = "hello nostr"): NostrEvent => {
+const sign = (
+  content = "hello nostr",
+  overrides: { kind?: number; created_at?: number } = {},
+): NostrEvent => {
   const unsigned = {
     pubkey,
-    created_at: 1_700_000_000,
-    kind: 1,
+    created_at: overrides.created_at ?? 1_700_000_000,
+    kind: overrides.kind ?? 1,
     tags: [],
     content,
   };
@@ -83,5 +86,32 @@ describe("EventStore", () => {
     store.put(forged, "wss://attacker.com");
 
     expect(store.get(validEvent.id)).toEqual(validEvent);
+  });
+});
+
+describe("EventStore.latestReplaceable", () => {
+  it("returns undefined when nothing is stored for that author", () => {
+    const store = new EventStore();
+    expect(store.latestReplaceable(10002, "f".repeat(64))).toBeUndefined();
+  });
+
+  it("returns the version with the greatest created_at", () => {
+    const store = new EventStore();
+    const older = sign("older", { kind: 10002, created_at: 1_000 });
+    const newer = sign("newer", { kind: 10002, created_at: 2_000 });
+
+    store.put(newer, "wss://a");
+    store.put(older, "wss://a");
+
+    expect(store.latestReplaceable(10002, newer.pubkey)?.content).toBe("newer");
+  });
+
+  it("does not confuse kinds or authors", () => {
+    const store = new EventStore();
+    const relayList = sign("relays", { kind: 10002, created_at: 1_000 });
+    store.put(relayList, "wss://a");
+
+    expect(store.latestReplaceable(3, relayList.pubkey)).toBeUndefined();
+    expect(store.latestReplaceable(10002, "0".repeat(64))).toBeUndefined();
   });
 });
