@@ -484,4 +484,40 @@ describe("SectionReader with Outbox routing", () => {
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete?.unroutableAuthors).toBe(1);
   });
+
+  // Restored from the pre-Task-6 suite (fix round 1): the premise moved, it
+  // didn't vanish. planQuery still counts *distinct* authors across all
+  // filters (query-plan.ts), and query-plan.test.ts covers that in
+  // isolation, but nothing at the SectionReader level exercised the
+  // composition of multiple filters with overlapping authors collapsing to
+  // one number in status.incomplete. Same source shape and expectation
+  // (toBe(3)) as the original test; only the setup moved to the manager.
+  it("reports unroutableAuthors as the number of distinct authors named across filters when there are no relays", () => {
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ authors: ["alice", "bob"] }, { authors: ["bob", "carol"] }],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+    });
+    reader.start();
+    relays.get("wss://fallback/")?.emitEose(0);
+
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete?.unroutableAuthors).toBe(3);
+  });
 });
