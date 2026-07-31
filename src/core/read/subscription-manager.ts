@@ -88,15 +88,17 @@ export class SubscriptionManager {
 
     let closed = false;
     const opened: { url: RelayUrl; subscription: RelaySubscription }[] = [];
+    // #acquire が成功した時点で pool の refCount は上がっている。その直後の
+    // connection.subscribe() が投げた場合、その url は opened にはまだ
+    // 積まれていない — opened だけを巻き戻すと、この url の refCount が
+    // 上がったまま誰にも #release されない (connect() 自体が投げるケースだけ
+    // でなく、こちらも同じ「取得済みが孤児化する」バグなので別途追跡する)。
+    const acquiredUrls: RelayUrl[] = [];
 
-    // #acquire / connection.subscribe が既に確保済みの接続の後で失敗すると、
-    // その接続はどのセクションからも参照されないまま pool に残り続ける
-    // (このセクションはハンドルを受け取れず close() できないため)。
-    // ここまでに開いた分は同じ経路 (subscription.close + #release) で
-    // 巻き戻してから例外を再送出する。
     try {
       for (const [url, relayFilters] of perRelay) {
         const connection = this.#acquire(url);
+        acquiredUrls.push(url);
         const subscription = connection.subscribe(relayFilters, {
           onEvent: (event) => {
             if (closed) return;
@@ -114,10 +116,8 @@ export class SubscriptionManager {
       }
     } catch (error) {
       closed = true;
-      for (const { url, subscription } of opened) {
-        subscription.close();
-        this.#release(url);
-      }
+      for (const { subscription } of opened) subscription.close();
+      for (const url of acquiredUrls) this.#release(url);
       throw error;
     }
 

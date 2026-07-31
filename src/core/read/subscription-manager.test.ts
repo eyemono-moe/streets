@@ -214,4 +214,41 @@ describe("SubscriptionManager", () => {
     expect(opened[0].closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
   });
+
+  // Self-review regression test (not part of the brief's verbatim set):
+  // #acquire() bumps the pool refCount *before* connection.subscribe() runs.
+  // If subscribe() itself throws (as opposed to connect() throwing), that
+  // url's acquisition must still be released even though it never made it
+  // into `opened`.
+  it("releases an already-acquired connection when subscribe() itself throws", () => {
+    const store = new EventStore();
+    const closedUrls: RelayUrl[] = [];
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => ({
+        url,
+        subscribe: () => {
+          if (url === "wss://broken/") throw new Error("boom");
+          return { close: () => {} };
+        },
+        publish: async () => {},
+        close: () => {
+          closedUrls.push(url);
+        },
+      }),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    expect(() =>
+      manager.subscribe([{ kinds: [1] }], ["wss://ok/", "wss://broken/"], {
+        onEvent: vi.fn(),
+        onRelayComplete: vi.fn(),
+        onRelayUnreachable: vi.fn(),
+      }),
+    ).toThrow("boom");
+
+    expect(manager.connectionCount).toBe(0);
+    expect(closedUrls).toContain("wss://broken/");
+  });
 });
