@@ -1862,9 +1862,12 @@ git commit -m "feat(read): wire createSection and NIP-11 into a debug route veri
 
 ## 後続の計画（この計画には含まれない）
 
-1. **Outbox ルーティング** — `RoutingTable`、ブートストラップ専用経路、ログイン時ウォームアップ、クエリのリレー別分割、`unroutableAuthors` の計上（ADR-0005 / ADR-0016）
+1. **Outbox ルーティングと購読管理システムの器** — `RoutingTable`、ブートストラップ専用経路、ログイン時ウォームアップ、クエリのリレー別分割、`unroutableAuthors` の計上（ADR-0005 / ADR-0016）
+   - **接続の所有をセクションから購読管理システムへ移す**（ADR-0023）。`SectionReader` の `openRelay` / `releaseRelay` はここで内部化される。マージと 30 接続上限は #3 に残し、この計画では器だけ作る。
+   - 既定リレーは `BOOTSTRAP_INDEXERS` と `FALLBACK_RELAYS` の 2 つに分ける（ADR-0016）。具体リストと根拠は `docs/research/2026-08-01-nip65-relay-selection.md`。
+   - `kind:10002` は pubkey ごとに `created_at` 最大を採る（`purplepag.es` が旧版を最大 4 件返す実測あり）。fake リレーのテストケースに入れる。
 2. **needs の波状解決とレンダラ登録** — `defineRenderer`、フォールバック表示、深さ上限 2 階層（ADR-0003 / ADR-0004 / ADR-0017）
-3. **ページネーション・接続プール・再接続** — `loadMore` の実装、リレー別カーソル、`limitation.max_limit` の尊重、30 接続上限、**および再接続とバックオフ**（ADR-0005 / ADR-0011 / ADR-0021）
+3. **ページネーション・接続プール・再接続・購読マージ** — `loadMore` の実装、リレー別カーソル、`limitation.max_limit` の尊重、30 接続上限、**および再接続とバックオフ**（ADR-0005 / ADR-0011 / ADR-0021）
    - `loadMore` は `source` の変更として実装してはならない。`createSection` は `source()` の同一性が変わると `SectionReader` ごと作り直すため、全アイテムを捨ててソケットを張り直してしまう。`SectionReader.loadMore()` として、リレーごとに追加の後方購読を張って追記する形にする。
    - 再接続は接続プールと同じ計画に置く。**所有していない接続は再接続できない**ため、両者は同一の関心事。詳細は [ADR-0021](../../adr/0021-reconnection-policy.md)（proposed、実装前に確定させること）。
 4. **永続化** — `EventPersistence`、IndexedDB、2 バケット、`kind:5` の永続化と水和時適用（ADR-0018 / ADR-0019）
