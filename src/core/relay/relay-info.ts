@@ -22,6 +22,68 @@ export type RelayInfo = {
 export const relayInfoUrl = (url: RelayUrl): string =>
   url.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://");
 
+const STRING_FIELDS = [
+  "name",
+  "description",
+  "pubkey",
+  "contact",
+  "software",
+  "version",
+  "icon",
+  "posting_policy",
+] as const;
+
+const LIMITATION_NUMBER_FIELDS = ["max_limit", "max_subscriptions"] as const;
+const LIMITATION_BOOLEAN_FIELDS = [
+  "auth_required",
+  "payment_required",
+] as const;
+
+/**
+ * NIP-11 は認証されていない任意オリジンからのデータで、イベントと違って
+ * 署名による裏付けが無い。フィールドが宣言された型と違えば黙って落とす
+ * ("こういう値だ" と主張するだけの JSON をそのまま信用しない)。スキーマ
+ * ライブラリではなく、素朴な形整形にとどめる。
+ */
+const sanitizeRelayInfo = (raw: Record<string, unknown>): RelayInfo => {
+  const info: RelayInfo = {};
+
+  for (const field of STRING_FIELDS) {
+    const value = raw[field];
+    if (typeof value === "string") info[field] = value;
+  }
+
+  if (
+    Array.isArray(raw.supported_nips) &&
+    raw.supported_nips.every((nip) => typeof nip === "number")
+  ) {
+    info.supported_nips = raw.supported_nips as number[];
+  }
+
+  const rawLimitation = raw.limitation;
+  if (
+    typeof rawLimitation === "object" &&
+    rawLimitation !== null &&
+    !Array.isArray(rawLimitation)
+  ) {
+    const rawLimitationRecord = rawLimitation as Record<string, unknown>;
+    const limitation: NonNullable<RelayInfo["limitation"]> = {};
+
+    for (const field of LIMITATION_NUMBER_FIELDS) {
+      const value = rawLimitationRecord[field];
+      if (typeof value === "number") limitation[field] = value;
+    }
+    for (const field of LIMITATION_BOOLEAN_FIELDS) {
+      const value = rawLimitationRecord[field];
+      if (typeof value === "boolean") limitation[field] = value;
+    }
+
+    info.limitation = limitation;
+  }
+
+  return info;
+};
+
 /**
  * NIP-11 の取得とキャッシュ。
  * ブラウザから relay のドメインへ直接 GET するため CORS で失敗しうる。
@@ -49,7 +111,15 @@ export class RelayInfoRegistry {
       );
     }
 
-    const pending = this.#load(url);
+    // 失敗 (undefined) はキャッシュに残さない: 起動時の一時的なオフライン
+    // が、そのタブが生きている間ずっとそのリレーを "情報なし" に固定して
+    // しまわないよう、次の get() で再挑戦できるようにする。進行中の
+    // Promise 自体はここで #cache に置くので、同時に来た呼び出し同士は
+    // 1 回のフェッチに相乗りする (in-flight coalescing は維持)。
+    const pending = this.#load(url).then((result) => {
+      if (result === undefined) this.#cache.delete(url);
+      return result;
+    });
     this.#cache.set(url, pending);
     // Wrap to make a copy, preventing state leakage
     return pending.then((result) =>
@@ -77,7 +147,7 @@ export class RelayInfoRegistry {
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return undefined;
       }
-      return data as RelayInfo;
+      return sanitizeRelayInfo(data as Record<string, unknown>);
     } catch {
       return undefined;
     }

@@ -165,6 +165,104 @@ describe("RelayInfoRegistry", () => {
     await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
   });
 
+  // IMPORTANT 4: unauthenticated data from an arbitrary origin. There is no
+  // signature backstop here like there is for events, so a relay serving a
+  // malformed NIP-11 document must not produce a RelayInfo whose fields lie
+  // about their own type — a consumer (e.g. the debug route calling
+  // `.join(",")` on supported_nips) must never encounter a non-array where
+  // the type says array.
+  it("drops supported_nips when it is not an array of numbers (string)", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({
+        name: "relay",
+        supported_nips: "1,11",
+      })) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://a")).resolves.toEqual({ name: "relay" });
+  });
+
+  it("drops supported_nips when it is not an array of numbers (object)", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({ name: "relay", supported_nips: {} })) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://a")).resolves.toEqual({ name: "relay" });
+  });
+
+  it("drops supported_nips when it is a mixed array (not every element a number)", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({
+        name: "relay",
+        supported_nips: [1, "11", 50],
+      })) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://a")).resolves.toEqual({ name: "relay" });
+  });
+
+  it("drops limitation entirely when it is not an object (string)", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({
+        name: "relay",
+        limitation: "unlimited",
+      })) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://a")).resolves.toEqual({ name: "relay" });
+  });
+
+  it("drops only the malformed field inside limitation, keeping the rest", async () => {
+    const registry = new RelayInfoRegistry((async () =>
+      json({
+        name: "relay",
+        limitation: { max_limit: "500", max_subscriptions: 10 },
+      })) as unknown as typeof fetch);
+
+    await expect(registry.get("wss://a")).resolves.toEqual({
+      name: "relay",
+      limitation: { max_subscriptions: 10 },
+    });
+  });
+
+  // IMPORTANT 5: a transient offline blip at startup must not poison the
+  // relay for the tab's lifetime. Only successes are cached; failures must
+  // be retried on the next get().
+  it("retries after a failed fetch instead of caching the failure permanently", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("Failed to fetch");
+      return json({ name: "test relay" });
+    });
+    const registry = new RelayInfoRegistry(
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
+    await expect(registry.get("wss://relay.example")).resolves.toEqual({
+      name: "test relay",
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("still coalesces concurrent callers into a single fetch while a request is in flight", async () => {
+    let resolveFetch: ((value: Response) => void) | undefined;
+    const fetchImpl = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    const registry = new RelayInfoRegistry(
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    const first = registry.get("wss://relay.example");
+    const second = registry.get("wss://relay.example");
+    resolveFetch?.(json({ name: "test relay" }));
+
+    await expect(first).resolves.toEqual({ name: "test relay" });
+    await expect(second).resolves.toEqual({ name: "test relay" });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
   it("regression: does not lose `this` binding when calling the injected fetch (native fetch throws 'Illegal invocation' if called as a method of another object)", async () => {
     // Native `fetch` is receiver-sensitive: it only works when invoked with
     // `this` bound to a fetch-capable global (e.g. `window`). Storing the
