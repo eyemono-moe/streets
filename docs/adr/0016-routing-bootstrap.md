@@ -12,6 +12,25 @@ status: accepted
 - **ルーティング表を TTL 付きで永続キャッシュする。**
 - **未解決の著者は既定リレーへ暫定的に送信し、解決後に張り直す。** その間その著者は `status.incomplete.unroutableAuthors` に計上される（[ADR-0015](./0015-section-status-excludes-renderer-fetches.md)）。
 
+## 既定リレーは 2 つのリストに分ける
+
+**「既定リレー」を単一のリストにしない。** 用途の異なる 2 つに分ける。
+
+| 名前 | 用途 | 使われる場面 |
+|---|---|---|
+| `BOOTSTRAP_INDEXERS` | `kind:10002` と `kind:0` を引く専用経路 | 上記のウォームアップ、未知の著者に遭遇したとき |
+| `FALLBACK_RELAYS` | ルーティングできない著者の投稿を取りに行く先 | `unroutableAuthors` に計上される著者の暫定送信先 |
+
+分ける理由は 3 つ。① `indexer.coracle.social` のように `kind:10002` しか返さないリレーが実在し、汎用フォールバックには使えない。② インデクサは「短時間に大量の著者を一括問い合わせ」する使い方なので、`max_subscriptions` より `max_limit` と応答速度が効く。③ [ADR-0011](./0011-performance-budget.md) の 30 接続上限のもとで、両者は別の予算を持つべき（インデクサは起動時に一瞬、フォールバックは常時）。
+
+調査した成熟クライアント（Amethyst / Coracle / noStrudel / Snort / Nostur / nostter、および NDK・applesauce・welshman）は**全員が独立にこの分離に到達している**。
+
+具体的なリストと各リレーの選定根拠、および実測データは [docs/research/2026-08-01-nip65-relay-selection.md](../research/2026-08-01-nip65-relay-selection.md) にある。**このリストは半年で腐る前提で扱うこと。**
+
+**locale による分岐は持たない。** Damus / Rabbit / nostter は `ja` 判定で日本向けリレーを足しているが、streets は日本語圏に強いリレーを無条件で既定に含める。分岐は「日本語 locale でない日本語話者」を取りこぼし、それは [ADR-0001](./0001-others-first-self-via-settings.md) の想定利用者に多い層である。
+
+**将来的にはハードコードをやめ、最新のリレー利用状況を API から取得する形にしたい**（[ADR-0022](./0022-deploy-to-cloudflare-workers-static-assets.md)）。ハードコードされたリストは腐るという実例が既に観測されている（nostter が今も積む `nrelay-jp.c-stellar.net` は 502、Damus の `eden.nostr.land` は改名済み）。
+
 ## トレードオフ
 
 初回起動は遅くなる。ウォームアップを待つため [ADR-0011](./0011-performance-budget.md) の「初回イベント表示 2 秒」を初回だけ割る。
