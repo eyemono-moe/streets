@@ -28,13 +28,18 @@ const signedEvent = (content: string, createdAt: number): NostrEvent => {
   };
 };
 
-// 署名検証を通さずに SectionReader だけを試すため、EventStore を差し替える
+// 署名検証を通さずに SectionReader だけを試すため、EventStore を差し替える。
+// SectionReader は put() 後に get() で正本を取り直すので、real EventStore と
+// 同じく put() した内容を get() で返せる必要がある。
 class PassThroughStore extends EventStore {
-  readonly #seen = new Set<string>();
+  readonly #seen = new Map<string, NostrEvent>();
   override put(event: NostrEvent): "inserted" | "duplicate" | "rejected" {
     if (this.#seen.has(event.id)) return "duplicate";
-    this.#seen.add(event.id);
+    this.#seen.set(event.id, event);
     return "inserted";
+  }
+  override get(id: string): NostrEvent | undefined {
+    return this.#seen.get(id);
   }
 }
 
@@ -274,6 +279,58 @@ describe("SectionReader", () => {
 
     expect(readerA.items.map((e) => e.id)).toEqual([shared.id]);
     expect(readerB.items.map((e) => e.id)).toEqual([shared.id]);
+  });
+
+  // CRITICAL 2: EventStore.put returns "duplicate" from the id lookup
+  // *before* verifyEvent runs. Once a genuine event with some id has been
+  // stored, a malicious relay can resend a forged object reusing that id
+  // (different pubkey/content/created_at, bogus sig) and "duplicate" lets it
+  // straight past the "rejected" gate. Listing the relay-supplied object
+  // (instead of the store's verified copy) would spoof content under a
+  // trusted id and, since created_at need not even be a number here, feed a
+  // non-number into the sort comparator used for the MAX_ITEMS_PER_SECTION
+  // cap, corrupting ordering/eviction for everyone reading that store.
+  it("lists the store's verified copy, not a forged object a second relay resends under a genuine event's id", () => {
+    const sharedStore = new EventStore();
+    const relayA = new FakeRelayConnection("wss://a");
+    const relayB = new FakeRelayConnection("wss://b");
+
+    const readerA = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      order: "created-at-desc",
+      store: sharedStore,
+      openRelay: () => relayA,
+    });
+    const readerB = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://b"] },
+      order: "created-at-desc",
+      store: sharedStore,
+      openRelay: () => relayB,
+    });
+    readerA.start();
+    readerB.start();
+
+    const genuine = signedEvent("GENUINE", 100);
+    relayA.emitEvent(0, genuine);
+
+    // relayB is malicious: it reuses genuine's id but swaps in a different
+    // pubkey, content, a string created_at, and a bogus sig. EventStore.put
+    // finds the id already present and returns "duplicate" without ever
+    // calling verifyEvent on this object.
+    const forged = {
+      ...genuine,
+      pubkey: "ff".repeat(32),
+      content: "ATTACKER CONTENT",
+      // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed to prove the type-confusion hazard
+      created_at: "1700000000" as any,
+      sig: "00".repeat(64),
+    };
+    relayB.emitEvent(0, forged);
+
+    expect(readerB.items).toHaveLength(1);
+    expect(readerB.items[0]?.content).toBe("GENUINE");
+    expect(readerB.items[0]?.pubkey).toBe(genuine.pubkey);
+    expect(typeof readerB.items[0]?.created_at).toBe("number");
   });
 
   // IMPORTANT 2: a source with no explicit `relays` opens nothing, so `live`

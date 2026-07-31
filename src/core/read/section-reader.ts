@@ -134,13 +134,24 @@ export class SectionReader {
     // オプションであり、デッキの別カラムやユーザーカラムと共有されるのが
     // 想定用途 (ADR-0018 の水和後は起動直後から全件が "duplicate" になる)。
     // 弾いてよいのは検証に落ちた "rejected" だけ。
-    if (this.#options.store.put(event, relay) === "rejected") return;
+    //
+    // "duplicate" は id 一致だけで確定し、EventStore.put は verifyEvent より
+    // *前に* それを返す (悪意あるリレーからの検証コスト、特に Outbox 経路で
+    // 同一イベントが複数リレーから届く分の schnorr 検証を避けるため)。
+    // つまりこの event 引数は「id は既知だが中身は未検証」でありうる。
+    // 悪意あるリレーが本物の id に別の pubkey/content/created_at/sig を
+    // 詰めて再送すれば、その未検証オブジェクトをそのまま載せてしまう。
+    // 必ず store から検証済みの正本を取り直して載せる。
+    const result = this.#options.store.put(event, relay);
+    if (result === "rejected") return;
+    const stored = this.#options.store.get(event.id);
+    if (!stored) return;
     if (this.#ids.has(event.id)) return;
 
     this.#ids.add(event.id);
     // 上限は表示順に関わらず「新しい順」で決める。表示順でスライスすると
     // 昇順表示時に古い方から採用してしまい、上限到達後キャップが凍結してしまう。
-    const mostRecent = [...this.#items, event]
+    const mostRecent = [...this.#items, stored]
       .sort((a, b) => b.created_at - a.created_at)
       .slice(0, MAX_ITEMS_PER_SECTION);
     this.#items = this.#sorted(mostRecent);
