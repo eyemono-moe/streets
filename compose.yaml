@@ -17,6 +17,20 @@ services:
       - relay
     depends_on:
       - postgres
+  nostr-rs-relay-2:
+    image: scsibug/nostr-rs-relay:latest
+    sysctls:
+      net.core.somaxconn: 8128
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./.local-dev/nostr-rs-relay-2-config.toml
+        target: /usr/src/app/config.toml
+      - ./data/nostr-rs-relay-2/db:/usr/src/app/db
+    ports:
+      - "8081:8080"
+    networks:
+      - relay
   postgres:
     image: postgis/postgis:15-3.4
     restart: always
