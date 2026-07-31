@@ -64,6 +64,7 @@ export class EventStore {
    * ルーティング表 (ADR-0016) はこの索引から kind:10002 を導出する。
    */
   #indexReplaceable(event: NostrEvent): void {
+    // 置換可能イベントの kind 範囲 (nostr-protocol/nips 01.md:97)。
     const replaceable =
       event.kind === 0 ||
       event.kind === 3 ||
@@ -73,9 +74,17 @@ export class EventStore {
     const key = `${event.kind}:${event.pubkey}`;
     const currentId = this.#replaceable.get(key);
     const current = currentId ? this.#events.get(currentId)?.event : undefined;
-    // 同一 pubkey の複数版が届くリレーが実在する (purplepag.es で最大4版)。
-    // created_at 最大の版を採る (ADR-0016)。
-    if (current && current.created_at >= event.created_at) return;
+    if (current) {
+      // 同一 pubkey の複数版が届くリレーが実在する (purplepag.es で最大4版)。
+      // created_at 最大の版を採る (ADR-0016)。同着の場合は NIP-01 の規定どおり
+      // id を辞書式に比較し、小さい方を残す (nostr-protocol/nips 01.md:101)。
+      // 到着順ではなく id で決めることで、リレーの配送順に左右されない
+      // 決定的な結果にする。
+      if (current.created_at > event.created_at) return;
+      if (current.created_at === event.created_at && current.id <= event.id) {
+        return;
+      }
+    }
     this.#replaceable.set(key, event.id);
   }
 
