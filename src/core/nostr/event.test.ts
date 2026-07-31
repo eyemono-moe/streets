@@ -5,6 +5,7 @@ import {
   type NostrEvent,
   type UnsignedEvent,
   computeEventId,
+  isNostrEvent,
   verifyEvent,
 } from "./event";
 
@@ -76,5 +77,76 @@ describe("verifyEvent", () => {
 
   it("rejects an event with a malformed signature", () => {
     expect(verifyEvent({ ...sign(), sig: "zz" })).toBe(false);
+  });
+
+  // IMPORTANT 3: a signer can legitimately produce an event whose
+  // `created_at` is a JSON *string*. computeEventId serializes it
+  // faithfully (JSON.stringify does not care about the field's type), so
+  // the id still matches and the schnorr signature still verifies. Nothing
+  // about the crypto catches this — only structural validation does.
+  // Downstream, `b.created_at - a.created_at` in section-reader.ts then
+  // yields NaN, corrupting sort order and eviction at the item cap.
+  it("rejects an event whose created_at is a string, even though its id and signature are internally consistent", () => {
+    const malformedUnsigned = {
+      pubkey,
+      created_at: "1700000000",
+      kind: 1,
+      tags: [],
+      content: "hello nostr",
+    } as unknown as UnsignedEvent;
+    const id = computeEventId(malformedUnsigned);
+    const malformed = {
+      ...malformedUnsigned,
+      id,
+      sig: bytesToHex(schnorr.sign(hexToBytes(id), secretKey)),
+    } as unknown as NostrEvent;
+
+    expect(verifyEvent(malformed)).toBe(false);
+  });
+
+  it("rejects an event whose id is not 64-character lowercase hex", () => {
+    expect(verifyEvent({ ...sign(), id: "not-hex" })).toBe(false);
+  });
+
+  it("rejects an event whose sig is not 128-character hex", () => {
+    expect(verifyEvent({ ...sign(), sig: "ab".repeat(63) })).toBe(false);
+  });
+
+  it("rejects an event whose tags are not an array of arrays of strings", () => {
+    const event = sign();
+    expect(
+      verifyEvent({
+        ...event,
+        tags: [["e", 123]],
+      } as unknown as NostrEvent),
+    ).toBe(false);
+    expect(
+      verifyEvent({
+        ...event,
+        tags: "not-an-array",
+      } as unknown as NostrEvent),
+    ).toBe(false);
+  });
+
+  it("rejects an event whose kind is not an integer", () => {
+    expect(verifyEvent({ ...sign(), kind: 1.5 })).toBe(false);
+  });
+});
+
+describe("isNostrEvent", () => {
+  it("accepts a well-formed event", () => {
+    expect(isNostrEvent(sign())).toBe(true);
+  });
+
+  it("rejects non-object values", () => {
+    expect(isNostrEvent(null)).toBe(false);
+    expect(isNostrEvent(undefined)).toBe(false);
+    expect(isNostrEvent("event")).toBe(false);
+    expect(isNostrEvent(42)).toBe(false);
+  });
+
+  it("rejects an event missing required fields", () => {
+    const { sig, ...rest } = sign();
+    expect(isNostrEvent(rest)).toBe(false);
   });
 });
