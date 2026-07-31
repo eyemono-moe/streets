@@ -251,4 +251,98 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
     expect(closedUrls).toContain("wss://broken/");
   });
+
+  // Coverage gap flagged by review round 1: the brief names dispose() vs
+  // outstanding handles as a risk area, but no test exercised dispose() at
+  // all.
+  it("dispose() closes every pooled connection and zeroes connectionCount", () => {
+    const { relays, manager, delivery } = setup();
+    manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://one/", "wss://two/"],
+      delivery(),
+    );
+
+    manager.dispose();
+
+    expect(relays.get("wss://one/")?.closed).toBe(true);
+    expect(relays.get("wss://two/")?.closed).toBe(true);
+    expect(manager.connectionCount).toBe(0);
+  });
+
+  it("dispose() followed by a live handle's close() does not double-close or throw", () => {
+    const { relays, manager, delivery } = setup();
+    const handle = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://one/"],
+      delivery(),
+    );
+    const connection = relays.get("wss://one/");
+    if (!connection) throw new Error("test setup: connection missing");
+    const closeSpy = vi.spyOn(connection, "close");
+
+    manager.dispose();
+
+    expect(() => handle.close()).not.toThrow();
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(manager.connectionCount).toBe(0);
+  });
+
+  // Coverage gap flagged by review round 1: this is the security-relevant
+  // property named by the brief (ADR-0024) — a duplicate delivery must
+  // still reach every section, and a forged event reusing a known id must
+  // never overwrite the verified body in EventStore.
+  it("still delivers the id on a duplicate, and never lets a forged duplicate overwrite the stored body", () => {
+    const { relays, store, manager, delivery } = setup();
+    const dA = delivery();
+    const dB = delivery();
+
+    manager.subscribe([{ kinds: [1] }], ["wss://one/"], dA);
+    manager.subscribe([{ kinds: [1] }], ["wss://two/"], dB);
+
+    const note = signed(5);
+    relays.get("wss://one/")?.emitEvent(0, note);
+    // Same genuine event arrives at a second section via a second relay —
+    // EventStore.put returns "duplicate" here, not "inserted".
+    relays.get("wss://two/")?.emitEvent(0, note);
+
+    expect(dA.onEvent).toHaveBeenCalledWith(note.id, "wss://one/");
+    expect(dB.onEvent).toHaveBeenCalledWith(note.id, "wss://two/");
+
+    // A forged payload reuses the already-stored id but changes content.
+    // EventStore.put still returns "duplicate" (id collision), never
+    // "rejected", and never touches the stored body.
+    const forged = { ...note, content: "forged" };
+    dB.onEvent.mockClear();
+    relays.get("wss://two/")?.emitEvent(0, forged);
+
+    expect(dB.onEvent).toHaveBeenCalledWith(note.id, "wss://two/");
+    expect(store.get(note.id)).toEqual(note);
+  });
+
+  // Coverage gap flagged by review round 1: the `closed` guard makes a
+  // second close() a no-op by inspection, but nothing asserted it.
+  it("calling close() twice on a handle only releases the shared connection once", () => {
+    const { relays, manager, delivery } = setup();
+    const first = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://shared/"],
+      delivery(),
+    );
+    const second = manager.subscribe(
+      [{ kinds: [7] }],
+      ["wss://shared/"],
+      delivery(),
+    );
+
+    first.close();
+    first.close();
+
+    expect(relays.get("wss://shared/")?.closed).toBe(false);
+    expect(manager.connectionCount).toBe(1);
+
+    second.close();
+    expect(relays.get("wss://shared/")?.closed).toBe(true);
+    expect(manager.connectionCount).toBe(0);
+  });
 });
