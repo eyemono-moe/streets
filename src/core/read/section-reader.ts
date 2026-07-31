@@ -1,6 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
 import type {
   RelayConnection,
+  RelayFilter,
   RelaySubscription,
   RelayUrl,
 } from "../relay/relay-connection";
@@ -11,6 +12,10 @@ import {
   type Order,
   type SectionStatus,
 } from "./source";
+
+/** 複数フィルタにまたがる authors の重複を除いた人数 */
+const countUnroutableAuthors = (filters: RelayFilter[]): number =>
+  new Set(filters.flatMap((filter) => filter.authors ?? [])).size;
 
 export type SectionReaderOptions = {
   source: NostrSource;
@@ -62,9 +67,21 @@ export class SectionReader {
         ? "streaming"
         : "initial";
 
-    // unroutableAuthors は Outbox ルーティングを入れる計画で埋まる (ADR-0016)
-    return unreachableRelays > 0
-      ? { phase, incomplete: { unreachableRelays, unroutableAuthors: 0 } }
+    // `relays` を省略した source は Outbox ルーティングでリレーを選ぶ想定
+    // (source.ts の関連コメント参照) だが、ルーティングは未実装。start() は
+    // 何も開かないため #relays は空のまま推移し、上の allSettled は空虚に
+    // 真になる。「どこにも当たっていない」を「探して何も無かった」と
+    // 区別できないまま settled/未 incomplete を返すと、黙って欠落させて
+    // はならない (ADR-0011) に反する。ルーティングが入るまでは、常に
+    // incomplete を立てて状況そのものを報告する。
+    const noRelaysConfigured =
+      this.#started && (this.#options.source.relays?.length ?? 0) === 0;
+    const unroutableAuthors = noRelaysConfigured
+      ? countUnroutableAuthors(this.#options.source.filters)
+      : 0;
+
+    return unreachableRelays > 0 || noRelaysConfigured
+      ? { phase, incomplete: { unreachableRelays, unroutableAuthors } }
       : { phase };
   }
 
@@ -112,7 +129,12 @@ export class SectionReader {
   }
 
   #onEvent(event: NostrEvent, relay: RelayUrl): void {
-    if (this.#options.store.put(event, relay) !== "inserted") return;
+    // "duplicate" は「この EventStore の *どこかで* 既に見た」であって、
+    // 「このセクションで既に見た」ではない。EventStore は呼び出し側が渡す
+    // オプションであり、デッキの別カラムやユーザーカラムと共有されるのが
+    // 想定用途 (ADR-0018 の水和後は起動直後から全件が "duplicate" になる)。
+    // 弾いてよいのは検証に落ちた "rejected" だけ。
+    if (this.#options.store.put(event, relay) === "rejected") return;
     if (this.#ids.has(event.id)) return;
 
     this.#ids.add(event.id);

@@ -1,9 +1,32 @@
+import { schnorr } from "@noble/curves/secp256k1.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
-import type { NostrEvent } from "../nostr/event";
+import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import { EventStore } from "./event-store";
 import { SectionReader } from "./section-reader";
 import { MAX_ITEMS_PER_SECTION } from "./source";
+
+// Task 1/4 と同じく、その場で署名して自己整合的なイベントを作る。実 EventStore
+// は verifyEvent を通すため、PassThroughStore と違って本物の署名が要る。
+const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
+const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
+
+const signedEvent = (content: string, createdAt: number): NostrEvent => {
+  const unsigned = {
+    pubkey,
+    created_at: createdAt,
+    kind: 1,
+    tags: [],
+    content,
+  };
+  const id = computeEventId(unsigned);
+  return {
+    ...unsigned,
+    id,
+    sig: bytesToHex(schnorr.sign(hexToBytes(id), secretKey)),
+  };
+};
 
 // 署名検証を通さずに SectionReader だけを試すため、EventStore を差し替える
 class PassThroughStore extends EventStore {
@@ -214,5 +237,106 @@ describe("SectionReader", () => {
     items.length = 0;
 
     expect(reader.items.map((e) => e.id)).toEqual(["first"]);
+  });
+
+  // CRITICAL 1: EventStore.put returns "duplicate" for *any* caller once one
+  // section has inserted the event, regardless of which section put it there.
+  // A PassThroughStore (private per-instance Set) cannot expose this: only a
+  // real EventStore shared across two SectionReaders can. Two sections over
+  // the same relay/store is the intended usage (a deck column and a user
+  // column showing the same author).
+  it("lists an event in every section sharing a real EventStore, not just the section that inserted it first", () => {
+    const sharedStore = new EventStore();
+    const relayA = new FakeRelayConnection("wss://a");
+    const relayB = new FakeRelayConnection("wss://b");
+
+    const readerA = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://a"] },
+      order: "created-at-desc",
+      store: sharedStore,
+      openRelay: () => relayA,
+    });
+    const readerB = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: ["wss://b"] },
+      order: "created-at-desc",
+      store: sharedStore,
+      openRelay: () => relayB,
+    });
+    readerA.start();
+    readerB.start();
+
+    const shared = signedEvent("hello from both sections", 100);
+    // readerA's relay delivers first, inserting into the shared store...
+    relayA.emitEvent(0, shared);
+    // ...then readerB's relay delivers the very same event. Today this
+    // returns "duplicate" from the store and readerB silently drops it.
+    relayB.emitEvent(0, shared);
+
+    expect(readerA.items.map((e) => e.id)).toEqual([shared.id]);
+    expect(readerB.items.map((e) => e.id)).toEqual([shared.id]);
+  });
+
+  // IMPORTANT 2: a source with no explicit `relays` opens nothing, so `live`
+  // is vacuously empty and the section reports "settled" with no incomplete
+  // block — indistinguishable from "checked everywhere, found nothing".
+  // `relays` is omitted precisely to mean "route via Outbox" (not implemented
+  // yet), so this is the shape every source will have once routing lands.
+  it("surfaces incomplete when a source has no relays (relays: undefined)", () => {
+    const reader = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }] },
+      order: "created-at-desc",
+      store: new EventStore(),
+      openRelay: () => {
+        throw new Error("must not open any relay when none are configured");
+      },
+    });
+    reader.start();
+
+    expect(reader.status.incomplete).toBeDefined();
+  });
+
+  it("surfaces incomplete when a source has no relays (relays: [])", () => {
+    const reader = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: [] },
+      order: "created-at-desc",
+      store: new EventStore(),
+      openRelay: () => {
+        throw new Error("must not open any relay when none are configured");
+      },
+    });
+    reader.start();
+
+    expect(reader.status.incomplete).toBeDefined();
+  });
+
+  it("reports unroutableAuthors as the number of distinct authors named across filters when there are no relays", () => {
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ authors: ["alice", "bob"] }, { authors: ["bob", "carol"] }],
+      },
+      order: "created-at-desc",
+      store: new EventStore(),
+      openRelay: () => {
+        throw new Error("must not open any relay when none are configured");
+      },
+    });
+    reader.start();
+
+    expect(reader.status.incomplete?.unroutableAuthors).toBe(3);
+  });
+
+  it("reports unroutableAuthors as 0 when no relays are configured and no filter names authors", () => {
+    const reader = new SectionReader({
+      source: { type: "nostr", filters: [{ kinds: [1] }] },
+      order: "created-at-desc",
+      store: new EventStore(),
+      openRelay: () => {
+        throw new Error("must not open any relay when none are configured");
+      },
+    });
+    reader.start();
+
+    expect(reader.status.incomplete?.unroutableAuthors).toBe(0);
   });
 });
