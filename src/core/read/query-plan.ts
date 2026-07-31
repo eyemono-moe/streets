@@ -20,6 +20,10 @@ export type PlanQueryOptions = {
  * 著者を指定していないフィルタはルーティングのしようがないので fallback へ送る。
  * これは「ルーティングできなかった著者」ではないので unroutableAuthors には
  * 数えない — 数えると incomplete が常時点灯して意味を失う。
+ *
+ * **重要：各リレー向けのフィルタは浅いコピーであり、ネストされた配列（kinds、#e など）
+ * は呼び元や下流のコードで変更してはいけない。** 複数リレーが同じ配列インスタンスを
+ * 参照しており、一つのリレーを変更すると他のリレーに影響する。
  */
 export const planQuery = ({
   filters,
@@ -39,7 +43,7 @@ export const planQuery = ({
     const authors = filter.authors;
 
     if (!authors || authors.length === 0) {
-      for (const relay of fallbackRelays) add(relay, filter);
+      for (const relay of fallbackRelays) add(relay, { ...filter });
       continue;
     }
 

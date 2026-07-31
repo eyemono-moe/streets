@@ -76,6 +76,33 @@ describe("planQuery", () => {
     expect(plan.unroutableAuthors).toEqual([]);
   });
 
+  it("broadcasts author-less filter to each fallback relay with independent objects", () => {
+    const multiRelay = [
+      "wss://fallback1/",
+      "wss://fallback2/",
+      "wss://fallback3/",
+    ];
+    const plan = planQuery({
+      filters: [{ kinds: [1], limit: 20 }],
+      writeRelaysFor,
+      fallbackRelays: multiRelay,
+    });
+
+    const filter1 = plan.perRelay.get("wss://fallback1/")?.[0];
+    const filter2 = plan.perRelay.get("wss://fallback2/")?.[0];
+    const filter3 = plan.perRelay.get("wss://fallback3/")?.[0];
+
+    // All filters should be deeply equal (same values)
+    expect(filter1).toEqual({ kinds: [1], limit: 20 });
+    expect(filter2).toEqual({ kinds: [1], limit: 20 });
+    expect(filter3).toEqual({ kinds: [1], limit: 20 });
+
+    // But each relay must get its own object, not aliased references
+    expect(filter1).not.toBe(filter2);
+    expect(filter2).not.toBe(filter3);
+    expect(filter1).not.toBe(filter3);
+  });
+
   it("merges filters destined for the same relay", () => {
     const plan = planQuery({
       filters: [
