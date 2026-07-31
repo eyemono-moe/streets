@@ -64,4 +64,24 @@ describe("EventStore", () => {
 
     expect(store.seenRelays(validEvent.id)).toEqual(["wss://a"]);
   });
+
+  it("does not credit a relay that sends a forged payload under a genuine id", () => {
+    const store = new EventStore();
+    store.put(validEvent, "wss://a");
+
+    const forged = { ...validEvent, content: "forged" };
+
+    expect(store.put(forged, "wss://attacker.com")).toBe("duplicate");
+    expect(store.seenRelays(validEvent.id)).toEqual(["wss://a"]);
+  });
+
+  it("keeps the original genuine event after a forged duplicate delivery", () => {
+    const store = new EventStore();
+    store.put(validEvent, "wss://a");
+
+    const forged = { ...validEvent, content: "forged" };
+    store.put(forged, "wss://attacker.com");
+
+    expect(store.get(validEvent.id)).toEqual(validEvent);
+  });
 });

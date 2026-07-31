@@ -1,4 +1,9 @@
-import { type NostrEvent, verifyEvent } from "../nostr/event";
+import {
+  type NostrEvent,
+  computeEventId,
+  isNostrEvent,
+  verifyEvent,
+} from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 
 export type StoredEvent = {
@@ -22,7 +27,17 @@ export class EventStore {
   put(event: NostrEvent, relay: RelayUrl): PutResult {
     const existing = this.#events.get(event.id);
     if (existing) {
-      if (!existing.seenRelays.includes(relay)) existing.seenRelays.push(relay);
+      // 重複 id を主張するだけの偽装ペイロードにリレーの功績を与えない。
+      // schnorr 検証はしない (Outbox で同一イベントが複数リレーから届き、
+      // 重複のたびに払うにはコストが高すぎる)。id の再計算だけで足りる。
+      const { id, sig, ...unsigned } = event;
+      if (
+        isNostrEvent(event) &&
+        computeEventId(unsigned) === id &&
+        !existing.seenRelays.includes(relay)
+      ) {
+        existing.seenRelays.push(relay);
+      }
       return "duplicate";
     }
 
