@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "check": "biome check . && pnpm run check:read-layer",
     "check:read-layer": "node scripts/check-read-layer-deps.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b",
     "fix": "biome check --write .",
     "fix:force": "biome check --write --unsafe .",
     "test": "vitest",
