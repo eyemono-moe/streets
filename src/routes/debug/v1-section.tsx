@@ -1,4 +1,11 @@
-import { For, Show, createMemo, createResource, createSignal } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import { warmUpRouting } from "../../core/read/bootstrap";
 import { EventStore } from "../../core/read/event-store";
 import { RoutingTable } from "../../core/read/routing-table";
@@ -15,6 +22,23 @@ const RELAY_ONE: RelayUrl = "ws://127.0.0.1:8080/";
 /** e2e/fixtures/seed-outbox.ts の outboxViewerPubkey と一致させること */
 const DEFAULT_VIEWER =
   new URLSearchParams(window.location.search).get("pubkey") ?? "";
+/**
+ * `?budget=<n>` で ConnectionPool の maxConnections を上書きする
+ * (e2e/connection-budget.spec.ts)。既定の 30 のまま架空リレーを大量に
+ * 用意すると失敗する WebSocket を何十本も開くことになるため、E2E は
+ * ここへ小さい値を注入して貪欲選択の「機構」だけを検証する — 既定値の
+ * 30 そのものはユニットテストの主張であってこのデバッグルートの仕事ではない。
+ */
+const BUDGET_PARAM = new URLSearchParams(window.location.search).get("budget");
+// 不正な値 (非数値・NaN) は既定 (MAX_CONNECTIONS) にフォールバックする。
+// フォールバックせず NaN をそのまま渡すと ConnectionPool の
+// `size >= maxConnections` が常に false になり、無制限接続という
+// ADR-0011 が最も避けたい状態を静かに作ってしまう。
+const parsedBudget = BUDGET_PARAM === null ? undefined : Number(BUDGET_PARAM);
+const BUDGET =
+  parsedBudget !== undefined && Number.isFinite(parsedBudget)
+    ? parsedBudget
+    : undefined;
 
 const V1SectionDebug = () => {
   const [viewer, setViewer] = createSignal(DEFAULT_VIEWER);
@@ -29,7 +53,20 @@ const V1SectionDebug = () => {
     connect: connectRelay,
     // ローカル検証ではインターネット上の既定リレーへ出ない
     fallbackRelays: [RELAY_ONE],
+    // 未指定なら SubscriptionManager 自身の既定 (MAX_CONNECTIONS) が効く
+    maxConnections: BUDGET,
   });
+
+  // manager.connectionCount (= pool.size) はシグナルではないので JSX に
+  // 直接置いても更新されない。ADR-0011 が予算しているのは同時 WebSocket
+  // 接続数そのものなので、1 秒間隔でシグナルへ写して観測できるようにする
+  // (デバッグルート専用の割り切り。読み取り層には持ち込まない)。
+  const [connections, setConnections] = createSignal(manager.connectionCount);
+  const connectionsInterval = setInterval(
+    () => setConnections(manager.connectionCount),
+    1_000,
+  );
+  onCleanup(() => clearInterval(connectionsInterval));
 
   // NIP-11 セクション: Nostr イベントですらない供給元 (ADR-0003)
   const [relayInfo] = createResource(
@@ -144,6 +181,7 @@ const V1SectionDebug = () => {
         <p data-testid="uncovered">
           uncoveredAuthors: {status().incomplete?.uncoveredAuthors ?? 0}
         </p>
+        <p data-testid="connections">connections: {connections()}</p>
         <p data-testid="count">items: {section.items().length}</p>
         <ul data-testid="items">
           <For each={section.items()}>
