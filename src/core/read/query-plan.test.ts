@@ -5,19 +5,21 @@ const A = "a".repeat(64);
 const B = "b".repeat(64);
 const C = "c".repeat(64);
 
-const routing: Record<string, string[]> = {
-  [A]: ["wss://one/"],
-  [B]: ["wss://two/"],
-  [C]: ["wss://one/", "wss://two/"],
-};
-const writeRelaysFor = (pubkey: string) => routing[pubkey] ?? [];
+const assignment = new Map<string, string[]>([
+  [A, ["wss://one/"]],
+  [B, ["wss://two/"]],
+  [C, ["wss://one/", "wss://two/"]],
+]);
 const fallbackRelays = ["wss://fallback/"];
 
 describe("planQuery", () => {
-  it("splits one filter into per-relay filters by author", () => {
+  it("splits one filter into per-relay filters by assignment", () => {
     const plan = planQuery({
       filters: [{ kinds: [1], authors: [A, B], limit: 50 }],
-      writeRelaysFor,
+      assignment: new Map([
+        [A, ["wss://one/"]],
+        [B, ["wss://two/"]],
+      ]),
       fallbackRelays,
     });
 
@@ -33,7 +35,7 @@ describe("planQuery", () => {
   it("sends an author with several write relays to each of them", () => {
     const plan = planQuery({
       filters: [{ kinds: [1], authors: [C] }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -49,7 +51,7 @@ describe("planQuery", () => {
     const unknown = "d".repeat(64);
     const plan = planQuery({
       filters: [{ kinds: [1], authors: [A, unknown] }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -62,10 +64,38 @@ describe("planQuery", () => {
     expect(plan.unroutableAuthors).toEqual([unknown]);
   });
 
+  it("sends an author with no relay list to the fallback relays", () => {
+    const plan = planQuery({
+      filters: [{ kinds: [1], authors: [A] }],
+      assignment: new Map(), // A は kind:10002 が引けていない
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    expect(plan.perRelay.get("wss://fallback/")).toEqual([
+      { kinds: [1], authors: [A] },
+    ]);
+    expect(plan.unroutableAuthors).toEqual([A]);
+    expect(plan.uncoveredAuthors).toEqual([]);
+  });
+
+  it("sends an author whose budget ran out nowhere, and counts them", () => {
+    const plan = planQuery({
+      filters: [{ kinds: [1], authors: [A] }],
+      assignment: new Map([[A, []]]), // 宣言はあるが予算で落ちた
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    // fallback へ送ってはいけない。予算を守るために落としたのに
+    // fallback で開き直したら意味がない
+    expect(plan.perRelay.size).toBe(0);
+    expect(plan.unroutableAuthors).toEqual([]);
+    expect(plan.uncoveredAuthors).toEqual([A]);
+  });
+
   it("skips a filter with an explicitly empty authors array instead of broadcasting it", () => {
     const plan = planQuery({
       filters: [{ kinds: [1], authors: [] }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -76,7 +106,7 @@ describe("planQuery", () => {
   it("still broadcasts a filter with authors omitted (undefined) to every fallback relay", () => {
     const plan = planQuery({
       filters: [{ kinds: [1] }, { kinds: [7], authors: [] }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -88,7 +118,7 @@ describe("planQuery", () => {
   it("sends an author-less filter to the fallback relays without reporting it", () => {
     const plan = planQuery({
       filters: [{ kinds: [1], limit: 20 }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -107,7 +137,7 @@ describe("planQuery", () => {
     ];
     const plan = planQuery({
       filters: [{ kinds: [1], limit: 20 }],
-      writeRelaysFor,
+      assignment,
       fallbackRelays: multiRelay,
     });
 
@@ -132,7 +162,7 @@ describe("planQuery", () => {
         { kinds: [1], authors: [A] },
         { kinds: [7], authors: [A] },
       ],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -150,7 +180,7 @@ describe("planQuery", () => {
         { kinds: [1], authors: [unknown] },
         { kinds: [7], authors: [unknown] },
       ],
-      writeRelaysFor,
+      assignment,
       fallbackRelays,
     });
 
@@ -158,7 +188,7 @@ describe("planQuery", () => {
   });
 
   it("returns an empty plan for no filters", () => {
-    const plan = planQuery({ filters: [], writeRelaysFor, fallbackRelays });
+    const plan = planQuery({ filters: [], assignment, fallbackRelays });
     expect(plan.perRelay.size).toBe(0);
     expect(plan.unroutableAuthors).toEqual([]);
   });

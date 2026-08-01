@@ -19,8 +19,10 @@ export type SectionPlan = {
   readonly relays: readonly RelayUrl[];
   readonly unroutableAuthors: number;
   /**
-   * 接続上限などでカバーしきれなかった著者数。この Task では常に 0 —
-   * 実際に計算するのは後続のマネージャ側の Task。
+   * 接続上限などでカバーしきれなかった著者数 (planQuery の
+   * uncoveredAuthors 由来)。このマネージャはまだ接続予算を持たないため、
+   * 割り当ては writeRelaysFor をそのまま使っており実質常に 0 —
+   * 予算を導入するのは後続の Task (selectRelays との接続)。
    */
   readonly uncoveredAuthors: number;
 };
@@ -96,6 +98,7 @@ export class SubscriptionManager {
 
     const perRelay = new Map<RelayUrl, RelayFilter[]>();
     let unroutableAuthors = 0;
+    let uncoveredAuthors = 0;
 
     if (relays) {
       // 明示指定は Outbox ルーティングをバイパスする (ADR-0005)
@@ -117,14 +120,23 @@ export class SubscriptionManager {
         }
       }
     } else {
-      const plan = planQuery({
-        filters,
-        writeRelaysFor: (pubkey) =>
-          this.#options.routing.writeRelaysFor(pubkey),
-        fallbackRelays,
-      });
+      // 各著者に writeRelaysFor(author) の結果をそのまま割り当てる。宣言が
+      // 空なら assignment に入れず「未知」のまま渡す — planQuery 側で
+      // fallback へ回して unroutableAuthors に数える (既存の挙動)。
+      // 接続予算を見た割り当ては後続 Task (selectRelays との接続) の仕事。
+      const assignment = new Map<string, readonly RelayUrl[]>();
+      for (const filter of filters) {
+        for (const author of filter.authors ?? []) {
+          if (assignment.has(author)) continue;
+          const relays = this.#options.routing.writeRelaysFor(author);
+          if (relays.length > 0) assignment.set(author, relays);
+        }
+      }
+
+      const plan = planQuery({ filters, assignment, fallbackRelays });
       for (const [url, planned] of plan.perRelay) perRelay.set(url, planned);
       unroutableAuthors = plan.unroutableAuthors.length;
+      uncoveredAuthors = plan.uncoveredAuthors.length;
     }
 
     let closed = false;
@@ -166,8 +178,7 @@ export class SubscriptionManager {
       initialPlan: {
         relays: [...perRelay.keys()],
         unroutableAuthors,
-        // この Task ではマネージャがまだ張り直しを行わないため常に 0。
-        uncoveredAuthors: 0,
+        uncoveredAuthors,
       },
       close: () => {
         if (closed) return;

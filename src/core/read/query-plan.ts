@@ -5,11 +5,14 @@ export type QueryPlan = {
   perRelay: Map<RelayUrl, RelayFilter[]>;
   /** write relay が分からず fallback に回した著者 (重複なし) */
   unroutableAuthors: string[];
+  /** 宣言はあるが接続予算で落ちて、どこへも送られなかった著者 (重複なし) */
+  uncoveredAuthors: string[];
 };
 
 export type PlanQueryOptions = {
   filters: RelayFilter[];
-  writeRelaysFor: (pubkey: string) => RelayUrl[];
+  /** 著者 → 購読するリレー。**宣言があった著者だけ**が入る。空配列 = 予算切れ */
+  assignment: ReadonlyMap<string, readonly RelayUrl[]>;
   fallbackRelays: readonly RelayUrl[];
 };
 
@@ -27,11 +30,12 @@ export type PlanQueryOptions = {
  */
 export const planQuery = ({
   filters,
-  writeRelaysFor,
+  assignment,
   fallbackRelays,
 }: PlanQueryOptions): QueryPlan => {
   const perRelay = new Map<RelayUrl, RelayFilter[]>();
   const unroutable = new Set<string>();
+  const uncovered = new Set<string>();
 
   const add = (relay: RelayUrl, filter: RelayFilter) => {
     const existing = perRelay.get(relay);
@@ -59,8 +63,10 @@ export const planQuery = ({
     // リレー → そのリレーが担当する著者
     const byRelay = new Map<RelayUrl, string[]>();
     for (const author of authors) {
-      const relays = writeRelaysFor(author);
-      if (relays.length === 0) {
+      const assigned = assignment.get(author);
+
+      if (assigned === undefined) {
+        // kind:10002 が引けていない。暫定的に fallback へ回す (ADR-0016)
         unroutable.add(author);
         for (const relay of fallbackRelays) {
           const bucket = byRelay.get(relay);
@@ -69,7 +75,15 @@ export const planQuery = ({
         }
         continue;
       }
-      for (const relay of relays) {
+
+      if (assigned.length === 0) {
+        // 予算で落ちた。fallback へ回すと予算を守った意味が無くなるので
+        // どこへも送らず、欠落として報告する (ADR-0011)
+        uncovered.add(author);
+        continue;
+      }
+
+      for (const relay of assigned) {
         const bucket = byRelay.get(relay);
         if (bucket) bucket.push(author);
         else byRelay.set(relay, [author]);
@@ -81,5 +95,9 @@ export const planQuery = ({
     }
   }
 
-  return { perRelay, unroutableAuthors: [...unroutable] };
+  return {
+    perRelay,
+    unroutableAuthors: [...unroutable],
+    uncoveredAuthors: [...uncovered],
+  };
 };
