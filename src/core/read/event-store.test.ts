@@ -144,6 +144,27 @@ describe("EventStore.latestReplaceable", () => {
     expect(store.latestReplaceable(10002, lower.pubkey)?.id).toBe(lower.id);
   });
 
+  // The signature-verification gate in put() runs before #indexReplaceable.
+  // This is the single invariant protecting the routing table from
+  // unverified relay input: a relay cannot force a routing-table update by
+  // resending a bad-signature event with a newer created_at.
+  it("leaves the replaceable index untouched when a newer-but-forged event is rejected", () => {
+    const store = new EventStore();
+    const genuine = sign("genuine relay list", {
+      kind: 10002,
+      created_at: 1_000,
+    });
+    store.put(genuine, "wss://a");
+
+    const forged = {
+      ...sign("attacker relay list", { kind: 10002, created_at: 2_000 }),
+      sig: "00".repeat(64),
+    };
+
+    expect(store.put(forged, "wss://attacker.com")).toBe("rejected");
+    expect(store.latestReplaceable(10002, genuine.pubkey)).toEqual(genuine);
+  });
+
   it("prefers a strictly newer version even when the older one has the smaller id", () => {
     // Search for a content pair where the *older* event happens to have the
     // lexicographically smaller (or equal) id. This is the exact shape that
