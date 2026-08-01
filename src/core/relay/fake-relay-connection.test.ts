@@ -97,13 +97,13 @@ describe("FakeRelayConnection", () => {
     expect(connection.closed).toBe(true);
   });
 
-  it("close() called twice notifies listeners only once", () => {
+  it("calling close() twice is safe and does not re-notify listeners", () => {
     const connection = new FakeRelayConnection("wss://fake");
     const calls: string[] = [];
     connection.onClose(() => calls.push("called"));
 
     connection.close();
-    connection.close();
+    connection.close(); // idempotency guard makes this a no-op
 
     expect(calls).toEqual(["called"]);
   });
@@ -127,5 +127,40 @@ describe("FakeRelayConnection", () => {
     connection.close();
 
     expect(calls).toEqual([]);
+  });
+
+  it("subscribe on a closed connection immediately reports closed and does not create an active subscription", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.close();
+
+    const calls: string[] = [];
+    const handlers = {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason: string) => calls.push(reason),
+    };
+
+    const sub = connection.subscribe([{ kinds: [1] }], handlers);
+    sub.close(); // should be safe to call on a dead subscription
+
+    expect(calls).toEqual(["socket closed"]);
+    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
+  });
+
+  it("subscribe on a connection after die() immediately reports closed", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.die();
+
+    const calls: string[] = [];
+    const handlers = {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason: string) => calls.push(reason),
+    };
+
+    connection.subscribe([{ kinds: [1] }], handlers);
+
+    expect(calls).toEqual(["socket closed"]);
+    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
   });
 });

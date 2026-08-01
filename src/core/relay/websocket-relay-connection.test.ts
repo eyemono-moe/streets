@@ -353,8 +353,11 @@ describe("WebSocketRelayConnection", () => {
 
     open();
     connection.close();
-    // Real WebSocket fires onclose asynchronously, but our fake fires it synchronously
-    // when we poke it manually
+
+    // Verify that close() actually called socket.close()
+    expect(socket.close).toHaveBeenCalled();
+
+    // Simulate the async onclose event that the real WebSocket would fire
     socket.onclose?.();
 
     expect(calls).toEqual(["closed"]);

@@ -29,6 +29,14 @@ export class FakeRelayConnection implements RelayConnection {
     filters: RelayFilter[],
     handlers: RelaySubscriptionHandlers,
   ): RelaySubscription {
+    if (this.closed) {
+      // ソケットが既に閉じている場合は即座に閉じたことを通知する。
+      // そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
+      // 購読は active subscriptions に追加しない。
+      handlers.onClosed("socket closed");
+      return { close: () => {} };
+    }
+
     const index = this.subscriptions.length;
     this.subscriptions.push({ filters, handlers, closed: false });
     return {
