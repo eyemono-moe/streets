@@ -62,9 +62,19 @@ describe("selectRelays", () => {
     expect(selection.uncovered).toEqual([A]);
   });
 
-  it("counts an author who declares one relay as satisfied at one", () => {
-    // 1 本しか宣言していない著者を redundancy で初期化すると、永久に
-    // 未充足のまま貪欲の判断を歪める
+  it("assigns a single-declared relay to its author and does not report them uncovered", () => {
+    // need の初期化は min(redundancy, 宣言本数) で行っている (A は 1 本しか
+    // 宣言していないので目標は 1)。ただしこのテストは min の値そのものは
+    // 検証できない — gain は「need > 0 の著者数」を数えるブールな指標で
+    // あり、min ありでも redundancy そのままの初期化でも、A の唯一の
+    // 宣言リレーが選ばれた時点でその宣言リレーは candidates から消える
+    // ので他候補の gain に影響しない。つまり picks / assignment /
+    // uncovered は両方の初期化で同じになる (5000 試行のファズで divergence
+    // 0 件を確認済み)。min が効くのは「宣言本数に対する充足率」という
+    // 計測 (docs/research/2026-08-01-outbox-connection-budget.md) の方で、
+    // この関数の出力ではない。ここで検証できるのはあくまで
+    // 「1 本しか宣言していない著者もちゃんと assignment に入り、
+    // uncovered として扱われない」という公開契約だけ。
     const selection = selectRelays({
       demand: new Map([
         [A, ["wss://solo/"]],
@@ -121,6 +131,9 @@ describe("selectRelays", () => {
   });
 
   it("does not keep a current relay that has become useless", () => {
+    // stale はどの著者にも宣言されていない — candidates にすら入らない
+    // という粗い失敗 (current を picks に無条件で unionする実装) は
+    // 捕まえるが、粘着性の比較ロジック自体は通っていない
     const selection = selectRelays({
       ...base,
       demand: new Map([[A, ["wss://needed/"]]]),
@@ -129,6 +142,26 @@ describe("selectRelays", () => {
     });
 
     expect(selection.picks).toEqual(["wss://needed/"]);
+  });
+
+  it("does not keep a declared current relay once its marginal gain hits zero", () => {
+    // stale は A が宣言している (candidates に入り、粘着性の比較ロジックを
+    // 実際に通る)。だが A の redundancy 1 は other で既に満たされ、A 以外は
+    // 誰も stale を宣言していないので stale の gain は 0 に落ちる。
+    // gain > bestGain || isCurrent のような「isCurrent が gain 比較を
+    // 上書きする」バグはここを通り抜けて stale を picks に残してしまう。
+    const selection = selectRelays({
+      demand: new Map([
+        [A, ["wss://other/", "wss://stale/"]],
+        [B, ["wss://other/"]],
+      ]),
+      pinned: [],
+      current: ["wss://stale/"],
+      budget: 2,
+      redundancy: 1,
+    });
+
+    expect(selection.picks).toEqual(["wss://other/"]);
   });
 
   it("is deterministic for the same input", () => {
