@@ -27,7 +27,12 @@ export type Scheduler = {
   clearTimeout: (handle: ReturnType<typeof setTimeout>) => void;
 };
 
-const defaultScheduler: Scheduler = {
+/**
+ * `SubscriptionManager` の再プランのデバウンスタイマー (Task 10) もこの既定値を
+ * 共有する — 読み取り層のどこであれ「注入されなければ実タイマー」という規約を
+ * 一箇所にしておくため、export してある。
+ */
+export const defaultScheduler: Scheduler = {
   setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
   clearTimeout: (handle) => clearTimeout(handle),
 };

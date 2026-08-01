@@ -101,6 +101,46 @@ const relayListFor = (
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
+// Like relayListFor, but an ordinary kind:1 note -- for pinning that the
+// re-plan-on-kind:10002 hook (Task 10) does not fire for every event that
+// flows through the manager, only the routing-relevant kind.
+const noteBy = (pubkey: string): NostrEvent => {
+  const seed = seedByPubkey.get(pubkey);
+  if (seed === undefined) {
+    throw new Error(
+      `noteBy: ${pubkey} was not minted via pubkeyFor, cannot sign for it`,
+    );
+  }
+  return signed(seed, { kind: 1 });
+};
+
+// Task 10's burst test needs many distinct authors without colliding with
+// seeds used elsewhere in this file; offset well clear of every other range.
+const authorAt = (i: number): string => pubkeyFor(90_000 + i);
+
+// Delivers `event` on `connection`'s current live subscription. The manager
+// re-opens/restarts subscriptions across replans, so "subscription 0" isn't
+// always the right index once a section has already been re-planned once --
+// this picks the most recently opened one that hasn't been closed instead of
+// hard-coding an index.
+const emitEvent = (
+  connection: FakeRelayConnection | undefined,
+  event: NostrEvent,
+): void => {
+  if (!connection) throw new Error("test setup: connection missing");
+  let index = -1;
+  for (let i = connection.subscriptions.length - 1; i >= 0; i--) {
+    if (!connection.subscriptions[i].closed) {
+      index = i;
+      break;
+    }
+  }
+  if (index === -1) {
+    throw new Error("test setup: connection has no active subscription");
+  }
+  connection.emitEvent(index, event);
+};
+
 const noopDelivery = (): SectionDelivery => ({
   onEvent: () => {},
   onRelayComplete: () => {},
@@ -146,7 +186,11 @@ const createFakeClock = (): TestScheduler & { advance(ms: number): void } => {
 type CreateManagerOptions = Partial<
   Pick<
     SubscriptionManagerOptions,
-    "maxConnections" | "redundancy" | "fallbackRelays"
+    | "maxConnections"
+    | "redundancy"
+    | "fallbackRelays"
+    | "scheduler"
+    | "replanDebounceMs"
   >
 >;
 
@@ -168,6 +212,8 @@ const createManager = (options: CreateManagerOptions = {}) => {
     fallbackRelays: options.fallbackRelays ?? ["wss://fallback/"],
     maxConnections: options.maxConnections,
     redundancy: options.redundancy,
+    scheduler: options.scheduler,
+    replanDebounceMs: options.replanDebounceMs,
   });
   return { manager, store, connections, connectCalls };
 };
@@ -216,11 +262,17 @@ const createManagerWithSection = (
   authors: string[],
   managerOptions: CreateManagerOptions = {},
 ) => {
-  const base = createManager(managerOptions);
+  // Always wired to a fake clock (rather than only when a caller cares about
+  // the replan debounce) so every test built on this helper can advance time
+  // deterministically -- callers that don't touch `clock` are unaffected,
+  // since replan() itself stays synchronous (only the kind:10002 -> replan
+  // hook goes through the scheduler).
+  const clock = createFakeClock();
+  const base = createManager({ scheduler: clock, ...managerOptions });
   const { delivery, plans, handle } = subscribeWithPlans(base.manager, [
     { kinds: [1], authors },
   ]);
-  return { ...base, delivery, plans, handle };
+  return { ...base, delivery, plans, handle, clock };
 };
 
 const createManagerWithTwoAuthorsSharingARelay = () => {
@@ -1270,5 +1322,104 @@ describe("SubscriptionManager", () => {
     // this 999-vs-1000 boundary check flaky.
     clock.advance(1);
     expect(connectCalls).toHaveLength(2);
+  });
+
+  // ---------------------------------------------------------------------
+  // Task 10: closes the ADR-0016 loop. A section provisionally routed to
+  // the fallback relays for an author whose kind:10002 isn't known yet must
+  // be re-planned once that relay list actually arrives -- and warm-up
+  // delivers it as a burst (one query fetches every followee's kind:10002
+  // at once), so the re-plan has to be debounced through the injected
+  // scheduler rather than firing per event.
+  // ---------------------------------------------------------------------
+  it("re-plans after a kind:10002 arrives", () => {
+    const AUTHOR = pubkeyFor(80_001);
+    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
+    expect(plans.at(-1)?.relays).toEqual(["wss://fallback/"]);
+
+    // The fallback relay is the one that ends up delivering the author's own
+    // kind:10002 (this is exactly the provisional-fallback path ADR-0016
+    // describes).
+    emitEvent(
+      connections.get("wss://fallback/"),
+      relayListFor(AUTHOR, ["wss://author-write/"]),
+    );
+    clock.advance(100);
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://author-write/"]);
+  });
+
+  // Brief round-trip note: the brief's version of this test measured the
+  // burst's effect through `plans.length` (onPlanChanged call count), the
+  // same signal the first test above uses. That doesn't actually pin
+  // debouncing: none of these 50 authors is a member of this section's own
+  // filter, so its plan never changes regardless of whether the burst
+  // triggers 1 replan() or 50 -- planEqual() suppresses onPlanChanged for
+  // every one of them either way, making the two cases indistinguishable
+  // through that signal. Spying on `replan()` itself observes the mechanism
+  // directly instead.
+  it("debounces a burst of relay lists into one re-plan", () => {
+    const AUTHOR = pubkeyFor(80_002);
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
+
+    for (let i = 0; i < 50; i += 1) {
+      emitEvent(
+        connections.get("wss://fallback/"),
+        relayListFor(authorAt(i), [`wss://w${i}/`]),
+      );
+    }
+    expect(replanSpy).not.toHaveBeenCalled();
+
+    clock.advance(100);
+
+    // Warm-up is a burst of kind:10002s. It must not trigger 50 re-plans.
+    expect(replanSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not re-plan for ordinary events", () => {
+    const AUTHOR = pubkeyFor(80_003);
+    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
+    const before = plans.length;
+
+    emitEvent(connections.get("wss://fallback/"), noteBy(AUTHOR));
+    clock.advance(100);
+
+    expect(plans.length).toBe(before);
+  });
+
+  it("does not re-plan for a kind:10002 EventStore rejects (bad signature)", () => {
+    const AUTHOR = pubkeyFor(80_004);
+    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
+    const before = plans.length;
+
+    const forged = {
+      ...relayListFor(AUTHOR, ["wss://author-write/"]),
+      content: "tampered",
+    };
+    emitEvent(connections.get("wss://fallback/"), forged);
+    clock.advance(100);
+
+    // A relay must not be able to force a re-plan by pushing a malformed or
+    // unverifiable kind:10002 -- store.put() returning "rejected" must not
+    // reach the debounce hook at all (cheap DoS otherwise).
+    expect(plans.length).toBe(before);
+  });
+
+  it("cancels a pending debounced re-plan on dispose()", () => {
+    const AUTHOR = pubkeyFor(80_005);
+    const { manager, connections, plans, clock } = createManagerWithSection([
+      AUTHOR,
+    ]);
+    const before = plans.length;
+
+    emitEvent(
+      connections.get("wss://fallback/"),
+      relayListFor(AUTHOR, ["wss://author-write/"]),
+    );
+    manager.dispose();
+
+    expect(() => clock.advance(100)).not.toThrow();
+    expect(plans.length).toBe(before);
   });
 });

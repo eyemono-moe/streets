@@ -9,6 +9,8 @@ import {
   ConnectionPool,
   type ConnectionPoolOptions,
   type PooledSubscription,
+  type Scheduler,
+  defaultScheduler,
 } from "./connection-pool";
 import {
   FALLBACK_RELAYS,
@@ -75,11 +77,26 @@ export type SubscriptionManagerOptions = {
   maxConnections?: number;
   /** 1 著者あたり何本のリレーから取るか。既定は RELAY_REDUNDANCY */
   redundancy?: number;
-  /** ConnectionPool へそのまま渡す再接続タイマーの注入口 (テスト用)。 */
+  /**
+   * ConnectionPool へそのまま渡す再接続タイマーの注入口 (テスト用)。
+   * マネージャ自身の再プランのデバウンスタイマー (下記 `replanDebounceMs`)
+   * もこの同じ scheduler を使う — 実タイマーと偽タイマーが混在すると
+   * テストで時間を進めても一方だけ進まない、ということになるため。
+   */
   scheduler?: ConnectionPoolOptions["scheduler"];
   /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
   random?: ConnectionPoolOptions["random"];
+  /**
+   * `kind:10002` の到着から再プランまでのデバウンス時間 (ms)。既定は 100。
+   * ウォームアップは全フォロイーの `kind:10002` を 1 クエリで取得するため、
+   * 数百件がバーストで届く — デバウンス無しだと、そのたびに大域の貪欲選択
+   * (全セクション分) をやり直すことになる。
+   */
+  replanDebounceMs?: number;
 };
+
+/** `replanDebounceMs` の既定値。 */
+const DEFAULT_REPLAN_DEBOUNCE_MS = 100;
 
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
 type OpenSubscription = {
@@ -212,9 +229,20 @@ export class SubscriptionManager {
   // 処理される。
   #replanning = false;
   #dirty = false;
+  // kind:10002 のバーストを 1 回の replan() に合流させるデバウンスタイマー
+  // (Task 10, ADR-0016 「解決後に張り直す」)。ConnectionPool の再接続タイマー
+  // と同じ注入口を共有する (下記コンストラクタ参照) が、レジストリは別物 —
+  // これは replan() 呼び出し自体を遅延させるためのタイマーで、個々の接続の
+  // 再接続タイマーとは無関係。
+  readonly #scheduler: Scheduler;
+  readonly #replanDebounceMs: number;
+  #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
+    this.#scheduler = options.scheduler ?? defaultScheduler;
+    this.#replanDebounceMs =
+      options.replanDebounceMs ?? DEFAULT_REPLAN_DEBOUNCE_MS;
     this.#pool = new ConnectionPool({
       connect: options.connect,
       maxConnections: options.maxConnections,
@@ -287,6 +315,14 @@ export class SubscriptionManager {
   }
 
   dispose(): void {
+    // 保留中のデバウンスタイマーを消す。消し忘れると、後で発火したときに
+    // #entries が空になった (あるいは新しい世代の) レジストリへ向けて
+    // replan() を走らせてしまう — dispose() 済みのマネージャは何も再プラン
+    // すべきではない。
+    if (this.#replanTimer !== null) {
+      this.#scheduler.clearTimeout(this.#replanTimer);
+      this.#replanTimer = null;
+    }
     this.#pool.dispose();
     // 生きている handle が孤児化しても構わない — PooledSubscription.close()
     // はエントリのオブジェクト同一性で判定するので、dispose() 後の孤児化した
@@ -295,6 +331,27 @@ export class SubscriptionManager {
     // replan() がその「もう存在しない」エントリを生きたセクションとして扱い、
     // 需要をもう一度プールして再接続してしまう。
     this.#entries.clear();
+  }
+
+  /**
+   * `kind:10002` 到着による再プランをデバウンスする (Task 10)。ウォームアップ
+   * は全フォロイーの `kind:10002` を 1 クエリで取得するため数百件がバースト
+   * で届く — 1 件ごとに `replan()` (大域の貪欲選択を全セクション分やり直す)
+   * を呼ぶと、そのバーストの間だけで数百回選び直すことになる。
+   *
+   * 既にタイマーが立っていれば何もしない (最初の 1 件がタイマーを立て、
+   * 残りはそれに便乗する) — バースト全体が 1 回の `replan()` に合流する。
+   *
+   * `replan()` そのものは公開 API として同期のまま保つ (ウォームアップ完了時
+   * の明示呼び出しなど、即座に効くことを前提にしている呼び出し元がある) —
+   * デバウンスするのはあくまでこの内部経路だけ。
+   */
+  #scheduleReplan(): void {
+    if (this.#replanTimer !== null) return;
+    this.#replanTimer = this.#scheduler.setTimeout(() => {
+      this.#replanTimer = null;
+      this.replan();
+    }, this.#replanDebounceMs);
   }
 
   #normalizeExplicit(
@@ -580,8 +637,27 @@ export class SubscriptionManager {
     return {
       onEvent: (event) => {
         if (entry.closed) return;
-        if (this.#options.store.put(event, url) === "rejected") return;
+        const result = this.#options.store.put(event, url);
+        // store.put() が "rejected" を返した (schnorr 検証に落ちた) イベント
+        // は、以下のどちらの意味でも「届いた」扱いにしない: セクションへ配信
+        // しない (既存の挙動) のはもちろん、再プランの引き金にもしない。
+        // これを分けないと、kind:10002 を騙る改竄ペイロードを送るだけで、
+        // どのリレーでも大域の貪欲選択 (全セクション分) を任意のタイミングで
+        // 起こせてしまう — 安上がりな DoS になる (Task 10)。
+        if (result === "rejected") return;
         entry.delivery.onEvent(event.id, url);
+        // ADR-0016「未解決の著者は既定リレーへ暫定的に送信し、解決後に張り
+        // 直す」の後半をここで閉じる (Task 10)。EventStore には変更通知を
+        // 足していない — ADR-0018 で EventStore を読み取り層の内部へ降ろす
+        // 作業と衝突するため。ここ (マネージャが購読経由で実際に見たイベント)
+        // が唯一のフックである。
+        //
+        // 帰結: IndexedDB からの水和 (後続 #4) で入る kind:10002 はこの
+        // onEvent を一切通らない。水和を実装する側は、水和が終わった時点で
+        // 明示的に replan() を呼ぶ責務を負う — さもないと、起動直後に
+        // 既に分かっているはずの著者が、この再プランが効くまで暫定的な
+        // fallback 経路のまま置き去りにされる。
+        if (event.kind === 10002) this.#scheduleReplan();
       },
       onEose: () => {
         if (!entry.closed) entry.delivery.onRelayComplete(url);
