@@ -3,11 +3,16 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
+import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import { EventStore } from "./event-store";
 import { RoutingTable } from "./routing-table";
 import { SectionReader } from "./section-reader";
-import { MAX_ITEMS_PER_SECTION } from "./source";
-import { SubscriptionManager } from "./subscription-manager";
+import { MAX_ITEMS_PER_SECTION, type SectionStatus } from "./source";
+import {
+  type SectionDelivery,
+  type SectionHandle,
+  SubscriptionManager,
+} from "./subscription-manager";
 
 // Task 1/4 と同じく、その場で署名して自己整合的なイベントを作る。実 EventStore
 // は verifyEvent を通すため、PassThroughStore と違って本物の署名が要る。
@@ -81,6 +86,45 @@ const setup = (relayUrls = ["wss://a/"]) => {
     reader,
     relay: () => relays.get(relayUrls[0]),
   };
+};
+
+// Task 4: stub the manager entirely so tests can drive `delivery.onPlanChanged`
+// directly, instead of going through a real SubscriptionManager (which has no
+// way yet to produce a re-plan itself).
+const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
+  let delivery!: SectionDelivery;
+  const manager = {
+    subscribe: (
+      _filters: RelayFilter[],
+      _relays: RelayUrl[] | undefined,
+      d: SectionDelivery,
+    ): SectionHandle => {
+      delivery = d;
+      return {
+        initialPlan: {
+          relays: relayUrls,
+          unroutableAuthors: 0,
+          uncoveredAuthors: 0,
+        },
+        close: () => {},
+      };
+    },
+  } as unknown as SubscriptionManager;
+
+  const store = new EventStore();
+  const reader = new SectionReader({
+    source: { type: "nostr", filters: [{ kinds: [1] }], relays: relayUrls },
+    order: "created-at-desc",
+    store,
+    manager,
+  });
+
+  const statuses: SectionStatus[] = [];
+  reader.subscribe(() => statuses.push(reader.status));
+
+  reader.start();
+
+  return { reader, delivery, statuses };
 };
 
 describe("SectionReader", () => {
@@ -483,6 +527,99 @@ describe("SectionReader", () => {
 
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete?.unreachableRelays).toBe(2);
+  });
+
+  // Task 4: a live section learns its plan changed (ADR-0016 will make the
+  // manager actually produce these; here we drive onPlanChanged directly).
+  it("goes back to streaming when the plan gains a relay", () => {
+    // リレー1 だけで settled になった後、張り直しでリレー2 が増える
+    const { reader, delivery, statuses } = startReaderWithRelays([
+      "wss://one/",
+    ]);
+    delivery.onRelayComplete("wss://one/");
+    expect(reader.status.phase).toBe("settled");
+
+    delivery.onPlanChanged({
+      relays: ["wss://one/", "wss://two/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+
+    expect(reader.status.phase).not.toBe("settled");
+    expect(statuses.at(-1)?.phase).not.toBe("settled");
+  });
+
+  it("keeps the completion state of relays that survive a re-plan", () => {
+    const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
+    delivery.onRelayComplete("wss://one/");
+
+    delivery.onPlanChanged({
+      relays: ["wss://one/", "wss://two/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+    delivery.onRelayComplete("wss://two/");
+
+    // リレー1 の完了が引き継がれていなければ settled にならない
+    expect(reader.status.phase).toBe("settled");
+  });
+
+  it("forgets a relay that the re-plan dropped", () => {
+    const { reader, delivery } = startReaderWithRelays([
+      "wss://one/",
+      "wss://gone/",
+    ]);
+    delivery.onRelayUnreachable("wss://gone/");
+    expect(reader.status.incomplete?.unreachableRelays).toBe(1);
+
+    delivery.onPlanChanged({
+      relays: ["wss://one/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+    delivery.onRelayComplete("wss://one/");
+
+    expect(reader.status.incomplete).toBeUndefined();
+    expect(reader.status.phase).toBe("settled");
+  });
+
+  it("clears unreachable when the relay completes after recovering", () => {
+    const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
+    delivery.onRelayUnreachable("wss://one/");
+    expect(reader.status.incomplete?.unreachableRelays).toBe(1);
+
+    // 再接続して EOSE が届いた
+    delivery.onRelayComplete("wss://one/");
+
+    expect(reader.status.incomplete).toBeUndefined();
+    expect(reader.status.phase).toBe("settled");
+  });
+
+  it("reports uncoveredAuthors from the plan", () => {
+    const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
+
+    delivery.onPlanChanged({
+      relays: ["wss://one/"],
+      unroutableAuthors: 2,
+      uncoveredAuthors: 3,
+    });
+    delivery.onRelayComplete("wss://one/");
+
+    expect(reader.status.incomplete).toEqual({
+      unreachableRelays: 0,
+      unroutableAuthors: 2,
+      uncoveredAuthors: 3,
+    });
+  });
+
+  // ADR-0015: an explicitly empty relay list settles quiet even now that
+  // `incomplete` has three fields — "we looked everywhere there was to look,
+  // and there was nothing" stays true regardless of field count.
+  it("still settles with no incomplete for an explicitly empty relay list", () => {
+    const { reader, delivery } = startReaderWithRelays([]);
+    void delivery;
+
+    expect(reader.status).toEqual({ phase: "settled" });
   });
 });
 

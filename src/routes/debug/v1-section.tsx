@@ -138,6 +138,9 @@ const V1SectionDebug = () => {
         <p data-testid="unroutable">
           unroutableAuthors: {status().incomplete?.unroutableAuthors ?? 0}
         </p>
+        <p data-testid="uncovered">
+          uncoveredAuthors: {status().incomplete?.uncoveredAuthors ?? 0}
+        </p>
         <p data-testid="count">items: {section.items().length}</p>
         <ul data-testid="items">
           <For each={section.items()}>

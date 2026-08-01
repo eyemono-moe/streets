@@ -26,6 +26,7 @@ export type SectionStatus = {
   incomplete?: {
     unreachableRelays: number;
     unroutableAuthors: number;
+    uncoveredAuthors: number;
   };
 };
 

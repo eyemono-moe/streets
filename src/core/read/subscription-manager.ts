@@ -11,6 +11,21 @@ import { planQuery } from "./query-plan";
 import type { RoutingTable } from "./routing-table";
 
 /**
+ * セクションが今どのリレーを待っているかのスナップショット。
+ * `start()` 時点だけでなく、張り直し後も同じ形で運ばれる (ADR-0016)。
+ */
+export type SectionPlan = {
+  /** このセクションが待っているリレー。完了判定の母集合になる */
+  readonly relays: readonly RelayUrl[];
+  readonly unroutableAuthors: number;
+  /**
+   * 接続上限などでカバーしきれなかった著者数。この Task では常に 0 —
+   * 実際に計算するのは後続のマネージャ側の Task。
+   */
+  readonly uncoveredAuthors: number;
+};
+
+/**
  * 配信されるのはイベント本体ではなく id (ADR-0024)。
  * 本体は EventStore にあり、セクションは store.get(id) で引く。
  */
@@ -18,12 +33,17 @@ export type SectionDelivery = {
   onEvent: (id: string, relay: RelayUrl) => void;
   onRelayComplete: (relay: RelayUrl) => void;
   onRelayUnreachable: (relay: RelayUrl) => void;
+  /** 張り直しでリレー集合が変わった (ADR-0016)。この Task ではまだ呼ばれない */
+  onPlanChanged: (plan: SectionPlan) => void;
 };
 
 export type SectionHandle = {
-  /** このセクションが待っているリレー。完了判定の母集合になる */
-  readonly relays: RelayUrl[];
-  readonly unroutableAuthors: number;
+  /**
+   * start() 時点の計画のスナップショット。以後の変化は onPlanChanged 経由で
+   * 届く — この型自体は「あとで変わりうる」ことを表すために生きたフィールド
+   * を持たない。
+   */
+  readonly initialPlan: SectionPlan;
   close(): void;
 };
 
@@ -143,8 +163,12 @@ export class SubscriptionManager {
     }
 
     return {
-      relays: [...perRelay.keys()],
-      unroutableAuthors,
+      initialPlan: {
+        relays: [...perRelay.keys()],
+        unroutableAuthors,
+        // この Task ではマネージャがまだ張り直しを行わないため常に 0。
+        uncoveredAuthors: 0,
+      },
       close: () => {
         if (closed) return;
         closed = true;

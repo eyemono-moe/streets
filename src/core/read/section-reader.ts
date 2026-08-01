@@ -9,6 +9,7 @@ import {
 } from "./source";
 import type {
   SectionHandle,
+  SectionPlan,
   SubscriptionManager,
 } from "./subscription-manager";
 
@@ -30,6 +31,11 @@ export class SectionReader {
   readonly #listeners = new Set<() => void>();
   readonly #ids = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
+  // start() が initialPlan で埋める。onPlanChanged が start() の最中に同期的
+  // に飛んだ場合はそちらが先に埋めるので、start() 側は null のときだけ
+  // initialPlan を適用する (Task 6 で onPlanChanged が同期的に飛ぶようになった
+  // ときに、より新しい plan を古い initialPlan で上書きしないため)。
+  #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
   #items: NostrEvent[] = [];
   #started = false;
@@ -61,9 +67,19 @@ export class SectionReader {
         ? "streaming"
         : "initial";
 
-    const unroutableAuthors = this.#handle?.unroutableAuthors ?? 0;
-    return unreachableRelays > 0 || unroutableAuthors > 0
-      ? { phase, incomplete: { unreachableRelays, unroutableAuthors } }
+    const unroutableAuthors = this.#plan?.unroutableAuthors ?? 0;
+    const uncoveredAuthors = this.#plan?.uncoveredAuthors ?? 0;
+    return unreachableRelays > 0 ||
+      unroutableAuthors > 0 ||
+      uncoveredAuthors > 0
+      ? {
+          phase,
+          incomplete: {
+            unreachableRelays,
+            unroutableAuthors,
+            uncoveredAuthors,
+          },
+        }
       : { phase };
   }
 
@@ -77,20 +93,56 @@ export class SectionReader {
       this.#handle = manager.subscribe(source.filters, source.relays, {
         onEvent: (id, relay) => this.#onEvent(id, relay),
         onRelayComplete: (relay) => {
-          this.#relayState(relay).complete = true;
+          // 再接続後の EOSE の可能性もあるので unreachable も一緒に晴らす。
+          // 専用の「復帰」コールバックは無い — onRelayComplete がそれを兼ねる。
+          const state = this.#relayState(relay);
+          state.complete = true;
+          state.unreachable = false;
           this.#notify();
         },
         onRelayUnreachable: (relay) => {
           this.#relayState(relay).unreachable = true;
           this.#notify();
         },
+        onPlanChanged: (plan) => this.#applyPlan(plan),
       });
 
-      for (const relay of this.#handle.relays) this.#relayState(relay);
+      // onPlanChanged が subscribe() の中から同期的に飛んでいたら #plan は
+      // 既にそちらで埋まっている — それが initialPlan より新しいので上書きしない。
+      //
+      // ここは #applyPlan を使わない: initialPlan の適用は「不足分を足す」
+      // マージであって、張り直しの「古いものを丸ごと捨てる」置き換えとは違う。
+      // subscribe() は正規化に失敗した URL を onRelayUnreachable で同期的に
+      // 報告することがあり (正規化前の生文字列は perRelay/initialPlan.relays
+      // には載らない)、そうして #relays に作られた「計画に載っていない
+      // unreachable なリレー」の記録を、初回適用で消してしまってはならない。
+      if (this.#plan === null) {
+        this.#plan = this.#handle.initialPlan;
+        for (const relay of this.#plan.relays) this.#relayState(relay);
+      }
     } finally {
       this.#starting = false;
     }
     // start() が確定させた最終状態を、抑制していた分まとめて 1 回だけ通知する。
+    this.#notify();
+  }
+
+  /**
+   * リレー集合の張り直し (ADR-0016)。新旧どちらにもあるリレーは RelayState を
+   * 使い回す — 既に EOSE 済みのリレーを再度待たせてはいけない。旧計画だけに
+   * あったリレーは unreachable フラグごと丸ごと捨てる。新計画だけにあるリレー
+   * はまっさらな状態から始める。
+   */
+  #applyPlan(plan: SectionPlan): void {
+    this.#plan = plan;
+    const next = new Map<RelayUrl, RelayState>();
+    for (const relay of plan.relays) {
+      next.set(
+        relay,
+        this.#relays.get(relay) ?? { complete: false, unreachable: false },
+      );
+    }
+    this.#relays = next;
     this.#notify();
   }
 
@@ -110,6 +162,7 @@ export class SectionReader {
     this.#handle?.close();
     this.#handle = null;
     this.#relays = new Map();
+    this.#plan = null;
     this.#started = false;
   }
 

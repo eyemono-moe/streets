@@ -48,6 +48,7 @@ const setup = () => {
     onEvent: vi.fn(),
     onRelayComplete: vi.fn(),
     onRelayUnreachable: vi.fn(),
+    onPlanChanged: vi.fn(),
   });
   return { relays, store, manager, delivery };
 };
@@ -59,7 +60,7 @@ describe("SubscriptionManager", () => {
 
     const handle = manager.subscribe([{ kinds: [1] }], ["wss://given/"], d);
 
-    expect(handle.relays).toEqual(["wss://given/"]);
+    expect(handle.initialPlan.relays).toEqual(["wss://given/"]);
     expect(relays.get("wss://given/")?.subscriptions[0].filters).toEqual([
       { kinds: [1] },
     ]);
@@ -101,8 +102,8 @@ describe("SubscriptionManager", () => {
     const handle = manager.subscribe([{ kinds: [1] }], ["not a url"], d);
 
     expect(d.onRelayUnreachable).toHaveBeenCalledWith("not a url");
-    expect(handle.relays).toEqual([]);
-    expect(handle.unroutableAuthors).toBe(0);
+    expect(handle.initialPlan.relays).toEqual([]);
+    expect(handle.initialPlan.unroutableAuthors).toBe(0);
   });
 
   it("routes by author when no relays are given", () => {
@@ -120,8 +121,8 @@ describe("SubscriptionManager", () => {
       delivery(),
     );
 
-    expect(handle.relays).toEqual(["wss://author-write/"]);
-    expect(handle.unroutableAuthors).toBe(0);
+    expect(handle.initialPlan.relays).toEqual(["wss://author-write/"]);
+    expect(handle.initialPlan.unroutableAuthors).toBe(0);
     expect(relays.get("wss://author-write/")?.subscriptions[0].filters).toEqual(
       [{ kinds: [1], authors: [author.pubkey] }],
     );
@@ -135,8 +136,8 @@ describe("SubscriptionManager", () => {
       delivery(),
     );
 
-    expect(handle.relays).toEqual(["wss://fallback/"]);
-    expect(handle.unroutableAuthors).toBe(1);
+    expect(handle.initialPlan.relays).toEqual(["wss://fallback/"]);
+    expect(handle.initialPlan.unroutableAuthors).toBe(1);
     expect(relays.has("wss://fallback/")).toBe(true);
   });
 
@@ -241,6 +242,7 @@ describe("SubscriptionManager", () => {
         onEvent: vi.fn(),
         onRelayComplete: vi.fn(),
         onRelayUnreachable: vi.fn(),
+        onPlanChanged: vi.fn(),
       }),
     ).toThrow("boom");
 
@@ -279,6 +281,7 @@ describe("SubscriptionManager", () => {
         onEvent: vi.fn(),
         onRelayComplete: vi.fn(),
         onRelayUnreachable: vi.fn(),
+        onPlanChanged: vi.fn(),
       }),
     ).toThrow("boom");
 
@@ -327,6 +330,7 @@ describe("SubscriptionManager", () => {
       onEvent: vi.fn(),
       onRelayComplete: vi.fn(),
       onRelayUnreachable: vi.fn(),
+      onPlanChanged: vi.fn(),
     });
 
     manager.dispose();
@@ -335,6 +339,7 @@ describe("SubscriptionManager", () => {
       onEvent: vi.fn(),
       onRelayComplete: vi.fn(),
       onRelayUnreachable: vi.fn(),
+      onPlanChanged: vi.fn(),
     });
 
     expect(opened).toHaveLength(2);
