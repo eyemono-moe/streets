@@ -62,6 +62,29 @@ describe("planQuery", () => {
     expect(plan.unroutableAuthors).toEqual([unknown]);
   });
 
+  it("skips a filter with an explicitly empty authors array instead of broadcasting it", () => {
+    const plan = planQuery({
+      filters: [{ kinds: [1], authors: [] }],
+      writeRelaysFor,
+      fallbackRelays,
+    });
+
+    expect(plan.perRelay.size).toBe(0);
+    expect(plan.unroutableAuthors).toEqual([]);
+  });
+
+  it("still broadcasts a filter with authors omitted (undefined) to every fallback relay", () => {
+    const plan = planQuery({
+      filters: [{ kinds: [1] }, { kinds: [7], authors: [] }],
+      writeRelaysFor,
+      fallbackRelays,
+    });
+
+    // The undefined-authors filter still goes out; the empty-array filter
+    // next to it contributes nothing.
+    expect(plan.perRelay.get("wss://fallback/")).toEqual([{ kinds: [1] }]);
+  });
+
   it("sends an author-less filter to the fallback relays without reporting it", () => {
     const plan = planQuery({
       filters: [{ kinds: [1], limit: 20 }],

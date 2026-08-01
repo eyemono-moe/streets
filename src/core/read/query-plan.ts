@@ -42,8 +42,17 @@ export const planQuery = ({
   for (const filter of filters) {
     const authors = filter.authors;
 
-    if (!authors || authors.length === 0) {
+    if (!authors) {
+      // authors 未指定 = 「誰でもいい」。正当な「どの著者でも」クエリなので
+      // 従来どおり fallback へ同報する。
       for (const relay of fallbackRelays) add(relay, { ...filter });
+      continue;
+    }
+
+    if (authors.length === 0) {
+      // authors: [] は明示的に「誰にもマッチしない」クエリ。fallback の
+      // 全リレーへ同報しても意味のある結果は絶対に返らず、無駄な接続を
+      // 開くだけなので、このフィルタ自体を送らない。
       continue;
     }
 
