@@ -12,12 +12,67 @@ const noopHandlers = (): RelaySubscriptionHandlers => ({
   onClosed: () => {},
 });
 
+/**
+ * 手で進める偽スケジューラ。`vi.useFakeTimers()` ではなくこちらを注入する
+ * ことで、プール (読み取り層) が実タイマーも DOM も掴んでいないことを型と
+ * 構造の両方で示す。`advance(ms)` は「起床予定時刻 <= 進めた後の現在時刻」
+ * のタイマーだけを、起床予定時刻の昇順で発火する。発火中に新しく積まれた
+ * タイマー (再接続失敗時の再スケジュールなど) は、この呼び出しのスナップ
+ * ショットに含まれないので同じ `advance()` 内では発火しない — 次の
+ * `advance()` を待つ。
+ */
+// The handle type is deliberately `ReturnType<typeof setTimeout>` (matching
+// `Scheduler`), not a bare `number` -- with @types/node in this project's
+// ambient scope, that resolves to `NodeJS.Timeout`, not `number`. An earlier
+// draft of this fake typed the handle as plain `number` and it type-checked
+// under `pnpm exec vitest run` (which strips types) but silently failed a
+// standalone `tsc` pass, exactly the class of hand-built-mock bug the task
+// brief calls out. The fake still tracks handles as numbers internally; only
+// the public shape is cast to match `Scheduler`.
+type TimerHandle = ReturnType<typeof setTimeout>;
+
+type FakeClock = {
+  setTimeout: (callback: () => void, delayMs: number) => TimerHandle;
+  clearTimeout: (handle: TimerHandle) => void;
+  advance(ms: number): void;
+};
+
+const createFakeClock = (): FakeClock => {
+  let now = 0;
+  let nextId = 1;
+  const timers = new Map<number, { at: number; callback: () => void }>();
+
+  return {
+    setTimeout: (callback, delayMs) => {
+      const id = nextId++;
+      timers.set(id, { at: now + delayMs, callback });
+      return id as unknown as TimerHandle;
+    },
+    clearTimeout: (handle) => {
+      timers.delete(handle as unknown as number);
+    },
+    advance(ms) {
+      now += ms;
+      const due = [...timers.entries()]
+        .filter(([, timer]) => timer.at <= now)
+        .sort((a, b) => a[1].at - b[1].at);
+      for (const [id, timer] of due) {
+        if (!timers.has(id)) continue; // already cleared by an earlier callback in this batch
+        timers.delete(id);
+        timer.callback();
+      }
+    },
+  };
+};
+
 type CreatePoolOptions = {
   maxConnections?: number;
   /** connect() throws for any url in this list. */
   failing?: RelayUrl[];
   /** connection.subscribe() throws for any url in this list. */
   subscribeFailing?: RelayUrl[];
+  /** Task 9: ジッタの決定性を保つための注入。既定は Math.random。 */
+  random?: () => number;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -25,6 +80,7 @@ const createPool = (options: CreatePoolOptions = {}) => {
   const connectCalls: RelayUrl[] = [];
   const failing = new Set(options.failing ?? []);
   const subscribeFailing = new Set(options.subscribeFailing ?? []);
+  const clock = createFakeClock();
 
   const connect: ConnectionPoolOptions["connect"] = (url) => {
     connectCalls.push(url);
@@ -45,9 +101,11 @@ const createPool = (options: CreatePoolOptions = {}) => {
   const pool = new ConnectionPool({
     connect,
     maxConnections: options.maxConnections,
+    scheduler: clock,
+    random: options.random,
   });
 
-  return { pool, connections, connectCalls };
+  return { pool, connections, connectCalls, clock };
 };
 
 describe("ConnectionPool", () => {
@@ -301,5 +359,124 @@ describe("ConnectionPool", () => {
     // registry and drops the connection.
     expect(() => stale?.close()).not.toThrow();
     expect(reconnected?.closed).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------
+  // Task 9: reconnection. ADR-0021 (now accepted) says the pool never gives
+  // up, backs off exponentially with jitter capped at 60s, and re-issues the
+  // entries retained across a death (Decision 2 above) unchanged — no
+  // `since` backfill.
+  // ---------------------------------------------------------------------
+
+  it("reconnects with exponential backoff after a death", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    clock.advance(999);
+    expect(connectCalls).toHaveLength(1);
+    clock.advance(1); // first backoff: 1s * (0.5 + 0.5)
+    expect(connectCalls).toHaveLength(2);
+  });
+
+  it("re-issues the original filters on reconnect", () => {
+    const { pool, connections, clock } = createPool({ random: () => 0.5 });
+    pool.subscribe(
+      "wss://one/",
+      [{ kinds: [1], authors: ["abc"] }],
+      noopHandlers(),
+    );
+    connections.get("wss://one/")?.die();
+
+    clock.advance(1000);
+
+    // Do not backfill with `since` -- re-issue the original filter as-is.
+    expect(connections.get("wss://one/")?.subscriptions[0].filters).toEqual([
+      { kinds: [1], authors: ["abc"] },
+    ]);
+  });
+
+  it("caps the backoff at 60 seconds and never gives up", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      connections.get("wss://one/")?.die();
+      clock.advance(60_000);
+    }
+
+    // Must not give up after 8 attempts -- a laptop waking from sleep must
+    // not be left with only a manual retry as its recovery path.
+    expect(connectCalls.length).toBe(13);
+  });
+
+  it("applies jitter so reconnections do not synchronise", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    clock.advance(499);
+    expect(connectCalls).toHaveLength(1);
+    clock.advance(1); // 1000 * (0.5 + 0) = 500ms
+    expect(connectCalls).toHaveLength(2);
+  });
+
+  it("retryNow() reconnects immediately and resets the backoff", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die(); // second death
+
+    pool.retryNow();
+
+    expect(connectCalls).toHaveLength(3);
+    // Backoff is reset, so the next death after retryNow() waits 1s again.
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    expect(connectCalls).toHaveLength(4);
+  });
+
+  it("stops reconnecting once the last subscription closed", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    sub?.close();
+    clock.advance(60_000);
+
+    expect(connectCalls).toHaveLength(1);
+  });
+
+  it("does not schedule a reconnect timer if the budget is full when the timer fires, and retries again later", () => {
+    // Two relays share a budget of 1. wss://one/ dies; wss://two/ is holding
+    // the sole slot when the reconnect timer fires, so the reconnect must
+    // reschedule instead of stealing the slot from a live relay.
+    const { pool, connections, connectCalls, clock } = createPool({
+      maxConnections: 1,
+      random: () => 0.5,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    // The budget is now free (size is 0), so a second relay can take it.
+    pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.size).toBe(1);
+
+    clock.advance(1000);
+    // wss://one/'s reconnect attempt found the budget full (wss://two/ holds
+    // the only slot) and must not have opened a second socket.
+    expect(connectCalls).toEqual(["wss://one/", "wss://two/"]);
+    expect(pool.size).toBe(1);
   });
 });

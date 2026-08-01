@@ -5,7 +5,11 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
-import { ConnectionPool, type PooledSubscription } from "./connection-pool";
+import {
+  ConnectionPool,
+  type ConnectionPoolOptions,
+  type PooledSubscription,
+} from "./connection-pool";
 import {
   FALLBACK_RELAYS,
   MAX_CONNECTIONS,
@@ -71,6 +75,10 @@ export type SubscriptionManagerOptions = {
   maxConnections?: number;
   /** 1 著者あたり何本のリレーから取るか。既定は RELAY_REDUNDANCY */
   redundancy?: number;
+  /** ConnectionPool へそのまま渡す再接続タイマーの注入口 (テスト用)。 */
+  scheduler?: ConnectionPoolOptions["scheduler"];
+  /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
+  random?: ConnectionPoolOptions["random"];
 };
 
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
@@ -210,11 +218,18 @@ export class SubscriptionManager {
     this.#pool = new ConnectionPool({
       connect: options.connect,
       maxConnections: options.maxConnections,
+      scheduler: options.scheduler,
+      random: options.random,
     });
   }
 
   get connectionCount(): number {
     return this.#pool.size;
+  }
+
+  /** 手動再試行 (ADR-0021)。プールへそのまま委譲する。 */
+  retryNow(): void {
+    this.#pool.retryNow();
   }
 
   subscribe(
