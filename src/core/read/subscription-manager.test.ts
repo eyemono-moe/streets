@@ -3,10 +3,15 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
-import type { RelayUrl } from "../relay/relay-connection";
+import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import { EventStore } from "./event-store";
 import { RoutingTable } from "./routing-table";
-import { SubscriptionManager } from "./subscription-manager";
+import {
+  type SectionDelivery,
+  type SectionPlan,
+  SubscriptionManager,
+  type SubscriptionManagerOptions,
+} from "./subscription-manager";
 
 const keyFor = (seed: number) =>
   Uint8Array.from(
@@ -51,6 +56,146 @@ const setup = () => {
     onPlanChanged: vi.fn(),
   });
   return { relays, store, manager, delivery };
+};
+
+// Task 6 helpers: replan() pools demand across every registered section, so
+// these tests need to mint many distinct authors (each with its own kind:10002)
+// and inspect a manager's global connection set rather than a single relay's
+// subscriptions. `seedByPubkey` lets `relayListFor` take a pubkey (as the brief
+// specifies) while still being able to sign for it, by remembering which seed
+// produced that pubkey.
+const seedByPubkey = new Map<string, number>();
+
+const pubkeyFor = (seed: number): string => {
+  const pubkey = bytesToHex(schnorr.getPublicKey(keyFor(seed)));
+  seedByPubkey.set(pubkey, seed);
+  return pubkey;
+};
+
+// Same construction as routing-table.test.ts's `relayList` helper, but keyed
+// by pubkey (via the seed cache above) so call sites read naturally as
+// "this author's relay list" rather than "the event for seed N".
+const relayListFor = (
+  pubkey: string,
+  urls: RelayUrl[],
+  createdAt = 1_700_000_000,
+): NostrEvent => {
+  const seed = seedByPubkey.get(pubkey);
+  if (seed === undefined) {
+    throw new Error(
+      `relayListFor: ${pubkey} was not minted via pubkeyFor, cannot sign for it`,
+    );
+  }
+  const sk = keyFor(seed);
+  const unsigned = {
+    pubkey,
+    created_at: createdAt,
+    kind: 10002,
+    tags: urls.map((url) => ["r", url, "write"]),
+    content: "",
+  };
+  const id = computeEventId(unsigned);
+  return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
+};
+
+const noopDelivery = (): SectionDelivery => ({
+  onEvent: () => {},
+  onRelayComplete: () => {},
+  onRelayUnreachable: () => {},
+  onPlanChanged: () => {},
+});
+
+type CreateManagerOptions = Partial<
+  Pick<
+    SubscriptionManagerOptions,
+    "maxConnections" | "redundancy" | "fallbackRelays"
+  >
+>;
+
+const createManager = (options: CreateManagerOptions = {}) => {
+  const connections = new Map<RelayUrl, FakeRelayConnection>();
+  const connectCalls: RelayUrl[] = [];
+  const store = new EventStore();
+  const manager = new SubscriptionManager({
+    store,
+    routing: new RoutingTable(store),
+    connect: (url) => {
+      connectCalls.push(url);
+      const existing = connections.get(url);
+      if (existing) throw new Error(`connect called twice for ${url}`);
+      const relay = new FakeRelayConnection(url);
+      connections.set(url, relay);
+      return relay;
+    },
+    fallbackRelays: options.fallbackRelays ?? ["wss://fallback/"],
+    maxConnections: options.maxConnections,
+    redundancy: options.redundancy,
+  });
+  return { manager, store, connections, connectCalls };
+};
+
+// Puts a kind:10002 into `store` for each of `to - from` freshly-minted
+// authors, each declaring its own distinct write relay, then returns the
+// pubkeys. Seeds are offset by 10_000 + `from` so they never collide with the
+// small seeds `signed()` uses elsewhere in this file.
+const authorsWithRelays = (
+  store: EventStore,
+  from: number,
+  to: number,
+): string[] => {
+  const authors: string[] = [];
+  for (let i = from; i < to; i++) {
+    const pubkey = pubkeyFor(10_000 + i);
+    store.put(relayListFor(pubkey, [`wss://relay-${i}/`]), "wss://indexer/");
+    authors.push(pubkey);
+  }
+  return authors;
+};
+
+const subscribeWithPlans = (
+  manager: SubscriptionManager,
+  filters: RelayFilter[],
+  relays?: RelayUrl[],
+) => {
+  const plans: SectionPlan[] = [];
+  const delivery: SectionDelivery = {
+    onEvent: vi.fn(),
+    onRelayComplete: vi.fn(),
+    onRelayUnreachable: vi.fn(),
+    onPlanChanged: (plan) => plans.push(plan),
+  };
+  const handle = manager.subscribe(filters, relays, delivery);
+  // The initial plan arrives through the return value, not onPlanChanged
+  // (subscribe() must not fire the callback for the section it just
+  // registered — the caller doesn't hold the handle yet). Seeding `plans`
+  // with it here means `plans.at(-1)` is always the current plan either way.
+  plans.push(handle.initialPlan);
+  return { delivery, plans, handle };
+};
+
+const createManagerWithSection = (
+  authors: string[],
+  managerOptions: CreateManagerOptions = {},
+) => {
+  const base = createManager(managerOptions);
+  const { delivery, plans, handle } = subscribeWithPlans(base.manager, [
+    { kinds: [1], authors },
+  ]);
+  return { ...base, delivery, plans, handle };
+};
+
+const createManagerWithTwoAuthorsSharingARelay = () => {
+  const base = createManager();
+  const a = pubkeyFor(20_001);
+  const b = pubkeyFor(20_002);
+  base.store.put(relayListFor(a, ["wss://shared/"]), "wss://indexer/");
+  base.store.put(relayListFor(b, ["wss://shared/"]), "wss://indexer/");
+  base.manager.subscribe(
+    [{ kinds: [1], authors: [a, b] }],
+    undefined,
+    noopDelivery(),
+  );
+  return base;
 };
 
 describe("SubscriptionManager", () => {
@@ -272,6 +417,7 @@ describe("SubscriptionManager", () => {
         close: () => {
           closedUrls.push(url);
         },
+        onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],
     });
@@ -425,5 +571,79 @@ describe("SubscriptionManager", () => {
     second.close();
     expect(relays.get("wss://shared/")?.closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
+  });
+
+  // Task 6: the budget is global (ADR-0025), so two sections that each look
+  // at their own five authors must still share one 30 (here 3) connection
+  // ceiling, not each get their own.
+  it("shares one budget across every section", () => {
+    const { manager, store, connections } = createManager({
+      maxConnections: 3,
+    });
+    manager.subscribe(
+      [{ kinds: [1], authors: authorsWithRelays(store, 0, 5) }],
+      undefined,
+      noopDelivery(),
+    );
+    manager.subscribe(
+      [{ kinds: [1], authors: authorsWithRelays(store, 5, 10) }],
+      undefined,
+      noopDelivery(),
+    );
+
+    expect(connections.size).toBeLessThanOrEqual(3);
+  });
+
+  it("re-plans a live section when its routing becomes known", () => {
+    const AUTHOR = pubkeyFor(30_001);
+    const { manager, store, delivery, plans } = createManagerWithSection([
+      AUTHOR,
+    ]);
+    expect(plans.at(-1)?.relays).toEqual(["wss://fallback/"]);
+
+    store.put(relayListFor(AUTHOR, ["wss://author-write/"]), "wss://fallback/");
+    manager.replan();
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://author-write/"]);
+    expect(plans.at(-1)?.unroutableAuthors).toBe(0);
+    void delivery;
+  });
+
+  // The whole point of diffing (rather than tearing down and re-opening
+  // everything on every replan) is that a relay both the old and new plan
+  // keep is left alone. Without the diff, re-planning would roll every
+  // section's phase back from settled to streaming on every replan() call —
+  // see the brief's rationale.
+  it("does not reopen a relay that both plans keep", () => {
+    const { manager, connectCalls } =
+      createManagerWithTwoAuthorsSharingARelay();
+    const before = connectCalls.length;
+
+    manager.replan();
+
+    expect(connectCalls.length).toBe(before);
+  });
+
+  it("reports authors dropped by the budget as uncovered", () => {
+    const { manager, store } = createManager({ maxConnections: 1 });
+    const authors = authorsWithRelays(store, 100, 105);
+
+    const { plans } = subscribeWithPlans(manager, [{ kinds: [1], authors }]);
+
+    expect(plans.at(-1)?.uncoveredAuthors).toBeGreaterThan(0);
+  });
+
+  it("never drops an explicitly requested relay for budget reasons", () => {
+    const { manager, store, connections } = createManager({
+      maxConnections: 1,
+    });
+    manager.subscribe([{ kinds: [1] }], ["wss://named/"], noopDelivery());
+    manager.subscribe(
+      [{ kinds: [1], authors: authorsWithRelays(store, 200, 205) }],
+      undefined,
+      noopDelivery(),
+    );
+
+    expect([...connections.keys()]).toContain("wss://named/");
   });
 });
