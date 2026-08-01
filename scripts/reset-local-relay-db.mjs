@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import { existsSync, readdirSync, rmSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const run = (command, args, options = {}) => {
   const result = spawnSync(command, args, {
@@ -35,6 +38,22 @@ const volumeName = () => {
   return config.volumes?.[source]?.name ?? `${config.name}_${source}`;
 };
 
+// nostr-rs-relay-2 (リレー2) はバインドマウント ./data/nostr-rs-relay-2/db を
+// sqlite の data_directory としてそのまま使っている。named volume ではないため
+// `docker volume rm` では絶対に消えない。コンテナを止めた上でホスト側の
+// ファイルを直接消す必要がある。
+//
+// 一方リレー1 (nostr-rs-relay) にも ./data/nostr-rs-relay/db のバインドマウント
+// があるが、.local-dev/nostr-rs-relay-config.toml を見ると engine = "postgres"
+// で実データは postgres 側にある。このディレクトリは未使用なので触らなくてよい。
+const relay2DbDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "data",
+  "nostr-rs-relay-2",
+  "db",
+);
+
 const postgresVolume = volumeName();
 if (!postgresVolume) {
   throw new Error(
@@ -42,8 +61,14 @@ if (!postgresVolume) {
   );
 }
 
-console.log("[streets reset] stopping local relay and postgres");
-run("docker", ["compose", "stop", "nostr-rs-relay", "postgres"]);
+console.log("[streets reset] stopping local relay (1, 2) and postgres");
+run("docker", [
+  "compose",
+  "stop",
+  "nostr-rs-relay",
+  "nostr-rs-relay-2",
+  "postgres",
+]);
 
 console.log(`[streets reset] removing postgres volume: ${postgresVolume}`);
 run("docker", ["compose", "rm", "-f", "-s", "-v", "postgres"]);
@@ -70,7 +95,34 @@ if (removed.status !== 0) {
   }
 }
 
-console.log("[streets reset] starting local relay and postgres");
-run("docker", ["compose", "up", "-d", "postgres", "nostr-rs-relay"]);
+console.log(`[streets reset] removing リレー2 (sqlite) files: ${relay2DbDir}`);
+try {
+  const entries = existsSync(relay2DbDir) ? readdirSync(relay2DbDir) : [];
+  for (const entry of entries) {
+    rmSync(path.join(relay2DbDir, entry), { recursive: true, force: true });
+  }
+  if (entries.length === 0) {
+    console.log(`[streets reset] ${relay2DbDir} は空でした (削除するものなし)`);
+  }
+} catch (cause) {
+  console.error(`[streets reset] FAILED to clear ${relay2DbDir}`);
+  console.error(
+    `[streets reset] ${cause instanceof Error ? cause.message : String(cause)}`,
+  );
+  console.error(
+    "[streets reset] データベースはリセットされていません。シード結果は決定的になりません。",
+  );
+  process.exit(1);
+}
+
+console.log("[streets reset] starting local relay (1, 2) and postgres");
+run("docker", [
+  "compose",
+  "up",
+  "-d",
+  "postgres",
+  "nostr-rs-relay",
+  "nostr-rs-relay-2",
+]);
 
 console.log("[streets reset] local relay database reset complete");
