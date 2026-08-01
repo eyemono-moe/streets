@@ -1377,21 +1377,31 @@ describe("SubscriptionManager", () => {
     expect(replanSpy).toHaveBeenCalledTimes(1);
   });
 
+  // Fix round 1, Important 1: this used to assert on `plans.length`, the same
+  // signal proven insensitive by the burst test above -- and for a subtler
+  // reason than the burst test's "wrong author". A rejected event is never
+  // actually indexed by EventStore.put() (verifyEvent() failed, so nothing
+  // was written), so even a *completely unguarded* manager that called
+  // scheduleReplan() unconditionally would trigger a replan() that finds the
+  // routing table unchanged and therefore never fires onPlanChanged. The
+  // signal can't tell "guarded, never asked" from "unguarded, asked and
+  // found nothing new" apart. Spying on replan() observes whether the ask
+  // happened at all, independent of what a downstream replan() finds.
   it("does not re-plan for ordinary events", () => {
     const AUTHOR = pubkeyFor(80_003);
-    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
-    const before = plans.length;
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
 
     emitEvent(connections.get("wss://fallback/"), noteBy(AUTHOR));
     clock.advance(100);
 
-    expect(plans.length).toBe(before);
+    expect(replanSpy).not.toHaveBeenCalled();
   });
 
   it("does not re-plan for a kind:10002 EventStore rejects (bad signature)", () => {
     const AUTHOR = pubkeyFor(80_004);
-    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
-    const before = plans.length;
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
 
     const forged = {
       ...relayListFor(AUTHOR, ["wss://author-write/"]),
@@ -1403,7 +1413,36 @@ describe("SubscriptionManager", () => {
     // A relay must not be able to force a re-plan by pushing a malformed or
     // unverifiable kind:10002 -- store.put() returning "rejected" must not
     // reach the debounce hook at all (cheap DoS otherwise).
-    expect(plans.length).toBe(before);
+    expect(replanSpy).not.toHaveBeenCalled();
+  });
+
+  // Fix round 1, Important 2: the hook used to gate on `result !== "rejected"`,
+  // which also let a "duplicate" result through. EventStore.put() returns
+  // "duplicate" for an already-stored id without touching #indexReplaceable
+  // -- the routing table provably cannot have changed -- so an already
+  // -connected relay that keeps re-delivering a kind:10002 the client already
+  // has could force a full global greedy re-selection every debounce window,
+  // indefinitely, for zero new information. Gating on `=== "inserted"`
+  // closes that: only a genuine insert (a first sighting, or a newer
+  // replaceable version with a different id) can change routing.
+  it("schedules a re-plan for the first delivery of a kind:10002, but not for a duplicate of the same event", () => {
+    const AUTHOR = pubkeyFor(80_006);
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
+    const relayList = relayListFor(AUTHOR, ["wss://author-write/"]);
+
+    emitEvent(connections.get("wss://fallback/"), relayList);
+    clock.advance(100);
+    expect(replanSpy).toHaveBeenCalledTimes(1);
+
+    // The exact same event (same id) arrives again -- now via the relay the
+    // author itself just got routed to, the ordinary way a second copy of an
+    // already-known kind:10002 would show up. EventStore.put() returns
+    // "duplicate" here, not "inserted".
+    emitEvent(connections.get("wss://author-write/"), relayList);
+    clock.advance(100);
+
+    expect(replanSpy).toHaveBeenCalledTimes(1);
   });
 
   it("cancels a pending debounced re-plan on dispose()", () => {

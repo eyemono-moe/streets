@@ -639,11 +639,11 @@ export class SubscriptionManager {
         if (entry.closed) return;
         const result = this.#options.store.put(event, url);
         // store.put() が "rejected" を返した (schnorr 検証に落ちた) イベント
-        // は、以下のどちらの意味でも「届いた」扱いにしない: セクションへ配信
-        // しない (既存の挙動) のはもちろん、再プランの引き金にもしない。
-        // これを分けないと、kind:10002 を騙る改竄ペイロードを送るだけで、
-        // どのリレーでも大域の貪欲選択 (全セクション分) を任意のタイミングで
-        // 起こせてしまう — 安上がりな DoS になる (Task 10)。
+        // は、セクションへ配信しない (既存の挙動)。下の再プランの引き金も
+        // "inserted" だけに絞ってあるので "rejected" は二重に排除される —
+        // 改竄ペイロードで大域の貪欲選択 (全セクション分) を任意のタイミング
+        // で起こせてしまう、という安上がりな DoS を、片方が壊れてももう
+        // 片方で塞ぐ (Task 10)。
         if (result === "rejected") return;
         entry.delivery.onEvent(event.id, url);
         // ADR-0016「未解決の著者は既定リレーへ暫定的に送信し、解決後に張り
@@ -657,7 +657,22 @@ export class SubscriptionManager {
         // 明示的に replan() を呼ぶ責務を負う — さもないと、起動直後に
         // 既に分かっているはずの著者が、この再プランが効くまで暫定的な
         // fallback 経路のまま置き去りにされる。
-        if (event.kind === 10002) this.#scheduleReplan();
+        //
+        // ここは `result === "inserted"` で絞る — `!== "rejected"` ではない。
+        // 「セクションへ配信するか」(上の `entry.delivery.onEvent`) と
+        // 「再プランを起こすか」は別の問いである。配信側を "inserted" だけに
+        // 絞るのは過去に Critical バグだった (共有ストアでは 2 番目に見た
+        // セクションが "duplicate" を受け取り、何も配信されなくなる) が、
+        // ルーティングの再計算はそれとは別の話: "duplicate" は
+        // `EventStore.put` が `#indexReplaceable` に触れずに返す (id が既に
+        // 存在する) ので、ルーティング表が変わりようがない。ここで
+        // "duplicate" まで拾うと、既に知っている kind:10002 を送り続けるだけ
+        // のリレー 1 本が、新しい情報ゼロのまま大域の貪欲選択を無限に起こせて
+        // しまう — decision 2 が塞いだのと同じ種類の安上がりな引き金が、
+        // ガードの見ていない経路から入ってくる。
+        if (result === "inserted" && event.kind === 10002) {
+          this.#scheduleReplan();
+        }
       },
       onEose: () => {
         if (!entry.closed) entry.delivery.onRelayComplete(url);
