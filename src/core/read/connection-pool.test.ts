@@ -218,12 +218,88 @@ describe("ConnectionPool", () => {
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
   });
 
-  it("keeps the registry so the entries can be re-issued later", () => {
+  // Decision 1 (the brief's most emphasized rule): the connection itself
+  // (FakeRelayConnection.die() / WebSocketRelayConnection.fail()) already
+  // distributes onClosed to every handler it holds. The pool must not call
+  // it a second time — that would double-count incomplete.unreachableRelays,
+  // a defect invisible downstream because SectionReader.status is a boolean
+  // per relay. Only a raw callback-count assertion can catch it.
+  it("does not call onClosed a second time when the connection dies", () => {
     const { pool, connections } = createPool();
-    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    let closedCount = 0;
+    pool.subscribe("wss://one/", [{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: () => {
+        closedCount += 1;
+      },
+    });
+
     connections.get("wss://one/")?.die();
 
-    // The connection is gone but the entry survives. close() must not throw.
-    expect(pool.size).toBe(0);
+    expect(closedCount).toBe(1);
+  });
+
+  it("calls onClosed exactly once per entry when a shared connection dies", () => {
+    const { pool, connections } = createPool();
+    let aClosed = 0;
+    let bClosed = 0;
+    pool.subscribe("wss://one/", [{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: () => {
+        aClosed += 1;
+      },
+    });
+    pool.subscribe("wss://one/", [{ kinds: [7] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: () => {
+        bClosed += 1;
+      },
+    });
+
+    connections.get("wss://one/")?.die();
+
+    expect(aClosed).toBe(1);
+    expect(bClosed).toBe(1);
+  });
+
+  // Decision 2: the pooled record (and its entry set) must survive a
+  // death, distinguishable from the whole record being discarded. That
+  // distinction isn't visible through `size` alone (both read 0 once the
+  // connection is null) — it only becomes observable once something reuses
+  // the retained record: a fresh subscribe() to the same URL. If the
+  // record had been discarded, the fresh subscribe() would start an empty
+  // entry set containing only the new entry, and closing that entry alone
+  // would immediately empty it and tear the new connection down. If the
+  // record was correctly retained, the pre-death entry is still counted,
+  // so the new connection must survive the new entry's close alone.
+  it("does not drop the pooled record until every entry, including ones added after death, has closed", () => {
+    const { pool, connections, connectCalls } = createPool();
+    const stale = pool.subscribe(
+      "wss://one/",
+      [{ kinds: [1] }],
+      noopHandlers(),
+    );
+    connections.get("wss://one/")?.die();
+
+    const fresh = pool.subscribe(
+      "wss://one/",
+      [{ kinds: [7] }],
+      noopHandlers(),
+    );
+    const reconnected = connections.get("wss://one/");
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+    // Closing only the freshly (re)subscribed entry must not tear the
+    // connection down — the stale, pre-death entry is still registered.
+    expect(() => fresh?.close()).not.toThrow();
+    expect(reconnected?.closed).toBe(false);
+
+    // Closing the last remaining (stale) entry finally empties the
+    // registry and drops the connection.
+    expect(() => stale?.close()).not.toThrow();
+    expect(reconnected?.closed).toBe(true);
   });
 });
