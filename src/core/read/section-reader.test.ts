@@ -160,6 +160,55 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
   });
 
+  // Review finding: manager.subscribe()'s callbacks can fire synchronously
+  // (WebSocketRelayConnection calls onClosed inline when the socket is
+  // already closed). Those callbacks run #notify() while #handle is still
+  // null. Worse: if the first of several relays settles synchronously before
+  // the rest are even subscribed, `live.every(complete)` is vacuously true
+  // over the partial #relays map built so far, and the section briefly
+  // reports "settled" before start() has finished wiring up every relay.
+  // createSection() re-syncs right after start() so it self-corrects, but a
+  // subscriber watching every notify() would see a settled->initial flicker.
+  it("never reports settled from within start() itself, even when a relay closes synchronously from inside subscribe()", () => {
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => ({
+        url,
+        subscribe: (_filters, handlers) => {
+          if (url === "wss://sync-closed/") {
+            // Mimics WebSocketRelayConnection calling onClosed inline when
+            // the socket is already closed: the callback fires before
+            // subscribe() (and therefore manager.subscribe()) has returned.
+            handlers.onClosed("socket closed");
+          }
+          return { close: () => {} };
+        },
+        publish: async () => {},
+        close: () => {},
+      }),
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://sync-closed/", "wss://slow/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+    });
+
+    const phasesSeen: string[] = [];
+    reader.subscribe(() => phasesSeen.push(reader.status.phase));
+
+    reader.start();
+
+    expect(phasesSeen).not.toContain("settled");
+  });
+
   it("keeps at most MAX_ITEMS_PER_SECTION items, dropping the oldest", () => {
     const { relay, reader } = setup();
     reader.start();
@@ -403,6 +452,38 @@ describe("SectionReader", () => {
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete).toBeUndefined();
   });
+
+  // Contrast with the test above: `relays: []` (nothing named) settles quiet
+  // per ADR-0015 ("見るべき場所が存在せず"). But a source whose relays are
+  // all unparseable garbage is "the user named places and we could not parse
+  // them" — ADR-0011 forbids that vanishing silently. It must still settle
+  // (there is nothing left to wait on), but with unreachableRelays > 0 so a
+  // caller can tell the two cases apart.
+  it("settles with a non-empty incomplete block when every explicit relay is unparseable, unlike an explicit empty list", () => {
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: () => {
+        throw new Error("must not open any relay for an unparseable url");
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["not a url", "also not a url"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+    });
+    reader.start();
+
+    expect(reader.status.phase).toBe("settled");
+    expect(reader.status.incomplete?.unreachableRelays).toBe(2);
+  });
 });
 
 const relayListEvent = (seed: number, tags: string[][]): NostrEvent => {
@@ -492,7 +573,13 @@ describe("SectionReader with Outbox routing", () => {
   // composition of multiple filters with overlapping authors collapsing to
   // one number in status.incomplete. Same source shape and expectation
   // (toBe(3)) as the original test; only the setup moved to the manager.
-  it("reports unroutableAuthors as the number of distinct authors named across filters when there are no relays", () => {
+  //
+  // Renamed (review round: the title said "when there are no relays", but
+  // `relays` here is undefined, not `[]` — the source omits `relays`
+  // entirely, so Outbox routing kicks in and none of the named authors can
+  // be routed, sending them all to the fallback connection). Assertions
+  // unchanged.
+  it("reports unroutableAuthors as the number of distinct authors named across filters when relays are undefined and routing falls back", () => {
     const relays = new Map<string, FakeRelayConnection>();
     const store = new EventStore();
     const manager = new SubscriptionManager({

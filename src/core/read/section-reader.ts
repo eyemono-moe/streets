@@ -33,6 +33,13 @@ export class SectionReader {
   #handle: SectionHandle | null = null;
   #items: NostrEvent[] = [];
   #started = false;
+  // manager.subscribe() のコールバックは同期的に発火しうる
+  // (WebSocketRelayConnection はソケットが既に閉じていると subscribe() の
+  // 中で同期的に onClosed する)。start() が全リレー分の状態を作り終える前に
+  // #notify() が走ると、#relays に一部のリレーしか載っていない状態で
+  // live.every(complete) が空配列に対する自明な真になり、settled→initial の
+  // 一瞬のちらつきを observer に見せてしまう。start() の間だけ抑制する。
+  #starting = false;
 
   constructor(options: SectionReaderOptions) {
     this.#options = options;
@@ -63,21 +70,28 @@ export class SectionReader {
   start(): void {
     if (this.#started) return;
     this.#started = true;
+    this.#starting = true;
 
     const { source, manager } = this.#options;
-    this.#handle = manager.subscribe(source.filters, source.relays, {
-      onEvent: (id, relay) => this.#onEvent(id, relay),
-      onRelayComplete: (relay) => {
-        this.#relayState(relay).complete = true;
-        this.#notify();
-      },
-      onRelayUnreachable: (relay) => {
-        this.#relayState(relay).unreachable = true;
-        this.#notify();
-      },
-    });
+    try {
+      this.#handle = manager.subscribe(source.filters, source.relays, {
+        onEvent: (id, relay) => this.#onEvent(id, relay),
+        onRelayComplete: (relay) => {
+          this.#relayState(relay).complete = true;
+          this.#notify();
+        },
+        onRelayUnreachable: (relay) => {
+          this.#relayState(relay).unreachable = true;
+          this.#notify();
+        },
+      });
 
-    for (const relay of this.#handle.relays) this.#relayState(relay);
+      for (const relay of this.#handle.relays) this.#relayState(relay);
+    } finally {
+      this.#starting = false;
+    }
+    // start() が確定させた最終状態を、抑制していた分まとめて 1 回だけ通知する。
+    this.#notify();
   }
 
   /**
@@ -136,6 +150,7 @@ export class SectionReader {
   }
 
   #notify(): void {
+    if (this.#starting) return;
     for (const listener of this.#listeners) listener();
   }
 }
