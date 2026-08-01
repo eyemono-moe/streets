@@ -65,10 +65,44 @@ describe("SubscriptionManager", () => {
     ]);
   });
 
+  // Review finding: the explicit-relays branch handed the very same `filters`
+  // array instance to every relay via perRelay.set(url, filters). The routed
+  // path (query-plan.ts) shallow-copies per relay specifically to prevent
+  // this kind of cross-relay aliasing (commit 7416368); the bypass path had
+  // reintroduced the hazard it fixed one layer down.
+  it("gives each explicitly named relay its own filters array, not a shared reference", () => {
+    const { relays, manager, delivery } = setup();
+    const filters = [{ kinds: [1] }];
+
+    manager.subscribe(filters, ["wss://one/", "wss://two/"], delivery());
+
+    const filtersOne = relays.get("wss://one/")?.subscriptions[0].filters;
+    const filtersTwo = relays.get("wss://two/")?.subscriptions[0].filters;
+    expect(filtersOne).toEqual(filters);
+    expect(filtersTwo).toEqual(filters);
+    expect(filtersOne).not.toBe(filtersTwo);
+  });
+
   it("normalizes explicitly given relay urls", () => {
     const { relays, manager, delivery } = setup();
     manager.subscribe([{ kinds: [1] }], ["wss://given"], delivery());
     expect(relays.has("wss://given/")).toBe(true);
+  });
+
+  // ADR-0011 forbids silently dropping a place we couldn't check. An
+  // explicit relay list containing a URL that fails normalizeRelayUrl must
+  // not just vanish — that would be indistinguishable from "checked
+  // everywhere, found nothing". Report it through onRelayUnreachable so it
+  // shows up as incomplete, same as a relay that connected and then closed.
+  it("reports an unnormalizable explicit relay url as unreachable instead of silently dropping it", () => {
+    const { manager, delivery } = setup();
+    const d = delivery();
+
+    const handle = manager.subscribe([{ kinds: [1] }], ["not a url"], d);
+
+    expect(d.onRelayUnreachable).toHaveBeenCalledWith("not a url");
+    expect(handle.relays).toEqual([]);
+    expect(handle.unroutableAuthors).toBe(0);
   });
 
   it("routes by author when no relays are given", () => {
@@ -268,6 +302,48 @@ describe("SubscriptionManager", () => {
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
+  });
+
+  // Review finding: dispose() abandons outstanding SectionHandles instead of
+  // neutralizing them. Sequence: subscribe wss://x (refCount 1) -> dispose()
+  // clears the pool -> subscribe wss://x again (a *new* connection, refCount
+  // 1) -> the stale handle from the first subscribe calls close(), which
+  // must not be able to touch the new connection at all.
+  it("a handle created before dispose() cannot close a connection acquired after dispose()", () => {
+    const store = new EventStore();
+    const opened: FakeRelayConnection[] = [];
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        opened.push(relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    const staleHandle = manager.subscribe([{ kinds: [1] }], ["wss://x/"], {
+      onEvent: vi.fn(),
+      onRelayComplete: vi.fn(),
+      onRelayUnreachable: vi.fn(),
+    });
+
+    manager.dispose();
+
+    manager.subscribe([{ kinds: [1] }], ["wss://x/"], {
+      onEvent: vi.fn(),
+      onRelayComplete: vi.fn(),
+      onRelayUnreachable: vi.fn(),
+    });
+
+    expect(opened).toHaveLength(2);
+    const freshConnection = opened[1];
+
+    staleHandle.close();
+
+    expect(freshConnection.closed).toBe(false);
+    expect(manager.connectionCount).toBe(1);
   });
 
   it("dispose() followed by a live handle's close() does not double-close or throw", () => {

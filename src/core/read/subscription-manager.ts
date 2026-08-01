@@ -50,6 +50,13 @@ type PooledConnection = {
 export class SubscriptionManager {
   readonly #options: SubscriptionManagerOptions;
   readonly #pool = new Map<RelayUrl, PooledConnection>();
+  // dispose() が孤児化させる SectionHandle を無効化するための世代カウンタ。
+  // handle は生成時の世代を覚えておき、close() 時点で現在の世代と食い違って
+  // いたら何もしない。世代が進んでいるということは、dispose() で pool が
+  // 丸ごと作り直された後だということ — その handle が握っていた url は
+  // 同じ文字列でも「別の接続」を指しうるので、素朴に #release すると
+  // dispose() 後に新しく張り直された接続を誤って閉じてしまう。
+  #generation = 0;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -65,6 +72,7 @@ export class SubscriptionManager {
     delivery: SectionDelivery,
   ): SectionHandle {
     const fallbackRelays = this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+    const generation = this.#generation;
 
     const perRelay = new Map<RelayUrl, RelayFilter[]>();
     let unroutableAuthors = 0;
@@ -73,7 +81,20 @@ export class SubscriptionManager {
       // 明示指定は Outbox ルーティングをバイパスする (ADR-0005)
       for (const raw of relays) {
         const url = normalizeRelayUrl(raw);
-        if (url) perRelay.set(url, filters);
+        if (url) {
+          // planQuery (query-plan.ts) と同じく、リレーごとに配列を分ける。
+          // 同じ配列インスタンスを複数リレーで共有すると、一方への変更が
+          // 他方に漏れる (コミット 7416368 で routed 経路から潰したのと
+          // 同じ危険を、この bypass 経路で再導入してしまう)。
+          perRelay.set(url, [...filters]);
+        } else {
+          // 正規化できない URL を黙って捨てると「どこも見ていないのに
+          // settled」という区別のつかない劣化になる (ADR-0011: 黙って
+          // 欠落させてはならない)。最初から到達不能だったものとして報告する。
+          // RelayUrl は string のエイリアスなので、正規化前の生文字列を渡す
+          // ことに型的な不健全さはない。
+          delivery.onRelayUnreachable(raw);
+        }
       }
     } else {
       const plan = planQuery({
@@ -127,6 +148,10 @@ export class SubscriptionManager {
       close: () => {
         if (closed) return;
         closed = true;
+        // dispose() が挟まっていたら、この handle が握っていた接続は
+        // もう pool にいない (別の generation で作り直された可能性がある)。
+        // 触らずに無視する — 触ると新しい世代の接続を誤って閉じかねない。
+        if (generation !== this.#generation) return;
         for (const { url, subscription } of opened) {
           subscription.close();
           this.#release(url);
@@ -138,6 +163,7 @@ export class SubscriptionManager {
   dispose(): void {
     for (const pooled of this.#pool.values()) pooled.connection.close();
     this.#pool.clear();
+    this.#generation += 1;
   }
 
   #acquire(url: RelayUrl): RelayConnection {
