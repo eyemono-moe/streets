@@ -3,10 +3,53 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
-import type { RelayUrl } from "../relay/relay-connection";
+import type {
+  RelayConnection,
+  RelayFilter,
+  RelaySubscription,
+  RelaySubscriptionHandlers,
+  RelayUrl,
+} from "../relay/relay-connection";
 import { warmUpRouting } from "./bootstrap";
 import { EventStore } from "./event-store";
 import { RoutingTable } from "./routing-table";
+
+/**
+ * A RelayConnection whose subscription `close()` is a true no-op: unlike
+ * FakeRelayConnection, it does not remember "closed" and does not suppress
+ * further onEose/onClosed calls once a subscription has been closed. This
+ * exists to prove that `collect()`'s own per-connection settle guard (not
+ * FakeRelayConnection's `sub.closed` early-return) is what stops a second
+ * EOSE/CLOSED for the same connection from double-counting.
+ */
+class UnguardedConnection implements RelayConnection {
+  readonly handlers: RelaySubscriptionHandlers[] = [];
+  closed = false;
+
+  constructor(readonly url: RelayUrl) {}
+
+  subscribe(
+    _filters: RelayFilter[],
+    handlers: RelaySubscriptionHandlers,
+  ): RelaySubscription {
+    this.handlers.push(handlers);
+    return { close: () => {} };
+  }
+
+  async publish(): Promise<void> {}
+
+  close(): void {
+    this.closed = true;
+  }
+
+  fireEose(index: number): void {
+    this.handlers[index]?.onEose();
+  }
+
+  fireClosed(index: number, reason: string): void {
+    this.handlers[index]?.onClosed(reason);
+  }
+}
 
 const keyFor = (seed: number) =>
   Uint8Array.from(
@@ -229,6 +272,88 @@ describe("warmUpRouting", () => {
     });
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
+  });
+
+  it("does not double-settle a connection on EOSE-then-CLOSED even when the connection's own close() does not suppress redelivery", async () => {
+    const one = new UnguardedConnection("wss://one/");
+    const two = new UnguardedConnection("wss://two/");
+    const byUrl = new Map<RelayUrl, UnguardedConnection>([
+      ["wss://one/", one],
+      ["wss://two/", two],
+    ]);
+
+    const pending = warmUpRouting({
+      pubkey: "f".repeat(64),
+      store: new EventStore(),
+      connect: (url) => {
+        const connection = byUrl.get(url);
+        if (!connection) throw new Error(`unexpected url: ${url}`);
+        return connection;
+      },
+      indexers: ["wss://one/", "wss://two/"],
+    });
+
+    let resolved = false;
+    pending.then(() => {
+      resolved = true;
+    });
+
+    await vi.waitFor(() => expect(one.handlers).toHaveLength(1));
+    await vi.waitFor(() => expect(two.handlers).toHaveLength(1));
+
+    // Fire EOSE then CLOSED for "one" through a connection whose close()
+    // does NOT suppress further emits. If collect() relied on that
+    // suppression instead of its own per-connection settle guard, this
+    // would decrement pending twice and resolve before "two" ever answers.
+    one.fireEose(0);
+    one.fireClosed(0, "extra close after eose");
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    two.fireEose(0);
+
+    await expect(pending).resolves.toEqual({
+      followees: [],
+      routed: 0,
+      unroutable: 0,
+    });
+  });
+
+  it("closes a settled connection's subscription immediately, without waiting for other connections to settle", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pending = warmUpRouting({
+      pubkey: "f".repeat(64),
+      store: new EventStore(),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      indexers: ["wss://one/", "wss://two/"],
+    });
+
+    await vi.waitFor(() =>
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(1),
+    );
+    await vi.waitFor(() =>
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
+    );
+
+    relays.get("wss://one/")?.emitEose(0);
+
+    // "one" settled; its subscription must be closed right away — not
+    // batched until "two" (which has not answered yet) also settles, and
+    // not deferred to warmUpRouting's outer connection-level `finally`.
+    expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(true);
+    expect(relays.get("wss://two/")?.subscriptions[0].closed).toBe(false);
+    // The connection itself is not torn down yet — only the subscription.
+    expect(relays.get("wss://one/")?.closed).toBe(false);
+
+    relays.get("wss://two/")?.emitEose(0);
+    await pending;
   });
 
   it("does not hang past the timeout when an indexer never responds", async () => {
