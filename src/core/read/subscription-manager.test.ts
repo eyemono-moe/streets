@@ -1058,4 +1058,111 @@ describe("SubscriptionManager", () => {
     expect(subscribeCallCount).toBe(1);
     expect(manager.connectionCount).toBe(1);
   });
+
+  // ---------------------------------------------------------------------
+  // Task 7 fix round 1, Important 1: no test at either level covered
+  // connection.subscribe() throwing during an *in-place restart* — a URL
+  // already pooled and live, whose filters change (same shape as
+  // "re-subscribes a kept relay in place..." above), where the re-subscribe
+  // call itself fails. This pins the #applyEntryDiff "same relay kept,
+  // filters changed" branch specifically: it must converge to exactly one
+  // onRelayUnreachable (via the pool's synchronous onClosed, not a second
+  // direct call from the manager), leave entry.opened in a state with no
+  // leaked duplicate registration for the URL, leave sibling relays
+  // untouched, and still let close() be total afterward.
+  // ---------------------------------------------------------------------
+  it("reports exactly one onRelayUnreachable, leaks nothing, and stays close()-total when connection.subscribe() throws during an in-place restart", () => {
+    const store = new EventStore();
+    const A = pubkeyFor(45_001);
+    const B = pubkeyFor(45_002);
+    const C = pubkeyFor(45_003);
+    store.put(relayListFor(A, ["wss://x/"]), "wss://indexer/");
+    store.put(relayListFor(C, ["wss://c/"]), "wss://indexer/");
+    // B has no kind:10002 yet, so only A reaches wss://x/ on the first
+    // plan; C's own relay wss://c/ is unrelated and must stay unaffected
+    // throughout.
+
+    let xSubscribeCalls = 0;
+    let xConnectCalls = 0;
+    let xConnectionCloseCalls = 0;
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        if (url !== "wss://x/") return new FakeRelayConnection(url);
+        xConnectCalls += 1;
+        return {
+          url,
+          subscribe: (filters, _handlers) => {
+            xSubscribeCalls += 1;
+            void filters;
+            // First call (initial open) succeeds; the second call (the
+            // in-place restart triggered by B joining A on wss://x/)
+            // throws — a fake whose subscribe() fails only on that
+            // second call for this URL, per the coordinator's guidance.
+            if (xSubscribeCalls === 2) throw new Error("boom");
+            return { close: () => {} };
+          },
+          publish: async () => {},
+          close: () => {
+            xConnectionCloseCalls += 1;
+          },
+          onClose: () => () => {},
+        };
+      },
+      fallbackRelays: [],
+    });
+
+    const unreachable: RelayUrl[] = [];
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [A, B, C] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: (relay) => unreachable.push(relay),
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      },
+    );
+
+    expect(xSubscribeCalls).toBe(1);
+    expect(unreachable).toEqual([]);
+    expect(manager.connectionCount).toBe(2); // wss://x/ and wss://c/
+
+    // B's kind:10002 arrives declaring the SAME relay A already uses.
+    // wss://x/ survives in both the old and new plan, but the author
+    // bucket routed to it changes from [A] to [A, B] — triggering the
+    // in-place restart, whose subscribe() call is the one wired to throw.
+    store.put(relayListFor(B, ["wss://x/"]), "wss://indexer/");
+    expect(() => manager.replan()).not.toThrow();
+
+    expect(xSubscribeCalls).toBe(2);
+    expect(xConnectCalls).toBe(1); // no second connect() — same connection
+    // Exactly one report for wss://x/, converged through the pool's
+    // synchronous onClosed -> #handlersFor -> onRelayUnreachable path, not
+    // doubled by a separate direct call from the manager.
+    expect(unreachable).toEqual(["wss://x/"]);
+    // wss://x/'s connection itself is still counted live (only its REQ
+    // failed, not the socket) and wss://c/ is untouched by any of this.
+    expect(manager.connectionCount).toBe(2);
+
+    // A further replan() with no routing change must not re-attempt the
+    // failed restart (entry.opened already reflects the last-attempted
+    // [A, B] filters, so the diff sees "unchanged") and must not re-report
+    // it — proving there is exactly one live bookkeeping record for
+    // wss://x/, not a stale one left over from before the restart.
+    manager.replan();
+    expect(xSubscribeCalls).toBe(2);
+    expect(unreachable).toEqual(["wss://x/"]);
+
+    // close() must still be total, and must actually tear the connection
+    // down exactly once — if the failed restart had left a duplicate
+    // registration behind (the old entry never released), this would
+    // either throw, fire close() more than once, or leave connectionCount
+    // showing wss://x/ as still live afterward.
+    expect(() => handle.close()).not.toThrow();
+    expect(xConnectionCloseCalls).toBe(1);
+    expect(manager.connectionCount).toBe(0);
+  });
 });
