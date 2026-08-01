@@ -35,11 +35,22 @@ type FakeClock = {
   setTimeout: (callback: () => void, delayMs: number) => TimerHandle;
   clearTimeout: (handle: TimerHandle) => void;
   advance(ms: number): void;
+  /**
+   * Fix round 1 (Important 4): how many times `clearTimeout` was actually
+   * called. `connectCalls` staying flat after a `close()` is not proof the
+   * pending timer was cancelled -- `#reconnect`'s `!pooled` guard makes that
+   * hold even if `#drop`'s `clearTimeout` call were deleted outright (the
+   * dropped record is gone, so a leaked timer's `#reconnect` call finds
+   * nothing and no-ops). Only a direct count on the scheduler itself proves
+   * cancellation happened.
+   */
+  clearTimeoutCallCount: number;
 };
 
 const createFakeClock = (): FakeClock => {
   let now = 0;
   let nextId = 1;
+  let clearTimeoutCallCount = 0;
   const timers = new Map<number, { at: number; callback: () => void }>();
 
   return {
@@ -49,6 +60,7 @@ const createFakeClock = (): FakeClock => {
       return id as unknown as TimerHandle;
     },
     clearTimeout: (handle) => {
+      clearTimeoutCallCount += 1;
       timers.delete(handle as unknown as number);
     },
     advance(ms) {
@@ -62,17 +74,29 @@ const createFakeClock = (): FakeClock => {
         timer.callback();
       }
     },
+    get clearTimeoutCallCount() {
+      return clearTimeoutCallCount;
+    },
   };
 };
 
 type CreatePoolOptions = {
   maxConnections?: number;
-  /** connect() throws for any url in this list. */
+  /** connect() throws for any url in this list, every call. */
   failing?: RelayUrl[];
   /** connection.subscribe() throws for any url in this list. */
   subscribeFailing?: RelayUrl[];
   /** Task 9: ジッタの決定性を保つための注入。既定は Math.random。 */
   random?: () => number;
+  /**
+   * Fix round 1 (Important 1, Important 3): per-url predicate deciding
+   * whether the Nth `connect()` call for that url (0-indexed, counted
+   * independently per url) should throw. Lets a single test build "fails
+   * once then recovers" or "succeeds once then stays down forever" without
+   * a bespoke `connect` mock -- both shapes matter for the reconnect logic
+   * and neither is expressible with the always-fails `failing` list alone.
+   */
+  failWhen?: Partial<Record<RelayUrl, (callIndex: number) => boolean>>;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -81,10 +105,17 @@ const createPool = (options: CreatePoolOptions = {}) => {
   const failing = new Set(options.failing ?? []);
   const subscribeFailing = new Set(options.subscribeFailing ?? []);
   const clock = createFakeClock();
+  const callIndexByUrl = new Map<RelayUrl, number>();
 
   const connect: ConnectionPoolOptions["connect"] = (url) => {
+    const callIndex = callIndexByUrl.get(url) ?? 0;
+    callIndexByUrl.set(url, callIndex + 1);
     connectCalls.push(url);
-    if (failing.has(url)) throw new Error(`connect failed for ${url}`);
+    const shouldFail =
+      failing.has(url) || (options.failWhen?.[url]?.(callIndex) ?? false);
+    if (shouldFail) {
+      throw new Error(`connect failed for ${url} (call ${callIndex})`);
+    }
     const relay = new FakeRelayConnection(url);
     if (subscribeFailing.has(url)) {
       const brokenSubscribe = () => {
@@ -398,7 +429,14 @@ describe("ConnectionPool", () => {
     ]);
   });
 
-  it("caps the backoff at 60 seconds and never gives up", () => {
+  // Fix round 1, Important 3: renamed from "caps the backoff at 60 seconds
+  // and never gives up". Every reconnect here succeeds, so `attempts` resets
+  // to 0 each cycle and the computed delay never exceeds ~1000ms across all
+  // 12 cycles -- this proves only the "never gives up" half. Deleting the
+  // cap or the exponent would not fail it. The cap and the doubling
+  // themselves are proven by the next test, which drives consecutive
+  // failures far enough to actually observe both.
+  it("never gives up reconnecting after repeated deaths (does not stop after 8 attempts)", () => {
     const { pool, connections, connectCalls, clock } = createPool({
       random: () => 0.5,
     });
@@ -412,6 +450,49 @@ describe("ConnectionPool", () => {
     // Must not give up after 8 attempts -- a laptop waking from sleep must
     // not be left with only a manual retry as its recovery path.
     expect(connectCalls.length).toBe(13);
+  });
+
+  // Fix round 1, Important 3: the test above only exercises the "never
+  // gives up" half of the decision table, because every reconnect in it
+  // succeeds (attempts resets to 0 each cycle, so the delay stays ~1000ms
+  // throughout). This test drives *consecutive* connect() failures instead
+  // -- the relay connects once, dies, and every reconnect attempt after
+  // that fails -- so the backoff has to actually keep growing:
+  // 1000 -> 2000 -> 4000 -> 8000 -> 16000 -> 32000 -> 60000 (cap) -> 60000
+  // (still capped, proving it flattens rather than continuing to
+  // 128000ms uncapped).
+  it("doubles the backoff on each consecutive failure and flattens at the 60s cap", () => {
+    let succeeded = false;
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+      failWhen: {
+        "wss://one/": () => {
+          // Succeed exactly once (the initial subscribe()); every
+          // subsequent connect() call -- i.e. every reconnect attempt --
+          // fails, simulating a relay that stays down.
+          if (!succeeded) {
+            succeeded = true;
+            return false;
+          }
+          return true;
+        },
+      },
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    const expectedDelays = [1000, 2000, 4000, 8000, 16000, 32000, 60000, 60000];
+    let calls = 1; // the initial subscribe()'s connect()
+
+    for (const delay of expectedDelays) {
+      clock.advance(delay - 1);
+      expect(connectCalls.length).toBe(calls); // not yet due
+      clock.advance(1);
+      calls += 1;
+      expect(connectCalls.length).toBe(calls); // fired, and failed again
+    }
+
+    expect(pool.size).toBe(0);
   });
 
   it("applies jitter so reconnections do not synchronise", () => {
@@ -452,10 +533,59 @@ describe("ConnectionPool", () => {
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
     connections.get("wss://one/")?.die();
 
+    // Fix round 1, Important 4: `connectCalls` staying flat below is not by
+    // itself proof the pending reconnect timer was cancelled -- #reconnect's
+    // `!pooled` guard would make that hold even if #drop's clearTimeout call
+    // were deleted outright (the dropped record is gone, so a leaked timer's
+    // #reconnect call finds nothing and silently no-ops). Assert directly on
+    // the scheduler that clearTimeout was actually invoked.
+    const clearsBeforeClose = clock.clearTimeoutCallCount;
     sub?.close();
-    clock.advance(60_000);
+    expect(clock.clearTimeoutCallCount).toBe(clearsBeforeClose + 1);
 
+    clock.advance(60_000);
     expect(connectCalls).toHaveLength(1);
+  });
+
+  // Fix round 1, Important 1: a relay whose very first connect() call fails
+  // (as opposed to one that connected and later died) was not scheduled for
+  // any retry at all -- ADR-0021 says "never give up", but a column dead
+  // from the start degraded permanently while a column that died a second
+  // after opening recovered forever. `subscribe()` must schedule a
+  // reconnect for this case too, entirely on its own -- no external
+  // replan() and no second subscribe() call from the caller.
+  it("retries an initial connect() failure and recovers on its own, with no external replan() or new subscribe() call", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+      failWhen: { "wss://one/": (callIndex) => callIndex === 0 },
+    });
+
+    const reasons: string[] = [];
+    pool.subscribe("wss://one/", [{ kinds: [1], authors: ["abc"] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => reasons.push(reason),
+    });
+
+    // subscribe() stays total: the caller is told synchronously that the
+    // relay is unavailable right now...
+    expect(reasons).toEqual(["relay unavailable"]);
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.size).toBe(0);
+
+    // ...but the entry is retained and a reconnect is scheduled on its own,
+    // exactly like the post-death case.
+    clock.advance(999);
+    expect(connectCalls).toEqual(["wss://one/"]);
+    clock.advance(1); // first backoff: 1000 * (0.5 + 0.5)
+
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+    expect(pool.size).toBe(1);
+    // The original filter was re-issued unchanged on the relay that finally
+    // accepted a connection.
+    expect(connections.get("wss://one/")?.subscriptions[0].filters).toEqual([
+      { kinds: [1], authors: ["abc"] },
+    ]);
   });
 
   it("does not schedule a reconnect timer if the budget is full when the timer fires, and retries again later", () => {

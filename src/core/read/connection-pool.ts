@@ -164,6 +164,14 @@ export class ConnectionPool {
       } catch {
         entry.subscription = null;
       }
+    } else {
+      // The connect() attempt above (fresh or retried) still failed. Without
+      // this, a relay whose *first* connect() ever fails would never be
+      // scheduled for retry at all -- only deaths after a successful connect
+      // go through #onConnectionDied. ADR-0021 says "never give up"; this
+      // entry is retained (just added above) so #scheduleReconnect's
+      // "nobody is waiting" guard does not bail.
+      this.#scheduleReconnect(url);
     }
 
     if (!entry.subscription) {

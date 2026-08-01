@@ -109,6 +109,40 @@ const noopDelivery = (): SectionDelivery => ({
   onRelayRestarted: () => {},
 });
 
+// Fix round 1, Important 2: minimal local fake clock for the retryNow() /
+// scheduler-passthrough tests below. Deliberately smaller than
+// connection-pool.test.ts's FakeClock (no clearTimeout spy, no same-tick
+// reentrancy hardening needed here) -- this file owns its own fixture
+// rather than importing another test file's.
+type TestScheduler = NonNullable<SubscriptionManagerOptions["scheduler"]>;
+
+const createFakeClock = (): TestScheduler & { advance(ms: number): void } => {
+  let now = 0;
+  let nextId = 1;
+  const timers = new Map<number, { at: number; callback: () => void }>();
+  return {
+    setTimeout: (callback, delayMs) => {
+      const id = nextId++;
+      timers.set(id, { at: now + delayMs, callback });
+      return id as unknown as ReturnType<typeof setTimeout>;
+    },
+    clearTimeout: (handle) => {
+      timers.delete(handle as unknown as number);
+    },
+    advance(ms) {
+      now += ms;
+      const due = [...timers.entries()]
+        .filter(([, t]) => t.at <= now)
+        .sort((a, b) => a[1].at - b[1].at);
+      for (const [id, t] of due) {
+        if (!timers.has(id)) continue;
+        timers.delete(id);
+        t.callback();
+      }
+    },
+  };
+};
+
 type CreateManagerOptions = Partial<
   Pick<
     SubscriptionManagerOptions,
@@ -1164,5 +1198,77 @@ describe("SubscriptionManager", () => {
     expect(() => handle.close()).not.toThrow();
     expect(xConnectionCloseCalls).toBe(1);
     expect(manager.connectionCount).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1, Important 2: Task 9 added ConnectionPool.retryNow() and
+  // ConnectionPoolOptions.scheduler/random, with SubscriptionManager meant
+  // to delegate/pass them straight through -- but no test here exercised
+  // either, despite both being brief-mandated public interface.
+  // ---------------------------------------------------------------------
+
+  it("retryNow() delegates to the pool and reconnects a dead relay immediately", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const connectCalls: RelayUrl[] = [];
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        connectCalls.push(url);
+        const relay = new FakeRelayConnection(url);
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    manager.subscribe([{ kinds: [1] }], ["wss://one/"], noopDelivery());
+    connections.get("wss://one/")?.die();
+    expect(connectCalls).toEqual(["wss://one/"]);
+
+    manager.retryNow();
+
+    // Reconnected immediately -- no clock.advance() at all -- proving
+    // retryNow() bypasses the pending backoff timer rather than merely
+    // shortening it.
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+
+  it("passes scheduler and random through to the pool so automatic reconnection is driven by the injected clock, not a real timer", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const connectCalls: RelayUrl[] = [];
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        connectCalls.push(url);
+        const relay = new FakeRelayConnection(url);
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    manager.subscribe([{ kinds: [1] }], ["wss://one/"], noopDelivery());
+    connections.get("wss://one/")?.die();
+
+    // If `scheduler` weren't actually reaching the pool, it would fall back
+    // to a real setTimeout and advancing this fake clock would do nothing --
+    // connectCalls would stay at 1 for the rest of this synchronous test.
+    clock.advance(999);
+    expect(connectCalls).toHaveLength(1);
+    // First backoff is exactly 1000 * (0.5 + 0.5) -- deterministic only
+    // because `random` also reached the pool; real Math.random() would make
+    // this 999-vs-1000 boundary check flaky.
+    clock.advance(1);
+    expect(connectCalls).toHaveLength(2);
   });
 });
