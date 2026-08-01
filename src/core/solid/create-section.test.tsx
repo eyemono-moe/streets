@@ -9,14 +9,28 @@ import type { RelayUrl } from "../relay/relay-connection";
 import { createSection } from "./create-section";
 
 describe("createSection", () => {
-  it("keeps at most one live relay connection across a source change (previous relay closes before the next opens)", async () => {
+  it("releases the previous relay connection before opening the next one on a source change", async () => {
     const relays = new Map<string, FakeRelayConnection>();
     const store = new EventStore();
+    // A count sampled after both the release and the open (connectionCount
+    // === 1) cannot distinguish "released then opened" from "briefly held
+    // both, then released one" — both leave the same final count. Logging
+    // connect/close as they actually happen and asserting their order is the
+    // only way to pin down release-before-open, which matters once a global
+    // connection cap exists: a transient 2 would matter even though the
+    // final count reads 1.
+    const log: string[] = [];
     const manager = new SubscriptionManager({
       store,
       routing: new RoutingTable(store),
       connect: (url: RelayUrl) => {
+        log.push(`connect:${url}`);
         const relay = new FakeRelayConnection(url);
+        const close = relay.close.bind(relay);
+        relay.close = () => {
+          log.push(`close:${url}`);
+          close();
+        };
         relays.set(url, relay);
         return relay;
       },
@@ -53,9 +67,13 @@ describe("createSection", () => {
 
             // The previous relay's connection must be released (and closed,
             // since nothing else in the pool holds it) before the next one
-            // is opened: connectionCount stays at 1 across the swap rather
-            // than briefly holding both, and the old socket is actually
-            // closed, not merely forgotten.
+            // is opened. Assert the actual order of events, not just the
+            // count sampled afterward.
+            expect(log).toEqual([
+              "connect:wss://a/",
+              "close:wss://a/",
+              "connect:wss://b/",
+            ]);
             expect(relays.get("wss://a/")?.closed).toBe(true);
             expect(manager.connectionCount).toBe(1);
             resolve();
