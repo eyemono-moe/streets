@@ -38,9 +38,10 @@ export type WarmUpOptions = {
  * が届く (あるいはその逆) リレーが実在し、素直にカウントダウンするだけだと
  * 同じ接続で 2 回減算されて、他の接続の応答を待たずに終わってしまう。
  *
- * 片付いた (または timeout の) 時点で開いた購読を明示的に閉じる。閉じないと
- * 実リレーには「もう要らない」が伝わらず、次の段のクエリを投げる間も
- * 前段の購読がリレー側で生き続ける。
+ * 片付いた接続はその場で購読を閉じる。全部の片付きを待ってからまとめて
+ * 閉じると、先に応答した速いリレーの購読が、遅いリレーのぶんだけ
+ * (最悪 timeoutMs いっぱい) 無駄に開いたままになる。タイムアウトで
+ * finish() した場合は、まだ片付いていない接続の購読をそこで閉じる。
  *
  * ここは Outbox ルーティングを使わない専用経路 (ADR-0016)。
  */
@@ -54,13 +55,13 @@ const collect = (
     let pending = connections.length;
     let done = false;
     const settled = new Set<RelayConnection>();
-    const subscriptions: RelaySubscription[] = [];
+    const subscriptions = new Map<RelayConnection, RelaySubscription>();
 
     const finish = () => {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      for (const subscription of subscriptions) subscription.close();
+      for (const subscription of subscriptions.values()) subscription.close();
       resolve();
     };
     const timer = setTimeout(finish, timeoutMs);
@@ -73,20 +74,30 @@ const collect = (
     const settleOnce = (connection: RelayConnection) => {
       if (settled.has(connection)) return;
       settled.add(connection);
+      // ここで閉じておけば finish() 側で二重に閉じても安全 (RelaySubscription
+      // の close は冪等である前提、実装は WebSocketRelayConnection/
+      // FakeRelayConnection とも満たす)。
+      subscriptions.get(connection)?.close();
       pending -= 1;
       if (pending <= 0) finish();
     };
 
     for (const connection of connections) {
-      subscriptions.push(
-        connection.subscribe(filters, {
-          onEvent: (event: NostrEvent) => {
-            store.put(event, connection.url);
-          },
-          onEose: () => settleOnce(connection),
-          onClosed: () => settleOnce(connection),
-        }),
-      );
+      const subscription = connection.subscribe(filters, {
+        onEvent: (event: NostrEvent) => {
+          store.put(event, connection.url);
+        },
+        onEose: () => settleOnce(connection),
+        onClosed: () => settleOnce(connection),
+      });
+      // subscribe() が同期的に onClosed を呼ぶ実装がある
+      // (WebSocketRelayConnection はソケットが既に閉じていると同期で
+      // onClosed する)。その場合 settleOnce はまだ地図に載っていない
+      // this connection を閉じられず、単一接続なら finish() もこの時点で
+      // 既に走り切ってしまっている (done=true) ので、もう誰も subscriptions
+      // を見に来ない。ここで拾って即座に閉じ、迷子にしない。
+      if (done) subscription.close();
+      else subscriptions.set(connection, subscription);
     }
   });
 
