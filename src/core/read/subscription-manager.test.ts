@@ -368,11 +368,15 @@ describe("SubscriptionManager", () => {
     expect(d.onEvent).not.toHaveBeenCalled();
   });
 
-  // Self-review regression test (not part of the brief's verbatim set):
-  // if connect() throws for one relay in a multi-relay subscribe, the
-  // connections already acquired for earlier relays in the same call must
-  // not leak — no SectionHandle is ever returned to release them otherwise.
-  it("closes already-acquired connections when a later relay fails to connect", () => {
+  // Task 7 rewrite (ruling A). This test used to assert that connect()
+  // throwing for one relay propagated out of manager.subscribe() and rolled
+  // back the connections already acquired for earlier relays in the same
+  // call. That path is gone by design now: ConnectionPool absorbs connect()
+  // failures and reports them through onClosed -> onRelayUnreachable instead
+  // of throwing (SectionReader.stop() doesn't try/catch handle.close(), so a
+  // throw there used to permanently wedge #started -- see the brief). The
+  // already-good connection must simply stay open; nothing rolls back.
+  it("keeps an already-acquired relay open and reports the failing one via onRelayUnreachable, instead of throwing, when connect() fails for a later relay in the same subscribe() call", () => {
     const store = new EventStore();
     const opened: FakeRelayConnection[] = [];
     const manager = new SubscriptionManager({
@@ -387,27 +391,34 @@ describe("SubscriptionManager", () => {
       fallbackRelays: ["wss://fallback/"],
     });
 
+    const unreachable: RelayUrl[] = [];
     expect(() =>
       manager.subscribe([{ kinds: [1] }], ["wss://ok/", "wss://broken/"], {
         onEvent: vi.fn(),
         onRelayComplete: vi.fn(),
-        onRelayUnreachable: vi.fn(),
+        onRelayUnreachable: (relay) => unreachable.push(relay),
         onPlanChanged: vi.fn(),
         onRelayRestarted: vi.fn(),
       }),
-    ).toThrow("boom");
+    ).not.toThrow();
 
     expect(opened).toHaveLength(1);
-    expect(opened[0].closed).toBe(true);
-    expect(manager.connectionCount).toBe(0);
+    expect(opened[0].closed).toBe(false);
+    // Only wss://ok/ counts as a live connection -- wss://broken/'s pool
+    // entry is retained (for a later reconnect, Task 9) with a null
+    // connection, which `size` deliberately excludes.
+    expect(manager.connectionCount).toBe(1);
+    expect(unreachable).toEqual(["wss://broken/"]);
   });
 
-  // Self-review regression test (not part of the brief's verbatim set):
-  // #acquire() bumps the pool refCount *before* connection.subscribe() runs.
-  // If subscribe() itself throws (as opposed to connect() throwing), that
-  // url's acquisition must still be released even though it never made it
-  // into `opened`.
-  it("releases an already-acquired connection when subscribe() itself throws", () => {
+  // Task 7 rewrite (ruling A). Same story as above but the failure point is
+  // connection.subscribe() throwing rather than connect() -- a different
+  // step of the pool's algorithm, also absorbed rather than propagated.
+  // Both sockets "connect" successfully here (connect() never throws in
+  // this setup); only wss://broken/'s subscribe() call fails, so per the
+  // pool's model that connection is still live (a failed REQ is not a dead
+  // socket) -- it simply never got a subscription registered on it.
+  it("keeps the connection open and reports unreachable, instead of throwing, when connection.subscribe() itself throws", () => {
     const store = new EventStore();
     const closedUrls: RelayUrl[] = [];
     const manager = new SubscriptionManager({
@@ -428,18 +439,66 @@ describe("SubscriptionManager", () => {
       fallbackRelays: ["wss://fallback/"],
     });
 
+    const unreachable: RelayUrl[] = [];
     expect(() =>
       manager.subscribe([{ kinds: [1] }], ["wss://ok/", "wss://broken/"], {
         onEvent: vi.fn(),
         onRelayComplete: vi.fn(),
-        onRelayUnreachable: vi.fn(),
+        onRelayUnreachable: (relay) => unreachable.push(relay),
         onPlanChanged: vi.fn(),
         onRelayRestarted: vi.fn(),
       }),
-    ).toThrow("boom");
+    ).not.toThrow();
 
-    expect(manager.connectionCount).toBe(0);
-    expect(closedUrls).toContain("wss://broken/");
+    expect(manager.connectionCount).toBe(2);
+    expect(closedUrls).not.toContain("wss://broken/");
+    expect(unreachable).toEqual(["wss://broken/"]);
+  });
+
+  // Ruling A: PooledSubscription.close() (and therefore SectionHandle.close())
+  // must be total. Reproduces the exact chain the brief names: handle.close()
+  // ends by calling replan(), which frees budget and lets a previously
+  // budget-refused relay attempt connect() for the first time -- if that
+  // connect() throws, it must not propagate out of close().
+  it("close() never throws even when it frees budget for a relay whose connect() then fails", () => {
+    const store = new EventStore();
+    const connectAttempts: RelayUrl[] = [];
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        connectAttempts.push(url);
+        if (url === "wss://broken/") throw new Error("boom");
+        return new FakeRelayConnection(url);
+      },
+      fallbackRelays: ["wss://fallback/"],
+      maxConnections: 1,
+    });
+
+    const handleA = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://ok/"],
+      noopDelivery(),
+    );
+    const unreachable: RelayUrl[] = [];
+    manager.subscribe([{ kinds: [1] }], ["wss://broken/"], {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: (relay) => unreachable.push(relay),
+      onPlanChanged: () => {},
+      onRelayRestarted: () => {},
+    });
+
+    // wss://broken/ was budget-refused outright (budget already spent on
+    // wss://ok/), so connect() was never even attempted for it yet.
+    expect(connectAttempts).toEqual(["wss://ok/"]);
+
+    expect(() => handleA.close()).not.toThrow();
+
+    // Closing A freed the sole slot, so replan() retried wss://broken/ --
+    // and connect() threw, absorbed by the pool instead of by close().
+    expect(connectAttempts).toContain("wss://broken/");
+    expect(unreachable).toContain("wss://broken/");
   });
 
   // Coverage gap flagged by review round 1: the brief names dispose() vs
@@ -642,9 +701,18 @@ describe("SubscriptionManager", () => {
     expect(plans.at(-1)?.uncoveredAuthors).toBeGreaterThan(0);
   });
 
-  it("never drops an explicitly requested relay for budget reasons", () => {
+  // Task 7 rewrite (ruling E, 2026-08-01 ADR-0025 addendum). The original
+  // version of this test asserted a stronger claim -- "never drops" -- which
+  // is no longer true once ConnectionPool is the single place the budget is
+  // enforced: ADR-0005's "explicit relays bypass author routing" says
+  // nothing about bypassing ADR-0011's socket ceiling, and ADR-0025 already
+  // truncates `pinned` at `budget`. What's actually true, and worth testing,
+  // is that an explicit relay wins the contest for a scarce slot over a
+  // routed one.
+  it("prefers an explicitly named relay over a routed one when the budget is tight", () => {
     const { manager, store, connections } = createManager({
       maxConnections: 1,
+      fallbackRelays: [],
     });
     manager.subscribe([{ kinds: [1] }], ["wss://named/"], noopDelivery());
     manager.subscribe(
@@ -653,7 +721,75 @@ describe("SubscriptionManager", () => {
       noopDelivery(),
     );
 
-    expect([...connections.keys()]).toContain("wss://named/");
+    expect([...connections.keys()]).toEqual(["wss://named/"]);
+    expect(manager.connectionCount).toBe(1);
+  });
+
+  // Ruling E: pinned is priority, not exemption. A section naming more
+  // relays than the whole app can afford still gets truncated at the
+  // budget -- the surviving relays are reported unreachable through
+  // onRelayUnreachable (ruling C: there are no authors behind an explicit
+  // relay, so uncoveredAuthors cannot describe this).
+  it("truncates an explicit relay list at the budget instead of exempting it from it", () => {
+    const { manager, connections } = createManager({ maxConnections: 2 });
+    const unreachable: RelayUrl[] = [];
+
+    const handle = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://e1/", "wss://e2/", "wss://e3/"],
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: (relay) => unreachable.push(relay),
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      },
+    );
+
+    expect(connections.size).toBe(2);
+    expect(unreachable).toEqual(["wss://e3/"]);
+    // Ruling D: the refused relay stays in plan.relays so SectionReader
+    // keeps a record of it (and its unreachable flag) instead of losing it
+    // at the next plan change.
+    expect(handle.initialPlan.relays).toEqual([
+      "wss://e1/",
+      "wss://e2/",
+      "wss://e3/",
+    ]);
+  });
+
+  // Ruling B: the widened bug the pool exists to close. planQuery
+  // broadcasts an author with no known kind:10002 to every fallback relay
+  // -- before Task 7, the manager opened all of them unconditionally, so
+  // one unroutable author in a section could burn the app's entire budget
+  // on a single fallback broadcast. The pool now caps this exactly like the
+  // routed and explicit paths.
+  it("caps a fallback broadcast at the budget instead of opening every fallback relay for one unroutable author", () => {
+    const { manager, connections } = createManager({
+      maxConnections: 1,
+      fallbackRelays: ["wss://fb1/", "wss://fb2/", "wss://fb3/"],
+    });
+    const unreachable: RelayUrl[] = [];
+
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: ["f".repeat(64)] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: (relay) => unreachable.push(relay),
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      },
+    );
+
+    expect(connections.size).toBe(1);
+    expect(unreachable).toEqual(["wss://fb2/", "wss://fb3/"]);
+    expect(handle.initialPlan.relays).toEqual([
+      "wss://fb1/",
+      "wss://fb2/",
+      "wss://fb3/",
+    ]);
   });
 
   // ---------------------------------------------------------------------

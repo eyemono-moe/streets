@@ -1,11 +1,11 @@
 import type {
   RelayConnection,
   RelayFilter,
-  RelaySubscription,
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
+import { ConnectionPool, type PooledSubscription } from "./connection-pool";
 import {
   FALLBACK_RELAYS,
   MAX_CONNECTIONS,
@@ -73,14 +73,9 @@ export type SubscriptionManagerOptions = {
   redundancy?: number;
 };
 
-type PooledConnection = {
-  connection: RelayConnection;
-  refCount: number;
-};
-
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
 type OpenSubscription = {
-  subscription: RelaySubscription;
+  subscription: PooledSubscription;
   filters: RelayFilter[];
 };
 
@@ -116,8 +111,6 @@ type SectionEntry = {
    * 計画が (今度は正当に) onPlanChanged 経由で届く。
    */
   pendingInitialDelivery: boolean;
-  /** dispose() 後の孤児化を検出するための世代 (下記コメント参照) */
-  readonly generation: number;
   closed: boolean;
 };
 
@@ -185,20 +178,15 @@ const filtersEqual = (a: RelayFilter[], b: RelayFilter[]): boolean => {
  */
 export class SubscriptionManager {
   readonly #options: SubscriptionManagerOptions;
-  readonly #pool = new Map<RelayUrl, PooledConnection>();
+  // すべての接続の所有・予算の強制・購読レジストリは ConnectionPool に
+  // 一本化されている (Task 7)。マネージャはもう connect()/refCount を直接
+  // 扱わない。PooledSubscription.close() はエントリのオブジェクト同一性で
+  // 迷子ハンドルを検出するので、dispose() 後の孤児化対策として世代カウンタ
+  // を自前で持つ必要も無くなった (旧 #generation は削除した — 詳細は
+  // ConnectionPool のコメント参照)。
+  readonly #pool: ConnectionPool;
   readonly #entries = new Map<number, SectionEntry>();
   #nextEntryId = 0;
-  // dispose() が孤児化させる SectionHandle を無効化するための世代カウンタ。
-  // handle (経由でエントリ) は生成時の世代を覚えておき、close() 時点で現在の
-  // 世代と食い違っていたらプールに触れない。世代が進んでいるということは、
-  // dispose() で pool と #entries が丸ごと作り直された後だということ —
-  // そのエントリが握っていた url は同じ文字列でも「別の接続」を指しうるので、
-  // 素朴に #release すると dispose() 後に新しく張り直された接続を誤って
-  // 閉じてしまう。dispose() は #entries も空にするので、この食い違いが
-  // 起きるのは「dispose() 以前に作られた handle がまだ生きていて、その後で
-  // close() を呼ばれる」場合だけに限られる — replan() が古いエントリを
-  // 誤って対象にすることはない。
-  #generation = 0;
   // #replanOnce() の再入を防ぐガード (fix round 1, Critical 2)。
   // connection.subscribe() は死んだ接続に対して同期的に onClosed を発火させ
   // ることがあり (Task 1)、その配信コールバックがマネージャへ再入する
@@ -206,7 +194,7 @@ export class SubscriptionManager {
   //   (a) まだ処理し終えていない #entries を、外側のループが stale な
   //       selection のまま処理してしまい、あとから登録されたセクションへ
   //       間違った計画を配ってしまう
-  //   (b) 同じ URL への #acquire/subscribe() が再帰のたびに繰り返され、
+  //   (b) 同じ URL への pool.subscribe() が再帰のたびに繰り返され、
   //       無制限なら RangeError: Maximum call stack size exceeded に至る
   // #replanning が立っている間の replan() 要求は #dirty を立てるだけに留め、
   // 一番外側の呼び出しが「変化がなくなるまでトップレベルで回す」ループに
@@ -219,6 +207,10 @@ export class SubscriptionManager {
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
+    this.#pool = new ConnectionPool({
+      connect: options.connect,
+      maxConnections: options.maxConnections,
+    });
   }
 
   get connectionCount(): number {
@@ -243,7 +235,6 @@ export class SubscriptionManager {
       opened: new Map(),
       plan: EMPTY_PLAN,
       pendingInitialDelivery: true,
-      generation: this.#generation,
       closed: false,
     };
     this.#entries.set(entry.id, entry);
@@ -281,17 +272,14 @@ export class SubscriptionManager {
   }
 
   dispose(): void {
-    for (const pooled of this.#pool.values()) pooled.connection.close();
-    this.#pool.clear();
-    // 生きている handle が孤児化しても新しい世代の接続を誤って掴めないよう、
-    // エントリの登録も丸ごと捨てる。エントリだけ残して opened を空にする案も
-    // 検討したが、そうすると後段の replan() がその「もう存在しない」エントリ
-    // を生きたセクションとして扱い、需要をもう一度プールして再接続してしまう
-    // — dispose() 後に呼ばれた handle.close() がその再接続分の refCount を
-    // 誰も #release しないまま孤児化させる (このタスクの設計で新たに発見した
-    // 罠なので明示的に避けている)。
+    this.#pool.dispose();
+    // 生きている handle が孤児化しても構わない — PooledSubscription.close()
+    // はエントリのオブジェクト同一性で判定するので、dispose() 後の孤児化した
+    // handle.close() は自動的に無害な no-op になる (ConnectionPool のコメント
+    // 参照)。それでもエントリの登録は丸ごと捨てる: 捨てないと、後段の
+    // replan() がその「もう存在しない」エントリを生きたセクションとして扱い、
+    // 需要をもう一度プールして再接続してしまう。
     this.#entries.clear();
-    this.#generation += 1;
   }
 
   #normalizeExplicit(
@@ -318,14 +306,12 @@ export class SubscriptionManager {
     entry.closed = true;
     this.#entries.delete(entry.id);
 
-    // dispose() が挟まっていたら、このエントリが握っていた接続はもう pool
-    // にいない (dispose() が #entries ごと作り直した)。触らずに無視する —
-    // 触ると新しい世代の接続を誤って閉じかねない。
-    if (entry.generation === this.#generation) {
-      for (const [url, open] of entry.opened) {
-        open.subscription.close();
-        this.#release(url);
-      }
+    // dispose() が挟まっていたら、これらの PooledSubscription はもう現在の
+    // プール状態には属していない — 各々の close() 自身がそれを検出して
+    // 無害な no-op になる (ConnectionPool のオブジェクト同一性チェック)。
+    // ここで世代を確認する必要は無い。
+    for (const [, open] of entry.opened) {
+      open.subscription.close();
     }
     entry.opened.clear();
 
@@ -492,13 +478,21 @@ export class SubscriptionManager {
    * `entry.opened` (前回張った購読) と `perRelay` (今回の計画) を差分する。
    * 消えたリレーは購読を閉じて release、増えたリレーは購読を開く、両方に
    * あって filters も変わっていないものは触らない。両方にあるが filters が
-   * 変わったものは、同じ接続の上で購読だけ張り直す (acquire/release はしない
-   * — 接続自体は変わらない)。
+   * 変わったものは、同じ接続の上で購読だけ張り直す。
    *
    * ここで全部張り直すと、両方の計画が保持しているリレーの購読までいったん
    * 閉じて開き直すことになり、そのセクションの phase が settled から
    * streaming へ巻き戻る。カラムを 1 本足すたびに他の全カラムでこれが起きる
    * ── 差分こそが張り直しを安く保っている部分。
+   *
+   * `pool.subscribe()` は例外を投げない (Task 7) ので、このメソッドに
+   * try/catch もロールバックも要らない。予算切れで拒否されたら `undefined`
+   * が返るだけで、それを `onRelayUnreachable` に変換するのはこのメソッドの
+   * 責務である — 拒否されたリレーの背後には著者がいない (明示指定・fallback
+   * どちらもありうる) ので `uncoveredAuthors` は数えようがなく、無理に
+   * 数えれば捏造になる (2026-08-01 訂正)。既に接続済みのリレーが投げた場合は
+   * pool が `handlers.onClosed(...)` を同期的に呼ぶので、そちらは
+   * `#handlersFor` 経由で同じ `onRelayUnreachable` に自然に合流する。
    */
   #applyEntryDiff(
     entry: SectionEntry,
@@ -508,64 +502,62 @@ export class SubscriptionManager {
     for (const [url, open] of [...entry.opened]) {
       if (perRelay.has(url)) continue;
       open.subscription.close();
-      this.#release(url);
       entry.opened.delete(url);
     }
 
-    // 残っていて filters が変わったリレーは、同じ接続の上で張り直す
-    // (fix round 1, Critical 1)。URL だけで「触らない」を決めると、著者の
-    // 割り当てが変わったのに古い REQ のまま購読し続けてしまう —
-    // そのセクションはその著者を実際にはどこにも購読していないのに settled
-    // を報告する、という ADR-0011 が禁じる隠れた劣化になる。
+    // 残っている・新規のリレーを処理する。
     for (const [url, relayFilters] of perRelay) {
       const open = entry.opened.get(url);
-      if (!open) continue; // 新規は下のループで扱う
-      if (filtersEqual(open.filters, relayFilters)) continue; // 変化なし = 触らない
+      if (open && filtersEqual(open.filters, relayFilters)) continue; // 変化なし = 触らない
 
-      open.subscription.close();
-      const pooled = this.#pool.get(url);
-      if (!pooled) {
-        // entry.opened に url があれば、少なくともこのエントリの参照分だけ
-        // pool の refCount は生きているはず。ここに来るのは不変条件違反 —
-        // #acquire で誤魔化さず、はっきり失敗させる。
-        throw new Error(
-          `invariant violated: ${url} is open for a section but missing from the pool`,
-        );
-      }
-      const subscription = pooled.connection.subscribe(
-        relayFilters,
-        this.#handlersFor(entry, url),
-      );
-      entry.opened.set(url, { subscription, filters: relayFilters });
-      // 張り直した = 新しい EOSE が来るまで、このリレーについて分かって
-      // いたことは全部リセットされる。onRelayUnreachable ではない —
-      // それは接続の失敗を意味し、こちらは意図した張り直しである。
-      entry.delivery.onRelayRestarted(url);
-    }
-
-    // 増えたリレーを開く。#acquire が成功した時点で pool の refCount は
-    // 上がっている。その直後の connection.subscribe() が投げた場合、その url
-    // は entry.opened にはまだ積まれていない — addedUrls だけを見て release
-    // すれば、subscribe() が投げても acquire 済みの refCount が孤児化しない。
-    const addedUrls: RelayUrl[] = [];
-    try {
-      for (const [url, relayFilters] of perRelay) {
-        if (entry.opened.has(url)) continue; // 既存 (変化なし or 張り直し済み)
-        const connection = this.#acquire(url);
-        addedUrls.push(url);
-        const subscription = connection.subscribe(
+      if (open) {
+        // 同じリレーが残っているが filters (担当著者) が変わった
+        // (fix round 1, Critical 1)。URL だけで「触らない」を決めると、
+        // 著者の割り当てが変わったのに古い REQ のまま購読し続けてしまう —
+        // そのセクションはその著者を実際にはどこにも購読していないのに
+        // settled を報告する、という ADR-0011 が禁じる隠れた劣化になる。
+        //
+        // 新しい購読を先に開いてから古い方を閉じる。逆順だと、この URL を
+        // 使っているのがこのエントリだけの場合に pool 側の entries が
+        // 一瞬 0 になり、#drop(url) が接続そのものを閉じてしまう —
+        // 同じ接続の上で REQ だけ差し替えるつもりが、pool.subscribe() に
+        // budget チェックと connect() をもう一度走らせる羽目になる。
+        entry.delivery.onRelayRestarted(url);
+        const pooled = this.#pool.subscribe(
+          url,
           relayFilters,
           this.#handlersFor(entry, url),
         );
-        entry.opened.set(url, { subscription, filters: relayFilters });
+        open.subscription.close();
+        if (pooled) {
+          entry.opened.set(url, {
+            subscription: pooled,
+            filters: relayFilters,
+          });
+        } else {
+          // 上の理屈により、既に開いていたリレーの張り直しがここで拒否
+          // されるのは実質起こらない (直前まで自分の分の枠を握っていた) が、
+          // 万一 (他エントリの close() などとの絡み) 起きても total に保つ。
+          entry.opened.delete(url);
+          entry.delivery.onRelayUnreachable(url);
+        }
+        continue;
       }
-    } catch (error) {
-      for (const url of addedUrls) {
-        entry.opened.get(url)?.subscription.close();
-        entry.opened.delete(url);
-        this.#release(url);
+
+      // 新規。
+      const pooled = this.#pool.subscribe(
+        url,
+        relayFilters,
+        this.#handlersFor(entry, url),
+      );
+      if (pooled) {
+        entry.opened.set(url, { subscription: pooled, filters: relayFilters });
+      } else {
+        // pool 側が budget 切れで丸ごと拒否した (undefined) — 接続を試み
+        // てすらいないので pool の onClosed は発火しない。ここで直接報告
+        // する必要がある。
+        entry.delivery.onRelayUnreachable(url);
       }
-      throw error;
     }
   }
 
@@ -583,25 +575,5 @@ export class SubscriptionManager {
         if (!entry.closed) entry.delivery.onRelayUnreachable(url);
       },
     };
-  }
-
-  #acquire(url: RelayUrl): RelayConnection {
-    const pooled = this.#pool.get(url);
-    if (pooled) {
-      pooled.refCount += 1;
-      return pooled.connection;
-    }
-    const connection = this.#options.connect(url);
-    this.#pool.set(url, { connection, refCount: 1 });
-    return connection;
-  }
-
-  #release(url: RelayUrl): void {
-    const pooled = this.#pool.get(url);
-    if (!pooled) return;
-    pooled.refCount -= 1;
-    if (pooled.refCount > 0) return;
-    pooled.connection.close();
-    this.#pool.delete(url);
   }
 }
