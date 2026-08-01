@@ -255,6 +255,17 @@ export class SubscriptionManager {
     return this.#pool.size;
   }
 
+  /**
+   * マネージャが所有する ConnectionPool そのもの (Task 11)。`warmUpRouting`
+   * (`src/core/read/bootstrap.ts`) がブートストラップ用のインデクサ接続を
+   * 同じ予算の中で開けるようにするための公開口 — マネージャの外に別系統の
+   * `connect()` を持たせると、ADR-0011 の 30 接続という上限が意味を失う
+   * (このマネージャと呼び出し元が別々に予算を数えることになるため)。
+   */
+  get pool(): ConnectionPool {
+    return this.#pool;
+  }
+
   /** 手動再試行 (ADR-0021)。プールへそのまま委譲する。 */
   retryNow(): void {
     this.#pool.retryNow();

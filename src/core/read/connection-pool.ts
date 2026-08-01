@@ -10,6 +10,21 @@ import { MAX_CONNECTIONS } from "./default-relays";
 export type PooledSubscription = { close(): void };
 
 /**
+ * `subscribe()` へ渡す省略可能なオプション。
+ *
+ * `reserved: true` は ADR-0011 の予算チェック (`size >= maxConnections`) を
+ * 丸ごと迂回する唯一の脱出口 — **ブートストラップ (`warmUpRouting`,
+ * `src/core/read/bootstrap.ts`) 専用であり、それ以外では絶対に使わないこと。**
+ * ウォームアップは Outbox ルーティング表そのものを作る処理なので、Outbox の
+ * 選択が埋めた予算に阻まれて自分が走れないと、ルーティングが永遠に成立しない
+ * (循環する)。これがこの迂回路が存在する唯一の理由であり、ここを起点に別の
+ * 呼び出し元が「予算が埋まっていても構わず開きたい」という理由で真似し始めた
+ * 瞬間、ADR-0011 の 30 接続という上限は数字の意味を失う。新しい呼び出し元を
+ * 追加する前に、まず ADR-0011 を読み直すこと。
+ */
+export type SubscribeOptions = { reserved?: boolean };
+
+/**
  * 再接続のタイマーを注入するための最小の口 (ADR-0021)。読み取り層は DOM も
  * Node のグローバルも直接掴まない、という構造上の主張をテストで示すために
  * `setTimeout`/`clearTimeout` を外から渡せるようにする。既定値
@@ -124,6 +139,10 @@ export class ConnectionPool {
    * 試みて失敗し記録だけ残っている) URL への追加の購読は、新しいソケットを
    * 要求しないので予算に関係なく常に受け付ける。
    *
+   * `options.reserved` が `true` のときは、新しいソケットが要る場合でも
+   * この予算チェックそのものを飛ばす。`SubscribeOptions` の定義を参照 —
+   * ブートストラップ以外での使用は禁止。
+   *
    * 接続や購読の確立に失敗しても例外は外に投げない — `handlers.onClosed(...)`
    * に変換して同期的に伝える。これにより、30 本のうち 1 本が死んでいるだけで
    * 呼び出し元 (SectionReader) が例外で壊れることがなくなる。
@@ -132,12 +151,15 @@ export class ConnectionPool {
     url: RelayUrl,
     filters: RelayFilter[],
     handlers: RelaySubscriptionHandlers,
+    options?: SubscribeOptions,
   ): PooledSubscription | undefined {
     let pooled = this.#pool.get(url);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
     if (!pooled || !pooled.connection) {
-      if (this.size >= this.#maxConnections) return undefined;
+      if (!options?.reserved && this.size >= this.#maxConnections) {
+        return undefined;
+      }
 
       if (!pooled) {
         pooled = {

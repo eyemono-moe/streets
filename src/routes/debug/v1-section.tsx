@@ -45,7 +45,10 @@ const V1SectionDebug = () => {
     return warmUpRouting({
       pubkey,
       store,
-      connect: connectRelay,
+      // マネージャと同じ ConnectionPool を使う (Task 11)。別系統の connect()
+      // をここへ渡すと、ウォームアップの接続がプールの 30 接続予算の外側で
+      // 開くことになり ADR-0011 が意味を失う。
+      pool: manager.pool,
       // ローカル検証ではインターネット上の既定インデクサへ出ない
       indexers: [RELAY_ONE],
     });

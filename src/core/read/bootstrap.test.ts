@@ -11,6 +11,7 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { warmUpRouting } from "./bootstrap";
+import { ConnectionPool } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { RoutingTable } from "./routing-table";
 
@@ -25,6 +26,7 @@ import { RoutingTable } from "./routing-table";
 class UnguardedConnection implements RelayConnection {
   readonly handlers: RelaySubscriptionHandlers[] = [];
   closed = false;
+  readonly #closeListeners = new Set<() => void>();
 
   constructor(readonly url: RelayUrl) {}
 
@@ -40,6 +42,18 @@ class UnguardedConnection implements RelayConnection {
 
   close(): void {
     this.closed = true;
+    for (const listener of this.#closeListeners) listener();
+  }
+
+  onClose(listener: () => void): () => void {
+    if (this.closed) {
+      listener();
+      return () => {};
+    }
+    this.#closeListeners.add(listener);
+    return () => {
+      this.#closeListeners.delete(listener);
+    };
   }
 
   fireEose(index: number): void {
@@ -68,10 +82,34 @@ const sign = (
 
 const base = { created_at: 1_700_000_000, tags: [], content: "" };
 
+/** Builds a ConnectionPool backed by FakeRelayConnection, recording every
+ * connection it creates in `connections` keyed by url (later reconnects to
+ * the same url overwrite the earlier entry, which is intentional --
+ * warmUpRouting closes an indexer's sole subscription the moment it settles,
+ * and the pool tears the underlying connection down with it (ADR-0011: give
+ * the budget back as soon as it's not needed), so a second query phase to
+ * the same indexer opens a fresh connection). */
+const poolWithFakes = (
+  connections: Map<RelayUrl, FakeRelayConnection>,
+  options?: { maxConnections?: number; failFor?: Set<RelayUrl> },
+) =>
+  new ConnectionPool({
+    connect: (url) => {
+      if (options?.failFor?.has(url)) {
+        throw new Error("connection refused");
+      }
+      const relay = new FakeRelayConnection(url);
+      connections.set(url, relay);
+      return relay;
+    },
+    maxConnections: options?.maxConnections,
+  });
+
 describe("warmUpRouting", () => {
   it("fetches the follow list then every followee's relay list in one query", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
+    const pool = poolWithFakes(relays);
 
     const alice = sign(1, {
       ...base,
@@ -95,11 +133,7 @@ describe("warmUpRouting", () => {
     const pending = warmUpRouting({
       pubkey: viewer.pubkey,
       store,
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://indexer/"],
     });
 
@@ -112,16 +146,19 @@ describe("warmUpRouting", () => {
     indexer()?.emitEvent(0, viewer);
     indexer()?.emitEose(0);
 
-    // 第 2 段: 全員分の kind:10002 を 1 クエリで
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    const second = indexer()?.subscriptions[1].filters[0];
+    // 第 2 段: 全員分の kind:10002 を 1 クエリで。フェーズ 1 の唯一の購読が
+    // 片付いた時点でプールはその接続そのものを閉じている (ADR-0011: 使わなく
+    // なった予算はすぐ返す) ので、`indexer()` はフェーズ 2 用に新しく張られた
+    // 接続を指す — その接続にとってはこれが最初の購読になる。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    const second = indexer()?.subscriptions[0].filters[0];
     expect(second?.kinds).toEqual([10002]);
     expect(new Set(second?.authors)).toEqual(
       new Set([alice.pubkey, bob.pubkey]),
     );
 
-    indexer()?.emitEvent(1, alice);
-    indexer()?.emitEose(1);
+    indexer()?.emitEvent(0, alice);
+    indexer()?.emitEose(0);
 
     const result = await pending;
     expect(result.followees).toHaveLength(2);
@@ -136,15 +173,12 @@ describe("warmUpRouting", () => {
   it("resolves with an empty follow list when the viewer has no kind:3", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
+    const pool = poolWithFakes(relays);
 
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store,
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://indexer/"],
     });
 
@@ -162,14 +196,11 @@ describe("warmUpRouting", () => {
 
   it("closes every connection it opened", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(relays);
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store: new EventStore(),
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://one/", "wss://two/"],
     });
 
@@ -178,20 +209,19 @@ describe("warmUpRouting", () => {
     await pending;
 
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
+    // ウォームアップが持っていた分の予算はもう誰も握っていない (ambiguity 3:
+    // release on completion)。
+    expect(pool.size).toBe(0);
   });
 
   it("keeps warming up when one indexer fails to connect", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(relays, { failFor: new Set(["wss://down/"]) });
 
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store: new EventStore(),
-      connect: (url) => {
-        if (url === "wss://down/") throw new Error("connection refused");
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://down/", "wss://up/"],
     });
 
@@ -209,12 +239,15 @@ describe("warmUpRouting", () => {
   });
 
   it("resolves gracefully when every indexer fails to connect", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(relays, {
+      failFor: new Set(["wss://a/", "wss://b/"]),
+    });
+
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store: new EventStore(),
-      connect: () => {
-        throw new Error("connection refused");
-      },
+      pool,
       indexers: ["wss://a/", "wss://b/"],
     });
 
@@ -227,15 +260,12 @@ describe("warmUpRouting", () => {
 
   it("does not settle a connection twice on EOSE-then-CLOSED, and still waits for the other connection", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(relays);
 
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store: new EventStore(),
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://one/", "wss://two/"],
     });
 
@@ -282,14 +312,18 @@ describe("warmUpRouting", () => {
       ["wss://two/", two],
     ]);
 
-    const pending = warmUpRouting({
-      pubkey: "f".repeat(64),
-      store: new EventStore(),
+    const pool = new ConnectionPool({
       connect: (url) => {
         const connection = byUrl.get(url);
         if (!connection) throw new Error(`unexpected url: ${url}`);
         return connection;
       },
+    });
+
+    const pending = warmUpRouting({
+      pubkey: "f".repeat(64),
+      store: new EventStore(),
+      pool,
       indexers: ["wss://one/", "wss://two/"],
     });
 
@@ -324,14 +358,11 @@ describe("warmUpRouting", () => {
 
   it("closes a settled connection's subscription immediately, without waiting for other connections to settle", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(relays);
     const pending = warmUpRouting({
       pubkey: "f".repeat(64),
       store: new EventStore(),
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
+      pool,
       indexers: ["wss://one/", "wss://two/"],
     });
 
@@ -346,11 +377,15 @@ describe("warmUpRouting", () => {
 
     // "one" settled; its subscription must be closed right away — not
     // batched until "two" (which has not answered yet) also settles, and
-    // not deferred to warmUpRouting's outer connection-level `finally`.
+    // not deferred to warmUpRouting's outer `finally`.
     expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(true);
     expect(relays.get("wss://two/")?.subscriptions[0].closed).toBe(false);
-    // The connection itself is not torn down yet — only the subscription.
-    expect(relays.get("wss://one/")?.closed).toBe(false);
+    // Unlike the pre-pool implementation, closing "one"'s subscription also
+    // tears its connection down immediately: it was the pool's only entry
+    // for that url, so the pool gives the budget slot back right away
+    // (ADR-0011) instead of holding it open until warm-up's outer `finally`
+    // closes everything at the very end.
+    expect(relays.get("wss://one/")?.closed).toBe(true);
 
     relays.get("wss://two/")?.emitEose(0);
     await pending;
@@ -360,15 +395,12 @@ describe("warmUpRouting", () => {
     vi.useFakeTimers();
     try {
       const relays = new Map<RelayUrl, FakeRelayConnection>();
+      const pool = poolWithFakes(relays);
 
       const pending = warmUpRouting({
         pubkey: "f".repeat(64),
         store: new EventStore(),
-        connect: (url) => {
-          const relay = new FakeRelayConnection(url);
-          relays.set(url, relay);
-          return relay;
-        },
+        pool,
         indexers: ["wss://silent/"],
         timeoutMs: 25,
       });
@@ -390,5 +422,56 @@ describe("warmUpRouting", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Ambiguity 1 in the task-11 brief: indexers must open even when the
+  // global connection budget is already full, otherwise Outbox routing
+  // could never bootstrap in the first place — the exact circularity
+  // ConnectionPool's `reserved` escape exists to break.
+  it("opens indexers even when the pool is already at its budget", () => {
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(connections, { maxConnections: 1 });
+    pool.subscribe("wss://busy/", [{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: () => {},
+    });
+    expect(pool.size).toBe(1);
+
+    const promise = warmUpRouting({
+      pubkey: "f".repeat(64),
+      store: new EventStore(),
+      pool,
+      indexers: ["wss://indexer/"],
+      // Keep the real (unfaked) 10s default timeout from lingering past
+      // this test's lifetime — nothing in this test settles the indexer.
+      timeoutMs: 20,
+    });
+
+    // ウォームアップが走れないとルーティングが永久に成立しない。
+    expect(connections.has("wss://indexer/")).toBe(true);
+    void promise;
+  });
+
+  // Ambiguity 3 in the task-11 brief: warm-up's reserved connections must
+  // not sit in the pool afterwards holding budget.
+  it("releases the indexer connections when warm-up finishes", async () => {
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(connections);
+
+    const promise = warmUpRouting({
+      pubkey: "f".repeat(64),
+      store: new EventStore(),
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    await vi.waitFor(() =>
+      expect(connections.get("wss://indexer/")?.subscriptions).toHaveLength(1),
+    );
+    connections.get("wss://indexer/")?.emitEose(0);
+
+    await promise;
+    expect(pool.size).toBe(0);
   });
 });
