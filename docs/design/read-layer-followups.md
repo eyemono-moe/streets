@@ -59,7 +59,7 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 ### 接続数はフォロー人数に比例して無制限に増える
 
-`planQuery` は全著者の write リレーの和集合につき 1 バケットを出し、`SubscriptionManager.subscribe` はそれを同期的に全て `#acquire` する。`MAX_RELAYS_PER_AUTHOR = 3` で 500 人フォローしていれば、**1 セクションが最大 1,500 本の WebSocket を開こうとする**。しかも接続先はフォローしている著者が `kind:10002` で自由に指定できる。
+`planQuery` は全著者の write リレーの和集合につき 1 バケットを出し、`SubscriptionManager.subscribe` はそれを同期的に全て `#acquire` する。著者ごとの本数制限は廃止され、**接続先はいま、フォローしている著者が `kind:10002` で宣言した数そのまま**である。実測では ~1300 人規模のフォローに対して 378〜1251 の異なる write リレーが宣言されている（[docs/research/2026-08-01-outbox-connection-budget.md](../research/2026-08-01-outbox-connection-budget.md)）。
 
 [ADR-0011](../adr/0011-performance-budget.md) の 30 接続上限がまさにこれの対処であり、第2スライスでは意図的に範囲外とした。ただし**現時点の実装には上限が一切ない**ことを明記しておく。デバッグルートが無事なのはフォローが 2 人だからにすぎず、`createSection` の呼び出し元が増えた瞬間に効く。
 
