@@ -8,9 +8,11 @@ import { EventStore } from "./event-store";
 import { RoutingTable } from "./routing-table";
 import {
   type SectionDelivery,
+  type SectionHandle,
   type SectionPlan,
   SubscriptionManager,
   type SubscriptionManagerOptions,
+  planEqual,
 } from "./subscription-manager";
 
 const keyFor = (seed: number) =>
@@ -54,6 +56,7 @@ const setup = () => {
     onRelayComplete: vi.fn(),
     onRelayUnreachable: vi.fn(),
     onPlanChanged: vi.fn(),
+    onRelayRestarted: vi.fn(),
   });
   return { relays, store, manager, delivery };
 };
@@ -103,6 +106,7 @@ const noopDelivery = (): SectionDelivery => ({
   onRelayComplete: () => {},
   onRelayUnreachable: () => {},
   onPlanChanged: () => {},
+  onRelayRestarted: () => {},
 });
 
 type CreateManagerOptions = Partial<
@@ -163,6 +167,7 @@ const subscribeWithPlans = (
     onRelayComplete: vi.fn(),
     onRelayUnreachable: vi.fn(),
     onPlanChanged: (plan) => plans.push(plan),
+    onRelayRestarted: vi.fn(),
   };
   const handle = manager.subscribe(filters, relays, delivery);
   // The initial plan arrives through the return value, not onPlanChanged
@@ -388,6 +393,7 @@ describe("SubscriptionManager", () => {
         onRelayComplete: vi.fn(),
         onRelayUnreachable: vi.fn(),
         onPlanChanged: vi.fn(),
+        onRelayRestarted: vi.fn(),
       }),
     ).toThrow("boom");
 
@@ -428,6 +434,7 @@ describe("SubscriptionManager", () => {
         onRelayComplete: vi.fn(),
         onRelayUnreachable: vi.fn(),
         onPlanChanged: vi.fn(),
+        onRelayRestarted: vi.fn(),
       }),
     ).toThrow("boom");
 
@@ -477,6 +484,7 @@ describe("SubscriptionManager", () => {
       onRelayComplete: vi.fn(),
       onRelayUnreachable: vi.fn(),
       onPlanChanged: vi.fn(),
+      onRelayRestarted: vi.fn(),
     });
 
     manager.dispose();
@@ -486,6 +494,7 @@ describe("SubscriptionManager", () => {
       onRelayComplete: vi.fn(),
       onRelayUnreachable: vi.fn(),
       onPlanChanged: vi.fn(),
+      onRelayRestarted: vi.fn(),
     });
 
     expect(opened).toHaveLength(2);
@@ -645,5 +654,272 @@ describe("SubscriptionManager", () => {
     );
 
     expect([...connections.keys()]).toContain("wss://named/");
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1 (post-review). Critical 1: the diff in #applyEntryDiff was
+  // keyed on relay URL alone, so a relay that survives both plans kept its
+  // stale filters forever even when the set of authors routed to it changed
+  // — the section would report settled while an author it should be
+  // watching was subscribed nowhere at all (ADR-0011's cardinal sin).
+  // ---------------------------------------------------------------------
+  it("re-subscribes a kept relay in place when its routed authors change, and reports the restart", () => {
+    const { manager, store, connections, connectCalls } = createManager();
+    const A = pubkeyFor(40_001);
+    const B = pubkeyFor(40_002);
+    store.put(relayListFor(A, ["wss://x/"]), "wss://indexer/");
+    // B has no kind:10002 yet, so only A reaches wss://x/ on the first plan.
+
+    const restarted: RelayUrl[] = [];
+    const delivery: SectionDelivery = {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged: () => {},
+      onRelayRestarted: (relay) => restarted.push(relay),
+    };
+    manager.subscribe([{ kinds: [1], authors: [A, B] }], undefined, delivery);
+    expect(connections.get("wss://x/")?.subscriptions.at(-1)?.filters).toEqual([
+      { kinds: [1], authors: [A] },
+    ]);
+    const xConnectCallsBefore = connectCalls.filter(
+      (url) => url === "wss://x/",
+    ).length;
+
+    // B's kind:10002 arrives declaring the SAME relay A already uses.
+    // wss://x/ survives in both the old and new plan, but the author bucket
+    // routed to it changes from [A] to [A, B].
+    store.put(relayListFor(B, ["wss://x/"]), "wss://indexer/");
+    manager.replan();
+
+    // The relay itself must not be torn down and reopened (that guarantee,
+    // covered by "does not reopen a relay that both plans keep" above, must
+    // survive this fix) — same pooled connection, only the REQ changes.
+    expect(connectCalls.filter((url) => url === "wss://x/").length).toBe(
+      xConnectCallsBefore,
+    );
+    expect(restarted).toEqual(["wss://x/"]);
+    const live = connections.get("wss://x/")?.subscriptions.at(-1);
+    expect(live?.filters).toEqual([{ kinds: [1], authors: [A, B] }]);
+    // The stale subscription (still carrying only A) must actually be
+    // closed, not left running alongside the new one.
+    expect(connections.get("wss://x/")?.subscriptions[0]?.closed).toBe(true);
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1. Important 3: #planEqual prevents onPlanChanged from firing
+  // when a replan() produces the exact same observable plan.
+  // ---------------------------------------------------------------------
+  it("never fires onPlanChanged when repeated replan() calls produce the same plan", () => {
+    const { manager, store } = createManager();
+    const A = pubkeyFor(42_001);
+    store.put(relayListFor(A, ["wss://only/"]), "wss://indexer/");
+    const onPlanChanged = vi.fn();
+
+    manager.subscribe([{ kinds: [1], authors: [A] }], undefined, {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged,
+      onRelayRestarted: () => {},
+    });
+
+    manager.replan();
+    manager.replan();
+    manager.replan();
+
+    expect(onPlanChanged).not.toHaveBeenCalled();
+  });
+
+  // planEqual is exported specifically so its order-insensitivity can be
+  // pinned directly: constructing a genuine "same set, different array
+  // order" case through the public API turned out to be effectively
+  // impossible (perRelay's key order is a deterministic function of filter
+  // author order and each author's own kind:10002 tag order, never of
+  // selectRelays' internal pick order), so a direct unit test is the honest
+  // way to cover this property rather than a contrived integration scenario.
+  it("planEqual treats relay order as insignificant", () => {
+    const a: SectionPlan = {
+      relays: ["wss://x/", "wss://y/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    };
+    const b: SectionPlan = {
+      relays: ["wss://y/", "wss://x/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    };
+    expect(planEqual(a, b)).toBe(true);
+  });
+
+  it("planEqual is sensitive to an actual difference in the relay set", () => {
+    const a: SectionPlan = {
+      relays: ["wss://x/", "wss://y/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    };
+    const b: SectionPlan = {
+      relays: ["wss://x/", "wss://z/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    };
+    expect(planEqual(a, b)).toBe(false);
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1. Important 3: onPlanChanged must never fire synchronously
+  // from inside the subscribe() call that registers the section — the
+  // caller doesn't hold the handle yet. subscribeWithPlans' `plans` array
+  // (seeded manually with initialPlan) can't distinguish "no spurious fire"
+  // from "a fire happened but plans already had the right value" — this
+  // asserts on the raw callback directly instead.
+  // ---------------------------------------------------------------------
+  it("never calls onPlanChanged synchronously from within the subscribe() call that registers the section", () => {
+    const { manager, store } = createManager();
+    const A = pubkeyFor(43_001);
+    store.put(relayListFor(A, ["wss://only/"]), "wss://indexer/");
+    const onPlanChanged = vi.fn();
+
+    manager.subscribe([{ kinds: [1], authors: [A] }], undefined, {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged,
+      onRelayRestarted: () => {},
+    });
+
+    expect(onPlanChanged).not.toHaveBeenCalled();
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1. Critical 2(a): a section registered reentrantly (from
+  // inside a delivery callback fired synchronously during an in-progress
+  // replan) must not be visited by the still-running outer pass using its
+  // stale, pre-registration selection. Built by making one relay answer
+  // with a synchronous EOSE (mimicking a very fast relay, the same
+  // synchronous-callback contract Task 1 gave dead connections) and
+  // reacting to that EOSE by registering a brand new section for an author
+  // whose kind:10002 is already known. `planB` mirrors how a real caller
+  // combines `initialPlan` with subsequent `onPlanChanged` calls (see
+  // SectionReader.start()) — it's the "what does this section's owner
+  // actually end up believing" signal, regardless of which exact mechanism
+  // (synchronous initialPlan vs. a deferred onPlanChanged) delivers it.
+  // ---------------------------------------------------------------------
+  it("does not corrupt a section registered reentrantly from inside a replan callback", () => {
+    const store = new EventStore();
+    const AUTHOR = pubkeyFor(41_001);
+    store.put(relayListFor(AUTHOR, ["wss://rc/"]), "wss://indexer/");
+
+    const manager: SubscriptionManager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => ({
+        url,
+        subscribe: (filters, handlers) => {
+          // Simulate a relay that answers instantly: EOSE fires
+          // synchronously, before connection.subscribe() (and therefore
+          // manager.subscribe()) returns — exactly like the dead-connection
+          // case Task 1 documented, but via onEose instead of onClosed so
+          // this test is isolated from Critical 2(b) below.
+          if (url === "wss://trigger/") handlers.onEose();
+          void filters;
+          return { close: () => {} };
+        },
+        publish: async () => {},
+        close: () => {},
+        onClose: () => () => {},
+      }),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    const plansB: SectionPlan[] = [];
+    let planB: SectionPlan | undefined;
+    let handleB: SectionHandle | undefined;
+
+    manager.subscribe([{ kinds: [1] }], ["wss://trigger/"], {
+      onEvent: () => {},
+      onRelayComplete: () => {
+        handleB = manager.subscribe(
+          [{ kinds: [1], authors: [AUTHOR] }],
+          undefined,
+          {
+            onEvent: () => {},
+            onRelayComplete: () => {},
+            onRelayUnreachable: () => {},
+            onPlanChanged: (plan) => {
+              plansB.push(plan);
+              planB = plan;
+            },
+            onRelayRestarted: () => {},
+          },
+        );
+      },
+      onRelayUnreachable: () => {},
+      onPlanChanged: () => {},
+      onRelayRestarted: () => {},
+    });
+
+    if (!planB) planB = handleB?.initialPlan;
+
+    // The section must never, at any point in the sequence, be told its
+    // perfectly routable author is unroutable.
+    expect(plansB.every((plan) => plan.unroutableAuthors === 0)).toBe(true);
+    expect(planB).toEqual({
+      relays: ["wss://rc/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+  });
+
+  // ---------------------------------------------------------------------
+  // Fix round 1. Critical 2(b): connection.subscribe() on an already-dead
+  // pooled connection fires onClosed synchronously (Task 1's contract). If
+  // a delivery callback reacts to that by calling replan() itself, the
+  // reentrant call must not re-run #applyEntryDiff's "add" loop for the
+  // same entry while the original add is still in flight — otherwise it
+  // #acquires the same url a second time (a leaked refCount for an orphaned
+  // second subscription) and, unbounded, the same synchronous chain
+  // recurses without limit.
+  // ---------------------------------------------------------------------
+  it("does not stack-overflow or double-subscribe when a delivery callback reacts to a dead connection by calling replan()", () => {
+    const store = new EventStore();
+    let subscribeCallCount = 0;
+
+    const manager: SubscriptionManager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => ({
+        url,
+        subscribe: (_filters, handlers) => {
+          subscribeCallCount += 1;
+          // Always dead: every subscribe() attempt reports closed
+          // synchronously, exactly like a pooled connection whose socket
+          // already died (Task 1's onClosed contract).
+          handlers.onClosed("socket closed");
+          return { close: () => {} };
+        },
+        publish: async () => {},
+        close: () => {},
+        onClose: () => () => {},
+      }),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    expect(() =>
+      manager.subscribe([{ kinds: [1] }], ["wss://dead/"], {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        // Reacting to the dead relay by asking the manager to re-plan is
+        // exactly the pattern the coordinator's repro used to trigger the
+        // recursion — deliberately unconditional (no "only once" guard in
+        // the test) so a regression would still stack-overflow.
+        onRelayUnreachable: () => manager.replan(),
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      }),
+    ).not.toThrow();
+
+    expect(subscribeCallCount).toBe(1);
+    expect(manager.connectionCount).toBe(1);
   });
 });

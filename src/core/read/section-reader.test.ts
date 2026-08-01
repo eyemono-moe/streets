@@ -231,6 +231,7 @@ describe("SectionReader", () => {
         },
         publish: async () => {},
         close: () => {},
+        onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],
     });
@@ -620,6 +621,24 @@ describe("SectionReader", () => {
     void delivery;
 
     expect(reader.status).toEqual({ phase: "settled" });
+  });
+
+  // Fix round 1 (post-review), Critical 1's SectionReader-side counterpart:
+  // when the manager re-subscribes a *kept* relay in place because its
+  // routed authors changed (rather than the relay itself leaving the plan),
+  // the section must leave settled and only return to it once the new
+  // subscription's own EOSE arrives — reusing the old relay's `complete`
+  // would report settled while the fresh REQ is still outstanding.
+  it("leaves settled when a kept relay's subscription is restarted, and returns only after the new EOSE", () => {
+    const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
+    delivery.onRelayComplete("wss://one/");
+    expect(reader.status.phase).toBe("settled");
+
+    delivery.onRelayRestarted("wss://one/");
+    expect(reader.status.phase).not.toBe("settled");
+
+    delivery.onRelayComplete("wss://one/");
+    expect(reader.status.phase).toBe("settled");
   });
 });
 

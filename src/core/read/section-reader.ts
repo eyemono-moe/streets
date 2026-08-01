@@ -105,6 +105,15 @@ export class SectionReader {
           this.#notify();
         },
         onPlanChanged: (plan) => this.#applyPlan(plan),
+        onRelayRestarted: (relay) => {
+          // 同じリレーの上で REQ だけ張り直された (fix round 1, Critical 1) —
+          // 新しい EOSE が来るまでこのリレーについて分かっていたことは
+          // 何もない。complete も unreachable も両方まっさらに戻す。
+          // onRelayUnreachable を代用しない — あちらは接続の失敗を意味し、
+          // incomplete を押し上げてしまう。これは意図した張り直しである。
+          this.#relays.set(relay, { complete: false, unreachable: false });
+          this.#notify();
+        },
       });
 
       // onPlanChanged が subscribe() の中から同期的に飛んでいたら #plan は

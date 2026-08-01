@@ -42,6 +42,14 @@ export type SectionDelivery = {
   onRelayUnreachable: (relay: RelayUrl) => void;
   /** 張り直しでリレー集合が変わった (ADR-0016) */
   onPlanChanged: (plan: SectionPlan) => void;
+  /**
+   * リレー自体は前回の計画から生き残ったが、そのリレーへ送る REQ (担当著者)
+   * が変わったため、同じ接続の上で購読を張り直した (fix round 1, Critical 1)。
+   * 新しい EOSE が来るまでこのリレーについては何も分かっていない — 呼び出し側は
+   * `complete` / `unreachable` を両方とも未知に戻すこと。`onRelayUnreachable`
+   * を代用してはいけない (意味が違う — こちらは接続の失敗ではない)。
+   */
+  onRelayRestarted: (relay: RelayUrl) => void;
 };
 
 export type SectionHandle = {
@@ -70,6 +78,12 @@ type PooledConnection = {
   refCount: number;
 };
 
+/** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
+type OpenSubscription = {
+  subscription: RelaySubscription;
+  filters: RelayFilter[];
+};
+
 /**
  * 登録済みの 1 セクション分の状態。マネージャはこの集合を持ち、`replan()` の
  * たびに全エントリの需要をプールしてから 1 回だけ `selectRelays` を呼ぶ
@@ -85,12 +99,23 @@ type SectionEntry = {
    */
   explicitRelays: readonly RelayUrl[] | undefined;
   delivery: SectionDelivery;
-  /** 直近の replan() が実際に開いている購読 */
-  opened: Map<RelayUrl, RelaySubscription>;
+  /** 直近の replan() が実際に開いている購読。リレーごとに filters も覚えておく
+   * — 同じリレーが両方の計画に残っていても、担当著者 (filters) が変わって
+   * いたら張り直す必要があるため (fix round 1, Critical 1)。 */
+  opened: Map<RelayUrl, OpenSubscription>;
   plan: SectionPlan;
-  /** #replan() が一度でもこのエントリに計画を適用したか。初回は
-   * onPlanChanged を呼ばない (呼び出し側がまだ handle を持っていない) */
-  applied: boolean;
+  /**
+   * このエントリを作った `subscribe()` 呼び出しが、まだ handle を呼び出し元に
+   * 返していないか。true の間は `onPlanChanged` を絶対に呼ばない — 呼び出し
+   * 側がまだ handle を持っていない。`subscribe()` 自身だけがこれを false に
+   * 落とす (`#runReplan()` が返った直後、`entry.plan` を initialPlan として
+   * 読み取った後)。再入 (fix round 1, Critical 2) によって、このエントリの
+   * 最初の実際の計算が `subscribe()` 呼び出しそのものの中では終わらず、後で
+   * 遅延実行されるパスに回ることがある — その場合、`subscribe()` は
+   * まだ何も計算されていない空の計画を initialPlan として返し、後から正しい
+   * 計画が (今度は正当に) onPlanChanged 経由で届く。
+   */
+  pendingInitialDelivery: boolean;
   /** dispose() 後の孤児化を検出するための世代 (下記コメント参照) */
   readonly generation: number;
   closed: boolean;
@@ -100,6 +125,53 @@ const EMPTY_PLAN: SectionPlan = {
   relays: [],
   unroutableAuthors: 0,
   uncoveredAuthors: 0,
+};
+
+/**
+ * 2 つの計画が観測可能な意味で同じかを判定する。リレーの集合は**順不同**で
+ * 比較する — `selectRelays` の貪欲法は同点タイブレークの都合で無関係な変化
+ * (他セクションの需要が動いただけ) でも `picks` の並びが変わりうるが、それは
+ * `SectionReader` にとって意味のある変化ではない。並び違いだけで
+ * `onPlanChanged` を呼ぶと、実際には何も変わっていないのに購読を張り直したと
+ * 誤解させる不要な通知になる。
+ */
+export const planEqual = (a: SectionPlan, b: SectionPlan): boolean => {
+  if (a.unroutableAuthors !== b.unroutableAuthors) return false;
+  if (a.uncoveredAuthors !== b.uncoveredAuthors) return false;
+  if (a.relays.length !== b.relays.length) return false;
+  const relaysA = new Set(a.relays);
+  return b.relays.every((url) => relaysA.has(url));
+};
+
+/** 2 つの RelayFilter が構造的に同じか (参照ではなく中身で比較する)。 */
+const filterEqual = (a: RelayFilter, b: RelayFilter): boolean => {
+  const keysA = Object.keys(a) as (keyof RelayFilter)[];
+  if (keysA.length !== Object.keys(b).length) return false;
+  for (const key of keysA) {
+    if (!(key in b)) return false;
+    const va = a[key];
+    const vb = b[key];
+    if (Array.isArray(va) && Array.isArray(vb)) {
+      if (va.length !== vb.length) return false;
+      for (let i = 0; i < va.length; i++) {
+        if (va[i] !== vb[i]) return false;
+      }
+    } else if (va !== vb) {
+      return false;
+    }
+  }
+  return true;
+};
+
+/**
+ * 2 つの RelayFilter[] が構造的に同じか。あるリレーが両方の計画に残っていて
+ * も、そのリレーへ送る filters (担当著者など) が変わっていれば違う扱いにする
+ * — これが変わらないと、URL だけで「触らない」を決める差分は、著者の割り当て
+ * が変わったことを見逃す (fix round 1, Critical 1)。
+ */
+const filtersEqual = (a: RelayFilter[], b: RelayFilter[]): boolean => {
+  if (a.length !== b.length) return false;
+  return a.every((filter, i) => filterEqual(filter, b[i]));
 };
 
 /**
@@ -127,6 +199,23 @@ export class SubscriptionManager {
   // close() を呼ばれる」場合だけに限られる — replan() が古いエントリを
   // 誤って対象にすることはない。
   #generation = 0;
+  // #replanOnce() の再入を防ぐガード (fix round 1, Critical 2)。
+  // connection.subscribe() は死んだ接続に対して同期的に onClosed を発火させ
+  // ることがあり (Task 1)、その配信コールバックがマネージャへ再入する
+  // (replan()/subscribe() を呼ぶ) ことがある。素朴に再帰すると:
+  //   (a) まだ処理し終えていない #entries を、外側のループが stale な
+  //       selection のまま処理してしまい、あとから登録されたセクションへ
+  //       間違った計画を配ってしまう
+  //   (b) 同じ URL への #acquire/subscribe() が再帰のたびに繰り返され、
+  //       無制限なら RangeError: Maximum call stack size exceeded に至る
+  // #replanning が立っている間の replan() 要求は #dirty を立てるだけに留め、
+  // 一番外側の呼び出しが「変化がなくなるまでトップレベルで回す」ループに
+  // 一本化する。これにより、ネストした呼び出しの中で新しく登録された
+  // エントリは、そのパスでは一切処理されず (stale な selection で触られる
+  // ことがない)、外側の呼び出しが一巡し終えた直後の新しいパスで正しく
+  // 処理される。
+  #replanning = false;
+  #dirty = false;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -153,21 +242,29 @@ export class SubscriptionManager {
       delivery,
       opened: new Map(),
       plan: EMPTY_PLAN,
-      applied: false,
+      pendingInitialDelivery: true,
       generation: this.#generation,
       closed: false,
     };
     this.#entries.set(entry.id, entry);
 
     try {
-      this.#replan();
+      this.#runReplan();
     } catch (error) {
       this.#entries.delete(entry.id);
       throw error;
     }
 
+    // #runReplan() が (再入で) 遅延されていた場合、entry.plan はまだ
+    // EMPTY_PLAN のことがある — その場合は、まもなく (このメソッドが返った
+    // 直後、まだ同じ同期的な呼び出し連鎖の中で) 正しい計画が onPlanChanged
+    // 経由で届く。ここで false に落とすことで、その後続の適用が「初回だから
+    // 抑制する」ではなく正当な通知として扱われるようになる。
+    const initialPlan = entry.plan;
+    entry.pendingInitialDelivery = false;
+
     return {
-      initialPlan: entry.plan,
+      initialPlan,
       close: () => this.#close(entry),
     };
   }
@@ -180,7 +277,7 @@ export class SubscriptionManager {
    * 将来のルーティング変化を検知する後続 Task。
    */
   replan(): void {
-    this.#replan();
+    this.#runReplan();
   }
 
   dispose(): void {
@@ -225,8 +322,8 @@ export class SubscriptionManager {
     // にいない (dispose() が #entries ごと作り直した)。触らずに無視する —
     // 触ると新しい世代の接続を誤って閉じかねない。
     if (entry.generation === this.#generation) {
-      for (const [url, subscription] of entry.opened) {
-        subscription.close();
+      for (const [url, open] of entry.opened) {
+        open.subscription.close();
         this.#release(url);
       }
     }
@@ -239,8 +336,28 @@ export class SubscriptionManager {
   }
 
   /**
+   * `#replanOnce()` への一本化された入口。再入を検知したら実行を遅延する
+   * (上の `#replanning`/`#dirty` のコメント参照)。
+   */
+  #runReplan(): void {
+    if (this.#replanning) {
+      this.#dirty = true;
+      return;
+    }
+    this.#replanning = true;
+    try {
+      do {
+        this.#dirty = false;
+        this.#replanOnce();
+      } while (this.#dirty);
+    } finally {
+      this.#replanning = false;
+    }
+  }
+
+  /**
    * 登録済み全エントリの需要を 1 つにプールし、選択・割り当て・張り直しを
-   * 行う。ブリーフの「構造」節そのままの手順:
+   * 1 回だけ行う。ブリーフの「構造」節そのままの手順:
    *
    * 1. 大域の需要を作る (著者 → routing.writeRelaysFor(author))
    * 2. pinned を作る (fallback + 全エントリの明示リレー)
@@ -248,18 +365,29 @@ export class SubscriptionManager {
    * 4. エントリごとに perRelay を組む (明示指定はバイパス)
    * 5. エントリごとに前回の opened と差分する
    * 6. 計画が変わったエントリにだけ onPlanChanged を呼ぶ
+   *
+   * `#entries` のスナップショットを先頭で 1 回だけ取る (fix round 1,
+   * Critical 2)。ライブな Map をそのまま反復すると、この一巡の途中で
+   * (差分適用が引き起こす同期的なコールバック経由で) 新しく登録された
+   * エントリまで、この巡のために計算した stale な selection で処理して
+   * しまう。スナップショットに無いエントリは単にこの巡では触らない —
+   * それを登録した `#runReplan()` 呼び出しが `#dirty` を立てて戻っている
+   * ので、この巡の後にもう一巡フレッシュな状態で回り、そこで正しく処理
+   * される。
    */
-  #replan(): void {
+  #replanOnce(): void {
     const fallbackRelays = this.#options.fallbackRelays ?? FALLBACK_RELAYS;
     const budget = this.#options.maxConnections ?? MAX_CONNECTIONS;
     const redundancy = this.#options.redundancy ?? RELAY_REDUNDANCY;
+
+    const entries = [...this.#entries.values()];
 
     // 1. 大域の需要。著者ごとに writeRelaysFor を 1 回だけ呼ぶ
     // (RoutingTable は呼ぶたびに kind:10002 のパースをやり直すので、
     // 著者数 × エントリ数だけ走らせない)。
     const demand = new Map<string, readonly RelayUrl[]>();
     const seenAuthors = new Set<string>();
-    for (const entry of this.#entries.values()) {
+    for (const entry of entries) {
       if (entry.explicitRelays !== undefined) continue; // バイパス経路は需要に入らない
       for (const filter of entry.filters) {
         for (const author of filter.authors ?? []) {
@@ -274,7 +402,7 @@ export class SubscriptionManager {
     // 2. pinned。ユーザーが名指ししたものを先に確保してから fallback を足す
     // — budget が小さいときに一般的な fallback が明示指定を押し出さないため。
     const pinnedSet = new Set<RelayUrl>();
-    for (const entry of this.#entries.values()) {
+    for (const entry of entries) {
       if (entry.explicitRelays === undefined) continue;
       for (const url of entry.explicitRelays) pinnedSet.add(url);
     }
@@ -284,7 +412,7 @@ export class SubscriptionManager {
     // 粘着性のため、選び直し前に「いま開いているリレー」を集める。
     // 差分適用でこの後の状態が変わっていくので、必ず選択の前に読む。
     const currentSet = new Set<RelayUrl>();
-    for (const entry of this.#entries.values()) {
+    for (const entry of entries) {
       for (const url of entry.opened.keys()) currentSet.add(url);
     }
     const current = [...currentSet];
@@ -299,7 +427,12 @@ export class SubscriptionManager {
     });
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
-    for (const entry of this.#entries.values()) {
+    for (const entry of entries) {
+      // このスナップショットを取った後に close() されたエントリ (差分適用中
+      // の同期的なコールバックが引き起こした) は、もう存在しないものとして
+      // 扱う — #close() が既に opened を空にして pool から外している。
+      if (entry.closed) continue;
+
       let perRelay: Map<RelayUrl, RelayFilter[]>;
       let unroutableAuthors = 0;
       let uncoveredAuthors = 0;
@@ -336,7 +469,7 @@ export class SubscriptionManager {
         uncoveredAuthors = plan.uncoveredAuthors.length;
       }
 
-      const isFirstApplication = !entry.applied;
+      const suppressCallback = entry.pendingInitialDelivery;
       this.#applyEntryDiff(entry, perRelay);
 
       const newPlan: SectionPlan = {
@@ -344,20 +477,23 @@ export class SubscriptionManager {
         unroutableAuthors,
         uncoveredAuthors,
       };
-      const changed =
-        !isFirstApplication && !this.#planEqual(entry.plan, newPlan);
+      const changed = !suppressCallback && !planEqual(entry.plan, newPlan);
       entry.plan = newPlan;
-      entry.applied = true;
       // subscribe() の中では呼ばない (呼び出し側がまだ handle を持っていない
-      // — isFirstApplication が真なのでここには来ない)。
+      // 間は suppressCallback が真になる — 通常は subscribe() 自身がこの巡で
+      // 処理される場合、再入で遅延され後続の巡で処理される場合の両方をカバー
+      // する。後者では subscribe() が既に handle を返し終えているので、この
+      // 巡が「初回」でもここで正しく通知する)。
       if (changed) entry.delivery.onPlanChanged(newPlan);
     }
   }
 
   /**
    * `entry.opened` (前回張った購読) と `perRelay` (今回の計画) を差分する。
-   * 消えたリレーは購読を閉じて release、増えたリレーは購読を開く、
-   * 両方にあるものは触らない。
+   * 消えたリレーは購読を閉じて release、増えたリレーは購読を開く、両方に
+   * あって filters も変わっていないものは触らない。両方にあるが filters が
+   * 変わったものは、同じ接続の上で購読だけ張り直す (acquire/release はしない
+   * — 接続自体は変わらない)。
    *
    * ここで全部張り直すと、両方の計画が保持しているリレーの購読までいったん
    * 閉じて開き直すことになり、そのセクションの phase が settled から
@@ -369,11 +505,42 @@ export class SubscriptionManager {
     perRelay: Map<RelayUrl, RelayFilter[]>,
   ): void {
     // 消えたリレーを閉じる
-    for (const [url, subscription] of [...entry.opened]) {
+    for (const [url, open] of [...entry.opened]) {
       if (perRelay.has(url)) continue;
-      subscription.close();
+      open.subscription.close();
       this.#release(url);
       entry.opened.delete(url);
+    }
+
+    // 残っていて filters が変わったリレーは、同じ接続の上で張り直す
+    // (fix round 1, Critical 1)。URL だけで「触らない」を決めると、著者の
+    // 割り当てが変わったのに古い REQ のまま購読し続けてしまう —
+    // そのセクションはその著者を実際にはどこにも購読していないのに settled
+    // を報告する、という ADR-0011 が禁じる隠れた劣化になる。
+    for (const [url, relayFilters] of perRelay) {
+      const open = entry.opened.get(url);
+      if (!open) continue; // 新規は下のループで扱う
+      if (filtersEqual(open.filters, relayFilters)) continue; // 変化なし = 触らない
+
+      open.subscription.close();
+      const pooled = this.#pool.get(url);
+      if (!pooled) {
+        // entry.opened に url があれば、少なくともこのエントリの参照分だけ
+        // pool の refCount は生きているはず。ここに来るのは不変条件違反 —
+        // #acquire で誤魔化さず、はっきり失敗させる。
+        throw new Error(
+          `invariant violated: ${url} is open for a section but missing from the pool`,
+        );
+      }
+      const subscription = pooled.connection.subscribe(
+        relayFilters,
+        this.#handlersFor(entry, url),
+      );
+      entry.opened.set(url, { subscription, filters: relayFilters });
+      // 張り直した = 新しい EOSE が来るまで、このリレーについて分かって
+      // いたことは全部リセットされる。onRelayUnreachable ではない —
+      // それは接続の失敗を意味し、こちらは意図した張り直しである。
+      entry.delivery.onRelayRestarted(url);
     }
 
     // 増えたリレーを開く。#acquire が成功した時点で pool の refCount は
@@ -383,18 +550,18 @@ export class SubscriptionManager {
     const addedUrls: RelayUrl[] = [];
     try {
       for (const [url, relayFilters] of perRelay) {
-        if (entry.opened.has(url)) continue; // 両方にある = 触らない
+        if (entry.opened.has(url)) continue; // 既存 (変化なし or 張り直し済み)
         const connection = this.#acquire(url);
         addedUrls.push(url);
         const subscription = connection.subscribe(
           relayFilters,
           this.#handlersFor(entry, url),
         );
-        entry.opened.set(url, subscription);
+        entry.opened.set(url, { subscription, filters: relayFilters });
       }
     } catch (error) {
       for (const url of addedUrls) {
-        entry.opened.get(url)?.close();
+        entry.opened.get(url)?.subscription.close();
         entry.opened.delete(url);
         this.#release(url);
       }
@@ -416,14 +583,6 @@ export class SubscriptionManager {
         if (!entry.closed) entry.delivery.onRelayUnreachable(url);
       },
     };
-  }
-
-  #planEqual(a: SectionPlan, b: SectionPlan): boolean {
-    if (a.unroutableAuthors !== b.unroutableAuthors) return false;
-    if (a.uncoveredAuthors !== b.uncoveredAuthors) return false;
-    if (a.relays.length !== b.relays.length) return false;
-    const relaysA = new Set(a.relays);
-    return b.relays.every((url) => relaysA.has(url));
   }
 
   #acquire(url: RelayUrl): RelayConnection {
