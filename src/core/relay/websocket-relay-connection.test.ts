@@ -344,4 +344,19 @@ describe("WebSocketRelayConnection", () => {
     // プールが永久に「生きている」と誤認する
     expect(calls).toEqual(["late"]);
   });
+
+  it("notifies onClose listeners when close() is called", () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://one/", socket);
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("closed"));
+
+    open();
+    connection.close();
+    // Real WebSocket fires onclose asynchronously, but our fake fires it synchronously
+    // when we poke it manually
+    socket.onclose?.();
+
+    expect(calls).toEqual(["closed"]);
+  });
 });

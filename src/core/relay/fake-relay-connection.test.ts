@@ -80,4 +80,52 @@ describe("FakeRelayConnection", () => {
     expect(closed).toEqual(["sub:socket closed", "pool"]);
     expect(connection.closed).toBe(true);
   });
+
+  it("close() notifies onClose and delivers onClosed to subscriptions, matching die()", () => {
+    const connection = new FakeRelayConnection("wss://one/");
+    const closed: string[] = [];
+    connection.onClose(() => closed.push("pool"));
+    connection.subscribe([{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => closed.push(`sub:${reason}`),
+    });
+
+    connection.close();
+
+    expect(closed).toEqual(["sub:socket closed", "pool"]);
+    expect(connection.closed).toBe(true);
+  });
+
+  it("close() called twice notifies listeners only once", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("called"));
+
+    connection.close();
+    connection.close();
+
+    expect(calls).toEqual(["called"]);
+  });
+
+  it("late registration of onClose listener fires synchronously for close()", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.close();
+
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("late"));
+
+    expect(calls).toEqual(["late"]);
+  });
+
+  it("unsubscribe function from onClose removes the listener", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    const calls: string[] = [];
+    const off = connection.onClose(() => calls.push("a"));
+
+    off();
+    connection.close();
+
+    expect(calls).toEqual([]);
+  });
 });

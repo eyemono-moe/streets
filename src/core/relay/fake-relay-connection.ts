@@ -43,8 +43,17 @@ export class FakeRelayConnection implements RelayConnection {
   }
 
   close(): void {
+    this.#doClose();
+  }
+
+  #doClose(): void {
+    if (this.closed) return;
     this.closed = true;
-    for (const sub of this.subscriptions) sub.closed = true;
+    for (const sub of this.subscriptions) {
+      if (sub.closed) continue;
+      sub.closed = true;
+      sub.handlers.onClosed("socket closed");
+    }
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
   }
@@ -80,14 +89,6 @@ export class FakeRelayConnection implements RelayConnection {
   }
 
   die(): void {
-    if (this.closed) return;
-    this.closed = true;
-    for (const sub of this.subscriptions) {
-      if (sub.closed) continue;
-      sub.closed = true;
-      sub.handlers.onClosed("socket closed");
-    }
-    for (const listener of this.#closeListeners) listener();
-    this.#closeListeners.clear();
+    this.#doClose();
   }
 }
