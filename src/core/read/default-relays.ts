@@ -21,7 +21,7 @@ export const FALLBACK_RELAYS: readonly RelayUrl[] = [
 ];
 
 /**
- * 1 著者あたり何本の write relay を使うか。
+ * 1 著者あたり読み書き双方の方向でそれぞれ何本のリレーを使うか。
  * NIP-65 は「各カテゴリ 2-4 本に保て」と案内しているので大半の著者は 4 本以下。
  * 最小リレー被覆 (greedy set cover) は後続 #3 の担当であり、ここでは
  * 決定的に先頭から採るだけにする。

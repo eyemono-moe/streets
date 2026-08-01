@@ -26,6 +26,11 @@ export type WarmUpOptions = {
   store: EventStore;
   connect: (url: RelayUrl) => RelayConnection;
   indexers?: readonly RelayUrl[];
+  /**
+   * ① フォローリスト取得、② kind:10002 一括取得の各フェーズにそれぞれ
+   * この上限をフルで与える。2 フェーズとも最悪ケースまでかかると、
+   * warmUpRouting() 全体の最悪所要時間はこの値の **2 倍** になる。
+   */
   timeoutMs?: number;
 };
 
@@ -84,6 +89,12 @@ const collect = (
 
     for (const connection of connections) {
       const subscription = connection.subscribe(filters, {
+        // 信頼境界: インデクサが要求した filters と無関係な kind/著者のイベント
+        // を寄越しても、ここではフィルタと突き合わせて確認しない。store.put()
+        // 側の schnorr 署名検証と、EventStore.#indexReplaceable の created_at
+        // 最大値ルール (ADR-0016) がある限り、悪意あるインデクサが差し込めるのは
+        // 「本人が実際に署名した、かつ最新版ではない」イベントに限られる —
+        // ルーティング表を乗っ取ることはできない。影響範囲はこの境界で抑えられる。
         onEvent: (event: NostrEvent) => {
           store.put(event, connection.url);
         },
