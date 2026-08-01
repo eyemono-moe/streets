@@ -1,6 +1,6 @@
 # 読み取り層 — 繰延事項
 
-第1スライス（単一リレーのセクション読み取り）のレビューで実在すると判定されたが、そのスライスでは直さなかったもの。次の計画に着手する前にここを読むこと。
+第1スライス（単一リレーのセクション読み取り）と第2スライス（Outbox ルーティングと購読マネージャ）のレビューで実在すると判定されたが、そのスライスでは直さなかったもの。次の計画に着手する前にここを読むこと。
 
 用語は [CONTEXT.md](../../CONTEXT.md)、決定は [docs/adr/](../adr/)、全体像は [architecture.md](./architecture.md)。
 
@@ -27,6 +27,8 @@
 
 なお `SectionReader` 側のオプションは残してよい。テストが `PassThroughStore` を注入する内部の seam として機能しており、外に出すべきでないのは `createSection` の公開インターフェースのほう。
 
+**同じ計画で決める必要があること: 水和経路の検証をどうするか。** `put()` は挿入のたびに schnorr 検証する。IndexedDB のキャッシュを起動時に `put()` で流し込むと、キャッシュ全件を再検証することになり、[ADR-0011](../adr/0011-performance-budget.md) の「初回イベント表示 2 秒」がそれだけで埋まる。信用済み挿入の経路を足すかどうかは `put()` のシグネチャの話であり、永続化 #4 で決着させる。
+
 ### ~~`seenRelays` の帰属が検証されていない~~ — 2026-08-01 修正済み
 
 `event-store.ts` の `"duplicate"` 経路が、ペイロードを照合する前に `seenRelays` へリレーを記録していた。悪意あるリレーは既知の ID を送るだけで、自分が配信していないイベントの提供者として記録された。
@@ -34,6 +36,40 @@
 Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始める直前に修正した。`"duplicate"` 経路の push を `isNostrEvent(event) && computeEventId(unsigned) === event.id` で門番する。イベント ID は署名対象フィールドの sha256 であるため、**ID の再計算がそのままペイロードの照合になる**。schnorr を伴わないので、重複ごとの検証コスト（下記「直さないと決めたもの」で却下した方式）は発生しない。
 
 `put` の戻り値は照合が失敗しても `"duplicate"` のまま。`SectionReader` は「`"rejected"` 以外＝ store がその ID を持っている」に依拠しており、ここで `"rejected"` を返すと既に保持している正規のイベントをセクションが取りこぼす。
+
+### 生きているセクションを張り直す手段が存在しない
+
+[ADR-0016](../adr/0016-routing-bootstrap.md) は「**未解決の著者は既定リレーへ暫定的に送信し、解決後に張り直す**」と定めている。**後半が実装されていない。**
+
+`SectionReader.start()` は `planQuery` を 1 回だけ呼び、その結果を `#relays` に固定する。あとから `kind:10002` が `EventStore` に届いてルーティング表が変わっても、既に走っているセクションは fallback リレーを見続ける。デバッグルートがこれを露呈させていないのは、`warmUp.loading` が終わるまでセクションを開始しないから — つまり**読み取り層の穴をビューの都合で塞いでいる**状態であり、カラムが増えれば成立しない。
+
+同じ穴が [ADR-0011](../adr/0011-performance-budget.md) の 30 接続上限にも効く。上限のもとでマネージャは「今は開けないリレーを後で開く」必要があるが、セクションに「待つ相手が 1 つ増えた」と伝える経路がない。`onRelayComplete` / `onRelayUnreachable` は `#relayState` の作成時生成により未知のリレーでも受け付けるものの、**後から開いてまだ完了していないリレーは `allSettled` から見えない**ため、セクションが早すぎる `settled` を報告する。
+
+対処はどちらも同じ形になる: `SectionDelivery` に `onRelayAdded(relay)` を足すか、`SectionHandle.relays` をスナップショットではなくアクセサにする。**これは後続 #3（接続プール）の最初の設計課題であって、実装の細部ではない。**
+
+なお [ADR-0023](../adr/0023-centralized-subscription-manager.md) の「マージはマネージャ内部の方針であって構造ではない」という約束は、`createSection` の `{ items, status, loadMore }` については維持されている。維持されていないのは `SectionReader` との境界のほう。
+
+### `RelayConnection` に接続単位のライフサイクル通知がない
+
+`SubscriptionManager` の `#pool` は `refCount` が 0 になったときしかエントリを消さない。ソケットが自然死した場合、`WebSocketRelayConnection` は保持している全ハンドラに `onClosed` を投げてハンドラを捨てるが、**接続は死んだまま `refCount > 0` で pool に残る**。次に同じ URL を `#acquire` したセクションはその死体を渡され、`subscribe()` が即座に `onClosed` を返すため、リロードするまで永久に `unreachable` のカラムになる。
+
+根本原因は 1 段下にある。`RelayConnection` seam（[ADR-0014](../adr/0014-thin-relay-connection-deep-read-layer.md)）は**購読単位の `onClosed` しか持たず、接続の死とレート制限による個別 CLOSED をプールが区別できない**。
+
+再接続（[ADR-0021](../adr/0021-reconnection-policy.md)）もこの通知なしには組めない。**seam に `readonly closed: boolean` を足すか `onStateChange` を足すかは ADR-0014 の変更であり、後続 #3 の冒頭で決めること。**
+
+### 接続数はフォロー人数に比例して無制限に増える
+
+`planQuery` は全著者の write リレーの和集合につき 1 バケットを出し、`SubscriptionManager.subscribe` はそれを同期的に全て `#acquire` する。`MAX_RELAYS_PER_AUTHOR = 3` で 500 人フォローしていれば、**1 セクションが最大 1,500 本の WebSocket を開こうとする**。しかも接続先はフォローしている著者が `kind:10002` で自由に指定できる。
+
+[ADR-0011](../adr/0011-performance-budget.md) の 30 接続上限がまさにこれの対処であり、第2スライスでは意図的に範囲外とした。ただし**現時点の実装には上限が一切ない**ことを明記しておく。デバッグルートが無事なのはフォローが 2 人だからにすぎず、`createSection` の呼び出し元が増えた瞬間に効く。
+
+### リレーが配信したイベントをフィルタに再照合していない
+
+`SubscriptionManager` は購読に届いたものをそのまま格納・配信し、`SectionReader` はそれをリストに載せる。署名検証は**偽造**を防ぐが**混入**は防がない。ある著者の write リレーは、そのリレーを見ているセクションへ、フォローしていない人の正当な署名付きイベントや別 kind のイベントを押し込める。
+
+第2スライス以前からそうだったが、Outbox がこの面積を実質的に広げた。**セクションが話しかけるリレー集合を決めるのが、自分ではなくフォローしている著者になった**ためである。
+
+[ADR-0023](../adr/0023-centralized-subscription-manager.md) は既にローカル再マッチを必要な作業として挙げているが、これは購読マージの帰結ではなく**リレーの配信を信用していることの帰結**である。ADR 側にもその旨を追記した。
 
 ## 直さないと決めたもの（理由つき）
 
@@ -62,6 +98,11 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `relay-info.ts` | `fetchImpl.bind(globalThis)` は既定の native `fetch` には必要だが、注入された実装まで束縛し直すのは過剰。`constructor(fetchImpl = fetch.bind(globalThis))` にして保存時は束縛しないほうが正しい |
 | `v1-section.tsx` | `DEFAULT_RELAY` がハードコードで `STREETS_E2E_RELAY_URL` を見ない。`e2e/fixtures/seed.ts` は見るため、上書きした環境で e2e が落ちる |
 | `section-reader.ts` | `countUnroutableAuthors` を `status` の読み取りごとに再計算する。リレーが 0 件のときだけ通る経路なので現状は無料 |
+| `routing-table.ts` | 参照のたびに store 検索と `parseRelayList`（Map 構築＋全タグ走査）を丸ごとやり直し、3 件を残して捨てる。`planQuery` は著者ごとに呼ぶため、500 人 × セクション数 × 再計画のたびに走る。導出元イベントの `id` をキーにメモ化すれば ADR-0016 の「導出・TTL なし」を壊さずに済む |
+| `relay-url.ts` | パーセントエンコードされたパスセグメントを正規化しない（`%2f` と `%2F` が別 URL になる）。userinfo もそのまま保持する。既定ポート・大文字スキーム・IPv6 は正しいがテストがない |
+| `query-plan.ts` | 1 つのフィルタ内の重複著者を除去しない。`Map` の反復順序も表明していない |
+| `subscription-manager.ts` | `onEose` / `onClosed` の close 後抑制にテストがない（`onEvent` のみ）。1 プラン内の重複 URL と空プランも未テスト。明示リレー経路で `fallbackRelays` を使わないのに計算している |
+| `bootstrap.ts` | `clearTimeout` / `getTimerCount` の表明がない。インデクサ 2 つが矛盾する `kind:3` を返すケース、不正な `p` タグの端から端までのケースも未テスト |
 
 ## 後続 #3（接続プール）で扱うと決まったもの
 
