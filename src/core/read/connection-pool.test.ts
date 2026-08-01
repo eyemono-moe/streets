@@ -183,4 +183,47 @@ describe("ConnectionPool", () => {
     ).toBeDefined();
     expect(pool.size).toBe(1);
   });
+
+  // Task 8: a socket that dies on its own (as opposed to being close()d by
+  // the pool) must not keep occupying a budget slot (ADR-0021).
+  it("frees the slot when a connection dies on its own", () => {
+    const { pool, connections } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.size).toBe(1);
+
+    connections.get("wss://one/")?.die();
+
+    // A dead socket must not keep holding one of the 30 slots (ADR-0021).
+    expect(pool.size).toBe(0);
+    expect(
+      pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeDefined();
+  });
+
+  it("does not hand a dead connection to the next subscriber", () => {
+    const { pool, connections, connectCalls } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    const reasons: string[] = [];
+    pool.subscribe("wss://one/", [{ kinds: [7] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => reasons.push(reason),
+    });
+
+    // Handing over a corpse fires onClosed immediately and that column
+    // stays unreachable forever.
+    expect(reasons).toEqual([]);
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+
+  it("keeps the registry so the entries can be re-issued later", () => {
+    const { pool, connections } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    // The connection is gone but the entry survives. close() must not throw.
+    expect(pool.size).toBe(0);
+  });
 });

@@ -24,14 +24,14 @@ type Entry = {
 
 /**
  * 1 つの URL に対するプールの状態。`connection` が `null` なのは
- * 接続を試みて失敗した場合 — エントリはこの URL を諦めていないので
- * `#pool` からは消さない (Task 9 の再接続対象として残す)。
+ * 接続を試みて失敗した場合、またはソケットが自然死した場合 —
+ * どちらもエントリはこの URL を諦めていないので `#pool` からは
+ * 消さない (Task 9 の再接続対象として残す)。
  */
 type Pooled = {
   connection: RelayConnection | null;
   entries: Set<Entry>;
-  /** 接続の死亡通知の購読解除。まだ死亡検出を配線していないので現状は
-   * 常に null (Task 8)。 */
+  /** 接続の死亡通知の購読解除。`connection` が非 null の間だけ非 null。 */
   offClose: (() => void) | null;
 };
 
@@ -79,13 +79,20 @@ export class ConnectionPool {
     const budget = this.#options.maxConnections ?? MAX_CONNECTIONS;
 
     let pooled = this.#pool.get(url);
-    if (!pooled) {
+    // `pooled` が無い場合だけでなく、エントリは残っているが接続が
+    // 自然死している場合も新しいソケットが要る = 予算を消費する。
+    if (!pooled || !pooled.connection) {
       if (this.size >= budget) return undefined;
 
-      pooled = { connection: null, entries: new Set(), offClose: null };
-      this.#pool.set(url, pooled);
+      if (!pooled) {
+        pooled = { connection: null, entries: new Set(), offClose: null };
+        this.#pool.set(url, pooled);
+      }
+
       try {
-        pooled.connection = this.#options.connect(url);
+        const connection = this.#options.connect(url);
+        pooled.connection = connection;
+        pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
       } catch {
         // connection は null のまま。#pool からは消さない (Task 9 が
         // 後で再接続を試みる対象として残す)。
@@ -132,5 +139,21 @@ export class ConnectionPool {
     pooled.offClose?.();
     pooled.connection?.close();
     this.#pool.delete(url);
+  }
+
+  /**
+   * ソケットが自らの意思とは無関係に死んだときの通知先 (`RelayConnection.onClose`)。
+   * 予算 (ADR-0021) を即座に解放するが、購読の `onClosed` はここでは呼ばない —
+   * 接続側 (`WebSocketRelayConnection.fail()` / `FakeRelayConnection.die()`) が
+   * 既に全ハンドラへ配り終えている。二重に呼ぶと `incomplete.unreachableRelays`
+   * が二重計上される。
+   */
+  #onConnectionDied(url: RelayUrl): void {
+    const pooled = this.#pool.get(url);
+    if (!pooled) return;
+    pooled.offClose?.();
+    pooled.offClose = null;
+    pooled.connection = null;
+    for (const entry of pooled.entries) entry.subscription = null;
   }
 }
