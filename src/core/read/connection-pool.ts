@@ -325,7 +325,14 @@ export class ConnectionPool {
     if (!pooled || pooled.connection || pooled.entries.size === 0) return;
 
     // 枠が無ければ諦めず、あとでもう一度試す。生きている接続から枠を
-    // 奪ってはいけない (ADR-0021)。
+    // 奪ってはいけない (ADR-0021)。`{ reserved: true }` で開いたエントリ
+    // (Task 11, ブートストラップ専用) もここでは特別扱いしない —
+    // 予約は最初の `subscribe()` 呼び出し限りで、死んで再接続待ちになった
+    // 後まで持ち越さない。許容できるのは、ここで待たされている間
+    // `collect()` のタイムアウトがその URL を見限って settle させ、
+    // 対応する `PooledSubscription.close()` が待っているエントリを消して
+    // `#scheduleReconnect` の「誰も待っていない」ガードで止まるから —
+    // 予約を再接続にまで広げるより、ハングせず縮退させる方を選んだ。
     if (this.size >= this.#maxConnections) {
       this.#scheduleReconnect(url);
       return;

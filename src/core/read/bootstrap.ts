@@ -1,5 +1,9 @@
 import type { NostrEvent } from "../nostr/event";
-import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import type {
+  RelayFilter,
+  RelaySubscriptionHandlers,
+  RelayUrl,
+} from "../relay/relay-connection";
 import type { ConnectionPool, PooledSubscription } from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
@@ -7,6 +11,18 @@ import type { EventStore } from "./event-store";
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;
 const DEFAULT_TIMEOUT_MS = 10_000;
+/**
+ * 実在しない id。アンカー購読 (下記 `warmUpRouting` 内) が過去にも未来にも
+ * 絶対にマッチしないようにするためだけの値 — アンカーはデータを集める役目を
+ * 持たない (それは `collect()` の仕事)。
+ */
+const NEVER_MATCHING_ID = "0".repeat(64);
+/** アンカー購読のハンドラ。何も読み取らない。 */
+const ANCHOR_HANDLERS: RelaySubscriptionHandlers = {
+  onEvent: () => {},
+  onEose: () => {},
+  onClosed: () => {},
+};
 
 export type WarmUpResult = {
   /** フォローリストに載っていた pubkey */
@@ -54,12 +70,11 @@ export type WarmUpOptions = {
  *
  * `pool.subscribe()` は `{ reserved: true }` で呼ぶ — インデクサは予算が
  * 埋まっていても必ず開けなければならない (ConnectionPool の
- * `SubscribeOptions` 参照)。1 URL につき開いているエントリはここでは常に
- * 1 個だけなので、片付いた時点でその購読を閉じると同時にプールはその URL の
- * 接続そのものも閉じる (最後のエントリが消えるとプールが接続を落とす仕様) —
- * つまり「片付いたら即座に閉じる」がそのまま「使わなくなった予算をすぐ返す」
- * にもなる。次のフェーズで同じ URL がまた必要なら、そこで新しく繋ぎ直す
- * (WebSocket 再接続のコストと引き換えに、ここで無駄に枠を握り続けない)。
+ * `SubscribeOptions` 参照)。ここで開くエントリを閉じても、
+ * `warmUpRouting()` が別途持っているアンカー購読 (下記参照) がまだ同じ URL
+ * のエントリを握っているので、プールの接続そのものは落ちない —
+ * 「settle したらすぐ閉じる」(このコメントの上の段落) は文字どおり
+ * このエントリだけの話で、接続の生死には関与しない。
  *
  * `open` は warmUpRouting 側が両フェーズを通して持つ Map で、ここが開いた
  * `PooledSubscription` を記録する — collect() が例外なく正常に終わる限り、
@@ -162,8 +177,45 @@ export const warmUpRouting = async ({
   // 両フェーズを通して collect() が使う。正常終了なら collect() 自身が
   // 都度空にするので、finally はあくまで例外時の安全網。
   const open = new Map<RelayUrl, PooledSubscription>();
+  // インデクサ 1 本につき、この warmUpRouting() 呼び出し全体を通して 1 個だけ
+  // 開く「アンカー」購読 (fix round 1, Important 1)。
+  //
+  // collect() は 1 URL につき 1 エントリしか持たない。アンカーが無いと、
+  // フェーズ① の購読が settle して閉じた瞬間にその URL のエントリ数が 0 に
+  // なり、プールが接続そのものを落とす (#drop) — フェーズ② が同じ URL を
+  // また必要とする時には、繋ぎ直すほかない。このアンカーがもう 1 エントリを
+  // 通しで持つことで、フェーズ①→② の間にエントリ数が 0 を経由しないように
+  // し、同じ接続をフェーズ② でも再利用する (subscription-manager.ts の
+  // #applyEntryDiff が同一 URL の filters 差し替えで使っている「新しい方を
+  // 先に開いてから古い方を閉じる」のと同じ考え方を、ここでは 1 回の diff
+  // ではなく呼び出し全体のスコープに引き上げて適用している)。
+  //
+  // 最初のレビューではここを「フェーズごとに繋ぎ直しても実害はない」として
+  // 見送っていたが、その根拠にしていた実測 (indexer.coracle.social のレート
+  // 制限データ) は BOOTSTRAP_INDEXERS のどれでもない別リレーの計測だったと
+  // 判明した。訂正後の理由はもっと単純: 節約できる予算はこの呼び出し 1 回の
+  // 中で数十ms 後には自己完結して戻ってくるだけなのに対し、再接続はフォール
+  // バックの無いブートストラップ経路で実測されていないコストを払うことになる
+  // — ADR-0021 がジッタ付きバックオフを入れている理由も「自ら誘発する再接続
+  // バーストは避ける」なので、ここでも同じ判断を踏襲する。
+  //
+  // アンカーの filters は「絶対にマッチしない」ことだけが要件 — 実データを
+  // 集める役目は持たない (それは collect() 側の仕事)。
+  const anchors = new Map<RelayUrl, PooledSubscription>();
 
   try {
+    for (const url of indexers) {
+      const anchor = pool.subscribe(
+        url,
+        [{ ids: [NEVER_MATCHING_ID] }],
+        ANCHOR_HANDLERS,
+        // ブートストラップだけが使ってよい予算迂回 (ConnectionPool の
+        // `SubscribeOptions` 参照)。ここ以外では絶対に使わないこと。
+        { reserved: true },
+      );
+      if (anchor) anchors.set(url, anchor);
+    }
+
     // ① フォローリスト
     await collect(
       pool,
@@ -211,5 +263,11 @@ export const warmUpRouting = async ({
     // 外へ漏れた場合だけの安全網。
     for (const subscription of open.values()) subscription.close();
     open.clear();
+    // アンカーはここで初めて閉じる — 両フェーズ (あるいは例外による早期
+    // 離脱) が終わったので、ようやくこの URL のエントリを手放してよい。
+    // これで各インデクサのエントリ数が 0 になり、プールが接続を落として
+    // 予算を返す (Ambiguity 3: release on completion はここで完結する)。
+    for (const anchor of anchors.values()) anchor.close();
+    anchors.clear();
   }
 };

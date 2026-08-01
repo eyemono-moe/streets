@@ -82,13 +82,21 @@ const sign = (
 
 const base = { created_at: 1_700_000_000, tags: [], content: "" };
 
-/** Builds a ConnectionPool backed by FakeRelayConnection, recording every
- * connection it creates in `connections` keyed by url (later reconnects to
- * the same url overwrite the earlier entry, which is intentional --
- * warmUpRouting closes an indexer's sole subscription the moment it settles,
- * and the pool tears the underlying connection down with it (ADR-0011: give
- * the budget back as soon as it's not needed), so a second query phase to
- * the same indexer opens a fresh connection). */
+/**
+ * Builds a ConnectionPool backed by FakeRelayConnection, recording every
+ * connection it creates in `connections` keyed by url.
+ *
+ * Every test below expects `connections.size` to grow by at most one entry
+ * per indexer url for the whole `warmUpRouting()` call: fix round 1 made
+ * `warmUpRouting` hold a long-lived "anchor" `PooledSubscription` per
+ * indexer for its entire lifetime (see `bootstrap.ts`), specifically so
+ * that phase ①'s subscription settling and closing does not drop the
+ * pooled entry count for that url to zero (which would tear the connection
+ * down and force phase ② to reconnect). Because of the anchor, every
+ * FakeRelayConnection in this file carries one extra subscription at index
+ * 0 (the anchor's) before phase ①'s own subscription at index 1, and phase
+ * ②'s (when there is one) at index 2.
+ */
 const poolWithFakes = (
   connections: Map<RelayUrl, FakeRelayConnection>,
   options?: { maxConnections?: number; failFor?: Set<RelayUrl> },
@@ -138,36 +146,88 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    // 第 1 段: フォローリスト
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
-    expect(indexer()?.subscriptions[0].filters).toEqual([
+    // アンカー (index 0) + フェーズ① の購読 (index 1)。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    expect(indexer()?.subscriptions[1].filters).toEqual([
       { kinds: [3], authors: [viewer.pubkey], limit: 1 },
     ]);
-    indexer()?.emitEvent(0, viewer);
-    indexer()?.emitEose(0);
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
 
-    // 第 2 段: 全員分の kind:10002 を 1 クエリで。フェーズ 1 の唯一の購読が
-    // 片付いた時点でプールはその接続そのものを閉じている (ADR-0011: 使わなく
-    // なった予算はすぐ返す) ので、`indexer()` はフェーズ 2 用に新しく張られた
-    // 接続を指す — その接続にとってはこれが最初の購読になる。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
-    const second = indexer()?.subscriptions[0].filters[0];
+    // 第 2 段: 全員分の kind:10002 を 1 クエリで。アンカーがまだ生きている
+    // ので、フェーズ① が settle した後もこの接続は再接続されずに残っている
+    // — フェーズ② の購読はそのまま同じ接続の index 2 に乗る。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    const second = indexer()?.subscriptions[2].filters[0];
     expect(second?.kinds).toEqual([10002]);
     expect(new Set(second?.authors)).toEqual(
       new Set([alice.pubkey, bob.pubkey]),
     );
 
-    indexer()?.emitEvent(0, alice);
-    indexer()?.emitEose(0);
+    indexer()?.emitEvent(2, alice);
+    indexer()?.emitEose(2);
 
     const result = await pending;
     expect(result.followees).toHaveLength(2);
     expect(result.routed).toBe(1);
     expect(result.unroutable).toBe(1);
 
+    // warmUpRouting 全体を通じて、このインデクサへは 1 本の接続しか作られて
+    // いない (フェーズ間で繋ぎ直していない証拠)。
+    expect(relays.size).toBe(1);
+
     const table = new RoutingTable(store);
     expect(table.writeRelaysFor(alice.pubkey)).toEqual(["wss://alice/"]);
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
+  });
+
+  // Fix round 1, Important 1: the anchor exists specifically to prevent a
+  // reconnect between phase ① and phase ② for the same indexer. Kept
+  // deliberately small and isolated from the follow-list/routing logic
+  // above so the reconnect-vs-reuse behaviour can be pinned down on its
+  // own.
+  it("keeps each indexer's connection open across both warm-up phases instead of reconnecting", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(relays);
+
+    const followee = "a".repeat(64);
+    const viewer = sign(9, {
+      ...base,
+      kind: 3,
+      tags: [["p", followee]],
+    });
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
+
+    // Phase ① settled and its own subscription is closed, but the
+    // connection itself must survive -- the anchor (index 0) is still
+    // open.
+    expect(indexer()?.subscriptions[1].closed).toBe(true);
+    expect(indexer()?.subscriptions[0].closed).toBe(false);
+    expect(indexer()?.closed).toBe(false);
+
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    indexer()?.emitEose(2);
+
+    await pending;
+
+    // Exactly one FakeRelayConnection was ever created for this url -- no
+    // reconnect happened between phase ① and phase ②.
+    expect(relays.size).toBe(1);
+    // Only now, at the very end of warmUpRouting, does the anchor close and
+    // the connection go down with it.
+    expect(indexer()?.closed).toBe(true);
   });
 
   it("resolves with an empty follow list when the viewer has no kind:3", async () => {
@@ -183,9 +243,9 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(relays.get("wss://indexer/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://indexer/")?.subscriptions).toHaveLength(2),
     );
-    relays.get("wss://indexer/")?.emitEose(0);
+    relays.get("wss://indexer/")?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -205,7 +265,7 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() => expect(relays.size).toBe(2));
-    for (const relay of relays.values()) relay.emitEose(0);
+    for (const relay of relays.values()) relay.emitEose(1);
     await pending;
 
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
@@ -226,9 +286,9 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(relays.get("wss://up/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://up/")?.subscriptions).toHaveLength(2),
     );
-    relays.get("wss://up/")?.emitEose(0);
+    relays.get("wss://up/")?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -275,16 +335,16 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
     );
     await vi.waitFor(() =>
-      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(2),
     );
 
     // "one" reports EOSE and then CLOSED for the same subscription — a
     // relay quirk that must not count as two settlements.
-    relays.get("wss://one/")?.emitEose(0);
-    relays.get("wss://one/")?.emitClosed(0, "extra close after eose");
+    relays.get("wss://one/")?.emitEose(1);
+    relays.get("wss://one/")?.emitClosed(1, "extra close after eose");
 
     // Give pending microtasks a chance to run. Warm-up must still be
     // waiting on "two" — it must not have resolved early.
@@ -293,7 +353,7 @@ describe("warmUpRouting", () => {
     await Promise.resolve();
     expect(resolved).toBe(false);
 
-    relays.get("wss://two/")?.emitEose(0);
+    relays.get("wss://two/")?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -332,22 +392,23 @@ describe("warmUpRouting", () => {
       resolved = true;
     });
 
-    await vi.waitFor(() => expect(one.handlers).toHaveLength(1));
-    await vi.waitFor(() => expect(two.handlers).toHaveLength(1));
+    // handlers[0] is the anchor's; handlers[1] is phase ①'s real one.
+    await vi.waitFor(() => expect(one.handlers).toHaveLength(2));
+    await vi.waitFor(() => expect(two.handlers).toHaveLength(2));
 
     // Fire EOSE then CLOSED for "one" through a connection whose close()
     // does NOT suppress further emits. If collect() relied on that
     // suppression instead of its own per-connection settle guard, this
     // would decrement pending twice and resolve before "two" ever answers.
-    one.fireEose(0);
-    one.fireClosed(0, "extra close after eose");
+    one.fireEose(1);
+    one.fireClosed(1, "extra close after eose");
 
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     expect(resolved).toBe(false);
 
-    two.fireEose(0);
+    two.fireEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -367,28 +428,34 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
     );
     await vi.waitFor(() =>
-      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(2),
     );
 
-    relays.get("wss://one/")?.emitEose(0);
+    relays.get("wss://one/")?.emitEose(1);
 
-    // "one" settled; its subscription must be closed right away — not
-    // batched until "two" (which has not answered yet) also settles, and
-    // not deferred to warmUpRouting's outer `finally`.
-    expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(true);
-    expect(relays.get("wss://two/")?.subscriptions[0].closed).toBe(false);
-    // Unlike the pre-pool implementation, closing "one"'s subscription also
-    // tears its connection down immediately: it was the pool's only entry
-    // for that url, so the pool gives the budget slot back right away
-    // (ADR-0011) instead of holding it open until warm-up's outer `finally`
-    // closes everything at the very end.
-    expect(relays.get("wss://one/")?.closed).toBe(true);
+    // "one"'s phase ① subscription (index 1) settled; it must be closed
+    // right away — not batched until "two" (which has not answered yet)
+    // also settles, and not deferred to warmUpRouting's outer `finally`.
+    expect(relays.get("wss://one/")?.subscriptions[1].closed).toBe(true);
+    expect(relays.get("wss://two/")?.subscriptions[1].closed).toBe(false);
+    // Closing the phase ① subscription does not tear the connection down:
+    // the anchor (index 0) is a separate, still-open entry for the same
+    // url, kept alive precisely so a later phase can reuse this connection
+    // instead of reconnecting (fix round 1, Important 1).
+    expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(false);
+    expect(relays.get("wss://one/")?.closed).toBe(false);
 
-    relays.get("wss://two/")?.emitEose(0);
+    relays.get("wss://two/")?.emitEose(1);
     await pending;
+
+    // Only once warmUpRouting has fully finished (there is no phase ② here
+    // — the viewer has no kind:3 — so this is the outer `finally`) do the
+    // anchors close and the connections finally go down.
+    expect(relays.get("wss://one/")?.closed).toBe(true);
+    expect(relays.get("wss://two/")?.closed).toBe(true);
   });
 
   it("does not hang past the timeout when an indexer never responds", async () => {
@@ -454,7 +521,8 @@ describe("warmUpRouting", () => {
   });
 
   // Ambiguity 3 in the task-11 brief: warm-up's reserved connections must
-  // not sit in the pool afterwards holding budget.
+  // not sit in the pool afterwards holding budget -- including the
+  // long-lived anchor added in fix round 1.
   it("releases the indexer connections when warm-up finishes", async () => {
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const pool = poolWithFakes(connections);
@@ -467,9 +535,9 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(connections.get("wss://indexer/")?.subscriptions).toHaveLength(1),
+      expect(connections.get("wss://indexer/")?.subscriptions).toHaveLength(2),
     );
-    connections.get("wss://indexer/")?.emitEose(0);
+    connections.get("wss://indexer/")?.emitEose(1);
 
     await promise;
     expect(pool.size).toBe(0);
