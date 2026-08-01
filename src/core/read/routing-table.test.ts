@@ -58,20 +58,24 @@ describe("RoutingTable", () => {
     expect(table.readRelaysFor(event.pubkey)).toEqual(["wss://both.example/"]);
   });
 
-  it("caps the number of relays per author", () => {
+  it("returns every declared write relay without truncating", () => {
     const store = new EventStore();
     const event = relayList(3, [
-      ["r", "wss://one.example", "write"],
-      ["r", "wss://two.example", "write"],
-      ["r", "wss://three.example", "write"],
-      ["r", "wss://four.example", "write"],
+      ["r", "wss://one/", "write"],
+      ["r", "wss://two/", "write"],
+      ["r", "wss://three/", "write"],
+      ["r", "wss://four/", "write"],
+      ["r", "wss://five/", "write"],
     ]);
     store.put(event, "wss://indexer");
 
+    // 予算は大域セレクタが持つ。ここは事実だけを返す
     expect(new RoutingTable(store).writeRelaysFor(event.pubkey)).toEqual([
-      "wss://one.example/",
-      "wss://two.example/",
-      "wss://three.example/",
+      "wss://one/",
+      "wss://two/",
+      "wss://three/",
+      "wss://four/",
+      "wss://five/",
     ]);
   });
 

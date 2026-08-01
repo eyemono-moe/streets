@@ -1,5 +1,4 @@
 import type { RelayUrl } from "../relay/relay-connection";
-import { MAX_RELAYS_PER_AUTHOR } from "./default-relays";
 import type { EventStore } from "./event-store";
 import { parseRelayList } from "./relay-list";
 
@@ -35,7 +34,6 @@ export class RoutingTable {
     if (!event) return [];
     return parseRelayList(event)
       .filter((entry) => entry[direction])
-      .map((entry) => entry.url)
-      .slice(0, MAX_RELAYS_PER_AUTHOR);
+      .map((entry) => entry.url);
   }
 }
