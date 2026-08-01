@@ -116,6 +116,18 @@ export class ConnectionPool {
   readonly #maxConnections: number;
   readonly #scheduler: Scheduler;
   readonly #random: () => number;
+  /**
+   * `size` の過去最大値 (ADR-0011 の高水位マーク)。
+   *
+   * `size` は「今」生きている接続だけを数えるので、budget を守れていない
+   * 実装でも、超過した接続が死んで枠を返した*後*に読めば予算内に見えて
+   * しまう — 特にローカルの到達不能リレーは ECONNREFUSED がミリ秒単位で
+   * 返るため、settled になった時点ではもう手遅れ (Task 12 fix round 1)。
+   * ソケットを実際に作った瞬間に size を測って最大値を更新することで、
+   * 一度でも予算を超えて開いた事実を後から消せないようにする。単調増加
+   * のみで、接続が死んでも下がらない。
+   */
+  #peakSize = 0;
 
   constructor(options: ConnectionPoolOptions) {
     this.#options = options;
@@ -131,6 +143,17 @@ export class ConnectionPool {
       if (pooled.connection) open += 1;
     }
     return open;
+  }
+
+  /** `size` の観測史上の最大値。予算を測るのはこちら (Task 12 fix round 1)。 */
+  get peakSize(): number {
+    return this.#peakSize;
+  }
+
+  /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
+  #recordPeak(): void {
+    const current = this.size;
+    if (current > this.#peakSize) this.#peakSize = current;
   }
 
   /**
@@ -176,6 +199,7 @@ export class ConnectionPool {
         const connection = this.#options.connect(url);
         pooled.connection = connection;
         pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
+        this.#recordPeak();
       } catch {
         // connection は null のまま。#pool からは消さない (Task 9 が
         // 後で再接続を試みる対象として残す)。
@@ -349,6 +373,7 @@ export class ConnectionPool {
     pooled.connection = connection;
     pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
     pooled.attempts = 0;
+    this.#recordPeak();
 
     for (const entry of pooled.entries) {
       try {

@@ -256,6 +256,16 @@ export class SubscriptionManager {
   }
 
   /**
+   * 観測史上の同時接続数の最大値 (ADR-0011 の高水位マーク, Task 12 fix round 1)。
+   * `connectionCount` は「今」の値なので、予算超過が一瞬でも settled 判定の
+   * 前に自己解消してしまうと (到達不能リレーの接続失敗はミリ秒単位で起こる)
+   * 見えなくなる。予算そのものを検証するにはこちらを読む。
+   */
+  get peakConnectionCount(): number {
+    return this.#pool.peakSize;
+  }
+
+  /**
    * マネージャが所有する ConnectionPool そのもの (Task 11)。`warmUpRouting`
    * (`src/core/read/bootstrap.ts`) がブートストラップ用のインデクサ接続を
    * 同じ予算の中で開けるようにするための公開口 — マネージャの外に別系統の

@@ -289,6 +289,35 @@ describe("ConnectionPool", () => {
     ).toBeDefined();
   });
 
+  // Task 12 fix round 1: `size` alone cannot prove a budget was respected,
+  // because a connection that violated it and then died erases the evidence.
+  // `peakSize` is the high-water mark taken at the moment each socket is
+  // actually created, so it survives deaths.
+  it("peakSize records the high-water mark and survives connections dying", () => {
+    const { pool, connections } = createPool({ maxConnections: 2 });
+    expect(pool.peakSize).toBe(0);
+
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.peakSize).toBe(2);
+
+    connections.get("wss://one/")?.die();
+    connections.get("wss://two/")?.die();
+    // size drops back to 0, but the peak must not follow it down.
+    expect(pool.size).toBe(0);
+    expect(pool.peakSize).toBe(2);
+  });
+
+  it("peakSize never exceeds the budget when the budget is enforced", () => {
+    const { pool } = createPool({ maxConnections: 2 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers());
+    // Refused: no new socket is created, so the peak must not move.
+    pool.subscribe("wss://three/", [{ kinds: [1] }], noopHandlers());
+
+    expect(pool.peakSize).toBe(2);
+  });
+
   it("does not hand a dead connection to the next subscriber", () => {
     const { pool, connections, connectCalls } = createPool();
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());

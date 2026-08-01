@@ -1,6 +1,7 @@
 import {
   For,
   Show,
+  createEffect,
   createMemo,
   createResource,
   createSignal,
@@ -15,6 +16,7 @@ import type { RelayUrl } from "../../core/relay/relay-connection";
 import { RelayInfoRegistry } from "../../core/relay/relay-info";
 import { connectRelay } from "../../core/relay/websocket-relay-connection";
 import { createSection } from "../../core/solid/create-section";
+import { parseBudget } from "./parse-budget";
 
 // リレー2 (ws://127.0.0.1:8081/) は Outbox ルーティングが著者 B の
 // kind:10002 から自動で見つける。ここで直接参照する必要はない。
@@ -29,16 +31,10 @@ const DEFAULT_VIEWER =
  * ここへ小さい値を注入して貪欲選択の「機構」だけを検証する — 既定値の
  * 30 そのものはユニットテストの主張であってこのデバッグルートの仕事ではない。
  */
-const BUDGET_PARAM = new URLSearchParams(window.location.search).get("budget");
-// 不正な値 (非数値・NaN) は既定 (MAX_CONNECTIONS) にフォールバックする。
-// フォールバックせず NaN をそのまま渡すと ConnectionPool の
-// `size >= maxConnections` が常に false になり、無制限接続という
-// ADR-0011 が最も避けたい状態を静かに作ってしまう。
-const parsedBudget = BUDGET_PARAM === null ? undefined : Number(BUDGET_PARAM);
-const BUDGET =
-  parsedBudget !== undefined && Number.isFinite(parsedBudget)
-    ? parsedBudget
-    : undefined;
+// パースと不正値のフォールバックは parse-budget.ts (単体テスト済み)。
+const BUDGET = parseBudget(
+  new URLSearchParams(window.location.search).get("budget"),
+);
 
 const V1SectionDebug = () => {
   const [viewer, setViewer] = createSignal(DEFAULT_VIEWER);
@@ -57,16 +53,23 @@ const V1SectionDebug = () => {
     maxConnections: BUDGET,
   });
 
-  // manager.connectionCount (= pool.size) はシグナルではないので JSX に
-  // 直接置いても更新されない。ADR-0011 が予算しているのは同時 WebSocket
-  // 接続数そのものなので、1 秒間隔でシグナルへ写して観測できるようにする
-  // (デバッグルート専用の割り切り。読み取り層には持ち込まない)。
+  // manager.connectionCount / peakConnectionCount (= pool.size / pool.peakSize)
+  // はシグナルではないので JSX に直接置いても更新されない。
+  //
+  // ADR-0011 が予算しているのは「同時に何本まで開いたか」であって「今何本
+  // 開いているか」ではない。到達不能な架空リレーへの接続はミリ秒単位で
+  // 失敗して枠を返してしまうため、settled になった時点で connectionCount を
+  // 読んでも予算超過はもう跡形もなく消えている — peakConnectionCount
+  // (ConnectionPool の高水位マーク、単調増加) だけが実際に検証できる
+  // (Task 12 fix round 1)。
   const [connections, setConnections] = createSignal(manager.connectionCount);
-  const connectionsInterval = setInterval(
-    () => setConnections(manager.connectionCount),
-    1_000,
+  const [peakConnections, setPeakConnections] = createSignal(
+    manager.peakConnectionCount,
   );
-  onCleanup(() => clearInterval(connectionsInterval));
+  const syncConnectionSignals = () => {
+    setConnections(manager.connectionCount);
+    setPeakConnections(manager.peakConnectionCount);
+  };
 
   // NIP-11 セクション: Nostr イベントですらない供給元 (ADR-0003)
   const [relayInfo] = createResource(
@@ -111,6 +114,26 @@ const V1SectionDebug = () => {
   const status = createMemo<SectionStatus>(() =>
     warmUp.loading ? { phase: "initial" } : section.status(),
   );
+
+  // status() は SectionReader が接続の生死・EOSE・張り直しのたびに新しい
+  // 通知を出す (onPlanChanged / onRelayComplete / onRelayUnreachable) —
+  // つまり pool の接続数が変わりうる瞬間と同期している。ここへ写すことで
+  // 1 秒間隔の setInterval では取り逃す速い settle (ローカルの
+  // ECONNREFUSED は on-open/close がミリ秒単位で返る) でも確実に最新の
+  // 高水位マークを拾える (Task 12 fix round 1: 30 接続予算 → 4 に絞った
+  // ローカル e2e では、settled までが 1 秒未満で終わることがあり、
+  // setInterval だけだと peakConnectionCount がシグナルへ一度も写らない
+  // まま初期値 (0) を表示し続けてしまっていた)。
+  //
+  // setInterval は SectionReader の通知を経由しない変化 (今のところ無いが、
+  // 将来 pool 側だけで完結する変化が増えても表示が固まらないための保険)
+  // 用に残す。デバッグルート専用の割り切りであり、読み取り層には持ち込まない。
+  createEffect(() => {
+    status();
+    syncConnectionSignals();
+  });
+  const connectionsInterval = setInterval(syncConnectionSignals, 1_000);
+  onCleanup(() => clearInterval(connectionsInterval));
 
   const routes = createMemo(() =>
     (warmUp()?.followees ?? []).map((pubkey) => ({
@@ -182,6 +205,9 @@ const V1SectionDebug = () => {
           uncoveredAuthors: {status().incomplete?.uncoveredAuthors ?? 0}
         </p>
         <p data-testid="connections">connections: {connections()}</p>
+        <p data-testid="peak-connections">
+          peakConnections: {peakConnections()}
+        </p>
         <p data-testid="count">items: {section.items().length}</p>
         <ul data-testid="items">
           <For each={section.items()}>

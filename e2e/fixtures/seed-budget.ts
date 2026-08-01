@@ -6,12 +6,23 @@ export const relayOneUrl =
 export const relayTwoUrl =
   process.env.STREETS_E2E_RELAY_2_URL ?? "ws://127.0.0.1:8081";
 
-/** 実在しない架空リレー。接続は必ず失敗する — それが目的 (unreachableRelays)。 */
+/**
+ * 実在しない架空リレー。接続は必ず失敗する — それが目的 (unreachableRelays)。
+ *
+ * ポート帯を意図的に 7000 番台にして、ローカルリレー2 (`8081`) より
+ * **辞書順で前**に来るようにしてある (Task 12 fix round 1)。9000 番台の
+ * ままだと、gain (被覆する著者数) を無視してただ辞書順に候補を拾うだけの
+ * 実装でも「pinned のリレー1 → 辞書順で次に来るリレー2 → 架空リレー」を
+ * 選んでしまい、正しい貪欲実装と見分けが付かない偶然の一致になる。
+ * 7000 番台なら、gain を見ない実装は架空リレーを先に拾ってリレー2 を
+ * 弾き出す (D の投稿が出ない) ので、gain=2 のリレー2 を貪欲に選べているか
+ * を e2e が実際に検出できる。
+ */
 const fakeRelayUrls = [
-  "ws://127.0.0.1:9001/",
-  "ws://127.0.0.1:9002/",
-  "ws://127.0.0.1:9003/",
-  "ws://127.0.0.1:9004/",
+  "ws://127.0.0.1:7001/",
+  "ws://127.0.0.1:7002/",
+  "ws://127.0.0.1:7003/",
+  "ws://127.0.0.1:7004/",
 ];
 
 export const budgetNoteOneText = "budget author A note";
@@ -29,7 +40,7 @@ const secretKey = (seed: number) =>
 const viewerSecretKey = secretKey(911);
 
 // A・B・C → ローカルリレー1, D・E → ローカルリレー2,
-// F・G・H・I → それぞれ別の架空リレー (9001〜9004)
+// F・G・H・I → それぞれ別の架空リレー (7001〜7004)
 const authorSecretKeys = {
   A: secretKey(1001),
   B: secretKey(1011),
@@ -52,7 +63,6 @@ const authorPubkeys = Object.fromEntries(
 ) as Record<AuthorName, string>;
 
 export const budgetViewerPubkey = getPublicKey(viewerSecretKey);
-export const budgetAuthorPubkeys = authorPubkeys;
 
 const publish = async (
   relay: Relay,
@@ -85,7 +95,8 @@ export const seedBudgetFixture = async (): Promise<void> => {
   // D・E の write はローカルリレー2 (gain=2 で貪欲に選ばれる)
   await declareWriteRelay("D", relayTwoUrl);
   await declareWriteRelay("E", relayTwoUrl);
-  // F・G・H・I はそれぞれ別の架空リレー (gain=1、辞書順で先頭 2 本だけ選ばれる)
+  // F・G・H・I はそれぞれ別の架空リレー (gain=1、同点タイブレークの
+  // 辞書順で先頭 2 本 = 7001・7002 だけが選ばれる)
   await declareWriteRelay("F", fakeRelayUrls[0]);
   await declareWriteRelay("G", fakeRelayUrls[1]);
   await declareWriteRelay("H", fakeRelayUrls[2]);

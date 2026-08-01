@@ -21,8 +21,12 @@ test("never opens more connections than the budget allows", async ({
     timeout: 30_000,
   });
 
-  // ADR-0011 が予算しているのは同時 WebSocket 接続数そのもの
-  expect(await numberIn(page, "connections")).toBeLessThanOrEqual(4);
+  // "connections" (今の接続数) は settled の時点で読むと、到達不能な架空
+  // リレーの接続失敗がとっくに終わって枠を返した後になっている — 予算を
+  // 一瞬でも超えて開いた事実はそこでは既に消えている (Task 12 fix round 1)。
+  // ADR-0011 が予算しているのは「同時に何本まで開いたか」なので、
+  // ConnectionPool の高水位マークである "peak-connections" を見る。
+  expect(await numberIn(page, "peak-connections")).toBeLessThanOrEqual(4);
 });
 
 test("spends the budget on the relays that cover the most authors", async ({

@@ -605,6 +605,26 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
   });
 
+  // Task 12 fix round 1: connectionCount alone cannot prove a budget was
+  // ever respected, because sockets that violated it and later died erase
+  // the evidence before anyone reads connectionCount. peakConnectionCount
+  // is the high-water mark, taken when each socket is actually created, so
+  // it survives both close() and dispose().
+  it("peakConnectionCount records the high-water mark and survives dispose()", () => {
+    const { manager, delivery } = setup();
+    manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://one/", "wss://two/"],
+      delivery(),
+    );
+    expect(manager.peakConnectionCount).toBe(2);
+
+    manager.dispose();
+
+    expect(manager.connectionCount).toBe(0);
+    expect(manager.peakConnectionCount).toBe(2);
+  });
+
   // Review finding: dispose() abandons outstanding SectionHandles instead of
   // neutralizing them. Sequence: subscribe wss://x (refCount 1) -> dispose()
   // clears the pool -> subscribe wss://x again (a *new* connection, refCount
