@@ -1249,7 +1249,19 @@ get size(): number {
 
 - [ ] **Step 4: マネージャをプールに載せ替える**
 
-`SubscriptionManager` から `#pool` / `#acquire` / `#release` / `#generation` を削除し、`ConnectionPool` を持つ。`SubscriptionManagerOptions` の `connect` はそのままプールへ渡す。`maxConnections` もプールへ渡す。`subscribe` が `undefined` を返したリレーは、そのエントリの計画から外して `uncoveredAuthors` に寄せる。
+`SubscriptionManager` から `#pool` / `#acquire` / `#release` / `#generation` を削除し、`ConnectionPool` を持つ。`SubscriptionManagerOptions` の `connect` はそのままプールへ渡す。`maxConnections` もプールへ渡す。
+
+**予算を超えて拒否されたリレーの扱い（2026-08-01 訂正）。** 初版は「そのエントリの計画から外して `uncoveredAuthors` に寄せる」と書いていたが、**これは誤りである。** Task 6 のレビューで、予算超過が Outbox 経路だけでなく**明示指定リレーと fallback リレーでも起きる**ことが実測された（`maxConnections: 1` で fallback 3 本のセクションが 3 接続を開く。本番設定・10 カラムが各 5 本を名指しする場合で 30 + 3 + 50 = 83 接続）。明示リレーにも fallback にも**背後に著者がいない**ので、`uncoveredAuthors` は数えようがなく、無理に数えれば捏造になる。
+
+正しい扱いは 3 つ:
+
+1. **報告先は `delivery.onRelayUnreachable(url)`** → `incomplete.unreachableRelays`。意味がそのまま合う — 「見るべき場所だったが見なかった」。`uncoveredAuthors` は Outbox 経路の著者、それも**割り当てられた最後のリレーを失った著者**にだけ使う。1 回の拒否で両方が立つこともある
+2. **拒否されたリレーは `plan.relays` に残す。** `SectionReader.#applyPlan` は `#relays` を `plan.relays` から作り直すので、計画から外すと次の計画変更でその記録ごと消える。残したうえで unreachable を立てれば、`status` の `live = states.filter(r => !r.unreachable)` により `settled` を妨げず、`incomplete` には計上され続ける
+3. **ADR-0025 に一文足す — pinned は予算の優先権であって免除ではない。** ADR-0005 が言う「明示指定は**著者ルーティング**のバイパス」はソケット予算のバイパスを意味しない。ADR-0011 の 30 はユーザーの意図で無料にできない資源上限であり、ADR-0025 は既に `pinned` を `budget` で切り詰める先例を持つ（テスト済み）。**上限が勝つ。**
+
+**Task 6 のテスト `never drops an explicitly requested relay for budget reasons` は、この Task で落ちるはずである。** それが正しい信号であり、プールを弱めて通してはならない。テストを「予算内なら明示リレーが優先される」に書き換えること。
+
+**`PooledSubscription.close()` は決して例外を投げてはならない。** Task 6 の時点で `handle.close()` は末尾で `replan()` を呼ぶため `connect()` が投げうる状態になっており、`SectionReader.stop()` はこれを try/catch していない。投げると `#started` が `true` のまま残り、そのセクションは二度と `start()` できず、`createSection` の `onCleanup` も途中で中断する。**プールが `connect()` / `subscribe()` の例外を吸収して `handlers.onClosed("relay unavailable")` に変える**ことで、`#replan()` 自体が投げなくなり、この経路ごと消える。`close()` が total であることをテストで主張すること。
 
 `connectionCount` ゲッターは `pool.size` に委譲する（デバッグルートとテストが使っている）。
 
