@@ -2202,10 +2202,13 @@ pnpm dev:relay:reset && pnpm e2e:seed && pnpm e2e:seed:outbox
 pnpm dev
 ```
 
-`pnpm e2e:seed:outbox` の出力には pubkey が出ないので、次で取得する:
+`pnpm e2e:seed:outbox` の出力には pubkey が出ないので、次で取得する
+（`seed-outbox.ts` はトップレベル `await` を含むため、`tsx -e "import ..."`
+は esbuild が cjs 出力を試みて `Top-level await is currently not supported
+with the "cjs" output format` で失敗する。動的 `import()` で回避する）:
 
 ```bash
-pnpm exec tsx -e "import { outboxViewerPubkey } from './e2e/fixtures/seed-outbox'; console.log(outboxViewerPubkey)"
+pnpm exec tsx -e "import('./e2e/fixtures/seed-outbox.ts').then(m => console.log(m.outboxViewerPubkey))"
 ```
 
 `http://localhost:5173/debug/v1-section?pubkey=<出力された pubkey>` を開く。
