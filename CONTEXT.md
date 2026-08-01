@@ -90,7 +90,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0018](./docs/adr/0018-indexeddb-event-cache.md) | イベントを IndexedDB にキャッシュしメモリへ水和する |
 | [0019](./docs/adr/0019-two-bucket-cache-policy.md) | 永続キャッシュを2バケットに分け、削除指示は破棄しない |
 | [0020](./docs/adr/0020-no-nostr-library-noble-primitives-only.md) | Nostr ライブラリに依存せず、監査済み暗号プリミティブだけを借りる |
-| [0021](./docs/adr/0021-reconnection-policy.md) | リレー再接続の方針は接続プールと同じ計画で決める（**proposed** — 未承認） |
+| [0021](./docs/adr/0021-reconnection-policy.md) | リレー再接続は指数バックオフ + ジッタで永久に諦めない（接続プールで実装済み） |
 | [0022](./docs/adr/0022-deploy-to-cloudflare-workers-static-assets.md) | v1 以降は Cloudflare Workers の static assets として配信する（**proposed** — 未実装） |
 | [0023](./docs/adr/0023-centralized-subscription-manager.md) | リレー接続と購読を単一の管理システムに集約する |
 | [0024](./docs/adr/0024-shared-bodies-per-section-membership.md) | イベント本体は共有し、メンバーシップはセクションが持つ |

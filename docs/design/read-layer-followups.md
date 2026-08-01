@@ -37,32 +37,6 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 `put` の戻り値は照合が失敗しても `"duplicate"` のまま。`SectionReader` は「`"rejected"` 以外＝ store がその ID を持っている」に依拠しており、ここで `"rejected"` を返すと既に保持している正規のイベントをセクションが取りこぼす。
 
-### 生きているセクションを張り直す手段が存在しない
-
-[ADR-0016](../adr/0016-routing-bootstrap.md) は「**未解決の著者は既定リレーへ暫定的に送信し、解決後に張り直す**」と定めている。**後半が実装されていない。**
-
-`SectionReader.start()` は `planQuery` を 1 回だけ呼び、その結果を `#relays` に固定する。あとから `kind:10002` が `EventStore` に届いてルーティング表が変わっても、既に走っているセクションは fallback リレーを見続ける。デバッグルートがこれを露呈させていないのは、`warmUp.loading` が終わるまでセクションを開始しないから — つまり**読み取り層の穴をビューの都合で塞いでいる**状態であり、カラムが増えれば成立しない。
-
-同じ穴が [ADR-0011](../adr/0011-performance-budget.md) の 30 接続上限にも効く。上限のもとでマネージャは「今は開けないリレーを後で開く」必要があるが、セクションに「待つ相手が 1 つ増えた」と伝える経路がない。`onRelayComplete` / `onRelayUnreachable` は `#relayState` の作成時生成により未知のリレーでも受け付けるものの、**後から開いてまだ完了していないリレーは `allSettled` から見えない**ため、セクションが早すぎる `settled` を報告する。
-
-対処はどちらも同じ形になる: `SectionDelivery` に `onRelayAdded(relay)` を足すか、`SectionHandle.relays` をスナップショットではなくアクセサにする。**これは後続 #3（接続プール）の最初の設計課題であって、実装の細部ではない。**
-
-なお [ADR-0023](../adr/0023-centralized-subscription-manager.md) の「マージはマネージャ内部の方針であって構造ではない」という約束は、`createSection` の `{ items, status, loadMore }` については維持されている。維持されていないのは `SectionReader` との境界のほう。
-
-### `RelayConnection` に接続単位のライフサイクル通知がない
-
-`SubscriptionManager` の `#pool` は `refCount` が 0 になったときしかエントリを消さない。ソケットが自然死した場合、`WebSocketRelayConnection` は保持している全ハンドラに `onClosed` を投げてハンドラを捨てるが、**接続は死んだまま `refCount > 0` で pool に残る**。次に同じ URL を `#acquire` したセクションはその死体を渡され、`subscribe()` が即座に `onClosed` を返すため、リロードするまで永久に `unreachable` のカラムになる。
-
-根本原因は 1 段下にある。`RelayConnection` seam（[ADR-0014](../adr/0014-thin-relay-connection-deep-read-layer.md)）は**購読単位の `onClosed` しか持たず、接続の死とレート制限による個別 CLOSED をプールが区別できない**。
-
-再接続（[ADR-0021](../adr/0021-reconnection-policy.md)）もこの通知なしには組めない。**seam に `readonly closed: boolean` を足すか `onStateChange` を足すかは ADR-0014 の変更であり、後続 #3 の冒頭で決めること。**
-
-### 接続数はフォロー人数に比例して無制限に増える
-
-`planQuery` は全著者の write リレーの和集合につき 1 バケットを出し、`SubscriptionManager.subscribe` はそれを同期的に全て `#acquire` する。著者ごとの本数制限は廃止され、**接続先はいま、フォローしている著者が `kind:10002` で宣言した数そのまま**である。実測では ~1300 人規模のフォローに対して 378〜1251 の異なる write リレーが宣言されている（[docs/research/2026-08-01-outbox-connection-budget.md](../research/2026-08-01-outbox-connection-budget.md)）。
-
-[ADR-0011](../adr/0011-performance-budget.md) の 30 接続上限がまさにこれの対処であり、第2スライスでは意図的に範囲外とした。ただし**現時点の実装には上限が一切ない**ことを明記しておく。デバッグルートが無事なのはフォローが 2 人だからにすぎず、`createSection` の呼び出し元が増えた瞬間に効く。
-
 ### リレーが配信したイベントをフィルタに再照合していない
 
 `SubscriptionManager` は購読に届いたものをそのまま格納・配信し、`SectionReader` はそれをリストに載せる。署名検証は**偽造**を防ぐが**混入**は防がない。ある著者の write リレーは、そのリレーを見ているセクションへ、フォローしていない人の正当な署名付きイベントや別 kind のイベントを押し込める。
@@ -119,11 +93,14 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 ## 解消済み
 
 - **ルーティング表の永続化**（ADR-0016 が「新しい永続化要件」としていたもの）— 2026-08-01 に撤回。`EventStore` 内の `kind:10002` から導出する形にしたため、専用の保存先も TTL も不要になった。永続化は ADR-0019 の「参照データ」バケットが `kind:10002` を保持すれば自動的に得られる。
+- **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消。`kind:10002` の到着で `SubscriptionManager` がデバウンスして再計画し（Task 10）、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted(relay)` でセクションへ通知する。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。
+- **`RelayConnection` に接続単位のライフサイクル通知がない** — 接続プールのスライスで解消。`RelayConnection` seam（ADR-0014）に `onClose(listener: () => void): () => void` を追加した。購読単位の `onClosed` とは別に、ソケットそのものの死を通知する。`ConnectionPool` はこれで「ソケットの死」と「レート制限による個別 CLOSED」を区別できるようになり、死んだ接続を即座に予算とレジストリから外して次の `subscribe()` で新しいソケットを開く。再接続（ADR-0021）もこの通知を起点に組まれている。
+- **接続数はフォロー人数に比例して無制限に増える** — 接続プールのスライスで解消。`ConnectionPool` が唯一の接続開設点になり（ADR-0023）、`MAX_CONNECTIONS = 30`（ADR-0011）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。著者ごとの先頭 N 本方式は `selectRelays` による貪欲被覆選択（ADR-0025）へ置き換わった。予算超過で被覆できない著者は `incomplete.uncoveredAuthors` として黙らず報告する。`e2e/connection-budget.spec.ts` が「予算を超えて開かない」「被覆が最大化される」「落とした著者を報告する」を測る。
 
 ## 満たしていない要件
 
-[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。現時点で E2E が測っている予算はない。
+[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限だけ**が E2E で測れるようになった（[architecture.md](./architecture.md) 10節）。残る 6 指標は未測定。
 
+- **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
 - **500 件上限** — ユニットテストのみ。デバッグルートに対する E2E で `items ≤ 500` を主張するのは小さい追加であり、今すぐ入れられる。
-- **30 接続上限** — 接続プールの計画を待つのが妥当。
 - 残る 5 指標（カラム数、初回表示 2 秒、操作反映 100ms、メモリ）はいずれも未測定。

@@ -8,7 +8,7 @@
 - 動作確認の手順は [verifying-v1-section.md](./verifying-v1-section.md)
 - 次に作るものの設計は [docs/superpowers/specs/](../superpowers/specs/)
 
-**現時点で実装されているのは読み取り層の 2 スライス目まで**（単一リレーのセクション読み取り、Outbox ルーティングと購読マネージャの器）である。この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
+**現時点で実装されているのは読み取り層の 3 スライス目まで**（単一リレーのセクション読み取り、Outbox ルーティングと購読マネージャの器、接続プール）である。この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
 
 ---
 
@@ -107,7 +107,7 @@ graph TD
 
 | Seam | アダプタ | なぜ差し替わるか |
 |---|---|---|
-| `RelayConnection` | WebSocket 実装 / fake | fake でルーティング・合流・完了判定を**ネットワーク無しで決定的にテスト**するため |
+| `RelayConnection` | WebSocket 実装 / fake | fake でルーティング・合流・完了判定を**ネットワーク無しで決定的にテスト**するため。`onClose(listener): () => void` で購読単位の `onClosed` とは別に**ソケットそのものの死**を通知する — 接続プール (8節) の再接続 (ADR-0021) はこれが無いと組めない |
 | `EventPersistence` | IndexedDB / インメモリ | テストを IndexedDB 無しで走らせるため |
 | 署名器 | NIP-07 / NIP-46 / fake | 秘密鍵を持たない以上、外部実装が複数存在することが前提 |
 
@@ -219,7 +219,7 @@ stateDiagram-v2
   settled --> streaming: 新着イベント
   note right of settled
     incomplete が付くことがある
-    unreachableRelays / unroutableAuthors
+    unreachableRelays / unroutableAuthors / uncoveredAuthors
   end note
 ```
 
@@ -288,18 +288,16 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 | モバイルでのデッキ編集 | マルチカラム UI はモバイルで原理的に成立しない（[ADR-0009](../adr/0009-mobile-single-column-view-only-editing.md)） | **やらない** |
 | カラムごとの別アカウント | 「署名対象」と「自分宛」が一意に決まらなくなる（[ADR-0010](../adr/0010-single-active-account.md)） | v1 では**やらない** |
 
-### 接続プールが担当する 4 つ — 設計は決着済み、実装が未着手
+### 接続プール — 実装済み
 
-いずれも[接続プールの仕様](../superpowers/specs/2026-08-01-connection-pool-design.md)で決着している。**「どう作るか分からない」ではなく「まだ作っていない」である。**
+[接続プールの仕様](../superpowers/specs/2026-08-01-connection-pool-design.md)で設計し、`ConnectionPool`（`src/core/read/connection-pool.ts`）として実装が完了した。以前はここに「設計は決着済み、実装が未着手」として並んでいた 4 項目は次のとおりすべて入っている。
 
-| やっていないこと | 現状どうなっているか |
-|---|---|
-| **30 接続上限** | **上限が一切ない。** [実測](../research/2026-08-01-outbox-connection-budget.md)ではフォロー 1300 人規模で 378〜1251 本の接続を要求する。デバッグルートが無事なのはフォローが 2 人だからにすぎない |
-| **リレーの選択** | 著者ごとに先頭 3 本を取って和集合にしている。予算のもとでは有害で、貪欲被覆に置き換える（切り捨てありだと 30 本で 95〜98%、外すと 99〜100%） |
-| **生きているセクションの張り直し** | `start()` が 1 回計画したきり。あとから `kind:10002` が届いても fallback を見続ける。[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半が未実装 |
-| **再接続・バックオフ** | 切断は終局的。ただし `incomplete.unreachableRelays` として表面化するので、劣化するが隠れない。方針は [ADR-0021](../adr/0021-reconnection-policy.md)（本スライスで `accepted` にする） |
+- **30 接続上限。** `ConnectionPool` が唯一の接続開設点になり（[ADR-0023](../adr/0023-centralized-subscription-manager.md)）、`MAX_CONNECTIONS = 30`（[ADR-0011](../adr/0011-performance-budget.md)）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。予算超過で開けなかったリレーは黙って消えず `incomplete.uncoveredAuthors` / `incomplete.unreachableRelays` として表面化する（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
+- **リレーの選択。** 著者ごとに先頭 3 本を取って和集合にする方式から、`selectRelays`（`src/core/read/relay-selector.ts`、[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md)）による貪欲被覆選択へ置き換えた。ピン留めしたリレーを優先しつつ、残り予算を「まだ被覆していない著者数が多い順」に貪欲へ埋める。
+- **生きているセクションの張り直し。** `kind:10002` の到着で `SubscriptionManager` がデバウンスして再計画し、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted` でセクションへ通知する（[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半）。接続自体は張り直さない（同一プール接続で close + subscribe）ので「開き直さない」保証は保たれる。
+- **再接続・バックオフ。** `ConnectionPool` がソケットの自然死を `RelayConnection.onClose` で検知し、指数バックオフ（初回 1 秒・上限 60 秒）＋ジッタで再接続する。**永久に諦めない**（[ADR-0021](../adr/0021-reconnection-policy.md)、`accepted`）。切断中は `incomplete.unreachableRelays` に計上され続け、復帰すれば自然に減る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` でのみ確かめられる（10節）。
 
-加えて、**死んだ接続がプールに残り続ける**という実在する欠陥がある（[read-layer-followups.md](./read-layer-followups.md)）。`RelayConnection` が購読単位の `onClosed` しか持たず、プールが「ソケットの死」と「レート制限による個別 CLOSED」を区別できないため。seam の変更が要る。
+**死んだ接続がプールに残り続ける欠陥も解消済み。** `RelayConnection`（3節）に `onClose` を足し、プールが「ソケットの死」を検知して即座に予算とレジストリから外すようにした。
 
 ---
 
@@ -323,6 +321,6 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 **この分担には実績がある。** `RelayInfoRegistry` が `fetch` を unbound で保持していたバグは、ユニットテスト 16 件すべてを素通りした（モックがアロー関数で `this` を無視するため）。実ブラウザで初めて `TypeError: Illegal invocation` を投げ、e2e が捕まえた。**モックで通るものが実物で通るとは限らない。**
 
-現時点で [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標は**どれも E2E で測っていない**。同 ADR は「測定できない予算は要件ではなく願望である」と定めているので、これは満たしていない要件である（[read-layer-followups.md](./read-layer-followups.md)）。
+現時点で [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち**測っているのは接続数の 1 つだけ**である。同 ADR は「測定できない予算は要件ではなく願望である」と定めているので、残る 6 指標は満たしていない要件である（[read-layer-followups.md](./read-layer-followups.md)）。
 
-**接続数の予算は[接続プールのスライス](../superpowers/specs/2026-08-01-connection-pool-design.md)で最初に測れるようになる。** 架空のリレーを多数宣言する著者を seed し、開こうとしたリレーが予算以下に収まること、および実在するリレーが選ばれること（＝貪欲被覆が効いていること）を主張する。7 指標のうち 1 つ目が埋まる。
+**接続数の予算は[接続プールのスライス](../superpowers/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。

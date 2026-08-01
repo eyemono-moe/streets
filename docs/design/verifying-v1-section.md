@@ -63,7 +63,7 @@ pnpm dev:relay:publish "きょうのテスト"
 
 購読が張りっぱなしで、新着が `SectionReader` を通って Solid のシグナルまで届いていることの証明になる。
 
-### ② 切断の扱い — 「黙って欠落させない」
+### ② 切断の扱い — 「黙って欠落させない」、そして自動で戻る
 
 ページを開いたまま:
 
@@ -71,17 +71,19 @@ pnpm dev:relay:publish "きょうのテスト"
 docker compose stop nostr-rs-relay
 ```
 
-**期待**: `unreachableRelays: 0` → **`1`**。
-
-**v1 は現時点で再接続しない**（[ADR-0021](../adr/0021-reconnection-policy.md) は proposed のまま）。切断されたカラムは再マウントまで復帰しない。ただし黙って空になるのではなく、**劣化していることが表示に出る** — これが [ADR-0011](../adr/0011-performance-budget.md) を満たしている証拠。
+**期待**: `unreachableRelays: 0` → **`1`**。黙って空になるのではなく、**劣化していることが表示に出る** — これが [ADR-0011](../adr/0011-performance-budget.md) を満たしている証拠。
 
 ```bash
-docker compose start nostr-rs-relay   # 復帰後、ページをリロードする
+docker compose start nostr-rs-relay
 ```
 
-自動では戻らない。それが現在の仕様。
+**期待**: リロードしなくても `unreachableRelays` が自然に **`0`** へ戻る。**v1 は接続プールのスライス以降、再接続する**（[ADR-0021](../adr/0021-reconnection-policy.md)、`accepted`）— 指数バックオフ（初回 1 秒・上限 60 秒）+ ジッタで永久に諦めずに再接続を試み続ける。停止からリロード無しで数十秒〜1 分程度以内に戻れば正常（バックオフの都合で瞬時には戻らない）。この手順を自動化したものが `e2e/relay-recovery.spec.ts`。
 
-### ③ 署名検証はこの画面では試せない
+### ③ 接続予算 — 30 本を超えて開かない
+
+`/debug/v1-section` は `?budget=<n>` で `ConnectionPool` の上限を上書きできる（既定は `MAX_CONNECTIONS = 30`）。多数の架空リレーを宣言する著者を大量にフォローさせると、`peak-connections`（`ConnectionPool.peakSize` の高水位マーク）が指定した予算を超えないことと、`uncovered`（`incomplete.uncoveredAuthors`）が「予算で落ちた著者数」を黙らず報告することを目で確認できる。この手順を自動化したものが `e2e/connection-budget.spec.ts`（`e2e:seed:outbox` とは別フィクスチャ `e2e/fixtures/seed-budget.ts` を使う）。
+
+### ④ 署名検証はこの画面では試せない
 
 偽造イベントを送ろうとすると **リレー自身が弾く**:
 
@@ -106,10 +108,12 @@ pnpm dev:relay:reset && pnpm e2e:seed
 この手順は目視確認であり、回帰を守るのは自動テストの側。
 
 ```bash
-pnpm exec vitest run          # ユニット
-pnpm e2e e2e/v1-section.spec.ts   # 同じ画面に対する e2e
+pnpm exec vitest run                       # ユニット
+pnpm e2e e2e/v1-section.spec.ts            # 同じ画面に対する e2e（Outbox ルーティング）
+pnpm e2e e2e/connection-budget.spec.ts     # ③ 接続予算の自動版
+pnpm e2e e2e/relay-recovery.spec.ts        # ② 後半（復帰）の自動版。他より一桁遅いので専用ファイル
 ```
 
-e2e は「シードしたノートが表示される」「新しい順に並ぶ」「NIP-11 文書が出る」の 3 件。**目視で確認したことは e2e に落とすこと** — 手順書は増えても守られないが、テストは落ちる。
+`v1-section.spec.ts` は「シードしたノートが表示される」「新しい順に並ぶ」「NIP-11 文書が出る」の 3 件、`connection-budget.spec.ts` は「予算を超えて開かない」「貪欲被覆が効く」「落とした著者を報告する」の 3 件、`relay-recovery.spec.ts` は「止めたリレーが `unreachable` に上がり、再起動すると自動で `0` に戻る」の 1 件。**目視で確認したことは e2e に落とすこと** — 手順書は増えても守られないが、テストは落ちる。
 
-なお [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標は現時点で **1 つも E2E で測っていない**。詳細は [read-layer-followups.md](./read-layer-followups.md)。
+なお [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち、E2E で測っているのは**接続数の 1 つだけ**（`connection-budget.spec.ts`）。残る 6 指標は未測定。詳細は [read-layer-followups.md](./read-layer-followups.md)。
