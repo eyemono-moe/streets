@@ -36,4 +36,12 @@ export interface RelayConnection {
   ): RelaySubscription;
   publish(event: NostrEvent): Promise<void>;
   close(): void;
+  /**
+   * ソケットが死んだことを通知する。**購読単位の `onClosed` とは別物。**
+   * プールはこれが無いと「レート制限による個別 CLOSED」と「ソケットの死」を
+   * 区別できず、死んだ接続を掴み続ける (ADR-0014)。
+   *
+   * 既に死んでいる接続に登録した場合はその場で呼ぶ。戻り値は購読解除。
+   */
+  onClose(listener: () => void): () => void;
 }

@@ -20,6 +20,7 @@ type FakeSubscription = {
 export class FakeRelayConnection implements RelayConnection {
   readonly subscriptions: FakeSubscription[] = [];
   readonly published: NostrEvent[] = [];
+  readonly #closeListeners = new Set<() => void>();
   closed = false;
 
   constructor(readonly url: RelayUrl) {}
@@ -44,6 +45,8 @@ export class FakeRelayConnection implements RelayConnection {
   close(): void {
     this.closed = true;
     for (const sub of this.subscriptions) sub.closed = true;
+    for (const listener of this.#closeListeners) listener();
+    this.#closeListeners.clear();
   }
 
   emitEvent(subIndex: number, event: NostrEvent): void {
@@ -63,5 +66,28 @@ export class FakeRelayConnection implements RelayConnection {
     if (!sub || sub.closed) return;
     sub.closed = true;
     sub.handlers.onClosed(reason);
+  }
+
+  onClose(listener: () => void): () => void {
+    if (this.closed) {
+      listener();
+      return () => {};
+    }
+    this.#closeListeners.add(listener);
+    return () => {
+      this.#closeListeners.delete(listener);
+    };
+  }
+
+  die(): void {
+    if (this.closed) return;
+    this.closed = true;
+    for (const sub of this.subscriptions) {
+      if (sub.closed) continue;
+      sub.closed = true;
+      sub.handlers.onClosed("socket closed");
+    }
+    for (const listener of this.#closeListeners) listener();
+    this.#closeListeners.clear();
   }
 }

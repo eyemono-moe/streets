@@ -168,7 +168,8 @@ for (const subject of subjects) {
 
   const routable = demand.size;
   const soleRelay = [...demand.values()].filter((u) => u.length === 1).length;
-  const pct = (n) => (routable > 0 ? `${Math.round((n / routable) * 100)}%` : "-");
+  const pct = (n) =>
+    routable > 0 ? `${Math.round((n / routable) * 100)}%` : "-";
 
   console.log(`
 --- ${subject.pubkey.slice(0, 8)} ---

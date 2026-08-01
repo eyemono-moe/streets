@@ -64,4 +64,20 @@ describe("FakeRelayConnection", () => {
 
     expect(relay.published.map((e) => e.id)).toEqual(["note-1", "note-2"]);
   });
+
+  it("die() notifies onClose and closes every subscription", () => {
+    const connection = new FakeRelayConnection("wss://one/");
+    const closed: string[] = [];
+    connection.onClose(() => closed.push("pool"));
+    connection.subscribe([{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => closed.push(`sub:${reason}`),
+    });
+
+    connection.die();
+
+    expect(closed).toEqual(["sub:socket closed", "pool"]);
+    expect(connection.closed).toBe(true);
+  });
 });

@@ -303,4 +303,45 @@ describe("WebSocketRelayConnection", () => {
     receive(["OK", "note-1", true, ""]);
     await expect(published).resolves.toBeUndefined();
   });
+
+  it("notifies onClose listeners once when the socket dies", () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://one/", socket);
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("a"));
+    connection.onClose(() => calls.push("b"));
+
+    open();
+    socket.onclose?.();
+    socket.onerror?.(); // 2 度目は通知しない
+
+    expect(calls).toEqual(["a", "b"]);
+  });
+
+  it("stops notifying a listener that unsubscribed", () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://one/", socket);
+    const calls: string[] = [];
+    const off = connection.onClose(() => calls.push("a"));
+
+    open();
+    off();
+    socket.onclose?.();
+
+    expect(calls).toEqual([]);
+  });
+
+  it("notifies a listener registered after the socket already died", () => {
+    const { socket, open } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://one/", socket);
+    open();
+    socket.onclose?.();
+
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("late"));
+
+    // 既に死んでいる接続に登録したリスナは、その場で呼ばれなければ
+    // プールが永久に「生きている」と誤認する
+    expect(calls).toEqual(["late"]);
+  });
 });

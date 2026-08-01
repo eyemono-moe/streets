@@ -34,6 +34,7 @@ export class WebSocketRelayConnection implements RelayConnection {
   readonly #handlers = new Map<string, RelaySubscriptionHandlers>();
   readonly #publishes = new Map<string, PendingPublish[]>();
   readonly #outbox: string[] = [];
+  readonly #closeListeners = new Set<() => void>();
   #nextSubId = 0;
   #closed = false;
 
@@ -60,6 +61,8 @@ export class WebSocketRelayConnection implements RelayConnection {
         for (const { reject } of pending) reject(new Error("socket closed"));
       this.#publishes.clear();
       this.#outbox.length = 0;
+      for (const listener of this.#closeListeners) listener();
+      this.#closeListeners.clear();
     };
     socket.onclose = fail;
     socket.onerror = fail;
@@ -108,6 +111,17 @@ export class WebSocketRelayConnection implements RelayConnection {
 
   close(): void {
     this.#socket.close();
+  }
+
+  onClose(listener: () => void): () => void {
+    if (this.#isClosed()) {
+      listener();
+      return () => {};
+    }
+    this.#closeListeners.add(listener);
+    return () => {
+      this.#closeListeners.delete(listener);
+    };
   }
 
   #send(message: string): void {
