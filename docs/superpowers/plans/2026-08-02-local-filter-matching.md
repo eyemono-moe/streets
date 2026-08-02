@@ -251,11 +251,11 @@ git commit -m "feat(read): implement NIP-01 filter matching as a total function"
 
 ---
 
-### Task 2: `SubscriptionManager` を照合器に通し、捨てた件数を数える
+### Task 2: `SubscriptionManager` を照合器に通し、死んだ引き金を削除する
 
 **Files:**
-- Modify: `src/core/read/subscription-manager.ts`（`#handlersFor` の署名と `onEvent`、カウンタ、アクセサ）
-- Modify: `src/core/read/subscription-manager.test.ts`（追加）
+- Modify: `src/core/read/subscription-manager.ts`（`#handlersFor` の署名と `onEvent`、カウンタ、アクセサ、`kind:10002` 引き金の削除）
+- Modify: `src/core/read/subscription-manager.test.ts`（追加と、旧テストの削除）
 
 **Interfaces:**
 - Consumes: `matchesAnyFilter(event, filters)`（Task 1）
@@ -264,6 +264,9 @@ git commit -m "feat(read): implement NIP-01 filter matching as a total function"
   // SubscriptionManager の新しい公開アクセサ
   get unrequestedEventsByRelay(): ReadonlyMap<RelayUrl, number>;
   ```
+  公開 `replan()` は**そのまま残る**。削除されるのは `kind:10002` の到着でそれを自動的に呼ぶ経路だけ。
+
+**照合器の配線と引き金の削除が 1 タスクである理由:** この 2 つは因果的に繋がっている。照合器を入れた瞬間、引き金は原理的に発火しなくなる（セクションのフィルタは `{kinds:[1], authors:[...]}` であり、`kind:10002` は一致しない）。実際 `subscription-manager.test.ts:1604` の既存テストは、照合器を入れただけで落ちる —— **「照合を承認しつつ削除を却下する」というレビューは成立しない**（承認した瞬間にコードが死ぬ）。分割すると、どちらのタスクも単独ではテストを緑にできない。
 
 - [ ] **Step 1: 失敗するテストを書く**
 
@@ -460,36 +463,17 @@ import { matchesAnyFilter } from "./filter-match";
           this.#handlersFor(entry, url, relayFilters),
 ```
 
-- [ ] **Step 7: テストが通ることを確認する**
+- [ ] **Step 7: この時点で既存テストが 1 件落ちることを確認する**
 
 Run: `pnpm exec vitest run src/core/read/subscription-manager.test.ts`
-Expected: PASS
 
-**このステップで既存テストが落ちた場合、それは Task 3 の対象である可能性が高い**（`kind:10002` の push で再プランが起きることを主張しているテスト）。落ちたテスト名を控えて Task 3 へ持ち越し、ここでは**消さずに報告すること。**
+Expected: **FAIL 1 件** —— `schedules a re-plan for a followed author's kind:10002 but not for an unfollowed author's`（`:1604`）。
 
-- [ ] **Step 8: 検査を通してコミットする**
+**これは予定された破壊であり、バグではない。** そのテストはセクションのフィルタ `{ kinds: [1], authors }`（`:273` の `createManagerWithSection`）へ `kind:10002` を流して再プランが起きることを主張している。照合器を入れた以上、`kind:10002` は `kinds:[1]` に一致せず落ちるので、この主張は**成立しなくなったのではなく、意味を失った**。Step 8-9 で引き金ごと削除する。
 
-```bash
-pnpm exec vitest run && pnpm typecheck && pnpm check
-git add src/core/read/subscription-manager.ts src/core/read/subscription-manager.test.ts
-git commit -m "feat(read): match delivered events against the REQ we actually sent"
-```
+**これ以外のテストが落ちた場合は、照合器の配線に穴があるということなので、削除へ進まずに報告して止まること。**
 
----
-
-### Task 3: `kind:10002` 再プラン引き金の削除
-
-**Files:**
-- Modify: `src/core/read/subscription-manager.ts`（削除）
-- Modify: `src/core/read/subscription-manager.test.ts`（旧テストの削除と、削除を守るテストの追加）
-
-**Interfaces:**
-- Consumes: Task 2 の照合器配線
-- Produces: なし（削除のみ）。公開 `replan()` は**そのまま残る**
-
-**なぜ削除するのか（仕様 6 節）:** この引き金に今日届きうる送信元は「リレーが要求されていないイベントを push してくる場合」だけである。コード自身のコメント（`:823-827`）がそう認めている。ウォームアップの `kind:10002` は `bootstrap.ts` 自身のハンドラを通り（`:139`）、`#handlersFor` を通らない。セクションが送るフィルタは `{kinds:[1], authors:[...]}` である。**Task 2 を入れた時点で、この引き金は原理的に発火しない。** 残すと動かないコードが残るだけになる。
-
-- [ ] **Step 1: 削除を守るテストを書く**
+- [ ] **Step 8: 削除を守るテストを書く**
 
 `src/core/read/subscription-manager.test.ts` の「信頼境界」describe に追加:
 
@@ -526,15 +510,17 @@ git commit -m "feat(read): match delivered events against the REQ we actually se
   });
 ```
 
-- [ ] **Step 2: テストが落ちることを確認する**
+- [ ] **Step 9: 新しいテストが既に通ることを確認する**
 
 Run: `pnpm exec vitest run src/core/read/subscription-manager.test.ts -t "push されても計画は変わらない"`
 
-Expected: **このテストは Task 2 を入れた時点で既に PASS するはずである**（照合器が `kind:10002` を落とすため）。落ちた場合は Task 2 の配線に穴があるということなので、**削除を進める前に報告して止まること。**
+Expected: **PASS**（Step 3-6 の照合器が既に `kind:10002` を落としているため）。ここが FAIL なら配線に穴があるので、**削除を進める前に報告して止まること。**
 
-- [ ] **Step 3: 引き金と、それにぶら下がっていた機構を削除する**
+- [ ] **Step 10: 引き金と、それにぶら下がっていた機構を削除する**
 
-`src/core/read/subscription-manager.ts` から次を削除する。**削除前に `rg` でそれぞれの呼び出し元が本当に 1 つだけであることを確認すること**（計画作成時点では確認済みだが、Task 2 で行番号がずれている）:
+**なぜ削除するのか（仕様 6 節）:** この引き金に今日届きうる送信元は「リレーが要求されていないイベントを push してくる場合」だけである。コード自身のコメント（`:823-827`）がそう認めている。ウォームアップの `kind:10002` は `bootstrap.ts` 自身のハンドラを通り（`:139`）、`#handlersFor` を通らない。**Step 3-6 を入れた時点で、この引き金は原理的に発火しない。** 残すと動かないコードが残るだけになる。
+
+`src/core/read/subscription-manager.ts` から次を削除する。**削除前に `rg` でそれぞれの呼び出し元が本当に 1 つだけであることを確認すること**（計画作成時点では確認済みだが、Step 3-6 で行番号がずれている）:
 
 ```bash
 rg -n '#scheduleReplan|#isDemandedAuthor|#replanTimer' src/core/read/subscription-manager.ts
@@ -552,9 +538,9 @@ rg -n '#scheduleReplan|#isDemandedAuthor|#replanTimer' src/core/read/subscriptio
 - 公開 `replan()` —— 水和や再ウォームアップが呼ぶ明示的な入口。
 - `#scheduler` フィールドと `scheduler` オプション —— `ConnectionPool` へ渡している（`scheduler: options.scheduler`）。**これを消してはならない。**
 
-- [ ] **Step 4: 旧テストを削除する**
+- [ ] **Step 11: 旧テストを削除する**
 
-`kind:10002` の到着で再プランが起きることを主張していたテストを削除する。`subscription-manager.test.ts` から次で探す:
+Step 7 で落ちた `:1604` を含め、`kind:10002` の到着で再プランが起きることを主張していたテストを削除する。`subscription-manager.test.ts` から次で探す:
 
 ```bash
 rg -n 'schedules a re-plan|再プラン|advanceTimersByTime' src/core/read/subscription-manager.test.ts
@@ -564,22 +550,32 @@ rg -n 'schedules a re-plan|再プラン|advanceTimersByTime' src/core/read/subsc
 
 デバウンスのために `vi.useFakeTimers()` を使っていたヘルパが、削除後に誰からも使われなくなる可能性がある。使われなくなったヘルパも削除する（Biome が未使用変数として検出する）。
 
-- [ ] **Step 5: テストが通ることを確認する**
+- [ ] **Step 12: 全体が緑になることを確認する**
 
 Run: `pnpm exec vitest run`
-Expected: PASS。Task 2 Step 7 で控えた落ちていたテストも、ここで削除されて解消しているはず。
+Expected: PASS。Step 7 で落ちていた `:1604` は Step 11 で削除されて解消しているはず。
 
-- [ ] **Step 6: 検査を通してコミットする**
+- [ ] **Step 13: 検査を通してコミットする**
+
+`git add` は 1 回だが、**コミットは 2 つに分ける** —— 照合器の追加と、それによって死んだコードの削除は別の変更である。レビューと `git log` の両方で追える形にする。
 
 ```bash
 pnpm exec vitest run && pnpm typecheck && pnpm check
+
+git add src/core/read/filter-match.ts 2>/dev/null; true   # Task 1 で既に commit 済みなら何も起きない
+git add -p src/core/read/subscription-manager.ts src/core/read/subscription-manager.test.ts
+# ↑ 照合器の配線 (import / #handlersFor / onEvent の門 / カウンタ / 呼び出し側) だけを stage する
+git commit -m "feat(read): match delivered events against the REQ we actually sent"
+
 git add src/core/read/subscription-manager.ts src/core/read/subscription-manager.test.ts
 git commit -m "refactor(read): delete the kind:10002 re-plan trigger made unreachable by matching"
 ```
 
+`git add -p` での切り分けが難しければ、**1 コミットにまとめてよい**（メッセージ本文で両方を説明すること）。分割はレビューのための便宜であって、要件ではない。
+
 ---
 
-### Task 4: `bootstrap.ts` を同じ境界に通す
+### Task 3: `bootstrap.ts` を同じ境界に通す
 
 **Files:**
 - Modify: `src/core/read/bootstrap.ts`
@@ -776,7 +772,7 @@ git commit -m "feat(read): apply the trust boundary to bootstrap indexers too"
 
 ---
 
-### Task 5: デバッグルートへの露出と、実際に嘘をつくリレーの e2e
+### Task 4: デバッグルートへの露出と、実際に嘘をつくリレーの e2e
 
 **Files:**
 - Modify: `src/routes/debug/v1-section.tsx`
@@ -784,7 +780,7 @@ git commit -m "feat(read): apply the trust boundary to bootstrap indexers too"
 - Create: `e2e/relay-lies.spec.ts`
 
 **Interfaces:**
-- Consumes: `manager.unrequestedEventsByRelay`（Task 2）、`warmUpRouting` の `unrequested`（Task 4）
+- Consumes: `manager.unrequestedEventsByRelay`（Task 2）、`warmUpRouting` の `unrequested`（Task 3）
 - Produces: `data-testid="unrequested"`（合計）、`data-testid="unrequested-relays"`（内訳の `<ul>`）
 
 - [ ] **Step 1: デバッグルートに表示を足す**
@@ -979,7 +975,7 @@ git commit -m "test(e2e): prove the trust boundary against a relay that actually
 
 ---
 
-### Task 6: ドキュメントを実装に追随させる
+### Task 5: ドキュメントを実装に追随させる
 
 **Files:**
 - Modify: `docs/adr/0023-centralized-subscription-manager.md`
