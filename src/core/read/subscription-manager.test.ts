@@ -689,6 +689,29 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
   });
 
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 3: dispose() -> #pool.dispose() ->
+  // #drop() closes the connection but never marked entry.closed on the
+  // SubscriptionManager's own SectionEntry. With FakeRelayConnection,
+  // connection.close() synchronously delivers onClosed to every live
+  // subscription (mirroring what WebSocketRelayConnection.fail() does
+  // asynchronously for a real socket) -- so that delivery reaches
+  // #handlersFor's onClosed handler, whose only guard is `if
+  // (!entry.closed)`. If dispose() never sets entry.closed, this fires
+  // onRelayUnreachable into a delivery callback whose owning SectionReader
+  // already had stop() called (or never gets to, since dispose() was
+  // supposed to be the final word).
+  // ---------------------------------------------------------------------
+  it("marks every entry closed before pool.dispose(), so the pool's synchronous close-delivery cannot reach a delivery callback after dispose()", () => {
+    const { manager, delivery } = setup();
+    const d = delivery();
+    manager.subscribe([{ kinds: [1] }], ["wss://one/"], d);
+
+    manager.dispose();
+
+    expect(d.onRelayUnreachable).not.toHaveBeenCalled();
+  });
+
   // Coverage gap flagged by review round 1: this is the security-relevant
   // property named by the brief (ADR-0024) — a duplicate delivery must
   // still reach every section, and a forged event reusing a known id must
@@ -1166,6 +1189,245 @@ describe("SubscriptionManager", () => {
   });
 
   // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 1: the test above only exercises a
+  // single relay at the default budget of 30, so the subscribe() there
+  // always succeeds -- the URL lands in entry.opened and filtersEqual
+  // short-circuits pass 2, so #dirty never gets set a second time. A relay
+  // *refused for budget* (pool.subscribe() returns undefined, not a dead
+  // connection) never enters entry.opened, so every pass re-attempts it,
+  // is refused again, and (with an unconditional onRelayUnreachable ->
+  // replan() delivery callback, the pattern the test above documents as
+  // supported) sets #dirty every single time -- a synchronous infinite
+  // loop. This needs two relays under a budget of 1 so one is accepted and
+  // the other is refused on every pass.
+  // ---------------------------------------------------------------------
+  it("converges to a steady state instead of looping forever when a delivery callback replans after a relay is refused for budget", () => {
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => new FakeRelayConnection(url),
+      fallbackRelays: [],
+      maxConnections: 1,
+    });
+
+    let unreachableCalls = 0;
+    expect(() =>
+      manager.subscribe([{ kinds: [1] }], ["wss://one/", "wss://two/"], {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        // wss://one/ takes the only budget slot; wss://two/ is refused
+        // every pass. Reacting to the refusal by replanning, unconditionally,
+        // is exactly the pattern the coordinator's repro used.
+        onRelayUnreachable: () => {
+          unreachableCalls += 1;
+          manager.replan();
+        },
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      }),
+    ).not.toThrow();
+
+    // wss://two/ must be reported exactly once -- the transition into
+    // "refused" -- not once per pass. Reported every pass is the infinite
+    // loop; reported zero times would hide the incompleteness ADR-0011
+    // forbids.
+    expect(unreachableCalls).toBe(1);
+    expect(manager.connectionCount).toBe(1);
+  });
+
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 1 (second half): the transition-only
+  // guard above stops *that* particular non-convergent case, but nothing
+  // pins that #runReplan's do/while loop is bounded independently of it --
+  // if convergence ever fails for a different reason (a delivery callback
+  // that keeps manufacturing new demand rather than repeating old demand),
+  // the loop must still terminate rather than hang. Every refusal spawns a
+  // brand-new section with a brand-new explicit relay (also immediately
+  // refused, since the budget is already exhausted by a filler section),
+  // recreating a fresh "transition into refused" forever -- convergence
+  // never happens by construction.
+  // ---------------------------------------------------------------------
+  it("bounds the replan loop and reports instead of hanging when convergence keeps failing", () => {
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => new FakeRelayConnection(url),
+      fallbackRelays: [],
+      maxConnections: 1,
+    });
+
+    // Consumes the only budget slot before the pathological section is
+    // registered, so wss://seed/ below is refused on its very first pass.
+    manager.subscribe([{ kinds: [1] }], ["wss://filler/"], {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged: () => {},
+      onRelayRestarted: () => {},
+    });
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    let spawnCount = 0;
+
+    // Every spawned section's own onRelayUnreachable spawns *another* new
+    // section the same way -- each one is refused for budget on its first
+    // pass (the filler still owns the only slot) and reacts by growing the
+    // demand further, so this never settles down on its own.
+    const spawningDelivery = (): SectionDelivery => ({
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {
+        spawnCount += 1;
+        manager.subscribe(
+          [{ kinds: [1] }],
+          [`wss://spawned-${spawnCount}/`],
+          spawningDelivery(),
+        );
+      },
+      onPlanChanged: () => {},
+      onRelayRestarted: () => {},
+    });
+
+    expect(() => {
+      manager.subscribe([{ kinds: [1] }], ["wss://seed/"], spawningDelivery());
+    }).not.toThrow();
+
+    // The loop must have given up rather than spinning forever, and it
+    // must have said so.
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 2: pool.subscribe() can fire
+  // handlers.onClosed *synchronously* (connection.subscribe() throwing is
+  // one way this happens -- see connection-pool.ts's "if
+  // (!entry.subscription) handlers.onClosed(...)"). That reaches
+  // onRelayUnreachable -> an arbitrary delivery callback. If that callback
+  // closes the section, #close() drains and clears entry.opened *before*
+  // pool.subscribe() has returned to #applyEntryDiff's "new" branch --
+  // which then unconditionally does entry.opened.set(url, ...), repopulating
+  // a closed entry with a live PooledSubscription nothing will ever close.
+  // ---------------------------------------------------------------------
+  it("does not leak a socket into a closed entry when pool.subscribe() synchronously reports failure and the delivery callback closes the section", () => {
+    const store = new EventStore();
+    const A = pubkeyFor(46_003);
+    let closeCalls = 0;
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        if (url !== "wss://bad/") return new FakeRelayConnection(url);
+        return {
+          url,
+          subscribe: (_filters, _handlers): never => {
+            // connection.subscribe() itself fails -- pool.subscribe() catches
+            // this and synchronously calls handlers.onClosed(...) before it
+            // returns to the manager.
+            throw new Error("boom");
+          },
+          publish: async () => {},
+          close: () => {
+            closeCalls += 1;
+          },
+          onClose: () => () => {},
+        };
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    // The initial subscribe() must complete normally (and return a handle)
+    // before the failing relay ever enters the picture -- otherwise the
+    // synchronous failure would fire *during* subscribe() itself, before
+    // the caller has a handle to close with, which is a different (already
+    // covered) scenario, not this one.
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [A] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        // The section closes itself in reaction to the (synchronous) failure
+        // report -- a legitimate thing for a consumer to do. Safe to
+        // reference `handle` here even though this closure is created before
+        // the `const` initializer finishes: the callback only ever *runs*
+        // later (from replan(), below), by which point `handle` is assigned.
+        onRelayUnreachable: () => handle.close(),
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {},
+      },
+    );
+    expect(handle.initialPlan.relays).toEqual(["wss://fallback/"]);
+
+    // A's kind:10002 now resolves to wss://bad/ -- a *new* relay entering
+    // this entry's plan (the "new" branch of #applyEntryDiff, not the
+    // in-place restart branch), whose subscribe() fails synchronously.
+    store.put(relayListFor(A, ["wss://bad/"]), "wss://indexer/");
+    expect(() => manager.replan()).not.toThrow();
+
+    // Without the entry.closed guard, #applyEntryDiff repopulates
+    // entry.opened with the PooledSubscription after #close() already
+    // cleared it. Nothing ever calls .close() on it again, so the
+    // underlying connection is never closed and the pool still counts it.
+    expect(manager.connectionCount).toBe(0);
+    expect(closeCalls).toBeGreaterThan(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 2 (restart branch): the same hole
+  // exists after onRelayRestarted, one branch down in #applyEntryDiff --
+  // it fires before the in-place restart's own pool.subscribe() call, so a
+  // delivery callback that closes the section there has the identical
+  // window to leak a freshly (re)opened subscription into a cleared
+  // entry.opened.
+  // ---------------------------------------------------------------------
+  it("does not leak a socket into a closed entry when onRelayRestarted synchronously closes the section (in-place restart)", () => {
+    const store = new EventStore();
+    const A = pubkeyFor(46_001);
+    const B = pubkeyFor(46_002);
+    store.put(relayListFor(A, ["wss://x/"]), "wss://indexer/");
+
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => new FakeRelayConnection(url),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    let restarted = false;
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [A, B] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: () => {},
+        onPlanChanged: () => {},
+        onRelayRestarted: () => {
+          restarted = true;
+          // Safe: this callback only runs later, from replan() below, by
+          // which point `handle` is assigned.
+          handle.close();
+        },
+      },
+    );
+
+    // B's kind:10002 declares the SAME relay A already uses -- wss://x/
+    // survives in both the old and new plan, but the author bucket routed
+    // to it changes from [A] to [A, B], triggering the in-place restart
+    // for that URL (same shape as the Task 7 fix-round-1 test above).
+    store.put(relayListFor(B, ["wss://x/"]), "wss://indexer/");
+    expect(() => manager.replan()).not.toThrow();
+
+    expect(restarted).toBe(true);
+    // The section closed itself synchronously from inside onRelayRestarted.
+    // Nothing should still be holding wss://x/ open on its behalf.
+    expect(manager.connectionCount).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------
   // Task 7 fix round 1, Important 1: no test at either level covered
   // connection.subscribe() throwing during an *in-place restart* — a URL
   // already pooled and live, whose filters change (same shape as
@@ -1273,6 +1535,98 @@ describe("SubscriptionManager", () => {
   });
 
   // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 4: #replanOnce iterates every
+  // registered entry in one bare for loop, calling onPlanChanged /
+  // onRelayUnreachable / onRelayRestarted directly. If one entry's callback
+  // throws, entries processed later in that same pass never get their
+  // updated plan -- hidden degradation ADR-0011 forbids, triggered by
+  // ordinary (if buggy) consumer code, not anything adversarial.
+  // ---------------------------------------------------------------------
+  it("does not strand later entries in the same replan pass when an earlier entry's onPlanChanged callback throws", () => {
+    const store = new EventStore();
+    const A = pubkeyFor(47_001);
+    const B = pubkeyFor(47_002);
+
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => new FakeRelayConnection(url),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    // Registered first, so #replanOnce's for loop visits it before B.
+    const handleA = manager.subscribe(
+      [{ kinds: [1], authors: [A] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: () => {},
+        onPlanChanged: () => {
+          throw new Error("boom from section A");
+        },
+        onRelayRestarted: () => {},
+      },
+    );
+
+    const plansB: SectionPlan[] = [];
+    manager.subscribe([{ kinds: [1], authors: [B] }], undefined, {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged: (plan) => plansB.push(plan),
+      onRelayRestarted: () => {},
+    });
+
+    expect(handleA.initialPlan.relays).toEqual(["wss://fallback/"]);
+
+    // Both authors' relay lists resolve before the SAME replan() call, so
+    // #replanOnce's for loop visits both entries in one pass: A (throws)
+    // then B (registered after, later in iteration order).
+    store.put(relayListFor(A, ["wss://a-write/"]), "wss://indexer/");
+    store.put(relayListFor(B, ["wss://b-write/"]), "wss://indexer/");
+
+    expect(() => manager.replan()).not.toThrow();
+
+    expect(plansB.at(-1)?.relays).toEqual(["wss://b-write/"]);
+  });
+
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 5: the "inserted" gate (below) stops
+  // a relay from forcing a re-plan by *replaying* a known kind:10002, but
+  // local filter re-matching is deliberately absent (documented follow-up),
+  // so a relay can mint unlimited fresh keypairs and sign unlimited valid
+  // kind:10002 events for authors nobody follows. Each is genuinely new ->
+  // "inserted" -> a global re-plan, for the cost of one signature. The fix
+  // additionally requires the event's pubkey to be in some registered
+  // section's demand (filter.authors).
+  // ---------------------------------------------------------------------
+  it("schedules a re-plan for a followed author's kind:10002 but not for an unfollowed author's", () => {
+    const AUTHOR = pubkeyFor(80_007);
+    const STRANGER = pubkeyFor(80_008);
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
+
+    // STRANGER is not in this (or any) section's filter.authors. A relay
+    // can mint an unlimited number of these, and each one is a genuinely
+    // new, validly-signed kind:10002 -- gating only on EventStore's
+    // "inserted" result does not stop it.
+    emitEvent(
+      connections.get("wss://fallback/"),
+      relayListFor(STRANGER, ["wss://stranger-write/"]),
+    );
+    clock.advance(100);
+    expect(replanSpy).not.toHaveBeenCalled();
+
+    emitEvent(
+      connections.get("wss://fallback/"),
+      relayListFor(AUTHOR, ["wss://author-write/"]),
+    );
+    clock.advance(100);
+    expect(replanSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // ---------------------------------------------------------------------
   // Fix round 1, Important 2: Task 9 added ConnectionPool.retryNow() and
   // ConnectionPoolOptions.scheduler/random, with SubscriptionManager meant
   // to delegate/pass them straight through -- but no test here exercised
@@ -1372,29 +1726,53 @@ describe("SubscriptionManager", () => {
   // Brief round-trip note: the brief's version of this test measured the
   // burst's effect through `plans.length` (onPlanChanged call count), the
   // same signal the first test above uses. That doesn't actually pin
-  // debouncing: none of these 50 authors is a member of this section's own
-  // filter, so its plan never changes regardless of whether the burst
-  // triggers 1 replan() or 50 -- planEqual() suppresses onPlanChanged for
-  // every one of them either way, making the two cases indistinguishable
-  // through that signal. Spying on `replan()` itself observes the mechanism
-  // directly instead.
-  it("debounces a burst of relay lists into one re-plan", () => {
-    const AUTHOR = pubkeyFor(80_002);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+  // debouncing on its own -- spying on `replan()` itself observes the
+  // mechanism directly instead. (All 50 authors here are members of this
+  // section's own filter -- finding 5's followed-author gate requires that
+  // for `#scheduleReplan()` to fire at all, matching how a real warm-up
+  // burst behaves: it is a burst of kind:10002s for followees the app
+  // actually asked about.)
+  it("debounces a burst of relay lists into one re-plan, and re-arms for the next burst", () => {
+    // Small enough (well under the default budget of 30) that every
+    // author's own relay is guaranteed to be picked -- the re-arm probe
+    // below needs to know exactly which connection author[0] ends up on.
+    const authors = Array.from({ length: 10 }, (_, i) => authorAt(i));
+    const { manager, connections, clock } = createManagerWithSection(authors);
     const replanSpy = vi.spyOn(manager, "replan");
 
-    for (let i = 0; i < 50; i += 1) {
+    for (let i = 0; i < authors.length; i += 1) {
       emitEvent(
         connections.get("wss://fallback/"),
-        relayListFor(authorAt(i), [`wss://w${i}/`]),
+        relayListFor(authors[i], [`wss://w${i}/`]),
       );
     }
     expect(replanSpy).not.toHaveBeenCalled();
 
     clock.advance(100);
 
-    // Warm-up is a burst of kind:10002s. It must not trigger 50 re-plans.
+    // Warm-up is a burst of kind:10002s. It must not trigger one re-plan
+    // per event.
     expect(replanSpy).toHaveBeenCalledTimes(1);
+
+    // Final whole-branch review, finding 7: #scheduleReplan's callback used
+    // to reset #replanTimer = null *and* nothing pinned that the debounce
+    // window is re-armable after it fires once. A second, later burst (a
+    // second warm-up, or a relay pushing an update long after the first)
+    // must still schedule its own re-plan -- not be silently swallowed
+    // because the first window already "used up" scheduling forever.
+    // author[0] is now routed to its own wss://w0/ (the burst resolved),
+    // not the fallback relay it started on.
+    emitEvent(
+      connections.get("wss://w0/"),
+      // A later created_at than the first burst's so EventStore's
+      // created-at-max replaceable rule (ADR-0016) unambiguously treats
+      // this as a genuine newer version ("inserted"), not a tie broken by
+      // id comparison.
+      relayListFor(authors[0], ["wss://w0-updated/"], 1_700_000_100),
+    );
+    clock.advance(100);
+
+    expect(replanSpy).toHaveBeenCalledTimes(2);
   });
 
   // Fix round 1, Important 1: this used to assert on `plans.length`, the same
@@ -1465,12 +1843,16 @@ describe("SubscriptionManager", () => {
     expect(replanSpy).toHaveBeenCalledTimes(1);
   });
 
+  // Final whole-branch review, finding 7: this used to assert on
+  // `plans.length`, which cannot fail -- dispose() also clears #entries, so
+  // no onPlanChanged can fire regardless of whether the debounce timer was
+  // actually cancelled. Its siblings above (the burst/duplicate/rejected
+  // tests) already spy on `replan()` directly; do the same here so a
+  // regression that leaves the timer armed is actually caught.
   it("cancels a pending debounced re-plan on dispose()", () => {
     const AUTHOR = pubkeyFor(80_005);
-    const { manager, connections, plans, clock } = createManagerWithSection([
-      AUTHOR,
-    ]);
-    const before = plans.length;
+    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
+    const replanSpy = vi.spyOn(manager, "replan");
 
     emitEvent(
       connections.get("wss://fallback/"),
@@ -1479,6 +1861,6 @@ describe("SubscriptionManager", () => {
     manager.dispose();
 
     expect(() => clock.advance(100)).not.toThrow();
-    expect(plans.length).toBe(before);
+    expect(replanSpy).not.toHaveBeenCalled();
   });
 });

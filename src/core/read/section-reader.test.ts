@@ -314,6 +314,31 @@ describe("SectionReader", () => {
     expect(listener).toHaveBeenCalled();
   });
 
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 4 (section-reader shape): #notify()
+  // iterates #listeners in one bare for loop. If an earlier listener
+  // throws, listeners registered after it in iteration order never get
+  // called for *this* notification -- an arbitrary consumer bug in one
+  // observer silently starves every other observer of updates.
+  // ---------------------------------------------------------------------
+  it("does not strand a later listener when an earlier listener throws", () => {
+    const { relay, reader } = setup();
+    const throwingListener = vi.fn(() => {
+      throw new Error("boom from listener 1");
+    });
+    const laterListener = vi.fn();
+    // Registration order matters: #listeners is a Set, iterated in
+    // insertion order, so throwingListener runs first.
+    reader.subscribe(throwingListener);
+    reader.subscribe(laterListener);
+    reader.start();
+
+    expect(() => relay()?.emitEvent(0, event("first", 100))).not.toThrow();
+
+    expect(throwingListener).toHaveBeenCalled();
+    expect(laterListener).toHaveBeenCalled();
+  });
+
   it("closes every relay subscription on stop", () => {
     const { relay, reader } = setup();
     reader.start();

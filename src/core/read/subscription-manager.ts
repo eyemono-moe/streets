@@ -98,6 +98,17 @@ export type SubscriptionManagerOptions = {
 /** `replanDebounceMs` の既定値。 */
 const DEFAULT_REPLAN_DEBOUNCE_MS = 100;
 
+/**
+ * `#runReplan()` の `do/while` を打ち切るまでの最大反復回数 (final review,
+ * finding 1)。この巡が収束せず `#dirty` が立ち続ける状況は、通常運用では
+ * 数パス (経験的には 2〜3 パス) で解消するはずのもの — 拒否状態への遷移
+ * ガード (`SectionEntry.refused`) がある以上、無限に回り続けるとしたら
+ * それ自体がバグ (呼び出し側が毎パス新しい需要を作り続けている、など) で
+ * ある。ハングでアプリを道連れにするより、ここで打ち切って報告する方が
+ * 安全 (下の `#runReplan` 参照)。
+ */
+const REPLAN_MAX_ITERATIONS = 10;
+
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
 type OpenSubscription = {
   subscription: PooledSubscription;
@@ -137,6 +148,24 @@ type SectionEntry = {
    */
   pendingInitialDelivery: boolean;
   closed: boolean;
+  /**
+   * このパスで budget 切れにより拒否された (`pool.subscribe()` が
+   * `undefined` を返した) URL の集合 (final review, finding 1)。
+   *
+   * `#applyEntryDiff` はここに載っている URL について `onRelayUnreachable`
+   * を呼ばない — 呼ぶのは**拒否状態への遷移**のときだけ。この集合が無いと、
+   * 予算切れで拒否された URL は決して `entry.opened` に入らないので、次の
+   * `replan()` のたびに同じ URL への `pool.subscribe()` が再試行され、
+   * 再び拒否され、再び `onRelayUnreachable` が発火する。呼び出し側が
+   * `onRelayUnreachable` を受けて `replan()` を呼び返す (このマネージャが
+   * 公然とサポートするパターン、上の Critical 2(b) 参照) と、これは
+   * 定常状態の存在しない同期的な無限ループになる。
+   *
+   * `perRelay` に無くなった URL はこの集合からも取り除く
+   * (`#applyEntryDiff` の先頭) — 需要が引っ込んだ後にまた戻ってきたときは
+   * 新しい遷移として扱う。
+   */
+  refused: Set<RelayUrl>;
 };
 
 const EMPTY_PLAN: SectionPlan = {
@@ -300,6 +329,7 @@ export class SubscriptionManager {
       plan: EMPTY_PLAN,
       pendingInitialDelivery: true,
       closed: false,
+      refused: new Set(),
     };
     this.#entries.set(entry.id, entry);
 
@@ -344,6 +374,15 @@ export class SubscriptionManager {
       this.#scheduler.clearTimeout(this.#replanTimer);
       this.#replanTimer = null;
     }
+    // #pool.dispose() より前に全エントリを閉じたことにする (final review,
+    // finding 3)。#pool.dispose() は各接続を close() するが、
+    // FakeRelayConnection の close() はハンドラへ同期的に onClosed を配る
+    // (実装によっては — WebSocketRelayConnection.fail() は非同期にこれを
+    // 行うが、いずれにせよ配られる)。#handlersFor の onClosed ガードは
+    // `entry.closed` だけを見ているので、ここで先に立てておかないと、
+    // まさに dispose() させている最中の接続の死が、dispose() 済みのはずの
+    // セクションへ onRelayUnreachable として届いてしまう。
+    for (const entry of this.#entries.values()) entry.closed = true;
     this.#pool.dispose();
     // 生きている handle が孤児化しても構わない — PooledSubscription.close()
     // はエントリのオブジェクト同一性で判定するので、dispose() 後の孤児化した
@@ -425,12 +464,46 @@ export class SubscriptionManager {
     }
     this.#replanning = true;
     try {
+      let iterations = 0;
       do {
         this.#dirty = false;
         this.#replanOnce();
+        iterations += 1;
+        if (iterations >= REPLAN_MAX_ITERATIONS && this.#dirty) {
+          // 収束しなかった (final review, finding 1)。原因は呼び出し側が
+          // 毎パス新しい需要を作り続けているなど、このマネージャの外側に
+          // ある可能性が高い — が、専用の報告チャネルが無いので
+          // console.error に落とす。ここで回り続けるとタブ全体が同期的な
+          // 無限ループでハングするので、打ち切って現状の (収束していない
+          // 可能性がある) 計画のまま返る方を選ぶ。
+          console.error(
+            `SubscriptionManager: replan() did not converge after ${REPLAN_MAX_ITERATIONS} iterations; giving up for this call instead of looping forever. This usually means a delivery callback keeps triggering replan() without ever reaching a stable plan.`,
+          );
+          break;
+        }
       } while (this.#dirty);
     } finally {
       this.#replanning = false;
+    }
+  }
+
+  /**
+   * 1 つのセクションへの配信コールバックを孤立させて呼ぶ (final review,
+   * finding 4)。呼び出し先は任意の消費者コード — `#replanOnce` は複数
+   * エントリを 1 つの for ループで処理しており、ここで無防備に呼ぶと
+   * 1 エントリのコールバックが投げただけで、まだ処理していない残りの
+   * エントリが古い計画のまま取り残される (ADR-0011 が禁じる隠れた劣化)。
+   * 専用の報告チャネルは無いので `console.error` に落とす — 黙って握り
+   * 潰すよりはましだが、ここでの主目的は隔離であって報告ではない。
+   */
+  #deliver(callback: () => void): void {
+    try {
+      callback();
+    } catch (error) {
+      console.error(
+        "SubscriptionManager: a delivery callback threw; isolating it so other sections keep receiving updates.",
+        error,
+      );
     }
   }
 
@@ -563,7 +636,7 @@ export class SubscriptionManager {
       // 処理される場合、再入で遅延され後続の巡で処理される場合の両方をカバー
       // する。後者では subscribe() が既に handle を返し終えているので、この
       // 巡が「初回」でもここで正しく通知する)。
-      if (changed) entry.delivery.onPlanChanged(newPlan);
+      if (changed) this.#deliver(() => entry.delivery.onPlanChanged(newPlan));
     }
   }
 
@@ -586,6 +659,15 @@ export class SubscriptionManager {
    * 数えれば捏造になる (2026-08-01 訂正)。既に接続済みのリレーが投げた場合は
    * pool が `handlers.onClosed(...)` を同期的に呼ぶので、そちらは
    * `#handlersFor` 経由で同じ `onRelayUnreachable` に自然に合流する。
+   *
+   * `pool.subscribe()` は `handlers.onClosed` を**同期的に**呼ぶことがある
+   * (Task 1)。それが `onRelayUnreachable` 経由で消費者コードへ届き、そこが
+   * このセクションを閉じる (`handle.close()`) と、`#close()` が
+   * `entry.opened` を空にした*直後*にこのメソッドへ戻ってくる — その後で
+   * 無条件に `entry.opened.set(...)` すると、閉じたはずのエントリへ誰も
+   * 二度と閉じない `PooledSubscription` を書き込むことになる (final
+   * review, finding 2)。`pool.subscribe()` の戻り値を受け取るたびに
+   * `entry.closed` を確認し、閉じていれば取得した分をその場で閉じて抜ける。
    */
   #applyEntryDiff(
     entry: SectionEntry,
@@ -596,6 +678,12 @@ export class SubscriptionManager {
       if (perRelay.has(url)) continue;
       open.subscription.close();
       entry.opened.delete(url);
+    }
+
+    // 需要から外れた URL の拒否記録も一緒に忘れる (final review,
+    // finding 1)。戻ってきたときは新しい遷移として扱う。
+    for (const url of [...entry.refused]) {
+      if (!perRelay.has(url)) entry.refused.delete(url);
     }
 
     // 残っている・新規のリレーを処理する。
@@ -615,24 +703,34 @@ export class SubscriptionManager {
         // 一瞬 0 になり、#drop(url) が接続そのものを閉じてしまう —
         // 同じ接続の上で REQ だけ差し替えるつもりが、pool.subscribe() に
         // budget チェックと connect() をもう一度走らせる羽目になる。
-        entry.delivery.onRelayRestarted(url);
+        this.#deliver(() => entry.delivery.onRelayRestarted(url));
         const pooled = this.#pool.subscribe(
           url,
           relayFilters,
           this.#handlersFor(entry, url),
         );
         open.subscription.close();
+        if (entry.closed) {
+          // onRelayRestarted (上) が同期的にこのセクションを閉じた
+          // (final review, finding 2)。entry.opened は #close() で
+          // 既に空になっている — 取得したばかりの pooled をここで
+          // 書き込むと、誰も閉じない孤立ソケットになる。
+          pooled?.close();
+          return;
+        }
         if (pooled) {
           entry.opened.set(url, {
             subscription: pooled,
             filters: relayFilters,
           });
+          entry.refused.delete(url);
         } else {
           // 上の理屈により、既に開いていたリレーの張り直しがここで拒否
           // されるのは実質起こらない (直前まで自分の分の枠を握っていた) が、
           // 万一 (他エントリの close() などとの絡み) 起きても total に保つ。
           entry.opened.delete(url);
-          entry.delivery.onRelayUnreachable(url);
+          entry.refused.add(url);
+          this.#deliver(() => entry.delivery.onRelayUnreachable(url));
         }
         continue;
       }
@@ -643,13 +741,29 @@ export class SubscriptionManager {
         relayFilters,
         this.#handlersFor(entry, url),
       );
+      if (entry.closed) {
+        // pool.subscribe() が同期的に onClosed -> onRelayUnreachable を
+        // 発火させ、その配信コールバックがこのセクションを閉じた
+        // (final review, finding 2)。上の restart 分岐と同じ理由で、
+        // ここで entry.opened へ書き込んではいけない。
+        pooled?.close();
+        return;
+      }
       if (pooled) {
         entry.opened.set(url, { subscription: pooled, filters: relayFilters });
+        entry.refused.delete(url);
       } else {
         // pool 側が budget 切れで丸ごと拒否した (undefined) — 接続を試み
         // てすらいないので pool の onClosed は発火しない。ここで直接報告
-        // する必要がある。
-        entry.delivery.onRelayUnreachable(url);
+        // する必要がある。ただし「拒否状態への遷移」のときだけ (final
+        // review, finding 1) — 既に拒否済みの URL を毎パス報告し続けると、
+        // それを受けて replan() を呼び返す消費者コード (このマネージャが
+        // 公然とサポートするパターン) が定常状態に決して到達できず、
+        // 同期的な無限ループになる。
+        if (!entry.refused.has(url)) {
+          entry.refused.add(url);
+          this.#deliver(() => entry.delivery.onRelayUnreachable(url));
+        }
       }
     }
   }
@@ -691,7 +805,31 @@ export class SubscriptionManager {
         // のリレー 1 本が、新しい情報ゼロのまま大域の貪欲選択を無限に起こせて
         // しまう — decision 2 が塞いだのと同じ種類の安上がりな引き金が、
         // ガードの見ていない経路から入ってくる。
-        if (result === "inserted" && event.kind === 10002) {
+        //
+        // ただし "inserted" だけでは再送 (リプレイ) 亜種しか塞げない
+        // (final review, finding 5)。ローカルでのフィルタ再照合を意図的に
+        // 持たない (docs/design/read-layer-followups.md の既知の繰延事項)
+        // ため、リレーは新しい鍵ペアを無制限に作り、有効な署名付き
+        // kind:10002 を無制限に作れる。1 通ごとに `verifyEvent` は通り、
+        // `store.put` は毎回 "inserted" を返し、そのたびにこの再プランの
+        // 引き金を引ける — 攻撃者側のコストは 1 デバウンス窓あたり署名 1 回、
+        // クライアント側のコストは schnorr 検証 1 回に加え、大域の貪欲選択
+        // (全セクション分) を丸ごと 1 回。イベントの `pubkey` が、登録済み
+        // のどれかのセクションの需要 (`filter.authors`) に実際に載っている
+        // ことも合わせて要求する — これで、リレーが再プランを強制できるのは
+        // 「実際にフォローしている著者について、本当に新しい relay list を
+        // 届けたとき」に限られる。ちょうど再プランしたい場合そのものである。
+        //
+        // 上のコメントの旧版は「このデバウンスがウォームアップのバースト
+        // から守る」と書いていたが、それは誤りだった。ウォームアップの
+        // イベントは `bootstrap.ts` 自身のハンドラを通り、`#handlersFor` を
+        // 一切通らない。今日この経路に届きうる唯一の送信元は、リレーが
+        // 要求されていないイベントを push してくる場合である。
+        if (
+          result === "inserted" &&
+          event.kind === 10002 &&
+          this.#isDemandedAuthor(event.pubkey)
+        ) {
           this.#scheduleReplan();
         }
       },
@@ -702,5 +840,23 @@ export class SubscriptionManager {
         if (!entry.closed) entry.delivery.onRelayUnreachable(url);
       },
     };
+  }
+
+  /**
+   * `pubkey` が、登録済みのどれかのセクションの需要 (`filter.authors`) に
+   * 実際に載っているか (final review, finding 5)。`kind:10002` 到着による
+   * 再プランを「実際にフォローしている著者」に絞るためだけに使う —
+   * 明示リレーのセクション (`entry.explicitRelays !== undefined`) はそもそも
+   * ルーティングをバイパスするので、その `filters.authors` もここでの判定に
+   * 使ってよい (どのみち `#replanOnce` の需要プールには入らないが、この
+   * 著者を実際に「求めている」という事実自体は変わらない)。
+   */
+  #isDemandedAuthor(pubkey: string): boolean {
+    for (const entry of this.#entries.values()) {
+      for (const filter of entry.filters) {
+        if (filter.authors?.includes(pubkey)) return true;
+      }
+    }
+    return false;
   }
 }

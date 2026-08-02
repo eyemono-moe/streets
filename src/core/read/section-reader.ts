@@ -213,6 +213,21 @@ export class SectionReader {
 
   #notify(): void {
     if (this.#starting) return;
-    for (const listener of this.#listeners) listener();
+    // 1 つの listener が投げても、後続の listener への通知を巻き込んでは
+    // ならない (final review, finding 4) — ここは任意の消費者コード
+    // (UI 側のオブザーバーなど) を呼んでいる。無防備な bare for ループだと、
+    // 登録順で先に呼ばれた listener が投げただけで、後に登録された listener
+    // はこの通知を一切受け取れない。専用の報告チャネルは無いので
+    // console.error に落とす — 主目的は隔離であって報告ではない。
+    for (const listener of this.#listeners) {
+      try {
+        listener();
+      } catch (error) {
+        console.error(
+          "SectionReader: a listener threw during notify(); isolating it so other listeners keep receiving updates.",
+          error,
+        );
+      }
+    }
   }
 }
