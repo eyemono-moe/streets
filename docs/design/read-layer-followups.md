@@ -37,14 +37,6 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 `put` の戻り値は照合が失敗しても `"duplicate"` のまま。`SectionReader` は「`"rejected"` 以外＝ store がその ID を持っている」に依拠しており、ここで `"rejected"` を返すと既に保持している正規のイベントをセクションが取りこぼす。
 
-### リレーが配信したイベントをフィルタに再照合していない
-
-`SubscriptionManager` は購読に届いたものをそのまま格納・配信し、`SectionReader` はそれをリストに載せる。署名検証は**偽造**を防ぐが**混入**は防がない。ある著者の write リレーは、そのリレーを見ているセクションへ、フォローしていない人の正当な署名付きイベントや別 kind のイベントを押し込める。
-
-第2スライス以前からそうだったが、Outbox がこの面積を実質的に広げた。**セクションが話しかけるリレー集合を決めるのが、自分ではなくフォローしている著者になった**ためである。
-
-[ADR-0023](../adr/0023-centralized-subscription-manager.md) は既にローカル再マッチを必要な作業として挙げているが、これは購読マージの帰結ではなく**リレーの配信を信用していることの帰結**である。ADR 側にもその旨を追記した。
-
 ### `reserved`（ブートストラップの予算迂回）が ADR-0025 の記述と食い違っている（接続プールの最終ブランチレビュー finding 9a）
 
 [ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md) と[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md:104)は、ブートストラップのインデクサ（`BOOTSTRAP_INDEXERS`、4 本）を `pinned`（予算を消費するが決して落とされない）として扱うと書いていた。実装（`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`）はそうなっていない — インデクサは `selectRelays` の `pinned` に一切渡らず、`ConnectionPool.subscribe()` の予算チェック（`size >= maxConnections`）そのものを丸ごと迂回する**バイパス**である。ADR-0025 の該当段落は誤りとして訂正した（下記）。
@@ -122,12 +114,15 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 これにより `max_subscriptions` はリレーの除外基準ではなく、**初回取得の並列度を決めるスケジューリングの入力**になる。実測では 8 〜 300 と大きく開きがある。詳細は [research/2026-08-01-nip65-relay-selection.md](../research/2026-08-01-nip65-relay-selection.md) 5.4 節。
 
+**後続 #5 へ回った（2026-08-02）。** この節の見出しどおり当初は接続プール（後続 #3）で扱う想定だったが、[ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 0 節が「再照合はマージの付随作業ではなく前提条件である」と判定して切り出した結果、マージ自体は後続 #5 に回った。**本スライス（後続 #4）が用意したのはその前提条件のほうである。** マージすると 1 つの `subscription_id` に複数セクションのフィルタが相乗りするが、`EVENT` メッセージは `subscription_id` しか持たないため、届いたイベントをどのセクションへ配るか決める手段はフィルタ照合しかない —— マージは照合の上にしか乗らない。その照合器を `src/core/read/filter-match.ts` として用意し、`SubscriptionManager` / `bootstrap.ts` に配線した（下記「解消済み」）。
+
 ## 解消済み
 
 - **ルーティング表の永続化**（ADR-0016 が「新しい永続化要件」としていたもの）— 2026-08-01 に撤回。`EventStore` 内の `kind:10002` から導出する形にしたため、専用の保存先も TTL も不要になった。永続化は ADR-0019 の「参照データ」バケットが `kind:10002` を保持すれば自動的に得られる。
 - **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消。`kind:10002` の到着で `SubscriptionManager` がデバウンスして再計画し（Task 10）、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted(relay)` でセクションへ通知する。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。
 - **`RelayConnection` に接続単位のライフサイクル通知がない** — 接続プールのスライスで解消。`RelayConnection` seam（ADR-0014）に `onClose(listener: () => void): () => void` を追加した。購読単位の `onClosed` とは別に、ソケットそのものの死を通知する。`ConnectionPool` はこれで「ソケットの死」と「レート制限による個別 CLOSED」を区別できるようになり、死んだ接続を即座に予算とレジストリから外して次の `subscribe()` で新しいソケットを開く。再接続（ADR-0021）もこの通知を起点に組まれている。
 - **接続数はフォロー人数に比例して無制限に増える** — 接続プールのスライスで解消。`ConnectionPool` が唯一の接続開設点になり（ADR-0023）、`MAX_CONNECTIONS = 30`（ADR-0011）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。著者ごとの先頭 N 本方式は `selectRelays` による貪欲被覆選択（ADR-0025）へ置き換わった。予算超過で被覆できない著者は `incomplete.uncoveredAuthors` として黙らず報告する。`e2e/connection-budget.spec.ts` が「予算を超えて開かない」「被覆が最大化される」「落とした著者を報告する」を測る。
+- **リレーが配信したイベントをフィルタに再照合していない** — [ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md)（後続 #4）で解消。`SubscriptionManager.#handlersFor` が組み立てる `onEvent` は `store.put` より前に `matchesAnyFilter`（`src/core/read/filter-match.ts`）で判定し、`bootstrap.ts` の `collect()` にも同じ判定を入れて専用経路のブートストラップ取得も同じ信頼境界に揃えた。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）と `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から読める。`e2e/relay-lies.spec.ts` が `page.routeWebSocket`（`relay-recovery.spec.ts` で確立した手法）で悪意あるリレーを再現し、閲覧者がフォローしていない著者の正当な署名付きイベントを注入したうえで、そのイベントが `items` に出ないこと・カウンタが動くこと・正当なイベントは従来どおり届くことを主張する。副作用として、[ADR-0016](../adr/0016-routing-bootstrap.md) の「解決後に張り直す」を閉じていた `kind:10002` 到着による再プランの引き金が削除された（記録は ADR-0016 側）。
 - **`tsconfig.e2e.json` がルートのビルドグラフに載っておらず、`pnpm typecheck` が `e2e/` を検査しない** — 最終ブランチレビュー finding 6 で解消。`tsconfig.json` の `references` に `tsconfig.e2e.json` と（新設の）`tsconfig.test.json` を追加した。予告どおり `e2e/v1-section.spec.ts` / `connection-budget.spec.ts` / `relay-recovery.spec.ts` の相対 import に `.js` 拡張子を足す機械的な修正が必要だった（TS2835、`NodeNext` の規約）。`tsconfig.test.json` は `*.test.ts(x)` も同じコンパイラオプションで検査する新しいプロジェクトで、`connection-pool.test.ts` のタイマーハンドル `number` バグ（standalone `tsc` でしか捕まらなかった、というコメントが同ファイルに残っている）と同じ種類のバグを今後 CI で検出できるようにする。この配線自体が「これまで気づかれていなかった既存の型エラー」を 7 ファイル分表面化させた — 詳細は上の「小さいもの」表、対応方針はレビューの指示どおり報告のみ（`tsconfig.test.json` の `exclude` で除外）。
 
 ## 満たしていない要件
