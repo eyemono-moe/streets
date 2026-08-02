@@ -94,5 +94,6 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0022](./docs/adr/0022-deploy-to-cloudflare-workers-static-assets.md) | v1 以降は Cloudflare Workers の static assets として配信する（**proposed** — 未実装） |
 | [0023](./docs/adr/0023-centralized-subscription-manager.md) | リレー接続と購読を単一の管理システムに集約する |
 | [0024](./docs/adr/0024-shared-bodies-per-section-membership.md) | イベント本体は共有し、メンバーシップはセクションが持つ |
+| [0025](./docs/adr/0025-greedy-relay-selection-under-a-global-budget.md) | 大域予算のもとで冗長度つき貪欲集合被覆によりリレーを選ぶ |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、未着手の繰延事項は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)、プロジェクト全体の将来タスクは [docs/backlog.md](./docs/backlog.md) を参照。

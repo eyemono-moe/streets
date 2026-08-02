@@ -77,6 +77,7 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `query-plan.ts` | 1 つのフィルタ内の重複著者を除去しない。`Map` の反復順序も表明していない |
 | `subscription-manager.ts` | `onEose` / `onClosed` の close 後抑制にテストがない（`onEvent` のみ）。1 プラン内の重複 URL と空プランも未テスト。明示リレー経路で `fallbackRelays` を使わないのに計算している |
 | `bootstrap.ts` | `clearTimeout` / `getTimerCount` の表明がない。インデクサ 2 つが矛盾する `kind:3` を返すケース、不正な `p` タグの端から端までのケースも未テスト |
+| `tsconfig.e2e.json` | ルート `tsconfig.json` の `references`（`tsc -b` のビルドグラフ）に載っておらず、`pnpm typecheck` は `e2e/` 配下を一切検査しない。試しに `references` へ足すと `e2e/v1-section.spec.ts` / `connection-budget.spec.ts` / `relay-recovery.spec.ts` の 3 件で TS2835（`NodeNext` の相対 import に `.js` 拡張子が要る）が出る — 新規ファイル固有の問題ではなく e2e 全体の既存の import 規約。配線するにはこの 3 件（と今後増える同種のファイル）を直す必要があり、typecheck スクリプトの一行変更では済まない。**現状 `pnpm typecheck` が緑でも e2e の型エラーは検出されない**ことに注意 |
 
 ## 後続 #3（接続プール）で扱うと決まったもの
 
