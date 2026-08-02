@@ -1,0 +1,30 @@
+{
+  // final whole-branch review of the connection-pool slice, finding 6:
+  // vitest never type-checks (esbuild transform only), so `pnpm typecheck`
+  // (tsc -b) skipping every *.test.ts(x) file (tsconfig.app.json's
+  // exclude) meant a whole class of bugs went undetected -- see
+  // connection-pool.test.ts's own comment on the timer-handle-typed-number
+  // bug this exact gap let through. This project re-includes test files
+  // under the same compiler options so `tsc -b` actually checks them.
+  //
+  // The 7 files below are excluded deliberately, not silently: turning
+  // this check on for the first time surfaced pre-existing type errors in
+  // them (stale mocks no longer matching NostrCoreQueryClient /
+  // QueryRegistry / RxNostr, and an rx-nostr createRxNostr() call missing
+  // its now-required argument) that predate and are unrelated to the
+  // connection-pool slice. Per the review's own instruction ("report
+  // rather than mass-fixing -- that would be a finding"), they are
+  // recorded in docs/design/read-layer-followups.md instead of being
+  // fixed here. Remove an entry once its file's errors are fixed.
+  "extends": "./tsconfig.app.json",
+  "include": ["src"],
+  "exclude": [
+    "src/core/solid/provider.test.tsx",
+    "src/core/solid/use-event-feed.test.tsx",
+    "src/core/solid/use-event-relations.test.tsx",
+    "src/core/solid/use-event.test.tsx",
+    "src/core/solid/use-profile.test.tsx",
+    "src/core/solid/use-social-read.test.tsx",
+    "src/routes/debug/v1-core.test.tsx"
+  ]
+}

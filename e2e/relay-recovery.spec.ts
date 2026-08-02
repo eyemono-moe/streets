@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
-import { outboxNoteBText, outboxViewerPubkey } from "./fixtures/seed-outbox";
+import { outboxNoteBText, outboxViewerPubkey } from "./fixtures/seed-outbox.js";
 
 /**
  * `docker compose` を叩く。失敗したら「復帰しなかった」ではなく

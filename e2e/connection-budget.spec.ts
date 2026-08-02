@@ -3,7 +3,7 @@ import {
   budgetNoteOneText,
   budgetNoteTwoText,
   budgetViewerPubkey,
-} from "./fixtures/seed-budget";
+} from "./fixtures/seed-budget.js";
 
 const debugUrl = `/debug/v1-section?budget=4&pubkey=${budgetViewerPubkey}`;
 

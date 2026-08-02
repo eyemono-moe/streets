@@ -6,7 +6,7 @@ import {
   outboxNoteBText,
   outboxViewerPubkey,
   relayTwoUrl,
-} from "./fixtures/seed-outbox";
+} from "./fixtures/seed-outbox.js";
 
 const debugUrl = `/debug/v1-section?pubkey=${outboxViewerPubkey}`;
 
