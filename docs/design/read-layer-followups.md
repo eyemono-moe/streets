@@ -45,6 +45,25 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 [ADR-0023](../adr/0023-centralized-subscription-manager.md) は既にローカル再マッチを必要な作業として挙げているが、これは購読マージの帰結ではなく**リレーの配信を信用していることの帰結**である。ADR 側にもその旨を追記した。
 
+### `reserved`（ブートストラップの予算迂回）が ADR-0025 の記述と食い違っている（接続プールの最終ブランチレビュー finding 9a）
+
+[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md) と[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md:104)は、ブートストラップのインデクサ（`BOOTSTRAP_INDEXERS`、4 本）を `pinned`（予算を消費するが決して落とされない）として扱うと書いていた。実装（`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`）はそうなっていない — インデクサは `selectRelays` の `pinned` に一切渡らず、`ConnectionPool.subscribe()` の予算チェック（`size >= maxConnections`）そのものを丸ごと迂回する**バイパス**である。ADR-0025 の該当段落は誤りとして訂正した（下記）。
+
+**帰結は 2 つ。**
+
+1. **ピーク同時接続数は `30 + |indexers|` = 34 になりうる。** Outbox の 30 本がすでに埋まった状態でウォームアップが始まると、インデクサ用の 4 本が予算チェックを迂回してそのまま上に乗る。**今日は到達しない** — デバッグルートがウォームアップ完了までセクションの開始そのものを遅らせているため、ウォームアップ開始時点で Outbox 側が 30 本を使い切っていることがない。ただし[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md:111)が名指ししているとおり、未知の著者に遭遇して再ウォームアップする経路が入れば重なりうる。次の計画がこの経路を作るなら、34 という数を先に踏まえること。
+2. **`pinned`（選択器の予算優先権）と `reserved`（プールの予算迂回）という、意味の違う 2 つの仕組みが同じ「30 接続」という数字について別々に主張している。** 1 つの数値に統一されていない。
+
+**裁定（このスライスでは実装しない — 統合スライスがこのコードにどのみち触れるため）**: ドキュメントを実装に合わせて訂正し、数値を露出するところまでで止める。具体的には (a) 上記のとおり ADR-0025 の `pinned` 段落を訂正、(b) `ConnectionPool` に `reservedSize` アクセサを追加して「今バイパス経由で何本使われているか」を読めるようにする、(c) この 34 ピークの逸脱を到達条件つきでここに記録する（上記）。予算の再構成（`reserved` を `pinned` に統合する、あるいはその逆）は次の計画が 1 つの数値に対して行うこと。
+
+### 死んだままのリレーが枠を永久に食いつぶす（接続プールの最終ブランチレビュー finding 9b）
+
+`#onConnectionDied` はソケットの枠を解放するだけで、マネージャ側の状態には一切触らない: URL は `entry.opened` に残り続け、`currentSet`（粘着性）にも残り続け、`filtersEqual` は毎回このリレーをスキップする。`selectRelays` はそもそも「到達可能かどうか」という概念を持たないので、`replan()` のたびに同じ死んだ URL を何度でも選び直す。**リレーが本当に恒久停止した場合、そのリレーが担当していた著者は永久に暗転し、空いたはずの枠は誰にも使われない。**
+
+これは「隠れた劣化」ではない — `unreachableRelays` として正直に報告され続けるので ADR-0011 の禁止事項には触れない（劣化そのものは起きているが、隠れてはいない）。[ADR-0021](../adr/0021-reconnection-policy.md) が「死亡・復帰は再選択の契機にしない」と意図的に決めたのは、瞬断のたびに churn を起こさないためであり、それ自体は瞬断に対して正しい判断である。ただしこの判断は恒久喪失には対処していない。
+
+**次の計画への提案**: `selectRelays` に `degraded`（連続再接続失敗が N 回を超えた URL の集合）という入力を足し、貪欲選択のステップがその URL の枠を他へ回せるようにする。プール自身はそれでも `degraded` な URL への再接続を諦めずに回し続けてよい（ADR-0021 の「永久に諦めない」とは矛盾しない — 「選び直しの対象にするかどうか」と「再接続をやめるかどうか」は別の問い）。**このスライスでは実装しない。**
+
 ## 直さないと決めたもの（理由つき）
 
 ### `EventStore.put` で検証を重複判定より前に移すこと
@@ -77,7 +96,7 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `query-plan.ts` | 1 つのフィルタ内の重複著者を除去しない。`Map` の反復順序も表明していない |
 | `subscription-manager.ts` | `onEose` / `onClosed` の close 後抑制にテストがない（`onEvent` のみ）。1 プラン内の重複 URL と空プランも未テスト。明示リレー経路で `fallbackRelays` を使わないのに計算している |
 | `bootstrap.ts` | `clearTimeout` / `getTimerCount` の表明がない。インデクサ 2 つが矛盾する `kind:3` を返すケース、不正な `p` タグの端から端までのケースも未テスト |
-| `tsconfig.e2e.json` | ルート `tsconfig.json` の `references`（`tsc -b` のビルドグラフ）に載っておらず、`pnpm typecheck` は `e2e/` 配下を一切検査しない。試しに `references` へ足すと `e2e/v1-section.spec.ts` / `connection-budget.spec.ts` / `relay-recovery.spec.ts` の 3 件で TS2835（`NodeNext` の相対 import に `.js` 拡張子が要る）が出る — 新規ファイル固有の問題ではなく e2e 全体の既存の import 規約。配線するにはこの 3 件（と今後増える同種のファイル）を直す必要があり、typecheck スクリプトの一行変更では済まない。**現状 `pnpm typecheck` が緑でも e2e の型エラーは検出されない**ことに注意 |
+| `src/core/solid/provider.test.tsx`, `use-event-feed.test.tsx`, `use-event-relations.test.tsx`, `use-event.test.tsx`, `use-profile.test.tsx`, `use-social-read.test.tsx`, `src/routes/debug/v1-core.test.tsx` | 最終ブランチレビュー finding 6 で `tsconfig.test.json` を配線した際に発覚した、これらのスライスとは無関係な既存の型エラー 22 件。古いモックが `NostrCoreQueryClient` / `QueryRegistry` / `RxNostr` の現行の型（`getSnapshot` など新しい必須メンバーが増えている）に追随できていないのと、`rx-nostr` の `createRxNostr()` が引数必須になったのに呼び出し側が追随していないもの。vitest は型検査をしない（esbuild で transform するだけ）ので、これまで `pnpm typecheck` が `*.test.ts(x)` を丸ごと除外していたことで誰も気づいていなかった。レビューの指示（「まとめて直さず報告せよ」）に従い、`tsconfig.test.json` の `exclude` でこの 7 ファイルだけを外して `pnpm typecheck` を緑に保っている — 直したらそのファイルを `exclude` から外すこと |
 
 ## 後続 #3（接続プール）で扱うと決まったもの
 
@@ -97,6 +116,7 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 - **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消。`kind:10002` の到着で `SubscriptionManager` がデバウンスして再計画し（Task 10）、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted(relay)` でセクションへ通知する。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。
 - **`RelayConnection` に接続単位のライフサイクル通知がない** — 接続プールのスライスで解消。`RelayConnection` seam（ADR-0014）に `onClose(listener: () => void): () => void` を追加した。購読単位の `onClosed` とは別に、ソケットそのものの死を通知する。`ConnectionPool` はこれで「ソケットの死」と「レート制限による個別 CLOSED」を区別できるようになり、死んだ接続を即座に予算とレジストリから外して次の `subscribe()` で新しいソケットを開く。再接続（ADR-0021）もこの通知を起点に組まれている。
 - **接続数はフォロー人数に比例して無制限に増える** — 接続プールのスライスで解消。`ConnectionPool` が唯一の接続開設点になり（ADR-0023）、`MAX_CONNECTIONS = 30`（ADR-0011）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。著者ごとの先頭 N 本方式は `selectRelays` による貪欲被覆選択（ADR-0025）へ置き換わった。予算超過で被覆できない著者は `incomplete.uncoveredAuthors` として黙らず報告する。`e2e/connection-budget.spec.ts` が「予算を超えて開かない」「被覆が最大化される」「落とした著者を報告する」を測る。
+- **`tsconfig.e2e.json` がルートのビルドグラフに載っておらず、`pnpm typecheck` が `e2e/` を検査しない** — 最終ブランチレビュー finding 6 で解消。`tsconfig.json` の `references` に `tsconfig.e2e.json` と（新設の）`tsconfig.test.json` を追加した。予告どおり `e2e/v1-section.spec.ts` / `connection-budget.spec.ts` / `relay-recovery.spec.ts` の相対 import に `.js` 拡張子を足す機械的な修正が必要だった（TS2835、`NodeNext` の規約）。`tsconfig.test.json` は `*.test.ts(x)` も同じコンパイラオプションで検査する新しいプロジェクトで、`connection-pool.test.ts` のタイマーハンドル `number` バグ（standalone `tsc` でしか捕まらなかった、というコメントが同ファイルに残っている）と同じ種類のバグを今後 CI で検出できるようにする。この配線自体が「これまで気づかれていなかった既存の型エラー」を 7 ファイル分表面化させた — 詳細は上の「小さいもの」表、対応方針はレビューの指示どおり報告のみ（`tsconfig.test.json` の `exclude` で除外）。
 
 ## 満たしていない要件
 
