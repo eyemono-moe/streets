@@ -99,6 +99,15 @@ type Pooled = {
    * 試み続けることになる。
    */
   timer: ReturnType<Scheduler["setTimeout"]> | null;
+  /**
+   * この URL が `{ reserved: true }` 経由 (ブートストラップの予算迂回、
+   * `SubscribeOptions` 参照) で少なくとも 1 回要求されたか (final review,
+   * finding 9a)。`selectRelays` の `pinned` とは別物 — こちらは
+   * `ConnectionPool` の予算チェックそのものを迂回する側であり、
+   * `reservedSize` はその迂回が「今」何本の生きている接続を占めているかを
+   * 露出するためだけに存在する。
+   */
+  reserved: boolean;
 };
 
 /**
@@ -150,6 +159,24 @@ export class ConnectionPool {
     return this.#peakSize;
   }
 
+  /**
+   * `{ reserved: true }` (ブートストラップの予算迂回) 経由で少なくとも
+   * 1 回要求された URL のうち、今生きている接続の本数 (final review,
+   * finding 9a)。ADR-0025 の `pinned` (選択器の中で予算を優先確保する仕組み)
+   * とこの `reserved` (選択器を経由せず予算チェック自体を飛ばす仕組み) は
+   * 別物であり、「30 接続」という 1 つの数字について両者が別々に主張して
+   * いる — このアクセサはその食い違いを外から観測できるようにするための
+   * ものであり、予算そのものを再構成するものではない
+   * (docs/design/read-layer-followups.md 参照)。
+   */
+  get reservedSize(): number {
+    let count = 0;
+    for (const pooled of this.#pool.values()) {
+      if (pooled.connection && pooled.reserved) count += 1;
+    }
+    return count;
+  }
+
   /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
   #recordPeak(): void {
     const current = this.size;
@@ -191,6 +218,7 @@ export class ConnectionPool {
           offClose: null,
           attempts: 0,
           timer: null,
+          reserved: false,
         };
         this.#pool.set(url, pooled);
       }
@@ -205,6 +233,12 @@ export class ConnectionPool {
         // 後で再接続を試みる対象として残す)。
       }
     }
+
+    // 一度でも `{ reserved: true }` で要求されたら、このプロセス内では
+    // ずっと reserved として数える (final review, finding 9a) — 同じ URL
+    // への以後の通常経路の `subscribe()` 呼び出しが `reservedSize` から
+    // 静かに外れてしまわないようにするため。
+    if (options?.reserved) pooled.reserved = true;
 
     const entry: Entry = { filters, handlers, subscription: null };
     pooled.entries.add(entry);

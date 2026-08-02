@@ -318,6 +318,35 @@ describe("ConnectionPool", () => {
     expect(pool.peakSize).toBe(2);
   });
 
+  // ---------------------------------------------------------------------
+  // Final whole-branch review, finding 9a: ADR-0025 and the design spec
+  // both described bootstrap's `{ reserved: true }` as "pinned" -- it
+  // isn't; `pinned` is a selectRelays concept, `reserved` bypasses
+  // ConnectionPool's budget check entirely and never reaches selectRelays.
+  // reservedSize exposes how many currently-live connections are open via
+  // that bypass, so the discrepancy (and its "30 + reservedSize" peak
+  // concurrency consequence) is at least observable instead of silent.
+  // ---------------------------------------------------------------------
+  it("reservedSize counts only currently-live connections opened via the reserved bypass", () => {
+    const { pool, connections } = createPool({ maxConnections: 1 });
+    expect(pool.reservedSize).toBe(0);
+
+    // Fills the only ordinary budget slot.
+    pool.subscribe("wss://ordinary/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.reservedSize).toBe(0);
+
+    // Budget is already exhausted, but { reserved: true } opens anyway.
+    pool.subscribe("wss://indexer/", [{ kinds: [10002] }], noopHandlers(), {
+      reserved: true,
+    });
+    expect(pool.size).toBe(2); // over budget, by design, via the bypass
+    expect(pool.reservedSize).toBe(1);
+
+    // Dies -- no longer counted once it's not live, same as `size`.
+    connections.get("wss://indexer/")?.die();
+    expect(pool.reservedSize).toBe(0);
+  });
+
   it("does not hand a dead connection to the next subscriber", () => {
     const { pool, connections, connectCalls } = createPool();
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
