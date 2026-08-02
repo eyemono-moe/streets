@@ -1775,17 +1775,21 @@ describe("ローカルフィルタ照合 (信頼境界)", () => {
     // その著者本人の、まだ誰も知らない kind:10002。かつては再プランの引き金
     // だった。フィルタに kinds 指定が無いので照合器は通過する
     // (store.put() は "inserted" を返す)。
-    relay.emitEvent(
-      0,
-      signed(1, {
-        kind: 10002,
-        created_at: 1_800_000_000,
-        tags: [["r", "wss://newly-declared/", "write"]],
-      }),
-    );
+    const relayList = signed(1, {
+      kind: 10002,
+      created_at: 1_800_000_000,
+      tags: [["r", "wss://newly-declared/", "write"]],
+    });
+    relay.emitEvent(0, relayList);
     // かつてのデバウンス窓 (既定 100ms) を大きく超えて進める。
     clock.advance(1000);
 
+    // 前提条件そのものを可反証にする: もし照合器がこのフィクスチャを
+    // 落としていたら (例えばフィルタの緩め方を今後変えた結果)、
+    // 下の replanSpy の主張は「引き金が削除されているから」ではなく
+    // 「イベントがそもそも store に届いていないから」空洞化して通ってしまう。
+    // store に入っていることを直接見て、その逃げ道を塞ぐ。
+    expect(store.get(relayList.id)).toBeDefined();
     expect(replanSpy).not.toHaveBeenCalled();
   });
 });

@@ -18,12 +18,23 @@ const DEFAULT_TIMEOUT_MS = 10_000;
  * 持たない (それは `collect()` の仕事)。
  */
 const NEVER_MATCHING_ID = "0".repeat(64);
-/** アンカー購読のハンドラ。何も読み取らない。 */
-const ANCHOR_HANDLERS: RelaySubscriptionHandlers = {
-  onEvent: () => {},
+/**
+ * アンカー購読のハンドラを作る。何も読み取らない —— ただしフィルタが
+ * `{ids:[NEVER_MATCHING_ID]}` である以上、この subId へ届く `EVENT` は構造上
+ * 必ず要求していないもの (信頼境界、ADR-0023) なので、`onCount` でその件数を
+ * 呼び出し元の `unrequested` 集計へ足す。呼び出しごとに閉じた `onCount` を
+ * 受け取る関数にしているのは、モジュール直下の定数のままだと
+ * `warmUpRouting()` の呼び出し間で状態を共有できず (テストの複数呼び出しが
+ * 互いの件数を汚染する)、この呼び出し 1 回ぶんの `WarmUpResult.unrequested`
+ * に正しく積めないため。
+ */
+const createAnchorHandlers = (
+  onCount: () => void,
+): RelaySubscriptionHandlers => ({
+  onEvent: () => onCount(),
   onEose: () => {},
   onClosed: () => {},
-};
+});
 
 export type WarmUpResult = {
   /** フォローリストに載っていた pubkey */
@@ -214,13 +225,18 @@ export const warmUpRouting = async ({
   // アンカーの filters は「絶対にマッチしない」ことだけが要件 — 実データを
   // 集める役目は持たない (それは collect() 側の仕事)。
   const anchors = new Map<RelayUrl, PooledSubscription>();
+  // アンカー宛に届いた (構造上、必ず要求していない) イベントの件数。
+  // collect() の unrequested とは別集計で、最後に合算して返す。
+  let anchorUnrequested = 0;
 
   try {
     for (const url of indexers) {
       const anchor = pool.subscribe(
         url,
         [{ ids: [NEVER_MATCHING_ID] }],
-        ANCHOR_HANDLERS,
+        createAnchorHandlers(() => {
+          anchorUnrequested += 1;
+        }),
         // ブートストラップだけが使ってよい予算迂回 (ConnectionPool の
         // `SubscribeOptions` 参照)。ここ以外では絶対に使わないこと。
         { reserved: true },
@@ -254,7 +270,7 @@ export const warmUpRouting = async ({
         followees,
         routed: 0,
         unroutable: 0,
-        unrequested: unrequestedFollows,
+        unrequested: unrequestedFollows + anchorUnrequested,
       };
     }
 
@@ -277,7 +293,8 @@ export const warmUpRouting = async ({
       followees,
       routed,
       unroutable: followees.length - routed,
-      unrequested: unrequestedFollows + unrequestedRelayLists,
+      unrequested:
+        unrequestedFollows + unrequestedRelayLists + anchorUnrequested,
     };
   } finally {
     // 正常系では collect() 自身がここまでに `open` を空にしている

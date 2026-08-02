@@ -67,8 +67,8 @@ test("drops events the section never asked for", async ({ page }) => {
   await expect(page.getByTestId("unrequested-relays")).toContainText(
     relayTwoUrl,
   );
-  await expect(page.getByTestId("unrequested")).not.toHaveText(
-    "unrequested: 0",
+  await expect(page.getByTestId("unrequested")).toHaveText(
+    /^unrequested: [1-9]\d*$/,
   );
 
   // 主張 3: リレー2 を壊しただけではない
