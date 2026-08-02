@@ -97,6 +97,8 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `subscription-manager.ts` | `onEose` / `onClosed` の close 後抑制にテストがない（`onEvent` のみ）。1 プラン内の重複 URL と空プランも未テスト。明示リレー経路で `fallbackRelays` を使わないのに計算している |
 | `bootstrap.ts` | `clearTimeout` / `getTimerCount` の表明がない。インデクサ 2 つが矛盾する `kind:3` を返すケース、不正な `p` タグの端から端までのケースも未テスト |
 | `src/core/solid/provider.test.tsx`, `use-event-feed.test.tsx`, `use-event-relations.test.tsx`, `use-event.test.tsx`, `use-profile.test.tsx`, `use-social-read.test.tsx`, `src/routes/debug/v1-core.test.tsx` | 最終ブランチレビュー finding 6 で `tsconfig.test.json` を配線した際に発覚した、これらのスライスとは無関係な既存の型エラー 22 件。古いモックが `NostrCoreQueryClient` / `QueryRegistry` / `RxNostr` の現行の型（`getSnapshot` など新しい必須メンバーが増えている）に追随できていないのと、`rx-nostr` の `createRxNostr()` が引数必須になったのに呼び出し側が追随していないもの。vitest は型検査をしない（esbuild で transform するだけ）ので、これまで `pnpm typecheck` が `*.test.ts(x)` を丸ごと除外していたことで誰も気づいていなかった。レビューの指示（「まとめて直さず報告せよ」）に従い、`tsconfig.test.json` の `exclude` でこの 7 ファイルだけを外して `pnpm typecheck` を緑に保っている — 直したらそのファイルを `exclude` から外すこと |
+| `connection-pool.ts` | `#reconnect()` の `for (const entry of pooled.entries)` が `entry.handlers.onClosed(...)` を素で呼んでおり、1 つのセクションのコールバックが投げると残りのセクションが張り直しを受け取れない。最終レビューの Finding 4 が `#replanOnce` / `SectionReader.#notify()` で塞いだのと同じ形だが、この経路は差分に含まれていなかった |
+| CI | 再入ガードと反復上限が同時に壊れると、`subscription-manager.test.ts` の収束テストが真の同期無限ループを再現する。JS の単一スレッド上では vitest のテスト単位タイムアウトが割り込めない。`.github/workflows/ci.yaml` の `test` ジョブに `timeout-minutes` が無いため、その場合 CI はプラットフォーム既定（数時間）までハングする。1 行の保険を入れる価値がある |
 
 ## 後続 #3（接続プール）で扱うと決まったもの
 
