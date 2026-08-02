@@ -66,9 +66,14 @@ const V1SectionDebug = () => {
   const [peakConnections, setPeakConnections] = createSignal(
     manager.peakConnectionCount,
   );
+  // manager.unrequestedEventsByRelay も同じ理由でシグナルではない
+  // (copy-on-read の ReadonlyMap)。connections/peakConnections と同じ経路
+  // (syncConnectionSignals) に載せて、status() 経由の通知で更新する。
+  const [unrequested, setUnrequested] = createSignal<[string, number][]>([]);
   const syncConnectionSignals = () => {
     setConnections(manager.connectionCount);
     setPeakConnections(manager.peakConnectionCount);
+    setUnrequested([...manager.unrequestedEventsByRelay]);
   };
 
   // NIP-11 セクション: Nostr イベントですらない供給元 (ADR-0003)
@@ -157,7 +162,8 @@ const V1SectionDebug = () => {
         />
         <p data-testid="warmup">
           followees: {warmUp()?.followees.length ?? 0} / routed:{" "}
-          {warmUp()?.routed ?? 0} / unroutable: {warmUp()?.unroutable ?? 0}
+          {warmUp()?.routed ?? 0} / unroutable: {warmUp()?.unroutable ?? 0} /
+          unrequested: {warmUp()?.unrequested ?? 0}
         </p>
       </section>
 
@@ -208,6 +214,18 @@ const V1SectionDebug = () => {
         <p data-testid="peak-connections">
           peakConnections: {peakConnections()}
         </p>
+        <p data-testid="unrequested">
+          unrequested: {unrequested().reduce((sum, [, n]) => sum + n, 0)}
+        </p>
+        <ul data-testid="unrequested-relays">
+          <For each={unrequested()}>
+            {([url, count]) => (
+              <li data-testid="unrequested-relay">
+                {url} = {count}
+              </li>
+            )}
+          </For>
+        </ul>
         <p data-testid="count">items: {section.items().length}</p>
         <ul data-testid="items">
           <For each={section.items()}>
