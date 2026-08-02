@@ -18,6 +18,7 @@ import {
   RELAY_REDUNDANCY,
 } from "./default-relays";
 import type { EventStore } from "./event-store";
+import { matchesAnyFilter } from "./filter-match";
 import { planQuery } from "./query-plan";
 import { selectRelays } from "./relay-selector";
 import type { RoutingTable } from "./routing-table";
@@ -77,26 +78,11 @@ export type SubscriptionManagerOptions = {
   maxConnections?: number;
   /** 1 著者あたり何本のリレーから取るか。既定は RELAY_REDUNDANCY */
   redundancy?: number;
-  /**
-   * ConnectionPool へそのまま渡す再接続タイマーの注入口 (テスト用)。
-   * マネージャ自身の再プランのデバウンスタイマー (下記 `replanDebounceMs`)
-   * もこの同じ scheduler を使う — 実タイマーと偽タイマーが混在すると
-   * テストで時間を進めても一方だけ進まない、ということになるため。
-   */
+  /** ConnectionPool へそのまま渡す再接続タイマーの注入口 (テスト用)。 */
   scheduler?: ConnectionPoolOptions["scheduler"];
   /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
   random?: ConnectionPoolOptions["random"];
-  /**
-   * `kind:10002` の到着から再プランまでのデバウンス時間 (ms)。既定は 100。
-   * ウォームアップは全フォロイーの `kind:10002` を 1 クエリで取得するため、
-   * 数百件がバーストで届く — デバウンス無しだと、そのたびに大域の貪欲選択
-   * (全セクション分) をやり直すことになる。
-   */
-  replanDebounceMs?: number;
 };
-
-/** `replanDebounceMs` の既定値。 */
-const DEFAULT_REPLAN_DEBOUNCE_MS = 100;
 
 /**
  * `#runReplan()` の `do/while` を打ち切るまでの最大反復回数 (final review,
@@ -241,6 +227,12 @@ export class SubscriptionManager {
   readonly #pool: ConnectionPool;
   readonly #entries = new Map<number, SectionEntry>();
   #nextEntryId = 0;
+  /**
+   * 要求していないのに送られてきたイベントの、リレーごとの件数
+   * (仕様 5.1)。**単調増加でリセットしない** —— 押し込んだ後に静かになった
+   * リレーが潔白に見えてはいけない。`ConnectionPool.peakSize` と同じ理屈。
+   */
+  readonly #unrequested = new Map<RelayUrl, number>();
   // #replanOnce() の再入を防ぐガード (fix round 1, Critical 2)。
   // connection.subscribe() は死んだ接続に対して同期的に onClosed を発火させ
   // ることがあり (Task 1)、その配信コールバックがマネージャへ再入する
@@ -258,24 +250,18 @@ export class SubscriptionManager {
   // 処理される。
   #replanning = false;
   #dirty = false;
-  // kind:10002 のバーストを 1 回の replan() に合流させるデバウンスタイマー
-  // (Task 10, ADR-0016 「解決後に張り直す」)。ConnectionPool の再接続タイマー
-  // と同じ注入口を共有する (下記コンストラクタ参照) が、レジストリは別物 —
-  // これは replan() 呼び出し自体を遅延させるためのタイマーで、個々の接続の
-  // 再接続タイマーとは無関係。
+  // ConnectionPool へそのまま渡す再接続タイマーの注入口 (下記コンストラクタ
+  // 参照)。マネージャ自身はもう独自のタイマーを持たない —— #scheduler を
+  // 経由するのは pool への受け渡しのみ。
   readonly #scheduler: Scheduler;
-  readonly #replanDebounceMs: number;
-  #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
-    this.#replanDebounceMs =
-      options.replanDebounceMs ?? DEFAULT_REPLAN_DEBOUNCE_MS;
     this.#pool = new ConnectionPool({
       connect: options.connect,
       maxConnections: options.maxConnections,
-      scheduler: options.scheduler,
+      scheduler: this.#scheduler,
       random: options.random,
     });
   }
@@ -308,6 +294,21 @@ export class SubscriptionManager {
   /** 手動再試行 (ADR-0021)。プールへそのまま委譲する。 */
   retryNow(): void {
     this.#pool.retryNow();
+  }
+
+  /**
+   * リレーごとに分けるのは、合計値だけでは行動に移せないため —— 「どこかが
+   * 嘘をついている」は情報だが「どのリレーが」は判断材料になる。合計は
+   * 呼び出し側で足すこと。
+   *
+   * 内部の Map をそのまま返さずコピーを返す (`SectionReader.items` と同じ規約)。
+   */
+  get unrequestedEventsByRelay(): ReadonlyMap<RelayUrl, number> {
+    return new Map(this.#unrequested);
+  }
+
+  #recordUnrequested(url: RelayUrl): void {
+    this.#unrequested.set(url, (this.#unrequested.get(url) ?? 0) + 1);
   }
 
   subscribe(
@@ -366,14 +367,6 @@ export class SubscriptionManager {
   }
 
   dispose(): void {
-    // 保留中のデバウンスタイマーを消す。消し忘れると、後で発火したときに
-    // #entries が空になった (あるいは新しい世代の) レジストリへ向けて
-    // replan() を走らせてしまう — dispose() 済みのマネージャは何も再プラン
-    // すべきではない。
-    if (this.#replanTimer !== null) {
-      this.#scheduler.clearTimeout(this.#replanTimer);
-      this.#replanTimer = null;
-    }
     // #pool.dispose() より前に全エントリを閉じたことにする (final review,
     // finding 3)。#pool.dispose() は各接続を close() するが、
     // FakeRelayConnection の close() はハンドラへ同期的に onClosed を配る
@@ -391,27 +384,6 @@ export class SubscriptionManager {
     // replan() がその「もう存在しない」エントリを生きたセクションとして扱い、
     // 需要をもう一度プールして再接続してしまう。
     this.#entries.clear();
-  }
-
-  /**
-   * `kind:10002` 到着による再プランをデバウンスする (Task 10)。ウォームアップ
-   * は全フォロイーの `kind:10002` を 1 クエリで取得するため数百件がバースト
-   * で届く — 1 件ごとに `replan()` (大域の貪欲選択を全セクション分やり直す)
-   * を呼ぶと、そのバーストの間だけで数百回選び直すことになる。
-   *
-   * 既にタイマーが立っていれば何もしない (最初の 1 件がタイマーを立て、
-   * 残りはそれに便乗する) — バースト全体が 1 回の `replan()` に合流する。
-   *
-   * `replan()` そのものは公開 API として同期のまま保つ (ウォームアップ完了時
-   * の明示呼び出しなど、即座に効くことを前提にしている呼び出し元がある) —
-   * デバウンスするのはあくまでこの内部経路だけ。
-   */
-  #scheduleReplan(): void {
-    if (this.#replanTimer !== null) return;
-    this.#replanTimer = this.#scheduler.setTimeout(() => {
-      this.#replanTimer = null;
-      this.replan();
-    }, this.#replanDebounceMs);
   }
 
   #normalizeExplicit(
@@ -707,7 +679,7 @@ export class SubscriptionManager {
         const pooled = this.#pool.subscribe(
           url,
           relayFilters,
-          this.#handlersFor(entry, url),
+          this.#handlersFor(entry, url, relayFilters),
         );
         open.subscription.close();
         if (entry.closed) {
@@ -739,7 +711,7 @@ export class SubscriptionManager {
       const pooled = this.#pool.subscribe(
         url,
         relayFilters,
-        this.#handlersFor(entry, url),
+        this.#handlersFor(entry, url, relayFilters),
       );
       if (entry.closed) {
         // pool.subscribe() が同期的に onClosed -> onRelayUnreachable を
@@ -768,70 +740,33 @@ export class SubscriptionManager {
     }
   }
 
-  #handlersFor(entry: SectionEntry, url: RelayUrl): RelaySubscriptionHandlers {
+  /**
+   * `filters` は「このリレーへ実際に送った REQ の中身」である。`entry.opened`
+   * を実行時に引かずクロージャで捕捉するのは、不変式をハンドラ生成時点で
+   * 閉じるため —— `#applyEntryDiff` が REQ を差し替えるときは必ず新しい
+   * ハンドラが作られるので、古い REQ に対応するハンドラが新しいフィルタで
+   * 判定する余地が構造的に消える。
+   */
+  #handlersFor(
+    entry: SectionEntry,
+    url: RelayUrl,
+    filters: RelayFilter[],
+  ): RelaySubscriptionHandlers {
     return {
       onEvent: (event) => {
         if (entry.closed) return;
+        // 信頼境界 (ADR-0023)。署名検証は *偽造* を止めるが *混入* は止めない。
+        // ここが `store.put` より前にあるのは意図的で、要求していないイベントの
+        // 洪水を浴びても払うのは文字列比較であって schnorr 検証ではない。
+        if (!matchesAnyFilter(event, filters)) {
+          this.#recordUnrequested(url);
+          return;
+        }
         const result = this.#options.store.put(event, url);
         // store.put() が "rejected" を返した (schnorr 検証に落ちた) イベント
-        // は、セクションへ配信しない (既存の挙動)。下の再プランの引き金も
-        // "inserted" だけに絞ってあるので "rejected" は二重に排除される —
-        // 改竄ペイロードで大域の貪欲選択 (全セクション分) を任意のタイミング
-        // で起こせてしまう、という安上がりな DoS を、片方が壊れてももう
-        // 片方で塞ぐ (Task 10)。
+        // は、セクションへ配信しない (既存の挙動)。
         if (result === "rejected") return;
         entry.delivery.onEvent(event.id, url);
-        // ADR-0016「未解決の著者は既定リレーへ暫定的に送信し、解決後に張り
-        // 直す」の後半をここで閉じる (Task 10)。EventStore には変更通知を
-        // 足していない — ADR-0018 で EventStore を読み取り層の内部へ降ろす
-        // 作業と衝突するため。ここ (マネージャが購読経由で実際に見たイベント)
-        // が唯一のフックである。
-        //
-        // 帰結: IndexedDB からの水和 (後続 #4) で入る kind:10002 はこの
-        // onEvent を一切通らない。水和を実装する側は、水和が終わった時点で
-        // 明示的に replan() を呼ぶ責務を負う — さもないと、起動直後に
-        // 既に分かっているはずの著者が、この再プランが効くまで暫定的な
-        // fallback 経路のまま置き去りにされる。
-        //
-        // ここは `result === "inserted"` で絞る — `!== "rejected"` ではない。
-        // 「セクションへ配信するか」(上の `entry.delivery.onEvent`) と
-        // 「再プランを起こすか」は別の問いである。配信側を "inserted" だけに
-        // 絞るのは過去に Critical バグだった (共有ストアでは 2 番目に見た
-        // セクションが "duplicate" を受け取り、何も配信されなくなる) が、
-        // ルーティングの再計算はそれとは別の話: "duplicate" は
-        // `EventStore.put` が `#indexReplaceable` に触れずに返す (id が既に
-        // 存在する) ので、ルーティング表が変わりようがない。ここで
-        // "duplicate" まで拾うと、既に知っている kind:10002 を送り続けるだけ
-        // のリレー 1 本が、新しい情報ゼロのまま大域の貪欲選択を無限に起こせて
-        // しまう — decision 2 が塞いだのと同じ種類の安上がりな引き金が、
-        // ガードの見ていない経路から入ってくる。
-        //
-        // ただし "inserted" だけでは再送 (リプレイ) 亜種しか塞げない
-        // (final review, finding 5)。ローカルでのフィルタ再照合を意図的に
-        // 持たない (docs/design/read-layer-followups.md の既知の繰延事項)
-        // ため、リレーは新しい鍵ペアを無制限に作り、有効な署名付き
-        // kind:10002 を無制限に作れる。1 通ごとに `verifyEvent` は通り、
-        // `store.put` は毎回 "inserted" を返し、そのたびにこの再プランの
-        // 引き金を引ける — 攻撃者側のコストは 1 デバウンス窓あたり署名 1 回、
-        // クライアント側のコストは schnorr 検証 1 回に加え、大域の貪欲選択
-        // (全セクション分) を丸ごと 1 回。イベントの `pubkey` が、登録済み
-        // のどれかのセクションの需要 (`filter.authors`) に実際に載っている
-        // ことも合わせて要求する — これで、リレーが再プランを強制できるのは
-        // 「実際にフォローしている著者について、本当に新しい relay list を
-        // 届けたとき」に限られる。ちょうど再プランしたい場合そのものである。
-        //
-        // 上のコメントの旧版は「このデバウンスがウォームアップのバースト
-        // から守る」と書いていたが、それは誤りだった。ウォームアップの
-        // イベントは `bootstrap.ts` 自身のハンドラを通り、`#handlersFor` を
-        // 一切通らない。今日この経路に届きうる唯一の送信元は、リレーが
-        // 要求されていないイベントを push してくる場合である。
-        if (
-          result === "inserted" &&
-          event.kind === 10002 &&
-          this.#isDemandedAuthor(event.pubkey)
-        ) {
-          this.#scheduleReplan();
-        }
       },
       onEose: () => {
         if (!entry.closed) entry.delivery.onRelayComplete(url);
@@ -840,23 +775,5 @@ export class SubscriptionManager {
         if (!entry.closed) entry.delivery.onRelayUnreachable(url);
       },
     };
-  }
-
-  /**
-   * `pubkey` が、登録済みのどれかのセクションの需要 (`filter.authors`) に
-   * 実際に載っているか (final review, finding 5)。`kind:10002` 到着による
-   * 再プランを「実際にフォローしている著者」に絞るためだけに使う —
-   * 明示リレーのセクション (`entry.explicitRelays !== undefined`) はそもそも
-   * ルーティングをバイパスするので、その `filters.authors` もここでの判定に
-   * 使ってよい (どのみち `#replanOnce` の需要プールには入らないが、この
-   * 著者を実際に「求めている」という事実自体は変わらない)。
-   */
-  #isDemandedAuthor(pubkey: string): boolean {
-    for (const entry of this.#entries.values()) {
-      for (const filter of entry.filters) {
-        if (filter.authors?.includes(pubkey)) return true;
-      }
-    }
-    return false;
   }
 }

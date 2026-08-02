@@ -101,46 +101,6 @@ const relayListFor = (
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
-// Like relayListFor, but an ordinary kind:1 note -- for pinning that the
-// re-plan-on-kind:10002 hook (Task 10) does not fire for every event that
-// flows through the manager, only the routing-relevant kind.
-const noteBy = (pubkey: string): NostrEvent => {
-  const seed = seedByPubkey.get(pubkey);
-  if (seed === undefined) {
-    throw new Error(
-      `noteBy: ${pubkey} was not minted via pubkeyFor, cannot sign for it`,
-    );
-  }
-  return signed(seed, { kind: 1 });
-};
-
-// Task 10's burst test needs many distinct authors without colliding with
-// seeds used elsewhere in this file; offset well clear of every other range.
-const authorAt = (i: number): string => pubkeyFor(90_000 + i);
-
-// Delivers `event` on `connection`'s current live subscription. The manager
-// re-opens/restarts subscriptions across replans, so "subscription 0" isn't
-// always the right index once a section has already been re-planned once --
-// this picks the most recently opened one that hasn't been closed instead of
-// hard-coding an index.
-const emitEvent = (
-  connection: FakeRelayConnection | undefined,
-  event: NostrEvent,
-): void => {
-  if (!connection) throw new Error("test setup: connection missing");
-  let index = -1;
-  for (let i = connection.subscriptions.length - 1; i >= 0; i--) {
-    if (!connection.subscriptions[i].closed) {
-      index = i;
-      break;
-    }
-  }
-  if (index === -1) {
-    throw new Error("test setup: connection has no active subscription");
-  }
-  connection.emitEvent(index, event);
-};
-
 const noopDelivery = (): SectionDelivery => ({
   onEvent: () => {},
   onRelayComplete: () => {},
@@ -186,11 +146,7 @@ const createFakeClock = (): TestScheduler & { advance(ms: number): void } => {
 type CreateManagerOptions = Partial<
   Pick<
     SubscriptionManagerOptions,
-    | "maxConnections"
-    | "redundancy"
-    | "fallbackRelays"
-    | "scheduler"
-    | "replanDebounceMs"
+    "maxConnections" | "redundancy" | "fallbackRelays" | "scheduler"
   >
 >;
 
@@ -213,7 +169,6 @@ const createManager = (options: CreateManagerOptions = {}) => {
     maxConnections: options.maxConnections,
     redundancy: options.redundancy,
     scheduler: options.scheduler,
-    replanDebounceMs: options.replanDebounceMs,
   });
   return { manager, store, connections, connectCalls };
 };
@@ -1592,41 +1547,6 @@ describe("SubscriptionManager", () => {
   });
 
   // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 5: the "inserted" gate (below) stops
-  // a relay from forcing a re-plan by *replaying* a known kind:10002, but
-  // local filter re-matching is deliberately absent (documented follow-up),
-  // so a relay can mint unlimited fresh keypairs and sign unlimited valid
-  // kind:10002 events for authors nobody follows. Each is genuinely new ->
-  // "inserted" -> a global re-plan, for the cost of one signature. The fix
-  // additionally requires the event's pubkey to be in some registered
-  // section's demand (filter.authors).
-  // ---------------------------------------------------------------------
-  it("schedules a re-plan for a followed author's kind:10002 but not for an unfollowed author's", () => {
-    const AUTHOR = pubkeyFor(80_007);
-    const STRANGER = pubkeyFor(80_008);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
-    const replanSpy = vi.spyOn(manager, "replan");
-
-    // STRANGER is not in this (or any) section's filter.authors. A relay
-    // can mint an unlimited number of these, and each one is a genuinely
-    // new, validly-signed kind:10002 -- gating only on EventStore's
-    // "inserted" result does not stop it.
-    emitEvent(
-      connections.get("wss://fallback/"),
-      relayListFor(STRANGER, ["wss://stranger-write/"]),
-    );
-    clock.advance(100);
-    expect(replanSpy).not.toHaveBeenCalled();
-
-    emitEvent(
-      connections.get("wss://fallback/"),
-      relayListFor(AUTHOR, ["wss://author-write/"]),
-    );
-    clock.advance(100);
-    expect(replanSpy).toHaveBeenCalledTimes(1);
-  });
-
-  // ---------------------------------------------------------------------
   // Fix round 1, Important 2: Task 9 added ConnectionPool.retryNow() and
   // ConnectionPoolOptions.scheduler/random, with SubscriptionManager meant
   // to delegate/pass them straight through -- but no test here exercised
@@ -1697,170 +1617,175 @@ describe("SubscriptionManager", () => {
     clock.advance(1);
     expect(connectCalls).toHaveLength(2);
   });
+});
 
-  // ---------------------------------------------------------------------
-  // Task 10: closes the ADR-0016 loop. A section provisionally routed to
-  // the fallback relays for an author whose kind:10002 isn't known yet must
-  // be re-planned once that relay list actually arrives -- and warm-up
-  // delivers it as a burst (one query fetches every followee's kind:10002
-  // at once), so the re-plan has to be debounced through the injected
-  // scheduler rather than firing per event.
-  // ---------------------------------------------------------------------
-  it("re-plans after a kind:10002 arrives", () => {
-    const AUTHOR = pubkeyFor(80_001);
-    const { connections, plans, clock } = createManagerWithSection([AUTHOR]);
-    expect(plans.at(-1)?.relays).toEqual(["wss://fallback/"]);
-
-    // The fallback relay is the one that ends up delivering the author's own
-    // kind:10002 (this is exactly the provisional-fallback path ADR-0016
-    // describes).
-    emitEvent(
-      connections.get("wss://fallback/"),
-      relayListFor(AUTHOR, ["wss://author-write/"]),
+describe("ローカルフィルタ照合 (信頼境界)", () => {
+  // 要求していないイベントを押し込むリレーを作る。明示リレー経路を使うのは、
+  // ルーティングを介さずに「このリレーへこのフィルタを送った」を固定できるため。
+  const setupExplicit = () => {
+    const { relays, store, manager, delivery } = setup();
+    const d = delivery();
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [signed(1).pubkey] }],
+      ["wss://liar/"],
+      d,
     );
-    clock.advance(100);
+    const relay = relays.get("wss://liar/");
+    if (!relay) throw new Error("relay was not opened");
+    return { relay, store, manager, delivery: d, handle };
+  };
 
-    expect(plans.at(-1)?.relays).toEqual(["wss://author-write/"]);
+  it("要求していないイベントはストアにも配信にも到達しない", () => {
+    const { relay, store, manager, delivery } = setupExplicit();
+    // 著者が違う (seed 2)。署名は本物なので schnorr では落ちない。
+    const intruder = signed(2);
+
+    relay.emitEvent(0, intruder);
+
+    expect(store.get(intruder.id)).toBeUndefined();
+    expect(delivery.onEvent).not.toHaveBeenCalled();
+    expect(manager.unrequestedEventsByRelay.get("wss://liar/")).toBe(1);
   });
 
-  // Brief round-trip note: the brief's version of this test measured the
-  // burst's effect through `plans.length` (onPlanChanged call count), the
-  // same signal the first test above uses. That doesn't actually pin
-  // debouncing on its own -- spying on `replan()` itself observes the
-  // mechanism directly instead. (All 50 authors here are members of this
-  // section's own filter -- finding 5's followed-author gate requires that
-  // for `#scheduleReplan()` to fire at all, matching how a real warm-up
-  // burst behaves: it is a burst of kind:10002s for followees the app
-  // actually asked about.)
-  it("debounces a burst of relay lists into one re-plan, and re-arms for the next burst", () => {
-    // Small enough (well under the default budget of 30) that every
-    // author's own relay is guaranteed to be picked -- the re-arm probe
-    // below needs to know exactly which connection author[0] ends up on.
-    const authors = Array.from({ length: 10 }, (_, i) => authorAt(i));
-    const { manager, connections, clock } = createManagerWithSection(authors);
-    const replanSpy = vi.spyOn(manager, "replan");
+  it("要求したイベントは通り、カウンタは増えない", () => {
+    const { relay, store, manager, delivery } = setupExplicit();
+    const wanted = signed(1);
 
-    for (let i = 0; i < authors.length; i += 1) {
-      emitEvent(
-        connections.get("wss://fallback/"),
-        relayListFor(authors[i], [`wss://w${i}/`]),
-      );
-    }
-    expect(replanSpy).not.toHaveBeenCalled();
+    relay.emitEvent(0, wanted);
 
-    clock.advance(100);
+    expect(store.get(wanted.id)).toBeDefined();
+    expect(delivery.onEvent).toHaveBeenCalledWith(wanted.id, "wss://liar/");
+    expect(manager.unrequestedEventsByRelay.get("wss://liar/")).toBeUndefined();
+  });
 
-    // Warm-up is a burst of kind:10002s. It must not trigger one re-plan
-    // per event.
-    expect(replanSpy).toHaveBeenCalledTimes(1);
-
-    // Final whole-branch review, finding 7: #scheduleReplan's callback used
-    // to reset #replanTimer = null *and* nothing pinned that the debounce
-    // window is re-armable after it fires once. A second, later burst (a
-    // second warm-up, or a relay pushing an update long after the first)
-    // must still schedule its own re-plan -- not be silently swallowed
-    // because the first window already "used up" scheduling forever.
-    // author[0] is now routed to its own wss://w0/ (the burst resolved),
-    // not the fallback relay it started on.
-    emitEvent(
-      connections.get("wss://w0/"),
-      // A later created_at than the first burst's so EventStore's
-      // created-at-max replaceable rule (ADR-0016) unambiguously treats
-      // this as a genuine newer version ("inserted"), not a tie broken by
-      // id comparison.
-      relayListFor(authors[0], ["wss://w0-updated/"], 1_700_000_100),
+  it("カウンタはリレーごとに分かれる", () => {
+    const { relays, manager, delivery } = setup();
+    manager.subscribe(
+      [{ kinds: [1], authors: [signed(1).pubkey] }],
+      ["wss://a/", "wss://b/"],
+      delivery(),
     );
-    clock.advance(100);
+    const a = relays.get("wss://a/");
+    const b = relays.get("wss://b/");
+    if (!a || !b) throw new Error("relays were not opened");
 
-    expect(replanSpy).toHaveBeenCalledTimes(2);
+    a.emitEvent(0, signed(2));
+    a.emitEvent(0, signed(3));
+    b.emitEvent(0, signed(4));
+
+    expect(manager.unrequestedEventsByRelay.get("wss://a/")).toBe(2);
+    expect(manager.unrequestedEventsByRelay.get("wss://b/")).toBe(1);
   });
 
-  // Fix round 1, Important 1: this used to assert on `plans.length`, the same
-  // signal proven insensitive by the burst test above -- and for a subtler
-  // reason than the burst test's "wrong author". A rejected event is never
-  // actually indexed by EventStore.put() (verifyEvent() failed, so nothing
-  // was written), so even a *completely unguarded* manager that called
-  // scheduleReplan() unconditionally would trigger a replan() that finds the
-  // routing table unchanged and therefore never fires onPlanChanged. The
-  // signal can't tell "guarded, never asked" from "unguarded, asked and
-  // found nothing new" apart. Spying on replan() observes whether the ask
-  // happened at all, independent of what a downstream replan() finds.
-  it("does not re-plan for ordinary events", () => {
-    const AUTHOR = pubkeyFor(80_003);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
-    const replanSpy = vi.spyOn(manager, "replan");
+  it("カウンタは単調増加で、外から書き換えられない", () => {
+    const { relay, manager } = setupExplicit();
+    relay.emitEvent(0, signed(2));
 
-    emitEvent(connections.get("wss://fallback/"), noteBy(AUTHOR));
-    clock.advance(100);
+    const snapshot = manager.unrequestedEventsByRelay;
+    (snapshot as Map<RelayUrl, number>).set("wss://liar/", 999);
 
-    expect(replanSpy).not.toHaveBeenCalled();
+    // アクセサはコピーを返すので、内部状態は汚染されない。
+    expect(manager.unrequestedEventsByRelay.get("wss://liar/")).toBe(1);
   });
 
-  it("does not re-plan for a kind:10002 EventStore rejects (bad signature)", () => {
-    const AUTHOR = pubkeyFor(80_004);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
-    const replanSpy = vi.spyOn(manager, "replan");
+  it("同じリレー上の各購読が、それぞれ自分のフィルタで判定される", () => {
+    // クロージャ捕捉が効いていることの主張。同じ接続の上に 2 セクション分の
+    // REQ が並ぶ状況で、片方だけが要求している著者のイベントを *もう片方の*
+    // 購読へ流す。`entry.opened` を実行時に引く実装や、フィルタを 1 つに
+    // 混ぜてしまう実装だと、これが通ってしまう。
+    //
+    // 1 本目を close() してから 2 本目を張る形にしてはならない ——
+    // エントリが 0 になるとプールが接続を落とし、再購読で `connect()` が
+    // 二度呼ばれて setup() のガード (`connect called twice`) に当たる。
+    const { relays, store, manager, delivery } = setup();
+    const authorOne = signed(1).pubkey;
+    const authorTwo = signed(2).pubkey;
+    const dOne = delivery();
+    const dTwo = delivery();
 
-    const forged = {
-      ...relayListFor(AUTHOR, ["wss://author-write/"]),
-      content: "tampered",
-    };
-    emitEvent(connections.get("wss://fallback/"), forged);
-    clock.advance(100);
-
-    // A relay must not be able to force a re-plan by pushing a malformed or
-    // unverifiable kind:10002 -- store.put() returning "rejected" must not
-    // reach the debounce hook at all (cheap DoS otherwise).
-    expect(replanSpy).not.toHaveBeenCalled();
-  });
-
-  // Fix round 1, Important 2: the hook used to gate on `result !== "rejected"`,
-  // which also let a "duplicate" result through. EventStore.put() returns
-  // "duplicate" for an already-stored id without touching #indexReplaceable
-  // -- the routing table provably cannot have changed -- so an already
-  // -connected relay that keeps re-delivering a kind:10002 the client already
-  // has could force a full global greedy re-selection every debounce window,
-  // indefinitely, for zero new information. Gating on `=== "inserted"`
-  // closes that: only a genuine insert (a first sighting, or a newer
-  // replaceable version with a different id) can change routing.
-  it("schedules a re-plan for the first delivery of a kind:10002, but not for a duplicate of the same event", () => {
-    const AUTHOR = pubkeyFor(80_006);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
-    const replanSpy = vi.spyOn(manager, "replan");
-    const relayList = relayListFor(AUTHOR, ["wss://author-write/"]);
-
-    emitEvent(connections.get("wss://fallback/"), relayList);
-    clock.advance(100);
-    expect(replanSpy).toHaveBeenCalledTimes(1);
-
-    // The exact same event (same id) arrives again -- now via the relay the
-    // author itself just got routed to, the ordinary way a second copy of an
-    // already-known kind:10002 would show up. EventStore.put() returns
-    // "duplicate" here, not "inserted".
-    emitEvent(connections.get("wss://author-write/"), relayList);
-    clock.advance(100);
-
-    expect(replanSpy).toHaveBeenCalledTimes(1);
-  });
-
-  // Final whole-branch review, finding 7: this used to assert on
-  // `plans.length`, which cannot fail -- dispose() also clears #entries, so
-  // no onPlanChanged can fire regardless of whether the debounce timer was
-  // actually cancelled. Its siblings above (the burst/duplicate/rejected
-  // tests) already spy on `replan()` directly; do the same here so a
-  // regression that leaves the timer armed is actually caught.
-  it("cancels a pending debounced re-plan on dispose()", () => {
-    const AUTHOR = pubkeyFor(80_005);
-    const { manager, connections, clock } = createManagerWithSection([AUTHOR]);
-    const replanSpy = vi.spyOn(manager, "replan");
-
-    emitEvent(
-      connections.get("wss://fallback/"),
-      relayListFor(AUTHOR, ["wss://author-write/"]),
+    manager.subscribe(
+      [{ kinds: [1], authors: [authorOne] }],
+      ["wss://x/"],
+      dOne,
     );
-    manager.dispose();
+    manager.subscribe(
+      [{ kinds: [1], authors: [authorTwo] }],
+      ["wss://x/"],
+      dTwo,
+    );
 
-    expect(() => clock.advance(100)).not.toThrow();
+    const relay = relays.get("wss://x/");
+    if (!relay) throw new Error("relay was not opened");
+    expect(relay.subscriptions).toHaveLength(2);
+
+    // 著者 1 のイベントを、著者 2 だけを要求している購読 (index 1) へ流す。
+    const wantedByTheOtherSection = signed(1);
+    relay.emitEvent(1, wantedByTheOtherSection);
+
+    expect(dTwo.onEvent).not.toHaveBeenCalled();
+    expect(store.get(wantedByTheOtherSection.id)).toBeUndefined();
+    expect(manager.unrequestedEventsByRelay.get("wss://x/")).toBe(1);
+  });
+
+  it("フォロー中の著者の kind:10002 を push されても replan() は呼ばれない", () => {
+    // 削除した引き金 (仕様 6 節) が復活していないことの主張。
+    //
+    // fix round 1, finding 1: この主張には 2 つの落とし穴があった。
+    //
+    // (1) 実スケジューラのまま同期的に判定すると非可反証だった —— 削除した
+    // #scheduleReplan() は setTimeout 経由のデバウンスだったので、トリガーが
+    // 復活していてもその場では何も起きず、assertion はどのみち通ってしまう。
+    // 偽クロックを注入し、あり得るデバウンス幅 (かつての既定は 100ms) を
+    // 十分に超えて時間を進めてから判定する。
+    //
+    // (2) セクションのフィルタを `{ kinds: [1], authors }` のままにすると、
+    // 照合器 (このタスクの本体、恒久的に残る) 自体が kind:10002 をどのみち
+    // 落とすので、引き金が復活していてもそこへ辿り着けず、この主張は別の
+    // 理由でやはり非可反証になる。フィルタから kinds を外し、この著者からの
+    // どんな kind でも照合器を通過するようにする —— この一点だけを許して、
+    // それでも引き金が引かれないことを主張する。
+    //
+    // 「デバウンスタイマーが積まれないこと」ではなく `replan()` 自体を直接
+    // スパイする —— 明示リレー購読では `replan()` が呼ばれても計画
+    // (relays の集合) は変化しないため、`onPlanChanged` はここでは何も
+    // 検出できない弱い信号になる (削除した Task 10 のテスト群がまさに
+    // この理由で `replan()` を直接見ていた)。
+    const clock = createFakeClock();
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const existing = relays.get(url);
+        if (existing) throw new Error(`connect called twice for ${url}`);
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+      scheduler: clock,
+    });
+    const replanSpy = vi.spyOn(manager, "replan");
+    const author = signed(1).pubkey;
+    manager.subscribe([{ authors: [author] }], ["wss://x/"], noopDelivery());
+    const relay = relays.get("wss://x/");
+    if (!relay) throw new Error("relay was not opened");
+
+    // その著者本人の、まだ誰も知らない kind:10002。かつては再プランの引き金
+    // だった。フィルタに kinds 指定が無いので照合器は通過する
+    // (store.put() は "inserted" を返す)。
+    relay.emitEvent(
+      0,
+      signed(1, {
+        kind: 10002,
+        created_at: 1_800_000_000,
+        tags: [["r", "wss://newly-declared/", "write"]],
+      }),
+    );
+    // かつてのデバウンス窓 (既定 100ms) を大きく超えて進める。
+    clock.advance(1000);
+
     expect(replanSpy).not.toHaveBeenCalled();
   });
 });
