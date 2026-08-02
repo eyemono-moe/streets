@@ -96,6 +96,30 @@ export const seedOutboxFixture = async (): Promise<void> => {
   );
 };
 
+/**
+ * 著者 B としてリレー2 へ 1 通発行する。`seedOutboxFixture` と違い
+ * **テストの実行中に**呼ぶためのもの (e2e/relay-recovery.spec.ts)。
+ *
+ * `created_at` は固定の `now` ではなく実時間を使う。リレーの DB は
+ * `./data/nostr-rs-relay-2/db` に永続するので、内容も呼び出し側が
+ * 実行ごとに変えないと、2 回目以降の実行では「切断中に発行したはずの
+ * 投稿」が最初から取得できてしまい、復帰の主張が自明に通ってしまう。
+ */
+export const publishNoteAsAuthorB = async (content: string): Promise<void> => {
+  const two = await Relay.connect(relayTwoUrl);
+  await publish(
+    two,
+    {
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content,
+    },
+    authorBSecretKey,
+  );
+  two.close();
+};
+
 if (import.meta.url === `file://${process.argv[1]}`) {
   await seedOutboxFixture();
 }

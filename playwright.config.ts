@@ -5,15 +5,18 @@ export default defineConfig({
   globalSetup: "./e2e/global-setup.ts",
   retries: 0,
   reporter: "line",
-  // 複数の spec ファイルが同じローカルリレー (8080/8081) を共有している。
-  // 既定の並列 worker だと、あるファイルの `docker compose stop
-  // nostr-rs-relay-2`（relay-recovery.spec.ts）が、別ファイルの
-  // リレー2 依存の主張（v1-section.spec.ts の outbox ルーティング、
-  // connection-budget.spec.ts の budgetNoteTwoText/uncovered）と同時に
-  // 走りうる。ファイル間の依存関係を毎回把握して spec を書くよりも、
-  // 全体を 1 worker に固定して「異なるファイルの e2e は同時に走らない」
-  // という不変条件を機構で保証するほうが安全 (Task 13 fix round 1)。
-  // このスイートは小さい (現状 12 テスト) ので、直列化の時間コストは許容範囲。
+  // 複数の spec ファイルが同じローカルリレー (8080/8081) を共有しており、
+  // 読むだけでなく書く spec もある — relay-recovery.spec.ts は実行中に
+  // リレー2 へ kind:1 を 1 通発行する。並列だと、それが v1-section.spec.ts
+  // や connection-budget.spec.ts の主張の最中に届きうる。ファイル間の
+  // 依存関係を毎回把握して spec を書くよりも、全体を 1 worker に固定して
+  // 「異なるファイルの e2e は同時に走らない」という不変条件を機構で
+  // 保証するほうが安全 (Task 13 fix round 1)。
+  // このスイートは小さい (現状 9 テスト) ので、直列化の時間コストは許容範囲。
+  //
+  // なお当初この設定は relay-recovery.spec.ts の `docker compose stop/start`
+  // を隔離するためのものだったが、その stop/start 自体を廃止した
+  // (spec 冒頭のコメント参照)。共有リレーへの書き込みという理由の方は残る。
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:4173",
