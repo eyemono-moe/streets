@@ -185,8 +185,25 @@ describe("matchesFilter は全域関数である", () => {
       { ...base, tags: [["e", ID]] },
       { "#e": ID } as unknown as RelayFilter,
     ],
+    ["filter が null", base, null as unknown as RelayFilter],
+    ["filter が undefined", base, undefined as unknown as RelayFilter],
   ])("投げない: %s", (_name, event, filter) => {
     expect(() => matchesFilter(event as NostrEvent, filter)).not.toThrow();
     expect(typeof matchesFilter(event as NostrEvent, filter)).toBe("boolean");
+  });
+
+  it("matchesAnyFilter の filters 配列に null 要素が混ざっていても投げない", () => {
+    expect(() =>
+      matchesAnyFilter(ev(), [
+        { authors: [A] },
+        null as unknown as RelayFilter,
+      ]),
+    ).not.toThrow();
+    expect(
+      typeof matchesAnyFilter(ev(), [
+        { authors: [A] },
+        null as unknown as RelayFilter,
+      ]),
+    ).toBe("boolean");
   });
 });

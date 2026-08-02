@@ -18,6 +18,7 @@ export const matchesFilter = (
   filter: RelayFilter,
 ): boolean => {
   if (typeof event !== "object" || event === null) return false;
+  if (typeof filter !== "object" || filter === null) return false;
 
   // `limit` と `search` はここで一切読まない。それがこの 2 つを「照合条件では
   // ない」と扱うことの実装である。NIP-01: "The limit property of a filter is
