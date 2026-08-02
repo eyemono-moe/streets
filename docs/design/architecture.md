@@ -175,34 +175,37 @@ sequenceDiagram
   participant UI as UI
 
   R->>SUB: ["EVENT", subId, event]
-  rect rgba(200,80,80,0.15)
-    Note over SUB: ローカル再マッチ ― 未実装<br/>いまは届いたものをそのまま通す
+  SUB->>SUB: matchesAnyFilter(event, filters)?
+  alt 不一致（要求していないイベント）
+    SUB->>SUB: unrequestedEventsByRelay を加算
+    Note over SUB: ここで止める。schnorr 検証は走らない
+  else 一致
+    SUB->>ES: put(event, relay)
+    alt 未知の ID
+      ES->>ES: isNostrEvent → id 再計算 → schnorr
+      ES-->>SUB: "inserted"
+    else 既知の ID
+      Note over ES: 署名検証はしない（安価）<br/>ID 再計算が一致すれば<br/>seenRelays に記録
+      ES-->>SUB: "duplicate"
+    else 検証失敗
+      ES-->>SUB: "rejected"
+    end
+    SUB->>SEC: この ID はあなたのもの
+    SEC->>SEC: メンバーシップに追加<br/>500 件上限・並び順
+    SEC->>ES: get(id) で本体を引く
+    SEC->>UI: items / status を更新
   end
-  SUB->>ES: put(event, relay)
-  alt 未知の ID
-    ES->>ES: isNostrEvent → id 再計算 → schnorr
-    ES-->>SUB: "inserted"
-  else 既知の ID
-    Note over ES: 署名検証はしない（安価）<br/>ID 再計算が一致すれば<br/>seenRelays に記録
-    ES-->>SUB: "duplicate"
-  else 検証失敗
-    ES-->>SUB: "rejected"
-  end
-  SUB->>SEC: この ID はあなたのもの
-  SEC->>SEC: メンバーシップに追加<br/>500 件上限・並び順
-  SEC->>ES: get(id) で本体を引く
-  SEC->>UI: items / status を更新
 ```
 
-**`"rejected"` 以外はセクションに渡る。** `"duplicate"` を弾くと、store を共有した 2 つ目以降のセクションが空になり、IndexedDB 水和後は全セクションが空になる。ただしセクションが並べるのは**リレーが送ってきたオブジェクトではなく store の検証済みコピー**である。既知の ID を再利用した偽造イベントを弾くのがこの一手である。
+**照合を通ったイベントについて、`"rejected"` 以外はセクションに渡る。** `"duplicate"` を弾くと、store を共有した 2 つ目以降のセクションが空になり、IndexedDB 水和後は全セクションが空になる。ただしセクションが並べるのは**リレーが送ってきたオブジェクトではなく store の検証済みコピー**である。既知の ID を再利用した偽造イベントを弾くのがこの一手である。
 
 ### 署名検証は偽造を止めるが混入を止めない
 
-図の赤い箇所が現時点の穴である。**購読に届いたものをそのままセクションへ載せている。** 署名検証が保証するのは「この pubkey が確かにこの内容に署名した」ことだけで、「それが自分の要求したものか」は何も言わない。リレーは、フォローしていない人の正当なイベントや別 kind のイベントを、そのカラムへ押し込める。
+署名検証が保証するのは「この pubkey が確かにこの内容に署名した」ことだけで、「それが自分の要求したものか」は何も言わない。リレーは、フォローしていない人の正当なイベントや別 kind のイベントを、そのカラムへ押し込める。
 
 [ADR-0005](../adr/0005-outbox-model-from-v1.md) の Outbox がこの面積を実質的に広げた。**セクションが話しかけるリレー集合を決めるのが、ユーザー自身ではなくフォローしている著者になった**ためである。フォロー相手の `kind:10002` が、こちらがどのリレーに繋ぐかを決めている。
 
-対処は NIP-01 のフィルタ意味論（`since ≤ created_at ≤ until`、タグは共通要素が 1 つ以上、複数フィルタは OR）を自前で実装して突き合わせること。[ADR-0023](../adr/0023-centralized-subscription-manager.md) は当初これを購読マージの帰結として記録していたが、**マージの有無に関係なく必要である**（2026-08-01 訂正）。**デッキとカラムを実ユーザーに出す前に閉じること。**
+**解消済み（2026-08-02）。** 図のとおり門を 1 つから 2 つに増やした —— **照合 → 検証**の順である。NIP-01 のフィルタ意味論（`since ≤ created_at ≤ until`、タグは共通要素が 1 つ以上、複数フィルタは OR）を自前で実装した `matchesFilter` / `matchesAnyFilter`（`src/core/read/filter-match.ts`、依存ゼロの純粋関数）が最初の門になる。**照合を検証より先に置くのは、照合の方が schnorr 検証より安いためである** —— 要求していないイベントの洪水を浴びても、払うコストは文字列比較であって暗号検証ではない。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）とブートストラップ側の `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から見える。[ADR-0023](../adr/0023-centralized-subscription-manager.md) は当初これを購読マージの帰結として記録していたが、**マージの有無に関係なく必要だった**（2026-08-01 訂正）。設計の詳細は [local-filter-matching 仕様](../superpowers/specs/2026-08-02-local-filter-matching-design.md)。
 
 ---
 
@@ -294,7 +297,7 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 - **30 接続上限。** `ConnectionPool` が唯一の接続開設点になり（[ADR-0023](../adr/0023-centralized-subscription-manager.md)）、`MAX_CONNECTIONS = 30`（[ADR-0011](../adr/0011-performance-budget.md)）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。予算超過で開けなかったリレーは黙って消えず `incomplete.uncoveredAuthors` / `incomplete.unreachableRelays` として表面化する（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
 - **リレーの選択。** 著者ごとに先頭 3 本を取って和集合にする方式から、`selectRelays`（`src/core/read/relay-selector.ts`、[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md)）による貪欲被覆選択へ置き換えた。ピン留めしたリレーを優先しつつ、残り予算を「まだ被覆していない著者数が多い順」に貪欲へ埋める。
-- **生きているセクションの張り直し。** `kind:10002` の到着で `SubscriptionManager` がデバウンスして再計画し、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted` でセクションへ通知する（[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半）。接続自体は張り直さない（同一プール接続で close + subscribe）ので「開き直さない」保証は保たれる。
+- **生きているセクションの張り直し。** 公開 `replan()` を呼ぶと再計画され、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted` でセクションへ通知する（[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半）。接続自体は張り直さない（同一プール接続で close + subscribe）ので「開き直さない」保証は保たれる。**`kind:10002` の到着を引き金に自動で呼ぶ経路は無い** —— [ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 6 節がこの引き金を削除した。呼ぶのは水和や再ウォームアップなど明示的な入口のみ（[ADR-0016](../adr/0016-routing-bootstrap.md)）。
 - **再接続・バックオフ。** `ConnectionPool` がソケットの自然死を `RelayConnection.onClose` で検知し、指数バックオフ（初回 1 秒・上限 60 秒）＋ジッタで再接続する。**永久に諦めない**（[ADR-0021](../adr/0021-reconnection-policy.md)、`accepted`）。切断中は `incomplete.unreachableRelays` に計上され続け、復帰すれば自然に減る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` でのみ確かめられる（10節）。
 
 **死んだ接続がプールに残り続ける欠陥も解消済み。** `RelayConnection`（3節）に `onClose` を足し、プールが「ソケットの死」を検知して即座に予算とレジストリから外すようにした。

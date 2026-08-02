@@ -43,9 +43,14 @@ export type Scheduler = {
 };
 
 /**
- * `SubscriptionManager` の再プランのデバウンスタイマー (Task 10) もこの既定値を
- * 共有する — 読み取り層のどこであれ「注入されなければ実タイマー」という規約を
- * 一箇所にしておくため、export してある。
+ * `SubscriptionManager` はこの既定値をそのまま `ConnectionPool` へ渡している
+ * (`subscription-manager.ts:260`) — マネージャ自身はもう独自のタイマーを
+ * 持たない。かつては `SubscriptionManager` 自身の再プランのデバウンスタイマー
+ * もこれを共有していたが、そのタイマーは後続 #4 (ローカルフィルタ照合、
+ * docs/superpowers/specs/2026-08-02-local-filter-matching-design.md 6 節) で
+ * 削除された。今この export が生きている理由は「読み取り層のどこであれ
+ * "注入されなければ実タイマー" という規約を一箇所にしておく」ことと、
+ * `ConnectionPool` の再接続タイマー (ADR-0021) がこれを使うことの 2 つのみ。
  */
 export const defaultScheduler: Scheduler = {
   setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),

@@ -16,7 +16,7 @@ test("warms up the routing table from the bootstrap relay", async ({
   await page.goto(debugUrl);
 
   await expect(page.getByTestId("warmup")).toHaveText(
-    "followees: 2 / routed: 2 / unroutable: 0",
+    "followees: 2 / routed: 2 / unroutable: 0 / unrequested: 0",
     { timeout: 15_000 },
   );
 });

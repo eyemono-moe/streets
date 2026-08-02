@@ -7,6 +7,7 @@ import type {
 import type { ConnectionPool, PooledSubscription } from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
+import { matchesAnyFilter } from "./filter-match";
 
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;
@@ -17,12 +18,23 @@ const DEFAULT_TIMEOUT_MS = 10_000;
  * 持たない (それは `collect()` の仕事)。
  */
 const NEVER_MATCHING_ID = "0".repeat(64);
-/** アンカー購読のハンドラ。何も読み取らない。 */
-const ANCHOR_HANDLERS: RelaySubscriptionHandlers = {
-  onEvent: () => {},
+/**
+ * アンカー購読のハンドラを作る。何も読み取らない —— ただしフィルタが
+ * `{ids:[NEVER_MATCHING_ID]}` である以上、この subId へ届く `EVENT` は構造上
+ * 必ず要求していないもの (信頼境界、ADR-0023) なので、`onCount` でその件数を
+ * 呼び出し元の `unrequested` 集計へ足す。呼び出しごとに閉じた `onCount` を
+ * 受け取る関数にしているのは、モジュール直下の定数のままだと
+ * `warmUpRouting()` の呼び出し間で状態を共有できず (テストの複数呼び出しが
+ * 互いの件数を汚染する)、この呼び出し 1 回ぶんの `WarmUpResult.unrequested`
+ * に正しく積めないため。
+ */
+const createAnchorHandlers = (
+  onCount: () => void,
+): RelaySubscriptionHandlers => ({
+  onEvent: () => onCount(),
   onEose: () => {},
   onClosed: () => {},
-};
+});
 
 export type WarmUpResult = {
   /** フォローリストに載っていた pubkey */
@@ -31,6 +43,12 @@ export type WarmUpResult = {
   routed: number;
   /** 引けなかった人数 */
   unroutable: number;
+  /**
+   * 要求していないのにインデクサが送ってきて捨てたイベントの件数 (仕様 5.3)。
+   * ブートストラップには SubscriptionManager が無いので、ここが唯一の
+   * 報告先になる。
+   */
+  unrequested: number;
 };
 
 export type WarmUpOptions = {
@@ -82,6 +100,11 @@ export type WarmUpOptions = {
  * 必ず閉じるため)。warmUpRouting の `finally` はこれを安全網として使う。
  *
  * ここは Outbox ルーティングを使わない専用経路 (ADR-0016)。
+ *
+ * 戻り値は「要求していないのに送られてきて捨てたイベントの件数」。全 URL の
+ * settle で終わろうとタイムアウトで finish() が発火しようと、この時点までに
+ * カウントした `unrequested` をそのまま返す — finish() は単一の resolve 経路
+ * であり、どちらの終わり方でも数え漏れ・数え過ぎは起きない。
  */
 const collect = (
   pool: ConnectionPool,
@@ -90,8 +113,9 @@ const collect = (
   store: EventStore,
   timeoutMs: number,
   open: Map<RelayUrl, PooledSubscription>,
-): Promise<void> =>
+): Promise<number> =>
   new Promise((resolve) => {
+    let unrequested = 0;
     let pending = urls.length;
     let done = false;
     const settled = new Set<RelayUrl>();
@@ -102,7 +126,7 @@ const collect = (
       clearTimeout(timer);
       for (const subscription of open.values()) subscription.close();
       open.clear();
-      resolve();
+      resolve(unrequested);
     };
     const timer = setTimeout(finish, timeoutMs);
 
@@ -127,15 +151,14 @@ const collect = (
         url,
         filters,
         {
-          // 信頼境界: インデクサが要求した filters と無関係な kind/著者の
-          // イベントを寄越しても、ここではフィルタと突き合わせて確認しない。
-          // store.put() 側の schnorr 署名検証と、
-          // EventStore.#indexReplaceable の created_at 最大値ルール
-          // (ADR-0016) がある限り、悪意あるインデクサが差し込めるのは
-          // 「本人が実際に署名した、かつ最新版ではない」イベントに限られる —
-          // ルーティング表を乗っ取ることはできない。影響範囲はこの境界で
-          // 抑えられる。
+          // 信頼境界 (ADR-0023)。インデクサが要求と無関係な kind/著者を
+          // 寄越しても、ここで落とす。ルーティング表の元データが入る経路
+          // なので、混入を許すと ADR-0016 の導出そのものが汚れる。
           onEvent: (event: NostrEvent) => {
+            if (!matchesAnyFilter(event, filters)) {
+              unrequested += 1;
+              return;
+            }
             store.put(event, url);
           },
           onEose: () => settleOnce(url),
@@ -202,13 +225,18 @@ export const warmUpRouting = async ({
   // アンカーの filters は「絶対にマッチしない」ことだけが要件 — 実データを
   // 集める役目は持たない (それは collect() 側の仕事)。
   const anchors = new Map<RelayUrl, PooledSubscription>();
+  // アンカー宛に届いた (構造上、必ず要求していない) イベントの件数。
+  // collect() の unrequested とは別集計で、最後に合算して返す。
+  let anchorUnrequested = 0;
 
   try {
     for (const url of indexers) {
       const anchor = pool.subscribe(
         url,
         [{ ids: [NEVER_MATCHING_ID] }],
-        ANCHOR_HANDLERS,
+        createAnchorHandlers(() => {
+          anchorUnrequested += 1;
+        }),
         // ブートストラップだけが使ってよい予算迂回 (ConnectionPool の
         // `SubscribeOptions` 参照)。ここ以外では絶対に使わないこと。
         { reserved: true },
@@ -217,7 +245,7 @@ export const warmUpRouting = async ({
     }
 
     // ① フォローリスト
-    await collect(
+    const unrequestedFollows = await collect(
       pool,
       indexers,
       [{ kinds: [FOLLOW_LIST_KIND], authors: [pubkey], limit: 1 }],
@@ -238,11 +266,16 @@ export const warmUpRouting = async ({
       : [];
 
     if (followees.length === 0) {
-      return { followees, routed: 0, unroutable: 0 };
+      return {
+        followees,
+        routed: 0,
+        unroutable: 0,
+        unrequested: unrequestedFollows + anchorUnrequested,
+      };
     }
 
     // ② 全員分の kind:10002 を 1 クエリで (ADR-0016)
-    await collect(
+    const unrequestedRelayLists = await collect(
       pool,
       indexers,
       [{ kinds: [RELAY_LIST_KIND], authors: followees }],
@@ -256,7 +289,13 @@ export const warmUpRouting = async ({
       if (store.latestReplaceable(RELAY_LIST_KIND, followee)) routed += 1;
     }
 
-    return { followees, routed, unroutable: followees.length - routed };
+    return {
+      followees,
+      routed,
+      unroutable: followees.length - routed,
+      unrequested:
+        unrequestedFollows + unrequestedRelayLists + anchorUnrequested,
+    };
   } finally {
     // 正常系では collect() 自身がここまでに `open` を空にしている
     // (Ambiguity 3: release on completion) — ここは例外が collect() の

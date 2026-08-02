@@ -12,7 +12,7 @@ export default defineConfig({
   // 依存関係を毎回把握して spec を書くよりも、全体を 1 worker に固定して
   // 「異なるファイルの e2e は同時に走らない」という不変条件を機構で
   // 保証するほうが安全 (Task 13 fix round 1)。
-  // このスイートは小さい (現状 9 テスト) ので、直列化の時間コストは許容範囲。
+  // このスイートは小さい (現状 10 テスト) ので、直列化の時間コストは許容範囲。
   //
   // なお当初この設定は relay-recovery.spec.ts の `docker compose stop/start`
   // を隔離するためのものだったが、その stop/start 自体を廃止した

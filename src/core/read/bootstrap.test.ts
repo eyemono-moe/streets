@@ -181,6 +181,60 @@ describe("warmUpRouting", () => {
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
   });
 
+  it("インデクサが要求していない kind を押し込んでもストアに入らない", async () => {
+    // ブートストラップが送るのは {kinds:[3], authors:[pubkey], limit:1} と
+    // {kinds:[10002], authors: followees}。kind:1 はどちらにも一致しない。
+    //
+    // 同時に「limit は照合条件ではない」ことも主張している —— フェーズ① の
+    // フィルタは limit:1 を持つが、フォローリスト本体はこの門を通り抜けねば
+    // ならない (通らなければ followees が空になり、後段の expect が落ちる)。
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(relays);
+
+    const alice = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://alice/", "write"]],
+    });
+    const viewer = sign(3, {
+      ...base,
+      kind: 3,
+      tags: [["p", alice.pubkey]],
+    });
+    // 誰も要求していない、しかし署名は本物の kind:1。
+    const intruder = sign(9, { ...base, kind: 1, content: "not requested" });
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    // アンカー (0) + フェーズ① (1)
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEvent(1, intruder);
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
+
+    // フェーズ② (2)
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    indexer()?.emitEvent(2, intruder);
+    indexer()?.emitEvent(2, alice);
+    indexer()?.emitEose(2);
+
+    const result = await pending;
+
+    expect(store.get(intruder.id)).toBeUndefined();
+    // 要求したものは両フェーズとも通っている
+    expect(result.followees).toEqual([alice.pubkey]);
+    expect(result.routed).toBe(1);
+    // 両フェーズで 1 件ずつ捨てた
+    expect(result.unrequested).toBe(2);
+  });
+
   // Fix round 1, Important 1: the anchor exists specifically to prevent a
   // reconnect between phase ① and phase ② for the same indexer. Kept
   // deliberately small and isolated from the follow-list/routing logic
@@ -251,6 +305,7 @@ describe("warmUpRouting", () => {
       followees: [],
       routed: 0,
       unroutable: 0,
+      unrequested: 0,
     });
   });
 
@@ -294,6 +349,7 @@ describe("warmUpRouting", () => {
       followees: [],
       routed: 0,
       unroutable: 0,
+      unrequested: 0,
     });
     expect(relays.get("wss://up/")?.closed).toBe(true);
   });
@@ -315,6 +371,7 @@ describe("warmUpRouting", () => {
       followees: [],
       routed: 0,
       unroutable: 0,
+      unrequested: 0,
     });
   });
 
@@ -359,6 +416,7 @@ describe("warmUpRouting", () => {
       followees: [],
       routed: 0,
       unroutable: 0,
+      unrequested: 0,
     });
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
@@ -414,6 +472,7 @@ describe("warmUpRouting", () => {
       followees: [],
       routed: 0,
       unroutable: 0,
+      unrequested: 0,
     });
   });
 
@@ -484,6 +543,7 @@ describe("warmUpRouting", () => {
         followees: [],
         routed: 0,
         unroutable: 0,
+        unrequested: 0,
       });
       expect(relays.get("wss://silent/")?.closed).toBe(true);
     } finally {
@@ -541,5 +601,81 @@ describe("warmUpRouting", () => {
 
     await promise;
     expect(pool.size).toBe(0);
+  });
+
+  // ---------------------------------------------------------------------
+  // 最終ブランチレビュー Minor 1: アンカー購読 (index 0) のフィルタは
+  // `{ids:[NEVER_MATCHING_ID]}` なので、その subId へ届く EVENT は構造上
+  // 必ず要求していないものである。にもかかわらず初版のアンカーは
+  // モジュール直下の定数で onEvent が空実装であり、届いたイベントを
+  // 黙って捨てて `WarmUpResult.unrequested` に一切載せていなかった。
+  // 仕様 5.3 が `unrequested` を置いた理由そのもの (ブートストラップには
+  // マネージャが無いので、そこで捨てた分の行き先が他にない) に空いた穴で、
+  // インデクサがアンカー subId へ 100 通押し込んでも `unrequested: 0` と
+  // 報告されうる状態だった。修正波で塞いだが、その修正には自動テストが
+  // 付いていなかった (scoped re-review が使い捨てのテストで確認して削除した)。
+  // ここで塞ぎ直す。
+  // ---------------------------------------------------------------------
+  it("counts events pushed at the anchor subscription toward unrequested", async () => {
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(connections);
+
+    // p タグの無い kind:3 = フォロー 0 人。`followees.length === 0` の
+    // 早期 return を通る —— アンカーの件数を載せ忘れやすいのはこちらの経路。
+    const viewer = sign(3, { ...base, kind: 3, tags: [] });
+    const intruder = sign(9, { ...base, kind: 1, content: "pushed at anchor" });
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    const indexer = () => connections.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+
+    // index 0 がアンカー、index 1 がフェーズ①。
+    indexer()?.emitEvent(0, intruder);
+    indexer()?.emitEvent(0, intruder);
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
+
+    const result = await pending;
+
+    // アンカーは何も読み取らない —— 数えるだけで store には入れない。
+    expect(store.get(intruder.id)).toBeUndefined();
+    // 早期 return 経路でもアンカー分が載っている。
+    expect(result.followees).toEqual([]);
+    expect(result.unrequested).toBe(2);
+  });
+
+  it("does not carry the anchor count across warmUpRouting() calls", async () => {
+    // `createAnchorHandlers` が呼び出しごとに閉じたカウンタを受け取ることの主張。
+    // モジュール直下の定数や共有カウンタへ戻すと、2 回目が 1 回目の件数を
+    // 引き継いでしまう。
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(connections);
+    const viewer = sign(3, { ...base, kind: 3, tags: [] });
+    const intruder = sign(9, { ...base, kind: 1, content: "pushed at anchor" });
+
+    const runWarmUp = async (pushAtAnchor: boolean) => {
+      const pending = warmUpRouting({
+        pubkey: viewer.pubkey,
+        store,
+        pool,
+        indexers: ["wss://indexer/"],
+      });
+      const indexer = () => connections.get("wss://indexer/");
+      await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+      if (pushAtAnchor) indexer()?.emitEvent(0, intruder);
+      indexer()?.emitEose(1);
+      return pending;
+    };
+
+    expect((await runWarmUp(true)).unrequested).toBe(1);
+    expect((await runWarmUp(false)).unrequested).toBe(0);
   });
 });

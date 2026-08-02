@@ -123,3 +123,25 @@ export const publishNoteAsAuthorB = async (content: string): Promise<void> => {
 if (import.meta.url === `file://${process.argv[1]}`) {
   await seedOutboxFixture();
 }
+
+const intruderSecretKey = secretKey(307);
+export const intruderNoteText = "intruder note the section never asked for";
+
+/**
+ * 閲覧者がフォローしていない著者の、**正当な署名つき** kind:1。
+ *
+ * 署名を本物にするのが要点である。無効な署名だと `EventStore.put` の schnorr
+ * 検証が先に弾いてしまい、**照合器が効いたのかどうか区別できない。**
+ * リレーへは publish しない —— 実リレーはフィルタを守るので、この経路では
+ * 「要求していないものが届く」を再現できない。
+ */
+export const makeIntruderNote = () =>
+  finalizeEvent(
+    {
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: intruderNoteText,
+    },
+    intruderSecretKey,
+  );
