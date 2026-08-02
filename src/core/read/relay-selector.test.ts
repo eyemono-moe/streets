@@ -164,7 +164,14 @@ describe("selectRelays", () => {
     expect(selection.picks).toEqual(["wss://other/"]);
   });
 
-  it("is deterministic for the same input", () => {
+  it("breaks ties lexicographically when nothing is current", () => {
+    // p, q, r all cover 2 authors each (gain 2) on the first pick, and none
+    // is in `current` -- so the tie is broken purely by URL string order,
+    // not by calling the pure function twice and comparing (unfalsifiable
+    // short of Math.random() leaking in). p wins pick 1 (lexicographically
+    // smallest of p/q/r). Taking p satisfies both A and B, so q's gain
+    // drops to 0 and is skipped; r (still gain 2, covering C and D) wins
+    // pick 2.
     const demand = new Map([
       [A, ["wss://p/", "wss://q/"]],
       [B, ["wss://q/", "wss://p/"]],
@@ -172,10 +179,9 @@ describe("selectRelays", () => {
       [D, ["wss://r/"]],
     ]);
 
-    const first = selectRelays({ ...base, demand, budget: 2 });
-    const second = selectRelays({ ...base, demand, budget: 2 });
+    const selection = selectRelays({ ...base, demand, budget: 2 });
 
-    expect(first.picks).toEqual(second.picks);
+    expect(selection.picks).toEqual(["wss://p/", "wss://r/"]);
   });
 
   it("returns an empty selection for empty demand", () => {
