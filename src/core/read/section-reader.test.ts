@@ -303,6 +303,69 @@ describe("SectionReader", () => {
     expect(reader.items.at(-1)?.id).toBe(`note-${MAX_ITEMS_PER_SECTION + 9}`);
   });
 
+  it("同値の created_at は id 昇順で表示される", () => {
+    // 捕まえる変異: SortedEvents を使わず元のソートに戻す
+    // (安定ソートだと到着順 c,a,b のまま残る)
+    const { relay, reader } = setup();
+    reader.start();
+
+    relay()?.emitEvent(0, event("c", 100));
+    relay()?.emitEvent(0, event("a", 100));
+    relay()?.emitEvent(0, event("b", 100));
+
+    expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("昇順表示でも同値は id 昇順のまま (reverse ではない)", () => {
+    // 捕まえる変異: 昇順を toArray().reverse() で作る
+    // (reverse だと同値が id 降順 c,b,a になる)
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-asc",
+      store,
+      manager,
+    });
+    reader.start();
+
+    relays.get("wss://a/")?.emitEvent(0, event("c", 100));
+    relays.get("wss://a/")?.emitEvent(0, event("a", 100));
+    relays.get("wss://a/")?.emitEvent(0, event("b", 100));
+
+    expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("上限に達した後、末尾より古いイベントは保持されない", () => {
+    // 捕まえる変異: add() の戻り値を無視して常に items を作り直す
+    const { relay, reader } = setup();
+    reader.start();
+
+    for (let i = 0; i < MAX_ITEMS_PER_SECTION; i += 1) {
+      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
+    }
+    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
+
+    relay()?.emitEvent(0, event("ancient", 1));
+
+    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
+    expect(reader.items.some((e) => e.id === "ancient")).toBe(false);
+  });
+
   it("notifies listeners when items change", () => {
     const { relay, reader } = setup();
     const listener = vi.fn();

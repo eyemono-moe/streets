@@ -1,6 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventStore } from "./event-store";
+import { SortedEvents, compareEvents } from "./sorted-events";
 import {
   MAX_ITEMS_PER_SECTION,
   type NostrSource,
@@ -29,7 +30,7 @@ type RelayState = {
 export class SectionReader {
   readonly #options: SectionReaderOptions;
   readonly #listeners = new Set<() => void>();
-  readonly #ids = new Set<string>();
+  readonly #events = new SortedEvents(MAX_ITEMS_PER_SECTION);
   #relays = new Map<RelayUrl, RelayState>();
   // start() が initialPlan で埋める。onPlanChanged が start() の最中に同期的
   // に飛んだ場合はそちらが先に埋めるので、start() 側は null のときだけ
@@ -37,7 +38,6 @@ export class SectionReader {
   // ときに、より新しい plan を古い initialPlan で上書きしないため)。
   #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
-  #items: NostrEvent[] = [];
   #started = false;
   // manager.subscribe() のコールバックは同期的に発火しうる
   // (WebSocketRelayConnection はソケットが既に閉じていると subscribe() の
@@ -52,7 +52,7 @@ export class SectionReader {
   }
 
   get items(): NostrEvent[] {
-    return [...this.#items];
+    return this.#displayOrdered(this.#events.toArray());
   }
 
   get status(): SectionStatus {
@@ -63,7 +63,7 @@ export class SectionReader {
 
     const phase: SectionStatus["phase"] = allSettled
       ? "settled"
-      : this.#items.length > 0
+      : this.#events.size > 0
         ? "streaming"
         : "initial";
 
@@ -181,33 +181,38 @@ export class SectionReader {
   }
 
   #onEvent(id: string, _relay: RelayUrl): void {
-    if (this.#ids.has(id)) return;
+    if (this.#events.has(id)) return;
     // 本体は EventStore が持つ。ここに載せるのは検証済みのコピー (ADR-0024)
     const stored = this.#options.store.get(id);
     if (!stored) return;
 
-    this.#ids.add(id);
-    // 上限は表示順に関わらず「新しい順」で決める。表示順でスライスすると
-    // 昇順表示時に古い方から採用してしまい、上限到達後キャップが凍結してしまう。
-    const mostRecent = [...this.#items, stored]
-      .sort((a, b) => b.created_at - a.created_at)
-      .slice(0, MAX_ITEMS_PER_SECTION);
-    this.#items = this.#sorted(mostRecent);
-
-    // 上限を超えて落ちた分は id 集合からも外す
-    if (this.#ids.size > this.#items.length) {
-      const kept = new Set(this.#items.map((e) => e.id));
-      for (const kid of this.#ids) if (!kept.has(kid)) this.#ids.delete(kid);
-    }
+    // 上限に達した状態で保持順の末尾より後ろに来たイベントは採用されない。
+    // その場合は画面に何の変化も無いので、通知も積まない。
+    if (!this.#events.add(stored)) return;
 
     this.#notify();
   }
 
-  #sorted(events: NostrEvent[]): NostrEvent[] {
-    // "thread-tree" はスレッドカラムの計画で足す。それまでは降順で扱う。
-    const ascending = this.#options.order === "created-at-asc";
-    return [...events].sort((a, b) =>
-      ascending ? a.created_at - b.created_at : b.created_at - a.created_at,
+  /**
+   * 保持順 (`created_at` 降順、同値は `id` 昇順) から表示順を導く。
+   *
+   * 昇順を `reverse()` で作ってはならない。reverse だと同値が `id` 降順に
+   * なり、「同値は `id` 昇順」という規則が表示モードによって反転してしまう。
+   * `-compareEvents(a, b)` で符号をまるごと反転するのも同じ罠に落ちる ——
+   * `created_at` の大小だけでなく tie-break の `id` の大小も一緒に反転して
+   * しまい、結局 `id` 降順になる。ここでは `created_at` の比較だけを昇順に
+   * 反転し、同値のときは `compareEvents` の tie-break (`id` 昇順) をそのまま
+   * 使う。
+   *
+   * 明示ソートは 1 回の読み取りにつき最大 500 件 (約 4,500 比較) であり、
+   * 1 イベントごとに 2 回ソートしていた頃の 256,000 比較に対して誤差である。
+   *
+   * "thread-tree" はスレッドカラムの計画で足す。それまでは降順で扱う。
+   */
+  #displayOrdered(events: NostrEvent[]): NostrEvent[] {
+    if (this.#options.order !== "created-at-asc") return events;
+    return events.sort(
+      (a, b) => a.created_at - b.created_at || compareEvents(a, b),
     );
   }
 
