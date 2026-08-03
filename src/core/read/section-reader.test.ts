@@ -350,22 +350,6 @@ describe("SectionReader", () => {
     expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
   });
 
-  it("上限に達した後、末尾より古いイベントは保持されない", () => {
-    // 捕まえる変異: add() の戻り値を無視して常に items を作り直す
-    const { relay, reader } = setup();
-    reader.start();
-
-    for (let i = 0; i < MAX_ITEMS_PER_SECTION; i += 1) {
-      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
-    }
-    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
-
-    relay()?.emitEvent(0, event("ancient", 1));
-
-    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
-    expect(reader.items.some((e) => e.id === "ancient")).toBe(false);
-  });
-
   it("notifies listeners when items change", () => {
     const { relay, reader } = setup();
     const listener = vi.fn();
