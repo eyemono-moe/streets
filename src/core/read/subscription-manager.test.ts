@@ -5,6 +5,7 @@ import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import { EventStore } from "./event-store";
+import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 import {
   type SectionDelivery,
@@ -108,40 +109,6 @@ const noopDelivery = (): SectionDelivery => ({
   onPlanChanged: () => {},
   onRelayRestarted: () => {},
 });
-
-// Fix round 1, Important 2: minimal local fake clock for the retryNow() /
-// scheduler-passthrough tests below. Deliberately smaller than
-// connection-pool.test.ts's FakeClock (no clearTimeout spy, no same-tick
-// reentrancy hardening needed here) -- this file owns its own fixture
-// rather than importing another test file's.
-type TestScheduler = NonNullable<SubscriptionManagerOptions["scheduler"]>;
-
-const createFakeClock = (): TestScheduler & { advance(ms: number): void } => {
-  let now = 0;
-  let nextId = 1;
-  const timers = new Map<number, { at: number; callback: () => void }>();
-  return {
-    setTimeout: (callback, delayMs) => {
-      const id = nextId++;
-      timers.set(id, { at: now + delayMs, callback });
-      return id as unknown as ReturnType<typeof setTimeout>;
-    },
-    clearTimeout: (handle) => {
-      timers.delete(handle as unknown as number);
-    },
-    advance(ms) {
-      now += ms;
-      const due = [...timers.entries()]
-        .filter(([, t]) => t.at <= now)
-        .sort((a, b) => a[1].at - b[1].at);
-      for (const [id, t] of due) {
-        if (!timers.has(id)) continue;
-        timers.delete(id);
-        t.callback();
-      }
-    },
-  };
-};
 
 type CreateManagerOptions = Partial<
   Pick<

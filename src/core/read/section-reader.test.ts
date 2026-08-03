@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import type { Scheduler } from "./connection-pool";
 import { EventStore } from "./event-store";
+import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 import { SectionReader } from "./section-reader";
 import { MAX_ITEMS_PER_SECTION, type SectionStatus } from "./source";
@@ -60,7 +62,7 @@ const event = (id: string, createdAt: number): NostrEvent => ({
   sig: "sig",
 });
 
-const setup = (relayUrls = ["wss://a/"]) => {
+const setup = (relayUrls = ["wss://a/"], scheduler?: Scheduler) => {
   const relays = new Map<string, FakeRelayConnection>();
   const store = new PassThroughStore();
   const manager = new SubscriptionManager({
@@ -78,6 +80,7 @@ const setup = (relayUrls = ["wss://a/"]) => {
     order: "created-at-desc",
     store,
     manager,
+    scheduler,
   });
   return {
     relays,
@@ -111,12 +114,14 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
     },
   } as unknown as SubscriptionManager;
 
+  const clock = createFakeClock();
   const store = new EventStore();
   const reader = new SectionReader({
     source: { type: "nostr", filters: [{ kinds: [1] }], relays: relayUrls },
     order: "created-at-desc",
     store,
     manager,
+    scheduler: clock,
   });
 
   const statuses: SectionStatus[] = [];
@@ -124,10 +129,80 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
 
   reader.start();
 
-  return { reader, delivery, statuses };
+  return { reader, delivery, statuses, clock };
 };
 
 describe("SectionReader", () => {
+  it("複数の配信をまとめて 1 回だけ通知する", () => {
+    // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる) /
+    // デバウンス (毎回張り直し) にする (advance で 1 回も呼ばれない)
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    const listener = vi.fn();
+    reader.subscribe(listener);
+    reader.start();
+    listener.mockClear();
+
+    // 「別々の配信」であることが本質。リレーは 1 イベント 1 メッセージで
+    // 送るので、実配信でも 1 件ずつ別のタスクで届く。
+    relay()?.emitEvent(0, event("a", 300));
+    relay()?.emitEvent(0, event("b", 200));
+    relay()?.emitEvent(0, event("c", 100));
+
+    expect(listener).not.toHaveBeenCalled();
+
+    clock.advance(16);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("通知より前でも items は同期的に正しい", () => {
+    // 捕まえる変異: items の更新まで遅延させる
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    reader.start();
+
+    relay()?.emitEvent(0, event("a", 300));
+
+    // クロックを進めていないので通知はまだ出ていないが、直接読めば見える。
+    expect(reader.items.map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("上限で弾かれたイベントは通知を積まない", () => {
+    // 捕まえる変異: add() の戻り値を無視して常に通知を積む
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    reader.start();
+
+    for (let i = 0; i < MAX_ITEMS_PER_SECTION; i += 1) {
+      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
+    }
+    clock.advance(16);
+
+    const listener = vi.fn();
+    reader.subscribe(listener);
+    relay()?.emitEvent(0, event("ancient", 1));
+    clock.advance(16);
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("stop() は保留中の通知を破棄する", () => {
+    // 捕まえる変異: stop() で clearTimeout を忘れる
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    const listener = vi.fn();
+    reader.subscribe(listener);
+    reader.start();
+    listener.mockClear();
+
+    relay()?.emitEvent(0, event("a", 300));
+    reader.stop();
+    clock.advance(16);
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it("starts in the initial phase before anything arrives", () => {
     const { reader } = setup();
     reader.start();
@@ -204,16 +279,23 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
   });
 
-  // Review finding: manager.subscribe()'s callbacks can fire synchronously
-  // (WebSocketRelayConnection calls onClosed inline when the socket is
-  // already closed). Those callbacks run #notify() while #handle is still
-  // null. Worse: if the first of several relays settles synchronously before
-  // the rest are even subscribed, `live.every(complete)` is vacuously true
-  // over the partial #relays map built so far, and the section briefly
-  // reports "settled" before start() has finished wiring up every relay.
-  // createSection() re-syncs right after start() so it self-corrects, but a
-  // subscriber watching every notify() would see a settled->initial flicker.
-  it("never reports settled from within start() itself, even when a relay closes synchronously from inside subscribe()", () => {
+  // 旧テスト名: "never reports settled from within start() itself, even when a
+  // relay closes synchronously from inside subscribe()"
+  //
+  // 旧テストは #starting フラグの効果を主張していた。通知をバッチにすると
+  // そのフラグは到達不能になり (仕様 5.1)、フラグを削除してもテストは通って
+  // しまう —— 落ちなくなるテストである。主張を、内部フラグではなく観測可能な
+  // 性質へ移した。
+  //
+  // 元の欠陥そのものは今も実在する: 複数リレーのうち最初の 1 本が subscribe()
+  // の中から同期的に settle すると、その時点の #relays は部分的にしか埋まって
+  // おらず、live.every(complete) が空に近い集合に対して自明に真になる。
+  // 違いは、その中間状態が観測者に漏れるかどうかである。
+  //
+  // 捕まえる変異: #notify() のバッチをやめて即座に #emit() する
+  // (start() 途中の settled が phasesSeen に漏れる)
+  it("観測者は start() 途中の settled を見ない", () => {
+    const clock = createFakeClock();
     const store = new EventStore();
     const manager = new SubscriptionManager({
       store,
@@ -222,9 +304,9 @@ describe("SectionReader", () => {
         url,
         subscribe: (_filters, handlers) => {
           if (url === "wss://sync-closed/") {
-            // Mimics WebSocketRelayConnection calling onClosed inline when
-            // the socket is already closed: the callback fires before
-            // subscribe() (and therefore manager.subscribe()) has returned.
+            // WebSocketRelayConnection がソケット既閉時に onClosed を
+            // インラインで呼ぶのを模倣する。subscribe() (したがって
+            // manager.subscribe()) が返る前にコールバックが発火する。
             handlers.onClosed("socket closed");
           }
           return { close: () => {} };
@@ -244,14 +326,19 @@ describe("SectionReader", () => {
       order: "created-at-desc",
       store,
       manager,
+      scheduler: clock,
     });
 
     const phasesSeen: string[] = [];
     reader.subscribe(() => phasesSeen.push(reader.status.phase));
 
     reader.start();
+    clock.advance(16);
 
     expect(phasesSeen).not.toContain("settled");
+    // 通知が 1 回も出ないのではなく、出た通知が settled を含まないこと。
+    // これを主張しないと「バッチが全部飲み込んだだけ」でも通ってしまう。
+    expect(phasesSeen.length).toBeGreaterThan(0);
   });
 
   it("keeps at most MAX_ITEMS_PER_SECTION items, dropping the oldest", () => {
@@ -351,12 +438,14 @@ describe("SectionReader", () => {
   });
 
   it("notifies listeners when items change", () => {
-    const { relay, reader } = setup();
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
     const listener = vi.fn();
     reader.subscribe(listener);
     reader.start();
 
     relay()?.emitEvent(0, event("first", 100));
+    clock.advance(16);
 
     expect(listener).toHaveBeenCalled();
   });
@@ -369,7 +458,8 @@ describe("SectionReader", () => {
   // observer silently starves every other observer of updates.
   // ---------------------------------------------------------------------
   it("does not strand a later listener when an earlier listener throws", () => {
-    const { relay, reader } = setup();
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
     const throwingListener = vi.fn(() => {
       throw new Error("boom from listener 1");
     });
@@ -380,7 +470,10 @@ describe("SectionReader", () => {
     reader.subscribe(laterListener);
     reader.start();
 
-    expect(() => relay()?.emitEvent(0, event("first", 100))).not.toThrow();
+    expect(() => {
+      relay()?.emitEvent(0, event("first", 100));
+      clock.advance(16);
+    }).not.toThrow();
 
     expect(throwingListener).toHaveBeenCalled();
     expect(laterListener).toHaveBeenCalled();
@@ -606,7 +699,7 @@ describe("SectionReader", () => {
   // manager actually produce these; here we drive onPlanChanged directly).
   it("goes back to streaming when the plan gains a relay", () => {
     // リレー1 だけで settled になった後、張り直しでリレー2 が増える
-    const { reader, delivery, statuses } = startReaderWithRelays([
+    const { reader, delivery, statuses, clock } = startReaderWithRelays([
       "wss://one/",
     ]);
     delivery.onRelayComplete("wss://one/");
@@ -617,6 +710,7 @@ describe("SectionReader", () => {
       unroutableAuthors: 0,
       uncoveredAuthors: 0,
     });
+    clock.advance(16);
 
     expect(reader.status.phase).not.toBe("settled");
     expect(statuses.at(-1)?.phase).not.toBe("settled");
