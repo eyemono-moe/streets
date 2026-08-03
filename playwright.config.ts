@@ -2,6 +2,14 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // Playwright の既定 testMatch は "*.spec.*" と "*.test.*" の両方を拾う。
+  // このリポジトリの e2e spec は一貫して *.spec.ts だが、
+  // e2e/fixtures/fixture-pubkeys.test.ts (vitest 用、フィクスチャの pubkey
+  // 衝突を機械的に検出する) を足したところ Playwright 側にも拾われて
+  // 「vitest を直接 import した」エラーで落ちた (Task 4 fix round 1)。
+  // *.spec.ts だけに絞ることで、e2e/ 配下に *.test.ts を足しても
+  // Playwright 側に混入しないようにする。
+  testMatch: /.*\.spec\.ts$/,
   globalSetup: "./e2e/global-setup.ts",
   retries: 0,
   reporter: "line",

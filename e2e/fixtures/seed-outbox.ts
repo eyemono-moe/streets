@@ -126,6 +126,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
 const intruderSecretKey = secretKey(307);
 export const intruderNoteText = "intruder note the section never asked for";
+/** 衝突検出 (fixture-pubkeys.test.ts) が見られるように export する */
+export const intruderPubkey = getPublicKey(intruderSecretKey);
 
 /**
  * 閲覧者がフォローしていない著者の、**正当な署名つき** kind:1。

@@ -9,25 +9,24 @@ const NOTE_COUNT = 600;
 
 const now = 1_735_689_600;
 
-// kind:3 / kind:10002 は NIP-01 の replaceable event で、同じ created_at
-// 同士では先着が残ってしまう。このシード帯 (secretKey(2001) /
-// secretKey(2101)) の pubkey に対して、別内容の replaceable event が
-// (このタスクの試行錯誤の過程で) 同じ `now` で既に残っていたことがあり、
-// 使い回すとそれが生き残って意図した r タグに置き換わらなかった。
-// kind:1 は非 replaceable なので `now` をそのまま使い回しても問題ない
-// (id が一致すれば単純に重複として弾かれるだけ) が、kind:3 / kind:10002
-// だけは確実に上書きされるよう別の (より新しい) created_at を使う。
-const profileNow = 1_740_000_000;
-
 // e2e/fixtures/seed-outbox.ts と同じ鍵生成の作りだが、既存フィクスチャの
 // pubkey と衝突しないよう別のシード帯を使う。
+//
+// **`% 255` によりシード空間の実効幅は 255 しかない。** 同じ mod を持つ
+// シード同士は同じ秘密鍵 (= 同じ pubkey) になる。当初 secretKey(2001) /
+// secretKey(2101) を選んだが、2101 % 255 === 61 が
+// e2e/fixtures/seed-budget.ts の著者 I (secretKey(1081)、1081 % 255 も 61)
+// と一致しており、著者 pubkey が丸ごと衝突していた (Task 4 fix round 1 で
+// 発覚)。50000 / 51000 はどの既存フィクスチャの mod 255 とも pubkey とも
+// 衝突しないことを確認済み — e2e/fixtures/fixture-pubkeys.test.ts が
+// 今後の再発を機械的に検出する。
 const secretKey = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
   );
 
-const viewerSecretKey = secretKey(2001);
-const authorSecretKey = secretKey(2101);
+const viewerSecretKey = secretKey(50000);
+const authorSecretKey = secretKey(51000);
 
 export const capViewerPubkey = getPublicKey(viewerSecretKey);
 export const capAuthorPubkey = getPublicKey(authorSecretKey);
@@ -59,7 +58,7 @@ export const seedCapFixture = async (): Promise<void> => {
     relay,
     {
       kind: 10002,
-      created_at: profileNow,
+      created_at: now,
       tags: [["r", relayOneUrl, "write"]],
       content: "",
     },
@@ -71,7 +70,7 @@ export const seedCapFixture = async (): Promise<void> => {
     relay,
     {
       kind: 3,
-      created_at: profileNow,
+      created_at: now,
       tags: [["p", capAuthorPubkey]],
       content: "",
     },
