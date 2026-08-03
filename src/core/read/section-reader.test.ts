@@ -156,6 +156,28 @@ describe("SectionReader", () => {
     expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
   });
 
+  it("窓より短い間隔で流れ続けても通知が止まらない (デバウンスではない)", () => {
+    // 捕まえる変異: #notify() を「毎回 clearTimeout して張り直す」
+    // デバウンスにする。窓が永久に更新され、流している間 1 回も発火しない。
+    //
+    // 同期的に連発するだけでは捕まらない —— fake clock の now は advance()
+    // でしか進まないので、両者が同じ発火時刻を計算してしまう。窓 (16ms) より
+    // 短い間隔で「実際に時計を進めながら」流すことが本質。
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    const listener = vi.fn();
+    reader.subscribe(listener);
+    reader.start();
+    listener.mockClear();
+
+    for (let i = 0; i < 5; i += 1) {
+      relay()?.emitEvent(0, event(`n-${i}`, 1000 + i));
+      if (i < 4) clock.advance(10);
+    }
+
+    expect(listener).toHaveBeenCalled();
+  });
+
   it("通知より前でも items は同期的に正しい", () => {
     // 捕まえる変異: items の更新まで遅延させる
     const clock = createFakeClock();
