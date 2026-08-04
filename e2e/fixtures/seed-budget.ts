@@ -41,11 +41,19 @@ const viewerSecretKey = secretKey(911);
 
 // A・B・C → ローカルリレー1, D・E → ローカルリレー2,
 // F・G・H・I → それぞれ別の架空リレー (7001〜7004)
+//
+// **D だけ 1031 ではなく 1032。** `secretKey` は `% 255` を通すため、シード
+// 空間の実効幅は 255 しかない。1031 は 1031 % 255 === 11 で、
+// e2e/fixtures/seed-outbox.ts の viewer (secretKey(11)) と mod が一致し、
+// 同じ秘密鍵 (= 同じ pubkey) を生成してしまっていた (Task 4 fix round 1
+// で発覚)。1032 はどの既存フィクスチャの mod 255 とも衝突しない。
+// e2e/fixtures/fixture-pubkeys.test.ts がこの手のシード帯の衝突を
+// 機械的に検出する。
 const authorSecretKeys = {
   A: secretKey(1001),
   B: secretKey(1011),
   C: secretKey(1021),
-  D: secretKey(1031),
+  D: secretKey(1032),
   E: secretKey(1041),
   F: secretKey(1051),
   G: secretKey(1061),
@@ -63,6 +71,8 @@ const authorPubkeys = Object.fromEntries(
 ) as Record<AuthorName, string>;
 
 export const budgetViewerPubkey = getPublicKey(viewerSecretKey);
+/** 衝突検出 (fixture-pubkeys.test.ts) が全著者を見られるように export する */
+export const budgetAuthorPubkeys = authorPubkeys;
 
 const publish = async (
   relay: Relay,

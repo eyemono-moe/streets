@@ -17,6 +17,12 @@ status: {
 }
 ```
 
+## `phase` の観測は最大 `NOTIFY_BATCH_MS` 遅れる
+
+`phase` が語る意味（このセクション自身のリストについてのみ、という上記の3層分離）は変わらないが、**それが `subscribe()` のリスナーへ届くタイミング**は変わった。`SectionReader`（`src/core/read/section-reader.ts`）は `items` と `status` をイベント到着のたびに同期的に更新するが、購読者への通知は `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`、60fps の1フレーム）。したがってリスナーが `phase` の変化を知るのは最大16ms遅れうる。
+
+**`reader.status` を直接読めば常に最新である。** 遅れるのは通知だけであり、`items` と `status` はいつ読んでも同期的に正しい。`createSection` は `start()` の直後に `sync()` を明示的に呼んでいる（`src/core/solid/create-section.ts:49`）ので、初期状態は同期的に拾える。
+
 ## なぜこの形か
 
 「読み込み完了」が定義できなくなっていた原因は、意味の異なる3層が混ざっていたこと。

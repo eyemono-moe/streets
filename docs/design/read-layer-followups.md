@@ -17,14 +17,6 @@
 
 ## 次の計画で直すべきもの
 
-### 性能 — 1 イベントごとの全ソートと全再描画
-
-`section-reader.ts` の `#onEvent` はイベント 1 件ごとに配列を 2 回ソートし（上限判定用に降順、次いで表示順）、3 回コピーする。`items` ゲッターは読むたびにコピーし、`status` ゲッターは読むたびに 2 本の配列を filter する。`#notify` はイベントごとに同期発火し、`createSection` が 2 つのシグナルを更新して `<For>` が最大 500 件を突き合わせる。
-
-上限に達した状態で EOSE のバーストが 500 件来ると、1 セクションあたり 500×500 の比較と 500 回の全件差分になる。[ADR-0011](../adr/0011-performance-budget.md) の予算はまさにこの掛け算（カラム数 × Outbox のリレー数 × レンダラの needs）を見越して設けたものであり、**上に 3 層積む前が最も安く直せる**。
-
-対処: `#notify` をマイクロタスクで合流させ、ソート＋スライスではなく二分探索による挿入にする。
-
 ### `EventStore` が呼び出し側から渡される公開オプションになっている
 
 [ADR-0018](../adr/0018-indexeddb-event-cache.md) は `EventStore` の seam 資格を明示的に取り消し（`EventStore は seam ではなく読み取り層の内部に降ろす`）、代わりに `EventPersistence` を seam とした。しかし現状は `SectionReader` と `createSection` の両方でオプションとして露出しており、**共有するかどうかを呼び出し側が決められる**。
@@ -76,6 +68,17 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 隠れた劣化ではない（`unreachableRelays` は正直に立ち続ける）ので ADR-0011 の禁止事項には触れないが、ADR-0021 の記述と実装が食い違っている。
 
 **次の計画への提案**: `attempts` のリセットを `connect()` の戻りではなく**実際に接続が開いた時点**（`RelayConnection` 側の open 通知、あるいは最初の EOSE / メッセージ受信）に移す。今は `RelayConnection` に open の seam が無いので、`onClose` と対になる通知を足すか、`#reconnect` でのリセットをやめて `onEose` 到達時にプール側で 0 に戻す形にする。**このスライスでは実装しない**（e2e の flake 修正の副産物として見つけたもので、修正は再接続方針そのものの変更にあたる）。
+
+### CI が Playwright (e2e) を一度も実行していない（section-reader-performance の最終ブランチレビューで発覚）
+
+`.github/workflows/ci.yaml` には `check` / `test`（vitest）/ `build` の 3 ジョブしかなく、`pnpm exec playwright test` を呼ぶジョブが無い。`e2e/section-cap.spec.ts` をはじめとする e2e 群はローカルで走らせれば本物のガードとして機能する（下記「満たしていない要件」参照）が、push のたびに自動でそれを検査する仕組みが無いので、e2e が守っているはずの退行は CI では止まらない。
+
+**次の計画への提案**: 単純に `playwright` ジョブを足すだけでは済まない。少なくとも 2 つの前提を先に満たす必要がある。
+
+1. **依存サービスが要る。** e2e は `compose.yaml` の `nostr-rs-relay` / `nostr-rs-relay-2`（`postgres` に依存する）を必要とする。CI ワーカーでこれらを起動し、`pnpm dev:relay:reset` 相当のシード手順を踏んでから `pnpm exec playwright test` を叩く必要がある。
+2. **クリーンな木で赤くなる spec が既にある。** `e2e/console-warning.spec.ts` は旧実装の `/` を対象にしており、このリポジトリの現在の状態でそのまま走らせると失敗する（このスライスの検証コマンドも `--grep-invert "repost parser warning flood"` で除外している）。素朴に `playwright test` を丸ごと CI に配線すると、この 1 件のせいで初日から赤くなる。CI 化するなら、この spec 自体を直すか、対象を切り替えるか、除外するかを先に決める必要がある。
+
+**このスライスでは実装しない** — CI 配線は独立した作業であり、このスライスの範囲外。
 
 ## 直さないと決めたもの（理由つき）
 
@@ -129,6 +132,9 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 ## 解消済み
 
+- **性能 — 1 イベントごとの全ソートと全再描画** — [section-reader-performance のスライス](../superpowers/specs/2026-08-02-section-reader-performance-design.md)（後続 #6、[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」参照）で解消。`section-reader.ts` の `#onEvent` が1件ごとに配列を2回ソートし3回コピーしていたのをやめ、保持順を `SortedEvents`（`src/core/read/sorted-events.ts`）に一本化した。保持順は `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序で固定し、挿入は二分探索、上限超過時は末尾を1件 `pop` するだけで済む。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要も無くなった。通知は `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`、60fpsの1フレーム）— 最初の変化でタイマーを1本張り、以後の変化は既存のタイマーに相乗りする（デバウンスではない。デバウンスだとイベントが途切れない限り永久に発火しない）。`items` と `status` は同期的に正しいまま保たれ、遅れるのは通知だけである（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md) に追記済み）。バッチの結果、`start()` 中の中間状態を観測者に見せないためだけに存在していた `#starting` フラグは到達不能になり削除した。計測は `scripts/research/measure-section-reader-burst.mjs` / [docs/research/2026-08-02-section-reader-burst.md](../research/2026-08-02-section-reader-burst.md) に記録した — 比較回数（2,000件で旧実装の約157倍高速）は決定的だが壁時計は環境依存で揺れ、**これは回帰を防ぐガードではない**。E2E は `e2e/section-cap.spec.ts` が測る（下記「満たしていない要件」）。
+
+  **この節が書いていた対処案「`#notify` をマイクロタスクで合流させ」は誤りだった。** NIP-01 のリレーは `["EVENT", subid, event]` を**1イベント1メッセージ**で送り、ブラウザは WebSocket メッセージごとに別のタスクを回す。メッセージ N で積んだマイクロタスクは N+1 が届く前に flush されるため、500イベント = 500タスク = **合流は起きず通知は500回のまま**になる。マイクロタスクが合流できるのは「1メッセージ内で同期的に発生した複数の通知」だけで、実際の配信パターンはそうなっていない。メッセージをまたいで合流するにはマクロタスク境界が要り、それが `Scheduler.setTimeout` によるバッチである。
 - **ルーティング表の永続化**（ADR-0016 が「新しい永続化要件」としていたもの）— 2026-08-01 に撤回。`EventStore` 内の `kind:10002` から導出する形にしたため、専用の保存先も TTL も不要になった。永続化は ADR-0019 の「参照データ」バケットが `kind:10002` を保持すれば自動的に得られる。
 - **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消、ただし引き金は後続 #4（ローカルフィルタ照合）で変わった。再計画そのものの機構（`SubscriptionManager.replan()` が `#runReplan()` を回し、変化したエントリにだけ `onPlanChanged` を配る per-section diff、フィルタが変わったリレーへの `SectionDelivery.onRelayRestarted(relay)` 通知）は今も生きていて、正しく動く。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。**ただし `kind:10002` の到着を検知して自動でこれを起動する経路は無い。** 当初はここに `SubscriptionManager` が `kind:10002` の到着をデバウンスして再計画する経路があったが、後続 #4（[ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 6 節）がその引き金（`#scheduleReplan` / `#replanTimer` / `#isDemandedAuthor` / `replanDebounceMs`）を削除した——`matchesAnyFilter` により `kind:10002` はセクションが要求していない限りそもそも store へ届かず、再計画の材料にならないため。生きているのは公開 `replan()` と `scheduler` オプションのみで、**今この機構を動かすのは明示的な `replan()` 呼び出しだけ**である。水和や再ウォームアップなど「ルーティングを変えうる入口」を実装する側が、その入口から `replan()` を呼ぶ責任を持つ——呼ばなければ、この節が「解消済み」と書いている張り直し能力は配線されないまま眠り続ける。同じ訂正は [architecture.md](./architecture.md) 8節にも入れてある。
 - **`RelayConnection` に接続単位のライフサイクル通知がない** — 接続プールのスライスで解消。`RelayConnection` seam（ADR-0014）に `onClose(listener: () => void): () => void` を追加した。購読単位の `onClosed` とは別に、ソケットそのものの死を通知する。`ConnectionPool` はこれで「ソケットの死」と「レート制限による個別 CLOSED」を区別できるようになり、死んだ接続を即座に予算とレジストリから外して次の `subscribe()` で新しいソケットを開く。再接続（ADR-0021）もこの通知を起点に組まれている。
@@ -138,8 +144,10 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 ## 満たしていない要件
 
-[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限だけ**が E2E で測れるようになった（[architecture.md](./architecture.md) 10節）。残る 6 指標は未測定。
+[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限に続いて 500 件上限**が E2E で測れるようになり、測定済みは 2 つになった（[architecture.md](./architecture.md) 10節）。残る 5 指標は未測定。
+
+**ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
 
 - **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
-- **500 件上限** — ユニットテストのみ。デバッグルートに対する E2E で `items ≤ 500` を主張するのは小さい追加であり、今すぐ入れられる。
+- **500 件上限** — 解消済み。`e2e/section-cap.spec.ts` が 600 件（`MAX_ITEMS_PER_SECTION + 100`）を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 500 で止まることを主張する。
 - 残る 5 指標（カラム数、初回表示 2 秒、操作反映 100ms、メモリ）はいずれも未測定。

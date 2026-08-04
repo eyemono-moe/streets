@@ -8,7 +8,7 @@
 - 動作確認の手順は [verifying-v1-section.md](./verifying-v1-section.md)
 - 次に作るものの設計は [docs/superpowers/specs/](../superpowers/specs/)
 
-**現時点で実装されているのは読み取り層の 3 スライス目まで**（単一リレーのセクション読み取り、Outbox ルーティングと購読マネージャの器、接続プール）である。この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
+**現時点で実装されているのは、単一リレーのセクション読み取り・Outbox ルーティングと購読マネージャの器・接続プール・ローカルフィルタ照合・セクションの保持と通知（保持順の全順序化と通知バッチ）までである。**この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
 
 ---
 
@@ -199,6 +199,14 @@ sequenceDiagram
 
 **照合を通ったイベントについて、`"rejected"` 以外はセクションに渡る。** `"duplicate"` を弾くと、store を共有した 2 つ目以降のセクションが空になり、IndexedDB 水和後は全セクションが空になる。ただしセクションが並べるのは**リレーが送ってきたオブジェクトではなく store の検証済みコピー**である。既知の ID を再利用した偽造イベントを弾くのがこの一手である。
 
+### メンバーシップの保持順は全順序で固定されている
+
+`SEC->>SEC: メンバーシップに追加` は `SortedEvents`（`src/core/read/sorted-events.ts`）が担う。保持順は `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる**全順序**であり、挿入は配列全体の再ソートではなく二分探索、上限（500件、[ADR-0011](../adr/0011-performance-budget.md)）超過時は末尾を1件 `pop` するだけで済む。`id` を tiebreak にするのは、`NostrEvent` の中で必ず存在し・一意で・到着経路に依存しない唯一のフィールドだからである — Outbox では同じイベントが複数リレーから届き、どちらが先かはネットワーク次第なので、到着順は tiebreak に使えない。
+
+`SectionReader`（`src/core/read/section-reader.ts`）はこの保持順から表示順を導く。降順表示は保持順そのもの、昇順表示は `created_at` 昇順・同値は `id` 昇順で明示的に並べ替える（`reverse()` は同値の順序を反転させてしまうため使わない）。
+
+購読者への通知は `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`、section-reader.ts）。最初の変化でタイマーを1本張り、以後の変化は既存のタイマーに相乗りする（デバウンスではない）。`items` / `status` は同期的に正しいまま保たれ、遅れるのは通知だけである（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
+
 ### 署名検証は偽造を止めるが混入を止めない
 
 署名検証が保証するのは「この pubkey が確かにこの内容に署名した」ことだけで、「それが自分の要求したものか」は何も言わない。リレーは、フォローしていない人の正当なイベントや別 kind のイベントを、そのカラムへ押し込める。
@@ -302,6 +310,15 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 **死んだ接続がプールに残り続ける欠陥も解消済み。** `RelayConnection`（3節）に `onClose` を足し、プールが「ソケットの死」を検知して即座に予算とレジストリから外すようにした。
 
+### セクションの保持と通知 — 実装済み
+
+[section-reader-performance の仕様](../superpowers/specs/2026-08-02-section-reader-performance-design.md)（[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」の後続 #6）で設計し、実装が完了した。以前は `SectionReader` の `#onEvent` がイベント1件ごとに配列を2回ソートし3回コピーしていた（[read-layer-followups.md](./read-layer-followups.md)「解消済み」に記録）。
+
+- **保持順の全順序化。** `SortedEvents`（`src/core/read/sorted-events.ts`）が `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序を維持し、挿入は二分探索、上限（500件）超過時は末尾を1件 `pop` するだけになった。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要が無くなった。5節で述べたとおり、表示順（降順・昇順）はこの保持順から導く。
+- **通知のバッチ。** `SectionReader` は購読者への通知を `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`）。リレーが1イベント1メッセージで送りブラウザがメッセージごとに別タスクを回す以上、マイクロタスクでは合流できず、マクロタスク境界（`setTimeout`）が要る。`items` / `status` を直接読む消費者は遅延の影響を受けない（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
+- **計測。** `scripts/research/measure-section-reader-burst.mjs` が配列操作だけを取り出して比較回数を測る（[docs/research/2026-08-02-section-reader-burst.md](../research/2026-08-02-section-reader-burst.md)）。ただし壁時計は環境依存で揺れ、これは回帰を防ぐガードではない。
+- **500件上限の E2E 測定。** `e2e/section-cap.spec.ts` が 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` 到達時点で `items` がちょうど500で止まることを主張する。これで [ADR-0011](../adr/0011-performance-budget.md) の7指標のうち E2E で測定済みのものは、30接続上限に続いて2つになった（10節）。
+
 ---
 
 ## 9. 未決定
@@ -324,6 +341,10 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 **この分担には実績がある。** `RelayInfoRegistry` が `fetch` を unbound で保持していたバグは、ユニットテスト 16 件すべてを素通りした（モックがアロー関数で `this` を無視するため）。実ブラウザで初めて `TypeError: Illegal invocation` を投げ、e2e が捕まえた。**モックで通るものが実物で通るとは限らない。**
 
-現時点で [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち**測っているのは接続数の 1 つだけ**である。同 ADR は「測定できない予算は要件ではなく願望である」と定めているので、残る 6 指標は満たしていない要件である（[read-layer-followups.md](./read-layer-followups.md)）。
+現時点で [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち**測っているのは接続数と500件上限の 2 つだけ**である。同 ADR は「測定できない予算は要件ではなく願望である」と定めているので、残る 5 指標は満たしていない要件である（[read-layer-followups.md](./read-layer-followups.md)）。
 
 **接続数の予算は[接続プールのスライス](../superpowers/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。
+
+**500件上限は[section-reader-performance のスライス](../superpowers/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど500で止まることを主張する（8節）。
+
+**「E2E で測れる」と「CI がそれを検査している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブのみで、Playwright を実行するジョブが無い。上記 2 指標の e2e はローカルでは本物のガードとして機能するが、push のたびに自動で走るわけではないので、退行が CI で機械的に止まるとは今は言えない。ADR-0011 の「測定できない予算は要件ではなく願望である」に照らすと、この差は無視できない。CI 配線自体は独立した follow-up として [read-layer-followups.md](./read-layer-followups.md) に記録してある。
