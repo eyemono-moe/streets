@@ -69,6 +69,17 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 **次の計画への提案**: `attempts` のリセットを `connect()` の戻りではなく**実際に接続が開いた時点**（`RelayConnection` 側の open 通知、あるいは最初の EOSE / メッセージ受信）に移す。今は `RelayConnection` に open の seam が無いので、`onClose` と対になる通知を足すか、`#reconnect` でのリセットをやめて `onEose` 到達時にプール側で 0 に戻す形にする。**このスライスでは実装しない**（e2e の flake 修正の副産物として見つけたもので、修正は再接続方針そのものの変更にあたる）。
 
+### CI が Playwright (e2e) を一度も実行していない（section-reader-performance の最終ブランチレビューで発覚）
+
+`.github/workflows/ci.yaml` には `check` / `test`（vitest）/ `build` の 3 ジョブしかなく、`pnpm exec playwright test` を呼ぶジョブが無い。`e2e/section-cap.spec.ts` をはじめとする e2e 群はローカルで走らせれば本物のガードとして機能する（下記「満たしていない要件」参照）が、push のたびに自動でそれを検査する仕組みが無いので、e2e が守っているはずの退行は CI では止まらない。
+
+**次の計画への提案**: 単純に `playwright` ジョブを足すだけでは済まない。少なくとも 2 つの前提を先に満たす必要がある。
+
+1. **依存サービスが要る。** e2e は `compose.yaml` の `nostr-rs-relay` / `nostr-rs-relay-2`（`postgres` に依存する）を必要とする。CI ワーカーでこれらを起動し、`pnpm dev:relay:reset` 相当のシード手順を踏んでから `pnpm exec playwright test` を叩く必要がある。
+2. **クリーンな木で赤くなる spec が既にある。** `e2e/console-warning.spec.ts` は旧実装の `/` を対象にしており、このリポジトリの現在の状態でそのまま走らせると失敗する（このスライスの検証コマンドも `--grep-invert "repost parser warning flood"` で除外している）。素朴に `playwright test` を丸ごと CI に配線すると、この 1 件のせいで初日から赤くなる。CI 化するなら、この spec 自体を直すか、対象を切り替えるか、除外するかを先に決める必要がある。
+
+**このスライスでは実装しない** — CI 配線は独立した作業であり、このスライスの範囲外。
+
 ## 直さないと決めたもの（理由つき）
 
 ### `EventStore.put` で検証を重複判定より前に移すこと
@@ -134,6 +145,8 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 ## 満たしていない要件
 
 [ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限に続いて 500 件上限**が E2E で測れるようになり、測定済みは 2 つになった（[architecture.md](./architecture.md) 10節）。残る 5 指標は未測定。
+
+**ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
 
 - **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
 - **500 件上限** — 解消済み。`e2e/section-cap.spec.ts` が 600 件（`MAX_ITEMS_PER_SECTION + 100`）を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 500 で止まることを主張する。

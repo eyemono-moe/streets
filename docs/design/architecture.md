@@ -8,7 +8,7 @@
 - 動作確認の手順は [verifying-v1-section.md](./verifying-v1-section.md)
 - 次に作るものの設計は [docs/superpowers/specs/](../superpowers/specs/)
 
-**現時点で実装されているのは読み取り層の 3 スライス目まで**（単一リレーのセクション読み取り、Outbox ルーティングと購読マネージャの器、接続プール）である。この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
+**現時点で実装されているのは、単一リレーのセクション読み取り・Outbox ルーティングと購読マネージャの器・接続プール・ローカルフィルタ照合・セクションの保持と通知（保持順の全順序化と通知バッチ）までである。**この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
 
 ---
 
@@ -346,3 +346,5 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 **接続数の予算は[接続プールのスライス](../superpowers/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。
 
 **500件上限は[section-reader-performance のスライス](../superpowers/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど500で止まることを主張する（8節）。
+
+**「E2E で測れる」と「CI がそれを検査している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブのみで、Playwright を実行するジョブが無い。上記 2 指標の e2e はローカルでは本物のガードとして機能するが、push のたびに自動で走るわけではないので、退行が CI で機械的に止まるとは今は言えない。ADR-0011 の「測定できない予算は要件ではなく願望である」に照らすと、この差は無視できない。CI 配線自体は独立した follow-up として [read-layer-followups.md](./read-layer-followups.md) に記録してある。

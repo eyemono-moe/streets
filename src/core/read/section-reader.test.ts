@@ -62,7 +62,15 @@ const event = (id: string, createdAt: number): NostrEvent => ({
   sig: "sig",
 });
 
-const setup = (relayUrls = ["wss://a/"], scheduler?: Scheduler) => {
+// scheduler は既定で偽タイマーにする。実タイマー (defaultScheduler) のまま
+// だと、リスナーを登録しない大多数のテストでも 16ms の setTimeout が張られ
+// 解除されないまま残る。今日は無害 (誰も listener を張らないので発火しても
+// 何も観測されない) だが、次にここへ listener を張るテストを足したときに
+// 決定的でなくなる事故を先回りして防ぐ。
+const setup = (
+  relayUrls = ["wss://a/"],
+  scheduler: Scheduler = createFakeClock(),
+) => {
   const relays = new Map<string, FakeRelayConnection>();
   const store = new PassThroughStore();
   const manager = new SubscriptionManager({
@@ -134,8 +142,11 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
 
 describe("SectionReader", () => {
   it("複数の配信をまとめて 1 回だけ通知する", () => {
-    // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる) /
-    // デバウンス (毎回張り直し) にする (advance で 1 回も呼ばれない)
+    // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる)。
+    // デバウンス (毎回張り直し) にする変異はここでは捕まらない —— 3 回とも
+    // 同期発火なので fake clock の now が一度も進まず、バッチとデバウンスが
+    // 同じ発火時刻を計算してしまう。デバウンスを捕まえるのは次のテスト
+    // 「窓より短い間隔で流れ続けても通知が止まらない」の方。
     const clock = createFakeClock();
     const { relay, reader } = setup(undefined, clock);
     const listener = vi.fn();
@@ -223,6 +234,29 @@ describe("SectionReader", () => {
     clock.advance(16);
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("stop() は保持していたイベントも捨てる", () => {
+    // 捕まえる変異: stop() で #events.clear() を呼ばない。
+    // 前回分が残ったままだと、再 start() 直後から status.phase が
+    // "initial" ではなく "streaming" になり、同じ id を再配信しても
+    // #events.has(id) の重複ガードに握りつぶされて items に載らない。
+    const clock = createFakeClock();
+    const { relay, reader } = setup(undefined, clock);
+    reader.start();
+
+    relay()?.emitEvent(0, event("a", 300));
+    expect(reader.items.map((e) => e.id)).toEqual(["a"]);
+
+    reader.stop();
+    reader.start();
+
+    expect(reader.status.phase).toBe("initial");
+    expect(reader.items).toEqual([]);
+
+    // 同じ id "a" を再配信しても、前回分の残留に握りつぶされず採用される。
+    relay()?.emitEvent(0, event("a", 300));
+    expect(reader.items.map((e) => e.id)).toEqual(["a"]);
   });
 
   it("starts in the initial phase before anything arrives", () => {

@@ -181,6 +181,7 @@ export class SectionReader {
     this.#relays = new Map();
     this.#plan = null;
     this.#started = false;
+    this.#events.clear();
     if (this.#notifyTimer !== null) {
       this.#scheduler.clearTimeout(this.#notifyTimer);
       this.#notifyTimer = null;
@@ -220,6 +221,10 @@ export class SectionReader {
    * 1 イベントごとに 2 回ソートしていた頃の 256,000 比較に対して誤差である。
    *
    * "thread-tree" はスレッドカラムの計画で足す。それまでは降順で扱う。
+   *
+   * 引数の配列を破壊的に (in place で) ソートして返す。安全なのは唯一の
+   * 呼び出し元 `items` ゲッタが毎回 `toArray()` の新しいコピーを渡すからで
+   * ある — 今後別の呼び出し元を足す場合、内部配列をそのまま渡さないこと。
    */
   #displayOrdered(events: NostrEvent[]): NostrEvent[] {
     if (this.#options.order !== "created-at-asc") return events;
