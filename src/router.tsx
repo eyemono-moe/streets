@@ -68,6 +68,10 @@ const routes = [
         component: lazy(() => import("./routes/addColumn/reactions")),
       },
       {
+        path: "/v1-preview",
+        component: lazy(() => import("./routes/v1-preview")),
+      },
+      {
         path: "/debug/v1-core",
         component: lazy(() => import("./routes/debug/v1-core")),
       },
