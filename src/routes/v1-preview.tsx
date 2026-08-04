@@ -18,6 +18,10 @@ import {
 } from "../core/deck/deck";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { EventStore } from "../core/read/event-store";
+import {
+  type ProfileRequests,
+  createProfileRequests,
+} from "../core/read/profile-requests";
 import { RoutingTable } from "../core/read/routing-table";
 import type { NostrSource } from "../core/read/source";
 import { SubscriptionManager } from "../core/read/subscription-manager";
@@ -56,6 +60,7 @@ const DeckColumn: Component<{
   column: ColumnDef;
   store: EventStore;
   manager: SubscriptionManager;
+  profileRequests: ProfileRequests;
 }> = (props) => {
   const source = createMemo<NostrSource>(() => {
     const original = props.column.source;
@@ -86,7 +91,11 @@ const DeckColumn: Component<{
         <For each={section.items()}>
           {(event) => (
             <li data-testid="item">
-              <Note event={event} />
+              <Note
+                event={event}
+                store={props.store}
+                profileRequests={props.profileRequests}
+              />
             </li>
           )}
         </For>
@@ -132,6 +141,11 @@ const V1Preview: Component = () => {
     // undefined なら SubscriptionManager 自身の既定 (FALLBACK_RELAYS) が効く
     fallbackRelays: RELAYS_OVERRIDE,
   });
+  // プロフィール要求のコアレッサ (spec 4 節, Task 5)。manager と同じ理由で
+  // 3 カラムぶん共有する —— 別々に持つと、同じ著者が複数カラムに出るたびに
+  // 別々のコアレッサがそれぞれ REQ を投げてしまい、まとめた意味が薄れる。
+  const profileRequests = createProfileRequests({ store, manager });
+  onCleanup(() => profileRequests.dispose());
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
   // 呼ばない — デバッグルートのような「空文字を弾く」ガードが要らない
@@ -267,7 +281,12 @@ const V1Preview: Component = () => {
         >
           <For each={deck()?.columns ?? []}>
             {(column) => (
-              <DeckColumn column={column} store={store} manager={manager} />
+              <DeckColumn
+                column={column}
+                store={store}
+                manager={manager}
+                profileRequests={profileRequests}
+              />
             )}
           </For>
         </div>
