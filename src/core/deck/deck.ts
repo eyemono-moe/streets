@@ -77,9 +77,7 @@ export const loadDeck = (raw: string | null): Deck | undefined => {
   // null リテラルとして正しくパースされて `null` を返す) —— この早期
   // リターンが無くても、その `null` は下の `isDeck()` の null チェックで
   // 結局弾かれる。ここが本当に守っているのは「raw が無い」という呼び出し側
-  // の意図を、JSON.parse の型強制という偶然の挙動任せにしないこと (fix
-  // round 1: 以前のコメントは「null を渡すと例外を投げる」という誤った
-  // 主張をしていた)。
+  // の意図を、JSON.parse の型強制という偶然の挙動任せにしないこと。
   if (raw === null) return undefined;
 
   let parsed: unknown;
@@ -135,16 +133,18 @@ const isNumberArray = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((item) => typeof item === "number");
 
 /**
- * `authors`/`kinds`/`ids` の型まで確かめる (fix round 1)。
+ * `authors`/`kinds`/`ids` などの型と、フィルタが少なくとも 1 つの
+ * scoping フィールドを持つことを確かめる。
  *
- * 確かめなかった旧版は `{ kinds:[1], authors: 42 }` のような値を素通しして
- * いた —— `subscription-manager.ts` が `for (const author of filter.authors
+ * 型を確かめないと `{ kinds:[1], authors: 42 }` のような値を素通しして
+ * しまう —— `subscription-manager.ts` が `for (const author of filter.authors
  * ?? [])` と書いている箇所は `??` が `null`/`undefined` しか捕まえないので
  * `42 ?? []` は `42` のままになり、`for...of` が `TypeError: not iterable`
  * を投げる。これは `createSection` の `createEffect` の中、マウント中に
- * 同期的に起きる。`ErrorBoundary` は無い (下記の判断) ので、そのまま白画面
- * になる —— まさに loadDeck が守るべき「壊れた入力で白画面にしない」を
- * この関数自身が破っていた。
+ * 同期的に起きる。このアプリに `ErrorBoundary` は無く、壊れた入力は
+ * `loadDeck` のような境界で弾くことで白画面を防ぐ設計になっている ——
+ * ここで型を確かめ損なうと、まさにその境界の役目を `isRelayFilter` 自身が
+ * 破ることになる。
  *
  * `RelayFilter` は `#<tag>` の任意キーも許すが、その値は常に `string[]`
  * (NIP-01) なので、既知フィールドと同じ規則で確かめる。
@@ -155,11 +155,6 @@ const isRelayFilter = (value: unknown): value is RelayFilter => {
   const filter = value as Record<string, unknown>;
 
   const keys = Object.keys(filter);
-  // 空のフィルタ ({}) は「著者も種類も問わない」= 無制限購読 (firehose)。
-  // NIP-01 上は合法でも、壊れたデッキから偶然出てきた {} が本物のリレー
-  // (FALLBACK_RELAYS) への無制限購読として通ってしまう実害の方が大きいので、
-  // 永続化されたデッキのフィルタとしては受け付けない (fix round 1, 指摘2)。
-  if (keys.length === 0) return false;
 
   if (filter.ids !== undefined && !isStringArray(filter.ids)) return false;
   if (filter.authors !== undefined && !isStringArray(filter.authors))
@@ -174,9 +169,28 @@ const isRelayFilter = (value: unknown): value is RelayFilter => {
   if (filter.search !== undefined && typeof filter.search !== "string")
     return false;
 
-  for (const key of keys) {
-    if (key.startsWith("#") && !isStringArray(filter[key])) return false;
+  const tagKeys = keys.filter((key) => key.startsWith("#"));
+  for (const key of tagKeys) {
+    if (!isStringArray(filter[key])) return false;
   }
+
+  // `ids`/`authors`/`kinds`/`#tag` のどれも無いフィルタは「誰の・何を
+  // 問わない」= 無制限購読 (firehose) になる。`{}` だけでなく `{ since: 123
+  // }` のような形も同じ穴 —— `since`/`until`/`limit`/`search` はクエリを
+  // 絞り込みはするが、誰の・何のイベントかという範囲そのものは定めない
+  // (query-plan.ts: `authors` が無ければ「誰でもいい」、`kinds` が無ければ
+  // 種類は無制限)。だから「範囲を決める」フィールド (`ids`/`authors`/
+  // `kinds`/`#tag`) を scoping、それ以外 (`since`/`until`/`limit`/`search`)
+  // を非 scoping として区別し、scoping フィールドが 1 つも無ければ拒否
+  // する。壊れたデッキから偶然この形が出てきて、本物のリレー
+  // (`FALLBACK_RELAYS`) への無制限購読として通ってしまう実害の方が大きい
+  // ので、永続化されたデッキのフィルタとしては受け付けない。
+  const hasScopingField =
+    filter.ids !== undefined ||
+    filter.authors !== undefined ||
+    filter.kinds !== undefined ||
+    tagKeys.length > 0;
+  if (!hasScopingField) return false;
 
   return true;
 };

@@ -19,14 +19,14 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("null (未保存) は undefined", () => {
-    // 捕まえる変異: raw === null の早期リターンを削る。
-    // 注意: JSON.parse(null) は例外を投げない ("null" へ強制変換されて
-    // JSON の null リテラルとしてパースが成功する) —— 早期リターンを削って
-    // も isDeck() 側の null チェックが最終的に undefined を返すので、この
-    // アサーション単体は早期リターンの有無を区別できない。ここで守っている
-    // のは「raw が無い」という呼び出し側の意図を JSON.parse の型強制と
-    // いう偶然の挙動に委ねないこと (fix round 1: 旧コメントの「例外を
-    // 投げる」は誤りだった)。
+    // このアサーションが実際に保証すること: JSON.parse(null) は例外を
+    // 投げない ("null" へ強制変換されて JSON の null リテラルとしてパースが
+    // 成功する) —— raw === null の早期リターンを削っても isDeck() 側の
+    // null チェックが最終的に undefined を返すので、この 1 本のアサーション
+    // 単体では早期リターンの有無を区別できない (だから「捕まえる変異」は
+    // 無い)。それでも早期リターンを残すのは、「raw が無い」という呼び出し
+    // 側の意図を JSON.parse の型強制という偶然の挙動任せにせず、コードとして
+    // 明示するため。
     expect(loadDeck(null)).toBeUndefined();
   });
 
@@ -56,7 +56,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter の authors が配列でなければ undefined", () => {
-    // 捕まえる変異: filter の中身の型を確かめない (fix round 1, Critical)。
+    // 捕まえる変異: filter の中身の型を確かめない。
     // subscription-manager.ts の `for (const author of filter.authors ?? [])`
     // は `??` が null/undefined しか捕まえないので `42 ?? []` は `42` のまま
     // になり、`for...of` が非同期の外、createSection のマウント中に同期的に
@@ -102,7 +102,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter が空オブジェクトなら undefined", () => {
-    // 捕まえる変異: 空フィルタを許す (fix round 1, Important)。
+    // 捕まえる変異: 空フィルタを許す。
     // {} は「著者も種類も問わない」= 無制限購読 (firehose) になり、壊れた
     // デッキが本物のリレーへの無制限購読として通ってしまう。
     expect(
@@ -115,6 +115,44 @@ describe("loadDeck / saveDeck", () => {
         }),
       ),
     ).toBeUndefined();
+  });
+
+  it("filter が since/until/limit/search だけなら undefined", () => {
+    // 捕まえる変異: scoping フィールド (ids/authors/kinds/#tag) の有無を
+    // 見ない。{ since: 123 } は空オブジェクトと同じ穴 —— since は範囲を
+    // 絞り込むだけで、誰の・何のイベントかという範囲そのものは定めない
+    // ので、これも無制限購読になる。
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 1,
+          columns: [
+            {
+              id: "a",
+              title: "b",
+              source: { type: "nostr", filters: [{ since: 123 }] },
+            },
+          ],
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("filter が #tag だけでも scoping として受け付ける", () => {
+    // 捕まえる変異: scoping フィールドの判定から #tag を落とす。#e/#p
+    // などのタグ絞り込みは合法な scoping であり、空フィルタ扱いにして
+    // 巻き添えで拒否してはいけない (退行防止)。
+    const withTagFilter: Deck = {
+      version: 1,
+      columns: [
+        {
+          id: "a",
+          title: "b",
+          source: { type: "nostr", filters: [{ "#e": ["e".repeat(64)] }] },
+        },
+      ],
+    };
+    expect(loadDeck(JSON.stringify(withTagFilter))).toEqual(withTagFilter);
   });
 });
 
@@ -145,8 +183,8 @@ describe("defaultDeck", () => {
     });
 
     // 明示リレー: Outbox をバイパスして relays を直接持つ。他の 2 本と同じく
-    // 構造を丸ごと比較する (fix round 1, Minor: 以前は relays.length > 0 だけ
-    // で、kinds を落とす変異を捕まえられなかった)。
+    // 構造を丸ごと比較する (relays.length > 0 だけの緩いアサーションだと
+    // kinds を落とす変異を捕まえられない)。
     const explicit = result.columns.find((c) => c.source.relays);
     expect(explicit?.source).toEqual({
       type: "nostr",
