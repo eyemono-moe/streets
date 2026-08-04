@@ -1,13 +1,11 @@
-import type { NostrEvent } from "../nostr/event";
 import type {
-  RelayFilter,
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
+import { collect } from "./collect";
 import type { ConnectionPool, PooledSubscription } from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
-import { matchesAnyFilter } from "./filter-match";
 
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;
@@ -72,123 +70,14 @@ export type WarmUpOptions = {
   timeoutMs?: number;
 };
 
-/**
- * 複数のインデクサへ同じフィルタを投げ、全 URL が片付く (EOSE か CLOSED を
- * 報告する) かタイムアウトするまで待つ。届いたイベントは EventStore に
- * 入れるだけで、呼び出し元へは返さない — 呼び出し元は store 経由で読む。
- *
- * 1 URL につき「片付いた」判定は 1 回だけしか数えない。EOSE の後に CLOSED
- * が届く (あるいはその逆) リレーが実在し、素直にカウントダウンするだけだと
- * 同じ URL で 2 回減算されて、他の URL の応答を待たずに終わってしまう。
- *
- * 片付いた URL はその場で購読を閉じる。全部の片付きを待ってからまとめて
- * 閉じると、先に応答した速いリレーの購読が、遅いリレーのぶんだけ
- * (最悪 timeoutMs いっぱい) 無駄に開いたままになる。タイムアウトで
- * finish() した場合は、まだ片付いていない URL の購読をそこで閉じる。
- *
- * `pool.subscribe()` は `{ reserved: true }` で呼ぶ — インデクサは予算が
- * 埋まっていても必ず開けなければならない (ConnectionPool の
- * `SubscribeOptions` 参照)。ここで開くエントリを閉じても、
- * `warmUpRouting()` が別途持っているアンカー購読 (下記参照) がまだ同じ URL
- * のエントリを握っているので、プールの接続そのものは落ちない —
- * 「settle したらすぐ閉じる」(このコメントの上の段落) は文字どおり
- * このエントリだけの話で、接続の生死には関与しない。
- *
- * `open` は warmUpRouting 側が両フェーズを通して持つ Map で、ここが開いた
- * `PooledSubscription` を記録する — collect() が例外なく正常に終わる限り、
- * この呼び出しが返る時点で空になっている (settle か finish() のどちらかが
- * 必ず閉じるため)。warmUpRouting の `finally` はこれを安全網として使う。
- *
- * ここは Outbox ルーティングを使わない専用経路 (ADR-0016)。
- *
- * 戻り値は「要求していないのに送られてきて捨てたイベントの件数」。全 URL の
- * settle で終わろうとタイムアウトで finish() が発火しようと、この時点までに
- * カウントした `unrequested` をそのまま返す — finish() は単一の resolve 経路
- * であり、どちらの終わり方でも数え漏れ・数え過ぎは起きない。
- */
-const collect = (
-  pool: ConnectionPool,
-  urls: readonly RelayUrl[],
-  filters: RelayFilter[],
-  store: EventStore,
-  timeoutMs: number,
-  open: Map<RelayUrl, PooledSubscription>,
-): Promise<number> =>
-  new Promise((resolve) => {
-    let unrequested = 0;
-    let pending = urls.length;
-    let done = false;
-    const settled = new Set<RelayUrl>();
-
-    const finish = () => {
-      if (done) return;
-      done = true;
-      clearTimeout(timer);
-      for (const subscription of open.values()) subscription.close();
-      open.clear();
-      resolve(unrequested);
-    };
-    const timer = setTimeout(finish, timeoutMs);
-
-    if (urls.length === 0) {
-      finish();
-      return;
-    }
-
-    const settleOnce = (url: RelayUrl) => {
-      if (settled.has(url)) return;
-      settled.add(url);
-      // ここで閉じておけば finish() 側で二重に閉じても安全
-      // (PooledSubscription.close() は冪等)。
-      open.get(url)?.close();
-      open.delete(url);
-      pending -= 1;
-      if (pending <= 0) finish();
-    };
-
-    for (const url of urls) {
-      const subscription = pool.subscribe(
-        url,
-        filters,
-        {
-          // 信頼境界 (ADR-0023)。インデクサが要求と無関係な kind/著者を
-          // 寄越しても、ここで落とす。ルーティング表の元データが入る経路
-          // なので、混入を許すと ADR-0016 の導出そのものが汚れる。
-          onEvent: (event: NostrEvent) => {
-            if (!matchesAnyFilter(event, filters)) {
-              unrequested += 1;
-              return;
-            }
-            store.put(event, url);
-          },
-          onEose: () => settleOnce(url),
-          onClosed: () => settleOnce(url),
-        },
-        // ブートストラップだけが使ってよい予算迂回 (ConnectionPool の
-        // `SubscribeOptions` 参照)。ここ以外では絶対に使わないこと。
-        { reserved: true },
-      );
-
-      if (!subscription) {
-        // `reserved: true` は予算チェックそのものを飛ばすので、
-        // pool.subscribe() が undefined を返す唯一の経路 (予算切れ) は
-        // ここでは構造的に起こらないはず。それでも `subscribe()` は
-        // 「例外を投げない」契約なので、万一に備えてハングせず即座に
-        // 片付いたものとして扱う。
-        settleOnce(url);
-        continue;
-      }
-
-      // subscribe() が同期的に onClosed を呼ぶ実装がある (connect() の失敗、
-      // あるいは connection.subscribe() 自体の失敗を pool が同期的に
-      // handlers.onClosed(...) へ変換する)。その場合 settleOnce はまだ
-      // `open` に載っていない url を閉じられず、単一 URL なら finish() も
-      // この時点で既に走り切ってしまっている (done=true) ので、もう誰も
-      // `open` を見に来ない。ここで拾って即座に閉じ、迷子にしない。
-      if (done) subscription.close();
-      else open.set(url, subscription);
-    }
-  });
+// 全リレーが EOSE/CLOSED を報告するかタイムアウトするまで待ち、届いた
+// イベントを EventStore へ入れる、という settle 判定そのものは
+// `SubscriptionManager.fetchOnce` (Task 4) と共有する — 両者とも
+// `ConnectionPool` と `EventStore` だけを見ればよく、互いには依存しないため、
+// `./collect` へ引き上げてある。`{ reserved: true }` は下の呼び出しが
+// 明示的に指定する — この迂回はブートストラップだけが使ってよい
+// (`ConnectionPool` の `SubscribeOptions` 参照)。定義とコメントは
+// `./collect` を参照。
 
 export const warmUpRouting = async ({
   pubkey,
@@ -252,6 +141,9 @@ export const warmUpRouting = async ({
       store,
       timeoutMs,
       open,
+      // ブートストラップだけが使ってよい予算迂回 (`./collect` の
+      // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
+      { reserved: true },
     );
 
     const followList = store.latestReplaceable(FOLLOW_LIST_KIND, pubkey);
@@ -282,6 +174,9 @@ export const warmUpRouting = async ({
       store,
       timeoutMs,
       open,
+      // ブートストラップだけが使ってよい予算迂回 (`./collect` の
+      // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
+      { reserved: true },
     );
 
     let routed = 0;
