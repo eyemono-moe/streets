@@ -1,9 +1,25 @@
-import { For, Show, createMemo, createResource, createSignal } from "solid-js";
+import {
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import type { Component } from "solid-js";
+import {
+  type ColumnDef,
+  DECK_STORAGE_KEY,
+  type Deck,
+  defaultDeck,
+  loadDeck,
+  saveDeck,
+} from "../core/deck/deck";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { EventStore } from "../core/read/event-store";
 import { RoutingTable } from "../core/read/routing-table";
-import type { NostrSource, SectionStatus } from "../core/read/source";
+import type { NostrSource } from "../core/read/source";
 import { SubscriptionManager } from "../core/read/subscription-manager";
 import { connectRelay } from "../core/relay/websocket-relay-connection";
 import { createNip07Signer } from "../core/signer/nip07-signer";
@@ -24,7 +40,64 @@ const RELAYS_OVERRIDE = parseRelays(
 );
 
 /**
- * v1 の垂直スライス最初の一歩。「自分の pubkey が画面に出る」ところまで。
+ * デッキの 1 本のカラム。`createSection` を own する単位を `<For>` の
+ * コールバックではなくコンポーネントとして切り出しているのは、カラムの
+ * 追加・削除 (将来) で `createEffect`/`onCleanup` の対応関係を素直に
+ * Solid の所有者ツリーへ委ねるため。
+ *
+ * `?relays=` (RELAYS_OVERRIDE) が効いている間は、明示リレーを持つカラム
+ * (`defaultDeck` の "global" 列など) の `relays` もローカルリレーへ
+ * 差し替える。これをしないと `defaultDeck` が焼き込んだ本物のリレー
+ * (`FALLBACK_RELAYS`) へ e2e が外部ネットワーク越しに繋ぎに行ってしまい、
+ * ローカルシードでは検証できなくなる — `fallbackRelays`/`indexers` に
+ * 対する上と同じ上書きの立て付け。
+ */
+const DeckColumn: Component<{
+  column: ColumnDef;
+  store: EventStore;
+  manager: SubscriptionManager;
+}> = (props) => {
+  const source = createMemo<NostrSource>(() => {
+    const original = props.column.source;
+    return RELAYS_OVERRIDE && original.relays
+      ? { ...original, relays: RELAYS_OVERRIDE }
+      : original;
+  });
+
+  const section = createSection({
+    source,
+    store: props.store,
+    manager: props.manager,
+  });
+
+  return (
+    <section
+      data-testid="deck-column"
+      data-column-id={props.column.id}
+      class="h-full w-100 shrink-0 space-y-2 overflow-y-auto border-alpha-300 border-r p-3 last:border-r-0"
+    >
+      <h2 class="font-bold" data-testid="deck-column-title">
+        {props.column.title}
+      </h2>
+      <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
+        phase: {section.status().phase}
+      </p>
+      <ul data-testid="items" class="space-y-2">
+        <For each={section.items()}>
+          {(event) => (
+            <li data-testid="item">
+              <Note event={event} />
+            </li>
+          )}
+        </For>
+      </ul>
+    </section>
+  );
+};
+
+/**
+ * v1 の垂直スライス。ログイン (Task 1) → 1 カラム描画 (Task 2) に続き、
+ * ここでデッキ (3 カラム) と localStorage への永続化を足す。
  *
  * **拡張機能の有無をマウント時に一度だけ確認して結果を保持する、という
  * ことはしない。** NIP-07 拡張は content script としてページ本体より
@@ -42,12 +115,14 @@ const V1Preview: Component = () => {
   const [pubkey, setPubkey] = createSignal<string>();
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
+  const [deck, setDeck] = createSignal<Deck>();
 
   // 読み取り層の配線。debug/v1-section.tsx と同じ構成
   // (EventStore → RoutingTable → SubscriptionManager → warmUpRouting →
-  // createSection)。違いは 2 点だけ: ① 本物のリレーを使う (RELAYS_OVERRIDE
-  // が無い限り、各層それぞれの既定 = BOOTSTRAP_INDEXERS / FALLBACK_RELAYS が
-  // そのまま効く)。② pubkey はクエリパラメータではなくログインから来る。
+  // createSection)。manager (= ConnectionPool) は 3 カラムぶんの
+  // createSection すべてで共有する — ADR-0011 の 30 接続予算はカラム単位
+  // ではなくアプリ全体の予算なので、カラムごとに別の manager を持つと
+  // 予算が意味を失う。
   const store = new EventStore();
   const routing = new RoutingTable(store);
   const manager = new SubscriptionManager({
@@ -72,24 +147,59 @@ const V1Preview: Component = () => {
     }),
   );
 
-  const source = createMemo<NostrSource>(() => {
-    const followees = warmUp()?.followees ?? [];
-    return {
-      type: "nostr",
-      // ルーティング表に任せる。relays は指定しない (Outbox)
-      filters: followees.length > 0 ? [{ kinds: [1], authors: followees }] : [],
-    };
+  // デッキの読み込みと既定デッキの確定は一度だけ行う。
+  //
+  // pubkey が確定した直後に localStorage を読み、保存済みのものが
+  // あればそのまま使う —— followees の再計算を待たない。これがリロード
+  // のたびに同じ 3 本が出る理由そのもの (待ってしまうと、2 回目以降の
+  // 読み込みでも一瞬 defaultDeck の中身が見え、フォローが増減していれば
+  // 保存済みのカラムと違うものが一瞬出てからすり替わる)。
+  //
+  // 保存が無い、または `loadDeck` が壊れていると判定した場合だけ、
+  // フォロー数が確定するまで (warmUp.loading が終わるまで) 待って
+  // `defaultDeck` を組み、保存する —— 空著者のホーム列を確定させたくない。
+  // 待っている間も画面は「ログイン済み・カラム未確定」の状態を素直に
+  // 描画するだけで、白画面にはならない。
+  let deckInitialized = false;
+  createEffect(() => {
+    const pk = pubkey();
+    if (!pk || deckInitialized) return;
+
+    const stored = loadDeck(window.localStorage.getItem(DECK_STORAGE_KEY));
+    if (stored) {
+      deckInitialized = true;
+      setDeck(stored);
+      return;
+    }
+
+    if (warmUp.loading) return;
+    deckInitialized = true;
+    const fresh = defaultDeck(pk, warmUp()?.followees ?? []);
+    window.localStorage.setItem(DECK_STORAGE_KEY, saveDeck(fresh));
+    setDeck(fresh);
   });
 
-  const section = createSection({ source, store, manager });
-
-  // warmUp がまだフォロー数を確定させていない間は source が filters: [] を
-  // 返し、0 リレー分の購読は購読対象が無いぶん瞬時に vacuously 「settled」
-  // になってしまう (debug/v1-section.tsx と同じ理由)。表示上はウォーム
-  // アップが終わるまで initial に留めておく。
-  const status = createMemo<SectionStatus>(() =>
-    warmUp.loading ? { phase: "initial" } : section.status(),
+  // manager.connectionCount / peakConnectionCount はシグナルではないので
+  // JSX へ直接置いても更新されない (debug/v1-section.tsx と同じ理由)。
+  // 3 カラムぶんの購読が同じ manager (= 同じ ConnectionPool) を共有して
+  // いるので、ここに出るのは 3 カラム合計の接続数 —— 30 接続予算が
+  // 3 カラム + プロフィール + 投稿で成立するかという問い (仕様 10 節
+  // 問い 2) の材料。setInterval によるポーリングは、デバッグルートと
+  // 同じく「pool 側だけで完結する変化を取り逃さない」ための保険。
+  const [connections, setConnections] = createSignal(manager.connectionCount);
+  const [peakConnections, setPeakConnections] = createSignal(
+    manager.peakConnectionCount,
   );
+  const syncConnectionSignals = () => {
+    setConnections(manager.connectionCount);
+    setPeakConnections(manager.peakConnectionCount);
+  };
+  createEffect(() => {
+    warmUp();
+    syncConnectionSignals();
+  });
+  const connectionsInterval = setInterval(syncConnectionSignals, 1_000);
+  onCleanup(() => clearInterval(connectionsInterval));
 
   const login = async () => {
     setLoading(true);
@@ -110,70 +220,57 @@ const V1Preview: Component = () => {
   };
 
   return (
-    <div class="mx-auto max-w-md space-y-4 p-6">
-      <h1 class="font-bold text-lg">v1 プレビュー</h1>
+    <div class="flex h-100dvh w-screen flex-col overflow-hidden">
+      <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
+        <h1 class="font-bold text-lg">v1 プレビュー</h1>
 
-      <Show
-        when={!pubkey()}
-        fallback={
-          <p
-            data-testid="viewer-pubkey"
-            class="break-all rounded-2 border border-alpha-300 bg-alpha-50 p-3 text-sm"
-          >
-            {pubkey()}
-          </p>
-        }
-      >
-        <Button data-testid="login" disabled={loading()} onClick={login}>
-          {loading() ? "確認中…" : "NIP-07 でログイン"}
-        </Button>
+        <Show
+          when={!pubkey()}
+          fallback={
+            <div class="flex flex-wrap items-center gap-3">
+              <p
+                data-testid="viewer-pubkey"
+                class="break-all rounded-2 border border-alpha-300 bg-alpha-50 p-2 text-xs"
+              >
+                {pubkey()}
+              </p>
+              <p data-testid="connections" class="text-alpha-600 text-xs">
+                connections: {connections()}
+              </p>
+              <p data-testid="peak-connections" class="text-alpha-600 text-xs">
+                peakConnections: {peakConnections()}
+              </p>
+            </div>
+          }
+        >
+          <Button data-testid="login" disabled={loading()} onClick={login}>
+            {loading() ? "確認中…" : "NIP-07 でログイン"}
+          </Button>
 
-        <Show when={errorMessage()}>
-          {(message) => (
-            <p
-              data-testid="signer-error"
-              class="rounded-2 border border-red-6 bg-red-4/10 p-3 text-red-8 text-sm dark:text-red-4"
-            >
-              {message()}
-            </p>
-          )}
+          <Show when={errorMessage()}>
+            {(message) => (
+              <p
+                data-testid="signer-error"
+                class="rounded-2 border border-red-6 bg-red-4/10 p-3 text-red-8 text-sm dark:text-red-4"
+              >
+                {message()}
+              </p>
+            )}
+          </Show>
         </Show>
-      </Show>
+      </header>
 
       <Show when={pubkey()}>
-        <section data-testid="home-column" class="space-y-2">
-          <h2 class="font-bold">ホーム</h2>
-
-          {/* followees はフォロー 0 人・ウォームアップ失敗・ルーティング失敗・
-              接続予算切れを見分けるための最小限の手掛かり (仕様 10 節 問い 4)。
-              incomplete は生の数値のまま出す (仕様 7 節) — ユーザー向けの
-              翻訳はまだしない。 */}
-          <p data-testid="warmup" class="text-alpha-600 text-xs">
-            followees: {warmUp()?.followees.length ?? 0}
-          </p>
-          <p data-testid="phase" class="text-alpha-600 text-xs">
-            phase: {status().phase}
-          </p>
-          <p data-testid="unreachable" class="text-alpha-600 text-xs">
-            unreachableRelays: {status().incomplete?.unreachableRelays ?? 0}
-          </p>
-          <p data-testid="unroutable" class="text-alpha-600 text-xs">
-            unroutableAuthors: {status().incomplete?.unroutableAuthors ?? 0}
-          </p>
-          <p data-testid="uncovered" class="text-alpha-600 text-xs">
-            uncoveredAuthors: {status().incomplete?.uncoveredAuthors ?? 0}
-          </p>
-
-          <ul data-testid="items" class="space-y-2">
-            <For each={section.items()}>
-              {(event) => (
-                <li data-testid="item">
-                  <Note event={event} />
-                </li>
-              )}
-            </For>
-          </ul>
-        </section>
+        <div
+          data-testid="deck"
+          class="flex min-h-0 flex-1 divide-x overflow-x-auto"
+        >
+          <For each={deck()?.columns ?? []}>
+            {(column) => (
+              <DeckColumn column={column} store={store} manager={manager} />
+            )}
+          </For>
+        </div>
       </Show>
     </div>
   );
