@@ -72,6 +72,14 @@ export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
  * `undefined` を返す (呼び出し側が既定デッキへ落ちられるように)。
  */
 export const loadDeck = (raw: string | null): Deck | undefined => {
+  // 「未保存」を明示的に表現する早期リターン。`JSON.parse(null)` は実は
+  // 例外を投げない (`null` が `ToString` で `"null"` に強制変換され、JSON の
+  // null リテラルとして正しくパースされて `null` を返す) —— この早期
+  // リターンが無くても、その `null` は下の `isDeck()` の null チェックで
+  // 結局弾かれる。ここが本当に守っているのは「raw が無い」という呼び出し側
+  // の意図を、JSON.parse の型強制という偶然の挙動任せにしないこと (fix
+  // round 1: 以前のコメントは「null を渡すと例外を投げる」という誤った
+  // 主張をしていた)。
   if (raw === null) return undefined;
 
   let parsed: unknown;
@@ -120,11 +128,55 @@ const isNostrSource = (value: unknown): value is NostrSource => {
   return true;
 };
 
+const isStringArray = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const isNumberArray = (value: unknown): value is number[] =>
+  Array.isArray(value) && value.every((item) => typeof item === "number");
+
 /**
- * `RelayFilter` は `#<tag>` の任意キーを許すので、フィールドを列挙して
- * 網羅的に確かめることはしない。「オブジェクトである」ところまでで十分 ——
- * ここでの目的は形の壊れたデッキで描画時に落ちないことであって、
- * リレーへ送るフィルタとしての妥当性はリレー自身がエラーで教えてくれる。
+ * `authors`/`kinds`/`ids` の型まで確かめる (fix round 1)。
+ *
+ * 確かめなかった旧版は `{ kinds:[1], authors: 42 }` のような値を素通しして
+ * いた —— `subscription-manager.ts` が `for (const author of filter.authors
+ * ?? [])` と書いている箇所は `??` が `null`/`undefined` しか捕まえないので
+ * `42 ?? []` は `42` のままになり、`for...of` が `TypeError: not iterable`
+ * を投げる。これは `createSection` の `createEffect` の中、マウント中に
+ * 同期的に起きる。`ErrorBoundary` は無い (下記の判断) ので、そのまま白画面
+ * になる —— まさに loadDeck が守るべき「壊れた入力で白画面にしない」を
+ * この関数自身が破っていた。
+ *
+ * `RelayFilter` は `#<tag>` の任意キーも許すが、その値は常に `string[]`
+ * (NIP-01) なので、既知フィールドと同じ規則で確かめる。
  */
-const isRelayFilter = (value: unknown): value is RelayFilter =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const isRelayFilter = (value: unknown): value is RelayFilter => {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return false;
+  const filter = value as Record<string, unknown>;
+
+  const keys = Object.keys(filter);
+  // 空のフィルタ ({}) は「著者も種類も問わない」= 無制限購読 (firehose)。
+  // NIP-01 上は合法でも、壊れたデッキから偶然出てきた {} が本物のリレー
+  // (FALLBACK_RELAYS) への無制限購読として通ってしまう実害の方が大きいので、
+  // 永続化されたデッキのフィルタとしては受け付けない (fix round 1, 指摘2)。
+  if (keys.length === 0) return false;
+
+  if (filter.ids !== undefined && !isStringArray(filter.ids)) return false;
+  if (filter.authors !== undefined && !isStringArray(filter.authors))
+    return false;
+  if (filter.kinds !== undefined && !isNumberArray(filter.kinds)) return false;
+  if (filter.since !== undefined && typeof filter.since !== "number")
+    return false;
+  if (filter.until !== undefined && typeof filter.until !== "number")
+    return false;
+  if (filter.limit !== undefined && typeof filter.limit !== "number")
+    return false;
+  if (filter.search !== undefined && typeof filter.search !== "string")
+    return false;
+
+  for (const key of keys) {
+    if (key.startsWith("#") && !isStringArray(filter[key])) return false;
+  }
+
+  return true;
+};
