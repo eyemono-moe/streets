@@ -181,7 +181,7 @@ describe("createPublisher", () => {
     );
   });
 
-  // Task 12 step 2 との統合: 予算が埋まっていて pool.publish() が reject
+  // ConnectionPool との統合: 予算が埋まっていて pool.publish() が reject
   // した場合も、publisher.ts はそれを他の失敗と同じように rejected へ積む
   // (迂回する特別扱いをしない)。
   it("プールの予算切れによる reject も rejected に積む", async () => {

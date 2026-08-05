@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { FALLBACK_RELAYS } from "../read/default-relays";
-import { type Deck, defaultDeck, loadDeck, saveDeck } from "./deck";
+import {
+  type Deck,
+  deckStorageKey,
+  defaultDeck,
+  loadDeck,
+  saveDeck,
+} from "./deck";
 
 const deck: Deck = {
   version: 1,
@@ -197,5 +203,56 @@ describe("defaultDeck", () => {
     const result = defaultDeck(viewerPubkey, followees);
     const ids = result.columns.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("deckStorageKey (final review, Important 3)", () => {
+  const pubkeyA = "a".repeat(64);
+  const pubkeyB = "b".repeat(64);
+
+  it("同じ pubkey には同じキーを返す", () => {
+    expect(deckStorageKey(pubkeyA)).toBe(deckStorageKey(pubkeyA));
+  });
+
+  it("pubkey ごとに異なるキーを返す", () => {
+    // 捕まえる変異: pubkey を無視して固定のキーを返す (旧 DECK_STORAGE_KEY
+    // が全アカウントで 1 本を共有していたバグに逆戻りする)。これを見逃す
+    // と、B でログインしたときに A が保存したデッキ (A の followees を
+    // 焼き込んだ home 列、A の pubkey を著者に持つ mine 列) をそのまま
+    // 読み込んでしまう。
+    expect(deckStorageKey(pubkeyA)).not.toBe(deckStorageKey(pubkeyB));
+  });
+
+  it("A が保存したデッキは B のキーからは読めない", () => {
+    // v1-preview.tsx の `window.localStorage` の代わりに Map で十分 ——
+    // ここで確かめたいのはキーの分離そのもので、Storage API の挙動では
+    // ない。
+    const storage = new Map<string, string>();
+    const deckA: Deck = {
+      version: 1,
+      columns: [
+        {
+          id: "home",
+          title: "A のホーム",
+          source: {
+            type: "nostr",
+            filters: [{ kinds: [1], authors: [pubkeyA] }],
+          },
+        },
+      ],
+    };
+    storage.set(deckStorageKey(pubkeyA), saveDeck(deckA));
+
+    // 捕まえる変異: deckStorageKey が pubkey を無視する、あるいは
+    // v1-preview.tsx 側が保存済みデッキを pubkey を確かめずそのまま使う
+    // (アカウント境界の欠落)。B のキーでは A のデッキは存在しない
+    // (undefined = defaultDeck へ落ちる) ことを確かめる。
+    expect(
+      loadDeck(storage.get(deckStorageKey(pubkeyB)) ?? null),
+    ).toBeUndefined();
+    // A 自身のキーでは引き続き読める (退行防止)。
+    expect(loadDeck(storage.get(deckStorageKey(pubkeyA)) ?? null)).toEqual(
+      deckA,
+    );
   });
 });

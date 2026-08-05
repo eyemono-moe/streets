@@ -10,8 +10,8 @@ import {
 import type { Component } from "solid-js";
 import {
   type ColumnDef,
-  DECK_STORAGE_KEY,
   type Deck,
+  deckStorageKey,
   defaultDeck,
   loadDeck,
   saveDeck,
@@ -36,6 +36,7 @@ import { type PublishResult, createPublisher } from "../core/write/publisher";
 import Button from "../shared/components/UI/Button";
 import Note from "./v1-preview/Note";
 import { parseRelays } from "./v1-preview/parse-relays";
+import { verifyOptimisticInsert } from "./v1-preview/verify-optimistic-insert";
 
 /**
  * `?relays=` でローカルリレーへ上書きする (parse-relays.ts 参照)。
@@ -66,7 +67,7 @@ const DeckColumn: Component<{
   manager: SubscriptionManager;
   profileRequests: ProfileRequests;
   /**
-   * 投稿フォーム (Task 12) が署名直後に楽観挿入した、まだリレーから戻って
+   * 投稿フォームが署名直後に楽観挿入した、まだリレーから戻って
    * きていない自分の投稿。`SectionReader` は購読経由でしか items を更新
    * できない (`store.put()` を直接呼んでも拾わない) ので、表示側でこの
    * リストを重ね合わせる。
@@ -182,7 +183,7 @@ const V1Preview: Component = () => {
   const profileRequests = createProfileRequests({ store, manager });
   onCleanup(() => profileRequests.dispose());
 
-  // 書き込み経路 (Task 12)。ソケットを開くのは manager と同じ
+  // 書き込み経路。ソケットを開くのは manager と同じ
   // ConnectionPool (`manager.pool`) 一本化 —— publish 専用の別経路は
   // 持たない (Global constraints: 30 接続予算をもう一系統で穴あけしない)。
   const publisher = createPublisher({
@@ -225,7 +226,11 @@ const V1Preview: Component = () => {
     const pk = pubkey();
     if (!pk || deckInitialized) return;
 
-    const stored = loadDeck(window.localStorage.getItem(DECK_STORAGE_KEY));
+    // pubkey ごとにキーを分ける (final review, Important 3) —— でないと
+    // 別アカウントでログインし直したときに前のアカウントのデッキ
+    // (followees や著者フィルタを含む) をそのまま引き継いでしまう。
+    const storageKey = deckStorageKey(pk);
+    const stored = loadDeck(window.localStorage.getItem(storageKey));
     if (stored) {
       deckInitialized = true;
       setDeck(stored);
@@ -235,7 +240,7 @@ const V1Preview: Component = () => {
     if (warmUp.loading) return;
     deckInitialized = true;
     const fresh = defaultDeck(pk, warmUp()?.followees ?? []);
-    window.localStorage.setItem(DECK_STORAGE_KEY, saveDeck(fresh));
+    window.localStorage.setItem(storageKey, saveDeck(fresh));
     setDeck(fresh);
   });
 
@@ -279,7 +284,7 @@ const V1Preview: Component = () => {
     }
   };
 
-  // 投稿フォーム (Task 12)。
+  // 投稿フォーム。
   const [content, setContent] = createSignal("");
   const [posting, setPosting] = createSignal(false);
   const [postError, setPostError] = createSignal<string>();
@@ -345,7 +350,9 @@ const V1Preview: Component = () => {
       // 含めて同期的に) 完了するまでを測ることで、signEvent を完全に除外し、
       // 楽観挿入の経路そのものが何 ms かを見る。
       const optimisticStart = performance.now();
-      store.put(signed, "local");
+      // store.put() の戻り値を捨てない (final review, Important 5) ——
+      // 詳細は verify-optimistic-insert.ts のコメント参照。
+      verifyOptimisticInsert(store.put(signed, "local"));
       setOptimisticEvents((prev) => [signed, ...prev]);
       setOptimisticInsertMs(performance.now() - optimisticStart);
       setContent("");

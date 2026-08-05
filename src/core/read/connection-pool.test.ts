@@ -120,6 +120,13 @@ type CreatePoolOptions = {
    * ことも一緒に確認する。
    */
   publishFailing?: Partial<Record<RelayUrl, string>>;
+  /**
+   * publish() を一生 settle させない (final review, Critical 1)。実在する
+   * リレーがレート制限中に EVENT フレームを黙って捨てる挙動の再現 — OK も
+   * 来なければソケットが死にもしない。`ConnectionPool.publish()` 自身の
+   * タイムアウトだけがこれを決着させられることを確かめるための注入。
+   */
+  publishSilent?: RelayUrl[];
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -154,6 +161,12 @@ const createPool = (options: CreatePoolOptions = {}) => {
         throw new Error(publishFailReason);
       };
       Object.defineProperty(relay, "publish", { value: rejectingPublish });
+    }
+    if (options.publishSilent?.includes(url)) {
+      const neverSettlingPublish = () => new Promise<void>(() => {});
+      Object.defineProperty(relay, "publish", {
+        value: neverSettlingPublish,
+      });
     }
     connections.set(url, relay);
     return relay;
@@ -811,5 +824,131 @@ describe("ConnectionPool.publish()", () => {
 
     await expect(pool.publish("wss://down/", fakeEvent("a"))).rejects.toThrow();
     expect(pool.size).toBe(0);
+  });
+
+  // -------------------------------------------------------------------
+  // Critical 1 (final review): a relay that never sends OK and never dies
+  // (NIP-01 says relays MUST send OK, but real relays drop EVENT frames
+  // silently under rate limiting) must not pin a budget slot forever.
+  // Without a timeout, `release()` -- which only runs from
+  // `.then(onFulfilled, onRejected)` -- never runs, `pooled.entries` never
+  // empties, and `#drop()` never runs: that socket holds one of the 30
+  // slots for a relay nobody is subscribed to, and (since publisher.ts uses
+  // Promise.allSettled and v1-preview.tsx awaits the whole publish) the
+  // composer's `finally { setPosting(false) }` never runs either.
+  // -------------------------------------------------------------------
+  it("times out and releases the slot when the relay never sends OK or dies (Critical 1)", async () => {
+    const { pool, clock } = createPool({
+      maxConnections: 1,
+      publishSilent: ["wss://one/"],
+    });
+
+    let settled = false;
+    let rejection: unknown;
+    pool
+      .publish("wss://one/", fakeEvent("a"))
+      .catch((error: unknown) => {
+        rejection = error;
+      })
+      .finally(() => {
+        settled = true;
+      });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    // Still pending -- the relay has neither answered nor died.
+    expect(settled).toBe(false);
+    expect(pool.size).toBe(1);
+
+    // Mutation caught: deleting the timeout entirely (or deleting its
+    // `release()` call while keeping the `reject()`) leaves this pending,
+    // or rejects without freeing the slot, forever.
+    clock.advance(10_000);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(settled).toBe(true);
+    expect(rejection).toBeInstanceOf(Error);
+    // The slot released -- this is what actually matters: a pinned slot
+    // with a settled promise is just as much of a deadlock as a promise
+    // that never settles, because the next subscribe() still gets refused.
+    expect(pool.size).toBe(0);
+
+    // The reproduction from the review: with the budget exhausted by the
+    // silent relay, a later genuine subscribe() to a *different* relay was
+    // refused for budget. Once the slot is actually released, it must not
+    // be.
+    expect(
+      pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------
+// Critical 2 (final review): reviving a connection that a subscription is
+// waiting on must restore what was waiting on it, regardless of which path
+// (`subscribe()` or `publish()`) does the reviving. Before this fix,
+// `#ensureConnection` (publish's path into connection-opening) reconnected
+// without clearing the pending backoff timer, resetting `attempts`, or
+// re-issuing the REQs of entries already waiting on that URL -- so a
+// column subscribed to a relay that died, then got revived by an unrelated
+// publish() to the same relay, went dark forever: the backoff timer later
+// fired, `#reconnect()` saw `pooled.connection` non-null and returned
+// early (having already nulled `pooled.timer`, so nothing re-armed), and
+// since the socket was now healthy `#onConnectionDied` never fired again
+// either.
+// ---------------------------------------------------------------------
+describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
+  it("re-issues a waiting subscription's REQ when publish() revives the connection before the backoff timer fires", async () => {
+    const { pool, connections, connectCalls } = createPool({
+      random: () => 0.5,
+    });
+    pool.subscribe(
+      "wss://one/",
+      [{ kinds: [1], authors: ["abc"] }],
+      noopHandlers(),
+    );
+    expect(connectCalls).toEqual(["wss://one/"]);
+
+    connections.get("wss://one/")?.die();
+    // The backoff timer is armed but has not fired -- nothing has
+    // reconnected yet.
+    expect(connectCalls).toEqual(["wss://one/"]);
+
+    // An unrelated publish() to the same relay revives the socket before
+    // the subscription's own backoff timer ever fires.
+    await pool.publish("wss://one/", fakeEvent("a"));
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+    // Mutation caught: reviving the connection in `#ensureConnection`
+    // without re-issuing the waiting entry's REQ leaves this empty forever
+    // -- exactly what the review found ("the revived socket had zero
+    // subscriptions"). The column would be dark on this relay for the life
+    // of the page.
+    expect(connections.get("wss://one/")?.subscriptions[0]?.filters).toEqual([
+      { kinds: [1], authors: ["abc"] },
+    ]);
+  });
+
+  it("does not leave a zombie reconnect timer that later undoes the revival's bookkeeping", async () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+    // Advance well past the original backoff delay (1000ms * (0.5+0.5)).
+    // Mutation caught: not clearing `pooled.timer` on revival leaves the
+    // original backoff timer armed; if `attempts` was also left un-reset,
+    // firing it would still no-op today only by accident (`#reconnect`'s
+    // `pooled.connection` guard) -- but a leaked timer is exactly the kind
+    // of latent bug ADR-0021's "never give up" accounting depends on not
+    // having. No further connect() call should happen from this stale
+    // timer.
+    clock.advance(60_000);
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
   });
 });

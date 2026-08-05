@@ -132,6 +132,40 @@ test.describe("v1 vertical slice", () => {
     await expect(publishResult).toContainText("rejected=0");
 
     // 5. リロードしても 3 カラムが残る
+    //
+    // **これだけでは判定として空虚 (final review, Important 4)。**
+    // `defaultDeck()` も常に home/mine/global の 3 本を返すので、id と個数
+    // だけでは「保存済みを復元した」のか「保存が無かったので毎回作り直した」
+    // のかを区別できない。実際、レビューで `loadDeck(...)` 呼び出しを
+    // `undefined` に丸ごと置き換え (= 永続化を全部消す) てもこのアサーション
+    // だけは素通りした。保存済みのカラムのタイトルを reload の前に直接
+    // 書き換え、それが reload 後も残っていることまで確かめて初めて
+    // 「作り直しではなく復元した」と主張できる —— 作り直しなら
+    // `defaultDeck()` の固定タイトル (「ホーム」) に戻ってしまう。
+    const mutatedHomeTitle = `mutated home title ${Date.now()}`;
+    await page.evaluate(
+      ({ pubkey, mutatedTitle }) => {
+        // deck.ts の `deckStorageKey()` はキーの実装詳細だが、e2e はブラウザ
+        // 側の別プロセスなので import できない —— 接頭辞一致で探すことで、
+        // 完全一致がプレフィックスの正確な区切り文字まで knowledge として
+        // 要求しないようにする。
+        const key = Object.keys(window.localStorage).find((k) =>
+          k.startsWith(`streets.v1.deck.${pubkey}`),
+        );
+        if (!key) {
+          throw new Error(
+            `no persisted deck found in localStorage for pubkey ${pubkey}`,
+          );
+        }
+        const raw = window.localStorage.getItem(key);
+        if (!raw) throw new Error(`persisted deck key ${key} had no value`);
+        const deck = JSON.parse(raw) as { columns: { title: string }[] };
+        deck.columns[0].title = mutatedTitle;
+        window.localStorage.setItem(key, JSON.stringify(deck));
+      },
+      { pubkey: previewViewerPubkey, mutatedTitle: mutatedHomeTitle },
+    );
+
     await page.reload();
     // ログインセッション自体は永続しない (デッキだけが localStorage に残る)
     // ので、再ログインしてから確認する — Task 3 の verification と同じ前提。
@@ -152,6 +186,14 @@ test.describe("v1 vertical slice", () => {
     await expect(
       page.locator('[data-testid="deck-column"][data-column-id="global"]'),
     ).toBeVisible();
+
+    // home 列のタイトルが、直前に書き換えた文字列のまま残っている ——
+    // `defaultDeck()` で作り直していたら固定タイトル「ホーム」に戻る。
+    await expect(
+      page
+        .locator('[data-testid="deck-column"][data-column-id="home"]')
+        .getByTestId("deck-column-title"),
+    ).toHaveText(mutatedHomeTitle);
 
     // 直前に投稿した内容も再取得後の mine 列に残っている (リレーへ実際に
     // 届いていたことの、リロード越しの追認)

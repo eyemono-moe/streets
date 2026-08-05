@@ -13,7 +13,30 @@ export type ColumnDef = { id: string; title: string; source: NostrSource };
  */
 export type Deck = { version: 1; columns: ColumnDef[] };
 
-export const DECK_STORAGE_KEY = "streets.v1.deck";
+/**
+ * localStorage キーの接頭辞。**単独では使わない** —— `deckStorageKey()` で
+ * 閲覧者の pubkey を必ず継ぎ足すこと。
+ *
+ * かつてはこれ自体が唯一のキーで、全アカウント共通の 1 本の保存先だった
+ * (final review, Important 3)。それだと A でログインして保存されたデッキを
+ * B が無条件に読み込んでしまう —— `home` 列に焼き込まれた followees も
+ * `mine` 列の著者フィルタも A のものなのに、ヘッダーには B の pubkey が出て
+ * 投稿フォームも B として投稿する、というアカウント境界の穴になる。
+ * `docs/design/read-layer-followups.md` は「`EventStore` のアカウント境界」を
+ * 縦断スライスの**前に**決めるべき事項として挙げていたが、spec がそれを
+ * 拾わなかった。ここで最小限 (pubkey でキーを分けるだけ) に閉じる ——
+ * セッション/グローバルを含む三分類の設計はこの修正の範囲外。
+ */
+const DECK_STORAGE_KEY_PREFIX = "streets.v1.deck";
+
+/**
+ * 閲覧者ごとに独立した localStorage キーを作る。同じキーを複数アカウントで
+ * 共有すると、後からログインしたアカウントが前のアカウントのデッキ
+ * (followees や自分の著者フィルタを含む) をそのまま引き継いでしまう
+ * (final review, Important 3)。
+ */
+export const deckStorageKey = (pubkey: string): string =>
+  `${DECK_STORAGE_KEY_PREFIX}.${pubkey}`;
 
 /**
  * 初回起動時 (localStorage に何も無い、または壊れている) の既定デッキ。

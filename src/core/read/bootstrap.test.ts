@@ -184,9 +184,10 @@ describe("warmUpRouting", () => {
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
   });
 
-  // Task 12, step 1: 自分は followees に入っているとは限らない (自分自身を
-  // p タグでフォローするのは稀)。にもかかわらず自分の write リレーが引けな
-  // いと、publisher.ts が publish 先を決められない。ここでは filters の形
+  // 縦断スライスの書き込み経路向けの前提: 自分は followees に入っている
+  // とは限らない (自分自身を p タグでフォローするのは稀)。にもかかわらず
+  // 自分の write リレーが引けないと、publisher.ts が publish 先を決められ
+  // ない。ここでは filters の形
   // だけでなく、実際に RoutingTable 経由で自分の write リレーが引けること
   // まで確認する — フィルタの主張と実際の効果を両方とも押さえる。
   it("自分が誰もフォローしていなくても、自分の kind:10002 は引ける", async () => {
