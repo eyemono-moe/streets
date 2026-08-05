@@ -157,20 +157,25 @@ export const warmUpRouting = async ({
         ]
       : [];
 
-    if (followees.length === 0) {
-      return {
-        followees,
-        routed: 0,
-        unroutable: 0,
-        unrequested: unrequestedFollows + anchorUnrequested,
-      };
-    }
+    // ② 全員分の kind:10002 を 1 クエリで (ADR-0016)。
+    //
+    // 自分は followees に入っているとは限らない (自分自身を p タグでフォロー
+    // するのは稀) —— にもかかわらず authors を followees だけにすると、
+    // 自分の write リレーが一生分からず、publish 先が決まらない
+    // (`publisher.ts` が `routing.writeRelaysFor(viewer)` を空としか
+    // 引けなくなる)。なので明示的に自分の pubkey を足す (重複排除)。
+    //
+    // followees が空 (誰もフォローしていない) でもこのフェーズ自体は必ず
+    // 走らせる —— relayListAuthors は pubkey を含む以上、空になることは
+    // 無い。旧実装はここで `followees.length === 0` を早期 return してこの
+    // フェーズごと飛ばしていたが、それだと「誰もフォローしていない新規
+    // アカウント」が自分の write リレーを一生取得できなかった。
+    const relayListAuthors = [...new Set([pubkey, ...followees])];
 
-    // ② 全員分の kind:10002 を 1 クエリで (ADR-0016)
     const unrequestedRelayLists = await collect(
       pool,
       indexers,
-      [{ kinds: [RELAY_LIST_KIND], authors: followees }],
+      [{ kinds: [RELAY_LIST_KIND], authors: relayListAuthors }],
       store,
       timeoutMs,
       open,

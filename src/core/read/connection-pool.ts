@@ -1,3 +1,4 @@
+import type { NostrEvent } from "../nostr/event";
 import type {
   RelayConnection,
   RelayFilter,
@@ -61,6 +62,19 @@ export const defaultScheduler: Scheduler = {
 const RECONNECT_BASE_MS = 1_000;
 /** 指数バックオフの上限。ここで頭打ちにして、諦めずに回し続ける (ADR-0021)。 */
 const RECONNECT_MAX_MS = 60_000;
+
+/**
+ * `publish()` が予算の参照カウント (`pooled.entries`) に相乗りするためだけ
+ * に足す一時的な `Entry` のハンドラ。REQ を送らないので `onEvent`/`onEose`
+ * が呼ばれることは無い — `#reconnect()` が全エントリを引き直す際に
+ * (この一時エントリがまだ残っていた場合) `connection.subscribe([], ...)`
+ * が失敗しても黙って吸収するためだけに存在する。
+ */
+const PUBLISH_ONLY_HANDLERS: RelaySubscriptionHandlers = {
+  onEvent: () => {},
+  onEose: () => {},
+  onClosed: () => {},
+};
 
 export type ConnectionPoolOptions = {
   connect: (url: RelayUrl) => RelayConnection;
@@ -189,25 +203,29 @@ export class ConnectionPool {
   }
 
   /**
+   * `subscribe()` と `publish()` の両方が使う、接続確保の共通部分 (Task 12)。
+   * 予算チェックとソケットの実際の生成はここに一本化する — 2 箇所に別々に
+   * 書くと、どちらかだけ直されて片方が古い (= 予算を迂回する) ままになる
+   * 危険がある。それは `{ reserved: true }` が既に空けている穴 (bootstrap
+   * 専用の予算迂回) と同じ種類の穴をもう1つ増やすことに等しい。
+   *
    * 予算に空きが無ければ `undefined` を返す — これは「新しい URL を開こうと
    * したが枠が無かった」場合だけに限られる。既に開いている (または開こうと
-   * 試みて失敗し記録だけ残っている) URL への追加の購読は、新しいソケットを
+   * 試みて失敗し記録だけ残っている) URL への追加の要求は、新しいソケットを
    * 要求しないので予算に関係なく常に受け付ける。
    *
    * `options.reserved` が `true` のときは、新しいソケットが要る場合でも
    * この予算チェックそのものを飛ばす。`SubscribeOptions` の定義を参照 —
-   * ブートストラップ以外での使用は禁止。
+   * ブートストラップ以外での使用は禁止 (`publish()` はこの引数を渡さない)。
    *
-   * 接続や購読の確立に失敗しても例外は外に投げない — `handlers.onClosed(...)`
-   * に変換して同期的に伝える。これにより、30 本のうち 1 本が死んでいるだけで
-   * 呼び出し元 (SectionReader) が例外で壊れることがなくなる。
+   * `connect()` が失敗しても例外は外に投げない — 呼び出し元 (`subscribe()`
+   * は `handlers.onClosed(...)`、`publish()` は reject) がそれぞれの形で
+   * 失敗を伝える。
    */
-  subscribe(
+  #ensureConnection(
     url: RelayUrl,
-    filters: RelayFilter[],
-    handlers: RelaySubscriptionHandlers,
     options?: SubscribeOptions,
-  ): PooledSubscription | undefined {
+  ): Pooled | undefined {
     let pooled = this.#pool.get(url);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
@@ -241,9 +259,27 @@ export class ConnectionPool {
 
     // 一度でも `{ reserved: true }` で要求されたら、このプロセス内では
     // ずっと reserved として数える (final review, finding 9a) — 同じ URL
-    // への以後の通常経路の `subscribe()` 呼び出しが `reservedSize` から
-    // 静かに外れてしまわないようにするため。
+    // への以後の通常経路の呼び出しが `reservedSize` から静かに外れてしまわ
+    // ないようにするため。
     if (options?.reserved) pooled.reserved = true;
+
+    return pooled;
+  }
+
+  /**
+   * 購読 (REQ) の経路。接続や購読の確立に失敗しても例外は外に投げない —
+   * `handlers.onClosed(...)` に変換して同期的に伝える。これにより、30 本の
+   * うち 1 本が死んでいるだけで呼び出し元 (SectionReader) が例外で壊れる
+   * ことがなくなる。
+   */
+  subscribe(
+    url: RelayUrl,
+    filters: RelayFilter[],
+    handlers: RelaySubscriptionHandlers,
+    options?: SubscribeOptions,
+  ): PooledSubscription | undefined {
+    const pooled = this.#ensureConnection(url, options);
+    if (!pooled) return undefined;
 
     const entry: Entry = { filters, handlers, subscription: null };
     pooled.entries.add(entry);
@@ -280,6 +316,66 @@ export class ConnectionPool {
         if (current.entries.size === 0) this.#drop(url);
       },
     };
+  }
+
+  /**
+   * publish 経路 (Task 12)。**ソケットを開くのは `subscribe()` と同じ
+   * `#ensureConnection()` を通す** — これがこのファイル冒頭のコメントの
+   * 「`subscribe()` を通らない経路で接続を開いてはならない」を publish
+   * 側でも守るための実装そのもの。予算チェックをここで独自に書き直すと、
+   * 一方だけ直されて他方が迂回口のまま残る危険を生む。
+   *
+   * 新しいソケットが必要なのに予算が埋まっていれば reject する —
+   * `{ reserved: true }` はここでは絶対に使わない (ブートストラップ専用、
+   * `SubscribeOptions` 参照)。呼び出し元 (`publisher.ts`) はこれを
+   * `PublishResult.rejected` に積んで見せる。ADR-0011 は「黙って欠落させて
+   * はならない」と定めており、迂回するのではなく失敗を報告することでその
+   * 要求を満たす。
+   *
+   * 既に他の購読がこの URL のソケットを開いている場合はそれに相乗りする —
+   * 新しいソケットは増えない。逆に、誰も購読していない URL へ publish
+   * だけのために新しく開いた場合は、publish が完了 (成功・失敗いずれも)
+   * した時点でこの接続への参照を手放す。一時的な `Entry` (filters 無し、
+   * ハンドラは no-op) を `pooled.entries` に足して `subscribe()` と同じ
+   * 参照カウントの仕組みに相乗りしているだけで、REQ は一切送らない。
+   */
+  publish(url: RelayUrl, event: NostrEvent): Promise<void> {
+    const pooled = this.#ensureConnection(url);
+    if (!pooled) {
+      return Promise.reject(
+        new Error(`connection budget exhausted for ${url}`),
+      );
+    }
+    if (!pooled.connection) {
+      // `#ensureConnection` が connect() を試みて失敗を吸収した後。誰も
+      // 購読していないこの URL のために再接続をスケジュールし続ける理由は
+      // publish 単独には無い — 今回の publish をここで諦めて報告する。
+      return Promise.reject(new Error(`relay unavailable: ${url}`));
+    }
+
+    const entry: Entry = {
+      filters: [],
+      handlers: PUBLISH_ONLY_HANDLERS,
+      subscription: null,
+    };
+    pooled.entries.add(entry);
+
+    const release = (): void => {
+      const current = this.#pool.get(url);
+      if (!current || !current.entries.has(entry)) return;
+      current.entries.delete(entry);
+      if (current.entries.size === 0) this.#drop(url);
+    };
+
+    return pooled.connection.publish(event).then(
+      () => {
+        release();
+      },
+      (error: unknown) => {
+        release();
+        throw error;
+      },
+    );
   }
 
   /**

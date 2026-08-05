@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
+import type { NostrEvent } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
 import { ConnectionPool, type ConnectionPoolOptions } from "./connection-pool";
+
+/**
+ * publish() のテストだけが使う、内容を気にしない最小のイベント。
+ * `ConnectionPool.publish()` は署名検証をしない (それは `EventStore.put` の
+ * 責務) ので、id/sig は本物である必要が無い。
+ */
+const fakeEvent = (id: string): NostrEvent => ({
+  id,
+  pubkey: "p".repeat(64),
+  created_at: 1_700_000_000,
+  kind: 1,
+  tags: [],
+  content: "hello",
+  sig: "s".repeat(128),
+});
 
 const noopHandlers = (): RelaySubscriptionHandlers => ({
   onEvent: () => {},
@@ -97,6 +113,13 @@ type CreatePoolOptions = {
    * and neither is expressible with the always-fails `failing` list alone.
    */
   failWhen?: Partial<Record<RelayUrl, (callIndex: number) => boolean>>;
+  /**
+   * publish() を reject させる (relay がイベントを拒否した想定)。
+   * `connection.publish()` の失敗をプールが握り潰さず forward することを
+   * 確かめるためだけの注入 — 理由の文字列をそのまま呼び出し元へ伝えられる
+   * ことも一緒に確認する。
+   */
+  publishFailing?: Partial<Record<RelayUrl, string>>;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -124,6 +147,13 @@ const createPool = (options: CreatePoolOptions = {}) => {
       // Override just the method under test; everything else stays the
       // real FakeRelayConnection behavior.
       Object.defineProperty(relay, "subscribe", { value: brokenSubscribe });
+    }
+    const publishFailReason = options.publishFailing?.[url];
+    if (publishFailReason !== undefined) {
+      const rejectingPublish = async () => {
+        throw new Error(publishFailReason);
+      };
+      Object.defineProperty(relay, "publish", { value: rejectingPublish });
     }
     connections.set(url, relay);
     return relay;
@@ -666,5 +696,120 @@ describe("ConnectionPool", () => {
     // the only slot) and must not have opened a second socket.
     expect(connectCalls).toEqual(["wss://one/", "wss://two/"]);
     expect(pool.size).toBe(1);
+  });
+});
+
+describe("ConnectionPool.publish()", () => {
+  // Mutation caught: an implementation that calls `options.connect()`
+  // directly for publish (bypassing `#ensureConnection`'s budget check)
+  // would open this socket anyway and resolve. This must reject and must
+  // not have opened a new connection.
+  it("does not open a new socket past the budget, and rejects instead", async () => {
+    const { pool, connectCalls } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.size).toBe(1);
+
+    await expect(pool.publish("wss://two/", fakeEvent("a"))).rejects.toThrow();
+
+    // No socket was ever opened for "two" -- the budget check ran before
+    // any connect() attempt, exactly like subscribe()'s.
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.size).toBe(1);
+  });
+
+  // Mutation caught: swallowing the budget-exhausted case and resolving
+  // anyway (i.e. treating it as accepted) instead of surfacing it as a
+  // rejection. ADR-0011 forbids hiding degradation -- publisher.ts relies on
+  // this rejection to put the relay in `rejected`.
+  it("never resolves when the budget is exhausted", async () => {
+    const { pool } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    let resolved = false;
+    pool
+      .publish("wss://two/", fakeEvent("a"))
+      .then(() => {
+        resolved = true;
+      })
+      .catch(() => {});
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+  });
+
+  it("reuses the socket an existing subscription already opened, instead of dialing a second one", async () => {
+    const { pool, connectCalls, connections } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(connections.get("wss://one/")?.published.map((e) => e.id)).toEqual([
+      "a",
+    ]);
+  });
+
+  it("opens a fresh socket for publish when nothing else is subscribed to that relay", async () => {
+    const { pool, connections } = createPool();
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+
+    expect(connections.get("wss://one/")?.published.map((e) => e.id)).toEqual([
+      "a",
+    ]);
+  });
+
+  it("releases the socket it opened for publish once settled, if nobody else needs it", async () => {
+    const { pool } = createPool();
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+
+    // Nothing was subscribed to "one" -- the connection publish() opened for
+    // itself must not linger afterwards occupying a budget slot forever.
+    expect(pool.size).toBe(0);
+  });
+
+  it("keeps the socket open after publish when a live subscription still needs it", async () => {
+    const { pool } = createPool();
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+
+    // The subscription is still open, so publish() releasing its own
+    // temporary reference must not tear the shared connection down.
+    expect(pool.size).toBe(1);
+    sub?.close();
+    expect(pool.size).toBe(0);
+  });
+
+  // Mutation caught: catching connection.publish()'s rejection and
+  // resolving anyway, or discarding the relay's reason. publisher.ts reads
+  // `error.message` to build `PublishResult.rejected[].reason`.
+  it("forwards the relay's rejection reason instead of swallowing it", async () => {
+    const { pool } = createPool({
+      publishFailing: { "wss://one/": "duplicate: already have this event" },
+    });
+
+    await expect(pool.publish("wss://one/", fakeEvent("a"))).rejects.toThrow(
+      "duplicate: already have this event",
+    );
+  });
+
+  it("releases the socket it opened even when the relay rejects the publish", async () => {
+    const { pool } = createPool({
+      publishFailing: { "wss://one/": "blocked: spam" },
+    });
+
+    await expect(pool.publish("wss://one/", fakeEvent("a"))).rejects.toThrow();
+
+    expect(pool.size).toBe(0);
+  });
+
+  it("rejects when connect() itself fails, without throwing synchronously", async () => {
+    const { pool } = createPool({ failing: ["wss://down/"] });
+
+    await expect(pool.publish("wss://down/", fakeEvent("a"))).rejects.toThrow();
+    expect(pool.size).toBe(0);
   });
 });

@@ -16,8 +16,11 @@ import {
   loadDeck,
   saveDeck,
 } from "../core/deck/deck";
+import type { NostrEvent, UnsignedEvent } from "../core/nostr/event";
 import { warmUpRouting } from "../core/read/bootstrap";
+import { FALLBACK_RELAYS } from "../core/read/default-relays";
 import { EventStore } from "../core/read/event-store";
+import { matchesAnyFilter } from "../core/read/filter-match";
 import {
   type ProfileRequests,
   createProfileRequests,
@@ -29,6 +32,7 @@ import { connectRelay } from "../core/relay/websocket-relay-connection";
 import { createNip07Signer } from "../core/signer/nip07-signer";
 import { SignerUnavailableError } from "../core/signer/signer";
 import { createSection } from "../core/solid/create-section";
+import { type PublishResult, createPublisher } from "../core/write/publisher";
 import Button from "../shared/components/UI/Button";
 import Note from "./v1-preview/Note";
 import { parseRelays } from "./v1-preview/parse-relays";
@@ -61,6 +65,13 @@ const DeckColumn: Component<{
   store: EventStore;
   manager: SubscriptionManager;
   profileRequests: ProfileRequests;
+  /**
+   * 投稿フォーム (Task 12) が署名直後に楽観挿入した、まだリレーから戻って
+   * きていない自分の投稿。`SectionReader` は購読経由でしか items を更新
+   * できない (`store.put()` を直接呼んでも拾わない) ので、表示側でこの
+   * リストを重ね合わせる。
+   */
+  optimisticEvents: () => NostrEvent[];
 }> = (props) => {
   const source = createMemo<NostrSource>(() => {
     const original = props.column.source;
@@ -73,6 +84,30 @@ const DeckColumn: Component<{
     source,
     store: props.store,
     manager: props.manager,
+  });
+
+  /**
+   * 楽観挿入とセクション本体の items をマージする (仕様 6 節、受け入れ確認
+   * 1, 2)。
+   *
+   * - このカラムのフィルタに合わないもの (他人の投稿を映すカラムに自分の
+   *   投稿を混ぜない) は素通しで除く —— `matchesAnyFilter` はローカル
+   *   フィルタ照合そのもの (ADR-0023) で、リレーへ実際に送っている REQ と
+   *   同じ判定を使う。
+   * - `section.items()` に同じ id が既に載っているものは除く —— リレーが
+   *   自分の投稿をエコーして本物の経路に乗った後は、そちらを正として二重
+   *   表示しない (self-follow で自分の投稿が戻ってくるのは普通に起こる)。
+   */
+  const items = createMemo(() => {
+    const fromSection = section.items();
+    const knownIds = new Set(fromSection.map((event) => event.id));
+    const optimistic = props
+      .optimisticEvents()
+      .filter(
+        (event) =>
+          !knownIds.has(event.id) && matchesAnyFilter(event, source().filters),
+      );
+    return [...optimistic, ...fromSection];
   });
 
   return (
@@ -88,7 +123,7 @@ const DeckColumn: Component<{
         phase: {section.status().phase}
       </p>
       <ul data-testid="items" class="space-y-2">
-        <For each={section.items()}>
+        <For each={items()}>
           {(event) => (
             <li data-testid="item">
               <Note
@@ -146,6 +181,17 @@ const V1Preview: Component = () => {
   // 別々のコアレッサがそれぞれ REQ を投げてしまい、まとめた意味が薄れる。
   const profileRequests = createProfileRequests({ store, manager });
   onCleanup(() => profileRequests.dispose());
+
+  // 書き込み経路 (Task 12)。ソケットを開くのは manager と同じ
+  // ConnectionPool (`manager.pool`) 一本化 —— publish 専用の別経路は
+  // 持たない (Global constraints: 30 接続予算をもう一系統で穴あけしない)。
+  const publisher = createPublisher({
+    pool: manager.pool,
+    routing,
+    // undefined なら FALLBACK_RELAYS (SubscriptionManager/warmUpRouting と
+    // 同じ既定) を使う。
+    fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
+  });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
   // 呼ばない — デバッグルートのような「空文字を弾く」ガードが要らない
@@ -233,6 +279,67 @@ const V1Preview: Component = () => {
     }
   };
 
+  // 投稿フォーム (Task 12)。
+  const [content, setContent] = createSignal("");
+  const [posting, setPosting] = createSignal(false);
+  const [postError, setPostError] = createSignal<string>();
+  const [publishResult, setPublishResult] = createSignal<PublishResult>();
+  // 署名直後に楽観挿入した自分の投稿 (まだリレーから戻ってきていないもの
+  // も含む) —— DeckColumn がここから自分のフィルタに合う分だけ拾って表示
+  // に重ねる。EventStore へ入れるだけでは画面に反映されない
+  // (`SectionReader` は購読経由の配信でしか items を更新しない) ため、
+  // 表示専用にこのリストを別に持つ。
+  const [optimisticEvents, setOptimisticEvents] = createSignal<NostrEvent[]>(
+    [],
+  );
+
+  /**
+   * **順序が重要 (仕様 6 節)**: 署名 → EventStore への挿入 (楽観的更新) →
+   * publish。署名を拒否された場合 (NIP-07 拡張が例外を投げる) はここで
+   * catch に落ち、挿入も publish も一切実行されない —— 巻き戻す状態が
+   * 存在しないのはこの順序を逆にしないからそのまま成り立つ。逆順 (先に
+   * 挿入してから署名) だと、拒否されたときに挿入済みの投稿を消す処理が
+   * 別途必要になる。
+   */
+  const postNote = async () => {
+    const text = content().trim();
+    const pk = pubkey();
+    if (!text || !pk || posting()) return;
+
+    setPosting(true);
+    setPostError(undefined);
+    setPublishResult(undefined);
+    try {
+      const signer = createNip07Signer();
+      const unsigned: UnsignedEvent = {
+        pubkey: pk,
+        created_at: Math.floor(Date.now() / 1000),
+        kind: 1,
+        tags: [],
+        content: text,
+      };
+      const signed = await signer.signEvent(unsigned);
+
+      // 楽観的更新: リレーの応答を待たず、署名が終わった時点で即座に
+      // 自分のカラムへ映す (受け入れ確認 1)。"local" は実在するリレーの
+      // URL ではない —— 自分の手元での挿入だと分かる印。
+      store.put(signed, "local");
+      setOptimisticEvents((prev) => [signed, ...prev]);
+      setContent("");
+
+      const result = await publisher.publish(signed);
+      setPublishResult(result);
+    } catch (error) {
+      setPostError(
+        error instanceof SignerUnavailableError
+          ? "拡張機能が見つかりません。"
+          : `投稿に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setPosting(false);
+    }
+  };
+
   return (
     <div class="flex h-100dvh w-screen flex-col overflow-hidden">
       <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
@@ -275,6 +382,63 @@ const V1Preview: Component = () => {
       </header>
 
       <Show when={pubkey()}>
+        <form
+          data-testid="composer"
+          class="flex shrink-0 items-start gap-2 border-alpha-300 border-b p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void postNote();
+          }}
+        >
+          <textarea
+            data-testid="composer-input"
+            class="min-h-16 flex-1 resize-y rounded-2 border border-alpha-300 bg-alpha-50 p-2 text-sm"
+            placeholder="いまどうしてる?"
+            disabled={posting()}
+            value={content()}
+            onInput={(event) => setContent(event.currentTarget.value)}
+          />
+          <Button
+            data-testid="composer-submit"
+            type="submit"
+            disabled={posting() || content().trim().length === 0}
+          >
+            {posting() ? "投稿中…" : "投稿"}
+          </Button>
+        </form>
+
+        <Show when={postError()}>
+          {(message) => (
+            <p
+              data-testid="post-error"
+              class="shrink-0 border-alpha-300 border-b bg-red-4/10 p-2 text-red-8 text-xs dark:text-red-4"
+            >
+              {message()}
+            </p>
+          )}
+        </Show>
+
+        <Show when={publishResult()}>
+          {(result) => (
+            <p
+              data-testid="publish-result"
+              class="shrink-0 border-alpha-300 border-b p-2 text-alpha-600 text-xs"
+            >
+              publish: accepted={result().accepted.length} (
+              {result().accepted.join(", ")}), rejected=
+              {result().rejected.length}
+              <Show when={result().rejected.length > 0}>
+                {" "}
+                (
+                {result()
+                  .rejected.map((r) => `${r.relay}: ${r.reason}`)
+                  .join(", ")}
+                )
+              </Show>
+            </p>
+          )}
+        </Show>
+
         <div
           data-testid="deck"
           class="flex min-h-0 flex-1 divide-x overflow-x-auto"
@@ -286,6 +450,7 @@ const V1Preview: Component = () => {
                 store={store}
                 manager={manager}
                 profileRequests={profileRequests}
+                optimisticEvents={optimisticEvents}
               />
             )}
           </For>
