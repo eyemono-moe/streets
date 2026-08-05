@@ -1,38 +1,16 @@
-import type {
-  RelaySubscriptionHandlers,
-  RelayUrl,
-} from "../relay/relay-connection";
+import type { RelayUrl } from "../relay/relay-connection";
 import { collect } from "./collect";
-import type { ConnectionPool, PooledSubscription } from "./connection-pool";
+import type {
+  ConnectionPool,
+  PooledHold,
+  PooledSubscription,
+} from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
 
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;
 const DEFAULT_TIMEOUT_MS = 10_000;
-/**
- * 実在しない id。アンカー購読 (下記 `warmUpRouting` 内) が過去にも未来にも
- * 絶対にマッチしないようにするためだけの値 — アンカーはデータを集める役目を
- * 持たない (それは `collect()` の仕事)。
- */
-const NEVER_MATCHING_ID = "0".repeat(64);
-/**
- * アンカー購読のハンドラを作る。何も読み取らない —— ただしフィルタが
- * `{ids:[NEVER_MATCHING_ID]}` である以上、この subId へ届く `EVENT` は構造上
- * 必ず要求していないもの (信頼境界、ADR-0023) なので、`onCount` でその件数を
- * 呼び出し元の `unrequested` 集計へ足す。呼び出しごとに閉じた `onCount` を
- * 受け取る関数にしているのは、モジュール直下の定数のままだと
- * `warmUpRouting()` の呼び出し間で状態を共有できず (テストの複数呼び出しが
- * 互いの件数を汚染する)、この呼び出し 1 回ぶんの `WarmUpResult.unrequested`
- * に正しく積めないため。
- */
-const createAnchorHandlers = (
-  onCount: () => void,
-): RelaySubscriptionHandlers => ({
-  onEvent: () => onCount(),
-  onEose: () => {},
-  onClosed: () => {},
-});
 
 export type WarmUpResult = {
   /** フォローリストに載っていた pubkey */
@@ -90,17 +68,19 @@ export const warmUpRouting = async ({
   // 都度空にするので、finally はあくまで例外時の安全網。
   const open = new Map<RelayUrl, PooledSubscription>();
   // インデクサ 1 本につき、この warmUpRouting() 呼び出し全体を通して 1 個だけ
-  // 開く「アンカー」購読 (fix round 1, Important 1)。
+  // 取る「アンカー」の hold (fix round 1, Important 1; Task 3 で
+  // `pool.subscribe()` から `pool.hold()` に載せ替え)。
   //
   // collect() は 1 URL につき 1 エントリしか持たない。アンカーが無いと、
   // フェーズ① の購読が settle して閉じた瞬間にその URL のエントリ数が 0 に
   // なり、プールが接続そのものを落とす (#drop) — フェーズ② が同じ URL を
-  // また必要とする時には、繋ぎ直すほかない。このアンカーがもう 1 エントリを
-  // 通しで持つことで、フェーズ①→② の間にエントリ数が 0 を経由しないように
-  // し、同じ接続をフェーズ② でも再利用する (subscription-manager.ts の
-  // #applyEntryDiff が同一 URL の filters 差し替えで使っている「新しい方を
-  // 先に開いてから古い方を閉じる」のと同じ考え方を、ここでは 1 回の diff
-  // ではなく呼び出し全体のスコープに引き上げて適用している)。
+  // また必要とする時には、繋ぎ直すほかない。このアンカーが hold を 1 つ
+  // 通しで持つことで、フェーズ①→② の間にエントリ数と hold 数の両方が 0 を
+  // 経由しないようにし、同じ接続をフェーズ② でも再利用する
+  // (subscription-manager.ts の #applyEntryDiff が同一 URL の filters
+  // 差し替えで使っている「新しい方を先に開いてから古い方を閉じる」のと同じ
+  // 考え方を、ここでは 1 回の diff ではなく呼び出し全体のスコープに引き
+  // 上げて適用している)。
   //
   // 最初のレビューではここを「フェーズごとに繋ぎ直しても実害はない」として
   // 見送っていたが、その根拠にしていた実測 (indexer.coracle.social のレート
@@ -111,21 +91,21 @@ export const warmUpRouting = async ({
   // — ADR-0021 がジッタ付きバックオフを入れている理由も「自ら誘発する再接続
   // バーストは避ける」なので、ここでも同じ判断を踏襲する。
   //
-  // アンカーの filters は「絶対にマッチしない」ことだけが要件 — 実データを
-  // 集める役目は持たない (それは collect() 側の仕事)。
-  const anchors = new Map<RelayUrl, PooledSubscription>();
-  // アンカー宛に届いた (構造上、必ず要求していない) イベントの件数。
-  // collect() の unrequested とは別集計で、最後に合算して返す。
-  let anchorUnrequested = 0;
+  // かつては「絶対にマッチしない」フィルタ (`{ ids: [NEVER_MATCHING_ID] }`)
+  // の REQ でこの保持を表現していたが、実地観測 (2026-08-05) で一部のリレー
+  // がそれを `blocked: filters must specify at least one kind` で CLOSE する
+  // ことが分かった — 接続の寿命という要求を購読として表現したのが誤りで、
+  // 狙った保持効果がそもそも得られていなかった。`pool.hold()`
+  // (`connection-pool.ts` 参照) はワイヤに何も出さずに接続の寿命だけを握る
+  // 一級の能力で、これに載せ替えたことで「アンカー宛に届く、要求していない
+  // イベント」という概念自体が消えた (REQ を出さない以上、そこへ何かが
+  // 届くことは構造上ありえない)。
+  const anchors = new Map<RelayUrl, PooledHold>();
 
   try {
     for (const url of indexers) {
-      const anchor = pool.subscribe(
+      const anchor = pool.hold(
         url,
-        [{ ids: [NEVER_MATCHING_ID] }],
-        createAnchorHandlers(() => {
-          anchorUnrequested += 1;
-        }),
         // ブートストラップだけが使ってよい予算迂回 (ConnectionPool の
         // `SubscribeOptions` 参照)。ここ以外では絶対に使わないこと。
         { reserved: true },
@@ -193,8 +173,7 @@ export const warmUpRouting = async ({
       followees,
       routed,
       unroutable: followees.length - routed,
-      unrequested:
-        unrequestedFollows + unrequestedRelayLists + anchorUnrequested,
+      unrequested: unrequestedFollows + unrequestedRelayLists,
     };
   } finally {
     // 正常系では collect() 自身がここまでに `open` を空にしている
@@ -202,11 +181,12 @@ export const warmUpRouting = async ({
     // 外へ漏れた場合だけの安全網。
     for (const subscription of open.values()) subscription.close();
     open.clear();
-    // アンカーはここで初めて閉じる — 両フェーズ (あるいは例外による早期
-    // 離脱) が終わったので、ようやくこの URL のエントリを手放してよい。
-    // これで各インデクサのエントリ数が 0 になり、プールが接続を落として
-    // 予算を返す (Ambiguity 3: release on completion はここで完結する)。
-    for (const anchor of anchors.values()) anchor.close();
+    // アンカーはここで初めて release する — 両フェーズ (あるいは例外による
+    // 早期離脱) が終わったので、ようやくこの URL の hold を手放してよい。
+    // これで各インデクサの holds が 0 になり (エントリも既に 0)、プールが
+    // 接続を落として予算を返す (Ambiguity 3: release on completion は
+    // ここで完結する)。
+    for (const anchor of anchors.values()) anchor.release();
     anchors.clear();
   }
 };

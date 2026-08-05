@@ -737,6 +737,196 @@ describe("ConnectionPool", () => {
   });
 });
 
+// ---------------------------------------------------------------------
+// Task 3 (2026-08-05 connection-layer-repairs): `bootstrap.ts` used to keep
+// an indexer's connection alive between phases by opening a subscription
+// with a filter that can never match (`{ ids: [NEVER_MATCHING_ID] }`). A
+// real-key run showed some relays answer that with
+// `blocked: filters must specify at least one kind` and CLOSE the
+// subscription -- so the trick didn't even achieve what it was for.
+// `hold()` replaces it: a first-class "keep this connection open" handle
+// that never calls `connection.subscribe()`, so nothing reaches the wire.
+// ---------------------------------------------------------------------
+describe("hold", () => {
+  // 変異: hold() を subscribe() で実装すると落ちる。これがこのタスクの
+  // 中心的な主張 — 接続の保持はワイヤに何も出してはならない。
+  it("opens the connection without sending any REQ", () => {
+    const { pool, connections } = createPool();
+    const held = pool.hold("wss://one/");
+
+    expect(held).toBeDefined();
+    expect(connections.get("wss://one/")?.subscriptions).toHaveLength(0);
+    expect(pool.size).toBe(1);
+  });
+
+  // 変異: #drop の条件に holds を足し忘れると落ちる。これがアンカーの
+  // 存在理由そのもの (フェーズ間で接続を落とさない)。
+  it("keeps the connection alive when the last subscription closes", () => {
+    const { pool, connections } = createPool();
+    pool.hold("wss://one/");
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    sub?.close();
+
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+    expect(pool.size).toBe(1);
+  });
+
+  // 変異: release() で #drop を呼ばないと落ちる。
+  it("closes the connection when the last hold is released and no entries remain", () => {
+    const { pool, connections } = createPool();
+    const held = pool.hold("wss://one/");
+
+    held?.release();
+
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+    expect(pool.size).toBe(0);
+  });
+
+  // 変異: release() を冪等にしないとカウントが負になり、後の hold が
+  // 効かなくなる。
+  it("is idempotent on repeated release()", () => {
+    const { pool, connections } = createPool();
+    const first = pool.hold("wss://one/");
+    const second = pool.hold("wss://one/");
+
+    first?.release();
+    first?.release(); // double release must not double-decrement holds
+
+    // The second hold is still outstanding. If the double release() above
+    // had taken holds from 2 down to -1 (instead of stopping at 1 after the
+    // first call), the connection would already be gone here.
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+    expect(pool.size).toBe(1);
+
+    second?.release();
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+  });
+
+  // 変異: #scheduleReconnect のガードに holds を足し忘れると落ちる。
+  it("reconnects a url that has only a hold", () => {
+    const { pool, connections, connectCalls, clock } = createPool({
+      random: () => 0.5,
+    });
+    pool.hold("wss://one/");
+    connections.get("wss://one/")?.die();
+
+    clock.advance(999);
+    expect(connectCalls).toHaveLength(1);
+    clock.advance(1); // first backoff: 1000 * (0.5 + 0.5)
+    expect(connectCalls).toHaveLength(2);
+  });
+
+  // 変異: 予算チェックを飛ばすと落ちる。
+  it("returns undefined when the budget is full and reserved is not set", () => {
+    const { pool } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    expect(pool.hold("wss://two/")).toBeUndefined();
+    expect(pool.size).toBe(1);
+  });
+
+  // ブリーフのステップ 3 の主張の裏取り: hold() も #ensureConnection を
+  // 通すので、subscribe()/publish() と同じ `{ reserved: true }` の迂回が
+  // 効く -- アンカーの subscribe() から hold() へ載せ替えても、予算超過でも
+  // 必ず開けるという性質 (bootstrap.ts) は失われていない。
+  it("bypasses the budget with { reserved: true }, same as subscribe()", () => {
+    const { pool } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.size).toBe(1);
+
+    const held = pool.hold("wss://indexer/", { reserved: true });
+
+    expect(held).toBeDefined();
+    expect(pool.size).toBe(2); // over budget, by design, via the bypass
+    expect(pool.reservedSize).toBe(1);
+  });
+
+  // ブリーフの雛形には無い追加テスト。subscribe() には「初回 connect() の
+  // 失敗でも外部からの再購読なしに自力で再試行する」という対称の保証がある
+  // (上の "retries an initial connect() failure..." 参照、Fix round 1,
+  // Important 1)。hold() だけこの保証を欠くと、hold のみで開いた到達不能な
+  // インデクサは ADR-0021 の「決して諦めない」の外に置き去りになる —
+  // subscribe() 由来のエントリが同じ URL に 1 つも無い限り、二度と
+  // #scheduleReconnect が呼ばれない。
+  //
+  // 変異: hold() の `!pooled.connection` 分岐から #scheduleReconnect の
+  // 呼び出しを削除すると落ちる。
+  it("retries an initial connect() failure for a hold-only url and recovers on its own", () => {
+    const { pool, connectCalls, clock } = createPool({
+      random: () => 0.5,
+      failWhen: { "wss://one/": (callIndex) => callIndex === 0 },
+    });
+
+    const held = pool.hold("wss://one/");
+    expect(held).toBeDefined();
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.size).toBe(0);
+
+    clock.advance(999);
+    expect(connectCalls).toEqual(["wss://one/"]);
+    clock.advance(1); // first backoff: 1000 * (0.5 + 0.5)
+
+    expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+    expect(pool.size).toBe(1);
+  });
+
+  // ブリーフの雛形には無い追加テスト。5 箇所の `entries.size === 0` ガードの
+  // うち、publish() の中にある 2 箇所 (連結を確保できなかった場合の cleanup
+  // と、publish 完了時の release()) は上のテスト群のどれも通らない
+  // (hold() と publish() の両方が同じ URL に絡む場面が無いため)。ここで
+  // その 2 箇所を個別に確かめる。
+  describe("interaction with publish()", () => {
+    // guard: publish() の release() (connection-pool.ts の
+    // `if (current.entries.size === 0 && current.holds === 0)`)。
+    //
+    // 変異: この release() から `&& current.holds === 0` を削ると落ちる。
+    it("keeps the connection alive after publish() releases its temporary entry, when a hold still needs it", async () => {
+      const { pool, connections } = createPool();
+      pool.hold("wss://one/");
+
+      await pool.publish("wss://one/", fakeEvent("a"));
+
+      // publish() が自分の一時エントリを release() した後も、hold がまだ
+      // この接続を必要としている。
+      expect(connections.get("wss://one/")?.closed).toBe(false);
+      expect(pool.size).toBe(1);
+    });
+
+    // guard: publish() の「connect() が失敗した後の cleanup」
+    // (`if (pooled.entries.size === 0 && pooled.holds === 0) this.#pool.delete(url)`)。
+    //
+    // 変異: この cleanup から `&& pooled.holds === 0` を削ると落ちる。
+    it("keeps a hold-only pool record (and its pending reconnect timer) alive when publish() also fails to connect", async () => {
+      const { pool, connectCalls, clock } = createPool({
+        failing: ["wss://one/"],
+        random: () => 0.5,
+      });
+
+      // hold() 自身の connect() が失敗し、独自に #scheduleReconnect で
+      // タイマーを積む (この URL には subscribe() 由来のエントリが無い)。
+      pool.hold("wss://one/");
+      expect(connectCalls).toEqual(["wss://one/"]);
+
+      // publish() も同じ URL への connect() を試みて、同じく失敗する。
+      await expect(
+        pool.publish("wss://one/", fakeEvent("a")),
+      ).rejects.toThrow();
+      expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+
+      // hold() が積んだ再接続タイマーがまだ生きていることの証拠: 進めると
+      // もう一度 connect() が試みられる。cleanup が pooled レコードごと
+      // 消していたら (holds を見ずに entries だけで判断していたら)、この
+      // タイマーの `#reconnect` 呼び出しは `#pool.get(url)` で何も見つけ
+      // られず無言で何もせず、connectCalls はここで増えないままになる。
+      clock.advance(999);
+      expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+      clock.advance(1); // first backoff: 1000 * (0.5 + 0.5)
+      expect(connectCalls).toEqual(["wss://one/", "wss://one/", "wss://one/"]);
+    });
+  });
+});
+
 describe("ConnectionPool.publish()", () => {
   // Mutation caught: an implementation that calls `options.connect()`
   // directly for publish (bypassing `#ensureConnection`'s budget check)

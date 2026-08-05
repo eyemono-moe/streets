@@ -11,6 +11,12 @@ import { MAX_CONNECTIONS } from "./default-relays";
 export type PooledSubscription = { close(): void };
 
 /**
+ * `hold()` が返すハンドル。`PooledSubscription` と違い `subscription` を
+ * 一切持たない — hold は REQ を出さない (`hold()` のコメント参照)。
+ */
+export type PooledHold = { release(): void };
+
+/**
  * `subscribe()` へ渡す省略可能なオプション。
  *
  * `reserved: true` は ADR-0011 の予算チェック (`size >= maxConnections`) を
@@ -181,6 +187,16 @@ type Pooled = {
    * 露出するためだけに存在する。
    */
   reserved: boolean;
+  /**
+   * `hold()` が保持している数 (Task 3, 2026-08-05)。`entries` (= `subscribe()`/
+   * `publish()` の登録) とは独立したカウンタ — `entries` が 0 になっても
+   * `holds` が残っていれば接続は落とさない。ブートストラップがフェーズ①と
+   * ②の間でインデクサの接続を落とさずにおくために使う、REQ を出さない唯一の
+   * 経路がこれ (`bootstrap.ts` 参照)。`entries.size === 0` を条件にしていた
+   * 既存の 5 箇所は全てこのフィールドも見るように直してある —
+   * `grep -n "entries.size === 0"` で洗い出したもの。
+   */
+  holds: number;
 };
 
 /**
@@ -366,6 +382,7 @@ export class ConnectionPool {
           offOpen: null,
           timer: null,
           reserved: false,
+          holds: 0,
         };
         this.#pool.set(url, pooled);
       }
@@ -452,7 +469,62 @@ export class ConnectionPool {
         if (!current || !current.entries.has(entry)) return;
         current.entries.delete(entry);
         entry.subscription?.close();
-        if (current.entries.size === 0) this.#drop(url);
+        // hold() だけが残っていれば接続は落とさない (Task 3) —
+        // ブートストラップがフェーズ間で握り続けている接続を、フェーズ①の
+        // 購読が閉じただけで落としてはいけない。
+        if (current.entries.size === 0 && current.holds === 0) {
+          this.#drop(url);
+        }
+      },
+    };
+  }
+
+  /**
+   * REQ を出さずに接続だけを確保する。**購読ではない。**
+   *
+   * ブートストラップ (`bootstrap.ts` の `warmUpRouting`) は、フェーズ①と②の
+   * 間でインデクサの接続を落としたくない、という要求を、かつて絶対にマッチ
+   * しないフィルタの REQ (`{ ids: [NEVER_MATCHING_ID] }`) で表現していた。
+   * これには実地の問題があった (2026-08-05 に real-key run で観測):
+   * 一部のリレーがそれを `blocked: filters must specify at least one kind`
+   * で CLOSE する — 狙った保持効果がそもそも得られていなかった。この
+   * `hold()` はその要求 (「この接続を開けたままにしておけ」) を一級の能力に
+   * 引き上げたもの: `connection.subscribe()` を一切呼ばず、ワイヤに何も出さ
+   * ずに接続の寿命だけを握る。
+   *
+   * `#ensureConnection` を通す (`subscribe()`/`publish()` と同じ経路) ので、
+   * 予算チェック (ADR-0011) も `#failures` の会計 (Task 2) もそのまま効く。
+   * `{ reserved: true }` もそのまま効く — ブートストラップはこれまでどおり
+   * 予算を迂回する。枠が無く `reserved` でもなければ `undefined` を返す。
+   */
+  hold(url: RelayUrl, options?: SubscribeOptions): PooledHold | undefined {
+    const pooled = this.#ensureConnection(url, options);
+    if (!pooled) return undefined;
+
+    pooled.holds += 1;
+
+    if (!pooled.connection) {
+      // subscribe() の対応する分岐 (:439 付近) と同じ理由: この hold のために
+      // #ensureConnection が試みた connect() が失敗した場合、ここで
+      // #scheduleReconnect を呼ばないと、この URL に subscribe() 由来の
+      // エントリが 1 つも無い限り再接続が一度もスケジュールされない
+      // (ADR-0021 の「決して諦めない」が hold だけの接続に及ばなくなる)。
+      this.#scheduleReconnect(url);
+    }
+
+    let released = false;
+    return {
+      release: () => {
+        // 冪等 — 二重に呼ばれても holds を負にしない。二重 release() は
+        // 呼び出し元のバグでも起こりうる (bootstrap.ts の finally など)。
+        if (released) return;
+        released = true;
+        const current = this.#pool.get(url);
+        if (!current) return;
+        current.holds -= 1;
+        if (current.holds === 0 && current.entries.size === 0) {
+          this.#drop(url);
+        }
       },
     };
   }
@@ -504,7 +576,15 @@ export class ConnectionPool {
       // (ledger deferred minor 2)。他に待っているエントリが無ければここで
       // 片付ける — entries が空でなければ、それは別の subscribe() が
       // 同じ URL への再接続をまだ待っている最中なので触らない。
-      if (pooled.entries.size === 0) this.#pool.delete(url);
+      //
+      // hold() が生きていれば (Task 3) レコードごと消してはいけない —
+      // hold() 自身が既に #scheduleReconnect でこの URL への再接続タイマーを
+      // 積んでいるはずで、ここでレコードを消すとそのタイマーが発火しても
+      // `#reconnect` が `#pool.get(url)` で見つけられず無言で何もせず、
+      // hold は二度と接続を取り戻せなくなる。
+      if (pooled.entries.size === 0 && pooled.holds === 0) {
+        this.#pool.delete(url);
+      }
       return Promise.reject(new Error(`relay unavailable: ${url}`));
     }
     const connection = pooled.connection;
@@ -520,7 +600,11 @@ export class ConnectionPool {
       const current = this.#pool.get(url);
       if (!current || !current.entries.has(entry)) return;
       current.entries.delete(entry);
-      if (current.entries.size === 0) this.#drop(url);
+      // hold() だけが残っていれば接続は落とさない (Task 3、subscribe() の
+      // close() と同じ理由)。
+      if (current.entries.size === 0 && current.holds === 0) {
+        this.#drop(url);
+      }
     };
 
     return new Promise<void>((resolve, reject) => {
@@ -666,7 +750,9 @@ export class ConnectionPool {
   #scheduleReconnect(url: RelayUrl, reason: ReconnectReason = "relay"): void {
     const pooled = this.#pool.get(url);
     if (!pooled || pooled.connection || pooled.timer !== null) return;
-    if (pooled.entries.size === 0) return; // 誰も待っていない
+    // hold だけの URL も再接続の対象 (Task 3) — 「誰も待っていない」の
+    // 「誰か」には hold も含める。
+    if (pooled.entries.size === 0 && pooled.holds === 0) return;
 
     // 指数は「今までの」失敗回数から計算し、その後で今回の失敗を記録する
     // (`#noteFailure` を呼ぶ) — 順序を逆にすると 1 回目の遅延から既に
@@ -769,7 +855,15 @@ export class ConnectionPool {
    */
   #reconnect(url: RelayUrl): void {
     const pooled = this.#pool.get(url);
-    if (!pooled || pooled.connection || pooled.entries.size === 0) return;
+    // hold だけの URL も再接続の対象 (Task 3、#scheduleReconnect のガードと
+    // 同じ理由)。
+    if (
+      !pooled ||
+      pooled.connection ||
+      (pooled.entries.size === 0 && pooled.holds === 0)
+    ) {
+      return;
+    }
 
     // 枠が無ければ諦めず、あとでもう一度試す。生きている接続から枠を
     // 奪ってはいけない (ADR-0021)。`{ reserved: true }` で開いたエントリ

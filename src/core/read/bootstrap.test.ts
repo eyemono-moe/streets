@@ -92,14 +92,15 @@ const base = { created_at: 1_700_000_000, tags: [], content: "" };
  *
  * Every test below expects `connections.size` to grow by at most one entry
  * per indexer url for the whole `warmUpRouting()` call: fix round 1 made
- * `warmUpRouting` hold a long-lived "anchor" `PooledSubscription` per
- * indexer for its entire lifetime (see `bootstrap.ts`), specifically so
- * that phase ①'s subscription settling and closing does not drop the
- * pooled entry count for that url to zero (which would tear the connection
- * down and force phase ② to reconnect). Because of the anchor, every
- * FakeRelayConnection in this file carries one extra subscription at index
- * 0 (the anchor's) before phase ①'s own subscription at index 1, and phase
- * ②'s (when there is one) at index 2.
+ * `warmUpRouting` hold a long-lived "anchor" claim on the connection for its
+ * entire lifetime (see `bootstrap.ts`), specifically so that phase ①'s
+ * subscription settling and closing does not drop the pooled entry count for
+ * that url to zero (which would tear the connection down and force phase ②
+ * to reconnect). Task 3 (2026-08-05) moved that claim from a `subscribe()`
+ * call to `pool.hold()`, which sends no REQ at all -- so, unlike before, the
+ * anchor never appears in `FakeRelayConnection.subscriptions`. Every
+ * FakeRelayConnection in this file carries phase ①'s own subscription at
+ * index 0, and phase ②'s (when there is one) at index 1.
  */
 const poolWithFakes = (
   connections: Map<RelayUrl, FakeRelayConnection>,
@@ -150,19 +151,20 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    // アンカー (index 0) + フェーズ① の購読 (index 1)。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    expect(indexer()?.subscriptions[1].filters).toEqual([
+    // フェーズ① の購読 (index 0)。アンカーは hold() 経由 (Task 3) なので
+    // REQ を出さず、subscriptions には一切現れない。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    expect(indexer()?.subscriptions[0].filters).toEqual([
       { kinds: [3], authors: [viewer.pubkey], limit: 1 },
     ]);
-    indexer()?.emitEvent(1, viewer);
-    indexer()?.emitEose(1);
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
 
-    // 第 2 段: 全員分の kind:10002 を 1 クエリで。アンカーがまだ生きている
-    // ので、フェーズ① が settle した後もこの接続は再接続されずに残っている
-    // — フェーズ② の購読はそのまま同じ接続の index 2 に乗る。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    const second = indexer()?.subscriptions[2].filters[0];
+    // 第 2 段: 全員分の kind:10002 を 1 クエリで。アンカーの hold がまだ
+    // 生きているので、フェーズ① が settle した後もこの接続は再接続されずに
+    // 残っている — フェーズ② の購読はそのまま同じ接続の index 1 に乗る。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    const second = indexer()?.subscriptions[1].filters[0];
     expect(second?.kinds).toEqual([10002]);
     // 捕まえる変異: authors に viewer (自分) を足し忘れる。自分は followees
     // (alice, bob) には入っていない — にもかかわらず自分の write リレーも
@@ -171,8 +173,8 @@ describe("warmUpRouting", () => {
       new Set([alice.pubkey, bob.pubkey, viewer.pubkey]),
     );
 
-    indexer()?.emitEvent(2, alice);
-    indexer()?.emitEose(2);
+    indexer()?.emitEvent(1, alice);
+    indexer()?.emitEose(1);
 
     const result = await pending;
     expect(result.followees).toHaveLength(2);
@@ -225,18 +227,18 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    indexer()?.emitEvent(1, viewer);
-    indexer()?.emitEose(1);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
 
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    const relayListFilter = indexer()?.subscriptions[2].filters[0];
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    const relayListFilter = indexer()?.subscriptions[1].filters[0];
     // 捕まえる変異: authors に viewer を足し忘れる。
     expect(relayListFilter?.authors).toContain(viewer.pubkey);
 
-    indexer()?.emitEvent(2, alice);
-    indexer()?.emitEvent(2, viewerRelayList);
-    indexer()?.emitEose(2);
+    indexer()?.emitEvent(1, alice);
+    indexer()?.emitEvent(1, viewerRelayList);
+    indexer()?.emitEose(1);
 
     await pending;
 
@@ -269,16 +271,16 @@ describe("warmUpRouting", () => {
     const indexer = () => relays.get("wss://indexer/");
     // kind:3 が無いので followees は空のまま —— 旧実装はここで早期 return
     // してフェーズ②ごと飛ばしていた。フェーズ①がすぐ settle しても、
-    // フェーズ②の購読 (authors:[viewer]) が index 2 に必ず立つはず。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    indexer()?.emitEose(1);
+    // フェーズ②の購読 (authors:[viewer]) が index 1 に必ず立つはず。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEose(0);
 
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    expect(indexer()?.subscriptions[2].filters).toEqual([
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    expect(indexer()?.subscriptions[1].filters).toEqual([
       { kinds: [10002], authors: [viewer.pubkey] },
     ]);
-    indexer()?.emitEvent(2, viewer);
-    indexer()?.emitEose(2);
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
 
     const result = await pending;
     expect(result.followees).toEqual([]);
@@ -322,17 +324,17 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    // アンカー (0) + フェーズ① (1)
+    // フェーズ① (0)。アンカーは hold() 経由なので subscriptions に現れない。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, intruder);
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
+
+    // フェーズ② (1)
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEvent(1, intruder);
-    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEvent(1, alice);
     indexer()?.emitEose(1);
-
-    // フェーズ② (2)
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    indexer()?.emitEvent(2, intruder);
-    indexer()?.emitEvent(2, alice);
-    indexer()?.emitEose(2);
 
     const result = await pending;
 
@@ -369,27 +371,28 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    indexer()?.emitEvent(1, viewer);
-    indexer()?.emitEose(1);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
 
     // Phase ① settled and its own subscription is closed, but the
-    // connection itself must survive -- the anchor (index 0) is still
-    // open.
-    expect(indexer()?.subscriptions[1].closed).toBe(true);
-    expect(indexer()?.subscriptions[0].closed).toBe(false);
+    // connection itself must survive -- the anchor's hold() is still held
+    // (hold() sends no REQ, so it never shows up as a `subscriptions`
+    // entry; the connection's own `closed` flag is the only place this
+    // survival is observable, Task 3).
+    expect(indexer()?.subscriptions[0].closed).toBe(true);
     expect(indexer()?.closed).toBe(false);
 
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    indexer()?.emitEose(2);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
 
     await pending;
 
     // Exactly one FakeRelayConnection was ever created for this url -- no
     // reconnect happened between phase ① and phase ②.
     expect(relays.size).toBe(1);
-    // Only now, at the very end of warmUpRouting, does the anchor close and
-    // the connection go down with it.
+    // Only now, at the very end of warmUpRouting, does the anchor's hold
+    // release and the connection go down with it.
     expect(indexer()?.closed).toBe(true);
   });
 
@@ -406,13 +409,13 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    indexer()?.emitEose(1);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEose(0);
 
     // followees が空でも、自分の kind:10002 を引くフェーズ②は必ず走る
-    // (index 2)。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    indexer()?.emitEose(2);
+    // (index 1)。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -433,12 +436,12 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() => expect(relays.size).toBe(2));
-    for (const relay of relays.values()) relay.emitEose(1);
+    for (const relay of relays.values()) relay.emitEose(0);
     // フェーズ②(自分の kind:10002) も両インデクサで必ず立つ。
     for (const relay of relays.values()) {
-      await vi.waitFor(() => expect(relay.subscriptions).toHaveLength(3));
+      await vi.waitFor(() => expect(relay.subscriptions).toHaveLength(2));
     }
-    for (const relay of relays.values()) relay.emitEose(2);
+    for (const relay of relays.values()) relay.emitEose(1);
     await pending;
 
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
@@ -459,12 +462,12 @@ describe("warmUpRouting", () => {
     });
 
     const up = () => relays.get("wss://up/");
-    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(2));
-    up()?.emitEose(1);
+    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(1));
+    up()?.emitEose(0);
 
     // フェーズ②(自分の kind:10002) も生きている方のインデクサでは立つ。
-    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(3));
-    up()?.emitEose(2);
+    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(2));
+    up()?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -513,16 +516,16 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
-      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(1),
     );
     await vi.waitFor(() =>
-      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(2),
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
     );
 
     // "one" reports EOSE and then CLOSED for the same subscription — a
     // relay quirk that must not count as two settlements.
-    relays.get("wss://one/")?.emitEose(1);
-    relays.get("wss://one/")?.emitClosed(1, "extra close after eose");
+    relays.get("wss://one/")?.emitEose(0);
+    relays.get("wss://one/")?.emitClosed(0, "extra close after eose");
 
     // Give pending microtasks a chance to run. Warm-up must still be
     // waiting on "two" — it must not have resolved early.
@@ -531,17 +534,17 @@ describe("warmUpRouting", () => {
     await Promise.resolve();
     expect(resolved).toBe(false);
 
-    relays.get("wss://two/")?.emitEose(1);
+    relays.get("wss://two/")?.emitEose(0);
 
     // フェーズ②(自分の kind:10002) が両インデクサで立つのを待って片付ける。
     await vi.waitFor(() =>
-      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(3),
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
     );
     await vi.waitFor(() =>
-      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(3),
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(2),
     );
-    relays.get("wss://one/")?.emitEose(2);
-    relays.get("wss://two/")?.emitEose(2);
+    relays.get("wss://one/")?.emitEose(1);
+    relays.get("wss://two/")?.emitEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -581,30 +584,31 @@ describe("warmUpRouting", () => {
       resolved = true;
     });
 
-    // handlers[0] is the anchor's; handlers[1] is phase ①'s real one.
-    await vi.waitFor(() => expect(one.handlers).toHaveLength(2));
-    await vi.waitFor(() => expect(two.handlers).toHaveLength(2));
+    // handlers[0] is phase ①'s -- hold() (the anchor's mechanism, Task 3)
+    // sends no REQ, so it never calls subscribe() and never appears here.
+    await vi.waitFor(() => expect(one.handlers).toHaveLength(1));
+    await vi.waitFor(() => expect(two.handlers).toHaveLength(1));
 
     // Fire EOSE then CLOSED for "one" through a connection whose close()
     // does NOT suppress further emits. If collect() relied on that
     // suppression instead of its own per-connection settle guard, this
     // would decrement pending twice and resolve before "two" ever answers.
-    one.fireEose(1);
-    one.fireClosed(1, "extra close after eose");
+    one.fireEose(0);
+    one.fireClosed(0, "extra close after eose");
 
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     expect(resolved).toBe(false);
 
-    two.fireEose(1);
+    two.fireEose(0);
 
     // フェーズ②(自分の kind:10002) が両方に立つのを待って片付ける。
-    // handlers[2] がフェーズ②の分。
-    await vi.waitFor(() => expect(one.handlers).toHaveLength(3));
-    await vi.waitFor(() => expect(two.handlers).toHaveLength(3));
-    one.fireEose(2);
-    two.fireEose(2);
+    // handlers[1] がフェーズ②の分。
+    await vi.waitFor(() => expect(one.handlers).toHaveLength(2));
+    await vi.waitFor(() => expect(two.handlers).toHaveLength(2));
+    one.fireEose(1);
+    two.fireEose(1);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -625,42 +629,43 @@ describe("warmUpRouting", () => {
     });
 
     await vi.waitFor(() =>
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(1),
+    );
+    await vi.waitFor(() =>
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
+    );
+
+    relays.get("wss://one/")?.emitEose(0);
+
+    // "one"'s phase ① subscription (index 0) settled; it must be closed
+    // right away — not batched until "two" (which has not answered yet)
+    // also settles, and not deferred to warmUpRouting's outer `finally`.
+    expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(true);
+    expect(relays.get("wss://two/")?.subscriptions[0].closed).toBe(false);
+    // Closing the phase ① subscription does not tear the connection down:
+    // the anchor's hold() (invisible in `subscriptions` -- hold() sends no
+    // REQ, Task 3) is a separate, still-live claim on the same connection,
+    // kept alive precisely so a later phase can reuse this connection
+    // instead of reconnecting (fix round 1, Important 1). The connection's
+    // own `closed` flag is the only place this survival is observable now.
+    expect(relays.get("wss://one/")?.closed).toBe(false);
+
+    relays.get("wss://two/")?.emitEose(0);
+
+    // フェーズ②(自分の kind:10002) はフォローが 0 人でも必ず走る —— それを
+    // 片付けないと warmUpRouting は終わらない。
+    await vi.waitFor(() =>
       expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
     );
     await vi.waitFor(() =>
       expect(relays.get("wss://two/")?.subscriptions).toHaveLength(2),
     );
-
     relays.get("wss://one/")?.emitEose(1);
-
-    // "one"'s phase ① subscription (index 1) settled; it must be closed
-    // right away — not batched until "two" (which has not answered yet)
-    // also settles, and not deferred to warmUpRouting's outer `finally`.
-    expect(relays.get("wss://one/")?.subscriptions[1].closed).toBe(true);
-    expect(relays.get("wss://two/")?.subscriptions[1].closed).toBe(false);
-    // Closing the phase ① subscription does not tear the connection down:
-    // the anchor (index 0) is a separate, still-open entry for the same
-    // url, kept alive precisely so a later phase can reuse this connection
-    // instead of reconnecting (fix round 1, Important 1).
-    expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(false);
-    expect(relays.get("wss://one/")?.closed).toBe(false);
-
     relays.get("wss://two/")?.emitEose(1);
-
-    // フェーズ②(自分の kind:10002) はフォローが 0 人でも必ず走る —— それを
-    // 片付けないと warmUpRouting は終わらない。
-    await vi.waitFor(() =>
-      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(3),
-    );
-    await vi.waitFor(() =>
-      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(3),
-    );
-    relays.get("wss://one/")?.emitEose(2);
-    relays.get("wss://two/")?.emitEose(2);
     await pending;
 
     // 両インデクサのフェーズ② も片付いた後 (warmUpRouting の外側の
-    // `finally`) 、ようやくアンカーが閉じ、接続も落ちる。
+    // `finally`) 、ようやくアンカーの hold が release され、接続も落ちる。
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
   });
@@ -751,39 +756,36 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => connections.get("wss://indexer/");
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-    indexer()?.emitEose(1);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEose(0);
 
     // フェーズ②(自分の kind:10002) も片付けないと終わらない。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    indexer()?.emitEose(2);
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
 
     await promise;
     expect(pool.size).toBe(0);
   });
 
   // ---------------------------------------------------------------------
-  // 最終ブランチレビュー Minor 1: アンカー購読 (index 0) のフィルタは
-  // `{ids:[NEVER_MATCHING_ID]}` なので、その subId へ届く EVENT は構造上
-  // 必ず要求していないものである。にもかかわらず初版のアンカーは
-  // モジュール直下の定数で onEvent が空実装であり、届いたイベントを
-  // 黙って捨てて `WarmUpResult.unrequested` に一切載せていなかった。
-  // 仕様 5.3 が `unrequested` を置いた理由そのもの (ブートストラップには
-  // マネージャが無いので、そこで捨てた分の行き先が他にない) に空いた穴で、
-  // インデクサがアンカー subId へ 100 通押し込んでも `unrequested: 0` と
-  // 報告されうる状態だった。修正波で塞いだが、その修正には自動テストが
-  // 付いていなかった (scoped re-review が使い捨てのテストで確認して削除した)。
-  // ここで塞ぎ直す。
+  // Task 3 (2026-08-05): the anchor used to be a real subscription with a
+  // never-matching filter (`{ ids: [NEVER_MATCHING_ID] }`), and two tests
+  // here ("counts events pushed at the anchor subscription toward
+  // unrequested", "does not carry the anchor count across warmUpRouting()
+  // calls") existed only to pin down that subscription's own accounting
+  // (`anchorUnrequested`). Both are deleted outright, not adapted: hold()
+  // never calls `connection.subscribe()`, so there is no subId for an
+  // indexer to push events at, and `anchorUnrequested` no longer exists as
+  // a concept. In its place: the anchor must never reach the wire at all.
   // ---------------------------------------------------------------------
-  it("counts events pushed at the anchor subscription toward unrequested", async () => {
+  // 変異: hold() を subscribe() に戻すと落ちる。インデクサへ出る REQ は
+  // フェーズ①とフェーズ②の 2 本だけであり、接続を握るためだけの 3 本目が
+  // あってはならない (一部のリレーはそれを blocked で CLOSE する)。
+  it("sends no filter to an indexer beyond the two real phases", async () => {
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
     const pool = poolWithFakes(connections);
-
-    // p タグの無い kind:3 = フォロー 0 人。followees が空でもフェーズ②
-    // (自分の kind:10002) は必ず走る —— アンカーはその間ずっと生きている。
     const viewer = sign(3, { ...base, kind: 3, tags: [] });
-    const intruder = sign(9, { ...base, kind: 1, content: "pushed at anchor" });
 
     const pending = warmUpRouting({
       pubkey: viewer.pubkey,
@@ -793,55 +795,19 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => connections.get("wss://indexer/");
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    // フェーズ① (index 0)。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEose(0);
 
-    // index 0 がアンカー、index 1 がフェーズ①。
-    indexer()?.emitEvent(0, intruder);
-    indexer()?.emitEvent(0, intruder);
-    indexer()?.emitEvent(1, viewer);
+    // フェーズ② (index 1)。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEose(1);
 
-    // フェーズ②(index 2) も片付けないと終わらない。
-    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-    indexer()?.emitEose(2);
+    await pending;
 
-    const result = await pending;
-
-    // アンカーは何も読み取らない —— 数えるだけで store には入れない。
-    expect(store.get(intruder.id)).toBeUndefined();
-    // followees が空になる経路でもアンカー分が載っている。
-    expect(result.followees).toEqual([]);
-    expect(result.unrequested).toBe(2);
-  });
-
-  it("does not carry the anchor count across warmUpRouting() calls", async () => {
-    // `createAnchorHandlers` が呼び出しごとに閉じたカウンタを受け取ることの主張。
-    // モジュール直下の定数や共有カウンタへ戻すと、2 回目が 1 回目の件数を
-    // 引き継いでしまう。
-    const connections = new Map<RelayUrl, FakeRelayConnection>();
-    const store = new EventStore();
-    const pool = poolWithFakes(connections);
-    const viewer = sign(3, { ...base, kind: 3, tags: [] });
-    const intruder = sign(9, { ...base, kind: 1, content: "pushed at anchor" });
-
-    const runWarmUp = async (pushAtAnchor: boolean) => {
-      const pending = warmUpRouting({
-        pubkey: viewer.pubkey,
-        store,
-        pool,
-        indexers: ["wss://indexer/"],
-      });
-      const indexer = () => connections.get("wss://indexer/");
-      await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
-      if (pushAtAnchor) indexer()?.emitEvent(0, intruder);
-      indexer()?.emitEose(1);
-      // フェーズ②(自分の kind:10002) も片付けないと終わらない。
-      await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
-      indexer()?.emitEose(2);
-      return pending;
-    };
-
-    expect((await runWarmUp(true)).unrequested).toBe(1);
-    expect((await runWarmUp(false)).unrequested).toBe(0);
+    // warmUpRouting が完了した後も、このインデクサへ張られた購読は
+    // フェーズ①とフェーズ②の 2 本きり — 接続を握るためだけの 3 本目
+    // (かつてのアンカー) は存在しない。
+    expect(indexer()?.subscriptions).toHaveLength(2);
   });
 });
