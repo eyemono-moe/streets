@@ -292,6 +292,15 @@ const V1Preview: Component = () => {
   const [optimisticEvents, setOptimisticEvents] = createSignal<NostrEvent[]>(
     [],
   );
+  /**
+   * 直近の投稿で、`store.put()` から `setOptimisticEvents()` の signal 書き
+   * 込みが完了するまでにかかった ms (fix round 1: 仕様 10 節 問い 3 の材料)。
+   * `signer.signEvent()` の待ち時間は含まない —— 意図的に楽観挿入の経路
+   * だけを見る。`connections`/`peakConnections` と同じ診断用の常設表示
+   * (計測が終わったら消す、ということはしない — 実鍵での検証を行う人間も
+   * この数値を見たいはずで、消えてしまうと再確認できない)。
+   */
+  const [optimisticInsertMs, setOptimisticInsertMs] = createSignal<number>();
 
   /**
    * **順序が重要 (仕様 6 節)**: 署名 → EventStore への挿入 (楽観的更新) →
@@ -323,8 +332,22 @@ const V1Preview: Component = () => {
       // 楽観的更新: リレーの応答を待たず、署名が終わった時点で即座に
       // 自分のカラムへ映す (受け入れ確認 1)。"local" は実在するリレーの
       // URL ではない —— 自分の手元での挿入だと分かる印。
+      //
+      // ここだけを performance.now() で挟んで計測する (仕様 10 節 問い 3、
+      // fix round 1)。`signer.signEvent()` を含めた「クリックしてから見える
+      // まで」を e2e ハーネス越しに計測すると、署名側 (このスライスの検証
+      // では page.exposeFunction 越しの Node 呼び出しという、実運用には無い
+      // IPC ホップ) のジッタが乗り、ADR-0011 の 100ms 予算をこの経路単体で
+      // 満たしているかどうかを何も語れなくなる (fix round 1 の指摘)。
+      // store.put() から setOptimisticEvents() が同期的に (Solid の signal
+      // 書き込みはこの await の後、DOM 委譲の自動 batch の外で実行される
+      // ため、依存する DeckColumn の items memo と <For> の DOM パッチまで
+      // 含めて同期的に) 完了するまでを測ることで、signEvent を完全に除外し、
+      // 楽観挿入の経路そのものが何 ms かを見る。
+      const optimisticStart = performance.now();
       store.put(signed, "local");
       setOptimisticEvents((prev) => [signed, ...prev]);
+      setOptimisticInsertMs(performance.now() - optimisticStart);
       setContent("");
 
       const result = await publisher.publish(signed);
@@ -360,6 +383,15 @@ const V1Preview: Component = () => {
               </p>
               <p data-testid="peak-connections" class="text-alpha-600 text-xs">
                 peakConnections: {peakConnections()}
+              </p>
+              <p
+                data-testid="optimistic-insert-ms"
+                class="text-alpha-600 text-xs"
+              >
+                optimisticInsertMs:{" "}
+                {optimisticInsertMs() === undefined
+                  ? "-"
+                  : optimisticInsertMs()?.toFixed(2)}
               </p>
             </div>
           }
