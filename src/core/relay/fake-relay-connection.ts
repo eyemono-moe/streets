@@ -13,6 +13,11 @@ type FakeSubscription = {
   closed: boolean;
 };
 
+export type FakeRelayConnectionOptions = {
+  /** false にすると `open()` を呼ぶまで onOpen が発火しない。既定 true */
+  autoOpen?: boolean;
+};
+
 /**
  * テスト用の RelayConnection。
  * emitEvent / emitEose / emitClosed で任意のタイミングを再現する。
@@ -20,10 +25,17 @@ type FakeSubscription = {
 export class FakeRelayConnection implements RelayConnection {
   readonly subscriptions: FakeSubscription[] = [];
   readonly published: NostrEvent[] = [];
+  readonly #openListeners = new Set<() => void>();
   readonly #closeListeners = new Set<() => void>();
+  #opened: boolean;
   closed = false;
 
-  constructor(readonly url: RelayUrl) {}
+  constructor(
+    readonly url: RelayUrl,
+    options?: FakeRelayConnectionOptions,
+  ) {
+    this.#opened = options?.autoOpen ?? true;
+  }
 
   subscribe(
     filters: RelayFilter[],
@@ -50,6 +62,25 @@ export class FakeRelayConnection implements RelayConnection {
     this.published.push(event);
   }
 
+  /** 遅れて開いたことにする (autoOpen: false のときだけ意味がある) */
+  open(): void {
+    if (this.#opened || this.closed) return;
+    this.#opened = true;
+    for (const listener of [...this.#openListeners]) listener();
+  }
+
+  onOpen(listener: () => void): () => void {
+    if (this.#opened) {
+      listener();
+      return () => {};
+    }
+    if (this.closed) return () => {};
+    this.#openListeners.add(listener);
+    return () => {
+      this.#openListeners.delete(listener);
+    };
+  }
+
   close(): void {
     this.#doClose();
   }
@@ -62,6 +93,7 @@ export class FakeRelayConnection implements RelayConnection {
       sub.closed = true;
       sub.handlers.onClosed("socket closed");
     }
+    this.#openListeners.clear();
     for (const listener of this.#closeListeners) listener();
     this.#closeListeners.clear();
   }

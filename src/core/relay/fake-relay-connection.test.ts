@@ -163,4 +163,40 @@ describe("FakeRelayConnection", () => {
     expect(calls).toEqual(["socket closed"]);
     expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
   });
+
+  describe("onOpen", () => {
+    // 変異: 既定を autoOpen: false にすると、既存のプールのテストが
+    // 一斉に落ちる (どれも構築した瞬間から生きている前提)。
+    it("is open from construction by default", () => {
+      const connection = new FakeRelayConnection("wss://a");
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("open"));
+      expect(calls).toEqual(["open"]);
+    });
+
+    // 変異: autoOpen: false を無視すると落ちる。恒久的に到達不能な
+    // リレー (open が永久に来ない) を再現するために必要。
+    it("stays unopened until open() when constructed with autoOpen: false", () => {
+      const connection = new FakeRelayConnection("wss://a", {
+        autoOpen: false,
+      });
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("open"));
+      expect(calls).toEqual([]);
+
+      connection.open();
+      expect(calls).toEqual(["open"]);
+    });
+
+    // 変異: open() で opened フラグを立てないと落ちる。
+    it("fires immediately for listeners registered after open()", () => {
+      const connection = new FakeRelayConnection("wss://a", {
+        autoOpen: false,
+      });
+      connection.open();
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("late"));
+      expect(calls).toEqual(["late"]);
+    });
+  });
 });

@@ -34,8 +34,10 @@ export class WebSocketRelayConnection implements RelayConnection {
   readonly #handlers = new Map<string, RelaySubscriptionHandlers>();
   readonly #publishes = new Map<string, PendingPublish[]>();
   readonly #outbox: string[] = [];
+  readonly #openListeners = new Set<() => void>();
   readonly #closeListeners = new Set<() => void>();
   #nextSubId = 0;
+  #opened = false;
   #closed = false;
 
   constructor(
@@ -47,6 +49,10 @@ export class WebSocketRelayConnection implements RelayConnection {
     socket.onopen = () => {
       const queued = this.#outbox.splice(0);
       for (const message of queued) socket.send(message);
+      // キューを流し終えてから通知する — listener から publish された
+      // メッセージが、既に取り出し済みのキューの後ろに紛れないように。
+      this.#opened = true;
+      for (const listener of [...this.#openListeners]) listener();
     };
 
     socket.onmessage = (event) => this.#onMessage(event.data);
@@ -61,6 +67,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         for (const { reject } of pending) reject(new Error("socket closed"));
       this.#publishes.clear();
       this.#outbox.length = 0;
+      this.#openListeners.clear();
       for (const listener of this.#closeListeners) listener();
       this.#closeListeners.clear();
     };
@@ -111,6 +118,18 @@ export class WebSocketRelayConnection implements RelayConnection {
 
   close(): void {
     this.#socket.close();
+  }
+
+  onOpen(listener: () => void): () => void {
+    if (this.#opened) {
+      listener();
+      return () => {};
+    }
+    if (this.#closed) return () => {};
+    this.#openListeners.add(listener);
+    return () => {
+      this.#openListeners.delete(listener);
+    };
   }
 
   onClose(listener: () => void): () => void {

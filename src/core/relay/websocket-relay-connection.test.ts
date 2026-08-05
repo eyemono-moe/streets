@@ -362,4 +362,54 @@ describe("WebSocketRelayConnection", () => {
 
     expect(calls).toEqual(["closed"]);
   });
+
+  describe("onOpen", () => {
+    // 変異: socket.onopen から通知を外すと落ちる。
+    it("fires when the socket opens", () => {
+      const { socket } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a", socket);
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("open"));
+
+      expect(calls).toEqual([]); // まだ開いていない
+      socket.onopen?.();
+      expect(calls).toEqual(["open"]);
+    });
+
+    // 変異: 「登録時に既に開いていたら即座に呼ぶ」分岐を消すと落ちる。
+    // プールは接続を作った後に listener を登録するので、この分岐が無いと
+    // 速いソケットの open を取りこぼす。
+    it("fires immediately when registered after the socket is already open", () => {
+      const { socket } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a", socket);
+      socket.onopen?.();
+
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("late"));
+      expect(calls).toEqual(["late"]);
+    });
+
+    // 変異: 戻り値の解除関数を no-op にすると落ちる。
+    it("returns an unsubscribe function", () => {
+      const { socket } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a", socket);
+      const calls: string[] = [];
+      const off = connection.onOpen(() => calls.push("a"));
+      off();
+      socket.onopen?.();
+      expect(calls).toEqual([]);
+    });
+
+    // 変異: open 済みフラグを立てないと、死んだ後の遅い登録でも発火して
+    // しまい、プールが死んだ接続の attempts をリセットする。
+    it("does not fire for a listener registered after the socket died without opening", () => {
+      const { socket } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a", socket);
+      socket.onclose?.();
+
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("never"));
+      expect(calls).toEqual([]);
+    });
+  });
 });
