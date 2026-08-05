@@ -123,6 +123,28 @@ const DeckColumn: Component<{
       <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
         phase: {section.status().phase}
       </p>
+      {/*
+        仕様 7 節が要求する「`status.incomplete` の生の数値をそのまま見せる」。
+        ADR-0011 は欠落を黙って隠すことを禁じており、ユーザー向けの翻訳層は
+        繰延にしたので、ここでは診断値のまま出す。
+
+        Task 2 の単一カラムでは出していたが、Task 3 で `DeckColumn` へ書き直した
+        際に落ちていた (2026-08-05 に人手で発見)。3 つのレビューが見落としたのは、
+        この要求が spec の別の節 (エラー処理表) にあり、Task 3 の受け入れ確認が
+        カラム数・リロード・localStorage に向いていたためである。
+      */}
+      <Show when={section.status().incomplete}>
+        {(incomplete) => (
+          <p
+            class="text-alpha-600 text-xs"
+            data-testid="deck-column-incomplete"
+          >
+            unreachableRelays: {incomplete().unreachableRelays} /
+            unroutableAuthors: {incomplete().unroutableAuthors} /
+            uncoveredAuthors: {incomplete().uncoveredAuthors}
+          </p>
+        )}
+      </Show>
       <ul data-testid="items" class="space-y-2">
         <For each={items()}>
           {(event) => (
