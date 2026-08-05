@@ -213,6 +213,10 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | 箇所 | 内容 |
 |---|---|
 | `connection-pool.test.ts` | 「ゾンビ再接続タイマーを残さない」テストが、名指ししている変異を捕まえない。縦断スライスの最終レビューで、`#attachConnection` のタイマークリア処理を削除して（まさにそのバグを再導入して）走らせたところ**通ってしまった**。`connectCalls` が増えないことしか見ておらず、`#reconnect()` の `pooled.connection` ガードによってタイマーの有無に関わらず真になるため。**製品コードは正しい**（直読と、もう 1 つの C2 テストの変異検出で確認済み）ので park した。**直すための道具は既に同じファイルにある** —— `clock.clearTimeoutCallCount` は以前の修正ラウンドで「`connectCalls` が増えないことはタイマーが消えた証明にならない、スケジューラ自身の呼び出し回数を直接数えるしかない」という理由で追加されたものであり、このテストはそれを使っていない |
+| `connection-pool.ts` | `#ensureConnection()` の connect 失敗経路が、`publish()` しか触っていない URL について**エントリ 0 件の `Pooled` レコードを `#pool` に残す**。`size` は生きている接続だけを数えるので予算には影響せず、`retryNow()`/`#reconnect()` も空エントリでは no-op なので実害は無いが、到達不能なリレーへ publish を繰り返すたびに死んだ Map エントリが積もる。テストも無い |
+| `connection-pool.ts` | `publish()` が一時的に積む `PUBLISH_ONLY_HANDLERS` のエントリが安全なのは、`WebSocketRelayConnection.fail()` が**保留中の publish を reject してから** `onClose` を発火する、というマイクロタスク／マクロタスクの暗黙の順序に依存している。今日は正しい（reject はマイクロタスク、再接続は 500ms 以上先のマクロタスク）が、`fail()` の順序をリファクタすると `["REQ", subId]`（フィルタ 0 個）がワイヤに出る。順序を固定するテストが無い |
+| `parse-relays.ts` | URL の検証を一切しない。壊れた URL が安全なのは `ConnectionPool.subscribe()` が 3 ファイル離れた場所で `connect()` を try/catch しているからで、その依存は文書化されていない。e2e 専用の抜け道なので実害は小さい |
+| `fake-signer.ts` | 鍵から pubkey を導く（呼び出し側の `template.pubkey` を信用しない）挙動に直接のテストが無い。さらに最終レビューで判明したとおり**呼び出し元がリポジトリ内に 1 つも無い** —— 未テストのコードではなく未使用のコードである。署名器のテストへ配線するか、削除するか |
 | `nip19.ts` | `LIMIT = 5000` は範囲外の TLV（`nevent`/`naddr`）を先取りした定数。無害、NIP-19 の計画でそのまま使う |
 | `section-reader.ts` | `stop()` が `#items` / `#ids` を保持する。`createSection` からは到達しないが、公開メソッドとして意味が未文書。終局的と明記するか状態をクリアする |
 | `section-reader.ts` | `start()` 内で `openRelay` が例外を投げた場合の経路がない。既に購読したリレーが漏れる。URL ごとに包んで `unreachable` にするほうが ADR-0011 に忠実 |
