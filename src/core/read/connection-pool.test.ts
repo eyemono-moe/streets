@@ -1206,3 +1206,136 @@ describe("backoff growth and degraded relays", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------
+// Task 2 fix round 1 (2026-08-05). Reviewer findings on the first pass:
+//
+// Important 1: `#reconnect`'s budget-exhaustion guard called
+// `#scheduleReconnect`, which (after this task's initial pass) always
+// called `#noteFailure` -- so a *healthy* relay stuck behind a saturated
+// budget (someone else holding the only slot) accumulated the same
+// counter that drives `degradedRelays`, and could be reported degraded
+// without `connect()` ever once failing for it. `#failures` now splits
+// `count` (drives backoff, grows for any reschedule reason) from `hard`
+// (drives `degradedRelays`, grows only for reason `"relay"`).
+//
+// Important 2: `dispose()` dropped every `Pooled` record but left
+// `#failures` (and its cooldown `setTimeout`s) untouched -- a real-timer
+// leak that keeps a disposed pool reachable for up to
+// `DEGRADED_COOLDOWN_MS`.
+//
+// Minor: `retryNow()` only reached URLs with a live `Pooled` record, so a
+// degraded URL whose last subscriber had already closed (dropping its
+// `Pooled` record but not its `#failures` entry, by design) stayed
+// excluded for the rest of the cooldown even after a human explicitly
+// asked to retry.
+// ---------------------------------------------------------------------
+describe("Task 2 fix round 1: budget vs relay health, and cleanup", () => {
+  // Mutation: delete the `reason === "relay"` check in `#noteFailure` (let
+  // `hard` grow on every call regardless of reason) -- a relay that never
+  // once failed to connect gets marked degraded purely because another
+  // relay was holding the only budget slot. Mutation (the other
+  // direction): skip `#noteFailure` entirely on the budget path -- then
+  // the backoff never grows for a URL stuck behind a saturated budget, and
+  // it spins at the base interval forever. Both halves are asserted below.
+  it("does not count budget-exhaustion bounces as relay failures, but still grows the backoff", () => {
+    const { pool, connections, clock } = createPool({
+      maxConnections: 1,
+      random: () => 0.5,
+    });
+    const reconnectDelays = () =>
+      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+
+    pool.subscribe("wss://a/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://a/")?.die(); // A's own, single, genuine failure
+    expect(reconnectDelays()).toEqual([1000]);
+
+    // B takes the freed slot and holds it for the rest of the test --
+    // from here on, wss://a/'s connect() is never even attempted again.
+    pool.subscribe("wss://b/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.size).toBe(1);
+
+    // A's pending reconnect timer fires, finds the budget full (B holds
+    // the only slot), and reschedules -- a budget bounce, not a relay
+    // failure.
+    clock.advance(1000);
+    expect(reconnectDelays()).toEqual([1000, 2000]);
+
+    clock.advance(2000);
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000]);
+
+    clock.advance(4000);
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000, 8000]);
+
+    // The backoff grew across all 4 bounces (1 real death + 3 budget
+    // bounces) -- but degradedRelays must not include A: every count
+    // after the first came from the budget guard, not from the relay.
+    expect(pool.degradedRelays).toEqual([]);
+  });
+
+  // Mutation: delete the `#failures` cleanup loop in `dispose()` (leave
+  // `#pool.clear()` as the only teardown) -- the reconnect timer still
+  // gets cleared via `#drop`, but the cooldown timer leaks, keeping the
+  // disposed pool reachable through its closure for up to
+  // `DEGRADED_COOLDOWN_MS` under the real scheduler, and (under an
+  // injected clock, as here) still fires against -- and mutates -- an
+  // already-disposed pool if the clock is advanced afterward.
+  it("clears every failure cooldown timer on dispose()", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    // Arms both a pending reconnect timer (pooled.timer) and a failure
+    // cooldown timer (#failures' timer).
+    connections.get("wss://one/")?.die();
+
+    const clearsBeforeDispose = clock.clearTimeoutCallCount;
+    pool.dispose();
+
+    // Two clearTimeout calls are expected: the pre-existing one for the
+    // pending reconnect timer (via #drop, already covered by an earlier
+    // test) and the new one for the failure's cooldown timer.
+    expect(clock.clearTimeoutCallCount).toBe(clearsBeforeDispose + 2);
+
+    // Advancing the clock well past the cooldown must not resurrect
+    // anything -- if the timer had leaked, its callback would still fire
+    // here and mutate #failures on a disposed pool.
+    expect(() => clock.advance(DEGRADED_COOLDOWN_MS)).not.toThrow();
+    expect(pool.degradedRelays).toEqual([]);
+  });
+
+  // Mutation: have retryNow() only clear failures reachable through its
+  // `#pool` loop (i.e. drop the wholesale `#failures.clear()` this fix
+  // adds) -- a degraded URL whose last subscriber already closed (so its
+  // `Pooled` record is gone, per "remembers failures across a drop" above)
+  // never gets reached by that loop, so a human hitting retry after
+  // coming back online finds exactly the URL that most needs retrying
+  // still excluded for the rest of the cooldown.
+  it("retryNow() clears a degraded URL's failure history even after its Pooled record is gone", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+
+    // The URL's last subscriber closes -- #drop tears the Pooled record
+    // down entirely, but the failure history survives on purpose (that's
+    // the point of keeping it off Pooled).
+    sub?.close();
+    expect(pool.degradedRelays).toEqual(["wss://one/"]); // still degraded
+
+    pool.retryNow();
+
+    expect(pool.degradedRelays).toEqual([]);
+  });
+});

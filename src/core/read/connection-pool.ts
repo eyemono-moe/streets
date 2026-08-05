@@ -79,6 +79,22 @@ export const DEGRADED_AFTER_FAILURES = 4;
 export const DEGRADED_COOLDOWN_MS = 300_000;
 
 /**
+ * `#scheduleReconnect`/`#noteFailure` を呼ぶ理由 (Task 2 fix round 1,
+ * Important 1)。`#failures.count` (バックオフの指数) はどちらの理由でも
+ * 増える一方、`#failures.hard` (degraded 判定) は `"relay"` のときだけ
+ * 増える。
+ *
+ * 予算超過 (`"budget"`) はリレー自身の健全性と無関係 (ADR-0011 の制約で
+ * あって ADR-0021 の健康シグナルではない)。健全なリレー A のソケットが
+ * 死んで再接続を待っているだけでも、たまたま B が枠を握っていれば
+ * `#reconnect` は予算超過で何度もバウンスする — それを `"relay"` と
+ * 同じに数えると、一度も `connect()` に失敗していない A が degraded 判定
+ * され、Task 4 に選択から外され、除外中は誰も購読しないので二度と
+ * バックオフが縮まず、最大 300 秒 (`DEGRADED_COOLDOWN_MS`) 沈黙する。
+ */
+type ReconnectReason = "relay" | "budget";
+
+/**
  * `publish()` 全体のタイムアウト (final review, Critical 1)。
  *
  * NIP-01 は「リレーは OK を送らねばならない (MUST)」と定めるが、実際には
@@ -196,14 +212,23 @@ export class ConnectionPool {
   #peakSize = 0;
 
   /**
-   * URL → 連続で開けなかった回数とその冷却タイマー。**`Pooled` ではなく
-   * プールが持つ** — `#drop` でエントリが消えても失われてはならない。
-   * 消えると「degraded で除外 → 購読者ゼロ → 履歴消滅 → 再選択 → また
-   * 除外」という振動になる (Task 4 が `degradedRelays` を選択に使う)。
+   * URL → 失敗の記録とその冷却タイマー。**`Pooled` ではなくプールが持つ**
+   * — `#drop` でエントリが消えても失われてはならない。消えると
+   * 「degraded で除外 → 購読者ゼロ → 履歴消滅 → 再選択 → また除外」という
+   * 振動になる (Task 4 が `degradedRelays` を選択に使う)。
+   *
+   * `count` と `hard` の 2 本を分けて持つ (Task 2 fix round 1, Important 1)。
+   * - `count`: `#scheduleReconnect` が呼ばれた回数 (理由を問わない)。
+   *   バックオフの指数はこちらから決める — 予算超過で待たされている URL も
+   *   ちゃんと間隔を伸ばさないと、そこだけ base 間隔でスピンする。
+   * - `hard`: そのうちリレー自身に起因する回数だけ (`ReconnectReason` が
+   *   `"relay"` のもの)。`degradedRelays` はこちらだけを見る — 予算超過の
+   *   バウンスを健康シグナルとして数えると、一度も `connect()` に失敗して
+   *   いない健全なリレーが degraded 判定されてしまう。
    */
   readonly #failures = new Map<
     RelayUrl,
-    { count: number; timer: ReturnType<Scheduler["setTimeout"]> }
+    { count: number; hard: number; timer: ReturnType<Scheduler["setTimeout"]> }
   >();
 
   constructor(options: ConnectionPoolOptions) {
@@ -246,13 +271,15 @@ export class ConnectionPool {
   }
 
   /**
-   * 連続失敗が `DEGRADED_AFTER_FAILURES` 以上に達した URL。
-   * `selectRelays` の `degraded` 入力になる (ADR-0025)。
+   * リレー自身に起因する連続失敗 (`hard`) が `DEGRADED_AFTER_FAILURES`
+   * 以上に達した URL。`selectRelays` の `degraded` 入力になる (ADR-0025)。
+   * 予算超過によるバウンス (`count` には入るが `hard` には入らない、
+   * Task 2 fix round 1, Important 1) はここには影響しない。
    */
   get degradedRelays(): readonly RelayUrl[] {
     const urls: RelayUrl[] = [];
-    for (const [url, { count }] of this.#failures) {
-      if (count >= DEGRADED_AFTER_FAILURES) urls.push(url);
+    for (const [url, { hard }] of this.#failures) {
+      if (hard >= DEGRADED_AFTER_FAILURES) urls.push(url);
     }
     return urls;
   }
@@ -264,23 +291,28 @@ export class ConnectionPool {
   }
 
   /**
-   * `url` の連続失敗を 1 増やし、冷却タイマーを張り直す (呼ばれるのは
+   * `url` の失敗を 1 記録し、冷却タイマーを張り直す (呼ばれるのは
    * `#scheduleReconnect` のみ — 実際に再接続を待つ羽目になった失敗だけを
    * 数える。`#ensureConnection`/`#reconnect` の catch 節は直後に必ず
    * `#scheduleReconnect` を呼ぶので、そちらでも数えると同じ 1 回の失敗を
    * 二重に計上してしまう)。
    *
+   * `count` は理由を問わず増える (バックオフの指数用)。`hard` は
+   * `reason === "relay"` のときだけ増える (`degradedRelays` 用、Task 2 fix
+   * round 1, Important 1) — 予算超過のバウンスは健康シグナルではない。
+   *
    * クールダウンを失敗のたびに張り直すのは、失敗し続けている最中に前回の
    * 期限が来て degraded が解除されてしまわないようにするため。
    */
-  #noteFailure(url: RelayUrl): void {
+  #noteFailure(url: RelayUrl, reason: ReconnectReason): void {
     const existing = this.#failures.get(url);
     if (existing) this.#scheduler.clearTimeout(existing.timer);
     const count = (existing?.count ?? 0) + 1;
+    const hard = (existing?.hard ?? 0) + (reason === "relay" ? 1 : 0);
     const timer = this.#scheduler.setTimeout(() => {
       this.#failures.delete(url);
     }, DEGRADED_COOLDOWN_MS);
-    this.#failures.set(url, { count, timer });
+    this.#failures.set(url, { count, hard, timer });
   }
 
   /**
@@ -535,6 +567,15 @@ export class ConnectionPool {
    * 連続失敗回数をリセットしてから即座に `#reconnect()` を試みる。既に
    * 繋がっている URL (`connection` が非 null) はそもそも対象外 —
    * 触ると生きているソケットを無駄に張り直すことになる。
+   *
+   * 上のループは `#pool` にエントリが残っている URL にしか届かない
+   * (Task 2 fix round 1, Minor)。degraded な URL は誰も購読しなくなり
+   * 最後のエントリが閉じると `#drop` で `Pooled` が消える — それでも
+   * `#failures` は (意図的に) 生き残る。人間がトンネルから復帰して
+   * retryNow() を叩いたのに、まさに一番除外されていてほしくない degraded
+   * relay だけが 300 秒のクールダウンをそのまま待たされるのでは意味が
+   * ない。そこでループの後に `#failures` を丸ごと消す — `retryNow()` は
+   * 人間が起こした操作なので、履歴を全部捨ててよい。
    */
   retryNow(): void {
     for (const [url, pooled] of this.#pool) {
@@ -546,11 +587,33 @@ export class ConnectionPool {
       this.#clearFailures(url);
       this.#reconnect(url);
     }
+    for (const { timer } of this.#failures.values()) {
+      this.#scheduler.clearTimeout(timer);
+    }
+    this.#failures.clear();
   }
 
+  /**
+   * `#drop` は生きている `Pooled` レコードだけを畳み、`#failures` (失敗
+   * 履歴とその冷却タイマー) にはわざと触らない — 購読が残っている間に
+   * 履歴だけ消えると Task 4 の degraded 判定が振動する、というのが
+   * `#failures` をプール寿命から切り離した理由そのものだから。だが
+   * dispose() された後はもう誰も consumer が居ない。ここで
+   * `#failures` を放置すると、実タイマーの下では最大 `DEGRADED_COOLDOWN_MS`
+   * (5 分) 分の `setTimeout` が dispose 済みプールをクロージャ越しに掴み
+   * 続け (Task 2 fix round 1, Important 2)、`SubscriptionManager.dispose()`
+   * 経由の Solid プロバイダの teardown のたびにそれが積み上がる。注入した
+   * 偽クロックの下でも、後から `advance()` されればそのコールバックは
+   * dispose 済みプールの状態を書き換えてしまう — このファイルの他の箇所が
+   * 慎重に避けている「dispose 後の状態変更」そのもの。
+   */
   dispose(): void {
     for (const url of [...this.#pool.keys()]) this.#drop(url);
     this.#pool.clear();
+    for (const { timer } of this.#failures.values()) {
+      this.#scheduler.clearTimeout(timer);
+    }
+    this.#failures.clear();
   }
 
   #drop(url: RelayUrl): void {
@@ -593,7 +656,14 @@ export class ConnectionPool {
    * ジッタが無いと、同時に死んだ 30 本のリレーへの再接続が同期し、復帰の
    * 瞬間に自分でバーストを作ってしまう。`0.5〜1.5` 倍の範囲でずらす。
    */
-  #scheduleReconnect(url: RelayUrl): void {
+  /**
+   * `reason` は既定で `"relay"` — 呼び出し元のほとんど (`#onConnectionDied`、
+   * `subscribe()` の初回失敗、`#reconnect` の `connect()` catch) はリレー
+   * 自身に起因する失敗なので、そのままで従来通りの挙動になる。予算超過で
+   * 待たされているだけの `#reconnect` の分岐 (`:713` 付近) だけが明示的に
+   * `"budget"` を渡す。
+   */
+  #scheduleReconnect(url: RelayUrl, reason: ReconnectReason = "relay"): void {
     const pooled = this.#pool.get(url);
     if (!pooled || pooled.connection || pooled.timer !== null) return;
     if (pooled.entries.size === 0) return; // 誰も待っていない
@@ -604,7 +674,7 @@ export class ConnectionPool {
     const count = this.#failures.get(url)?.count ?? 0;
     const base = Math.min(RECONNECT_BASE_MS * 2 ** count, RECONNECT_MAX_MS);
     const delay = base * (0.5 + this.#random());
-    this.#noteFailure(url);
+    this.#noteFailure(url, reason);
     pooled.timer = this.#scheduler.setTimeout(() => {
       pooled.timer = null;
       this.#reconnect(url);
@@ -711,7 +781,13 @@ export class ConnectionPool {
     // `#scheduleReconnect` の「誰も待っていない」ガードで止まるから —
     // 予約を再接続にまで広げるより、ハングせず縮退させる方を選んだ。
     if (this.size >= this.#maxConnections) {
-      this.#scheduleReconnect(url);
+      // "budget" -- this bounce says nothing about this relay's own health
+      // (Task 2 fix round 1, Important 1). The backoff still has to grow
+      // (a URL stuck behind a saturated budget must not spin at the base
+      // interval forever), but it must not count toward `degradedRelays`,
+      // or a relay that has never once failed to connect gets excluded
+      // from selection purely because another relay was holding the slot.
+      this.#scheduleReconnect(url, "budget");
       return;
     }
 
