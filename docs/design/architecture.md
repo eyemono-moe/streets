@@ -310,6 +310,18 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 **死んだ接続がプールに残り続ける欠陥も解消済み。** `RelayConnection`（3節）に `onClose` を足し、プールが「ソケットの死」を検知して即座に予算とレジストリから外すようにした。
 
+### 書き込み経路とプロフィールのコアレッサ — v1 縦断スライスで実装済み
+
+[縦断スライスの仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md)で設計し、`/v1-preview` として実装が完了した。**この読み取り層を実際に使う画面が初めてできた** —— それまで唯一の呼び出し元は `/debug/v1-section` だった（[read-layer-followups.md](./read-layer-followups.md) 外部レビュー参照）。
+
+- **署名器。** `src/core/signer/` に `Signer` 型（`getPublicKey` / `signEvent`）、NIP-07 実装（`nip07-signer.ts`、呼び出しのたびに `window.nostr` を読み直す）、テスト用の `fake-signer.ts` を実装した。ADR-0008 の「秘密鍵を持たない」を型で強制する。
+- **publish 経路。** `src/core/write/publisher.ts` の `createPublisher` が、署名者自身の `kind:10002` write リレー（無ければ fallback）へ `Promise.allSettled` で並行に publish し、`{ accepted, rejected }` を返す。ソケットは読み取り用と同じ `ConnectionPool`（`subscribe()` と `publish()` が共有する `#ensureConnection()`）を通るため、[ADR-0011](../adr/0011-performance-budget.md) の 30 接続予算は購読と投稿の両方を合わせた 1 つの数字のままである。
+- **プロフィールのコアレッサ。** `src/core/read/profile-requests.ts` の `createProfileRequests` が、[ADR-0017](../adr/0017-declarative-renderer-needs.md) が定める波状解決を kind:0 専用に先取りする。`<Profile>` のマウントごとの `request(pubkey)` を 200ms の窓でまとめ、`SubscriptionManager.fetchOnce()`（下記）へ 1 本の REQ として渡す。ADR-0017 の一般形（複数 kind・純粋関数としての `needs`）はまだ実装しない（同 ADR「実装の段階」参照）。
+- **fetch-once の公開。** `bootstrap.ts` の module-local だった `collect()` を `src/core/read/collect.ts` に切り出し、`SubscriptionManager.fetchOnce(filters, options?)` として公開した。全リレーが EOSE/CLOSED を報告するかタイムアウトで解決する「一度引いて閉じる」購読 —— ページネーションは含まない。
+- **デッキ。** `src/core/deck/deck.ts` が `{ version: 1; columns: ColumnDef[] }` を `localStorage`（`streets.v1.deck`）へ保存・復元する。[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) の NIP-78 移行はまだ実装しない（同 ADR「実装の段階」参照）。`loadDeck` は外部入力として構造を検証してから返し、壊れていれば `defaultDeck` へフォールバックする。
+
+これらを実地で動かして得た仕様 10 節の 5 問への回答は [read-layer-followups.md](./read-layer-followups.md) の「v1 縦断スライス（2026-08-05）— 仕様 10 節の答え」にまとめてある —— **このスライスの成果物はここであり、`/v1-preview` という画面そのものではない。**
+
 ### セクションの保持と通知 — 実装済み
 
 [section-reader-performance の仕様](../superpowers/specs/2026-08-02-section-reader-performance-design.md)（[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」の後続 #6）で設計し、実装が完了した。以前は `SectionReader` の `#onEvent` がイベント1件ごとに配列を2回ソートし3回コピーしていた（[read-layer-followups.md](./read-layer-followups.md)「解消済み」に記録）。

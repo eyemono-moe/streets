@@ -8,6 +8,11 @@ import {
   outboxViewerPubkey,
 } from "./seed-outbox.js";
 import {
+  previewAuthorOnePubkey,
+  previewAuthorTwoPubkey,
+  previewViewerPubkey,
+} from "./seed-preview.js";
+import {
   e2eAuthorPubkey,
   e2eDebugFeedMissingProfilePubkeys,
   e2eDebugFeedViewerPubkey,
@@ -61,6 +66,9 @@ describe("e2e fixture pubkeys", () => {
       ),
       ["seed-cap.ts:viewer", capViewerPubkey],
       ["seed-cap.ts:author", capAuthorPubkey],
+      ["seed-preview.ts:viewer", previewViewerPubkey],
+      ["seed-preview.ts:authorOne", previewAuthorOnePubkey],
+      ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
     ];
 
     const seenAt = new Map<string, string>();
