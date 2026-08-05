@@ -15,24 +15,12 @@ import {
  * リロード復元を 1 本の流れで主張する。ここが仕様 10 節の答えを裏づける
  * 唯一の実測経路であり、以後の回帰はこの spec が拾う。
  *
- * **`nostr-login` のバンドルを止める、恒久的な回避策 (削除できるとき: 下記)。**
- * `App.tsx` は全ルート (`/v1-preview` も含む) を `MeProvider` で包んでおり、
- * `src/context/me.tsx` の `onMount` が `nostr-login` を無条件に `import()` する。
- * このライブラリはページ読み込みからおよそ 1〜2 秒後に `window.nostr` を
- * 自分のモーダル経由のラッパーへ差し替える —— スタブした NIP-07 はこの
- * ラッパーの後ろに隠れ、`getPublicKey()` がモーダルのクリックを待って
- * 永久に解決しなくなる。Task 1/5 が throwaway スクリプトでこの回避策を
- * 検証済み (task-1-report.md「Important finding」、task-5-report.md
- * 「Gotchas」)。このファイルではその回避策を恒久化する —— `nostr-login` の
- * チャンクへのリクエストを丸ごと中断し、`window.nostr` をこのスタブだけが
- * 占有する状態にする。**消せるとき**: `/v1-preview` (または v1 全体) が
- * `MeProvider` の外に出るか、`MeProvider` 自身が v1 側の signer 実装に
- * 統合されたとき。`MeProvider`/`App.tsx` はこのタスクの変更対象外 (旧実装
- * に属する) なので、ここでは触らずページ単位で無効化する。
+ * かつてここには `nostr-login` のバンドルを中断する回避策があった。同ライブラリが
+ * `MeProvider` の `onMount` から全ルートで初期化され、ページ読み込みの 1〜2 秒後に
+ * `window.nostr` を自分のラッパーへ差し替えるため、スタブした NIP-07 がその後ろに
+ * 隠れて `getPublicKey()` が永久に解決しなくなっていた。**そのライブラリを依存ごと
+ * 削除した (2026-08-05) ので回避策は不要になり、除去した。**
  */
-const blockNostrLogin = async (page: import("@playwright/test").Page) => {
-  await page.route(/nostr-login/, (route) => route.abort());
-};
 
 /**
  * `window.nostr` のスタブ。`e2e/console-warning.spec.ts` と同じ
@@ -70,7 +58,6 @@ test.describe("v1 vertical slice", () => {
   }) => {
     test.setTimeout(60_000);
 
-    await blockNostrLogin(page);
     await stubSigner(page);
 
     await page.goto(`/v1-preview?relays=${previewRelayUrl}`);

@@ -9,7 +9,6 @@ import {
 import { useMe } from "../../../context/me";
 import { useI18n } from "../../../i18n";
 import Button from "../../../shared/components/UI/Button";
-import { showLoginModal } from "../../../shared/libs/nostrLogin";
 import { useFollowees, useSendContacts } from "../../../shared/libs/query";
 
 const FollowButton: Component<{ pubkey?: string }> = (props) => {
@@ -33,7 +32,6 @@ const FollowButton: Component<{ pubkey?: string }> = (props) => {
     e.stopPropagation();
 
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 

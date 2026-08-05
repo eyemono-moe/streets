@@ -8,7 +8,6 @@ import { usePostInput } from "../../features/CreatePost/context/postInputDialog"
 import ZapButton from "../../features/Zap/components/ZapButton";
 import { useI18n } from "../../i18n";
 import { copyToClipboard } from "../libs/clipboard";
-import { showLoginModal } from "../libs/nostrLogin";
 import type { ParsedEventPacket } from "../libs/parser";
 import type { EventTag } from "../libs/parser/commonTag";
 import {
@@ -83,7 +82,6 @@ const EventActions: Component<{
   const { sendRepost, sendState: repostSendState } = useSendRepost();
   const handleRepost = () => {
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 
@@ -126,7 +124,6 @@ nostr:${neventEncode({
   });
   const handleFavorite = () => {
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 
@@ -148,7 +145,6 @@ nostr:${neventEncode({
   const { sendReaction } = useSendReaction();
   const handleReaction = async (e: Emoji) => {
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 
