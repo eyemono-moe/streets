@@ -5,7 +5,11 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
-import { ConnectionPool, type ConnectionPoolOptions } from "./connection-pool";
+import {
+  ConnectionPool,
+  type ConnectionPoolOptions,
+  DEGRADED_COOLDOWN_MS,
+} from "./connection-pool";
 
 /**
  * publish() のテストだけが使う、内容を気にしない最小のイベント。
@@ -61,17 +65,26 @@ type FakeClock = {
    * cancellation happened.
    */
   clearTimeoutCallCount: number;
+  /**
+   * Task 2: every delay passed to `setTimeout`, in call order. Lets a test
+   * assert on the exact backoff sequence (e.g. "the 2nd delay is exactly
+   * double the 1st") without having to reverse-engineer it from repeated
+   * `advance()` calls and `connectCalls` lengths alone.
+   */
+  readonly scheduledDelays: number[];
 };
 
 const createFakeClock = (): FakeClock => {
   let now = 0;
   let nextId = 1;
   let clearTimeoutCallCount = 0;
+  const scheduledDelays: number[] = [];
   const timers = new Map<number, { at: number; callback: () => void }>();
 
   return {
     setTimeout: (callback, delayMs) => {
       const id = nextId++;
+      scheduledDelays.push(delayMs);
       timers.set(id, { at: now + delayMs, callback });
       return id as unknown as TimerHandle;
     },
@@ -90,6 +103,7 @@ const createFakeClock = (): FakeClock => {
         timer.callback();
       }
     },
+    scheduledDelays,
     get clearTimeoutCallCount() {
       return clearTimeoutCallCount;
     },
@@ -127,6 +141,14 @@ type CreatePoolOptions = {
    * タイムアウトだけがこれを決着させられることを確かめるための注入。
    */
   publishSilent?: RelayUrl[];
+  /**
+   * Task 2: `connect()` はソケットオブジェクトを作って即座に返すが、
+   * `onOpen` は決して発火しない (`FakeRelayConnection`'s `{ autoOpen: false
+   * }`) -- ソケットは作れるが決して開かない、恒久的に到達不能なリレー
+   * (`wss://nfrelay.app` が実地で示した状況) をこの url について再現する。
+   * `.open()` を明示的に呼べば「実際に開いた」ことにできる。
+   */
+  neverOpens?: RelayUrl[];
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -134,6 +156,7 @@ const createPool = (options: CreatePoolOptions = {}) => {
   const connectCalls: RelayUrl[] = [];
   const failing = new Set(options.failing ?? []);
   const subscribeFailing = new Set(options.subscribeFailing ?? []);
+  const neverOpens = new Set(options.neverOpens ?? []);
   const clock = createFakeClock();
   const callIndexByUrl = new Map<RelayUrl, number>();
 
@@ -146,7 +169,9 @@ const createPool = (options: CreatePoolOptions = {}) => {
     if (shouldFail) {
       throw new Error(`connect failed for ${url} (call ${callIndex})`);
     }
-    const relay = new FakeRelayConnection(url);
+    const relay = new FakeRelayConnection(url, {
+      autoOpen: !neverOpens.has(url),
+    });
     if (subscribeFailing.has(url)) {
       const brokenSubscribe = () => {
         throw new Error(`subscribe failed for ${url}`);
@@ -950,5 +975,234 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     // timer.
     clock.advance(60_000);
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+});
+
+// ---------------------------------------------------------------------
+// Task 2 (2026-08-05 connection-layer-repairs): a real-key run against
+// public relays showed the backoff never growing -- three unreachable
+// relays retried at a flat ~3s interval forever. The root cause was
+// `#attachConnection` resetting the failure counter the instant `connect()`
+// returned a socket *object*, not when the socket actually opened
+// (`connect()` -- `new WebSocket(url)` -- succeeds and returns immediately
+// for an unreachable relay too). `neverOpens` models that: `connect()`
+// succeeds (a `FakeRelayConnection` is created) but `onOpen` never fires
+// until the test calls `.open()` explicitly.
+// ---------------------------------------------------------------------
+describe("backoff growth and degraded relays", () => {
+  // Mutation: restore `attempts = 0` (here: `#clearFailures(url)`) to run
+  // unconditionally in `#attachConnection` instead of inside the `onOpen`
+  // callback. That resurrects the exact defect observed in the field: a
+  // relay whose socket is created but never opens gets its backoff reset on
+  // every reconnect attempt, so the delay never grows past the base.
+  it("grows the delay when the socket never actually opens", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    // Every noted failure also (re-)arms the DEGRADED_COOLDOWN_MS timer
+    // (see the "postpones the cooldown" test below) -- filter those out so
+    // this only looks at the reconnect backoff itself.
+    const reconnectDelays = () =>
+      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+
+    // The initial socket never opens; kill it to trigger the first
+    // reconnect scheduling.
+    connections.get("wss://one/")?.die();
+    expect(reconnectDelays()).toEqual([1000]); // base * (0.5 + 0.5)
+
+    // Let the first backoff fire. The reconnect attempt creates a fresh
+    // socket that -- being wss://one/ -- also never opens. Kill it too.
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+
+    // The second delay must be exactly double the first: the exponent grew
+    // from 2^0 to 2^1. Under the bug, both entries would read [1000, 1000].
+    expect(reconnectDelays()).toEqual([1000, 2000]);
+  });
+
+  // Mutation: reset the failure counter from `connect()`'s return instead
+  // of from `onOpen` firing (e.g. clearing it right after
+  // `this.#options.connect(url)` succeeds in `#attachConnection`, the same
+  // shape as the mutation above but phrased as "reset on success" rather
+  // than "reset unconditionally"). Doubles as the positive case: once a
+  // socket really opens, the next failure must start from the base again.
+  it("resets the delay to the base once the socket really opens", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const reconnectDelays = () =>
+      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    expect(reconnectDelays()).toEqual([1000, 2000]); // grown, as above
+
+    // Let the third reconnect attempt fire, but this time let the socket
+    // really open before killing it.
+    clock.advance(2000);
+    connections.get("wss://one/")?.open();
+    connections.get("wss://one/")?.die();
+
+    // A real open cleared the failure history, so this delay is base again
+    // -- not 4000 (2^2), which is what continuing the sequence would give.
+    expect(reconnectDelays()).toEqual([1000, 2000, 1000]);
+  });
+
+  // Mutation: move the failure counter from the pool's own `#failures` map
+  // back onto the per-URL `Pooled` record (i.e. restore `attempts` there).
+  // Task 4 will drop degraded relays from selection, which drops their last
+  // subscription, which calls `#drop` -- if the counter lived on `Pooled`,
+  // that would erase the very failure history that justified degrading the
+  // relay, and the relay would look brand new the moment it's re-selected.
+  // This test is the guard against that oscillation.
+  it("remembers failures across a drop of the pool entry", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const reconnectDelays = () =>
+      clock.scheduledDelays.filter((d) => d !== DEGRADED_COOLDOWN_MS);
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000]); // 3 failures
+
+    // Close the only subscription -- entries.size drops to 0, so `#drop`
+    // tears down the pooled record entirely (the connection, the pending
+    // timer, everything except the failure history).
+    sub?.close();
+
+    // Subscribe to the same URL again (a fresh `Pooled` record is created)
+    // and kill it once more.
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+
+    // If the counter had been reset by the drop, this delay would be back
+    // at the base (1000ms). It must instead continue from count=3:
+    // 1000 * 2^3 = 8000ms.
+    expect(reconnectDelays()).toEqual([1000, 2000, 4000, 8000]);
+  });
+
+  // Mutation: change the `degradedRelays` threshold check from `>=` to `>`,
+  // or change `DEGRADED_AFTER_FAILURES` from 4 to 5.
+  it("reports a url as degraded only after DEGRADED_AFTER_FAILURES failures", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://one/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://one/")?.die(); // failure 3
+
+    expect(pool.degradedRelays).toEqual([]);
+
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // failure 4
+
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+  });
+
+  // Mutation: delete the record-clearing call inside the `onOpen` callback
+  // in `#attachConnection` (leaving the failure history, and therefore the
+  // degraded status, stuck even after the relay proves it can open again).
+  it("clears degraded once the relay opens again", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+
+    clock.advance(8000); // 5th reconnect attempt fires, socket created
+    connections.get("wss://one/")?.open(); // this time it actually opens
+
+    expect(pool.degradedRelays).toEqual([]);
+  });
+
+  // Mutation: don't arm a cooldown timer when noting a failure. Since a
+  // degraded URL loses its subscribers (Task 4 drops it from selection),
+  // nobody re-subscribes, so `#scheduleReconnect` never runs again either --
+  // without this timer, a URL that degrades has no path back and stays
+  // excluded forever.
+  it("clears degraded after the cooldown elapses with no further failures", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+
+    // Nobody is subscribed any more -- with the pooled record dropped and
+    // no entries waiting, reconnection stops. The cooldown timer armed by
+    // the 4th failure is the only path back to non-degraded.
+    sub?.close();
+
+    clock.advance(DEGRADED_COOLDOWN_MS);
+    expect(pool.degradedRelays).toEqual([]);
+  });
+
+  // Mutation: only arm the cooldown timer on the first failure for a url
+  // (`if (!existing) { ...set timer... }`) instead of re-arming it on every
+  // failure. Without re-arming, a relay that keeps failing during the
+  // cooldown window would have its degraded status cleared out from under
+  // it mid-failure, purely because the *first* failure happened long ago.
+  it("postpones the cooldown on each new failure", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die(); // failure 1, at t=0
+    clock.advance(1000); // t=1000
+    connections.get("wss://one/")?.die(); // failure 2
+    clock.advance(2000); // t=3000
+    connections.get("wss://one/")?.die(); // failure 3
+    clock.advance(4000); // t=7000
+    connections.get("wss://one/")?.die(); // failure 4 -> degraded, at t=7000
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+
+    sub?.close(); // stop reconnecting; only the cooldown can clear it now
+
+    // If the cooldown were not postponed by the 4th failure (i.e. it still
+    // measured 300s from the 1st failure at t=0), it would already have
+    // elapsed inside this very advance() call (t=0+300_000 < 7000+299_999).
+    clock.advance(DEGRADED_COOLDOWN_MS - 1); // t = 7000 + 299_999 = 306_999
+    expect(pool.degradedRelays).toEqual(["wss://one/"]);
+
+    clock.advance(1); // t = 307_000 = the 4th failure's own cooldown target
+    expect(pool.degradedRelays).toEqual([]);
   });
 });

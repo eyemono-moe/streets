@@ -64,6 +64,21 @@ const RECONNECT_BASE_MS = 1_000;
 const RECONNECT_MAX_MS = 60_000;
 
 /**
+ * この回数だけ連続で「開けなかった」URL を degraded とみなし、
+ * リレー選択の候補から外す (ADR-0025 の入力)。正しい指数バックオフの
+ * 下では 4 回はおよそ 1+2+4+8 = 15 秒ぶんの試行にあたる。
+ */
+export const DEGRADED_AFTER_FAILURES = 4;
+
+/**
+ * 最後の失敗からこれだけ何も起きなければ失敗履歴を捨て、候補に戻す。
+ * degraded な URL は誰も購読しなくなり再接続も止まる (ADR-0021 の
+ * 「諦めない」は購読者が居る間の話) ので、この経路が無いと永久に
+ * 候補から外れたままになる。サーキットブレーカの half-open にあたる。
+ */
+export const DEGRADED_COOLDOWN_MS = 300_000;
+
+/**
  * `publish()` 全体のタイムアウト (final review, Critical 1)。
  *
  * NIP-01 は「リレーは OK を送らねばならない (MUST)」と定めるが、実際には
@@ -127,11 +142,13 @@ type Pooled = {
   /** 接続の死亡通知の購読解除。`connection` が非 null の間だけ非 null。 */
   offClose: (() => void) | null;
   /**
-   * 連続再接続の試行回数。バックオフの指数を決める。再接続に成功する
-   * (あるいは `retryNow()` で強制される) たびに 0 に戻る — 失敗の連続だけ
-   * を数える。
+   * ソケットが**実際に開いた**ことの通知の購読解除。`connection` が非 null
+   * の間だけ非 null (`offClose` と同じ規約)。プールの `#failures` を消す
+   * (= バックオフをリセットする) のはこの通知が発火した時だけ —
+   * `connect()` が例外を投げずに返ったという事実だけでは「繋がった」とは
+   * 言えない (2026-08-05 の実地観測)。
    */
-  attempts: number;
+  offOpen: (() => void) | null;
   /**
    * 保留中の再接続タイマー。`connection` が非 null の間、あるいは待っている
    * エントリが無くなった間は必ず `null` — タイマーが残ったままだと、
@@ -178,6 +195,17 @@ export class ConnectionPool {
    */
   #peakSize = 0;
 
+  /**
+   * URL → 連続で開けなかった回数とその冷却タイマー。**`Pooled` ではなく
+   * プールが持つ** — `#drop` でエントリが消えても失われてはならない。
+   * 消えると「degraded で除外 → 購読者ゼロ → 履歴消滅 → 再選択 → また
+   * 除外」という振動になる (Task 4 が `degradedRelays` を選択に使う)。
+   */
+  readonly #failures = new Map<
+    RelayUrl,
+    { count: number; timer: ReturnType<Scheduler["setTimeout"]> }
+  >();
+
   constructor(options: ConnectionPoolOptions) {
     this.#options = options;
     this.#maxConnections = options.maxConnections ?? MAX_CONNECTIONS;
@@ -217,10 +245,53 @@ export class ConnectionPool {
     return count;
   }
 
+  /**
+   * 連続失敗が `DEGRADED_AFTER_FAILURES` 以上に達した URL。
+   * `selectRelays` の `degraded` 入力になる (ADR-0025)。
+   */
+  get degradedRelays(): readonly RelayUrl[] {
+    const urls: RelayUrl[] = [];
+    for (const [url, { count }] of this.#failures) {
+      if (count >= DEGRADED_AFTER_FAILURES) urls.push(url);
+    }
+    return urls;
+  }
+
   /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
   #recordPeak(): void {
     const current = this.size;
     if (current > this.#peakSize) this.#peakSize = current;
+  }
+
+  /**
+   * `url` の連続失敗を 1 増やし、冷却タイマーを張り直す (呼ばれるのは
+   * `#scheduleReconnect` のみ — 実際に再接続を待つ羽目になった失敗だけを
+   * 数える。`#ensureConnection`/`#reconnect` の catch 節は直後に必ず
+   * `#scheduleReconnect` を呼ぶので、そちらでも数えると同じ 1 回の失敗を
+   * 二重に計上してしまう)。
+   *
+   * クールダウンを失敗のたびに張り直すのは、失敗し続けている最中に前回の
+   * 期限が来て degraded が解除されてしまわないようにするため。
+   */
+  #noteFailure(url: RelayUrl): void {
+    const existing = this.#failures.get(url);
+    if (existing) this.#scheduler.clearTimeout(existing.timer);
+    const count = (existing?.count ?? 0) + 1;
+    const timer = this.#scheduler.setTimeout(() => {
+      this.#failures.delete(url);
+    }, DEGRADED_COOLDOWN_MS);
+    this.#failures.set(url, { count, timer });
+  }
+
+  /**
+   * `url` の失敗履歴を消す。呼ばれるのは実際に開いた時 (`#attachConnection`
+   * が登録する `onOpen`) と、人間が起こした `retryNow()` の 2 箇所だけ。
+   */
+  #clearFailures(url: RelayUrl): void {
+    const existing = this.#failures.get(url);
+    if (!existing) return;
+    this.#scheduler.clearTimeout(existing.timer);
+    this.#failures.delete(url);
   }
 
   /**
@@ -260,7 +331,7 @@ export class ConnectionPool {
           connection: null,
           entries: new Set(),
           offClose: null,
-          attempts: 0,
+          offOpen: null,
           timer: null,
           reserved: false,
         };
@@ -278,6 +349,18 @@ export class ConnectionPool {
         // 後で再接続を試みる対象として残す) — ただし publish 専用で
         // 誰も待っていない場合は呼び出し元 (`publish()`) がこの後
         // 空のレコードを片付ける (ledger deferred minor 2)。
+        //
+        // ここで `#noteFailure` は呼ばない。`subscribe()` はこの直後に
+        // 必ず `#scheduleReconnect` を呼ぶので、そちらで数えないと同じ
+        // 1 回の失敗を二重に計上してしまう (task-2-report.md 参照:
+        // ブリーフ原案はここでも呼ぶ指示だったが、それだと
+        // "retries an initial connect() failure" と "doubles the backoff"
+        // の遅延系列が食い違って壊れる)。`publish()` 単独で新規 URL の
+        // `connect()` が失敗した場合 (誰も待っていない) はこの経路を
+        // 通らず `#scheduleReconnect` も呼ばれないため、その失敗は
+        // degraded の対象に数えない — publish は購読関係を残さない
+        // 一回限りの操作であり、選択器が避けるべき「居座る」relay とは
+        // 性質が違う。
       }
     }
 
@@ -460,7 +543,7 @@ export class ConnectionPool {
         this.#scheduler.clearTimeout(pooled.timer);
         pooled.timer = null;
       }
-      pooled.attempts = 0;
+      this.#clearFailures(url);
       this.#reconnect(url);
     }
   }
@@ -477,6 +560,7 @@ export class ConnectionPool {
     // ゾンビタイマーになる (ADR-0021)。
     if (pooled.timer !== null) this.#scheduler.clearTimeout(pooled.timer);
     pooled.offClose?.();
+    pooled.offOpen?.();
     pooled.connection?.close();
     this.#pool.delete(url);
   }
@@ -496,6 +580,8 @@ export class ConnectionPool {
     if (!pooled) return;
     pooled.offClose?.();
     pooled.offClose = null;
+    pooled.offOpen?.();
+    pooled.offOpen = null;
     pooled.connection = null;
     for (const entry of pooled.entries) entry.subscription = null;
     this.#scheduleReconnect(url);
@@ -512,12 +598,13 @@ export class ConnectionPool {
     if (!pooled || pooled.connection || pooled.timer !== null) return;
     if (pooled.entries.size === 0) return; // 誰も待っていない
 
-    const base = Math.min(
-      RECONNECT_BASE_MS * 2 ** pooled.attempts,
-      RECONNECT_MAX_MS,
-    );
+    // 指数は「今までの」失敗回数から計算し、その後で今回の失敗を記録する
+    // (`#noteFailure` を呼ぶ) — 順序を逆にすると 1 回目の遅延から既に
+    // 2 倍されてしまう。
+    const count = this.#failures.get(url)?.count ?? 0;
+    const base = Math.min(RECONNECT_BASE_MS * 2 ** count, RECONNECT_MAX_MS);
     const delay = base * (0.5 + this.#random());
-    pooled.attempts += 1;
+    this.#noteFailure(url);
     pooled.timer = this.#scheduler.setTimeout(() => {
       pooled.timer = null;
       this.#reconnect(url);
@@ -545,12 +632,19 @@ export class ConnectionPool {
    * 沈黙する。ADR-0021 の「決して諦めない」を守るには、蘇らせた主体が
    * どちらであっても同じ状態に揃える必要がある。
    *
-   * 待っているタイマーを消す・`attempts` を 0 に戻す・全エントリの REQ を
-   * (`subscription` の現在値に関わらず) 張り直す、の 3 つを必ずセットで行う。
-   * `entry.subscription` が既に生きているケースは無い — このメソッドが
-   * 呼ばれるのは `pooled.connection` が null だった (= 全エントリの
-   * `subscription` も `#onConnectionDied` か初期状態で既に null の) 場合
-   * だけなので、無条件の張り直しで安全。
+   * 待っているタイマーを消す・全エントリの REQ を (`subscription` の
+   * 現在値に関わらず) 張り直す、の 2 つを必ずセットで行う。`entry.subscription`
+   * が既に生きているケースは無い — このメソッドが呼ばれるのは
+   * `pooled.connection` が null だった (= 全エントリの `subscription` も
+   * `#onConnectionDied` か初期状態で既に null の) 場合だけなので、無条件の
+   * 張り直しで安全。
+   *
+   * バックオフの失敗カウンタ (`#failures`) はここでは触らない —
+   * `connect()` が例外を投げずに返った (= ソケットオブジェクトが作れた)
+   * だけでは「繋がった」ことにならない。実際に開いた証拠は `onOpen` の
+   * 発火だけであり、`#clearFailures` はその中でのみ呼ぶ (2026-08-05 に
+   * 実地観測された、恒久的に到達不能なリレーへ指数バックオフが一度も
+   * 伸びない欠陥の直接の原因がここだった)。
    */
   #attachConnection(
     url: RelayUrl,
@@ -561,9 +655,13 @@ export class ConnectionPool {
       this.#scheduler.clearTimeout(pooled.timer);
       pooled.timer = null;
     }
-    pooled.attempts = 0;
+    // 古い offOpen が残っていれば (通常は #onConnectionDied 経由で既に
+    // null になっているはずだが、offClose と同じ扱いで念のため) 先に
+    // 解除してから張り直す。
+    pooled.offOpen?.();
     pooled.connection = connection;
     pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
+    pooled.offOpen = connection.onOpen(() => this.#clearFailures(url));
     this.#recordPeak();
 
     for (const entry of pooled.entries) {
@@ -621,6 +719,9 @@ export class ConnectionPool {
     try {
       connection = this.#options.connect(url);
     } catch {
+      // `#noteFailure` はここでは呼ばない — 直後の `#scheduleReconnect` が
+      // 必ず呼ぶので、ここでも呼ぶと同じ 1 回の失敗を二重に計上してしまう
+      // (`#ensureConnection` の catch 節と同じ理由)。
       this.#scheduleReconnect(url);
       return;
     }
