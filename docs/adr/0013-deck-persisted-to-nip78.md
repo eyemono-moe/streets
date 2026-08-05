@@ -19,3 +19,7 @@ v0 は localStorage のみに保存していたため端末を変えるとデッ
 
 - [ADR-0002](./0002-v0-parity-before-cutover.md) の v0 機能パリティを超える追加スコープであるため、優先度は **Should**。本番切替のブロッカーにはしない。
 - [ADR-0010](./0010-single-active-account.md)（単一アクティブアカウント）により、保存先アカウントは常に一意に定まる。
+
+## 実装の段階
+
+- **v1 縦断スライス（2026-08-05）** — NIP-78 への保存は**まだ実装しない**。**撤回ではない** —— [仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md) 3 節のとおり、`{ version: 1; columns: ColumnDef[] }` を `localStorage` へ保存するだけの形（`src/core/deck/deck.ts` の `Deck` / `saveDeck` / `loadDeck`）を先に作った。`version` フィールドを最初から持たせたのは、このスライスがまさに NIP-78 へ移すときの移行の足場を残すためで、本 ADR の決定を先取りしている。NIP-44 暗号化・`kind:30078` への実際の publish・署名要求の連打対策・競合検出はいずれも作っていない。一般形は本 ADR のまま据え置く。

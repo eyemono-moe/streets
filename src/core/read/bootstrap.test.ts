@@ -160,8 +160,11 @@ describe("warmUpRouting", () => {
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
     const second = indexer()?.subscriptions[2].filters[0];
     expect(second?.kinds).toEqual([10002]);
+    // 捕まえる変異: authors に viewer (自分) を足し忘れる。自分は followees
+    // (alice, bob) には入っていない — にもかかわらず自分の write リレーも
+    // 同じクエリで引けなければ publish 先が決まらない。
     expect(new Set(second?.authors)).toEqual(
-      new Set([alice.pubkey, bob.pubkey]),
+      new Set([alice.pubkey, bob.pubkey, viewer.pubkey]),
     );
 
     indexer()?.emitEvent(2, alice);
@@ -181,9 +184,111 @@ describe("warmUpRouting", () => {
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
   });
 
+  // 縦断スライスの書き込み経路向けの前提: 自分は followees に入っている
+  // とは限らない (自分自身を p タグでフォローするのは稀)。にもかかわらず
+  // 自分の write リレーが引けないと、publisher.ts が publish 先を決められ
+  // ない。ここでは filters の形
+  // だけでなく、実際に RoutingTable 経由で自分の write リレーが引けること
+  // まで確認する — フィルタの主張と実際の効果を両方とも押さえる。
+  it("自分が誰もフォローしていなくても、自分の kind:10002 は引ける", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(relays);
+
+    // フォローは alice だけ、自分自身はフォローしていない。
+    const alice = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://alice/", "write"]],
+    });
+    const viewer = sign(3, {
+      ...base,
+      kind: 3,
+      tags: [["p", alice.pubkey]],
+    });
+    // 自分自身の write リレー宣言 (同じ seed=3 なので viewer と同じ pubkey)。
+    const viewerRelayList = sign(3, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://viewer-write/", "write"]],
+    });
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEvent(1, viewer);
+    indexer()?.emitEose(1);
+
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    const relayListFilter = indexer()?.subscriptions[2].filters[0];
+    // 捕まえる変異: authors に viewer を足し忘れる。
+    expect(relayListFilter?.authors).toContain(viewer.pubkey);
+
+    indexer()?.emitEvent(2, alice);
+    indexer()?.emitEvent(2, viewerRelayList);
+    indexer()?.emitEose(2);
+
+    await pending;
+
+    const table = new RoutingTable(store);
+    // 自分は followees (alice だけ) には入っていないのに、自分の write
+    // リレーが引ける。
+    expect(table.writeRelaysFor(viewer.pubkey)).toEqual([
+      "wss://viewer-write/",
+    ]);
+  });
+
+  it("誰もフォローしていなくても (followees が空でも) 自分の kind:10002 は引ける", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const pool = poolWithFakes(relays);
+
+    const viewer = sign(3, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://viewer-write/", "write"]],
+    });
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    // kind:3 が無いので followees は空のまま —— 旧実装はここで早期 return
+    // してフェーズ②ごと飛ばしていた。フェーズ①がすぐ settle しても、
+    // フェーズ②の購読 (authors:[viewer]) が index 2 に必ず立つはず。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
+
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    expect(indexer()?.subscriptions[2].filters).toEqual([
+      { kinds: [10002], authors: [viewer.pubkey] },
+    ]);
+    indexer()?.emitEvent(2, viewer);
+    indexer()?.emitEose(2);
+
+    const result = await pending;
+    expect(result.followees).toEqual([]);
+
+    const table = new RoutingTable(store);
+    expect(table.writeRelaysFor(viewer.pubkey)).toEqual([
+      "wss://viewer-write/",
+    ]);
+  });
+
   it("インデクサが要求していない kind を押し込んでもストアに入らない", async () => {
     // ブートストラップが送るのは {kinds:[3], authors:[pubkey], limit:1} と
-    // {kinds:[10002], authors: followees}。kind:1 はどちらにも一致しない。
+    // {kinds:[10002], authors: [...followees, pubkey]}。kind:1 はどちらにも
+    // 一致しない。
     //
     // 同時に「limit は照合条件ではない」ことも主張している —— フェーズ① の
     // フィルタは limit:1 を持つが、フォローリスト本体はこの門を通り抜けねば
@@ -296,10 +401,14 @@ describe("warmUpRouting", () => {
       indexers: ["wss://indexer/"],
     });
 
-    await vi.waitFor(() =>
-      expect(relays.get("wss://indexer/")?.subscriptions).toHaveLength(2),
-    );
-    relays.get("wss://indexer/")?.emitEose(1);
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
+
+    // followees が空でも、自分の kind:10002 を引くフェーズ②は必ず走る
+    // (index 2)。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    indexer()?.emitEose(2);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -321,6 +430,11 @@ describe("warmUpRouting", () => {
 
     await vi.waitFor(() => expect(relays.size).toBe(2));
     for (const relay of relays.values()) relay.emitEose(1);
+    // フェーズ②(自分の kind:10002) も両インデクサで必ず立つ。
+    for (const relay of relays.values()) {
+      await vi.waitFor(() => expect(relay.subscriptions).toHaveLength(3));
+    }
+    for (const relay of relays.values()) relay.emitEose(2);
     await pending;
 
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
@@ -340,10 +454,13 @@ describe("warmUpRouting", () => {
       indexers: ["wss://down/", "wss://up/"],
     });
 
-    await vi.waitFor(() =>
-      expect(relays.get("wss://up/")?.subscriptions).toHaveLength(2),
-    );
-    relays.get("wss://up/")?.emitEose(1);
+    const up = () => relays.get("wss://up/");
+    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(2));
+    up()?.emitEose(1);
+
+    // フェーズ②(自分の kind:10002) も生きている方のインデクサでは立つ。
+    await vi.waitFor(() => expect(up()?.subscriptions).toHaveLength(3));
+    up()?.emitEose(2);
 
     await expect(pending).resolves.toEqual({
       followees: [],
@@ -351,7 +468,7 @@ describe("warmUpRouting", () => {
       unroutable: 0,
       unrequested: 0,
     });
-    expect(relays.get("wss://up/")?.closed).toBe(true);
+    expect(up()?.closed).toBe(true);
   });
 
   it("resolves gracefully when every indexer fails to connect", async () => {
@@ -412,6 +529,16 @@ describe("warmUpRouting", () => {
 
     relays.get("wss://two/")?.emitEose(1);
 
+    // フェーズ②(自分の kind:10002) が両インデクサで立つのを待って片付ける。
+    await vi.waitFor(() =>
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(3),
+    );
+    await vi.waitFor(() =>
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(3),
+    );
+    relays.get("wss://one/")?.emitEose(2);
+    relays.get("wss://two/")?.emitEose(2);
+
     await expect(pending).resolves.toEqual({
       followees: [],
       routed: 0,
@@ -468,6 +595,13 @@ describe("warmUpRouting", () => {
 
     two.fireEose(1);
 
+    // フェーズ②(自分の kind:10002) が両方に立つのを待って片付ける。
+    // handlers[2] がフェーズ②の分。
+    await vi.waitFor(() => expect(one.handlers).toHaveLength(3));
+    await vi.waitFor(() => expect(two.handlers).toHaveLength(3));
+    one.fireEose(2);
+    two.fireEose(2);
+
     await expect(pending).resolves.toEqual({
       followees: [],
       routed: 0,
@@ -508,11 +642,21 @@ describe("warmUpRouting", () => {
     expect(relays.get("wss://one/")?.closed).toBe(false);
 
     relays.get("wss://two/")?.emitEose(1);
+
+    // フェーズ②(自分の kind:10002) はフォローが 0 人でも必ず走る —— それを
+    // 片付けないと warmUpRouting は終わらない。
+    await vi.waitFor(() =>
+      expect(relays.get("wss://one/")?.subscriptions).toHaveLength(3),
+    );
+    await vi.waitFor(() =>
+      expect(relays.get("wss://two/")?.subscriptions).toHaveLength(3),
+    );
+    relays.get("wss://one/")?.emitEose(2);
+    relays.get("wss://two/")?.emitEose(2);
     await pending;
 
-    // Only once warmUpRouting has fully finished (there is no phase ② here
-    // — the viewer has no kind:3 — so this is the outer `finally`) do the
-    // anchors close and the connections finally go down.
+    // 両インデクサのフェーズ② も片付いた後 (warmUpRouting の外側の
+    // `finally`) 、ようやくアンカーが閉じ、接続も落ちる。
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
   });
@@ -535,6 +679,14 @@ describe("warmUpRouting", () => {
       pending.then(() => {
         resolved = true;
       });
+
+      await vi.advanceTimersByTimeAsync(25);
+
+      // フェーズ①がタイムアウトしただけ —— フェーズ②(自分の kind:10002、
+      // followees が空でも必ず走る) がまだ自分の 25ms タイムアウトを
+      // 待っている。WarmUpOptions のコメント通り、2 フェーズ合計で最悪
+      // timeoutMs の 2 倍かかる。
+      expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(25);
 
@@ -594,10 +746,13 @@ describe("warmUpRouting", () => {
       indexers: ["wss://indexer/"],
     });
 
-    await vi.waitFor(() =>
-      expect(connections.get("wss://indexer/")?.subscriptions).toHaveLength(2),
-    );
-    connections.get("wss://indexer/")?.emitEose(1);
+    const indexer = () => connections.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    indexer()?.emitEose(1);
+
+    // フェーズ②(自分の kind:10002) も片付けないと終わらない。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    indexer()?.emitEose(2);
 
     await promise;
     expect(pool.size).toBe(0);
@@ -621,8 +776,8 @@ describe("warmUpRouting", () => {
     const store = new EventStore();
     const pool = poolWithFakes(connections);
 
-    // p タグの無い kind:3 = フォロー 0 人。`followees.length === 0` の
-    // 早期 return を通る —— アンカーの件数を載せ忘れやすいのはこちらの経路。
+    // p タグの無い kind:3 = フォロー 0 人。followees が空でもフェーズ②
+    // (自分の kind:10002) は必ず走る —— アンカーはその間ずっと生きている。
     const viewer = sign(3, { ...base, kind: 3, tags: [] });
     const intruder = sign(9, { ...base, kind: 1, content: "pushed at anchor" });
 
@@ -642,11 +797,15 @@ describe("warmUpRouting", () => {
     indexer()?.emitEvent(1, viewer);
     indexer()?.emitEose(1);
 
+    // フェーズ②(index 2) も片付けないと終わらない。
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+    indexer()?.emitEose(2);
+
     const result = await pending;
 
     // アンカーは何も読み取らない —— 数えるだけで store には入れない。
     expect(store.get(intruder.id)).toBeUndefined();
-    // 早期 return 経路でもアンカー分が載っている。
+    // followees が空になる経路でもアンカー分が載っている。
     expect(result.followees).toEqual([]);
     expect(result.unrequested).toBe(2);
   });
@@ -672,6 +831,9 @@ describe("warmUpRouting", () => {
       await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
       if (pushAtAnchor) indexer()?.emitEvent(0, intruder);
       indexer()?.emitEose(1);
+      // フェーズ②(自分の kind:10002) も片付けないと終わらない。
+      await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(3));
+      indexer()?.emitEose(2);
       return pending;
     };
 

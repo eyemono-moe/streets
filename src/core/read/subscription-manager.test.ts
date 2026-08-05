@@ -3,7 +3,13 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
-import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import type {
+  RelayConnection,
+  RelayFilter,
+  RelaySubscription,
+  RelaySubscriptionHandlers,
+  RelayUrl,
+} from "../relay/relay-connection";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
@@ -1758,5 +1764,235 @@ describe("ローカルフィルタ照合 (信頼境界)", () => {
     // store に入っていることを直接見て、その逃げ道を塞ぐ。
     expect(store.get(relayList.id)).toBeDefined();
     expect(replanSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("fetchOnce (仕様 5 節)", () => {
+  /**
+   * `FakeRelayConnection` 自身の `sub.closed` ガードは、一度閉じた購読への
+   * 2 回目の `onEose`/`onClosed` を黙って握り潰す。「同じリレーが EOSE の
+   * あと CLOSED を出しても二重に数えない」の主張をこれ越しに書くと、
+   * `collect()` 自身の `settled` セットを消しても `FakeRelayConnection` の
+   * ガードだけで assertion が通ってしまい、非可反証になる。
+   * `bootstrap.test.ts` の `UnguardedConnection` と同じ理由でここにも同じ
+   * 形の二重化なしコネクションを用意する —— close() 後も onEose/onClosed を
+   * 好きなだけ呼べるので、防いでいるのが `collect()` 自身であることが
+   * 直接主張できる。
+   */
+  class UnguardedConnection implements RelayConnection {
+    readonly handlers: RelaySubscriptionHandlers[] = [];
+    closed = false;
+    readonly #closeListeners = new Set<() => void>();
+
+    constructor(readonly url: RelayUrl) {}
+
+    subscribe(
+      _filters: RelayFilter[],
+      handlers: RelaySubscriptionHandlers,
+    ): RelaySubscription {
+      this.handlers.push(handlers);
+      return { close: () => {} };
+    }
+
+    async publish(): Promise<void> {}
+
+    close(): void {
+      this.closed = true;
+      for (const listener of this.#closeListeners) listener();
+    }
+
+    onClose(listener: () => void): () => void {
+      if (this.closed) {
+        listener();
+        return () => {};
+      }
+      this.#closeListeners.add(listener);
+      return () => {
+        this.#closeListeners.delete(listener);
+      };
+    }
+
+    fireEose(index: number): void {
+      this.handlers[index]?.onEose();
+    }
+
+    fireClosed(index: number, reason: string): void {
+      this.handlers[index]?.onClosed(reason);
+    }
+  }
+
+  it("全リレーが EOSE を報告したら解決する", async () => {
+    const { relays, manager } = setup();
+    let resolved = false;
+    const pending = manager
+      .fetchOnce([{ kinds: [1] }], { relays: ["wss://a/", "wss://b/"] })
+      .then(() => {
+        resolved = true;
+      });
+
+    relays.get("wss://a/")?.emitEose(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    // b がまだ何も言っていないので、まだ解決していないはず。
+    expect(resolved).toBe(false);
+
+    relays.get("wss://b/")?.emitEose(0);
+    await pending;
+    expect(resolved).toBe(true);
+  });
+
+  it("解決した時点で購読が閉じている", async () => {
+    const { relays, manager } = setup();
+    const pending = manager.fetchOnce([{ kinds: [1] }], {
+      relays: ["wss://a/"],
+    });
+
+    relays.get("wss://a/")?.emitEose(0);
+    await pending;
+
+    expect(relays.get("wss://a/")?.subscriptions[0]?.closed).toBe(true);
+  });
+
+  it("1 本が CLOSED、もう 1 本が EOSE でも解決する", async () => {
+    const { relays, manager } = setup();
+    const pending = manager.fetchOnce([{ kinds: [1] }], {
+      relays: ["wss://a/", "wss://b/"],
+    });
+
+    relays.get("wss://a/")?.emitClosed(0, "gone");
+    relays.get("wss://b/")?.emitEose(0);
+
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it("同じリレーが EOSE のあと CLOSED を出しても二重に数えない", async () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, UnguardedConnection>();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const connection = new UnguardedConnection(url);
+        connections.set(url, connection);
+        return connection;
+      },
+    });
+
+    let resolved = false;
+    const pending = manager
+      .fetchOnce([{ kinds: [1] }], { relays: ["wss://a/", "wss://b/"] })
+      .then(() => {
+        resolved = true;
+      });
+
+    // "a" を EOSE のあと (連続で) CLOSED でも settle させる。素朴な
+    // カウントダウンなら、これだけで pending が 0 になり "b" を待たずに
+    // 解決してしまう。
+    connections.get("wss://a/")?.fireEose(0);
+    connections.get("wss://a/")?.fireClosed(0, "extra close after eose");
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    connections.get("wss://b/")?.fireEose(0);
+    await pending;
+    expect(resolved).toBe(true);
+  });
+
+  it("タイムアウトで解決し、未応答の購読も閉じる", async () => {
+    vi.useFakeTimers();
+    try {
+      const { relays, manager } = setup();
+      let resolved = false;
+      const pending = manager
+        .fetchOnce([{ kinds: [1] }], {
+          relays: ["wss://silent/"],
+          timeoutMs: 25,
+        })
+        .then(() => {
+          resolved = true;
+        });
+
+      await vi.advanceTimersByTimeAsync(25);
+
+      expect(resolved).toBe(true);
+      await pending;
+      expect(relays.get("wss://silent/")?.subscriptions[0]?.closed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("届いたイベントが EventStore に入っている", async () => {
+    const { relays, store, manager } = setup();
+    const wanted = signed(1);
+    const pending = manager.fetchOnce(
+      [{ kinds: [1], authors: [wanted.pubkey] }],
+      { relays: ["wss://a/"] },
+    );
+
+    relays.get("wss://a/")?.emitEvent(0, wanted);
+    relays.get("wss://a/")?.emitEose(0);
+    await pending;
+
+    expect(store.get(wanted.id)).toBeDefined();
+  });
+
+  it("フィルタに一致しないイベントは store にも配信にも入らない (信頼境界)", async () => {
+    const { relays, store, manager } = setup();
+    const wanted = signed(1);
+    const intruder = signed(2);
+    const pending = manager.fetchOnce(
+      [{ kinds: [1], authors: [wanted.pubkey] }],
+      { relays: ["wss://a/"] },
+    );
+
+    relays.get("wss://a/")?.emitEvent(0, intruder);
+    relays.get("wss://a/")?.emitEose(0);
+    await pending;
+
+    expect(store.get(intruder.id)).toBeUndefined();
+    // Task 4 決定: fetchOnce は新しい受信経路なので matchesAnyFilter を
+    // 継承する。捨てた件数は warmUpRouting のような専用の戻り値ではなく、
+    // 既存の unrequestedEventsByRelay (仕様 5.1) へ合流させる。
+    expect(manager.unrequestedEventsByRelay.get("wss://a/")).toBe(1);
+  });
+
+  it("options.relays を省略すると fallbackRelays を使う", async () => {
+    const { relays, manager } = setup(); // setup() の fallbackRelays: ["wss://fallback/"]
+    const pending = manager.fetchOnce([{ kinds: [1] }]);
+
+    expect(relays.has("wss://fallback/")).toBe(true);
+    relays.get("wss://fallback/")?.emitEose(0);
+    await pending;
+  });
+
+  it("予算が埋まっていれば reserved 迂回を使わず、素直に何も取れない", async () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        connections.set(url, relay);
+        return relay;
+      },
+      maxConnections: 1,
+    });
+    // 既存の 1 本の購読で、この manager の予算 (1 接続) を使い切る。
+    manager.subscribe([{ kinds: [1] }], ["wss://busy/"], noopDelivery());
+    expect(manager.connectionCount).toBe(1);
+
+    // fetchOnce が `{ reserved: true }` を使っていれば、ここで予算を無視して
+    // 新しい接続を開いてしまうはず。使っていなければ pool.subscribe() が
+    // undefined を返し、この URL への接続そのものが起きない。
+    await manager.fetchOnce([{ kinds: [1] }], { relays: ["wss://new/"] });
+
+    expect(connections.has("wss://new/")).toBe(false);
+    expect(manager.connectionCount).toBe(1);
   });
 });

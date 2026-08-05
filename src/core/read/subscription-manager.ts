@@ -5,6 +5,7 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
+import { collect } from "./collect";
 import {
   ConnectionPool,
   type ConnectionPoolOptions,
@@ -94,6 +95,14 @@ export type SubscriptionManagerOptions = {
  * 安全 (下の `#runReplan` 参照)。
  */
 const REPLAN_MAX_ITERATIONS = 10;
+
+/**
+ * `fetchOnce()` が `options.timeoutMs` を省略したときに使う既定値。
+ * `bootstrap.ts` の `DEFAULT_TIMEOUT_MS` と同じ 10 秒 —— 値を変える理由が
+ * 今のところ無い (どちらも「全リレーが EOSE/CLOSED を報告するまで待つ」
+ * という同じ `collect()` を使っている)。
+ */
+const DEFAULT_FETCH_ONCE_TIMEOUT_MS = 10_000;
 
 /** 1 本のリレーへ張っている購読と、それが今どんな filters で開かれているか。 */
 type OpenSubscription = {
@@ -353,6 +362,64 @@ export class SubscriptionManager {
       initialPlan,
       close: () => this.#close(entry),
     };
+  }
+
+  /**
+   * 一度きりの取得 (仕様 5 節)。フィルタを渡すと、指定した (あるいは既定の)
+   * リレー全部が EOSE か CLOSED を報告するか `timeoutMs` が経過するかした
+   * 時点で解決し、購読を閉じる。それ以上の意味論は持たない —— これは
+   * `bootstrap.ts` の `warmUpRouting` が内部で使ってきた `collect()` と全く
+   * 同じ判定を、`SubscriptionManager` の公開面へそのまま出しただけである
+   * (新しい意味論の発明ではない)。
+   *
+   * 解決した時点で、取れたイベントは `store` に入っている。呼び出し側は
+   * `store` から読むこと —— `subscribe()`/`warmUpRouting` と同じ規約で、
+   * このメソッド自身はイベントを返さない。
+   *
+   * ページネーション (`until` / カーソル) は持たない。一般形は rx-nostr の
+   * backward/forward strategy に相当する整理が要るとして、このスライスでは
+   * 意図的にやらない (仕様 5 節)。
+   *
+   * `options.relays` を省略した場合は `fallbackRelays` (コンストラクタで
+   * 渡されたもの、無ければ `FALLBACK_RELAYS`) を使う —— `collect()` 自体は
+   * 「渡された URL 集合」しか知らず、Outbox ルーティング (著者ごとの
+   * write relay 解決) はしない。`subscribe()` の `explicitRelays === undefined`
+   * 分岐にある `selectRelays`/`planQuery` の大域最適化は、セクションの
+   * 張り直しと予算の共有を前提にした仕組みであり、1 回きりの取得 1 本の
+   * ためにその機構全体を持ち込むのは過剰である —— 呼び出し側が著者ごとの
+   * リレーを知っているなら `options.relays` で明示すればよい。
+   *
+   * `{ reserved: true }` は使わない —— それはブートストラップだけに許された
+   * 予算迂回 (`ConnectionPool` の `SubscribeOptions` 参照) であり、
+   * `fetchOnce` は一般の呼び出し元向けなので通常の予算経路を通る。予算が
+   * 埋まっていれば何も取れずに (タイムアウトを待たず) 解決する —— それは
+   * ADR-0011 の下で正しい振る舞いであり、迂回すべきバグではない。
+   *
+   * ここは新しい受信経路なので、`collect()` が内部で行う
+   * `matchesAnyFilter` によるローカルフィルタ照合 (ADR-0023 の信頼境界) を
+   * そのまま継承する。要求していないのに届いて捨てたイベントは、
+   * `#recordUnrequested` 経由で既存の `unrequestedEventsByRelay` (仕様 5.1)
+   * へリレーごとに積む —— `warmUpRouting` は自前の `WarmUpResult.unrequested`
+   * を持つが (`SubscriptionManager` を持たないブートストラップだけの事情)、
+   * こちらは既にマネージャの中にいるので、専用の戻り値を新設せずこの
+   * 既存の集計に合流させる。
+   */
+  async fetchOnce(
+    filters: RelayFilter[],
+    options?: { relays?: RelayUrl[]; timeoutMs?: number },
+  ): Promise<void> {
+    const urls =
+      options?.relays ?? this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+    const open = new Map<RelayUrl, PooledSubscription>();
+    await collect(
+      this.#pool,
+      urls,
+      filters,
+      this.#options.store,
+      options?.timeoutMs ?? DEFAULT_FETCH_ONCE_TIMEOUT_MS,
+      open,
+      { onUnrequested: (url) => this.#recordUnrequested(url) },
+    );
   }
 
   /**

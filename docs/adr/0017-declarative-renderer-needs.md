@@ -43,3 +43,7 @@ defineRenderer({
 - レンダラは `needs` / `render` ともに純粋関数になるため、**`related` を手で組み立てて呼ぶだけでテストできる**。フック環境も Provider も不要。
 - ユーザー操作によって初めて決まる動的な依存（「返信を展開」など）は `needs` では表現できない。そうしたものは別セクション・別カラムとして開く設計に寄せる。
 - 深さ上限の既定値を決める必要がある（引用の引用をどこまで辿るか）。
+
+## 実装の段階
+
+- **v1 縦断スライス（2026-08-05）** — 宣言的レンダラ登録機構の一般形は**まだ実装しない**。**撤回ではない** —— [仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md) 4 節のとおり、本 ADR が定める波状解決を**プロフィール (kind:0) 1 種類に限って**先取りした「要求のコアレッサ」（`src/core/read/profile-requests.ts` の `createProfileRequests`）を作った。`<Profile pubkey={x} />` がマウントごとに 1 件ずつ要求し、コアレッサが短い窓 (200ms) でまとめて 1 本の `{ kinds:[0], authors:[...] }` に落とす —— `needs(event)` のような汎用の宣言 API ではなく、kind:0 専用に決め打った形である。深さ上限・複数 kind への一般化・純粋関数という前提の妥当性（[read-layer-followups.md](../design/read-layer-followups.md) の「縦断スライスを動かしてから決めるもの」参照）はいずれも未着手。一般形は本 ADR のまま据え置く。

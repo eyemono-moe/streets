@@ -1,3 +1,4 @@
+import type { NostrEvent } from "../nostr/event";
 import type {
   RelayConnection,
   RelayFilter,
@@ -61,6 +62,40 @@ export const defaultScheduler: Scheduler = {
 const RECONNECT_BASE_MS = 1_000;
 /** 指数バックオフの上限。ここで頭打ちにして、諦めずに回し続ける (ADR-0021)。 */
 const RECONNECT_MAX_MS = 60_000;
+
+/**
+ * `publish()` 全体のタイムアウト (final review, Critical 1)。
+ *
+ * NIP-01 は「リレーは OK を送らねばならない (MUST)」と定めるが、実際には
+ * レート制限時に EVENT フレームを黙って捨てるリレーが存在する。
+ * `WebSocketRelayConnection.publish()` は OK が届くか、ソケットが死ぬ
+ * (reject) までしか待たない — このプールの `release()` はその Promise の
+ * `.then(onFulfilled, onRejected)` からしか呼ばれないので、OK も死亡通知
+ * も来ないリレーが 1 本あるだけで `pooled.entries` が永遠に空にならず、
+ * 誰も購読していないそのリレーが 30 接続予算のうち 1 本を握ったまま
+ * 戻らない。`v1-preview.tsx` は `publisher.publish()` を `await` するので、
+ * このハングは投稿フォームの `finally { setPosting(false) }` まで巻き込み、
+ * 「リロードするまで二度と投稿できない」という壊れ方をする。
+ *
+ * 値は `bootstrap.ts` の `DEFAULT_TIMEOUT_MS` / `subscription-manager.ts` の
+ * `DEFAULT_FETCH_ONCE_TIMEOUT_MS` と同じ 10 秒 — この読み取り層は「リレー
+ * 1 本との往復にどれだけ待つか」をどこも 10 秒に揃えている。publish 側
+ * だけ別の値にする理由は無い。
+ */
+const PUBLISH_TIMEOUT_MS = 10_000;
+
+/**
+ * `publish()` が予算の参照カウント (`pooled.entries`) に相乗りするためだけ
+ * に足す一時的な `Entry` のハンドラ。REQ を送らないので `onEvent`/`onEose`
+ * が呼ばれることは無い — `#reconnect()` が全エントリを引き直す際に
+ * (この一時エントリがまだ残っていた場合) `connection.subscribe([], ...)`
+ * が失敗しても黙って吸収するためだけに存在する。
+ */
+const PUBLISH_ONLY_HANDLERS: RelaySubscriptionHandlers = {
+  onEvent: () => {},
+  onEose: () => {},
+  onClosed: () => {},
+};
 
 export type ConnectionPoolOptions = {
   connect: (url: RelayUrl) => RelayConnection;
@@ -189,25 +224,29 @@ export class ConnectionPool {
   }
 
   /**
+   * `subscribe()` と `publish()` の両方が使う、接続確保の共通部分。
+   * 予算チェックとソケットの実際の生成はここに一本化する — 2 箇所に別々に
+   * 書くと、どちらかだけ直されて片方が古い (= 予算を迂回する) ままになる
+   * 危険がある。それは `{ reserved: true }` が既に空けている穴 (bootstrap
+   * 専用の予算迂回) と同じ種類の穴をもう1つ増やすことに等しい。
+   *
    * 予算に空きが無ければ `undefined` を返す — これは「新しい URL を開こうと
    * したが枠が無かった」場合だけに限られる。既に開いている (または開こうと
-   * 試みて失敗し記録だけ残っている) URL への追加の購読は、新しいソケットを
+   * 試みて失敗し記録だけ残っている) URL への追加の要求は、新しいソケットを
    * 要求しないので予算に関係なく常に受け付ける。
    *
    * `options.reserved` が `true` のときは、新しいソケットが要る場合でも
    * この予算チェックそのものを飛ばす。`SubscribeOptions` の定義を参照 —
-   * ブートストラップ以外での使用は禁止。
+   * ブートストラップ以外での使用は禁止 (`publish()` はこの引数を渡さない)。
    *
-   * 接続や購読の確立に失敗しても例外は外に投げない — `handlers.onClosed(...)`
-   * に変換して同期的に伝える。これにより、30 本のうち 1 本が死んでいるだけで
-   * 呼び出し元 (SectionReader) が例外で壊れることがなくなる。
+   * `connect()` が失敗しても例外は外に投げない — 呼び出し元 (`subscribe()`
+   * は `handlers.onClosed(...)`、`publish()` は reject) がそれぞれの形で
+   * 失敗を伝える。
    */
-  subscribe(
+  #ensureConnection(
     url: RelayUrl,
-    filters: RelayFilter[],
-    handlers: RelaySubscriptionHandlers,
     options?: SubscribeOptions,
-  ): PooledSubscription | undefined {
+  ): Pooled | undefined {
     let pooled = this.#pool.get(url);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
@@ -230,20 +269,41 @@ export class ConnectionPool {
 
       try {
         const connection = this.#options.connect(url);
-        pooled.connection = connection;
-        pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
-        this.#recordPeak();
+        // `subscribe()`/`#reconnect()` のどちらが呼んでも「接続が繋がった
+        // 直後」の後始末を同じにする (final review, Critical 2) — 詳細は
+        // `#attachConnection` 参照。
+        this.#attachConnection(url, pooled, connection);
       } catch {
         // connection は null のまま。#pool からは消さない (Task 9 が
-        // 後で再接続を試みる対象として残す)。
+        // 後で再接続を試みる対象として残す) — ただし publish 専用で
+        // 誰も待っていない場合は呼び出し元 (`publish()`) がこの後
+        // 空のレコードを片付ける (ledger deferred minor 2)。
       }
     }
 
     // 一度でも `{ reserved: true }` で要求されたら、このプロセス内では
     // ずっと reserved として数える (final review, finding 9a) — 同じ URL
-    // への以後の通常経路の `subscribe()` 呼び出しが `reservedSize` から
-    // 静かに外れてしまわないようにするため。
+    // への以後の通常経路の呼び出しが `reservedSize` から静かに外れてしまわ
+    // ないようにするため。
     if (options?.reserved) pooled.reserved = true;
+
+    return pooled;
+  }
+
+  /**
+   * 購読 (REQ) の経路。接続や購読の確立に失敗しても例外は外に投げない —
+   * `handlers.onClosed(...)` に変換して同期的に伝える。これにより、30 本の
+   * うち 1 本が死んでいるだけで呼び出し元 (SectionReader) が例外で壊れる
+   * ことがなくなる。
+   */
+  subscribe(
+    url: RelayUrl,
+    filters: RelayFilter[],
+    handlers: RelaySubscriptionHandlers,
+    options?: SubscribeOptions,
+  ): PooledSubscription | undefined {
+    const pooled = this.#ensureConnection(url, options);
+    if (!pooled) return undefined;
 
     const entry: Entry = { filters, handlers, subscription: null };
     pooled.entries.add(entry);
@@ -280,6 +340,107 @@ export class ConnectionPool {
         if (current.entries.size === 0) this.#drop(url);
       },
     };
+  }
+
+  /**
+   * publish 経路。**ソケットを開くのは `subscribe()` と同じ
+   * `#ensureConnection()` を通す** — これがこのファイル冒頭のコメントの
+   * 「`subscribe()` を通らない経路で接続を開いてはならない」を publish
+   * 側でも守るための実装そのもの。予算チェックをここで独自に書き直すと、
+   * 一方だけ直されて他方が迂回口のまま残る危険を生む。
+   *
+   * 新しいソケットが必要なのに予算が埋まっていれば reject する —
+   * `{ reserved: true }` はここでは絶対に使わない (ブートストラップ専用、
+   * `SubscribeOptions` 参照)。呼び出し元 (`publisher.ts`) はこれを
+   * `PublishResult.rejected` に積んで見せる。ADR-0011 は「黙って欠落させて
+   * はならない」と定めており、迂回するのではなく失敗を報告することでその
+   * 要求を満たす。
+   *
+   * 既に他の購読がこの URL のソケットを開いている場合はそれに相乗りする —
+   * 新しいソケットは増えない。逆に、誰も購読していない URL へ publish
+   * だけのために新しく開いた場合は、publish が完了 (成功・失敗いずれも)
+   * した時点でこの接続への参照を手放す。一時的な `Entry` (filters 無し、
+   * ハンドラは no-op) を `pooled.entries` に足して `subscribe()` と同じ
+   * 参照カウントの仕組みに相乗りしているだけで、REQ は一切送らない。
+   *
+   * **`PUBLISH_TIMEOUT_MS` で必ず決着させる** (final review, Critical 1)。
+   * NIP-01 は OK の送信を relay に義務づけるが、レート制限時に EVENT を
+   * 黙って捨てる実装が実在する。`WebSocketRelayConnection.publish()` は
+   * OK かソケット死亡でしか settle しないので、それ以外の理由でここが
+   * 待ち続けると `release()` が一生呼ばれず、30 接続予算のうち 1 本を
+   * 誰も購読していないリレーへ永久に握らせたまま `v1-preview.tsx` の
+   * `posting` が下りなくなる。タイムアウトは reject と同時に必ず
+   * `release()` も行う — 予算を返さない決着の仕方を作らない。
+   */
+  publish(url: RelayUrl, event: NostrEvent): Promise<void> {
+    const pooled = this.#ensureConnection(url);
+    if (!pooled) {
+      return Promise.reject(
+        new Error(`connection budget exhausted for ${url}`),
+      );
+    }
+    if (!pooled.connection) {
+      // `#ensureConnection` が connect() を試みて失敗を吸収した後。誰も
+      // 購読していないこの URL のために再接続をスケジュールし続ける理由は
+      // publish 単独には無い — 今回の publish をここで諦めて報告する。
+      //
+      // publish は (subscribe と違い) entry を足さないので、このレコードを
+      // #pool に残すと誰も待っていない空の Pooled が永遠に残る
+      // (ledger deferred minor 2)。他に待っているエントリが無ければここで
+      // 片付ける — entries が空でなければ、それは別の subscribe() が
+      // 同じ URL への再接続をまだ待っている最中なので触らない。
+      if (pooled.entries.size === 0) this.#pool.delete(url);
+      return Promise.reject(new Error(`relay unavailable: ${url}`));
+    }
+    const connection = pooled.connection;
+
+    const entry: Entry = {
+      filters: [],
+      handlers: PUBLISH_ONLY_HANDLERS,
+      subscription: null,
+    };
+    pooled.entries.add(entry);
+
+    const release = (): void => {
+      const current = this.#pool.get(url);
+      if (!current || !current.entries.has(entry)) return;
+      current.entries.delete(entry);
+      if (current.entries.size === 0) this.#drop(url);
+    };
+
+    return new Promise<void>((resolve, reject) => {
+      // OK も死亡通知も来ないまま両方が発火することがある
+      // (タイムアウト後にソケットが死ぬ、等) —— 二重に settle させない。
+      let settled = false;
+
+      const timer = this.#scheduler.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        release();
+        reject(
+          new Error(
+            `publish timed out for ${url} after ${PUBLISH_TIMEOUT_MS}ms`,
+          ),
+        );
+      }, PUBLISH_TIMEOUT_MS);
+
+      connection.publish(event).then(
+        () => {
+          if (settled) return;
+          settled = true;
+          this.#scheduler.clearTimeout(timer);
+          release();
+          resolve();
+        },
+        (error: unknown) => {
+          if (settled) return;
+          settled = true;
+          this.#scheduler.clearTimeout(timer);
+          release();
+          reject(error);
+        },
+      );
+    });
   }
 
   /**
@@ -364,6 +525,61 @@ export class ConnectionPool {
   }
 
   /**
+   * ソケットが新しく (または再び) 繋がった直後の後始末。`#ensureConnection`
+   * (`subscribe()`/`publish()` からの新規接続) と `#reconnect()` (死んだ
+   * 接続の張り直し) の両方がここを通る — 一本化する前は `#ensureConnection`
+   * だけがこれをやっておらず、接続を蘇らせても保留中の再接続タイマーを
+   * 消さず、待っているエントリの REQ も張り直さなかった (final review,
+   * Critical 2)。
+   *
+   * 具体的な壊れ方: あるカラムが購読していたリレー R が死に、
+   * `#onConnectionDied` が全エントリの `subscription` を null にして
+   * バックオフタイマーを積む。タイマーが発火する前にユーザーが投稿し、
+   * R が write リレーの 1 つだったため `publish()` が `#ensureConnection`
+   * 経由で R への新しいソケットを開く。ここで待機タイマーを消さず REQ も
+   * 張り直さないと、後からタイマーが発火した `#reconnect()` は
+   * `pooled.connection` が非 null であることだけを見て早期リターンし
+   * (タイマーは既に消費済みなので何も再登録されない)、カラムの REQ は
+   * 二度と送られない — ソケット自体は生きているので
+   * `#onConnectionDied` も二度と起きず、カラムはページの寿命が尽きるまで
+   * 沈黙する。ADR-0021 の「決して諦めない」を守るには、蘇らせた主体が
+   * どちらであっても同じ状態に揃える必要がある。
+   *
+   * 待っているタイマーを消す・`attempts` を 0 に戻す・全エントリの REQ を
+   * (`subscription` の現在値に関わらず) 張り直す、の 3 つを必ずセットで行う。
+   * `entry.subscription` が既に生きているケースは無い — このメソッドが
+   * 呼ばれるのは `pooled.connection` が null だった (= 全エントリの
+   * `subscription` も `#onConnectionDied` か初期状態で既に null の) 場合
+   * だけなので、無条件の張り直しで安全。
+   */
+  #attachConnection(
+    url: RelayUrl,
+    pooled: Pooled,
+    connection: RelayConnection,
+  ): void {
+    if (pooled.timer !== null) {
+      this.#scheduler.clearTimeout(pooled.timer);
+      pooled.timer = null;
+    }
+    pooled.attempts = 0;
+    pooled.connection = connection;
+    pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
+    this.#recordPeak();
+
+    for (const entry of pooled.entries) {
+      try {
+        entry.subscription = connection.subscribe(
+          entry.filters,
+          entry.handlers,
+        );
+      } catch {
+        entry.subscription = null;
+        entry.handlers.onClosed("relay unavailable");
+      }
+    }
+  }
+
+  /**
    * 実際の再接続の試行。失敗しても外へは投げない — 呼び出し元 (タイマー・
    * `retryNow()`) は同期的な戻り値以外の失敗経路を持たないので、ここで
    * 吸収してバックオフを積み直す (プールは何をやっても例外を投げない、と
@@ -409,21 +625,6 @@ export class ConnectionPool {
       return;
     }
 
-    pooled.connection = connection;
-    pooled.offClose = connection.onClose(() => this.#onConnectionDied(url));
-    pooled.attempts = 0;
-    this.#recordPeak();
-
-    for (const entry of pooled.entries) {
-      try {
-        entry.subscription = connection.subscribe(
-          entry.filters,
-          entry.handlers,
-        );
-      } catch {
-        entry.subscription = null;
-        entry.handlers.onClosed("relay unavailable");
-      }
-    }
+    this.#attachConnection(url, pooled, connection);
   }
 }
