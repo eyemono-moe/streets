@@ -184,6 +184,14 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 ## 直さないと決めたもの（理由つき）
 
+### `publish()` だけが触った新規 URL の接続失敗を degraded に数えること
+
+`publish()` が誰も購読していない新しい URL へ接続しようとして `connect()` が**同期的に例外を投げた**場合、その失敗は `#failures` に記録されない（エントリが即座に片付けられ、`#scheduleReconnect` に到達しない）。接続層スライスのレビュー（2026-08-05）で実装担当が繰延事項として挙げ、レビュー担当が経路を追って裁定した。
+
+**数えない。** 理由は 3 つ。`degradedRelays` は `selectRelays` の入力であり読み取り側の関心事である（[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md)）。publish は購読を残さないので、Task 2 が防いでいる振動（除外 → 購読ゼロ → 履歴消滅 → 再選択）はそもそも起こりえない。失敗自体は `publisher.ts` が `PublishResult.rejected` として表に出すので [ADR-0011](../adr/0011-performance-budget.md) の「劣化を隠さない」は満たされている。
+
+なお**この経路は同期的な throw に限られる**。`connect()` がソケットを返した後に `PUBLISH_TIMEOUT_MS` 以内で死んだ場合は、一時的な publish エントリがまだ `entries` に居るので `#onConnectionDied` → `#scheduleReconnect` を通って数えられる。つまり publish 由来の計上はタイミング依存であって、皆無ではない。
+
 ### `EventStore.put` で検証を重複判定より前に移すこと
 
 Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Outbox では同一イベントが複数リレーから届くため、500 件 × 3 リレーで約 1,500 回の追加検証となり、[ADR-0011](../adr/0011-performance-budget.md) の「初回イベント表示 2 秒」を削る。**採用しない。**
