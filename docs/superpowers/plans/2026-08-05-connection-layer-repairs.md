@@ -17,6 +17,7 @@
 - **[ADR-0020](../../adr/0020-no-high-level-nostr-library.md)**: 高水準 Nostr ライブラリに依存しない。
 - テストは**それが捕まえる変異を名指しする**こと。期待値は導出ではなく実行して確かめること。「呼ばれた回数が増えない」系の主張は、原因が別にあっても真になりうるので、直接の観測量（タイマー呼び出し回数、ワイヤに出た REQ の数）で書くこと。
 - 既存テストを緑のまま保つこと。`FakeRelayConnection` の既定の挙動は変えない。
+- **完了の判定は `pnpm vitest run && pnpm typecheck && pnpm check` の 3 つすべて。** `pnpm check` は Biome と読み取り層の依存チェックだけで、**型検査を含まない**（型検査は `pnpm typecheck` = `tsc -b`）。Vitest は esbuild で変換するため型エラーを一切見ない。テストファイルも `tsc -b` の対象なので、`RelayConnection` のような共有インターフェースに必須メンバを足すと、手書きのテストダブルが一斉に型エラーになる —— Task 1 で実際に起きた（10 箇所）。
 
 ---
 
@@ -249,7 +250,7 @@ export class FakeRelayConnection implements RelayConnection {
 
 - [ ] **Step 9: 全テストを実行**
 
-Run: `pnpm vitest run && pnpm check`
+Run: `pnpm vitest run && pnpm typecheck && pnpm check`
 Expected: PASS（`ConnectionPool` を含め既存テストが全部緑のまま）
 
 - [ ] **Step 10: コミット**
@@ -442,7 +443,7 @@ Expected: PASS
 
 - [ ] **Step 6: 全テストを実行してコミット**
 
-Run: `pnpm vitest run && pnpm check`
+Run: `pnpm vitest run && pnpm typecheck && pnpm check`
 
 ```bash
 git add src/core/read/connection-pool.ts src/core/read/connection-pool.test.ts
@@ -588,7 +589,7 @@ it("sends no filter to an indexer beyond the two real phases", async () => {});
 
 - [ ] **Step 7: 全テストを実行**
 
-Run: `pnpm vitest run && pnpm check`
+Run: `pnpm vitest run && pnpm typecheck && pnpm check`
 Expected: PASS
 
 - [ ] **Step 8: コミット**
@@ -699,7 +700,7 @@ it("excludes a degraded relay on the next replan", async () => {
 
 - [ ] **Step 7: 全テストを実行**
 
-Run: `pnpm vitest run && pnpm check`
+Run: `pnpm vitest run && pnpm typecheck && pnpm check`
 Expected: PASS
 
 - [ ] **Step 8: ドキュメントを更新する**

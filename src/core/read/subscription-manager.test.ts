@@ -448,6 +448,7 @@ describe("SubscriptionManager", () => {
         close: () => {
           closedUrls.push(url);
         },
+        onOpen: () => () => {},
         onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],
@@ -1020,6 +1021,7 @@ describe("SubscriptionManager", () => {
         },
         publish: async () => {},
         close: () => {},
+        onOpen: () => () => {},
         onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],
@@ -1093,6 +1095,7 @@ describe("SubscriptionManager", () => {
         },
         publish: async () => {},
         close: () => {},
+        onOpen: () => () => {},
         onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],
@@ -1260,6 +1263,7 @@ describe("SubscriptionManager", () => {
           close: () => {
             closeCalls += 1;
           },
+          onOpen: () => () => {},
           onClose: () => () => {},
         };
       },
@@ -1403,6 +1407,7 @@ describe("SubscriptionManager", () => {
           close: () => {
             xConnectionCloseCalls += 1;
           },
+          onOpen: () => () => {},
           onClose: () => () => {},
         };
       },
@@ -1799,6 +1804,10 @@ describe("fetchOnce (仕様 5 節)", () => {
     close(): void {
       this.closed = true;
       for (const listener of this.#closeListeners) listener();
+    }
+
+    onOpen(): () => void {
+      return () => {};
     }
 
     onClose(listener: () => void): () => void {

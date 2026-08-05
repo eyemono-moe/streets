@@ -369,6 +369,7 @@ describe("SectionReader", () => {
         },
         publish: async () => {},
         close: () => {},
+        onOpen: () => () => {},
         onClose: () => () => {},
       }),
       fallbackRelays: ["wss://fallback/"],

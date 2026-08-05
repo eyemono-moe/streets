@@ -45,6 +45,10 @@ class UnguardedConnection implements RelayConnection {
     for (const listener of this.#closeListeners) listener();
   }
 
+  onOpen(): () => void {
+    return () => {};
+  }
+
   onClose(listener: () => void): () => void {
     if (this.closed) {
       listener();

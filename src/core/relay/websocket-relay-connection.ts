@@ -47,6 +47,7 @@ export class WebSocketRelayConnection implements RelayConnection {
     this.#socket = socket;
 
     socket.onopen = () => {
+      if (this.#opened) return;
       const queued = this.#outbox.splice(0);
       for (const message of queued) socket.send(message);
       // キューを流し終えてから通知する — listener から publish された
@@ -125,7 +126,7 @@ export class WebSocketRelayConnection implements RelayConnection {
       listener();
       return () => {};
     }
-    if (this.#closed) return () => {};
+    if (this.#isClosed()) return () => {};
     this.#openListeners.add(listener);
     return () => {
       this.#openListeners.delete(listener);

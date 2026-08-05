@@ -400,8 +400,9 @@ describe("WebSocketRelayConnection", () => {
       expect(calls).toEqual([]);
     });
 
-    // 変異: open 済みフラグを立てないと、死んだ後の遅い登録でも発火して
-    // しまい、プールが死んだ接続の attempts をリセットする。
+    // 変異: if (this.#isClosed()) return () {} 分岐を消すと落ちる。
+    // 既に死んだ接続に登録した listener は、ソケットが死後に
+    // (race 条件により) onopen を発火させても絶対に呼ばれてはいけない。
     it("does not fire for a listener registered after the socket died without opening", () => {
       const { socket } = fakeSocket();
       const connection = new WebSocketRelayConnection("wss://a", socket);
@@ -409,7 +410,25 @@ describe("WebSocketRelayConnection", () => {
 
       const calls: string[] = [];
       connection.onOpen(() => calls.push("never"));
+      // 死んだ後に race: ソケットが遅れて onopen を発火
+      socket.onopen?.();
       expect(calls).toEqual([]);
+    });
+
+    // 変異: socket.onopen の先頭に if (this.#opened) return; を消すと落ちる。
+    // WebSocket の動作としては可能だが、実装は同じ onopen を 2 度呼ばない。
+    it("notifies onOpen listeners once when the socket opens", () => {
+      const { socket } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://one/", socket);
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("a"));
+      connection.onOpen(() => calls.push("b"));
+
+      socket.onopen?.();
+      socket.onopen?.(); // 2 度目は無視される
+      socket.onopen?.(); // 3 度目も無視される
+
+      expect(calls).toEqual(["a", "b"]);
     });
   });
 });
