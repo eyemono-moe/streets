@@ -200,6 +200,14 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 
 タスクレビューは「`Map<string, _>` のキー意味論により到達不能なデッドコード」と判定したが、**ブランチ全体レビューがこれを覆した**。`Array.isArray(message)` が `message` を `any[]` に絞るため、これらのガードは信用できないリレーと `NostrEvent` の間に存在する唯一の検証である。**削除しないこと。**
 
+### ~~アンカー購読が「接続を握る」手段として REQ を悪用している~~ — 2026-08-06 修正済み
+
+`warmUpRouting` は、フェーズ①とフェーズ②の間で接続が落ちないよう、インデクサごとに `{ ids: [NEVER_MATCHING_ID] }` という**絶対にマッチしない filter** の購読を張っていた（`bootstrap.ts`）。実機で、一部のリレーがこれを `blocked: filters must specify at least one kind` で拒否して CLOSED を返していることが分かった（2026-08-05）。
+
+機能自体は壊れていなかった —— 接続を生かしていたのは REQ ではなく `ConnectionPool` の**エントリ**であり（`#drop()` は `pooled.entries.size === 0` で発火する）、アンカーの `onClosed` は no-op なのでエントリは残った。だが**それは偶然に寄りかかっていた**。我々が欲しかったのは「接続の参照を 1 つ握る」ことだけで、REQ は**それを表現する API が他に無いから送っていた**にすぎない。リレーが購読ではなく接続そのものを閉じる方針だったら、ウォームアップは壊れていた。
+
+**`ConnectionPool.hold(url, options?): PooledHold | undefined` で解決した**（接続層スライス Task 3）。`hold()` は `#ensureConnection` を通して接続を確保し、保持カウントを立てるだけで `connection.subscribe()` を一切呼ばない。予算（ADR-0011）は `subscribe()` と同じに数える —— hold は生きたソケットを 1 本占有するため。`#scheduleReconnect` / `#reconnect` / `#drop` の「誰も待っていない」判定は hold を考慮する。`NEVER_MATCHING_ID` 定数とアンカー宛イベントの会計（`anchorUnrequested`）は定数ごと消えた。
+
 ## 小さいもの
 
 | 箇所 | 内容 |
