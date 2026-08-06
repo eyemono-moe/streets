@@ -1422,6 +1422,104 @@ describe("backoff growth and degraded relays", () => {
 });
 
 // ---------------------------------------------------------------------
+// Final review (2026-08-06), Important 1: `degradedRelays` was exposed but
+// nothing in the running app ever read it -- `SubscriptionManager` never
+// called `replan()` in response to a relay dying, so an excluded relay kept
+// its selection slot until a human happened to add/remove a column. Fixing
+// that requires a pool-level notification fired at the *moment* a url
+// crosses into degraded (not a level you'd have to poll), which
+// `SubscriptionManager` subscribes to and turns into a (batched) replan.
+// `onDegraded` is the notification; the batching lives in
+// `subscription-manager.test.ts` since it needs the manager's own
+// `Scheduler` seam.
+// ---------------------------------------------------------------------
+describe("ConnectionPool.onDegraded", () => {
+  // Mutation: fire the listener on every `#noteFailure` call instead of only
+  // the one that pushes `hard` across `DEGRADED_AFTER_FAILURES` -- this is
+  // the "crossing, not level" distinction the final review named explicitly.
+  it("fires exactly once, at the failure that crosses DEGRADED_AFTER_FAILURES", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const crossings: RelayUrl[] = [];
+    pool.onDegraded((url) => crossings.push(url));
+
+    connections.get("wss://one/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://one/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://one/")?.die(); // failure 3
+    expect(crossings).toEqual([]);
+
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // failure 4 -> crosses
+    expect(crossings).toEqual(["wss://one/"]);
+  });
+
+  // Mutation: remove the `previousHard < DEGRADED_AFTER_FAILURES` guard so
+  // the listener fires again on every failure once already degraded -- this
+  // is exactly the "one replan per crossing, not per failure" burst-of-churn
+  // scenario the manager's batching exists to avoid. A caller that only
+  // ever gets one notification per real crossing would replan once per
+  // failure instead if this guard were missing.
+  it("does not fire again for failures after the crossing", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const crossings: RelayUrl[] = [];
+    pool.onDegraded((url) => crossings.push(url));
+
+    connections.get("wss://one/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://one/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://one/")?.die(); // failure 3
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // failure 4 -> crosses
+    expect(crossings).toEqual(["wss://one/"]);
+
+    // Force a 5th relay-attributable failure without ever clearing
+    // `#failures` (no open, no retryNow(), no cooldown elapsed) -- `hard`
+    // keeps growing past the threshold it already crossed.
+    sub?.close(); // drop the pooled record so a fresh subscribe() reconnects
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die(); // failure 5, still degraded
+
+    expect(crossings).toEqual(["wss://one/"]); // still just the one crossing
+  });
+
+  // Mutation: make the returned unsubscribe function a no-op.
+  it("stops notifying after the returned unsubscribe is called", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    const crossings: RelayUrl[] = [];
+    const off = pool.onDegraded((url) => crossings.push(url));
+    off();
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // would cross, if still subscribed
+
+    expect(crossings).toEqual([]);
+    expect(pool.degradedRelays).toEqual(["wss://one/"]); // the state itself is unaffected
+  });
+});
+
+// ---------------------------------------------------------------------
 // Task 2 fix round 1 (2026-08-05). Reviewer findings on the first pass:
 //
 // Important 1: `#reconnect`'s budget-exhaustion guard called

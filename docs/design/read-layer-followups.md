@@ -161,6 +161,10 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 **`selectRelays` に `degraded?: readonly RelayUrl[]` を追加して解決した**（接続層スライス Task 4）。`ConnectionPool.degradedRelays`（リレー自身に起因する連続失敗が `DEGRADED_AFTER_FAILURES` に達した URL）を `SubscriptionManager.replan()` から渡し、候補集合の構築段階でこれに含まれる URL を完全に除外する — 「最後の手段として残す」設計は採らなかった。到達不能なリレーに割り当てても被覆は増えず、枠だけが無駄になるためである。degraded な URL しか宣言していない著者は `uncovered` に落ちる（[ADR-0011](../adr/0011-performance-budget.md) の「劣化を隠さない」に適う、意図した挙動）。`pinned`（ユーザー明示指定・fallback・ブートストラップのインデクサ）はこの除外の対象外 —— 黙って落とすと経路そのものが壊れる。復帰経路は `DEGRADED_COOLDOWN_MS`（300 秒）のクールダウンで確保した。詳細は [ADR-0021](../adr/0021-reconnection-policy.md) と [ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md) を参照。
 
+**訂正（最終ブランチレビュー、2026-08-06、Important 1）: 上の「解決した」は不完全だった。** `selectRelays` の純関数側 (`degraded` を除外する部分) は正しく実装されていたが、それを呼び直す `SubscriptionManager.#runReplan()` の内部呼び出し元は `subscribe()` と `#close()` の 2 つだけで、接続が死んで `degradedRelays` に積み上がっても、アプリのどの経路もそれを受けて `replan()` を呼び返していなかった。結果として `.onion` が 4 回失敗して `degradedRelays` に入っても、次にセクションが追加・削除されるまで選択結果には一切反映されず、この節が最初に報告した症状（枠を握ったまま著者が暗転し続ける）を、原因だけ変えて（除外ロジックの欠落ではなく再選択の契機の欠落として）再現していた。
+
+**`ConnectionPool.onDegraded(listener)`（degraded への遷移を通知する新しいフック）と `SubscriptionManager` 側のバッチ配線（`#scheduleDegradedReplan()`、窓 200ms）を足して、これを自動化して初めて実際に閉じた。** 遷移の瞬間だけ通知し、以後の失敗では再発火しないので、単発のブリップを再選択の契機にしないという ADR-0021 の方針は保たれている。バッチ窓は、同時に複数のリレーが degraded へ遷移した場合（ネットワーク断で 30 本が同時に死ぬなど）に replan が 1 本にまとまるようにするためのもの。詳細は [ADR-0021](../adr/0021-reconnection-policy.md) の「諦めない」と「再選択の候補から外す」は別の問い節を参照。
+
 ### ~~指数バックオフが実際には指数になっていない~~（e2e の docker 依存を外す作業中に発見、2026-08-02）— 2026-08-05 修正済み（Task 4 ではなく Task 2）
 
 **予測ではなく、実地で観測済み（v1 縦断スライス、人間による実鍵検証、2026-08-05）。** 上記「死んだままのリレー」で挙げた 3 本（`wss://relay.yozora.world`・`.onion` アドレス・`wss://nfrelay.app/`）はいずれも、単発の切断ではなく**およそ 3 秒間隔で失敗を繰り返し続けた**。私（レビュー担当）がコードを見て原因を確認した —— これはまさに下記のバックオフ欠陥が予測していた症状そのものである: `#reconnect` が `connect()` の戻り値だけを見て `attempts` を 0 に戻すため、恒久的に到達不能なリレーへの再接続は毎回「成功」扱いになり、指数は 2⁰ から一度も伸びず、間隔は `RECONNECT_BASE_MS × (0.5 + random)` = 500〜1500ms のまま張り付く。観測された「約3秒」は、この一定間隔に加えて DNS/TCP/TLS の失敗にかかる時間が乗ったもので、下記の分析と矛盾しない。「実装から導いた予測」と「実地で見た症状」が一致した、この記録で唯一の項目である。
@@ -228,6 +232,7 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `section-reader.ts` | `source.relays` の重複 URL が二重購読になり `unreachableRelays` を二重計上する |
 | `section-reader.ts` | `#items` に store の内部オブジェクトを入れている。消費者が `items[0].content` を書き換えると全セクションの store が壊れる。水和が入る時点で `Object.freeze` かコピーを検討 |
 | `websocket-relay-connection.ts` | ソケットが開く前に購読を閉じると無駄な `REQ` + `CLOSE` が飛ぶ。`RelaySubscription.close()` は `#isClosed()` で守られておらず、CLOSING 窓で flush されない `CLOSE` を積む。いずれも自己解消し有界 |
+| `connection-pool.ts` | `#attachConnection` は `pooled.connection = connection`（`size` に数えられる。呼び出し順: ①`pooled.connection = connection` → ②`pooled.offClose = connection.onClose(...)` → ③`pooled.offOpen = connection.onOpen(() => this.#clearFailures(url))`）を、`#failures` を実際にクリアする ③ の登録より先に行う。実ソケットではこの ①→③ の窓が TCP/TLS ハンドシェイクの全体に及ぶ。窓の間に replan が来ると、その URL は `size` 上は「生きている」のに `degradedRelays` はまだクリアされていない（`onOpen` が発火していない）ため、`selectRelays` の `degraded` 入力から見て「回復しかけている最中」の URL が除外され、`#drop` で（開いたばかりの）ソケットごと閉じられてしまう。発生確率は低く（ハンドシェイクの間だけ、かつその間に replan が走る必要がある）、テストも無い。**Important 1（final review, 2026-08-06: degraded 遷移からの自動 replan）は replan の頻度そのものを引き上げるので、この窓に replan が当たる確率もわずかに上がる** —— 直接の原因ではないが無関係でもない |
 | `websocket-relay-connection.ts` | `Array.isArray(message)` が `any[]` に絞り、フィールドの静的型付けが失われる。`readonly unknown[]` 注釈で回復する |
 | `relay-info.ts` | 失敗を一切キャッシュしないため、NIP-11 を持たないリレーへ毎回 fetch する。恒久的な焼き付きを避けた結果であり、対処するなら失敗側に短い TTL |
 | `relay-info.ts` | `supported_nips` は 1 要素でも非数値なら全体を捨てる。実在するリレーには `"1"` のような文字列要素を出すものがあり、その場合 `supportsNip` が一律 false になる。要素単位のフィルタのほうが良い |

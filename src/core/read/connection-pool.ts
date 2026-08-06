@@ -247,6 +247,17 @@ export class ConnectionPool {
     { count: number; hard: number; timer: ReturnType<Scheduler["setTimeout"]> }
   >();
 
+  /**
+   * `onDegraded()` の購読者 (final review, 2026-08-06, Important 1)。
+   * `degradedRelays` は Task 4 が実装された時点では公開されているだけで、
+   * 読みに行く者が誰も居なかった —— `replan()` を呼ぶのはアプリの外側の
+   * 経路 (`subscribe()`/`handle.close()`) だけで、接続が死んで degraded に
+   * 積み上がっても誰も再選択を起こさない、という配線漏れが最終レビューで
+   * 見つかった。ここはその配線の起点であり、`SubscriptionManager` が
+   * 唯一の購読者になる。
+   */
+  readonly #degradedListeners = new Set<(url: RelayUrl) => void>();
+
   constructor(options: ConnectionPoolOptions) {
     this.#options = options;
     this.#maxConnections = options.maxConnections ?? MAX_CONNECTIONS;
@@ -300,6 +311,40 @@ export class ConnectionPool {
     return urls;
   }
 
+  /**
+   * `onDegraded()` に今登録されている listener の数 (final review,
+   * 2026-08-06)。`reservedSize`/`peakSize` と同じ位置づけの診断値 ——
+   * `SubscriptionManager.dispose()` が購読を解除し忘れていないかを、
+   * プライベートな `#degradedListeners` を晒さずに外から確認する手段。
+   */
+  get degradedListenerCount(): number {
+    return this.#degradedListeners.size;
+  }
+
+  /**
+   * URL が degraded へ**遷移した瞬間**にだけ通知する (final review,
+   * 2026-08-06, Important 1)。`#noteFailure` が `hard` をちょうど
+   * `DEGRADED_AFTER_FAILURES` に到達させた回だけ発火し、以後さらに失敗が
+   * 積み上がっても再発火しない。
+   *
+   * ADR-0021 の「死亡・復帰は再選択の契機にしない」を破るものではない ——
+   * これは死でも復帰でもなく、4 回連続の *relay 起因の* 失敗という、単発の
+   * ブリップでは起こり得ない閾値越えだけを見る。ブリップ 1 回で誤発火しない
+   * ことは `degradedRelays`/`DEGRADED_AFTER_FAILURES` 自体の設計がそもそも
+   * 保証している (Task 2)。
+   *
+   * `RelayConnection.onOpen`/`onClose` と同じ形: 購読して解除関数を返す。
+   * 名前は「何を報告するか」であって「呼び出し側がそれをどう使うか」ではない
+   * —— これは degraded への遷移そのものの通知であり、「replan せよ」という
+   * 命令ではない (呼び出し側が何をすべきかを決めるのは呼び出し側の責務)。
+   */
+  onDegraded(listener: (url: RelayUrl) => void): () => void {
+    this.#degradedListeners.add(listener);
+    return () => {
+      this.#degradedListeners.delete(listener);
+    };
+  }
+
   /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
   #recordPeak(): void {
     const current = this.size;
@@ -319,16 +364,32 @@ export class ConnectionPool {
    *
    * クールダウンを失敗のたびに張り直すのは、失敗し続けている最中に前回の
    * 期限が来て degraded が解除されてしまわないようにするため。
+   *
+   * `hard` がちょうど `DEGRADED_AFTER_FAILURES` に到達した回だけ
+   * `onDegraded()` の購読者へ通知する (final review, Important 1)。
+   * `degradedRelays` が消える経路 (open, `retryNow()`, クールダウン) は
+   * すべて `#failures` からこの URL のレコードそのものを削除するので、
+   * 次に degraded になるときは必ず `previousHard` が 0 から数え直しになる
+   * —— 「1 URL につき `DEGRADED_COOLDOWN_MS` ごとに高々 1 回」という
+   * 最終レビューの要求はこの削除規約からそのまま従う。
    */
   #noteFailure(url: RelayUrl, reason: ReconnectReason): void {
     const existing = this.#failures.get(url);
     if (existing) this.#scheduler.clearTimeout(existing.timer);
     const count = (existing?.count ?? 0) + 1;
-    const hard = (existing?.hard ?? 0) + (reason === "relay" ? 1 : 0);
+    const previousHard = existing?.hard ?? 0;
+    const hard = previousHard + (reason === "relay" ? 1 : 0);
     const timer = this.#scheduler.setTimeout(() => {
       this.#failures.delete(url);
     }, DEGRADED_COOLDOWN_MS);
     this.#failures.set(url, { count, hard, timer });
+
+    if (
+      previousHard < DEGRADED_AFTER_FAILURES &&
+      hard >= DEGRADED_AFTER_FAILURES
+    ) {
+      for (const listener of [...this.#degradedListeners]) listener(url);
+    }
   }
 
   /**
@@ -413,10 +474,21 @@ export class ConnectionPool {
       }
     }
 
-    // 一度でも `{ reserved: true }` で要求されたら、このプロセス内では
-    // ずっと reserved として数える (final review, finding 9a) — 同じ URL
+    // 一度でも `{ reserved: true }` で要求されたら、この `Pooled` が生きて
+    // いる間は reserved として数える (final review, finding 9a) — 同じ URL
     // への以後の通常経路の呼び出しが `reservedSize` から静かに外れてしまわ
     // ないようにするため。
+    //
+    // **「このプロセス内ではずっと」ではない** (final review, 2026-08-06,
+    // Minor 3: 過去のコメントの誤り)。`reserved` は `Pooled` のフィールド
+    // であり `Pooled` そのものより長くは生きない。`#drop` はレコードごと
+    // 消す (`this.#pool.delete(url)`) ので、ブートストラップが hold を
+    // release してこの URL の最後のエントリ/hold が無くなれば `Pooled` ごと
+    // 消える。その後に同じ URL へ通常経路 (`{ reserved: true }` を渡さない)
+    // で `subscribe()` すると、真新しい `Pooled` が `reserved: false` で
+    // 作られる — 同じプロセス・同じ URL でも、間に drop を挟めば
+    // `reservedSize` の対象から普通に外れる。挙動を変えるものではなく、
+    // このコメントの記述だけを実態に合わせた。
     if (options?.reserved) pooled.reserved = true;
 
     return pooled;

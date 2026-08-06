@@ -1,6 +1,17 @@
 import type { Scheduler } from "./connection-pool";
 
-export type FakeClock = Scheduler & { advance(ms: number): void };
+export type FakeClock = Scheduler & {
+  advance(ms: number): void;
+  /**
+   * 今スケジュールされている (まだ発火も clearTimeout もされていない)
+   * タイマーの数 (final review, 2026-08-06)。`dispose()` がタイマーを
+   * 消し忘れていないかを、間接的な観測 (「後で何も起きない」) ではなく
+   * 直接の個数で確かめるための診断値 ——
+   * `connection-pool.test.ts` 内のローカル版 `FakeClock` が持つ
+   * `clearTimeoutCallCount` と同じ動機。
+   */
+  readonly pendingCount: number;
+};
 
 /**
  * 注入用の偽タイマー。テストからのみ使う (`fake-relay-connection.ts` と同じ
@@ -30,6 +41,9 @@ export const createFakeClock = (): FakeClock => {
         timers.delete(id);
         t.callback();
       }
+    },
+    get pendingCount() {
+      return timers.size;
     },
   };
 };

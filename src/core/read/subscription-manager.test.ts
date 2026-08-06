@@ -14,6 +14,7 @@ import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 import {
+  DEGRADED_REPLAN_BATCH_MS,
   type SectionDelivery,
   type SectionHandle,
   type SectionPlan,
@@ -1659,6 +1660,221 @@ describe("SubscriptionManager", () => {
 
     expect(plans.at(-1)?.relays).toEqual([]);
     expect(plans.at(-1)?.uncoveredAuthors).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------
+// Final review (2026-08-06), Important 1: the test above
+// ("excludes a degraded relay on the next replan") proves the pure-function
+// wiring (`selectRelays({ degraded })`) is correct, but it drives the
+// replan by calling `manager.replan()` by hand -- in the real app, nothing
+// ever called that. `SubscriptionManager.#runReplan()` had exactly two
+// internal callers (`subscribe()`, `#close()`); a relay dying and staying
+// dead never triggered one on its own, so a `.onion`-style permanently
+// unreachable relay kept its selection slot forever in production.
+//
+// These tests drive the same `FakeRelayConnection({ autoOpen: false })` +
+// clock-advance sequence as the test above, but *never* call
+// `manager.replan()` by hand -- the whole point is that the constructor's
+// `pool.onDegraded()` wiring (`connection-pool.ts`) plus the batching in
+// `#scheduleDegradedReplan()` (`subscription-manager.ts`) must produce the
+// replan on their own.
+// ---------------------------------------------------------------------
+describe("SubscriptionManager: automatic replan on a degraded transition", () => {
+  // Mutation: delete `this.#pool.onDegraded(...)` from the constructor (or
+  // have it call nothing) -- this is the end-to-end assertion the slice was
+  // missing. It fails not with a clearly-wrong number but with the plan
+  // simply never changing: `plans` stays empty forever, no matter how far
+  // the clock is advanced.
+  it("degrading a relay's last connection automatically replans it out, with no manual replan() call", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const connectCalls: RelayUrl[] = [];
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        connectCalls.push(url);
+        // autoOpen: false -- socket objects get created but never prove
+        // they opened, same as the real .onion relay this slice was fixing.
+        const relay = new FakeRelayConnection(url, { autoOpen: false });
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    const author = pubkeyFor(44_001);
+    store.put(relayListFor(author, ["wss://dead/"]), "wss://indexer/");
+
+    const plans: SectionPlan[] = [];
+    manager.subscribe([{ kinds: [1], authors: [author] }], undefined, {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged: (plan) => plans.push(plan),
+      onRelayRestarted: () => {},
+    });
+
+    // Same DEGRADED_AFTER_FAILURES (4) exponential-backoff sequence as
+    // connection-pool.test.ts and the hand-triggered test above -- but no
+    // manager.replan() call anywhere below.
+    connections.get("wss://dead/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://dead/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://dead/")?.die(); // failure 3
+    clock.advance(4000);
+    connections.get("wss://dead/")?.die(); // failure 4 -> crosses into degraded
+
+    // The crossing notification is batched (DEGRADED_REPLAN_BATCH_MS) --
+    // nothing has fired synchronously yet.
+    expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
+    expect(plans).toHaveLength(0);
+
+    // Advance past the batch window -> exactly one replan fires.
+    clock.advance(DEGRADED_REPLAN_BATCH_MS);
+
+    expect(plans).toHaveLength(1);
+    expect(plans[0].relays).toEqual([]);
+    expect(plans[0].uncoveredAuthors).toBe(1);
+
+    // "no longer subscribed", made concrete: the replan dropped the last
+    // subscriber for wss://dead/, which (per ConnectionPool's `#drop`)
+    // cancels its pending reconnect timer too. If it were still subscribed,
+    // advancing far past any backoff delay would produce more connect()
+    // calls (ADR-0021 "never give up"); since it's gone, it doesn't.
+    const callsSoFar = connectCalls.filter((u) => u === "wss://dead/").length;
+    clock.advance(120_000);
+    expect(connectCalls.filter((u) => u === "wss://dead/").length).toBe(
+      callsSoFar,
+    );
+  });
+
+  // Mutation: remove the batching (call `this.#runReplan()` directly from
+  // the pool.onDegraded callback instead of arming/reusing a timer) -- this
+  // is the ADR-0021 churn concern named explicitly in the final review: "if
+  // 30 relays die together they all cross the threshold at nearly the same
+  // jittered moment; one replan per crossing would be exactly the churn
+  // ADR-0021 exists to prevent."
+  it("coalesces several relays degrading within the same batch window into one replan", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url, { autoOpen: false });
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    const authorA = pubkeyFor(44_002);
+    const authorB = pubkeyFor(44_003);
+    store.put(relayListFor(authorA, ["wss://dead-a/"]), "wss://indexer/");
+    store.put(relayListFor(authorB, ["wss://dead-b/"]), "wss://indexer/");
+
+    const plans: SectionPlan[] = [];
+    manager.subscribe(
+      [{ kinds: [1], authors: [authorA, authorB] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: () => {},
+        onPlanChanged: (plan) => plans.push(plan),
+        onRelayRestarted: () => {},
+      },
+    );
+
+    const urls: RelayUrl[] = ["wss://dead-a/", "wss://dead-b/"];
+    // Both relays die and reconnect in lockstep, as a shared network outage
+    // would produce -- driving both to their 4th (crossing) failure inside
+    // the same batch window.
+    for (const url of urls) connections.get(url)?.die(); // failure 1 each
+    clock.advance(1000);
+    for (const url of urls) connections.get(url)?.die(); // failure 2 each
+    clock.advance(2000);
+    for (const url of urls) connections.get(url)?.die(); // failure 3 each
+    clock.advance(4000);
+    for (const url of urls) connections.get(url)?.die(); // failure 4 each -> both cross
+
+    expect([...manager.pool.degradedRelays].sort()).toEqual([
+      "wss://dead-a/",
+      "wss://dead-b/",
+    ]);
+    expect(plans).toHaveLength(0); // still batched
+
+    clock.advance(DEGRADED_REPLAN_BATCH_MS);
+
+    // One replan covers both crossings, not two.
+    expect(plans).toHaveLength(1);
+    expect(plans[0].relays).toEqual([]);
+    expect(plans[0].uncoveredAuthors).toBe(2);
+  });
+
+  // Mutation: delete `this.#offDegraded()` from `dispose()` --
+  // `degradedListenerCount` stays 1 instead of dropping to 0.
+  // Mutation: delete the `#degradedReplanTimer` clear from `dispose()` --
+  // `clock.pendingCount` stays > 0 instead of dropping to 0.
+  it("dispose() cancels a pending replan batch and unsubscribes from the pool's onDegraded notification", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url, { autoOpen: false });
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    expect(manager.pool.degradedListenerCount).toBe(1);
+
+    const author = pubkeyFor(44_004);
+    store.put(relayListFor(author, ["wss://dead/"]), "wss://indexer/");
+    manager.subscribe(
+      [{ kinds: [1], authors: [author] }],
+      undefined,
+      noopDelivery(),
+    );
+
+    connections.get("wss://dead/")?.die();
+    clock.advance(1000);
+    connections.get("wss://dead/")?.die();
+    clock.advance(2000);
+    connections.get("wss://dead/")?.die();
+    clock.advance(4000);
+    connections.get("wss://dead/")?.die(); // crosses -> arms the replan batch
+    // (and a pending reconnect timer for wss://dead/ besides).
+
+    expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
+    expect(clock.pendingCount).toBeGreaterThan(0); // sanity before dispose()
+
+    manager.dispose();
+
+    expect(manager.pool.degradedListenerCount).toBe(0);
+    expect(clock.pendingCount).toBe(0);
+
+    // Advancing well past the batch window and any backoff delay afterward
+    // must not resurrect anything -- if either the timer or the
+    // subscription had survived, this is where a leaked callback would run
+    // against disposed internals.
+    clock.advance(120_000);
+    expect(clock.pendingCount).toBe(0);
   });
 });
 
