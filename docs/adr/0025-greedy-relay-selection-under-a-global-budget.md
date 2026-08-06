@@ -52,7 +52,7 @@ status: accepted
 
 degraded な URL しか宣言していない著者は `uncovered` に落ちる。これは [ADR-0011](./0011-performance-budget.md) の「劣化を隠さない」に適う挙動であり、バグではない —— `uncoveredAuthors` として正直に数が上がり、呼び出し側（`SectionPlan.uncoveredAuthors`）を通じて UI まで届く経路自体は正しい。
 
-**ただし、その数字が動くのは `selectRelays` を実際に呼び直す `replan()` が走った後だけである。** `degradedRelays` に URL が増えただけでは `uncoveredAuthors` は 1 も動かない —— この純関数自体は呼ばれて初めて結果を返す。Task 4 の実装直後 (2026-08-05) は `SubscriptionManager` のどの経路も接続の死亡蓄積で `replan()` を呼び返しておらず、`.onion` が 4 回失敗して `degradedRelays` に載っても `uncoveredAuthors` は次にセクションが追加・削除されるまで古い値のまま止まっていた（最終レビュー、2026-08-06、Important 1 で発見）。これは配線の欠落であって `selectRelays`/`uncoveredAuthors` そのものの欠陥ではない —— 修正は `ConnectionPool.onDegraded()` という新しい通知と `SubscriptionManager` 側のバッチ配線で、詳細は [ADR-0021](./0021-reconnection-policy.md) の「諦めない」と「再選択の候補から外す」は別の問い節を参照。
+**ただし、その数字が動くのは `selectRelays` を実際に呼び直す `replan()` が走った後だけである。** `degradedRelays` に URL が増えただけでは `uncoveredAuthors` は 1 も動かない —— この純関数自体は呼ばれて初めて結果を返す。Task 4 の実装直後 (2026-08-05) は `SubscriptionManager` のどの経路も接続の死亡蓄積で `replan()` を呼び返しておらず、`.onion` が 4 回失敗して `degradedRelays` に載っても `uncoveredAuthors` は次にセクションが追加・削除されるまで古い値のまま止まっていた（最終レビュー、2026-08-06、Important 1 で発見）。これは配線の欠落であって `selectRelays`/`uncoveredAuthors` そのものの欠陥ではない —— 修正は `ConnectionPool.onDegradedChanged()`（degraded-recovery-and-isolation Task 1 で `onDegraded` から改名。degraded 集合に入る瞬間だけでなく出る瞬間も通知するようになった）という新しい通知と `SubscriptionManager` 側のバッチ配線で、詳細は [ADR-0021](./0021-reconnection-policy.md) の「諦めない」と「再選択の候補から外す」は別の問い節を参照。
 
 **`pinned` にはこの除外を適用しない。** `pinned` にはユーザーが明示指定したリレー・fallback・ブートストラップのインデクサが入る。これらを選択器が黙って落とすと、ブートストラップ経路そのものが静かに壊れる。degraded な pinned URL は今までどおり選ばれ続け、`ConnectionPool` は（[ADR-0021](./0021-reconnection-policy.md) のとおり）誰かが購読している限り再接続を試み続ける。
 

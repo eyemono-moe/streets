@@ -1176,17 +1176,48 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
     connections.get("wss://one/")?.die();
 
+    // The death armed a backoff timer. Count clears from here: the only
+    // thing that may clear a timer between this point and the assertion is
+    // `#attachConnection` cancelling that pending backoff on revival.
+    const clearsBeforeRevival = clock.clearTimeoutCallCount;
+
     await pool.publish("wss://one/", fakeEvent("a"));
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
 
-    // Advance well past the original backoff delay (1000ms * (0.5+0.5)).
-    // Mutation caught: not clearing `pooled.timer` on revival leaves the
-    // original backoff timer armed; if `attempts` was also left un-reset,
-    // firing it would still no-op today only by accident (`#reconnect`'s
-    // `pooled.connection` guard) -- but a leaked timer is exactly the kind
-    // of latent bug ADR-0021's "never give up" accounting depends on not
-    // having. No further connect() call should happen from this stale
-    // timer.
+    // Mutation: delete the `pooled.timer` teardown at the top of
+    // `#attachConnection`. The old version of this test only advanced the
+    // clock and asserted `connectCalls` stayed flat -- which holds either
+    // way, because `#reconnect()`'s `pooled.connection` guard makes the
+    // leaked timer a no-op. Counting the scheduler's own calls is the only
+    // direct evidence that the timer was cancelled rather than merely
+    // rendered harmless (final review of the vertical slice; the same
+    // reasoning that added `clearTimeoutCallCount` in the first place).
+    //
+    // Measured, not derived (task-4-brief.md warns the `+ 2` in its draft
+    // was a guess -- it was; the true count is 3). Three clears happen in
+    // this window:
+    // (1) `#attachConnection`'s teardown of `pooled.timer`, the backoff
+    // timer `die()` armed above -- revival cancelling the pending
+    // reconnect, the assertion this test exists to make.
+    // (2) `#clearFailures`'s teardown of the `DEGRADED_COOLDOWN_MS` failure
+    // record's own timer (`#failures`, a *different* timer from (1) --
+    // `Pooled.timer` is the reconnect backoff, `#failures.get(url).timer`
+    // is the cooldown that would otherwise forget this failure after 5
+    // minutes). This fires synchronously and *inside* `#attachConnection`:
+    // `pooled.offOpen = connection.onOpen(() => this.#clearFailures(url))`
+    // registers the listener, and `FakeRelayConnection.onOpen()` calls a
+    // listener immediately when the connection is already open (autoOpen
+    // defaults true here), so `#clearFailures` runs before `#attachConnection`
+    // returns.
+    // (3) `publish()`'s own `PUBLISH_TIMEOUT_MS` timer, cleared in the
+    // success branch of `connection.publish().then(...)` once
+    // `FakeRelayConnection.publish()` resolves. `publish()` also calls
+    // `release()` on success, but that only decrements `pooled.entries`
+    // (the original subscribe()'s entry is still registered, so it never
+    // reaches `#drop()` and never clears a fourth timer).
+    expect(clock.clearTimeoutCallCount).toBe(clearsBeforeRevival + 3);
+
+    // And the original assertion: no stale timer ever fires a reconnect.
     clock.advance(60_000);
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
   });
