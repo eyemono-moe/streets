@@ -290,7 +290,7 @@ export class SubscriptionManager {
   #dirty = false;
   // ConnectionPool へそのまま渡す再接続タイマーの注入口 (下記コンストラクタ
   // 参照)。マネージャ自身はもう独自のタイマーを持たない —— #scheduler を
-  // 経由するのは pool への受け渡しと、degraded 遷移のバッチ窓 (下記
+  // 経由するのは pool への受け渡しと、degraded 集合の出入りのバッチ窓 (下記
   // #degradedReplanTimer) の 2 つだけ。
   readonly #scheduler: Scheduler;
   // pool.onDegradedChanged() の購読解除 (final review, Important 1)。
@@ -302,7 +302,7 @@ export class SubscriptionManager {
   readonly #offDegraded: () => void;
   // degraded 集合の出入りをまとめるバッチタイマー (DEGRADED_REPLAN_BATCH_MS 参照)。
   // #notify() (section-reader.ts) と同じ「デバウンスではなくバッチ」の形:
-  // 最初の遷移でタイマーを 1 本張り、窓の間に来た残りの遷移は同じタイマーに
+  // 最初の出入りでタイマーを 1 本張り、窓の間に来た残りの出入りは同じタイマーに
   // 相乗りする。
   #degradedReplanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
 
