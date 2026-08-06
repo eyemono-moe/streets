@@ -1757,6 +1757,76 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     );
   });
 
+  // Mutation: revert `retryNow()` to a bare `this.#pool.retryNow()`. The
+  // degraded URL's failure history is cleared either way, so
+  // `degradedRelays` goes empty and the pool looks healthy -- but nothing
+  // re-selects, so the relay stays out of every section's plan. Note the
+  // assertions run with NO clock.advance(): once Task 1 notifies on the way
+  // out of the degraded set, advancing the clock would replan through the
+  // batch window and hide the defect entirely.
+  it("retryNow() re-selects a degraded relay synchronously, and leaves no second replan queued", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url, { autoOpen: false });
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    const author = pubkeyFor(44_010);
+    store.put(relayListFor(author, ["wss://dead/"]), "wss://indexer/");
+
+    const plans: SectionPlan[] = [];
+    manager.subscribe([{ kinds: [1], authors: [author] }], undefined, {
+      onEvent: () => {},
+      onRelayComplete: () => {},
+      onRelayUnreachable: () => {},
+      onPlanChanged: (plan) => plans.push(plan),
+      onRelayRestarted: () => {},
+    });
+
+    connections.get("wss://dead/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://dead/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://dead/")?.die(); // failure 3
+    clock.advance(4000);
+    connections.get("wss://dead/")?.die(); // failure 4 -> degraded
+    clock.advance(DEGRADED_REPLAN_BATCH_MS); // the exclusion replan
+
+    expect(plans).toHaveLength(1);
+    expect(plans[0].relays).toEqual([]); // dropped from the plan
+    expect(plans[0].uncoveredAuthors).toBe(1);
+
+    // The human hits "retry now". The pooled record for wss://dead/ is
+    // already gone (the replan above dropped its last subscriber), so
+    // `ConnectionPool.retryNow()`'s loop over live records cannot reach it
+    // at all -- clearing the failure history is all the pool can do. Only a
+    // re-selection can put the relay back in the plan.
+    manager.retryNow();
+
+    expect(manager.pool.degradedRelays).toEqual([]);
+    expect(plans).toHaveLength(2);
+    expect(plans[1].relays).toEqual(["wss://dead/"]);
+    expect(plans[1].uncoveredAuthors).toBe(0);
+
+    // Mutation: drop the pending-batch teardown from `retryNow()`. Task 1's
+    // notification arms the batch timer on the way through
+    // `pool.retryNow()`; leaving it armed costs a second, redundant replan
+    // 200ms after every manual retry. Nothing else is scheduled at this
+    // point (the reconnect timer died with the dropped record, the cooldown
+    // timer was just cleared), so the count is exact.
+    expect(clock.pendingCount).toBe(0);
+  });
+
   // Mutation: remove the batching (call `this.#runReplan()` directly from
   // the pool.onDegradedChanged callback instead of arming/reusing a timer) -- this
   // is the ADR-0021 churn concern named explicitly in the final review: "if

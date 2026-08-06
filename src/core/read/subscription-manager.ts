@@ -349,9 +349,31 @@ export class SubscriptionManager {
     return this.#pool;
   }
 
-  /** 手動再試行 (ADR-0021)。プールへそのまま委譲する。 */
+  /**
+   * 手動再試行 (ADR-0021)。プールへ委譲したうえで、**必ず再選択も起こす。**
+   *
+   * 委譲だけでは足りない: degraded になって選択から外れた URL は購読者が
+   * 居なくなり `#drop` で `Pooled` レコードごと消えているので、プール側の
+   * `retryNow()` のループ (生きているレコードだけを回る) には最初から
+   * 届かない。プールができるのは失敗履歴を消すことだけで、その URL を
+   * 実際に開き直すには誰かが選び直さなければならない。
+   *
+   * Task 1 の `onDegradedChanged` はこの履歴削除でも発火するので、放っておいて
+   * もバッチ窓 (`DEGRADED_REPLAN_BATCH_MS`) の後に replan は起きる。それでも
+   * ここで同期的に呼ぶのは、`retryNow()` が人間の「今すぐ試す」であることと、
+   * degraded が 1 本も無い状態 (バックオフ待ちはあるが 4 回には達していない)
+   * でこの通知が一切出ないことの 2 つによる。
+   *
+   * 上で replan 済みなので、保留中のバッチタイマーは畳む —— 残すと手動再試行
+   * 1 回につき 200ms 差で replan が 2 回走る。
+   */
   retryNow(): void {
     this.#pool.retryNow();
+    this.#runReplan();
+    if (this.#degradedReplanTimer !== null) {
+      this.#scheduler.clearTimeout(this.#degradedReplanTimer);
+      this.#degradedReplanTimer = null;
+    }
   }
 
   /**
