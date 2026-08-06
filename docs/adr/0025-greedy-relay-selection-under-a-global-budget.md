@@ -46,6 +46,16 @@ status: accepted
 
 **ブートストラップのインデクサは `pinned` ではない（2026-08-02 訂正）。** この ADR の初版・[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md)はいずれも「インデクサは `pinned`」と書いていたが、接続プールの実装 (`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`) はそうなっていない — インデクサはこの関数の `pinned`/`demand` のどちらにも一切渡らず、`selectRelays` を経由せずに `ConnectionPool` の予算チェックそのものを迂回する、意味の異なる別の仕組み (`reserved`) を使っている。`pinned` は「この関数の中で予算を優先的に確保する」ものであり、`reserved` は「この関数を経由せず予算チェック自体を飛ばす」ものである — 後者はブートストラップ専用の脱出口であり、この関数の契約の一部ではない。混同したままだと「30 接続」という 1 つの数字を 2 つの仕組みが別々に主張することになる。詳細と帰結 (ピーク同時接続数が `30 + |indexers|` になりうる条件) は [read-layer-followups.md](../design/read-layer-followups.md) に記録した。
 
+## degraded な URL は候補から完全に外す（Task 4 追記）
+
+`selectRelays` は省略可能な `degraded`（`ConnectionPool.degradedRelays`、リレー自身に起因する連続失敗が `DEGRADED_AFTER_FAILURES` に達した URL）を受け取り、`demand` から `relayToAuthors` を組み立てる段階でこれに含まれる URL を丸ごと候補から除く。「最後の手段として残す」ことはしない —— 到達不能なリレーを著者に割り当てても被覆は 1 本も増えず、`budget` の枠だけが埋まって他の著者に回らなくなるからである。実地（2026-08-05）では `.onion` アドレスがこれを最も分かりやすく実演した: `replan()` のたびに同じ死んだ URL が選ばれ直し、その枠は永久に誰にも使われなかった。
+
+degraded な URL しか宣言していない著者は `uncovered` に落ちる。これは [ADR-0011](./0011-performance-budget.md) の「劣化を隠さない」に適う挙動であり、バグではない —— `uncoveredAuthors` として正直に数が上がり、呼び出し側（`SectionPlan.uncoveredAuthors`）を通じて UI まで届く。
+
+**`pinned` にはこの除外を適用しない。** `pinned` にはユーザーが明示指定したリレー・fallback・ブートストラップのインデクサが入る。これらを選択器が黙って落とすと、ブートストラップ経路そのものが静かに壊れる。degraded な pinned URL は今までどおり選ばれ続け、`ConnectionPool` は（[ADR-0021](./0021-reconnection-policy.md) のとおり）誰かが購読している限り再接続を試み続ける。
+
+除外は再選択の話であって再接続の話ではない —— この区別と、degraded からの復帰経路 (`DEGRADED_COOLDOWN_MS` によるクールダウン) の詳細は [ADR-0021](./0021-reconnection-policy.md) を参照。
+
 ## Consequences
 
 - **`assignment` は `demand` の全著者を含む。** 予算切れで 1 本も確保できない著者も空配列で入る（著者が丸ごと欠落するわけではない）。後続タスクの `planQuery` は「`demand` に著者がいない（relay list 自体が未解決）」「著者はいるが空配列（予算切れ）」「著者がいて非空（購読先が決まっている）」の 3 通りを、この契約に基づいて区別する。

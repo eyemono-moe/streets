@@ -190,4 +190,69 @@ describe("selectRelays", () => {
     expect(selection.picks).toEqual([]);
     expect(selection.uncovered).toEqual([]);
   });
+
+  describe("degraded relays", () => {
+    // 変異: degraded を無視すると落ちる。実地で観測された欠陥そのもの
+    // (死んだリレーが枠を食い、その著者は永久に暗転する)。
+    it("prefers a reachable relay over a degraded one that covers the same author", () => {
+      // Deliberately named so "wss://a-dead/" sorts *before*
+      // "wss://z-alive/" lexicographically: both have gain 1 for A (tied),
+      // so if `degraded` were silently ignored the existing lexicographic
+      // tie-break (see "breaks ties lexicographically when nothing is
+      // current" above) would pick the dead one first, not by luck of a
+      // name like "alive" < "dead". This is the only way the test actually
+      // depends on the exclusion rather than on tie-break ordering.
+      const selection = selectRelays({
+        ...base,
+        demand: new Map([[A, ["wss://a-dead/", "wss://z-alive/"]]]),
+        degraded: ["wss://a-dead/"],
+      });
+
+      expect(selection.picks).toEqual(["wss://z-alive/"]);
+      expect(selection.assignment.get(A)).toEqual(["wss://z-alive/"]);
+      expect(selection.uncovered).toEqual([]);
+    });
+
+    // 変異: degraded を「最後の手段として残す」実装にすると落ちる。
+    // 到達不能なリレーを割り当てても被覆は増えないので、枠を空ける方が
+    // 常に良い。
+    it("leaves an author uncovered when every declared relay is degraded", () => {
+      const selection = selectRelays({
+        ...base,
+        demand: new Map([[B, ["wss://dead/"]]]),
+        degraded: ["wss://dead/"],
+      });
+
+      expect(selection.picks).toEqual([]);
+      expect(selection.uncovered).toEqual([B]);
+    });
+
+    // 変異: pinned にも degraded を適用すると落ちる。ブートストラップの
+    // インデクサが選択器に黙って落とされ、経路ごと壊れる。
+    it("still picks a pinned relay even when it is degraded", () => {
+      const selection = selectRelays({
+        ...base,
+        demand: new Map(),
+        pinned: ["wss://indexer/"],
+        degraded: ["wss://indexer/"],
+      });
+
+      expect(selection.picks).toEqual(["wss://indexer/"]);
+    });
+
+    // 変異: degraded を必須にすると既存の呼び出しが全部落ちる。
+    it("behaves exactly as before when degraded is omitted", () => {
+      const withOmittedDegraded = selectRelays({
+        ...base,
+        demand: new Map([[A, ["wss://x/", "wss://y/"]]]),
+      });
+      const withEmptyDegraded = selectRelays({
+        ...base,
+        demand: new Map([[A, ["wss://x/", "wss://y/"]]]),
+        degraded: [],
+      });
+
+      expect(withOmittedDegraded).toEqual(withEmptyDegraded);
+    });
+  });
 });

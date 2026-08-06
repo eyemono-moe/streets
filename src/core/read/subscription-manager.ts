@@ -620,13 +620,16 @@ export class SubscriptionManager {
     }
     const current = [...currentSet];
 
-    // 3. 大域で 1 回だけ選ぶ
+    // 3. 大域で 1 回だけ選ぶ。degraded (連続して開けなかった URL) は
+    // pool から直接読む —— このためだけの新しいオプションや seam は
+    // 足さない。プールは既にコンストラクタで注入されている (Task 4)。
     const selection = selectRelays({
       demand,
       pinned,
       current,
       budget,
       redundancy,
+      degraded: this.#pool.degradedRelays,
     });
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する

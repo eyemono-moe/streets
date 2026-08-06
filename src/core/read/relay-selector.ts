@@ -18,6 +18,17 @@ export type SelectRelaysOptions = {
   current: readonly RelayUrl[];
   budget: number;
   redundancy: number;
+  /**
+   * 連続して開けなかったリレー (`ConnectionPool.degradedRelays`)。
+   * 候補から完全に外す —— 到達不能なリレーを著者に割り当てても被覆は
+   * 1 本も増えず、30 本の枠だけが埋まるため。ここに入った URL しか
+   * 宣言していない著者は `uncovered` に落ちる (ADR-0011: 劣化は
+   * 隠さず正直に報告する)。
+   *
+   * **`pinned` には適用しない** —— 明示指定・フォールバック・インデクサ
+   * を選択器が黙って落とすと経路そのものが静かに壊れる。
+   */
+  degraded?: readonly RelayUrl[];
 };
 
 /**
@@ -50,11 +61,16 @@ export const selectRelays = ({
   current,
   budget,
   redundancy,
+  degraded,
 }: SelectRelaysOptions): Selection => {
-  // リレー → そのリレーを宣言している著者
+  const degradedSet = new Set(degraded ?? []);
+
+  // リレー → そのリレーを宣言している著者。degraded な URL はここに入れない
+  // — pinned はこのマップを経由しないので影響を受けない。
   const relayToAuthors = new Map<RelayUrl, Set<string>>();
   for (const [pubkey, urls] of demand) {
     for (const url of urls) {
+      if (degradedSet.has(url)) continue;
       const authors = relayToAuthors.get(url);
       if (authors) authors.add(pubkey);
       else relayToAuthors.set(url, new Set([pubkey]));

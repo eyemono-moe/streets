@@ -1595,6 +1595,71 @@ describe("SubscriptionManager", () => {
     clock.advance(1);
     expect(connectCalls).toHaveLength(2);
   });
+
+  // Mutation: replan() で degraded を渡し忘れると落ちる。純関数側が正しく
+  // なっても配線が無ければ実地の欠陥は直らない —— このテストがその
+  // 唯一の防波堤。
+  it("excludes a degraded relay on the next replan", () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        // autoOpen: false の接続しか返さない -- 恒久的に到達不能なリレー
+        // (`.onion` が実地で示した状況) を再現する。
+        const relay = new FakeRelayConnection(url, { autoOpen: false });
+        connections.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: [],
+      scheduler: clock,
+      random: () => 0.5,
+    });
+
+    const author = pubkeyFor(40_001);
+    store.put(relayListFor(author, ["wss://dead/"]), "wss://indexer/");
+
+    const plans: SectionPlan[] = [];
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [author] }],
+      undefined,
+      {
+        onEvent: () => {},
+        onRelayComplete: () => {},
+        onRelayUnreachable: () => {},
+        onPlanChanged: (plan) => plans.push(plan),
+        onRelayRestarted: () => {},
+      },
+    );
+
+    // Before it degrades, the author's only declared relay is picked as
+    // normal.
+    expect(handle.initialPlan.relays).toEqual(["wss://dead/"]);
+
+    // DEGRADED_AFTER_FAILURES (4) consecutive relay-attributable failures,
+    // advancing the injected clock through each exponential-backoff
+    // reconnect in between so the pool actually retries and re-fails --
+    // same sequence connection-pool.test.ts uses to reach degraded.
+    connections.get("wss://dead/")?.die(); // failure 1
+    clock.advance(1000);
+    connections.get("wss://dead/")?.die(); // failure 2
+    clock.advance(2000);
+    connections.get("wss://dead/")?.die(); // failure 3
+    clock.advance(4000);
+    connections.get("wss://dead/")?.die(); // failure 4 -> degraded
+
+    expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
+
+    // ADR-0021: connection death does not itself trigger replan() --
+    // callers own that decision. Trigger it explicitly, as replan()'s own
+    // doc comment says a routing change would.
+    manager.replan();
+
+    expect(plans.at(-1)?.relays).toEqual([]);
+    expect(plans.at(-1)?.uncoveredAuthors).toBe(1);
+  });
 });
 
 describe("ローカルフィルタ照合 (信頼境界)", () => {
