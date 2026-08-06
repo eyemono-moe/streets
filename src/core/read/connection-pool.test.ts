@@ -1387,6 +1387,111 @@ describe("backoff growth and degraded relays", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 
+  // Mutation: revert the cooldown timer's callback in `#noteFailure` to a
+  // bare `this.#failures.delete(url)` (its shape before this task). The URL
+  // still leaves `degradedRelays`, so the existing cooldown test stays
+  // green -- only this one notices that nobody was told, which is exactly
+  // how the gap survived the last slice.
+  it("notifies when a url leaves the degraded set after the cooldown", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const changed: RelayUrl[] = [];
+    pool.onDegradedChanged((url) => changed.push(url));
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+    expect(changed).toEqual(["wss://one/"]); // the entry crossing
+
+    sub?.close(); // nobody is waiting; only the cooldown can clear it now
+
+    clock.advance(DEGRADED_COOLDOWN_MS);
+    expect(pool.degradedRelays).toEqual([]);
+    expect(changed).toEqual(["wss://one/", "wss://one/"]); // and the exit
+  });
+
+  // Mutation: drop the notification from `#clearFailures` (keep the delete).
+  // A relay that proves it can open again would silently stay excluded from
+  // selection until an unrelated replan happened to run.
+  it("notifies when a degraded url's socket actually opens", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const changed: RelayUrl[] = [];
+    pool.onDegradedChanged((url) => changed.push(url));
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+
+    clock.advance(8000); // the 5th reconnect attempt creates a socket
+    connections.get("wss://one/")?.open(); // this time it really opens
+
+    expect(pool.degradedRelays).toEqual([]);
+    expect(changed).toEqual(["wss://one/", "wss://one/"]);
+  });
+
+  // Mutation: notify unconditionally in `#clearFailures` (i.e. drop the
+  // `hard >= DEGRADED_AFTER_FAILURES` guard). Then every ordinary blip --
+  // one failure followed by a successful open -- would fire a replan, which
+  // is precisely the churn ADR-0021 refuses to create.
+  it("does not notify when a url that never degraded loses its history", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const changed: RelayUrl[] = [];
+    pool.onDegradedChanged((url) => changed.push(url));
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die(); // a single failure: not degraded
+    clock.advance(1000);
+    connections.get("wss://one/")?.open(); // and it comes straight back
+
+    expect(pool.degradedRelays).toEqual([]);
+    expect(changed).toEqual([]);
+  });
+
+  // Mutation: route `dispose()`'s failure-history teardown through
+  // `#clearFailures` instead of clearing the map directly. Disposal is not
+  // a recovery -- there is no pool left to re-plan for, and the manager has
+  // already unsubscribed, so a notification here can only reach a listener
+  // that outlived its owner.
+  it("does not notify on dispose()", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    const changed: RelayUrl[] = [];
+    pool.onDegradedChanged((url) => changed.push(url));
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    connections.get("wss://one/")?.die();
+    clock.advance(1000);
+    connections.get("wss://one/")?.die();
+    clock.advance(2000);
+    connections.get("wss://one/")?.die();
+    clock.advance(4000);
+    connections.get("wss://one/")?.die(); // 4th failure -> degraded
+    expect(changed).toEqual(["wss://one/"]);
+
+    pool.dispose();
+    expect(changed).toEqual(["wss://one/"]); // no exit notification
+  });
+
   // Mutation: only arm the cooldown timer on the first failure for a url
   // (`if (!existing) { ...set timer... }`) instead of re-arming it on every
   // failure. Without re-arming, a relay that keeps failing during the
@@ -1429,11 +1534,14 @@ describe("backoff growth and degraded relays", () => {
 // that requires a pool-level notification fired at the *moment* a url
 // crosses into degraded (not a level you'd have to poll), which
 // `SubscriptionManager` subscribes to and turns into a (batched) replan.
-// `onDegraded` is the notification; the batching lives in
+// `onDegradedChanged` is the notification; the batching lives in
 // `subscription-manager.test.ts` since it needs the manager's own
-// `Scheduler` seam.
+// `Scheduler` seam. It was originally named `onDegraded` and fired only on
+// entry; this task renamed it and made it also fire on exit (see the exit
+// tests appended to "backoff growth and degraded relays" above), closing
+// the mirror-image gap left by the entry-side fix.
 // ---------------------------------------------------------------------
-describe("ConnectionPool.onDegraded", () => {
+describe("ConnectionPool.onDegradedChanged", () => {
   // Mutation: fire the listener on every `#noteFailure` call instead of only
   // the one that pushes `hard` across `DEGRADED_AFTER_FAILURES` -- this is
   // the "crossing, not level" distinction the final review named explicitly.
@@ -1445,7 +1553,7 @@ describe("ConnectionPool.onDegraded", () => {
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     const crossings: RelayUrl[] = [];
-    pool.onDegraded((url) => crossings.push(url));
+    pool.onDegradedChanged((url) => crossings.push(url));
 
     connections.get("wss://one/")?.die(); // failure 1
     clock.advance(1000);
@@ -1473,7 +1581,7 @@ describe("ConnectionPool.onDegraded", () => {
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     const crossings: RelayUrl[] = [];
-    pool.onDegraded((url) => crossings.push(url));
+    pool.onDegradedChanged((url) => crossings.push(url));
 
     connections.get("wss://one/")?.die(); // failure 1
     clock.advance(1000);
@@ -1503,7 +1611,7 @@ describe("ConnectionPool.onDegraded", () => {
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     const crossings: RelayUrl[] = [];
-    const off = pool.onDegraded((url) => crossings.push(url));
+    const off = pool.onDegradedChanged((url) => crossings.push(url));
     off();
 
     connections.get("wss://one/")?.die();

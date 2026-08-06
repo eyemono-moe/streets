@@ -1676,16 +1676,19 @@ describe("SubscriptionManager", () => {
 // These tests drive the same `FakeRelayConnection({ autoOpen: false })` +
 // clock-advance sequence as the test above, but *never* call
 // `manager.replan()` by hand -- the whole point is that the constructor's
-// `pool.onDegraded()` wiring (`connection-pool.ts`) plus the batching in
-// `#scheduleDegradedReplan()` (`subscription-manager.ts`) must produce the
-// replan on their own.
+// `pool.onDegradedChanged()` wiring (`connection-pool.ts`) plus the batching
+// in `#scheduleDegradedReplan()` (`subscription-manager.ts`) must produce the
+// replan on their own. These tests only drive the entry side (crossing into
+// degraded); the exit side is covered at the pool level
+// (`connection-pool.test.ts`'s `onDegradedChanged` tests) and relies on the
+// same batching wired here.
 // ---------------------------------------------------------------------
 describe("SubscriptionManager: automatic replan on a degraded transition", () => {
-  // Mutation: delete `this.#pool.onDegraded(...)` from the constructor (or
-  // have it call nothing) -- this is the end-to-end assertion the slice was
-  // missing. It fails not with a clearly-wrong number but with the plan
-  // simply never changing: `plans` stays empty forever, no matter how far
-  // the clock is advanced.
+  // Mutation: delete `this.#pool.onDegradedChanged(...)` from the
+  // constructor (or have it call nothing) -- this is the end-to-end
+  // assertion the slice was missing. It fails not with a clearly-wrong
+  // number but with the plan simply never changing: `plans` stays empty
+  // forever, no matter how far the clock is advanced.
   it("degrading a relay's last connection automatically replans it out, with no manual replan() call", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
@@ -1755,7 +1758,7 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
   });
 
   // Mutation: remove the batching (call `this.#runReplan()` directly from
-  // the pool.onDegraded callback instead of arming/reusing a timer) -- this
+  // the pool.onDegradedChanged callback instead of arming/reusing a timer) -- this
   // is the ADR-0021 churn concern named explicitly in the final review: "if
   // 30 relays die together they all cross the threshold at nearly the same
   // jittered moment; one replan per crossing would be exactly the churn
@@ -1825,7 +1828,7 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
   // `degradedListenerCount` stays 1 instead of dropping to 0.
   // Mutation: delete the `#degradedReplanTimer` clear from `dispose()` --
   // `clock.pendingCount` stays > 0 instead of dropping to 0.
-  it("dispose() cancels a pending replan batch and unsubscribes from the pool's onDegraded notification", () => {
+  it("dispose() cancels a pending replan batch and unsubscribes from the pool's onDegradedChanged notification", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const clock = createFakeClock();

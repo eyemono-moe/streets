@@ -105,16 +105,20 @@ const REPLAN_MAX_ITERATIONS = 10;
 const DEFAULT_FETCH_ONCE_TIMEOUT_MS = 10_000;
 
 /**
- * `pool.onDegraded()` の遷移通知をまとめる窓 (final review, 2026-08-06,
- * Important 1: "coalesce the burst")。
+ * `pool.onDegradedChanged()` の出入り通知をまとめる窓 (final review,
+ * 2026-08-06, Important 1: "coalesce the burst"; 復帰側の対称バグは
+ * `docs/design/read-layer-followups.md` の「小さいもの」に積み残されて
+ * いたのをこのタスクで閉じた)。
  *
  * ネットワーク断で 30 本が同時に死ぬと、それぞれの再接続は ADR-0021 の
- * ジッタ (0.5〜1.5 倍) のせいで別々のマクロタスクで degraded へ遷移する ——
+ * ジッタ (0.5〜1.5 倍) のせいで別々のマクロタスクで degraded 集合に入る ——
  * `section-reader.ts` の `NOTIFY_BATCH_MS` (16ms、同一マクロタスク内で届いた
  * 複数のリレーメッセージを 1 フレームへ畳むためだけの窓) では、ジッタで
- * ずれた遷移をまとめきれない。素朴に「遷移のたびに 1 回 replan」する実装は、
- * まさに ADR-0021 が re-selection を「死亡・復帰」の契機にしない理由その
- * ものであるチャーンを、degraded 遷移について作ってしまう。
+ * ずれた出入りをまとめきれない。素朴に「出入りのたびに 1 回 replan」する
+ * 実装は、まさに ADR-0021 が re-selection を「死亡・復帰」の契機にしない
+ * 理由そのものであるチャーンを、degraded 集合の出入りについて作ってしまう。
+ * 復帰側でも同じ理由でバッチが要る —— ネットワーク復帰時は 30 本が相次いで
+ * degraded を抜けるので、入る側と対称にバーストが起きる。
  *
  * `profile-requests.ts` の `PROFILE_BATCH_MS` と同じ 200ms を選ぶ ——
  * 「バーストにまたがる複数マクロタスクの発火を 1 本にまとめる」という
@@ -289,14 +293,14 @@ export class SubscriptionManager {
   // 経由するのは pool への受け渡しと、degraded 遷移のバッチ窓 (下記
   // #degradedReplanTimer) の 2 つだけ。
   readonly #scheduler: Scheduler;
-  // pool.onDegraded() の購読解除 (final review, Important 1)。dispose() で
-  // 必ず呼ぶ —— 呼び忘れると、disposed 後に同じ pool インスタンスが再利用
-  // された場合 (ConnectionPool 自身は dispose 後の再利用を禁じていない、
-  // `connection-pool.test.ts` の "does not let a subscription from before
-  // dispose() close a later connection" 参照) に、もう存在しないはずの
-  // マネージャのクロージャが degraded 遷移のたびに呼ばれ続ける。
+  // pool.onDegradedChanged() の購読解除 (final review, Important 1)。
+  // dispose() で必ず呼ぶ —— 呼び忘れると、disposed 後に同じ pool インスタンス
+  // が再利用された場合 (ConnectionPool 自身は dispose 後の再利用を禁じて
+  // いない、`connection-pool.test.ts` の "does not let a subscription from
+  // before dispose() close a later connection" 参照) に、もう存在しないはず
+  // のマネージャのクロージャが degraded 集合の出入りのたびに呼ばれ続ける。
   readonly #offDegraded: () => void;
-  // degraded 遷移をまとめるバッチタイマー (DEGRADED_REPLAN_BATCH_MS 参照)。
+  // degraded 集合の出入りをまとめるバッチタイマー (DEGRADED_REPLAN_BATCH_MS 参照)。
   // #notify() (section-reader.ts) と同じ「デバウンスではなくバッチ」の形:
   // 最初の遷移でタイマーを 1 本張り、窓の間に来た残りの遷移は同じタイマーに
   // 相乗りする。
@@ -311,11 +315,11 @@ export class SubscriptionManager {
       scheduler: this.#scheduler,
       random: options.random,
     });
-    // degraded への遷移は replan() の正当な契機である (final review,
-    // Important 1) —— #scheduleDegradedReplan の doc comment、および
-    // ConnectionPool.onDegraded の doc comment (ADR-0021 と矛盾しない理由)
-    // を参照。
-    this.#offDegraded = this.#pool.onDegraded(() => {
+    // degraded 集合の出入りは replan() の正当な契機である (final review,
+    // Important 1; 復帰側はこのタスクで追加) —— #scheduleDegradedReplan の
+    // doc comment、および ConnectionPool.onDegradedChanged の doc comment
+    // (ADR-0021 と矛盾しない理由) を参照。
+    this.#offDegraded = this.#pool.onDegradedChanged(() => {
       this.#scheduleDegradedReplan();
     });
   }
@@ -481,15 +485,18 @@ export class SubscriptionManager {
    *
    * 接続の生死そのもの (死亡・復帰) は ADR-0021 が「再選択の契機にしない」
    * と決めており、その方針はここでも変えていない。**ただし例外が 1 つだけ
-   * ある**: 接続が `ConnectionPool.onDegraded()` の閾値を越えた瞬間
-   * (final review, 2026-08-06, Important 1) は、このマネージャ自身が
+   * ある**: 接続が `ConnectionPool.onDegradedChanged()` の言う degraded
+   * 集合の出入り、すなわち閾値を越えて入る瞬間と、クールダウン満了・実際に
+   * 開いた・`retryNow()` のいずれかで出る瞬間 (final review, 2026-08-06,
+   * Important 1; 出る側はこのタスクで追加) は、このマネージャ自身が
    * `#offDegraded` のコールバック経由で内部的に replan を起こす (窓は
    * `DEGRADED_REPLAN_BATCH_MS`、詳細は `#scheduleDegradedReplan` 参照)。
-   * これは ADR-0021 と矛盾しない —— 「死亡・復帰」と「degraded への遷移」は
-   * 別の問いであり、後者は単発のブリップでは起こり得ない (4 回連続の relay
-   * 起因の失敗が要る) ので、これをチャーンの原因として禁じる理由が無い。
-   * 呼び出し側からは見えない内部配線であり、下で説明する「明示的に呼ぶ責任」
-   * とは別枠 —— こちらは接続の健全性、あちらはルーティング入力の変化。
+   * これは ADR-0021 と矛盾しない —— 「死亡・復帰」と「degraded 集合への
+   * 出入り」は別の問いであり、後者は単発のブリップでは起こり得ない (4 回
+   * 連続の relay 起因の失敗、あるいはその状態が解けること) ので、これを
+   * チャーンの原因として禁じる理由が無い。呼び出し側からは見えない内部
+   * 配線であり、下で説明する「明示的に呼ぶ責任」とは別枠 —— こちらは接続の
+   * 健全性、あちらはルーティング入力の変化。
    *
    * したがって水和・再ウォームアップなどルーティングをミッドセッションで
    * 変えうる入口を実装する側が、その入口から明示的にこれを呼ぶ責任を持つ。
@@ -501,12 +508,15 @@ export class SubscriptionManager {
   }
 
   /**
-   * `#offDegraded` のコールバックから呼ばれる。バッチ (デバウンスではない)
-   * —— `section-reader.ts` の `#notify()` と同じ形: 最初の遷移でタイマーを
-   * 1 本張り、`DEGRADED_REPLAN_BATCH_MS` の間に来た残りの遷移は同じタイマー
-   * に相乗りする。デバウンス (遷移のたびにタイマーを張り直す) だと、遷移が
-   * 窓より短い間隔で続く限り replan が永久に起きない —— 30 本が次々に
-   * degraded へ落ちる場合にまさにそれが起きる。
+   * `#offDegraded` のコールバックから呼ばれる —— pool 側は degraded 集合に
+   * 入る瞬間・出る瞬間のどちらでもこれを呼ぶ (`ConnectionPool.onDegradedChanged`
+   * 参照)。バッチ (デバウンスではない) —— `section-reader.ts` の
+   * `#notify()` と同じ形: 最初の出入りでタイマーを 1 本張り、
+   * `DEGRADED_REPLAN_BATCH_MS` の間に来た残りの出入りは同じタイマーに
+   * 相乗りする。デバウンス (出入りのたびにタイマーを張り直す) だと、出入り
+   * が窓より短い間隔で続く限り replan が永久に起きない —— 30 本が次々に
+   * degraded へ落ちる場合も、ネットワーク復帰で 30 本が次々に degraded を
+   * 抜ける場合も、対称にこれが起きる。
    *
    * `#runReplan()` を直接呼ぶ (`replan()` を経由しない) のは `subscribe()`/
    * `#close()` と同じ扱い —— 既存の `#replanning`/`#dirty` 再入ガードを

@@ -248,7 +248,7 @@ export class ConnectionPool {
   >();
 
   /**
-   * `onDegraded()` の購読者 (final review, 2026-08-06, Important 1)。
+   * `onDegradedChanged()` の購読者 (final review, 2026-08-06, Important 1)。
    * `degradedRelays` は Task 4 が実装された時点では公開されているだけで、
    * 読みに行く者が誰も居なかった —— `replan()` を呼ぶのはアプリの外側の
    * 経路 (`subscribe()`/`handle.close()`) だけで、接続が死んで degraded に
@@ -312,7 +312,7 @@ export class ConnectionPool {
   }
 
   /**
-   * `onDegraded()` に今登録されている listener の数 (final review,
+   * `onDegradedChanged()` に今登録されている listener の数 (final review,
    * 2026-08-06)。`reservedSize`/`peakSize` と同じ位置づけの診断値 ——
    * `SubscriptionManager.dispose()` が購読を解除し忘れていないかを、
    * プライベートな `#degradedListeners` を晒さずに外から確認する手段。
@@ -322,27 +322,47 @@ export class ConnectionPool {
   }
 
   /**
-   * URL が degraded へ**遷移した瞬間**にだけ通知する (final review,
-   * 2026-08-06, Important 1)。`#noteFailure` が `hard` をちょうど
-   * `DEGRADED_AFTER_FAILURES` に到達させた回だけ発火し、以後さらに失敗が
-   * 積み上がっても再発火しない。
+   * URL が `degradedRelays` の membership を変える**瞬間**にだけ通知する
+   * (final review, 2026-08-06, Important 1; 復帰側は connection-layer
+   * followups の「小さいもの」に積み残されていたのをこのタスクで閉じた)。
+   * 入る側は `#noteFailure` が `hard` をちょうど `DEGRADED_AFTER_FAILURES`
+   * に到達させた回だけ、出る側は `#clearFailures` が degraded だった URL の
+   * 履歴を消す回だけ発火する —— どちらも以後さらに失敗/成功が積み上がって
+   * も再発火しない (「1 URL につきクールダウンごとに高々 1 往復」)。
    *
    * ADR-0021 の「死亡・復帰は再選択の契機にしない」を破るものではない ——
-   * これは死でも復帰でもなく、4 回連続の *relay 起因の* 失敗という、単発の
-   * ブリップでは起こり得ない閾値越えだけを見る。ブリップ 1 回で誤発火しない
-   * ことは `degradedRelays`/`DEGRADED_AFTER_FAILURES` 自体の設計がそもそも
-   * 保証している (Task 2)。
+   * 入る側はブリップでは起こり得ない閾値越え、出る側もその閾値越えの状態を
+   * 解く単発の遷移であり、どちらも死亡・復帰そのもの (ソケット 1 本の生死)
+   * とは別の問い。ブリップ 1 回で誤発火しないことは
+   * `degradedRelays`/`DEGRADED_AFTER_FAILURES` 自体の設計がそもそも保証
+   * している (Task 2)。
    *
    * `RelayConnection.onOpen`/`onClose` と同じ形: 購読して解除関数を返す。
    * 名前は「何を報告するか」であって「呼び出し側がそれをどう使うか」ではない
-   * —— これは degraded への遷移そのものの通知であり、「replan せよ」という
-   * 命令ではない (呼び出し側が何をすべきかを決めるのは呼び出し側の責務)。
+   * —— これは degraded 集合への出入りそのものの通知であり、「replan せよ」
+   * という命令ではない (呼び出し側が何をすべきかを決めるのは呼び出し側の
+   * 責務)。
    */
-  onDegraded(listener: (url: RelayUrl) => void): () => void {
+  onDegradedChanged(listener: (url: RelayUrl) => void): () => void {
     this.#degradedListeners.add(listener);
     return () => {
       this.#degradedListeners.delete(listener);
     };
+  }
+
+  /**
+   * `degradedRelays` の membership が変わった URL を購読者へ知らせる。
+   * **入る側 (`#noteFailure`) と出る側 (`#clearFailures`) の両方から呼ぶ** ——
+   * 出る側が無かったために、クールダウンが明けて候補に戻せるようになった
+   * リレーが、無関係な `replan()` が起きるまで候補外のまま残っていた
+   * (接続層スライスの積み残し、`docs/design/read-layer-followups.md`)。
+   *
+   * 集合をコピーしてから回すのは、listener が購読解除を呼んだ場合に
+   * 反復中の Set を変更しないため (`onDegradedChanged` の解除関数は
+   * `#degradedListeners.delete` を呼ぶ)。
+   */
+  #notifyDegradedChanged(url: RelayUrl): void {
+    for (const listener of [...this.#degradedListeners]) listener(url);
   }
 
   /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
@@ -366,7 +386,7 @@ export class ConnectionPool {
    * 期限が来て degraded が解除されてしまわないようにするため。
    *
    * `hard` がちょうど `DEGRADED_AFTER_FAILURES` に到達した回だけ
-   * `onDegraded()` の購読者へ通知する (final review, Important 1)。
+   * `onDegradedChanged()` の購読者へ通知する (final review, Important 1)。
    * `degradedRelays` が消える経路 (open, `retryNow()`, クールダウン) は
    * すべて `#failures` からこの URL のレコードそのものを削除するので、
    * 次に degraded になるときは必ず `previousHard` が 0 から数え直しになる
@@ -380,7 +400,13 @@ export class ConnectionPool {
     const previousHard = existing?.hard ?? 0;
     const hard = previousHard + (reason === "relay" ? 1 : 0);
     const timer = this.#scheduler.setTimeout(() => {
-      this.#failures.delete(url);
+      // `#failures.delete` を直に呼ばない —— クールダウン満了は degraded
+      // 集合からの離脱そのものであり、通知経路を通らない削除を作ると、
+      // まさにこのタスクが塞いでいる隙間が別の場所に再発する。
+      // 発火済みのタイマーに対して `#clearFailures` が `clearTimeout` を
+      // 呼び直すが、これは無害 (実タイマーでは no-op、偽クロックでは
+      // 既に消えた id の delete)。
+      this.#clearFailures(url);
     }, DEGRADED_COOLDOWN_MS);
     this.#failures.set(url, { count, hard, timer });
 
@@ -388,19 +414,28 @@ export class ConnectionPool {
       previousHard < DEGRADED_AFTER_FAILURES &&
       hard >= DEGRADED_AFTER_FAILURES
     ) {
-      for (const listener of [...this.#degradedListeners]) listener(url);
+      this.#notifyDegradedChanged(url);
     }
   }
 
   /**
    * `url` の失敗履歴を消す。呼ばれるのは実際に開いた時 (`#attachConnection`
-   * が登録する `onOpen`) と、人間が起こした `retryNow()` の 2 箇所だけ。
+   * が登録する `onOpen`)、人間が起こした `retryNow()`、そしてクールダウンの
+   * 満了 (`#noteFailure` が張るタイマー) の 3 箇所。
+   *
+   * 消す前に degraded だったなら、その URL は今この瞬間に degraded 集合から
+   * 出たことになるので購読者へ通知する —— `selectRelays` の `degraded` 入力
+   * から消えただけでは何も起きない (ADR-0021)。**通知しないと、復帰した
+   * リレーは次に無関係な `replan()` が走るまで候補に戻らない。**
    */
   #clearFailures(url: RelayUrl): void {
     const existing = this.#failures.get(url);
     if (!existing) return;
     this.#scheduler.clearTimeout(existing.timer);
     this.#failures.delete(url);
+    if (existing.hard >= DEGRADED_AFTER_FAILURES) {
+      this.#notifyDegradedChanged(url);
+    }
   }
 
   /**
@@ -751,10 +786,11 @@ export class ConnectionPool {
       this.#clearFailures(url);
       this.#reconnect(url);
     }
-    for (const { timer } of this.#failures.values()) {
-      this.#scheduler.clearTimeout(timer);
-    }
-    this.#failures.clear();
+    // `#failures.clear()` を直に呼ばない —— degraded だった URL は今ここで
+    // 集合から出るので、購読者に知らせないと手動再試行が「バックオフだけ
+    // 消して選択には反映されない」半端な操作になる。キーはスナップショット
+    // を取ってから回す (`#clearFailures` が反復対象の Map を変更する)。
+    for (const url of [...this.#failures.keys()]) this.#clearFailures(url);
   }
 
   /**
@@ -774,6 +810,10 @@ export class ConnectionPool {
   dispose(): void {
     for (const url of [...this.#pool.keys()]) this.#drop(url);
     this.#pool.clear();
+    // dispose() は復帰ではない。ここを `#clearFailures` に寄せると、
+    // 自分より長生きした listener にだけ届く通知を作ることになる
+    // (`SubscriptionManager.dispose()` は #offDegraded を先に呼んでから
+    // pool.dispose() する)。意図的に直接消す。
     for (const { timer } of this.#failures.values()) {
       this.#scheduler.clearTimeout(timer);
     }
