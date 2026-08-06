@@ -17,7 +17,7 @@ export type PooledSubscription = { close(): void };
 export type PooledHold = { release(): void };
 
 /**
- * `subscribe()` へ渡す省略可能なオプション。
+ * `subscribe()` と `hold()` へ渡す省略可能なオプション。
  *
  * `reserved: true` は ADR-0011 の予算チェック (`size >= maxConnections`) を
  * 丸ごと迂回する唯一の脱出口 — **ブートストラップ (`warmUpRouting`,
@@ -520,7 +520,11 @@ export class ConnectionPool {
         if (released) return;
         released = true;
         const current = this.#pool.get(url);
-        if (!current) return;
+        // `close()` の対応する分岐と同じ理由 — dispose() を挟んで同じ URL が
+        // 開き直された場合、今ここに居るのは別のレコードである。同一性を
+        // 確かめずに減らすと、この release() が後から作られた無関係な
+        // hold の枠を奪い、まだ握っている呼び出し元の接続を落としてしまう。
+        if (!current || current !== pooled) return;
         current.holds -= 1;
         if (current.holds === 0 && current.entries.size === 0) {
           this.#drop(url);
@@ -583,7 +587,11 @@ export class ConnectionPool {
       // `#reconnect` が `#pool.get(url)` で見つけられず無言で何もせず、
       // hold は二度と接続を取り戻せなくなる。
       if (pooled.entries.size === 0 && pooled.holds === 0) {
-        this.#pool.delete(url);
+        // `#pool.delete` ではなく `#drop` を通す。ここでは `connection` も
+        // `offClose` も null なので両者は等価だが、`#drop` は待機中の
+        // タイマーも消すため、この分岐の安全性が「タイマーは張られていない
+        // はず」という非局所な論証に依存しなくなる。
+        this.#drop(url);
       }
       return Promise.reject(new Error(`relay unavailable: ${url}`));
     }

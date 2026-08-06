@@ -747,7 +747,7 @@ describe("ConnectionPool", () => {
 // `hold()` replaces it: a first-class "keep this connection open" handle
 // that never calls `connection.subscribe()`, so nothing reaches the wire.
 // ---------------------------------------------------------------------
-describe("hold", () => {
+describe("ConnectionPool.hold()", () => {
   // 変異: hold() を subscribe() で実装すると落ちる。これがこのタスクの
   // 中心的な主張 — 接続の保持はワイヤに何も出してはならない。
   it("opens the connection without sending any REQ", () => {
@@ -830,6 +830,30 @@ describe("hold", () => {
   // 通すので、subscribe()/publish() と同じ `{ reserved: true }` の迂回が
   // 効く -- アンカーの subscribe() から hold() へ載せ替えても、予算超過でも
   // 必ず開けるという性質 (bootstrap.ts) は失われていない。
+  // 変異: release() の同一性チェック (current !== pooled) を消すと落ちる。
+  // dispose() を挟んで同じ URL が開き直された場合、古い release() が後から
+  // 作られた無関係な hold の枠を奪い、まだ握っている呼び出し元の接続を
+  // 落としてしまう。subscribe() の close() は同じ危険を既に防いでいる。
+  it("release() from a disposed pool entry does not drop a newer hold", () => {
+    const { pool } = createPool();
+    const stale = pool.hold("wss://one/");
+    pool.dispose();
+
+    const fresh = pool.hold("wss://one/");
+    expect(pool.size).toBe(1);
+
+    stale?.release();
+
+    // fresh はまだ握っているので、接続は生きていなければならない。
+    expect(pool.size).toBe(1);
+
+    fresh?.release();
+    expect(pool.size).toBe(0);
+  });
+
+  // 変異: hold() の #ensureConnection 呼び出しから options を落とすと
+  // 落ちる。ブートストラップの予算迂回が hold() に効かなくなり、
+  // 予算が埋まっている間はインデクサを握れなくなる。
   it("bypasses the budget with { reserved: true }, same as subscribe()", () => {
     const { pool } = createPool({ maxConnections: 1 });
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
