@@ -216,6 +216,7 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 
 | 箇所 | 内容 |
 |---|---|
+| `subscription-manager.ts` | `retryNow()` は失敗履歴を消すが、再プランを起こさない。選択から外されて `#drop` まで済んだ degraded なリレーには `Pooled` レコードがもう無いので、プール側の再接続ループは何もできず、履歴を消した効果は**次の無関係な `replan()` が走るまで現れない**。[ADR-0021](../adr/0021-reconnection-policy.md) に足した段落は `retryNow()` が即座の復帰手段であるかのように読める。**今日は潜在的** —— `retryNow` を呼ぶ UI がまだ無い。UI から繋ぐときに、`retryNow()` が `replan()` も起こすようにすること |
 | `connection-pool.test.ts` | 「ゾンビ再接続タイマーを残さない」テストが、名指ししている変異を捕まえない。縦断スライスの最終レビューで、`#attachConnection` のタイマークリア処理を削除して（まさにそのバグを再導入して）走らせたところ**通ってしまった**。`connectCalls` が増えないことしか見ておらず、`#reconnect()` の `pooled.connection` ガードによってタイマーの有無に関わらず真になるため。**製品コードは正しい**（直読と、もう 1 つの C2 テストの変異検出で確認済み）ので park した。**直すための道具は既に同じファイルにある** —— `clock.clearTimeoutCallCount` は以前の修正ラウンドで「`connectCalls` が増えないことはタイマーが消えた証明にならない、スケジューラ自身の呼び出し回数を直接数えるしかない」という理由で追加されたものであり、このテストはそれを使っていない |
 | `connection-pool.ts` | `#ensureConnection()` の connect 失敗経路が、`publish()` しか触っていない URL について**エントリ 0 件の `Pooled` レコードを `#pool` に残す**。`size` は生きている接続だけを数えるので予算には影響せず、`retryNow()`/`#reconnect()` も空エントリでは no-op なので実害は無いが、到達不能なリレーへ publish を繰り返すたびに死んだ Map エントリが積もる。テストも無い |
 | `connection-pool.ts` | `publish()` が一時的に積む `PUBLISH_ONLY_HANDLERS` のエントリが安全なのは、`WebSocketRelayConnection.fail()` が**保留中の publish を reject してから** `onClose` を発火する、というマイクロタスク／マクロタスクの暗黙の順序に依存している。今日は正しい（reject はマイクロタスク、再接続は 500ms 以上先のマクロタスク）が、`fail()` の順序をリファクタすると `["REQ", subId]`（フィルタ 0 個）がワイヤに出る。順序を固定するテストが無い |

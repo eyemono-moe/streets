@@ -5,13 +5,19 @@ export type QueryPlan = {
   perRelay: Map<RelayUrl, RelayFilter[]>;
   /** write relay が分からず fallback に回した著者 (重複なし) */
   unroutableAuthors: string[];
-  /** 宣言はあるが接続予算で落ちて、どこへも送られなかった著者 (重複なし) */
+  /**
+   * 宣言はあるが、どこへも送られなかった著者 (重複なし)。予算切れと
+   * 「宣言リレーが全部 degraded」の両方がここに来る。
+   */
   uncoveredAuthors: string[];
 };
 
 export type PlanQueryOptions = {
   filters: RelayFilter[];
-  /** 著者 → 購読するリレー。**宣言があった著者だけ**が入る。空配列 = 予算切れ */
+  /**
+   * 著者 → 購読するリレー。**宣言があった著者だけ**が入る。空配列になるのは
+   * 予算切れか、宣言リレーが全部 degraded だった場合 (`selectRelays` 参照)。
+   */
   assignment: ReadonlyMap<string, readonly RelayUrl[]>;
   fallbackRelays: readonly RelayUrl[];
 };

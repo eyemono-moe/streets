@@ -3,7 +3,10 @@ import type { RelayUrl } from "../relay/relay-connection";
 export type Selection = {
   /** 開くべきリレー。pinned を含む。長さ <= budget */
   readonly picks: readonly RelayUrl[];
-  /** 著者 → 購読するリレー。demand の全著者が入る (空配列 = 予算切れ) */
+  /**
+   * 著者 → 購読するリレー。demand の全著者が入る。**空配列になる理由は 2 つ** —
+   * 接続予算で落ちた場合と、宣言リレーが全部 `degraded` だった場合。
+   */
   readonly assignment: ReadonlyMap<string, readonly RelayUrl[]>;
   /** 1 本も確保できなかった著者 */
   readonly uncovered: readonly string[];
