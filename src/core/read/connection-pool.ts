@@ -948,7 +948,23 @@ export class ConnectionPool {
         );
       } catch {
         entry.subscription = null;
-        entry.handlers.onClosed("relay unavailable");
+        // 呼び出し先は任意の消費者コード (セクション) であり、ここは複数
+        // エントリを 1 つのループで処理している。無防備に呼ぶと、1 つの
+        // セクションのコールバックが投げただけで、まだ張り直していない
+        // 残りのエントリが REQ 無しのまま取り残される —— ソケットは生きて
+        // いるので `#onConnectionDied` も二度と起きず、そのカラムはページの
+        // 寿命が尽きるまで沈黙する (ADR-0011 が禁じる隠れた劣化)。
+        // `SubscriptionManager.#deliver` / `SectionReader.#notify` と同じ
+        // 作法: 専用の報告チャネルは無いので console.error に落とす。主目的
+        // は隔離であって報告ではない。
+        try {
+          entry.handlers.onClosed("relay unavailable");
+        } catch (error) {
+          console.error(
+            "ConnectionPool: an onClosed handler threw while re-attaching; isolating it so the remaining entries keep their subscriptions.",
+            error,
+          );
+        }
       }
     }
   }

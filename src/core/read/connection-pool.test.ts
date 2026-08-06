@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { NostrEvent } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type {
@@ -1189,6 +1189,70 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     // timer.
     clock.advance(60_000);
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
+  });
+
+  // Task 3 (2026-08-06 degraded-recovery-and-isolation): `#attachConnection`'s
+  // re-attach loop calls `entry.handlers.onClosed(...)` for every entry that
+  // fails to re-subscribe. `handlers` is arbitrary consumer code (a section,
+  // via SubscriptionManager). Before this task that call was unguarded, so
+  // one throwing handler escaped the `for` loop and every entry after it in
+  // iteration order never got its own `onClosed` -- its subscription stayed
+  // `null` with a live socket, so `#onConnectionDied` never fires again and
+  // that column goes dark for the life of the page (ADR-0011's "hidden
+  // degradation"). Same shape as the vertical slice's final-review finding 4
+  // (`#replanOnce` / `SectionReader.#notify`).
+  //
+  // `subscribeFailing` makes *every* `connection.subscribe()` call for this
+  // url throw, including the two calls the initial `pool.subscribe()`s make
+  // directly (that call site is a separate, already-guarded-by-design spot:
+  // `subscribe()` reports failure via a direct, unguarded
+  // `handlers.onClosed(...)` call of its own, out of scope for this task).
+  // A `shouldThrow` flag keeps the first entry's handler quiet during that
+  // unrelated initial call and only starts throwing once the die()/retryNow()
+  // cycle drives `#attachConnection`'s loop over *both* entries -- confirmed
+  // by tracing `#ensureConnection` -> `#attachConnection` (pooled.entries is
+  // still empty at that point) -> `subscribe()`'s own try/catch (which is
+  // where the first two "first"/"second" pushes actually come from, not from
+  // the loop under test) -> `die()` -> `#onConnectionDied` -> `#scheduleReconnect`
+  // -> `retryNow()` -> `#reconnect()` -> `#attachConnection` again, this time
+  // with both entries already registered in `pooled.entries`.
+  it("isolates a throwing onClosed so the remaining entries are still re-attached", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { pool, connections } = createPool({
+      subscribeFailing: ["wss://one/"],
+    });
+
+    const seen: string[] = [];
+    let shouldThrow = false;
+    pool.subscribe("wss://one/", [{ kinds: [1] }], {
+      ...noopHandlers(),
+      onClosed: () => {
+        seen.push("first");
+        if (shouldThrow) throw new Error("consumer blew up");
+      },
+    });
+    pool.subscribe("wss://one/", [{ kinds: [2] }], {
+      ...noopHandlers(),
+      onClosed: () => {
+        seen.push("second");
+      },
+    });
+    // The two subscribe() calls above already delivered their own
+    // "relay unavailable" report each, independently of the loop under
+    // test -- clear that noise before arming the throw.
+    seen.length = 0;
+    shouldThrow = true;
+
+    // Kill the socket so the reconnect path re-runs `#attachConnection`
+    // over *both* entries in one loop -- that loop is what the isolation
+    // protects. `retryNow()` (rather than advancing the backoff timer) is
+    // used because it deterministically drives `#reconnect` synchronously
+    // without depending on jitter.
+    connections.get("wss://one/")?.die();
+    pool.retryNow();
+
+    expect(seen).toEqual(["first", "second"]);
+    errorSpy.mockRestore();
   });
 });
 
