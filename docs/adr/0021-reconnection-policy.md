@@ -49,12 +49,12 @@ Task 8（接続プール）が先に、自然死したソケットの予算 (ADR
 
 `src/core/read/connection-pool.ts` の `ConnectionPool`:
 
-- `Pooled` に `attempts`（連続失敗回数）と `timer`（保留中の再接続タイマー）を持たせる。
+- `Pooled` に `timer`（保留中の再接続タイマー）を持たせる。連続失敗の記録は `Pooled` ではなくプール自身が `#failures`（`Map<RelayUrl, { count, hard, timer }>`）として持つ —— `count` はバックオフの指数用（理由を問わず増える）、`hard` は `degradedRelays` 用（リレー起因の失敗だけで増える、[ADR-0025](./0025-greedy-relay-selection-under-a-global-budget.md)）。`Pooled` から切り離してあるのは、購読者ゼロで `#drop` されるたびに履歴が消えて degraded 判定が振動しないようにするため。
 - 接続が自然死したとき (`#onConnectionDied`) の末尾で `#scheduleReconnect(url)` を呼ぶ。誰も待っていない (`entries.size === 0`) URL には積まない。
-- `#scheduleReconnect` は `base = min(1000 * 2^attempts, 60000)`、`delay = base * (0.5 + random())` でタイマーを積む。
+- `#scheduleReconnect` は `base = min(1000 * 2^count, 60000)`（`count` は上の `#failures` のバックオフ用カウンタ）、`delay = base * (0.5 + random())` でタイマーを積む。
 - `#reconnect` は予算が埋まっていれば奪わずに `#scheduleReconnect` へ戻る。`connect()` の失敗と `connection.subscribe()` の失敗は区別する — 前者はソケットそのものが使えないので丸ごと再試行、後者は「ソケットは生きているが特定の REQ だけ失敗した」なので接続は保持したままそのエントリだけ `onClosed` で報告する（`subscribe()` の新規購読パスと同じ区別）。
 - `#drop(url)`（購読ゼロで登録を消すとき）と `dispose()` は必ず保留タイマーを `clearTimeout` する。消し忘れると、閉じたはずのリレーへ永遠に再接続を試み続けるゾンビタイマーになる。
-- `retryNow()` は保留中の全 URL についてタイマーを消し、`attempts` を 0 にリセットしてから即座に `#reconnect` を試みる。
+- `ConnectionPool.retryNow()` は 2 段構え。まず `#pool` に生きているレコードが残っている URL (`connection` が非 null のものは対象外) についてタイマーを消し即座に `#reconnect` を試みる —— これは `entries.size === 0` で `#drop` 済みの URL には届かない。続けて `#failures` を丸ごと掃除する（キーをスナップショットしてから `#clearFailures` を回す）—— こちらは `Pooled` レコードが既に無い URL にも届く、フィールド全体（`count`/`hard`/クールダウンタイマー）の削除であって、単純な「0 にリセット」ではない。この 2 段目のループが、購読者ゼロで既に drop されている degraded なリレーの履歴を消す唯一の経路であり、下の行が言う「`Pooled` レコードが残っていない degraded なリレーも即座に候補へ戻す」を裏で支えている。
 - タイマー・ジッタは `ConnectionPoolOptions.scheduler` / `random` で注入可能（既定は実タイマー / `Math.random`）。読み取り層が DOM も実タイマーも直接掴んでいないことを構造で示すためで、テストは `vi.useFakeTimers()` ではなく手で進める偽スケジューラを注入する。
 - `SubscriptionManager.retryNow()` は `pool.retryNow()` へ委譲するだけでは終わらない —— 同じ呼び出しの中で同期的に `#runReplan()` も呼び、`#drop()` 済みで `Pooled` レコードが残っていない degraded なリレーも即座に候補へ戻す。続けて保留中の `#degradedReplanTimer` があれば畳む —— `pool.retryNow()` が `#clearFailures` 経由で `onDegradedChanged` を発火させ、バッチタイマーを起動していることがあるため、放置すると同じ復帰について 200ms 後にもう一度無駄な `replan()` が走る（degraded-recovery-and-isolation Task 2）。
 
@@ -74,13 +74,15 @@ Task 4 の実装直後 (2026-08-05) はここに配線漏れがあった: `Subsc
 
 **修正: degraded への遷移そのものを、正当な replan の契機として追加した。** `ConnectionPool.onDegradedChanged(listener)`（degraded-recovery-and-isolation Task 1 で `onDegraded` から改名）は、degraded 集合に**入る瞬間と出る瞬間の両方**で通知する（以後さらに失敗/成功が積み上がっても、次に集合の内外が変わるまでは再発火しない）。`SubscriptionManager` はコンストラクタでこれを購読し、通知が来るたびに `#scheduleDegradedReplan()` でバッチタイマー（`DEGRADED_REPLAN_BATCH_MS`、既定 200ms、`profile-requests.ts` の `PROFILE_BATCH_MS` と同じ値・同じ理由）を張る（既に張ってあれば何もしない）。窓が閉じると 1 回だけ `#runReplan()` を呼ぶ —— ネットワーク断で 30 本が同時に死んでも、ジッタでずれた個々の遷移が 1 本の replan にまとまる。`dispose()` はこの購読とタイマーの両方を必ず後始末する。
 
-これは上の「諦めない」規則と矛盾しない。ADR が禁じているのは「死亡・復帰そのもの」を再選択の契機にすることであり、それは単発のブリップ（一時的な瞬断など）でも起こるので、契機にすると健全なリレーまで選び直しのチャーンに巻き込む。degraded への遷移はブリップでは起こり得ない —— `DEGRADED_AFTER_FAILURES`（既定 4 回）連続の *リレー起因* の失敗（予算超過のバウンスは含めない）が要り、しかも 1 URL につき `DEGRADED_COOLDOWN_MS` ごとに高々 1 回しか遷移しない（失敗履歴のレコードは open / `retryNow()` / クールダウンのどれかで消えるまで生き続け、次に degraded になるときは必ずゼロから数え直しになるため）。「死亡・復帰」と「degraded への遷移」は問いとして別物であり、後者だけを契機にする限りこの ADR の方針を変えていない。
+これは上の「諦めない」規則と矛盾しない。ADR が禁じているのは「死亡・復帰そのもの」を再選択の契機にすることであり、それは単発のブリップ（一時的な瞬断など）でも起こるので、契機にすると健全なリレーまで選び直しのチャーンに巻き込む。degraded への遷移はブリップでは起こり得ない —— `DEGRADED_AFTER_FAILURES`（既定 4 回）連続の *リレー起因* の失敗（予算超過のバウンスは含めない）が要る。**これは「`DEGRADED_COOLDOWN_MS`（300 秒）ごとに高々 1 往復」という頻度の上限ではない**（final review, 2026-08-06, Minor 3: 以前ここにそう書いていたのは誤りだった）—— 出口（open、`retryNow()`）はクールダウンを待たずに失敗履歴を即座に消すため、実際の往復の下限は 4 回連続失敗にかかる時間（指数バックオフの下でおよそ 15 秒）であり、30,000ms のシミュレーションで 2 往復・4 回の通知が観測されている。この速い往復は、購読者を持つ通常のリレーでは起こらない —— degraded への遷移自体が replan を起こし（`DEGRADED_REPLAN_BATCH_MS` のバッチ窓越しに約 200ms 後）、除外された URL は購読者を失って `#drop` されるため、次の 4 回連続失敗が積み上がる前にソケット自体が失われる。到達可能なのは degraded 除外の対象外である pinned／明示指定リレーだけで、そこでは replan は選択結果に効かない no-op になる。「死亡・復帰」と「degraded への遷移」は問いとして別物であり、後者だけを契機にする限りこの ADR の方針を変えていない。
 
 除外された URL は誰にも購読されなくなり、その結果 `#scheduleReconnect` 自体も止まる（購読者がいなければ再接続を試みる理由が無い）。したがって「除外 → 再接続停止 → 二度と回復しない」という一方通行にならないよう、`DEGRADED_COOLDOWN_MS`（既定 300 秒）というクールダウンを用意した —— 最後の失敗からこの時間だけ何も起きなければ失敗履歴を消し、次の `replan()` で再び候補に戻す。
 
 **この「戻り」の専用の起動経路が無いという隙間は、degraded-recovery-and-isolation 計画で閉じた。** 上の段落が書いている「入る瞬間と出る瞬間の両方で通知する」がそのまま答えになっている —— `degradedRelays` から URL が抜ける 3 経路（`DEGRADED_COOLDOWN_MS` クールダウンの満了、実際に開いた (`onOpen`)、手動再試行 (`retryNow()`)）はすべて `ConnectionPool.#clearFailures` を通り、そこが「消す前に degraded だったなら通知する」を担う（Task 1）。除外側と全く同じ `onDegradedChanged` 配線・同じ `DEGRADED_REPLAN_BATCH_MS` バッチ窓に相乗りするので、`SubscriptionManager` 側に復帰専用の新しい配線は要らなかった。
 
-これでも churn を作らない —— 復帰側の通知は「degraded だった URL が degraded でなくなった」という単発の遷移でしかなく、degraded に入るにはそもそも `DEGRADED_AFTER_FAILURES`（既定 4 回）連続のリレー起因の失敗が要るので、ブリップだけで入って出て通知が乱発することはない。**したがって、以前ここに書いていた「除外の側は自動配線で閉じたが、復帰の側は同じ形の隙間が残っている」はもう成り立たない**（`docs/design/read-layer-followups.md` の該当行も解消済みとして更新した）。サーキットブレーカの half-open にあたる。これが「購読者ゼロで再接続が止まっているリレー」が候補へ戻る唯一の経路である。
+これでも churn を作らない —— 復帰側の通知は「degraded だった URL が degraded でなくなった」という単発の遷移でしかなく、degraded に入るにはそもそも `DEGRADED_AFTER_FAILURES`（既定 4 回）連続のリレー起因の失敗が要るので、ブリップだけで入って出て通知が乱発することはない。**したがって、以前ここに書いていた「除外の側は自動配線で閉じたが、復帰の側は同じ形の隙間が残っている」はもう成り立たない**（`docs/design/read-layer-followups.md` の該当行も解消済みとして更新した）。サーキットブレーカの half-open にあたる。
+
+ただし、これは「自動でひとりでに」戻る唯一の経路にすぎない —— 「購読者ゼロで再接続が止まっているリレー」が候補へ戻る経路はこれだけではない（final review, 2026-08-06, Minor 2: 以前ここに書いていた「唯一の経路である」は、この段落が本来指していた「開いた瞬間 (`onOpen`) と手動再試行 (`retryNow()`) でも失敗履歴が即座に消える」という前提を書き落としたまま結論だけ残した編集の産物で、誤りだった）。人間が起こす手動再試行も同じ目的地に届く: `ConnectionPool.retryNow()` の末尾は `#pool` に生きているレコードが残る URL だけでなく `#failures` の全キーも掃除するため（`#drop` は `#failures` を消さないので、`#pool` から既に消えた URL のキーも残っている）、`Pooled` レコードが drop 済みの degraded なリレーでも履歴はここで消える。続けて `SubscriptionManager.retryNow()` が同じ呼び出しの中で呼ぶ同期的な `#runReplan()` が、その履歴消滅を実際に候補復帰へ変える（上の「実装」節、degraded-recovery-and-isolation Task 2）。
 
 ## Consequences
 

@@ -327,8 +327,14 @@ export class ConnectionPool {
    * followups の「小さいもの」に積み残されていたのをこのタスクで閉じた)。
    * 入る側は `#noteFailure` が `hard` をちょうど `DEGRADED_AFTER_FAILURES`
    * に到達させた回だけ、出る側は `#clearFailures` が degraded だった URL の
-   * 履歴を消す回だけ発火する —— どちらも以後さらに失敗/成功が積み上がって
-   * も再発火しない (「1 URL につきクールダウンごとに高々 1 往復」)。
+   * 履歴を消す回だけ発火する —— それぞれ同じ方向へは再発火しない。
+   * **`DEGRADED_COOLDOWN_MS` ごとに高々 1 往復、という頻度の上限を主張して
+   * いるのではない** (final review, 2026-08-06, Minor 3) —— 出口
+   * (`onOpen`・`retryNow()`) はクールダウンを待たずに失敗履歴を即座に消すため、
+   * 実際の往復の下限は「4 回連続のリレー起因の失敗」にかかる時間 (指数
+   * バックオフの下でおよそ 15 秒) であり 300 秒ではない。ここが保証している
+   * のはブリップ (単発の失敗) では発火し得ないことだけ —— 詳細は ADR-0021
+   * 参照。
    *
    * ADR-0021 の「死亡・復帰は再選択の契機にしない」を破るものではない ——
    * 入る側はブリップでは起こり得ない閾値越え、出る側もその閾値越えの状態を
@@ -360,9 +366,31 @@ export class ConnectionPool {
    * 集合をコピーしてから回すのは、listener が購読解除を呼んだ場合に
    * 反復中の Set を変更しないため (`onDegradedChanged` の解除関数は
    * `#degradedListeners.delete` を呼ぶ)。
+   *
+   * listener ごとに try/catch で隔離する (final review, 2026-08-06,
+   * Important 1)。`#notifyDegradedChanged` は `#noteFailure`/`#clearFailures`
+   * 経由で `subscribe()`/`hold()`/`retryNow()` から同期的に呼ばれうる ——
+   * `subscribe()` は「接続や購読の確立に失敗しても例外は外に投げない」と
+   * 明記しており、ここが素の呼び出しのままだと 1 つの listener が投げた
+   * だけで `subscribe()` 自身が例外を投げて呼び出し元まで抜けてしまう。
+   * さらに、隔離しないと 1 つ目の listener が投げた時点で反復が止まり、
+   * それより後に登録された listener はこの遷移を一切知らないまま degraded
+   * 集合の認識が古くなる。`SubscriptionManager.#deliver` /
+   * `SectionReader.#notify` / `#attachConnection` の catch 節 (Task 3) と
+   * 同じ作法: 専用の報告チャネルは無いので `console.error` に落とす。主目的は
+   * 隔離であって報告ではない。
    */
   #notifyDegradedChanged(url: RelayUrl): void {
-    for (const listener of [...this.#degradedListeners]) listener(url);
+    for (const listener of [...this.#degradedListeners]) {
+      try {
+        listener(url);
+      } catch (error) {
+        console.error(
+          "ConnectionPool: an onDegradedChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
+          error,
+        );
+      }
+    }
   }
 
   /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
@@ -390,8 +418,12 @@ export class ConnectionPool {
    * `degradedRelays` が消える経路 (open, `retryNow()`, クールダウン) は
    * すべて `#failures` からこの URL のレコードそのものを削除するので、
    * 次に degraded になるときは必ず `previousHard` が 0 から数え直しになる
-   * —— 「1 URL につき `DEGRADED_COOLDOWN_MS` ごとに高々 1 回」という
-   * 最終レビューの要求はこの削除規約からそのまま従う。
+   * —— この削除規約が保証しているのは「クールダウンごとに高々 1 回」という
+   * 頻度の上限ではなく「ブリップでは決して発火しない」ことである (final
+   * review, 2026-08-06, Minor 3)。open/`retryNow()` は `DEGRADED_COOLDOWN_MS`
+   * を待たずに履歴を消すため、再び入るまでの実際の下限は 4 回連続のリレー
+   * 起因失敗にかかる時間 (指数バックオフの下でおよそ 15 秒) —— 詳細は
+   * ADR-0021 参照。
    */
   #noteFailure(url: RelayUrl, reason: ReconnectReason): void {
     const existing = this.#failures.get(url);

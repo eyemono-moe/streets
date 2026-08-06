@@ -1720,6 +1720,65 @@ describe("ConnectionPool.onDegradedChanged", () => {
     expect(crossings).toEqual([]);
     expect(pool.degradedRelays).toEqual(["wss://one/"]); // the state itself is unaffected
   });
+
+  // Final review (2026-08-06), Important 1: `#notifyDegradedChanged` called
+  // listeners with a bare `for` loop. `subscribe()` documents that it never
+  // throws, but `subscribe()` -> `#scheduleReconnect` -> `#noteFailure` ->
+  // `#notifyDegradedChanged` is a synchronous path into arbitrary consumer
+  // code with nothing in between -- a throwing listener escaped `subscribe()`
+  // itself. The loop also has the mirror-image bug: a throw from listener 1
+  // stops the loop, so listener 2 (registered after) never hears about the
+  // crossing and its view of the degraded set goes stale. Same shape as
+  // `#attachConnection`'s Task 3 fix and `SubscriptionManager.#deliver`.
+  //
+  // Reproduction (from the review): drive a url to 3 relay-caused failures
+  // via connect() itself throwing (not die()/reconnect, so the 4th failure's
+  // crossing happens inside a *fresh* `subscribe()` call rather than a
+  // background reconnect timer), close() the subscription (drops the
+  // `Pooled` record, but `#failures` survives by design -- see "remembers
+  // failures across a drop of the pool entry" above), register a throwing
+  // listener followed by a normal one, then `subscribe()` the same url
+  // again. The 4th failure crosses DEGRADED_AFTER_FAILURES synchronously
+  // inside that `subscribe()` call.
+  //
+  // Mutation caught: delete the try/catch around `listener(url)` in
+  // `#notifyDegradedChanged` (bare `for (const listener of [...]) listener(url);`).
+  // `subscribe()` then throws synchronously, and the second listener never
+  // sees the crossing.
+  it("isolates a throwing onDegradedChanged listener so subscribe() stays total and later listeners still hear the crossing", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { pool, clock } = createPool({
+      random: () => 0.5,
+      failing: ["wss://one/"],
+    });
+
+    // Failure 1: the initial subscribe()'s own connect() throws.
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    // Failure 2: the first backoff-driven reconnect attempt also fails.
+    clock.advance(1000);
+    // Failure 3: same again.
+    clock.advance(2000);
+    expect(pool.degradedRelays).toEqual([]); // 3 so far -- not yet degraded
+
+    // Drops the Pooled record (connection is still null, mid-backoff) --
+    // #failures (hard=3) survives, by design.
+    sub?.close();
+
+    pool.onDegradedChanged(() => {
+      throw new Error("first listener blew up");
+    });
+    const seenByOther: RelayUrl[] = [];
+    pool.onDegradedChanged((url) => seenByOther.push(url));
+
+    // The 4th relay-caused failure -- and the crossing it triggers -- both
+    // happen synchronously inside this call.
+    expect(() =>
+      pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers()),
+    ).not.toThrow();
+
+    expect(seenByOther).toEqual(["wss://one/"]);
+    errorSpy.mockRestore();
+  });
 });
 
 // ---------------------------------------------------------------------
