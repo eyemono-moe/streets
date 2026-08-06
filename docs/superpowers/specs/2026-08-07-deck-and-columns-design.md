@@ -240,7 +240,9 @@ export const saveDeveloperMode = (enabled: boolean): string;
 - カラムごと: `phase` と `incomplete` の 3 数値
 - ヘッダ: `unrequestedEventsByRelay`（リレーごとの、フィルタに合わないイベントの受信数）
 
-`data-testid` は現在のものをそのまま引き継ぐ（`connections` / `peak-connections` / `deck-column-phase` / `deck-column-incomplete` / `optimistic-insert-ms`）。既存の e2e が名前で拾っている。
+`data-testid` は現在のものをそのまま引き継ぐ（`connections` / `peak-connections` / `deck-column-phase` / `deck-column-incomplete` / `optimistic-insert-ms`）。名前を変える理由が無く、実鍵での検証手順もこの名前で書かれている。
+
+**`/debug/v1-section` は開発者モードの対象外。** ADR-0026 が定めているのはユーザーが使う画面の話であり、`/debug/` 以下は経路自体が開発者専用である。二重に隠す意味は無く、隠すと `connection-budget.spec.ts` / `section-cap.spec.ts` を無意味に壊す。**この 2 つの e2e は変更しなくてよい**（どちらも `/debug/v1-section` を見ており、`/v1-preview` の診断値には触れていない —— 2026-08-07 に確認）。
 
 ## 9. 投稿フォームと楽観挿入
 
@@ -280,7 +282,9 @@ export const saveDeveloperMode = (enabled: boolean): string;
 - **開発者モードが無効のとき `deck-column-phase` / `deck-column-incomplete` / `connections` が DOM に存在しない**
 - 有効にすると出る
 
-**既存 e2e の修正が要る。** `connection-budget.spec.ts` / `section-cap.spec.ts` は診断値を読んでいるので、開発者モードを有効にしてから開く必要がある。`page.addInitScript` で `localStorage` に `streets.v1.developerMode` を書くフィクスチャを共通化すること。**この修正を忘れると既存の e2e が落ちる。**
+開発者モードを有効にした状態で開くには `page.addInitScript` で `localStorage` に `streets.v1.developerMode` を書く。**新しい e2e のためのヘルパーであり、既存の e2e を直すためのものではない**（8 節のとおり、既存の 2 つは `/debug/v1-section` を見ている）。
+
+**既存 e2e の修正が要るのは `v1-preview.spec.ts` だけ。** ルート名が `/v1-preview` → `/v1` に変わり、`defaultDeck` のシグネチャと `Deck.version` も変わる。診断値は読んでいないので開発者モードとは無関係。ファイル名も `v1.spec.ts` に改める。
 
 テストは捕まえる変異を明記し、実際にその変異を入れて落ちることを確認すること（このリポジトリの規律）。
 
