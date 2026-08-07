@@ -52,6 +52,31 @@ describe("buildColumn", () => {
     });
   });
 
+  it("hashtag は先頭の # を複数個すべて落とす (最終レビュー Minor 3)", () => {
+    // 捕まえる変異: `/^#/` のように 1 個しか落とさない —— `##nostr` が
+    // タグ値 `"#nostr"` になり、NIP-12 のタグ値に # を含む本物のイベントは
+    // 無いので永久に一致しない
+    expect(buildColumn("hashtag", "##nostr")?.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["nostr"] }],
+    });
+  });
+
+  it("hashtag は大文字を小文字化する (最終レビュー Minor 3)", () => {
+    // 捕まえる変異: 大文字小文字をそのまま保存する —— NIP-24 は t タグの値を
+    // 小文字にする SHOULD を定めており、主要クライアントは小文字で publish
+    // するため、大文字混じりのタグ値は実在するイベントと一致せず永久に
+    // 何も来ない
+    expect(buildColumn("hashtag", "#Nostr")?.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["nostr"] }],
+    });
+    expect(buildColumn("hashtag", "NOSTR")?.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["nostr"] }],
+    });
+  });
+
   it("hashtag は空文字で undefined", () => {
     // 捕まえる変異: 空を通す (`#t: [""]` のカラムができる)
     expect(buildColumn("hashtag", "  ")).toBeUndefined();

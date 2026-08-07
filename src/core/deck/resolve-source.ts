@@ -1,7 +1,21 @@
 import type { NostrSource } from "../read/source";
 import type { ColumnSource } from "./deck";
 
-export type ResolveContext = { followees: readonly string[] };
+/**
+ * `followees` を遅延アクセサにしているのは、呼び出し側 (`DeckColumn.tsx`)
+ * が `createMemo` の中でこれを呼ぶため —— 引数として即時評価される値
+ * (`{ followees: props.followees() }`) だと、それを組み立てるためだけに
+ * `props.followees()` を呼ぶ必要があり、`literal` 列であっても
+ * `warmUpRouting` の結果 (フォローリストのリソース) を毎回読むことになる。
+ * Solid の `createMemo` は「実行中に読んだシグナル」を機械的に依存として
+ * 記録するので、これ 1 つで `literal` 列まで warmUp の解決に巻き込まれ、
+ * ウォームアップが settle するたびに全カラムの `source` memo が再計算 →
+ * `createSection` の `createEffect` が古い `SectionReader` を破棄して
+ * 新しいものを張り直す、という再購読が起きる (最終レビュー Important 1)。
+ * `followees` を呼び出すのを `kind === "followees"` の分岐の中だけに
+ * 限定すれば、その分岐を実際に評価したときだけ依存が生まれる。
+ */
+export type ResolveContext = { followees: () => readonly string[] };
 
 /**
  * デッキが保存している「意図」(`ColumnSource`) を、読み取り層が理解する
@@ -21,7 +35,7 @@ export const resolveSource = (
     // なる。空配列は「該当者なし」であって「無制限」ではない。
     return {
       type: "nostr",
-      filters: [{ kinds: source.kinds, authors: [...context.followees] }],
+      filters: [{ kinds: source.kinds, authors: [...context.followees()] }],
     };
   }
 

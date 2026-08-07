@@ -46,8 +46,16 @@ export const buildColumn = (
 
     case "hashtag": {
       // NIP-12 のタグ値に `#` は含まれない。ユーザーは `#nostr` と打つ
-      // ほうが自然なので、ここで落とす。
-      const tag = input.trim().replace(/^#/, "");
+      // ほうが自然なので、先頭の `#` を (`##nostr` のように複数あっても)
+      // すべて落とす —— `/^#/` (1 個だけ) だと `##nostr` が `#nostr` と
+      // いうタグ値になり、NIP-12 のタグ値に `#` を含む本物のイベントは
+      // 存在しないので永久に一致しない (最終レビュー Minor 3)。
+      //
+      // さらに NIP-24 は `t` タグの値を小文字にする SHOULD を定めており、
+      // 主要クライアントも小文字で publish する。NIP-01 のタグフィルタは
+      // 完全一致なので、`#Nostr` のように大文字混じりで保存すると実在する
+      // 小文字のタグ値と一致せず、同じく永久に何も来ない。
+      const tag = input.trim().replace(/^#+/, "").toLowerCase();
       if (tag.length === 0) return undefined;
       return {
         id,

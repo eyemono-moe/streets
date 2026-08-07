@@ -177,13 +177,27 @@ const V1: Component = () => {
 
     deckInitialized = true;
     const fresh = defaultDeck(pk);
-    window.localStorage.setItem(storageKey, saveDeck(fresh));
+    // **順序が重要 (最終レビュー Minor 5)**: `setDeck` を先に、
+    // `localStorage.setItem` を後に。`setItem` はストレージが無効・
+    // Safari プライベートモードなどで例外を投げうる。逆順 (今までの順序)
+    // だと、その例外でこの `createEffect` が中断し `setDeck` まで到達
+    // しないため `deck()` が永久に `undefined` のまま —— 空デッキの表示に
+    // 固定され、`addColumn` も `!deck()` で早期リターンするので「+」を
+    // 押しても何も起きない、詰んだセッションになる。先に `setDeck` して
+    // おけば、`setItem` が後で失敗しても「保存はされないが今のセッションは
+    // 使える」という縮退で済む。
     setDeck(fresh);
+    window.localStorage.setItem(storageKey, saveDeck(fresh));
   });
 
   // デッキの変更は必ずこの 1 関数を通す —— 保存を忘れた経路が 1 つでも
   // あると、その操作だけリロードで消える (ユーザーには「たまに保存され
   // ない」としか見えない、いちばん報告しにくい壊れ方になる)。
+  //
+  // ここも `setDeck` → `setItem` の順序 (最終レビュー Minor 5、上の初期化
+  // 効果と同じ理由) —— こちらは元から正しい順序だった。`setItem` が例外を
+  // 投げても、画面はすでに新しいデッキを見ているので操作そのものは反映
+  // される (次回リロードで戻るだけで、その場では詰まない)。
   const updateDeck = (next: Deck) => {
     const pk = pubkey();
     if (!pk) return;

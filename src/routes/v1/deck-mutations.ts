@@ -48,6 +48,14 @@ export const renameColumnIn = (deck: Deck, id: string, title: string): Deck => {
   // 判定になって次のリロードで既定デッキに戻る —— 1 本のタイトルを消し
   // ただけで全部消えるという壊れ方になる (task-4-brief.md)。
   if (trimmed.length === 0) return deck;
+  // 実際に値が変わらない改名も同じ参照を返す (最終レビュー Minor 2) ——
+  // `commitTitle` はタイトルを見るためにクリックして blur しただけでも
+  // 発火するので、ここで弾かないと「クリックして見ただけ」で該当カラムの
+  // オブジェクト参照が変わり、`<For>` がそのカラムを丸ごと remount して
+  // 購読を張り直してしまう (identity ではなく `id` でカラムを追う根本修正は
+  // 次のスライスへ繰延、`docs/design/read-layer-followups.md` 参照)。
+  const target = deck.columns.find((column) => column.id === id);
+  if (target && target.title === trimmed) return deck;
   return {
     ...deck,
     columns: deck.columns.map((column) =>

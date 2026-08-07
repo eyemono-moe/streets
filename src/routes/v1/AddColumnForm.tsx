@@ -49,7 +49,23 @@ const AddColumnForm: Component<{
 
   const submit = (event: Event) => {
     event.preventDefault();
-    const column = buildColumn(kind(), input());
+    // `buildColumn` は「不正な入力」を undefined で返す契約だが、
+    // `crypto.randomUUID()` のように**入力に関係なく**投げうる呼び出しも
+    // 内部に持つ (最終レビュー Minor 4: secure context 外、例えば http://
+    // の LAN 開発サーバでは `crypto.randomUUID` 自体が無く TypeError)。
+    // ここで catch せずにいると、その例外は submit ハンドラの外へそのまま
+    // 抜け、`add-column-error` は一切出ないまま「追加」ボタンが押しても
+    // 何も起きないように見える —— 原因が UUID かどうかに関わらず、
+    // buildColumn が投げうるものは何であれ同じ経路でユーザーに見せる。
+    let column: ReturnType<typeof buildColumn>;
+    try {
+      column = buildColumn(kind(), input());
+    } catch (error) {
+      setError(
+        `カラムを作成できませんでした: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return;
+    }
     if (!column) {
       // フォームを閉じない —— buildColumn が undefined を返すのは「誰にも
       // マッチしないカラムを黙って作らない」契約であり、ここで閉じてしまう

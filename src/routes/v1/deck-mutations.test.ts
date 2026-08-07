@@ -74,4 +74,13 @@ describe("renameColumnIn", () => {
     const current = deck("a");
     expect(renameColumnIn(current, "a", "   ")).toBe(current);
   });
+
+  it("trim 後に元のタイトルと同じなら同じ参照を返す (最終レビュー Minor 2)", () => {
+    // 捕まえる変異: trim 後の一致判定を落とす —— `commitTitle` は blur の
+    // たびに発火するので、タイトルをクリックして見ただけで blur するだけで
+    // (実際には何も変えていないのに) 新しいカラムオブジェクトができ、
+    // `<For>` がそのカラムを remount して購読を張り直してしまう
+    const current = deck("a");
+    expect(renameColumnIn(current, "a", "  a  ")).toBe(current);
+  });
 });

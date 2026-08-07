@@ -76,8 +76,14 @@ const DeckColumn: Component<{
   onRename: (title: string) => void;
 }> = (props) => {
   const source = createMemo<NostrSource>(() => {
+    // `followees: props.followees` (呼ばずに渡す) —— `resolveSource` が
+    // `kind: "followees"` の分岐でだけこれを呼ぶ (`resolve-source.ts` の
+    // コメント参照)。ここで `props.followees()` と呼んで値を渡してしまうと、
+    // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
+    // を読んだことになり、ウォームアップが settle するたびに全カラムが
+    // 再購読される (最終レビュー Important 1)。
     const resolved = resolveSource(props.column.source, {
-      followees: props.followees(),
+      followees: props.followees,
     });
     // `?relays=` の e2e 上書きは**解決した後**に当てる —— 上書きが見るのは
     // `NostrSource.relays` であって `ColumnSource` ではない。順序を逆に
