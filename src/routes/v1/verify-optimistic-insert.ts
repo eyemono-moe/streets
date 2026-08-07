@@ -7,7 +7,7 @@ import type { PutResult } from "../../core/read/event-store";
  * `createNip07Signer().signEvent()` が返す `NostrEvent` は拡張機能の応答を
  * 無検証キャストしただけの、信頼境界を跨ぐ値 (`nip07-signer.ts` 参照)。
  * id/署名が壊れていれば `EventStore.put()` は `"rejected"` を返すが、
- * `v1-preview.tsx` の投稿フォームはその戻り値を捨てて楽観表示を無条件に
+ * `v1.tsx` の投稿フォームはその戻り値を捨てて楽観表示を無条件に
  * 出していた。EventStore に入っていない投稿を「見えている」ことにすると
  * リロードで静かに消え、`publisher.publish()` は壊れたイベントをそのまま
  * リレーへ送ってしまう。読み取り層は `collect.ts`/`subscription-manager.ts`/

@@ -77,7 +77,7 @@ const routes = [
       },
     ],
   },
-  // `/v1-preview` は `Root` の子ではなく、`"/"` と並ぶトップレベルの経路に
+  // `/v1` は `Root` の子ではなく、`"/"` と並ぶトップレベルの経路に
   // する。`Root` は旧実装の `<Columns />` を `{props.children}` の隣に常時
   // 描画するため、`Root` の子のままだと 3 カラムが旧デッキの "Home" /
   // "Notifications" カラムに押し潰されて画面幅が足りない (Task 2 のスクリ
@@ -85,8 +85,8 @@ const routes = [
   // ビューポート全幅を使える。`App.tsx` のプロバイダは `<Router>` の外側に
   // あるので、トップレベル経路でも変わらず効く。
   {
-    path: "/v1-preview",
-    component: lazy(() => import("./routes/v1-preview")),
+    path: "/v1",
+    component: lazy(() => import("./routes/v1")),
   },
 ] satisfies RouteDefinition[];
 

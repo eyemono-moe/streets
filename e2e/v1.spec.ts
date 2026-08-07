@@ -60,7 +60,7 @@ test.describe("v1 vertical slice", () => {
 
     await stubSigner(page);
 
-    await page.goto(`/v1-preview?relays=${previewRelayUrl}`);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
 
     // 1. ログインすると自分の pubkey が出る
     await page.getByTestId("login").click();

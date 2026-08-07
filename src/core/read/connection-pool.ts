@@ -110,7 +110,7 @@ type ReconnectReason = "relay" | "budget";
  * `.then(onFulfilled, onRejected)` からしか呼ばれないので、OK も死亡通知
  * も来ないリレーが 1 本あるだけで `pooled.entries` が永遠に空にならず、
  * 誰も購読していないそのリレーが 30 接続予算のうち 1 本を握ったまま
- * 戻らない。`v1-preview.tsx` は `publisher.publish()` を `await` するので、
+ * 戻らない。`v1.tsx` は `publisher.publish()` を `await` するので、
  * このハングは投稿フォームの `finally { setPosting(false) }` まで巻き込み、
  * 「リロードするまで二度と投稿できない」という壊れ方をする。
  *
@@ -698,7 +698,7 @@ export class ConnectionPool {
    * 黙って捨てる実装が実在する。`WebSocketRelayConnection.publish()` は
    * OK かソケット死亡でしか settle しないので、それ以外の理由でここが
    * 待ち続けると `release()` が一生呼ばれず、30 接続予算のうち 1 本を
-   * 誰も購読していないリレーへ永久に握らせたまま `v1-preview.tsx` の
+   * 誰も購読していないリレーへ永久に握らせたまま `v1.tsx` の
    * `posting` が下りなくなる。タイムアウトは reject と同時に必ず
    * `release()` も行う — 予算を返さない決着の仕方を作らない。
    */

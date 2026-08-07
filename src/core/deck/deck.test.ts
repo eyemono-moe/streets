@@ -289,7 +289,7 @@ describe("deckStorageKey (final review, Important 3)", () => {
   });
 
   it("A が保存したデッキは B のキーからは読めない", () => {
-    // v1-preview.tsx の `window.localStorage` の代わりに Map で十分 ——
+    // v1.tsx の `window.localStorage` の代わりに Map で十分 ——
     // ここで確かめたいのはキーの分離そのもので、Storage API の挙動では
     // ない。
     const storage = new Map<string, string>();
@@ -309,7 +309,7 @@ describe("deckStorageKey (final review, Important 3)", () => {
     storage.set(deckStorageKey(pubkeyA), saveDeck(deckA));
 
     // 捕まえる変異: deckStorageKey が pubkey を無視する、あるいは
-    // v1-preview.tsx 側が保存済みデッキを pubkey を確かめずそのまま使う
+    // v1.tsx 側が保存済みデッキを pubkey を確かめずそのまま使う
     // (アカウント境界の欠落)。B のキーでは A のデッキは存在しない
     // (undefined = defaultDeck へ落ちる) ことを確かめる。
     expect(

@@ -1073,7 +1073,7 @@ describe("ConnectionPool.publish()", () => {
   // `.then(onFulfilled, onRejected)` -- never runs, `pooled.entries` never
   // empties, and `#drop()` never runs: that socket holds one of the 30
   // slots for a relay nobody is subscribed to, and (since publisher.ts uses
-  // Promise.allSettled and v1-preview.tsx awaits the whole publish) the
+  // Promise.allSettled and v1.tsx awaits the whole publish) the
   // composer's `finally { setPosting(false) }` never runs either.
   // -------------------------------------------------------------------
   it("times out and releases the slot when the relay never sends OK or dies (Critical 1)", async () => {

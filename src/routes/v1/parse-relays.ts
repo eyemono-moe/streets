@@ -3,10 +3,10 @@ import type { RelayUrl } from "../../core/relay/relay-connection";
 /**
  * `?relays=<url1>,<url2>,...` を `warmUpRouting` の `indexers` /
  * `SubscriptionManager` の `fallbackRelays` へそのまま渡せる値に変換する
- * (`src/routes/v1-preview.tsx`)。debug ルートの `?budget=` (`parse-budget.ts`)
+ * (`src/routes/v1.tsx`)。debug ルートの `?budget=` (`parse-budget.ts`)
  * と同じ形。
  *
- * **これは e2e 専用の抜け道であり、既定の経路ではない。** `/v1-preview` は
+ * **これは e2e 専用の抜け道であり、既定の経路ではない。** `/v1` は
  * 通常 `default-relays.ts` の `BOOTSTRAP_INDEXERS` / `FALLBACK_RELAYS` —
  * すなわちインターネット上の本物のリレー — へ接続する。**自分の鍵で
  * ログインして自分のタイムラインが出る**ことがこのスライスの目的であり、
