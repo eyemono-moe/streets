@@ -1,0 +1,169 @@
+import { describe, expect, it } from "vitest";
+import type { NostrEvent } from "./event";
+import {
+  embeddedRepostEvent,
+  quoteTargets,
+  replyTarget,
+  repostTarget,
+} from "./event-refs";
+
+const ID_A = "a".repeat(64);
+const ID_B = "b".repeat(64);
+const PK = "c".repeat(64);
+
+const noteWith = (
+  tags: string[][],
+  overrides: Partial<NostrEvent> = {},
+): NostrEvent => ({
+  id: ID_A,
+  pubkey: PK,
+  created_at: 1_700_000_000,
+  kind: 1,
+  tags,
+  content: "",
+  // isNostrEvent は sig を hex として検証するので、"s" のような非 hex 文字は使えない
+  // (embeddedRepostEvent のテストが isNostrEvent を通すため)
+  sig: "1".repeat(128),
+  ...overrides,
+});
+
+describe("replyTarget", () => {
+  it("reply marker があればそれを返す", () => {
+    // 捕まえる変異: root を優先する (親ではなくスレッドの先頭を親として
+    // 表示してしまう —— 長いスレッドで「誰への返信か」が常に間違う)
+    expect(
+      replyTarget(
+        noteWith([
+          ["e", ID_A, "wss://a/", "root", PK],
+          ["e", ID_B, "wss://b/", "reply", PK],
+        ]),
+      ),
+    ).toEqual({ form: "id", id: ID_B, relay: "wss://b/", pubkey: PK });
+  });
+
+  it("reply が無ければ root を返す", () => {
+    // 捕まえる変異: reply marker だけを見る。NIP-10 は「ルートへの直接の
+    // 返信は root marker の e タグ 1 本だけを持つ」と定めているので、
+    // reply だけを見ると最も普通の返信が親を持たないことになる
+    expect(replyTarget(noteWith([["e", ID_B, "", "root"]]))).toEqual({
+      form: "id",
+      id: ID_B,
+    });
+  });
+
+  it("marker の無い e タグは無視する", () => {
+    // 捕まえる変異: 位置ベースの旧形式を解釈する。NIP-10 自身が
+    // deprecated かつ「曖昧で解決不能」としている
+    expect(replyTarget(noteWith([["e", ID_B, "wss://b/"]]))).toBeUndefined();
+  });
+
+  it("空文字のリレー URL は relay を持たせない", () => {
+    // 捕まえる変異: 空文字をそのまま relay に入れる (NIP-10 は
+    // 「may be empty string」と明記している。空文字をリレーヒントとして
+    // 下流へ渡すと接続先として使われうる)
+    expect(replyTarget(noteWith([["e", ID_B, "", "root"]]))).not.toHaveProperty(
+      "relay",
+    );
+  });
+
+  it("pubkey が 64 桁 hex でなければ落とす", () => {
+    // 捕まえる変異: 5 番目の要素を検証せずそのまま入れる (仕様 9 節)
+    expect(replyTarget(noteWith([["e", ID_B, "", "root", "nope"]]))).toEqual({
+      form: "id",
+      id: ID_B,
+    });
+  });
+
+  it("id が 64 桁 hex でなければタグごと落とす", () => {
+    // 捕まえる変異: id を検証しない (壊れた id で fetchOnce を撃つ)
+    expect(replyTarget(noteWith([["e", "short", "", "root"]]))).toBeUndefined();
+  });
+});
+
+describe("quoteTargets", () => {
+  it("q タグを順に返す", () => {
+    // 捕まえる変異: 最初の 1 件だけ返す (複数引用が消える)
+    expect(
+      quoteTargets(
+        noteWith([
+          ["q", ID_A, "wss://a/", PK],
+          ["q", ID_B, "", ""],
+        ]),
+      ),
+    ).toEqual([
+      { form: "id", id: ID_A, relay: "wss://a/", pubkey: PK },
+      { form: "id", id: ID_B },
+    ]);
+  });
+
+  it("event-address 形式を address として返す", () => {
+    // 捕まえる変異: id と同じ扱いにする (`30023:<pubkey>:<d>` を
+    // `{ ids: [...] }` で引きに行き、永久に見つからない)
+    expect(
+      quoteTargets(noteWith([["q", `30023:${PK}:slug`, "wss://a/"]])),
+    ).toEqual([
+      { form: "address", address: `30023:${PK}:slug`, relay: "wss://a/" },
+    ]);
+  });
+
+  it("e タグは引用ではない", () => {
+    // 捕まえる変異: e タグも引用として拾う。NIP-18 が q タグを作った目的
+    // そのものが「引用がスレッドの返信として現れないようにする」ことなので、
+    // 逆向きに混ぜると返信が引用として二重に描かれる
+    expect(quoteTargets(noteWith([["e", ID_B, "", "root"]]))).toEqual([]);
+  });
+});
+
+describe("repostTarget", () => {
+  it("e タグを返す", () => {
+    expect(
+      repostTarget(noteWith([["e", ID_B, "wss://b/"]], { kind: 6 })),
+    ).toEqual({
+      form: "id",
+      id: ID_B,
+      relay: "wss://b/",
+    });
+  });
+
+  it("e タグが無ければ undefined (例外を投げない)", () => {
+    // 捕まえる変異: throw する。v0 のパーサはそうしているが、1 件の不正な
+    // イベントでカラム全体を壊してはいけない (仕様 9 節)
+    expect(() => repostTarget(noteWith([], { kind: 6 }))).not.toThrow();
+    expect(repostTarget(noteWith([], { kind: 6 }))).toBeUndefined();
+  });
+});
+
+describe("embeddedRepostEvent", () => {
+  it("content の JSON がイベントの形なら返す", () => {
+    const embedded = noteWith([], { id: ID_B });
+    expect(
+      embeddedRepostEvent(
+        noteWith([], { kind: 6, content: JSON.stringify(embedded) }),
+      ),
+    ).toEqual(embedded);
+  });
+
+  it("content が空なら undefined", () => {
+    // 捕まえる変異: 空文字を JSON.parse に渡して例外を投げる
+    expect(
+      embeddedRepostEvent(noteWith([], { kind: 6, content: "" })),
+    ).toBeUndefined();
+  });
+
+  it("JSON として壊れていれば undefined", () => {
+    // 捕まえる変異: try/catch を省く
+    expect(
+      embeddedRepostEvent(noteWith([], { kind: 6, content: "{ not json" })),
+    ).toBeUndefined();
+  });
+
+  it("イベントの形をしていなければ undefined", () => {
+    // 捕まえる変異: isNostrEvent を通さずキャストする。埋め込みは
+    // **リポストした人が書いた任意の文字列**であり、形すら信用できない
+    expect(
+      embeddedRepostEvent(
+        noteWith([], { kind: 6, content: JSON.stringify({ hello: 1 }) }),
+      ),
+    ).toBeUndefined();
+  });
+});
