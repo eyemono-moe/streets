@@ -1,5 +1,6 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
 import type { Component } from "solid-js";
+import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
@@ -9,6 +10,8 @@ import type { ProfileRequests } from "../../core/read/profile-requests";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
 import { createSection } from "../../core/solid/create-section";
+import ColumnAlertBadge from "./ColumnAlertBadge";
+import DiagnosticsPanel from "./DiagnosticsPanel";
 import Note from "./Note";
 import { parseRelays } from "./parse-relays";
 
@@ -56,6 +59,12 @@ const DeckColumn: Component<{
    * リストを重ね合わせる。
    */
   optimisticEvents: () => NostrEvent[];
+  /**
+   * 開発者モードが有効かどうか (ADR-0026)。`deck-column-phase` /
+   * `deck-column-incomplete` (診断値) の描画条件としてのみ使う ——
+   * `ColumnAlertBadge` (行動できる異常) はこれを見ない。
+   */
+  developerMode: () => boolean;
   /** 先頭カラムなら false。「←」を非表示にはせず disabled にする —— 押せる
    * ボタンの数が並べ替えのたびに変わらないほうが、連打での位置把握が楽。 */
   canMoveLeft: () => boolean;
@@ -84,6 +93,10 @@ const DeckColumn: Component<{
     store: props.store,
     manager: props.manager,
   });
+
+  // ユーザーが行動できる異常だけを取り出す (ADR-0026)。判定そのものは
+  // columnAlerts (Task 2) に集約済みで、ここでは呼ぶだけ。
+  const alerts = createMemo(() => columnAlerts(props.column, section.status()));
 
   /**
    * 楽観挿入とセクション本体の items をマージする (仕様 6 節、受け入れ確認
@@ -185,6 +198,8 @@ const DeckColumn: Component<{
           />
         </Show>
 
+        <ColumnAlertBadge alerts={alerts} />
+
         <button
           type="button"
           data-testid="column-move-right"
@@ -203,31 +218,34 @@ const DeckColumn: Component<{
           ×
         </button>
       </header>
-      <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
-        phase: {section.status().phase}
-      </p>
       {/*
-        仕様 7 節が要求する「`status.incomplete` の生の数値をそのまま見せる」。
-        ADR-0011 は欠落を黙って隠すことを禁じており、ユーザー向けの翻訳層は
-        繰延にしたので、ここでは診断値のまま出す。
+        ADR-0026: `status.incomplete` は行動できない診断値であり、開発者
+        モードが有効なときだけ出す (計算自体は developerMode の有無に関わらず
+        常に正しく続く —— ここで隠れるのは表示だけ)。行動できる異常
+        (unreachableRelays かつ明示リレー) は `ColumnAlertBadge` が別枠で
+        常時出す。
 
-        Task 2 の単一カラムでは出していたが、Task 3 で `DeckColumn` へ書き直した
-        際に落ちていた (2026-08-05 に人手で発見)。3 つのレビューが見落としたのは、
-        この要求が spec の別の節 (エラー処理表) にあり、Task 3 の受け入れ確認が
-        カラム数・リロード・localStorage に向いていたためである。
+        仕様 7 節が要求していた「生の数値をそのまま見せる」は、ADR-0026 に
+        より「開発者モードの背後でそのまま見せる」へ改まった (ADR-0011 の
+        改訂と同じ扱い)。
       */}
-      <Show when={section.status().incomplete}>
-        {(incomplete) => (
-          <p
-            class="text-alpha-600 text-xs"
-            data-testid="deck-column-incomplete"
-          >
-            unreachableRelays: {incomplete().unreachableRelays} /
-            unroutableAuthors: {incomplete().unroutableAuthors} /
-            uncoveredAuthors: {incomplete().uncoveredAuthors}
-          </p>
-        )}
-      </Show>
+      <DiagnosticsPanel visible={props.developerMode}>
+        <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
+          phase: {section.status().phase}
+        </p>
+        <Show when={section.status().incomplete}>
+          {(incomplete) => (
+            <p
+              class="text-alpha-600 text-xs"
+              data-testid="deck-column-incomplete"
+            >
+              unreachableRelays: {incomplete().unreachableRelays} /
+              unroutableAuthors: {incomplete().unroutableAuthors} /
+              uncoveredAuthors: {incomplete().uncoveredAuthors}
+            </p>
+          )}
+        </Show>
+      </DiagnosticsPanel>
       <ul data-testid="items" class="space-y-2">
         <For each={items()}>
           {(event) => (

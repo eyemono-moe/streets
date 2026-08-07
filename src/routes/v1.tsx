@@ -23,12 +23,18 @@ import { createProfileRequests } from "../core/read/profile-requests";
 import { RoutingTable } from "../core/read/routing-table";
 import { SubscriptionManager } from "../core/read/subscription-manager";
 import { connectRelay } from "../core/relay/websocket-relay-connection";
+import {
+  DEVELOPER_MODE_STORAGE_KEY,
+  loadDeveloperMode,
+  saveDeveloperMode,
+} from "../core/settings/developer-mode";
 import { createNip07Signer } from "../core/signer/nip07-signer";
 import { SignerUnavailableError } from "../core/signer/signer";
 import { type PublishResult, createPublisher } from "../core/write/publisher";
 import Button from "../shared/components/UI/Button";
 import AddColumnForm from "./v1/AddColumnForm";
 import DeckColumn from "./v1/DeckColumn";
+import DiagnosticsPanel from "./v1/DiagnosticsPanel";
 import {
   addColumnTo,
   moveColumnIn,
@@ -74,6 +80,22 @@ const V1: Component = () => {
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
   const [deck, setDeck] = createSignal<Deck>();
+
+  // 開発者モード (ADR-0026)。端末ごと (localStorage)、既定は無効。デッキ
+  // (pubkey ごとの deckStorageKey) とは別の保存先 —— どの端末で開発者と
+  // して見ているかはアカウントの設定ではない (developer-mode.ts のコメント
+  // 参照)。設定画面はまだ無い (フェーズ C) ので、トグルをヘッダに直置きする。
+  const [developerMode, setDeveloperMode] = createSignal(
+    loadDeveloperMode(window.localStorage.getItem(DEVELOPER_MODE_STORAGE_KEY)),
+  );
+  const toggleDeveloperMode = () => {
+    const next = !developerMode();
+    setDeveloperMode(next);
+    window.localStorage.setItem(
+      DEVELOPER_MODE_STORAGE_KEY,
+      saveDeveloperMode(next),
+    );
+  };
 
   // 読み取り層の配線。debug/v1-section.tsx と同じ構成
   // (EventStore → RoutingTable → SubscriptionManager → warmUpRouting →
@@ -215,9 +237,18 @@ const V1: Component = () => {
   const [peakConnections, setPeakConnections] = createSignal(
     manager.peakConnectionCount,
   );
+  // manager.unrequestedEventsByRelay も同じ理由でシグナルではない
+  // (copy-on-read の ReadonlyMap, subscription-manager.ts 参照)。今まで
+  // どこにも表示先が無かった値 —— 開発者モード (DiagnosticsPanel) ができて
+  // 初めて置き場所ができた。debug/v1-section.tsx と同じく [url, count][]
+  // に写して保持する。
+  const [unrequestedEventsByRelay, setUnrequestedEventsByRelay] = createSignal<
+    [string, number][]
+  >([]);
   const syncConnectionSignals = () => {
     setConnections(manager.connectionCount);
     setPeakConnections(manager.peakConnectionCount);
+    setUnrequestedEventsByRelay([...manager.unrequestedEventsByRelay]);
   };
   createEffect(() => {
     warmUp();
@@ -333,7 +364,21 @@ const V1: Component = () => {
   return (
     <div class="flex h-100dvh w-screen flex-col overflow-hidden">
       <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
-        <h1 class="font-bold text-lg">v1 プレビュー</h1>
+        <div class="flex items-center justify-between gap-2">
+          <h1 class="font-bold text-lg">v1 プレビュー</h1>
+          {/*
+            開発者モードのトグル (ADR-0026)。設定画面は作らない (Consequences
+            が定めるフェーズ C) —— 端末ごとの localStorage を直接読み書き
+            するだけの、ヘッダ直置きのトグル。
+          */}
+          <Button
+            data-testid="developer-mode-toggle"
+            variant="border"
+            onClick={toggleDeveloperMode}
+          >
+            開発者モード: {developerMode() ? "ON" : "OFF"}
+          </Button>
+        </div>
 
         <Show
           when={!pubkey()}
@@ -345,21 +390,47 @@ const V1: Component = () => {
               >
                 {pubkey()}
               </p>
-              <p data-testid="connections" class="text-alpha-600 text-xs">
-                connections: {connections()}
-              </p>
-              <p data-testid="peak-connections" class="text-alpha-600 text-xs">
-                peakConnections: {peakConnections()}
-              </p>
-              <p
-                data-testid="optimistic-insert-ms"
-                class="text-alpha-600 text-xs"
-              >
-                optimisticInsertMs:{" "}
-                {optimisticInsertMs() === undefined
-                  ? "-"
-                  : optimisticInsertMs()?.toFixed(2)}
-              </p>
+              {/*
+                ADR-0026: connections/peakConnections/optimisticInsertMs/
+                unrequestedEventsByRelay はどれも行動できない診断値であり、
+                開発者モードが有効なときだけ出す。値の計算 (syncConnectionSignals)
+                自体は開発者モードの有無に関わらず常に続く —— 隠れるのは
+                表示だけ (ADR-0011 の改訂で撤回されなかった要件)。
+              */}
+              <DiagnosticsPanel visible={developerMode}>
+                <div class="flex flex-wrap items-center gap-3">
+                  <p data-testid="connections" class="text-alpha-600 text-xs">
+                    connections: {connections()}
+                  </p>
+                  <p
+                    data-testid="peak-connections"
+                    class="text-alpha-600 text-xs"
+                  >
+                    peakConnections: {peakConnections()}
+                  </p>
+                  <p
+                    data-testid="optimistic-insert-ms"
+                    class="text-alpha-600 text-xs"
+                  >
+                    optimisticInsertMs:{" "}
+                    {optimisticInsertMs() === undefined
+                      ? "-"
+                      : optimisticInsertMs()?.toFixed(2)}
+                  </p>
+                  <ul
+                    data-testid="unrequested-relays"
+                    class="text-alpha-600 text-xs"
+                  >
+                    <For each={unrequestedEventsByRelay()}>
+                      {([url, count]) => (
+                        <li data-testid="unrequested-relay">
+                          {url} = {count}
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </div>
+              </DiagnosticsPanel>
             </div>
           }
         >
@@ -464,6 +535,7 @@ const V1: Component = () => {
                   profileRequests={profileRequests}
                   followees={() => warmUp()?.followees ?? []}
                   optimisticEvents={optimisticEvents}
+                  developerMode={developerMode}
                   canMoveLeft={() => index() > 0}
                   canMoveRight={() =>
                     index() < (deck()?.columns.length ?? 0) - 1

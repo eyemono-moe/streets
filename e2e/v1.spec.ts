@@ -52,6 +52,20 @@ const stubSigner = async (page: import("@playwright/test").Page) => {
   }, previewViewerPubkey);
 };
 
+/**
+ * 開発者モードを最初から有効にして開くヘルパー (task-5-brief.md Step 4)。
+ * `page.addInitScript` で localStorage に永続化キーを直接書く ——
+ * developer-mode.ts の `DEVELOPER_MODE_STORAGE_KEY` /
+ * `saveDeveloperMode(true)` と同じ文字列をここでハードコードしている。
+ * e2e はブラウザ側の別プロセスなので src を import できない (上の
+ * `streets.v1.deck.` プレフィックス直書きと同じ理由)。
+ */
+const enableDeveloperMode = async (page: import("@playwright/test").Page) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem("streets.v1.developerMode", "true");
+  });
+};
+
 test.describe("v1 vertical slice", () => {
   test("login, timeline, coalesced names, posting, and reload all hold together", async ({
     page,
@@ -290,5 +304,93 @@ test.describe("v1 vertical slice", () => {
       "data-column-id",
       firstIdBefore,
     );
+  });
+
+  /**
+   * task-5-brief.md Step 4 の主張 1・2: 開発者モードは既定で無効で、
+   * 診断値 (`connections` / `deck-column-phase`) は DOM に存在しない。
+   * トグルを押すと現れる。
+   *
+   * `deck-column-incomplete` は `task-5-brief.md` が挙げる 3 つ目の
+   * data-testid だが、この spec のフィクスチャ (seed-preview.ts) は閲覧者と
+   * フォロー相手 2 人ぶんの kind:10002 を single relay 構成で用意しており、
+   * `unreachableRelays`/`unroutableAuthors`/`uncoveredAuthors` がどれも 0 の
+   * まま (`status.incomplete` 自体が生成されない、section-reader.ts の
+   * `get status()` 参照) —— 開発者モードの有無に関わらずこの環境では
+   * そもそも描画されない。ここでは実際に描画される 2 つ (`connections` /
+   * `deck-column-phase`) だけで gate を主張し、`deck-column-incomplete` は
+   * 「存在しないこと」自体は既定状態のアサーションに含めるが、トグル後に
+   * 「現れること」は主張しない (この環境では現れないのが正しい挙動であり、
+   * 現れることを主張すると常に落ちるテストになる)。
+   */
+  test("developer mode gates diagnostics behind a toggle", async ({ page }) => {
+    test.setTimeout(60_000);
+
+    await stubSigner(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    // 1. 既定 (無効) では診断値が DOM に存在しない。
+    // 捕まえる変異: developerMode の既定を true にする、または
+    // DiagnosticsPanel の visible 条件を反転させる。
+    await expect(page.getByTestId("connections")).toHaveCount(0);
+    await expect(page.getByTestId("deck-column-phase")).toHaveCount(0);
+    await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
+
+    // 2. トグルを押すと現れる。
+    // 捕まえる変異: トグルが developerMode シグナルを更新しない
+    // (localStorage への書き込みだけで signal を setDeveloperMode しない)、
+    // または DiagnosticsPanel が developerMode の変化に反応しない。
+    await page.getByTestId("developer-mode-toggle").click();
+    await expect(page.getByTestId("connections")).toBeVisible();
+    await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
+    // 3 カラムぶん出ること (DeckColumn ごとに DiagnosticsPanel が独立して
+    // developerMode を見ている、が確かめられる)
+    await expect(page.getByTestId("deck-column-phase")).toHaveCount(3);
+  });
+
+  /**
+   * task-5-brief.md Step 4 の主張 3: リロードしても開発者モードは有効なまま。
+   * `enableDeveloperMode` (`page.addInitScript`) で最初から有効な状態を
+   * 作ってから開き、リロードを挟んでも診断値が出続けることを確かめる ——
+   * トグル UI を経由しない経路 (直接 localStorage に書かれていた値) からの
+   * 読み込みも同じ結果になることを、上のトグル操作のテストとは独立に
+   * 確認する。
+   */
+  test("developer mode enabled via localStorage survives reload", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+
+    await stubSigner(page);
+    await enableDeveloperMode(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    // 開いた時点で既に有効 (トグルを押していない)
+    await expect(page.getByTestId("connections")).toBeVisible();
+    await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
+
+    // 捕まえる変異: developerMode の初期値が loadDeveloperMode の結果を
+    // 使わず、常に false から始める (トグル操作なしでは絶対に有効になら
+    // ない、という壊れ方)
+    await page.reload();
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(page.getByTestId("connections")).toBeVisible();
+    await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
   });
 });
