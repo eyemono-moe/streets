@@ -1,4 +1,4 @@
-import { For, Show, createMemo } from "solid-js";
+import { For, Show, createMemo, createSignal } from "solid-js";
 import type { Component } from "solid-js";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
@@ -56,6 +56,15 @@ const DeckColumn: Component<{
    * リストを重ね合わせる。
    */
   optimisticEvents: () => NostrEvent[];
+  /** 先頭カラムなら false。「←」を非表示にはせず disabled にする —— 押せる
+   * ボタンの数が並べ替えのたびに変わらないほうが、連打での位置把握が楽。 */
+  canMoveLeft: () => boolean;
+  /** 末尾カラムなら false。canMoveLeft と同じ理由。 */
+  canMoveRight: () => boolean;
+  onMoveLeft: () => void;
+  onMoveRight: () => void;
+  onRemove: () => void;
+  onRename: (title: string) => void;
 }> = (props) => {
   const source = createMemo<NostrSource>(() => {
     const resolved = resolveSource(props.column.source, {
@@ -100,15 +109,100 @@ const DeckColumn: Component<{
     return [...optimistic, ...fromSection];
   });
 
+  // タイトルのインライン編集。編集中だけ input に切り替える —— 常に input
+  // を出すと、クリックしていない他のカラムのタイトルまで編集可能に見えて
+  // しまう (見た目上どれが編集対象か分からなくなる)。
+  const [editingTitle, setEditingTitle] = createSignal(false);
+  const [titleDraft, setTitleDraft] = createSignal(props.column.title);
+
+  const startEditingTitle = () => {
+    setTitleDraft(props.column.title);
+    setEditingTitle(true);
+  };
+
+  // 保存するかどうかの判定 (空文字を弾くかどうか) は `renameColumn`
+  // (v1.tsx) 側の責務。ここでは常に `onRename` を呼ぶだけにする —— 空文字を
+  // ここでも弾くと「空を拒否する」というルールが 2 箇所に分かれ、片方だけ
+  // 直して片方を直し忘れる余地ができる。
+  const commitTitle = () => {
+    props.onRename(titleDraft());
+    setEditingTitle(false);
+  };
+
   return (
     <section
       data-testid="deck-column"
       data-column-id={props.column.id}
       class="h-full w-100 shrink-0 space-y-2 overflow-y-auto border-alpha-300 border-r p-3 last:border-r-0"
     >
-      <h2 class="font-bold" data-testid="deck-column-title">
-        {props.column.title}
-      </h2>
+      <header class="flex items-center gap-1">
+        <button
+          type="button"
+          data-testid="column-move-left"
+          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer disabled:opacity-30"
+          disabled={!props.canMoveLeft()}
+          onClick={props.onMoveLeft}
+        >
+          ←
+        </button>
+
+        <Show
+          when={editingTitle()}
+          fallback={
+            // h2 に直接 onClick を付けると非対話要素がキーボード操作を
+            // 持たないことになる (biome lint/a11y)。見出しレベルは h2 が
+            // 保ち、実際にクリック/キー操作を受けるのは中の button ——
+            // button ならフォーカスと Enter/Space での起動をブラウザが
+            // 標準で面倒を見るので、手書きの onKeyDown が要らない。
+            <h2 class="min-w-0 flex-1 truncate font-bold">
+              <button
+                type="button"
+                data-testid="deck-column-title"
+                class="w-full cursor-text truncate text-left"
+                onClick={startEditingTitle}
+              >
+                {props.column.title}
+              </button>
+            </h2>
+          }
+        >
+          <input
+            autofocus
+            data-testid="deck-column-title"
+            class="min-w-0 flex-1 rounded-2 border border-alpha-300 bg-alpha-50 px-1 font-bold"
+            value={titleDraft()}
+            onInput={(event) => setTitleDraft(event.currentTarget.value)}
+            onBlur={commitTitle}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitTitle();
+              } else if (event.key === "Escape") {
+                event.preventDefault();
+                setEditingTitle(false);
+              }
+            }}
+          />
+        </Show>
+
+        <button
+          type="button"
+          data-testid="column-move-right"
+          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer disabled:opacity-30"
+          disabled={!props.canMoveRight()}
+          onClick={props.onMoveRight}
+        >
+          →
+        </button>
+        <button
+          type="button"
+          data-testid="column-remove"
+          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer"
+          onClick={props.onRemove}
+        >
+          ×
+        </button>
+      </header>
       <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
         phase: {section.status().phase}
       </p>

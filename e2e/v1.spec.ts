@@ -188,4 +188,107 @@ test.describe("v1 vertical slice", () => {
       page.locator('[data-testid="deck-column"][data-column-id="mine"]'),
     ).toContainText(postText, { timeout: 20_000 });
   });
+
+  /**
+   * task-4-brief.md Step 6: 追加・削除・並べ替えの 3 主張を 1 本の流れで
+   * 検証する。3 本を独立したテストに分けず 1 本にまとめているのは、
+   * ブリーフが挙げる数字 (4 本 → 3 本 → 3 本) がそのまま「追加した状態から
+   * 1 本消す」という連続した操作を前提にしているため —— 独立に書くと
+   * それぞれ「既定の 3 本から」始まってしまい、ブリーフの数字と合わなく
+   * なる。
+   *
+   * **リロード後の確認を必ず入れる (ブリーフの要求)。** 画面上で変わる
+   * ことと、その変更が保存されていることは別の主張であり、後者だけが
+   * `updateDeck` (v1.tsx) を通ったことの証拠になる —— 操作直後の
+   * アサーションだけでは、Solid のシグナルは更新したが localStorage への
+   * 書き込みを忘れた、という壊れ方を見逃す。
+   */
+  test("adding, removing, and reordering deck columns survive reload", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+
+    await stubSigner(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    const columns = page.getByTestId("deck-column");
+    await expect(columns).toHaveCount(3);
+
+    // 1. カラムを追加 → deck-column が 4 本 → リロード → まだ 4 本
+    //
+    // "global" 種別を選ぶのは、"user"/"hashtag" と違って入力欄が要らず
+    // (column-presets.ts の NEEDS_INPUT)、buildColumn が常に成功するため。
+    // 種別ごとの正しさ (どの入力がどの ColumnSource になるか) は
+    // column-presets.test.ts が既に固定しているので、ここでは「追加した
+    // 結果が保存を経由してもデッキに残る」という配線だけを確かめる。
+    await page.getByTestId("add-column").click();
+    await expect(page.getByTestId("add-column-form")).toBeVisible();
+    await page.getByTestId("add-column-kind-global").click();
+    await page.getByTestId("add-column-submit").click();
+    await expect(columns).toHaveCount(4);
+
+    await page.reload();
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(columns).toHaveCount(4);
+
+    // 2. カラムを削除 → 3 本 → リロード → まだ 3 本
+    await columns.first().getByTestId("column-remove").click();
+    await expect(columns).toHaveCount(3);
+
+    await page.reload();
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(columns).toHaveCount(3);
+
+    // 3. 先頭のカラムを右へ → 順序が入れ替わる → リロード → 入れ替わったまま
+    //
+    // id と個数だけでは「並び替わった」ことを主張できない (final review,
+    // Important 4 と同じ理由 —— defaultDeck も loadDeck の復元も同じ 3 つの
+    // id 集合を返しうる)。並び替え前後で 1 番目・2 番目の data-column-id を
+    // 直接比較することで、「同じ集合のまま順序だけが変わった」ことを
+    // 主張する。
+    const firstIdBefore = await columns.first().getAttribute("data-column-id");
+    const secondIdBefore = await columns.nth(1).getAttribute("data-column-id");
+    if (!firstIdBefore || !secondIdBefore) {
+      throw new Error("expected the first two deck columns to have ids");
+    }
+
+    await columns.first().getByTestId("column-move-right").click();
+    await expect(columns.first()).toHaveAttribute(
+      "data-column-id",
+      secondIdBefore,
+    );
+    await expect(columns.nth(1)).toHaveAttribute(
+      "data-column-id",
+      firstIdBefore,
+    );
+
+    await page.reload();
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(columns.first()).toHaveAttribute(
+      "data-column-id",
+      secondIdBefore,
+    );
+    await expect(columns.nth(1)).toHaveAttribute(
+      "data-column-id",
+      firstIdBefore,
+    );
+  });
 });

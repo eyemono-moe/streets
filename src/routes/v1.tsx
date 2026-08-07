@@ -8,6 +8,7 @@ import {
 } from "solid-js";
 import type { Component } from "solid-js";
 import {
+  type ColumnDef,
   type Deck,
   deckStorageKey,
   defaultDeck,
@@ -26,7 +27,14 @@ import { createNip07Signer } from "../core/signer/nip07-signer";
 import { SignerUnavailableError } from "../core/signer/signer";
 import { type PublishResult, createPublisher } from "../core/write/publisher";
 import Button from "../shared/components/UI/Button";
+import AddColumnForm from "./v1/AddColumnForm";
 import DeckColumn from "./v1/DeckColumn";
+import {
+  addColumnTo,
+  moveColumnIn,
+  removeColumnFrom,
+  renameColumnIn,
+} from "./v1/deck-mutations";
 import { parseRelays } from "./v1/parse-relays";
 import { verifyOptimisticInsert } from "./v1/verify-optimistic-insert";
 
@@ -150,6 +158,51 @@ const V1: Component = () => {
     window.localStorage.setItem(storageKey, saveDeck(fresh));
     setDeck(fresh);
   });
+
+  // デッキの変更は必ずこの 1 関数を通す —— 保存を忘れた経路が 1 つでも
+  // あると、その操作だけリロードで消える (ユーザーには「たまに保存され
+  // ない」としか見えない、いちばん報告しにくい壊れ方になる)。
+  const updateDeck = (next: Deck) => {
+    const pk = pubkey();
+    if (!pk) return;
+    setDeck(next);
+    window.localStorage.setItem(deckStorageKey(pk), saveDeck(next));
+  };
+
+  // 4 つの操作本体 (`Deck → Deck`) は ./v1/deck-mutations.ts の純関数に
+  // 委ねている。ここでの役目は「現在のデッキを読む」→「純関数を適用する」
+  // →「変化していれば updateDeck へ渡す」の 3 段だけ。変化の有無を参照
+  // 比較で見ているのは、`moveColumnIn`/`renameColumnIn` が変化なしのとき
+  // 入力の `deck` をそのまま (同一参照で) 返す契約になっているため ——
+  // これにより端での移動や空タイトルでの改名が無駄な localStorage 書き込み
+  // を起こさない。
+  const addColumn = (column: ColumnDef) => {
+    const current = deck();
+    if (!current) return;
+    updateDeck(addColumnTo(current, column));
+  };
+
+  const removeColumn = (id: string) => {
+    const current = deck();
+    if (!current) return;
+    updateDeck(removeColumnFrom(current, id));
+  };
+
+  const moveColumn = (id: string, direction: -1 | 1) => {
+    const current = deck();
+    if (!current) return;
+    const next = moveColumnIn(current, id, direction);
+    if (next === current) return;
+    updateDeck(next);
+  };
+
+  const renameColumn = (id: string, title: string) => {
+    const current = deck();
+    if (!current) return;
+    const next = renameColumnIn(current, id, title);
+    if (next === current) return;
+    updateDeck(next);
+  };
 
   // manager.connectionCount / peakConnectionCount はシグナルではないので
   // JSX へ直接置いても更新されない (debug/v1-section.tsx と同じ理由)。
@@ -385,23 +438,45 @@ const V1: Component = () => {
           )}
         </Show>
 
-        <div
-          data-testid="deck"
-          class="flex min-h-0 flex-1 divide-x overflow-x-auto"
+        <AddColumnForm onAdd={addColumn} />
+
+        <Show
+          when={(deck()?.columns.length ?? 0) > 0}
+          fallback={
+            <p
+              data-testid="empty-deck"
+              class="flex-1 p-3 text-alpha-600 text-sm"
+            >
+              + でカラムを追加してください
+            </p>
+          }
         >
-          <For each={deck()?.columns ?? []}>
-            {(column) => (
-              <DeckColumn
-                column={column}
-                store={store}
-                manager={manager}
-                profileRequests={profileRequests}
-                followees={() => warmUp()?.followees ?? []}
-                optimisticEvents={optimisticEvents}
-              />
-            )}
-          </For>
-        </div>
+          <div
+            data-testid="deck"
+            class="flex min-h-0 flex-1 divide-x overflow-x-auto"
+          >
+            <For each={deck()?.columns ?? []}>
+              {(column, index) => (
+                <DeckColumn
+                  column={column}
+                  store={store}
+                  manager={manager}
+                  profileRequests={profileRequests}
+                  followees={() => warmUp()?.followees ?? []}
+                  optimisticEvents={optimisticEvents}
+                  canMoveLeft={() => index() > 0}
+                  canMoveRight={() =>
+                    index() < (deck()?.columns.length ?? 0) - 1
+                  }
+                  onMoveLeft={() => moveColumn(column.id, -1)}
+                  onMoveRight={() => moveColumn(column.id, 1)}
+                  onRemove={() => removeColumn(column.id)}
+                  onRename={(title) => renameColumn(column.id, title)}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
       </Show>
     </div>
   );
