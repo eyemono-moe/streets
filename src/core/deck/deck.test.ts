@@ -9,12 +9,12 @@ import {
 } from "./deck";
 
 const deck: Deck = {
-  version: 1,
+  version: 2,
   columns: [
     {
       id: "home",
       title: "ホーム",
-      source: { type: "nostr", filters: [{ kinds: [1] }] },
+      source: { kind: "literal", filters: [{ kinds: [1] }] },
     },
   ],
 };
@@ -27,8 +27,8 @@ describe("loadDeck / saveDeck", () => {
   it("null (未保存) は undefined", () => {
     // このアサーションが実際に保証すること: JSON.parse(null) は例外を
     // 投げない ("null" へ強制変換されて JSON の null リテラルとしてパースが
-    // 成功する) —— raw === null の早期リターンを削っても isDeck() 側の
-    // null チェックが最終的に undefined を返すので、この 1 本のアサーション
+    // 成功する) —— raw === null の早期リターンを削っても valibot 側の
+    // スキーマ検証が最終的に undefined を返すので、この 1 本のアサーション
     // 単体では早期リターンの有無を区別できない (だから「捕まえる変異」は
     // 無い)。それでも早期リターンを残すのは、「raw が無い」という呼び出し
     // 側の意図を JSON.parse の型強制という偶然の挙動任せにせず、コードとして
@@ -44,20 +44,84 @@ describe("loadDeck / saveDeck", () => {
   it("version が違えば undefined", () => {
     // 捕まえる変異: version を見ない
     // (NIP-78 へ移すとき、古い形を新しい形として読んで壊れる)
-    expect(loadDeck(JSON.stringify({ ...deck, version: 2 }))).toBeUndefined();
+    expect(loadDeck(JSON.stringify({ ...deck, version: 1 }))).toBeUndefined();
+  });
+
+  it("version 1 の古い形は undefined", () => {
+    // 捕まえる変異: version チェックと kind 判別のどちらか片方だけを外す。
+    // このフィクスチャは二重に守られている —— version を見なくても、旧
+    // source `{ type: "nostr", filters }` には `kind` が無いので
+    // v.variant("kind", ...) が弾く。逆に kind 判別を緩めても、version が
+    // 2 でなければ弾かれる。実際に落とせたのは両方を同時に緩めたときだけ
+    // (`version: v.number()` かつ `kind` を optional にして `v.union` へ
+    // 差し替え) —— 検証済み。どちらか一方だけを壊す変異は他のテスト
+    // (「version が違えば undefined」「kind の無い source は undefined」)
+    // が個別に捕まえる。それでもこのフィクスチャを残すのは、実際に手元の
+    // localStorage に残りうる「本物の旧デッキ」の形を通しで確かめるため。
+    //
+    // 旧 version 1 の source は `{ type: "nostr", filters }` という別の形
+    // なので、これを Deck として読むと `source.kind` が undefined になり、
+    // resolveSource がどちらの分岐にも入らない (= literal 側へ落ちて
+    // `filters: undefined` を読み取り層へ渡す)。
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 1,
+          columns: [
+            {
+              id: "home",
+              title: "ホーム",
+              source: { type: "nostr", filters: [{ kinds: [1] }] },
+            },
+          ],
+        }),
+      ),
+    ).toBeUndefined();
   });
 
   it("columns が配列でなければ undefined", () => {
     // 捕まえる変異: 形を確かめずキャストする
     expect(
-      loadDeck(JSON.stringify({ version: 1, columns: "nope" })),
+      loadDeck(JSON.stringify({ version: 2, columns: "nope" })),
     ).toBeUndefined();
   });
 
   it("column の必須フィールドが欠けていれば undefined", () => {
     // 捕まえる変異: 要素の中身を確かめない (title の無いカラムで描画時に落ちる)
     expect(
-      loadDeck(JSON.stringify({ version: 1, columns: [{ id: "a" }] })),
+      loadDeck(JSON.stringify({ version: 2, columns: [{ id: "a" }] })),
+    ).toBeUndefined();
+  });
+
+  it("kind の無い source は undefined", () => {
+    // 捕まえる変異: variant の判別キーを見ずに union のどちらかへ通す
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            { id: "a", title: "a", source: { filters: [{ kinds: [1] }] } },
+          ],
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("followees の kinds が数値配列でなければ undefined", () => {
+    // 捕まえる変異: valibot のスキーマで kinds を v.unknown() にする
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            {
+              id: "a",
+              title: "a",
+              source: { kind: "followees", kinds: ["1"] },
+            },
+          ],
+        }),
+      ),
     ).toBeUndefined();
   });
 
@@ -70,13 +134,13 @@ describe("loadDeck / saveDeck", () => {
     expect(
       loadDeck(
         JSON.stringify({
-          version: 1,
+          version: 2,
           columns: [
             {
               id: "a",
               title: "b",
               source: {
-                type: "nostr",
+                kind: "literal",
                 filters: [{ kinds: [1], authors: 42 }],
               },
             },
@@ -91,13 +155,13 @@ describe("loadDeck / saveDeck", () => {
     expect(
       loadDeck(
         JSON.stringify({
-          version: 1,
+          version: 2,
           columns: [
             {
               id: "a",
               title: "b",
               source: {
-                type: "nostr",
+                kind: "literal",
                 filters: [{ kinds: ["not-a-number"] }],
               },
             },
@@ -114,9 +178,9 @@ describe("loadDeck / saveDeck", () => {
     expect(
       loadDeck(
         JSON.stringify({
-          version: 1,
+          version: 2,
           columns: [
-            { id: "a", title: "b", source: { type: "nostr", filters: [{}] } },
+            { id: "a", title: "b", source: { kind: "literal", filters: [{}] } },
           ],
         }),
       ),
@@ -131,12 +195,12 @@ describe("loadDeck / saveDeck", () => {
     expect(
       loadDeck(
         JSON.stringify({
-          version: 1,
+          version: 2,
           columns: [
             {
               id: "a",
               title: "b",
-              source: { type: "nostr", filters: [{ since: 123 }] },
+              source: { kind: "literal", filters: [{ since: 123 }] },
             },
           ],
         }),
@@ -149,12 +213,15 @@ describe("loadDeck / saveDeck", () => {
     // などのタグ絞り込みは合法な scoping であり、空フィルタ扱いにして
     // 巻き添えで拒否してはいけない (退行防止)。
     const withTagFilter: Deck = {
-      version: 1,
+      version: 2,
       columns: [
         {
           id: "a",
           title: "b",
-          source: { type: "nostr", filters: [{ "#e": ["e".repeat(64)] }] },
+          source: {
+            kind: "literal",
+            filters: [{ "#e": ["e".repeat(64)] }],
+          },
         },
       ],
     };
@@ -164,43 +231,41 @@ describe("loadDeck / saveDeck", () => {
 
 describe("defaultDeck", () => {
   const viewerPubkey = "a".repeat(64);
-  const followees = ["b".repeat(64), "c".repeat(64)];
 
   it("ホーム・単一著者・明示リレーの 3 本を返す", () => {
-    const result = defaultDeck(viewerPubkey, followees);
+    const result = defaultDeck(viewerPubkey);
 
-    expect(result.version).toBe(1);
+    expect(result.version).toBe(2);
     expect(result.columns).toHaveLength(3);
 
-    // ホーム: フォロー全員をルーティングに任せる (relays を指定しない)
+    // ホーム: フォローの展開を resolveSource に任せる派生ソース
     const home = result.columns.find((c) => c.id === "home");
-    expect(home?.source).toEqual({
-      type: "nostr",
-      filters: [{ kinds: [1], authors: followees }],
-    });
+    expect(home?.source).toEqual({ kind: "followees", kinds: [1] });
 
     // 単一著者: 自分の投稿だけを、フォロー数によらず必ず映す対照群
     const mine = result.columns.find(
-      (c) => c.id !== "home" && !c.source.relays,
+      (c) => c.source.kind === "literal" && !c.source.relays,
     );
     expect(mine?.source).toEqual({
-      type: "nostr",
+      kind: "literal",
       filters: [{ kinds: [1], authors: [viewerPubkey] }],
     });
 
     // 明示リレー: Outbox をバイパスして relays を直接持つ。他の 2 本と同じく
     // 構造を丸ごと比較する (relays.length > 0 だけの緩いアサーションだと
     // kinds を落とす変異を捕まえられない)。
-    const explicit = result.columns.find((c) => c.source.relays);
+    const explicit = result.columns.find(
+      (c) => c.source.kind === "literal" && c.source.relays,
+    );
     expect(explicit?.source).toEqual({
-      type: "nostr",
+      kind: "literal",
       filters: [{ kinds: [1] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
 
   it("column の id が重複しない", () => {
-    const result = defaultDeck(viewerPubkey, followees);
+    const result = defaultDeck(viewerPubkey);
     const ids = result.columns.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
@@ -229,13 +294,13 @@ describe("deckStorageKey (final review, Important 3)", () => {
     // ない。
     const storage = new Map<string, string>();
     const deckA: Deck = {
-      version: 1,
+      version: 2,
       columns: [
         {
           id: "home",
           title: "A のホーム",
           source: {
-            type: "nostr",
+            kind: "literal",
             filters: [{ kinds: [1], authors: [pubkeyA] }],
           },
         },
