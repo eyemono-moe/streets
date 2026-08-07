@@ -113,6 +113,36 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **一般化がどこまで要るかという問い自体は、依然として手つかずのまま。** 仕様 5 節が最初から明記しているとおり、購読には少なくとも「時間を遡って取り切る」ものと「これから来るものを受け続ける」ものがあり、rx-nostr の backward / forward strategy の整理と合わせて設計すべき領域だが、本スライスはページネーションに一切触れておらず、この分類そのものを検討する材料は今回何も増えていない。次にページネーションが要るタスクが、この整理に人が実際に取り組む最初の機会になる。
 
+## A-1 デッキとカラム（2026-08-07）— 仕様 12 節の答え
+
+[仕様](../superpowers/specs/2026-08-07-deck-and-columns-design.md) 12 節が定める 6 問への回答。**問 3・4・5・6 は実装した内容から答えられる。問 1・2 は実鍵で複数カラムを開いた人間にしか答えられず、このスライスの実装作業はローカル docker relay とデフォルトデッキ 3 カラムの範囲でしか動いていないので「未取得」と明記する。** 上の「v1 縦断スライス」節と同じ規律で書く —— 実測に基づかない推測は書かない。
+
+### 問い1 —— 30 接続予算は 5〜10 カラムで成立するか
+
+**未取得。** A-1 は追加・削除・並べ替え・改名の e2e とローカル docker 環境での確認に閉じており、5〜10 カラムを実際に開いて `peakConnections` を読む作業は行っていない。読むべき場所: `/v1` のヘッダで開発者モードのトグル（`data-testid="developer-mode-toggle"`）を有効にし、`data-testid="peak-connections"` を種別を混ぜた 5〜10 カラムで読むこと。3 カラムでの実測（上の「v1 縦断スライス」節、問い2）はピーク 10 だったが、カラム数と接続数の関係は非線形（Outbox は著者の重なりで畳まれる）なので、そこから 5〜10 カラムの値を外挿することはできない。
+
+### 問い2 —— `createSection` に画面外カラムの休止・優先度・破棄が要るか
+
+**未取得。** 問い1 と同じ理由で、画面外カラムを数分置いて体感の重さを見る作業をこのスライスでは行っていない。A-1 は `createSection` の公開 API を一切変更しておらず、followups の「縦断スライスを動かしてから決めるもの」節（上記）が指定していた実測はまだ行われていない。
+
+### 問い3 —— `warmUpRouting` → `NostrSource` パターンの 3 箇所目は出たか
+
+**出なかった。** `grep -rn "warmUpRouting(" src` で確認すると、呼び出し箇所は `src/routes/v1.tsx` と `src/routes/debug/v1-section.tsx` の 2 箇所のみで、A-1 でも増えていない。`/v1-preview` が `/v1` へ移設された（Task 3）際もこのパターンをそのまま引き継いだだけで、新しい呼び出し箇所は生まれていない。**「3 箇所目が出たら共通化する」の着手条件は、このスライスの後もまだ満たされていない** — 前スライスの答え「まだ 3 箇所目は現れていない」がそのまま継続している。
+
+### 問い4 —— 派生ソースは `followees` だけで足りたか
+
+**足りた。** `ColumnSource`（`src/core/deck/deck.ts`）の判別共用体は `{ kind: "literal", ... }` と `{ kind: "followees", kinds }` の 2 種のままで、4 種別の追加 UI（ホーム / ユーザー / ハッシュタグ / グローバル、`src/routes/v1/column-presets.ts`）を実装しても 2 つ目の派生 `kind` を作る場面は出なかった。ユーザー（単一著者）・ハッシュタグ・グローバルはいずれも `literal` でそのまま表現でき、`followees` が要ったのはホームだけだった。
+
+### 問い5 —— 4 種別のどれかが 2 本目のセクションを欲しがったか
+
+**欲しがらなかった。** `DeckColumn.tsx` は `createSection` を 1 回だけ呼ぶ（`src/routes/v1/DeckColumn.tsx`）。4 種別いずれも 1 本の時系列リストとしてそのまま収まり、複数セクションを束ねる必要は生じなかった。ただしこれは「A-1 の 4 種別の範囲では反証が出なかった」以上のことを主張できない — 仕様 5 節が明記するひっくり返す条件（ユーザー詳細カラム）はまだ作っていない。詳細は [ADR-0003](../adr/0003-open-column-abstraction.md)「実装の段階」の A-1 の項を参照。
+
+### 問い6 —— ハッシュタグ（`authors` の無いフィルタ）は実際にどこへ繋いだか
+
+コードを追った範囲でだけ答えられる。**実際にハッシュタグ列を開いてイベントが届くのを見た記録は、A-1 のどのタスク報告にもない**（Task 4 が追加した e2e は `buildColumn` が常に成功し入力欄が要らない「global」種別だけを対象にしており、ハッシュタグ種別を実際に操作していない）。
+
+追跡した経路: ハッシュタグ列の `ColumnSource` は `{ kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] }` で `relays` を持たない（仕様 4 節）。`resolveSource` はこれを `relays` キーの無い `NostrSource` に変換し（Task 1、「指定があるときだけ載せる」）、`SubscriptionManager.subscribe()` は `options?.relays` が無いので `this.#options.fallbackRelays ?? FALLBACK_RELAYS` を使う（`subscription-manager.ts` の `subscribe()`）。`planQuery`（`query-plan.ts`）は `authors` の無いフィルタを「誰でもいい」として `fallbackRelays` の全リレーへそのまま同報し、`unroutableAuthors` にはカウントしない。さらに `#replanOnce` は `fallbackRelays` を無条件に `pinned` へ足す（`subscription-manager.ts`）ので、ハッシュタグ列が使う 3 本（`FALLBACK_RELAYS` = `yabu.me` / `nos.lol` / `relay.damus.io`）は接続予算の貪欲選択で落とされない。**「実地で確かめる価値がある」（仕様 4 節）はまだ満たされていない** — 上の経路はソースコードの追跡であり、実行して確認したものではない。
+
 ## 次の計画で直すべきもの
 
 ### `EventStore` が呼び出し側から渡される公開オプションになっている
@@ -231,6 +261,8 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `column-presets.ts` | ハッシュタグの先頭 `#` を 1 つしか落とさない（`/^#/`）。`##nostr` はタグ値 `#nostr` になり、NIP-12 のタグ値に `#` は含まれないので永久に一致しない。これもスキーマ上は正しいので黙って壊れる |
 | `e2e/fixtures/seed-preview.ts` | **`/v1` の e2e で `status.incomplete` を立てられるフィクスチャが無い。** シードは 3 人全員の `kind:10002` を到達可能な 1 本のリレーに置くので、`unreachableRelays` / `unroutableAuthors` / `uncoveredAuthors` が構造的に全部 0 になる。そのため「開発者モードを入れると `deck-column-incomplete` が出る」ことを e2e で主張できない（A-1 Task 5 は実際に一時的な assertion を入れて確認したうえで、その 1 本だけ落とした）。`/debug/v1-section?budget=` に相当する予算上書きを `/v1` にも作れば書けるようになる |
 | `ColumnAlertBadge.tsx` | 開閉状態がカラムの owner 再生成で失われる（上のリネームの項と同じ原因）。異常を開いたままリネームすると畳まれる。実害は小さいが、上のリネーム remount を直せば一緒に消える |
+| `AddColumnForm.tsx` | `add-column-error` のメッセージが種別を問わず同じ文言（「入力を確認してください。user は npub または hex、hashtag は空でない文字列が必要です。」）。種別ごとに出し分けたほうが親切だが、brief は「入力欄にエラーを出す」としか要求しておらず、A-1 Task 4 は必要十分と判断してそのままにした |
+| `e2e/v1.spec.ts` | **`ColumnAlertBadge`（`data-testid="column-alert"`）の e2e が無い。** 判定ロジック自体は `src/core/deck/column-alerts.test.ts`（Task 2、5 ケース）が固定しているが、「明示リレーを指定したカラムで実際にバッジが出る」ことは e2e で確認していない。理由（A-1 Task 5 の報告そのまま）: ローカル docker 環境で「到達不能な明示リレーを持つカラム」を安定して作る手段が無く（`seed-preview.ts` の単一リレー構成はすべて到達可能）、無理に作ると不安定な e2e になる。判定ロジックの正しさ（ユニットテスト）とレンダリング条件の確認は済んでおり、「実際にバッジが出るのを見る」ことだけが実鍵検証に委ねられている |
 
 | 箇所 | 内容 |
 |---|---|
