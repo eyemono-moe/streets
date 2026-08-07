@@ -257,7 +257,7 @@ export const saveDeveloperMode = (enabled: boolean): string;
 | localStorage のデッキが壊れている / version 1 | `loadDeck` が `undefined`。既定デッキへ落ちる。ユーザーには何も出さない |
 | ユーザー種別に不正な npub / hex | フォームがその場で拒否し、追加させない。カラムは作られない |
 | ハッシュタグが空文字 | 同上 |
-| `warmUpRouting` が失敗（フォローリストが取れない） | 現在と同じくエラーメッセージを出す。ホーム列は著者 0 人になるが、他の種別は動く |
+| `warmUpRouting` はそもそも失敗しない（最終レビュー Minor 6 で訂正: `collect()` は `new Promise((resolve) => ...)` でタイムアウト経由にせよ settle 経由にせよ必ず resolve し、reject する経路が無い。`src/core/read/collect.ts` 参照） | 到達しない状態のため、読む側のコードも不要。フォローリストが薄い/空でもホーム列は著者 0 人として動き続け、他の種別は元々無関係 |
 | 明示リレーが到達不能 | 7 節の Alert |
 | NIP-07 拡張が無い | 現在と同じ `SignerUnavailableError` の表示 |
 | 投稿の publish が全リレーで失敗 | 現在と同じ `PublishResult` の表示 |
