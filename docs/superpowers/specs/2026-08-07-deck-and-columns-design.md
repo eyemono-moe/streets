@@ -61,7 +61,15 @@ export type Deck = { version: 2; columns: ColumnDef[] };
 
 ```ts
 // src/core/deck/resolve-source.ts
-export type ResolveContext = { followees: readonly string[] };
+// **`followees` はアクセサである**（2026-08-07 訂正）。初版は
+// `{ followees: readonly string[] }` と書いていたが、それだと呼び出し側が
+// `resolveSource(src, { followees: props.followees() })` と*引数の位置で*
+// 評価することになり、`createMemo` が `literal` カラムでもウォームアップの
+// resource を追跡してしまう。フォローリストが届いた瞬間に全カラムの memo が
+// 再計算され、`createSection` が `SectionReader` を作り直し、`literal`
+// カラムまで一度空になって REQ を撃ち直す —— 最終レビューが Important 1
+// として検出した退行そのもの。アクセサを渡し、必要な分岐の中でだけ呼ぶ。
+export type ResolveContext = { followees: () => readonly string[] };
 
 export const resolveSource = (
   source: ColumnSource,
@@ -71,7 +79,7 @@ export const resolveSource = (
     ? { type: "nostr", filters: source.filters, ...(source.relays ? { relays: source.relays } : {}) }
     : {
         type: "nostr",
-        filters: [{ kinds: source.kinds, authors: [...context.followees] }],
+        filters: [{ kinds: source.kinds, authors: [...context.followees()] }],
       };
 ```
 
@@ -83,7 +91,8 @@ export const resolveSource = (
 
 ```ts
 const source = createMemo<NostrSource>(() => {
-  const resolved = resolveSource(props.column.source, { followees: props.followees() });
+  // アクセサをそのまま渡す（呼ばない）。上の `ResolveContext` の訂正を参照。
+  const resolved = resolveSource(props.column.source, { followees: props.followees });
   return RELAYS_OVERRIDE && resolved.relays
     ? { ...resolved, relays: RELAYS_OVERRIDE }
     : resolved;
