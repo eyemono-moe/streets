@@ -46,7 +46,7 @@ status: accepted
 ## Consequences
 
 - **開発者モードの設定が必要になる。** 端末ごと（localStorage）、既定は無効。設定画面が要る
-- **E2E は開発者モードを有効にしてから測る必要がある。** `e2e/connection-budget.spec.ts` / `section-cap.spec.ts` など既存の spec が診断値を読んでいるので、有効化の手順を共通のフィクスチャに置く
+- **E2E は開発者モードを有効にしてから測る必要がある。** `page.addInitScript` で `localStorage` に `streets.v1.developerMode` を書く。**この ADR の初版は「`e2e/connection-budget.spec.ts` / `section-cap.spec.ts` など既存の spec が診断値を読んでいる」と書いていたが誤りだった**（2026-08-07 訂正）—— どちらも `/debug/v1-section` を見ており、`/debug/` 以下は経路自体が開発者専用なのでこの ADR のゲートの対象外である。二重に隠す意味は無く、隠せばこの 2 つを無意味に壊すだけになる
 - **`/v1` のヘッダに並んでいる読み出し**（`connections` / `peakConnections` / `unreachableRelays` / `uncoveredAuthors` / `optimistic-insert-ms`）は、そのまま開発者モード側の表示になる。捨てない —— 実鍵での検証はこれらが読めることに依存している（ルートは A-1 Task 3 で `/v1-preview` から `/v1` へ移設済み）
 - **「行動できるかどうか」の判定は今後のカラム種別ごとに増える。** 明示リレーを指定したカラムの `unreachableRelays` が最初の 1 件であり、レンダラ（[ADR-0017](./0017-declarative-renderer-needs.md)）が失敗を報告し始めたら 2 件目を判定することになる。判定を 1 箇所に集め、カラムの実装に散らさないこと。**A-1（2026-08-07）が実際に実装したのはこの 1 件目だけである**（`columnAlerts`、`src/core/deck/column-alerts.ts`）。レンダラの失敗判定（2 件目）はレンダラ登録機構（ADR-0003 の A-2）がまだ無いため未着手のまま
 - **[ADR-0015](./0015-section-status-excludes-renderer-fetches.md) は影響を受けない。** あちらが定めているのは `status` に何を含めるかであって、`status` をどう表示するかではない
