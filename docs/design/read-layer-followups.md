@@ -229,6 +229,8 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | `v1.tsx` / `deck-mutations.ts` | **カラム名を変えるとそのカラムの購読が張り直される。** `renameColumnIn` は該当カラムだけ新しいオブジェクト参照を作り、Solid の `<For>` は参照で照合するので、その `DeckColumn` の owner が破棄・再生成され `createSection` の `onCleanup` が購読を畳む。追加・削除・並べ替えは生き残るカラムの参照を保つので**リネームだけ**の問題（A-1 Task 4 のレビューで追跡確認済み）。実害は「blur/Enter のたびに 1 カラムが EOSE まで空になり、REQ が 1 本 30 接続予算へ再発行される」。カラムの識別を参照ではなく `id` に寄せる（`createStore` で細粒度に持つ等）のが素直な直し方だが、A-2 のレンダラ層がこの構造に乗るので、そこで一緒に決めるほうがよい |
 | `AddColumnForm.tsx` | 種別を切り替えても入力欄が残る。「ユーザー」で npub を打ってから「ハッシュタグ」へ切り替えて送信すると、その npub がタグ値になった（スキーマ上は正しいが絶対に何も来ない）カラムが黙って出来る。エラーも出ない |
 | `column-presets.ts` | ハッシュタグの先頭 `#` を 1 つしか落とさない（`/^#/`）。`##nostr` はタグ値 `#nostr` になり、NIP-12 のタグ値に `#` は含まれないので永久に一致しない。これもスキーマ上は正しいので黙って壊れる |
+| `e2e/fixtures/seed-preview.ts` | **`/v1` の e2e で `status.incomplete` を立てられるフィクスチャが無い。** シードは 3 人全員の `kind:10002` を到達可能な 1 本のリレーに置くので、`unreachableRelays` / `unroutableAuthors` / `uncoveredAuthors` が構造的に全部 0 になる。そのため「開発者モードを入れると `deck-column-incomplete` が出る」ことを e2e で主張できない（A-1 Task 5 は実際に一時的な assertion を入れて確認したうえで、その 1 本だけ落とした）。`/debug/v1-section?budget=` に相当する予算上書きを `/v1` にも作れば書けるようになる |
+| `ColumnAlertBadge.tsx` | 開閉状態がカラムの owner 再生成で失われる（上のリネームの項と同じ原因）。異常を開いたままリネームすると畳まれる。実害は小さいが、上のリネーム remount を直せば一緒に消える |
 
 | 箇所 | 内容 |
 |---|---|
