@@ -1,3 +1,4 @@
+import { shouldPersist } from "./cache-policy";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 
@@ -48,7 +49,13 @@ export const createMemoryPersistence = (): EventPersistence => {
 
     save(entries) {
       if (disposed) return;
-      for (const entry of entries) events.set(entry.event.id, entry);
+      // 書かない kind を落とすのは IndexedDB 実装と同じ責務。ここで
+      // 素通しすると、`retention: none` の kind がこの実装でだけ残り、
+      // 同じテストが 2 つの実装で違う結果を出す。
+      for (const entry of entries) {
+        if (!shouldPersist(entry.event.kind)) continue;
+        events.set(entry.event.id, entry);
+      }
     },
 
     saveDeletions(ids) {

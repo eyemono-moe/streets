@@ -350,7 +350,7 @@ export class SubscriptionManager {
   }
 
   /**
-   * マネージャを構築した際の `EventStore` (Task 7)。`createSection` が
+   * マネージャを構築した際の `EventStore`。`createSection` が
    * `SectionReader` を組み立てるのに使う唯一の経路 —— `createSection` は
    * もう `store` を公開オプションとして受け取らず、常にこの manager の
    * store を使う。呼び出し側が manager と別の store を渡す余地を型の時点で

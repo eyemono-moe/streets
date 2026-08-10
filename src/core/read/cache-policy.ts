@@ -75,3 +75,11 @@ export const isStale = (
   if (fetchedAt === 0) return true;
   return now - fetchedAt > policy.staleMs;
 };
+
+/**
+ * この kind を永続層へ書いてよいか。`retention: none` は「保持しない」では
+ * なく「そもそも書かない」を意味する —— `kind:3` がこれに当たり、古い
+ * フォローリストがディスクに残ると、後から読む誰かがそれを使いうる。
+ */
+export const shouldPersist = (kind: number): boolean =>
+  policyFor(kind).retention.type !== "none";

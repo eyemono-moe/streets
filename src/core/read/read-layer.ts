@@ -19,10 +19,9 @@ export type ReadLayerOptions = {
   /**
    * store・manager (= ConnectionPool)・coalescer の 4 者すべてがこの 1 つを
    * 共有する。呼び出し側が個別に別々の Scheduler を組み立てて 2 つ目を
-   * どこかへ渡す経路を、型の形として作らない —— Task 6 が
-   * `warmUpRouting`/`createProfileRequests` それぞれで踏んだ「store と別の
-   * 時計を渡すと鮮度がかみ合わない」という規約違反を、ここでは物理的に
-   * 起こしようがなくする。
+   * どこかへ渡す経路を、型の形として作らない。**store が `fetchedAt` を刻む
+   * 時計と、鮮度を判定する側の時計が別だと、経過時間が動かない**ので、
+   * 規約ではなく構造で 1 つに縛る。
    */
   scheduler?: Scheduler;
   random?: () => number;

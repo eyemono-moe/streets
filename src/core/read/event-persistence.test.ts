@@ -11,11 +11,11 @@ import {
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
 
-const sign = (content = "hello nostr"): NostrEvent => {
+const sign = (content = "hello nostr", kind = 0): NostrEvent => {
   const unsigned = {
     pubkey,
     created_at: 1_700_000_000,
-    kind: 0,
+    kind,
     tags: [],
     content,
   };
@@ -28,6 +28,22 @@ const sign = (content = "hello nostr"): NostrEvent => {
 };
 
 describe("createMemoryPersistence", () => {
+  it("retention: none の kind は保存しない", () => {
+    // 捕まえる変異: save() で shouldPersist の判定を外す。kind:3 は
+    // 「保持しない」ではなく「そもそも書かない」—— 古いフォローリストが
+    // ディスクに残ると、後から読む誰かがそれを使いうる。IndexedDB 実装は
+    // selectForPersistence で落としているので、ここを素通しすると
+    // 同じ契約が実装ごとに違う結果を出す
+    const persistence = createMemoryPersistence();
+    persistence.save([
+      { event: sign("follows", 3), seenRelays: ["wss://a/"], fetchedAt: 1 },
+      { event: sign("relays", 10002), seenRelays: ["wss://a/"], fetchedAt: 1 },
+    ]);
+    return persistence.load().then((loaded) => {
+      expect(loaded.events.map((e) => e.event.kind)).toEqual([10002]);
+    });
+  });
+
   it("save した内容が fetchedAt も含めて load で戻る", async () => {
     // 捕まえる変異: fetchedAt を保存しない (0 や現在時刻で代替する)。
     // 水和後にどれだけ古いかが分からなくなり、staleMs の判定が壊れる
