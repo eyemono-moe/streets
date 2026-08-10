@@ -167,16 +167,25 @@ const V1: Component = () => {
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
   // 呼ばない — デバッグルートのような「空文字を弾く」ガードが要らない
   // (source が nullish なら Solid 自身が起動を見送るため)。
-  const [warmUp] = createResource(pubkey, (pk) =>
-    warmUpRouting({
-      pubkey: pk,
-      store,
-      // マネージャと同じ ConnectionPool を使う (ADR-0011 の予算を一本化する)
-      pool: manager.pool,
-      // undefined なら warmUpRouting 自身の既定 (BOOTSTRAP_INDEXERS) が効く
-      indexers: RELAYS_OVERRIDE,
-    }),
-  );
+  // ブートストラップは kind:3 を引いてから kind:10002 を引く 2 往復で、
+  // ホーム列の最初の REQ はその後にしか出せない。初回描画のどれだけを
+  // ここが占めているかは、first-render-ms からこれを引いて初めて分かる。
+  const [warmUpMs, setWarmUpMs] = createSignal<number>();
+  const [warmUp] = createResource(pubkey, async (pk) => {
+    const startedAt = performance.now();
+    try {
+      return await warmUpRouting({
+        pubkey: pk,
+        // マネージャと同じ ConnectionPool を使う (ADR-0011 の予算を一本化する)
+        store,
+        pool: manager.pool,
+        // undefined なら warmUpRouting 自身の既定 (BOOTSTRAP_INDEXERS) が効く
+        indexers: RELAYS_OVERRIDE,
+      });
+    } finally {
+      setWarmUpMs(performance.now() - startedAt);
+    }
+  });
 
   // デッキの読み込みと既定デッキの確定は一度だけ行う。
   //
@@ -294,11 +303,13 @@ const V1: Component = () => {
   const [unrequestedEventsByRelay, setUnrequestedEventsByRelay] = createSignal<
     [string, number][]
   >([]);
+  const [verifyStats, setVerifyStats] = createSignal({ ms: 0, count: 0 });
   const [batchSizes, setBatchSizes] = createSignal({
     events: { last: 0, max: 0 },
     profiles: { last: 0, max: 0 },
   });
   const syncConnectionSignals = () => {
+    setVerifyStats({ ms: store.verifyMs, count: store.verifyCount });
     setBatchSizes({
       events: {
         last: eventRequests.lastBatchSize,
@@ -494,6 +505,14 @@ const V1: Component = () => {
                     {firstRenderMs() === undefined
                       ? "-"
                       : firstRenderMs()?.toFixed(2)}
+                  </p>
+                  <p data-testid="warm-up-ms" class="text-alpha-600 text-xs">
+                    warmUpMs:{" "}
+                    {warmUpMs() === undefined ? "-" : warmUpMs()?.toFixed(2)}
+                  </p>
+                  <p data-testid="verify-ms" class="text-alpha-600 text-xs">
+                    verifyMs: {verifyStats().ms.toFixed(2)} (
+                    {verifyStats().count} 件)
                   </p>
                   <p data-testid="event-batch" class="text-alpha-600 text-xs">
                     eventBatch: {batchSizes().events.last} (max{" "}

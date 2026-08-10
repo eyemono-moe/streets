@@ -399,6 +399,8 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
     await expect(page.getByTestId("event-batch")).toHaveCount(0);
     await expect(page.getByTestId("profile-batch")).toHaveCount(0);
+    await expect(page.getByTestId("warm-up-ms")).toHaveCount(0);
+    await expect(page.getByTestId("verify-ms")).toHaveCount(0);
 
     // 2. トグルを押すと現れる。
     // 捕まえる変異: トグルが developerMode シグナルを更新しない
@@ -410,6 +412,15 @@ test.describe("v1 vertical slice", () => {
     // (診断値なのに常時見えてしまう) / 配線を忘れる。
     await expect(page.getByTestId("event-batch")).toBeVisible();
     await expect(page.getByTestId("profile-batch")).toBeVisible();
+    await expect(page.getByTestId("warm-up-ms")).toBeVisible();
+    await expect(page.getByTestId("verify-ms")).toBeVisible();
+    // 捕まえる変異: warmUpMs を resolve 後にしか set しない (失敗時に
+    // 空のまま残り、初回描画のうちブートストラップが占める分が読めない) /
+    // verifyMs を store から取らず 0 固定にする。
+    await expect(page.getByTestId("warm-up-ms")).not.toHaveText(/warmUpMs: -/);
+    await expect(page.getByTestId("verify-ms")).not.toHaveText(
+      /verifyMs: 0\.00 \(0 件\)/,
+    );
     // プロフィールは必ず要求される (どのノートにも著者がいる) ので、
     // 0 のままなら計測が繋がっていない。
     await expect(page.getByTestId("profile-batch")).not.toHaveText(

@@ -30,6 +30,27 @@ const sign = (
 const validEvent = sign();
 
 describe("EventStore", () => {
+  it("検証にかかった時間と件数を積む", () => {
+    // 捕まえる変異: verifyCount を検証の前ではなく `verified` が真のときだけ
+    // 増やす。拒否されたイベントも schnorr のコストは払っているので、
+    // 数えないと「検証にどれだけ費やしたか」が過小に出る。
+    const store = new EventStore();
+    const event = sign("verified");
+    const forged = { ...sign("forged"), sig: "0".repeat(128) };
+
+    expect(store.verifyCount).toBe(0);
+    expect(store.put(event, "wss://relay/")).toBe("inserted");
+    expect(store.put(forged, "wss://relay/")).toBe("rejected");
+    expect(store.verifyCount).toBe(2);
+
+    // 捕まえる変異: 重複経路でも計上する (重複は検証していないのに
+    // 検証時間が水増しされ、初回描画の分解が狂う)
+    expect(store.put(event, "wss://other/")).toBe("duplicate");
+    expect(store.verifyCount).toBe(2);
+
+    expect(store.verifyMs).toBeGreaterThan(0);
+  });
+
   it("stores a valid event once and tracks every relay that saw it", () => {
     const store = new EventStore();
 

@@ -22,8 +22,32 @@ export class EventStore {
   /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
   readonly #replaceable = new Map<string, string>();
 
+  #verifyMs = 0;
+  #verifyCount = 0;
+
   get size(): number {
     return this.#events.size;
+  }
+
+  /**
+   * `verifyEvent` (id 再計算 + schnorr) にこれまで費やした累計 ms と回数。
+   *
+   * ADR-0011 の「初回イベント表示 2 秒」に対して、検証がどれだけを占めて
+   * いるかを分解するための値。初回バーストでは数百件が一度に流れるため、
+   * 1 件あたりが速くても合計は無視できない。重複判定で弾かれた分は含めない
+   * (そちらは検証していない)。
+   *
+   * `performance.now()` を注入せず直に呼ぶ。読み取り層がタイマーを
+   * `Scheduler` 経由にしているのは、テストが時間を決定的に進めるためで
+   * あって、時刻の取得一般を禁じているからではない。この値は表示にしか
+   * 使わず、どの分岐にも影響しない。
+   */
+  get verifyMs(): number {
+    return this.#verifyMs;
+  }
+
+  get verifyCount(): number {
+    return this.#verifyCount;
   }
 
   put(event: NostrEvent, relay: RelayUrl): PutResult {
@@ -44,7 +68,11 @@ export class EventStore {
     }
 
     // リレーは信用できない。全件検証する。
-    if (!verifyEvent(event)) return "rejected";
+    const startedAt = performance.now();
+    const verified = verifyEvent(event);
+    this.#verifyMs += performance.now() - startedAt;
+    this.#verifyCount += 1;
+    if (!verified) return "rejected";
 
     this.#events.set(event.id, { event, seenRelays: [relay] });
     this.#indexReplaceable(event);
