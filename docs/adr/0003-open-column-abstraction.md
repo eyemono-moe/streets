@@ -39,3 +39,9 @@ kind 単位でレンダラを分離すれば、**NIP の変更による修正範
   | グローバル | `{ kind: "literal", filters: [{ kinds: [1] }], relays: [...FALLBACK_RELAYS] }` | 明示リレー、Outbox バイパス |
 
   6 問への回答の根拠と、まだ実地で確かめていない項目は [followups「A-1 デッキとカラム」節](../design/read-layer-followups.md) を参照。
+
+- **A-2（レンダラと関連イベント、2026-08-07）** — [ADR-0017](./0017-declarative-renderer-needs.md) が定めるレンダラ登録機構を**初めて実装した**。`src/core/view/renderer-registry.ts` の `defineRenderer`/`rendererFor` と、唯一の描画入口 `src/routes/v1/EventView.tsx` が骨組みで、kind ごとに `full`/`compact` の 2 表示を持つ（[仕様](../superpowers/specs/2026-08-07-renderers-and-related-events-design.md) 3 節）。実際に登録したのは kind:1（`Note`）と kind:6/16（`Repost`、2 kind が同じレンダラを共有）の 2 組のみ。
+
+  **未登録 kind への fallback（`UnknownKind.tsx`）は実地で効いた。** 最初にこの経路を踏んだのは、kind:16（汎用リポスト）の対象が未登録 kind であるケースで、`Repost.tsx` は対象イベントの `k` タグを一切読まず、対象自身の実 kind を `EventView` に渡して選ばせる（Task 4 報告）。これにより「レンダラが未実装でもカラムが壊れない」という本 ADR の要件を、決め打ちではなく実データで確認した。
+
+  **A-1 が「1 カラム = 1 セクション」のひっくり返す条件として挙げていたユーザー詳細カラムは、A-2 でもまだ来ていない。** A-2 が実装した kind:1・kind:6/16・未登録 kind はいずれも「1 イベント = 1 描画」の範囲に収まり、「領域を積む」（プロフィール + 固定ポスト + 投稿一覧のような複数領域の合成）を要求する場面は生じなかった。セクションとレンダラの境界をその実例に合わせて決める作業は、依然としてユーザー詳細カラムが実際に作られるときまで先送りされている。
