@@ -26,6 +26,24 @@ import { matchesAnyFilter } from "./filter-match";
 export type CollectOptions = {
   reserved?: boolean;
   onUnrequested?: (url: RelayUrl) => void;
+  /**
+   * URL 1 本が片付くたびに、投げてからの経過 ms と片付き方を添えて呼ばれる。
+   *
+   * `collect()` の所要時間は**最も遅い 1 本**で決まるので、合計値だけを見て
+   * いる限り「どのリレーが遅いのか」も「そもそも応答が返っていないのか」も
+   * 分からない。ボトルネックの特定にはこの粒度が要る。
+   */
+  onRelaySettled?: (settle: RelaySettle) => void;
+};
+
+export type RelaySettle = {
+  url: RelayUrl;
+  ms: number;
+  /**
+   * `rejected` は予算切れで購読そのものが張れなかった場合、`timeout` は
+   * `timeoutMs` までに EOSE も CLOSED も返さなかった場合。
+   */
+  reason: "eose" | "closed" | "rejected" | "timeout";
 };
 
 /**
@@ -72,6 +90,7 @@ export const collect = (
   options?: CollectOptions,
 ): Promise<number> =>
   new Promise((resolve) => {
+    const startedAt = performance.now();
     let unrequested = 0;
     let pending = urls.length;
     let done = false;
@@ -81,6 +100,18 @@ export const collect = (
       if (done) return;
       done = true;
       clearTimeout(timer);
+      // タイムアウトで来た場合、まだ片付いていない URL は「応答が無かった」
+      // ものとして残る —— ここで報告しないと、いちばん知りたい相手だけが
+      // 記録から漏れる。
+      for (const url of urls) {
+        if (settled.has(url)) continue;
+        settled.add(url);
+        options?.onRelaySettled?.({
+          url,
+          ms: performance.now() - startedAt,
+          reason: "timeout",
+        });
+      }
       for (const subscription of open.values()) subscription.close();
       open.clear();
       resolve(unrequested);
@@ -92,9 +123,14 @@ export const collect = (
       return;
     }
 
-    const settleOnce = (url: RelayUrl) => {
+    const settleOnce = (url: RelayUrl, reason: RelaySettle["reason"]) => {
       if (settled.has(url)) return;
       settled.add(url);
+      options?.onRelaySettled?.({
+        url,
+        ms: performance.now() - startedAt,
+        reason,
+      });
       // ここで閉じておけば finish() 側で二重に閉じても安全
       // (PooledSubscription.close() は冪等)。
       open.get(url)?.close();
@@ -118,8 +154,8 @@ export const collect = (
             }
             store.put(event, url);
           },
-          onEose: () => settleOnce(url),
-          onClosed: () => settleOnce(url),
+          onEose: () => settleOnce(url, "eose"),
+          onClosed: () => settleOnce(url, "closed"),
         },
         { reserved: options?.reserved ?? false },
       );
@@ -131,7 +167,7 @@ export const collect = (
         // (`fetchOnce`) では、予算が埋まっていれば普通にここへ来る ——
         // それは正しい振る舞い (ADR-0011) であり、取れなかった URL を
         // ハングさせず即座に片付いたものとして扱う。
-        settleOnce(url);
+        settleOnce(url, "rejected");
         continue;
       }
 

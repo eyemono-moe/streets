@@ -535,6 +535,33 @@ const V1: Component = () => {
                     phase1: {formatWarmUpPhaseMs(warmUp()?.phase1Ms)} / phase2:{" "}
                     {formatWarmUpPhaseMs(warmUp()?.phase2Ms)}
                   </p>
+                  {/*
+                    相の所要時間は**最も遅い 1 本**で決まるので、合計値だけでは
+                    どのリレーが原因かも、そもそも応答が返っていないのかも
+                    分からない。遅い順に並べる。
+                  */}
+                  <ul
+                    data-testid="warm-up-relays"
+                    class="text-alpha-600 text-xs"
+                  >
+                    <For
+                      each={[
+                        ...(warmUp()?.phase1Relays ?? []).map(
+                          (s) => ["1", s] as const,
+                        ),
+                        ...(warmUp()?.phase2Relays ?? []).map(
+                          (s) => ["2", s] as const,
+                        ),
+                      ].sort((a, b) => b[1].ms - a[1].ms)}
+                    >
+                      {([phase, settle]) => (
+                        <li data-testid="warm-up-relay">
+                          p{phase} {settle.ms.toFixed(0)}ms {settle.reason}{" "}
+                          {settle.url}
+                        </li>
+                      )}
+                    </For>
+                  </ul>
                   <p data-testid="verify-ms" class="text-alpha-600 text-xs">
                     verifyMs: {verifyStats().ms.toFixed(2)} (
                     {verifyStats().count} 件)

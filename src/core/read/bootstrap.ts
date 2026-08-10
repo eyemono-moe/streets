@@ -1,6 +1,6 @@
 import type { RelayUrl } from "../relay/relay-connection";
 import { isStale, policyFor } from "./cache-policy";
-import { collect } from "./collect";
+import { type RelaySettle, collect } from "./collect";
 import {
   type ConnectionPool,
   type PooledHold,
@@ -18,6 +18,9 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 export type WarmUpResult = {
   /** フォローリストに載っていた pubkey */
   followees: string[];
+  /** 相ごとに、どの URL が何 ms でどう片付いたか。所要時間は最も遅い 1 本で決まる。 */
+  phase1Relays: RelaySettle[];
+  phase2Relays: RelaySettle[];
   /** kind:10002 が引けた人数 */
   routed: number;
   /** 引けなかった人数 */
@@ -133,6 +136,8 @@ export const warmUpRouting = async ({
     // event-store.ts の verifyMs と同じ理由で performance.now() を直に呼ぶ
     // (`Scheduler` はテストが分岐のタイミングを決定的に進めるためのもので、
     // 時刻取得そのものを禁じてはいない)。
+    const phase1Relays: RelaySettle[] = [];
+    const phase2Relays: RelaySettle[] = [];
     const phase1StartedAt = performance.now();
     const unrequestedFollows = await collect(
       pool,
@@ -143,7 +148,10 @@ export const warmUpRouting = async ({
       open,
       // ブートストラップだけが使ってよい予算迂回 (`./collect` の
       // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
-      { reserved: true },
+      {
+        reserved: true,
+        onRelaySettled: (settle) => phase1Relays.push(settle),
+      },
     );
     const phase1Ms = performance.now() - phase1StartedAt;
 
@@ -201,7 +209,10 @@ export const warmUpRouting = async ({
         open,
         // ブートストラップだけが使ってよい予算迂回 (`./collect` の
         // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
-        { reserved: true },
+        {
+          reserved: true,
+          onRelaySettled: (settle) => phase2Relays.push(settle),
+        },
       );
       phase2Ms = performance.now() - phase2StartedAt;
     }
@@ -218,6 +229,8 @@ export const warmUpRouting = async ({
       unrequested: unrequestedFollows + unrequestedRelayLists,
       phase1Ms,
       phase2Ms,
+      phase1Relays,
+      phase2Relays,
     };
   } finally {
     // 正常系では collect() 自身がここまでに `open` を空にしている
