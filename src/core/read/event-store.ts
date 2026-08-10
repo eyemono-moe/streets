@@ -6,6 +6,7 @@ import {
 } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
+import type { PersistedEvent } from "./event-persistence";
 
 export type StoredEvent = {
   event: NostrEvent;
@@ -94,13 +95,42 @@ export class EventStore {
     this.#verifyCount += 1;
     if (!verified) return "rejected";
 
-    this.#events.set(event.id, {
-      event,
-      seenRelays: [relay],
-      fetchedAt: this.#scheduler.now(),
-    });
-    this.#indexReplaceable(event);
+    this.#insert(event, [relay], this.#scheduler.now());
     return "inserted";
+  }
+
+  /**
+   * 永続層から読み戻したものを検証せずに入れる。`put()` の枝ではなく別の
+   * メソッドにしているのは、リレー由来の値がこの無検証の経路へ迷い込む
+   * 余地を型シグネチャの時点で無くすため —— 呼び出せるのは
+   * `readonly PersistedEvent[]` を持っている側だけで、`RelayConnection` の
+   * イベントハンドラはこの形を作れない。
+   *
+   * `fetchedAt` は引数の値をそのまま使う。ここで現在時刻を入れると水和の
+   * たびに全件が新鮮になり、`staleMs` が二度と発火しなくなる。
+   *
+   * 既にある id は上書きしない —— 起動後にリレーから届いた新しい版を、
+   * 後から終わる水和が古い値で巻き戻すことになる。
+   */
+  hydrate(
+    entries: readonly PersistedEvent[],
+    options?: { deletedIds?: readonly string[] },
+  ): void {
+    const deletedIds = new Set(options?.deletedIds ?? []);
+    for (const entry of entries) {
+      if (deletedIds.has(entry.event.id)) continue;
+      if (this.#events.has(entry.event.id)) continue;
+      // 永続層のデータは壊れていることがある (スキーマ変更、部分書き込み)。
+      // 署名までは検証しない (信用済み挿入の前提そのもの) が、形だけは確かめる。
+      if (!isNostrEvent(entry.event)) continue;
+
+      this.#insert(entry.event, [...entry.seenRelays], entry.fetchedAt);
+    }
+  }
+
+  #insert(event: NostrEvent, seenRelays: RelayUrl[], fetchedAt: number): void {
+    this.#events.set(event.id, { event, seenRelays, fetchedAt });
+    this.#indexReplaceable(event);
   }
 
   get(id: string): NostrEvent | undefined {

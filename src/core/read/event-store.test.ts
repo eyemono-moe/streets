@@ -176,6 +176,88 @@ describe("EventStore", () => {
   });
 });
 
+describe("EventStore.hydrate", () => {
+  it("署名を検証せずに入れる", () => {
+    // 捕まえる変異: hydrate の中で verifyEvent を呼ぶ。実測 0.498ms/件、
+    // 9000 件超で 4.7 秒かかり、起動の初回描画をまるごと埋めてしまう
+    const store = new EventStore();
+    const forged = { ...sign("x"), sig: "0".repeat(128) };
+
+    store.hydrate([
+      { event: forged, seenRelays: ["wss://relay/"], fetchedAt: 1 },
+    ]);
+
+    expect(store.get(forged.id)).toEqual(forged);
+  });
+
+  it("verifyCount を増やさない", () => {
+    // 捕まえる変異: hydrate の中で verifyEvent を呼ぶ (同じ経路を
+    // カウンタ側から捕まえる —— こちらは verifyMs/verifyCount という
+    // 表示値が水和で不当に膨らまないことの確認)
+    const store = new EventStore();
+    store.hydrate([{ event: validEvent, seenRelays: [], fetchedAt: 1 }]);
+
+    expect(store.verifyCount).toBe(0);
+  });
+
+  it("fetchedAt は引数の値になる (現在時刻ではない)", () => {
+    // 捕まえる変異: hydrate の中で fetchedAt に scheduler.now() を入れる。
+    // 水和のたびに全件が新鮮になり、staleMs が永久に発火しなくなる ——
+    // 時計を大きく進めてから水和し、「今」と引数の値が一致しないようにして
+    // 混同できないようにする
+    const clock = createFakeClock();
+    clock.advance(999_000);
+    const store = new EventStore({ scheduler: clock });
+
+    store.hydrate([{ event: validEvent, seenRelays: [], fetchedAt: 42 }]);
+
+    expect(store.fetchedAt(validEvent.id)).toBe(42);
+  });
+
+  it("既にある id を上書きしない", () => {
+    // 捕まえる変異: 既存チェックを省いて無条件に上書きする。リレーから
+    // 届いた新しい版を、後から走った水和が古い永続データで巻き戻してしまう
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    store.put(validEvent, "wss://a/");
+    clock.advance(1_000);
+
+    store.hydrate([
+      {
+        event: { ...validEvent, content: "stale copy from disk" },
+        seenRelays: ["wss://stale/"],
+        fetchedAt: 999,
+      },
+    ]);
+
+    expect(store.get(validEvent.id)).toEqual(validEvent);
+    expect(store.fetchedAt(validEvent.id)).toBe(0);
+  });
+
+  it("deletedIds に含まれる id は入れない", () => {
+    // 捕まえる変異: 除外チェックを省く。ユーザーが消したはずの投稿が
+    // 次回起動時に復活する (ADR-0019)
+    const store = new EventStore();
+
+    store.hydrate([{ event: validEvent, seenRelays: [], fetchedAt: 1 }], {
+      deletedIds: [validEvent.id],
+    });
+
+    expect(store.get(validEvent.id)).toBeUndefined();
+  });
+
+  it("isNostrEvent を通らない形のものは入れない", () => {
+    // 捕まえる変異: 形の検査を省く。永続層のデータが壊れている
+    // (スキーマ変更・部分書き込み) 場合にそのまま store へ入ってしまう
+    const store = new EventStore();
+    const malformed = { ...validEvent, sig: "not-hex" } as NostrEvent;
+
+    store.hydrate([{ event: malformed, seenRelays: [], fetchedAt: 1 }]);
+
+    expect(store.size).toBe(0);
+  });
+});
+
 describe("EventStore.latestReplaceable", () => {
   it("returns undefined when nothing is stored for that author", () => {
     const store = new EventStore();
