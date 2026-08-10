@@ -38,10 +38,16 @@ const resolveRepostTarget = (
 ): RepostTarget | undefined => {
   const embedded = embeddedRepostEvent(event);
   if (embedded) {
-    // 第 2 引数に実在するリレーの URL を渡さない —— `seenRelays` は
-    // リレーヒントとして routing-table に読まれる (ADR-0016) ので、
-    // 埋め込み由来のものを実在リレーの提供として記録すると嘘になる。
-    // "embedded" は URL の形をしていない印であり、実リレーと衝突しない。
+    // 第 2 引数に実在するリレーの URL を渡さない。埋め込みは**リポスト
+    // した人が書いた任意の文字列**であり、それを実在リレーが配信したもの
+    // として `seenRelays` に記録すると嘘になる。"embedded" は URL の形を
+    // していない印であり、実リレーと衝突しない。
+    //
+    // **今日の `RoutingTable` は `seenRelays` を読んでいない** —— リレー
+    // ヒントは `kind:10002` からだけ導出している。この用心が効くのは
+    // `seenRelays` をヒントとして読み始めたときで、それは
+    // `docs/design/read-layer-followups.md` の Outbox の節が予定している
+    // 将来の話である。今は無害だが、そのとき初めて必要になる。
     const result = store.put(embedded, "embedded");
     if (result !== "rejected") {
       return { id: embedded.id };
