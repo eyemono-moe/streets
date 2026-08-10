@@ -25,3 +25,9 @@ status: accepted
 
 - 削除指示の保持は単調増加する。実運用で問題になる規模かは監視が必要だが、安全側に倒す。
 - スキーマ移行の手順が必要になる。バケット構成を変えるときにユーザーのキャッシュをどう扱うか（破棄して再取得が既定で十分）。
+
+## 実装の段階
+
+- **永続化スライス（2026-08-10、[docs/design/read-layer-followups.md](../design/read-layer-followups.md)）** — 上記の 2 バケットは kind ごとの `CachePolicy.retention`（`src/core/read/cache-policy.ts`）として一般化された。`Retention` は `{ type: "latest-per-author" } | { type: "capped"; max: number } | { type: "none" }` の判別共用体で、`policyFor(kind)` が返す。バケットという固定の 2 分割ではなく、kind ごとに 1 つ選ぶ値になった。
+- **分ける理由が変わった。** 導入時点では「保持ポリシーの違い」（参照データは全保持、流れるデータは上限付き破棄）で 2 つに分けていたが、`staleMs` / `serveWhileRevalidating` を kind ごとに持たせる過程で、区別の土台はそちらではなく**可変性の違い**だと分かった —— 置換可能イベント（`kind:0`/`3`/`10002` など、参照データ＝`retention: "latest-per-author"`）は新しい版が届くまで古くなりうるので鮮度判定が要るのに対し、不変な kind（`kind:1`/`6`/`7`、流れるデータに相当）はあるか無いかしか無く `staleMs` と `serveWhileRevalidating` は意味を持たない。効くのは `retention` だけである（[仕様](../superpowers/specs/2026-08-10-event-persistence-design.md) 2 節）。
+- **`capped` は型として定義されているが未実装で、指す kind が無い。** IndexedDB 実装の書き込み選別 (`selectForPersistence`、`src/core/read/indexeddb-persistence.ts`) は `capped` を渡されると例外を投げる。「流れるデータ」バケット（20,000 件上限、`created_at` 古い順破棄）に対応する kind は現時点で 1 つも `policyFor` に登録されておらず、未指定の kind は既定で `retention: "none"`（永続化しない）に落ちる —— イベント本体の水和を入れるスライスが最初の `capped` の利用者になる想定（[仕様](../superpowers/specs/2026-08-10-event-persistence-design.md) 4 節）。
