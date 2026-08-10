@@ -116,6 +116,12 @@ describe("quoteTargets", () => {
 
 describe("repostTarget", () => {
   it("e タグを返す", () => {
+    // 捕まえる変異: relay (tag[2]) を idRef へ渡さない/無視する。id だけ
+    // 拾って relay を落としても他のアサーションは undefined 判定しか
+    // 見ていないので気付けない —— relay まで含めて構造を丸ごと比較する
+    // ことで、リポスト対象を引き直すためのリレーヒントが消えていないか
+    // 確かめる (検証済み: tag[2] を undefined に差し替えると本テストだけ
+    // 落ち、他の 14 本は通る)。
     expect(
       repostTarget(noteWith([["e", ID_B, "wss://b/"]], { kind: 6 })),
     ).toEqual({
@@ -135,6 +141,11 @@ describe("repostTarget", () => {
 
 describe("embeddedRepostEvent", () => {
   it("content の JSON がイベントの形なら返す", () => {
+    // 捕まえる変異: isNostrEvent を通した後、パースした埋め込みイベント
+    // ではなく外側の repost イベント自身などの別の値を返す。他のテストは
+    // すべて undefined 判定なので、この成功系だけが「返ってきた値の中身」
+    // を確かめる (検証済み: `parsed` を `event` に差し替えると本テストだけ
+    // 落ち、他の 14 本は通る)。
     const embedded = noteWith([], { id: ID_B });
     expect(
       embeddedRepostEvent(
@@ -144,7 +155,13 @@ describe("embeddedRepostEvent", () => {
   });
 
   it("content が空なら undefined", () => {
-    // 捕まえる変異: 空文字を JSON.parse に渡して例外を投げる
+    // このアサーションが実際に保証すること: 空文字を JSON.parse に渡すと
+    // SyntaxError を投げるが、下の try/catch がそのまま吸収して undefined
+    // を返すので、event-refs.ts の `event.content.trim().length === 0` の
+    // 早期リターンを削ってもこの 1 本のアサーション単体では有無を区別
+    // できない (だから「捕まえる変異」は無い、検証済み: 早期リターンを
+    // 削っても 15/15 通る)。それでも早期リターンを残す理由は
+    // embeddedRepostEvent 側のコメントを参照。
     expect(
       embeddedRepostEvent(noteWith([], { kind: 6, content: "" })),
     ).toBeUndefined();

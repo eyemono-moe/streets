@@ -114,6 +114,13 @@ export const repostTarget = (event: NostrEvent): IdRef | undefined => {
 export const embeddedRepostEvent = (
   event: NostrEvent,
 ): NostrEvent | undefined => {
+  // 空文字 (トリム後) を早期に弾く。**この早期リターンを消してもテストは
+  // 1 つも落ちない** —— 空文字を JSON.parse に渡すと SyntaxError を投げ、
+  // 下の try/catch がそのまま吸収して undefined を返すので、早期リターンの
+  // 有無は外部から観測できない (deck.ts の loadDeck の `raw === null` と同じ
+  // 構造)。それでも残すのは、「content が無い」という呼び出し側の意図を
+  // JSON.parse の例外送出という偶然の挙動任せにせず、コードとして明示する
+  // ため。
   if (event.content.trim().length === 0) return undefined;
   let parsed: unknown;
   try {
