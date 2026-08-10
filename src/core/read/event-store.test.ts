@@ -3,6 +3,7 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { EventStore } from "./event-store";
+import { createFakeClock } from "./fake-clock";
 
 // Task 1 と同じく、その場で署名して自己整合的なイベントを作る
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
@@ -107,6 +108,31 @@ describe("EventStore", () => {
     store.put(forged, "wss://attacker.com");
 
     expect(store.get(validEvent.id)).toEqual(validEvent);
+  });
+
+  it("put は取得時刻を入れる", () => {
+    // 捕まえる変異: fetchedAt を event.created_at にする。created_at は
+    // 著者が書いた時刻であって取得時刻ではない —— 2 年前の kind:0 を
+    // 今取得しても「2 年前に取得した」ことになり、常に stale と判定される
+    const clock = createFakeClock();
+    clock.advance(5_000);
+    const store = new EventStore({ scheduler: clock });
+    const event = sign("x");
+    store.put(event, "wss://relay/");
+    expect(store.fetchedAt(event.id)).toBe(5_000);
+  });
+
+  it("invalidate は取得時刻を 0 にする", () => {
+    // 捕まえる変異: invalidate がイベントごと消す。消すと「持っていない」に
+    // なり、serveWhileRevalidating: true の kind で古い値を出せなくなる
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const profile = sign("p", { kind: 0 });
+    store.put(profile, "wss://relay/");
+    store.invalidate(0, profile.pubkey);
+    expect(store.replaceableFetchedAt(0, profile.pubkey)).toBe(0);
+    // イベント自体は残る
+    expect(store.latestReplaceable(0, profile.pubkey)).toBeDefined();
   });
 });
 

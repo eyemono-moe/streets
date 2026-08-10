@@ -5,13 +5,25 @@ import {
   verifyEvent,
 } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import { type Scheduler, defaultScheduler } from "./connection-pool";
 
 export type StoredEvent = {
   event: NostrEvent;
   seenRelays: RelayUrl[];
+  /**
+   * `put()` が呼ばれた時刻 (ミリ秒エポック)。`event.created_at` は著者が
+   * 書いた時刻であって、こちらは我々が取得した時刻 —— 鮮度判定
+   * (staleMs との比較) はこちらでなければ、2 年前に書かれた kind:0 を
+   * 今取得しても常に stale と判定されてしまう。
+   */
+  fetchedAt: number;
 };
 
 export type PutResult = "inserted" | "duplicate" | "rejected";
+
+export type EventStoreOptions = {
+  scheduler?: Scheduler;
+};
 
 /**
  * 同期・メモリのイベント保管。
@@ -21,9 +33,14 @@ export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
   /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
   readonly #replaceable = new Map<string, string>();
+  readonly #scheduler: Scheduler;
 
   #verifyMs = 0;
   #verifyCount = 0;
+
+  constructor(options: EventStoreOptions = {}) {
+    this.#scheduler = options.scheduler ?? defaultScheduler;
+  }
 
   get size(): number {
     return this.#events.size;
@@ -74,7 +91,11 @@ export class EventStore {
     this.#verifyCount += 1;
     if (!verified) return "rejected";
 
-    this.#events.set(event.id, { event, seenRelays: [relay] });
+    this.#events.set(event.id, {
+      event,
+      seenRelays: [relay],
+      fetchedAt: this.#scheduler.now(),
+    });
     this.#indexReplaceable(event);
     return "inserted";
   }
@@ -85,6 +106,28 @@ export class EventStore {
 
   seenRelays(id: string): RelayUrl[] {
     return [...(this.#events.get(id)?.seenRelays ?? [])];
+  }
+
+  fetchedAt(id: string): number | undefined {
+    return this.#events.get(id)?.fetchedAt;
+  }
+
+  replaceableFetchedAt(kind: number, pubkey: string): number | undefined {
+    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+    return id ? this.fetchedAt(id) : undefined;
+  }
+
+  /**
+   * 取得時刻だけを 0 に戻し、イベント自体は残す。丸ごと消すと
+   * 「持っていない」になり、serveWhileRevalidating を許すポリシーの kind が
+   * 再取得の間に出すべき古い値を失う。
+   */
+  invalidate(kind: number, pubkey: string): void {
+    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+    if (!id) return;
+    const stored = this.#events.get(id);
+    if (!stored) return;
+    stored.fetchedAt = 0;
   }
 
   /**

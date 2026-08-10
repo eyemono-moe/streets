@@ -47,6 +47,11 @@ export type Scheduler = {
     delayMs: number,
   ) => ReturnType<typeof setTimeout>;
   clearTimeout: (handle: ReturnType<typeof setTimeout>) => void;
+  /**
+   * 現在時刻 (ミリ秒エポック)。鮮度判定は分岐に使うので、タイマーと同じく
+   * 注入できなければテストが時間を決められない。
+   */
+  now: () => number;
 };
 
 /**
@@ -62,6 +67,7 @@ export type Scheduler = {
 export const defaultScheduler: Scheduler = {
   setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
   clearTimeout: (handle) => clearTimeout(handle),
+  now: () => Date.now(),
 };
 
 /** 指数バックオフの初回間隔 (ADR-0021)。 */

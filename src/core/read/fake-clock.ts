@@ -31,6 +31,7 @@ export const createFakeClock = (): FakeClock => {
     clearTimeout: (handle) => {
       timers.delete(handle as unknown as number);
     },
+    now: () => now,
     advance(ms) {
       now += ms;
       const due = [...timers.entries()]

@@ -54,6 +54,7 @@ type TimerHandle = ReturnType<typeof setTimeout>;
 type FakeClock = {
   setTimeout: (callback: () => void, delayMs: number) => TimerHandle;
   clearTimeout: (handle: TimerHandle) => void;
+  now: () => number;
   advance(ms: number): void;
   /**
    * Fix round 1 (Important 4): how many times `clearTimeout` was actually
@@ -92,6 +93,7 @@ const createFakeClock = (): FakeClock => {
       clearTimeoutCallCount += 1;
       timers.delete(handle as unknown as number);
     },
+    now: () => now,
     advance(ms) {
       now += ms;
       const due = [...timers.entries()]
