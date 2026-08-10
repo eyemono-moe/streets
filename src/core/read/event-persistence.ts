@@ -1,6 +1,6 @@
-import { shouldPersist } from "./cache-policy";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import { shouldPersist } from "./cache-policy";
 
 export type PersistedEvent = {
   event: NostrEvent;
