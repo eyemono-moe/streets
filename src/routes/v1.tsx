@@ -520,10 +520,11 @@ const V1: Component = () => {
                     {warmUpMs() === undefined ? "-" : warmUpMs()?.toFixed(2)}
                   </p>
                   {/*
-                    warmUpMs (上) は warmUpRouting() 呼び出し全体、こちらは
-                    その内訳 (task-1-brief.md)。仕様 11 節の前提 (相② が
-                    支配的) を実鍵で検証するための材料 —— warmUp() が確定
-                    するまでは両方とも "-"。
+                    warmUpMs (上) は warmUpRouting() 全体で、こちらはその
+                    内訳。ウォームアップは 2 相あり、相② (全フォロイーの
+                    kind:10002) だけがフォロー数に比例する —— どちらが
+                    支配的かで、キャッシュして意味のある相が変わる。
+                    warmUp() が確定するまでは両方とも "-"。
                   */}
                   <p
                     data-testid="warm-up-phases"
