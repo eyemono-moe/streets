@@ -46,6 +46,32 @@ const stubManager = () => {
 };
 
 describe("createProfileRequests", () => {
+  it("送ったバッチの件数を lastBatchSize / maxBatchSize に出す", () => {
+    // 捕まえる変異1: lastBatchSize を固定値 0 にする
+    //   (上限に近づいていることが外から一切読めなくなる)
+    // 捕まえる変異2: maxBatchSize を毎回 lastBatchSize で上書きする
+    //   (ピークが小さいバッチで消え、いちばん知りたい値が残らない)
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+    });
+
+    requests.request(pubkeyFor(1));
+    requests.request(pubkeyFor(2));
+    requests.request(pubkeyFor(3));
+    clock.advance(200);
+    expect(requests.lastBatchSize).toBe(3);
+    expect(requests.maxBatchSize).toBe(3);
+
+    requests.request(pubkeyFor(4));
+    clock.advance(200);
+    expect(requests.lastBatchSize).toBe(1);
+    expect(requests.maxBatchSize).toBe(3);
+  });
+
   it("窓の中の複数の request を 1 回の fetchOnce にまとめる", () => {
     const manager = stubManager();
     const clock = createFakeClock();

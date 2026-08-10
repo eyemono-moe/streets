@@ -17,6 +17,16 @@ export type ProfileRequests = {
    * `SectionReader.subscribe` と同じ「変化を推す」形をここにも足した。
    */
   subscribe(listener: () => void): () => void;
+  /**
+   * 直近に送ったバッチの `authors` 件数と、観測史上の最大。
+   *
+   * 1 バッチは 1 本のフィルタに全件を詰めるので、この数がそのまま REQ の
+   * メッセージ長になる。NIP-11 の `limitation.max_message_length` を超えると
+   * リレーはメッセージごと拒否し、そのバッチのプロフィールが 1 つも届か
+   * ない —— 画面には短縮 pubkey が並ぶだけで、原因はどこにも出ない。
+   */
+  readonly lastBatchSize: number;
+  readonly maxBatchSize: number;
   dispose(): void;
 };
 
@@ -79,11 +89,16 @@ export const createProfileRequests = (
    * (dispose() 後は起きない) に、その分を今回のバッチへ混ぜず**次の**バッチへ
    * 回すため (仕様の「窓が閉じた後の新しい要求は次のバッチになる」)。
    */
+  let lastBatchSize = 0;
+  let maxBatchSize = 0;
+
   const flush = (): void => {
     timer = null;
     if (pending.size === 0) return;
     const authors = [...pending];
     pending = new Set();
+    lastBatchSize = authors.length;
+    if (authors.length > maxBatchSize) maxBatchSize = authors.length;
 
     const filters: RelayFilter[] = [{ kinds: [0], authors }];
     void options.manager.fetchOnce(filters).then(() => {
@@ -108,6 +123,14 @@ export const createProfileRequests = (
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    get lastBatchSize() {
+      return lastBatchSize;
+    },
+
+    get maxBatchSize() {
+      return maxBatchSize;
     },
 
     dispose() {

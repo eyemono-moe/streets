@@ -57,6 +57,8 @@ const createFakeEventRequests = () => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
+    lastBatchSize: 0,
+    maxBatchSize: 0,
     dispose() {
       listeners.clear();
     },
@@ -77,6 +79,8 @@ const fakeProfiles = (): ProfileRequests => ({
   subscribe() {
     return () => {};
   },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
   dispose() {},
 });
 

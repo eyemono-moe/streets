@@ -49,6 +49,8 @@ const createRecordingEventRequests = (): EventRequests & {
     subscribe() {
       return () => {};
     },
+    lastBatchSize: 0,
+    maxBatchSize: 0,
     dispose() {},
   };
 };
@@ -58,6 +60,8 @@ const fakeProfiles = (): ProfileRequests => ({
   subscribe() {
     return () => {};
   },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
   dispose() {},
 });
 

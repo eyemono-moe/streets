@@ -31,6 +31,17 @@ export type EventRequests = {
    * `store`/`isUnresolved` からもう一度引き直せばよい。
    */
   subscribe(listener: () => void): () => void;
+  /**
+   * 直近に送ったバッチの `ids` 件数と、観測史上の最大。
+   *
+   * 1 バッチは 1 本のフィルタに全件を詰めるので、この数がそのまま REQ の
+   * メッセージ長になる。NIP-11 の `limitation.max_message_length` を超えると
+   * リレーはメッセージごと拒否し、そのバッチの id が一斉に `isUnresolved`
+   * へ落ちる —— 画面には「読み込めませんでした」が並ぶだけで、原因は
+   * どこにも出ない。上限に近づいているかを外から読めるようにする。
+   */
+  readonly lastBatchSize: number;
+  readonly maxBatchSize: number;
   dispose(): void;
 };
 
@@ -99,11 +110,18 @@ export const createEventRequests = (
    * (dispose() 後は起きない) に、その分を今回のバッチへ混ぜず**次の**バッチへ
    * 回すため (仕様の「窓が閉じた後の新しい要求は次のバッチになる」)。
    */
+  let lastBatchSize = 0;
+  let maxBatchSize = 0;
+
   const flush = (): void => {
     timer = null;
+    // タイマーは `request()` が `pending` へ足した直後にしか張らないので、
+    // ここへ空で来ることは無い。守りとして残すが、これに依存した経路は無い。
     if (pending.size === 0) return;
     const ids = [...pending];
     pending = new Set();
+    lastBatchSize = ids.length;
+    if (ids.length > maxBatchSize) maxBatchSize = ids.length;
 
     const filters: RelayFilter[] = [{ ids }];
     void options.manager.fetchOnce(filters).then(() => {
@@ -141,6 +159,14 @@ export const createEventRequests = (
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+
+    get lastBatchSize() {
+      return lastBatchSize;
+    },
+
+    get maxBatchSize() {
+      return maxBatchSize;
     },
 
     dispose() {

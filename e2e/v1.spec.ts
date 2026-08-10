@@ -397,6 +397,8 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("connections")).toHaveCount(0);
     await expect(page.getByTestId("deck-column-phase")).toHaveCount(0);
     await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
+    await expect(page.getByTestId("event-batch")).toHaveCount(0);
+    await expect(page.getByTestId("profile-batch")).toHaveCount(0);
 
     // 2. トグルを押すと現れる。
     // 捕まえる変異: トグルが developerMode シグナルを更新しない
@@ -404,6 +406,15 @@ test.describe("v1 vertical slice", () => {
     // または DiagnosticsPanel が developerMode の変化に反応しない。
     await page.getByTestId("developer-mode-toggle").click();
     await expect(page.getByTestId("connections")).toBeVisible();
+    // 捕まえる変異: バッチ件数を DiagnosticsPanel の外に置く
+    // (診断値なのに常時見えてしまう) / 配線を忘れる。
+    await expect(page.getByTestId("event-batch")).toBeVisible();
+    await expect(page.getByTestId("profile-batch")).toBeVisible();
+    // プロフィールは必ず要求される (どのノートにも著者がいる) ので、
+    // 0 のままなら計測が繋がっていない。
+    await expect(page.getByTestId("profile-batch")).not.toHaveText(
+      /profileBatch: 0 \(max 0\)/,
+    );
     await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
     // 3 カラムぶん出ること (DeckColumn ごとに DiagnosticsPanel が独立して
     // developerMode を見ている、が確かめられる)

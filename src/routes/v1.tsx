@@ -294,7 +294,21 @@ const V1: Component = () => {
   const [unrequestedEventsByRelay, setUnrequestedEventsByRelay] = createSignal<
     [string, number][]
   >([]);
+  const [batchSizes, setBatchSizes] = createSignal({
+    events: { last: 0, max: 0 },
+    profiles: { last: 0, max: 0 },
+  });
   const syncConnectionSignals = () => {
+    setBatchSizes({
+      events: {
+        last: eventRequests.lastBatchSize,
+        max: eventRequests.maxBatchSize,
+      },
+      profiles: {
+        last: profileRequests.lastBatchSize,
+        max: profileRequests.maxBatchSize,
+      },
+    });
     setConnections(manager.connectionCount);
     setPeakConnections(manager.peakConnectionCount);
     setUnrequestedEventsByRelay([...manager.unrequestedEventsByRelay]);
@@ -480,6 +494,14 @@ const V1: Component = () => {
                     {firstRenderMs() === undefined
                       ? "-"
                       : firstRenderMs()?.toFixed(2)}
+                  </p>
+                  <p data-testid="event-batch" class="text-alpha-600 text-xs">
+                    eventBatch: {batchSizes().events.last} (max{" "}
+                    {batchSizes().events.max})
+                  </p>
+                  <p data-testid="profile-batch" class="text-alpha-600 text-xs">
+                    profileBatch: {batchSizes().profiles.last} (max{" "}
+                    {batchSizes().profiles.max})
                   </p>
                   <ul
                     data-testid="unrequested-relays"

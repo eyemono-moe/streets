@@ -96,6 +96,32 @@ describe("createEventRequests", () => {
     expect(new Set(filters[0].ids)).toEqual(new Set([a, b]));
   });
 
+  it("送ったバッチの件数を lastBatchSize / maxBatchSize に出す", () => {
+    // 捕まえる変異1: lastBatchSize を固定値 0 にする
+    //   (上限に近づいていることが外から一切読めなくなる)
+    // 捕まえる変異2: maxBatchSize を毎回 lastBatchSize で上書きする
+    //   (ピークが小さいバッチで消え、いちばん知りたい値が残らない)
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const requests = createEventRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+    });
+
+    requests.request(idFor(1));
+    requests.request(idFor(2));
+    requests.request(idFor(3));
+    clock.advance(200);
+    expect(requests.lastBatchSize).toBe(3);
+    expect(requests.maxBatchSize).toBe(3);
+
+    requests.request(idFor(4));
+    clock.advance(200);
+    expect(requests.lastBatchSize).toBe(1);
+    expect(requests.maxBatchSize).toBe(3);
+  });
+
   it("同じ id を 2 回要求しても ids に 1 回しか入らない", () => {
     // 捕まえる変異: Set ではなく配列で溜める
     const manager = stubManager();
