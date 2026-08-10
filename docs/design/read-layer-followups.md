@@ -261,6 +261,25 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **答え方:** brief の検証手順そのもの —— フォローを 1 人外し、(a) リロードせずに、(b) リロードして、その人の投稿がタイムラインに出続けないかを目視で確認する。これは数値ではなく行動観察が答えそのものになる問いで、`kind:3` の `serveWhileRevalidating: false` が実地で守られているかの直接確認でもある。
 
+## ウォームアップのボトルネックはインデクサ 1 本のレイテンシだった（2026-08-11、実鍵）
+
+`collect()` にリレーごとの計測を入れて確定した。**接続失敗ではない** —— 4 本とも `eose` で正常に応答している。
+
+| リレー | 相① | 相② |
+|---|---|---|
+| `purplepag.es` | 1799 ms | 651 ms |
+| `profiles.nostr1.com` | 1299 ms | 353 ms |
+| `indexer.coracle.social` | 795 ms | 291 ms |
+| `directory.yabu.me` | 685 ms | 219 ms |
+
+両相とも順位が同じで、最速（685 ms）と最遅（1799 ms）に 2.6 倍の開きがある。`collect()` は全 URL の settle を待つので、**相の所要時間は `purplepag.es` 1 本が決めている**。
+
+同時の値: `warmUpMs` 2450.9（相① 1799.2 / 相② 650.9）/ `firstRenderMs` 112.9 / `verifyMs` 3529.8（7061 件）/ `connections` 8・`peakConnections` 10 / `eventBatch` 最大 83 / `profileBatch` 最大 14。
+
+**水和は効いている。** 相② は水和前の 1496.7 ms から 650.9 ms へ、`profileBatch` の最大は 258 から 14 へ、`firstRenderMs` は 356.1 から 112.9 へ落ちた。残っているのは相①（フォローリスト）で、これは `serveWhileRevalidating: false` である以上キャッシュでは消せない。
+
+**「接続失敗が所要時間を決めている」という推測は 2 度とも外れた。** 相の合計値しか無い状態で原因を断定していたためで、リレーごとに測って初めて分かった。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
