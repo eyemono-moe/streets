@@ -603,4 +603,106 @@ test.describe("v1 vertical slice", () => {
     const itemCount = await related.getByTestId("item").count();
     expect(itemCount).toBeGreaterThanOrEqual(7);
   });
+
+  /**
+   * task-7-brief.md Step 4: 水和が実際に相② (kind:10002 の一括取得) を
+   * 間引くことの唯一の実測経路。
+   *
+   * **`phase2Ms` の「明確に短くなった」ではなく「正確に 0 になった」を
+   * 主張する。** ローカル docker リレーのシードは閲覧者+著者 2 人の
+   * 3 人だけで、相②のフェッチ自体が数十 ms 未満で終わる環境では
+   * ms のしきい値比較が測定誤差に埋もれて不安定になる (brief に明記された
+   * 懸念)。一方 `bootstrap.ts` の相② は `staleRelayListAuthors.length > 0`
+   * のときしか `collect()` を呼ばず、呼ばなければ `phase2Ms` は初期値の
+   * `0` から一切動かない —— 全員新鮮なら「REQ を一切出さない」が
+   * `phase2Ms === 0` という 2 桁固定の文字列として厳密に観測できる。
+   */
+  test("a cached relay list skips phase 2 requests on the next load", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+
+    // developer-mode-toggle 経由ではなくログイン前から有効にしておく
+    // (2 回のログインを挟むこのテストで、毎回トグルを押し直す手間を省く。
+    // 「リロードしても開発者モードが残る」こと自体は別の spec が既に
+    // 主張済み)。
+    await stubSigner(page);
+    await enableDeveloperMode(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    const warmUpPhases = page.getByTestId("warm-up-phases");
+    // "phase1: - / phase2: -" (warmUp() 未確定) のままでは何も主張していない
+    // ことになるので、確定するまで待ってから中身を読む。
+    await expect(warmUpPhases).not.toHaveText(/phase2: -/, {
+      timeout: 20_000,
+    });
+    const readPhase2Ms = async (): Promise<number> => {
+      const text = await warmUpPhases.textContent();
+      const match = text?.match(/phase2: ([\d.]+) ms/);
+      if (!match) {
+        throw new Error(`could not parse phase2Ms out of "${text}"`);
+      }
+      return Number(match[1]);
+    };
+
+    // 1 回目: キャッシュが空なので、相②は閲覧者+フォロイー 2 人ぶんの
+    // kind:10002 を実際に REQ する (0 では終わらない)。
+    expect(await readPhase2Ms()).toBeGreaterThan(0);
+
+    // IndexedDB への書き込みは PERSIST_BATCH_MS (indexeddb-persistence.ts,
+    // 1 秒) の窓でまとめられる。この窓が閉じる前にリロードすると、取った
+    // ばかりの kind:10002 がまだ書かれておらず、次のロードもキャッシュ無し
+    // のままになる —— これはテストの都合で足す待ちではなく、実装のバッチ窓
+    // そのものを跨ぐために必要な待ち。
+    await page.waitForTimeout(1_500);
+
+    await page.reload();
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(warmUpPhases).not.toHaveText(/phase2: -/, {
+      timeout: 20_000,
+    });
+
+    // 2 回目: 相②の対象全員 (閲覧者+フォロイー 2 人) の kind:10002 が
+    // 7 日以内に取得済みで新鮮 —— collect() 自体が呼ばれず、phase2Ms は
+    // 初期値の 0 のまま確定する。
+    expect(await readPhase2Ms()).toBe(0);
+
+    // IndexedDB を消せば元の (キャッシュ無しの) 挙動に戻ることも確かめる ——
+    // 「たまたま 0 になった」のではなく実際に永続層を読んでいることの
+    // 反証可能性を担保する (task-7-brief.md Step 4)。`/v1` へ直接
+    // `page.evaluate` するとアプリ自身が同じ DB への接続を握ったままで
+    // deleteDatabase() がその接続の解放を待って止まってしまうため、
+    // 読み取り層を持たない "/" へ一度逃がしてから消す。
+    await page.goto("/");
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const request = indexedDB.deleteDatabase("streets.v1");
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+          request.onblocked = () => resolve();
+        }),
+    );
+
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+    await expect(warmUpPhases).not.toHaveText(/phase2: -/, {
+      timeout: 20_000,
+    });
+    expect(await readPhase2Ms()).toBeGreaterThan(0);
+  });
 });

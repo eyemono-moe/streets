@@ -4,7 +4,6 @@ import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
-import type { EventStore } from "../../core/read/event-store";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
@@ -40,7 +39,6 @@ const RELAYS_OVERRIDE = parseRelays(
  */
 const DeckColumn: Component<{
   column: ColumnDef;
-  store: EventStore;
   manager: SubscriptionManager;
   /**
    * 現在の閲覧者のフォローリスト (kind:1 の pubkey 集合)。`source` が
@@ -105,7 +103,6 @@ const DeckColumn: Component<{
 
   const section = createSection({
     source,
-    store: props.store,
     manager: props.manager,
   });
 

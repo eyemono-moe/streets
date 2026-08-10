@@ -1,6 +1,5 @@
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import type { NostrEvent } from "../nostr/event";
-import type { EventStore } from "../read/event-store";
 import { SectionReader } from "../read/section-reader";
 import type { NostrSource, Order, SectionStatus } from "../read/source";
 import type { SubscriptionManager } from "../read/subscription-manager";
@@ -8,7 +7,6 @@ import type { SubscriptionManager } from "../read/subscription-manager";
 export type CreateSectionOptions = {
   source: Accessor<NostrSource>;
   order?: Order;
-  store: EventStore;
   /** 接続と購読は manager が所有する (ADR-0023) */
   manager: SubscriptionManager;
 };
@@ -33,7 +31,10 @@ export const createSection = (options: CreateSectionOptions): Section => {
     const reader = new SectionReader({
       source: options.source(),
       order: options.order ?? "created-at-desc",
-      store: options.store,
+      // manager が構築時に受け取った store をそのまま使う。呼び出し側が
+      // 別の store を選べる余地を無くす (spec 9 節、合成ルートが store を
+      // 一元管理する)。
+      store: options.manager.store,
       manager: options.manager,
     });
 

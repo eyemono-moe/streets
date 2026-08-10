@@ -18,11 +18,8 @@ import {
 import type { NostrEvent, UnsignedEvent } from "../core/nostr/event";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { FALLBACK_RELAYS } from "../core/read/default-relays";
-import { createEventRequests } from "../core/read/event-requests";
-import { EventStore } from "../core/read/event-store";
-import { createProfileRequests } from "../core/read/profile-requests";
-import { RoutingTable } from "../core/read/routing-table";
-import { SubscriptionManager } from "../core/read/subscription-manager";
+import { createIndexedDbPersistence } from "../core/read/indexeddb-persistence";
+import { createReadLayer } from "../core/read/read-layer";
 import { connectRelay } from "../core/relay/websocket-relay-connection";
 import {
   DEVELOPER_MODE_STORAGE_KEY,
@@ -136,31 +133,28 @@ const V1: Component = () => {
     );
   };
 
-  // 読み取り層の配線。debug/v1-section.tsx と同じ構成
-  // (EventStore → RoutingTable → SubscriptionManager → warmUpRouting →
-  // createSection)。manager (= ConnectionPool) は 3 カラムぶんの
-  // createSection すべてで共有する — ADR-0011 の 30 接続予算はカラム単位
-  // ではなくアプリ全体の予算なので、カラムごとに別の manager を持つと
-  // 予算が意味を失う。
-  const store = new EventStore();
-  const routing = new RoutingTable(store);
-  const manager = new SubscriptionManager({
-    store,
-    routing,
+  // 読み取り層の配線。debug/v1-section.tsx と同じ合成ルート
+  // (`createReadLayer`, spec 9 節)。manager (= ConnectionPool)・store・
+  // コアレッサは 3 カラムぶんのすべての `createSection` で共有する —
+  // ADR-0011 の 30 接続予算はカラム単位ではなくアプリ全体の予算なので、
+  // カラムごとに別の manager を持つと予算が意味を失う。`/v1` は本物の
+  // IndexedDB persistence を使う (デバッグルートと違い、こちらは実際の
+  // ユーザーが使う画面で、リロードのたびに取り直すコストを削るのが
+  // このスライスの目的そのもの)。
+  const readLayer = createReadLayer({
     connect: connectRelay,
+    persistence: createIndexedDbPersistence(),
     // undefined なら SubscriptionManager 自身の既定 (FALLBACK_RELAYS) が効く
     fallbackRelays: RELAYS_OVERRIDE,
   });
-  // プロフィール要求のコアレッサ (spec 4 節, Task 5)。manager と同じ理由で
-  // 3 カラムぶん共有する —— 別々に持つと、同じ著者が複数カラムに出るたびに
-  // 別々のコアレッサがそれぞれ REQ を投げてしまい、まとめた意味が薄れる。
-  const profileRequests = createProfileRequests({ store, manager });
-  onCleanup(() => profileRequests.dispose());
-  // 関連イベント (返信元・引用先・リポスト対象) 要求のコアレッサ
-  // (design 4.2 節)。profileRequests と同じ理由で 3 カラムぶん共有する ——
-  // レンダラは EventView を通じてこの 1 つだけを見る (RenderProvider 経由)。
-  const eventRequests = createEventRequests({ store, manager });
-  onCleanup(() => eventRequests.dispose());
+  onCleanup(() => readLayer.dispose());
+  const {
+    store,
+    routing,
+    manager,
+    profiles: profileRequests,
+    events: eventRequests,
+  } = readLayer;
 
   // 書き込み経路。ソケットを開くのは manager と同じ
   // ConnectionPool (`manager.pool`) 一本化 —— publish 専用の別経路は
@@ -181,6 +175,14 @@ const V1: Component = () => {
   // ここが占めているかは、first-render-ms からこれを引いて初めて分かる。
   const [warmUpMs, setWarmUpMs] = createSignal<number>();
   const [warmUp] = createResource(pubkey, async (pk) => {
+    // 水和 (readLayer.ready) を待たずに warmUpRouting を走らせると、相②が
+    // まだ空の store を見て「キャッシュは無い」と誤判定し、全フォロイーぶん
+    // 取り直してしまう —— このスライスが削るはずだったコストがそのまま
+    // 復活する (spec 9 節)。計測 (startedAt) はこの待ちの外に置く:
+    // warmUpMs は indexer との往復コストの内訳であって、ローカル DB の
+    // 読み出し待ちを混ぜると同じ数値が「速い warmUp」と「速い水和」の
+    // どちらを指しているか分からなくなる。
+    await readLayer.ready;
     const startedAt = performance.now();
     try {
       return await warmUpRouting({
@@ -672,7 +674,6 @@ const V1: Component = () => {
                 {(column, index) => (
                   <DeckColumn
                     column={column}
-                    store={store}
                     manager={manager}
                     followees={() => warmUp()?.followees ?? []}
                     optimisticEvents={optimisticEvents}

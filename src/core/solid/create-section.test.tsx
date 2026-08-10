@@ -1,5 +1,8 @@
+import { schnorr } from "@noble/curves/secp256k1.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot, createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
+import { type NostrEvent, computeEventId } from "../nostr/event";
 import { EventStore } from "../read/event-store";
 import { RoutingTable } from "../read/routing-table";
 import type { NostrSource } from "../read/source";
@@ -7,6 +10,25 @@ import { SubscriptionManager } from "../read/subscription-manager";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayUrl } from "../relay/relay-connection";
 import { createSection } from "./create-section";
+
+const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
+const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
+
+const sign = (content: string): NostrEvent => {
+  const unsigned = {
+    pubkey,
+    created_at: 1_700_000_000,
+    kind: 1,
+    tags: [],
+    content,
+  };
+  const id = computeEventId(unsigned);
+  return {
+    ...unsigned,
+    id,
+    sig: bytesToHex(schnorr.sign(hexToBytes(id), secretKey)),
+  };
+};
 
 describe("createSection", () => {
   it("releases the previous relay connection before opening the next one on a source change", async () => {
@@ -45,7 +67,7 @@ describe("createSection", () => {
 
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
-        createSection({ source, store, manager });
+        createSection({ source, manager });
 
         queueMicrotask(async () => {
           try {
@@ -108,7 +130,7 @@ describe("createSection", () => {
 
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
-        createSection({ source, store, manager });
+        createSection({ source, manager });
 
         queueMicrotask(async () => {
           try {
@@ -124,6 +146,53 @@ describe("createSection", () => {
             resolve();
           } catch (error) {
             reject(error);
+          }
+        });
+      });
+    });
+  });
+
+  it("reads events from the same store manager writes to (no store option to disagree)", async () => {
+    // 捕まえる変異: createSection が `options.manager.store` ではなく自前の
+    // `new EventStore()` を使う。manager.subscribe() 経由で届いたイベントは
+    // manager が構築時に受け取った store にしか put() されないので、
+    // SectionReader が別の store を見ていると store.get(id) が常に
+    // undefined を返し、リレーが実際に配信していても items() が空のまま
+    // 固まる (公開オプションから store を無くしたことの意味そのもの)。
+    const relay = new FakeRelayConnection("wss://a/" as RelayUrl);
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: () => relay,
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const [source] = createSignal<NostrSource>({
+      type: "nostr",
+      filters: [{ kinds: [1] }],
+      relays: ["wss://a/"],
+    });
+    const event = sign("hello from create-section test");
+
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        const section = createSection({ source, manager });
+
+        queueMicrotask(async () => {
+          try {
+            await vi.waitFor(() => {
+              expect(relay.subscriptions.length).toBe(1);
+            });
+            relay.emitEvent(0, event);
+
+            await vi.waitFor(() => {
+              expect(section.items()).toEqual([event]);
+            });
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
           }
         });
       });

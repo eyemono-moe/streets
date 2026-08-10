@@ -8,10 +8,9 @@ import {
   onCleanup,
 } from "solid-js";
 import { warmUpRouting } from "../../core/read/bootstrap";
-import { EventStore } from "../../core/read/event-store";
-import { RoutingTable } from "../../core/read/routing-table";
+import { createMemoryPersistence } from "../../core/read/event-persistence";
+import { createReadLayer } from "../../core/read/read-layer";
 import type { NostrSource, SectionStatus } from "../../core/read/source";
-import { SubscriptionManager } from "../../core/read/subscription-manager";
 import type { RelayUrl } from "../../core/relay/relay-connection";
 import { RelayInfoRegistry } from "../../core/relay/relay-info";
 import { connectRelay } from "../../core/relay/websocket-relay-connection";
@@ -38,20 +37,22 @@ const BUDGET = parseBudget(
 
 const V1SectionDebug = () => {
   const [viewer, setViewer] = createSignal(DEFAULT_VIEWER);
-  const store = new EventStore();
-  const routing = new RoutingTable(store);
   const registry = new RelayInfoRegistry();
-  // 接続と購読は manager が所有する (ADR-0023)。このデバッグルートは
-  // 1 画面につき 1 manager で十分 (30 接続上限やマージは後続の計画)。
-  const manager = new SubscriptionManager({
-    store,
-    routing,
+  // 読み取り層の合成ルート (spec 9 節)。デバッグルートは IndexedDB では
+  // なくインメモリの persistence を渡す —— IndexedDB を使うと、この画面を
+  // 駆動する e2e が前回の実行で残った状態に依存してしまう
+  // (docker リレーのシードは毎回同じ 3 人だが、キャッシュが残っていると
+  // 「初回起動」を検証しているつもりの e2e が実は 2 回目の挙動を見ることになる)。
+  const readLayer = createReadLayer({
     connect: connectRelay,
+    persistence: createMemoryPersistence(),
     // ローカル検証ではインターネット上の既定リレーへ出ない
     fallbackRelays: [RELAY_ONE],
     // 未指定なら SubscriptionManager 自身の既定 (MAX_CONNECTIONS) が効く
     maxConnections: BUDGET,
   });
+  onCleanup(() => readLayer.dispose());
+  const { store, routing, manager } = readLayer;
 
   // manager.connectionCount / peakConnectionCount (= pool.size / pool.peakSize)
   // はシグナルではないので JSX に直接置いても更新されない。
@@ -87,6 +88,10 @@ const V1SectionDebug = () => {
   // 弾いて未入力時に無駄な warmUpRouting を走らせない。
   const [warmUp] = createResource(viewer, async (pubkey) => {
     if (!/^[0-9a-f]{64}$/.test(pubkey)) return undefined;
+    // 相②が「キャッシュはまだ無い」と誤判定して全員ぶん取り直すのを防ぐ
+    // (spec 9 節)。水和はログイン前でも始められるが、warmUpRouting は
+    // これより後にしか呼んではいけない。
+    await readLayer.ready;
     return warmUpRouting({
       pubkey,
       store,
@@ -108,7 +113,7 @@ const V1SectionDebug = () => {
     };
   });
 
-  const section = createSection({ source, store, manager });
+  const section = createSection({ source, manager });
 
   // section.status() は「今張っているリレーが片付いたか」しか知らない。
   // warmUpRouting がまだフォロー数を確定させていない間は source が

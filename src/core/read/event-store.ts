@@ -6,7 +6,10 @@ import {
 } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
-import type { PersistedEvent } from "./event-persistence";
+import type { EventPersistence, PersistedEvent } from "./event-persistence";
+
+/** NIP-09。削除指示の対象は `e` タグで運ばれる。 */
+const DELETION_KIND = 5;
 
 export type StoredEvent = {
   event: NostrEvent;
@@ -24,6 +27,14 @@ export type PutResult = "inserted" | "duplicate" | "rejected";
 
 export type EventStoreOptions = {
   scheduler?: Scheduler;
+  /**
+   * 背後の水和・退避層 (ADR-0018)。渡さなければ永続化しない (デバッグ
+   * ルート・ほとんどのユニットテストの既定)。`routing-table.ts` のコメント
+   * が前提にしている「kind:10002 を普通のイベントとして保存すれば
+   * ルーティング表の永続化は自動的に得られる」を実際に成立させているのが
+   * ここ —— put() が挿入・restamp のたびに転送する。
+   */
+  persistence?: EventPersistence;
 };
 
 /**
@@ -35,12 +46,14 @@ export class EventStore {
   /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
   readonly #replaceable = new Map<string, string>();
   readonly #scheduler: Scheduler;
+  readonly #persistence: EventPersistence | undefined;
 
   #verifyMs = 0;
   #verifyCount = 0;
 
   constructor(options: EventStoreOptions = {}) {
     this.#scheduler = options.scheduler ?? defaultScheduler;
+    this.#persistence = options.persistence;
   }
 
   get size(): number {
@@ -84,6 +97,11 @@ export class EventStore {
         if (!existing.seenRelays.includes(relay)) {
           existing.seenRelays.push(relay);
         }
+        // 著者が変えていない置換可能イベント (kind:10002 など) は毎回
+        // "duplicate" で戻ってくる。ここで転送しないと、永続層の fetchedAt
+        // が初回取得時刻のまま固定され、次回起動のたびに (実際には新鮮な
+        // ものまで) stale と誤判定されて取り直しが永久に止まらない。
+        this.#persist(existing);
       }
       return "duplicate";
     }
@@ -95,8 +113,39 @@ export class EventStore {
     this.#verifyCount += 1;
     if (!verified) return "rejected";
 
-    this.#insert(event, [relay], this.#scheduler.now());
+    const fetchedAt = this.#scheduler.now();
+    this.#insert(event, [relay], fetchedAt);
+    const stored = this.#events.get(event.id);
+    if (stored) this.#persist(stored);
+    if (event.kind === DELETION_KIND) this.#persistDeletion(event);
     return "inserted";
+  }
+
+  /** `retention`（`none`/`latest-per-author`/`capped`）の適用は永続層の責務 (spec 7 節) —— ここは無条件に転送するだけでよい。 */
+  #persist(stored: StoredEvent): void {
+    this.#persistence?.save([
+      {
+        event: stored.event,
+        seenRelays: [...stored.seenRelays],
+        fetchedAt: stored.fetchedAt,
+      },
+    ]);
+  }
+
+  /**
+   * NIP-09 の `e` タグが指す対象 id を保持期間の対象にせず記録する
+   * (ADR-0019)。このスライスではイベント本体をまだ永続化しないので
+   * 実効は無いが、後から本体の水和を足すスライスがここを新設せずに済む
+   * ようにする (spec 10 節)。
+   */
+  #persistDeletion(deletion: NostrEvent): void {
+    const targetIds = deletion.tags
+      .filter(
+        (tag): tag is [string, string] =>
+          tag[0] === "e" && typeof tag[1] === "string",
+      )
+      .map((tag) => tag[1]);
+    if (targetIds.length > 0) this.#persistence?.saveDeletions(targetIds);
   }
 
   /**

@@ -350,6 +350,18 @@ export class SubscriptionManager {
   }
 
   /**
+   * マネージャを構築した際の `EventStore` (Task 7)。`createSection` が
+   * `SectionReader` を組み立てるのに使う唯一の経路 —— `createSection` は
+   * もう `store` を公開オプションとして受け取らず、常にこの manager の
+   * store を使う。呼び出し側が manager と別の store を渡す余地を型の時点で
+   * 無くす (`docs/superpowers/specs/2026-08-10-event-persistence-design.md`
+   * 9 節)。
+   */
+  get store(): EventStore {
+    return this.#options.store;
+  }
+
+  /**
    * 手動再試行 (ADR-0021)。プールへ委譲したうえで、**必ず再選択も起こす。**
    *
    * 委譲だけでは足りない: degraded になって選択から外れた URL は購読者が

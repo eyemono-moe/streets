@@ -2,6 +2,7 @@ import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
+import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 
@@ -11,13 +12,17 @@ const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
 
 const sign = (
   content = "hello nostr",
-  overrides: { kind?: number; created_at?: number } = {},
+  overrides: {
+    kind?: number;
+    created_at?: number;
+    tags?: string[][];
+  } = {},
 ): NostrEvent => {
   const unsigned = {
     pubkey,
     created_at: overrides.created_at ?? 1_700_000_000,
     kind: overrides.kind ?? 1,
-    tags: [],
+    tags: overrides.tags ?? [],
     content,
   };
   const id = computeEventId(unsigned);
@@ -356,5 +361,112 @@ describe("EventStore.latestReplaceable", () => {
     expect(store.latestReplaceable(10002, older.pubkey)?.content).toBe(
       newer.content,
     );
+  });
+});
+
+describe("EventStore と EventPersistence の配線", () => {
+  const createRecordingPersistence = (): EventPersistence & {
+    saved: PersistedEvent[];
+    deletedIds: string[];
+  } => {
+    const saved: PersistedEvent[] = [];
+    const deletedIds: string[] = [];
+    return {
+      saved,
+      deletedIds,
+      async load() {
+        return { events: [], deletedIds: [] };
+      },
+      save(entries) {
+        saved.push(...entries);
+      },
+      saveDeletions(ids) {
+        deletedIds.push(...ids);
+      },
+      dispose() {},
+    };
+  };
+
+  it("新規挿入のたびに persistence.save() へ転送する", () => {
+    // 捕まえる変異: #persist の呼び出しを省く。routing-table.ts が前提に
+    // している「kind:10002 を普通のイベントとして保存すれば永続化は自動的に
+    // 得られる」が成立せず、warmUpRouting が取ってきたリレーリストが
+    // IndexedDB へ一切書かれないまま、次回起動が常にキャッシュ無しになる
+    const clock = createFakeClock();
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ scheduler: clock, persistence });
+    const event = sign("x", { kind: 10002 });
+
+    store.put(event, "wss://a/");
+
+    expect(persistence.saved).toEqual([
+      { event, seenRelays: ["wss://a/"], fetchedAt: 0 },
+    ]);
+  });
+
+  it("同一イベントの再配送 (restamp) でも persistence.save() へ転送する", () => {
+    // 捕まえる変異: 新規挿入のときだけ転送し、restamp では転送しない。
+    // 著者が変えていない kind:10002 を再取得しても永続層の fetchedAt が
+    // 初回取得時刻のまま固定され、次回起動のたびに (実際には新鮮なはずの)
+    // その著者だけ stale と誤判定されて取り直しが止まらなくなる
+    const clock = createFakeClock();
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ scheduler: clock, persistence });
+    const event = sign("x", { kind: 10002 });
+
+    store.put(event, "wss://a/");
+    clock.advance(9_000);
+    store.put(event, "wss://b/");
+
+    expect(persistence.saved.at(-1)).toEqual({
+      event,
+      seenRelays: ["wss://a/", "wss://b/"],
+      fetchedAt: 9_000,
+    });
+  });
+
+  it("拒否されたイベントは persistence.save() へ渡さない", () => {
+    // 捕まえる変異: verifyEvent の結果を見ずに転送する。署名検証に落ちた
+    // ペイロードを永続層に書くと、次回起動でそのまま hydrate され
+    // (hydrate は署名を検証しない、spec 8 節)、偽装イベントが画面に出る
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ persistence });
+    const tampered = { ...sign("x"), content: "tampered" };
+
+    expect(store.put(tampered, "wss://a/")).toBe("rejected");
+
+    expect(persistence.saved).toEqual([]);
+  });
+
+  it("kind:5 の e タグ対象を saveDeletions へ渡す", () => {
+    // 捕まえる変異: kind:5 を他のイベントと同じ扱いにして saveDeletions を
+    // 呼ばない。削除指示そのものが永続化されず、次回起動で消したはずの
+    // 投稿が復活する余地を残す (このスライスでは対象本体をまだ永続化しない
+    // ので実害は無いが、機構としては固定しておく必要がある —— spec 10 節)
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ persistence });
+    const targetA = "a".repeat(64);
+    const targetB = "b".repeat(64);
+    const deletion = sign("", {
+      kind: 5,
+      tags: [
+        ["e", targetA],
+        ["e", targetB],
+        ["p", "c".repeat(64)],
+      ],
+    });
+
+    store.put(deletion, "wss://a/");
+
+    expect(persistence.deletedIds).toEqual([targetA, targetB]);
+  });
+
+  it("persistence を渡さない store は put() で例外を投げない", () => {
+    // 捕まえる変異: #persistence?.save(...) のオプショナル呼び出しを
+    // 無条件呼び出しにする。デバッグルート・大半のユニットテストは
+    // persistence 無しで EventStore を作っており、そこで例外が飛ぶと
+    // put() 自体が使えなくなる
+    const store = new EventStore();
+    expect(() => store.put(sign("x"), "wss://a/")).not.toThrow();
   });
 });
