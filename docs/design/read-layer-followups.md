@@ -1,6 +1,6 @@
-# 読み取り層 — 繰延事項
+# スライスの記録
 
-第1スライス（単一リレーのセクション読み取り）と第2スライス（Outbox ルーティングと購読マネージャ）のレビューで実在すると判定されたが、そのスライスでは直さなかったもの。次の計画に着手する前にここを読むこと。
+各スライスが実際に動かして初めて答えられた問いへの回答と、そのとき下した判断の記録。**残タスクはここには無い —— [GitHub Issues](https://github.com/eyemono-moe/streets/issues) が唯一の置き場所である。**
 
 用語は [CONTEXT.md](../../CONTEXT.md)、決定は [docs/adr/](../adr/)、全体像は [architecture.md](./architecture.md)。
 
@@ -12,9 +12,6 @@
 | [ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」が定める採番 | REQ マージの節と「解消済み」の各項 | **ローカルフィルタ照合**（#1 Outbox ルーティング、#3 接続プール、#5 REQ マージ） |
 
 どちらも実在する採番であり、片方だけを訂正すると別の文書と食い違う。そのため両方をそのまま残し、この表で区別する。
-
-この注記の初版は該当箇所を行番号で指していたが、**注記自身を挿入したことで全部 2 行ずれた**（2026-08-02 訂正）。散文中の行番号は編集のたびに腐るので、以後この文書では行番号ではなく節の内容で参照すること。
-
 ## 外部レビュー（2026-08-04）— 着手順を横から縦へ変える
 
 外部エージェントによる設計レビューを受け、**次は読み取り層の続きではなく縦断スライスを作る**と決めた。原本（`docs/temp-review.md`）は本節へ要点を移して削除した。
@@ -40,25 +37,6 @@
 
 - **受信イベントのローカルフィルタ再照合** —— 後続 #4 で解消（`src/core/read/filter-match.ts`、下記「解消済み」参照）。
 - **500 件バースト時の全ソート・全通知** —— 後続 #6 で解消（`src/core/read/sorted-events.ts` と通知バッチ、下記「解消済み」参照）。
-
-### 縦断スライスの前に決めるべきもの
-
-- **`EventStore` のアカウント境界と機密情報の方針。** アクティブアカウントが常に 1 つであることは、**アカウント固有状態をグローバルに置いてよい理由にはならない**。最低限の 3 分類を先に決める: 公開イベント本体は共有 / ミュート・既読・自分との関係はアカウント単位 / 復号結果（将来の NIP-44）はセッションまたは署名器単位。**後から分けるのは、混ざった後では非常に高くつく。** 縦断スライスはログインと投稿に触るので、ここで初めて現実の問題になる。
-
-### 縦断スライスを動かしてから決めるもの
-
-作ってから決める。今 API を増やさない。
-
-- **`createSection` のライフサイクル API。** `{ items, status, loadMore }` だけでは、画面外カラムの休止・優先度・破棄・リレー個別の再試行を表現できない可能性がある。ただし「深いモジュール」とは API が小さいことではなく **API に対して内部能力が大きいこと**であり、必要な制御まで隠すと例外的な抜け道が増える。10 カラムのうち実際に見えているのは数列だけ、という事実が 30 接続予算と噛み合うかを実測してから決める。
-- **foreground / background / suspended の優先度。**
-- **renderer `needs` が純粋関数だという前提。** 必要な関連データはイベントだけで決まらない（折り畳み状態、ミュート、展開操作、復号可否）。純粋な宣言ではなく「表示状態を持つ問い合わせ」になる可能性がある。波状解決の循環（event → profile → relay metadata → routing → 取得先が変わる）を深さ上限で止めるだけでは、「なぜ欠けたか」を説明できない。
-- **`status.incomplete` からユーザー向け表示への変換。** 「uncoveredAuthors 127 件」と出してもユーザーは何をすべきか分からず、複数カラムで同時に起きると警告だらけになる。診断値としては正しいので、翻訳層を別に置く。
-- **`EventStore` のメモリ破棄戦略。** 10 カラム × 500 件で最大 5,000 件に加え、`needs` で引くプロフィール・リアクション・リポスト・relay list が乗る。セクションの 500 件上限とは無関係に `EventStore` だけが増え続けうる。単純な参照カウントは Solid の mount/unmount で揺れるため、参照理由の分類（section-membership / renderer-critical / routing / recent など）と最終アクセス時刻の組み合わせが要る。ADR-0011 のメモリ 500MB はこれを決めないと満たせない。
-
-### そのほか、実在するが小さいもの
-
-- **フィルタ照合器に property-based test を入れる。** 現在は表駆動のユニットテスト（各行に捕まえる変異を明記）で、`docs/superpowers/archive/specs/2026-08-02-local-filter-matching-design.md` 6.1 節の観点は網羅している。ただし自前実装の NIP-01 フィルタとしては、生成的テストのほうが強い。
-- **文書の役割を厳密に分ける。** 同じ判断が ADR・architecture・spec・plan・followups に重複し、実装変更のたびに整合性確認が要る。実際 `pinned` と `reserved` で ADR・仕様・実装の食い違いが起き、直近のスライスでも「7 指標中 2 つ」と「残る 6 指標」が同時に存在する矛盾をレビューが拾った。**数値と現在の実装状態は一箇所を source of truth にする。** 役割の目安: ADR = 決定理由のみ（現在仕様の説明書にしない）/ architecture = 現在実装されている構造のみ / spec = 次の 1 スライス、完了後は archive / followups = 短い一覧。
 
 ### 反映しないと決めたもの（理由つき）
 
@@ -206,7 +184,9 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **答え方:** 実鍵のタイムラインで、返信が「@name への返信」を親イベントの到着より先に出すかどうかを多数の投稿で観察する。`e` タグに pubkey を書かないクライアントの投稿では、親が届くまで著者名が出ない（`Note.tsx` の `reply-to` は `ref.pubkey` があるときだけ即座に `<Profile>` を描き、無ければ `compact` の `EventView` 自体の到着を待つ）。「先に出た」と「親と同時にしか出なかった」の比率が、そのまま問いの答えになる。
 
-## 次の計画で直すべきもの
+## 未着手のまま残っている設計上の課題
+
+**タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
 
 ### `EventStore` が呼び出し側から渡される公開オプションになっている
 
@@ -310,64 +290,6 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 機能自体は壊れていなかった —— 接続を生かしていたのは REQ ではなく `ConnectionPool` の**エントリ**であり（`#drop()` は `pooled.entries.size === 0` で発火する）、アンカーの `onClosed` は no-op なのでエントリは残った。だが**それは偶然に寄りかかっていた**。我々が欲しかったのは「接続の参照を 1 つ握る」ことだけで、REQ は**それを表現する API が他に無いから送っていた**にすぎない。リレーが購読ではなく接続そのものを閉じる方針だったら、ウォームアップは壊れていた。
 
 **`ConnectionPool.hold(url, options?): PooledHold | undefined` で解決した**（接続層スライス Task 3）。`hold()` は `#ensureConnection` を通して接続を確保し、保持カウントを立てるだけで `connection.subscribe()` を一切呼ばない。予算（ADR-0011）は `subscribe()` と同じに数える —— hold は生きたソケットを 1 本占有するため。`#scheduleReconnect` / `#reconnect` / `#drop` の「誰も待っていない」判定は hold を考慮する。`NEVER_MATCHING_ID` 定数とアンカー宛イベントの会計（`anchorUnrequested`）は定数ごと消えた。
-
-## デッキと画面（読み取り層の外）
-
-**この文書は元々「読み取り層の繰延事項」だったが、デッキとカラム（A-1、2026-08-07）から画面側の繰延も出るようになった。分けずにここへ足す** —— バックログが 2 ファイルに割れると、どちらも半分しか読まれない。読み取り層の項と区別するためだけに節を分けてある。
-
-| 箇所 | 内容 |
-|---|---|
-| `deck.ts` | valibot の `objectWithRest` へ移した副作用で、**`#` で始まらない未知のキーを持つフィルタも `string[]` を要求するようになった**（手書きの型ガードは無視していた）。streets 自身はそういうフィルタを作らないので実害は無く、拒否されたデッキは既定デッキへ落ちる既存の縮退経路に乗るだけだが、**その境界を固定するテストが無い**（`{ kinds:[1], extra: 42 }` は拒否・`{ kinds:[1], extra: ["a"] }` は受理）。将来 `looseObject` 相当へ戻しても誰も気づかない |
-| `package.json` | `valibot` が `1.0.0-rc.0` に固定されている。安定版への更新は A-1 の範囲外 |
-| `v1.tsx` / `deck-mutations.ts` | **カラム名を変えるとそのカラムの購読が張り直される。** `renameColumnIn` は該当カラムだけ新しいオブジェクト参照を作り、Solid の `<For>` は参照で照合するので、その `DeckColumn` の owner が破棄・再生成され `createSection` の `onCleanup` が購読を畳む。追加・削除・並べ替えは生き残るカラムの参照を保つので**リネームだけ**の問題（A-1 Task 4 のレビューで追跡確認済み）。実害は「blur/Enter のたびに 1 カラムが EOSE まで空になり、REQ が 1 本 30 接続予算へ再発行される」。カラムの識別を参照ではなく `id` に寄せる（`createStore` で細粒度に持つ等）のが素直な直し方だが、A-2 のレンダラ層がこの構造に乗るので、そこで一緒に決めるほうがよい |
-| `AddColumnForm.tsx` | 種別を切り替えても入力欄が残る。「ユーザー」で npub を打ってから「ハッシュタグ」へ切り替えて送信すると、その npub がタグ値になった（スキーマ上は正しいが絶対に何も来ない）カラムが黙って出来る。エラーも出ない |
-| `column-presets.ts` | ~~ハッシュタグの先頭 `#` を 1 つしか落とさない（`/^#/`）。`##nostr` はタグ値 `#nostr` になり、NIP-12 のタグ値に `#` は含まれないので永久に一致しない。これもスキーマ上は正しいので黙って壊れる~~ **最終レビュー Minor 3 で修正済み。** `/^#+/` へ変え、先頭の `#` を何個でも落とすようにした。あわせて NIP-24 の SHOULD（`t` タグ値は小文字）に合わせて `.toLowerCase()` も足した（大文字混じりの入力も実在するタグ値と一致するようになった）。`column-presets.test.ts` に `##nostr` と大文字混じりのケースを追加 |
-| `e2e/fixtures/seed-preview.ts` | **`/v1` の e2e で `status.incomplete` を立てられるフィクスチャが無い。** シードは 3 人全員の `kind:10002` を到達可能な 1 本のリレーに置くので、`unreachableRelays` / `unroutableAuthors` / `uncoveredAuthors` が構造的に全部 0 になる。そのため「開発者モードを入れると `deck-column-incomplete` が出る」ことを e2e で主張できない（A-1 Task 5 は実際に一時的な assertion を入れて確認したうえで、その 1 本だけ落とした）。`/debug/v1-section?budget=` に相当する予算上書きを `/v1` にも作れば書けるようになる |
-| `ColumnAlertBadge.tsx` | 開閉状態がカラムの owner 再生成で失われる（上のリネームの項と同じ原因）。異常を開いたままリネームすると畳まれる。実害は小さいが、上のリネーム remount を直せば一緒に消える |
-| `AddColumnForm.tsx` | `add-column-error` のメッセージが種別を問わず同じ文言（「入力を確認してください。user は npub または hex、hashtag は空でない文字列が必要です。」）。種別ごとに出し分けたほうが親切だが、brief は「入力欄にエラーを出す」としか要求しておらず、A-1 Task 4 は必要十分と判断してそのままにした |
-| `e2e/v1.spec.ts` | **`ColumnAlertBadge`（`data-testid="column-alert"`）の e2e が無い。** 判定ロジック自体は `src/core/deck/column-alerts.test.ts`（Task 2、5 ケース）が固定しているが、「明示リレーを指定したカラムで実際にバッジが出る」ことは e2e で確認していない。理由（A-1 Task 5 の報告そのまま）: ローカル docker 環境で「到達不能な明示リレーを持つカラム」を安定して作る手段が無く（`seed-preview.ts` の単一リレー構成はすべて到達可能）、無理に作ると不安定な e2e になる。判定ロジックの正しさ（ユニットテスト）とレンダリング条件の確認は済んでおり、「実際にバッジが出るのを見る」ことだけが実鍵検証に委ねられている |
-| `event-requests.ts` / `profile-requests.ts` | **どちらのコアレッサも 1 バッチを 1 本のフィルタに全部詰め、分割しない。** A-2 の最終レビュー（2026-08-07、controller）で判明。`DeckColumn` は `<For each={items()}>` で最大 500 件（`MAX_ITEMS_PER_SECTION`）を仮想化なしに一度に描く。各 `NoteFull` が返信の親 1 + 引用 N の `EventView` を出すので、**1 カラムが settled した瞬間に 1 本の `fetchOnce({ ids: [...] })` が 1000 件規模の `ids` を持ちうる**。**閾値は実測した**（2026-08-07、`curl -H "Accept: application/nostr+json"` で既定リレーの NIP-11 を取得）: `max_message_length` は `nos.lol` が 131,072、`relay.damus.io` が 1,000,000、`yabu.me` が 1,310,720。REQ フレーム内で id 1 件は約 67 バイト（hex 64 + 引用符 2 + カンマ 1）なので、**最も厳しい `nos.lol` でおよそ 1,950 件が上限**。1 カラム（500 件 × 返信 1 + 引用 1 ＝ 最大 1,000 件）では届かず、**同じ 200ms 窓で 2 カラム以上が settled すると超えうる**。8 カラムを開いた初回ロードは現実的に該当する。超えた場合 `fetchOnce` はタイムアウトか CLOSED で解決し、**そのバッチの id が全部 `isUnresolved` になる** —— 画面に「読み込めませんでした」が一斉に並ぶ。プロフィール側も同じ形。**A-2 以前から `profile-requests.ts` にあった形で、A-2 が 2 本目のコアレッサを足して量を増やした。** 直し方は `pending` を固定長で切って複数の `fetchOnce` に分けるだけ。**急を要さない**（1 カラムでは届かない）が、**今これを検出する手段が無い** —— 送ったバッチの最大サイズをどこにも出していないので、起きても原因が分からない。計測を先に置くほうがよい |
-| `DeckColumn.tsx` | **レンダラが投げるとカラム全体が落ちる。** A-2 Task 5 が `UnknownKindFull` を投げるように変異させたところ、その 1 件だけでなく**カラムの `<For>` 全体が消えた** —— `<For>` の周りに `ErrorBoundary` が無いため。未対応 kind の fallback は「1 件が描けなくてもカラムを壊さない」ために作ったのに、**その fallback 自身が投げたら守れない**。今日の fallback は投げない実装なので潜在的だが、レンダラは今後 kind ごとに増える。`<For>` の item 単位で `ErrorBoundary` を張るのが素直な直し方（カラム単位だと 1 件で全部消えるのは変わらない）|
-| `EventView.tsx` | **`id` prop が変わったとき、前の `event` シグナルを消していない**（`unresolved` だけリセットする）。同じインスタンスが別の id へ使い回されると、新しい id の取得が終わるまで**前のイベントを新しい id のものとして描き続ける**。`Profile.tsx` も同じ形なので新種の欠陥ではない。今日は到達しない見込み —— `<For>` は参照で照合し、Nostr のイベント id は内容アドレスなので、同じインスタンスに別の id が来る経路が A-2 の配線には見当たらない（A-2 Task 3 のレビューで追跡）。ただし「見当たらない」は「無い」ではないので記録する。直すなら `id` が変わった時点で `setEvent(undefined)` する 1 行 |
-| 計画の書き方（A-2 Task 1 で観測） | **テストのフィクスチャそのものが検査に引っかかると、テストは実装の正しさと無関係に落ちる。** 計画が示した `sig: "s".repeat(128)` は hex ではないので `isNostrEvent` に弾かれ、`embeddedRepostEvent` のテストが実装に関わらず失敗した。**「捕まえる変異」を確かめるのと同じ手つきで、フィクスチャ自身が検査を通ることも確かめる必要がある** —— 変異を入れる前に、まず素の状態で意図どおり通ることを見る |
-| 計画の書き方（A-2 Task 1 で観測） | **「捕まえる変異」が 1 つも捕まえないことがある。** `embeddedRepostEvent` の空 `content` の早期リターンは、下の `try/catch` が `JSON.parse("")` の例外を吸収するため、削っても 15/15 通る。`deck.ts` の `loadDeck` の `raw === null` と同じ構造であり、**同じ形（テスト側に「これは変異を捕まえない」と明記し、製品コード側に残す理由を書く）で処理した**。計画を書く側は、ガードの下流にもう 1 つ同じ結果へ倒す経路が無いかを見ること |
-| `event-requests.ts` | **`EventRequests.request(id, relayHint?)` は `relayHint` を受け取るが使わない**（仕様 4.2 節、[ADR-0017](../adr/0017-declarative-renderer-needs.md)「実装の段階」A-2 参照）。NIP-10 の `e` タグ・NIP-18 の `q` タグが運ぶリレー URL を渡す先（`fetchOnce` の明示リレー指定）は既にあるが、**そのヒントの信頼性（悪意あるリレーが任意の URL を書ける）を検討していない**。使うなら先にそれを検討する必要がある。呼び出し側（`Note.tsx`/`Repost.tsx`）はタグから値を読んで渡しているので、行き先を後から足すことはできる |
-| （content 全般） | **`content` のパース（URL・画像・`nostr:` メンション・カスタム絵文字）が未着手。** v0 の `parseTextContent`（`src/shared/libs/parser/`）相当は、A-2 の設計時点で「独立して大きく、このスライスと直交する」として明示的にスコープ外にされた（[仕様](../superpowers/archive/specs/2026-08-07-renderers-and-related-events-design.md) 1 節）。本文は今も `Note.tsx`/`UnknownKind.tsx` いずれもプレーンテキストとして出すだけで、URL も `nostr:` も画像も展開しない |
-| `EventView.tsx` | **`rendererFor` が `<Show>` の children 内で毎回呼ばれ、メモ化していない**（Task 3 報告）。children 関数自体が `event()` の undefined→値の遷移でしか再実行されないため今日は実害が無く、このタスクの範囲では実測もできていない。レンダラ集合が増えたときに `.find()` の呼び出し頻度が気になるなら `createMemo` の追加を検討する余地がある |
-
-| 箇所 | 内容 |
-|---|---|
-| `subscription-manager.ts` | ~~**degraded からの復帰に起動経路が無い。** 接続層スライスで足した自動配線（プールが degraded への遷移を通知し、マネージャが 200ms 窓でまとめて `replan()` する）が発火するのは*遷移のとき*だけで、`DEGRADED_COOLDOWN_MS` の満了では発火しない。最終レビューの再確認で実測: クールダウン後は `degradedRelays` が空になっているのに、何も再選択を起こさないのでそのリレーは候補外のままになる。**除外の側で閉じたのと全く同じ形の隙間が、復帰の側に残っている**（除外の側は最終レビューの Important 1 として発見された）。クールダウンのタイマーが履歴を消すときにも同じ通知を出すのが素直な直し方~~ **2026-08-06 degraded-recovery-and-isolation Task 1 で解消。** `ConnectionPool.onDegraded` を `onDegradedChanged` に改名し、`degradedRelays` から出る 3 経路（クールダウン満了・実際に開いた・`retryNow()`）すべてで通知するようにした（`#clearFailures` に一本化）。マネージャ側の配線は変更不要 —— 既存の 200ms バッチ窓がそのまま復帰側の通知も吸収する |
-| `subscription-manager.ts` | ~~`retryNow()` は失敗履歴を消すが、再プランを起こさない。選択から外されて `#drop` まで済んだ degraded なリレーには `Pooled` レコードがもう無いので、プール側の再接続ループは何もできず、履歴を消した効果は**次の無関係な `replan()` が走るまで現れない**。[ADR-0021](../adr/0021-reconnection-policy.md) に足した段落は `retryNow()` が即座の復帰手段であるかのように読める。**今日は潜在的** —— `retryNow` を呼ぶ UI がまだ無い。UI から繋ぐときに、`retryNow()` が `replan()` も起こすようにすること。**2026-08-06 degraded-recovery-and-isolation Task 1 で部分的に改善、まだ未解決。** `ConnectionPool.retryNow()` が呼ぶ `#clearFailures` は、degraded だった URL の履歴を消すとき通知するようになったので、`SubscriptionManager` の `#offDegraded` 配線を通って `DEGRADED_REPLAN_BATCH_MS`（200ms）のバッチ窓越しに `replan()` が追従するようにはなった。ただしこの行が本来指していた欠陥 —— 人間が起こす `retryNow()` それ自体が即座の再選択を起こさないこと —— はまだそのまま残っている: `SubscriptionManager.retryNow()` は今も pool への素通しの委譲のみで、同期的な再選択は無く、この経路を検証するテストも無い。しかも degraded な URL が 1 つも無い状態で呼んだ場合は `#clearFailures` の通知条件（消す前の `hard >= DEGRADED_AFTER_FAILURES`）を満たさないので通知自体が飛ばず、何もバッチされない。この計画の次のタスクは、まさにこの同期的な再選択を閉じるために存在する~~ **2026-08-06 degraded-recovery-and-isolation Task 2 で解消。** `SubscriptionManager.retryNow()` は `pool.retryNow()` への委譲のあと、同じ呼び出しの中で同期的に `#runReplan()` を呼ぶようになった —— degraded だった URL に `Pooled` レコードが残っていなくても、再選択そのものはマネージャ側が起こすので `#drop` 済みでも復帰できる。続けて保留中の `#degradedReplanTimer` があれば `clearTimeout` で畳む —— Task 1 の `onDegradedChanged` 通知が `pool.retryNow()` の途中でバッチタイマーを起動していることがあり、放置すると同じ復帰について 200ms 後にもう一度無駄な `replan()` が走るため。テストは `subscription-manager.test.ts` の `"retryNow() re-selects a degraded relay synchronously, and leaves no second replan queued"` |
-| `connection-pool.test.ts` | ~~「ゾンビ再接続タイマーを残さない」テストが、名指ししている変異を捕まえない。縦断スライスの最終レビューで、`#attachConnection` のタイマークリア処理を削除して（まさにそのバグを再導入して）走らせたところ**通ってしまった**。`connectCalls` が増えないことしか見ておらず、`#reconnect()` の `pooled.connection` ガードによってタイマーの有無に関わらず真になるため。**製品コードは正しい**（直読と、もう 1 つの C2 テストの変異検出で確認済み）ので park した。**直すための道具は既に同じファイルにある** —— `clock.clearTimeoutCallCount` は以前の修正ラウンドで「`connectCalls` が増えないことはタイマーが消えた証明にならない、スケジューラ自身の呼び出し回数を直接数えるしかない」という理由で追加されたものであり、このテストはそれを使っていない~~ **2026-08-06 degraded-recovery-and-isolation Task 4 で解消。** `clock.clearTimeoutCallCount` の変化量を直接主張するアサーションを足した（`clearsBeforeRevival + 3` — 内訳: `#attachConnection` によるバックオフタイマーの解除、`connection.onOpen` が同期発火して呼ぶ `#clearFailures` によるクールダウンタイマーの解除、`publish()` 自身の `PUBLISH_TIMEOUT_MS` タイマーの解除）。`#attachConnection` 先頭のタイマークリアを削除する変異を実際に入れて、書き換えたテストだけが落ちることを確認してから元に戻した（他の 67 件は変異下でも通ったまま） |
-| `connection-pool.ts` | ~~`#ensureConnection()` の connect 失敗経路が、`publish()` しか触っていない URL について**エントリ 0 件の `Pooled` レコードを `#pool` に残す**。`size` は生きている接続だけを数えるので予算には影響せず、`retryNow()`/`#reconnect()` も空エントリでは no-op なので実害は無いが、到達不能なリレーへ publish を繰り返すたびに死んだ Map エントリが積もる。テストも無い~~ **2026-08-06 degraded-recovery-and-isolation Task 4 で判定: 元の欠陥はこの計画の着手より前に解決済みだった、ただし解決したコミットは 1 つではない** — followups の更新漏れであり、Task 1〜3 のいずれもこの行に触れていない。空レコードを消すこと自体を最初に閉じたのは 2026-08-05 13:32 の `d2a428e`（縦断スライス最終レビュー、Critical 2 の一部）で、この時点では `if (pooled.entries.size === 0) this.#pool.delete(url);` だけだった（`holds` 判定は無い — `hold()` も `holds` フィールドもまだ存在しなかった）。`&& pooled.holds === 0` の判定は翌日 2026-08-06 08:49 の `d0c1355`（`hold()` と `holds` フィールドを新設したコミット）が足した。`this.#pool.delete(url)` を `#drop(url)` に置き換えて保留タイマーも一緒に消すようにしたのは、さらにその後 2026-08-06 10:15 の `5504026`。現在の `connection-pool.ts` の `publish()`（`!pooled.connection` 分岐）が `pooled.entries.size === 0 && pooled.holds === 0` を確かめて真なら `#drop(url)` で空レコードを消すのは、この 3 コミットが積み重なった結果であり、単独のコミットの引用ではない。エントリ 0 件・hold 0 件の `Pooled` を作れる経路はこの 1 つだけ（`subscribe()`/`hold()` はいずれも自分のエントリ/hold を先に足してから `#ensureConnection` を呼ぶので空にならず、`#reconnect()` の connect 失敗は既存レコードを触るだけで新規に空レコードを作らない）ため、実装読解だけで解決を確認できた。**テストは今も無い** — `#pool` の生死問わない Map サイズを外から観測するアクセサが無いため、`pool.size`（生きている接続だけ）だけでは「レコード自体が残っているか」を区別できない |
-| `connection-pool.ts` | `publish()` が一時的に積む `PUBLISH_ONLY_HANDLERS` のエントリが安全なのは、`WebSocketRelayConnection.fail()` が**保留中の publish を reject してから** `onClose` を発火する、というマイクロタスク／マクロタスクの暗黙の順序に依存している。今日は正しい（reject はマイクロタスク、再接続は 500ms 以上先のマクロタスク）が、`fail()` の順序をリファクタすると `["REQ", subId]`（フィルタ 0 個）がワイヤに出る。順序を固定するテストが無い |
-| `parse-relays.ts` | URL の検証を一切しない。壊れた URL が安全なのは `ConnectionPool.subscribe()` が 3 ファイル離れた場所で `connect()` を try/catch しているからで、その依存は文書化されていない。e2e 専用の抜け道なので実害は小さい |
-| `fake-signer.ts` | 鍵から pubkey を導く（呼び出し側の `template.pubkey` を信用しない）挙動に直接のテストが無い。さらに最終レビューで判明したとおり**呼び出し元がリポジトリ内に 1 つも無い** —— 未テストのコードではなく未使用のコードである。署名器のテストへ配線するか、削除するか |
-| `nip19.ts` | `LIMIT = 5000` は範囲外の TLV（`nevent`/`naddr`）を先取りした定数。無害、NIP-19 の計画でそのまま使う |
-| `section-reader.ts` | `stop()` が `#items` / `#ids` を保持する。`createSection` からは到達しないが、公開メソッドとして意味が未文書。終局的と明記するか状態をクリアする |
-| `section-reader.ts` | `start()` 内で `openRelay` が例外を投げた場合の経路がない。既に購読したリレーが漏れる。URL ごとに包んで `unreachable` にするほうが ADR-0011 に忠実 |
-| `section-reader.ts` | `source.relays` の重複 URL が二重購読になり `unreachableRelays` を二重計上する |
-| `section-reader.ts` | `#items` に store の内部オブジェクトを入れている。消費者が `items[0].content` を書き換えると全セクションの store が壊れる。水和が入る時点で `Object.freeze` かコピーを検討 |
-| `websocket-relay-connection.ts` | ソケットが開く前に購読を閉じると無駄な `REQ` + `CLOSE` が飛ぶ。`RelaySubscription.close()` は `#isClosed()` で守られておらず、CLOSING 窓で flush されない `CLOSE` を積む。いずれも自己解消し有界 |
-| `connection-pool.ts` | `#attachConnection` は `pooled.connection = connection`（`size` に数えられる。呼び出し順: ①`pooled.connection = connection` → ②`pooled.offClose = connection.onClose(...)` → ③`pooled.offOpen = connection.onOpen(() => this.#clearFailures(url))`）を、`#failures` を実際にクリアする ③ の登録より先に行う。実ソケットではこの ①→③ の窓が TCP/TLS ハンドシェイクの全体に及ぶ。窓の間に replan が来ると、その URL は `size` 上は「生きている」のに `degradedRelays` はまだクリアされていない（`onOpen` が発火していない）ため、`selectRelays` の `degraded` 入力から見て「回復しかけている最中」の URL が除外され、`#drop` で（開いたばかりの）ソケットごと閉じられてしまう。発生確率は低く（ハンドシェイクの間だけ、かつその間に replan が走る必要がある）、テストも無い。**Important 1（final review, 2026-08-06: degraded 遷移からの自動 replan）は replan の頻度そのものを引き上げるので、この窓に replan が当たる確率もわずかに上がる** —— 直接の原因ではないが無関係でもない。出口側の通知（degraded-recovery-and-isolation Task 1、クールダウン満了・onOpen・retryNow() での離脱）も同じ理由で replan 頻度を上げるが、対象 URL 自身の onOpen より後にしか発火しない（= その窓が閉じた後）ためその URL 自身の窓は広げず、上げるのは別の URL の窓に当たる確率だけである |
-| `websocket-relay-connection.ts` | `Array.isArray(message)` が `any[]` に絞り、フィールドの静的型付けが失われる。`readonly unknown[]` 注釈で回復する |
-| `relay-info.ts` | 失敗を一切キャッシュしないため、NIP-11 を持たないリレーへ毎回 fetch する。恒久的な焼き付きを避けた結果であり、対処するなら失敗側に短い TTL |
-| `relay-info.ts` | `supported_nips` は 1 要素でも非数値なら全体を捨てる。実在するリレーには `"1"` のような文字列要素を出すものがあり、その場合 `supportsNip` が一律 false になる。要素単位のフィルタのほうが良い |
-| `relay-info.ts` | `get()` の両分岐で clone-`.then()` が重複。`structuredClone` のほうが素直 |
-| `relay-info.ts` | `fetchImpl.bind(globalThis)` は既定の native `fetch` には必要だが、注入された実装まで束縛し直すのは過剰。`constructor(fetchImpl = fetch.bind(globalThis))` にして保存時は束縛しないほうが正しい |
-| `v1-section.tsx` | `DEFAULT_RELAY` がハードコードで `STREETS_E2E_RELAY_URL` を見ない。`e2e/fixtures/seed.ts` は見るため、上書きした環境で e2e が落ちる |
-| `section-reader.ts` | `countUnroutableAuthors` を `status` の読み取りごとに再計算する。リレーが 0 件のときだけ通る経路なので現状は無料 |
-| `routing-table.ts` | 参照のたびに store 検索と `parseRelayList`（Map 構築＋全タグ走査）を丸ごとやり直し、3 件を残して捨てる。`planQuery` は著者ごとに呼ぶため、500 人 × セクション数 × 再計画のたびに走る。導出元イベントの `id` をキーにメモ化すれば ADR-0016 の「導出・TTL なし」を壊さずに済む |
-| `relay-url.ts` | パーセントエンコードされたパスセグメントを正規化しない（`%2f` と `%2F` が別 URL になる）。userinfo もそのまま保持する。既定ポート・大文字スキーム・IPv6 は正しいがテストがない |
-| `query-plan.ts` | 1 つのフィルタ内の重複著者を除去しない。`Map` の反復順序も表明していない |
-| `subscription-manager.ts` | `onEose` / `onClosed` の close 後抑制にテストがない（`onEvent` のみ）。1 プラン内の重複 URL と空プランも未テスト。明示リレー経路で `fallbackRelays` を使わないのに計算している |
-| `bootstrap.ts` | `clearTimeout` / `getTimerCount` の表明がない。インデクサ 2 つが矛盾する `kind:3` を返すケース、不正な `p` タグの端から端までのケースも未テスト |
-| `src/core/solid/provider.test.tsx`, `use-event-feed.test.tsx`, `use-event-relations.test.tsx`, `use-event.test.tsx`, `use-profile.test.tsx`, `use-social-read.test.tsx`, `src/routes/debug/v1-core.test.tsx` | 最終ブランチレビュー finding 6 で `tsconfig.test.json` を配線した際に発覚した、これらのスライスとは無関係な既存の型エラー 22 件。古いモックが `NostrCoreQueryClient` / `QueryRegistry` / `RxNostr` の現行の型（`getSnapshot` など新しい必須メンバーが増えている）に追随できていないのと、`rx-nostr` の `createRxNostr()` が引数必須になったのに呼び出し側が追随していないもの。vitest は型検査をしない（esbuild で transform するだけ）ので、これまで `pnpm typecheck` が `*.test.ts(x)` を丸ごと除外していたことで誰も気づいていなかった。レビューの指示（「まとめて直さず報告せよ」）に従い、`tsconfig.test.json` の `exclude` でこの 7 ファイルだけを外して `pnpm typecheck` を緑に保っている — 直したらそのファイルを `exclude` から外すこと |
-| `connection-pool.ts` | ~~`#reconnect()` の `for (const entry of pooled.entries)` が `entry.handlers.onClosed(...)` を素で呼んでおり、1 つのセクションのコールバックが投げると残りのセクションが張り直しを受け取れない。最終レビューの Finding 4 が `#replanOnce` / `SectionReader.#notify()` で塞いだのと同じ形だが、この経路は差分に含まれていなかった~~ **2026-08-06 degraded-recovery-and-isolation Task 3 で解消。** `#attachConnection`（実際にこのループを持つのは `#reconnect()` ではなくここ — `#reconnect()` は `#attachConnection` を呼ぶだけ）の catch 節を `SubscriptionManager.#deliver` / `SectionReader.#notify` と同じ try/catch + `console.error` の作法で包んだ。テストは `connection-pool.test.ts` の `"isolates a throwing onClosed so the remaining entries are still re-attached"` — `subscribeFailing` と `die()` → `retryNow()` で `#attachConnection` を 2 エントリで通す |
-| `connection-pool.ts` | `subscribe()` 自身の失敗報告 (`if (!entry.subscription) { handlers.onClosed("relay unavailable"); }`, 新規購読の初回失敗の経路) も同じく素で呼んでいる。今日は 1 呼び出しにつきエントリ 1 個しか無いので Task 3 が塞いだ「複数エントリが 1 ループで巻き添えを食う」形の実害は無いが、`onClosed` が投げれば公開メソッド `subscribe()` 自体が例外を投げて呼び出し元 (`SectionReader`) まで抜けてしまう。**2026-08-06 の最終レビュー Important 1 が `#notifyDegradedChanged`（`subscribe()`/`hold()`/`retryNow()` から到達しうる、同じく素の for ループだった）を listener ごとに隔離したので、`subscribe()` の「例外を投げない」契約を今なお破りうる経路はこの 1 箇所だけになった** —— このタスクノートを書いた時点では実は 2 箇所あり、「ここだけ例外」という当時の書き方はその事実に気づいていなかった。Task 3 で気づいたが、スコープ外（ブリーフが `#attachConnection` のみに限定）なので直していない |
-| CI | 再入ガードと反復上限が同時に壊れると、`subscription-manager.test.ts` の収束テストが真の同期無限ループを再現する。JS の単一スレッド上では vitest のテスト単位タイムアウトが割り込めない。`.github/workflows/ci.yaml` の `test` ジョブに `timeout-minutes` が無いため、その場合 CI はプラットフォーム既定（数時間）までハングする。1 行の保険を入れる価値がある |
-| `event-requests.ts` | `settled`（要求してバッチが片付いた id の集合）はコアレッサの寿命の間ずっと増え続ける。届いた id を店 (`EventStore`) が持つようになっても、そのコンシューマが unmount しても、`settled` からは消えない。返信・引用・リポストの対象を長いセッションで多数見れば見るほど、`EventStore` 自身の無制限な増加（上記「縦断スライスを動かしてから決めるもの」節の `EventStore` のメモリ破棄戦略）の上にこれが乗る。**単独では直さないこと** —— `settled` が id を手放してよいタイミングは結局 `EventStore` が id を手放してよいタイミングと同じ問い（参照理由の分類 × 最終アクセス時刻）に従うため、`EventStore` の破棄戦略を決める計画で一緒に決める |
 
 ## 後続 #3（接続プール）で扱うと決まったもの
 

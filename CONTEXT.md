@@ -95,10 +95,9 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0023](./docs/adr/0023-centralized-subscription-manager.md) | リレー接続と購読を単一の管理システムに集約する |
 | [0024](./docs/adr/0024-shared-bodies-per-section-membership.md) | イベント本体は共有し、メンバーシップはセクションが持つ |
 | [0025](./docs/adr/0025-greedy-relay-selection-under-a-global-budget.md) | 大域予算のもとで冗長度つき貪欲集合被覆によりリレーを選ぶ |
-
 | [0026](./docs/adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) | 常に見せるのは行動できる異常だけとし、診断値は開発者モードの背後に置く |
 
-設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、未着手の繰延事項は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)、プロジェクト全体の将来タスクは [docs/backlog.md](./docs/backlog.md) を参照。
+設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 
 ## 書き方
 
