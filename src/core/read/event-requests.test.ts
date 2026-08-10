@@ -245,6 +245,62 @@ describe("createEventRequests", () => {
     expect(requests.isUnresolved(event.id)).toBe(false);
   });
 
+  it("再要求すると、次のバッチが片付くまで isUnresolved は false に戻る", async () => {
+    // 捕まえる変異: settled を追加専用のままにする (request() が再要求時に
+    // settled.delete(id) を呼ばない)。この変異のもとでは、2 回目の
+    // fetchOnce がまだ解決していない間も isUnresolved が (1 回目のバッチの
+    // settled が残ったままなので) true を返し続け、以下の
+    // 「2 回目を要求した直後は false」のアサーションだけが落ちる —— 他の
+    // isUnresolved テストは 1 回しか request() しないので、この変異では
+    // 落ちない。
+    const clock = createFakeClock();
+    const store = new EventStore();
+    let resolveFirst: () => void = () => {};
+    let resolveSecond: () => void = () => {};
+    let call = 0;
+    const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(() => {
+      call += 1;
+      if (call === 1) {
+        return new Promise<void>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return new Promise<void>((resolve) => {
+        resolveSecond = resolve;
+      });
+    });
+    const manager = { fetchOnce } as unknown as SubscriptionManager;
+    const requests = createEventRequests({
+      store,
+      manager,
+      scheduler: clock,
+    });
+
+    const id = idFor(1);
+
+    // 1 本目: 要求してバッチを片付ける。store は空のままなので unresolved。
+    requests.request(id);
+    clock.advance(200);
+    resolveFirst();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(requests.isUnresolved(id)).toBe(true);
+
+    // 2 本目: 同じ id をもう一度要求する (カラム項目の再マウントを模す)。
+    // 新しいバッチはまだ片付いていないので、settled の古い記録に頼らず
+    // false に戻っていなければならない —— これが「取得中」を「見つから
+    // なかった」と誤って描く欠陥そのもの。
+    requests.request(id);
+    expect(requests.isUnresolved(id)).toBe(false);
+
+    // 2 本目が解決し、store は依然空 —— 再び true に戻る。
+    clock.advance(200);
+    resolveSecond();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(requests.isUnresolved(id)).toBe(true);
+  });
+
   it("要求していない id の isUnresolved は false", () => {
     // 捕まえる変異: 既定を true にする
     const requests = createEventRequests({

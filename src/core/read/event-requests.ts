@@ -83,6 +83,13 @@ export const createEventRequests = (
    * いて store に無いなら「探したが見つからなかった」と言い切れる。
    * 「まだ探している最中」と区別するための集合であり、これが無いと
    * 遅いだけのものが壊れて見える (仕様 7 節)。
+   *
+   * 追加専用ではない —— `request()` が同じ id を再度キューへ積むとき、
+   * ここから落とす。カラム項目のスクロールアウト・再マウント
+   * (`<Profile>`/`profile-requests.ts` と同じマウント契機の呼び出し規約) で
+   * 同じ id がもう一度 `request()` されることがあり、そこで落とさないと
+   * 新しいバッチが片付くまでの間ずっと前回の「見つからなかった」を
+   * 返し続けてしまう。
    */
   const settled = new Set<string>();
 
@@ -113,6 +120,12 @@ export const createEventRequests = (
       if (disposed) return;
       // 既に EventStore にあるなら要求しない (無駄な REQ を作らない)。
       if (options.store.get(id)) return;
+      // 再要求されたということは、この id をもう一度探しに行く。前回の
+      // バッチで settled 済みでも、その判定はこの新しい探索が終わるまで
+      // 古い —— ここで落とさないと、探している最中なのに isUnresolved が
+      // 前回の「見つからなかった」を返し続ける (settled は追加専用の集合
+      // なので、request() 側で能動的に落とさない限り消えない)。
+      settled.delete(id);
       pending.add(id);
       if (timer === null) {
         timer = scheduler.setTimeout(flush, EVENT_BATCH_MS);
