@@ -25,6 +25,10 @@ export type WarmUpResult = {
    * 報告先になる。
    */
   unrequested: number;
+  /** ① フォローリスト取得 (kind:3) に費やした ms。 */
+  phase1Ms: number;
+  /** ② 全員分の kind:10002 取得に費やした ms。 */
+  phase2Ms: number;
 };
 
 export type WarmUpOptions = {
@@ -114,6 +118,12 @@ export const warmUpRouting = async ({
     }
 
     // ① フォローリスト
+    //
+    // 表示専用の内訳計測 (仕様 11 節)。どの分岐にも影響しないので、
+    // event-store.ts の verifyMs と同じ理由で performance.now() を直に呼ぶ
+    // (`Scheduler` はテストが分岐のタイミングを決定的に進めるためのもので、
+    // 時刻取得そのものを禁じてはいない)。
+    const phase1StartedAt = performance.now();
     const unrequestedFollows = await collect(
       pool,
       indexers,
@@ -125,6 +135,7 @@ export const warmUpRouting = async ({
       // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
       { reserved: true },
     );
+    const phase1Ms = performance.now() - phase1StartedAt;
 
     const followList = store.latestReplaceable(FOLLOW_LIST_KIND, pubkey);
     const followees = followList
@@ -152,6 +163,7 @@ export const warmUpRouting = async ({
     // アカウント」が自分の write リレーを一生取得できなかった。
     const relayListAuthors = [...new Set([pubkey, ...followees])];
 
+    const phase2StartedAt = performance.now();
     const unrequestedRelayLists = await collect(
       pool,
       indexers,
@@ -163,6 +175,7 @@ export const warmUpRouting = async ({
       // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
       { reserved: true },
     );
+    const phase2Ms = performance.now() - phase2StartedAt;
 
     let routed = 0;
     for (const followee of followees) {
@@ -174,6 +187,8 @@ export const warmUpRouting = async ({
       routed,
       unroutable: followees.length - routed,
       unrequested: unrequestedFollows + unrequestedRelayLists,
+      phase1Ms,
+      phase2Ms,
     };
   } finally {
     // 正常系では collect() 自身がここまでに `open` を空にしている

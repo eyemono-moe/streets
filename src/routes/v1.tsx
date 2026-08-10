@@ -64,6 +64,15 @@ const RELAYS_OVERRIDE = parseRelays(
 );
 
 /**
+ * `warm-up-phases` の表示専用フォーマット。未確定 ("-") のときだけ単位を
+ * 落とす —— 他の診断値 (`warmUpMs` など) は列名自体が単位を兼ねるが、
+ * こちらは "phase1: N ms / phase2: N ms" という文中表記のため、値が無い
+ * ときに "- ms" と単位だけ浮かせない。
+ */
+const formatWarmUpPhaseMs = (ms: number | undefined): string =>
+  ms === undefined ? "-" : `${ms.toFixed(2)} ms`;
+
+/**
  * v1 の垂直スライス。ログイン (Task 1) → 1 カラム描画 (Task 2) に続き、
  * ここでデッキ (3 カラム) と localStorage への永続化を足す。
  *
@@ -509,6 +518,19 @@ const V1: Component = () => {
                   <p data-testid="warm-up-ms" class="text-alpha-600 text-xs">
                     warmUpMs:{" "}
                     {warmUpMs() === undefined ? "-" : warmUpMs()?.toFixed(2)}
+                  </p>
+                  {/*
+                    warmUpMs (上) は warmUpRouting() 呼び出し全体、こちらは
+                    その内訳 (task-1-brief.md)。仕様 11 節の前提 (相② が
+                    支配的) を実鍵で検証するための材料 —— warmUp() が確定
+                    するまでは両方とも "-"。
+                  */}
+                  <p
+                    data-testid="warm-up-phases"
+                    class="text-alpha-600 text-xs"
+                  >
+                    phase1: {formatWarmUpPhaseMs(warmUp()?.phase1Ms)} / phase2:{" "}
+                    {formatWarmUpPhaseMs(warmUp()?.phase2Ms)}
                   </p>
                   <p data-testid="verify-ms" class="text-alpha-600 text-xs">
                     verifyMs: {verifyStats().ms.toFixed(2)} (

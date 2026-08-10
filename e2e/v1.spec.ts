@@ -400,6 +400,7 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("event-batch")).toHaveCount(0);
     await expect(page.getByTestId("profile-batch")).toHaveCount(0);
     await expect(page.getByTestId("warm-up-ms")).toHaveCount(0);
+    await expect(page.getByTestId("warm-up-phases")).toHaveCount(0);
     await expect(page.getByTestId("verify-ms")).toHaveCount(0);
 
     // 2. トグルを押すと現れる。
@@ -413,11 +414,18 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("event-batch")).toBeVisible();
     await expect(page.getByTestId("profile-batch")).toBeVisible();
     await expect(page.getByTestId("warm-up-ms")).toBeVisible();
+    await expect(page.getByTestId("warm-up-phases")).toBeVisible();
     await expect(page.getByTestId("verify-ms")).toBeVisible();
     // 捕まえる変異: warmUpMs を resolve 後にしか set しない (失敗時に
     // 空のまま残り、初回描画のうちブートストラップが占める分が読めない) /
     // verifyMs を store から取らず 0 固定にする。
     await expect(page.getByTestId("warm-up-ms")).not.toHaveText(/warmUpMs: -/);
+    // 捕まえる変異: phase1Ms/phase2Ms を計測せず未確定のまま残す
+    // (仕様 11 節の前提 —— 相② が支配的かどうか —— を検証する材料が
+    // 出ない)。
+    await expect(page.getByTestId("warm-up-phases")).not.toHaveText(
+      /phase1: - \/ phase2: -/,
+    );
     await expect(page.getByTestId("verify-ms")).not.toHaveText(
       /verifyMs: 0\.00 \(0 件\)/,
     );

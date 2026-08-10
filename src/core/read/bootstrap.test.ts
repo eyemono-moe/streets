@@ -417,12 +417,64 @@ describe("warmUpRouting", () => {
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEose(1);
 
-    await expect(pending).resolves.toEqual({
+    const result = await pending;
+    expect(result).toEqual({
       followees: [],
       routed: 0,
       unroutable: 0,
       unrequested: 0,
+      phase1Ms: expect.any(Number),
+      phase2Ms: expect.any(Number),
     });
+    // 捕まえる変異: フィールドを足すが値を入れない。undefined のままだと
+    // 0 以上の比較は常に false になる。
+    expect(result.phase1Ms).toBeGreaterThanOrEqual(0);
+    expect(result.phase2Ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it("フェーズ①の間だけ時間が進んだとき、phase1Ms にだけ乗る", async () => {
+    vi.useFakeTimers();
+    try {
+      const relays = new Map<RelayUrl, FakeRelayConnection>();
+      const store = new EventStore();
+      const pool = poolWithFakes(relays);
+
+      const pending = warmUpRouting({
+        pubkey: "f".repeat(64),
+        store,
+        pool,
+        indexers: ["wss://indexer/"],
+      });
+
+      // hold()/subscribe() はどちらも同期なので、この時点でフェーズ①の
+      // 購読はもう立っている (フェイクタイマー下では vi.waitFor が使えない
+      // ため、ここでは待たずに直接見る)。
+      const indexer = () => relays.get("wss://indexer/");
+      expect(indexer()?.subscriptions).toHaveLength(1);
+
+      // フェーズ①の間だけ 500ms 進める。
+      await vi.advanceTimersByTimeAsync(500);
+      indexer()?.emitEose(0);
+
+      // フェーズ②の購読が立つまでマイクロタスクを吐かせる (フェイクタイマー
+      // 下では時間を進めずに待つ必要がある)。
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(indexer()?.subscriptions).toHaveLength(2);
+
+      // フェーズ②は時間を進めずに即 settle させる。
+      indexer()?.emitEose(1);
+
+      const result = await pending;
+      expect(result.phase1Ms).toBeGreaterThanOrEqual(500);
+      // 捕まえる変異: 2 相を 1 つのタイマーで測る (内訳が出ない)。1 つの
+      // タイマーなら、フェーズ①で進めた 500ms がここにも乗って 0 のままでは
+      // 済まなくなる。
+      expect(result.phase2Ms).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("closes every connection it opened", async () => {
@@ -474,6 +526,8 @@ describe("warmUpRouting", () => {
       routed: 0,
       unroutable: 0,
       unrequested: 0,
+      phase1Ms: expect.any(Number),
+      phase2Ms: expect.any(Number),
     });
     expect(up()?.closed).toBe(true);
   });
@@ -496,6 +550,8 @@ describe("warmUpRouting", () => {
       routed: 0,
       unroutable: 0,
       unrequested: 0,
+      phase1Ms: expect.any(Number),
+      phase2Ms: expect.any(Number),
     });
   });
 
@@ -551,6 +607,8 @@ describe("warmUpRouting", () => {
       routed: 0,
       unroutable: 0,
       unrequested: 0,
+      phase1Ms: expect.any(Number),
+      phase2Ms: expect.any(Number),
     });
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
@@ -615,6 +673,8 @@ describe("warmUpRouting", () => {
       routed: 0,
       unroutable: 0,
       unrequested: 0,
+      phase1Ms: expect.any(Number),
+      phase2Ms: expect.any(Number),
     });
   });
 
@@ -705,6 +765,9 @@ describe("warmUpRouting", () => {
         routed: 0,
         unroutable: 0,
         unrequested: 0,
+        // 両フェーズともここでは自前のタイムアウト (25ms) までかかりきる。
+        phase1Ms: 25,
+        phase2Ms: 25,
       });
       expect(relays.get("wss://silent/")?.closed).toBe(true);
     } finally {
