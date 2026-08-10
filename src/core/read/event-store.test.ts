@@ -123,16 +123,56 @@ describe("EventStore", () => {
   });
 
   it("invalidate は取得時刻を 0 にする", () => {
-    // 捕まえる変異: invalidate がイベントごと消す。消すと「持っていない」に
-    // なり、serveWhileRevalidating: true の kind で古い値を出せなくなる
+    // 捕まえる変異: invalidate を no-op にする。fetchedAt を 0 に
+    // 進める前に put しているだけだと、この変異があっても偶然 0 のままで
+    // テストが気づかない —— 先に時計を進めて非ゼロにしてから invalidate し、
+    // 0 に「戻った」ことを確かめる
     const clock = createFakeClock();
+    clock.advance(5_000);
     const store = new EventStore({ scheduler: clock });
     const profile = sign("p", { kind: 0 });
     store.put(profile, "wss://relay/");
+    expect(store.replaceableFetchedAt(0, profile.pubkey)).toBe(5_000);
+
     store.invalidate(0, profile.pubkey);
+
+    // 捕まえる変異: invalidate がイベントごと消す。消すと「持っていない」に
+    // なり、serveWhileRevalidating: true の kind で古い値を出せなくなる
     expect(store.replaceableFetchedAt(0, profile.pubkey)).toBe(0);
     // イベント自体は残る
     expect(store.latestReplaceable(0, profile.pubkey)).toBeDefined();
+  });
+
+  it("put は同一イベントの再配送でも取得時刻を更新する", () => {
+    // 捕まえる変異: 重複経路で fetchedAt を更新しない (最初の put だけが
+    // 効く)。置換可能イベント (kind:10002 など) を著者が一年変えなくても、
+    // staleMs 経過ごとに再取得され、リレーが同一イベントを返しても
+    // fetchedAt が初回のまま固定され、二度と「新鮮」に戻らなくなる
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const event = sign("x");
+
+    expect(store.put(event, "wss://a/")).toBe("inserted");
+    expect(store.fetchedAt(event.id)).toBe(0);
+
+    clock.advance(8_000);
+    expect(store.put(event, "wss://b/")).toBe("duplicate");
+    expect(store.fetchedAt(event.id)).toBe(8_000);
+  });
+
+  it("id 再検証に失敗する偽装済み重複配送は取得時刻を更新しない", () => {
+    // 捕まえる変異: id 再計算のガードの外で restamp する。既知の id を騙る
+    // だけの偽装ペイロードが、内容を検証されないまま鮮度だけを更新できて
+    // しまう (put が返す schnorr 未検証の重複と同じ攻撃面)
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const event = sign("x");
+    store.put(event, "wss://a/");
+
+    clock.advance(8_000);
+    const forged = { ...event, content: "forged" };
+    expect(store.put(forged, "wss://attacker.com")).toBe("duplicate");
+    expect(store.fetchedAt(event.id)).toBe(0);
   });
 });
 

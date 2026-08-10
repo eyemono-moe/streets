@@ -74,12 +74,15 @@ export class EventStore {
       // schnorr 検証はしない (Outbox で同一イベントが複数リレーから届き、
       // 重複のたびに払うにはコストが高すぎる)。id の再計算だけで足りる。
       const { id, sig, ...unsigned } = event;
-      if (
-        isNostrEvent(event) &&
-        computeEventId(unsigned) === id &&
-        !existing.seenRelays.includes(relay)
-      ) {
-        existing.seenRelays.push(relay);
+      if (isNostrEvent(event) && computeEventId(unsigned) === id) {
+        // 同一イベントの再配送は「まだ現在のままだ」という確認そのもの。
+        // これで restamp しないと、著者が長期間更新しない置換可能イベント
+        // (kind:10002 など) は初回取得時刻に固定され続け、staleMs を過ぎる
+        // たびに再取得され、しかも二度と鮮度が回復しない。
+        existing.fetchedAt = this.#scheduler.now();
+        if (!existing.seenRelays.includes(relay)) {
+          existing.seenRelays.push(relay);
+        }
       }
       return "duplicate";
     }
