@@ -18,6 +18,7 @@ import {
 import type { NostrEvent, UnsignedEvent } from "../core/nostr/event";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { FALLBACK_RELAYS } from "../core/read/default-relays";
+import { createEventRequests } from "../core/read/event-requests";
 import { EventStore } from "../core/read/event-store";
 import { createProfileRequests } from "../core/read/profile-requests";
 import { RoutingTable } from "../core/read/routing-table";
@@ -30,6 +31,7 @@ import {
 } from "../core/settings/developer-mode";
 import { createNip07Signer } from "../core/signer/nip07-signer";
 import { SignerUnavailableError } from "../core/signer/signer";
+import { RenderProvider } from "../core/view/render-context";
 import { type PublishResult, createPublisher } from "../core/write/publisher";
 import Button from "../shared/components/UI/Button";
 import AddColumnForm from "./v1/AddColumnForm";
@@ -42,6 +44,7 @@ import {
   renameColumnIn,
 } from "./v1/deck-mutations";
 import { parseRelays } from "./v1/parse-relays";
+import { defaultRenderers } from "./v1/renderers";
 import { verifyOptimisticInsert } from "./v1/verify-optimistic-insert";
 
 /**
@@ -117,6 +120,11 @@ const V1: Component = () => {
   // 別々のコアレッサがそれぞれ REQ を投げてしまい、まとめた意味が薄れる。
   const profileRequests = createProfileRequests({ store, manager });
   onCleanup(() => profileRequests.dispose());
+  // 関連イベント (返信元・引用先・リポスト対象) 要求のコアレッサ
+  // (design 4.2 節)。profileRequests と同じ理由で 3 カラムぶん共有する ——
+  // レンダラは EventView を通じてこの 1 つだけを見る (RenderProvider 経由)。
+  const eventRequests = createEventRequests({ store, manager });
+  onCleanup(() => eventRequests.dispose());
 
   // 書き込み経路。ソケットを開くのは manager と同じ
   // ConnectionPool (`manager.pool`) 一本化 —— publish 専用の別経路は
@@ -540,27 +548,41 @@ const V1: Component = () => {
             data-testid="deck"
             class="flex min-h-0 flex-1 divide-x overflow-x-auto"
           >
-            <For each={deck()?.columns ?? []}>
-              {(column, index) => (
-                <DeckColumn
-                  column={column}
-                  store={store}
-                  manager={manager}
-                  profileRequests={profileRequests}
-                  followees={() => warmUp()?.followees ?? []}
-                  optimisticEvents={optimisticEvents}
-                  developerMode={developerMode}
-                  canMoveLeft={() => index() > 0}
-                  canMoveRight={() =>
-                    index() < (deck()?.columns.length ?? 0) - 1
-                  }
-                  onMoveLeft={() => moveColumn(column.id, -1)}
-                  onMoveRight={() => moveColumn(column.id, 1)}
-                  onRemove={() => removeColumn(column.id)}
-                  onRename={(title) => renameColumn(column.id, title)}
-                />
-              )}
-            </For>
+            {/*
+              レンダラ (kind:1/6/16, spec 6 節) と EventView が共有する依存の
+              束 (design 2.1 節)。3 カラムぶんまとめて 1 つの provider の下に
+              置く —— カラムごとに別の値を渡す理由が無い (store/manager と
+              同じ「アプリ全体で 1 つ」の単位)。
+            */}
+            <RenderProvider
+              value={{
+                store,
+                events: eventRequests,
+                profiles: profileRequests,
+                renderers: defaultRenderers,
+              }}
+            >
+              <For each={deck()?.columns ?? []}>
+                {(column, index) => (
+                  <DeckColumn
+                    column={column}
+                    store={store}
+                    manager={manager}
+                    followees={() => warmUp()?.followees ?? []}
+                    optimisticEvents={optimisticEvents}
+                    developerMode={developerMode}
+                    canMoveLeft={() => index() > 0}
+                    canMoveRight={() =>
+                      index() < (deck()?.columns.length ?? 0) - 1
+                    }
+                    onMoveLeft={() => moveColumn(column.id, -1)}
+                    onMoveRight={() => moveColumn(column.id, 1)}
+                    onRemove={() => removeColumn(column.id)}
+                    onRename={(title) => renameColumn(column.id, title)}
+                  />
+                )}
+              </For>
+            </RenderProvider>
           </div>
         </Show>
       </Show>

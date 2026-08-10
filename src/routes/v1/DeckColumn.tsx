@@ -6,13 +6,12 @@ import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
 import type { EventStore } from "../../core/read/event-store";
 import { matchesAnyFilter } from "../../core/read/filter-match";
-import type { ProfileRequests } from "../../core/read/profile-requests";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
 import { createSection } from "../../core/solid/create-section";
 import ColumnAlertBadge from "./ColumnAlertBadge";
 import DiagnosticsPanel from "./DiagnosticsPanel";
-import Note from "./Note";
+import EventView from "./EventView";
 import { parseRelays } from "./parse-relays";
 
 /**
@@ -43,7 +42,6 @@ const DeckColumn: Component<{
   column: ColumnDef;
   store: EventStore;
   manager: SubscriptionManager;
-  profileRequests: ProfileRequests;
   /**
    * 現在の閲覧者のフォローリスト (kind:1 の pubkey 集合)。`source` が
    * `kind: "followees"` のとき `resolveSource` がこれを著者フィルタへ
@@ -256,11 +254,7 @@ const DeckColumn: Component<{
         <For each={items()}>
           {(event) => (
             <li data-testid="item">
-              <Note
-                event={event}
-                store={props.store}
-                profileRequests={props.profileRequests}
-              />
+              <EventView id={event.id} variant="full" />
             </li>
           )}
         </For>
