@@ -4,19 +4,19 @@
 
 **Goal:** セクションが「どのリレーから取るか」を自分で決めるのをやめ、NIP-65 に基づいて著者ごとに取得先リレーを選ぶ。リレー接続は単一の購読管理システムが所有し、同じリレー URL への接続は全セクションで共有される。
 
-**Architecture:** `kind:10002` から導出したルーティング表で、1 つの論理クエリを「リレーごとに担当著者の異なる N 本の実クエリ」へ分割する（[ADR-0005](../../adr/0005-outbox-model-from-v1.md)）。ルーティング表は専用の永続化を持たず `EventStore` から導出する（[ADR-0016](../../adr/0016-routing-bootstrap.md)）。接続の所有はセクションから購読管理システムへ移る（[ADR-0023](../../adr/0023-centralized-subscription-manager.md)）。**この計画は器だけを作る。購読マージと 30 接続上限は後続 #3。**
+**Architecture:** `kind:10002` から導出したルーティング表で、1 つの論理クエリを「リレーごとに担当著者の異なる N 本の実クエリ」へ分割する（[ADR-0005](../../../adr/0005-outbox-model-from-v1.md)）。ルーティング表は専用の永続化を持たず `EventStore` から導出する（[ADR-0016](../../../adr/0016-routing-bootstrap.md)）。接続の所有はセクションから購読管理システムへ移る（[ADR-0023](../../../adr/0023-centralized-subscription-manager.md)）。**この計画は器だけを作る。購読マージと 30 接続上限は後続 #3。**
 
 **Tech Stack:** TypeScript / SolidJS / @noble/curves / @noble/hashes / @scure/base / Vitest / Playwright / Biome / Docker Compose (nostr-rs-relay ×2)
 
 ## Global Constraints
 
-- **新しいコードで `nostr-tools` / `rx-nostr` / `rx-nostr-crypto` / `@rust-nostr/nostr-sdk` / `nostr-typedef` を import しない**（[ADR-0020](../../adr/0020-no-nostr-library-noble-primitives-only.md)）。`pnpm check` の `check:read-layer` が機械的に検査する。**例外**: `e2e/fixtures/seed.ts` は既存のテスト用共有インフラであり `nostr-tools` を使ってよい。
+- **新しいコードで `nostr-tools` / `rx-nostr` / `rx-nostr-crypto` / `@rust-nostr/nostr-sdk` / `nostr-typedef` を import しない**（[ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md)）。`pnpm check` の `check:read-layer` が機械的に検査する。**例外**: `e2e/fixtures/seed.ts` は既存のテスト用共有インフラであり `nostr-tools` を使ってよい。
 - **`src/core/{transport,query,repository,view,store}` から import しない**（旧実装）。
 - **暗号を自作しない。** 署名検証は既存の `verifyEvent`。
 - **この計画でやらないこと**（実装したら "Extra" の指摘対象）: 購読のマージ、30 接続上限、`max_subscriptions` の尊重、再接続・バックオフ、ページネーション、レンダラの `needs` 解決、IndexedDB 永続化、署名器。
-- **`SectionStatus` の形は変えない**（[ADR-0015](../../adr/0015-section-status-excludes-renderer-fetches.md)）。`phase` と `incomplete { unreachableRelays, unroutableAuthors }`。
+- **`SectionStatus` の形は変えない**（[ADR-0015](../../../adr/0015-section-status-excludes-renderer-fetches.md)）。`phase` と `incomplete { unreachableRelays, unroutableAuthors }`。
 - **`createSection` の呼び出し側インターフェースを変えない。** `{ items, status, loadMore }` のまま。`loadMore` は引き続き no-op。
-- **イベント本体は `EventStore` が持ち、セクションはメンバーシップだけを持つ**（[ADR-0024](../../adr/0024-shared-bodies-per-section-membership.md)）。セクションが並べるのはリレーが送ってきたオブジェクトではなく `store.get(id)` の検証済みコピー。
+- **イベント本体は `EventStore` が持ち、セクションはメンバーシップだけを持つ**（[ADR-0024](../../../adr/0024-shared-bodies-per-section-membership.md)）。セクションが並べるのはリレーが送ってきたオブジェクトではなく `store.get(id)` の検証済みコピー。
 - 新しいファイルはケバブケース。Biome。`pnpm fix && pnpm typecheck && pnpm check` をコミット前に通す。
 - 単体テストは `pnpm exec vitest run <path>`。**`pnpm test` は watch モードなので使わない。**
 - e2e は `pnpm e2e <spec>`。
@@ -1078,7 +1078,7 @@ Expected: PASS（7 件）
 
 **`subscribe` に渡す `relays` が `undefined` のときだけ Outbox ルーティングを行う。** 指定されていれば、そのリレーへそのまま送る（特定リレー内タイムライン用、`source.relays` のバイパス）。
 
-**配信するのはイベント本体ではなく id。** 本体は `EventStore` にあり、セクションは `store.get(id)` で引く（[ADR-0024](../../adr/0024-shared-bodies-per-section-membership.md)）。
+**配信するのはイベント本体ではなく id。** 本体は `EventStore` にあり、セクションは `store.get(id)` で引く（[ADR-0024](../../../adr/0024-shared-bodies-per-section-membership.md)）。
 
 - [ ] **Step 1: 失敗するテストを書く**
 

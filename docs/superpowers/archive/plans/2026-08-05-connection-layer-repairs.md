@@ -10,11 +10,11 @@
 
 ## Global Constraints
 
-- **[ADR-0014](../../adr/0014-thin-relay-connection.md)**: `RelayConnection` は 1 リレーとだけ話す。同報もリレー選択も持たない。`onOpen` は `onClose` と対称な、そのソケット自身の状態通知に限る。
-- **[ADR-0021](../../adr/0021-reconnection-policy.md)**: 初回 1 秒からの指数バックオフ、上限 60 秒、ジッタ `0.5〜1.5` 倍。**購読者が居る限り再接続を諦めない。** 本計画はこの方針を変更しない —— 「再接続を諦めるか」と「再選択の候補にするか」は別の問いであり、触るのは後者だけである。
-- **[ADR-0011](../../adr/0011-performance-budget.md)**: 同時接続 30 本。**劣化を隠してはならない。** degraded による除外で著者が被覆できなくなった場合、その著者は `uncovered` として正直に報告されなければならない（黙って消してはならない）。
-- **[ADR-0025](../../adr/0025-greedy-relay-selection-under-a-global-budget.md)**: `selectRelays` は純関数。`pinned` は予算を消費するが決して落とされない。
-- **[ADR-0020](../../adr/0020-no-high-level-nostr-library.md)**: 高水準 Nostr ライブラリに依存しない。
+- **[ADR-0014](../../../adr/0014-thin-relay-connection-deep-read-layer.md)**: `RelayConnection` は 1 リレーとだけ話す。同報もリレー選択も持たない。`onOpen` は `onClose` と対称な、そのソケット自身の状態通知に限る。
+- **[ADR-0021](../../../adr/0021-reconnection-policy.md)**: 初回 1 秒からの指数バックオフ、上限 60 秒、ジッタ `0.5〜1.5` 倍。**購読者が居る限り再接続を諦めない。** 本計画はこの方針を変更しない —— 「再接続を諦めるか」と「再選択の候補にするか」は別の問いであり、触るのは後者だけである。
+- **[ADR-0011](../../../adr/0011-performance-budget.md)**: 同時接続 30 本。**劣化を隠してはならない。** degraded による除外で著者が被覆できなくなった場合、その著者は `uncovered` として正直に報告されなければならない（黙って消してはならない）。
+- **[ADR-0025](../../../adr/0025-greedy-relay-selection-under-a-global-budget.md)**: `selectRelays` は純関数。`pinned` は予算を消費するが決して落とされない。
+- **[ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md)**: 高水準 Nostr ライブラリに依存しない。
 - テストは**それが捕まえる変異を名指しする**こと。期待値は導出ではなく実行して確かめること。「呼ばれた回数が増えない」系の主張は、原因が別にあっても真になりうるので、直接の観測量（タイマー呼び出し回数、ワイヤに出た REQ の数）で書くこと。
 - 既存テストを緑のまま保つこと。`FakeRelayConnection` の既定の挙動は変えない。
 - **完了の判定は `pnpm vitest run && pnpm typecheck && pnpm check` の 3 つすべて。** `pnpm check` は Biome と読み取り層の依存チェックだけで、**型検査を含まない**（型検査は `pnpm typecheck` = `tsc -b`）。Vitest は esbuild で変換するため型エラーを一切見ない。テストファイルも `tsc -b` の対象なので、`RelayConnection` のような共有インターフェースに必須メンバを足すと、手書きのテストダブルが一斉に型エラーになる —— Task 1 で実際に起きた（10 箇所）。

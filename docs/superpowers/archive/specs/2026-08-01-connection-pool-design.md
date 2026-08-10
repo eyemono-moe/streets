@@ -2,11 +2,11 @@
 
 読み取り層の後続 #3 を 3 分割したうちの 1 枚目。**アプリ全体で開いているリレー接続の集合を、予算内で意図的に選び、生かし続ける**ところまでを担当する。
 
-用語は [CONTEXT.md](../../../CONTEXT.md)、全体像は [architecture.md](../../design/architecture.md)、繰延事項は [read-layer-followups.md](../../design/read-layer-followups.md)。
+用語は [CONTEXT.md](../../../../CONTEXT.md)、全体像は [architecture.md](../../../design/architecture.md)、繰延事項は [read-layer-followups.md](../../../design/read-layer-followups.md)。
 
 ## 0. なぜ 3 分割したか
 
-「後続 #3」として各所に書かれていたものを集めると、独立した subsystem が 6 つあった。素直に 1 計画へ積むと 20 タスクを超え、しかも [ADR-0021](../../adr/0021-reconnection-policy.md) の未確定 6 項目と上限の方針決定が同時に襲ってくる。関心で 3 つに割った。
+「後続 #3」として各所に書かれていたものを集めると、独立した subsystem が 6 つあった。素直に 1 計画へ積むと 20 タスクを超え、しかも [ADR-0021](../../../adr/0021-reconnection-policy.md) の未確定 6 項目と上限の方針決定が同時に襲ってくる。関心で 3 つに割った。
 
 | | 関心 | 中身 |
 |---|---|---|
@@ -14,11 +14,11 @@
 | 次 | その上に何を流すか | REQ マージ、`max_subscriptions`、グループ EOSE→セクション完了、**ローカル再マッチ** |
 | その次 | どこまで遡るか | ページネーション、per-relay カーソル |
 
-**ローカル再マッチが本仕様に入っていないことは意図的だが、放置してよいという意味ではない。** リレーが押し込んだイベントをセクションに載せてしまう問題（[ADR-0023](../../adr/0023-centralized-subscription-manager.md) の Consequences）は、デッキとカラムを実ユーザーに出す前に閉じる必要がある。
+**ローカル再マッチが本仕様に入っていないことは意図的だが、放置してよいという意味ではない。** リレーが押し込んだイベントをセクションに載せてしまう問題（[ADR-0023](../../../adr/0023-centralized-subscription-manager.md) の Consequences）は、デッキとカラムを実ユーザーに出す前に閉じる必要がある。
 
 ## 1. 測定が設計を決めた
 
-[実測](../../research/2026-08-01-outbox-connection-budget.md)（フォロー 1175〜1380 人の実アカウント 4 件、2026-08-01）:
+[実測](../../../research/2026-08-01-outbox-connection-budget.md)（フォロー 1175〜1380 人の実アカウント 4 件、2026-08-01）:
 
 - 素朴に全 write リレーへ繋ぐと **378〜1251 本**を要求する
 - **貪欲に選べば 30 本で冗長度 2 を 96〜98% 達成できる**（冗長度 1 なら 20 本で 98〜100%）
@@ -55,7 +55,7 @@ flowchart TB
 
 **`planQuery` から選択が抜ける。** 現在は「著者→リレーを引く」と「リレーごとのフィルタを組む」を同時にやっている。前者がセレクタへ移り、`planQuery` は割り当てを受け取ってフィルタを組むだけの純関数になる。
 
-**プールが接続の生死と再接続を持つ。** ADR-0021 は「接続層が `REQ` を張り直す」としていたが、**これを変更する**。`WebSocketRelayConnection` にソケット生成とリトライを持たせると [ADR-0014](../../adr/0014-thin-relay-connection-deep-read-layer.md) の「1 リレーとだけ話す薄いアダプタ」が崩れる。アダプタは 1 ソケット・リトライ無しのまま保ち、差し替えと張り直しはプールの責務にする。
+**プールが接続の生死と再接続を持つ。** ADR-0021 は「接続層が `REQ` を張り直す」としていたが、**これを変更する**。`WebSocketRelayConnection` にソケット生成とリトライを持たせると [ADR-0014](../../../adr/0014-thin-relay-connection-deep-read-layer.md) の「1 リレーとだけ話す薄いアダプタ」が崩れる。アダプタは 1 ソケット・リトライ無しのまま保ち、差し替えと張り直しはプールの責務にする。
 
 ## 3. `RelaySelector`
 
@@ -135,7 +135,7 @@ export interface RelayConnection {
 
 ### 再接続
 
-[ADR-0021](../../adr/0021-reconnection-policy.md) を本仕様で `accepted` にする。6 項目のうち 4 項目は提案どおり、2 項目を変更する。
+[ADR-0021](../../../adr/0021-reconnection-policy.md) を本仕様で `accepted` にする。6 項目のうち 4 項目は提案どおり、2 項目を変更する。
 
 | 項目 | 決定 |
 |---|---|
@@ -167,7 +167,7 @@ export interface RelayConnection {
 
 ## 5. 張り直し経路
 
-[ADR-0016](../../adr/0016-routing-bootstrap.md) が定めていて未実装だった「未解決の著者は解決後に張り直す」を実装する。
+[ADR-0016](../../../adr/0016-routing-bootstrap.md) が定めていて未実装だった「未解決の著者は解決後に張り直す」を実装する。
 
 ```ts
 export type SectionPlan = {
@@ -201,9 +201,9 @@ export type SectionHandle = {
 1. セクションの追加・削除（需要の変化）
 2. `kind:10002` が届いたとき（供給の変化）
 
-**接続の死亡・復帰は選び直しの契機ではない（2026-08-02 訂正）。** この節はもともと死亡・復帰も契機の 1 つとして数えていたが、実装の計画・[ADR-0021](../../adr/0021-reconnection-policy.md) が意図的にこれを外した — 死んだリレーは「計画は正しいが今は届いていない」であって「計画が間違っている」ではないため、瞬断のたびに選び直すと churn を生む。報告先は `unreachableRelays` のままで、選び直しの契機はセクションの追加・削除と `kind:10002` の到着の 2 つに限る（恒久的に死んだリレーが枠を食いつぶしたままになる問題は残っており、[read-layer-followups.md](../../design/read-layer-followups.md) に記録済み）。
+**接続の死亡・復帰は選び直しの契機ではない（2026-08-02 訂正）。** この節はもともと死亡・復帰も契機の 1 つとして数えていたが、実装の計画・[ADR-0021](../../../adr/0021-reconnection-policy.md) が意図的にこれを外した — 死んだリレーは「計画は正しいが今は届いていない」であって「計画が間違っている」ではないため、瞬断のたびに選び直すと churn を生む。報告先は `unreachableRelays` のままで、選び直しの契機はセクションの追加・削除と `kind:10002` の到着の 2 つに限る（恒久的に死んだリレーが枠を食いつぶしたままになる問題は残っており、[read-layer-followups.md](../../../design/read-layer-followups.md) に記録済み）。
 
-2 は**マネージャ自身の `onEvent` で kind を見る**ことで拾う。`EventStore` に変更通知を足す案は採らない — 後続 #4(IndexedDB 水和)で `EventStore` を読み取り層の内部に降ろす（[ADR-0018](../../adr/0018-indexeddb-event-cache.md)）作業と干渉するため。
+2 は**マネージャ自身の `onEvent` で kind を見る**ことで拾う。`EventStore` に変更通知を足す案は採らない — 後続 #4(IndexedDB 水和)で `EventStore` を読み取り層の内部に降ろす（[ADR-0018](../../../adr/0018-indexeddb-event-cache.md)）作業と干渉するため。
 
 **この選択には帰結がある。水和で入る `kind:10002` はマネージャを通らないので、後続 #4 で明示的に `replan()` を呼ぶ必要がある。** 公開メソッドとして用意し、ウォームアップ完了時にも呼ぶ。
 
@@ -219,7 +219,7 @@ incomplete?: {
 }
 ```
 
-[ADR-0015](../../adr/0015-section-status-excludes-renderer-fetches.md) は「**今は推測で `SectionStatus` を広げない**」と書き、広げるべき状況が来たらその時点で判断するとしていた。上限が実際に着地する今がその時点であり、ADR-0011 は「上限により一部の著者の投稿が取得できない状況が発生する。これを許容するが、**黙って欠落させてはならない**」と明記しているので、報告しない選択肢は無い。
+[ADR-0015](../../../adr/0015-section-status-excludes-renderer-fetches.md) は「**今は推測で `SectionStatus` を広げない**」と書き、広げるべき状況が来たらその時点で判断するとしていた。上限が実際に着地する今がその時点であり、ADR-0011 は「上限により一部の著者の投稿が取得できない状況が発生する。これを許容するが、**黙って欠落させてはならない**」と明記しているので、報告しない選択肢は無い。
 
 **`unroutableAuthors` に合算しない理由は、2 つの欠落で直し方が違うことである。** `uncovered` は上限を上げるかカラムを減らせば直る（こちら側の問題）。`unroutable` は相手が `kind:10002` を公開していないので、こちら側では直せない。同じ数字に混ぜると「設定を変えれば直るのか」に答えられなくなる。
 
@@ -253,10 +253,10 @@ seed で **架空のリレーを多数宣言する著者**を作り、実在す�
 
 | ADR | 変更 |
 |---|---|
-| [0014](../../adr/0014-thin-relay-connection-deep-read-layer.md) | `RelayConnection` に接続単位の `onClose` を足す |
-| [0015](../../adr/0015-section-status-excludes-renderer-fetches.md) | `incomplete` に `uncoveredAuthors` を足す |
-| [0016](../../adr/0016-routing-bootstrap.md) | 「解決後に張り直す」を実装する。`MAX_RELAYS_PER_AUTHOR` を大域予算に置き換える |
-| [0021](../../adr/0021-reconnection-policy.md) | `proposed` → `accepted`。6 項目のうち 2 項目を変更（§4） |
+| [0014](../../../adr/0014-thin-relay-connection-deep-read-layer.md) | `RelayConnection` に接続単位の `onClose` を足す |
+| [0015](../../../adr/0015-section-status-excludes-renderer-fetches.md) | `incomplete` に `uncoveredAuthors` を足す |
+| [0016](../../../adr/0016-routing-bootstrap.md) | 「解決後に張り直す」を実装する。`MAX_RELAYS_PER_AUTHOR` を大域予算に置き換える |
+| [0021](../../../adr/0021-reconnection-policy.md) | `proposed` → `accepted`。6 項目のうち 2 項目を変更（§4） |
 | 新規 | リレー選択を貪欲被覆で行うこと、および却下した 2 案（§1）を記録する |
 
 ## 9. 本仕様に含めないもの

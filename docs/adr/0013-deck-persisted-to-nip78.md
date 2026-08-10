@@ -22,4 +22,4 @@ v0 は localStorage のみに保存していたため端末を変えるとデッ
 
 ## 実装の段階
 
-- **v1 縦断スライス（2026-08-05）** — NIP-78 への保存は**まだ実装しない**。**撤回ではない** —— [仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md) 3 節のとおり、`{ version: 1; columns: ColumnDef[] }` を `localStorage` へ保存するだけの形（`src/core/deck/deck.ts` の `Deck` / `saveDeck` / `loadDeck`）を先に作った。`version` フィールドを最初から持たせたのは、このスライスがまさに NIP-78 へ移すときの移行の足場を残すためで、本 ADR の決定を先取りしている。NIP-44 暗号化・`kind:30078` への実際の publish・署名要求の連打対策・競合検出はいずれも作っていない。一般形は本 ADR のまま据え置く。
+- **v1 縦断スライス（2026-08-05）** — NIP-78 への保存は**まだ実装しない**。**撤回ではない** —— [仕様](../superpowers/archive/specs/2026-08-04-v1-vertical-slice-design.md) 3 節のとおり、`{ version: 1; columns: ColumnDef[] }` を `localStorage` へ保存するだけの形（`src/core/deck/deck.ts` の `Deck` / `saveDeck` / `loadDeck`）を先に作った。`version` フィールドを最初から持たせたのは、このスライスがまさに NIP-78 へ移すときの移行の足場を残すためで、本 ADR の決定を先取りしている。NIP-44 暗号化・`kind:30078` への実際の publish・署名要求の連打対策・競合検出はいずれも作っていない。一般形は本 ADR のまま据え置く。

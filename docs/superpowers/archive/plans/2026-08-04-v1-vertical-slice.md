@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript (strict), SolidJS, Vitest, Playwright, Biome, pnpm
 
-**仕様:** [docs/superpowers/specs/2026-08-04-v1-vertical-slice-design.md](../specs/2026-08-04-v1-vertical-slice-design.md) — **着手前に全文を読むこと。** 特に 2 節（「薄く作る」の意味）と 10 節（このスライスが答えるべき問い）が各タスクの判断根拠である。
+**仕様:** [docs/superpowers/archive/specs/2026-08-04-v1-vertical-slice-design.md](../specs/2026-08-04-v1-vertical-slice-design.md) — **着手前に全文を読むこと。** 特に 2 節（「薄く作る」の意味）と 10 節（このスライスが答えるべき問い）が各タスクの判断根拠である。
 
 ## Global Constraints
 
@@ -158,7 +158,7 @@ Expected: FAIL — `Failed to resolve import "./nip07-signer"`
 import type { NostrEvent, UnsignedEvent } from "../nostr/event";
 
 /**
- * 署名する能力だけを表す seam ([ADR-0008](../../../docs/adr/0008-signer-only-key-handling.md))。
+ * 署名する能力だけを表す seam ([ADR-0008](../../../../docs/adr/0008-signer-only-key-handling.md))。
  *
  * **このファイルと `nip07-signer.ts` に `secretKey` という語を出さないこと。**
  * アプリが秘密鍵を持たない、という決定の実装上の意味はそれである。鍵を持って

@@ -1,17 +1,17 @@
 # セクションの保持と通知 — 1 イベントごとの全ソートと全再描画をやめる
 
-読み取り層の後続 #6。[ADR-0011](../../adr/0011-performance-budget.md) の予算に直接効く 1 点だけを扱う。
+読み取り層の後続 #6。[ADR-0011](../../../adr/0011-performance-budget.md) の予算に直接効く 1 点だけを扱う。
 
-> **採番について。** 本仕様の「後続 #n」は [ADR-0023](../../adr/0023-centralized-subscription-manager.md)「実装の段階」の系列（#1 Outbox ルーティング、#3 接続プール、#4 ローカルフィルタ照合、#5 REQ マージ、#6 本仕様）を指す。[read-layer-followups.md](../../design/read-layer-followups.md) には**別系列の古い採番**が残っており、そちらの「#4」は永続化を指す（同ファイル冒頭の採番表を参照）。**本仕様では永続化に番号を振らず、名前で呼ぶ。**
+> **採番について。** 本仕様の「後続 #n」は [ADR-0023](../../../adr/0023-centralized-subscription-manager.md)「実装の段階」の系列（#1 Outbox ルーティング、#3 接続プール、#4 ローカルフィルタ照合、#5 REQ マージ、#6 本仕様）を指す。[read-layer-followups.md](../../../design/read-layer-followups.md) には**別系列の古い採番**が残っており、そちらの「#4」は永続化を指す（同ファイル冒頭の採番表を参照）。**本仕様では永続化に番号を振らず、名前で呼ぶ。**
 
-用語は [CONTEXT.md](../../../CONTEXT.md)、決定は [docs/adr/](../../adr/)、全体像は [architecture.md](../../design/architecture.md)。
+用語は [CONTEXT.md](../../../../CONTEXT.md)、決定は [docs/adr/](../../../adr/)、全体像は [architecture.md](../../../design/architecture.md)。
 
 ## 0. なぜ REQ マージより先にこれをやるか
 
-[read-layer-followups.md](../../design/read-layer-followups.md) の順では REQ マージ（後続 #5）が次だった。**着手順を入れ替えた。** 理由は 3 つある。
+[read-layer-followups.md](../../../design/read-layer-followups.md) の順では REQ マージ（後続 #5）が次だった。**着手順を入れ替えた。** 理由は 3 つある。
 
 1. **REQ マージは今日、観測可能な効果を持たない。** セクションを作っているのは `/debug/v1-section` の 1 つだけである。マージ対象が 1 本しかない状態では恒等変換にしかならない。効果が出るのは**デッキとカラムのスライス**が載って以降である。
-2. **[ADR-0023](../../adr/0023-centralized-subscription-manager.md) 自身が先送りを認めている** —— 「マージ無しで動くものを先に出し、必要になった時点で管理システムの内側に足せる」。
+2. **[ADR-0023](../../../adr/0023-centralized-subscription-manager.md) 自身が先送りを認めている** —— 「マージ無しで動くものを先に出し、必要になった時点で管理システムの内側に足せる」。
 3. **こちらは待つと高くつく。** followups は「**上に 3 層積む前が最も安く直せる**」と書いている。マージはその 1 層である。時間プロファイルが逆なので、順序を入れ替えるのが正しい。
 
 **本仕様は REQ マージを含まない。** 後続 #5 はこのスライスの後に残る。
@@ -59,7 +59,7 @@
 
 無視できない理由が 3 つある。Nostr の `created_at` は秒粒度でリレーはバーストで配信するので**同値は日常的**である。上限 500 では同値内の順序が「どれが末尾から落ちるか」を決める。`<For>` のキーが並べ替わると DOM が動く。
 
-**そして現状の「到着順を保つ」は、実は安定していない。** [ADR-0005](../../adr/0005-outbox-model-from-v1.md) の Outbox では同じイベントが複数リレーから届き、どちらが先かはネットワーク次第である。現状の順序は、実行ごとに変わりうるものを基準にしている。
+**そして現状の「到着順を保つ」は、実は安定していない。** [ADR-0005](../../../adr/0005-outbox-model-from-v1.md) の Outbox では同じイベントが複数リレーから届き、どちらが先かはネットワーク次第である。現状の順序は、実行ごとに変わりうるものを基準にしている。
 
 ### 1.2 followups が提案していた「マイクロタスクで合流」は効かない
 
@@ -105,7 +105,7 @@ export class SortedEvents {
 
 **id 集合を配列と同じ場所に持つ。** 現状は `SectionReader` が `#ids` を別に持ち、追い出しのたびに「落ちた分を id 集合からも外す」ために全件を舐め直している（`section-reader.ts:198-201`、**1 イベントごとに O(n)**）。両方を `SortedEvents` が持てば、追い出した 1 件の `id` を消すだけで済む。
 
-**`EventStore` には置かない。** [ADR-0024](../../adr/0024-shared-bodies-per-section-membership.md) が store を共有本体、順序と membership をセクションごとと定めている。順序を store へ移すと「カラムごとに表示順が違う」という前提が壊れる。
+**`EventStore` には置かない。** [ADR-0024](../../../adr/0024-shared-bodies-per-section-membership.md) が store を共有本体、順序と membership をセクションごとと定めている。順序を store へ移すと「カラムごとに表示順が違う」という前提が壊れる。
 
 ## 4. 表示順は保持順から導く
 
@@ -198,10 +198,10 @@ const NOTIFY_BATCH_MS = 16;
 
 ## 7. 影響を受ける ADR
 
-- **[ADR-0011](../../adr/0011-performance-budget.md)** — 変更なし。本仕様は予算値を動かさず、500 件上限を E2E で測定可能にする側である。
-- **[ADR-0015](../../adr/0015-section-status-excludes-renderer-fetches.md)** — `phase` の意味は変わらない。観測されるタイミングが最大 `NOTIFY_BATCH_MS` 遅れることだけ追記する。
-- **[ADR-0024](../../adr/0024-shared-bodies-per-section-membership.md)** — 変更なし。順序と membership がセクションごとであることを本仕様は強化している（3 節）。
-- **[ADR-0023](../../adr/0023-centralized-subscription-manager.md)** — 「実装の段階」に **#6（セクションの保持と通知）** を追記し、**#5（REQ マージ）より先に着手したこと**とその理由（0 節）を記録する。この追記をしないと、本仕様が名乗っている「#6」がどの系列の番号なのか読者が確かめられない。
+- **[ADR-0011](../../../adr/0011-performance-budget.md)** — 変更なし。本仕様は予算値を動かさず、500 件上限を E2E で測定可能にする側である。
+- **[ADR-0015](../../../adr/0015-section-status-excludes-renderer-fetches.md)** — `phase` の意味は変わらない。観測されるタイミングが最大 `NOTIFY_BATCH_MS` 遅れることだけ追記する。
+- **[ADR-0024](../../../adr/0024-shared-bodies-per-section-membership.md)** — 変更なし。順序と membership がセクションごとであることを本仕様は強化している（3 節）。
+- **[ADR-0023](../../../adr/0023-centralized-subscription-manager.md)** — 「実装の段階」に **#6（セクションの保持と通知）** を追記し、**#5（REQ マージ）より先に着手したこと**とその理由（0 節）を記録する。この追記をしないと、本仕様が名乗っている「#6」がどの系列の番号なのか読者が確かめられない。
 
 新しい ADR は起こさない。決めているのは既存 ADR の実装方法である。
 

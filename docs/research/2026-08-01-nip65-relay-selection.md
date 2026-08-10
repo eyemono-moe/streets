@@ -62,7 +62,7 @@
 
 削除された「Final Considerations」から（原文）:
 
-> 5. If a relay signals support for this NIP in their [NIP-11](11.md) document that means they're willing to accept kind 10002 events from a broad range of users, not only their paying customers or whitelisted group.
+> 5. If a relay signals support for this NIP in their [NIP-11](https://github.com/nostr-protocol/nips/blob/master/11.md) document that means they're willing to accept kind 10002 events from a broad range of users, not only their paying customers or whitelisted group.
 >
 > 6. Clients SHOULD deduplicate connections by normalizing relay URIs according to [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986#section-6).
 >

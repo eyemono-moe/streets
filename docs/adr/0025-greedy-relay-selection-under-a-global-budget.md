@@ -44,7 +44,7 @@ status: accepted
 
 **`pinned` は予算の優先権であって免除ではない（2026-08-01 追記）。** [ADR-0005](./0005-outbox-model-from-v1.md) が言う「明示指定は著者ルーティングをバイパスする」は、[ADR-0011](./0011-performance-budget.md) の同時接続上限をバイパスすることまでは意味しない。30 はユーザーの意図で無料にできない資源上限であり、`pinned` が `budget` を超えれば超えた分はやはり `picks` から落ちる（上のとおり、すでにテスト済みの挙動）。ユーザーが名指ししたリレーは他の候補より先に確保されるが、際限なく確保されるわけではない。
 
-**ブートストラップのインデクサは `pinned` ではない（2026-08-02 訂正）。** この ADR の初版・[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md)はいずれも「インデクサは `pinned`」と書いていたが、接続プールの実装 (`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`) はそうなっていない — インデクサはこの関数の `pinned`/`demand` のどちらにも一切渡らず、`selectRelays` を経由せずに `ConnectionPool` の予算チェックそのものを迂回する、意味の異なる別の仕組み (`reserved`) を使っている。`pinned` は「この関数の中で予算を優先的に確保する」ものであり、`reserved` は「この関数を経由せず予算チェック自体を飛ばす」ものである — 後者はブートストラップ専用の脱出口であり、この関数の契約の一部ではない。混同したままだと「30 接続」という 1 つの数字を 2 つの仕組みが別々に主張することになる。詳細と帰結 (ピーク同時接続数が `30 + |indexers|` になりうる条件) は [read-layer-followups.md](../design/read-layer-followups.md) に記録した。
+**ブートストラップのインデクサは `pinned` ではない（2026-08-02 訂正）。** この ADR の初版・[設計仕様](../superpowers/archive/specs/2026-08-01-connection-pool-design.md)はいずれも「インデクサは `pinned`」と書いていたが、接続プールの実装 (`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`) はそうなっていない — インデクサはこの関数の `pinned`/`demand` のどちらにも一切渡らず、`selectRelays` を経由せずに `ConnectionPool` の予算チェックそのものを迂回する、意味の異なる別の仕組み (`reserved`) を使っている。`pinned` は「この関数の中で予算を優先的に確保する」ものであり、`reserved` は「この関数を経由せず予算チェック自体を飛ばす」ものである — 後者はブートストラップ専用の脱出口であり、この関数の契約の一部ではない。混同したままだと「30 接続」という 1 つの数字を 2 つの仕組みが別々に主張することになる。詳細と帰結 (ピーク同時接続数が `30 + |indexers|` になりうる条件) は [read-layer-followups.md](../design/read-layer-followups.md) に記録した。
 
 ## degraded な URL は候補から完全に外す（Task 4 追記）
 

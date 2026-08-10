@@ -57,7 +57,7 @@
 
 ### そのほか、実在するが小さいもの
 
-- **フィルタ照合器に property-based test を入れる。** 現在は表駆動のユニットテスト（各行に捕まえる変異を明記）で、`docs/superpowers/specs/2026-08-02-local-filter-matching-design.md` 6.1 節の観点は網羅している。ただし自前実装の NIP-01 フィルタとしては、生成的テストのほうが強い。
+- **フィルタ照合器に property-based test を入れる。** 現在は表駆動のユニットテスト（各行に捕まえる変異を明記）で、`docs/superpowers/archive/specs/2026-08-02-local-filter-matching-design.md` 6.1 節の観点は網羅している。ただし自前実装の NIP-01 フィルタとしては、生成的テストのほうが強い。
 - **文書の役割を厳密に分ける。** 同じ判断が ADR・architecture・spec・plan・followups に重複し、実装変更のたびに整合性確認が要る。実際 `pinned` と `reserved` で ADR・仕様・実装の食い違いが起き、直近のスライスでも「7 指標中 2 つ」と「残る 6 指標」が同時に存在する矛盾をレビューが拾った。**数値と現在の実装状態は一箇所を source of truth にする。** 役割の目安: ADR = 決定理由のみ（現在仕様の説明書にしない）/ architecture = 現在実装されている構造のみ / spec = 次の 1 スライス、完了後は archive / followups = 短い一覧。
 
 ### 反映しないと決めたもの（理由つき）
@@ -69,7 +69,7 @@
 
 ## v1 縦断スライス（2026-08-05）— 仕様 10 節の答え
 
-[縦断スライスの仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md) 0 節が言うとおり、**このスライスの成果物は「動くもの」ではなく「押し返し」である。** 動くもの自体（NIP-07 ログイン・3 カラム・kind:0 コアレッサ・投稿・リロード復元、`/v1-preview`）は各タスクのレビューで検証済み。ここに書くのは、それを実際に動かして初めて答えられた仕様 10 節の 5 問への回答で、実測に基づかない推測は書かない。分からなかったものは「分からなかった」と書く。
+[縦断スライスの仕様](../superpowers/archive/specs/2026-08-04-v1-vertical-slice-design.md) 0 節が言うとおり、**このスライスの成果物は「動くもの」ではなく「押し返し」である。** 動くもの自体（NIP-07 ログイン・3 カラム・kind:0 コアレッサ・投稿・リロード復元、`/v1-preview`）は各タスクのレビューで検証済み。ここに書くのは、それを実際に動かして初めて答えられた仕様 10 節の 5 問への回答で、実測に基づかない推測は書かない。分からなかったものは「分からなかった」と書く。
 
 ### 問い1 —— `{ items, status, loadMore }` で足りたか
 
@@ -115,7 +115,7 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## A-1 デッキとカラム（2026-08-07）— 仕様 12 節の答え
 
-[仕様](../superpowers/specs/2026-08-07-deck-and-columns-design.md) 12 節が定める 6 問への回答。**問 3・4・5 は実装した内容から、問 1・2・6 は人間による実鍵・実リレーでの確認（2026-08-07）から答えた。** 上の「v1 縦断スライス」節と同じ規律で書く —— 実測に基づかない推測は書かない。
+[仕様](../superpowers/archive/specs/2026-08-07-deck-and-columns-design.md) 12 節が定める 6 問への回答。**問 3・4・5 は実装した内容から、問 1・2・6 は人間による実鍵・実リレーでの確認（2026-08-07）から答えた。** 上の「v1 縦断スライス」節と同じ規律で書く —— 実測に基づかない推測は書かない。
 
 ### 問い1 —— 30 接続予算は 5〜10 カラムで成立するか
 
@@ -172,7 +172,7 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## A-2 レンダラと関連イベント（2026-08-07）— 仕様 11 節の答え
 
-[仕様](../superpowers/specs/2026-08-07-renderers-and-related-events-design.md) 11 節が定める 5 問への回答。上の「v1 縦断スライス」「A-1 デッキとカラム」の各節と同じ規律で書く —— 実測に基づかない推測は書かない。**この節を書いている時点で、5 問のいずれについても実鍵・実リレーによる人間の確認はまだ行われていない。** したがって以下は全問「未取得」であり、各問について何を読めば・何をすれば答えが得られるかだけを書く。
+[仕様](../superpowers/archive/specs/2026-08-07-renderers-and-related-events-design.md) 11 節が定める 5 問への回答。上の「v1 縦断スライス」「A-1 デッキとカラム」の各節と同じ規律で書く —— 実測に基づかない推測は書かない。**この節を書いている時点で、5 問のいずれについても実鍵・実リレーによる人間の確認はまだ行われていない。** したがって以下は全問「未取得」であり、各問について何を読めば・何をすれば答えが得られるかだけを書く。
 
 ### 問い1 —— 初回描画は何秒になったか
 
@@ -233,11 +233,11 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 ### `reserved`（ブートストラップの予算迂回）が ADR-0025 の記述と食い違っている（接続プールの最終ブランチレビュー finding 9a）
 
-[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md) と[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md:104)は、ブートストラップのインデクサ（`BOOTSTRAP_INDEXERS`、4 本）を `pinned`（予算を消費するが決して落とされない）として扱うと書いていた。実装（`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`）はそうなっていない — インデクサは `selectRelays` の `pinned` に一切渡らず、`ConnectionPool.subscribe()` の予算チェック（`size >= maxConnections`）そのものを丸ごと迂回する**バイパス**である。ADR-0025 の該当段落は誤りとして訂正した（下記）。
+[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md) と[設計仕様](../superpowers/archive/specs/2026-08-01-connection-pool-design.md:104)は、ブートストラップのインデクサ（`BOOTSTRAP_INDEXERS`、4 本）を `pinned`（予算を消費するが決して落とされない）として扱うと書いていた。実装（`bootstrap.ts` / `ConnectionPool.subscribe()` の `{ reserved: true }`）はそうなっていない — インデクサは `selectRelays` の `pinned` に一切渡らず、`ConnectionPool.subscribe()` の予算チェック（`size >= maxConnections`）そのものを丸ごと迂回する**バイパス**である。ADR-0025 の該当段落は誤りとして訂正した（下記）。
 
 **帰結は 2 つ。**
 
-1. **ピーク同時接続数は `30 + |indexers|` = 34 になりうる。** Outbox の 30 本がすでに埋まった状態でウォームアップが始まると、インデクサ用の 4 本が予算チェックを迂回してそのまま上に乗る。**今日は到達しない** — デバッグルートがウォームアップ完了までセクションの開始そのものを遅らせているため、ウォームアップ開始時点で Outbox 側が 30 本を使い切っていることがない。ただし[設計仕様](../superpowers/specs/2026-08-01-connection-pool-design.md:111)が名指ししているとおり、未知の著者に遭遇して再ウォームアップする経路が入れば重なりうる。次の計画がこの経路を作るなら、34 という数を先に踏まえること。
+1. **ピーク同時接続数は `30 + |indexers|` = 34 になりうる。** Outbox の 30 本がすでに埋まった状態でウォームアップが始まると、インデクサ用の 4 本が予算チェックを迂回してそのまま上に乗る。**今日は到達しない** — デバッグルートがウォームアップ完了までセクションの開始そのものを遅らせているため、ウォームアップ開始時点で Outbox 側が 30 本を使い切っていることがない。ただし[設計仕様](../superpowers/archive/specs/2026-08-01-connection-pool-design.md:111)が名指ししているとおり、未知の著者に遭遇して再ウォームアップする経路が入れば重なりうる。次の計画がこの経路を作るなら、34 という数を先に踏まえること。
 2. **`pinned`（選択器の予算優先権）と `reserved`（プールの予算迂回）という、意味の違う 2 つの仕組みが同じ「30 接続」という数字について別々に主張している。** 1 つの数値に統一されていない。
 
 **裁定（このスライスでは実装しない — 統合スライスがこのコードにどのみち触れるため）**: ドキュメントを実装に合わせて訂正し、数値を露出するところまでで止める。具体的には (a) 上記のとおり ADR-0025 の `pinned` 段落を訂正、(b) `ConnectionPool` に `reservedSize` アクセサを追加して「今バイパス経由で何本使われているか」を読めるようにする、(c) この 34 ピークの逸脱を到達条件つきでここに記録する（上記）。予算の再構成（`reserved` を `pinned` に統合する、あるいはその逆）は次の計画が 1 つの数値に対して行うこと。
@@ -332,7 +332,7 @@ Critical を塞ぐ別解だが、重複のたびに schnorr 検証が走る。Ou
 | 計画の書き方（A-2 Task 1 で観測） | **テストのフィクスチャそのものが検査に引っかかると、テストは実装の正しさと無関係に落ちる。** 計画が示した `sig: "s".repeat(128)` は hex ではないので `isNostrEvent` に弾かれ、`embeddedRepostEvent` のテストが実装に関わらず失敗した。**「捕まえる変異」を確かめるのと同じ手つきで、フィクスチャ自身が検査を通ることも確かめる必要がある** —— 変異を入れる前に、まず素の状態で意図どおり通ることを見る |
 | 計画の書き方（A-2 Task 1 で観測） | **「捕まえる変異」が 1 つも捕まえないことがある。** `embeddedRepostEvent` の空 `content` の早期リターンは、下の `try/catch` が `JSON.parse("")` の例外を吸収するため、削っても 15/15 通る。`deck.ts` の `loadDeck` の `raw === null` と同じ構造であり、**同じ形（テスト側に「これは変異を捕まえない」と明記し、製品コード側に残す理由を書く）で処理した**。計画を書く側は、ガードの下流にもう 1 つ同じ結果へ倒す経路が無いかを見ること |
 | `event-requests.ts` | **`EventRequests.request(id, relayHint?)` は `relayHint` を受け取るが使わない**（仕様 4.2 節、[ADR-0017](../adr/0017-declarative-renderer-needs.md)「実装の段階」A-2 参照）。NIP-10 の `e` タグ・NIP-18 の `q` タグが運ぶリレー URL を渡す先（`fetchOnce` の明示リレー指定）は既にあるが、**そのヒントの信頼性（悪意あるリレーが任意の URL を書ける）を検討していない**。使うなら先にそれを検討する必要がある。呼び出し側（`Note.tsx`/`Repost.tsx`）はタグから値を読んで渡しているので、行き先を後から足すことはできる |
-| （content 全般） | **`content` のパース（URL・画像・`nostr:` メンション・カスタム絵文字）が未着手。** v0 の `parseTextContent`（`src/shared/libs/parser/`）相当は、A-2 の設計時点で「独立して大きく、このスライスと直交する」として明示的にスコープ外にされた（[仕様](../superpowers/specs/2026-08-07-renderers-and-related-events-design.md) 1 節）。本文は今も `Note.tsx`/`UnknownKind.tsx` いずれもプレーンテキストとして出すだけで、URL も `nostr:` も画像も展開しない |
+| （content 全般） | **`content` のパース（URL・画像・`nostr:` メンション・カスタム絵文字）が未着手。** v0 の `parseTextContent`（`src/shared/libs/parser/`）相当は、A-2 の設計時点で「独立して大きく、このスライスと直交する」として明示的にスコープ外にされた（[仕様](../superpowers/archive/specs/2026-08-07-renderers-and-related-events-design.md) 1 節）。本文は今も `Note.tsx`/`UnknownKind.tsx` いずれもプレーンテキストとして出すだけで、URL も `nostr:` も画像も展開しない |
 | `EventView.tsx` | **`rendererFor` が `<Show>` の children 内で毎回呼ばれ、メモ化していない**（Task 3 報告）。children 関数自体が `event()` の undefined→値の遷移でしか再実行されないため今日は実害が無く、このタスクの範囲では実測もできていない。レンダラ集合が増えたときに `.find()` の呼び出し頻度が気になるなら `createMemo` の追加を検討する余地がある |
 
 | 箇所 | 内容 |
@@ -381,18 +381,18 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 これにより `max_subscriptions` はリレーの除外基準ではなく、**初回取得の並列度を決めるスケジューリングの入力**になる。実測では 8 〜 300 と大きく開きがある。詳細は [research/2026-08-01-nip65-relay-selection.md](../research/2026-08-01-nip65-relay-selection.md) 5.4 節。
 
-**後続 #5 へ回った（2026-08-02）。** この節の見出しどおり当初は接続プール（後続 #3）で扱う想定だったが、[ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 0 節が「再照合はマージの付随作業ではなく前提条件である」と判定して切り出した結果、マージ自体は後続 #5 に回った。**本スライス（後続 #4）が用意したのはその前提条件のほうである。** マージすると 1 つの `subscription_id` に複数セクションのフィルタが相乗りするが、`EVENT` メッセージは `subscription_id` しか持たないため、届いたイベントをどのセクションへ配るか決める手段はフィルタ照合しかない —— マージは照合の上にしか乗らない。その照合器を `src/core/read/filter-match.ts` として用意し、`SubscriptionManager` / `bootstrap.ts` に配線した（下記「解消済み」）。
+**後続 #5 へ回った（2026-08-02）。** この節の見出しどおり当初は接続プール（後続 #3）で扱う想定だったが、[ローカルフィルタ照合のスライス](../superpowers/archive/specs/2026-08-02-local-filter-matching-design.md) 0 節が「再照合はマージの付随作業ではなく前提条件である」と判定して切り出した結果、マージ自体は後続 #5 に回った。**本スライス（後続 #4）が用意したのはその前提条件のほうである。** マージすると 1 つの `subscription_id` に複数セクションのフィルタが相乗りするが、`EVENT` メッセージは `subscription_id` しか持たないため、届いたイベントをどのセクションへ配るか決める手段はフィルタ照合しかない —— マージは照合の上にしか乗らない。その照合器を `src/core/read/filter-match.ts` として用意し、`SubscriptionManager` / `bootstrap.ts` に配線した（下記「解消済み」）。
 
 ## 解消済み
 
-- **性能 — 1 イベントごとの全ソートと全再描画** — [section-reader-performance のスライス](../superpowers/specs/2026-08-02-section-reader-performance-design.md)（後続 #6、[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」参照）で解消。`section-reader.ts` の `#onEvent` が1件ごとに配列を2回ソートし3回コピーしていたのをやめ、保持順を `SortedEvents`（`src/core/read/sorted-events.ts`）に一本化した。保持順は `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序で固定し、挿入は二分探索、上限超過時は末尾を1件 `pop` するだけで済む。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要も無くなった。通知は `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`、60fpsの1フレーム）— 最初の変化でタイマーを1本張り、以後の変化は既存のタイマーに相乗りする（デバウンスではない。デバウンスだとイベントが途切れない限り永久に発火しない）。`items` と `status` は同期的に正しいまま保たれ、遅れるのは通知だけである（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md) に追記済み）。バッチの結果、`start()` 中の中間状態を観測者に見せないためだけに存在していた `#starting` フラグは到達不能になり削除した。計測は `scripts/research/measure-section-reader-burst.mjs` / [docs/research/2026-08-02-section-reader-burst.md](../research/2026-08-02-section-reader-burst.md) に記録した — 比較回数（2,000件で旧実装の約157倍高速）は決定的だが壁時計は環境依存で揺れ、**これは回帰を防ぐガードではない**。E2E は `e2e/section-cap.spec.ts` が測る（下記「満たしていない要件」）。
+- **性能 — 1 イベントごとの全ソートと全再描画** — [section-reader-performance のスライス](../superpowers/archive/specs/2026-08-02-section-reader-performance-design.md)（後続 #6、[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」参照）で解消。`section-reader.ts` の `#onEvent` が1件ごとに配列を2回ソートし3回コピーしていたのをやめ、保持順を `SortedEvents`（`src/core/read/sorted-events.ts`）に一本化した。保持順は `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序で固定し、挿入は二分探索、上限超過時は末尾を1件 `pop` するだけで済む。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要も無くなった。通知は `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`、60fpsの1フレーム）— 最初の変化でタイマーを1本張り、以後の変化は既存のタイマーに相乗りする（デバウンスではない。デバウンスだとイベントが途切れない限り永久に発火しない）。`items` と `status` は同期的に正しいまま保たれ、遅れるのは通知だけである（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md) に追記済み）。バッチの結果、`start()` 中の中間状態を観測者に見せないためだけに存在していた `#starting` フラグは到達不能になり削除した。計測は `scripts/research/measure-section-reader-burst.mjs` / [docs/research/2026-08-02-section-reader-burst.md](../research/2026-08-02-section-reader-burst.md) に記録した — 比較回数（2,000件で旧実装の約157倍高速）は決定的だが壁時計は環境依存で揺れ、**これは回帰を防ぐガードではない**。E2E は `e2e/section-cap.spec.ts` が測る（下記「満たしていない要件」）。
 
   **この節が書いていた対処案「`#notify` をマイクロタスクで合流させ」は誤りだった。** NIP-01 のリレーは `["EVENT", subid, event]` を**1イベント1メッセージ**で送り、ブラウザは WebSocket メッセージごとに別のタスクを回す。メッセージ N で積んだマイクロタスクは N+1 が届く前に flush されるため、500イベント = 500タスク = **合流は起きず通知は500回のまま**になる。マイクロタスクが合流できるのは「1メッセージ内で同期的に発生した複数の通知」だけで、実際の配信パターンはそうなっていない。メッセージをまたいで合流するにはマクロタスク境界が要り、それが `Scheduler.setTimeout` によるバッチである。
 - **ルーティング表の永続化**（ADR-0016 が「新しい永続化要件」としていたもの）— 2026-08-01 に撤回。`EventStore` 内の `kind:10002` から導出する形にしたため、専用の保存先も TTL も不要になった。永続化は ADR-0019 の「参照データ」バケットが `kind:10002` を保持すれば自動的に得られる。
-- **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消、ただし引き金は後続 #4（ローカルフィルタ照合）で変わった。再計画そのものの機構（`SubscriptionManager.replan()` が `#runReplan()` を回し、変化したエントリにだけ `onPlanChanged` を配る per-section diff、フィルタが変わったリレーへの `SectionDelivery.onRelayRestarted(relay)` 通知）は今も生きていて、正しく動く。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。**ただし `kind:10002` の到着を検知して自動でこれを起動する経路は無い。** 当初はここに `SubscriptionManager` が `kind:10002` の到着をデバウンスして再計画する経路があったが、後続 #4（[ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 6 節）がその引き金（`#scheduleReplan` / `#replanTimer` / `#isDemandedAuthor` / `replanDebounceMs`）を削除した——`matchesAnyFilter` により `kind:10002` はセクションが要求していない限りそもそも store へ届かず、再計画の材料にならないため。生きているのは公開 `replan()` と `scheduler` オプションのみで、**今この機構を動かすのは明示的な `replan()` 呼び出しだけ**である。水和や再ウォームアップなど「ルーティングを変えうる入口」を実装する側が、その入口から `replan()` を呼ぶ責任を持つ——呼ばなければ、この節が「解消済み」と書いている張り直し能力は配線されないまま眠り続ける。同じ訂正は [architecture.md](./architecture.md) 8節にも入れてある。
+- **生きているセクションを張り直す手段が存在しない** — 接続プールのスライスで解消、ただし引き金は後続 #4（ローカルフィルタ照合）で変わった。再計画そのものの機構（`SubscriptionManager.replan()` が `#runReplan()` を回し、変化したエントリにだけ `onPlanChanged` を配る per-section diff、フィルタが変わったリレーへの `SectionDelivery.onRelayRestarted(relay)` 通知）は今も生きていて、正しく動く。`SectionReader` は `onRelayRestarted` を受けて complete/unreachable を両方リセットするので、黙って `settled` を主張し続けることはない。接続自体は張り直さない（同一プール接続で close + subscribe）ので ADR-0016 の「解決後に張り直す」が指す再購読と、接続の張り直し（コスト）を混同していない。30 接続上限のもとで「今は開けないリレーを後で開く」経路も、`onRelayUnreachable` / `onRelayRestarted` の組み合わせでセクションへ伝わるようになった。**ただし `kind:10002` の到着を検知して自動でこれを起動する経路は無い。** 当初はここに `SubscriptionManager` が `kind:10002` の到着をデバウンスして再計画する経路があったが、後続 #4（[ローカルフィルタ照合のスライス](../superpowers/archive/specs/2026-08-02-local-filter-matching-design.md) 6 節）がその引き金（`#scheduleReplan` / `#replanTimer` / `#isDemandedAuthor` / `replanDebounceMs`）を削除した——`matchesAnyFilter` により `kind:10002` はセクションが要求していない限りそもそも store へ届かず、再計画の材料にならないため。生きているのは公開 `replan()` と `scheduler` オプションのみで、**今この機構を動かすのは明示的な `replan()` 呼び出しだけ**である。水和や再ウォームアップなど「ルーティングを変えうる入口」を実装する側が、その入口から `replan()` を呼ぶ責任を持つ——呼ばなければ、この節が「解消済み」と書いている張り直し能力は配線されないまま眠り続ける。同じ訂正は [architecture.md](./architecture.md) 8節にも入れてある。
 - **`RelayConnection` に接続単位のライフサイクル通知がない** — 接続プールのスライスで解消。`RelayConnection` seam（ADR-0014）に `onClose(listener: () => void): () => void` を追加した。購読単位の `onClosed` とは別に、ソケットそのものの死を通知する。`ConnectionPool` はこれで「ソケットの死」と「レート制限による個別 CLOSED」を区別できるようになり、死んだ接続を即座に予算とレジストリから外して次の `subscribe()` で新しいソケットを開く。再接続（ADR-0021）もこの通知を起点に組まれている。
 - **接続数はフォロー人数に比例して無制限に増える** — 接続プールのスライスで解消。`ConnectionPool` が唯一の接続開設点になり（ADR-0023）、`MAX_CONNECTIONS = 30`（ADR-0011）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。著者ごとの先頭 N 本方式は `selectRelays` による貪欲被覆選択（ADR-0025）へ置き換わった。予算超過で被覆できない著者は `incomplete.uncoveredAuthors` として黙らず報告する。`e2e/connection-budget.spec.ts` が「予算を超えて開かない」「被覆が最大化される」「落とした著者を報告する」を測る。
-- **リレーが配信したイベントをフィルタに再照合していない** — [ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md)（後続 #4）で解消。`SubscriptionManager.#handlersFor` が組み立てる `onEvent` は `store.put` より前に `matchesAnyFilter`（`src/core/read/filter-match.ts`）で判定し、`bootstrap.ts` の `collect()` にも同じ判定を入れて専用経路のブートストラップ取得も同じ信頼境界に揃えた。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）と `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から読める。`e2e/relay-lies.spec.ts` が `page.routeWebSocket`（`relay-recovery.spec.ts` で確立した手法）で悪意あるリレーを再現し、閲覧者がフォローしていない著者の正当な署名付きイベントを注入したうえで、そのイベントが `items` に出ないこと・カウンタが動くこと・正当なイベントは従来どおり届くことを主張する。副作用として、[ADR-0016](../adr/0016-routing-bootstrap.md) の「解決後に張り直す」を閉じていた `kind:10002` 到着による再プランの引き金が削除された（記録は ADR-0016 側）。
+- **リレーが配信したイベントをフィルタに再照合していない** — [ローカルフィルタ照合のスライス](../superpowers/archive/specs/2026-08-02-local-filter-matching-design.md)（後続 #4）で解消。`SubscriptionManager.#handlersFor` が組み立てる `onEvent` は `store.put` より前に `matchesAnyFilter`（`src/core/read/filter-match.ts`）で判定し、`bootstrap.ts` の `collect()` にも同じ判定を入れて専用経路のブートストラップ取得も同じ信頼境界に揃えた。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）と `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から読める。`e2e/relay-lies.spec.ts` が `page.routeWebSocket`（`relay-recovery.spec.ts` で確立した手法）で悪意あるリレーを再現し、閲覧者がフォローしていない著者の正当な署名付きイベントを注入したうえで、そのイベントが `items` に出ないこと・カウンタが動くこと・正当なイベントは従来どおり届くことを主張する。副作用として、[ADR-0016](../adr/0016-routing-bootstrap.md) の「解決後に張り直す」を閉じていた `kind:10002` 到着による再プランの引き金が削除された（記録は ADR-0016 側）。
 - **`tsconfig.e2e.json` がルートのビルドグラフに載っておらず、`pnpm typecheck` が `e2e/` を検査しない** — 最終ブランチレビュー finding 6 で解消。`tsconfig.json` の `references` に `tsconfig.e2e.json` と（新設の）`tsconfig.test.json` を追加した。予告どおり `e2e/v1-section.spec.ts` / `connection-budget.spec.ts` / `relay-recovery.spec.ts` の相対 import に `.js` 拡張子を足す機械的な修正が必要だった（TS2835、`NodeNext` の規約）。`tsconfig.test.json` は `*.test.ts(x)` も同じコンパイラオプションで検査する新しいプロジェクトで、`connection-pool.test.ts` のタイマーハンドル `number` バグ（standalone `tsc` でしか捕まらなかった、というコメントが同ファイルに残っている）と同じ種類のバグを今後 CI で検出できるようにする。この配線自体が「これまで気づかれていなかった既存の型エラー」を 7 ファイル分表面化させた — 詳細は上の「小さいもの」表、対応方針はレビューの指示どおり報告のみ（`tsconfig.test.json` の `exclude` で除外）。
 
 ## 満たしていない要件

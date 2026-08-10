@@ -8,17 +8,17 @@
 
 このスライスは 5〜10 カラムを実地で回す。それによって初めて答えが出る問いを 12 節に列挙する。**その答えが出ないなら、このスライスは目的を果たしていない。**
 
-前提知識は [CONTEXT.md](../../../CONTEXT.md)、決定は [docs/adr/](../../adr/)、繰延事項は [read-layer-followups.md](../../design/read-layer-followups.md)。
+前提知識は [CONTEXT.md](../../../../CONTEXT.md)、決定は [docs/adr/](../../../adr/)、繰延事項は [read-layer-followups.md](../../../design/read-layer-followups.md)。
 
 ## 1. 範囲
 
 **含む。** `/v1-preview` を `/v1` へ置き換える。カラムの追加・削除・並べ替え・タイトル編集。カラム種別 4 つ。派生ソース（フォローリストを焼き込まない）。デッキ永続化の valibot 化。ADR-0026 に沿った異常表示と開発者モード。投稿フォームと楽観挿入の維持。
 
-**含まない。** モバイル 1 カラム表示（[ADR-0009](../../adr/0009-mobile-single-column-view-only-editing.md)、別スライス）。ドラッグ&ドロップ。カラム幅。NIP-78 へのデッキ保存（[ADR-0013](../../adr/0013-deck-persisted-to-nip78.md)）。レンダラ登録機構と `needs`（[ADR-0017](../../adr/0017-declarative-renderer-needs.md)、A-2）。通知カラム・検索カラム・ユーザー詳細カラム。`kind:3` 到着によるライブ再解決。設定画面（フェーズ C）。ページネーション。
+**含まない。** モバイル 1 カラム表示（[ADR-0009](../../../adr/0009-mobile-single-column-view-only-editing.md)、別スライス）。ドラッグ&ドロップ。カラム幅。NIP-78 へのデッキ保存（[ADR-0013](../../../adr/0013-deck-persisted-to-nip78.md)）。レンダラ登録機構と `needs`（[ADR-0017](../../../adr/0017-declarative-renderer-needs.md)、A-2）。通知カラム・検索カラム・ユーザー詳細カラム。`kind:3` 到着によるライブ再解決。設定画面（フェーズ C）。ページネーション。
 
 ## 2. ルートと移設
 
-`/v1-preview` を削除し `/v1` を作る。**v0 の `/` には触らない** —— [ADR-0002](../../adr/0002-v0-parity-before-cutover.md) の一括切替は無傷のままにする。
+`/v1-preview` を削除し `/v1` を作る。**v0 の `/` には触らない** —— [ADR-0002](../../../adr/0002-v0-parity-before-cutover.md) の一括切替は無傷のままにする。
 
 ```
 src/routes/v1.tsx                          デッキ全体（ログイン・ヘッダ・投稿フォーム・カラム列）
@@ -101,7 +101,7 @@ const source = createMemo<NostrSource>(() => {
 
 ### 3.2 既定デッキ
 
-初回起動時（localStorage に何も無い、または壊れている）の既定デッキは 3 本。[ADR-0009](../../adr/0009-mobile-single-column-view-only-editing.md) が「既定デッキは必須要件」としている（モバイルから初めて訪れたユーザーは空画面になるため）。
+初回起動時（localStorage に何も無い、または壊れている）の既定デッキは 3 本。[ADR-0009](../../../adr/0009-mobile-single-column-view-only-editing.md) が「既定デッキは必須要件」としている（モバイルから初めて訪れたユーザーは空画面になるため）。
 
 ```ts
 export const defaultDeck = (viewerPubkey: string): Deck => ({
@@ -126,7 +126,7 @@ export const defaultDeck = (viewerPubkey: string): Deck => ({
 
 ### 3.4 検証は valibot で書く
 
-[ADR-0020](../../adr/0020-no-nostr-library-noble-primitives-only.md) の「ライブラリに依存しない」は **Nostr に関連する部分にだけかかる**（同 ADR「この ADR の射程」節）。localStorage の JSON を検証するのは Nostr の問題ではない。現在の `deck.ts` は `isDeck` / `isColumnDef` / `isNostrSource` / `isRelayFilter` として約 100 行の型ガードを手書きしているが、**valibot は既にこのリポジトリの依存にある**（`src/features/Column/libs/deckSchema/v0.ts`）。
+[ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md) の「ライブラリに依存しない」は **Nostr に関連する部分にだけかかる**（同 ADR「この ADR の射程」節）。localStorage の JSON を検証するのは Nostr の問題ではない。現在の `deck.ts` は `isDeck` / `isColumnDef` / `isNostrSource` / `isRelayFilter` として約 100 行の型ガードを手書きしているが、**valibot は既にこのリポジトリの依存にある**（`src/features/Column/libs/deckSchema/v0.ts`）。
 
 `loadDeck` を valibot のスキーマ 1 つに置き換える。
 
@@ -167,7 +167,7 @@ export const decodeNpub = (input: string): string | undefined
 
 **このスライスは「1 カラム = 1 セクション」を決定として記録する。** 現在の実装がそうなっているのは縦断スライスの仕様が「3 カラム」と書いていたからで、**判断としてはどこにも記録されていなかった**（2026-08-06 に発見）。
 
-[ADR-0003](../../adr/0003-open-column-abstraction.md) は「イベントの配列」に収まらないケース（ユーザー詳細・スレッド・ブックマークセット・フォロー中一覧）を列挙し「抽象の妥当性はそこで決まる」として保留している。それらを検討すると、3 つの形に分かれる。
+[ADR-0003](../../../adr/0003-open-column-abstraction.md) は「イベントの配列」に収まらないケース（ユーザー詳細・スレッド・ブックマークセット・フォロー中一覧）を列挙し「抽象の妥当性はそこで決まる」として保留している。それらを検討すると、3 つの形に分かれる。
 
 | 形 | 例 | 今の型で表現できるか |
 |---|---|---|
@@ -193,7 +193,7 @@ export const decodeNpub = (input: string): string | undefined
 
 ## 7. 異常の表示
 
-[ADR-0026](../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) に従う。**常に見せるのはユーザーが行動できる異常だけ。行動できない診断値は開発者モードの背後。**
+[ADR-0026](../../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) に従う。**常に見せるのはユーザーが行動できる異常だけ。行動できない診断値は開発者モードの背後。**
 
 判定は 1 箇所に集める。カラムの実装に散らさない。
 
@@ -301,7 +301,7 @@ export const saveDeveloperMode = (enabled: boolean): string;
 
 **このスライスの本当の成果物はここへの回答である。** 実装完了時に `docs/design/read-layer-followups.md` へ書く。推測は書かない。分からなかったものは「分からなかった」と書く。
 
-1. **30 接続予算は 5〜10 カラムで成立するか。** 実鍵の 3 カラムはピーク 10 だった（[followups](../../design/read-layer-followups.md) 問い2）。カラム数と接続数の関係は線形ではない（Outbox は著者の重なりで畳まれる）ので推測できない。`peakConnections` を読むこと
+1. **30 接続予算は 5〜10 カラムで成立するか。** 実鍵の 3 カラムはピーク 10 だった（[followups](../../../design/read-layer-followups.md) 問い2）。カラム数と接続数の関係は線形ではない（Outbox は著者の重なりで畳まれる）ので推測できない。`peakConnections` を読むこと
 2. **`createSection` に画面外カラムの休止・優先度・破棄が要るか。** followups が「10 カラムのうち実際に見えているのは数列だけ、という事実が 30 接続予算と噛み合うかを実測してから決める」として保留している API 判断
 3. **`warmUpRouting` → `NostrSource` の約 15 行のパターンの 3 箇所目が出るか。** 縦断スライスが「3 箇所目が出たら共通化する」と決めた条件。`/v1-preview` を置き換えるなら呼び出しは 2 箇所のままなので、**出ないという答えも答えである**
 4. **派生ソースは `followees` だけで足りたか。** 4 種別を実装して、2 つ目の派生が欲しくなった場面があったか

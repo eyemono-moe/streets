@@ -1,6 +1,6 @@
 # バックログ
 
-読み取り層のスライスに紐づかない、プロジェクト全体の将来タスク。読み取り層の繰延事項は [design/read-layer-followups.md](./design/read-layer-followups.md)、実装計画の後続は [superpowers/plans/](./superpowers/plans/) を参照。
+読み取り層のスライスに紐づかない、プロジェクト全体の将来タスク。読み取り層の繰延事項は [design/read-layer-followups.md](./design/read-layer-followups.md)、実装計画の後続は [superpowers/archive/plans/](./superpowers/archive/plans/) を参照。
 
 ここは着手順を決める場所ではない。**着手前に必ず、その時点での前提を確認し直すこと** — 特にツールチェーンの項目は動きが速い。
 
@@ -30,7 +30,7 @@
 
 ## knip による旧実装の削除
 
-[実装計画の後続 #8](./superpowers/plans/2026-07-31-read-layer-single-relay.md)（旧実装の削除）を、手書きのリストではなく **knip** で機械的に行う。
+[実装計画の後続 #8](./superpowers/archive/plans/2026-07-31-read-layer-single-relay.md)（旧実装の削除）を、手書きのリストではなく **knip** で機械的に行う。
 
 現在 `check-unused` が `@line/ts-remove-unused` を使っているが、これは未使用エクスポートの検出が中心。knip は**未使用のファイル・エクスポート・依存パッケージ**をまとめて検出できるため、「どのファイルが孤立したか」を人間が覚えておく必要がなくなる。
 
@@ -58,7 +58,7 @@
 
 **循環参照はこの深さ上限が機能することを証明する唯一のケースである。** イベント A が B を引用し、B が A を引用していれば、上限がなければ波は永遠に続く。上限があれば 2 波で止まる。
 
-波状解決はまだ実装されていない（[後続計画 #2](./superpowers/plans/2026-07-31-read-layer-single-relay.md)）。**そのため、このテストデータは計画 #2 の着手前に用意されているべきである。** 実装してからテストを足すと、上限が本当に効いているのかを確かめないまま進むことになる。
+波状解決はまだ実装されていない（[後続計画 #2](./superpowers/archive/plans/2026-07-31-read-layer-single-relay.md)）。**そのため、このテストデータは計画 #2 の着手前に用意されているべきである。** 実装してからテストを足すと、上限が本当に効いているのかを確かめないまま進むことになる。
 
 用意すべき循環の形:
 

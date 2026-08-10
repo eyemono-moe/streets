@@ -2,19 +2,19 @@
 
 読み取り層の続きではなく、**ログインから投稿までを縦に貫く最小の動くもの**を作る。
 
-**この spec は意図的に短い。** 直前に「ドキュメントが実装の 4 倍あり、維持コストが負の収益になっている」と判定した（[followups](../../design/read-layer-followups.md) の外部レビュー節）。コードから復元できない判断だけを書く。
+**この spec は意図的に短い。** 直前に「ドキュメントが実装の 4 倍あり、維持コストが負の収益になっている」と判定した（[followups](../../../design/read-layer-followups.md) の外部レビュー節）。コードから復元できない判断だけを書く。
 
 ## 0. なぜこれを次にやるか
 
-[followups の「外部レビュー（2026-08-04）」](../../design/read-layer-followups.md)に全文がある。要点だけ: v1 は main から 201 コミット先行し、読み取り層 3,056 行・そのテスト 6,142 行・docs 12,240 行を積んだが、**それを使っている画面はデバッグルート 1 本だけ**だった。要件が使用によって検証されていない部品に厳密さを注いでいた。
+[followups の「外部レビュー（2026-08-04）」](../../../design/read-layer-followups.md)に全文がある。要点だけ: v1 は main から 201 コミット先行し、読み取り層 3,056 行・そのテスト 6,142 行・docs 12,240 行を積んだが、**それを使っている画面はデバッグルート 1 本だけ**だった。要件が使用によって検証されていない部品に厳密さを注いでいた。
 
-[ADR-0002](../../adr/0002-v0-parity-before-cutover.md) は本番切替の戦略を決めているだけで、**開発の順序を規定していない**。内部ルート `/v1-preview` で縦断スライスを動かすことは ADR-0002 と両立する。
+[ADR-0002](../../../adr/0002-v0-parity-before-cutover.md) は本番切替の戦略を決めているだけで、**開発の順序を規定していない**。内部ルート `/v1-preview` で縦断スライスを動かすことは ADR-0002 と両立する。
 
 ## 1. 範囲
 
 **入れる**: NIP-07 ログイン / 3 カラム（ホーム = フォロー相手の kind:1・単一著者・明示リレー）/ kind:0 プロフィール表示 / 投稿（楽観的挿入つき）/ リロード復元。
 
-**入れない**: NIP-78 デッキ保存（[ADR-0013](../../adr/0013-deck-persisted-to-nip78.md)、今回は localStorage）/ レンダラ登録機構（[ADR-0003](../../adr/0003-open-column-abstraction.md)）/ 宣言的 `needs` の一般形（[ADR-0017](../../adr/0017-declarative-renderer-needs.md)）/ IndexedDB 永続化 / モバイル対応（[ADR-0009](../../adr/0009-mobile-single-column-view-only-editing.md)）/ REQ マージ。
+**入れない**: NIP-78 デッキ保存（[ADR-0013](../../../adr/0013-deck-persisted-to-nip78.md)、今回は localStorage）/ レンダラ登録機構（[ADR-0003](../../../adr/0003-open-column-abstraction.md)）/ 宣言的 `needs` の一般形（[ADR-0017](../../../adr/0017-declarative-renderer-needs.md)）/ IndexedDB 永続化 / モバイル対応（[ADR-0009](../../../adr/0009-mobile-single-column-view-only-editing.md)）/ REQ マージ。
 
 **3 本目（明示リレーカラム）は最後に置き、時間が押したら落とす。** 必須ではない。
 
@@ -35,7 +35,7 @@
 
 ## 3. 新しく作るもの
 
-**`src/core/signer/`** — [ADR-0008](../../adr/0008-signer-only-key-handling.md)（秘密鍵を保持しない）を型で強制する seam。
+**`src/core/signer/`** — [ADR-0008](../../../adr/0008-signer-only-key-handling.md)（秘密鍵を保持しない）を型で強制する seam。
 
 ```ts
 export type Signer = {
@@ -85,11 +85,11 @@ NIP-07 実装と fake（`fake-relay-connection.ts` と同じ位置づけ）。**
 
 ## 6. 投稿
 
-**楽観的挿入は署名の後・publish の前に行う。** この順序だと、ユーザーが署名を拒否した場合に**巻き戻す状態が存在しない**。[ADR-0011](../../adr/0011-performance-budget.md) の「操作の画面反映 100ms（楽観的更新、リレー応答を待たない）」を初めて実測できる。
+**楽観的挿入は署名の後・publish の前に行う。** この順序だと、ユーザーが署名を拒否した場合に**巻き戻す状態が存在しない**。[ADR-0011](../../../adr/0011-performance-budget.md) の「操作の画面反映 100ms（楽観的更新、リレー応答を待たない）」を初めて実測できる。
 
 **自分をフォローしているのが一般的**なので、publish した投稿はリレー経由でも戻ってくる。**重複処理が自然に検証される** —— `EventStore.put` が `"duplicate"` を返し、`SortedEvents.add` が `false` を返す経路。
 
-**publish の接続は 30 接続予算の中に入れる。** 現在 `ConnectionPool.subscribe()` が**ソケットを開く唯一の場所**であり、それが [ADR-0011](../../adr/0011-performance-budget.md) を実際に強制している一点である。publish がプールを通らなければ、予算の外にもう 1 系統ソケットができる —— `reserved`（ブートストラップの予算迂回）が既に開けている穴と同じ形になる。**プールに publish 経路を足す。**
+**publish の接続は 30 接続予算の中に入れる。** 現在 `ConnectionPool.subscribe()` が**ソケットを開く唯一の場所**であり、それが [ADR-0011](../../../adr/0011-performance-budget.md) を実際に強制している一点である。publish がプールを通らなければ、予算の外にもう 1 系統ソケットができる —— `reserved`（ブートストラップの予算迂回）が既に開けている穴と同じ形になる。**プールに publish 経路を足す。**
 
 ## 7. エラー処理
 
@@ -115,9 +115,9 @@ NIP-07 実装と fake（`fake-relay-connection.ts` と同じ位置づけ）。**
 
 ## 9. 影響を受ける ADR
 
-- **[ADR-0002](../../adr/0002-v0-parity-before-cutover.md)** —— 変更なし。0 節の区別（本番切替の戦略 ≠ 開発の順序）を追記する。
-- **[ADR-0011](../../adr/0011-performance-budget.md)** —— 変更なし。publish を予算内に入れることは既存の決定の実装である。
-- **[ADR-0003](../../adr/0003-open-column-abstraction.md) / [ADR-0013](../../adr/0013-deck-persisted-to-nip78.md) / [ADR-0017](../../adr/0017-declarative-renderer-needs.md)** —— いずれも**まだ実装しない**ことを「実装の段階」に記録する。撤回ではない。
+- **[ADR-0002](../../../adr/0002-v0-parity-before-cutover.md)** —— 変更なし。0 節の区別（本番切替の戦略 ≠ 開発の順序）を追記する。
+- **[ADR-0011](../../../adr/0011-performance-budget.md)** —— 変更なし。publish を予算内に入れることは既存の決定の実装である。
+- **[ADR-0003](../../../adr/0003-open-column-abstraction.md) / [ADR-0013](../../../adr/0013-deck-persisted-to-nip78.md) / [ADR-0017](../../../adr/0017-declarative-renderer-needs.md)** —— いずれも**まだ実装しない**ことを「実装の段階」に記録する。撤回ではない。
 
 新しい ADR は起こさない。このスライスが出す押し返しは followups に集め、**一般形を決めるときに ADR にする。**
 

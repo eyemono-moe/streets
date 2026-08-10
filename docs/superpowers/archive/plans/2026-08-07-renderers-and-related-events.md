@@ -8,7 +8,7 @@
 
 **Tech Stack:** SolidJS / TypeScript / Vitest / Playwright。
 
-**仕様:** [docs/superpowers/specs/2026-08-07-renderers-and-related-events-design.md](../specs/2026-08-07-renderers-and-related-events-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-07-renderers-and-related-events-design.md](../specs/2026-08-07-renderers-and-related-events-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 

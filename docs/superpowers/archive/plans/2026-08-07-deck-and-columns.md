@@ -4,11 +4,11 @@
 
 **Goal:** `/v1-preview` の固定 3 カラムを、追加・削除・並べ替えのできる本物のデッキ（`/v1`）に置き換え、5〜10 カラムを実地で回せるようにする。
 
-**Architecture:** データモデルを「フィルタの焼き込み」から「意図を保存する派生ソース」へ変え、解決を 1 関数に集める。永続化フォーマットの検証は valibot に寄せる。異常表示は [ADR-0026](../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) に従い、ユーザーが行動できるものだけを常時出し、診断値は開発者モードの背後へ移す。読み取り層には一切手を入れない。
+**Architecture:** データモデルを「フィルタの焼き込み」から「意図を保存する派生ソース」へ変え、解決を 1 関数に集める。永続化フォーマットの検証は valibot に寄せる。異常表示は [ADR-0026](../../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) に従い、ユーザーが行動できるものだけを常時出し、診断値は開発者モードの背後へ移す。読み取り層には一切手を入れない。
 
 **Tech Stack:** SolidJS / TypeScript / valibot / Vitest / Playwright。
 
-**仕様:** [docs/superpowers/specs/2026-08-07-deck-and-columns-design.md](../specs/2026-08-07-deck-and-columns-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-07-deck-and-columns-design.md](../specs/2026-08-07-deck-and-columns-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 
@@ -26,7 +26,7 @@
   へ書くこと（見つけた時点で書く。まとめて後で移す形にしない）。
 - **valibot を使ってよいのは永続化フォーマットとユーザー入力の検証だけ。**
   `NostrEvent` / `RelayFilter` そのもののワイヤ検証（`EventStore.put` の
-  `isNostrEvent` など）は [ADR-0020](../../adr/0020-no-nostr-library-noble-primitives-only.md)
+  `isNostrEvent` など）は [ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md)
   のとおり自前のまま。
 - 作業ブランチは `v1`。`main` へは触らない。旧実装（`src/features/`,
   `src/routes/index.tsx` など v0 側）は無視してよい。

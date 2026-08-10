@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript / SolidJS / Vitest / Playwright / pnpm。Nostr の高水準ライブラリには依存しない（ADR-0020）。
 
-**設計の出所:** [docs/superpowers/specs/2026-08-01-connection-pool-design.md](../specs/2026-08-01-connection-pool-design.md)。判断の根拠になった実測は [docs/research/2026-08-01-outbox-connection-budget.md](../../research/2026-08-01-outbox-connection-budget.md)。
+**設計の出所:** [docs/superpowers/archive/specs/2026-08-01-connection-pool-design.md](../specs/2026-08-01-connection-pool-design.md)。判断の根拠になった実測は [docs/research/2026-08-01-outbox-connection-budget.md](../../../research/2026-08-01-outbox-connection-budget.md)。
 
 ## Global Constraints
 
@@ -208,7 +208,7 @@ git commit -m "feat(relay): add a connection-level onClose signal to the seam"
 
 ### Task 2: `RoutingTable` が宣言された write リレーを全部返す
 
-**なぜ:** `MAX_RELAYS_PER_AUTHOR = 3` は各著者のリストを先頭 3 本で切ってから全体を選ぶので、**集合被覆が必要とする情報をまさに捨てている。** [実測](../../research/2026-08-01-outbox-connection-budget.md)では、同じ被験者・予算 30 本・冗長度 1 で、切り捨てありは 95〜98%、外すと 99〜100% だった。制限は著者ごとではなく大域の予算として持つ。
+**なぜ:** `MAX_RELAYS_PER_AUTHOR = 3` は各著者のリストを先頭 3 本で切ってから全体を選ぶので、**集合被覆が必要とする情報をまさに捨てている。** [実測](../../../research/2026-08-01-outbox-connection-budget.md)では、同じ被験者・予算 30 本・冗長度 1 で、切り捨てありは 95〜98%、外すと 99〜100% だった。制限は著者ごとではなく大域の予算として持つ。
 
 **Files:**
 - Modify: `src/core/read/default-relays.ts:23-29`

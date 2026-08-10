@@ -6,7 +6,7 @@
 - 個々の決定と却下した代替案は [docs/adr/](../adr/)
 - 実在するが直していない欠陥は [read-layer-followups.md](./read-layer-followups.md)
 - 動作確認の手順は [verifying-v1-section.md](./verifying-v1-section.md)
-- 次に作るものの設計は [docs/superpowers/specs/](../superpowers/specs/)
+- 次に作るものの設計は [docs/superpowers/archive/specs/](../superpowers/archive/specs/)
 
 **現時点で実装されているのは、単一リレーのセクション読み取り・Outbox ルーティングと購読マネージャの器・接続プール・ローカルフィルタ照合・セクションの保持と通知（保持順の全順序化と通知バッチ）までである。**この文書は目標の構造を説明しているので、まだ存在しない部分がある。**どこが未実装かは 8 節に集約してある。**
 
@@ -213,7 +213,7 @@ sequenceDiagram
 
 [ADR-0005](../adr/0005-outbox-model-from-v1.md) の Outbox がこの面積を実質的に広げた。**セクションが話しかけるリレー集合を決めるのが、ユーザー自身ではなくフォローしている著者になった**ためである。フォロー相手の `kind:10002` が、こちらがどのリレーに繋ぐかを決めている。
 
-**解消済み（2026-08-02）。** 図のとおり門を 1 つから 2 つに増やした —— **照合 → 検証**の順である。NIP-01 のフィルタ意味論（`since ≤ created_at ≤ until`、タグは共通要素が 1 つ以上、複数フィルタは OR）を自前で実装した `matchesFilter` / `matchesAnyFilter`（`src/core/read/filter-match.ts`、依存ゼロの純粋関数）が最初の門になる。**照合を検証より先に置くのは、照合の方が schnorr 検証より安いためである** —— 要求していないイベントの洪水を浴びても、払うコストは文字列比較であって暗号検証ではない。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）とブートストラップ側の `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から見える。[ADR-0023](../adr/0023-centralized-subscription-manager.md) は当初これを購読マージの帰結として記録していたが、**マージの有無に関係なく必要だった**（2026-08-01 訂正）。設計の詳細は [local-filter-matching 仕様](../superpowers/specs/2026-08-02-local-filter-matching-design.md)。
+**解消済み（2026-08-02）。** 図のとおり門を 1 つから 2 つに増やした —— **照合 → 検証**の順である。NIP-01 のフィルタ意味論（`since ≤ created_at ≤ until`、タグは共通要素が 1 つ以上、複数フィルタは OR）を自前で実装した `matchesFilter` / `matchesAnyFilter`（`src/core/read/filter-match.ts`、依存ゼロの純粋関数）が最初の門になる。**照合を検証より先に置くのは、照合の方が schnorr 検証より安いためである** —— 要求していないイベントの洪水を浴びても、払うコストは文字列比較であって暗号検証ではない。捨てた件数は `SubscriptionManager.unrequestedEventsByRelay`（リレーごと、単調増加）とブートストラップ側の `WarmUpResult.unrequested` に現れ、`/debug/v1-section` の `data-testid="unrequested"` / `"unrequested-relays"` から見える。[ADR-0023](../adr/0023-centralized-subscription-manager.md) は当初これを購読マージの帰結として記録していたが、**マージの有無に関係なく必要だった**（2026-08-01 訂正）。設計の詳細は [local-filter-matching 仕様](../superpowers/archive/specs/2026-08-02-local-filter-matching-design.md)。
 
 ---
 
@@ -301,18 +301,18 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 ### 接続プール — 実装済み
 
-[接続プールの仕様](../superpowers/specs/2026-08-01-connection-pool-design.md)で設計し、`ConnectionPool`（`src/core/read/connection-pool.ts`）として実装が完了した。以前はここに「設計は決着済み、実装が未着手」として並んでいた 4 項目は次のとおりすべて入っている。
+[接続プールの仕様](../superpowers/archive/specs/2026-08-01-connection-pool-design.md)で設計し、`ConnectionPool`（`src/core/read/connection-pool.ts`）として実装が完了した。以前はここに「設計は決着済み、実装が未着手」として並んでいた 4 項目は次のとおりすべて入っている。
 
 - **30 接続上限。** `ConnectionPool` が唯一の接続開設点になり（[ADR-0023](../adr/0023-centralized-subscription-manager.md)）、`MAX_CONNECTIONS = 30`（[ADR-0011](../adr/0011-performance-budget.md)）をルーティング済み・明示指定・fallback・ブートストラップの全経路で強制する。予算超過で開けなかったリレーは黙って消えず `incomplete.uncoveredAuthors` / `incomplete.unreachableRelays` として表面化する（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
 - **リレーの選択。** 著者ごとに先頭 3 本を取って和集合にする方式から、`selectRelays`（`src/core/read/relay-selector.ts`、[ADR-0025](../adr/0025-greedy-relay-selection-under-a-global-budget.md)）による貪欲被覆選択へ置き換えた。ピン留めしたリレーを優先しつつ、残り予算を「まだ被覆していない著者数が多い順」に貪欲へ埋める。
-- **生きているセクションの張り直し。** 公開 `replan()` を呼ぶと再計画され、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted` でセクションへ通知する（[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半）。接続自体は張り直さない（同一プール接続で close + subscribe）ので「開き直さない」保証は保たれる。**`kind:10002` の到着を引き金に自動で呼ぶ経路は無い** —— [ローカルフィルタ照合のスライス](../superpowers/specs/2026-08-02-local-filter-matching-design.md) 6 節がこの引き金を削除した。呼ぶのは水和や再ウォームアップなど明示的な入口のみ（[ADR-0016](../adr/0016-routing-bootstrap.md)）。
+- **生きているセクションの張り直し。** 公開 `replan()` を呼ぶと再計画され、フィルタが変わったリレーは `SectionDelivery.onRelayRestarted` でセクションへ通知する（[ADR-0016](../adr/0016-routing-bootstrap.md) が定める「解決後に張り直す」の後半）。接続自体は張り直さない（同一プール接続で close + subscribe）ので「開き直さない」保証は保たれる。**`kind:10002` の到着を引き金に自動で呼ぶ経路は無い** —— [ローカルフィルタ照合のスライス](../superpowers/archive/specs/2026-08-02-local-filter-matching-design.md) 6 節がこの引き金を削除した。呼ぶのは水和や再ウォームアップなど明示的な入口のみ（[ADR-0016](../adr/0016-routing-bootstrap.md)）。
 - **再接続・バックオフ。** `ConnectionPool` がソケットの自然死を `RelayConnection.onClose` で検知し、指数バックオフ（初回 1 秒・上限 60 秒）＋ジッタで再接続する。**永久に諦めない**（[ADR-0021](../adr/0021-reconnection-policy.md)、`accepted`）。切断中は `incomplete.unreachableRelays` に計上され続け、復帰すれば自然に減る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` でのみ確かめられる（10節）。
 
 **死んだ接続がプールに残り続ける欠陥も解消済み。** `RelayConnection`（3節）に `onClose` を足し、プールが「ソケットの死」を検知して即座に予算とレジストリから外すようにした。
 
 ### 書き込み経路とプロフィールのコアレッサ — v1 縦断スライスで実装済み
 
-[縦断スライスの仕様](../superpowers/specs/2026-08-04-v1-vertical-slice-design.md)で設計し、`/v1-preview` として実装が完了した。**この読み取り層を実際に使う画面が初めてできた** —— それまで唯一の呼び出し元は `/debug/v1-section` だった（[read-layer-followups.md](./read-layer-followups.md) 外部レビュー参照）。
+[縦断スライスの仕様](../superpowers/archive/specs/2026-08-04-v1-vertical-slice-design.md)で設計し、`/v1-preview` として実装が完了した。**この読み取り層を実際に使う画面が初めてできた** —— それまで唯一の呼び出し元は `/debug/v1-section` だった（[read-layer-followups.md](./read-layer-followups.md) 外部レビュー参照）。
 
 - **署名器。** `src/core/signer/` に `Signer` 型（`getPublicKey` / `signEvent`）、NIP-07 実装（`nip07-signer.ts`、呼び出しのたびに `window.nostr` を読み直す）、テスト用の `fake-signer.ts` を実装した。ADR-0008 の「秘密鍵を持たない」を型で強制する。
 - **publish 経路。** `src/core/write/publisher.ts` の `createPublisher` が、署名者自身の `kind:10002` write リレー（無ければ fallback）へ `Promise.allSettled` で並行に publish し、`{ accepted, rejected }` を返す。ソケットは読み取り用と同じ `ConnectionPool`（`subscribe()` と `publish()` が共有する `#ensureConnection()`）を通るため、[ADR-0011](../adr/0011-performance-budget.md) の 30 接続予算は購読と投稿の両方を合わせた 1 つの数字のままである。
@@ -324,7 +324,7 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 ### セクションの保持と通知 — 実装済み
 
-[section-reader-performance の仕様](../superpowers/specs/2026-08-02-section-reader-performance-design.md)（[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」の後続 #6）で設計し、実装が完了した。以前は `SectionReader` の `#onEvent` がイベント1件ごとに配列を2回ソートし3回コピーしていた（[read-layer-followups.md](./read-layer-followups.md)「解消済み」に記録）。
+[section-reader-performance の仕様](../superpowers/archive/specs/2026-08-02-section-reader-performance-design.md)（[ADR-0023](../adr/0023-centralized-subscription-manager.md)「実装の段階」の後続 #6）で設計し、実装が完了した。以前は `SectionReader` の `#onEvent` がイベント1件ごとに配列を2回ソートし3回コピーしていた（[read-layer-followups.md](./read-layer-followups.md)「解消済み」に記録）。
 
 - **保持順の全順序化。** `SortedEvents`（`src/core/read/sorted-events.ts`）が `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序を維持し、挿入は二分探索、上限（500件）超過時は末尾を1件 `pop` するだけになった。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要が無くなった。5節で述べたとおり、表示順（降順・昇順）はこの保持順から導く。
 - **通知のバッチ。** `SectionReader` は購読者への通知を `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`）。リレーが1イベント1メッセージで送りブラウザがメッセージごとに別タスクを回す以上、マイクロタスクでは合流できず、マクロタスク境界（`setTimeout`）が要る。`items` / `status` を直接読む消費者は遅延の影響を受けない（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
@@ -355,8 +355,8 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 現時点で [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち**測っているのは接続数と500件上限の 2 つだけ**である。同 ADR は「測定できない予算は要件ではなく願望である」と定めているので、残る 5 指標は満たしていない要件である（[read-layer-followups.md](./read-layer-followups.md)）。
 
-**接続数の予算は[接続プールのスライス](../superpowers/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。
+**接続数の予算は[接続プールのスライス](../superpowers/archive/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。
 
-**500件上限は[section-reader-performance のスライス](../superpowers/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど500で止まることを主張する（8節）。
+**500件上限は[section-reader-performance のスライス](../superpowers/archive/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど500で止まることを主張する（8節）。
 
 **「E2E で測れる」と「CI がそれを検査している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブのみで、Playwright を実行するジョブが無い。上記 2 指標の e2e はローカルでは本物のガードとして機能するが、push のたびに自動で走るわけではないので、退行が CI で機械的に止まるとは今は言えない。ADR-0011 の「測定できない予算は要件ではなく願望である」に照らすと、この差は無視できない。CI 配線自体は独立した follow-up として [read-layer-followups.md](./read-layer-followups.md) に記録してある。

@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript (strict), SolidJS, Vitest, Playwright, Biome, pnpm
 
-**仕様:** [docs/superpowers/specs/2026-08-02-section-reader-performance-design.md](../specs/2026-08-02-section-reader-performance-design.md) — **着手前に全文を読むこと。** 1 節（計測が設計を変えた経緯）と 5.1 節（`#starting` の削除裁定）は各タスクの判断根拠である。
+**仕様:** [docs/superpowers/archive/specs/2026-08-02-section-reader-performance-design.md](../specs/2026-08-02-section-reader-performance-design.md) — **着手前に全文を読むこと。** 1 節（計測が設計を変えた経緯）と 5.1 節（`#starting` の削除裁定）は各タスクの判断根拠である。
 
 ## Global Constraints
 
@@ -239,7 +239,7 @@ import type { NostrEvent } from "../nostr/event";
  * 落ちるか」を決める。
  *
  * かつては配列全体を安定ソートしていたため、同値は**到着順**に並んでいた。
- * しかし [ADR-0005](../../../docs/adr/0005-outbox-model-from-v1.md) の Outbox
+ * しかし [ADR-0005](../../../../docs/adr/0005-outbox-model-from-v1.md) の Outbox
  * では同じイベントが複数リレーから届き、どちらが先かはネットワーク次第である
  * —— つまり到着順は実行ごとに変わりうる。`id` を tiebreak にするのは、
  * `NostrEvent` の中で必ず存在し・一意で・到着経路に依存しない唯一の

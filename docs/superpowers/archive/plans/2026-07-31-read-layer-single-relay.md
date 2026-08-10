@@ -4,7 +4,7 @@
 
 **Goal:** 1 つのリレーを指定したセクションが、イベントを時系列降順で表示し、読み込み状態を報告できるようにする。あわせて NIP-11 のリレー情報を非 Nostr ソースとして扱えることを実証する。
 
-**Architecture:** Nostr の高水準ライブラリを使わず、`@noble` / `@scure` のプリミティブだけを借りる（[ADR-0020](../../adr/0020-no-nostr-library-noble-primitives-only.md)）。`RelayConnection` は「1 つのリレーとだけ話す」薄い seam。その上に `SectionReader`（フレームワーク非依存の中核）を置き、SolidJS 向けの `createSection` は薄いラッパにする。Outbox ルーティング・needs の波状解決・ページネーション・永続化は後続の計画で足す。
+**Architecture:** Nostr の高水準ライブラリを使わず、`@noble` / `@scure` のプリミティブだけを借りる（[ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md)）。`RelayConnection` は「1 つのリレーとだけ話す」薄い seam。その上に `SectionReader`（フレームワーク非依存の中核）を置き、SolidJS 向けの `createSection` は薄いラッパにする。Outbox ルーティング・needs の波状解決・ページネーション・永続化は後続の計画で足す。
 
 **Tech Stack:** TypeScript / SolidJS / @noble/curves / @noble/hashes / @scure/base / Vitest / Playwright / Biome
 
@@ -12,10 +12,10 @@
 
 - 用語は `CONTEXT.md` に従う。セクション・ソース・レンダラ・読み取り層・署名器などの語を勝手に言い換えない。
 - 設計判断の理由は `docs/adr/` にある。ADR に反する実装をしない。
-- **新しいコードで `nostr-tools` / `rx-nostr` / `rx-nostr-crypto` / `@rust-nostr/nostr-sdk` / `nostr-typedef` を import しない**（[ADR-0020](../../adr/0020-no-nostr-library-noble-primitives-only.md)）。既存コードは並存させたまま触らない。
+- **新しいコードで `nostr-tools` / `rx-nostr` / `rx-nostr-crypto` / `@rust-nostr/nostr-sdk` / `nostr-typedef` を import しない**（[ADR-0020](../../../adr/0020-no-nostr-library-noble-primitives-only.md)）。既存コードは並存させたまま触らない。
 - **暗号を自作しない。** 署名検証は `@noble/curves`、ハッシュは `@noble/hashes`。NIP-44 は署名器に委譲するため、この計画では一切扱わない。
 - 受信イベントは**全件検証する**。id の再計算と schnorr 署名検証の両方（非機能要件・セキュリティ）。
-- 1 セクションが保持するイベントは 500 件が上限（[ADR-0011](../../adr/0011-performance-budget.md)）。
+- 1 セクションが保持するイベントは 500 件が上限（[ADR-0011](../../../adr/0011-performance-budget.md)）。
 - NIP-11 の取得は失敗しうる（CORS）。**失敗してもセクションは動き続けること。**
 - 新しいファイルはケバブケース。Lint/format は Biome。コミット前に `pnpm fix` と `pnpm typecheck` を通す。
 - テストコマンドは `pnpm exec vitest run <path>`。`pnpm test` は watch モードなので使わない。
@@ -1857,8 +1857,8 @@ git commit -m "feat(read): wire createSection and NIP-11 into a debug route veri
 - `pnpm exec vitest run src/core/nostr src/core/relay src/core/read` が全て通る
 - `pnpm e2e e2e/v1-section.spec.ts` がローカルリレーに対して通る
 - 新しいコードが `nostr-tools` / `rx-nostr` / `@rust-nostr/nostr-sdk` / `nostr-typedef` / `src/core/{transport,query,repository,view,store}` を一切 import していない
-- `Source` が Nostr フィルタと NIP-11 の両方を供給元にできることが実証されている（[ADR-0003](../../adr/0003-open-column-abstraction.md) の中核的主張）
-- `/debug/v1-section` が [ADR-0002](../../adr/0002-v0-parity-before-cutover.md) の一括切替まで**唯一の生きた検証場所**として機能する
+- `Source` が Nostr フィルタと NIP-11 の両方を供給元にできることが実証されている（[ADR-0003](../../../adr/0003-open-column-abstraction.md) の中核的主張）
+- `/debug/v1-section` が [ADR-0002](../../../adr/0002-v0-parity-before-cutover.md) の一括切替まで**唯一の生きた検証場所**として機能する
 
 ## 後続の計画（この計画には含まれない）
 
@@ -1869,7 +1869,7 @@ git commit -m "feat(read): wire createSection and NIP-11 into a debug route veri
 2. **needs の波状解決とレンダラ登録** — `defineRenderer`、フォールバック表示、深さ上限 2 階層（ADR-0003 / ADR-0004 / ADR-0017）
 3. **ページネーション・接続プール・再接続・購読マージ** — `loadMore` の実装、リレー別カーソル、`limitation.max_limit` の尊重、30 接続上限、**および再接続とバックオフ**（ADR-0005 / ADR-0011 / ADR-0021）
    - `loadMore` は `source` の変更として実装してはならない。`createSection` は `source()` の同一性が変わると `SectionReader` ごと作り直すため、全アイテムを捨ててソケットを張り直してしまう。`SectionReader.loadMore()` として、リレーごとに追加の後方購読を張って追記する形にする。
-   - 再接続は接続プールと同じ計画に置く。**所有していない接続は再接続できない**ため、両者は同一の関心事。詳細は [ADR-0021](../../adr/0021-reconnection-policy.md)（proposed、実装前に確定させること）。
+   - 再接続は接続プールと同じ計画に置く。**所有していない接続は再接続できない**ため、両者は同一の関心事。詳細は [ADR-0021](../../../adr/0021-reconnection-policy.md)（proposed、実装前に確定させること）。
 4. **永続化** — `EventPersistence`、IndexedDB、2 バケット、`kind:5` の永続化と水和時適用（ADR-0018 / ADR-0019）
 5. **署名器と書き込み** — NIP-07 / NIP-46、楽観的更新、署名要求のデバウンス（ADR-0008 / ADR-0010）
 6. **NIP-19 の TLV 対応** — `nevent` / `naddr` / `nprofile`、リンク解決

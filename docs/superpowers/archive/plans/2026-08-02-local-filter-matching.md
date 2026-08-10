@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript (strict), SolidJS, Vitest, Playwright, Biome, pnpm
 
-**仕様:** [docs/superpowers/specs/2026-08-02-local-filter-matching-design.md](../specs/2026-08-02-local-filter-matching-design.md) — **着手前に全文を読むこと。** 特に 2 節（「REQ より厳しくなってはならない」原則）と 6 節（削除の裁定）は、以下の各タスクの判断根拠である。
+**仕様:** [docs/superpowers/archive/specs/2026-08-02-local-filter-matching-design.md](../specs/2026-08-02-local-filter-matching-design.md) — **着手前に全文を読むこと。** 特に 2 節（「REQ より厳しくなってはならない」原則）と 6 節（削除の裁定）は、以下の各タスクの判断根拠である。
 
 ## Global Constraints
 
