@@ -1,7 +1,10 @@
 import type { RelayFilter } from "../relay/relay-connection";
+import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
+
+const PROFILE_KIND = 0;
 
 export type ProfileRequests = {
   /** この pubkey のプロフィールを要求する。既に取得済みなら何もしない。 */
@@ -112,8 +115,18 @@ export const createProfileRequests = (
   return {
     request(pubkey) {
       if (disposed) return;
-      // 既に EventStore にあるなら要求しない (無駄な REQ を作らない)。
-      if (options.store.latestReplaceable(0, pubkey)) return;
+      // 既に EventStore にあり、かつポリシー上まだ新鮮なら要求しない。
+      // `fetchedAt` が無い (未取得) 場合は isStale を呼ぶまでもなく要求する。
+      const fetchedAt = options.store.replaceableFetchedAt(
+        PROFILE_KIND,
+        pubkey,
+      );
+      if (
+        fetchedAt !== undefined &&
+        !isStale(policyFor(PROFILE_KIND), fetchedAt, scheduler.now())
+      ) {
+        return;
+      }
       pending.add(pubkey);
       if (timer === null) {
         timer = scheduler.setTimeout(flush, PROFILE_BATCH_MS);

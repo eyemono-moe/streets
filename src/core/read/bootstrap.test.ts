@@ -13,7 +13,10 @@ import type {
 import { warmUpRouting } from "./bootstrap";
 import { ConnectionPool } from "./connection-pool";
 import { EventStore } from "./event-store";
+import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * A RelayConnection whose subscription `close()` is a true no-op: unlike
@@ -188,6 +191,176 @@ describe("warmUpRouting", () => {
     const table = new RoutingTable(store);
     expect(table.writeRelaysFor(alice.pubkey)).toEqual(["wss://alice/"]);
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
+  });
+
+  // spec 5 節: 相② はポリシー (kind:10002 の staleMs = 7 日) を通す。
+  it("新鮮な kind:10002 を持つ著者は相②の authors に入らない", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const pool = poolWithFakes(relays);
+
+    const alice = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://alice/", "write"]],
+    });
+    const bob = sign(2, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://bob/", "write"]],
+    });
+    const viewer = sign(3, {
+      ...base,
+      kind: 3,
+      tags: [
+        ["p", alice.pubkey],
+        ["p", bob.pubkey],
+      ],
+    });
+
+    // isStale は fetchedAt === 0 を無条件 stale とみなす (invalidate() の
+    // 目印と区別できないため) —— 時計を 0 から動かしてから put しないと、
+    // この後の判定が「fresh」を主張できない (cache-policy.ts 参照)。
+    clock.advance(1);
+    store.put(alice, "wss://alice/");
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+      scheduler: clock,
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
+
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    const second = indexer()?.subscriptions[1].filters[0];
+    // 捕まえる変異: 鮮度を見ずに全員取る (alice も authors に入ってしまう)。
+    expect(new Set(second?.authors)).toEqual(
+      new Set([bob.pubkey, viewer.pubkey]),
+    );
+
+    indexer()?.emitEvent(1, bob);
+    indexer()?.emitEose(1);
+
+    await pending;
+  });
+
+  it("フォロイー全員 (自分を含む) の kind:10002 が新鮮なら、相②は REQ を投げない", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const pool = poolWithFakes(relays);
+
+    const alice = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://alice/", "write"]],
+    });
+    const viewer = sign(3, {
+      ...base,
+      kind: 3,
+      tags: [["p", alice.pubkey]],
+    });
+    const viewerRelayList = sign(3, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://viewer-write/", "write"]],
+    });
+
+    clock.advance(1);
+    store.put(alice, "wss://alice/");
+    store.put(viewerRelayList, "wss://viewer-write/");
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+      scheduler: clock,
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
+
+    const result = await pending;
+
+    // 捕まえる変異: 空の authors で collect() を呼ぶ (誰にも一致しない REQ
+    // をそれでもワイヤへ出してしまう)。全員新鮮なので相②の購読は 1 本も
+    // 立たないはず (フェーズ①の 1 本のまま)。
+    expect(indexer()?.subscriptions).toHaveLength(1);
+    expect(result.phase2Ms).toBe(0);
+    expect(result.followees).toEqual([alice.pubkey]);
+    expect(result.routed).toBe(1);
+  });
+
+  it("古い kind:10002 を持つ著者だけが相②の authors に入る", async () => {
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const pool = poolWithFakes(relays);
+
+    const alice = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://alice/", "write"]],
+    });
+    const staleBob = sign(2, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://bob/", "write"]],
+    });
+    const viewer = sign(3, {
+      ...base,
+      kind: 3,
+      tags: [
+        ["p", alice.pubkey],
+        ["p", staleBob.pubkey],
+      ],
+    });
+    const viewerRelayList = sign(3, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://viewer-write/", "write"]],
+    });
+
+    clock.advance(1);
+    store.put(staleBob, "wss://bob/");
+    // bob を staleMs (7 日) の外へ押し出してから、alice と自分を新鮮な
+    // ままにする。
+    clock.advance(SEVEN_DAYS_MS + 1);
+    store.put(alice, "wss://alice/");
+    store.put(viewerRelayList, "wss://viewer-write/");
+
+    const pending = warmUpRouting({
+      pubkey: viewer.pubkey,
+      store,
+      pool,
+      indexers: ["wss://indexer/"],
+      scheduler: clock,
+    });
+
+    const indexer = () => relays.get("wss://indexer/");
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
+    indexer()?.emitEvent(0, viewer);
+    indexer()?.emitEose(0);
+
+    await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
+    const second = indexer()?.subscriptions[1].filters[0];
+    // 捕まえる変異: 鮮度に関わらず誰も取らない (authors が空になる)。
+    expect(new Set(second?.authors)).toEqual(new Set([staleBob.pubkey]));
+
+    indexer()?.emitEvent(1, staleBob);
+    indexer()?.emitEose(1);
+
+    await pending;
   });
 
   // 縦断スライスの書き込み経路向けの前提: 自分は followees に入っている

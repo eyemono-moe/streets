@@ -1,9 +1,12 @@
 import type { RelayUrl } from "../relay/relay-connection";
+import { isStale, policyFor } from "./cache-policy";
 import { collect } from "./collect";
-import type {
-  ConnectionPool,
-  PooledHold,
-  PooledSubscription,
+import {
+  type ConnectionPool,
+  type PooledHold,
+  type PooledSubscription,
+  type Scheduler,
+  defaultScheduler,
 } from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
@@ -50,6 +53,12 @@ export type WarmUpOptions = {
    * warmUpRouting() 全体の最悪所要時間はこの値の **2 倍** になる。
    */
   timeoutMs?: number;
+  /**
+   * 相②の鮮度判定 (`isStale`) に使う「今」の取得元。`store` を構築した際に
+   * 渡したものと**同じインスタンス**を渡すこと —— 別の時計だと
+   * `fetchedAt` との差分がかみ合わず、鮮度判定が意味を失う。
+   */
+  scheduler?: Scheduler;
 };
 
 // 全リレーが EOSE/CLOSED を報告するかタイムアウトするまで待ち、届いた
@@ -67,6 +76,7 @@ export const warmUpRouting = async ({
   pool,
   indexers = BOOTSTRAP_INDEXERS,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  scheduler = defaultScheduler,
 }: WarmUpOptions): Promise<WarmUpResult> => {
   // 両フェーズを通して collect() が使う。正常終了なら collect() 自身が
   // 都度空にするので、finally はあくまで例外時の安全網。
@@ -163,19 +173,38 @@ export const warmUpRouting = async ({
     // アカウント」が自分の write リレーを一生取得できなかった。
     const relayListAuthors = [...new Set([pubkey, ...followees])];
 
-    const phase2StartedAt = performance.now();
-    const unrequestedRelayLists = await collect(
-      pool,
-      indexers,
-      [{ kinds: [RELAY_LIST_KIND], authors: relayListAuthors }],
-      store,
-      timeoutMs,
-      open,
-      // ブートストラップだけが使ってよい予算迂回 (`./collect` の
-      // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
-      { reserved: true },
-    );
-    const phase2Ms = performance.now() - phase2StartedAt;
+    // ポリシー (spec 5 節) を通す — 既に新鮮な kind:10002 を持つ著者まで
+    // 毎回取り直すと、このスライスの効果 (相②のフェッチを間引く) が消える。
+    // `store.replaceableFetchedAt` が undefined (未取得) の著者は
+    // isStale を呼ぶまでもなく取得対象。
+    const relayListPolicy = policyFor(RELAY_LIST_KIND);
+    const now = scheduler.now();
+    const staleRelayListAuthors = relayListAuthors.filter((author) => {
+      const fetchedAt = store.replaceableFetchedAt(RELAY_LIST_KIND, author);
+      return (
+        fetchedAt === undefined || isStale(relayListPolicy, fetchedAt, now)
+      );
+    });
+
+    let unrequestedRelayLists = 0;
+    let phase2Ms = 0;
+    // 全員新鮮なら REQ を出す理由が無い —— 空の authors で collect() を
+    // 呼ぶと、意味の無い REQ をワイヤへ出してしまう。
+    if (staleRelayListAuthors.length > 0) {
+      const phase2StartedAt = performance.now();
+      unrequestedRelayLists = await collect(
+        pool,
+        indexers,
+        [{ kinds: [RELAY_LIST_KIND], authors: staleRelayListAuthors }],
+        store,
+        timeoutMs,
+        open,
+        // ブートストラップだけが使ってよい予算迂回 (`./collect` の
+        // `CollectOptions` 参照)。ここ以外では絶対に使わないこと。
+        { reserved: true },
+      );
+      phase2Ms = performance.now() - phase2StartedAt;
+    }
 
     let routed = 0;
     for (const followee of followees) {

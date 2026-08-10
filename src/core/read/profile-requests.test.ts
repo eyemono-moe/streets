@@ -178,6 +178,59 @@ describe("createProfileRequests", () => {
     expect(secondFilters[0].authors).toEqual([b]);
   });
 
+  it("store にあってもポリシーの staleMs (kind:0 は 1 日) 以内なら要求しない", () => {
+    // 捕まえる変異: 鮮度を見ずに常に要求する
+    //   (毎回 194 件を取り直す —— 相② と同じ問題が profile-requests にも
+    //   起きる)。
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    // isStale は fetchedAt === 0 を無条件 stale として扱う
+    // (invalidate() の目印と区別できないため) —— 時計を 0 から動かして
+    // からでないと、この後の advance は「fresh」を主張できない。
+    clock.advance(1);
+    const cached = profileEvent(1);
+    store.put(cached, "wss://relay/");
+
+    const requests = createProfileRequests({
+      store,
+      manager,
+      scheduler: clock,
+    });
+
+    // staleMs (1 日) の 1ms 手前まで進めても、まだ新鮮。
+    clock.advance(24 * 60 * 60 * 1000 - 2);
+    requests.request(cached.pubkey);
+    clock.advance(200);
+
+    expect(manager.fetchOnce).not.toHaveBeenCalled();
+  });
+
+  it("store にあってもポリシーの staleMs を超えていれば要求し直す", () => {
+    // 捕まえる変異: 鮮度を見ずに一切要求しない
+    //   (プロフィールが永久に更新されない —— 名前が初日で凍りつく)。
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const cached = profileEvent(1);
+    store.put(cached, "wss://relay/");
+
+    const requests = createProfileRequests({
+      store,
+      manager,
+      scheduler: clock,
+    });
+
+    // staleMs (1 日) を超えて進める。
+    clock.advance(24 * 60 * 60 * 1000 + 1);
+    requests.request(cached.pubkey);
+    clock.advance(200);
+
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
+    const [filters] = manager.fetchOnce.mock.calls[0] as [RelayFilter[]];
+    expect(filters[0].authors).toEqual([cached.pubkey]);
+  });
+
   it("dispose() 後は fetchOnce を呼ばない", () => {
     const manager = stubManager();
     const clock = createFakeClock();
