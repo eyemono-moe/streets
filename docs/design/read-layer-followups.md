@@ -215,6 +215,20 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 最大でイベント 30 件・プロフィール 194 件。NIP-11 の `max_message_length` から計算した上限（最も厳しい `nos.lol` で約 1,950 件）に対して 1.5% / 9.9% でしかない。
 
+## ウォームアップの相の内訳（2026-08-10、実鍵）
+
+| 相 | 実測 | 割合 |
+|---|---|---|
+| ① `kind:3`（インデクサ 4 本への 1 往復） | 1996.6 ms | 57% |
+| ② `kind:10002`（全フォロイー） | 1496.7 ms | 43% |
+| 計測外 | 1.7 ms | — |
+
+同時の値: `firstRenderMs` 304.20 / `verifyMs` 4652.70（9021 件）/ `eventBatch` 最大 57 / `profileBatch` 最大 258 / `connections` 9・`peakConnections` 10。一部のリレーへの接続失敗がログに出ていた。
+
+**キャッシュポリシーのスライスは相② が支配的だと想定していたが、そうではなかった。** ② を消しても約 1998 ms 残る。それでもスライスは続行した —— [ADR-0011](../adr/0011-performance-budget.md) の 2 秒はこちらで置いた数字であり、基盤より先に最適化する理由にはならない。
+
+**両相とも `collect()` の「全 URL が settle するまで待つ」に縛られている**（最も遅い 1 本が所要時間を決める）。ただし**どのリレーがどれだけかかったかは測っていない**ので、接続失敗が原因だと断定はできない。[#262](https://github.com/eyemono-moe/streets/issues/262) でリレーごとの所要時間を測ってから、[#263](https://github.com/eyemono-moe/streets/issues/263) の完了条件を検討する。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
