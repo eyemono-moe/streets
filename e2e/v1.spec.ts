@@ -3,8 +3,16 @@ import type { EventTemplate } from "nostr-tools";
 import {
   previewAuthorOneDisplayName,
   previewAuthorOneNoteText,
+  previewAuthorOnePubkey,
   previewAuthorTwoNoteText,
+  previewAuthorTwoPubkey,
+  previewQuoteNoteText,
+  previewQuoteTargetNoteText,
   previewRelayUrl,
+  previewReplyNoteText,
+  previewReplyParentNoteText,
+  previewRepostTargetNoteText,
+  previewUnknownKindNoteText,
   previewViewerPubkey,
   previewViewerSeedNoteText,
   signAsPreviewViewer,
@@ -64,6 +72,54 @@ const enableDeveloperMode = async (page: import("@playwright/test").Page) => {
   await page.addInitScript(() => {
     window.localStorage.setItem("streets.v1.developerMode", "true");
   });
+};
+
+/**
+ * task-5-brief.md Step 2/3 用のカラムを、ログイン前に localStorage へ直接
+ * 仕込む。`column-presets.ts` の 4 種別 (home/user/hashtag/global) は
+ * どれも `kinds: [1]` 固定で、UI からは kind:6/16 や未登録 kind (30023)
+ * を購読するカラムを作れない —— そのため `deck.ts` の永続化フォーマット
+ * (`loadDeck` が読む JSON の形) へ直接書き込む。上の
+ * `mutatedHomeTitle` の書き換え (縦断 e2e) と同じ「e2e はブラウザ側の
+ * 別プロセスなので import できず、キーの文字列とスキーマの形をここへ
+ * 直書きする」手法。
+ *
+ * `authors` を閲覧者と著者 2 人に絞るのは、ローカルリレーには他の spec の
+ * フィクスチャも大量の kind:1 を発行しており、絞らないと無関係なノイズが
+ * 混ざって「対象の本文が出ている」ことの主張が読みにくくなるため。
+ */
+const seedRelatedEventsDeck = async (page: import("@playwright/test").Page) => {
+  await page.addInitScript(
+    ({ pubkey, relay, authors }) => {
+      const deck = {
+        version: 2,
+        columns: [
+          {
+            id: "related",
+            title: "related",
+            source: {
+              kind: "literal",
+              filters: [{ kinds: [1, 6, 16, 30023], authors }],
+              relays: [relay],
+            },
+          },
+        ],
+      };
+      window.localStorage.setItem(
+        `streets.v1.deck.${pubkey}`,
+        JSON.stringify(deck),
+      );
+    },
+    {
+      pubkey: previewViewerPubkey,
+      relay: previewRelayUrl,
+      authors: [
+        previewViewerPubkey,
+        previewAuthorOnePubkey,
+        previewAuthorTwoPubkey,
+      ],
+    },
+  );
 };
 
 test.describe("v1 vertical slice", () => {
@@ -352,6 +408,25 @@ test.describe("v1 vertical slice", () => {
     // 3 カラムぶん出ること (DeckColumn ごとに DiagnosticsPanel が独立して
     // developerMode を見ている、が確かめられる)
     await expect(page.getByTestId("deck-column-phase")).toHaveCount(3);
+
+    // 3. first-render-ms (task-5-brief.md Step 1) が、いずれかのカラムに
+    // 最初のノートが描画された後は "-" ではなく数値になる。「初回だけ記録
+    // する」の判定そのもの (first-render-recorder.test.ts) はブラウザ無しで
+    // 固定済み —— ここでは DeckColumn → v1.tsx の配線 (onHasItems が実際に
+    // 呼ばれ、firstRenderMs が DOM に反映される) が生きていることだけを
+    // 確かめる。
+    // 捕まえる変異: v1.tsx が onHasItems を DeckColumn へ渡し忘れる、
+    // DeckColumn 側の createEffect が items().length を見ない、または
+    // recordFirstRender の戻り値を firstRenderMs へ反映し忘れる。
+    const homeColumn = page.locator(
+      '[data-testid="deck-column"][data-column-id="home"]',
+    );
+    await expect(homeColumn).toContainText(previewAuthorOneNoteText, {
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("first-render-ms")).not.toHaveText(
+      "firstRenderMs: -",
+    );
   });
 
   /**
@@ -392,5 +467,110 @@ test.describe("v1 vertical slice", () => {
     );
     await expect(page.getByTestId("connections")).toBeVisible();
     await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
+  });
+
+  /**
+   * task-5-brief.md Step 3: リポスト/引用/返信/未登録 kind を 1 本の流れで
+   * 確かめる。`seedRelatedEventsDeck` で用意した "related" 列 (kinds:
+   * [1, 6, 16, 30023]) を開き、`EventView` の登録レンダラ経路と fallback
+   * 経路の両方を通す。
+   */
+  test("reposts, quotes, and replies render through EventView; an unknown kind falls back without breaking the column", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+
+    await stubSigner(page);
+    await seedRelatedEventsDeck(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    const related = page.locator(
+      '[data-testid="deck-column"][data-column-id="related"]',
+    );
+    await expect(related).toBeVisible();
+
+    // このフィクスチャの対象ノート (repostTargetNote/quoteTargetNote/
+    // replyParentNote) は、それ自体も authorOne/authorTwo の通常の kind:1
+    // として "related" 列のフィルタ (kinds:[1,6,16,30023]) に独立してヒット
+    // する。そのため `related` 列全体に対する `toContainText` では、対象の
+    // 本文が「リポスト/引用/返信の内側 (compact) に埋め込まれて出ている」
+    // ことと「たまたま同じ文面の独立したノートがどこかに出ている」ことを
+    // 区別できない —— 実際、リポストの埋め込みをわざと壊す変異
+    // (`Show when={target}` を `when={false}` にする) を試したところ、
+    // 独立ノートのおかげでこの手の緩い assertion は素通りしてしまった。
+    // そこで `[data-variant="compact"]` を持つ `event-view` に絞って探す
+    // ことで、「compact として実際に埋め込まれている」ことまで主張する
+    // (standalone の対象ノートは "full" で描かれるので compact には出ない)。
+    const compactWith = (text: string) =>
+      related.locator('[data-testid="event-view"][data-variant="compact"]', {
+        hasText: text,
+      });
+
+    // 1. リポストが repost-by と対象の本文 (compact 埋め込み) を出す。
+    // 捕まえる変異: RepostFull が resolveRepostTarget の結果を EventView へ
+    // 渡さない (対象が描かれない)、または repost-by 自体を出さない。
+    await expect(related.getByTestId("repost-by").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const repostCompact = compactWith(previewRepostTargetNoteText);
+    await expect(repostCompact.first()).toBeVisible({ timeout: 20_000 });
+
+    // 2. 引用が event-view[data-variant="compact"] の中に引用先の本文を
+    // 出す。捕まえる変異: NoteFull が quoteTargets() の結果を EventView へ
+    // 渡さない、または variant を "full" のまま渡す (compact の規則が壊れる)。
+    const quoteCompact = compactWith(previewQuoteTargetNoteText);
+    await expect(quoteCompact.first()).toBeVisible({ timeout: 20_000 });
+    // 引用元のノート自体 (kind:1, q タグを持つほう) も related 列に
+    // 独立したアイテムとして出ている。これは compact に埋め込まれる側では
+    // なく related 列直下の通常のアイテムなので、列全体への toContainText
+    // で問題ない (曖昧さが無い — previewQuoteNoteText はこのノート自身の
+    // 本文としてしか登場しない)。
+    await expect(related).toContainText(previewQuoteNoteText);
+
+    // 3. 返信が reply-to と、親の本文 (compact 埋め込み) を出す。
+    // 捕まえる変異: NoteFull が replyTarget() の marker 判定 (reply/root)
+    // を外す、または reply-to の描画条件 (ref().pubkey の有無) を反転する。
+    await expect(related.getByTestId("reply-to").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const replyCompact = compactWith(previewReplyParentNoteText);
+    await expect(replyCompact.first()).toBeVisible({ timeout: 20_000 });
+    // 返信ノート自体の本文 (previewReplyNoteText) は他のどの compact にも
+    // 埋め込まれない、返信ノート自身にしか登場しないので列全体への
+    // toContainText で問題ない。
+    await expect(related).toContainText(previewReplyNoteText);
+
+    // 4. 未登録の kind (30023) が unknown-kind を出し、**カラムが壊れない**。
+    // fallback が出ること自体は半分の主張でしかない —— fallback の目的は
+    // 「1 件の未対応イベントがカラム全体を道連れにしない」ことなので、
+    // unknown-kind が見えている状態で他のアイテム (リポスト/引用/返信)
+    // も引き続き描かれていることまで確かめる。
+    // 捕まえる変異: EventView が未登録 kind で例外を投げる (現状は
+    // UnknownKind へ fallback するので投げない)、または fallback の描画が
+    // 他のアイテムの描画を巻き込んで止める。
+    await expect(related.getByTestId("unknown-kind").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(related).toContainText(previewUnknownKindNoteText);
+    // fallback が出た**後**でも、それ以前に確かめた 3 つの経路 (リポスト/
+    // 引用/返信、いずれも compact 埋め込みの中身つき) がまだ画面に残って
+    // いることを再確認する。
+    await expect(related.getByTestId("repost-by").first()).toBeVisible();
+    await expect(repostCompact.first()).toBeVisible();
+    await expect(quoteCompact.first()).toBeVisible();
+    await expect(related.getByTestId("reply-to").first()).toBeVisible();
+    await expect(replyCompact.first()).toBeVisible();
+    // 7 件 (repostTarget/repost/quoteTarget/quote/replyParent/reply/
+    // unknown-kind の各イベント) 以上のアイテムが同時に描かれている ——
+    // fallback だけが生き残って他が消える壊れ方であれば、この数まで
+    // 届かない。
+    const itemCount = await related.getByTestId("item").count();
+    expect(itemCount).toBeGreaterThanOrEqual(7);
   });
 });

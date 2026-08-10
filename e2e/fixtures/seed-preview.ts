@@ -31,6 +31,17 @@ export const previewViewerSeedNoteText = "streets preview viewer seed note";
 export const previewAuthorOneNoteText = "streets preview author one note";
 export const previewAuthorTwoNoteText = "streets preview author two note";
 
+// task-5-brief.md Step 2: リポスト/引用/返信/未登録 kind、それぞれの対象と
+// 本体。対象ノートの本文をここで export するのは、e2e が「対象の本文が
+// compact 表示の中に出ている」ことをこの定数と突き合わせて主張するため。
+export const previewRepostTargetNoteText = "streets preview repost target note";
+export const previewQuoteTargetNoteText = "streets preview quote target note";
+export const previewReplyParentNoteText = "streets preview reply parent note";
+export const previewQuoteNoteText = "streets preview quote note";
+export const previewReplyNoteText = "streets preview reply note";
+export const previewUnknownKindNoteText =
+  "streets preview unknown kind content";
+
 /**
  * `window.nostr.signEvent` のブラウザ側スタブから `page.exposeFunction` 経由
  * で呼ぶ、閲覧者としての**本物の**署名 (task-6-report.md の手法と同じ)。
@@ -47,6 +58,22 @@ const publish = async (
   key: Uint8Array,
 ) => {
   await relay.publish(finalizeEvent(template, key));
+};
+
+/**
+ * `publish` と同じだが、署名済みイベント (id を含む) を呼び出し側へ返す
+ * (task-5-brief.md Step 2)。リポスト/引用/返信は対象イベントの id を
+ * `e`/`q` タグに埋め込む必要があり、`publish` のように投げっぱなしでは
+ * その id を知る手段が無い。
+ */
+const publishAndReturn = async (
+  relay: Relay,
+  template: EventTemplate,
+  key: Uint8Array,
+) => {
+  const event = finalizeEvent(template, key);
+  await relay.publish(event);
+  return event;
 };
 
 /**
@@ -156,6 +183,103 @@ export const seedPreviewFixture = async (): Promise<void> => {
       content: previewAuthorTwoNoteText,
     },
     authorTwoSecretKey,
+  );
+
+  // task-5-brief.md Step 2: リポスト (kind:6, content 埋め込みあり + e タグ
+  // あり)。対象は authorOne のノート — 先に対象を発行して id を確定させて
+  // から、その id を e タグと content の埋め込み (NIP-18) の両方に使う。
+  const repostTargetNote = await publishAndReturn(
+    relay,
+    {
+      kind: 1,
+      created_at: now + 13,
+      tags: [],
+      content: previewRepostTargetNoteText,
+    },
+    authorOneSecretKey,
+  );
+  await publish(
+    relay,
+    {
+      kind: 6,
+      created_at: now + 14,
+      tags: [
+        ["e", repostTargetNote.id, previewRelayUrl],
+        ["p", previewAuthorOnePubkey],
+      ],
+      content: JSON.stringify(repostTargetNote),
+    },
+    authorTwoSecretKey,
+  );
+
+  // 引用 (kind:1, q タグ)。対象は authorTwo のノート。
+  const quoteTargetNote = await publishAndReturn(
+    relay,
+    {
+      kind: 1,
+      created_at: now + 15,
+      tags: [],
+      content: previewQuoteTargetNoteText,
+    },
+    authorTwoSecretKey,
+  );
+  await publish(
+    relay,
+    {
+      kind: 1,
+      created_at: now + 16,
+      tags: [
+        ["q", quoteTargetNote.id, previewRelayUrl, previewAuthorTwoPubkey],
+      ],
+      content: previewQuoteNoteText,
+    },
+    viewerSecretKey,
+  );
+
+  // 返信 (kind:1, e タグ + root marker + pubkey 要素あり)。対象は authorOne
+  // のノート。pubkey 要素があることで、`replyTarget()` が親イベント本体の
+  // 到着を待たずに「@x への返信」の名前を出せる (Note.tsx 参照)。
+  const replyParentNote = await publishAndReturn(
+    relay,
+    {
+      kind: 1,
+      created_at: now + 17,
+      tags: [],
+      content: previewReplyParentNoteText,
+    },
+    authorOneSecretKey,
+  );
+  await publish(
+    relay,
+    {
+      kind: 1,
+      created_at: now + 18,
+      tags: [
+        [
+          "e",
+          replyParentNote.id,
+          previewRelayUrl,
+          "root",
+          previewAuthorOnePubkey,
+        ],
+      ],
+      content: previewReplyNoteText,
+    },
+    authorTwoSecretKey,
+  );
+
+  // 未登録の kind (kind:30023、長文記事)。`defaultRenderers` (renderers/index.ts)
+  // に登録が無い kind の代表として使う — fallback (`unknown-kind`) を e2e で
+  // 確かめる対象。
+  await publish(
+    relay,
+    {
+      kind: 30023,
+      created_at: now + 19,
+      tags: [],
+      content: previewUnknownKindNoteText,
+    },
+    viewerSecretKey,
   );
 
   relay.close();

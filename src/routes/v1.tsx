@@ -43,6 +43,7 @@ import {
   removeColumnFrom,
   renameColumnIn,
 } from "./v1/deck-mutations";
+import { createFirstRenderRecorder } from "./v1/first-render-recorder";
 import { parseRelays } from "./v1/parse-relays";
 import { defaultRenderers } from "./v1/renderers";
 import { verifyOptimisticInsert } from "./v1/verify-optimistic-insert";
@@ -83,6 +84,32 @@ const V1: Component = () => {
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
   const [deck, setDeck] = createSignal<Deck>();
+
+  /**
+   * pubkey が確定した時点から、いずれかのカラムに最初のノートが描画される
+   * までの ms (task-5-brief.md Step 1, ADR-0011 の 2 秒予算の材料)。
+   * `optimisticInsertMs` と同じ「診断用の常設表示、開発者モードの背後」の
+   * 形をそのまま踏襲する。
+   *
+   * `loginStartMs` はシグナルにしない —— `login()` の中で一度書いたら
+   * 読み返すのは `onColumnHasItems` だけで、Solid の依存追跡に乗せる理由が
+   * 無い (`deckInitialized` と同じ「素の変数で足りる」ケース)。
+   */
+  let loginStartMs: number | undefined;
+  const recordFirstRender = createFirstRenderRecorder();
+  const [firstRenderMs, setFirstRenderMs] = createSignal<number>();
+  /**
+   * `DeckColumn` (3 カラムぶん) が `items()` が空でなくなるたびに呼ぶ
+   * (`DeckColumn.tsx` の `onHasItems` 参照)。「最初の 1 回だけ記録する」判定
+   * そのものは `recordFirstRender` (`first-render-recorder.ts`) に委ねている
+   * ので、ここでは「pubkey がまだ無ければ無視する」ガードと
+   * `setFirstRenderMs` への反映だけを行う。
+   */
+  const onColumnHasItems = () => {
+    if (loginStartMs === undefined) return;
+    const elapsed = recordFirstRender(performance.now() - loginStartMs);
+    if (elapsed !== undefined) setFirstRenderMs(elapsed);
+  };
 
   // 開発者モード (ADR-0026)。端末ごと (localStorage)、既定は無効。デッキ
   // (pubkey ごとの deckStorageKey) とは別の保存先 —— どの端末で開発者と
@@ -284,7 +311,13 @@ const V1: Component = () => {
     setErrorMessage(undefined);
     try {
       const signer = createNip07Signer();
-      setPubkey(await signer.getPublicKey());
+      const pk = await signer.getPublicKey();
+      // 「pubkey が確定した時点」はここ (`setPubkey` の直前) —— 拡張機能の
+      // 応答待ち (`getPublicKey()`) を測定区間に含めない。first-render-ms が
+      // 見たいのはログイン後の描画コストであり、拡張機能側の待ち時間まで
+      // 混ぜると何のボトルネックを指しているか分からなくなる。
+      loginStartMs = performance.now();
+      setPubkey(pk);
     } catch (error) {
       setErrorMessage(
         error instanceof SignerUnavailableError
@@ -439,6 +472,15 @@ const V1: Component = () => {
                       ? "-"
                       : optimisticInsertMs()?.toFixed(2)}
                   </p>
+                  <p
+                    data-testid="first-render-ms"
+                    class="text-alpha-600 text-xs"
+                  >
+                    firstRenderMs:{" "}
+                    {firstRenderMs() === undefined
+                      ? "-"
+                      : firstRenderMs()?.toFixed(2)}
+                  </p>
                   <ul
                     data-testid="unrequested-relays"
                     class="text-alpha-600 text-xs"
@@ -570,6 +612,7 @@ const V1: Component = () => {
                     manager={manager}
                     followees={() => warmUp()?.followees ?? []}
                     optimisticEvents={optimisticEvents}
+                    onHasItems={onColumnHasItems}
                     developerMode={developerMode}
                     canMoveLeft={() => index() > 0}
                     canMoveRight={() =>

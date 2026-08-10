@@ -1,4 +1,4 @@
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createEffect, createMemo, createSignal } from "solid-js";
 import type { Component } from "solid-js";
 import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
@@ -63,6 +63,17 @@ const DeckColumn: Component<{
    * `ColumnAlertBadge` (行動できる異常) はこれを見ない。
    */
   developerMode: () => boolean;
+  /**
+   * このカラムの `items()` が空でなくなるたびに呼ぶ (task-5-brief.md
+   * Step 1)。**「初回だけ記録する」判定はここではしない** —— 呼び出し側
+   * (`v1.tsx`) が `createFirstRenderRecorder` で 3 カラムぶんまとめて
+   * 「最初の 1 回」に絞る。ここで各カラムが自分だけの初回判定を持つと、
+   * 3 カラムがそれぞれ「自分にとっての初回」を報告してしまい、結局
+   * 呼び出し側で「複数の初回」を 1 つへ潰す作業が要る点は変わらない ——
+   * それなら最初から「空でなくなるたび呼ぶだけ」にして、判定を 1 箇所
+   * (呼び出し側) に集めたほうが読みやすい。
+   */
+  onHasItems: () => void;
   /** 先頭カラムなら false。「←」を非表示にはせず disabled にする —— 押せる
    * ボタンの数が並べ替えのたびに変わらないほうが、連打での位置把握が楽。 */
   canMoveLeft: () => boolean;
@@ -124,6 +135,13 @@ const DeckColumn: Component<{
           !knownIds.has(event.id) && matchesAnyFilter(event, source().filters),
       );
     return [...optimistic, ...fromSection];
+  });
+
+  // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
+  // 「初回だけ」の判定は親側 (`props.onHasItems` の実体、
+  // `createFirstRenderRecorder`) の役目 —— ここでは呼ぶだけでよい。
+  createEffect(() => {
+    if (items().length > 0) props.onHasItems();
   });
 
   // タイトルのインライン編集。編集中だけ input に切り替える —— 常に input
