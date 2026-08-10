@@ -72,6 +72,8 @@ const DeckColumn: Component<{
    * (呼び出し側) に集めたほうが読みやすい。
    */
   onHasItems: () => void;
+  /** このカラムに最初のイベントが出るまでの ms。未着なら undefined。 */
+  firstRenderMs: () => number | undefined;
   /** 先頭カラムなら false。「←」を非表示にはせず disabled にする —— 押せる
    * ボタンの数が並べ替えのたびに変わらないほうが、連打での位置把握が楽。 */
   canMoveLeft: () => boolean;
@@ -249,6 +251,15 @@ const DeckColumn: Component<{
         改訂と同じ扱い)。
       */}
       <DiagnosticsPanel visible={props.developerMode}>
+        <p
+          class="text-alpha-600 text-xs"
+          data-testid="deck-column-first-render-ms"
+        >
+          firstRenderMs:{" "}
+          {props.firstRenderMs() === undefined
+            ? "-"
+            : props.firstRenderMs()?.toFixed(2)}
+        </p>
         <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
           phase: {section.status().phase}
         </p>

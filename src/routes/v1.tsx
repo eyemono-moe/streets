@@ -104,6 +104,9 @@ const V1: Component = () => {
   let loginStartMs: number | undefined;
   const recordFirstRender = createFirstRenderRecorder();
   const [firstRenderMs, setFirstRenderMs] = createSignal<number>();
+  const [firstRenderMsByColumn, setFirstRenderMsByColumn] = createSignal<
+    Record<string, number>
+  >({});
   /**
    * `DeckColumn` (3 カラムぶん) が `items()` が空でなくなるたびに呼ぶ
    * (`DeckColumn.tsx` の `onHasItems` 参照)。「最初の 1 回だけ記録する」判定
@@ -111,10 +114,17 @@ const V1: Component = () => {
    * ので、ここでは「pubkey がまだ無ければ無視する」ガードと
    * `setFirstRenderMs` への反映だけを行う。
    */
-  const onColumnHasItems = () => {
+  const onColumnHasItems = (columnId: string) => {
     if (loginStartMs === undefined) return;
-    const elapsed = recordFirstRender(performance.now() - loginStartMs);
-    if (elapsed !== undefined) setFirstRenderMs(elapsed);
+    const elapsed = performance.now() - loginStartMs;
+    // カラム単位で持つ。デッキ全体の 1 つの数字は、ウォームアップを待たない
+    // カラム (単一著者・明示リレー) の値になりがちで、ユーザーが実際に
+    // 待っているカラムが予算外でも予算内に見える。
+    setFirstRenderMsByColumn((prev) =>
+      columnId in prev ? prev : { ...prev, [columnId]: elapsed },
+    );
+    const recorded = recordFirstRender(elapsed);
+    if (recorded !== undefined) setFirstRenderMs(recorded);
   };
 
   // 開発者モード (ADR-0026)。端末ごと (localStorage)、既定は無効。デッキ
@@ -704,7 +714,8 @@ const V1: Component = () => {
                     manager={manager}
                     followees={() => warmUp()?.followees ?? []}
                     optimisticEvents={optimisticEvents}
-                    onHasItems={onColumnHasItems}
+                    onHasItems={() => onColumnHasItems(column.id)}
+                    firstRenderMs={() => firstRenderMsByColumn()[column.id]}
                     developerMode={developerMode}
                     canMoveLeft={() => index() > 0}
                     canMoveRight={() =>

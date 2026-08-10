@@ -396,6 +396,9 @@ test.describe("v1 vertical slice", () => {
     // DiagnosticsPanel の visible 条件を反転させる。
     await expect(page.getByTestId("connections")).toHaveCount(0);
     await expect(page.getByTestId("deck-column-phase")).toHaveCount(0);
+    await expect(page.getByTestId("deck-column-first-render-ms")).toHaveCount(
+      0,
+    );
     await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
     await expect(page.getByTestId("event-batch")).toHaveCount(0);
     await expect(page.getByTestId("profile-batch")).toHaveCount(0);
@@ -435,6 +438,12 @@ test.describe("v1 vertical slice", () => {
       /profileBatch: 0 \(max 0\)/,
     );
     await expect(page.getByTestId("deck-column-phase").first()).toBeVisible();
+    // 捕まえる変異: カラム単位ではなくデッキ全体で 1 つだけ記録する。
+    // ウォームアップを待たないカラムの値が代表になり、ユーザーが実際に
+    // 待っているカラムが予算外でも予算内に見える。
+    await expect(page.getByTestId("deck-column-first-render-ms")).toHaveCount(
+      3,
+    );
     // 3 カラムぶん出ること (DeckColumn ごとに DiagnosticsPanel が独立して
     // developerMode を見ている、が確かめられる)
     await expect(page.getByTestId("deck-column-phase")).toHaveCount(3);
