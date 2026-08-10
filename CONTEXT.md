@@ -96,4 +96,30 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0024](./docs/adr/0024-shared-bodies-per-section-membership.md) | イベント本体は共有し、メンバーシップはセクションが持つ |
 | [0025](./docs/adr/0025-greedy-relay-selection-under-a-global-budget.md) | 大域予算のもとで冗長度つき貪欲集合被覆によりリレーを選ぶ |
 
+| [0026](./docs/adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) | 常に見せるのは行動できる異常だけとし、診断値は開発者モードの背後に置く |
+
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、未着手の繰延事項は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)、プロジェクト全体の将来タスクは [docs/backlog.md](./docs/backlog.md) を参照。
+
+## 書き方
+
+### コードコメント
+
+**書くのは、コードから復元できない非自明な WHY だけ。** 隠れた制約、workaround を入れた理由、読み手が驚く挙動。
+
+**書かないもの:**
+
+- **WHAT** —— コードを読めば分かること（`// ユーザー ID を取得する` の類）
+- **変更履歴** —— 「〜を追加した」「旧実装では〜だった」「レビューの指摘で〜」。残したい経緯は ADR に書く
+- **タスク ID / レビュー参照** —— `(UZU-XXXX)`、`(finding 9a)`、`(Task 2 fix round 1)` の類
+
+コメントが「今このコードが何を守っているか」ではなく「そこへ至った経緯」を語り始めたら、行き先は ADR である。
+
+### ドキュメント
+
+**最新仕様のスナップショットだけを書く。** issue 参照・経緯・マイグレーション履歴は書かない。
+
+例外は [docs/adr/](./docs/adr/) —— ADR は決定と**その理由**を記録する場所であり、経緯はここにだけ残す。
+
+### 既存コードの扱い
+
+この方針は 2026-08-10 に定めた。**それ以前のコメントには変更履歴やレビュー参照が多く残っている。** 一括での書き換えはしない —— レビューで積み上げた非自明な WHY を巻き添えで消すほうが損失が大きい。**触ったファイルで直す。**
