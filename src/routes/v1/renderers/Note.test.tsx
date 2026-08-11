@@ -1,11 +1,12 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../../core/nostr/event";
 import type { EventRequests } from "../../../core/read/event-requests";
 import { EventStore } from "../../../core/read/event-store";
 import type { ProfileRequests } from "../../../core/read/profile-requests";
+import { formatEventTimeFull } from "../../../core/view/format-time";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
 import { NoteCompact, NoteFull } from "./Note";
@@ -129,9 +130,17 @@ describe("NoteFull", () => {
       expect(
         el.querySelector('[data-testid="note-content"]')?.textContent,
       ).toBe("hello world");
-      expect(
-        el.querySelector('[data-testid="note-created-at"]')?.textContent,
-      ).toBe("42");
+      // created_at=42 は 1970 年 (実行時の「今年」とは別年になる) ——
+      // 別年のとき formatEventTime と formatEventTimeFull は同じ書式
+      // (yyyy/MM/dd HH:mm) を返すので、「今」の値に依存せず厳密な文字列を
+      // 主張できる。
+      // 捕まえる変異: 生の event.created_at をそのまま出す (spec 3 節の
+      // 短縮絶対値書式を経由しない、旧 Note.tsx の挙動への後退)
+      const formatted = formatEventTimeFull(new Date(42 * 1000));
+      const createdAt = el.querySelector('[data-testid="note-created-at"]');
+      expect(createdAt?.textContent).toBe(formatted);
+      // 捕まえる変異: title 属性 (完全な日時) を付けない
+      expect(createdAt?.getAttribute("title")).toBe(formatted);
       expect(el.querySelector('[data-testid="note-author"]')).not.toBeNull();
     } finally {
       dispose();
@@ -311,6 +320,198 @@ describe("NoteCompact", () => {
       expect(el.querySelector('[data-testid="unsupported-ref"]')).toBeNull();
     } finally {
       dispose();
+    }
+  });
+});
+
+describe("アバターの寸法 (spec 3 節)", () => {
+  it("full は w-10、compact は w-6 になる", () => {
+    // 捕まえる変異: full/compact で同じ寸法クラスを使う (variant を
+    // `Avatar` の size prop へ渡し忘れる/固定値にする)
+    const events = createRecordingEventRequests();
+    const event = signed(20, { content: "x" });
+
+    const fullRun = mount(() => NoteFull({ event }), contextWith(events));
+    try {
+      const avatar = fullRun.element().querySelector('[data-testid="avatar"]');
+      expect(avatar?.className).toContain("w-10");
+      expect(avatar?.className).not.toContain("w-6");
+    } finally {
+      fullRun.dispose();
+    }
+
+    const compactRun = mount(() => NoteCompact({ event }), contextWith(events));
+    try {
+      const avatar = compactRun
+        .element()
+        .querySelector('[data-testid="avatar"]');
+      expect(avatar?.className).toContain("w-6");
+      expect(avatar?.className).not.toContain("w-10");
+    } finally {
+      compactRun.dispose();
+    }
+  });
+});
+
+describe("compact は自分で padding を持たない (spec 3 節・brief の要注意点 1)", () => {
+  it("full は p-2 を持ち、compact は持たない", () => {
+    // 捕まえる変異: compact のクラスにも p-2 (または任意の padding) を足す。
+    // compact は常に引用カード・リポスト・返信先の中に置かれる入れ子であり、
+    // 置く側が既に余白を取るため、ここで足すと二重になってガタつく
+    // (このモジュールのコメント「次の変更者へ」参照)。
+    const events = createRecordingEventRequests();
+    const event = signed(25, { content: "x" });
+
+    const fullRun = mount(() => NoteFull({ event }), contextWith(events));
+    try {
+      expect(fullRun.element().className).toMatch(/(?:^|\s)p-2(?:\s|$)/);
+    } finally {
+      fullRun.dispose();
+    }
+
+    const compactRun = mount(() => NoteCompact({ event }), contextWith(events));
+    try {
+      expect(compactRun.element().className).not.toMatch(/(?:^|\s)p-\d/);
+    } finally {
+      compactRun.dispose();
+    }
+  });
+});
+
+describe("本文が空のとき本文の器を出さない (design 6 節)", () => {
+  it("content が空文字列なら note-content を描かない (骨格は残る)", () => {
+    // 捕まえる変異: 空でも常に NoteContent (note-content) を描く
+    const events = createRecordingEventRequests();
+    const event = signed(21, { content: "" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      expect(el.querySelector('[data-testid="note-content"]')).toBeNull();
+      // 骨格 (アバター・著者) 自体は残る —— 本文が無いだけで行ごと消える
+      // わけではない
+      expect(el.querySelector('[data-testid="avatar"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="note-author"]')).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("空白だけの本文も「空」として扱う", () => {
+    // 捕まえる変異: 空文字列だけを見て trim しない (空白だけの本文で
+    // 見た目には何も無い note-content の器が残る)
+    const events = createRecordingEventRequests();
+    const event = signed(22, { content: "   \n  " });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(
+        element().querySelector('[data-testid="note-content"]'),
+      ).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});
+
+/** `getBoundingClientRect` が返す高さを差し替える (`createElementSize` が
+ * `ResizeObserver` の発火を待たず、ref 到着時にこれを同期的に一度読む —
+ * `vitest.setup.ts` のコメント参照)。DOMRect 全体を満たす必要は無いが、
+ * 型を通すためのダミー値を並べる。
+ */
+const fakeRect = (height: number): DOMRect =>
+  ({
+    height,
+    width: 300,
+    top: 0,
+    left: 0,
+    right: 300,
+    bottom: height,
+    x: 0,
+    y: 0,
+    toJSON() {
+      return {};
+    },
+  }) as DOMRect;
+
+describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
+  it("400px 未満では展開ボタンが出ない", async () => {
+    // 捕まえる変異: 高さに関わらず常に展開ボタンを出す
+    const rect = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue(fakeRect(200));
+    try {
+      const events = createRecordingEventRequests();
+      const event = signed(23, { content: "short body" });
+      const { element, dispose } = mount(
+        () => NoteFull({ event }),
+        contextWith(events),
+      );
+      try {
+        // createElementSize の計測は createEffect 経由 (マイクロタスク) ——
+        // EventView.test.tsx と同じ理由で waitFor する。
+        await vi.waitFor(() => {
+          expect(
+            element().querySelector('[data-testid="note-content"]'),
+          ).not.toBeNull();
+        });
+        expect(
+          element().querySelector('[data-testid="note-expand"]'),
+        ).toBeNull();
+      } finally {
+        dispose();
+      }
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  it("400px 以上では展開ボタンが出て、押すと全文が出る", async () => {
+    // 捕まえる変異: 折り畳んだまま展開できない (ボタンを押しても
+    // max-height が外れない)
+    const rect = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue(fakeRect(500));
+    try {
+      const events = createRecordingEventRequests();
+      const event = signed(24, { content: "long body" });
+      const { element, dispose } = mount(
+        () => NoteFull({ event }),
+        contextWith(events),
+      );
+      // クリックは document への bubble を経由して Solid の delegated event
+      // (`v1-core.test.tsx` と同じ理由) で拾われるため、実 DOM に接続する。
+      document.body.appendChild(element());
+      try {
+        await vi.waitFor(() => {
+          expect(
+            element().querySelector('[data-testid="note-expand"]'),
+          ).not.toBeNull();
+        });
+        const expandButton = element().querySelector<HTMLButtonElement>(
+          '[data-testid="note-expand"]',
+        );
+
+        const wrapper = element().querySelector('[data-testid="note-content"]')
+          ?.parentElement as HTMLElement;
+        expect(wrapper.style.maxHeight).toBe("400px");
+
+        expandButton?.click();
+
+        expect(
+          element().querySelector('[data-testid="note-expand"]'),
+        ).toBeNull();
+        expect(wrapper.style.maxHeight).toBe("none");
+      } finally {
+        element().remove();
+        dispose();
+      }
+    } finally {
+      rect.mockRestore();
     }
   });
 });

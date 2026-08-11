@@ -8,5 +8,6 @@ export default mergeConfig(viteConfig, {
     // `pnpm exec vitest run` の対象に含める (フィクスチャの pubkey 衝突を
     // 機械的に検出するため、Task 4 fix round 1)。
     include: ["src/**/*.test.{ts,tsx}", "e2e/**/*.test.{ts,tsx}"],
+    setupFiles: ["./vitest.setup.ts"],
   },
 });
