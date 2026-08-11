@@ -8,7 +8,7 @@
 
 **Tech Stack:** SolidJS / UnoCSS / Vitest / Playwright。
 
-**仕様:** [docs/superpowers/specs/2026-08-11-note-rendering-design.md](../specs/2026-08-11-note-rendering-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-11-note-rendering-design.md](../specs/2026-08-11-note-rendering-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 
@@ -46,7 +46,7 @@
 
 **純関数だけ。`now` を引数で受ける** —— `Date.now()` を直に読むとテストが時刻に依存する。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 | 主張 | 捕まえる変異 |
 |---|---|
@@ -59,7 +59,7 @@
 
 **`ja-JP` ロケールに固定する。** 実行環境のロケールで書式が変わると、テストが CI と手元で違う結果になる。
 
-- [ ] **Step 2〜4: 走らせて落ちる → 実装 → ゲートと変異検証、コミット**
+- [x] **Step 2〜4: 走らせて落ちる → 実装 → ゲートと変異検証、コミット**
 
 ```bash
 git commit -m "feat(view): format event timestamps the way v0 does"
@@ -80,7 +80,7 @@ git commit -m "feat(view): format event timestamps the way v0 does"
 
 **仕様 4 節の表がすべて。** 以下は表に書ききれない要点。
 
-- [ ] **Step 1: テストを書く**
+- [x] **Step 1: テストを書く**
 
 | 主張 | 捕まえる変異 |
 |---|---|
@@ -95,7 +95,7 @@ git commit -m "feat(view): format event timestamps the way v0 does"
 | `mention`（`naddr`）が「未対応の参照です」 | 落として本文が欠ける |
 | 本文の器に `whitespace-pre-wrap` が付く | 改行が消える |
 
-- [ ] **Step 2〜4: 走らせて落ちる → 実装 → ゲートと変異検証、コミット**
+- [x] **Step 2〜4: 走らせて落ちる → 実装 → ゲートと変異検証、コミット**
 
 **`parseContent` を `createMemo` で包む。** イベントは不変なので、再描画のたびにトークン化し直す理由が無い。
 
@@ -118,7 +118,7 @@ git commit -m "feat(v1): render note content tokens"
 
 **仕様 3 節がすべて。** 以下は要点。
 
-- [ ] **Step 1: `Avatar` を切り出す**
+- [x] **Step 1: `Avatar` を切り出す**
 
 今の `Profile.tsx` は名前とアイコンを 1 つの `<span>` に並べている。v0 の骨格は
 **アバターと名前が別のグリッド領域**なので分ける。
@@ -130,7 +130,7 @@ git commit -m "feat(v1): render note content tokens"
 
 `Profile.tsx` は名前だけを担う。**`data-testid="profile"` / `profile-name` は変えない。**
 
-- [ ] **Step 2: `NoteFull` / `NoteCompact` を組み直す**
+- [x] **Step 2: `NoteFull` / `NoteCompact` を組み直す**
 
 ```
 grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1
@@ -149,7 +149,7 @@ grid-template-areas: "avatar name" / "avatar content"
 **`compact` が padding を持たない理由をコメントに書くこと** —— 引用カード・リポスト・
 返信先が入れ子で置くので、余白は外側が決めないと二重になる。
 
-- [ ] **Step 3: 本文の高さ制限**
+- [x] **Step 3: 本文の高さ制限**
 
 400px を超えたら折り畳み、展開ボタンを出す。高さの観測は
 `@solid-primitives/resize-observer` が既に依存にある（v0 が使っている）——
@@ -160,7 +160,7 @@ grid-template-areas: "avatar name" / "avatar content"
 | 400px 未満では展開ボタンが出ない | 常に出す |
 | 展開すると全文が出る | 折り畳んだまま |
 
-- [ ] **Step 4: ゲートと変異検証、コミット**
+- [x] **Step 4: ゲートと変異検証、コミット**
 
 ```bash
 git commit -m "feat(v1): lay out notes the way v0 does"
@@ -174,7 +174,7 @@ git commit -m "feat(v1): lay out notes the way v0 does"
 - Modify: `e2e/v1.spec.ts`、`e2e/fixtures/` のシード
 - Modify: `docs/design/read-layer-followups.md`
 
-- [ ] **Step 1: e2e**
+- [x] **Step 1: e2e**
 
 - 既存の `note` / `note-author` / `note-content` / `note-created-at` が引き続き出ること
 - **画像 URL を含むノートをシードし、`full` で `<img>` が出て、`compact`
@@ -183,19 +183,19 @@ git commit -m "feat(v1): lay out notes the way v0 does"
 `compact` の側を主張するには、引用を持つノートが要る。既存のシードに引用があるか
 確認し、無ければ足すこと。
 
-- [ ] **Step 2: 仕様 8 節の 3 問に答える**
+- [x] **Step 2: 仕様 8 節の 3 問に答える**
 
 `docs/design/read-layer-followups.md` に新しい節を作る。**3 問とも実鍵で並べて見ないと
 答えられない。** 「未取得」と書き、何を見れば分かるかを書く。**推測を書かない。**
 
-- [ ] **Step 3: 繰延事項を Issue にする**
+- [x] **Step 3: 繰延事項を Issue にする**
 
 Task 1〜3 の報告を読み、直さなかったものを GitHub Issue にする（ボードにも足す）。
 
 **このスライスが範囲外にしたもののうち、Issue が無いものを確認して作ること:**
 OGP のリンクカード / 動画 / Blurhash と `imeta`（NIP-92）。
 
-- [ ] **Step 4: ゲート、コミット**
+- [x] **Step 4: ゲート、コミット**
 
 ---
 

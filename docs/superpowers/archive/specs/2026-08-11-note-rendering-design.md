@@ -6,7 +6,7 @@
 
 **デザインは新しく決めない。v0 の表示を仕様として写す。** v0 は一度作って動かした形を持っており、それをコードから読み取れる。**同じコンポーネントを流用するのではなく、同じ見た目になるものを v1 の構造（レンダラ登録・`EventView`・トークン）の上に作る。**
 
-前提知識は [CONTEXT.md](../../../CONTEXT.md)、決定は [docs/adr/](../../adr/)、スライスの記録は [read-layer-followups.md](../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
+前提知識は [CONTEXT.md](../../../../CONTEXT.md)、決定は [docs/adr/](../../../adr/)、スライスの記録は [read-layer-followups.md](../../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
 
 ## 1. v0 は「デザインの一次情報」であり「プロトコルの一次情報ではない」
 
@@ -66,12 +66,12 @@ v0 の `src/shared/components/RichContents.tsx` が仕様。
 | `url`（画像でない） | リンク（`target="_blank" rel="noopener noreferrer"`） | 同じ |
 | `url`（画像） | **インライン表示**。`b-1 rounded`、`w-full h-auto`、`object-cover`、読み込み前は `bg-secondary`。押すと元 URL を別タブで開く | **URL のリンクのまま**（画像にしない） |
 | `emoji` | インライン画像。行の高さに合わせる | 同じ |
-| `hashtag` | **押せる見た目にしない。** 検索カラムが無い（#203/#204）ので押しても何も起きず、リンクに見せると「未実装」と「壊れている」を区別できなくなる（[ADR-0026](../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) と同じ判断） | 同じ |
+| `hashtag` | **押せる見た目にしない。** 検索カラムが無い（#203/#204）ので押しても何も起きず、リンクに見せると「未実装」と「壊れている」を区別できなくなる（[ADR-0026](../../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) と同じ判断） | 同じ |
 | `mention` | `@名前`。取得前は npub の先頭 12 文字 | 同じ |
 
 **`compact` で画像を展開しない。** 引用先・返信先・リポスト対象が原寸の画像を並べると、カラムが画像で埋まって元の投稿が見えなくなる。v0 も `showEmbeddings={!props.small}` で同じ判断をしている。
 
-**画像かどうかは `isProbablyImageUrl`（拡張子）で決める。** [ADR-0012](../../adr/0012-external-images-loaded-directly-by-default.md) は「外部画像は既定で直接読み込み、プロキシ経由と非表示は設定で選べる」と決めているが、**設定画面が無いので、このスライスは既定（直接読み込み）だけを実装する。** 設定は #208。
+**画像かどうかは `isProbablyImageUrl`（拡張子）で決める。** [ADR-0012](../../../adr/0012-external-images-loaded-directly-by-default.md) は「外部画像は既定で直接読み込み、プロキシ経由と非表示は設定で選べる」と決めているが、**設定画面が無いので、このスライスは既定（直接読み込み）だけを実装する。** 設定は #208。
 
 **`mention` の解決。** `npub` / `nprofile` は `ProfileRequests` で名前を引く（`<Profile>` が既にやっている）。`note` / `nevent` は **`compact` の `EventView` として本文の下に置く**（引用と同じ扱い）—— v0 も `quoteByID` を埋め込みにしている。`naddr` は座標の解決経路が無いので「未対応の参照です」のまま。
 
