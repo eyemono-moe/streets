@@ -15,7 +15,10 @@ type Match = { consumed: number; token: ContentToken };
  * を意図的に除外していない —— URL をこの優先順位の先頭で試すことで、
  * それらが後続のハッシュタグ/絵文字マッチャに渡る前に丸ごと確保される。
  */
-const URL_RE = /https?:\/\/\S+/y;
+// RFC 3986 が URI に許す文字はすべて ASCII。`\S+` で取ると
+// `https://example.com/doc。ご確認ください` のように区切りの空白が無い
+// 日本語の本文で、URL が後続の文章を丸ごと飲み込む。
+const URL_RE = /https?:\/\/[A-Za-z0-9\-._~%:/?#[\]@!$&'()*+,;=]+/y;
 
 /** URL の外側にある約物であり、URL 自体が保持する情報ではない。 */
 const TRAILING_PUNCTUATION = new Set([

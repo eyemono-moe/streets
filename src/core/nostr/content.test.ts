@@ -79,6 +79,20 @@ const encodeEntity = (prefix: string, entries: TlvEntry[]): string =>
   encodeBech32(prefix, bytesToHex(encodeTlv(entries)));
 
 describe("parseContent: 不変条件", () => {
+  it("空白で区切られていない日本語が URL に飲み込まれない", () => {
+    // 捕まえる変異: URL の文字集合を \S+ に戻す。RFC 3986 が URI に許す
+    // 文字はすべて ASCII なので、非 ASCII で止めなければ区切りの空白が
+    // 無い日本語の本文で URL が後続の文章を丸ごと取る
+    const tokens = parseContent(
+      noteWith("詳細は https://example.com/doc。ご確認ください"),
+    );
+    const url = tokens.find((t) => t.type === "url");
+    expect(url).toEqual({ type: "url", url: "https://example.com/doc" });
+    expect(tokens.map((t) => (t.type === "text" ? t.text : "")).join("")).toBe(
+      "詳細は 。ご確認ください",
+    );
+  });
+
   it("トークンを連結すると元の content に戻る", () => {
     // 捕まえる変異: どのトークンでも、元の文字列の一部を落とす/重複させる。
     // トークン化は本文を「分ける」だけで「変える」処理ではない —— 落ちても
