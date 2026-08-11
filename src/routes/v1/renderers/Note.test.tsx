@@ -3,6 +3,7 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../../core/nostr/event";
+import { encodeBech32 } from "../../../core/nostr/nip19";
 import type { EventRequests } from "../../../core/read/event-requests";
 import { EventStore } from "../../../core/read/event-store";
 import type { ProfileRequests } from "../../../core/read/profile-requests";
@@ -147,6 +148,78 @@ describe("NoteFull", () => {
     }
   });
 
+  it("著者行は display_name と @name の 2 段 (v0 の EventBase と同じ)", () => {
+    // 捕まえる変異: 名前を 1 つしか出さない (v0 は太字の display_name と
+    // 副次的な @name を並べる —— 表示名だけでは同名の別人を見分けられず、
+    // @name だけでは本人が名乗っている表示名が消える)
+    const events = createRecordingEventRequests();
+    const event = signed(11, { content: "hi" });
+    const store = new EventStore();
+    store.put(
+      signed(11, {
+        kind: 0,
+        content: JSON.stringify({ name: "handle", display_name: "表示名" }),
+      }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events, store),
+    );
+    try {
+      const author = element().querySelector('[data-testid="note-author"]');
+      // profile-name には display_name だけが入る (e2e が完全一致で拾う)
+      expect(
+        author?.querySelector('[data-testid="profile-name"]')?.textContent,
+      ).toBe("表示名");
+      expect(author?.textContent).toBe("表示名@handle");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("display_name が無ければ name を太字側へ回し、@name を重ねない", () => {
+    // 捕まえる変異: display_name の欠落時に太字側を空にしたまま @name を
+    // 出す (v0 の素朴な写しだと空の太字が残る) / 太字側の縮退と @name の
+    // 両方を出して同じ文字列が 2 度並ぶ
+    const events = createRecordingEventRequests();
+    const event = signed(12, { content: "hi" });
+    const store = new EventStore();
+    store.put(
+      signed(12, { kind: 0, content: JSON.stringify({ name: "handle" }) }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events, store),
+    );
+    try {
+      const author = element().querySelector('[data-testid="note-author"]');
+      expect(author?.textContent).toBe("handle");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("プロフィール未取得の著者は npub の先頭 12 文字", () => {
+    // 捕まえる変異: 生 hex の短縮を出す (spec 3 節は npub 形を求める ——
+    // hex は貼っても他クライアントで開けない)
+    const events = createRecordingEventRequests();
+    const event = signed(13, { content: "hi" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const author = element().querySelector('[data-testid="note-author"]');
+      expect(author?.textContent).toBe(
+        encodeBech32("npub", event.pubkey).slice(0, 12),
+      );
+    } finally {
+      dispose();
+    }
+  });
+
   it("reply の pubkey があれば reply-to を即座に出す (親の到着を待たない)", () => {
     // 捕まえる変異: reply-to を出さない、または EventView (親の compact) を
     // 描かない
@@ -165,7 +238,12 @@ describe("NoteFull", () => {
       const replyTo = el.querySelector('[data-testid="reply-to"]');
       expect(replyTo).not.toBeNull();
       // pubkey は届く前でも短縮表示で即座に出る (Profile.tsx の縮退)。
-      expect(replyTo?.textContent).toContain(`${replierPubkey.slice(0, 8)}…`);
+      // 捕まえる変異: 生 hex をそのまま出す (spec 3 節が求めるのは npub の
+      // 先頭 12 文字)
+      expect(replyTo?.textContent).toContain(
+        `@${encodeBech32("npub", replierPubkey).slice(0, 12)}`,
+      );
+      expect(replyTo?.textContent).not.toContain(replierPubkey);
       expect(replyTo?.textContent).toContain("への返信");
       // 親そのものは compact の EventView として続けて描かれる。
       expect(

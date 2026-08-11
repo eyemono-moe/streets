@@ -73,11 +73,8 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
   const target = resolveRepostTarget(props.event, ctx.store);
 
   return (
-    <div
-      data-testid="repost"
-      class="space-y-1 rounded-2 border border-alpha-300 p-3 text-sm"
-    >
-      <p data-testid="repost-by" class="text-alpha-600 text-xs">
+    <div data-testid="repost" class="space-y-1 p-2 text-body">
+      <p data-testid="repost-by" class="c-secondary text-caption">
         <Profile
           pubkey={props.event.pubkey}
           store={ctx.store}
@@ -88,7 +85,7 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
       <Show
         when={target}
         fallback={
-          <p data-testid="repost-unknown" class="text-alpha-600 text-xs">
+          <p data-testid="repost-unknown" class="c-secondary text-caption">
             リポスト（対象不明）
           </p>
         }
@@ -111,11 +108,8 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
 export const RepostCompact: Component<{ event: NostrEvent }> = (props) => {
   const ctx = useRender();
   return (
-    <div
-      data-testid="repost"
-      class="space-y-1 rounded-2 border border-alpha-300 p-3 text-sm"
-    >
-      <p data-testid="repost-by" class="text-alpha-600 text-xs">
+    <div data-testid="repost" class="space-y-1 text-caption">
+      <p data-testid="repost-by" class="c-secondary text-caption">
         <Profile
           pubkey={props.event.pubkey}
           store={ctx.store}

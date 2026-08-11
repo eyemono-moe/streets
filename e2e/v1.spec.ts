@@ -152,8 +152,8 @@ test.describe("v1 vertical slice", () => {
     });
     await expect(homeColumn).toContainText(previewAuthorTwoNoteText);
 
-    // 3. 名前が出る (短縮 pubkey ではない = コアレッサが動いている)。
-    // 短縮 pubkey は `${8文字}…` の形なので、その形になっていないことも
+    // 3. 名前が出る (短縮 npub ではない = コアレッサが動いている)。
+    // 未取得のときは npub の先頭 12 文字なので、その形になっていないことも
     // 合わせて確かめる — 「たまたま表示された何らかの文字列」ではなく
     // 「短縮表示から実名表示へ切り替わった」ことを主張する。
     const authorOneName = homeColumn
@@ -162,7 +162,7 @@ test.describe("v1 vertical slice", () => {
     await expect(authorOneName).toHaveText(previewAuthorOneDisplayName, {
       timeout: 20_000,
     });
-    await expect(authorOneName).not.toHaveText(/^[0-9a-f]{8}…$/);
+    await expect(authorOneName).not.toHaveText(/^npub1/);
 
     // mine 列に、フィクスチャが用意した自分の既存ノートが出ていること
     // (投稿フォームでの新規投稿と混同しないための前提確認)

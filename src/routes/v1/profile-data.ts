@@ -4,6 +4,7 @@ import type { ProfileRequests } from "../../core/read/profile-requests";
 
 export type ParsedProfile = {
   name?: string;
+  displayName?: string;
   picture?: string;
 };
 
@@ -26,6 +27,9 @@ export const parseProfileContent = (
   const record = parsed as Record<string, unknown>;
   return {
     name: typeof record.name === "string" ? record.name : undefined,
+    // NIP-24 のフィールド名は snake_case。JS 側の命名へ寄せて読み替える。
+    displayName:
+      typeof record.display_name === "string" ? record.display_name : undefined,
     picture: typeof record.picture === "string" ? record.picture : undefined,
   };
 };

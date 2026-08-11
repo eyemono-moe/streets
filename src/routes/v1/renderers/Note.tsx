@@ -61,6 +61,20 @@ const CollapsibleBody: ParentComponent = (props) => {
 };
 
 /**
+ * 入れ子のイベント (返信先・引用先) を囲む枠 (v0 の `RichContents` の引用
+ * カードと同じ `b-1 rounded`)。**枠を描くのは置く側**という規則の実体で、
+ * `NoteCompact` が padding を持たない (下のコメント) のと対になる ——
+ * 余白と枠を 1 箇所で決めるので、入れ子が深くなっても二重にならない。
+ *
+ * トップレベルのイベント自身には枠が無い。v0 はカラムの一覧側が
+ * `divide-y` で区切っており (`DeckColumn.tsx` の `<ul>` が同じ)、1 件ずつ
+ * カードにすると入れ子の枠と見分けが付かなくなる。
+ */
+const NestedEventCard: ParentComponent = (props) => (
+  <div class="b-1 overflow-hidden rounded p-1">{props.children}</div>
+);
+
+/**
  * 骨格そのもの (spec 3 節): `avatar`/`name`/`content` の 2 列グリッド。
  * `full`/`compact` の共通部分 —— 旧 `Note.tsx` が持っていた「著者・本文・
  * 時刻」の 3 要素を、v0 の `EventBase` と同じ配置に組み直したもの
@@ -88,6 +102,7 @@ const NoteBody: Component<{ event: NostrEvent; variant: EventVariant }> = (
             pubkey={props.event.pubkey}
             store={ctx.store}
             requests={ctx.profiles}
+            variant="author"
           />
         </p>
         <span
@@ -128,10 +143,7 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
   const quotes = () => quoteTargets(props.event);
 
   return (
-    <article
-      data-testid="note"
-      class="space-y-1 rounded-2 border border-alpha-300 p-2 text-body"
-    >
+    <article data-testid="note" class="space-y-1 p-2 text-body">
       {/*
         返信先は本文の上。`ref.pubkey` があれば `<Profile>` を即座に出す ——
         親イベント (返信元) の到着を待たない。NIP-10 の `e` タグは 5 番目の
@@ -145,7 +157,7 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
           <div class="space-y-1">
             <Show when={ref().pubkey}>
               {(pubkey) => (
-                <p data-testid="reply-to" class="text-alpha-600 text-xs">
+                <p data-testid="reply-to" class="c-secondary text-caption">
                   <Profile
                     pubkey={pubkey()}
                     store={ctx.store}
@@ -155,11 +167,13 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
                 </p>
               )}
             </Show>
-            <EventView
-              id={ref().id}
-              variant="compact"
-              relayHint={ref().relay}
-            />
+            <NestedEventCard>
+              <EventView
+                id={ref().id}
+                variant="compact"
+                relayHint={ref().relay}
+              />
+            </NestedEventCard>
           </div>
         )}
       </Show>
@@ -184,9 +198,11 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
       <For each={quotes()}>
         {(ref) =>
           ref.form === "id" ? (
-            <EventView id={ref.id} variant="compact" relayHint={ref.relay} />
+            <NestedEventCard>
+              <EventView id={ref.id} variant="compact" relayHint={ref.relay} />
+            </NestedEventCard>
           ) : (
-            <p data-testid="unsupported-ref" class="text-alpha-600 text-xs">
+            <p data-testid="unsupported-ref" class="c-secondary text-caption">
               未対応の参照です
             </p>
           )
@@ -213,10 +229,7 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
  * 責務ではなく置く側 (引用カード等) の責務。
  */
 export const NoteCompact: Component<{ event: NostrEvent }> = (props) => (
-  <article
-    data-testid="note"
-    class="space-y-1 rounded-2 border border-alpha-300 text-caption"
-  >
+  <article data-testid="note" class="space-y-1 text-caption">
     <div
       class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1"
       style={{

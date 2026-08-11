@@ -17,8 +17,8 @@ const truncate = (content: string, max: number): string =>
  * ことを保証する (spec 9 節)。
  */
 export const UnknownKindFull: Component<{ event: NostrEvent }> = (props) => (
-  <div data-testid="unknown-kind" class="space-y-1 text-sm">
-    <p class="text-alpha-600 text-xs">kind:{props.event.kind}</p>
+  <div data-testid="unknown-kind" class="space-y-1 p-2 text-body">
+    <p class="c-secondary text-caption">kind:{props.event.kind}</p>
     <p>未対応の種類です</p>
     <p
       data-testid="unknown-kind-content"
@@ -31,7 +31,7 @@ export const UnknownKindFull: Component<{ event: NostrEvent }> = (props) => (
 
 /** 未登録 kind の小型表示。kind 番号のみ (spec 6 節の表)。 */
 export const UnknownKindCompact: Component<{ event: NostrEvent }> = (props) => (
-  <p data-testid="unknown-kind" class="text-alpha-600 text-xs">
+  <p data-testid="unknown-kind" class="c-secondary text-caption">
     kind:{props.event.kind}
   </p>
 );

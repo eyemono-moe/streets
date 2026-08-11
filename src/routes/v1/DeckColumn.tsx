@@ -167,9 +167,9 @@ const DeckColumn: Component<{
     <section
       data-testid="deck-column"
       data-column-id={props.column.id}
-      class="h-full w-100 shrink-0 space-y-2 overflow-y-auto border-alpha-300 border-r p-3 last:border-r-0"
+      class="h-full w-100 shrink-0 overflow-y-auto border-r last:border-r-0"
     >
-      <header class="flex items-center gap-1">
+      <header class="flex items-center gap-1 p-2">
         <button
           type="button"
           data-testid="column-move-left"
@@ -251,32 +251,41 @@ const DeckColumn: Component<{
         改訂と同じ扱い)。
       */}
       <DiagnosticsPanel visible={props.developerMode}>
-        <p
-          class="text-alpha-600 text-xs"
-          data-testid="deck-column-first-render-ms"
-        >
-          firstRenderMs:{" "}
-          {props.firstRenderMs() === undefined
-            ? "-"
-            : props.firstRenderMs()?.toFixed(2)}
-        </p>
-        <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
-          phase: {section.status().phase}
-        </p>
-        <Show when={section.status().incomplete}>
-          {(incomplete) => (
-            <p
-              class="text-alpha-600 text-xs"
-              data-testid="deck-column-incomplete"
-            >
-              unreachableRelays: {incomplete().unreachableRelays} /
-              unroutableAuthors: {incomplete().unroutableAuthors} /
-              uncoveredAuthors: {incomplete().uncoveredAuthors}
-            </p>
-          )}
-        </Show>
+        <div class="space-y-1 px-2 pb-2">
+          <p
+            class="text-alpha-600 text-xs"
+            data-testid="deck-column-first-render-ms"
+          >
+            firstRenderMs:{" "}
+            {props.firstRenderMs() === undefined
+              ? "-"
+              : props.firstRenderMs()?.toFixed(2)}
+          </p>
+          <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
+            phase: {section.status().phase}
+          </p>
+          <Show when={section.status().incomplete}>
+            {(incomplete) => (
+              <p
+                class="text-alpha-600 text-xs"
+                data-testid="deck-column-incomplete"
+              >
+                unreachableRelays: {incomplete().unreachableRelays} /
+                unroutableAuthors: {incomplete().unroutableAuthors} /
+                uncoveredAuthors: {incomplete().uncoveredAuthors}
+              </p>
+            )}
+          </Show>
+        </div>
       </DiagnosticsPanel>
-      <ul data-testid="items" class="space-y-2">
+      {/*
+        1 件ずつをカードにせず `divide-y` で区切る (v0 の `InfiniteEvents`
+        と同じ)。イベント側が枠を持つと、引用・返信先として入れ子に置かれた
+        ときの枠 (`Note.tsx` の `NestedEventCard`) と見分けが付かなくなる。
+        区切り線がカラム幅いっぱいに伸びる必要があるので、左右の余白は
+        ここではなくイベント側 (`p-2`) が持つ。
+      */}
+      <ul data-testid="items" class="divide-y">
         <For each={items()}>
           {(event) => (
             <li data-testid="item">

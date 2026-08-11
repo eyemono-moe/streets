@@ -306,7 +306,9 @@ describe("NoteContent: mention トークン", () => {
       const el = element();
       const profile = el.querySelector('[data-testid="profile"]');
       expect(profile).not.toBeNull();
-      expect(profile?.textContent).toBe(`${mentioned.slice(0, 8)}…`);
+      expect(profile?.textContent).toBe(
+        `@${encodeBech32("npub", mentioned).slice(0, 12)}`,
+      );
       // 生の pubkey (64 桁 hex) が本文のどこにも裸のテキストとして
       // 出ていないこと。
       expect(el.textContent).not.toContain(mentioned);
