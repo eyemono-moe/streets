@@ -6,6 +6,7 @@ import {
   previewAuthorOnePubkey,
   previewAuthorTwoNoteText,
   previewAuthorTwoPubkey,
+  previewImageUrl,
   previewQuoteNoteText,
   previewQuoteTargetNoteText,
   previewRelayUrl,
@@ -88,6 +89,24 @@ const enableDeveloperMode = async (page: import("@playwright/test").Page) => {
  * フィクスチャも大量の kind:1 を発行しており、絞らないと無関係なノイズが
  * 混ざって「対象の本文が出ている」ことの主張が読みにくくなるため。
  */
+/**
+ * `previewImageUrl` を実ネットワークへ出さずに 1x1 の PNG で満たす。
+ * 実在しないホストのままだと `<img>` の `onError` が発火し、`NoteContent`
+ * が仕様どおりリンクへ落とす —— つまり「`full` で画像が出ない」が
+ * **実装の欠陥ではなくフィクスチャの都合**で起きてしまい、主張が
+ * 読み込み結果に左右される。
+ */
+const PNG_1X1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+const stubPreviewImage = async (page: import("@playwright/test").Page) => {
+  await page.route(previewImageUrl, (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 }),
+  );
+};
+
 const seedRelatedEventsDeck = async (page: import("@playwright/test").Page) => {
   await page.addInitScript(
     ({ pubkey, relay, authors }) => {
@@ -520,6 +539,7 @@ test.describe("v1 vertical slice", () => {
     test.setTimeout(60_000);
 
     await stubSigner(page);
+    await stubPreviewImage(page);
     await seedRelatedEventsDeck(page);
     await page.goto(`/v1?relays=${previewRelayUrl}`);
 
@@ -571,6 +591,30 @@ test.describe("v1 vertical slice", () => {
     // で問題ない (曖昧さが無い — previewQuoteNoteText はこのノート自身の
     // 本文としてしか登場しない)。
     await expect(related).toContainText(previewQuoteNoteText);
+
+    // 2b. 引用先ノートは画像 URL を含む。**同じ 1 件**が単体では `full`、
+    // 引用の中では `compact` として描かれるので、「`full` は展開し
+    // `compact` は展開しない」を 1 つのイベントの両側から主張できる。
+    // 捕まえる変異: `UrlToken` の `props.variant === "full"` を落とす
+    // (compact 側にも画像が出て、引用がカラムを画像で埋める) / 逆に
+    // 画像判定を落とす (full 側にも出なくなる)。
+    // 件数で主張する —— 引用先ノートの本文は「単体の full」と「引用の中の
+    // compact」の 2 箇所に出るので、`hasText` で片方だけを指す locator は
+    // どちらにも当たってしまう。この列で画像を含むイベントは引用先ノート
+    // 1 件だけなので、`content-image` がカラム全体で 1 つ、compact の内側
+    // では 0 つ、という 2 つの数がそのまま規則を言い表す。
+    await expect(related.getByTestId("content-image")).toHaveCount(1, {
+      timeout: 20_000,
+    });
+    await expect(
+      related.locator(
+        '[data-testid="event-view"][data-variant="compact"] [data-testid="content-image"]',
+      ),
+    ).toHaveCount(0);
+    // compact 側では URL がリンクのまま残る (トークンが消えるのではない)。
+    await expect(
+      quoteCompact.locator(`a[href="${previewImageUrl}"]`).first(),
+    ).toBeVisible();
 
     // 3. 返信が reply-to と、親の本文 (compact 埋め込み) を出す。
     // 捕まえる変異: NoteFull が replyTarget() の marker 判定 (reply/root)

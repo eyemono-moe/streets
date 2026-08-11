@@ -36,6 +36,13 @@ export const previewAuthorTwoNoteText = "streets preview author two note";
 // compact 表示の中に出ている」ことをこの定数と突き合わせて主張するため。
 export const previewRepostTargetNoteText = "streets preview repost target note";
 export const previewQuoteTargetNoteText = "streets preview quote target note";
+/**
+ * 引用先ノートに載せる画像 URL。同じ 1 件が「単体では `full`、引用の中では
+ * `compact`」の両方で描かれるので、`full` だけがインライン展開するという
+ * 規則を 1 つのシードで両側から主張できる。**ホストは実在しない** ——
+ * e2e 側で `page.route` が差し替える (実ネットワークへ出さないため)。
+ */
+export const previewImageUrl = "https://images.invalid/streets-preview.png";
 export const previewReplyParentNoteText = "streets preview reply parent note";
 export const previewQuoteNoteText = "streets preview quote note";
 export const previewReplyNoteText = "streets preview reply note";
@@ -219,7 +226,7 @@ export const seedPreviewFixture = async (): Promise<void> => {
       kind: 1,
       created_at: now + 15,
       tags: [],
-      content: previewQuoteTargetNoteText,
+      content: `${previewQuoteTargetNoteText} ${previewImageUrl}`,
     },
     authorTwoSecretKey,
   );
