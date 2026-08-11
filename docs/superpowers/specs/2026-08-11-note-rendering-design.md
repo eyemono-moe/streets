@@ -66,7 +66,7 @@ v0 の `src/shared/components/RichContents.tsx` が仕様。
 | `url`（画像でない） | リンク（`target="_blank" rel="noopener noreferrer"`） | 同じ |
 | `url`（画像） | **インライン表示**。`b-1 rounded`、`w-full h-auto`、`object-cover`、読み込み前は `bg-secondary`。押すと元 URL を別タブで開く | **URL のリンクのまま**（画像にしない） |
 | `emoji` | インライン画像。行の高さに合わせる | 同じ |
-| `hashtag` | リンクの見た目。**押しても何も起きない**（検索カラムが無い、#203/#204） | 同じ |
+| `hashtag` | **押せる見た目にしない。** 検索カラムが無い（#203/#204）ので押しても何も起きず、リンクに見せると「未実装」と「壊れている」を区別できなくなる（[ADR-0026](../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) と同じ判断） | 同じ |
 | `mention` | `@名前`。取得前は npub の先頭 12 文字 | 同じ |
 
 **`compact` で画像を展開しない。** 引用先・返信先・リポスト対象が原寸の画像を並べると、カラムが画像で埋まって元の投稿が見えなくなる。v0 も `showEmbeddings={!props.small}` で同じ判断をしている。
