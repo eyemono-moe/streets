@@ -136,14 +136,16 @@ describe("render-window", () => {
     expect(renderCount(windowState, list)).toBe(50);
   });
 
-  it("同じ入力なら件数は変わらない", () => {
-    // 捕まえる変異: renderCount を呼ぶたびに増やす (items() が再計算される
-    // たび窓が伸び、番兵と無関係に全件描いてしまう)
+  it("renderCount は渡された窓を書き換えない", () => {
+    // 捕まえる変異: renderCount の中で windowState.boundaryId を進める
+    // (items() が再計算されるたび窓が伸び、番兵と無関係に全件描いてしまう)。
+    // 同じ引数で 2 回呼んで比べるだけでは、値を返す前に書き換える実装を
+    // 捕まえられない —— 窓そのものが変わっていないことを見る。
     const list = ids(0, 600);
     const windowState = growRenderWindow(initialRenderWindow(), list);
-    expect(renderCount(windowState, list)).toBe(
-      renderCount(windowState, list),
-    );
+    const snapshot = { ...windowState };
+    renderCount(windowState, list);
+    expect(windowState).toEqual(snapshot);
   });
 });
 ```
