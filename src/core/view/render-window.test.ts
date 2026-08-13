@@ -93,4 +93,12 @@ describe("render-window", () => {
     renderCount(windowState, list);
     expect(windowState).toEqual(snapshot);
   });
+
+  it("境界確定後に件数が INITIAL_RENDER_COUNT を下回っても件数どまり", () => {
+    // 捕まえる変異: itemIds.length によるクランプを外す
+    // (実際の件数を超える数を返し、番兵が張り付く)
+    const list = ids(0, 20);
+    const grown = growRenderWindow(initialRenderWindow(), list);
+    expect(renderCount(grown, list)).toBe(20);
+  });
 });
