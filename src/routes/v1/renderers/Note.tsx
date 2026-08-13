@@ -8,7 +8,10 @@ import {
   formatEventTimeFull,
 } from "../../../core/view/format-time";
 import { useRender } from "../../../core/view/render-context";
-import type { EventVariant } from "../../../core/view/renderer-registry";
+import type {
+  EventBodyProps,
+  EventVariant,
+} from "../../../core/view/renderer-registry";
 import Avatar from "../Avatar";
 import EventView from "../EventView";
 import NoteContent from "../NoteContent";
@@ -75,52 +78,101 @@ const NestedEventCard: ParentComponent = (props) => (
 );
 
 /**
- * 骨格そのもの (spec 3 節): `avatar`/`name`/`content` の 2 列グリッド。
- * `full`/`compact` の共通部分 —— 旧 `Note.tsx` が持っていた「著者・本文・
- * 時刻」の 3 要素を、v0 の `EventBase` と同じ配置に組み直したもの
- * (e2e が拾う `note-author`/`note-content`/`note-created-at` は変えない)。
+ * 骨格そのもの: アイコン列と本文列の 2 列。**grid ではなく flex** ——
+ * 縦線 (`threadLine`) はアイコンの下端からブロックの下端まで伸びる必要が
+ * あり、それは「アイコン列が親の高さいっぱいに伸びて、余りを線が食う」
+ * (`self-stretch` + `flex-1`) でしか表せない。
  *
- * `content` グリッド領域は「本文が空なら器ごと出さない」(design 6 節) ——
- * 空文字列だけでなく空白だけの本文も「無い」として扱う。visually empty な
- * 本文の下に折り畳みの器や余白だけが残るのを避けるため。
+ * 本文が空なら本文の器ごと出さない (design 6 節) —— 空文字列だけでなく
+ * 空白だけの本文も「無い」として扱う。visually empty な本文の下に
+ * 折り畳みの器や余白だけが残るのを避けるため。
+ *
+ * `children` は本文の下 (引用カード) に入る。`article` 直下ではなく
+ * **本文列の中**に置く —— アイコンの右側に揃えないと、引用がアイコンの
+ * 下へ回り込んで誰の投稿への引用なのか読めなくなる。
  */
-const NoteBody: Component<{ event: NostrEvent; variant: EventVariant }> = (
-  props,
-) => {
+const NoteBody: ParentComponent<{
+  event: NostrEvent;
+  variant: EventVariant;
+  threadLine?: boolean;
+  /** 返信先の著者。本文の直前に `@name` を出す (design 5 節)。 */
+  replyTo?: string;
+}> = (props) => {
   const ctx = useRender();
   const hasContent = () => props.event.content.trim().length > 0;
   const created = () => new Date(props.event.created_at * 1000);
+  const isFull = () => props.variant === "full";
 
   return (
-    <>
-      <div class="grid-area-[avatar]">
+    <div
+      class="flex items-start"
+      classList={{ "gap-2": isFull(), "gap-1.5": !isFull() }}
+    >
+      <div class="flex shrink-0 flex-col items-center self-stretch">
         <Avatar pubkey={props.event.pubkey} size={props.variant} />
-      </div>
-      <div class="grid-area-[name] flex items-baseline gap-1 overflow-hidden">
-        <p data-testid="note-author" class="w-fit max-w-full truncate">
-          <Profile
-            pubkey={props.event.pubkey}
-            store={ctx.store}
-            requests={ctx.profiles}
-            variant="author"
+        <Show when={props.threadLine}>
+          {/*
+            スレッドの縦線。`min-h-2` で最低限の長さを確保する ——
+            本文がアイコンより短い返信 (「了解」だけ、など) では余りが
+            負になり、線がまったく描かれずに親子の繋がりが消える。
+          */}
+          <div
+            data-testid="thread-line"
+            class="min-h-2 w-0.5 flex-1 bg-tertiary"
           />
-        </p>
-        <span
-          data-testid="note-created-at"
-          class="c-secondary text-nowrap text-caption"
-          title={formatEventTimeFull(created())}
-        >
-          {formatEventTime(created(), new Date())}
-        </span>
-      </div>
-      <div class="grid-area-[content] flex flex-col gap-1">
-        <Show when={hasContent()}>
-          <CollapsibleBody>
-            <NoteContent event={props.event} variant={props.variant} />
-          </CollapsibleBody>
         </Show>
       </div>
-    </>
+      <div
+        class="flex min-w-0 flex-1 flex-col"
+        classList={{ "gap-1.5": isFull(), "gap-1": !isFull() }}
+      >
+        <div
+          class="flex items-end gap-1 overflow-hidden"
+          classList={{ "text-caption": isFull(), "text-xs": !isFull() }}
+        >
+          <p data-testid="note-author" class="min-w-0 truncate">
+            <Profile
+              pubkey={props.event.pubkey}
+              store={ctx.store}
+              requests={ctx.profiles}
+              variant="author"
+            />
+          </p>
+          <span
+            data-testid="note-created-at"
+            class="c-secondary shrink-0 text-nowrap"
+            title={formatEventTimeFull(created())}
+          >
+            {formatEventTime(created(), new Date())}
+          </span>
+        </div>
+        <div class="flex flex-col gap-1">
+          {/*
+            返信先の宛先。色は v0 の `EmbedUser` と同じアクセント色だが、
+            `text-link` (hover で下線が出る) は使わない —— 押してもまだ
+            何も起きない (ユーザーカラムは #205)。押せる合図を先に出すと
+            「未実装」と「壊れている」が区別できなくなる (ADR-0026)。
+          */}
+          <Show when={props.replyTo}>
+            {(pubkey) => (
+              <p data-testid="reply-to" class="c-accent-5 font-700">
+                <Profile
+                  pubkey={pubkey()}
+                  store={ctx.store}
+                  requests={ctx.profiles}
+                />
+              </p>
+            )}
+          </Show>
+          <Show when={hasContent()}>
+            <CollapsibleBody>
+              <NoteContent event={props.event} variant={props.variant} />
+            </CollapsibleBody>
+          </Show>
+        </div>
+        {props.children}
+      </div>
+    </div>
   );
 };
 
@@ -132,82 +184,65 @@ const NoteBody: Component<{ event: NostrEvent; variant: EventVariant }> = (
  * `<EventView variant="compact">` へ渡した先だけ (`EventView` が store に
  * 無ければ `events.request` を呼ぶ)。
  *
- * 返信先・引用先は `avatar`/`name`/`content` の 2 列グリッドの**外**に置く
- * (grid の上下に並ぶ独立したブロック) —— グリッドは「このイベント 1 件」の
- * 骨格 (spec 3 節) であり、返信先・引用先はそれぞれが自分自身の骨格を持つ
- * 別イベントの `compact` 描画だから。
+ * 返信先は骨格の**外** (上に積む独立したブロック)、引用先は骨格の**中**
+ * (本文列の下)。返信先は自分自身の骨格を持つ別イベントの `compact` 描画で
+ * あり、スレッドの縦線で本体と繋がる。引用は本文に付属する参照なので
+ * 本文の左端に揃える。
  */
-export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
-  const ctx = useRender();
+export const NoteFull: Component<EventBodyProps> = (props) => {
   const reply = () => replyTarget(props.event);
   const quotes = () => quoteTargets(props.event);
 
   return (
-    <article data-testid="note" class="space-y-1 p-2 text-body">
+    <article data-testid="note" class="pt-1 pr-2 pb-1 pl-1 text-body">
       {/*
-        返信先は本文の上。`ref.pubkey` があれば `<Profile>` を即座に出す ——
-        親イベント (返信元) の到着を待たない。NIP-10 の `e` タグは 5 番目の
-        要素に参照先の pubkey を運ぶことがあり (spec 5 節)、それが「取得前に
-        著者名を出せる」の実装そのもの。`<EventView variant="compact">` は
-        pubkey の有無に関わらず常に続けて描く (親イベント本体はまだ届いて
-        いないかもしれない)。
+        返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
+        「別の投稿の引用」を意味し、返信先は「同じ会話の続き」なので、
+        代わりにアイコンの下から伸びる縦線 (`threadLine`) で繋ぐ。
+        親イベント本体がまだ届いていなくても `EventView` が「読み込み中」を
+        出すので、ここは到着を待たない。誰への返信かは `replyTo` として
+        本体側が `e` タグの 5 番目の要素 (NIP-10、spec 5 節) から即座に出す。
       */}
       <Show when={reply()}>
         {(ref) => (
-          <div class="space-y-1">
-            <Show when={ref().pubkey}>
-              {(pubkey) => (
-                <p data-testid="reply-to" class="c-secondary text-caption">
-                  <Profile
-                    pubkey={pubkey()}
-                    store={ctx.store}
-                    requests={ctx.profiles}
-                  />
-                  への返信
-                </p>
-              )}
-            </Show>
-            <NestedEventCard>
-              <EventView
-                id={ref().id}
-                variant="compact"
-                relayHint={ref().relay}
-              />
-            </NestedEventCard>
-          </div>
+          <EventView
+            id={ref().id}
+            variant="compact"
+            relayHint={ref().relay}
+            threadLine
+          />
         )}
       </Show>
 
-      <div
-        class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1"
-        style={{
-          "grid-template-areas": `
-            "avatar name"
-            "avatar content"
-            `,
-        }}
+      <NoteBody
+        event={props.event}
+        variant="full"
+        threadLine={props.threadLine}
+        replyTo={reply()?.pubkey}
       >
-        <NoteBody event={props.event} variant="full" />
-      </div>
-
-      {/*
-        引用先は本文の下。`q` タグが event-address (`form: "address"`) を
-        指す場合は置換可能イベントの取得が範囲外 (spec 9 節) なので、
-        `compact` の代わりに「未対応の参照です」を出す。
-      */}
-      <For each={quotes()}>
-        {(ref) =>
-          ref.form === "id" ? (
-            <NestedEventCard>
-              <EventView id={ref.id} variant="compact" relayHint={ref.relay} />
-            </NestedEventCard>
-          ) : (
-            <p data-testid="unsupported-ref" class="c-secondary text-caption">
-              未対応の参照です
-            </p>
-          )
-        }
-      </For>
+        {/*
+          引用先。`q` タグが event-address (`form: "address"`) を指す場合は
+          置換可能イベントの取得が範囲外 (spec 9 節) なので、`compact` の
+          代わりに「未対応の参照です」を出す。
+        */}
+        <For each={quotes()}>
+          {(ref) =>
+            ref.form === "id" ? (
+              <NestedEventCard>
+                <EventView
+                  id={ref.id}
+                  variant="compact"
+                  relayHint={ref.relay}
+                />
+              </NestedEventCard>
+            ) : (
+              <p data-testid="unsupported-ref" class="c-secondary text-caption">
+                未対応の参照です
+              </p>
+            )
+          }
+        </For>
+      </NoteBody>
     </article>
   );
 };
@@ -228,18 +263,12 @@ export const NoteFull: Component<{ event: NostrEvent }> = (props) => {
  * **次の変更者へ**: ここに padding を足したくなったら、それは compact の
  * 責務ではなく置く側 (引用カード等) の責務。
  */
-export const NoteCompact: Component<{ event: NostrEvent }> = (props) => (
-  <article data-testid="note" class="space-y-1 text-caption">
-    <div
-      class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-1"
-      style={{
-        "grid-template-areas": `
-          "avatar name"
-          "avatar content"
-          `,
-      }}
-    >
-      <NoteBody event={props.event} variant="compact" />
-    </div>
+export const NoteCompact: Component<EventBodyProps> = (props) => (
+  <article data-testid="note" class="text-caption">
+    <NoteBody
+      event={props.event}
+      variant="compact"
+      threadLine={props.threadLine}
+    />
   </article>
 );

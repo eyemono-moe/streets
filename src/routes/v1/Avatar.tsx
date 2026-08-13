@@ -9,7 +9,7 @@ export type AvatarProps = {
 
 /**
  * 骨格の左列 (spec 3 節)。**枠は常に描く** —— プロフィールが未取得でも
- * `w-10`/`w-6` の寸法は最初から確定している。カラムは数十件のノートを
+ * `w-10`/`w-8` の寸法は最初から確定している。カラムは数十件のノートを
  * まとめて描いてからプロフィールをバッチで取得する
  * (`ProfileRequests` の 200ms 窓) ので、枠が画像の到着を待って現れると、
  * プロフィールが 1 件ずつ届くたびに以降の行が横にずれる。
@@ -27,7 +27,7 @@ const Avatar: Component<AvatarProps> = (props) => {
       class="sticky top-0 aspect-square shrink-0 overflow-hidden rounded bg-secondary"
       classList={{
         "w-10": props.size === "full",
-        "w-6": props.size === "compact",
+        "w-8": props.size === "compact",
       }}
     >
       <Show when={profile()?.picture}>

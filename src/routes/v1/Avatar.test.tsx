@@ -105,7 +105,7 @@ const mount = (
 };
 
 describe("Avatar", () => {
-  it("full は w-10、compact は w-6 の枠になる", () => {
+  it("full は w-10、compact は w-8 の枠になる", () => {
     // 捕まえる変異: full/compact で同じ幅クラスを使う (size を無視する)
     const store = new EventStore();
     const { profiles } = createFakeProfileRequests();
@@ -119,14 +119,14 @@ describe("Avatar", () => {
     const fullRun = mount({ pubkey: pubkeyFor(1), size: "full" }, ctx);
     try {
       expect(fullRun.element().className).toContain("w-10");
-      expect(fullRun.element().className).not.toContain("w-6");
+      expect(fullRun.element().className).not.toContain("w-8");
     } finally {
       fullRun.dispose();
     }
 
     const compactRun = mount({ pubkey: pubkeyFor(1), size: "compact" }, ctx);
     try {
-      expect(compactRun.element().className).toContain("w-6");
+      expect(compactRun.element().className).toContain("w-8");
       expect(compactRun.element().className).not.toContain("w-10");
     } finally {
       compactRun.dispose();

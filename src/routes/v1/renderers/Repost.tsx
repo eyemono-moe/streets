@@ -73,7 +73,7 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
   const target = resolveRepostTarget(props.event, ctx.store);
 
   return (
-    <div data-testid="repost" class="space-y-1 p-2 text-body">
+    <div data-testid="repost" class="space-y-1 pt-1 pr-2 pb-1 pl-1 text-body">
       <p data-testid="repost-by" class="c-secondary text-caption">
         <Profile
           pubkey={props.event.pubkey}

@@ -9,10 +9,22 @@ export type EventVariant = "full" | "compact";
  * 引用・返信・リポストの入れ子が構造的に深さ 1 で止まる理由そのもの
  * (Task 4 のレンダラ実装がこの規則を守る)。
  */
+export type EventBodyProps = {
+  event: NostrEvent;
+  /**
+   * このイベントの**下に**会話が続く (返信の親として置かれている)。
+   * アイコンの下へ縦線を伸ばし、親と子を 1 本のスレッドとして繋ぐ。
+   *
+   * レンダラごとの任意対応でよい —— 線を引く場所を持たない kind
+   * (`UnknownKind` など) は受け取って無視する。
+   */
+  threadLine?: boolean;
+};
+
 export type EventRenderer = {
   kind: number;
-  full: Component<{ event: NostrEvent }>;
-  compact: Component<{ event: NostrEvent }>;
+  full: Component<EventBodyProps>;
+  compact: Component<EventBodyProps>;
 };
 
 /**

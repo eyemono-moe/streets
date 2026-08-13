@@ -19,6 +19,8 @@ export type EventViewProps = {
   variant: EventVariant;
   /** タグが運ぶリレーヒント。Task 2 のとおり今は使われない。 */
   relayHint?: RelayUrl;
+  /** レンダラへそのまま渡す (`EventBodyProps.threadLine`)。 */
+  threadLine?: boolean;
 };
 
 /**
@@ -91,7 +93,7 @@ const EventView: Component<EventViewProps> = (props) => {
             : props.variant === "full"
               ? UnknownKindFull
               : UnknownKindCompact;
-          return <Body event={found()} />;
+          return <Body event={found()} threadLine={props.threadLine} />;
         }}
       </Show>
     </div>

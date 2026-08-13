@@ -1,6 +1,7 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
+import type { Component } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../../core/nostr/event";
 import { encodeBech32 } from "../../../core/nostr/nip19";
@@ -10,6 +11,7 @@ import type { ProfileRequests } from "../../../core/read/profile-requests";
 import { formatEventTimeFull } from "../../../core/view/format-time";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
+import type { EventBodyProps } from "../../../core/view/renderer-registry";
 import { NoteCompact, NoteFull } from "./Note";
 
 // EventView.test.tsx / profile-requests.test.ts と同じ手法: 種から 32 byte
@@ -244,14 +246,63 @@ describe("NoteFull", () => {
         `@${encodeBech32("npub", replierPubkey).slice(0, 12)}`,
       );
       expect(replyTo?.textContent).not.toContain(replierPubkey);
-      expect(replyTo?.textContent).toContain("への返信");
       // 親そのものは compact の EventView として続けて描かれる。
-      expect(
-        el.querySelector('[data-testid="event-view"][data-variant="compact"]'),
-      ).not.toBeNull();
+      const parent = el.querySelector(
+        '[data-testid="event-view"][data-variant="compact"]',
+      );
+      expect(parent).not.toBeNull();
+      // 捕まえる変異: 返信先を引用と同じ枠 (`NestedEventCard`) に入れる。
+      // 枠は「別の投稿の引用」を意味するので、返信先に付けると引用と
+      // 見分けが付かなくなる (Figma の「リプライ表示例」は枠を持たない)。
+      expect(parent?.parentElement?.className ?? "").not.toMatch(
+        /(?:^|\s)b-\d/,
+      );
       // 要求はしている (親の compact 描画自体は要求してよい —— これは
       // full の話であり、compact 側の禁止規則とは無関係)。
       expect(events.requested).toContain(parentId);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("返信先には threadLine が届き、引用先には届かない", () => {
+    // 捕まえる変異: 返信先の EventView から threadLine を落とす (親が枠も
+    // 線も持たない、ただ上に浮いたイベントになり本体との関係が読めない) /
+    // 引用の EventView にも threadLine を渡す (別の投稿の引用が「同じ
+    // 会話の続き」に見える)
+    //
+    // 親と引用を store に入れ、**受け取った props を記録するだけの代役**を
+    // kind:1 のレンダラとして登録する。store に無いと EventView は
+    // 「読み込み中」で止まり、レンダラまで届かないので観測できない。
+    // 代役に本物の `NoteCompact` を使わないのは、Solid の DEV 版
+    // `createComponent` が渡されたコンポーネント関数自体に印を付けるため
+    // —— 本物を通すと、後続のテストが同じ関数を直接呼んだときに戻り値が
+    // 要素ではなくメモ関数になる (実測済み)。
+    const seen: { id: string; threadLine?: boolean }[] = [];
+    const Recorder: Component<EventBodyProps> = (props) => {
+      seen.push({ id: props.event.id, threadLine: props.threadLine });
+      return null;
+    };
+
+    const events = createRecordingEventRequests();
+    const parent = signed(7);
+    const quoted = signed(8);
+    const store = new EventStore();
+    store.put(parent, "wss://relay/");
+    store.put(quoted, "wss://relay/");
+    const event = signed(9, {
+      tags: [
+        ["e", parent.id, "", "reply"],
+        ["q", quoted.id, ""],
+      ],
+    });
+    const { dispose } = mount(() => NoteFull({ event }), {
+      ...contextWith(events, store),
+      renderers: [{ kind: 1, full: Recorder, compact: Recorder }],
+    });
+    try {
+      expect(seen.find((s) => s.id === parent.id)?.threadLine).toBe(true);
+      expect(seen.find((s) => s.id === quoted.id)?.threadLine).toBeFalsy();
     } finally {
       dispose();
     }
@@ -403,7 +454,7 @@ describe("NoteCompact", () => {
 });
 
 describe("アバターの寸法 (spec 3 節)", () => {
-  it("full は w-10、compact は w-6 になる", () => {
+  it("full は w-10、compact は w-8 になる", () => {
     // 捕まえる変異: full/compact で同じ寸法クラスを使う (variant を
     // `Avatar` の size prop へ渡し忘れる/固定値にする)
     const events = createRecordingEventRequests();
@@ -413,7 +464,7 @@ describe("アバターの寸法 (spec 3 節)", () => {
     try {
       const avatar = fullRun.element().querySelector('[data-testid="avatar"]');
       expect(avatar?.className).toContain("w-10");
-      expect(avatar?.className).not.toContain("w-6");
+      expect(avatar?.className).not.toContain("w-8");
     } finally {
       fullRun.dispose();
     }
@@ -423,7 +474,7 @@ describe("アバターの寸法 (spec 3 節)", () => {
       const avatar = compactRun
         .element()
         .querySelector('[data-testid="avatar"]');
-      expect(avatar?.className).toContain("w-6");
+      expect(avatar?.className).toContain("w-8");
       expect(avatar?.className).not.toContain("w-10");
     } finally {
       compactRun.dispose();
@@ -432,8 +483,8 @@ describe("アバターの寸法 (spec 3 節)", () => {
 });
 
 describe("compact は自分で padding を持たない (spec 3 節・brief の要注意点 1)", () => {
-  it("full は p-2 を持ち、compact は持たない", () => {
-    // 捕まえる変異: compact のクラスにも p-2 (または任意の padding) を足す。
+  it("full は padding を持ち、compact は持たない", () => {
+    // 捕まえる変異: compact のクラスにも padding を足す。
     // compact は常に引用カード・リポスト・返信先の中に置かれる入れ子であり、
     // 置く側が既に余白を取るため、ここで足すと二重になってガタつく
     // (このモジュールのコメント「次の変更者へ」参照)。
@@ -442,7 +493,7 @@ describe("compact は自分で padding を持たない (spec 3 節・brief の�
 
     const fullRun = mount(() => NoteFull({ event }), contextWith(events));
     try {
-      expect(fullRun.element().className).toMatch(/(?:^|\s)p-2(?:\s|$)/);
+      expect(fullRun.element().className).toMatch(/(?:^|\s)p[ltrbxy]?-\d/);
     } finally {
       fullRun.dispose();
     }

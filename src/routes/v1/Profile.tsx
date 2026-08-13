@@ -74,7 +74,11 @@ const Profile: Component<ProfileProps> = (props) => {
           両方出すと同じ文字列が 2 度並ぶ。
         */}
         <Show when={displayName() && name()}>
-          <span class="c-secondary break-all text-caption">@{name()}</span>
+          {/*
+            文字サイズは名前と同じ (親から継承)。変えるのは太さと色だけ ——
+            並べたときに 2 段に見えず 1 行として読める。
+          */}
+          <span class="c-secondary break-all font-400">@{name()}</span>
         </Show>
       </span>
     </Show>
