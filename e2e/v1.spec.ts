@@ -769,7 +769,7 @@ test.describe("v1 vertical slice", () => {
   test("a column renders only a window of its items and grows on scroll", async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(120_000);
 
     await page.addInitScript((viewerPubkey: string) => {
       const win = window as unknown as Record<string, unknown>;
@@ -833,5 +833,22 @@ test.describe("v1 vertical slice", () => {
     await expect
       .poll(() => column.getByTestId("item").count(), { timeout: 15_000 })
       .toBeGreaterThan(initial);
+
+    // 件数が止まるまでスクロールを繰り返し、最終的に上限 200
+    // (MAX_ITEMS_PER_SECTION) ちょうどへ達することを主張する。これが無いと
+    // 「initial < 120」は、実は 600 件のうち 60 件程度しか届いていない
+    // 環境で窓を当てない実装でも 60 < 120 で通ってしまう —— 「200 件
+    // 届いていた」と「窓が最後まで伸びる」の両方をここで固定する。
+    await expect
+      .poll(
+        async () => {
+          await column.evaluate((el) => {
+            el.scrollTop = el.scrollHeight;
+          });
+          return column.getByTestId("item").count();
+        },
+        { timeout: 60_000 },
+      )
+      .toBe(200);
   });
 });
