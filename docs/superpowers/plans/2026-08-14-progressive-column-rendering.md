@@ -422,9 +422,11 @@ Expected: FAIL（`./ColumnItems` が存在しない）
 
 - [ ] **Step 4: `ColumnItems.tsx` を実装**
 
-`content-visibility` のコメントは `DeckColumn.tsx` にある現行のものを**そのまま
-移す**（測定値を含む長いコメント）。ただし「初回の詰まりの本当の解は…仮想
-スクロールであり、それは別の作業」という一文は本スライスで解決するので落とす。
+`content-visibility` のコメントは**書き直す**。`DeckColumn.tsx` にある現行のものは
+「最大 500 件を一度に描く」「1500 件が一度に現れる初回は重くなる」と、**まさに
+このタスクが変える挙動**を説明しているので、そのまま移すと即座に嘘になる。
+下のコード中のコメントを使うこと。測定値の更新は Task 4（`content-visibility` を
+残すか外すかを実測で決める）の仕事。
 
 ```tsx
 import { createIntersectionObserver } from "@solid-primitives/intersection-observer";
