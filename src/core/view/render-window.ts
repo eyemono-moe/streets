@@ -10,41 +10,60 @@ export const RENDER_COUNT_STEP = 40;
 
 export type RenderWindow = {
   /**
-   * 描画済みの**末尾アイテムの id**。件数ではなく id で持つのが要点 ——
-   * 先頭へ新着が挿入されても境界アイテムの同一性は変わらないので、
-   * 「挿入されたぶん件数を足し直す」補正が要らない。件数で持つと、補正が
-   * 効くまでの一瞬だけ末尾のアイテムが `<For>` から外れて再マウントされ、
-   * 展開していた長文ノートが畳まれる。
+   * 錨を打った時点の**先頭アイテムの id**。まだ打っていなければ `undefined`。
+   *
+   * 末尾ではなく先頭に錨を打つのが要点。`SortedEvents`（上限超過時に
+   * `pop()` で末尾＝最古を追い出す）と組み合わせると、末尾に錨を打つ設計は
+   * 件数が上限へ収束した瞬間に「錨アイテム＝次に追い出されるアイテム」に
+   * なり、次の 1 件で錨ごと消えて `indexOf` が -1 → 件数が
+   * `INITIAL_RENDER_COUNT` へ崩壊する（描画済み数百件が一斉にアンマウント
+   * され、ブラウザが `scrollTop` をクランプして読んでいた位置が飛ぶ）。
+   * 先頭に錨を打てば、末尾からの追い出しは錨の添字に一切影響しない
+   * （下記 `renderCount` の `prependedSince` 参照）ので、この崩壊は構造的に
+   * 起きない。
    */
-  boundaryId: string | undefined;
+  headId: string | undefined;
+  /** 錨を打った時点で描いてよいと決めた件数。 */
+  count: number;
 };
 
 export const initialRenderWindow = (): RenderWindow => ({
-  boundaryId: undefined,
+  headId: undefined,
+  count: INITIAL_RENDER_COUNT,
 });
 
 export const renderCount = (
   windowState: RenderWindow,
   itemIds: readonly string[],
 ): number => {
-  const initial = Math.min(INITIAL_RENDER_COUNT, itemIds.length);
-  if (windowState.boundaryId === undefined) return initial;
+  if (itemIds.length === 0) return 0;
+  if (windowState.headId === undefined)
+    return Math.min(windowState.count, itemIds.length);
 
-  const index = itemIds.indexOf(windowState.boundaryId);
-  // 見つからない = 別のイベント集合に入れ替わった、または上限で末尾から
-  // 押し出された。どちらも古い境界を引き継ぐ意味が無いので初期値へ戻す。
-  if (index < 0) return initial;
+  const prependedSince = itemIds.indexOf(windowState.headId);
+  // 錨が見つからない = 錨より新しいイベントが上限件数ぶん流れて押し出された
+  // (これが起きた時点で錨が指していたアイテムはもうセクションに無い)、
+  // または別のイベント集合に入れ替わった。どちらも「いま見ていたものは
+  // もう無い」ので初期値へ戻してよい。
+  if (prependedSince < 0) return Math.min(INITIAL_RENDER_COUNT, itemIds.length);
 
-  return Math.min(Math.max(index + 1, INITIAL_RENDER_COUNT), itemIds.length);
+  // 錨を打った後に先頭へ入った件数だけ窓も伸ばす —— これで、それまで
+  // 描いていたアイテムが窓から押し出されない。末尾からの追い出しは
+  // `prependedSince` を変えないので、件数は `itemIds.length` で頭打ちに
+  // なるだけで落ちない。
+  return Math.min(windowState.count + prependedSince, itemIds.length);
 };
 
 export const growRenderWindow = (
   windowState: RenderWindow,
   itemIds: readonly string[],
 ): RenderWindow => {
-  const next = Math.min(
-    renderCount(windowState, itemIds) + RENDER_COUNT_STEP,
-    itemIds.length,
-  );
-  return { boundaryId: next === 0 ? undefined : itemIds[next - 1] };
+  if (itemIds.length === 0) return initialRenderWindow();
+  return {
+    headId: itemIds[0],
+    count: Math.min(
+      renderCount(windowState, itemIds) + RENDER_COUNT_STEP,
+      itemIds.length,
+    ),
+  };
 };
