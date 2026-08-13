@@ -1,5 +1,5 @@
 import { createIntersectionObserver } from "@solid-primitives/intersection-observer";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
 import type { Component } from "solid-js";
 import type { NostrEvent } from "../../core/nostr/event";
 import {
@@ -97,7 +97,18 @@ const ColumnItems: Component<{ items: () => readonly NostrEvent[] }> = (
         バックが走り続ける。
       */}
       <Show when={hasMore()}>
-        <div data-testid="items-sentinel" ref={setSentinel} class="h-1" />
+        {(_hasMore) => {
+          // `<Show>` が番兵を外しても `sentinel()` シグナルはデタッチされた
+          // 要素を握ったままになる (交差は起きないので無害だが、
+          // `createIntersectionObserver` が実体の無い要素を監視し続ける)。
+          // 子を関数で渡すとこのブロックの再実行のたびに新しい scope が
+          // 作られ、`when` が偽へ戻るタイミングでその scope が破棄される
+          // ので、`onCleanup` がここで効く。
+          onCleanup(() => setSentinel(undefined));
+          return (
+            <div data-testid="items-sentinel" ref={setSentinel} class="h-1" />
+          );
+        }}
       </Show>
     </div>
   );
