@@ -48,3 +48,44 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver =
     ResizeObserverStub as unknown as typeof ResizeObserver;
 }
+
+/**
+ * jsdom は `IntersectionObserver` を実装しない。`ColumnItems` の番兵
+ * (`@solid-primitives/intersection-observer`) が `new IntersectionObserver(...)`
+ * を呼ぶため、これが無いとカラムを描くテストが落ちる。
+ *
+ * **`observe()` で「交差していない」を 1 回配信する。** 実物は監視開始時に
+ * 必ず初回の観測を配信する。jsdom にはレイアウトが無いので実際の交差は
+ * 判定できず、ここでは常に非交差とする —— 交差を配信すると窓が伸び、
+ * 「初期は INITIAL_RENDER_COUNT 件しか描かない」を主張できなくなる。
+ */
+class IntersectionObserverStub {
+  readonly #callback: IntersectionObserverCallback;
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.#callback = callback;
+  }
+
+  observe(target: Element): void {
+    this.#callback(
+      [
+        {
+          target,
+          isIntersecting: false,
+        } as unknown as IntersectionObserverEntry,
+      ],
+      this as unknown as IntersectionObserver,
+    );
+  }
+
+  unobserve(): void {}
+  disconnect(): void {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
+}
+
+if (typeof globalThis.IntersectionObserver === "undefined") {
+  globalThis.IntersectionObserver =
+    IntersectionObserverStub as unknown as typeof IntersectionObserver;
+}
