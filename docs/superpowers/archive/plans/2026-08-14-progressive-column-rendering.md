@@ -8,7 +8,7 @@
 
 **Tech Stack:** SolidJS / UnoCSS / Vitest / Playwright / `@solid-primitives/intersection-observer`（既存の依存）。
 
-**仕様:** [docs/superpowers/specs/2026-08-14-progressive-column-rendering-design.md](../specs/2026-08-14-progressive-column-rendering-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md](../specs/2026-08-14-progressive-column-rendering-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 
@@ -49,7 +49,7 @@
 **窓は件数ではなく「描画済み末尾アイテムの id」で持つ**（仕様 4.1）。件数はそこから
 導出する純粋な関数であり、状態が動くのは番兵が発火したときだけ。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -150,12 +150,12 @@ describe("render-window", () => {
 });
 ```
 
-- [ ] **Step 2: 走らせて落ちることを確認**
+- [x] **Step 2: 走らせて落ちることを確認**
 
 Run: `pnpm vitest run src/core/view/render-window.test.ts`
 Expected: FAIL（`render-window` が存在しない）
 
-- [ ] **Step 3: 実装**
+- [x] **Step 3: 実装**
 
 ```ts
 /**
@@ -210,7 +210,7 @@ export const growRenderWindow = (
 };
 ```
 
-- [ ] **Step 4: 走らせて通ることを確認 → 変異検証 → コミット**
+- [x] **Step 4: 走らせて通ることを確認 → 変異検証 → コミット**
 
 変異は 8 件（各テストのコメントが名指ししたもの）。**入れる前に `render-window.ts`
 をコピーして保存し、検証後はコピーから戻すこと。**
@@ -236,7 +236,7 @@ git commit -m "feat(v1): decide how many column items to render"
   `INITIAL_RENDER_COUNT`（Task 1）、`EventView`（`src/routes/v1/EventView.tsx`）
 - Produces: `ColumnItems: Component<{ items: () => readonly NostrEvent[] }>`（default export）
 
-- [ ] **Step 1: `IntersectionObserver` のスタブを足す**
+- [x] **Step 1: `IntersectionObserver` のスタブを足す**
 
 `vitest.setup.ts` の末尾へ足す。**`observe()` で 1 回だけ「交差していない」を配信する**
 —— 実物は監視開始時に必ず初回の観測を配信する。交差しているほうを配信すると、
@@ -280,7 +280,7 @@ if (typeof globalThis.IntersectionObserver === "undefined") {
 }
 ```
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [x] **Step 2: 失敗するテストを書く**
 
 `src/routes/v1/EventView.test.tsx` の `mount` ヘルパと `RenderProvider` の使い方を
 そのまま真似る（`createRoot` の中でコンポーネントを関数として直接呼ぶ）。
@@ -415,12 +415,12 @@ describe("ColumnItems", () => {
 });
 ```
 
-- [ ] **Step 3: 走らせて落ちることを確認**
+- [x] **Step 3: 走らせて落ちることを確認**
 
 Run: `pnpm vitest run src/routes/v1/ColumnItems.test.tsx`
 Expected: FAIL（`./ColumnItems` が存在しない）
 
-- [ ] **Step 4: `ColumnItems.tsx` を実装**
+- [x] **Step 4: `ColumnItems.tsx` を実装**
 
 `content-visibility` のコメントは**書き直す**。`DeckColumn.tsx` にある現行のものは
 「最大 500 件を一度に描く」「1500 件が一度に現れる初回は重くなる」と、**まさに
@@ -520,7 +520,7 @@ const ColumnItems: Component<{ items: () => readonly NostrEvent[] }> = (
 export default ColumnItems;
 ```
 
-- [ ] **Step 5: `DeckColumn.tsx` を差し替える**
+- [x] **Step 5: `DeckColumn.tsx` を差し替える**
 
 現行の `<ul data-testid="items" class="divide-y">` から `</ul>` まで（直前の
 `divide-y` についての長いコメントを含む）を、次の 1 行に置き換える:
@@ -534,7 +534,7 @@ export default ColumnItems;
 （「1 件ずつをカードにせず `divide-y` で区切る…」）は `ColumnItems.tsx` の
 `<ul>` の直前へ移す —— 区切り方を決めているのは移った先だから。
 
-- [ ] **Step 6: ゲートと変異検証、コミット**
+- [x] **Step 6: ゲートと変異検証、コミット**
 
 変異は 3 件（各テストのコメントが名指ししたもの）。
 
@@ -559,7 +559,7 @@ git commit -m "feat(v1): render column items progressively"
 `src/core/read/sorted-events.test.ts` の `500` は `SortedEvents` へ直接渡す容量で
 あって本スライスの上限とは別物 —— **触らない。**
 
-- [ ] **Step 1: 定数を変える**
+- [x] **Step 1: 定数を変える**
 
 `src/core/read/source.ts`:
 
@@ -568,7 +568,7 @@ git commit -m "feat(v1): render column items progressively"
 export const MAX_ITEMS_PER_SECTION = 200;
 ```
 
-- [ ] **Step 2: ADR-0011 に改訂の注を入れる**
+- [x] **Step 2: ADR-0011 に改訂の注を入れる**
 
 予算表の行を書き換える:
 
@@ -587,7 +587,7 @@ export const MAX_ITEMS_PER_SECTION = 200;
   **この項の件数は 500 件から 200 件へ改めた（2026-08-14）。** 当初の 500 件は「保持数」として決めた数だが、**保持数と描画数を同じ数にしていた**ため、カラム 3 本で 1500 件が一度に DOM へ現れ、初回描画がメインスレッドを 1.2 秒塞いでいた（実測は `docs/design/read-layer-followups.md`）。描画数を保持数から切り離した（先頭 40 件から段階的に増やす）ことで、保持数に残る意味は「どこまで遡れるか」だけになった。遡れる範囲は 500 件ぶんから 200 件ぶんへ浅くなる —— **測定可能であること（本 ADR の中心的な要求）は変わらず、`e2e/section-cap.spec.ts` が新しい値を主張する。**
 ```
 
-- [ ] **Step 3: e2e の期待値を直す**
+- [x] **Step 3: e2e の期待値を直す**
 
 `e2e/section-cap.spec.ts` —— **テスト名の 500 も直すこと。**
 
@@ -601,7 +601,7 @@ test("caps a section at 200 items", async ({ page }) => {
 
 先頭の JSDoc の「500 件」も 200 件にする。
 
-- [ ] **Step 4: ゲート、コミット**
+- [x] **Step 4: ゲート、コミット**
 
 ```bash
 pnpm vitest run && pnpm typecheck && pnpm check
@@ -617,7 +617,7 @@ git commit -m "perf(v1): keep 200 items per section instead of 500"
 - Modify: `e2e/v1.spec.ts`
 - Modify: `docs/design/read-layer-followups.md`
 
-- [ ] **Step 1: 段階的レンダリングを e2e で主張する**
+- [x] **Step 1: 段階的レンダリングを e2e で主張する**
 
 `e2e/v1.spec.ts` に新しい test を足す。`e2e/fixtures/seed-cap.ts` の 600 件
 フィクスチャ（`capViewerPubkey` / `capAuthorPubkey`）を使う。既存の
@@ -696,7 +696,7 @@ test("a column renders only a window of its items and grows on scroll", async ({
 
 import に `capAuthorPubkey` / `capViewerPubkey` を足す（`./fixtures/seed-cap.js`）。
 
-- [ ] **Step 2: 3 カラムで実測する**
+- [x] **Step 2: 3 カラムで実測する**
 
 `e2e/zz-progressive-probe.spec.ts` を作って測り、**測り終えたら消す**。
 シードは 500 件（半分が返信、5 件に 1 件が画像）をカラム 3 本へ。
@@ -866,7 +866,7 @@ test("probe: 3 カラム", async ({ page }) => {
 **`content-visibility: auto` を残した場合と外した場合の両方を測る**
 （`ColumnItems.tsx` の `style` を落とすだけ）。仕様 8 節の問い 2 はこれで答える。
 
-- [ ] **Step 3: 記録する**
+- [x] **Step 3: 記録する**
 
 `docs/design/read-layer-followups.md` に新しい節を作り、変更前
 （longtask 合計 3266ms / 最長 1258ms / スクロール中央値 16.8ms）と変更後を
@@ -874,7 +874,7 @@ test("probe: 3 カラム", async ({ page }) => {
 書くこと。** 仕様 8 節の 4 問のうち、実鍵でしか答えられないもの（問い 3・4）は
 「未取得」と書き、何を見れば答えられるかを書く。**推測を書かない。**
 
-- [ ] **Step 4: 使い捨ての spec を消す → ゲート、コミット**
+- [x] **Step 4: 使い捨ての spec を消す → ゲート、コミット**
 
 ```bash
 rm e2e/zz-progressive-probe.spec.ts

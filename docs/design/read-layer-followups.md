@@ -364,11 +364,11 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 | 共有 RO + `contain: content` | 19.0ms | 26/89 | 2012ms | 204ms |
 | 共有 RO + `content-visibility: auto` | **16.8ms** | **0/89** | 3266ms | 1258ms |
 
-**共有 RO は純粋な改善**（スクロールも longtask も良くなる）。**`content-visibility: auto` はスクロールと初回描画のトレード**で、スクロールのカクつきは完全に消える代わりに、1500 件が一度に現れる初回のブロッキングが倍になる。スクロールのカクつきが報告された症状なので後者を採った。初回の詰まりの本当の解は「500 件を一度に描かない」ことであり、[progressive-column-rendering のスライス](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)が段階的レンダリング（先頭 40 件だけ描き、番兵で 40 件ずつ増やす）で仮想スクロールを採らずにこれを解いた（下記節）。当初は仮想スクロール（絶対配置＋合成高さ）を検討していたが、同スライスの実測（2 節）でブラウザの scroll anchoring が通常の文書フローに依存していると分かり、それを壊さない段階的レンダリングを選んだ。
+**共有 RO は純粋な改善**（スクロールも longtask も良くなる）。**`content-visibility: auto` はスクロールと初回描画のトレード**で、スクロールのカクつきは完全に消える代わりに、1500 件が一度に現れる初回のブロッキングが倍になる。スクロールのカクつきが報告された症状なので後者を採った。初回の詰まりの本当の解は「500 件を一度に描かない」ことであり、[progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)が段階的レンダリング（先頭 40 件だけ描き、番兵で 40 件ずつ増やす）で仮想スクロールを採らずにこれを解いた（下記節）。当初は仮想スクロール（絶対配置＋合成高さ）を検討していたが、同スライスの実測（2 節）でブラウザの scroll anchoring が通常の文書フローに依存していると分かり、それを壊さない段階的レンダリングを選んだ。
 
 ## カラムの段階的レンダリング — 実測と C1（末尾追い出しによる窓の崩壊）（2026-08-14、ローカルリレー）
 
-仕様は [progressive-column-rendering-design.md](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)。`MAX_ITEMS_PER_SECTION` を 500 → 200 へ下げ、カラムは `items()` の先頭 40 件だけを描き、下端の番兵が見えたら 40 件ずつ増やすようにした（`src/core/view/render-window.ts` / `src/routes/v1/ColumnItems.tsx`）。
+仕様は [progressive-column-rendering-design.md](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)。`MAX_ITEMS_PER_SECTION` を 500 → 200 へ下げ、カラムは `items()` の先頭 40 件だけを描き、下端の番兵が見えたら 40 件ずつ増やすようにした（`src/core/view/render-window.ts` / `src/routes/v1/ColumnItems.tsx`）。
 
 ### 実測（3 カラム × 500 件、半分が返信、5 件に 1 件が画像。`pnpm dev` に対する Playwright、89 フレーム間隔）
 
@@ -389,7 +389,7 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 最終レビューで見つかった Critical。窓の実装が当初「描画済み**末尾**アイテムの id」を境界として持っていたところ、`SortedEvents`（保持上限超過時に末尾＝最古を `pop()` で捨てる）と組み合わさると、新着が先頭へ入って上限に達したセクションで境界アイテム＝末尾アイテム＝次に捨てられるアイテムになり、次の 1 件で境界ごと消えて件数が初期値（40 件）へ一気に崩壊した。描画済み 200 件が一斉にアンマウントされ、`scrollHeight` が縮んでブラウザが `scrollTop` をクランプし、読んでいた位置が飛ぶ —— 仕様 2 節が「今すでに正しいので壊してはいけない」と定めた挙動そのものを壊していた。
 
-直し方は境界を**末尾ではなく先頭**に打つこと。末尾からの追い出しは先頭の添字に影響しないので、この崩壊は構造的に起きなくなる。詳細と既知の穴（錨を打つ前に先頭へ挿入されると旧末尾側が画面外で落ちる、意図した縮退）は [progressive-column-rendering-design.md](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md) 4.1 節、実装は `src/core/view/render-window.ts`。
+直し方は境界を**末尾ではなく先頭**に打つこと。末尾からの追い出しは先頭の添字に影響しないので、この崩壊は構造的に起きなくなる。詳細と既知の穴（錨を打つ前に先頭へ挿入されると旧末尾側が画面外で落ちる、意図した縮退）は [progressive-column-rendering-design.md](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md) 4.1 節、実装は `src/core/view/render-window.ts`。
 
 ### 仕様 8 節の残り 2 問は未取得
 
@@ -542,7 +542,7 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 **ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
 
 - **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
-- **200 件上限**（当初 500 件、[progressive-column-rendering のスライス](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)で 200 へ変更） — 解消済み。`e2e/section-cap.spec.ts` が上限を余裕をもって超える 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 200 で止まることを主張する。
+- **200 件上限**（当初 500 件、[progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)で 200 へ変更） — 解消済み。`e2e/section-cap.spec.ts` が上限を余裕をもって超える 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 200 で止まることを主張する。
 - 残る 5 指標（カラム数、初回表示 2 秒、操作反映 100ms、メモリ）はいずれも未測定。
 - **うち「初回イベント表示 2 秒」は、実地で超過が報告された**（2026-08-07、約 3 秒。上の「初回描画が約 3 秒」節）。**測定手段が無いまま超過だけが分かっている**状態であり、5 つのうちこれを最初に測れるようにすること。
 - **「カラム数」は実地では 8 カラムまで確認できた**（同日、`connections: 9` / `peakConnections: 10`、体感の重さ無し）。E2E では依然として未測定。

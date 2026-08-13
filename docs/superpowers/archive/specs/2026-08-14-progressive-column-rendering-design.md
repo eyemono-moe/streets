@@ -4,7 +4,7 @@
 
 カラムは `MAX_ITEMS_PER_SECTION`（500）件を一度に DOM へ出す。返信は親も描くので実際のノート数はその 1.5 倍、カラム 3 本で DOM は 4.5 万ノードになる。**初回描画で 1500 件が一度に現れる瞬間が、メインスレッドを 1 秒以上塞ぐ。**
 
-前提知識は [CONTEXT.md](../../../CONTEXT.md)、決定は [docs/adr/](../../adr/)、スライスの記録は [read-layer-followups.md](../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
+前提知識は [CONTEXT.md](../../../../CONTEXT.md)、決定は [docs/adr/](../../../adr/)、スライスの記録は [read-layer-followups.md](../../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
 
 ## 1. 実測（3 カラム × 500 件、半分が返信、5 件に 1 件が画像）
 
@@ -34,7 +34,7 @@
 
 ## 3. 範囲
 
-**含む。** `MAX_ITEMS_PER_SECTION` を 500 → 200 へ下げる（[ADR-0011](../../adr/0011-performance-budget.md) の改訂を伴う。3.1 節）。`DeckColumn` が `items()` の先頭 N 件だけを描き、下端の番兵が見えたら N を増やす。描画窓を決める純粋なロジックの切り出しとそのテスト。変更前後の実測。`content-visibility: auto` を残すか外すかを実測で決める（7 節）。
+**含む。** `MAX_ITEMS_PER_SECTION` を 500 → 200 へ下げる（[ADR-0011](../../../adr/0011-performance-budget.md) の改訂を伴う。3.1 節）。`DeckColumn` が `items()` の先頭 N 件だけを描き、下端の番兵が見えたら N を増やす。描画窓を決める純粋なロジックの切り出しとそのテスト。変更前後の実測。`content-visibility: auto` を残すか外すかを実測で決める（7 節）。
 
 **含まない。** 絶対配置の仮想スクロール（2 節）。ページネーション（上限に達した先を追加取得すること）。
 
@@ -127,7 +127,7 @@ ADR-0011 は「1 セクションが保持するイベント数 = 500 件」を�
 
 **実測（人手ではなく使い捨ての Playwright で）**
 
-3 カラム × 500 件の同じ手順で、longtask 合計・最長・スクロールのフレーム間隔を変更前後で比べ、[read-layer-followups.md](../../design/read-layer-followups.md) に記録する。**`content-visibility: auto` を残した場合と外した場合の両方を測り、外したほうが良ければ外す。**
+3 カラム × 500 件の同じ手順で、longtask 合計・最長・スクロールのフレーム間隔を変更前後で比べ、[read-layer-followups.md](../../../design/read-layer-followups.md) に記録する。**`content-visibility: auto` を残した場合と外した場合の両方を測り、外したほうが良ければ外す。**
 
 ## 8. 実際に動かして初めて答えられる問い
 

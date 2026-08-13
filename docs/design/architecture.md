@@ -329,7 +329,7 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 - **保持順の全順序化。** `SortedEvents`（`src/core/read/sorted-events.ts`）が `compareEvents`（`created_at` 降順、同値は `id` 昇順）で決まる全順序を維持し、挿入は二分探索、上限（500件）超過時は末尾を1件 `pop` するだけになった。`id` 集合も配列と同じ場所に持つため、追い出しのたびに全件を舐め直す必要が無くなった。5節で述べたとおり、表示順（降順・昇順）はこの保持順から導く。
 - **通知のバッチ。** `SectionReader` は購読者への通知を `Scheduler` 経由でバッチする（`NOTIFY_BATCH_MS = 16`）。リレーが1イベント1メッセージで送りブラウザがメッセージごとに別タスクを回す以上、マイクロタスクでは合流できず、マクロタスク境界（`setTimeout`）が要る。`items` / `status` を直接読む消費者は遅延の影響を受けない（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md)）。
 - **計測。** `scripts/research/measure-section-reader-burst.mjs` が配列操作だけを取り出して比較回数を測る（[docs/research/2026-08-02-section-reader-burst.md](../research/2026-08-02-section-reader-burst.md)）。ただし壁時計は環境依存で揺れ、これは回帰を防ぐガードではない。
-- **200件上限の E2E 測定。** `e2e/section-cap.spec.ts` が 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` 到達時点で `items` がちょうど200で止まることを主張する。これで [ADR-0011](../adr/0011-performance-budget.md) の7指標のうち E2E で測定済みのものは、30接続上限に続いて2つになった（10節）。（保持上限は [progressive-column-rendering のスライス](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)で 500 → 200 へ改訂した。）
+- **200件上限の E2E 測定。** `e2e/section-cap.spec.ts` が 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` 到達時点で `items` がちょうど200で止まることを主張する。これで [ADR-0011](../adr/0011-performance-budget.md) の7指標のうち E2E で測定済みのものは、30接続上限に続いて2つになった（10節）。（保持上限は [progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)で 500 → 200 へ改訂した。）
 
 ---
 
@@ -357,6 +357,6 @@ Nostr の高水準ライブラリには依存しない（[ADR-0020](../adr/0020-
 
 **接続数の予算は[接続プールのスライス](../superpowers/archive/specs/2026-08-01-connection-pool-design.md)で 7 指標中最初に E2E で測れるようになった。** `e2e/connection-budget.spec.ts` が、架空のリレーを多数宣言する著者を seed し、開こうとしたリレーの高水位マークが予算以下に収まること・実在するリレーが選ばれること（＝貪欲被覆が効いていること）・落とした著者を `uncoveredAuthors` として報告することを主張する。加えて `e2e/relay-recovery.spec.ts` が、実ソケットが死んで実リレーが復帰することを確かめる — バックオフのユニットテストは偽タイマーで測っているため、実際の再接続が起きることはここでしか確かめられない（ローカルの `nostr-rs-relay-2` を `docker compose stop`/`start` する分、他の e2e より一桁遅く、専用の spec ファイルに分けてある）。
 
-**1セクションの保持件数上限は[section-reader-performance のスライス](../superpowers/archive/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった（当時の上限は500件、[progressive-column-rendering のスライス](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)で200件へ改訂）。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど200で止まることを主張する（8節）。
+**1セクションの保持件数上限は[section-reader-performance のスライス](../superpowers/archive/specs/2026-08-02-section-reader-performance-design.md)で2つ目になった（当時の上限は500件、[progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)で200件へ改訂）。** `e2e/section-cap.spec.ts` が600件を seed し、`phase: settled` に達した時点で `items` がちょうど200で止まることを主張する（8節）。
 
 **「E2E で測れる」と「CI がそれを検査している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブのみで、Playwright を実行するジョブが無い。上記 2 指標の e2e はローカルでは本物のガードとして機能するが、push のたびに自動で走るわけではないので、退行が CI で機械的に止まるとは今は言えない。ADR-0011 の「測定できない予算は要件ではなく願望である」に照らすと、この差は無視できない。CI 配線自体は独立した follow-up として [read-layer-followups.md](./read-layer-followups.md) に記録してある。
