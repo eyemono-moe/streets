@@ -503,12 +503,12 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 ## 満たしていない要件
 
-[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限に続いて 500 件上限**が E2E で測れるようになり、測定済みは 2 つになった（[architecture.md](./architecture.md) 10節）。残る 5 指標は未測定。
+[ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限に続いて 1 セクションの保持件数上限**（当初 500 件、現在 200 件）が E2E で測れるようになり、測定済みは 2 つになった（[architecture.md](./architecture.md) 10節）。残る 5 指標は未測定。
 
 **ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
 
 - **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
-- **500 件上限** — 解消済み。`e2e/section-cap.spec.ts` が 600 件（`MAX_ITEMS_PER_SECTION + 100`）を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 500 で止まることを主張する。
+- **200 件上限**（当初 500 件、[progressive-column-rendering のスライス](../superpowers/specs/2026-08-14-progressive-column-rendering-design.md)で 200 へ変更） — 解消済み。`e2e/section-cap.spec.ts` が上限を余裕をもって超える 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 200 で止まることを主張する。
 - 残る 5 指標（カラム数、初回表示 2 秒、操作反映 100ms、メモリ）はいずれも未測定。
 - **うち「初回イベント表示 2 秒」は、実地で超過が報告された**（2026-08-07、約 3 秒。上の「初回描画が約 3 秒」節）。**測定手段が無いまま超過だけが分かっている**状態であり、5 つのうちこれを最初に測れるようにすること。
 - **「カラム数」は実地では 8 カラムまで確認できた**（同日、`connections: 9` / `peakConnections: 10`、体感の重さ無し）。E2E では依然として未測定。

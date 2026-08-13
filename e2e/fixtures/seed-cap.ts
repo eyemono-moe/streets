@@ -4,7 +4,14 @@ import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 export const relayOneUrl =
   process.env.STREETS_E2E_RELAY_URL ?? "ws://127.0.0.1:8080";
 
-/** MAX_ITEMS_PER_SECTION (src/core/read/source.ts) + 100 */
+/**
+ * `MAX_ITEMS_PER_SECTION`（`src/core/read/source.ts`、現在 200）より十分
+ * 多い件数を流し込み、上限が実際に効いていることを測れるようにする。
+ * 上限の値そのものを追いかけて計算式にすると、上限を変えるたびにこの
+ * フィクスチャも直す羽目になる —— 600 は「200 を余裕をもって超える」
+ * という意図を表す固定値であり、上限が変わっても直す必要はない
+ * （上限が 600 に迫るほど大きくならない限り）。
+ */
 const NOTE_COUNT = 600;
 
 const now = 1_735_689_600;
@@ -40,9 +47,9 @@ const publish = async (
 };
 
 /**
- * `MAX_ITEMS_PER_SECTION + 100` = 600 件の kind:1 を著者 1 人からリレー1 へ
- * 発行し、その著者だけをフォローする閲覧者の kind:3 と、著者の kind:10002
- * (write = リレー1) も発行する。
+ * 上限 (`MAX_ITEMS_PER_SECTION`) を余裕をもって超える 600 件の kind:1 を
+ * 著者 1 人からリレー1 へ発行し、その著者だけをフォローする閲覧者の
+ * kind:3 と、著者の kind:10002 (write = リレー1) も発行する。
  *
  * **リレーの DB は `data/` に永続し、global setup は実行のたびに走る。**
  * 二重に seed して 1200 件にならないよう、`created_at` と本文を index から

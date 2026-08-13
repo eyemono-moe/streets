@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { EventTemplate } from "nostr-tools";
+import { capAuthorPubkey, capViewerPubkey } from "./fixtures/seed-cap.js";
 import {
   previewAuthorOneDisplayName,
   previewAuthorOneNoteText,
@@ -757,5 +758,80 @@ test.describe("v1 vertical slice", () => {
       timeout: 20_000,
     });
     expect(await readPhase2Ms()).toBeGreaterThan(0);
+  });
+
+  /**
+   * 段階的レンダリング (`render-window.ts` / `ColumnItems.tsx`) の唯一の
+   * 実測経路。600 件のフィクスチャ (`seed-cap.ts`) を使うのは、上限 200 件
+   * まで届く量が無いと「窓が効いている」のか「まだ全部届いていないだけ」
+   * のかを区別できないため。
+   */
+  test("a column renders only a window of its items and grows on scroll", async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+
+    await page.addInitScript((viewerPubkey: string) => {
+      const win = window as unknown as Record<string, unknown>;
+      win.nostr = {
+        getPublicKey: async () => viewerPubkey,
+        signEvent: async () => {
+          throw new Error("not used");
+        },
+      };
+    }, capViewerPubkey);
+
+    await page.addInitScript(
+      ({ pubkey, relay, author }) => {
+        window.localStorage.setItem(
+          `streets.v1.deck.${pubkey}`,
+          JSON.stringify({
+            version: 2,
+            columns: [
+              {
+                id: "cap",
+                title: "cap",
+                source: {
+                  kind: "literal",
+                  filters: [{ kinds: [1], authors: [author] }],
+                  relays: [relay],
+                },
+              },
+            ],
+          }),
+        );
+      },
+      {
+        pubkey: capViewerPubkey,
+        relay: previewRelayUrl,
+        author: capAuthorPubkey,
+      },
+    );
+
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+    await page.getByTestId("login").click();
+
+    const column = page.locator('[data-testid="deck-column"]');
+    await expect(column.getByTestId("item").first()).toBeVisible({
+      timeout: 60_000,
+    });
+    // セクションが 200 件で落ち着くまで待つ (途中で数えると、まだ届いて
+    // いないだけの少ない数を「窓が効いている」と誤って読んでしまう)。
+    await page.waitForTimeout(8_000);
+
+    // 捕まえる変異: 窓を当てずに items() を全部描く。上限は 200 なので
+    // 「200 未満」では上限そのものと区別が付かない —— 初期 40 件に番兵が
+    // 2 回発火してもなお届かない 120 件を境にする。
+    const initial = await column.getByTestId("item").count();
+    expect(initial).toBeLessThan(120);
+    expect(initial).toBeGreaterThan(0);
+
+    // 捕まえる変異: 番兵を出さない / 交差しても窓を増やさない
+    await column.evaluate((el) => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await expect
+      .poll(() => column.getByTestId("item").count(), { timeout: 15_000 })
+      .toBeGreaterThan(initial);
   });
 });
