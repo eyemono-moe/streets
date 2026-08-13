@@ -53,43 +53,53 @@ const ColumnItems: Component<{ items: () => readonly NostrEvent[] }> = (
   }
 
   return (
-    <ul data-testid="items" class="divide-y">
+    <div>
+      <ul data-testid="items" class="divide-y">
+        {/*
+          1 件ずつをカードにせず `divide-y` で区切る (v0 の `InfiniteEvents`
+          と同じ)。イベント側が枠を持つと、引用・返信先として入れ子に置かれた
+          ときの枠 (`Note.tsx` の `NestedEventCard`) と見分けが付かなくなる。
+          区切り線がカラム幅いっぱいに伸びる必要があるので、左右の余白は
+          ここではなくイベント側 (`p-2`) が持つ。
+        */}
+        <For each={visible()}>
+          {(event) => (
+            // `content-visibility: auto` —— 画面外のアイテムのレイアウトと
+            // 描画をブラウザに省かせる。段階的レンダリングで初回に描く件数は
+            // 減るが、読み進めると窓は伸びるので画面外は依然として増える。
+            //
+            // `contain-intrinsic-size: auto 120px` の `auto` は「一度描いた
+            // 高さを覚えておく」指示。これが無いと画面外へ出た瞬間に高さが
+            // 推定値へ戻り、スクロールバーが跳ねる。
+            <li
+              data-testid="item"
+              style={{
+                "content-visibility": "auto",
+                "contain-intrinsic-size": "auto 120px",
+              }}
+            >
+              <EventView id={event.id} variant="full" />
+            </li>
+          )}
+        </For>
+      </ul>
       {/*
-        1 件ずつをカードにせず `divide-y` で区切る (v0 の `InfiniteEvents`
-        と同じ)。イベント側が枠を持つと、引用・返信先として入れ子に置かれた
-        ときの枠 (`Note.tsx` の `NestedEventCard`) と見分けが付かなくなる。
-        区切り線がカラム幅いっぱいに伸びる必要があるので、左右の余白は
-        ここではなくイベント側 (`p-2`) が持つ。
-      */}
-      <For each={visible()}>
-        {(event) => (
-          // `content-visibility: auto` —— 画面外のアイテムのレイアウトと
-          // 描画をブラウザに省かせる。段階的レンダリングで初回に描く件数は
-          // 減るが、読み進めると窓は伸びるので画面外は依然として増える。
-          //
-          // `contain-intrinsic-size: auto 120px` の `auto` は「一度描いた
-          // 高さを覚えておく」指示。これが無いと画面外へ出た瞬間に高さが
-          // 推定値へ戻り、スクロールバーが跳ねる。
-          <li
-            data-testid="item"
-            style={{
-              "content-visibility": "auto",
-              "contain-intrinsic-size": "auto 120px",
-            }}
-          >
-            <EventView id={event.id} variant="full" />
-          </li>
-        )}
-      </For>
-      {/*
+        `<ul>` の外に置く —— `divide-y` (`.divide-y > :not([hidden]) ~
+        :not([hidden])`) はリスト内の兄弟要素すべてに区切り線を当てるので、
+        番兵を `<li>` として `<ul>` の中へ置くと最後のアイテムの下に幅
+        いっぱいの線が 1 本余計に出る。番兵はアイテムではなく「まだ先が
+        ある」という目印なので、リストの外に出すほうが構造としても正しい
+        (空の `<li>` がリストの一部として公開されるアクセシビリティ上の
+        問題も同時に消える)。
+
         まだ描いていないアイテムがあるときだけ出す —— 常に出すと、全件を
         描き終えた後も交差したまま張り付き、増やすものが無いのにコール
         バックが走り続ける。
       */}
       <Show when={hasMore()}>
-        <li data-testid="items-sentinel" ref={setSentinel} class="h-1" />
+        <div data-testid="items-sentinel" ref={setSentinel} class="h-1" />
       </Show>
-    </ul>
+    </div>
   );
 };
 

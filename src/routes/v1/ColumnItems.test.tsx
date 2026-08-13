@@ -107,6 +107,23 @@ describe("ColumnItems", () => {
     }
   });
 
+  it("番兵は items リストの子ではない (divide-y の区切り線を余計に出さない)", () => {
+    // 捕まえる変異: 番兵を <ul data-testid="items"> の中へ戻す。divide-y
+    // (`.divide-y > :not([hidden]) ~ :not([hidden])`) はリスト内の兄弟
+    // 要素すべてに区切り線を当てるので、番兵が <ul> の子だと最後の
+    // アイテムの下に幅いっぱいの線が 1 本余計に出る (レビュー Important)
+    const { element, dispose } = mount(() => fakeEvents(600));
+    try {
+      const list = element().querySelector('[data-testid="items"]');
+      expect(list?.querySelector('[data-testid="items-sentinel"]')).toBeNull();
+      expect(
+        element().querySelector('[data-testid="items-sentinel"]'),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
   it("アイテムを絶対配置にしない (scroll anchoring を壊さない)", () => {
     // 捕まえる変異: 仮想スクロール風に position:absolute を当てる。
     // 通常フローでなくなるとブラウザの scroll anchoring が働かず、新着が
