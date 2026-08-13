@@ -1,5 +1,4 @@
-import { createElementSize } from "@solid-primitives/resize-observer";
-import { For, Show, createSignal } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import type { Component, ParentComponent } from "solid-js";
 import type { NostrEvent } from "../../../core/nostr/event";
 import { quoteTargets, replyTarget } from "../../../core/nostr/event-refs";
@@ -12,6 +11,7 @@ import type {
   EventBodyProps,
   EventVariant,
 } from "../../../core/view/renderer-registry";
+import { observeHeight } from "../../../core/view/shared-resize-observer";
 import Avatar from "../Avatar";
 import EventView from "../EventView";
 import NoteContent from "../NoteContent";
@@ -24,16 +24,26 @@ const MAX_CONTENT_HEIGHT = 400;
 
 /**
  * 本文の高さ制限と展開ボタン (spec 3 節)。文字数や行数からの推定は
- * フォント・折返し・絵文字の連続で簡単にずれるので、
- * `@solid-primitives/resize-observer`（v0 も使用、既存の依存）で
- * **実際にレンダリングされた高さ**を測る。`compact` でも同じ仕組みを通す
- * (v0 は `small` でも `EventBase` を通る)。
+ * フォント・折返し・絵文字の連続で簡単にずれるので、**実際にレンダリング
+ * された高さ**を測る。`compact` でも同じ仕組みを通す (v0 は `small` でも
+ * `EventBase` を通る)。
+ *
+ * 監視は `observeHeight` (全ノートで 1 つの `ResizeObserver` を共有) を
+ * 通す —— `@solid-primitives/resize-observer` の `createElementSize` は
+ * 呼び出しごとに新しいインスタンスを作るので、ノート 1 件につき 1 個
+ * 増えてスクロール中の 1 フレームのコストに直接乗る (実測あり)。
  */
 const CollapsibleBody: ParentComponent = (props) => {
   const [wrapper, setWrapper] = createSignal<HTMLDivElement>();
-  const size = createElementSize(wrapper);
+  const [height, setHeight] = createSignal(0);
   const [expanded, setExpanded] = createSignal(false);
-  const isOverflown = () => (size.height ?? 0) >= MAX_CONTENT_HEIGHT;
+  const isOverflown = () => height() >= MAX_CONTENT_HEIGHT;
+
+  createEffect(() => {
+    const element = wrapper();
+    if (!element) return;
+    onCleanup(observeHeight(element, setHeight));
+  });
 
   return (
     <div class="relative">

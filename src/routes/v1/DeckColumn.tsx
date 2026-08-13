@@ -288,7 +288,31 @@ const DeckColumn: Component<{
       <ul data-testid="items" class="divide-y">
         <For each={items()}>
           {(event) => (
-            <li data-testid="item">
+            // `content-visibility: auto` —— 画面外のアイテムのレイアウトと
+            // 描画をブラウザに省かせる。カラムは最大 500 件を仮想スクロール
+            // なしで描き (`MAX_ITEMS_PER_SECTION`)、返信は親も描くので
+            // カラム 3 本で DOM は 4 万ノードを超える。
+            //
+            // **初回描画の詰まりと引き換えである。** 3 カラム 1500 件で実測
+            // (スクロール中央値 / longtask 最長):
+            //   何もしない            24.4ms / 345ms
+            //   contain: content      19.0ms / 204ms
+            //   content-visibility    16.8ms / 1258ms
+            // 1500 件が一度に現れる初回は重くなるが、スクロールは 60fps に
+            // 戻る (20ms 超のフレームが 59/89 → 0/89)。初回の詰まりの本当の
+            // 解は「500 件を一度に描かない」= 仮想スクロールであり、それは
+            // 別の作業。
+            //
+            // `contain-intrinsic-size: auto 120px` の `auto` は「一度描いた
+            // 高さを覚えておく」指示。これが無いと画面外へ出た瞬間に高さが
+            // 推定値へ戻り、スクロールバーが跳ねる。
+            <li
+              data-testid="item"
+              style={{
+                "content-visibility": "auto",
+                "contain-intrinsic-size": "auto 120px",
+              }}
+            >
               <EventView id={event.id} variant="full" />
             </li>
           )}

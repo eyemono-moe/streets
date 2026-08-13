@@ -338,6 +338,36 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **プロフィール未取得時の縮退を hex から npub へ変えるのに、`encodeBech32` の例外を吸う必要があった。** `<Profile>` が受け取る pubkey は NIP-10 の `e` タグ 5 番目の要素など**リレー由来の任意文字列**から来る経路があり、64 桁 hex とは限らない。`<For>` の周りに `ErrorBoundary` が無いので、そこで投げるとカラム全体が落ちる。hex として読めない値は短縮 hex のまま出す縮退を入れた。
 
+## スクロールのカクつきはノート 1 件ごとの `ResizeObserver` だった（2026-08-14、ローカルリレー）
+
+「v1 のスクロールがカクつく」の原因を実測で切り分けた。**再現条件はカラム本数。** 1 カラムでは 60fps のままで、3 カラムで初めて破綻する。
+
+計測は `pnpm dev` に対する Playwright（`playwright.config.ts` の `webServer` が dev サーバなので、dev の計装込みの数字）。著者 1 人・500 件・半分が返信・5 件に 1 件が画像のシードをカラム 3 本に出し、`requestAnimationFrame` ごとに 400px スクロールして 89 フレームの間隔を測った。
+
+| | 1 カラム | 3 カラム |
+|---|---|---|
+| item | 500 | 1500 |
+| note（入れ子込み） | 750 | 2250 |
+| DOM ノード | 15,418 | 45,934 |
+| `ResizeObserver` | 752 | 2,252 |
+| スクロール中央値 | 16.7ms | 24.4ms |
+| 20ms 超のフレーム | — | 59 / 89 |
+
+**`ResizeObserver` の数がそのままフレームのコストに乗っていた。** `CollapsibleBody`（本文の 400px 折り畳み）が `createElementSize` を呼び、それが呼び出しごとに新しいインスタンスを作るので、ノート 1 件につき 1 個増えていた。ブラウザはレイアウトのたびに全インスタンスの監視対象を突き合わせる。1 つの `ResizeObserver` は複数の要素を監視できるので、`src/core/view/shared-resize-observer.ts` に共有インスタンスを 1 つ置いて全ノートで使い回した。
+
+3 カラムでの 4 案の実測（スクロール中央値 / 20ms 超 / longtask 合計 / longtask 最長）:
+
+| 案 | 中央値 | 20ms 超 | longtask 合計 | 最長 |
+|---|---|---|---|---|
+| 変更前（RO 2252 個） | 24.4ms | 59/89 | 2062ms | 345ms |
+| 共有 RO のみ（RO 3 個） | 22.0ms | 58/89 | 1581ms | 204ms |
+| 共有 RO + `contain: content` | 19.0ms | 26/89 | 2012ms | 204ms |
+| 共有 RO + `content-visibility: auto` | **16.8ms** | **0/89** | 3266ms | 1258ms |
+
+**共有 RO は純粋な改善**（スクロールも longtask も良くなる）。**`content-visibility: auto` はスクロールと初回描画のトレード**で、スクロールのカクつきは完全に消える代わりに、1500 件が一度に現れる初回のブロッキングが倍になる。スクロールのカクつきが報告された症状なので後者を採った。初回の詰まりの本当の解は「500 件を一度に描かない」= 仮想スクロールで、[#281](https://github.com/eyemono-moe/streets/issues/281) に記録した。
+
+**jsdom の `ResizeObserver` スタブが実物と違っていたことも、この変更で露見した。** 実際の `ResizeObserver` は `observe()` した要素の初回観測を必ず配信するが、`vitest.setup.ts` のスタブは何も撃たない no-op だった。`createElementSize` が `getBoundingClientRect()` を同期的に読んでいたので今までは表面化していない。製品コードから同期読み（ノート 1 件ごとの強制リフロー）を外したことで初めて、スタブが実物の契約を満たしていないことがテストの失敗として出た。スタブ側を実物に合わせた。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
