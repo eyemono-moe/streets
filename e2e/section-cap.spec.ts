@@ -12,7 +12,7 @@ test("caps a section at 200 items", async ({ page }) => {
   await page.goto(`/debug/v1-section?pubkey=${capViewerPubkey}`);
 
   // phase が settled になってから読む。streaming の途中で読むと、
-  // まだ 500 に達していないだけの数字を見てしまう。
+  // まだ 200 に達していないだけの数字を見てしまう。
   await expect(page.getByTestId("phase")).toHaveText("phase: settled", {
     timeout: 30_000,
   });

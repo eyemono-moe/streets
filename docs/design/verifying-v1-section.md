@@ -38,7 +38,7 @@ kind:1  418 件
 | `phase: settled` | WebSocket 接続 → `REQ` → `EVENT` 受信 → `EOSE` → 完了判定（[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md) の3フェーズ） |
 | `unreachableRelays: 0` | 劣化していない。1 以上なら「取得できていない著者がいる」の可視化が効いている（[ADR-0011](../adr/0011-performance-budget.md)） |
 | `items: N` | N 件すべてが **id 再計算 + schnorr 署名検証 + 構造検証**を通過している。`dev:relay:inspect` の件数と一致すれば全件通過 |
-| リストが降順 | 500 件上限を「新しい順で採用してから表示順に並べ直す」経路 |
+| リストが降順 | 200 件上限を「新しい順で採用してから表示順に並べ直す」経路 |
 
 **`items` の数字が最も情報量が多い。** リレーが返した件数と一致していれば、届いたイベントが 1 件も検証で落ちていないということ。
 
@@ -112,10 +112,10 @@ pnpm exec vitest run                       # ユニット
 pnpm e2e e2e/v1-section.spec.ts            # 同じ画面に対する e2e（Outbox ルーティング）
 pnpm e2e e2e/connection-budget.spec.ts     # ③ 接続予算の自動版
 pnpm e2e e2e/relay-recovery.spec.ts        # ② 後半（復帰）の自動版。他より一桁遅いので専用ファイル
-pnpm e2e e2e/section-cap.spec.ts           # 500 件上限の自動版
+pnpm e2e e2e/section-cap.spec.ts           # 200 件上限の自動版
 pnpm e2e e2e/relay-lies.spec.ts            # ④ 悪意あるリレーがフィルタ外のイベントを注入してくるケースの自動版
 ```
 
-`v1-section.spec.ts` は「シードしたノートが表示される」「新しい順に並ぶ」「NIP-11 文書が出る」の 3 件、`connection-budget.spec.ts` は「予算を超えて開かない」「貪欲被覆が効く」「落とした著者を報告する」の 3 件、`relay-recovery.spec.ts` は「止めたリレーが `unreachable` に上がり、再起動すると自動で `0` に戻る」の 1 件、`section-cap.spec.ts` は 600 件を seed し `phase: settled` 到達時点で `items` がちょうど 500 で止まることを主張する 1 件、`relay-lies.spec.ts` は同じ `/debug/v1-section` へ `page.routeWebSocket` で悪意あるリレーを再現し、要求していないイベントが `items` に出ないこと・破棄数のカウンタが動くこと・正当なイベントは従来どおり届くことを主張する 1 件。**目視で確認したことは e2e に落とすこと** — 手順書は増えても守られないが、テストは落ちる。
+`v1-section.spec.ts` は「シードしたノートが表示される」「新しい順に並ぶ」「NIP-11 文書が出る」の 3 件、`connection-budget.spec.ts` は「予算を超えて開かない」「貪欲被覆が効く」「落とした著者を報告する」の 3 件、`relay-recovery.spec.ts` は「止めたリレーが `unreachable` に上がり、再起動すると自動で `0` に戻る」の 1 件、`section-cap.spec.ts` は 600 件を seed し `phase: settled` 到達時点で `items` がちょうど 200 で止まることを主張する 1 件、`relay-lies.spec.ts` は同じ `/debug/v1-section` へ `page.routeWebSocket` で悪意あるリレーを再現し、要求していないイベントが `items` に出ないこと・破棄数のカウンタが動くこと・正当なイベントは従来どおり届くことを主張する 1 件。**目視で確認したことは e2e に落とすこと** — 手順書は増えても守られないが、テストは落ちる。
 
-なお [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち、E2E で測っているのは**接続数と 500 件上限の 2 つ**（`connection-budget.spec.ts` / `section-cap.spec.ts`）。残る 5 指標は未測定。詳細は [read-layer-followups.md](./read-layer-followups.md)。
+なお [ADR-0011](../adr/0011-performance-budget.md) の性能予算 7 指標のうち、E2E で測っているのは**接続数と 200 件上限の 2 つ**（`connection-budget.spec.ts` / `section-cap.spec.ts`）。残る 5 指標は未測定。詳細は [read-layer-followups.md](./read-layer-followups.md)。
