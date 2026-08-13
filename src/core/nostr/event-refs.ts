@@ -1,4 +1,5 @@
 import type { RelayUrl } from "../relay/relay-connection";
+import { parseContent } from "./content";
 import { type NostrEvent, isNostrEvent } from "./event";
 
 /** NIP-01 の id / pubkey は 32 バイトの小文字 hex 表現である。 */
@@ -85,6 +86,37 @@ export const quoteTargets = (event: NostrEvent): EventRef[] => {
     }
     const ref = idRef(value, tag[2], tag[3]);
     if (ref) refs.push(ref);
+  }
+  return refs;
+};
+
+/**
+ * 本文の `nostr:note1…` / `nostr:nevent1…` が指すイベント。
+ *
+ * **`q` タグと重ならないものだけを返す。** 引用は `q` タグと本文の
+ * `nostr:` の両方に現れるのが普通で、両方から描くと同じイベントが二重に
+ * 出る。`q` タグ側を正とし、ここは「タグを付けずに本文へ貼っただけ」の
+ * クライアントを拾うための補いに徹する。
+ *
+ * `naddr`（座標）は返さない —— 置換可能イベントを引く経路がまだ無く、
+ * `q` タグの `address` 形と同じ理由で描けない。
+ */
+export const contentQuoteTargets = (event: NostrEvent): IdRef[] => {
+  const tagged = new Set(
+    quoteTargets(event).flatMap((ref) => (ref.form === "id" ? [ref.id] : [])),
+  );
+  const refs: IdRef[] = [];
+  const seen = new Set<string>();
+  for (const token of parseContent(event)) {
+    if (token.type !== "mention") continue;
+    const ref = token.ref;
+    if (ref.kind !== "note" && ref.kind !== "nevent") continue;
+    if (tagged.has(ref.id) || seen.has(ref.id)) continue;
+    seen.add(ref.id);
+    const relay = ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined;
+    refs.push(
+      relay ? { form: "id", id: ref.id, relay } : { form: "id", id: ref.id },
+    );
   }
   return refs;
 };

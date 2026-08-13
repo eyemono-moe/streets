@@ -5,7 +5,6 @@ import type { NostrEvent } from "../../core/nostr/event";
 import type { Nip19Ref } from "../../core/nostr/nip19";
 import { useRender } from "../../core/view/render-context";
 import type { EventVariant } from "../../core/view/renderer-registry";
-import EventView from "./EventView";
 import Profile from "./Profile";
 
 export type NoteContentProps = {
@@ -82,8 +81,8 @@ const EmojiToken: Component<{ shortcode: string; url: string }> = (props) => {
 };
 
 /**
- * `npub`/`nprofile` は名前解決 (`<Profile>` が担う)、`note`/`nevent` は
- * 引用と同じ扱いで `compact` の `EventView` を埋め込む (design 4 節)。
+ * `npub`/`nprofile` は名前解決 (`<Profile>` が担う)。`note`/`nevent` は
+ * 何も描かない —— 引用として `NoteFull` が別に描く (下のコメント参照)。
  * `naddr` は座標 (kind:pubkey:d) の解決経路がまだ無いので、落として本文を
  * 欠けさせるのではなく固定文言を残す (design 6 節、`Note.tsx` の
  * `unsupported-ref` と同じ形)。
@@ -104,12 +103,16 @@ const MentionToken: Component<{ mention: Nip19Ref }> = (props) => {
           requests={ctx.profiles}
         />
       );
+    // イベントへの参照は**ここでは何も描かない。** 引用を描く責務は
+    // `NoteFull` に一本化してある —— 引用は `q` タグと本文の `nostr:` の
+    // 両方に現れるのが普通なので、本文側でも埋め込むと同じイベントが
+    // 二重に出る (枠付きのカードと枠なしの埋め込みが並ぶ)。加えてここは
+    // `compact` でも通るため、埋め込むと「compact は関連イベントを一切
+    // 要求しない」という規則も破れる (返信先のプレビューの中に、さらに
+    // 引用が展開されてしまう)。
     case "note":
-      return <EventView id={ref.id} variant="compact" />;
     case "nevent":
-      return (
-        <EventView id={ref.id} variant="compact" relayHint={ref.relays[0]} />
-      );
+      return null;
     case "naddr":
       return (
         <span data-testid="unsupported-ref" class="c-secondary text-caption">

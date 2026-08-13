@@ -1,7 +1,11 @@
 import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import type { Component, ParentComponent } from "solid-js";
 import type { NostrEvent } from "../../../core/nostr/event";
-import { quoteTargets, replyTarget } from "../../../core/nostr/event-refs";
+import {
+  contentQuoteTargets,
+  quoteTargets,
+  replyTarget,
+} from "../../../core/nostr/event-refs";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -60,7 +64,11 @@ const CollapsibleBody: ParentComponent = (props) => {
         <button
           type="button"
           data-testid="note-expand"
-          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b from-transparent to-white pt-4 text-caption dark:to-ui-950"
+          // 始点は `transparent` ではなく**終点と同じ色の不透明度 0**。
+          // CSS の `transparent` は `rgba(0, 0, 0, 0)` なので、白へ補間する
+          // 途中が半透明の黒になり、ぼかしが灰色〜黒のグラデーションとして
+          // 出てしまう。
+          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
           onClick={() => setExpanded(true)}
         >
           <span class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
@@ -201,7 +209,13 @@ const NoteBody: ParentComponent<{
  */
 export const NoteFull: Component<EventBodyProps> = (props) => {
   const reply = () => replyTarget(props.event);
-  const quotes = () => quoteTargets(props.event);
+  // `q` タグと、タグを付けずに本文へ貼られた `nostr:` の両方から集める。
+  // **描くのはここだけ** —— 本文側 (`NoteContent` の mention) では描かない。
+  // 引用は両方に現れるのが普通なので、双方で描くと同じイベントが二重に出る。
+  const quotes = () => [
+    ...quoteTargets(props.event),
+    ...contentQuoteTargets(props.event),
+  ];
 
   return (
     <article data-testid="note" class="pt-1 pr-2 pb-1 pl-1 text-body">

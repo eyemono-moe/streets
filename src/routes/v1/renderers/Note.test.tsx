@@ -331,6 +331,55 @@ describe("NoteFull", () => {
     }
   });
 
+  it("q タグと本文の nostr: が同じイベントを指しても引用は 1 つだけ", () => {
+    // 捕まえる変異: 重複を除かずに両方から描く。引用は `q` タグと本文の
+    // `nostr:` の**両方**に現れるのが普通なので、除かないと同じイベントが
+    // 二重に出る (実際に画面で起きた不具合)。
+    const events = createRecordingEventRequests();
+    const quoted = signed(30);
+    const event = signed(31, {
+      tags: [["q", quoted.id, "wss://relay/"]],
+      content: `見て nostr:${encodeBech32("note", quoted.id)}`,
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(
+        element().querySelectorAll(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toHaveLength(1);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("q タグが無くても本文の nostr: から引用を描く", () => {
+    // 捕まえる変異: contentQuoteTargets を呼ばない。`q` タグを付けずに本文へ
+    // 貼るだけのクライアントは実在するので、それらの引用が丸ごと消える
+    const events = createRecordingEventRequests();
+    const quoted = signed(32);
+    const event = signed(33, {
+      content: `見て nostr:${encodeBech32("note", quoted.id)}`,
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(events.requested).toContain(quoted.id);
+      expect(
+        element().querySelectorAll(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toHaveLength(1);
+    } finally {
+      dispose();
+    }
+  });
+
   it("q タグ (id 形式) は本文の下に compact の EventView を出す", () => {
     // 捕まえる変異: quoteTargets を呼ばない/描かない
     const events = createRecordingEventRequests();
@@ -591,6 +640,41 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
         expect(
           element().querySelector('[data-testid="note-expand"]'),
         ).toBeNull();
+      } finally {
+        dispose();
+      }
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
+  it("展開ボタンのグラデーションが transparent から始まらない", async () => {
+    // 捕まえる変異: `from-transparent` に戻す。CSS の `transparent` は
+    // `rgba(0, 0, 0, 0)` なので、白へ補間する途中が半透明の**黒**になり、
+    // 「本文が下へ薄れていく」はずのぼかしが灰色〜黒のグラデーションとして
+    // 出る。始点は終点と同じ色の不透明度 0 でなければならない。
+    const rect = vi
+      .spyOn(Element.prototype, "getBoundingClientRect")
+      .mockReturnValue(fakeRect(500));
+    try {
+      const events = createRecordingEventRequests();
+      const event = signed(26, { content: "long body" });
+      const { element, dispose } = mount(
+        () => NoteFull({ event }),
+        contextWith(events),
+      );
+      try {
+        await vi.waitFor(() => {
+          expect(
+            element().querySelector('[data-testid="note-expand"]'),
+          ).not.toBeNull();
+        });
+        const className =
+          element().querySelector('[data-testid="note-expand"]')?.className ??
+          "";
+        expect(className).not.toContain("from-transparent");
+        expect(className).toContain("from-white/0");
+        expect(className).toContain("dark:from-ui-950/0");
       } finally {
         dispose();
       }

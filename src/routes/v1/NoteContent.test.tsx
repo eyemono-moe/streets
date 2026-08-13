@@ -319,9 +319,12 @@ describe("NoteContent: mention トークン", () => {
     }
   });
 
-  it("note/nevent は compact の <EventView> になる (テキストのまま出さない)", () => {
-    // 捕まえる変異: テキストのまま出す (raw をそのまま貼るだけで EventView
-    // を描かない)
+  it("note/nevent は本文へ埋め込まない (引用として別に描かれる)", () => {
+    // 捕まえる変異: ここで <EventView> を描く。引用は `q` タグからも
+    // 描かれるので、本文にも埋め込むと **同じイベントが二重に出る**
+    // (枠付きのカードと枠なしの埋め込みが並ぶ)。さらに compact でも
+    // この経路が走るため、「compact は関連イベントを一切要求しない」
+    // という規則も破れる。引用を描く責務は NoteFull 側に一本化する。
     const quotedId = "2".repeat(64);
     const note = `nostr:${encodeBech32("note", quotedId)}`;
     const { element, dispose } = mount({
@@ -330,11 +333,12 @@ describe("NoteContent: mention トークン", () => {
     });
     try {
       const el = element();
-      const view = el.querySelector(
-        '[data-testid="event-view"][data-variant="compact"]',
-      );
-      expect(view).not.toBeNull();
+      expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
+      // 生の `nostr:` をテキストとして貼り直しもしない (引用は別に出る)。
       expect(el.textContent).not.toContain(note);
+      // 前後の地の文は残る。
+      expect(el.textContent).toContain("before");
+      expect(el.textContent).toContain("after");
     } finally {
       dispose();
     }
