@@ -31,4 +31,4 @@ export type SectionStatus = {
 };
 
 /** ADR-0011 の性能予算 */
-export const MAX_ITEMS_PER_SECTION = 500;
+export const MAX_ITEMS_PER_SECTION = 200;
