@@ -49,7 +49,13 @@ export const createReactionRequests = (
 
   /** 今の窓でまだ `fetchOnce` していないイベント id。 */
   let pending = new Set<string>();
-  /** これまで要求した全てのイベント id。一度要求したら二度は要求しない。 */
+  /**
+   * これまで要求した全てのイベント id。一度要求したら二度は要求しない。
+   *
+   * `ProfileRequests` と違い刈り込まない。リアクションが 0 件だった対象は
+   * `EventStore` に何も残さないので、「探索済み」を store 側から言い当てる
+   * 手段が無く、ここで覚えていないと窓が回るたびに引き直しになる。
+   */
   let requested = new Set<string>();
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   let disposed = false;
