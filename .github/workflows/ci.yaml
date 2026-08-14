@@ -66,7 +66,12 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        node-version: [20]
+        # 他のジョブより新しい Node を使う。フィクスチャが使う nostr-tools は
+        # **グローバルの `WebSocket`** を掴む (`useWebSocketImplementation` を
+        # 呼ばない限り `ws` を同梱しない) が、それが安定して存在するのは
+        # Node 22 以降であり、Node 20 では globalSetup のシードが
+        # 「WebSocket is not defined」で落ちる。
+        node-version: [22]
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -81,13 +86,28 @@ jobs:
       # playwright.config.ts の projects は chromium だけ。
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
+      # compose の bind 元 (`./data/...`) は .gitignore されており、クリーンな
+      # checkout には存在しない。無いまま `up` すると Docker が root 所有で
+      # 作り、コンテナ内の非 root プロセスが SQLite ファイルを作れずに
+      # 起動し続けられない (relay 2 が実際にこれで落ちた:
+      # "unable to open database file")。先に runner の権限で作っておく。
+      - name: Create relay data directories
+        run: mkdir -p data/nostr-rs-relay/db data/nostr-rs-relay-2/db
+      # **リレー 2 本だけを起動する。** compose には nostrcheck (NIP-96)・
+      # mariadb・redis・traefik も入っているが、e2e はどれも使わない ——
+      # 起動を待つ時間と、無関係な失敗の経路が増えるだけ。relay 1 が要る
+      # postgres は depends_on で一緒に上がる。
       - name: Start local relays
-        run: docker compose up -d
+        run: docker compose up -d nostr-rs-relay nostr-rs-relay-2
       # `docker compose up -d` はコンテナが接続を受け付ける前に返る。
       # 固定の sleep ではなく、両リレーが NIP-11 文書を返すまで待つ ——
       # e2e の globalSetup は最初の 1 手でリレーへ WebSocket を張るので、
       # ここで待たないと「まだ起動していない」が「シードに失敗した」として
       # 現れる。
+      #
+      # **HTTP が応答しても DB が使えるとは限らない** —— nostr-rs-relay は
+      # DB を開けなくても listen する。ここで見ているのは「プロセスが上がり
+      # きったか」までで、DB が本当に使えるかを証明するのはシードである。
       - name: Wait for relays
         run: |
           for url in http://127.0.0.1:8080 http://127.0.0.1:8081; do
@@ -118,4 +138,4 @@ jobs:
           retention-days: 7
       - name: Show relay logs
         if: failure()
-        run: docker compose logs --tail 200
+        run: docker compose logs --tail 200 nostr-rs-relay nostr-rs-relay-2
