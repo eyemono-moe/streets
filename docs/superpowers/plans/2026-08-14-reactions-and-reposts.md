@@ -4,7 +4,7 @@
 
 **Goal:** kind:7 をタイムラインに描き、リポストの対象を v0 と同じ「完全な描画」に直し、ノートに付いたリアクションを集計して出す。
 
-**Architecture:** 純粋なロジック（NIP-25 の分類・集計）を `src/core/nostr` と `src/core/view` に置き、DOM から切り離してテストする。リアクションの取得は `ProfileRequests` と同じ形のコアレッサを新設し、`#e` で引く。**kind の知識を `EventStore` に入れない**（ADR-0004）ため、コアレッサが自分の索引を持ち、そのために `collect()` へ「受理したイベントを渡す」seam を 1 つ足す。
+**Architecture:** 純粋なロジック（NIP-25 の分類・集計）を `src/core/nostr` と `src/core/view` に置き、DOM から切り離してテストする。リアクションの取得は `ProfileRequests` と同じ形のコアレッサを新設し、`#e` で引く。リアクションを引く先は `EventStore` で、そのために「単一文字のタグの値でイベントを引く」索引を store へ足す —— NIP-01 がリレーの索引対象をそう定めており、kind の知識は入らない。v1 に入るイベントは購読・`fetchOnce`・水和のどれを通っても `store.put` を経由するので、**store 側の索引だけが全経路を捕まえる**。
 
 **Tech Stack:** SolidJS / UnoCSS / Vitest / Playwright。
 
@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **完了の判定は `pnpm vitest run` / `pnpm typecheck` / `pnpm check` の 3 つすべて**（Task 6 は加えて `pnpm exec playwright test e2e/v1.spec.ts`）。
+- **完了の判定は `pnpm vitest run` / `pnpm typecheck` / `pnpm check` の 3 つすべて**（Task 7 は加えて `pnpm exec playwright test e2e/v1.spec.ts`）。
   `pnpm check` は型検査を含まない。**各コマンドの終了ステータスをそれ自体で見ること** ——
   パイプへ通した先のステータスを読むと、落ちているのに通ったように見える。
 - **v0 は「デザインの一次情報」であって「プロトコルの一次情報ではない」**（仕様 1 節）。
@@ -431,75 +431,131 @@ git commit -m "feat(view): group reactions by content"
 
 ---
 
-### Task 3: リアクションの取得
+### Task 3: `EventStore` のタグ索引
 
 **Files:**
-- Modify: `src/core/read/collect.ts`（`CollectOptions` に `onAccepted` を足す）
-- Modify: `src/core/read/subscription-manager.ts`（`fetchOnce` の options に通す）
+- Modify: `src/core/read/event-store.ts`
+- Modify: `src/core/read/event-store.test.ts`
+
+**Interfaces:**
+- Produces: `EventStore.eventsByTag(name: string, value: string): NostrEvent[]`
+
+**索引するのは単一文字のタグだけ。** NIP-01 が「リレーが索引するのは単一文字のタグ」と
+定めており、`#e` / `#p` のフィルタが成立する根拠そのもの。**この規則に kind の知識は
+入らない** —— store は「kind:7 の `e` はリアクション先だ」を知らず、意味づけはレンダラが
+与える（[ADR-0004](../../adr/0004-kind-knowledge-lives-in-renderers.md) の
+「何が『kind 固有の知識』ではないか」を読むこと）。
+
+- [ ] **Step 1: 失敗するテストを書く**
+
+`event-store.test.ts` の既存の作り（`sign()` で実署名したイベントを作る）に合わせる。
+
+| 主張 | 捕まえる変異 |
+|---|---|
+| `e` タグの値で引ける | 索引を作らない |
+| 同じタグ値を持つイベントが複数あればすべて返る | 1 件で上書きする（Map の値を Set にしない） |
+| **複数文字のタグは索引しない** | 全タグを索引する（NIP-01 の索引対象は単一文字だけで、`imeta` のような長いタグまで索引するとメモリが無駄に増える） |
+| 同じイベントを 2 度 `put` しても重複しない | id で潰さない（複数リレーから同じイベントが届くのは普通で、数が倍になる） |
+| **水和したイベントも索引される** | `put` にだけ索引を足す（リロード直後だけ引けない、という再現しにくい壊れ方になる） |
+| 未知のタグ名で引くと空配列 | `undefined` を返す（呼び出し側が毎回 `?? []` を書くことになる） |
+
+`hydrate` の経路を必ず含めること —— **`put` だけに足すと、リロード直後だけ引けない。**
+
+- [ ] **Step 2: 走らせて落ちることを確認**
+
+Run: `pnpm vitest run src/core/read/event-store.test.ts`
+Expected: FAIL（`eventsByTag` が存在しない）
+
+- [ ] **Step 3: 実装**
+
+`EventStore` に足す:
+
+```ts
+  /**
+   * タグの値 → そのタグを持つイベント id。
+   *
+   * **単一文字のタグだけを索引する。** NIP-01 がリレーの索引対象をそう定めて
+   * おり、`#e` / `#p` のフィルタが成立する根拠でもある。`imeta` のような
+   * 長いタグまで索引すると、誰も引かない索引でメモリを食う。
+   */
+  readonly #byTag = new Map<string, Map<string, Set<string>>>();
+
+  #indexTags(event: NostrEvent): void {
+    for (const tag of event.tags) {
+      const name = tag[0];
+      const value = tag[1];
+      if (!name || name.length !== 1 || !value) continue;
+      let byValue = this.#byTag.get(name);
+      if (!byValue) {
+        byValue = new Map();
+        this.#byTag.set(name, byValue);
+      }
+      let ids = byValue.get(value);
+      if (!ids) {
+        ids = new Set();
+        byValue.set(value, ids);
+      }
+      ids.add(event.id);
+    }
+  }
+
+  /**
+   * このタグ値を持つイベント。意味づけ (kind:7 の `e` はリアクション先である、
+   * など) は呼び出し側が与える —— ここは kind を一切知らない。
+   */
+  eventsByTag(name: string, value: string): NostrEvent[] {
+    const ids = this.#byTag.get(name)?.get(value);
+    if (!ids) return [];
+    const events: NostrEvent[] = [];
+    for (const id of ids) {
+      const stored = this.#events.get(id);
+      if (stored) events.push(stored.event);
+    }
+    return events;
+  }
+```
+
+`put` が新規挿入したとき（`"inserted"` を返す経路）と、`hydrate` が 1 件載せた
+ときの**両方**で `#indexTags(event)` を呼ぶこと。重複 (`"duplicate"`) では
+呼ばなくてよい（`Set` なので呼んでも害は無いが、既に入っている）。
+
+- [ ] **Step 4: ゲートと変異検証、コミット**
+
+変異は 6 件。**変異の前に `event-store.ts` をコピーして保存し、検証後はコピーから
+戻すこと。**
+
+```bash
+pnpm vitest run && pnpm typecheck && pnpm check
+git commit -m "feat(read): index events by their single-letter tags"
+```
+
+---
+
+### Task 4: リアクションの要求
+
+**Files:**
 - Create: `src/core/read/reaction-requests.ts`
 - Create: `src/core/read/reaction-requests.test.ts`
 
 **Interfaces:**
-- Consumes: `parseReaction`（Task 1）
 - Produces:
-  - `type ReactionRequests = { request(targetId: string): void; reactionsOf(targetId: string): readonly { pubkey: string; parsed: ParsedReaction }[]; subscribe(listener: () => void): () => void; readonly lastBatchSize: number; readonly maxBatchSize: number; dispose(): void }`
+  - `type ReactionRequests = { request(targetId: string): void; subscribe(listener: () => void): () => void; readonly lastBatchSize: number; readonly maxBatchSize: number; dispose(): void }`
   - `createReactionRequests(options: { manager: SubscriptionManager; scheduler?: Scheduler }): ReactionRequests`
 
-**`ProfileRequests`（`src/core/read/profile-requests.ts`）と同じ形にする。** 窓で溜めて
-1 本のフィルタにまとめ、解決したらリスナーへ知らせる。**そのファイルを読んで、
-`flush` / `subscribe` / `lastBatchSize` の作りを揃えること。**
+**索引を持たない。** 役割は「要求をまとめること」と「バッチが片付いたと知らせる
+こと」だけ。引くのは `EventStore.eventsByTag`（Task 3）であり、`<Profile>` が
+`ProfileRequests` と `store.latestReplaceable` を組み合わせているのと同じ形になる。
 
-**なぜ `EventStore` に索引を足さないのか。** ADR-0004 が「kind の知識はレンダラに
-置く」と決めており、「kind:7 を `e` タグで索引する」を store に入れるとそれを破る。
-コアレッサが自分の索引を持てば、kind の知識はこのファイルの中に閉じる。
+**`src/core/read/profile-requests.ts` を読んで `flush` / `subscribe` /
+`lastBatchSize` の作りを揃えること。** 窓は 200ms（`PROFILE_BATCH_MS` と同じ値。
+別の値にする理由が無い）。
 
-- [ ] **Step 1: `collect` に受理イベントの seam を足す**
+- [ ] **Step 1: 失敗するテストを書く**
 
-`CollectOptions` に足す:
-
-```ts
-  /**
-   * ローカルフィルタ照合を通って `store.put` された 1 件ごとに呼ばれる。
-   *
-   * `store` は「この `e` タグを持つイベント」を引く経路を持たず、足すと
-   * kind の知識が store に入る (ADR-0004)。呼び出し側が自分の索引を作れる
-   * ように、受理したものをそのまま渡す。
-   */
-  onAccepted?: (event: NostrEvent) => void;
-```
-
-`onEvent` の中、`store.put(event, url)` の直後で呼ぶ:
-
-```ts
-            store.put(event, url);
-            options?.onAccepted?.(event);
-```
-
-`subscription-manager.ts` の `fetchOnce` の options に `onAccepted` を足し、
-`collect` へ渡す:
-
-```ts
-  async fetchOnce(
-    filters: RelayFilter[],
-    options?: {
-      relays?: RelayUrl[];
-      timeoutMs?: number;
-      onAccepted?: (event: NostrEvent) => void;
-    },
-  ): Promise<void> {
-```
-
-`collect(...)` の最後の引数へ `onAccepted: options?.onAccepted` を足す
-（`onUnrequested` と並べる）。
-
-- [ ] **Step 2: 失敗するテストを書く**
-
-`src/core/read/profile-requests.test.ts` の作り（`FakeClock` と
-`SubscriptionManager` のテストダブル）を読んで揃えること。
+`profile-requests.test.ts` の `FakeClock` とテストダブルの作りに揃える。
 
 ```ts
 import { describe, expect, it } from "vitest";
-import type { NostrEvent } from "../nostr/event";
 import { createFakeClock } from "./fake-clock";
 import { createReactionRequests } from "./reaction-requests";
 import type { SubscriptionManager } from "./subscription-manager";
@@ -507,30 +563,14 @@ import type { SubscriptionManager } from "./subscription-manager";
 const TARGET = "a".repeat(64);
 const OTHER = "b".repeat(64);
 
-const reactionEvent = (id: string, pubkey: string, target: string): NostrEvent => ({
-  id,
-  pubkey,
-  created_at: 1000,
-  kind: 7,
-  tags: [["e", target]],
-  content: "+",
-  sig: "0".repeat(128),
-});
-
-/** `fetchOnce` の呼び出しを記録し、受理イベントを流し込めるテストダブル。 */
+/** `fetchOnce` の呼び出しを記録するテストダブル。 */
 const createFakeManager = () => {
-  const calls: { filters: unknown[]; deliver: (e: NostrEvent) => void }[] = [];
+  const calls: unknown[][] = [];
   return {
     calls,
     manager: {
-      async fetchOnce(
-        filters: unknown[],
-        options?: { onAccepted?: (e: NostrEvent) => void },
-      ) {
-        calls.push({
-          filters,
-          deliver: (e) => options?.onAccepted?.(e),
-        });
+      async fetchOnce(filters: unknown[]) {
+        calls.push(filters);
       },
     } as unknown as SubscriptionManager,
   };
@@ -547,202 +587,74 @@ describe("createReactionRequests", () => {
     requests.request(OTHER);
     clock.advance(200);
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.filters).toEqual([{ kinds: [7], "#e": [TARGET, OTHER] }]);
+    expect(calls[0]).toEqual([{ kinds: [7], "#e": [TARGET, OTHER] }]);
   });
 
   it("同じ対象を 2 度要求しても 1 度しか投げない", () => {
-    // 捕まえる変異: pending を配列にする (同じ id が並び、REQ が無駄に伸びる)
+    // 捕まえる変異: 要求済みを覚えない (窓が回るたびに全ノートを引き直し、
+    // REQ が際限なく伸びる)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createReactionRequests({ manager, scheduler: clock });
     requests.request(TARGET);
+    clock.advance(200);
     requests.request(TARGET);
     clock.advance(200);
-    expect(calls[0]?.filters).toEqual([{ kinds: [7], "#e": [TARGET] }]);
+    expect(calls).toHaveLength(1);
   });
 
-  it("受理したリアクションを対象ごとに引ける", () => {
-    // 捕まえる変異: 索引に入れない (一覧が永久に空のまま)
+  it("窓が閉じた後の要求は次のバッチになる", () => {
+    // 捕まえる変異: flush で pending を差し替えない (次の要求が今回の
+    // バッチへ混ざる or 取りこぼす)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createReactionRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     clock.advance(200);
-    calls[0]?.deliver(reactionEvent("1".repeat(64), "u1", TARGET));
-    expect(requests.reactionsOf(TARGET)).toHaveLength(1);
-    expect(requests.reactionsOf(OTHER)).toHaveLength(0);
+    requests.request(OTHER);
+    clock.advance(200);
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toEqual([{ kinds: [7], "#e": [OTHER] }]);
   });
 
-  it("同じリアクションが 2 度届いても 1 件", () => {
-    // 捕まえる変異: id で重複を除かない。複数リレーから同じイベントが
-    // 届くのは普通で、数が実際の倍になる。
+  it("バッチが片付いたらリスナーへ知らせる", async () => {
+    // 捕まえる変異: 通知しない (一覧が届いても再描画されない)
     const clock = createFakeClock();
-    const { calls, manager } = createFakeManager();
+    const { manager } = createFakeManager();
     const requests = createReactionRequests({ manager, scheduler: clock });
-    requests.request(TARGET);
-    clock.advance(200);
-    const event = reactionEvent("1".repeat(64), "u1", TARGET);
-    calls[0]?.deliver(event);
-    calls[0]?.deliver(event);
-    expect(requests.reactionsOf(TARGET)).toHaveLength(1);
-  });
-
-  it("kind:7 として解釈できないものは索引に入れない", () => {
-    // 捕まえる変異: parseReaction の undefined を無視して入れる。
-    // リレーは要求外のものを寄越しうる (ADR-0023)。
-    const clock = createFakeClock();
-    const { calls, manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
-    requests.request(TARGET);
-    clock.advance(200);
-    calls[0]?.deliver({
-      ...reactionEvent("1".repeat(64), "u1", TARGET),
-      kind: 1,
+    let notified = 0;
+    requests.subscribe(() => {
+      notified += 1;
     });
-    expect(requests.reactionsOf(TARGET)).toHaveLength(0);
+    requests.request(TARGET);
+    clock.advance(200);
+    await Promise.resolve();
+    expect(notified).toBe(1);
   });
 
-  it("dispose 後は要求もしないし通知もしない", () => {
-    // 捕まえる変異: dispose を無視する。アンマウント後に REQ が飛ぶ。
+  it("dispose 後は要求もしないしタイマーも残らない", () => {
+    // 捕まえる変異: dispose を無視する (アンマウント後に REQ が飛ぶ)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createReactionRequests({ manager, scheduler: clock });
-    requests.dispose();
     requests.request(TARGET);
+    requests.dispose();
     clock.advance(200);
     expect(calls).toHaveLength(0);
+    expect(clock.pendingCount).toBe(0);
   });
 });
 ```
 
-- [ ] **Step 3: 走らせて落ちることを確認**
+- [ ] **Step 2: 走らせて落ちることを確認 → 実装 → ゲートと変異検証、コミット**
 
-Run: `pnpm vitest run src/core/read/reaction-requests.test.ts`
-Expected: FAIL（`./reaction-requests` が存在しない）
+`profile-requests.ts` の構造をそのまま写し、`authors` を `"#e"` に、`kinds: [0]`
+を `kinds: [7]` に置き換える。**`ProfileRequests` と違い、キャッシュの新鮮さ
+（`isStale`）は見ない** —— リアクションは置換可能イベントではなく、`fetchedAt` の
+概念が無い。代わりに「一度要求した対象は二度要求しない」で足りる（このスライスは
+後から増えるリアクションを追わない。仕様 2 節）。
 
-- [ ] **Step 4: 実装**
-
-`profile-requests.ts` を写しつつ、索引を足す。窓は 200ms（`PROFILE_BATCH_MS` と
-同じ値。**別の値にする理由が無い**）。
-
-```ts
-import type { NostrEvent } from "../nostr/event";
-import { type ParsedReaction, parseReaction } from "../nostr/reaction";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
-import type { RelayFilter } from "../relay/relay-connection";
-import type { SubscriptionManager } from "./subscription-manager";
-
-const REACTION_KIND = 7;
-/** `ProfileRequests` と同じ窓。別の値にする理由が無い。 */
-const REACTION_BATCH_MS = 200;
-
-export type ReactionEntry = { pubkey: string; parsed: ParsedReaction };
-
-export type ReactionRequests = {
-  request(targetId: string): void;
-  reactionsOf(targetId: string): readonly ReactionEntry[];
-  subscribe(listener: () => void): () => void;
-  readonly lastBatchSize: number;
-  readonly maxBatchSize: number;
-  dispose(): void;
-};
-
-export const createReactionRequests = (options: {
-  manager: SubscriptionManager;
-  scheduler?: Scheduler;
-}): ReactionRequests => {
-  const scheduler = options.scheduler ?? defaultScheduler;
-  let pending = new Set<string>();
-  let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
-  let disposed = false;
-  const listeners = new Set<() => void>();
-  const requested = new Set<string>();
-  // 対象 id → (リアクションの id → 中身)。内側を Map にするのは、
-  // 同じイベントが複数リレーから届くため —— id で潰さないと数が倍になる。
-  const byTarget = new Map<string, Map<string, ReactionEntry>>();
-
-  let lastBatchSize = 0;
-  let maxBatchSize = 0;
-
-  const accept = (event: NostrEvent): void => {
-    const parsed = parseReaction(event);
-    if (!parsed) return;
-    let bucket = byTarget.get(parsed.targetId);
-    if (!bucket) {
-      bucket = new Map();
-      byTarget.set(parsed.targetId, bucket);
-    }
-    bucket.set(event.id, { pubkey: event.pubkey, parsed });
-  };
-
-  const flush = (): void => {
-    timer = null;
-    if (pending.size === 0) return;
-    const ids = [...pending];
-    pending = new Set();
-    lastBatchSize = ids.length;
-    if (ids.length > maxBatchSize) maxBatchSize = ids.length;
-
-    const filters: RelayFilter[] = [{ kinds: [REACTION_KIND], "#e": ids }];
-    void options.manager
-      .fetchOnce(filters, { onAccepted: accept })
-      .then(() => {
-        if (disposed) return;
-        for (const listener of listeners) listener();
-      });
-  };
-
-  return {
-    request(targetId) {
-      if (disposed) return;
-      // 一度要求した対象は二度要求しない。リアクションは後から増えるが、
-      // それを追うのはこのスライスの範囲外 (仕様 2 節) であり、
-      // 窓が回るたびに全ノートを引き直すと REQ が際限なく伸びる。
-      if (requested.has(targetId)) return;
-      requested.add(targetId);
-      pending.add(targetId);
-      if (timer === null) {
-        timer = scheduler.setTimeout(flush, REACTION_BATCH_MS);
-      }
-    },
-
-    reactionsOf(targetId) {
-      const bucket = byTarget.get(targetId);
-      return bucket ? [...bucket.values()] : [];
-    },
-
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-
-    get lastBatchSize() {
-      return lastBatchSize;
-    },
-    get maxBatchSize() {
-      return maxBatchSize;
-    },
-
-    dispose() {
-      disposed = true;
-      if (timer !== null) {
-        scheduler.clearTimeout(timer);
-        timer = null;
-      }
-      pending = new Set();
-      listeners.clear();
-      byTarget.clear();
-    },
-  };
-};
-```
-
-`RelayFilter` に `"#e"` が無ければ型を足すこと（`src/core/relay/relay-connection.ts`）。
-既に `#e` を使っている箇所（`e2e` の REQ など）を確認し、既存の形に合わせる。
-
-- [ ] **Step 5: ゲートと変異検証、コミット**
-
-変異は 6 件。
+変異は 5 件。
 
 ```bash
 pnpm vitest run && pnpm typecheck && pnpm check
@@ -751,7 +663,7 @@ git commit -m "feat(read): coalesce reaction lookups by target event"
 
 ---
 
-### Task 4: kind:7 のレンダラとリポストの修正
+### Task 5: kind:7 のレンダラとリポストの修正
 
 **Files:**
 - Create: `src/routes/v1/renderers/Reaction.tsx`
@@ -762,6 +674,7 @@ git commit -m "feat(read): coalesce reaction lookups by target event"
 
 **Interfaces:**
 - Consumes: `parseReaction` / `ParsedReaction`（Task 1）、`EventView`、`Profile`
+- 前提: `EventStore.eventsByTag`（Task 3）と `ReactionRequests`（Task 4）は既にある
 - Produces: `ReactionFull` / `ReactionCompact`（`Component<EventBodyProps>`）
 
 **仕様 3 節がすべて。** 見出し 1 行 + 対象を**完全な** `EventView` として子に置く。
@@ -972,7 +885,7 @@ git commit -m "feat(v1): render reactions and give reposts their full target"
 
 ---
 
-### Task 5: リアクション一覧
+### Task 6: リアクション一覧
 
 **Files:**
 - Create: `src/routes/v1/ReactionList.tsx`
@@ -986,7 +899,7 @@ git commit -m "feat(v1): render reactions and give reposts their full target"
   `UnknownKind.test.tsx` を確認すること）
 
 **Interfaces:**
-- Consumes: `groupReactions` / `ReactionGroup`（Task 2）、`ReactionRequests`（Task 3）
+- Consumes: `groupReactions` / `ReactionGroup`（Task 2）、`EventStore.eventsByTag`（Task 3）、`ReactionRequests`（Task 4）
 - Produces: `ReactionList: Component<{ eventId: string }>`（default export）
 
 **仕様 5 節がすべて。**
@@ -1009,9 +922,6 @@ export type RenderContextValue = {
 ```ts
 const fakeReactions = (): ReactionRequests => ({
   request() {},
-  reactionsOf() {
-    return [];
-  },
   subscribe() {
     return () => {};
   },
@@ -1023,7 +933,10 @@ const fakeReactions = (): ReactionRequests => ({
 
 - [ ] **Step 2: 失敗するテストを書く**
 
-`ReactionList.test.tsx`。`reactionsOf` が値を返すテストダブルを渡す。
+`ReactionList.test.tsx`。**リアクションは `EventStore` へ直接 `put` して用意する**
+—— `ReactionRequests` は索引を持たないので、値を仕込む先は store。
+`event-store.test.ts` の `sign()` を真似て実署名の kind:7 を作ること
+（`put` は schnorr 検証を通る本物でないと `"rejected"` になる）。
 
 | 主張 | 捕まえる変異 |
 |---|---|
@@ -1045,6 +958,12 @@ v0 の `ReactionButtons.tsx` / `ReactionButton.tsx` の**描画部分**を写す
 - マウント時に `ctx.reactions.request(props.eventId)`、`ctx.reactions.subscribe`
   で再描画（`profile-data.ts` の `createEffect` の形を真似る。**effect の中で
   自分が set するシグナルを読まないこと** —— 無限ループになる）
+- リアクションの取り出しは `ctx.store.eventsByTag("e", props.eventId)` を
+  `parseReaction` に通し、**`targetId` が `props.eventId` と一致するものだけ**
+  を採る —— `e` タグは返信先にも使われるので、これで絞らないと**そのノートへの
+  返信までリアクションとして数えてしまう**。`parseReaction` が kind を見るので
+  kind:1 の返信は落ちるが、対象が最後の `e` タグである以上、**リアクションが
+  スレッドの祖先として別の id を並べている場合に取り違えないため**にも要る。
 
 `data-testid`: 一覧の器に `reaction-list`、1 グループに `reaction-group`、
 件数に `reaction-count`、展開トグルに `reaction-expand`。
@@ -1071,7 +990,7 @@ git commit -m "feat(v1): show the reactions on a note"
 
 ---
 
-### Task 6: e2e と記録
+### Task 7: e2e と記録
 
 **Files:**
 - Modify: `e2e/fixtures/seed-preview.ts`（kind:7 を足す）
