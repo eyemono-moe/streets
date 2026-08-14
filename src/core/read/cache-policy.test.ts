@@ -148,8 +148,14 @@ describe("scope (誰が見てよいか)", () => {
   });
 
   it("public でない kind は retention があっても永続化されない", () => {
-    // 捕まえる変異: shouldPersist が scope を見ない。これがこのスライスの
-    // 中心 —— account/session の kind が共有 DB へ書かれるのを防ぐ。
+    // 捕まえる変異: persistableScope が scope を見ない（retention だけで決める）。
+    // これがこのスライスの中心 —— account/session の kind が共有 DB へ書かれるのを防ぐ。
+    //
+    // 注: なぜ shouldPersist 経由では確かめられないか —— 現在、登録済みの
+    // 3 kind はすべて scope: "public"、未知 kind は scope: "session" かつ
+    // retention: "none" である。つまり、どの kind を渡しても 2 つの軸が同じ答えを
+    // 出すため、kind 経由では scope 判定の有無を区別できない。ここは判定
+    // ロジックの在り処（persistableScope）を直接呼ぶ唯一の場所。
     for (const scope of ["account", "session"] as const) {
       const policy: CachePolicy = {
         staleMs: 0,

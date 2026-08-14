@@ -114,6 +114,10 @@ export const registeredKinds = (): number[] => [...POLICIES.keys()];
  * この kind を永続層へ書いてよいか。**2 つの軸をどちらも満たすときだけ真。**
  * `retention: none` は「保持しない」ではなく「そもそも書かない」を意味し、
  * `scope` が `public` でないものは置き場がそもそも違う。
+ * 今日は登録済みの kind がすべて `scope: "public"`、未知 kind がすべて
+ * `scope: "session" && retention: "none"` なので、この判定が効く kind は
+ * 存在しない —— 将来 `"account"` や永続化する `"session"` の kind が方針表へ
+ * 載ったときに番人として機能する。
  */
 export const shouldPersist = (kind: number): boolean =>
   persistableScope(policyFor(kind));
