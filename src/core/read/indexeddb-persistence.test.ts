@@ -44,11 +44,13 @@ describe("selectForPersistence", () => {
     staleMs: 0,
     serveWhileRevalidating: false,
     retention: { type: "latest-per-author" },
+    scope: "public",
   };
   const none: CachePolicy = {
     staleMs: 0,
     serveWhileRevalidating: false,
     retention: { type: "none" },
+    scope: "public",
   };
 
   it("retention: none の kind は書かれない", () => {
@@ -134,6 +136,7 @@ describe("selectForPersistence", () => {
         staleMs: 0,
         serveWhileRevalidating: false,
         retention: { type: "capped", max: 10 },
+        scope: "public",
       })),
     ).toThrow();
   });
