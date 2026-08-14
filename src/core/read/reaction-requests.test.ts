@@ -82,9 +82,11 @@ describe("createReactionRequests", () => {
     const requests = createReactionRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     requests.dispose();
+    // advance の後で見ると、タイマーは発火して pending から消えた後なので
+    // 「片付けた」と「発火した」を区別できない。dispose の直後に見る。
+    expect(clock.pendingCount).toBe(0);
     clock.advance(200);
     expect(calls).toHaveLength(0);
-    expect(clock.pendingCount).toBe(0);
   });
 
   it("lastBatchSize と maxBatchSize は複数バッチの状態を追随する", () => {
