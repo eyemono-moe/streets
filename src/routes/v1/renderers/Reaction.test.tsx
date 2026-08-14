@@ -7,6 +7,7 @@ import { type NostrEvent, computeEventId } from "../../../core/nostr/event";
 import type { EventRequests } from "../../../core/read/event-requests";
 import { EventStore } from "../../../core/read/event-store";
 import type { ProfileRequests } from "../../../core/read/profile-requests";
+import type { ReactionRequests } from "../../../core/read/reaction-requests";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
 import type { EventBodyProps } from "../../../core/view/renderer-registry";
@@ -65,10 +66,21 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
 const contextWith = (events: EventRequests): RenderContextValue => ({
   store: new EventStore(),
   events,
   profiles: fakeProfiles(),
+  reactions: fakeReactions(),
   renderers: [],
 });
 

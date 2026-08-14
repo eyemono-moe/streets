@@ -2,6 +2,7 @@ import { type ParentComponent, createContext, useContext } from "solid-js";
 import type { EventRequests } from "../read/event-requests";
 import type { EventStore } from "../read/event-store";
 import type { ProfileRequests } from "../read/profile-requests";
+import type { ReactionRequests } from "../read/reaction-requests";
 import type { EventRenderer } from "./renderer-registry";
 
 /**
@@ -15,6 +16,7 @@ export type RenderContextValue = {
   store: EventStore;
   events: EventRequests;
   profiles: ProfileRequests;
+  reactions: ReactionRequests;
   renderers: readonly EventRenderer[];
 };
 

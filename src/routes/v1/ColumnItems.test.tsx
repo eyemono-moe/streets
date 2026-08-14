@@ -4,6 +4,7 @@ import type { NostrEvent } from "../../core/nostr/event";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import {
@@ -48,6 +49,15 @@ const fakeContext = (): RenderContextValue => ({
     maxBatchSize: 0,
     dispose() {},
   } satisfies ProfileRequests,
+  reactions: {
+    request() {},
+    subscribe() {
+      return () => {};
+    },
+    lastBatchSize: 0,
+    maxBatchSize: 0,
+    dispose() {},
+  } satisfies ReactionRequests,
   renderers: [],
 });
 

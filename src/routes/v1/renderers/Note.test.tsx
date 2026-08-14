@@ -8,6 +8,7 @@ import { encodeBech32 } from "../../../core/nostr/nip19";
 import type { EventRequests } from "../../../core/read/event-requests";
 import { EventStore } from "../../../core/read/event-store";
 import type { ProfileRequests } from "../../../core/read/profile-requests";
+import type { ReactionRequests } from "../../../core/read/reaction-requests";
 import { formatEventTimeFull } from "../../../core/view/format-time";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
@@ -75,6 +76,16 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
 /**
  * `EventView.test.tsx` と同じ手法: `createRoot` の中で Solid コンポーネント
  * を JSX を介さず関数として直接呼び、返ってきた DOM ノードを検証する。
@@ -111,6 +122,7 @@ const contextWith = (
   store,
   events,
   profiles: fakeProfiles(),
+  reactions: fakeReactions(),
   // kind:1 しかテスト対象にしないので、レンダラ集合は空でよい (引用・返信
   // 先は常に compact の EventView 経由で描かれ、store に無い間は
   // event-loading のまま — renderer の解決まで届かない)。

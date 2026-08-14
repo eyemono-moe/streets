@@ -6,6 +6,7 @@ import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import Avatar from "./Avatar";
@@ -75,6 +76,15 @@ const fakeEvents = (): EventRequests => ({
   dispose() {},
 });
 
+/** `Avatar` は reactions も使わないが `RenderContextValue` の必須項目。 */
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe: () => () => {},
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
 /**
  * `EventView.test.tsx`/`Note.test.tsx` と同じ手法: Solid コンポーネントを
  * JSX を介さず関数として直接呼び、返ってきた DOM ノードを検証する。
@@ -113,6 +123,7 @@ describe("Avatar", () => {
       store,
       events: fakeEvents(),
       profiles,
+      reactions: fakeReactions(),
       renderers: [],
     };
 
@@ -142,6 +153,7 @@ describe("Avatar", () => {
       store,
       events: fakeEvents(),
       profiles,
+      reactions: fakeReactions(),
       renderers: [],
     };
     const pubkey = pubkeyFor(2);
@@ -166,6 +178,7 @@ describe("Avatar", () => {
       store,
       events: fakeEvents(),
       profiles,
+      reactions: fakeReactions(),
       renderers: [],
     };
     const pubkey = pubkeyFor(3);

@@ -6,6 +6,7 @@ import { encodeBech32 } from "../../core/nostr/nip19";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import NoteContent from "./NoteContent";
@@ -94,12 +95,23 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
 const contextWith = (
   store: EventStore = new EventStore(),
 ): RenderContextValue => ({
   store,
   events: fakeEvents(),
   profiles: fakeProfiles(),
+  reactions: fakeReactions(),
   renderers: [],
 });
 

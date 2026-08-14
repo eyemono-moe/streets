@@ -1,0 +1,253 @@
+import { schnorr } from "@noble/curves/secp256k1.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { createRoot } from "solid-js";
+import { describe, expect, it } from "vitest";
+import { type NostrEvent, computeEventId } from "../../core/nostr/event";
+import { encodeBech32 } from "../../core/nostr/nip19";
+import type { EventRequests } from "../../core/read/event-requests";
+import { EventStore } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
+import { RenderProvider } from "../../core/view/render-context";
+import type { RenderContextValue } from "../../core/view/render-context";
+import ReactionList from "./ReactionList";
+
+// Note.test.tsx / event-store.test.ts と同じ手法: 種から 32 byte 鍵を作り
+// schnorr で実署名する。`EventStore.put` は `verifyEvent` を通すため、
+// テスト用イベントも本物の署名を持たなければ store に入らない。
+const keyFor = (seed: number) =>
+  Uint8Array.from(
+    Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
+  );
+
+const pubkeyFor = (seed: number) =>
+  bytesToHex(schnorr.getPublicKey(keyFor(seed)));
+
+const signed = (
+  seed: number,
+  overrides: Partial<NostrEvent> = {},
+): NostrEvent => {
+  const sk = keyFor(seed);
+  const unsigned = {
+    pubkey: bytesToHex(schnorr.getPublicKey(sk)),
+    created_at: overrides.created_at ?? 1_700_000_000,
+    kind: overrides.kind ?? 1,
+    tags: overrides.tags ?? [],
+    content: overrides.content ?? "note",
+  };
+  const id = computeEventId(unsigned);
+  return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
+};
+
+/** kind:7 の実署名イベント。既定の content は NIP-25 の `+` (like)。 */
+const signedReaction = (
+  seed: number,
+  targetId: string,
+  overrides: Partial<NostrEvent> = {},
+): NostrEvent =>
+  signed(seed, {
+    kind: 7,
+    content: "+",
+    tags: [["e", targetId]],
+    ...overrides,
+  });
+
+const fakeEvents = (): EventRequests => ({
+  request() {},
+  isUnresolved() {
+    return false;
+  },
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
+const fakeProfiles = (): ProfileRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
+/** `request` の呼び出しを記録する `ReactionRequests` のテストダブル。 */
+const createRecordingReactionRequests = (): ReactionRequests & {
+  requested: string[];
+} => {
+  const requested: string[] = [];
+  return {
+    requested,
+    request(id) {
+      requested.push(id);
+    },
+    subscribe() {
+      return () => {};
+    },
+    lastBatchSize: 0,
+    maxBatchSize: 0,
+    dispose() {},
+  };
+};
+
+const contextWith = (
+  store: EventStore,
+  reactions: ReactionRequests = createRecordingReactionRequests(),
+): RenderContextValue => ({
+  store,
+  events: fakeEvents(),
+  profiles: fakeProfiles(),
+  reactions,
+  renderers: [],
+});
+
+/**
+ * `Reaction.test.tsx` の `mountBody` と同じ理由: `ReactionList` のトップ
+ * レベルは `<Show>` なので、コンポーネントを関数として直接呼ぶと戻り値は
+ * DOM ノードではなくアクセサ関数になる。
+ */
+const mount = (
+  eventId: string,
+  ctx: RenderContextValue,
+): { element: () => HTMLElement | undefined; dispose: () => void } => {
+  let element: HTMLElement | undefined;
+  let disposeRoot: () => void = () => {};
+  createRoot((dispose) => {
+    disposeRoot = dispose;
+    RenderProvider({
+      value: ctx,
+      get children() {
+        element = (
+          ReactionList({
+            eventId,
+          }) as unknown as () => HTMLElement | undefined
+        )();
+        return null;
+      },
+    });
+  });
+  return {
+    element: () => element,
+    dispose: disposeRoot,
+  };
+};
+
+describe("ReactionList", () => {
+  it("リアクションが 0 件なら何も描かない", () => {
+    // 捕まえる変異: 空でも枠を描く (0 件の枠が全ノートに並ぶ)
+    const store = new EventStore();
+    const target = signed(1);
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      expect(element()).toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("同じ内容がまとまり件数が出る", () => {
+    // 捕まえる変異: グループ化せず 1 件 1 枠にする
+    const store = new EventStore();
+    const target = signed(2);
+    store.put(signedReaction(3, target.id), "wss://relay/");
+    store.put(signedReaction(4, target.id), "wss://relay/");
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      const el = element();
+      const groups = el?.querySelectorAll('[data-testid="reaction-group"]');
+      expect(groups).toHaveLength(1);
+      expect(
+        groups?.[0]?.querySelector('[data-testid="reaction-count"]')
+          ?.textContent,
+      ).toBe("2");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("マウント時に request(eventId) を呼ぶ", () => {
+    // 捕まえる変異: 呼ばない (一覧が永久に空)
+    const store = new EventStore();
+    const target = signed(5);
+    const reactions = createRecordingReactionRequests();
+    const { dispose } = mount(target.id, contextWith(store, reactions));
+    try {
+      expect(reactions.requested).toContain(target.id);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("展開すると押した人が出る", () => {
+    // 捕まえる変異: 展開しても何も変わらない
+    const store = new EventStore();
+    const target = signed(6);
+    const reactorSeed = 7;
+    store.put(signedReaction(reactorSeed, target.id), "wss://relay/");
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      const el = element();
+      expect(el).toBeDefined();
+      // 展開前は誰が押したかを出さない。
+      expect(el?.querySelector('[data-testid="profile"]')).toBeNull();
+
+      // クリックは document への bubble を経由して Solid の delegated event
+      // で拾われるため、実 DOM に接続する (Note.test.tsx の展開ボタンの
+      // テストと同じ理由)。
+      if (el) document.body.appendChild(el);
+      try {
+        el?.querySelector<HTMLButtonElement>(
+          '[data-testid="reaction-expand"]',
+        )?.click();
+
+        const profile = el?.querySelector('[data-testid="profile"]');
+        expect(profile).not.toBeNull();
+        expect(profile?.textContent).toBe(
+          `@${encodeBech32("npub", pubkeyFor(reactorSeed)).slice(0, 12)}`,
+        );
+      } finally {
+        el?.remove();
+      }
+    } finally {
+      dispose();
+    }
+  });
+
+  it("このノートを NIP-10 の祖先として並べているだけの kind:7 (実際の対象は別イベント) はリアクション数に混ざらない", () => {
+    // 捕まえる変異: targetId の一致で絞る処理を外す。`eventsByTag("e", id)`
+    // は「この id を e タグに持つイベント」を返すので、返信 (kind:1) だけで
+    // なく、このノートをスレッド祖先として並べる別対象への kind:7 まで
+    // 拾ってしまう。
+    const store = new EventStore();
+    const target = signed(10);
+    const otherTarget = signed(11);
+    // 素朴な返信。kind チェックだけで落ちるはずだが、「e タグを持つ無関係な
+    // イベント」の入口として仕込む。
+    store.put(
+      signed(12, { kind: 1, tags: [["e", target.id]], content: "reply" }),
+      "wss://relay/",
+    );
+    // 対象 (最後の e タグ) は otherTarget —— target は祖先として先に並ぶだけ。
+    store.put(
+      signed(13, {
+        kind: 7,
+        content: "+",
+        tags: [
+          ["e", target.id, "", "root"],
+          ["e", otherTarget.id, "", ""],
+        ],
+      }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      expect(element()).toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+});

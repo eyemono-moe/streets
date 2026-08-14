@@ -6,6 +6,7 @@ import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import type { EventRenderer } from "../../core/view/renderer-registry";
@@ -84,6 +85,16 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
 /** kind:1 だけを扱うダミーレンダラ。full/compact を DOM 上で区別できるようにする。 */
 const testRenderer: EventRenderer = {
   kind: 1,
@@ -137,6 +148,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
+      reactions: fakeReactions(),
       renderers: [testRenderer],
     };
 
@@ -165,6 +177,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
+      reactions: fakeReactions(),
       renderers: [testRenderer],
     };
 
@@ -205,6 +218,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
+      reactions: fakeReactions(),
       renderers: [testRenderer],
     };
 
@@ -242,6 +256,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
+      reactions: fakeReactions(),
       renderers: [testRenderer],
     };
 
@@ -286,6 +301,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
+      reactions: fakeReactions(),
       // 空集合でも壊れないことがこのタスクの要求そのもの。
       renderers: [],
     };

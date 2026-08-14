@@ -20,6 +20,7 @@ import Avatar from "../Avatar";
 import EventView from "../EventView";
 import NoteContent from "../NoteContent";
 import Profile from "../Profile";
+import ReactionList from "../ReactionList";
 
 /**
  * 本文を折り畳む高さ (spec 3 節)。v0 の `EventBase` と同じしきい値。
@@ -273,6 +274,12 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
             )
           }
         </For>
+        {/*
+          リアクション一覧 (spec 5 節)。`NoteCompact` には出さない ——
+          compact は関連イベントを一切要求しないという規則を、リアクション
+          取得の要求 (`ctx.reactions.request`) にも適用する。
+        */}
+        <ReactionList eventId={props.event.id} />
       </NoteBody>
     </article>
   );

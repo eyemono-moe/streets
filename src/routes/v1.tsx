@@ -164,6 +164,7 @@ const V1: Component = () => {
     manager,
     profiles: profileRequests,
     events: eventRequests,
+    reactions: reactionRequests,
   } = readLayer;
 
   // 書き込み経路。ソケットを開くのは manager と同じ
@@ -704,6 +705,7 @@ const V1: Component = () => {
                 store,
                 events: eventRequests,
                 profiles: profileRequests,
+                reactions: reactionRequests,
                 renderers: defaultRenderers,
               }}
             >

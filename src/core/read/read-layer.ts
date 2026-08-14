@@ -8,6 +8,11 @@ import {
   type ProfileRequests,
   createProfileRequests,
 } from "./profile-requests";
+import {
+  type CreateReactionRequestsOptions,
+  type ReactionRequests,
+  createReactionRequests,
+} from "./reaction-requests";
 import { RoutingTable } from "./routing-table";
 import { SubscriptionManager } from "./subscription-manager";
 
@@ -34,6 +39,7 @@ export type ReadLayer = {
   routing: RoutingTable;
   events: EventRequests;
   profiles: ProfileRequests;
+  reactions: ReactionRequests;
   /** 同期読み取りと診断のためだけ。書き込み口をアプリ側から呼ばない。 */
   readonly store: EventStore;
   dispose(): void;
@@ -64,6 +70,11 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const profiles = createProfileRequests(profileRequestsOptions);
   const events = createEventRequests({ store, manager, scheduler });
+  const reactionRequestsOptions: CreateReactionRequestsOptions = {
+    manager,
+    scheduler,
+  };
+  const reactions = createReactionRequests(reactionRequestsOptions);
 
   // `persistence.load()` は仕様上 reject しない実装だけを渡す契約だが、
   // ここで信用しきって `await` だけに任せると、その規約が守られなかった
@@ -88,10 +99,12 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     routing,
     events,
     profiles,
+    reactions,
     store,
     dispose(): void {
       profiles.dispose();
       events.dispose();
+      reactions.dispose();
       manager.dispose();
       options.persistence.dispose();
     },
