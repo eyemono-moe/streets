@@ -87,12 +87,21 @@ jobs:
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
       # compose の bind 元 (`./data/...`) は .gitignore されており、クリーンな
-      # checkout には存在しない。無いまま `up` すると Docker が root 所有で
-      # 作り、コンテナ内の非 root プロセスが SQLite ファイルを作れずに
-      # 起動し続けられない (relay 2 が実際にこれで落ちた:
-      # "unable to open database file")。先に runner の権限で作っておく。
+      # checkout には存在しない。relay 2 は SQLite をここへ作るので、
+      # 書けないと "unable to open database file" を吐き続けて起動しきらない
+      # (実測: この 2 点をどちらも踏んだ)。
+      #
+      # **作るだけでは足りない。** コンテナ内のプロセスは `appuser`
+      # (uid 1000) で走るが、runner の uid は 1001 なので、runner が作った
+      # ディレクトリには書けない。ローカルの開発機で問題が出ないのは、
+      # 開発者の uid がたまたま 1000 で一致しているからにすぎない。
+      # uid を決め打ちで chown するとイメージ側の変更で再び壊れるので、
+      # 誰でも書ける状態にする —— CI の使い捨てワークスペースであり、
+      # ここに守るべきものは無い。
       - name: Create relay data directories
-        run: mkdir -p data/nostr-rs-relay/db data/nostr-rs-relay-2/db
+        run: |
+          mkdir -p data/nostr-rs-relay/db data/nostr-rs-relay-2/db
+          chmod -R 777 data
       # **リレー 2 本だけを起動する。** compose には nostrcheck (NIP-96)・
       # mariadb・redis・traefik も入っているが、e2e はどれも使わない ——
       # 起動を待つ時間と、無関係な失敗の経路が増えるだけ。relay 1 が要る
