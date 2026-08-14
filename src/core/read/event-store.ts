@@ -45,6 +45,14 @@ export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
   /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
   readonly #replaceable = new Map<string, string>();
+  /**
+   * タグの値 → そのタグを持つイベント id。
+   *
+   * **単一文字のタグだけを索引する。** NIP-01 がリレーの索引対象をそう定めて
+   * おり、`#e` / `#p` のフィルタが成立する根拠でもある。`imeta` のような
+   * 長いタグまで索引すると、誰も引かない索引でメモリを食う。
+   */
+  readonly #byTag = new Map<string, Map<string, Set<string>>>();
   readonly #scheduler: Scheduler;
   readonly #persistence: EventPersistence | undefined;
 
@@ -180,6 +188,7 @@ export class EventStore {
   #insert(event: NostrEvent, seenRelays: RelayUrl[], fetchedAt: number): void {
     this.#events.set(event.id, { event, seenRelays, fetchedAt });
     this.#indexReplaceable(event);
+    this.#indexTags(event);
   }
 
   get(id: string): NostrEvent | undefined {
@@ -239,6 +248,40 @@ export class EventStore {
       }
     }
     this.#replaceable.set(key, event.id);
+  }
+
+  #indexTags(event: NostrEvent): void {
+    for (const tag of event.tags) {
+      const name = tag[0];
+      const value = tag[1];
+      if (!name || name.length !== 1 || !value) continue;
+      let byValue = this.#byTag.get(name);
+      if (!byValue) {
+        byValue = new Map();
+        this.#byTag.set(name, byValue);
+      }
+      let ids = byValue.get(value);
+      if (!ids) {
+        ids = new Set();
+        byValue.set(value, ids);
+      }
+      ids.add(event.id);
+    }
+  }
+
+  /**
+   * このタグ値を持つイベント。意味づけ (kind:7 の `e` はリアクション先である、
+   * など) は呼び出し側が与える —— ここは kind を一切知らない。
+   */
+  eventsByTag(name: string, value: string): NostrEvent[] {
+    const ids = this.#byTag.get(name)?.get(value);
+    if (!ids) return [];
+    const events: NostrEvent[] = [];
+    for (const id of ids) {
+      const stored = this.#events.get(id);
+      if (stored) events.push(stored.event);
+    }
+    return events;
   }
 
   latestReplaceable(kind: number, pubkey: string): NostrEvent | undefined {

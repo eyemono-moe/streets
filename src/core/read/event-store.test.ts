@@ -470,3 +470,90 @@ describe("EventStore と EventPersistence の配線", () => {
     expect(() => store.put(sign("x"), "wss://a/")).not.toThrow();
   });
 });
+
+describe("EventStore.eventsByTag", () => {
+  it("e タグの値で引ける", () => {
+    // 捕まえる変異: 索引を作らない
+    const store = new EventStore();
+    const event = sign("reply", { tags: [["e", "abc123"]] });
+    store.put(event, "wss://relay/");
+
+    const results = store.eventsByTag("e", "abc123");
+    expect(results).toEqual([event]);
+  });
+
+  it("同じタグ値を持つイベントが複数あればすべて返る", () => {
+    // 捕まえる変異: 1 件で上書きする (Map の値を Set にしない)
+    const store = new EventStore();
+    const event1 = sign("reply1", {
+      created_at: 1000,
+      tags: [["e", "abc123"]],
+    });
+    const event2 = sign("reply2", {
+      created_at: 2000,
+      tags: [["e", "abc123"]],
+    });
+
+    store.put(event1, "wss://relay1/");
+    store.put(event2, "wss://relay2/");
+
+    const results = store.eventsByTag("e", "abc123");
+    expect(results).toHaveLength(2);
+    expect(results).toContainEqual(event1);
+    expect(results).toContainEqual(event2);
+  });
+
+  it("複数文字のタグは索引しない", () => {
+    // 捕まえる変異: 全タグを索引する
+    // (imeta のような長いタグまで索引するとメモリが無駄に増える)
+    const store = new EventStore();
+    const event = sign("with metadata", {
+      tags: [
+        ["e", "abc123"],
+        ["imeta", "url https://example.com/image.png"],
+      ],
+    });
+    store.put(event, "wss://relay/");
+
+    expect(store.eventsByTag("e", "abc123")).toEqual([event]);
+    expect(
+      store.eventsByTag("imeta", "url https://example.com/image.png"),
+    ).toEqual([]);
+  });
+
+  it("同じイベントを 2 度 put しても重複しない", () => {
+    // 捕まえる変異: id で潰さない (複数リレーから同じイベントが届くのは普通で、
+    // 数が倍になる)
+    const store = new EventStore();
+    const event = sign("shared", { tags: [["e", "abc123"]] });
+
+    store.put(event, "wss://relay1/");
+    store.put(event, "wss://relay2/");
+
+    const results = store.eventsByTag("e", "abc123");
+    expect(results).toEqual([event]);
+  });
+
+  it("水和したイベントも索引される", () => {
+    // 捕まえる変異: put にだけ索引を足す
+    // (リロード直後だけ引けない、という再現しにくい壊れ方になる)
+    const store = new EventStore();
+    const event = sign("hydrated", { tags: [["e", "abc123"]] });
+
+    store.hydrate([{ event, seenRelays: ["wss://relay/"], fetchedAt: 1 }]);
+
+    const results = store.eventsByTag("e", "abc123");
+    expect(results).toEqual([event]);
+  });
+
+  it("未知のタグ名で引くと空配列", () => {
+    // 捕まえる変異: undefined を返す
+    // (呼び出し側が毎回 ?? [] を書くことになる)
+    const store = new EventStore();
+    const event = sign("test", { tags: [["e", "abc123"]] });
+    store.put(event, "wss://relay/");
+
+    const results = store.eventsByTag("unknown", "value");
+    expect(results).toEqual([]);
+  });
+});
