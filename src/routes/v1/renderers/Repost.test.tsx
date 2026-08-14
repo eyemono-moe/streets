@@ -124,6 +124,37 @@ describe("RepostFull", () => {
     }
   });
 
+  it("リポストの対象は compact ではなく full で描く", () => {
+    // 捕まえる変異: variant="compact" に戻す。v0 は対象を完全な Event として
+    // 描いており (showReactions showActions 付き)、compact にすると対象の
+    // 返信先・引用・リアクション一覧が消える (仕様 3 節)。
+    const events = createRecordingEventRequests();
+    const targetId = signed(40).id;
+    const event = signed(41, {
+      kind: 6,
+      tags: [["e", targetId, "wss://relay/"]],
+      content: "",
+    });
+    const { element, dispose } = mount(
+      () => RepostFull({ event }),
+      contextWith({ events }),
+    );
+    try {
+      expect(
+        element().querySelector(
+          '[data-testid="event-view"][data-variant="full"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        element().querySelector(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
   it("content の埋め込みが有効な署名を持つなら、それを store.put に通し対象にする", () => {
     // 捕まえる変異: e タグの id を使う (埋め込みを無視する)。embedded と e
     // タグに別々の id を持たせることで、どちらが実際に使われたかを区別する。
@@ -146,11 +177,11 @@ describe("RepostFull", () => {
       // の提供として記録してはいけない)。
       expect(store.get(target.id)).toEqual(target);
       expect(store.seenRelays(target.id)).toEqual(["embedded"]);
-      // 対象として描かれているのは embedded の id (compact の EventView が
+      // 対象として描かれているのは embedded の id (full の EventView が
       // 直ちに中身を描ける = 既に store にある) であって e タグの id ではない。
       expect(
         element().querySelector(
-          `[data-testid="event-view"][data-variant="compact"]`,
+          `[data-testid="event-view"][data-variant="full"]`,
         )?.textContent,
       ).toContain("embedded body");
       expect(store.get(eTagId)).toBeUndefined();
@@ -181,7 +212,7 @@ describe("RepostFull", () => {
       expect(store.get(brokenEmbedded.id)).toBeUndefined();
       expect(
         element().querySelector(
-          '[data-testid="event-view"][data-variant="compact"]',
+          '[data-testid="event-view"][data-variant="full"]',
         )?.textContent,
       ).toContain("real fallback body");
     } finally {
@@ -228,11 +259,11 @@ describe("RepostFull", () => {
       // NoteFull/NoteCompact (data-testid="note") には決してならない ——
       // k タグの "1" を信じるとここが note になってしまう。
       expect(element().querySelector('[data-testid="note"]')).toBeNull();
-      const compactView = element().querySelector(
-        '[data-testid="event-view"][data-variant="compact"]',
+      const fullView = element().querySelector(
+        '[data-testid="event-view"][data-variant="full"]',
       );
-      expect(compactView).not.toBeNull();
-      expect(compactView?.textContent).toContain("9999");
+      expect(fullView).not.toBeNull();
+      expect(fullView?.textContent).toContain("9999");
     } finally {
       dispose();
     }

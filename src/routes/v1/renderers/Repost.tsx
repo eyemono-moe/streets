@@ -74,13 +74,17 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
 
   return (
     <div data-testid="repost" class="space-y-1 pt-1 pr-2 pb-1 pl-1 text-body">
-      <p data-testid="repost-by" class="c-secondary text-caption">
+      <p
+        data-testid="repost-by"
+        class="c-secondary flex items-center gap-1 text-caption"
+      >
+        <span class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4 shrink-0" />
         <Profile
           pubkey={props.event.pubkey}
           store={ctx.store}
           requests={ctx.profiles}
         />
-        がリポスト
+        <span class="shrink-0">がリポスト</span>
       </p>
       <Show
         when={target}
@@ -91,7 +95,7 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
         }
       >
         {(ref) => (
-          <EventView id={ref().id} variant="compact" relayHint={ref().relay} />
+          <EventView id={ref().id} variant="full" relayHint={ref().relay} />
         )}
       </Show>
     </div>
