@@ -16,6 +16,7 @@
     "e2e": "playwright test",
     "e2e:seed": "tsx e2e/fixtures/seed.ts",
     "e2e:seed:outbox": "tsx e2e/fixtures/seed-outbox.ts",
+    "dev:relay:wait": "node scripts/wait-for-relays.mjs",
     "dev:relay:reset": "node scripts/reset-local-relay-db.mjs",
     "dev:relay:inspect": "node scripts/inspect-local-relay.mjs",
     "dev:relay:publish": "node scripts/publish-test-note.mjs",

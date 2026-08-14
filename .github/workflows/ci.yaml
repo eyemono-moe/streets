@@ -109,30 +109,15 @@ jobs:
       - name: Start local relays
         run: docker compose up -d nostr-rs-relay nostr-rs-relay-2
       # `docker compose up -d` はコンテナが接続を受け付ける前に返る。
-      # 固定の sleep ではなく、両リレーが NIP-11 文書を返すまで待つ ——
-      # e2e の globalSetup は最初の 1 手でリレーへ WebSocket を張るので、
-      # ここで待たないと「まだ起動していない」が「シードに失敗した」として
-      # 現れる。
-      #
-      # **HTTP が応答しても DB が使えるとは限らない** —— nostr-rs-relay は
-      # DB を開けなくても listen する。ここで見ているのは「プロセスが上がり
-      # きったか」までで、DB が本当に使えるかを証明するのはシードである。
+      # **HTTP (NIP-11) の 200 では足りない。** nostr-rs-relay は DB を
+      # 開けなくても listen して NIP-11 だけは返すし、postgres を使う
+      # リレー1 は postgres が ready になる前に HTTP を返す。その窓で
+      # シードを始めると、書いたはずのイベントが後から読めない (実測:
+      # connection-budget の 1 本目が followees: 0 で落ちた)。
+      # WebSocket で REQ を投げ、EOSE が返ること —— つまり DB を引き切れる
+      # こと —— まで待つ。
       - name: Wait for relays
-        run: |
-          for url in http://127.0.0.1:8080 http://127.0.0.1:8081; do
-            for i in $(seq 1 60); do
-              if curl -sf -H 'Accept: application/nostr+json' "$url" >/dev/null; then
-                echo "$url ready (${i}回目)"
-                break
-              fi
-              if [ "$i" -eq 60 ]; then
-                echo "$url が 120 秒以内に応答しなかった"
-                docker compose logs
-                exit 1
-              fi
-              sleep 2
-            done
-          done
+        run: node scripts/wait-for-relays.mjs
       # シードは playwright の globalSetup (e2e/global-setup.ts) が行う。
       - name: Run E2E
         run: pnpm run e2e
