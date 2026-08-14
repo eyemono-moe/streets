@@ -49,13 +49,12 @@ export const previewReplyNoteText = "streets preview reply note";
 export const previewUnknownKindNoteText =
   "streets preview unknown kind content";
 
-// task-7-brief.md Step 1: quoteTargetNote への kind:7 のうち、NIP-30 の
-// カスタム絵文字 1 件が使うショートコード名と画像 URL。実在しないホスト
-// (previewImageUrl と同じ帯) —— 画像の読み込み成否は e2e の主張に関わらない
-// (reaction-group/reaction-count はどちらでも描かれる) ので、ここではスタブ
-// しない。
-export const previewReactionEmojiName = "streetsparrot";
-export const previewReactionEmojiUrl =
+// NIP-30 のカスタム絵文字リアクションが使うショートコード名と画像 URL。
+// 実在しないホスト (previewImageUrl と同じ帯) をそのまま使い、スタブしない
+// —— 画像が落ちても `reaction-group` / `reaction-count` は描かれるので、
+// 読み込みの成否は e2e の主張に関わらない。
+const previewReactionEmojiName = "streetsparrot";
+const previewReactionEmojiUrl =
   "https://images.invalid/streets-preview-emoji.png";
 
 /**

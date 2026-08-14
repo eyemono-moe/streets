@@ -685,12 +685,10 @@ test.describe("v1 vertical slice", () => {
     );
 
     // 6. ノートに付いたリアクションが件数付きで出る (仕様 5 節)。
-    // `ReactionList` は `NoteFull` にしか無いので、`reaction-list` が出る
-    // のはこの列で反応が付いている唯一のノート (quoteTargetNote) の full
-    // 描画だけ ——`.first()` で 1 つ選べば十分区別できる (quoteTargetNote は
-    // 独立した item としても、リポスト/引用/リアクションいずれの埋め込みに
-    // も出てこない — quoteTargetNote 自身が誰かの引用/リポスト対象では
-    // ないため)。
+    // `reaction-list` はこの列に 4 つ出る —— quoteTargetNote は独立した
+    // item として 1 回、3 件の kind:7 が対象として `full` 埋め込みする中で
+    // 3 回描かれるため。それでも `.first()` で足りるのは、4 つとも同じ
+    // イベント id を引いた同じ集計結果だから (中身が一致する)。
     // 捕まえる変異: `groupReactions` を経由せず 1 件 1 枠にする —— その場合
     // "+" の 2 件が別々の枠になり、この枠の数は 2 ではなく 3 になる。
     const reactionList = related.getByTestId("reaction-list").first();
