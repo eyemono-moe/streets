@@ -81,6 +81,7 @@ const contextWith = (events: EventRequests): RenderContextValue => ({
   events,
   profiles: fakeProfiles(),
   reactions: fakeReactions(),
+  viewerPubkey: undefined,
   renderers: [],
 });
 

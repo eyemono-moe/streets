@@ -112,6 +112,7 @@ const contextWith = (
   events: fakeEvents(),
   profiles: fakeProfiles(),
   reactions: fakeReactions(),
+  viewerPubkey: undefined,
   renderers: [],
 });
 

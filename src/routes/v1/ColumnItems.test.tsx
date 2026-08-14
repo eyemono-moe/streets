@@ -58,6 +58,7 @@ const fakeContext = (): RenderContextValue => ({
     maxBatchSize: 0,
     dispose() {},
   } satisfies ReactionRequests,
+  viewerPubkey: undefined,
   renderers: [],
 });
 

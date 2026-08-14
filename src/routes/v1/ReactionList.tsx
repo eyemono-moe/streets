@@ -1,8 +1,6 @@
 import {
   For,
-  Match,
   Show,
-  Switch,
   createEffect,
   createMemo,
   createSignal,
@@ -20,39 +18,22 @@ import {
 } from "../../core/view/reaction-groups";
 import { useRender } from "../../core/view/render-context";
 import Profile from "./Profile";
+import ReactionMark from "./ReactionMark";
 
 /**
- * v0 の `ReactionButton.tsx` の反応内容表示を写す (仕様 2 節)。送信もピッカー
- * も無いここでは、絵文字画像が壊れたときのショートコードへのフォールバック
- * までは持ち込まない —— 表示専用の一覧が画像 1 枚の 404 で崩れるわけでは
- * なく、単に alt テキストが出るだけで実害が無い。
+ * v0 の `<button title=...>` と同じく、枠自体に反応内容のタイトルを持たせる
+ * (仕様 5 節)。`truncate` で切れた長文の text リアクションをホバーで読める
+ * ようにするため。
  */
-const ReactionMark: Component<{ content: ReactionContent }> = (props) => {
-  const emoji = () =>
-    props.content.type === "emoji" ? props.content : undefined;
-  const text = () =>
-    props.content.type === "text" ? props.content : undefined;
-
-  return (
-    <Switch>
-      <Match when={props.content.type === "like"}>
-        <div class="i-material-symbols:favorite-rounded c-accent-5 aspect-square h-5 w-auto shrink-0" />
-      </Match>
-      <Match when={emoji()}>
-        {(e) => (
-          <img
-            src={e().url}
-            alt={e().name}
-            title={e().name}
-            class="inline-block h-5 w-auto shrink-0"
-          />
-        )}
-      </Match>
-      <Match when={text()}>
-        {(t) => <span class="h-5 truncate leading-5">{t().content}</span>}
-      </Match>
-    </Switch>
-  );
+const groupTitle = (content: ReactionContent): string | undefined => {
+  switch (content.type) {
+    case "emoji":
+      return content.name;
+    case "text":
+      return content.content;
+    case "like":
+      return undefined;
+  }
 };
 
 /**
@@ -121,6 +102,13 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
                 <div
                   data-testid="reaction-group"
                   class="b-1 flex w-fit shrink-0 items-center gap-1 rounded p-0.5"
+                  classList={{
+                    // 自分が押していれば強調する (仕様 5 節)。
+                    "b-accent-5 bg-accent-5/10":
+                      ctx.viewerPubkey !== undefined &&
+                      group.users.has(ctx.viewerPubkey),
+                  }}
+                  title={groupTitle(group.content)}
                 >
                   <ReactionMark content={group.content} />
                   <span

@@ -124,6 +124,7 @@ describe("Avatar", () => {
       events: fakeEvents(),
       profiles,
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [],
     };
 
@@ -154,6 +155,7 @@ describe("Avatar", () => {
       events: fakeEvents(),
       profiles,
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [],
     };
     const pubkey = pubkeyFor(2);
@@ -179,6 +181,7 @@ describe("Avatar", () => {
       events: fakeEvents(),
       profiles,
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [],
     };
     const pubkey = pubkeyFor(3);

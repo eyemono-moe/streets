@@ -123,6 +123,7 @@ const contextWith = (
   events,
   profiles: fakeProfiles(),
   reactions: fakeReactions(),
+  viewerPubkey: undefined,
   // kind:1 しかテスト対象にしないので、レンダラ集合は空でよい (引用・返信
   // 先は常に compact の EventView 経由で描かれ、store に無い間は
   // event-loading のまま — renderer の解決まで届かない)。
@@ -564,6 +565,73 @@ describe("compact は自分で padding を持たない (spec 3 節・brief の�
       expect(compactRun.element().className).not.toMatch(/(?:^|\s)p-\d/);
     } finally {
       compactRun.dispose();
+    }
+  });
+});
+
+describe("group/event (spec 5 節、レビュー C1)", () => {
+  it("NoteFull の記事要素は group/event を持つ (ホバー判定の祖先)", () => {
+    // 捕まえる変異: `group/event` クラスを落とす。`ReactionList` の展開
+    // トグルが使う `group-not-hover/event:hidden` は、この名前付き group を
+    // 持つ祖先が無いと一切効かず、三角が全ノートで常に出たままになる。
+    const events = createRecordingEventRequests();
+    const event = signed(50, { content: "x" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(element().className).toMatch(/(?:^|\s)group\/event(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+});
+
+describe("リアクション一覧の設置 (spec 5 節・brief Step 4)", () => {
+  it("NoteFull はリアクションがあれば reaction-list を出す", () => {
+    // 捕まえる変異: NoteFull へ ReactionList を設置し忘れる
+    const events = createRecordingEventRequests();
+    const event = signed(51, { content: "x" });
+    const store = new EventStore();
+    store.put(
+      signed(52, { kind: 7, tags: [["e", event.id]], content: "+" }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events, store),
+    );
+    try {
+      expect(
+        element().querySelector('[data-testid="reaction-list"]'),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("NoteCompact はリアクションがあっても reaction-list を出さない", () => {
+    // 捕まえる変異: NoteCompact にも ReactionList を設置する。compact が
+    // 関連イベントを一切要求しない規則 (このファイルの他のテストと同じ)
+    // に、リアクション取得の要求も含まれる。
+    const events = createRecordingEventRequests();
+    const event = signed(53, { content: "x" });
+    const store = new EventStore();
+    store.put(
+      signed(54, { kind: 7, tags: [["e", event.id]], content: "+" }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(
+      () => NoteCompact({ event }),
+      contextWith(events, store),
+    );
+    try {
+      expect(
+        element().querySelector('[data-testid="reaction-list"]'),
+      ).toBeNull();
+    } finally {
+      dispose();
     }
   });
 });

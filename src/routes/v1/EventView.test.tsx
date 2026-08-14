@@ -149,6 +149,7 @@ describe("EventView", () => {
       events: fake.events,
       profiles: fakeProfiles(),
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [testRenderer],
     };
 
@@ -178,6 +179,7 @@ describe("EventView", () => {
       events: fake.events,
       profiles: fakeProfiles(),
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [testRenderer],
     };
 
@@ -219,6 +221,7 @@ describe("EventView", () => {
       events: fake.events,
       profiles: fakeProfiles(),
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [testRenderer],
     };
 
@@ -257,6 +260,7 @@ describe("EventView", () => {
       events: fake.events,
       profiles: fakeProfiles(),
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       renderers: [testRenderer],
     };
 
@@ -302,6 +306,7 @@ describe("EventView", () => {
       events: fake.events,
       profiles: fakeProfiles(),
       reactions: fakeReactions(),
+      viewerPubkey: undefined,
       // 空集合でも壊れないことがこのタスクの要求そのもの。
       renderers: [],
     };

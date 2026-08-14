@@ -706,6 +706,12 @@ const V1: Component = () => {
                 events: eventRequests,
                 profiles: profileRequests,
                 reactions: reactionRequests,
+                // getter で渡す —— オブジェクトリテラルの値は 1 度しか
+                // 評価されないため、`viewerPubkey: pubkey()` だと後から
+                // ログインしても RenderProvider に渡した値が追随しない。
+                get viewerPubkey() {
+                  return pubkey();
+                },
                 renderers: defaultRenderers,
               }}
             >

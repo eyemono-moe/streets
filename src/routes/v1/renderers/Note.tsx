@@ -226,7 +226,13 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
   ];
 
   return (
-    <article data-testid="note" class="pt-1 pr-2 pb-1 pl-1 text-body">
+    <article
+      data-testid="note"
+      // `group/event`: `ReactionList` の展開トグルが `group-not-hover/event:hidden`
+      // でホバー時だけ出す (spec 5 節) —— その判定はこの祖先が名前付き
+      // group を持っていて初めて働く (v0 の `EventBase.tsx` と同じ立て付け)。
+      class="group/event pt-1 pr-2 pb-1 pl-1 text-body"
+    >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
         「別の投稿の引用」を意味し、返信先は「同じ会話の続き」なので、

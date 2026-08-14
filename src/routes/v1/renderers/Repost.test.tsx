@@ -116,6 +116,7 @@ const contextWith = (options: {
   events: options.events ?? createRecordingEventRequests(),
   profiles: fakeProfiles(),
   reactions: fakeReactions(),
+  viewerPubkey: undefined,
   renderers: options.renderers ?? [noteRenderer],
 });
 

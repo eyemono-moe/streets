@@ -17,6 +17,13 @@ export type RenderContextValue = {
   events: EventRequests;
   profiles: ProfileRequests;
   reactions: ReactionRequests;
+  /**
+   * ログイン中の viewer の pubkey。未ログインなら `undefined`。**必須
+   * フィールドにする** —— 省略可能にすると、レンダラが自分が押した
+   * リアクションを強調し忘れても型では止まらず、実行するまで気付けない
+   * (spec 5 節)。
+   */
+  viewerPubkey: string | undefined;
   renderers: readonly EventRenderer[];
 };
 

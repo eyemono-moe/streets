@@ -97,11 +97,13 @@ const createRecordingReactionRequests = (): ReactionRequests & {
 const contextWith = (
   store: EventStore,
   reactions: ReactionRequests = createRecordingReactionRequests(),
+  viewerPubkey: string | undefined = undefined,
 ): RenderContextValue => ({
   store,
   events: fakeEvents(),
   profiles: fakeProfiles(),
   reactions,
+  viewerPubkey,
   renderers: [],
 });
 
@@ -246,6 +248,90 @@ describe("ReactionList", () => {
     const { element, dispose } = mount(target.id, contextWith(store));
     try {
       expect(element()).toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("自分が押していれば枠を強調する (viewerPubkey が users に含まれるとき)", () => {
+    // 捕まえる変異: viewerPubkey を見ない (常に強調しない/常に強調する)
+    const store = new EventStore();
+    const target = signed(20);
+    const viewerSeed = 21;
+    const otherSeed = 22;
+    const viewerPubkey = pubkeyFor(viewerSeed);
+    store.put(signedReaction(otherSeed, target.id), "wss://relay/");
+
+    const notViewer = mount(
+      target.id,
+      contextWith(store, createRecordingReactionRequests(), undefined),
+    );
+    try {
+      const group = notViewer
+        .element()
+        ?.querySelector('[data-testid="reaction-group"]');
+      expect(group?.className ?? "").not.toContain("bg-accent-5/10");
+    } finally {
+      notViewer.dispose();
+    }
+
+    // 同じグループへ viewer 自身の分を足す (グループの中身は変わらず、
+    // 誰が押したかだけが増える)。
+    store.put(signedReaction(viewerSeed, target.id), "wss://relay/");
+    const asViewer = mount(
+      target.id,
+      contextWith(store, createRecordingReactionRequests(), viewerPubkey),
+    );
+    try {
+      const group = asViewer
+        .element()
+        ?.querySelector('[data-testid="reaction-group"]');
+      expect(group?.className ?? "").toContain("bg-accent-5/10");
+    } finally {
+      asViewer.dispose();
+    }
+  });
+
+  it("text リアクションの枠は title で反応内容を持つ (truncate された長文をホバーで読める)", () => {
+    const store = new EventStore();
+    const target = signed(35);
+    store.put(
+      signedReaction(36, target.id, { content: "a fairly long text reaction" }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      const group = element()?.querySelector('[data-testid="reaction-group"]');
+      expect(group?.getAttribute("title")).toBe("a fairly long text reaction");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("カスタム絵文字はグループ化を経ても <img> で出る", () => {
+    // C2 の統合後も、グループ化された経路 (groupReactions → ReactionMark)
+    // が絵文字を正しく描けることを直接確かめる (Reaction.test.tsx は
+    // ReactionFull/Compact の見出し経路しか通らない)。
+    const store = new EventStore();
+    const target = signed(30);
+    store.put(
+      signedReaction(31, target.id, {
+        content: ":partyparrot:",
+        tags: [
+          ["e", target.id],
+          ["emoji", "partyparrot", "https://example.com/pp.png"],
+        ],
+      }),
+      "wss://relay/",
+    );
+    const { element, dispose } = mount(target.id, contextWith(store));
+    try {
+      const img = element()?.querySelector<HTMLImageElement>(
+        '[data-testid="reaction-emoji"]',
+      );
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("https://example.com/pp.png");
+      expect(img?.getAttribute("alt")).toBe("partyparrot");
     } finally {
       dispose();
     }

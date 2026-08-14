@@ -1,59 +1,11 @@
-import { Match, Show, Switch, createSignal } from "solid-js";
+import { Show } from "solid-js";
 import type { Component } from "solid-js";
-import {
-  type ReactionContent,
-  parseReaction,
-} from "../../../core/nostr/reaction";
+import { parseReaction } from "../../../core/nostr/reaction";
 import { useRender } from "../../../core/view/render-context";
 import type { EventBodyProps } from "../../../core/view/renderer-registry";
 import EventView from "../EventView";
 import Profile from "../Profile";
-
-/**
- * 見出しに出す反応内容そのもの (仕様 3.1 節の表)。
- *
- * `content` を先に取り出してから分岐するのは、`<Match when={...}>` の中で
- * `props.content.type` を毎回書き直すと TypeScript の絞り込みが効かず、
- * 分岐の中で再度 type を確かめる冗長なコードになるため。
- */
-const ReactionMark: Component<{ content: ReactionContent }> = (props) => {
-  const [broken, setBroken] = createSignal(false);
-  const emoji = () =>
-    props.content.type === "emoji" ? props.content : undefined;
-  const text = () =>
-    props.content.type === "text" ? props.content : undefined;
-
-  return (
-    <Switch>
-      <Match when={props.content.type === "like"}>
-        <span
-          data-testid="reaction-like"
-          class="i-material-symbols:favorite-rounded c-accent-5 aspect-square h-5 w-auto shrink-0"
-        />
-      </Match>
-      {/*
-        絵文字の画像が落ちたらショートコードのテキストへ戻す —— 画像が 404 でも
-        「何のリアクションか」が消えない (`NoteContent` の絵文字と同じ判断)。
-      */}
-      <Match when={emoji() && !broken()}>
-        <img
-          data-testid="reaction-emoji"
-          src={emoji()?.url}
-          alt={emoji()?.name}
-          title={emoji()?.name}
-          class="inline-block h-5 w-auto shrink-0"
-          onError={() => setBroken(true)}
-        />
-      </Match>
-      <Match when={emoji() && broken()}>
-        <span class="h-5 shrink-0 truncate leading-5">{`:${emoji()?.name}:`}</span>
-      </Match>
-      <Match when={text()}>
-        <span class="h-5 truncate leading-5">{text()?.content}</span>
-      </Match>
-    </Switch>
-  );
-};
+import ReactionMark from "../ReactionMark";
 
 /**
  * kind:7 の詳細表示 (仕様 3 節)。見出し 1 行と、対象イベントの**完全な**
