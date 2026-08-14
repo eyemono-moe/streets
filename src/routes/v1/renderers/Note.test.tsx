@@ -648,11 +648,17 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
     }
   });
 
-  it("展開ボタンのグラデーションが transparent から始まらない", async () => {
-    // 捕まえる変異: `from-transparent` に戻す。CSS の `transparent` は
-    // `rgba(0, 0, 0, 0)` なので、白へ補間する途中が半透明の**黒**になり、
-    // 「本文が下へ薄れていく」はずのぼかしが灰色〜黒のグラデーションとして
-    // 出る。始点は終点と同じ色の不透明度 0 でなければならない。
+  it("展開ボタンの背景が透明 (UA 既定の buttonface が透けない)", async () => {
+    // 捕まえる変異: `bg-transparent` を落とす。`<button>` の UA 既定背景は
+    // `buttonface` (Chromium では不透明な #efefef) で、`appearance-none` は
+    // これを消さない。背景色はグラデーションの下に敷かれるので、ぼかしの
+    // 透明な側から灰色が透ける (実測: computed backgroundColor が
+    // rgb(239,239,239) だった)。
+    //
+    // 始点の `from-white/0` も併せて固定する。現行の Chromium は
+    // `in oklch` の乗算済みアルファで補間するので `from-transparent` でも
+    // 見た目は同じだが、補間空間の指定が外れた環境では `rgba(0,0,0,0)`
+    // からの補間が灰色を経由しうる。
     const rect = vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockReturnValue(fakeRect(500));
@@ -672,6 +678,7 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
         const className =
           element().querySelector('[data-testid="note-expand"]')?.className ??
           "";
+        expect(className).toContain("bg-transparent");
         expect(className).not.toContain("from-transparent");
         expect(className).toContain("from-white/0");
         expect(className).toContain("dark:from-ui-950/0");

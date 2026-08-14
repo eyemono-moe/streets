@@ -64,11 +64,18 @@ const CollapsibleBody: ParentComponent = (props) => {
         <button
           type="button"
           data-testid="note-expand"
-          // 始点は `transparent` ではなく**終点と同じ色の不透明度 0**。
-          // CSS の `transparent` は `rgba(0, 0, 0, 0)` なので、白へ補間する
-          // 途中が半透明の黒になり、ぼかしが灰色〜黒のグラデーションとして
-          // 出てしまう。
-          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
+          // **`bg-transparent` が要る。** `<button>` の UA 既定背景は
+          // `buttonface` (Chromium では不透明な #efefef) で、`appearance-none`
+          // はこれを消さない。背景色はグラデーション (background-image) の
+          // 下に敷かれるので、透明から始めたはずのぼかしの上端から灰色が
+          // 透ける (実測: computed backgroundColor が rgb(239,239,239))。
+          //
+          // 始点を `transparent` ではなく終点と同じ色の不透明度 0 にして
+          // あるのは、補間方法に依存しないため —— 現行の Chromium は
+          // `in oklch` の乗算済みアルファで補間するので `transparent` でも
+          // 同じ結果になるが、補間空間の指定が外れた環境では
+          // `rgba(0,0,0,0)` からの補間が灰色を経由しうる。
+          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
           onClick={() => setExpanded(true)}
         >
           <span class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
