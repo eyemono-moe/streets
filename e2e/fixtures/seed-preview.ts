@@ -49,6 +49,15 @@ export const previewReplyNoteText = "streets preview reply note";
 export const previewUnknownKindNoteText =
   "streets preview unknown kind content";
 
+// task-7-brief.md Step 1: quoteTargetNote への kind:7 のうち、NIP-30 の
+// カスタム絵文字 1 件が使うショートコード名と画像 URL。実在しないホスト
+// (previewImageUrl と同じ帯) —— 画像の読み込み成否は e2e の主張に関わらない
+// (reaction-group/reaction-count はどちらでも描かれる) ので、ここではスタブ
+// しない。
+export const previewReactionEmojiName = "streetsparrot";
+export const previewReactionEmojiUrl =
+  "https://images.invalid/streets-preview-emoji.png";
+
 /**
  * `window.nostr.signEvent` のブラウザ側スタブから `page.exposeFunction` 経由
  * で呼ぶ、閲覧者としての**本物の**署名 (task-6-report.md の手法と同じ)。
@@ -285,6 +294,56 @@ export const seedPreviewFixture = async (): Promise<void> => {
       created_at: now + 19,
       tags: [],
       content: previewUnknownKindNoteText,
+    },
+    viewerSecretKey,
+  );
+
+  // task-7-brief.md Step 1: 引用先ノート (quoteTargetNote) への kind:7 を
+  // 3 件。`+` (like) を authorOne/authorTwo の 2 人、NIP-30 のカスタム絵文字
+  // を viewer の 1 人。同じ対象へ 3 者が反応することで、一覧の集計 (仕様 8
+  // 節 の一覧テスト) が「like が 2、emoji が 1」の 2 山になる —— 1 件 1 枠に
+  // 描いてしまう欠陥 (集計しない変異) と、正しく山にまとめる実装を e2e で
+  // 区別できる。この 3 件は authorOne/authorTwo/viewer のいずれかが発行主
+  // なので、"related" 列のフィルタ (authors がこの 3 人) にも独立して乗り、
+  // 「タイムラインに流れる kind:7」も同時に満たす (フィルタの kinds に 7 を
+  // 足すのは e2e 側、seedRelatedEventsDeck)。
+  await publish(
+    relay,
+    {
+      kind: 7,
+      created_at: now + 20,
+      tags: [
+        ["e", quoteTargetNote.id, previewRelayUrl],
+        ["p", previewAuthorTwoPubkey],
+      ],
+      content: "+",
+    },
+    authorOneSecretKey,
+  );
+  await publish(
+    relay,
+    {
+      kind: 7,
+      created_at: now + 21,
+      tags: [
+        ["e", quoteTargetNote.id, previewRelayUrl],
+        ["p", previewAuthorTwoPubkey],
+      ],
+      content: "+",
+    },
+    authorTwoSecretKey,
+  );
+  await publish(
+    relay,
+    {
+      kind: 7,
+      created_at: now + 22,
+      tags: [
+        ["e", quoteTargetNote.id, previewRelayUrl],
+        ["p", previewAuthorTwoPubkey],
+        ["emoji", previewReactionEmojiName, previewReactionEmojiUrl],
+      ],
+      content: `:${previewReactionEmojiName}:`,
     },
     viewerSecretKey,
   );

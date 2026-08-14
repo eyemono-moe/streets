@@ -329,6 +329,7 @@ const V1: Component = () => {
   const [batchSizes, setBatchSizes] = createSignal({
     events: { last: 0, max: 0 },
     profiles: { last: 0, max: 0 },
+    reactions: { last: 0, max: 0 },
   });
   const syncConnectionSignals = () => {
     setVerifyStats({ ms: store.verifyMs, count: store.verifyCount });
@@ -340,6 +341,12 @@ const V1: Component = () => {
       profiles: {
         last: profileRequests.lastBatchSize,
         max: profileRequests.maxBatchSize,
+      },
+      // 仕様 9 節 問い 1 (`#e` のコアレッサが 1 バッチで何件になるか) を
+      // 実鍵で測れるようにするための表示。
+      reactions: {
+        last: reactionRequests.lastBatchSize,
+        max: reactionRequests.maxBatchSize,
       },
     });
     setConnections(manager.connectionCount);
@@ -584,6 +591,13 @@ const V1: Component = () => {
                   <p data-testid="profile-batch" class="text-alpha-600 text-xs">
                     profileBatch: {batchSizes().profiles.last} (max{" "}
                     {batchSizes().profiles.max})
+                  </p>
+                  <p
+                    data-testid="reaction-batch"
+                    class="text-alpha-600 text-xs"
+                  >
+                    reactionBatch: {batchSizes().reactions.last} (max{" "}
+                    {batchSizes().reactions.max})
                   </p>
                   <ul
                     data-testid="unrequested-relays"

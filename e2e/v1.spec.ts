@@ -119,7 +119,7 @@ const seedRelatedEventsDeck = async (page: import("@playwright/test").Page) => {
             title: "related",
             source: {
               kind: "literal",
-              filters: [{ kinds: [1, 6, 16, 30023], authors }],
+              filters: [{ kinds: [1, 6, 16, 30023, 7], authors }],
               relays: [relay],
             },
           },
@@ -422,6 +422,7 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
     await expect(page.getByTestId("event-batch")).toHaveCount(0);
     await expect(page.getByTestId("profile-batch")).toHaveCount(0);
+    await expect(page.getByTestId("reaction-batch")).toHaveCount(0);
     await expect(page.getByTestId("warm-up-ms")).toHaveCount(0);
     await expect(page.getByTestId("warm-up-phases")).toHaveCount(0);
     await expect(page.getByTestId("verify-ms")).toHaveCount(0);
@@ -436,6 +437,7 @@ test.describe("v1 vertical slice", () => {
     // (診断値なのに常時見えてしまう) / 配線を忘れる。
     await expect(page.getByTestId("event-batch")).toBeVisible();
     await expect(page.getByTestId("profile-batch")).toBeVisible();
+    await expect(page.getByTestId("reaction-batch")).toBeVisible();
     await expect(page.getByTestId("warm-up-ms")).toBeVisible();
     await expect(page.getByTestId("warm-up-phases")).toBeVisible();
     await expect(page.getByTestId("verify-ms")).toBeVisible();
@@ -531,8 +533,10 @@ test.describe("v1 vertical slice", () => {
   /**
    * task-5-brief.md Step 3: リポスト/引用/返信/未登録 kind を 1 本の流れで
    * 確かめる。`seedRelatedEventsDeck` で用意した "related" 列 (kinds:
-   * [1, 6, 16, 30023]) を開き、`EventView` の登録レンダラ経路と fallback
-   * 経路の両方を通す。
+   * [1, 6, 16, 30023, 7]) を開き、`EventView` の登録レンダラ経路と fallback
+   * 経路の両方を通す。kind:7 (task-7-brief.md Step 2) もここへ足した ——
+   * リポスト/引用/返信と同じ「フィルタに乗って流れてきた関連イベントを
+   * 正しく描く」経路を確かめる主張であり、別の test に分ける理由が無い。
    */
   test("reposts, quotes, and replies render through EventView; an unknown kind falls back without breaking the column", async ({
     page,
@@ -557,29 +561,43 @@ test.describe("v1 vertical slice", () => {
 
     // このフィクスチャの対象ノート (repostTargetNote/quoteTargetNote/
     // replyParentNote) は、それ自体も authorOne/authorTwo の通常の kind:1
-    // として "related" 列のフィルタ (kinds:[1,6,16,30023]) に独立してヒット
-    // する。そのため `related` 列全体に対する `toContainText` では、対象の
-    // 本文が「リポスト/引用/返信の内側 (compact) に埋め込まれて出ている」
-    // ことと「たまたま同じ文面の独立したノートがどこかに出ている」ことを
-    // 区別できない —— 実際、リポストの埋め込みをわざと壊す変異
-    // (`Show when={target}` を `when={false}` にする) を試したところ、
-    // 独立ノートのおかげでこの手の緩い assertion は素通りしてしまった。
-    // そこで `[data-variant="compact"]` を持つ `event-view` に絞って探す
-    // ことで、「compact として実際に埋め込まれている」ことまで主張する
-    // (standalone の対象ノートは "full" で描かれるので compact には出ない)。
+    // として "related" 列のフィルタ (kinds:[1,6,16,30023,7]) に独立して
+    // ヒットする。そのため `related` 列全体に対する `toContainText` では、
+    // 対象の本文が「リポスト/引用/返信の内側に埋め込まれて出ている」ことと
+    // 「たまたま同じ文面の独立したノートがどこかに出ている」ことを区別
+    // できない —— 実際、リポストの埋め込みをわざと壊す変異 (`Show
+    // when={target}` を `when={false}` にする) を試したところ、独立ノートの
+    // おかげでこの手の緩い assertion は素通りしてしまった。
+    // 引用/返信は今も `compact` で埋め込むので、`[data-variant="compact"]`
+    // を持つ `event-view` に絞って探すことで「compact として実際に埋め込ま
+    // れている」ことまで主張する。
     const compactWith = (text: string) =>
       related.locator('[data-testid="event-view"][data-variant="compact"]', {
         hasText: text,
       });
+    // リポストの対象は task-7 のこのスライスで `compact` から `full` へ
+    // 変わった (仕様 3 節)。`[data-testid="repost"]` の内側に絞って探すこと
+    // で、「リポストの中に埋め込まれている `full`」と「たまたま同じ文面の
+    // 独立した `full` ノート」を区別する —— `RepostFull` の variant を
+    // "compact" へ戻す変異は、この locator が空になることで捕まる (下の
+    // 変異検証で確認済み)。
+    const fullWithin = (testId: string, text: string) =>
+      related
+        .locator(`[data-testid="${testId}"]`)
+        .locator('[data-testid="event-view"][data-variant="full"]', {
+          hasText: text,
+        });
 
-    // 1. リポストが repost-by と対象の本文 (compact 埋め込み) を出す。
+    // 1. リポストが repost-by と対象の本文 (repost の中に full で埋め込み)
+    // を出す。
     // 捕まえる変異: RepostFull が resolveRepostTarget の結果を EventView へ
-    // 渡さない (対象が描かれない)、または repost-by 自体を出さない。
+    // 渡さない (対象が描かれない)、repost-by 自体を出さない、または対象を
+    // "compact" のまま描く (仕様 3 節に反する)。
     await expect(related.getByTestId("repost-by").first()).toBeVisible({
       timeout: 20_000,
     });
-    const repostCompact = compactWith(previewRepostTargetNoteText);
-    await expect(repostCompact.first()).toBeVisible({ timeout: 20_000 });
+    const repostFull = fullWithin("repost", previewRepostTargetNoteText);
+    await expect(repostFull.first()).toBeVisible({ timeout: 20_000 });
 
     // 2. 引用が event-view[data-variant="compact"] の中に引用先の本文を
     // 出す。捕まえる変異: NoteFull が quoteTargets() の結果を EventView へ
@@ -600,11 +618,14 @@ test.describe("v1 vertical slice", () => {
     // (compact 側にも画像が出て、引用がカラムを画像で埋める) / 逆に
     // 画像判定を落とす (full 側にも出なくなる)。
     // 件数で主張する —— 引用先ノートの本文は「単体の full」と「引用の中の
-    // compact」の 2 箇所に出るので、`hasText` で片方だけを指す locator は
-    // どちらにも当たってしまう。この列で画像を含むイベントは引用先ノート
-    // 1 件だけなので、`content-image` がカラム全体で 1 つ、compact の内側
-    // では 0 つ、という 2 つの数がそのまま規則を言い表す。
-    await expect(related.getByTestId("content-image")).toHaveCount(1, {
+    // compact」の複数箇所に出るので、`hasText` で片方だけを指す locator は
+    // どちらにも当たってしまう。この引用先ノートには task-7 で足した kind:7
+    // が 3 件付いており、それぞれの `ReactionFull` も同じノートを `full` で
+    // 埋め込む (仕様 3 節) —— そのため `full` の出現は「単体の 1 件」+
+    // 「リアクション 3 件ぶんの埋め込み」= 4 件になる。`content-image` が
+    // カラム全体で 4 つ、compact の内側では 0 つ、という 2 つの数がそのまま
+    // 規則を言い表す。
+    await expect(related.getByTestId("content-image")).toHaveCount(4, {
       timeout: 20_000,
     });
     await expect(
@@ -643,13 +664,43 @@ test.describe("v1 vertical slice", () => {
     });
     await expect(related).toContainText(previewUnknownKindNoteText);
     // fallback が出た**後**でも、それ以前に確かめた 3 つの経路 (リポスト/
-    // 引用/返信、いずれも compact 埋め込みの中身つき) がまだ画面に残って
-    // いることを再確認する。
+    // 引用/返信、いずれも中身つき) がまだ画面に残っていることを再確認する。
     await expect(related.getByTestId("repost-by").first()).toBeVisible();
-    await expect(repostCompact.first()).toBeVisible();
+    await expect(repostFull.first()).toBeVisible();
     await expect(quoteCompact.first()).toBeVisible();
     await expect(related.getByTestId("reply-to").first()).toBeVisible();
     await expect(replyCompact.first()).toBeVisible();
+
+    // 5. kind:7 (task-7-brief.md Step 2) が「@x がリアクション」の見出しと
+    // 対象ノートをまるごと出す。対象は previewQuoteTargetNoteText のノート
+    // (フィクスチャの 3 件の kind:7 がこれへ反応している)。
+    // 捕まえる変異: kind:7 のレンダラを defaultRenderers に登録しない ——
+    // その場合この item は "reaction" ではなく "unknown-kind" として描かれ、
+    // 下の assertion が見つからず落ちる。
+    const reactionItems = related.getByTestId("reaction");
+    await expect(reactionItems.first()).toBeVisible({ timeout: 20_000 });
+    await expect(reactionItems.first().getByTestId("reacted-by")).toBeVisible();
+    await expect(reactionItems.first()).toContainText(
+      previewQuoteTargetNoteText,
+    );
+
+    // 6. ノートに付いたリアクションが件数付きで出る (仕様 5 節)。
+    // `ReactionList` は `NoteFull` にしか無いので、`reaction-list` が出る
+    // のはこの列で反応が付いている唯一のノート (quoteTargetNote) の full
+    // 描画だけ ——`.first()` で 1 つ選べば十分区別できる (quoteTargetNote は
+    // 独立した item としても、リポスト/引用/リアクションいずれの埋め込みに
+    // も出てこない — quoteTargetNote 自身が誰かの引用/リポスト対象では
+    // ないため)。
+    // 捕まえる変異: `groupReactions` を経由せず 1 件 1 枠にする —— その場合
+    // "+" の 2 件が別々の枠になり、この枠の数は 2 ではなく 3 になる。
+    const reactionList = related.getByTestId("reaction-list").first();
+    await expect(reactionList).toBeVisible({ timeout: 20_000 });
+    await expect(reactionList.getByTestId("reaction-group")).toHaveCount(2);
+    const likeGroup = reactionList.locator(
+      '[data-testid="reaction-group"]:has([data-testid="reaction-like"])',
+    );
+    await expect(likeGroup.getByTestId("reaction-count")).toHaveText("2");
+
     // 7 件 (repostTarget/repost/quoteTarget/quote/replyParent/reply/
     // unknown-kind の各イベント) 以上のアイテムが同時に描かれている ——
     // fallback だけが生き残って他が消える壊れ方であれば、この数まで
