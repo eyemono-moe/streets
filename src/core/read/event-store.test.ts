@@ -521,11 +521,16 @@ describe("EventStore.eventsByTag", () => {
     ).toEqual([]);
   });
 
-  it("同じイベントを 2 度 put しても重複しない", () => {
+  it("同じイベントを 2 度 put しても、同じタグを 2 つ持っていても重複しない", () => {
     // 捕まえる変異: id で潰さない (複数リレーから同じイベントが届くのは普通で、
-    // 数が倍になる)
+    // 数が倍になる) / 索引の値を Set にしない
     const store = new EventStore();
-    const event = sign("shared", { tags: [["e", "abc123"]] });
+    const event = sign("shared", {
+      tags: [
+        ["e", "abc123"],
+        ["e", "abc123"],
+      ],
+    });
 
     store.put(event, "wss://relay1/");
     store.put(event, "wss://relay2/");
