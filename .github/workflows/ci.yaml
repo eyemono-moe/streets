@@ -61,3 +61,61 @@ jobs:
         run: pnpm install
       - name: Build
         run: pnpm run build
+  e2e:
+    name: E2E
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        node-version: [20]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+      - name: Install dependencies
+        run: pnpm install
+      # playwright.config.ts の projects は chromium だけ。
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Start local relays
+        run: docker compose up -d
+      # `docker compose up -d` はコンテナが接続を受け付ける前に返る。
+      # 固定の sleep ではなく、両リレーが NIP-11 文書を返すまで待つ ——
+      # e2e の globalSetup は最初の 1 手でリレーへ WebSocket を張るので、
+      # ここで待たないと「まだ起動していない」が「シードに失敗した」として
+      # 現れる。
+      - name: Wait for relays
+        run: |
+          for url in http://127.0.0.1:8080 http://127.0.0.1:8081; do
+            for i in $(seq 1 60); do
+              if curl -sf -H 'Accept: application/nostr+json' "$url" >/dev/null; then
+                echo "$url ready (${i}回目)"
+                break
+              fi
+              if [ "$i" -eq 60 ]; then
+                echo "$url が 120 秒以内に応答しなかった"
+                docker compose logs
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+      # シードは playwright の globalSetup (e2e/global-setup.ts) が行う。
+      - name: Run E2E
+        run: pnpm run e2e
+      # トレースは playwright.config.ts の `trace: "retain-on-failure"` で
+      # 失敗したテストにだけ残る。
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+      - name: Show relay logs
+        if: failure()
+        run: docker compose logs --tail 200

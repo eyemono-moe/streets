@@ -2,9 +2,11 @@ import type { Page } from "@playwright/test";
 import { type EventTemplate, Relay, kinds } from "nostr-tools";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 
-export const localRelayUrl =
+// spec からは import されなくなった (v0 を対象にしていた唯一の e2e を
+// 削除したため)。このファイル内でシードの組み立てに使い続けるので残す。
+const localRelayUrl =
   process.env.STREETS_E2E_RELAY_URL ?? "ws://127.0.0.1:8080";
-export const seededNoteText = "streets local e2e seeded note";
+const seededNoteText = "streets local e2e seeded note";
 export const seededDuplicateNoteText = "streets local e2e duplicate check note";
 export const e2eAuthorName = "streets-e2e-author";
 export const e2eAuthorDisplayName = "streets e2e author";
