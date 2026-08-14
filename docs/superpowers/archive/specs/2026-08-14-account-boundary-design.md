@@ -8,7 +8,7 @@
 
 **危ないのはこれからである。** ミュート（kind:10000）や既読、NIP-44 の復号結果を足すとき、`cache-policy.ts` へ 1 行足すだけで無分別に書けてしまう。分類を強制する仕組みが無い。**混ざった後に引き剥がすのは非常に高くつく。**
 
-前提知識は [CONTEXT.md](../../../CONTEXT.md)、決定は [docs/adr/](../../adr/)、スライスの記録は [read-layer-followups.md](../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
+前提知識は [CONTEXT.md](../../../../CONTEXT.md)、決定は [docs/adr/](../../../adr/)、スライスの記録は [read-layer-followups.md](../../../design/read-layer-followups.md)。残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
 
 ## 1. 何が本当にアカウント単位なのか
 
@@ -58,7 +58,7 @@
 
 ## 4. ログイン前の水和を壊さない
 
-`createReadLayer` は今**ログイン前**に作られ、その場で水和を始めている。拡張機能の `getPublicKey()` 応答待ちと並行させるためで、実測で `firstRenderMs` 356→112.9ms、相② 1497→651ms の効果があった（[read-layer-followups.md](../../design/read-layer-followups.md)）。
+`createReadLayer` は今**ログイン前**に作られ、その場で水和を始めている。拡張機能の `getPublicKey()` 応答待ちと並行させるためで、実測で `firstRenderMs` 356→112.9ms、相② 1497→651ms の効果があった（[read-layer-followups.md](../../../design/read-layer-followups.md)）。
 
 **この並行を保つ。** 共有 DB（`"public"`）はアカウントに依らないので、ログイン前から水和できる。アカウント専用の置き場ができたときも、そちらの水和だけがログイン後になる。
 

@@ -404,7 +404,7 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## アカウント境界とキャッシュの scope（2026-08-14）— 仕様 9 節の答え
 
-仕様は [account-boundary-design.md](../superpowers/specs/2026-08-14-account-boundary-design.md)、決定は [ADR-0027](../adr/0027-account-boundary-and-cache-scope.md)。`CachePolicy` に「誰が見てよいか」(`scope: "public" | "account" | "session"`) を、保持方針 (`retention`) とは独立した軸として足した。**既定は `"session"`（ディスクへ書かない）。** 名乗り忘れが「書かれない」に倒れるようにし、共有 IndexedDB へ一度書かれたものは後からアカウント別に引き剥がせないという取り返しのつかなさを構造的に避けた。
+仕様は [account-boundary-design.md](../superpowers/archive/specs/2026-08-14-account-boundary-design.md)、決定は [ADR-0027](../adr/0027-account-boundary-and-cache-scope.md)。`CachePolicy` に「誰が見てよいか」(`scope: "public" | "account" | "session"`) を、保持方針 (`retention`) とは独立した軸として足した。**既定は `"session"`（ディスクへ書かない）。** 名乗り忘れが「書かれない」に倒れるようにし、共有 IndexedDB へ一度書かれたものは後からアカウント別に引き剥がせないという取り返しのつかなさを構造的に避けた。
 
 ### C1 — 最終レビューで発見: 本番の書き込み経路が `scope` を見ていなかった
 

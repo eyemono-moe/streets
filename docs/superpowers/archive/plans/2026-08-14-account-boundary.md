@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript / Vitest。
 
-**仕様:** [docs/superpowers/specs/2026-08-14-account-boundary-design.md](../specs/2026-08-14-account-boundary-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-14-account-boundary-design.md](../specs/2026-08-14-account-boundary-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 
@@ -40,7 +40,7 @@
 
 **既存の呼び出し側は変わらない。** `shouldPersist` の意味だけが厳しくなる。
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src/core/read/cache-policy.test.ts` の末尾へ足す。`policyFor` / `shouldPersist` は
 既に import されているはずだが、無ければ足すこと。
@@ -99,12 +99,12 @@ describe("scope (誰が見てよいか)", () => {
 });
 ```
 
-- [ ] **Step 2: 走らせて落ちることを確認**
+- [x] **Step 2: 走らせて落ちることを確認**
 
 Run: `pnpm vitest run src/core/read/cache-policy.test.ts`
 Expected: FAIL（`scope` / `persistableScope` / `registeredKinds` が存在しない）
 
-- [ ] **Step 3: 実装**
+- [x] **Step 3: 実装**
 
 `src/core/read/cache-policy.ts` を次のように変える。
 
@@ -198,7 +198,7 @@ export const shouldPersist = (kind: number): boolean =>
 `isStale` のテストで組む方針が他にもあれば同様に足す。**`isStale` の期待値そのものは
 変えない** —— `scope` は `isStale` の判定に一切関与しない。
 
-- [ ] **Step 4: 走らせて通ることを確認 → 変異検証 → コミット**
+- [x] **Step 4: 走らせて通ることを確認 → 変異検証 → コミット**
 
 変異は 4 件（各テストのコメントが名指ししたもの。「kind:0 と kind:10002 は
 public」だけは単独では変異を捕まえられないと自分で書いてあるので、
@@ -227,7 +227,7 @@ git commit -m "feat(read): classify cached kinds by who may see them"
 を見ること（frontmatter は `---\nstatus: accepted\n---`、見出しは決定そのものを
 一文で言い切る形）。
 
-- [ ] **Step 1: ADR を書く**
+- [x] **Step 1: ADR を書く**
 
 `docs/adr/0027-account-boundary-and-cache-scope.md`:
 
@@ -273,7 +273,7 @@ status: accepted
 `scope` は `CachePolicy` の必須フィールドであり、方針表へ kind を足す人は必ず分類を選ぶ。`account` を選んだ場合、置き場を作るまでその kind は永続化されない。
 ```
 
-- [ ] **Step 2: `CONTEXT.md` の ADR 表に 1 行足す**
+- [x] **Step 2: `CONTEXT.md` の ADR 表に 1 行足す**
 
 `| [0026](...) | 常に見せるのは行動できる異常だけとし、診断値は開発者モードの背後に置く |`
 の次の行へ:
@@ -282,7 +282,7 @@ status: accepted
 | [0027](./docs/adr/0027-account-boundary-and-cache-scope.md) | キャッシュする kind を「誰が見てよいか」で分類し、名乗らないものは永続化しない |
 ```
 
-- [ ] **Step 3: リンク切れが無いことを確認 → ゲート、コミット**
+- [x] **Step 3: リンク切れが無いことを確認 → ゲート、コミット**
 
 ADR 内の相対リンク（`./0019-...`）が実在することを `ls docs/adr/` で確かめること。
 
