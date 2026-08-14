@@ -125,6 +125,24 @@ describe("selectForPersistence", () => {
     expect(result).toHaveLength(2);
   });
 
+  it("scope が public でない kind は retention があっても書かれない", () => {
+    // 捕まえる変異: selectForPersistence が scope を見ず retention だけで
+    // 決める (= このスライスが防ごうとした穴そのもの。account/session を
+    // 名乗った kind が本番の共有 DB へ書かれる)
+    for (const scope of ["account", "session"] as const) {
+      const nonPublic: CachePolicy = {
+        staleMs: 0,
+        serveWhileRevalidating: false,
+        retention: { type: "latest-per-author" },
+        scope,
+      };
+      const entry = persistedEvent(
+        makeEvent({ pubkey: "p1", kind: 0, created_at: 1 }),
+      );
+      expect(selectForPersistence([entry], () => nonPublic)).toEqual([]);
+    }
+  });
+
   it("retention: capped はこのスライスで未実装のため例外を投げる", () => {
     // 捕まえる変異: capped の分岐で何もせず抜ける (無言で捨てるのは「実装
     // しない」の意図と違う —— ポリシー側に capped が現れても誰も気づけない)

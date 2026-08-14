@@ -139,10 +139,15 @@ describe("scope (誰が見てよいか)", () => {
   });
 
   it("kind:3 は public だが retention: none なので永続化されない", () => {
-    // 捕まえる変異: 2 軸を 1 つのフラグに潰す。イベント自体は公開なので
-    // scope は "public" が正しく、永続化しない理由は別軸 (古いフォロー
-    // リストで購読すると外した著者を画面から消せない)。潰すと「共有して
-    // よいが保持はしたくない」が表現できなくなる (仕様 6 節)。
+    // 捕まえる変異: 2 軸を 1 つのフラグに潰し、scope だけで決めてしまう
+    // (retention を無視する方向)。kind:3 は scope: "public" なので、
+    // retention を無視して scope だけで決める実装だと true を返してしまい
+    // このテストが落ちる。逆方向 (retention だけで決める) はこのテストでは
+    // 捕まらない —— kind:3 は retention: "none" なので、その変異でも
+    // 結果は false のまま変わらない。イベント自体は公開なので scope は
+    // "public" が正しく、永続化しない理由は別軸 (古いフォローリストで
+    // 購読すると外した著者を画面から消せない)。潰すと「共有してよいが
+    // 保持はしたくない」が表現できなくなる (仕様 6 節)。
     expect(policyFor(3).scope).toBe("public");
     expect(shouldPersist(3)).toBe(false);
   });
@@ -171,7 +176,7 @@ describe("scope (誰が見てよいか)", () => {
     // 捕まえる変異: 表のどれか 1 つから scope を落とす。型で必須にして
     // いるので普通は通らないが、`as` で抜ける余地を塞ぐ。
     for (const kind of registeredKinds()) {
-      expect(policyFor(kind).scope).toBeDefined();
+      expect(["public", "account", "session"]).toContain(policyFor(kind).scope);
     }
   });
 });

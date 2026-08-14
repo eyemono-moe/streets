@@ -111,13 +111,17 @@ export const persistableScope = (policy: CachePolicy): boolean =>
 export const registeredKinds = (): number[] => [...POLICIES.keys()];
 
 /**
- * この kind を永続層へ書いてよいか。**2 つの軸をどちらも満たすときだけ真。**
- * `retention: none` は「保持しない」ではなく「そもそも書かない」を意味し、
- * `scope` が `public` でないものは置き場がそもそも違う。
+ * この kind を永続層へ書いてよいか。`persistableScope` の kind 版 ——
+ * `policyFor(kind)` を引いてから `persistableScope` に渡すだけの薄いラッパ。
+ * 実際の番人は `persistableScope` であり、`createMemoryPersistence.save`
+ * (`event-persistence.ts`) と `selectForPersistence`
+ * (`indexeddb-persistence.ts`) の 2 つの永続化実装は、どちらもこの関数へ
+ * (kind 経由かポリシー直接かの違いはあれ) 最終的に行き着く。同じ規則を
+ * 2 箇所に別々に書かないための共通の入口。
  * 今日は登録済みの kind がすべて `scope: "public"`、未知 kind がすべて
  * `scope: "session" && retention: "none"` なので、この判定が効く kind は
  * 存在しない —— 将来 `"account"` や永続化する `"session"` の kind が方針表へ
- * 載ったときに番人として機能する。
+ * 載ったときに効いてくる。
  */
 export const shouldPersist = (kind: number): boolean =>
   persistableScope(policyFor(kind));

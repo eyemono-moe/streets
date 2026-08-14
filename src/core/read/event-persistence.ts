@@ -49,9 +49,9 @@ export const createMemoryPersistence = (): EventPersistence => {
 
     save(entries) {
       if (disposed) return;
-      // 書かない kind を落とすのは IndexedDB 実装と同じ責務。ここで
-      // 素通しすると、`retention: none` の kind がこの実装でだけ残り、
-      // 同じテストが 2 つの実装で違う結果を出す。
+      // `shouldPersist` は IndexedDB 実装 (`selectForPersistence`) と同じ
+      // `persistableScope` を通る。ここで素通しすると、書かないはずの kind が
+      // この実装でだけ残り、同じテストが 2 つの実装で違う結果を出す。
       for (const entry of entries) {
         if (!shouldPersist(entry.event.kind)) continue;
         events.set(entry.event.id, entry);

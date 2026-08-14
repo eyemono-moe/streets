@@ -402,6 +402,30 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **jsdom の `ResizeObserver` スタブが実物と違っていたことも、この変更で露見した。** 実際の `ResizeObserver` は `observe()` した要素の初回観測を必ず配信するが、`vitest.setup.ts` のスタブは何も撃たない no-op だった。`createElementSize` が `getBoundingClientRect()` を同期的に読んでいたので今までは表面化していない。製品コードから同期読み（ノート 1 件ごとの強制リフロー）を外したことで初めて、スタブが実物の契約を満たしていないことがテストの失敗として出た。スタブ側を実物に合わせた。
 
+## アカウント境界とキャッシュの scope（2026-08-14）— 仕様 9 節の答え
+
+仕様は [account-boundary-design.md](../superpowers/specs/2026-08-14-account-boundary-design.md)、決定は [ADR-0027](../adr/0027-account-boundary-and-cache-scope.md)。`CachePolicy` に「誰が見てよいか」(`scope: "public" | "account" | "session"`) を、保持方針 (`retention`) とは独立した軸として足した。**既定は `"session"`（ディスクへ書かない）。** 名乗り忘れが「書かれない」に倒れるようにし、共有 IndexedDB へ一度書かれたものは後からアカウント別に引き剥がせないという取り返しのつかなさを構造的に避けた。
+
+### C1 — 最終レビューで発見: 本番の書き込み経路が `scope` を見ていなかった
+
+永続化の実装は 2 つあり（`createMemoryPersistence` / `createIndexedDbPersistence` → `selectForPersistence`）、本番 (`/v1`) が使うのは後者である。仕様は `shouldPersist`（`cache-policy.ts`）を「分類の choke point」と名指ししたが、`shouldPersist` を呼ぶのはデバッグルート専用の `createMemoryPersistence` だけで、本番の `selectForPersistence` は `retention.type` だけを見る独自の `switch` を持ち、`scope` を一度も参照していなかった。**同じ「書いてよいか」の規則を 2 箇所に別々に書いたことがそのまま食い違いを生んだ。** その結果、ミュート（kind:10000）を足す人が方針表へ `scope: "account"` と正しく書いても、本番は `retention.type` だけを見て共有 DB へ書いてしまう —— このスライスが名指しした当の相手（ミュート）でそのまま踏む穴だった。落ちるテストは 1 件も無かった。
+
+直し方は `selectForPersistence` のループ先頭で `persistableScope(policy)` を門番にし、`shouldPersist`（kind 版）と `selectForPersistence`（本番の書き込み経路）の両方が同じ `persistableScope` を通るようにしたこと。規則の在り処を 1 つに統一したので、今後の食い違いは構造的に起きない。ディスク境界のテストも足した（`indexeddb-persistence.test.ts` の「scope が public でない kind は retention があっても書かれない」）—— 修正前のコードに戻すとこのテストが落ちることを確認済み。
+
+### 今日、`shouldPersist`/`persistableScope` の scope 判定を通る入力は 1 つも無い
+
+**確認済みの事実。** 登録済みの 3 kind（0 / 3 / 10002）はすべて `scope: "public"`。未知 kind は既定により `scope: "session"` かつ `retention: { type: "none" }`。つまりどの kind を渡しても `scope` を見ても見なくても同じ答えが出る —— C1 が本番に残っていた期間も、実害（別アカウントの漏洩）は起きていない。この判定が実際に効くのは、`"account"` または永続化する `"session"` の kind が方針表へ載ったとき。
+
+### 繰り越し
+
+- **`"account"` の置き場は未実装。** 該当する kind が 1 つも無い。`scope: "account"` を名乗った kind は置き場ができるまでメモリのみ（安全側）。
+- **アカウント切替の機構は未実装。** 切替の経路が 1 つも無いので、`createReadLayer` にアカウントを渡す変更も未着手。ADR-0027 3 節が「アカウントが変わったら read layer を捨てて作り直す」という規則をコードにする前に固定した。
+
+### 仕様 9 節の 2 問は未取得
+
+- **問い 1（アカウント切替を実装したとき、read layer の作り直しに体感できる待ちが出るか）**: **未取得。** アカウント切替の機構自体が無いので測りようがない。切替を実装したうえで、実鍵で共有 DB からの水和にかかる時間を計測する必要がある。
+- **問い 2（`"account"` の置き場が最初に必要になるのはどの kind か）**: **未取得。** ADR-0027 はミュート（kind:10000、#207）が最有力と書いているが、実際に作るときにならないと分からない。ミュート機能の実装に着手した時点で判断する必要がある。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。

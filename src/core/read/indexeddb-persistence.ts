@@ -1,5 +1,5 @@
 import { isNostrEvent } from "../nostr/event";
-import { type CachePolicy, policyFor } from "./cache-policy";
+import { type CachePolicy, persistableScope, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { compareEvents } from "./sorted-events";
@@ -48,6 +48,11 @@ export type RetainedEntry = {
  * ようにするため)。`capped` はこのスライスで対象の kind が無く、
  * 実装しない代わりに投げる —— 将来ポリシー側に `capped` が現れたとき、
  * ここが未実装のまま静かに `none` 相当の挙動をするより早く気づける。
+ *
+ * `persistableScope` を先頭で通すのは、`retention` だけを見るループが
+ * `scope: "account"`/`"session"` を無視してそのまま共有 DB へ書いてしまう
+ * 穴を塞ぐため —— `shouldPersist`（kind 経由の同じ関数）と入口を共有する
+ * ことで、「書いてよいか」の規則が 2 箇所に別々に存在する状態を作らない。
  */
 export const selectForPersistence = (
   entries: readonly PersistedEvent[],
@@ -56,9 +61,12 @@ export const selectForPersistence = (
   const winners = new Map<string, RetainedEntry>();
 
   for (const entry of entries) {
-    const { retention } = lookupPolicy(entry.event.kind);
-    switch (retention.type) {
+    const policy = lookupPolicy(entry.event.kind);
+    if (!persistableScope(policy)) continue;
+    switch (policy.retention.type) {
       case "none":
+        // persistableScope が retention.type !== "none" を含むので
+        // ここには実際には来ない。型の網羅性のためだけに残す。
         continue;
       case "capped":
         throw new Error(
