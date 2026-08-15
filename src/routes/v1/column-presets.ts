@@ -1,4 +1,4 @@
-import type { ColumnDef } from "../../core/deck/deck";
+import { type ColumnDef, TIMELINE_KINDS } from "../../core/deck/deck";
 import { decodeNpub, encodeBech32 } from "../../core/nostr/nip19";
 import { FALLBACK_RELAYS } from "../../core/read/default-relays";
 
@@ -27,7 +27,7 @@ export const buildColumn = (
       return {
         id,
         title: "ホーム",
-        source: { kind: "followees", kinds: [1] },
+        source: { kind: "followees", kinds: [...TIMELINE_KINDS] },
       };
 
     case "user": {
@@ -39,7 +39,7 @@ export const buildColumn = (
         title: `@${encodeBech32("npub", pubkey).slice(0, 12)}`,
         source: {
           kind: "literal",
-          filters: [{ kinds: [1], authors: [pubkey] }],
+          filters: [{ kinds: [...TIMELINE_KINDS], authors: [pubkey] }],
         },
       };
     }

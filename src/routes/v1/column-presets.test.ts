@@ -12,14 +12,41 @@ describe("buildColumn", () => {
     // 捕まえる変異: home もフィルタを焼き込む (Task 1 が消した欠陥の再導入)
     expect(buildColumn("home", "")?.source).toEqual({
       kind: "followees",
-      kinds: [1],
+      kinds: [1, 6],
     });
+  });
+
+  it("home と user はリポストも集める", () => {
+    // 捕まえる変異: kinds を [1] に戻す。v0 の Followings.tsx / User.tsx は
+    // どちらも [ShortTextNote, Repost] を購読しており、6 を落とすと
+    // フォロー相手がリポストした投稿が列から丸ごと消える。
+    //
+    // toEqual の完全一致だけだと「6 が入っている」ことは主張できても
+    // 「何のために入っているか」が読めないので、kind:6 の含有を単独で書く。
+    const home = buildColumn("home", "")?.source;
+    expect(home?.kind === "followees" && home.kinds).toContain(6);
+
+    const user = buildColumn("user", HEX)?.source;
+    expect(user?.kind === "literal" && user.filters[0]?.kinds).toContain(6);
+  });
+
+  it("hashtag と global はリポストを集めない", () => {
+    // 捕まえる変異: TIMELINE_KINDS を 4 種別すべてへ広げる。リポストは
+    // 元イベントの t タグを引き継がないのでハッシュタグ列では何も増えず、
+    // グローバル列は元から流量が多い (column-presets.ts のコメント)。
+    const hashtag = buildColumn("hashtag", "#nostr")?.source;
+    expect(hashtag?.kind === "literal" && hashtag.filters[0]?.kinds).toEqual([
+      1,
+    ]);
+
+    const global = buildColumn("global", "")?.source;
+    expect(global?.kind === "literal" && global.filters[0]?.kinds).toEqual([1]);
   });
 
   it("user は hex 著者フィルタを作る", () => {
     expect(buildColumn("user", HEX)?.source).toEqual({
       kind: "literal",
-      filters: [{ kinds: [1], authors: [HEX] }],
+      filters: [{ kinds: [1, 6], authors: [HEX] }],
     });
 
     // 捕まえる変異: 入力をデコードせずそのまま authors へ入れる。
@@ -29,7 +56,7 @@ describe("buildColumn", () => {
     // 変換されていることまで確かめて初めて、この変異を殺せる。
     expect(buildColumn("user", NPUB)?.source).toEqual({
       kind: "literal",
-      filters: [{ kinds: [1], authors: [HEX] }],
+      filters: [{ kinds: [1, 6], authors: [HEX] }],
     });
   });
 

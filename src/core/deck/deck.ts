@@ -15,6 +15,28 @@ export type ColumnSource =
 export type ColumnDef = { id: string; title: string; source: ColumnSource };
 
 /**
+ * 「誰かの投稿を時系列で並べる」列が集める kind。ホーム列とユーザー列が
+ * これを使う。
+ *
+ * **リポスト (kind:6) を含めるのは v0 と同じ** ——
+ * `features/Column/components/Column/Followings.tsx` と `User.tsx` が
+ * どちらも `[ShortTextNote, Repost]` を購読している。リポストは
+ * 「その人がタイムラインへ流したもの」であり、本人の kind:1 と同じ列に
+ * 並ぶのが元の挙動である。
+ *
+ * **kind:16 (汎用リポスト) は含めない。** v0 が集めていないのに加え、
+ * kind:16 の対象は kind:1 以外 (長文記事など) であり、短文の列へ混ぜると
+ * その列が何を見せる列なのかが曖昧になる。`EventView` はレンダラを対象
+ * イベント自身の kind から選ぶので描画側は 16 を扱えるが、**集めるか
+ * どうかは列の意図の問題であって描画能力の問題ではない。**
+ *
+ * ハッシュタグ列とグローバル列には足さない。リポストは元イベントの `t`
+ * タグを引き継がないのでハッシュタグ列では増えず、グローバル列は元から
+ * 流量が多いので足す判断は別に要る。
+ */
+export const TIMELINE_KINDS: readonly number[] = [1, 6];
+
+/**
  * `version` は ADR-0013 の NIP-78 移行のために残す。バージョンを持たない
  * 形式は「今の形と違う」ことしか言えず「壊れている」と区別できない。
  *
@@ -69,14 +91,14 @@ export const defaultDeck = (viewerPubkey: string): Deck => ({
     {
       id: "home",
       title: "ホーム",
-      source: { kind: "followees", kinds: [1] },
+      source: { kind: "followees", kinds: [...TIMELINE_KINDS] },
     },
     {
       id: "mine",
       title: "自分の投稿",
       source: {
         kind: "literal",
-        filters: [{ kinds: [1], authors: [viewerPubkey] }],
+        filters: [{ kinds: [...TIMELINE_KINDS], authors: [viewerPubkey] }],
       },
     },
     {

@@ -240,7 +240,7 @@ describe("defaultDeck", () => {
 
     // ホーム: フォローの展開を resolveSource に任せる派生ソース
     const home = result.columns.find((c) => c.id === "home");
-    expect(home?.source).toEqual({ kind: "followees", kinds: [1] });
+    expect(home?.source).toEqual({ kind: "followees", kinds: [1, 6] });
 
     // 単一著者: 自分の投稿だけを、フォロー数によらず必ず映す対照群
     const mine = result.columns.find(
@@ -248,7 +248,7 @@ describe("defaultDeck", () => {
     );
     expect(mine?.source).toEqual({
       kind: "literal",
-      filters: [{ kinds: [1], authors: [viewerPubkey] }],
+      filters: [{ kinds: [1, 6], authors: [viewerPubkey] }],
     });
 
     // 明示リレー: Outbox をバイパスして relays を直接持つ。他の 2 本と同じく
@@ -262,6 +262,22 @@ describe("defaultDeck", () => {
       filters: [{ kinds: [1] }],
       relays: [...FALLBACK_RELAYS],
     });
+  });
+
+  it("ホームと自分の投稿はリポストも集める", () => {
+    // 捕まえる変異: TIMELINE_KINDS から 6 を落とす。上の toEqual でも
+    // 落とせるが、そちらは 3 本の構造をまとめて見ているので「なぜ 6 が
+    // 要るのか」が読めない。フォロー相手のリポストが列から丸ごと消える、
+    // というのがこの 1 行が守っているもの。
+    const result = defaultDeck(viewerPubkey);
+
+    const home = result.columns.find((c) => c.id === "home");
+    expect(home?.source.kind === "followees" && home.source.kinds).toContain(6);
+
+    const mine = result.columns.find((c) => c.id === "mine");
+    expect(
+      mine?.source.kind === "literal" && mine.source.filters[0]?.kinds,
+    ).toContain(6);
   });
 
   it("column の id が重複しない", () => {
