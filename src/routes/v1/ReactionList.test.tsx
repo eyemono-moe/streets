@@ -278,6 +278,39 @@ describe("ReactionList", () => {
     }
   });
 
+  it("グループの数が変わらない変化でも件数は更新される", () => {
+    // 捕まえる変異: `groups` の `equals` を「配列の長さが同じなら等しい」
+    // のような浅い比較にする。枠の作り直しを抑える等値関数は、抑えすぎると
+    // 逆に画面が更新されなくなる —— 2 人目が同じ絵文字を押してもグループ
+    // 数は 1 のままなので、長さだけを見る比較ではこの変化を取りこぼす。
+    const store = new EventStore();
+    const target = signed(60);
+    const reactions = createControllableReactionRequests();
+    store.put(signedReaction(61, target.id), "wss://relay/");
+    const { element, dispose } = mountReactive(
+      target.id,
+      contextWith(store, reactions),
+    );
+    try {
+      expect(
+        element()?.querySelector('[data-testid="reaction-count"]')?.textContent,
+      ).toBe("1");
+
+      store.put(signedReaction(62, target.id), "wss://relay/");
+      reactions.notify();
+
+      const groups = element()?.querySelectorAll(
+        '[data-testid="reaction-group"]',
+      );
+      expect(groups?.length).toBe(1);
+      expect(
+        element()?.querySelector('[data-testid="reaction-count"]')?.textContent,
+      ).toBe("2");
+    } finally {
+      dispose();
+    }
+  });
+
   it("展開すると押した人が出る", () => {
     // 捕まえる変異: 展開しても何も変わらない
     const store = new EventStore();
