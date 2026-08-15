@@ -428,11 +428,11 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## リアクションとリポストの表示（2026-08-15）— 仕様 9 節の答え
 
-[仕様](../superpowers/specs/2026-08-14-reactions-and-reposts-design.md) 9 節が定める 3 問への回答。**問い 1 だけは開発者モードの `reaction-batch`（task-7 でこのスライスに足した）を実鍵で読めば測れるが、まだ読んでいない。問い 2・3 は実データが要る。推測は書かない。**
+[仕様](../superpowers/archive/specs/2026-08-14-reactions-and-reposts-design.md) 9 節が定める 3 問への回答。**問い 1 だけは開発者モードの `reaction-batch` を実鍵で読めば測れるが、まだ読んでいない。問い 2・3 は実データが要る。推測は書かない。**
 
 ### 問い1 —— `#e` のコアレッサが 1 バッチで何件になるか
 
-**測れるようにはした。未取得。** `createReactionRequests`（`src/core/read/reaction-requests.ts`）は `lastBatchSize`/`maxBatchSize` を既に持っていた（task-3〜6 の実装）ので、`ProfileRequests`/`EventRequests` と同じ形で `src/routes/v1.tsx` の `batchSizes` シグナルへ足し、開発者モードに `data-testid="reaction-batch"` として出した（`profileBatch`/`eventBatch` と同じ並び）。
+**測れるようにはした。未取得。** `createReactionRequests`（`src/core/read/reaction-requests.ts`）は `lastBatchSize`/`maxBatchSize` を持っているので、`ProfileRequests`/`EventRequests` と同じ形で `src/routes/v1.tsx` の `batchSizes` シグナルへ足し、開発者モードに `data-testid="reaction-batch"` として出した（`profileBatch`/`eventBatch` と同じ並び）。
 
 **答え方:** `pnpm dev` → 実鍵で `/v1` を開き、開発者モードを有効にして `reaction-batch` の `max` を読む。段階的レンダリング（初回 40 件 × カラム数)と、リレーのフィルタ長制限（NIP-11 の `max_message_length`）の両方に当たらないかを見る。
 

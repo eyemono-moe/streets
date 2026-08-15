@@ -8,7 +8,7 @@
 
 **Tech Stack:** SolidJS / UnoCSS / Vitest / Playwright。
 
-**仕様:** [docs/superpowers/specs/2026-08-14-reactions-and-reposts-design.md](../specs/2026-08-14-reactions-and-reposts-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**仕様:** [docs/superpowers/archive/specs/2026-08-14-reactions-and-reposts-design.md](../specs/2026-08-14-reactions-and-reposts-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 
