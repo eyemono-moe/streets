@@ -454,6 +454,8 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 - **NIP-25 の `-`（dislike）を text として扱っている。** 仕様 1 節で「v0 と同じ挙動にする」と判断済みだが、[NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) は `content` が `-` のとき dislike と解釈することを MUST としている。`parseReaction`（`src/core/nostr/reaction.ts`）は `+`/空文字だけを `like` とし、`-` は他の任意の文字列と同じ `text` 型に落ちる —— 「−1」のような表示にはならず、単に "-" というテキストの反応として見える。
 - `parseReaction` の対象 id は「最後の**有効な** hex」なので、最後の `e` タグが壊れた hex（64 桁でない、または hex でない）で、それより前に有効な hex を持つ `e` タグがあれば前方へフォールバックする（`lastTagValue` の実装がそうなっている）。安全側の挙動ではあるが、仕様にも明記されておらず、専用のユニットテストも無い。
 - `EventStore` のタグ索引は、タグ値が空文字のものを「値なし」として弾いている（`#indexTags` の実装）。`e`/`p` タグでは実害が無い（空文字の id/pubkey は元々意味を持たない）が、他のタグ用途で索引を再利用するときに踏む可能性がある前提。
+- **対象不明の kind:7 がカラムに空行を残す。** 仕様 7 節どおり `ReactionFull` は何も描かないが、`ColumnItems.tsx` の `<li>` は残るので `<ul class="divide-y">` の区切り線と `contain-intrinsic-size` の場所取りだけが見える。`a` タグしか持たない kind:7（NIP-23 の記事へのリアクション）や 64 桁 hex でない `e` タグで起きる。kind:6 は同じ状況で「リポスト（対象不明）」を出すので、**同じスライスの中で扱いが割れている** —— 揃えるなら「レンダラが何も描かなかったアイテムは `<li>` ごと出さない」を `ColumnItems` 側の規則にするのが筋で、レンダラ個別の判断ではない。
+- **`task-N-brief.md` への参照がコメントに残っているファイルがある。** このスライスでは `e2e/v1.spec.ts` と `e2e/fixtures/seed-preview.ts` から除いたが、`src/routes/v1/DeckColumn.tsx` / `profile-requests.ts` / `profile-data.ts` / `first-render-recorder.ts`（と `.test.ts`）/ `v1.tsx` / `deck-mutations.ts` / `connection-pool.test.ts` に過去のスライスのものが残っている。ブリーフはスライスが終われば消える作業ファイルなので、これらは追えない参照になっている。
 
 ## 未着手のまま残っている設計上の課題
 
