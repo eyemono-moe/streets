@@ -31,9 +31,9 @@ export const previewViewerSeedNoteText = "streets preview viewer seed note";
 export const previewAuthorOneNoteText = "streets preview author one note";
 export const previewAuthorTwoNoteText = "streets preview author two note";
 
-// task-5-brief.md Step 2: リポスト/引用/返信/未登録 kind、それぞれの対象と
-// 本体。対象ノートの本文をここで export するのは、e2e が「対象の本文が
-// compact 表示の中に出ている」ことをこの定数と突き合わせて主張するため。
+// リポスト/引用/返信/未登録 kind、それぞれの対象と本体。対象ノートの本文を
+// ここで export するのは、e2e が「対象の本文が compact 表示の中に出ている」
+// ことをこの定数と突き合わせて主張するため。
 export const previewRepostTargetNoteText = "streets preview repost target note";
 export const previewQuoteTargetNoteText = "streets preview quote target note";
 /**
@@ -76,10 +76,9 @@ const publish = async (
 };
 
 /**
- * `publish` と同じだが、署名済みイベント (id を含む) を呼び出し側へ返す
- * (task-5-brief.md Step 2)。リポスト/引用/返信は対象イベントの id を
- * `e`/`q` タグに埋め込む必要があり、`publish` のように投げっぱなしでは
- * その id を知る手段が無い。
+ * `publish` と同じだが、署名済みイベント (id を含む) を呼び出し側へ返す。
+ * リポスト/引用/返信は対象イベントの id を `e`/`q` タグに埋め込む必要が
+ * あり、`publish` のように投げっぱなしではその id を知る手段が無い。
  */
 const publishAndReturn = async (
   relay: Relay,
@@ -92,10 +91,10 @@ const publishAndReturn = async (
 };
 
 /**
- * task-7-brief.md Step 1: 「閲覧者 1 人 + フォロー相手 2 人、それぞれの
- * kind:0 と kind:1、閲覧者と著者の kind:10002」。単一リレー構成 —— Outbox
- * のリレー分割は既に e2e/fixtures/seed-outbox.ts が確認済みで、このフィク
- * スチャの役目はログイン→カラム表示→投稿→リロード復元を 1 本通すこと。
+ * 「閲覧者 1 人 + フォロー相手 2 人、それぞれの kind:0 と kind:1、閲覧者と
+ * 著者の kind:10002」の単一リレー構成 —— Outbox のリレー分割は既に
+ * e2e/fixtures/seed-outbox.ts が確認済みで、このフィクスチャの役目は
+ * ログイン→カラム表示→投稿→リロード復元を 1 本通すこと。
  */
 export const seedPreviewFixture = async (): Promise<void> => {
   const relay = await Relay.connect(previewRelayUrl);
@@ -200,9 +199,9 @@ export const seedPreviewFixture = async (): Promise<void> => {
     authorTwoSecretKey,
   );
 
-  // task-5-brief.md Step 2: リポスト (kind:6, content 埋め込みあり + e タグ
-  // あり)。対象は authorOne のノート — 先に対象を発行して id を確定させて
-  // から、その id を e タグと content の埋め込み (NIP-18) の両方に使う。
+  // リポスト (kind:6, content 埋め込みあり + e タグあり)。対象は authorOne
+  // のノート — 先に対象を発行して id を確定させてから、その id を e タグと
+  // content の埋め込み (NIP-18) の両方に使う。
   const repostTargetNote = await publishAndReturn(
     relay,
     {
@@ -297,8 +296,8 @@ export const seedPreviewFixture = async (): Promise<void> => {
     viewerSecretKey,
   );
 
-  // task-7-brief.md Step 1: 引用先ノート (quoteTargetNote) への kind:7 を
-  // 3 件。`+` (like) を authorOne/authorTwo の 2 人、NIP-30 のカスタム絵文字
+  // 引用先ノート (quoteTargetNote) への kind:7 を 3 件。`+` (like) を
+  // authorOne/authorTwo の 2 人、NIP-30 のカスタム絵文字
   // を viewer の 1 人。同じ対象へ 3 者が反応することで、一覧の集計 (仕様 8
   // 節 の一覧テスト) が「like が 2、emoji が 1」の 2 山になる —— 1 件 1 枠に
   // 描いてしまう欠陥 (集計しない変異) と、正しく山にまとめる実装を e2e で

@@ -132,6 +132,42 @@ const mountBody = (
   );
 
 describe("ReactionFull", () => {
+  it("ルート要素は group/event と group-[_]/event:p-0 の両方を持つ", () => {
+    // 捕まえる変異: どちらかを落とす (`RepostFull` の同名テストと同じ理由)。
+    const targetId = signed(112).id;
+    const event = signed(113, { tags: [["e", targetId]] });
+    const { element, dispose } = mountBody(
+      ReactionFull,
+      event,
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      const className = element()?.className ?? "";
+      expect(className).toMatch(/(?:^|\s)group\/event(?:\s|$)/);
+      expect(className).toMatch(/(?:^|\s)group-\[_\]\/event:p-0(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("見出しの名前は font-700 (太字) になる", () => {
+    // 捕まえる変異: 見出しの名前に font-700 を付け忘れる/落とす。単語境界で
+    // 見る (クラス文字列全体一致だと無関係なクラス追加で壊れる)。
+    const targetId = signed(110).id;
+    const event = signed(111, { tags: [["e", targetId]] });
+    const { element, dispose } = mountBody(
+      ReactionFull,
+      event,
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      const name = element()?.querySelector('[data-testid="reacted-by-name"]');
+      expect(name?.className ?? "").toMatch(/(?:^|\s)font-700(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+
   it("見出しと対象の full な EventView が出る", () => {
     // 捕まえる変異: 対象を描かない / variant="compact" にする
     const events = createRecordingEventRequests();

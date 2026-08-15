@@ -137,6 +137,45 @@ describe("RepostFull", () => {
     }
   });
 
+  it("ルート要素は group/event と group-[_]/event:p-0 の両方を持つ", () => {
+    // 捕まえる変異: どちらかを落とす。対象を `full` で描く (spec 3 節) ため
+    // 対象のノート/リポスト/リアクションはこの枠の中にそのまま入る。
+    // `group/event` が無いと、リポストの中のリポストで内側の padding が
+    // 潰れない (祖先に group/event が無いため)。`group-[_]/event:p-0` が
+    // 無いと、自分がさらに別の枠の中に置かれたとき自分の padding が
+    // 二重になる。
+    const event = signed(15, { kind: 6, content: "" });
+    const { element, dispose } = mount(
+      () => RepostFull({ event }),
+      contextWith({}),
+    );
+    try {
+      const className = element().className;
+      expect(className).toMatch(/(?:^|\s)group\/event(?:\s|$)/);
+      expect(className).toMatch(/(?:^|\s)group-\[_\]\/event:p-0(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("見出しの名前は font-700 (太字) になる", () => {
+    // 捕まえる変異: 見出しの名前に font-700 を付け忘れる/落とす。長い
+    // 表示名で「がリポスト」まで見出しが 2 行に折り返す原因になる
+    // (仕様 3.1 節)。単語境界で見る —— クラス文字列全体一致だと、無関係な
+    // クラスを足しただけで壊れる脆いテストになる。
+    const event = signed(14, { kind: 6, content: "" });
+    const { element, dispose } = mount(
+      () => RepostFull({ event }),
+      contextWith({}),
+    );
+    try {
+      const name = element().querySelector('[data-testid="repost-by-name"]');
+      expect(name?.className ?? "").toMatch(/(?:^|\s)font-700(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+
   it("リポストの対象は compact ではなく full で描く", () => {
     // 捕まえる変異: variant="compact" に戻す。v0 は対象を完全な Event として
     // 描いており (showReactions showActions 付き)、compact にすると対象の

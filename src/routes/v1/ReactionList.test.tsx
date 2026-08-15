@@ -94,6 +94,36 @@ const createRecordingReactionRequests = (): ReactionRequests & {
   };
 };
 
+/**
+ * `subscribe` で受け取った listener を後から手で呼べる `ReactionRequests`
+ * のテストダブル。主経路 (取得 → 通知 → 再描画) を検証するテストが使う ——
+ * 本番では `fetchOnce` が解決したときにコアレッサがこの listener を呼ぶ
+ * (`reaction-requests.ts` の `flush`)。
+ */
+const createControllableReactionRequests = (): ReactionRequests & {
+  requested: string[];
+  notify(): void;
+} => {
+  const requested: string[] = [];
+  const listeners = new Set<() => void>();
+  return {
+    requested,
+    request(id) {
+      requested.push(id);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    notify() {
+      for (const listener of listeners) listener();
+    },
+    lastBatchSize: 0,
+    maxBatchSize: 0,
+    dispose() {},
+  };
+};
+
 const contextWith = (
   store: EventStore,
   reactions: ReactionRequests = createRecordingReactionRequests(),
@@ -134,6 +164,36 @@ const mount = (
   });
   return {
     element: () => element,
+    dispose: disposeRoot,
+  };
+};
+
+/**
+ * `mount` と違い、`<Show>` のアクセサを毎回呼び直す。`mount` は初回の値を
+ * 1 度だけ読んで変数へ固定するので、マウント後に信号が変わって `<Show>`
+ * の判定が反転しても (未描画 → 描画) 反映されない。マウント後の到着を
+ * 検証するテストはこちらを使う。
+ */
+const mountReactive = (
+  eventId: string,
+  ctx: RenderContextValue,
+): { element: () => HTMLElement | undefined; dispose: () => void } => {
+  let accessor: (() => HTMLElement | undefined) | undefined;
+  let disposeRoot: () => void = () => {};
+  createRoot((dispose) => {
+    disposeRoot = dispose;
+    RenderProvider({
+      value: ctx,
+      get children() {
+        accessor = ReactionList({
+          eventId,
+        }) as unknown as () => HTMLElement | undefined;
+        return null;
+      },
+    });
+  });
+  return {
+    element: () => accessor?.(),
     dispose: disposeRoot,
   };
 };
@@ -179,6 +239,40 @@ describe("ReactionList", () => {
     const { dispose } = mount(target.id, contextWith(store, reactions));
     try {
       expect(reactions.requested).toContain(target.id);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("主経路: マウント後に届いたリアクションが subscribe の通知で一覧に現れる", () => {
+    // 捕まえる変異: `createEffect` の中の `subscribe`/再計算のきっかけを
+    // 丸ごと落とす。他の全ケースはマウント前に `store.put` 済みで、
+    // テストダブルの `subscribe` が listener を一度も呼ばないため、この
+    // 変異を入れても他のテストは緑のまま —— 本番の通常ケース (ノートが
+    // 先に描かれ、200ms 後にリアクションが届く) を検証するのはこのテスト
+    // だけになる。
+    const store = new EventStore();
+    const target = signed(40);
+    const reactions = createControllableReactionRequests();
+    const { element, dispose } = mountReactive(
+      target.id,
+      contextWith(store, reactions),
+    );
+    try {
+      // マウント時点では store にリアクションが無く、一覧は出ていない。
+      expect(element()).toBeUndefined();
+
+      // リアクションが届いた体で store へ put し、コアレッサが
+      // `fetchOnce` 解決後に呼ぶのと同じ経路 (subscribe の listener) を
+      // 手で起動する。
+      store.put(signedReaction(41, target.id), "wss://relay/");
+      reactions.notify();
+
+      const el = element();
+      expect(el).not.toBeUndefined();
+      expect(
+        el?.querySelector('[data-testid="reaction-group"]'),
+      ).not.toBeNull();
     } finally {
       dispose();
     }
@@ -332,6 +426,35 @@ describe("ReactionList", () => {
       expect(img).not.toBeNull();
       expect(img?.getAttribute("src")).toBe("https://example.com/pp.png");
       expect(img?.getAttribute("alt")).toBe("partyparrot");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("中身が変わらない通知を 2 回受けても、枠の DOM 要素は作り直されない", () => {
+    // 捕まえる変異: `groups` の `createMemo` から `equals` オプションを
+    // 外す。集計 (`groupReactions`) は毎回新しい配列・新しいオブジェクトを
+    // 返すので、`equals` が無いと「マウント中のどれかのノートにリアクション
+    // が届いた」という無関係な通知のたびに `<For>` が参照同一性で全ての
+    // 枠を作り直す。副作用として `ReactionMark` の「画像が壊れた」フラグが
+    // 毎回リセットされ、404 のカスタム絵文字が通知のたびに点滅する。
+    const store = new EventStore();
+    const target = signed(60);
+    store.put(signedReaction(61, target.id), "wss://relay/");
+    const reactions = createControllableReactionRequests();
+    const { element, dispose } = mountReactive(
+      target.id,
+      contextWith(store, reactions),
+    );
+    try {
+      const before = element()?.querySelector('[data-testid="reaction-group"]');
+      expect(before).not.toBeNull();
+
+      // 中身は変わらないまま、他のノートの到着などで通知だけ来る想定。
+      reactions.notify();
+
+      const after = element()?.querySelector('[data-testid="reaction-group"]');
+      expect(after).toBe(before);
     } finally {
       dispose();
     }

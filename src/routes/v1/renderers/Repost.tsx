@@ -73,17 +73,34 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
   const target = resolveRepostTarget(props.event, ctx.store);
 
   return (
-    <div data-testid="repost" class="space-y-1 pt-1 pr-2 pb-1 pl-1 text-body">
+    <div
+      data-testid="repost"
+      // `group/event` + `group-[_]/event:p-0`: `NoteFull` と同じ手筋
+      // (`Note.tsx` 参照)。対象を `full` で描く (spec 3 節) ので、対象が
+      // ノート/リポスト/リアクションのどれであっても、この枠の中では
+      // padding が二重にならないよう自分自身も祖先の `group/event` を
+      // 見て潰れる。`group/event` を付けるのは、リポストの中のリポスト
+      // (対象が kind:6/7) でも同じことが起きるようにするため。
+      class="group/event space-y-1 pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
+    >
       <p
         data-testid="repost-by"
         class="c-secondary flex items-center gap-1 text-caption"
       >
         <span class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4 shrink-0" />
-        <Profile
-          pubkey={props.event.pubkey}
-          store={ctx.store}
-          requests={ctx.profiles}
-        />
+        {/*
+          見出しの名前は太字・1 行に丸める (spec 3.1 節)。長い表示名でも
+          「がリポスト」まで見出しが 2 行に折り返さないよう、`<Profile>`
+          自体は変えず外側で `min-w-0 truncate` を足す (`Note.tsx` の
+          `note-author` と同じ手筋)。
+        */}
+        <span data-testid="repost-by-name" class="min-w-0 truncate font-700">
+          <Profile
+            pubkey={props.event.pubkey}
+            store={ctx.store}
+            requests={ctx.profiles}
+          />
+        </span>
         <span class="shrink-0">がリポスト</span>
       </p>
       <Show
@@ -114,11 +131,13 @@ export const RepostCompact: Component<{ event: NostrEvent }> = (props) => {
   return (
     <div data-testid="repost" class="space-y-1 text-caption">
       <p data-testid="repost-by" class="c-secondary text-caption">
-        <Profile
-          pubkey={props.event.pubkey}
-          store={ctx.store}
-          requests={ctx.profiles}
-        />
+        <span data-testid="repost-by-name" class="font-700">
+          <Profile
+            pubkey={props.event.pubkey}
+            store={ctx.store}
+            requests={ctx.profiles}
+          />
+        </span>
         がリポスト
       </p>
     </div>

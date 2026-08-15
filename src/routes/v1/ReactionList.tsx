@@ -21,6 +21,35 @@ import Profile from "./Profile";
 import ReactionMark from "./ReactionMark";
 
 /**
+ * `groups` の `createMemo` に渡す `equals`。集計 (`groupReactions`) は
+ * 呼ぶたびに新しい配列・新しいオブジェクトを返すので、素の参照比較では
+ * 中身が同じでも「変わった」とみなされる。バッチ通知は「マウント中の
+ * *どれか* のノートにリアクションが届いた」としか教えないので、無関係な
+ * 通知のたびに全 `ReactionList` の `groups` が引き直され、`<For>` が参照
+ * 同一性でキーを取る以上、中身が同じでも枠の DOM が作り直される。副作用
+ * として `ReactionMark` の「画像が壊れた」フラグが毎回リセットされ、404
+ * のカスタム絵文字が通知のたびに点滅する。
+ *
+ * 比較するのは並び・鍵・件数・押した人 (`ReactionGroup.key`/`count`/
+ * `users`) —— 表示に使う全て。`content` は鍵から一意に決まるので比較に
+ * 含めなくてよい。
+ */
+const groupsEqual = (a: ReactionGroup[], b: ReactionGroup[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const ga = a[i];
+    const gb = b[i];
+    if (!ga || !gb) return false;
+    if (ga.key !== gb.key || ga.count !== gb.count) return false;
+    if (ga.users.size !== gb.users.size) return false;
+    for (const [pubkey, count] of ga.users) {
+      if (gb.users.get(pubkey) !== count) return false;
+    }
+  }
+  return true;
+};
+
+/**
  * v0 の `<button title=...>` と同じく、枠自体に反応内容のタイトルを持たせる
  * (仕様 5 節)。`truncate` で切れた長文の text リアクションをホバーで読める
  * ようにするため。
@@ -66,20 +95,25 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
     onCleanup(unsubscribe);
   });
 
-  const groups = createMemo((): ReactionGroup[] => {
-    version();
-    const reactions = ctx.store
-      .eventsByTag("e", props.eventId)
-      .map((event) => {
-        const parsed = parseReaction(event);
-        if (!parsed || parsed.targetId !== props.eventId) return undefined;
-        return { pubkey: event.pubkey, parsed };
-      })
-      .filter(
-        (r): r is { pubkey: string; parsed: ParsedReaction } => r !== undefined,
-      );
-    return groupReactions(reactions);
-  });
+  const groups = createMemo(
+    (): ReactionGroup[] => {
+      version();
+      const reactions = ctx.store
+        .eventsByTag("e", props.eventId)
+        .map((event) => {
+          const parsed = parseReaction(event);
+          if (!parsed || parsed.targetId !== props.eventId) return undefined;
+          return { pubkey: event.pubkey, parsed };
+        })
+        .filter(
+          (r): r is { pubkey: string; parsed: ParsedReaction } =>
+            r !== undefined,
+        );
+      return groupReactions(reactions);
+    },
+    undefined,
+    { equals: groupsEqual },
+  );
 
   return (
     <Show when={groups().length > 0}>

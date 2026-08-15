@@ -22,17 +22,36 @@ export const ReactionFull: Component<EventBodyProps> = (props) => {
   return (
     <Show when={parsed()}>
       {(reaction) => (
-        <article data-testid="reaction" class="pt-1 pr-2 pb-1 pl-1 text-body">
+        <article
+          data-testid="reaction"
+          // `group/event` + `group-[_]/event:p-0`: `NoteFull`/`RepostFull`
+          // と同じ手筋 (`Note.tsx` 参照) —— 対象を `full` で描く (spec 3
+          // 節) ので、自分の padding は祖先に `group/event` があるときだけ
+          // 0 に潰す。`group/event` を付けるのは、リアクションの対象が
+          // 別のリポスト/リアクションであってもそちらの padding が潰れる
+          // ようにするため。
+          class="group/event pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
+        >
           <p
             data-testid="reacted-by"
             class="c-secondary flex items-center gap-1 text-caption"
           >
             <ReactionMark content={reaction().content} />
-            <Profile
-              pubkey={props.event.pubkey}
-              store={ctx.store}
-              requests={ctx.profiles}
-            />
+            {/*
+              見出しの名前は太字・1 行に丸める (spec 3.1 節)。`<Profile>`
+              自体は変えず外側で `min-w-0 truncate` を足す (`Repost.tsx` と
+              同じ手筋)。
+            */}
+            <span
+              data-testid="reacted-by-name"
+              class="min-w-0 truncate font-700"
+            >
+              <Profile
+                pubkey={props.event.pubkey}
+                store={ctx.store}
+                requests={ctx.profiles}
+              />
+            </span>
             <span class="shrink-0">がリアクション</span>
           </p>
           <EventView id={reaction().targetId} variant="full" />
@@ -59,11 +78,13 @@ export const ReactionCompact: Component<EventBodyProps> = (props) => {
             class="c-secondary flex items-center gap-1"
           >
             <ReactionMark content={reaction().content} />
-            <Profile
-              pubkey={props.event.pubkey}
-              store={ctx.store}
-              requests={ctx.profiles}
-            />
+            <span data-testid="reacted-by-name" class="font-700">
+              <Profile
+                pubkey={props.event.pubkey}
+                store={ctx.store}
+                requests={ctx.profiles}
+              />
+            </span>
             <span class="shrink-0">がリアクション</span>
           </p>
         </article>

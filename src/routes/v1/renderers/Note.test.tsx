@@ -569,7 +569,7 @@ describe("compact は自分で padding を持たない (spec 3 節・brief の�
   });
 });
 
-describe("group/event (spec 5 節、レビュー C1)", () => {
+describe("group/event", () => {
   it("NoteFull の記事要素は group/event を持つ (ホバー判定の祖先)", () => {
     // 捕まえる変異: `group/event` クラスを落とす。`ReactionList` の展開
     // トグルが使う `group-not-hover/event:hidden` は、この名前付き group を
@@ -582,6 +582,26 @@ describe("group/event (spec 5 節、レビュー C1)", () => {
     );
     try {
       expect(element().className).toMatch(/(?:^|\s)group\/event(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("NoteFull の記事要素は group-[_]/event:p-0 を持つ (祖先の group/event の中で padding を潰す)", () => {
+    // 捕まえる変異: `group-[_]/event:p-0` クラスを落とす。対象を `full` で
+    // 描く (spec 3 節) ようになったことで、リポスト/リアクションの枠の
+    // 中にこの記事要素がそのまま入る。このクラスが無いと、置く側
+    // (`RepostFull`/`ReactionFull`) の padding と足し合わさって二重になる。
+    const events = createRecordingEventRequests();
+    const event = signed(53, { content: "x" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(element().className).toMatch(
+        /(?:^|\s)group-\[_\]\/event:p-0(?:\s|$)/,
+      );
     } finally {
       dispose();
     }

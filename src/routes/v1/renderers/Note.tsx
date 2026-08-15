@@ -231,7 +231,16 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       // `group/event`: `ReactionList` の展開トグルが `group-not-hover/event:hidden`
       // でホバー時だけ出す (spec 5 節) —— その判定はこの祖先が名前付き
       // group を持っていて初めて働く (v0 の `EventBase.tsx` と同じ立て付け)。
-      class="group/event pt-1 pr-2 pb-1 pl-1 text-body"
+      //
+      // `group-[_]/event:p-0`: リポスト・リアクションの対象は `full` で
+      // 描く (spec 3 節) ため、`RepostFull`/`ReactionFull` の枠の中に
+      // このノートがそのまま入る。祖先に `group/event` が既にあるとき
+      // (= 自分がその枠の中にいるとき) だけ padding を 0 にして、置く側
+      // (`RepostFull`/`ReactionFull`) の padding と足し合わさらないように
+      // する (v0 の `EventBase.tsx` と同じ手筋)。一番外側のノートには
+      // 祖先の `group/event` が無いので、このセレクタは効かず padding が
+      // 残る。
+      class="group/event pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
     >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
@@ -298,12 +307,14 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
  * コードを読むだけで確認できる (この規則が壊れていないかは
  * `Note.test.tsx` がユニットテストで直接主張する)。
  *
- * **padding を持たない。** compact は常に何かの中 (引用カード・リポスト・
- * 返信先) に置かれる入れ子であり、置く側が既に余白を取る。ここで p-2 等を
- * 足すと、置く側の余白と足し合わさって二重になり、入れ子が深くなるほど
- * カラムの左端がガタつく。v0 は group セレクタ (`group-[_]/event:p-0`) で
- * 「入れ子なら 0 にする」という後付けの上書きをしていたが、ここでは
- * 最初から持たないほうがシンプル (spec 3 節、brief Step 2)。
+ * **padding を持たない。** compact が置かれる先 (`NestedEventCard` の引用
+ * カード、返信先) は常に置く側が既に余白・枠を取っているので、ここで
+ * p-2 等を足すと二重になる。`NoteFull`/`RepostFull`/`ReactionFull` は
+ * これとは別の入れ子 —— 対象を `full` のまま入れ子にするので (spec 3 節)
+ * 自分の padding を残しつつ `group-[_]/event:p-0` で祖先の中でだけ 0 に
+ * 上書きする (v0 の `EventBase.tsx` と同じ手筋、`Note.tsx` の
+ * `NoteFull` を参照)。compact は最初から一度も padding を持たないので、
+ * その上書きが要らない。
  * **次の変更者へ**: ここに padding を足したくなったら、それは compact の
  * 責務ではなく置く側 (引用カード等) の責務。
  */

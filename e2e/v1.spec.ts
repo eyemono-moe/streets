@@ -21,7 +21,7 @@ import {
 } from "./fixtures/seed-preview.js";
 
 /**
- * 縦断 e2e (task-7-brief.md Step 2): ログイン → カラム表示 → 投稿 →
+ * 縦断 e2e: ログイン → カラム表示 → 投稿 →
  * リロード復元を 1 本の流れで主張する。ここが仕様 10 節の答えを裏づける
  * 唯一の実測経路であり、以後の回帰はこの spec が拾う。
  *
@@ -63,7 +63,7 @@ const stubSigner = async (page: import("@playwright/test").Page) => {
 };
 
 /**
- * 開発者モードを最初から有効にして開くヘルパー (task-5-brief.md Step 4)。
+ * 開発者モードを最初から有効にして開くヘルパー。
  * `page.addInitScript` で localStorage に永続化キーを直接書く ——
  * developer-mode.ts の `DEVELOPER_MODE_STORAGE_KEY` /
  * `saveDeveloperMode(true)` と同じ文字列をここでハードコードしている。
@@ -77,8 +77,9 @@ const enableDeveloperMode = async (page: import("@playwright/test").Page) => {
 };
 
 /**
- * task-5-brief.md Step 2/3 用のカラムを、ログイン前に localStorage へ直接
- * 仕込む。`column-presets.ts` の 4 種別 (home/user/hashtag/global) は
+ * リポスト/引用/返信/未登録 kind (30023) と kind:7 をまとめて流す
+ * "related" カラムを、ログイン前に localStorage へ直接仕込む。
+ * `column-presets.ts` の 4 種別 (home/user/hashtag/global) は
  * どれも `kinds: [1]` 固定で、UI からは kind:6/16 や未登録 kind (30023)
  * を購読するカラムを作れない —— そのため `deck.ts` の永続化フォーマット
  * (`loadDeck` が読む JSON の形) へ直接書き込む。上の
@@ -280,14 +281,13 @@ test.describe("v1 vertical slice", () => {
   });
 
   /**
-   * task-4-brief.md Step 6: 追加・削除・並べ替えの 3 主張を 1 本の流れで
-   * 検証する。3 本を独立したテストに分けず 1 本にまとめているのは、
-   * ブリーフが挙げる数字 (4 本 → 3 本 → 3 本) がそのまま「追加した状態から
-   * 1 本消す」という連続した操作を前提にしているため —— 独立に書くと
-   * それぞれ「既定の 3 本から」始まってしまい、ブリーフの数字と合わなく
-   * なる。
+   * 追加・削除・並べ替えの 3 主張を 1 本の流れで検証する。3 本を独立した
+   * テストに分けず 1 本にまとめているのは、後段の主張がそのまま
+   * 「追加した状態から 1 本消す」という前段の連続した操作を前提にしている
+   * ため —— 独立に書くとそれぞれ「既定の 3 本から」始まってしまい、
+   * 実際に何本あるかの想定が食い違う。
    *
-   * **リロード後の確認を必ず入れる (ブリーフの要求)。** 画面上で変わる
+   * **リロード後の確認を必ず入れる。** 画面上で変わる
    * ことと、その変更が保存されていることは別の主張であり、後者だけが
    * `updateDeck` (v1.tsx) を通ったことの証拠になる —— 操作直後の
    * アサーションだけでは、Solid のシグナルは更新したが localStorage への
@@ -383,12 +383,11 @@ test.describe("v1 vertical slice", () => {
   });
 
   /**
-   * task-5-brief.md Step 4 の主張 1・2: 開発者モードは既定で無効で、
-   * 診断値 (`connections` / `deck-column-phase`) は DOM に存在しない。
-   * トグルを押すと現れる。
+   * 開発者モードは既定で無効で、診断値 (`connections` / `deck-column-phase`)
+   * は DOM に存在しない。トグルを押すと現れる。
    *
-   * `deck-column-incomplete` は `task-5-brief.md` が挙げる 3 つ目の
-   * data-testid だが、この spec のフィクスチャ (seed-preview.ts) は閲覧者と
+   * `deck-column-incomplete` も開発者モードの診断 data-testid の 1 つだが、
+   * この spec のフィクスチャ (seed-preview.ts) は閲覧者と
    * フォロー相手 2 人ぶんの kind:10002 を single relay 構成で用意しており、
    * `unreachableRelays`/`unroutableAuthors`/`uncoveredAuthors` がどれも 0 の
    * まま (`status.incomplete` 自体が生成されない、section-reader.ts の
@@ -470,7 +469,7 @@ test.describe("v1 vertical slice", () => {
     // developerMode を見ている、が確かめられる)
     await expect(page.getByTestId("deck-column-phase")).toHaveCount(3);
 
-    // 3. first-render-ms (task-5-brief.md Step 1) が、いずれかのカラムに
+    // 3. first-render-ms が、いずれかのカラムに
     // 最初のノートが描画された後は "-" ではなく数値になる。「初回だけ記録
     // する」の判定そのもの (first-render-recorder.test.ts) はブラウザ無しで
     // 固定済み —— ここでは DeckColumn → v1.tsx の配線 (onHasItems が実際に
@@ -491,7 +490,7 @@ test.describe("v1 vertical slice", () => {
   });
 
   /**
-   * task-5-brief.md Step 4 の主張 3: リロードしても開発者モードは有効なまま。
+   * リロードしても開発者モードは有効なまま。
    * `enableDeveloperMode` (`page.addInitScript`) で最初から有効な状態を
    * 作ってから開き、リロードを挟んでも診断値が出続けることを確かめる ——
    * トグル UI を経由しない経路 (直接 localStorage に書かれていた値) からの
@@ -531,12 +530,12 @@ test.describe("v1 vertical slice", () => {
   });
 
   /**
-   * task-5-brief.md Step 3: リポスト/引用/返信/未登録 kind を 1 本の流れで
+   * リポスト/引用/返信/未登録 kind、そして kind:7 を 1 本の流れで
    * 確かめる。`seedRelatedEventsDeck` で用意した "related" 列 (kinds:
    * [1, 6, 16, 30023, 7]) を開き、`EventView` の登録レンダラ経路と fallback
-   * 経路の両方を通す。kind:7 (task-7-brief.md Step 2) もここへ足した ——
-   * リポスト/引用/返信と同じ「フィルタに乗って流れてきた関連イベントを
-   * 正しく描く」経路を確かめる主張であり、別の test に分ける理由が無い。
+   * 経路の両方を通す。kind:7 をここへ足したのは、リポスト/引用/返信と
+   * 同じ「フィルタに乗って流れてきた関連イベントを正しく描く」経路を
+   * 確かめる主張であり、別の test に分ける理由が無いため。
    */
   test("reposts, quotes, and replies render through EventView; an unknown kind falls back without breaking the column", async ({
     page,
@@ -575,8 +574,8 @@ test.describe("v1 vertical slice", () => {
       related.locator('[data-testid="event-view"][data-variant="compact"]', {
         hasText: text,
       });
-    // リポストの対象は task-7 のこのスライスで `compact` から `full` へ
-    // 変わった (仕様 3 節)。`[data-testid="repost"]` の内側に絞って探すこと
+    // リポストの対象は `compact` ではなく `full` で描く (仕様 3 節)。
+    // `[data-testid="repost"]` の内側に絞って探すこと
     // で、「リポストの中に埋め込まれている `full`」と「たまたま同じ文面の
     // 独立した `full` ノート」を区別する —— `RepostFull` の variant を
     // "compact" へ戻す変異は、この locator が空になることで捕まる (下の
@@ -671,7 +670,7 @@ test.describe("v1 vertical slice", () => {
     await expect(related.getByTestId("reply-to").first()).toBeVisible();
     await expect(replyCompact.first()).toBeVisible();
 
-    // 5. kind:7 (task-7-brief.md Step 2) が「@x がリアクション」の見出しと
+    // 5. kind:7 が「@x がリアクション」の見出しと
     // 対象ノートをまるごと出す。対象は previewQuoteTargetNoteText のノート
     // (フィクスチャの 3 件の kind:7 がこれへ反応している)。
     // 捕まえる変異: kind:7 のレンダラを defaultRenderers に登録しない ——
@@ -708,14 +707,13 @@ test.describe("v1 vertical slice", () => {
   });
 
   /**
-   * task-7-brief.md Step 4: 水和が実際に相② (kind:10002 の一括取得) を
-   * 間引くことの唯一の実測経路。
+   * 水和が実際に相② (kind:10002 の一括取得) を間引くことの唯一の実測経路。
    *
    * **`phase2Ms` の「明確に短くなった」ではなく「正確に 0 になった」を
    * 主張する。** ローカル docker リレーのシードは閲覧者+著者 2 人の
    * 3 人だけで、相②のフェッチ自体が数十 ms 未満で終わる環境では
-   * ms のしきい値比較が測定誤差に埋もれて不安定になる (brief に明記された
-   * 懸念)。一方 `bootstrap.ts` の相② は `staleRelayListAuthors.length > 0`
+   * ms のしきい値比較が測定誤差に埋もれて不安定になる。一方
+   * `bootstrap.ts` の相② は `staleRelayListAuthors.length > 0`
    * のときしか `collect()` を呼ばず、呼ばなければ `phase2Ms` は初期値の
    * `0` から一切動かない —— 全員新鮮なら「REQ を一切出さない」が
    * `phase2Ms === 0` という 2 桁固定の文字列として厳密に観測できる。
@@ -782,7 +780,7 @@ test.describe("v1 vertical slice", () => {
 
     // IndexedDB を消せば元の (キャッシュ無しの) 挙動に戻ることも確かめる ——
     // 「たまたま 0 になった」のではなく実際に永続層を読んでいることの
-    // 反証可能性を担保する (task-7-brief.md Step 4)。`/v1` へ直接
+    // 反証可能性を担保する。`/v1` へ直接
     // `page.evaluate` するとアプリ自身が同じ DB への接続を握ったままで
     // deleteDatabase() がその接続の解放を待って止まってしまうため、
     // 読み取り層を持たない "/" へ一度逃がしてから消す。

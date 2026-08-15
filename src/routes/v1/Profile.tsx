@@ -42,6 +42,12 @@ const fallbackLabel = (pubkey: string): string => {
  *
  * - `author` —— イベントの著者行。`display_name` + `@name` の 2 段
  * - `inline` —— 本文中の言及・返信先。`@name` の 1 つだけ (既定)
+ *
+ * 太字にしたい・幅を制限したい呼び出し側 (リポスト/リアクションの見出し
+ * など) は、`<Profile>` 自体を書き換えずに外側を `<span class="min-w-0
+ * truncate font-700">` などで包む (`Note.tsx` の `note-author` と同じ手筋)。
+ * `<Profile>` は他の言及・アバター横の使われ方と見た目の契約を共有して
+ * いるので、ここへ `class` 等の穴を空けて呼び出し側ごとに変えない。
  */
 const Profile: Component<ProfileProps> = (props) => {
   const profile = useProfileData(
