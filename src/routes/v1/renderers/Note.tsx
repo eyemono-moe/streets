@@ -192,7 +192,11 @@ const NoteBody: ParentComponent<{
           </Show>
           <Show when={hasContent()}>
             <CollapsibleBody>
-              <NoteContent event={props.event} variant={props.variant} />
+              <NoteContent
+                content={props.event.content}
+                tags={props.event.tags}
+                variant={props.variant}
+              />
             </CollapsibleBody>
           </Show>
         </div>

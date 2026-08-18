@@ -107,7 +107,7 @@ export const contentQuoteTargets = (event: NostrEvent): IdRef[] => {
   );
   const refs: IdRef[] = [];
   const seen = new Set<string>();
-  for (const token of parseContent(event)) {
+  for (const token of parseContent(event.content, event.tags)) {
     if (token.type !== "mention") continue;
     const ref = token.ref;
     if (ref.kind !== "note" && ref.kind !== "nevent") continue;

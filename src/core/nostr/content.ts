@@ -1,4 +1,3 @@
-import type { NostrEvent } from "./event";
 import { type Nip19Ref, decodeNip19 } from "./nip19";
 
 export type ContentToken =
@@ -176,11 +175,13 @@ const buildEmojiIndex = (tags: readonly string[][]): Map<string, string> => {
  * 例外を投げない。レンダラの中から呼ばれ、このアプリに ErrorBoundary は
  * 無いため、1 件の壊れたイベントがカラム全体を落とすことになる。
  */
-export const parseContent = (event: NostrEvent): ContentToken[] => {
-  const content = event.content;
+export const parseContent = (
+  content: string,
+  tags: readonly string[][],
+): ContentToken[] => {
   if (content === "") return [];
 
-  const emojiIndex = buildEmojiIndex(event.tags);
+  const emojiIndex = buildEmojiIndex(tags);
   const tokens: ContentToken[] = [];
   let textStart = 0;
   let i = 0;

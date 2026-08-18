@@ -83,9 +83,8 @@ describe("parseContent: 不変条件", () => {
     // 捕まえる変異: URL の文字集合を \S+ に戻す。RFC 3986 が URI に許す
     // 文字はすべて ASCII なので、非 ASCII で止めなければ区切りの空白が
     // 無い日本語の本文で URL が後続の文章を丸ごと取る
-    const tokens = parseContent(
-      noteWith("詳細は https://example.com/doc。ご確認ください"),
-    );
+    const event = noteWith("詳細は https://example.com/doc。ご確認ください");
+    const tokens = parseContent(event.content, event.tags);
     const url = tokens.find((t) => t.type === "url");
     expect(url).toEqual({ type: "url", url: "https://example.com/doc" });
     expect(tokens.map((t) => (t.type === "text" ? t.text : "")).join("")).toBe(
@@ -112,7 +111,9 @@ describe("parseContent: 不変条件", () => {
     ];
     for (const content of samples) {
       const event = noteWith(content, [emojiTag]);
-      expect(concatTokens(parseContent(event))).toBe(content);
+      expect(concatTokens(parseContent(event.content, event.tags))).toBe(
+        content,
+      );
     }
   });
 
@@ -120,7 +121,23 @@ describe("parseContent: 不変条件", () => {
     // 捕まえる変異: 空文字を長さ 0 の text トークン 1 件として返す
     // (concatTokens では区別できないが、レンダラ側が空配列を前提にしている
     // かもしれないので、型どおり [] を直接確認しておく)
-    expect(parseContent(noteWith(""))).toEqual([]);
+    const event = noteWith("");
+    expect(parseContent(event.content, event.tags)).toEqual([]);
+  });
+
+  it("イベントを組み立てずに本文とタグだけで呼べる", () => {
+    // 捕まえる変異: 引数をイベントに戻す。プロフィールの about は
+    // イベントではない文字列なので、イベントを要求すると呼べない。
+    const tokens = parseContent(":happy: と https://example.com/", [
+      ["emoji", "happy", "https://cdn.example/happy.png"],
+    ]);
+
+    expect(tokens[0]).toEqual({
+      type: "emoji",
+      shortcode: "happy",
+      url: "https://cdn.example/happy.png",
+    });
+    expect(tokens.some((t) => t.type === "url")).toBe(true);
   });
 });
 
@@ -129,7 +146,8 @@ describe("parseContent: URL", () => {
     // 捕まえる変異: URL がフラグメントの # を取り込まない
     // (ハッシュタグがそれを横取りする形と等価)
     const content = "見て https://example.com/path#section です";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "見て " },
       { type: "url", url: "https://example.com/path#section" },
       { type: "text", text: " です" },
@@ -147,7 +165,7 @@ describe("parseContent: URL", () => {
     const event = noteWith("詳細 http://example.com/room:8080:live へ", [
       ["emoji", "8080", "https://cdn.example/8080.png"],
     ]);
-    expect(parseContent(event)).toEqual([
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "詳細 " },
       { type: "url", url: "http://example.com/room:8080:live" },
       { type: "text", text: " へ" },
@@ -157,7 +175,8 @@ describe("parseContent: URL", () => {
   it("末尾の句読点（。）を URL に含めない", () => {
     // 捕まえる変異: 貪欲に取る（末尾の約物を剥がさない）
     const content = "資料は https://example.com/doc。 ご確認ください";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "資料は " },
       { type: "url", url: "https://example.com/doc" },
       { type: "text", text: "。 ご確認ください" },
@@ -167,7 +186,8 @@ describe("parseContent: URL", () => {
   it("外側の丸括弧に対応しない ')' を URL に含めない", () => {
     // 捕まえる変異: 貪欲に取る（末尾の約物を剥がさない）
     const content = "見て (https://example.com/foo) です";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "見て (" },
       { type: "url", url: "https://example.com/foo" },
       { type: "text", text: ") です" },
@@ -179,7 +199,8 @@ describe("parseContent: URL", () => {
     // (Wikipedia のような URL の一部を落としてしまう)
     const content =
       "https://en.wikipedia.org/wiki/Example_(disambiguation) 参照";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       {
         type: "url",
         url: "https://en.wikipedia.org/wiki/Example_(disambiguation)",
@@ -209,7 +230,8 @@ describe("parseContent: nostr: URI", () => {
   ])("%s が mention になる", (_kind, entity) => {
     // 捕まえる変異: 一部の prefix しか mention として扱わない
     const raw = `nostr:${entity}`;
-    const tokens = parseContent(noteWith(`見て ${raw} です`));
+    const event = noteWith(`見て ${raw} です`);
+    const tokens = parseContent(event.content, event.tags);
     const mention = tokens.find((t) => t.type === "mention");
     expect(mention).toMatchObject({ type: "mention", raw });
   });
@@ -220,7 +242,8 @@ describe("parseContent: nostr: URI", () => {
     // にしてはいけない)
     const raw = `nostr:${encodeBech32("nsec", PUBKEY)}`;
     const content = `危険 ${raw} 注意`;
-    const tokens = parseContent(noteWith(content));
+    const event = noteWith(content);
+    const tokens = parseContent(event.content, event.tags);
     expect(tokens.some((t) => t.type === "mention")).toBe(false);
     expect(concatTokens(tokens)).toBe(content);
   });
@@ -228,7 +251,8 @@ describe("parseContent: nostr: URI", () => {
   it("壊れた nostr: 入力がテキストのまま残る", () => {
     // 捕まえる変異: デコードできない参照を消す（本文が欠ける）
     const content = "壊れてる nostr:npub1invalidchecksumvalue です";
-    const tokens = parseContent(noteWith(content));
+    const event = noteWith(content);
+    const tokens = parseContent(event.content, event.tags);
     expect(tokens.some((t) => t.type === "mention")).toBe(false);
     expect(concatTokens(tokens)).toBe(content);
   });
@@ -240,7 +264,7 @@ describe("parseContent: 絵文字", () => {
     const event = noteWith("気分は :happy: です、:sad: は無し", [
       ["emoji", "happy", "https://cdn.example/happy.png"],
     ]);
-    expect(parseContent(event)).toEqual([
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "気分は " },
       {
         type: "emoji",
@@ -254,7 +278,8 @@ describe("parseContent: 絵文字", () => {
   it("12:30:45 のような時刻表記が絵文字にならない", () => {
     // 捕まえる変異: 索引を見ずに :word: を全部絵文字にする
     const content = "開始は 12:30:45 です";
-    const tokens = parseContent(noteWith(content));
+    const event = noteWith(content);
+    const tokens = parseContent(event.content, event.tags);
     expect(tokens.some((t) => t.type === "emoji")).toBe(false);
     expect(concatTokens(tokens)).toBe(content);
   });
@@ -264,7 +289,7 @@ describe("parseContent: 絵文字", () => {
     const event = noteWith("変な絵文字 :bad!name: です", [
       ["emoji", "bad!name", "https://cdn.example/x.png"],
     ]);
-    const tokens = parseContent(event);
+    const tokens = parseContent(event.content, event.tags);
     expect(tokens.some((t) => t.type === "emoji")).toBe(false);
     expect(concatTokens(tokens)).toBe(event.content);
   });
@@ -272,7 +297,7 @@ describe("parseContent: 絵文字", () => {
   it("emoji タグの url が空ならそのショートコードは絵文字にしない", () => {
     // 捕まえる変異: url の空チェックをしない
     const event = noteWith("空URL :foo: です", [["emoji", "foo", ""]]);
-    const tokens = parseContent(event);
+    const tokens = parseContent(event.content, event.tags);
     expect(tokens.some((t) => t.type === "emoji")).toBe(false);
     expect(concatTokens(tokens)).toBe(event.content);
   });
@@ -283,7 +308,7 @@ describe("parseContent: 絵文字", () => {
       ["emoji", "dup", "https://cdn.example/first.png"],
       ["emoji", "dup", "https://cdn.example/second.png"],
     ]);
-    expect(parseContent(event)).toEqual([
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "emoji", shortcode: "dup", url: "https://cdn.example/first.png" },
       { type: "text", text: " です" },
     ] satisfies ContentToken[]);
@@ -295,7 +320,8 @@ describe("parseContent: ハッシュタグ", () => {
     // 捕まえる変異: 文字クラスを ASCII だけに絞る
     // (\p{L}/\p{N} ではなく [a-zA-Z0-9_-] にする)
     const content = "今日は #天気 がいい";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "text", text: "今日は " },
       { type: "hashtag", tag: "天気", raw: "#天気" },
       { type: "text", text: " がいい" },
@@ -306,7 +332,8 @@ describe("parseContent: ハッシュタグ", () => {
     // 捕まえる変異: tag を小文字化しない
     // (カラムの #t フィルタは小文字で引くので、タップしても何も出なくなる)
     const content = "#HelloWorld です";
-    expect(parseContent(noteWith(content))).toEqual([
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
       { type: "hashtag", tag: "helloworld", raw: "#HelloWorld" },
       { type: "text", text: " です" },
     ] satisfies ContentToken[]);

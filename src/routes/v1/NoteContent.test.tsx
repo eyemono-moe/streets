@@ -149,8 +149,10 @@ describe("NoteContent: url トークン", () => {
   it("full では画像 URL が <img> になる", () => {
     // 捕まえる変異: 画像を出さない (常にリンクへ倒す)
     const url = "https://example.com/cat.png";
+    const event = noteWith(url);
     const { element, dispose } = mount({
-      event: noteWith(url),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -167,8 +169,10 @@ describe("NoteContent: url トークン", () => {
     // リポスト対象は compact で置かれるので、これが破れると原寸画像が
     // カラムを埋めて元の投稿が見えなくなる (design 4 節)。
     const url = "https://example.com/cat.png";
+    const event = noteWith(url);
     const { element, dispose } = mount({
-      event: noteWith(url),
+      content: event.content,
+      tags: event.tags,
       variant: "compact",
     });
     try {
@@ -186,8 +190,10 @@ describe("NoteContent: url トークン", () => {
   it("画像でない URL は full でもリンクのまま", () => {
     // 捕まえる変異: 拡張子を見ずに全部 <img> にする
     const url = "https://example.com/page";
+    const event = noteWith(url);
     const { element, dispose } = mount({
-      event: noteWith(url),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -205,8 +211,10 @@ describe("NoteContent: url トークン", () => {
     // 捕まえる変異: rel を落とす。target="_blank" と組でしか意味を持たない
     // (window.opener 経由でリンク先が元タブを操作できる穴を塞ぐ)。
     const url = "https://example.com/page";
+    const event = noteWith(url);
     const { element, dispose } = mount({
-      event: noteWith(url),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -222,8 +230,10 @@ describe("NoteContent: url トークン", () => {
     // 捕まえる変異: onError ハンドラを付けない (壊れた画像アイコンが残り、
     // 元 URL へのリンクという代替表示に落ちない)
     const url = "https://example.com/cat.png";
+    const event = noteWith(url);
     const { element, dispose } = mount({
-      event: noteWith(url),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -245,10 +255,12 @@ describe("NoteContent: url トークン", () => {
 describe("NoteContent: emoji トークン", () => {
   it("emoji タグが登録されていれば <img> になる", () => {
     // 捕まえる変異: テキストのまま出す (:shortcode: が画像にならない)
+    const event = noteWith(":smile:", [
+      ["emoji", "smile", "https://example.com/smile.png"],
+    ]);
     const { element, dispose } = mount({
-      event: noteWith(":smile:", [
-        ["emoji", "smile", "https://example.com/smile.png"],
-      ]),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -264,10 +276,12 @@ describe("NoteContent: emoji トークン", () => {
   it("画像の読み込みに失敗したら :shortcode: のテキストへ戻る", () => {
     // 捕まえる変異: onError ハンドラを付けない (絵文字が 404 したまま壊れた
     // 画像アイコンになり、書いたショートコードが跡形もなく消える)
+    const event = noteWith(":smile:", [
+      ["emoji", "smile", "https://example.com/smile.png"],
+    ]);
     const { element, dispose } = mount({
-      event: noteWith(":smile:", [
-        ["emoji", "smile", "https://example.com/smile.png"],
-      ]),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -289,8 +303,10 @@ describe("NoteContent: hashtag トークン", () => {
     // 捕まえる変異: リンクの見た目 (<a>/<button> や text-link クラス) にする。
     // 検索カラムが無く押しても何も起きない (#203/#204) —— 押せそうに見せる
     // と「まだ無い」と「壊れている」の区別が付かなくなる。
+    const event = noteWith("#nostr");
     const { element, dispose } = mount({
-      event: noteWith("#nostr"),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -311,8 +327,10 @@ describe("NoteContent: mention トークン", () => {
     const mentioned =
       "6e468422dfb74a5738702a8823b9b28168abab8655faacb6853cd0ee15deee93";
     const npub = `nostr:${encodeBech32("npub", mentioned)}`;
+    const event = noteWith(`before ${npub} after`);
     const { element, dispose } = mount({
-      event: noteWith(`before ${npub} after`),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -340,8 +358,10 @@ describe("NoteContent: mention トークン", () => {
     // という規則も破れる。引用を描く責務は NoteFull 側に一本化する。
     const quotedId = "2".repeat(64);
     const note = `nostr:${encodeBech32("note", quotedId)}`;
+    const event = noteWith(`before ${note} after`);
     const { element, dispose } = mount({
-      event: noteWith(`before ${note} after`),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -365,8 +385,10 @@ describe("NoteContent: mention トークン", () => {
       { type: 2, value: hexToBytes(PUBKEY) },
       { type: 3, value: kindBytes(30023) },
     ]);
+    const event = noteWith(`before nostr:${naddr} after`);
     const { element, dispose } = mount({
-      event: noteWith(`before nostr:${naddr} after`),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {
@@ -385,8 +407,10 @@ describe("NoteContent: mention トークン", () => {
 describe("NoteContent: 本文の器", () => {
   it("whitespace-pre-wrap が付く (改行を保つ)", () => {
     // 捕まえる変異: whitespace-pre-wrap を落とす (改行が畳まれて消える)
+    const event = noteWith("line1\nline2");
     const { element, dispose } = mount({
-      event: noteWith("line1\nline2"),
+      content: event.content,
+      tags: event.tags,
       variant: "full",
     });
     try {

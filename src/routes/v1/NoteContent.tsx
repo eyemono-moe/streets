@@ -1,14 +1,14 @@
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
 import type { ContentToken } from "../../core/nostr/content";
 import { isProbablyImageUrl, parseContent } from "../../core/nostr/content";
-import type { NostrEvent } from "../../core/nostr/event";
 import type { Nip19Ref } from "../../core/nostr/nip19";
 import { useRender } from "../../core/view/render-context";
 import type { EventVariant } from "../../core/view/renderer-registry";
 import Profile from "./Profile";
 
 export type NoteContentProps = {
-  event: NostrEvent;
+  content: string;
+  tags: readonly string[][];
   variant: EventVariant;
 };
 
@@ -151,7 +151,7 @@ const Token: Component<{ token: ContentToken; variant: EventVariant }> = (
  * 避ける。
  */
 const NoteContent: Component<NoteContentProps> = (props) => {
-  const tokens = createMemo(() => parseContent(props.event));
+  const tokens = createMemo(() => parseContent(props.content, props.tags));
 
   return (
     <div
