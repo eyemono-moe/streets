@@ -75,7 +75,7 @@ export type NoteContentProps = {
   content: string;
   tags: readonly string[][];
   variant: EventVariant;
-  eventRefs: "omit" | "text";
+  eventRefs: "text" | "embed";
 };
 ```
 
