@@ -21,7 +21,15 @@ export type ProfileHoverProps = {
  * ユーザー詳細カラム (#205) が入った時点で両方を足してクリックを繋ぐ。
  */
 const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
-  <HoverCard.Root>
+  // `lazyMount`/`unmountOnExit` が無いと ark-ui 5.38.1 の `usePresence` は
+  // `unmounted` を常に `false` にし、`HoverCard.Content` (= `ProfileCard`)
+  // がホバー前から `hidden` 属性だけで隠れた状態で常時マウントされる
+  // (レビューで実測: 最大 80 個の非表示ツリーが `document.body` にぶら下がる)。
+  // 仕様 7 節の「ホバーしたから増える通信は無い」を満たすには、開くまで
+  // マウントしない (`lazyMount`) だけでなく、閉じたら畳む
+  // (`unmountOnExit`) も要る —— 前者だけだと一度開いたノートは以後ずっと
+  // マウントされたままになる。
+  <HoverCard.Root lazyMount unmountOnExit>
     <Show
       when={props.asChild}
       fallback={

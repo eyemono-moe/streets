@@ -131,6 +131,27 @@ describe("ProfileHover", () => {
     }
   });
 
+  it("ホバー前は profile-card (HoverCard.Content) を document.body へ一切マウントしない", () => {
+    // 捕まえる変異: `<HoverCard.Root>` から `lazyMount`/`unmountOnExit` を
+    // 外す。無いと ark-ui 5.38.1 の `usePresence` は `unmounted` を常に
+    // `false` にし、`HoverCard.Content` (= `ProfileCard`) がホバー前から
+    // `hidden` 属性だけで隠れた状態で常時マウントされる (レビューで実測:
+    // カラム初期表示 40 件 × 著者名/アイコンの 2 箇所で最大 80 個)。
+    // `Portal` は既定で `document.body` 直下に出るので、そこを直接見る。
+    const pubkey = pubkeyFor(4);
+    const { dispose } = mount(
+      () => ProfileHover({ pubkey, children: "x" }),
+      contextWith(),
+    );
+    try {
+      expect(
+        document.body.querySelectorAll('[data-testid="profile-card"]'),
+      ).toHaveLength(0);
+    } finally {
+      dispose();
+    }
+  });
+
   it("asChild を渡すと既存の要素そのものがトリガーになる (包む要素を挟まない)", () => {
     // 捕まえる変異: asChild を無視して常に children を包む要素を描く。
     // `Avatar` はこの経路で `sticky top-0` の枠自身をトリガーにしている

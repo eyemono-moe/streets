@@ -181,15 +181,13 @@ describe("Avatar", () => {
       const el = element();
       expect(el.dataset.testid).toBe("avatar");
       expect(el.querySelector("img")).toBeNull();
-      // `ProfileHover` (`HoverCard.Root`) を挟むようになってから、同じ
-      // pubkey への `request` が複数回来る (zag のマシン初期化が Solid の
-      // 更新フラッシュをもう 1 周させるため、実測で 2 回)。
-      // `ProfileRequests` は pubkey を `Set` でまとめるので重複要求は
-      // 実害が無い (`profile-data.ts`/`profile-requests.ts` の設計)。
-      // ここで主張したいのはその頑健性の中身 (回数) ではなく「要求した
-      // pubkey が正しいか」なので、回数は固定しない。
-      expect(requested.length).toBeGreaterThan(0);
-      expect(new Set(requested)).toEqual(new Set([pubkey]));
+      // `ProfileHover` の `HoverCard.Content` (= `ProfileCard`) は
+      // `lazyMount` によりホバー前は一切マウントされない (`ProfileHover.tsx`
+      // 参照)。ホバー前に `request` を呼びうるのは `Avatar` 自身の
+      // `useProfileData` だけなので、ちょうど 1 回になる。
+      // 捕まえる変異: `lazyMount`/`unmountOnExit` を外す (隠れた
+      // `ProfileCard` がホバー前から常時マウントされ、ここが 2 回になる)。
+      expect(requested).toEqual([pubkey]);
     } finally {
       dispose();
     }
