@@ -6,6 +6,15 @@ export type ParsedProfile = {
   name?: string;
   displayName?: string;
   picture?: string;
+  about?: string;
+  banner?: string;
+  nip05?: string;
+  website?: string;
+  /**
+   * kind:0 イベントのタグ。`about` のカスタム絵文字 (NIP-30) を引くために
+   * 要る —— `content` だけでは `:shortcode:` を絵文字に変換できない。
+   */
+  tags?: readonly string[][];
 };
 
 /**
@@ -31,6 +40,10 @@ export const parseProfileContent = (
     displayName:
       typeof record.display_name === "string" ? record.display_name : undefined,
     picture: typeof record.picture === "string" ? record.picture : undefined,
+    about: typeof record.about === "string" ? record.about : undefined,
+    banner: typeof record.banner === "string" ? record.banner : undefined,
+    nip05: typeof record.nip05 === "string" ? record.nip05 : undefined,
+    website: typeof record.website === "string" ? record.website : undefined,
   };
 };
 
@@ -59,7 +72,11 @@ export const useProfileData = (
     const check = (): boolean => {
       const event = store.latestReplaceable(0, key);
       if (!event) return false;
-      setProfile(parseProfileContent(event.content));
+      const parsed = parseProfileContent(event.content);
+      // `about` のカスタム絵文字 (NIP-30) を引くのに kind:0 の `emoji`
+      // タグが要る。`content` のパース結果には含まれないので、ここで
+      // イベント側から載せる。
+      setProfile(parsed ? { ...parsed, tags: event.tags } : undefined);
       return true;
     };
 
