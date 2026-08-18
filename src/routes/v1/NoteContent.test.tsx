@@ -464,6 +464,60 @@ describe("NoteContent: mention トークン", () => {
       dispose();
     }
   });
+
+  it("本文に同じ id が 2 回現れても引用カードは 1 枚 (2 つ目はテキストになる)", () => {
+    // 捕まえる変異: 重複排除を外す (同じ引用カードが 2 枚並ぶ)
+    const quotedId = "2".repeat(64);
+    const raw = `nostr:${encodeBech32("note", quotedId)}`;
+    const event = noteWith(`A ${raw} B ${raw} C`);
+    const { element, dispose } = mount({
+      content: event.content,
+      tags: event.tags,
+      variant: "full",
+      eventRefs: "embed",
+    });
+    try {
+      const el = element();
+      expect(
+        el.querySelectorAll(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toHaveLength(1);
+      expect(
+        el.querySelectorAll('[data-testid="event-ref-text"]'),
+      ).toHaveLength(1);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("本文に違う id が 2 つ現れると引用カードが 2 枚出る", () => {
+    // 捕まえる変異: 最初の 1 件だけ埋め込んで残りを全部テキストにする
+    const idA = "3".repeat(64);
+    const idB = "4".repeat(64);
+    const rawA = `nostr:${encodeBech32("note", idA)}`;
+    const rawB = `nostr:${encodeBech32("note", idB)}`;
+    const event = noteWith(`A ${rawA} B ${rawB} C`);
+    const { element, dispose } = mount({
+      content: event.content,
+      tags: event.tags,
+      variant: "full",
+      eventRefs: "embed",
+    });
+    try {
+      const el = element();
+      expect(
+        el.querySelectorAll(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toHaveLength(2);
+      expect(
+        el.querySelectorAll('[data-testid="event-ref-text"]'),
+      ).toHaveLength(0);
+    } finally {
+      dispose();
+    }
+  });
 });
 
 describe("NoteContent: 本文の器", () => {

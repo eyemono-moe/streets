@@ -344,34 +344,11 @@ describe("NoteFull", () => {
     }
   });
 
-  it("q タグと本文の nostr: が同じイベントを指しても引用は 1 つだけ", () => {
-    // 捕まえる変異: 重複を除かずに両方から描く。引用は `q` タグと本文の
-    // `nostr:` の**両方**に現れるのが普通なので、除かないと同じイベントが
-    // 二重に出る (実際に画面で起きた不具合)。
-    const events = createRecordingEventRequests();
-    const quoted = signed(30);
-    const event = signed(31, {
-      tags: [["q", quoted.id, "wss://relay/"]],
-      content: `見て nostr:${encodeBech32("note", quoted.id)}`,
-    });
-    const { element, dispose } = mount(
-      () => NoteFull({ event }),
-      contextWith(events),
-    );
-    try {
-      expect(
-        element().querySelectorAll(
-          '[data-testid="event-view"][data-variant="compact"]',
-        ),
-      ).toHaveLength(1);
-    } finally {
-      dispose();
-    }
-  });
-
   it("q タグが無くても本文の nostr: から引用を描く", () => {
-    // 捕まえる変異: contentQuoteTargets を呼ばない。`q` タグを付けずに本文へ
-    // 貼るだけのクライアントは実在するので、それらの引用が丸ごと消える
+    // 捕まえる変異: NoteBody の eventRefs を "text" 固定にする、または
+    // MentionToken の note/nevent の embed 分岐を消す。どちらも `q` タグを
+    // 付けずに本文へ貼るだけのクライアント (実在する) の引用が、request も
+    // compact の EventView も出さずに丸ごと消える。
     const events = createRecordingEventRequests();
     const quoted = signed(32);
     const event = signed(33, {

@@ -201,13 +201,32 @@ const Token: Component<{
 };
 
 /**
- * 本文をトークン列として描く (design 4 節の表)。kind:1 の本文とプロフィールの
- * 自己紹介文の両方がここを通る。`content`/`tags` は呼び出し側 (プロパティ)
- * が再描画のあいだ安定していれば、`parseContent` を `createMemo` で包む
- * ことでトークン化を都度やり直さずに済む。
+ * 本文をトークン列として描く (design 4 節の表)。イベントに限らず、文字列
+ * (`content`) とタグがあれば描ける。`content`/`tags` が呼び出し側
+ * (プロパティ) で再描画のあいだ安定していれば、`parseContent` を
+ * `createMemo` で包むことでトークン化を都度やり直さずに済む。
+ *
+ * 同じ id への `nostr:note`/`nostr:nevent` が本文に 2 回以上現れることは
+ * 珍しくない (「さっきの投稿 nostr:note1x… だけど、nostr:note1x… には
+ * 続きがあって…」のような書き方)。**最初の出現だけ埋め込み対象にする** ——
+ * `eventRefs="embed"` のまま全部埋め込むと、同じ引用カードが本文中に
+ * 複数回並ぶ。2 回目以降は `MentionToken` 側の `"text"` 経路 (短縮テキスト)
+ * へ強制的に落とす。
  */
 const NoteContent: Component<NoteContentProps> = (props) => {
-  const tokens = createMemo(() => parseContent(props.content, props.tags));
+  const tokens = createMemo(() => {
+    const seenEventIds = new Set<string>();
+    return parseContent(props.content, props.tags).map((token) => {
+      if (token.type !== "mention") return { token, embed: true };
+      const ref = token.ref;
+      if (ref.kind !== "note" && ref.kind !== "nevent") {
+        return { token, embed: true };
+      }
+      if (seenEventIds.has(ref.id)) return { token, embed: false };
+      seenEventIds.add(ref.id);
+      return { token, embed: true };
+    });
+  });
 
   return (
     <div
@@ -215,11 +234,11 @@ const NoteContent: Component<NoteContentProps> = (props) => {
       class="break-anywhere whitespace-pre-wrap [line-break:strict] [word-break:normal]"
     >
       <For each={tokens()}>
-        {(token) => (
+        {(entry) => (
           <Token
-            token={token}
+            token={entry.token}
             variant={props.variant}
-            eventRefs={props.eventRefs}
+            eventRefs={entry.embed ? props.eventRefs : "text"}
           />
         )}
       </For>

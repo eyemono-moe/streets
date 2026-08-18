@@ -100,19 +100,48 @@ export const quoteTargets = (event: NostrEvent): EventRef[] => {
  * 「タグにしか無いもの」を最下部に出すことで、どちらのクライアントの
  * 投稿でも引用を落とさない。
  *
- * 座標形式 (`form: "address"`) は本文の `nostr:` が運ぶ id と突き合わせ
- * られないので、常に残す。
+ * 座標形式 (`form: "address"`) も本文の `naddr` と突き合わせる —— `naddr`
+ * は `eventKind`/`pubkey`/`identifier` を運び、`q` タグの座標形式
+ * (`<kind>:<pubkey>:<identifier>`) と同じ 3 つ組なので、id 形式と同じ理由
+ * (二重描画を避ける) で突き合わせられる。
+ *
+ * `q` タグ自身が同じ対象を 2 本重複して持つこともある —— 最下部の重複も
+ * ここで一緒に落とす (id/address それぞれで先勝ち)。
  */
 export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
-  const mentioned = new Set<string>();
+  const mentionedIds = new Set<string>();
+  const mentionedAddresses = new Set<string>();
   for (const token of parseContent(event.content, event.tags)) {
     if (token.type !== "mention") continue;
     const ref = token.ref;
-    if (ref.kind === "note" || ref.kind === "nevent") mentioned.add(ref.id);
+    if (ref.kind === "note" || ref.kind === "nevent") {
+      mentionedIds.add(ref.id);
+    } else if (ref.kind === "naddr") {
+      mentionedAddresses.add(
+        `${ref.eventKind}:${ref.pubkey}:${ref.identifier}`,
+      );
+    }
   }
-  return quoteTargets(event).filter(
-    (ref) => ref.form !== "id" || !mentioned.has(ref.id),
-  );
+
+  const seenIds = new Set<string>();
+  const seenAddresses = new Set<string>();
+  const refs: EventRef[] = [];
+  for (const ref of quoteTargets(event)) {
+    if (ref.form === "id") {
+      if (mentionedIds.has(ref.id) || seenIds.has(ref.id)) continue;
+      seenIds.add(ref.id);
+    } else {
+      if (
+        mentionedAddresses.has(ref.address) ||
+        seenAddresses.has(ref.address)
+      ) {
+        continue;
+      }
+      seenAddresses.add(ref.address);
+    }
+    refs.push(ref);
+  }
+  return refs;
 };
 
 /**

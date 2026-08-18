@@ -1,3 +1,4 @@
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "./event";
 import {
@@ -8,6 +9,50 @@ import {
   tagOnlyQuoteTargets,
 } from "./event-refs";
 import { encodeBech32 } from "./nip19";
+
+// content.test.ts / nip19.test.ts と同じ理由: production の `encodeBech32`
+// は hex しか受けないので、naddr のテストデータを組むための最小 TLV
+// エンコーダをここでも持つ。
+type TlvEntry = { type: number; value: Uint8Array };
+
+const encodeTlv = (entries: TlvEntry[]): Uint8Array => {
+  const chunks = entries.map(({ type, value }) => {
+    const chunk = new Uint8Array(2 + value.length);
+    chunk[0] = type;
+    chunk[1] = value.length;
+    chunk.set(value, 2);
+    return chunk;
+  });
+  const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+};
+
+const asciiBytes = (value: string): Uint8Array =>
+  new TextEncoder().encode(value);
+
+const kindBytes = (kind: number): Uint8Array => {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, kind, false);
+  return bytes;
+};
+
+const encodeNaddr = (identifier: string, pubkey: string, kind: number) =>
+  encodeBech32(
+    "naddr",
+    bytesToHex(
+      encodeTlv([
+        { type: 0, value: asciiBytes(identifier) },
+        { type: 2, value: hexToBytes(pubkey) },
+        { type: 3, value: kindBytes(kind) },
+      ]),
+    ),
+  );
 
 const ID_A = "a".repeat(64);
 const ID_B = "b".repeat(64);
@@ -144,13 +189,38 @@ describe("tagOnlyQuoteTargets", () => {
     expect(tagOnlyQuoteTargets(event)).toEqual([]);
   });
 
-  it("q タグの座標形式は本文と突き合わせずに残す", () => {
-    // 捕まえる変異: address 形式を落とす。本文の nostr: は id しか
-    // 運ばないので突き合わせようがなく、落とすと naddr の引用が消える。
+  it("q タグの座標形式は、本文に一致する naddr が無ければ残す", () => {
+    // 捕まえる変異: address 形式を本文と無関係に (常に) 落とす
     const event = noteWith([["q", "30023:abc:slug"]], { content: "本文" });
 
     expect(tagOnlyQuoteTargets(event)).toEqual([
       { form: "address", address: "30023:abc:slug" },
+    ]);
+  });
+
+  it("本文の naddr と同じ座標の q タグは返さない", () => {
+    // 捕まえる変異: address の突き合わせを外す (id 形式と同様、本文に
+    // 埋め込んだ naddr が最下部にもう一度出て二重になる)。naddr は
+    // eventKind/pubkey/identifier を運び、q タグの座標形式
+    // (`<kind>:<pubkey>:<identifier>`) と同じ 3 つ組なので突き合わせられる。
+    const naddr = encodeNaddr("slug", PK, 30023);
+    const event = noteWith([["q", `30023:${PK}:slug`]], {
+      content: `見て nostr:${naddr}`,
+    });
+
+    expect(tagOnlyQuoteTargets(event)).toEqual([]);
+  });
+
+  it("同じ id の q タグが 2 本あると 1 件にまとめる", () => {
+    // 捕まえる変異: id の重複排除を外す (最下部に同じ引用カードが 2 枚出る)
+    const dup = "d".repeat(64);
+    const event = noteWith([
+      ["q", dup, "wss://a/"],
+      ["q", dup, "wss://b/"],
+    ]);
+
+    expect(tagOnlyQuoteTargets(event)).toEqual([
+      { form: "id", id: dup, relay: "wss://a/" },
     ]);
   });
 });
