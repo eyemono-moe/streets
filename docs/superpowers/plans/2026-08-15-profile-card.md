@@ -249,7 +249,7 @@ Expected: FAIL（`parsed.about` が `undefined`）
 
 - [ ] **Step 4: ゲートと変異検証、コミット**
 
-変異は 5 件（Step 1 の 3 件、Step 3 の「フィールドを読まない」「`typeof` の判定を外す」）。`tags` は Task 5 のカードのテスト（`about` のカスタム絵文字）が捕まえるので、ここでは主張しない。
+**変異は 5 件** —— Step 1 で書いた 5 つのテストがそれぞれ 1 件ずつ名指ししている（snake_case の読み替えを外す / `try`-`catch` を外す / `typeof` のオブジェクト判定を外す / 4 フィールドを読まない / 4 フィールドの `typeof` 判定を外す）。`tags` は Task 5 のカードのテスト（`about` のカスタム絵文字）が捕まえるので、ここでは主張しない。
 
 ```bash
 pnpm vitest run && pnpm typecheck && pnpm check
@@ -645,6 +645,8 @@ import から `quoteTargets` / `contentQuoteTargets` を外し、`tagOnlyQuoteTa
 
 ```bash
 pnpm vitest run && pnpm typecheck && pnpm check
+# 引用の置き場所を変えるので、引用を見ている既存 e2e も走らせる
+pnpm exec playwright test e2e/v1.spec.ts -g "reposts, quotes, and replies"
 git commit -m "feat(v1): draw a quote where the body mentions it"
 ```
 
