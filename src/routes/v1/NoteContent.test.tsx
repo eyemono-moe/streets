@@ -154,6 +154,7 @@ describe("NoteContent: url トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const img = element().querySelector('[data-testid="content-image"]');
@@ -174,6 +175,7 @@ describe("NoteContent: url トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "compact",
+      eventRefs: "text",
     });
     try {
       expect(
@@ -195,6 +197,7 @@ describe("NoteContent: url トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       expect(
@@ -216,6 +219,7 @@ describe("NoteContent: url トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const link = element().querySelector("a");
@@ -235,6 +239,7 @@ describe("NoteContent: url トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const img = element().querySelector('[data-testid="content-image"]');
@@ -262,6 +267,7 @@ describe("NoteContent: emoji トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const img = element().querySelector('[data-testid="content-emoji"]');
@@ -283,6 +289,7 @@ describe("NoteContent: emoji トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const img = element().querySelector('[data-testid="content-emoji"]');
@@ -308,6 +315,7 @@ describe("NoteContent: hashtag トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const el = element();
@@ -332,6 +340,7 @@ describe("NoteContent: mention トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const el = element();
@@ -350,26 +359,29 @@ describe("NoteContent: mention トークン", () => {
     }
   });
 
-  it("note/nevent は本文へ埋め込まない (引用として別に描かれる)", () => {
-    // 捕まえる変異: ここで <EventView> を描く。引用は `q` タグからも
-    // 描かれるので、本文にも埋め込むと **同じイベントが二重に出る**
-    // (枠付きのカードと枠なしの埋め込みが並ぶ)。さらに compact でも
-    // この経路が走るため、「compact は関連イベントを一切要求しない」
-    // という規則も破れる。引用を描く責務は NoteFull 側に一本化する。
+  it('eventRefs="text" で note が event-ref-text になり、title に元の nostr: 文字列が入る', () => {
+    // 捕まえる変異: 短縮せず全部出す / title を付けない
     const quotedId = "2".repeat(64);
-    const note = `nostr:${encodeBech32("note", quotedId)}`;
-    const event = noteWith(`before ${note} after`);
+    const raw = `nostr:${encodeBech32("note", quotedId)}`;
+    const event = noteWith(`before ${raw} after`);
     const { element, dispose } = mount({
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       const el = element();
       expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
-      // 生の `nostr:` をテキストとして貼り直しもしない (引用は別に出る)。
-      expect(el.textContent).not.toContain(note);
-      // 前後の地の文は残る。
+      const ref = el.querySelector('[data-testid="event-ref-text"]');
+      expect(ref).not.toBeNull();
+      expect(ref?.getAttribute("title")).toBe(raw);
+      // 短縮されている (60 桁近い bech32 の先頭 12 桁 + "…" だけを出す。
+      // "nostr:" を削っただけの長さでは、短縮していなくてもこの比較は
+      // 通ってしまうので、期待するラベルそのものと比較する)。
+      const entity = raw.replace(/^nostr:/, "");
+      expect(ref?.textContent).toBe(`${entity.slice(0, 12)}…`);
+      expect(el.textContent).not.toContain(raw);
       expect(el.textContent).toContain("before");
       expect(el.textContent).toContain("after");
     } finally {
@@ -377,9 +389,8 @@ describe("NoteContent: mention トークン", () => {
     }
   });
 
-  it("naddr は「未対応の参照です」になる (落として本文を欠けさせない)", () => {
-    // 捕まえる変異: naddr の分岐を落とす/何も描かない。前後のテキスト
-    // トークンだけが残り、参照があったこと自体が本文から消える。
+  it('eventRefs="text" で naddr も event-ref-text になる', () => {
+    // 捕まえる変異: naddr だけ「未対応の参照です」のままにする
     const naddr = encodeEntity("naddr", [
       { type: 0, value: asciiBytes("article-1") },
       { type: 2, value: hexToBytes(PUBKEY) },
@@ -390,12 +401,63 @@ describe("NoteContent: mention トークン", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
+    });
+    try {
+      const el = element();
+      expect(el.querySelector('[data-testid="event-ref-text"]')).not.toBeNull();
+      expect(el.querySelector('[data-testid="unsupported-ref"]')).toBeNull();
+      expect(el.textContent).toContain("before");
+      expect(el.textContent).toContain("after");
+    } finally {
+      dispose();
+    }
+  });
+
+  it('eventRefs="embed" で note が compact の event-view になる', () => {
+    // 捕まえる変異: text のまま出す
+    const quotedId = "2".repeat(64);
+    const raw = `nostr:${encodeBech32("note", quotedId)}`;
+    const event = noteWith(`before ${raw} after`);
+    const { element, dispose } = mount({
+      content: event.content,
+      tags: event.tags,
+      variant: "full",
+      eventRefs: "embed",
+    });
+    try {
+      const el = element();
+      const view = el.querySelector('[data-testid="event-view"]');
+      expect(view).not.toBeNull();
+      expect(view?.getAttribute("data-variant")).toBe("compact");
+      expect(el.querySelector('[data-testid="event-ref-text"]')).toBeNull();
+      expect(el.textContent).toContain("before");
+      expect(el.textContent).toContain("after");
+    } finally {
+      dispose();
+    }
+  });
+
+  it('eventRefs="embed" でも naddr は「未対応の参照です」', () => {
+    // 捕まえる変異: naddr を埋め込もうとする
+    const naddr = encodeEntity("naddr", [
+      { type: 0, value: asciiBytes("article-1") },
+      { type: 2, value: hexToBytes(PUBKEY) },
+      { type: 3, value: kindBytes(30023) },
+    ]);
+    const event = noteWith(`before nostr:${naddr} after`);
+    const { element, dispose } = mount({
+      content: event.content,
+      tags: event.tags,
+      variant: "full",
+      eventRefs: "embed",
     });
     try {
       const el = element();
       const unsupported = el.querySelector('[data-testid="unsupported-ref"]');
       expect(unsupported).not.toBeNull();
       expect(unsupported?.textContent).toBe("未対応の参照です");
+      expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
       expect(el.textContent).toContain("before");
       expect(el.textContent).toContain("after");
     } finally {
@@ -412,6 +474,7 @@ describe("NoteContent: 本文の器", () => {
       content: event.content,
       tags: event.tags,
       variant: "full",
+      eventRefs: "text",
     });
     try {
       // element() 自身が本文の器 (data-testid="note-content") —— querySelector

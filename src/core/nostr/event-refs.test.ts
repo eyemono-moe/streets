@@ -5,7 +5,9 @@ import {
   quoteTargets,
   replyTarget,
   repostTarget,
+  tagOnlyQuoteTargets,
 } from "./event-refs";
+import { encodeBech32 } from "./nip19";
 
 const ID_A = "a".repeat(64);
 const ID_B = "b".repeat(64);
@@ -111,6 +113,45 @@ describe("quoteTargets", () => {
     // そのものが「引用がスレッドの返信として現れないようにする」ことなので、
     // 逆向きに混ぜると返信が引用として二重に描かれる
     expect(quoteTargets(noteWith([["e", ID_B, "", "root"]]))).toEqual([]);
+  });
+});
+
+describe("tagOnlyQuoteTargets", () => {
+  it("本文に出てこない q タグだけを返す", () => {
+    // 捕まえる変異: 本文の言及を引かずに q タグを全部返す。本文の位置に
+    // 埋め込んだ引用が最下部にもう一度出て、同じイベントが 2 回描かれる。
+    const inBody = "a".repeat(64);
+    const tagOnly = "b".repeat(64);
+    const event = noteWith(
+      [
+        ["q", inBody],
+        ["q", tagOnly],
+      ],
+      { content: `見て nostr:${encodeBech32("note", inBody)}` },
+    );
+
+    expect(tagOnlyQuoteTargets(event)).toEqual([{ form: "id", id: tagOnly }]);
+  });
+
+  it("本文にしかない引用は返さない", () => {
+    // 捕まえる変異: 本文の言及も足して返す。本文側は MentionToken が
+    // その位置に描くので、ここで返すと二重になる。
+    const inBody = "c".repeat(64);
+    const event = noteWith([], {
+      content: `nostr:${encodeBech32("note", inBody)}`,
+    });
+
+    expect(tagOnlyQuoteTargets(event)).toEqual([]);
+  });
+
+  it("q タグの座標形式は本文と突き合わせずに残す", () => {
+    // 捕まえる変異: address 形式を落とす。本文の nostr: は id しか
+    // 運ばないので突き合わせようがなく、落とすと naddr の引用が消える。
+    const event = noteWith([["q", "30023:abc:slug"]], { content: "本文" });
+
+    expect(tagOnlyQuoteTargets(event)).toEqual([
+      { form: "address", address: "30023:abc:slug" },
+    ]);
   });
 });
 

@@ -1,15 +1,23 @@
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
 import type { ContentToken } from "../../core/nostr/content";
 import { isProbablyImageUrl, parseContent } from "../../core/nostr/content";
+import { relayOf } from "../../core/nostr/event-refs";
 import type { Nip19Ref } from "../../core/nostr/nip19";
 import { useRender } from "../../core/view/render-context";
 import type { EventVariant } from "../../core/view/renderer-registry";
+import EventView from "./EventView";
 import Profile from "./Profile";
 
 export type NoteContentProps = {
   content: string;
   tags: readonly string[][];
   variant: EventVariant;
+  /**
+   * イベントへの参照 (`note`/`nevent`/`naddr`) をどう描くか。**省略可能に
+   * しない** —— 決めずに書けると、本文の `nostr:note` が黙って消えて文が
+   * 途中で切れる形が再発する。
+   */
+  eventRefs: "text" | "embed";
 };
 
 /**
@@ -81,13 +89,41 @@ const EmojiToken: Component<{ shortcode: string; url: string }> = (props) => {
 };
 
 /**
- * `npub`/`nprofile` は名前解決 (`<Profile>` が担う)。`note`/`nevent` は
- * 何も描かない —— 引用として `NoteFull` が別に描く (下のコメント参照)。
- * `naddr` は座標 (kind:pubkey:d) の解決経路がまだ無いので、落として本文を
- * 欠けさせるのではなく固定文言を残す (design 6 節、`Note.tsx` の
- * `unsupported-ref` と同じ形)。
+ * イベント参照を短縮したテキスト。`nostr:` を落として bech32 の先頭 12 桁
+ * だけを見せる —— 60 桁を丸ごと出すと、`about` のような狭い枠では本文が
+ * それだけで埋まる。元の文字列は `title` で丸ごと読める。
+ *
+ * **押せそうには見せない** (ADR-0026)。押して開く先のカラムがまだ無い。
  */
-const MentionToken: Component<{ mention: Nip19Ref }> = (props) => {
+const EventRefText: Component<{ raw: string }> = (props) => {
+  const label = () => {
+    const entity = props.raw.replace(/^nostr:/, "");
+    return entity.length > 12 ? `${entity.slice(0, 12)}…` : entity;
+  };
+
+  return (
+    <span data-testid="event-ref-text" class="c-secondary" title={props.raw}>
+      {label()}
+    </span>
+  );
+};
+
+/**
+ * `npub`/`nprofile` は名前解決 (`<Profile>` が担う)。
+ *
+ * イベントへの参照は `eventRefs` で決まる (仕様 4.1 節):
+ * `"embed"` はその位置に対象を `compact` で描き、`"text"` は短縮した
+ * テキストで残す。**捨てる選択肢は無い** —— 捨てると「この投稿
+ * nostr:note1… が面白い」のような文が途中で切れる。
+ *
+ * `naddr` は座標 (kind:pubkey:d) の解決経路がまだ無いので `"embed"` でも
+ * 埋め込めない。落として本文を欠けさせるのではなく固定文言を残す。
+ */
+const MentionToken: Component<{
+  mention: Nip19Ref;
+  raw: string;
+  eventRefs: "text" | "embed";
+}> = (props) => {
   const ctx = useRender();
   // "ref" という prop 名は Solid の JSX で特別扱いされうるので避ける
   // (ネイティブ要素の DOM ref 転送と紛らわしい)。
@@ -103,28 +139,41 @@ const MentionToken: Component<{ mention: Nip19Ref }> = (props) => {
           requests={ctx.profiles}
         />
       );
-    // イベントへの参照は**ここでは何も描かない。** 引用を描く責務は
-    // `NoteFull` に一本化してある —— 引用は `q` タグと本文の `nostr:` の
-    // 両方に現れるのが普通なので、本文側でも埋め込むと同じイベントが
-    // 二重に出る (枠付きのカードと枠なしの埋め込みが並ぶ)。加えてここは
-    // `compact` でも通るため、埋め込むと「compact は関連イベントを一切
-    // 要求しない」という規則も破れる (返信先のプレビューの中に、さらに
-    // 引用が展開されてしまう)。
     case "note":
     case "nevent":
-      return null;
+      return (
+        <Show
+          when={props.eventRefs === "embed"}
+          fallback={<EventRefText raw={props.raw} />}
+        >
+          <EventView
+            id={ref.id}
+            variant="compact"
+            relayHint={
+              ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined
+            }
+          />
+        </Show>
+      );
     case "naddr":
       return (
-        <span data-testid="unsupported-ref" class="c-secondary text-caption">
-          未対応の参照です
-        </span>
+        <Show
+          when={props.eventRefs === "embed"}
+          fallback={<EventRefText raw={props.raw} />}
+        >
+          <span data-testid="unsupported-ref" class="c-secondary text-caption">
+            未対応の参照です
+          </span>
+        </Show>
       );
   }
 };
 
-const Token: Component<{ token: ContentToken; variant: EventVariant }> = (
-  props,
-) => {
+const Token: Component<{
+  token: ContentToken;
+  variant: EventVariant;
+  eventRefs: "text" | "embed";
+}> = (props) => {
   const token = props.token;
   switch (token.type) {
     case "text":
@@ -141,14 +190,21 @@ const Token: Component<{ token: ContentToken; variant: EventVariant }> = (
       // (`content.ts` 側のコメント参照)。
       return <span>{token.raw}</span>;
     case "mention":
-      return <MentionToken mention={token.ref} />;
+      return (
+        <MentionToken
+          mention={token.ref}
+          raw={token.raw}
+          eventRefs={props.eventRefs}
+        />
+      );
   }
 };
 
 /**
- * kind:1 の本文をトークン列として描く (design 4 節の表)。イベントは不変
- * なので、`parseContent` を `createMemo` で包んで再描画のたびのトークン化を
- * 避ける。
+ * 本文をトークン列として描く (design 4 節の表)。kind:1 の本文とプロフィールの
+ * 自己紹介文の両方がここを通る。`content`/`tags` は呼び出し側 (プロパティ)
+ * が再描画のあいだ安定していれば、`parseContent` を `createMemo` で包む
+ * ことでトークン化を都度やり直さずに済む。
  */
 const NoteContent: Component<NoteContentProps> = (props) => {
   const tokens = createMemo(() => parseContent(props.content, props.tags));
@@ -159,7 +215,13 @@ const NoteContent: Component<NoteContentProps> = (props) => {
       class="break-anywhere whitespace-pre-wrap [line-break:strict] [word-break:normal]"
     >
       <For each={tokens()}>
-        {(token) => <Token token={token} variant={props.variant} />}
+        {(token) => (
+          <Token
+            token={token}
+            variant={props.variant}
+            eventRefs={props.eventRefs}
+          />
+        )}
       </For>
     </div>
   );

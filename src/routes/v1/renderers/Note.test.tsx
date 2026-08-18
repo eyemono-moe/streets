@@ -442,6 +442,62 @@ describe("NoteFull", () => {
   });
 });
 
+describe("引用の置き場所 (仕様 4.1/4.2 節・brief Task4 Step 4/5)", () => {
+  it("本文に現れた引用は本文の中に描かれ、最下部には出ない (同じイベントが二重に出ない)", () => {
+    // 捕まえる変異: quotes() を quoteTargets に戻す (本文にも埋め込まれ、
+    // 最下部にも同じイベントがもう一度出て二重になる)
+    const events = createRecordingEventRequests();
+    const quoted = signed(60);
+    const event = signed(61, {
+      tags: [["q", quoted.id, "wss://relay/"]],
+      content: `見て nostr:${encodeBech32("note", quoted.id)}`,
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      expect(
+        el.querySelectorAll(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).toHaveLength(1);
+      const content = el.querySelector('[data-testid="note-content"]');
+      expect(
+        content?.querySelector('[data-testid="event-view"]'),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("q タグにしか無い引用は最下部に出る (本文には現れない)", () => {
+    // 捕まえる変異: tagOnlyQuoteTargets を空配列にする (タグだけの引用が
+    // 画面から丸ごと消える)
+    const events = createRecordingEventRequests();
+    const quoted = signed(62);
+    const event = signed(63, {
+      tags: [["q", quoted.id, "wss://relay/"]],
+      content: "本文には貼っていない",
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      const content = el.querySelector('[data-testid="note-content"]');
+      expect(content?.querySelector('[data-testid="event-view"]')).toBeNull();
+      expect(
+        el.querySelector('[data-testid="event-view"][data-variant="compact"]'),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});
+
 describe("compact は関連イベントを一切要求しない (spec 3 節・brief Step 2)", () => {
   it("引用と返信を両方持つ kind:1 を compact で描いても request は一度も呼ばれない。同じイベントを full で描くと呼ばれる (対照)", () => {
     // 捕まえる変異: compact でも replyTarget/quoteTargets を呼んで
@@ -509,6 +565,29 @@ describe("NoteCompact", () => {
       expect(el.querySelector('[data-testid="reply-to"]')).toBeNull();
       expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
       expect(el.querySelector('[data-testid="unsupported-ref"]')).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("本文の引用は埋め込まれずテキストになる (compact の規則を守る)", () => {
+    // 捕まえる変異: NoteBody の三項を "embed" 固定にする。compact でも
+    // 埋め込んでしまうと「compact は関連イベントを一切要求しない」規則が
+    // 破れる (返信先・引用先のプレビューの中で、さらに引用が展開される)。
+    const events = createRecordingEventRequests();
+    const quoted = signed(64);
+    const event = signed(65, {
+      content: `見て nostr:${encodeBech32("note", quoted.id)}`,
+    });
+    const { element, dispose } = mount(
+      () => NoteCompact({ event }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
+      expect(el.querySelector('[data-testid="event-ref-text"]')).not.toBeNull();
+      expect(events.requested).toEqual([]);
     } finally {
       dispose();
     }

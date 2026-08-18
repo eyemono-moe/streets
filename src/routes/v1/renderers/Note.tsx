@@ -2,9 +2,8 @@ import { For, Show, createEffect, createSignal, onCleanup } from "solid-js";
 import type { Component, ParentComponent } from "solid-js";
 import type { NostrEvent } from "../../../core/nostr/event";
 import {
-  contentQuoteTargets,
-  quoteTargets,
   replyTarget,
+  tagOnlyQuoteTargets,
 } from "../../../core/nostr/event-refs";
 import {
   formatEventTime,
@@ -196,6 +195,10 @@ const NoteBody: ParentComponent<{
                 content={props.event.content}
                 tags={props.event.tags}
                 variant={props.variant}
+                // full は本文の位置に埋め込む (仕様 4.2 節)。compact は
+                // 関連イベントを一切要求しないという規則があるので、
+                // 埋め込まずテキストにする。
+                eventRefs={props.variant === "full" ? "embed" : "text"}
               />
             </CollapsibleBody>
           </Show>
@@ -209,25 +212,22 @@ const NoteBody: ParentComponent<{
 /**
  * kind:1 の詳細表示 (spec 6 節の表)。
  *
- * `replyTarget`/`quoteTargets` は `event-refs.ts` の純関数 —— 呼ぶだけでは
- * 何も取得しない。実際に取得を発行しうるのは、その結果を
+ * `replyTarget`/`tagOnlyQuoteTargets` は `event-refs.ts` の純関数 ——
+ * 呼ぶだけでは何も取得しない。実際に取得を発行しうるのは、その結果を
  * `<EventView variant="compact">` へ渡した先だけ (`EventView` が store に
- * 無ければ `events.request` を呼ぶ)。
+ * 無ければ `events.request` を呼ぶ)。本文の位置に埋め込む引用
+ * (`NoteContent`/`eventRefs="embed"`) も同じ経路を通る。
  *
- * 返信先は骨格の**外** (上に積む独立したブロック)、引用先は骨格の**中**
- * (本文列の下)。返信先は自分自身の骨格を持つ別イベントの `compact` 描画で
- * あり、スレッドの縦線で本体と繋がる。引用は本文に付属する参照なので
- * 本文の左端に揃える。
+ * 返信先は骨格の**外** (上に積む独立したブロック)、タグにしか無い引用は
+ * 骨格の**中** (本文列の下)。返信先は自分自身の骨格を持つ別イベントの
+ * `compact` 描画であり、スレッドの縦線で本体と繋がる。引用は本文に付属
+ * する参照なので本文の左端に揃える。
  */
 export const NoteFull: Component<EventBodyProps> = (props) => {
   const reply = () => replyTarget(props.event);
-  // `q` タグと、タグを付けずに本文へ貼られた `nostr:` の両方から集める。
-  // **描くのはここだけ** —— 本文側 (`NoteContent` の mention) では描かない。
-  // 引用は両方に現れるのが普通なので、双方で描くと同じイベントが二重に出る。
-  const quotes = () => [
-    ...quoteTargets(props.event),
-    ...contentQuoteTargets(props.event),
-  ];
+  // 本文に `nostr:` として現れた引用は `NoteContent` がその位置に描く
+  // (仕様 4.2 節)。ここに残るのは **タグにしか無いもの** だけ。
+  const quotes = () => tagOnlyQuoteTargets(props.event);
 
   return (
     <article
@@ -272,9 +272,10 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
         replyTo={reply()?.pubkey}
       >
         {/*
-          引用先。`q` タグが event-address (`form: "address"`) を指す場合は
-          置換可能イベントの取得が範囲外 (spec 9 節) なので、`compact` の
-          代わりに「未対応の参照です」を出す。
+          タグにしか無い引用先 (本文の位置に埋め込まれたものは `NoteContent`
+          が描くので、ここには来ない)。`q` タグが event-address
+          (`form: "address"`) を指す場合は置換可能イベントの取得が範囲外
+          (spec 9 節) なので、`compact` の代わりに「未対応の参照です」を出す。
         */}
         <For each={quotes()}>
           {(ref) =>
@@ -305,7 +306,7 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
 };
 
 /**
- * kind:1 の小型表示 (spec 6 節の表)。**`replyTarget`/`quoteTargets` を
+ * kind:1 の小型表示 (spec 6 節の表)。**`replyTarget`/`tagOnlyQuoteTargets` を
  * 一切呼ばない** —— 呼ぶこと自体は無害 (純関数) だが、呼ばないと決めて
  * おくことで「関連イベントを一切要求しない」という compact の規則が
  * コードを読むだけで確認できる (この規則が壊れていないかは

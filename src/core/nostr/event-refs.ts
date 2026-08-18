@@ -21,7 +21,7 @@ type IdRef = Extract<EventRef, { form: "id" }>;
  * 明記しており、空文字をそのままリレーヒントとして下流へ渡すと接続先として
  * 使われうる。
  */
-const relayOf = (value: string | undefined): RelayUrl | undefined =>
+export const relayOf = (value: string | undefined): RelayUrl | undefined =>
   value && value.length > 0 ? (value as RelayUrl) : undefined;
 
 const pubkeyOf = (value: string | undefined): string | undefined =>
@@ -91,34 +91,28 @@ export const quoteTargets = (event: NostrEvent): EventRef[] => {
 };
 
 /**
- * 本文の `nostr:note1…` / `nostr:nevent1…` が指すイベント。
+ * `q` タグのうち、**本文に `nostr:` として現れないもの**。
  *
- * **`q` タグと重ならないものだけを返す。** 引用は `q` タグと本文の
- * `nostr:` の両方に現れるのが普通で、両方から描くと同じイベントが二重に
- * 出る。`q` タグ側を正とし、ここは「タグを付けずに本文へ貼っただけ」の
- * クライアントを拾うための補いに徹する。
+ * 本文に現れた引用はその位置に埋め込むので (`NoteContent` の `eventRefs`)、
+ * ここで返すと同じイベントが 2 回描かれる。[NIP-18] は本文の言及を `q`
+ * タグへ変換することを MUST としているが、[NIP-27] は `q` タグを任意と
+ * しており、両者は食い違っている —— 本文とタグは両方向にずれうるので、
+ * 「タグにしか無いもの」を最下部に出すことで、どちらのクライアントの
+ * 投稿でも引用を落とさない。
  *
- * `naddr`（座標）は返さない —— 置換可能イベントを引く経路がまだ無く、
- * `q` タグの `address` 形と同じ理由で描けない。
+ * 座標形式 (`form: "address"`) は本文の `nostr:` が運ぶ id と突き合わせ
+ * られないので、常に残す。
  */
-export const contentQuoteTargets = (event: NostrEvent): IdRef[] => {
-  const tagged = new Set(
-    quoteTargets(event).flatMap((ref) => (ref.form === "id" ? [ref.id] : [])),
-  );
-  const refs: IdRef[] = [];
-  const seen = new Set<string>();
+export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
+  const mentioned = new Set<string>();
   for (const token of parseContent(event.content, event.tags)) {
     if (token.type !== "mention") continue;
     const ref = token.ref;
-    if (ref.kind !== "note" && ref.kind !== "nevent") continue;
-    if (tagged.has(ref.id) || seen.has(ref.id)) continue;
-    seen.add(ref.id);
-    const relay = ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined;
-    refs.push(
-      relay ? { form: "id", id: ref.id, relay } : { form: "id", id: ref.id },
-    );
+    if (ref.kind === "note" || ref.kind === "nevent") mentioned.add(ref.id);
   }
-  return refs;
+  return quoteTargets(event).filter(
+    (ref) => ref.form !== "id" || !mentioned.has(ref.id),
+  );
 };
 
 /**
