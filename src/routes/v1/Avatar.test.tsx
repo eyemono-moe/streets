@@ -86,6 +86,22 @@ const fakeReactions = (): ReactionRequests => ({
 });
 
 /**
+ * `Avatar` は `ProfileHover` (`HoverCard.Root`) を返すようになった。
+ * `HoverCard.Root` は素通しの context provider を重ねただけなので DOM
+ * ノードを持たず、直接関数として呼ぶと `children` を解決する memo
+ * 関数が返る (`Note.test.tsx` の「代役に本物を使わない」注記と同じ根
+ * 本の理由: Solid が実要素ではなく読み取り関数を返す)。加えて `<Portal>`
+ * が枠と同じ列に並ぶため、解決した先は `[トリガー要素, Portal の
+ * マーカー]` の配列になる (`ProfileHover.test.tsx` を書く前に実際に
+ * 描画して確かめた形)。トリガー要素だけを取り出す。
+ */
+const resolveElement = (result: unknown): HTMLElement => {
+  let value = result;
+  while (typeof value === "function") value = (value as () => unknown)();
+  return (Array.isArray(value) ? value[0] : value) as HTMLElement;
+};
+
+/**
  * `EventView.test.tsx`/`Note.test.tsx` と同じ手法: Solid コンポーネントを
  * JSX を介さず関数として直接呼び、返ってきた DOM ノードを検証する。
  */
@@ -100,7 +116,7 @@ const mount = (
     RenderProvider({
       value: ctx,
       get children() {
-        element = Avatar(props) as unknown as HTMLElement;
+        element = resolveElement(Avatar(props));
         return null;
       },
     });
@@ -165,7 +181,15 @@ describe("Avatar", () => {
       const el = element();
       expect(el.dataset.testid).toBe("avatar");
       expect(el.querySelector("img")).toBeNull();
-      expect(requested).toEqual([pubkey]);
+      // `ProfileHover` (`HoverCard.Root`) を挟むようになってから、同じ
+      // pubkey への `request` が複数回来る (zag のマシン初期化が Solid の
+      // 更新フラッシュをもう 1 周させるため、実測で 2 回)。
+      // `ProfileRequests` は pubkey を `Set` でまとめるので重複要求は
+      // 実害が無い (`profile-data.ts`/`profile-requests.ts` の設計)。
+      // ここで主張したいのはその頑健性の中身 (回数) ではなく「要求した
+      // pubkey が正しいか」なので、回数は固定しない。
+      expect(requested.length).toBeGreaterThan(0);
+      expect(new Set(requested)).toEqual(new Set([pubkey]));
     } finally {
       dispose();
     }
@@ -204,6 +228,65 @@ describe("Avatar", () => {
       // 枠自体 (data-testid=avatar) は同じ要素のまま —— 画像の到着で
       // 差し替わったりレイアウトが動いたりしない
       expect(el.dataset.testid).toBe("avatar");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("avatar 要素そのものが hover-card のトリガー属性を持つ (包む要素を挟まない)", () => {
+    // 捕まえる変異: `asChild` をやめて `<ProfileHover>` で包む形に戻す。
+    // 包む要素を挟むと、`avatar` の枠 (`sticky top-0`) はその小さな包みの
+    // 中でしか動けなくなり、スクロールしても上端に貼り付かなくなる
+    // (仕様 5.1 節)。jsdom は CSS を評価しないので、この主張は「avatar
+    // 要素自身がトリガーの属性を受け取っているか」という DOM の形で行う。
+    // 属性名は実際に描画して確かめたもの (`data-scope`/`data-part`)。
+    const store = new EventStore();
+    const { profiles } = createFakeProfileRequests();
+    const ctx: RenderContextValue = {
+      store,
+      events: fakeEvents(),
+      profiles,
+      reactions: fakeReactions(),
+      viewerPubkey: undefined,
+      renderers: [],
+    };
+
+    const { element, dispose } = mount(
+      { pubkey: pubkeyFor(4), size: "full" },
+      ctx,
+    );
+    try {
+      const el = element();
+      expect(el.dataset.testid).toBe("avatar");
+      expect(el.dataset.scope).toBe("hover-card");
+      expect(el.dataset.part).toBe("trigger");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("avatar 要素は sticky と top-0 を持ったまま", () => {
+    // 捕まえる変異: `sticky`/`top-0` クラスを落とす (本文が伸びてスクロール
+    // しても誰の投稿か見失わないための固定、spec 3 節)。
+    const store = new EventStore();
+    const { profiles } = createFakeProfileRequests();
+    const ctx: RenderContextValue = {
+      store,
+      events: fakeEvents(),
+      profiles,
+      reactions: fakeReactions(),
+      viewerPubkey: undefined,
+      renderers: [],
+    };
+
+    const { element, dispose } = mount(
+      { pubkey: pubkeyFor(5), size: "full" },
+      ctx,
+    );
+    try {
+      const className = element().className;
+      expect(className).toContain("sticky");
+      expect(className).toContain("top-0");
     } finally {
       dispose();
     }

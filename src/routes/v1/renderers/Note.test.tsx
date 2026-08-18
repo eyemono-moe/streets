@@ -891,3 +891,55 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
     }
   });
 });
+
+describe("プロフィールカードのホバー (仕様 5 節・brief Task6 Step 3/4)", () => {
+  it("著者行 (note-author) は hover-card のトリガーを持つ", () => {
+    // 捕まえる変異: `<Profile>` を `<ProfileHover>` で包むのをやめる
+    // (著者名にホバーしてもカードが出なくなる)。属性名は実際に描画して
+    // 確かめたもの (`data-scope`/`data-part`、`ProfileHover.test.tsx` と
+    // 同じ)。
+    const events = createRecordingEventRequests();
+    const event = signed(70, { content: "x" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const author = element().querySelector('[data-testid="note-author"]');
+      const trigger = author?.querySelector(
+        '[data-scope="hover-card"][data-part="trigger"]',
+      );
+      expect(trigger).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("本文中の言及 (nostr:npub) は hover-card のトリガーを持たない (カードの中の名前に入れ子でカードが出ない)", () => {
+    // 捕まえる変異: `NoteContent`/`MentionToken` が使う素の `<Profile>`
+    // 自体に `<ProfileHover>` を仕込む。`<Profile>` は本文中の言及・
+    // リポスト/リアクションの見出し・リアクション一覧でも使われており、
+    // そこにホバーを付けるとカードの中の名前にもカードが出る入れ子に
+    // なる (仕様 5 節)。
+    const events = createRecordingEventRequests();
+    const mentioned = pubkeyFor(71);
+    const event = signed(72, {
+      content: `見て nostr:${encodeBech32("npub", mentioned)}`,
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const content = element().querySelector('[data-testid="note-content"]');
+      expect(content).not.toBeNull();
+      expect(
+        content?.querySelector(
+          '[data-scope="hover-card"][data-part="trigger"]',
+        ),
+      ).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});

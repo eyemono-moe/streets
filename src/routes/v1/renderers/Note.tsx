@@ -19,6 +19,7 @@ import Avatar from "../Avatar";
 import EventView from "../EventView";
 import NoteContent from "../NoteContent";
 import Profile from "../Profile";
+import ProfileHover from "../ProfileHover";
 import ReactionList from "../ReactionList";
 
 /**
@@ -156,12 +157,14 @@ const NoteBody: ParentComponent<{
           classList={{ "text-caption": isFull(), "text-xs": !isFull() }}
         >
           <p data-testid="note-author" class="min-w-0 truncate">
-            <Profile
-              pubkey={props.event.pubkey}
-              store={ctx.store}
-              requests={ctx.profiles}
-              variant="author"
-            />
+            <ProfileHover pubkey={props.event.pubkey}>
+              <Profile
+                pubkey={props.event.pubkey}
+                store={ctx.store}
+                requests={ctx.profiles}
+                variant="author"
+              />
+            </ProfileHover>
           </p>
           <span
             data-testid="note-created-at"
