@@ -121,7 +121,7 @@ export type NoteContentProps = {
 
 - 本文の位置に描くものは `MentionToken` がトークンから直接得るので、専用のヘルパは要らない
 - 最下部に描くものは `quoteTargets(event)` のうち**本文の言及に含まれない**もの。これは今の `contentQuoteTargets` の裏返しなので、**同じ関数を置き換える**（`tagOnlyQuoteTargets` として書き直し、`contentQuoteTargets` は消す）。2 つ残すと、次に読む人がどちらが今の規則か分からなくなる
-- `q` タグの座標形式（`naddr` 相当、`quoteTargets` が `form: "address"` で返すもの）は本文の言及と突き合わせられないので、常に最下部に残る
+- `q` タグの座標形式（`naddr` 相当、`quoteTargets` が `form: "address"` で返すもの）**も本文と突き合わせる**。本文の `nostr:naddr1…` は `eventKind` / `pubkey` / `identifier` を持つので、`q` タグの `<kind>:<pubkey>:<identifier>` を復元できる（当初この節は「突き合わせられない」と書いていたが誤りで、Task 4 のレビューで本文と最下部に「未対応の参照です」が 2 回出ることが見つかった）
 
 **根拠（2026-08-15 に一次情報を確認）。** [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) は「`nevent` / `note` / `naddr` への言及は `q` タグへ変換されなければならない」と定める一方、[NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) は「NIP-18 の `q` タグを付けるかどうかは任意」と書いており、**両者は食い違っている**。したがって本文と `q` タグは両方向にずれうる —— 本文にあってタグに無い形も、タグにあって本文に無い形も現実に起きる。上の 2 分割はそのどちらも落とさない。NIP-27 は「言及先イベントのプレビューを見せる」ことを明示的に許している。
 
