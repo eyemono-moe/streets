@@ -16,9 +16,9 @@ export type ProfileHoverProps = {
 /**
  * 名前やアイコンにホバーするとプロフィールカードを出す (仕様 5 節)。
  *
- * **トリガーは押せそうに見せない** —— `cursor-pointer` も
- * `hover:underline` も付けない。押しても何も起きないため (ADR-0026)。
- * ユーザー詳細カラム (#205) が入った時点で両方を足してクリックを繋ぐ。
+ * **押せる見た目にしてある。** 押しても今は何も起きないが、ユーザー詳細
+ * カラム (#205) が入れば押してカラムを開く挙動にする予定であり、それまで
+ * わざわざ見た目を分ける理由が無い (v0 の `EmbedUser` も同じ見た目)。
  */
 const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
   // `lazyMount`/`unmountOnExit` が無いと ark-ui 5.38.1 の `usePresence` は
@@ -38,15 +38,18 @@ const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
       when={props.asChild}
       fallback={
         // `HoverCard.Trigger` の実体は `<button>`。UnoCSS のリセット
-        // (`@unocss/reset/tailwind-compat.css`) は `button { cursor: pointer }`
-        // を残し、`background-color: transparent` の行はコメントアウトされて
-        // いるため、素の `<button>` は UA 既定の `ButtonFace` 背景と
-        // `cursor: pointer` を保持したまま描かれる (`renderers/Note.tsx` の
-        // 展開ボタンで実測済みの罠と同じ)。`cursor-auto` で仕様 5 節の
-        // 「押せそうに見せない」を守る (v0 の `EmbedUser`/`Avatar` と同じ手筋)。
+        // (`@unocss/reset/tailwind-compat.css`) は `background-color:
+        // transparent` の行がコメントアウトされているため、素の `<button>` は
+        // UA 既定の `ButtonFace` 背景を保持したまま描かれる
+        // (`renderers/Note.tsx` の展開ボタンで実測済みの罠と同じ) ——
+        // `bg-transparent` が要る。
+        //
+        // 名前は本文の途中にも埋まるので `break-anywhere` と `max-w-full` で
+        // 折り返させる。`<button>` の既定は中央寄せなので `text-left` で
+        // 地の文に揃える。
         <HoverCard.Trigger
           data-testid="profile-hover-trigger"
-          class="cursor-auto appearance-none bg-transparent"
+          class="break-anywhere max-w-full cursor-pointer appearance-none bg-transparent text-left hover:underline"
         >
           {props.children}
         </HoverCard.Trigger>

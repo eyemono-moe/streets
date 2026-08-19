@@ -947,12 +947,12 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
     }
   });
 
-  it("本文中の言及 (nostr:npub) は hover-card のトリガーを持たない (カードの中の名前に入れ子でカードが出ない)", () => {
-    // 捕まえる変異: `NoteContent`/`MentionToken` が使う素の `<Profile>`
-    // 自体に `<ProfileHover>` を仕込む。`<Profile>` は本文中の言及・
-    // リポスト/リアクションの見出し・リアクション一覧でも使われており、
-    // そこにホバーを付けるとカードの中の名前にもカードが出る入れ子に
-    // なる (仕様 5 節)。
+  it("本文中の言及 (nostr:npub) も hover-card のトリガーを持つ", () => {
+    // 捕まえる変異: `<Profile>` からホバーを外し、著者行だけに戻す。
+    // 名前が出る場所ではすべてカードを出す方針なので、本文中の言及・
+    // 返信先・リポスト/リアクションの見出し・リアクション一覧の名前も
+    // 対象になる —— それらはすべて `<Profile>` を通るので、この 1 件が
+    // 代表して守る。
     const events = createRecordingEventRequests();
     const mentioned = pubkeyFor(71);
     const event = signed(72, {
@@ -969,7 +969,7 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
         content?.querySelector(
           '[data-scope="hover-card"][data-part="trigger"]',
         ),
-      ).toBeNull();
+      ).not.toBeNull();
     } finally {
       dispose();
     }

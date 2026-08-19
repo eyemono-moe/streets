@@ -237,6 +237,37 @@ describe("ProfileCard", () => {
     }
   });
 
+  it("about の中の nostr:npub 言及にはホバーのトリガーを付けない (入れ子でカードが出ない)", () => {
+    // 捕まえる変異: `ProfileHoverSuppressedProvider` を外す。名前が出る場所
+    // では原則カードを出す方針だが、**カードの中の自己紹介文だけは例外**
+    // —— そこにホバーを付けると「カードの中の言及にホバー → またカード」
+    // という入れ子になる。`<Profile>` はカードの外では必ずトリガーを持つ
+    // ので、その差がここでしか観測できない。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const mentioned = pubkeyFor(206);
+    const profileEvent = signed(207, {
+      content: JSON.stringify({
+        about: `友達 nostr:${encodeBech32("npub", mentioned)}`,
+      }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      // 言及そのものは描かれている (ホバーが無いだけで名前は出る)。
+      expect(el.querySelector('[data-testid="profile"]')).not.toBeNull();
+      expect(
+        el.querySelector('[data-scope="hover-card"][data-part="trigger"]'),
+      ).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
   it("website が javascript: のとき <a> にならず、素のテキストで行が残る", () => {
     // 捕まえる変異: scheme を確かめずリンクにする。
     // 仕様 3.2 節・8 節: `http(s)` 以外はリンクにしないが、行ごと消しては

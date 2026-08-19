@@ -3,6 +3,7 @@ import { useRender } from "../../core/view/render-context";
 import NoteContent from "./NoteContent";
 import { npubLabel } from "./npub-label";
 import { useProfileData } from "./profile-data";
+import { ProfileHoverSuppressedProvider } from "./profile-hover-context";
 
 /** `nip05` の表示はドメイン部分だけ (v0 の `Nip05Badge` と同じ)。 */
 const nip05Domain = (nip05: string): string | undefined => {
@@ -167,12 +168,21 @@ const ProfileCard: Component<{ pubkey: string }> = (props) => {
         <Show when={profile()?.about}>
           {(about) => (
             <div class="overflow-y-auto">
-              <NoteContent
-                content={about()}
-                tags={profile()?.tags ?? []}
-                variant="compact"
-                eventRefs="text"
-              />
+              {/*
+                  自己紹介文は `NoteContent` を通るので、そこに `nostr:npub`
+                  の言及があると `<Profile>` が再びホバーカードを生やす ——
+                  カードの中からカードが出る入れ子になる。**カード全体では
+                  なくここだけを包む** —— ルートを provider にすると
+                  コンポーネントの戻り値が DOM 要素でなくなる。
+                */}
+              <ProfileHoverSuppressedProvider value={true}>
+                <NoteContent
+                  content={about()}
+                  tags={profile()?.tags ?? []}
+                  variant="compact"
+                  eventRefs="text"
+                />
+              </ProfileHoverSuppressedProvider>
             </div>
           )}
         </Show>

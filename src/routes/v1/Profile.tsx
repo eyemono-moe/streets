@@ -2,8 +2,10 @@ import { Show } from "solid-js";
 import type { Component } from "solid-js";
 import type { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
+import ProfileHover from "./ProfileHover";
 import { npubLabel } from "./npub-label";
 import { useProfileData } from "./profile-data";
+import { useProfileHoverSuppressed } from "./profile-hover-context";
 
 export type ProfileVariant = "author" | "inline";
 
@@ -34,15 +36,14 @@ export type ProfileProps = {
  * `<Profile>` は他の言及・アバター横の使われ方と見た目の契約を共有して
  * いるので、ここへ `class` 等の穴を空けて呼び出し側ごとに変えない。
  */
-const Profile: Component<ProfileProps> = (props) => {
-  const profile = useProfileData(
-    () => props.pubkey,
-    props.store,
-    props.requests,
-  );
-
-  const displayName = () => profile()?.displayName;
-  const name = () => profile()?.name;
+const ProfileName: Component<{
+  pubkey: string;
+  displayName?: string;
+  name?: string;
+  variant?: ProfileVariant;
+}> = (props) => {
+  const displayName = () => props.displayName;
+  const name = () => props.name;
 
   return (
     <Show
@@ -72,6 +73,38 @@ const Profile: Component<ProfileProps> = (props) => {
           <span class="c-secondary break-all font-400">@{name()}</span>
         </Show>
       </span>
+    </Show>
+  );
+};
+
+const Profile: Component<ProfileProps> = (props) => {
+  const profile = useProfileData(
+    () => props.pubkey,
+    props.store,
+    props.requests,
+  );
+  const suppressed = useProfileHoverSuppressed();
+
+  return (
+    <Show
+      when={!suppressed}
+      fallback={
+        <ProfileName
+          pubkey={props.pubkey}
+          displayName={profile()?.displayName}
+          name={profile()?.name}
+          variant={props.variant}
+        />
+      }
+    >
+      <ProfileHover pubkey={props.pubkey}>
+        <ProfileName
+          pubkey={props.pubkey}
+          displayName={profile()?.displayName}
+          name={profile()?.name}
+          variant={props.variant}
+        />
+      </ProfileHover>
     </Show>
   );
 };
