@@ -24,16 +24,30 @@ const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
   // `lazyMount`/`unmountOnExit` が無いと ark-ui 5.38.1 の `usePresence` は
   // `unmounted` を常に `false` にし、`HoverCard.Content` (= `ProfileCard`)
   // がホバー前から `hidden` 属性だけで隠れた状態で常時マウントされる
-  // (レビューで実測: 最大 80 個の非表示ツリーが `document.body` にぶら下がる)。
-  // 仕様 7 節の「ホバーしたから増える通信は無い」を満たすには、開くまで
-  // マウントしない (`lazyMount`) だけでなく、閉じたら畳む
-  // (`unmountOnExit`) も要る —— 前者だけだと一度開いたノートは以後ずっと
-  // マウントされたままになる。
+  // (1 カラムの初期表示 40 件 × 著者名/アイコンの 2 箇所で 80 個の
+  // 非表示ツリーが `document.body` にぶら下がる。カラム数やレンダウィンドウ
+  // の伸長を数えれば実際にはこれより増える —— 「最大」ではない)。
+  // 仕様 7 節の「ホバーしたから増える通信は無い」——取得済みの著者では
+  // 成り立つが、kind:0 をまだ持たない著者では `profile-requests.ts` の
+  // `request()` が窓ごとに再要求するので厳密には成り立たない——を
+  // DOM マウント数の面から補強するには、開くまでマウントしない
+  // (`lazyMount`) だけでなく、閉じたら畳む (`unmountOnExit`) も要る ——
+  // 前者だけだと一度開いたノートは以後ずっとマウントされたままになる。
   <HoverCard.Root lazyMount unmountOnExit>
     <Show
       when={props.asChild}
       fallback={
-        <HoverCard.Trigger data-testid="profile-hover-trigger">
+        // `HoverCard.Trigger` の実体は `<button>`。UnoCSS のリセット
+        // (`@unocss/reset/tailwind-compat.css`) は `button { cursor: pointer }`
+        // を残し、`background-color: transparent` の行はコメントアウトされて
+        // いるため、素の `<button>` は UA 既定の `ButtonFace` 背景と
+        // `cursor: pointer` を保持したまま描かれる (`renderers/Note.tsx` の
+        // 展開ボタンで実測済みの罠と同じ)。`cursor-auto` で仕様 5 節の
+        // 「押せそうに見せない」を守る (v0 の `EmbedUser`/`Avatar` と同じ手筋)。
+        <HoverCard.Trigger
+          data-testid="profile-hover-trigger"
+          class="cursor-auto appearance-none bg-transparent"
+        >
           {props.children}
         </HoverCard.Trigger>
       }

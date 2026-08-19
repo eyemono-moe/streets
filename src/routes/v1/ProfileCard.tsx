@@ -26,7 +26,10 @@ const isHttpUrl = (url: string): boolean => {
  *
  * **取得経路を増やさない。** ここが出す情報はすべて kind:0 の中にあり、
  * 著者名 (`<Profile>`) とアイコン (`<Avatar>`) が既に同じ kind:0 を
- * `useProfileData` 経由で要求している。ホバーしたから増える通信は無い。
+ * `useProfileData` 経由で要求している。**取得済みの著者では** ホバーしても
+ * 増える通信は無い —— `profile-requests.ts` の `request()` は「取得済みで
+ * 新鮮」なときにしか要求を捨てないので、kind:0 をまだ持たない著者に
+ * ホバーすれば窓ごとに再要求される。
  *
  * 寸法は v0 の `small` 相当 1 つだけ。#205 が大きいほうを要ったときに
  * そこで足す —— 使われないモードを先に書くと、実際に使う日まで誰も
@@ -38,16 +41,19 @@ const ProfileCard: Component<{ pubkey: string }> = (props) => {
   const [bannerBroken, setBannerBroken] = createSignal(false);
   const [pictureBroken, setPictureBroken] = createSignal(false);
 
+  const rawDisplayName = () => profile()?.displayName;
+  const name = () => profile()?.name;
   const displayName = () =>
-    profile()?.displayName || profile()?.name || npubLabel(props.pubkey);
+    rawDisplayName() || name() || npubLabel(props.pubkey);
   const domain = () => {
     const nip05 = profile()?.nip05;
     return nip05 ? nip05Domain(nip05) : undefined;
   };
-  const website = () => {
-    const url = profile()?.website;
-    return url && isHttpUrl(url) ? url : undefined;
-  };
+  // `website` は在れば行を必ず出す (仕様 3.2 節・8 節)。`http(s)` のときだけ
+  // リンクにし、それ以外は素のテキストで出す —— スキーム無し
+  // (`example.com` のような実データで多い形) を非 http(s) と同じに
+  // 落として行ごと消すと、仕様が定める「素のテキストで出す」にならない。
+  const website = () => profile()?.website;
 
   return (
     <div
@@ -56,9 +62,13 @@ const ProfileCard: Component<{ pubkey: string }> = (props) => {
     >
       {/*
         画像が落ちても枠は残す (`Avatar` と同じ判断) —— 枠が消えると
-        カードの高さが後から縮み、下の行が飛ぶ。
+        カードの高さが後から縮み、下の行が飛ぶ。`Avatar` は `aspect-square`
+        で高さが確定するが、banner は横幅いっぱい (`w-full`) なので
+        `aspect-*` では高さが決まらない。`max-h-24` (上限) では `<img>` が
+        描かれない間 (banner を持たない kind:0 が大多数、または 404) に
+        高さが 0 になり枠が消えるので、`h-24` (固定) にする。
       */}
-      <div class="mb--16 max-h-24 w-full select-none overflow-hidden bg-secondary">
+      <div class="mb--16 h-24 w-full select-none overflow-hidden bg-secondary">
         <Show when={profile()?.banner && !bannerBroken()}>
           <img
             data-testid="profile-banner"
@@ -94,10 +104,13 @@ const ProfileCard: Component<{ pubkey: string }> = (props) => {
           >
             {displayName()}
           </span>
-          <Show when={profile()?.name}>
-            {(name) => (
-              <span class="c-secondary truncate text-caption">@{name()}</span>
-            )}
+          {/*
+            `@name` は太字側が `display_name` を出せているときだけ添える
+            (`Profile.tsx` と同じ規則) —— `display_name` が無い kind:0 では
+            太字側が `name` へ落ちるので、両方出すと同じ文字列が 2 度並ぶ。
+          */}
+          <Show when={rawDisplayName() && name()}>
+            <span class="c-secondary truncate text-caption">@{name()}</span>
           </Show>
         </div>
 
@@ -118,15 +131,27 @@ const ProfileCard: Component<{ pubkey: string }> = (props) => {
             {(url) => (
               <div class="flex max-w-full items-center gap-1">
                 <div class="i-material-symbols:link-rounded c-secondary aspect-square h-0.75lh w-auto" />
-                <a
-                  data-testid="profile-website"
-                  href={url()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="truncate text-caption text-link"
+                <Show
+                  when={isHttpUrl(url())}
+                  fallback={
+                    <span
+                      data-testid="profile-website"
+                      class="truncate text-caption"
+                    >
+                      {url()}
+                    </span>
+                  }
                 >
-                  {url()}
-                </a>
+                  <a
+                    data-testid="profile-website"
+                    href={url()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="truncate text-caption text-link"
+                  >
+                    {url()}
+                  </a>
+                </Show>
               </div>
             )}
           </Show>

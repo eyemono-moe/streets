@@ -479,12 +479,24 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **答え方:** 実鍵で 40 件を超えるカラムを開き、初期窓の外（スクロールしないと現れない位置）まで下げてから素早く戻り、戻った直後のノートの著者名・アイコンにすぐホバーしてカードが出るかを見る。出ない、または遅れる場合は `content-visibility: auto` の再描画とホバー判定の競合を疑う。
 
-### 繰り越し
+### I-4 —— ホバートリガーの常時コスト（実測）
+
+最終レビューの指摘: `HoverCard.Root` はホバーしなくても zag のステートマシンを 2 本（著者名 + アイコン）作り、`<Portal>` は children が空でも `document.body` に空の `<div>` を append する。ADR-0011 は「測定できない予算は要件ではなく願望である」と定めているので、このスライスの前後で `/v1` の開発者モードに出る `deck-column-first-render-ms`（3 カラムぶん）を実測して比べた。
+
+**方法。** `git worktree` でこのスライスの直前（`48ac1d9`、docs 計画コミットのみで実装が始まる前）を別ディレクトリへチェックアウトし、`pnpm install` で依存を揃えた。両方のワークツリーで `e2e/v1.spec.ts` の「developer mode gates diagnostics behind a toggle」に `deck-column-first-render-ms` の値を `console.log` する 1 行を一時的に足し、`pnpm exec playwright test -g "developer mode gates diagnostics"` を 3 回ずつ実行して読み取った（実測後、この 1 行はどちらのワークツリーからも削除済み — 現在のリポジトリに計測用の変更は残っていない）。
+
+**実測値（ミリ秒、3 カラムぶん、3 試行）:**
+
+| | 試行1 | 試行2 | 試行3 |
+|---|---|---|---|
+| 前（`48ac1d9`、ProfileHover 無し） | 781.4 / 33.8 / 314.5 | 770.5 / 31.8 / 287.5 | 777.7 / 33.3 / 371.5 |
+| 後（このスライス、全ノートの著者名・アイコンに `HoverCard.Root` × 2） | 852.4 / 31.9 / 346.1 | 858.0 / 37.5 / 53.5 | 811.2 / 31.8 / 406.5 |
+
+3 カラム合計の平均は 前 1134.0ms → 後 1143.0ms（+9ms、+0.8%）。ただし列ごとの試行間ばらつきがこれよりずっと大きい（例: 後の 3 列目は 53.5〜406.5ms の間で揺れる）。**この環境（共有 CPU・Docker 上のローカルリレー）でのノイズがホバートリガー追加分より大きく、この実測から「増分はゼロ」と断定はできない。** 言えるのは、40 件 × 2 個の `HoverCard.Root`/`Portal` を足しても、初回描画予算（ADR-0011）を破るような桁の劣化（数百ms 単位）は起きていない、というところまで。より精緻な増分（例えば数 ms〜十数 ms の単位）を切り分けるには、CPU 分離された環境での繰り返し計測か、Chrome DevTools Performance パネルでの `HoverCard.Root` マウント自体のスクリプト実行時間の直接計測が要る。
 
 - **NIP-05 を検証していない。** 仕様 3.1 節の判断どおり、`ProfileCard` は常に「未検証」のマーク（`i-material-symbols:question-mark-rounded`）を出し、`/.well-known/nostr.json` への検証は行わない。検証は新しい外部 HTTP 経路（キャッシュ・失敗の扱い・ドメインへ閲覧を知らせるプライバシーの論点）を要するので、着手するときは専用の計画が要る。
 - **フォロー操作・フォロー数・フォロワー数がカードに無い。** 仕様 2 節が明示的に範囲外とした（kind:3 の読み取り→編集→署名→publish、フォロワー数は専用の取得経路が要る）。
 - **カードの寸法が 1 つしかない。** v0 は `small` の有無で banner/アイコンが 2 段階あるが、このスライスはホバーの中だけで使う小さいほうしか実装していない。[#205](https://github.com/eyemono-moe/streets/issues/205)（ユーザー詳細カラム）が大きいほうを要る。
-- **`unmountOnExit` だけを外す変異を捕まえるテストが無い。** `src/routes/v1` にホバーの開閉そのもの（`HoverCard.Root` が実際に `lazyMount`/`unmountOnExit` を持っているか）を模すユニット/コンポーネントテストが 1 件も無い。`ProfileHover.test.tsx` はトリガーの形（`asChild`/`cursor-pointer` が無いこと）を主張しているが、`unmountOnExit` を外す変異（ホバー前から `HoverCard.Content` が非表示のまま常時マウントされる、レビューで実測した「最大 80 個の非表示ツリー」の再発）を落とせるテストが無い。jsdom で `usePresence` の実際の遷移を模すか、e2e でマウント数を数える必要がある。
 - **`tagOnlyQuoteTargets` の address 形式の重複排除に専用のテストが無い。** 仕様 4.2 節が「`q` タグの座標形式（`naddr` 相当）も本文と突き合わせる」と定め、`tagOnlyQuoteTargets`（`src/core/nostr/event-refs.ts`）の実装は id/address 対称に書かれている（`q` タグの `<kind>:<pubkey>:<identifier>` と本文の `nostr:naddr1…` を同じ集合で突き合わせる）。コードは正しく見えるが、`event-refs.test.ts` に address 形式（`form: "address"`）だけを対象にした「本文にあってタグに無い」「タグにあって本文に無い」「両方にある」の 3 パターンのテストが無い。id 形式のテストはあるので、その対称形をそのまま address 形式へ複製すれば埋まる。
 - **`noteWith` というテストヘルパの引数の順序が 2 ファイルで逆になっている。** `src/core/nostr/event-refs.test.ts` は `noteWith(tags, overrides)`、`src/routes/v1/NoteContent.test.tsx` は `noteWith(content, tags)`。同じ名前で違う形の関数がリポジトリに共存しているので、次にどちらかのファイルへテストを足す人が、もう片方のファイルで見た記憶のまま呼んで型エラー（またはランタイムの取り違え）を踏む。どちらかの名前を変えるか、共有ヘルパへ統合する必要がある。
 

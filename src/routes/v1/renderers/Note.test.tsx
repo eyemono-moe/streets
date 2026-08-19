@@ -419,7 +419,7 @@ describe("NoteFull", () => {
   });
 });
 
-describe("引用の置き場所 (仕様 4.1/4.2 節・brief Task4 Step 4/5)", () => {
+describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
   it("本文に現れた引用は本文の中に描かれ、最下部には出ない (同じイベントが二重に出ない)", () => {
     // 捕まえる変異: quotes() を quoteTargets に戻す (本文にも埋め込まれ、
     // 最下部にも同じイベントがもう一度出て二重になる)
@@ -444,6 +444,38 @@ describe("引用の置き場所 (仕様 4.1/4.2 節・brief Task4 Step 4/5)", ()
       expect(
         content?.querySelector('[data-testid="event-view"]'),
       ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("本文に埋め込まれた引用は枠 (NestedEventCard) の中にある (I-3)", () => {
+    // 捕まえる変異: 本文側の埋め込み (`NoteContent.tsx` の `MentionToken`)
+    // から `NestedEventCard` の枠を外す。「枠を描くのは置く側」という
+    // 規則により、最下部の引用 (q タグにしか無いもの) は枠付きだが、
+    // この変異が入ると本文側だけ枠が無い状態になり、同じ「引用」が
+    // 1 ノートの中で 2 通りの見た目になる。
+    const events = createRecordingEventRequests();
+    const quoted = signed(64);
+    const event = signed(65, {
+      tags: [["q", quoted.id, "wss://relay/"]],
+      content: `見て nostr:${encodeBech32("note", quoted.id)} です`,
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      const content = el.querySelector('[data-testid="note-content"]');
+      const embedded = content?.querySelector(
+        '[data-testid="event-view"][data-variant="compact"]',
+      );
+      expect(embedded).not.toBeNull();
+      // 最下部の引用と同じ枠 (`b-1 rounded p-1`) を親要素に持つ ——
+      // `renderers/Note.test.tsx` の reply-to のテストと対になる主張
+      // (あちらは「枠を持たない」ことを、こちらは「枠を持つ」ことを見る)。
+      expect(embedded?.parentElement?.className ?? "").toMatch(/(?:^|\s)b-\d/);
     } finally {
       dispose();
     }
@@ -892,7 +924,7 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
   });
 });
 
-describe("プロフィールカードのホバー (仕様 5 節・brief Task6 Step 3/4)", () => {
+describe("プロフィールカードのホバー (仕様 5 節)", () => {
   it("著者行 (note-author) は hover-card のトリガーを持つ", () => {
     // 捕まえる変異: `<Profile>` を `<ProfileHover>` で包むのをやめる
     // (著者名にホバーしてもカードが出なくなる)。属性名は実際に描画して

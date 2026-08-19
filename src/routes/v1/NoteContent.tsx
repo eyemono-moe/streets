@@ -6,6 +6,7 @@ import type { Nip19Ref } from "../../core/nostr/nip19";
 import { useRender } from "../../core/view/render-context";
 import type { EventVariant } from "../../core/view/renderer-registry";
 import EventView from "./EventView";
+import NestedEventCard from "./NestedEventCard";
 import Profile from "./Profile";
 
 export type NoteContentProps = {
@@ -146,13 +147,20 @@ const MentionToken: Component<{
           when={props.eventRefs === "embed"}
           fallback={<EventRefText raw={props.raw} />}
         >
-          <EventView
-            id={ref.id}
-            variant="compact"
-            relayHint={
-              ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined
-            }
-          />
+          {/*
+            枠を描くのは置く側という規則 (`NestedEventCard` 参照) —— 最下部の
+            引用 (`NoteFull` の `tagOnlyQuoteTargets`) と枠を揃えないと、
+            同じ「引用」が 1 ノートの中で 2 通りの見た目になる。
+          */}
+          <NestedEventCard>
+            <EventView
+              id={ref.id}
+              variant="compact"
+              relayHint={
+                ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined
+              }
+            />
+          </NestedEventCard>
         </Show>
       );
     case "naddr":

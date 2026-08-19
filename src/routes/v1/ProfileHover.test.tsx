@@ -113,10 +113,16 @@ describe("ProfileHover", () => {
     }
   });
 
-  it("トリガーは押せそうに見せない (cursor-pointer/hover:underline を持たない)", () => {
+  it("トリガーは appearance-none/bg-transparent/cursor-auto を持ち、押せそうに見せない", () => {
     // 捕まえる変異: 押せる合図 (cursor-pointer や hover:underline) を
     // トリガーへ足す。押しても今は何も起きないため、押せる合図を先に出すと
     // 「まだ無い」と「壊れている」の区別が付かなくなる (ADR-0026)。
+    //
+    // `className` に文字列 "cursor-pointer" が含まれないことだけを見ても、
+    // `HoverCard.Trigger` の実体である素の `<button>` に UnoCSS のリセット
+    // (`button { cursor: pointer }`、`ButtonFace` 背景) が残っている限り
+    // 見た目は変わらない (C-1)。トリガーがそれを打ち消すクラスを実際に
+    // 持っていることを単語境界の正規表現で主張する。
     const pubkey = pubkeyFor(2);
     const { trigger, dispose } = mount(
       () => ProfileHover({ pubkey, children: "x" }),
@@ -124,8 +130,11 @@ describe("ProfileHover", () => {
     );
     try {
       const className = trigger().className ?? "";
-      expect(className).not.toContain("cursor-pointer");
-      expect(className).not.toContain("hover:underline");
+      expect(className).toMatch(/(?:^|\s)appearance-none(?:\s|$)/);
+      expect(className).toMatch(/(?:^|\s)bg-transparent(?:\s|$)/);
+      expect(className).toMatch(/(?:^|\s)cursor-auto(?:\s|$)/);
+      expect(className).not.toMatch(/(?:^|\s)cursor-pointer(?:\s|$)/);
+      expect(className).not.toMatch(/(?:^|\s)hover:underline(?:\s|$)/);
     } finally {
       dispose();
     }
@@ -135,8 +144,8 @@ describe("ProfileHover", () => {
     // 捕まえる変異: `<HoverCard.Root>` から `lazyMount`/`unmountOnExit` を
     // 外す。無いと ark-ui 5.38.1 の `usePresence` は `unmounted` を常に
     // `false` にし、`HoverCard.Content` (= `ProfileCard`) がホバー前から
-    // `hidden` 属性だけで隠れた状態で常時マウントされる (レビューで実測:
-    // カラム初期表示 40 件 × 著者名/アイコンの 2 箇所で最大 80 個)。
+    // `hidden` 属性だけで隠れた状態で常時マウントされる (1 カラムの
+    // 初期表示 40 件 × 著者名/アイコンの 2 箇所で 80 個)。
     // `Portal` は既定で `document.body` 直下に出るので、そこを直接見る。
     const pubkey = pubkeyFor(4);
     const { dispose } = mount(

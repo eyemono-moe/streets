@@ -17,6 +17,7 @@ import type {
 import { observeHeight } from "../../../core/view/shared-resize-observer";
 import Avatar from "../Avatar";
 import EventView from "../EventView";
+import NestedEventCard from "../NestedEventCard";
 import NoteContent from "../NoteContent";
 import Profile from "../Profile";
 import ProfileHover from "../ProfileHover";
@@ -88,20 +89,6 @@ const CollapsibleBody: ParentComponent = (props) => {
     </div>
   );
 };
-
-/**
- * 入れ子のイベント (返信先・引用先) を囲む枠 (v0 の `RichContents` の引用
- * カードと同じ `b-1 rounded`)。**枠を描くのは置く側**という規則の実体で、
- * `NoteCompact` が padding を持たない (下のコメント) のと対になる ——
- * 余白と枠を 1 箇所で決めるので、入れ子が深くなっても二重にならない。
- *
- * トップレベルのイベント自身には枠が無い。v0 はカラムの一覧側が
- * `divide-y` で区切っており (`DeckColumn.tsx` の `<ul>` が同じ)、1 件ずつ
- * カードにすると入れ子の枠と見分けが付かなくなる。
- */
-const NestedEventCard: ParentComponent = (props) => (
-  <div class="b-1 overflow-hidden rounded p-1">{props.children}</div>
-);
 
 /**
  * 骨格そのもの: アイコン列と本文列の 2 列。**grid ではなく flex** ——

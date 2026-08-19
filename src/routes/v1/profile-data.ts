@@ -48,11 +48,12 @@ export const parseProfileContent = (
 };
 
 /**
- * `<Profile>`（名前）と `<Avatar>`（アイコン）が共有するプロフィール取得
- * ロジック。どちらも独立に `requests.request()` を呼びうるが、
- * `ProfileRequests` は pubkey を `Set` でまとめる (`profile-requests.ts`)
- * ので同じ pubkey への重複要求は実害が無い —— 2 つのコンポーネントが
- * それぞれ「自分は他の購読者の存在を知らない」という単純さを保てる。
+ * `<Profile>`（名前）・`<Avatar>`（アイコン）・`<ProfileCard>`（カード）が
+ * 共有するプロフィール取得ロジック。どれも独立に `requests.request()` を
+ * 呼びうるが、`ProfileRequests` は pubkey を `Set` でまとめる
+ * (`profile-requests.ts`) ので同じ pubkey への重複要求は実害が無い ——
+ * 各コンポーネントがそれぞれ「自分は他の購読者の存在を知らない」という
+ * 単純さを保てる。
  */
 export const useProfileData = (
   pubkey: () => string,

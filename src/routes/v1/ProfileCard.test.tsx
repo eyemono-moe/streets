@@ -162,6 +162,31 @@ describe("ProfileCard", () => {
     }
   });
 
+  it("display_name が無いとき @name を重ねて出さない (同じ文字列が2度並ばない)", () => {
+    // 捕まえる変異: `name` があれば無条件で `@name` も出す。`display_name`
+    // が無い kind:0 では大きい名前欄が `name` へ落ちるので、`@name` を
+    // 無条件に足すと「alice」「@alice」が縦に並んで同じ文字列が2度出る
+    // (`Profile.tsx` の `<Show when={displayName() && name()}>` と同じ規則)。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(208, {
+      content: JSON.stringify({ name: "alice" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const name = el.querySelector('[data-testid="profile-card-name"]');
+      expect(name?.textContent).toBe("alice");
+      expect(el.textContent).not.toContain("@alice");
+    } finally {
+      dispose();
+    }
+  });
+
   it('about のカスタム絵文字が <img data-testid="content-emoji"> になる', () => {
     // 捕まえる変異: about を素のテキストで出す (v0 が取りこぼしている点)
     const events = createRecordingEventRequests();
@@ -212,8 +237,10 @@ describe("ProfileCard", () => {
     }
   });
 
-  it("website が javascript: のとき <a> にならない", () => {
-    // 捕まえる変異: scheme を確かめずリンクにする
+  it("website が javascript: のとき <a> にならず、素のテキストで行が残る", () => {
+    // 捕まえる変異: scheme を確かめずリンクにする。
+    // 仕様 3.2 節・8 節: `http(s)` 以外はリンクにしないが、行ごと消しては
+    // いけない (素のテキストで出す)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(205, {
@@ -226,7 +253,58 @@ describe("ProfileCard", () => {
     );
     try {
       const el = element();
-      expect(el.querySelector('[data-testid="profile-website"]')).toBeNull();
+      const website = el.querySelector('[data-testid="profile-website"]');
+      expect(website).not.toBeNull();
+      expect(website?.tagName).toBe("SPAN");
+      expect(website?.textContent).toBe("javascript:alert(1)");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("website がスキーム無し (example.com) のとき、行ごと消えず素のテキストで残る", () => {
+    // 捕まえる変異: http(s) でない website を undefined へ落として
+    // <Show> ごと消す (I-1)。スキーム無しは実データで非常に多い形。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(209, {
+      content: JSON.stringify({ website: "example.com" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const website = el.querySelector('[data-testid="profile-website"]');
+      expect(website).not.toBeNull();
+      expect(website?.tagName).toBe("SPAN");
+      expect(website?.textContent).toBe("example.com");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("website が https:// のとき <a href> のリンクになる", () => {
+    // 捕まえる変異: isHttpUrl を常に false に倒す (http(s) でも決して
+    // リンクにならなくなる)。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(210, {
+      content: JSON.stringify({ website: "https://example.com/me" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const website = el.querySelector('[data-testid="profile-website"]');
+      expect(website).not.toBeNull();
+      expect(website?.tagName).toBe("A");
+      expect(website?.getAttribute("href")).toBe("https://example.com/me");
     } finally {
       dispose();
     }
@@ -268,6 +346,101 @@ describe("ProfileCard", () => {
       const el = element();
       expect(el.querySelector('[data-testid="profile-nip05"]')).not.toBeNull();
       expect(el.innerHTML).not.toContain("i-material-symbols:verified-rounded");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("nip05 の @ の後ろ (ドメイン部分) だけが出る", () => {
+    // 捕まえる変異: nip05Domain を素通し (nip05 をそのまま返す) にする ——
+    // 仕様 3.1 節が求めるのは「ドメイン部分」だけで、ローカル部分
+    // (`@` の前) を含めて出すと嘘の見た目になる (M-3)。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(211, {
+      content: JSON.stringify({ nip05: "handle@example.com" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const nip05 = el.querySelector('[data-testid="profile-nip05"]');
+      expect(nip05?.textContent).toBe("example.com");
+      expect(nip05?.textContent).not.toContain("handle@");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("nip05 が @ を含まなければ行を出さない (ドメインを取り出せない)", () => {
+    // 捕まえる変異: nip05Domain を素通しにする (常に truthy を返し、
+    // ドメインが取り出せない形でも行を出してしまう)
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(212, {
+      content: JSON.stringify({ nip05: "not-an-address" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      expect(el.querySelector('[data-testid="profile-nip05"]')).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("banner を持つとき <img data-testid=profile-banner> を描く", () => {
+    // 捕まえる変異: banner の <img> を丸ごと消す (I-2)。banner/picture の
+    // testid はこれまでどのテストからも参照されておらず、img を消す変異が
+    // 全部通っていた。
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(213, {
+      content: JSON.stringify({ banner: "https://example.com/banner.png" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const img = el.querySelector<HTMLImageElement>(
+        '[data-testid="profile-banner"]',
+      );
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("https://example.com/banner.png");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("picture を持つとき <img data-testid=profile-picture> を描く", () => {
+    // 捕まえる変異: picture の <img> を丸ごと消す
+    const events = createRecordingEventRequests();
+    const store = new EventStore();
+    const profileEvent = signed(214, {
+      content: JSON.stringify({ picture: "https://example.com/pic.png" }),
+    });
+    store.put(profileEvent, "wss://relay/");
+    const { element, dispose } = mount(
+      () => ProfileCard({ pubkey: profileEvent.pubkey }),
+      contextWith(events, store),
+    );
+    try {
+      const el = element();
+      const img = el.querySelector<HTMLImageElement>(
+        '[data-testid="profile-picture"]',
+      );
+      expect(img).not.toBeNull();
+      expect(img?.getAttribute("src")).toBe("https://example.com/pic.png");
     } finally {
       dispose();
     }
