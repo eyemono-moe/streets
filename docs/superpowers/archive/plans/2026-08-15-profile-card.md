@@ -8,7 +8,7 @@
 
 **Tech Stack:** SolidJS / TypeScript / UnoCSS / vitest / Playwright / `@ark-ui/solid`
 
-**Spec:** [docs/superpowers/specs/2026-08-15-profile-card-design.md](../specs/2026-08-15-profile-card-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
+**Spec:** [docs/superpowers/archive/specs/2026-08-15-profile-card-design.md](../specs/2026-08-15-profile-card-design.md)。**タスクの記述と仕様が食い違ったら仕様が正。**
 
 ## Global Constraints
 

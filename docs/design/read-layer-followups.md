@@ -459,7 +459,7 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## プロフィールカードとホバー（2026-08-19）— 仕様 10 節の答え
 
-[仕様](../superpowers/specs/2026-08-15-profile-card-design.md) 10 節が定める 3 問への回答。**3 問とも実鍵で v0（`/`）と v1（`/v1`）を並べて見ないと答えられない。** ローカルの docker リレーのシードは `about` の長さも絵文字の個数も実データの分布を持たない。e2e（`e2e/v1.spec.ts` の「hovering the author name or the avatar reveals the profile card」）はホバーで実際にカードがマウントされ、about のトークン化とカスタム絵文字が効くことは固定したが、それは「動くこと」の確認であって、以下の 3 問（「動かして初めて答えられる問い」）には答えていない。**推測は書かない。**
+[仕様](../superpowers/archive/specs/2026-08-15-profile-card-design.md) 10 節が定める 3 問への回答。**3 問とも実鍵で v0（`/`）と v1（`/v1`）を並べて見ないと答えられない。** ローカルの docker リレーのシードは `about` の長さも絵文字の個数も実データの分布を持たない。e2e（`e2e/v1.spec.ts` の「hovering the author name or the avatar reveals the profile card」）はホバーで実際にカードがマウントされ、about のトークン化とカスタム絵文字が効くことは固定したが、それは「動くこと」の確認であって、以下の 3 問（「動かして初めて答えられる問い」）には答えていない。**推測は書かない。**
 
 ### 問い1 —— ホバーの開閉の遅延が v0 と揃っているか
 
