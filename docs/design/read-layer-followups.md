@@ -457,6 +457,37 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 - **対象不明の kind:7 がカラムに空行を残す。** 仕様 7 節どおり `ReactionFull` は何も描かないが、`ColumnItems.tsx` の `<li>` は残るので `<ul class="divide-y">` の区切り線と `contain-intrinsic-size` の場所取りだけが見える。`a` タグしか持たない kind:7（NIP-23 の記事へのリアクション）や 64 桁 hex でない `e` タグで起きる。kind:6 は同じ状況で「リポスト（対象不明）」を出すので、**同じスライスの中で扱いが割れている** —— 揃えるなら「レンダラが何も描かなかったアイテムは `<li>` ごと出さない」を `ColumnItems` 側の規則にするのが筋で、レンダラ個別の判断ではない。
 - **`task-N-brief.md` への参照がコメントに残っているファイルがある。** このスライスでは `e2e/v1.spec.ts` と `e2e/fixtures/seed-preview.ts` から除いたが、`src/routes/v1/DeckColumn.tsx` / `profile-requests.ts` / `profile-data.ts` / `first-render-recorder.ts`（と `.test.ts`）/ `v1.tsx` / `deck-mutations.ts` / `connection-pool.test.ts` に過去のスライスのものが残っている。ブリーフはスライスが終われば消える作業ファイルなので、これらは追えない参照になっている。
 
+## プロフィールカードとホバー（2026-08-19）— 仕様 10 節の答え
+
+[仕様](../superpowers/specs/2026-08-15-profile-card-design.md) 10 節が定める 3 問への回答。**3 問とも実鍵で v0（`/`）と v1（`/v1`）を並べて見ないと答えられない。** ローカルの docker リレーのシードは `about` の長さも絵文字の個数も実データの分布を持たない。e2e（`e2e/v1.spec.ts` の「hovering the author name or the avatar reveals the profile card」）はホバーで実際にカードがマウントされ、about のトークン化とカスタム絵文字が効くことは固定したが、それは「動くこと」の確認であって、以下の 3 問（「動かして初めて答えられる問い」）には答えていない。**推測は書かない。**
+
+### 問い1 —— ホバーの開閉の遅延が v0 と揃っているか
+
+**未取得。** ark-ui の `HoverCard` の既定 `openDelay`（600ms）/`closeDelay` を v0 の `@kobalte/core` の既定値と比べていない。e2e はこの遅延を「600ms より十分長い」タイムアウトで待ち越しているだけで、遅延の長さそのものは主張していない。
+
+**答え方:** `pnpm dev` → `/` と `/v1` を同じブラウザで開き、同じ著者の名前・アイコンに素早くカーソルを行き来させて、カードが「すぐ出すぎる／出るまで待たされる」「離してもすぐ消える／なかなか消えない」のどちらに感じるかを見る。数値化するなら DevTools のパフォーマンスパネルでカーソル移動からカード出現までの時間を実測して両者を比べる。
+
+### 問い2 —— カラムの `overflow` の中でカードが切れないか
+
+**未取得。** `DeckColumn.tsx` のカラムは `overflow-y-auto` を持ち、`HoverCard.Content` は `<Portal>` で `document.body` 直下に出る（`ProfileHover.tsx`）ので理屈のうえでは親の `overflow`/`contain`/`transform` に捕まらないはずだが、実機で確かめていない。
+
+**答え方:** 実鍵で `/v1` を開き、**一番右のカラムの一番下のノート**（カラムの端、画面の端に最も近い位置）の著者名・アイコンにホバーし、カードが画面外へはみ出さずに `Positioner` の反転（zag.js の衝突回避）が効いているかを見る。効いていなければカードの一部が見切れる、または横スクロールバーが出る。
+
+### 問い3 —— `content-visibility: auto` の中のトリガーでホバーが効くか
+
+**未取得。** 段階的レンダリング（[progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)）が `<li>` に `content-visibility: auto` を掛けているため、画面外にスクロールしたノートの著者名・アイコンは描画がスキップされている。スクロールで画面内に戻した直後、ブラウザがまだ intersection を再計算していない一瞬にホバーした場合の挙動を確かめていない。
+
+**答え方:** 実鍵で 40 件を超えるカラムを開き、初期窓の外（スクロールしないと現れない位置）まで下げてから素早く戻り、戻った直後のノートの著者名・アイコンにすぐホバーしてカードが出るかを見る。出ない、または遅れる場合は `content-visibility: auto` の再描画とホバー判定の競合を疑う。
+
+### 繰り越し
+
+- **NIP-05 を検証していない。** 仕様 3.1 節の判断どおり、`ProfileCard` は常に「未検証」のマーク（`i-material-symbols:question-mark-rounded`）を出し、`/.well-known/nostr.json` への検証は行わない。検証は新しい外部 HTTP 経路（キャッシュ・失敗の扱い・ドメインへ閲覧を知らせるプライバシーの論点）を要するので、着手するときは専用の計画が要る。
+- **フォロー操作・フォロー数・フォロワー数がカードに無い。** 仕様 2 節が明示的に範囲外とした（kind:3 の読み取り→編集→署名→publish、フォロワー数は専用の取得経路が要る）。
+- **カードの寸法が 1 つしかない。** v0 は `small` の有無で banner/アイコンが 2 段階あるが、このスライスはホバーの中だけで使う小さいほうしか実装していない。[#205](https://github.com/eyemono-moe/streets/issues/205)（ユーザー詳細カラム）が大きいほうを要る。
+- **`unmountOnExit` だけを外す変異を捕まえるテストが無い。** `src/routes/v1` にホバーの開閉そのもの（`HoverCard.Root` が実際に `lazyMount`/`unmountOnExit` を持っているか）を模すユニット/コンポーネントテストが 1 件も無い。`ProfileHover.test.tsx` はトリガーの形（`asChild`/`cursor-pointer` が無いこと）を主張しているが、`unmountOnExit` を外す変異（ホバー前から `HoverCard.Content` が非表示のまま常時マウントされる、レビューで実測した「最大 80 個の非表示ツリー」の再発）を落とせるテストが無い。jsdom で `usePresence` の実際の遷移を模すか、e2e でマウント数を数える必要がある。
+- **`tagOnlyQuoteTargets` の address 形式の重複排除に専用のテストが無い。** 仕様 4.2 節が「`q` タグの座標形式（`naddr` 相当）も本文と突き合わせる」と定め、`tagOnlyQuoteTargets`（`src/core/nostr/event-refs.ts`）の実装は id/address 対称に書かれている（`q` タグの `<kind>:<pubkey>:<identifier>` と本文の `nostr:naddr1…` を同じ集合で突き合わせる）。コードは正しく見えるが、`event-refs.test.ts` に address 形式（`form: "address"`）だけを対象にした「本文にあってタグに無い」「タグにあって本文に無い」「両方にある」の 3 パターンのテストが無い。id 形式のテストはあるので、その対称形をそのまま address 形式へ複製すれば埋まる。
+- **`noteWith` というテストヘルパの引数の順序が 2 ファイルで逆になっている。** `src/core/nostr/event-refs.test.ts` は `noteWith(tags, overrides)`、`src/routes/v1/NoteContent.test.tsx` は `noteWith(content, tags)`。同じ名前で違う形の関数がリポジトリに共存しているので、次にどちらかのファイルへテストを足す人が、もう片方のファイルで見た記憶のまま呼んで型エラー（またはランタイムの取り違え）を踏む。どちらかの名前を変えるか、共有ヘルパへ統合する必要がある。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。

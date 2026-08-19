@@ -1,4 +1,5 @@
 import { type EventTemplate, Relay } from "nostr-tools";
+import { noteEncode } from "nostr-tools/nip19";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 
 export const previewRelayUrl =
@@ -26,6 +27,27 @@ export const previewAuthorTwoPubkey = getPublicKey(authorTwoSecretKey);
 export const previewViewerDisplayName = "streets preview viewer";
 export const previewAuthorOneDisplayName = "streets preview author one";
 export const previewAuthorTwoDisplayName = "streets preview author two";
+
+// previewAuthorOne の kind:0 を厚くする分。about にカスタム絵文字
+// (NIP-30) と `nostr:note` の参照を両方入れておくと、v0 が kind:0 の
+// タグを捨てていて about の絵文字が出ない欠陥 (プロフィールカード仕様
+// 1 節) を e2e で実測できる。
+export const previewAuthorOneAboutEmojiName = "streetsprofileemoji";
+export const previewAuthorOneAboutEmojiUrl =
+  "https://images.invalid/streets-preview-profile-emoji.png";
+// note の参照先は eventRefs="text" (ProfileCard) では短縮テキストにしか
+// ならず、実際に取得されない —— 実在するイベントである必要はない。
+const previewAuthorOneAboutNoteId = "f".repeat(64);
+// 絵文字/note 参照はトークン化されて元の文字列のままでは画面に残らない
+// (前者は <img>、後者は短縮テキストになる) —— e2e が「about の本文が
+// 読める」ことを突き合わせるのはこのプレーンテキストの断片のみ。
+export const previewAuthorOneAboutPrefix =
+  "streets preview author one about text";
+export const previewAuthorOneAboutText = `${previewAuthorOneAboutPrefix} :${previewAuthorOneAboutEmojiName}: nostr:${noteEncode(previewAuthorOneAboutNoteId)}`;
+const previewAuthorOneNip05 = "authorone@streets-preview.invalid";
+const previewAuthorOneWebsite = "https://streets-preview.invalid/authorone";
+const previewAuthorOneBanner =
+  "https://images.invalid/streets-preview-banner.png";
 
 export const previewViewerSeedNoteText = "streets preview viewer seed note";
 export const previewAuthorOneNoteText = "streets preview author one note";
@@ -113,13 +135,28 @@ export const seedPreviewFixture = async (): Promise<void> => {
     },
     viewerSecretKey,
   );
+  // authorOne だけ厚くする —— プロフィールカード (about/banner/nip05/
+  // website) と、about のカスタム絵文字を実測するのはこの 1 人で足りる。
   await publish(
     relay,
     {
       kind: 0,
       created_at: now,
-      tags: [],
-      content: profile(previewAuthorOneDisplayName),
+      tags: [
+        [
+          "emoji",
+          previewAuthorOneAboutEmojiName,
+          previewAuthorOneAboutEmojiUrl,
+        ],
+      ],
+      content: JSON.stringify({
+        name: previewAuthorOneDisplayName,
+        display_name: previewAuthorOneDisplayName,
+        about: previewAuthorOneAboutText,
+        banner: previewAuthorOneBanner,
+        nip05: previewAuthorOneNip05,
+        website: previewAuthorOneWebsite,
+      }),
     },
     authorOneSecretKey,
   );

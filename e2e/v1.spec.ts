@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import type { EventTemplate } from "nostr-tools";
 import { capAuthorPubkey, capViewerPubkey } from "./fixtures/seed-cap.js";
 import {
+  previewAuthorOneAboutEmojiUrl,
+  previewAuthorOneAboutPrefix,
   previewAuthorOneDisplayName,
   previewAuthorOneNoteText,
   previewAuthorOnePubkey,
@@ -105,6 +107,21 @@ const PNG_1X1 = Buffer.from(
 
 const stubPreviewImage = async (page: import("@playwright/test").Page) => {
   await page.route(previewImageUrl, (route) =>
+    route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 }),
+  );
+};
+
+/**
+ * `about` のカスタム絵文字 (NIP-30) の画像を実ネットワークへ出さずに
+ * 満たす。`EmojiToken`（`NoteContent.tsx`）は `onError` で `:shortcode:`
+ * のテキストへ戻すので、実在しないホストのままだと `content-emoji`
+ * (`<img>`) の主張が読み込みの成否に左右される —— `stubPreviewImage` と
+ * 同じ理由。
+ */
+const stubPreviewProfileEmoji = async (
+  page: import("@playwright/test").Page,
+) => {
+  await page.route(previewAuthorOneAboutEmojiUrl, (route) =>
     route.fulfill({ status: 200, contentType: "image/png", body: PNG_1X1 }),
   );
 };
@@ -897,5 +914,69 @@ test.describe("v1 vertical slice", () => {
         { timeout: 60_000 },
       )
       .toBe(200);
+  });
+
+  /**
+   * プロフィールカードのスライスの唯一の実測経路 (仕様 9 節 E2E)。
+   * `lazyMount`/`unmountOnExit` (`ProfileHover.tsx`) によりカードは
+   * ホバーするまで DOM に存在しないので、Playwright の `hover()` で
+   * 実際にマウントされることまで確かめる必要がある。ark-ui の既定
+   * `openDelay` は 600ms なので、`toBeVisible` の待ち時間はそれより
+   * 十分長く取る。
+   */
+  test("hovering the author name or the avatar reveals the profile card", async ({
+    page,
+  }) => {
+    test.setTimeout(30_000);
+
+    await stubSigner(page);
+    await stubPreviewProfileEmoji(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    const homeColumn = page.locator(
+      '[data-testid="deck-column"][data-column-id="home"]',
+    );
+    const authorOneNote = homeColumn.locator('[data-testid="note"]', {
+      hasText: previewAuthorOneNoteText,
+    });
+    await expect(authorOneNote).toBeVisible({ timeout: 20_000 });
+
+    // `HoverCard.Content` は `<Portal>` の中に出るので、カラムの外
+    // (document.body 直下) を素直に `getByTestId` で探せばよい。
+    const profileCard = page.getByTestId("profile-card");
+
+    // 1. 著者名にホバーするとカードが出て、about の本文が読める。
+    // 捕まえる変異: `NoteBody`(`renderers/Note.tsx`) の著者行
+    // (`note-author`) から `ProfileHover` を外し `Profile` を直接描く ——
+    // `profile-hover-trigger` 自体が無くなるので `hover()` が要素を
+    // 見つけられずタイムアウトする。
+    await authorOneNote.getByTestId("profile-hover-trigger").hover();
+    await expect(profileCard).toBeVisible({ timeout: 5_000 });
+    await expect(profileCard).toContainText(previewAuthorOneAboutPrefix);
+
+    // about のカスタム絵文字 (NIP-30) が content-emoji として出る ——
+    // v0 は kind:0 のタグを捨てていて出ない (仕様 1 節)。
+    // 捕まえる変異: `ProfileCard` が `about` を `NoteContent` (トークナイザ)
+    // ではなく素のテキストで描く。
+    await expect(profileCard.getByTestId("content-emoji")).toBeVisible({
+      timeout: 5_000,
+    });
+
+    // 一度ホバーを外してカードを閉じてから、別のトリガーで開き直す。
+    await page.mouse.move(0, 0);
+    await expect(profileCard).toHaveCount(0, { timeout: 5_000 });
+
+    // 2. アイコンにホバーしても出る。
+    // 捕まえる変異: `Avatar.tsx` から `ProfileHover` (`asChild` によるトリガー
+    // の合流) を外す。
+    await authorOneNote.getByTestId("avatar").hover();
+    await expect(profileCard).toBeVisible({ timeout: 5_000 });
+    await expect(profileCard).toContainText(previewAuthorOneAboutPrefix);
   });
 });
