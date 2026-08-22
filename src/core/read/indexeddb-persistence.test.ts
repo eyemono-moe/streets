@@ -1,8 +1,12 @@
+import {
+  IDBFactory as FakeIDBFactory,
+  IDBKeyRange as FakeIDBKeyRange,
+} from "fake-indexeddb";
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../nostr/event";
 import type { CachePolicy } from "./cache-policy";
 import type { PersistedEvent } from "./event-persistence";
-import { createFakeClock } from "./fake-clock";
+import { type FakeClock, createFakeClock } from "./fake-clock";
 import {
   createIndexedDbPersistence,
   selectForPersistence,
@@ -300,5 +304,96 @@ describe("createIndexedDbPersistence — 書き込みの窓", () => {
     await waitForAsyncWork();
 
     expect(openCalls).toBe(1);
+  });
+});
+
+// production コード (`writeBatch`) は注入されていない生の `IDBKeyRange` を
+// 直接参照する。jsdom/Node には元々存在しないので、実ストレージへの
+// 読み書きを検証する以下のテストのためにここでだけグローバルへ補う
+// (`vitest.setup.ts` の ResizeObserver/IntersectionObserver スタブと同じ形)。
+if (typeof globalThis.IDBKeyRange === "undefined") {
+  globalThis.IDBKeyRange = FakeIDBKeyRange as unknown as typeof IDBKeyRange;
+}
+
+describe("createIndexedDbPersistence — delete() は IndexedDB から実際に消す", () => {
+  /**
+   * `readAllEvents` は `isNostrEvent` を通った record しか返さない
+   * (`toPersistedEvent`) ため、この describe だけは 64/128 桁 hex の形を
+   * した id/pubkey/sig を持つ実物らしい event を使う。kind は 0
+   * (`retention: "latest-per-author"`, `scope: "public"`) —— 永続化されない
+   * kind では `selectForPersistence` が弾いてしまい、delete() が実際に
+   * 何を消しているのかを確かめられない。
+   */
+  const realEvent = (id: string, pubkey: string): NostrEvent => ({
+    id,
+    pubkey,
+    kind: 0,
+    created_at: 1,
+    tags: [],
+    content: "",
+    sig: "0".repeat(128),
+  });
+  const eventA = persistedEvent(realEvent("a".repeat(64), "1".repeat(64)));
+  const eventB = persistedEvent(realEvent("b".repeat(64), "2".repeat(64)));
+
+  /**
+   * fake-indexeddb はリクエストの継続処理に Node の `setImmediate`
+   * (check フェーズ) を使う。`waitForAsyncWork` の 1 回の
+   * `setTimeout(…, 0)` 待ちでは、cursor 検索 → put のような複数ホップの
+   * 完了を保証できない (実測でも稀に取りこぼす) ので、check フェーズを
+   * 複数回回してから読む。
+   */
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 20; i++) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+  };
+
+  /** テストごとに新しい `FakeIDBFactory` を注入する —— DB_NAME はモジュール
+   * 内で固定なので、同じインスタンスを使い回すとテスト間で状態が漏れる。 */
+  const setup = (): {
+    persistence: ReturnType<typeof createIndexedDbPersistence>;
+    scheduler: FakeClock;
+    flush: () => Promise<void>;
+  } => {
+    const scheduler = createFakeClock();
+    const persistence = createIndexedDbPersistence({
+      scheduler,
+      indexedDB: new FakeIDBFactory(),
+    });
+    const flush = async (): Promise<void> => {
+      scheduler.advance(1000);
+      await settle();
+    };
+    return { persistence, scheduler, flush };
+  };
+
+  it("delete した id は load で戻ってこない", async () => {
+    // 捕まえる変異: delete を no-op のままにする。放置すると publish に
+    // 失敗して巻き戻したイベントが次回起動の水和で戻ってくる。
+    const { persistence, flush } = setup();
+    persistence.save([eventA, eventB]);
+    await flush();
+
+    persistence.delete([eventA.event.id]);
+    await flush();
+
+    const { events } = await persistence.load();
+    expect(events.map((e) => e.event.id)).toEqual([eventB.event.id]);
+  });
+
+  it("同じ flush の中で save した直後の id も消える", async () => {
+    // 捕まえる変異: `writeBatch` の `removalSet` によるフィルタを外し、
+    // retained をそのまま cursor 経由で put する。cursor 越しの put は
+    // 非同期にしか確定しないため、同じ id への delete() が先に (まだ何も
+    // 無い所を消す no-op として) 処理され、後から確定する put がそれを
+    // 上書きして残ってしまう。
+    const { persistence, flush } = setup();
+    persistence.save([eventA]);
+    persistence.delete([eventA.event.id]);
+    await flush();
+
+    const { events } = await persistence.load();
+    expect(events).toEqual([]);
   });
 });
