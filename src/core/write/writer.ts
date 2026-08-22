@@ -1,4 +1,4 @@
-import type { EventDraft } from "../nostr/build/draft";
+import type { EventDraft, Mutation } from "../nostr/build/draft";
 import type { NostrEvent, UnsignedEvent } from "../nostr/event";
 import type { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -57,10 +57,17 @@ export class WriteFailedError extends Error {
 
 export type Writer = {
   publish(draft: EventDraft, hooks?: WriteHooks): Promise<WriteResult>;
+  /**
+   * `mutate` には store が持つ**生きたイベント**をそのまま渡す
+   * (`fetchLatest` が返したものは `store.latestReplaceable` 経由で store の
+   * 参照そのもの)。`Mutation` の「`current` を破壊しない」契約 (`draft.ts`)
+   * が破られると、store の中身を呼び出し側が知らないうちに書き換えることに
+   * なる。
+   */
   replace(
     kind: number,
     identifier: string | undefined,
-    mutate: (current: NostrEvent | undefined) => EventDraft,
+    mutate: Mutation,
     hooks?: WriteHooks,
   ): Promise<WriteResult>;
 };
@@ -139,6 +146,14 @@ export const createWriter = ({
     publish: (draft, hooks) =>
       send({ ...draft, pubkey: pubkey(), created_at: now() }, hooks, undefined),
 
+    // `identifier` (NIP-33 アドレス可能イベントの `d` タグ) を受け取っては
+    // いるが、ここではまだ `draft.tags` へ書き込んでいない —— 今日
+    // `fetchLatest` が identifier 有りを常に投げる (`fetch-latest.ts`) ので
+    // 実効が無いだけで、無害に見える。**その throw を外して kind:30078 等の
+    // アドレス可能イベントを有効化する側は、この `d` タグを足す変更が
+    // セットで要る。** 忘れると、同じ著者の複数の下書きが `d` 無しで
+    // すべて同じアドレス (`kind:pubkey:` 空文字) に衝突し、後から publish
+    // した方が黙って前を上書きする。
     replace: async (kind, identifier, mutate, hooks) => {
       const author = pubkey();
       // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして

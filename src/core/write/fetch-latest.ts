@@ -1,8 +1,9 @@
 import type { NostrEvent } from "../nostr/event";
 import { collect } from "../read/collect";
-import type {
-  ConnectionPool,
-  PooledSubscription,
+import {
+  type ConnectionPool,
+  PUBLISH_TIMEOUT_MS,
+  type PooledSubscription,
 } from "../read/connection-pool";
 import type { EventStore } from "../read/event-store";
 import type { RoutingTable } from "../read/routing-table";
@@ -17,9 +18,6 @@ export class RefetchFailedError extends Error {
     this.relays = relays;
   }
 }
-
-/** `connection-pool.ts` の PUBLISH_TIMEOUT_MS と同じ値。 */
-const DEFAULT_TIMEOUT_MS = 10_000;
 
 export type FetchLatestOptions = {
   pool: ConnectionPool;
@@ -43,7 +41,10 @@ export const fetchLatest = async (
     routing,
     store,
     fallbackRelays,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
+    // `connection-pool.ts` の PUBLISH_TIMEOUT_MS をそのまま既定値にする ——
+    // 「リレー 1 本との往復にどれだけ待つか」を publish 側と揃えている値で、
+    // ここに別の定数を作ると値がずれたときに気づけなくなる。
+    timeoutMs = PUBLISH_TIMEOUT_MS,
   }: FetchLatestOptions,
   kind: number,
   identifier: string | undefined,

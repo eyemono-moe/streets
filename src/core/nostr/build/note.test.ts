@@ -107,6 +107,17 @@ describe("buildQuote", () => {
     ]);
   });
 
+  it("relayHint が無ければ位置要素を空文字で埋める", () => {
+    // 捕まえる変異: 3 番目の要素を省略して ["q", id, pubkey] にする。
+    // buildReply と違い q タグは relay-url の位置を落としても型が通って
+    // しまうため、読む側が pubkey を relay-url と取り違える。
+    const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
+    const draft = buildQuote(target, "これ面白い");
+    expect(draft.tags.filter((t) => t[0] === "q")).toEqual([
+      ["q", "1".repeat(64), "", "9".repeat(64)],
+    ]);
+  });
+
   it("引用先の著者に p タグを立てる", () => {
     // 捕まえる変異: p を落とす。引用されたことが相手に通知されない。
     const target = evt({ pubkey: "9".repeat(64) });

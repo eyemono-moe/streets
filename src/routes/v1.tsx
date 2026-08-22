@@ -469,6 +469,10 @@ const V1: Component = () => {
     // 一緒に消してしまう —— Writer 側が "duplicate" では store.remove()
     // しない (writer.ts) のと同じ理由で、ここでも "duplicate" には触れない。
     let insertedId: string | undefined;
+    // onOptimisticInsert で本文をクリアしたかどうか (下記コメント参照)。
+    // put() が "duplicate" のときも消すため、insertedId の有無だけでは
+    // 判定できない。
+    let clearedOptimistically = false;
     try {
       // 署名・挿入・publish・(全滅時の) 巻き戻しは Writer に一本化されて
       // いる (writer.ts)。ここに残る責務は「楽観リストへの反映」と
@@ -482,24 +486,33 @@ const V1: Component = () => {
               setOptimisticEvents((prev) => [signed, ...prev]);
             }
             setOptimisticInsertMs(performance.now() - startedAt);
+            // 楽観挿入 (または重複判定) と同じタイミングでクリアする ——
+            // publish の解決を待ってから消すと (旧実装)、"inserted" の
+            // 場合はノート自体が挿入直後に画面へ出ているのに入力欄だけ
+            // 最大 PUBLISH_TIMEOUT_MS 分の間古い文面を残し、送れたのか
+            // 疑わせる空白ができる。失敗時は下の catch で元の文面に戻す
+            // (「本文は残す」という挙動そのものは変えない)。
+            setContent("");
+            clearedOptimistically = true;
           },
         },
       );
-      setContent("");
       setPublishResult(result);
     } catch (error) {
       if (error instanceof WriteFailedError) {
         // Writer が store と永続層から取り除いているので、こちらは表示中
         // の楽観リストだけ戻す (spec 5.1 節: 戻す先は書き込む側ごとに違う
-        // ので Writer は扱わない)。本文は残す —— 送れなかった文面を打ち
-        // 直させないため。insertedId が無いのは、署名など onOptimisticInsert
-        // より前で失敗した場合、または今回の put が "duplicate" だった場合
-        // (上のコメント参照) —— いずれも楽観リストにこの呼び出しが足した
-        // ものは無いので、取り除く対象も無い。
+        // ので Writer は扱わない)。insertedId が無いのは、署名など
+        // onOptimisticInsert より前で失敗した場合、または今回の put が
+        // "duplicate" だった場合 (上のコメント参照) —— いずれも楽観リスト
+        // にこの呼び出しが足したものは無いので、取り除く対象も無い。
         if (insertedId !== undefined) {
           const id = insertedId;
           setOptimisticEvents((prev) => prev.filter((e) => e.id !== id));
         }
+        // 本文は残す —— 送れなかった文面を打ち直させないため。
+        // onOptimisticInsert で先にクリアしていた場合はここで書き戻す。
+        if (clearedOptimistically) setContent(text);
         setPostError(
           `どのリレーにも届きませんでした (${error.rejected.length} 本が拒否)`,
         );
