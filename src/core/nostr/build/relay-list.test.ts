@@ -71,6 +71,21 @@ describe("setRelayList", () => {
     expect(parsed).toEqual(entries);
   });
 
+  it("既存の r タグは残さず新しい内容で置き換える", () => {
+    // 捕まえる変異: replaceTags へ渡すタグ名を "r" から空文字にする。
+    // フィルタ対象がずれると、置き換え前の r タグが「無関係な他のタグ」
+    // として素通りし、新しい r タグと重複して残ってしまう。
+    const current = evt({
+      kind: 10002,
+      tags: [["r", "wss://old.example"]],
+      content: "",
+    });
+    const draft = setRelayList([
+      { url: "wss://new.example" as RelayUrl, read: true, write: true },
+    ])(current);
+    expect(draft.tags).toEqual([["r", "wss://new.example"]]);
+  });
+
   it("r 以外のタグと content を保つ", () => {
     // 捕まえる変異: tags を r だけで作り直す
     const current = evt({

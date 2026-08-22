@@ -49,7 +49,10 @@ export type WriteHooks = {
 export class WriteFailedError extends Error {
   readonly rejected: { relay: RelayUrl; reason: string }[];
   constructor(rejected: { relay: RelayUrl; reason: string }[]) {
+    // Stryker disable next-line StringLiteral: 呼び出し側は instanceof
+    // WriteFailedError で分岐しており、メッセージ文言は判定に使わない。
     super(`publish rejected by all ${rejected.length} relay(s)`);
+    // Stryker disable next-line StringLiteral: 同上。name も分岐に使わない。
     this.name = "WriteFailedError";
     this.rejected = rejected;
   }

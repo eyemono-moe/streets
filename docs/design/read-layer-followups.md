@@ -569,6 +569,16 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 - IndexedDB 往復テストの 1 件目のコメントが指す変異が、そのテストが実際に守っている性質の一部しか書いていない（flush ガードの修正でも落ちる）。
 - `verifyOptimisticInsert` の例外文言（「投稿の検証に失敗しました」）が、`v1.tsx` の汎用エラー分岐（「投稿に失敗しました: …」）の中でメッセージに包まれ、「失敗しました」が二重に出る（`v1.tsx:510` 付近）。
 
+## 変異テストの導入（2026-08-22）— くり返し踏んだ罠を機械で塞ぐ
+
+上の「くり返し踏んだ罠」節は一般則（フィクスチャの既定値を期待値と揃えると、そのアサーションは何も検証していない）を書いた。しかし規則を書くことと、それが守られているかを確かめることは別で、実際にこのブランチで同じ形の defect が独立に 4 回発生した。[ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が記録した通り、足りなかったのは周知ではなく強制だったので、`src/core/nostr/build/**` と `src/core/write/**` に StrykerJS を導入した（`stryker.config.json`、`pnpm mutation`）。
+
+**初回計測**: 21 秒、92.57%（299 killed / 22 survived / 2 no coverage、対象 323 mutant）。survived の内訳を 1 件ずつ判定した結果、**18 件は本物のテストの穴**、**6 件は等価な変異**（`this.name`/エラーメッセージの文言など、コードが `instanceof` でしか分岐しない値）だった。
+
+18 件の実アサーションを追加して閉じた —— `note.ts` の `root` マーカー誤判定（`tag[0]==="e"` を見ずに `"root"` という値だけで拾う/`p` タグの値との取り違え）、`mergeProfile` の配列・プリミティブ混入、`buildRepost` の relay-url 省略（`buildQuote` で直したのと同型の穴）、`setRelayList` が既存の `r` タグを残さず置き換えているかの確認、`fetchLatest` のフィルタが `kind`/`author` で絞られているかの確認、`Writer` の `now` 既定値と `hooks?.onOptimisticInsert?.()` の内側オプショナル呼び出し。6 件は `// Stryker disable next-line <mutator>: <理由>` で行単位に無効化し、理由をコメントに残した（`StringLiteral` ミューテータ自体は無効化していない —— タグ名などの値が意味を持つ文字列リテラルは引き続き変異対象）。最終計測は 100.00%（317 killed / 0 survived、無効化した 6 件は対象 mutant 数からも除かれて 323 → 317）。
+
+**まだ覆っていないもの**: 読み取り層（`src/core/read/` 以下）と CI 組み込みは、どちらも [ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が「今回はしない」と明示的に決めた範囲外であり、対象拡大は別の決定として残っている。CI に Playwright (e2e) がまだ載っていないこと自体は本節より前の「CI が Playwright (e2e) を一度も実行していない」節が指摘済みで、変異テストの CI 組み込みはそれと同じ順序待ちである。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。

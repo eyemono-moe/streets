@@ -34,6 +34,9 @@ export const verifyOptimisticInsert = (
 ): Exclude<PutResult, "rejected"> => {
   if (putResult === "rejected") {
     throw new Error(
+      // Stryker disable next-line StringLiteral: 呼び出し側は例外の有無
+      // (throw されたかどうか) だけを見ており、メッセージ文言は判定に
+      // 使わない。ユーザー向けの文面は v1.tsx 側で別途包んでいる。
       "投稿の検証に失敗しました (拡張機能の応答が壊れています)。",
     );
   }

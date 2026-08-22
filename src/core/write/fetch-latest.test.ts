@@ -40,6 +40,44 @@ const poolWithFakes = (connections: Map<RelayUrl, FakeRelayConnection>) =>
   });
 
 describe("fetchLatest", () => {
+  // 捕まえる変異: フィルタを {} にする。絞りが無いと、そのリレーが
+  // 持つ全イベントを引いてしまう。
+  it("フィルタを kind と author で絞る", async () => {
+    const store = new EventStore();
+    const relayList = sign(6, {
+      ...base,
+      kind: 10002,
+      tags: [["r", "wss://only/", "write"]],
+    });
+    store.put(relayList, "wss://indexer/");
+    const author = relayList.pubkey;
+
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(connections);
+
+    const promise = fetchLatest(
+      {
+        pool,
+        routing: new RoutingTable(store),
+        store,
+        fallbackRelays: [],
+      },
+      0,
+      undefined,
+      author,
+    );
+
+    await vi.waitFor(() =>
+      expect(connections.get("wss://only/")?.subscriptions).toHaveLength(1),
+    );
+    expect(connections.get("wss://only/")?.subscriptions[0]?.filters).toEqual([
+      { kinds: [0], authors: [author] },
+    ]);
+
+    connections.get("wss://only/")?.emitEose(0);
+    await promise;
+  });
+
   // 捕まえる変異: read リレーから引く。自分が最後に書いた版がまだ
   // 伝播していないと、自分で自分の変更を消す。
   it("write リレーから引いて最新版を返す", async () => {

@@ -86,6 +86,55 @@ describe("buildReply", () => {
     ]);
   });
 
+  it("親の e タグでも root 以外のマーカーは根として使わない", () => {
+    // 捕まえる変異: tag[3] === "root" 側の判定を外して true にする。
+    // マーカーを見ずに e タグならなんでも根扱いすると、返信の親でない
+    // イベントが root として引き継がれる。
+    const parent = evt({
+      id: "2".repeat(64),
+      pubkey: "9".repeat(64),
+      tags: [
+        ["e", "1".repeat(64), "wss://r.example", "mention", "8".repeat(64)],
+      ],
+    });
+    const draft = buildReply(parent, "hi", { relayHint: "wss://a.example" });
+    expect(draft.tags.filter((t) => t[0] === "e")).toEqual([
+      ["e", "2".repeat(64), "wss://a.example", "root", "9".repeat(64)],
+    ]);
+  });
+
+  it("root マーカーが e 以外のタグに付いていても根として使わない", () => {
+    // 捕まえる変異: tag[0] === "e" 側の判定を外す (true 化・|| 化)。
+    // タグの種類を見ずに「4 番目が "root"」という形だけで拾うと、親が
+    // 持つ無関係な p タグを根と取り違え、返信が誤ったイベントを指す。
+    const parent = evt({
+      id: "2".repeat(64),
+      pubkey: "9".repeat(64),
+      tags: [["p", "7".repeat(64), "", "root"]],
+    });
+    const draft = buildReply(parent, "hi", { relayHint: "wss://a.example" });
+    expect(draft.tags.filter((t) => t[0] === "e")).toEqual([
+      ["e", "2".repeat(64), "wss://a.example", "root", "9".repeat(64)],
+    ]);
+  });
+
+  it("p 以外のタグや空文字の p タグは通知先として拾わない", () => {
+    // 捕まえる変異: tag[0] === "p" のガードを外す (|| 化・true 化)。
+    // e タグの値 (イベント id) が p タグの値として紛れ込み、無関係な
+    // 人物に返信の通知が飛ぶ。空文字の p タグを拾わないことも合わせて守る。
+    const parent = evt({
+      pubkey: "9".repeat(64),
+      tags: [
+        ["e", "7".repeat(64), "", "mention", "6".repeat(64)],
+        ["p", ""],
+      ],
+    });
+    const draft = buildReply(parent, "hi");
+    expect(draft.tags.filter((t) => t[0] === "p")).toEqual([
+      ["p", "9".repeat(64)],
+    ]);
+  });
+
   it("kind と content をそのまま載せる", () => {
     const draft = buildReply(evt({}), "本文");
     expect(draft.kind).toBe(1);

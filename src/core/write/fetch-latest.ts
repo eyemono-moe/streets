@@ -13,7 +13,10 @@ import type { RelayUrl } from "../relay/relay-connection";
 export class RefetchFailedError extends Error {
   readonly relays: RelayUrl[];
   constructor(relays: RelayUrl[]) {
+    // Stryker disable next-line StringLiteral: 呼び出し側は instanceof
+    // RefetchFailedError で分岐しており、メッセージ文言は判定に使わない。
     super(`no relay answered for the current version (${relays.length} tried)`);
+    // Stryker disable next-line StringLiteral: 同上。name も分岐に使わない。
     this.name = "RefetchFailedError";
     this.relays = relays;
   }
