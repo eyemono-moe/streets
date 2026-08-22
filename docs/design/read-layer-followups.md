@@ -579,6 +579,38 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 
 **まだ覆っていないもの**: 読み取り層（`src/core/read/` 以下）と CI 組み込みは、どちらも [ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が「今回はしない」と明示的に決めた範囲外であり、対象拡大は別の決定として残っている。CI に Playwright (e2e) がまだ載っていないこと自体は本節より前の「CI が Playwright (e2e) を一度も実行していない」節が指摘済みで、変異テストの CI 組み込みはそれと同じ順序待ちである。
 
+## スレッド（2026-08-22）— 仕様の答え
+
+[仕様](../superpowers/specs/2026-08-22-thread-design.md) が範囲に定めた「根への 1 購読・`threadSpine`・`threadRoot()`・カラム内ナビゲーションスタック・押して開く導線・`Order` から `"thread-tree"` を削ること」を実装した。動かして初めて分かったことを記録する。残タスクの一覧は [v1-feature-inventory.md](./v1-feature-inventory.md) 2.2 節（返信を書くこと・兄弟の枝や返信の返信を見せること）を参照 —— ここには**理由**だけを書く。
+
+### `Order` の `"thread-tree"` は答えではなかった
+
+背骨は**並べ替えではなく計算**である。祖先の連鎖を根まで辿り、選択したイベントを挟み、直接の返信だけを並べる —— この形は `SectionReader` が持つ「保持順を決める全順序」では表せない。順序関数はイベント 2 件を比べる形しか取れず、「focus からの距離」という文脈依存の値を持てないので、`Order` に値を足す発想そのものが筋違いだった。予約したまま実装しない値は、次に読む人へ「答えはここにある」と誤って教える。実装したのは `threadSpine`（`src/core/view/thread-spine.ts`）という独立した純関数で、`Order` からは `"thread-tree"` を削った。
+
+### スレッドのソースは根の id でメモ化しないと、1 段進むたびに購読が張り直される
+
+`createSection`（`src/core/solid/create-section.ts`）は `createEffect` の中で `source()` を読んで `SectionReader` を作り直す。素朴に `{ type: "nostr", filters: [...] } ` を返す関数をそのまま渡すと、内容が同じでも呼ぶたびに新しいオブジェクトになるので、スレッド内で返信を押して 1 段進むだけで購読が張り直され、`items` が空から積み直しになる。`DeckColumn.tsx` は `threadRootId` を `createMemo` で根の id だけに絞り、その id が変わらない限り再実行されないフィルタ生成をさらに `createMemo` で包んでいる（`DeckColumn.tsx:132-166`）。フィルタが `{ ids: [root] }` と `{ kinds: [1], "#e": [root] }` の 2 本で固定されるので、祖先を辿っても返信を辿っても購読は同じまま保たれる。
+
+### キーボードではスレッドを開けない
+
+ノート全体をクリック対象にする実装（`useOpenThreadOnClick`、`Note.tsx:50-`）はポインタ操作しか見ておらず、`<article>` に `biome-ignore lint/a11y/useKeyWithClickEvents` を付けて抑制している（`Note.tsx:294`, `:400`）。直し方は自明ではない —— `<article>` 自体を focusable にすると、1 カラムに並ぶ最大 200 件のノートが全部タブ順に入ってしまう。本来の答えは記事の中に実体を持つ focusable な要素（タイムスタンプへのリンク、あるいは返信数を押せるボタンにする、など）を置くことだが、それは「押せる面をどこに置くか」という設計そのものの変更になるので、このスライスでは決めずに残した。
+
+### リアクションチップはクリック除外セレクタに入っていない
+
+`useOpenThreadOnClick` は `target.closest("a, button, [role='button'], input, textarea")` で対話要素の上のクリックを除外している（`Note.tsx:56`）。リアクションのチップ（`ReactionList.tsx` の `data-testid="reaction-group"`）はただの `<div>` で、このセレクタに掛からない。今はチップにクリックハンドラが無いので実害は無いが、「同じ絵文字のチップを押して同じリアクションを送る」が実装された瞬間、チップを押すとスレッドも開いてしまう。
+
+### `threadSpine` の返信フィルタは focus 自身を除外していない
+
+祖先を上へ辿る側は訪問済み集合 (`seen`) を持ち、壊れた／悪意あるイベントが自分自身や祖先を親として指す形を止めている（`thread-spine.ts:38-`）。一方、直接の返信を集める側（`events.filter((event) => replyTarget(event)?.id === focusId)`、`thread-spine.ts:63-65`）には同じ種類のガードが無く、自分の id を自分の親として指すイベントがあれば「自分自身への返信」として一覧に混ざる。実際には起こらない —— Nostr の id はタグを含めたハッシュなので、これが起きるには id とタグの中身が一致するハッシュの不動点が要り、現実的な攻撃経路ではない。ただし祖先側だけに対称なガードがあるのに返信側に無いという非対称は、次に `threadSpine` を触る人のために書いておく価値がある。
+
+### 同じ `chevron-left-rounded` が 2 つの意味を持つ
+
+カラムのヘッダー左端は、通常は「カラムを左へ移動」、そのカラムでスレッドを開いている間は「戻る」に差し替わる —— どちらも同じアイコン（`i-material-symbols:chevron-left-rounded`）を使う（`DeckColumn.tsx:262`, `:278`）。1 カラムの中では `Show`/`fallback` で排他なので混乱しないが、複数カラムを並べたデッキでは、あるカラムの「戻る」が隣のカラムの「左へ移動」と横に並ぶ。
+
+### `thread-spine.ts` は変異テストの対象に含めなかった
+
+`thread-spine.ts` は純関数でテストも速く、[ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が `src/core/nostr/build/` と `src/core/write/` に導入したのと同じ扱いに値する。それでも範囲は広げなかった —— ADR-0029 を書いた直後であり、まず今の範囲での運用感を見てから対象を広げるべきだと判断した。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
