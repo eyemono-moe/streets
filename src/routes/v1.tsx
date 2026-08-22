@@ -461,9 +461,13 @@ const V1: Component = () => {
     setPostError(undefined);
     setPublishResult(undefined);
     // 全滅して巻き戻す場合に、楽観リストからどのエントリを取り除くかは
-    // この id で決める (本文の一致では決められない —— 同じ本文を 2 回
-    // 投稿し、片方が成功済み・もう片方が全滅した場合、本文一致のフィルタは
-    // 成功済みの方まで一緒に消してしまう)。
+    // この id で決める。putResult が "inserted" の場合だけセットする ——
+    // 同じ本文を同じ秒に 2 回投稿すると id が衝突し (event id は署名を
+    // 含まないハッシュ)、2 回目は "duplicate" になる。その場合ここへ
+    // signed を積むと 1 回目の楽観表示と同じ id の行が重複するうえ、
+    // 2 回目が全滅したときに 1 回目 (既にリレーへ届いている) の表示まで
+    // 一緒に消してしまう —— Writer 側が "duplicate" では store.remove()
+    // しない (writer.ts) のと同じ理由で、ここでも "duplicate" には触れない。
     let insertedId: string | undefined;
     try {
       // 署名・挿入・publish・(全滅時の) 巻き戻しは Writer に一本化されて
@@ -472,9 +476,11 @@ const V1: Component = () => {
       const result = await writer.publish(
         { kind: 1, tags: [], content: text },
         {
-          onOptimisticInsert: (signed, startedAt) => {
-            insertedId = signed.id;
-            setOptimisticEvents((prev) => [signed, ...prev]);
+          onOptimisticInsert: (signed, startedAt, putResult) => {
+            if (putResult === "inserted") {
+              insertedId = signed.id;
+              setOptimisticEvents((prev) => [signed, ...prev]);
+            }
             setOptimisticInsertMs(performance.now() - startedAt);
           },
         },
@@ -486,9 +492,10 @@ const V1: Component = () => {
         // Writer が store と永続層から取り除いているので、こちらは表示中
         // の楽観リストだけ戻す (spec 5.1 節: 戻す先は書き込む側ごとに違う
         // ので Writer は扱わない)。本文は残す —— 送れなかった文面を打ち
-        // 直させないため。id で絞る (上のコメント参照) —— insertedId が
-        // 無いのは onOptimisticInsert より前 (署名など) で失敗した場合で、
-        // その場合は楽観リストに何も挿入されていないので取り除く対象も無い。
+        // 直させないため。insertedId が無いのは、署名など onOptimisticInsert
+        // より前で失敗した場合、または今回の put が "duplicate" だった場合
+        // (上のコメント参照) —— いずれも楽観リストにこの呼び出しが足した
+        // ものは無いので、取り除く対象も無い。
         if (insertedId !== undefined) {
           const id = insertedId;
           setOptimisticEvents((prev) => prev.filter((e) => e.id !== id));

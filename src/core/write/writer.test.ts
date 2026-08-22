@@ -253,6 +253,62 @@ describe("publish", () => {
     expect(store.size).toBe(0);
     expect(calls).toEqual(["sign"]);
   });
+
+  it("duplicate な put が全滅しても、先に成功していたイベントは remove しない", async () => {
+    // 捕まえる変異: putResult を見ずに無条件で remove する。同じ本文を
+    // 同じ秒に 2 回投稿すると id が衝突する (event id は署名を含まない
+    // ハッシュ) —— 2 回目の store.put() は "duplicate" になり、これは
+    // 「1 回目の呼び出しが既に挿入済み」という意味でしかない。2 回目が
+    // 全滅したときに無条件で remove すると、1 回目の成功で既にリレーへ
+    // 届いていたイベントまで一緒に消えてしまう。
+    const store = new EventStore();
+    const removedIds: string[] = [];
+    const originalRemove = store.remove.bind(store);
+    store.remove = (...args: Parameters<EventStore["remove"]>) => {
+      removedIds.push(args[0]);
+      return originalRemove(...args);
+    };
+
+    const signer = createFakeSigner(SK);
+    const draft = { kind: 1, tags: [], content: "hi" };
+
+    // 1 回目: 成功する
+    const firstWriter = createWriter({
+      signer,
+      store,
+      publisher: { publish: async () => ok },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+    const first = await firstWriter.publish(draft);
+    expect(store.get(first.event.id)).toBeDefined();
+
+    // 2 回目: 同じ signer・同じ draft・同じ now() なので同じ id になり、
+    // store.put() は "duplicate" を返す。publish は全滅させる。
+    const secondWriter = createWriter({
+      signer,
+      store,
+      publisher: { publish: async () => allFailed },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    let secondPutResult: "inserted" | "duplicate" | undefined;
+    await expect(
+      secondWriter.publish(draft, {
+        onOptimisticInsert: (_event, _startedAt, putResult) => {
+          secondPutResult = putResult;
+        },
+      }),
+    ).rejects.toBeInstanceOf(WriteFailedError);
+
+    expect(secondPutResult).toBe("duplicate");
+    expect(removedIds).toEqual([]);
+    // 1 回目のイベントは消えずに残っている
+    expect(store.get(first.event.id)).toBeDefined();
+  });
 });
 
 describe("replace", () => {

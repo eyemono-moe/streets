@@ -27,9 +27,22 @@ export type WriteResult = {
  * フック自身は `store.put()` の**後**に呼ばれるため、フックの中で
  * `performance.now()` を取っても検証の時間が測定区間から漏れる —— 開始
  * 時刻は `Writer` 側で先に取っておいて渡す必要がある。
+ *
+ * `putResult` は `store.put()` の verdict (`"rejected"` は
+ * `verifyOptimisticInsert` が例外にするのでここには来ない)。同じ本文を
+ * 同じ秒に 2 回投稿すると id が衝突し (event id は署名を含まないハッシュ
+ * なので、内容が同じなら同じ id になる)、2 回目は `"duplicate"` になる。
+ * `Writer` は publish が全滅したとき `"inserted"` の場合だけ
+ * `store.remove()` する (下記参照) —— この判断は呼び出し側の表示状態
+ * (楽観挿入した一覧など) にもそのまま当てはまるため、同じ verdict を
+ * 渡して呼び出し側が同じ判断をできるようにしている。
  */
 export type WriteHooks = {
-  onOptimisticInsert?: (event: NostrEvent, startedAt: number) => void;
+  onOptimisticInsert?: (
+    event: NostrEvent,
+    startedAt: number,
+    putResult: "inserted" | "duplicate",
+  ) => void;
 };
 
 /** publish が 1 本も通らなかった。挿入は巻き戻し済み。 */
@@ -98,16 +111,25 @@ export const createWriter = ({
     // "local" は実在するリレー URL ではない —— 手元での挿入だという印。
     // 戻り値を捨てない —— 拡張機能が返した id/署名が壊れていれば
     // "rejected" になる。詳細は verify-optimistic-insert.ts のコメント参照。
-    verifyOptimisticInsert(store.put(signed, "local" as RelayUrl));
-    hooks?.onOptimisticInsert?.(signed, optimisticStartedAt);
+    const putResult = verifyOptimisticInsert(
+      store.put(signed, "local" as RelayUrl),
+    );
+    hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
 
     const result = await publisher.publish(signed);
     if (result.accepted.length === 0) {
-      // 1 本も通っていない。store にも永続層にも残さない —— 残すと
-      // 「送れていないのに送れたように見えるノート」が次回起動でも
-      // 復活する。戻す先 (本文をフォームへ、押下状態を元へ) は
-      // 呼び出し側の責務で、ここでは扱わない。
-      store.remove(signed.id);
+      // 1 本も通っていない。**この呼び出しが新規に挿入したときだけ**
+      // store (と永続層) から取り除く —— 残すと「送れていないのに送れた
+      // ように見えるノート」が次回起動でも復活するのが本来の理由だが、
+      // putResult が "duplicate" (= 同じ id のイベントが既にストアに
+      // あった) の場合は話が違う。同じ本文を同じ秒に 2 回投稿すると id が
+      // 衝突するため (event id は署名を含まないハッシュ)、2 回目の失敗で
+      // 無条件に remove すると、1 回目の投稿として既に成功していた
+      // イベントまで一緒に消してしまう。戻す先 (本文をフォームへ、押下
+      // 状態を元へ) は呼び出し側の責務で、ここでは扱わない。
+      if (putResult === "inserted") {
+        store.remove(signed.id);
+      }
       throw new WriteFailedError(result.rejected);
     }
     return { event: signed, ...result, replaced };
