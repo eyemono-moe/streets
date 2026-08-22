@@ -22,11 +22,59 @@ import NestedEventCard from "../NestedEventCard";
 import NoteContent from "../NoteContent";
 import Profile from "../Profile";
 import ReactionList from "../ReactionList";
+import { useThreadNav } from "../thread-nav";
 
 /**
  * 本文を折り畳む高さ (spec 3 節)。v0 の `EventBase` と同じしきい値。
  */
 const MAX_CONTENT_HEIGHT = 400;
+
+/** これ以上動いたら「押した」ではなく「選択した」とみなす。 */
+const DRAG_SLOP = 4;
+
+/**
+ * `<article>` の click を「このイベントのスレッドを開く」に変える。
+ *
+ * **入れ子は内側が勝つ。**引用カードや返信先の中のノートを押したら、
+ * 内側の `<article>` がここで `stopPropagation()` するので外側へ届かない。
+ * 深さに関係なく同じ規則で効く。
+ *
+ * 対話要素の上では発火しない —— リンク・名前・アクション列はそれぞれ
+ * 自分の目的地を持つ。`closest()` で祖先まで見るのは、押されたのが
+ * `<button>` の中の `<span>` でも同じ判定になるようにするため。
+ *
+ * ドラッグで本文を選択した後も発火しない。`mousedown` と `mouseup` の
+ * 座標が動いていたら選択の意図とみなす —— そうしないと本文をコピー
+ * しようとするたびにスレッドが開く。
+ */
+const useOpenThreadOnClick = (event: () => NostrEvent) => {
+  const open = useThreadNav();
+  let downAt: { x: number; y: number } | undefined;
+
+  const isInteractive = (target: EventTarget | null) =>
+    target instanceof Element &&
+    target.closest("a, button, [role='button'], input, textarea") !== null;
+
+  return () =>
+    open === undefined
+      ? {}
+      : {
+          class: "cursor-pointer",
+          onMouseDown: (e: MouseEvent) => {
+            downAt = { x: e.clientX, y: e.clientY };
+          },
+          onClick: (e: MouseEvent) => {
+            if (isInteractive(e.target)) return;
+            const moved =
+              downAt !== undefined &&
+              (Math.abs(e.clientX - downAt.x) > DRAG_SLOP ||
+                Math.abs(e.clientY - downAt.y) > DRAG_SLOP);
+            if (moved) return;
+            e.stopPropagation();
+            open(event().id);
+          },
+        };
+};
 
 /**
  * 本文の高さ制限と展開ボタン (spec 3 節)。文字数や行数からの推定は
@@ -240,8 +288,10 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
   // 本文に `nostr:` として現れた引用は `NoteContent` がその位置に描く
   // (仕様 4.2 節)。ここに残るのは **タグにしか無いもの** だけ。
   const quotes = () => tagOnlyQuoteTargets(props.event);
+  const openOnClick = useOpenThreadOnClick(() => props.event);
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作の対応はこのタスクの範囲外 (brief に無い)。押せるのはポインタ操作のみ。
     <article
       data-testid="note"
       // `group/event`: `ReactionList` の展開トグルが `group-not-hover/event:hidden`
@@ -256,7 +306,15 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       // する (v0 の `EventBase.tsx` と同じ手筋)。一番外側のノートには
       // 祖先の `group/event` が無いので、このセレクタは効かず padding が
       // 残る。
+      //
+      // 押せる見た目 (`cursor-pointer`) とハンドラは `classList`/個別の
+      // props で足す —— `class` を 2 回書くと後勝ちで上の静的クラスが
+      // 消える (ADR-0026: `useThreadNav()` が `undefined` なら両方とも
+      // 付かない)。
       class="group/event p-3 text-body group-[_]/event:p-0"
+      classList={{ "cursor-pointer": openOnClick().class !== undefined }}
+      onMouseDown={openOnClick().onMouseDown}
+      onClick={openOnClick().onClick}
     >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
@@ -335,12 +393,23 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
  * **次の変更者へ**: ここに padding を足したくなったら、それは compact の
  * 責務ではなく置く側 (引用カード等) の責務。
  */
-export const NoteCompact: Component<EventBodyProps> = (props) => (
-  <article data-testid="note" class="text-caption">
-    <NoteBody
-      event={props.event}
-      variant="compact"
-      threadLine={props.threadLine}
-    />
-  </article>
-);
+export const NoteCompact: Component<EventBodyProps> = (props) => {
+  const openOnClick = useOpenThreadOnClick(() => props.event);
+
+  return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作の対応はこのタスクの範囲外 (brief に無い)。押せるのはポインタ操作のみ。
+    <article
+      data-testid="note"
+      class="text-caption"
+      classList={{ "cursor-pointer": openOnClick().class !== undefined }}
+      onMouseDown={openOnClick().onMouseDown}
+      onClick={openOnClick().onClick}
+    >
+      <NoteBody
+        event={props.event}
+        variant="compact"
+        threadLine={props.threadLine}
+      />
+    </article>
+  );
+};
