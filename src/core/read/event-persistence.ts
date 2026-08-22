@@ -24,6 +24,14 @@ export type EventPersistence = {
   save(entries: readonly PersistedEvent[]): void;
   /** `kind:5` が指した対象 id。保持期間の対象にしない (ADR-0019)。 */
   saveDeletions(ids: readonly string[]): void;
+  /**
+   * 指定した id を永続層から取り除く。`saveDeletions` (NIP-09 の削除依頼を
+   * 記録し、水和時にその対象を弾く) とは**別物**であり、混同しないこと ——
+   * こちらは「この id のレコードそのものを消す」。
+   *
+   * 呼ばれるのは `EventStore.remove()` からだけ。
+   */
+  delete(ids: readonly string[]): void;
   dispose(): void;
 };
 
@@ -61,6 +69,11 @@ export const createMemoryPersistence = (): EventPersistence => {
     saveDeletions(ids) {
       if (disposed) return;
       for (const id of ids) deletedIds.add(id);
+    },
+
+    delete(ids) {
+      if (disposed) return;
+      for (const id of ids) events.delete(id);
     },
 
     dispose() {

@@ -103,6 +103,7 @@ describe("EventPersistence.load() の規約", () => {
       },
       save() {},
       saveDeletions() {},
+      delete() {},
       dispose() {},
     };
 

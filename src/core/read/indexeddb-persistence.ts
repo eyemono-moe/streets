@@ -327,6 +327,9 @@ export const createIndexedDbPersistence = (
       scheduleFlush();
     },
 
+    // IndexedDB からの実削除は別スライスの担当 (Task 2)。
+    delete(_ids) {},
+
     dispose() {
       disposed = true;
       if (timer !== null) {

@@ -284,6 +284,53 @@ export class EventStore {
     return events;
   }
 
+  /**
+   * 索引から完全に外す。`invalidate()` (取得時刻だけ 0 に戻し、値は残す)
+   * とは別物。
+   *
+   * 使う場所は 2 つ。publish が 1 本も通らなかった書き込みの巻き戻し
+   * (`src/core/write/writer.ts`) と、自分のイベントを NIP-09 で削除した
+   * ときのローカル反映。どちらも「このイベントは無かったことにする」
+   * であり、serveWhileRevalidating が古い値を出す余地は要らない。
+   */
+  remove(id: string): boolean {
+    const stored = this.#events.get(id);
+    if (!stored) return false;
+    const { event } = stored;
+    this.#events.delete(id);
+
+    for (const tag of event.tags) {
+      const name = tag[0];
+      const value = tag[1];
+      if (!name || name.length !== 1 || !value) continue;
+      const byValue = this.#byTag.get(name);
+      const ids = byValue?.get(value);
+      if (!ids || !byValue) continue;
+      ids.delete(id);
+      if (ids.size === 0) byValue.delete(value);
+      if (byValue.size === 0) this.#byTag.delete(name);
+    }
+
+    const key = `${event.kind}:${event.pubkey}`;
+    if (this.#replaceable.get(key) === id) {
+      // **索引を消すだけでは足りない。** まだ #events に残っている直前の
+      // 版が二度と latestReplaceable() から見えなくなり、フォローリストの
+      // 巻き戻しで既存のフォローが丸ごと消えたように見える。
+      //
+      // 走査は O(n) だが、remove() が呼ばれるのは巻き戻しと明示的な削除
+      // だけで、毎イベント通る経路ではない。
+      this.#replaceable.delete(key);
+      for (const candidate of this.#events.values()) {
+        if (candidate.event.kind !== event.kind) continue;
+        if (candidate.event.pubkey !== event.pubkey) continue;
+        this.#indexReplaceable(candidate.event);
+      }
+    }
+
+    this.#persistence?.delete([id]);
+    return true;
+  }
+
   latestReplaceable(kind: number, pubkey: string): NostrEvent | undefined {
     const id = this.#replaceable.get(`${kind}:${pubkey}`);
     return id ? this.get(id) : undefined;
