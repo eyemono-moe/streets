@@ -35,6 +35,12 @@ export class WriteFailedError extends Error {
 
 export type Writer = {
   publish(draft: EventDraft, hooks?: WriteHooks): Promise<WriteResult>;
+  replace(
+    kind: number,
+    identifier: string | undefined,
+    mutate: (current: NostrEvent | undefined) => EventDraft,
+    hooks?: WriteHooks,
+  ): Promise<WriteResult>;
 };
 
 export type CreateWriterOptions = {
@@ -45,6 +51,17 @@ export type CreateWriterOptions = {
   pubkey: () => string;
   /** 秒。テストが `created_at` を決めるために注入する。 */
   now?: () => number;
+  /**
+   * 置換可能イベントの現在の版を **write リレーから** 引く
+   * (`src/core/write/fetch-latest.ts`)。関数として注入するのは、
+   * `Writer` を `ConnectionPool` から独立させ、テストがネットワークを
+   * 組み立てずに済むようにするため。
+   */
+  fetchLatest: (
+    kind: number,
+    identifier: string | undefined,
+    pubkey: string,
+  ) => Promise<NostrEvent | undefined>;
 };
 
 export const createWriter = ({
@@ -53,6 +70,7 @@ export const createWriter = ({
   publisher,
   pubkey,
   now = () => Math.floor(Date.now() / 1000),
+  fetchLatest,
 }: CreateWriterOptions): Writer => {
   const send = async (
     unsigned: UnsignedEvent,
@@ -83,5 +101,29 @@ export const createWriter = ({
   return {
     publish: (draft, hooks) =>
       send({ ...draft, pubkey: pubkey(), created_at: now() }, hooks, undefined),
+
+    replace: async (kind, identifier, mutate, hooks) => {
+      const author = pubkey();
+      // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
+      // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
+      // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+      const current = await fetchLatest(kind, identifier, author);
+      const draft = mutate(current);
+
+      // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
+      // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、
+      // リレーの実装次第で黙って捨てられる。繰り上げてそれを防ぐ。
+      const stamped = now();
+      const createdAt =
+        current && stamped <= current.created_at
+          ? current.created_at + 1
+          : stamped;
+
+      return send(
+        { ...draft, pubkey: author, created_at: createdAt },
+        hooks,
+        current,
+      );
+    },
   };
 };

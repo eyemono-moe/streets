@@ -1,15 +1,34 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vitest";
+import { computeEventId } from "../nostr/event";
+import type { NostrEvent } from "../nostr/event";
 import { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
 import { createFakeSigner } from "../signer/fake-signer";
 import type { Signer } from "../signer/signer";
+import { RefetchFailedError } from "./fetch-latest";
 import type { PublishResult } from "./publisher";
 import { WriteFailedError, createWriter } from "./writer";
 
 const SK = Uint8Array.from(Array.from({ length: 32 }, (_, i) => i + 1));
 const PUBKEY = bytesToHex(schnorr.getPublicKey(SK));
+
+/**
+ * `replace` のテスト用に「現在の版」を作る署名ヘルパー。
+ * `fetch-latest.test.ts` と同じ形 —— seed から鍵を作って署名まで済ませる。
+ */
+const sign = (
+  seed: number,
+  fields: Omit<NostrEvent, "id" | "pubkey" | "sig">,
+): NostrEvent => {
+  const sk = Uint8Array.from(
+    Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
+  );
+  const unsigned = { ...fields, pubkey: bytesToHex(schnorr.getPublicKey(sk)) };
+  const id = computeEventId(unsigned);
+  return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
+};
 
 /**
  * 呼び出し順を観察するための最小限の道具立て。`store`/`signer` を直に
@@ -53,6 +72,7 @@ const setup = (publishResult: PublishResult) => {
     publisher,
     pubkey: () => PUBKEY,
     now: () => 1_700_000_000,
+    fetchLatest: async () => undefined,
   });
 
   return { writer, store, calls };
@@ -104,6 +124,7 @@ describe("publish", () => {
       },
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
     });
 
     await expect(
@@ -145,5 +166,133 @@ describe("publish", () => {
       { onOptimisticInsert: () => calls.push("hook") },
     );
     expect(calls).toEqual(["sign", "put", "hook", "publish"]);
+  });
+});
+
+describe("replace", () => {
+  const setupReplace = (
+    current: NostrEvent | undefined,
+    options?: { refetchThrows?: Error },
+  ) => {
+    const calls: string[] = [];
+    const store = new EventStore();
+    const signer = createFakeSigner(SK);
+    const originalSign = signer.signEvent;
+    signer.signEvent = async (t) => {
+      calls.push("sign");
+      return originalSign(t);
+    };
+    const writer = createWriter({
+      signer,
+      store,
+      publisher: {
+        publish: async () => {
+          calls.push("publish");
+          return ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => {
+        calls.push("fetch");
+        if (options?.refetchThrows) throw options.refetchThrows;
+        return current;
+      },
+    });
+    return { writer, store, calls };
+  };
+
+  it("再取得 → mutate → 署名 の順に進む", async () => {
+    // 捕まえる変異: store の値で mutate する (再取得を待たない)。
+    // 古いコピーに差分を当てると他端末の変更を消す。
+    const { writer, calls } = setupReplace(undefined);
+    await writer.replace(3, undefined, () => ({
+      kind: 3,
+      tags: [],
+      content: "",
+    }));
+    expect(calls).toEqual(["fetch", "sign", "publish"]);
+  });
+
+  it("mutate は再取得した版を受け取る", async () => {
+    // 捕まえる変異: mutate に undefined を渡す
+    const current = sign(1, {
+      kind: 3,
+      created_at: 1_600_000_000,
+      tags: [["p", "aa"]],
+      content: "",
+    });
+    const { writer } = setupReplace(current);
+    const seen: (NostrEvent | undefined)[] = [];
+    await writer.replace(3, undefined, (c) => {
+      seen.push(c);
+      return { kind: 3, tags: c?.tags ?? [], content: "" };
+    });
+    expect(seen).toEqual([current]);
+  });
+
+  it("再取得が失敗したら何も書かない", async () => {
+    // 捕まえる変異: current = undefined で続行する。既存のフォローリストを
+    // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+    const { writer, store, calls } = setupReplace(undefined, {
+      refetchThrows: new RefetchFailedError([]),
+    });
+    await expect(
+      writer.replace(3, undefined, () => ({ kind: 3, tags: [], content: "" })),
+    ).rejects.toBeInstanceOf(RefetchFailedError);
+    expect(calls).toEqual(["fetch"]);
+    expect(store.size).toBe(0);
+  });
+
+  it("created_at が現在の版以下なら +1 に繰り上げる", async () => {
+    // 捕まえる変異: 常に now() を使う。リレーは created_at で新旧を決める
+    // ので、同一秒内の 2 回目の更新が黙って捨てられる。
+    const current = sign(1, {
+      kind: 3,
+      created_at: 1_700_000_000, // now() と同値
+      tags: [],
+      content: "",
+    });
+    const { writer } = setupReplace(current);
+    const result = await writer.replace(3, undefined, () => ({
+      kind: 3,
+      tags: [],
+      content: "",
+    }));
+    expect(result.event.created_at).toBe(1_700_000_001);
+  });
+
+  it("現在の版より新しければ now() をそのまま使う", async () => {
+    // 捕まえる変異: 無条件に +1 する
+    const current = sign(1, {
+      kind: 3,
+      created_at: 1_600_000_000,
+      tags: [],
+      content: "",
+    });
+    const { writer } = setupReplace(current);
+    const result = await writer.replace(3, undefined, () => ({
+      kind: 3,
+      tags: [],
+      content: "",
+    }));
+    expect(result.event.created_at).toBe(1_700_000_000);
+  });
+
+  it("再取得した版を replaced に載せる", async () => {
+    // 捕まえる変異: replaced を落とす。UI が競合を警告する材料が無くなる。
+    const current = sign(1, {
+      kind: 3,
+      created_at: 1_600_000_000,
+      tags: [],
+      content: "",
+    });
+    const { writer } = setupReplace(current);
+    const result = await writer.replace(3, undefined, () => ({
+      kind: 3,
+      tags: [],
+      content: "",
+    }));
+    expect(result.replaced).toBe(current);
   });
 });
