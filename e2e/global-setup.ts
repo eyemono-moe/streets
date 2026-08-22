@@ -3,6 +3,7 @@ import { seedBudgetFixture } from "./fixtures/seed-budget.js";
 import { seedCapFixture } from "./fixtures/seed-cap.js";
 import { seedOutboxFixture } from "./fixtures/seed-outbox.js";
 import { seedPreviewFixture } from "./fixtures/seed-preview.js";
+import { seedThreadFixture } from "./fixtures/seed-thread.js";
 import { seedLocalRelay } from "./fixtures/seed.js";
 
 // playwright.config.ts の webServer.url と同じ値。globalSetup はモジュール
@@ -41,5 +42,6 @@ export default async function globalSetup() {
   await seedBudgetFixture();
   await seedCapFixture();
   await seedPreviewFixture();
+  await seedThreadFixture();
   await warmUpDevServer();
 }
