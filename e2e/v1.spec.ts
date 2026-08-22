@@ -932,7 +932,7 @@ test.describe("v1 vertical slice", () => {
   test("hovering the author name or the avatar reveals the profile card", async ({
     page,
   }) => {
-    test.setTimeout(30_000);
+    test.setTimeout(60_000);
 
     await stubSigner(page);
     await stubPreviewProfileEmoji(page);
@@ -961,8 +961,19 @@ test.describe("v1 vertical slice", () => {
     // (`note-author`) から `ProfileHover` を外し `Profile` を直接描く ——
     // `profile-hover-trigger` 自体が無くなるので `hover()` が要素を
     // 見つけられずタイムアウトする。
-    await authorOneNote.getByTestId("profile-hover-trigger").hover();
-    await expect(profileCard).toBeVisible({ timeout: 5_000 });
+    //
+    // `hover()` した瞬間もカラムはまだリレーからの再描画を受けうる。ark-ui
+    // の `HoverCard` はポインタが `openDelay` (既定 600ms) の間じっと
+    // 乗り続けて初めて開くので、その窓の中でトリガーの DOM ノードが
+    // 差し替わるとポインタが乗り続けた判定が成立せずカードは開かない。
+    // タイムアウトを伸ばしても差し替わりのたびに窓が再び開くだけで直らない
+    // ので、hover とその結果の確認を `toPass` で 1 単位として丸ごと
+    // リトライする —— 奪われた hover は次の試行でトリガーを取り直して
+    // やり直す。
+    await expect(async () => {
+      await authorOneNote.getByTestId("profile-hover-trigger").hover();
+      await expect(profileCard).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
     await expect(profileCard).toContainText(previewAuthorOneAboutPrefix);
 
     // about のカスタム絵文字 (NIP-30) が content-emoji として出る ——
@@ -979,9 +990,12 @@ test.describe("v1 vertical slice", () => {
 
     // 2. アイコンにホバーしても出る。
     // 捕まえる変異: `Avatar.tsx` から `ProfileHover` (`asChild` によるトリガー
-    // の合流) を外す。
-    await authorOneNote.getByTestId("avatar").hover();
-    await expect(profileCard).toBeVisible({ timeout: 5_000 });
+    // の合流) を外す。上と同じ理由で hover と可視化の確認を 1 単位として
+    // リトライする。
+    await expect(async () => {
+      await authorOneNote.getByTestId("avatar").hover();
+      await expect(profileCard).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 15_000 });
     await expect(profileCard).toContainText(previewAuthorOneAboutPrefix);
   });
 });
