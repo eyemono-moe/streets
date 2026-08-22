@@ -167,6 +167,43 @@ describe("publish", () => {
     );
     expect(calls).toEqual(["sign", "put", "hook", "publish"]);
   });
+
+  it("store.put が rejected を返す署名は挿入扱いにせず例外を投げる", async () => {
+    // 捕まえる変異: store.put() の戻り値を無視してそのまま onOptimisticInsert/
+    // publish へ進む (verify-optimistic-insert.ts を経由しない、final review
+    // Important 5 が指摘した元のバグ)。`signEvent` が返す `NostrEvent` は
+    // 拡張機能の応答を無検証キャストしただけの値 (`nip07-signer.ts` 参照) ——
+    // ここでは sig を壊した signer でそれを模す。
+    const store = new EventStore();
+    const calls: string[] = [];
+    const brokenSigner: Signer = {
+      getPublicKey: async () => PUBKEY,
+      signEvent: async (template) => {
+        calls.push("sign");
+        const signed = await createFakeSigner(SK).signEvent(template);
+        return { ...signed, sig: "0".repeat(128) };
+      },
+    };
+    const writer = createWriter({
+      signer: brokenSigner,
+      store,
+      publisher: {
+        publish: async () => {
+          calls.push("publish");
+          return ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await expect(
+      writer.publish({ kind: 1, tags: [], content: "hi" }),
+    ).rejects.toThrow();
+    expect(store.size).toBe(0);
+    expect(calls).toEqual(["sign"]);
+  });
 });
 
 describe("replace", () => {

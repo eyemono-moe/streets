@@ -4,6 +4,7 @@ import type { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { Signer } from "../signer/signer";
 import type { Publisher } from "./publisher";
+import { verifyOptimisticInsert } from "./verify-optimistic-insert";
 
 export type WriteResult = {
   event: NostrEvent;
@@ -83,7 +84,10 @@ export const createWriter = ({
     const signed = await signer.signEvent(unsigned);
 
     // "local" は実在するリレー URL ではない —— 手元での挿入だという印。
-    store.put(signed, "local" as RelayUrl);
+    // 戻り値を捨てない (final review, Important 5) —— 拡張機能が返した
+    // id/署名が壊れていれば "rejected" になる。詳細は
+    // verify-optimistic-insert.ts のコメント参照。
+    verifyOptimisticInsert(store.put(signed, "local" as RelayUrl));
     hooks?.onOptimisticInsert?.(signed);
 
     const result = await publisher.publish(signed);

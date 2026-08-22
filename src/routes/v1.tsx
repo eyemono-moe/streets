@@ -15,7 +15,7 @@ import {
   loadDeck,
   saveDeck,
 } from "../core/deck/deck";
-import type { NostrEvent, UnsignedEvent } from "../core/nostr/event";
+import type { NostrEvent } from "../core/nostr/event";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { FALLBACK_RELAYS } from "../core/read/default-relays";
 import { createIndexedDbPersistence } from "../core/read/indexeddb-persistence";
@@ -29,7 +29,9 @@ import {
 import { createNip07Signer } from "../core/signer/nip07-signer";
 import { SignerUnavailableError } from "../core/signer/signer";
 import { RenderProvider } from "../core/view/render-context";
+import { fetchLatest } from "../core/write/fetch-latest";
 import { type PublishResult, createPublisher } from "../core/write/publisher";
+import { WriteFailedError, createWriter } from "../core/write/writer";
 import Button from "../shared/components/UI/Button";
 import AddColumnForm from "./v1/AddColumnForm";
 import DeckColumn from "./v1/DeckColumn";
@@ -43,7 +45,6 @@ import {
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
 import { parseRelays } from "./v1/parse-relays";
 import { defaultRenderers } from "./v1/renderers";
-import { verifyOptimisticInsert } from "./v1/verify-optimistic-insert";
 
 /**
  * `?relays=` でローカルリレーへ上書きする (parse-relays.ts 参照)。
@@ -176,6 +177,37 @@ const V1: Component = () => {
     // undefined なら FALLBACK_RELAYS (SubscriptionManager/warmUpRouting と
     // 同じ既定) を使う。
     fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
+  });
+
+  // 署名 → 楽観挿入 → publish → (全滅なら) 巻き戻し、を一本化した経路
+  // (spec 4〜6 節)。signer は login() と同じ理由で毎回ではなく 1 度だけ
+  // createNip07Signer() を呼んで持つ —— nip07-signer.ts の各メソッドは
+  // 呼び出しのたびに window.nostr を読み直すので、生成を 1 度にまとめても
+  // 「後から入った拡張を見失う」問題は起きない。fetchLatest は write リレー
+  // から再取得する経路 (fetch-latest.ts) で、manager/store/routing を
+  // 読み取り層と共有する (ConnectionPool を publish 専用にもう一系統
+  // 持たないのと同じ理由)。
+  const writer = createWriter({
+    signer: createNip07Signer(),
+    store,
+    publisher,
+    pubkey: () => {
+      const pk = pubkey();
+      if (!pk) throw new SignerUnavailableError();
+      return pk;
+    },
+    fetchLatest: (kind, identifier, author) =>
+      fetchLatest(
+        {
+          pool: manager.pool,
+          routing,
+          store,
+          fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
+        },
+        kind,
+        identifier,
+        author,
+      ),
   });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
@@ -424,47 +456,41 @@ const V1: Component = () => {
     setPostError(undefined);
     setPublishResult(undefined);
     try {
-      const signer = createNip07Signer();
-      const unsigned: UnsignedEvent = {
-        pubkey: pk,
-        created_at: Math.floor(Date.now() / 1000),
-        kind: 1,
-        tags: [],
-        content: text,
-      };
-      const signed = await signer.signEvent(unsigned);
-
-      // 楽観的更新: リレーの応答を待たず、署名が終わった時点で即座に
-      // 自分のカラムへ映す (受け入れ確認 1)。"local" は実在するリレーの
-      // URL ではない —— 自分の手元での挿入だと分かる印。
-      //
-      // ここだけを performance.now() で挟んで計測する (仕様 10 節 問い 3、
-      // fix round 1)。`signer.signEvent()` を含めた「クリックしてから見える
-      // まで」を e2e ハーネス越しに計測すると、署名側 (このスライスの検証
-      // では page.exposeFunction 越しの Node 呼び出しという、実運用には無い
-      // IPC ホップ) のジッタが乗り、ADR-0011 の 100ms 予算をこの経路単体で
-      // 満たしているかどうかを何も語れなくなる (fix round 1 の指摘)。
-      // store.put() から setOptimisticEvents() が同期的に (Solid の signal
-      // 書き込みはこの await の後、DOM 委譲の自動 batch の外で実行される
-      // ため、依存する DeckColumn の items memo と <For> の DOM パッチまで
-      // 含めて同期的に) 完了するまでを測ることで、signEvent を完全に除外し、
-      // 楽観挿入の経路そのものが何 ms かを見る。
-      const optimisticStart = performance.now();
-      // store.put() の戻り値を捨てない (final review, Important 5) ——
-      // 詳細は verify-optimistic-insert.ts のコメント参照。
-      verifyOptimisticInsert(store.put(signed, "local"));
-      setOptimisticEvents((prev) => [signed, ...prev]);
-      setOptimisticInsertMs(performance.now() - optimisticStart);
+      // 署名・挿入・publish・(全滅時の) 巻き戻しは Writer に一本化されて
+      // いる (writer.ts)。ここに残る責務は「楽観リストへの反映」と
+      // 「エラー種別ごとの文言」だけ。
+      const result = await writer.publish(
+        { kind: 1, tags: [], content: text },
+        {
+          onOptimisticInsert: (signed) => {
+            // ここは Writer の store.put() 直後に**同期的に**呼ばれる。
+            // signEvent を含めずに測るという性質はこの位置に依存する
+            // (ADR-0011、仕様 10 節 問い 3、fix round 1)。
+            const optimisticStart = performance.now();
+            setOptimisticEvents((prev) => [signed, ...prev]);
+            setOptimisticInsertMs(performance.now() - optimisticStart);
+          },
+        },
+      );
       setContent("");
-
-      const result = await publisher.publish(signed);
       setPublishResult(result);
     } catch (error) {
-      setPostError(
-        error instanceof SignerUnavailableError
-          ? "拡張機能が見つかりません。"
-          : `投稿に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      if (error instanceof WriteFailedError) {
+        // Writer が store と永続層から取り除いているので、こちらは表示中
+        // の楽観リストだけ戻す (spec 5.1 節: 戻す先は書き込む側ごとに違う
+        // ので Writer は扱わない)。本文は残す —— 送れなかった文面を打ち
+        // 直させないため。
+        setOptimisticEvents((prev) => prev.filter((e) => e.content !== text));
+        setPostError(
+          `どのリレーにも届きませんでした (${error.rejected.length} 本が拒否)`,
+        );
+      } else if (error instanceof SignerUnavailableError) {
+        setPostError("拡張機能が見つかりません。");
+      } else {
+        setPostError(
+          `投稿に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     } finally {
       setPosting(false);
     }
