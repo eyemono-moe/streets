@@ -1,5 +1,4 @@
-import type { Mutation } from "./draft";
-import { addToList, removeFromList } from "./list";
+import { type Mutation, addTagValue, removeTagValue } from "./draft";
 
 const BOOKMARK_KIND = 10003;
 
@@ -14,10 +13,10 @@ const tagOf = (target: BookmarkTarget): { name: string; value: string } =>
 
 export const addBookmark = (target: BookmarkTarget): Mutation => {
   const { name, value } = tagOf(target);
-  return addToList(BOOKMARK_KIND, name, value);
+  return addTagValue(BOOKMARK_KIND, name, value);
 };
 
 export const removeBookmark = (target: BookmarkTarget): Mutation => {
   const { name, value } = tagOf(target);
-  return removeFromList(BOOKMARK_KIND, name, value);
+  return removeTagValue(BOOKMARK_KIND, name, value);
 };

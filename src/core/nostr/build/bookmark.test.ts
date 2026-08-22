@@ -31,6 +31,23 @@ describe("addBookmark / removeBookmark", () => {
     );
   });
 
+  it("対象外のタグと content を保つ", () => {
+    // 捕まえる変異: tags を e/a だけで作り直し、content を空にする。
+    // follow/mute/relay-list と同じく、他クライアントが立てた未知のタグや
+    // 非公開ブックマークの暗号化済み content を消すと設定が飛ぶ。
+    const current = evt({
+      kind: 10003,
+      tags: [
+        ["e", "aa"],
+        ["t", "spam"],
+      ],
+      content: "encrypted-blob",
+    });
+    const draft = addBookmark({ type: "note", value: "bb" })(current);
+    expect(draft.tags).toContainEqual(["t", "spam"]);
+    expect(draft.content).toBe("encrypted-blob");
+  });
+
   it("重複させない", () => {
     // 捕まえる変異: 無条件に push する
     const current = evt({ kind: 10003, tags: [["e", "aa"]], content: "" });

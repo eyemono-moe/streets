@@ -42,3 +42,39 @@ export const replaceTags = (
     content: current?.content ?? "",
   };
 };
+
+/**
+ * タグ名の位置要素 2 番目 (値) 1 本を足す／落とす、kind に依存しない差分
+ * 適用。`kind`・タグ名・値の意味づけは一切ここに無く、すべて呼び出し側
+ * (`mute.ts`/`bookmark.ts`/`follow.ts` の `removeFollow`) が持つ ——
+ * ADR-0004 の判定基準（「この kind のこのタグは何を意味するか」を
+ * 含むなら kind 側、含まないなら置き場所は素直さと正しさで決めてよい）を
+ * 当てると、この 2 関数はどちらにも当てはまらない。
+ *
+ * 元は NIP-51 のリスト系 (kind:10000 のミュート、kind:10003 の
+ * ブックマーク) のために書かれたが、この事実そのものは判定基準の埒外 ——
+ * 「NIP-51 由来だから NIP-51 側に置く」は判定基準ではなく由来の話でしか
+ * ない。ADR-0004 の 2 回目の誤読（followers/list を参照）の記録どおり、
+ * 由来で判断すると同じ間違いを繰り返す。
+ *
+ * **公開タグだけを扱う。** 非公開項目は `content` を NIP-44 で暗号化する
+ * 必要があり (NIP-51)、鍵を持たないこのアプリでは署名器への委譲が要る
+ * (`Nip44UnavailableError`)。使う面がまだ無いので、テストで守れない実装を
+ * 先に置かない。
+ */
+export const addTagValue =
+  (kind: number, name: string, value: string): Mutation =>
+  (current) =>
+    replaceTags(current, kind, name, (existing) =>
+      existing.some((tag) => tag[1] === value)
+        ? existing
+        : [...existing, [name, value]],
+    );
+
+/** {@link addTagValue} の逆演算。該当する値のタグだけを落とす。 */
+export const removeTagValue =
+  (kind: number, name: string, value: string): Mutation =>
+  (current) =>
+    replaceTags(current, kind, name, (existing) =>
+      existing.filter((tag) => tag[1] !== value),
+    );

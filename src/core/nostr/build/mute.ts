@@ -1,5 +1,4 @@
-import type { Mutation } from "./draft";
-import { addToList, removeFromList } from "./list";
+import { type Mutation, addTagValue, removeTagValue } from "./draft";
 
 const MUTE_KIND = 10000;
 
@@ -28,10 +27,10 @@ const tagOf = (target: MuteTarget): { name: string; value: string } => {
 
 export const addMute = (target: MuteTarget): Mutation => {
   const { name, value } = tagOf(target);
-  return addToList(MUTE_KIND, name, value);
+  return addTagValue(MUTE_KIND, name, value);
 };
 
 export const removeMute = (target: MuteTarget): Mutation => {
   const { name, value } = tagOf(target);
-  return removeFromList(MUTE_KIND, name, value);
+  return removeTagValue(MUTE_KIND, name, value);
 };

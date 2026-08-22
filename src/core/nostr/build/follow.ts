@@ -1,5 +1,5 @@
 import type { RelayUrl } from "../../relay/relay-connection";
-import { type Mutation, replaceTags } from "./draft";
+import { type Mutation, removeTagValue, replaceTags } from "./draft";
 
 const FOLLOW_KIND = 3;
 
@@ -26,10 +26,14 @@ export const addFollow =
           ],
     );
 
-/** NIP-02 のフォロー解除。該当する `p` タグだけを落とす。 */
-export const removeFollow =
-  (pubkey: string): Mutation =>
-  (current) =>
-    replaceTags(current, FOLLOW_KIND, "p", (existing) =>
-      existing.filter((tag) => tag[1] !== pubkey),
-    );
+/**
+ * NIP-02 のフォロー解除。該当する `p` タグだけを落とす。
+ *
+ * `addFollow` と違い、こちらは位置要素 2 番目 (pubkey) だけを見て判定する
+ * 単純な差分適用で、`removeTagValue` (`draft.ts`) が `mute.ts`/`bookmark.ts`
+ * と共有する同じ形にそのまま収まる。`addFollow` を分けたままにしているのは
+ * NIP-02 の `p` タグが `relay`/`petname` を含む 4 要素の位置構造を持ち、
+ * 2 要素だけの共通ヘルパーでは表現できないため —— こちらは非対称で正しい。
+ */
+export const removeFollow = (pubkey: string): Mutation =>
+  removeTagValue(FOLLOW_KIND, "p", pubkey);
