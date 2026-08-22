@@ -19,9 +19,17 @@ export type WriteResult = {
  * 重ねる必要があり、リアクションは `ReactionList` が
  * `store.eventsByTag` から自動で拾うので何も要らない。`Writer` が
  * 一般化しようとすると、どちらにも合わない中途半端な形になる。
+ *
+ * `startedAt` は `store.put()` を呼ぶ直前の `performance.now()`。ADR-0011
+ * の 100ms 予算が見たいのは signEvent を除いた楽観挿入の経路全体 ——
+ * `store.put()` は毎回 schnorr 検証を走らせる (`event-store.ts` の
+ * `verifyEvent`) ので、そこを含めずに計測すると予算の実測にならない。
+ * フック自身は `store.put()` の**後**に呼ばれるため、フックの中で
+ * `performance.now()` を取っても検証の時間が測定区間から漏れる —— 開始
+ * 時刻は `Writer` 側で先に取っておいて渡す必要がある。
  */
 export type WriteHooks = {
-  onOptimisticInsert?: (event: NostrEvent) => void;
+  onOptimisticInsert?: (event: NostrEvent, startedAt: number) => void;
 };
 
 /** publish が 1 本も通らなかった。挿入は巻き戻し済み。 */
@@ -83,12 +91,15 @@ export const createWriter = ({
     // 出せなくなる。この行より前では何も挿入していない。
     const signed = await signer.signEvent(unsigned);
 
+    // 開始時刻は store.put() (schnorr 検証を含む) より前に取る —— フックへ
+    // 渡すのはこの時刻で、フック自身は put() の後にしか呼べないため
+    // (WriteHooks のコメント参照)。
+    const optimisticStartedAt = performance.now();
     // "local" は実在するリレー URL ではない —— 手元での挿入だという印。
-    // 戻り値を捨てない (final review, Important 5) —— 拡張機能が返した
-    // id/署名が壊れていれば "rejected" になる。詳細は
-    // verify-optimistic-insert.ts のコメント参照。
+    // 戻り値を捨てない —— 拡張機能が返した id/署名が壊れていれば
+    // "rejected" になる。詳細は verify-optimistic-insert.ts のコメント参照。
     verifyOptimisticInsert(store.put(signed, "local" as RelayUrl));
-    hooks?.onOptimisticInsert?.(signed);
+    hooks?.onOptimisticInsert?.(signed, optimisticStartedAt);
 
     const result = await publisher.publish(signed);
     if (result.accepted.length === 0) {

@@ -430,12 +430,17 @@ const V1: Component = () => {
     [],
   );
   /**
-   * 直近の投稿で、`store.put()` から `setOptimisticEvents()` の signal 書き
-   * 込みが完了するまでにかかった ms (fix round 1: 仕様 10 節 問い 3 の材料)。
-   * `signer.signEvent()` の待ち時間は含まない —— 意図的に楽観挿入の経路
-   * だけを見る。`connections`/`peakConnections` と同じ診断用の常設表示
-   * (計測が終わったら消す、ということはしない — 実鍵での検証を行う人間も
-   * この数値を見たいはずで、消えてしまうと再確認できない)。
+   * 直近の投稿で、`store.put()` (schnorr 検証込み) から
+   * `setOptimisticEvents()` の signal 書き込みが完了するまでにかかった ms
+   * (仕様 10 節 問い 3 の材料)。`signer.signEvent()` の待ち時間は含まない ——
+   * 意図的に楽観挿入の経路だけを見る。開始時刻は `onOptimisticInsert` の
+   * `startedAt` 引数 (`Writer` が `store.put()` の直前に取った時刻) を使う ——
+   * フックが呼ばれるのは `store.put()` の**後**なので、フックの中で
+   * `performance.now()` を取り直すと検証コストが測定区間から漏れる
+   * (`writer.ts` の `WriteHooks` コメント参照)。`connections`/
+   * `peakConnections` と同じ診断用の常設表示 (計測が終わったら消す、と
+   * いうことはしない — 実鍵での検証を行う人間もこの数値を見たいはずで、
+   * 消えてしまうと再確認できない)。
    */
   const [optimisticInsertMs, setOptimisticInsertMs] = createSignal<number>();
 
@@ -455,6 +460,11 @@ const V1: Component = () => {
     setPosting(true);
     setPostError(undefined);
     setPublishResult(undefined);
+    // 全滅して巻き戻す場合に、楽観リストからどのエントリを取り除くかは
+    // この id で決める (本文の一致では決められない —— 同じ本文を 2 回
+    // 投稿し、片方が成功済み・もう片方が全滅した場合、本文一致のフィルタは
+    // 成功済みの方まで一緒に消してしまう)。
+    let insertedId: string | undefined;
     try {
       // 署名・挿入・publish・(全滅時の) 巻き戻しは Writer に一本化されて
       // いる (writer.ts)。ここに残る責務は「楽観リストへの反映」と
@@ -462,13 +472,10 @@ const V1: Component = () => {
       const result = await writer.publish(
         { kind: 1, tags: [], content: text },
         {
-          onOptimisticInsert: (signed) => {
-            // ここは Writer の store.put() 直後に**同期的に**呼ばれる。
-            // signEvent を含めずに測るという性質はこの位置に依存する
-            // (ADR-0011、仕様 10 節 問い 3、fix round 1)。
-            const optimisticStart = performance.now();
+          onOptimisticInsert: (signed, startedAt) => {
+            insertedId = signed.id;
             setOptimisticEvents((prev) => [signed, ...prev]);
-            setOptimisticInsertMs(performance.now() - optimisticStart);
+            setOptimisticInsertMs(performance.now() - startedAt);
           },
         },
       );
@@ -479,8 +486,13 @@ const V1: Component = () => {
         // Writer が store と永続層から取り除いているので、こちらは表示中
         // の楽観リストだけ戻す (spec 5.1 節: 戻す先は書き込む側ごとに違う
         // ので Writer は扱わない)。本文は残す —— 送れなかった文面を打ち
-        // 直させないため。
-        setOptimisticEvents((prev) => prev.filter((e) => e.content !== text));
+        // 直させないため。id で絞る (上のコメント参照) —— insertedId が
+        // 無いのは onOptimisticInsert より前 (署名など) で失敗した場合で、
+        // その場合は楽観リストに何も挿入されていないので取り除く対象も無い。
+        if (insertedId !== undefined) {
+          const id = insertedId;
+          setOptimisticEvents((prev) => prev.filter((e) => e.id !== id));
+        }
         setPostError(
           `どのリレーにも届きませんでした (${error.rejected.length} 本が拒否)`,
         );

@@ -168,12 +168,61 @@ describe("publish", () => {
     expect(calls).toEqual(["sign", "put", "hook", "publish"]);
   });
 
+  it("onOptimisticInsert に渡る startedAt は store.put() より前の時刻", async () => {
+    // 捕まえる変異: 開始時刻をフックの中 (= store.put() の後) で取る。
+    // store.put() は毎回 schnorr 検証を走らせる (event-store.ts の
+    // verifyEvent) ので、put() の後で計測を始めると検証コストが
+    // ADR-0011 の予算の実測から漏れる。put() に観測可能な時間を
+    // 使わせて (busy-wait)、開始時刻がその手前で取られていることを
+    // 実測で確かめる —— 呼び出し順だけを見る上のテストでは、開始時刻を
+    // 取る位置をフックの中へ動かしても呼び出し順は変わらないため
+    // 捕まえられない。
+    const store = new EventStore();
+    const originalPut = store.put.bind(store);
+    let putStartedAt = -1;
+    let putFinishedAt = -1;
+    store.put = (...args: Parameters<EventStore["put"]>) => {
+      putStartedAt = performance.now();
+      while (performance.now() - putStartedAt < 5) {
+        // 意図的な busy-wait: put() に観測可能な時間を消費させる
+      }
+      const result = originalPut(...args);
+      putFinishedAt = performance.now();
+      return result;
+    };
+
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store,
+      publisher: { publish: async () => ok },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    let startedAt = -1;
+    await writer.publish(
+      { kind: 1, tags: [], content: "hi" },
+      {
+        onOptimisticInsert: (_event, s) => {
+          startedAt = s;
+        },
+      },
+    );
+
+    expect(putStartedAt).toBeGreaterThan(0);
+    expect(startedAt).toBeGreaterThan(0);
+    // put() の busy-wait より前に取られていなければ、この不等式は
+    // (5ms 分) 成立しない。
+    expect(startedAt).toBeLessThanOrEqual(putStartedAt);
+    expect(startedAt).toBeLessThan(putFinishedAt - 4);
+  });
+
   it("store.put が rejected を返す署名は挿入扱いにせず例外を投げる", async () => {
     // 捕まえる変異: store.put() の戻り値を無視してそのまま onOptimisticInsert/
-    // publish へ進む (verify-optimistic-insert.ts を経由しない、final review
-    // Important 5 が指摘した元のバグ)。`signEvent` が返す `NostrEvent` は
-    // 拡張機能の応答を無検証キャストしただけの値 (`nip07-signer.ts` 参照) ——
-    // ここでは sig を壊した signer でそれを模す。
+    // publish へ進む (verify-optimistic-insert.ts を経由しない)。`signEvent`
+    // が返す `NostrEvent` は拡張機能の応答を無検証キャストしただけの値
+    // (`nip07-signer.ts` 参照) —— ここでは sig を壊した signer でそれを模す。
     const store = new EventStore();
     const calls: string[] = [];
     const brokenSigner: Signer = {
