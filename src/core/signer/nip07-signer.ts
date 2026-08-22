@@ -4,6 +4,10 @@ import { type Signer, SignerUnavailableError } from "./signer";
 type Nip07 = {
   getPublicKey(): Promise<string>;
   signEvent(template: UnsignedEvent): Promise<NostrEvent>;
+  nip44?: {
+    encrypt(peerPubkey: string, plaintext: string): Promise<string>;
+    decrypt(peerPubkey: string, ciphertext: string): Promise<string>;
+  };
 };
 
 /** `window.nostr` を「今」読む。生成時にキャッシュしない (下記)。 */
@@ -28,5 +32,24 @@ export const createNip07Signer = (): Signer => ({
     const api = nip07();
     if (!api) throw new SignerUnavailableError();
     return api.signEvent(template);
+  },
+  // `window.nostr.nip44` が無い拡張もあるため、無条件にプロパティを
+  // 生やすと「未実装」と「呼び出し失敗」を呼び出し側が区別できなくなる。
+  get nip44() {
+    const api = nip07();
+    return api?.nip44
+      ? {
+          encrypt: (peerPubkey: string, plaintext: string) => {
+            const current = nip07();
+            if (!current?.nip44) throw new SignerUnavailableError();
+            return current.nip44.encrypt(peerPubkey, plaintext);
+          },
+          decrypt: (peerPubkey: string, ciphertext: string) => {
+            const current = nip07();
+            if (!current?.nip44) throw new SignerUnavailableError();
+            return current.nip44.decrypt(peerPubkey, ciphertext);
+          },
+        }
+      : undefined;
   },
 });
