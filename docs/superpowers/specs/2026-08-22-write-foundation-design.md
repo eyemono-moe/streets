@@ -195,7 +195,7 @@ buildReply(parent: NostrEvent, content: string, options?: { relayHint?: RelayUrl
   - NIP-10: *"A direct reply to the root of a thread should have a single marked 'e' tag of type 'root'."*
 - 親が返信（親に `root` マーカーがある）→ その `root` をそのまま引き継いだ `["e", rootId, rootRelay, "root", rootPubkey]` と、`["e", parent.id, relay, "reply", parent.pubkey]` の **2 本**
 
-`p` タグは NIP-10 の *"the reply event's 'p' tags should contain all of E's 'p' tags as well as the pubkey of the event being replied to"* に従う。**親の `p` タグを全部 + 親の著者**。順序は親の著者を先頭に、続けて親の `p` を出現順。重複は落とす。自分自身は落とす —— 自分への通知になる。
+`p` タグは NIP-10 の *"the reply event's 'p' tags should contain all of E's 'p' tags as well as the pubkey of the event being replied to"* に従う。**親の `p` タグを全部 + 親の著者**。順序は親の著者を先頭に、続けて親の `p` を出現順。重複は落とす。自分自身を落とす処理は入れない。ビルダは `pubkey` を受け取らないので誰が自分か知らない。自分への通知は他クライアントも普通に付けており、害が小さい。
 
 `relay-url` が無いときは空文字を入れる（位置要素なので省略できない）。
 
