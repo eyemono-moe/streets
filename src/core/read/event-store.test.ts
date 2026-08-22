@@ -384,6 +384,12 @@ describe("EventStore と EventPersistence の配線", () => {
         deletedIds.push(...ids);
       },
       delete() {},
+      deleteDeletions(ids) {
+        for (const id of ids) {
+          const index = deletedIds.indexOf(id);
+          if (index !== -1) deletedIds.splice(index, 1);
+        }
+      },
       dispose() {},
     };
   };
@@ -460,6 +466,33 @@ describe("EventStore と EventPersistence の配線", () => {
     store.put(deletion, "wss://a/");
 
     expect(persistence.deletedIds).toEqual([targetA, targetB]);
+  });
+
+  it("kind:5 を remove() で巻き戻すと saveDeletions した対象も取り消す", () => {
+    // 捕まえる変異: remove() が persistence.deleteDeletions を呼ばない
+    // (呼ばずに persistence.delete だけ呼ぶ)。publish が全リレーで失敗して
+    // Writer が kind:5 を巻き戻しても deletions レコードだけ残り、
+    // hydrate が次回起動のたびに対象 id を弾き続ける —— 「どのリレーにも
+    // 届きませんでした」と表示されたのに、本人の投稿だけがローカルでは
+    // 消えたままになる不整合を招く
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ persistence });
+    const targetA = "a".repeat(64);
+    const targetB = "b".repeat(64);
+    const deletion = sign("", {
+      kind: 5,
+      tags: [
+        ["e", targetA],
+        ["e", targetB],
+      ],
+    });
+
+    store.put(deletion, "wss://a/");
+    expect(persistence.deletedIds).toEqual([targetA, targetB]);
+
+    store.remove(deletion.id);
+
+    expect(persistence.deletedIds).toEqual([]);
   });
 
   it("persistence を渡さない store は put() で例外を投げない", () => {
@@ -633,6 +666,7 @@ describe("remove", () => {
         save: () => {},
         saveDeletions: () => {},
         delete: (ids) => deleted.push([...ids]),
+        deleteDeletions: () => {},
         dispose: () => {},
       },
     });

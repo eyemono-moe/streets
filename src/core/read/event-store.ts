@@ -11,6 +11,20 @@ import type { EventPersistence, PersistedEvent } from "./event-persistence";
 /** NIP-09。削除指示の対象は `e` タグで運ばれる。 */
 const DELETION_KIND = 5;
 
+/**
+ * kind:5 の `e` タグが指す対象 id。`#persistDeletion` (記録) と
+ * `remove()` (巻き戻し) の両方がこの同じ抽出を必要とするため、ここで
+ * 共有する —— 片方だけ改修されて抽出条件が食い違う (例えば片方が空文字を
+ * 弾き、もう片方が弾かない) 事態を作らない。
+ */
+const deletionTargetIds = (deletion: NostrEvent): string[] =>
+  deletion.tags
+    .filter(
+      (tag): tag is [string, string] =>
+        tag[0] === "e" && typeof tag[1] === "string",
+    )
+    .map((tag) => tag[1]);
+
 export type StoredEvent = {
   event: NostrEvent;
   seenRelays: RelayUrl[];
@@ -147,12 +161,7 @@ export class EventStore {
    * ようにする (spec 10 節)。
    */
   #persistDeletion(deletion: NostrEvent): void {
-    const targetIds = deletion.tags
-      .filter(
-        (tag): tag is [string, string] =>
-          tag[0] === "e" && typeof tag[1] === "string",
-      )
-      .map((tag) => tag[1]);
+    const targetIds = deletionTargetIds(deletion);
     if (targetIds.length > 0) this.#persistence?.saveDeletions(targetIds);
   }
 
@@ -328,6 +337,16 @@ export class EventStore {
     }
 
     this.#persistence?.delete([id]);
+    // kind:5 自身が全滅で巻き戻されるとき、put() が #persistDeletion で
+    // 書いた deletions レコードも一緒に取り消す。ここを省くと、次に publish
+    // し直して成功しても deletions には最初の (巻き戻されたはずの) 記録が
+    // 残ったままになり、hydrate がその対象 id を永久に弾き続ける ——
+    // 「どのリレーにも届きませんでした」と表示された投稿が、届いていない
+    // にもかかわらずローカルでは消えたままになる。
+    if (event.kind === DELETION_KIND) {
+      const targetIds = deletionTargetIds(event);
+      if (targetIds.length > 0) this.#persistence?.deleteDeletions(targetIds);
+    }
     return true;
   }
 

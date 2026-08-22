@@ -182,6 +182,7 @@ const writeBatch = (
   retained: readonly RetainedEntry[],
   deletionIds: readonly string[],
   removalIds: readonly string[],
+  deletionRemovalIds: readonly string[],
 ): Promise<void> =>
   new Promise((resolve) => {
     let tx: IDBTransaction;
@@ -242,12 +243,22 @@ const writeBatch = (
       };
     }
 
+    // deletionRemovalIds (`EventStore.remove()` が kind:5 を巻き戻した) に
+    // 挙がっている id は、この flush で saveDeletions からも積まれていたと
+    // しても書かない —— events 側の removalSet と同じ理由で「巻き戻しを
+    // 勝たせる」。ここで先に除いておけば put/delete の発行順に依存しない。
+    const deletionRemovalSet = new Set(deletionRemovalIds);
     for (const id of deletionIds) {
+      if (deletionRemovalSet.has(id)) continue;
       deletionsStore.put({ id });
     }
 
     for (const id of removalIds) {
       eventsStore.delete(id);
+    }
+
+    for (const id of deletionRemovalIds) {
+      deletionsStore.delete(id);
     }
   });
 
@@ -269,6 +280,7 @@ export const createIndexedDbPersistence = (
   let pendingEvents: PersistedEvent[] = [];
   let pendingDeletionIds: string[] = [];
   let pendingRemovalIds: string[] = [];
+  let pendingDeletionRemovalIds: string[] = [];
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
 
   // open() は一度だけ試す。save() のたびに開き直すと、失敗が続く環境で
@@ -294,10 +306,13 @@ export const createIndexedDbPersistence = (
     pendingDeletionIds = [];
     const removalsToWrite = pendingRemovalIds;
     pendingRemovalIds = [];
+    const deletionRemovalsToWrite = pendingDeletionRemovalIds;
+    pendingDeletionRemovalIds = [];
     if (
       eventsToWrite.length === 0 &&
       deletionsToWrite.length === 0 &&
-      removalsToWrite.length === 0
+      removalsToWrite.length === 0 &&
+      deletionRemovalsToWrite.length === 0
     )
       return;
 
@@ -309,7 +324,13 @@ export const createIndexedDbPersistence = (
         if (!db || disposed) return;
         try {
           const retained = selectForPersistence(eventsToWrite);
-          await writeBatch(db, retained, deletionsToWrite, removalsToWrite);
+          await writeBatch(
+            db,
+            retained,
+            deletionsToWrite,
+            removalsToWrite,
+            deletionRemovalsToWrite,
+          );
         } catch {
           // 黙って捨てる (spec 12 節)。
         }
@@ -356,6 +377,12 @@ export const createIndexedDbPersistence = (
       scheduleFlush();
     },
 
+    deleteDeletions(ids) {
+      if (disposed) return;
+      pendingDeletionRemovalIds.push(...ids);
+      scheduleFlush();
+    },
+
     dispose() {
       disposed = true;
       if (timer !== null) {
@@ -365,6 +392,7 @@ export const createIndexedDbPersistence = (
       pendingEvents = [];
       pendingDeletionIds = [];
       pendingRemovalIds = [];
+      pendingDeletionRemovalIds = [];
       openedDb?.close();
     },
   };

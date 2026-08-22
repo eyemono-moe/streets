@@ -396,4 +396,37 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
     const { events } = await persistence.load();
     expect(events).toEqual([]);
   });
+
+  it("deleteDeletions で取り消した id は load の deletedIds に戻ってこない", async () => {
+    // 捕まえる変異: deleteDeletions を no-op のままにする。
+    // EventStore.remove() が kind:5 の巻き戻しでこれを呼んでも
+    // deletions ストアのレコードが残り続け、publish が全滅したのに
+    // 対象イベントが次回起動のたびに hydrate で弾かれ続ける。
+    const { persistence, flush } = setup();
+    const target = "d".repeat(64);
+    persistence.saveDeletions([target]);
+    await flush();
+
+    persistence.deleteDeletions([target]);
+    await flush();
+
+    const { deletedIds } = await persistence.load();
+    expect(deletedIds).toEqual([]);
+  });
+
+  it("同じ flush の中で saveDeletions した直後の id も deleteDeletions で消える", async () => {
+    // 捕まえる変異: 同じ flush 内での「保存」と「巻き戻し」が両方積まれた
+    // とき、deletionRemovalSet によるフィルタを外す。deletions ストアの
+    // put/delete は cursor を経由しないので実際には発行順で確定するが、
+    // フィルタを外すと「巻き戻しを勝たせる」という契約そのものが崩れ、
+    // 発行順を偶然守っているだけの状態になる。
+    const { persistence, flush } = setup();
+    const target = "e".repeat(64);
+    persistence.saveDeletions([target]);
+    persistence.deleteDeletions([target]);
+    await flush();
+
+    const { deletedIds } = await persistence.load();
+    expect(deletedIds).toEqual([]);
+  });
 });
