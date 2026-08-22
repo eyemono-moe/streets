@@ -4,14 +4,18 @@ import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
+import { threadRoot } from "../../core/nostr/event-refs";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
 import { createSection } from "../../core/solid/create-section";
+import { useRender } from "../../core/view/render-context";
 import ColumnAlertBadge from "./ColumnAlertBadge";
 import ColumnItems from "./ColumnItems";
 import DiagnosticsPanel from "./DiagnosticsPanel";
+import ThreadView from "./ThreadView";
 import { parseRelays } from "./parse-relays";
+import { ThreadNavProvider } from "./thread-nav";
 
 /**
  * `?relays=` でローカルリレーへ上書きする (parse-relays.ts 参照)。
@@ -108,6 +112,49 @@ const DeckColumn: Component<{
     manager: props.manager,
   });
 
+  const store = useRender().store;
+
+  /** 空 = 根のカラム。push でスレッドへ進み、pop で戻る。 */
+  const [stack, setStack] = createSignal<string[]>([]);
+  const focusId = () => stack().at(-1);
+  const openThread = (id: string) => setStack((s) => [...s, id]);
+  const closeThread = () => setStack((s) => s.slice(0, -1));
+
+  /**
+   * スレッドの購読は**根**に投げる。NIP-10 を守る返信は深さに関わらず
+   * 全員が根を `e` タグで指すので、これ 1 本で祖先も返信も届く。
+   *
+   * **根の id でメモ化する。** `createSection` は `createEffect` の中で
+   * `source()` を読んで `SectionReader` を作り直すので、内容が同じでも
+   * 毎回新しいオブジェクトを返すと、スレッド内で 1 段進むたびに購読が
+   * 張り直されて items が空から積み直しになる。
+   */
+  const threadRootId = createMemo(() => {
+    const id = focusId();
+    if (!id) return undefined;
+    const focus = store.get(id);
+    if (!focus) return id;
+    return threadRoot(focus)?.id ?? id;
+  });
+
+  const threadSection = createSection({
+    source: createMemo(() => {
+      const root = threadRootId();
+      // 根が決まっていないときはフィルタ 0 本を渡す。`planQuery`
+      // (query-plan.ts) はフィルタを 1 本ずつ見てリレーを割り当てるので、
+      // 0 本なら選ばれるリレーも 0 本 —— つまり「何も購読しない」で安全
+      // (`authors: []` や `{}` 単体とは別物、resolve-source.ts の
+      // followees の罠と混同しないこと)。
+      if (!root) return { type: "nostr" as const, filters: [] };
+      return {
+        type: "nostr" as const,
+        filters: [{ ids: [root] }, { kinds: [1], "#e": [root] }],
+        ...(RELAYS_OVERRIDE ? { relays: RELAYS_OVERRIDE } : {}),
+      };
+    }),
+    manager: props.manager,
+  });
+
   // ユーザーが行動できる異常だけを取り出す (ADR-0026)。判定そのものは
   // columnAlerts (Task 2) に集約済みで、ここでは呼ぶだけ。
   const alerts = createMemo(() => columnAlerts(props.column, section.status()));
@@ -163,6 +210,12 @@ const DeckColumn: Component<{
     setEditingTitle(false);
   };
 
+  // 診断パネルは「いま画面に出ているセクション」を映す。根のカラムでは
+  // `section`、スレッドを開いている間は `threadSection` —— 固定で
+  // `section` のままだと、スレッド内を 1 段進んでも購読が張り直されて
+  // いないことを developer mode から確かめられなくなる。
+  const activeSection = createMemo(() => (focusId() ? threadSection : section));
+
   return (
     <section
       data-testid="deck-column"
@@ -183,54 +236,83 @@ const DeckColumn: Component<{
         class="h-0.75 shrink-0 bg-accent-primary"
       />
       <header class="flex h-12 shrink-0 items-center gap-1 px-2">
-        <button
-          type="button"
-          data-testid="column-move-left"
-          aria-label="カラムを左へ"
-          class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-30"
-          disabled={!props.canMoveLeft()}
-          onClick={props.onMoveLeft}
+        <Show
+          when={focusId()}
+          fallback={
+            <button
+              type="button"
+              data-testid="column-move-left"
+              aria-label="カラムを左へ"
+              class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-30"
+              disabled={!props.canMoveLeft()}
+              onClick={props.onMoveLeft}
+            >
+              <span class="i-material-symbols:chevron-left-rounded c-secondary h-5 w-5" />
+            </button>
+          }
         >
-          <span class="i-material-symbols:chevron-left-rounded c-secondary h-5 w-5" />
-        </button>
+          {/*
+            スレッドを開いている間は「カラムを左へ」を隠さず、戻るボタンに
+            差し替える —— 左端のボタンが常に 1 つという配置を保ったまま、
+            スタックを 1 段だけ pop する (根まで戻ればカラムに戻る)。
+          */}
+          <button
+            type="button"
+            data-testid="thread-back"
+            aria-label="スレッドを閉じる"
+            class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover"
+            onClick={closeThread}
+          >
+            <span class="i-material-symbols:chevron-left-rounded c-secondary h-5 w-5" />
+          </button>
+        </Show>
 
         <Show
-          when={editingTitle()}
+          when={!focusId()}
           fallback={
-            // h2 に直接 onClick を付けると非対話要素がキーボード操作を
-            // 持たないことになる (biome lint/a11y)。見出しレベルは h2 が
-            // 保ち、実際にクリック/キー操作を受けるのは中の button ——
-            // button ならフォーカスと Enter/Space での起動をブラウザが
-            // 標準で面倒を見るので、手書きの onKeyDown が要らない。
             <h2 class="min-w-0 flex-1 truncate font-bold text-body">
-              <button
-                type="button"
-                data-testid="deck-column-title"
-                class="w-full cursor-text truncate text-left"
-                onClick={startEditingTitle}
-              >
-                {props.column.title}
-              </button>
+              スレッド
             </h2>
           }
         >
-          <input
-            autofocus
-            data-testid="deck-column-title"
-            class="min-w-0 flex-1 rounded-2 border border-alpha-300 bg-alpha-50 px-1 font-bold"
-            value={titleDraft()}
-            onInput={(event) => setTitleDraft(event.currentTarget.value)}
-            onBlur={commitTitle}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitTitle();
-              } else if (event.key === "Escape") {
-                event.preventDefault();
-                setEditingTitle(false);
-              }
-            }}
-          />
+          <Show
+            when={editingTitle()}
+            fallback={
+              // h2 に直接 onClick を付けると非対話要素がキーボード操作を
+              // 持たないことになる (biome lint/a11y)。見出しレベルは h2 が
+              // 保ち、実際にクリック/キー操作を受けるのは中の button ——
+              // button ならフォーカスと Enter/Space での起動をブラウザが
+              // 標準で面倒を見るので、手書きの onKeyDown が要らない。
+              <h2 class="min-w-0 flex-1 truncate font-bold text-body">
+                <button
+                  type="button"
+                  data-testid="deck-column-title"
+                  class="w-full cursor-text truncate text-left"
+                  onClick={startEditingTitle}
+                >
+                  {props.column.title}
+                </button>
+              </h2>
+            }
+          >
+            <input
+              autofocus
+              data-testid="deck-column-title"
+              class="min-w-0 flex-1 rounded-2 border border-alpha-300 bg-alpha-50 px-1 font-bold"
+              value={titleDraft()}
+              onInput={(event) => setTitleDraft(event.currentTarget.value)}
+              onBlur={commitTitle}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitTitle();
+                } else if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditingTitle(false);
+                }
+              }}
+            />
+          </Show>
         </Show>
 
         <ColumnAlertBadge alerts={alerts} />
@@ -278,9 +360,9 @@ const DeckColumn: Component<{
               : props.firstRenderMs()?.toFixed(2)}
           </p>
           <p class="text-alpha-600 text-xs" data-testid="deck-column-phase">
-            phase: {section.status().phase}
+            phase: {activeSection().status().phase}
           </p>
-          <Show when={section.status().incomplete}>
+          <Show when={activeSection().status().incomplete}>
             {(incomplete) => (
               <p
                 class="text-alpha-600 text-xs"
@@ -301,7 +383,17 @@ const DeckColumn: Component<{
         掴むと、ヘッダーを固定した瞬間に静かに何もスクロールしなくなる。
       */}
       <div data-testid="column-scroll" class="min-h-0 flex-1 overflow-y-auto">
-        <ColumnItems items={items} />
+        {/*
+          `open` でスタックへ push する ——`Note.tsx` (Task 6 で配線済み)
+          がノートを押すたびにこれを呼ぶ。根のカラムだけでなく、スレッド
+          内の祖先・返信を押しても新しい背骨に引き直せるよう、本文全体を
+          この provider の中に置く。
+        */}
+        <ThreadNavProvider open={openThread}>
+          <Show when={focusId()} fallback={<ColumnItems items={items} />}>
+            {(id) => <ThreadView events={threadSection.items} focusId={id()} />}
+          </Show>
+        </ThreadNavProvider>
       </div>
     </section>
   );
