@@ -122,9 +122,12 @@ export default defineConfig({
   shortcuts: [
     {
       // text size
-      "text-h3": "text-lg",
-      "text-body": "text-base",
-      "text-caption": "text-sm",
+      // v1 の 3 段の型スケール (19/15/13)。v0 の 18/16/14 から詰めてある ——
+      // マルチカラムでは 1 列に入る情報量が体験を決めるので、本文と補助情報の
+      // 差を保ったまま全体を 1px ずつ落としている。
+      "text-h3": "text-[19px]",
+      "text-body": "text-[15px]",
+      "text-caption": "text-[13px]",
 
       // text color
       "c-primary": "c-ui-9 dark:c-ui-1",

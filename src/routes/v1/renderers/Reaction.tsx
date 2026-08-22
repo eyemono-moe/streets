@@ -30,7 +30,7 @@ export const ReactionFull: Component<EventBodyProps> = (props) => {
           // 0 に潰す。`group/event` を付けるのは、リアクションの対象が
           // 別のリポスト/リアクションであってもそちらの padding が潰れる
           // ようにするため。
-          class="group/event pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
+          class="group/event p-3 text-body group-[_]/event:p-0"
         >
           <p
             data-testid="reacted-by"

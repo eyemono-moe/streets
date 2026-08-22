@@ -167,17 +167,31 @@ const DeckColumn: Component<{
     <section
       data-testid="deck-column"
       data-column-id={props.column.id}
-      class="h-full w-100 shrink-0 overflow-y-auto border-r last:border-r-0"
+      // 幅 380 (v0 は 400)。ヘッダーはカラムと一緒にスクロールさせず、
+      // 上端に貼り付ける —— 長いタイムラインの途中でカラムを取り違えない
+      // ようにするため、名前と操作は常に見えている必要がある。
+      class="flex h-full w-95 shrink-0 flex-col overflow-hidden border-r last:border-r-0"
     >
-      <header class="flex items-center gap-1 p-2">
+      {/*
+        カラムの識別色 (3px)。**カラムを見分ける手掛かりを色に持たせる**
+        のが目的で、ヘッダーの文字とは別の層で効く —— 横に並んだ 4 本の
+        カラムをスクロール中に区別するとき、人は先に色を見る。
+        現状は全カラム共通のアクセント色。カラムごとに選ばせるのは別の話。
+      */}
+      <div
+        data-testid="column-accent"
+        class="h-0.75 shrink-0 bg-accent-primary"
+      />
+      <header class="flex h-12 shrink-0 items-center gap-1 px-2">
         <button
           type="button"
           data-testid="column-move-left"
-          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer disabled:opacity-30"
+          aria-label="カラムを左へ"
+          class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-30"
           disabled={!props.canMoveLeft()}
           onClick={props.onMoveLeft}
         >
-          ←
+          <span class="i-material-symbols:chevron-left-rounded c-secondary h-5 w-5" />
         </button>
 
         <Show
@@ -188,7 +202,7 @@ const DeckColumn: Component<{
             // 保ち、実際にクリック/キー操作を受けるのは中の button ——
             // button ならフォーカスと Enter/Space での起動をブラウザが
             // 標準で面倒を見るので、手書きの onKeyDown が要らない。
-            <h2 class="min-w-0 flex-1 truncate font-bold">
+            <h2 class="min-w-0 flex-1 truncate font-bold text-body">
               <button
                 type="button"
                 data-testid="deck-column-title"
@@ -224,19 +238,21 @@ const DeckColumn: Component<{
         <button
           type="button"
           data-testid="column-move-right"
-          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer disabled:opacity-30"
+          aria-label="カラムを右へ"
+          class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-30"
           disabled={!props.canMoveRight()}
           onClick={props.onMoveRight}
         >
-          →
+          <span class="i-material-symbols:chevron-right-rounded c-secondary h-5 w-5" />
         </button>
         <button
           type="button"
           data-testid="column-remove"
-          class="shrink-0 rounded-full px-2 py-1 text-xs enabled:cursor-pointer"
+          aria-label="カラムを削除"
+          class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-30"
           onClick={props.onRemove}
         >
-          ×
+          <span class="i-material-symbols:close-rounded c-secondary h-5 w-5" />
         </button>
       </header>
       {/*
@@ -278,7 +294,15 @@ const DeckColumn: Component<{
           </Show>
         </div>
       </DiagnosticsPanel>
-      <ColumnItems items={items} />
+      {/*
+        スクロールするのは本文だけ。ヘッダーは `section` 直下に残して
+        貼り付ける。**この容器が e2e の掴み先** (`column-scroll`) ——
+        `section` 自体をスクロールさせていた頃の名残で `deck-column` を
+        掴むと、ヘッダーを固定した瞬間に静かに何もスクロールしなくなる。
+      */}
+      <div data-testid="column-scroll" class="min-h-0 flex-1 overflow-y-auto">
+        <ColumnItems items={items} />
+      </div>
     </section>
   );
 };

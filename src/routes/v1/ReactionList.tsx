@@ -133,9 +133,16 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
           <For each={groups()}>
             {(group) => (
               <div class="flex items-start gap-1">
+                {/*
+                  角丸は 6px。ノート本体・画像の 8px の内側に入る部品なので
+                  一段小さくする。**丸ピル (`rounded-full`) にはしない** ——
+                  絵文字は字面が四角く、丸で囲うと左右の余白だけが増えて
+                  1 列に入る数が減る。
+                  高さは追加ボタンと揃えるため `h-6` で固定する。
+                */}
                 <div
                   data-testid="reaction-group"
-                  class="b-1 flex w-fit shrink-0 items-center gap-1 rounded p-0.5"
+                  class="b-1 flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1.5"
                   classList={{
                     // 自分が押していれば強調する (仕様 5 節)。
                     "b-accent-5 bg-accent-5/10":
@@ -147,7 +154,7 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
                   <ReactionMark content={group.content} />
                   <span
                     data-testid="reaction-count"
-                    class="c-secondary h-5 leading-5"
+                    class="c-secondary text-caption leading-5"
                   >
                     {group.count}
                   </span>

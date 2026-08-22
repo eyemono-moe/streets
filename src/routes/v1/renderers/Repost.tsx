@@ -81,7 +81,7 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
       // padding が二重にならないよう自分自身も祖先の `group/event` を
       // 見て潰れる。`group/event` を付けるのは、リポストの中のリポスト
       // (対象が kind:6/7) でも同じことが起きるようにするため。
-      class="group/event space-y-1 pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
+      class="group/event space-y-2 p-3 text-body group-[_]/event:p-0"
     >
       <p
         data-testid="repost-by"
