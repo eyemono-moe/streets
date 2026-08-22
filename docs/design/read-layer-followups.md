@@ -546,11 +546,21 @@ Nostr のイベント id は `pubkey, created_at, kind, tags, content` のハッ
 
 一般則として書いておく: **フィクスチャの既定値を期待値と同じにすると、その値を検証しているつもりのアサーションは実は何も検証していない。** テストを書くときはフィクスチャの当該フィールドを期待値と異なる値にするか、既定値のままなら別の値へ変異させて red になるかを実際に確認する。
 
+**最終ブランチレビュー（2026-08-22 fix wave）で追記: この一般則そのものは既に書いてあったのに、同じ defect が独立にもう 1 回起きた。** `src/core/nostr/build/` 配下 9 ファイルの `evt` テストフィクスチャが `kind: 1` を既定値としてバイト単位で重複しており、`kind` を検証するアサーションがある箇所でこの defect を再現する土壌になっている。**足りていないのは一般則の周知ではなく強制である** — 一般則を知っていても、コピーしたフィクスチャの既定値をたまたま検証対象と同じにする事故は防げない。9 ファイルを 1 つの共有フィクスチャに集約し、既定値を `kind: 1` 以外にする（あるいは `kind` を必須パラメータにして既定値自体を無くす）ことを、次にビルダを 1 つ足す前にやること。
+
+### 最終ブランチレビューの繰延事項（2026-08-22 fix wave）
+
+fix wave で見つかったが、範囲外として次の計画へ回したもの。
+
+- **`Mutation` は合成できない。** `type Mutation = (current: NostrEvent | undefined) => EventDraft`（`draft.ts`）は `NostrEvent` を受けて `EventDraft` を返すため、`m2(m1(current))` は `m1(current)` が `EventDraft` であって `NostrEvent | undefined` ではないため型が通らない。これは仕様 6.4 節が選んだ署名デバウンス戦略（「束ねる側が `mutate` の中で複数の変更を適用すればよい」）をそのまま塞いでおり、[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) が Should として求めているものでもある。考えられる直し方は、`replaceTags` と `Mutation` の入力型を `{ tags: string[][]; content: string } | undefined` へ広げること —— `NostrEvent` も `EventDraft` もこの形を構造的に満たすので既存の呼び出し側は変更不要になるはずだが、合成した結果の `kind` をどちらの版から採るか（先に適用した側か、後か）は widening だけでは決まらず、実装する回で決める必要がある。
+- **`evt` テストフィクスチャの重複（9 ファイル、既定 `kind: 1`）。** 詳細は上の「くり返し踏んだ罠」節の追記を参照 —— 共有フィクスチャへの集約と非 `kind: 1` の既定値化を、次にビルダを 1 つ足す前にやること。
+- **レビュー番号・タスク ID を運ぶコメントが repo 全体で 100 箇所を超えて残っている**（`(final review, Important 3)` のような形。`connection-pool.ts` と `subscription-manager.ts` だけで数十件）。[コメントは非自明な WHY だけ](../../CONTEXT.md) という repo の規則に反するが、**このブランチで新規に書かれたコメントはこの規則を守れている** —— 違反は過去のスライスからの持ち越しであり、規則自体は機能している。1 箇所ずつ直す価値は無く、repo 全体を対象にした一括の sweep が要る。
+
 ### 小さいもの（deferred）
 
 - `writer.ts` の新コメントに WHAT 寄りの記述が残っている（`WriteResult.replaced` のコメント）。巻き戻しのコメントには他ファイル（`publisher.ts` / `event-store.ts`）の慣習である仕様節への参照（旧仕様 5.1 節相当）が付いていない。
 - `sign()` というテストヘルパが `writer.test.ts` / `fetch-latest.test.ts` / `event.test.ts` の 3 ファイルで重複している。どれか 1 つだけ仕様変更されると足並みが揃わなくなる。
-- `buildQuote` に「relayHint 無しで `q` タグの 3 番目が空文字で埋まる」テストが無い。`buildReply` には対のテスト（`note.test.ts:78-87`）があるが `buildQuote` 側に対称形が無い。退行すると pubkey が relay-url の位置にずれる。
+- ~~`buildQuote` に「relayHint 無しで `q` タグの 3 番目が空文字で埋まる」テストが無い。~~ 最終ブランチレビューの fix wave（2026-08-22）で追加した（`note.test.ts`）。
 - `removeMute` 側に `word` の小文字化を直接検証するテストが無い（`tagOf` は add/remove で共有されており、`addMute` 側のテストが小文字化を覆っている）。
 - IndexedDB 往復テストの `settle()` が `setImmediate` 20 回待ちのマジックナンバー。CI 負荷変動下でフレーキー化の余地がある。
 - `globalThis.IDBKeyRange` の補完（`indexeddb-persistence.test.ts:314-315`）がモジュールトップレベルにあり、後始末が無い。`describe` の `beforeAll` に閉じるほうが読みやすい。
