@@ -117,7 +117,12 @@ const DeckColumn: Component<{
   /** 空 = 根のカラム。push でスレッドへ進み、pop で戻る。 */
   const [stack, setStack] = createSignal<string[]>([]);
   const focusId = () => stack().at(-1);
-  const openThread = (id: string) => setStack((s) => [...s, id]);
+  // いま見ている焦点そのものを押しても push しない —— `ThreadView` は
+  // 焦点のノートも同じクリックハンドラを通すので、素通しにすると
+  // 「変化しない重複フレーム」が積まれ、戻るボタンを 1 回押しても
+  // 表示が変わらないように見える (実際には重複フレームを 1 枚捨てただけ)。
+  const openThread = (id: string) =>
+    setStack((s) => (s.at(-1) === id ? s : [...s, id]));
   const closeThread = () => setStack((s) => s.slice(0, -1));
 
   /**
@@ -132,6 +137,13 @@ const DeckColumn: Component<{
   const threadRootId = createMemo(() => {
     const id = focusId();
     if (!id) return undefined;
+    // `store.get` は非リアクティブな一発読み —— この memo は `id` が
+    // 変わらない限り再実行されないので、呼んだ時点でまだ store に無い
+    // イベントを渡すと「自分自身が根」という誤った結果に固定されたまま
+    // 二度と直らない。今のところ `openThread` は画面に描画済み (= 必ず
+    // store にある) ノートのクリックからしか呼ばれないのでこれは起きない
+    // —— 深いリンクや未取得の mention から `openThread` を呼ぶ経路を
+    // 足すときは、この前提が崩れることに注意。
     const focus = store.get(id);
     if (!focus) return id;
     return threadRoot(focus)?.id ?? id;
@@ -259,7 +271,7 @@ const DeckColumn: Component<{
           <button
             type="button"
             data-testid="thread-back"
-            aria-label="スレッドを閉じる"
+            aria-label="戻る"
             class="flex h-8 w-8 shrink-0 appearance-none items-center justify-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-alpha-hover"
             onClick={closeThread}
           >
@@ -384,9 +396,9 @@ const DeckColumn: Component<{
       */}
       <div data-testid="column-scroll" class="min-h-0 flex-1 overflow-y-auto">
         {/*
-          `open` でスタックへ push する ——`Note.tsx` (Task 6 で配線済み)
-          がノートを押すたびにこれを呼ぶ。根のカラムだけでなく、スレッド
-          内の祖先・返信を押しても新しい背骨に引き直せるよう、本文全体を
+          `open` でスタックへ push する —— ノートのクリックハンドラ
+          (`Note.tsx`) がこれを呼ぶ。根のカラムだけでなく、スレッド内の
+          祖先・返信を押しても新しい背骨に引き直せるよう、本文全体を
           この provider の中に置く。
         */}
         <ThreadNavProvider open={openThread}>
