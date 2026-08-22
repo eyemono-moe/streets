@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../event";
-import { buildReply } from "./note";
+import { encodeBech32 } from "../nip19";
+import { buildQuote, buildReply } from "./note";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({
@@ -89,5 +90,47 @@ describe("buildReply", () => {
     const draft = buildReply(evt({}), "本文");
     expect(draft.kind).toBe(1);
     expect(draft.content).toBe("本文");
+  });
+});
+
+describe("buildQuote", () => {
+  it("q タグを立て、e タグは立てない", () => {
+    // 捕まえる変異: e タグも立てる。NIP-18 が明示的に禁じており、
+    // 立てると引用が返信としてタイムラインに出る。
+    const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
+    const draft = buildQuote(target, "これ面白い", {
+      relayHint: "wss://a.example",
+    });
+    expect(draft.tags.filter((t) => t[0] === "e")).toEqual([]);
+    expect(draft.tags.filter((t) => t[0] === "q")).toEqual([
+      ["q", "1".repeat(64), "wss://a.example", "9".repeat(64)],
+    ]);
+  });
+
+  it("引用先の著者に p タグを立てる", () => {
+    // 捕まえる変異: p を落とす。引用されたことが相手に通知されない。
+    const target = evt({ pubkey: "9".repeat(64) });
+    const draft = buildQuote(target, "これ面白い");
+    expect(draft.tags.filter((t) => t[0] === "p")).toEqual([
+      ["p", "9".repeat(64)],
+    ]);
+  });
+
+  it("本文に nostr: が無ければ末尾に note1 を足す", () => {
+    // 捕まえる変異: 本文をそのまま使う。q タグだけでは NIP-27 に対応した
+    // クライアントが本文中に引用を描けない。
+    const target = evt({ id: "1".repeat(64) });
+    const draft = buildQuote(target, "これ面白い");
+    expect(draft.content).toBe(
+      `これ面白い\n\nnostr:${encodeBech32("note", "1".repeat(64))}`,
+    );
+  });
+
+  it("本文に既に nostr: があればそのまま使う", () => {
+    // 捕まえる変異: 無条件に末尾へ足す。同じ引用が 2 回描かれる。
+    const target = evt({ id: "1".repeat(64) });
+    const uri = `nostr:${encodeBech32("note", "1".repeat(64))}`;
+    const draft = buildQuote(target, `${uri} これ面白い`);
+    expect(draft.content).toBe(`${uri} これ面白い`);
   });
 });

@@ -1,5 +1,6 @@
 import type { RelayUrl } from "../../relay/relay-connection";
 import type { NostrEvent } from "../event";
+import { encodeBech32 } from "../nip19";
 import type { EventDraft } from "./draft";
 
 /** 親が持つ `root` マーカー付きの `e` タグ。無ければ親自身が根。 */
@@ -42,5 +43,31 @@ export const buildReply = (
     kind: 1,
     tags: [...e, ...[...pubkeys].map((pubkey) => ["p", pubkey])],
     content,
+  };
+};
+
+/**
+ * NIP-18 の引用。**`e` タグを立てない** —— NIP-18 は
+ * "This ensures that quote reposts will not be shown in the feed as replies"
+ * と明示しており、立てると引用が返信としてタイムラインに出る。
+ *
+ * `nevent` (リレーヒントと著者を TLV で持つ形) は使わない ——
+ * `src/core/nostr/nip19.ts` は復号と素の bech32 しか持たず、TLV の
+ * 符号化器がまだ無い。`note` でも参照としては一意に定まり、リレーヒントは
+ * `q` タグの 3 番目が持つ。
+ */
+export const buildQuote = (
+  target: NostrEvent,
+  content: string,
+  options?: { relayHint?: RelayUrl },
+): EventDraft => {
+  const uri = `nostr:${encodeBech32("note", target.id)}`;
+  return {
+    kind: 1,
+    tags: [
+      ["q", target.id, options?.relayHint ?? "", target.pubkey],
+      ["p", target.pubkey],
+    ],
+    content: content.includes(uri) ? content : `${content}\n\n${uri}`,
   };
 };
