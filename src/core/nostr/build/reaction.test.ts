@@ -30,6 +30,23 @@ describe("buildReaction", () => {
     ]);
   });
 
+  it("k タグが target.kind から導出される (kind 30023 で検証)", () => {
+    // 捕まえる変異: k タグを String(target.kind) ではなく硬コードされた
+    // "1" に置き換える。fixture の kind デフォルトが 1 なので、全テストが
+    // 同じ値でしかテストできない。この例外テストで検証。
+    const target = evt({
+      id: "1".repeat(64),
+      pubkey: "9".repeat(64),
+      kind: 30023,
+    });
+    const draft = buildReaction(target, { type: "like" });
+    expect(draft.tags).toEqual([
+      ["e", "1".repeat(64)],
+      ["p", "9".repeat(64)],
+      ["k", "30023"],
+    ]);
+  });
+
   it("カスタム絵文字は emoji タグ 1 つと :shortcode: 1 つ", () => {
     // 捕まえる変異: content に飾りを足す (":x: すごい" など)。NIP-25 は
     // "The content can be set only one :shortcode:" と定めており、
