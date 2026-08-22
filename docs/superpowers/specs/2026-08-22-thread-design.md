@@ -157,9 +157,11 @@ const [stack, setStack] = createSignal<Frame[]>([]);
 
 スレッド表示中は、カラムヘッダーのタイトルが「スレッド」になり、左端に戻るボタンが出る。深さは redesign の `Thread / stack` ボードに合わせてドットで示す。
 
-## 7. 入口 —— ノート全体を押せるようにする
+## 7. 入口 —— すべてのノートが自分自身のスレッドを開く
 
-`<article data-testid="note">`（`NoteFull`）を押すとスレッドが開く。
+`<article data-testid="note">` を押すと、**その `<article>` が描いているイベントの**スレッドが開く。`NoteFull` と `NoteCompact` の両方で、`variant` による区別はしない。
+
+**入れ子は内側が勝つ。**引用カードや返信先の中のノートを押せば、内側の `<article>` がその click を拾って `stopPropagation()` する。外側のノートには届かない。したがって「引用先のスレッドを開く」も「返信先のスレッドを開く」も、外側と同じ 1 つの規則で成立し、深さに関係なく効く。
 
 **発火させない場所:**
 
@@ -168,12 +170,22 @@ const [stack, setStack] = createSignal<Frame[]>([]);
 | 本文中のリンク・ハッシュタグ・`nostr:` 参照 | それぞれ自分の目的地を持つ |
 | 名前・アイコン | ホバーカードのトリガー。将来ユーザーカラムを開く（[#205](https://github.com/eyemono-moe/streets/issues/205)） |
 | アクション列・リアクションのチップ・⋮ メニュー | 自分の動作を持つ |
-| 引用カードの内側 | 押せば**その引用先の**スレッドが開くべきで、外側のノートのスタックへ積むのは誤り。本スライスでは引用カードを押せるようにしない |
 | ドラッグでテキストを選択した後 | `mousedown` と `mouseup` の座標が動いていたら発火しない |
 
-**`compact` では発火させない。**`NoteCompact` が置かれるのは引用カードと返信先で、押す対象は外側のノートである。スレッド内の祖先・返信は `compact` で描くが、そちらは押せる必要がある —— したがって「押せるかどうか」は `variant` ではなく**置く側が渡す**（`onOpenThread` を渡された `NoteCompact` だけが押せる）。
-
 [ADR-0026](../../adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md)「押しても何も起きないものを押せる見た目にしない」に対しては、本スライスで実際に動くようになるので抵触しない。
+
+### 7.1 カラム 1 本を範囲とする context
+
+スタックは**カラムごと**の状態だが（6 節）、`RenderContext`（`src/core/view/render-context.tsx`）はデッキ全体で 1 つである。したがって `RenderContext` には足さず、`DeckColumn` が提供する別の小さな context を作る。
+
+```ts
+/** このノートを起点にスレッドを開く。カラムの外では undefined。 */
+useThreadNav(): ((focusId: string) => void) | undefined
+```
+
+**`useRender()` と違って、provider が無くても例外を投げない。**`useRender` が投げるのは「provider を渡し忘れた」が常に配線ミスだからだが、こちらは違う —— `/debug/v1-section` のようにナビゲーションを持たない面でイベントを描くのは正当な使い方であり、そこではノートが押せないだけでよい。**投げると、デバッグルートがスレッドと無関係に落ちる。**
+
+`undefined` のとき `<article>` は click ハンドラも押せる見た目も持たない（ADR-0026）。
 
 ## 8. テスト
 
@@ -199,6 +211,8 @@ const [stack, setStack] = createSignal<Frame[]>([]);
 1 本。ノートを押す → 祖先と返信が出る → 戻る → 元のカラムの位置に戻っている。
 
 シードには**根 → 中間 → 選択するイベント → 返信 2 件**を置き、祖先が 2 段あることを実際に測る（1 段だと `replyTarget` と `threadRoot` の取り違えが通ってしまう）。
+
+**入れ子から開く経路も同じ e2e で測る。**スレッドの中の祖先（`compact`）を押すと、その祖先を選択したイベントとする背骨に引き直される。これが通らないと 7 節の `stopPropagation` が効いていないか、`compact` にハンドラが付いていないかのどちらかである。
 
 ## 9. 決めなかったこと
 
