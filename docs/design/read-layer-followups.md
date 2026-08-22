@@ -500,6 +500,75 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 - **`tagOnlyQuoteTargets` の address 形式の重複排除に専用のテストが無い。** 仕様 4.2 節が「`q` タグの座標形式（`naddr` 相当）も本文と突き合わせる」と定め、`tagOnlyQuoteTargets`（`src/core/nostr/event-refs.ts`）の実装は id/address 対称に書かれている（`q` タグの `<kind>:<pubkey>:<identifier>` と本文の `nostr:naddr1…` を同じ集合で突き合わせる）。コードは正しく見えるが、`event-refs.test.ts` に address 形式（`form: "address"`）だけを対象にした「本文にあってタグに無い」「タグにあって本文に無い」「両方にある」の 3 パターンのテストが無い。id 形式のテストはあるので、その対称形をそのまま address 形式へ複製すれば埋まる。
 - **`noteWith` というテストヘルパの引数の順序が 2 ファイルで逆になっている。** `src/core/nostr/event-refs.test.ts` は `noteWith(tags, overrides)`、`src/routes/v1/NoteContent.test.tsx` は `noteWith(content, tags)`。同じ名前で違う形の関数がリポジトリに共存しているので、次にどちらかのファイルへテストを足す人が、もう片方のファイルで見た記憶のまま呼んで型エラー（またはランタイムの取り違え）を踏む。どちらかの名前を変えるか、共有ヘルパへ統合する必要がある。
 
+## 書き込みの土台（2026-08-22）— 仕様の答え
+
+[仕様](../superpowers/specs/2026-08-22-write-foundation-design.md) が範囲に定めた「イベントビルダ・`Writer` seam・置換可能イベントの read-modify-write・`Signer` への NIP-44 追加・compose の配線」を実装した。動かして初めて分かったことを記録する。残タスクの一覧は [v1-feature-inventory.md](./v1-feature-inventory.md) 1 節（NIP-46・kind:30078・署名デバウンス・非公開リスト項目・削除の表示反映）を参照 —— ここには**理由**だけを書く。
+
+### `EventStore.remove()` は置換可能イベントの索引を張り直さないと「巻き戻したら全部消えた」になる
+
+`#replaceable`（`src/core/read/event-store.ts:47`）は `kind:pubkey` を**単一の** id へ写す索引。素朴に `remove(id)` で `#events` と `#byTag` からだけ id を外すと、削除した版が直前に索引を上書きしていた場合、直前の版は `#events` にまだ残っているのに `#replaceable` からは指されなくなり、`latestReplaceable()` から永久に見えなくなる。フォローリストの楽観挿入を巻き戻すと、直前まで見えていた既存のフォロー全員が画面から消えるという形で症状が出る。
+
+`remove()`（`event-store.ts:296-332`）は削除した id が索引先だった場合、`#replaceable` からそのキーを消してから `#events` を走査して直前の版を再索引し直す。O(n) の走査だが `remove()` は巻き戻しと明示的な削除でしか呼ばれないため、毎イベント通る経路ではない。
+
+### `fetchLatest` は `identifier` を渡すと throw する — kind:30078 を載せる前に索引へ `d` を足す必要がある
+
+`fetchLatest`（`src/core/write/fetch-latest.ts:49-58`）は `identifier`（`d` タグ）が渡されると `"fetchLatest: identifier (d タグ) は未対応。EventStore の置換可能索引が d を見ていない"` で throw する。`EventStore.#indexReplaceable`（`event-store.ts:228-251`）は `kind:pubkey` でしか索引しておらず、`d` を持たない。**kind:30078（デッキ、[ADR-0013](../adr/0013-deck-persisted-to-nip78.md)）を保存する前に、この索引へ `d` を足す設計が要る。**
+
+レビューがもう 1 点指摘している: `fetchLatest` は `kind` に任意の数値を受け取れるが、`#indexReplaceable` が実際に索引するのは kind 0 / 3 / 10000-19999 だけ（`event-store.ts:230-233`）。`identifier` を渡さずに kind:30000 番台で呼ぶと throw せず、`latestReplaceable` が構造的に常に `undefined` を返す —— 「取得できなかった」ではなく「最初から索引されていないので常に無い」という別の失敗モードであり、`d` を足す設計はこの違いも埋める必要がある。
+
+### IndexedDB の永続化: 「削除ループを書き込みループの後に回す」では同一 flush 内の削除は勝てない
+
+計画のコードは、同一 flush に「保存」と「巻き戻し (delete)」の両方が来たとき、削除ループを書き込みループの後に置けば削除が勝つと想定していた。実際は逆転する — retained（保存対象）の `put()` は非同期のカーソルコールバックの中から発行されるため、同期的に発行された `delete()` より**後**に IndexedDB へ届き、削除を上書きしてしまう。`fake-indexeddb` で再現を取ってから修正した：削除対象の id を retained の書き込みループから最初に除外する形に変えた（`src/core/read/indexeddb-persistence.ts:212-214` の `removalSet`）。
+
+これまで IndexedDB の往復を実際に検査するテスト基盤が無かった（既存テストは indexedDB が無い/失敗する経路だけを見ていた）ので、`fake-indexeddb` を devDependency に追加した。[ADR-0020](../adr/0020-no-nostr-library-noble-primitives-only.md) の射程は Nostr 用ライブラリだけで、テスト用の IndexedDB フェイクは対象外。
+
+副産物として、ブリーフに無いバグも同じ調査中に見つかって直した: `flush()` の早期 return ガードが `removals` の有無を見ておらず、削除だけの flush が writeBatch ごと飛んでいた。
+
+### 楽観挿入の巻き戻しは「実際に自分が入れた分」しか消してはいけない — id 衝突で既存の投稿を消す不具合
+
+Nostr のイベント id は `pubkey, created_at, kind, tags, content` のハッシュで、`sig` を含まない。compose は常に `tags: []` を送るので、**同一秒内に同じ本文を 2 回投稿すると id が一致する**。1 回目の `put()` は `"inserted"` で publish も成功、2 回目の `put()` は `"duplicate"` を返す（`verifyOptimisticInsert` は `"duplicate"` を非エラーとして素通しする）。2 回目の publish が全滅すると、無条件の巻き戻しは `store.remove(id)` を呼び、**1 回目の、実際にリレーへ届いた投稿を `EventStore` からも永続層からも消してしまう**（表示だけでなく実データの損失）。
+
+`verifyOptimisticInsert`（`src/core/write/verify-optimistic-insert.ts`）が verdict（`"inserted" | "duplicate"`）をそのまま返すようにし、`writer.ts`（`send` 内、130-132 行付近）は `putResult === "inserted"` のときだけ `store.remove()` する。新しいテストは `"duplicate"` を注入するスタブではなく、同一 signer/draft/秒で実際に 2 回 publish して id を衝突させる形で書いた。
+
+### `optimisticInsertMs` は `store.put()` の**前**から測らないと schnorr 検証が計測から抜ける
+
+`onOptimisticInsert` フック（`writer.ts`）は `store.put()` の**後**に発火する。フックの中で `performance.now()` を取ると、`put()` 自体（schnorr 検証、[ADR-0011](../adr/0011-performance-budget.md) の 100ms 予算が本来見ている部分）が計測区間から抜け落ちる。フックは `store.put()` 直前に取った `startedAt` を受け取る形にした（`writer.ts:107-117`）。
+
+**この値を testid で見ている e2e は無い。** `optimisticInsertMs` の正しさは `writer.test.ts` のユニットテスト 1 本だけが支えている — 退行しても e2e では気づけない。
+
+### くり返し踏んだ罠: フィクスチャの既定値が期待値と一致していると、その変異をテストが捕まえない
+
+このスライスで 3 回、独立に発生した。
+
+- `k` タグの値。`reaction.test.ts` / `deletion.test.ts` のフィクスチャは既定で `kind: 1`、期待値も `["k", "1"]`。`String(target.kind)` を `"1"` のハードコードへ変異させても全テストが緑のままになる。
+- `buildReply` の `kind` アサーション（`note.test.ts:89-93`、「kind と content をそのまま載せる」）。同じ理由で `draft.kind` を固定値へ変異させても落ちない。
+- `removeFollow` の「該当する `p` だけを落とす」（`follow.test.ts:82-`）。フィクスチャの先頭がたまたま削除対象なので、「先頭を無条件に落とす」という変異は単体では red にならない（このケースは隣接テストが救っている — スイート全体としては安全）。
+
+一般則として書いておく: **フィクスチャの既定値を期待値と同じにすると、その値を検証しているつもりのアサーションは実は何も検証していない。** テストを書くときはフィクスチャの当該フィールドを期待値と異なる値にするか、既定値のままなら別の値へ変異させて red になるかを実際に確認する。
+
+**最終ブランチレビュー（2026-08-22 fix wave）で追記: この一般則そのものは既に書いてあったのに、同じ defect が独立にもう 1 回起きた。** `src/core/nostr/build/` 配下 9 ファイルの `evt` テストフィクスチャが `kind: 1` を既定値としてバイト単位で重複しており、`kind` を検証するアサーションがある箇所でこの defect を再現する土壌になっている。**足りていないのは一般則の周知ではなく強制である** — 一般則を知っていても、コピーしたフィクスチャの既定値をたまたま検証対象と同じにする事故は防げない。9 ファイルを 1 つの共有フィクスチャに集約し、既定値を `kind: 1` 以外にする（あるいは `kind` を必須パラメータにして既定値自体を無くす）ことを、次にビルダを 1 つ足す前にやること。
+
+### 最終ブランチレビューの繰延事項（2026-08-22 fix wave）
+
+fix wave で見つかったが、範囲外として次の計画へ回したもの。
+
+- **`Mutation` は合成できない。** `type Mutation = (current: NostrEvent | undefined) => EventDraft`（`draft.ts`）は `NostrEvent` を受けて `EventDraft` を返すため、`m2(m1(current))` は `m1(current)` が `EventDraft` であって `NostrEvent | undefined` ではないため型が通らない。これは仕様 6.4 節が選んだ署名デバウンス戦略（「束ねる側が `mutate` の中で複数の変更を適用すればよい」）をそのまま塞いでおり、[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) が Should として求めているものでもある。考えられる直し方は、`replaceTags` と `Mutation` の入力型を `{ tags: string[][]; content: string } | undefined` へ広げること —— `NostrEvent` も `EventDraft` もこの形を構造的に満たすので、既存の呼び出し側は変更不要になるはずである。
+
+  合成した結果の `kind` は後から適用した側のものになる（各ビルダが自分の kind をファイル内に固定で持っているため）が、**組み合わせる対象は同じ kind の変更どうしだけなので、これは選択の余地がある話ではない**。実際に注意が要るのはそこではなく、**型が異なる kind の変更の合成を止められない**こと —— `addFollow` と `addMute` を重ねると、kind:10000 のイベントの中にフォロー用の `p` タグが入った意味をなさないものが、型検査を通ったまま出来上がる。合成を同じ kind の中に閉じ込める手段（`Mutation` を kind でパラメータ化する、合成ヘルパ側で突き合わせる、など）を実装する回で決めること。
+- **`evt` テストフィクスチャの重複（9 ファイル、既定 `kind: 1`）。** 詳細は上の「くり返し踏んだ罠」節の追記を参照 —— 共有フィクスチャへの集約と非 `kind: 1` の既定値化を、次にビルダを 1 つ足す前にやること。
+- **レビュー番号・タスク ID を運ぶコメントが repo 全体で 100 箇所を超えて残っている**（`(final review, Important 3)` のような形。`connection-pool.ts` と `subscription-manager.ts` だけで数十件）。[コメントは非自明な WHY だけ](../../CONTEXT.md) という repo の規則に反するが、**このブランチで新規に書かれたコメントはこの規則を守れている** —— 違反は過去のスライスからの持ち越しであり、規則自体は機能している。これらは後続の各スライスで、触るファイルの中で直していく。
+
+### 小さいもの（deferred）
+
+- `writer.ts` の新コメントに WHAT 寄りの記述が残っている（`WriteResult.replaced` のコメント）。巻き戻しのコメントには他ファイル（`publisher.ts` / `event-store.ts`）の慣習である仕様節への参照（旧仕様 5.1 節相当）が付いていない。
+- `sign()` というテストヘルパが `writer.test.ts` / `fetch-latest.test.ts` / `event.test.ts` の 3 ファイルで重複している。どれか 1 つだけ仕様変更されると足並みが揃わなくなる。
+- ~~`buildQuote` に「relayHint 無しで `q` タグの 3 番目が空文字で埋まる」テストが無い。~~ 最終ブランチレビューの fix wave（2026-08-22）で追加した（`note.test.ts`）。
+- `removeMute` 側に `word` の小文字化を直接検証するテストが無い（`tagOf` は add/remove で共有されており、`addMute` 側のテストが小文字化を覆っている）。
+- IndexedDB 往復テストの `settle()` が `setImmediate` 20 回待ちのマジックナンバー。CI 負荷変動下でフレーキー化の余地がある。
+- `globalThis.IDBKeyRange` の補完（`indexeddb-persistence.test.ts:314-315`）がモジュールトップレベルにあり、後始末が無い。`describe` の `beforeAll` に閉じるほうが読みやすい。
+- IndexedDB 往復テストの 1 件目のコメントが指す変異が、そのテストが実際に守っている性質の一部しか書いていない（flush ガードの修正でも落ちる）。
+- `verifyOptimisticInsert` の例外文言（「投稿の検証に失敗しました」）が、`v1.tsx` の汎用エラー分岐（「投稿に失敗しました: …」）の中でメッセージに包まれ、「失敗しました」が二重に出る（`v1.tsx:510` 付近）。
+
 ## 未着手のまま残っている設計上の課題
 
 **タスクとしては [GitHub Issues](https://github.com/eyemono-moe/streets/issues) に登録済み。** ここに残すのは、Issue の本文に収まらない背景である。
@@ -637,7 +706,7 @@ NIP-01 は 1 つの `REQ` に複数フィルタを載せることを認めてお
 
 [ADR-0011](../adr/0011-performance-budget.md) は性能予算が **E2E で測定可能でなければならない**と定めている（`測定できない予算は要件ではなく願望である`）。7 指標のうち **30 接続上限に続いて 1 セクションの保持件数上限**（当初 500 件、現在 200 件）が E2E で測れるようになり、測定済みは 2 つになった（[architecture.md](./architecture.md) 10節）。残る 5 指標は未測定。
 
-**ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** `.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
+**ただし「E2E が存在し実際にゲートする」と「CI がその E2E を実行している」は別の主張である。** ~~`.github/workflows/ci.yaml` は `check` / `test`（vitest）/ `build` の 3 ジョブしか持たず、Playwright は一度も走らない。~~ **2026-08-22 追記: これは解消済み。** `ci.yaml` には `e2e` ジョブがあり、ローカルリレーを立てて Playwright を走らせる。この記述を信じたまま「CI は E2E を見ていない」と書いた箇所が別文書に生まれたので、取り消し線で残す。`e2e/section-cap.spec.ts` はローカルで走らせれば本物のガードである（`MAX_ITEMS_PER_SECTION` を 1000 に上げると実際に落ちる）が、push のたびに自動でそれを検査する仕組みはまだ無い。CI 配線は下記「次の計画で直すべきもの」に follow-up として記録した。
 
 - **30 接続上限** — 解消済み。`e2e/connection-budget.spec.ts` が予算超過なし・貪欲被覆・落とした著者の報告を測る。実ソケットが死んで実リレーが復帰することは `e2e/relay-recovery.spec.ts` で測る（再接続そのものは 30 接続上限とは別の ADR-0021 だが、同じ接続プールのスライスで測定可能になった）。
 - **200 件上限**（当初 500 件、[progressive-column-rendering のスライス](../superpowers/archive/specs/2026-08-14-progressive-column-rendering-design.md)で 200 へ変更） — 解消済み。`e2e/section-cap.spec.ts` が上限を余裕をもって超える 600 件を seed し（`e2e/fixtures/seed-cap.ts`）、`phase: settled` に達した時点で `/debug/v1-section` の `items` がちょうど 200 で止まることを主張する。

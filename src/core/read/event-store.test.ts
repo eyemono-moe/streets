@@ -383,6 +383,13 @@ describe("EventStore と EventPersistence の配線", () => {
       saveDeletions(ids) {
         deletedIds.push(...ids);
       },
+      delete() {},
+      deleteDeletions(ids) {
+        for (const id of ids) {
+          const index = deletedIds.indexOf(id);
+          if (index !== -1) deletedIds.splice(index, 1);
+        }
+      },
       dispose() {},
     };
   };
@@ -459,6 +466,33 @@ describe("EventStore と EventPersistence の配線", () => {
     store.put(deletion, "wss://a/");
 
     expect(persistence.deletedIds).toEqual([targetA, targetB]);
+  });
+
+  it("kind:5 を remove() で巻き戻すと saveDeletions した対象も取り消す", () => {
+    // 捕まえる変異: remove() が persistence.deleteDeletions を呼ばない
+    // (呼ばずに persistence.delete だけ呼ぶ)。publish が全リレーで失敗して
+    // Writer が kind:5 を巻き戻しても deletions レコードだけ残り、
+    // hydrate が次回起動のたびに対象 id を弾き続ける —— 「どのリレーにも
+    // 届きませんでした」と表示されたのに、本人の投稿だけがローカルでは
+    // 消えたままになる不整合を招く
+    const persistence = createRecordingPersistence();
+    const store = new EventStore({ persistence });
+    const targetA = "a".repeat(64);
+    const targetB = "b".repeat(64);
+    const deletion = sign("", {
+      kind: 5,
+      tags: [
+        ["e", targetA],
+        ["e", targetB],
+      ],
+    });
+
+    store.put(deletion, "wss://a/");
+    expect(persistence.deletedIds).toEqual([targetA, targetB]);
+
+    store.remove(deletion.id);
+
+    expect(persistence.deletedIds).toEqual([]);
   });
 
   it("persistence を渡さない store は put() で例外を投げない", () => {
@@ -560,5 +594,87 @@ describe("EventStore.eventsByTag", () => {
 
     const results = store.eventsByTag("unknown", "value");
     expect(results).toEqual([]);
+  });
+});
+
+describe("remove", () => {
+  it("索引から完全に外す", () => {
+    // 捕まえる変異: #events からだけ消して #byTag を放置する。
+    // eventsByTag は #events に無い id を結果から黙って落とすため、
+    // 単に remove 直後に問い合わせるだけでは、放置された #byTag の
+    // エントリが残っていても気づけない —— hydrate (id 検証をしない) で
+    // 同じ id・別タグのイベントを入れ直し、放置された古いタグ値の下に
+    // そのイベントが誤って現れないことまで確かめる。
+    const store = new EventStore();
+    const event = sign("hi", { kind: 1, tags: [["e", "abc"]] });
+    store.put(event, "wss://a.example");
+
+    expect(store.remove(event.id)).toBe(true);
+    expect(store.get(event.id)).toBeUndefined();
+    expect(store.eventsByTag("e", "abc")).toEqual([]);
+    expect(store.size).toBe(0);
+
+    const impostor = { ...event, tags: [["e", "xyz"]] };
+    store.hydrate([{ event: impostor, seenRelays: [], fetchedAt: 0 }]);
+    expect(store.eventsByTag("e", "abc")).toEqual([]);
+  });
+
+  it("知らない id は false を返し、何も壊さない", () => {
+    // 捕まえる変異: 存在しない id で例外を投げる
+    const store = new EventStore();
+    const event = sign("hi", { kind: 1, tags: [] });
+    store.put(event, "wss://a.example");
+
+    expect(store.remove("0".repeat(64))).toBe(false);
+    expect(store.get(event.id)).toBe(event);
+  });
+
+  it("置換可能イベントを消すと、直前の版が再び最新になる", () => {
+    // 捕まえる変異: #replaceable のエントリを消すだけで張り直さない。
+    // これを見逃すと、フォローリストの巻き戻しで既存のフォローが
+    // 丸ごと消えたように見える。
+    const store = new EventStore();
+    const older = sign("", {
+      kind: 3,
+      created_at: 1_700_000_000,
+      tags: [["p", "aa"]],
+    });
+    const newer = sign("", {
+      kind: 3,
+      created_at: 1_700_000_100,
+      tags: [
+        ["p", "aa"],
+        ["p", "bb"],
+      ],
+    });
+    store.put(older, "wss://a.example");
+    store.put(newer, "wss://a.example");
+    expect(store.latestReplaceable(3, newer.pubkey)).toBe(newer);
+
+    store.remove(newer.id);
+
+    expect(store.latestReplaceable(3, older.pubkey)).toBe(older);
+  });
+
+  it("永続層へ削除を転送する", () => {
+    // 捕まえる変異: persistence.delete を呼ばない。呼ばないと publish に
+    // 失敗したイベントが IndexedDB に残り、次回起動の水和で戻ってくる。
+    const deleted: string[][] = [];
+    const store = new EventStore({
+      persistence: {
+        load: async () => ({ events: [], deletedIds: [] }),
+        save: () => {},
+        saveDeletions: () => {},
+        delete: (ids) => deleted.push([...ids]),
+        deleteDeletions: () => {},
+        dispose: () => {},
+      },
+    });
+    const event = sign("hi", { kind: 1, tags: [] });
+    store.put(event, "wss://a.example");
+
+    store.remove(event.id);
+
+    expect(deleted).toEqual([[event.id]]);
   });
 });

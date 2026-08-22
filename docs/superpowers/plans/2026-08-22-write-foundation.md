@@ -19,7 +19,7 @@
 - **コメントは非自明な WHY だけ**。WHAT・変更履歴・タスク ID は書かない
 - ビルダは**すべて純関数**。引数に `pubkey` / `created_at` を取らず、戻り値は `EventDraft`
 - テストは**捕まえる変異を各テストに書き、その変異を入れて実際に落ちることを確認してから**次へ進む
-- 型検査は `pnpm exec tsc --noEmit`、整形は `pnpm exec biome check --write <files>`、テストは `pnpm vitest run <file>`
+- 型検査は `pnpm typecheck`、整形は `pnpm exec biome check --write <files>`、テストは `pnpm vitest run <file>`
 
 ---
 
@@ -263,9 +263,9 @@ Expected: PASS
 
 - [ ] **Step 8: 既存の `EventPersistence` 実装をすべて直す**
 
-`delete` を型に足したので、実装しているものが全部型エラーになる。`pnpm exec tsc --noEmit` で列挙し、テスト内のインラインな偽実装には `delete: () => {}` を足す。`indexeddb-persistence.ts` は Task 2 で実装するので、ここでは `delete(_ids) {}` と空にしておく。
+`delete` を型に足したので、実装しているものが全部型エラーになる。`pnpm typecheck` で列挙し、テスト内のインラインな偽実装には `delete: () => {}` を足す。`indexeddb-persistence.ts` は Task 2 で実装するので、ここでは `delete(_ids) {}` と空にしておく。
 
-Run: `pnpm exec tsc --noEmit`
+Run: `pnpm typecheck`
 Expected: エラー 0
 
 - [ ] **Step 9: 整形して全体テストを走らせる**
@@ -2396,7 +2396,7 @@ Expected: PASS
 
 ```bash
 pnpm exec biome check --write src/core/signer/ src/core/nostr/build/
-pnpm exec tsc --noEmit
+pnpm typecheck
 pnpm vitest run
 git add src/core/signer/ src/core/nostr/build/
 git commit -m "feat(v1): NIP-51 のリスト系と Signer の NIP-44"
@@ -2493,7 +2493,7 @@ git commit -m "feat(v1): NIP-51 のリスト系と Signer の NIP-44"
 
 - [ ] **Step 3: 型検査**
 
-Run: `pnpm exec tsc --noEmit`
+Run: `pnpm typecheck`
 Expected: エラー 0
 
 - [ ] **Step 4: ユニットテストと e2e を走らせる**

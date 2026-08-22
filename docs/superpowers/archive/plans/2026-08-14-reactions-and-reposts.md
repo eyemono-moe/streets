@@ -443,7 +443,7 @@ git commit -m "feat(view): group reactions by content"
 **索引するのは単一文字のタグだけ。** NIP-01 が「リレーが索引するのは単一文字のタグ」と
 定めており、`#e` / `#p` のフィルタが成立する根拠そのもの。**この規則に kind の知識は
 入らない** —— store は「kind:7 の `e` はリアクション先だ」を知らず、意味づけはレンダラが
-与える（[ADR-0004](../../adr/0004-kind-knowledge-lives-in-renderers.md) の
+与える（[ADR-0004](../../adr/0004-kind-knowledge-lives-in-kind-specific-code.md) の
 「何が『kind 固有の知識』ではないか」を読むこと）。
 
 - [ ] **Step 1: 失敗するテストを書く**

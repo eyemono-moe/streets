@@ -6,7 +6,7 @@ status: accepted
 
 `nostr-protocol/nips` の更新を定期的に検出し、影響レポートを付けた **draft PR** を LLM に生成させる。**自動マージは行わず、必ず人間がレビューする。**
 
-このパイプラインが成立するのは [ADR-0003](./0003-open-column-abstraction.md) / [ADR-0004](./0004-kind-knowledge-lives-in-renderers.md) により **NIP 変更の影響範囲が kind 単位に閉じている**からである。変更範囲が機械的に特定できなければ、生成される差分はレビュー不能になる。アーキテクチャとパイプラインは相互に依存している。
+このパイプラインが成立するのは [ADR-0003](./0003-open-column-abstraction.md) / [ADR-0004](./0004-kind-knowledge-lives-in-kind-specific-code.md) により **NIP 変更の影響範囲が kind 単位に閉じている**からである。変更範囲が機械的に特定できなければ、生成される差分はレビュー不能になる。アーキテクチャとパイプラインは相互に依存している。
 
 ## 必須の安全制約
 

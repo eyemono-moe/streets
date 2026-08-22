@@ -72,6 +72,21 @@ describe("createMemoryPersistence", () => {
     expect(deletedIds).toEqual([target]);
   });
 
+  it("deleteDeletions で取り消した id は load の deletedIds に出ない", async () => {
+    // 捕まえる変異: deleteDeletions を saveDeletions と同じ (追加する) 実装に
+    // する / 何もしない no-op にする。EventStore.remove() が kind:5 の
+    // 巻き戻しでこれを呼んでも記録が残り続け、publish が全滅したのに
+    // 対象イベントが次回起動のたびに hydrate で弾かれ続ける
+    const persistence = createMemoryPersistence();
+    const target = sign("to-delete").id;
+
+    persistence.saveDeletions([target]);
+    persistence.deleteDeletions([target]);
+
+    const { deletedIds } = await persistence.load();
+    expect(deletedIds).toEqual([]);
+  });
+
   it("dispose 後の save は無視される", async () => {
     // 捕まえる変異: dispose() のガードを省く。dispose 後に走った
     // 書き込みがそのまま反映されてしまう
@@ -103,6 +118,8 @@ describe("EventPersistence.load() の規約", () => {
       },
       save() {},
       saveDeletions() {},
+      delete() {},
+      deleteDeletions() {},
       dispose() {},
     };
 

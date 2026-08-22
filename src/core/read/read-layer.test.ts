@@ -53,6 +53,8 @@ describe("createReadLayer", () => {
       load: () => loadPromise,
       save() {},
       saveDeletions() {},
+      deleteDeletions() {},
+      delete() {},
       dispose() {},
     };
 
@@ -93,6 +95,8 @@ describe("createReadLayer", () => {
       load: () => Promise.reject(new Error("simulated persistence failure")),
       save() {},
       saveDeletions() {},
+      deleteDeletions() {},
+      delete() {},
       dispose() {},
     };
 
@@ -124,6 +128,8 @@ describe("createReadLayer", () => {
         }
       },
       saveDeletions() {},
+      deleteDeletions() {},
+      delete() {},
       dispose() {
         persistenceDisposed = true;
         if (persistTimer !== null) {

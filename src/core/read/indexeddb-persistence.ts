@@ -181,6 +181,8 @@ const writeBatch = (
   db: IDBDatabase,
   retained: readonly RetainedEntry[],
   deletionIds: readonly string[],
+  removalIds: readonly string[],
+  deletionRemovalIds: readonly string[],
 ): Promise<void> =>
   new Promise((resolve) => {
     let tx: IDBTransaction;
@@ -200,7 +202,17 @@ const writeBatch = (
     const deletionsStore = tx.objectStore(DELETIONS_STORE);
     const replaceableIndex = eventsStore.index(REPLACEABLE_INDEX);
 
+    // 同じ flush に「保存」と「巻き戻し (delete)」が両方入ったとき、巻き戻しを
+    // 勝たせる。**単に delete のループを後に置くだけでは足りない** ——
+    // retained の put() は replaceableIndex の cursor を経由するため
+    // 非同期に確定し、IndexedDB はリクエストを積んだ順 (=生成順) に処理する。
+    // cursor がまだ何も持たない新規保存では delete() の方が先に (無を消す
+    // no-op として) 処理され、後から確定する put() がそれを上書きして
+    // 残ってしまう。retained 側から該当 id をあらかじめ除いておけば、この
+    // 非同期の確定順に依存せずに「delete が save に勝つ」を保証できる。
+    const removalSet = new Set(removalIds);
     for (const { entry, replaceableKey } of retained) {
+      if (removalSet.has(entry.event.id)) continue;
       const cursorRequest = replaceableIndex.openCursor(
         IDBKeyRange.only(replaceableKey),
       );
@@ -231,8 +243,22 @@ const writeBatch = (
       };
     }
 
+    // deletionRemovalIds (`EventStore.remove()` が kind:5 を巻き戻した) に
+    // 挙がっている id は、この flush で saveDeletions からも積まれていたと
+    // しても書かない —— events 側の removalSet と同じ理由で「巻き戻しを
+    // 勝たせる」。ここで先に除いておけば put/delete の発行順に依存しない。
+    const deletionRemovalSet = new Set(deletionRemovalIds);
     for (const id of deletionIds) {
+      if (deletionRemovalSet.has(id)) continue;
       deletionsStore.put({ id });
+    }
+
+    for (const id of removalIds) {
+      eventsStore.delete(id);
+    }
+
+    for (const id of deletionRemovalIds) {
+      deletionsStore.delete(id);
     }
   });
 
@@ -253,6 +279,8 @@ export const createIndexedDbPersistence = (
   let disposed = false;
   let pendingEvents: PersistedEvent[] = [];
   let pendingDeletionIds: string[] = [];
+  let pendingRemovalIds: string[] = [];
+  let pendingDeletionRemovalIds: string[] = [];
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
 
   // open() は一度だけ試す。save() のたびに開き直すと、失敗が続く環境で
@@ -276,7 +304,17 @@ export const createIndexedDbPersistence = (
     pendingEvents = [];
     const deletionsToWrite = pendingDeletionIds;
     pendingDeletionIds = [];
-    if (eventsToWrite.length === 0 && deletionsToWrite.length === 0) return;
+    const removalsToWrite = pendingRemovalIds;
+    pendingRemovalIds = [];
+    const deletionRemovalsToWrite = pendingDeletionRemovalIds;
+    pendingDeletionRemovalIds = [];
+    if (
+      eventsToWrite.length === 0 &&
+      deletionsToWrite.length === 0 &&
+      removalsToWrite.length === 0 &&
+      deletionRemovalsToWrite.length === 0
+    )
+      return;
 
     // `getDb()` は `openDatabase()` の内側で失敗を吸収しているので今日は
     // reject しないが、`.then` だけだと将来そこが崩れたときに補足されない
@@ -286,7 +324,13 @@ export const createIndexedDbPersistence = (
         if (!db || disposed) return;
         try {
           const retained = selectForPersistence(eventsToWrite);
-          await writeBatch(db, retained, deletionsToWrite);
+          await writeBatch(
+            db,
+            retained,
+            deletionsToWrite,
+            removalsToWrite,
+            deletionRemovalsToWrite,
+          );
         } catch {
           // 黙って捨てる (spec 12 節)。
         }
@@ -327,6 +371,18 @@ export const createIndexedDbPersistence = (
       scheduleFlush();
     },
 
+    delete(ids) {
+      if (disposed) return;
+      pendingRemovalIds.push(...ids);
+      scheduleFlush();
+    },
+
+    deleteDeletions(ids) {
+      if (disposed) return;
+      pendingDeletionRemovalIds.push(...ids);
+      scheduleFlush();
+    },
+
     dispose() {
       disposed = true;
       if (timer !== null) {
@@ -335,6 +391,8 @@ export const createIndexedDbPersistence = (
       }
       pendingEvents = [];
       pendingDeletionIds = [];
+      pendingRemovalIds = [];
+      pendingDeletionRemovalIds = [];
       openedDb?.close();
     },
   };

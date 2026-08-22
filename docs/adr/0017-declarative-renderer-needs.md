@@ -32,7 +32,7 @@ defineRenderer({
 波状解決はこれを解きつつ、副次的に2つの必須要件を構造的に満たす。
 
 - **各波が 1 クエリであるため N+1 が潰れる** — [ADR-0011](./0011-performance-budget.md) のバッチング要件。
-- **深さ上限がそのまま取得回数の上限になる** — [ADR-0004](./0004-kind-knowledge-lives-in-renderers.md) の「取得回数の上限制御」。
+- **深さ上限がそのまま取得回数の上限になる** — [ADR-0004](./0004-kind-knowledge-lives-in-kind-specific-code.md) の「取得回数の上限制御」。
 
 ## 実行時フックを採らなかった理由
 

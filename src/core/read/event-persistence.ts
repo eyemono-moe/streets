@@ -24,6 +24,26 @@ export type EventPersistence = {
   save(entries: readonly PersistedEvent[]): void;
   /** `kind:5` が指した対象 id。保持期間の対象にしない (ADR-0019)。 */
   saveDeletions(ids: readonly string[]): void;
+  /**
+   * 指定した id (通常のイベントの id) を永続層から取り除く。`saveDeletions`/
+   * `deleteDeletions` (どちらも `deletions` ストアを触る) とは**別物**であり、
+   * 混同しないこと —— こちらは「この id のイベントレコードそのものを消す」。
+   *
+   * 呼ばれるのは `EventStore.remove()` からだけ。
+   */
+  delete(ids: readonly string[]): void;
+  /**
+   * `saveDeletions` で記録した対象 id を `deletions` ストアから取り除く ——
+   * 「削除指示を出したこと自体を無かったことにする」。`delete` (通常の
+   * イベントレコードを消す) とは**別物**であり、混同しないこと。
+   *
+   * 呼ばれるのは `EventStore.remove()` が kind:5 を巻き戻すときだけ。
+   * ここを呼び忘れると、publish が全リレーで失敗して kind:5 を巻き戻しても
+   * `deletions` の記録だけが残り、`hydrate` が次回起動のたびに対象 id を
+   * 弾き続ける —— 「どのリレーにも届きませんでした」と表示されたのに、
+   * 本人の投稿だけがローカルで消え続ける不整合になる。
+   */
+  deleteDeletions(ids: readonly string[]): void;
   dispose(): void;
 };
 
@@ -61,6 +81,16 @@ export const createMemoryPersistence = (): EventPersistence => {
     saveDeletions(ids) {
       if (disposed) return;
       for (const id of ids) deletedIds.add(id);
+    },
+
+    delete(ids) {
+      if (disposed) return;
+      for (const id of ids) events.delete(id);
+    },
+
+    deleteDeletions(ids) {
+      if (disposed) return;
+      for (const id of ids) deletedIds.delete(id);
     },
 
     dispose() {

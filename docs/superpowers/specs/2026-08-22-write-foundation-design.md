@@ -36,7 +36,7 @@ v1 が書けるイベントは **kind:1 の新規投稿ただ 1 種**で、そ�
 
 したがってこの層の価値は「動くこと」ではなく「**NIP の条文と 1 対 1 に対応する形で固定されていること**」にある。純関数にするのは、その対応をユニットテストで直接主張できるようにするため。ネットワークも store も触らないので、テストにモックが要らない。
 
-[ADR-0004](../../adr/0004-kind-knowledge-lives-in-renderers.md) は「kind 固有の知識は kind 側に置き、共通層は kind を知らない」と定めている。書き込み側でも同じ切り方をする —— `Writer` は kind を一切知らず、受け取った `EventDraft` に `pubkey` と `created_at` を押して送るだけ。
+[ADR-0004](../../adr/0004-kind-knowledge-lives-in-kind-specific-code.md) は「kind 固有の知識は kind 側に置き、共通層は kind を知らない」と定めている。書き込み側でも同じ切り方をする —— `Writer` は kind を一切知らず、受け取った `EventDraft` に `pubkey` と `created_at` を押して送るだけ。
 
 ## 3. 配置
 
@@ -195,7 +195,7 @@ buildReply(parent: NostrEvent, content: string, options?: { relayHint?: RelayUrl
   - NIP-10: *"A direct reply to the root of a thread should have a single marked 'e' tag of type 'root'."*
 - 親が返信（親に `root` マーカーがある）→ その `root` をそのまま引き継いだ `["e", rootId, rootRelay, "root", rootPubkey]` と、`["e", parent.id, relay, "reply", parent.pubkey]` の **2 本**
 
-`p` タグは NIP-10 の *"the reply event's 'p' tags should contain all of E's 'p' tags as well as the pubkey of the event being replied to"* に従う。**親の `p` タグを全部 + 親の著者**。順序は親の著者を先頭に、続けて親の `p` を出現順。重複は落とす。自分自身は落とす —— 自分への通知になる。
+`p` タグは NIP-10 の *"the reply event's 'p' tags should contain all of E's 'p' tags as well as the pubkey of the event being replied to"* に従う。**親の `p` タグを全部 + 親の著者**。順序は親の著者を先頭に、続けて親の `p` を出現順。重複は落とす。自分自身を落とす処理は入れない。ビルダは `pubkey` を受け取らないので誰が自分か知らない。自分への通知は他クライアントも普通に付けており、害が小さい。
 
 `relay-url` が無いときは空文字を入れる（位置要素なので省略できない）。
 
@@ -374,7 +374,7 @@ publish に失敗して巻き戻したとき、`v1.tsx` は `optimisticEvents` �
 |---|---|
 | 根への返信は `root` マーカー 1 本 | `reply` マーカーも足す / マーカーを空にする |
 | 返信への返信は `root` + `reply` の 2 本 | 親の `root` を引き継がず親だけ指す |
-| `p` は親の全 `p` + 親の著者、自分は除く | 親の `p` を引き継がない / 自分を残す |
+| `p` は親の全 `p` + 親の著者（自分を落とさない） | 親の `p` を引き継がない / 重複を落とさない |
 | 引用は `q` を立て `e` を立てない | `e` タグも立てる（= 返信として表示される） |
 | リポストの `content` は対象の JSON | 空文字にする |
 | リポストの `e` はリレー URL を 3 番目に持つ | 2 要素だけにする |

@@ -80,4 +80,38 @@ describe("createNip07Signer", () => {
     expect(result).toEqual(signed);
     expect(signEvent).toHaveBeenCalledTimes(1);
   });
+
+  it("拡張機能が nip44 を実装していなければ nip44 プロパティ自体が無い", () => {
+    // 捕まえる変異: 常に nip44 オブジェクトを生やす
+    // (「未実装」と「呼び出し失敗」を呼び出し側が区別できなくなる)
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+    });
+    expect(createNip07Signer().nip44).toBeUndefined();
+  });
+
+  it("拡張機能が nip44 を実装していれば通す", async () => {
+    // 捕まえる変異: encrypt/decrypt の戻り値や引数を落とす・入れ替える
+    const encrypt = vi.fn(
+      async (_peer: string, plaintext: string) => `enc:${plaintext}`,
+    );
+    const decrypt = vi.fn(async (_peer: string, ciphertext: string) =>
+      ciphertext.replace("enc:", ""),
+    );
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+      nip44: { encrypt, decrypt },
+    });
+    const signer = createNip07Signer();
+    await expect(signer.nip44?.encrypt("peer", "hello")).resolves.toBe(
+      "enc:hello",
+    );
+    await expect(signer.nip44?.decrypt("peer", "enc:hello")).resolves.toBe(
+      "hello",
+    );
+    expect(encrypt).toHaveBeenCalledWith("peer", "hello");
+    expect(decrypt).toHaveBeenCalledWith("peer", "enc:hello");
+  });
 });

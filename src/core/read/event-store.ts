@@ -11,6 +11,20 @@ import type { EventPersistence, PersistedEvent } from "./event-persistence";
 /** NIP-09。削除指示の対象は `e` タグで運ばれる。 */
 const DELETION_KIND = 5;
 
+/**
+ * kind:5 の `e` タグが指す対象 id。`#persistDeletion` (記録) と
+ * `remove()` (巻き戻し) の両方がこの同じ抽出を必要とするため、ここで
+ * 共有する —— 片方だけ改修されて抽出条件が食い違う (例えば片方が空文字を
+ * 弾き、もう片方が弾かない) 事態を作らない。
+ */
+const deletionTargetIds = (deletion: NostrEvent): string[] =>
+  deletion.tags
+    .filter(
+      (tag): tag is [string, string] =>
+        tag[0] === "e" && typeof tag[1] === "string",
+    )
+    .map((tag) => tag[1]);
+
 export type StoredEvent = {
   event: NostrEvent;
   seenRelays: RelayUrl[];
@@ -147,12 +161,7 @@ export class EventStore {
    * ようにする (spec 10 節)。
    */
   #persistDeletion(deletion: NostrEvent): void {
-    const targetIds = deletion.tags
-      .filter(
-        (tag): tag is [string, string] =>
-          tag[0] === "e" && typeof tag[1] === "string",
-      )
-      .map((tag) => tag[1]);
+    const targetIds = deletionTargetIds(deletion);
     if (targetIds.length > 0) this.#persistence?.saveDeletions(targetIds);
   }
 
@@ -282,6 +291,63 @@ export class EventStore {
       if (stored) events.push(stored.event);
     }
     return events;
+  }
+
+  /**
+   * 索引から完全に外す。`invalidate()` (取得時刻だけ 0 に戻し、値は残す)
+   * とは別物。
+   *
+   * 使う場所は 2 つ。publish が 1 本も通らなかった書き込みの巻き戻し
+   * (`src/core/write/writer.ts`) と、自分のイベントを NIP-09 で削除した
+   * ときのローカル反映。どちらも「このイベントは無かったことにする」
+   * であり、serveWhileRevalidating が古い値を出す余地は要らない。
+   */
+  remove(id: string): boolean {
+    const stored = this.#events.get(id);
+    if (!stored) return false;
+    const { event } = stored;
+    this.#events.delete(id);
+
+    for (const tag of event.tags) {
+      const name = tag[0];
+      const value = tag[1];
+      if (!name || name.length !== 1 || !value) continue;
+      const byValue = this.#byTag.get(name);
+      const ids = byValue?.get(value);
+      if (!ids || !byValue) continue;
+      ids.delete(id);
+      if (ids.size === 0) byValue.delete(value);
+      if (byValue.size === 0) this.#byTag.delete(name);
+    }
+
+    const key = `${event.kind}:${event.pubkey}`;
+    if (this.#replaceable.get(key) === id) {
+      // **索引を消すだけでは足りない。** まだ #events に残っている直前の
+      // 版が二度と latestReplaceable() から見えなくなり、フォローリストの
+      // 巻き戻しで既存のフォローが丸ごと消えたように見える。
+      //
+      // 走査は O(n) だが、remove() が呼ばれるのは巻き戻しと明示的な削除
+      // だけで、毎イベント通る経路ではない。
+      this.#replaceable.delete(key);
+      for (const candidate of this.#events.values()) {
+        if (candidate.event.kind !== event.kind) continue;
+        if (candidate.event.pubkey !== event.pubkey) continue;
+        this.#indexReplaceable(candidate.event);
+      }
+    }
+
+    this.#persistence?.delete([id]);
+    // kind:5 自身が全滅で巻き戻されるとき、put() が #persistDeletion で
+    // 書いた deletions レコードも一緒に取り消す。ここを省くと、次に publish
+    // し直して成功しても deletions には最初の (巻き戻されたはずの) 記録が
+    // 残ったままになり、hydrate がその対象 id を永久に弾き続ける ——
+    // 「どのリレーにも届きませんでした」と表示された投稿が、届いていない
+    // にもかかわらずローカルでは消えたままになる。
+    if (event.kind === DELETION_KIND) {
+      const targetIds = deletionTargetIds(event);
+      if (targetIds.length > 0) this.#persistence?.deleteDeletions(targetIds);
+    }
+    return true;
   }
 
   latestReplaceable(kind: number, pubkey: string): NostrEvent | undefined {
