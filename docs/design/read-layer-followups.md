@@ -554,7 +554,7 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 
 - **`Mutation` は合成できない。** `type Mutation = (current: NostrEvent | undefined) => EventDraft`（`draft.ts`）は `NostrEvent` を受けて `EventDraft` を返すため、`m2(m1(current))` は `m1(current)` が `EventDraft` であって `NostrEvent | undefined` ではないため型が通らない。これは仕様 6.4 節が選んだ署名デバウンス戦略（「束ねる側が `mutate` の中で複数の変更を適用すればよい」）をそのまま塞いでおり、[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) が Should として求めているものでもある。考えられる直し方は、`replaceTags` と `Mutation` の入力型を `{ tags: string[][]; content: string } | undefined` へ広げること —— `NostrEvent` も `EventDraft` もこの形を構造的に満たすので既存の呼び出し側は変更不要になるはずだが、合成した結果の `kind` をどちらの版から採るか（先に適用した側か、後か）は widening だけでは決まらず、実装する回で決める必要がある。
 - **`evt` テストフィクスチャの重複（9 ファイル、既定 `kind: 1`）。** 詳細は上の「くり返し踏んだ罠」節の追記を参照 —— 共有フィクスチャへの集約と非 `kind: 1` の既定値化を、次にビルダを 1 つ足す前にやること。
-- **レビュー番号・タスク ID を運ぶコメントが repo 全体で 100 箇所を超えて残っている**（`(final review, Important 3)` のような形。`connection-pool.ts` と `subscription-manager.ts` だけで数十件）。[コメントは非自明な WHY だけ](../../CONTEXT.md) という repo の規則に反するが、**このブランチで新規に書かれたコメントはこの規則を守れている** —— 違反は過去のスライスからの持ち越しであり、規則自体は機能している。1 箇所ずつ直す価値は無く、repo 全体を対象にした一括の sweep が要る。
+- **レビュー番号・タスク ID を運ぶコメントが repo 全体で 100 箇所を超えて残っている**（`(final review, Important 3)` のような形。`connection-pool.ts` と `subscription-manager.ts` だけで数十件）。[コメントは非自明な WHY だけ](../../CONTEXT.md) という repo の規則に反するが、**このブランチで新規に書かれたコメントはこの規則を守れている** —— 違反は過去のスライスからの持ち越しであり、規則自体は機能している。これらは後続の各スライスで、触るファイルの中で直していく。
 
 ### 小さいもの（deferred）
 

@@ -72,7 +72,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0001](./docs/adr/0001-others-first-self-via-settings.md) | 「他人が使えること」を自分の利便性より優先する |
 | [0002](./docs/adr/0002-v0-parity-before-cutover.md) | v0 機能パリティを満たしてから一括切替する |
 | [0003](./docs/adr/0003-open-column-abstraction.md) | カラムを「イベントの配列」の開いた抽象とする |
-| [0004](./docs/adr/0004-kind-knowledge-lives-in-kind-specific-code.md) | kind 固有の知識は kind 側に置き、共有層は持たない |
+| [0004](./docs/adr/0004-kind-knowledge-lives-in-kind-specific-code.md) | kind 固有の知識は kind 側に置き、共有層は kind を知らない |
 | [0005](./docs/adr/0005-outbox-model-from-v1.md) | Outbox Model (NIP-65) を v1 の最初から実装する |
 | [0006](./docs/adr/0006-no-dm-in-v1.md) | v1 では DM (NIP-17) を実装しない |
 | [0007](./docs/adr/0007-nip-tracking-pipeline-draft-pr-only.md) | NIP 追従パイプラインは draft PR までとし自動マージしない |

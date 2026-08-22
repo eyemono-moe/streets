@@ -71,7 +71,7 @@ const formatWarmUpPhaseMs = (ms: number | undefined): string =>
   ms === undefined ? "-" : `${ms.toFixed(2)} ms`;
 
 /**
- * v1 の垂直スライス。ログイン (Task 1) → 1 カラム描画 (Task 2) に続き、
+ * v1 の垂直スライス。ログイン → 1 カラム描画に続き、
  * ここでデッキ (3 カラム) と localStorage への永続化を足す。
  *
  * **拡張機能の有無をマウント時に一度だけ確認して結果を保持する、という
@@ -262,7 +262,7 @@ const V1: Component = () => {
     const pk = pubkey();
     if (!pk || deckInitialized) return;
 
-    // pubkey ごとにキーを分ける (final review, Important 3) —— でないと
+    // pubkey ごとにキーを分ける —— でないと
     // 別アカウントでログインし直したときに前のアカウントのデッキ
     // (followees や著者フィルタを含む) をそのまま引き継いでしまう。
     const storageKey = deckStorageKey(pk);
@@ -487,8 +487,8 @@ const V1: Component = () => {
             }
             setOptimisticInsertMs(performance.now() - startedAt);
             // 楽観挿入 (または重複判定) と同じタイミングでクリアする ——
-            // publish の解決を待ってから消すと (旧実装)、"inserted" の
-            // 場合はノート自体が挿入直後に画面へ出ているのに入力欄だけ
+            // publish の解決を待ってから消すと、"inserted" の場合は
+            // ノート自体が挿入直後に画面へ出ているのに入力欄だけ
             // 最大 PUBLISH_TIMEOUT_MS 分の間古い文面を残し、送れたのか
             // 疑わせる空白ができる。失敗時は下の catch で元の文面に戻す
             // (「本文は残す」という挙動そのものは変えない)。

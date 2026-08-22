@@ -2,7 +2,7 @@
 status: accepted
 ---
 
-# kind 固有の知識は kind 側に置き、kind に依存しない共有層は持たない
+# kind 固有の知識は kind 側に置き、共有層は kind を知らない
 
 ## 判定基準
 
