@@ -20,7 +20,7 @@ v1 は以下の性能予算を満たす。**これらは E2E テスト（Playwri
 
 v1 の設計判断が、性能負債を構造的に積み上げているため。
 
-- [ADR-0004](./0004-kind-knowledge-lives-in-renderers.md): レンダラが関連イベントを個別に要求する → **N+1**
+- [ADR-0004](./0004-kind-knowledge-lives-in-kind-specific-code.md): レンダラが関連イベントを個別に要求する → **N+1**
 - [ADR-0005](./0005-outbox-model-from-v1.md): 著者ごとにリレーを引く → **N+1 の二重化と接続数の増加**
 - マルチカラム: 上記に**カラム数の掛け算**が乗る
 

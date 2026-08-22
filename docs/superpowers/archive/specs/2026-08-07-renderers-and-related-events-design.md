@@ -2,7 +2,7 @@
 
 ## 0. このスライスは何のためにあるか
 
-A-1 でデッキとカラムができ、8 カラムを実地で回せるようになった。だが**描画できるのは kind:1 の本文だけ**である。リポストは中身の見えない空の箱として出て、引用は本文中の ID のまま、返信は文脈なしで並ぶ。[ADR-0003](../../../adr/0003-open-column-abstraction.md)・[ADR-0004](../../../adr/0004-kind-knowledge-lives-in-renderers.md)・[ADR-0017](../../../adr/0017-declarative-renderer-needs.md) の 3 本が決定を記録しているのに、**実装は 1 行も無い。**
+A-1 でデッキとカラムができ、8 カラムを実地で回せるようになった。だが**描画できるのは kind:1 の本文だけ**である。リポストは中身の見えない空の箱として出て、引用は本文中の ID のまま、返信は文脈なしで並ぶ。[ADR-0003](../../../adr/0003-open-column-abstraction.md)・[ADR-0004](../../../adr/0004-kind-knowledge-lives-in-kind-specific-code.md)・[ADR-0017](../../../adr/0017-declarative-renderer-needs.md) の 3 本が決定を記録しているのに、**実装は 1 行も無い。**
 
 このスライスはその 3 本に実装を与える。同時に、**ADR-0017 を実測に基づいて改訂する**（4 節）。
 

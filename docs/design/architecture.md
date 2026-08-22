@@ -31,7 +31,7 @@ graph LR
 
 Nostr では仕様そのものが頻繁に変わり、イベントの定義が変わる。カラム種別ごとに取得と表示を書くと、1 つの NIP 変更が複数のカラム実装に波及する。
 
-→ **カラムは「イベントの配列」の開いた抽象とし、kind 固有の知識はレンダラ 1 箇所に閉じる**（[ADR-0003](../adr/0003-open-column-abstraction.md) / [ADR-0004](../adr/0004-kind-knowledge-lives-in-renderers.md)）。新しい kind への対応は「レンダラを 1 つ足す」で済む。
+→ **カラムは「イベントの配列」の開いた抽象とし、kind 固有の知識はレンダラ 1 箇所に閉じる**（[ADR-0003](../adr/0003-open-column-abstraction.md) / [ADR-0004](../adr/0004-kind-knowledge-lives-in-kind-specific-code.md)）。新しい kind への対応は「レンダラを 1 つ足す」で済む。
 
 これは [NIP 追従パイプライン](../adr/0007-nip-tracking-pipeline-draft-pr-only.md)の前提でもある。変更範囲が機械的に特定できなければ、LLM が生成する差分はレビュー不能になる。
 

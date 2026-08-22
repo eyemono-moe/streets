@@ -829,7 +829,7 @@ git commit -m "feat(v1): measure first render; cover reposts, quotes, replies an
 **Files:**
 - Modify: `docs/adr/0017-declarative-renderer-needs.md`
 - Modify: `docs/adr/0003-open-column-abstraction.md`
-- Modify: `docs/adr/0004-kind-knowledge-lives-in-renderers.md`
+- Modify: `docs/adr/0004-kind-knowledge-lives-in-kind-specific-code.md`
 - Modify: `docs/design/read-layer-followups.md`
 
 **製品コードは変更しない。**
