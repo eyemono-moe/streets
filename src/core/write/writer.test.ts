@@ -96,6 +96,24 @@ describe("publish", () => {
     expect(calls).toEqual(["sign", "put", "publish"]);
   });
 
+  it("now を渡さなければ現在時刻を秒で使う", async () => {
+    // 捕まえる変異: 既定値を () => undefined にする、または
+    // Date.now() をミリ秒のまま使う (created_at が現在の 1000 倍になる)。
+    const store = new EventStore();
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store,
+      publisher: { publish: async () => ok },
+      pubkey: () => PUBKEY,
+      fetchLatest: async () => undefined,
+    });
+    const before = Math.floor(Date.now() / 1000);
+    const result = await writer.publish({ kind: 1, tags: [], content: "hi" });
+    const after = Math.floor(Date.now() / 1000);
+    expect(result.event.created_at).toBeGreaterThanOrEqual(before);
+    expect(result.event.created_at).toBeLessThanOrEqual(after);
+  });
+
   it("pubkey と created_at を押す", async () => {
     // 捕まえる変異: created_at を押さず undefined のまま署名へ渡す
     const { writer } = setup(ok);
@@ -216,6 +234,16 @@ describe("publish", () => {
     // (5ms 分) 成立しない。
     expect(startedAt).toBeLessThanOrEqual(putStartedAt);
     expect(startedAt).toBeLessThan(putFinishedAt - 4);
+  });
+
+  it("hooks はあっても onOptimisticInsert が無ければそのまま進む", async () => {
+    // 捕まえる変異: 内側の ?. を外して hooks?.onOptimisticInsert(...) にする。
+    // hooks オブジェクト自体は渡すが onOptimisticInsert を渡さない
+    // 呼び出し側で "not a function" として落ちる。
+    const { writer } = setup(ok);
+    await expect(
+      writer.publish({ kind: 1, tags: [], content: "hi" }, {}),
+    ).resolves.toBeDefined();
   });
 
   it("store.put が rejected を返す署名は挿入扱いにせず例外を投げる", async () => {

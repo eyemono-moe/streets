@@ -33,6 +33,17 @@ describe("buildRepost", () => {
     ]);
   });
 
+  it("relayHint が無ければ位置要素を空文字で埋める", () => {
+    // 捕まえる変異: 既定値を空文字以外にする (buildQuote で直した同型の穴)。
+    // 省略すると要素がずれて pubkey がリレー URL の位置に来て、読む側が
+    // そこへ接続しようとする。
+    const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
+    const draft = buildRepost(target);
+    expect(draft?.tags.filter((t) => t[0] === "e")).toEqual([
+      ["e", "1".repeat(64), "", "", "9".repeat(64)],
+    ]);
+  });
+
   it("元の著者に p タグを立てる", () => {
     // 捕まえる変異: p を落とす
     const target = evt({ pubkey: "9".repeat(64) });

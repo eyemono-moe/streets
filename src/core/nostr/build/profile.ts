@@ -14,6 +14,10 @@ export const mergeProfile =
   (changes: Record<string, unknown>): Mutation =>
   (current): EventDraft => {
     let base: Record<string, unknown> = {};
+    // Stryker disable next-line ConditionalExpression: current が偽になるのは
+    // undefined のときだけで、その場合 current.content への参照が例外を
+    // 投げても直後の catch がそれを黙って飲み込む (壊れた JSON と同じ扱いに
+    // なる) ため、このガードを外しても base は {} のまま変わらない —— 等価。
     if (current) {
       try {
         const parsed: unknown = JSON.parse(current.content);
