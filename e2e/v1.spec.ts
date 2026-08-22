@@ -876,6 +876,11 @@ test.describe("v1 vertical slice", () => {
     await page.getByTestId("login").click();
 
     const column = page.locator('[data-testid="deck-column"]');
+    // スクロールするのはカラムの本文だけ (`DeckColumn.tsx`)。ヘッダーは
+    // 上端に貼り付いているので `deck-column` 自体は overflow を持たない
+    // —— そちらへ scrollTop を書いても静かに何も起きず、番兵の検証が
+    // 「窓が伸びない」ではなく「スクロールしていない」で落ちる。
+    const scroller = column.getByTestId("column-scroll");
     await expect(column.getByTestId("item").first()).toBeVisible({
       timeout: 60_000,
     });
@@ -891,7 +896,7 @@ test.describe("v1 vertical slice", () => {
     expect(initial).toBeGreaterThan(0);
 
     // 捕まえる変異: 番兵を出さない / 交差しても窓を増やさない
-    await column.evaluate((el) => {
+    await scroller.evaluate((el) => {
       el.scrollTop = el.scrollHeight;
     });
     await expect
@@ -906,7 +911,7 @@ test.describe("v1 vertical slice", () => {
     await expect
       .poll(
         async () => {
-          await column.evaluate((el) => {
+          await scroller.evaluate((el) => {
             el.scrollTop = el.scrollHeight;
           });
           return column.getByTestId("item").count();

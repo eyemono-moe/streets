@@ -16,6 +16,7 @@ import type {
 } from "../../../core/view/renderer-registry";
 import { observeHeight } from "../../../core/view/shared-resize-observer";
 import Avatar from "../Avatar";
+import EventMenu from "../EventMenu";
 import EventView from "../EventView";
 import NestedEventCard from "../NestedEventCard";
 import NoteContent from "../NoteContent";
@@ -118,7 +119,7 @@ const NoteBody: ParentComponent<{
   return (
     <div
       class="flex items-start"
-      classList={{ "gap-2": isFull(), "gap-1.5": !isFull() }}
+      classList={{ "gap-3": isFull(), "gap-2": !isFull() }}
     >
       <div class="flex shrink-0 flex-col items-center self-stretch">
         <Avatar pubkey={props.event.pubkey} size={props.variant} />
@@ -136,13 +137,20 @@ const NoteBody: ParentComponent<{
       </div>
       <div
         class="flex min-w-0 flex-1 flex-col"
-        classList={{ "gap-1.5": isFull(), "gap-1": !isFull() }}
+        classList={{ "gap-2": isFull(), "gap-1.5": !isFull() }}
       >
+        {/*
+          名前・時刻・メニューの 3 つ。**省略されるのは名前だけ** ——
+          時刻とメニューは `shrink-0` で幅を譲らない。時刻はタイムラインで
+          最も走査されるメタ情報であり、長い形式 (`yyyy/MM/dd HH:mm`) に
+          なるほど古い投稿だと分かる情報量が増える。名前は隣のアイコンと
+          ホバーカードで補える。
+        */}
         <div
-          class="flex items-end gap-1 overflow-hidden"
+          class="flex items-end gap-1.5 overflow-hidden"
           classList={{ "text-caption": isFull(), "text-xs": !isFull() }}
         >
-          <p data-testid="note-author" class="min-w-0 truncate">
+          <p data-testid="note-author" class="min-w-0 flex-1 truncate">
             <Profile
               pubkey={props.event.pubkey}
               store={ctx.store}
@@ -157,22 +165,39 @@ const NoteBody: ParentComponent<{
           >
             {formatEventTime(created(), new Date())}
           </span>
+          {/*
+            `full` にだけ出す。`compact` が置かれる先 (引用カード・返信先)
+            は既に外側のイベントがメニューを持っており、1 行に ⋮ が 2 つ
+            3 つと並ぶのを避ける —— 入れ子のイベントは開いた先で操作する。
+          */}
+          <Show when={isFull()}>
+            <EventMenu event={props.event} />
+          </Show>
         </div>
         <div class="flex flex-col gap-1">
           {/*
-            返信先の宛先。色は v0 の `EmbedUser` と同じアクセント色だが、
-            `text-link` (hover で下線が出る) は使わない —— 押してもまだ
-            何も起きない (ユーザーカラムは #205)。押せる合図を先に出すと
-            「未実装」と「壊れている」が区別できなくなる (ADR-0026)。
+            返信先の宛先。**本文より一段落とす** —— これは本文ではなく
+            「誰に向けたものか」という宛名で、アクセント色の太字で置くと
+            本文より先に目に入り、1 列に並んだときスレッドの本文が読め
+            なくなる。`text-link` (hover で下線が出る) も使わない ——
+            押してもまだ何も起きない (ユーザーカラムは #205)。押せる合図を
+            先に出すと「未実装」と「壊れている」が区別できなくなる
+            (ADR-0026)。
           */}
           <Show when={props.replyTo}>
             {(pubkey) => (
-              <p data-testid="reply-to" class="c-accent-5 font-700">
-                <Profile
-                  pubkey={pubkey()}
-                  store={ctx.store}
-                  requests={ctx.profiles}
-                />
+              <p
+                data-testid="reply-to"
+                class="c-secondary flex min-w-0 gap-1 text-caption"
+              >
+                <span class="shrink-0">返信先</span>
+                <span class="min-w-0 truncate">
+                  <Profile
+                    pubkey={pubkey()}
+                    store={ctx.store}
+                    requests={ctx.profiles}
+                  />
+                </span>
               </p>
             )}
           </Show>
@@ -231,7 +256,7 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       // する (v0 の `EventBase.tsx` と同じ手筋)。一番外側のノートには
       // 祖先の `group/event` が無いので、このセレクタは効かず padding が
       // 残る。
-      class="group/event pt-1 pr-2 pb-1 pl-1 text-body group-[_]/event:p-0"
+      class="group/event p-3 text-body group-[_]/event:p-0"
     >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
