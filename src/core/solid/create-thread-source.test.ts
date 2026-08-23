@@ -39,7 +39,7 @@ describe("createThreadSource", () => {
     // 1 段進むたびに「中身は同じ空配列だが参照は新しい」配列を返す ——
     // 既定の等価性 (`===`) はそれを「変わった」と誤判定し、source() が
     // 再計算されて createSection の createEffect が購読を張り直す
-    // (spec 6.1 節、Task 7 が防いだのと同じ症状の回帰)。
+    // (参照の安定性を保つ必要があるのはこのため)。
     const store = new EventStore();
     const root = signed(1);
     const mid = signed(2, [["e", root.id, "", "root"]]);
