@@ -59,7 +59,11 @@ const ThreadView: Component<{
       </Show>
       <For each={spine().ancestors}>
         {(event) => (
-          <li data-testid="thread-ancestor">
+          // `NoteCompact` は自分で padding を持たない (置く側の責務、
+          // `Note.tsx` の `NoteCompact` コメント参照)。focus (`NoteFull` が
+          // 自前で p-3 を持つ) と余白の見た目を揃えるため、置く側である
+          // ここで p-3 を足す。
+          <li data-testid="thread-ancestor" class="p-3">
             <EventView id={event.id} variant="compact" />
           </li>
         )}
@@ -87,7 +91,8 @@ const ThreadView: Component<{
       </Show>
       <For each={spine().replies}>
         {(event) => (
-          <li data-testid="thread-reply">
+          // 理由は thread-ancestor と同じ (上のコメント参照)。
+          <li data-testid="thread-reply" class="p-3">
             <EventView id={event.id} variant="compact" />
           </li>
         )}

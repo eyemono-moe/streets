@@ -266,4 +266,44 @@ describe("ThreadView", () => {
       dispose();
     }
   });
+
+  it("thread-ancestor / thread-reply の <li> は padding を持つ (NoteCompact 自身は持たない)", () => {
+    // 捕まえる変異: <li> から p-3 を落とす。`NoteCompact` は自分で padding
+    // を持たない設計 (置く側の責務、`Note.tsx` の `NoteCompact` コメント
+    // 参照) なので、ここで足さないとカラムの左端に張り付いたまま並ぶ
+    // (focus は `NoteFull` 自身が p-3 を持つので対象外)。
+    const root = signed(8, { content: "root" });
+    const focus = signed(9, {
+      content: "focus",
+      tags: [["e", root.id, "", "root"]],
+    });
+    const replyEvent = signed(10, {
+      content: "reply",
+      tags: [["e", focus.id, "", "reply"]],
+    });
+    const store = new EventStore();
+    store.put(root, "wss://relay/");
+    store.put(focus, "wss://relay/");
+    store.put(replyEvent, "wss://relay/");
+
+    const { element, dispose } = mount(
+      () =>
+        ThreadView({
+          events: () => [root, focus, replyEvent],
+          focusId: focus.id,
+          status: status("settled"),
+        }),
+      contextWith(store),
+    );
+    try {
+      const ancestor = element().querySelector(
+        '[data-testid="thread-ancestor"]',
+      );
+      const reply = element().querySelector('[data-testid="thread-reply"]');
+      expect(ancestor?.className).toMatch(/(?:^|\s)p-3(?:\s|$)/);
+      expect(reply?.className).toMatch(/(?:^|\s)p-3(?:\s|$)/);
+    } finally {
+      dispose();
+    }
+  });
 });
