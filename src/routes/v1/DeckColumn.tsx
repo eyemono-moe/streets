@@ -403,7 +403,13 @@ const DeckColumn: Component<{
         */}
         <ThreadNavProvider open={openThread}>
           <Show when={focusId()} fallback={<ColumnItems items={items} />}>
-            {(id) => <ThreadView events={threadSection.items} focusId={id()} />}
+            {(id) => (
+              <ThreadView
+                events={threadSection.items}
+                focusId={id()}
+                status={threadSection.status}
+              />
+            )}
           </Show>
         </ThreadNavProvider>
       </div>

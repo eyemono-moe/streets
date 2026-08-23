@@ -1,0 +1,210 @@
+import { schnorr } from "@noble/curves/secp256k1.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { createRoot } from "solid-js";
+import { describe, expect, it } from "vitest";
+import { type NostrEvent, computeEventId } from "../../core/nostr/event";
+import type { EventRequests } from "../../core/read/event-requests";
+import { EventStore } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { ReactionRequests } from "../../core/read/reaction-requests";
+import type { SectionStatus } from "../../core/read/source";
+import { RenderProvider } from "../../core/view/render-context";
+import type { RenderContextValue } from "../../core/view/render-context";
+import ThreadView from "./ThreadView";
+
+// EventView.test.tsx / renderers/Note.test.tsx と同じ手法: 種から 32 byte
+// 鍵を作り schnorr で実署名する (`EventStore.put` の検証を通すため)。
+const keyFor = (seed: number) =>
+  Uint8Array.from(
+    Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
+  );
+
+const signed = (
+  seed: number,
+  overrides: Partial<NostrEvent> = {},
+): NostrEvent => {
+  const sk = keyFor(seed);
+  const unsigned = {
+    pubkey: bytesToHex(schnorr.getPublicKey(sk)),
+    created_at: overrides.created_at ?? 1_700_000_000,
+    kind: overrides.kind ?? 1,
+    tags: overrides.tags ?? [],
+    content: overrides.content ?? "note",
+  };
+  const id = computeEventId(unsigned);
+  return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
+};
+
+const fakeEventRequests = (): EventRequests => ({
+  request() {},
+  isUnresolved() {
+    return false;
+  },
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
+const fakeProfiles = (): ProfileRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
+const fakeReactions = (): ReactionRequests => ({
+  request() {},
+  subscribe() {
+    return () => {};
+  },
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose() {},
+});
+
+const contextWith = (store: EventStore): RenderContextValue => ({
+  store,
+  events: fakeEventRequests(),
+  profiles: fakeProfiles(),
+  reactions: fakeReactions(),
+  viewerPubkey: undefined,
+  // kind:1 の描画詳細はここでは主張しない (EventView/Note.test.tsx が担う)
+  // ので、fallback (UnknownKind) のままでよい。
+  renderers: [],
+});
+
+const status = (phase: SectionStatus["phase"]): (() => SectionStatus) => {
+  const value: SectionStatus = { phase };
+  return () => value;
+};
+
+/**
+ * `Note.test.tsx` の `mount` と同じ手筋: `createRoot` の中で Solid
+ * コンポーネントを JSX を介さず関数として直接呼び、返ってきた DOM ノードを
+ * 検証する。
+ */
+const mount = (
+  render: () => unknown,
+  ctx: RenderContextValue,
+): { element: () => HTMLElement; dispose: () => void } => {
+  let element: HTMLElement | undefined;
+  let disposeRoot: () => void = () => {};
+  createRoot((dispose) => {
+    disposeRoot = dispose;
+    RenderProvider({
+      value: ctx,
+      get children() {
+        element = render() as unknown as HTMLElement;
+        return null;
+      },
+    });
+  });
+  return {
+    element: () => {
+      if (!element) throw new Error("component did not mount");
+      return element;
+    },
+    dispose: disposeRoot,
+  };
+};
+
+describe("ThreadView", () => {
+  it("focus はセクションの応答を待たず store から即座に描かれる", () => {
+    // 捕まえる変異: store からの seed をやめる (props.events() だけを見る)。
+    // 開いた直後は SectionReader がまだ何も届けていない (items() が空) ので、
+    // このシードが無いと押した本人のノートまで「読み込み中」に化ける。
+    const focus = signed(1, { content: "focus body" });
+    const store = new EventStore();
+    store.put(focus, "wss://relay/");
+
+    const { element, dispose } = mount(
+      () =>
+        ThreadView({
+          events: () => [], // セクションはまだ何も届けていない
+          focusId: focus.id,
+          status: status("initial"),
+        }),
+      contextWith(store),
+    );
+    try {
+      const el = element();
+      const focusLi = el.querySelector('[data-testid="thread-focus"]');
+      expect(focusLi).not.toBeNull();
+      expect(focusLi?.textContent).not.toContain("読み込み中");
+      expect(
+        focusLi?.querySelector(
+          '[data-testid="event-view"][data-variant="full"]',
+        ),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("settled になるまでは reachedRoot: false でも truncated 警告を出さない", () => {
+    // 捕まえる変異: 警告の Show 条件から status().phase === "settled" を
+    // 落とす。祖先の到着を待っているだけの間 (initial/streaming) に
+    // 「取得できていません」を確定した事実として出すと、まだ存在しない
+    // 劣化を見せることになる (ADR-0011 が禁じる逆方向の不正直さ)。
+    const missingParentId = signed(2).id;
+    const focus = signed(3, {
+      tags: [["e", missingParentId, "", "root"]],
+    });
+    const store = new EventStore();
+    store.put(focus, "wss://relay/");
+
+    for (const phase of ["initial", "streaming"] as const) {
+      const { element, dispose } = mount(
+        () =>
+          ThreadView({
+            events: () => [],
+            focusId: focus.id,
+            status: status(phase),
+          }),
+        contextWith(store),
+      );
+      try {
+        expect(
+          element().querySelector('[data-testid="thread-truncated"]'),
+        ).toBeNull();
+      } finally {
+        dispose();
+      }
+    }
+  });
+
+  it("settled になっても祖先が届いていなければ truncated 警告を出す", () => {
+    // 捕まえる変異: 警告を settled のときも一切出さなくする。settled は
+    // 「これ以上届く見込みが無い」印であり、それでも祖先が欠けているなら
+    // 本物の劣化なので、ADR-0011 に従い黙らせてはいけない。
+    const missingParentId = signed(4).id;
+    const focus = signed(5, {
+      tags: [["e", missingParentId, "", "root"]],
+    });
+    const store = new EventStore();
+    store.put(focus, "wss://relay/");
+
+    const { element, dispose } = mount(
+      () =>
+        ThreadView({
+          events: () => [],
+          focusId: focus.id,
+          status: status("settled"),
+        }),
+      contextWith(store),
+    );
+    try {
+      expect(
+        element().querySelector('[data-testid="thread-truncated"]'),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});
