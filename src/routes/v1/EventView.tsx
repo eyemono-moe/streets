@@ -23,6 +23,8 @@ export type EventViewProps = {
   threadLine?: boolean;
   /** レンダラへそのまま渡す (`EventBodyProps.hideReplyPreview`)。 */
   hideReplyPreview?: boolean;
+  /** レンダラへそのまま渡す (`EventBodyProps.disableThreadOpen`)。 */
+  disableThreadOpen?: boolean;
 };
 
 /**
@@ -100,6 +102,7 @@ const EventView: Component<EventViewProps> = (props) => {
               event={found()}
               threadLine={props.threadLine}
               hideReplyPreview={props.hideReplyPreview}
+              disableThreadOpen={props.disableThreadOpen}
             />
           );
         }}

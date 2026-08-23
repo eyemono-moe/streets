@@ -16,10 +16,11 @@ export const ThreadNavProvider: ParentComponent<{ open: OpenThread }> = (
  * このノートを起点にスレッドを開く関数。**provider が無ければ
  * `undefined` を返し、例外を投げない。**
  *
- * `useRender()` が投げるのは「provider を渡し忘れた」が常に配線ミス
- * だからだが、こちらは違う —— `/debug/v1-section` のようにナビゲーションを
- * 持たない面でイベントを描くのは正当な使い方であり、そこではノートが
- * 押せないだけでよい。投げると、その面がスレッドと無関係に落ちる。
+ * `useRender()` が投げるのは「provider を渡し忘れた」が常に配線ミスだから
+ * だが、こちらは違う —— ノートを描く面すべてがスレッドへのナビゲーションを
+ * 持つとは限らない。ナビゲーションを持たない面でノートを描くのは正当な
+ * 使い方であり、そこではノートが押せないだけでよい。投げると、その面が
+ * スレッドと無関係に落ちる。
  */
 export const useThreadNav = (): OpenThread | undefined =>
   useContext(ThreadNavContext);

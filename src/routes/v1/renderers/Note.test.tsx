@@ -1170,6 +1170,29 @@ describe("スレッドを開く", () => {
     }
   });
 
+  it("disableThreadOpen が true なら useThreadNav があっても押せる見た目・動作を持たない", () => {
+    // 捕まえる変異: disableThreadOpen を無視する。`ThreadView` は背骨の
+    // focus にこれを立てる —— focus を押しても、ナビゲーションスタックの
+    // 重複 push ガードにより実際には何も起きない (ADR-0026 の対象そのもの)。
+    const events = createRecordingEventRequests();
+    const event = signed(86, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event, disableThreadOpen: true }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      expect(element().className).not.toMatch(/cursor-pointer/);
+      element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
   it("EventMenu (Portal で描かれるメニュー項目) を押してもスレッドは開かない", () => {
     // 捕まえる変異: `article.contains(e.target)` のチェックを外す。
     // `<Portal>` は `_$host` を張るので、Solid の delegated event は

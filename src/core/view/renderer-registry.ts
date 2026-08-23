@@ -29,6 +29,18 @@ export type EventBodyProps = {
    * 受け取って無視する (`threadLine` と同じ扱い)。
    */
   hideReplyPreview?: boolean;
+  /**
+   * このイベントを押しても「このイベントのスレッドを開く」を発火させない
+   * (押せる見た目も付けない)。`ThreadView` が背骨の focus を描くときに
+   * 立てる —— focus 自身を押しても、ナビゲーションスタックの重複 push
+   * ガード (`DeckColumn.tsx` の `openThread`) により何も起きない。ADR-0026
+   * 「押しても何も起きないものを押せる見た目にしない」に従い、その no-op
+   * を隠さず最初から押せる見た目にしない。
+   *
+   * レンダラごとの任意対応でよい —— スレッドを開く仕組みを持たない kind
+   * は受け取って無視する (`threadLine` と同じ扱い)。
+   */
+  disableThreadOpen?: boolean;
 };
 
 export type EventRenderer = {

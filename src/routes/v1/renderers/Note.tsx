@@ -66,8 +66,26 @@ const DRAG_SLOP = 4;
  * ドラッグで本文を選択した後も発火しない。`mousedown` と `mouseup` の
  * 座標が動いていたら選択の意図とみなす —— そうしないと本文をコピー
  * しようとするたびにスレッドが開く。
+ *
+ * `disabled` (`ThreadView` が背骨の focus に立てる) が真なら、押せる見た目
+ * も handler も付けない —— focus 自身を押しても、ナビゲーションスタックの
+ * 重複 push ガード (`DeckColumn.tsx` の `openThread`) により何も起きない
+ * ので、ADR-0026 に従いその no-op を最初から押せる見た目にしない。
+ *
+ * **戻り値は 1 度だけ呼び出し側で受け取る。**以前は呼び出しのたびに新しい
+ * オブジェクトを返す関数を返しており、`<article>` 側で 3 回呼んでいた ——
+ * その形は `class: "cursor-pointer"` という文字列を返しながら実際には
+ * `classList` の判定材料 (真偽値) としてしか使っていなかった。`class` を
+ * 2 回書くと後勝ちで静的クラスが消える、という `<article>` 側のコメントが
+ * 警告している事故を、この形自体が誘っていた。`enabled` を関数 (呼び出し側
+ * の `classList` の中で読む) に、`onMouseDown`/`onClick` を安定した関数
+ * 参照にすることで、呼び出し側は 1 回受け取った戻り値をそのまま 3 か所へ
+ * 配るだけでよい。
  */
-const useOpenThreadOnClick = (event: () => NostrEvent) => {
+const useOpenThreadOnClick = (
+  event: () => NostrEvent,
+  disabled: () => boolean = () => false,
+) => {
   const open = useThreadNav();
   let downAt: { x: number; y: number } | undefined;
 
@@ -77,33 +95,33 @@ const useOpenThreadOnClick = (event: () => NostrEvent) => {
       "a, button, [role='button'], input, textarea, [data-part='trigger']",
     ) !== null;
 
-  return () =>
-    open === undefined
-      ? {}
-      : {
-          class: "cursor-pointer",
-          onMouseDown: (e: MouseEvent) => {
-            downAt = { x: e.clientX, y: e.clientY };
-          },
-          onClick: (e: MouseEvent) => {
-            const article = e.currentTarget;
-            if (
-              !(article instanceof Element) ||
-              !(e.target instanceof Node) ||
-              !article.contains(e.target)
-            ) {
-              return;
-            }
-            if (isInteractive(e.target)) return;
-            const moved =
-              downAt !== undefined &&
-              (Math.abs(e.clientX - downAt.x) > DRAG_SLOP ||
-                Math.abs(e.clientY - downAt.y) > DRAG_SLOP);
-            if (moved) return;
-            e.stopPropagation();
-            open(event().id);
-          },
-        };
+  const enabled = () => open !== undefined && !disabled();
+
+  return {
+    enabled,
+    onMouseDown: (e: MouseEvent) => {
+      downAt = { x: e.clientX, y: e.clientY };
+    },
+    onClick: (e: MouseEvent) => {
+      if (!enabled()) return;
+      const article = e.currentTarget;
+      if (
+        !(article instanceof Element) ||
+        !(e.target instanceof Node) ||
+        !article.contains(e.target)
+      ) {
+        return;
+      }
+      if (isInteractive(e.target)) return;
+      const moved =
+        downAt !== undefined &&
+        (Math.abs(e.clientX - downAt.x) > DRAG_SLOP ||
+          Math.abs(e.clientY - downAt.y) > DRAG_SLOP);
+      if (moved) return;
+      e.stopPropagation();
+      open?.(event().id);
+    },
+  };
 };
 
 /**
@@ -318,10 +336,13 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
   // 本文に `nostr:` として現れた引用は `NoteContent` がその位置に描く
   // (仕様 4.2 節)。ここに残るのは **タグにしか無いもの** だけ。
   const quotes = () => tagOnlyQuoteTargets(props.event);
-  const openOnClick = useOpenThreadOnClick(() => props.event);
+  const openOnClick = useOpenThreadOnClick(
+    () => props.event,
+    () => props.disableThreadOpen === true,
+  );
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作の対応はこのタスクの範囲外 (brief に無い)。押せるのはポインタ操作のみ。
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作でスレッドを開く経路が無い (followups: docs/design/read-layer-followups.md の「キーボードではスレッドを開けない」節)。押せるのはポインタ操作のみ。
     <article
       data-testid="note"
       // `group/event`: `ReactionList` の展開トグルが `group-not-hover/event:hidden`
@@ -339,12 +360,13 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       //
       // 押せる見た目 (`cursor-pointer`) とハンドラは `classList`/個別の
       // props で足す —— `class` を 2 回書くと後勝ちで上の静的クラスが
-      // 消える (ADR-0026: `useThreadNav()` が `undefined` なら両方とも
-      // 付かない)。
+      // 消える (ADR-0026: `enabled()` が false なら押せる見た目にしない —
+      // `useThreadNav()` が `undefined` のときも、`disableThreadOpen` が
+      // 立っているときも同じ扱い)。
       class="group/event p-3 text-body group-[_]/event:p-0"
-      classList={{ "cursor-pointer": openOnClick().class !== undefined }}
-      onMouseDown={openOnClick().onMouseDown}
-      onClick={openOnClick().onClick}
+      classList={{ "cursor-pointer": openOnClick.enabled() }}
+      onMouseDown={openOnClick.onMouseDown}
+      onClick={openOnClick.onClick}
     >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
@@ -429,16 +451,19 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
  * 責務ではなく置く側 (引用カード等) の責務。
  */
 export const NoteCompact: Component<EventBodyProps> = (props) => {
-  const openOnClick = useOpenThreadOnClick(() => props.event);
+  const openOnClick = useOpenThreadOnClick(
+    () => props.event,
+    () => props.disableThreadOpen === true,
+  );
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作の対応はこのタスクの範囲外 (brief に無い)。押せるのはポインタ操作のみ。
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作でスレッドを開く経路が無い (followups: docs/design/read-layer-followups.md の「キーボードではスレッドを開けない」節)。押せるのはポインタ操作のみ。
     <article
       data-testid="note"
       class="text-caption"
-      classList={{ "cursor-pointer": openOnClick().class !== undefined }}
-      onMouseDown={openOnClick().onMouseDown}
-      onClick={openOnClick().onClick}
+      classList={{ "cursor-pointer": openOnClick.enabled() }}
+      onMouseDown={openOnClick.onMouseDown}
+      onClick={openOnClick.onClick}
     >
       <NoteBody
         event={props.event}

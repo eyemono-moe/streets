@@ -84,8 +84,18 @@ const ThreadView: Component<{
               自分でも親のプレビューを積むので、ここで止めないと同じ
               イベントが 2 回並ぶ (仕様にはこの重複の回避が明記されて
               いなかった — 実地で見つかった)。
+
+              `disableThreadOpen`: focus 自身を押しても、ナビゲーション
+              スタックの重複 push ガード (`DeckColumn.tsx` の `openThread`)
+              により何も起きない。ADR-0026 に従い、その no-op を押せる
+              見た目 (`cursor-pointer`) で隠さない。
             */}
-            <EventView id={focus().id} variant="full" hideReplyPreview />
+            <EventView
+              id={focus().id}
+              variant="full"
+              hideReplyPreview
+              disableThreadOpen
+            />
           </li>
         )}
       </Show>
