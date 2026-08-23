@@ -1120,6 +1120,61 @@ describe("スレッドを開く", () => {
     }
   });
 
+  it("EventMenu (Portal で描かれるメニュー項目) を押してもスレッドは開かない", () => {
+    // 捕まえる変異: `article.contains(e.target)` のチェックを外す。
+    // `<Portal>` は `_$host` を張るので、Solid の delegated event は
+    // メニュー項目 (`document.body` 直下、実 DOM 上は article の外) の
+    // click を article の onClick まで届けてしまう。`role="menuitem"` は
+    // 対話要素の selector に元々掛からないので、このチェックが無いと
+    // 「リンクをコピー」を押すたびにスレッドも開いてしまう。
+    const events = createRecordingEventRequests();
+    const event = signed(90, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const menuItem = document.body.querySelector(
+        '[data-testid="event-menu"] [role="menuitem"]',
+      );
+      expect(menuItem).not.toBeNull();
+      menuItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("アバター (asChild のホバートリガー) を押してもスレッドは開かない", () => {
+    // 捕まえる変異: isInteractive の selector から `[data-part='trigger']`
+    // を落とす。`Avatar` は `ProfileHover` の `asChild` で `<div>` へ
+    // トリガーを合流させており、zag の `getTriggerProps()` は role を
+    // 持たない —— 名前 (button 版トリガー) と違い、role/tag だけを見る
+    // selector では対話要素と判定できない。
+    const events = createRecordingEventRequests();
+    const event = signed(91, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const avatar = element().querySelector('[data-testid="avatar"]');
+      expect(avatar).not.toBeNull();
+      avatar?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
   it("ドラッグでテキストを選択した後は開かない", () => {
     // 捕まえる変異: mousedown の座標を覚えない —— 本文を選択しようと
     // するたびにスレッドが開き、コピーができない。

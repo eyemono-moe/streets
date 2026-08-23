@@ -39,9 +39,29 @@ const DRAG_SLOP = 4;
  * 内側の `<article>` がここで `stopPropagation()` するので外側へ届かない。
  * 深さに関係なく同じ規則で効く。
  *
+ * **`e.target` が実 DOM 上でこの `<article>` の子孫であることを要求する。**
+ * Solid の delegated event は document 直下で拾い、`node._$host ||
+ * node.parentNode` を辿って伝播経路を組み立てる —— `<Portal>` は自分の
+ * コンテナに `_$host` を張るので、`EventMenu`/`ProfileHover` のように
+ * 本文とは無関係な場所 (`document.body` 直下など) へ描画される内容の
+ * click も、DOM 上の位置に関係なくここまで届いてしまう。`role='menuitem'`
+ * のような、たまたま selector に引っかからない部品が中にあると、
+ * 「対話要素なので無視する」判定をすり抜けてスレッドが開いてしまう。
+ * `closest()` による selector 一致は「Portal の中に何があるか」を
+ * 列挙する形になり、ark-ui の面が増えるたびに直し忘れる。実 DOM の
+ * 包含関係を見れば、Portal 経由の click は列挙なしに一律で弾ける ——
+ * `e.currentTarget` はハンドラを登録した実ノード (= この `<article>`)
+ * そのものなので、ref を別途持たなくても `contains()` の起点に使える。
+ *
  * 対話要素の上では発火しない —— リンク・名前・アクション列はそれぞれ
  * 自分の目的地を持つ。`closest()` で祖先まで見るのは、押されたのが
  * `<button>` の中の `<span>` でも同じ判定になるようにするため。
+ * `[data-part='trigger']` を加えているのは、`ProfileHover` が `asChild`
+ * で `Avatar` の `<div>` へ合流させるトリガーが zag の `getTriggerProps()`
+ * から `role` を受け取らないため —— タグ名や role に関わらず、ark-ui が
+ * 自分の anatomy として "trigger" と呼ぶ部品には常にこの data 属性が付く
+ * ので、`<button>` 版のトリガー (名前) と `asChild` 版のトリガー (アイコン)
+ * を同じ 1 つの判定で揃えられる。
  *
  * ドラッグで本文を選択した後も発火しない。`mousedown` と `mouseup` の
  * 座標が動いていたら選択の意図とみなす —— そうしないと本文をコピー
@@ -53,7 +73,9 @@ const useOpenThreadOnClick = (event: () => NostrEvent) => {
 
   const isInteractive = (target: EventTarget | null) =>
     target instanceof Element &&
-    target.closest("a, button, [role='button'], input, textarea") !== null;
+    target.closest(
+      "a, button, [role='button'], input, textarea, [data-part='trigger']",
+    ) !== null;
 
   return () =>
     open === undefined
@@ -64,6 +86,14 @@ const useOpenThreadOnClick = (event: () => NostrEvent) => {
             downAt = { x: e.clientX, y: e.clientY };
           },
           onClick: (e: MouseEvent) => {
+            const article = e.currentTarget;
+            if (
+              !(article instanceof Element) ||
+              !(e.target instanceof Node) ||
+              !article.contains(e.target)
+            ) {
+              return;
+            }
             if (isInteractive(e.target)) return;
             const moved =
               downAt !== undefined &&
