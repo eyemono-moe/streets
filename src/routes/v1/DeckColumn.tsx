@@ -206,9 +206,21 @@ const DeckColumn: Component<{
     manager: props.manager,
   });
 
+  // いま画面に出ているセクションを映す。根のカラムでは `section`、
+  // スレッドを開いている間は `threadSection` —— 固定で `section` のままだと、
+  // 診断パネル (下記) だけでなく `ColumnAlertBadge` もスレッドを開いている
+  // 間はユーザーに見えていない根のカラムの状態を報告し続けることになる。
+  const activeSection = createMemo(() => (focusId() ? threadSection : section));
+
   // ユーザーが行動できる異常だけを取り出す (ADR-0026)。判定そのものは
-  // columnAlerts (Task 2) に集約済みで、ここでは呼ぶだけ。
-  const alerts = createMemo(() => columnAlerts(props.column, section.status()));
+  // columnAlerts (Task 2) に集約済みで、ここでは呼ぶだけ。**いま見えている
+  // セクション** (`activeSection`) の状態を渡す —— 固定で `section` のまま
+  // だと、スレッドを開いている間にスレッド側のリレーが到達不能でも
+  // バッジが黙ったままになり、developer mode でしか気付けない
+  // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
+  const alerts = createMemo(() =>
+    columnAlerts(props.column, activeSection().status()),
+  );
 
   /**
    * 楽観挿入とセクション本体の items をマージする (仕様 6 節、受け入れ確認
@@ -260,12 +272,6 @@ const DeckColumn: Component<{
     props.onRename(titleDraft());
     setEditingTitle(false);
   };
-
-  // 診断パネルは「いま画面に出ているセクション」を映す。根のカラムでは
-  // `section`、スレッドを開いている間は `threadSection` —— 固定で
-  // `section` のままだと、スレッド内を 1 段進んでも購読が張り直されて
-  // いないことを developer mode から確かめられなくなる。
-  const activeSection = createMemo(() => (focusId() ? threadSection : section));
 
   return (
     <section
