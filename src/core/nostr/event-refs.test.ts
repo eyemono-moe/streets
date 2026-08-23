@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "./event";
 import {
   embeddedRepostEvent,
+  eventRelayHints,
   quoteTargets,
   replyTarget,
   repostTarget,
@@ -306,6 +307,46 @@ describe("threadRoot", () => {
   it("id が 64 桁 hex でなければ落とす", () => {
     // 捕まえる変異: idRef を通さず生の値を返す
     expect(threadRoot(withTags([["e", "zz", "", "root"]]))).toBeUndefined();
+  });
+});
+
+describe("eventRelayHints", () => {
+  it("e タグのリレーヒントを重複無しで集める", () => {
+    // 捕まえる変異: 最初の 1 本しか見ない、または重複をそのまま返す。
+    expect(
+      eventRelayHints(
+        noteWith([
+          ["e", ID_A, "wss://a.example", "reply"],
+          ["e", ID_B, "wss://b.example", "root"],
+          ["e", ID_A, "wss://a.example", "mention"],
+        ]),
+      ),
+    ).toEqual(["wss://a.example", "wss://b.example"]);
+  });
+
+  it("marker を問わない (reply/root に絞らない)", () => {
+    // 捕まえる変異: replyTarget/threadRoot と同じく marker を絞る。
+    // ここは「どこに問い合わせるか」の手がかりを広く拾う場所であり、
+    // marker の無い e タグ (引用など) のヒントも無駄にしない。
+    expect(eventRelayHints(noteWith([["e", ID_A, "wss://a.example"]]))).toEqual(
+      ["wss://a.example"],
+    );
+  });
+
+  it("e タグが無ければ空配列", () => {
+    expect(eventRelayHints(noteWith([]))).toEqual([]);
+  });
+
+  it("空文字のヒントは落とす (NIP-10: リレー URL は空文字がありうる)", () => {
+    // 捕まえる変異: relayOf を通さず生の値をそのまま使う。空文字を接続先
+    // として下流へ渡してしまう。
+    expect(eventRelayHints(noteWith([["e", ID_A, "", "reply"]]))).toEqual([]);
+  });
+
+  it("e 以外のタグは無視する", () => {
+    expect(eventRelayHints(noteWith([["q", ID_A, "wss://a.example"]]))).toEqual(
+      [],
+    );
   });
 });
 

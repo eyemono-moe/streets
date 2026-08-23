@@ -4,10 +4,11 @@ import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
-import { threadRoot } from "../../core/nostr/event-refs";
+import { eventRelayHints, threadRoot } from "../../core/nostr/event-refs";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
+import type { RelayUrl } from "../../core/relay/relay-connection";
 import { createSection } from "../../core/solid/create-section";
 import { useRender } from "../../core/view/render-context";
 import ColumnAlertBadge from "./ColumnAlertBadge";
@@ -149,6 +150,23 @@ const DeckColumn: Component<{
     return threadRoot(focus)?.id ?? id;
   });
 
+  /**
+   * フォーカスしたイベント自身の `e` タグが運ぶリレーヒント (NIP-10 の
+   * 3 番目の要素)。`#e` 購読は著者が分からないので Outbox ルーティング
+   * が効かず (誰が返信するか事前に分からない)、ここで拾えるヒントだけが
+   * 「根への購読をどこへ送るか」に使える手がかりになる —— 拾えなければ
+   * `threadSection` は下の fallback (`FALLBACK_RELAYS` への同報) に落ちる。
+   * この残余の欠落は followups に記録している。
+   *
+   * `threadRootId` と同じ理由で `store.get` は非リアクティブな一発読み。
+   */
+  const threadRelayHints = createMemo<readonly RelayUrl[]>(() => {
+    const id = focusId();
+    if (!id) return [];
+    const focus = store.get(id);
+    return focus ? eventRelayHints(focus) : [];
+  });
+
   const threadSection = createSection({
     source: createMemo(() => {
       const root = threadRootId();
@@ -158,11 +176,32 @@ const DeckColumn: Component<{
       // (`authors: []` や `{}` 単体とは別物、resolve-source.ts の
       // followees の罠と混同しないこと)。
       if (!root) return { type: "nostr" as const, filters: [] };
-      return {
+
+      // カラムの明示リレー (`source().relays`、無ければ Outbox ルーティング
+      // 中で undefined) と、フォーカスしたイベントの `e` タグのヒントを
+      // 合わせる。カラムが `followees`/Outbox のように著者ベースでルート
+      // されている場合、`source().relays` は無くヒントだけが頼りになる ——
+      // それも無ければ空のままで、下の `relays` フィールドを省略する
+      // (fallback への同報に委ねる。空配列を明示すると「どこにも送らない」
+      // 意味になってしまい、fallback より悪化する)。
+      const relays = [
+        ...new Set([...(source().relays ?? []), ...threadRelayHints()]),
+      ];
+
+      const base = {
         type: "nostr" as const,
         filters: [{ ids: [root] }, { kinds: [1], "#e": [root] }],
-        ...(RELAYS_OVERRIDE ? { relays: RELAYS_OVERRIDE } : {}),
+        ...(relays.length > 0 ? { relays } : {}),
       };
+      // `?relays=` の e2e 上書きは、カラムの `source` と同じ非対称を保つ
+      // —— 既に (カラム由来かヒント由来かを問わず) 明示リレーを持つとき
+      // だけ上書きする。無条件に上書きすると、根が Outbox ルーティング
+      // 前提のカラムで開かれたときに「本来 fallback へ同報されるはずが
+      // 上書きだけローカルリレーに固定される」という、カラム本体には
+      // 起きない特別扱いがスレッドにだけ生まれる。
+      return RELAYS_OVERRIDE && base.relays
+        ? { ...base, relays: RELAYS_OVERRIDE }
+        : base;
     }),
     manager: props.manager,
   });
