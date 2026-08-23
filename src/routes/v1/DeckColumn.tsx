@@ -4,12 +4,11 @@ import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
-import { eventRelayHints, threadRoot } from "../../core/nostr/event-refs";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
-import type { RelayUrl } from "../../core/relay/relay-connection";
 import { createSection } from "../../core/solid/create-section";
+import { createThreadSource } from "../../core/solid/create-thread-source";
 import { useRender } from "../../core/view/render-context";
 import ColumnAlertBadge from "./ColumnAlertBadge";
 import ColumnItems from "./ColumnItems";
@@ -130,79 +129,22 @@ const DeckColumn: Component<{
    * スレッドの購読は**根**に投げる。NIP-10 を守る返信は深さに関わらず
    * 全員が根を `e` タグで指すので、これ 1 本で祖先も返信も届く。
    *
-   * **根の id でメモ化する。** `createSection` は `createEffect` の中で
-   * `source()` を読んで `SectionReader` を作り直すので、内容が同じでも
-   * 毎回新しいオブジェクトを返すと、スレッド内で 1 段進むたびに購読が
-   * 張り直されて items が空から積み直しになる。
+   * 組み立てそのものは `createThreadSource` (`core/solid/`) へ切り出して
+   * ある —— 根の id でのメモ化、リレーヒントの反応性の切り離し (1 段進む
+   * だけで購読が張り直されない)、`?relays=` の非対称な上書きは、
+   * `SubscriptionManager`/`RenderProvider` を用意しなくても検証できる
+   * ほうがよい性質であり、実際に `create-thread-source.test.ts` が
+   * ユニットテストとして守っている。
    */
-  const threadRootId = createMemo(() => {
-    const id = focusId();
-    if (!id) return undefined;
-    // `store.get` は非リアクティブな一発読み —— この memo は `id` が
-    // 変わらない限り再実行されないので、呼んだ時点でまだ store に無い
-    // イベントを渡すと「自分自身が根」という誤った結果に固定されたまま
-    // 二度と直らない。今のところ `openThread` は画面に描画済み (= 必ず
-    // store にある) ノートのクリックからしか呼ばれないのでこれは起きない
-    // —— 深いリンクや未取得の mention から `openThread` を呼ぶ経路を
-    // 足すときは、この前提が崩れることに注意。
-    const focus = store.get(id);
-    if (!focus) return id;
-    return threadRoot(focus)?.id ?? id;
-  });
-
-  /**
-   * フォーカスしたイベント自身の `e` タグが運ぶリレーヒント (NIP-10 の
-   * 3 番目の要素)。`#e` 購読は著者が分からないので Outbox ルーティング
-   * が効かず (誰が返信するか事前に分からない)、ここで拾えるヒントだけが
-   * 「根への購読をどこへ送るか」に使える手がかりになる —— 拾えなければ
-   * `threadSection` は下の fallback (`FALLBACK_RELAYS` への同報) に落ちる。
-   * この残余の欠落は followups に記録している。
-   *
-   * `threadRootId` と同じ理由で `store.get` は非リアクティブな一発読み。
-   */
-  const threadRelayHints = createMemo<readonly RelayUrl[]>(() => {
-    const id = focusId();
-    if (!id) return [];
-    const focus = store.get(id);
-    return focus ? eventRelayHints(focus) : [];
+  const threadSource = createThreadSource({
+    focusId,
+    store,
+    columnRelays: () => source().relays,
+    relaysOverride: RELAYS_OVERRIDE,
   });
 
   const threadSection = createSection({
-    source: createMemo(() => {
-      const root = threadRootId();
-      // 根が決まっていないときはフィルタ 0 本を渡す。`planQuery`
-      // (query-plan.ts) はフィルタを 1 本ずつ見てリレーを割り当てるので、
-      // 0 本なら選ばれるリレーも 0 本 —— つまり「何も購読しない」で安全
-      // (`authors: []` や `{}` 単体とは別物、resolve-source.ts の
-      // followees の罠と混同しないこと)。
-      if (!root) return { type: "nostr" as const, filters: [] };
-
-      // カラムの明示リレー (`source().relays`、無ければ Outbox ルーティング
-      // 中で undefined) と、フォーカスしたイベントの `e` タグのヒントを
-      // 合わせる。カラムが `followees`/Outbox のように著者ベースでルート
-      // されている場合、`source().relays` は無くヒントだけが頼りになる ——
-      // それも無ければ空のままで、下の `relays` フィールドを省略する
-      // (fallback への同報に委ねる。空配列を明示すると「どこにも送らない」
-      // 意味になってしまい、fallback より悪化する)。
-      const relays = [
-        ...new Set([...(source().relays ?? []), ...threadRelayHints()]),
-      ];
-
-      const base = {
-        type: "nostr" as const,
-        filters: [{ ids: [root] }, { kinds: [1], "#e": [root] }],
-        ...(relays.length > 0 ? { relays } : {}),
-      };
-      // `?relays=` の e2e 上書きは、カラムの `source` と同じ非対称を保つ
-      // —— 既に (カラム由来かヒント由来かを問わず) 明示リレーを持つとき
-      // だけ上書きする。無条件に上書きすると、根が Outbox ルーティング
-      // 前提のカラムで開かれたときに「本来 fallback へ同報されるはずが
-      // 上書きだけローカルリレーに固定される」という、カラム本体には
-      // 起きない特別扱いがスレッドにだけ生まれる。
-      return RELAYS_OVERRIDE && base.relays
-        ? { ...base, relays: RELAYS_OVERRIDE }
-        : base;
-    }),
+    source: threadSource.source,
     manager: props.manager,
   });
 
@@ -213,7 +155,7 @@ const DeckColumn: Component<{
   const activeSection = createMemo(() => (focusId() ? threadSection : section));
 
   // ユーザーが行動できる異常だけを取り出す (ADR-0026)。判定そのものは
-  // columnAlerts (Task 2) に集約済みで、ここでは呼ぶだけ。**いま見えている
+  // columnAlerts に集約済みで、ここでは呼ぶだけ。**いま見えている
   // セクション** (`activeSection`) の状態を渡す —— 固定で `section` のまま
   // だと、スレッドを開いている間にスレッド側のリレーが到達不能でも
   // バッジが黙ったままになり、developer mode でしか気付けない
