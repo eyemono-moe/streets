@@ -19,6 +19,16 @@ export type EventBodyProps = {
    * (`UnknownKind` など) は受け取って無視する。
    */
   threadLine?: boolean;
+  /**
+   * 返信先の親イベントを本体の上に積む自前のプレビュー (`NoteFull` が
+   * 持つもの) を出さない。`ThreadView` が背骨の focus をこの `full` として
+   * 描くとき、その親は既に祖先の最後の 1 件として同じ画面に (縦線付きで)
+   * 出ているので、ここでも積むと同じイベントが 2 回並ぶ。
+   *
+   * レンダラごとの任意対応でよい —— 自前の親プレビューを持たない kind は
+   * 受け取って無視する (`threadLine` と同じ扱い)。
+   */
+  hideReplyPreview?: boolean;
 };
 
 export type EventRenderer = {

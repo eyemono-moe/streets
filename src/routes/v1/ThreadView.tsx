@@ -74,7 +74,14 @@ const ThreadView: Component<{
       >
         {(focus) => (
           <li data-testid="thread-focus">
-            <EventView id={focus().id} variant="full" />
+            {/*
+              `hideReplyPreview`: focus の親は既に直前の `thread-ancestor`
+              (縦線付き) として画面に出ている。`NoteFull` は放っておくと
+              自分でも親のプレビューを積むので、ここで止めないと同じ
+              イベントが 2 回並ぶ (仕様にはこの重複の回避が明記されて
+              いなかった — 実地で見つかった)。
+            */}
+            <EventView id={focus().id} variant="full" hideReplyPreview />
           </li>
         )}
       </Show>

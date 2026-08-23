@@ -1,6 +1,7 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
+import type { Component } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import type { EventRequests } from "../../core/read/event-requests";
@@ -10,6 +11,7 @@ import type { ReactionRequests } from "../../core/read/reaction-requests";
 import type { SectionStatus } from "../../core/read/source";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
+import type { EventBodyProps } from "../../core/view/renderer-registry";
 import ThreadView from "./ThreadView";
 
 // EventView.test.tsx / renderers/Note.test.tsx と同じ手法: 種から 32 byte
@@ -203,6 +205,63 @@ describe("ThreadView", () => {
       expect(
         element().querySelector('[data-testid="thread-truncated"]'),
       ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("focus の EventView には hideReplyPreview が届く (親の二重表示を防ぐ配線)", () => {
+    // 捕まえる変異: focus を描く <EventView> から hideReplyPreview を
+    // 落とす。`NoteFull` 単体がこの prop を正しく扱っても、ここで配線
+    // されていなければ focus の中に親 (= 直前の thread-ancestor と同じ
+    // イベント) がもう一度描かれてしまう —— `renderers/Note.test.tsx` が
+    // 主張しているのは `NoteFull` 単体の振る舞いだけなので、配線そのもの
+    // はここでしか捕まえられない。
+    //
+    // 本物の `NoteFull`/`NoteCompact` を renderer として登録すると、
+    // Solid の DEV 版 `createComponent` がその関数自体に印を付け、
+    // 別ファイル (`renderers/Note.test.tsx`) が同じ関数を直接呼ぶテストに
+    // 影響しうる (そちらのファイル冒頭のコメント参照)。ここでは代役の
+    // Recorder で受け取った props だけを見る。
+    const fullSeen: (boolean | undefined)[] = [];
+    const compactSeen: (boolean | undefined)[] = [];
+    const FullRecorder: Component<EventBodyProps> = (props) => {
+      fullSeen.push(props.hideReplyPreview);
+      return null;
+    };
+    const CompactRecorder: Component<EventBodyProps> = (props) => {
+      compactSeen.push(props.hideReplyPreview);
+      return null;
+    };
+
+    const parent = signed(6, { content: "parent" });
+    const focus = signed(7, {
+      content: "focus",
+      tags: [["e", parent.id, "", "root"]],
+    });
+    const store = new EventStore();
+    store.put(parent, "wss://relay/");
+    store.put(focus, "wss://relay/");
+
+    const ctx: RenderContextValue = {
+      ...contextWith(store),
+      renderers: [{ kind: 1, full: FullRecorder, compact: CompactRecorder }],
+    };
+
+    const { dispose } = mount(
+      () =>
+        ThreadView({
+          events: () => [parent, focus],
+          focusId: focus.id,
+          status: status("settled"),
+        }),
+      ctx,
+    );
+    try {
+      // focus (full) には true が届く。ancestor (compact, parent) は
+      // 元々このプレビューを持たない compact なので届かなくてよい。
+      expect(fullSeen).toEqual([true]);
+      expect(compactSeen).toEqual([undefined]);
     } finally {
       dispose();
     }

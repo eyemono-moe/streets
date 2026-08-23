@@ -1015,6 +1015,56 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
   });
 });
 
+describe("hideReplyPreview (ThreadView の focus が親を二重に描かないための prop)", () => {
+  it("true なら親のプレビュー (compact の EventView) を出さないが、reply-to は残す", () => {
+    // 捕まえる変異: hideReplyPreview を無視して常に親のプレビューを描く。
+    // `ThreadView` は背骨の focus をこの prop 付きで描く —— 無視される
+    // と、祖先の最後の 1 件 (= この親) が focus の中にもう一度並ぶ。
+    const events = createRecordingEventRequests();
+    const parentId = signed(95).id;
+    const replierPubkey = pubkeyFor(96);
+    const event = signed(97, {
+      tags: [["e", parentId, "wss://relay/", "reply", replierPubkey]],
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event, hideReplyPreview: true }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      expect(
+        el.querySelector('[data-testid="event-view"][data-variant="compact"]'),
+      ).toBeNull();
+      // 「誰への返信か」のラベル自体は親のプレビューとは別物なので残る。
+      expect(el.querySelector('[data-testid="reply-to"]')).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("渡さなければ従来どおり親のプレビューを出す (対照)", () => {
+    // これが無いと上のテストは「そもそも親を描かない実装」でも通ってしまう。
+    const events = createRecordingEventRequests();
+    const parentId = signed(98).id;
+    const event = signed(99, {
+      tags: [["e", parentId, "wss://relay/", "reply"]],
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(
+        element().querySelector(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});
+
 describe("スレッドを開く", () => {
   it("ノートを押すとそのイベントの id で開く", () => {
     // 捕まえる変異: 押せるようにしない / 別の id を渡す

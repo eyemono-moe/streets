@@ -353,8 +353,13 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
         親イベント本体がまだ届いていなくても `EventView` が「読み込み中」を
         出すので、ここは到着を待たない。誰への返信かは `replyTo` として
         本体側が `e` タグの 5 番目の要素 (NIP-10、spec 5 節) から即座に出す。
+
+        `hideReplyPreview` が立っているときは出さない —— `ThreadView` が
+        背骨の focus をこの `full` で描くとき、この親は既に祖先の最後の
+        1 件として画面に出ているので、ここでも積むと同じイベントが縦に
+        2 回並ぶ (`ThreadView.tsx` 参照)。
       */}
-      <Show when={reply()}>
+      <Show when={!props.hideReplyPreview && reply()}>
         {(ref) => (
           <EventView
             id={ref().id}

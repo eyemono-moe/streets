@@ -144,6 +144,12 @@ test.describe("thread", () => {
     await expect(focus).toContainText(threadIntermediateNoteText);
     await expect(replies).toHaveCount(1);
     await expect(replies.nth(0)).toContainText(threadSelectedNoteText);
+    // focus (中間) 自身の親は根 —— 根は既に ancestors.nth(0) として出ている
+    // ので、focus の中でもう一度描かれていないことを数で確かめる。
+    // `toContainText` は部分一致なので二重表示があっても素通りしてしまう
+    // (`NoteFull` が自前の返信先プレビューを持つため、focus を素朴に
+    // `full` で描くと親がここでもう一度並ぶ)。
+    await expect(thread.getByText(threadRootNoteText)).toHaveCount(1);
 
     // 2. 返信 (選択) を押す —— 独立した compact 記事で入れ子を持たないので
     // 内側/外側の区別は関係しない。祖先 2 件 (根 → 中間の順)、focus が
@@ -159,6 +165,8 @@ test.describe("thread", () => {
     await expect(replies).toHaveCount(2);
     await expect(replies.nth(0)).toContainText(threadReply1NoteText);
     await expect(replies.nth(1)).toContainText(threadReply2NoteText);
+    // focus (選択) の親は中間 —— ancestors.nth(1) と同じ二重表示の懸念。
+    await expect(thread.getByText(threadIntermediateNoteText)).toHaveCount(1);
 
     // 3. 祖先の 1 件目 (根) を押す —— 背骨が根を focus に引き直される。
     // 捕まえる変異: 手順 2 と同じ (compact にクリックハンドラが無ければ
