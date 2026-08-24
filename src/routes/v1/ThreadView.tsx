@@ -41,7 +41,12 @@ const ThreadView: Component<{
   const spine = createMemo(() => threadSpine(events(), props.focusId));
 
   return (
-    <ul data-testid="thread" class="divide-y">
+    // `divide-y` は使わない。祖先と focus は縦線で繋がった 1 本の連鎖で、
+    // その間に横罫を引くと繋がりを自分で断ち切ることになる (`ColumnItems`
+    // の一覧は互いに無関係なノートの列なので、あちらでは罫が正しい)。
+    // 罫を引くのは返信の側 —— そこから先の返信どうしは連鎖ではなく兄弟で、
+    // 区切られているほうが読める。
+    <ul data-testid="thread">
       <Show when={!spine().reachedRoot && props.status().phase === "settled"}>
         {/*
           黙って根から始まっているように見せない (ADR-0011)。祖先が
@@ -58,13 +63,26 @@ const ThreadView: Component<{
         </li>
       </Show>
       <For each={spine().ancestors}>
-        {(event) => (
+        {(event, index) => (
           // `NoteCompact` は自分で padding を持たない (置く側の責務、
           // `Note.tsx` の `NoteCompact` コメント参照)。focus (`NoteFull` が
           // 自前で p-3 を持つ) と余白の見た目を揃えるため、置く側である
           // ここで p-3 を足す。
-          <li data-testid="thread-ancestor" class="p-3">
-            <EventView id={event.id} variant="compact" />
+          //
+          // 縦の padding だけは繋がる相手がいる辺で削る —— 祖先は必ず
+          // 次 (次の祖先、または focus) へ `threadLine` で繋がるので下は
+          // 常に `pb-0`。上は先頭だけ余白を残す (truncated 警告からは
+          // 繋がない、下記コメント参照) —— 2 件目以降は直前の祖先の線を
+          // 受け取るので `pt-0`。`p-3` のまま両側に余白があると、線が
+          // 自分の行の高さぶんしか伸びず (`Note.tsx` の `threadLine` は
+          // 行の自然高さに self-stretch する)、`<li>` の padding 分だけ
+          // 隙間が空いて隣の行のアイコンへ届かない。
+          <li
+            data-testid="thread-ancestor"
+            class="p-3 pb-0"
+            classList={{ "pt-0": index() > 0 }}
+          >
+            <EventView id={event.id} variant="compact" threadLine />
           </li>
         )}
       </For>
@@ -77,7 +95,15 @@ const ThreadView: Component<{
         }
       >
         {(focus) => (
-          <li data-testid="thread-focus">
+          // 祖先があるときは `NoteFull` 自前の上余白 (p-3) を打ち消す。
+          // 祖先の縦線はその祖先の `<article>` の下端で終わるので、
+          // 余白をそのまま残すとちょうどその分だけ線が focus のアイコンへ
+          // 届かず、繋がって見えない。負のマージンが食うのは focus の
+          // padding 領域だけで、祖先の中身には重ならない。
+          <li
+            data-testid="thread-focus"
+            classList={{ "-mt-3": spine().ancestors.length > 0 }}
+          >
             {/*
               `hideReplyPreview`: focus の親は既に直前の `thread-ancestor`
               (縦線付き) として画面に出ている。`NoteFull` は放っておくと
@@ -101,8 +127,9 @@ const ThreadView: Component<{
       </Show>
       <For each={spine().replies}>
         {(event) => (
-          // 理由は thread-ancestor と同じ (上のコメント参照)。
-          <li data-testid="thread-reply" class="p-3">
+          // 返信どうしは兄弟なので縦線で繋がず、代わりに罫で区切る
+          // (`border-t`)。1 件目の罫が focus と返信の境目にもなる。
+          <li data-testid="thread-reply" class="b-t-1 p-3">
             <EventView id={event.id} variant="compact" />
           </li>
         )}

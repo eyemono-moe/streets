@@ -306,4 +306,118 @@ describe("ThreadView", () => {
       dispose();
     }
   });
+
+  it("祖先には threadLine が届き、返信には届かない", () => {
+    // 捕まえる変異: 祖先の EventView から threadLine を落とす / 返信にも
+    // 付ける。祖先は「誰が誰に返信したか」の連鎖なので縦線で繋ぐ (v0 の
+    // `EventBase` の hasChild と同じ見せ方) が、focus の下に並ぶ返信は
+    // 連鎖ではなく互いに兄弟であり、繋ぐと「返信の返信」だと読み違える。
+    //
+    // 線そのものを描くのは `NoteBody` (`renderers/Note.tsx`) なので、
+    // ここで見えるのは配線だけ —— 上の hideReplyPreview のテストと同じ
+    // 理由で、本物のレンダラではなく Recorder が受けた props を見る。
+    const compactSeen: (boolean | undefined)[] = [];
+    const FullRecorder: Component<EventBodyProps> = () => null;
+    const CompactRecorder: Component<EventBodyProps> = (props) => {
+      compactSeen.push(props.threadLine);
+      return null;
+    };
+
+    const root = signed(11, { content: "root" });
+    const mid = signed(12, {
+      content: "mid",
+      tags: [
+        ["e", root.id, "", "root"],
+        ["e", root.id, "", "reply"],
+      ],
+    });
+    const focus = signed(13, {
+      content: "focus",
+      tags: [
+        ["e", root.id, "", "root"],
+        ["e", mid.id, "", "reply"],
+      ],
+    });
+    const replyEvent = signed(14, {
+      content: "reply",
+      tags: [
+        ["e", root.id, "", "root"],
+        ["e", focus.id, "", "reply"],
+      ],
+    });
+    const store = new EventStore();
+    for (const event of [root, mid, focus, replyEvent]) {
+      store.put(event, "wss://relay/");
+    }
+
+    const { dispose } = mount(
+      () =>
+        ThreadView({
+          events: () => [root, mid, focus, replyEvent],
+          focusId: focus.id,
+          status: status("settled"),
+        }),
+      {
+        ...contextWith(store),
+        renderers: [{ kind: 1, full: FullRecorder, compact: CompactRecorder }],
+      },
+    );
+    try {
+      // 祖先 2 段 (root, mid) が true、返信 1 件が undefined。祖先を
+      // 1 段だけで見ると、先頭にしか付けない実装を見逃す。
+      expect(compactSeen).toEqual([true, true, undefined]);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("祖先があるとき focus は自前の上余白を打ち消す", () => {
+    // 捕まえる変異: -mt-3 を落とす。祖先の縦線はその祖先の <article> の
+    // 下端で終わるので、focus の p-3 がそのまま残ると線がアイコンへ届かず、
+    // 繋がって見えない。祖先が無いときに付けると逆に上が詰まる。
+    const root = signed(15, { content: "root" });
+    const focus = signed(16, {
+      content: "focus",
+      tags: [["e", root.id, "", "root"]],
+    });
+    const store = new EventStore();
+    store.put(root, "wss://relay/");
+    store.put(focus, "wss://relay/");
+
+    const withAncestor = mount(
+      () =>
+        ThreadView({
+          events: () => [root, focus],
+          focusId: focus.id,
+          status: status("settled"),
+        }),
+      contextWith(store),
+    );
+    try {
+      expect(
+        withAncestor.element().querySelector('[data-testid="thread-focus"]')
+          ?.className,
+      ).toMatch(/(?:^|\s)-mt-3(?:\s|$)/);
+    } finally {
+      withAncestor.dispose();
+    }
+
+    const rootOnly = mount(
+      () =>
+        ThreadView({
+          events: () => [root],
+          focusId: root.id,
+          status: status("settled"),
+        }),
+      contextWith(store),
+    );
+    try {
+      expect(
+        rootOnly.element().querySelector('[data-testid="thread-focus"]')
+          ?.className,
+      ).not.toMatch(/(?:^|\s)-mt-3(?:\s|$)/);
+    } finally {
+      rootOnly.dispose();
+    }
+  });
 });
