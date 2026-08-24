@@ -3,6 +3,7 @@ import type { Component } from "solid-js";
 import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
 import { resolveSource } from "../../core/deck/resolve-source";
+import { excludeOwnActions } from "../../core/deck/notification-filter";
 import type { NostrEvent } from "../../core/nostr/event";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
@@ -208,7 +209,14 @@ const DeckColumn: Component<{
         (event) =>
           !knownIds.has(event.id) && matchesAnyFilter(event, source().filters),
       );
-    return [...optimistic, ...fromSection];
+    const merged = [...optimistic, ...fromSection];
+    // 通知列でだけ自分の行動を落とす (仕様 2.2 節)。**捨てるのはセクションが
+    // 保持した後**なので、保持上限 200 件は捨てる前の件数で数えている ——
+    // 自分の行動が多いと見える件数がそのぶん減る。仕様 5.1 節がこの代償を
+    // 受け入れた判断として記録している。
+    return props.column.source.kind === "notifications"
+      ? excludeOwnActions(merged, props.viewer)
+      : merged;
   });
 
   // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
