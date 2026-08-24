@@ -24,7 +24,6 @@ export const notificationAuthorPubkey = getPublicKey(authorSecretKey);
 
 export const notificationOwnNoteText = "streets notification e2e own note";
 export const notificationReplyText = "streets notification e2e reply";
-export const notificationRepostText = "streets notification e2e repost";
 
 const publishAndReturn = async (
   relay: Relay,
