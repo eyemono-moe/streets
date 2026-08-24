@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "./event";
 import {
   embeddedRepostEvent,
+  eventRelayHints,
   quoteTargets,
   replyTarget,
   repostTarget,
   tagOnlyQuoteTargets,
+  threadRoot,
 } from "./event-refs";
 import { encodeBech32 } from "./nip19";
 
@@ -247,6 +249,104 @@ describe("repostTarget", () => {
     // イベントでカラム全体を壊してはいけない (仕様 9 節)
     expect(() => repostTarget(noteWith([], { kind: 6 }))).not.toThrow();
     expect(repostTarget(noteWith([], { kind: 6 }))).toBeUndefined();
+  });
+});
+
+describe("threadRoot", () => {
+  const withTags = (tags: string[][]): NostrEvent =>
+    ({
+      id: "a".repeat(64),
+      pubkey: "b".repeat(64),
+      created_at: 1_700_000_000,
+      kind: 1,
+      tags,
+      content: "",
+      sig: "c".repeat(128),
+    }) as NostrEvent;
+
+  it("root マーカーの e タグを返す", () => {
+    // 捕まえる変異: マーカーを見ずに最初の e タグを返す
+    expect(
+      threadRoot(
+        withTags([
+          ["e", "1".repeat(64), "", "reply", "9".repeat(64)],
+          ["e", "2".repeat(64), "wss://r.example", "root", "8".repeat(64)],
+        ]),
+      ),
+    ).toEqual({
+      form: "id",
+      id: "2".repeat(64),
+      relay: "wss://r.example",
+      pubkey: "8".repeat(64),
+    });
+  });
+
+  it("reply マーカーに引きずられない", () => {
+    // 捕まえる変異: replyTarget と同じ「reply があればそれ」の分岐を書く。
+    // これを見逃すと、返信への返信で根ではなく親へ購読を張ることになり、
+    // 祖先が 1 段しか取れない。
+    expect(
+      threadRoot(
+        withTags([["e", "1".repeat(64), "", "reply", "9".repeat(64)]]),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("マーカー無しの e タグを根と誤認しない", () => {
+    // 捕まえる変異: tag[3] を見ずに e タグを拾う。NIP-10 の位置ベースの
+    // 旧形式は deprecated で、NIP-10 自身が「曖昧で解決不能」としている。
+    expect(threadRoot(withTags([["e", "1".repeat(64)]]))).toBeUndefined();
+  });
+
+  it("root マーカーが無ければ undefined（自分が根）", () => {
+    // 捕まえる変異: 見つからないときに自分の id を返す。呼び出し側が
+    // 「自分が根」を判定できなくなる。
+    expect(threadRoot(withTags([]))).toBeUndefined();
+  });
+
+  it("id が 64 桁 hex でなければ落とす", () => {
+    // 捕まえる変異: idRef を通さず生の値を返す
+    expect(threadRoot(withTags([["e", "zz", "", "root"]]))).toBeUndefined();
+  });
+});
+
+describe("eventRelayHints", () => {
+  it("e タグのリレーヒントを重複無しで集める", () => {
+    // 捕まえる変異: 最初の 1 本しか見ない、または重複をそのまま返す。
+    expect(
+      eventRelayHints(
+        noteWith([
+          ["e", ID_A, "wss://a.example", "reply"],
+          ["e", ID_B, "wss://b.example", "root"],
+          ["e", ID_A, "wss://a.example", "mention"],
+        ]),
+      ),
+    ).toEqual(["wss://a.example", "wss://b.example"]);
+  });
+
+  it("marker を問わない (reply/root に絞らない)", () => {
+    // 捕まえる変異: replyTarget/threadRoot と同じく marker を絞る。
+    // ここは「どこに問い合わせるか」の手がかりを広く拾う場所であり、
+    // marker の無い e タグ (引用など) のヒントも無駄にしない。
+    expect(eventRelayHints(noteWith([["e", ID_A, "wss://a.example"]]))).toEqual(
+      ["wss://a.example"],
+    );
+  });
+
+  it("e タグが無ければ空配列", () => {
+    expect(eventRelayHints(noteWith([]))).toEqual([]);
+  });
+
+  it("空文字のヒントは落とす (NIP-10: リレー URL は空文字がありうる)", () => {
+    // 捕まえる変異: relayOf を通さず生の値をそのまま使う。空文字を接続先
+    // として下流へ渡してしまう。
+    expect(eventRelayHints(noteWith([["e", ID_A, "", "reply"]]))).toEqual([]);
+  });
+
+  it("e 以外のタグは無視する", () => {
+    expect(eventRelayHints(noteWith([["q", ID_A, "wss://a.example"]]))).toEqual(
+      [],
+    );
   });
 });
 

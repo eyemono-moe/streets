@@ -12,6 +12,7 @@ import {
   previewAuthorTwoPubkey,
   previewViewerPubkey,
 } from "./seed-preview.js";
+import { threadAuthorPubkey, threadViewerPubkey } from "./seed-thread.js";
 import {
   e2eAuthorPubkey,
   e2eDebugFeedMissingProfilePubkeys,
@@ -69,6 +70,8 @@ describe("e2e fixture pubkeys", () => {
       ["seed-preview.ts:viewer", previewViewerPubkey],
       ["seed-preview.ts:authorOne", previewAuthorOnePubkey],
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
+      ["seed-thread.ts:viewer", threadViewerPubkey],
+      ["seed-thread.ts:author", threadAuthorPubkey],
     ];
 
     const seenAt = new Map<string, string>();

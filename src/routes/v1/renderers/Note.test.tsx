@@ -13,6 +13,7 @@ import { formatEventTimeFull } from "../../../core/view/format-time";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
 import type { EventBodyProps } from "../../../core/view/renderer-registry";
+import { ThreadNavProvider } from "../thread-nav";
 import { NoteCompact, NoteFull } from "./Note";
 
 // EventView.test.tsx / profile-requests.test.ts と同じ手法: 種から 32 byte
@@ -102,6 +103,44 @@ const mount = (
       value: ctx,
       get children() {
         element = render() as unknown as HTMLElement;
+        return null;
+      },
+    });
+  });
+  return {
+    element: () => {
+      if (!element) throw new Error("component did not mount");
+      return element;
+    },
+    dispose: disposeRoot,
+  };
+};
+
+/**
+ * `mount` に加えて `ThreadNavProvider` も被せる。`useThreadNav()` が
+ * provider の中で実際に呼ばれる形にするため、`RenderProvider` の
+ * children getter の中でさらに `ThreadNavProvider` を直接関数として呼ぶ
+ * (`mount` と同じ手筋)。
+ */
+const mountWithNav = (
+  render: () => unknown,
+  ctx: RenderContextValue,
+  open: (focusId: string) => void,
+): { element: () => HTMLElement; dispose: () => void } => {
+  let element: HTMLElement | undefined;
+  let disposeRoot: () => void = () => {};
+  createRoot((dispose) => {
+    disposeRoot = dispose;
+    RenderProvider({
+      value: ctx,
+      get children() {
+        ThreadNavProvider({
+          open,
+          get children() {
+            element = render() as unknown as HTMLElement;
+            return null;
+          },
+        });
         return null;
       },
     });
@@ -318,6 +357,80 @@ describe("NoteFull", () => {
       expect(seen.find((s) => s.id === quoted.id)?.threadLine).toBeFalsy();
     } finally {
       dispose();
+    }
+  });
+
+  it("縦線は行の下へ 8px はみ出す", () => {
+    // 捕まえる変異: `-mb-2` を落とす。線は自分の `<article>` の高さで
+    // 止まるので、連鎖する行の間に必ずある 8px (返信先プレビューの
+    // `pb-2`、`ThreadView` の祖先の行間) をそのままでは渡れず、次の行の
+    // アイコンに届かない。
+    const event = signed(22);
+    const run = mount(
+      () => NoteCompact({ event, threadLine: true }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(
+        run.element().querySelector('[data-testid="thread-line"]')?.className,
+      ).toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
+    } finally {
+      run.dispose();
+    }
+  });
+
+  it("返信先プレビューと本体の間を 8px 空ける", () => {
+    // 捕まえる変異: `pb-2` を落とす。返信先と本体が詰まって 1 件の長い
+    // 投稿に見える (v0 は `EventBase` の `hasChild` で同じ 8px を空ける)。
+    // `ThreadView` の祖先だけでなく、カラム一覧の返信もこの間隔で並ぶ。
+    const parent = signed(23);
+    const store = new EventStore();
+    store.put(parent, "wss://relay/");
+    const event = signed(24, { tags: [["e", parent.id, "", "reply"]] });
+    const Recorder: Component<EventBodyProps> = () => null;
+    const { element, dispose } = mount(() => NoteFull({ event }), {
+      ...contextWith(createRecordingEventRequests(), store),
+      renderers: [{ kind: 1, full: Recorder, compact: Recorder }],
+    });
+    try {
+      expect(element().querySelector('[class~="pb-2"]')).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("縦線で繋がる compact は full と同じ 40px のアイコン列に乗る", () => {
+    // 捕まえる変異: threadLine のとき w-10 を付けない。compact のアイコンは
+    // `w-8` なので列の中心が 4px 左にずれ、線が次の行 (`full`, `w-10`) の
+    // アイコン中心から外れて、連鎖がそこで折れて見える。線の位置を置く側の
+    // 絶対配置で合わせにいくと variant ごとに決め打ちが増えるので、
+    // 「繋がる行は同じ格子に乗る」ほうで揃える。
+    const event = signed(21);
+    const columnOf = (el: HTMLElement) =>
+      el.querySelector('[data-testid="thread-line"]')?.parentElement;
+
+    const chained = mount(
+      () => NoteCompact({ event, threadLine: true }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(columnOf(chained.element())?.className).toMatch(
+        /(?:^|\s)w-10(?:\s|$)/,
+      );
+    } finally {
+      chained.dispose();
+    }
+
+    // 対照: 繋がらない compact は列を広げない (引用カードや一覧の行が
+    // 理由もなく 8px 右へずれる)。
+    const alone = mount(
+      () => NoteCompact({ event }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(alone.element().querySelector('[class*="w-10"]')).toBeNull();
+    } finally {
+      alone.dispose();
     }
   });
 
@@ -971,6 +1084,274 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
         ),
       ).not.toBeNull();
     } finally {
+      dispose();
+    }
+  });
+});
+
+describe("hideReplyPreview (ThreadView の focus が親を二重に描かないための prop)", () => {
+  it("true なら親のプレビュー (compact の EventView) を出さないが、reply-to は残す", () => {
+    // 捕まえる変異: hideReplyPreview を無視して常に親のプレビューを描く。
+    // `ThreadView` は背骨の focus をこの prop 付きで描く —— 無視される
+    // と、祖先の最後の 1 件 (= この親) が focus の中にもう一度並ぶ。
+    const events = createRecordingEventRequests();
+    const parentId = signed(95).id;
+    const replierPubkey = pubkeyFor(96);
+    const event = signed(97, {
+      tags: [["e", parentId, "wss://relay/", "reply", replierPubkey]],
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event, hideReplyPreview: true }),
+      contextWith(events),
+    );
+    try {
+      const el = element();
+      expect(
+        el.querySelector('[data-testid="event-view"][data-variant="compact"]'),
+      ).toBeNull();
+      // 「誰への返信か」のラベル自体は親のプレビューとは別物なので残る。
+      expect(el.querySelector('[data-testid="reply-to"]')).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("渡さなければ従来どおり親のプレビューを出す (対照)", () => {
+    // これが無いと上のテストは「そもそも親を描かない実装」でも通ってしまう。
+    const events = createRecordingEventRequests();
+    const parentId = signed(98).id;
+    const event = signed(99, {
+      tags: [["e", parentId, "wss://relay/", "reply"]],
+    });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    try {
+      expect(
+        element().querySelector(
+          '[data-testid="event-view"][data-variant="compact"]',
+        ),
+      ).not.toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+});
+
+describe("スレッドを開く", () => {
+  it("ノートを押すとそのイベントの id で開く", () => {
+    // 捕まえる変異: 押せるようにしない / 別の id を渡す
+    const events = createRecordingEventRequests();
+    const event = signed(80, { content: "open me" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([event.id]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("入れ子のノートを押すと内側の id で開き、外側へ伝播しない", () => {
+    // 捕まえる変異: stopPropagation を落とす —— 引用先を押したのに
+    // 外側のノートのスレッドが開く（あるいは 2 回開く）。
+    //
+    // renderer-registry 経由で本物の NoteFull/NoteCompact を子として
+    // 描くと、Solid の DEV `createComponent` がその関数自体に印を付け、
+    // 以降このファイルで同じ関数を直接呼ぶテストが壊れる (このファイル
+    // 冒頭のコメント参照)。そのため renderer-registry を経由せず、
+    // 内側の要素を直接呼んで外側の DOM に差し込む。
+    const events = createRecordingEventRequests();
+    const outer = signed(81, { content: "outer" });
+    const inner = signed(82, { content: "inner" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => {
+        const outerEl = NoteFull({ event: outer }) as unknown as HTMLElement;
+        const innerEl = NoteCompact({
+          event: inner,
+        }) as unknown as HTMLElement;
+        outerEl.appendChild(innerEl);
+        return outerEl;
+      },
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const innerArticle = element().querySelector('[data-testid="note"]');
+      innerArticle?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([inner.id]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("名前のホバートリガーを押してもスレッドは開かない", () => {
+    // 捕まえる変異: 対話要素の判定を落とす —— 名前を押すと
+    // ホバーカードではなくスレッドが開く。
+    const events = createRecordingEventRequests();
+    const event = signed(83, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const trigger = element().querySelector(
+        '[data-testid="note-author"] [data-scope="hover-card"][data-part="trigger"]',
+      );
+      expect(trigger).not.toBeNull();
+      trigger?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("useThreadNav が undefined なら押せる見た目を持たない", () => {
+    // 捕まえる変異: 常に cursor-pointer と onClick を付ける。
+    // ADR-0026「押しても何も起きないものを押せる見た目にしない」。
+    const events = createRecordingEventRequests();
+    const event = signed(84, { content: "x" });
+    const { element, dispose } = mount(
+      () => NoteFull({ event }),
+      contextWith(events),
+    );
+    document.body.appendChild(element());
+    try {
+      expect(element().className).not.toMatch(/cursor-pointer/);
+      // onClick も付いていないことを、実際に click しても何も起きない
+      // (例外も投げない) ことで確かめる。
+      expect(() =>
+        element().dispatchEvent(new MouseEvent("click", { bubbles: true })),
+      ).not.toThrow();
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("disableThreadOpen が true なら useThreadNav があっても押せる見た目・動作を持たない", () => {
+    // 捕まえる変異: disableThreadOpen を無視する。`ThreadView` は背骨の
+    // focus にこれを立てる —— focus を押しても、ナビゲーションスタックの
+    // 重複 push ガードにより実際には何も起きない (ADR-0026 の対象そのもの)。
+    const events = createRecordingEventRequests();
+    const event = signed(86, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event, disableThreadOpen: true }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      expect(element().className).not.toMatch(/cursor-pointer/);
+      element().dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("EventMenu (Portal で描かれるメニュー項目) を押してもスレッドは開かない", () => {
+    // 捕まえる変異: `article.contains(e.target)` のチェックを外す。
+    // `<Portal>` は `_$host` を張るので、Solid の delegated event は
+    // メニュー項目 (`document.body` 直下、実 DOM 上は article の外) の
+    // click を article の onClick まで届けてしまう。`role="menuitem"` は
+    // 対話要素の selector に元々掛からないので、このチェックが無いと
+    // 「リンクをコピー」を押すたびにスレッドも開いてしまう。
+    const events = createRecordingEventRequests();
+    const event = signed(90, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const menuItem = document.body.querySelector(
+        '[data-testid="event-menu"] [role="menuitem"]',
+      );
+      expect(menuItem).not.toBeNull();
+      menuItem?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("アバター (asChild のホバートリガー) を押してもスレッドは開かない", () => {
+    // 捕まえる変異: isInteractive の selector から `[data-part='trigger']`
+    // を落とす。`Avatar` は `ProfileHover` の `asChild` で `<div>` へ
+    // トリガーを合流させており、zag の `getTriggerProps()` は role を
+    // 持たない —— 名前 (button 版トリガー) と違い、role/tag だけを見る
+    // selector では対話要素と判定できない。
+    const events = createRecordingEventRequests();
+    const event = signed(91, { content: "x" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      const avatar = element().querySelector('[data-testid="avatar"]');
+      expect(avatar).not.toBeNull();
+      avatar?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
+
+  it("ドラッグでテキストを選択した後は開かない", () => {
+    // 捕まえる変異: mousedown の座標を覚えない —— 本文を選択しようと
+    // するたびにスレッドが開き、コピーができない。
+    const events = createRecordingEventRequests();
+    const event = signed(85, { content: "select me" });
+    const opened: string[] = [];
+    const { element, dispose } = mountWithNav(
+      () => NoteFull({ event }),
+      contextWith(events),
+      (id) => opened.push(id),
+    );
+    document.body.appendChild(element());
+    try {
+      element().dispatchEvent(
+        new MouseEvent("mousedown", {
+          bubbles: true,
+          clientX: 0,
+          clientY: 0,
+        }),
+      );
+      element().dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: 100,
+          clientY: 100,
+        }),
+      );
+      expect(opened).toEqual([]);
+    } finally {
+      element().remove();
       dispose();
     }
   });

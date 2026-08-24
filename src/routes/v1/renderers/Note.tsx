@@ -22,11 +22,104 @@ import NestedEventCard from "../NestedEventCard";
 import NoteContent from "../NoteContent";
 import Profile from "../Profile";
 import ReactionList from "../ReactionList";
+import { useThreadNav } from "../thread-nav";
 
 /**
  * 本文を折り畳む高さ (spec 3 節)。v0 の `EventBase` と同じしきい値。
  */
 const MAX_CONTENT_HEIGHT = 400;
+
+/** これ以上動いたら「押した」ではなく「選択した」とみなす。 */
+const DRAG_SLOP = 4;
+
+/**
+ * `<article>` の click を「このイベントのスレッドを開く」に変える。
+ *
+ * **入れ子は内側が勝つ。**引用カードや返信先の中のノートを押したら、
+ * 内側の `<article>` がここで `stopPropagation()` するので外側へ届かない。
+ * 深さに関係なく同じ規則で効く。
+ *
+ * **`e.target` が実 DOM 上でこの `<article>` の子孫であることを要求する。**
+ * Solid の delegated event は document 直下で拾い、`node._$host ||
+ * node.parentNode` を辿って伝播経路を組み立てる —— `<Portal>` は自分の
+ * コンテナに `_$host` を張るので、`EventMenu`/`ProfileHover` のように
+ * 本文とは無関係な場所 (`document.body` 直下など) へ描画される内容の
+ * click も、DOM 上の位置に関係なくここまで届いてしまう。`role='menuitem'`
+ * のような、たまたま selector に引っかからない部品が中にあると、
+ * 「対話要素なので無視する」判定をすり抜けてスレッドが開いてしまう。
+ * `closest()` による selector 一致は「Portal の中に何があるか」を
+ * 列挙する形になり、ark-ui の面が増えるたびに直し忘れる。実 DOM の
+ * 包含関係を見れば、Portal 経由の click は列挙なしに一律で弾ける ——
+ * `e.currentTarget` はハンドラを登録した実ノード (= この `<article>`)
+ * そのものなので、ref を別途持たなくても `contains()` の起点に使える。
+ *
+ * 対話要素の上では発火しない —— リンク・名前・アクション列はそれぞれ
+ * 自分の目的地を持つ。`closest()` で祖先まで見るのは、押されたのが
+ * `<button>` の中の `<span>` でも同じ判定になるようにするため。
+ * `[data-part='trigger']` を加えているのは、`ProfileHover` が `asChild`
+ * で `Avatar` の `<div>` へ合流させるトリガーが zag の `getTriggerProps()`
+ * から `role` を受け取らないため —— タグ名や role に関わらず、ark-ui が
+ * 自分の anatomy として "trigger" と呼ぶ部品には常にこの data 属性が付く
+ * ので、`<button>` 版のトリガー (名前) と `asChild` 版のトリガー (アイコン)
+ * を同じ 1 つの判定で揃えられる。
+ *
+ * ドラッグで本文を選択した後も発火しない。`mousedown` と `mouseup` の
+ * 座標が動いていたら選択の意図とみなす —— そうしないと本文をコピー
+ * しようとするたびにスレッドが開く。
+ *
+ * `disabled` (`ThreadView` が背骨の focus に立てる) が真なら、押せる見た目
+ * も handler も付けない —— focus 自身を押しても、ナビゲーションスタックの
+ * 重複 push ガード (`DeckColumn.tsx` の `openThread`) により何も起きない
+ * ので、ADR-0026 に従いその no-op を最初から押せる見た目にしない。
+ *
+ * **戻り値は 1 度だけ呼び出し側で受け取り、そのまま 3 か所へ配る。**
+ * `enabled` を関数 (呼び出し側の `classList` の中で読むことで反応性を保つ)
+ * に、`onMouseDown`/`onClick` を安定した関数参照にしてある —— `class` の
+ * ような「文字列を返すが実際には真偽値としてしか使わない」形は、`class` を
+ * 2 回書くと後勝ちで静的クラスが消える、という `<article>` 側のコメントが
+ * 警告している事故をそのまま誘う。
+ */
+const useOpenThreadOnClick = (
+  event: () => NostrEvent,
+  disabled: () => boolean = () => false,
+) => {
+  const open = useThreadNav();
+  let downAt: { x: number; y: number } | undefined;
+
+  const isInteractive = (target: EventTarget | null) =>
+    target instanceof Element &&
+    target.closest(
+      "a, button, [role='button'], input, textarea, [data-part='trigger']",
+    ) !== null;
+
+  const enabled = () => open !== undefined && !disabled();
+
+  return {
+    enabled,
+    onMouseDown: (e: MouseEvent) => {
+      downAt = { x: e.clientX, y: e.clientY };
+    },
+    onClick: (e: MouseEvent) => {
+      if (!enabled()) return;
+      const article = e.currentTarget;
+      if (
+        !(article instanceof Element) ||
+        !(e.target instanceof Node) ||
+        !article.contains(e.target)
+      ) {
+        return;
+      }
+      if (isInteractive(e.target)) return;
+      const moved =
+        downAt !== undefined &&
+        (Math.abs(e.clientX - downAt.x) > DRAG_SLOP ||
+          Math.abs(e.clientY - downAt.y) > DRAG_SLOP);
+      if (moved) return;
+      e.stopPropagation();
+      open?.(event().id);
+    },
+  };
+};
 
 /**
  * 本文の高さ制限と展開ボタン (spec 3 節)。文字数や行数からの推定は
@@ -119,9 +212,19 @@ const NoteBody: ParentComponent<{
   return (
     <div
       class="flex items-start"
-      classList={{ "gap-3": isFull(), "gap-2": !isFull() }}
+      // 縦線で繋がる行は `full` と同じ格子に乗せる (`gap-3` + 40px の
+      // アイコン列)。compact のアイコンは `w-8` なので、そのままだと列の
+      // 中心が 4px 左にずれ、線が次の行のアイコンの中心から外れて折れて
+      // 見える —— アイコンは `items-center` で 40px の列の中央に置く。
+      classList={{
+        "gap-3": isFull() || !!props.threadLine,
+        "gap-2": !isFull() && !props.threadLine,
+      }}
     >
-      <div class="flex shrink-0 flex-col items-center self-stretch">
+      <div
+        class="flex shrink-0 flex-col items-center self-stretch"
+        classList={{ "w-10": !isFull() && !!props.threadLine }}
+      >
         <Avatar pubkey={props.event.pubkey} size={props.variant} />
         <Show when={props.threadLine}>
           {/*
@@ -129,9 +232,19 @@ const NoteBody: ParentComponent<{
             本文がアイコンより短い返信 (「了解」だけ、など) では余りが
             負になり、線がまったく描かれずに親子の繋がりが消える。
           */}
+          {/*
+            `-mb-2`: 線を `<article>` の下へ 8px はみ出させる。連鎖する行の
+            間は常に 8px 空いている (下の返信先プレビューの `pb-2`、
+            `ThreadView` の祖先の行間) ので、線が自分の行の高さで止まると
+            必ずそこで切れる。
+
+            **位置合わせを置く側の絶対配置に任せない** —— アイコン幅は
+            variant ごとに違い (`w-8`/`w-10`)、外から座標を決め打ちすると
+            線が数 px ずれる (実測)。ここなら `items-center` にそのまま乗る。
+          */}
           <div
             data-testid="thread-line"
-            class="min-h-2 w-0.5 flex-1 bg-tertiary"
+            class="-mb-2 min-h-2 w-0.5 flex-1 bg-tertiary"
           />
         </Show>
       </div>
@@ -240,8 +353,13 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
   // 本文に `nostr:` として現れた引用は `NoteContent` がその位置に描く
   // (仕様 4.2 節)。ここに残るのは **タグにしか無いもの** だけ。
   const quotes = () => tagOnlyQuoteTargets(props.event);
+  const openOnClick = useOpenThreadOnClick(
+    () => props.event,
+    () => props.disableThreadOpen === true,
+  );
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作でスレッドを開く経路が無い (followups: docs/design/read-layer-followups.md の「キーボードではスレッドを開けない」節)。押せるのはポインタ操作のみ。
     <article
       data-testid="note"
       // `group/event`: `ReactionList` の展開トグルが `group-not-hover/event:hidden`
@@ -256,7 +374,16 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       // する (v0 の `EventBase.tsx` と同じ手筋)。一番外側のノートには
       // 祖先の `group/event` が無いので、このセレクタは効かず padding が
       // 残る。
+      //
+      // 押せる見た目 (`cursor-pointer`) とハンドラは `classList`/個別の
+      // props で足す —— `class` を 2 回書くと後勝ちで上の静的クラスが
+      // 消える (ADR-0026: `enabled()` が false なら押せる見た目にしない —
+      // `useThreadNav()` が `undefined` のときも、`disableThreadOpen` が
+      // 立っているときも同じ扱い)。
       class="group/event p-3 text-body group-[_]/event:p-0"
+      classList={{ "cursor-pointer": openOnClick.enabled() }}
+      onMouseDown={openOnClick.onMouseDown}
+      onClick={openOnClick.onClick}
     >
       {/*
         返信先の親イベントは本体の上に、**枠を持たずに**積む。枠は
@@ -265,15 +392,25 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
         親イベント本体がまだ届いていなくても `EventView` が「読み込み中」を
         出すので、ここは到着を待たない。誰への返信かは `replyTo` として
         本体側が `e` タグの 5 番目の要素 (NIP-10、spec 5 節) から即座に出す。
+
+        `hideReplyPreview` が立っているときは出さない —— `ThreadView` が
+        背骨の focus をこの `full` で描くとき、この親は既に祖先の最後の
+        1 件として画面に出ているので、ここでも積むと同じイベントが縦に
+        2 回並ぶ (`ThreadView.tsx` 参照)。
       */}
-      <Show when={reply()}>
+      <Show when={!props.hideReplyPreview && reply()}>
         {(ref) => (
-          <EventView
-            id={ref().id}
-            variant="compact"
-            relayHint={ref().relay}
-            threadLine
-          />
+          // `pb-2`: 返信先と本体の間を空ける (v0 の `EventBase` が
+          // `hasChild` のとき本文へ `pb-2` を足すのと同じ間隔)。詰めると
+          // 2 件が 1 件の長い投稿に見える。この 8px は縦線が跨ぐ。
+          <div class="pb-2">
+            <EventView
+              id={ref().id}
+              variant="compact"
+              relayHint={ref().relay}
+              threadLine
+            />
+          </div>
         )}
       </Show>
 
@@ -335,12 +472,26 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
  * **次の変更者へ**: ここに padding を足したくなったら、それは compact の
  * 責務ではなく置く側 (引用カード等) の責務。
  */
-export const NoteCompact: Component<EventBodyProps> = (props) => (
-  <article data-testid="note" class="text-caption">
-    <NoteBody
-      event={props.event}
-      variant="compact"
-      threadLine={props.threadLine}
-    />
-  </article>
-);
+export const NoteCompact: Component<EventBodyProps> = (props) => {
+  const openOnClick = useOpenThreadOnClick(
+    () => props.event,
+    () => props.disableThreadOpen === true,
+  );
+
+  return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボード操作でスレッドを開く経路が無い (followups: docs/design/read-layer-followups.md の「キーボードではスレッドを開けない」節)。押せるのはポインタ操作のみ。
+    <article
+      data-testid="note"
+      class="text-caption"
+      classList={{ "cursor-pointer": openOnClick.enabled() }}
+      onMouseDown={openOnClick.onMouseDown}
+      onClick={openOnClick.onClick}
+    >
+      <NoteBody
+        event={props.event}
+        variant="compact"
+        threadLine={props.threadLine}
+      />
+    </article>
+  );
+};

@@ -15,7 +15,7 @@ export type RelayInfoSource = {
 
 export type Source = NostrSource | RelayInfoSource;
 
-export type Order = "created-at-desc" | "created-at-asc" | "thread-tree";
+export type Order = "created-at-desc" | "created-at-asc";
 
 /**
  * セクション自身のリストについてのみ語る。

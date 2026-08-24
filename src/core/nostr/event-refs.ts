@@ -68,6 +68,44 @@ export const replyTarget = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
+ * スレッドの根を返す。**`root` マーカーの付いた `e` タグだけを見る。**
+ *
+ * `replyTarget` は `reply` があればそちらを優先するので、返信への返信では
+ * 根が取れない。スレッドの購読は根に投げる（NIP-10 を守る返信は深さに
+ * 関わらず全員が根を指すため）ので、根だけを返す経路が別に要る。
+ *
+ * 見つからなければ `undefined`。**自分の id を返さない** —— 呼び出し側が
+ * 「このイベント自身が根である」ことを判定できなくなる。
+ */
+export const threadRoot = (event: NostrEvent): IdRef | undefined => {
+  for (const tag of event.tags) {
+    if (tag[0] !== "e" || tag[3] !== "root") continue;
+    const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
+    if (ref) return ref;
+  }
+  return undefined;
+};
+
+/**
+ * このイベントの `e` タグが運ぶリレーヒント (NIP-10 の 3 番目の要素) を
+ * 重複無しで返す。**`#e` 購読を送るリレーを選ぶための、著者に依らない
+ * 手がかりとして使う** —— `#e` フィルタは誰が返信するか事前に分からず
+ * Outbox ルーティング (著者の write relay を引く) が効かないので、返信の
+ * 対象を指すタグ自身に書かれたヒントだけが唯一の追加情報になる。
+ * marker の種類は問わない (`reply`/`root` に絞ると、返信ではなく引用
+ * だけの `e` タグが運ぶヒントまで捨ててしまう)。
+ */
+export const eventRelayHints = (event: NostrEvent): RelayUrl[] => {
+  const hints = new Set<RelayUrl>();
+  for (const tag of event.tags) {
+    if (tag[0] !== "e") continue;
+    const hint = relayOf(tag[2]);
+    if (hint) hints.add(hint);
+  }
+  return [...hints];
+};
+
+/**
  * 引用先を順に返す。**`e` タグは拾わない** —— NIP-18 が `q` タグを作った
  * 目的そのものが「引用がスレッドの返信として現れないようにする」ことなので、
  * 混ぜると逆流する。

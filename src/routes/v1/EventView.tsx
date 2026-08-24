@@ -21,6 +21,10 @@ export type EventViewProps = {
   relayHint?: RelayUrl;
   /** レンダラへそのまま渡す (`EventBodyProps.threadLine`)。 */
   threadLine?: boolean;
+  /** レンダラへそのまま渡す (`EventBodyProps.hideReplyPreview`)。 */
+  hideReplyPreview?: boolean;
+  /** レンダラへそのまま渡す (`EventBodyProps.disableThreadOpen`)。 */
+  disableThreadOpen?: boolean;
 };
 
 /**
@@ -93,7 +97,14 @@ const EventView: Component<EventViewProps> = (props) => {
             : props.variant === "full"
               ? UnknownKindFull
               : UnknownKindCompact;
-          return <Body event={found()} threadLine={props.threadLine} />;
+          return (
+            <Body
+              event={found()}
+              threadLine={props.threadLine}
+              hideReplyPreview={props.hideReplyPreview}
+              disableThreadOpen={props.disableThreadOpen}
+            />
+          );
         }}
       </Show>
     </div>
