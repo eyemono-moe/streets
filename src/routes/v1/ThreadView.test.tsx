@@ -300,7 +300,10 @@ describe("ThreadView", () => {
         '[data-testid="thread-ancestor"]',
       );
       const reply = element().querySelector('[data-testid="thread-reply"]');
-      expect(ancestor?.className).toMatch(/(?:^|\s)p-3(?:\s|$)/);
+      // 祖先は横だけ揃え、縦は上だけ (下は線が通る場所なので空けない)。
+      // 返信は兄弟で線が通らないので四方とも p-3。
+      expect(ancestor?.className).toMatch(/(?:^|\s)px-3(?:\s|$)/);
+      expect(ancestor?.className).toMatch(/(?:^|\s)pt-2(?:\s|$)/);
       expect(reply?.className).toMatch(/(?:^|\s)p-3(?:\s|$)/);
     } finally {
       dispose();
@@ -316,7 +319,7 @@ describe("ThreadView", () => {
     // 線そのものを描くのは `NoteBody` (`renderers/Note.tsx`) なので、
     // ここで見えるのは配線だけ —— 上の hideReplyPreview のテストと同じ
     // 理由で、本物のレンダラではなく Recorder が受けた props を見る。
-    const compactSeen: (boolean | undefined)[] = [];
+    const compactSeen: ("flush" | "spill" | undefined)[] = [];
     const FullRecorder: Component<EventBodyProps> = () => null;
     const CompactRecorder: Component<EventBodyProps> = (props) => {
       compactSeen.push(props.threadLine);
@@ -365,16 +368,17 @@ describe("ThreadView", () => {
     try {
       // 祖先 2 段 (root, mid) が true、返信 1 件が undefined。祖先を
       // 1 段だけで見ると、先頭にしか付けない実装を見逃す。
-      expect(compactSeen).toEqual([true, true, undefined]);
+      expect(compactSeen).toEqual(["spill", "spill", undefined]);
     } finally {
       dispose();
     }
   });
 
-  it("祖先があるとき focus は自前の上余白を打ち消す", () => {
-    // 捕まえる変異: -mt-3 を落とす。祖先の縦線はその祖先の <article> の
-    // 下端で終わるので、focus の p-3 がそのまま残ると線がアイコンへ届かず、
-    // 繋がって見えない。祖先が無いときに付けると逆に上が詰まる。
+  it("祖先があるとき focus は上を 4px 詰めて線の届く位置に来る", () => {
+    // 捕まえる変異: -mt-1 を落とす。祖先の線がはみ出すのは 8px
+    // (`Note.tsx` の `spill`) なのに、focus は `NoteFull` 自前の p-3 で
+    // 12px 下にいる —— 詰めないと線の先に 4px の空白が残って切れて見える。
+    // 祖先が無いときに詰めると、逆に根の上だけ余白が浅くなる。
     const root = signed(15, { content: "root" });
     const focus = signed(16, {
       content: "focus",
@@ -397,7 +401,7 @@ describe("ThreadView", () => {
       expect(
         withAncestor.element().querySelector('[data-testid="thread-focus"]')
           ?.className,
-      ).toMatch(/(?:^|\s)-mt-3(?:\s|$)/);
+      ).toMatch(/(?:^|\s)-mt-1(?:\s|$)/);
     } finally {
       withAncestor.dispose();
     }
@@ -415,7 +419,7 @@ describe("ThreadView", () => {
       expect(
         rootOnly.element().querySelector('[data-testid="thread-focus"]')
           ?.className,
-      ).not.toMatch(/(?:^|\s)-mt-3(?:\s|$)/);
+      ).not.toMatch(/(?:^|\s)-mt-1(?:\s|$)/);
     } finally {
       rootOnly.dispose();
     }

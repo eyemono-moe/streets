@@ -330,7 +330,7 @@ describe("NoteFull", () => {
     // `createComponent` が渡されたコンポーネント関数自体に印を付けるため
     // —— 本物を通すと、後続のテストが同じ関数を直接呼んだときに戻り値が
     // 要素ではなくメモ関数になる (実測済み)。
-    const seen: { id: string; threadLine?: boolean }[] = [];
+    const seen: { id: string; threadLine?: "flush" | "spill" }[] = [];
     const Recorder: Component<EventBodyProps> = (props) => {
       seen.push({ id: props.event.id, threadLine: props.threadLine });
       return null;
@@ -353,10 +353,78 @@ describe("NoteFull", () => {
       renderers: [{ kind: 1, full: Recorder, compact: Recorder }],
     });
     try {
-      expect(seen.find((s) => s.id === parent.id)?.threadLine).toBe(true);
+      expect(seen.find((s) => s.id === parent.id)?.threadLine).toBe("flush");
       expect(seen.find((s) => s.id === quoted.id)?.threadLine).toBeFalsy();
     } finally {
       dispose();
+    }
+  });
+
+  it("spill の縦線だけが行の下へはみ出す", () => {
+    // 捕まえる変異: `-mb-2` を落とす / flush にも付ける。
+    //
+    // 線は自分の `<article>` の高さで止まるので、行と行が別の要素に
+    // 分かれていて間に余白がある置き方 (`ThreadView` の祖先) では、
+    // はみ出さない限り必ずそこで切れる。逆に flush —— 同じ `<article>` の
+    // 中で次の行がすぐ下に続く `NoteFull` の返信先プレビュー —— で
+    // はみ出すと、線が次の行のアイコンに重なる。
+    const event = signed(22);
+    const lineOf = (el: HTMLElement) =>
+      el.querySelector('[data-testid="thread-line"]')?.className;
+
+    const spill = mount(
+      () => NoteCompact({ event, threadLine: "spill" }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(lineOf(spill.element())).toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
+    } finally {
+      spill.dispose();
+    }
+
+    const flush = mount(
+      () => NoteCompact({ event, threadLine: "flush" }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(lineOf(flush.element())).not.toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
+    } finally {
+      flush.dispose();
+    }
+  });
+
+  it("縦線で繋がる compact は full と同じ 40px のアイコン列に乗る", () => {
+    // 捕まえる変異: threadLine のとき w-10 を付けない。compact のアイコンは
+    // `w-8` なので列の中心が 4px 左にずれ、線が次の行 (`full`, `w-10`) の
+    // アイコン中心から外れて、連鎖がそこで折れて見える。線の位置を置く側の
+    // 絶対配置で合わせにいくと variant ごとに決め打ちが増えるので、
+    // 「繋がる行は同じ格子に乗る」ほうで揃える。
+    const event = signed(21);
+    const columnOf = (el: HTMLElement) =>
+      el.querySelector('[data-testid="thread-line"]')?.parentElement;
+
+    const chained = mount(
+      () => NoteCompact({ event, threadLine: "spill" }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(columnOf(chained.element())?.className).toMatch(
+        /(?:^|\s)w-10(?:\s|$)/,
+      );
+    } finally {
+      chained.dispose();
+    }
+
+    // 対照: 繋がらない compact は列を広げない (引用カードや一覧の行が
+    // 理由もなく 8px 右へずれる)。
+    const alone = mount(
+      () => NoteCompact({ event }),
+      contextWith(createRecordingEventRequests()),
+    );
+    try {
+      expect(alone.element().querySelector('[class*="w-10"]')).toBeNull();
+    } finally {
+      alone.dispose();
     }
   });
 

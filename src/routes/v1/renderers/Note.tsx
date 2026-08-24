@@ -200,7 +200,7 @@ const CollapsibleBody: ParentComponent = (props) => {
 const NoteBody: ParentComponent<{
   event: NostrEvent;
   variant: EventVariant;
-  threadLine?: boolean;
+  threadLine?: "flush" | "spill";
   /** 返信先の著者。本文の直前に `@name` を出す (design 5 節)。 */
   replyTo?: string;
 }> = (props) => {
@@ -212,9 +212,19 @@ const NoteBody: ParentComponent<{
   return (
     <div
       class="flex items-start"
-      classList={{ "gap-3": isFull(), "gap-2": !isFull() }}
+      // 縦線で繋がる行は `full` と同じ格子に乗せる (`gap-3` + 40px の
+      // アイコン列)。compact のアイコンは `w-8` なので、そのままだと列の
+      // 中心が 4px 左にずれ、線が次の行のアイコンの中心から外れて折れて
+      // 見える —— アイコンは `items-center` で 40px の列の中央に置く。
+      classList={{
+        "gap-3": isFull() || props.threadLine !== undefined,
+        "gap-2": !isFull() && props.threadLine === undefined,
+      }}
     >
-      <div class="flex shrink-0 flex-col items-center self-stretch">
+      <div
+        class="flex shrink-0 flex-col items-center self-stretch"
+        classList={{ "w-10": !isFull() && props.threadLine !== undefined }}
+      >
         <Avatar pubkey={props.event.pubkey} size={props.variant} />
         <Show when={props.threadLine}>
           {/*
@@ -222,9 +232,18 @@ const NoteBody: ParentComponent<{
             本文がアイコンより短い返信 (「了解」だけ、など) では余りが
             負になり、線がまったく描かれずに親子の繋がりが消える。
           */}
+          {/*
+            `spill` の `-mb-2`: 線を `<article>` の下へ 8px はみ出させる。
+            置く側 (`ThreadView`) が行と行の間に余白を持つので、線が自分の
+            行の高さで止まると必ずそこで切れる。**位置合わせを置く側の
+            絶対配置に任せない** —— アイコン幅は variant ごとに違い
+            (`w-8`/`w-10`)、外から座標を決め打ちすると線が 1px ずれる。
+            ここなら `items-center` にそのまま乗る。
+          */}
           <div
             data-testid="thread-line"
             class="min-h-2 w-0.5 flex-1 bg-tertiary"
+            classList={{ "-mb-2": props.threadLine === "spill" }}
           />
         </Show>
       </div>
@@ -384,7 +403,7 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
             id={ref().id}
             variant="compact"
             relayHint={ref().relay}
-            threadLine
+            threadLine="flush"
           />
         )}
       </Show>

@@ -63,26 +63,18 @@ const ThreadView: Component<{
         </li>
       </Show>
       <For each={spine().ancestors}>
-        {(event, index) => (
+        {(event) => (
           // `NoteCompact` は自分で padding を持たない (置く側の責務、
           // `Note.tsx` の `NoteCompact` コメント参照)。focus (`NoteFull` が
-          // 自前で p-3 を持つ) と余白の見た目を揃えるため、置く側である
-          // ここで p-3 を足す。
+          // 自前で p-3 を持つ) と横の余白を揃えるため、置く側であるここで
+          // `px-3` を足す。
           //
-          // 縦の padding だけは繋がる相手がいる辺で削る —— 祖先は必ず
-          // 次 (次の祖先、または focus) へ `threadLine` で繋がるので下は
-          // 常に `pb-0`。上は先頭だけ余白を残す (truncated 警告からは
-          // 繋がない、下記コメント参照) —— 2 件目以降は直前の祖先の線を
-          // 受け取るので `pt-0`。`p-3` のまま両側に余白があると、線が
-          // 自分の行の高さぶんしか伸びず (`Note.tsx` の `threadLine` は
-          // 行の自然高さに self-stretch する)、`<li>` の padding 分だけ
-          // 隙間が空いて隣の行のアイコンへ届かない。
-          <li
-            data-testid="thread-ancestor"
-            class="p-3 pb-0"
-            classList={{ "pt-0": index() > 0 }}
-          >
-            <EventView id={event.id} variant="compact" threadLine />
+          // 縦は上だけ (`pt-2`)。下を空けないのは、そこが「線が通る場所」
+          // だから —— 行間は次の行の `pt-2` が作り、線は `threadLine`
+          // ="spill" が同じ 8px ぶんはみ出して渡り切る。上下で分けて持つと
+          // 隙間は 16px になり、8px しか伸びない線がそこで切れる。
+          <li data-testid="thread-ancestor" class="px-3 pt-2">
+            <EventView id={event.id} variant="compact" threadLine="spill" />
           </li>
         )}
       </For>
@@ -95,14 +87,13 @@ const ThreadView: Component<{
         }
       >
         {(focus) => (
-          // 祖先があるときは `NoteFull` 自前の上余白 (p-3) を打ち消す。
-          // 祖先の縦線はその祖先の `<article>` の下端で終わるので、
-          // 余白をそのまま残すとちょうどその分だけ線が focus のアイコンへ
-          // 届かず、繋がって見えない。負のマージンが食うのは focus の
-          // padding 領域だけで、祖先の中身には重ならない。
+          // focus 自身の余白は `NoteFull` の p-3。祖先があるときは
+          // `-mt-1` で 4px だけ詰めて、最後の祖先のアイコンから focus の
+          // アイコンまでを他の行間と同じ 8px に揃える (12px - 4px)。
+          // 揃っていないと、線がはみ出す 8px の先に 4px の空白が残る。
           <li
             data-testid="thread-focus"
-            classList={{ "-mt-3": spine().ancestors.length > 0 }}
+            classList={{ "-mt-1": spine().ancestors.length > 0 }}
           >
             {/*
               `hideReplyPreview`: focus の親は既に直前の `thread-ancestor`
