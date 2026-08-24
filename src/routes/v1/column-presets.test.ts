@@ -120,6 +120,24 @@ describe("buildColumn", () => {
     });
   });
 
+  it("notifications は意図だけを保存する", () => {
+    // 捕まえる変異: フィルタや pubkey を焼き込む。read リレーを焼き込むと
+    // リレーを移したユーザーの通知列は作り直すまで古い場所を見続ける ——
+    // 2026-08-06 に「フォローしてもホーム列が反映されない」として実際に
+    // 起きた壊れ方と同型 (resolve-source.ts のコメント参照)。
+    expect(buildColumn("notifications", "")?.source).toEqual({
+      kind: "notifications",
+    });
+  });
+
+  it("notifications は入力を見ずに成功する", () => {
+    // 捕まえる変異: 入力を必須にする。AddColumnForm は NEEDS_INPUT が
+    // false の種別に入力欄を出さないので、必須にすると「押しても何も
+    // 起きないボタン」になる。
+    expect(buildColumn("notifications", "")).toBeDefined();
+    expect(buildColumn("notifications", "  ")).toBeDefined();
+  });
+
   it("id は呼び出しごとに違う", () => {
     // 捕まえる変異: id を種別から作る (同じ種別のカラムを 2 本足すと
     // id が衝突し、Solid の <For> のキーと削除の対象指定が壊れる)

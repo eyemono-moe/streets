@@ -6,25 +6,33 @@ import { type ColumnPresetKind, buildColumn } from "./column-presets";
 
 const KIND_LABELS: Record<ColumnPresetKind, string> = {
   home: "ホーム",
+  notifications: "通知",
   user: "ユーザー",
   hashtag: "ハッシュタグ",
   global: "グローバル",
 };
 
 /**
- * 種別ごとに入力欄が要るかどうか。`home`/`global` は `buildColumn` が
+ * 種別ごとに入力欄が要るかどうか。`home`/`global`/`notifications` は `buildColumn` が
  * 第二引数を見ずに常に成功する (column-presets.ts 参照) ので、入力欄を
  * 出しても押せるボタンが無いだけの空欄になる —— 出さないほうが「何を
  * 入れればいいのか」で迷わせない。
  */
 const NEEDS_INPUT: Record<ColumnPresetKind, boolean> = {
   home: false,
+  notifications: false,
   user: true,
   hashtag: true,
   global: false,
 };
 
-const KINDS: ColumnPresetKind[] = ["home", "user", "hashtag", "global"];
+const KINDS: ColumnPresetKind[] = [
+  "home",
+  "notifications",
+  "user",
+  "hashtag",
+  "global",
+];
 
 /**
  * ヘッダの「+」でカラムを追加するフォーム。`buildColumn` (純関数) と
