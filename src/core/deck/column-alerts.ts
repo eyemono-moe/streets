@@ -23,6 +23,7 @@ export type ColumnAlert = {
 export const columnAlerts = (
   column: ColumnDef,
   status: SectionStatus,
+  context: { viewerRelayListMissing: boolean },
 ): ColumnAlert[] => {
   const alerts: ColumnAlert[] = [];
   const source = column.source;
@@ -38,6 +39,20 @@ export const columnAlerts = (
     alerts.push({
       message: `指定したリレーに接続できません (${unreachable} 本)`,
       action: "カラムの設定でリレーの URL を確認してください",
+    });
+  }
+
+  // 通知は「届いていないこと」に気づきにくい —— 誰も反応していないのか、
+  // 見る場所が違うのか、画面からは区別が付かない。自分の kind:10002 が
+  // 無いと fallback の 3 本を見ることになるので、そこは黙らせない
+  // (ADR-0011)。リレー設定の publish はユーザーが取れる行動なので
+  // ADR-0026 の条件も満たす。
+  if (source.kind === "notifications" && context.viewerRelayListMissing) {
+    alerts.push({
+      message:
+        "あなたのリレー設定 (kind:10002) が見つからないため、既定のリレーで待っています",
+      action:
+        "通知が届かない場合は、リレー設定を publish しているか確認してください",
     });
   }
 

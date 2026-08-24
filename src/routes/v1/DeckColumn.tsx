@@ -185,7 +185,14 @@ const DeckColumn: Component<{
   // バッジが黙ったままになり、developer mode でしか気付けない
   // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
   const alerts = createMemo(() =>
-    columnAlerts(props.column, activeSection().status()),
+    columnAlerts(props.column, activeSection().status(), {
+      // `readRelays()` が空でも、それが「設定が無い」のか「まだ届いて
+      // いない」のかはここで分ける。分けないと、ウォームアップが片付く
+      // までは必ず 0 本なので、起動のたびに警告が一瞬光って消える ——
+      // まだ存在しない劣化を確定した事実として見せることになる。
+      viewerRelayListMissing:
+        props.relayListSettled() && props.readRelays().length === 0,
+    }),
   );
 
   /**
