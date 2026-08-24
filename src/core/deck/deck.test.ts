@@ -24,6 +24,20 @@ describe("loadDeck / saveDeck", () => {
     expect(loadDeck(saveDeck(deck))).toEqual(deck);
   });
 
+  it("notifications 列を読み戻せる", () => {
+    // 捕まえる変異: columnSourceSchema に notifications の variant を
+    // 足さない。保存はできてもリロードで **デッキ全体が** undefined になり
+    // (valibot の variant は 1 つでも外れると全体が失敗)、通知カラムを
+    // 足したユーザーは次の起動でカラムを全部失う。
+    const withNotifications = {
+      version: 2 as const,
+      columns: [
+        { id: "n", title: "通知", source: { kind: "notifications" as const } },
+      ],
+    };
+    expect(loadDeck(saveDeck(withNotifications))).toEqual(withNotifications);
+  });
+
   it("null (未保存) は undefined", () => {
     // このアサーションが実際に保証すること: JSON.parse(null) は例外を
     // 投げない ("null" へ強制変換されて JSON の null リテラルとしてパースが
