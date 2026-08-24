@@ -319,7 +319,7 @@ describe("ThreadView", () => {
     // 線そのものを描くのは `NoteBody` (`renderers/Note.tsx`) なので、
     // ここで見えるのは配線だけ —— 上の hideReplyPreview のテストと同じ
     // 理由で、本物のレンダラではなく Recorder が受けた props を見る。
-    const compactSeen: ("flush" | "spill" | undefined)[] = [];
+    const compactSeen: (boolean | undefined)[] = [];
     const FullRecorder: Component<EventBodyProps> = () => null;
     const CompactRecorder: Component<EventBodyProps> = (props) => {
       compactSeen.push(props.threadLine);
@@ -368,7 +368,7 @@ describe("ThreadView", () => {
     try {
       // 祖先 2 段 (root, mid) が true、返信 1 件が undefined。祖先を
       // 1 段だけで見ると、先頭にしか付けない実装を見逃す。
-      expect(compactSeen).toEqual(["spill", "spill", undefined]);
+      expect(compactSeen).toEqual([true, true, undefined]);
     } finally {
       dispose();
     }

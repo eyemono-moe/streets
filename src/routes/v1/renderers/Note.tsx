@@ -200,7 +200,7 @@ const CollapsibleBody: ParentComponent = (props) => {
 const NoteBody: ParentComponent<{
   event: NostrEvent;
   variant: EventVariant;
-  threadLine?: "flush" | "spill";
+  threadLine?: boolean;
   /** 返信先の著者。本文の直前に `@name` を出す (design 5 節)。 */
   replyTo?: string;
 }> = (props) => {
@@ -217,13 +217,13 @@ const NoteBody: ParentComponent<{
       // 中心が 4px 左にずれ、線が次の行のアイコンの中心から外れて折れて
       // 見える —— アイコンは `items-center` で 40px の列の中央に置く。
       classList={{
-        "gap-3": isFull() || props.threadLine !== undefined,
-        "gap-2": !isFull() && props.threadLine === undefined,
+        "gap-3": isFull() || !!props.threadLine,
+        "gap-2": !isFull() && !props.threadLine,
       }}
     >
       <div
         class="flex shrink-0 flex-col items-center self-stretch"
-        classList={{ "w-10": !isFull() && props.threadLine !== undefined }}
+        classList={{ "w-10": !isFull() && !!props.threadLine }}
       >
         <Avatar pubkey={props.event.pubkey} size={props.variant} />
         <Show when={props.threadLine}>
@@ -233,17 +233,18 @@ const NoteBody: ParentComponent<{
             負になり、線がまったく描かれずに親子の繋がりが消える。
           */}
           {/*
-            `spill` の `-mb-2`: 線を `<article>` の下へ 8px はみ出させる。
-            置く側 (`ThreadView`) が行と行の間に余白を持つので、線が自分の
-            行の高さで止まると必ずそこで切れる。**位置合わせを置く側の
-            絶対配置に任せない** —— アイコン幅は variant ごとに違い
-            (`w-8`/`w-10`)、外から座標を決め打ちすると線が 1px ずれる。
-            ここなら `items-center` にそのまま乗る。
+            `-mb-2`: 線を `<article>` の下へ 8px はみ出させる。連鎖する行の
+            間は常に 8px 空いている (下の返信先プレビューの `pb-2`、
+            `ThreadView` の祖先の行間) ので、線が自分の行の高さで止まると
+            必ずそこで切れる。
+
+            **位置合わせを置く側の絶対配置に任せない** —— アイコン幅は
+            variant ごとに違い (`w-8`/`w-10`)、外から座標を決め打ちすると
+            線が数 px ずれる (実測)。ここなら `items-center` にそのまま乗る。
           */}
           <div
             data-testid="thread-line"
-            class="min-h-2 w-0.5 flex-1 bg-tertiary"
-            classList={{ "-mb-2": props.threadLine === "spill" }}
+            class="-mb-2 min-h-2 w-0.5 flex-1 bg-tertiary"
           />
         </Show>
       </div>
@@ -399,12 +400,17 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
       */}
       <Show when={!props.hideReplyPreview && reply()}>
         {(ref) => (
-          <EventView
-            id={ref().id}
-            variant="compact"
-            relayHint={ref().relay}
-            threadLine="flush"
-          />
+          // `pb-2`: 返信先と本体の間を空ける (v0 の `EventBase` が
+          // `hasChild` のとき本文へ `pb-2` を足すのと同じ間隔)。詰めると
+          // 2 件が 1 件の長い投稿に見える。この 8px は縦線が跨ぐ。
+          <div class="pb-2">
+            <EventView
+              id={ref().id}
+              variant="compact"
+              relayHint={ref().relay}
+              threadLine
+            />
+          </div>
         )}
       </Show>
 

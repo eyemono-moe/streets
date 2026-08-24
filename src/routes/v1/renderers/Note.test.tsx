@@ -330,7 +330,7 @@ describe("NoteFull", () => {
     // `createComponent` が渡されたコンポーネント関数自体に印を付けるため
     // —— 本物を通すと、後続のテストが同じ関数を直接呼んだときに戻り値が
     // 要素ではなくメモ関数になる (実測済み)。
-    const seen: { id: string; threadLine?: "flush" | "spill" }[] = [];
+    const seen: { id: string; threadLine?: boolean }[] = [];
     const Recorder: Component<EventBodyProps> = (props) => {
       seen.push({ id: props.event.id, threadLine: props.threadLine });
       return null;
@@ -353,43 +353,49 @@ describe("NoteFull", () => {
       renderers: [{ kind: 1, full: Recorder, compact: Recorder }],
     });
     try {
-      expect(seen.find((s) => s.id === parent.id)?.threadLine).toBe("flush");
+      expect(seen.find((s) => s.id === parent.id)?.threadLine).toBe(true);
       expect(seen.find((s) => s.id === quoted.id)?.threadLine).toBeFalsy();
     } finally {
       dispose();
     }
   });
 
-  it("spill の縦線だけが行の下へはみ出す", () => {
-    // 捕まえる変異: `-mb-2` を落とす / flush にも付ける。
-    //
-    // 線は自分の `<article>` の高さで止まるので、行と行が別の要素に
-    // 分かれていて間に余白がある置き方 (`ThreadView` の祖先) では、
-    // はみ出さない限り必ずそこで切れる。逆に flush —— 同じ `<article>` の
-    // 中で次の行がすぐ下に続く `NoteFull` の返信先プレビュー —— で
-    // はみ出すと、線が次の行のアイコンに重なる。
+  it("縦線は行の下へ 8px はみ出す", () => {
+    // 捕まえる変異: `-mb-2` を落とす。線は自分の `<article>` の高さで
+    // 止まるので、連鎖する行の間に必ずある 8px (返信先プレビューの
+    // `pb-2`、`ThreadView` の祖先の行間) をそのままでは渡れず、次の行の
+    // アイコンに届かない。
     const event = signed(22);
-    const lineOf = (el: HTMLElement) =>
-      el.querySelector('[data-testid="thread-line"]')?.className;
-
-    const spill = mount(
-      () => NoteCompact({ event, threadLine: "spill" }),
+    const run = mount(
+      () => NoteCompact({ event, threadLine: true }),
       contextWith(createRecordingEventRequests()),
     );
     try {
-      expect(lineOf(spill.element())).toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
+      expect(
+        run.element().querySelector('[data-testid="thread-line"]')?.className,
+      ).toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
     } finally {
-      spill.dispose();
+      run.dispose();
     }
+  });
 
-    const flush = mount(
-      () => NoteCompact({ event, threadLine: "flush" }),
-      contextWith(createRecordingEventRequests()),
-    );
+  it("返信先プレビューと本体の間を 8px 空ける", () => {
+    // 捕まえる変異: `pb-2` を落とす。返信先と本体が詰まって 1 件の長い
+    // 投稿に見える (v0 は `EventBase` の `hasChild` で同じ 8px を空ける)。
+    // `ThreadView` の祖先だけでなく、カラム一覧の返信もこの間隔で並ぶ。
+    const parent = signed(23);
+    const store = new EventStore();
+    store.put(parent, "wss://relay/");
+    const event = signed(24, { tags: [["e", parent.id, "", "reply"]] });
+    const Recorder: Component<EventBodyProps> = () => null;
+    const { element, dispose } = mount(() => NoteFull({ event }), {
+      ...contextWith(createRecordingEventRequests(), store),
+      renderers: [{ kind: 1, full: Recorder, compact: Recorder }],
+    });
     try {
-      expect(lineOf(flush.element())).not.toMatch(/(?:^|\s)-mb-2(?:\s|$)/);
+      expect(element().querySelector('[class~="pb-2"]')).not.toBeNull();
     } finally {
-      flush.dispose();
+      dispose();
     }
   });
 
@@ -404,7 +410,7 @@ describe("NoteFull", () => {
       el.querySelector('[data-testid="thread-line"]')?.parentElement;
 
     const chained = mount(
-      () => NoteCompact({ event, threadLine: "spill" }),
+      () => NoteCompact({ event, threadLine: true }),
       contextWith(createRecordingEventRequests()),
     );
     try {

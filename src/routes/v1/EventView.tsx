@@ -20,7 +20,7 @@ export type EventViewProps = {
   /** タグが運ぶリレーヒント。Task 2 のとおり今は使われない。 */
   relayHint?: RelayUrl;
   /** レンダラへそのまま渡す (`EventBodyProps.threadLine`)。 */
-  threadLine?: "flush" | "spill";
+  threadLine?: boolean;
   /** レンダラへそのまま渡す (`EventBodyProps.hideReplyPreview`)。 */
   hideReplyPreview?: boolean;
   /** レンダラへそのまま渡す (`EventBodyProps.disableThreadOpen`)。 */

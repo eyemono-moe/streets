@@ -69,12 +69,11 @@ const ThreadView: Component<{
           // 自前で p-3 を持つ) と横の余白を揃えるため、置く側であるここで
           // `px-3` を足す。
           //
-          // 縦は上だけ (`pt-2`)。下を空けないのは、そこが「線が通る場所」
-          // だから —— 行間は次の行の `pt-2` が作り、線は `threadLine`
-          // ="spill" が同じ 8px ぶんはみ出して渡り切る。上下で分けて持つと
-          // 隙間は 16px になり、8px しか伸びない線がそこで切れる。
+          // 縦は上だけ (`pt-2`)。行間は次の行の `pt-2` が作り、線は
+          // `Note.tsx` の `-mb-2` が同じ 8px ぶんはみ出して渡り切る。
+          // 上下で分けて持つと隙間は 16px になり、線がそこで切れる。
           <li data-testid="thread-ancestor" class="px-3 pt-2">
-            <EventView id={event.id} variant="compact" threadLine="spill" />
+            <EventView id={event.id} variant="compact" threadLine />
           </li>
         )}
       </For>
