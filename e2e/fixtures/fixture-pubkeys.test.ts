@@ -2,6 +2,10 @@ import { describe, expect, test } from "vitest";
 import { budgetAuthorPubkeys, budgetViewerPubkey } from "./seed-budget.js";
 import { capAuthorPubkey, capViewerPubkey } from "./seed-cap.js";
 import {
+  notificationAuthorPubkey,
+  notificationViewerPubkey,
+} from "./seed-notification.js";
+import {
   intruderPubkey,
   outboxAuthorAPubkey,
   outboxAuthorBPubkey,
@@ -67,6 +71,8 @@ describe("e2e fixture pubkeys", () => {
       ),
       ["seed-cap.ts:viewer", capViewerPubkey],
       ["seed-cap.ts:author", capAuthorPubkey],
+      ["seed-notification.ts:viewer", notificationViewerPubkey],
+      ["seed-notification.ts:author", notificationAuthorPubkey],
       ["seed-preview.ts:viewer", previewViewerPubkey],
       ["seed-preview.ts:authorOne", previewAuthorOnePubkey],
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
