@@ -204,9 +204,8 @@ LNURL の往復と kind:9734 / 9735 が要る。redesign のアクション列�
 - **E2E は CI で走っている**（`.github/workflows/ci.yaml` の `e2e` ジョブ）。
   followups の「満たしていない要件」節にある「CI が Playwright を一度も
   実行していない」は**その後に解消されており、記述のほうが古い**。
-  ただし E2E は不安定で、ドキュメントだけのコミットでも落ちることがある
-  （`connection-budget.spec.ts` の 1 本目が、開発サーバーが温まる前に
-  15 秒のタイムアウトへ当たる）。
+  Playwright は Vite の開発サーバーではなく本番ビルドの preview を使う。
+  これにより初回モジュール変換中の再読み込みが assertion と競合しない。
 
 ---
 
