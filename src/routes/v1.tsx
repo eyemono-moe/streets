@@ -46,6 +46,7 @@ import Button from "../shared/components/UI/Button";
 import AddColumnForm from "./v1/AddColumnForm";
 import DeckColumn from "./v1/DeckColumn";
 import DiagnosticsPanel from "./v1/DiagnosticsPanel";
+import SettingsDialog from "./v1/SettingsDialog";
 import {
   addColumnTo,
   moveColumnIn,
@@ -146,7 +147,7 @@ const V1: Component = () => {
   // 開発者モード (ADR-0026)。端末ごと (localStorage)、既定は無効。デッキ
   // (pubkey ごとの deckStorageKey) とは別の保存先 —— どの端末で開発者と
   // して見ているかはアカウントの設定ではない (developer-mode.ts のコメント
-  // 参照)。設定画面はまだ無い (フェーズ C) ので、トグルをヘッダに直置きする。
+  // 参照)。設定ダイアログを閉じても診断表示はこの signal を参照し続ける。
   const [developerMode, setDeveloperMode] = createSignal(
     loadDeveloperMode(window.localStorage.getItem(DEVELOPER_MODE_STORAGE_KEY)),
   );
@@ -158,6 +159,7 @@ const V1: Component = () => {
       saveDeveloperMode(next),
     );
   };
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
 
   // 読み取り層の配線。debug/v1-section.tsx と同じ合成ルート
   // (`createReadLayer`, spec 9 節)。manager (= ConnectionPool)・store・
@@ -628,17 +630,13 @@ const V1: Component = () => {
       <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
         <div class="flex items-center justify-between gap-2">
           <h1 class="font-bold text-lg">v1 プレビュー</h1>
-          {/*
-            開発者モードのトグル (ADR-0026)。設定画面は作らない (Consequences
-            が定めるフェーズ C) —— 端末ごとの localStorage を直接読み書き
-            するだけの、ヘッダ直置きのトグル。
-          */}
           <Button
-            data-testid="developer-mode-toggle"
+            aria-haspopup="dialog"
+            data-testid="settings-open"
             variant="border"
-            onClick={toggleDeveloperMode}
+            onClick={() => setSettingsOpen(true)}
           >
-            開発者モード: {developerMode() ? "ON" : "OFF"}
+            設定
           </Button>
         </div>
 
@@ -844,6 +842,14 @@ const V1: Component = () => {
           )}
         </Show>
       </header>
+
+      <Show when={settingsOpen()}>
+        <SettingsDialog
+          developerMode={developerMode}
+          onClose={() => setSettingsOpen(false)}
+          onToggleDeveloperMode={toggleDeveloperMode}
+        />
+      </Show>
 
       <Show when={pubkey()}>
         <form

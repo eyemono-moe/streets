@@ -447,6 +447,8 @@ test.describe("v1 vertical slice", () => {
     // 捕まえる変異: トグルが developerMode シグナルを更新しない
     // (localStorage への書き込みだけで signal を setDeveloperMode しない)、
     // または DiagnosticsPanel が developerMode の変化に反応しない。
+    await page.getByTestId("settings-open").click();
+    await expect(page.getByTestId("settings-dialog")).toBeVisible();
     await page.getByTestId("developer-mode-toggle").click();
     await expect(page.getByTestId("connections")).toBeVisible();
     // 捕まえる変異: バッチ件数を DiagnosticsPanel の外に置く
