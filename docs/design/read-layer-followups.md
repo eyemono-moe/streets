@@ -766,6 +766,35 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 `readRelaysFor` は EventStore の同期読みでシグナルではなく、依存は `warmUp()` だけである。warmUp が終わった後に自分の kind:10002 が届く経路は事実上ない。したがって warmUp 時に取れなければそのセッションの間ずっと fallback のまま・警告も出っぱなしになる。`followees` と同じ制約で新規の欠陥ではないが、通知では「一生届かない」という結果になる点が重い。
 
+## NIP-46 bunkerログイン（2026-08-25）— 実装で確定した境界
+
+[仕様](../superpowers/specs/2026-08-25-nip46-bunker-login-design.md)どおり、最初の
+経路は`bunker://`だけに絞った。client / remote signer / userの3鍵を分け、client
+session keyだけをversionedなlocalStorageへ保存する。user keyは公開鍵しか受け取らない。
+NIP-07とNIP-46の切替は`ActiveSigner`へ集約し、画面のpubkeyと`Writer`の署名器が
+別sessionになる経路を作らない。
+
+transportのNIP-44はremote signerへ委譲できないため、`@noble/ciphers`を直接依存に
+加え、公式vectorで固定した。平文上限はブラウザで理論上限4GiBを確保しないよう
+65,535 bytesとした。NIP-46 RPCのJSONには十分であり、現行NIP-44が許す
+platform-specificなDoS上限にあたる。
+
+kind:24133の購読・publishは既存`ConnectionPool`を共有する。bunker URIと
+`switch_relays`の返却値は5本を上限とし、切替先を1本も確保できなければ旧relayを
+維持する。署名要求の自動retryは、重複承認とidempotency未規定のため行わない。
+
+縦断e2eはclient keyとuser keyを別鍵にし、接続、投稿、reload復元、再投稿、logout後の
+保存値削除を実リレー越しに測る。追加した6種類の「捕まえる変異」は実際に入れ、対応
+する7テストが赤くなることを確認して戻した。
+
+後続へ残るもの:
+
+- `nostrconnect://`とQR/deep link
+- NIP-46の`nip44_encrypt/decrypt`を`Signer.nip44`へ公開する権限拡張
+- reaction / repost / follow / mute / kind:30078追加時の再認可導線
+- client keyをWebCryptoのnon-extractable keyとして保持できるかの検証
+- `switch_relays`を合理的な間隔で再取得する運用
+
 ## 直さないと決めたもの（理由つき）
 
 ### `publish()` だけが触った新規 URL の接続失敗を degraded に数えること

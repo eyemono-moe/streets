@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 issue: 213
 ---
 

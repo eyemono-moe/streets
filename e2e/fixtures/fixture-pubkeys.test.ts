@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { nip46RemotePubkey, nip46UserPubkey } from "./nip46-signer.js";
 import { budgetAuthorPubkeys, budgetViewerPubkey } from "./seed-budget.js";
 import { capAuthorPubkey, capViewerPubkey } from "./seed-cap.js";
 import {
@@ -78,6 +79,8 @@ describe("e2e fixture pubkeys", () => {
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
       ["seed-thread.ts:viewer", threadViewerPubkey],
       ["seed-thread.ts:author", threadAuthorPubkey],
+      ["nip46-signer.ts:remote", nip46RemotePubkey],
+      ["nip46-signer.ts:user", nip46UserPubkey],
     ];
 
     const seenAt = new Map<string, string>();

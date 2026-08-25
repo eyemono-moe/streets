@@ -64,7 +64,7 @@ CI も同じ `verify` を呼びます。ブラウザを含む変更はローカ�
 
 ### 秘密鍵をアプリが持たない
 
-[ADR-0008](./docs/adr/0008-signer-only-key-handling.md)。署名は NIP-07 / NIP-46 の署名者へ委譲します。`signer.ts` / `nip07-signer.ts` が秘密鍵を名前に出すことも保持することもありません。NIP-44 の暗号化も署名者へ委譲します。
+[ADR-0008](./docs/adr/0008-signer-only-key-handling.md)。本人鍵による署名は NIP-07 / NIP-46 の署名者へ委譲します。`signer.ts` / `nip07-signer.ts` が本人の秘密鍵を名前に出すことも保持することもありません。NIP-46 transportだけは通信専用client keyとNIP-44をアプリ側に持ちます（[ADR-0031](./docs/adr/0031-nip46-session-key-boundary.md)）。
 
 ### 劣化を隠さない。ただし、まだ存在しない劣化を確定した事実として見せない
 
@@ -118,8 +118,8 @@ pnpm seed:dev                             # スレッドの各形をローカル
 
 ## いま動くもの / 動かないもの
 
-**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage 永続化）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿（kind:1）の送信。
+**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage 永続化）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿（kind:1）の送信、NIP-07 / NIP-46（bunker）ログイン。
 
-**動かない**: リアクション・リポスト・フォロー・ミュートの**送信**（ビルダは `src/core/nostr/build/` に揃っているが UI 配線が無い）、設定画面、NIP-46、検索、画像アップロード、Zap、モバイル表示、デッキの NIP-78 保存。
+**動かない**: リアクション・リポスト・フォロー・ミュートの**送信**（ビルダは `src/core/nostr/build/` に揃っているが UI 配線が無い）、設定画面、検索、画像アップロード、Zap、モバイル表示、デッキの NIP-78 保存。NIP-46の`nostrconnect://` / QRは未実装。
 
-機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。着手順の提案もそこにあります（通知カラムまで完了、次は NIP-46）。
+機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。着手順の提案もそこにあります（NIP-46まで完了、次は設定 + ミュート）。
