@@ -450,6 +450,12 @@ test.describe("v1 vertical slice", () => {
     await page.getByTestId("settings-open").click();
     await expect(page.getByTestId("settings-dialog")).toBeVisible();
     await page.getByTestId("developer-mode-toggle").click();
+    // 捕まえる変異: Content 自体を画面全体へ広げてしまい、内側と外側の
+    // クリックを区別できなくする。設定項目を押しても閉じず、外側なら閉じる。
+    await page.getByText("開発者モード", { exact: true }).click();
+    await expect(page.getByTestId("settings-dialog")).toBeVisible();
+    await page.mouse.click(4, 4);
+    await expect(page.getByTestId("settings-dialog")).toHaveCount(0);
     await expect(page.getByTestId("connections")).toBeVisible();
     // 捕まえる変異: バッチ件数を DiagnosticsPanel の外に置く
     // (診断値なのに常時見えてしまう) / 配線を忘れる。
