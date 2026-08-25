@@ -22,11 +22,6 @@ import { FALLBACK_RELAYS } from "../core/read/default-relays";
 import { createIndexedDbPersistence } from "../core/read/indexeddb-persistence";
 import { createReadLayer } from "../core/read/read-layer";
 import { connectRelay } from "../core/relay/websocket-relay-connection";
-import {
-  DEVELOPER_MODE_STORAGE_KEY,
-  loadDeveloperMode,
-  saveDeveloperMode,
-} from "../core/settings/developer-mode";
 import { createActiveSigner } from "../core/signer/active-signer";
 import { createNip07Signer } from "../core/signer/nip07-signer";
 import { parseBunkerUri } from "../core/signer/nip46/bunker-uri";
@@ -53,6 +48,10 @@ import {
   removeColumnFrom,
   renameColumnIn,
 } from "./v1/deck-mutations";
+import {
+  DeviceSettingsProvider,
+  useDeviceSettings,
+} from "./v1/device-settings";
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
 import { parseRelays } from "./v1/parse-relays";
 import { defaultRenderers } from "./v1/renderers";
@@ -97,7 +96,7 @@ const formatWarmUpPhaseMs = (ms: number | undefined): string =>
  * nip07-signer.ts が「呼び出しのたびに読み直す」という同じ原則を、
  * ここでも UI 側で踏襲している。
  */
-const V1: Component = () => {
+const V1Content: Component = () => {
   const [pubkey, setPubkey] = createSignal<string>();
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
@@ -144,21 +143,9 @@ const V1: Component = () => {
     if (recorded !== undefined) setFirstRenderMs(recorded);
   };
 
-  // 開発者モード (ADR-0026)。端末ごと (localStorage)、既定は無効。デッキ
-  // (pubkey ごとの deckStorageKey) とは別の保存先 —— どの端末で開発者と
-  // して見ているかはアカウントの設定ではない (developer-mode.ts のコメント
-  // 参照)。設定ダイアログを閉じても診断表示はこの signal を参照し続ける。
-  const [developerMode, setDeveloperMode] = createSignal(
-    loadDeveloperMode(window.localStorage.getItem(DEVELOPER_MODE_STORAGE_KEY)),
-  );
-  const toggleDeveloperMode = () => {
-    const next = !developerMode();
-    setDeveloperMode(next);
-    window.localStorage.setItem(
-      DEVELOPER_MODE_STORAGE_KEY,
-      saveDeveloperMode(next),
-    );
-  };
+  // 保存形式とstate同期はDeviceSettingsProviderの内側に隠し、ここは
+  // 診断表示の判定だけをinterface越しに読む。
+  const { developerMode } = useDeviceSettings();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
 
   // 読み取り層の配線。debug/v1-section.tsx と同じ合成ルート
@@ -844,11 +831,7 @@ const V1: Component = () => {
       </header>
 
       <Show when={settingsOpen()}>
-        <SettingsDialog
-          developerMode={developerMode}
-          onClose={() => setSettingsOpen(false)}
-          onToggleDeveloperMode={toggleDeveloperMode}
-        />
+        <SettingsDialog onClose={() => setSettingsOpen(false)} />
       </Show>
 
       <Show when={pubkey()}>
@@ -968,7 +951,6 @@ const V1: Component = () => {
                     optimisticEvents={optimisticEvents}
                     onHasItems={() => onColumnHasItems(column.id)}
                     firstRenderMs={() => firstRenderMsByColumn()[column.id]}
-                    developerMode={developerMode}
                     canMoveLeft={() => index() > 0}
                     canMoveRight={() =>
                       index() < (deck()?.columns.length ?? 0) - 1
@@ -987,5 +969,11 @@ const V1: Component = () => {
     </div>
   );
 };
+
+const V1: Component = () => (
+  <DeviceSettingsProvider>
+    <V1Content />
+  </DeviceSettingsProvider>
+);
 
 export default V1;

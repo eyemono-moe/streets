@@ -16,6 +16,7 @@ import ColumnAlertBadge from "./ColumnAlertBadge";
 import ColumnItems from "./ColumnItems";
 import DiagnosticsPanel from "./DiagnosticsPanel";
 import ThreadView from "./ThreadView";
+import { useDeviceSettings } from "./device-settings";
 import { parseRelays } from "./parse-relays";
 import { ThreadNavProvider } from "./thread-nav";
 
@@ -82,12 +83,6 @@ const DeckColumn: Component<{
    */
   optimisticEvents: () => NostrEvent[];
   /**
-   * 開発者モードが有効かどうか (ADR-0026)。`deck-column-phase` /
-   * `deck-column-incomplete` (診断値) の描画条件としてのみ使う ——
-   * `ColumnAlertBadge` (行動できる異常) はこれを見ない。
-   */
-  developerMode: () => boolean;
-  /**
    * このカラムの `items()` が空でなくなるたびに呼ぶ (task-5-brief.md
    * Step 1)。**「初回だけ記録する」判定はここではしない** —— 呼び出し側
    * (`v1.tsx`) が `createFirstRenderRecorder` で 3 カラムぶんまとめて
@@ -110,6 +105,7 @@ const DeckColumn: Component<{
   onRemove: () => void;
   onRename: (title: string) => void;
 }> = (props) => {
+  const settings = useDeviceSettings();
   const source = createMemo<NostrSource>(() => {
     // `followees: props.followees` (呼ばずに渡す) —— `resolveSource` が
     // `kind: "followees"` の分岐でだけこれを呼ぶ (`resolve-source.ts` の
@@ -390,7 +386,7 @@ const DeckColumn: Component<{
         より「開発者モードの背後でそのまま見せる」へ改まった (ADR-0011 の
         改訂と同じ扱い)。
       */}
-      <DiagnosticsPanel visible={props.developerMode}>
+      <DiagnosticsPanel visible={settings.developerMode}>
         <div class="space-y-1 px-2 pb-2">
           <p
             class="text-alpha-600 text-xs"
