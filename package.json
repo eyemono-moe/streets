@@ -33,6 +33,7 @@
     "@kobalte/core": "0.13.8",
     "@modular-forms/solid": "0.25.0",
     "@neodrag/solid": "2.3.0",
+    "@noble/ciphers": "0.5.3",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
     "@rust-nostr/nostr-sdk": "0.39.0",

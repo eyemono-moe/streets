@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # NIP-46 の通信鍵を、本人鍵とは別の失効可能なセッション資格情報として扱う
