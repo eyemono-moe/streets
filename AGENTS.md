@@ -9,9 +9,9 @@
 | | |
 | --- | --- |
 | [CONTEXT.md](./CONTEXT.md) | 用語・画面の構成・読み取りの仕組み・**コメントとドキュメントの書き方**。130 行。全部読むこと |
-| [docs/adr/](./docs/adr/) | 0001〜0029。決定と**その理由**。経緯が残っているのはここだけ |
+| [docs/adr/](./docs/adr/) | 0001〜0030。決定と**その理由**。経緯が残っているのはここだけ |
 | [docs/design/architecture.md](./docs/design/architecture.md) | 読み取り層の全体像。8 節に未実装箇所が集約されている |
-| [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md) | **繰延事項の唯一のバックログ**。下記「残タスクの在り処」を参照 |
+| [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md) | スライスで得た知見と判断理由。実行するタスクは GitHub Issues を参照 |
 
 ## 環境
 
@@ -21,22 +21,14 @@
 
 ## 知らないと踏む罠
 
-### `pnpm exec tsc --noEmit` は何も検査しない
-
-ルートの `tsconfig.json` は `files: []` + project references なので、このコマンドは 0 件を検査して成功します。**必ず `pnpm typecheck`（`tsc -b`）を使うこと。**
-
-### `pnpm typecheck` と `pnpm test` が緑でも CI は落ちる
-
-CI には 4 つのジョブがあります。**`pnpm run check`（`biome check .` + 読み取り層の依存チェック）は別の関門です。**
+### 検証入口は `verify` の 1 本
 
 ```sh
-pnpm run check      # biome + 依存チェック  ← 忘れやすい
-pnpm typecheck      # tsc -b
-pnpm exec vitest run
-pnpm exec playwright test
+pnpm verify       # check + typecheck + unit test + build
+pnpm verify:all   # 上記 + Playwright
 ```
 
-整形と import 順は `pnpm fix` で直ります。実際にこの 4 つのうち `check` だけを忘れて CI を赤にした事例があります（2026-08-25）。
+CI も同じ `verify` を呼びます。ブラウザを含む変更はローカルリレーを起動し、`verify:all` を前景で実行してください。詳細と `tsc --noEmit` を入口にしない理由は [ADR-0030](./docs/adr/0030-single-verification-entrypoint.md)。整形と import 順は `pnpm fix` で直ります。
 
 ### e2e はバックグラウンドで走らせない
 
@@ -92,16 +84,11 @@ v1 は後方互換性なしの全面書き換えです。`src/features/` 以下�
 
 コミットは日本語で、**何をしたかではなく何を直したか・なぜそうしたか**を書きます。
 
-## 残タスクの在り処 — 2 つに分かれています
+## 残タスクと判断理由の在り処
 
-**[GitHub Issues](https://github.com/eyemono-moe/streets/issues)**: 86 open。領域ラベル（`read-layer` / `ui` / `nip` / `test` / `infra` / `perf` / `observation` / `bug`）+ 優先度（`P1`〜`P3`）+ 着手前に設計が要るものは `design-needed`。
+**実行するタスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。** 領域ラベル（`read-layer` / `ui` / `nip` / `test` / `infra` / `perf` / `observation` / `bug`）+ 優先度（`P1`〜`P3`）+ 着手前に設計が要るものは `design-needed`。
 
-**ただし issue は 2026-08-15 で更新が止まっています。** それ以降の 4 スライス（プロフィールカード 08-19、書き込みの土台と変異テスト 08-22、スレッド 08-22、通知カラム 08-25）は issue に反映されていません。
-
-- **完了済みだが open のまま**: #202（通知カラム）、#206（スレッド表示）
-- **08-15 以降の繰延事項 約 23 件は [`docs/design/read-layer-followups.md`](./docs/design/read-layer-followups.md) にしかありません**
-
-**着手前に必ず followups を読んでください。** issue だけを見ると、既に判断が下りている論点を蒸し返すか、既知の欠陥を踏みます。とくに「通知」「スレッド」「書き込みの土台」の各節。
+**[`docs/design/read-layer-followups.md`](./docs/design/read-layer-followups.md) は、スライスを実際に動かして得た知見と判断理由の記録。** タスク管理はせず、未完の作業は対応する Issue 番号から追う。着手時は Issue だけでなく、リンクされた followups の節も読み、既に下した判断を蒸し返さないこと。
 
 ## 開発の進め方
 
@@ -109,7 +96,7 @@ v1 は後方互換性なしの全面書き換えです。`src/features/` 以下�
 
 - 仕様: `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
 - 計画: `docs/superpowers/plans/YYYY-MM-DD-<topic>.md`
-- 各スライスの答えと繰延: `docs/design/read-layer-followups.md`
+- 各スライスの答えと判断理由: `docs/design/read-layer-followups.md`
 
 設計判断を含む作業では、**実装の前に仕様を書いて人に確認を取ってください。** 過去の仕様は「何を決めたか」だけでなく「何を決めなかったか・なぜ」も書いており、次の読み手はそれを頼りにします。
 
