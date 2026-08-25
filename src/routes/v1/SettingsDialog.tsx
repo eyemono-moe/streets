@@ -1,7 +1,7 @@
-import { Dialog } from "@kobalte/core/dialog";
+import { Dialog } from "@ark-ui/solid/dialog";
 import type { Accessor, Component } from "solid-js";
+import { Portal } from "solid-js/web";
 import Button from "../../shared/components/UI/Button";
-import "../../assets/dialog.css";
 
 type SettingsDialogProps = {
   developerMode: Accessor<boolean>;
@@ -16,30 +16,30 @@ type SettingsDialogProps = {
  * なるため、各スライスで経路が通った時点でここへ追加する。
  */
 const SettingsDialog: Component<SettingsDialogProps> = (props) => (
-  <Dialog
+  <Dialog.Root
     open
-    onOpenChange={(open) => {
-      if (!open) props.onClose();
+    onOpenChange={(details) => {
+      if (!details.open) props.onClose();
     }}
   >
-    <Dialog.Portal>
-      <Dialog.Overlay class="fixed inset-0 animate-duration-100 animate-fade-out bg-op-50! bg-secondary data-[expanded]:animate-duration-100 data-[expanded]:animate-fade-in" />
-      <div class="fixed inset-0 grid place-items-center p-16">
+    <Portal>
+      <Dialog.Backdrop class="fixed inset-0 bg-op-50! bg-secondary" />
+      <Dialog.Positioner class="fixed inset-0 grid place-items-center p-16">
         <Dialog.Content
-          class="b-1 relative grid max-h-full min-h-[min(100%,18rem)] min-w-[min(100%,24rem)] animate-[contentHide] animate-duration-100 grid-rows-[auto_minmax(0,1fr)] rounded-2 bg-primary p-2 shadow-lg shadow-ui/25 data-[expanded]:animate-[contentShow] data-[expanded]:animate-duration-100"
+          class="b-1 relative grid max-h-full min-h-[min(100%,18rem)] min-w-[min(100%,24rem)] grid-rows-[auto_minmax(0,1fr)] rounded-2 bg-primary p-2 shadow-lg shadow-ui/25"
           data-testid="settings-dialog"
         >
           <header class="flex items-center">
             <Dialog.Title class="font-500">設定</Dialog.Title>
-            <Dialog.CloseButton
+            <Dialog.CloseTrigger
               class="c-secondary ml-auto appearance-none rounded-full bg-transparent p-1 enabled:hover:bg-alpha-hover enabled:hover:bg-opacity-50"
               data-testid="settings-close"
             >
               <div class="i-material-symbols:close-rounded aspect-square h-6 w-auto" />
-            </Dialog.CloseButton>
+            </Dialog.CloseTrigger>
           </header>
 
-          <Dialog.Description as="div" class="overflow-auto pt-2">
+          <Dialog.Description class="overflow-auto pt-2">
             <div class="rounded-2 border border-alpha-300 p-3">
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -60,9 +60,9 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => (
             </div>
           </Dialog.Description>
         </Dialog.Content>
-      </div>
-    </Dialog.Portal>
-  </Dialog>
+      </Dialog.Positioner>
+    </Portal>
+  </Dialog.Root>
 );
 
 export default SettingsDialog;
