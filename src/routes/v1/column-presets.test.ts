@@ -31,7 +31,7 @@ describe("buildColumn", () => {
   });
 
   it("hashtag と global はリポストを集めない", () => {
-    // 捕まえる変異: TIMELINE_KINDS を 4 種別すべてへ広げる。リポストは
+    // 捕まえる変異: TIMELINE_KINDS を全種別へ広げる。リポストは
     // 元イベントの t タグを引き継がないのでハッシュタグ列では何も増えず、
     // グローバル列は元から流量が多い (column-presets.ts のコメント)。
     const hashtag = buildColumn("hashtag", "#nostr")?.source;

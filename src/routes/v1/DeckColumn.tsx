@@ -2,8 +2,8 @@ import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import type { Component } from "solid-js";
 import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
-import { resolveSource } from "../../core/deck/resolve-source";
 import { excludeOwnActions } from "../../core/deck/notification-filter";
+import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
@@ -163,7 +163,14 @@ const DeckColumn: Component<{
   const threadSource = createThreadSource({
     focusId,
     store,
-    columnRelays: () => source().relays,
+    // 通知カラムの relays は「自分宛が配送される場所 (inbox)」であって
+    // 「スレッドの祖先が置いてある場所」ではない。渡すと
+    // `create-thread-source` がそれを唯一の購読先として narrow し、
+    // 自分宛でない祖先 (自分の元ノートを含む) が永久に取れなくなる。
+    columnRelays: () =>
+      props.column.source.kind === "notifications"
+        ? undefined
+        : source().relays,
     relaysOverride: RELAYS_OVERRIDE,
   });
 
@@ -186,12 +193,10 @@ const DeckColumn: Component<{
   // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
   const alerts = createMemo(() =>
     columnAlerts(props.column, activeSection().status(), {
-      // `readRelays()` が空でも、それが「設定が無い」のか「まだ届いて
-      // いない」のかはここで分ける。分けないと、ウォームアップが片付く
-      // までは必ず 0 本なので、起動のたびに警告が一瞬光って消える ——
-      // まだ存在しない劣化を確定した事実として見せることになる。
-      viewerRelayListMissing:
-        props.relayListSettled() && props.readRelays().length === 0,
+      // 「設定が無い」のか「まだ届いていない」のかの判定 (settle のゲート)
+      // は `columnAlerts` 側へ集約済み —— ここでは値を渡すだけ。
+      relayListSettled: props.relayListSettled(),
+      readRelayCount: props.readRelays().length,
     }),
   );
 

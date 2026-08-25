@@ -37,7 +37,7 @@ const KINDS: ColumnPresetKind[] = [
 /**
  * ヘッダの「+」でカラムを追加するフォーム。`buildColumn` (純関数) と
  * 分けてあるのは、UI の開閉・入力欄の出し分け・エラー表示という状態を
- * 持つ部分と、「4 種別が正しい `ColumnSource` を作るか」というロジックを
+ * 持つ部分と、「各種別が正しい `ColumnSource` を作るか」というロジックを
  * 混ぜないため (column-presets.ts のコメント参照)。
  */
 const AddColumnForm: Component<{

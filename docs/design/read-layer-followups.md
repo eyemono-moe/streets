@@ -720,6 +720,22 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 **入れる条件**: v1 が長文（kind:30023 など）を作れるようになるか、あるいは kind:16 を e2e で意図どおり再現できるフィクスチャが組めるようになったとき。仕様は [通知カラムの設計](../superpowers/specs/2026-08-25-notification-column-design.md) 2.3 節。
 
+### 通知カラムの read リレーが 30 接続予算を無制限に食う
+
+`resolveSource` が返す `relays` は `explicitRelays` として扱われ、`subscription-manager.ts` は明示リレーを `selectRelays` の結果に左右されず全 URL 必ず開こうとする（「ユーザーが名指ししたリレーを予算都合で落とさない」ため）。これまで `explicitRelays` に入るのはユーザーが自分で打った URL か `FALLBACK_RELAYS`（3 本）だけで、件数はユーザーの手の内にあった。通知カラムは初めて外部が決めた無制限のリスト（自分の kind:10002 の read 全部）をここへ流し込む。
+
+具体的な壊れ方: read リレーを 18 本宣言している利用者が通知カラムを 1 本足すと、`MAX_CONNECTIONS = 30` のうち 18 本が先に押さえられ、残り 12 本で全フォロイーの outbox を被覆することになる。溢れた分は `uncoveredAuthors` / `unreachableRelays` に落ちるが、どちらも ADR-0026 上は開発者モードの裏の診断値なので、ホーム列から著者が静かに消える。
+
+**上限を設けなかった理由**: 「どの N 本を残すか」の基準が要るが、NIP-65 は `r` タグに順序の意味を与えていない。恣意的に切ると通知が実際に届いているリレーを落としうる。予算を食うことと、届く場所を黙って捨てることでは後者のほうが悪い。基準は人間の判断が要る。
+
+### settle 前に fallback の実在リレーへ一瞬購読する
+
+`v1.tsx` の `readRelays` は `warmUp()` を依存に持つので、settle までは必ず `[]` を返し、`resolveSource` は `FALLBACK_RELAYS` を載せる。通知カラムが起動のたびに yabu.me / nos.lol / relay.damus.io へ `{kinds:[1,6,7],"#p":[自分]}` を投げ、settle 後に破棄して read リレーへ張り直す。read リレーを持っている利用者でも毎回起こる。害は接続の無駄と一瞬の内容差し替えで、数秒で自己修正する。直すには `ResolveContext` に settle 済みかどうかを足す必要がある。上の「30 接続予算」の項と重なる点に注意。
+
+### `readRelays` は warmUp の 1 回きりに固定される
+
+`readRelaysFor` は EventStore の同期読みでシグナルではなく、依存は `warmUp()` だけである。warmUp が終わった後に自分の kind:10002 が届く経路は事実上ない。したがって warmUp 時に取れなければそのセッションの間ずっと fallback のまま・警告も出っぱなしになる。`followees` と同じ制約で新規の欠陥ではないが、通知では「一生届かない」という結果になる点が重い。
+
 ## 直さないと決めたもの（理由つき）
 
 ### `publish()` だけが触った新規 URL の接続失敗を degraded に数えること

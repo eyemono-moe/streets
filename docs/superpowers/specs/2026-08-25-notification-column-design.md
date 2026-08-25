@@ -161,16 +161,29 @@ export const excludeOwnActions = (
 export const columnAlerts = (
   column: ColumnDef,
   status: SectionStatus,
-  context: { viewerRelayListMissing: boolean },
+  context: { relayListSettled: boolean; readRelayCount: number },
 ): ColumnAlert[]
 ```
 
+**判定 (settle のゲート) は `columnAlerts` の中で行う。** `context.relayListSettled && context.readRelayCount === 0` を `viewerRelayListMissing` として扱う。呼び出し側 (`DeckColumn.tsx`) は 2 つの値を渡すだけで、判定そのものは持たない。
+
+`readRelayCount() === 0` は「設定が無い」と「まだ届いていない (ウォームアップ中)」を区別できない。区別せずに settle 前から警告を出すと、起動直後は必ず 0 本なので「リレー設定が見つからない」が毎回一瞬光って消える —— **まだ存在しない劣化を確定した事実として見せることになる。** `relayListSettled` のゲートはこれを防ぐためのものであり、判定を UI 側ではなく `columnAlerts` に置くのは、この 1 行 (settle 前は出さない) がカラムの実装ごとに独立に守られるより、判定を集約した 1 関数のテストで固定するほうが壊れにくいため。
+
 `notifications` 列で `viewerRelayListMissing` が真のとき:
 
-- `message`: `あなたのリレー設定 (kind:10002) が見つからないため、既定のリレーで待っています`
+- `message`: `あなたのリレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています`
 - `action`: `通知が届かない場合は、リレー設定を publish しているか確認してください`
 
-`columnAlerts` の doc コメントは「今は 1 種類しか返さないが、返り値を配列にしてあるのは A-2 以降で…同じ入口へ集まるため」と成長を想定しており、方向は一致している。ADR-0026 の「ユーザーが行動できるものだけを返す」も満たす —— リレー設定の publish はユーザーが取れる行動である。
+`message` を「見つからない」だけでなく「取得できなかった」も含む言い回しにしているのは、`viewerRelayListMissing` が kind:10002 の取得が timeout したケースも含むため —— 既に publish 済みの利用者に「publish しているか確認してください」とだけ出すのは、取れない行動を指示することになる。
+
+**read リレーが到達不能な場合も知らせる。** `viewerRelayListMissing` は kind:10002 自体が引けたか (readRelayCount) しか見ないので、kind:10002 は引けているがそこに書かれた read リレーへ接続できない場合には真にならない。しかし画面から見える結果 (通知が来ない) も取れる行動 (リレー設定を直す) も設定が無い場合と同じなので、`notifications` 列では `status.incomplete.unreachableRelays > 0` のときも別の警告を出す:
+
+- `message`: `あなたの設定した read リレーに接続できません (N 本)`
+- `action`: `リレー設定 (kind:10002) の read リレーを確認してください`
+
+既存の `literal` 列向けの到達不能警告 (`source.kind === "literal" && source.relays !== undefined`) はこの条件を満たさない —— 通知カラムは `literal` ではないので、この警告が無いと read リレーが全滅していても黙ったままになる。
+
+`columnAlerts` の doc コメントは「返り値を配列にしてあるのは A-2 以降で…同じ入口へ集まるため」と成長を想定しており、方向は一致している。ADR-0026 の「ユーザーが行動できるものだけを返す」も満たす —— リレー設定の publish はユーザーが取れる行動である。
 
 ## 7. テスト
 
