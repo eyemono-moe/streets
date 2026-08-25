@@ -2,38 +2,27 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  // Playwright の既定 testMatch は "*.spec.*" と "*.test.*" の両方を拾う。
-  // このリポジトリの e2e spec は一貫して *.spec.ts だが、
-  // e2e/fixtures/fixture-pubkeys.test.ts (vitest 用、フィクスチャの pubkey
-  // 衝突を機械的に検出する) を足したところ Playwright 側にも拾われて
-  // 「vitest を直接 import した」エラーで落ちた (Task 4 fix round 1)。
-  // *.spec.ts だけに絞ることで、e2e/ 配下に *.test.ts を足しても
-  // Playwright 側に混入しないようにする。
+  // e2e/fixtures には Vitest 用の *.test.ts もある。Playwright の既定値では
+  // それも対象になるため、ブラウザテストの命名規則だけを明示する。
   testMatch: /.*\.spec\.ts$/,
   globalSetup: "./e2e/global-setup.ts",
   retries: 0,
   reporter: "line",
-  // 複数の spec ファイルが同じローカルリレー (8080/8081) を共有しており、
-  // 読むだけでなく書く spec もある — relay-recovery.spec.ts は実行中に
-  // リレー2 へ kind:1 を 1 通発行する。並列だと、それが v1-section.spec.ts
-  // や connection-budget.spec.ts の主張の最中に届きうる。ファイル間の
-  // 依存関係を毎回把握して spec を書くよりも、全体を 1 worker に固定して
-  // 「異なるファイルの e2e は同時に走らない」という不変条件を機構で
-  // 保証するほうが安全 (Task 13 fix round 1)。
-  // このスイートは小さい (現状 10 テスト) ので、直列化の時間コストは許容範囲。
-  //
-  // なお当初この設定は relay-recovery.spec.ts の `docker compose stop/start`
-  // を隔離するためのものだったが、その stop/start 自体を廃止した
-  // (spec 冒頭のコメント参照)。共有リレーへの書き込みという理由の方は残る。
+  // 全 spec が同じローカルリレーを共有し、一部はイベントを書き込む。
+  // ファイルを並列実行すると他の spec の観測結果へ混入するため直列にする。
   workers: 1,
   use: {
     baseURL: "http://127.0.0.1:4173",
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "pnpm dev --host 127.0.0.1 --port 4173",
+    // 開発サーバーの初回モジュール変換と依存最適化は、テスト開始後にも
+    // ページを再読み込みしうる。E2E は完成した本番ビルドだけを配信する。
+    command:
+      "pnpm build && pnpm preview --host 127.0.0.1 --port 4173 --strictPort",
     url: "http://127.0.0.1:4173",
-    reuseExistingServer: !process.env.CI,
+    // ローカルの開発サーバーを誤って再利用すると CI と条件がずれる。
+    reuseExistingServer: false,
     timeout: 120_000,
   },
   projects: [
