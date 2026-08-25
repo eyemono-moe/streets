@@ -4,9 +4,9 @@
 [ADR-0002](../adr/0002-v0-parity-before-cutover.md) が「v1 の Must は v0 機能パリティで下限が固定される」と
 決めているので、v0 に有って v1 に無いものは原則ぜんぶ Must に入る。
 
-読み取り層の繰延事項は [read-layer-followups.md](./read-layer-followups.md) が唯一のバックログであり、
-**この文書はそれを置き換えない**。ここは「まだ一度も作っていない機能」の一覧で、
-followups は「作ったものの残した課題」の一覧。重複するものは相互に参照する。
+実行するタスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。
+この文書は機能単位の棚卸し、[read-layer-followups.md](./read-layer-followups.md) は
+スライスで得た知見と判断理由を残す。未完の作業は Issue 番号から追う。
 
 ---
 

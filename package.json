@@ -10,6 +10,8 @@
     "check": "biome check . && pnpm run check:read-layer",
     "check:read-layer": "node scripts/check-read-layer-deps.mjs",
     "typecheck": "tsc -b",
+    "verify": "pnpm run check && pnpm run typecheck && vitest run && vite build",
+    "verify:all": "pnpm run verify && playwright test",
     "fix": "biome check --write .",
     "fix:force": "biome check --write --unsafe .",
     "test": "vitest",

@@ -4,8 +4,8 @@ on:
   push:
 
 jobs:
-  check:
-    name: Check
+  verify:
+    name: Verify
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -21,46 +21,8 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
-      - name: Run check
-        run: pnpm run check
-  test:
-    name: Test
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        node-version: [20]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
-      - name: Install dependencies
-        run: pnpm install
-      - name: Run test
-        run: pnpm run test
-  build:
-    name: Build
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        node-version: [20]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
-      - name: Install dependencies
-        run: pnpm install
-      - name: Build
-        run: pnpm run build
+      - name: Run verification
+        run: pnpm run verify
   e2e:
     name: E2E
     runs-on: ubuntu-22.04

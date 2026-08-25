@@ -1,6 +1,6 @@
 # スライスの記録
 
-各スライスが実際に動かして初めて答えられた問いへの回答と、そのとき下した判断の記録。**残タスクはここには無い —— [GitHub Issues](https://github.com/eyemono-moe/streets/issues) が唯一の置き場所である。**
+各スライスが実際に動かして初めて答えられた問いへの回答と、そのとき下した判断の記録。**実行するタスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。** この文書は背景と判断理由を残し、未完の作業には対応する Issue 番号を付ける。
 
 用語は [CONTEXT.md](../../CONTEXT.md)、決定は [docs/adr/](../adr/)、全体像は [architecture.md](./architecture.md)。
 
@@ -552,6 +552,8 @@ Nostr のイベント id は `pubkey, created_at, kind, tags, content` のハッ
 
 fix wave で見つかったが、範囲外として次の計画へ回したもの。
 
+実行: [#301](https://github.com/eyemono-moe/streets/issues/301) / [#302](https://github.com/eyemono-moe/streets/issues/302) / [#303](https://github.com/eyemono-moe/streets/issues/303)
+
 - **`Mutation` は合成できない。** `type Mutation = (current: NostrEvent | undefined) => EventDraft`（`draft.ts`）は `NostrEvent` を受けて `EventDraft` を返すため、`m2(m1(current))` は `m1(current)` が `EventDraft` であって `NostrEvent | undefined` ではないため型が通らない。これは仕様 6.4 節が選んだ署名デバウンス戦略（「束ねる側が `mutate` の中で複数の変更を適用すればよい」）をそのまま塞いでおり、[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) が Should として求めているものでもある。考えられる直し方は、`replaceTags` と `Mutation` の入力型を `{ tags: string[][]; content: string } | undefined` へ広げること —— `NostrEvent` も `EventDraft` もこの形を構造的に満たすので、既存の呼び出し側は変更不要になるはずである。
 
   合成した結果の `kind` は後から適用した側のものになる（各ビルダが自分の kind をファイル内に固定で持っているため）が、**組み合わせる対象は同じ kind の変更どうしだけなので、これは選択の余地がある話ではない**。実際に注意が要るのはそこではなく、**型が異なる kind の変更の合成を止められない**こと —— `addFollow` と `addMute` を重ねると、kind:10000 のイベントの中にフォロー用の `p` タグが入った意味をなさないものが、型検査を通ったまま出来上がる。合成を同じ kind の中に閉じ込める手段（`Mutation` を kind でパラメータ化する、合成ヘルパ側で突き合わせる、など）を実装する回で決めること。
@@ -559,6 +561,8 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 - **レビュー番号・タスク ID を運ぶコメントが repo 全体で 100 箇所を超えて残っている**（`(final review, Important 3)` のような形。`connection-pool.ts` と `subscription-manager.ts` だけで数十件）。[コメントは非自明な WHY だけ](../../CONTEXT.md) という repo の規則に反するが、**このブランチで新規に書かれたコメントはこの規則を守れている** —— 違反は過去のスライスからの持ち越しであり、規則自体は機能している。これらは後続の各スライスで、触るファイルの中で直していく。
 
 ### 小さいもの（deferred）
+
+実行: [#304](https://github.com/eyemono-moe/streets/issues/304) / [#305](https://github.com/eyemono-moe/streets/issues/305) / [#306](https://github.com/eyemono-moe/streets/issues/306) / [#307](https://github.com/eyemono-moe/streets/issues/307) / [#308](https://github.com/eyemono-moe/streets/issues/308) / [#309](https://github.com/eyemono-moe/streets/issues/309) / [#310](https://github.com/eyemono-moe/streets/issues/310)
 
 - `writer.ts` の新コメントに WHAT 寄りの記述が残っている（`WriteResult.replaced` のコメント）。巻き戻しのコメントには他ファイル（`publisher.ts` / `event-store.ts`）の慣習である仕様節への参照（旧仕様 5.1 節相当）が付いていない。
 - `sign()` というテストヘルパが `writer.test.ts` / `fetch-latest.test.ts` / `event.test.ts` の 3 ファイルで重複している。どれか 1 つだけ仕様変更されると足並みが揃わなくなる。
@@ -570,6 +574,8 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 - `verifyOptimisticInsert` の例外文言（「投稿の検証に失敗しました」）が、`v1.tsx` の汎用エラー分岐（「投稿に失敗しました: …」）の中でメッセージに包まれ、「失敗しました」が二重に出る（`v1.tsx:510` 付近）。
 
 ## 変異テストの導入（2026-08-22）— くり返し踏んだ罠を機械で塞ぐ
+
+対象拡大の実行: [#311](https://github.com/eyemono-moe/streets/issues/311)
 
 上の「くり返し踏んだ罠」節は一般則（フィクスチャの既定値を期待値と揃えると、そのアサーションは何も検証していない）を書いた。しかし規則を書くことと、それが守られているかを確かめることは別で、実際にこのブランチで同じ形の defect が独立に 4 回発生した。[ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が記録した通り、足りなかったのは周知ではなく強制だったので、`src/core/nostr/build/**` と `src/core/write/**` に StrykerJS を導入した（`stryker.config.json`、`pnpm mutation`）。
 
@@ -591,27 +597,29 @@ fix wave で見つかったが、範囲外として次の計画へ回したも�
 
 `createSection`（`src/core/solid/create-section.ts`）は `createEffect` の中で `source()` を読んで `SectionReader` を作り直す。素朴に `{ type: "nostr", filters: [...] } ` を返す関数をそのまま渡すと、内容が同じでも呼ぶたびに新しいオブジェクトになるので、スレッド内で返信を押して 1 段進むだけで購読が張り直され、`items` が空から積み直しになる。`DeckColumn.tsx` は `threadRootId` を `createMemo` で根の id だけに絞り、その id が変わらない限り再実行されないフィルタ生成をさらに `createMemo` で包んでいる（`DeckColumn.tsx:132-166`）。フィルタが `{ ids: [root] }` と `{ kinds: [1], "#e": [root] }` の 2 本で固定されるので、祖先を辿っても返信を辿っても購読は同じまま保たれる。
 
-### キーボードではスレッドを開けない
+### キーボードではスレッドを開けない（実行: [#289](https://github.com/eyemono-moe/streets/issues/289)）
 
 ノート全体をクリック対象にする実装（`useOpenThreadOnClick`、`Note.tsx:85-`）はポインタ操作しか見ておらず、`<article>` に `biome-ignore lint/a11y/useKeyWithClickEvents` を付けて抑制している（`Note.tsx:345`, `:460`。2026-08-23 fix wave でこの biome-ignore の理由文をこの節への参照に差し替えた —— 以前は読者が参照できない brief への言及だった）。直し方は自明ではない —— `<article>` 自体を focusable にすると、1 カラムに並ぶ最大 200 件のノートが全部タブ順に入ってしまう。本来の答えは記事の中に実体を持つ focusable な要素（タイムスタンプへのリンク、あるいは返信数を押せるボタンにする、など）を置くことだが、それは「押せる面をどこに置くか」という設計そのものの変更になるので、このスライスでは決めずに残した。
 
-### リアクションチップはクリック除外セレクタに入っていない
+### リアクションチップはクリック除外セレクタに入っていない（実行: [#290](https://github.com/eyemono-moe/streets/issues/290)）
 
 `useOpenThreadOnClick` は `target.closest("a, button, [role='button'], input, textarea, [data-part='trigger']")` で対話要素の上のクリックを除外している（`Note.tsx:94-`。2026-08-23 fix wave で `[data-part='trigger']` を追加した —— `Avatar` が `ProfileHover` を `asChild` で `<div>` に合流させるトリガーが role を持たないため、アイコンを押すとスレッドが開いてしまう不具合の修正。リアクションチップの扱いには影響しない）。リアクションのチップ（`ReactionList.tsx` の `data-testid="reaction-group"`）はただの `<div>` で、このセレクタに掛からない。今はチップにクリックハンドラが無いので実害は無いが、「同じ絵文字のチップを押して同じリアクションを送る」が実装された瞬間、チップを押すとスレッドも開いてしまう。
 
-### `threadSpine` の返信フィルタは focus 自身を除外していない
+### `threadSpine` の返信フィルタは focus 自身を除外していない（実行: [#291](https://github.com/eyemono-moe/streets/issues/291)）
 
 祖先を上へ辿る側は訪問済み集合 (`seen`) を持ち、壊れた／悪意あるイベントが自分自身や祖先を親として指す形を止めている（`thread-spine.ts:38-`）。一方、直接の返信を集める側（`events.filter((event) => replyTarget(event)?.id === focusId)`、`thread-spine.ts:63-65`）には同じ種類のガードが無く、自分の id を自分の親として指すイベントがあれば「自分自身への返信」として一覧に混ざる。実際には起こらない —— Nostr の id はタグを含めたハッシュなので、これが起きるには id とタグの中身が一致するハッシュの不動点が要り、現実的な攻撃経路ではない。ただし祖先側だけに対称なガードがあるのに返信側に無いという非対称は、次に `threadSpine` を触る人のために書いておく価値がある。
 
-### 同じ `chevron-left-rounded` が 2 つの意味を持つ
+### 同じ `chevron-left-rounded` が 2 つの意味を持つ（実行: [#292](https://github.com/eyemono-moe/streets/issues/292)）
 
 カラムのヘッダー左端は、通常は「カラムを左へ移動」、そのカラムでスレッドを開いている間は「戻る」に差し替わる —— どちらも同じアイコン（`i-material-symbols:chevron-left-rounded`）を使う（`DeckColumn.tsx:262`, `:278`）。1 カラムの中では `Show`/`fallback` で排他なので混乱しないが、複数カラムを並べたデッキでは、あるカラムの「戻る」が隣のカラムの「左へ移動」と横に並ぶ。
 
-### `thread-spine.ts` は変異テストの対象に含めなかった
+### `thread-spine.ts` は変異テストの対象に含めなかった（実行: [#293](https://github.com/eyemono-moe/streets/issues/293)）
 
 `thread-spine.ts` は純関数でテストも速く、[ADR-0029](../adr/0029-mutation-testing-for-build-and-write.md) が `src/core/nostr/build/` と `src/core/write/` に導入したのと同じ扱いに値する。それでも範囲は広げなかった —— ADR-0029 を書いた直後であり、まず今の範囲での運用感を見てから対象を広げるべきだと判断した。
 
 ### 最終ブランチレビューの繰延事項（2026-08-23 fix wave）
+
+実行: [#294](https://github.com/eyemono-moe/streets/issues/294) / [#295](https://github.com/eyemono-moe/streets/issues/295)
 
 whole-branch レビューで見つかった Critical 1 件・Important 5 件に対応した fix wave。直したものはコミット履歴（`fix(v1):` で始まる一連のコミット）を参照。ここには、直せなかった・直さないと決めた残りだけを書く。
 
@@ -712,7 +720,7 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 ## 通知（2026-08-25 の通知カラムの設計で繰延）
 
-### 通知カラムの警告が 2 件同時に出ると、片方が嘘になる
+### 通知カラムの警告が 2 件同時に出ると、片方が嘘になる（実行: [#296](https://github.com/eyemono-moe/streets/issues/296)）
 
 `column-alerts.ts` の「あなたの設定した read リレーに接続できません」は
 `source.kind === "notifications" && unreachable > 0` だけで出る。**`viewerRelayListMissing`
@@ -734,7 +742,7 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 持ち込んだもので、規約上そのウェーブは 1 回きりなので繰延した（`docs/superpowers/specs/2026-08-25-notification-column-design.md` 6 節）。
 
 
-### 通知に kind:16（汎用リポスト）を含めること
+### 通知に kind:16（汎用リポスト）を含めること（実行: [#297](https://github.com/eyemono-moe/streets/issues/297)）
 
 **表示は既にできる。** `Repost.tsx` は kind:16 で `defaultRenderers` に登録済みなので、`NOTIFICATION_KINDS` に `16` を 1 つ足せばそれだけで通知に並ぶ。レンダラの追加も解析も要らない。
 
@@ -742,7 +750,7 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 **入れる条件**: v1 が長文（kind:30023 など）を作れるようになるか、あるいは kind:16 を e2e で意図どおり再現できるフィクスチャが組めるようになったとき。仕様は [通知カラムの設計](../superpowers/specs/2026-08-25-notification-column-design.md) 2.3 節。
 
-### 通知カラムの read リレーが 30 接続予算を無制限に食う
+### 通知カラムの read リレーが 30 接続予算を無制限に食う（実行: [#298](https://github.com/eyemono-moe/streets/issues/298)）
 
 `resolveSource` が返す `relays` は `explicitRelays` として扱われ、`subscription-manager.ts` は明示リレーを `selectRelays` の結果に左右されず全 URL 必ず開こうとする（「ユーザーが名指ししたリレーを予算都合で落とさない」ため）。これまで `explicitRelays` に入るのはユーザーが自分で打った URL か `FALLBACK_RELAYS`（3 本）だけで、件数はユーザーの手の内にあった。通知カラムは初めて外部が決めた無制限のリスト（自分の kind:10002 の read 全部）をここへ流し込む。
 
@@ -750,11 +758,11 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 **上限を設けなかった理由**: 「どの N 本を残すか」の基準が要るが、NIP-65 は `r` タグに順序の意味を与えていない。恣意的に切ると通知が実際に届いているリレーを落としうる。予算を食うことと、届く場所を黙って捨てることでは後者のほうが悪い。基準は人間の判断が要る。
 
-### settle 前に fallback の実在リレーへ一瞬購読する
+### settle 前に fallback の実在リレーへ一瞬購読する（実行: [#299](https://github.com/eyemono-moe/streets/issues/299)）
 
 `v1.tsx` の `readRelays` は `warmUp()` を依存に持つので、settle までは必ず `[]` を返し、`resolveSource` は `FALLBACK_RELAYS` を載せる。通知カラムが起動のたびに yabu.me / nos.lol / relay.damus.io へ `{kinds:[1,6,7],"#p":[自分]}` を投げ、settle 後に破棄して read リレーへ張り直す。read リレーを持っている利用者でも毎回起こる。害は接続の無駄と一瞬の内容差し替えで、数秒で自己修正する。直すには `ResolveContext` に settle 済みかどうかを足す必要がある。上の「30 接続予算」の項と重なる点に注意。
 
-### `readRelays` は warmUp の 1 回きりに固定される
+### `readRelays` は warmUp の 1 回きりに固定される（実行: [#300](https://github.com/eyemono-moe/streets/issues/300)）
 
 `readRelaysFor` は EventStore の同期読みでシグナルではなく、依存は `warmUp()` だけである。warmUp が終わった後に自分の kind:10002 が届く経路は事実上ない。したがって warmUp 時に取れなければそのセッションの間ずっと fallback のまま・警告も出っぱなしになる。`followees` と同じ制約で新規の欠陥ではないが、通知では「一生届かない」という結果になる点が重い。
 
