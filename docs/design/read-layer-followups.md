@@ -712,6 +712,28 @@ Outbox（後続 #1）が `seenRelays` をリレーヒントとして読み始め
 
 ## 通知（2026-08-25 の通知カラムの設計で繰延）
 
+### 通知カラムの警告が 2 件同時に出ると、片方が嘘になる
+
+`column-alerts.ts` の「あなたの設定した read リレーに接続できません」は
+`source.kind === "notifications" && unreachable > 0` だけで出る。**`viewerRelayListMissing`
+が真のときを除いていない。**
+
+自分の kind:10002 が引けず（`readRelayCount === 0`）、`resolveSource` が代わりに載せた
+`FALLBACK_RELAYS` の 3 本も到達不能、という状態で 2 件が同時に出る:
+
+1. 「リレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています」← 正しい
+2. 「あなたの設定した read リレーに接続できません」← **嘘**。不通なのはアプリ組み込みの fallback 3 本で、ユーザーが設定した read リレーは存在しない
+
+2 番の `action`（「kind:10002 の read リレーを確認してください」）も、存在しない設定の確認を促すことになる。
+
+**このブロックのコメント自身が「上の `viewerRelayListMissing` は真にならない (kind:10002 自体は
+引けている)」と書いているが、コードはその前提を強制していない。** 前提を述べたコメントと、
+それを守らないコードの組み合わせは、次に読む人を確実に誤らせる。
+
+直し方は条件に `&& !viewerRelayListMissing` を足すだけ。最終レビューの修正ウェーブが
+持ち込んだもので、規約上そのウェーブは 1 回きりなので繰延した（`docs/superpowers/specs/2026-08-25-notification-column-design.md` 6 節）。
+
+
 ### 通知に kind:16（汎用リポスト）を含めること
 
 **表示は既にできる。** `Repost.tsx` は kind:16 で `defaultRenderers` に登録済みなので、`NOTIFICATION_KINDS` に `16` を 1 つ足せばそれだけで通知に並ぶ。レンダラの追加も解析も要らない。
