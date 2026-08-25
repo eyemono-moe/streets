@@ -31,7 +31,7 @@ describe("buildColumn", () => {
   });
 
   it("hashtag と global はリポストを集めない", () => {
-    // 捕まえる変異: TIMELINE_KINDS を 4 種別すべてへ広げる。リポストは
+    // 捕まえる変異: TIMELINE_KINDS を全種別へ広げる。リポストは
     // 元イベントの t タグを引き継がないのでハッシュタグ列では何も増えず、
     // グローバル列は元から流量が多い (column-presets.ts のコメント)。
     const hashtag = buildColumn("hashtag", "#nostr")?.source;
@@ -118,6 +118,24 @@ describe("buildColumn", () => {
       filters: [{ kinds: [1] }],
       relays: [...FALLBACK_RELAYS],
     });
+  });
+
+  it("notifications は意図だけを保存する", () => {
+    // 捕まえる変異: フィルタや pubkey を焼き込む。read リレーを焼き込むと
+    // リレーを移したユーザーの通知列は作り直すまで古い場所を見続ける ——
+    // 2026-08-06 に「フォローしてもホーム列が反映されない」として実際に
+    // 起きた壊れ方と同型 (resolve-source.ts のコメント参照)。
+    expect(buildColumn("notifications", "")?.source).toEqual({
+      kind: "notifications",
+    });
+  });
+
+  it("notifications は入力を見ずに成功する", () => {
+    // 捕まえる変異: 入力を必須にする。AddColumnForm は NEEDS_INPUT が
+    // false の種別に入力欄を出さないので、必須にすると「押しても何も
+    // 起きないボタン」になる。
+    expect(buildColumn("notifications", "")).toBeDefined();
+    expect(buildColumn("notifications", "  ")).toBeDefined();
   });
 
   it("id は呼び出しごとに違う", () => {

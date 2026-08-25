@@ -793,6 +793,18 @@ const V1: Component = () => {
                     column={column}
                     manager={manager}
                     followees={() => warmUp()?.followees ?? []}
+                    viewer={pubkey() ?? ""}
+                    readRelays={() => {
+                      // `warmUp()` を読むのは依存を作るため ——
+                      // `routing.readRelaysFor` は EventStore を同期的に
+                      // 読むだけでシグナルではないので、これが無いと
+                      // 自分の kind:10002 が届いてもこの memo が再計算
+                      // されず、通知カラムは fallback を見たままになる。
+                      warmUp();
+                      const pk = pubkey();
+                      return pk ? routing.readRelaysFor(pk) : [];
+                    }}
+                    relayListSettled={() => warmUp() !== undefined}
                     optimisticEvents={optimisticEvents}
                     onHasItems={() => onColumnHasItems(column.id)}
                     firstRenderMs={() => firstRenderMsByColumn()[column.id]}

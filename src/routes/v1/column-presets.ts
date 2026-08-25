@@ -2,11 +2,16 @@ import { type ColumnDef, TIMELINE_KINDS } from "../../core/deck/deck";
 import { decodeNpub, encodeBech32 } from "../../core/nostr/nip19";
 import { FALLBACK_RELAYS } from "../../core/read/default-relays";
 
-export type ColumnPresetKind = "home" | "user" | "hashtag" | "global";
+export type ColumnPresetKind =
+  | "home"
+  | "notifications"
+  | "user"
+  | "hashtag"
+  | "global";
 
 /**
  * 追加フォームの入力から `ColumnDef` を作る。**UI から分けてあるのは、
- * 4 種別が正しい `ColumnSource` を作るかどうかをブラウザ無しで固定する
+ * 各種別が正しい `ColumnSource` を作るかどうかをブラウザ無しで固定する
  * ため。** 種別ごとに読み取り層の別々の経路を通す (仕様 4 節) ので、
  * ここを間違えると「カラムは出来たが何も来ない」という、原因の遠い
  * 壊れ方になる。
@@ -74,5 +79,10 @@ export const buildColumn = (
           relays: [...FALLBACK_RELAYS],
         },
       };
+
+    case "notifications":
+      // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、
+      // `resolveSource` が解決のたびに最新の値で組み立てる (仕様 4.1 節)。
+      return { id, title: "通知", source: { kind: "notifications" } };
   }
 };

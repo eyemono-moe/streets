@@ -10,7 +10,8 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
  */
 export type ColumnSource =
   | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
-  | { kind: "followees"; kinds: number[] };
+  | { kind: "followees"; kinds: number[] }
+  | { kind: "notifications" };
 
 export type ColumnDef = { id: string; title: string; source: ColumnSource };
 
@@ -35,6 +36,21 @@ export type ColumnDef = { id: string; title: string; source: ColumnSource };
  * 流量が多いので足す判断は別に要る。
  */
 export const TIMELINE_KINDS: readonly number[] = [1, 6];
+
+/**
+ * 通知カラムが集める kind (仕様 2 節)。
+ *
+ * kind:16 (汎用リポスト) を入れないのは、表示できないからではない ——
+ * `Repost.tsx` は 16 で登録済みで、ここに 16 と書けばそれだけで並ぶ。
+ * 対象が kind:1 以外 (長文など) で v1 はまだそれを作れず、開発中に自分で
+ * 再現できないため e2e で動作を確かめられない
+ * (`docs/design/read-layer-followups.md`「通知に kind:16 を含めること」)。
+ *
+ * `TIMELINE_KINDS` が 16 を外す理由 (短文の列へ長文を混ぜない) とは別の
+ * 判断であることに注意 —— 通知は種類を混ぜる場所なので、あちらの理由は
+ * ここには効かない。
+ */
+export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7];
 
 /**
  * `version` は ADR-0013 の NIP-78 移行のために残す。バージョンを持たない
@@ -171,6 +187,9 @@ const columnSourceSchema = v.variant("kind", [
   v.object({
     kind: v.literal("followees"),
     kinds: v.array(v.number()),
+  }),
+  v.object({
+    kind: v.literal("notifications"),
   }),
 ]);
 

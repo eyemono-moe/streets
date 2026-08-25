@@ -1,5 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { resolveSource } from "./resolve-source";
+import { FALLBACK_RELAYS } from "../read/default-relays";
+import { type ResolveContext, resolveSource } from "./resolve-source";
+
+const VIEWER = "f".repeat(64);
+
+const ctx = (over: Partial<ResolveContext> = {}): ResolveContext => ({
+  followees: () => [],
+  viewer: VIEWER,
+  readRelays: () => [],
+  ...over,
+});
 
 describe("resolveSource", () => {
   it("literal は filters をそのまま渡す", () => {
@@ -7,7 +17,7 @@ describe("resolveSource", () => {
     expect(
       resolveSource(
         { kind: "literal", filters: [{ kinds: [1], authors: ["abc"] }] },
-        { followees: () => ["zzz"] },
+        ctx({ followees: () => ["zzz"] }),
       ),
     ).toEqual({ type: "nostr", filters: [{ kinds: [1], authors: ["abc"] }] });
   });
@@ -20,14 +30,14 @@ describe("resolveSource", () => {
     expect(
       resolveSource(
         { kind: "literal", filters: [{ kinds: [1] }] },
-        { followees: () => [] },
+        ctx({ followees: () => [] }),
       ),
     ).not.toHaveProperty("relays");
 
     expect(
       resolveSource(
         { kind: "literal", filters: [{ kinds: [1] }], relays: ["wss://a/"] },
-        { followees: () => [] },
+        ctx({ followees: () => [] }),
       ),
     ).toEqual({
       type: "nostr",
@@ -42,7 +52,7 @@ describe("resolveSource", () => {
     expect(
       resolveSource(
         { kind: "followees", kinds: [1] },
-        { followees: () => ["a", "b"] },
+        ctx({ followees: () => ["a", "b"] }),
       ),
     ).toEqual({
       type: "nostr",
@@ -55,7 +65,10 @@ describe("resolveSource", () => {
     // (`{ kinds: [1] }` は「誰の投稿でもよい」= firehose。フォロー 0 人の
     // 新規ユーザーのホーム列が、本物のリレーへの無制限購読になる)
     expect(
-      resolveSource({ kind: "followees", kinds: [1] }, { followees: () => [] }),
+      resolveSource(
+        { kind: "followees", kinds: [1] },
+        ctx({ followees: () => [] }),
+      ),
     ).toEqual({ type: "nostr", filters: [{ kinds: [1], authors: [] }] });
   });
 
@@ -66,7 +79,7 @@ describe("resolveSource", () => {
     const followees = ["a"];
     const resolved = resolveSource(
       { kind: "followees", kinds: [1] },
-      { followees: () => followees },
+      ctx({ followees: () => followees }),
     );
     followees.push("b");
     expect(resolved.filters[0].authors).toEqual(["a"]);
@@ -85,7 +98,7 @@ describe("resolveSource", () => {
     const followees = vi.fn(() => ["zzz"]);
     resolveSource(
       { kind: "literal", filters: [{ kinds: [1] }] },
-      { followees },
+      ctx({ followees }),
     );
     expect(followees).not.toHaveBeenCalled();
   });
@@ -95,7 +108,58 @@ describe("resolveSource", () => {
     // (例えば空配列) を使う退行。これが起きるとホーム列が最新のフォロー
     // リストを反映しなくなる
     const followees = vi.fn(() => ["a"]);
-    resolveSource({ kind: "followees", kinds: [1] }, { followees });
+    resolveSource({ kind: "followees", kinds: [1] }, ctx({ followees }));
     expect(followees).toHaveBeenCalled();
+  });
+
+  it("notifications は自分宛を read リレーで待つ", () => {
+    // 捕まえる変異: `#p` に viewer ではなく空配列を入れる (誰にもマッチ
+    // しないカラムになる) / kinds を [1] だけにする (リアクションと
+    // リポストの通知が丸ごと消える)
+    expect(
+      resolveSource(
+        { kind: "notifications" },
+        ctx({ readRelays: () => ["wss://inbox/"] }),
+      ),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      relays: ["wss://inbox/"],
+    });
+  });
+
+  it("read リレーが 0 本なら fallback へ落とす", () => {
+    // 捕まえる変異: `relays: []` をそのまま載せる。空配列は
+    // 「リレー 0 本の明示指定」として扱われるので、通知が永久に来ない
+    // カラムが黙って出来上がる (`authors: []` と同じ罠)。
+    expect(
+      resolveSource({ kind: "notifications" }, ctx({ readRelays: () => [] })),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      relays: [...FALLBACK_RELAYS],
+    });
+  });
+
+  it("readRelays は notifications の分岐でだけ呼ばれる", () => {
+    // 捕まえる変異: 分岐の外 (関数の先頭など) で `context.readRelays()` を
+    // 呼ぶ。**動作としては正しいままなので、他のどのテストも落ちない** ——
+    // 落ちるのは実行時の挙動で、`literal` 列の source memo が warmUp の
+    // リソースを依存として記録し、ウォームアップが settle するたびに
+    // 全カラムの SectionReader が破棄・再作成される。同型の事故が
+    // `followees` で一度起きている (resolve-source.ts のコメント参照)。
+    const readRelays = vi.fn(() => []);
+
+    resolveSource(
+      { kind: "literal", filters: [{ kinds: [1] }] },
+      ctx({ readRelays }),
+    );
+    expect(readRelays).not.toHaveBeenCalled();
+
+    resolveSource({ kind: "followees", kinds: [1] }, ctx({ readRelays }));
+    expect(readRelays).not.toHaveBeenCalled();
+
+    resolveSource({ kind: "notifications" }, ctx({ readRelays }));
+    expect(readRelays).toHaveBeenCalledTimes(1);
   });
 });

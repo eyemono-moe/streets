@@ -1,5 +1,7 @@
+import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
-import type { ColumnSource } from "./deck";
+import type { RelayUrl } from "../relay/relay-connection";
+import { type ColumnSource, NOTIFICATION_KINDS } from "./deck";
 
 /**
  * `followees` を遅延アクセサにしているのは、呼び出し側 (`DeckColumn.tsx`)
@@ -15,7 +17,24 @@ import type { ColumnSource } from "./deck";
  * `followees` を呼び出すのを `kind === "followees"` の分岐の中だけに
  * 限定すれば、その分岐を実際に評価したときだけ依存が生まれる。
  */
-export type ResolveContext = { followees: () => readonly string[] };
+export type ResolveContext = {
+  followees: () => readonly string[];
+  /**
+   * 現在の閲覧者。`notifications` の `#p` の値になる。
+   *
+   * 遅延アクセサにしないのは `followees` / `readRelays` と違ってこれが
+   * 「変わる値」ではないため —— ログイン中は固定で、同期的に読めるので、
+   * どの分岐で読んでも再購読を招かない。
+   */
+  viewer: string;
+  /**
+   * 閲覧者の NIP-65 read リレー。`followees` と同じ理由で遅延アクセサに
+   * している —— これを `kind: "notifications"` の分岐の外で呼ぶと、
+   * `literal` 列の解決でも warmUp のリソースを読んだことになり、
+   * ウォームアップが settle するたびに全カラムが再購読される。
+   */
+  readRelays: () => readonly RelayUrl[];
+};
 
 /**
  * デッキが保存している「意図」(`ColumnSource`) を、読み取り層が理解する
@@ -36,6 +55,24 @@ export const resolveSource = (
     return {
       type: "nostr",
       filters: [{ kinds: source.kinds, authors: [...context.followees()] }],
+    };
+  }
+
+  if (source.kind === "notifications") {
+    // `#p` フィルタには `authors` が無いので Outbox でルーティングできない
+    // (`query-plan.ts`: 著者を指定していないフィルタは fallback へ同報)。
+    // NIP-65 は publish 側に「`#p` で指した相手の read リレーへも送る」を
+    // SHOULD で求めているので、待ち受けるべきはそこ ——
+    // `docs/design/notification-relay-selection.md` に原文と各クライアントの
+    // 実態を残してある。
+    const relays = context.readRelays();
+    return {
+      type: "nostr",
+      filters: [{ kinds: [...NOTIFICATION_KINDS], "#p": [context.viewer] }],
+      // 空を素通しにしない。`authors: []` と同じ罠で、空配列は「該当なし」
+      // であって「未指定」ではない —— `relays: []` は「リレー 0 本の明示
+      // 指定」として扱われ、通知が永久に来ない。
+      relays: relays.length > 0 ? [...relays] : [...FALLBACK_RELAYS],
     };
   }
 

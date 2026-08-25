@@ -2,11 +2,13 @@ import { Show, createEffect, createMemo, createSignal } from "solid-js";
 import type { Component } from "solid-js";
 import { columnAlerts } from "../../core/deck/column-alerts";
 import type { ColumnDef } from "../../core/deck/deck";
+import { excludeOwnActions } from "../../core/deck/notification-filter";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
+import type { RelayUrl } from "../../core/relay/relay-connection";
 import { createSection } from "../../core/solid/create-section";
 import { createThreadSource } from "../../core/solid/create-thread-source";
 import { useRender } from "../../core/view/render-context";
@@ -53,6 +55,26 @@ const DeckColumn: Component<{
    */
   followees: () => readonly string[];
   /**
+   * 現在の閲覧者。`source` が `kind: "notifications"` のとき
+   * `resolveSource` がこれを `#p` へ展開する。
+   */
+  viewer: string;
+  /**
+   * 閲覧者の NIP-65 read リレー。通知カラムの購読先になる
+   * (仕様 3 節)。デッキはこれを焼き込まないので、リレー設定を変えれば
+   * 呼び出し元がこの関数を最新の値で呼び直すだけで反映される。
+   */
+  readRelays: () => readonly RelayUrl[];
+  /**
+   * 閲覧者のリレー設定 (kind:10002) の取得が片付いたか。
+   *
+   * `readRelays()` が空でも、それが「設定が無い」のか「まだ届いていない」
+   * のかはここでしか区別できない。区別しないと、起動直後に必ず
+   * 「リレー設定が見つからない」が一瞬光って消える —— まだ存在しない劣化を
+   * 確定した事実として見せることになる。
+   */
+  relayListSettled: () => boolean;
+  /**
    * 投稿フォームが署名直後に楽観挿入した、まだリレーから戻って
    * きていない自分の投稿。`SectionReader` は購読経由でしか items を更新
    * できない (`store.put()` を直接呼んでも拾わない) ので、表示側でこの
@@ -94,9 +116,11 @@ const DeckColumn: Component<{
     // コメント参照)。ここで `props.followees()` と呼んで値を渡してしまうと、
     // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
     // を読んだことになり、ウォームアップが settle するたびに全カラムが
-    // 再購読される (最終レビュー Important 1)。
+    // 再購読される (最終レビュー Important 1)。`readRelays` も同じ扱い。
     const resolved = resolveSource(props.column.source, {
       followees: props.followees,
+      viewer: props.viewer,
+      readRelays: props.readRelays,
     });
     // `?relays=` の e2e 上書きは**解決した後**に当てる —— 上書きが見るのは
     // `NostrSource.relays` であって `ColumnSource` ではない。順序を逆に
@@ -139,7 +163,14 @@ const DeckColumn: Component<{
   const threadSource = createThreadSource({
     focusId,
     store,
-    columnRelays: () => source().relays,
+    // 通知カラムの relays は「自分宛が配送される場所 (inbox)」であって
+    // 「スレッドの祖先が置いてある場所」ではない。渡すと
+    // `create-thread-source` がそれを唯一の購読先として narrow し、
+    // 自分宛でない祖先 (自分の元ノートを含む) が永久に取れなくなる。
+    columnRelays: () =>
+      props.column.source.kind === "notifications"
+        ? undefined
+        : source().relays,
     relaysOverride: RELAYS_OVERRIDE,
   });
 
@@ -161,7 +192,12 @@ const DeckColumn: Component<{
   // バッジが黙ったままになり、developer mode でしか気付けない
   // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
   const alerts = createMemo(() =>
-    columnAlerts(props.column, activeSection().status()),
+    columnAlerts(props.column, activeSection().status(), {
+      // 「設定が無い」のか「まだ届いていない」のかの判定 (settle のゲート)
+      // は `columnAlerts` 側へ集約済み —— ここでは値を渡すだけ。
+      relayListSettled: props.relayListSettled(),
+      readRelayCount: props.readRelays().length,
+    }),
   );
 
   /**
@@ -185,7 +221,14 @@ const DeckColumn: Component<{
         (event) =>
           !knownIds.has(event.id) && matchesAnyFilter(event, source().filters),
       );
-    return [...optimistic, ...fromSection];
+    const merged = [...optimistic, ...fromSection];
+    // 通知列でだけ自分の行動を落とす (仕様 2.2 節)。**捨てるのはセクションが
+    // 保持した後**なので、保持上限 200 件は捨てる前の件数で数えている ——
+    // 自分の行動が多いと見える件数がそのぶん減る。仕様 5.1 節がこの代償を
+    // 受け入れた判断として記録している。
+    return props.column.source.kind === "notifications"
+      ? excludeOwnActions(merged, props.viewer)
+      : merged;
   });
 
   // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
