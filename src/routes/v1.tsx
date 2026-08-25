@@ -5,6 +5,7 @@ import {
   createResource,
   createSignal,
   onCleanup,
+  onMount,
 } from "solid-js";
 import type { Component } from "solid-js";
 import {
@@ -26,7 +27,16 @@ import {
   loadDeveloperMode,
   saveDeveloperMode,
 } from "../core/settings/developer-mode";
+import { createActiveSigner } from "../core/signer/active-signer";
 import { createNip07Signer } from "../core/signer/nip07-signer";
+import { parseBunkerUri } from "../core/signer/nip46/bunker-uri";
+import type { Nip46Session } from "../core/signer/nip46/session";
+import { connectNip46, restoreNip46 } from "../core/signer/nip46/session";
+import {
+  NIP46_SESSION_STORAGE_KEY,
+  loadNip46Session,
+  saveNip46Session,
+} from "../core/signer/nip46/session-storage";
 import { SignerUnavailableError } from "../core/signer/signer";
 import { RenderProvider } from "../core/view/render-context";
 import { fetchLatest } from "../core/write/fetch-latest";
@@ -91,6 +101,11 @@ const V1: Component = () => {
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
   const [deck, setDeck] = createSignal<Deck>();
+  const [bunkerUri, setBunkerUri] = createSignal("");
+  const [authUrl, setAuthUrl] = createSignal<URL>();
+  const activeSigner = createActiveSigner();
+  let nip46Session: Nip46Session | undefined;
+  onCleanup(() => nip46Session?.client.close());
 
   /**
    * pubkey が確定した時点から、いずれかのカラムに最初のノートが描画される
@@ -188,7 +203,7 @@ const V1: Component = () => {
   // 読み取り層と共有する (ConnectionPool を publish 専用にもう一系統
   // 持たないのと同じ理由)。
   const writer = createWriter({
-    signer: createNip07Signer(),
+    signer: activeSigner,
     store,
     publisher,
     pubkey: () => {
@@ -403,6 +418,10 @@ const V1: Component = () => {
       // 見たいのはログイン後の描画コストであり、拡張機能側の待ち時間まで
       // 混ぜると何のボトルネックを指しているか分からなくなる。
       loginStartMs = performance.now();
+      nip46Session?.client.close();
+      nip46Session = undefined;
+      window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+      activeSigner.set(signer);
       setPubkey(pk);
     } catch (error) {
       setErrorMessage(
@@ -413,6 +432,82 @@ const V1: Component = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const activateNip46 = (session: Nip46Session) => {
+    nip46Session?.client.close();
+    nip46Session = session;
+    activeSigner.set(session.signer);
+    loginStartMs = performance.now();
+    setPubkey(session.userPubkey);
+    window.localStorage.setItem(
+      NIP46_SESSION_STORAGE_KEY,
+      saveNip46Session(session.stored),
+    );
+  };
+
+  const nip46Hooks = {
+    onAuthUrl: (url: URL | undefined) => setAuthUrl(url),
+  };
+
+  const loginWithBunker = async () => {
+    setLoading(true);
+    setErrorMessage(undefined);
+    setAuthUrl(undefined);
+    try {
+      const session = await connectNip46({
+        pool: manager.pool,
+        bunker: parseBunkerUri(bunkerUri()),
+        hooks: nip46Hooks,
+        metadataUrl: window.location.origin,
+      });
+      activateNip46(session);
+      setBunkerUri("");
+    } catch (error) {
+      setErrorMessage(
+        `リモート署名器への接続に失敗しました: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  onMount(() => {
+    const stored = loadNip46Session(
+      window.localStorage.getItem(NIP46_SESSION_STORAGE_KEY),
+    );
+    if (!stored) return;
+    setLoading(true);
+    void restoreNip46({ pool: manager.pool, stored, hooks: nip46Hooks })
+      .then(activateNip46)
+      .catch(() => {
+        window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+        setErrorMessage(
+          "リモート署名器との接続を復元できませんでした。新しい bunker URI で接続してください。",
+        );
+      })
+      .finally(() => setLoading(false));
+  });
+
+  const logout = async () => {
+    const session = nip46Session;
+    activeSigner.set(undefined);
+    nip46Session = undefined;
+    setPubkey(undefined);
+    setDeck(undefined);
+    setAuthUrl(undefined);
+    window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+    if (!session) return;
+    try {
+      await Promise.race([
+        session.client.request("logout"),
+        new Promise((resolve) => setTimeout(resolve, 5_000)),
+      ]);
+    } catch {
+      // logout RPC は courtesy hint。ローカル資格情報は上で既に削除している。
+    } finally {
+      session.client.close();
     }
   };
 
@@ -557,6 +652,13 @@ const V1: Component = () => {
               >
                 {pubkey()}
               </p>
+              <Button
+                data-testid="logout"
+                variant="border"
+                onClick={() => void logout()}
+              >
+                ログアウト
+              </Button>
               {/*
                 ADR-0026: connections/peakConnections/optimisticInsertMs/
                 unrequestedEventsByRelay はどれも行動できない診断値であり、
@@ -674,9 +776,44 @@ const V1: Component = () => {
             </div>
           }
         >
-          <Button data-testid="login" disabled={loading()} onClick={login}>
-            {loading() ? "確認中…" : "NIP-07 でログイン"}
-          </Button>
+          <div class="flex max-w-xl flex-col gap-3">
+            <Button data-testid="login" disabled={loading()} onClick={login}>
+              {loading() ? "確認中…" : "NIP-07 でログイン"}
+            </Button>
+
+            <form
+              class="flex flex-col gap-2 rounded-2 border border-alpha-300 p-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loginWithBunker();
+              }}
+            >
+              <label for="bunker-uri" class="text-sm">
+                リモート署名器でログイン
+              </label>
+              <p class="text-alpha-600 text-xs">
+                秘密鍵ではなく、署名器が発行した bunker://
+                から始まる接続情報を貼り付けてください。
+              </p>
+              <input
+                id="bunker-uri"
+                data-testid="bunker-uri"
+                type="password"
+                autocomplete="off"
+                spellcheck={false}
+                class="rounded-2 border border-alpha-300 bg-alpha-50 p-2 text-sm"
+                value={bunkerUri()}
+                onInput={(event) => setBunkerUri(event.currentTarget.value)}
+              />
+              <Button
+                data-testid="bunker-login"
+                type="submit"
+                disabled={loading() || bunkerUri().trim() === ""}
+              >
+                {loading() ? "接続中…" : "bunker でログイン"}
+              </Button>
+            </form>
+          </div>
 
           <Show when={errorMessage()}>
             {(message) => (
@@ -688,6 +825,23 @@ const V1: Component = () => {
               </p>
             )}
           </Show>
+        </Show>
+
+        <Show when={authUrl()}>
+          {(url) => (
+            <p class="rounded-2 border border-yellow-6 bg-yellow-4/10 p-3 text-sm">
+              リモート署名器で追加の承認が必要です。{" "}
+              <a
+                data-testid="nip46-auth-url"
+                class="underline"
+                href={url().toString()}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                承認画面を開く
+              </a>
+            </p>
+          )}
         </Show>
       </header>
 
