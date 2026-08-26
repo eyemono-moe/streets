@@ -129,6 +129,7 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                         <input
                           class="h-9 w-full rounded-2 border border-primary bg-secondary px-3 text-body outline-none focus:border-accent-5"
                           data-testid="relay-url-input"
+                          disabled={relays.saving()}
                           placeholder="wss://relay.example"
                           spellcheck={false}
                           value={newRelay()}
@@ -140,7 +141,7 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                       <Button
                         data-testid="relay-add"
                         type="submit"
-                        disabled={newRelay().trim() === ""}
+                        disabled={relays.saving() || newRelay().trim() === ""}
                       >
                         追加
                       </Button>
@@ -175,6 +176,7 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                               <ToggleGroup.Root
                                 aria-label={`${entry.url} の用途`}
                                 class="flex overflow-hidden rounded-2 border border-primary"
+                                disabled={relays.saving()}
                                 multiple
                                 value={[
                                   ...(entry.read ? ["read"] : []),
@@ -214,6 +216,7 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                                 aria-label={`${entry.url} を削除`}
                                 class="grid h-8 w-8 appearance-none place-items-center rounded-full bg-transparent text-red-7 enabled:cursor-pointer enabled:hover:bg-red-4/15 dark:text-red-4"
                                 data-testid="relay-remove"
+                                disabled={relays.saving()}
                                 type="button"
                                 onClick={() => relays.remove(entry.url)}
                               >

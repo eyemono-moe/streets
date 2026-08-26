@@ -120,6 +120,30 @@ describe("publish", () => {
     expect(result.event.created_at).toBeLessThanOrEqual(after);
   });
 
+  it("追加送信先を指定しなければ空配列を Publisher へ渡す", async () => {
+    // 捕まえる変異: additionalRelays の既定値に実在しない送信先を
+    // 入れ、通常投稿まで不要なリレーへ送る。
+    let additional: readonly RelayUrl[] | undefined;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () => [],
+        publish: async (_event, options) => {
+          additional = options?.additionalRelays;
+          return ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.publish({ kind: 1, tags: [], content: "hi" });
+
+    expect(additional).toEqual([]);
+  });
+
   it("pubkey と created_at を押す", async () => {
     // 捕まえる変異: created_at を押さず undefined のまま署名へ渡す
     const { writer } = setup(ok);
@@ -492,5 +516,165 @@ describe("replace", () => {
     }));
 
     expect(additional).toEqual([["wss://old/"]]);
+  });
+
+  it("部分失敗した旧 publish 先を次回の replace でも再試行する", async () => {
+    // 捕まえる変異: 部分成功時の rejected を保持しない。kind:10002 の
+    // 楽観挿入後は旧リレーが routing から消え、次回は二度と送られない。
+    const additional: (readonly RelayUrl[])[] = [];
+    let targetCall = 0;
+    let publishCall = 0;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () => (targetCall++ === 0 ? ["wss://old/"] : ["wss://new/"]),
+        publish: async (_event, options) => {
+          additional.push(options?.additionalRelays ?? []);
+          publishCall += 1;
+          return publishCall === 1
+            ? {
+                accepted: ["wss://new/"],
+                rejected: [
+                  { relay: "wss://old/", reason: "temporarily unavailable" },
+                  {
+                    relay: "wss://unrelated/",
+                    reason: "not a previous target",
+                  },
+                ],
+              }
+            : ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+    const mutate = () => ({
+      kind: 10002,
+      tags: [["r", "wss://new/", "write"]],
+      content: "",
+    });
+
+    await writer.replace(10002, undefined, mutate);
+    await writer.replace(10002, undefined, mutate);
+    await writer.replace(10002, undefined, mutate);
+
+    expect(additional).toEqual([
+      ["wss://old/"],
+      ["wss://new/", "wss://old/"],
+      ["wss://new/"],
+    ]);
+  });
+
+  it("全滅した旧 publish 先も次回の replace で再試行する", async () => {
+    // 捕まえる変異: WriteFailedError で投げる経路で、失敗した
+    // 旧送信先を保持しない。次回の保存が新リレーだけに送られる。
+    const additional: (readonly RelayUrl[])[] = [];
+    let targetCall = 0;
+    let publishCall = 0;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () => (targetCall++ === 0 ? ["wss://old/"] : ["wss://new/"]),
+        publish: async (_event, options) => {
+          additional.push(options?.additionalRelays ?? []);
+          publishCall += 1;
+          return publishCall === 1
+            ? {
+                accepted: [],
+                rejected: [
+                  { relay: "wss://old/", reason: "temporarily unavailable" },
+                  {
+                    relay: "wss://unrelated/",
+                    reason: "not a previous target",
+                  },
+                ],
+              }
+            : ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+    const mutate = () => ({ kind: 10002, tags: [], content: "" });
+
+    await expect(writer.replace(10002, undefined, mutate)).rejects.toThrow(
+      WriteFailedError,
+    );
+    await writer.replace(10002, undefined, mutate);
+
+    expect(additional).toEqual([["wss://old/"], ["wss://new/", "wss://old/"]]);
+  });
+
+  it("WriteFailedError 以外の例外をそのまま伝播する", async () => {
+    // 捕まえる変異: すべての例外を WriteFailedError とみなし、
+    // `rejected` を読もうとして元の署名エラーを握り潰す。
+    const cause = new Error("signing denied");
+    const writer = createWriter({
+      signer: {
+        getPublicKey: async () => PUBKEY,
+        signEvent: async () => {
+          throw cause;
+        },
+      },
+      store: new EventStore(),
+      publisher: stubPublisher(async () => ok, ["wss://old/"]),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await expect(
+      writer.replace(10002, undefined, () => ({
+        kind: 10002,
+        tags: [],
+        content: "",
+      })),
+    ).rejects.toBe(cause);
+  });
+
+  it("保留した旧 publish 先を別 kind の replace へ混ぜない", async () => {
+    // 捕まえる変異: 置換対象のキーを空にし、ある kind の失敗先を
+    // 無関係な置換可能イベントの送信先にも混ぜる。
+    const additional: (readonly RelayUrl[])[] = [];
+    let targetCall = 0;
+    let publishCall = 0;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () =>
+          targetCall++ === 0 ? ["wss://old/"] : ["wss://current/"],
+        publish: async (_event, options) => {
+          additional.push(options?.additionalRelays ?? []);
+          publishCall += 1;
+          return publishCall === 1
+            ? {
+                accepted: ["wss://current/"],
+                rejected: [{ relay: "wss://old/", reason: "partial" }],
+              }
+            : ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.replace(10002, undefined, () => ({
+      kind: 10002,
+      tags: [],
+      content: "",
+    }));
+    await writer.replace(3, undefined, () => ({
+      kind: 3,
+      tags: [],
+      content: "",
+    }));
+
+    expect(additional).toEqual([["wss://old/"], ["wss://current/"]]);
   });
 });

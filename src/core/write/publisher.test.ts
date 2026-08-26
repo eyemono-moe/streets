@@ -145,16 +145,21 @@ describe("createPublisher", () => {
 
   it("targets は現在の解決結果をコピーして返す", () => {
     // 捕まえる変異: write リレーが無いとき空配列を返す。Writer.replace が
-    // 楽観挿入前の fallback を保持できなくなる。
+    // 楽観挿入前の fallback を保持できなくなる。または、write
+    // リレーがあるのに fallback を返す。
+    const store = new EventStore();
+    const author = relayListEvent(10, [["r", "wss://write/", "write"]]);
+    store.put(author, "wss://indexer/");
     const publisher = createPublisher({
       pool: poolWithFakes(new Map()),
-      routing: new RoutingTable(new EventStore()),
+      routing: new RoutingTable(store),
       fallbackRelays: ["wss://fallback/"],
     });
 
-    const targets = publisher.targets("f".repeat(64));
+    const targets = publisher.targets(author.pubkey);
     targets.push("wss://mutated/");
 
+    expect(publisher.targets(author.pubkey)).toEqual(["wss://write/"]);
     expect(publisher.targets("f".repeat(64))).toEqual(["wss://fallback/"]);
   });
 

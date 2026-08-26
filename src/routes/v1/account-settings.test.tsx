@@ -4,6 +4,7 @@ import type { Mutation } from "../../core/nostr/build/draft";
 import type { NostrEvent } from "../../core/nostr/event";
 import type { ReplaceableChange } from "../../core/read/event-store";
 import type { RelayUrl } from "../../core/relay/relay-connection";
+import type { WriteResult } from "../../core/write/writer";
 import { createAccountSettings } from "./account-settings";
 
 const PUBKEY = "f".repeat(64);
@@ -28,7 +29,7 @@ const setup = (initial?: NostrEvent) => {
       _kind: number,
       _identifier: string | undefined,
       _mutation: Mutation,
-    ) => ({
+    ): Promise<WriteResult> => ({
       event: event([]),
       accepted: ["wss://one/" as RelayUrl],
       rejected: [],
@@ -184,6 +185,89 @@ describe("アカウント設定", () => {
             expect(settings.relayList.dirty()).toBe(true);
             expect(settings.relayList.draft()).toHaveLength(1);
             expect(settings.relayList.error()).toContain("relay rejected");
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
+  it("一部リレーへの保存失敗でも dirty を残す", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: accepted が1本あれば rejected を無視して
+            // 保存済みにし、旧リレーに旧版が残ったことを隠す。
+            const { settings, setPubkey, setSettled, replace } = setup();
+            setPubkey(PUBKEY);
+            setSettled(true);
+            settings.relayList.add("wss://one/");
+            replace.mockResolvedValueOnce({
+              event: event([]),
+              accepted: ["wss://one/" as RelayUrl],
+              rejected: [
+                {
+                  relay: "wss://old/" as RelayUrl,
+                  reason: "temporarily unavailable",
+                },
+              ],
+            });
+
+            await settings.relayList.save();
+
+            expect(settings.relayList.dirty()).toBe(true);
+            expect(settings.relayList.error()).toContain("1 本");
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
+  it("保存中は draft を変更しない", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: 保存中も add/toggle/remove を受け付け、送信対象に
+            // 入らない編集を成功時の current 同期で消す。
+            const { settings, setPubkey, setSettled, replace } = setup();
+            setPubkey(PUBKEY);
+            setSettled(true);
+            settings.relayList.add("wss://one/");
+            let finishReplace = () => {};
+            replace.mockImplementationOnce(
+              () =>
+                new Promise((resolveReplace) => {
+                  finishReplace = () =>
+                    resolveReplace({
+                      event: event([]),
+                      accepted: ["wss://one/" as RelayUrl],
+                      rejected: [],
+                    });
+                }),
+            );
+
+            const saving = settings.relayList.save();
+            expect(settings.relayList.saving()).toBe(true);
+            expect(settings.relayList.add("wss://two/")).toBe(false);
+            settings.relayList.toggle("wss://one/", "write");
+            settings.relayList.remove("wss://one/");
+            expect(settings.relayList.draft()).toEqual([
+              { url: "wss://one/", read: true, write: true },
+            ]);
+
+            finishReplace();
+            await saving;
             resolve();
           } catch (error) {
             reject(error);

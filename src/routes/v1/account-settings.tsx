@@ -65,6 +65,7 @@ export const createAccountSettings = (
 ): AccountSettings => {
   const [version, setVersion] = createSignal(0);
   const [draft, setDraft] = createSignal<RelayListEntry[]>([]);
+  const [draftRevision, setDraftRevision] = createSignal(0);
   const [dirty, setDirty] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
@@ -87,6 +88,7 @@ export const createAccountSettings = (
     if (pubkey !== previousPubkey) {
       previousPubkey = pubkey;
       setDraft(entriesFor(state));
+      setDraftRevision((value) => value + 1);
       setDirty(false);
       setError(undefined);
       return;
@@ -108,6 +110,7 @@ export const createAccountSettings = (
 
   const changeDraft = (next: RelayListEntry[]) => {
     setDraft(next);
+    setDraftRevision((value) => value + 1);
     setDirty(true);
     setError(undefined);
   };
@@ -119,6 +122,7 @@ export const createAccountSettings = (
     saving,
     error,
     add(rawUrl) {
+      if (saving()) return false;
       const url = normalizeRelayUrl(rawUrl.trim());
       if (!url) {
         setError("ws:// または wss:// で始まるリレー URL を入力してください");
@@ -132,6 +136,7 @@ export const createAccountSettings = (
       return true;
     },
     toggle(url, direction) {
+      if (saving()) return;
       const next = draft().map((entry) => {
         if (entry.url !== url) return entry;
         const toggled = { ...entry, [direction]: !entry[direction] };
@@ -154,17 +159,20 @@ export const createAccountSettings = (
       }
     },
     remove(url) {
+      if (saving()) return;
       const next = draft().filter((entry) => entry.url !== url);
       if (next.length !== draft().length) changeDraft(next);
     },
     reset() {
+      if (saving()) return;
       setDraft(entriesFor(current()));
       setDirty(false);
       setError(undefined);
     },
     async save() {
       if (saving() || !dirty()) return;
-      if (!options.pubkey()) {
+      const author = options.pubkey();
+      if (!author) {
         setError("リレー設定を保存するにはログインしてください");
         return;
       }
@@ -172,19 +180,32 @@ export const createAccountSettings = (
         setError("リレーを 1 件以上追加してください");
         return;
       }
+      const revision = draftRevision();
+      const entries = draft();
       setSaving(true);
       setError(undefined);
       try {
-        await options.writer.replace(
+        const result = await options.writer.replace(
           RELAY_LIST_KIND,
           undefined,
-          setRelayList(draft()),
+          setRelayList(entries),
         );
-        setDirty(false);
+        // 保存中にログアウトまたはアカウント切替が起き得る。
+        // 旧アカウントの結果を新しい draft の状態へ反映しない。
+        if (options.pubkey() !== author) return;
+        if (result.rejected.length > 0) {
+          setError(
+            `リレー設定を ${result.rejected.length} 本へ保存できませんでした。接続を確認して再試行してください`,
+          );
+          return;
+        }
+        if (draftRevision() === revision) setDirty(false);
       } catch (cause) {
-        setError(
-          `リレー設定を保存できませんでした: ${cause instanceof Error ? cause.message : String(cause)}`,
-        );
+        if (options.pubkey() === author) {
+          setError(
+            `リレー設定を保存できませんでした: ${cause instanceof Error ? cause.message : String(cause)}`,
+          );
+        }
       } finally {
         setSaving(false);
       }

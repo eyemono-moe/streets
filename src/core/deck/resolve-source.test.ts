@@ -87,8 +87,8 @@ describe("resolveSource", () => {
 
   it("literal では followees アクセサを呼ばない", () => {
     // 捕まえる変異: `resolveSource(source, { followees: props.followees() })`
-    // のように呼び出し側がアクセサを即時評価して渡す退行 (最終レビュー
-    // Important 1)。`literal` の分岐はアクセサを一切呼ばない契約 —— ここが
+    // のように呼び出し側がアクセサを即時評価して渡す退行。
+    // `literal` の分岐はアクセサを一切呼ばない契約 —— ここが
     // 破れると、呼び出し側 (DeckColumn.tsx の `createMemo`) の引数評価の
     // 時点で `props.followees()` を呼ばざるを得なくなり、`literal` 列の
     // `source` memo までもが `warmUpRouting` の結果 (フォローリストの
@@ -174,7 +174,7 @@ describe("resolveSource", () => {
   it("リレーリストの取得中は fallback へ購読しない", () => {
     // 捕まえる変異: loading と missing をどちらも read リレー 0 本として
     // fallback へ落とす。起動のたびに外部 3 本へ一瞬購読してから本来の
-    // inbox へ張り直す #299 が戻る。
+    // inbox へ張り直す挙動が戻る。
     expect(
       resolveSource(
         { kind: "notifications" },

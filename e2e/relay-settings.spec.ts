@@ -4,15 +4,15 @@ import { Relay } from "nostr-tools";
 import { relayTwoUrl } from "./fixtures/seed-outbox.js";
 import {
   previewRelayUrl,
-  previewViewerPubkey,
+  relaySettingsViewerPubkey,
   signAsPreviewAuthorOne,
-  signAsPreviewViewer,
+  signAsRelaySettingsViewer,
 } from "./fixtures/seed-preview.js";
 
 const stubSigner = async (page: Page) => {
   await page.exposeFunction(
     "__streetsSignRelaySettings",
-    (template: EventTemplate) => signAsPreviewViewer(template),
+    (template: EventTemplate) => signAsRelaySettingsViewer(template),
   );
   await page.addInitScript((viewerPubkey: string) => {
     const win = window as typeof window & {
@@ -26,7 +26,7 @@ const stubSigner = async (page: Page) => {
       getPublicKey: async () => viewerPubkey,
       signEvent: async (template) => win.__streetsSignRelaySettings(template),
     };
-  }, previewViewerPubkey);
+  }, relaySettingsViewerPubkey);
 };
 
 const relayRow = (page: Page, url: string) =>
@@ -54,7 +54,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   await page.goto(`/v1?relays=${encodeURIComponent(previewRelayUrl)}`);
   await page.getByTestId("login").click();
   await expect(page.getByTestId("viewer-pubkey")).toHaveText(
-    previewViewerPubkey,
+    relaySettingsViewerPubkey,
     { timeout: 15_000 },
   );
 
@@ -128,7 +128,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
       signAsPreviewAuthorOne({
         kind: 1,
         created_at: Math.floor(Date.now() / 1000),
-        tags: [["p", previewViewerPubkey]],
+        tags: [["p", relaySettingsViewerPubkey]],
         content: notificationText,
       }),
     );
@@ -146,12 +146,4 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   await expect(
     relayRow(page, `${previewRelayUrl}/`).getByTestId("relay-read-toggle"),
   ).toHaveAttribute("data-state", "off");
-
-  // 全 spec が同じリレーを共有するため、後続の投稿テストが期待する
-  // 「preview viewer はリレー1の write-only」へ UI 経由で戻す。
-  // 固定 created_at の seed は今保存した新版を上書きできないので、
-  // globalSetup へ任せず、このテスト自身が片付ける。
-  await relayRow(page, `${relayTwoUrl}/`).getByTestId("relay-remove").click();
-  await saveRelaySettings(page);
-  await page.getByTestId("settings-close").click();
 });

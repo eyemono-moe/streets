@@ -187,7 +187,7 @@ describe("columnAlerts", () => {
   it("fallback が不通でもユーザー設定の不通とは表示しない", () => {
     // 捕まえる変異: 到達不能警告を `viewerRelayListMissing` でゲートしない。
     // kind:10002 が無いとき不通なのは組み込み fallback であり、ユーザーが
-    // 設定した read リレーではない (#296)。
+    // 設定した read リレーではない。
     const alerts = columnAlerts(
       notifications,
       status({

@@ -11,10 +11,7 @@ v1 の設定ダイアログは Ark UI で開けるが、変更できるのは端
 設定ダイアログの骨格とリレー設定を一つの縦断スライスとして実装する。同時に、
 通知カラムがリレーリストの取得中・欠落・取得済みを取り違えている問題を直す。
 
-実行対象は設定画面の基盤（[#208](https://github.com/eyemono-moe/streets/issues/208)）と、
-通知リレーの [#296](https://github.com/eyemono-moe/streets/issues/296)・
-[#299](https://github.com/eyemono-moe/streets/issues/299)・
-[#300](https://github.com/eyemono-moe/streets/issues/300)。
+対象は設定画面の基盤と、通知リレーの取得状態・fallback・変更反映である。
 
 ## 1. 設定の所有権
 
@@ -76,7 +73,7 @@ type AccountRelaySettings = {
 - `missing` または read リレー 0 本では、fallback を使っている警告だけを出す
 - read リレーがある場合だけ、その到達不能を「あなたの設定したリレー」と表示する
 
-これで fallback の不通をユーザー設定の不通と呼ぶ #296 を閉じる。
+これで fallback の不通をユーザー設定の不通と呼ばない。
 
 ## 3. kind:10002 の変更通知
 
@@ -182,8 +179,8 @@ Penpot の寸法を次のように写す。
 ## 8. 範囲外
 
 - リレーの接続状態・レイテンシ表示（観測 interface の設計が先）
-- 通知 read リレーと 30 接続予算の競合方針（#298）
-- NIP-51 ミュート（#207）
+- 通知 read リレーと 30 接続予算の競合方針
+- NIP-51 ミュート
 - プロフィール・表示・通知の各設定
-- v1 全体の未定義 `alpha-*` 色の一括修正（#280）
+- v1 全体の未定義 `alpha-*` 色の一括修正
 - Penpot ファイル自体の変更

@@ -100,7 +100,7 @@ const DeckColumn: Component<{
     // コメント参照)。ここで `props.followees()` と呼んで値を渡してしまうと、
     // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
     // を読んだことになり、ウォームアップが settle するたびに全カラムが
-    // 再購読される (最終レビュー Important 1)。`relayList` も同じ扱い。
+    // 再購読される。`relayList` も同じ扱い。
     const resolved = resolveSource(props.column.source, {
       followees: props.followees,
       viewer: props.viewer,

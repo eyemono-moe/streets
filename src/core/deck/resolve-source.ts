@@ -13,7 +13,7 @@ import { type ColumnSource, NOTIFICATION_KINDS } from "./deck";
  * 記録するので、これ 1 つで `literal` 列まで warmUp の解決に巻き込まれ、
  * ウォームアップが settle するたびに全カラムの `source` memo が再計算 →
  * `createSection` の `createEffect` が古い `SectionReader` を破棄して
- * 新しいものを張り直す、という再購読が起きる (最終レビュー Important 1)。
+ * 新しいものを張り直す、という再購読が起きる。
  * `followees` を呼び出すのを `kind === "followees"` の分岐の中だけに
  * 限定すれば、その分岐を実際に評価したときだけ依存が生まれる。
  */
@@ -75,7 +75,7 @@ export const resolveSource = (
       type: "nostr",
       filters: [{ kinds: [...NOTIFICATION_KINDS], "#p": [context.viewer] }],
       // loading 中の空配列だけは意図的な「0 本の明示指定」。fallback へ
-      // 一瞬購読してから本来の read リレーへ張り直す #299 を防ぐ。
+      // 一瞬購読してから本来の read リレーへ張り直すことを防ぐ。
       // settle 後の空リストは永久に 0 本で待たず fallback へ落とす。
       relays:
         relayList.phase === "signed-out" || relayList.phase === "loading"
