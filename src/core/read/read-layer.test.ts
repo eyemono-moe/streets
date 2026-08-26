@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { Scheduler } from "./connection-pool";
@@ -11,11 +11,14 @@ import { createReadLayer } from "./read-layer";
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
 
-const sign = (content = "hello nostr"): NostrEvent => {
+const sign = (
+  content = "hello nostr",
+  overrides: { kind?: number; created_at?: number } = {},
+): NostrEvent => {
   const unsigned = {
     pubkey,
-    created_at: 1_700_000_000,
-    kind: 1,
+    created_at: overrides.created_at ?? 1_700_000_000,
+    kind: overrides.kind ?? 1,
     tags: [],
     content,
   };
@@ -162,5 +165,69 @@ describe("createReadLayer", () => {
 
     expect(clock.pendingCount).toBe(0);
     expect(persistenceDisposed).toBe(true);
+  });
+
+  it("kind:10002 の変更を一回の replan にまとめる", async () => {
+    // 捕まえる変異: 変更通知ごとに同期的に replan する。ウォームアップで
+    // フォロイー全員分が届くと、著者数だけ大域選択をやり直してしまう。
+    const clock = createFakeClock();
+    const readLayer = createReadLayer({
+      connect: neverConnects,
+      persistence: {
+        async load() {
+          return { events: [], deletedIds: [] };
+        },
+        save() {},
+        saveDeletions() {},
+        deleteDeletions() {},
+        delete() {},
+        dispose() {},
+      },
+      scheduler: clock,
+    });
+    await readLayer.ready;
+    const replan = vi.spyOn(readLayer.manager, "replan");
+
+    readLayer.store.put(
+      sign("first", { kind: 10002, created_at: 100 }),
+      "wss://one/",
+    );
+    readLayer.store.put(
+      sign("second", { kind: 10002, created_at: 200 }),
+      "wss://one/",
+    );
+    expect(replan).not.toHaveBeenCalled();
+
+    clock.advance(200);
+
+    expect(replan).toHaveBeenCalledTimes(1);
+    readLayer.dispose();
+  });
+
+  it("dispose 後は保留中の routing replan を実行しない", async () => {
+    // 捕まえる変異: routing replan のタイマーを dispose で解除しない。
+    const clock = createFakeClock();
+    const readLayer = createReadLayer({
+      connect: neverConnects,
+      persistence: {
+        async load() {
+          return { events: [], deletedIds: [] };
+        },
+        save() {},
+        saveDeletions() {},
+        deleteDeletions() {},
+        delete() {},
+        dispose() {},
+      },
+      scheduler: clock,
+    });
+    await readLayer.ready;
+    const replan = vi.spyOn(readLayer.manager, "replan");
+    readLayer.store.put(sign("relay", { kind: 10002 }), "wss://one/");
+
+    readLayer.dispose();
+    clock.advance(200);
+
+    expect(replan).not.toHaveBeenCalled();
   });
 });

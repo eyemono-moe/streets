@@ -89,6 +89,10 @@ const previewReactionEmojiUrl =
 export const signAsPreviewViewer = (template: EventTemplate) =>
   finalizeEvent(template, viewerSecretKey);
 
+/** 通知リレーの切替 e2e で、閲覧者宛の他人のイベントを作る。 */
+export const signAsPreviewAuthorOne = (template: EventTemplate) =>
+  finalizeEvent(template, authorOneSecretKey);
+
 const publish = async (
   relay: Relay,
   template: EventTemplate,

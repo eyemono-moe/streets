@@ -108,6 +108,7 @@ export const createWriter = ({
     unsigned: UnsignedEvent,
     hooks: WriteHooks | undefined,
     replaced: NostrEvent | undefined,
+    additionalRelays: readonly RelayUrl[] = [],
   ): Promise<WriteResult> => {
     // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
     // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
@@ -126,7 +127,7 @@ export const createWriter = ({
     );
     hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
 
-    const result = await publisher.publish(signed);
+    const result = await publisher.publish(signed, { additionalRelays });
     if (result.accepted.length === 0) {
       // 1 本も通っていない。**この呼び出しが新規に挿入したときだけ**
       // store (と永続層) から取り除く —— 残すと「送れていないのに送れた
@@ -163,6 +164,10 @@ export const createWriter = ({
       // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
       // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
       const current = await fetchLatest(kind, identifier, author);
+      // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
+      // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー
+      // も追加しないと削除したリレーに旧版だけが残る。
+      const previousTargets = publisher.targets(author);
       const draft = mutate(current);
 
       // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
@@ -178,6 +183,7 @@ export const createWriter = ({
         { ...draft, pubkey: author, created_at: createdAt },
         hooks,
         current,
+        previousTargets,
       );
     },
   };

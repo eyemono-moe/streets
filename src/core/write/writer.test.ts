@@ -8,7 +8,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import { createFakeSigner } from "../signer/fake-signer";
 import type { Signer } from "../signer/signer";
 import { RefetchFailedError } from "./fetch-latest";
-import type { PublishResult } from "./publisher";
+import type { PublishResult, Publisher } from "./publisher";
 import { WriteFailedError, createWriter } from "./writer";
 
 const SK = Uint8Array.from(Array.from({ length: 32 }, (_, i) => i + 1));
@@ -60,6 +60,7 @@ const setup = (publishResult: PublishResult) => {
   };
 
   const publisher = {
+    targets: () => [] as RelayUrl[],
     publish: async (): Promise<PublishResult> => {
       calls.push("publish");
       return publishResult;
@@ -87,6 +88,11 @@ const allFailed: PublishResult = {
   rejected: [{ relay: "wss://a.example" as RelayUrl, reason: "refused" }],
 };
 
+const stubPublisher = (
+  publish: Publisher["publish"],
+  targets: RelayUrl[] = [],
+): Publisher => ({ publish, targets: () => [...targets] });
+
 describe("publish", () => {
   it("署名 → 楽観挿入 → publish の順に進む", async () => {
     // 捕まえる変異: put を publish の後に動かす。そうすると楽観挿入が
@@ -103,7 +109,7 @@ describe("publish", () => {
     const writer = createWriter({
       signer: createFakeSigner(SK),
       store,
-      publisher: { publish: async () => ok },
+      publisher: stubPublisher(async () => ok),
       pubkey: () => PUBKEY,
       fetchLatest: async () => undefined,
     });
@@ -134,12 +140,10 @@ describe("publish", () => {
     const writer = createWriter({
       signer: rejectingSigner,
       store,
-      publisher: {
-        publish: async () => {
-          calls.push("publish");
-          return ok;
-        },
-      },
+      publisher: stubPublisher(async () => {
+        calls.push("publish");
+        return ok;
+      }),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => undefined,
@@ -212,7 +216,7 @@ describe("publish", () => {
     const writer = createWriter({
       signer: createFakeSigner(SK),
       store,
-      publisher: { publish: async () => ok },
+      publisher: stubPublisher(async () => ok),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => undefined,
@@ -264,12 +268,10 @@ describe("publish", () => {
     const writer = createWriter({
       signer: brokenSigner,
       store,
-      publisher: {
-        publish: async () => {
-          calls.push("publish");
-          return ok;
-        },
-      },
+      publisher: stubPublisher(async () => {
+        calls.push("publish");
+        return ok;
+      }),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => undefined,
@@ -304,7 +306,7 @@ describe("publish", () => {
     const firstWriter = createWriter({
       signer,
       store,
-      publisher: { publish: async () => ok },
+      publisher: stubPublisher(async () => ok),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => undefined,
@@ -317,7 +319,7 @@ describe("publish", () => {
     const secondWriter = createWriter({
       signer,
       store,
-      publisher: { publish: async () => allFailed },
+      publisher: stubPublisher(async () => allFailed),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => undefined,
@@ -355,12 +357,10 @@ describe("replace", () => {
     const writer = createWriter({
       signer,
       store,
-      publisher: {
-        publish: async () => {
-          calls.push("publish");
-          return ok;
-        },
-      },
+      publisher: stubPublisher(async () => {
+        calls.push("publish");
+        return ok;
+      }),
       pubkey: () => PUBKEY,
       now: () => 1_700_000_000,
       fetchLatest: async () => {
@@ -464,5 +464,33 @@ describe("replace", () => {
       content: "",
     }));
     expect(result.replaced).toBe(current);
+  });
+
+  it("楽観挿入前の publish 先を追加先として保持する", async () => {
+    // 捕まえる変異: store.put 後に解決した送信先だけへ publish する。
+    // kind:10002 の変更で外した旧 write リレーに旧版が残る。
+    const additional: (readonly RelayUrl[])[] = [];
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () => ["wss://old/"],
+        publish: async (_event, options) => {
+          additional.push(options?.additionalRelays ?? []);
+          return ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.replace(10002, undefined, () => ({
+      kind: 10002,
+      tags: [["r", "wss://new/", "write"]],
+      content: "",
+    }));
+
+    expect(additional).toEqual([["wss://old/"]]);
   });
 });

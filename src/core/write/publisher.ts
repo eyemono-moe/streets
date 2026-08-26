@@ -22,7 +22,12 @@ export type CreatePublisherOptions = {
 };
 
 export type Publisher = {
-  publish(event: NostrEvent): Promise<PublishResult>;
+  /** 現時点のルーティングから、その著者の publish 先を解決する。 */
+  targets(pubkey: string): RelayUrl[];
+  publish(
+    event: NostrEvent,
+    options?: { additionalRelays?: readonly RelayUrl[] },
+  ): Promise<PublishResult>;
 };
 
 /**
@@ -49,33 +54,45 @@ export const createPublisher = ({
   pool,
   routing,
   fallbackRelays,
-}: CreatePublisherOptions): Publisher => ({
-  async publish(event: NostrEvent): Promise<PublishResult> {
-    const writeRelays = routing.writeRelaysFor(event.pubkey);
-    const targets = writeRelays.length > 0 ? writeRelays : fallbackRelays;
+}: CreatePublisherOptions): Publisher => {
+  const targets = (pubkey: string): RelayUrl[] => {
+    const writeRelays = routing.writeRelaysFor(pubkey);
+    return [...(writeRelays.length > 0 ? writeRelays : fallbackRelays)];
+  };
 
-    const settled = await Promise.allSettled(
-      targets.map((relay) => pool.publish(relay, event)),
-    );
+  return {
+    targets,
+    async publish(event, options): Promise<PublishResult> {
+      const writeRelays = routing.writeRelaysFor(event.pubkey);
+      const currentTargets =
+        writeRelays.length > 0 ? writeRelays : fallbackRelays;
+      const publishTargets = [
+        ...new Set([...currentTargets, ...(options?.additionalRelays ?? [])]),
+      ];
 
-    const accepted: RelayUrl[] = [];
-    const rejected: { relay: RelayUrl; reason: string }[] = [];
+      const settled = await Promise.allSettled(
+        publishTargets.map((relay) => pool.publish(relay, event)),
+      );
 
-    settled.forEach((outcome, index) => {
-      const relay = targets[index];
-      if (outcome.status === "fulfilled") {
-        accepted.push(relay);
-      } else {
-        rejected.push({
-          relay,
-          reason:
-            outcome.reason instanceof Error
-              ? outcome.reason.message
-              : String(outcome.reason),
-        });
-      }
-    });
+      const accepted: RelayUrl[] = [];
+      const rejected: { relay: RelayUrl; reason: string }[] = [];
 
-    return { accepted, rejected };
-  },
-});
+      settled.forEach((outcome, index) => {
+        const relay = publishTargets[index];
+        if (outcome.status === "fulfilled") {
+          accepted.push(relay);
+        } else {
+          rejected.push({
+            relay,
+            reason:
+              outcome.reason instanceof Error
+                ? outcome.reason.message
+                : String(outcome.reason),
+          });
+        }
+      });
+
+      return { accepted, rejected };
+    },
+  };
+};

@@ -116,6 +116,48 @@ describe("createPublisher", () => {
     ).toEqual([note.id]);
   });
 
+  it("追加の publish 先を現在の write リレーと重複なく合流する", async () => {
+    // 捕まえる変異: additionalRelays を無視する。kind:10002 から削除した
+    // 旧 write リレーへ新版が届かず、そこに旧版だけが残る。
+    const store = new EventStore();
+    const author = relayListEvent(8, [
+      ["r", "wss://current/", "write"],
+      ["r", "wss://shared/", "write"],
+    ]);
+    store.put(author, "wss://indexer/");
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const publisher = createPublisher({
+      pool: poolWithFakes(connections),
+      routing: new RoutingTable(store),
+      fallbackRelays: [],
+    });
+    const note = sign(8, { ...base, kind: 1, content: "union" });
+
+    const result = await publisher.publish(note, {
+      additionalRelays: ["wss://old/", "wss://shared/"],
+    });
+
+    expect(new Set(result.accepted)).toEqual(
+      new Set(["wss://current/", "wss://shared/", "wss://old/"]),
+    );
+    expect(connections.get("wss://shared/")?.published).toHaveLength(1);
+  });
+
+  it("targets は現在の解決結果をコピーして返す", () => {
+    // 捕まえる変異: write リレーが無いとき空配列を返す。Writer.replace が
+    // 楽観挿入前の fallback を保持できなくなる。
+    const publisher = createPublisher({
+      pool: poolWithFakes(new Map()),
+      routing: new RoutingTable(new EventStore()),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    const targets = publisher.targets("f".repeat(64));
+    targets.push("wss://mutated/");
+
+    expect(publisher.targets("f".repeat(64))).toEqual(["wss://fallback/"]);
+  });
+
   // 捕まえる変異: Promise.all のように 1 本の reject で全体を reject し、
   // 成功した分まで失う。
   it("1 本が失敗しても他は成功として数える", async () => {

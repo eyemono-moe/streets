@@ -7,7 +7,7 @@ const VIEWER = "f".repeat(64);
 const ctx = (over: Partial<ResolveContext> = {}): ResolveContext => ({
   followees: () => [],
   viewer: VIEWER,
-  readRelays: () => [],
+  relayList: () => ({ phase: "missing" }),
   ...over,
 });
 
@@ -119,7 +119,12 @@ describe("resolveSource", () => {
     expect(
       resolveSource(
         { kind: "notifications" },
-        ctx({ readRelays: () => ["wss://inbox/"] }),
+        ctx({
+          relayList: () => ({
+            phase: "ready",
+            entries: [{ url: "wss://inbox/", read: true, write: false }],
+          }),
+        }),
       ),
     ).toEqual({
       type: "nostr",
@@ -133,7 +138,10 @@ describe("resolveSource", () => {
     // 「リレー 0 本の明示指定」として扱われるので、通知が永久に来ない
     // カラムが黙って出来上がる (`authors: []` と同じ罠)。
     expect(
-      resolveSource({ kind: "notifications" }, ctx({ readRelays: () => [] })),
+      resolveSource(
+        { kind: "notifications" },
+        ctx({ relayList: () => ({ phase: "missing" }) }),
+      ),
     ).toEqual({
       type: "nostr",
       filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
@@ -141,25 +149,56 @@ describe("resolveSource", () => {
     });
   });
 
-  it("readRelays は notifications の分岐でだけ呼ばれる", () => {
-    // 捕まえる変異: 分岐の外 (関数の先頭など) で `context.readRelays()` を
+  it("relayList は notifications の分岐でだけ呼ばれる", () => {
+    // 捕まえる変異: 分岐の外 (関数の先頭など) で `context.relayList()` を
     // 呼ぶ。**動作としては正しいままなので、他のどのテストも落ちない** ——
     // 落ちるのは実行時の挙動で、`literal` 列の source memo が warmUp の
     // リソースを依存として記録し、ウォームアップが settle するたびに
     // 全カラムの SectionReader が破棄・再作成される。同型の事故が
     // `followees` で一度起きている (resolve-source.ts のコメント参照)。
-    const readRelays = vi.fn(() => []);
+    const relayList = vi.fn(() => ({ phase: "missing" }) as const);
 
     resolveSource(
       { kind: "literal", filters: [{ kinds: [1] }] },
-      ctx({ readRelays }),
+      ctx({ relayList }),
     );
-    expect(readRelays).not.toHaveBeenCalled();
+    expect(relayList).not.toHaveBeenCalled();
 
-    resolveSource({ kind: "followees", kinds: [1] }, ctx({ readRelays }));
-    expect(readRelays).not.toHaveBeenCalled();
+    resolveSource({ kind: "followees", kinds: [1] }, ctx({ relayList }));
+    expect(relayList).not.toHaveBeenCalled();
 
-    resolveSource({ kind: "notifications" }, ctx({ readRelays }));
-    expect(readRelays).toHaveBeenCalledTimes(1);
+    resolveSource({ kind: "notifications" }, ctx({ relayList }));
+    expect(relayList).toHaveBeenCalledTimes(1);
+  });
+
+  it("リレーリストの取得中は fallback へ購読しない", () => {
+    // 捕まえる変異: loading と missing をどちらも read リレー 0 本として
+    // fallback へ落とす。起動のたびに外部 3 本へ一瞬購読してから本来の
+    // inbox へ張り直す #299 が戻る。
+    expect(
+      resolveSource(
+        { kind: "notifications" },
+        ctx({ relayList: () => ({ phase: "loading" }) }),
+      ),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      relays: [],
+    });
+  });
+
+  it("取得済みでも read リレーが無ければ fallback へ落とす", () => {
+    // 捕まえる変異: kind:10002 が存在することだけを見て空配列を素通しする。
+    expect(
+      resolveSource(
+        { kind: "notifications" },
+        ctx({
+          relayList: () => ({
+            phase: "ready",
+            entries: [{ url: "wss://outbox/", read: false, write: true }],
+          }),
+        }),
+      ),
+    ).toMatchObject({ relays: [...FALLBACK_RELAYS] });
   });
 });

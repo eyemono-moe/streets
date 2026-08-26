@@ -449,6 +449,7 @@ test.describe("v1 vertical slice", () => {
     // または DiagnosticsPanel が developerMode の変化に反応しない。
     await page.getByTestId("settings-open").click();
     await expect(page.getByTestId("settings-dialog")).toBeVisible();
+    await page.getByTestId("settings-tab-lab").click();
     await page.getByTestId("developer-mode-toggle").click();
     // 捕まえる変異: Content 自体を画面全体へ広げてしまい、内側と外側の
     // クリックを区別できなくする。設定項目を押しても閉じず、外側なら閉じる。
