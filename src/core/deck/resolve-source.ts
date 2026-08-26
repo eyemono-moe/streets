@@ -1,6 +1,6 @@
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
-import type { RelayUrl } from "../relay/relay-connection";
+import type { RelayListState } from "../settings/relay-list-state";
 import { type ColumnSource, NOTIFICATION_KINDS } from "./deck";
 
 /**
@@ -13,7 +13,7 @@ import { type ColumnSource, NOTIFICATION_KINDS } from "./deck";
  * 記録するので、これ 1 つで `literal` 列まで warmUp の解決に巻き込まれ、
  * ウォームアップが settle するたびに全カラムの `source` memo が再計算 →
  * `createSection` の `createEffect` が古い `SectionReader` を破棄して
- * 新しいものを張り直す、という再購読が起きる (最終レビュー Important 1)。
+ * 新しいものを張り直す、という再購読が起きる。
  * `followees` を呼び出すのを `kind === "followees"` の分岐の中だけに
  * 限定すれば、その分岐を実際に評価したときだけ依存が生まれる。
  */
@@ -28,12 +28,11 @@ export type ResolveContext = {
    */
   viewer: string;
   /**
-   * 閲覧者の NIP-65 read リレー。`followees` と同じ理由で遅延アクセサに
-   * している —— これを `kind: "notifications"` の分岐の外で呼ぶと、
-   * `literal` 列の解決でも warmUp のリソースを読んだことになり、
-   * ウォームアップが settle するたびに全カラムが再購読される。
+   * 閲覧者の NIP-65 リレーリスト。`followees` と同じ理由で遅延アクセサに
+   * している。取得中と欠落を区別する状態ごと渡すのは、取得中だけは
+   * fallback へ一瞬購読せず、取得が片付くまで 0 本で待つため。
    */
-  readRelays: () => readonly RelayUrl[];
+  relayList: () => RelayListState;
 };
 
 /**
@@ -65,14 +64,25 @@ export const resolveSource = (
     // SHOULD で求めているので、待ち受けるべきはそこ ——
     // `docs/design/notification-relay-selection.md` に原文と各クライアントの
     // 実態を残してある。
-    const relays = context.readRelays();
+    const relayList = context.relayList();
+    const readRelays =
+      relayList.phase === "ready"
+        ? relayList.entries
+            .filter((entry) => entry.read)
+            .map((entry) => entry.url)
+        : [];
     return {
       type: "nostr",
       filters: [{ kinds: [...NOTIFICATION_KINDS], "#p": [context.viewer] }],
-      // 空を素通しにしない。`authors: []` と同じ罠で、空配列は「該当なし」
-      // であって「未指定」ではない —— `relays: []` は「リレー 0 本の明示
-      // 指定」として扱われ、通知が永久に来ない。
-      relays: relays.length > 0 ? [...relays] : [...FALLBACK_RELAYS],
+      // loading 中の空配列だけは意図的な「0 本の明示指定」。fallback へ
+      // 一瞬購読してから本来の read リレーへ張り直すことを防ぐ。
+      // settle 後の空リストは永久に 0 本で待たず fallback へ落とす。
+      relays:
+        relayList.phase === "signed-out" || relayList.phase === "loading"
+          ? []
+          : readRelays.length > 0
+            ? readRelays
+            : [...FALLBACK_RELAYS],
     };
   }
 

@@ -43,6 +43,10 @@ import DeckColumn from "./v1/DeckColumn";
 import DiagnosticsPanel from "./v1/DiagnosticsPanel";
 import SettingsDialog from "./v1/SettingsDialog";
 import {
+  AccountSettingsProvider,
+  createAccountSettings,
+} from "./v1/account-settings";
+import {
   addColumnTo,
   moveColumnIn,
   removeColumnFrom,
@@ -243,6 +247,14 @@ const V1Content: Component = () => {
     } finally {
       setWarmUpMs(performance.now() - startedAt);
     }
+  });
+
+  const accountSettings = createAccountSettings({
+    pubkey,
+    relayListSettled: () =>
+      warmUp.state === "ready" || warmUp.state === "errored",
+    store,
+    writer,
   });
 
   // デッキの読み込みと既定デッキの確定は一度だけ行う。
@@ -831,7 +843,9 @@ const V1Content: Component = () => {
       </header>
 
       <Show when={settingsOpen()}>
-        <SettingsDialog onClose={() => setSettingsOpen(false)} />
+        <AccountSettingsProvider value={accountSettings}>
+          <SettingsDialog onClose={() => setSettingsOpen(false)} />
+        </AccountSettingsProvider>
       </Show>
 
       <Show when={pubkey()}>
@@ -937,17 +951,7 @@ const V1Content: Component = () => {
                     manager={manager}
                     followees={() => warmUp()?.followees ?? []}
                     viewer={pubkey() ?? ""}
-                    readRelays={() => {
-                      // `warmUp()` を読むのは依存を作るため ——
-                      // `routing.readRelaysFor` は EventStore を同期的に
-                      // 読むだけでシグナルではないので、これが無いと
-                      // 自分の kind:10002 が届いてもこの memo が再計算
-                      // されず、通知カラムは fallback を見たままになる。
-                      warmUp();
-                      const pk = pubkey();
-                      return pk ? routing.readRelaysFor(pk) : [];
-                    }}
-                    relayListSettled={() => warmUp() !== undefined}
+                    relayList={accountSettings.relayList.current}
                     optimisticEvents={optimisticEvents}
                     onHasItems={() => onColumnHasItems(column.id)}
                     firstRenderMs={() => firstRenderMsByColumn()[column.id]}

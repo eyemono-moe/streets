@@ -16,6 +16,7 @@ import {
   previewAuthorOnePubkey,
   previewAuthorTwoPubkey,
   previewViewerPubkey,
+  relaySettingsViewerPubkey,
 } from "./seed-preview.js";
 import { threadAuthorPubkey, threadViewerPubkey } from "./seed-thread.js";
 import {
@@ -32,7 +33,7 @@ import {
  * seed.ts の一部は `* 73`) という式から決定的に組み立てている。**`% 255`
  * によりシード空間の実効幅は 255 しかない。** mod が一致する 2 つのシード
  * は同じ秘密鍵 = 同じ pubkey になる — 見た目の数字 (911 と 1031 など) が
- * 離れていても罠にかかる (Task 4 fix round 1: `secretKey(2101)` が
+ * 離れていても罠にかかる。過去に `secretKey(2101)` が
  * `secretKey(1081)` と衝突し、cap フィクスチャの著者が budget フィクスチャの
  * 著者 I になり代わって既存 e2e を壊していたのに、`git stash` での
  * 比較ではリレー DB 側の汚染に気付けなかった)。
@@ -75,6 +76,7 @@ describe("e2e fixture pubkeys", () => {
       ["seed-notification.ts:viewer", notificationViewerPubkey],
       ["seed-notification.ts:author", notificationAuthorPubkey],
       ["seed-preview.ts:viewer", previewViewerPubkey],
+      ["seed-preview.ts:relaySettingsViewer", relaySettingsViewerPubkey],
       ["seed-preview.ts:authorOne", previewAuthorOnePubkey],
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
       ["seed-thread.ts:viewer", threadViewerPubkey],

@@ -8,7 +8,7 @@ import type { NostrEvent } from "../../core/nostr/event";
 import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
-import type { RelayUrl } from "../../core/relay/relay-connection";
+import type { RelayListState } from "../../core/settings/relay-list-state";
 import { createSection } from "../../core/solid/create-section";
 import { createThreadSource } from "../../core/solid/create-thread-source";
 import { useRender } from "../../core/view/render-context";
@@ -37,12 +37,13 @@ const RELAYS_OVERRIDE = parseRelays(
  * 追加・削除 (将来) で `createEffect`/`onCleanup` の対応関係を素直に
  * Solid の所有者ツリーへ委ねるため。
  *
- * `?relays=` (RELAYS_OVERRIDE) が効いている間は、明示リレーを持つカラム
- * (`defaultDeck` の "global" 列など) の `relays` もローカルリレーへ
+ * `?relays=` (RELAYS_OVERRIDE) が効いている間は、明示リレーを持つ通常の
+ * カラム (`defaultDeck` の "global" 列など) の `relays` もローカルリレーへ
  * 差し替える。これをしないと `defaultDeck` が焼き込んだ本物のリレー
  * (`FALLBACK_RELAYS`) へ e2e が外部ネットワーク越しに繋ぎに行ってしまい、
  * ローカルシードでは検証できなくなる — `fallbackRelays`/`indexers` に
- * 対する上と同じ上書きの立て付け。
+ * 対する上と同じ上書きの立て付け。ただし通知カラムは NIP-65 の read
+ * リレー選択そのものが検証対象なので上書きしない。
  */
 const DeckColumn: Component<{
   column: ColumnDef;
@@ -60,21 +61,8 @@ const DeckColumn: Component<{
    * `resolveSource` がこれを `#p` へ展開する。
    */
   viewer: string;
-  /**
-   * 閲覧者の NIP-65 read リレー。通知カラムの購読先になる
-   * (仕様 3 節)。デッキはこれを焼き込まないので、リレー設定を変えれば
-   * 呼び出し元がこの関数を最新の値で呼び直すだけで反映される。
-   */
-  readRelays: () => readonly RelayUrl[];
-  /**
-   * 閲覧者のリレー設定 (kind:10002) の取得が片付いたか。
-   *
-   * `readRelays()` が空でも、それが「設定が無い」のか「まだ届いていない」
-   * のかはここでしか区別できない。区別しないと、起動直後に必ず
-   * 「リレー設定が見つからない」が一瞬光って消える —— まだ存在しない劣化を
-   * 確定した事実として見せることになる。
-   */
-  relayListSettled: () => boolean;
+  /** 閲覧者の NIP-65 リレーリスト。通知カラムの購読先と警告を同じ状態から導く。 */
+  relayList: () => RelayListState;
   /**
    * 投稿フォームが署名直後に楽観挿入した、まだリレーから戻って
    * きていない自分の投稿。`SectionReader` は購読経由でしか items を更新
@@ -112,17 +100,20 @@ const DeckColumn: Component<{
     // コメント参照)。ここで `props.followees()` と呼んで値を渡してしまうと、
     // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
     // を読んだことになり、ウォームアップが settle するたびに全カラムが
-    // 再購読される (最終レビュー Important 1)。`readRelays` も同じ扱い。
+    // 再購読される。`relayList` も同じ扱い。
     const resolved = resolveSource(props.column.source, {
       followees: props.followees,
       viewer: props.viewer,
-      readRelays: props.readRelays,
+      relayList: props.relayList,
     });
     // `?relays=` の e2e 上書きは**解決した後**に当てる —— 上書きが見るのは
     // `NostrSource.relays` であって `ColumnSource` ではない。順序を逆に
     // すると、明示リレーを持つカラムがローカルリレーへ差し替わらず、
-    // e2e が外部ネットワークへ繋ぎに行く。
-    return RELAYS_OVERRIDE && resolved.relays
+    // e2e が外部ネットワークへ繋ぎに行く。通知だけは設定された read
+    // リレーへ実際に切り替わることを e2e で証明するため上書きしない。
+    return RELAYS_OVERRIDE &&
+      resolved.relays &&
+      props.column.source.kind !== "notifications"
       ? { ...resolved, relays: RELAYS_OVERRIDE }
       : resolved;
   });
@@ -188,12 +179,13 @@ const DeckColumn: Component<{
   // バッジが黙ったままになり、developer mode でしか気付けない
   // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
   const alerts = createMemo(() =>
-    columnAlerts(props.column, activeSection().status(), {
-      // 「設定が無い」のか「まだ届いていない」のかの判定 (settle のゲート)
-      // は `columnAlerts` 側へ集約済み —— ここでは値を渡すだけ。
-      relayListSettled: props.relayListSettled(),
-      readRelayCount: props.readRelays().length,
-    }),
+    columnAlerts(
+      props.column,
+      activeSection().status(),
+      // 「設定が無い」のか「まだ届いていない」のかの判定は
+      // `columnAlerts` 側へ集約済み —— ここでは状態を渡すだけ。
+      props.relayList(),
+    ),
   );
 
   /**

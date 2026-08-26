@@ -39,6 +39,11 @@ export type StoredEvent = {
 
 export type PutResult = "inserted" | "duplicate" | "rejected";
 
+export type ReplaceableChange = {
+  kind: number;
+  pubkey: string;
+};
+
 export type EventStoreOptions = {
   scheduler?: Scheduler;
   /**
@@ -69,6 +74,9 @@ export class EventStore {
   readonly #byTag = new Map<string, Map<string, Set<string>>>();
   readonly #scheduler: Scheduler;
   readonly #persistence: EventPersistence | undefined;
+  readonly #replaceableListeners = new Set<
+    (change: ReplaceableChange) => void
+  >();
 
   #verifyMs = 0;
   #verifyCount = 0;
@@ -101,6 +109,20 @@ export class EventStore {
 
   get verifyCount(): number {
     return this.#verifyCount;
+  }
+
+  /**
+   * 最新の置換可能イベントが変わったことを購読する。
+   *
+   * イベントそのものを渡さないのは、listener が処理を始める時点では同じ
+   * key のさらに新しい版が入っている可能性があるため。通知は再読込の契機
+   * だけを表し、値は `latestReplaceable()` から読む。
+   */
+  onReplaceableChanged(
+    listener: (change: ReplaceableChange) => void,
+  ): () => void {
+    this.#replaceableListeners.add(listener);
+    return () => this.#replaceableListeners.delete(listener);
   }
 
   put(event: NostrEvent, relay: RelayUrl): PutResult {
@@ -196,8 +218,9 @@ export class EventStore {
 
   #insert(event: NostrEvent, seenRelays: RelayUrl[], fetchedAt: number): void {
     this.#events.set(event.id, { event, seenRelays, fetchedAt });
-    this.#indexReplaceable(event);
+    const replaceableChanged = this.#indexReplaceable(event);
     this.#indexTags(event);
+    if (replaceableChanged) this.#notifyReplaceableChanged(event);
   }
 
   get(id: string): NostrEvent | undefined {
@@ -234,13 +257,13 @@ export class EventStore {
    * 置換可能イベント (10000-19999) と、kind:0 / kind:3 の最新版を索引する。
    * ルーティング表 (ADR-0016) はこの索引から kind:10002 を導出する。
    */
-  #indexReplaceable(event: NostrEvent): void {
+  #indexReplaceable(event: NostrEvent): boolean {
     // 置換可能イベントの kind 範囲 (nostr-protocol/nips 01.md:97)。
     const replaceable =
       event.kind === 0 ||
       event.kind === 3 ||
       (event.kind >= 10000 && event.kind < 20000);
-    if (!replaceable) return;
+    if (!replaceable) return false;
 
     const key = `${event.kind}:${event.pubkey}`;
     const currentId = this.#replaceable.get(key);
@@ -251,12 +274,27 @@ export class EventStore {
       // id を辞書式に比較し、小さい方を残す (nostr-protocol/nips 01.md:101)。
       // 到着順ではなく id で決めることで、リレーの配送順に左右されない
       // 決定的な結果にする。
-      if (current.created_at > event.created_at) return;
+      if (current.created_at > event.created_at) return false;
       if (current.created_at === event.created_at && current.id <= event.id) {
-        return;
+        return false;
       }
     }
     this.#replaceable.set(key, event.id);
+    return true;
+  }
+
+  #notifyReplaceableChanged(event: NostrEvent): void {
+    const change = { kind: event.kind, pubkey: event.pubkey };
+    for (const listener of [...this.#replaceableListeners]) {
+      try {
+        listener(change);
+      } catch (error) {
+        console.error(
+          "EventStore: an onReplaceableChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
+          error,
+        );
+      }
+    }
   }
 
   #indexTags(event: NostrEvent): void {
@@ -334,6 +372,7 @@ export class EventStore {
         if (candidate.event.pubkey !== event.pubkey) continue;
         this.#indexReplaceable(candidate.event);
       }
+      this.#notifyReplaceableChanged(event);
     }
 
     this.#persistence?.delete([id]);

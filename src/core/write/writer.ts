@@ -104,10 +104,36 @@ export const createWriter = ({
   now = () => Math.floor(Date.now() / 1000),
   fetchLatest,
 }: CreateWriterOptions): Writer => {
+  // 置換イベントの部分成功で、旧送信先だけが失敗した場合の再試行先。
+  // kind:10002 を楽観挿入すると routing は新リストへ切り替わり、旧 URL は
+  // 次回の targets() から消えるため、成功するまで Writer が保持する。
+  const pendingReplaceTargets = new Map<string, RelayUrl[]>();
+  const rememberFailedPreviousTargets = (
+    replacementKey: string,
+    previousTargets: readonly RelayUrl[],
+    rejected: readonly { relay: RelayUrl }[],
+  ) => {
+    const previousTargetSet = new Set(previousTargets);
+    const failedPreviousTargets = rejected
+      .map(({ relay }) => relay)
+      .filter((relay) => previousTargetSet.has(relay));
+
+    // 先に前回分を消し、今回も失敗した URL だけを積み直す。
+    // 配列が空なら for に入らず、このキーは消えたままになる。
+    pendingReplaceTargets.delete(replacementKey);
+    for (const relay of failedPreviousTargets) {
+      pendingReplaceTargets.set(replacementKey, [
+        ...(pendingReplaceTargets.get(replacementKey) ?? []),
+        relay,
+      ]);
+    }
+  };
+
   const send = async (
     unsigned: UnsignedEvent,
     hooks: WriteHooks | undefined,
     replaced: NostrEvent | undefined,
+    additionalRelays: readonly RelayUrl[] = [],
   ): Promise<WriteResult> => {
     // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
     // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
@@ -126,7 +152,7 @@ export const createWriter = ({
     );
     hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
 
-    const result = await publisher.publish(signed);
+    const result = await publisher.publish(signed, { additionalRelays });
     if (result.accepted.length === 0) {
       // 1 本も通っていない。**この呼び出しが新規に挿入したときだけ**
       // store (と永続層) から取り除く —— 残すと「送れていないのに送れた
@@ -159,10 +185,20 @@ export const createWriter = ({
     // した方が黙って前を上書きする。
     replace: async (kind, identifier, mutate, hooks) => {
       const author = pubkey();
+      const replacementKey = JSON.stringify([kind, author, identifier]);
       // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
       // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
       // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
       const current = await fetchLatest(kind, identifier, author);
+      // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
+      // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー
+      // も追加しないと削除したリレーに旧版だけが残る。
+      const previousTargets = [
+        ...new Set([
+          ...publisher.targets(author),
+          ...(pendingReplaceTargets.get(replacementKey) ?? []),
+        ]),
+      ];
       const draft = mutate(current);
 
       // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
@@ -174,11 +210,29 @@ export const createWriter = ({
           ? current.created_at + 1
           : stamped;
 
-      return send(
-        { ...draft, pubkey: author, created_at: createdAt },
-        hooks,
-        current,
-      );
+      try {
+        const result = await send(
+          { ...draft, pubkey: author, created_at: createdAt },
+          hooks,
+          current,
+          previousTargets,
+        );
+        rememberFailedPreviousTargets(
+          replacementKey,
+          previousTargets,
+          result.rejected,
+        );
+        return result;
+      } catch (error) {
+        if (error instanceof WriteFailedError) {
+          rememberFailedPreviousTargets(
+            replacementKey,
+            previousTargets,
+            error.rejected,
+          );
+        }
+        throw error;
+      }
     },
   };
 };

@@ -45,6 +45,9 @@ export type ReadLayer = {
   dispose(): void;
 };
 
+/** kind:10002 のバーストを Outbox の再計画 1 回へ畳む窓。 */
+export const ROUTING_REPLAN_BATCH_MS = 200;
+
 /**
  * 読み取り層の合成ルート (spec 9 節)。`EventStore` はここでしか
  * `new` されない —— `createSection` はもう `store` を公開オプションとして
@@ -76,6 +79,15 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const reactions = createReactionRequests(reactionRequestsOptions);
 
+  let routingReplanTimer: ReturnType<typeof setTimeout> | undefined;
+  const offReplaceableChanged = store.onReplaceableChanged((change) => {
+    if (change.kind !== 10002 || routingReplanTimer !== undefined) return;
+    routingReplanTimer = scheduler.setTimeout(() => {
+      routingReplanTimer = undefined;
+      manager.replan();
+    }, ROUTING_REPLAN_BATCH_MS);
+  });
+
   // `persistence.load()` は仕様上 reject しない実装だけを渡す契約だが、
   // ここで信用しきって `await` だけに任せると、その規約が守られなかった
   // 世界 (あるいは渡された stand-in が規約を破っている場合) で `ready` が
@@ -102,6 +114,11 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     reactions,
     store,
     dispose(): void {
+      offReplaceableChanged();
+      if (routingReplanTimer !== undefined) {
+        scheduler.clearTimeout(routingReplanTimer);
+        routingReplanTimer = undefined;
+      }
       profiles.dispose();
       events.dispose();
       reactions.dispose();

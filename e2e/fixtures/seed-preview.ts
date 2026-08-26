@@ -19,10 +19,14 @@ const secretKey = (seed: number) =>
 const viewerSecretKey = secretKey(70_000);
 const authorOneSecretKey = secretKey(70_100);
 const authorTwoSecretKey = secretKey(70_200);
+const relaySettingsViewerSecretKey = secretKey(70_300);
 
 export const previewViewerPubkey = getPublicKey(viewerSecretKey);
 export const previewAuthorOnePubkey = getPublicKey(authorOneSecretKey);
 export const previewAuthorTwoPubkey = getPublicKey(authorTwoSecretKey);
+export const relaySettingsViewerPubkey = getPublicKey(
+  relaySettingsViewerSecretKey,
+);
 
 export const previewViewerDisplayName = "streets preview viewer";
 export const previewAuthorOneDisplayName = "streets preview author one";
@@ -88,6 +92,14 @@ const previewReactionEmojiUrl =
  */
 export const signAsPreviewViewer = (template: EventTemplate) =>
   finalizeEvent(template, viewerSecretKey);
+
+/** 通知リレーの切替 e2e で、閲覧者宛の他人のイベントを作る。 */
+export const signAsPreviewAuthorOne = (template: EventTemplate) =>
+  finalizeEvent(template, authorOneSecretKey);
+
+/** リレー設定 E2E 専用の閲覧者として署名する。 */
+export const signAsRelaySettingsViewer = (template: EventTemplate) =>
+  finalizeEvent(template, relaySettingsViewerSecretKey);
 
 const publish = async (
   relay: Relay,
@@ -171,10 +183,16 @@ export const seedPreviewFixture = async (): Promise<void> => {
     authorTwoSecretKey,
   );
 
-  // kind:10002 — 閲覧者と著者 2 人 (write は全員このリレー)。閲覧者の分が
+  // kind:10002 — 閲覧者・リレー設定専用閲覧者・著者 2 人
+  // (write は全員このリレー)。閲覧者の分が
   // 無いと投稿の publish 先が解決できない (publisher.ts は
   // routing.writeRelaysFor(署名者) を見る)。
-  for (const key of [viewerSecretKey, authorOneSecretKey, authorTwoSecretKey]) {
+  for (const key of [
+    viewerSecretKey,
+    relaySettingsViewerSecretKey,
+    authorOneSecretKey,
+    authorTwoSecretKey,
+  ]) {
     await publish(
       relay,
       {

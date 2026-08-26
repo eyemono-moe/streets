@@ -678,3 +678,55 @@ describe("remove", () => {
     expect(deleted).toEqual([[event.id]]);
   });
 });
+
+describe("onReplaceableChanged", () => {
+  it("最新版が変わったときだけ通知する", () => {
+    // 捕まえる変異: 置換可能イベントを put するたびに通知する。
+    // 旧版や同じイベントの再配送まで再計画の契機にすると、リレーからの
+    // 重複配送だけで Outbox の再計画が繰り返される。
+    const store = new EventStore();
+    const changes: { kind: number; pubkey: string }[] = [];
+    store.onReplaceableChanged((change) => changes.push(change));
+    const newer = sign("new", { kind: 10002, created_at: 200 });
+    const older = sign("old", { kind: 10002, created_at: 100 });
+
+    store.put(newer, "wss://one/");
+    store.put(newer, "wss://two/");
+    store.put(older, "wss://one/");
+
+    expect(changes).toEqual([{ kind: 10002, pubkey }]);
+  });
+
+  it("最新版の巻き戻しを通知し、解除後は通知しない", () => {
+    // 捕まえる変異: remove では通知しない。Writer の publish 全滅で
+    // kind:10002 を巻き戻したとき、通知カラムが失敗した draft の read
+    // リレーを見続ける。
+    const store = new EventStore();
+    const changes: { kind: number; pubkey: string }[] = [];
+    const off = store.onReplaceableChanged((change) => changes.push(change));
+    const older = sign("old", { kind: 10002, created_at: 100 });
+    const newer = sign("new", { kind: 10002, created_at: 200 });
+    store.put(older, "wss://one/");
+    store.put(newer, "wss://one/");
+    changes.length = 0;
+
+    store.remove(newer.id);
+    off();
+    store.remove(older.id);
+
+    expect(changes).toEqual([{ kind: 10002, pubkey }]);
+    expect(store.latestReplaceable(10002, pubkey)).toBeUndefined();
+  });
+
+  it("水和で最新版が入った場合も通知する", () => {
+    // 捕まえる変異: put 経路だけ通知し hydrate を通知しない。
+    const store = new EventStore();
+    const changes: { kind: number; pubkey: string }[] = [];
+    store.onReplaceableChanged((change) => changes.push(change));
+    const event = sign("hydrated", { kind: 10002 });
+
+    store.hydrate([{ event, seenRelays: ["wss://one/"], fetchedAt: 1 }]);
+
+    expect(changes).toEqual([{ kind: 10002, pubkey }]);
+  });
+});

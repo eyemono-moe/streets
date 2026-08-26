@@ -1,4 +1,8 @@
 import type { SectionStatus } from "../read/source";
+import {
+  type RelayListState,
+  readRelayCount,
+} from "../settings/relay-list-state";
 import type { ColumnDef } from "./deck";
 
 export type ColumnAlert = {
@@ -24,7 +28,7 @@ export type ColumnAlert = {
 export const columnAlerts = (
   column: ColumnDef,
   status: SectionStatus,
-  context: { relayListSettled: boolean; readRelayCount: number },
+  relayList: RelayListState,
 ): ColumnAlert[] => {
   const alerts: ColumnAlert[] = [];
   const source = column.source;
@@ -43,12 +47,13 @@ export const columnAlerts = (
     });
   }
 
-  // `readRelayCount() === 0` が「設定が無い」のか「まだ届いていない」のか
-  // は `relayListSettled` でしか区別できない。settle 前にこの判定を出すと、
+  // read リレー 0 本が「設定が無い」のか「まだ届いていない」のかは
+  // RelayListState の phase で区別する。loading 中にこの判定を出すと、
   // 起動直後は必ず 0 本なので「リレー設定が見つからない」が毎回一瞬光って
   // 消える —— まだ存在しない劣化を確定した事実として見せることになる。
   const viewerRelayListMissing =
-    context.relayListSettled && context.readRelayCount === 0;
+    (relayList.phase === "missing" || relayList.phase === "ready") &&
+    readRelayCount(relayList) === 0;
 
   // 通知は「届いていないこと」に気づきにくい —— 誰も反応していないのか、
   // 見る場所が違うのか、画面からは区別が付かない。自分の kind:10002 が
@@ -73,7 +78,12 @@ export const columnAlerts = (
   // `viewerRelayListMissing` は真にならない (kind:10002 自体は引けている)。
   // それでも画面から見える結果 (通知が来ない) も取れる行動 (リレー設定を
   // 直す) も設定が無い場合と同じなので、`literal` 列と同じ理由で黙らせない。
-  if (source.kind === "notifications" && unreachable > 0) {
+  if (
+    source.kind === "notifications" &&
+    !viewerRelayListMissing &&
+    relayList.phase === "ready" &&
+    unreachable > 0
+  ) {
     alerts.push({
       message: `あなたの設定した read リレーに接続できません (${unreachable} 本)`,
       action: "リレー設定 (kind:10002) の read リレーを確認してください",

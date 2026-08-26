@@ -26,9 +26,15 @@ const notifications: ColumnDef = {
   source: { kind: "notifications" },
 };
 
-const settled = { relayListSettled: true, readRelayCount: 0 };
-const hasRelays = { relayListSettled: true, readRelayCount: 3 };
-const notSettled = { relayListSettled: false, readRelayCount: 0 };
+const missing = { phase: "missing" } as const;
+const hasRelays = {
+  phase: "ready",
+  entries: [
+    { url: "wss://one/" as const, read: true, write: true },
+    { url: "wss://two/" as const, read: true, write: false },
+  ],
+} as const;
+const loading = { phase: "loading" } as const;
 
 describe("columnAlerts", () => {
   it("明示リレーが到達不能なら 1 件返す", () => {
@@ -113,7 +119,7 @@ describe("columnAlerts", () => {
     // 捕まえる変異: この警告を出さない。通知が来ないとき、誰も反応して
     // いないのか自分の kind:10002 が無くて fallback を見ているのか、
     // 画面からは区別が付かない (ADR-0011: 劣化を隠さない)。
-    const alerts = columnAlerts(notifications, status(), settled);
+    const alerts = columnAlerts(notifications, status(), missing);
     expect(alerts).toHaveLength(1);
     // 捕まえる変異: 警告の種類が別のもの (到達不能など) へ差し替わる。
     // 文言全体は主張しない —— タイプミスしか捕まらず、変更のたびに壊れる。
@@ -130,8 +136,8 @@ describe("columnAlerts", () => {
     // 捕まえる変異: source.kind を見ない。ホーム列や明示リレー列は
     // 自分の kind:10002 を必要としないので、そこに出しても
     // ADR-0026 の「ユーザーが行動できるもの」にならない。
-    expect(columnAlerts(routed, status(), settled)).toEqual([]);
-    expect(columnAlerts(explicit, status(), settled)).toEqual([]);
+    expect(columnAlerts(routed, status(), missing)).toEqual([]);
+    expect(columnAlerts(explicit, status(), missing)).toEqual([]);
   });
 
   it("settle 前は readRelayCount が 0 でも出さない", () => {
@@ -139,7 +145,7 @@ describe("columnAlerts", () => {
     // だけで判定する。ウォームアップがまだ届いていないだけの起動直後を
     // 「設定が無い」と確定させてしまう —— まだ存在しない劣化を確定した
     // 事実として見せることになる (これが今回いちばん守りたい 1 行)。
-    expect(columnAlerts(notifications, status(), notSettled)).toEqual([]);
+    expect(columnAlerts(notifications, status(), loading)).toEqual([]);
   });
 
   it("通知列は read リレーが到達不能なら知らせる", () => {
@@ -176,5 +182,22 @@ describe("columnAlerts", () => {
         hasRelays,
       ),
     ).toEqual([]);
+  });
+
+  it("fallback が不通でもユーザー設定の不通とは表示しない", () => {
+    // 捕まえる変異: 到達不能警告を `viewerRelayListMissing` でゲートしない。
+    // kind:10002 が無いとき不通なのは組み込み fallback であり、ユーザーが
+    // 設定した read リレーではない。
+    const alerts = columnAlerts(
+      notifications,
+      status({
+        unreachableRelays: 3,
+        unroutableAuthors: 0,
+        uncoveredAuthors: 0,
+      }),
+      missing,
+    );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.message).not.toContain("あなたの設定した read リレー");
   });
 });
