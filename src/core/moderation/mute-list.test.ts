@@ -66,6 +66,13 @@ describe("parseMuteTarget", () => {
 });
 
 describe("decodeMuteList / changeMuteList", () => {
+  it("リストが未作成でも NIP-44 非対応を編集可能とは扱わない", async () => {
+    // 捕まえる変異: event が無いことだけで privatePart を ready にする。
+    await expect(
+      decodeMuteList(undefined, signer({ nip44: undefined }), PUBKEY),
+    ).resolves.toEqual({ entries: [], privatePart: "unavailable" });
+  });
+
   it("公開タグと NIP-44 非公開タグを同じ entry 形式へ読む", async () => {
     // 捕まえる変異: content を復号せず、公開タグだけを返す。
     await expect(

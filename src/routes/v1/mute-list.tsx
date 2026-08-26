@@ -48,6 +48,13 @@ export type MuteList = {
 
 type MuteStore = Pick<EventStore, "latestReplaceable" | "onReplaceableChanged">;
 
+class MuteAccountChangedError extends Error {
+  constructor() {
+    super("ミュートの保存中にアカウントが切り替わりました");
+    this.name = "MuteAccountChangedError";
+  }
+}
+
 export const createMuteList = (options: {
   pubkey: Accessor<string | undefined>;
   signer: Signer;
@@ -67,6 +74,7 @@ export const createMuteList = (options: {
   let generation = 0;
   let decodeRevision = 0;
   let queue = Promise.resolve();
+  let disposed = false;
 
   const decodeCurrent = async (author: string, expected: number) => {
     const revision = ++decodeRevision;
@@ -123,23 +131,53 @@ export const createMuteList = (options: {
     },
   );
   onCleanup(offChanged);
+  onCleanup(() => {
+    disposed = true;
+    generation += 1;
+  });
 
   const run = (change: Parameters<typeof changeMuteList>[2]): Promise<void> => {
+    // キュー投入時のアカウントを操作に束縛する。実行時に読み直すと、A の
+    // 操作が待っている間に B へ切り替わった場合、B のリストを変更してしまう。
+    const author = options.pubkey();
+    const expectedGeneration = generation;
+    if (!author) {
+      return Promise.reject(
+        new Error("ミュートを保存するにはログインしてください"),
+      );
+    }
+    const assertSameAccount = () => {
+      if (
+        disposed ||
+        options.pubkey() !== author ||
+        generation !== expectedGeneration
+      ) {
+        throw new MuteAccountChangedError();
+      }
+    };
     const operation = queue
       .catch(() => {})
       .then(async () => {
-        const author = options.pubkey();
-        if (!author)
-          throw new Error("ミュートを保存するにはログインしてください");
+        assertSameAccount();
         setSavingCount((value) => value + 1);
         setError(undefined);
         try {
           await options.writer.replace(
             MUTE_KIND,
             undefined,
-            changeMuteList(options.signer, author, change),
+            async (current) => {
+              assertSameAccount();
+              const next = await changeMuteList(
+                options.signer,
+                author,
+                change,
+              )(current);
+              assertSameAccount();
+              return next;
+            },
           );
         } catch (cause) {
+          if (cause instanceof MuteAccountChangedError) throw cause;
           const message =
             cause instanceof PrivateMuteUnavailableError
               ? "非公開ミュートには NIP-44 対応と署名器の権限が必要です"

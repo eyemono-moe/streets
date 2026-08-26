@@ -48,6 +48,15 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
       setMuteInputError("入力形式を確認してください");
       return;
     }
+    const duplicate = editableMuteState()?.entries.some(
+      (entry) =>
+        entry.target.type === target.type &&
+        entry.target.value === target.value,
+    );
+    if (duplicate) {
+      setMuteInputError("この対象は既にミュートされています");
+      return;
+    }
     setMuteInputError(undefined);
     try {
       await muteList.add(target, muteVisibility());
@@ -499,7 +508,9 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                                         | MuteVisibility
                                         | undefined;
                                       if (next && next !== entry.visibility) {
-                                        void mutes().move(entry, next);
+                                        void mutes()
+                                          .move(entry, next)
+                                          .catch(() => {});
                                       }
                                     }}
                                   >
@@ -524,7 +535,11 @@ const SettingsDialog: Component<SettingsDialogProps> = (props) => {
                                     disabled={mutes().saving()}
                                     type="button"
                                     data-testid="mute-remove"
-                                    onClick={() => void mutes().remove(entry)}
+                                    onClick={() =>
+                                      void mutes()
+                                        .remove(entry)
+                                        .catch(() => {})
+                                    }
                                   >
                                     <span class="i-material-symbols:delete-outline-rounded h-5 w-5" />
                                   </button>

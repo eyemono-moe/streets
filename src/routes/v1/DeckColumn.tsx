@@ -220,6 +220,17 @@ const DeckColumn: Component<{
       props.column.source.kind === "notifications"
         ? excludeOwnActions(merged, props.viewer)
         : merged;
+    // kind:10000 の取得前・取得失敗を「空のミュートリスト」と扱うと、
+    // キャッシュ済み本文が一度露出してから消える。確定するまでは本文を
+    // 仮想リストへ渡さず、設定画面の再試行導線だけを見せる。
+    const mutePhase = muteList?.state().phase;
+    if (
+      mutePhase !== undefined &&
+      mutePhase !== "missing" &&
+      mutePhase !== "ready"
+    ) {
+      return [];
+    }
     // Store と SectionReader には残し、仮想リストへ渡す直前でだけ除く。
     // 解除後は再購読なしで同じイベントを再表示できる。
     return muteList

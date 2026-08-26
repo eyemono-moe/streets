@@ -157,4 +157,70 @@ describe("MuteList", () => {
       });
     });
   });
+
+  it("待機中の保存を次のアカウントへ適用しない", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: キュー実行時の pubkey を読み、A の2件目を B へ保存する。
+            const [pubkey, setPubkey] = createSignal<string | undefined>(
+              PUBKEY,
+            );
+            let releaseFirst = () => {};
+            const firstGate = new Promise<void>((finish) => {
+              releaseFirst = finish;
+            });
+            let markStarted = () => {};
+            const firstStarted = new Promise<void>((finish) => {
+              markStarted = finish;
+            });
+            const replace = vi.fn(async (): Promise<WriteResult> => {
+              markStarted();
+              await firstGate;
+              return {
+                event: asEvent({ kind: 10_000, tags: [], content: "" }),
+                accepted: ["wss://relay/" as RelayUrl],
+                rejected: [],
+              };
+            });
+            const muteList = createMuteList({
+              pubkey,
+              signer,
+              store: {
+                latestReplaceable: () => undefined,
+                onReplaceableChanged: () => () => {},
+              },
+              writer: { replace },
+              fetchLatest: async () => undefined,
+            });
+            await flush();
+
+            const first = muteList.add(
+              { type: "word", value: "for-a-first" },
+              "private",
+            );
+            await firstStarted;
+            const second = muteList
+              .add({ type: "word", value: "for-a-second" }, "private")
+              .catch((error: unknown) => error);
+            setPubkey("b".repeat(64));
+            await flush();
+            releaseFirst();
+            await first;
+
+            expect(await second).toMatchObject({
+              message: "ミュートの保存中にアカウントが切り替わりました",
+            });
+            expect(replace).toHaveBeenCalledTimes(1);
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
 });

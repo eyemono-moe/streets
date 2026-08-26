@@ -26,6 +26,19 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
   // author を TLV で持つが、その符号化器がまだ無い (`nip19.ts` は復号と
   // 素の bech32 だけ)。`note` でも参照としては一意に定まる。
   const noteUri = () => `nostr:${encodeBech32("note", props.event.id)}`;
+  const threadTarget = () => threadMuteTarget(props.event);
+  const threadMuted = () =>
+    muteList
+      ?.matches(props.event)
+      .some(
+        (entry) =>
+          entry.target.type === "thread" &&
+          entry.target.value === threadTarget().value,
+      ) ?? false;
+  const authorMuted = () =>
+    muteList
+      ?.matches(props.event)
+      .some((entry) => entry.target.type === "pubkey") ?? false;
 
   const copyItems = [
     { value: "copy-link", label: "リンクをコピー" },
@@ -49,10 +62,12 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
     <Menu.Root
       onSelect={(details) => {
         if (details.value === "mute-thread") {
-          void addPrivateMute(threadMuteTarget(props.event));
+          if (threadMuted()) return;
+          void addPrivateMute(threadTarget());
           return;
         }
         if (details.value === "mute-author") {
+          if (authorMuted()) return;
           void addPrivateMute({ type: "pubkey", value: props.event.pubkey });
           return;
         }
@@ -101,18 +116,24 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
               <Menu.Separator class="my-1 border-primary border-t" />
               <Menu.Item
                 value="mute-thread"
-                class="cursor-pointer rounded-1.5 px-2.5 py-1.5 data-[highlighted]:bg-alpha-hover"
+                disabled={threadMuted()}
+                class="disabled:c-secondary rounded-1.5 px-2.5 py-1.5 enabled:cursor-pointer enabled:data-[highlighted]:bg-alpha-hover"
               >
-                このスレッドをミュート
+                {threadMuted()
+                  ? "このスレッドはミュート済み（設定で解除）"
+                  : "このスレッドをミュート"}
               </Menu.Item>
             </Show>
             <Show when={muteList && props.event.pubkey !== render.viewerPubkey}>
               <Menu.Separator class="my-1 border-primary border-t" />
               <Menu.Item
                 value="mute-author"
-                class="cursor-pointer rounded-1.5 px-2.5 py-1.5 data-[highlighted]:bg-alpha-hover"
+                disabled={authorMuted()}
+                class="disabled:c-secondary rounded-1.5 px-2.5 py-1.5 enabled:cursor-pointer enabled:data-[highlighted]:bg-alpha-hover"
               >
-                この著者をミュート
+                {authorMuted()
+                  ? "この著者はミュート済み（設定で解除）"
+                  : "この著者をミュート"}
               </Menu.Item>
             </Show>
           </Menu.Content>

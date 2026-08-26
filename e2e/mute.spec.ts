@@ -3,6 +3,7 @@ import type { Event, EventTemplate } from "nostr-tools";
 import { Relay } from "nostr-tools";
 import {
   previewAuthorOneNoteText,
+  previewAuthorOnePubkey,
   previewRelayUrl,
   previewViewerPubkey,
   signAsPreviewViewer,
@@ -75,6 +76,108 @@ const latestMuteEvent = async (): Promise<Event | undefined> => {
     relay.close();
   }
 };
+
+test("イベントメニューから著者とスレッドをミュートする", async ({ page }) => {
+  test.setTimeout(60_000);
+  await stubSigner(page);
+  await page.goto(`/v1?relays=${encodeURIComponent(previewRelayUrl)}`);
+  await page.getByTestId("login").click();
+  await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+    previewViewerPubkey,
+    { timeout: 15_000 },
+  );
+  await expect(
+    page.getByText(previewAuthorOneNoteText, { exact: true }),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // 著者を非公開部へ追加し、設定から解除すると Store の本文が即座に戻る。
+  let note = page
+    .getByTestId("event-view")
+    .filter({ hasText: previewAuthorOneNoteText })
+    .first();
+  await note.getByTestId("event-menu-trigger").click();
+  await page
+    .getByRole("menuitem", { name: "この著者をミュート", exact: true })
+    .click();
+  await expect(
+    page.getByText(previewAuthorOneNoteText, { exact: true }),
+  ).toHaveCount(0);
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-mutes").click();
+  let row = page
+    .getByTestId("mute-settings-row")
+    .filter({ hasText: "著者" })
+    .first();
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  expect((await latestMuteEvent())?.content).toContain(
+    encodeURIComponent(previewAuthorOnePubkey),
+  );
+  await row.getByTestId("mute-remove").click();
+  await expect(row).toHaveCount(0);
+  await page.getByTestId("settings-close").click();
+  await expect(
+    page.getByText(previewAuthorOneNoteText, { exact: true }),
+  ).toBeVisible({ timeout: 5_000 });
+
+  // 同じメニューのスレッド対象も実配線を通す。
+  note = page
+    .getByTestId("event-view")
+    .filter({ hasText: previewAuthorOneNoteText })
+    .first();
+  await note.getByTestId("event-menu-trigger").click();
+  await page
+    .getByRole("menuitem", {
+      name: "このスレッドをミュート",
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText(previewAuthorOneNoteText, { exact: true }),
+  ).toHaveCount(0);
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-mutes").click();
+  row = page
+    .getByTestId("mute-settings-row")
+    .filter({ hasText: "スレッド" })
+    .first();
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  await row.getByTestId("mute-remove").click();
+  await expect(row).toHaveCount(0);
+});
+
+test("設定で明示した対象だけを公開ミュートへ保存する", async ({ page }) => {
+  test.setTimeout(60_000);
+  await stubSigner(page);
+  await page.goto(`/v1?relays=${encodeURIComponent(previewRelayUrl)}`);
+  await page.getByTestId("login").click();
+  await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+    previewViewerPubkey,
+    { timeout: 15_000 },
+  );
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-mutes").click();
+  await expect(page.getByText("ミュートリストを取得しています…")).toHaveCount(
+    0,
+    { timeout: 15_000 },
+  );
+
+  const publicValue = "public-mute-e2e";
+  await page.getByTestId("mute-type-word").click();
+  await page.getByTestId("mute-value-input").fill(publicValue);
+  await page
+    .locator('[aria-label="公開範囲"]')
+    .getByText("公開", { exact: true })
+    .click();
+  await page.getByTestId("mute-add").click();
+  const row = page
+    .getByTestId("mute-settings-row")
+    .filter({ hasText: publicValue });
+  await expect(row).toBeVisible({ timeout: 15_000 });
+  // UI の公開選択が、暗号文ではなく public tags に届いたことを実測する。
+  expect((await latestMuteEvent())?.tags).toContainEqual(["word", publicValue]);
+  await row.getByTestId("mute-remove").click();
+  await expect(row).toHaveCount(0);
+});
 
 test("非公開ミュートを保存・復元・解除する", async ({ page }) => {
   test.setTimeout(60_000);

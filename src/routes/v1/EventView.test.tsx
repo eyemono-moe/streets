@@ -152,6 +152,48 @@ const mount = (
 };
 
 describe("EventView", () => {
+  it("ミュートリストが確定するまでキャッシュ済み本文を露出しない", async () => {
+    const store = new EventStore();
+    const cached = signed(30, { content: "must stay hidden" });
+    store.put(cached, "wss://relay/");
+    const fake = createFakeEventRequests();
+    const muteList: MuteList = {
+      state: () => ({ phase: "loading" }),
+      saving: () => false,
+      error: () => undefined,
+      refresh: async () => {},
+      matches: () => [],
+      add: async () => {},
+      remove: async () => {},
+      move: async () => {},
+    };
+    const { element, dispose } = mount(
+      { id: cached.id, variant: "compact" },
+      {
+        store,
+        events: fake.events,
+        profiles: fakeProfiles(),
+        reactions: fakeReactions(),
+        viewerPubkey: undefined,
+        renderers: [testRenderer],
+      },
+      muteList,
+    );
+    try {
+      await vi.waitFor(() => {
+        // 捕まえる変異: loading を空リストとみなし、通常本文を先に描く。
+        expect(
+          element().querySelector('[data-testid="mute-list-pending"]'),
+        ).not.toBeNull();
+        expect(
+          element().querySelector('[data-testid="test-renderer-compact"]'),
+        ).toBeNull();
+      });
+    } finally {
+      dispose();
+    }
+  });
+
   it("入れ子のミュートを一時表示し、該当項目を解除できる", async () => {
     const store = new EventStore();
     const muted = signed(31, { content: "hidden" });
@@ -161,7 +203,9 @@ describe("EventView", () => {
       target: { type: "pubkey" as const, value: muted.pubkey },
       visibility: "private" as const,
     };
-    const remove = vi.fn(async () => {});
+    const remove = vi.fn(async () => {
+      throw new Error("rejected");
+    });
     const muteList: MuteList = {
       state: () => ({
         phase: "ready",
@@ -169,7 +213,7 @@ describe("EventView", () => {
         privatePart: "ready",
       }),
       saving: () => false,
-      error: () => undefined,
+      error: () => "署名が拒否されました",
       refresh: async () => {},
       matches: () => [entry],
       add: async () => {},
@@ -206,6 +250,13 @@ describe("EventView", () => {
         ) as HTMLButtonElement
       ).click();
       expect(remove).toHaveBeenCalledWith(entry);
+      await vi.waitFor(() => {
+        // 捕まえる変異: 解除の reject を捨て、ユーザーへ失敗を表示しない。
+        expect(
+          element().querySelector('[data-testid="muted-event-error"]')
+            ?.textContent,
+        ).toBe("署名が拒否されました");
+      });
 
       (
         element().querySelector(

@@ -263,14 +263,6 @@ const V1Content: Component = () => {
     store,
     writer,
   });
-  const muteList = createMuteList({
-    pubkey,
-    signer: activeSigner,
-    store,
-    writer,
-    fetchLatest: fetchLatestEvent,
-  });
-
   // デッキの読み込みと既定デッキの確定は一度だけ行う。
   //
   // pubkey が確定した直後に localStorage を読み、保存済みのものが
@@ -489,10 +481,17 @@ const V1Content: Component = () => {
   };
 
   onMount(() => {
-    const stored = loadNip46Session(
-      window.localStorage.getItem(NIP46_SESSION_STORAGE_KEY),
-    );
-    if (!stored) return;
+    const raw = window.localStorage.getItem(NIP46_SESSION_STORAGE_KEY);
+    const stored = loadNip46Session(raw);
+    if (!stored) {
+      if (raw !== null) {
+        window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+        setErrorMessage(
+          "リモート署名器の必要権限が更新されました。新しい bunker URI で再接続し、ミュート用の権限を承認してください。",
+        );
+      }
+      return;
+    }
     setLoading(true);
     void restoreNip46({ pool: manager.pool, stored, hooks: nip46Hooks })
       .then(activateNip46)
@@ -986,12 +985,27 @@ const V1Content: Component = () => {
       </Show>
     </div>
   );
-  return MuteListProvider({
-    value: muteList,
-    get children() {
-      return renderView();
-    },
-  });
+  return (
+    <Show when={pubkey()} keyed fallback={renderView()}>
+      {(account) => {
+        // アカウントを key に Provider の所有者ごと作り直す。復号済みの非公開
+        // 項目と保存キューを、ログアウト後や次のアカウントへ持ち越さない。
+        const muteList = createMuteList({
+          pubkey: () => account,
+          signer: activeSigner,
+          store,
+          writer,
+          fetchLatest: fetchLatestEvent,
+        });
+        return MuteListProvider({
+          value: muteList,
+          get children() {
+            return renderView();
+          },
+        });
+      }}
+    </Show>
+  );
 };
 
 const V1: Component = () => (

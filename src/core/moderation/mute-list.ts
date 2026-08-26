@@ -151,7 +151,14 @@ export const decodeMuteList = async (
   signer: Signer,
   pubkey: string,
 ): Promise<DecodedMuteList> => {
-  if (!event) return { entries: [], privatePart: "ready" };
+  // リストがまだ無くても、非公開部を新規作成できるかは署名器の能力で
+  // 決まる。「空なので復号できた」と「NIP-44 を使える」を混同しない。
+  if (!event) {
+    return {
+      entries: [],
+      privatePart: signer.nip44 ? "ready" : "unavailable",
+    };
+  }
   const publicEntries = event.tags.flatMap((tag) => {
     const target = targetOf(tag);
     return target ? [{ target, visibility: "public" as const }] : [];
