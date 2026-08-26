@@ -90,7 +90,7 @@ export const connectNip46 = async (options: {
     await client.request("connect", [
       options.bunker.remoteSignerPubkey,
       options.bunker.secret ?? "",
-      "sign_event:1",
+      "sign_event:1,sign_event:10000,nip44_encrypt,nip44_decrypt,nip04_decrypt",
       JSON.stringify({ name: "streets", url: options.metadataUrl }),
     ]);
     const session = await finishSession(

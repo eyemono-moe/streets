@@ -12,6 +12,7 @@ import type { RenderContextValue } from "../../core/view/render-context";
 import type { EventRenderer } from "../../core/view/renderer-registry";
 import EventView from "./EventView";
 import type { EventViewProps } from "./EventView";
+import { type MuteList, MuteListProvider } from "./mute-list";
 
 // subscription-manager.test.ts / profile-requests.test.ts と同じ手法:
 // 種から 32 byte 鍵を作り schnorr で実署名する。`EventStore.put` は
@@ -116,18 +117,30 @@ const testRenderer: EventRenderer = {
 const mount = (
   props: EventViewProps,
   ctx: RenderContextValue,
+  muteList?: MuteList,
 ): { element: () => HTMLElement; dispose: () => void } => {
   let element: HTMLElement | undefined;
   let disposeRoot: () => void = () => {};
   createRoot((dispose) => {
     disposeRoot = dispose;
-    RenderProvider({
-      value: ctx,
-      get children() {
-        element = EventView(props) as unknown as HTMLElement;
-        return null;
-      },
-    });
+    const render = () =>
+      RenderProvider({
+        value: ctx,
+        get children() {
+          element = EventView(props) as unknown as HTMLElement;
+          return null;
+        },
+      });
+    if (muteList) {
+      MuteListProvider({
+        value: muteList,
+        get children() {
+          return render();
+        },
+      });
+    } else {
+      render();
+    }
   });
   return {
     element: () => {
@@ -139,6 +152,77 @@ const mount = (
 };
 
 describe("EventView", () => {
+  it("入れ子のミュートを一時表示し、該当項目を解除できる", async () => {
+    const store = new EventStore();
+    const muted = signed(31, { content: "hidden" });
+    store.put(muted, "wss://relay/");
+    const fake = createFakeEventRequests();
+    const entry = {
+      target: { type: "pubkey" as const, value: muted.pubkey },
+      visibility: "private" as const,
+    };
+    const remove = vi.fn(async () => {});
+    const muteList: MuteList = {
+      state: () => ({
+        phase: "ready",
+        entries: [entry],
+        privatePart: "ready",
+      }),
+      saving: () => false,
+      error: () => undefined,
+      refresh: async () => {},
+      matches: () => [entry],
+      add: async () => {},
+      remove,
+      move: async () => {},
+    };
+    const ctx: RenderContextValue = {
+      store,
+      events: fake.events,
+      profiles: fakeProfiles(),
+      reactions: fakeReactions(),
+      viewerPubkey: undefined,
+      renderers: [testRenderer],
+    };
+    const { element, dispose } = mount(
+      { id: muted.id, variant: "compact" },
+      ctx,
+      muteList,
+    );
+    try {
+      await vi.waitFor(() => {
+        // 捕まえる変異: MuteList を見ずに通常レンダラを描く。
+        expect(
+          element().querySelector('[data-testid="muted-event"]'),
+        ).not.toBeNull();
+        expect(
+          element().querySelector('[data-testid="test-renderer-compact"]'),
+        ).toBeNull();
+      });
+      document.body.append(element());
+      (
+        element().querySelector(
+          '[data-testid="muted-event-remove"]',
+        ) as HTMLButtonElement
+      ).click();
+      expect(remove).toHaveBeenCalledWith(entry);
+
+      (
+        element().querySelector(
+          '[data-testid="muted-event-show"]',
+        ) as HTMLButtonElement
+      ).click();
+      await vi.waitFor(() => {
+        expect(
+          element().querySelector('[data-testid="test-renderer-compact"]')
+            ?.textContent,
+        ).toBe("hidden");
+      });
+    } finally {
+      element().remove();
+      dispose();
+    }
+  });
   it("store に既にあれば要求せず、登録済みレンダラで描く", async () => {
     const store = new EventStore();
     const event = signed(1, { content: "already here" });

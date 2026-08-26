@@ -61,5 +61,15 @@ export const createNip46Signer = (
       }
       return value;
     },
+    nip44: {
+      encrypt: (peerPubkey, plaintext) =>
+        client.request("nip44_encrypt", [peerPubkey, plaintext]),
+      decrypt: (peerPubkey, ciphertext) =>
+        client.request("nip44_decrypt", [peerPubkey, ciphertext]),
+    },
+    nip04: {
+      decrypt: (peerPubkey, ciphertext) =>
+        client.request("nip04_decrypt", [peerPubkey, ciphertext]),
+    },
   };
 };

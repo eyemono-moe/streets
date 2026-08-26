@@ -114,4 +114,18 @@ describe("createNip07Signer", () => {
     expect(encrypt).toHaveBeenCalledWith("peer", "hello");
     expect(decrypt).toHaveBeenCalledWith("peer", "enc:hello");
   });
+
+  it("旧 NIP-04 の復号だけを拡張機能へ委譲する", async () => {
+    // 捕まえる変異: nip04 decrypt の引数を入れ替える。
+    const decrypt = vi.fn(async () => "plain");
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+      nip04: { decrypt },
+    });
+    await expect(
+      createNip07Signer().nip04?.decrypt("peer", "cipher"),
+    ).resolves.toBe("plain");
+    expect(decrypt).toHaveBeenCalledWith("peer", "cipher");
+  });
 });

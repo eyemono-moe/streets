@@ -17,6 +17,7 @@ import ColumnItems from "./ColumnItems";
 import DiagnosticsPanel from "./DiagnosticsPanel";
 import ThreadView from "./ThreadView";
 import { useDeviceSettings } from "./device-settings";
+import { useOptionalMuteList } from "./mute-list";
 import { parseRelays } from "./parse-relays";
 import { ThreadNavProvider } from "./thread-nav";
 
@@ -94,6 +95,7 @@ const DeckColumn: Component<{
   onRename: (title: string) => void;
 }> = (props) => {
   const settings = useDeviceSettings();
+  const muteList = useOptionalMuteList();
   const source = createMemo<NostrSource>(() => {
     // `followees: props.followees` (呼ばずに渡す) —— `resolveSource` が
     // `kind: "followees"` の分岐でだけこれを呼ぶ (`resolve-source.ts` の
@@ -214,9 +216,15 @@ const DeckColumn: Component<{
     // 保持した後**なので、保持上限 200 件は捨てる前の件数で数えている ——
     // 自分の行動が多いと見える件数がそのぶん減る。仕様 5.1 節がこの代償を
     // 受け入れた判断として記録している。
-    return props.column.source.kind === "notifications"
-      ? excludeOwnActions(merged, props.viewer)
-      : merged;
+    const visible =
+      props.column.source.kind === "notifications"
+        ? excludeOwnActions(merged, props.viewer)
+        : merged;
+    // Store と SectionReader には残し、仮想リストへ渡す直前でだけ除く。
+    // 解除後は再購読なしで同じイベントを再表示できる。
+    return muteList
+      ? visible.filter((event) => muteList.matches(event).length === 0)
+      : visible;
   });
 
   // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。

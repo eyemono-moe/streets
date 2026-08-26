@@ -23,6 +23,10 @@ export type Signer = {
     encrypt(peerPubkey: string, plaintext: string): Promise<string>;
     decrypt(peerPubkey: string, ciphertext: string): Promise<string>;
   };
+  /** 旧 NIP-51 content の読み取り専用。新しい暗号文には NIP-44 を使う。 */
+  nip04?: {
+    decrypt(peerPubkey: string, ciphertext: string): Promise<string>;
+  };
 };
 
 /** 署名器が使えない (NIP-07 拡張が入っていない等)。 */

@@ -57,6 +57,7 @@ import {
   useDeviceSettings,
 } from "./v1/device-settings";
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
+import { MuteListProvider, createMuteList } from "./v1/mute-list";
 import { parseRelays } from "./v1/parse-relays";
 import { defaultRenderers } from "./v1/renderers";
 
@@ -195,6 +196,23 @@ const V1Content: Component = () => {
   // から再取得する経路 (fetch-latest.ts) で、manager/store/routing を
   // 読み取り層と共有する (ConnectionPool を publish 専用にもう一系統
   // 持たないのと同じ理由)。
+  const fetchLatestEvent = (
+    kind: number,
+    identifier: string | undefined,
+    author: string,
+  ) =>
+    fetchLatest(
+      {
+        pool: manager.pool,
+        routing,
+        store,
+        fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
+      },
+      kind,
+      identifier,
+      author,
+    );
+
   const writer = createWriter({
     signer: activeSigner,
     store,
@@ -204,18 +222,7 @@ const V1Content: Component = () => {
       if (!pk) throw new SignerUnavailableError();
       return pk;
     },
-    fetchLatest: (kind, identifier, author) =>
-      fetchLatest(
-        {
-          pool: manager.pool,
-          routing,
-          store,
-          fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
-        },
-        kind,
-        identifier,
-        author,
-      ),
+    fetchLatest: fetchLatestEvent,
   });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
@@ -255,6 +262,13 @@ const V1Content: Component = () => {
       warmUp.state === "ready" || warmUp.state === "errored",
     store,
     writer,
+  });
+  const muteList = createMuteList({
+    pubkey,
+    signer: activeSigner,
+    store,
+    writer,
+    fetchLatest: fetchLatestEvent,
   });
 
   // デッキの読み込みと既定デッキの確定は一度だけ行う。
@@ -624,7 +638,7 @@ const V1Content: Component = () => {
     }
   };
 
-  return (
+  const renderView = () => (
     <div class="flex h-100dvh w-screen flex-col overflow-hidden">
       <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
         <div class="flex items-center justify-between gap-2">
@@ -972,6 +986,12 @@ const V1Content: Component = () => {
       </Show>
     </div>
   );
+  return MuteListProvider({
+    value: muteList,
+    get children() {
+      return renderView();
+    },
+  });
 };
 
 const V1: Component = () => (

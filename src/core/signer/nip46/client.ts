@@ -21,6 +21,9 @@ export type Nip46Method =
   | "get_public_key"
   | "logout"
   | "ping"
+  | "nip04_decrypt"
+  | "nip44_decrypt"
+  | "nip44_encrypt"
   | "sign_event"
   | "switch_relays";
 

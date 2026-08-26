@@ -39,5 +39,14 @@ export const createActiveSigner = (): ActiveSigner => {
           }
         : undefined;
     },
+    get nip04() {
+      const nip04 = current?.nip04;
+      return nip04
+        ? {
+            decrypt: (peerPubkey: string, ciphertext: string) =>
+              nip04.decrypt(peerPubkey, ciphertext),
+          }
+        : undefined;
+    },
   };
 };

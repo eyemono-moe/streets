@@ -366,6 +366,34 @@ describe("publish", () => {
 });
 
 describe("replace", () => {
+  it("非同期 replacement の完了を待ってから署名する", async () => {
+    // 捕まえる変異: mutate の Promise を await せず、そのまま draft として署名する。
+    const calls: string[] = [];
+    const fake = createFakeSigner(SK);
+    const writer = createWriter({
+      signer: {
+        getPublicKey: fake.getPublicKey,
+        signEvent: async (template) => {
+          calls.push(`sign:${template.content}`);
+          return fake.signEvent(template);
+        },
+      },
+      store: new EventStore(),
+      publisher: stubPublisher(async () => ok),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.replace(10_000, undefined, async () => {
+      calls.push("decrypt");
+      await Promise.resolve();
+      calls.push("encrypt");
+      return { kind: 10_000, tags: [], content: "cipher" };
+    });
+
+    expect(calls).toEqual(["decrypt", "encrypt", "sign:cipher"]);
+  });
   const setupReplace = (
     current: NostrEvent | undefined,
     options?: { refetchThrows?: Error },
