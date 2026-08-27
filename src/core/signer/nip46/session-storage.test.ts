@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadNip46Session, saveNip46Session } from "./session-storage";
 
 const session = {
-  version: 1 as const,
+  version: 2 as const,
   clientSecret: "1".repeat(64),
   remoteSignerPubkey: "2".repeat(64),
   userPubkey: "3".repeat(64),
@@ -16,7 +16,8 @@ describe("NIP-46 session storage", () => {
 
   it.each([
     "not json",
-    JSON.stringify({ ...session, version: 2 }),
+    // 捕まえる変異: 権限追加前の v1 セッションをそのまま復元する。
+    JSON.stringify({ ...session, version: 1 }),
     JSON.stringify({ ...session, clientSecret: "secret" }),
     JSON.stringify({ ...session, relays: [] }),
     JSON.stringify({ ...session, relays: ["https://relay.example"] }),

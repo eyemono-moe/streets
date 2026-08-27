@@ -57,6 +57,7 @@ import {
   useDeviceSettings,
 } from "./v1/device-settings";
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
+import { MuteListProvider, createMuteList } from "./v1/mute-list";
 import { parseRelays } from "./v1/parse-relays";
 import { defaultRenderers } from "./v1/renderers";
 
@@ -195,6 +196,23 @@ const V1Content: Component = () => {
   // から再取得する経路 (fetch-latest.ts) で、manager/store/routing を
   // 読み取り層と共有する (ConnectionPool を publish 専用にもう一系統
   // 持たないのと同じ理由)。
+  const fetchLatestEvent = (
+    kind: number,
+    identifier: string | undefined,
+    author: string,
+  ) =>
+    fetchLatest(
+      {
+        pool: manager.pool,
+        routing,
+        store,
+        fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
+      },
+      kind,
+      identifier,
+      author,
+    );
+
   const writer = createWriter({
     signer: activeSigner,
     store,
@@ -204,18 +222,7 @@ const V1Content: Component = () => {
       if (!pk) throw new SignerUnavailableError();
       return pk;
     },
-    fetchLatest: (kind, identifier, author) =>
-      fetchLatest(
-        {
-          pool: manager.pool,
-          routing,
-          store,
-          fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
-        },
-        kind,
-        identifier,
-        author,
-      ),
+    fetchLatest: fetchLatestEvent,
   });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
@@ -256,7 +263,6 @@ const V1Content: Component = () => {
     store,
     writer,
   });
-
   // デッキの読み込みと既定デッキの確定は一度だけ行う。
   //
   // pubkey が確定した直後に localStorage を読み、保存済みのものが
@@ -475,10 +481,17 @@ const V1Content: Component = () => {
   };
 
   onMount(() => {
-    const stored = loadNip46Session(
-      window.localStorage.getItem(NIP46_SESSION_STORAGE_KEY),
-    );
-    if (!stored) return;
+    const raw = window.localStorage.getItem(NIP46_SESSION_STORAGE_KEY);
+    const stored = loadNip46Session(raw);
+    if (!stored) {
+      if (raw !== null) {
+        window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+        setErrorMessage(
+          "リモート署名器の必要権限が更新されました。新しい bunker URI で再接続し、ミュート用の権限を承認してください。",
+        );
+      }
+      return;
+    }
     setLoading(true);
     void restoreNip46({ pool: manager.pool, stored, hooks: nip46Hooks })
       .then(activateNip46)
@@ -624,7 +637,7 @@ const V1Content: Component = () => {
     }
   };
 
-  return (
+  const renderView = () => (
     <div class="flex h-100dvh w-screen flex-col overflow-hidden">
       <header class="shrink-0 space-y-2 border-alpha-300 border-b p-3">
         <div class="flex items-center justify-between gap-2">
@@ -971,6 +984,29 @@ const V1Content: Component = () => {
         </Show>
       </Show>
     </div>
+  );
+  return (
+    <Show when={pubkey()} keyed fallback={renderView()}>
+      {(account) => {
+        // アカウントを key に Provider の所有者ごと作り直す。復号済みの非公開
+        // 項目と保存キューを、ログアウト後や次のアカウントへ持ち越さない。
+        const muteList = createMuteList({
+          pubkey: () => account,
+          routingSettled: () =>
+            warmUp.state === "ready" || warmUp.state === "errored",
+          signer: activeSigner,
+          store,
+          writer,
+          fetchLatest: fetchLatestEvent,
+        });
+        return MuteListProvider({
+          value: muteList,
+          get children() {
+            return renderView();
+          },
+        });
+      }}
+    </Show>
   );
 };
 

@@ -60,4 +60,18 @@ describe("Nip46Signer", () => {
       InvalidNip46SignatureError,
     );
   });
+
+  it("NIP-44 と旧 NIP-04 を remote signer へ委譲する", async () => {
+    // 捕まえる変異: NIP-44 encrypt/decrypt の method 名を入れ替える。
+    const request = vi.fn().mockResolvedValue("result");
+    const signer = createNip46Signer({ request }, pubkey);
+    await signer.nip44?.encrypt("peer", "plain");
+    await signer.nip44?.decrypt("peer", "cipher44");
+    await signer.nip04?.decrypt("peer", "cipher04");
+    expect(request.mock.calls).toEqual([
+      ["nip44_encrypt", ["peer", "plain"]],
+      ["nip44_decrypt", ["peer", "cipher44"]],
+      ["nip04_decrypt", ["peer", "cipher04"]],
+    ]);
+  });
 });

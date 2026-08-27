@@ -8,6 +8,9 @@ type Nip07 = {
     encrypt(peerPubkey: string, plaintext: string): Promise<string>;
     decrypt(peerPubkey: string, ciphertext: string): Promise<string>;
   };
+  nip04?: {
+    decrypt(peerPubkey: string, ciphertext: string): Promise<string>;
+  };
 };
 
 /** `window.nostr` を「今」読む。生成時にキャッシュしない (下記)。 */
@@ -48,6 +51,18 @@ export const createNip07Signer = (): Signer => ({
             const current = nip07();
             if (!current?.nip44) throw new SignerUnavailableError();
             return current.nip44.decrypt(peerPubkey, ciphertext);
+          },
+        }
+      : undefined;
+  },
+  get nip04() {
+    const api = nip07();
+    return api?.nip04
+      ? {
+          decrypt: (peerPubkey: string, ciphertext: string) => {
+            const current = nip07();
+            if (!current?.nip04) throw new SignerUnavailableError();
+            return current.nip04.decrypt(peerPubkey, ciphertext);
           },
         }
       : undefined;

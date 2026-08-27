@@ -70,10 +70,22 @@ export type Writer = {
   replace(
     kind: number,
     identifier: string | undefined,
-    mutate: Mutation,
+    mutate: Replacement,
     hooks?: WriteHooks,
   ): Promise<WriteResult>;
 };
+
+/**
+ * 置換可能イベントの最新版を受け取り、次の draft を返す。
+ *
+ * NIP-51 の非公開リストは、最新版の content を外部署名器で復号してから
+ * 差分を適用し、再暗号化する必要がある。取得を Writer の外へ出すと、その
+ * 間に届いた最新版を古い内容で上書きできるため、非同期処理もこの seam の
+ * 内側で待つ。既存の同期 Mutation もこの型へそのまま代入できる。
+ */
+export type Replacement = (
+  current: NostrEvent | undefined,
+) => ReturnType<Mutation> | Promise<ReturnType<Mutation>>;
 
 export type CreateWriterOptions = {
   signer: Signer;
@@ -199,7 +211,7 @@ export const createWriter = ({
           ...(pendingReplaceTargets.get(replacementKey) ?? []),
         ]),
       ];
-      const draft = mutate(current);
+      const draft = await mutate(current);
 
       // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
       // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、

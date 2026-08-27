@@ -18,12 +18,17 @@ type RpcRequest = { id: string; method: string; params: string[] };
 
 export type Nip46SignerFixture = {
   bunkerUri: string;
+  connectPermissions: Promise<string>;
   close(): void;
 };
 
 export const startNip46Signer = async (): Promise<Nip46SignerFixture> => {
   const relay = await Relay.connect(nip46RelayUrl);
   const clients = new Set<string>();
+  let resolveConnectPermissions = (_permissions: string) => {};
+  const connectPermissions = new Promise<string>((resolve) => {
+    resolveConnectPermissions = resolve;
+  });
 
   const respond = async (
     clientPubkey: string,
@@ -57,6 +62,7 @@ export const startNip46Signer = async (): Promise<Nip46SignerFixture> => {
           }
 
           if (request.method === "connect") {
+            resolveConnectPermissions(request.params[2] ?? "");
             clients.add(event.pubkey);
             await respond(event.pubkey, { id: request.id, result: "ack" });
             return;
@@ -103,6 +109,7 @@ export const startNip46Signer = async (): Promise<Nip46SignerFixture> => {
   );
   return {
     bunkerUri: `bunker://${nip46RemotePubkey}?relay=${encodeURIComponent(nip46RelayUrl)}&secret=e2e-once`,
+    connectPermissions,
     close() {
       subscription.close();
       relay.close();

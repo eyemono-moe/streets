@@ -6,18 +6,21 @@ export const NIP46_SESSION_STORAGE_KEY = "streets.v1.nip46-session";
 
 const hex64 = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/));
 const sessionSchema = v.strictObject({
-  version: v.literal(1),
+  // v2 は kind:10000 と NIP-44/NIP-04 の権限を connect 時に承認済みの
+  // セッションだけを表す。v1 を復元すると ping は通ってもミュート操作が
+  // 拒否されるため、互換扱いせず新しい bunker URI で再承認してもらう。
+  version: v.literal(2),
   clientSecret: hex64,
   remoteSignerPubkey: hex64,
   userPubkey: hex64,
   relays: v.pipe(v.array(v.string()), v.minLength(1), v.maxLength(5)),
 });
 
-export type StoredNip46SessionV1 = v.InferOutput<typeof sessionSchema>;
+export type StoredNip46SessionV2 = v.InferOutput<typeof sessionSchema>;
 
 export const loadNip46Session = (
   raw: string | null,
-): StoredNip46SessionV1 | undefined => {
+): StoredNip46SessionV2 | undefined => {
   if (raw === null) return undefined;
   try {
     const parsed = v.parse(sessionSchema, JSON.parse(raw));
@@ -35,5 +38,5 @@ export const loadNip46Session = (
   }
 };
 
-export const saveNip46Session = (session: StoredNip46SessionV1): string =>
+export const saveNip46Session = (session: StoredNip46SessionV2): string =>
   JSON.stringify(v.parse(sessionSchema, session));

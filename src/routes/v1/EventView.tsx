@@ -13,6 +13,7 @@ import {
   rendererFor,
 } from "../../core/view/renderer-registry";
 import { UnknownKindCompact, UnknownKindFull } from "./UnknownKind";
+import { useOptionalMuteList } from "./mute-list";
 
 export type EventViewProps = {
   id: string;
@@ -37,8 +38,11 @@ export type EventViewProps = {
  */
 const EventView: Component<EventViewProps> = (props) => {
   const ctx = useRender();
+  const muteList = useOptionalMuteList();
   const [event, setEvent] = createSignal<NostrEvent | undefined>();
   const [unresolved, setUnresolved] = createSignal(false);
+  const [showMuted, setShowMuted] = createSignal(false);
+  const [muteError, setMuteError] = createSignal<string>();
 
   createEffect(() => {
     // 依存として追跡するのは props.id だけ —— `Profile.tsx` の
@@ -48,6 +52,8 @@ const EventView: Component<EventViewProps> = (props) => {
     const id = props.id;
     const relayHint = props.relayHint;
     setUnresolved(false);
+    setShowMuted(false);
+    setMuteError(undefined);
 
     const check = (): boolean => {
       const found = ctx.store.get(id);
@@ -86,6 +92,13 @@ const EventView: Component<EventViewProps> = (props) => {
         }
       >
         {(found) => {
+          const matches = () => muteList?.matches(found()) ?? [];
+          const muteListSettled = () => {
+            const phase = muteList?.state().phase;
+            return (
+              phase === undefined || phase === "missing" || phase === "ready"
+            );
+          };
           const renderer = rendererFor(ctx.renderers, found().kind);
           // 未登録の kind でも描く —— fallback 経路 (ADR-0003/ADR-0004,
           // design 9 節)。レンダラ集合が空でもここが壊れないことがこの
@@ -98,12 +111,78 @@ const EventView: Component<EventViewProps> = (props) => {
               ? UnknownKindFull
               : UnknownKindCompact;
           return (
-            <Body
-              event={found()}
-              threadLine={props.threadLine}
-              hideReplyPreview={props.hideReplyPreview}
-              disableThreadOpen={props.disableThreadOpen}
-            />
+            <Show
+              when={muteListSettled()}
+              fallback={
+                <div
+                  class="m-2 rounded-2 border border-primary bg-secondary p-3 text-caption"
+                  data-testid="mute-list-pending"
+                >
+                  <p class="c-secondary">
+                    {muteList?.state().phase === "error"
+                      ? "ミュート設定を確認できません。設定画面から再試行してください"
+                      : "ミュート設定を確認しています…"}
+                  </p>
+                </div>
+              }
+            >
+              <Show
+                when={showMuted() || matches().length === 0}
+                fallback={
+                  <div
+                    class="m-2 rounded-2 border border-primary bg-secondary p-3 text-caption"
+                    data-testid="muted-event"
+                  >
+                    <p class="c-secondary">ミュートしたイベントです</p>
+                    <div class="mt-2 flex gap-2">
+                      <button
+                        class="cursor-pointer appearance-none rounded-2 border border-primary bg-transparent px-3 py-1.5"
+                        data-testid="muted-event-show"
+                        type="button"
+                        onClick={() => setShowMuted(true)}
+                      >
+                        一時的に表示
+                      </button>
+                      <button
+                        class="cursor-pointer appearance-none rounded-2 border border-primary bg-transparent px-3 py-1.5"
+                        data-testid="muted-event-remove"
+                        type="button"
+                        onClick={() => {
+                          const first = matches()[0];
+                          if (!first || !muteList) return;
+                          setMuteError(undefined);
+                          void muteList.remove(first).catch(() => {
+                            setMuteError(
+                              muteList.error() ??
+                                "ミュートを解除できませんでした。再試行してください",
+                            );
+                          });
+                        }}
+                      >
+                        1件解除
+                      </button>
+                    </div>
+                    <Show when={muteError()}>
+                      {(message) => (
+                        <p
+                          class="mt-2 text-red-8"
+                          data-testid="muted-event-error"
+                        >
+                          {message()}
+                        </p>
+                      )}
+                    </Show>
+                  </div>
+                }
+              >
+                <Body
+                  event={found()}
+                  threadLine={props.threadLine}
+                  hideReplyPreview={props.hideReplyPreview}
+                  disableThreadOpen={props.disableThreadOpen}
+                />
+              </Show>
+            </Show>
           );
         }}
       </Show>
