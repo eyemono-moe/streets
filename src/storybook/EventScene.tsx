@@ -1,4 +1,11 @@
-import { type JSX, type ParentComponent, Show, createMemo } from "solid-js";
+import {
+  type Accessor,
+  type JSX,
+  type ParentComponent,
+  Show,
+  createMemo,
+  onCleanup,
+} from "solid-js";
 import { type MuteEntry, matchingMutes } from "../core/moderation/mute-list";
 import type { NostrEvent } from "../core/nostr/event";
 import type { EventRequests } from "../core/read/event-requests";
@@ -68,17 +75,17 @@ const eventRequestsFor = (
   };
 };
 
-const muteListFor = (entries: readonly MuteEntry[]): MuteList => ({
+const muteListFor = (entries: Accessor<readonly MuteEntry[]>): MuteList => ({
   state: () => ({
     phase: "ready",
-    entries,
+    entries: entries(),
     privatePart: "ready",
   }),
   saving: () => false,
   error: () => undefined,
   async refresh() {},
   matches(event) {
-    return matchingMutes(entries, event);
+    return matchingMutes(entries(), event);
   },
   async add() {},
   async remove() {},
@@ -103,6 +110,12 @@ const contextFor = (scene: EventScene): RenderContextValue => {
   };
 };
 
+const disposeContext = (context: RenderContextValue) => {
+  context.events.dispose();
+  context.profiles.dispose();
+  context.reactions.dispose();
+};
+
 /**
  * Story が宣言したイベント列を、本番と同じ描画 context へ変換する。
  * Store・requests・renderer 登録はここに閉じ、Story 側へ配線を漏らさない。
@@ -110,18 +123,47 @@ const contextFor = (scene: EventScene): RenderContextValue => {
 export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   props,
 ): JSX.Element => {
-  const context = createMemo(() => contextFor(props.scene));
-  const muteList = createMemo(() =>
-    props.scene.mutes ? muteListFor(props.scene.mutes) : undefined,
-  );
+  let latestContext: RenderContextValue | undefined;
+  const currentContext = createMemo(() => {
+    const next = contextFor(props.scene);
+    if (latestContext) disposeContext(latestContext);
+    latestContext = next;
+    return next;
+  });
+  onCleanup(() => {
+    if (latestContext) disposeContext(latestContext);
+  });
+
+  // Context 自体は固定し、各フィールドを getter にする。Solid の Context は
+  // Provider の value 差し替えを consumer へ通知しないため、Storybook args
+  // で scene が変わったときも consumer が新しい Store を読める形にする。
+  const context: RenderContextValue = {
+    get store() {
+      return currentContext().store;
+    },
+    get events() {
+      return currentContext().events;
+    },
+    get profiles() {
+      return currentContext().profiles;
+    },
+    get reactions() {
+      return currentContext().reactions;
+    },
+    get viewerPubkey() {
+      return currentContext().viewerPubkey;
+    },
+    get renderers() {
+      return currentContext().renderers;
+    },
+  };
+  const muteList = muteListFor(() => props.scene.mutes ?? []);
 
   return (
-    <RenderProvider value={context()}>
+    <RenderProvider value={context}>
       <ThreadNavProvider open={() => {}}>
-        <Show when={muteList()} fallback={props.children}>
-          {(list) => (
-            <MuteListProvider value={list()}>{props.children}</MuteListProvider>
-          )}
+        <Show when={props.scene.mutes !== undefined} fallback={props.children}>
+          <MuteListProvider value={muteList}>{props.children}</MuteListProvider>
         </Show>
       </ThreadNavProvider>
     </RenderProvider>

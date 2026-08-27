@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
+import { buildQuote, buildReply } from "../core/nostr/build/note";
+import { buildReaction } from "../core/nostr/build/reaction";
+import { buildRepost } from "../core/nostr/build/repost";
+import type { NostrEvent } from "../core/nostr/event";
 import { EventStore } from "../core/read/event-store";
 import { createStoryAuthor } from "./story-events";
+
+const draftOf = ({ kind, tags, content }: NostrEvent) => ({
+  kind,
+  tags,
+  content,
+});
 
 describe("createStoryAuthor", () => {
   it("同じ seed と呼び出し順から同じ署名済みイベントを作る", () => {
@@ -44,17 +54,11 @@ describe("createStoryAuthor", () => {
     const repost = bob.repost(target);
     const reaction = bob.reaction(target, { type: "like" });
 
-    // 捕まえる変異: Story factory が本番ビルダを使わず、見た目に必要な
-    // 最小タグだけを独自に組み立てる。
-    expect(reply.tags).toContainEqual([
-      "e",
-      target.id,
-      "",
-      "root",
-      target.pubkey,
-    ]);
-    expect(quote.tags).toContainEqual(["q", target.id, "", target.pubkey]);
-    expect(repost.tags).toContainEqual(["e", target.id, "", "", target.pubkey]);
-    expect(reaction.tags).toContainEqual(["k", "1"]);
+    // 捕まえる変異: Story factory のイベント形を本番ビルダからずらし、
+    // 見た目に必要な一部のタグや content だけを独自に組み立てる。
+    expect(draftOf(reply)).toEqual(buildReply(target, "reply"));
+    expect(draftOf(quote)).toEqual(buildQuote(target, "quote"));
+    expect(draftOf(repost)).toEqual(buildRepost(target));
+    expect(draftOf(reaction)).toEqual(buildReaction(target, { type: "like" }));
   });
 });

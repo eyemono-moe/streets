@@ -1,4 +1,4 @@
-import { createRoot } from "solid-js";
+import { type Accessor, createRoot, createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import EventView from "../routes/v1/EventView";
 import { useOptionalMuteList } from "../routes/v1/mute-list";
@@ -6,7 +6,9 @@ import { EventSceneProvider } from "./EventScene";
 import { createStoryAuthor } from "./story-events";
 
 const mount = (
-  scene: Parameters<typeof EventSceneProvider>[0]["scene"],
+  scene:
+    | Parameters<typeof EventSceneProvider>[0]["scene"]
+    | Accessor<Parameters<typeof EventSceneProvider>[0]["scene"]>,
   render: () => HTMLElement,
 ): { element: () => HTMLElement; dispose: () => void } => {
   let element: HTMLElement | undefined;
@@ -14,7 +16,9 @@ const mount = (
   createRoot((dispose) => {
     disposeRoot = dispose;
     EventSceneProvider({
-      scene,
+      get scene() {
+        return typeof scene === "function" ? scene() : scene;
+      },
       get children() {
         element = render();
         return null;
@@ -72,6 +76,73 @@ describe("EventSceneProvider", () => {
         expect(
           element().querySelector('[data-testid="event-unresolved"]'),
         ).not.toBeNull();
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it("unresolvedEventIds に無い関連イベントは読み込み中のままにする", async () => {
+    const author = createStoryAuthor(104);
+    const missing = author.note("still loading");
+    const { element, dispose } = mount(
+      { events: [] },
+      () =>
+        EventView({
+          id: missing.id,
+          variant: "compact",
+        }) as unknown as HTMLElement,
+    );
+    try {
+      await vi.waitFor(() => {
+        expect(
+          element().querySelector('[data-testid="event-loading"]'),
+        ).not.toBeNull();
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      // 捕まえる変異: request された全 id を unresolved とみなし、明示されて
+      // いない関連イベントまで「読み込めませんでした」へ遷移させる。
+      expect(
+        element().querySelector('[data-testid="event-loading"]'),
+      ).not.toBeNull();
+      expect(
+        element().querySelector('[data-testid="event-unresolved"]'),
+      ).toBeNull();
+    } finally {
+      dispose();
+    }
+  });
+
+  it("scene と表示 id の更新後は新しい Store を参照する", async () => {
+    const author = createStoryAuthor(105);
+    const first = author.note("first scene");
+    const second = author.note("second scene");
+    const [scene, setScene] = createSignal({ events: [first] });
+    const [id, setId] = createSignal(first.id);
+    const { element, dispose } = mount(
+      scene,
+      () =>
+        EventView({
+          get id() {
+            return id();
+          },
+          variant: "full",
+        }) as unknown as HTMLElement,
+    );
+    try {
+      await vi.waitFor(() =>
+        expect(element().textContent).toContain("first scene"),
+      );
+      setScene({ events: [second] });
+      setId(second.id);
+      await vi.waitFor(() => {
+        // 捕まえる変異: Context.Provider へ scene ごとの context object を直接
+        // 渡し、consumer を古い Store へ束縛したままにする。
+        expect(element().textContent).toContain("second scene");
+        expect(
+          element().querySelector('[data-testid="event-loading"]'),
+        ).toBeNull();
       });
     } finally {
       dispose();

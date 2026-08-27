@@ -1,10 +1,12 @@
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { NostrEvent } from "../../core/nostr/event";
+import { encodeBech32 } from "../../core/nostr/nip19";
 import {
   type EventScene,
   EventSceneProvider,
 } from "../../storybook/EventScene";
+import partyUrl from "../../storybook/party.svg";
 import { createStoryAuthor } from "../../storybook/story-events";
 import EventView from "./EventView";
 
@@ -45,9 +47,15 @@ const plainNote = alice.note(
     ],
   },
 );
+const tokenTarget = alice.note("Nostr 参照から表示されるイベントです。");
 const referencedNote = bob.note(
-  "リンク、ハッシュタグ、Nostr 参照を含む本文です。 https://example.com/ #nostr",
-  { tags: [["t", "nostr"]] },
+  `リンク、ハッシュタグ、Nostr 参照、カスタム絵文字を含む本文です。 https://example.com/ #nostr nostr:${encodeBech32("note", tokenTarget.id)} :party:`,
+  {
+    tags: [
+      ["t", "nostr"],
+      ["emoji", "party", partyUrl],
+    ],
+  },
 );
 const reply = alice.reply("たしかに、署名作業が無いだけでかなり楽ですね。", {
   parent: referencedNote,
@@ -64,7 +72,7 @@ const textReaction = bob.reaction(plainNote, {
 const emojiReaction = carol.reaction(plainNote, {
   type: "emoji",
   shortcode: "party",
-  url: "/storybook/party.svg",
+  url: partyUrl,
 });
 const reactionEvent = carol.reaction(referencedNote, { type: "like" });
 const unicodeReactionEvent = bob.reaction(referencedNote, {
@@ -74,7 +82,7 @@ const unicodeReactionEvent = bob.reaction(referencedNote, {
 const customReactionEvent = alice.reaction(referencedNote, {
   type: "emoji",
   shortcode: "party",
-  url: "/storybook/party.svg",
+  url: partyUrl,
 });
 const unknown = alice.unknown(
   31_337,
@@ -118,6 +126,13 @@ export const Kind1Compact: Story = {
   },
 };
 
+export const Kind1ContentTokens: Story = {
+  args: {
+    event: referencedNote,
+    scene: scene(tokenTarget, referencedNote),
+  },
+};
+
 export const Kind1返信: Story = {
   args: { event: reply, scene: scene(referencedNote, reply) },
 };
@@ -147,21 +162,21 @@ export const Kind6対象未解決: Story = {
 export const Kind7リアクション: Story = {
   args: {
     event: reactionEvent,
-    scene: scene(referencedNote, reactionEvent),
+    scene: scene(tokenTarget, referencedNote, reactionEvent),
   },
 };
 
 export const Kind7Unicodeリアクション: Story = {
   args: {
     event: unicodeReactionEvent,
-    scene: scene(referencedNote, unicodeReactionEvent),
+    scene: scene(tokenTarget, referencedNote, unicodeReactionEvent),
   },
 };
 
 export const Kind7CustomEmojiリアクション: Story = {
   args: {
     event: customReactionEvent,
-    scene: scene(referencedNote, customReactionEvent),
+    scene: scene(tokenTarget, referencedNote, customReactionEvent),
   },
 };
 
