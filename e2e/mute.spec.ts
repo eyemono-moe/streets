@@ -81,6 +81,31 @@ const latestMuteEvent = async (
   }
 };
 
+const resetViewerMuteList = async (): Promise<void> => {
+  const current = await latestMuteEvent();
+  const relay = await Relay.connect(previewRelayUrl);
+  try {
+    await relay.publish(
+      signAsPreviewViewer({
+        kind: 10_000,
+        created_at: Math.max(
+          Math.floor(Date.now() / 1_000),
+          (current?.created_at ?? 0) + 1,
+        ),
+        tags: [],
+        content: "",
+      }),
+    );
+  } finally {
+    relay.close();
+  }
+};
+
+// 同じローカルリレーを繰り返し使っても、過去実行や途中失敗のミュートを
+// 次のテストと後続の v1.spec.ts へ持ち越さない。
+test.beforeEach(resetViewerMuteList);
+test.afterEach(resetViewerMuteList);
+
 test("イベントメニューから著者とスレッドをミュートする", async ({ page }) => {
   test.setTimeout(60_000);
   await stubSigner(page);
