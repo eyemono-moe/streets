@@ -39,6 +39,44 @@ const flush = async () => {
 };
 
 describe("MuteList", () => {
+  it("NIP-65 の経路が確定するまでリスト取得を始めない", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: routingSettled を待たず fallback relay だけで missing を確定する。
+            const [routingSettled, setRoutingSettled] = createSignal(false);
+            const fetchLatest = vi.fn(async () => undefined);
+            const muteList = createMuteList({
+              pubkey: () => PUBKEY,
+              routingSettled,
+              signer,
+              store: {
+                latestReplaceable: () => undefined,
+                onReplaceableChanged: () => () => {},
+              },
+              writer: { replace: vi.fn() },
+              fetchLatest,
+            });
+            await flush();
+            expect(muteList.state().phase).toBe("loading");
+            expect(fetchLatest).not.toHaveBeenCalled();
+
+            setRoutingSettled(true);
+            await flush();
+            expect(fetchLatest).toHaveBeenCalledWith(10_000, undefined, PUBKEY);
+            expect(muteList.state().phase).toBe("missing");
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
   it("未ログイン・取得中・欠落を区別し、ログアウトで項目を破棄する", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
@@ -49,6 +87,7 @@ describe("MuteList", () => {
             let finishFetch: (value: undefined) => void = () => {};
             const muteList = createMuteList({
               pubkey,
+              routingSettled: () => true,
               signer,
               store: {
                 latestReplaceable: () => undefined,
@@ -113,6 +152,7 @@ describe("MuteList", () => {
             );
             const muteList = createMuteList({
               pubkey,
+              routingSettled: () => true,
               signer,
               store: {
                 latestReplaceable: () => current,
@@ -186,6 +226,7 @@ describe("MuteList", () => {
             });
             const muteList = createMuteList({
               pubkey,
+              routingSettled: () => true,
               signer,
               store: {
                 latestReplaceable: () => undefined,

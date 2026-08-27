@@ -173,7 +173,9 @@ export const decodeMuteList = async (
   });
   return {
     entries: [...publicEntries, ...privateEntries],
-    privatePart: "ready",
+    // NIP-04 で旧項目を読めても、新しく書くには NIP-44 が要る。content が
+    // 空の場合も同じで、「復号するものが無い」と「編集できる」は別である。
+    privatePart: signer.nip44 ? "ready" : "unavailable",
   };
 };
 

@@ -97,6 +97,10 @@ export const signAsPreviewViewer = (template: EventTemplate) =>
 export const signAsPreviewAuthorOne = (template: EventTemplate) =>
   finalizeEvent(template, authorOneSecretKey);
 
+/** NIP-44 非対応署名器の独立 E2E で、専用アカウントとして署名する。 */
+export const signAsPreviewAuthorTwo = (template: EventTemplate) =>
+  finalizeEvent(template, authorTwoSecretKey);
+
 /** リレー設定 E2E 専用の閲覧者として署名する。 */
 export const signAsRelaySettingsViewer = (template: EventTemplate) =>
   finalizeEvent(template, relaySettingsViewerSecretKey);

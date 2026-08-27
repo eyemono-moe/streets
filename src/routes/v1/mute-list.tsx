@@ -57,6 +57,7 @@ class MuteAccountChangedError extends Error {
 
 export const createMuteList = (options: {
   pubkey: Accessor<string | undefined>;
+  routingSettled: Accessor<boolean>;
   signer: Signer;
   store: MuteStore;
   writer: Pick<Writer, "replace">;
@@ -118,13 +119,24 @@ export const createMuteList = (options: {
       setState({ phase: "signed-out" });
       return;
     }
+    if (!options.routingSettled()) {
+      generation += 1;
+      setError(undefined);
+      setState({ phase: "loading" });
+      return;
+    }
     void load(author);
   });
 
   const offChanged = options.store.onReplaceableChanged(
     (change: ReplaceableChange) => {
       const author = options.pubkey();
-      if (change.kind !== MUTE_KIND || change.pubkey !== author || !author) {
+      if (
+        change.kind !== MUTE_KIND ||
+        change.pubkey !== author ||
+        !author ||
+        !options.routingSettled()
+      ) {
         return;
       }
       void decodeCurrent(author, generation);

@@ -94,6 +94,22 @@ describe("decodeMuteList / changeMuteList", () => {
     });
   });
 
+  it("公開項目だけの既存リストでも NIP-44 非対応を示す", async () => {
+    // 捕まえる変異: 空 content を復号済みとして privatePart を ready にする。
+    await expect(
+      decodeMuteList(
+        event({ kind: 10_000, tags: [["p", PUBKEY]], content: "" }),
+        signer({ nip44: undefined }),
+        PUBKEY,
+      ),
+    ).resolves.toEqual({
+      entries: [
+        { target: { type: "pubkey", value: PUBKEY }, visibility: "public" },
+      ],
+      privatePart: "unavailable",
+    });
+  });
+
   it("旧 NIP-04 content は decrypt だけを委譲する", async () => {
     const decrypt = vi.fn(async () => '[["t","nostr"]]');
     const legacy = signer({ nip04: { decrypt }, nip44: undefined });
@@ -108,6 +124,7 @@ describe("decodeMuteList / changeMuteList", () => {
         visibility: "private",
       },
     ]);
+    expect(result.privatePart).toBe("unavailable");
     expect(decrypt).toHaveBeenCalledWith(PUBKEY, "cipher?iv=vector");
   });
 

@@ -4,8 +4,10 @@ import { Relay } from "nostr-tools";
 import {
   previewAuthorOneNoteText,
   previewAuthorOnePubkey,
+  previewAuthorTwoPubkey,
   previewRelayUrl,
   previewViewerPubkey,
+  signAsPreviewAuthorTwo,
   signAsPreviewViewer,
 } from "./fixtures/seed-preview.js";
 
@@ -37,7 +39,7 @@ const stubSigner = async (page: Page) => {
 const stubSignerWithoutNip44 = async (page: Page) => {
   await page.exposeFunction(
     "__streetsSignPublicMuteEvent",
-    (template: EventTemplate) => signAsPreviewViewer(template),
+    (template: EventTemplate) => signAsPreviewAuthorTwo(template),
   );
   await page.addInitScript((viewerPubkey: string) => {
     const win = window as typeof window & {
@@ -49,16 +51,18 @@ const stubSignerWithoutNip44 = async (page: Page) => {
       signEvent: (template: unknown) =>
         win.__streetsSignPublicMuteEvent(template),
     };
-  }, previewViewerPubkey);
+  }, previewAuthorTwoPubkey);
 };
 
-const latestMuteEvent = async (): Promise<Event | undefined> => {
+const latestMuteEvent = async (
+  author = previewViewerPubkey,
+): Promise<Event | undefined> => {
   const relay = await Relay.connect(previewRelayUrl);
   try {
     const events: Event[] = [];
     await new Promise<void>((resolve) => {
       const subscription = relay.subscribe(
-        [{ kinds: [10_000], authors: [previewViewerPubkey] }],
+        [{ kinds: [10_000], authors: [author] }],
         {
           onevent: (event) => events.push(event),
           oneose: () => {
@@ -134,6 +138,14 @@ test("イベントメニューから著者とスレッドをミュートする",
   await expect(
     page.getByText(previewAuthorOneNoteText, { exact: true }),
   ).toHaveCount(0);
+  const threadStored = await latestMuteEvent();
+  expect(threadStored?.tags.some((tag) => tag[0] === "e")).toBe(false);
+  const privateTags = JSON.parse(
+    decodeURIComponent(
+      threadStored?.content.replace(/^mock44:/, "") ?? "%5B%5D",
+    ),
+  ) as string[][];
+  expect(privateTags.some((tag) => tag[0] === "e")).toBe(true);
   await page.getByTestId("settings-open").click();
   await page.getByTestId("settings-tab-mutes").click();
   row = page
@@ -264,7 +276,7 @@ test("NIP-44 非対応時に非公開対象を公開しない", async ({ page })
   await page.goto(`/v1?relays=${encodeURIComponent(previewRelayUrl)}`);
   await page.getByTestId("login").click();
   await expect(page.getByTestId("viewer-pubkey")).toHaveText(
-    previewViewerPubkey,
+    previewAuthorTwoPubkey,
     { timeout: 15_000 },
   );
   await page.getByTestId("settings-open").click();
@@ -281,6 +293,6 @@ test("NIP-44 非対応時に非公開対象を公開しない", async ({ page })
   await expect(page.getByText(/非公開ミュートには NIP-44/)).toBeVisible();
 
   // 捕まえる変異: 能力不足を public 保存へ縮退して対象を tags に載せる。
-  const stored = await latestMuteEvent();
-  expect(stored?.tags).not.toContainEqual(["word", privateValue]);
+  const stored = await latestMuteEvent(previewAuthorTwoPubkey);
+  expect(stored?.tags ?? []).not.toContainEqual(["word", privateValue]);
 });

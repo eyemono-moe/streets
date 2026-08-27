@@ -992,6 +992,8 @@ const V1Content: Component = () => {
         // 項目と保存キューを、ログアウト後や次のアカウントへ持ち越さない。
         const muteList = createMuteList({
           pubkey: () => account,
+          routingSettled: () =>
+            warmUp.state === "ready" || warmUp.state === "errored",
           signer: activeSigner,
           store,
           writer,

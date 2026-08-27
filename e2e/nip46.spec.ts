@@ -12,6 +12,13 @@ test("bunkerログイン、投稿、復元、ログアウトを1本通す", asyn
     await page.getByTestId("bunker-uri").fill(remote.bunkerUri);
     await page.getByTestId("bunker-login").click();
     await expect(page.getByTestId("viewer-pubkey")).toHaveText(nip46UserPubkey);
+    expect((await remote.connectPermissions).split(",")).toEqual([
+      "sign_event:1",
+      "sign_event:10000",
+      "nip44_encrypt",
+      "nip44_decrypt",
+      "nip04_decrypt",
+    ]);
 
     const first = `nip46 first ${Date.now()}`;
     await page.getByTestId("composer-input").fill(first);
