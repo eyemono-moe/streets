@@ -70,7 +70,7 @@ const DeckColumn: Component<{
    * できない (`store.put()` を直接呼んでも拾わない) ので、表示側でこの
    * リストを重ね合わせる。
    */
-  optimisticEvents: () => NostrEvent[];
+  optimisticEvents: () => readonly NostrEvent[];
   /**
    * このカラムの `items()` が空でなくなるたびに呼ぶ (task-5-brief.md
    * Step 1)。**「初回だけ記録する」判定はここではしない** —— 呼び出し側
@@ -236,6 +236,25 @@ const DeckColumn: Component<{
     return muteList
       ? visible.filter((event) => muteList.matches(event).length === 0)
       : visible;
+  });
+
+  /**
+   * 返信を署名直後に開いているスレッドへ重ねる。SectionReader はリレーから
+   * 戻ったイベントだけを持つので、根カラムと同じ id 重複排除をここでも
+   * 行う。thread source の filters を使うため、別スレッドへの返信や通常の
+   * 新規投稿は混ざらない。
+   */
+  const threadItems = createMemo(() => {
+    const fromSection = threadSection.items();
+    const knownIds = new Set(fromSection.map((event) => event.id));
+    const optimistic = props
+      .optimisticEvents()
+      .filter(
+        (event) =>
+          !knownIds.has(event.id) &&
+          matchesAnyFilter(event, threadSource.source().filters),
+      );
+    return [...optimistic, ...fromSection];
   });
 
   // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
@@ -442,7 +461,7 @@ const DeckColumn: Component<{
           <Show when={focusId()} fallback={<ColumnItems items={items} />}>
             {(id) => (
               <ThreadView
-                events={threadSection.items}
+                events={threadItems}
                 focusId={id()}
                 status={threadSection.status}
               />

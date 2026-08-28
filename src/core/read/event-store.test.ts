@@ -36,6 +36,25 @@ const sign = (
 const validEvent = sign();
 
 describe("EventStore", () => {
+  it("insert と remove を購読者へ通知し、duplicate は通知しない", () => {
+    const store = new EventStore();
+    const changes: string[] = [];
+    const unsubscribe = store.subscribe((change) => {
+      changes.push(`${change.type}:${change.event.content}`);
+    });
+    const event = sign("observable");
+
+    store.put(event, "wss://one/");
+    store.put(event, "wss://two/");
+    store.remove(event.id);
+    unsubscribe();
+    store.put(sign("after unsubscribe"), "wss://one/");
+
+    // 捕まえる変異: remove の通知を落とす。Writer の全滅巻き戻し後も
+    // Like / リポスト済みの強調と件数が画面に残り続ける。
+    expect(changes).toEqual(["insert:observable", "remove:observable"]);
+  });
+
   it("検証にかかった時間と件数を積む", () => {
     // 捕まえる変異: verifyCount を検証の前ではなく `verified` が真のときだけ
     // 増やす。拒否されたイベントも schnorr のコストは払っているので、

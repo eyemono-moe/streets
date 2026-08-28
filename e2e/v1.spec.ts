@@ -12,6 +12,7 @@ import {
   previewImageUrl,
   previewQuoteNoteText,
   previewQuoteTargetNoteText,
+  previewReactionEmojiName,
   previewRelayUrl,
   previewReplyNoteText,
   previewReplyParentNoteText,
@@ -438,7 +439,7 @@ test.describe("v1 vertical slice", () => {
     await expect(page.getByTestId("deck-column-incomplete")).toHaveCount(0);
     await expect(page.getByTestId("event-batch")).toHaveCount(0);
     await expect(page.getByTestId("profile-batch")).toHaveCount(0);
-    await expect(page.getByTestId("reaction-batch")).toHaveCount(0);
+    await expect(page.getByTestId("engagement-batch")).toHaveCount(0);
     await expect(page.getByTestId("warm-up-ms")).toHaveCount(0);
     await expect(page.getByTestId("warm-up-phases")).toHaveCount(0);
     await expect(page.getByTestId("verify-ms")).toHaveCount(0);
@@ -462,7 +463,7 @@ test.describe("v1 vertical slice", () => {
     // (診断値なのに常時見えてしまう) / 配線を忘れる。
     await expect(page.getByTestId("event-batch")).toBeVisible();
     await expect(page.getByTestId("profile-batch")).toBeVisible();
-    await expect(page.getByTestId("reaction-batch")).toBeVisible();
+    await expect(page.getByTestId("engagement-batch")).toBeVisible();
     await expect(page.getByTestId("warm-up-ms")).toBeVisible();
     await expect(page.getByTestId("warm-up-phases")).toBeVisible();
     await expect(page.getByTestId("verify-ms")).toBeVisible();
@@ -702,7 +703,9 @@ test.describe("v1 vertical slice", () => {
     // 捕まえる変異: kind:7 のレンダラを defaultRenderers に登録しない ——
     // その場合この item は "reaction" ではなく "unknown-kind" として描かれ、
     // 下の assertion が見つからず落ちる。
-    const reactionItems = related.getByTestId("reaction");
+    const reactionItems = related
+      .getByTestId("reaction")
+      .filter({ hasText: previewQuoteTargetNoteText });
     await expect(reactionItems.first()).toBeVisible({ timeout: 20_000 });
     await expect(reactionItems.first().getByTestId("reacted-by")).toBeVisible();
     await expect(reactionItems.first()).toContainText(
@@ -716,7 +719,11 @@ test.describe("v1 vertical slice", () => {
     // イベント id を引いた同じ集計結果だから (中身が一致する)。
     // 捕まえる変異: `groupReactions` を経由せず 1 件 1 枠にする —— その場合
     // "+" の 2 件が別々の枠になり、この枠の数は 2 ではなく 3 になる。
-    const reactionList = related.getByTestId("reaction-list").first();
+    const reactionList = related
+      .locator(
+        `[data-testid="reaction-list"]:has([data-testid="reaction-group"][title="${previewReactionEmojiName}"])`,
+      )
+      .first();
     await expect(reactionList).toBeVisible({ timeout: 20_000 });
     await expect(reactionList.getByTestId("reaction-group")).toHaveCount(2);
     const likeGroup = reactionList.locator(

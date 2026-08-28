@@ -1,4 +1,8 @@
 import { describe, expect, test } from "vitest";
+import {
+  eventActionTargetAuthorPubkey,
+  eventActionViewerPubkey,
+} from "./event-actions.js";
 import { nip46RemotePubkey, nip46UserPubkey } from "./nip46-signer.js";
 import { budgetAuthorPubkeys, budgetViewerPubkey } from "./seed-budget.js";
 import { capAuthorPubkey, capViewerPubkey } from "./seed-cap.js";
@@ -81,6 +85,8 @@ describe("e2e fixture pubkeys", () => {
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
       ["seed-thread.ts:viewer", threadViewerPubkey],
       ["seed-thread.ts:author", threadAuthorPubkey],
+      ["event-actions.ts:viewer", eventActionViewerPubkey],
+      ["event-actions.ts:targetAuthor", eventActionTargetAuthorPubkey],
       ["nip46-signer.ts:remote", nip46RemotePubkey],
       ["nip46-signer.ts:user", nip46UserPubkey],
     ];

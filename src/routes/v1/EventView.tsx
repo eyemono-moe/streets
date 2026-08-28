@@ -26,6 +26,8 @@ export type EventViewProps = {
   hideReplyPreview?: boolean;
   /** レンダラへそのまま渡す (`EventBodyProps.disableThreadOpen`)。 */
   disableThreadOpen?: boolean;
+  /** レンダラへそのまま渡す (`EventBodyProps.hideActions`)。 */
+  hideActions?: boolean;
 };
 
 /**
@@ -83,7 +85,11 @@ const EventView: Component<EventViewProps> = (props) => {
   });
 
   return (
-    <div data-testid="event-view" data-variant={props.variant}>
+    <div
+      data-testid="event-view"
+      data-event-id={props.id}
+      data-variant={props.variant}
+    >
       <Show
         when={event()}
         fallback={
@@ -184,6 +190,7 @@ const EventView: Component<EventViewProps> = (props) => {
                   threadLine={props.threadLine}
                   hideReplyPreview={props.hideReplyPreview}
                   disableThreadOpen={props.disableThreadOpen}
+                  hideActions={props.hideActions}
                 />
               </Show>
             </Show>

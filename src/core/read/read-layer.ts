@@ -1,5 +1,10 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
+import {
+  type CreateEngagementRequestsOptions,
+  type EngagementRequests,
+  createEngagementRequests,
+} from "./engagement-requests";
 import type { EventPersistence } from "./event-persistence";
 import { type EventRequests, createEventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
@@ -8,11 +13,6 @@ import {
   type ProfileRequests,
   createProfileRequests,
 } from "./profile-requests";
-import {
-  type CreateReactionRequestsOptions,
-  type ReactionRequests,
-  createReactionRequests,
-} from "./reaction-requests";
 import { RoutingTable } from "./routing-table";
 import { SubscriptionManager } from "./subscription-manager";
 
@@ -39,7 +39,7 @@ export type ReadLayer = {
   routing: RoutingTable;
   events: EventRequests;
   profiles: ProfileRequests;
-  reactions: ReactionRequests;
+  engagements: EngagementRequests;
   /** 同期読み取りと診断のためだけ。書き込み口をアプリ側から呼ばない。 */
   readonly store: EventStore;
   dispose(): void;
@@ -73,11 +73,11 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const profiles = createProfileRequests(profileRequestsOptions);
   const events = createEventRequests({ store, manager, scheduler });
-  const reactionRequestsOptions: CreateReactionRequestsOptions = {
+  const engagementRequestsOptions: CreateEngagementRequestsOptions = {
     manager,
     scheduler,
   };
-  const reactions = createReactionRequests(reactionRequestsOptions);
+  const engagements = createEngagementRequests(engagementRequestsOptions);
 
   let routingReplanTimer: ReturnType<typeof setTimeout> | undefined;
   const offReplaceableChanged = store.onReplaceableChanged((change) => {
@@ -111,7 +111,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     routing,
     events,
     profiles,
-    reactions,
+    engagements,
     store,
     dispose(): void {
       offReplaceableChanged();
@@ -121,7 +121,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       }
       profiles.dispose();
       events.dispose();
-      reactions.dispose();
+      engagements.dispose();
       manager.dispose();
       options.persistence.dispose();
     },

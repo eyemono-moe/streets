@@ -80,19 +80,27 @@ const groupTitle = (content: ReactionContent): string | undefined => {
 const ReactionList: Component<{ eventId: string }> = (props) => {
   const ctx = useRender();
   const [expand, setExpand] = createSignal(false);
-  // `ReactionRequests.subscribe` はどの id が解決したかを通知しない
-  // (コアレッサ全体で 1 種類の通知)。ここで setVersion するのは
-  // 「groups() を引き直すきっかけ」を作るためだけで、その値自体を effect の
-  // 中で読み返すことはしない (無限ループの罠、profile-data.ts と同じ注意)。
+  // コアレッサの完了と EventStore の直接変更を同じ再計算契機へまとめる。
+  // ここで setVersion するのは「groups() を引き直すきっかけ」を作るため
+  // だけで、その値自体を effect の中で読み返さない
+  // (無限ループの罠、profile-data.ts と同じ注意)。
   const [version, setVersion] = createSignal(0);
 
   createEffect(() => {
     const id = props.eventId;
-    ctx.reactions.request(id);
-    const unsubscribe = ctx.reactions.subscribe(() => {
+    ctx.engagements.request(id);
+    const offRequests = ctx.engagements.subscribe(() => {
       setVersion((v) => v + 1);
     });
-    onCleanup(unsubscribe);
+    const offStore = ctx.store.subscribe((change) => {
+      if (change.event.tags.some((tag) => tag[0] === "e" && tag[1] === id)) {
+        setVersion((v) => v + 1);
+      }
+    });
+    onCleanup(() => {
+      offRequests();
+      offStore();
+    });
   });
 
   const groups = createMemo(
@@ -122,7 +130,10 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
           type="button"
           data-testid="reaction-expand"
           class="absolute top-0.25 left-0 flex aspect-square h-6 w-auto translate-x--100% appearance-none items-center gap-1 rounded bg-transparent group-not-hover/event:hidden"
-          onClick={() => setExpand((prev) => !prev)}
+          onClick={(event) => {
+            event.stopPropagation();
+            setExpand((prev) => !prev);
+          }}
         >
           <div
             class="i-material-symbols:arrow-drop-down-rounded c-secondary h-full w-full transition-transform"

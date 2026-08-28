@@ -16,6 +16,7 @@ import type {
 } from "../../../core/view/renderer-registry";
 import { observeHeight } from "../../../core/view/shared-resize-observer";
 import Avatar from "../Avatar";
+import EventActionBar from "../EventActionBar";
 import EventMenu from "../EventMenu";
 import EventView from "../EventView";
 import NestedEventCard from "../NestedEventCard";
@@ -446,9 +447,12 @@ export const NoteFull: Component<EventBodyProps> = (props) => {
         {/*
           リアクション一覧 (spec 5 節)。`NoteCompact` には出さない ——
           compact は関連イベントを一切要求しないという規則を、リアクション
-          取得の要求 (`ctx.reactions.request`) にも適用する。
+          取得の要求 (`ctx.engagements.request`) にも適用する。
         */}
         <ReactionList eventId={props.event.id} />
+        <Show when={!props.hideActions}>
+          <EventActionBar event={props.event} />
+        </Show>
       </NoteBody>
     </article>
   );

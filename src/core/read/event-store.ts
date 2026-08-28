@@ -44,6 +44,10 @@ export type ReplaceableChange = {
   pubkey: string;
 };
 
+export type EventStoreChange =
+  | { type: "insert"; event: NostrEvent }
+  | { type: "remove"; event: NostrEvent };
+
 export type EventStoreOptions = {
   scheduler?: Scheduler;
   /**
@@ -77,6 +81,7 @@ export class EventStore {
   readonly #replaceableListeners = new Set<
     (change: ReplaceableChange) => void
   >();
+  readonly #changeListeners = new Set<(change: EventStoreChange) => void>();
 
   #verifyMs = 0;
   #verifyCount = 0;
@@ -123,6 +128,15 @@ export class EventStore {
   ): () => void {
     this.#replaceableListeners.add(listener);
     return () => this.#replaceableListeners.delete(listener);
+  }
+
+  /**
+   * イベントの追加・削除を購読する。通知は再読込の契機だけを表し、kind の
+   * 意味は持たない。リアクション等の解釈は `eventsByTag` を読む側へ置く。
+   */
+  subscribe(listener: (change: EventStoreChange) => void): () => void {
+    this.#changeListeners.add(listener);
+    return () => this.#changeListeners.delete(listener);
   }
 
   put(event: NostrEvent, relay: RelayUrl): PutResult {
@@ -221,6 +235,7 @@ export class EventStore {
     const replaceableChanged = this.#indexReplaceable(event);
     this.#indexTags(event);
     if (replaceableChanged) this.#notifyReplaceableChanged(event);
+    this.#notifyChanged({ type: "insert", event });
   }
 
   get(id: string): NostrEvent | undefined {
@@ -291,6 +306,19 @@ export class EventStore {
       } catch (error) {
         console.error(
           "EventStore: an onReplaceableChanged listener threw; isolating it so the remaining listeners keep receiving notifications.",
+          error,
+        );
+      }
+    }
+  }
+
+  #notifyChanged(change: EventStoreChange): void {
+    for (const listener of [...this.#changeListeners]) {
+      try {
+        listener(change);
+      } catch (error) {
+        console.error(
+          "EventStore: a change listener threw; isolating it so the remaining listeners keep receiving notifications.",
           error,
         );
       }
@@ -386,6 +414,7 @@ export class EventStore {
       const targetIds = deletionTargetIds(event);
       if (targetIds.length > 0) this.#persistence?.deleteDeletions(targetIds);
     }
+    this.#notifyChanged({ type: "remove", event });
     return true;
   }
 

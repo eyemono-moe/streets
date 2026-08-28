@@ -2,6 +2,7 @@ import { type Page, expect, test } from "@playwright/test";
 import type { Event, EventTemplate } from "nostr-tools";
 import { Relay } from "nostr-tools";
 import {
+  previewAuthorOneNoteId,
   previewAuthorOneNoteText,
   previewAuthorOnePubkey,
   previewAuthorTwoPubkey,
@@ -10,6 +11,11 @@ import {
   signAsPreviewAuthorTwo,
   signAsPreviewViewer,
 } from "./fixtures/seed-preview.js";
+
+const previewAuthorOneColumnNote = (page: Page) =>
+  page.locator(
+    `[data-testid="item"] > [data-testid="event-view"][data-event-id="${previewAuthorOneNoteId()}"]`,
+  );
 
 const stubSigner = async (page: Page) => {
   await page.exposeFunction(
@@ -115,15 +121,13 @@ test("イベントメニューから著者とスレッドをミュートする",
     previewViewerPubkey,
     { timeout: 15_000 },
   );
-  await expect(
-    page.getByText(previewAuthorOneNoteText, { exact: true }),
-  ).toBeVisible({ timeout: 20_000 });
+  await expect(previewAuthorOneColumnNote(page)).toContainText(
+    previewAuthorOneNoteText,
+    { timeout: 20_000 },
+  );
 
   // 著者を非公開部へ追加し、設定から解除すると Store の本文が即座に戻る。
-  let note = page
-    .getByTestId("event-view")
-    .filter({ hasText: previewAuthorOneNoteText })
-    .first();
+  let note = previewAuthorOneColumnNote(page);
   await note.getByTestId("event-menu-trigger").click();
   await page
     .getByRole("menuitem", { name: "この著者をミュート", exact: true })
@@ -144,15 +148,13 @@ test("イベントメニューから著者とスレッドをミュートする",
   await row.getByTestId("mute-remove").click();
   await expect(row).toHaveCount(0);
   await page.getByTestId("settings-close").click();
-  await expect(
-    page.getByText(previewAuthorOneNoteText, { exact: true }),
-  ).toBeVisible({ timeout: 5_000 });
+  await expect(previewAuthorOneColumnNote(page)).toContainText(
+    previewAuthorOneNoteText,
+    { timeout: 5_000 },
+  );
 
   // 同じメニューのスレッド対象も実配線を通す。
-  note = page
-    .getByTestId("event-view")
-    .filter({ hasText: previewAuthorOneNoteText })
-    .first();
+  note = previewAuthorOneColumnNote(page);
   await note.getByTestId("event-menu-trigger").click();
   await page
     .getByRole("menuitem", {
@@ -225,11 +227,10 @@ test("非公開ミュートを保存・復元・解除する", async ({ page }) 
     previewViewerPubkey,
     { timeout: 15_000 },
   );
-  await expect(
-    page.getByText(previewAuthorOneNoteText, { exact: true }),
-  ).toBeVisible({
-    timeout: 20_000,
-  });
+  await expect(previewAuthorOneColumnNote(page)).toContainText(
+    previewAuthorOneNoteText,
+    { timeout: 20_000 },
+  );
 
   await page.getByTestId("settings-open").click();
   await page.getByTestId("settings-tab-mutes").click();
@@ -288,11 +289,10 @@ test("非公開ミュートを保存・復元・解除する", async ({ page }) 
   await page.getByTestId("settings-close").click();
 
   // Store から捨てていないため、解除後は再購読を待たずに戻る。
-  await expect(
-    page.getByText(previewAuthorOneNoteText, { exact: true }),
-  ).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(previewAuthorOneColumnNote(page)).toContainText(
+    previewAuthorOneNoteText,
+    { timeout: 5_000 },
+  );
 });
 
 test("NIP-44 非対応時に非公開対象を公開しない", async ({ page }) => {

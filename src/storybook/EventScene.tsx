@@ -8,10 +8,10 @@ import {
 } from "solid-js";
 import { type MuteEntry, matchingMutes } from "../core/moderation/mute-list";
 import type { NostrEvent } from "../core/nostr/event";
+import type { EngagementRequests } from "../core/read/engagement-requests";
 import type { EventRequests } from "../core/read/event-requests";
 import { EventStore } from "../core/read/event-store";
 import type { ProfileRequests } from "../core/read/profile-requests";
-import type { ReactionRequests } from "../core/read/reaction-requests";
 import {
   type RenderContextValue,
   RenderProvider,
@@ -27,7 +27,7 @@ export type EventScene = {
   mutes?: readonly MuteEntry[];
 };
 
-const inertRequests = (): ProfileRequests & ReactionRequests => ({
+const inertRequests = (): ProfileRequests & EngagementRequests => ({
   request() {},
   subscribe() {
     return () => {};
@@ -104,7 +104,7 @@ const contextFor = (scene: EventScene): RenderContextValue => {
     store,
     events: eventRequestsFor(new Set(scene.unresolvedEventIds ?? [])),
     profiles: inertRequests(),
-    reactions: inertRequests(),
+    engagements: inertRequests(),
     viewerPubkey: scene.viewerPubkey,
     renderers: defaultRenderers,
   };
@@ -113,7 +113,7 @@ const contextFor = (scene: EventScene): RenderContextValue => {
 const disposeContext = (context: RenderContextValue) => {
   context.events.dispose();
   context.profiles.dispose();
-  context.reactions.dispose();
+  context.engagements.dispose();
 };
 
 /**
@@ -147,8 +147,8 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     get profiles() {
       return currentContext().profiles;
     },
-    get reactions() {
-      return currentContext().reactions;
+    get engagements() {
+      return currentContext().engagements;
     },
     get viewerPubkey() {
       return currentContext().viewerPubkey;

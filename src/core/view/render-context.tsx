@@ -1,8 +1,8 @@
 import { type ParentComponent, createContext, useContext } from "solid-js";
+import type { EngagementRequests } from "../read/engagement-requests";
 import type { EventRequests } from "../read/event-requests";
 import type { EventStore } from "../read/event-store";
 import type { ProfileRequests } from "../read/profile-requests";
-import type { ReactionRequests } from "../read/reaction-requests";
 import type { EventRenderer } from "./renderer-registry";
 
 /**
@@ -16,7 +16,7 @@ export type RenderContextValue = {
   store: EventStore;
   events: EventRequests;
   profiles: ProfileRequests;
-  reactions: ReactionRequests;
+  engagements: EngagementRequests;
   /**
    * ログイン中の viewer の pubkey。未ログインなら `undefined`。**必須
    * フィールドにする** —— 省略可能にすると、レンダラが自分が押した

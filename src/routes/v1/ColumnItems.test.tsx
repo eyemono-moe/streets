@@ -1,10 +1,10 @@
 import { createRoot, createSignal } from "solid-js";
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../../core/nostr/event";
+import type { EngagementRequests } from "../../core/read/engagement-requests";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
-import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import {
@@ -49,7 +49,7 @@ const fakeContext = (): RenderContextValue => ({
     maxBatchSize: 0,
     dispose() {},
   } satisfies ProfileRequests,
-  reactions: {
+  engagements: {
     request() {},
     subscribe() {
       return () => {};
@@ -57,7 +57,7 @@ const fakeContext = (): RenderContextValue => ({
     lastBatchSize: 0,
     maxBatchSize: 0,
     dispose() {},
-  } satisfies ReactionRequests,
+  } satisfies EngagementRequests,
   viewerPubkey: undefined,
   renderers: [],
 });
