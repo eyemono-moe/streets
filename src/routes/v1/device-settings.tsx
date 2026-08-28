@@ -42,9 +42,11 @@ export const createDeviceSettings = (
 
 const DeviceSettingsContext = createContext<DeviceSettings>();
 
-export const DeviceSettingsProvider: ParentComponent = (props) => (
+export const DeviceSettingsProvider: ParentComponent<{
+  value?: DeviceSettings;
+}> = (props) => (
   <DeviceSettingsContext.Provider
-    value={createDeviceSettings(window.localStorage)}
+    value={props.value ?? createDeviceSettings(window.localStorage)}
   >
     {props.children}
   </DeviceSettingsContext.Provider>
