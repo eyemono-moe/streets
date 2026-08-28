@@ -56,6 +56,14 @@ const previewAuthorOneBanner =
 export const previewViewerSeedNoteText = "streets preview viewer seed note";
 export const previewAuthorOneNoteText = "streets preview author one note";
 export const previewAuthorTwoNoteText = "streets preview author two note";
+const previewAuthorOneNoteTemplate: EventTemplate = {
+  kind: 1,
+  created_at: now + 11,
+  tags: [],
+  content: previewAuthorOneNoteText,
+};
+export const previewAuthorOneNoteId = () =>
+  finalizeEvent(previewAuthorOneNoteTemplate, authorOneSecretKey).id;
 
 // リポスト/引用/返信/未登録 kind、それぞれの対象と本体。対象ノートの本文を
 // ここで export するのは、e2e が「対象の本文が compact 表示の中に出ている」
@@ -79,7 +87,7 @@ export const previewUnknownKindNoteText =
 // 実在しないホスト (previewImageUrl と同じ帯) をそのまま使い、スタブしない
 // —— 画像が落ちても `reaction-group` / `reaction-count` は描かれるので、
 // 読み込みの成否は e2e の主張に関わらない。
-const previewReactionEmojiName = "streetsparrot";
+export const previewReactionEmojiName = "streetsparrot";
 const previewReactionEmojiUrl =
   "https://images.invalid/streets-preview-emoji.png";
 
@@ -237,16 +245,7 @@ export const seedPreviewFixture = async (): Promise<void> => {
     },
     viewerSecretKey,
   );
-  await publish(
-    relay,
-    {
-      kind: 1,
-      created_at: now + 11,
-      tags: [],
-      content: previewAuthorOneNoteText,
-    },
-    authorOneSecretKey,
-  );
+  await publish(relay, previewAuthorOneNoteTemplate, authorOneSecretKey);
   await publish(
     relay,
     {

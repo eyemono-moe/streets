@@ -45,6 +45,8 @@ export type EventBodyProps = {
    * は受け取って無視する (`threadLine` と同じ扱い)。
    */
   disableThreadOpen?: boolean;
+  /** 入れ子の full 表示でも本文向けアクション列だけを抑止する。 */
+  hideActions?: boolean;
 };
 
 export type EventRenderer = {

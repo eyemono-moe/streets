@@ -2,10 +2,10 @@ import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { type JSX, createRoot } from "solid-js";
 import { describe, expect, it } from "vitest";
+import type { EngagementRequests } from "../../core/read/engagement-requests";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
-import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import ProfileHover from "./ProfileHover";
@@ -36,7 +36,7 @@ const fakeEvents = (): EventRequests => ({
   dispose() {},
 });
 
-const fakeReactions = (): ReactionRequests => ({
+const fakeReactions = (): EngagementRequests => ({
   request() {},
   subscribe: () => () => {},
   lastBatchSize: 0,
@@ -50,7 +50,7 @@ const contextWith = (
   store,
   events: fakeEvents(),
   profiles: fakeProfiles(),
-  reactions: fakeReactions(),
+  engagements: fakeReactions(),
   viewerPubkey: undefined,
   renderers: [],
 });

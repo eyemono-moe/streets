@@ -3,10 +3,10 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
+import type { EngagementRequests } from "../../core/read/engagement-requests";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
-import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import type { EventRenderer } from "../../core/view/renderer-registry";
@@ -86,7 +86,7 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
-const fakeReactions = (): ReactionRequests => ({
+const fakeReactions = (): EngagementRequests => ({
   request() {},
   subscribe() {
     return () => {};
@@ -173,7 +173,7 @@ describe("EventView", () => {
         store,
         events: fake.events,
         profiles: fakeProfiles(),
-        reactions: fakeReactions(),
+        engagements: fakeReactions(),
         viewerPubkey: undefined,
         renderers: [testRenderer],
       },
@@ -224,7 +224,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       renderers: [testRenderer],
     };
@@ -283,7 +283,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       renderers: [testRenderer],
     };
@@ -313,7 +313,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       renderers: [testRenderer],
     };
@@ -355,7 +355,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       renderers: [testRenderer],
     };
@@ -394,7 +394,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       renderers: [testRenderer],
     };
@@ -440,7 +440,7 @@ describe("EventView", () => {
       store,
       events: fake.events,
       profiles: fakeProfiles(),
-      reactions: fakeReactions(),
+      engagements: fakeReactions(),
       viewerPubkey: undefined,
       // 空集合でも壊れないことがこのタスクの要求そのもの。
       renderers: [],

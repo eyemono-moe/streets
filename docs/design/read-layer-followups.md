@@ -428,13 +428,13 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 ## リアクションとリポストの表示（2026-08-15）— 仕様 9 節の答え
 
-[仕様](../superpowers/archive/specs/2026-08-14-reactions-and-reposts-design.md) 9 節が定める 3 問への回答。**問い 1 だけは開発者モードの `reaction-batch` を実鍵で読めば測れるが、まだ読んでいない。問い 2・3 は実データが要る。推測は書かない。**
+[仕様](../superpowers/archive/specs/2026-08-14-reactions-and-reposts-design.md) 9 節が定める 3 問への回答。**問い 1 だけは開発者モードの `engagement-batch` を実鍵で読めば測れるが、まだ読んでいない。問い 2・3 は実データが要る。推測は書かない。**
 
 ### 問い1 —— `#e` のコアレッサが 1 バッチで何件になるか
 
-**測れるようにはした。未取得。** `createReactionRequests`（`src/core/read/reaction-requests.ts`）は `lastBatchSize`/`maxBatchSize` を持っているので、`ProfileRequests`/`EventRequests` と同じ形で `src/routes/v1.tsx` の `batchSizes` シグナルへ足し、開発者モードに `data-testid="reaction-batch"` として出した（`profileBatch`/`eventBatch` と同じ並び）。
+**測れるようにはした。未取得。** `createEngagementRequests`（`src/core/read/engagement-requests.ts`）は `lastBatchSize`/`maxBatchSize` を持っているので、`ProfileRequests`/`EventRequests` と同じ形で `src/routes/v1.tsx` の `batchSizes` シグナルへ足し、開発者モードに `data-testid="engagement-batch"` として出した（`profileBatch`/`eventBatch` と同じ並び）。kind:1 / 6 / 7 を同じ `#e` バッチで引くようになった後も、ここで数えるのは対象 id の件数なので問いは変わらない。
 
-**答え方:** `pnpm dev` → 実鍵で `/v1` を開き、開発者モードを有効にして `reaction-batch` の `max` を読む。段階的レンダリング（初回 40 件 × カラム数)と、リレーのフィルタ長制限（NIP-11 の `max_message_length`）の両方に当たらないかを見る。
+**答え方:** `pnpm dev` → 実鍵で `/v1` を開き、開発者モードを有効にして `engagement-batch` の `max` を読む。段階的レンダリング（初回 40 件 × カラム数)と、リレーのフィルタ長制限（NIP-11 の `max_message_length`）の両方に当たらないかを見る。
 
 ### 問い2 —— リポストの対象を完全に描くと、カラムの DOM 量がどれだけ増えるか
 
@@ -448,9 +448,9 @@ Task 4 は「新しい意味論を発明せず、`bootstrap.ts` の `collect()` 
 
 **答え方:** 実鍵で反応の多いノート（絵文字の種類が多い・押した人数が多いもの）を探し、`/v1` のカラム幅で `reaction-list` が何行になるかを見る。展開トグル（`reaction-expand`）を押した状態（`@name, @name (2)` を縦に並べる）も合わせて見る —— 未展開より確実に縦に伸びるので、こちらが本命の懸念点。
 
-### 繰り越し（レビューで出て、直さなかったもの）
+### 繰り越し（レビューで出たもの。後続スライスで解消した場合は追記）
 
-- **カラム購読で直接届いた kind:7 は再描画されない。** `ReactionList` が `groups()` を引き直すきっかけは `ctx.reactions.subscribe()`（コアレッサのバッチ完了通知）だけである。カラムが kind:7 を購読していて、コアレッサの `fetchOnce` を経由せず直接 `EventStore.put` へ届いたリアクションは、索引 (`eventsByTag("e", ...)`) には正しく入るが、`ReactionList` 側にその変化を伝える経路が無いので画面には反映されない（次に別の理由で `groups()` が再計算されるまで出ない）。仕様 6.1 節が「索引を `EventStore` に置く理由」としてまさにこの経路（コアレッサ経由でなくカラム購読で直接届く場合）を挙げているので、**索引には入るが描画は動かない**という半端な状態にある。根本原因は `EventStore` 自身が変更を通知する機構を持たないこと —— `profile-data.ts` の `<Profile>` も同じ構造で同じ限界を持つ（`ProfileRequests.subscribe` のバッチ通知が無いと再描画されない）。
+- **解消済み（2026-08-28）: カラム購読で直接届いた kind:7 が再描画されない。** 当時の `ReactionList` はコアレッサのバッチ完了通知だけを再計算の契機にしており、直接 `EventStore.put` へ届いたリアクションは索引に入っても画面へ反映されなかった。イベント操作スライスで `EventStore` に追加・削除の汎用購読を加え、`ReactionList` が対象 id の変更を購読するようにした。これによりカラム購読と Writer の楽観挿入・巻き戻しも同じ経路で再描画される。
 - **NIP-25 の `-`（dislike）を text として扱っている。** 仕様 1 節で「v0 と同じ挙動にする」と判断済みだが、[NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) は `content` が `-` のとき dislike と解釈することを MUST としている。`parseReaction`（`src/core/nostr/reaction.ts`）は `+`/空文字だけを `like` とし、`-` は他の任意の文字列と同じ `text` 型に落ちる —— 「−1」のような表示にはならず、単に "-" というテキストの反応として見える。[#282](https://github.com/eyemono-moe/streets/issues/282) に登録した。
 - `parseReaction` の対象 id は「最後の**有効な** hex」なので、最後の `e` タグが壊れた hex（64 桁でない、または hex でない）で、それより前に有効な hex を持つ `e` タグがあれば前方へフォールバックする（`lastTagValue` の実装がそうなっている）。安全側の挙動ではあるが、仕様にも明記されておらず、専用のユニットテストも無い。
 - `EventStore` のタグ索引は、タグ値が空文字のものを「値なし」として弾いている（`#indexTags` の実装）。`e`/`p` タグでは実害が無い（空文字の id/pubkey は元々意味を持たない）が、他のタグ用途で索引を再利用するときに踏む可能性がある前提。

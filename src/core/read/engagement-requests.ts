@@ -2,8 +2,8 @@ import type { RelayFilter } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { SubscriptionManager } from "./subscription-manager";
 
-export type ReactionRequests = {
-  /** このイベント id のリアクションを要求する。既に要求済みなら何もしない。 */
+export type EngagementRequests = {
+  /** このイベント id の返信・リポスト・反応を要求する。要求済みなら何もしない。 */
   request(targetId: string): void;
   /**
    * バッチが 1 本片付く (= `fetchOnce` が解決する) たびに呼ばれる。
@@ -18,7 +18,7 @@ export type ReactionRequests = {
   dispose(): void;
 };
 
-export type CreateReactionRequestsOptions = {
+export type CreateEngagementRequestsOptions = {
   manager: SubscriptionManager;
   /**
    * バッチ窓のタイマー注入口 (テスト用)。既定は実タイマー
@@ -30,21 +30,21 @@ export type CreateReactionRequestsOptions = {
 /**
  * まとめる窓の長さ。
  *
- * profile-requests.ts と同じ 200ms。リアクション要求の性質も似ており、
- * 複数のノート表示が同時にリアクション要求を呼び出す場合を想定している。
+ * profile-requests.ts と同じ 200ms。複数のノート表示が同時に engagement
+ * 要求を呼び出す場合を想定している。
  */
-const REACTION_BATCH_MS = 200;
+const ENGAGEMENT_BATCH_MS = 200;
 
 /**
- * リアクション要求のコアレッサ。
+ * 返信・リポスト・反応要求のコアレッサ。
  *
  * `fetchOnce` で複数のイベント id をまとめて 1 本のリクエストにする。
- * リアクションは置換可能イベントではないため、鮮度チェックは行わない。
+ * いずれも置換可能イベントではないため、鮮度チェックは行わない。
  * 代わりに「一度要求した対象は二度要求しない」で足りる。
  */
-export const createReactionRequests = (
-  options: CreateReactionRequestsOptions,
-): ReactionRequests => {
+export const createEngagementRequests = (
+  options: CreateEngagementRequestsOptions,
+): EngagementRequests => {
   const scheduler = options.scheduler ?? defaultScheduler;
 
   /** 今の窓でまだ `fetchOnce` していないイベント id。 */
@@ -52,7 +52,7 @@ export const createReactionRequests = (
   /**
    * これまで要求した全てのイベント id。一度要求したら二度は要求しない。
    *
-   * `ProfileRequests` と違い刈り込まない。リアクションが 0 件だった対象は
+   * `ProfileRequests` と違い刈り込まない。engagement が 0 件だった対象は
    * `EventStore` に何も残さないので、「探索済み」を store 側から言い当てる
    * 手段が無く、ここで覚えていないと窓が回るたびに引き直しになる。
    */
@@ -72,7 +72,7 @@ export const createReactionRequests = (
     lastBatchSize = targetIds.length;
     if (targetIds.length > maxBatchSize) maxBatchSize = targetIds.length;
 
-    const filters: RelayFilter[] = [{ kinds: [7], "#e": targetIds }];
+    const filters: RelayFilter[] = [{ kinds: [1, 6, 7], "#e": targetIds }];
     void options.manager.fetchOnce(filters).then(() => {
       if (disposed) return;
       for (const listener of listeners) listener();
@@ -86,7 +86,7 @@ export const createReactionRequests = (
       requested.add(targetId);
       pending.add(targetId);
       if (timer === null) {
-        timer = scheduler.setTimeout(flush, REACTION_BATCH_MS);
+        timer = scheduler.setTimeout(flush, ENGAGEMENT_BATCH_MS);
       }
     },
 

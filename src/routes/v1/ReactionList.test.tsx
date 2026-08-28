@@ -1,13 +1,13 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import { encodeBech32 } from "../../core/nostr/nip19";
+import type { EngagementRequests } from "../../core/read/engagement-requests";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
-import type { ReactionRequests } from "../../core/read/reaction-requests";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import ReactionList from "./ReactionList";
@@ -75,8 +75,8 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
-/** `request` の呼び出しを記録する `ReactionRequests` のテストダブル。 */
-const createRecordingReactionRequests = (): ReactionRequests & {
+/** `request` の呼び出しを記録する `EngagementRequests` のテストダブル。 */
+const createRecordingEngagementRequests = (): EngagementRequests & {
   requested: string[];
 } => {
   const requested: string[] = [];
@@ -95,12 +95,12 @@ const createRecordingReactionRequests = (): ReactionRequests & {
 };
 
 /**
- * `subscribe` で受け取った listener を後から手で呼べる `ReactionRequests`
+ * `subscribe` で受け取った listener を後から手で呼べる `EngagementRequests`
  * のテストダブル。主経路 (取得 → 通知 → 再描画) を検証するテストが使う ——
  * 本番では `fetchOnce` が解決したときにコアレッサがこの listener を呼ぶ
- * (`reaction-requests.ts` の `flush`)。
+ * (`engagement-requests.ts` の `flush`)。
  */
-const createControllableReactionRequests = (): ReactionRequests & {
+const createControllableEngagementRequests = (): EngagementRequests & {
   requested: string[];
   notify(): void;
 } => {
@@ -126,13 +126,13 @@ const createControllableReactionRequests = (): ReactionRequests & {
 
 const contextWith = (
   store: EventStore,
-  reactions: ReactionRequests = createRecordingReactionRequests(),
+  engagements: EngagementRequests = createRecordingEngagementRequests(),
   viewerPubkey: string | undefined = undefined,
 ): RenderContextValue => ({
   store,
   events: fakeEvents(),
   profiles: fakeProfiles(),
-  reactions,
+  engagements,
   viewerPubkey,
   renderers: [],
 });
@@ -235,7 +235,7 @@ describe("ReactionList", () => {
     // 捕まえる変異: 呼ばない (一覧が永久に空)
     const store = new EventStore();
     const target = signed(5);
-    const reactions = createRecordingReactionRequests();
+    const reactions = createRecordingEngagementRequests();
     const { dispose } = mount(target.id, contextWith(store, reactions));
     try {
       expect(reactions.requested).toContain(target.id);
@@ -244,16 +244,13 @@ describe("ReactionList", () => {
     }
   });
 
-  it("主経路: マウント後に届いたリアクションが subscribe の通知で一覧に現れる", () => {
-    // 捕まえる変異: `createEffect` の中の `subscribe`/再計算のきっかけを
-    // 丸ごと落とす。他の全ケースはマウント前に `store.put` 済みで、
-    // テストダブルの `subscribe` が listener を一度も呼ばないため、この
-    // 変異を入れても他のテストは緑のまま —— 本番の通常ケース (ノートが
-    // 先に描かれ、200ms 後にリアクションが届く) を検証するのはこのテスト
-    // だけになる。
+  it("主経路: マウント後にStoreへ届いたリアクションが通知なしで一覧に現れる", () => {
+    // 捕まえる変異: `EventStore.subscribe` を落とし、コアレッサのバッチ通知
+    // だけに戻す。カラム購読や Writer から直接 Store へ入った Like が、
+    // 次の取得バッチまで一覧へ現れない。
     const store = new EventStore();
     const target = signed(40);
-    const reactions = createControllableReactionRequests();
+    const reactions = createControllableEngagementRequests();
     const { element, dispose } = mountReactive(
       target.id,
       contextWith(store, reactions),
@@ -262,11 +259,8 @@ describe("ReactionList", () => {
       // マウント時点では store にリアクションが無く、一覧は出ていない。
       expect(element()).toBeUndefined();
 
-      // リアクションが届いた体で store へ put し、コアレッサが
-      // `fetchOnce` 解決後に呼ぶのと同じ経路 (subscribe の listener) を
-      // 手で起動する。
+      // カラム購読や Writer と同じく、コアレッサの通知を通さず直接 put する。
       store.put(signedReaction(41, target.id), "wss://relay/");
-      reactions.notify();
 
       const el = element();
       expect(el).not.toBeUndefined();
@@ -285,7 +279,7 @@ describe("ReactionList", () => {
     // 数は 1 のままなので、長さだけを見る比較ではこの変化を取りこぼす。
     const store = new EventStore();
     const target = signed(60);
-    const reactions = createControllableReactionRequests();
+    const reactions = createControllableEngagementRequests();
     store.put(signedReaction(61, target.id), "wss://relay/");
     const { element, dispose } = mountReactive(
       target.id,
@@ -391,7 +385,7 @@ describe("ReactionList", () => {
 
     const notViewer = mount(
       target.id,
-      contextWith(store, createRecordingReactionRequests(), undefined),
+      contextWith(store, createRecordingEngagementRequests(), undefined),
     );
     try {
       const group = notViewer
@@ -407,7 +401,7 @@ describe("ReactionList", () => {
     store.put(signedReaction(viewerSeed, target.id), "wss://relay/");
     const asViewer = mount(
       target.id,
-      contextWith(store, createRecordingReactionRequests(), viewerPubkey),
+      contextWith(store, createRecordingEngagementRequests(), viewerPubkey),
     );
     try {
       const group = asViewer
@@ -431,6 +425,37 @@ describe("ReactionList", () => {
       const group = element()?.querySelector('[data-testid="reaction-group"]');
       expect(group?.getAttribute("title")).toBe("a fairly long text reaction");
     } finally {
+      dispose();
+    }
+  });
+
+  it("リアクションチップのクリックを親ノートへ伝播させない", () => {
+    const store = new EventStore();
+    const target = signed(37);
+    store.put(signedReaction(38, target.id), "wss://relay/");
+    const { element, dispose } = mount(target.id, contextWith(store));
+    const parent = document.createElement("div");
+    const onParentClick = vi.fn();
+    // Solid の onClick は document からの委譲なので、親側も同じ委譲経路へ
+    // 載せる。native listener だと document に届く前に呼ばれてしまう。
+    (
+      parent as HTMLElement & {
+        $$click?: (event: MouseEvent) => void;
+      }
+    ).$$click = onParentClick;
+    const list = element();
+    if (list) parent.appendChild(list);
+    document.body.appendChild(parent);
+    try {
+      parent
+        .querySelector<HTMLElement>('[data-testid="reaction-group"]')
+        ?.click();
+
+      // 捕まえる変異: reaction-group の stopPropagation を外す。チップの
+      // 内容を確認しただけで、親ノートのスレッド遷移まで発火する。
+      expect(onParentClick).not.toHaveBeenCalled();
+    } finally {
+      parent.remove();
       dispose();
     }
   });
@@ -474,7 +499,7 @@ describe("ReactionList", () => {
     const store = new EventStore();
     const target = signed(60);
     store.put(signedReaction(61, target.id), "wss://relay/");
-    const reactions = createControllableReactionRequests();
+    const reactions = createControllableEngagementRequests();
     const { element, dispose } = mountReactive(
       target.id,
       contextWith(store, reactions),

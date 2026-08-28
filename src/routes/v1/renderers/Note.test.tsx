@@ -5,10 +5,10 @@ import type { Component } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../../core/nostr/event";
 import { encodeBech32 } from "../../../core/nostr/nip19";
+import type { EngagementRequests } from "../../../core/read/engagement-requests";
 import type { EventRequests } from "../../../core/read/event-requests";
 import { EventStore } from "../../../core/read/event-store";
 import type { ProfileRequests } from "../../../core/read/profile-requests";
-import type { ReactionRequests } from "../../../core/read/reaction-requests";
 import { formatEventTimeFull } from "../../../core/view/format-time";
 import { RenderProvider } from "../../../core/view/render-context";
 import type { RenderContextValue } from "../../../core/view/render-context";
@@ -77,7 +77,7 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
-const fakeReactions = (): ReactionRequests => ({
+const fakeReactions = (): EngagementRequests => ({
   request() {},
   subscribe() {
     return () => {};
@@ -161,7 +161,7 @@ const contextWith = (
   store,
   events,
   profiles: fakeProfiles(),
-  reactions: fakeReactions(),
+  engagements: fakeReactions(),
   viewerPubkey: undefined,
   // kind:1 しかテスト対象にしないので、レンダラ集合は空でよい (引用・返信
   // 先は常に compact の EventView 経由で描かれ、store に無い間は

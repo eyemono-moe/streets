@@ -16,7 +16,6 @@ import {
   loadDeck,
   saveDeck,
 } from "../core/deck/deck";
-import type { NostrEvent } from "../core/nostr/event";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { FALLBACK_RELAYS } from "../core/read/default-relays";
 import { createIndexedDbPersistence } from "../core/read/indexeddb-persistence";
@@ -56,9 +55,11 @@ import {
   DeviceSettingsProvider,
   useDeviceSettings,
 } from "./v1/device-settings";
+import { EventActionsProvider, createEventActions } from "./v1/event-actions";
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
 import { MuteListProvider, createMuteList } from "./v1/mute-list";
 import { parseRelays } from "./v1/parse-relays";
+import { createProjectedWriter } from "./v1/projected-writer";
 import { defaultRenderers } from "./v1/renderers";
 
 /**
@@ -174,7 +175,7 @@ const V1Content: Component = () => {
     manager,
     profiles: profileRequests,
     events: eventRequests,
-    reactions: reactionRequests,
+    engagements: engagementRequests,
   } = readLayer;
 
   // 書き込み経路。ソケットを開くのは manager と同じ
@@ -224,6 +225,8 @@ const V1Content: Component = () => {
     },
     fetchLatest: fetchLatestEvent,
   });
+  const projectedWriter = createProjectedWriter(writer);
+  const eventActions = createEventActions({ writer: projectedWriter, store });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
   // 呼ばない — デバッグルートのような「空文字を弾く」ガードが要らない
@@ -383,7 +386,7 @@ const V1Content: Component = () => {
   const [batchSizes, setBatchSizes] = createSignal({
     events: { last: 0, max: 0 },
     profiles: { last: 0, max: 0 },
-    reactions: { last: 0, max: 0 },
+    engagements: { last: 0, max: 0 },
   });
   const syncConnectionSignals = () => {
     setVerifyStats({ ms: store.verifyMs, count: store.verifyCount });
@@ -398,9 +401,9 @@ const V1Content: Component = () => {
       },
       // 仕様 9 節 問い 1 (`#e` のコアレッサが 1 バッチで何件になるか) を
       // 実鍵で測れるようにするための表示。
-      reactions: {
-        last: reactionRequests.lastBatchSize,
-        max: reactionRequests.maxBatchSize,
+      engagements: {
+        last: engagementRequests.lastBatchSize,
+        max: engagementRequests.maxBatchSize,
       },
     });
     setConnections(manager.connectionCount);
@@ -530,28 +533,6 @@ const V1Content: Component = () => {
   const [posting, setPosting] = createSignal(false);
   const [postError, setPostError] = createSignal<string>();
   const [publishResult, setPublishResult] = createSignal<PublishResult>();
-  // 署名直後に楽観挿入した自分の投稿 (まだリレーから戻ってきていないもの
-  // も含む) —— DeckColumn がここから自分のフィルタに合う分だけ拾って表示
-  // に重ねる。EventStore へ入れるだけでは画面に反映されない
-  // (`SectionReader` は購読経由の配信でしか items を更新しない) ため、
-  // 表示専用にこのリストを別に持つ。
-  const [optimisticEvents, setOptimisticEvents] = createSignal<NostrEvent[]>(
-    [],
-  );
-  /**
-   * 直近の投稿で、`store.put()` (schnorr 検証込み) から
-   * `setOptimisticEvents()` の signal 書き込みが完了するまでにかかった ms
-   * (仕様 10 節 問い 3 の材料)。`signer.signEvent()` の待ち時間は含まない ——
-   * 意図的に楽観挿入の経路だけを見る。開始時刻は `onOptimisticInsert` の
-   * `startedAt` 引数 (`Writer` が `store.put()` の直前に取った時刻) を使う ——
-   * フックが呼ばれるのは `store.put()` の**後**なので、フックの中で
-   * `performance.now()` を取り直すと検証コストが測定区間から漏れる
-   * (`writer.ts` の `WriteHooks` コメント参照)。`connections`/
-   * `peakConnections` と同じ診断用の常設表示 (計測が終わったら消す、と
-   * いうことはしない — 実鍵での検証を行う人間もこの数値を見たいはずで、
-   * 消えてしまうと再確認できない)。
-   */
-  const [optimisticInsertMs, setOptimisticInsertMs] = createSignal<number>();
 
   /**
    * **順序が重要 (仕様 6 節)**: 署名 → EventStore への挿入 (楽観的更新) →
@@ -569,32 +550,16 @@ const V1Content: Component = () => {
     setPosting(true);
     setPostError(undefined);
     setPublishResult(undefined);
-    // 全滅して巻き戻す場合に、楽観リストからどのエントリを取り除くかは
-    // この id で決める。putResult が "inserted" の場合だけセットする ——
-    // 同じ本文を同じ秒に 2 回投稿すると id が衝突し (event id は署名を
-    // 含まないハッシュ)、2 回目は "duplicate" になる。その場合ここへ
-    // signed を積むと 1 回目の楽観表示と同じ id の行が重複するうえ、
-    // 2 回目が全滅したときに 1 回目 (既にリレーへ届いている) の表示まで
-    // 一緒に消してしまう —— Writer 側が "duplicate" では store.remove()
-    // しない (writer.ts) のと同じ理由で、ここでも "duplicate" には触れない。
-    let insertedId: string | undefined;
-    // onOptimisticInsert で本文をクリアしたかどうか (下記コメント参照)。
-    // put() が "duplicate" のときも消すため、insertedId の有無だけでは
-    // 判定できない。
+    // onOptimisticInsert で本文をクリアしたかどうか。duplicate でも消すので
+    // ProjectedWriter の楽観一覧へ追加されたかどうかとは分けて持つ。
     let clearedOptimistically = false;
     try {
-      // 署名・挿入・publish・(全滅時の) 巻き戻しは Writer に一本化されて
-      // いる (writer.ts)。ここに残る責務は「楽観リストへの反映」と
-      // 「エラー種別ごとの文言」だけ。
-      const result = await writer.publish(
+      // Store とカラムへの楽観挿入は ProjectedWriter に一本化し、ここには
+      // フォームをいつ消すかとエラー文言だけを残す。
+      const result = await projectedWriter.publish(
         { kind: 1, tags: [], content: text },
         {
-          onOptimisticInsert: (signed, startedAt, putResult) => {
-            if (putResult === "inserted") {
-              insertedId = signed.id;
-              setOptimisticEvents((prev) => [signed, ...prev]);
-            }
-            setOptimisticInsertMs(performance.now() - startedAt);
+          onOptimisticInsert: () => {
             // 楽観挿入 (または重複判定) と同じタイミングでクリアする ——
             // publish の解決を待ってから消すと、"inserted" の場合は
             // ノート自体が挿入直後に画面へ出ているのに入力欄だけ
@@ -609,16 +574,6 @@ const V1Content: Component = () => {
       setPublishResult(result);
     } catch (error) {
       if (error instanceof WriteFailedError) {
-        // Writer が store と永続層から取り除いているので、こちらは表示中
-        // の楽観リストだけ戻す (spec 5.1 節: 戻す先は書き込む側ごとに違う
-        // ので Writer は扱わない)。insertedId が無いのは、署名など
-        // onOptimisticInsert より前で失敗した場合、または今回の put が
-        // "duplicate" だった場合 (上のコメント参照) —— いずれも楽観リスト
-        // にこの呼び出しが足したものは無いので、取り除く対象も無い。
-        if (insertedId !== undefined) {
-          const id = insertedId;
-          setOptimisticEvents((prev) => prev.filter((e) => e.id !== id));
-        }
         // 本文は残す —— 送れなかった文面を打ち直させないため。
         // onOptimisticInsert で先にクリアしていた場合はここで書き戻す。
         if (clearedOptimistically) setContent(text);
@@ -692,9 +647,9 @@ const V1Content: Component = () => {
                     class="text-alpha-600 text-xs"
                   >
                     optimisticInsertMs:{" "}
-                    {optimisticInsertMs() === undefined
+                    {projectedWriter.optimisticInsertMs() === undefined
                       ? "-"
-                      : optimisticInsertMs()?.toFixed(2)}
+                      : projectedWriter.optimisticInsertMs()?.toFixed(2)}
                   </p>
                   <p
                     data-testid="first-render-ms"
@@ -763,11 +718,11 @@ const V1Content: Component = () => {
                     {batchSizes().profiles.max})
                   </p>
                   <p
-                    data-testid="reaction-batch"
+                    data-testid="engagement-batch"
                     class="text-alpha-600 text-xs"
                   >
-                    reactionBatch: {batchSizes().reactions.last} (max{" "}
-                    {batchSizes().reactions.max})
+                    engagementBatch: {batchSizes().engagements.last} (max{" "}
+                    {batchSizes().engagements.max})
                   </p>
                   <ul
                     data-testid="unrequested-relays"
@@ -942,44 +897,46 @@ const V1Content: Component = () => {
               置く —— カラムごとに別の値を渡す理由が無い (store/manager と
               同じ「アプリ全体で 1 つ」の単位)。
             */}
-            <RenderProvider
-              value={{
-                store,
-                events: eventRequests,
-                profiles: profileRequests,
-                reactions: reactionRequests,
-                // getter で渡す —— オブジェクトリテラルの値は 1 度しか
-                // 評価されないため、`viewerPubkey: pubkey()` だと後から
-                // ログインしても RenderProvider に渡した値が追随しない。
-                get viewerPubkey() {
-                  return pubkey();
-                },
-                renderers: defaultRenderers,
-              }}
-            >
-              <For each={deck()?.columns ?? []}>
-                {(column, index) => (
-                  <DeckColumn
-                    column={column}
-                    manager={manager}
-                    followees={() => warmUp()?.followees ?? []}
-                    viewer={pubkey() ?? ""}
-                    relayList={accountSettings.relayList.current}
-                    optimisticEvents={optimisticEvents}
-                    onHasItems={() => onColumnHasItems(column.id)}
-                    firstRenderMs={() => firstRenderMsByColumn()[column.id]}
-                    canMoveLeft={() => index() > 0}
-                    canMoveRight={() =>
-                      index() < (deck()?.columns.length ?? 0) - 1
-                    }
-                    onMoveLeft={() => moveColumn(column.id, -1)}
-                    onMoveRight={() => moveColumn(column.id, 1)}
-                    onRemove={() => removeColumn(column.id)}
-                    onRename={(title) => renameColumn(column.id, title)}
-                  />
-                )}
-              </For>
-            </RenderProvider>
+            <EventActionsProvider value={eventActions}>
+              <RenderProvider
+                value={{
+                  store,
+                  events: eventRequests,
+                  profiles: profileRequests,
+                  engagements: engagementRequests,
+                  // getter で渡す —— オブジェクトリテラルの値は 1 度しか
+                  // 評価されないため、`viewerPubkey: pubkey()` だと後から
+                  // ログインしても RenderProvider に渡した値が追随しない。
+                  get viewerPubkey() {
+                    return pubkey();
+                  },
+                  renderers: defaultRenderers,
+                }}
+              >
+                <For each={deck()?.columns ?? []}>
+                  {(column, index) => (
+                    <DeckColumn
+                      column={column}
+                      manager={manager}
+                      followees={() => warmUp()?.followees ?? []}
+                      viewer={pubkey() ?? ""}
+                      relayList={accountSettings.relayList.current}
+                      optimisticEvents={projectedWriter.optimisticEvents}
+                      onHasItems={() => onColumnHasItems(column.id)}
+                      firstRenderMs={() => firstRenderMsByColumn()[column.id]}
+                      canMoveLeft={() => index() > 0}
+                      canMoveRight={() =>
+                        index() < (deck()?.columns.length ?? 0) - 1
+                      }
+                      onMoveLeft={() => moveColumn(column.id, -1)}
+                      onMoveRight={() => moveColumn(column.id, 1)}
+                      onRemove={() => removeColumn(column.id)}
+                      onRename={(title) => renameColumn(column.id, title)}
+                    />
+                  )}
+                </For>
+              </RenderProvider>
+            </EventActionsProvider>
           </div>
         </Show>
       </Show>

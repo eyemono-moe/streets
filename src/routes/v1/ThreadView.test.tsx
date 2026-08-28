@@ -4,10 +4,10 @@ import { createRoot } from "solid-js";
 import type { Component } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
+import type { EngagementRequests } from "../../core/read/engagement-requests";
 import type { EventRequests } from "../../core/read/event-requests";
 import { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
-import type { ReactionRequests } from "../../core/read/reaction-requests";
 import type { SectionStatus } from "../../core/read/source";
 import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
@@ -60,7 +60,7 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
-const fakeReactions = (): ReactionRequests => ({
+const fakeReactions = (): EngagementRequests => ({
   request() {},
   subscribe() {
     return () => {};
@@ -74,7 +74,7 @@ const contextWith = (store: EventStore): RenderContextValue => ({
   store,
   events: fakeEventRequests(),
   profiles: fakeProfiles(),
-  reactions: fakeReactions(),
+  engagements: fakeReactions(),
   viewerPubkey: undefined,
   // kind:1 の描画詳細はここでは主張しない (EventView/Note.test.tsx が担う)
   // ので、fallback (UnknownKind) のままでよい。

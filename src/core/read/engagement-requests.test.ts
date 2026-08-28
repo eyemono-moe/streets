@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createEngagementRequests } from "./engagement-requests";
 import { createFakeClock } from "./fake-clock";
-import { createReactionRequests } from "./reaction-requests";
 import type { SubscriptionManager } from "./subscription-manager";
 
 const TARGET = "a".repeat(64);
@@ -19,18 +19,18 @@ const createFakeManager = () => {
   };
 };
 
-describe("createReactionRequests", () => {
+describe("createEngagementRequests", () => {
   it("窓の間に溜めた対象 id を 1 本のフィルタにまとめる", () => {
     // 捕まえる変異: request のたびに fetchOnce を呼ぶ (40 件のノートで
     // 40 本の REQ が飛ぶ)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     requests.request(OTHER);
     clock.advance(200);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toEqual([{ kinds: [7], "#e": [TARGET, OTHER] }]);
+    expect(calls[0]).toEqual([{ kinds: [1, 6, 7], "#e": [TARGET, OTHER] }]);
   });
 
   it("同じ対象を 2 度要求しても 1 度しか投げない", () => {
@@ -38,7 +38,7 @@ describe("createReactionRequests", () => {
     // REQ が際限なく伸びる)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     clock.advance(200);
     requests.request(TARGET);
@@ -51,20 +51,20 @@ describe("createReactionRequests", () => {
     // バッチへ混ざる or 取りこぼす)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     clock.advance(200);
     requests.request(OTHER);
     clock.advance(200);
     expect(calls).toHaveLength(2);
-    expect(calls[1]).toEqual([{ kinds: [7], "#e": [OTHER] }]);
+    expect(calls[1]).toEqual([{ kinds: [1, 6, 7], "#e": [OTHER] }]);
   });
 
   it("バッチが片付いたらリスナーへ知らせる", async () => {
     // 捕まえる変異: 通知しない (一覧が届いても再描画されない)
     const clock = createFakeClock();
     const { manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     let notified = 0;
     requests.subscribe(() => {
       notified += 1;
@@ -79,7 +79,7 @@ describe("createReactionRequests", () => {
     // 捕まえる変異: dispose を無視する (アンマウント後に REQ が飛ぶ)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     requests.dispose();
     // advance の後で見ると、タイマーは発火して pending から消えた後なので
@@ -92,7 +92,7 @@ describe("createReactionRequests", () => {
   it("lastBatchSize と maxBatchSize は複数バッチの状態を追随する", () => {
     const clock = createFakeClock();
     const { manager } = createFakeManager();
-    const requests = createReactionRequests({ manager, scheduler: clock });
+    const requests = createEngagementRequests({ manager, scheduler: clock });
     expect(requests.lastBatchSize).toBe(0);
     expect(requests.maxBatchSize).toBe(0);
 

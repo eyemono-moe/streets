@@ -54,7 +54,7 @@ export const ReactionFull: Component<EventBodyProps> = (props) => {
             </span>
             <span class="shrink-0">がリアクション</span>
           </p>
-          <EventView id={reaction().targetId} variant="full" />
+          <EventView id={reaction().targetId} variant="full" hideActions />
         </article>
       )}
     </Show>
