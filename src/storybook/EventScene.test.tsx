@@ -2,7 +2,7 @@ import { type Accessor, createRoot, createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import EventView from "../routes/v1/EventView";
 import { useOptionalMuteList } from "../routes/v1/mute-list";
-import { EventSceneProvider } from "./EventScene";
+import { type EventScene, EventSceneProvider } from "./EventScene";
 import { createStoryAuthor } from "./story-events";
 
 const mount = (
@@ -143,6 +143,45 @@ describe("EventSceneProvider", () => {
         expect(
           element().querySelector('[data-testid="event-loading"]'),
         ).toBeNull();
+      });
+    } finally {
+      dispose();
+    }
+  });
+
+  it("存在したイベントが次の scene に無ければ loading から unresolved へ移る", async () => {
+    const author = createStoryAuthor(106);
+    const note = author.note("removed from scene");
+    const [scene, setScene] = createSignal<EventScene>({ events: [note] });
+    const { element, dispose } = mount(
+      scene,
+      () =>
+        EventView({
+          id: note.id,
+          variant: "full",
+        }) as unknown as HTMLElement,
+    );
+    try {
+      await vi.waitFor(() =>
+        expect(element().textContent).toContain("removed from scene"),
+      );
+
+      setScene({ events: [] });
+      await vi.waitFor(() => {
+        // 捕まえる変異: id や Store が変わったときに以前の event signal を
+        // 消さず、次の scene の loading 中も古い本文を表示し続ける。
+        expect(
+          element().querySelector('[data-testid="event-loading"]'),
+        ).not.toBeNull();
+        expect(element().textContent).not.toContain("removed from scene");
+      });
+
+      setScene({ events: [], unresolvedEventIds: [note.id] });
+      await vi.waitFor(() => {
+        expect(
+          element().querySelector('[data-testid="event-unresolved"]'),
+        ).not.toBeNull();
+        expect(element().textContent).not.toContain("removed from scene");
       });
     } finally {
       dispose();
