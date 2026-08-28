@@ -50,6 +50,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   // 捕まえる変異: `?relays=` で通知カラムまでリレー1へ固定し、保存後も
   // NIP-65 の新しい read リレー（リレー2）へ再購読しない。
   test.setTimeout(60_000);
+  await page.emulateMedia({ colorScheme: "dark" });
   await stubSigner(page);
   await page.goto(`/v1?relays=${encodeURIComponent(previewRelayUrl)}`);
   await page.getByTestId("login").click();
@@ -69,6 +70,12 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   const box = await dialog.boundingBox();
   expect(box?.width).toBe(880);
   expect(box?.height).toBe(640);
+  // 捕まえる変異: Ark UI の trigger にブラウザ既定の白背景を残す。
+  expect(
+    await page
+      .getByTestId("settings-tab-mutes")
+      .evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).toBe("rgba(0, 0, 0, 0)");
   const backdropColor = await page
     .getByTestId("settings-backdrop")
     .evaluate((element) => getComputedStyle(element).backgroundColor);
