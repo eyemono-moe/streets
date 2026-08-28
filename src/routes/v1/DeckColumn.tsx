@@ -5,7 +5,6 @@ import type { ColumnDef } from "../../core/deck/deck";
 import { excludeOwnActions } from "../../core/deck/notification-filter";
 import { resolveSource } from "../../core/deck/resolve-source";
 import type { NostrEvent } from "../../core/nostr/event";
-import { matchesAnyFilter } from "../../core/read/filter-match";
 import type { NostrSource } from "../../core/read/source";
 import type { SubscriptionManager } from "../../core/read/subscription-manager";
 import type { RelayListState } from "../../core/settings/relay-list-state";
@@ -19,6 +18,7 @@ import ThreadView from "./ThreadView";
 import { useDeviceSettings } from "./device-settings";
 import { useOptionalMuteList } from "./mute-list";
 import { parseRelays } from "./parse-relays";
+import { mergeProjectedEvents } from "./projected-writer";
 import { ThreadNavProvider } from "./thread-nav";
 
 /**
@@ -203,15 +203,11 @@ const DeckColumn: Component<{
    *   表示しない (self-follow で自分の投稿が戻ってくるのは普通に起こる)。
    */
   const items = createMemo(() => {
-    const fromSection = section.items();
-    const knownIds = new Set(fromSection.map((event) => event.id));
-    const optimistic = props
-      .optimisticEvents()
-      .filter(
-        (event) =>
-          !knownIds.has(event.id) && matchesAnyFilter(event, source().filters),
-      );
-    const merged = [...optimistic, ...fromSection];
+    const merged = mergeProjectedEvents(
+      section.items(),
+      props.optimisticEvents(),
+      source().filters,
+    );
     // 通知列でだけ自分の行動を落とす (仕様 2.2 節)。**捨てるのはセクションが
     // 保持した後**なので、保持上限 200 件は捨てる前の件数で数えている ——
     // 自分の行動が多いと見える件数がそのぶん減る。仕様 5.1 節がこの代償を
@@ -244,18 +240,13 @@ const DeckColumn: Component<{
    * 行う。thread source の filters を使うため、別スレッドへの返信や通常の
    * 新規投稿は混ざらない。
    */
-  const threadItems = createMemo(() => {
-    const fromSection = threadSection.items();
-    const knownIds = new Set(fromSection.map((event) => event.id));
-    const optimistic = props
-      .optimisticEvents()
-      .filter(
-        (event) =>
-          !knownIds.has(event.id) &&
-          matchesAnyFilter(event, threadSource.source().filters),
-      );
-    return [...optimistic, ...fromSection];
-  });
+  const threadItems = createMemo(() =>
+    mergeProjectedEvents(
+      threadSection.items(),
+      props.optimisticEvents(),
+      threadSource.source().filters,
+    ),
+  );
 
   // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
   // 「初回だけ」の判定は親側 (`props.onHasItems` の実体、

@@ -1,7 +1,7 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { createRoot } from "solid-js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import { encodeBech32 } from "../../core/nostr/nip19";
 import type { EngagementRequests } from "../../core/read/engagement-requests";
@@ -425,6 +425,37 @@ describe("ReactionList", () => {
       const group = element()?.querySelector('[data-testid="reaction-group"]');
       expect(group?.getAttribute("title")).toBe("a fairly long text reaction");
     } finally {
+      dispose();
+    }
+  });
+
+  it("リアクションチップのクリックを親ノートへ伝播させない", () => {
+    const store = new EventStore();
+    const target = signed(37);
+    store.put(signedReaction(38, target.id), "wss://relay/");
+    const { element, dispose } = mount(target.id, contextWith(store));
+    const parent = document.createElement("div");
+    const onParentClick = vi.fn();
+    // Solid の onClick は document からの委譲なので、親側も同じ委譲経路へ
+    // 載せる。native listener だと document に届く前に呼ばれてしまう。
+    (
+      parent as HTMLElement & {
+        $$click?: (event: MouseEvent) => void;
+      }
+    ).$$click = onParentClick;
+    const list = element();
+    if (list) parent.appendChild(list);
+    document.body.appendChild(parent);
+    try {
+      parent
+        .querySelector<HTMLElement>('[data-testid="reaction-group"]')
+        ?.click();
+
+      // 捕まえる変異: reaction-group の stopPropagation を外す。チップの
+      // 内容を確認しただけで、親ノートのスレッド遷移まで発火する。
+      expect(onParentClick).not.toHaveBeenCalled();
+    } finally {
+      parent.remove();
       dispose();
     }
   });

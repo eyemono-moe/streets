@@ -25,7 +25,8 @@ const EventActionBar: Component<{ event: NostrEvent }> = (props) => {
   const [replyOpen, setReplyOpen] = createSignal(false);
   const [reposting, setReposting] = createSignal(false);
   const [liking, setLiking] = createSignal(false);
-  const [error, setError] = createSignal<string>();
+  const [repostError, setRepostError] = createSignal<string>();
+  const [likeError, setLikeError] = createSignal<string>();
 
   createEffect(() => {
     const id = props.event.id;
@@ -52,11 +53,11 @@ const EventActionBar: Component<{ event: NostrEvent }> = (props) => {
   const repost = async () => {
     if (!actions || reposting() || engagement().viewerReposted) return;
     setReposting(true);
-    setError(undefined);
+    setRepostError(undefined);
     try {
       await actions.repost(props.event);
     } catch (cause) {
-      setError(eventActionErrorMessage(cause));
+      setRepostError(eventActionErrorMessage(cause));
     } finally {
       setReposting(false);
     }
@@ -65,11 +66,11 @@ const EventActionBar: Component<{ event: NostrEvent }> = (props) => {
   const like = async () => {
     if (!actions || liking() || engagement().viewerLiked) return;
     setLiking(true);
-    setError(undefined);
+    setLikeError(undefined);
     try {
       await actions.like(props.event);
     } catch (cause) {
-      setError(eventActionErrorMessage(cause));
+      setLikeError(eventActionErrorMessage(cause));
     } finally {
       setLiking(false);
     }
@@ -148,11 +149,21 @@ const EventActionBar: Component<{ event: NostrEvent }> = (props) => {
             </Show>
           </button>
         </div>
-        <Show when={error()}>
+        <Show when={repostError()}>
           {(message) => (
             <p
               class="mt-1 text-caption text-red-8 dark:text-red-4"
-              data-testid="event-action-error"
+              data-testid="event-repost-error"
+            >
+              {message()}
+            </p>
+          )}
+        </Show>
+        <Show when={likeError()}>
+          {(message) => (
+            <p
+              class="mt-1 text-caption text-red-8 dark:text-red-4"
+              data-testid="event-like-error"
             >
               {message()}
             </p>

@@ -110,7 +110,7 @@ export const Like送信失敗: Story = {
   play: async ({ canvasElement }) => {
     await userEvent.click(within(canvasElement).getByTestId("event-like"));
     await expect(
-      within(canvasElement).findByTestId("event-action-error"),
+      within(canvasElement).findByTestId("event-like-error"),
     ).resolves.toHaveTextContent("Storybook用の送信失敗");
   },
 };

@@ -151,6 +151,7 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
                   1 列に入る数が減る。
                   高さは追加ボタンと揃えるため `h-6` で固定する。
                 */}
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: 非対話要素が親の委譲 click を止めるだけ */}
                 <div
                   data-testid="reaction-group"
                   class="b-1 flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1.5"
@@ -161,6 +162,9 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
                       group.users.has(ctx.viewerPubkey),
                   }}
                   title={groupTitle(group.content)}
+                  // グループ自身は操作部品ではない。親ノートの「スレッドを
+                  // 開く」だけを止め、内容確認のクリックを別画面遷移にしない。
+                  onClick={(event) => event.stopPropagation()}
                 >
                   <ReactionMark content={group.content} />
                   <span

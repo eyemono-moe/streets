@@ -1,6 +1,9 @@
 import { type Accessor, createSignal } from "solid-js";
 import type { EventDraft } from "../../core/nostr/build/draft";
 import type { NostrEvent } from "../../core/nostr/event";
+import { matchesAnyFilter } from "../../core/read/filter-match";
+import { MAX_ITEMS_PER_SECTION } from "../../core/read/source";
+import type { RelayFilter } from "../../core/relay/relay-connection";
 import {
   WriteFailedError,
   type WriteResult,
@@ -12,12 +15,33 @@ export type ProjectedWriteHooks = {
   onOptimisticInsert?: (event: NostrEvent) => void;
 };
 
+// SectionReader の表示上限と同じ件数に抑える。成功直後に消すと、先にエコーを
+// 受けたカラムを契機に、まだ受けていない別カラムから一瞬消えるため、直近分を
+// 保持しつつ履歴と各カラムの照合コストだけを固定する。
+const PROJECTED_EVENT_LIMIT = MAX_ITEMS_PER_SECTION;
+
+/**
+ * 購読本体へ、まだリレーエコーに載っていない楽観イベントを重ねる。
+ * 呼び出し側は根カラムとスレッドの違いを filter だけで表す。
+ */
+export const mergeProjectedEvents = (
+  fromSection: readonly NostrEvent[],
+  optimisticEvents: readonly NostrEvent[],
+  filters: readonly RelayFilter[],
+): NostrEvent[] => {
+  const knownIds = new Set(fromSection.map((event) => event.id));
+  const optimistic = optimisticEvents.filter(
+    (event) => !knownIds.has(event.id) && matchesAnyFilter(event, filters),
+  );
+  return [...optimistic, ...fromSection];
+};
+
 /**
  * `Writer` の楽観挿入を、購読由来の一覧へ重ねるための v1 専用 module。
  *
  * `Writer` 自身は Store までを責務にし、SectionReader ごとの表示方法を
- * 知らない。この module が「まだ購読から戻っていない自分のイベント」の
- * 一覧を持つことで、投稿フォームとイベントアクションが同じ投影経路を使う。
+ * 知らない。この module が直近の楽観イベントを有界な一覧で持つことで、
+ * 投稿フォームとイベントアクションが同じ投影経路を使う。
  */
 export type ProjectedWriter = {
   publish(draft: EventDraft, hooks?: ProjectedWriteHooks): Promise<WriteResult>;
@@ -43,7 +67,9 @@ export const createProjectedWriter = (
           onOptimisticInsert(event, startedAt, putResult) {
             if (putResult === "inserted") {
               insertedId = event.id;
-              setOptimisticEvents((current) => [event, ...current]);
+              setOptimisticEvents((current) =>
+                [event, ...current].slice(0, PROJECTED_EVENT_LIMIT),
+              );
             }
             setOptimisticInsertMs(performance.now() - startedAt);
             hooks?.onOptimisticInsert?.(event);

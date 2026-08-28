@@ -1,13 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NostrEvent } from "../../core/nostr/event";
 import type { RelayUrl } from "../../core/relay/relay-connection";
+import type { RelayFilter } from "../../core/relay/relay-connection";
 import {
   WriteFailedError,
   type WriteHooks,
   type WriteResult,
   type Writer,
 } from "../../core/write/writer";
-import { createProjectedWriter } from "./projected-writer";
+import {
+  createProjectedWriter,
+  mergeProjectedEvents,
+} from "./projected-writer";
 
 const signed = (id: string): NostrEvent => ({
   id: id.repeat(64),
@@ -102,5 +106,53 @@ describe("createProjectedWriter", () => {
     // 捕まえる変異: duplicate では callback を呼ばない。同一イベントの再送で
     // publish は進んでいるのに投稿フォームだけがクリアされない。
     expect(onOptimisticInsert).toHaveBeenCalledWith(event);
+  });
+
+  it("楽観一覧を表示上限に抑え、長いセッションでも照合量を増やし続けない", async () => {
+    const events = Array.from({ length: 201 }, (_, index) =>
+      signed(index.toString(16)),
+    );
+    let call = 0;
+    const projected = createProjectedWriter(
+      writerWith(async (hooks) => {
+        const event = events[call++];
+        if (!event) throw new Error("テストイベント不足");
+        hooks?.onOptimisticInsert?.(event, performance.now(), "inserted");
+        return result(event);
+      }),
+    );
+
+    for (const event of events) {
+      await projected.publish({ kind: 1, tags: [], content: event.content });
+    }
+
+    // 捕まえる変異: slice を外して成功イベントを無制限に保持する。長時間の
+    // セッションで全カラムが送信履歴全体を毎回照合する。
+    expect(projected.optimisticEvents()).toHaveLength(200);
+    expect(projected.optimisticEvents()[0]).toBe(events.at(-1));
+    expect(projected.optimisticEvents()).not.toContain(events[0]);
+  });
+});
+
+describe("mergeProjectedEvents", () => {
+  it("スレッドに合う楽観返信だけを重ね、リレーエコーとはidで重複排除する", () => {
+    const targetId = "f".repeat(64);
+    const echoed = { ...signed("1"), tags: [["e", targetId]] };
+    const optimisticReply = { ...signed("2"), tags: [["e", targetId]] };
+    const otherReply = {
+      ...signed("3"),
+      tags: [["e", "e".repeat(64)]],
+    };
+    const filters: RelayFilter[] = [{ kinds: [1], "#e": [targetId] }];
+
+    const merged = mergeProjectedEvents(
+      [echoed],
+      [echoed, optimisticReply, otherReply],
+      filters,
+    );
+
+    // 捕まえる変異: thread source の filter 照合または既知 id の除外を外す。
+    // 別スレッドの返信か、リレーから戻った同一返信が開いているスレッドへ混ざる。
+    expect(merged).toEqual([optimisticReply, echoed]);
   });
 });

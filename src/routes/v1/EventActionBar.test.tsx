@@ -191,6 +191,50 @@ describe("EventActionBar", () => {
     }
   });
 
+  it("リポストとLikeの失敗を独立して残す", async () => {
+    const repost = vi.fn(async () => {
+      throw new Error("repost failed");
+    });
+    const like = vi.fn(async () => {
+      throw new Error("like failed");
+    });
+    const { element, dispose } = mount(
+      note,
+      actionsWith({ repost, like }),
+      scene(note),
+    );
+    try {
+      element
+        .querySelector<HTMLButtonElement>('[data-testid="event-repost"]')
+        ?.click();
+      await vi.waitFor(() => {
+        expect(
+          element.querySelector('[data-testid="event-repost-error"]')
+            ?.textContent,
+        ).toContain("repost failed");
+      });
+
+      element
+        .querySelector<HTMLButtonElement>('[data-testid="event-like"]')
+        ?.click();
+      await vi.waitFor(() => {
+        expect(
+          element.querySelector('[data-testid="event-like-error"]')
+            ?.textContent,
+        ).toContain("like failed");
+      });
+
+      // 捕まえる変異: 2 操作で一つの error signal を共有する。後からLikeを
+      // 試すと、先に失敗したリポストの再試行情報が消える。
+      expect(
+        element.querySelector('[data-testid="event-repost-error"]')
+          ?.textContent,
+      ).toContain("repost failed");
+    } finally {
+      dispose();
+    }
+  });
+
   it("Providerが無いときとkind:7通知内の対象ではアクションを出さない", () => {
     const withoutProvider = mount(note, undefined, scene(note));
     const notification = alice.reaction(note, { type: "like" });
