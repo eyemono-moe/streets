@@ -51,6 +51,10 @@ const EventView: Component<EventViewProps> = (props) => {
     // ループになる) を避けるため、読むのを id (と relayHint) に絞る。
     const id = props.id;
     const relayHint = props.relayHint;
+    // id または context の Store が変わったら、次の検索が終わるまで以前の
+    // イベントを残さない。Storybook の args 差し替えだけでなく、同じ
+    // EventView が別 Store へ繋ぎ替わる経路でも古い本文を見せないため。
+    setEvent(undefined);
     setUnresolved(false);
     setShowMuted(false);
     setMuteError(undefined);
