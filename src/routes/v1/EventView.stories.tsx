@@ -6,7 +6,7 @@ import {
   type EventScene,
   EventSceneProvider,
 } from "../../storybook/EventScene";
-import partyUrl from "../../storybook/party.svg";
+import customEmojiFixtureUrl from "../../storybook/custom-emoji-fixture.svg";
 import { createStoryAuthor } from "../../storybook/story-events";
 import EventView from "./EventView";
 
@@ -53,7 +53,7 @@ const referencedNote = bob.note(
   {
     tags: [
       ["t", "nostr"],
-      ["emoji", "party", partyUrl],
+      ["emoji", "party", customEmojiFixtureUrl],
     ],
   },
 );
@@ -72,7 +72,7 @@ const textReaction = bob.reaction(plainNote, {
 const emojiReaction = carol.reaction(plainNote, {
   type: "emoji",
   shortcode: "party",
-  url: partyUrl,
+  url: customEmojiFixtureUrl,
 });
 const reactionEvent = carol.reaction(referencedNote, { type: "like" });
 const unicodeReactionEvent = bob.reaction(referencedNote, {
@@ -82,7 +82,7 @@ const unicodeReactionEvent = bob.reaction(referencedNote, {
 const customReactionEvent = alice.reaction(referencedNote, {
   type: "emoji",
   shortcode: "party",
-  url: partyUrl,
+  url: customEmojiFixtureUrl,
 });
 const unknown = alice.unknown(
   31_337,
