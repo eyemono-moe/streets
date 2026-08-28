@@ -132,6 +132,40 @@ describe("createProjectedWriter", () => {
     expect(projected.optimisticEvents()[0]).toBe(events.at(-1));
     expect(projected.optimisticEvents()).not.toContain(events[0]);
   });
+
+  it("上限到達後の失敗で、それ以前の成功イベントを追い出さない", async () => {
+    const succeeded = Array.from({ length: 200 }, (_, index) =>
+      signed(index.toString(16)),
+    );
+    const failing = signed("failed");
+    const events = [...succeeded, failing];
+    let call = 0;
+    const projected = createProjectedWriter(
+      writerWith(async (hooks) => {
+        const event = events[call++];
+        if (!event) throw new Error("テストイベント不足");
+        hooks?.onOptimisticInsert?.(event, performance.now(), "inserted");
+        if (event === failing) {
+          throw new WriteFailedError([
+            { relay: "wss://relay/" as RelayUrl, reason: "rejected" },
+          ]);
+        }
+        return result(event);
+      }),
+    );
+
+    for (const event of succeeded) {
+      await projected.publish({ kind: 1, tags: [], content: event.content });
+    }
+    const beforeFailure = [...projected.optimisticEvents()];
+    await expect(
+      projected.publish({ kind: 1, tags: [], content: "failing" }),
+    ).rejects.toBeInstanceOf(WriteFailedError);
+
+    // 捕まえる変異: pending の挿入時点で slice(0, 200) する。失敗イベントを
+    // 戻した後は、先に追い出した成功イベントも失われて199件になる。
+    expect(projected.optimisticEvents()).toEqual(beforeFailure);
+  });
 });
 
 describe("mergeProjectedEvents", () => {
