@@ -134,6 +134,101 @@ describe("SettingsSceneProvider", () => {
     }
   });
 
+  it("リレーをすべて削除したdraftは保存せず、本番と同じerrorを残す", async () => {
+    const relay = "wss://relay.example/" as RelayUrl;
+    const { captured, dispose } = mount({
+      relays: {
+        phase: "ready",
+        entries: [{ url: relay, read: true, write: true }],
+      },
+    });
+    try {
+      const settings = captured().account.relayList;
+      settings.remove(relay);
+      expect(settings.draft()).toHaveLength(0);
+
+      // 捕まえる変異: Story adapterだけリレー0件の保存を成功扱いにする。
+      await settings.save();
+      expect(settings.dirty()).toBe(true);
+      expect(settings.error()).toBe("リレーを 1 件以上追加してください");
+    } finally {
+      dispose();
+    }
+  });
+
+  it("非公開部分を利用できないsceneではprivateへの変更をrejectする", async () => {
+    const publicEntry = {
+      target: { type: "hashtag" as const, value: "spoiler" },
+      visibility: "public" as const,
+    };
+    const privateEntry = {
+      target: { type: "word" as const, value: "secret" },
+      visibility: "private" as const,
+    };
+    const { captured, dispose } = mount({
+      relays: { phase: "signed-out" },
+      mutes: {
+        phase: "ready",
+        entries: [publicEntry, privateEntry],
+        privatePart: "unavailable",
+      },
+    });
+    try {
+      const mutes = captured().mutes;
+      if (!mutes) throw new Error("MuteList context is missing");
+
+      // 捕まえる変異: privatePart が unavailable でも private を触る操作を成功させる。
+      await expect(
+        mutes.add({ type: "word", value: "ignore" }, "private"),
+      ).rejects.toThrow("signer cannot access private mute items");
+      await expect(mutes.move(publicEntry, "private")).rejects.toThrow(
+        "signer cannot access private mute items",
+      );
+      await expect(mutes.remove(privateEntry)).rejects.toThrow(
+        "signer cannot access private mute items",
+      );
+      await expect(mutes.move(privateEntry, "public")).rejects.toThrow(
+        "signer cannot access private mute items",
+      );
+      const state = mutes.state();
+      expect(
+        state.phase === "ready" || state.phase === "missing"
+          ? state.entries
+          : [],
+      ).toEqual([publicEntry, privateEntry]);
+      expect(mutes.error()).toBe(
+        "非公開ミュートには NIP-44 対応と署名器の権限が必要です",
+      );
+    } finally {
+      dispose();
+    }
+  });
+
+  it("復号不能なprivateへの変更は本番と同じinvalid errorにする", async () => {
+    const { captured, dispose } = mount({
+      relays: { phase: "signed-out" },
+      mutes: {
+        phase: "ready",
+        entries: [],
+        privatePart: "invalid",
+      },
+    });
+    try {
+      const mutes = captured().mutes;
+      if (!mutes) throw new Error("MuteList context is missing");
+
+      // 捕まえる変異: invalid を unavailable と同じ権限エラーで報告する。
+      await expect(
+        mutes.add({ type: "word", value: "secret" }, "private"),
+      ).rejects.toThrow("private mute items could not be decoded");
+      expect(mutes.error()).toBe(
+        "ミュートを保存できませんでした: private mute items could not be decoded",
+      );
+    } finally {
+      dispose();
+    }
+  });
+
   it("mutes を省略した scene では MuteList context を作らない", () => {
     const { captured, dispose } = mount({
       relays: { phase: "signed-out" },

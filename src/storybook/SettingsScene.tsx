@@ -5,7 +5,12 @@ import {
   createEffect,
   createSignal,
 } from "solid-js";
-import { type MuteEntry, matchingMutes } from "../core/moderation/mute-list";
+import {
+  InvalidPrivateMuteListError,
+  type MuteEntry,
+  PrivateMuteUnavailableError,
+  matchingMutes,
+} from "../core/moderation/mute-list";
 import type { RelayListEntry } from "../core/read/relay-list";
 import { normalizeRelayUrl } from "../core/relay/relay-url";
 import type { RelayListState } from "../core/settings/relay-list-state";
@@ -159,6 +164,10 @@ const accountSettingsFor = (
     },
     async save() {
       if (saving() || !dirty()) return;
+      if (draft().length === 0) {
+        setError("リレーを 1 件以上追加してください");
+        return;
+      }
       setSaving(true);
       setSaved(cloneRelays(draft()));
       setPhase({ phase: "ready", entries: cloneRelays(draft()) });
@@ -214,6 +223,27 @@ const muteListFor = (scene: () => MuteSettingsScene | undefined): MuteList => {
     setError(undefined);
   };
 
+  const privateFailure = (): "unavailable" | "invalid" | undefined => {
+    const current = state();
+    if (current.phase !== "ready" && current.phase !== "missing") return;
+    return current.privatePart === "ready" ? undefined : current.privatePart;
+  };
+
+  const rejectPrivateChange = (
+    failure: "unavailable" | "invalid",
+  ): Promise<never> => {
+    const cause =
+      failure === "invalid"
+        ? new InvalidPrivateMuteListError()
+        : new PrivateMuteUnavailableError();
+    setError(
+      failure === "invalid"
+        ? `ミュートを保存できませんでした: ${cause.message}`
+        : "非公開ミュートには NIP-44 対応と署名器の権限が必要です",
+    );
+    return Promise.reject(cause);
+  };
+
   return {
     state,
     saving,
@@ -235,14 +265,30 @@ const muteListFor = (scene: () => MuteSettingsScene | undefined): MuteList => {
         : [];
     },
     async add(target, visibility) {
+      const failure = visibility === "private" ? privateFailure() : undefined;
+      if (failure) {
+        return rejectPrivateChange(failure);
+      }
       changeEntries((entries) => [...entries, { target, visibility }]);
     },
     async remove(entry) {
+      const failure =
+        entry.visibility === "private" ? privateFailure() : undefined;
+      if (failure) {
+        return rejectPrivateChange(failure);
+      }
       changeEntries((entries) =>
         entries.filter((candidate) => candidate !== entry),
       );
     },
     async move(entry, to) {
+      const failure =
+        entry.visibility === "private" || to === "private"
+          ? privateFailure()
+          : undefined;
+      if (failure) {
+        return rejectPrivateChange(failure);
+      }
       changeEntries((entries) =>
         entries.map((candidate) =>
           candidate === entry ? { ...candidate, visibility: to } : candidate,
