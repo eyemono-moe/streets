@@ -42,5 +42,5 @@
 - [x] `pnpm fix`
 - [x] `pnpm verify:all`
 - [x] ローカル Storybook で主要 Story を巡回する
-- [ ] コミット・push・PR作成
+- [x] コミット・push・PR作成
 - [ ] 別コンテキストでPRをレビューし、指摘を反映する
