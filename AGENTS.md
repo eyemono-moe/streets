@@ -4,20 +4,37 @@
 
 会話は日本語。コミットメッセージ・コメント・ドキュメントも日本語。
 
-## 最初に読むもの
+## 読む順序
 
-| | |
+毎回読むのは `CONTEXT.md` だけ。残りは作業に関係する箇所だけを読む。全 ADR や
+設計文書の全文を無条件にコンテキストへ入れない。
+
+| いつ | 読むもの |
 | --- | --- |
-| [CONTEXT.md](./CONTEXT.md) | 用語・画面の構成・読み取りの仕組み・**コメントとドキュメントの書き方**。130 行。全部読むこと |
-| [docs/adr/](./docs/adr/) | 0001〜0030。決定と**その理由**。経緯が残っているのはここだけ |
-| [docs/design/architecture.md](./docs/design/architecture.md) | 読み取り層の全体像。8 節に未実装箇所が集約されている |
-| [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md) | スライスで得た知見と判断理由。実行するタスクは GitHub Issues を参照 |
+| 毎回 | [CONTEXT.md](./CONTEXT.md) 全文。用語、ADR の索引、コメントとドキュメントの書き方 |
+| 着手時 | 対象の GitHub Issue と、そこから直接リンクされた仕様・計画・followups の節 |
+| 判断が必要な時 | `CONTEXT.md` の索引から該当する [ADR](./docs/adr/) だけ |
+| 読み取り層を触る時 | [architecture.md](./docs/design/architecture.md) の関係する節と、[read-layer-followups.md](./docs/design/read-layer-followups.md) の対応する節 |
 
 ## 環境
 
 - **pnpm 9.7.0**（`packageManager` で固定）。npm / yarn を使わない
 - Node 20（check / test / build）と Node 22（e2e）。CI はこの 2 つで回る
 - e2e にはローカルリレーが要る: `docker compose up -d nostr-rs-relay nostr-rs-relay-2`（8080 / 8081）
+
+## モデル・コンテキスト・ログの予算
+
+API のレートリミットも性能予算として扱う。
+
+- ファイル一覧、Issue の集計、機械的な差分確認など独立した軽作業を委譲するなら、
+  軽量モデルへ必要なファイル名と問いだけを渡す。会話履歴全体を fork しない
+- 単純なコマンド実行や小さな編集は、委譲の往復のほうが高くつくためその場で行う
+- 高性能モデルを使うのは、設計判断、秘密鍵境界、非同期競合、または実装と独立した
+  最終レビューなど、広い文脈と推論が必要な作業に限る
+- 成功した検証の全ログを会話へ流さない。前景で完了を待ち、成功時は終了コードと件数、
+  失敗時は失敗箇所と必要な前後だけを読む。詳細ログは一時ファイルへ退避してよい
+- CI は同じ状態を短い間隔で繰り返し取得せず、1 回の watch か低頻度の確認で終端まで待つ
+- サブエージェントの返答は結論、根拠の位置、未解決点に絞り、調査ログの全文を返させない
 
 ## 知らないと踏む罠
 
@@ -127,6 +144,6 @@ pnpm seed:dev                             # スレッドの各形をローカル
 
 **動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage cache + 暗号化 NIP-78 端末間同期）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿・返信・リアクション・リポストの送信、NIP-07 / NIP-46（bunker）ログイン、設定画面（Account / リレー / ミュート / ラボ）。
 
-**動かない**: フォローの送信、検索、画像アップロード、Zap、モバイル表示、設定画面のプロフィール / display / file。NIP-46の`nostrconnect://` / QRは未実装。
+**動かない**: kind:5 の生きている表示への反映、フォローの送信と一覧、ブックマーク、検索、画像アップロード、Zap、モバイル表示、アカウント切替、設定画面のプロフィール / display / file。NIP-46の`nostrconnect://` / QRは未実装。
 
-機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。着手順の提案もそこにあります（設定 + ミュート + デッキ同期まで完了）。
+機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。設定 + ミュート + デッキ同期まで完了。次のまとまりは、データの正しさを閉じる kind:5 の表示反映、その後にユーザー詳細 + フォロー操作・一覧。正確な優先度と `design-needed` の有無は着手時の GitHub Issues を正とする。
