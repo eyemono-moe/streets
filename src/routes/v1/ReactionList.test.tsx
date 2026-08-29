@@ -272,6 +272,36 @@ describe("ReactionList", () => {
     }
   });
 
+  it("削除依頼でリアクションを一覧から外し、依頼の巻き戻しで戻す", () => {
+    // 捕まえる変異: Store 購読で insert/remove だけを再計算し、hide/show を
+    // 無視する。削除済みリアクションの件数と押下状態が画面に残る。
+    const store = new EventStore();
+    const target = signed(42);
+    const reaction = signedReaction(43, target.id, { created_at: 100 });
+    store.put(reaction, "wss://relay/");
+    const { element, dispose } = mountReactive(
+      target.id,
+      contextWith(store, createControllableEngagementRequests()),
+    );
+    try {
+      expect(element()).not.toBeUndefined();
+      const deletion = signed(43, {
+        kind: 5,
+        created_at: 200,
+        tags: [["e", reaction.id]],
+        content: "delete reaction",
+      });
+
+      store.put(deletion, "wss://relay/");
+      expect(element()).toBeUndefined();
+
+      store.remove(deletion.id);
+      expect(element()).not.toBeUndefined();
+    } finally {
+      dispose();
+    }
+  });
+
   it("グループの数が変わらない変化でも件数は更新される", () => {
     // 捕まえる変異: `groups` の `equals` を「配列の長さが同じなら等しい」
     // のような浅い比較にする。枠の作り直しを抑える等値関数は、抑えすぎると

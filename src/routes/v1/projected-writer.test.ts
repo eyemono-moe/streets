@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NostrEvent } from "../../core/nostr/event";
+import type { EventStoreChange } from "../../core/read/event-store";
 import type { RelayUrl } from "../../core/relay/relay-connection";
 import type { RelayFilter } from "../../core/relay/relay-connection";
 import {
@@ -35,7 +36,37 @@ const writerWith = (
   publish: (_draft, hooks) => implementation(hooks),
 });
 
+const noStoreChanges = {
+  subscribe: () => () => {},
+};
+
 describe("createProjectedWriter", () => {
+  it("EventStore が隠した楽観イベントを除外し、巻き戻しで再表示する", async () => {
+    // 捕まえる変異: hide/show の購読または hidden の絞り込みを外す。自分の
+    // 削除依頼だけがリレーエコー前の楽観表示へ反映されない。
+    const target = signed("1");
+    let notifyStore!: (change: EventStoreChange) => void;
+    const projected = createProjectedWriter(
+      writerWith(async (hooks) => {
+        hooks?.onOptimisticInsert?.(target, performance.now(), "inserted");
+        return result(target);
+      }),
+      {
+        subscribe(listener) {
+          notifyStore = listener;
+          return () => {};
+        },
+      },
+    );
+    await projected.publish({ kind: 1, tags: [], content: "target" });
+
+    notifyStore({ type: "hide", event: target });
+    expect(projected.optimisticEvents()).toEqual([]);
+
+    notifyStore({ type: "show", event: target });
+    expect(projected.optimisticEvents()).toEqual([target]);
+  });
+
   it("inserted だけを楽観一覧へ積み、duplicate は二重にしない", async () => {
     const first = signed("1");
     const duplicate = signed("2");
@@ -50,6 +81,7 @@ describe("createProjectedWriter", () => {
         );
         return result(event);
       }),
+      noStoreChanges,
     );
 
     await projected.publish({ kind: 1, tags: [], content: "first" });
@@ -76,6 +108,7 @@ describe("createProjectedWriter", () => {
         }
         return result(event);
       }),
+      noStoreChanges,
     );
 
     await projected.publish({ kind: 1, tags: [], content: "previous" });
@@ -96,6 +129,7 @@ describe("createProjectedWriter", () => {
         hooks?.onOptimisticInsert?.(event, performance.now(), "duplicate");
         return result(event);
       }),
+      noStoreChanges,
     );
 
     await projected.publish(
@@ -120,6 +154,7 @@ describe("createProjectedWriter", () => {
         hooks?.onOptimisticInsert?.(event, performance.now(), "inserted");
         return result(event);
       }),
+      noStoreChanges,
     );
 
     for (const event of events) {
@@ -152,6 +187,7 @@ describe("createProjectedWriter", () => {
         }
         return result(event);
       }),
+      noStoreChanges,
     );
 
     for (const event of succeeded) {

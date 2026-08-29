@@ -199,6 +199,35 @@ describe("publish", () => {
     expect(calls).toEqual(["sign", "put", "publish", "remove"]);
   });
 
+  it("kind:5 の全リレー失敗では削除依頼を巻き戻して対象を再表示する", async () => {
+    // 捕まえる変異: kind:5 の remove で削除索引を外さない。送信失敗を表示した
+    // 後も、対象ノートだけがローカルでは削除済みのまま残る。
+    const store = new EventStore();
+    const signer = createFakeSigner(SK);
+    const target = await signer.signEvent({
+      pubkey: PUBKEY,
+      kind: 1,
+      created_at: 1_699_999_900,
+      tags: [],
+      content: "restore after failed deletion",
+    });
+    store.put(target, "wss://a.example" as RelayUrl);
+    const writer = createWriter({
+      signer,
+      store,
+      publisher: stubPublisher(async () => allFailed),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await expect(
+      writer.publish({ kind: 5, tags: [["e", target.id]], content: "" }),
+    ).rejects.toBeInstanceOf(WriteFailedError);
+
+    expect(store.get(target.id)).toEqual(target);
+  });
+
   it("1 本でも accepted なら残す", async () => {
     // 捕まえる変異: rejected が 1 件でもあれば巻き戻す
     const partial: PublishResult = {

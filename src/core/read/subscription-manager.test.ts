@@ -338,6 +338,27 @@ describe("SubscriptionManager", () => {
     expect(d.onEvent).not.toHaveBeenCalled();
   });
 
+  it("削除依頼により hidden になったイベントも所属判定のためセクションへ配信する", () => {
+    // 捕まえる変異: hidden を rejected と同じく配信しない。SectionReader が
+    // 非表示メンバーを覚えられず、削除依頼の巻き戻し時に対象を戻せない。
+    const { relays, store, manager, delivery } = setup();
+    const note = signed(4, { created_at: 100 });
+    const deletion = signed(4, {
+      created_at: 200,
+      kind: 5,
+      tags: [["e", note.id]],
+      content: "delete",
+    });
+    store.put(deletion, "wss://one/");
+    const d = delivery();
+    manager.subscribe([{ kinds: [1] }], ["wss://one/"], d);
+
+    relays.get("wss://one/")?.emitEvent(0, note);
+
+    expect(store.isHidden(note.id)).toBe(true);
+    expect(d.onEvent).toHaveBeenCalledWith(note.id, "wss://one/");
+  });
+
   it("reports eose and closure per relay", () => {
     const { relays, manager, delivery } = setup();
     const d = delivery();

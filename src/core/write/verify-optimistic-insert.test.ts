@@ -9,6 +9,12 @@ describe("verifyOptimisticInsert", () => {
     expect(() => verifyOptimisticInsert("rejected")).toThrow();
   });
 
+  it("hidden な verdict は削除済みイベントの再送を止める", () => {
+    // 捕まえる変異: hidden を duplicate と同じく成功扱いする。手元では削除済み
+    // のまま、同じイベントだけをリレーへ再 publish して状態を食い違わせる。
+    expect(() => verifyOptimisticInsert("hidden")).toThrow();
+  });
+
   it("inserted なら検証済みの verdict をそのまま返す (楽観表示へ進んでよい)", () => {
     // 捕まえる変異: verdict を返さず void のままにする。呼び出し側
     // (writer.ts) が「新規に挿入したのか、既存の再送だったのか」を

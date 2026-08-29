@@ -176,7 +176,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
     const persistence = createIndexedDbPersistence({ indexedDB: undefined });
     await expect(persistence.load()).resolves.toEqual({
       events: [],
-      deletedIds: [],
+      deletionRequests: [],
     });
   });
 
@@ -195,7 +195,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
     });
     await expect(persistence.load()).resolves.toEqual({
       events: [],
-      deletedIds: [],
+      deletionRequests: [],
     });
   });
 
@@ -213,7 +213,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
     const persistence = createIndexedDbPersistence({ indexedDB: failingIdb });
     await expect(persistence.load()).resolves.toEqual({
       events: [],
-      deletedIds: [],
+      deletionRequests: [],
     });
   });
 });
@@ -270,7 +270,9 @@ describe("createIndexedDbPersistence — 書き込みの窓", () => {
     persistence.save([
       persistedEvent(makeEvent({ pubkey: "p1", kind: 0, created_at: 1 })),
     ]);
-    persistence.saveDeletions(["late"]);
+    persistence.saveDeletionRequest(
+      makeEvent({ id: "late", pubkey: "p1", kind: 5, created_at: 1 }),
+    );
 
     expect(clock.pendingCount).toBe(0);
   });
@@ -397,24 +399,30 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
     expect(events).toEqual([]);
   });
 
-  it("deleteDeletions で取り消した id は load の deletedIds に戻ってこない", async () => {
-    // 捕まえる変異: deleteDeletions を no-op のままにする。
+  it("deleteDeletionRequest で取り消した id は load に戻ってこない", async () => {
+    // 捕まえる変異: deleteDeletionRequest を no-op のままにする。
     // EventStore.remove() が kind:5 の巻き戻しでこれを呼んでも
     // deletions ストアのレコードが残り続け、publish が全滅したのに
     // 対象イベントが次回起動のたびに hydrate で弾かれ続ける。
     const { persistence, flush } = setup();
     const target = "d".repeat(64);
-    persistence.saveDeletions([target]);
+    const request = makeEvent({
+      id: target,
+      pubkey: "d".repeat(64),
+      kind: 5,
+      created_at: 1,
+    });
+    persistence.saveDeletionRequest(request);
     await flush();
 
-    persistence.deleteDeletions([target]);
+    persistence.deleteDeletionRequest(target);
     await flush();
 
-    const { deletedIds } = await persistence.load();
-    expect(deletedIds).toEqual([]);
+    const { deletionRequests } = await persistence.load();
+    expect(deletionRequests).toEqual([]);
   });
 
-  it("同じ flush の中で saveDeletions した直後の id も deleteDeletions で消える", async () => {
+  it("同じ flush の中で保存した直後の削除依頼も個別削除で消える", async () => {
     // 捕まえる変異: 同じ flush 内での「保存」と「巻き戻し」が両方積まれた
     // とき、deletionRemovalSet によるフィルタを外す。deletions ストアの
     // put/delete は cursor を経由しないので実際には発行順で確定するが、
@@ -422,11 +430,17 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
     // 発行順を偶然守っているだけの状態になる。
     const { persistence, flush } = setup();
     const target = "e".repeat(64);
-    persistence.saveDeletions([target]);
-    persistence.deleteDeletions([target]);
+    const request = makeEvent({
+      id: target,
+      pubkey: "e".repeat(64),
+      kind: 5,
+      created_at: 1,
+    });
+    persistence.saveDeletionRequest(request);
+    persistence.deleteDeletionRequest(target);
     await flush();
 
-    const { deletedIds } = await persistence.load();
-    expect(deletedIds).toEqual([]);
+    const { deletionRequests } = await persistence.load();
+    expect(deletionRequests).toEqual([]);
   });
 });

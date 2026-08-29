@@ -142,8 +142,8 @@ pnpm seed:dev                             # スレッドの各形をローカル
 
 ## いま動くもの / 動かないもの
 
-**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage cache + 暗号化 NIP-78 端末間同期）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿・返信・リアクション・リポストの送信、NIP-07 / NIP-46（bunker）ログイン、設定画面（Account / リレー / ミュート / ラボ）。
+**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage cache + 暗号化 NIP-78 端末間同期）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、kind:5 到着後の表示反映、プロフィールカードとホバー、スレッド表示、通知カラム、投稿・返信・リアクション・リポストの送信、NIP-07 / NIP-46（bunker）ログイン、設定画面（Account / リレー / ミュート / ラボ）。
 
-**動かない**: kind:5 の生きている表示への反映、フォローの送信と一覧、ブックマーク、検索、画像アップロード、Zap、モバイル表示、アカウント切替、設定画面のプロフィール / display / file。NIP-46の`nostrconnect://` / QRは未実装。
+**動かない**: 通常カラムでの kind:5 自動同期、フォローの送信と一覧、ブックマーク、検索、画像アップロード、Zap、モバイル表示、アカウント切替、設定画面のプロフィール / display / file。NIP-46の`nostrconnect://` / QRは未実装。
 
-機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。設定 + ミュート + デッキ同期まで完了。次のまとまりは、データの正しさを閉じる kind:5 の表示反映、その後にユーザー詳細 + フォロー操作・一覧。正確な優先度と `design-needed` の有無は着手時の GitHub Issues を正とする。
+機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。kind:5 到着後の表示反映まで完了。次のまとまりは、通常カラムでの kind:5 自動同期か、ユーザー詳細 + フォロー操作・一覧。正確な優先度と `design-needed` の有無は着手時の GitHub Issues を正とする。

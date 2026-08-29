@@ -1,7 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
-import type { EventStore } from "./event-store";
+import type { EventStore, EventStoreChange } from "./event-store";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
   MAX_ITEMS_PER_SECTION,
@@ -20,6 +20,7 @@ import type {
  * に対して十分小さい。
  */
 const NOTIFY_BATCH_MS = 16;
+const DELETION_KIND = 5;
 
 export type SectionReaderOptions = {
   source: NostrSource;
@@ -44,6 +45,8 @@ export class SectionReader {
   readonly #options: SectionReaderOptions;
   readonly #listeners = new Set<() => void>();
   readonly #events = new SortedEvents(MAX_ITEMS_PER_SECTION);
+  /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
+  readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
   // start() が initialPlan で埋める。onPlanChanged が start() の最中に同期的
   // に飛んだ場合はそちらが先に埋めるので、start() 側は null のときだけ
@@ -51,6 +54,7 @@ export class SectionReader {
   // ときに、より新しい plan を古い initialPlan で上書きしないため)。
   #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
+  #offStore: (() => void) | null = null;
   #started = false;
   readonly #scheduler: Scheduler;
   #notifyTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -96,7 +100,10 @@ export class SectionReader {
     if (this.#started) return;
     this.#started = true;
 
-    const { source, manager } = this.#options;
+    const { source, manager, store } = this.#options;
+    // manager.subscribe() は同期的にイベントを配送しうる。先に Store の変化を
+    // 購読し、配信と削除依頼の間に hide/show を取りこぼす窓を作らない。
+    this.#offStore = store.subscribe((change) => this.#onStoreChange(change));
     this.#handle = manager.subscribe(source.filters, source.relays, {
       onEvent: (id, relay) => this.#onEvent(id, relay),
       onRelayComplete: (relay) => {
@@ -178,10 +185,13 @@ export class SectionReader {
   stop(): void {
     this.#handle?.close();
     this.#handle = null;
+    this.#offStore?.();
+    this.#offStore = null;
     this.#relays = new Map();
     this.#plan = null;
     this.#started = false;
     this.#events.clear();
+    this.#hiddenMembers.clear();
     if (this.#notifyTimer !== null) {
       this.#scheduler.clearTimeout(this.#notifyTimer);
       this.#notifyTimer = null;
@@ -194,16 +204,44 @@ export class SectionReader {
   }
 
   #onEvent(id: string, _relay: RelayUrl): void {
-    if (this.#events.has(id)) return;
+    if (this.#events.has(id) || this.#hiddenMembers.has(id)) return;
+    if (this.#options.store.isHidden(id)) {
+      this.#hiddenMembers.add(id);
+      return;
+    }
     // 本体は EventStore が持つ。ここに載せるのは検証済みのコピー (ADR-0024)
     const stored = this.#options.store.get(id);
     if (!stored) return;
+    // kind:5 は同じ購読で取得して EventStore へ適用するが、カラム自身の
+    // メンバーではない。削除依頼カードとして表示上限を消費させない。
+    if (stored.kind === DELETION_KIND) return;
 
     // 上限に達した状態で保持順の末尾より後ろに来たイベントは採用されない。
     // その場合は画面に何の変化も無いので、通知も積まない。
     if (!this.#events.add(stored)) return;
 
     this.#notify();
+  }
+
+  #onStoreChange(change: EventStoreChange): void {
+    switch (change.type) {
+      case "hide":
+        if (!this.#events.remove(change.event.id)) return;
+        this.#hiddenMembers.add(change.event.id);
+        this.#notify();
+        return;
+      case "show":
+        if (!this.#hiddenMembers.delete(change.event.id)) return;
+        if (this.#events.add(change.event)) this.#notify();
+        return;
+      case "remove":
+        this.#hiddenMembers.delete(change.event.id);
+        if (this.#events.remove(change.event.id)) this.#notify();
+        return;
+      case "insert":
+        // セクションへの所属は SubscriptionManager の配信だけが決める。
+        return;
+    }
   }
 
   /**

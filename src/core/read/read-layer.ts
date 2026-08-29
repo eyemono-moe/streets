@@ -97,9 +97,11 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   // ready 自身は常に resolve する形にする。
   const ready = (async () => {
     try {
-      const { events: persisted, deletedIds } =
+      const { events: persisted, deletionRequests } =
         await options.persistence.load();
-      store.hydrate(persisted, { deletedIds });
+      // 削除依頼を先に索引しておくことで、依頼より後に到着した通常イベントにも
+      // 著者と時刻の検証を同じ規則で適用できる。
+      store.hydrate(persisted, { deletionRequests });
     } catch {
       // 何もしない — 水和が無いだけで、通常のウォームアップ経路が効く。
     }

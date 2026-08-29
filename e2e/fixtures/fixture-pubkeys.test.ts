@@ -8,6 +8,11 @@ import { nip46RemotePubkey, nip46UserPubkey } from "./nip46-signer.js";
 import { budgetAuthorPubkeys, budgetViewerPubkey } from "./seed-budget.js";
 import { capAuthorPubkey, capViewerPubkey } from "./seed-cap.js";
 import {
+  deletionAuthorPubkey,
+  deletionForgedAuthorPubkey,
+  deletionViewerPubkey,
+} from "./seed-deletion.js";
+import {
   notificationAuthorPubkey,
   notificationViewerPubkey,
 } from "./seed-notification.js";
@@ -86,6 +91,9 @@ describe("e2e fixture pubkeys", () => {
       ["seed-preview.ts:authorTwo", previewAuthorTwoPubkey],
       ["seed-thread.ts:viewer", threadViewerPubkey],
       ["seed-thread.ts:author", threadAuthorPubkey],
+      ["seed-deletion.ts:viewer", deletionViewerPubkey],
+      ["seed-deletion.ts:author", deletionAuthorPubkey],
+      ["seed-deletion.ts:forgedAuthor", deletionForgedAuthorPubkey],
       ["event-actions.ts:viewer", eventActionViewerPubkey],
       ["event-actions.ts:targetAuthor", eventActionTargetAuthorPubkey],
       ["deck-sync.ts:viewer", deckSyncPubkey],

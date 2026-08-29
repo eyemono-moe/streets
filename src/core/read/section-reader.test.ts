@@ -37,6 +37,22 @@ const signedEvent = (content: string, createdAt: number): NostrEvent => {
   };
 };
 
+const signedDeletion = (targetId: string, createdAt: number): NostrEvent => {
+  const unsigned = {
+    pubkey,
+    created_at: createdAt,
+    kind: 5,
+    tags: [["e", targetId]],
+    content: "削除",
+  };
+  const id = computeEventId(unsigned);
+  return {
+    ...unsigned,
+    id,
+    sig: bytesToHex(schnorr.sign(hexToBytes(id), secretKey)),
+  };
+};
+
 // 署名検証を通さずに SectionReader だけを試すため、EventStore を差し替える。
 // SectionReader は put() 後に get() で正本を取り直すので、real EventStore と
 // 同じく put() した内容を get() で返せる必要がある。
@@ -137,10 +153,61 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
 
   reader.start();
 
-  return { reader, delivery, statuses, clock };
+  return { reader, delivery, statuses, clock, store };
 };
 
 describe("SectionReader", () => {
+  it("表示中のイベントを削除依頼で隠し、依頼の巻き戻しで同じセクションへ戻す", () => {
+    // 捕まえる変異: EventStore の hide/show 通知を購読しない。削除依頼を受けても
+    // リロードまで表示に残るか、publish 全滅の巻き戻し後も消えたままになる。
+    const { reader, delivery, store } = startReaderWithRelays([
+      "wss://a/" as RelayUrl,
+    ]);
+    const target = signedEvent("target before deletion", 100);
+    store.put(target, "wss://a/" as RelayUrl);
+    delivery.onEvent(target.id, "wss://a/" as RelayUrl);
+    expect(reader.items).toEqual([target]);
+
+    const deletion = signedDeletion(target.id, 200);
+    store.put(deletion, "wss://a/" as RelayUrl);
+    expect(reader.items).toEqual([]);
+
+    store.remove(deletion.id);
+    expect(reader.items).toEqual([target]);
+  });
+
+  it("削除依頼より後に届いた対象を非表示メンバーとして覚え、巻き戻しで表示する", () => {
+    // 捕まえる変異: 非表示だった配信を単に捨てる。削除依頼の publish が全滅して
+    // 巻き戻っても、リレーから再配送されるまで対象が戻らない。
+    const { reader, delivery, store } = startReaderWithRelays([
+      "wss://a/" as RelayUrl,
+    ]);
+    const target = signedEvent("target after deletion", 100);
+    const deletion = signedDeletion(target.id, 200);
+    store.put(deletion, "wss://a/" as RelayUrl);
+    expect(store.put(target, "wss://a/" as RelayUrl)).toBe("hidden");
+
+    delivery.onEvent(target.id, "wss://a/" as RelayUrl);
+    expect(reader.items).toEqual([]);
+
+    store.remove(deletion.id);
+    expect(reader.items).toEqual([target]);
+  });
+
+  it("削除依頼自身はセクションの表示項目へ加えない", () => {
+    // 捕まえる変異: kind:5 も通常イベントと同じく SortedEvents へ加える。
+    // 削除を同期する補助フィルタを持つカラムに削除依頼カードが混ざる。
+    const { reader, delivery, store } = startReaderWithRelays([
+      "wss://a/" as RelayUrl,
+    ]);
+    const deletion = signedDeletion("f".repeat(64), 200);
+    store.put(deletion, "wss://a/" as RelayUrl);
+
+    delivery.onEvent(deletion.id, "wss://a/" as RelayUrl);
+
+    expect(reader.items).toEqual([]);
+  });
+
   it("複数の配信をまとめて 1 回だけ通知する", () => {
     // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる)。
     // デバウンス (毎回張り直し) にする変異はここでは捕まらない —— 3 回とも

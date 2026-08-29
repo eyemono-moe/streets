@@ -976,7 +976,9 @@ export class SubscriptionManager {
         }
         const result = this.#options.store.put(event, url);
         // store.put() が "rejected" を返した (schnorr 検証に落ちた) イベント
-        // は、セクションへ配信しない (既存の挙動)。
+        // は、セクションへ配信しない。"hidden" は配信する —— SectionReader が
+        // 「このセクションに属する非表示イベント」として覚え、削除依頼の
+        // 巻き戻し時に同じ場所へ戻すために id が必要になる。
         if (result === "rejected") return;
         entry.delivery.onEvent(event.id, url);
       },
