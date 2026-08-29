@@ -245,7 +245,13 @@ export const createNip78Document = <T>(
     expectedGeneration: number,
     expectedAuthor: string,
   ): Promise<void> => {
-    if (!validRun(expectedGeneration, expectedAuthor) || !local) return;
+    if (
+      !validRun(expectedGeneration, expectedAuthor) ||
+      !local ||
+      !local.dirty
+    ) {
+      return;
+    }
     const snapshot = local;
     const snapshotRevision = revision;
     transition({
@@ -260,24 +266,43 @@ export const createNip78Document = <T>(
         NIP78_KIND,
         options.definition.identifier,
         async (current) => {
+          // fetchLatest の待機中に logout / account 切替が起きた場合、
+          // 新しい署名器へ旧 account の平文を渡す前に止める。
+          if (!validRun(expectedGeneration, expectedAuthor)) {
+            throw new Error("NIP-78 document の account が変わりました");
+          }
           // current が無い場合は、消えた document を local から復旧してよい。
           // current が別 id なら、確認していない remote を上書きしない。
           if (current && current.id !== snapshot.remote?.id) {
             throw new RemoteChangedError(current);
           }
-          const content = await requireNip44().encrypt(
+          // getter が返した NIP-44 adapter を await の前に固定する。
+          // ActiveSigner が途中で切り替わっても、処理中の暗号化先は変えない。
+          const nip44 = requireNip44();
+          const content = await nip44.encrypt(
             expectedAuthor,
             snapshot.serialized,
           );
+          // 暗号化の承認待ち中に account が変わった場合は、旧 draft を
+          // Writer の署名段階へ渡さない。
+          if (!validRun(expectedGeneration, expectedAuthor)) {
+            throw new Error("NIP-78 document の account が変わりました");
+          }
           return { kind: NIP78_KIND, tags: [], content };
         },
       );
     } catch (cause) {
       if (!validRun(expectedGeneration, expectedAuthor)) return;
+      // 保存中の update が置いた timer を自動 retry に使わない。
+      // 成功時だけ下で revision 差を即時再送する。
+      clearTimer();
       if (cause instanceof RemoteChangedError) {
         try {
           const remote = await decodeRemote(cause.remote, expectedAuthor);
           if (!validRun(expectedGeneration, expectedAuthor) || !local) return;
+          // decode の承認待ち中に update が置いた timer も、競合解決を
+          // 追い越して保存を始めないように片付ける。
+          clearTimer();
           if (options.definition.equals(local.value, remote.value)) {
             setLocal({
               value: local.value,
@@ -316,6 +341,9 @@ export const createNip78Document = <T>(
     }
 
     if (!validRun(expectedGeneration, expectedAuthor) || !local) return;
+    // 保存中の update が置いた debounce timer は、revision 差による
+    // 即時再送と二重になるため必ず片付ける。
+    clearTimer();
     const changedWhileSaving = revision !== snapshotRevision;
     local = {
       ...local,
@@ -475,6 +503,9 @@ export const createNip78Document = <T>(
 
   const activate = (nextAuthor: string | undefined) => {
     clearTimer();
+    // 前 account の未解決な署名要求を待たず、新 account は独立した
+    // 保存列を開始できる。旧列の完了は generation guard で無視する。
+    queue = Promise.resolve();
     generation += 1;
     refreshRevision += 1;
     loadedGeneration = -1;

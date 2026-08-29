@@ -464,4 +464,221 @@ describe("createNip78Document", () => {
     expect(harness.document.state()).toMatchObject({ phase: "error" });
     harness.dispose();
   });
+
+  it("保存中の変更は直後に1回だけ再送し、残ったtimerで三重保存しない", async () => {
+    const clock = createFakeClock();
+    const [pubkey] = createSignal<string | undefined>(PUBKEY_A);
+    const firstSave = deferred<void>();
+    let remote = event({ text: "base" });
+    let saveCount = 0;
+    const signer: Signer = {
+      getPublicKey: async () => PUBKEY_A,
+      signEvent: async () => {
+        throw new Error("unused");
+      },
+      nip44: {
+        encrypt: async (_peer, raw) => `enc:${raw}`,
+        decrypt: async (_peer, raw) => raw.slice(4),
+      },
+    };
+    let document!: Nip78Document<Value>;
+    let dispose!: () => void;
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      document = createNip78Document({
+        definition: definition(),
+        pubkey,
+        routingSettled: () => true,
+        signer,
+        writer: {
+          replace: async (_kind, _identifier, mutate) => {
+            saveCount += 1;
+            const draft = await mutate(remote);
+            if (saveCount === 1) await firstSave.promise;
+            remote = {
+              ...remote,
+              ...draft,
+              id: String(saveCount + 2).repeat(64),
+            };
+            return {
+              event: remote,
+              replaced: undefined,
+              accepted: ["wss://relay/" as RelayUrl],
+              rejected: [],
+            };
+          },
+        },
+        fetchLatest: async () => remote,
+        storage: memoryStorage(),
+        scheduler: clock,
+      });
+    });
+    await waitForState(document, "ready");
+
+    document.update(() => ({ text: "first" }));
+    clock.advance(2_000);
+    await vi.waitFor(() => expect(saveCount).toBe(1));
+    document.update(() => ({ text: "second" }));
+    firstSave.resolve();
+    await vi.waitFor(() => expect(saveCount).toBe(2));
+    await vi.waitFor(() =>
+      expect(document.state()).toMatchObject({
+        phase: "ready",
+        sync: "synced",
+      }),
+    );
+
+    // 捕まえる変異: 1回目の保存中に置いたtimerを残す。revision差による
+    // 即時再送の後、同じsnapshotをもう一度署名してしまう。
+    clock.advance(2_000);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveCount).toBe(2);
+    dispose();
+  });
+
+  it("保存失敗後は保存中に置いたtimerで自動再試行しない", async () => {
+    const clock = createFakeClock();
+    const [pubkey] = createSignal<string | undefined>(PUBKEY_A);
+    const save = deferred<void>();
+    const remote = event({ text: "base" });
+    let saveCount = 0;
+    let document!: Nip78Document<Value>;
+    let dispose!: () => void;
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      document = createNip78Document({
+        definition: definition(),
+        pubkey,
+        routingSettled: () => true,
+        signer: {
+          getPublicKey: async () => PUBKEY_A,
+          signEvent: async () => {
+            throw new Error("unused");
+          },
+          nip44: {
+            encrypt: async (_peer, raw) => `enc:${raw}`,
+            decrypt: async (_peer, raw) => raw.slice(4),
+          },
+        },
+        writer: {
+          replace: async (_kind, _identifier, mutate) => {
+            saveCount += 1;
+            await mutate(remote);
+            await save.promise;
+            throw new Error("publish failed");
+          },
+        },
+        fetchLatest: async () => remote,
+        storage: memoryStorage(),
+        scheduler: clock,
+      });
+    });
+    await waitForState(document, "ready");
+
+    document.update(() => ({ text: "first" }));
+    clock.advance(2_000);
+    await vi.waitFor(() => expect(saveCount).toBe(1));
+    document.update(() => ({ text: "second" }));
+    save.resolve();
+    await waitForState(document, "error");
+
+    // 捕まえる変異: 失敗時に保存中のupdateが置いたtimerを消さない。
+    // ユーザー操作なしに署名要求を再表示してしまう。
+    clock.advance(2_000);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveCount).toBe(1);
+    expect(document.value()).toEqual({ text: "second" });
+    dispose();
+  });
+
+  it("旧accountの保存とqueueを新accountの署名器へ持ち越さない", async () => {
+    const clock = createFakeClock();
+    const [pubkey, setPubkey] = createSignal<string | undefined>(PUBKEY_A);
+    const delayedA = deferred<void>();
+    const encryptA = vi.fn(async (_peer: string, raw: string) => `enc:${raw}`);
+    const encryptB = vi.fn(async (_peer: string, raw: string) => `enc:${raw}`);
+    let activeEncrypt = encryptA;
+    const signer: Signer = {
+      getPublicKey: async () => pubkey() ?? "",
+      signEvent: async () => {
+        throw new Error("unused");
+      },
+      get nip44() {
+        return {
+          encrypt: (peer: string, raw: string) => activeEncrypt(peer, raw),
+          decrypt: async (_peer: string, raw: string) => raw.slice(4),
+        };
+      },
+    };
+    const remotes = new Map([
+      [PUBKEY_A, event({ text: "A base" })],
+      [PUBKEY_B, { ...event({ text: "B base" }), pubkey: PUBKEY_B }],
+    ]);
+    const saveAuthors: string[] = [];
+    let document!: Nip78Document<Value>;
+    let dispose!: () => void;
+    createRoot((rootDispose) => {
+      dispose = rootDispose;
+      document = createNip78Document({
+        definition: definition(),
+        pubkey,
+        routingSettled: () => true,
+        signer,
+        writer: {
+          replace: async (_kind, _identifier, mutate) => {
+            const account = pubkey() ?? "";
+            saveAuthors.push(account);
+            if (account === PUBKEY_A) await delayedA.promise;
+            const previous = remotes.get(account);
+            const draft = await mutate(previous);
+            const next = {
+              ...(previous ?? event({ text: "missing" })),
+              ...draft,
+              pubkey: account,
+              id: String(saveAuthors.length + 3).repeat(64),
+            };
+            remotes.set(account, next);
+            return {
+              event: next,
+              replaced: previous,
+              accepted: ["wss://relay/" as RelayUrl],
+              rejected: [],
+            };
+          },
+        },
+        fetchLatest: async (_kind, _identifier, account) =>
+          remotes.get(account),
+        storage: memoryStorage(),
+        scheduler: clock,
+      });
+    });
+    await waitForState(document, "ready");
+    document.update(() => ({ text: "A secret" }));
+    clock.advance(2_000);
+    await vi.waitFor(() => expect(saveAuthors).toEqual([PUBKEY_A]));
+
+    activeEncrypt = encryptB;
+    setPubkey(PUBKEY_B);
+    await vi.waitFor(() =>
+      expect(document.value()).toEqual({ text: "B base" }),
+    );
+    document.update(() => ({ text: "B local" }));
+    clock.advance(2_000);
+
+    // 捕まえる変異: account切替時にqueueを共有し続ける。Aの承認待ちが
+    // Bの保存を塞がず、Bは独立したqueueで開始できる必要がある。
+    await vi.waitFor(() => expect(saveAuthors).toEqual([PUBKEY_A, PUBKEY_B]));
+    delayedA.resolve();
+    await vi.waitFor(() => expect(document.state().phase).toBe("ready"));
+    // Aの平文を、切替後のB署名器へ一度も渡さない。
+    expect(encryptB).toHaveBeenCalledWith(
+      PUBKEY_B,
+      JSON.stringify({ text: "B local" }),
+    );
+    expect(encryptB).not.toHaveBeenCalledWith(
+      PUBKEY_A,
+      JSON.stringify({ text: "A secret" }),
+    );
+    dispose();
+  });
 });
