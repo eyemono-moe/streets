@@ -101,8 +101,10 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0025](./docs/adr/0025-greedy-relay-selection-under-a-global-budget.md) | 大域予算のもとで冗長度つき貪欲集合被覆によりリレーを選ぶ |
 | [0026](./docs/adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) | 常に見せるのは行動できる異常だけとし、診断値は開発者モードの背後に置く |
 | [0027](./docs/adr/0027-account-boundary-and-cache-scope.md) | キャッシュする kind を「誰が見てよいか」で分類し、名乗らないものは永続化しない |
+| [0028](./docs/adr/0028-ark-ui-for-v1-ui-primitives.md) | v1 の UI プリミティブは Ark UI に統一する |
 | [0029](./docs/adr/0029-mutation-testing-for-build-and-write.md) | テストが宣言する変異は実際に落とせなければならない、を `src/core/nostr/build/`・`src/core/write/` で Stryker により強制する |
 | [0030](./docs/adr/0030-single-verification-entrypoint.md) | ローカルと CI の検証入口を `verify` に揃える |
+| [0031](./docs/adr/0031-nip46-session-key-boundary.md) | NIP-46 transport の通信専用 client key と本人鍵の境界を固定する |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 
