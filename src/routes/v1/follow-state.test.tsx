@@ -120,6 +120,50 @@ describe("FollowState", () => {
     });
   });
 
+  it("キュー待ちも保存中として扱い、同じ対象を二重投入しない", async () => {
+    // 捕まえる変異: saving へ入れるのをキュー先頭での実行開始まで遅らせる。
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            let release = () => {};
+            const gate = new Promise<void>((finish) => {
+              release = finish;
+            });
+            let calls = 0;
+            const replace = vi.fn(async (): Promise<WriteResult> => {
+              calls += 1;
+              if (calls === 1) await gate;
+              return result(event([]));
+            });
+            const state = createFollowState({
+              viewer: VIEWER,
+              store: {
+                latestReplaceable: () => event([]),
+                onReplaceableChanged: () => () => {},
+              },
+              writer: { replace },
+            });
+
+            const first = state.follow(TARGET);
+            const queued = state.follow(OTHER);
+            const duplicate = state.follow(OTHER);
+            expect(state.isSaving(OTHER)).toBe(true);
+            await duplicate;
+            release();
+            await Promise.all([first, queued]);
+            expect(replace).toHaveBeenCalledTimes(2);
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
   it("部分失敗を保存済み状態と区別し、同じ操作を再試行する", async () => {
     // 捕まえる変異: rejected があっても成功としてエラーを消す、または
     // 再試行で現在の状態を反転する。

@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { encodeBech32 } from "../nostr/nip19";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 
@@ -219,6 +220,28 @@ const deckSchema = v.object({
   columns: v.array(columnDefSchema),
 });
 
+const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
+  if (
+    column.source.kind !== "literal" ||
+    column.source.relays !== undefined ||
+    column.source.filters.length !== 1
+  ) {
+    return column;
+  }
+  const filter = column.source.filters[0];
+  const pubkey = filter?.authors?.length === 1 ? filter.authors[0] : undefined;
+  if (
+    !pubkey ||
+    !/^[0-9a-f]{64}$/.test(pubkey) ||
+    column.title !== `@${encodeBech32("npub", pubkey).slice(0, 12)}` ||
+    filter.kinds?.length !== TIMELINE_KINDS.length ||
+    !TIMELINE_KINDS.every((kind) => filter.kinds?.includes(kind))
+  ) {
+    return column;
+  }
+  return { ...column, source: { kind: "user", pubkey } };
+};
+
 /**
  * `raw` は外部入力 —— `EventStore` がリレーからの値を `isNostrEvent` で
  * 確かめているのと同じ理由で、localStorage の値も信用しない。
@@ -244,5 +267,10 @@ export const loadDeck = (raw: string | null): Deck | undefined => {
   }
 
   const result = v.safeParse(deckSchema, parsed);
-  return result.success ? result.output : undefined;
+  return result.success
+    ? {
+        ...result.output,
+        columns: result.output.columns.map(migrateLegacyUserColumn),
+      }
+    : undefined;
 };

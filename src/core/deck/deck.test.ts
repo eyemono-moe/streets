@@ -283,6 +283,57 @@ describe("loadDeck / saveDeck", () => {
       ),
     ).toBeUndefined();
   });
+
+  it("旧 user プリセットをユーザー詳細カラムへ移行する", () => {
+    // 捕まえる変異: version 2 の旧 literal をそのまま返し、既存ユーザーだけ
+    // プロフィールとフォロー操作を使えない状態にする。
+    const pubkey = "a".repeat(64);
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            {
+              id: "legacy-user",
+              title: "@npub14242424",
+              source: {
+                kind: "literal",
+                filters: [{ kinds: [1, 6], authors: [pubkey] }],
+              },
+            },
+          ],
+        }),
+      ),
+    ).toEqual({
+      version: 2,
+      columns: [
+        {
+          id: "legacy-user",
+          title: "@npub14242424",
+          source: { kind: "user", pubkey },
+        },
+      ],
+    });
+  });
+
+  it("旧 user と区別できない改名済み literal は変換しない", () => {
+    // 捕まえる変異: 単一著者の literal をすべて user に変え、任意フィルタの
+    // 意図をプロフィール列へ変えてしまう。
+    const literal: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "literal",
+          title: "調査用",
+          source: {
+            kind: "literal",
+            filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
+          },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(literal))).toEqual(literal);
+  });
 });
 
 describe("defaultDeck", () => {

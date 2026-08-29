@@ -64,8 +64,19 @@ const ProfileList: Component<{
       <Show
         when={pubkeys().length > 0}
         fallback={
-          <Show when={props.status().phase === "settled"}>
-            <p class="c-secondary p-3 text-sm">該当するユーザーはいません。</p>
+          <Show
+            when={props.status().incomplete}
+            fallback={
+              <Show when={props.status().phase === "settled"}>
+                <p class="c-secondary p-3 text-sm">
+                  該当するユーザーはいません。
+                </p>
+              </Show>
+            }
+          >
+            <p role="alert" class="p-3 text-red-7 text-sm dark:text-red-4">
+              一覧を取得できませんでした。接続を確認して、カラムを開き直してください。
+            </p>
           </Show>
         }
       >

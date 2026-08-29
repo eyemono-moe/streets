@@ -84,11 +84,11 @@ export const createFollowState = (options: {
     ) {
       return Promise.resolve();
     }
+    setSaving((current) => new Set(current).add(pubkey));
 
     const operation = queue
       .catch(() => {})
       .then(async () => {
-        setSaving((current) => new Set(current).add(pubkey));
         setErrors((current) => {
           const next = new Map(current);
           next.delete(pubkey);
