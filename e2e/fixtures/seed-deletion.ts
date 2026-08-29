@@ -1,4 +1,4 @@
-import { type EventTemplate, Relay } from "nostr-tools";
+import type { EventTemplate } from "nostr-tools";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 
 export const deletionRelayUrl =
@@ -22,23 +22,3 @@ export const signAsDeletionAuthor = (template: EventTemplate) =>
   finalizeEvent(template, authorSecretKey);
 export const signAsForgedDeletionAuthor = (template: EventTemplate) =>
   finalizeEvent(template, forgedAuthorSecretKey);
-
-/** global setup ではリレー設定だけを置き、対象イベントは各テストで発行する。 */
-export const seedDeletionFixture = async (): Promise<void> => {
-  const relay = await Relay.connect(deletionRelayUrl);
-  try {
-    await relay.publish(
-      finalizeEvent(
-        {
-          kind: 10002,
-          created_at: Math.floor(Date.now() / 1_000),
-          tags: [["r", deletionRelayUrl, "read"]],
-          content: `deletion fixture ${Date.now()}`,
-        },
-        viewerSecretKey,
-      ),
-    );
-  } finally {
-    relay.close();
-  }
-};
