@@ -5,6 +5,7 @@ import {
   createEffect,
   createSignal,
 } from "solid-js";
+import { defaultDeck } from "../core/deck/deck";
 import {
   InvalidPrivateMuteListError,
   type MuteEntry,
@@ -14,11 +15,16 @@ import {
 import type { RelayListEntry } from "../core/read/relay-list";
 import { normalizeRelayUrl } from "../core/relay/relay-url";
 import type { RelayListState } from "../core/settings/relay-list-state";
+import type {
+  Nip78Document,
+  Nip78DocumentState,
+} from "../core/solid/create-nip78-document";
 import {
   type AccountRelaySettings,
   type AccountSettings,
   AccountSettingsProvider,
 } from "../routes/v1/account-settings";
+import { type DeckStore, DeckStoreProvider } from "../routes/v1/deck-store";
 import {
   type DeviceSettings,
   DeviceSettingsProvider,
@@ -67,9 +73,49 @@ export type MuteSettingsScene =
     };
 
 export type SettingsScene = {
+  deck?: Nip78DocumentState;
   relays: RelaySettingsScene;
   mutes?: MuteSettingsScene;
   developerMode?: boolean;
+};
+
+const deckStoreFor = (
+  scene: () => Nip78DocumentState | undefined,
+): DeckStore => {
+  const [state, setState] = createSignal<Nip78DocumentState>({
+    phase: "ready",
+    sync: "synced",
+    remoteCreatedAt: 1_786_717_800,
+  });
+  const [value, setValue] = createSignal(defaultDeck("11".repeat(32)));
+
+  createEffect(() => {
+    setState(
+      scene() ?? {
+        phase: "ready",
+        sync: "synced",
+        remoteCreatedAt: 1_786_717_800,
+      },
+    );
+  });
+
+  return {
+    value,
+    state,
+    update(change) {
+      setValue(change);
+      setState({ phase: "ready", sync: "pending" });
+    },
+    async refresh() {
+      setState({ phase: "ready", sync: "synced" });
+    },
+    async keepLocal() {
+      setState({ phase: "ready", sync: "synced" });
+    },
+    useRemote() {
+      setState({ phase: "ready", sync: "synced" });
+    },
+  } satisfies Nip78Document<ReturnType<typeof defaultDeck>>;
 };
 
 const cloneRelays = (entries: readonly RelayListEntry[] | undefined) =>
@@ -319,13 +365,16 @@ export const SettingsSceneProvider: ParentComponent<{
   const account = accountSettingsFor(() => props.scene.relays);
   const mutes = muteListFor(() => props.scene.mutes);
   const device = deviceSettingsFor(() => props.scene);
+  const deck = deckStoreFor(() => props.scene.deck);
 
   const content = () => (
-    <AccountSettingsProvider value={account}>
-      <DeviceSettingsProvider value={device}>
-        {props.children}
-      </DeviceSettingsProvider>
-    </AccountSettingsProvider>
+    <DeckStoreProvider value={deck}>
+      <AccountSettingsProvider value={account}>
+        <DeviceSettingsProvider value={device}>
+          {props.children}
+        </DeviceSettingsProvider>
+      </AccountSettingsProvider>
+    </DeckStoreProvider>
   );
 
   return (

@@ -64,6 +64,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   await page.getByTestId("settings-open").click();
   const dialog = page.getByTestId("settings-dialog");
   await expect(dialog).toBeVisible();
+  await page.getByTestId("settings-tab-relays").click();
   await expect(page.getByTestId("relay-settings-loading")).toHaveCount(0, {
     timeout: 15_000,
   });
@@ -88,6 +89,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   await expect(dialog).toHaveCount(0);
   await expect(page.getByTestId("settings-open")).toBeFocused();
   await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-relays").click();
   await expect(page.getByTestId("relay-settings-loading")).toHaveCount(0, {
     timeout: 15_000,
   });
@@ -122,6 +124,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
   // source memo と ReadLayer の replan へ届かなければ、下でリレー2だけへ
   // 発行する通知は表示されない。
   await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-relays").click();
   await firstRead.click();
   await page.getByTestId("relay-url-input").fill(relayTwoUrl);
   await page.getByTestId("relay-add").click();
@@ -149,6 +152,7 @@ test("設定した read リレーへ通知カラムを保存直後に切り替�
 
   // 保存後の値を Context の current から再構築できる。
   await page.getByTestId("settings-open").click();
+  await page.getByTestId("settings-tab-relays").click();
   await expect(relayRow(page, `${relayTwoUrl}/`)).toBeVisible();
   await expect(
     relayRow(page, `${previewRelayUrl}/`).getByTestId("relay-read-toggle"),

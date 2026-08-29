@@ -42,6 +42,8 @@ export type PutResult = "inserted" | "duplicate" | "rejected";
 export type ReplaceableChange = {
   kind: number;
   pubkey: string;
+  /** addressable event の `d`。通常の置換可能イベントでは省略する。 */
+  identifier?: string;
 };
 
 export type EventStoreChange =
@@ -60,13 +62,72 @@ export type EventStoreOptions = {
   persistence?: EventPersistence;
 };
 
+type ReplaceableAddress = {
+  kind: number;
+  pubkey: string;
+  identifier?: string;
+};
+
+const isRegularReplaceableKind = (kind: number): boolean =>
+  kind === 0 || kind === 3 || (kind >= 10_000 && kind < 20_000);
+
+const isAddressableKind = (kind: number): boolean =>
+  kind >= 30_000 && kind < 40_000;
+
+const firstDTag = (event: NostrEvent): string | undefined =>
+  event.tags.find((tag) => tag[0] === "d")?.[1];
+
+/** `d` 自体に `:` が入っても衝突しない replacement key。 */
+const replacementKey = (address: ReplaceableAddress): string =>
+  JSON.stringify([
+    address.kind,
+    address.pubkey,
+    ...(address.identifier === undefined ? [] : [address.identifier]),
+  ]);
+
+const addressForEvent = (event: NostrEvent): ReplaceableAddress | undefined => {
+  if (isRegularReplaceableKind(event.kind)) {
+    return { kind: event.kind, pubkey: event.pubkey };
+  }
+  if (isAddressableKind(event.kind)) {
+    // `d` が無い壊れた event も空 identifier へ隔離し、別の `d` の最新版を
+    // 上書きさせない。正常な書き込みは Writer が `d` を必ず付ける。
+    return {
+      kind: event.kind,
+      pubkey: event.pubkey,
+      identifier: firstDTag(event) ?? "",
+    };
+  }
+  return undefined;
+};
+
+const addressForLookup = (
+  kind: number,
+  pubkey: string,
+  identifier: string | undefined,
+): ReplaceableAddress => {
+  if (isRegularReplaceableKind(kind)) {
+    if (identifier !== undefined) {
+      throw new Error("通常の置換可能イベントに identifier は指定できません");
+    }
+    return { kind, pubkey };
+  }
+  if (isAddressableKind(kind)) {
+    if (identifier === undefined) {
+      throw new Error("addressable event には identifier が必要です");
+    }
+    return { kind, pubkey, identifier };
+  }
+  throw new Error(`kind:${kind} は置換可能イベントではありません`);
+};
+
 /**
  * 同期・メモリのイベント保管。
  * IndexedDB による永続化は後続の計画で「背後の水和・退避層」として足す (ADR-0018)。
  */
 export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
-  /** `${kind}:${pubkey}` → 最新の置換可能イベントの id */
+  /** 構造化した replacement address → 最新イベントの id */
   readonly #replaceable = new Map<string, string>();
   /**
    * タグの値 → そのタグを持つイベント id。
@@ -250,8 +311,14 @@ export class EventStore {
     return this.#events.get(id)?.fetchedAt;
   }
 
-  replaceableFetchedAt(kind: number, pubkey: string): number | undefined {
-    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+  replaceableFetchedAt(
+    kind: number,
+    pubkey: string,
+    identifier?: string,
+  ): number | undefined {
+    const id = this.#replaceable.get(
+      replacementKey(addressForLookup(kind, pubkey, identifier)),
+    );
     return id ? this.fetchedAt(id) : undefined;
   }
 
@@ -260,8 +327,10 @@ export class EventStore {
    * 「持っていない」になり、serveWhileRevalidating を許すポリシーの kind が
    * 再取得の間に出すべき古い値を失う。
    */
-  invalidate(kind: number, pubkey: string): void {
-    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+  invalidate(kind: number, pubkey: string, identifier?: string): void {
+    const id = this.#replaceable.get(
+      replacementKey(addressForLookup(kind, pubkey, identifier)),
+    );
     if (!id) return;
     const stored = this.#events.get(id);
     if (!stored) return;
@@ -269,18 +338,14 @@ export class EventStore {
   }
 
   /**
-   * 置換可能イベント (10000-19999) と、kind:0 / kind:3 の最新版を索引する。
+   * 通常の置換可能イベントと addressable event の最新版を索引する。
    * ルーティング表 (ADR-0016) はこの索引から kind:10002 を導出する。
    */
   #indexReplaceable(event: NostrEvent): boolean {
-    // 置換可能イベントの kind 範囲 (nostr-protocol/nips 01.md:97)。
-    const replaceable =
-      event.kind === 0 ||
-      event.kind === 3 ||
-      (event.kind >= 10000 && event.kind < 20000);
-    if (!replaceable) return false;
+    const address = addressForEvent(event);
+    if (!address) return false;
 
-    const key = `${event.kind}:${event.pubkey}`;
+    const key = replacementKey(address);
     const currentId = this.#replaceable.get(key);
     const current = currentId ? this.#events.get(currentId)?.event : undefined;
     if (current) {
@@ -299,7 +364,9 @@ export class EventStore {
   }
 
   #notifyReplaceableChanged(event: NostrEvent): void {
-    const change = { kind: event.kind, pubkey: event.pubkey };
+    const address = addressForEvent(event);
+    if (!address) return;
+    const change: ReplaceableChange = address;
     for (const listener of [...this.#replaceableListeners]) {
       try {
         listener(change);
@@ -386,8 +453,9 @@ export class EventStore {
       if (byValue.size === 0) this.#byTag.delete(name);
     }
 
-    const key = `${event.kind}:${event.pubkey}`;
-    if (this.#replaceable.get(key) === id) {
+    const address = addressForEvent(event);
+    const key = address ? replacementKey(address) : undefined;
+    if (key && this.#replaceable.get(key) === id) {
       // **索引を消すだけでは足りない。** まだ #events に残っている直前の
       // 版が二度と latestReplaceable() から見えなくなり、フォローリストの
       // 巻き戻しで既存のフォローが丸ごと消えたように見える。
@@ -396,8 +464,9 @@ export class EventStore {
       // だけで、毎イベント通る経路ではない。
       this.#replaceable.delete(key);
       for (const candidate of this.#events.values()) {
-        if (candidate.event.kind !== event.kind) continue;
-        if (candidate.event.pubkey !== event.pubkey) continue;
+        const candidateAddress = addressForEvent(candidate.event);
+        if (!candidateAddress) continue;
+        if (replacementKey(candidateAddress) !== key) continue;
         this.#indexReplaceable(candidate.event);
       }
       this.#notifyReplaceableChanged(event);
@@ -418,8 +487,14 @@ export class EventStore {
     return true;
   }
 
-  latestReplaceable(kind: number, pubkey: string): NostrEvent | undefined {
-    const id = this.#replaceable.get(`${kind}:${pubkey}`);
+  latestReplaceable(
+    kind: number,
+    pubkey: string,
+    identifier?: string,
+  ): NostrEvent | undefined {
+    const id = this.#replaceable.get(
+      replacementKey(addressForLookup(kind, pubkey, identifier)),
+    );
     return id ? this.get(id) : undefined;
   }
 }

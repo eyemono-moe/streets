@@ -1,7 +1,13 @@
+import { realpathSync } from "node:fs";
 import { mergeConfig } from "vitest/config";
 import viteConfig from "./vite.config";
 
 export default mergeConfig(viteConfig, {
+  // Stryker の sandbox は node_modules をリポジトリ本体へ symlink する。
+  // Vite 6 は realpath が root 外だと依存を拒否するため、実体も許可する。
+  server: {
+    fs: { allow: [process.cwd(), realpathSync("node_modules")] },
+  },
   test: {
     // e2e/fixtures/fixture-pubkeys.test.ts はブラウザや playwright を必要と
     // しない純粋なロジックのテストなので、通常の src テストと同じく

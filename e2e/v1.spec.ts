@@ -255,9 +255,18 @@ test.describe("v1 vertical slice", () => {
         }
         const raw = window.localStorage.getItem(key);
         if (!raw) throw new Error(`persisted deck key ${key} had no value`);
-        const deck = JSON.parse(raw) as { columns: { title: string }[] };
+        const envelope = JSON.parse(raw) as {
+          cacheVersion: 1;
+          serialized: string;
+          dirty: boolean;
+        };
+        const deck = JSON.parse(envelope.serialized) as {
+          columns: { title: string }[];
+        };
         deck.columns[0].title = mutatedTitle;
-        window.localStorage.setItem(key, JSON.stringify(deck));
+        envelope.serialized = JSON.stringify(deck);
+        envelope.dirty = true;
+        window.localStorage.setItem(key, JSON.stringify(envelope));
       },
       { pubkey: previewViewerPubkey, mutatedTitle: mutatedHomeTitle },
     );

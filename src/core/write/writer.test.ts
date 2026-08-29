@@ -394,6 +394,28 @@ describe("replace", () => {
 
     expect(calls).toEqual(["decrypt", "encrypt", "sign:cipher"]);
   });
+
+  it("addressable event の d を identifier からちょうど 1 個付ける", async () => {
+    const { writer } = setup(ok);
+
+    const result = await writer.replace(30078, "streets/deck", () => ({
+      kind: 30078,
+      tags: [
+        ["d", "stale"],
+        ["d", "duplicate"],
+        ["alt", "deck"],
+      ],
+      content: "cipher",
+    }));
+
+    // 捕まえる変異: identifier を tags へ反映しない、または mutation の
+    // 古い d を残す。同じ event が複数 address を名乗る。
+    expect(result.event.tags).toEqual([
+      ["d", "streets/deck"],
+      ["alt", "deck"],
+    ]);
+    expect(result.event.tags.filter((tag) => tag[0] === "d")).toHaveLength(1);
+  });
   const setupReplace = (
     current: NostrEvent | undefined,
     options?: { refetchThrows?: Error },

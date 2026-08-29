@@ -53,14 +53,17 @@ export const fetchLatest = async (
   identifier: string | undefined,
   pubkey: string,
 ): Promise<NostrEvent | undefined> => {
-  if (identifier !== undefined) {
-    // `latestReplaceable` の索引は `kind:pubkey` だけを鍵にしていて `d` を
-    // 見ない。射程内の kind (0/3/10000/10002/10003) はすべて非アドレス可能
-    // なので今は問題にならないが、kind:30078 を載せる時点で EventStore 側に
-    // `d` を含む索引が要る。**黙って間違った版を返すより投げる。**
-    throw new Error(
-      "fetchLatest: identifier (d タグ) は未対応。EventStore の置換可能索引が d を見ていない",
-    );
+  const regularReplaceable =
+    kind === 0 || kind === 3 || (kind >= 10_000 && kind < 20_000);
+  const addressable = kind >= 30_000 && kind < 40_000;
+  if (
+    (!regularReplaceable && !addressable) ||
+    (regularReplaceable && identifier !== undefined) ||
+    (addressable && identifier === undefined)
+  ) {
+    // 接続を開く前に止める。索引できない問い合わせをリレーへ送ってから
+    // undefined に見せると、「無い」と「呼び方が間違っている」が混ざる。
+    throw new Error("fetchLatest: kind と identifier の組み合わせが不正です");
   }
 
   const writeRelays = routing.writeRelaysFor(pubkey);
@@ -71,7 +74,13 @@ export const fetchLatest = async (
   await collect(
     pool,
     urls,
-    [{ kinds: [kind], authors: [pubkey] }],
+    [
+      {
+        kinds: [kind],
+        authors: [pubkey],
+        ...(identifier === undefined ? {} : { "#d": [identifier] }),
+      },
+    ],
     store,
     timeoutMs,
     open,
@@ -86,5 +95,5 @@ export const fetchLatest = async (
   );
 
   if (answered.length === 0) throw new RefetchFailedError(urls);
-  return store.latestReplaceable(kind, pubkey);
+  return store.latestReplaceable(kind, pubkey, identifier);
 };
