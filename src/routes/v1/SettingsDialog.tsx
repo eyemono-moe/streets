@@ -1,5 +1,6 @@
 import type { Component } from "solid-js";
 import { useOptionalMuteList } from "./mute-list";
+import AccountSettingsPage from "./settings/AccountSettingsPage";
 import LabSettingsPage from "./settings/LabSettingsPage";
 import MuteSettingsPage from "./settings/MuteSettingsPage";
 import RelaySettingsPage from "./settings/RelaySettingsPage";
@@ -18,6 +19,7 @@ type SettingsDialogProps = {
 const SettingsDialog: Component<SettingsDialogProps> = (props) => {
   const muteList = useOptionalMuteList();
   const pages: SettingsPageDefinition[] = [
+    { value: "account", label: "アカウント", content: <AccountSettingsPage /> },
     { value: "relays", label: "リレー", content: <RelaySettingsPage /> },
     ...(muteList
       ? [

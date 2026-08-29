@@ -3,24 +3,26 @@ import { normalizeRelayUrl } from "../../relay/relay-url";
 import { MAX_NIP46_RELAYS } from "./bunker-uri";
 
 export const NIP46_SESSION_STORAGE_KEY = "streets.v1.nip46-session";
+export const NIP46_REQUIRED_PERMISSIONS =
+  "sign_event:1,sign_event:6,sign_event:7,sign_event:10000,sign_event:30078,nip44_encrypt,nip44_decrypt,nip04_decrypt";
 
 const hex64 = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/));
 const sessionSchema = v.strictObject({
-  // v2 は kind:10000 と NIP-44/NIP-04 の権限を connect 時に承認済みの
-  // セッションだけを表す。v1 を復元すると ping は通ってもミュート操作が
-  // 拒否されるため、互換扱いせず新しい bunker URI で再承認してもらう。
-  version: v.literal(2),
+  // v3 は現在の機能が必要とする権限文字列そのものも保存する。version だけ
+  // 上げ忘れて権限不足の session を復元する事故を、literal の照合で防ぐ。
+  version: v.literal(3),
+  permissions: v.literal(NIP46_REQUIRED_PERMISSIONS),
   clientSecret: hex64,
   remoteSignerPubkey: hex64,
   userPubkey: hex64,
   relays: v.pipe(v.array(v.string()), v.minLength(1), v.maxLength(5)),
 });
 
-export type StoredNip46SessionV2 = v.InferOutput<typeof sessionSchema>;
+export type StoredNip46SessionV3 = v.InferOutput<typeof sessionSchema>;
 
 export const loadNip46Session = (
   raw: string | null,
-): StoredNip46SessionV2 | undefined => {
+): StoredNip46SessionV3 | undefined => {
   if (raw === null) return undefined;
   try {
     const parsed = v.parse(sessionSchema, JSON.parse(raw));
@@ -38,5 +40,5 @@ export const loadNip46Session = (
   }
 };
 
-export const saveNip46Session = (session: StoredNip46SessionV2): string =>
+export const saveNip46Session = (session: StoredNip46SessionV3): string =>
   JSON.stringify(v.parse(sessionSchema, session));

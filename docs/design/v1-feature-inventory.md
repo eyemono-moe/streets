@@ -1,4 +1,4 @@
-# v1 に足りない機能の棚卸し（2026-08-28 更新）
+# v1 に足りない機能の棚卸し（2026-08-29 更新）
 
 「デザインさえ当てれば完成する」状態にするために、**コア側に何が無いか**を数えた。
 [ADR-0002](../adr/0002-v0-parity-before-cutover.md) が「v1 の Must は v0 機能パリティで下限が固定される」と
@@ -21,7 +21,8 @@
   リポスト / `+` Like）は `ProjectedWriter` 経由。署名 → 楽観挿入 → publish →
   全滅時の巻き戻しが 1 経路にまとまっている（1.1/1.2 参照）
 - 認証: NIP-07 / NIP-46（`bunker://`）
-- デッキ: localStorage のみ（閲覧者ごとにキー分離済み）
+- デッキ: 閲覧者別のlocalStorage cache + 暗号化kind:30078による端末間同期
+  （2秒デバウンス、競合検出と手動解決）
 
 ---
 
@@ -29,14 +30,9 @@
 
 2026-08-22 の書き込みの土台スライスで、イベントを組み立てる層（1.1）と
 署名〜publish を束ねる層（1.2）に加え、NIP-46 remote signer（1.3）もできた。
-残る穴は次の 4 つ
+残る穴は次の 1 つ
 （詳しい経緯は [followups の「書き込みの土台（2026-08-22）」節](./read-layer-followups.md)）:
 
-- kind:30078（デッキの NIP-78 保存）
-- 署名要求のデバウンス
-- 非公開リスト項目（NIP-44 の暗号化経路）— `Signer.nip44?` と
-  `Nip44UnavailableError` は定義済みだが、throw する側・catch する側の
-  どちらもまだリポジトリに無い
 - 削除（kind:5）の表示への反映 — 送るところまでで、読み取り側が隠す経路が無い
 
 ### 1.1 イベントビルダ — `src/core/nostr/build/*`
@@ -45,7 +41,8 @@ kind ごとのタグ規則は仕様が分かれていて、間違えても publi
 （他クライアントで表示が壊れて初めて分かる）。**純関数として切り出し、
 NIP の条文を根拠にテストで固定する**のがこの層の存在理由。
 
-**kind:30078 を除いて実装済み。**
+**実装済み。** kind:30078は専用ビルダではなく、汎用`Nip78Document<T>`が
+暗号化・競合検出を行い、`Writer.replace`が`d`タグを正規化する。
 
 | kind | NIP | 要点 | ビルダ | 読み取り側の有無 |
 |---|---|---|---|---|
@@ -59,13 +56,7 @@ NIP の条文を根拠にテストで固定する**のがこの層の存在理�
 | 10000（ミュート） | NIP-51 | 公開 `p`/`e`/`t`/`word` + 暗号化 `content`（NIP-44） | ✅ `mute.ts`（公開項目のみ。非公開項目は上記参照） | **読みも無い** |
 | 10002（リレーリスト） | NIP-65 | `r` タグ + `read`/`write` マーカー | ✅ `relay-list.ts` | 読みは `relay-list.ts` が有る |
 | 10003（ブックマーク） | NIP-51 | `e` / `a` | ✅ `bookmark.ts` | **読みも無い** |
-| 30078（デッキ） | NIP-78 | `d` タグ + NIP-44 暗号化。[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) | ❌ 無い | 無い |
-
-kind:30078 が無いのは、ビルダが未着手なだけでなく**土台側にも前提が要るため**。
-`fetchLatest`（`src/core/write/fetch-latest.ts`）は `identifier`（`d` タグ）付きで
-呼ぶと現状 throw する — `EventStore` の置換可能索引が `kind:pubkey` しか見ておらず
-`d` を持たないため。着手する前に索引へ `d` を足す必要がある
-（[followups](./read-layer-followups.md) の該当節を参照）。
+| 30078（デッキ） | NIP-78 | `d` タグ + NIP-44 暗号化。[ADR-0013](../adr/0013-deck-persisted-to-nip78.md) | ✅ `create-nip78-document.ts` + `Writer.replace` | ✅ Account設定で状態・競合解決 |
 
 ### 1.2 書き込みの共通経路 — `src/core/write/writer.ts`
 
@@ -82,18 +73,15 @@ compose はこれ経由になった。
   1 回目を巻き戻しが誤って消さないようにした（詳細は followups）。
 - **置換可能イベントの read-modify-write。** kind:3 / 0 / 10002 / 10000 は
   `fetchLatest` で読んでから差分を当てて `Writer.replace` で送る経路が動く。
-  **ただし `identifier` 付き（kind:30000 番台）は未対応**（1.1 参照）。
-  ADR-0013 が NIP-78 について下した「マージはできない。競合を検出して警告する」を
-  置換可能イベント全体へ広げるかどうかは、引き続き未決。
+  `identifier`付き（kind:30000番台）にも対応し、EventStoreは`kind + pubkey + d`で
+  最新版を分離する。デッキの競合判定は汎用`Nip78Document<T>`に閉じる。
 - **楽観挿入の計測（ADR-0011）。** `onOptimisticInsert` フックが `store.put()`
   直前の時刻を受け取るようにし、schnorr 検証込みで計測している
   （詳細は followups — この値を e2e が testid で見ていない点も含む）。
 
-まだ無いもの:
-
-- **署名要求のデバウンス。** ADR-0013 が指摘している通り、カラム操作のたびに
-  署名器へ往復すると体感速度に直結する。デバウンスの置き場所は
-  `writer.ts` になる想定だが、未実装。
+デッキ操作の署名要求は`Nip78Document`が2秒デバウンスし、保存中の変更を
+revision付き直列queueで再送する。他の書き込みを一律に遅らせないため、
+`Writer`全体にはデバウンスを入れていない。
 
 イベントアクションは 2026-08-28 に返信 / kind:6 リポスト / `+` Like の最小面を
 接続した。任意テキスト・カスタム絵文字リアクション、kind:16 generic repost、引用、
@@ -107,8 +95,9 @@ compose はこれ経由になった。
 session keyの境界は[設計](../superpowers/specs/2026-08-25-nip46-bunker-login-design.md)と
 [ADR-0031](../adr/0031-nip46-session-key-boundary.md)を参照。
 
-`nostrconnect://` / QR、remote signer経由のpayload NIP-44、権限追加時の再認可は
-後続。`bunker://`の最小経路だけをこのスライスで閉じた。
+`nostrconnect://` / QRは後続。remote signer経由のpayload NIP-44はデッキ同期と
+非公開ミュートで利用済み。必要権限文字列をsession v3へ保存し、権限追加前のsessionは
+復元せず再認可を求める。
 
 ---
 
@@ -171,15 +160,17 @@ followups の「解消済み」節に**明示的に書かれている穴**。再
 
 ## 3. アカウントと設定
 
-### 3.1 設定画面
+### 3.1 設定画面 — 基盤実装済み
 
-v1 に設定ルートが無い。v0 は `/settings` の下に profile / relay / display / mute / file の
-5 つを持つ。redesign では「デッキの上に開くダイアログ + 左ナビ」にしてある。
+Ark UIのダイアログ + 左ナビで、Account（デッキ同期）、リレー、ミュート、ラボが動く。
+プロフィール / display / fileの各設定と、Penpotで未確定の本文デザインは後続。
 
 ### 3.2 デッキの NIP-78 保存
 
-[ADR-0013](../adr/0013-deck-persisted-to-nip78.md)（Should、切替のブロッカーではない）。
-1.2 の read-modify-write と署名デバウンスに依存する。
+**実装済み（2026-08-29）。** [ADR-0013](../adr/0013-deck-persisted-to-nip78.md)どおり
+NIP-44 self-encryption、local-first cache、2秒デバウンス、上書き前の競合検出、
+local / remoteの手動選択を持つ。同期機構はデッキ専用ではなく
+`Nip78Document<T>`として、次のkind:30078用途へ再利用できる。
 
 ### 3.3 アカウント切替
 
@@ -229,5 +220,5 @@ LNURL の往復と kind:9734 / 9735 が要る。redesign のアクション列�
 4. **1.3（NIP-46）** — **完了（2026-08-25）。** 拡張なしでもbunkerでログイン可能
 5. **イベントアクション（返信 / リポスト / Like）** — **最小面を完了（2026-08-28）。**
    任意リアクション等は上記の後続へ分離
-6. **3.1（設定）+ 2.3（ミュート）** — 設定画面はミュートの受け皿が要る
+6. **3.1（設定）+ 2.3（ミュート）+ 3.2（デッキ同期）** — **完了（2026-08-29）。**
 7. **2.4 / 2.5 / 2.6 / 4.1 / 4.2** — v0 パリティの残り

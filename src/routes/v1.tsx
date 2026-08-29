@@ -8,14 +8,7 @@ import {
   onMount,
 } from "solid-js";
 import type { Component } from "solid-js";
-import {
-  type ColumnDef,
-  type Deck,
-  deckStorageKey,
-  defaultDeck,
-  loadDeck,
-  saveDeck,
-} from "../core/deck/deck";
+import type { ColumnDef } from "../core/deck/deck";
 import { warmUpRouting } from "../core/read/bootstrap";
 import { FALLBACK_RELAYS } from "../core/read/default-relays";
 import { createIndexedDbPersistence } from "../core/read/indexeddb-persistence";
@@ -51,6 +44,7 @@ import {
   removeColumnFrom,
   renameColumnIn,
 } from "./v1/deck-mutations";
+import { DeckStoreProvider, createDeckStore } from "./v1/deck-store";
 import {
   DeviceSettingsProvider,
   useDeviceSettings,
@@ -88,7 +82,7 @@ const formatWarmUpPhaseMs = (ms: number | undefined): string =>
 
 /**
  * v1 の垂直スライス。ログイン → 1 カラム描画に続き、
- * ここでデッキ (3 カラム) と localStorage への永続化を足す。
+ * ここでデッキと、localStorage cache + NIP-78 同期を組み立てる。
  *
  * **拡張機能の有無をマウント時に一度だけ確認して結果を保持する、という
  * ことはしない。** NIP-07 拡張は content script としてページ本体より
@@ -106,7 +100,6 @@ const V1Content: Component = () => {
   const [pubkey, setPubkey] = createSignal<string>();
   const [errorMessage, setErrorMessage] = createSignal<string>();
   const [loading, setLoading] = createSignal(false);
-  const [deck, setDeck] = createSignal<Deck>();
   const [bunkerUri, setBunkerUri] = createSignal("");
   const [authUrl, setAuthUrl] = createSignal<URL>();
   const activeSigner = createActiveSigner();
@@ -266,67 +259,15 @@ const V1Content: Component = () => {
     store,
     writer,
   });
-  // デッキの読み込みと既定デッキの確定は一度だけ行う。
-  //
-  // pubkey が確定した直後に localStorage を読み、保存済みのものが
-  // あればそのまま使う —— これがリロードのたびに同じ 3 本が即座に出る
-  // 理由そのもの。
-  //
-  // 保存が無い、または `loadDeck` が壊れていると判定した場合は
-  // `defaultDeck` を組んで保存する。**`warmUp.loading` を待たない** ——
-  // かつては `defaultDeck` 自身が followees をフィルタへ焼き込んでいたので
-  // ここで待つ必要があったが、`ColumnSource` を派生ソースにしたことで
-  // (`resolve-source.ts`) `defaultDeck` はもう followees を受け取らない。
-  // `home` 列は `{ kind: "followees", kinds: [1] }` という意図だけを保存し、
-  // `DeckColumn` 側の `resolveSource` が描画のたびに最新の
-  // `warmUp()?.followees` を展開する。つまり `defaultDeck` を組む時点で
-  // followees が未確定でも実害が無い (焼き込む値が無いので古い値で固定
-  // される心配がそもそも無い) —— 待つ理由が消えたので待たない。
-  let deckInitialized = false;
-  createEffect(() => {
-    const pk = pubkey();
-    if (!pk || deckInitialized) return;
-
-    // pubkey ごとにキーを分ける —— でないと
-    // 別アカウントでログインし直したときに前のアカウントのデッキ
-    // (followees や著者フィルタを含む) をそのまま引き継いでしまう。
-    const storageKey = deckStorageKey(pk);
-    const stored = loadDeck(window.localStorage.getItem(storageKey));
-    if (stored) {
-      deckInitialized = true;
-      setDeck(stored);
-      return;
-    }
-
-    deckInitialized = true;
-    const fresh = defaultDeck(pk);
-    // **順序が重要 (最終レビュー Minor 5)**: `setDeck` を先に、
-    // `localStorage.setItem` を後に。`setItem` はストレージが無効・
-    // Safari プライベートモードなどで例外を投げうる。逆順 (今までの順序)
-    // だと、その例外でこの `createEffect` が中断し `setDeck` まで到達
-    // しないため `deck()` が永久に `undefined` のまま —— 空デッキの表示に
-    // 固定され、`addColumn` も `!deck()` で早期リターンするので「+」を
-    // 押しても何も起きない、詰んだセッションになる。先に `setDeck` して
-    // おけば、`setItem` が後で失敗しても「保存はされないが今のセッションは
-    // 使える」という縮退で済む。
-    setDeck(fresh);
-    window.localStorage.setItem(storageKey, saveDeck(fresh));
+  const deckStore = createDeckStore({
+    pubkey,
+    routingSettled: () =>
+      warmUp.state === "ready" || warmUp.state === "errored",
+    signer: activeSigner,
+    writer,
+    fetchLatest: fetchLatestEvent,
+    storage: window.localStorage,
   });
-
-  // デッキの変更は必ずこの 1 関数を通す —— 保存を忘れた経路が 1 つでも
-  // あると、その操作だけリロードで消える (ユーザーには「たまに保存され
-  // ない」としか見えない、いちばん報告しにくい壊れ方になる)。
-  //
-  // ここも `setDeck` → `setItem` の順序 (最終レビュー Minor 5、上の初期化
-  // 効果と同じ理由) —— こちらは元から正しい順序だった。`setItem` が例外を
-  // 投げても、画面はすでに新しいデッキを見ているので操作そのものは反映
-  // される (次回リロードで戻るだけで、その場では詰まない)。
-  const updateDeck = (next: Deck) => {
-    const pk = pubkey();
-    if (!pk) return;
-    setDeck(next);
-    window.localStorage.setItem(deckStorageKey(pk), saveDeck(next));
-  };
 
   // 4 つの操作本体 (`Deck → Deck`) は ./v1/deck-mutations.ts の純関数に
   // 委ねている。ここでの役目は「現在のデッキを読む」→「純関数を適用する」
@@ -336,31 +277,19 @@ const V1Content: Component = () => {
   // これにより端での移動や空タイトルでの改名が無駄な localStorage 書き込み
   // を起こさない。
   const addColumn = (column: ColumnDef) => {
-    const current = deck();
-    if (!current) return;
-    updateDeck(addColumnTo(current, column));
+    deckStore.update((current) => addColumnTo(current, column));
   };
 
   const removeColumn = (id: string) => {
-    const current = deck();
-    if (!current) return;
-    updateDeck(removeColumnFrom(current, id));
+    deckStore.update((current) => removeColumnFrom(current, id));
   };
 
   const moveColumn = (id: string, direction: -1 | 1) => {
-    const current = deck();
-    if (!current) return;
-    const next = moveColumnIn(current, id, direction);
-    if (next === current) return;
-    updateDeck(next);
+    deckStore.update((current) => moveColumnIn(current, id, direction));
   };
 
   const renameColumn = (id: string, title: string) => {
-    const current = deck();
-    if (!current) return;
-    const next = renameColumnIn(current, id, title);
-    if (next === current) return;
-    updateDeck(next);
+    deckStore.update((current) => renameColumnIn(current, id, title));
   };
 
   // manager.connectionCount / peakConnectionCount はシグナルではないので
@@ -436,8 +365,7 @@ const V1Content: Component = () => {
     } catch (error) {
       setErrorMessage(
         error instanceof SignerUnavailableError
-          ? // TODO: NIP-46 (bunker) の導線 (ADR-0008 の Consequences) は後続タスク
-            "拡張機能が見つかりません。NIP-07 対応の拡張機能 (nos2x, Alby 等) を導入してから、もう一度ログインボタンを押してください。"
+          ? "拡張機能が見つかりません。NIP-07 対応の拡張機能 (nos2x, Alby 等) を導入するか、bunker でログインしてください。"
           : `ログインに失敗しました: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
@@ -490,7 +418,7 @@ const V1Content: Component = () => {
       if (raw !== null) {
         window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
         setErrorMessage(
-          "リモート署名器の必要権限が更新されました。新しい bunker URI で再接続し、ミュート用の権限を承認してください。",
+          "リモート署名器の必要権限が更新されました。新しい bunker URI で再接続し、デッキ同期と操作に必要な権限を承認してください。",
         );
       }
       return;
@@ -512,7 +440,6 @@ const V1Content: Component = () => {
     activeSigner.set(undefined);
     nip46Session = undefined;
     setPubkey(undefined);
-    setDeck(undefined);
     setAuthUrl(undefined);
     window.localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
     if (!session) return;
@@ -624,6 +551,20 @@ const V1Content: Component = () => {
               >
                 ログアウト
               </Button>
+              <Show
+                when={
+                  deckStore.state().phase === "error" ||
+                  deckStore.state().phase === "conflict"
+                }
+              >
+                <Button
+                  data-testid="deck-sync-attention"
+                  variant="border"
+                  onClick={() => setSettingsOpen(true)}
+                >
+                  デッキの同期を確認
+                </Button>
+              </Show>
               {/*
                 ADR-0026: connections/peakConnections/optimisticInsertMs/
                 unrequestedEventsByRelay はどれも行動できない診断値であり、
@@ -877,7 +818,7 @@ const V1Content: Component = () => {
         <AddColumnForm onAdd={addColumn} />
 
         <Show
-          when={(deck()?.columns.length ?? 0) > 0}
+          when={(deckStore.value()?.columns.length ?? 0) > 0}
           fallback={
             <p
               data-testid="empty-deck"
@@ -913,7 +854,7 @@ const V1Content: Component = () => {
                   renderers: defaultRenderers,
                 }}
               >
-                <For each={deck()?.columns ?? []}>
+                <For each={deckStore.value()?.columns ?? []}>
                   {(column, index) => (
                     <DeckColumn
                       column={column}
@@ -926,7 +867,7 @@ const V1Content: Component = () => {
                       firstRenderMs={() => firstRenderMsByColumn()[column.id]}
                       canMoveLeft={() => index() > 0}
                       canMoveRight={() =>
-                        index() < (deck()?.columns.length ?? 0) - 1
+                        index() < (deckStore.value()?.columns.length ?? 0) - 1
                       }
                       onMoveLeft={() => moveColumn(column.id, -1)}
                       onMoveRight={() => moveColumn(column.id, 1)}
@@ -942,29 +883,34 @@ const V1Content: Component = () => {
       </Show>
     </div>
   );
-  return (
-    <Show when={pubkey()} keyed fallback={renderView()}>
-      {(account) => {
-        // アカウントを key に Provider の所有者ごと作り直す。復号済みの非公開
-        // 項目と保存キューを、ログアウト後や次のアカウントへ持ち越さない。
-        const muteList = createMuteList({
-          pubkey: () => account,
-          routingSettled: () =>
-            warmUp.state === "ready" || warmUp.state === "errored",
-          signer: activeSigner,
-          store,
-          writer,
-          fetchLatest: fetchLatestEvent,
-        });
-        return MuteListProvider({
-          value: muteList,
-          get children() {
-            return renderView();
-          },
-        });
-      }}
-    </Show>
-  );
+  return DeckStoreProvider({
+    value: deckStore,
+    get children() {
+      return (
+        <Show when={pubkey()} keyed fallback={renderView()}>
+          {(account) => {
+            // アカウントを key に Provider の所有者ごと作り直す。復号済みの
+            // 非公開項目をログアウト後や次のアカウントへ持ち越さない。
+            const muteList = createMuteList({
+              pubkey: () => account,
+              routingSettled: () =>
+                warmUp.state === "ready" || warmUp.state === "errored",
+              signer: activeSigner,
+              store,
+              writer,
+              fetchLatest: fetchLatestEvent,
+            });
+            return MuteListProvider({
+              value: muteList,
+              get children() {
+                return renderView();
+              },
+            });
+          }}
+        </Show>
+      );
+    },
+  });
 };
 
 const V1: Component = () => (

@@ -94,6 +94,22 @@ export const startNip46Signer = async (): Promise<Nip46SignerFixture> => {
               id: request.id,
               result: JSON.stringify(finalizeEvent(template, userSecret)),
             });
+          } else if (request.method === "nip44_encrypt") {
+            const peerPubkey = request.params[0] ?? "";
+            const plaintext = request.params[1] ?? "";
+            const conversationKey = getConversationKey(userSecret, peerPubkey);
+            await respond(event.pubkey, {
+              id: request.id,
+              result: encrypt(plaintext, conversationKey),
+            });
+          } else if (request.method === "nip44_decrypt") {
+            const peerPubkey = request.params[0] ?? "";
+            const ciphertext = request.params[1] ?? "";
+            const conversationKey = getConversationKey(userSecret, peerPubkey);
+            await respond(event.pubkey, {
+              id: request.id,
+              result: decrypt(ciphertext, conversationKey),
+            });
           } else if (request.method === "logout") {
             clients.delete(event.pubkey);
             await respond(event.pubkey, { id: request.id, result: "ack" });

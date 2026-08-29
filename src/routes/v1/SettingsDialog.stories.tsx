@@ -53,18 +53,67 @@ const selectTab =
     await userEvent.click(await body.findByTestId(testId));
   };
 
-export const RelayReady: Story = {};
+export const RelayReady: Story = {
+  play: selectTab("settings-tab-relays"),
+};
+
+export const AccountSignedOut: Story = {
+  args: { scene: { ...readyScene, deck: { phase: "signed-out" } } },
+};
+
+export const AccountLoading: Story = {
+  args: {
+    scene: { ...readyScene, deck: { phase: "loading", cached: true } },
+  },
+};
+
+export const AccountPending: Story = {
+  args: {
+    scene: { ...readyScene, deck: { phase: "ready", sync: "pending" } },
+  },
+};
+
+export const AccountSaving: Story = {
+  args: {
+    scene: { ...readyScene, deck: { phase: "ready", sync: "saving" } },
+  },
+};
+
+export const AccountError: Story = {
+  args: {
+    scene: {
+      ...readyScene,
+      deck: {
+        phase: "error",
+        message: "同期データを保存できませんでした。",
+        retryable: true,
+      },
+    },
+  },
+};
+
+export const AccountConflict: Story = {
+  args: {
+    scene: {
+      ...readyScene,
+      deck: { phase: "conflict", remoteCreatedAt: 1_786_717_800 },
+    },
+  },
+};
 
 export const RelaySignedOut: Story = {
   args: { scene: { ...readyScene, relays: { phase: "signed-out" } } },
+  play: selectTab("settings-tab-relays"),
 };
 
 export const RelayLoading: Story = {
   args: { scene: { ...readyScene, relays: { phase: "loading" } } },
+  play: selectTab("settings-tab-relays"),
 };
 
 export const RelayMissing: Story = {
   args: { scene: { ...readyScene, relays: { phase: "missing" } } },
+  play: selectTab("settings-tab-relays"),
 };
 
 export const RelaySaving: Story = {
@@ -74,6 +123,7 @@ export const RelaySaving: Story = {
       relays: { phase: "ready", entries: relays, dirty: true, saving: true },
     },
   },
+  play: selectTab("settings-tab-relays"),
 };
 
 export const RelayError: Story = {
@@ -88,6 +138,7 @@ export const RelayError: Story = {
       },
     },
   },
+  play: selectTab("settings-tab-relays"),
 };
 
 export const MuteReady: Story = {

@@ -381,6 +381,95 @@ describe("EventStore.latestReplaceable", () => {
       newer.content,
     );
   });
+
+  it("addressable event の最新版を d ごとに分ける", () => {
+    const store = new EventStore();
+    const deckOld = sign("deck-old", {
+      kind: 30078,
+      created_at: 1_000,
+      tags: [["d", "streets/deck"]],
+    });
+    const deckNew = sign("deck-new", {
+      kind: 30078,
+      created_at: 2_000,
+      tags: [["d", "streets/deck"]],
+    });
+    const settings = sign("settings", {
+      kind: 30078,
+      created_at: 3_000,
+      tags: [["d", "streets/settings"]],
+    });
+
+    store.put(deckNew, "wss://relay/");
+    store.put(deckOld, "wss://relay/");
+    store.put(settings, "wss://relay/");
+
+    // 捕まえる変異: addressable key から identifier を落とす。同じ kind と
+    // pubkey の settings が deck を上書きする。
+    expect(
+      store.latestReplaceable(30078, deckNew.pubkey, "streets/deck")?.id,
+    ).toBe(deckNew.id);
+    expect(
+      store.latestReplaceable(30078, settings.pubkey, "streets/settings")?.id,
+    ).toBe(settings.id);
+  });
+
+  it("addressable event の最新版を remove すると同じ d の直前版へ戻す", () => {
+    const store = new EventStore();
+    const older = sign("address-old", {
+      kind: 30078,
+      created_at: 1_000,
+      tags: [["d", "streets/deck"]],
+    });
+    const newer = sign("address-new", {
+      kind: 30078,
+      created_at: 2_000,
+      tags: [["d", "streets/deck"]],
+    });
+    store.put(older, "wss://relay/");
+    store.put(newer, "wss://relay/");
+
+    store.remove(newer.id);
+
+    // 捕まえる変異: remove 後の再索引を通常の replaceable だけにする。
+    expect(
+      store.latestReplaceable(30078, older.pubkey, "streets/deck")?.id,
+    ).toBe(older.id);
+  });
+
+  it("addressable event の変更通知へ identifier を含める", () => {
+    const store = new EventStore();
+    const changes: { kind: number; pubkey: string; identifier?: string }[] = [];
+    store.onReplaceableChanged((change) => changes.push(change));
+    const event = sign("address-notify", {
+      kind: 30078,
+      tags: [["d", "streets/deck"]],
+    });
+
+    store.put(event, "wss://relay/");
+
+    // 捕まえる変異: 通知だけ identifier を落とす。別 document の更新でも
+    // 同期 module が自分の remote が変わったと誤認する。
+    expect(changes).toEqual([
+      {
+        kind: 30078,
+        pubkey: event.pubkey,
+        identifier: "streets/deck",
+      },
+    ]);
+  });
+
+  it("kind と identifier の不正な組み合わせを黙って未取得にしない", () => {
+    const store = new EventStore();
+
+    // 捕まえる変異: addressable の identifier 無しを空文字へ倒す。呼び出し側の
+    // 指定忘れが「イベントが存在しない」に見えて新規版で上書きされる。
+    expect(() => store.latestReplaceable(30078, pubkey)).toThrow(/identifier/);
+    expect(() => store.latestReplaceable(10002, pubkey, "d")).toThrow(
+      /identifier/,
+    );
+    expect(() => store.latestReplaceable(1, pubkey)).toThrow(/置換可能/);
+  });
 });
 
 describe("EventStore と EventPersistence の配線", () => {

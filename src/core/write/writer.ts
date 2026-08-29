@@ -2,7 +2,7 @@ import type { EventDraft, Mutation } from "../nostr/build/draft";
 import type { NostrEvent, UnsignedEvent } from "../nostr/event";
 import type { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
-import type { Signer } from "../signer/signer";
+import { type Signer, SignerUnavailableError } from "../signer/signer";
 import type { Publisher } from "./publisher";
 import { verifyOptimisticInsert } from "./verify-optimistic-insert";
 
@@ -187,16 +187,19 @@ export const createWriter = ({
     publish: (draft, hooks) =>
       send({ ...draft, pubkey: pubkey(), created_at: now() }, hooks, undefined),
 
-    // `identifier` (NIP-33 アドレス可能イベントの `d` タグ) を受け取っては
-    // いるが、ここではまだ `draft.tags` へ書き込んでいない —— 今日
-    // `fetchLatest` が identifier 有りを常に投げる (`fetch-latest.ts`) ので
-    // 実効が無いだけで、無害に見える。**その throw を外して kind:30078 等の
-    // アドレス可能イベントを有効化する側は、この `d` タグを足す変更が
-    // セットで要る。** 忘れると、同じ著者の複数の下書きが `d` 無しで
-    // すべて同じアドレス (`kind:pubkey:` 空文字) に衝突し、後から publish
-    // した方が黙って前を上書きする。
+    // `identifier` は NIP-33 addressable event の `d`。mutation が返した
+    // tags よりこの引数を正として、下でちょうど 1 個に正規化する。
     replace: async (kind, identifier, mutate, hooks) => {
       const author = pubkey();
+      const assertAuthorUnchanged = () => {
+        if (pubkey() !== author) {
+          throw new SignerUnavailableError(
+            // Stryker disable next-line StringLiteral: 呼び出し側は error の
+            // 型で分岐し、表示文言を判定には使わない。
+            "replace の途中で署名アカウントが変わりました",
+          );
+        }
+      };
       const replacementKey = JSON.stringify([kind, author, identifier]);
       // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
       // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
@@ -211,7 +214,25 @@ export const createWriter = ({
           ...(pendingReplaceTargets.get(replacementKey) ?? []),
         ]),
       ];
+      // 再取得の待機中に logout / account 切替が起きた場合、旧 account の
+      // current を新しい署名器へ渡す前に止める。
+      assertAuthorUnchanged();
       const draft = await mutate(current);
+      // mutate は NIP-44 の承認待ちを含み得る。その間に account が
+      // 変わった場合も、旧 account の draft を署名へ進めない。
+      assertAuthorUnchanged();
+      const addressedDraft =
+        identifier === undefined
+          ? draft
+          : {
+              ...draft,
+              // address は Writer.replace の引数が正。mutation が古い `d` を
+              // 持ち越しても、同じ event に複数の識別子を残さない。
+              tags: [
+                ["d", identifier],
+                ...draft.tags.filter((tag) => tag[0] !== "d"),
+              ],
+            };
 
       // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
       // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、
@@ -224,7 +245,7 @@ export const createWriter = ({
 
       try {
         const result = await send(
-          { ...draft, pubkey: author, created_at: createdAt },
+          { ...addressedDraft, pubkey: author, created_at: createdAt },
           hooks,
           current,
           previousTargets,

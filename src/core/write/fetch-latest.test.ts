@@ -273,24 +273,160 @@ describe("fetchLatest", () => {
     expect(result?.id).toBe(someone.id);
   });
 
-  // 捕まえる変異: 黙って d を無視する。latestReplaceable の索引は
-  // kind:pubkey だけを鍵にしていて d を見ないので、間違った版を返す。
-  it("identifier を渡すと投げる", async () => {
+  it("addressable event を #d で絞り、同じ identifier の最新版を返す", async () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const pool = poolWithFakes(connections);
+    const deck = sign(7, {
+      ...base,
+      kind: 30078,
+      tags: [["d", "streets/deck"]],
+      content: "deck",
+    });
+    const other = sign(7, {
+      ...base,
+      kind: 30078,
+      tags: [["d", "streets/settings"]],
+      content: "settings",
+    });
     const options = {
       pool,
       routing: new RoutingTable(store),
       store,
-      fallbackRelays: [],
+      fallbackRelays: ["wss://fallback/" as RelayUrl],
     };
-    const PUBKEY = "a".repeat(64);
 
+    const promise = fetchLatest(options, 30078, "streets/deck", deck.pubkey);
+    await vi.waitFor(() =>
+      expect(connections.get("wss://fallback/")?.subscriptions).toHaveLength(1),
+    );
+    // 捕まえる変異: #d をフィルタへ付けない。リレーから同じ kind の全
+    // application data を余分に受け取る。
+    expect(
+      connections.get("wss://fallback/")?.subscriptions[0]?.filters,
+    ).toEqual([
+      {
+        kinds: [30078],
+        authors: [deck.pubkey],
+        "#d": ["streets/deck"],
+      },
+    ]);
+
+    // FakeRelayConnection は filter を適用しないため、別 d もわざと流す。
+    // 捕まえる変異: latestReplaceable の読み出しで identifier を落とす。
+    connections.get("wss://fallback/")?.emitEvent(0, other);
+    connections.get("wss://fallback/")?.emitEvent(0, deck);
+    connections.get("wss://fallback/")?.emitEose(0);
+    await expect(promise).resolves.toEqual(deck);
+  });
+
+  it("kind と identifier が不正なら接続前に投げる", async () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const options = {
+      pool: poolWithFakes(connections),
+      routing: new RoutingTable(store),
+      store,
+      fallbackRelays: ["wss://fallback/" as RelayUrl],
+    };
+
+    // 捕まえる変異: 検証を collect 後へ移す。無効な問い合わせでも接続を
+    // 開き、EOSE まで待ってからようやく失敗する。
     await expect(
-      fetchLatest(options, 30078, "streets", PUBKEY),
+      fetchLatest(options, 30078, undefined, "a".repeat(64)),
     ).rejects.toThrow(/identifier/);
-    // 投げるだけで、どのリレーへも一切繋いでいない。
     expect(connections.size).toBe(0);
   });
+
+  it.each([3, 10_000, 19_999])(
+    "regular replaceable の境界 kind:%i を受け付ける",
+    async (kind) => {
+      const store = new EventStore();
+      const connections = new Map<RelayUrl, FakeRelayConnection>();
+      const promise = fetchLatest(
+        {
+          pool: poolWithFakes(connections),
+          routing: new RoutingTable(store),
+          store,
+          fallbackRelays: ["wss://fallback/"],
+        },
+        kind,
+        undefined,
+        "a".repeat(64),
+      );
+
+      // 捕まえる変異: kind:3 または 10000..19999 を通常イベントとして
+      // 拒否する。範囲の両端と代表値を別々に通す。
+      await vi.waitFor(() =>
+        expect(connections.get("wss://fallback/")?.subscriptions).toHaveLength(
+          1,
+        ),
+      );
+      connections.get("wss://fallback/")?.emitEose(0);
+      await expect(promise).resolves.toBeUndefined();
+    },
+  );
+
+  it.each([
+    [30_000, "lower"],
+    [39_999, "upper"],
+  ] as const)(
+    "addressable の境界 kind:%i を受け付ける",
+    async (kind, identifier) => {
+      const store = new EventStore();
+      const connections = new Map<RelayUrl, FakeRelayConnection>();
+      const promise = fetchLatest(
+        {
+          pool: poolWithFakes(connections),
+          routing: new RoutingTable(store),
+          store,
+          fallbackRelays: ["wss://fallback/"],
+        },
+        kind,
+        identifier,
+        "a".repeat(64),
+      );
+
+      // 捕まえる変異: 30000 を範囲外にする、または 40000 まで範囲内に
+      // する。NIP-33 の半開区間を境界で固定する。
+      await vi.waitFor(() =>
+        expect(connections.get("wss://fallback/")?.subscriptions).toHaveLength(
+          1,
+        ),
+      );
+      connections.get("wss://fallback/")?.emitEose(0);
+      await expect(promise).resolves.toBeUndefined();
+    },
+  );
+
+  it.each([
+    [9_999, undefined],
+    [20_000, undefined],
+    [40_000, "outside"],
+    [0, "unexpected"],
+  ] as const)(
+    "置換可能でない組み合わせ kind:%i / identifier:%s を接続前に拒否する",
+    async (kind, identifier) => {
+      const store = new EventStore();
+      const connections = new Map<RelayUrl, FakeRelayConnection>();
+
+      // 捕まえる変異: 範囲外 kind を受け付ける、または regular
+      // replaceable に identifier を許す。変異時も長時間残らないように
+      // timeout は最小にする。
+      const promise = fetchLatest(
+        {
+          pool: poolWithFakes(connections),
+          routing: new RoutingTable(store),
+          store,
+          fallbackRelays: ["wss://fallback/"],
+          timeoutMs: 1,
+        },
+        kind,
+        identifier,
+        "a".repeat(64),
+      );
+      await expect(promise).rejects.toThrow(/kind.*identifier/);
+      expect(connections.size).toBe(0);
+    },
+  );
 });

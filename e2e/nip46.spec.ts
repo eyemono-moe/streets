@@ -14,7 +14,10 @@ test("bunkerログイン、投稿、復元、ログアウトを1本通す", asyn
     await expect(page.getByTestId("viewer-pubkey")).toHaveText(nip46UserPubkey);
     expect((await remote.connectPermissions).split(",")).toEqual([
       "sign_event:1",
+      "sign_event:6",
+      "sign_event:7",
       "sign_event:10000",
+      "sign_event:30078",
       "nip44_encrypt",
       "nip44_decrypt",
       "nip04_decrypt",

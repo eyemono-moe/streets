@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { deckSyncPubkey } from "./deck-sync.js";
 import {
   eventActionTargetAuthorPubkey,
   eventActionViewerPubkey,
@@ -87,6 +88,7 @@ describe("e2e fixture pubkeys", () => {
       ["seed-thread.ts:author", threadAuthorPubkey],
       ["event-actions.ts:viewer", eventActionViewerPubkey],
       ["event-actions.ts:targetAuthor", eventActionTargetAuthorPubkey],
+      ["deck-sync.ts:viewer", deckSyncPubkey],
       ["nip46-signer.ts:remote", nip46RemotePubkey],
       ["nip46-signer.ts:user", nip46UserPubkey],
     ];

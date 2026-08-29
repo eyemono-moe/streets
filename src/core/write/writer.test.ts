@@ -1,18 +1,27 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
 import { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
 import { createFakeSigner } from "../signer/fake-signer";
-import type { Signer } from "../signer/signer";
+import { type Signer, SignerUnavailableError } from "../signer/signer";
 import { RefetchFailedError } from "./fetch-latest";
 import type { PublishResult, Publisher } from "./publisher";
 import { WriteFailedError, createWriter } from "./writer";
 
 const SK = Uint8Array.from(Array.from({ length: 32 }, (_, i) => i + 1));
 const PUBKEY = bytesToHex(schnorr.getPublicKey(SK));
+const OTHER_PUBKEY = "b".repeat(64);
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
 
 /**
  * `replace` のテスト用に「現在の版」を作る署名ヘルパー。
@@ -366,6 +375,59 @@ describe("publish", () => {
 });
 
 describe("replace", () => {
+  it("再取得中にaccountが変わればmutationへ旧版を渡さない", async () => {
+    const latest = deferred<NostrEvent | undefined>();
+    let viewer = PUBKEY;
+    const mutate = vi.fn(() => ({ kind: 3, tags: [], content: "" }));
+    const signEvent = vi.fn(createFakeSigner(SK).signEvent);
+    const writer = createWriter({
+      signer: { getPublicKey: async () => PUBKEY, signEvent },
+      store: new EventStore(),
+      publisher: stubPublisher(async () => ok),
+      pubkey: () => viewer,
+      fetchLatest: async () => latest.promise,
+    });
+
+    const result = writer.replace(3, undefined, mutate);
+    viewer = OTHER_PUBKEY;
+    latest.resolve(undefined);
+
+    // 捕まえる変異: fetchLatest直後のaccount確認を外す。旧accountの
+    // currentを、新しい署名器で処理するmutationへ渡してしまう。
+    await expect(result).rejects.toBeInstanceOf(SignerUnavailableError);
+    expect(mutate).not.toHaveBeenCalled();
+    expect(signEvent).not.toHaveBeenCalled();
+  });
+
+  it("非同期mutation中にaccountが変われば署名しない", async () => {
+    const mutation = deferred<{
+      kind: number;
+      tags: string[][];
+      content: string;
+    }>();
+    let viewer = PUBKEY;
+    const signEvent = vi.fn(createFakeSigner(SK).signEvent);
+    const publish = vi.fn(async () => ok);
+    const writer = createWriter({
+      signer: { getPublicKey: async () => PUBKEY, signEvent },
+      store: new EventStore(),
+      publisher: stubPublisher(publish),
+      pubkey: () => viewer,
+      fetchLatest: async () => undefined,
+    });
+
+    const result = writer.replace(3, undefined, () => mutation.promise);
+    await Promise.resolve();
+    viewer = OTHER_PUBKEY;
+    mutation.resolve({ kind: 3, tags: [], content: "" });
+
+    // 捕まえる変異: mutation後のaccount確認を外す。NIP-44承認待ち中に
+    // 切り替わった署名器へ、旧accountのdraftを渡してしまう。
+    await expect(result).rejects.toBeInstanceOf(SignerUnavailableError);
+    expect(signEvent).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
   it("非同期 replacement の完了を待ってから署名する", async () => {
     // 捕まえる変異: mutate の Promise を await せず、そのまま draft として署名する。
     const calls: string[] = [];
@@ -393,6 +455,28 @@ describe("replace", () => {
     });
 
     expect(calls).toEqual(["decrypt", "encrypt", "sign:cipher"]);
+  });
+
+  it("addressable event の d を identifier からちょうど 1 個付ける", async () => {
+    const { writer } = setup(ok);
+
+    const result = await writer.replace(30078, "streets/deck", () => ({
+      kind: 30078,
+      tags: [
+        ["d", "stale"],
+        ["d", "duplicate"],
+        ["alt", "deck"],
+      ],
+      content: "cipher",
+    }));
+
+    // 捕まえる変異: identifier を tags へ反映しない、または mutation の
+    // 古い d を残す。同じ event が複数 address を名乗る。
+    expect(result.event.tags).toEqual([
+      ["d", "streets/deck"],
+      ["alt", "deck"],
+    ]);
+    expect(result.event.tags.filter((tag) => tag[0] === "d")).toHaveLength(1);
   });
   const setupReplace = (
     current: NostrEvent | undefined,

@@ -10,7 +10,10 @@ import {
   createNip46Client,
 } from "./client";
 import { createNip46Signer } from "./nip46-signer";
-import type { StoredNip46SessionV2 } from "./session-storage";
+import {
+  NIP46_REQUIRED_PERMISSIONS,
+  type StoredNip46SessionV3,
+} from "./session-storage";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -18,7 +21,7 @@ export type Nip46Session = {
   client: Nip46Client;
   signer: Signer;
   userPubkey: string;
-  stored: StoredNip46SessionV2;
+  stored: StoredNip46SessionV3;
 };
 
 const parseRelaySwitch = (result: string): string[] | undefined => {
@@ -57,8 +60,9 @@ const finishSession = async (
   } catch {
     // connect 自体は成立済み。切替だけの失敗では初期 relay を維持する。
   }
-  const stored: StoredNip46SessionV2 = {
-    version: 2,
+  const stored: StoredNip46SessionV3 = {
+    version: 3,
+    permissions: NIP46_REQUIRED_PERMISSIONS,
     clientSecret: bytesToHex(clientSecret),
     remoteSignerPubkey,
     userPubkey,
@@ -90,7 +94,7 @@ export const connectNip46 = async (options: {
     await client.request("connect", [
       options.bunker.remoteSignerPubkey,
       options.bunker.secret ?? "",
-      "sign_event:1,sign_event:10000,nip44_encrypt,nip44_decrypt,nip04_decrypt",
+      NIP46_REQUIRED_PERMISSIONS,
       JSON.stringify({ name: "streets", url: options.metadataUrl }),
     ]);
     const session = await finishSession(
@@ -108,7 +112,7 @@ export const connectNip46 = async (options: {
 
 export const restoreNip46 = async (options: {
   pool: ConnectionPool;
-  stored: StoredNip46SessionV2;
+  stored: StoredNip46SessionV3;
   hooks?: Nip46ClientHooks;
 }): Promise<Nip46Session> => {
   const clientSecret = hexToBytes(options.stored.clientSecret);

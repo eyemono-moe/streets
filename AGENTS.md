@@ -125,8 +125,8 @@ pnpm seed:dev                             # スレッドの各形をローカル
 
 ## いま動くもの / 動かないもの
 
-**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage 永続化）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿（kind:1）の送信、NIP-07 / NIP-46（bunker）ログイン。
+**動く**: デッキ（ホーム / ユーザー / ハッシュタグ / グローバル / 通知の 5 種別、追加・削除・並べ替え・改名・localStorage cache + 暗号化 NIP-78 端末間同期）、Outbox ルーティング、接続プールと再接続、IndexedDB キャッシュ、kind:1/6/7 の描画、プロフィールカードとホバー、スレッド表示、通知カラム、投稿・返信・リアクション・リポストの送信、NIP-07 / NIP-46（bunker）ログイン、設定画面（Account / リレー / ミュート / ラボ）。
 
-**動かない**: リアクション・リポスト・フォロー・ミュートの**送信**（ビルダは `src/core/nostr/build/` に揃っているが UI 配線が無い）、設定画面、検索、画像アップロード、Zap、モバイル表示、デッキの NIP-78 保存。NIP-46の`nostrconnect://` / QRは未実装。
+**動かない**: フォローの送信、検索、画像アップロード、Zap、モバイル表示、設定画面のプロフィール / display / file。NIP-46の`nostrconnect://` / QRは未実装。
 
-機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。着手順の提案もそこにあります（NIP-46まで完了、次は設定 + ミュート）。
+機能単位の棚卸しは [`docs/design/v1-feature-inventory.md`](./docs/design/v1-feature-inventory.md)。着手順の提案もそこにあります（設定 + ミュート + デッキ同期まで完了）。

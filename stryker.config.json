@@ -10,7 +10,7 @@
     "!**/*.test.ts"
   ],
   "vitest": {
-    "configFile": "vite.config.ts"
+    "configFile": "vitest.config.ts"
   },
   "htmlReporter": {
     "fileName": "reports/mutation/index.html"
