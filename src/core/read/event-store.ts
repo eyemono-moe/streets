@@ -11,6 +11,7 @@ import type { EventPersistence, PersistedEvent } from "./event-persistence";
 /** NIP-09 の削除依頼イベント。対象は `e` / `a` タグで運ばれる。 */
 const DELETION_KIND = 5;
 const HEX_64 = /^[0-9a-f]{64}$/;
+const CANONICAL_DECIMAL = /^(?:0|[1-9]\d*)$/;
 
 export type StoredEvent = {
   event: NostrEvent;
@@ -92,7 +93,9 @@ const parseDeletionAddress = (
   const firstColon = raw.indexOf(":");
   const secondColon = raw.indexOf(":", firstColon + 1);
   if (firstColon <= 0 || secondColon < 0) return undefined;
-  const kind = Number(raw.slice(0, firstColon));
+  const rawKind = raw.slice(0, firstColon);
+  if (!CANONICAL_DECIMAL.test(rawKind)) return undefined;
+  const kind = Number(rawKind);
   const pubkey = raw.slice(firstColon + 1, secondColon);
   if (
     !Number.isInteger(kind) ||

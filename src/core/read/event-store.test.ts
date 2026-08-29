@@ -356,6 +356,35 @@ describe("EventStore の NIP-09 可視性", () => {
     expect(store.get(newer.id)).toEqual(newer);
     expect(store.latestReplaceable(30_023, pubkey, identifier)).toEqual(newer);
   });
+
+  it("a座標のkindは正規の10進整数表記だけを受け付ける", () => {
+    // 捕まえる変異: kind文字列を検証せず Number() だけで解析する。hex・指数・
+    // 空白・先頭ゼロ表記が同じ数値へ化け、無関係な削除依頼で対象を隠す。
+    for (const [index, rawKind] of [
+      "0x7547",
+      "3.0023e4",
+      "30023 ",
+      "030023",
+    ].entries()) {
+      const store = new EventStore();
+      const identifier = `strict-kind-${index}`;
+      const target = sign(`target-${index}`, {
+        kind: 30_023,
+        created_at: 100,
+        tags: [["d", identifier]],
+      });
+      const deletion = sign(`deletion-${index}`, {
+        kind: 5,
+        created_at: 101,
+        tags: [["a", `${rawKind}:${pubkey}:${identifier}`]],
+      });
+      store.put(target, "wss://one/");
+
+      store.put(deletion, "wss://one/");
+
+      expect(store.get(target.id), rawKind).toEqual(target);
+    }
+  });
 });
 
 describe("EventStore.hydrate", () => {

@@ -10,9 +10,11 @@ describe("verifyOptimisticInsert", () => {
   });
 
   it("hidden な verdict は削除済みイベントの再送を止める", () => {
-    // 捕まえる変異: hidden を duplicate と同じく成功扱いする。手元では削除済み
-    // のまま、同じイベントだけをリレーへ再 publish して状態を食い違わせる。
-    expect(() => verifyOptimisticInsert("hidden")).toThrow();
+    // 捕まえる変異: hidden を rejected と同じ拡張機能エラーにする。ユーザーが
+    // 内容か時刻を変えれば投稿し直せることを判断できなくなる。
+    expect(() => verifyOptimisticInsert("hidden")).toThrow(
+      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+    );
   });
 
   it("inserted なら検証済みの verdict をそのまま返す (楽観表示へ進んでよい)", () => {

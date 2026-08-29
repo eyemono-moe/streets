@@ -399,6 +399,19 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
     expect(events).toEqual([]);
   });
 
+  it("同じ flush の delete より後に再保存した id は残す", async () => {
+    // 捕まえる変異: 同一バッチでは呼び出し順を見ず常に delete を勝たせる。
+    // 巻き戻し直後にリレーから同じイベントを再受信しても、次回起動で消える。
+    const { persistence, flush } = setup();
+    persistence.save([eventA]);
+    persistence.delete([eventA.event.id]);
+    persistence.save([eventA]);
+    await flush();
+
+    const { events } = await persistence.load();
+    expect(events).toEqual([eventA]);
+  });
+
   it("deleteDeletionRequest で取り消した id は load に戻ってこない", async () => {
     // 捕まえる変異: deleteDeletionRequest を no-op のままにする。
     // EventStore.remove() が kind:5 の巻き戻しでこれを呼んでも
@@ -442,5 +455,26 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
 
     const { deletionRequests } = await persistence.load();
     expect(deletionRequests).toEqual([]);
+  });
+
+  it("同じ flush の巻き戻しより後に再受信した削除依頼は残す", async () => {
+    // 捕まえる変異: deletionRemovalIds をバッチ末尾まで残し、後着の
+    // saveDeletionRequest も巻き込んで消す。Store と次回水和が食い違う。
+    const { persistence, flush } = setup();
+    const id = "f".repeat(64);
+    const request = makeEvent({
+      id,
+      pubkey: "f".repeat(64),
+      sig: "0".repeat(128),
+      kind: 5,
+      created_at: 1,
+    });
+    persistence.saveDeletionRequest(request);
+    persistence.deleteDeletionRequest(id);
+    persistence.saveDeletionRequest(request);
+    await flush();
+
+    const { deletionRequests } = await persistence.load();
+    expect(deletionRequests).toEqual([request]);
   });
 });

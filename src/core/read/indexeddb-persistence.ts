@@ -204,8 +204,9 @@ const writeBatch = (
     const deletionsStore = tx.objectStore(DELETIONS_STORE);
     const replaceableIndex = eventsStore.index(REPLACEABLE_INDEX);
 
-    // 同じ flush に「保存」と「巻き戻し (delete)」が両方入ったとき、巻き戻しを
-    // 勝たせる。**単に delete のループを後に置くだけでは足りない** ——
+    // 呼び出し側で id ごとの最後の操作へ畳んでいるが、残った「保存」と
+    // 「巻き戻し (delete)」では巻き戻しを勝たせる。**単に delete のループを
+    // 後に置くだけでは足りない** ——
     // retained の put() は replaceableIndex の cursor を経由するため
     // 非同期に確定し、IndexedDB はリクエストを積んだ順 (=生成順) に処理する。
     // cursor がまだ何も持たない新規保存では delete() の方が先に (無を消す
@@ -246,9 +247,8 @@ const writeBatch = (
     }
 
     // deletionRemovalIds (`EventStore.remove()` が kind:5 を巻き戻した) に
-    // 挙がっている id は、この flush で saveDeletionRequest からも積まれていたと
-    // しても書かない —— events 側の removalSet と同じ理由で「巻き戻しを
-    // 勝たせる」。ここで先に除いておけば put/delete の発行順に依存しない。
+    // 挙がっている id は書かない —— events 側の removalSet と同じ理由で、
+    // ここで先に除いておけば put/delete の発行順に依存しない。
     const deletionRemovalSet = new Set(deletionRemovalIds);
     for (const event of deletionRequests) {
       const id = event.id;
@@ -364,24 +364,42 @@ export const createIndexedDbPersistence = (
 
     save(entries) {
       if (disposed) return;
+      const ids = new Set(entries.map(({ event }) => event.id));
+      pendingEvents = pendingEvents.filter(({ event }) => !ids.has(event.id));
+      pendingRemovalIds = pendingRemovalIds.filter((id) => !ids.has(id));
       pendingEvents.push(...entries);
       scheduleFlush();
     },
 
     saveDeletionRequest(event) {
       if (disposed) return;
+      pendingDeletionRequests = pendingDeletionRequests.filter(
+        ({ id }) => id !== event.id,
+      );
+      pendingDeletionRemovalIds = pendingDeletionRemovalIds.filter(
+        (id) => id !== event.id,
+      );
       pendingDeletionRequests.push(event);
       scheduleFlush();
     },
 
     delete(ids) {
       if (disposed) return;
+      const idSet = new Set(ids);
+      pendingEvents = pendingEvents.filter(({ event }) => !idSet.has(event.id));
+      pendingRemovalIds = pendingRemovalIds.filter((id) => !idSet.has(id));
       pendingRemovalIds.push(...ids);
       scheduleFlush();
     },
 
     deleteDeletionRequest(id) {
       if (disposed) return;
+      pendingDeletionRequests = pendingDeletionRequests.filter(
+        (event) => event.id !== id,
+      );
+      pendingDeletionRemovalIds = pendingDeletionRemovalIds.filter(
+        (pendingId) => pendingId !== id,
+      );
       pendingDeletionRemovalIds.push(id);
       scheduleFlush();
     },

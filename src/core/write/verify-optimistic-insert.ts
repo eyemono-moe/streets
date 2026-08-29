@@ -34,11 +34,16 @@ import type { PutResult } from "../read/event-store";
 export const verifyOptimisticInsert = (
   putResult: PutResult,
 ): Exclude<PutResult, "rejected" | "hidden"> => {
-  if (putResult === "rejected" || putResult === "hidden") {
+  if (putResult === "hidden") {
+    throw new Error(
+      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+    );
+  }
+  if (putResult === "rejected") {
     throw new Error(
       // Stryker disable next-line StringLiteral: 呼び出し側は例外の有無
-      // (throw されたかどうか) だけを見ており、メッセージ文言は判定に
-      // 使わない。ユーザー向けの文面は v1.tsx 側で別途包んでいる。
+      // (throw されたかどうか) だけを見ており、rejected のメッセージ文言は
+      // 判定に使わない。hidden は行動可能な文面を別の分岐で固定する。
       "投稿の検証に失敗しました (拡張機能の応答が壊れています)。",
     );
   }
