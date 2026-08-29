@@ -20,9 +20,11 @@ import type {
   Nip78DocumentState,
 } from "../core/solid/create-nip78-document";
 import {
+  type AccountProfileSettings,
   type AccountRelaySettings,
   type AccountSettings,
   AccountSettingsProvider,
+  type ProfileInput,
 } from "../routes/v1/account-settings";
 import { type DeckStore, DeckStoreProvider } from "../routes/v1/deck-store";
 import {
@@ -130,6 +132,17 @@ const accountSettingsFor = (
   const [dirty, setDirty] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  const [profileDraft, setProfileDraft] = createSignal<ProfileInput>({
+    display_name: "",
+    name: "",
+    about: "",
+    website: "",
+    nip05: "",
+    picture: "",
+    banner: "",
+    lightningAddress: "",
+  });
+  const [profileDirty, setProfileDirty] = createSignal(false);
 
   createEffect(() => {
     const next = scene();
@@ -223,7 +236,25 @@ const accountSettingsFor = (
     },
   };
 
-  return { relayList };
+  const profile: AccountProfileSettings = {
+    current: () => ({ phase: "ready", values: profileDraft() }),
+    draft: profileDraft,
+    dirty: profileDirty,
+    saving: () => false,
+    error: () => undefined,
+    change(values) {
+      setProfileDraft((current) => ({ ...current, ...values }));
+      setProfileDirty(true);
+    },
+    reset() {
+      setProfileDirty(false);
+    },
+    async save() {
+      setProfileDirty(false);
+    },
+  };
+
+  return { relayList, profile };
 };
 
 const muteListFor = (scene: () => MuteSettingsScene | undefined): MuteList => {

@@ -32,6 +32,7 @@
   "dependencies": {
     "@ark-ui/solid": "5.38.1",
     "@floating-ui/dom": "1.6.13",
+    "@formisch/solid": "^1.0.0",
     "@kobalte/core": "0.13.8",
     "@modular-forms/solid": "0.25.0",
     "@neodrag/solid": "2.3.0",
@@ -71,7 +72,7 @@
     "safe-stable-stringify": "2.5.0",
     "solid-js": "1.9.13",
     "text-field-edit": "4.1.1",
-    "valibot": "1.0.0-rc.0"
+    "valibot": "1.4.1"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
