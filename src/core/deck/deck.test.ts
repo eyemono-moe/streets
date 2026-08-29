@@ -334,6 +334,26 @@ describe("loadDeck / saveDeck", () => {
     };
     expect(loadDeck(saveDeck(literal))).toEqual(literal);
   });
+
+  it("旧 user に似ていても追加条件を持つ literal は変換しない", () => {
+    // 捕まえる変異: authors/kinds だけで旧プリセットと判定し、limit などの
+    // 追加条件を user への変換で黙って失う。
+    const pubkey = "a".repeat(64);
+    const literal: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "limited",
+          title: "@npub14242424",
+          source: {
+            kind: "literal",
+            filters: [{ kinds: [1, 6], authors: [pubkey], limit: 1 }],
+          },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(literal))).toEqual(literal);
+  });
 });
 
 describe("defaultDeck", () => {

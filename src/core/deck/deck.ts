@@ -229,10 +229,14 @@ const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
     return column;
   }
   const filter = column.source.filters[0];
+  const filterKeys = filter ? Object.keys(filter) : [];
   const pubkey = filter?.authors?.length === 1 ? filter.authors[0] : undefined;
   if (
     !pubkey ||
     !/^[0-9a-f]{64}$/.test(pubkey) ||
+    filterKeys.length !== 2 ||
+    !filterKeys.includes("authors") ||
+    !filterKeys.includes("kinds") ||
     column.title !== `@${encodeBech32("npub", pubkey).slice(0, 12)}` ||
     filter.kinds?.length !== TIMELINE_KINDS.length ||
     !TIMELINE_KINDS.every((kind) => filter.kinds?.includes(kind))
