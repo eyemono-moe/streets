@@ -7,6 +7,7 @@ import {
   previewAuthorOneDisplayName,
   previewAuthorOneNoteText,
   previewAuthorOnePubkey,
+  previewAuthorTwoDisplayName,
   previewAuthorTwoNoteText,
   previewAuthorTwoPubkey,
   previewImageUrl,
@@ -217,6 +218,18 @@ test.describe("v1 vertical slice", () => {
     await expect(followersColumn).toContainText(previewViewerDisplayName, {
       timeout: 20_000,
     });
+
+    await followersColumn
+      .locator("li", { hasText: previewViewerDisplayName })
+      .getByTestId("profile-hover-trigger")
+      .click();
+    const viewerColumn = page.getByTestId("deck-column").last();
+    await viewerColumn.getByRole("button", { name: /フォロー$/ }).click();
+    const followeesColumn = page.getByTestId("deck-column").last();
+    await expect(followeesColumn).toContainText(previewAuthorOneDisplayName, {
+      timeout: 20_000,
+    });
+    await expect(followeesColumn).toContainText(previewAuthorTwoDisplayName);
   });
 
   test("login, timeline, coalesced names, posting, and reload all hold together", async ({
