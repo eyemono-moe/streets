@@ -241,6 +241,48 @@ describe("loadDeck / saveDeck", () => {
     };
     expect(loadDeck(JSON.stringify(withTagFilter))).toEqual(withTagFilter);
   });
+
+  it("ユーザー関連カラムを保存形式から復元する", () => {
+    // 捕まえる変異: 新しい source kind をスキーマへ追加せず、再読み込み時に
+    // デッキ全体を既定値へ戻す。
+    const pubkey = "a".repeat(64);
+    const deck: Deck = {
+      version: 2,
+      columns: [
+        { id: "user", title: "user", source: { kind: "user", pubkey } },
+        {
+          id: "followees",
+          title: "followees",
+          source: { kind: "followees-list", pubkey },
+        },
+        {
+          id: "followers",
+          title: "followers",
+          source: { kind: "followers-list", pubkey },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(deck))).toEqual(deck);
+  });
+
+  it("ユーザー関連カラムの不正な公開鍵を拒否する", () => {
+    // 捕まえる変異: pubkey を任意文字列として受け付け、永久に一致しない
+    // カラムを復元する。
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            {
+              id: "user",
+              title: "user",
+              source: { kind: "user", pubkey: "invalid" },
+            },
+          ],
+        }),
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe("defaultDeck", () => {

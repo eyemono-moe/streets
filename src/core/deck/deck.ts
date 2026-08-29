@@ -11,7 +11,10 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 export type ColumnSource =
   | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
   | { kind: "followees"; kinds: number[] }
-  | { kind: "notifications" };
+  | { kind: "notifications" }
+  | { kind: "user"; pubkey: string }
+  | { kind: "followees-list"; pubkey: string }
+  | { kind: "followers-list"; pubkey: string };
 
 export type ColumnDef = { id: string; title: string; source: ColumnSource };
 
@@ -190,6 +193,18 @@ const columnSourceSchema = v.variant("kind", [
   }),
   v.object({
     kind: v.literal("notifications"),
+  }),
+  v.object({
+    kind: v.literal("user"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
+  v.object({
+    kind: v.literal("followees-list"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
+  v.object({
+    kind: v.literal("followers-list"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
   }),
 ]);
 

@@ -9,6 +9,27 @@ export type ColumnPresetKind =
   | "hashtag"
   | "global";
 
+const userTitle = (pubkey: string): string =>
+  `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
+
+export const buildUserColumn = (pubkey: string): ColumnDef => ({
+  id: crypto.randomUUID(),
+  title: userTitle(pubkey),
+  source: { kind: "user", pubkey },
+});
+
+export const buildFolloweesColumn = (pubkey: string): ColumnDef => ({
+  id: crypto.randomUUID(),
+  title: `${userTitle(pubkey)} のフォロー`,
+  source: { kind: "followees-list", pubkey },
+});
+
+export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
+  id: crypto.randomUUID(),
+  title: `${userTitle(pubkey)} のフォロワー`,
+  source: { kind: "followers-list", pubkey },
+});
+
 /**
  * 追加フォームの入力から `ColumnDef` を作る。**UI から分けてあるのは、
  * 各種別が正しい `ColumnSource` を作るかどうかをブラウザ無しで固定する
@@ -38,15 +59,7 @@ export const buildColumn = (
     case "user": {
       const pubkey = decodeNpub(input);
       if (!pubkey) return undefined;
-      return {
-        id,
-        // hex の先頭 8 文字は人が見て区別できない。npub のほうを見せる。
-        title: `@${encodeBech32("npub", pubkey).slice(0, 12)}`,
-        source: {
-          kind: "literal",
-          filters: [{ kinds: [...TIMELINE_KINDS], authors: [pubkey] }],
-        },
-      };
+      return { ...buildUserColumn(pubkey), id };
     }
 
     case "hashtag": {

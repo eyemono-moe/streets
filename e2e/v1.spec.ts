@@ -18,6 +18,7 @@ import {
   previewReplyParentNoteText,
   previewRepostTargetNoteText,
   previewUnknownKindNoteText,
+  previewViewerDisplayName,
   previewViewerPubkey,
   previewViewerSeedNoteText,
   signAsPreviewViewer,
@@ -162,6 +163,62 @@ const seedRelatedEventsDeck = async (page: import("@playwright/test").Page) => {
 };
 
 test.describe("v1 vertical slice", () => {
+  test("ユーザー詳細からフォロー状態とフォロワー一覧を操作できる", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await stubSigner(page);
+    await page.goto(`/v1?relays=${previewRelayUrl}`);
+    await page.getByTestId("login").click();
+    await expect(page.getByTestId("viewer-pubkey")).toHaveText(
+      previewViewerPubkey,
+      { timeout: 15_000 },
+    );
+
+    const homeColumn = page.locator(
+      '[data-testid="deck-column"][data-column-id="home"]',
+    );
+    const authorNote = homeColumn.locator('[data-testid="note"]', {
+      hasText: previewAuthorOneNoteText,
+    });
+    await expect(authorNote).toBeVisible({ timeout: 20_000 });
+    await authorNote.getByTestId("profile-hover-trigger").click();
+
+    const userColumn = page.getByTestId("deck-column").last();
+    await expect(userColumn.getByTestId("user-profile")).toContainText(
+      previewAuthorOneDisplayName,
+      { timeout: 20_000 },
+    );
+    await expect(userColumn).toContainText(previewAuthorOneAboutPrefix);
+    await expect(userColumn).toContainText(previewAuthorOneNoteText);
+
+    const followButton = userColumn.getByTestId("follow-button");
+    await expect(followButton).toContainText("フォロー中");
+    await followButton.click();
+    await expect(followButton).toContainText("フォロー", { timeout: 15_000 });
+    await expect(homeColumn).not.toContainText(previewAuthorOneNoteText, {
+      timeout: 15_000,
+    });
+
+    await followButton.click();
+    await page.mouse.move(0, 0);
+    await expect(followButton).toContainText("フォロー中", {
+      timeout: 15_000,
+    });
+    await expect(homeColumn).toContainText(previewAuthorOneNoteText, {
+      timeout: 15_000,
+    });
+
+    await userColumn.getByRole("button", { name: /フォロワー/ }).click();
+    const followersColumn = page.getByTestId("deck-column").last();
+    await expect(followersColumn).toContainText(
+      "フォロワーは対応リレーから取得できた範囲を表示します。",
+    );
+    await expect(followersColumn).toContainText(previewViewerDisplayName, {
+      timeout: 20_000,
+    });
+  });
+
   test("login, timeline, coalesced names, posting, and reload all hold together", async ({
     page,
   }) => {

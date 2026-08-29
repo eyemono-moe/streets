@@ -3,6 +3,7 @@ import type { Component } from "solid-js";
 import type { EventStore } from "../../core/read/event-store";
 import type { ProfileRequests } from "../../core/read/profile-requests";
 import ProfileHover from "./ProfileHover";
+import { useOptionalColumnNavigation } from "./column-navigation";
 import { npubLabel } from "./npub-label";
 import { useProfileData } from "./profile-data";
 import { useProfileHoverSuppressed } from "./profile-hover-context";
@@ -84,6 +85,7 @@ const Profile: Component<ProfileProps> = (props) => {
     props.requests,
   );
   const suppressed = useProfileHoverSuppressed();
+  const navigation = useOptionalColumnNavigation();
 
   return (
     <Show
@@ -97,7 +99,14 @@ const Profile: Component<ProfileProps> = (props) => {
         />
       }
     >
-      <ProfileHover pubkey={props.pubkey}>
+      <ProfileHover
+        pubkey={props.pubkey}
+        onClick={(event) => {
+          if (!navigation) return;
+          event.stopPropagation();
+          navigation.openUser(props.pubkey);
+        }}
+      >
         <ProfileName
           pubkey={props.pubkey}
           displayName={profile()?.displayName}

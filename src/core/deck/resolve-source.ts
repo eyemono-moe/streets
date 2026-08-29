@@ -1,7 +1,7 @@
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
 import type { RelayListState } from "../settings/relay-list-state";
-import { type ColumnSource, NOTIFICATION_KINDS } from "./deck";
+import { type ColumnSource, NOTIFICATION_KINDS, TIMELINE_KINDS } from "./deck";
 
 /**
  * `followees` を遅延アクセサにしているのは、呼び出し側 (`DeckColumn.tsx`)
@@ -83,6 +83,27 @@ export const resolveSource = (
           : readRelays.length > 0
             ? readRelays
             : [...FALLBACK_RELAYS],
+    };
+  }
+
+  if (source.kind === "user") {
+    return {
+      type: "nostr",
+      filters: [{ kinds: [...TIMELINE_KINDS], authors: [source.pubkey] }],
+    };
+  }
+
+  if (source.kind === "followees-list") {
+    return {
+      type: "nostr",
+      filters: [{ kinds: [3], authors: [source.pubkey], limit: 1 }],
+    };
+  }
+
+  if (source.kind === "followers-list") {
+    return {
+      type: "nostr",
+      filters: [{ kinds: [3], "#p": [source.pubkey] }],
     };
   }
 

@@ -112,6 +112,37 @@ describe("resolveSource", () => {
     expect(followees).toHaveBeenCalled();
   });
 
+  it("ユーザー詳細は投稿とリポストを対象ユーザーから集める", () => {
+    // 捕まえる変異: kind:6 または対象 pubkey を落とし、v0 のユーザー列より
+    // 表示範囲を狭める。
+    expect(
+      resolveSource({ kind: "user", pubkey: "a".repeat(64) }, ctx()),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
+    });
+  });
+
+  it("フォロー中一覧は対象ユーザーの最新版 kind:3 を集める", () => {
+    // 捕まえる変異: viewer の kind:3 を読む / limit を落として旧版まで集める。
+    expect(
+      resolveSource({ kind: "followees-list", pubkey: "a".repeat(64) }, ctx()),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [3], authors: ["a".repeat(64)], limit: 1 }],
+    });
+  });
+
+  it("フォロワー一覧は対象ユーザーを指す kind:3 を逆引きする", () => {
+    // 捕まえる変異: authors フィルタにして対象本人の kind:3 だけを読む。
+    expect(
+      resolveSource({ kind: "followers-list", pubkey: "a".repeat(64) }, ctx()),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [3], "#p": ["a".repeat(64)] }],
+    });
+  });
+
   it("notifications は自分宛を read リレーで待つ", () => {
     // 捕まえる変異: `#p` に viewer ではなく空配列を入れる (誰にもマッチ
     // しないカラムになる) / kinds を [1] だけにする (リアクションと
