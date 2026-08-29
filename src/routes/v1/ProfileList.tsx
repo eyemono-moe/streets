@@ -18,18 +18,26 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
     render.profiles,
   );
   return (
-    <li class="flex gap-3 p-3">
+    <li class="flex items-start gap-3 px-3 py-2.5">
       <Avatar pubkey={props.pubkey} size="full" />
-      <div class="min-w-0 flex-1 space-y-1">
-        <Profile
-          pubkey={props.pubkey}
-          store={render.store}
-          requests={render.profiles}
-          variant="author"
-        />
+      <div data-testid="profile-row-content" class="min-w-0 flex-1 space-y-2">
+        <div class="flex min-w-0 items-start gap-2">
+          <div class="min-w-0 flex-1 overflow-hidden">
+            <Profile
+              pubkey={props.pubkey}
+              store={render.store}
+              requests={render.profiles}
+              variant="list"
+            />
+          </div>
+          <FollowButton pubkey={props.pubkey} />
+        </div>
         <Show when={profile()?.about}>
           {(about) => (
-            <p class="break-anywhere c-secondary line-clamp-3 text-sm">
+            <p
+              data-testid="profile-about"
+              class="break-anywhere c-secondary line-clamp-5 text-sm"
+            >
               <NoteContent
                 content={about()}
                 tags={profile()?.tags ?? []}
@@ -40,7 +48,6 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
           )}
         </Show>
       </div>
-      <FollowButton pubkey={props.pubkey} />
     </li>
   );
 };

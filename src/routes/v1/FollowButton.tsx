@@ -11,7 +11,7 @@ const FollowButton: Component<{ pubkey: string }> = (props) => {
 
   return (
     <Show when={props.pubkey !== state.viewer}>
-      <div class="flex flex-col items-end gap-1">
+      <div class="flex shrink-0 flex-col items-end gap-1">
         <Button
           data-testid="follow-button"
           variant={

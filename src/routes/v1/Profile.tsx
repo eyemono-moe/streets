@@ -8,7 +8,7 @@ import { npubLabel } from "./npub-label";
 import { useProfileData } from "./profile-data";
 import { useProfileHoverSuppressed } from "./profile-hover-context";
 
-export type ProfileVariant = "author" | "inline";
+export type ProfileVariant = "author" | "inline" | "list";
 
 export type ProfileProps = {
   pubkey: string;
@@ -30,6 +30,7 @@ export type ProfileProps = {
  *
  * - `author` —— イベントの著者行。`display_name` + `@name` の 2 段
  * - `inline` —— 本文中の言及・返信先。`@name` の 1 つだけ (既定)
+ * - `list` —— ユーザー一覧。2 段をそれぞれ 1 行で省略
  *
  * 太字にしたい・幅を制限したい呼び出し側 (リポスト/リアクションの見出し
  * など) は、`<Profile>` 自体を書き換えずに外側を `<span class="min-w-0
@@ -48,7 +49,7 @@ const ProfileName: Component<{
 
   return (
     <Show
-      when={props.variant === "author"}
+      when={props.variant === "author" || props.variant === "list"}
       fallback={
         <span data-testid="profile">
           <span data-testid="profile-name" class="break-all">
@@ -57,8 +58,22 @@ const ProfileName: Component<{
         </span>
       }
     >
-      <span data-testid="profile">
-        <span data-testid="profile-name" class="break-all font-500">
+      <span
+        data-testid="profile"
+        classList={{
+          "flex min-w-0 max-w-full flex-col items-start overflow-hidden":
+            props.variant === "list",
+        }}
+      >
+        <span
+          data-testid="profile-name"
+          class="font-500"
+          classList={{
+            "break-all": props.variant === "author",
+            "w-full truncate": props.variant === "list",
+          }}
+          title={displayName() || name() || npubLabel(props.pubkey)}
+        >
           {displayName() || name() || npubLabel(props.pubkey)}
         </span>
         {/*
@@ -71,7 +86,17 @@ const ProfileName: Component<{
             文字サイズは名前と同じ (親から継承)。変えるのは太さと色だけ ——
             並べたときに 2 段に見えず 1 行として読める。
           */}
-          <span class="c-secondary break-all font-400">@{name()}</span>
+          <span
+            data-testid="profile-handle"
+            class="c-secondary font-400"
+            classList={{
+              "break-all": props.variant === "author",
+              "w-full truncate": props.variant === "list",
+            }}
+            title={`@${name()}`}
+          >
+            @{name()}
+          </span>
         </Show>
       </span>
     </Show>

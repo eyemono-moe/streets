@@ -48,8 +48,8 @@ const Avatar: Component<AvatarProps> = (props) => {
           data-testid="avatar"
           class="sticky top-0 aspect-square shrink-0 overflow-hidden rounded bg-secondary"
           classList={{
-            "w-10": props.size === "full",
-            "w-8": props.size === "compact",
+            "h-10 w-10": props.size === "full",
+            "h-8 w-8": props.size === "compact",
           }}
         >
           <Show when={profile()?.picture}>
