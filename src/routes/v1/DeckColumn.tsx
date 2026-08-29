@@ -14,8 +14,11 @@ import { useRender } from "../../core/view/render-context";
 import ColumnAlertBadge from "./ColumnAlertBadge";
 import ColumnItems from "./ColumnItems";
 import DiagnosticsPanel from "./DiagnosticsPanel";
+import ProfileList from "./ProfileList";
 import ThreadView from "./ThreadView";
+import UserProfilePanel from "./UserProfilePanel";
 import { useDeviceSettings } from "./device-settings";
+import { useFollowState } from "./follow-state";
 import { useOptionalMuteList } from "./mute-list";
 import { parseRelays } from "./parse-relays";
 import { mergeProjectedEvents } from "./projected-writer";
@@ -49,14 +52,6 @@ const RELAYS_OVERRIDE = parseRelays(
 const DeckColumn: Component<{
   column: ColumnDef;
   manager: SubscriptionManager;
-  /**
-   * 現在の閲覧者のフォローリスト (kind:1 の pubkey 集合)。`source` が
-   * `kind: "followees"` のとき `resolveSource` がこれを著者フィルタへ
-   * 展開する。デッキ自体はこの値を焼き込まない (`resolve-source.ts` 参照)
-   * ので、フォローが増減しても呼び出し元がこの関数を最新の値で呼び直す
-   * だけで反映される。
-   */
-  followees: () => readonly string[];
   /**
    * 現在の閲覧者。`source` が `kind: "notifications"` のとき
    * `resolveSource` がこれを `#p` へ展開する。
@@ -96,15 +91,25 @@ const DeckColumn: Component<{
 }> = (props) => {
   const settings = useDeviceSettings();
   const muteList = useOptionalMuteList();
+  const followState = useFollowState();
+  const userPubkey = () =>
+    props.column.source.kind === "user"
+      ? props.column.source.pubkey
+      : undefined;
+  const profileListKind = () =>
+    props.column.source.kind === "followees-list" ||
+    props.column.source.kind === "followers-list"
+      ? props.column.source.kind
+      : undefined;
   const source = createMemo<NostrSource>(() => {
-    // `followees: props.followees` (呼ばずに渡す) —— `resolveSource` が
+    // `followees: followState.followees` (呼ばずに渡す) —— `resolveSource` が
     // `kind: "followees"` の分岐でだけこれを呼ぶ (`resolve-source.ts` の
-    // コメント参照)。ここで `props.followees()` と呼んで値を渡してしまうと、
+    // コメント参照)。ここで `followState.followees()` と呼んで渡してしまうと、
     // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
     // を読んだことになり、ウォームアップが settle するたびに全カラムが
     // 再購読される。`relayList` も同じ扱い。
     const resolved = resolveSource(props.column.source, {
-      followees: props.followees,
+      followees: followState.followees,
       viewer: props.viewer,
       relayList: props.relayList,
     });
@@ -449,7 +454,31 @@ const DeckColumn: Component<{
           この provider の中に置く。
         */}
         <ThreadNavProvider open={openThread}>
-          <Show when={focusId()} fallback={<ColumnItems items={items} />}>
+          <Show
+            when={focusId()}
+            fallback={
+              <>
+                <Show when={userPubkey()} keyed>
+                  {(pubkey) => (
+                    <UserProfilePanel pubkey={pubkey} manager={props.manager} />
+                  )}
+                </Show>
+                <Show
+                  when={profileListKind()}
+                  keyed
+                  fallback={<ColumnItems items={items} />}
+                >
+                  {(kind) => (
+                    <ProfileList
+                      kind={kind}
+                      items={items}
+                      status={section.status}
+                    />
+                  )}
+                </Show>
+              </>
+            }
+          >
             {(id) => (
               <ThreadView
                 events={threadItems}

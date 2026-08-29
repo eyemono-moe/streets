@@ -5,6 +5,7 @@ import ProfileCard from "./ProfileCard";
 
 export type ProfileHoverProps = {
   pubkey: string;
+  onClick?: JSX.EventHandlerUnion<HTMLElement, MouseEvent>;
   /**
    * トリガーを**既存の要素そのもの**にしたいときに渡す。`Avatar` の枠は
    * `sticky top-0` で、包む要素を挟むと `sticky` はその小さな包みの中で
@@ -50,12 +51,15 @@ const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
         <HoverCard.Trigger
           data-testid="profile-hover-trigger"
           class="break-anywhere max-w-full cursor-pointer appearance-none bg-transparent text-left hover:underline"
+          onClick={props.onClick}
         >
           {props.children}
         </HoverCard.Trigger>
       }
     >
-      {(asChild) => <HoverCard.Trigger asChild={asChild()} />}
+      {(asChild) => (
+        <HoverCard.Trigger asChild={asChild()} onClick={props.onClick} />
+      )}
     </Show>
     <Portal>
       <HoverCard.Positioner>

@@ -38,6 +38,12 @@ import {
   AccountSettingsProvider,
   createAccountSettings,
 } from "./v1/account-settings";
+import { ColumnNavigationProvider } from "./v1/column-navigation";
+import {
+  buildFolloweesColumn,
+  buildFollowersColumn,
+  buildUserColumn,
+} from "./v1/column-presets";
 import {
   addColumnTo,
   moveColumnIn,
@@ -51,6 +57,7 @@ import {
 } from "./v1/device-settings";
 import { EventActionsProvider, createEventActions } from "./v1/event-actions";
 import { createFirstRenderRecorder } from "./v1/first-render-recorder";
+import { FollowStateProvider, createFollowState } from "./v1/follow-state";
 import { MuteListProvider, createMuteList } from "./v1/mute-list";
 import { parseRelays } from "./v1/parse-relays";
 import { createProjectedWriter } from "./v1/projected-writer";
@@ -279,6 +286,11 @@ const V1Content: Component = () => {
   // を起こさない。
   const addColumn = (column: ColumnDef) => {
     deckStore.update((current) => addColumnTo(current, column));
+  };
+  const columnNavigation = {
+    openUser: (target: string) => addColumn(buildUserColumn(target)),
+    openFollowees: (target: string) => addColumn(buildFolloweesColumn(target)),
+    openFollowers: (target: string) => addColumn(buildFollowersColumn(target)),
   };
 
   const removeColumn = (id: string) => {
@@ -860,7 +872,6 @@ const V1Content: Component = () => {
                     <DeckColumn
                       column={column}
                       manager={manager}
-                      followees={() => warmUp()?.followees ?? []}
                       viewer={pubkey() ?? ""}
                       relayList={accountSettings.relayList.current}
                       optimisticEvents={projectedWriter.optimisticEvents}
@@ -901,10 +912,25 @@ const V1Content: Component = () => {
               writer,
               fetchLatest: fetchLatestEvent,
             });
-            return MuteListProvider({
-              value: muteList,
+            const followState = createFollowState({
+              viewer: account,
+              store,
+              writer,
+            });
+            return FollowStateProvider({
+              value: followState,
               get children() {
-                return renderView();
+                return MuteListProvider({
+                  value: muteList,
+                  get children() {
+                    return ColumnNavigationProvider({
+                      value: columnNavigation,
+                      get children() {
+                        return renderView();
+                      },
+                    });
+                  },
+                });
               },
             });
           }}

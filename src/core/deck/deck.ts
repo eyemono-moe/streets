@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { encodeBech32 } from "../nostr/nip19";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 
@@ -11,7 +12,10 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 export type ColumnSource =
   | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
   | { kind: "followees"; kinds: number[] }
-  | { kind: "notifications" };
+  | { kind: "notifications" }
+  | { kind: "user"; pubkey: string }
+  | { kind: "followees-list"; pubkey: string }
+  | { kind: "followers-list"; pubkey: string };
 
 export type ColumnDef = { id: string; title: string; source: ColumnSource };
 
@@ -191,6 +195,18 @@ const columnSourceSchema = v.variant("kind", [
   v.object({
     kind: v.literal("notifications"),
   }),
+  v.object({
+    kind: v.literal("user"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
+  v.object({
+    kind: v.literal("followees-list"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
+  v.object({
+    kind: v.literal("followers-list"),
+    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
 ]);
 
 const columnDefSchema = v.object({
@@ -203,6 +219,32 @@ const deckSchema = v.object({
   version: v.literal(2),
   columns: v.array(columnDefSchema),
 });
+
+const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
+  if (
+    column.source.kind !== "literal" ||
+    column.source.relays !== undefined ||
+    column.source.filters.length !== 1
+  ) {
+    return column;
+  }
+  const filter = column.source.filters[0];
+  const filterKeys = filter ? Object.keys(filter) : [];
+  const pubkey = filter?.authors?.length === 1 ? filter.authors[0] : undefined;
+  if (
+    !pubkey ||
+    !/^[0-9a-f]{64}$/.test(pubkey) ||
+    filterKeys.length !== 2 ||
+    !filterKeys.includes("authors") ||
+    !filterKeys.includes("kinds") ||
+    column.title !== `@${encodeBech32("npub", pubkey).slice(0, 12)}` ||
+    filter.kinds?.length !== TIMELINE_KINDS.length ||
+    !TIMELINE_KINDS.every((kind) => filter.kinds?.includes(kind))
+  ) {
+    return column;
+  }
+  return { ...column, source: { kind: "user", pubkey } };
+};
 
 /**
  * `raw` は外部入力 —— `EventStore` がリレーからの値を `isNostrEvent` で
@@ -229,5 +271,10 @@ export const loadDeck = (raw: string | null): Deck | undefined => {
   }
 
   const result = v.safeParse(deckSchema, parsed);
-  return result.success ? result.output : undefined;
+  return result.success
+    ? {
+        ...result.output,
+        columns: result.output.columns.map(migrateLegacyUserColumn),
+      }
+    : undefined;
 };

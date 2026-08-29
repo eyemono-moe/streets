@@ -241,6 +241,119 @@ describe("loadDeck / saveDeck", () => {
     };
     expect(loadDeck(JSON.stringify(withTagFilter))).toEqual(withTagFilter);
   });
+
+  it("ユーザー関連カラムを保存形式から復元する", () => {
+    // 捕まえる変異: 新しい source kind をスキーマへ追加せず、再読み込み時に
+    // デッキ全体を既定値へ戻す。
+    const pubkey = "a".repeat(64);
+    const deck: Deck = {
+      version: 2,
+      columns: [
+        { id: "user", title: "user", source: { kind: "user", pubkey } },
+        {
+          id: "followees",
+          title: "followees",
+          source: { kind: "followees-list", pubkey },
+        },
+        {
+          id: "followers",
+          title: "followers",
+          source: { kind: "followers-list", pubkey },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(deck))).toEqual(deck);
+  });
+
+  it("ユーザー関連カラムの不正な公開鍵を拒否する", () => {
+    // 捕まえる変異: pubkey を任意文字列として受け付け、永久に一致しない
+    // カラムを復元する。
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            {
+              id: "user",
+              title: "user",
+              source: { kind: "user", pubkey: "invalid" },
+            },
+          ],
+        }),
+      ),
+    ).toBeUndefined();
+  });
+
+  it("旧 user プリセットをユーザー詳細カラムへ移行する", () => {
+    // 捕まえる変異: version 2 の旧 literal をそのまま返し、既存ユーザーだけ
+    // プロフィールとフォロー操作を使えない状態にする。
+    const pubkey = "a".repeat(64);
+    expect(
+      loadDeck(
+        JSON.stringify({
+          version: 2,
+          columns: [
+            {
+              id: "legacy-user",
+              title: "@npub14242424",
+              source: {
+                kind: "literal",
+                filters: [{ kinds: [1, 6], authors: [pubkey] }],
+              },
+            },
+          ],
+        }),
+      ),
+    ).toEqual({
+      version: 2,
+      columns: [
+        {
+          id: "legacy-user",
+          title: "@npub14242424",
+          source: { kind: "user", pubkey },
+        },
+      ],
+    });
+  });
+
+  it("旧 user と区別できない改名済み literal は変換しない", () => {
+    // 捕まえる変異: 単一著者の literal をすべて user に変え、任意フィルタの
+    // 意図をプロフィール列へ変えてしまう。
+    const literal: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "literal",
+          title: "調査用",
+          source: {
+            kind: "literal",
+            filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
+          },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(literal))).toEqual(literal);
+  });
+
+  it("旧 user に似ていても追加条件を持つ literal は変換しない", () => {
+    // 捕まえる変異: authors/kinds だけで旧プリセットと判定し、limit などの
+    // 追加条件を user への変換で黙って失う。
+    const pubkey = "a".repeat(64);
+    const literal: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "limited",
+          title: "@npub14242424",
+          source: {
+            kind: "literal",
+            filters: [{ kinds: [1, 6], authors: [pubkey], limit: 1 }],
+          },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(literal))).toEqual(literal);
+  });
 });
 
 describe("defaultDeck", () => {

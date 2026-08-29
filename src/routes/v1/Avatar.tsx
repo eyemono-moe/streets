@@ -1,6 +1,7 @@
 import { type Component, type JSX, Show } from "solid-js";
 import { useRender } from "../../core/view/render-context";
 import ProfileHover from "./ProfileHover";
+import { useOptionalColumnNavigation } from "./column-navigation";
 import { useProfileData } from "./profile-data";
 
 export type AvatarProps = {
@@ -24,11 +25,17 @@ export type AvatarProps = {
  */
 const Avatar: Component<AvatarProps> = (props) => {
   const ctx = useRender();
+  const navigation = useOptionalColumnNavigation();
   const profile = useProfileData(() => props.pubkey, ctx.store, ctx.profiles);
 
   return (
     <ProfileHover
       pubkey={props.pubkey}
+      onClick={(event) => {
+        if (!navigation) return;
+        event.stopPropagation();
+        navigation.openUser(props.pubkey);
+      }}
       asChild={(triggerProps) => (
         <div
           // `triggerProps()` は `JSX.HTMLAttributes<HTMLElement>` (ark-ui
@@ -41,8 +48,8 @@ const Avatar: Component<AvatarProps> = (props) => {
           data-testid="avatar"
           class="sticky top-0 aspect-square shrink-0 overflow-hidden rounded bg-secondary"
           classList={{
-            "w-10": props.size === "full",
-            "w-8": props.size === "compact",
+            "h-10 w-10": props.size === "full",
+            "h-8 w-8": props.size === "compact",
           }}
         >
           <Show when={profile()?.picture}>

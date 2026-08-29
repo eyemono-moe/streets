@@ -16,7 +16,7 @@ describe("buildColumn", () => {
     });
   });
 
-  it("home と user はリポストも集める", () => {
+  it("home はリポストも集める", () => {
     // 捕まえる変異: kinds を [1] に戻す。v0 の Followings.tsx / User.tsx は
     // どちらも [ShortTextNote, Repost] を購読しており、6 を落とすと
     // フォロー相手がリポストした投稿が列から丸ごと消える。
@@ -25,9 +25,6 @@ describe("buildColumn", () => {
     // 「何のために入っているか」が読めないので、kind:6 の含有を単独で書く。
     const home = buildColumn("home", "")?.source;
     expect(home?.kind === "followees" && home.kinds).toContain(6);
-
-    const user = buildColumn("user", HEX)?.source;
-    expect(user?.kind === "literal" && user.filters[0]?.kinds).toContain(6);
   });
 
   it("hashtag と global はリポストを集めない", () => {
@@ -43,10 +40,10 @@ describe("buildColumn", () => {
     expect(global?.kind === "literal" && global.filters[0]?.kinds).toEqual([1]);
   });
 
-  it("user は hex 著者フィルタを作る", () => {
+  it("user はユーザー詳細の意図と hex 公開鍵を保存する", () => {
     expect(buildColumn("user", HEX)?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1, 6], authors: [HEX] }],
+      kind: "user",
+      pubkey: HEX,
     });
 
     // 捕まえる変異: 入力をデコードせずそのまま authors へ入れる。
@@ -55,8 +52,8 @@ describe("buildColumn", () => {
     // 場合が偶然同じ値になり、区別が付かない）。npub 入力で hex に
     // 変換されていることまで確かめて初めて、この変異を殺せる。
     expect(buildColumn("user", NPUB)?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1, 6], authors: [HEX] }],
+      kind: "user",
+      pubkey: HEX,
     });
   });
 
