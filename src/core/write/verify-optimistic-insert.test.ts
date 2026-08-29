@@ -9,6 +9,14 @@ describe("verifyOptimisticInsert", () => {
     expect(() => verifyOptimisticInsert("rejected")).toThrow();
   });
 
+  it("hidden な verdict は削除済みイベントの再送を止める", () => {
+    // 捕まえる変異: hidden を rejected と同じ拡張機能エラーにする。ユーザーが
+    // 内容か時刻を変えれば投稿し直せることを判断できなくなる。
+    expect(() => verifyOptimisticInsert("hidden")).toThrow(
+      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+    );
+  });
+
   it("inserted なら検証済みの verdict をそのまま返す (楽観表示へ進んでよい)", () => {
     // 捕まえる変異: verdict を返さず void のままにする。呼び出し側
     // (writer.ts) が「新規に挿入したのか、既存の再送だったのか」を

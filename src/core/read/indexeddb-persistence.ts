@@ -1,11 +1,11 @@
-import { isNostrEvent } from "../nostr/event";
+import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import { type CachePolicy, persistableScope, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { compareEvents } from "./sorted-events";
 
 const DB_NAME = "streets.v1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const EVENTS_STORE = "events";
 const DELETIONS_STORE = "deletions";
 const REPLACEABLE_INDEX = "replaceableKey";
@@ -158,16 +158,18 @@ const readAllEvents = (db: IDBDatabase): Promise<PersistedEvent[]> =>
     }
   });
 
-const readAllDeletionIds = (db: IDBDatabase): Promise<string[]> =>
+const readAllDeletionRequests = (db: IDBDatabase): Promise<NostrEvent[]> =>
   new Promise((resolve) => {
     try {
       const tx = db.transaction(DELETIONS_STORE, "readonly");
-      const request = tx.objectStore(DELETIONS_STORE).getAllKeys();
+      const request = tx.objectStore(DELETIONS_STORE).getAll();
       request.onsuccess = () => {
         resolve(
-          (request.result ?? []).filter(
-            (key): key is string => typeof key === "string",
-          ),
+          (request.result ?? []).flatMap((record: unknown) => {
+            if (!record || typeof record !== "object") return [];
+            const event = (record as { event?: unknown }).event;
+            return isNostrEvent(event) ? [event] : [];
+          }),
         );
       };
       request.onerror = () => resolve([]);
@@ -180,7 +182,7 @@ const readAllDeletionIds = (db: IDBDatabase): Promise<string[]> =>
 const writeBatch = (
   db: IDBDatabase,
   retained: readonly RetainedEntry[],
-  deletionIds: readonly string[],
+  deletionRequests: readonly NostrEvent[],
   removalIds: readonly string[],
   deletionRemovalIds: readonly string[],
 ): Promise<void> =>
@@ -202,8 +204,9 @@ const writeBatch = (
     const deletionsStore = tx.objectStore(DELETIONS_STORE);
     const replaceableIndex = eventsStore.index(REPLACEABLE_INDEX);
 
-    // 同じ flush に「保存」と「巻き戻し (delete)」が両方入ったとき、巻き戻しを
-    // 勝たせる。**単に delete のループを後に置くだけでは足りない** ——
+    // 呼び出し側で id ごとの最後の操作へ畳んでいるが、残った「保存」と
+    // 「巻き戻し (delete)」では巻き戻しを勝たせる。**単に delete のループを
+    // 後に置くだけでは足りない** ——
     // retained の put() は replaceableIndex の cursor を経由するため
     // 非同期に確定し、IndexedDB はリクエストを積んだ順 (=生成順) に処理する。
     // cursor がまだ何も持たない新規保存では delete() の方が先に (無を消す
@@ -244,13 +247,13 @@ const writeBatch = (
     }
 
     // deletionRemovalIds (`EventStore.remove()` が kind:5 を巻き戻した) に
-    // 挙がっている id は、この flush で saveDeletions からも積まれていたと
-    // しても書かない —— events 側の removalSet と同じ理由で「巻き戻しを
-    // 勝たせる」。ここで先に除いておけば put/delete の発行順に依存しない。
+    // 挙がっている id は書かない —— events 側の removalSet と同じ理由で、
+    // ここで先に除いておけば put/delete の発行順に依存しない。
     const deletionRemovalSet = new Set(deletionRemovalIds);
-    for (const id of deletionIds) {
+    for (const event of deletionRequests) {
+      const id = event.id;
       if (deletionRemovalSet.has(id)) continue;
-      deletionsStore.put({ id });
+      deletionsStore.put({ id, event });
     }
 
     for (const id of removalIds) {
@@ -264,7 +267,7 @@ const writeBatch = (
 
 /**
  * IndexedDB 版の `EventPersistence` (ADR-0018)。スキーマは spec 12 節のとおり
- * `streets.v1` / `events` (key: id) / `deletions` (key: id) / version 1。
+ * `streets.v1` / `events` (key: id) / `deletions` (key: id) / version 2。
  *
  * `load()` は決して reject しない —— IndexedDB はプライベートブラウジング・
  * 容量超過・ブラウザ設定で普通に失敗し、その失敗はキャッシュが無いのと
@@ -278,7 +281,7 @@ export const createIndexedDbPersistence = (
 
   let disposed = false;
   let pendingEvents: PersistedEvent[] = [];
-  let pendingDeletionIds: string[] = [];
+  let pendingDeletionRequests: NostrEvent[] = [];
   let pendingRemovalIds: string[] = [];
   let pendingDeletionRemovalIds: string[] = [];
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -302,8 +305,8 @@ export const createIndexedDbPersistence = (
     if (disposed) return;
     const eventsToWrite = pendingEvents;
     pendingEvents = [];
-    const deletionsToWrite = pendingDeletionIds;
-    pendingDeletionIds = [];
+    const deletionsToWrite = pendingDeletionRequests;
+    pendingDeletionRequests = [];
     const removalsToWrite = pendingRemovalIds;
     pendingRemovalIds = [];
     const deletionRemovalsToWrite = pendingDeletionRemovalIds;
@@ -347,39 +350,57 @@ export const createIndexedDbPersistence = (
   return {
     async load() {
       // ここに try/catch を重ねない —— `getDb()` / `readAllEvents()` /
-      // `readAllDeletionIds()` はいずれも内部で失敗を吸収し尽くしていて
+      // `readAllDeletionRequests()` はいずれも内部で失敗を吸収し尽くしていて
       // 例外を外に出さない。ここで包むと決して発火しない catch が残り、
       // 「本当にどこで失敗を止めているか」を追うときの手がかりを 1 つ増やす。
       const db = await getDb();
-      if (!db) return { events: [], deletedIds: [] };
-      const [events, deletedIds] = await Promise.all([
+      if (!db) return { events: [], deletionRequests: [] };
+      const [events, deletionRequests] = await Promise.all([
         readAllEvents(db),
-        readAllDeletionIds(db),
+        readAllDeletionRequests(db),
       ]);
-      return { events, deletedIds };
+      return { events, deletionRequests };
     },
 
     save(entries) {
       if (disposed) return;
+      const ids = new Set(entries.map(({ event }) => event.id));
+      pendingEvents = pendingEvents.filter(({ event }) => !ids.has(event.id));
+      pendingRemovalIds = pendingRemovalIds.filter((id) => !ids.has(id));
       pendingEvents.push(...entries);
       scheduleFlush();
     },
 
-    saveDeletions(ids) {
+    saveDeletionRequest(event) {
       if (disposed) return;
-      pendingDeletionIds.push(...ids);
+      pendingDeletionRequests = pendingDeletionRequests.filter(
+        ({ id }) => id !== event.id,
+      );
+      pendingDeletionRemovalIds = pendingDeletionRemovalIds.filter(
+        (id) => id !== event.id,
+      );
+      pendingDeletionRequests.push(event);
       scheduleFlush();
     },
 
     delete(ids) {
       if (disposed) return;
+      const idSet = new Set(ids);
+      pendingEvents = pendingEvents.filter(({ event }) => !idSet.has(event.id));
+      pendingRemovalIds = pendingRemovalIds.filter((id) => !idSet.has(id));
       pendingRemovalIds.push(...ids);
       scheduleFlush();
     },
 
-    deleteDeletions(ids) {
+    deleteDeletionRequest(id) {
       if (disposed) return;
-      pendingDeletionRemovalIds.push(...ids);
+      pendingDeletionRequests = pendingDeletionRequests.filter(
+        (event) => event.id !== id,
+      );
+      pendingDeletionRemovalIds = pendingDeletionRemovalIds.filter(
+        (pendingId) => pendingId !== id,
+      );
+      pendingDeletionRemovalIds.push(id);
       scheduleFlush();
     },
 
@@ -390,7 +411,7 @@ export const createIndexedDbPersistence = (
         timer = null;
       }
       pendingEvents = [];
-      pendingDeletionIds = [];
+      pendingDeletionRequests = [];
       pendingRemovalIds = [];
       pendingDeletionRemovalIds = [];
       openedDb?.close();

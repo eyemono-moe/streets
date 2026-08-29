@@ -53,6 +53,14 @@ export class SortedEvents {
     this.#ids.clear();
   }
 
+  /** 指定した id を保持していたら取り除き、表示が変わったことを返す。 */
+  remove(id: string): boolean {
+    if (!this.#ids.delete(id)) return false;
+    const index = this.#items.findIndex((event) => event.id === id);
+    if (index >= 0) this.#items.splice(index, 1);
+    return true;
+  }
+
   /**
    * 採用したら `true`、重複または上限により採用しなかったら `false`。
    *

@@ -218,7 +218,8 @@ const V1Content: Component = () => {
     },
     fetchLatest: fetchLatestEvent,
   });
-  const projectedWriter = createProjectedWriter(writer);
+  const projectedWriter = createProjectedWriter(writer, store);
+  onCleanup(() => projectedWriter.dispose());
   const eventActions = createEventActions({ writer: projectedWriter, store });
 
   // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを

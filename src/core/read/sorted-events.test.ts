@@ -145,6 +145,29 @@ describe("SortedEvents", () => {
     expect(s.toArray()).toEqual([]);
   });
 
+  it("指定した id だけを配列と id 集合から取り除く", () => {
+    // 捕まえる変異: 配列か id 集合の片方だけを更新する。削除後の表示に残るか、
+    // 同じイベントを再表示できなくなる。
+    const s = new SortedEvents(3);
+    for (const e of [ev("a", 300), ev("b", 200), ev("c", 100)]) s.add(e);
+
+    expect(s.remove("b")).toBe(true);
+    expect(ids(s)).toBe("a,c");
+    expect(s.has("b")).toBe(false);
+    expect(s.add(ev("b", 200))).toBe(true);
+    expect(ids(s)).toBe("a,b,c");
+  });
+
+  it("存在しない id の削除は変化なしを返す", () => {
+    // 捕まえる変異: 対象の有無にかかわらず true を返し、呼び出し側が不要な
+    // 再描画を積む。
+    const s = new SortedEvents(3);
+    s.add(ev("a", 100));
+
+    expect(s.remove("missing")).toBe(false);
+    expect(ids(s)).toBe("a");
+  });
+
   it("toArray() は内部配列を露出しない", () => {
     // 捕まえる変異: this.#items をそのまま返す
     const s = new SortedEvents(3);

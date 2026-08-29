@@ -1,7 +1,7 @@
 import type { PutResult } from "../read/event-store";
 
 /**
- * `store.put()` の判定を確かめ、`"rejected"` なら投稿を失敗として扱う。
+ * `store.put()` の判定を確かめ、`"rejected"` / `"hidden"` なら投稿を失敗として扱う。
  * `Writer` (`writer.ts`) の `send` が `store.put()` の戻り値をここへ渡す ——
  * `Writer` は全ての書き込みが通る唯一の経路なので、ここに置けば以後どの
  * 呼び出し側 (compose に限らず) も自動でこの規律に従う —— 呼び出し側
@@ -18,7 +18,9 @@ import type { PutResult } from "../read/event-store";
  * いるのに、書き込み経路だけがその規律を欠いていた。
  *
  * `"duplicate"` はエラーではない (既に手元にある = 表示して問題ない) ので
- * `"inserted"` と同じく素通しする。拒否させるのは `"rejected"` だけ。
+ * `"inserted"` と同じく素通しする。`"hidden"` は NIP-09 の削除依頼により
+ * 本体を保持したまま非表示になっている状態で、同じイベントをリレーへ再送
+ * してはいけないため拒否する。
  *
  * **検証済みの verdict をそのまま返す** (`"inserted" | "duplicate"`)。
  * `Writer` は publish が全滅したとき `store.remove()` で巻き戻すが、
@@ -31,12 +33,17 @@ import type { PutResult } from "../read/event-store";
  */
 export const verifyOptimisticInsert = (
   putResult: PutResult,
-): Exclude<PutResult, "rejected"> => {
+): Exclude<PutResult, "rejected" | "hidden"> => {
+  if (putResult === "hidden") {
+    throw new Error(
+      "この投稿は削除済みです。内容か投稿時刻を変えて投稿し直してください。",
+    );
+  }
   if (putResult === "rejected") {
     throw new Error(
       // Stryker disable next-line StringLiteral: 呼び出し側は例外の有無
-      // (throw されたかどうか) だけを見ており、メッセージ文言は判定に
-      // 使わない。ユーザー向けの文面は v1.tsx 側で別途包んでいる。
+      // (throw されたかどうか) だけを見ており、rejected のメッセージ文言は
+      // 判定に使わない。hidden は行動可能な文面を別の分岐で固定する。
       "投稿の検証に失敗しました (拡張機能の応答が壊れています)。",
     );
   }

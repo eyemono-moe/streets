@@ -44,19 +44,22 @@ describe("createReadLayer", () => {
     // 見て「キャッシュ無し」と誤判定し、このスライスが削るはずだった
     // フェッチを結局全部やり直してしまう。
     let resolveLoad:
-      | ((result: { events: PersistedEvent[]; deletedIds: string[] }) => void)
+      | ((result: {
+          events: PersistedEvent[];
+          deletionRequests: NostrEvent[];
+        }) => void)
       | undefined;
     const loadPromise = new Promise<{
       events: PersistedEvent[];
-      deletedIds: string[];
+      deletionRequests: NostrEvent[];
     }>((resolve) => {
       resolveLoad = resolve;
     });
     const persistence: EventPersistence = {
       load: () => loadPromise,
       save() {},
-      saveDeletions() {},
-      deleteDeletions() {},
+      saveDeletionRequest() {},
+      deleteDeletionRequest() {},
       delete() {},
       dispose() {},
     };
@@ -81,7 +84,7 @@ describe("createReadLayer", () => {
       seenRelays: [],
       fetchedAt: 1,
     };
-    resolveLoad?.({ events: [entry], deletedIds: [] });
+    resolveLoad?.({ events: [entry], deletionRequests: [] });
     await readLayer.ready;
 
     expect(settled).toBe(true);
@@ -97,8 +100,8 @@ describe("createReadLayer", () => {
     const persistence: EventPersistence = {
       load: () => Promise.reject(new Error("simulated persistence failure")),
       save() {},
-      saveDeletions() {},
-      deleteDeletions() {},
+      saveDeletionRequest() {},
+      deleteDeletionRequest() {},
       delete() {},
       dispose() {},
     };
@@ -119,7 +122,7 @@ describe("createReadLayer", () => {
     let persistTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
     const persistence: EventPersistence = {
       async load() {
-        return { events: [], deletedIds: [] };
+        return { events: [], deletionRequests: [] };
       },
       save() {
         // 実装 (indexeddb-persistence.ts) の PERSIST_BATCH_MS と同じ
@@ -130,8 +133,8 @@ describe("createReadLayer", () => {
           }, 1_000);
         }
       },
-      saveDeletions() {},
-      deleteDeletions() {},
+      saveDeletionRequest() {},
+      deleteDeletionRequest() {},
       delete() {},
       dispose() {
         persistenceDisposed = true;
@@ -175,11 +178,11 @@ describe("createReadLayer", () => {
       connect: neverConnects,
       persistence: {
         async load() {
-          return { events: [], deletedIds: [] };
+          return { events: [], deletionRequests: [] };
         },
         save() {},
-        saveDeletions() {},
-        deleteDeletions() {},
+        saveDeletionRequest() {},
+        deleteDeletionRequest() {},
         delete() {},
         dispose() {},
       },
@@ -211,11 +214,11 @@ describe("createReadLayer", () => {
       connect: neverConnects,
       persistence: {
         async load() {
-          return { events: [], deletedIds: [] };
+          return { events: [], deletionRequests: [] };
         },
         save() {},
-        saveDeletions() {},
-        deleteDeletions() {},
+        saveDeletionRequest() {},
+        deleteDeletionRequest() {},
         delete() {},
         dispose() {},
       },

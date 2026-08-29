@@ -60,31 +60,31 @@ describe("createMemoryPersistence", () => {
     expect(events).toEqual([entry]);
   });
 
-  it("saveDeletions した id が load の deletedIds に出る", async () => {
+  it("saveDeletionRequest したイベントが load の deletionRequests に出る", async () => {
     // 捕まえる変異: 削除指示を保存しない。次回起動時に削除済みの投稿が
     // hydrate 経由で復活する (spec 10 節)
     const persistence = createMemoryPersistence();
-    const target = sign("to-delete").id;
+    const request = sign("to-delete", 5);
 
-    persistence.saveDeletions([target]);
+    persistence.saveDeletionRequest(request);
 
-    const { deletedIds } = await persistence.load();
-    expect(deletedIds).toEqual([target]);
+    const { deletionRequests } = await persistence.load();
+    expect(deletionRequests).toEqual([request]);
   });
 
-  it("deleteDeletions で取り消した id は load の deletedIds に出ない", async () => {
-    // 捕まえる変異: deleteDeletions を saveDeletions と同じ (追加する) 実装に
+  it("deleteDeletionRequest で取り消した id は load に出ない", async () => {
+    // 捕まえる変異: deleteDeletionRequest を saveDeletionRequest と同じ (追加する) 実装に
     // する / 何もしない no-op にする。EventStore.remove() が kind:5 の
     // 巻き戻しでこれを呼んでも記録が残り続け、publish が全滅したのに
     // 対象イベントが次回起動のたびに hydrate で弾かれ続ける
     const persistence = createMemoryPersistence();
-    const target = sign("to-delete").id;
+    const request = sign("to-delete", 5);
 
-    persistence.saveDeletions([target]);
-    persistence.deleteDeletions([target]);
+    persistence.saveDeletionRequest(request);
+    persistence.deleteDeletionRequest(request.id);
 
-    const { deletedIds } = await persistence.load();
-    expect(deletedIds).toEqual([]);
+    const { deletionRequests } = await persistence.load();
+    expect(deletionRequests).toEqual([]);
   });
 
   it("dispose 後の save は無視される", async () => {
@@ -94,11 +94,11 @@ describe("createMemoryPersistence", () => {
     persistence.dispose();
 
     persistence.save([{ event: sign("late"), seenRelays: [], fetchedAt: 1 }]);
-    persistence.saveDeletions(["late-deletion"]);
+    persistence.saveDeletionRequest(sign("late-deletion", 5));
 
-    const { events, deletedIds } = await persistence.load();
+    const { events, deletionRequests } = await persistence.load();
     expect(events).toEqual([]);
-    expect(deletedIds).toEqual([]);
+    expect(deletionRequests).toEqual([]);
   });
 });
 
@@ -113,19 +113,19 @@ describe("EventPersistence.load() の規約", () => {
         try {
           throw new Error("simulated IndexedDB failure");
         } catch {
-          return { events: [], deletedIds: [] };
+          return { events: [], deletionRequests: [] };
         }
       },
       save() {},
-      saveDeletions() {},
+      saveDeletionRequest() {},
       delete() {},
-      deleteDeletions() {},
+      deleteDeletionRequest() {},
       dispose() {},
     };
 
     await expect(failing.load()).resolves.toEqual({
       events: [],
-      deletedIds: [],
+      deletionRequests: [],
     });
   });
 });

@@ -33,6 +33,32 @@ const sign = (
   };
 };
 
+const otherSecretKey = Uint8Array.from({ length: 32 }, (_, i) => 32 - i);
+
+const signAs = (
+  key: Uint8Array,
+  content: string,
+  overrides: {
+    kind?: number;
+    created_at?: number;
+    tags?: string[][];
+  } = {},
+): NostrEvent => {
+  const unsigned = {
+    pubkey: bytesToHex(schnorr.getPublicKey(key)),
+    created_at: overrides.created_at ?? 1_700_000_000,
+    kind: overrides.kind ?? 1,
+    tags: overrides.tags ?? [],
+    content,
+  };
+  const id = computeEventId(unsigned);
+  return {
+    ...unsigned,
+    id,
+    sig: bytesToHex(schnorr.sign(hexToBytes(id), key)),
+  };
+};
+
 const validEvent = sign();
 
 describe("EventStore", () => {
@@ -200,6 +226,167 @@ describe("EventStore", () => {
   });
 });
 
+describe("EventStore の NIP-09 可視性", () => {
+  it("同じ著者のe対象を隠し、削除依頼の巻き戻しで戻す", () => {
+    const store = new EventStore();
+    const changes: string[] = [];
+    const target = sign("target");
+    const deletion = sign("delete", {
+      kind: 5,
+      tags: [["e", target.id]],
+    });
+    store.subscribe((change) => changes.push(change.type));
+
+    expect(store.put(target, "wss://one/")).toBe("inserted");
+    expect(store.put(deletion, "wss://one/")).toBe("inserted");
+
+    // 捕まえる変異: kind:5を保存するだけで、既にある対象をhideしない。
+    expect(store.get(target.id)).toBeUndefined();
+    expect(store.isHidden(target.id)).toBe(true);
+    expect(changes).toEqual(["insert", "insert", "hide"]);
+
+    store.remove(deletion.id);
+
+    // 捕まえる変異: 削除依頼を巻き戻しても対象をshowしない。
+    expect(store.get(target.id)).toEqual(target);
+    expect(store.isHidden(target.id)).toBe(false);
+    expect(changes).toEqual(["insert", "insert", "hide", "remove", "show"]);
+  });
+
+  it("対象より先に届いた削除依頼を著者込みで照合する", () => {
+    const store = new EventStore();
+    const target = sign("late target");
+    const validDeletion = sign("valid", {
+      kind: 5,
+      tags: [["e", target.id]],
+    });
+    const forgedDeletion = signAs(otherSecretKey, "forged", {
+      kind: 5,
+      tags: [["e", target.id]],
+    });
+
+    store.put(forgedDeletion, "wss://one/");
+    store.put(validDeletion, "wss://one/");
+
+    // 捕まえる変異: 後着対象を通常のinsertとして公開索引へ入れる。
+    expect(store.put(target, "wss://one/")).toBe("hidden");
+    expect(store.get(target.id)).toBeUndefined();
+  });
+
+  it("別著者の削除依頼だけなら対象を隠さない", () => {
+    const store = new EventStore();
+    const target = sign("not yours");
+    const forgedDeletion = signAs(otherSecretKey, "forged", {
+      kind: 5,
+      tags: [["e", target.id]],
+    });
+
+    store.put(forgedDeletion, "wss://one/");
+
+    // 捕まえる変異: 削除依頼者と対象著者を比較せずtarget idだけで隠す。
+    expect(store.put(target, "wss://one/")).toBe("inserted");
+    expect(store.get(target.id)).toEqual(target);
+  });
+
+  it("同じ対象の削除依頼が残る間は一件を巻き戻しても表示しない", () => {
+    const store = new EventStore();
+    const target = sign("twice");
+    const first = sign("first", {
+      kind: 5,
+      created_at: 1_700_000_001,
+      tags: [["e", target.id]],
+    });
+    const second = sign("second", {
+      kind: 5,
+      created_at: 1_700_000_002,
+      tags: [["e", target.id]],
+    });
+    store.put(target, "wss://one/");
+    store.put(first, "wss://one/");
+    store.put(second, "wss://one/");
+
+    store.remove(first.id);
+
+    // 捕まえる変異: target idだけのSetで由来を失い、一件のremoveで解除する。
+    expect(store.get(target.id)).toBeUndefined();
+    store.remove(second.id);
+    expect(store.get(target.id)).toEqual(target);
+  });
+
+  it("削除依頼を指す削除依頼には効果が無い", () => {
+    const store = new EventStore();
+    const first = sign("first deletion", { kind: 5 });
+    const second = sign("delete deletion", {
+      kind: 5,
+      tags: [["e", first.id]],
+    });
+    store.put(first, "wss://one/");
+
+    store.put(second, "wss://one/");
+
+    // 捕まえる変異: kind:5も通常対象と同じくhideする。
+    expect(store.get(first.id)).toEqual(first);
+  });
+
+  it("a対象は削除依頼時刻以前の版だけを隠す", () => {
+    const store = new EventStore();
+    const identifier = "article:with:colon";
+    const older = sign("older", {
+      kind: 30_023,
+      created_at: 100,
+      tags: [["d", identifier]],
+    });
+    const newer = sign("newer", {
+      kind: 30_023,
+      created_at: 102,
+      tags: [["d", identifier]],
+    });
+    const deletion = sign("delete old versions", {
+      kind: 5,
+      created_at: 101,
+      tags: [["a", `30023:${pubkey}:${identifier}`]],
+    });
+    store.put(older, "wss://one/");
+    store.put(newer, "wss://one/");
+
+    store.put(deletion, "wss://one/");
+
+    // 捕まえる変異: a対象のcreated_at上限を見ず、新しい再公開版も隠す。
+    expect(store.get(older.id)).toBeUndefined();
+    expect(store.get(newer.id)).toEqual(newer);
+    expect(store.latestReplaceable(30_023, pubkey, identifier)).toEqual(newer);
+  });
+
+  it("a座標のkindは正規の10進整数表記だけを受け付ける", () => {
+    // 捕まえる変異: kind文字列を検証せず Number() だけで解析する。hex・指数・
+    // 空白・先頭ゼロ表記が同じ数値へ化け、無関係な削除依頼で対象を隠す。
+    for (const [index, rawKind] of [
+      "0x7547",
+      "3.0023e4",
+      "30023 ",
+      "030023",
+    ].entries()) {
+      const store = new EventStore();
+      const identifier = `strict-kind-${index}`;
+      const target = sign(`target-${index}`, {
+        kind: 30_023,
+        created_at: 100,
+        tags: [["d", identifier]],
+      });
+      const deletion = sign(`deletion-${index}`, {
+        kind: 5,
+        created_at: 101,
+        tags: [["a", `${rawKind}:${pubkey}:${identifier}`]],
+      });
+      store.put(target, "wss://one/");
+
+      store.put(deletion, "wss://one/");
+
+      expect(store.get(target.id), rawKind).toEqual(target);
+    }
+  });
+});
+
 describe("EventStore.hydrate", () => {
   it("署名を検証せずに入れる", () => {
     // 捕まえる変異: hydrate の中で verifyEvent を呼ぶ。実測 0.498ms/件、
@@ -258,16 +445,22 @@ describe("EventStore.hydrate", () => {
     expect(store.fetchedAt(validEvent.id)).toBe(0);
   });
 
-  it("deletedIds に含まれる id は入れない", () => {
+  it("永続化した削除依頼に含まれる id は非表示で水和する", () => {
     // 捕まえる変異: 除外チェックを省く。ユーザーが消したはずの投稿が
     // 次回起動時に復活する (ADR-0019)
     const store = new EventStore();
 
+    const deletion = sign("delete cached", {
+      kind: 5,
+      tags: [["e", validEvent.id]],
+    });
+
     store.hydrate([{ event: validEvent, seenRelays: [], fetchedAt: 1 }], {
-      deletedIds: [validEvent.id],
+      deletionRequests: [deletion],
     });
 
     expect(store.get(validEvent.id)).toBeUndefined();
+    expect(store.isHidden(validEvent.id)).toBe(true);
   });
 
   it("isNostrEvent を通らない形のものは入れない", () => {
@@ -475,28 +668,26 @@ describe("EventStore.latestReplaceable", () => {
 describe("EventStore と EventPersistence の配線", () => {
   const createRecordingPersistence = (): EventPersistence & {
     saved: PersistedEvent[];
-    deletedIds: string[];
+    deletionRequests: NostrEvent[];
   } => {
     const saved: PersistedEvent[] = [];
-    const deletedIds: string[] = [];
+    const deletionRequests: NostrEvent[] = [];
     return {
       saved,
-      deletedIds,
+      deletionRequests,
       async load() {
-        return { events: [], deletedIds: [] };
+        return { events: [], deletionRequests: [] };
       },
       save(entries) {
         saved.push(...entries);
       },
-      saveDeletions(ids) {
-        deletedIds.push(...ids);
+      saveDeletionRequest(event) {
+        deletionRequests.push(event);
       },
       delete() {},
-      deleteDeletions(ids) {
-        for (const id of ids) {
-          const index = deletedIds.indexOf(id);
-          if (index !== -1) deletedIds.splice(index, 1);
-        }
+      deleteDeletionRequest(id) {
+        const index = deletionRequests.findIndex((event) => event.id === id);
+        if (index !== -1) deletionRequests.splice(index, 1);
       },
       dispose() {},
     };
@@ -553,11 +744,9 @@ describe("EventStore と EventPersistence の配線", () => {
     expect(persistence.saved).toEqual([]);
   });
 
-  it("kind:5 の e タグ対象を saveDeletions へ渡す", () => {
-    // 捕まえる変異: kind:5 を他のイベントと同じ扱いにして saveDeletions を
-    // 呼ばない。削除指示そのものが永続化されず、次回起動で消したはずの
-    // 投稿が復活する余地を残す (このスライスでは対象本体をまだ永続化しない
-    // ので実害は無いが、機構としては固定しておく必要がある —— spec 10 節)
+  it("kind:5 自身を削除依頼として永続層へ渡す", () => {
+    // 捕まえる変異: kind:5 を他のイベントと同じ扱いにして専用保存を呼ばない。
+    // 著者を検証できる削除依頼自体が残らず、次回起動で対象が復活する。
     const persistence = createRecordingPersistence();
     const store = new EventStore({ persistence });
     const targetA = "a".repeat(64);
@@ -573,16 +762,12 @@ describe("EventStore と EventPersistence の配線", () => {
 
     store.put(deletion, "wss://a/");
 
-    expect(persistence.deletedIds).toEqual([targetA, targetB]);
+    expect(persistence.deletionRequests).toEqual([deletion]);
   });
 
-  it("kind:5 を remove() で巻き戻すと saveDeletions した対象も取り消す", () => {
-    // 捕まえる変異: remove() が persistence.deleteDeletions を呼ばない
-    // (呼ばずに persistence.delete だけ呼ぶ)。publish が全リレーで失敗して
-    // Writer が kind:5 を巻き戻しても deletions レコードだけ残り、
-    // hydrate が次回起動のたびに対象 id を弾き続ける —— 「どのリレーにも
-    // 届きませんでした」と表示されたのに、本人の投稿だけがローカルでは
-    // 消えたままになる不整合を招く
+  it("kind:5 を remove() で巻き戻すと専用保存した依頼も取り消す", () => {
+    // 捕まえる変異: remove() が deleteDeletionRequest を呼ばない。publish が
+    // 全滅した依頼だけが残り、次回起動でも対象を隠し続ける。
     const persistence = createRecordingPersistence();
     const store = new EventStore({ persistence });
     const targetA = "a".repeat(64);
@@ -596,11 +781,11 @@ describe("EventStore と EventPersistence の配線", () => {
     });
 
     store.put(deletion, "wss://a/");
-    expect(persistence.deletedIds).toEqual([targetA, targetB]);
+    expect(persistence.deletionRequests).toEqual([deletion]);
 
     store.remove(deletion.id);
 
-    expect(persistence.deletedIds).toEqual([]);
+    expect(persistence.deletionRequests).toEqual([]);
   });
 
   it("persistence を渡さない store は put() で例外を投げない", () => {
@@ -770,11 +955,11 @@ describe("remove", () => {
     const deleted: string[][] = [];
     const store = new EventStore({
       persistence: {
-        load: async () => ({ events: [], deletedIds: [] }),
+        load: async () => ({ events: [], deletionRequests: [] }),
         save: () => {},
-        saveDeletions: () => {},
+        saveDeletionRequest: () => {},
         delete: (ids) => deleted.push([...ids]),
-        deleteDeletions: () => {},
+        deleteDeletionRequest: () => {},
         dispose: () => {},
       },
     });

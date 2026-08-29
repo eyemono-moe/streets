@@ -8,22 +8,10 @@ import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 
-/** NIP-09。削除指示の対象は `e` タグで運ばれる。 */
+/** NIP-09 の削除依頼イベント。対象は `e` / `a` タグで運ばれる。 */
 const DELETION_KIND = 5;
-
-/**
- * kind:5 の `e` タグが指す対象 id。`#persistDeletion` (記録) と
- * `remove()` (巻き戻し) の両方がこの同じ抽出を必要とするため、ここで
- * 共有する —— 片方だけ改修されて抽出条件が食い違う (例えば片方が空文字を
- * 弾き、もう片方が弾かない) 事態を作らない。
- */
-const deletionTargetIds = (deletion: NostrEvent): string[] =>
-  deletion.tags
-    .filter(
-      (tag): tag is [string, string] =>
-        tag[0] === "e" && typeof tag[1] === "string",
-    )
-    .map((tag) => tag[1]);
+const HEX_64 = /^[0-9a-f]{64}$/;
+const CANONICAL_DECIMAL = /^(?:0|[1-9]\d*)$/;
 
 export type StoredEvent = {
   event: NostrEvent;
@@ -37,7 +25,7 @@ export type StoredEvent = {
   fetchedAt: number;
 };
 
-export type PutResult = "inserted" | "duplicate" | "rejected";
+export type PutResult = "inserted" | "duplicate" | "rejected" | "hidden";
 
 export type ReplaceableChange = {
   kind: number;
@@ -48,7 +36,9 @@ export type ReplaceableChange = {
 
 export type EventStoreChange =
   | { type: "insert"; event: NostrEvent }
-  | { type: "remove"; event: NostrEvent };
+  | { type: "remove"; event: NostrEvent }
+  | { type: "hide"; event: NostrEvent }
+  | { type: "show"; event: NostrEvent };
 
 export type EventStoreOptions = {
   scheduler?: Scheduler;
@@ -84,6 +74,49 @@ const replacementKey = (address: ReplaceableAddress): string =>
     address.pubkey,
     ...(address.identifier === undefined ? [] : [address.identifier]),
   ]);
+
+const deletionEventTargetIds = (deletion: NostrEvent): string[] => [
+  ...new Set(
+    deletion.tags
+      .filter(
+        (tag): tag is [string, string] =>
+          tag[0] === "e" && typeof tag[1] === "string" && HEX_64.test(tag[1]),
+      )
+      .map((tag) => tag[1]),
+  ),
+];
+
+const parseDeletionAddress = (
+  raw: string,
+  author: string,
+): ReplaceableAddress | undefined => {
+  const firstColon = raw.indexOf(":");
+  const secondColon = raw.indexOf(":", firstColon + 1);
+  if (firstColon <= 0 || secondColon < 0) return undefined;
+  const rawKind = raw.slice(0, firstColon);
+  if (!CANONICAL_DECIMAL.test(rawKind)) return undefined;
+  const kind = Number(rawKind);
+  const pubkey = raw.slice(firstColon + 1, secondColon);
+  if (
+    !Number.isInteger(kind) ||
+    !isAddressableKind(kind) ||
+    !HEX_64.test(pubkey) ||
+    pubkey !== author
+  ) {
+    return undefined;
+  }
+  return { kind, pubkey, identifier: raw.slice(secondColon + 1) };
+};
+
+const deletionAddressTargets = (deletion: NostrEvent): ReplaceableAddress[] => {
+  const unique = new Map<string, ReplaceableAddress>();
+  for (const tag of deletion.tags) {
+    if (tag[0] !== "a" || typeof tag[1] !== "string") continue;
+    const address = parseDeletionAddress(tag[1], deletion.pubkey);
+    if (address) unique.set(replacementKey(address), address);
+  }
+  return [...unique.values()];
+};
 
 const addressForEvent = (event: NostrEvent): ReplaceableAddress | undefined => {
   if (isRegularReplaceableKind(event.kind)) {
@@ -127,6 +160,11 @@ const addressForLookup = (
  */
 export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
+  /** 削除依頼が無くなれば同じ取得情報のまま戻せる、非公開の本体。 */
+  readonly #hiddenEvents = new Map<string, StoredEvent>();
+  readonly #deletionRequests = new Map<string, NostrEvent>();
+  readonly #deletionsByEvent = new Map<string, Set<string>>();
+  readonly #deletionsByAddress = new Map<string, Set<string>>();
   /** 構造化した replacement address → 最新イベントの id */
   readonly #replaceable = new Map<string, string>();
   /**
@@ -153,7 +191,7 @@ export class EventStore {
   }
 
   get size(): number {
-    return this.#events.size;
+    return this.#events.size + this.#hiddenEvents.size;
   }
 
   /**
@@ -201,7 +239,8 @@ export class EventStore {
   }
 
   put(event: NostrEvent, relay: RelayUrl): PutResult {
-    const existing = this.#events.get(event.id);
+    const visible = this.#events.get(event.id);
+    const existing = visible ?? this.#hiddenEvents.get(event.id);
     if (existing) {
       // 重複 id を主張するだけの偽装ペイロードにリレーの功績を与えない。
       // schnorr 検証はしない (Outbox で同一イベントが複数リレーから届き、
@@ -222,7 +261,7 @@ export class EventStore {
         // ものまで) stale と誤判定されて取り直しが永久に止まらない。
         this.#persist(existing);
       }
-      return "duplicate";
+      return visible ? "duplicate" : "hidden";
     }
 
     // リレーは信用できない。全件検証する。
@@ -233,10 +272,16 @@ export class EventStore {
     if (!verified) return "rejected";
 
     const fetchedAt = this.#scheduler.now();
+    if (event.kind !== DELETION_KIND && this.#isHiddenByDeletion(event)) {
+      const stored = { event, seenRelays: [relay], fetchedAt };
+      this.#hiddenEvents.set(event.id, stored);
+      this.#persist(stored);
+      return "hidden";
+    }
     this.#insert(event, [relay], fetchedAt);
     const stored = this.#events.get(event.id);
     if (stored) this.#persist(stored);
-    if (event.kind === DELETION_KIND) this.#persistDeletion(event);
+    if (event.kind === DELETION_KIND) this.#addDeletionRequest(event, true);
     return "inserted";
   }
 
@@ -249,17 +294,6 @@ export class EventStore {
         fetchedAt: stored.fetchedAt,
       },
     ]);
-  }
-
-  /**
-   * NIP-09 の `e` タグが指す対象 id を保持期間の対象にせず記録する
-   * (ADR-0019)。このスライスではイベント本体をまだ永続化しないので
-   * 実効は無いが、後から本体の水和を足すスライスがここを新設せずに済む
-   * ようにする (spec 10 節)。
-   */
-  #persistDeletion(deletion: NostrEvent): void {
-    const targetIds = deletionTargetIds(deletion);
-    if (targetIds.length > 0) this.#persistence?.saveDeletions(targetIds);
   }
 
   /**
@@ -277,17 +311,45 @@ export class EventStore {
    */
   hydrate(
     entries: readonly PersistedEvent[],
-    options?: { deletedIds?: readonly string[] },
+    options?: { deletionRequests?: readonly NostrEvent[] },
   ): void {
-    const deletedIds = new Set(options?.deletedIds ?? []);
+    for (const deletion of options?.deletionRequests ?? []) {
+      if (
+        deletion.kind !== DELETION_KIND ||
+        !isNostrEvent(deletion) ||
+        this.#events.has(deletion.id)
+      ) {
+        continue;
+      }
+      this.#insert(deletion, [], 0);
+      this.#addDeletionRequest(deletion, false);
+    }
     for (const entry of entries) {
-      if (deletedIds.has(entry.event.id)) continue;
-      if (this.#events.has(entry.event.id)) continue;
+      if (
+        this.#events.has(entry.event.id) ||
+        this.#hiddenEvents.has(entry.event.id)
+      ) {
+        continue;
+      }
       // 永続層のデータは壊れていることがある (スキーマ変更、部分書き込み)。
       // 署名までは検証しない (信用済み挿入の前提そのもの) が、形だけは確かめる。
       if (!isNostrEvent(entry.event)) continue;
 
-      this.#insert(entry.event, [...entry.seenRelays], entry.fetchedAt);
+      if (
+        entry.event.kind !== DELETION_KIND &&
+        this.#isHiddenByDeletion(entry.event)
+      ) {
+        this.#hiddenEvents.set(entry.event.id, {
+          event: entry.event,
+          seenRelays: [...entry.seenRelays],
+          fetchedAt: entry.fetchedAt,
+        });
+      } else {
+        this.#insert(entry.event, [...entry.seenRelays], entry.fetchedAt);
+        if (entry.event.kind === DELETION_KIND) {
+          this.#addDeletionRequest(entry.event, false);
+        }
+      }
     }
   }
 
@@ -297,6 +359,135 @@ export class EventStore {
     this.#indexTags(event);
     if (replaceableChanged) this.#notifyReplaceableChanged(event);
     this.#notifyChanged({ type: "insert", event });
+  }
+
+  #addDeletionRequest(deletion: NostrEvent, persist: boolean): void {
+    if (this.#deletionRequests.has(deletion.id)) return;
+    this.#deletionRequests.set(deletion.id, deletion);
+
+    const directTargets = deletionEventTargetIds(deletion);
+    for (const targetId of directTargets) {
+      this.#addDeletionIndex(this.#deletionsByEvent, targetId, deletion.id);
+      const target = this.#events.get(targetId)?.event;
+      if (target && this.#deletionApplies(deletion, target)) {
+        this.#hide(target.id);
+      }
+    }
+
+    const addresses = deletionAddressTargets(deletion);
+    for (const address of addresses) {
+      const key = replacementKey(address);
+      this.#addDeletionIndex(this.#deletionsByAddress, key, deletion.id);
+    }
+    // address ごとに全件走査すると、1 つの削除依頼へ a タグを増やすだけで
+    // O(addresses × events) になる。索引を先に全部作り、本体は一度だけ見る。
+    if (addresses.length > 0) {
+      for (const { event } of [...this.#events.values()]) {
+        if (this.#deletionApplies(deletion, event)) this.#hide(event.id);
+      }
+    }
+
+    if (persist) this.#persistence?.saveDeletionRequest(deletion);
+  }
+
+  #addDeletionIndex(
+    index: Map<string, Set<string>>,
+    target: string,
+    deletionId: string,
+  ): void {
+    const ids = index.get(target) ?? new Set<string>();
+    ids.add(deletionId);
+    index.set(target, ids);
+  }
+
+  #removeDeletionIndex(
+    index: Map<string, Set<string>>,
+    target: string,
+    deletionId: string,
+  ): void {
+    const ids = index.get(target);
+    if (!ids) return;
+    ids.delete(deletionId);
+    if (ids.size === 0) index.delete(target);
+  }
+
+  #deletionApplies(deletion: NostrEvent, target: NostrEvent): boolean {
+    if (target.kind === DELETION_KIND || target.pubkey !== deletion.pubkey) {
+      return false;
+    }
+    if (deletionEventTargetIds(deletion).includes(target.id)) return true;
+    const targetAddress = addressForEvent(target);
+    if (!targetAddress || !isAddressableKind(target.kind)) return false;
+    return deletionAddressTargets(deletion).some(
+      (address) =>
+        replacementKey(address) === replacementKey(targetAddress) &&
+        target.created_at <= deletion.created_at,
+    );
+  }
+
+  #isHiddenByDeletion(event: NostrEvent): boolean {
+    if (event.kind === DELETION_KIND) return false;
+    const requestIds = new Set(this.#deletionsByEvent.get(event.id) ?? []);
+    const address = addressForEvent(event);
+    if (address && isAddressableKind(event.kind)) {
+      for (const id of this.#deletionsByAddress.get(replacementKey(address)) ??
+        []) {
+        requestIds.add(id);
+      }
+    }
+    for (const id of requestIds) {
+      const deletion = this.#deletionRequests.get(id);
+      if (deletion && this.#deletionApplies(deletion, event)) return true;
+    }
+    return false;
+  }
+
+  #hide(id: string): void {
+    const stored = this.#events.get(id);
+    if (!stored || stored.event.kind === DELETION_KIND) return;
+    this.#events.delete(id);
+    this.#removeVisibleIndexes(stored.event);
+    this.#hiddenEvents.set(id, stored);
+    this.#notifyChanged({ type: "hide", event: stored.event });
+  }
+
+  #show(id: string): void {
+    const stored = this.#hiddenEvents.get(id);
+    if (!stored || this.#isHiddenByDeletion(stored.event)) return;
+    this.#hiddenEvents.delete(id);
+    this.#events.set(id, stored);
+    const replaceableChanged = this.#indexReplaceable(stored.event);
+    this.#indexTags(stored.event);
+    if (replaceableChanged) this.#notifyReplaceableChanged(stored.event);
+    this.#notifyChanged({ type: "show", event: stored.event });
+  }
+
+  #removeDeletionRequest(deletion: NostrEvent): void {
+    if (!this.#deletionRequests.delete(deletion.id)) return;
+    const affected = new Set<string>();
+    for (const targetId of deletionEventTargetIds(deletion)) {
+      this.#removeDeletionIndex(this.#deletionsByEvent, targetId, deletion.id);
+      affected.add(targetId);
+    }
+    const addressKeys = new Set(
+      deletionAddressTargets(deletion).map(replacementKey),
+    );
+    for (const key of addressKeys) {
+      this.#removeDeletionIndex(this.#deletionsByAddress, key, deletion.id);
+    }
+    if (addressKeys.size > 0) {
+      for (const [id, { event }] of this.#hiddenEvents) {
+        const address = addressForEvent(event);
+        if (address && addressKeys.has(replacementKey(address)))
+          affected.add(id);
+      }
+    }
+    this.#persistence?.deleteDeletionRequest(deletion.id);
+    for (const id of affected) this.#show(id);
+  }
+
+  isHidden(id: string): boolean {
+    return this.#hiddenEvents.has(id);
   }
 
   get(id: string): NostrEvent | undefined {
@@ -392,6 +583,32 @@ export class EventStore {
     }
   }
 
+  #removeVisibleIndexes(event: NostrEvent): void {
+    for (const tag of event.tags) {
+      const name = tag[0];
+      const value = tag[1];
+      if (!name || name.length !== 1 || !value) continue;
+      const byValue = this.#byTag.get(name);
+      const ids = byValue?.get(value);
+      if (!ids || !byValue) continue;
+      ids.delete(event.id);
+      if (ids.size === 0) byValue.delete(value);
+      if (byValue.size === 0) this.#byTag.delete(name);
+    }
+
+    const address = addressForEvent(event);
+    const key = address ? replacementKey(address) : undefined;
+    if (!key || this.#replaceable.get(key) !== event.id) return;
+    this.#replaceable.delete(key);
+    for (const candidate of this.#events.values()) {
+      const candidateAddress = addressForEvent(candidate.event);
+      if (!candidateAddress) continue;
+      if (replacementKey(candidateAddress) !== key) continue;
+      this.#indexReplaceable(candidate.event);
+    }
+    this.#notifyReplaceableChanged(event);
+  }
+
   #indexTags(event: NostrEvent): void {
     for (const tag of event.tags) {
       const name = tag[0];
@@ -436,54 +653,20 @@ export class EventStore {
    * であり、serveWhileRevalidating が古い値を出す余地は要らない。
    */
   remove(id: string): boolean {
-    const stored = this.#events.get(id);
+    const visible = this.#events.get(id);
+    const stored = visible ?? this.#hiddenEvents.get(id);
     if (!stored) return false;
     const { event } = stored;
-    this.#events.delete(id);
-
-    for (const tag of event.tags) {
-      const name = tag[0];
-      const value = tag[1];
-      if (!name || name.length !== 1 || !value) continue;
-      const byValue = this.#byTag.get(name);
-      const ids = byValue?.get(value);
-      if (!ids || !byValue) continue;
-      ids.delete(id);
-      if (ids.size === 0) byValue.delete(value);
-      if (byValue.size === 0) this.#byTag.delete(name);
-    }
-
-    const address = addressForEvent(event);
-    const key = address ? replacementKey(address) : undefined;
-    if (key && this.#replaceable.get(key) === id) {
-      // **索引を消すだけでは足りない。** まだ #events に残っている直前の
-      // 版が二度と latestReplaceable() から見えなくなり、フォローリストの
-      // 巻き戻しで既存のフォローが丸ごと消えたように見える。
-      //
-      // 走査は O(n) だが、remove() が呼ばれるのは巻き戻しと明示的な削除
-      // だけで、毎イベント通る経路ではない。
-      this.#replaceable.delete(key);
-      for (const candidate of this.#events.values()) {
-        const candidateAddress = addressForEvent(candidate.event);
-        if (!candidateAddress) continue;
-        if (replacementKey(candidateAddress) !== key) continue;
-        this.#indexReplaceable(candidate.event);
-      }
-      this.#notifyReplaceableChanged(event);
+    if (visible) {
+      this.#events.delete(id);
+      this.#removeVisibleIndexes(event);
+    } else {
+      this.#hiddenEvents.delete(id);
     }
 
     this.#persistence?.delete([id]);
-    // kind:5 自身が全滅で巻き戻されるとき、put() が #persistDeletion で
-    // 書いた deletions レコードも一緒に取り消す。ここを省くと、次に publish
-    // し直して成功しても deletions には最初の (巻き戻されたはずの) 記録が
-    // 残ったままになり、hydrate がその対象 id を永久に弾き続ける ——
-    // 「どのリレーにも届きませんでした」と表示された投稿が、届いていない
-    // にもかかわらずローカルでは消えたままになる。
-    if (event.kind === DELETION_KIND) {
-      const targetIds = deletionTargetIds(event);
-      if (targetIds.length > 0) this.#persistence?.deleteDeletions(targetIds);
-    }
     this.#notifyChanged({ type: "remove", event });
+    if (event.kind === DELETION_KIND) this.#removeDeletionRequest(event);
     return true;
   }
 
