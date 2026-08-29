@@ -324,6 +324,10 @@ export const createNip78Document = <T>(
             });
           }
         } catch (decodeCause) {
+          if (!validRun(expectedGeneration, expectedAuthor)) return;
+          // 復号の承認待ち中に置かれた timer を失敗後の自動 retry に
+          // 使わず、次の明示操作まで error 状態を保つ。
+          clearTimer();
           transition({
             phase: "error",
             message: errorMessage(decodeCause, "load"),

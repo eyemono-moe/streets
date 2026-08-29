@@ -174,6 +174,73 @@ const waitForState = async (
   await vi.waitFor(() => expect(document.state().phase).toBe(phase));
 };
 
+const createConflictDecodeHarness = () => {
+  const clock = createFakeClock();
+  const [pubkey, setPubkey] = createSignal<string | undefined>(PUBKEY_A);
+  const decodeStarted = deferred<void>();
+  const pendingDecode = deferred<string>();
+  const baseA = event(
+    { text: "A base" },
+    { id: "1".repeat(64), createdAt: 100 },
+  );
+  const changedA = {
+    ...event({ text: "unused" }, { id: "3".repeat(64), createdAt: 101 }),
+    content: "pending",
+  };
+  const remoteB = {
+    ...event({ text: "B remote" }, { id: "4".repeat(64), createdAt: 102 }),
+    pubkey: PUBKEY_B,
+  };
+  let saveCount = 0;
+  let document!: Nip78Document<Value>;
+  let dispose!: () => void;
+  createRoot((rootDispose) => {
+    dispose = rootDispose;
+    document = createNip78Document({
+      definition: definition(),
+      pubkey,
+      routingSettled: () => true,
+      signer: {
+        getPublicKey: async () => pubkey() ?? "",
+        signEvent: async () => {
+          throw new Error("unused");
+        },
+        nip44: {
+          encrypt: async (_peer, raw) => `enc:${raw}`,
+          decrypt: async (_peer, raw) => {
+            if (raw !== "pending") return raw.slice(4);
+            decodeStarted.resolve();
+            return pendingDecode.promise;
+          },
+        },
+      },
+      writer: {
+        replace: async (_kind, _identifier, mutate) => {
+          saveCount += 1;
+          await mutate(changedA);
+          throw new Error("remote変更を検知しなかった");
+        },
+      },
+      fetchLatest: async (_kind, _identifier, account) =>
+        account === PUBKEY_A ? baseA : remoteB,
+      storage: memoryStorage(),
+      scheduler: clock,
+    });
+  });
+
+  return {
+    clock,
+    document,
+    dispose,
+    setPubkey,
+    decodeStarted,
+    pendingDecode,
+    get saveCount() {
+      return saveCount;
+    },
+  };
+};
+
 describe("createNip78Document", () => {
   it("旧cacheを即時表示し、remote待ちの間も値を失わない", async () => {
     const pending = deferred<NostrEvent | undefined>();
@@ -412,6 +479,31 @@ describe("createNip78Document", () => {
     dispose();
   });
 
+  it("競合の復号失敗を切替後のaccountへ反映しない", async () => {
+    const harness = createConflictDecodeHarness();
+    await waitForState(harness.document, "ready");
+    harness.document.update(() => ({ text: "A local" }));
+    harness.clock.advance(2_000);
+    await harness.decodeStarted.promise;
+
+    harness.setPubkey(PUBKEY_B);
+    await vi.waitFor(() =>
+      expect(harness.document.value()).toEqual({ text: "B remote" }),
+    );
+    harness.pendingDecode.reject(new Error("Aの復号を拒否"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // 捕まえる変異: 競合remoteの復号失敗だけgeneration guardを通さない。
+    // Aの遅い失敗が、既に読み込んだBの同期状態をerrorへ戻してしまう。
+    expect(harness.document.state()).toEqual({
+      phase: "ready",
+      sync: "synced",
+      remoteCreatedAt: 102,
+    });
+    expect(harness.document.value()).toEqual({ text: "B remote" });
+    harness.dispose();
+  });
+
   it("別identifierのdocumentはcacheとremoteを共有しない", async () => {
     const storage = memoryStorage();
     const first = createHarness({
@@ -528,12 +620,34 @@ describe("createNip78Document", () => {
       }),
     );
 
-    // 捕まえる変異: 1回目の保存中に置いたtimerを残す。revision差による
-    // 即時再送の後、同じsnapshotをもう一度署名してしまう。
+    // 捕まえる変異: 保存成功時のclearTimerを外す。dirty guardが三重保存を
+    // 防いでも、不要なtimer自体が残っていることを直接検出する。
+    expect(clock.pendingCount).toBe(0);
     clock.advance(2_000);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveCount).toBe(2);
     dispose();
+  });
+
+  it("競合の復号失敗後は復号中に置いたtimerで再試行しない", async () => {
+    const harness = createConflictDecodeHarness();
+    await waitForState(harness.document, "ready");
+    harness.document.update(() => ({ text: "first local" }));
+    harness.clock.advance(2_000);
+    await harness.decodeStarted.promise;
+
+    harness.document.update(() => ({ text: "second local" }));
+    expect(harness.clock.pendingCount).toBe(1);
+    harness.pendingDecode.reject(new Error("復号を拒否"));
+    await waitForState(harness.document, "error");
+
+    // 捕まえる変異: 競合remoteの復号失敗時にclearTimerしない。
+    // ユーザー操作なしに署名要求を再表示するtimerを残してしまう。
+    expect(harness.clock.pendingCount).toBe(0);
+    harness.clock.advance(2_000);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(harness.saveCount).toBe(1);
+    harness.dispose();
   });
 
   it("保存失敗後は保存中に置いたtimerで自動再試行しない", async () => {
