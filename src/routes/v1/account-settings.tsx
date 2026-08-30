@@ -57,19 +57,13 @@ export type ProfileInput = {
 };
 
 export type ProfileState =
-  | { phase: "signed-out" }
-  | { phase: "loading" }
-  | { phase: "ready"; values: ProfileInput };
+  | { phase: "signed-out"; pubkey: undefined }
+  | { phase: "loading"; pubkey: string }
+  | { phase: "ready"; pubkey: string; values: ProfileInput };
 
 export type AccountProfileSettings = {
   current: Accessor<ProfileState>;
-  draft: Accessor<ProfileInput>;
-  dirty: Accessor<boolean>;
-  saving: Accessor<boolean>;
-  error: Accessor<string | undefined>;
-  change(values: Partial<ProfileInput>): void;
-  reset(): void;
-  save(): Promise<void>;
+  save(values: ProfileInput): Promise<void>;
 };
 
 export type AccountSettings = {
@@ -139,21 +133,13 @@ export const createAccountSettings = (
   const [dirty, setDirty] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
-  const [profileDraft, setProfileDraft] = createSignal<ProfileInput>({
-    ...emptyProfile,
-  });
-  const [profileDraftRevision, setProfileDraftRevision] = createSignal(0);
-  const [profileDirty, setProfileDirty] = createSignal(false);
-  const [profileSaving, setProfileSaving] = createSignal(false);
-  const [profileError, setProfileError] = createSignal<string>();
   let previousPubkey: string | undefined;
-  let previousProfilePubkey: string | undefined;
   let activeProfileSave: symbol | undefined;
 
   const current = createMemo<RelayListState>(() => {
     version();
     const pubkey = options.pubkey();
-    if (!pubkey) return { phase: "signed-out" };
+    if (!pubkey) return { phase: "signed-out", pubkey: undefined };
     if (!options.relayListSettled()) return { phase: "loading" };
     const event = options.store.latestReplaceable(RELAY_LIST_KIND, pubkey);
     return event
@@ -168,10 +154,11 @@ export const createAccountSettings = (
     if (
       options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) === undefined
     ) {
-      return { phase: "loading" };
+      return { phase: "loading", pubkey };
     }
     return {
       phase: "ready",
+      pubkey,
       values: profileFor(options.store.latestReplaceable(PROFILE_KIND, pubkey)),
     };
   });
@@ -193,26 +180,6 @@ export const createAccountSettings = (
       return;
     }
     if (!dirty()) setDraft(entriesFor(state));
-  });
-
-  createComputed(() => {
-    const pubkey = options.pubkey();
-    const state = profileCurrent();
-    if (pubkey !== previousProfilePubkey) {
-      previousProfilePubkey = pubkey;
-      activeProfileSave = undefined;
-      setProfileSaving(false);
-      setProfileDraft(
-        state.phase === "ready" ? state.values : { ...emptyProfile },
-      );
-      setProfileDraftRevision((value) => value + 1);
-      setProfileDirty(false);
-      setProfileError(undefined);
-      return;
-    }
-    if (!profileDirty() && state.phase === "ready") {
-      setProfileDraft(state.values);
-    }
   });
 
   const offChanged = options.store.onReplaceableChanged(
@@ -342,43 +309,16 @@ export const createAccountSettings = (
     },
   };
 
-  const changeProfile = (values: Partial<ProfileInput>) => {
-    setProfileDraft((current) => ({ ...current, ...values }));
-    setProfileDraftRevision((value) => value + 1);
-    setProfileDirty(true);
-    setProfileError(undefined);
-  };
-
   const profile: AccountProfileSettings = {
     current: profileCurrent,
-    draft: profileDraft,
-    dirty: profileDirty,
-    saving: profileSaving,
-    error: profileError,
-    change: changeProfile,
-    reset() {
-      if (profileSaving()) return;
-      const state = profileCurrent();
-      setProfileDraft(
-        state.phase === "ready" ? state.values : { ...emptyProfile },
-      );
-      setProfileDraftRevision((value) => value + 1);
-      setProfileDirty(false);
-      setProfileError(undefined);
-    },
-    async save() {
-      if (profileSaving() || !profileDirty()) return;
+    async save(values) {
       const author = options.pubkey();
       if (!author) {
-        setProfileError("プロフィールを保存するにはログインしてください");
-        return;
+        throw new Error("プロフィールを保存するにはログインしてください");
       }
-      const revision = profileDraftRevision();
-      const { lightningAddress, ...changes } = profileDraft();
+      const { lightningAddress, ...changes } = values;
       const save = Symbol();
       activeProfileSave = save;
-      setProfileSaving(true);
-      setProfileError(undefined);
       try {
         const result = await options.writer.replace(
           PROFILE_KIND,
@@ -387,22 +327,19 @@ export const createAccountSettings = (
         );
         if (options.pubkey() !== author || activeProfileSave !== save) return;
         if (result.rejected.length > 0) {
-          setProfileError(
+          throw new Error(
             `プロフィールを ${result.rejected.length} 本へ保存できませんでした。接続を確認して再試行してください`,
           );
-          return;
         }
-        if (profileDraftRevision() === revision) setProfileDirty(false);
       } catch (cause) {
         if (options.pubkey() === author && activeProfileSave === save) {
-          setProfileError(
+          throw new Error(
             `プロフィールを保存できませんでした: ${cause instanceof Error ? cause.message : String(cause)}`,
           );
         }
       } finally {
         if (activeProfileSave === save) {
           activeProfileSave = undefined;
-          setProfileSaving(false);
         }
       }
     },

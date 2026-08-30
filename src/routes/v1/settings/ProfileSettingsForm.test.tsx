@@ -89,10 +89,6 @@ describe("ProfileSettingsForm", () => {
       lightningAddress.value = "new@lightning.example";
       lightningAddress.dispatchEvent(new Event("input", { bubbles: true }));
 
-      expect(settings.profile.draft()).toMatchObject({
-        display_name: "新しい表示名",
-        lightningAddress: "new@lightning.example",
-      });
       const form = host.querySelector<HTMLFormElement>("form");
       if (!form) throw new Error("プロフィールフォームを描画できませんでした");
       form.dispatchEvent(

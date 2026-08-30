@@ -142,7 +142,6 @@ const accountSettingsFor = (
     banner: "",
     lightningAddress: "",
   });
-  const [profileDirty, setProfileDirty] = createSignal(false);
 
   createEffect(() => {
     const next = scene();
@@ -237,20 +236,13 @@ const accountSettingsFor = (
   };
 
   const profile: AccountProfileSettings = {
-    current: () => ({ phase: "ready", values: profileDraft() }),
-    draft: profileDraft,
-    dirty: profileDirty,
-    saving: () => false,
-    error: () => undefined,
-    change(values) {
-      setProfileDraft((current) => ({ ...current, ...values }));
-      setProfileDirty(true);
-    },
-    reset() {
-      setProfileDirty(false);
-    },
-    async save() {
-      setProfileDirty(false);
+    current: () => ({
+      phase: "ready",
+      pubkey: "storybook",
+      values: profileDraft(),
+    }),
+    async save(values) {
+      setProfileDraft(values);
     },
   };
 

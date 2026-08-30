@@ -21,17 +21,44 @@ const ProfileSettingsForm: Component = () => {
   const profile = useAccountSettings().profile;
   const form = createForm({
     schema: profileSchema,
-    initialInput: profile.draft(),
+    initialInput: {
+      display_name: "",
+      name: "",
+      about: "",
+      website: "",
+      nip05: "",
+      picture: "",
+      banner: "",
+      lightningAddress: "",
+    },
   });
+  let previousPubkey: string | undefined;
 
   createEffect(() => {
-    const draft = profile.draft();
-    if (!profile.dirty()) reset(form, { initialInput: draft });
+    const state = profile.current();
+    const changedAccount = state.pubkey !== previousPubkey;
+    previousPubkey = state.pubkey;
+    if (state.phase !== "ready") {
+      reset(form, {
+        initialInput: {
+          display_name: "",
+          name: "",
+          about: "",
+          website: "",
+          nip05: "",
+          picture: "",
+          banner: "",
+          lightningAddress: "",
+        },
+      });
+    } else if (changedAccount || (!form.isDirty && !form.isSubmitting)) {
+      reset(form, { initialInput: state.values });
+    }
   });
 
-  const saveProfile = handleSubmit(form, (values) => {
-    profile.change(values);
-    void profile.save();
+  const saveProfile = handleSubmit(form, async (values) => {
+    await profile.save(values);
+    reset(form, { initialInput: values, keepInput: true });
   });
 
   return (
@@ -60,10 +87,7 @@ const ProfileSettingsForm: Component = () => {
                 label="表示名"
                 labelVisible
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ display_name: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -76,10 +100,7 @@ const ProfileSettingsForm: Component = () => {
                 label="ユーザー名"
                 labelVisible
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ name: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -93,10 +114,7 @@ const ProfileSettingsForm: Component = () => {
                   {...field.props}
                   class="min-h-24 w-full resize-y rounded-2 border border-primary bg-secondary px-3 py-2 text-body outline-none focus:border-accent-5 data-[invalid]:border-red-6"
                   value={field.input ?? ""}
-                  onInput={(event) => {
-                    field.props.onInput(event);
-                    profile.change({ about: event.currentTarget.value });
-                  }}
+                  onInput={field.props.onInput}
                 />
                 <Show when={field.errors?.[0]}>
                   {(message) => (
@@ -119,10 +137,7 @@ const ProfileSettingsForm: Component = () => {
                 placeholder="https://example.com"
                 type="url"
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ website: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -136,10 +151,7 @@ const ProfileSettingsForm: Component = () => {
                 labelVisible
                 placeholder="name@example.com"
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ nip05: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -154,10 +166,7 @@ const ProfileSettingsForm: Component = () => {
                 placeholder="https://example.com/icon.png"
                 type="url"
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ picture: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -172,10 +181,7 @@ const ProfileSettingsForm: Component = () => {
                 placeholder="https://example.com/banner.png"
                 type="url"
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({ banner: event.currentTarget.value });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
@@ -189,35 +195,27 @@ const ProfileSettingsForm: Component = () => {
                 labelVisible
                 placeholder="name@lightning.example"
                 value={field.input ?? ""}
-                onInput={(event) => {
-                  field.props.onInput(event);
-                  profile.change({
-                    lightningAddress: event.currentTarget.value,
-                  });
-                }}
+                onInput={field.props.onInput}
               />
             )}
           </Field>
 
-          <Show when={profile.error()}>
+          <Show when={form.errors?.[0]}>
             {(message) => (
               <p class="text-caption text-red-8 dark:text-red-4">{message()}</p>
             )}
           </Show>
           <div class="flex justify-end gap-2">
             <Button
-              disabled={!profile.dirty() || profile.saving()}
+              disabled={!form.isDirty || form.isSubmitting}
               type="button"
               variant="border"
-              onClick={profile.reset}
+              onClick={() => reset(form)}
             >
               変更を戻す
             </Button>
-            <Button
-              disabled={!profile.dirty() || profile.saving()}
-              type="submit"
-            >
-              {profile.saving() ? "保存中…" : "保存"}
+            <Button disabled={!form.isDirty || form.isSubmitting} type="submit">
+              {form.isSubmitting ? "保存中…" : "保存"}
             </Button>
           </div>
         </form>
