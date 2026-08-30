@@ -167,6 +167,8 @@ export class EventStore {
   readonly #deletionsByAddress = new Map<string, Set<string>>();
   /** 構造化した replacement address → 最新イベントの id */
   readonly #replaceable = new Map<string, string>();
+  /** イベントが無い応答も、置換可能イベントを取得済みとして記録する。 */
+  readonly #replaceableFetchedAt = new Map<string, number>();
   /**
    * タグの値 → そのタグを持つイベント id。
    *
@@ -507,10 +509,23 @@ export class EventStore {
     pubkey: string,
     identifier?: string,
   ): number | undefined {
-    const id = this.#replaceable.get(
-      replacementKey(addressForLookup(kind, pubkey, identifier)),
-    );
-    return id ? this.fetchedAt(id) : undefined;
+    const key = replacementKey(addressForLookup(kind, pubkey, identifier));
+    const id = this.#replaceable.get(key);
+    return id ? this.fetchedAt(id) : this.#replaceableFetchedAt.get(key);
+  }
+
+  /**
+   * EOSE まで待って対象イベントが無かった場合も、次の要求が同じ空応答を
+   * すぐ投げ直さないよう取得時刻を残す。イベント本体が届けばそちらの
+   * `fetchedAt` を優先するため、空応答の記録が最新版を隠すことはない。
+   */
+  markReplaceableFetched(
+    kind: number,
+    pubkey: string,
+    identifier?: string,
+  ): void {
+    const key = replacementKey(addressForLookup(kind, pubkey, identifier));
+    this.#replaceableFetchedAt.set(key, this.#scheduler.now());
   }
 
   /**

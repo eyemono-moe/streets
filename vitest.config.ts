@@ -14,6 +14,11 @@ export default mergeConfig(viteConfig, {
     // `pnpm exec vitest run` の対象に含める (フィクスチャの pubkey 衝突を
     // 機械的に検出するため、Task 4 fix round 1)。
     include: ["src/**/*.test.{ts,tsx}", "e2e/**/*.test.{ts,tsx}"],
-    setupFiles: ["./vitest.setup.ts"],
+    // vite-plugin-solid の自動注入に任せると、リポジトリ内 worktree では
+    // 外側 checkout の jest-dom を解決し、上の fs.allow に拒否される。
+    setupFiles: [
+      "./vitest.setup.ts",
+      realpathSync("node_modules/@testing-library/jest-dom/dist/vitest.mjs"),
+    ],
   },
 });

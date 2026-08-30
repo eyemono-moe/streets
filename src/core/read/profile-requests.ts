@@ -108,6 +108,9 @@ export const createProfileRequests = (
       // dispose() 後に解決したバッチは誰にも通知しない —— リスナー自体を
       // dispose() で空にしているので実害は無いが、意図を明示しておく。
       if (disposed) return;
+      for (const author of authors) {
+        options.store.markReplaceableFetched(PROFILE_KIND, author);
+      }
       for (const listener of listeners) listener();
     });
   };

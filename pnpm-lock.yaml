@@ -14,6 +14,9 @@ importers:
       '@floating-ui/dom':
         specifier: 1.6.13
         version: 1.6.13
+      '@formisch/solid':
+        specifier: 1.0.0
+        version: 1.0.0(solid-js@1.9.13)(typescript@5.7.3)(valibot@1.4.1(typescript@5.7.3))
       '@kobalte/core':
         specifier: 0.13.8
         version: 0.13.8(solid-js@1.9.13)
@@ -132,8 +135,8 @@ importers:
         specifier: 4.1.1
         version: 4.1.1
       valibot:
-        specifier: 1.0.0-rc.0
-        version: 1.0.0-rc.0(typescript@5.7.3)
+        specifier: 1.4.1
+        version: 1.4.1(typescript@5.7.3)
     devDependencies:
       '@biomejs/biome':
         specifier: 1.9.4
@@ -1368,6 +1371,16 @@ packages:
 
   '@floating-ui/utils@0.2.9':
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
+
+  '@formisch/solid@1.0.0':
+    resolution: {integrity: sha512-J5RF48YCM6SNYVkt+CJ0+5MHPC38wi3zgBM5hOpwnWFU5Q/gtdjb+vO63uJKWLAU7XQlnZVDo7rBzf8bVsvvcA==}
+    peerDependencies:
+      solid-js: '>=1.6 <2'
+      typescript: '>=5 <8'
+      valibot: '>=1.4.1 <2'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
 
   '@iconify-json/material-symbols@1.2.14':
     resolution: {integrity: sha512-S0AAFFQPVr8Dkrprspz/otNjxdD3rJRXDGZjbO8a8zn8ZR5mO8jAF81lVoTfUWxPH6SCtH2lK1JQGXHGPxld7g==}
@@ -4746,8 +4759,8 @@ packages:
   uzip@0.20201231.0:
     resolution: {integrity: sha512-OZeJfZP+R0z9D6TmBgLq2LHzSSptGMGDGigGiEe0pr8UBe/7fdflgHlHBNDASTXB5jnFuxHpNaJywSg8YFeGng==}
 
-  valibot@1.0.0-rc.0:
-    resolution: {integrity: sha512-9ZUrOXOejY/WaIn8p0Z469R1qBAwNJeqq8jzOIDsl1qR8gqtObHQmyHLFli0UCkcGiTco5kH6/KPLWsTWE9b2g==}
+  valibot@1.4.1:
+    resolution: {integrity: sha512-klCmFTz2jeDluy9RwX+F884TCiogtdBJ/YaxSx1EOBYXa3NXNWj8kR1jjN8rzluwojJVWWaHJ4r1U5LfICnM3g==}
     peerDependencies:
       typescript: '>=5'
     peerDependenciesMeta:
@@ -6290,6 +6303,13 @@ snapshots:
 
   '@floating-ui/utils@0.2.9': {}
 
+  '@formisch/solid@1.0.0(solid-js@1.9.13)(typescript@5.7.3)(valibot@1.4.1(typescript@5.7.3))':
+    dependencies:
+      solid-js: 1.9.13
+      valibot: 1.4.1(typescript@5.7.3)
+    optionalDependencies:
+      typescript: 5.7.3
+
   '@iconify-json/material-symbols@1.2.14':
     dependencies:
       '@iconify/types': 2.0.0
@@ -6511,7 +6531,7 @@ snapshots:
   '@modular-forms/solid@0.25.0(solid-js@1.9.13)(typescript@5.7.3)':
     dependencies:
       solid-js: 1.9.13
-      valibot: 1.0.0-rc.0(typescript@5.7.3)
+      valibot: 1.4.1(typescript@5.7.3)
     transitivePeerDependencies:
       - typescript
 
@@ -10226,7 +10246,7 @@ snapshots:
 
   uzip@0.20201231.0: {}
 
-  valibot@1.0.0-rc.0(typescript@5.7.3):
+  valibot@1.4.1(typescript@5.7.3):
     optionalDependencies:
       typescript: 5.7.3
 

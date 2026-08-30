@@ -68,11 +68,25 @@ export const useProfileData = (
     // 同じ値 (だが新しい参照) を set し直して無限ループになる。読むのを
     // pubkey だけに絞ることでその罠を避ける。
     const key = pubkey();
-    let resolved = false;
+    setProfile(undefined);
+
+    let requestUnsubscribe: (() => void) | undefined;
+    let requestSubscriptionActive = false;
+
+    const stopRequestSubscription = () => {
+      if (!requestSubscriptionActive) return;
+      requestSubscriptionActive = false;
+      const unsubscribe = requestUnsubscribe;
+      requestUnsubscribe = undefined;
+      unsubscribe?.();
+    };
 
     const check = (): boolean => {
       const event = store.latestReplaceable(0, key);
-      if (!event) return false;
+      if (!event) {
+        setProfile(undefined);
+        return false;
+      }
       const parsed = parseProfileContent(event.content);
       // `about` のカスタム絵文字 (NIP-30) を引くのに kind:0 の `emoji`
       // タグが要る。`content` のパース結果には含まれないので、ここで
@@ -81,19 +95,33 @@ export const useProfileData = (
       return true;
     };
 
-    if (check()) return; // 既に EventStore にある — 要求もリスンも不要
+    const unsubscribeStore = store.onReplaceableChanged((change) => {
+      if (change.kind !== 0 || change.pubkey !== key) return;
+      if (check()) stopRequestSubscription();
+    });
+    onCleanup(() => {
+      unsubscribeStore();
+      stopRequestSubscription();
+    });
+
+    if (check()) return; // 既に EventStore にある — 要求は不要
 
     requests.request(key);
-    const unsubscribe = requests.subscribe(() => {
+    requestSubscriptionActive = true;
+    requestUnsubscribe = requests.subscribe(() => {
       // 無関係なバッチの完了でも呼ばれる (コアレッサは pubkey 単位で通知
       // しない) —— その場合 check() は false を返すだけで再描画は起きない。
-      if (resolved) return;
-      if (check()) {
-        resolved = true;
-        unsubscribe();
-      }
+      if (!requestSubscriptionActive) return;
+      if (check()) stopRequestSubscription();
     });
-    onCleanup(unsubscribe);
+    // subscribe() が同期的に呼び返して解決した場合、代入後に購読を外す。
+    // ProfileRequests の実装は現在非同期だが、テスト用実装や将来の変更でも
+    // Temporal Dead Zone / 二重 unsubscribe を起こさないようにしておく。
+    if (!requestSubscriptionActive) {
+      const unsubscribe = requestUnsubscribe;
+      requestUnsubscribe = undefined;
+      unsubscribe?.();
+    }
   });
 
   return profile;

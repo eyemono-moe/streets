@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Mutation } from "../../core/nostr/build/draft";
 import type { NostrEvent } from "../../core/nostr/event";
 import type { ReplaceableChange } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
 import type { RelayUrl } from "../../core/relay/relay-connection";
 import type { WriteResult } from "../../core/write/writer";
 import { createAccountSettings } from "./account-settings";
@@ -19,11 +20,25 @@ const event = (tags: string[][]): NostrEvent => ({
   sig: "b".repeat(128),
 });
 
+const profileEvent = (content: string, pubkey = PUBKEY): NostrEvent => ({
+  id: "c".repeat(64),
+  pubkey,
+  created_at: 1,
+  kind: 0,
+  tags: [],
+  content,
+  sig: "d".repeat(128),
+});
+
 const setup = (initial?: NostrEvent) => {
   const [pubkey, setPubkey] = createSignal<string>();
   const [settled, setSettled] = createSignal(false);
   let current = initial;
+  let profile: NostrEvent | undefined;
+  const profileFetchedAt = new Map<string, number>();
   const listeners = new Set<(change: ReplaceableChange) => void>();
+  const profileListeners = new Set<() => void>();
+  const requestedProfiles: string[] = [];
   const replace = vi.fn(
     async (
       _kind: number,
@@ -39,12 +54,26 @@ const setup = (initial?: NostrEvent) => {
     pubkey,
     relayListSettled: settled,
     store: {
-      latestReplaceable: () => current,
+      latestReplaceable(kind) {
+        return kind === 0 ? profile : current;
+      },
+      replaceableFetchedAt(kind, author) {
+        return kind === 0 ? profileFetchedAt.get(author) : undefined;
+      },
       onReplaceableChanged(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
     },
+    profileRequests: {
+      request(author) {
+        requestedProfiles.push(author);
+      },
+      subscribe(listener) {
+        profileListeners.add(listener);
+        return () => profileListeners.delete(listener);
+      },
+    } satisfies Pick<ProfileRequests, "request" | "subscribe">,
     writer: { replace },
   });
   return {
@@ -52,16 +81,189 @@ const setup = (initial?: NostrEvent) => {
     setPubkey,
     setSettled,
     replace,
+    requestedProfiles,
+    settleProfiles() {
+      for (const listener of profileListeners) listener();
+    },
+    markProfileFetched(author = PUBKEY) {
+      profileFetchedAt.set(author, 1);
+    },
     receive(next: NostrEvent) {
-      current = next;
+      if (next.kind === 0) {
+        profile = next;
+        profileFetchedAt.set(next.pubkey, 1);
+      } else current = next;
       for (const listener of listeners) {
-        listener({ kind: 10002, pubkey: PUBKEY });
+        listener({ kind: next.kind, pubkey: next.pubkey });
       }
     },
   };
 };
 
 describe("アカウント設定", () => {
+  it("プロフィール保存は未知フィールドを保持し、部分失敗をthrowする", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: mergeProfileを通さず未知フィールドを落とす、または
+            // rejectedを解決扱いにする。
+            const { settings, setPubkey, setSettled, receive, replace } =
+              setup();
+            setPubkey(PUBKEY);
+            setSettled(true);
+            receive(profileEvent(JSON.stringify({ unknown: "残す" })));
+            const values = {
+              display_name: "表示名",
+              name: "",
+              about: "",
+              website: "",
+              nip05: "",
+              picture: "",
+              banner: "",
+              lightningAddress: "lightning@example.com",
+            };
+            await settings.profile.save(values);
+            const mutation = replace.mock.calls[0]?.[2];
+            expect(
+              JSON.parse(
+                mutation(profileEvent(JSON.stringify({ unknown: "残す" })))
+                  .content,
+              ),
+            ).toMatchObject({
+              unknown: "残す",
+              display_name: "表示名",
+              lud16: "lightning@example.com",
+            });
+            replace.mockResolvedValueOnce({
+              event: profileEvent("{}"),
+              accepted: [],
+              rejected: [{ relay: "wss://one/" as RelayUrl, reason: "拒否" }],
+            });
+            await expect(settings.profile.save(values)).rejects.toThrow("1 本");
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
+  it("対象の kind:0 を取得し終えるまでプロフィールを loading に保つ", () => {
+    createRoot((dispose) => {
+      // 捕まえる変異: kind:0 の取得完了を待たず、relayListSettled だけで
+      // 空プロフィールを ready にする。
+      const {
+        settings,
+        setPubkey,
+        setSettled,
+        requestedProfiles,
+        settleProfiles,
+        markProfileFetched,
+      } = setup();
+      setPubkey(PUBKEY);
+      setSettled(true);
+
+      expect(requestedProfiles).toContain(PUBKEY);
+      expect(settings.profile.current().phase).toBe("loading");
+
+      // 別バッチの完了では、対象 pubkey の未取得を完了扱いしない。
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("loading");
+
+      markProfileFetched();
+      settleProfiles();
+      expect(settings.profile.current()).toEqual({
+        phase: "ready",
+        pubkey: PUBKEY,
+        values: {
+          display_name: "",
+          name: "",
+          about: "",
+          website: "",
+          nip05: "",
+          picture: "",
+          banner: "",
+          lightningAddress: "",
+        },
+      });
+      dispose();
+    });
+  });
+
+  it("アカウント切替後は旧プロフィールの取得完了で ready にしない", () => {
+    createRoot((dispose) => {
+      const {
+        settings,
+        setPubkey,
+        setSettled,
+        markProfileFetched,
+        settleProfiles,
+      } = setup();
+      const nextPubkey = "e".repeat(64);
+      setPubkey(PUBKEY);
+      setSettled(true);
+      setPubkey(nextPubkey);
+
+      markProfileFetched(PUBKEY);
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("loading");
+
+      markProfileFetched(nextPubkey);
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("ready");
+      dispose();
+    });
+  });
+
+  it("旧アカウントの保存失敗を切替後へ漏らさない", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: save完了時のpubkey照合を外す。AのrejectがBにも
+            // throwされ、フォームがBのエラーとして表示してしまう。
+            const { settings, setPubkey, setSettled, replace } = setup();
+            setPubkey(PUBKEY);
+            setSettled(true);
+            let finish!: (value: WriteResult) => void;
+            replace.mockImplementationOnce(
+              () =>
+                new Promise<WriteResult>((resolveReplace) => {
+                  finish = resolveReplace;
+                }),
+            );
+            const saving = settings.profile.save({
+              display_name: "A",
+              name: "",
+              about: "",
+              website: "",
+              nip05: "",
+              picture: "",
+              banner: "",
+              lightningAddress: "",
+            });
+            setPubkey("e".repeat(64));
+            finish({
+              event: profileEvent("{}"),
+              accepted: [],
+              rejected: [{ relay: "wss://one/" as RelayUrl, reason: "拒否" }],
+            });
+            await expect(saving).resolves.toBeUndefined();
+            resolve();
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
+        })();
+      });
+    });
+  });
+
   it("未ログイン・取得中・欠落・取得済みを区別する", () => {
     createRoot((dispose) => {
       // 捕まえる変異: loading と missing を同じ空配列へ潰す。

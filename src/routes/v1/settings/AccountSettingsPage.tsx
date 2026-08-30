@@ -1,6 +1,7 @@
 import { type Component, Match, Show, Switch } from "solid-js";
 import Button from "../../../shared/components/UI/Button";
 import { useDeckStore } from "../deck-store";
+import ProfileSettingsForm from "./ProfileSettingsForm";
 import SettingsPage from "./SettingsPage";
 
 const formatSyncedAt = (createdAt: number | undefined): string | undefined =>
@@ -29,6 +30,7 @@ const AccountSettingsPage: Component = () => {
       title="アカウント"
       description="アカウントに紐づくデータの同期状態を確認します。"
     >
+      <ProfileSettingsForm />
       <section class="mt-5 rounded-2 border border-primary p-4">
         <h3 class="font-700 text-body">デッキ同期</h3>
         <p class="c-secondary mt-1 text-caption">

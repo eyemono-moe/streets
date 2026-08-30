@@ -20,9 +20,11 @@ import type {
   Nip78DocumentState,
 } from "../core/solid/create-nip78-document";
 import {
+  type AccountProfileSettings,
   type AccountRelaySettings,
   type AccountSettings,
   AccountSettingsProvider,
+  type ProfileInput,
 } from "../routes/v1/account-settings";
 import { type DeckStore, DeckStoreProvider } from "../routes/v1/deck-store";
 import {
@@ -130,6 +132,16 @@ const accountSettingsFor = (
   const [dirty, setDirty] = createSignal(false);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
+  const [profileDraft, setProfileDraft] = createSignal<ProfileInput>({
+    display_name: "",
+    name: "",
+    about: "",
+    website: "",
+    nip05: "",
+    picture: "",
+    banner: "",
+    lightningAddress: "",
+  });
 
   createEffect(() => {
     const next = scene();
@@ -223,7 +235,18 @@ const accountSettingsFor = (
     },
   };
 
-  return { relayList };
+  const profile: AccountProfileSettings = {
+    current: () => ({
+      phase: "ready",
+      pubkey: "storybook",
+      values: profileDraft(),
+    }),
+    async save(values) {
+      setProfileDraft(values);
+    },
+  };
+
+  return { relayList, profile };
 };
 
 const muteListFor = (scene: () => MuteSettingsScene | undefined): MuteList => {

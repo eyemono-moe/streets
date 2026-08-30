@@ -8,11 +8,13 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
+import { mergeProfile } from "../../core/nostr/build/profile";
 import { setRelayList } from "../../core/nostr/build/relay-list";
 import type {
   EventStore,
   ReplaceableChange,
 } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
 import {
   type RelayListEntry,
   parseRelayList,
@@ -23,10 +25,11 @@ import type { RelayListState } from "../../core/settings/relay-list-state";
 import type { Writer } from "../../core/write/writer";
 
 const RELAY_LIST_KIND = 10002;
+const PROFILE_KIND = 0;
 
 type RelayListStore = Pick<
   EventStore,
-  "latestReplaceable" | "onReplaceableChanged"
+  "latestReplaceable" | "replaceableFetchedAt" | "onReplaceableChanged"
 >;
 
 export type AccountRelaySettings = {
@@ -42,23 +45,84 @@ export type AccountRelaySettings = {
   save(): Promise<void>;
 };
 
+export type ProfileInput = {
+  display_name: string;
+  name: string;
+  about: string;
+  website: string;
+  nip05: string;
+  picture: string;
+  banner: string;
+  lightningAddress: string;
+};
+
+export type ProfileState =
+  | { phase: "signed-out"; pubkey: undefined }
+  | { phase: "loading"; pubkey: string }
+  | { phase: "ready"; pubkey: string; values: ProfileInput };
+
+export type AccountProfileSettings = {
+  current: Accessor<ProfileState>;
+  save(values: ProfileInput): Promise<void>;
+};
+
 export type AccountSettings = {
   relayList: AccountRelaySettings;
+  profile: AccountProfileSettings;
 };
 
 export type CreateAccountSettingsOptions = {
   pubkey: Accessor<string | undefined>;
   relayListSettled: Accessor<boolean>;
   store: RelayListStore;
+  profileRequests: Pick<ProfileRequests, "request" | "subscribe">;
   writer: Pick<Writer, "replace">;
 };
 
 const entriesFor = (state: RelayListState): RelayListEntry[] =>
   state.phase === "ready" ? state.entries.map((entry) => ({ ...entry })) : [];
 
+const emptyProfile: ProfileInput = {
+  display_name: "",
+  name: "",
+  about: "",
+  website: "",
+  nip05: "",
+  picture: "",
+  banner: "",
+  lightningAddress: "",
+};
+
+const profileFor = (
+  event: ReturnType<EventStore["latestReplaceable"]>,
+): ProfileInput => {
+  if (!event) return { ...emptyProfile };
+  try {
+    const parsed: unknown = JSON.parse(event.content);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { ...emptyProfile };
+    }
+    const profile = parsed as Record<string, unknown>;
+    const value = (key: string): string =>
+      typeof profile[key] === "string" ? profile[key] : "";
+    return {
+      display_name: value("display_name"),
+      name: value("name"),
+      about: value("about"),
+      website: value("website"),
+      nip05: value("nip05"),
+      picture: value("picture"),
+      banner: value("banner"),
+      lightningAddress: value("lud16") || value("lud06"),
+    };
+  } catch {
+    return { ...emptyProfile };
+  }
+};
+
 /**
- * NIP-65 の取得状態、フォームの draft、Writer への保存を一つの interface に
- * 閉じる。Dialog は EventStore / Writer / kind:10002 のタグ形式を知らない。
+ * アカウントに紐づく設定の取得状態、フォームの draft、Writer への保存を一つの
+ * interface に閉じる。Dialog は EventStore / Writer / Nostr のイベント形式を知らない。
  */
 export const createAccountSettings = (
   options: CreateAccountSettingsOptions,
@@ -70,6 +134,7 @@ export const createAccountSettings = (
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string>();
   let previousPubkey: string | undefined;
+  let activeProfileSave: symbol | undefined;
 
   const current = createMemo<RelayListState>(() => {
     version();
@@ -80,6 +145,27 @@ export const createAccountSettings = (
     return event
       ? { phase: "ready", entries: parseRelayList(event) }
       : { phase: "missing" };
+  });
+
+  const profileCurrent = createMemo<ProfileState>(() => {
+    version();
+    const pubkey = options.pubkey();
+    if (!pubkey) return { phase: "signed-out", pubkey: undefined };
+    if (
+      options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) === undefined
+    ) {
+      return { phase: "loading", pubkey };
+    }
+    return {
+      phase: "ready",
+      pubkey,
+      values: profileFor(options.store.latestReplaceable(PROFILE_KIND, pubkey)),
+    };
+  });
+
+  createComputed(() => {
+    const pubkey = options.pubkey();
+    if (pubkey) options.profileRequests.request(pubkey);
   });
 
   createComputed(() => {
@@ -99,7 +185,7 @@ export const createAccountSettings = (
   const offChanged = options.store.onReplaceableChanged(
     (change: ReplaceableChange) => {
       if (
-        change.kind === RELAY_LIST_KIND &&
+        (change.kind === RELAY_LIST_KIND || change.kind === PROFILE_KIND) &&
         change.pubkey === options.pubkey()
       ) {
         setVersion((value) => value + 1);
@@ -107,6 +193,17 @@ export const createAccountSettings = (
     },
   );
   onCleanup(offChanged);
+
+  const offProfileRequests = options.profileRequests.subscribe(() => {
+    const pubkey = options.pubkey();
+    if (
+      pubkey &&
+      options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) !== undefined
+    ) {
+      setVersion((value) => value + 1);
+    }
+  });
+  onCleanup(offProfileRequests);
 
   const changeDraft = (next: RelayListEntry[]) => {
     setDraft(next);
@@ -212,7 +309,43 @@ export const createAccountSettings = (
     },
   };
 
-  return { relayList };
+  const profile: AccountProfileSettings = {
+    current: profileCurrent,
+    async save(values) {
+      const author = options.pubkey();
+      if (!author) {
+        throw new Error("プロフィールを保存するにはログインしてください");
+      }
+      const { lightningAddress, ...changes } = values;
+      const save = Symbol();
+      activeProfileSave = save;
+      try {
+        const result = await options.writer.replace(
+          PROFILE_KIND,
+          undefined,
+          mergeProfile({ ...changes, lud16: lightningAddress }),
+        );
+        if (options.pubkey() !== author || activeProfileSave !== save) return;
+        if (result.rejected.length > 0) {
+          throw new Error(
+            `プロフィールを ${result.rejected.length} 本へ保存できませんでした。接続を確認して再試行してください`,
+          );
+        }
+      } catch (cause) {
+        if (options.pubkey() === author && activeProfileSave === save) {
+          throw new Error(
+            `プロフィールを保存できませんでした: ${cause instanceof Error ? cause.message : String(cause)}`,
+          );
+        }
+      } finally {
+        if (activeProfileSave === save) {
+          activeProfileSave = undefined;
+        }
+      }
+    },
+  };
+
+  return { relayList, profile };
 };
 
 const AccountSettingsContext = createContext<AccountSettings>();
