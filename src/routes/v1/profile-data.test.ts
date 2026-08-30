@@ -1,5 +1,46 @@
+import { schnorr } from "@noble/curves/secp256k1.js";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { createRoot } from "solid-js";
 import { describe, expect, it } from "vitest";
-import { parseProfileContent } from "./profile-data";
+import { type NostrEvent, computeEventId } from "../../core/nostr/event";
+import { EventStore } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
+import type { RelayUrl } from "../../core/relay/relay-connection";
+import { parseProfileContent, useProfileData } from "./profile-data";
+
+const keyFor = (seed: number): Uint8Array =>
+  Uint8Array.from(
+    Array.from({ length: 32 }, (_, index) => ((seed + index * 7) % 255) + 1),
+  );
+
+const profileEvent = (
+  seed: number,
+  content: string,
+  createdAt: number,
+): NostrEvent => {
+  const secretKey = keyFor(seed);
+  const unsigned = {
+    pubkey: bytesToHex(schnorr.getPublicKey(secretKey)),
+    created_at: createdAt,
+    kind: 0,
+    tags: [],
+    content,
+  };
+  const id = computeEventId(unsigned);
+  return {
+    ...unsigned,
+    id,
+    sig: bytesToHex(schnorr.sign(hexToBytes(id), secretKey)),
+  };
+};
+
+const noProfileRequests = (): ProfileRequests => ({
+  request: () => undefined,
+  subscribe: () => () => undefined,
+  lastBatchSize: 0,
+  maxBatchSize: 0,
+  dispose: () => undefined,
+});
 
 describe("parseProfileContent", () => {
   it("name / display_name / picture を取り出す", () => {
@@ -67,5 +108,50 @@ describe("parseProfileContent", () => {
     expect(parsed?.banner).toBeUndefined();
     expect(parsed?.nip05).toBeUndefined();
     expect(parsed?.website).toBeUndefined();
+  });
+});
+
+describe("useProfileData", () => {
+  it("マウント後の同一著者 kind:0 置換を表示へ反映する", async () => {
+    // 捕まえる変異: EventStore.onReplaceableChanged の購読を外す。Writer の
+    // 楽観挿入後、マウント済みプロフィールが古い kind:0 のまま残る。
+    let dispose!: () => void;
+    let profile!: ReturnType<typeof useProfileData>;
+    let store!: EventStore;
+    let oldProfile!: NostrEvent;
+    createRoot((stop) => {
+      dispose = stop;
+      store = new EventStore();
+      oldProfile = profileEvent(
+        41,
+        JSON.stringify({
+          display_name: "以前の表示名",
+          about: "以前の自己紹介",
+        }),
+        1_700_000_000,
+      );
+      store.put(oldProfile, "wss://relay.example/" as RelayUrl);
+      profile = useProfileData(
+        () => oldProfile.pubkey,
+        store,
+        noProfileRequests(),
+      );
+      return undefined;
+    });
+
+    await Promise.resolve();
+
+    expect(profile()?.displayName).toBe("以前の表示名");
+
+    const newProfile = profileEvent(
+      41,
+      JSON.stringify({ display_name: "新しい表示名", about: "新しい自己紹介" }),
+      1_700_000_001,
+    );
+    store.put(newProfile, "wss://relay.example/" as RelayUrl);
+
+    expect(profile()?.displayName).toBe("新しい表示名");
+    expect(profile()?.about).toBe("新しい自己紹介");
+    dispose();
   });
 });

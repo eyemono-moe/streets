@@ -44,6 +44,7 @@ const mountProfile = (profile: {
   };
   const store = {
     latestReplaceable: () => metadata,
+    onReplaceableChanged: () => () => {},
   } as unknown as EventStore;
   const follower = { ...metadata, id: "e".repeat(64), kind: 3 };
   const requests = noOpRequests();
