@@ -139,7 +139,7 @@ export const createAccountSettings = (
   const current = createMemo<RelayListState>(() => {
     version();
     const pubkey = options.pubkey();
-    if (!pubkey) return { phase: "signed-out", pubkey: undefined };
+    if (!pubkey) return { phase: "signed-out" };
     if (!options.relayListSettled()) return { phase: "loading" };
     const event = options.store.latestReplaceable(RELAY_LIST_KIND, pubkey);
     return event
@@ -150,7 +150,7 @@ export const createAccountSettings = (
   const profileCurrent = createMemo<ProfileState>(() => {
     version();
     const pubkey = options.pubkey();
-    if (!pubkey) return { phase: "signed-out" };
+    if (!pubkey) return { phase: "signed-out", pubkey: undefined };
     if (
       options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) === undefined
     ) {

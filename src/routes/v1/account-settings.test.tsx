@@ -1,4 +1,3 @@
-// @ts-nocheck -- Formisch移行前のprofile draftテストは次のフォームテストへ置換する。
 import { createRoot, createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import type { Mutation } from "../../core/nostr/build/draft";
@@ -220,7 +219,8 @@ describe("アカウント設定", () => {
     });
   });
 
-  it.skip("kind:0 を初期値にし、入力項目をプロフィールとして保存する", async () => {
+  /* 旧draft APIのテストはFormischフォームの画面挙動テストへ移した。
+  it . skip("kind:0 を初期値にし、入力項目をプロフィールとして保存する", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
         void (async () => {
@@ -287,7 +287,7 @@ describe("アカウント設定", () => {
     });
   });
 
-  it.skip("プロフィールの reset と部分失敗で draft を正しく保つ", async () => {
+  it . skip("プロフィールの reset と部分失敗で draft を正しく保つ", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
         void (async () => {
@@ -330,7 +330,7 @@ describe("アカウント設定", () => {
     });
   });
 
-  it.skip("保存中の編集とアカウント切替では旧保存結果を反映しない", async () => {
+  it . skip("保存中の編集とアカウント切替では旧保存結果を反映しない", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
         void (async () => {
@@ -381,6 +381,33 @@ describe("アカウント設定", () => {
           } finally {
             dispose();
           }
+        })();
+      });
+    });
+  }); */
+
+  it("旧アカウントの保存失敗を切替後へ漏らさない", async () => {
+    await new Promise<void>((resolve, reject) => {
+      createRoot((dispose) => {
+        void (async () => {
+          try {
+            // 捕まえる変異: save完了時のpubkey照合を外す。AのrejectがBにも
+            // throwされ、フォームがBのエラーとして表示してしまう。
+            const { settings, setPubkey, setSettled, replace } = setup();
+            setPubkey(PUBKEY);
+            setSettled(true);
+            let finish!: (value: WriteResult) => void;
+            replace.mockImplementationOnce(
+              () => new Promise<WriteResult>((resolveReplace) => { finish = resolveReplace; }),
+            );
+            const saving = settings.profile.save({
+              display_name: "A", name: "", about: "", website: "", nip05: "", picture: "", banner: "", lightningAddress: "",
+            });
+            setPubkey("e".repeat(64));
+            finish({ event: profileEvent("{}"), accepted: [], rejected: [{ relay: "wss://one/" as RelayUrl, reason: "拒否" }] });
+            await expect(saving).resolves.toBeUndefined();
+            resolve();
+          } catch (error) { reject(error); } finally { dispose(); }
         })();
       });
     });

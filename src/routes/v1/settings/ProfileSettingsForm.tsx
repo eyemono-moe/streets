@@ -57,8 +57,11 @@ const ProfileSettingsForm: Component = () => {
   });
 
   const saveProfile = handleSubmit(form, async (values) => {
+    const savedPubkey = profile.current().pubkey;
     await profile.save(values);
-    reset(form, { initialInput: values, keepInput: true });
+    if (profile.current().pubkey === savedPubkey) {
+      reset(form, { initialInput: values, keepInput: true });
+    }
   });
 
   return (
