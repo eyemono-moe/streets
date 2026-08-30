@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { describe, expect, it } from "vitest";
 import { type NostrEvent, computeEventId } from "../../core/nostr/event";
 import { EventStore } from "../../core/read/event-store";
@@ -153,5 +153,83 @@ describe("useProfileData", () => {
     expect(profile()?.displayName).toBe("新しい表示名");
     expect(profile()?.about).toBe("新しい自己紹介");
     dispose();
+  });
+
+  it("kind:0 の削除後は表示を空に戻す", async () => {
+    // 捕まえる変異: check() が event 不在で setProfile(undefined) しない。
+    // publish 全失敗時にWriterが楽観挿入を巻き戻しても、表示だけが残る。
+    let dispose!: () => void;
+    let profile!: ReturnType<typeof useProfileData>;
+    const store = new EventStore();
+    const event = profileEvent(
+      42,
+      JSON.stringify({ display_name: "一時的な表示名" }),
+      1_700_000_000,
+    );
+    createRoot((stop) => {
+      dispose = stop;
+      profile = useProfileData(() => event.pubkey, store, noProfileRequests());
+      return undefined;
+    });
+
+    await Promise.resolve();
+    store.put(event, "wss://relay.example/" as RelayUrl);
+    expect(profile()?.displayName).toBe("一時的な表示名");
+
+    store.remove(event.id);
+    expect(profile()).toBeUndefined();
+    dispose();
+  });
+
+  it("pubkey切替とdispose後は対象外のkind:0更新を反映しない", async () => {
+    // 捕まえる変異: effect cleanup からEventStore購読の解除を外す。切替前・
+    // dispose前のpubkey更新が、現在または破棄済みのプロフィールを上書きする。
+    let dispose!: () => void;
+    let profile!: ReturnType<typeof useProfileData>;
+    const store = new EventStore();
+    const first = profileEvent(
+      43,
+      JSON.stringify({ display_name: "最初の表示名" }),
+      1_700_000_000,
+    );
+    const second = profileEvent(
+      44,
+      JSON.stringify({ display_name: "次の表示名" }),
+      1_700_000_000,
+    );
+    const [pubkey, setPubkey] = createSignal(first.pubkey);
+    createRoot((stop) => {
+      dispose = stop;
+      profile = useProfileData(pubkey, store, noProfileRequests());
+      return undefined;
+    });
+
+    await Promise.resolve();
+    store.put(first, "wss://relay.example/" as RelayUrl);
+    expect(profile()?.displayName).toBe("最初の表示名");
+
+    setPubkey(second.pubkey);
+    await Promise.resolve();
+    expect(profile()).toBeUndefined();
+
+    const updatedFirst = profileEvent(
+      43,
+      JSON.stringify({ display_name: "古い表示名の更新" }),
+      1_700_000_001,
+    );
+    store.put(updatedFirst, "wss://relay.example/" as RelayUrl);
+    expect(profile()).toBeUndefined();
+
+    store.put(second, "wss://relay.example/" as RelayUrl);
+    expect(profile()?.displayName).toBe("次の表示名");
+
+    dispose();
+    const updatedSecond = profileEvent(
+      44,
+      JSON.stringify({ display_name: "破棄後の表示名" }),
+      1_700_000_001,
+    );
+    store.put(updatedSecond, "wss://relay.example/" as RelayUrl);
+    expect(profile()?.displayName).toBe("次の表示名");
   });
 });

@@ -83,7 +83,10 @@ export const useProfileData = (
 
     const check = (): boolean => {
       const event = store.latestReplaceable(0, key);
-      if (!event) return false;
+      if (!event) {
+        setProfile(undefined);
+        return false;
+      }
       const parsed = parseProfileContent(event.content);
       // `about` のカスタム絵文字 (NIP-30) を引くのに kind:0 の `emoji`
       // タグが要る。`content` のパース結果には含まれないので、ここで
