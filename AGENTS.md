@@ -14,6 +14,7 @@
 | 毎回 | [CONTEXT.md](./CONTEXT.md) 全文。用語、ADR の索引、コメントとドキュメントの書き方 |
 | 着手時 | 対象の GitHub Issue と、そこから直接リンクされた仕様・計画・followups の節 |
 | 判断が必要な時 | `CONTEXT.md` の索引から該当する [ADR](./docs/adr/) だけ |
+| どこに何があるか知りたい時 | [src/core/README.md](./src/core/README.md)（層の図、ディレクトリ、read/ の全ファイル、起動の流れ） |
 | 読み取り層を触る時 | [architecture.md](./docs/design/architecture.md) の関係する節と、[read-layer-followups.md](./docs/design/read-layer-followups.md) の対応する節 |
 
 ## 環境

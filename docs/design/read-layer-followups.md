@@ -795,6 +795,110 @@ kind:24133の購読・publishは既存`ConnectionPool`を共有する。bunker U
 - client keyをWebCryptoのnon-extractable keyとして保持できるかの検証
 - `switch_relays`を合理的な間隔で再取得する運用
 
+## 他クライアントの実装調査で見つかった差分（2026-08-29）
+
+[Nostr クライアントは何を最適化しているのか](../blog/2026-08-29-nostr-client-optimizations.md) で rx-nostr / NDK / applesauce / welshman と nostter / Jumble / noStrudel / Coracle / Damustr / Primal を読み、streets に無い仕組みだけをここに残す。**どれも「壊れている」ではなく「まだ持っていない」である。**
+
+### 購読数に上限が無い（`max_subscriptions` を読んでいるのに使っていない）
+
+`pool.subscribe()` はセクションごと・リレーごとに呼ばれる。同一リレー向けの REQ マージ（下記「後続 #3（接続プール）で扱うと決まったもの」）が未実装なので、カラム 5 本 × 担当リレー 10 本なら 1 リレーに 50 本の REQ が向かいうる。**接続数の予算 30（[ADR-0011](../adr/0011-performance-budget.md)）は守れていても、購読数は無防備である。**
+
+NIP-11 の `limitation.max_subscriptions` は `relay-info.ts` が既にパースして `RelayInfo` に載せている。しかし `RelayInfoRegistry` が公開しているのは `max_limit` だけで（`maxLimit()`）、`max_subscriptions` を読み出す口が無い。
+
+nostter は `Nip11Registry.setDefault({ limitation: { max_subscriptions: 20 } })` を置き、リレーが宣言しなければ 20 とみなす。上限を超えたときリレーが取る行動は仕様が決めていないので、古い購読を黙って切られると**そのカラムだけ更新が止まり、こちらからは EOSE 済みの正常な購読と区別が付かない**。
+
+マージを実装するときに NDK の制約も引き継ぐことになる。NDK の `mergeFilters` は `limit` を持つフィルタを束ねない —— `limit: 200` の 2 本を 1 本に畳むと、どちらのカラムも 200 件を受け取れなくなるからである。[ADR-0024](../adr/0024-shared-bodies-per-section-membership.md) が「メンバーシップは経路依存」と言っているのと同じ理由が、マージの側にも出る。
+
+### 「引いたが無かった」に有効期限が無い
+
+`profile-requests.request(pubkey)` は `replaceableFetchedAt` が `undefined` なら必ず要求する。kind:0 を持たない著者、または到達可能なリレーに kind:0 が無い著者は `fetchedAt` が永久に `undefined` のままなので、**その著者が画面に出るたびに 200ms 窓の REQ へ載り続ける。**
+
+`event-requests` には `settled`（引いたが見つからなかった id の集合）と `isUnresolved()` があるが、`request()` が呼ばれるたびに `settled.delete(id)` する。再要求を受け付けるための意図的な設計だが、時間による抑制が無いので、削除されたノートを引用しているノートがカラムに並ぶと同じ REQ が出続ける。
+
+Damustr は取得キャッシュを「値があれば無期限ヒット、`null`（引いたが無かった）なら 10 秒で捨てて再取得」という負のキャッシュにしている。streets には `CachePolicy` が既にあるので、`missTtlMs` を 1 つ足して `EventStore` が「この kind+pubkey / この id は時刻 T に引いて見つからなかった」を持つ形が素直である。
+
+### 水和したイベントがカラムに出てこない
+
+`EventStore.hydrate()` は IndexedDB から本体を戻すが、`SectionReader` は配達された id しか見ない（`store.get(id)` を引くのは `#onEvent` の中だけ）。**起動直後のカラムは、リレーが同じイベントを再配送するまで空のままである。** 水和した本体はその間ずっと使われない。
+
+Jumble は `(リレー集合, フィルタ)` をキーにタイムラインの `refs`（イベント id と `created_at` の組）を保存する。復帰時はキャッシュを先に画面へ返し、`since = 最新 + 1` にして差分だけ取りに行く。
+
+**これは ADR-0024 と矛盾しない。** メンバーシップが経路依存であることと、その経路がたどった結果を保存して復元することは別である。むしろ「store に問い合わせて再構成する」を避ける正しいやり方になる。保存するのは id と表示順だけなので、本体を共有する形も崩れない。
+
+### リレーヒントを読んでいるのに使っていない
+
+`event-requests.ts` の冒頭が「`relayHint` は受け取るが**使わない**」と明記している（`request(id, _relayHint)`）。
+
+nostter は二段階にしている。まず既定のリレーへ投げ、5 秒経ってもそのイベントが store に現れなければ、ヒント先のリレーへだけ投げ直す。ヒントを最初から使わないのは、ヒント先が既定のリレー集合の外にあると接続が 1 本増えるからである。
+
+**streets は接続予算 30 を持っているので、この「後から、見つからなかったものだけ」がむしろ噛み合う。** 予算に空きが無ければヒントを諦めて `incomplete` に出せばよく、黙って諦める経路にはならない。
+
+### 署名検証がメインスレッドで同期
+
+`EventStore.put()` は `verifyEvent()` をメインスレッドで同期に呼ぶ。`verifyMs` と `verifyCount` は既に計測されているが、**その値を読んで判断したことがまだ無い。**
+
+nostter は rx-nostr の verification service に Web Worker を渡して検証をメインスレッドから外している。Jumble と noStrudel は `nostr-wasm` を使う。**後者は [ADR-0020](../adr/0020-no-nostr-library-noble-primitives-only.md) に反するので採れない。Worker 化なら noble のままなので ADR-0020 には触れない。**
+
+ただし検証を Worker へ出すと `put()` が非同期になり、セクションへの配達順が変わる。ADR-0018 が同期に保つと決めているのは `get()` の話なので `put()` の非同期化は別問題だが、影響は小さくない。**先に `verifyMs` の実測値を見ること。** 計測手段があるのに使っていない状態で構造を変えるのは順序が違う。
+
+### 完了判定に閾値が無い
+
+`SectionReader.status` の `allSettled` は、到達不能を除いた全リレーが `complete` になることを要求する。生きているが遅いリレーが 1 本あると、そのカラムは `settled` にならない。
+
+welshman は閉じたリレーの割合が `threshold`（汎用の `load` は 0.5、タイムアウト 3 秒）を超えたら解決する。Jumble は半数が EOSE した時点で一度返し、全部揃ったら完了フラグを立てる。NDK は EOSE 到達率に応じて縮む待ち時間で打ち切る。
+
+**入れるなら、打ち切ったことを `incomplete` に出さなければならない。** そうしないと「待つのをやめた」が「全部見た」に化ける。[ADR-0015](../adr/0015-section-status-excludes-renderer-fetches.md) が守っている区別がここで崩れる。優先度は低く、**まず「実際にどれくらい待たされているか」を測るのが先である。**
+
+### 判断を保留したもの
+
+- **`hydrate()` が同期の全件ループ。** nostter は `chunk` の合間に `await sleep(0)` で UI スレッドを譲る。streets の水和が何件になるかは [ADR-0019](../adr/0019-two-bucket-cache-policy.md) の保持方針次第なので、件数が分かってから判断する。
+- **negentropy（NIP-77）。** `applesauce-relay` が対応している。手元の集合とリレーの集合の差だけを転送できるのでコールドスタートの転送量は原理的に最小になるが、対応リレーが限られ、ADR-0020 の下では自前実装になる。
+
+### ADR-0024 の理由づけが強すぎる（`seenRelays` を持つ store なら大半は式で書ける）
+
+[ADR-0024](../adr/0024-shared-bodies-per-section-membership.md) は「『store に対するリアクティブクエリでカラムを表現する』という案は、どのライブラリを使っても同じ理由で破れる」と書いている。**この一文は強すぎる。** 決定そのもの（本体は共有、メンバーシップはセクションが持つ）は正しいが、根拠が 1 つ足りない。
+
+`EventStore` は既に `seenRelays` を持っている。同 ADR が挙げた 4 つの理由のうち、
+
+- **取得先が違えば中身が違う** は `filter(store) ∩ { e | seenRelays(e) ∋ R }` で区別できる
+- **ページネーション位置がカラムごとに独立** は窓（`since`）をクエリに含めれば区別できる
+- **要求していないイベントが届く** は入口の `matchesAnyFilter` で捨てるので store に入らず、関数化と無関係
+
+再現できないまま残るのは **`limit` の裁量だけ**である。しかもその実害は「再現できない」ことではなく、**別のセクションが何を取ったかでこのセクションの中身が変わる**ことにある（スレッドを開くと同じ取得先のホーム列が増える）。
+
+決定を支える本当の根拠は次の 3 つである。**ADR を直すならこの 3 つに差し替える。**
+
+1. **網羅性を式が言えない。** `filter(store)` は行を返すが、その範囲を取り切ったかを言わない。空が「無かった」か「まだ」かを区別できない。
+2. **欠落の理由を返り値に置けない。** `unreachableRelays` / `unroutableAuthors` / `uncoveredAuthors` は取得の試みの属性であって、届いたデータの属性ではない。
+3. **破棄が成り立たなくなる。** メンバーシップを毎回 store から計算するなら、どのセクションがいつ何を要るか事前に分からないので **store から何も捨てられない**。逆に id の列として持てば、その列がそのまま参照カウントになる（applesauce の `addClaim` / `removeClaim` がこれ）。**9 節の「メモリ側の破棄戦略が未決」は、この 3 番目と同じものを別の側から見ている。**
+
+3 つ目は交換条件であって好みではない。**クエリとして計算する設計は、何も捨てられない store と引き換えにしか成り立たない。**
+
+### `EventStore.subscribe()` が全体ストリームなので、通知コストが画面のアイテム数に比例する
+
+`EventStore` は `subscribe(listener)` で**全変更を 1 本のストリーム**として配っている。購読者は自分に関係があるかを毎回自分で判定する。
+
+`ReactionList.tsx` と `EventActionBar.tsx` はどちらもアイテムごとにこれを購読し、コールバックの中で `change.event.tags.some((tag) => tag[0] === "e" && tag[1] === id)` を走らせている。**つまり 1 イベント挿入あたりのコストが `O(描画中のアイテム数 × そのイベントのタグ数)` になる。** 描画は 40 件から始まるので購読者は 80 個、バーストで毎秒数百件が流れると毎秒数万回のタグ走査がメインスレッドで回る。
+
+`EventStore` は `eventsByTag(name, value)` の索引を既に持っている。**索引はあるのに、通知がその索引を使っていない。**
+
+鍵つきの購読に変えれば、通知は関係する購読者にだけ配られる。
+
+```ts
+watch(key: WatchKey, listener: () => void): () => void
+
+type WatchKey =
+  | { type: "event";       id: string }
+  | { type: "replaceable"; kind: number; pubkey: string; d?: string }
+  | { type: "tag";         name: string; value: string }
+```
+
+内部は `Map<string, Set<listener>>` 1 つでよく、`put()` は挿入したイベントから影響する鍵（`ev:<id>`、`rp:<kind>:<pubkey>:<d>`、タグごとの `tag:<name>:<value>`）だけを計算して配る。**鍵は `eventsByTag` の索引の鍵と同じものになる。**
+
+`onReplaceableChanged` は既に鍵つきに近い形をしている（`account-settings.tsx` と `mute-list.tsx` が使っている）。それを一般化する形になる。
+
+なお `section-reader.ts` と `projected-writer.ts` の購読は全体ストリームでよい（前者は hide/remove を全メンバーシップに突き合わせる必要があり、後者は自分が入れた楽観イベントのエコーを待っている）。**アイテムごとの購読者 2 つだけが問題である。**
+
 ## 直さないと決めたもの（理由つき）
 
 ### `publish()` だけが触った新規 URL の接続失敗を degraded に数えること
