@@ -17,12 +17,13 @@ const profileEvent = (
   seed: number,
   content: string,
   createdAt: number,
+  kind = 0,
 ): NostrEvent => {
   const secretKey = keyFor(seed);
   const unsigned = {
     pubkey: bytesToHex(schnorr.getPublicKey(secretKey)),
     created_at: createdAt,
-    kind: 0,
+    kind,
     tags: [],
     content,
   };
@@ -222,6 +223,13 @@ describe("useProfileData", () => {
 
     store.put(second, "wss://relay.example/" as RelayUrl);
     expect(profile()?.displayName).toBe("次の表示名");
+
+    // 捕まえる変異: EventStore変更の kind 判定を外す。同じpubkeyのkind:3
+    // 到着でもkind:0を読み直して、新しいプロフィールオブジェクトを作る。
+    const displayedProfile = profile();
+    const contacts = profileEvent(44, "", 1_700_000_001, 3);
+    store.put(contacts, "wss://relay.example/" as RelayUrl);
+    expect(profile()).toBe(displayedProfile);
 
     dispose();
     const updatedSecond = profileEvent(
