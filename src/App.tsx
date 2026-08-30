@@ -1,18 +1,18 @@
 import { usePrefersDark } from "@solid-primitives/media";
 import { Router } from "@solidjs/router";
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query";
-import { SolidQueryDevtools } from "@tanstack/solid-query-devtools";
-import { type Component, createEffect } from "solid-js";
-import { EventCacheProvider } from "./context/eventCache";
+import { type Component, type ParentComponent, createEffect } from "solid-js";
 import { FileServerProvider } from "./context/fileServer";
 import { LoadingProvider } from "./context/loading";
 import { MeProvider } from "./context/me";
 import { MuteProvider } from "./context/mute";
 import { RelaysProvider } from "./context/relays";
-import { RxNostrProvider } from "./context/rxNostr";
+import { RxNostrProvider, useRxNostr } from "./context/rxNostr";
+import { NostrCoreProvider } from "./core/solid/provider";
 import { DeckProvider } from "./features/Column/context/deck";
 import { PostInputProvider } from "./features/CreatePost/context/postInputDialog";
 import routes from "./router";
+import AppDevtools from "./shared/components/devtools/AppDevtools";
 import { Toaster } from "./shared/libs/toast";
 
 const queryClient = new QueryClient({
@@ -25,8 +25,15 @@ const queryClient = new QueryClient({
   },
 });
 
+const AppNostrProviders: ParentComponent = (props) => {
+  const { core } = useRxNostr();
+
+  return <NostrCoreProvider core={core}>{props.children}</NostrCoreProvider>;
+};
+
 const App: Component = () => {
   const prefersDark = usePrefersDark();
+  // Keep the document theme class in sync with the user's OS-level color scheme.
   createEffect(() => {
     document.documentElement.classList.toggle("dark", prefersDark());
   });
@@ -34,12 +41,12 @@ const App: Component = () => {
   return (
     <>
       <QueryClientProvider client={queryClient}>
-        <EventCacheProvider>
-          <LoadingProvider>
-            <MeProvider>
-              <RelaysProvider>
-                <FileServerProvider>
-                  <RxNostrProvider>
+        <LoadingProvider>
+          <MeProvider>
+            <RelaysProvider>
+              <FileServerProvider>
+                <RxNostrProvider>
+                  <AppNostrProviders>
                     <MuteProvider>
                       <DeckProvider>
                         <PostInputProvider>
@@ -47,13 +54,13 @@ const App: Component = () => {
                         </PostInputProvider>
                       </DeckProvider>
                     </MuteProvider>
-                  </RxNostrProvider>
-                </FileServerProvider>
-                <SolidQueryDevtools />
-              </RelaysProvider>
-            </MeProvider>
-          </LoadingProvider>
-        </EventCacheProvider>
+                  </AppNostrProviders>
+                </RxNostrProvider>
+              </FileServerProvider>
+              <AppDevtools />
+            </RelaysProvider>
+          </MeProvider>
+        </LoadingProvider>
       </QueryClientProvider>
       <Toaster />
     </>

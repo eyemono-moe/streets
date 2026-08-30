@@ -4,8 +4,8 @@ on:
   push:
 
 jobs:
-  check:
-    name: Check
+  verify:
+    name: Verify
     runs-on: ubuntu-22.04
     strategy:
       matrix:
@@ -21,14 +21,19 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
-      - name: Run check
-        run: pnpm run check
-  test:
-    name: Test
+      - name: Run verification
+        run: pnpm run verify
+  e2e:
+    name: E2E
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        node-version: [20]
+        # 他のジョブより新しい Node を使う。フィクスチャが使う nostr-tools は
+        # **グローバルの `WebSocket`** を掴む (`useWebSocketImplementation` を
+        # 呼ばない限り `ws` を同梱しない) が、それが安定して存在するのは
+        # Node 22 以降であり、Node 20 では globalSetup のシードが
+        # 「WebSocket is not defined」で落ちる。
+        node-version: [22]
     steps:
       - uses: actions/checkout@v4
       - name: Install pnpm
@@ -40,24 +45,53 @@ jobs:
           cache: "pnpm"
       - name: Install dependencies
         run: pnpm install
-      - name: Run test
-        run: pnpm run test
-  build:
-    name: Build
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        node-version: [20]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      # playwright.config.ts の projects は chromium だけ。
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      # compose の bind 元 (`./data/...`) は .gitignore されており、クリーンな
+      # checkout には存在しない。relay 2 は SQLite をここへ作るので、
+      # 書けないと "unable to open database file" を吐き続けて起動しきらない
+      # (実測: この 2 点をどちらも踏んだ)。
+      #
+      # **作るだけでは足りない。** コンテナ内のプロセスは `appuser`
+      # (uid 1000) で走るが、runner の uid は 1001 なので、runner が作った
+      # ディレクトリには書けない。ローカルの開発機で問題が出ないのは、
+      # 開発者の uid がたまたま 1000 で一致しているからにすぎない。
+      # uid を決め打ちで chown するとイメージ側の変更で再び壊れるので、
+      # 誰でも書ける状態にする —— CI の使い捨てワークスペースであり、
+      # ここに守るべきものは無い。
+      - name: Create relay data directories
+        run: |
+          mkdir -p data/nostr-rs-relay/db data/nostr-rs-relay-2/db
+          chmod -R 777 data
+      # **リレー 2 本だけを起動する。** compose には nostrcheck (NIP-96)・
+      # mariadb・redis・traefik も入っているが、e2e はどれも使わない ——
+      # 起動を待つ時間と、無関係な失敗の経路が増えるだけ。relay 1 が要る
+      # postgres は depends_on で一緒に上がる。
+      - name: Start local relays
+        run: docker compose up -d nostr-rs-relay nostr-rs-relay-2
+      # `docker compose up -d` はコンテナが接続を受け付ける前に返る。
+      # **HTTP (NIP-11) の 200 では足りない。** nostr-rs-relay は DB を
+      # 開けなくても listen して NIP-11 だけは返すし、postgres を使う
+      # リレー1 は postgres が ready になる前に HTTP を返す。その窓で
+      # シードを始めると、書いたはずのイベントが後から読めない (実測:
+      # connection-budget の 1 本目が followees: 0 で落ちた)。
+      # WebSocket で REQ を投げ、EOSE が返ること —— つまり DB を引き切れる
+      # こと —— まで待つ。
+      - name: Wait for relays
+        run: node scripts/wait-for-relays.mjs
+      # シードは playwright の globalSetup (e2e/global-setup.ts) が行う。
+      - name: Run E2E
+        run: pnpm run e2e
+      # トレースは playwright.config.ts の `trace: "retain-on-failure"` で
+      # 失敗したテストにだけ残る。
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "pnpm"
-      - name: Install dependencies
-        run: pnpm install
-      - name: Build
-        run: pnpm run build
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
+      - name: Show relay logs
+        if: failure()
+        run: docker compose logs --tail 200 nostr-rs-relay nostr-rs-relay-2

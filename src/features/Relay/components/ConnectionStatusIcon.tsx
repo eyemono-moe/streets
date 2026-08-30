@@ -1,16 +1,17 @@
+import { normalizeURL } from "nostr-tools/utils";
 import { type Component, createMemo } from "solid-js";
-import { useRxNostr } from "../../../context/rxNostr";
 import { useI18n } from "../../../i18n";
 import "../../../assets/dialog.css";
+import { useCoreConnectionState } from "../../../core/solid/use-connection-state";
 import Tooltip from "../../../shared/components/Tooltip";
 
 const ConnectionStatusIcon: Component<{ relay: string }> = (props) => {
   const t = useI18n();
 
-  const { connectionState } = useRxNostr();
+  const connectionState = useCoreConnectionState();
 
   const state = createMemo(
-    () => connectionState[props.relay] ?? "not-connected",
+    () => connectionState()[normalizeURL(props.relay)] ?? "not-connected",
   );
 
   const statusMessage = createMemo(() => {

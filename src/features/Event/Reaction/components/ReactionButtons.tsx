@@ -4,7 +4,6 @@ import { useMe } from "../../../../context/me";
 import EmojiPicker, {
   type Emoji,
 } from "../../../../shared/components/EmojiPicker";
-import { showLoginModal } from "../../../../shared/libs/nostrLogin";
 import {
   useReactionsOfEvent,
   useSendReaction,
@@ -64,7 +63,6 @@ const ReactionButtons: Component<{
   const { sendReaction } = useSendReaction();
   const handleReaction = async (e: Emoji) => {
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 

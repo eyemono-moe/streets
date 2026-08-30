@@ -1,0 +1,202 @@
+import { describe, expect, it, vi } from "vitest";
+import type { NostrEvent } from "../nostr/event";
+import { FakeRelayConnection } from "./fake-relay-connection";
+
+const event = (id: string): NostrEvent => ({
+  id,
+  pubkey: "alice",
+  created_at: 100,
+  kind: 1,
+  tags: [],
+  content: id,
+  sig: `${id}-sig`,
+});
+
+describe("FakeRelayConnection", () => {
+  it("records the filters each subscription was opened with", () => {
+    const relay = new FakeRelayConnection("wss://fake");
+
+    relay.subscribe([{ kinds: [1], limit: 20 }], {
+      onEvent: vi.fn(),
+      onEose: vi.fn(),
+      onClosed: vi.fn(),
+    });
+
+    expect(relay.subscriptions).toHaveLength(1);
+    expect(relay.subscriptions[0].filters).toEqual([{ kinds: [1], limit: 20 }]);
+    expect(relay.subscriptions[0].closed).toBe(false);
+  });
+
+  it("delivers events and eose only to the targeted subscription", () => {
+    const relay = new FakeRelayConnection("wss://fake");
+    const first = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+    const second = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+
+    relay.subscribe([{ kinds: [1] }], first);
+    relay.subscribe([{ kinds: [7] }], second);
+
+    relay.emitEvent(0, event("note-1"));
+    relay.emitEose(0);
+
+    expect(first.onEvent).toHaveBeenCalledWith(event("note-1"));
+    expect(first.onEose).toHaveBeenCalledTimes(1);
+    expect(second.onEvent).not.toHaveBeenCalled();
+    expect(second.onEose).not.toHaveBeenCalled();
+  });
+
+  it("stops delivering after the subscription is closed", () => {
+    const relay = new FakeRelayConnection("wss://fake");
+    const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+
+    const sub = relay.subscribe([{ kinds: [1] }], handlers);
+    sub.close();
+    relay.emitEvent(0, event("note-1"));
+
+    expect(relay.subscriptions[0].closed).toBe(true);
+    expect(handlers.onEvent).not.toHaveBeenCalled();
+  });
+
+  it("reports published events in order", async () => {
+    const relay = new FakeRelayConnection("wss://fake");
+
+    await relay.publish(event("note-1"));
+    await relay.publish(event("note-2"));
+
+    expect(relay.published.map((e) => e.id)).toEqual(["note-1", "note-2"]);
+  });
+
+  it("die() notifies onClose and closes every subscription", () => {
+    const connection = new FakeRelayConnection("wss://one/");
+    const closed: string[] = [];
+    connection.onClose(() => closed.push("pool"));
+    connection.subscribe([{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => closed.push(`sub:${reason}`),
+    });
+
+    connection.die();
+
+    expect(closed).toEqual(["sub:socket closed", "pool"]);
+    expect(connection.closed).toBe(true);
+  });
+
+  it("close() notifies onClose and delivers onClosed to subscriptions, matching die()", () => {
+    const connection = new FakeRelayConnection("wss://one/");
+    const closed: string[] = [];
+    connection.onClose(() => closed.push("pool"));
+    connection.subscribe([{ kinds: [1] }], {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason) => closed.push(`sub:${reason}`),
+    });
+
+    connection.close();
+
+    expect(closed).toEqual(["sub:socket closed", "pool"]);
+    expect(connection.closed).toBe(true);
+  });
+
+  it("calling close() twice is safe and does not re-notify listeners", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("called"));
+
+    connection.close();
+    connection.close(); // idempotency guard makes this a no-op
+
+    expect(calls).toEqual(["called"]);
+  });
+
+  it("late registration of onClose listener fires synchronously for close()", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.close();
+
+    const calls: string[] = [];
+    connection.onClose(() => calls.push("late"));
+
+    expect(calls).toEqual(["late"]);
+  });
+
+  it("unsubscribe function from onClose removes the listener", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    const calls: string[] = [];
+    const off = connection.onClose(() => calls.push("a"));
+
+    off();
+    connection.close();
+
+    expect(calls).toEqual([]);
+  });
+
+  it("subscribe on a closed connection immediately reports closed and does not create an active subscription", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.close();
+
+    const calls: string[] = [];
+    const handlers = {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason: string) => calls.push(reason),
+    };
+
+    const sub = connection.subscribe([{ kinds: [1] }], handlers);
+    sub.close(); // should be safe to call on a dead subscription
+
+    expect(calls).toEqual(["socket closed"]);
+    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
+  });
+
+  it("subscribe on a connection after die() immediately reports closed", () => {
+    const connection = new FakeRelayConnection("wss://fake");
+    connection.die();
+
+    const calls: string[] = [];
+    const handlers = {
+      onEvent: () => {},
+      onEose: () => {},
+      onClosed: (reason: string) => calls.push(reason),
+    };
+
+    connection.subscribe([{ kinds: [1] }], handlers);
+
+    expect(calls).toEqual(["socket closed"]);
+    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
+  });
+
+  describe("onOpen", () => {
+    // 変異: 既定を autoOpen: false にすると、既存のプールのテストが
+    // 一斉に落ちる (どれも構築した瞬間から生きている前提)。
+    it("is open from construction by default", () => {
+      const connection = new FakeRelayConnection("wss://a");
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("open"));
+      expect(calls).toEqual(["open"]);
+    });
+
+    // 変異: autoOpen: false を無視すると落ちる。恒久的に到達不能な
+    // リレー (open が永久に来ない) を再現するために必要。
+    it("stays unopened until open() when constructed with autoOpen: false", () => {
+      const connection = new FakeRelayConnection("wss://a", {
+        autoOpen: false,
+      });
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("open"));
+      expect(calls).toEqual([]);
+
+      connection.open();
+      expect(calls).toEqual(["open"]);
+    });
+
+    // 変異: open() で opened フラグを立てないと落ちる。
+    it("fires immediately for listeners registered after open()", () => {
+      const connection = new FakeRelayConnection("wss://a", {
+        autoOpen: false,
+      });
+      connection.open();
+      const calls: string[] = [];
+      connection.onOpen(() => calls.push("late"));
+      expect(calls).toEqual(["late"]);
+    });
+  });
+});

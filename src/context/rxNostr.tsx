@@ -1,4 +1,3 @@
-import { normalizeURL } from "nostr-tools/utils";
 import {
   type ConnectionState,
   Nip11Registry,
@@ -16,24 +15,36 @@ import {
   type ParentComponent,
   createContext,
   createEffect,
+  createMemo,
   lazy,
   onCleanup,
   useContext,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { isDev } from "solid-js/web";
+import { type NostrCore, createNostrCore } from "../core/solid/provider";
 import type RxNostrDevtoolsComp from "../shared/components/devtools/RxNostrDevtools";
 import { mergeSimilarAndRemoveEmptyFilters } from "../shared/libs/mergeFilters";
-import { cacheAndEmitRelatedEvent } from "../shared/libs/query";
 import workerUrl from "../shared/libs/verifierWorker?worker&url";
-import { eventCacheSetter } from "./eventCache";
 import { useRelays } from "./relays";
 
 type Emitter = RxReqEmittable<{ relays: string[] }>["emit"];
 type EmitParams = Parameters<Emitter>;
 
+type CoreEvent = Parameters<NostrCore["repository"]["putEvent"]>[0]["event"];
+
+export const ingestNostrCoreEvent = async (
+  core: NostrCore,
+  event: CoreEvent,
+  relay: string,
+  _now = Date.now,
+) => {
+  await core.repository.putEvent({ event, relay });
+};
+
 const RxNostrContext = createContext<{
   rxNostr: RxNostr;
+  core: ReturnType<typeof createNostrCore>;
   connectionState: {
     [from: string]: ConnectionState | undefined;
   };
@@ -67,6 +78,11 @@ export const RxNostrProvider: ParentComponent = (props) => {
     retry: { strategy: "immediately", maxCount: 1 },
     authenticator: "auto",
   });
+  const core = createMemo(() => createNostrCore({ rxNostr }));
+
+  onCleanup(() => {
+    core().dispose();
+  });
 
   const [relays] = useRelays();
   // 使用するリレーを設定
@@ -86,11 +102,12 @@ export const RxNostrProvider: ParentComponent = (props) => {
 
   const rxBackwardReq = createRxBackwardReq();
   const emit = rxBackwardReq.emit;
-  const setter = eventCacheSetter();
 
   allMessage$.pipe(filterByType("EVENT"), uniq()).subscribe({
     next: (e) => {
-      cacheAndEmitRelatedEvent(e, emit, setter);
+      void ingestNostrCoreEvent(core(), e.event, e.from).catch(() => {
+        // Keep the legacy rx-nostr stream alive even if v1 projection rejects.
+      });
     },
   });
 
@@ -120,18 +137,29 @@ export const RxNostrProvider: ParentComponent = (props) => {
 
   const [connectionState, setConnectionState] = createStore<{
     [from: string]: ConnectionState;
-  }>({});
+  }>(core().connectionState.getSnapshot() as Record<string, ConnectionState>);
 
-  rxNostr.createConnectionStateObservable().subscribe({
-    next(e) {
-      setConnectionState(normalizeURL(e.from), e.state);
-    },
+  const connectionStateSubscription = core()
+    .connectionState.observe()
+    .subscribe({
+      next(snapshot) {
+        for (const [relay, state] of Object.entries(snapshot)) {
+          if (state) {
+            setConnectionState(relay, state);
+          }
+        }
+      },
+    });
+
+  onCleanup(() => {
+    connectionStateSubscription.unsubscribe();
   });
 
   return (
     <RxNostrContext.Provider
       value={{
         rxNostr,
+        core: core(),
         connectionState,
         actions: {
           emit,
@@ -140,7 +168,7 @@ export const RxNostrProvider: ParentComponent = (props) => {
       }}
     >
       {props.children}
-      <RxNostrDevtools />
+      <RxNostrDevtools core={core()} />
     </RxNostrContext.Provider>
   );
 };
@@ -155,6 +183,6 @@ export const useRxNostr = () => {
   return ctx;
 };
 
-const RxNostrDevtools: typeof RxNostrDevtoolsComp = isDev
+const RxNostrDevtools = isDev
   ? lazy(() => import("../shared/components/devtools/RxNostrDevtools"))
-  : () => null;
+  : (_props: Parameters<typeof RxNostrDevtoolsComp>[0]) => null;

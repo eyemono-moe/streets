@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "reporters": ["html", "clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/core/nostr/build/*.ts",
+    "src/core/write/*.ts",
+    "!**/*.test.ts"
+  ],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "thresholds": {
+    "high": 100,
+    "low": 0,
+    "break": 100
+  },
+  "_thresholdNote": "break は初回計測 (100.00%) に合わせたラチェット。上げるのはよいが、下げてはいけない — 下げるなら回帰の理由を ADR-0029 に書くこと。",
+  "tempDirName": ".stryker-tmp",
+  "ignorePatterns": [
+    "data",
+    "dist",
+    ".output",
+    "playwright-report",
+    "test-results",
+    "reports",
+    ".stryker-tmp",
+    ".superpowers"
+  ],
+  "plugins": ["@stryker-mutator/vitest-runner"]
+}

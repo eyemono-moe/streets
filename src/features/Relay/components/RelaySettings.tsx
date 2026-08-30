@@ -121,7 +121,10 @@ const RelaySettings: Component = () => {
     });
   });
 
-  // TODO: nostr-loginを使用するとgetRelaysが使えないため一旦実装を見送る
+  // 見送りの理由だった nostr-login は削除済み (2026-08-05、src/context/me.tsx
+  // 参照)。ただし旧実装は後続の計画で丸ごと削除するため、ここを実装し直す
+  // ことはしない。この経路が要るなら v1 側で作る。
+  // 元の理由: nostr-loginを使用するとgetRelaysが使えないため一旦実装を見送る
   // see: https://github.com/nostrband/nostr-login/blob/3f65e1e57df6353996996169e643ba9ce1bf1b87/packages/auth/src/modules/Nostr.ts#L81-L84
   // const [nip07Relays] = createResource(() => useNIP07().getRelays());
   // const syncWithNIP07 = async () => {

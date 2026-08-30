@@ -1,6 +1,5 @@
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
 import { useMe } from "../../../../context/me";
-import { showLoginModal } from "../../../../shared/libs/nostrLogin";
 import type { Reaction } from "../../../../shared/libs/parser/7_reaction";
 import { useSendReaction } from "../../../../shared/libs/query";
 import EmbedUser from "../../../User/components/EmbedUser";
@@ -29,7 +28,6 @@ const ReactionButton: Component<ReactionButtonProps> = (props) => {
 
   const handleReaction = async () => {
     if (!isLogged()) {
-      showLoginModal();
       return;
     }
 

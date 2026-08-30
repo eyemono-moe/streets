@@ -1,13 +1,9 @@
-import { waitNostr } from "nip07-awaiter";
 import {
   type ParentComponent,
   createContext,
   createSignal,
-  onMount,
   useContext,
 } from "solid-js";
-import { useI18n } from "../i18n";
-import { useNIP07 } from "../shared/libs/useNIP07";
 
 type MeState = {
   myPubkey: () => string | undefined;
@@ -21,34 +17,23 @@ const MeContext = createContext<[state: MeState]>([
   },
 ]);
 
+/**
+ * **旧実装のログインは削除済み (2026-08-05)。** `myPubkey` は常に `undefined`
+ * であり、`isLogged()` は常に `false` を返す。
+ *
+ * 以前は `nostr-login` が `init()` で `window.nostr` を差し替え、その
+ * `nlAuth` イベントからここへ pubkey が流れ込んでいた。そのライブラリを
+ * 依存ごと削除したので、旧実装 (`/`) は恒久的にログアウト状態になる。
+ * 各所に元からある `if (!isLogged()) return;` というガードはそのまま効くので、
+ * 書き込み系の操作は実行されずに止まる。
+ *
+ * **この Provider を残しているのは、旧実装の広範なコードが `useMe()` を
+ * 呼んでいるためだけである。** 認証を復活させる先はここではなく v1 の署名器
+ * seam (`src/core/signer/`、ADR-0008) であり、旧実装そのものは後続の計画で
+ * 削除する。
+ */
 export const MeProvider: ParentComponent = (props) => {
-  const t = useI18n();
-
-  const [myPubkey, setMyPubkey] = createSignal<string | undefined>();
-
-  // nip07の読み込み後にnostr loginを初期化しないとアカウント切り替え画面が表示されてしまう
-  onMount(async () => {
-    const { init, launch } = await import("nostr-login");
-    const n = await waitNostr(1000);
-    await init({
-      title: t("nostrLogin.title"),
-      description: t("nostrLogin.description"),
-    });
-    // nip07が見つからなかった時はwelcome screenを表示する
-    if (n === undefined) {
-      launch("welcome");
-    }
-  });
-
-  // nostr loginでのログイン/ログアウトが発生した際にpubkeyを再取得する
-  document.addEventListener("nlAuth", async (e) => {
-    if (e.detail.type === "login" || e.detail.type === "signup") {
-      const p = await useNIP07().getPublicKey();
-      setMyPubkey(p);
-    } else {
-      setMyPubkey(undefined);
-    }
-  });
+  const [myPubkey] = createSignal<string | undefined>();
 
   const isLogged = () => myPubkey() !== undefined;
 

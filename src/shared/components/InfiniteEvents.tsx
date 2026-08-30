@@ -1,14 +1,12 @@
 import { createViewportObserver } from "@solid-primitives/intersection-observer";
 import type { Filter } from "nostr-tools";
-import { createRxForwardReq, now, uniq } from "rx-nostr";
-import { map, tap } from "rxjs";
-import { type Component, For, Match, Switch, from, onMount } from "solid-js";
-import { eventCacheSetter } from "../../context/eventCache";
-import { useRxNostr } from "../../context/rxNostr";
+import { type Component, For, Match, Switch } from "solid-js";
+import {
+  createEventFeedId,
+  useCoreEventFeed,
+} from "../../core/solid/use-event-feed";
+import type { NostrTransportFilter } from "../../core/transport/transport";
 import { useI18n } from "../../i18n";
-import { parseEventPacket } from "../libs/parser";
-import { cacheAndEmitRelatedEvent, createInfiniteRxQuery } from "../libs/query";
-import { toArrayScan } from "../libs/rxjs";
 import Event from "./Event";
 
 const InfiniteEvents: Component<{
@@ -16,59 +14,32 @@ const InfiniteEvents: Component<{
   relays?: string[];
 }> = (props) => {
   const t = useI18n();
-
-  const latestRxReq = createRxForwardReq();
-  const setter = eventCacheSetter();
-
-  const {
-    rxNostr,
-    actions: { emit },
-  } = useRxNostr();
-
-  const latestEvents = from(
-    rxNostr
-      .use(latestRxReq, {
-        on: {
-          relays: props.relays,
-          defaultReadRelays: !props.relays,
-        },
-      })
-      .pipe(
-        uniq(),
-        tap({
-          next: (e) => {
-            cacheAndEmitRelatedEvent(e, emit, setter);
-          },
-        }),
-        map((e) => parseEventPacket(e)),
-        toArrayScan(true),
-      ),
-  );
-
-  onMount(() => {
-    latestRxReq.emit({
-      ...props.filter,
-      since: now,
-    });
+  const feed = useCoreEventFeed(() => {
+    const filters = props.filter as NostrTransportFilter;
+    const relays = props.relays;
+    return {
+      id: createEventFeedId({
+        filters,
+        relays,
+        strategy: "liveBackfill",
+      }),
+      filters,
+      relays,
+      strategy: "liveBackfill",
+      limit: 20,
+    };
   });
-
-  const {
-    data: oldEvents,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-  } = createInfiniteRxQuery(() => ({
-    filter: props.filter,
-    limit: 20,
-    relays: props.relays,
-  }));
 
   // @ts-ignore(6133) typescript can't detect `use` directive
   const [intersectionObserver] = createViewportObserver();
 
+  const fetchNextPage = () => {
+    void feed.fetchNextPage();
+  };
+
   return (
     <div class="h-full divide-y">
-      <For each={latestEvents()}>
+      <For each={feed.events()}>
         {(event) => (
           <Event
             event={event}
@@ -79,25 +50,9 @@ const InfiniteEvents: Component<{
           />
         )}
       </For>
-      <For each={oldEvents.pages}>
-        {(page) => (
-          <For each={page}>
-            {(event) => (
-              <Event
-                event={event}
-                showActions
-                showReactions
-                collapseReplies
-                showReplies
-              />
-            )}
-          </For>
-        )}
-      </For>
       <div
         use:intersectionObserver={(e) => {
-          if (hasNextPage() && !isFetching() && e.isIntersecting) {
-            console.log("fetching next page");
+          if (feed.hasNextPage() && !feed.isFetching() && e.isIntersecting) {
             fetchNextPage();
           }
         }}
@@ -106,12 +61,12 @@ const InfiniteEvents: Component<{
         class="flex h-25vh w-full items-start justify-center bg-transparent bg-transparent p-2 enabled:active:bg-alpha-active not-active:enabled:hover:bg-alpha-hover disabled:opacity-50 data-[loading='true']:cursor-progress"
         type="button"
         onClick={fetchNextPage}
-        disabled={!hasNextPage() || isFetching()}
-        data-loading={isFetching()}
+        disabled={!feed.hasNextPage() || feed.isFetching()}
+        data-loading={feed.isFetching()}
       >
         <Switch fallback={t("loadMore")}>
-          <Match when={isFetching()}>{t("loading")}</Match>
-          <Match when={!hasNextPage()}>{t("noMoreEvents")}</Match>
+          <Match when={feed.isFetching()}>{t("loading")}</Match>
+          <Match when={!feed.hasNextPage()}>{t("noMoreEvents")}</Match>
         </Switch>
       </button>
     </div>

@@ -67,7 +67,26 @@ const routes = [
         path: "/add-column/reactions",
         component: lazy(() => import("./routes/addColumn/reactions")),
       },
+      {
+        path: "/debug/v1-core",
+        component: lazy(() => import("./routes/debug/v1-core")),
+      },
+      {
+        path: "/debug/v1-section",
+        component: lazy(() => import("./routes/debug/v1-section")),
+      },
     ],
+  },
+  // `/v1` は `Root` の子ではなく、`"/"` と並ぶトップレベルの経路に
+  // する。`Root` は旧実装の `<Columns />` を `{props.children}` の隣に常時
+  // 描画するため、`Root` の子のままだと 3 カラムが旧デッキの "Home" /
+  // "Notifications" カラムに押し潰されて画面幅が足りない (Task 2 のスクリ
+  // ーンショットで確認済み)。トップレベルにすれば `Root` を完全に経由せず、
+  // ビューポート全幅を使える。`App.tsx` のプロバイダは `<Router>` の外側に
+  // あるので、トップレベル経路でも変わらず効く。
+  {
+    path: "/v1",
+    component: lazy(() => import("./routes/v1")),
   },
 ] satisfies RouteDefinition[];
 
