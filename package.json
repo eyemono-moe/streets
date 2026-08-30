@@ -32,7 +32,7 @@
   "dependencies": {
     "@ark-ui/solid": "5.38.1",
     "@floating-ui/dom": "1.6.13",
-    "@formisch/solid": "^1.0.0",
+    "@formisch/solid": "1.0.0",
     "@kobalte/core": "0.13.8",
     "@modular-forms/solid": "0.25.0",
     "@neodrag/solid": "2.3.0",

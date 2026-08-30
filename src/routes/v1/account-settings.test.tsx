@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Mutation } from "../../core/nostr/build/draft";
 import type { NostrEvent } from "../../core/nostr/event";
 import type { ReplaceableChange } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
 import type { RelayUrl } from "../../core/relay/relay-connection";
 import type { WriteResult } from "../../core/write/writer";
 import { createAccountSettings } from "./account-settings";
@@ -34,7 +35,10 @@ const setup = (initial?: NostrEvent) => {
   const [settled, setSettled] = createSignal(false);
   let current = initial;
   let profile: NostrEvent | undefined;
+  const profileFetchedAt = new Map<string, number>();
   const listeners = new Set<(change: ReplaceableChange) => void>();
+  const profileListeners = new Set<() => void>();
+  const requestedProfiles: string[] = [];
   const replace = vi.fn(
     async (
       _kind: number,
@@ -53,11 +57,23 @@ const setup = (initial?: NostrEvent) => {
       latestReplaceable(kind) {
         return kind === 0 ? profile : current;
       },
+      replaceableFetchedAt(kind, author) {
+        return kind === 0 ? profileFetchedAt.get(author) : undefined;
+      },
       onReplaceableChanged(listener) {
         listeners.add(listener);
         return () => listeners.delete(listener);
       },
     },
+    profileRequests: {
+      request(author) {
+        requestedProfiles.push(author);
+      },
+      subscribe(listener) {
+        profileListeners.add(listener);
+        return () => profileListeners.delete(listener);
+      },
+    } satisfies Pick<ProfileRequests, "request" | "subscribe">,
     writer: { replace },
   });
   return {
@@ -65,9 +81,18 @@ const setup = (initial?: NostrEvent) => {
     setPubkey,
     setSettled,
     replace,
+    requestedProfiles,
+    settleProfiles() {
+      for (const listener of profileListeners) listener();
+    },
+    markProfileFetched(author = PUBKEY) {
+      profileFetchedAt.set(author, 1);
+    },
     receive(next: NostrEvent) {
-      if (next.kind === 0) profile = next;
-      else current = next;
+      if (next.kind === 0) {
+        profile = next;
+        profileFetchedAt.set(next.pubkey, 1);
+      } else current = next;
       for (const listener of listeners) {
         listener({ kind: next.kind, pubkey: next.pubkey });
       }
@@ -76,6 +101,72 @@ const setup = (initial?: NostrEvent) => {
 };
 
 describe("アカウント設定", () => {
+  it("対象の kind:0 を取得し終えるまでプロフィールを loading に保つ", () => {
+    createRoot((dispose) => {
+      // 捕まえる変異: kind:0 の取得完了を待たず、relayListSettled だけで
+      // 空プロフィールを ready にする。
+      const {
+        settings,
+        setPubkey,
+        setSettled,
+        requestedProfiles,
+        settleProfiles,
+        markProfileFetched,
+      } = setup();
+      setPubkey(PUBKEY);
+      setSettled(true);
+
+      expect(requestedProfiles).toContain(PUBKEY);
+      expect(settings.profile.current().phase).toBe("loading");
+
+      // 別バッチの完了では、対象 pubkey の未取得を完了扱いしない。
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("loading");
+
+      markProfileFetched();
+      settleProfiles();
+      expect(settings.profile.current()).toEqual({
+        phase: "ready",
+        values: {
+          display_name: "",
+          name: "",
+          about: "",
+          website: "",
+          nip05: "",
+          picture: "",
+          banner: "",
+          lightningAddress: "",
+        },
+      });
+      dispose();
+    });
+  });
+
+  it("アカウント切替後は旧プロフィールの取得完了で ready にしない", () => {
+    createRoot((dispose) => {
+      const {
+        settings,
+        setPubkey,
+        setSettled,
+        markProfileFetched,
+        settleProfiles,
+      } = setup();
+      const nextPubkey = "e".repeat(64);
+      setPubkey(PUBKEY);
+      setSettled(true);
+      setPubkey(nextPubkey);
+
+      markProfileFetched(PUBKEY);
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("loading");
+
+      markProfileFetched(nextPubkey);
+      settleProfiles();
+      expect(settings.profile.current().phase).toBe("ready");
+      dispose();
+    });
+  });
+
   it("kind:0 を初期値にし、入力項目をプロフィールとして保存する", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {

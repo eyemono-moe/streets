@@ -54,7 +54,14 @@ describe("ProfileSettingsForm", () => {
                 lud16: "old@lightning.example",
               }),
             ),
+          replaceableFetchedAt: () => 1,
           onReplaceableChanged: () => () => {},
+        },
+        profileRequests: {
+          request() {},
+          subscribe() {
+            return () => {};
+          },
         },
         writer: { replace },
       });

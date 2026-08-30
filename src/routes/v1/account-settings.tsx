@@ -14,6 +14,7 @@ import type {
   EventStore,
   ReplaceableChange,
 } from "../../core/read/event-store";
+import type { ProfileRequests } from "../../core/read/profile-requests";
 import {
   type RelayListEntry,
   parseRelayList,
@@ -28,7 +29,7 @@ const PROFILE_KIND = 0;
 
 type RelayListStore = Pick<
   EventStore,
-  "latestReplaceable" | "onReplaceableChanged"
+  "latestReplaceable" | "replaceableFetchedAt" | "onReplaceableChanged"
 >;
 
 export type AccountRelaySettings = {
@@ -80,6 +81,7 @@ export type CreateAccountSettingsOptions = {
   pubkey: Accessor<string | undefined>;
   relayListSettled: Accessor<boolean>;
   store: RelayListStore;
+  profileRequests: Pick<ProfileRequests, "request" | "subscribe">;
   writer: Pick<Writer, "replace">;
 };
 
@@ -163,11 +165,20 @@ export const createAccountSettings = (
     version();
     const pubkey = options.pubkey();
     if (!pubkey) return { phase: "signed-out" };
-    if (!options.relayListSettled()) return { phase: "loading" };
+    if (
+      options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) === undefined
+    ) {
+      return { phase: "loading" };
+    }
     return {
       phase: "ready",
       values: profileFor(options.store.latestReplaceable(PROFILE_KIND, pubkey)),
     };
+  });
+
+  createComputed(() => {
+    const pubkey = options.pubkey();
+    if (pubkey) options.profileRequests.request(pubkey);
   });
 
   createComputed(() => {
@@ -215,6 +226,17 @@ export const createAccountSettings = (
     },
   );
   onCleanup(offChanged);
+
+  const offProfileRequests = options.profileRequests.subscribe(() => {
+    const pubkey = options.pubkey();
+    if (
+      pubkey &&
+      options.store.replaceableFetchedAt(PROFILE_KIND, pubkey) !== undefined
+    ) {
+      setVersion((value) => value + 1);
+    }
+  });
+  onCleanup(offProfileRequests);
 
   const changeDraft = (next: RelayListEntry[]) => {
     setDraft(next);

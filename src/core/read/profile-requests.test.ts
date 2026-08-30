@@ -46,6 +46,33 @@ const stubManager = () => {
 };
 
 describe("createProfileRequests", () => {
+  it("イベントが無い取得完了も pubkey ごとの fetchedAt として記録する", async () => {
+    const store = new EventStore();
+    const manager = stubManager();
+    const clock = createFakeClock();
+    let finishFetch = () => {};
+    manager.fetchOnce.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishFetch = resolve;
+        }),
+    );
+    const requests = createProfileRequests({
+      store,
+      manager,
+      scheduler: clock,
+    });
+    const author = pubkeyFor(99);
+
+    requests.request(author);
+    clock.advance(200);
+    expect(store.replaceableFetchedAt(0, author)).toBeUndefined();
+
+    finishFetch();
+    await Promise.resolve();
+    expect(store.replaceableFetchedAt(0, author)).toBeDefined();
+  });
+
   it("送ったバッチの件数を lastBatchSize / maxBatchSize に出す", () => {
     // 捕まえる変異1: lastBatchSize を固定値 0 にする
     //   (上限に近づいていることが外から一切読めなくなる)

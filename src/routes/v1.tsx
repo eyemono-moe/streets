@@ -265,6 +265,7 @@ const V1Content: Component = () => {
     relayListSettled: () =>
       warmUp.state === "ready" || warmUp.state === "errored",
     store,
+    profileRequests,
     writer,
   });
   const deckStore = createDeckStore({
