@@ -1,109 +1,256 @@
 import { createSignal } from "solid-js";
 import { render } from "solid-js/web";
 import { describe, expect, it, vi } from "vitest";
-import type { Mutation } from "../../../core/nostr/build/draft";
-import type { NostrEvent } from "../../../core/nostr/event";
-import type { RelayUrl } from "../../../core/relay/relay-connection";
-import type { WriteResult } from "../../../core/write/writer";
-import {
-  AccountSettingsProvider,
-  createAccountSettings,
+import type {
+  AccountSettings,
+  ProfileInput,
+  ProfileState,
 } from "../account-settings";
+import { AccountSettingsProvider } from "../account-settings";
 import ProfileSettingsForm from "./ProfileSettingsForm";
 
-const PUBKEY = "f".repeat(64);
+const PUBKEY_A = "f".repeat(64);
+const PUBKEY_B = "e".repeat(64);
 
-const profileEvent = (content: string): NostrEvent => ({
-  id: "a".repeat(64),
-  pubkey: PUBKEY,
-  created_at: 1,
-  kind: 0,
-  tags: [],
-  content,
-  sig: "b".repeat(128),
+const emptyProfile: ProfileInput = {
+  display_name: "",
+  name: "",
+  about: "",
+  website: "",
+  nip05: "",
+  picture: "",
+  banner: "",
+  lightningAddress: "",
+};
+
+const ready = (
+  pubkey: string,
+  values: Partial<ProfileInput>,
+): ProfileState => ({
+  phase: "ready",
+  pubkey,
+  values: { ...emptyProfile, ...values },
 });
 
+const relayList: AccountSettings["relayList"] = {
+  current: () => ({ phase: "signed-out" }),
+  draft: () => [],
+  dirty: () => false,
+  saving: () => false,
+  error: () => undefined,
+  add: () => false,
+  toggle: () => {},
+  remove: () => {},
+  reset: () => {},
+  save: async () => {},
+};
+
+const renderProfileForm = (
+  initial: ProfileState,
+  save: AccountSettings["profile"]["save"] = async () => {},
+) => {
+  const [current, setCurrent] = createSignal(initial);
+  const host = document.createElement("div");
+  document.body.append(host);
+  const settings: AccountSettings = {
+    relayList,
+    profile: { current, save },
+  };
+  const dispose = render(
+    () => (
+      <AccountSettingsProvider value={settings}>
+        <ProfileSettingsForm />
+      </AccountSettingsProvider>
+    ),
+    host,
+  );
+  return { host, setCurrent, dispose };
+};
+
+const input = (host: HTMLElement, testId: string): HTMLInputElement => {
+  const element = host.querySelector<HTMLInputElement>(
+    `[data-testid="${testId}"]`,
+  );
+  if (!element) throw new Error(`${testId} を描画できませんでした`);
+  return element;
+};
+
+const edit = (element: HTMLInputElement, value: string) => {
+  element.value = value;
+  element.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+const button = (host: HTMLElement, label: string): HTMLButtonElement => {
+  const element = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+  if (!element) throw new Error(`${label} ボタンを描画できませんでした`);
+  return element;
+};
+
+const submit = (host: HTMLElement) => {
+  const form = host.querySelector<HTMLFormElement>("form");
+  if (!form) throw new Error("プロフィールフォームを描画できませんでした");
+  form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+};
+
 describe("ProfileSettingsForm", () => {
-  it("表示名と Lightning Address の入力を state に接続して送信する", async () => {
-    // 捕まえる変異: input の変更を profile.change へ渡さず、画面上だけ
-    // 更新して古い値を保存する。
-    const [pubkey, setPubkey] = createSignal<string>();
-    const replace = vi.fn(
-      async (
-        _kind: number,
-        _identifier: string | undefined,
-        _mutation: Mutation,
-      ): Promise<WriteResult> => ({
-        event: profileEvent("{}"),
-        accepted: ["wss://one/" as RelayUrl],
-        rejected: [],
-      }),
+  it("編集を戻すと取得したプロフィールへ戻り、操作を再び無効にする", () => {
+    // 捕まえる変異: reset の基準を取得値ではなく現在入力へ変える。
+    const { host, dispose } = renderProfileForm(
+      ready(PUBKEY_A, { display_name: "前の表示名" }),
     );
-    const host = document.createElement("div");
-    document.body.append(host);
-    let settings: ReturnType<typeof createAccountSettings> | undefined;
-    const dispose = render(() => {
-      settings = createAccountSettings({
-        pubkey,
-        relayListSettled: () => true,
-        store: {
-          latestReplaceable: () =>
-            profileEvent(
-              JSON.stringify({
-                display_name: "前の表示名",
-                lud16: "old@lightning.example",
-              }),
-            ),
-          replaceableFetchedAt: () => 1,
-          onReplaceableChanged: () => () => {},
-        },
-        profileRequests: {
-          request() {},
-          subscribe() {
-            return () => {};
-          },
-        },
-        writer: { replace },
-      });
-      return (
-        <AccountSettingsProvider value={settings}>
-          <ProfileSettingsForm />
-        </AccountSettingsProvider>
-      );
-    }, host);
     try {
-      setPubkey(PUBKEY);
-      if (!settings) throw new Error("設定状態を作成できませんでした");
-      const displayName = host.querySelector<HTMLInputElement>(
-        '[data-testid="profile-display-name"]',
-      );
-      const lightningAddress = host.querySelector<HTMLInputElement>(
-        '[data-testid="profile-lightning-address"]',
-      );
-      if (!displayName || !lightningAddress) {
-        throw new Error("主要入力欄を描画できませんでした");
-      }
+      const displayName = input(host, "profile-display-name");
       expect(displayName.value).toBe("前の表示名");
-      displayName.value = "新しい表示名";
-      displayName.dispatchEvent(new Event("input", { bubbles: true }));
-      lightningAddress.value = "new@lightning.example";
-      lightningAddress.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(button(host, "保存").disabled).toBe(true);
+      expect(button(host, "変更を戻す").disabled).toBe(true);
 
-      const form = host.querySelector<HTMLFormElement>("form");
-      if (!form) throw new Error("プロフィールフォームを描画できませんでした");
-      form.dispatchEvent(
-        new Event("submit", { bubbles: true, cancelable: true }),
+      edit(displayName, "新しい表示名");
+      expect(button(host, "保存").disabled).toBe(false);
+      expect(button(host, "変更を戻す").disabled).toBe(false);
+
+      button(host, "変更を戻す").click();
+      expect(displayName.value).toBe("前の表示名");
+      expect(button(host, "保存").disabled).toBe(true);
+      expect(button(host, "変更を戻す").disabled).toBe(true);
+    } finally {
+      dispose();
+      host.remove();
+    }
+  });
+
+  it("保存中の追加入力を残し、送信値を変更を戻す基準にする", async () => {
+    // 捕まえる変異: 保存成功時に keepInput を使わず追加入力を上書きする。
+    let finishSave!: () => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const { host, dispose } = renderProfileForm(
+      ready(PUBKEY_A, { name: "before" }),
+      save,
+    );
+    try {
+      const name = input(host, "profile-name");
+      edit(name, "submitted");
+      submit(host);
+
+      await vi.waitFor(() =>
+        expect(button(host, "保存中…").disabled).toBe(true),
       );
-      await vi.waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+      expect(button(host, "変更を戻す").disabled).toBe(true);
+      edit(name, "editing while saving");
 
-      const call = replace.mock.calls[0];
-      if (!call) throw new Error("プロフィールを保存できませんでした");
-      const [kind, _identifier, mutation] = call;
-      expect(kind).toBe(0);
-      expect(JSON.parse(mutation(undefined).content)).toMatchObject({
-        display_name: "新しい表示名",
-        lud16: "new@lightning.example",
+      finishSave();
+      await vi.waitFor(() => expect(button(host, "保存").disabled).toBe(false));
+      expect(name.value).toBe("editing while saving");
+
+      button(host, "変更を戻す").click();
+      expect(name.value).toBe("submitted");
+      expect(button(host, "保存").disabled).toBe(true);
+      expect(save).toHaveBeenCalledWith({
+        ...emptyProfile,
+        name: "submitted",
       });
+    } finally {
+      dispose();
+      host.remove();
+    }
+  });
+
+  it("保存失敗をフォームに表示し、入力を再試行できる状態で残す", async () => {
+    // 捕まえる変異: save の例外を Formisch の root error へ渡さない。
+    const save = vi.fn(async () => {
+      throw new Error("relay rejected");
+    });
+    const { host, dispose } = renderProfileForm(
+      ready(PUBKEY_A, { name: "before" }),
+      save,
+    );
+    try {
+      const name = input(host, "profile-name");
+      edit(name, "retry this");
+      submit(host);
+
+      await vi.waitFor(() =>
+        expect(host.textContent).toContain("relay rejected"),
+      );
+      expect(name.value).toBe("retry this");
+      expect(button(host, "保存").disabled).toBe(false);
+      expect(button(host, "変更を戻す").disabled).toBe(false);
+    } finally {
+      dispose();
+      host.remove();
+    }
+  });
+
+  it("旧アカウントの保存完了で切替後のフォームを上書きしない", async () => {
+    // 捕まえる変異: 保存開始時の pubkey を照合せず、新アカウントのフォームを reset する。
+    let finishSave!: () => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const { host, setCurrent, dispose } = renderProfileForm(
+      ready(PUBKEY_A, { name: "account A" }),
+      save,
+    );
+    try {
+      const name = input(host, "profile-name");
+      edit(name, "submitted by A");
+      submit(host);
+      await vi.waitFor(() => expect(button(host, "保存中…")).toBeTruthy());
+      await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+
+      setCurrent(ready(PUBKEY_B, { name: "account B" }));
+      expect(name.value).toBe("account B");
+
+      finishSave();
+      await vi.waitFor(() => expect(button(host, "保存")).toBeTruthy());
+      expect(name.value).toBe("account B");
+      expect(button(host, "保存").disabled).toBe(true);
+    } finally {
+      dispose();
+      host.remove();
+    }
+  });
+
+  it("同じアカウントの新版は未編集時だけフォームへ反映する", async () => {
+    // 捕まえる変異: dirty / submitting を見ず、外部更新で編集中の入力を上書きする。
+    let finishSave!: () => void;
+    const save = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    const { host, setCurrent, dispose } = renderProfileForm(
+      ready(PUBKEY_A, { name: "first" }),
+      save,
+    );
+    try {
+      const name = input(host, "profile-name");
+      setCurrent(ready(PUBKEY_A, { name: "remote pristine" }));
+      expect(name.value).toBe("remote pristine");
+
+      edit(name, "local edit");
+      setCurrent(ready(PUBKEY_A, { name: "remote while dirty" }));
+      expect(name.value).toBe("local edit");
+
+      submit(host);
+      await vi.waitFor(() => expect(button(host, "保存中…")).toBeTruthy());
+      await vi.waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+      setCurrent(ready(PUBKEY_A, { name: "remote while saving" }));
+      expect(name.value).toBe("local edit");
+
+      finishSave();
+      await vi.waitFor(() => expect(button(host, "保存")).toBeTruthy());
     } finally {
       dispose();
       host.remove();

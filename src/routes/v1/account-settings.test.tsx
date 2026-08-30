@@ -219,173 +219,6 @@ describe("アカウント設定", () => {
     });
   });
 
-  /* 旧draft APIのテストはFormischフォームの画面挙動テストへ移した。
-  it . skip("kind:0 を初期値にし、入力項目をプロフィールとして保存する", async () => {
-    await new Promise<void>((resolve, reject) => {
-      createRoot((dispose) => {
-        void (async () => {
-          try {
-            // 捕まえる変異: `mergeProfile` を使わず、未知フィールドを落とす。
-            const { settings, setPubkey, setSettled, receive, replace } =
-              setup();
-            setPubkey(PUBKEY);
-            setSettled(true);
-            receive(
-              profileEvent(
-                JSON.stringify({
-                  display_name: "前の表示名",
-                  lud06: "old@lightning.example",
-                  unknown: "残す",
-                }),
-              ),
-            );
-
-            expect(settings.profile.draft()).toMatchObject({
-              display_name: "前の表示名",
-              lightningAddress: "old@lightning.example",
-            });
-
-            settings.profile.change({
-              display_name: "新しい表示名",
-              lightningAddress: "new@lightning.example",
-            });
-            await settings.profile.save();
-
-            const [kind, identifier, mutation] = replace.mock.calls[0];
-            expect(kind).toBe(0);
-            expect(identifier).toBeUndefined();
-            expect(
-              JSON.parse(
-                mutation(
-                  profileEvent(
-                    JSON.stringify({
-                      unknown: "残す",
-                    }),
-                  ),
-                ).content,
-              ),
-            ).toEqual({
-              unknown: "残す",
-              display_name: "新しい表示名",
-              name: "",
-              about: "",
-              website: "",
-              nip05: "",
-              picture: "",
-              banner: "",
-              lud16: "new@lightning.example",
-            });
-            expect(settings.profile.dirty()).toBe(false);
-            resolve();
-          } catch (error) {
-            reject(error);
-          } finally {
-            dispose();
-          }
-        })();
-      });
-    });
-  });
-
-  it . skip("プロフィールの reset と部分失敗で draft を正しく保つ", async () => {
-    await new Promise<void>((resolve, reject) => {
-      createRoot((dispose) => {
-        void (async () => {
-          try {
-            // 捕まえる変異: rejected があっても dirty を false にする。
-            const { settings, setPubkey, setSettled, receive, replace } =
-              setup();
-            setPubkey(PUBKEY);
-            setSettled(true);
-            receive(profileEvent(JSON.stringify({ name: "old" })));
-            settings.profile.change({ name: "first" });
-            settings.profile.reset();
-            expect(settings.profile.draft().name).toBe("old");
-            expect(settings.profile.dirty()).toBe(false);
-
-            settings.profile.change({ name: "retry" });
-            replace.mockResolvedValueOnce({
-              event: profileEvent("{}"),
-              accepted: ["wss://one/" as RelayUrl],
-              rejected: [
-                {
-                  relay: "wss://old/" as RelayUrl,
-                  reason: "temporarily unavailable",
-                },
-              ],
-            });
-            await settings.profile.save();
-
-            expect(settings.profile.dirty()).toBe(true);
-            expect(settings.profile.draft().name).toBe("retry");
-            expect(settings.profile.error()).toContain("1 本");
-            resolve();
-          } catch (error) {
-            reject(error);
-          } finally {
-            dispose();
-          }
-        })();
-      });
-    });
-  });
-
-  it . skip("保存中の編集とアカウント切替では旧保存結果を反映しない", async () => {
-    await new Promise<void>((resolve, reject) => {
-      createRoot((dispose) => {
-        void (async () => {
-          try {
-            // 捕まえる変異: 保存開始時の revision / pubkey を見ず、新入力または
-            // 切替後のアカウントを保存済みにする。
-            const { settings, setPubkey, setSettled, receive, replace } =
-              setup();
-            setPubkey(PUBKEY);
-            setSettled(true);
-            receive(profileEvent(JSON.stringify({ name: "old" })));
-            settings.profile.change({ name: "saved" });
-            let finishReplace = () => {};
-            replace.mockImplementationOnce(
-              () =>
-                new Promise((resolveReplace) => {
-                  finishReplace = () =>
-                    resolveReplace({
-                      event: profileEvent("{}"),
-                      accepted: ["wss://one/" as RelayUrl],
-                      rejected: [],
-                    });
-                }),
-            );
-
-            const saving = settings.profile.save();
-            settings.profile.change({ name: "new input" });
-            expect(settings.profile.draft().name).toBe("new input");
-            finishReplace();
-            await saving;
-            expect(settings.profile.dirty()).toBe(true);
-
-            settings.profile.change({ name: "old account" });
-            const switchedSaving = settings.profile.save();
-            setPubkey("e".repeat(64));
-            receive(
-              profileEvent(
-                JSON.stringify({ name: "new account" }),
-                "e".repeat(64),
-              ),
-            );
-            await switchedSaving;
-            expect(settings.profile.draft().name).toBe("new account");
-            expect(settings.profile.dirty()).toBe(false);
-            resolve();
-          } catch (error) {
-            reject(error);
-          } finally {
-            dispose();
-          }
-        })();
-      });
-    });
-  }); */
-
   it("旧アカウントの保存失敗を切替後へ漏らさない", async () => {
     await new Promise<void>((resolve, reject) => {
       createRoot((dispose) => {
@@ -398,16 +231,34 @@ describe("アカウント設定", () => {
             setSettled(true);
             let finish!: (value: WriteResult) => void;
             replace.mockImplementationOnce(
-              () => new Promise<WriteResult>((resolveReplace) => { finish = resolveReplace; }),
+              () =>
+                new Promise<WriteResult>((resolveReplace) => {
+                  finish = resolveReplace;
+                }),
             );
             const saving = settings.profile.save({
-              display_name: "A", name: "", about: "", website: "", nip05: "", picture: "", banner: "", lightningAddress: "",
+              display_name: "A",
+              name: "",
+              about: "",
+              website: "",
+              nip05: "",
+              picture: "",
+              banner: "",
+              lightningAddress: "",
             });
             setPubkey("e".repeat(64));
-            finish({ event: profileEvent("{}"), accepted: [], rejected: [{ relay: "wss://one/" as RelayUrl, reason: "拒否" }] });
+            finish({
+              event: profileEvent("{}"),
+              accepted: [],
+              rejected: [{ relay: "wss://one/" as RelayUrl, reason: "拒否" }],
+            });
             await expect(saving).resolves.toBeUndefined();
             resolve();
-          } catch (error) { reject(error); } finally { dispose(); }
+          } catch (error) {
+            reject(error);
+          } finally {
+            dispose();
+          }
         })();
       });
     });
