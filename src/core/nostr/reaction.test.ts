@@ -28,9 +28,7 @@ describe("parseReaction", () => {
   });
 
   it("空文字も like", () => {
-    // 捕まえる変異: `content === "+"` だけを like にする (v0 がこの誤りを
-    // 持っている)。NIP-25 は「空文字はクライアントが `+` とみなすべき」と
-    // 定めており、text に落とすと空のリアクションが画面に出る。
+    // 捕まえる変異: `content === "+"` だけを like にする。NIP-25: 「空文字はクライアントが `+` とみなすべき」—— text に落とすと空のリアクションが画面に出る
     expect(
       parseReaction(reaction({ tags: [["e", TARGET]], content: "" }))?.content,
     ).toEqual({ type: "like" });
@@ -55,8 +53,7 @@ describe("parseReaction", () => {
   });
 
   it("emoji タグがあっても content が一致しなければ text", () => {
-    // 捕まえる変異: content を見ずに emoji タグがあれば emoji にする。
-    // `:smile:` 以外の本文で登録済みの画像が出てしまう。
+    // 捕まえる変異: content を見ずに emoji タグがあれば emoji にする —— `:smile:` 以外の本文で登録済みの画像が出てしまう
     const parsed = parseReaction(
       reaction({
         tags: [
@@ -70,8 +67,7 @@ describe("parseReaction", () => {
   });
 
   it("対象は最後の e タグ", () => {
-    // 捕まえる変異: 最初の e タグを取る。NIP-25 はスレッドの祖先を前に
-    // 並べるので、先頭を取ると祖先へリアクションしたことになる。
+    // 捕まえる変異: 最初の e タグを取る —— NIP-25 はスレッドの祖先を前に並べるので、先頭を取ると祖先へリアクションしたことになる
     const other = "c".repeat(64);
     expect(
       parseReaction(
@@ -102,16 +98,14 @@ describe("parseReaction", () => {
   });
 
   it("p タグが無くても対象 id は取れる", () => {
-    // 捕まえる変異: p タグを必須にする。NIP-25 は SHOULD であって MUST では
-    // なく、付けないクライアントは実在する。
+    // 捕まえる変異: p タグを必須にする —— NIP-25 は SHOULD であって MUST ではなく、付けないクライアントは実在する
     const parsed = parseReaction(reaction({ tags: [["e", TARGET]] }));
     expect(parsed?.targetId).toBe(TARGET);
     expect(parsed?.targetPubkey).toBeUndefined();
   });
 
   it("e タグが無ければ undefined (例外を投げない)", () => {
-    // 捕まえる変異: throw する (v0 がそうしている)。1 件の壊れたイベントで
-    // カラム全体が落ちる。
+    // 捕まえる変異: throw する。1 件の壊れたイベントでカラム全体が落ちる。
     expect(() => parseReaction(reaction({ tags: [] }))).not.toThrow();
     expect(parseReaction(reaction({ tags: [] }))).toBeUndefined();
   });
@@ -124,8 +118,7 @@ describe("parseReaction", () => {
   });
 
   it("kind が 7 でなければ undefined", () => {
-    // 捕まえる変異: kind を見ない。リポスト (kind:6) も e タグを持つので、
-    // 見ないとリポストがリアクションとして解釈される。
+    // 捕まえる変異: kind を見ない —— リポスト (kind:6) も e タグを持つので、見ないとリポストがリアクションとして解釈される
     expect(
       parseReaction(reaction({ kind: 1, tags: [["e", TARGET]] })),
     ).toBeUndefined();

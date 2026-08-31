@@ -34,13 +34,9 @@ describe("createSection", () => {
   it("releases the previous relay connection before opening the next one on a source change", async () => {
     const relays = new Map<string, FakeRelayConnection>();
     const store = new EventStore();
-    // A count sampled after both the release and the open (connectionCount
-    // === 1) cannot distinguish "released then opened" from "briefly held
-    // both, then released one" — both leave the same final count. Logging
-    // connect/close as they actually happen and asserting their order is the
-    // only way to pin down release-before-open, which matters once a global
-    // connection cap exists: a transient 2 would matter even though the
-    // final count reads 1.
+    // 最終カウント (1) だけでは「解放してから開いた」と「一瞬両方持って
+    // から解放」を区別できないので、connect/close の実際の順序をログして
+    // 主張する —— 接続数に上限ができたとき、一瞬の 2 が問題になるため。
     const log: string[] = [];
     const manager = new SubscriptionManager({
       store,
@@ -87,10 +83,8 @@ describe("createSection", () => {
               expect(relays.has("wss://b/")).toBe(true);
             });
 
-            // The previous relay's connection must be released (and closed,
-            // since nothing else in the pool holds it) before the next one
-            // is opened. Assert the actual order of events, not just the
-            // count sampled afterward.
+            // 前の接続は次を開く前に解放・close されていなければならない
+            // ので、事後の件数ではなく実際の順序を主張する。
             expect(log).toEqual([
               "connect:wss://a/",
               "close:wss://a/",
@@ -154,11 +148,9 @@ describe("createSection", () => {
 
   it("reads events from the same store manager writes to (no store option to disagree)", async () => {
     // 捕まえる変異: createSection が `options.manager.store` ではなく自前の
-    // `new EventStore()` を使う。manager.subscribe() 経由で届いたイベントは
-    // manager が構築時に受け取った store にしか put() されないので、
-    // SectionReader が別の store を見ていると store.get(id) が常に
-    // undefined を返し、リレーが実際に配信していても items() が空のまま
-    // 固まる (公開オプションから store を無くしたことの意味そのもの)。
+    // `new EventStore()` を使う。manager は自分の store にしか put() しない
+    // ので、別 store を見ると store.get(id) が常に undefined になり items()
+    // が空のまま固まる。
     const relay = new FakeRelayConnection("wss://a/" as RelayUrl);
     const store = new EventStore();
     const manager = new SubscriptionManager({

@@ -32,9 +32,8 @@ const noteWith = (content: string, tags: string[][] = []): NostrEvent => ({
   tags,
 });
 
-// content.test.ts / nip19.test.ts と同じ理由: production の `encodeBech32`
-// は hex しか受けないので、nprofile/nevent/naddr のテストデータを組むための
-// 最小 TLV エンコーダをここでも持つ。
+// production の `encodeBech32` は hex しか受けないので、nprofile/nevent/naddr
+// のテストデータを組むための最小 TLV エンコーダを持つ。
 type TlvEntry = { type: number; value: Uint8Array };
 
 const encodeTlv = (entries: TlvEntry[]): Uint8Array => {
@@ -67,11 +66,7 @@ const kindBytes = (kind: number): Uint8Array => {
 const encodeEntity = (prefix: string, entries: TlvEntry[]): string =>
   encodeBech32(prefix, bytesToHex(encodeTlv(entries)));
 
-/**
- * `EventRequests`/`ProfileRequests` のテストダブル。`request` の呼び出し方
- * そのものはこのタスクの主張に含まれない (mention の解決経路が `Profile`/
- * `EventView` を通ることだけが要求) ので、記録はしない最小実装。
- */
+/** mention の解決経路が `Profile`/`EventView` を通ることだけを確かめる最小実装。 */
 const fakeEvents = (): EventRequests => ({
   request() {},
   isUnresolved() {
@@ -117,8 +112,8 @@ const contextWith = (
 });
 
 /**
- * `EventView.test.tsx`/`Note.test.tsx` と同じ手法: Solid コンポーネントを
- * JSX を介さず関数として直接呼び、返ってきた DOM ノードを検証する。
+ * Solid コンポーネントを JSX を介さず関数として直接呼び、返ってきた DOM
+ * ノードを検証する。
  */
 const mount = (
   props: NoteContentProps,
@@ -166,9 +161,8 @@ describe("NoteContent: url トークン", () => {
   });
 
   it("compact では画像 URL がリンクのまま (展開しない)", () => {
-    // 捕まえる変異: variant を見ずに常に展開する。引用先・返信先・
-    // リポスト対象は compact で置かれるので、これが破れると原寸画像が
-    // カラムを埋めて元の投稿が見えなくなる (design 4 節)。
+    // 捕まえる変異: variant を見ずに常に展開する (compact で原寸画像が
+    // カラムを埋め、元の投稿が見えなくなる)。
     const url = "https://example.com/cat.png";
     const event = noteWith(url);
     const { element, dispose } = mount({
@@ -211,8 +205,8 @@ describe("NoteContent: url トークン", () => {
   });
 
   it("リンクに target=_blank と rel=noopener noreferrer が付く", () => {
-    // 捕まえる変異: rel を落とす。target="_blank" と組でしか意味を持たない
-    // (window.opener 経由でリンク先が元タブを操作できる穴を塞ぐ)。
+    // 捕まえる変異: rel を落とす (window.opener 経由で元タブを操作できる
+    // 穴を塞ぐため target="_blank" と組で要る)。
     const url = "https://example.com/page";
     const event = noteWith(url);
     const { element, dispose } = mount({
@@ -231,8 +225,7 @@ describe("NoteContent: url トークン", () => {
   });
 
   it("画像の読み込みに失敗したら代替のリンク表示に落ちる (本文は消えない)", () => {
-    // 捕まえる変異: onError ハンドラを付けない (壊れた画像アイコンが残り、
-    // 元 URL へのリンクという代替表示に落ちない)
+    // 捕まえる変異: onError ハンドラを付けない (壊れた画像アイコンが残る)
     const url = "https://example.com/cat.png";
     const event = noteWith(url);
     const { element, dispose } = mount({
@@ -280,8 +273,7 @@ describe("NoteContent: emoji トークン", () => {
   });
 
   it("画像の読み込みに失敗したら :shortcode: のテキストへ戻る", () => {
-    // 捕まえる変異: onError ハンドラを付けない (絵文字が 404 したまま壊れた
-    // 画像アイコンになり、書いたショートコードが跡形もなく消える)
+    // 捕まえる変異: onError ハンドラを付けない (ショートコードが消える)
     const event = noteWith(":smile:", [
       ["emoji", "smile", "https://example.com/smile.png"],
     ]);
@@ -307,9 +299,8 @@ describe("NoteContent: emoji トークン", () => {
 
 describe("NoteContent: hashtag トークン", () => {
   it("押せる見た目にならない (リンクにしない)", () => {
-    // 捕まえる変異: リンクの見た目 (<a>/<button> や text-link クラス) にする。
-    // 検索カラムが無く押しても何も起きない (#203/#204) —— 押せそうに見せる
-    // と「まだ無い」と「壊れている」の区別が付かなくなる。
+    // 捕まえる変異: リンクの見た目にする (検索カラムが無く押せないので、
+    // 押せそうに見せると「壊れている」と区別が付かなくなる)。
     const event = noteWith("#nostr");
     const { element, dispose } = mount({
       content: event.content,
@@ -349,8 +340,7 @@ describe("NoteContent: mention トークン", () => {
       expect(profile?.textContent).toBe(
         `@${encodeBech32("npub", mentioned).slice(0, 12)}`,
       );
-      // 生の pubkey (64 桁 hex) が本文のどこにも裸のテキストとして
-      // 出ていないこと。
+      // 生の pubkey が本文のどこにも裸のテキストとして出ていないこと。
       expect(el.textContent).not.toContain(mentioned);
       expect(el.textContent).toContain("before");
       expect(el.textContent).toContain("after");
@@ -376,9 +366,8 @@ describe("NoteContent: mention トークン", () => {
       const ref = el.querySelector('[data-testid="event-ref-text"]');
       expect(ref).not.toBeNull();
       expect(ref?.getAttribute("title")).toBe(raw);
-      // 短縮されている (60 桁近い bech32 の先頭 12 桁 + "…" だけを出す。
-      // "nostr:" を削っただけの長さでは、短縮していなくてもこの比較は
-      // 通ってしまうので、期待するラベルそのものと比較する)。
+      // "nostr:" を削っただけの長さでは短縮なしでも一致するので、期待
+      // するラベルそのものと比較する。
       const entity = raw.replace(/^nostr:/, "");
       expect(ref?.textContent).toBe(`${entity.slice(0, 12)}…`);
       expect(el.textContent).not.toContain(raw);
@@ -531,8 +520,7 @@ describe("NoteContent: 本文の器", () => {
       eventRefs: "text",
     });
     try {
-      // element() 自身が本文の器 (data-testid="note-content") —— querySelector
-      // は子孫しか探さないので自身のクラスは直接見る。
+      // querySelector は子孫しか探さないので自身のクラスは直接見る。
       expect(element().dataset.testid).toBe("note-content");
       expect(element().className).toContain("whitespace-pre-wrap");
     } finally {

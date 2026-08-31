@@ -17,8 +17,8 @@ describe("useThreadNav", () => {
     // 捕まえる変異: 常に undefined を返す（ノートが永久に押せない）。
     //
     // JSX を書くだけでは child が評価されない (式文として捨てられる) ので、
-    // `Note.test.tsx` の `mount` と同じく provider をコンポーネント関数として
-    // 直接呼び、`children` getter の中で子を実際に走らせる。
+    // provider をコンポーネント関数として直接呼び、`children` getter の
+    // 中で子を実際に走らせる。
     const opened: string[] = [];
     createRoot((dispose) => {
       const Child = () => {

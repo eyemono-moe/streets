@@ -86,15 +86,7 @@ describe("resolveSource", () => {
   });
 
   it("literal では followees アクセサを呼ばない", () => {
-    // 捕まえる変異: `resolveSource(source, { followees: props.followees() })`
-    // のように呼び出し側がアクセサを即時評価して渡す退行。
-    // `literal` の分岐はアクセサを一切呼ばない契約 —— ここが
-    // 破れると、呼び出し側 (DeckColumn.tsx の `createMemo`) の引数評価の
-    // 時点で `props.followees()` を呼ばざるを得なくなり、`literal` 列の
-    // `source` memo までもが `warmUpRouting` の結果 (フォローリストの
-    // リソース) を追跡してしまう。結果、ウォームアップが settle する
-    // たびに `literal` 列も含む全カラムが再購読される (`createSection` の
-    // `createEffect` が古い `SectionReader` を破棄して新しいものを作る)。
+    // 捕まえる変異: アクセサを即時評価して渡す (`literal` 列も warmUpRouting の再購読に巻き込まれる退行)。
     const followees = vi.fn(() => ["zzz"]);
     resolveSource(
       { kind: "literal", filters: [{ kinds: [1] }] },
@@ -113,8 +105,7 @@ describe("resolveSource", () => {
   });
 
   it("ユーザー詳細は投稿とリポストを対象ユーザーから集める", () => {
-    // 捕まえる変異: kind:6 または対象 pubkey を落とし、v0 のユーザー列より
-    // 表示範囲を狭める。
+    // 捕まえる変異: kind:6 または対象 pubkey を落とし、表示範囲を狭める。
     expect(
       resolveSource({ kind: "user", pubkey: "a".repeat(64) }, ctx()),
     ).toEqual({
@@ -181,12 +172,7 @@ describe("resolveSource", () => {
   });
 
   it("relayList は notifications の分岐でだけ呼ばれる", () => {
-    // 捕まえる変異: 分岐の外 (関数の先頭など) で `context.relayList()` を
-    // 呼ぶ。**動作としては正しいままなので、他のどのテストも落ちない** ——
-    // 落ちるのは実行時の挙動で、`literal` 列の source memo が warmUp の
-    // リソースを依存として記録し、ウォームアップが settle するたびに
-    // 全カラムの SectionReader が破棄・再作成される。同型の事故が
-    // `followees` で一度起きている (resolve-source.ts のコメント参照)。
+    // 捕まえる変異: 分岐の外で `relayList()` を呼ぶ (動作は変わらず他のテストは落ちないが、`literal` 列が再購読に巻き込まれる)。
     const relayList = vi.fn(() => ({ phase: "missing" }) as const);
 
     resolveSource(

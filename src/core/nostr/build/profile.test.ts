@@ -16,8 +16,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("mergeProfile", () => {
   it("current に有って changes に無いキーを残す", () => {
-    // 捕まえる変異: changes だけで content を作り直す。他クライアントが
-    // 入れた lud16 (Zap の宛先) などが黙って消える。
+    // 捕まえる変異: changes だけで content を作り直す —— 他クライアントが入れた lud16 (Zap の宛先) などが黙って消える
     const current = evt({
       kind: 0,
       tags: [],
@@ -31,8 +30,7 @@ describe("mergeProfile", () => {
   });
 
   it("current の content が壊れていれば changes だけにする", () => {
-    // 捕まえる変異: 例外を投げる。壊れた JSON でプロフィールが
-    // 永久に編集できなくなる。
+    // 捕まえる変異: 例外を投げる —— 壊れた JSON でプロフィールが永久に編集できなくなる
     const current = evt({ kind: 0, tags: [], content: "not json" });
     const draft = mergeProfile({ name: "b" })(current);
     expect(JSON.parse(draft.content)).toEqual({ name: "b" });
@@ -46,24 +44,19 @@ describe("mergeProfile", () => {
   });
 
   it("current が無ければ tags は空配列", () => {
-    // 捕まえる変異: current?.tags ?? [] の既定値を空配列以外にする。
-    // 存在しない値の代わりに何かが紛れ込む。
+    // 捕まえる変異: current?.tags ?? [] の既定値を空配列以外にする —— 存在しない値の代わりに何かが紛れ込む
     expect(mergeProfile({ name: "b" })(undefined).tags).toEqual([]);
   });
 
   it("current の content が配列の JSON なら changes だけにする", () => {
-    // 捕まえる変異: Array.isArray のチェックを外す。配列も「オブジェクト」
-    // として base に採用すると、JSON.parse("[1,2]") を展開した
-    // {"0":1,"1":2} のようなキーがプロフィールに紛れ込む。
+    // 捕まえる変異: Array.isArray のチェックを外す —— 配列も base に採用すると、JSON.parse("[1,2]") が {"0":1,"1":2} のようなキーとして紛れ込む
     const current = evt({ kind: 0, tags: [], content: "[1,2]" });
     const draft = mergeProfile({ name: "b" })(current);
     expect(JSON.parse(draft.content)).toEqual({ name: "b" });
   });
 
   it("current の content がオブジェクト以外の JSON (文字列) なら changes だけにする", () => {
-    // 捕まえる変異: typeof parsed === "object" のチェックを外す。
-    // プリミティブが「オブジェクト」として展開されると、文字列なら
-    // 文字ごとのインデックスキーがプロフィールに紛れ込む。
+    // 捕まえる変異: typeof parsed === "object" のチェックを外す —— プリミティブを展開すると、文字列なら文字ごとのインデックスキーが紛れ込む
     const current = evt({ kind: 0, tags: [], content: '"hello"' });
     const draft = mergeProfile({ name: "b" })(current);
     expect(JSON.parse(draft.content)).toEqual({ name: "b" });

@@ -40,9 +40,8 @@ const neverConnects = () => {
 describe("createReadLayer", () => {
   it("ready はストアへの水和が終わってから解決する", async () => {
     // 捕まえる変異: persistence.load() を待たずに ready を解決する。
-    // 起動直後の鮮度判定 (bootstrap.ts 相②の isStale) がまだ空の store を
-    // 見て「キャッシュ無し」と誤判定し、このスライスが削るはずだった
-    // フェッチを結局全部やり直してしまう。
+    // 起動直後の鮮度判定がまだ空の store を見て「キャッシュ無し」と誤判定し、
+    // キャッシュ済みのはずのフェッチをやり直してしまう。
     let resolveLoad:
       | ((result: {
           events: PersistedEvent[];
@@ -70,12 +69,10 @@ describe("createReadLayer", () => {
       settled = true;
     });
 
-    // `settled` を同期的に読むだけでは弱い —— then() のコールバックは
-    // resolve 済みの Promise に対してもマイクロタスク 1 つ分は必ず遅れるので、
-    // 同期チェックだと「まだ解決していない」ように*見えて*しまい、
-    // load() を待たず即座に解決する変異でもここは通ってしまう。
-    // マクロタスクを 1 回挟んで、保留中のマイクロタスクを全部吐き出させて
-    // からでないと、この主張は意味を持たない。
+    // `settled` の同期チェックは弱い —— then() は resolve 済みでもマイクロタスク
+    // 1 つ遅れるため、load() を待たず即座に解決する変異でも「未解決」に見えて
+    // しまう。マクロタスクを 1 回挟み保留中のマイクロタスクを吐き出させないと、
+    // この主張は意味を持たない。
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(settled).toBe(false);
 

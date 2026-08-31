@@ -40,10 +40,8 @@ const LIMITATION_BOOLEAN_FIELDS = [
 ] as const;
 
 /**
- * NIP-11 は認証されていない任意オリジンからのデータで、イベントと違って
- * 署名による裏付けが無い。フィールドが宣言された型と違えば黙って落とす
- * ("こういう値だ" と主張するだけの JSON をそのまま信用しない)。スキーマ
- * ライブラリではなく、素朴な形整形にとどめる。
+ * NIP-11 は署名の裏付けが無い任意オリジンのデータなので、型と違う
+ * フィールドは黙って落とす（スキーマライブラリではなく素朴な形整形）。
  */
 const sanitizeRelayInfo = (raw: Record<string, unknown>): RelayInfo => {
   const info: RelayInfo = {};
@@ -85,20 +83,16 @@ const sanitizeRelayInfo = (raw: Record<string, unknown>): RelayInfo => {
 };
 
 /**
- * NIP-11 の取得とキャッシュ。
- * ブラウザから relay のドメインへ直接 GET するため CORS で失敗しうる。
- * 失敗は例外にせず undefined を返し、呼び出し側は情報なしで動作を続ける (ADR-0020)。
+ * NIP-11 の取得とキャッシュ。ブラウザから relay のドメインへ直接 GET する
+ * ため CORS で失敗しうるが、失敗は例外にせず undefined を返して続行する。
  */
 export class RelayInfoRegistry {
   readonly #fetch: typeof fetch;
   readonly #cache = new Map<RelayUrl, Promise<RelayInfo | undefined>>();
 
   constructor(fetchImpl: typeof fetch = fetch) {
-    // `this.#fetch(...)` below is a method-style call, so it invokes
-    // `fetchImpl` with `this` bound to the RelayInfoRegistry instance rather
-    // than `window`. The real, native `fetch` requires `this` to be a
-    // fetch-capable global and throws "Illegal invocation" otherwise, so the
-    // unbound reference must be bound up front.
+    // メソッド呼び出しは `this` を rebind するが、native fetch は
+    // fetch-capable global を要求し落ちるので、事前に bind する。
     this.#fetch = fetchImpl.bind(globalThis);
   }
 
@@ -111,11 +105,8 @@ export class RelayInfoRegistry {
       );
     }
 
-    // 失敗 (undefined) はキャッシュに残さない: 起動時の一時的なオフライン
-    // が、そのタブが生きている間ずっとそのリレーを "情報なし" に固定して
-    // しまわないよう、次の get() で再挑戦できるようにする。進行中の
-    // Promise 自体はここで #cache に置くので、同時に来た呼び出し同士は
-    // 1 回のフェッチに相乗りする (in-flight coalescing は維持)。
+    // 起動時の一時オフラインで恒久的に "情報なし" 固定にならないよう、失敗は
+    // キャッシュしない。進行中の Promise は #cache に置き同時呼び出しを束ねる。
     const pending = this.#load(url).then((result) => {
       if (result === undefined) this.#cache.delete(url);
       return result;
@@ -143,7 +134,6 @@ export class RelayInfoRegistry {
       });
       if (!response.ok) return undefined;
       const data = await response.json();
-      // Validate that the response is an object (not null, array, or primitive)
       if (typeof data !== "object" || data === null || Array.isArray(data)) {
         return undefined;
       }

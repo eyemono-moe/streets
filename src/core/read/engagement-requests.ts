@@ -28,19 +28,14 @@ export type CreateEngagementRequestsOptions = {
 };
 
 /**
- * まとめる窓の長さ。
- *
- * profile-requests.ts と同じ 200ms。複数のノート表示が同時に engagement
- * 要求を呼び出す場合を想定している。
+ * まとめる窓の長さ。`profile-requests.ts` と同じ 200ms —— 複数のノート表示
+ * が同時に engagement 要求を呼ぶ場合を想定している。
  */
 const ENGAGEMENT_BATCH_MS = 200;
 
 /**
- * 返信・リポスト・反応要求のコアレッサ。
- *
- * `fetchOnce` で複数のイベント id をまとめて 1 本のリクエストにする。
- * いずれも置換可能イベントではないため、鮮度チェックは行わない。
- * 代わりに「一度要求した対象は二度要求しない」で足りる。
+ * 返信・リポスト・反応要求のコアレッサ。置換可能イベントではないため
+ * 鮮度チェックは行わず、「一度要求した対象は二度要求しない」で足りる。
  */
 export const createEngagementRequests = (
   options: CreateEngagementRequestsOptions,
@@ -50,11 +45,8 @@ export const createEngagementRequests = (
   /** 今の窓でまだ `fetchOnce` していないイベント id。 */
   let pending = new Set<string>();
   /**
-   * これまで要求した全てのイベント id。一度要求したら二度は要求しない。
-   *
-   * `ProfileRequests` と違い刈り込まない。engagement が 0 件だった対象は
-   * `EventStore` に何も残さないので、「探索済み」を store 側から言い当てる
-   * 手段が無く、ここで覚えていないと窓が回るたびに引き直しになる。
+   * これまで要求した全 id (二度要求しない、刈り込まない)。engagement 0 件
+   * は `EventStore` に残らず探索済みと言い当てられないため。
    */
   let requested = new Set<string>();
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;

@@ -13,7 +13,6 @@ import type { EventRenderer } from "../../../core/view/renderer-registry";
 import { NoteCompact, NoteFull } from "./Note";
 import { RepostCompact, RepostFull } from "./Repost";
 
-// Note.test.tsx / EventView.test.tsx と同じ手法。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -138,12 +137,9 @@ describe("RepostFull", () => {
   });
 
   it("ルート要素は group/event と group-[_]/event:p-0 の両方を持つ", () => {
-    // 捕まえる変異: どちらかを落とす。対象を `full` で描く (spec 3 節) ため
-    // 対象のノート/リポスト/リアクションはこの枠の中にそのまま入る。
-    // `group/event` が無いと、リポストの中のリポストで内側の padding が
-    // 潰れない (祖先に group/event が無いため)。`group-[_]/event:p-0` が
-    // 無いと、自分がさらに別の枠の中に置かれたとき自分の padding が
-    // 二重になる。
+    // 捕まえる変異: どちらかを落とす。group/event が無いと入れ子の内側
+    // padding が潰れず、group-[_]/event:p-0 が無いと自分が別の枠に
+    // 置かれたとき padding が二重になる。
     const event = signed(15, { kind: 6, content: "" });
     const { element, dispose } = mount(
       () => RepostFull({ event }),
@@ -159,10 +155,8 @@ describe("RepostFull", () => {
   });
 
   it("見出しの名前は font-700 (太字) になる", () => {
-    // 捕まえる変異: 見出しの名前に font-700 を付け忘れる/落とす。長い
-    // 表示名で「がリポスト」まで見出しが 2 行に折り返す原因になる
-    // (仕様 3.1 節)。単語境界で見る —— クラス文字列全体一致だと、無関係な
-    // クラスを足しただけで壊れる脆いテストになる。
+    // 捕まえる変異: font-700 を付け忘れる (長い表示名で見出しが 2 行に
+    // 折り返す)。単語境界で見る —— 全体一致だと無関係な追加で壊れる。
     const event = signed(14, { kind: 6, content: "" });
     const { element, dispose } = mount(
       () => RepostFull({ event }),
@@ -177,9 +171,8 @@ describe("RepostFull", () => {
   });
 
   it("リポストの対象は compact ではなく full で描く", () => {
-    // 捕まえる変異: variant="compact" に戻す。v0 は対象を完全な Event として
-    // 描いており (showReactions showActions 付き)、compact にすると対象の
-    // 返信先・引用・リアクション一覧が消える (仕様 3 節)。
+    // 捕まえる変異: variant="compact" に戻す。compact にすると対象の
+    // 返信先・引用・リアクション一覧が消える。
     const events = createRecordingEventRequests();
     const targetId = signed(40).id;
     const event = signed(41, {
@@ -223,14 +216,11 @@ describe("RepostFull", () => {
       contextWith({ store }),
     );
     try {
-      // put を通ったので store に入っている (実在するリレー URL ではない
-      // "embedded" が記録されていることも合わせて確認する —— seenRelays が
-      // routing-table のヒントとして読まれるので、埋め込み由来を実在リレー
-      // の提供として記録してはいけない)。
+      // put を通ったので store に入っている。埋め込み由来を実在リレーの
+      // 提供として記録してはいけないので seenRelays は "embedded"。
       expect(store.get(target.id)).toEqual(target);
       expect(store.seenRelays(target.id)).toEqual(["embedded"]);
-      // 対象として描かれているのは embedded の id (full の EventView が
-      // 直ちに中身を描ける = 既に store にある) であって e タグの id ではない。
+      // 対象として描かれるのは embedded の id であって e タグの id ではない。
       expect(
         element().querySelector(
           `[data-testid="event-view"][data-variant="full"]`,
@@ -243,8 +233,8 @@ describe("RepostFull", () => {
   });
 
   it("埋め込みの署名が壊れていれば e タグへ引き直す", () => {
-    // 捕まえる変異: put が rejected を返しても embedded.id をそのまま使う
-    // (署名検証を通っていない = 攻撃者が書いた任意の id を対象にしてしまう)
+    // 捕まえる変異: put が rejected でも embedded.id をそのまま使う
+    // (未検証の任意 id を対象にしてしまう)
     const forged = signed(5, { kind: 1, content: "forged" });
     // sig を壊す (schnorr 検証に失敗させる)。
     const brokenEmbedded: NostrEvent = { ...forged, sig: "0".repeat(128) };
@@ -273,8 +263,8 @@ describe("RepostFull", () => {
   });
 
   it("埋め込みも e タグも無ければ「リポスト（対象不明）」を出す", () => {
-    // 捕まえる変異: 何も無いのに何らかの EventView を描こうとする
-    // (id を渡せず永久に読み込み中/読み込めませんでした表示になる)
+    // 捕まえる変異: 何も無いのに EventView を描こうとする (id を渡せず
+    // 読み込み中のまま止まる)
     const repost = signed(8, { kind: 6, content: "", tags: [] });
     const { element, dispose } = mount(
       () => RepostFull({ event: repost }),
@@ -291,11 +281,8 @@ describe("RepostFull", () => {
   });
 
   it("k タグが実際の kind と食い違っていても、対象の実イベントの kind で描く (k タグは読まない)", () => {
-    // 捕まえる変異: k タグを読んで対象の見た目を決める。k タグは
-    // "1" (kind:1) だが埋め込みの実イベントは未登録の kind:9999 —— k タグを
-    // 信用すると NoteFull/NoteCompact を出そうとしてしまうが、正しい実装は
-    // 対象自身の kind (9999) を EventView 経由で引き、未登録レンダラなので
-    // fallback (kind 番号の表示) になる。
+    // 捕まえる変異: k タグを読んで見た目を決める。k タグは "1" だが実
+    // イベントは未登録の kind:9999 —— 信用すると NoteFull を出してしまう。
     const target = signed(9, { kind: 9999, content: "unregistered kind" });
     const repost = signed(10, {
       kind: 16,
@@ -305,10 +292,9 @@ describe("RepostFull", () => {
     const store = new EventStore();
     const { element, dispose } = mount(
       () => RepostFull({ event: repost }),
-      contextWith({ store, renderers: [noteRenderer] }), // kind:9999 は未登録
+      contextWith({ store, renderers: [noteRenderer] }),
     );
     try {
-      // NoteFull/NoteCompact (data-testid="note") には決してならない ——
       // k タグの "1" を信じるとここが note になってしまう。
       expect(element().querySelector('[data-testid="note"]')).toBeNull();
       const fullView = element().querySelector(
@@ -342,8 +328,7 @@ describe("RepostCompact", () => {
       expect(el.querySelector('[data-testid="repost-by"]')).not.toBeNull();
       expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
       expect(el.querySelector('[data-testid="repost-unknown"]')).toBeNull();
-      // 対象決定 (embeddedRepostEvent → store.put) 自体を呼ばない ——
-      // compact は関連イベントを一切要求しない (spec 3 節)。
+      // 対象決定 (embeddedRepostEvent → store.put) 自体を呼ばない。
       expect(store.get(target.id)).toBeUndefined();
       expect(events.requested).toEqual([]);
     } finally {

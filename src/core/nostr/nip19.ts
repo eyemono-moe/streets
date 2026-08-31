@@ -27,14 +27,8 @@ export const decodeBech32 = (
 const HEX_PUBKEY = /^[0-9a-f]{64}$/;
 
 /**
- * ユーザーが打ち込んだ文字列から pubkey (hex) を取り出す。npub と hex の
- * 両方を受ける。**不正な入力に対して例外を投げない** —— `decodeBech32` は
- * 投げるが、これはフォームの入力を受ける関数であり、呼び出し側が
- * try/catch を書く前提にすると書き忘れがそのまま画面の破壊になる。
- *
- * `npub` 以外の prefix は受け付けない。とくに `nsec` を弾くことには意味が
- * ある —— 貼り間違いを黙って著者フィルタとして扱うと、ADR-0008 の
- * 「秘密鍵をアプリに渡さない」を入力の側から破ることになる。
+ * 入力文字列から pubkey (hex) を取り出す。npub と hex を受け、例外を投げない
+ * （フォーム入力用で書き忘れが画面破壊になる）。`nsec` は貼り間違いで方針を破らせないため拒否する。
  */
 export const decodeNpub = (input: string): string | undefined => {
   const trimmed = input.trim();
@@ -106,8 +100,7 @@ const decodeNprofile = (bytes: Uint8Array): Nip19Ref | undefined => {
   let pubkey: string | undefined;
   const relays: string[] = [];
   for (const { type, value } of tlv) {
-    // 未知の型は NIP-19 が明示的に無視を求めている —— 将来 NIP の追加で
-    // ここが undefined を返すと、その型を含む全エンティティが読めなくなる。
+    // 未知の型は NIP-19 が明示的に無視を求めている —— ここで undefined を返すと将来の NIP 追加でそのエンティティ全体が読めなくなる
     if (type === 0 && pubkey === undefined) pubkey = bytesToHex(value);
     else if (type === 1) relays.push(decodeAscii(value));
   }
@@ -144,8 +137,7 @@ const decodeNaddr = (bytes: Uint8Array): Nip19Ref | undefined => {
   let eventKind: number | undefined;
   const relays: string[] = [];
   for (const { type, value } of tlv) {
-    // 空文字は通常の置換可能イベント (d タグ無し) の正しい値であり、欠損
-    // ではない —— `identifier === undefined` でのみ「無い」を表す。
+    // 空文字は d タグ無しの置換可能イベントの正しい値で欠損ではない —— `identifier === undefined` でのみ「無い」を表す
     if (type === 0 && identifier === undefined) identifier = decodeAscii(value);
     else if (type === 1) relays.push(decodeAscii(value));
     else if (type === 2 && pubkey === undefined) pubkey = bytesToHex(value);
@@ -164,14 +156,8 @@ const decodeNaddr = (bytes: Uint8Array): Nip19Ref | undefined => {
 };
 
 /**
- * `nostr:` の本文参照を構造化データへ。**不正な入力に対して例外を投げない**
- * —— レンダラの中から呼ばれ、1 件の壊れた参照でカラム全体を落とすわけには
- * いかない。
- *
- * `nsec` は常に `undefined` を返す。ADR-0008 はアプリが秘密鍵を一切保持しな
- * いと定めており、本文に貼られた nsec をデコードして構造化データとして持つ
- * のは、その方針を入力の側から破ることになる（`decodeNpub` も同じ理由で
- * nsec を弾いている）。`nrelay` は deprecated なので同様に扱わない。
+ * `nostr:` の本文参照を構造化データへ。例外を投げない（1 件の壊れた参照で
+ * カラム全体を落とせない）。`nsec`/`nrelay` は常に `undefined`（deprecated かつ秘密鍵非保持のため）。
  */
 export const decodeNip19 = (value: string): Nip19Ref | undefined => {
   try {

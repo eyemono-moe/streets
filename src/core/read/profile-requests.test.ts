@@ -8,7 +8,6 @@ import { createFakeClock } from "./fake-clock";
 import { createProfileRequests } from "./profile-requests";
 import type { SubscriptionManager } from "./subscription-manager";
 
-// テスト専用の 32 byte 鍵を種から作る (subscription-manager.test.ts と同じ手法)。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -17,7 +16,6 @@ const keyFor = (seed: number) =>
 const pubkeyFor = (seed: number) =>
   bytesToHex(schnorr.getPublicKey(keyFor(seed)));
 
-/** kind:0 の署名済みイベントを 1 件作る。 */
 const profileEvent = (seed: number, content = "{}"): NostrEvent => {
   const sk = keyFor(seed);
   const unsigned = {
@@ -32,9 +30,8 @@ const profileEvent = (seed: number, content = "{}"): NostrEvent => {
 };
 
 /**
- * `manager` は `fetchOnce` の呼ばれ方だけを観測するスタブ。コアレッサは
- * `SubscriptionManager` の他のメンバを一切使わないので、テストダブルは
- * `fetchOnce` だけを持てば足りる。
+ * コアレッサは SubscriptionManager の他のメンバを一切使わないので、スタブは
+ * fetchOnce の呼ばれ方だけを観測できれば足りる。
  */
 const stubManager = () => {
   const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(
@@ -112,7 +109,6 @@ describe("createProfileRequests", () => {
     requests.request(pubkeyFor(2));
     requests.request(pubkeyFor(3));
 
-    // 窓が閉じるまでは何も投げない。
     expect(manager.fetchOnce).not.toHaveBeenCalled();
 
     clock.advance(200);
@@ -193,10 +189,10 @@ describe("createProfileRequests", () => {
     const b = pubkeyFor(2);
 
     requests.request(a);
-    clock.advance(200); // 1 本目の窓を閉じる
+    clock.advance(200);
 
     requests.request(b);
-    clock.advance(200); // 2 本目の窓を閉じる
+    clock.advance(200);
 
     expect(manager.fetchOnce).toHaveBeenCalledTimes(2);
     const [firstFilters] = manager.fetchOnce.mock.calls[0] as [RelayFilter[]];
@@ -206,9 +202,7 @@ describe("createProfileRequests", () => {
   });
 
   it("store にあってもポリシーの staleMs (kind:0 は 1 日) 以内なら要求しない", () => {
-    // 捕まえる変異: 鮮度を見ずに常に要求する
-    //   (毎回 194 件を取り直す —— 相② と同じ問題が profile-requests にも
-    //   起きる)。
+    // 捕まえる変異: 鮮度を見ずに常に要求する (毎回全員を取り直してしまう)。
     const manager = stubManager();
     const clock = createFakeClock();
     const store = new EventStore({ scheduler: clock });

@@ -16,7 +16,7 @@ import type {
 } from "./subscription-manager";
 
 /**
- * 通知をまとめる窓。60fps の 1 フレーム。ADR-0011 の「操作の画面反映 100ms」
+ * 通知をまとめる窓。60fps の 1 フレーム。「操作の画面反映 100ms」
  * に対して十分小さい。
  */
 const NOTIFY_BATCH_MS = 16;
@@ -26,12 +26,11 @@ export type SectionReaderOptions = {
   source: NostrSource;
   order: Order;
   store: EventStore;
-  /** 接続と購読は manager が所有する (ADR-0023) */
+  /** 接続と購読は manager が所有する */
   manager: SubscriptionManager;
   /**
-   * 通知バッチのタイマー注入口 (テスト用)。既定は実タイマー。
-   * `connection-pool.ts` の `defaultScheduler` を共有するのは、読み取り層の
-   * どこであれ「注入されなければ実タイマー」という規約を一箇所に置くため。
+   * 通知バッチのタイマー注入口 (テスト用)。既定は実タイマー ——
+   * 「注入されなければ実タイマー」の規約を一箇所に集約する。
    */
   scheduler?: Scheduler;
 };
@@ -48,10 +47,8 @@ export class SectionReader {
   /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
   readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
-  // start() が initialPlan で埋める。onPlanChanged が start() の最中に同期的
-  // に飛んだ場合はそちらが先に埋めるので、start() 側は null のときだけ
-  // initialPlan を適用する (Task 6 で onPlanChanged が同期的に飛ぶようになった
-  // ときに、より新しい plan を古い initialPlan で上書きしないため)。
+  // start() が initialPlan で埋める。onPlanChanged が同期的に先に埋めた
+  // 場合は null のときだけ適用して上書きを避ける。
   #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
   #offStore: (() => void) | null = null;
@@ -120,42 +117,31 @@ export class SectionReader {
       },
       onPlanChanged: (plan) => this.#applyPlan(plan),
       onRelayRestarted: (relay) => {
-        // 同じリレーの上で REQ だけ張り直された (fix round 1, Critical 1) —
-        // 新しい EOSE が来るまでこのリレーについて分かっていたことは
-        // 何もない。complete も unreachable も両方まっさらに戻す。
-        // onRelayUnreachable を代用しない — あちらは接続の失敗を意味し、
-        // incomplete を押し上げてしまう。これは意図した張り直しである。
+        // REQ だけ張り直されたので complete/unreachable を両方まっさらに
+        // 戻す。onRelayUnreachable は代用しない —— あちらは接続失敗を意味し
+        // incomplete を押し上げてしまう。
         this.#relays.set(relay, { complete: false, unreachable: false });
         this.#notify();
       },
     });
 
-    // onPlanChanged が subscribe() の中から同期的に飛んでいたら #plan は
-    // 既にそちらで埋まっている — それが initialPlan より新しいので上書きしない。
-    //
-    // ここは #applyPlan を使わない: initialPlan の適用は「不足分を足す」
-    // マージであって、張り直しの「古いものを丸ごと捨てる」置き換えとは違う。
-    // subscribe() は正規化に失敗した URL を onRelayUnreachable で同期的に
-    // 報告することがあり (正規化前の生文字列は perRelay/initialPlan.relays
-    // には載らない)、そうして #relays に作られた「計画に載っていない
-    // unreachable なリレー」の記録を、初回適用で消してしまってはならない。
+    // #applyPlan は使わない: 初期適用は「不足分を足す」マージで、張り直しの
+    // 「丸ごと置き換え」とは違う。subscribe() が正規化失敗 URL を
+    // onRelayUnreachable で同期的に報告し、initialPlan に載らない
+    // unreachable な記録を作ることがあるため、それを消してはいけない。
     if (this.#plan === null) {
       this.#plan = this.#handle.initialPlan;
       for (const relay of this.#plan.relays) this.#relayState(relay);
     }
-    // initialPlan の適用は #relayState() を直接呼ぶだけで #notify() を経由
-    // しないため (上記)、start() 内で他に一度も #notify() が呼ばれなかった
-    // 経路 (例: 全リレー健在で何のコールバックも同期発火しない) を拾うために
-    // ここで 1 回念押しする。バッチ化により #notify() は何度呼んでも安全 ——
-    // 既にタイマーが張られていれば何もしない。
+    // #relayState() 直接呼び出しは #notify() を経由しないため、start() 内で
+    // 一度も #notify() が呼ばれない経路 (全リレー健在で同期発火なし) を
+    // 拾うために念押しする。バッチ化により何度呼んでも安全。
     this.#notify();
   }
 
   /**
-   * リレー集合の張り直し (ADR-0016)。新旧どちらにもあるリレーは RelayState を
-   * 使い回す — 既に EOSE 済みのリレーを再度待たせてはいけない。旧計画だけに
-   * あったリレーは unreachable フラグごと丸ごと捨てる。新計画だけにあるリレー
-   * はまっさらな状態から始める。
+   * リレー集合の張り直し。既存リレーは RelayState を使い回し (EOSE 済みを
+   * 再度待たせない)、旧計画だけのものは捨て新計画だけのものは新規に始める。
    */
   #applyPlan(plan: SectionPlan): void {
     this.#plan = plan;
@@ -209,7 +195,7 @@ export class SectionReader {
       this.#hiddenMembers.add(id);
       return;
     }
-    // 本体は EventStore が持つ。ここに載せるのは検証済みのコピー (ADR-0024)
+    // 本体は EventStore が持つ。ここに載せるのは検証済みのコピー
     const stored = this.#options.store.get(id);
     if (!stored) return;
     // kind:5 は同じ購読で取得して EventStore へ適用するが、カラム自身の
@@ -245,22 +231,9 @@ export class SectionReader {
   }
 
   /**
-   * 保持順 (`created_at` 降順、同値は `id` 昇順) から表示順を導く。
-   *
-   * 昇順を `reverse()` で作ってはならない。reverse だと同値が `id` 降順に
-   * なり、「同値は `id` 昇順」という規則が表示モードによって反転してしまう。
-   * `-compareEvents(a, b)` で符号をまるごと反転するのも同じ罠に落ちる ——
-   * `created_at` の大小だけでなく tie-break の `id` の大小も一緒に反転して
-   * しまい、結局 `id` 降順になる。ここでは `created_at` の比較だけを昇順に
-   * 反転し、同値のときは `compareEvents` の tie-break (`id` 昇順) をそのまま
-   * 使う。
-   *
-   * 明示ソートは 1 回の読み取りにつき最大 500 件 (約 4,500 比較) であり、
-   * 1 イベントごとに 2 回ソートしていた頃の 256,000 比較に対して誤差である。
-   *
-   * 引数の配列を破壊的に (in place で) ソートして返す。安全なのは唯一の
-   * 呼び出し元 `items` ゲッタが毎回 `toArray()` の新しいコピーを渡すからで
-   * ある — 今後別の呼び出し元を足す場合、内部配列をそのまま渡さないこと。
+   * 保持順から表示順を導く。`reverse()` や符号反転は tie-break の向きまで
+   * 反転するので使わない —— `created_at` だけ反転し tie-break は
+   * `compareEvents` のまま使う (破壊的ソートなので新しいコピー前提)。
    */
   #displayOrdered(events: NostrEvent[]): NostrEvent[] {
     if (this.#options.order !== "created-at-asc") return events;
@@ -270,20 +243,9 @@ export class SectionReader {
   }
 
   /**
-   * 通知をまとめる。**デバウンスではなくバッチである。**
-   *
-   * 変化のたびにタイマーを張り直す実装 (デバウンス) だと、イベントが
-   * `NOTIFY_BATCH_MS` より短い間隔で流れ続ける限り**通知が永久に発火しない**。
-   * 最初の変化でタイマーを 1 本張り、発火したら畳む。以後の変化は既存の
-   * タイマーに相乗りする。
-   *
-   * まとめる必要があるのは、リレーが 1 イベント 1 メッセージで送るためである
-   * (NIP-01)。ブラウザはメッセージごとに別のタスクを回すので、マイクロタスク
-   * では合流しない —— メッセージ N で積んだマイクロタスクは N+1 が届く前に
-   * flush される。マクロタスク境界が要る。
-   *
-   * `items` と `status` はこの遅延の影響を受けない。遅れるのは通知だけで、
-   * 直接読む消費者は常に最新を見る。
+   * 通知をまとめる。**デバウンスではなくバッチ** —— 張り直す実装だと発火
+   * し続けるイベントで通知が永久に起きない。リレーは 1 メッセージ 1 イベン
+   * ト (NIP-01) でメッセージごとに別タスクなのでマクロタスク境界で畳む。
    */
   #notify(): void {
     if (this.#notifyTimer !== null) return;
@@ -294,12 +256,9 @@ export class SectionReader {
   }
 
   #emit(): void {
-    // 1 つの listener が投げても、後続の listener への通知を巻き込んでは
-    // ならない (final review, finding 4) — ここは任意の消費者コード
-    // (UI 側のオブザーバーなど) を呼んでいる。無防備な bare for ループだと、
-    // 登録順で先に呼ばれた listener が投げただけで、後に登録された listener
-    // はこの通知を一切受け取れない。専用の報告チャネルは無いので
-    // console.error に落とす — 主目的は隔離であって報告ではない。
+    // 1 つの listener が投げても後続の listener への通知を巻き込まない
+    // ように隔離する。専用の報告チャネルが無いので console.error に落とす
+    // —— 主目的は隔離であって報告ではない。
     for (const listener of this.#listeners) {
       try {
         listener();

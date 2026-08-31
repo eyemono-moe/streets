@@ -17,8 +17,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("buildReply", () => {
   it("根への返信は root マーカー 1 本だけ", () => {
-    // 捕まえる変異: reply マーカーも足す。NIP-10 は
-    // "should have a single marked 'e' tag of type 'root'" と定めている。
+    // 捕まえる変異: reply マーカーも足す。NIP-10: "should have a single marked 'e' tag of type 'root'"
     const parent = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildReply(parent, "hi", { relayHint: "wss://a.example" });
     const e = draft.tags.filter((t) => t[0] === "e");
@@ -28,8 +27,7 @@ describe("buildReply", () => {
   });
 
   it("返信への返信は親の root を引き継ぎ、root と reply の 2 本を持つ", () => {
-    // 捕まえる変異: 親だけを指して root を引き継がない。スレッドの根が
-    // 失われ、他クライアントで会話が分断される。
+    // 捕まえる変異: 親だけを指して root を引き継がない —— スレッドの根が失われ、他クライアントで会話が分断される
     const parent = evt({
       id: "2".repeat(64),
       pubkey: "9".repeat(64),
@@ -76,9 +74,7 @@ describe("buildReply", () => {
   });
 
   it("relayHint が無ければ位置要素を空文字で埋める", () => {
-    // 捕まえる変異: 3 番目を省略して ["e", id, "root", pubkey] にする。
-    // マーカーが relay-url の位置に来て、読む側が「root」というリレーへ
-    // 接続しようとする。
+    // 捕まえる変異: 3 番目を省略して ["e", id, "root", pubkey] にする —— マーカーが relay-url の位置に来て、読む側が「root」というリレーへ接続しようとする
     const parent = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildReply(parent, "hi");
     expect(draft.tags.filter((t) => t[0] === "e")).toEqual([
@@ -87,9 +83,7 @@ describe("buildReply", () => {
   });
 
   it("親の e タグでも root 以外のマーカーは根として使わない", () => {
-    // 捕まえる変異: tag[3] === "root" 側の判定を外して true にする。
-    // マーカーを見ずに e タグならなんでも根扱いすると、返信の親でない
-    // イベントが root として引き継がれる。
+    // 捕まえる変異: tag[3] === "root" の判定を外して true 化 —— マーカーを見ずに e タグを根扱いすると、返信の親でないイベントが root として引き継がれる
     const parent = evt({
       id: "2".repeat(64),
       pubkey: "9".repeat(64),
@@ -104,9 +98,7 @@ describe("buildReply", () => {
   });
 
   it("root マーカーが e 以外のタグに付いていても根として使わない", () => {
-    // 捕まえる変異: tag[0] === "e" 側の判定を外す (true 化・|| 化)。
-    // タグの種類を見ずに「4 番目が "root"」という形だけで拾うと、親が
-    // 持つ無関係な p タグを根と取り違え、返信が誤ったイベントを指す。
+    // 捕まえる変異: tag[0] === "e" の判定を外す (true 化・|| 化) —— タグ種類を見ず「4 番目が root」だけで拾うと、親の無関係な p タグを根と取り違える
     const parent = evt({
       id: "2".repeat(64),
       pubkey: "9".repeat(64),
@@ -119,9 +111,7 @@ describe("buildReply", () => {
   });
 
   it("p 以外のタグや空文字の p タグは通知先として拾わない", () => {
-    // 捕まえる変異: tag[0] === "p" のガードを外す (|| 化・true 化)。
-    // e タグの値 (イベント id) が p タグの値として紛れ込み、無関係な
-    // 人物に返信の通知が飛ぶ。空文字の p タグを拾わないことも合わせて守る。
+    // 捕まえる変異: tag[0] === "p" のガードを外す (|| 化・true 化) —— e タグの値が p タグの値に紛れ込み、無関係な人物に通知が飛ぶ。空文字の p タグを拾わないことも守る
     const parent = evt({
       pubkey: "9".repeat(64),
       tags: [
@@ -144,8 +134,7 @@ describe("buildReply", () => {
 
 describe("buildQuote", () => {
   it("q タグを立て、e タグは立てない", () => {
-    // 捕まえる変異: e タグも立てる。NIP-18 が明示的に禁じており、
-    // 立てると引用が返信としてタイムラインに出る。
+    // 捕まえる変異: e タグも立てる —— NIP-18 が明示的に禁じ、立てると引用が返信としてタイムラインに出る
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildQuote(target, "これ面白い", {
       relayHint: "wss://a.example",
@@ -157,9 +146,7 @@ describe("buildQuote", () => {
   });
 
   it("relayHint が無ければ位置要素を空文字で埋める", () => {
-    // 捕まえる変異: 3 番目の要素を省略して ["q", id, pubkey] にする。
-    // buildReply と違い q タグは relay-url の位置を落としても型が通って
-    // しまうため、読む側が pubkey を relay-url と取り違える。
+    // 捕まえる変異: 3 番目の要素を省略して ["q", id, pubkey] にする —— buildReply と違い型が通ってしまうため、読む側が pubkey を relay-url と取り違える
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildQuote(target, "これ面白い");
     expect(draft.tags.filter((t) => t[0] === "q")).toEqual([
@@ -177,8 +164,7 @@ describe("buildQuote", () => {
   });
 
   it("本文に nostr: が無ければ末尾に note1 を足す", () => {
-    // 捕まえる変異: 本文をそのまま使う。q タグだけでは NIP-27 に対応した
-    // クライアントが本文中に引用を描けない。
+    // 捕まえる変異: 本文をそのまま使う —— q タグだけでは NIP-27 対応クライアントが本文中に引用を描けない
     const target = evt({ id: "1".repeat(64) });
     const draft = buildQuote(target, "これ面白い");
     expect(draft.content).toBe(

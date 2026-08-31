@@ -4,11 +4,8 @@ import { type Mutation, replaceTags } from "./draft";
 const RELAY_LIST_KIND = 10002;
 
 /**
- * NIP-65 の kind:10002。read と write の両方ならマーカーを付けない ——
- * NIP-65 はマーカー無しを「両方」と定めており、`read` と `write` の
- * 2 本に分けると他クライアントの表示で 2 本のリレーに見える。
- *
- * read も write も false のエントリは落とす。意味を持たない。
+ * NIP-65 の kind:10002。read/write 両方ならマーカーを付けない（NIP-65 は
+ * マーカー無しを「両方」と定める）。false/false のエントリは意味を持たないため落とす。
  */
 export const setRelayList =
   (entries: readonly RelayListEntry[]): Mutation =>

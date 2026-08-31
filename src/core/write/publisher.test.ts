@@ -30,9 +30,8 @@ const relayListEvent = (seed: number, tags: string[][]) =>
   sign(seed, { ...base, kind: 10002, tags });
 
 /**
- * `ConnectionPool` を、URL ごとに挙動を制御できる `FakeRelayConnection` で
- * 組み立てる。`publishFailing` に載った URL は publish() が指定した理由で
- * reject する — 「1 本だけ失敗」「全部失敗」を作るためだけの注入。
+ * `ConnectionPool` を、URL ごとに挙動を制御できる `FakeRelayConnection`
+ * で組み立てる。`publishFailing` は「1 本だけ失敗」を作るための注入。
  */
 const poolWithFakes = (
   connections: Map<RelayUrl, FakeRelayConnection>,
@@ -193,8 +192,8 @@ describe("createPublisher", () => {
   });
 
   // 捕まえる変異: 失敗を握り潰して rejected に載せない (accepted に混ぜる、
-  // あるいは丸ごと捨てて呼び出し元に見えなくする) —— ADR-0011 の
-  // 「黙って欠落させてはならない」に反する。
+  // あるいは丸ごと捨てて呼び出し元に見えなくする) —— 黙って欠落させては
+  // ならない。
   it("全部失敗したら accepted が空で rejected が全部載る", async () => {
     const store = new EventStore();
     const author = relayListEvent(3, [

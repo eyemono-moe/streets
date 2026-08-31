@@ -63,18 +63,9 @@ describe("selectRelays", () => {
   });
 
   it("assigns a single-declared relay to its author and does not report them uncovered", () => {
-    // need の初期化は min(redundancy, 宣言本数) で行っている (A は 1 本しか
-    // 宣言していないので目標は 1)。ただしこのテストは min の値そのものは
-    // 検証できない — gain は「need > 0 の著者数」を数えるブールな指標で
-    // あり、min ありでも redundancy そのままの初期化でも、A の唯一の
-    // 宣言リレーが選ばれた時点でその宣言リレーは candidates から消える
-    // ので他候補の gain に影響しない。つまり picks / assignment /
-    // uncovered は両方の初期化で同じになる (5000 試行のファズで divergence
-    // 0 件を確認済み)。min が効くのは「宣言本数に対する充足率」という
-    // 計測 (docs/research/2026-08-01-outbox-connection-budget.md) の方で、
-    // この関数の出力ではない。ここで検証できるのはあくまで
-    // 「1 本しか宣言していない著者もちゃんと assignment に入り、
-    // uncovered として扱われない」という公開契約だけ。
+    // need は min(redundancy, 宣言数) だが gain はブールな「need>0」指標なので、
+    // min の値はここでは検証不可。確認できるのは「1 本しか宣言していない著者も
+    // assignment に入り uncovered にならない」という契約のみ。
     const selection = selectRelays({
       demand: new Map([
         [A, ["wss://solo/"]],
@@ -92,8 +83,7 @@ describe("selectRelays", () => {
   });
 
   it("caps each author's assignment at the redundancy", () => {
-    // x, y, z はそれぞれ別の著者にも必要とされるので 3 本とも選ばれるが、
-    // A の redundancy は 2 なので購読するのは 2 本まで
+    // x/y/z は他著者にも必要とされ 3 本とも選ばれるが、A の redundancy=2 で購読は 2 本まで。
     const selection = selectRelays({
       demand: new Map([
         [A, ["wss://x/", "wss://y/", "wss://z/"]],
@@ -131,9 +121,8 @@ describe("selectRelays", () => {
   });
 
   it("does not keep a current relay that has become useless", () => {
-    // stale はどの著者にも宣言されていない — candidates にすら入らない
-    // という粗い失敗 (current を picks に無条件で unionする実装) は
-    // 捕まえるが、粘着性の比較ロジック自体は通っていない
+    // stale は誰にも宣言されず candidates 未参入。current を無条件 union する
+    // 粗い失敗は捕まえるが、粘着性の比較ロジック自体は通らない。
     const selection = selectRelays({
       ...base,
       demand: new Map([[A, ["wss://needed/"]]]),
@@ -145,11 +134,9 @@ describe("selectRelays", () => {
   });
 
   it("does not keep a declared current relay once its marginal gain hits zero", () => {
-    // stale は A が宣言している (candidates に入り、粘着性の比較ロジックを
-    // 実際に通る)。だが A の redundancy 1 は other で既に満たされ、A 以外は
-    // 誰も stale を宣言していないので stale の gain は 0 に落ちる。
-    // gain > bestGain || isCurrent のような「isCurrent が gain 比較を
-    // 上書きする」バグはここを通り抜けて stale を picks に残してしまう。
+    // stale は A の宣言で candidates に入り比較ロジックを通るが、redundancy=1 は
+    // other で満たされ gain は 0 に落ちる。isCurrent が gain 比較を上書きするバグは
+    // ここを抜けて stale を残してしまう。
     const selection = selectRelays({
       demand: new Map([
         [A, ["wss://other/", "wss://stale/"]],
@@ -165,13 +152,8 @@ describe("selectRelays", () => {
   });
 
   it("breaks ties lexicographically when nothing is current", () => {
-    // p, q, r all cover 2 authors each (gain 2) on the first pick, and none
-    // is in `current` -- so the tie is broken purely by URL string order,
-    // not by calling the pure function twice and comparing (unfalsifiable
-    // short of Math.random() leaking in). p wins pick 1 (lexicographically
-    // smallest of p/q/r). Taking p satisfies both A and B, so q's gain
-    // drops to 0 and is skipped; r (still gain 2, covering C and D) wins
-    // pick 2.
+    // p,q,r are tied at gain 2. Comparing two live runs would be unfalsifiable
+    // if Math.random() leaked in, so this checks a fixed expected order instead.
     const demand = new Map([
       [A, ["wss://p/", "wss://q/"]],
       [B, ["wss://q/", "wss://p/"]],
@@ -192,16 +174,11 @@ describe("selectRelays", () => {
   });
 
   describe("degraded relays", () => {
-    // 変異: degraded を無視すると落ちる。実地で観測された欠陥そのもの
-    // (死んだリレーが枠を食い、その著者は永久に暗転する)。
+    // 変異: degraded を無視すると落ちる (死んだリレーが枠を食い著者が永久に暗転する、実際に観測された欠陥)。
     it("prefers a reachable relay over a degraded one that covers the same author", () => {
-      // Deliberately named so "wss://a-dead/" sorts *before*
-      // "wss://z-alive/" lexicographically: both have gain 1 for A (tied),
-      // so if `degraded` were silently ignored the existing lexicographic
-      // tie-break (see "breaks ties lexicographically when nothing is
-      // current" above) would pick the dead one first, not by luck of a
-      // name like "alive" < "dead". This is the only way the test actually
-      // depends on the exclusion rather than on tie-break ordering.
+      // Named so "a-dead" sorts before "z-alive": both tie at gain 1, so if
+      // `degraded` were ignored, the existing lexicographic tie-break would
+      // still pick dead first -- proving the pass depends on exclusion, not luck.
       const selection = selectRelays({
         ...base,
         demand: new Map([[A, ["wss://a-dead/", "wss://z-alive/"]]]),
@@ -213,9 +190,7 @@ describe("selectRelays", () => {
       expect(selection.uncovered).toEqual([]);
     });
 
-    // 変異: degraded を「最後の手段として残す」実装にすると落ちる。
-    // 到達不能なリレーを割り当てても被覆は増えないので、枠を空ける方が
-    // 常に良い。
+    // 変異: degraded を「最後の手段」として残すと落ちる (到達不能な割当は被覆を増やさず、枠を空ける方が常に良い)。
     it("leaves an author uncovered when every declared relay is degraded", () => {
       const selection = selectRelays({
         ...base,
@@ -227,8 +202,7 @@ describe("selectRelays", () => {
       expect(selection.uncovered).toEqual([B]);
     });
 
-    // 変異: pinned にも degraded を適用すると落ちる。ブートストラップの
-    // インデクサが選択器に黙って落とされ、経路ごと壊れる。
+    // 変異: pinned にも degraded を適用すると落ちる (ブートストラップのインデクサが黙って落とされ経路ごと壊れる)。
     it("still picks a pinned relay even when it is degraded", () => {
       const selection = selectRelays({
         ...base,

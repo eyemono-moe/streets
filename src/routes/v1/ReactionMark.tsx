@@ -3,14 +3,8 @@ import type { Component } from "solid-js";
 import type { ReactionContent } from "../../core/nostr/reaction";
 
 /**
- * 反応内容そのもの (仕様 3.1 節 / 5 節)。kind:7 の見出し (`Reaction.tsx`) と
- * ノートに付いたリアクション一覧 (`ReactionList.tsx`) の両方が同じ見た目を
- * 要求するので 1 箇所に切り出す —— 画像読み込み失敗時のフォールバック
- * (仕様 7 節) を含む挙動を 2 箇所で保つと、片方だけ実装し忘れる余地が残る。
- *
- * `content` を先に取り出してから分岐するのは、`<Match when={...}>` の中で
- * `props.content.type` を毎回書き直すと TypeScript の絞り込みが効かず、
- * 分岐の中で再度 type を確かめる冗長なコードになるため。
+ * 反応内容そのもの。kind:7 の見出しと `ReactionList` が同じ見た目を要るので
+ * 切り出す。`content` を先に取り出すのは `<Match>` 内での TS 絞り込みのため。
  */
 const ReactionMark: Component<{ content: ReactionContent }> = (props) => {
   const [broken, setBroken] = createSignal(false);

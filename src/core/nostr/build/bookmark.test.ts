@@ -32,9 +32,7 @@ describe("addBookmark / removeBookmark", () => {
   });
 
   it("対象外のタグと content を保つ", () => {
-    // 捕まえる変異: tags を e/a だけで作り直し、content を空にする。
-    // follow/mute/relay-list と同じく、他クライアントが立てた未知のタグや
-    // 非公開ブックマークの暗号化済み content を消すと設定が飛ぶ。
+    // 捕まえる変異: tags を e/a だけで作り直し content を空にする。未知のタグや暗号化済み content を消すと設定が飛ぶ
     const current = evt({
       kind: 10003,
       tags: [

@@ -54,8 +54,8 @@ export const parseReaction = (
   if (!targetId) return undefined;
 
   const emoji = emojiContent(event);
-  // 空文字は `+` と同じ (NIP-25)。v0 はここを取り違えており、空のリアクション
-  // が画面に出る。
+  // 空文字は `+` と同じ (NIP-25)。ここを取り違えると、空のリアクションが
+  // 画面に出る。
   const content: ReactionContent =
     emoji ??
     (event.content === "+" || event.content === ""

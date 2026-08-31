@@ -29,11 +29,8 @@ const sign = (content = "hello nostr", kind = 0): NostrEvent => {
 
 describe("createMemoryPersistence", () => {
   it("retention: none の kind は保存しない", () => {
-    // 捕まえる変異: save() で shouldPersist の判定を外す。kind:3 は
-    // 「保持しない」ではなく「そもそも書かない」—— 古いフォローリストが
-    // ディスクに残ると、後から読む誰かがそれを使いうる。IndexedDB 実装は
-    // selectForPersistence で落としているので、ここを素通しすると
-    // 同じ契約が実装ごとに違う結果を出す
+    // 捕まえる変異: save() で shouldPersist の判定を外す。kind:3 はディスクに残ると
+    // 後から使われうるため「そもそも書かない」— IndexedDB 実装と契約を揃える。
     const persistence = createMemoryPersistence();
     persistence.save([
       { event: sign("follows", 3), seenRelays: ["wss://a/"], fetchedAt: 1 },
@@ -45,8 +42,7 @@ describe("createMemoryPersistence", () => {
   });
 
   it("save した内容が fetchedAt も含めて load で戻る", async () => {
-    // 捕まえる変異: fetchedAt を保存しない (0 や現在時刻で代替する)。
-    // 水和後にどれだけ古いかが分からなくなり、staleMs の判定が壊れる
+    // 捕まえる変異: fetchedAt を保存しない (0 や現在時刻で代替すると staleMs 判定が壊れる)。
     const persistence = createMemoryPersistence();
     const entry: PersistedEvent = {
       event: sign("a"),
@@ -61,8 +57,7 @@ describe("createMemoryPersistence", () => {
   });
 
   it("saveDeletionRequest したイベントが load の deletionRequests に出る", async () => {
-    // 捕まえる変異: 削除指示を保存しない。次回起動時に削除済みの投稿が
-    // hydrate 経由で復活する (spec 10 節)
+    // 捕まえる変異: 削除指示を保存しない (次回起動時に削除済み投稿が hydrate で復活する)。
     const persistence = createMemoryPersistence();
     const request = sign("to-delete", 5);
 
@@ -73,10 +68,8 @@ describe("createMemoryPersistence", () => {
   });
 
   it("deleteDeletionRequest で取り消した id は load に出ない", async () => {
-    // 捕まえる変異: deleteDeletionRequest を saveDeletionRequest と同じ (追加する) 実装に
-    // する / 何もしない no-op にする。EventStore.remove() が kind:5 の
-    // 巻き戻しでこれを呼んでも記録が残り続け、publish が全滅したのに
-    // 対象イベントが次回起動のたびに hydrate で弾かれ続ける
+    // 捕まえる変異: deleteDeletionRequest を no-op にする。publish 全滅の巻き戻し後も
+    // 記録が残り、対象イベントが次回起動のたびに hydrate で弾かれ続ける。
     const persistence = createMemoryPersistence();
     const request = sign("to-delete", 5);
 
@@ -88,8 +81,7 @@ describe("createMemoryPersistence", () => {
   });
 
   it("dispose 後の save は無視される", async () => {
-    // 捕まえる変異: dispose() のガードを省く。dispose 後に走った
-    // 書き込みがそのまま反映されてしまう
+    // 捕まえる変異: dispose() のガードを省く (dispose 後の書き込みが反映されてしまう)。
     const persistence = createMemoryPersistence();
     persistence.dispose();
 
@@ -104,10 +96,8 @@ describe("createMemoryPersistence", () => {
 
 describe("EventPersistence.load() の規約", () => {
   it("load が内部で失敗しても reject せず空を返す", async () => {
-    // 捕まえる変異: この模擬実装の load() が内部の例外を吸収せずそのまま
-    // 投げる (try/catch を外す)。インメモリ実装はそもそも失敗しないので、
-    // 「load() は reject しない」という規約は失敗を模す実装でしか固定できない
-    // —— IndexedDB はプライベートブラウジング・容量超過で普通に失敗する
+    // 捕まえる変異: この模擬実装が例外を吸収せず投げる。インメモリ実装は失敗しないため、
+    // 「load() は reject しない」という規約は失敗を模す実装でしか固定できない。
     const failing: EventPersistence = {
       async load() {
         try {

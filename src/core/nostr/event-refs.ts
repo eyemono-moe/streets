@@ -6,9 +6,8 @@ import { type NostrEvent, isNostrEvent } from "./event";
 const HEX_64 = /^[0-9a-f]{64}$/;
 
 /**
- * 他のイベントへの参照。`q` タグは event-address（置換可能イベントの
- * `kind:pubkey:d` 座標）も運べるので、id 形式と区別できる形にする ——
- * 混ぜると `{ ids: [...] }` で座標を引きに行って永久に見つからない。
+ * 他のイベントへの参照。`q` タグは event-address (`kind:pubkey:d`) も運べる
+ * ため id 形式と区別する —— 混ぜると `{ ids: [...] }` で永久に見つからない。
  */
 export type EventRef =
   | { form: "id"; id: string; relay?: RelayUrl; pubkey?: string }
@@ -17,9 +16,8 @@ export type EventRef =
 type IdRef = Extract<EventRef, { form: "id" }>;
 
 /**
- * 空文字を落とす。NIP-10 はリレー URL について「may be empty string」と
- * 明記しており、空文字をそのままリレーヒントとして下流へ渡すと接続先として
- * 使われうる。
+ * 空文字を落とす。NIP-10 はリレー URL を「may be empty string」と明記しており、
+ * そのまま渡すと空文字が接続先として使われうる。
  */
 export const relayOf = (value: string | undefined): RelayUrl | undefined =>
   value && value.length > 0 ? (value as RelayUrl) : undefined;
@@ -42,16 +40,8 @@ const idRef = (
 };
 
 /**
- * 返信先（親）を返す。**marker が付いた `e` タグだけを見る。**
- *
- * NIP-10 の marker は `"reply"` と `"root"` の 2 つだけであり、`"mention"`
- * は現行仕様に存在しない（v0 の実装は割り当てているが、それは古い）。
- * marker 無しの位置ベースの旧形式は deprecated で、NIP-10 自身が
- * 「曖昧で解決不能」としているので解釈しない。
- *
- * `reply` があればそれ、無ければ `root` —— NIP-10 は「スレッドのルートへの
- * 直接の返信は root marker の `e` タグ 1 本だけを持つ」と定めているので、
- * `reply` だけを見ると最も普通の返信が親を持たないことになる。
+ * 返信先（親）を返す。marker は "reply"/"root" のみ（旧位置形式は NIP-10 で
+ * deprecated）。`reply` が無ければ `root`（root タグは 1 本だけの決まり）。
  */
 export const replyTarget = (event: NostrEvent): IdRef | undefined => {
   let root: IdRef | undefined;
@@ -68,14 +58,8 @@ export const replyTarget = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
- * スレッドの根を返す。**`root` マーカーの付いた `e` タグだけを見る。**
- *
- * `replyTarget` は `reply` があればそちらを優先するので、返信への返信では
- * 根が取れない。スレッドの購読は根に投げる（NIP-10 を守る返信は深さに
- * 関わらず全員が根を指すため）ので、根だけを返す経路が別に要る。
- *
- * 見つからなければ `undefined`。**自分の id を返さない** —— 呼び出し側が
- * 「このイベント自身が根である」ことを判定できなくなる。
+ * スレッドの根を返す（`root` タグのみ）。`replyTarget` は `reply` 優先で深い
+ * 返信では根を取れないため別経路が要る。`undefined` 時も自分の id は返さない。
  */
 export const threadRoot = (event: NostrEvent): IdRef | undefined => {
   for (const tag of event.tags) {
@@ -87,13 +71,8 @@ export const threadRoot = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
- * このイベントの `e` タグが運ぶリレーヒント (NIP-10 の 3 番目の要素) を
- * 重複無しで返す。**`#e` 購読を送るリレーを選ぶための、著者に依らない
- * 手がかりとして使う** —— `#e` フィルタは誰が返信するか事前に分からず
- * Outbox ルーティング (著者の write relay を引く) が効かないので、返信の
- * 対象を指すタグ自身に書かれたヒントだけが唯一の追加情報になる。
- * marker の種類は問わない (`reply`/`root` に絞ると、返信ではなく引用
- * だけの `e` タグが運ぶヒントまで捨ててしまう)。
+ * `e` タグが運ぶリレーヒントを重複無しで返す（`#e` 購読は返信者が事前に分から
+ * ず著者の write relay も引けないため）。marker は問わず引用専用タグも拾う。
  */
 export const eventRelayHints = (event: NostrEvent): RelayUrl[] => {
   const hints = new Set<RelayUrl>();
@@ -106,9 +85,8 @@ export const eventRelayHints = (event: NostrEvent): RelayUrl[] => {
 };
 
 /**
- * 引用先を順に返す。**`e` タグは拾わない** —— NIP-18 が `q` タグを作った
- * 目的そのものが「引用がスレッドの返信として現れないようにする」ことなので、
- * 混ぜると逆流する。
+ * 引用先を順に返す。`e` タグは拾わない —— NIP-18 が `q` タグを作った目的は
+ * 「引用をスレッドの返信として現れさせない」ことなので、混ぜると逆流する。
  */
 export const quoteTargets = (event: NostrEvent): EventRef[] => {
   const refs: EventRef[] = [];
@@ -129,22 +107,10 @@ export const quoteTargets = (event: NostrEvent): EventRef[] => {
 };
 
 /**
- * `q` タグのうち、**本文に `nostr:` として現れないもの**。
- *
- * 本文に現れた引用はその位置に埋め込むので (`NoteContent` の `eventRefs`)、
- * ここで返すと同じイベントが 2 回描かれる。[NIP-18] は本文の言及を `q`
- * タグへ変換することを MUST としているが、[NIP-27] は `q` タグを任意と
- * しており、両者は食い違っている —— 本文とタグは両方向にずれうるので、
- * 「タグにしか無いもの」を最下部に出すことで、どちらのクライアントの
- * 投稿でも引用を落とさない。
- *
- * 座標形式 (`form: "address"`) も本文の `naddr` と突き合わせる —— `naddr`
- * は `eventKind`/`pubkey`/`identifier` を運び、`q` タグの座標形式
- * (`<kind>:<pubkey>:<identifier>`) と同じ 3 つ組なので、id 形式と同じ理由
- * (二重描画を避ける) で突き合わせられる。
- *
- * `q` タグ自身が同じ対象を 2 本重複して持つこともある —— 最下部の重複も
- * ここで一緒に落とす (id/address それぞれで先勝ち)。
+ * `q` タグのうち本文に `nostr:` として現れないものを返す（本文側は
+ * `NoteContent` の `eventRefs` が描画）。NIP-18 は本文言及の `q` タグ化を
+ * MUST、NIP-27 は任意とし本文とタグが双方向にずれるため「タグにしか
+ * 無いもの」を出し、id/address（naddr の 3 つ組と一致）とも重複は先勝ち。
  */
 export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
   const mentionedIds = new Set<string>();
@@ -183,9 +149,8 @@ export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
 };
 
 /**
- * リポスト対象の `e` タグ。**例外を投げない** —— NIP-18 は kind:6 に `e`
- * タグを要求するが、守らないイベントは実在しうる。1 件の不正なイベントで
- * カラム全体を壊さない（仕様 9 節）。
+ * リポスト対象の `e` タグ。例外を投げない —— NIP-18 は kind:6 に `e` タグを
+ * 要求するが守らないイベントも実在し、1 件の不正なイベントでカラム全体を壊さない。
  */
 export const repostTarget = (event: NostrEvent): IdRef | undefined => {
   for (const tag of event.tags) {
@@ -197,23 +162,15 @@ export const repostTarget = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
- * リポストの `content` に埋め込まれた対象イベント（NIP-18）。
- *
- * **この値は信用できない** —— リポストした人が書いた任意の文字列である。
- * ここで確かめるのは形（`isNostrEvent`）だけで、**署名の検証は呼び出し側が
- * `EventStore.put` を通して行う**。put が `"rejected"` を返したら、この
- * 埋め込みは捨てて `e` タグから引き直すこと。
+ * リポストの `content` に埋め込まれた対象イベント（NIP-18）。信用できない
+ * 値なので形だけ確認し、署名検証は呼び出し側の `EventStore.put` に委ねる
+ * （`"rejected"` なら埋め込みを捨て `e` タグから引き直す）。
  */
 export const embeddedRepostEvent = (
   event: NostrEvent,
 ): NostrEvent | undefined => {
-  // 空文字 (トリム後) を早期に弾く。**この早期リターンを消してもテストは
-  // 1 つも落ちない** —— 空文字を JSON.parse に渡すと SyntaxError を投げ、
-  // 下の try/catch がそのまま吸収して undefined を返すので、早期リターンの
-  // 有無は外部から観測できない (deck.ts の loadDeck の `raw === null` と同じ
-  // 構造)。それでも残すのは、「content が無い」という呼び出し側の意図を
-  // JSON.parse の例外送出という偶然の挙動任せにせず、コードとして明示する
-  // ため。
+  // 空文字を早期に弾く。消しても、空文字は JSON.parse が投げ try/catch が拾って
+  // undefined になるため観測できないが、「content が無い」意図を例外送出任せにせずコードで明示するために残す。
   if (event.content.trim().length === 0) return undefined;
   let parsed: unknown;
   try {

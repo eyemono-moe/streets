@@ -31,14 +31,8 @@ export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
 });
 
 /**
- * 追加フォームの入力から `ColumnDef` を作る。**UI から分けてあるのは、
- * 各種別が正しい `ColumnSource` を作るかどうかをブラウザ無しで固定する
- * ため。** 種別ごとに読み取り層の別々の経路を通す (仕様 4 節) ので、
- * ここを間違えると「カラムは出来たが何も来ない」という、原因の遠い
- * 壊れ方になる。
- *
- * 入力が不正なら `undefined`。呼び出し側はフォームを閉じずにエラーを
- * 出す —— 黙って「誰にもマッチしないカラム」を作らない。
+ * 追加フォームの入力から `ColumnDef` を作る。入力が不正なら `undefined` を
+ * 返し、呼び出し側はフォームを閉じずにエラーを出す —— 黙って作らない。
  */
 export const buildColumn = (
   kind: ColumnPresetKind,
@@ -63,16 +57,10 @@ export const buildColumn = (
     }
 
     case "hashtag": {
-      // NIP-12 のタグ値に `#` は含まれない。ユーザーは `#nostr` と打つ
-      // ほうが自然なので、先頭の `#` を (`##nostr` のように複数あっても)
-      // すべて落とす —— `/^#/` (1 個だけ) だと `##nostr` が `#nostr` と
-      // いうタグ値になり、NIP-12 のタグ値に `#` を含む本物のイベントは
-      // 存在しないので永久に一致しない (最終レビュー Minor 3)。
-      //
-      // さらに NIP-24 は `t` タグの値を小文字にする SHOULD を定めており、
-      // 主要クライアントも小文字で publish する。NIP-01 のタグフィルタは
-      // 完全一致なので、`#Nostr` のように大文字混じりで保存すると実在する
-      // 小文字のタグ値と一致せず、同じく永久に何も来ない。
+      // NIP-12 のタグ値に `#` は含まれない。先頭の `#` は複数あっても
+      // すべて落とす —— 1 個だけ落とすと `##nostr` が `#nostr` というタグ値
+      // になり、本物のイベントには存在せず永久に一致しない。NIP-24 は
+      // 小文字を SHOULD とし主要クライアントも従うので、小文字化もする。
       const tag = input.trim().replace(/^#+/, "").toLowerCase();
       if (tag.length === 0) return undefined;
       return {
@@ -95,7 +83,7 @@ export const buildColumn = (
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、
-      // `resolveSource` が解決のたびに最新の値で組み立てる (仕様 4.1 節)。
+      // `resolveSource` が解決のたびに最新の値で組み立てる。
       return { id, title: "通知", source: { kind: "notifications" } };
   }
 };

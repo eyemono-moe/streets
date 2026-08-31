@@ -17,10 +17,7 @@ export type StoredEvent = {
   event: NostrEvent;
   seenRelays: RelayUrl[];
   /**
-   * `put()` が呼ばれた時刻 (ミリ秒エポック)。`event.created_at` は著者が
-   * 書いた時刻であって、こちらは我々が取得した時刻 —— 鮮度判定
-   * (staleMs との比較) はこちらでなければ、2 年前に書かれた kind:0 を
-   * 今取得しても常に stale と判定されてしまう。
+   * `created_at` は著者が書いた時刻なので、鮮度判定にはこちらの取得時刻を使う。
    */
   fetchedAt: number;
 };
@@ -43,11 +40,8 @@ export type EventStoreChange =
 export type EventStoreOptions = {
   scheduler?: Scheduler;
   /**
-   * 背後の水和・退避層 (ADR-0018)。渡さなければ永続化しない (デバッグ
-   * ルート・ほとんどのユニットテストの既定)。`routing-table.ts` のコメント
-   * が前提にしている「kind:10002 を普通のイベントとして保存すれば
-   * ルーティング表の永続化は自動的に得られる」を実際に成立させているのが
-   * ここ —— put() が挿入・restamp のたびに転送する。
+   * 渡さなければ永続化しない。`put()` が挿入と restamp のたびに転送するので、
+   * kind:10002 を普通のイベントとして保存するだけでルーティング表も永続化される。
    */
   persistence?: EventPersistence;
 };
@@ -156,7 +150,7 @@ const addressForLookup = (
 
 /**
  * 同期・メモリのイベント保管。
- * IndexedDB による永続化は後続の計画で「背後の水和・退避層」として足す (ADR-0018)。
+ * IndexedDB による永続化は「背後の水和・退避層」として足す。
  */
 export class EventStore {
   readonly #events = new Map<string, StoredEvent>();
@@ -170,11 +164,8 @@ export class EventStore {
   /** イベントが無い応答も、置換可能イベントを取得済みとして記録する。 */
   readonly #replaceableFetchedAt = new Map<string, number>();
   /**
-   * タグの値 → そのタグを持つイベント id。
-   *
-   * **単一文字のタグだけを索引する。** NIP-01 がリレーの索引対象をそう定めて
-   * おり、`#e` / `#p` のフィルタが成立する根拠でもある。`imeta` のような
-   * 長いタグまで索引すると、誰も引かない索引でメモリを食う。
+   * タグの値 → そのタグを持つイベント id。単一文字のタグだけを索引する
+   * (NIP-01 のリレー索引対象と同じ) —— 長いタグまで索引すると無駄にメモリを食う。
    */
   readonly #byTag = new Map<string, Map<string, Set<string>>>();
   readonly #scheduler: Scheduler;
@@ -197,17 +188,8 @@ export class EventStore {
   }
 
   /**
-   * `verifyEvent` (id 再計算 + schnorr) にこれまで費やした累計 ms と回数。
-   *
-   * ADR-0011 の「初回イベント表示 2 秒」に対して、検証がどれだけを占めて
-   * いるかを分解するための値。初回バーストでは数百件が一度に流れるため、
-   * 1 件あたりが速くても合計は無視できない。重複判定で弾かれた分は含めない
-   * (そちらは検証していない)。
-   *
-   * `performance.now()` を注入せず直に呼ぶ。読み取り層がタイマーを
-   * `Scheduler` 経由にしているのは、テストが時間を決定的に進めるためで
-   * あって、時刻の取得一般を禁じているからではない。この値は表示にしか
-   * 使わず、どの分岐にも影響しない。
+   * `verifyEvent` の累計 ms と回数。「初回表示 2 秒」予算の検証コスト内訳
+   * 用。表示専用で分岐に影響しないため `performance.now()` を直に呼ぶ。
    */
   get verifyMs(): number {
     return this.#verifyMs;
@@ -218,11 +200,8 @@ export class EventStore {
   }
 
   /**
-   * 最新の置換可能イベントが変わったことを購読する。
-   *
-   * イベントそのものを渡さないのは、listener が処理を始める時点では同じ
-   * key のさらに新しい版が入っている可能性があるため。通知は再読込の契機
-   * だけを表し、値は `latestReplaceable()` から読む。
+   * 最新の置換可能イベントが変わったことを購読する。イベント自体は渡さない
+   * —— listener 実行時にはさらに新しい版が入りうるため、値は `latestReplaceable()` から読む。
    */
   onReplaceableChanged(
     listener: (change: ReplaceableChange) => void,
@@ -287,7 +266,7 @@ export class EventStore {
     return "inserted";
   }
 
-  /** `retention`（`none`/`latest-per-author`/`capped`）の適用は永続層の責務 (spec 7 節) —— ここは無条件に転送するだけでよい。 */
+  /** `retention`（`none`/`latest-per-author`/`capped`）の適用は永続層の責務 —— ここは無条件に転送するだけでよい。 */
   #persist(stored: StoredEvent): void {
     this.#persistence?.save([
       {
@@ -299,17 +278,8 @@ export class EventStore {
   }
 
   /**
-   * 永続層から読み戻したものを検証せずに入れる。`put()` の枝ではなく別の
-   * メソッドにしているのは、リレー由来の値がこの無検証の経路へ迷い込む
-   * 余地を型シグネチャの時点で無くすため —— 呼び出せるのは
-   * `readonly PersistedEvent[]` を持っている側だけで、`RelayConnection` の
-   * イベントハンドラはこの形を作れない。
-   *
-   * `fetchedAt` は引数の値をそのまま使う。ここで現在時刻を入れると水和の
-   * たびに全件が新鮮になり、`staleMs` が二度と発火しなくなる。
-   *
-   * 既にある id は上書きしない —— 起動後にリレーから届いた新しい版を、
-   * 後から終わる水和が古い値で巻き戻すことになる。
+   * 永続層データを検証せず入れる (未検証データの迷い込みを型で防ぐため
+   * `put()` と別メソッド)。`fetchedAt` は引数の値のまま使い、既存 id は上書きしない。
    */
   hydrate(
     entries: readonly PersistedEvent[],
@@ -333,8 +303,7 @@ export class EventStore {
       ) {
         continue;
       }
-      // 永続層のデータは壊れていることがある (スキーマ変更、部分書き込み)。
-      // 署名までは検証しない (信用済み挿入の前提そのもの) が、形だけは確かめる。
+      // 永続層のデータは壊れうる。署名検証はしない (信用済み挿入の前提) が形は確かめる。
       if (!isNostrEvent(entry.event)) continue;
 
       if (
@@ -515,9 +484,8 @@ export class EventStore {
   }
 
   /**
-   * EOSE まで待って対象イベントが無かった場合も、次の要求が同じ空応答を
-   * すぐ投げ直さないよう取得時刻を残す。イベント本体が届けばそちらの
-   * `fetchedAt` を優先するため、空応答の記録が最新版を隠すことはない。
+   * EOSE まで待って対象が無かった場合も、次の要求がすぐ投げ直さないよう
+   * 取得時刻を残す。イベント本体が届けばそちらの `fetchedAt` を優先する。
    */
   markReplaceableFetched(
     kind: number,
@@ -529,9 +497,8 @@ export class EventStore {
   }
 
   /**
-   * 取得時刻だけを 0 に戻し、イベント自体は残す。丸ごと消すと
-   * 「持っていない」になり、serveWhileRevalidating を許すポリシーの kind が
-   * 再取得の間に出すべき古い値を失う。
+   * 取得時刻だけ 0 に戻し、イベントは残す。丸ごと消すと「持っていない」に
+   * なり、serveWhileRevalidating が再取得中に出すべき古い値を失う。
    */
   invalidate(kind: number, pubkey: string, identifier?: string): void {
     const id = this.#replaceable.get(
@@ -545,7 +512,7 @@ export class EventStore {
 
   /**
    * 通常の置換可能イベントと addressable event の最新版を索引する。
-   * ルーティング表 (ADR-0016) はこの索引から kind:10002 を導出する。
+   * ルーティング表はこの索引から kind:10002 を導出する。
    */
   #indexReplaceable(event: NostrEvent): boolean {
     const address = addressForEvent(event);
@@ -555,11 +522,8 @@ export class EventStore {
     const currentId = this.#replaceable.get(key);
     const current = currentId ? this.#events.get(currentId)?.event : undefined;
     if (current) {
-      // 同一 pubkey の複数版が届くリレーが実在する (purplepag.es で最大4版)。
-      // created_at 最大の版を採る (ADR-0016)。同着の場合は NIP-01 の規定どおり
-      // id を辞書式に比較し、小さい方を残す (nostr-protocol/nips 01.md:101)。
-      // 到着順ではなく id で決めることで、リレーの配送順に左右されない
-      // 決定的な結果にする。
+      // 同一 pubkey の複数版が届くリレーが実在するため、created_at 最大を
+      // 採る。同着は NIP-01 どおり id 辞書式最小を残し、配送順に左右されない。
       if (current.created_at > event.created_at) return false;
       if (current.created_at === event.created_at && current.id <= event.id) {
         return false;
@@ -659,13 +623,8 @@ export class EventStore {
   }
 
   /**
-   * 索引から完全に外す。`invalidate()` (取得時刻だけ 0 に戻し、値は残す)
-   * とは別物。
-   *
-   * 使う場所は 2 つ。publish が 1 本も通らなかった書き込みの巻き戻し
-   * (`src/core/write/writer.ts`) と、自分のイベントを NIP-09 で削除した
-   * ときのローカル反映。どちらも「このイベントは無かったことにする」
-   * であり、serveWhileRevalidating が古い値を出す余地は要らない。
+   * 索引から完全に外す (`invalidate()` とは別物)。使うのは publish 全滅の
+   * 巻き戻しと NIP-09 の自己削除の 2 箇所で、serveWhileRevalidating の余地は無い。
    */
   remove(id: string): boolean {
     const visible = this.#events.get(id);

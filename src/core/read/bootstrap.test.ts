@@ -19,12 +19,8 @@ import { RoutingTable } from "./routing-table";
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * A RelayConnection whose subscription `close()` is a true no-op: unlike
- * FakeRelayConnection, it does not remember "closed" and does not suppress
- * further onEose/onClosed calls once a subscription has been closed. This
- * exists to prove that `collect()`'s own per-connection settle guard (not
- * FakeRelayConnection's `sub.closed` early-return) is what stops a second
- * EOSE/CLOSED for the same connection from double-counting.
+ * Unlike FakeRelayConnection, `close()` here doesn't suppress further
+ * onEose/onClosed -- proving `collect()`'s own settle guard prevents double-counting.
  */
 class UnguardedConnection implements RelayConnection {
   readonly handlers: RelaySubscriptionHandlers[] = [];
@@ -90,20 +86,11 @@ const sign = (
 const base = { created_at: 1_700_000_000, tags: [], content: "" };
 
 /**
- * Builds a ConnectionPool backed by FakeRelayConnection, recording every
- * connection it creates in `connections` keyed by url.
- *
- * Every test below expects `connections.size` to grow by at most one entry
- * per indexer url for the whole `warmUpRouting()` call: fix round 1 made
- * `warmUpRouting` hold a long-lived "anchor" claim on the connection for its
- * entire lifetime (see `bootstrap.ts`), specifically so that phase ①'s
- * subscription settling and closing does not drop the pooled entry count for
- * that url to zero (which would tear the connection down and force phase ②
- * to reconnect). Task 3 (2026-08-05) moved that claim from a `subscribe()`
- * call to `pool.hold()`, which sends no REQ at all -- so, unlike before, the
- * anchor never appears in `FakeRelayConnection.subscriptions`. Every
- * FakeRelayConnection in this file carries phase ①'s own subscription at
- * index 0, and phase ②'s (when there is one) at index 1.
+ * Builds a ConnectionPool backed by FakeRelayConnection, recording each
+ * connection in `connections` by url. `warmUpRouting`'s anchor (`pool.hold()`,
+ * sends no REQ) keeps the connection open across phase ①'s settle/close, so at
+ * most one connection exists per indexer url. Subscriptions index 0 is phase
+ * ①, index 1 is phase ② (if any).
  */
 const poolWithFakes = (
   connections: Map<RelayUrl, FakeRelayConnection>,
@@ -154,8 +141,7 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    // フェーズ① の購読 (index 0)。アンカーは hold() 経由 (Task 3) なので
-    // REQ を出さず、subscriptions には一切現れない。
+    // フェーズ①の購読 (index 0)。hold() 経由のアンカーは REQ を出さず subscriptions に現れない。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
     expect(indexer()?.subscriptions[0].filters).toEqual([
       { kinds: [3], authors: [viewer.pubkey], limit: 1 },
@@ -163,15 +149,11 @@ describe("warmUpRouting", () => {
     indexer()?.emitEvent(0, viewer);
     indexer()?.emitEose(0);
 
-    // 第 2 段: 全員分の kind:10002 を 1 クエリで。アンカーの hold がまだ
-    // 生きているので、フェーズ① が settle した後もこの接続は再接続されずに
-    // 残っている — フェーズ② の購読はそのまま同じ接続の index 1 に乗る。
+    // 第 2 段: kind:10002 を 1 クエリで。アンカーの hold が生きているため接続は再接続されず index 1 に乗る。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     const second = indexer()?.subscriptions[1].filters[0];
     expect(second?.kinds).toEqual([10002]);
-    // 捕まえる変異: authors に viewer (自分) を足し忘れる。自分は followees
-    // (alice, bob) には入っていない — にもかかわらず自分の write リレーも
-    // 同じクエリで引けなければ publish 先が決まらない。
+    // 捕まえる変異: authors に viewer を足し忘れる (自分の write リレーが引けないと publish 先が決まらない)。
     expect(new Set(second?.authors)).toEqual(
       new Set([alice.pubkey, bob.pubkey, viewer.pubkey]),
     );
@@ -184,8 +166,7 @@ describe("warmUpRouting", () => {
     expect(result.routed).toBe(1);
     expect(result.unroutable).toBe(1);
 
-    // warmUpRouting 全体を通じて、このインデクサへは 1 本の接続しか作られて
-    // いない (フェーズ間で繋ぎ直していない証拠)。
+    // warmUpRouting 全体でこのインデクサへの接続は 1 本のみ (フェーズ間で繋ぎ直さない証拠)。
     expect(relays.size).toBe(1);
 
     const table = new RoutingTable(store);
@@ -193,7 +174,7 @@ describe("warmUpRouting", () => {
     expect(table.writeRelaysFor(bob.pubkey)).toEqual([]);
   });
 
-  // spec 5 節: 相② はポリシー (kind:10002 の staleMs = 7 日) を通す。
+  // 相② はポリシー (kind:10002 の staleMs = 7 日) を通す。
   it("新鮮な kind:10002 を持つ著者は相②の authors に入らない", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const clock = createFakeClock();
@@ -219,9 +200,7 @@ describe("warmUpRouting", () => {
       ],
     });
 
-    // isStale は fetchedAt === 0 を無条件 stale とみなす (invalidate() の
-    // 目印と区別できないため) —— 時計を 0 から動かしてから put しないと、
-    // この後の判定が「fresh」を主張できない (cache-policy.ts 参照)。
+    // isStale は fetchedAt === 0 を無条件 stale とみなすため、時計を進めてから put する。
     clock.advance(1);
     store.put(alice, "wss://alice/");
 
@@ -292,9 +271,7 @@ describe("warmUpRouting", () => {
 
     const result = await pending;
 
-    // 捕まえる変異: 空の authors で collect() を呼ぶ (誰にも一致しない REQ
-    // をそれでもワイヤへ出してしまう)。全員新鮮なので相②の購読は 1 本も
-    // 立たないはず (フェーズ①の 1 本のまま)。
+    // 捕まえる変異: 空の authors で collect() を呼ぶ (全員新鮮なので相②の購読は 1 本も立たないはず)。
     expect(indexer()?.subscriptions).toHaveLength(1);
     expect(result.phase2Ms).toBe(0);
     expect(result.followees).toEqual([alice.pubkey]);
@@ -333,8 +310,7 @@ describe("warmUpRouting", () => {
 
     clock.advance(1);
     store.put(staleBob, "wss://bob/");
-    // bob を staleMs (7 日) の外へ押し出してから、alice と自分を新鮮な
-    // ままにする。
+    // bob を staleMs (7 日) の外へ、alice と自分は新鮮なままにする。
     clock.advance(SEVEN_DAYS_MS + 1);
     store.put(alice, "wss://alice/");
     store.put(viewerRelayList, "wss://viewer-write/");
@@ -363,18 +339,13 @@ describe("warmUpRouting", () => {
     await pending;
   });
 
-  // 縦断スライスの書き込み経路向けの前提: 自分は followees に入っている
-  // とは限らない (自分自身を p タグでフォローするのは稀)。にもかかわらず
-  // 自分の write リレーが引けないと、publisher.ts が publish 先を決められ
-  // ない。ここでは filters の形
-  // だけでなく、実際に RoutingTable 経由で自分の write リレーが引けること
-  // まで確認する — フィルタの主張と実際の効果を両方とも押さえる。
+  // 自分は followees に入るとは限らないが (自己フォローは稀)、write リレーが
+  // 引けないと publish 先が決まらない。filters の形だけでなく RoutingTable 経由で実際に引けることも確認する。
   it("自分が誰もフォローしていなくても、自分の kind:10002 は引ける", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
     const pool = poolWithFakes(relays);
 
-    // フォローは alice だけ、自分自身はフォローしていない。
     const alice = sign(1, {
       ...base,
       kind: 10002,
@@ -416,8 +387,7 @@ describe("warmUpRouting", () => {
     await pending;
 
     const table = new RoutingTable(store);
-    // 自分は followees (alice だけ) には入っていないのに、自分の write
-    // リレーが引ける。
+    // 自分は followees (alice だけ) には入っていないのに、自分の write リレーが引ける。
     expect(table.writeRelaysFor(viewer.pubkey)).toEqual([
       "wss://viewer-write/",
     ]);
@@ -442,9 +412,7 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => relays.get("wss://indexer/");
-    // kind:3 が無いので followees は空のまま —— 旧実装はここで早期 return
-    // してフェーズ②ごと飛ばしていた。フェーズ①がすぐ settle しても、
-    // フェーズ②の購読 (authors:[viewer]) が index 1 に必ず立つはず。
+    // kind:3 が無く followees は空のままでも、フェーズ②の購読は index 1 に必ず立つはず。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
     indexer()?.emitEose(0);
 
@@ -465,13 +433,8 @@ describe("warmUpRouting", () => {
   });
 
   it("インデクサが要求していない kind を押し込んでもストアに入らない", async () => {
-    // ブートストラップが送るのは {kinds:[3], authors:[pubkey], limit:1} と
-    // {kinds:[10002], authors: [...followees, pubkey]}。kind:1 はどちらにも
-    // 一致しない。
-    //
-    // 同時に「limit は照合条件ではない」ことも主張している —— フェーズ① の
-    // フィルタは limit:1 を持つが、フォローリスト本体はこの門を通り抜けねば
-    // ならない (通らなければ followees が空になり、後段の expect が落ちる)。
+    // ブートストラップが送る2フィルタに kind:1 は一致しない。同時に「limit は
+    // 照合条件でない」ことも主張 —— フェーズ①の limit:1 を通らないと followees が空になり後段が落ちる。
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
     const pool = poolWithFakes(relays);
@@ -503,7 +466,6 @@ describe("warmUpRouting", () => {
     indexer()?.emitEvent(0, viewer);
     indexer()?.emitEose(0);
 
-    // フェーズ② (1)
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEvent(1, intruder);
     indexer()?.emitEvent(1, alice);
@@ -519,11 +481,8 @@ describe("warmUpRouting", () => {
     expect(result.unrequested).toBe(2);
   });
 
-  // Fix round 1, Important 1: the anchor exists specifically to prevent a
-  // reconnect between phase ① and phase ② for the same indexer. Kept
-  // deliberately small and isolated from the follow-list/routing logic
-  // above so the reconnect-vs-reuse behaviour can be pinned down on its
-  // own.
+  // The anchor exists to prevent a reconnect between phase ① and ②. Kept small
+  // and isolated from the follow-list/routing logic above so this behaviour can be pinned down on its own.
   it("keeps each indexer's connection open across both warm-up phases instead of reconnecting", async () => {
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
@@ -548,11 +507,10 @@ describe("warmUpRouting", () => {
     indexer()?.emitEvent(0, viewer);
     indexer()?.emitEose(0);
 
-    // Phase ① settled and its own subscription is closed, but the
-    // connection itself must survive -- the anchor's hold() is still held
-    // (hold() sends no REQ, so it never shows up as a `subscriptions`
-    // entry; the connection's own `closed` flag is the only place this
-    // survival is observable, Task 3).
+    // Phase ① settled and its subscription closed, but the connection itself
+    // must survive -- the anchor's hold() is still held (sends no REQ, so it
+    // never shows up in `subscriptions`; `closed` is the only place this
+    // survival is observable).
     expect(indexer()?.subscriptions[0].closed).toBe(true);
     expect(indexer()?.closed).toBe(false);
 
@@ -561,11 +519,9 @@ describe("warmUpRouting", () => {
 
     await pending;
 
-    // Exactly one FakeRelayConnection was ever created for this url -- no
-    // reconnect happened between phase ① and phase ②.
+    // Exactly one FakeRelayConnection was ever created for this url -- no reconnect between phase ① and ②.
     expect(relays.size).toBe(1);
-    // Only now, at the very end of warmUpRouting, does the anchor's hold
-    // release and the connection go down with it.
+    // Only now, at the very end of warmUpRouting, does the anchor's hold release and the connection go down.
     expect(indexer()?.closed).toBe(true);
   });
 
@@ -585,8 +541,7 @@ describe("warmUpRouting", () => {
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
     indexer()?.emitEose(0);
 
-    // followees が空でも、自分の kind:10002 を引くフェーズ②は必ず走る
-    // (index 1)。
+    // followees が空でも、自分の kind:10002 を引くフェーズ②は必ず走る (index 1)。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEose(1);
 
@@ -601,16 +556,14 @@ describe("warmUpRouting", () => {
       phase1Relays: expect.any(Array),
       phase2Relays: expect.any(Array),
     });
-    // 捕まえる変異: フィールドを足すが値を入れない。undefined のままだと
-    // 0 以上の比較は常に false になる。
+    // 捕まえる変異: フィールドを足すが値を入れない (undefined だと 0 以上の比較が常に false)。
     expect(result.phase1Ms).toBeGreaterThanOrEqual(0);
     expect(result.phase2Ms).toBeGreaterThanOrEqual(0);
   });
 
   it("片付いた URL ごとに経過 ms と片付き方を報告する", async () => {
-    // 捕まえる変異: onRelaySettled を呼ばない / reason を固定値にする。
-    // 相の所要時間は最も遅い 1 本で決まるので、合計値だけを見ている限り
-    // どのリレーが原因かも、そもそも応答が返っていないのかも分からない。
+    // 捕まえる変異: onRelaySettled を呼ばない/reason を固定値にする。相の所要
+    // 時間は最遅の 1 本で決まるため、合計値だけではどのリレーが原因か分からない。
     vi.useFakeTimers();
     try {
       const relays = new Map<RelayUrl, FakeRelayConnection>();
@@ -626,8 +579,7 @@ describe("warmUpRouting", () => {
         timeoutMs: 25,
       });
 
-      // `vi.waitFor` は偽タイマーを進めてしまい、購読を待つ間にタイムアウトが
-      // 発火する。マイクロタスクだけを流して購読の生成を待つ。
+      // vi.waitFor は偽タイマーを進めタイムアウトを誘発するため、マイクロタスクだけ流して待つ。
       await vi.advanceTimersByTimeAsync(0);
       relays.get("wss://fast/")?.emitEose(0);
       // 相①のタイムアウト → 相②のタイムアウト。
@@ -638,8 +590,7 @@ describe("warmUpRouting", () => {
       const byUrl = new Map(result.phase1Relays.map((r) => [r.url, r]));
       expect(byUrl.get("wss://fast/")?.reason).toBe("eose");
       expect(byUrl.get("wss://silent/")?.reason).toBe("timeout");
-      // 繋がらなかった相手と、繋がったが黙っている相手を取り違えると、
-      // 次に打つ手 (URL を疑う / 待ち方を変える) を選び間違える。
+      // 繋がらなかった相手と黙っている相手を取り違えると、次の対処 (URL を疑う/待ち方を変える) を誤る。
       expect(byUrl.get("wss://refused/")?.reason).toBe("closed");
       // 応答しなかった側のほうが必ず遅い —— 逆なら計測が壊れている。
       expect(byUrl.get("wss://silent/")?.ms ?? 0).toBeGreaterThanOrEqual(
@@ -664,18 +615,14 @@ describe("warmUpRouting", () => {
         indexers: ["wss://indexer/"],
       });
 
-      // hold()/subscribe() はどちらも同期なので、この時点でフェーズ①の
-      // 購読はもう立っている (フェイクタイマー下では vi.waitFor が使えない
-      // ため、ここでは待たずに直接見る)。
+      // hold()/subscribe() は同期なので購読は既に立っている (フェイクタイマー下では vi.waitFor が使えず直接見る)。
       const indexer = () => relays.get("wss://indexer/");
       expect(indexer()?.subscriptions).toHaveLength(1);
 
-      // フェーズ①の間だけ 500ms 進める。
       await vi.advanceTimersByTimeAsync(500);
       indexer()?.emitEose(0);
 
-      // フェーズ②の購読が立つまでマイクロタスクを吐かせる (フェイクタイマー
-      // 下では時間を進めずに待つ必要がある)。
+      // フェーズ②の購読が立つまでマイクロタスクを吐かせる (フェイクタイマー下では時間を進めず待つ)。
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
@@ -686,9 +633,7 @@ describe("warmUpRouting", () => {
 
       const result = await pending;
       expect(result.phase1Ms).toBeGreaterThanOrEqual(500);
-      // 捕まえる変異: 2 相を 1 つのタイマーで測る (内訳が出ない)。1 つの
-      // タイマーなら、フェーズ①で進めた 500ms がここにも乗って 0 のままでは
-      // 済まなくなる。
+      // 捕まえる変異: 2 相を 1 つのタイマーで測る (フェーズ①の 500ms がここにも乗り 0 のままでは済まなくなる)。
       expect(result.phase2Ms).toBe(0);
     } finally {
       vi.useRealTimers();
@@ -715,8 +660,7 @@ describe("warmUpRouting", () => {
     await pending;
 
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
-    // ウォームアップが持っていた分の予算はもう誰も握っていない (ambiguity 3:
-    // release on completion)。
+    // ウォームアップが持っていた分の予算はもう誰も握っていない。
     expect(pool.size).toBe(0);
   });
 
@@ -800,13 +744,11 @@ describe("warmUpRouting", () => {
       expect(relays.get("wss://two/")?.subscriptions).toHaveLength(1),
     );
 
-    // "one" reports EOSE and then CLOSED for the same subscription — a
-    // relay quirk that must not count as two settlements.
+    // "one" reports EOSE then CLOSED for the same subscription -- a relay quirk that must not count as two settlements.
     relays.get("wss://one/")?.emitEose(0);
     relays.get("wss://one/")?.emitClosed(0, "extra close after eose");
 
-    // Give pending microtasks a chance to run. Warm-up must still be
-    // waiting on "two" — it must not have resolved early.
+    // Give pending microtasks a chance to run -- warm-up must still be waiting on "two", not resolved early.
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -866,15 +808,12 @@ describe("warmUpRouting", () => {
       resolved = true;
     });
 
-    // handlers[0] is phase ①'s -- hold() (the anchor's mechanism, Task 3)
-    // sends no REQ, so it never calls subscribe() and never appears here.
+    // handlers[0] is phase ①'s -- hold() sends no REQ, so it never calls subscribe() and never appears here.
     await vi.waitFor(() => expect(one.handlers).toHaveLength(1));
     await vi.waitFor(() => expect(two.handlers).toHaveLength(1));
 
-    // Fire EOSE then CLOSED for "one" through a connection whose close()
-    // does NOT suppress further emits. If collect() relied on that
-    // suppression instead of its own per-connection settle guard, this
-    // would decrement pending twice and resolve before "two" ever answers.
+    // Fire EOSE then CLOSED through a connection whose close() does NOT suppress
+    // further emits -- if collect() relied on that suppression instead of its own guard, it'd decrement pending twice.
     one.fireEose(0);
     one.fireClosed(0, "extra close after eose");
 
@@ -885,8 +824,7 @@ describe("warmUpRouting", () => {
 
     two.fireEose(0);
 
-    // フェーズ②(自分の kind:10002) が両方に立つのを待って片付ける。
-    // handlers[1] がフェーズ②の分。
+    // フェーズ②が両方に立つのを待って片付ける (handlers[1] がフェーズ②の分)。
     await vi.waitFor(() => expect(one.handlers).toHaveLength(2));
     await vi.waitFor(() => expect(two.handlers).toHaveLength(2));
     one.fireEose(1);
@@ -923,23 +861,17 @@ describe("warmUpRouting", () => {
 
     relays.get("wss://one/")?.emitEose(0);
 
-    // "one"'s phase ① subscription (index 0) settled; it must be closed
-    // right away — not batched until "two" (which has not answered yet)
-    // also settles, and not deferred to warmUpRouting's outer `finally`.
+    // "one"'s phase ① subscription settled; it must close right away -- not batched until "two" settles too.
     expect(relays.get("wss://one/")?.subscriptions[0].closed).toBe(true);
     expect(relays.get("wss://two/")?.subscriptions[0].closed).toBe(false);
-    // Closing the phase ① subscription does not tear the connection down:
-    // the anchor's hold() (invisible in `subscriptions` -- hold() sends no
-    // REQ, Task 3) is a separate, still-live claim on the same connection,
-    // kept alive precisely so a later phase can reuse this connection
-    // instead of reconnecting (fix round 1, Important 1). The connection's
-    // own `closed` flag is the only place this survival is observable now.
+    // Closing phase ①'s subscription doesn't tear the connection down: the
+    // anchor's hold() (invisible, sends no REQ) is a separate still-live claim,
+    // kept so a later phase can reuse it -- `closed` is the only place this survives.
     expect(relays.get("wss://one/")?.closed).toBe(false);
 
     relays.get("wss://two/")?.emitEose(0);
 
-    // フェーズ②(自分の kind:10002) はフォローが 0 人でも必ず走る —— それを
-    // 片付けないと warmUpRouting は終わらない。
+    // フェーズ②はフォローが 0 人でも必ず走り、片付けないと warmUpRouting は終わらない。
     await vi.waitFor(() =>
       expect(relays.get("wss://one/")?.subscriptions).toHaveLength(2),
     );
@@ -950,8 +882,7 @@ describe("warmUpRouting", () => {
     relays.get("wss://two/")?.emitEose(1);
     await pending;
 
-    // 両インデクサのフェーズ② も片付いた後 (warmUpRouting の外側の
-    // `finally`) 、ようやくアンカーの hold が release され、接続も落ちる。
+    // 両インデクサのフェーズ②も片付いた後 (外側の finally)、アンカーの hold が release され接続も落ちる。
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
   });
@@ -977,10 +908,8 @@ describe("warmUpRouting", () => {
 
       await vi.advanceTimersByTimeAsync(25);
 
-      // フェーズ①がタイムアウトしただけ —— フェーズ②(自分の kind:10002、
-      // followees が空でも必ず走る) がまだ自分の 25ms タイムアウトを
-      // 待っている。WarmUpOptions のコメント通り、2 フェーズ合計で最悪
-      // timeoutMs の 2 倍かかる。
+      // フェーズ①がタイムアウトしただけ —— フェーズ②はまだ自分の 25ms を待っている。
+      // 2 フェーズ合計で最悪 timeoutMs の 2 倍かかる (WarmUpOptions のコメント通り)。
       expect(resolved).toBe(false);
 
       await vi.advanceTimersByTimeAsync(25);
@@ -1003,10 +932,8 @@ describe("warmUpRouting", () => {
     }
   });
 
-  // Ambiguity 1 in the task-11 brief: indexers must open even when the
-  // global connection budget is already full, otherwise Outbox routing
-  // could never bootstrap in the first place — the exact circularity
-  // ConnectionPool's `reserved` escape exists to break.
+  // Indexers must open even at full budget, or Outbox routing could never
+  // bootstrap -- the circularity ConnectionPool's `reserved` escape exists to break.
   it("opens indexers even when the pool is already at its budget", () => {
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const pool = poolWithFakes(connections, { maxConnections: 1 });
@@ -1022,8 +949,7 @@ describe("warmUpRouting", () => {
       store: new EventStore(),
       pool,
       indexers: ["wss://indexer/"],
-      // Keep the real (unfaked) 10s default timeout from lingering past
-      // this test's lifetime — nothing in this test settles the indexer.
+      // Keep the real 10s default timeout from lingering -- nothing here settles the indexer.
       timeoutMs: 20,
     });
 
@@ -1032,9 +958,7 @@ describe("warmUpRouting", () => {
     void promise;
   });
 
-  // Ambiguity 3 in the task-11 brief: warm-up's reserved connections must
-  // not sit in the pool afterwards holding budget -- including the
-  // long-lived anchor added in fix round 1.
+  // Warm-up's reserved connections, including the long-lived anchor, must not sit in the pool afterwards holding budget.
   it("releases the indexer connections when warm-up finishes", async () => {
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const pool = poolWithFakes(connections);
@@ -1058,20 +982,8 @@ describe("warmUpRouting", () => {
     expect(pool.size).toBe(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Task 3 (2026-08-05): the anchor used to be a real subscription with a
-  // never-matching filter (`{ ids: [NEVER_MATCHING_ID] }`), and two tests
-  // here ("counts events pushed at the anchor subscription toward
-  // unrequested", "does not carry the anchor count across warmUpRouting()
-  // calls") existed only to pin down that subscription's own accounting
-  // (`anchorUnrequested`). Both are deleted outright, not adapted: hold()
-  // never calls `connection.subscribe()`, so there is no subId for an
-  // indexer to push events at, and `anchorUnrequested` no longer exists as
-  // a concept. In its place: the anchor must never reach the wire at all.
-  // ---------------------------------------------------------------------
-  // 変異: hold() を subscribe() に戻すと落ちる。インデクサへ出る REQ は
-  // フェーズ①とフェーズ②の 2 本だけであり、接続を握るためだけの 3 本目が
-  // あってはならない (一部のリレーはそれを blocked で CLOSE する)。
+  // 変異: hold() を subscribe() に戻すと落ちる。REQ はフェーズ①②の 2 本だけで、
+  // 接続を握るためだけの 3 本目があってはならない (一部リレーは blocked で CLOSE する)。
   it("sends no filter to an indexer beyond the two real phases", async () => {
     const connections = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
@@ -1086,19 +998,15 @@ describe("warmUpRouting", () => {
     });
 
     const indexer = () => connections.get("wss://indexer/");
-    // フェーズ① (index 0)。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(1));
     indexer()?.emitEose(0);
 
-    // フェーズ② (index 1)。
     await vi.waitFor(() => expect(indexer()?.subscriptions).toHaveLength(2));
     indexer()?.emitEose(1);
 
     await pending;
 
-    // warmUpRouting が完了した後も、このインデクサへ張られた購読は
-    // フェーズ①とフェーズ②の 2 本きり — 接続を握るためだけの 3 本目
-    // (かつてのアンカー) は存在しない。
+    // 完了後も、このインデクサへの購読はフェーズ①②の 2 本きり — 3 本目は存在しない。
     expect(indexer()?.subscriptions).toHaveLength(2);
   });
 });

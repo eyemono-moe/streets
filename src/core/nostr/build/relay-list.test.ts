@@ -19,9 +19,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("setRelayList", () => {
   it("read と write の両方ならマーカーを付けない", () => {
-    // 捕まえる変異: 常に 2 本の r タグ (read と write) を出す。NIP-65 は
-    // マーカー無しを「両方」と定めており、冗長なだけでなく他クライアントの
-    // 表示で 2 本に見える。
+    // 捕まえる変異: 常に 2 本の r タグを出す —— NIP-65 はマーカー無しを「両方」と定め、冗長なだけでなく他クライアントの表示で 2 本に見える
     const draft = setRelayList([
       { url: "wss://a.example" as RelayUrl, read: true, write: true },
     ])(undefined);
@@ -50,11 +48,7 @@ describe("setRelayList", () => {
 
   it("往復: setRelayList で作ったものを parseRelayList が読み戻せる", () => {
     // 捕まえる変異: どちらか一方だけを NIP に沿わせる
-    //
-    // URL は正規化済みの形 (末尾スラッシュ付き) で書く。parseRelayList は
-    // normalizeRelayUrl を通すため、"wss://a.example" のようなパス無し
-    // 表記だと "wss://a.example/" に変わり、そのままでは往復比較が
-    // 失敗する。RelayUrl 型はこの正規化済みの形を前提にしている。
+    // URL は正規化済み (末尾スラッシュ付き) で書く —— parseRelayList は normalizeRelayUrl を通すため、"wss://a.example" だと "wss://a.example/" に変わり往復比較が失敗する
     const entries: RelayListEntry[] = [
       { url: "wss://a.example/" as RelayUrl, read: true, write: true },
       { url: "wss://b.example/" as RelayUrl, read: true, write: false },
@@ -72,9 +66,7 @@ describe("setRelayList", () => {
   });
 
   it("既存の r タグは残さず新しい内容で置き換える", () => {
-    // 捕まえる変異: replaceTags へ渡すタグ名を "r" から空文字にする。
-    // フィルタ対象がずれると、置き換え前の r タグが「無関係な他のタグ」
-    // として素通りし、新しい r タグと重複して残ってしまう。
+    // 捕まえる変異: replaceTags へ渡すタグ名を "r" から空文字にする —— フィルタ対象がずれると、置き換え前の r タグが素通りして重複してしまう
     const current = evt({
       kind: 10002,
       tags: [["r", "wss://old.example"]],

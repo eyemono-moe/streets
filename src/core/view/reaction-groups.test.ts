@@ -35,8 +35,7 @@ describe("groupReactions", () => {
   });
 
   it("emoji と text が同じ文字列でも混ざらない", () => {
-    // 捕まえる変異: 鍵に type を含めず文字列だけで引く。カスタム絵文字
-    // `:smile:` とテキストの "smile" が同じ山になる。
+    // 捕まえる変異: 鍵に type を含めず文字列だけで引く（絵文字 `:smile:` とテキスト "smile" が同じ山になる）。
     const groups = groupReactions([
       entry("u1", emoji("smile", "https://example.com/smile.png")),
       entry("u2", text("smile")),
@@ -45,8 +44,7 @@ describe("groupReactions", () => {
   });
 
   it("名前が同じで URL が違う emoji は 1 つにまとまる", () => {
-    // 捕まえる変異: 鍵に URL を含める。同じショートコードを別ドメインの
-    // 画像で送る人がいるだけで山が割れ、数が読めなくなる。
+    // 捕まえる変異: 鍵に URL を含める（別ドメインの同じショートコードで山が割れ数が読めなくなる）。
     const groups = groupReactions([
       entry("u1", emoji("smile", "https://a.example/s.png")),
       entry("u2", emoji("smile", "https://b.example/s.png")),
@@ -61,8 +59,7 @@ describe("groupReactions", () => {
   });
 
   it("最初に現れた順に並ぶ", () => {
-    // 捕まえる変異: Map の挿入順を壊す並べ替えを入れる。並びが呼ぶたびに
-    // 変わると、リアクションが届くたびに既存の山が横に飛ぶ。
+    // 捕まえる変異: Map の挿入順を壊す並べ替えを入れる（並びが変わるたび既存の山が横に飛ぶ）。
     const groups = groupReactions([
       entry("u1", text("🎉")),
       entry("u2", like),

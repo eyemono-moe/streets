@@ -106,8 +106,8 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: mergeProfileを通さず未知フィールドを落とす、または
-            // rejectedを解決扱いにする。
+            // 捕まえる変異: mergeProfile を通さず未知フィールドを落とす、
+            // または rejected を解決扱いにする。
             const { settings, setPubkey, setSettled, receive, replace } =
               setup();
             setPubkey(PUBKEY);
@@ -154,8 +154,8 @@ describe("アカウント設定", () => {
 
   it("対象の kind:0 を取得し終えるまでプロフィールを loading に保つ", () => {
     createRoot((dispose) => {
-      // 捕まえる変異: kind:0 の取得完了を待たず、relayListSettled だけで
-      // 空プロフィールを ready にする。
+      // 捕まえる変異: kind:0 の取得完了を待たず relayListSettled だけで
+      // ready にする。
       const {
         settings,
         setPubkey,
@@ -170,7 +170,7 @@ describe("アカウント設定", () => {
       expect(requestedProfiles).toContain(PUBKEY);
       expect(settings.profile.current().phase).toBe("loading");
 
-      // 別バッチの完了では、対象 pubkey の未取得を完了扱いしない。
+      // 別バッチの完了では対象 pubkey の未取得を完了扱いしない。
       settleProfiles();
       expect(settings.profile.current().phase).toBe("loading");
 
@@ -224,8 +224,8 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: save完了時のpubkey照合を外す。AのrejectがBにも
-            // throwされ、フォームがBのエラーとして表示してしまう。
+            // 捕まえる変異: save 完了時の pubkey 照合を外す (A の reject
+            // が B のエラーとして表示される)。
             const { settings, setPubkey, setSettled, replace } = setup();
             setPubkey(PUBKEY);
             setSettled(true);
@@ -266,7 +266,7 @@ describe("アカウント設定", () => {
 
   it("未ログイン・取得中・欠落・取得済みを区別する", () => {
     createRoot((dispose) => {
-      // 捕まえる変異: loading と missing を同じ空配列へ潰す。
+      // 捕まえる変異: loading と missing を同じ空配列へ潰す
       const { settings, setPubkey, setSettled, receive } = setup();
       expect(settings.relayList.current().phase).toBe("signed-out");
       setPubkey(PUBKEY);
@@ -284,7 +284,7 @@ describe("アカウント設定", () => {
 
   it("URL を正規化して重複を追加しない", () => {
     createRoot((dispose) => {
-      // 捕まえる変異: 生文字列のまま比較し末尾スラッシュ違いを二重登録する。
+      // 捕まえる変異: 生文字列のまま比較し末尾スラッシュ違いを二重登録
       const { settings } = setup();
       expect(settings.relayList.add("wss://Relay.Example")).toBe(true);
       expect(settings.relayList.add("wss://relay.example/")).toBe(false);
@@ -297,8 +297,7 @@ describe("アカウント設定", () => {
 
   it("最後の方向は無効にせず削除操作を要求する", () => {
     createRoot((dispose) => {
-      // 捕まえる変異: read と write の両方を false にして、保存時に行が
-      // 黙って消える状態を作る。
+      // 捕まえる変異: read と write の両方を false にする (行が消える)。
       const { settings } = setup();
       settings.relayList.add("wss://one/");
       settings.relayList.toggle("wss://one/", "write");
@@ -313,7 +312,7 @@ describe("アカウント設定", () => {
 
   it("dirty でなければ受信した新版へ追随し、編集中なら draft を守る", () => {
     createRoot((dispose) => {
-      // 捕まえる変異: 外から kind:10002 が届くたびに編集中の draft を上書きする。
+      // 捕まえる変異: 外から届くたびに編集中の draft を上書きする
       const { settings, setPubkey, setSettled, receive } = setup();
       setPubkey(PUBKEY);
       setSettled(true);
@@ -340,7 +339,7 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: Writer.replace へ別 kind または空の Mutation を渡す。
+            // 捕まえる変異: Writer.replace へ別 kind または空の Mutation
             const { settings, setPubkey, setSettled, replace } = setup();
             setPubkey(PUBKEY);
             setSettled(true);
@@ -374,8 +373,8 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: Writer.replace の失敗でも dirty を false にし、
-            // 入力を保存済みと見せて再試行ボタンを無効にする。
+            // 捕まえる変異: 失敗でも dirty を false にする (再試行ボタンが
+            // 無効になる)。
             const { settings, setPubkey, setSettled, replace } = setup();
             setPubkey(PUBKEY);
             setSettled(true);
@@ -403,8 +402,8 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: accepted が1本あれば rejected を無視して
-            // 保存済みにし、旧リレーに旧版が残ったことを隠す。
+            // 捕まえる変異: accepted が1本あれば rejected を無視する
+            // (旧リレーに旧版が残ったことを隠す)。
             const { settings, setPubkey, setSettled, replace } = setup();
             setPubkey(PUBKEY);
             setSettled(true);
@@ -440,8 +439,7 @@ describe("アカウント設定", () => {
       createRoot((dispose) => {
         void (async () => {
           try {
-            // 捕まえる変異: 保存中も add/toggle/remove を受け付け、送信対象に
-            // 入らない編集を成功時の current 同期で消す。
+            // 捕まえる変異: 保存中の編集を成功時の current 同期で消す
             const { settings, setPubkey, setSettled, replace } = setup();
             setPubkey(PUBKEY);
             setSettled(true);

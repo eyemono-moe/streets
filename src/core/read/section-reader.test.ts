@@ -16,8 +16,7 @@ import {
   SubscriptionManager,
 } from "./subscription-manager";
 
-// Task 1/4 と同じく、その場で署名して自己整合的なイベントを作る。実 EventStore
-// は verifyEvent を通すため、PassThroughStore と違って本物の署名が要る。
+// 実 EventStore は verifyEvent を通すため、PassThroughStore と違って本物の署名が要る。
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));
 
@@ -53,9 +52,8 @@ const signedDeletion = (targetId: string, createdAt: number): NostrEvent => {
   };
 };
 
-// 署名検証を通さずに SectionReader だけを試すため、EventStore を差し替える。
-// SectionReader は put() 後に get() で正本を取り直すので、real EventStore と
-// 同じく put() した内容を get() で返せる必要がある。
+// 署名検証を通さず SectionReader だけを試すための差し替え。put() 後に get() で
+// 正本を取り直すため、put() した内容を get() で返せる必要がある。
 class PassThroughStore extends EventStore {
   readonly #seen = new Map<string, NostrEvent>();
   override put(event: NostrEvent): "inserted" | "duplicate" | "rejected" {
@@ -78,11 +76,9 @@ const event = (id: string, createdAt: number): NostrEvent => ({
   sig: "sig",
 });
 
-// scheduler は既定で偽タイマーにする。実タイマー (defaultScheduler) のまま
-// だと、リスナーを登録しない大多数のテストでも 16ms の setTimeout が張られ
-// 解除されないまま残る。今日は無害 (誰も listener を張らないので発火しても
-// 何も観測されない) だが、次にここへ listener を張るテストを足したときに
-// 決定的でなくなる事故を先回りして防ぐ。
+// scheduler は既定で偽タイマーにする。実タイマーだと listener 未登録の大半の
+// テストでも 16ms の setTimeout が残り続け、今は無害でも将来 listener を
+// 張るテストを足したときに決定的でなくなる事故を先回りして防ぐ。
 const setup = (
   relayUrls = ["wss://a/"],
   scheduler: Scheduler = createFakeClock(),
@@ -115,7 +111,7 @@ const setup = (
   };
 };
 
-// Task 4: stub the manager entirely so tests can drive `delivery.onPlanChanged`
+// Stub the manager entirely so tests can drive `delivery.onPlanChanged`
 // directly, instead of going through a real SubscriptionManager (which has no
 // way yet to produce a re-plan itself).
 const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
@@ -158,8 +154,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
 
 describe("SectionReader", () => {
   it("表示中のイベントを削除依頼で隠し、依頼の巻き戻しで同じセクションへ戻す", () => {
-    // 捕まえる変異: EventStore の hide/show 通知を購読しない。削除依頼を受けても
-    // リロードまで表示に残るか、publish 全滅の巻き戻し後も消えたままになる。
+    // 捕まえる変異: hide/show 通知を購読しない (削除依頼後も表示に残る、または巻き戻し後も消えたままになる)。
     const { reader, delivery, store } = startReaderWithRelays([
       "wss://a/" as RelayUrl,
     ]);
@@ -177,8 +172,7 @@ describe("SectionReader", () => {
   });
 
   it("削除依頼より後に届いた対象を非表示メンバーとして覚え、巻き戻しで表示する", () => {
-    // 捕まえる変異: 非表示だった配信を単に捨てる。削除依頼の publish が全滅して
-    // 巻き戻っても、リレーから再配送されるまで対象が戻らない。
+    // 捕まえる変異: 非表示だった配信を単に捨てる (削除依頼の巻き戻し後も再配送まで対象が戻らない)。
     const { reader, delivery, store } = startReaderWithRelays([
       "wss://a/" as RelayUrl,
     ]);
@@ -195,8 +189,7 @@ describe("SectionReader", () => {
   });
 
   it("削除依頼自身はセクションの表示項目へ加えない", () => {
-    // 捕まえる変異: kind:5 も通常イベントと同じく SortedEvents へ加える。
-    // 削除を同期する補助フィルタを持つカラムに削除依頼カードが混ざる。
+    // 捕まえる変異: kind:5 も通常イベントと同じく SortedEvents へ加える (削除依頼カードが混ざる)。
     const { reader, delivery, store } = startReaderWithRelays([
       "wss://a/" as RelayUrl,
     ]);
@@ -209,11 +202,10 @@ describe("SectionReader", () => {
   });
 
   it("複数の配信をまとめて 1 回だけ通知する", () => {
-    // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる)。
-    // デバウンス (毎回張り直し) にする変異はここでは捕まらない —— 3 回とも
-    // 同期発火なので fake clock の now が一度も進まず、バッチとデバウンスが
-    // 同じ発火時刻を計算してしまう。デバウンスを捕まえるのは次のテスト
-    // 「窓より短い間隔で流れ続けても通知が止まらない」の方。
+    // 捕まえる変異: バッチをやめて同期通知に戻す (3 回呼ばれる)。デバウンスへの
+    // 変異はここでは捕まらない — 3 回とも同期発火で now が進まず、バッチと
+    // デバウンスが同じ発火時刻を計算してしまう。デバウンスを捕まえるのは
+    // 次のテスト「窓より短い間隔で流れ続けても通知が止まらない」の方。
     const clock = createFakeClock();
     const { relay, reader } = setup(undefined, clock);
     const listener = vi.fn();
@@ -221,8 +213,7 @@ describe("SectionReader", () => {
     reader.start();
     listener.mockClear();
 
-    // 「別々の配信」であることが本質。リレーは 1 イベント 1 メッセージで
-    // 送るので、実配信でも 1 件ずつ別のタスクで届く。
+    // 「別々の配信」が本質。リレーは1イベント1メッセージで送るため、実配信でも1件ずつ別タスクで届く。
     relay()?.emitEvent(0, event("a", 300));
     relay()?.emitEvent(0, event("b", 200));
     relay()?.emitEvent(0, event("c", 100));
@@ -235,12 +226,10 @@ describe("SectionReader", () => {
   });
 
   it("窓より短い間隔で流れ続けても通知が止まらない (デバウンスではない)", () => {
-    // 捕まえる変異: #notify() を「毎回 clearTimeout して張り直す」
-    // デバウンスにする。窓が永久に更新され、流している間 1 回も発火しない。
-    //
-    // 同期的に連発するだけでは捕まらない —— fake clock の now は advance()
-    // でしか進まないので、両者が同じ発火時刻を計算してしまう。窓 (16ms) より
-    // 短い間隔で「実際に時計を進めながら」流すことが本質。
+    // 捕まえる変異: #notify() を「毎回 clearTimeout して張り直す」デバウンスに
+    // する (窓が永久に更新され 1 回も発火しない)。同期的に連発するだけでは
+    // 捕まらない — fake clock の now は advance() でしか進まず両者が同じ発火
+    // 時刻を計算するため、窓 (16ms) より短い間隔で実際に時計を進めながら流す。
     const clock = createFakeClock();
     const { relay, reader } = setup(undefined, clock);
     const listener = vi.fn();
@@ -304,10 +293,8 @@ describe("SectionReader", () => {
   });
 
   it("stop() は保持していたイベントも捨てる", () => {
-    // 捕まえる変異: stop() で #events.clear() を呼ばない。
-    // 前回分が残ったままだと、再 start() 直後から status.phase が
-    // "initial" ではなく "streaming" になり、同じ id を再配信しても
-    // #events.has(id) の重複ガードに握りつぶされて items に載らない。
+    // 捕まえる変異: stop() で #events.clear() を呼ばない。前回分が残ると
+    // 再 start() 直後が "streaming" になり、同じ id の再配信が重複ガードに握りつぶされる。
     const clock = createFakeClock();
     const { relay, reader } = setup(undefined, clock);
     reader.start();
@@ -402,21 +389,10 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete?.unreachableRelays).toBe(1);
   });
 
-  // 旧テスト名: "never reports settled from within start() itself, even when a
-  // relay closes synchronously from inside subscribe()"
-  //
-  // 旧テストは #starting フラグの効果を主張していた。通知をバッチにすると
-  // そのフラグは到達不能になり (仕様 5.1)、フラグを削除してもテストは通って
-  // しまう —— 落ちなくなるテストである。主張を、内部フラグではなく観測可能な
-  // 性質へ移した。
-  //
-  // 元の欠陥そのものは今も実在する: 複数リレーのうち最初の 1 本が subscribe()
-  // の中から同期的に settle すると、その時点の #relays は部分的にしか埋まって
-  // おらず、live.every(complete) が空に近い集合に対して自明に真になる。
-  // 違いは、その中間状態が観測者に漏れるかどうかである。
-  //
-  // 捕まえる変異: #notify() のバッチをやめて即座に #emit() する
-  // (start() 途中の settled が phasesSeen に漏れる)
+  // 複数リレーの最初の 1 本が subscribe() 内で同期 settle すると、その時点で
+  // #relays は部分的にしか埋まらず live.every(complete) が自明に真になる ——
+  // その中間状態が観測者に漏れないことを確認する。
+  // 捕まえる変異: #notify() のバッチをやめ即座に #emit() する。
   it("観測者は start() 途中の settled を見ない", () => {
     const clock = createFakeClock();
     const store = new EventStore();
@@ -427,9 +403,7 @@ describe("SectionReader", () => {
         url,
         subscribe: (_filters, handlers) => {
           if (url === "wss://sync-closed/") {
-            // WebSocketRelayConnection がソケット既閉時に onClosed を
-            // インラインで呼ぶのを模倣する。subscribe() (したがって
-            // manager.subscribe()) が返る前にコールバックが発火する。
+            // WebSocketRelayConnection がソケット既閉時に onClosed をインラインで呼ぶのを模倣 (subscribe() が返る前に発火)。
             handlers.onClosed("socket closed");
           }
           return { close: () => {} };
@@ -460,8 +434,7 @@ describe("SectionReader", () => {
     clock.advance(16);
 
     expect(phasesSeen).not.toContain("settled");
-    // 通知が 1 回も出ないのではなく、出た通知が settled を含まないこと。
-    // これを主張しないと「バッチが全部飲み込んだだけ」でも通ってしまう。
+    // 通知ゼロではなく「出た通知が settled を含まない」こと — でないと「バッチが全部飲み込んだだけ」でも通る。
     expect(phasesSeen.length).toBeGreaterThan(0);
   });
 
@@ -506,17 +479,15 @@ describe("SectionReader", () => {
       relays.get("wss://a/")?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
-    // Ascending display order: oldest-kept item first, newest-arrived item last.
-    // If the cap wrongly kept the *oldest* 500 arrivals instead of the most
-    // recent 500, this would read "note-0" / "note-499" instead.
+    // Ascending order: oldest-kept first, newest-arrived last. If the cap wrongly
+    // kept the oldest 500 arrivals instead of the most recent, this reads "note-0"/"note-499" instead.
     expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
     expect(reader.items[0]?.id).toBe("note-10");
     expect(reader.items.at(-1)?.id).toBe(`note-${MAX_ITEMS_PER_SECTION + 9}`);
   });
 
   it("同値の created_at は id 昇順で表示される", () => {
-    // 捕まえる変異: SortedEvents を使わず元のソートに戻す
-    // (安定ソートだと到着順 c,a,b のまま残る)
+    // 捕まえる変異: SortedEvents を使わず安定ソートに戻す (到着順 c,a,b のまま残る)。
     const { relay, reader } = setup();
     reader.start();
 
@@ -528,8 +499,7 @@ describe("SectionReader", () => {
   });
 
   it("昇順表示でも同値は id 昇順のまま (reverse ではない)", () => {
-    // 捕まえる変異: 昇順を toArray().reverse() で作る
-    // (reverse だと同値が id 降順 c,b,a になる)
+    // 捕まえる変異: 昇順を toArray().reverse() で作る (同値が id 降順 c,b,a になる)。
     const relays = new Map<string, FakeRelayConnection>();
     const store = new PassThroughStore();
     const manager = new SubscriptionManager({
@@ -574,13 +544,9 @@ describe("SectionReader", () => {
     expect(listener).toHaveBeenCalled();
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 4 (section-reader shape): #notify()
-  // iterates #listeners in one bare for loop. If an earlier listener
-  // throws, listeners registered after it in iteration order never get
-  // called for *this* notification -- an arbitrary consumer bug in one
-  // observer silently starves every other observer of updates.
-  // ---------------------------------------------------------------------
+  // #notify() iterates #listeners in a bare for loop, so if an earlier listener
+  // throws, later ones never run for that notification -- one buggy observer
+  // silently starves every other observer of updates.
   it("does not strand a later listener when an earlier listener throws", () => {
     const clock = createFakeClock();
     const { relay, reader } = setup(undefined, clock);
@@ -588,8 +554,7 @@ describe("SectionReader", () => {
       throw new Error("boom from listener 1");
     });
     const laterListener = vi.fn();
-    // Registration order matters: #listeners is a Set, iterated in
-    // insertion order, so throwingListener runs first.
+    // Registration order matters: #listeners is a Set (insertion order), so throwingListener runs first.
     reader.subscribe(throwingListener);
     reader.subscribe(laterListener);
     reader.start();
@@ -611,10 +576,9 @@ describe("SectionReader", () => {
     expect(relay()?.subscriptions[0].closed).toBe(true);
   });
 
-  // Connection ownership moved to SubscriptionManager (ADR-0023): the reader
-  // no longer holds a raw connection to release, it releases its handle and
-  // the manager decides whether the underlying connection actually closes
-  // (refcounted across sections sharing the same relay url). With only one
+  // Connection ownership belongs to SubscriptionManager: the reader releases
+  // its handle, and the manager refcounts across sections sharing the same
+  // relay url to decide whether the connection actually closes. With only one
   // section on this relay, releasing its handle drops the last reference.
   it("closes the connection via the manager once the last section releases it on stop", () => {
     const { manager, reader } = setup();
@@ -637,12 +601,10 @@ describe("SectionReader", () => {
     expect(reader.items.map((e) => e.id)).toEqual(["first"]);
   });
 
-  // CRITICAL 1: EventStore.put returns "duplicate" for *any* caller once one
-  // section has inserted the event, regardless of which section put it there.
-  // A PassThroughStore (private per-instance Set) cannot expose this: only a
-  // real EventStore shared across two SectionReaders can. Two sections over
-  // the same relay/store is the intended usage (a deck column and a user
-  // column showing the same author).
+  // EventStore.put returns "duplicate" for *any* caller once one section has
+  // inserted the event, regardless of which section put it there -- a
+  // PassThroughStore (private per-instance Set) can't expose this, only a real
+  // EventStore shared across readers can (the intended usage: a deck + user column).
   it("lists an event in every section sharing a real EventStore, not just the section that inserted it first", () => {
     const sharedStore = new EventStore();
     const relays = new Map<string, FakeRelayConnection>();
@@ -681,25 +643,19 @@ describe("SectionReader", () => {
     readerB.start();
 
     const shared = signedEvent("hello from both sections", 100);
-    // readerA's relay delivers first, inserting into the shared store...
+    // readerA's relay delivers first, inserting into the shared store.
     relays.get("wss://a/")?.emitEvent(0, shared);
-    // ...then readerB's relay delivers the very same event. Today this
-    // returns "duplicate" from the store and readerB silently drops it.
+    // readerB's relay then delivers the same event; the store returns "duplicate" and readerB silently drops it.
     relays.get("wss://b/")?.emitEvent(0, shared);
 
     expect(readerA.items.map((e) => e.id)).toEqual([shared.id]);
     expect(readerB.items.map((e) => e.id)).toEqual([shared.id]);
   });
 
-  // CRITICAL 2: EventStore.put returns "duplicate" from the id lookup
-  // *before* verifyEvent runs. Once a genuine event with some id has been
-  // stored, a malicious relay can resend a forged object reusing that id
-  // (different pubkey/content/created_at, bogus sig) and "duplicate" lets it
-  // straight past the "rejected" gate. Listing the relay-supplied object
-  // (instead of the store's verified copy) would spoof content under a
-  // trusted id and, since created_at need not even be a number here, feed a
-  // non-number into the sort comparator used for the MAX_ITEMS_PER_SECTION
-  // cap, corrupting ordering/eviction for everyone reading that store.
+  // EventStore.put returns "duplicate" via id lookup *before* verifyEvent, so a
+  // malicious relay can resend a forged object under a genuine id, spoofing
+  // content and feeding a non-number created_at into the sort comparator used
+  // for the MAX_ITEMS_PER_SECTION eviction cap, corrupting ordering for everyone.
   it("lists the store's verified copy, not a forged object a second relay resends under a genuine event's id", () => {
     const sharedStore = new EventStore();
     const relays = new Map<string, FakeRelayConnection>();
@@ -740,10 +696,8 @@ describe("SectionReader", () => {
     const genuine = signedEvent("GENUINE", 100);
     relays.get("wss://a/")?.emitEvent(0, genuine);
 
-    // relayB is malicious: it reuses genuine's id but swaps in a different
-    // pubkey, content, a string created_at, and a bogus sig. EventStore.put
-    // finds the id already present and returns "duplicate" without ever
-    // calling verifyEvent on this object.
+    // relayB reuses genuine's id with a different pubkey/content/string created_at
+    // and a bogus sig; EventStore.put finds the id present and returns "duplicate" without calling verifyEvent.
     const forged = {
       ...genuine,
       pubkey: "ff".repeat(32),
@@ -760,11 +714,10 @@ describe("SectionReader", () => {
     expect(typeof readerB.items[0]?.created_at).toBe("number");
   });
 
-  // An explicit `relays: []` bypasses Outbox routing entirely (NostrSource's
-  // `relays` doc comment) and asks for nothing: the manager opens no
-  // connection and reports zero unroutable authors, so the section has
-  // nothing to wait on and settles immediately with no incomplete block.
-  // (Contrast with `relays: undefined`, covered below, which does route.)
+  // An explicit `relays: []` bypasses Outbox routing entirely (see NostrSource's
+  // `relays` doc comment) and asks for nothing: the manager opens no connection
+  // and reports zero unroutable authors, so the section settles immediately
+  // with no incomplete block (contrast with `relays: undefined` below, which does route).
   it("settles immediately with no incomplete block when the source explicitly lists zero relays", () => {
     const store = new EventStore();
     const manager = new SubscriptionManager({
@@ -787,12 +740,10 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete).toBeUndefined();
   });
 
-  // Contrast with the test above: `relays: []` (nothing named) settles quiet
-  // per ADR-0015 ("見るべき場所が存在せず"). But a source whose relays are
-  // all unparseable garbage is "the user named places and we could not parse
-  // them" — ADR-0011 forbids that vanishing silently. It must still settle
-  // (there is nothing left to wait on), but with unreachableRelays > 0 so a
-  // caller can tell the two cases apart.
+  // Contrast with the test above: `relays: []` (nothing named) settles quiet --
+  // there's simply nowhere to watch. But relays that are all unparseable garbage
+  // means "the user named places we couldn't parse", which must not vanish
+  // silently: it settles with unreachableRelays > 0 so callers can tell the two apart.
   it("settles with a non-empty incomplete block when every explicit relay is unparseable, unlike an explicit empty list", () => {
     const store = new EventStore();
     const manager = new SubscriptionManager({
@@ -819,8 +770,8 @@ describe("SectionReader", () => {
     expect(reader.status.incomplete?.unreachableRelays).toBe(2);
   });
 
-  // Task 4: a live section learns its plan changed (ADR-0016 will make the
-  // manager actually produce these; here we drive onPlanChanged directly).
+  // A live section learns its plan changed via onPlanChanged, driven directly
+  // here since the real manager doesn't yet produce these.
   it("goes back to streaming when the plan gains a relay", () => {
     // リレー1 だけで settled になった後、張り直しでリレー2 が増える
     const { reader, delivery, statuses, clock } = startReaderWithRelays([
@@ -903,9 +854,8 @@ describe("SectionReader", () => {
     });
   });
 
-  // ADR-0015: an explicitly empty relay list settles quiet even now that
-  // `incomplete` has three fields — "we looked everywhere there was to look,
-  // and there was nothing" stays true regardless of field count.
+  // An explicitly empty relay list settles quiet even with `incomplete` now
+  // three fields — "we looked everywhere and found nothing" holds regardless of field count.
   it("still settles with no incomplete for an explicitly empty relay list", () => {
     const { reader, delivery } = startReaderWithRelays([]);
     void delivery;
@@ -913,12 +863,10 @@ describe("SectionReader", () => {
     expect(reader.status).toEqual({ phase: "settled" });
   });
 
-  // Fix round 1 (post-review), Critical 1's SectionReader-side counterpart:
-  // when the manager re-subscribes a *kept* relay in place because its
-  // routed authors changed (rather than the relay itself leaving the plan),
-  // the section must leave settled and only return to it once the new
-  // subscription's own EOSE arrives — reusing the old relay's `complete`
-  // would report settled while the fresh REQ is still outstanding.
+  // When the manager re-subscribes a *kept* relay because its routed authors
+  // changed (not because the relay left the plan), the section must leave
+  // settled and only return once the new subscription's own EOSE arrives --
+  // reusing the old relay's `complete` would report settled while the fresh REQ is outstanding.
   it("leaves settled when a kept relay's subscription is restarted, and returns only after the new EOSE", () => {
     const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
     delivery.onRelayComplete("wss://one/");
@@ -1012,19 +960,10 @@ describe("SectionReader with Outbox routing", () => {
     expect(reader.status.incomplete?.unroutableAuthors).toBe(1);
   });
 
-  // Restored from the pre-Task-6 suite (fix round 1): the premise moved, it
-  // didn't vanish. planQuery still counts *distinct* authors across all
-  // filters (query-plan.ts), and query-plan.test.ts covers that in
-  // isolation, but nothing at the SectionReader level exercised the
-  // composition of multiple filters with overlapping authors collapsing to
-  // one number in status.incomplete. Same source shape and expectation
-  // (toBe(3)) as the original test; only the setup moved to the manager.
-  //
-  // Renamed (review round: the title said "when there are no relays", but
-  // `relays` here is undefined, not `[]` — the source omits `relays`
-  // entirely, so Outbox routing kicks in and none of the named authors can
-  // be routed, sending them all to the fallback connection). Assertions
-  // unchanged.
+  // planQuery counts *distinct* authors across all filters; this exercises that
+  // composition at the SectionReader level (query-plan.test.ts only covers
+  // planQuery in isolation). `relays` is omitted (not `[]`), so Outbox routing
+  // applies and none of the named authors route, sending them all to fallback.
   it("reports unroutableAuthors as the number of distinct authors named across filters when relays are undefined and routing falls back", () => {
     const relays = new Map<string, FakeRelayConnection>();
     const store = new EventStore();

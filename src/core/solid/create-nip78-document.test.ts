@@ -250,8 +250,7 @@ describe("createNip78Document", () => {
       fetchLatest: () => pending.promise,
     });
 
-    // 捕まえる変異: remote の完了まで local cache を読まない。起動直後の
-    // カラムが空になり、local-first の意味が失われる。
+    // 捕まえる変異: remote の完了まで local cache を読まない（起動直後のカラムが空になり local-first の意味が失われる）。
     await vi.waitFor(() =>
       expect(harness.document.value()).toEqual({ text: "legacy" }),
     );
@@ -269,8 +268,7 @@ describe("createNip78Document", () => {
     const pending = deferred<NostrEvent | undefined>();
     const harness = createHarness({ fetchLatest: () => pending.promise });
 
-    // 捕まえる変異: activate 時点で initial() を表示する。後からremoteが
-    // 届くとデッキ全体が差し替わり、間にした操作も競合する。
+    // 捕まえる変異: activate 時点で initial() を表示する（後から remote が届くとデッキ全体が差し替わり操作も競合する）。
     await vi.waitFor(() =>
       expect(harness.document.state()).toEqual({
         phase: "loading",
@@ -493,8 +491,7 @@ describe("createNip78Document", () => {
     harness.pendingDecode.reject(new Error("Aの復号を拒否"));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // 捕まえる変異: 競合remoteの復号失敗だけgeneration guardを通さない。
-    // Aの遅い失敗が、既に読み込んだBの同期状態をerrorへ戻してしまう。
+    // 捕まえる変異: 競合remoteの復号失敗だけgeneration guardを通さない（Aの遅い失敗がBの同期状態をerrorへ戻す）。
     expect(harness.document.state()).toEqual({
       phase: "ready",
       sync: "synced",
@@ -620,8 +617,7 @@ describe("createNip78Document", () => {
       }),
     );
 
-    // 捕まえる変異: 保存成功時のclearTimerを外す。dirty guardが三重保存を
-    // 防いでも、不要なtimer自体が残っていることを直接検出する。
+    // 捕まえる変異: 保存成功時のclearTimerを外す（dirty guardで三重保存は防いでも不要なtimerが残る）。
     expect(clock.pendingCount).toBe(0);
     clock.advance(2_000);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -641,8 +637,7 @@ describe("createNip78Document", () => {
     harness.pendingDecode.reject(new Error("復号を拒否"));
     await waitForState(harness.document, "error");
 
-    // 捕まえる変異: 競合remoteの復号失敗時にclearTimerしない。
-    // ユーザー操作なしに署名要求を再表示するtimerを残してしまう。
+    // 捕まえる変異: 競合remoteの復号失敗時にclearTimerしない（ユーザー操作なしに署名要求を再表示するtimerが残る）。
     expect(harness.clock.pendingCount).toBe(0);
     harness.clock.advance(2_000);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -696,8 +691,7 @@ describe("createNip78Document", () => {
     save.resolve();
     await waitForState(document, "error");
 
-    // 捕まえる変異: 失敗時に保存中のupdateが置いたtimerを消さない。
-    // ユーザー操作なしに署名要求を再表示してしまう。
+    // 捕まえる変異: 失敗時に保存中のupdateが置いたtimerを消さない（ユーザー操作なしに署名要求を再表示してしまう）。
     clock.advance(2_000);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveCount).toBe(1);
@@ -779,8 +773,7 @@ describe("createNip78Document", () => {
     document.update(() => ({ text: "B local" }));
     clock.advance(2_000);
 
-    // 捕まえる変異: account切替時にqueueを共有し続ける。Aの承認待ちが
-    // Bの保存を塞がず、Bは独立したqueueで開始できる必要がある。
+    // 捕まえる変異: account切替時にqueueを共有し続ける（Aの承認待ちがBの保存を塞いではならない）。
     await vi.waitFor(() => expect(saveAuthors).toEqual([PUBKEY_A, PUBKEY_B]));
     delayedA.resolve();
     await vi.waitFor(() => expect(document.state().phase).toBe("ready"));
