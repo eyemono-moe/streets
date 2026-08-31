@@ -13,17 +13,8 @@ export type ColumnAlert = {
 };
 
 /**
- * カラムに起きたことのうち、**ユーザーが行動できるものだけ**を返す
- * (ADR-0026)。行動できない値 (`uncoveredAuthors` など) は診断値であり、
- * 開発者モードの背後で生の数値として出す —— ここには入れない。
- *
- * 判定をこの 1 関数に集めるのは、カラムの実装に散らすと「この条件は
- * 行動できるのか」という判断が UI のあちこちで独立に下されるようになる
- * ため。ADR-0026 はその判断そのものを決定として記録している。
- *
- * 返り値を配列にしてあるのは、A-2 以降でレンダラの失敗や未知の kind が
- * 同じ入口へ集まるため。通知列は既に 2 種類 (リレー設定が見つからない/
- * 取得できない、read リレーが到達不能) を同時に返しうる。
+ * カラムに起きたことのうち、ユーザーが行動できるものだけを返す (診断値
+ * は含めない)。判定はここに集約し、複数の警告を同時に返しうるため配列。
  */
 export const columnAlerts = (
   column: ColumnDef,
@@ -34,8 +25,7 @@ export const columnAlerts = (
   const source = column.source;
   const unreachable = status.incomplete?.unreachableRelays ?? 0;
 
-  // ユーザーが自分で URL を指定したカラムだけが対象。Outbox が選んだ
-  // リレーが落ちている場合、ユーザーには変える手立てが無い。
+  // ユーザーが指定した URL だけが対象 —— Outbox が選んだリレーはユーザーには変えられない。
   if (
     source.kind === "literal" &&
     source.relays !== undefined &&
@@ -47,26 +37,15 @@ export const columnAlerts = (
     });
   }
 
-  // read リレー 0 本が「設定が無い」のか「まだ届いていない」のかは
-  // RelayListState の phase で区別する。loading 中にこの判定を出すと、
-  // 起動直後は必ず 0 本なので「リレー設定が見つからない」が毎回一瞬光って
-  // 消える —— まだ存在しない劣化を確定した事実として見せることになる。
+  // phase で区別しないと、起動直後は常に 0 本なので loading 中も「設定が無い」が一瞬表示される。
   const viewerRelayListMissing =
     (relayList.phase === "missing" || relayList.phase === "ready") &&
     readRelayCount(relayList) === 0;
 
-  // 通知は「届いていないこと」に気づきにくい —— 誰も反応していないのか、
-  // 見る場所が違うのか、画面からは区別が付かない。自分の kind:10002 が
-  // 無いと fallback の 3 本を見ることになるので、そこは黙らせない
-  // (ADR-0011)。リレー設定の publish はユーザーが取れる行動なので
-  // ADR-0026 の条件も満たす。
+  // 通知が来ない原因 (無反応 or リレー未設定) は画面から区別できないので、kind:10002 が無ければ知らせる。
   if (source.kind === "notifications" && viewerRelayListMissing) {
     alerts.push({
-      // `viewerRelayListMissing` は「設定が無い」だけでなく kind:10002 の
-      // 取得が timeout したケースも含む (settle した = 待つのをやめた、で
-      // あって「無いと確定した」ではない)。既に publish 済みの利用者に
-      // 「publish しているか確認してください」とだけ出すのは、取れない
-      // 行動を指示することになる。
+      // missing は取得 timeout も含む (未確定なだけ) ので、publish 済みの人にも意味が通る文言にする。
       message:
         "あなたのリレー設定 (kind:10002) が見つからないか取得できなかったため、既定のリレーで待っています",
       action:
@@ -74,10 +53,7 @@ export const columnAlerts = (
     });
   }
 
-  // 通知カラムの read リレー (inbox) が到達不能でも、上の
-  // `viewerRelayListMissing` は真にならない (kind:10002 自体は引けている)。
-  // それでも画面から見える結果 (通知が来ない) も取れる行動 (リレー設定を
-  // 直す) も設定が無い場合と同じなので、`literal` 列と同じ理由で黙らせない。
+  // kind:10002 は引けていても read リレーが全滅なら、`literal` 列と同じ理由で知らせる。
   if (
     source.kind === "notifications" &&
     !viewerRelayListMissing &&

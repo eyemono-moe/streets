@@ -18,9 +18,7 @@ const base: NostrEvent = {
 };
 const ev = (o: Partial<NostrEvent> = {}): NostrEvent => ({ ...base, ...o });
 
-// 期待値は手で導出したものではなく、意図した実装を実際に走らせて得た出力である
-// (計画作成時に scratchpad で計算済み)。各行の「捕まえる変異」は、その主張が
-// 何を守っているかを明示するためのもの — 変異を入れたらその行だけが落ちること。
+// 期待値は実装を実際に走らせて得た出力。「捕まえる変異」は各行が何を守るかの明示。
 describe("matchesFilter", () => {
   it.each<[string, NostrEvent, RelayFilter, boolean, string]>([
     [
@@ -161,9 +159,8 @@ describe("matchesAnyFilter", () => {
 });
 
 describe("matchesFilter は全域関数である", () => {
-  // 照合器は EventStore.put の *手前* に立つので、isNostrEvent を通っていない
-  // 生のワイヤデータを受け取る (websocket-relay-connection.ts:152-160)。
-  // ここで投げると、そのリレーを見ている他セクションへの配信ごと巻き込む。
+  // 照合器は EventStore.put の *手前* で isNostrEvent 未検証の生データを受ける。
+  // ここで投げると、そのリレーを見ている他セクションの配信ごと巻き込む。
   it.each<[string, unknown, RelayFilter]>([
     [
       "tags が欠落",

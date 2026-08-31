@@ -16,9 +16,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("addFollow", () => {
   it("末尾に追加し、既存の p の順序を保つ", () => {
-    // 捕まえる変異: 新しい配列をソートして作り直す。NIP-02 は
-    // "clients should append them to maintain chronological order" と定めており、
-    // 並べ替えると全クライアントのフォロー順が壊れる。
+    // 捕まえる変異: 新しい配列をソートして作り直す。NIP-02: "clients should append them to maintain chronological order" —— 並べ替えると全クライアントのフォロー順が壊れる
     const current = evt({
       kind: 3,
       tags: [
@@ -36,9 +34,7 @@ describe("addFollow", () => {
   });
 
   it("対象外のタグと content を保つ", () => {
-    // 捕まえる変異: tags を p だけで作り直し、content を空にする。
-    // 他クライアントがリレーリストの JSON を content に入れており、
-    // 消すとその端末の設定が飛ぶ。
+    // 捕まえる変異: tags を p だけで作り直し content を空にする —— 他クライアントがリレーリストの JSON を content に入れており、消すとその端末の設定が飛ぶ
     const current = evt({
       kind: 3,
       tags: [
@@ -60,8 +56,7 @@ describe("addFollow", () => {
   });
 
   it("current が無ければ 1 件だけのリストを作る", () => {
-    // 捕まえる変異: current 無しで例外を投げる。初めてフォローするときに
-    // 永久に書けなくなる。
+    // 捕まえる変異: current 無しで例外を投げる —— 初めてフォローするときに永久に書けなくなる
     const draft = addFollow("cc")(undefined);
     expect(draft.kind).toBe(3);
     expect(draft.tags).toEqual([["p", "cc", "", ""]]);

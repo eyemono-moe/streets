@@ -21,8 +21,8 @@ const navigationClass =
   "c-primary w-full appearance-none rounded-2 bg-transparent px-3 py-2 text-left text-body outline-none enabled:cursor-pointer data-[selected]:bg-primary data-[selected]:font-700 enabled:hover:bg-alpha-hover focus-visible:ring-2 focus-visible:ring-accent-5";
 
 /**
- * Ark UI の Dialog / Tabs と Penpot の Settings shell を一箇所に閉じる。
- * page の content は設定 context を自分で読み、shell は設定値を知らない。
+ * Ark UI の Dialog/Tabs を設定 shell として一箇所に閉じる。page の content は
+ * 設定 context を自分で読み、shell は設定値を知らない。
  */
 const SettingsShell: Component<SettingsShellProps> = (props) => (
   <Dialog.Root

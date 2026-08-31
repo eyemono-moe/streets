@@ -67,8 +67,6 @@ export const useCoreEventRelations = <T = ReturnType<typeof parseNostrEvent>>(
     return data;
   };
 
-  // Keep a legacy array-shaped relation accessor synchronized with the v1 event collection
-  // and issue relation filters through the core query client instead of direct rx-nostr emits.
   createEffect(() => {
     const currentQuery = query();
     const currentRelays = relays?.();

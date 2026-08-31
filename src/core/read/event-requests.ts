@@ -5,40 +5,25 @@ import type { SubscriptionManager } from "./subscription-manager";
 
 export type EventRequests = {
   /**
-   * この id のイベントを要求する。既に取得済みなら何もしない。
-   *
-   * `relayHint` は受け取るが**使わない**。`event-refs.ts` の `EventRef` は
-   * タグから読んだリレー URL を運んでくるが、これはリレーが自由に書ける
-   * フィールドであり、信頼できるかどうかをまだ検討していない (仕様 4.2 節)。
-   * 引数だけ先に置いているのは、呼び出し側 (`EventView`) がタグから読む処理を
-   * どのみち書くため —— 黙って握りつぶすのではなく、ここで意図的に捨てている
-   * ことを明示する。
+   * この id のイベントを要求する (取得済みなら何もしない)。`relayHint` は
+   * 受け取るが使わない —— リレーが自由に書ける値で信頼性が未検討のため、
+   * 意図的に捨てていることを引数として明示する。
    */
   request(id: string, relayHint?: RelayUrl): void;
   /**
-   * `id` を含むバッチが 1 本片付いたのに、まだ `store.get(id)` が
-   * `undefined` であること。要求したことが無い id については `false`。
-   *
-   * `fetchOnce` は全リレーが EOSE/CLOSED を返すかタイムアウトで**必ず**
-   * 解決するので、「バッチが片付いた」は判定できる。これが「取得中」と
-   * 「取得できなかった」を呼び出し側が区別する唯一の手段である (仕様 7 節)。
+   * `id` を要求済みでバッチも片付いたのに `store` に無い、を表す (未要求
+   * なら `false`)。`fetchOnce` は必ず解決するので取得中と区別できる。
    */
   isUnresolved(id: string): boolean;
   /**
-   * バッチが 1 本片付く (= `fetchOnce` が解決する) たびに呼ばれる。
-   * `profile-requests.ts` の `subscribe` と同じ理由・同じ形 —— どの id が
-   * 解決したかは通知しない。呼び出し側 (`EventView`) は自分の id を
-   * `store`/`isUnresolved` からもう一度引き直せばよい。
+   * バッチが片付く (`fetchOnce` 解決) たびに呼ばれるが、どの id かは
+   * 通知しない。呼び出し側は自分の id を `store`/`isUnresolved` から引き直す。
    */
   subscribe(listener: () => void): () => void;
   /**
-   * 直近に送ったバッチの `ids` 件数と、観測史上の最大。
-   *
-   * 1 バッチは 1 本のフィルタに全件を詰めるので、この数がそのまま REQ の
-   * メッセージ長になる。NIP-11 の `limitation.max_message_length` を超えると
-   * リレーはメッセージごと拒否し、そのバッチの id が一斉に `isUnresolved`
-   * へ落ちる —— 画面には「読み込めませんでした」が並ぶだけで、原因は
-   * どこにも出ない。上限に近づいているかを外から読めるようにする。
+   * 直近バッチの `ids` 件数と観測史上の最大。1 バッチ = 1 フィルタ全件分
+   * なので、これで NIP-11 の `max_message_length` 超過 (超えるとリレーが
+   * 拒否し `isUnresolved` が原因不明のまま一斉に立つ) に迫っていないか分かる。
    */
   readonly lastBatchSize: number;
   readonly maxBatchSize: number;
@@ -48,34 +33,20 @@ export type EventRequests = {
 export type CreateEventRequestsOptions = {
   store: EventStore;
   manager: SubscriptionManager;
-  /**
-   * バッチ窓のタイマー注入口 (テスト用)。既定は実タイマー
-   * (`connection-pool.ts` の `defaultScheduler` と同じ規約 —— 読み取り層は
-   * どこであれ実タイマーを直接掴まない)。
-   */
+  /** バッチ窓のタイマー注入口 (テスト用)。既定は実タイマーで、読み取り層は実タイマーを直接掴まない規約に合わせる。 */
   scheduler?: Scheduler;
 };
 
 /**
- * まとめる窓の長さ。`profile-requests.ts` の `PROFILE_BATCH_MS` と同じ
- * 200ms —— 値を変える理由が無い。返信・引用・リポストの対象 id も、
- * プロフィールと同じく「カラムがまとめて描画した数十件の `<EventView>` が、
- * ほぼ同時にだが同じマクロタスクとは限らないタイミングで `request()` を
- * 呼ぶ」対象であり、1 本の REQ にまとめたい理由がそのまま当てはまる。
+ * まとめる窓の長さ (200ms)。カラムが一度に描画する数十件の `<EventView>` が
+ * ほぼ同時期に `request()` を呼ぶので、それらを 1 本の REQ にまとめる。
  */
 export const EVENT_BATCH_MS = 200;
 
 /**
- * 関連イベント (返信元・引用先・リポスト対象) 要求のコアレッサ (spec 4 節)。
- *
- * `profile-requests.ts` の `createProfileRequests` と同じ形。違うのは 3 点
- * だけ: フィルタが `{ kinds: [0], authors }` ではなく `{ ids }`、既取得の
- * 判定が `latestReplaceable(0, pubkey)` ではなく `store.get(id)`、そして
- * `isUnresolved` がある (プロフィールには無い —— kind:0 が来ないことは
- * `<Profile>` にとって「まだプロフィールを書いていない人」と区別がつかず、
- * 表示側は空のまま気にしなくてよいが、返信元・引用先・リポスト対象は
- * 「読み込み中」と「もう見つからない (削除・未着) 」を画面上で描き分ける
- * 必要があるため)。
+ * 関連イベント (返信元・引用先・リポスト対象) 要求のコアレッサ。
+ * `isUnresolved` があるのは、返信元などは「読み込み中」と「見つからない
+ * (削除・未着)」を画面で描き分ける必要があるため。
  */
 export const createEventRequests = (
   options: CreateEventRequestsOptions,
@@ -89,26 +60,16 @@ export const createEventRequests = (
   const listeners = new Set<() => void>();
 
   /**
-   * 要求して、それを含むバッチが片付いた id。`fetchOnce` は全リレーが
-   * EOSE/CLOSED を返すかタイムアウトで**必ず**解決するので、ここに入って
-   * いて store に無いなら「探したが見つからなかった」と言い切れる。
-   * 「まだ探している最中」と区別するための集合であり、これが無いと
-   * 遅いだけのものが壊れて見える (仕様 7 節)。
-   *
-   * 追加専用ではない —— `request()` が同じ id を再度キューへ積むとき、
-   * ここから落とす。カラム項目のスクロールアウト・再マウント
-   * (`<Profile>`/`profile-requests.ts` と同じマウント契機の呼び出し規約) で
-   * 同じ id がもう一度 `request()` されることがあり、そこで落とさないと
-   * 新しいバッチが片付くまでの間ずっと前回の「見つからなかった」を
-   * 返し続けてしまう。
+   * 要求済みでバッチが片付いた id。ここにあって store に無ければ
+   * 「見つからなかった」と言い切れる。追加専用ではなく、`request()` は
+   * 再要求時にここから削除する —— スクロールアウト後の再マウントで同じ id
+   * が再要求されたとき、落とさないと前回の「見つからなかった」を返し続ける。
    */
   const settled = new Set<string>();
 
   /**
-   * 窓を閉じて `fetchOnce` を 1 本投げる。`pending` をこの時点で新しい Set に
-   * 差し替えるのは、`fetchOnce` が解決する前に新しい `request()` が来た場合
-   * (dispose() 後は起きない) に、その分を今回のバッチへ混ぜず**次の**バッチへ
-   * 回すため (仕様の「窓が閉じた後の新しい要求は次のバッチになる」)。
+   * 窓を閉じて `fetchOnce` を 1 本投げる。`pending` を新しい Set に差し替え、
+   * 解決前に来た `request()` は次のバッチへ回す。
    */
   let lastBatchSize = 0;
   let maxBatchSize = 0;
@@ -138,11 +99,9 @@ export const createEventRequests = (
       if (disposed) return;
       // 既に EventStore にあるなら要求しない (無駄な REQ を作らない)。
       if (options.store.get(id)) return;
-      // 再要求されたということは、この id をもう一度探しに行く。前回の
-      // バッチで settled 済みでも、その判定はこの新しい探索が終わるまで
-      // 古い —— ここで落とさないと、探している最中なのに isUnresolved が
-      // 前回の「見つからなかった」を返し続ける (settled は追加専用の集合
-      // なので、request() 側で能動的に落とさない限り消えない)。
+      // 再要求は新しい探索の開始。settled は追加専用なので、ここで落とさ
+      // ないと isUnresolved が探している最中も前回の「見つからなかった」
+      // を返し続ける。
       settled.delete(id);
       pending.add(id);
       if (timer === null) {

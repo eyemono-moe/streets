@@ -10,18 +10,8 @@ export type AvatarProps = {
 };
 
 /**
- * 骨格の左列 (spec 3 節)。**枠は常に描く** —— プロフィールが未取得でも
- * `w-10`/`w-8` の寸法は最初から確定している。カラムは数十件のノートを
- * まとめて描いてからプロフィールをバッチで取得する
- * (`ProfileRequests` の 200ms 窓) ので、枠が画像の到着を待って現れると、
- * プロフィールが 1 件ずつ届くたびに以降の行が横にずれる。
- *
- * `sticky top-0` —— 本文が `MAX_CONTENT_HEIGHT` 近くまで伸びてスクロール
- * しても、誰の投稿かを見失わない (spec 3 節)。
- *
- * ホバーカードのトリガーは `asChild` でこの枠そのものに合流させる
- * (仕様 5.1 節)。トリガーが枠を包む別要素になると、`sticky` はその
- * 小さな包みの中でしか動けず効かなくなる。
+ * 骨格の左列。**枠は常に描く** —— プロフィールはバッチ取得なので画像待ちで
+ * 現れると行がずれる。`asChild` で枠自身をトリガーにする —— 別要素で包むと `sticky` が効かない。
  */
 const Avatar: Component<AvatarProps> = (props) => {
   const ctx = useRender();
@@ -38,12 +28,9 @@ const Avatar: Component<AvatarProps> = (props) => {
       }}
       asChild={(triggerProps) => (
         <div
-          // `triggerProps()` は `JSX.HTMLAttributes<HTMLElement>` (ark-ui
-          // 5.38.1 の `ParentProps<T>` を素直に写した型、`ProfileHover.tsx`
-          // 参照)。`ref` が `HTMLElement` 型のままだと `<div>` の
-          // `HTMLDivElement` 用 `ref` と構造的に噛み合わない —— ここは
-          // ark-ui が `<button>` を渡すつもりで持っている一般形を、実際に
-          // `<div>` へ合流させる側の橋渡しなので、ここでだけ絞る。
+          // `triggerProps()` の型は ark-ui の `ParentProps<T>` を写した
+          // 一般形で、`ref` が `HTMLElement` のままだと `<div>` の `ref` と
+          // 構造的に噛み合わない —— ここだけ `<div>` 用に絞るキャスト。
           {...(triggerProps() as unknown as JSX.HTMLAttributes<HTMLDivElement>)}
           data-testid="avatar"
           class="sticky top-0 aspect-square shrink-0 overflow-hidden rounded bg-secondary"

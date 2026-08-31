@@ -3,20 +3,15 @@ import type { Scheduler } from "./connection-pool";
 export type FakeClock = Scheduler & {
   advance(ms: number): void;
   /**
-   * 今スケジュールされている (まだ発火も clearTimeout もされていない)
-   * タイマーの数 (final review, 2026-08-06)。`dispose()` がタイマーを
-   * 消し忘れていないかを、間接的な観測 (「後で何も起きない」) ではなく
-   * 直接の個数で確かめるための診断値 ——
-   * `connection-pool.test.ts` 内のローカル版 `FakeClock` が持つ
-   * `clearTimeoutCallCount` と同じ動機。
+   * 今スケジュールされているタイマーの数。`dispose()` の消し忘れを直接の
+   * 個数で確かめる診断値。
    */
   readonly pendingCount: number;
 };
 
 /**
- * 注入用の偽タイマー。テストからのみ使う (`fake-relay-connection.ts` と同じ
- * 位置づけ)。`advance()` を呼ぶまで何も発火しない —— 実タイマーに依存すると
- * バッチの窓を待つためにテストが遅くなり、しかも不安定になる。
+ * 注入用の偽タイマー。`advance()` を呼ぶまで何も発火しない —— 実タイマー
+ * だとバッチの窓を待つためテストが遅く不安定になる。
  */
 export const createFakeClock = (): FakeClock => {
   let now = 0;

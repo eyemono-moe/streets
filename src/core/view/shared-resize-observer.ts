@@ -1,18 +1,9 @@
 /**
- * 1 つの `ResizeObserver` を全購読者で共有する。
- *
- * **なぜ共有するのか。** カラムは最大 200 件を保持し (`MAX_ITEMS_PER_SECTION`)、
- * `render-window.ts` が先頭 40 件だけを描いて番兵で段階的に増やすが、
- * 読み進めれば窓は上限まで伸びうる。返信は親も描くので実際のノート数は
- * 描画中の件数の 1.5 倍、カラムを複数本開けばノートは容易に数百件を超える。
- * ノート 1 件ごとに `ResizeObserver` を作ると、そのままインスタンス数が
- * 積み上がる —— ブラウザはレイアウトのたびに全インスタンスの監視対象を
- * 突き合わせるので、インスタンス数がそのままスクロール中の 1 フレームの
- * コストに乗る。1 つの `ResizeObserver` は複数の要素を監視できるので、
- * インスタンスは 1 個で足りる。
- *
- * `undefined` を渡せる (`observeHeight(() => el(), cb)` の el がまだ
- * 無い) —— Solid の `ref` はマウント後に埋まるため。
+ * 1 つの `ResizeObserver` を全購読者で共有する。カラムは最大 200 件
+ * (`MAX_ITEMS_PER_SECTION`)、返信の親描画で実際は 1.5 倍、複数カラムで
+ * 数百件を超えうる —— ノートごとに作るとインスタンス数がレイアウトごとの
+ * 監視コストに乗るので、複数要素を監視できる 1 個を共有する。`undefined`
+ * を渡せるのは Solid の `ref` がマウント後にしか埋まらないため。
  */
 type HeightListener = (height: number) => void;
 
@@ -25,8 +16,7 @@ const ensureObserver = (): ResizeObserver | undefined => {
   if (typeof ResizeObserver === "undefined") return undefined;
   observer = new ResizeObserver((entries) => {
     for (const entry of entries) {
-      // `borderBoxSize` はレイアウト計算済みの値を配列で運ぶ。取れない
-      // ブラウザ向けに `contentRect` へ落とす。
+      // `borderBoxSize` はレイアウト済み配列だが、取れないブラウザ向けに `contentRect` へ落とす。
       const height =
         entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
       listeners.get(entry.target)?.(height);

@@ -20,8 +20,7 @@ const fakeSocket = () => {
   const socket: WebSocketLike = {
     readyState: 0,
     send: (data: string) => sent.push(data),
-    // Real WebSocket flips readyState to CLOSING synchronously on .close(),
-    // well before the async "close" event (onclose) fires. Mirror that here.
+    // Real WebSocket flips readyState to CLOSING synchronously on .close(), well before async onclose fires (mirrored here).
     close: vi.fn(() => {
       socket.readyState = 2;
     }),
@@ -200,8 +199,7 @@ describe("WebSocketRelayConnection", () => {
     open();
 
     const published = connection.publish(event("note-1"));
-    // A malformed relay response: "false" is a non-empty string, so it is
-    // truthy in JS even though the relay clearly means "not ok".
+    // A malformed relay response: "false" is a non-empty string, so it's truthy in JS even though the relay means "not ok".
     receive(["OK", "note-1", "false", "invalid: bad signature"]);
 
     await expect(published).rejects.toThrow();
@@ -213,8 +211,7 @@ describe("WebSocketRelayConnection", () => {
     open();
 
     connection.close();
-    // socket.onclose hasn't fired yet (it's async on a real WebSocket), but
-    // readyState already reflects CLOSING synchronously.
+    // socket.onclose hasn't fired yet (async on a real WebSocket), but readyState already reflects CLOSING synchronously.
 
     const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
     connection.subscribe([{ kinds: [1] }], handlers);
@@ -281,8 +278,7 @@ describe("WebSocketRelayConnection", () => {
     open();
     const subId = JSON.parse(sent[0])[1];
 
-    // A malformed relay response: reason is a number, not a string. It must
-    // not be forwarded as-is to a handler that expects a string reason.
+    // A malformed relay response: reason is a number, must not be forwarded as-is to a handler expecting a string.
     expect(() => receive(["CLOSED", subId, 3])).not.toThrow();
 
     expect(handlers.onClosed).toHaveBeenCalledWith("closed");
@@ -298,8 +294,7 @@ describe("WebSocketRelayConnection", () => {
 
     expect(() => receive(["OK", 5, true, ""])).not.toThrow();
 
-    // The bogus OK must not have settled (resolved or rejected) the
-    // pending publish; only the real, correctly-typed OK below may.
+    // The bogus OK must not settle the pending publish; only the real, correctly-typed OK below may.
     receive(["OK", "note-1", true, ""]);
     await expect(published).resolves.toBeUndefined();
   });
@@ -313,7 +308,7 @@ describe("WebSocketRelayConnection", () => {
 
     open();
     socket.onclose?.();
-    socket.onerror?.(); // 2 度目は通知しない
+    socket.onerror?.();
 
     expect(calls).toEqual(["a", "b"]);
   });
@@ -340,8 +335,7 @@ describe("WebSocketRelayConnection", () => {
     const calls: string[] = [];
     connection.onClose(() => calls.push("late"));
 
-    // 既に死んでいる接続に登録したリスナは、その場で呼ばれなければ
-    // プールが永久に「生きている」と誤認する
+    // 既に死んでいる接続に登録したリスナはその場で呼ばれなければ、プールが永久に「生きている」と誤認する。
     expect(calls).toEqual(["late"]);
   });
 
@@ -354,7 +348,6 @@ describe("WebSocketRelayConnection", () => {
     open();
     connection.close();
 
-    // Verify that close() actually called socket.close()
     expect(socket.close).toHaveBeenCalled();
 
     // Simulate the async onclose event that the real WebSocket would fire
@@ -371,14 +364,12 @@ describe("WebSocketRelayConnection", () => {
       const calls: string[] = [];
       connection.onOpen(() => calls.push("open"));
 
-      expect(calls).toEqual([]); // まだ開いていない
+      expect(calls).toEqual([]);
       socket.onopen?.();
       expect(calls).toEqual(["open"]);
     });
 
-    // 変異: 「登録時に既に開いていたら即座に呼ぶ」分岐を消すと落ちる。
-    // プールは接続を作った後に listener を登録するので、この分岐が無いと
-    // 速いソケットの open を取りこぼす。
+    // 変異: 「登録時に既に開いていたら即座に呼ぶ」分岐を消すと落ちる（プールは接続後に listener を登録するので速い open を取りこぼす）。
     it("fires immediately when registered after the socket is already open", () => {
       const { socket } = fakeSocket();
       const connection = new WebSocketRelayConnection("wss://a", socket);
@@ -400,9 +391,7 @@ describe("WebSocketRelayConnection", () => {
       expect(calls).toEqual([]);
     });
 
-    // 変異: if (this.#isClosed()) return () {} 分岐を消すと落ちる。
-    // 既に死んだ接続に登録した listener は、ソケットが死後に
-    // (race 条件により) onopen を発火させても絶対に呼ばれてはいけない。
+    // 変異: if (this.#isClosed()) return 分岐を消すと落ちる（死んだ接続への登録は race で遅れた onopen が発火しても呼ばれてはいけない）。
     it("does not fire for a listener registered after the socket died without opening", () => {
       const { socket } = fakeSocket();
       const connection = new WebSocketRelayConnection("wss://a", socket);
@@ -415,8 +404,7 @@ describe("WebSocketRelayConnection", () => {
       expect(calls).toEqual([]);
     });
 
-    // 変異: socket.onopen の先頭に if (this.#opened) return; を消すと落ちる。
-    // WebSocket の動作としては可能だが、実装は同じ onopen を 2 度呼ばない。
+    // 変異: socket.onopen 先頭の if (this.#opened) return; を消すと落ちる（実装は同じ onopen を 2 度呼ばない）。
     it("notifies onOpen listeners once when the socket opens", () => {
       const { socket } = fakeSocket();
       const connection = new WebSocketRelayConnection("wss://one/", socket);
@@ -425,8 +413,8 @@ describe("WebSocketRelayConnection", () => {
       connection.onOpen(() => calls.push("b"));
 
       socket.onopen?.();
-      socket.onopen?.(); // 2 度目は無視される
-      socket.onopen?.(); // 3 度目も無視される
+      socket.onopen?.();
+      socket.onopen?.();
 
       expect(calls).toEqual(["a", "b"]);
     });

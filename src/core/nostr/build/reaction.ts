@@ -7,11 +7,8 @@ export type ReactionInput =
   | { type: "emoji"; shortcode: string; url: string };
 
 /**
- * NIP-25 のリアクション。
- *
- * `k` タグは NIP-25 上は MAY だが**必ず入れる** —— 読み取り側の
- * `parseReaction` (`src/core/nostr/reaction.ts`) が既に見ており、
- * 落とすと自分で書いたものを自分で読めなくなる。
+ * NIP-25 のリアクション。`k` タグは NIP-25 上は MAY だが必ず入れる ——
+ * 読み取り側の `parseReaction` が既に見ており、落とすと自分で書いたものを自分で読めなくなる。
  */
 export const buildReaction = (
   target: NostrEvent,
@@ -33,8 +30,7 @@ export const buildReaction = (
         ? "+"
         : input.type === "text"
           ? input.content
-          : // NIP-25: "The content can be set only one `:shortcode:`."
-            // 飾りを足すと他クライアントが素のテキストとして描く。
+          : // NIP-25: "The content can be set only one `:shortcode:`." 飾りを足すと他クライアントが素のテキストとして描く
             `:${input.shortcode}:`,
   };
 };

@@ -56,11 +56,8 @@ export const mergeProjectedEvents = (
 };
 
 /**
- * `Writer` の楽観挿入を、購読由来の一覧へ重ねるための v1 専用 module。
- *
- * `Writer` 自身は Store までを責務にし、SectionReader ごとの表示方法を
- * 知らない。この module が直近の楽観イベントを有界な一覧で持つことで、
- * 投稿フォームとイベントアクションが同じ投影経路を使う。
+ * `Writer` の楽観挿入を購読由来の一覧へ重ねる module。`Writer` は Store
+ * までが責務なので、ここで一覧を持つことで投稿とアクションが経路を共有する。
  */
 export type ProjectedWriter = {
   publish(draft: EventDraft, hooks?: ProjectedWriteHooks): Promise<WriteResult>;

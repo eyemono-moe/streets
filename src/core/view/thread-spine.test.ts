@@ -24,8 +24,7 @@ const id = (key: string) => key.repeat(64);
 
 describe("threadSpine", () => {
   it("祖先を根に近い順で並べる", () => {
-    // 捕まえる変異: replyTarget ではなく threadRoot で登る —— 中間の
-    // 祖先を飛ばして根へ跳ぶので、ancestors が 1 件になる。
+    // 捕まえる変異: replyTarget ではなく threadRoot で登る（中間の祖先を飛ばして根へ跳ぶので ancestors が 1 件になる）。
     const root = note("1");
     const mid = note("2", { root: "1", reply: "1" });
     const focus = note("3", { root: "1", reply: "2" });
@@ -35,8 +34,7 @@ describe("threadSpine", () => {
   });
 
   it("focus 自身が根なら祖先は空で reachedRoot は true", () => {
-    // 捕まえる変異: 祖先が空のとき reachedRoot を false にする ——
-    // 根を開いただけで「連鎖が切れている」と表示される。
+    // 捕まえる変異: 祖先が空のとき reachedRoot を false にする（根を開いただけで「連鎖が切れている」と表示される）。
     const root = note("1");
     const spine = threadSpine([root], id("1"));
     expect(spine.ancestors).toEqual([]);
@@ -44,8 +42,7 @@ describe("threadSpine", () => {
   });
 
   it("途中の祖先が欠けていれば reachedRoot は false", () => {
-    // 捕まえる変異: 常に true を返す —— 祖先が欠けたスレッドが
-    // 「根から始まっている」ように見え、誰が誰に返信したのかを読み違える。
+    // 捕まえる変異: 常に true を返す（祖先が欠けたスレッドが「根から始まる」ように見え読み違える）。
     const focus = note("3", { root: "1", reply: "2" });
     const spine = threadSpine([focus], id("3"));
     expect(spine.ancestors).toEqual([]);
@@ -53,8 +50,7 @@ describe("threadSpine", () => {
   });
 
   it("replies は focus を直接の親とするものだけ", () => {
-    // 捕まえる変異: 根を指す全イベントを replies に入れる —— 孫や
-    // 別の枝が混ざり、1 節が決めた「背骨だけ」が壊れる。
+    // 捕まえる変異: 根を指す全イベントを replies に入れる（孫や別の枝が混ざり「背骨だけ」が壊れる）。
     const root = note("1");
     const focus = note("2", { root: "1", reply: "1" });
     const child = note("3", { root: "1", reply: "2" });
@@ -77,8 +73,7 @@ describe("threadSpine", () => {
   });
 
   it("created_at が同値なら id 昇順", () => {
-    // 捕まえる変異: tie-break を持たない —— 入力順に依存して並びが
-    // 揺れ、リレーの配送順で表示が変わる。
+    // 捕まえる変異: tie-break を持たない（入力順に依存して並びが揺れ、リレーの配送順で表示が変わる）。
     const focus = note("1");
     const b = note("3", { reply: "1", at: 1_700_000_100 });
     const a = note("2", { reply: "1", at: 1_700_000_100 });

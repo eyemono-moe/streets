@@ -18,9 +18,8 @@ const ids = (s: SortedEvents) =>
     .map((e) => e.id)
     .join(",");
 
-// 期待値は手で導出したものではなく、意図した実装を実際に走らせて得た出力である
-// (計画作成時に scratchpad で計算済み)。「捕まえる変異」は、その主張が何を
-// 守っているかを明示するためのもの。
+// 期待値は手で導出したものではなく、意図した実装を実際に走らせて得た出力である。
+// 「捕まえる変異」は、その主張が何を守っているかを明示するためのもの。
 describe("SortedEvents", () => {
   it("同値は id 昇順に並ぶ", () => {
     // 捕まえる変異: tiebreak を落とす / 降順にする
@@ -91,11 +90,9 @@ describe("SortedEvents", () => {
 
   it("同値が上限の境界をまたぐとき、残るのは id の小さい方である", () => {
     // 捕まえる変異: 上限判定を created_at だけで行う
-    // (境界の同値 5 件から「先に着いた 3 件」が残ってしまう)
-    //
-    // これは旧実装からの**内容の**変化であり、順序だけの変化ではない。
-    // 旧実装 (安定ソート) は y,z,e,d,c を残していた —— 到着順で決まるため、
-    // Outbox では実行ごとに変わりうる。新実装は入力の集合だけで決まる。
+    // (境界の同値 5 件から「先に着いた 3 件」が残ってしまう)。
+    // 到着順に依存すると Outbox では実行ごとに結果が変わりうるので、
+    // 入力の集合だけで結果が決まることを保証する。
     const s = new SortedEvents(5);
     for (const e of [
       ev("y", 200),
@@ -121,13 +118,10 @@ describe("SortedEvents", () => {
   });
 
   it("上限ちょうどでは追い出しが起きない", () => {
-    // 捕まえる変異: 挿入後の追い出し判定 (#items.length > this.#capacity) を
-    // >= にする (ちょうど上限に達しただけなのに末尾を追い出してしまう)。
-    // 挿入前の受け入れ判定 (#items.length >= this.#capacity) を > にする
-    // 逆方向の off-by-one はここでは捕まらない —— このテストは境界ちょうど
-    // までしか埋めないので判定式に到達しない。そちらを捕まえるのは
-    // 「上限に達した後、末尾より後ろに来るイベントは挿入すらしない」と
-    // 「上限の境界で同値のときは id が採否を決める」の 2 件。
+    // 捕まえる変異: 追い出し判定 (#items.length > capacity) を >= にする (ちょうど
+    // 上限で追い出してしまう)。逆方向の off-by-one (受け入れ判定を > にする) は
+    // ここでは境界に到達せず捕まらない — それは「挿入すらしない」と
+    // 「id が採否を決める」の 2 テストが捕まえる。
     const s = new SortedEvents(3);
     const results = [ev("a", 300), ev("b", 200), ev("c", 100)].map((e) =>
       s.add(e),
@@ -194,7 +188,6 @@ describe("SortedEvents", () => {
     const oracle = [...events].sort(compareEvents).slice(0, CAP);
     expect(s.toArray().map((e) => e.id)).toEqual(oracle.map((e) => e.id));
 
-    // has() と配列の内容が食い違っていないこと
     const kept = new Set(oracle.map((e) => e.id));
     for (const e of events) expect(s.has(e.id)).toBe(kept.has(e.id));
   });

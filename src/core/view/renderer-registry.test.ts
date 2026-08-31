@@ -12,10 +12,7 @@ const rendererOf = (kind: number): EventRenderer => ({
 
 describe("rendererFor", () => {
   it("登録済み kind のレンダラを返す", () => {
-    // 捕まえる変異: kind を見ずに常に先頭 (または常に末尾) の要素を返す。
-    // target を配列の中間に置くことで、位置に頼った実装を区別する
-    // (先頭固定なら rendererOf(0) を、末尾固定なら rendererOf(6) を返し、
-    // どちらも target とは一致しない)。
+    // 捕まえる変異: kind を見ずに常に先頭/末尾の要素を返す（target を中間に置き位置依存の実装を区別する）。
     const target = rendererOf(1);
     expect(rendererFor([rendererOf(0), target, rendererOf(6)], 1)).toBe(target);
   });
@@ -26,9 +23,7 @@ describe("rendererFor", () => {
   });
 
   it("同じ kind が複数登録されていたら先に登録された方を返す", () => {
-    // 捕まえる変異: 後勝ちにする (末尾方向から探す・配列を反転して探す等)。
-    // このスライスで重複登録を作る呼び出し元は無いので、他のどのテストも
-    // この規則を間接的に検証できない —— 直接固定する。
+    // 捕まえる変異: 後勝ちにする（重複登録を作る呼び出し元は無いので、他のテストでは間接検証できず直接固定する）。
     const first = rendererOf(1);
     const second = rendererOf(1);
     expect(rendererFor([first, second], 1)).toBe(first);

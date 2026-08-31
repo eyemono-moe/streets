@@ -108,13 +108,11 @@ describe("RelayInfoRegistry", () => {
       })) as unknown as typeof fetch);
 
     const info1 = await registry.get("wss://a");
-    // Mutate the first result
     if (info1) {
       info1.name = "mutated";
       info1.supported_nips?.push(999);
     }
 
-    // Second caller should get the original data
     const info2 = await registry.get("wss://a");
     expect(info2).toEqual({
       name: "relay",
@@ -165,12 +163,9 @@ describe("RelayInfoRegistry", () => {
     await expect(registry.get("wss://relay.example")).resolves.toBeUndefined();
   });
 
-  // IMPORTANT 4: unauthenticated data from an arbitrary origin. There is no
-  // signature backstop here like there is for events, so a relay serving a
-  // malformed NIP-11 document must not produce a RelayInfo whose fields lie
-  // about their own type — a consumer (e.g. the debug route calling
-  // `.join(",")` on supported_nips) must never encounter a non-array where
-  // the type says array.
+  // NIP-11 は署名のない任意オリジンのデータなので、フィールドが宣言された
+  // 型と違う場合に黙って落とさないと、`.join(",")` を呼ぶような消費者が
+  // 型どおりの配列だと思っていた場所で非配列に遭遇しうる。
   it("drops supported_nips when it is not an array of numbers (string)", async () => {
     const registry = new RelayInfoRegistry((async () =>
       json({
@@ -221,9 +216,9 @@ describe("RelayInfoRegistry", () => {
     });
   });
 
-  // IMPORTANT 5: a transient offline blip at startup must not poison the
-  // relay for the tab's lifetime. Only successes are cached; failures must
-  // be retried on the next get().
+  // 起動時の一時的なオフラインでタブの生存期間ずっとそのリレーを死んだ
+  // ものとして固定してはいけないので、成功だけをキャッシュし、失敗は
+  // 次の get() で再挑戦できるようにする。
   it("retries after a failed fetch instead of caching the failure permanently", async () => {
     let calls = 0;
     const fetchImpl = vi.fn(async () => {
@@ -264,13 +259,10 @@ describe("RelayInfoRegistry", () => {
   });
 
   it("regression: does not lose `this` binding when calling the injected fetch (native fetch throws 'Illegal invocation' if called as a method of another object)", async () => {
-    // Native `fetch` is receiver-sensitive: it only works when invoked with
-    // `this` bound to a fetch-capable global (e.g. `window`). Storing the
-    // reference in a private field and calling it as `this.#fetch(...)`
-    // rebinds `this` to the class instance, which real browsers reject.
-    // This double models that behaviour so the regression is caught even in
-    // an environment (like vitest/jsdom) whose real `fetch` may not enforce
-    // the same restriction.
+    // Native `fetch` is receiver-sensitive (`this` must be a fetch-capable
+    // global); calling it as `this.#fetch(...)` rebinds `this`, which real
+    // browsers reject but vitest/jsdom's fetch may not — so this double
+    // models the rejection directly to keep the regression caught.
     const fetchCapableGlobals = new WeakSet<object>();
     fetchCapableGlobals.add(globalThis);
 

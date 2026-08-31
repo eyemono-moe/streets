@@ -20,8 +20,7 @@ const deck = (...ids: string[]): Deck => ({
 
 describe("addColumnTo", () => {
   it("末尾に追加する", () => {
-    // 捕まえる変異: 先頭へ追加する (「今追加したカラムが右端に出る」という
-    // AddColumnForm の前提が崩れ、ユーザーが見失う)
+    // 捕まえる変異: 先頭へ追加する (追加したカラムが右端に出る前提が崩れる)
     const next = addColumnTo(deck("a", "b"), column("c"));
     expect(next.columns.map((c) => c.id)).toEqual(["a", "b", "c"]);
   });
@@ -29,8 +28,7 @@ describe("addColumnTo", () => {
 
 describe("removeColumnFrom", () => {
   it("id が一致するカラムだけを消す", () => {
-    // 捕まえる変異: 等号を否定し忘れる/取り違えて、一致しないほうを残す
-    // (または全消し・無消しになる)
+    // 捕まえる変異: 等号を取り違えて一致しないほうを残す (全消し/無消しも)
     const next = removeColumnFrom(deck("a", "b", "c"), "b");
     expect(next.columns.map((c) => c.id)).toEqual(["a", "c"]);
   });
@@ -44,17 +42,14 @@ describe("moveColumnIn", () => {
   });
 
   it("左端では同じ参照を返す (書き込みを起こさない)", () => {
-    // 捕まえる変異: 端で clamp して自分自身と入れ替える —— 見た目上は
-    // 何も変わらないのに新しい配列/オブジェクトを返すと、呼び出し側の
-    // 参照比較 (v1.tsx) が「変化した」と誤判定し、無駄な localStorage
-    // 書き込みが起きる
+    // 捕まえる変異: 端で clamp して入れ替える (新しいオブジェクトを返すと
+    // 呼び出し側の参照比較が誤判定し、無駄な書き込みが起きる)
     const current = deck("a", "b", "c");
     expect(moveColumnIn(current, "a", -1)).toBe(current);
   });
 
   it("右端では同じ参照を返す", () => {
-    // 捕まえる変異: 左端と同じ理由。右端の判定 (`to >= columns.length`) が
-    // 抜けていると検出できる
+    // 捕まえる変異: 右端の判定 (`to >= columns.length`) が抜けている
     const current = deck("a", "b", "c");
     expect(moveColumnIn(current, "c", 1)).toBe(current);
   });
@@ -68,18 +63,15 @@ describe("renameColumnIn", () => {
   });
 
   it("空タイトルは同じ参照を返して拒否する", () => {
-    // 捕まえる変異: 空文字チェックを落として保存を通す —— `loadDeck` の
-    // `minLength(1)` がこのカラムを弾き、デッキ全体が次のリロードで
-    // 既定デッキに戻る (task-4-brief.md の「1 本消すと全部消える」)
+    // 捕まえる変異: 空文字チェックを落とす (次のリロードでデッキ全体が
+    // 既定に戻る)
     const current = deck("a");
     expect(renameColumnIn(current, "a", "   ")).toBe(current);
   });
 
   it("trim 後に元のタイトルと同じなら同じ参照を返す (最終レビュー Minor 2)", () => {
-    // 捕まえる変異: trim 後の一致判定を落とす —— `commitTitle` は blur の
-    // たびに発火するので、タイトルをクリックして見ただけで blur するだけで
-    // (実際には何も変えていないのに) 新しいカラムオブジェクトができ、
-    // `<For>` がそのカラムを remount して購読を張り直してしまう
+    // 捕まえる変異: trim 後の一致判定を落とす (blur するだけで新しい
+    // カラムオブジェクトができ、`<For>` が remount してしまう)
     const current = deck("a");
     expect(renameColumnIn(current, "a", "  a  ")).toBe(current);
   });

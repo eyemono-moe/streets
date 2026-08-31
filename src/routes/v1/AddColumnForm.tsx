@@ -13,10 +13,8 @@ const KIND_LABELS: Record<ColumnPresetKind, string> = {
 };
 
 /**
- * 種別ごとに入力欄が要るかどうか。`home`/`global`/`notifications` は `buildColumn` が
- * 第二引数を見ずに常に成功する (column-presets.ts 参照) ので、入力欄を
- * 出しても押せるボタンが無いだけの空欄になる —— 出さないほうが「何を
- * 入れればいいのか」で迷わせない。
+ * 種別ごとに入力欄が要るかどうか。`home`/`global`/`notifications` は
+ * `buildColumn` が成功するので、出しても押せない空欄になり迷わせる。
  */
 const NEEDS_INPUT: Record<ColumnPresetKind, boolean> = {
   home: false,
@@ -36,9 +34,7 @@ const KINDS: ColumnPresetKind[] = [
 
 /**
  * ヘッダの「+」でカラムを追加するフォーム。`buildColumn` (純関数) と
- * 分けてあるのは、UI の開閉・入力欄の出し分け・エラー表示という状態を
- * 持つ部分と、「各種別が正しい `ColumnSource` を作るか」というロジックを
- * 混ぜないため (column-presets.ts のコメント参照)。
+ * 分けるのは、UI の状態と「正しい `ColumnSource` を作るか」のロジックを混ぜないため。
  */
 const AddColumnForm: Component<{
   onAdd: (column: ColumnDef) => void;
@@ -57,14 +53,10 @@ const AddColumnForm: Component<{
 
   const submit = (event: Event) => {
     event.preventDefault();
-    // `buildColumn` は「不正な入力」を undefined で返す契約だが、
-    // `crypto.randomUUID()` のように**入力に関係なく**投げうる呼び出しも
-    // 内部に持つ (最終レビュー Minor 4: secure context 外、例えば http://
-    // の LAN 開発サーバでは `crypto.randomUUID` 自体が無く TypeError)。
-    // ここで catch せずにいると、その例外は submit ハンドラの外へそのまま
-    // 抜け、`add-column-error` は一切出ないまま「追加」ボタンが押しても
-    // 何も起きないように見える —— 原因が UUID かどうかに関わらず、
-    // buildColumn が投げうるものは何であれ同じ経路でユーザーに見せる。
+    // `buildColumn` は不正入力を undefined で返す契約だが、
+    // `crypto.randomUUID()` は入力に関係なく投げうる (非セキュアコンテキスト
+    // では TypeError)。ここで catch しないと例外が外へ抜け、押しても
+    // 何も起きないように見えるので、投げうるものは何であれ同じ経路で見せる。
     let column: ReturnType<typeof buildColumn>;
     try {
       column = buildColumn(kind(), input());

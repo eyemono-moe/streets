@@ -85,8 +85,7 @@ describe("planQuery", () => {
       fallbackRelays: ["wss://fallback/"],
     });
 
-    // fallback へ送ってはいけない。予算を守るために落としたのに
-    // fallback で開き直したら意味がない
+    // fallback へ送ってはいけない (予算超過で落としたのに開き直しては意味がない)。
     expect(plan.perRelay.size).toBe(0);
     expect(plan.unroutableAuthors).toEqual([]);
     expect(plan.uncoveredAuthors).toEqual([A]);
@@ -110,8 +109,6 @@ describe("planQuery", () => {
       fallbackRelays,
     });
 
-    // The undefined-authors filter still goes out; the empty-array filter
-    // next to it contributes nothing.
     expect(plan.perRelay.get("wss://fallback/")).toEqual([{ kinds: [1] }]);
   });
 
@@ -145,12 +142,10 @@ describe("planQuery", () => {
     const filter2 = plan.perRelay.get("wss://fallback2/")?.[0];
     const filter3 = plan.perRelay.get("wss://fallback3/")?.[0];
 
-    // All filters should be deeply equal (same values)
     expect(filter1).toEqual({ kinds: [1], limit: 20 });
     expect(filter2).toEqual({ kinds: [1], limit: 20 });
     expect(filter3).toEqual({ kinds: [1], limit: 20 });
 
-    // But each relay must get its own object, not aliased references
     expect(filter1).not.toBe(filter2);
     expect(filter2).not.toBe(filter3);
     expect(filter1).not.toBe(filter3);

@@ -64,44 +64,23 @@ import { createProjectedWriter } from "./v1/projected-writer";
 import { defaultRenderers } from "./v1/renderers";
 
 /**
- * `?relays=` でローカルリレーへ上書きする (parse-relays.ts 参照)。
- * **既定は本物のリレー。** このクエリパラメータは e2e 専用の抜け道であり、
- * 通常このアプリがリレーをクエリ文字列から取ることはない —
- * debug ルートの `?budget=` と同じ立て付け。
- *
- * `DeckColumn` (`./v1/DeckColumn.tsx`) がカラムごとの `relays` 上書きに
- * 同じ計算をもう一度行っている —— こちらは manager/publisher の
- * fallbackRelays/indexers 用で、役割が違う値なのでモジュールをまたいで
- * 共有しない。
+ * `?relays=` は e2e 専用にローカルリレーへ上書きする抜け道。`DeckColumn`
+ * も同じ計算を独立に行うが、役割が違う値なので共有しない。
  */
 const RELAYS_OVERRIDE = parseRelays(
   new URLSearchParams(window.location.search).get("relays"),
 );
 
 /**
- * `warm-up-phases` の表示専用フォーマット。未確定 ("-") のときだけ単位を
- * 落とす —— 他の診断値 (`warmUpMs` など) は列名自体が単位を兼ねるが、
- * こちらは "phase1: N ms / phase2: N ms" という文中表記のため、値が無い
- * ときに "- ms" と単位だけ浮かせない。
+ * `warm-up-phases` は列名でなく文中に埋め込むので、値が無いときは
+ * "- ms" と単位だけ浮かせないよう "-" だけにする。
  */
 const formatWarmUpPhaseMs = (ms: number | undefined): string =>
   ms === undefined ? "-" : `${ms.toFixed(2)} ms`;
 
 /**
- * v1 の垂直スライス。ログイン → 1 カラム描画に続き、
- * ここでデッキと、localStorage cache + NIP-78 同期を組み立てる。
- *
- * **拡張機能の有無をマウント時に一度だけ確認して結果を保持する、という
- * ことはしない。** NIP-07 拡張は content script としてページ本体より
- * *後に* window.nostr を注入することがあり (nip07-signer.ts のコメント
- * 参照)、確認結果をシグナルに固定すると「後から入った拡張」を永久に
- * 見失う — signer-error が「拡張機能が見つかりません」を出したまま、
- * 実際には拡張が入っていても永久に更新されない、という壊れ方をする。
- * ログインボタンは常に表示し、クリックのたびに
- * createNip07Signer().getPublicKey() を呼んで、そのとき初めて拡張の
- * 有無を確かめる (SignerUnavailableError なら「見つからない」)。
- * nip07-signer.ts が「呼び出しのたびに読み直す」という同じ原則を、
- * ここでも UI 側で踏襲している。
+ * 拡張機能の有無は固定しない —— NIP-07 は本体より後に window.nostr を
+ * 注入しうるので、マウント時にキャッシュすると後から入った拡張を見失う。
  */
 const V1Content: Component = () => {
   const [pubkey, setPubkey] = createSignal<string>();
@@ -114,14 +93,8 @@ const V1Content: Component = () => {
   onCleanup(() => nip46Session?.client.close());
 
   /**
-   * pubkey が確定した時点から、いずれかのカラムに最初のノートが描画される
-   * までの ms (task-5-brief.md Step 1, ADR-0011 の 2 秒予算の材料)。
-   * `optimisticInsertMs` と同じ「診断用の常設表示、開発者モードの背後」の
-   * 形をそのまま踏襲する。
-   *
-   * `loginStartMs` はシグナルにしない —— `login()` の中で一度書いたら
-   * 読み返すのは `onColumnHasItems` だけで、Solid の依存追跡に乗せる理由が
-   * 無い (`deckInitialized` と同じ「素の変数で足りる」ケース)。
+   * pubkey 確定から最初のノート描画までの ms (2 秒予算の材料)。
+   * `login()` で書いて 1 箇所でしか読まないので素の変数で足りる。
    */
   let loginStartMs: number | undefined;
   const recordFirstRender = createFirstRenderRecorder();
@@ -130,18 +103,13 @@ const V1Content: Component = () => {
     Record<string, number>
   >({});
   /**
-   * `DeckColumn` (3 カラムぶん) が `items()` が空でなくなるたびに呼ぶ
-   * (`DeckColumn.tsx` の `onHasItems` 参照)。「最初の 1 回だけ記録する」判定
-   * そのものは `recordFirstRender` (`first-render-recorder.ts`) に委ねている
-   * ので、ここでは「pubkey がまだ無ければ無視する」ガードと
-   * `setFirstRenderMs` への反映だけを行う。
+   * `DeckColumn` が items が空でなくなるたびに呼ぶ。「最初の 1 回だけ」の
+   * 判定は `recordFirstRender` に委ね、ここは pubkey ガードと反映だけ行う。
    */
   const onColumnHasItems = (columnId: string) => {
     if (loginStartMs === undefined) return;
     const elapsed = performance.now() - loginStartMs;
-    // カラム単位で持つ。デッキ全体の 1 つの数字は、ウォームアップを待たない
-    // カラム (単一著者・明示リレー) の値になりがちで、ユーザーが実際に
-    // 待っているカラムが予算外でも予算内に見える。
+    // カラム単位で持つ —— 全体の 1 つの数字だと待たないカラムの値に化けて予算超過を見逃す。
     setFirstRenderMsByColumn((prev) =>
       columnId in prev ? prev : { ...prev, [columnId]: elapsed },
     );
@@ -149,19 +117,13 @@ const V1Content: Component = () => {
     if (recorded !== undefined) setFirstRenderMs(recorded);
   };
 
-  // 保存形式とstate同期はDeviceSettingsProviderの内側に隠し、ここは
-  // 診断表示の判定だけをinterface越しに読む。
+  // 保存とstate同期はDeviceSettingsProviderの内側に隠し、診断表示の判定だけをinterfaceで読む。
   const { developerMode } = useDeviceSettings();
   const [settingsOpen, setSettingsOpen] = createSignal(false);
 
-  // 読み取り層の配線。debug/v1-section.tsx と同じ合成ルート
-  // (`createReadLayer`, spec 9 節)。manager (= ConnectionPool)・store・
-  // コアレッサは 3 カラムぶんのすべての `createSection` で共有する —
-  // ADR-0011 の 30 接続予算はカラム単位ではなくアプリ全体の予算なので、
-  // カラムごとに別の manager を持つと予算が意味を失う。`/v1` は本物の
-  // IndexedDB persistence を使う (デバッグルートと違い、こちらは実際の
-  // ユーザーが使う画面で、リロードのたびに取り直すコストを削るのが
-  // このスライスの目的そのもの)。
+  // debug/v1-section.tsx と同じ配線。manager/store/コアレッサは 3 カラム
+  // で共有する —— 30 接続予算はアプリ全体の予算でカラム単位ではない。
+  // `/v1` は本物の IndexedDB persistence を使う (実画面なので再取得コストを削る)。
   const readLayer = createReadLayer({
     connect: connectRelay,
     persistence: createIndexedDbPersistence(),
@@ -178,25 +140,18 @@ const V1Content: Component = () => {
     engagements: engagementRequests,
   } = readLayer;
 
-  // 書き込み経路。ソケットを開くのは manager と同じ
-  // ConnectionPool (`manager.pool`) 一本化 —— publish 専用の別経路は
-  // 持たない (Global constraints: 30 接続予算をもう一系統で穴あけしない)。
+  // 書き込みも manager と同じ ConnectionPool を使う (`manager.pool`) ——
+  // publish 専用の別経路を持つと 30 接続予算がもう一系統で穴あく。
   const publisher = createPublisher({
     pool: manager.pool,
     routing,
-    // undefined なら FALLBACK_RELAYS (SubscriptionManager/warmUpRouting と
-    // 同じ既定) を使う。
+    // undefined なら FALLBACK_RELAYS (SubscriptionManager/warmUpRouting と同じ既定)。
     fallbackRelays: RELAYS_OVERRIDE ?? FALLBACK_RELAYS,
   });
 
-  // 署名 → 楽観挿入 → publish → (全滅なら) 巻き戻し、を一本化した経路
-  // (spec 4〜6 節)。signer は login() と同じ理由で毎回ではなく 1 度だけ
-  // createNip07Signer() を呼んで持つ —— nip07-signer.ts の各メソッドは
-  // 呼び出しのたびに window.nostr を読み直すので、生成を 1 度にまとめても
-  // 「後から入った拡張を見失う」問題は起きない。fetchLatest は write リレー
-  // から再取得する経路 (fetch-latest.ts) で、manager/store/routing を
-  // 読み取り層と共有する (ConnectionPool を publish 専用にもう一系統
-  // 持たないのと同じ理由)。
+  // 署名 → 楽観挿入 → publish → (全滅なら) 巻き戻しを一本化した経路。
+  // signer は login() と同じ理由で 1 度だけ生成する (各メソッドが呼び出し
+  // ごとに window.nostr を読み直すので、後から入った拡張も見失わない)。
   const fetchLatestEvent = (
     kind: number,
     identifier: string | undefined,
@@ -229,27 +184,20 @@ const V1Content: Component = () => {
   onCleanup(() => projectedWriter.dispose());
   const eventActions = createEventActions({ writer: projectedWriter, store });
 
-  // pubkey が undefined の間 (ログイン前) は createResource がフェッチャーを
-  // 呼ばない — デバッグルートのような「空文字を弾く」ガードが要らない
-  // (source が nullish なら Solid 自身が起動を見送るため)。
-  // ブートストラップは kind:3 を引いてから kind:10002 を引く 2 往復で、
-  // ホーム列の最初の REQ はその後にしか出せない。初回描画のどれだけを
-  // ここが占めているかは、first-render-ms からこれを引いて初めて分かる。
+  // pubkey が undefined の間は createResource が呼ばれない (nullish は
+  // 起動を見送るので空文字ガードは不要)。ブートストラップは kind:3→
+  // kind:10002 の 2 往復で、ホーム列の最初の REQ はその後にしか出せない。
   const [warmUpMs, setWarmUpMs] = createSignal<number>();
   const [warmUp] = createResource(pubkey, async (pk) => {
-    // 水和 (readLayer.ready) を待たずに warmUpRouting を走らせると、相②が
-    // まだ空の store を見て「キャッシュは無い」と誤判定し、全フォロイーぶん
-    // 取り直してしまう —— このスライスが削るはずだったコストがそのまま
-    // 復活する (spec 9 節)。計測 (startedAt) はこの待ちの外に置く:
-    // warmUpMs は indexer との往復コストの内訳であって、ローカル DB の
-    // 読み出し待ちを混ぜると同じ数値が「速い warmUp」と「速い水和」の
-    // どちらを指しているか分からなくなる。
+    // readLayer.ready を待たずに走らせると、相②が空の store を「キャッシュ
+    // 無し」と誤判定し全フォロイーを取り直す。計測 (startedAt) はこの待ちの
+    // 外に置く —— warmUpMs は indexer 往復のみを指し、水和待ちを混ぜない。
     await readLayer.ready;
     const startedAt = performance.now();
     try {
       return await warmUpRouting({
         pubkey: pk,
-        // マネージャと同じ ConnectionPool を使う (ADR-0011 の予算を一本化する)
+        // マネージャと同じ ConnectionPool を使う (接続予算を一本化する)
         store,
         pool: manager.pool,
         // undefined なら warmUpRouting 自身の既定 (BOOTSTRAP_INDEXERS) が効く
@@ -278,13 +226,9 @@ const V1Content: Component = () => {
     storage: window.localStorage,
   });
 
-  // 4 つの操作本体 (`Deck → Deck`) は ./v1/deck-mutations.ts の純関数に
-  // 委ねている。ここでの役目は「現在のデッキを読む」→「純関数を適用する」
-  // →「変化していれば updateDeck へ渡す」の 3 段だけ。変化の有無を参照
-  // 比較で見ているのは、`moveColumnIn`/`renameColumnIn` が変化なしのとき
-  // 入力の `deck` をそのまま (同一参照で) 返す契約になっているため ——
-  // これにより端での移動や空タイトルでの改名が無駄な localStorage 書き込み
-  // を起こさない。
+  // 4 操作は ./v1/deck-mutations.ts の純関数に委ね、ここは読む→適用する
+  // →変化していれば updateDeck へ渡すだけ。`moveColumnIn`/`renameColumnIn`
+  // は無変化なら同一参照を返す契約なので、参照比較で無駄な書き込みを防げる。
   const addColumn = (column: ColumnDef) => {
     deckStore.update((current) => addColumnTo(current, column));
   };
@@ -306,22 +250,15 @@ const V1Content: Component = () => {
     deckStore.update((current) => renameColumnIn(current, id, title));
   };
 
-  // manager.connectionCount / peakConnectionCount はシグナルではないので
-  // JSX へ直接置いても更新されない (debug/v1-section.tsx と同じ理由)。
-  // 3 カラムぶんの購読が同じ manager (= 同じ ConnectionPool) を共有して
-  // いるので、ここに出るのは 3 カラム合計の接続数 —— 30 接続予算が
-  // 3 カラム + プロフィール + 投稿で成立するかという問い (仕様 10 節
-  // 問い 2) の材料。setInterval によるポーリングは、デバッグルートと
-  // 同じく「pool 側だけで完結する変化を取り逃さない」ための保険。
+  // connectionCount/peakConnectionCount はシグナルではないので、
+  // setInterval でポーリングして pool 側だけの変化も取り逃さないようにする。
+  // ここに出るのは 3 カラム合計の接続数 (30 接続予算の妥当性を測る材料)。
   const [connections, setConnections] = createSignal(manager.connectionCount);
   const [peakConnections, setPeakConnections] = createSignal(
     manager.peakConnectionCount,
   );
-  // manager.unrequestedEventsByRelay も同じ理由でシグナルではない
-  // (copy-on-read の ReadonlyMap, subscription-manager.ts 参照)。今まで
-  // どこにも表示先が無かった値 —— 開発者モード (DiagnosticsPanel) ができて
-  // 初めて置き場所ができた。debug/v1-section.tsx と同じく [url, count][]
-  // に写して保持する。
+  // unrequestedEventsByRelay も同じ理由でシグナルではない (copy-on-read の
+  // ReadonlyMap)。debug/v1-section.tsx と同じく [url, count][] に写して保持する。
   const [unrequestedEventsByRelay, setUnrequestedEventsByRelay] = createSignal<
     [string, number][]
   >([]);
@@ -342,8 +279,7 @@ const V1Content: Component = () => {
         last: profileRequests.lastBatchSize,
         max: profileRequests.maxBatchSize,
       },
-      // 仕様 9 節 問い 1 (`#e` のコアレッサが 1 バッチで何件になるか) を
-      // 実鍵で測れるようにするための表示。
+      // `#e` コアレッサの 1 バッチ件数を実鍵で測るための表示。
       engagements: {
         last: engagementRequests.lastBatchSize,
         max: engagementRequests.maxBatchSize,
@@ -366,10 +302,8 @@ const V1Content: Component = () => {
     try {
       const signer = createNip07Signer();
       const pk = await signer.getPublicKey();
-      // 「pubkey が確定した時点」はここ (`setPubkey` の直前) —— 拡張機能の
-      // 応答待ち (`getPublicKey()`) を測定区間に含めない。first-render-ms が
-      // 見たいのはログイン後の描画コストであり、拡張機能側の待ち時間まで
-      // 混ぜると何のボトルネックを指しているか分からなくなる。
+      // ここが「pubkey 確定」の基準点 —— 拡張機能の応答待ちを測定区間に
+      // 含めると、first-render-ms が指すボトルネックが分からなくなる。
       loginStartMs = performance.now();
       nip46Session?.client.close();
       nip46Session = undefined;
@@ -469,19 +403,14 @@ const V1Content: Component = () => {
     }
   };
 
-  // 投稿フォーム。
   const [content, setContent] = createSignal("");
   const [posting, setPosting] = createSignal(false);
   const [postError, setPostError] = createSignal<string>();
   const [publishResult, setPublishResult] = createSignal<PublishResult>();
 
   /**
-   * **順序が重要 (仕様 6 節)**: 署名 → EventStore への挿入 (楽観的更新) →
-   * publish。署名を拒否された場合 (NIP-07 拡張が例外を投げる) はここで
-   * catch に落ち、挿入も publish も一切実行されない —— 巻き戻す状態が
-   * 存在しないのはこの順序を逆にしないからそのまま成り立つ。逆順 (先に
-   * 挿入してから署名) だと、拒否されたときに挿入済みの投稿を消す処理が
-   * 別途必要になる。
+   * **順序が重要**: 署名 → 挿入 → publish。署名拒否時は catch に落ちて
+   * 挿入も publish もされないので、巻き戻す状態自体が生まれない。
    */
   const postNote = async () => {
     const text = content().trim();
@@ -491,22 +420,17 @@ const V1Content: Component = () => {
     setPosting(true);
     setPostError(undefined);
     setPublishResult(undefined);
-    // onOptimisticInsert で本文をクリアしたかどうか。duplicate でも消すので
-    // ProjectedWriter の楽観一覧へ追加されたかどうかとは分けて持つ。
+    // duplicate でも本文はクリアするので、楽観一覧への追加有無とは別に持つ。
     let clearedOptimistically = false;
     try {
-      // Store とカラムへの楽観挿入は ProjectedWriter に一本化し、ここには
-      // フォームをいつ消すかとエラー文言だけを残す。
+      // 楽観挿入は ProjectedWriter に一本化し、ここはフォームの消去とエラー表示だけ。
       const result = await projectedWriter.publish(
         { kind: 1, tags: [], content: text },
         {
           onOptimisticInsert: () => {
-            // 楽観挿入 (または重複判定) と同じタイミングでクリアする ——
-            // publish の解決を待ってから消すと、"inserted" の場合は
-            // ノート自体が挿入直後に画面へ出ているのに入力欄だけ
-            // 最大 PUBLISH_TIMEOUT_MS 分の間古い文面を残し、送れたのか
-            // 疑わせる空白ができる。失敗時は下の catch で元の文面に戻す
-            // (「本文は残す」という挙動そのものは変えない)。
+            // 楽観挿入と同時にクリアする —— publish 解決を待つと、挿入済み
+            // ノートが表示されているのに入力欄だけ最大 PUBLISH_TIMEOUT_MS
+            // 古い文面を残す。失敗時は catch で元の文面に戻す。
             setContent("");
             clearedOptimistically = true;
           },
@@ -515,8 +439,7 @@ const V1Content: Component = () => {
       setPublishResult(result);
     } catch (error) {
       if (error instanceof WriteFailedError) {
-        // 本文は残す —— 送れなかった文面を打ち直させないため。
-        // onOptimisticInsert で先にクリアしていた場合はここで書き戻す。
+        // 本文は残す (打ち直させないため) —— 先にクリアしていたらここで書き戻す。
         if (clearedOptimistically) setContent(text);
         setPostError(
           `どのリレーにも届きませんでした (${error.rejected.length} 本が拒否)`,
@@ -580,11 +503,8 @@ const V1Content: Component = () => {
                 </Button>
               </Show>
               {/*
-                ADR-0026: connections/peakConnections/optimisticInsertMs/
-                unrequestedEventsByRelay はどれも行動できない診断値であり、
-                開発者モードが有効なときだけ出す。値の計算 (syncConnectionSignals)
-                自体は開発者モードの有無に関わらず常に続く —— 隠れるのは
-                表示だけ (ADR-0011 の改訂で撤回されなかった要件)。
+                connections 等は行動できない診断値なので開発者モードでだけ
+                出す。計算 (syncConnectionSignals) 自体は常に続き、隠れるのは表示だけ。
               */}
               <DiagnosticsPanel visible={developerMode}>
                 <div class="flex flex-wrap items-center gap-3">
@@ -620,11 +540,8 @@ const V1Content: Component = () => {
                     {warmUpMs() === undefined ? "-" : warmUpMs()?.toFixed(2)}
                   </p>
                   {/*
-                    warmUpMs (上) は warmUpRouting() 全体で、こちらはその
-                    内訳。ウォームアップは 2 相あり、相② (全フォロイーの
-                    kind:10002) だけがフォロー数に比例する —— どちらが
-                    支配的かで、キャッシュして意味のある相が変わる。
-                    warmUp() が確定するまでは両方とも "-"。
+                    warmUpMs 全体の内訳。相②(全フォロイーの kind:10002) だけ
+                    フォロー数に比例するので、どちらが支配的か分かる。
                   */}
                   <p
                     data-testid="warm-up-phases"
@@ -633,11 +550,7 @@ const V1Content: Component = () => {
                     phase1: {formatWarmUpPhaseMs(warmUp()?.phase1Ms)} / phase2:{" "}
                     {formatWarmUpPhaseMs(warmUp()?.phase2Ms)}
                   </p>
-                  {/*
-                    相の所要時間は**最も遅い 1 本**で決まるので、合計値だけでは
-                    どのリレーが原因かも、そもそも応答が返っていないのかも
-                    分からない。遅い順に並べる。
-                  */}
+                  {/* 所要時間は最も遅い 1 本で決まるので、遅い順に並べて原因を追えるようにする。 */}
                   <ul
                     data-testid="warm-up-relays"
                     class="text-alpha-600 text-xs"
@@ -847,10 +760,8 @@ const V1Content: Component = () => {
             class="flex min-h-0 flex-1 divide-x overflow-x-auto"
           >
             {/*
-              レンダラ (kind:1/6/16, spec 6 節) と EventView が共有する依存の
-              束 (design 2.1 節)。3 カラムぶんまとめて 1 つの provider の下に
-              置く —— カラムごとに別の値を渡す理由が無い (store/manager と
-              同じ「アプリ全体で 1 つ」の単位)。
+              レンダラと EventView が共有する依存の束。store/manager と同じ
+              「アプリ全体で 1 つ」なので、3 カラムまとめて 1 provider に置く。
             */}
             <EventActionsProvider value={eventActions}>
               <RenderProvider
@@ -859,9 +770,8 @@ const V1Content: Component = () => {
                   events: eventRequests,
                   profiles: profileRequests,
                   engagements: engagementRequests,
-                  // getter で渡す —— オブジェクトリテラルの値は 1 度しか
-                  // 評価されないため、`viewerPubkey: pubkey()` だと後から
-                  // ログインしても RenderProvider に渡した値が追随しない。
+                  // getter で渡す —— オブジェクトリテラルの値は 1 度しか評価
+                  // されず、`pubkey()` だと後のログインに追随しない。
                   get viewerPubkey() {
                     return pubkey();
                   },
@@ -902,8 +812,7 @@ const V1Content: Component = () => {
       return (
         <Show when={pubkey()} keyed fallback={renderView()}>
           {(account) => {
-            // アカウントを key に Provider の所有者ごと作り直す。復号済みの
-            // 非公開項目をログアウト後や次のアカウントへ持ち越さない。
+            // アカウントを key に Provider ごと作り直す —— 復号済み非公開項目をログアウト後/次アカウントへ持ち越さない。
             const muteList = createMuteList({
               pubkey: () => account,
               routingSettled: () =>

@@ -25,29 +25,16 @@ import { mergeProjectedEvents } from "./projected-writer";
 import { ThreadNavProvider } from "./thread-nav";
 
 /**
- * `?relays=` でローカルリレーへ上書きする (parse-relays.ts 参照)。
- * `v1.tsx` にも同じ計算があるが、両者は同じ入力 (URL のクエリ文字列) から
- * 導く純粋な変換であり、モジュールをまたいで値を共有する必要がない ——
- * 1 箇所を import し合うより、それぞれのモジュールで独立に計算したほうが
- * 「どこで何が決まるか」が閉じて読みやすい。
+ * `?relays=` でローカルリレーへ上書きする。`v1.tsx` にも同じ計算があるが、
+ * 同じ入力から独立に導く純粋な変換なので、モジュールをまたいで共有しない。
  */
 const RELAYS_OVERRIDE = parseRelays(
   new URLSearchParams(window.location.search).get("relays"),
 );
 
 /**
- * デッキの 1 本のカラム。`createSection` を own する単位を `<For>` の
- * コールバックではなくコンポーネントとして切り出しているのは、カラムの
- * 追加・削除 (将来) で `createEffect`/`onCleanup` の対応関係を素直に
- * Solid の所有者ツリーへ委ねるため。
- *
- * `?relays=` (RELAYS_OVERRIDE) が効いている間は、明示リレーを持つ通常の
- * カラム (`defaultDeck` の "global" 列など) の `relays` もローカルリレーへ
- * 差し替える。これをしないと `defaultDeck` が焼き込んだ本物のリレー
- * (`FALLBACK_RELAYS`) へ e2e が外部ネットワーク越しに繋ぎに行ってしまい、
- * ローカルシードでは検証できなくなる — `fallbackRelays`/`indexers` に
- * 対する上と同じ上書きの立て付け。ただし通知カラムは NIP-65 の read
- * リレー選択そのものが検証対象なので上書きしない。
+ * デッキの 1 本のカラム。`?relays=` は明示リレーを持つカラムにも及ぶが、
+ * 通知カラムだけは NIP-65 の read リレー選択自体が検証対象なので上書きしない。
  */
 const DeckColumn: Component<{
   column: ColumnDef;
@@ -60,21 +47,13 @@ const DeckColumn: Component<{
   /** 閲覧者の NIP-65 リレーリスト。通知カラムの購読先と警告を同じ状態から導く。 */
   relayList: () => RelayListState;
   /**
-   * 投稿フォームが署名直後に楽観挿入した、まだリレーから戻って
-   * きていない自分の投稿。`SectionReader` は購読経由でしか items を更新
-   * できない (`store.put()` を直接呼んでも拾わない) ので、表示側でこの
-   * リストを重ね合わせる。
+   * 投稿フォームが署名直後に楽観挿入した、未エコーの自分の投稿。
+   * `SectionReader` は購読経由でしか items を更新しないので重ね合わせる。
    */
   optimisticEvents: () => readonly NostrEvent[];
   /**
-   * このカラムの `items()` が空でなくなるたびに呼ぶ (task-5-brief.md
-   * Step 1)。**「初回だけ記録する」判定はここではしない** —— 呼び出し側
-   * (`v1.tsx`) が `createFirstRenderRecorder` で 3 カラムぶんまとめて
-   * 「最初の 1 回」に絞る。ここで各カラムが自分だけの初回判定を持つと、
-   * 3 カラムがそれぞれ「自分にとっての初回」を報告してしまい、結局
-   * 呼び出し側で「複数の初回」を 1 つへ潰す作業が要る点は変わらない ——
-   * それなら最初から「空でなくなるたび呼ぶだけ」にして、判定を 1 箇所
-   * (呼び出し側) に集めたほうが読みやすい。
+   * このカラムの `items()` が空でなくなるたびに呼ぶ。「初回だけ記録する」
+   * 判定は 3 カラムぶんまとめる呼び出し側に委ねる。
    */
   onHasItems: () => void;
   /** このカラムに最初のイベントが出るまでの ms。未着なら undefined。 */
@@ -102,22 +81,17 @@ const DeckColumn: Component<{
       ? props.column.source.kind
       : undefined;
   const source = createMemo<NostrSource>(() => {
-    // `followees: followState.followees` (呼ばずに渡す) —— `resolveSource` が
-    // `kind: "followees"` の分岐でだけこれを呼ぶ (`resolve-source.ts` の
-    // コメント参照)。ここで `followState.followees()` と呼んで渡してしまうと、
-    // `literal` 列でもこの memo が warmUp の結果 (フォローリストのリソース)
-    // を読んだことになり、ウォームアップが settle するたびに全カラムが
-    // 再購読される。`relayList` も同じ扱い。
+    // `followees: followState.followees` は呼ばずに渡す —— ここで呼ぶと
+    // `literal` 列の memo も warmUp の結果に依存したことになり、warmUp が
+    // settle するたびに全カラムが再購読される。`relayList` も同様。
     const resolved = resolveSource(props.column.source, {
       followees: followState.followees,
       viewer: props.viewer,
       relayList: props.relayList,
     });
-    // `?relays=` の e2e 上書きは**解決した後**に当てる —— 上書きが見るのは
-    // `NostrSource.relays` であって `ColumnSource` ではない。順序を逆に
-    // すると、明示リレーを持つカラムがローカルリレーへ差し替わらず、
-    // e2e が外部ネットワークへ繋ぎに行く。通知だけは設定された read
-    // リレーへ実際に切り替わることを e2e で証明するため上書きしない。
+    // `?relays=` の上書きは解決した**後**に当てる —— 上書きは
+    // `NostrSource.relays` を見るので、逆順だと明示リレーのカラムが
+    // 差し替わらない。通知は read リレー切り替えの検証対象なので除外。
     return RELAYS_OVERRIDE &&
       resolved.relays &&
       props.column.source.kind !== "notifications"
@@ -144,15 +118,8 @@ const DeckColumn: Component<{
   const closeThread = () => setStack((s) => s.slice(0, -1));
 
   /**
-   * スレッドの購読は**根**に投げる。NIP-10 を守る返信は深さに関わらず
+   * スレッドの購読は**根**に投げる —— NIP-10 を守る返信は深さに関わらず
    * 全員が根を `e` タグで指すので、これ 1 本で祖先も返信も届く。
-   *
-   * 組み立てそのものは `createThreadSource` (`core/solid/`) へ切り出して
-   * ある —— 根の id でのメモ化、リレーヒントの反応性の切り離し (1 段進む
-   * だけで購読が張り直されない)、`?relays=` の非対称な上書きは、
-   * `SubscriptionManager`/`RenderProvider` を用意しなくても検証できる
-   * ほうがよい性質であり、実際に `create-thread-source.test.ts` が
-   * ユニットテストとして守っている。
    */
   const threadSource = createThreadSource({
     focusId,
@@ -179,12 +146,9 @@ const DeckColumn: Component<{
   // 間はユーザーに見えていない根のカラムの状態を報告し続けることになる。
   const activeSection = createMemo(() => (focusId() ? threadSection : section));
 
-  // ユーザーが行動できる異常だけを取り出す (ADR-0026)。判定そのものは
-  // columnAlerts に集約済みで、ここでは呼ぶだけ。**いま見えている
-  // セクション** (`activeSection`) の状態を渡す —— 固定で `section` のまま
-  // だと、スレッドを開いている間にスレッド側のリレーが到達不能でも
-  // バッジが黙ったままになり、developer mode でしか気付けない
-  // (`unreachableRelays` は診断値として developer mode の背後にしか出ない)。
+  // 行動できる異常だけを取り出す (判定は columnAlerts に集約)。渡すのは
+  // **いま見えているセクション** (`activeSection`) の状態 —— 固定で
+  // `section` のままだと、スレッド側の到達不能が developer mode でしか気付けない。
   const alerts = createMemo(() =>
     columnAlerts(
       props.column,
@@ -196,16 +160,8 @@ const DeckColumn: Component<{
   );
 
   /**
-   * 楽観挿入とセクション本体の items をマージする (仕様 6 節、受け入れ確認
-   * 1, 2)。
-   *
-   * - このカラムのフィルタに合わないもの (他人の投稿を映すカラムに自分の
-   *   投稿を混ぜない) は素通しで除く —— `matchesAnyFilter` はローカル
-   *   フィルタ照合そのもの (ADR-0023) で、リレーへ実際に送っている REQ と
-   *   同じ判定を使う。
-   * - `section.items()` に同じ id が既に載っているものは除く —— リレーが
-   *   自分の投稿をエコーして本物の経路に乗った後は、そちらを正として二重
-   *   表示しない (self-follow で自分の投稿が戻ってくるのは普通に起こる)。
+   * 楽観挿入とセクション本体の items をマージする。フィルタに合わない
+   * ものと、`section.items()` に既にある id (リレーエコー到着済み) は除く。
    */
   const items = createMemo(() => {
     const merged = mergeProjectedEvents(
@@ -213,10 +169,9 @@ const DeckColumn: Component<{
       props.optimisticEvents(),
       source().filters,
     );
-    // 通知列でだけ自分の行動を落とす (仕様 2.2 節)。**捨てるのはセクションが
+    // 通知列でだけ自分の行動を落とす。**捨てるのはセクションが
     // 保持した後**なので、保持上限 200 件は捨てる前の件数で数えている ——
-    // 自分の行動が多いと見える件数がそのぶん減る。仕様 5.1 節がこの代償を
-    // 受け入れた判断として記録している。
+    // 自分の行動が多いと見える件数がそのぶん減る。
     const visible =
       props.column.source.kind === "notifications"
         ? excludeOwnActions(merged, props.viewer)
@@ -240,10 +195,8 @@ const DeckColumn: Component<{
   });
 
   /**
-   * 返信を署名直後に開いているスレッドへ重ねる。SectionReader はリレーから
-   * 戻ったイベントだけを持つので、根カラムと同じ id 重複排除をここでも
-   * 行う。thread source の filters を使うため、別スレッドへの返信や通常の
-   * 新規投稿は混ざらない。
+   * 返信を署名直後に開いているスレッドへ重ねる。根カラムと同じ id
+   * 重複排除を行い、別スレッドの返信や新規投稿は filters で混ぜない。
    */
   const threadItems = createMemo(() =>
     mergeProjectedEvents(
@@ -253,7 +206,7 @@ const DeckColumn: Component<{
     ),
   );
 
-  // `items()` が空でなくなるたびに親へ知らせる (task-5-brief.md Step 1)。
+  // `items()` が空でなくなるたびに親へ知らせる。
   // 「初回だけ」の判定は親側 (`props.onHasItems` の実体、
   // `createFirstRenderRecorder`) の役目 —— ここでは呼ぶだけでよい。
   createEffect(() => {
@@ -284,16 +237,14 @@ const DeckColumn: Component<{
     <section
       data-testid="deck-column"
       data-column-id={props.column.id}
-      // 幅 380 (v0 は 400)。ヘッダーはカラムと一緒にスクロールさせず、
+      // 幅 380。ヘッダーはカラムと一緒にスクロールさせず、
       // 上端に貼り付ける —— 長いタイムラインの途中でカラムを取り違えない
       // ようにするため、名前と操作は常に見えている必要がある。
       class="flex h-full w-95 shrink-0 flex-col overflow-hidden border-r last:border-r-0"
     >
       {/*
-        カラムの識別色 (3px)。**カラムを見分ける手掛かりを色に持たせる**
-        のが目的で、ヘッダーの文字とは別の層で効く —— 横に並んだ 4 本の
-        カラムをスクロール中に区別するとき、人は先に色を見る。
-        現状は全カラム共通のアクセント色。カラムごとに選ばせるのは別の話。
+        カラムの識別色。ヘッダーの文字とは別の層で効く —— スクロール中に
+        カラムを区別するとき、人は先に色を見る。現状は全カラム共通の色。
       */}
       <div
         data-testid="column-accent"
@@ -315,11 +266,7 @@ const DeckColumn: Component<{
             </button>
           }
         >
-          {/*
-            スレッドを開いている間は「カラムを左へ」を隠さず、戻るボタンに
-            差し替える —— 左端のボタンが常に 1 つという配置を保ったまま、
-            スタックを 1 段だけ pop する (根まで戻ればカラムに戻る)。
-          */}
+          {/* スレッドを開いている間は「カラムを左へ」を戻るボタンに差し替える —— 左端の位置を保ったままスタックを 1 段 pop する。 */}
           <button
             type="button"
             data-testid="thread-back"
@@ -343,10 +290,8 @@ const DeckColumn: Component<{
             when={editingTitle()}
             fallback={
               // h2 に直接 onClick を付けると非対話要素がキーボード操作を
-              // 持たないことになる (biome lint/a11y)。見出しレベルは h2 が
-              // 保ち、実際にクリック/キー操作を受けるのは中の button ——
-              // button ならフォーカスと Enter/Space での起動をブラウザが
-              // 標準で面倒を見るので、手書きの onKeyDown が要らない。
+              // 持たない (biome lint/a11y)。クリック/キー操作は中の
+              // button に持たせ、Enter/Space の面倒はブラウザに任せる。
               <h2 class="min-w-0 flex-1 truncate font-bold text-body">
                 <button
                   type="button"
@@ -402,15 +347,9 @@ const DeckColumn: Component<{
         </button>
       </header>
       {/*
-        ADR-0026: `status.incomplete` は行動できない診断値であり、開発者
-        モードが有効なときだけ出す (計算自体は developerMode の有無に関わらず
-        常に正しく続く —— ここで隠れるのは表示だけ)。行動できる異常
-        (unreachableRelays かつ明示リレー) は `ColumnAlertBadge` が別枠で
-        常時出す。
-
-        仕様 7 節が要求していた「生の数値をそのまま見せる」は、ADR-0026 に
-        より「開発者モードの背後でそのまま見せる」へ改まった (ADR-0011 の
-        改訂と同じ扱い)。
+        `status.incomplete` は行動できない診断値なので開発者モードでだけ
+        出す (計算は常に続き、隠れるのは表示だけ)。行動できる異常は
+        `ColumnAlertBadge` が別枠で常時出す。
       */}
       <DiagnosticsPanel visible={settings.developerMode}>
         <div class="space-y-1 px-2 pb-2">
@@ -441,17 +380,14 @@ const DeckColumn: Component<{
         </div>
       </DiagnosticsPanel>
       {/*
-        スクロールするのは本文だけ。ヘッダーは `section` 直下に残して
-        貼り付ける。**この容器が e2e の掴み先** (`column-scroll`) ——
-        `section` 自体をスクロールさせていた頃の名残で `deck-column` を
-        掴むと、ヘッダーを固定した瞬間に静かに何もスクロールしなくなる。
+        スクロールするのは本文だけ。**この容器が e2e の掴み先**
+        (`column-scroll`) —— `deck-column` を掴むとヘッダー固定時に何もスクロールしなくなる。
       */}
       <div data-testid="column-scroll" class="min-h-0 flex-1 overflow-y-auto">
         {/*
-          `open` でスタックへ push する —— ノートのクリックハンドラ
-          (`Note.tsx`) がこれを呼ぶ。根のカラムだけでなく、スレッド内の
-          祖先・返信を押しても新しい背骨に引き直せるよう、本文全体を
-          この provider の中に置く。
+          `open` でスタックへ push する (`Note.tsx` のクリックハンドラが
+          呼ぶ)。根だけでなくスレッド内の祖先・返信からも新しい背骨に
+          引き直せるよう、本文全体をこの provider の中に置く。
         */}
         <ThreadNavProvider open={openThread}>
           <Show

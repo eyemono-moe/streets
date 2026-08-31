@@ -79,8 +79,6 @@ export const useCoreEventFeed = <T = ParsedEventPacket["parsed"]>(
     }
   };
 
-  // Register the current feed and read UI feed state from FeedStateStore rather
-  // than TanStack collection projections.
   createEffect(() => {
     const currentDefinition = definition();
     if (!currentDefinition) {

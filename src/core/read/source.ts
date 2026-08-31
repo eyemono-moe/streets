@@ -3,11 +3,11 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 export type NostrSource = {
   type: "nostr";
   filters: RelayFilter[];
-  /** 指定した場合は Outbox ルーティングをバイパスする (ADR-0005) */
+  /** 指定した場合は Outbox ルーティングをバイパスする */
   relays?: RelayUrl[];
 };
 
-/** NIP-11。Nostr イベントですらない供給元 (ADR-0003) */
+/** NIP-11。Nostr イベントですらない供給元 */
 export type RelayInfoSource = {
   type: "relay-info";
   url: RelayUrl;
@@ -19,7 +19,7 @@ export type Order = "created-at-desc" | "created-at-asc";
 
 /**
  * セクション自身のリストについてのみ語る。
- * レンダラの遅延取得は含めない (ADR-0015)。
+ * レンダラの遅延取得は含めない。
  */
 export type SectionStatus = {
   phase: "initial" | "streaming" | "settled";
@@ -30,5 +30,5 @@ export type SectionStatus = {
   };
 };
 
-/** ADR-0011 の性能予算 */
+/** 性能予算 */
 export const MAX_ITEMS_PER_SECTION = 200;

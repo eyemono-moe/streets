@@ -16,16 +16,14 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("buildRepost", () => {
   it("content は対象の JSON", () => {
-    // 捕まえる変異: 空文字にする。NIP-18 は "MAY also be empty, but that is
-    // not recommended" と言う。空だと受け手が対象を取りに行くまで何も出せない。
+    // 捕まえる変異: 空文字にする。NIP-18: "MAY also be empty, but that is not recommended" —— 空だと受け手が対象を取りに行くまで何も出せない
     const target = evt({ id: "1".repeat(64), content: "hi" });
     const draft = buildRepost(target);
     expect(JSON.parse(draft?.content ?? "")).toEqual(target);
   });
 
   it("e タグはリレー URL を 3 番目に持つ", () => {
-    // 捕まえる変異: ["e", id] の 2 要素にする。NIP-18 はリレー URL を
-    // 3 番目に置くよう定めており、無いと受け手が対象を引く先を失う。
+    // 捕まえる変異: ["e", id] の 2 要素にする —— NIP-18 はリレー URL を 3 番目に置くと定めており、無いと受け手が対象を引く先を失う
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildRepost(target, { relayHint: "wss://a.example" });
     expect(draft?.tags.filter((t) => t[0] === "e")).toEqual([
@@ -34,9 +32,7 @@ describe("buildRepost", () => {
   });
 
   it("relayHint が無ければ位置要素を空文字で埋める", () => {
-    // 捕まえる変異: 既定値を空文字以外にする (buildQuote で直した同型の穴)。
-    // 省略すると要素がずれて pubkey がリレー URL の位置に来て、読む側が
-    // そこへ接続しようとする。
+    // 捕まえる変異: 既定値を空文字以外にする —— 省略すると要素がずれて pubkey がリレー URL の位置に来て、読む側がそこへ接続しようとする
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildRepost(target);
     expect(draft?.tags.filter((t) => t[0] === "e")).toEqual([
@@ -55,8 +51,7 @@ describe("buildRepost", () => {
   });
 
   it("kind:1 以外は undefined", () => {
-    // 捕まえる変異: kind を見ずに常に kind:6 を作る。kind:6 に kind:1 以外を
-    // 入れるのは NIP-18 違反 (そちらは kind:16)。
+    // 捕まえる変異: kind を見ずに常に kind:6 を作る —— kind:6 に kind:1 以外を入れるのは NIP-18 違反 (そちらは kind:16)
     expect(buildRepost(evt({ kind: 30023 }))).toBeUndefined();
   });
 });

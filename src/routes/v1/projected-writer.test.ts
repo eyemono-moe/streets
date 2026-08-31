@@ -42,8 +42,8 @@ const noStoreChanges = {
 
 describe("createProjectedWriter", () => {
   it("EventStore が隠した楽観イベントを除外し、巻き戻しで再表示する", async () => {
-    // 捕まえる変異: hide/show の購読または hidden の絞り込みを外す。自分の
-    // 削除依頼だけがリレーエコー前の楽観表示へ反映されない。
+    // 捕まえる変異: hide/show の購読を外す (削除依頼が楽観表示に反映
+    // されない)。
     const target = signed("1");
     let notifyStore!: (change: EventStoreChange) => void;
     const projected = createProjectedWriter(
@@ -87,8 +87,8 @@ describe("createProjectedWriter", () => {
     await projected.publish({ kind: 1, tags: [], content: "first" });
     await projected.publish({ kind: 1, tags: [], content: "duplicate" });
 
-    // 捕まえる変異: putResult を見ず duplicate も一覧へ積む。同じ秒・本文の
-    // 再送で同じ id の行が二つ描かれる。
+    // 捕まえる変異: putResult を見ず duplicate も積む (同じ id の行が
+    // 二つ描かれる)。
     expect(projected.optimisticEvents()).toEqual([first]);
     expect(projected.optimisticInsertMs()).toBeGreaterThanOrEqual(0);
   });
@@ -116,8 +116,7 @@ describe("createProjectedWriter", () => {
       projected.publish({ kind: 1, tags: [], content: "failing" }),
     ).rejects.toBeInstanceOf(WriteFailedError);
 
-    // 捕まえる変異: 失敗時に一覧を全消去する。以前に成功したイベントまで
-    // カラムから消える。
+    // 捕まえる変異: 失敗時に一覧を全消去する (成功済みも消える)。
     expect(projected.optimisticEvents()).toEqual([previous]);
   });
 
@@ -137,8 +136,8 @@ describe("createProjectedWriter", () => {
       { onOptimisticInsert },
     );
 
-    // 捕まえる変異: duplicate では callback を呼ばない。同一イベントの再送で
-    // publish は進んでいるのに投稿フォームだけがクリアされない。
+    // 捕まえる変異: duplicate では callback を呼ばない (投稿フォームが
+    // クリアされない)。
     expect(onOptimisticInsert).toHaveBeenCalledWith(event);
   });
 
@@ -161,8 +160,7 @@ describe("createProjectedWriter", () => {
       await projected.publish({ kind: 1, tags: [], content: event.content });
     }
 
-    // 捕まえる変異: slice を外して成功イベントを無制限に保持する。長時間の
-    // セッションで全カラムが送信履歴全体を毎回照合する。
+    // 捕まえる変異: slice を外して無制限に保持する (照合量が増え続ける)。
     expect(projected.optimisticEvents()).toHaveLength(200);
     expect(projected.optimisticEvents()[0]).toBe(events.at(-1));
     expect(projected.optimisticEvents()).not.toContain(events[0]);
@@ -198,8 +196,8 @@ describe("createProjectedWriter", () => {
       projected.publish({ kind: 1, tags: [], content: "failing" }),
     ).rejects.toBeInstanceOf(WriteFailedError);
 
-    // 捕まえる変異: pending の挿入時点で slice(0, 200) する。失敗イベントを
-    // 戻した後は、先に追い出した成功イベントも失われて199件になる。
+    // 捕まえる変異: pending の挿入時点で slice(0, 200) する (失敗を戻すと
+    // 先に追い出した成功イベントも失われる)。
     expect(projected.optimisticEvents()).toEqual(beforeFailure);
   });
 });
@@ -221,8 +219,8 @@ describe("mergeProjectedEvents", () => {
       filters,
     );
 
-    // 捕まえる変異: thread source の filter 照合または既知 id の除外を外す。
-    // 別スレッドの返信か、リレーから戻った同一返信が開いているスレッドへ混ざる。
+    // 捕まえる変異: filter 照合または既知 id の除外を外す (別スレッドの
+    // 返信が混ざる)。
     expect(merged).toEqual([optimisticReply, echoed]);
   });
 });

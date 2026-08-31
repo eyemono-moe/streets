@@ -16,8 +16,7 @@ const VERSION = 2;
 const NONCE_BYTES = 32;
 const MAC_BYTES = 32;
 const MIN_PLAINTEXT_BYTES = 1;
-// NIP-46 の RPC は小さい JSON だけを運ぶ。現行 NIP-44 が許す理論上の 4 GiB
-// までブラウザで確保せず、旧来の u16 範囲を DoS 上限として採る。
+// NIP-46 の RPC は小さい JSON だけを運ぶので、NIP-44 が許す理論上の 4 GiB までは確保せず u16 範囲を DoS 上限として採る。
 const MAX_PLAINTEXT_BYTES = 65_535;
 const MIN_PAYLOAD_CHARS = 132;
 const MAX_PAYLOAD_CHARS = 87_472;
