@@ -73,7 +73,7 @@
     "vite": "6.1.0",
     "vite-plugin-pwa": "0.21.1",
     "vite-plugin-solid": "2.11.1",
-    "vitest": "3.0.5",
+    "vitest": "4.1.11",
     "workbox-core": "7.3.0"
   },
   "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
