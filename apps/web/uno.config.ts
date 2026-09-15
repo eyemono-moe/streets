@@ -133,6 +133,8 @@ export default defineConfig({
       // text color
       "c-primary": "c-ui-9 dark:c-ui-1",
       "c-secondary": "c-ui-6 dark:c-ui-4",
+      // Penpot の text.danger。テーマ色から作らない固定の色。
+      "c-danger": "c-[#C5221F] dark:c-[#F28B82]",
       "text-link":
         "text-accent-5 visited:text-accent-8 dark:text-accent-5 dark:visited:text-accent-4 hover:underline",
 
