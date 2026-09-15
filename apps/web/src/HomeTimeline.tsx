@@ -1,11 +1,8 @@
 import { TIMELINE_KINDS } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
-import type { NostrEvent } from "@streets/core/nostr/event";
-import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
-import { formatEventTime } from "@streets/core/view/format-time";
 import {
   type Component,
   For,
@@ -15,33 +12,8 @@ import {
   createResource,
 } from "solid-js";
 import { setDiagnostics } from "./devtools/diagnostics";
+import TimelineItem from "./note/TimelineItem";
 import type { Session } from "./session";
-
-const shortNpub = (pubkey: string) => {
-  const npub = encodeBech32("npub", pubkey);
-  return `${npub.slice(0, 10)}…${npub.slice(-4)}`;
-};
-
-const NoteItem: Component<{ event: NostrEvent }> = (props) => (
-  <article class="flex flex-col gap-1 border-primary border-b px-4 py-3">
-    <header class="c-secondary flex items-baseline justify-between gap-2 text-caption">
-      <span class="truncate">{shortNpub(props.event.pubkey)}</span>
-      <time>
-        {formatEventTime(new Date(props.event.created_at * 1000), new Date())}
-      </time>
-    </header>
-    <Switch>
-      <Match when={props.event.kind === 6}>
-        <p class="c-secondary text-caption">リポスト</p>
-      </Match>
-      <Match when={true}>
-        <p class="whitespace-pre-wrap break-words text-body">
-          {props.event.content}
-        </p>
-      </Match>
-    </Switch>
-  </article>
-);
 
 const Timeline: Component<{
   readLayer: ReadLayer;
@@ -71,9 +43,12 @@ const Timeline: Component<{
   return (
     <Switch>
       <Match when={section.items().length > 0}>
-        <For each={section.items()}>
-          {(event) => <NoteItem event={event} />}
-        </For>
+        {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+        <div class="flex flex-col gap-px bg-tertiary pb-px">
+          <For each={section.items()}>
+            {(event) => <TimelineItem event={event} />}
+          </For>
+        </div>
       </Match>
       <Match when={section.status().phase === "settled"}>
         <p class="c-secondary p-4 text-caption">

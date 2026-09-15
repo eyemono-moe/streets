@@ -4,6 +4,7 @@ import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import HomeTimeline from "./HomeTimeline";
 import LoginScreen from "./LoginScreen";
+import { ReadLayerProvider } from "./read-layer";
 import { createSession } from "./session";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
@@ -25,7 +26,9 @@ const App: Component = () => {
         fallback={<LoginScreen session={session} />}
         keyed
       >
-        <HomeTimeline readLayer={readLayer} session={session} />
+        <ReadLayerProvider value={readLayer}>
+          <HomeTimeline readLayer={readLayer} session={session} />
+        </ReadLayerProvider>
       </Show>
       <Show when={import.meta.env.DEV}>
         <AppDevtools readLayer={readLayer} />
