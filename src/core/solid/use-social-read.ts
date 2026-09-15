@@ -149,8 +149,6 @@ const useCoreEventPacketsForQueries = <T = ReturnType<typeof parseNostrEvent>>(
     return data;
   };
 
-  // Keep legacy accessor data synchronized with v1 events while query issuance goes through
-  // the core query client instead of the removed legacy event-cache getter helpers.
   createEffect(() => {
     const currentQueries = stableQueries();
     const currentRelays = relays?.();
@@ -300,7 +298,6 @@ export const useCoreUserList = () => {
     );
   };
 
-  // User listing is derived from kind:0 events in EventStore through ProfileView.
   createEffect(() => {
     const unsubscribe = core.profileView.subscribe(syncFromProfileView);
     syncFromProfileView();

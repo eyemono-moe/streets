@@ -3,12 +3,8 @@ import type { EventDraft, Mutation } from "./draft";
 const PROFILE_KIND = 0;
 
 /**
- * kind:0 の差分更新。**`current` に有って `changes` に無いキーを残す** ——
- * 他クライアントが入れた `lud16` (Zap の宛先) などを消さない。
- *
- * `current.content` が JSON として読めなければ `changes` だけにする。
- * 壊れた JSON を保っても誰も得をせず、投げるとプロフィールが永久に
- * 編集できなくなる。
+ * kind:0 の差分更新。`current` にあり `changes` に無いキーを残す（`lud16` など
+ * 他クライアントの値を消さない）。JSON として読めない content は `changes` だけで作り直す。
  */
 export const mergeProfile =
   (changes: Record<string, unknown>): Mutation =>

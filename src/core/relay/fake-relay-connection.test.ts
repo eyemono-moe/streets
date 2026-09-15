@@ -103,7 +103,7 @@ describe("FakeRelayConnection", () => {
     connection.onClose(() => calls.push("called"));
 
     connection.close();
-    connection.close(); // idempotency guard makes this a no-op
+    connection.close();
 
     expect(calls).toEqual(["called"]);
   });
@@ -144,7 +144,7 @@ describe("FakeRelayConnection", () => {
     sub.close(); // should be safe to call on a dead subscription
 
     expect(calls).toEqual(["socket closed"]);
-    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
+    expect(connection.subscriptions).toHaveLength(0);
   });
 
   it("subscribe on a connection after die() immediately reports closed", () => {
@@ -161,12 +161,11 @@ describe("FakeRelayConnection", () => {
     connection.subscribe([{ kinds: [1] }], handlers);
 
     expect(calls).toEqual(["socket closed"]);
-    expect(connection.subscriptions).toHaveLength(0); // not added to active subscriptions
+    expect(connection.subscriptions).toHaveLength(0);
   });
 
   describe("onOpen", () => {
-    // 変異: 既定を autoOpen: false にすると、既存のプールのテストが
-    // 一斉に落ちる (どれも構築した瞬間から生きている前提)。
+    // 変異: 既定を autoOpen: false にすると、構築した瞬間から生きている前提の既存プールテストが一斉に落ちる。
     it("is open from construction by default", () => {
       const connection = new FakeRelayConnection("wss://a");
       const calls: string[] = [];
@@ -174,8 +173,7 @@ describe("FakeRelayConnection", () => {
       expect(calls).toEqual(["open"]);
     });
 
-    // 変異: autoOpen: false を無視すると落ちる。恒久的に到達不能な
-    // リレー (open が永久に来ない) を再現するために必要。
+    // 変異: autoOpen: false を無視すると落ちる（恒久的に到達不能なリレーの再現に必要）。
     it("stays unopened until open() when constructed with autoOpen: false", () => {
       const connection = new FakeRelayConnection("wss://a", {
         autoOpen: false,

@@ -18,25 +18,8 @@ export type ProfileProps = {
 };
 
 /**
- * 1 人分の名前を出す (アイコンは `Avatar.tsx` が別領域として担う ——
- * spec 3 節)。取得ロジックは `<Avatar>` と共有 (`profile-data.ts`):
- * マウント時に自分の pubkey を `requests.request()` で 1 件だけ要求する ——
- * カラム側で著者集合をまとめるのではなく、ここが要求の最小単位 (spec 4 節)。
- * まとめるのはコアレッサ (`profile-requests.ts`) の仕事であり、この
- * コンポーネントは他の `<Profile>`/`<Avatar>` の存在を一切知らない。
- *
- * v0 は同じ人物を 2 通りに書き分けており (`EventBase.tsx` / `RichContents`)、
- * それを `variant` として写す:
- *
- * - `author` —— イベントの著者行。`display_name` + `@name` の 2 段
- * - `inline` —— 本文中の言及・返信先。`@name` の 1 つだけ (既定)
- * - `list` —— ユーザー一覧。2 段をそれぞれ 1 行で省略
- *
- * 太字にしたい・幅を制限したい呼び出し側 (リポスト/リアクションの見出し
- * など) は、`<Profile>` 自体を書き換えずに外側を `<span class="min-w-0
- * truncate font-700">` などで包む (`Note.tsx` の `note-author` と同じ手筋)。
- * `<Profile>` は他の言及・アバター横の使われ方と見た目の契約を共有して
- * いるので、ここへ `class` 等の穴を空けて呼び出し側ごとに変えない。
+ * 1 人分の名前を出す。取得は `<Avatar>` と共有する。見た目は `variant` で
+ * 決め、呼び出し側に `class` の穴は開けない —— 見た目の契約を共有するため。
  */
 const ProfileName: Component<{
   pubkey: string;

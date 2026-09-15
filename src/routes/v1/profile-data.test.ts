@@ -45,9 +45,8 @@ const noProfileRequests = (): ProfileRequests => ({
 
 describe("parseProfileContent", () => {
   it("name / display_name / picture を取り出す", () => {
-    // 捕まえる変異: NIP-24 の snake_case (`display_name`) を camelCase で
-    // 読む。JSON のキーは snake_case なので、読み替えを外すと表示名が
-    // 永久に undefined になる。
+    // 捕まえる変異: `display_name` を camelCase で読む (読み替えを外すと
+    // 表示名が永久に undefined になる)。
     const parsed = parseProfileContent(
       JSON.stringify({
         name: "alice",
@@ -62,15 +61,13 @@ describe("parseProfileContent", () => {
   });
 
   it("JSON として壊れていれば undefined を返し、投げない", () => {
-    // 捕まえる変異: try/catch を外す。kind:0 の content はリレー由来の
-    // 任意文字列であり、投げるとカラム全体が落ちる。
+    // 捕まえる変異: try/catch を外す (投げるとカラム全体が落ちる)。
     expect(() => parseProfileContent("{壊れている")).not.toThrow();
     expect(parseProfileContent("{壊れている")).toBeUndefined();
   });
 
   it("オブジェクトでない JSON は undefined", () => {
-    // 捕まえる変異: typeof の判定を外す。`"文字列"` や `null` は
-    // JSON.parse を通るが、その後の record 参照で落ちる。
+    // 捕まえる変異: typeof の判定を外す (record 参照で落ちる)。
     expect(parseProfileContent('"just a string"')).toBeUndefined();
     expect(parseProfileContent("null")).toBeUndefined();
   });
@@ -93,9 +90,8 @@ describe("parseProfileContent", () => {
   });
 
   it("文字列でないフィールドは undefined", () => {
-    // 捕まえる変異: typeof の判定を外して値をそのまま入れる。kind:0 は
-    // リレー由来の任意の JSON であり、数値やオブジェクトが入っていると
-    // <img src={{}}> のような描画へそのまま流れる。
+    // 捕まえる変異: typeof の判定を外す (`<img src={{}}>` のような描画に
+    // そのまま流れる)。
     const parsed = parseProfileContent(
       JSON.stringify({
         about: 42,
@@ -114,8 +110,8 @@ describe("parseProfileContent", () => {
 
 describe("useProfileData", () => {
   it("マウント後の同一著者 kind:0 置換を表示へ反映する", async () => {
-    // 捕まえる変異: EventStore.onReplaceableChanged の購読を外す。Writer の
-    // 楽観挿入後、マウント済みプロフィールが古い kind:0 のまま残る。
+    // 捕まえる変異: `onReplaceableChanged` の購読を外す (楽観挿入後も
+    // 古い kind:0 のまま残る)。
     let dispose!: () => void;
     let profile!: ReturnType<typeof useProfileData>;
     let store!: EventStore;
@@ -157,8 +153,8 @@ describe("useProfileData", () => {
   });
 
   it("kind:0 の削除後は表示を空に戻す", async () => {
-    // 捕まえる変異: check() が event 不在で setProfile(undefined) しない。
-    // publish 全失敗時にWriterが楽観挿入を巻き戻しても、表示だけが残る。
+    // 捕まえる変異: check() が event 不在で setProfile(undefined) しない
+    // (楽観挿入を巻き戻しても表示だけが残る)。
     let dispose!: () => void;
     let profile!: ReturnType<typeof useProfileData>;
     const store = new EventStore();
@@ -183,8 +179,8 @@ describe("useProfileData", () => {
   });
 
   it("pubkey切替とdispose後は対象外のkind:0更新を反映しない", async () => {
-    // 捕まえる変異: effect cleanup からEventStore購読の解除を外す。切替前・
-    // dispose前のpubkey更新が、現在または破棄済みのプロフィールを上書きする。
+    // 捕まえる変異: effect cleanup から購読解除を外す (切替/dispose前の
+    // 更新が現在/破棄済みのプロフィールを上書きする)。
     let dispose!: () => void;
     let profile!: ReturnType<typeof useProfileData>;
     const store = new EventStore();
@@ -224,8 +220,8 @@ describe("useProfileData", () => {
     store.put(second, "wss://relay.example/" as RelayUrl);
     expect(profile()?.displayName).toBe("次の表示名");
 
-    // 捕まえる変異: EventStore変更の kind 判定を外す。同じpubkeyのkind:3
-    // 到着でもkind:0を読み直して、新しいプロフィールオブジェクトを作る。
+    // 捕まえる変異: kind 判定を外す (同じ pubkey の kind:3 到着でも
+    // kind:0 を読み直してしまう)。
     const displayedProfile = profile();
     const contacts = profileEvent(44, "", 1_700_000_001, 3);
     store.put(contacts, "wss://relay.example/" as RelayUrl);

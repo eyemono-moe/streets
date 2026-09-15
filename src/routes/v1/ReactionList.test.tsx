@@ -12,9 +12,8 @@ import { RenderProvider } from "../../core/view/render-context";
 import type { RenderContextValue } from "../../core/view/render-context";
 import ReactionList from "./ReactionList";
 
-// Note.test.tsx / event-store.test.ts と同じ手法: 種から 32 byte 鍵を作り
-// schnorr で実署名する。`EventStore.put` は `verifyEvent` を通すため、
-// テスト用イベントも本物の署名を持たなければ store に入らない。
+// `EventStore.put` の `verifyEvent` を通すため、種から鍵を作り schnorr で
+// 実署名する。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -75,7 +74,6 @@ const fakeProfiles = (): ProfileRequests => ({
   dispose() {},
 });
 
-/** `request` の呼び出しを記録する `EngagementRequests` のテストダブル。 */
 const createRecordingEngagementRequests = (): EngagementRequests & {
   requested: string[];
 } => {
@@ -94,12 +92,7 @@ const createRecordingEngagementRequests = (): EngagementRequests & {
   };
 };
 
-/**
- * `subscribe` で受け取った listener を後から手で呼べる `EngagementRequests`
- * のテストダブル。主経路 (取得 → 通知 → 再描画) を検証するテストが使う ——
- * 本番では `fetchOnce` が解決したときにコアレッサがこの listener を呼ぶ
- * (`engagement-requests.ts` の `flush`)。
- */
+/** listener を後から手で呼べる `EngagementRequests`。本番の `fetchOnce` 解決時の通知を模す。 */
 const createControllableEngagementRequests = (): EngagementRequests & {
   requested: string[];
   notify(): void;
@@ -137,11 +130,7 @@ const contextWith = (
   renderers: [],
 });
 
-/**
- * `Reaction.test.tsx` の `mountBody` と同じ理由: `ReactionList` のトップ
- * レベルは `<Show>` なので、コンポーネントを関数として直接呼ぶと戻り値は
- * DOM ノードではなくアクセサ関数になる。
- */
+/** トップレベルが `<Show>` なので、関数として直接呼ぶと戻り値はアクセサ関数になる。 */
 const mount = (
   eventId: string,
   ctx: RenderContextValue,
@@ -168,12 +157,7 @@ const mount = (
   };
 };
 
-/**
- * `mount` と違い、`<Show>` のアクセサを毎回呼び直す。`mount` は初回の値を
- * 1 度だけ読んで変数へ固定するので、マウント後に信号が変わって `<Show>`
- * の判定が反転しても (未描画 → 描画) 反映されない。マウント後の到着を
- * 検証するテストはこちらを使う。
- */
+/** `mount` と違いアクセサを毎回呼び直す (`mount` は初回値を固定し反転を反映しない)。 */
 const mountReactive = (
   eventId: string,
   ctx: RenderContextValue,
@@ -245,9 +229,7 @@ describe("ReactionList", () => {
   });
 
   it("主経路: マウント後にStoreへ届いたリアクションが通知なしで一覧に現れる", () => {
-    // 捕まえる変異: `EventStore.subscribe` を落とし、コアレッサのバッチ通知
-    // だけに戻す。カラム購読や Writer から直接 Store へ入った Like が、
-    // 次の取得バッチまで一覧へ現れない。
+    // 捕まえる変異: `EventStore.subscribe` を落とす (直接 put が反映されない)。
     const store = new EventStore();
     const target = signed(40);
     const reactions = createControllableEngagementRequests();
@@ -256,10 +238,9 @@ describe("ReactionList", () => {
       contextWith(store, reactions),
     );
     try {
-      // マウント時点では store にリアクションが無く、一覧は出ていない。
       expect(element()).toBeUndefined();
 
-      // カラム購読や Writer と同じく、コアレッサの通知を通さず直接 put する。
+      // コアレッサの通知を通さず直接 put する (カラム購読/Writer と同じ)。
       store.put(signedReaction(41, target.id), "wss://relay/");
 
       const el = element();
@@ -273,8 +254,7 @@ describe("ReactionList", () => {
   });
 
   it("削除依頼でリアクションを一覧から外し、依頼の巻き戻しで戻す", () => {
-    // 捕まえる変異: Store 購読で insert/remove だけを再計算し、hide/show を
-    // 無視する。削除済みリアクションの件数と押下状態が画面に残る。
+    // 捕まえる変異: hide/show を無視する (削除済みが件数と押下状態に残る)。
     const store = new EventStore();
     const target = signed(42);
     const reaction = signedReaction(43, target.id, { created_at: 100 });
@@ -303,10 +283,8 @@ describe("ReactionList", () => {
   });
 
   it("グループの数が変わらない変化でも件数は更新される", () => {
-    // 捕まえる変異: `groups` の `equals` を「配列の長さが同じなら等しい」
-    // のような浅い比較にする。枠の作り直しを抑える等値関数は、抑えすぎると
-    // 逆に画面が更新されなくなる —— 2 人目が同じ絵文字を押してもグループ
-    // 数は 1 のままなので、長さだけを見る比較ではこの変化を取りこぼす。
+    // 捕まえる変異: `equals` を配列長だけの浅い比較にする (2 人目が同じ
+    // 絵文字を押してもグループ数は 1 のままなので更新を取りこぼす)。
     const store = new EventStore();
     const target = signed(60);
     const reactions = createControllableEngagementRequests();
@@ -345,12 +323,9 @@ describe("ReactionList", () => {
     try {
       const el = element();
       expect(el).toBeDefined();
-      // 展開前は誰が押したかを出さない。
       expect(el?.querySelector('[data-testid="profile"]')).toBeNull();
 
-      // クリックは document への bubble を経由して Solid の delegated event
-      // で拾われるため、実 DOM に接続する (Note.test.tsx の展開ボタンの
-      // テストと同じ理由)。
+      // delegated event が document 経由で拾われるため実 DOM に接続する。
       if (el) document.body.appendChild(el);
       try {
         el?.querySelector<HTMLButtonElement>(
@@ -371,20 +346,17 @@ describe("ReactionList", () => {
   });
 
   it("このノートを NIP-10 の祖先として並べているだけの kind:7 (実際の対象は別イベント) はリアクション数に混ざらない", () => {
-    // 捕まえる変異: targetId の一致で絞る処理を外す。`eventsByTag("e", id)`
-    // は「この id を e タグに持つイベント」を返すので、返信 (kind:1) だけで
-    // なく、このノートをスレッド祖先として並べる別対象への kind:7 まで
-    // 拾ってしまう。
+    // 捕まえる変異: targetId の一致で絞る処理を外す (祖先として並ぶだけの
+    // 別対象への kind:7 まで拾う)。
     const store = new EventStore();
     const target = signed(10);
     const otherTarget = signed(11);
-    // 素朴な返信。kind チェックだけで落ちるはずだが、「e タグを持つ無関係な
-    // イベント」の入口として仕込む。
+    // kind チェックで落ちるはずだが、無関係な e タグ持ちの入口として仕込む。
     store.put(
       signed(12, { kind: 1, tags: [["e", target.id]], content: "reply" }),
       "wss://relay/",
     );
-    // 対象 (最後の e タグ) は otherTarget —— target は祖先として先に並ぶだけ。
+    // 対象 (最後の e タグ) は otherTarget、target は祖先として先に並ぶだけ。
     store.put(
       signed(13, {
         kind: 7,
@@ -426,8 +398,7 @@ describe("ReactionList", () => {
       notViewer.dispose();
     }
 
-    // 同じグループへ viewer 自身の分を足す (グループの中身は変わらず、
-    // 誰が押したかだけが増える)。
+    // 同じグループへ viewer 自身の分を足す (押した人だけが増える)。
     store.put(signedReaction(viewerSeed, target.id), "wss://relay/");
     const asViewer = mount(
       target.id,
@@ -466,8 +437,7 @@ describe("ReactionList", () => {
     const { element, dispose } = mount(target.id, contextWith(store));
     const parent = document.createElement("div");
     const onParentClick = vi.fn();
-    // Solid の onClick は document からの委譲なので、親側も同じ委譲経路へ
-    // 載せる。native listener だと document に届く前に呼ばれてしまう。
+    // Solid の onClick は document 委譲なので親側も同じ経路に載せる。
     (
       parent as HTMLElement & {
         $$click?: (event: MouseEvent) => void;
@@ -481,8 +451,7 @@ describe("ReactionList", () => {
         .querySelector<HTMLElement>('[data-testid="reaction-group"]')
         ?.click();
 
-      // 捕まえる変異: reaction-group の stopPropagation を外す。チップの
-      // 内容を確認しただけで、親ノートのスレッド遷移まで発火する。
+      // 捕まえる変異: stopPropagation を外す (親のスレッド遷移も発火する)。
       expect(onParentClick).not.toHaveBeenCalled();
     } finally {
       parent.remove();
@@ -491,9 +460,8 @@ describe("ReactionList", () => {
   });
 
   it("カスタム絵文字はグループ化を経ても <img> で出る", () => {
-    // C2 の統合後も、グループ化された経路 (groupReactions → ReactionMark)
-    // が絵文字を正しく描けることを直接確かめる (Reaction.test.tsx は
-    // ReactionFull/Compact の見出し経路しか通らない)。
+    // groupReactions → ReactionMark の経路が絵文字を正しく描けることを
+    // 直接確かめる。
     const store = new EventStore();
     const target = signed(30);
     store.put(
@@ -520,12 +488,8 @@ describe("ReactionList", () => {
   });
 
   it("中身が変わらない通知を 2 回受けても、枠の DOM 要素は作り直されない", () => {
-    // 捕まえる変異: `groups` の `createMemo` から `equals` オプションを
-    // 外す。集計 (`groupReactions`) は毎回新しい配列・新しいオブジェクトを
-    // 返すので、`equals` が無いと「マウント中のどれかのノートにリアクション
-    // が届いた」という無関係な通知のたびに `<For>` が参照同一性で全ての
-    // 枠を作り直す。副作用として `ReactionMark` の「画像が壊れた」フラグが
-    // 毎回リセットされ、404 のカスタム絵文字が通知のたびに点滅する。
+    // 捕まえる変異: `createMemo` から `equals` を外す (無関係な通知でも
+    // 全枠を作り直し、絵文字が点滅する)。
     const store = new EventStore();
     const target = signed(60);
     store.put(signedReaction(61, target.id), "wss://relay/");
@@ -538,7 +502,7 @@ describe("ReactionList", () => {
       const before = element()?.querySelector('[data-testid="reaction-group"]');
       expect(before).not.toBeNull();
 
-      // 中身は変わらないまま、他のノートの到着などで通知だけ来る想定。
+      // 中身は変わらず、他ノート到着などで通知だけ来る想定。
       reactions.notify();
 
       const after = element()?.querySelector('[data-testid="reaction-group"]');

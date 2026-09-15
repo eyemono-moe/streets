@@ -10,10 +10,8 @@ export type ReactionGroup = {
 };
 
 /**
- * 鍵に**種別を含める**。カスタム絵文字 `:smile:` とテキストの "smile" は
- * 別物であり、文字列だけで引くと同じ山になる。逆に URL は含めない ——
- * 同じショートコードを別ドメインの画像で送る人がいるだけで山が割れ、
- * 数が読めなくなる。
+ * 鍵に**種別を含める**（絵文字 `:smile:` とテキスト "smile" は別物)。URL は
+ * 含めない —— 別ドメインの同じショートコードで山が割れ数が読めなくなるため。
  */
 const keyOf = (content: ReactionContent): string => {
   switch (content.type) {

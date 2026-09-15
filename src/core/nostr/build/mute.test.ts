@@ -16,8 +16,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("addMute", () => {
   it("種別ごとに正しいタグ名を使う", () => {
-    // 捕まえる変異: 全部 p タグにする。ハッシュタグや単語のミュートが
-    // 「その pubkey をミュート」として他クライアントに読まれる。
+    // 捕まえる変異: 全部 p タグにする —— ハッシュタグや単語のミュートが「その pubkey をミュート」として他クライアントに読まれる
     expect(addMute({ type: "pubkey", value: "aa" })(undefined).tags).toEqual([
       ["p", "aa"],
     ]);
@@ -30,8 +29,7 @@ describe("addMute", () => {
   });
 
   it("word は小文字化する", () => {
-    // 捕まえる変異: そのまま入れる。NIP-51 は "lowercase strings" と定めており、
-    // 大文字のまま入れると読む側の突き合わせが一致しない。
+    // 捕まえる変異: そのまま入れる。NIP-51: "lowercase strings" —— 大文字のままだと読む側の突き合わせが一致しない
     expect(addMute({ type: "word", value: "Nostr" })(undefined).tags).toEqual([
       ["word", "nostr"],
     ]);

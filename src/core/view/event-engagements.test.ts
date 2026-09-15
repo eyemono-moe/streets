@@ -36,8 +36,7 @@ describe("eventEngagements", () => {
       eventsByTag: () => [direct, descendant],
     };
 
-    // 捕まえる変異: kind:1 で targetId の e タグを持つものを無条件に数える。
-    // 返信の返信まで根ノートの「直接返信」に混ざる。
+    // 捕まえる変異: kind:1 で targetId の e タグを持つものを無条件に数える（返信の返信まで「直接返信」に混ざる）。
     expect(eventEngagements(store, TARGET, VIEWER).replies).toBe(1);
   });
 
@@ -74,8 +73,7 @@ describe("eventEngagements", () => {
     };
 
     const result = eventEngagements(store, TARGET, VIEWER);
-    // 捕まえる変異: 全 kind:7 をハート件数へ加える。任意絵文字のチップと
-    // Like のハートが同じ件数になり、Penpot の二つの表示を区別できない。
+    // 捕まえる変異: 全 kind:7 をハート件数へ加える（任意絵文字のチップと Like のハートを区別できなくなる）。
     expect(result).toEqual({
       replies: 0,
       reposts: 2,

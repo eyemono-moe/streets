@@ -16,8 +16,7 @@ import type { EventBodyProps } from "../../../core/view/renderer-registry";
 import { ThreadNavProvider } from "../thread-nav";
 import { NoteCompact, NoteFull } from "./Note";
 
-// EventView.test.tsx / profile-requests.test.ts と同じ手法: 種から 32 byte
-// 鍵を作り schnorr で実署名する。
+// EventStore.put の検証を通すため、種から鍵を作り schnorr で実署名する。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -42,10 +41,7 @@ const signed = (
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
-/**
- * `EventRequests` のテストダブル。`request` の呼び出しを記録するだけ ——
- * Step 2 の「compact は要求しない」を直接主張するのに必要な最小限。
- */
+/** `EventRequests` のテストダブル。`request` の呼び出しを記録するだけ。 */
 const createRecordingEventRequests = (): EventRequests & {
   requested: string[];
 } => {
@@ -88,8 +84,8 @@ const fakeReactions = (): EngagementRequests => ({
 });
 
 /**
- * `EventView.test.tsx` と同じ手法: `createRoot` の中で Solid コンポーネント
- * を JSX を介さず関数として直接呼び、返ってきた DOM ノードを検証する。
+ * `createRoot` の中で Solid コンポーネントを JSX を介さず関数として
+ * 直接呼び、返ってきた DOM ノードを検証する。
  */
 const mount = (
   render: () => unknown,
@@ -116,12 +112,7 @@ const mount = (
   };
 };
 
-/**
- * `mount` に加えて `ThreadNavProvider` も被せる。`useThreadNav()` が
- * provider の中で実際に呼ばれる形にするため、`RenderProvider` の
- * children getter の中でさらに `ThreadNavProvider` を直接関数として呼ぶ
- * (`mount` と同じ手筋)。
- */
+/** `mount` に `ThreadNavProvider` も被せ、`useThreadNav()` が provider の中で呼ばれる形にする。 */
 const mountWithNav = (
   render: () => unknown,
   ctx: RenderContextValue,
@@ -163,16 +154,13 @@ const contextWith = (
   profiles: fakeProfiles(),
   engagements: fakeReactions(),
   viewerPubkey: undefined,
-  // kind:1 しかテスト対象にしないので、レンダラ集合は空でよい (引用・返信
-  // 先は常に compact の EventView 経由で描かれ、store に無い間は
-  // event-loading のまま — renderer の解決まで届かない)。
+  // kind:1 しか対象にしないのでレンダラ集合は空でよい。
   renderers: [],
 });
 
 describe("NoteFull", () => {
   it("著者・本文・時刻を出す (旧 Note.tsx と同じ見た目)", () => {
-    // 捕まえる変異: note-author/note-content/note-created-at のいずれかを
-    // 落とす、または data-testid="note" を外す
+    // 捕まえる変異: いずれかの要素を落とす、または data-testid="note" を外す
     const events = createRecordingEventRequests();
     const event = signed(1, { content: "hello world", created_at: 42 });
     const { element, dispose } = mount(
@@ -185,12 +173,8 @@ describe("NoteFull", () => {
       expect(
         el.querySelector('[data-testid="note-content"]')?.textContent,
       ).toBe("hello world");
-      // created_at=42 は 1970 年 (実行時の「今年」とは別年になる) ——
-      // 別年のとき formatEventTime と formatEventTimeFull は同じ書式
-      // (yyyy/MM/dd HH:mm) を返すので、「今」の値に依存せず厳密な文字列を
-      // 主張できる。
-      // 捕まえる変異: 生の event.created_at をそのまま出す (spec 3 節の
-      // 短縮絶対値書式を経由しない、旧 Note.tsx の挙動への後退)
+      // created_at=42 は別年なので両関数が同じ書式を返し「今」に依存
+      // せず比較できる (捕まえる変異: created_at をそのまま出す)。
       const formatted = formatEventTimeFull(new Date(42 * 1000));
       const createdAt = el.querySelector('[data-testid="note-created-at"]');
       expect(createdAt?.textContent).toBe(formatted);
@@ -203,9 +187,7 @@ describe("NoteFull", () => {
   });
 
   it("著者行は display_name と @name の 2 段 (v0 の EventBase と同じ)", () => {
-    // 捕まえる変異: 名前を 1 つしか出さない (v0 は太字の display_name と
-    // 副次的な @name を並べる —— 表示名だけでは同名の別人を見分けられず、
-    // @name だけでは本人が名乗っている表示名が消える)
+    // 捕まえる変異: 名前を 1 つしか出さない (見分けや表示名の消失が起きる)。
     const events = createRecordingEventRequests();
     const event = signed(11, { content: "hi" });
     const store = new EventStore();
@@ -233,9 +215,7 @@ describe("NoteFull", () => {
   });
 
   it("display_name が無ければ name を太字側へ回し、@name を重ねない", () => {
-    // 捕まえる変異: display_name の欠落時に太字側を空にしたまま @name を
-    // 出す (v0 の素朴な写しだと空の太字が残る) / 太字側の縮退と @name の
-    // 両方を出して同じ文字列が 2 度並ぶ
+    // 捕まえる変異: 太字側を空にしたまま @name も出す (同じ文字列が2度並ぶ)
     const events = createRecordingEventRequests();
     const event = signed(12, { content: "hi" });
     const store = new EventStore();
@@ -256,8 +236,7 @@ describe("NoteFull", () => {
   });
 
   it("プロフィール未取得の著者は npub の先頭 12 文字", () => {
-    // 捕まえる変異: 生 hex の短縮を出す (spec 3 節は npub 形を求める ——
-    // hex は貼っても他クライアントで開けない)
+    // 捕まえる変異: 生 hex の短縮を出す (他クライアントで開けない)
     const events = createRecordingEventRequests();
     const event = signed(13, { content: "hi" });
     const { element, dispose } = mount(
@@ -275,8 +254,7 @@ describe("NoteFull", () => {
   });
 
   it("reply の pubkey があれば reply-to を即座に出す (親の到着を待たない)", () => {
-    // 捕まえる変異: reply-to を出さない、または EventView (親の compact) を
-    // 描かない
+    // 捕まえる変異: reply-to を出さない、または親の EventView を描かない
     const events = createRecordingEventRequests();
     const parentId = signed(2).id;
     const replierPubkey = pubkeyFor(3);
@@ -291,9 +269,7 @@ describe("NoteFull", () => {
       const el = element();
       const replyTo = el.querySelector('[data-testid="reply-to"]');
       expect(replyTo).not.toBeNull();
-      // pubkey は届く前でも短縮表示で即座に出る (Profile.tsx の縮退)。
-      // 捕まえる変異: 生 hex をそのまま出す (spec 3 節が求めるのは npub の
-      // 先頭 12 文字)
+      // pubkey は届く前でも短縮表示 (捕まえる変異: 生 hex をそのまま出す)。
       expect(replyTo?.textContent).toContain(
         `@${encodeBech32("npub", replierPubkey).slice(0, 12)}`,
       );
@@ -303,14 +279,11 @@ describe("NoteFull", () => {
         '[data-testid="event-view"][data-variant="compact"]',
       );
       expect(parent).not.toBeNull();
-      // 捕まえる変異: 返信先を引用と同じ枠 (`NestedEventCard`) に入れる。
-      // 枠は「別の投稿の引用」を意味するので、返信先に付けると引用と
-      // 見分けが付かなくなる (Figma の「リプライ表示例」は枠を持たない)。
+      // 捕まえる変異: 返信先を引用と同じ枠に入れる (見分けが付かなくなる)。
       expect(parent?.parentElement?.className ?? "").not.toMatch(
         /(?:^|\s)b-\d/,
       );
-      // 要求はしている (親の compact 描画自体は要求してよい —— これは
-      // full の話であり、compact 側の禁止規則とは無関係)。
+      // 親の compact 描画自体は要求してよい (compact の禁止規則とは無関係)。
       expect(events.requested).toContain(parentId);
     } finally {
       dispose();
@@ -318,18 +291,10 @@ describe("NoteFull", () => {
   });
 
   it("返信先には threadLine が届き、引用先には届かない", () => {
-    // 捕まえる変異: 返信先の EventView から threadLine を落とす (親が枠も
-    // 線も持たない、ただ上に浮いたイベントになり本体との関係が読めない) /
-    // 引用の EventView にも threadLine を渡す (別の投稿の引用が「同じ
-    // 会話の続き」に見える)
-    //
-    // 親と引用を store に入れ、**受け取った props を記録するだけの代役**を
-    // kind:1 のレンダラとして登録する。store に無いと EventView は
-    // 「読み込み中」で止まり、レンダラまで届かないので観測できない。
-    // 代役に本物の `NoteCompact` を使わないのは、Solid の DEV 版
-    // `createComponent` が渡されたコンポーネント関数自体に印を付けるため
-    // —— 本物を通すと、後続のテストが同じ関数を直接呼んだときに戻り値が
-    // 要素ではなくメモ関数になる (実測済み)。
+    // 捕まえる変異: 返信先/引用の threadLine を取り違える (関係が読めなく
+    // なる/続きに見える)。代役レンダラを使うのは、本物だと Solid の DEV
+    // `createComponent` が関数に印を付け、以降同じ関数を直接呼ぶテストの
+    // 戻り値がメモ関数になるため。
     const seen: { id: string; threadLine?: boolean }[] = [];
     const Recorder: Component<EventBodyProps> = (props) => {
       seen.push({ id: props.event.id, threadLine: props.threadLine });
@@ -361,10 +326,7 @@ describe("NoteFull", () => {
   });
 
   it("縦線は行の下へ 8px はみ出す", () => {
-    // 捕まえる変異: `-mb-2` を落とす。線は自分の `<article>` の高さで
-    // 止まるので、連鎖する行の間に必ずある 8px (返信先プレビューの
-    // `pb-2`、`ThreadView` の祖先の行間) をそのままでは渡れず、次の行の
-    // アイコンに届かない。
+    // 捕まえる変異: `-mb-2` を落とす (線が行間の 8px を渡れず届かない)。
     const event = signed(22);
     const run = mount(
       () => NoteCompact({ event, threadLine: true }),
@@ -380,9 +342,7 @@ describe("NoteFull", () => {
   });
 
   it("返信先プレビューと本体の間を 8px 空ける", () => {
-    // 捕まえる変異: `pb-2` を落とす。返信先と本体が詰まって 1 件の長い
-    // 投稿に見える (v0 は `EventBase` の `hasChild` で同じ 8px を空ける)。
-    // `ThreadView` の祖先だけでなく、カラム一覧の返信もこの間隔で並ぶ。
+    // 捕まえる変異: `pb-2` を落とす (詰まって 1 件の投稿に見える)。
     const parent = signed(23);
     const store = new EventStore();
     store.put(parent, "wss://relay/");
@@ -400,11 +360,7 @@ describe("NoteFull", () => {
   });
 
   it("縦線で繋がる compact は full と同じ 40px のアイコン列に乗る", () => {
-    // 捕まえる変異: threadLine のとき w-10 を付けない。compact のアイコンは
-    // `w-8` なので列の中心が 4px 左にずれ、線が次の行 (`full`, `w-10`) の
-    // アイコン中心から外れて、連鎖がそこで折れて見える。線の位置を置く側の
-    // 絶対配置で合わせにいくと variant ごとに決め打ちが増えるので、
-    // 「繋がる行は同じ格子に乗る」ほうで揃える。
+    // 捕まえる変異: threadLine で w-10 を付けない (列中心が 4px ずれる)。
     const event = signed(21);
     const columnOf = (el: HTMLElement) =>
       el.querySelector('[data-testid="thread-line"]')?.parentElement;
@@ -421,8 +377,7 @@ describe("NoteFull", () => {
       chained.dispose();
     }
 
-    // 対照: 繋がらない compact は列を広げない (引用カードや一覧の行が
-    // 理由もなく 8px 右へずれる)。
+    // 対照: 繋がらない compact は列を広げない (理由もなく右へずれる)。
     const alone = mount(
       () => NoteCompact({ event }),
       contextWith(createRecordingEventRequests()),
@@ -435,8 +390,7 @@ describe("NoteFull", () => {
   });
 
   it("reply に pubkey が無ければ reply-to を出さないが、親の EventView は出す", () => {
-    // 捕まえる変異: pubkey が無いのに reply-to を出す (存在しない著者名を
-    // でっち上げることになる)
+    // 捕まえる変異: pubkey が無いのに reply-to を出す (存在しない著者名)
     const events = createRecordingEventRequests();
     const parentId = signed(5).id;
     const event = signed(6, {
@@ -458,10 +412,7 @@ describe("NoteFull", () => {
   });
 
   it("q タグが無くても本文の nostr: から引用を描く", () => {
-    // 捕まえる変異: NoteBody の eventRefs を "text" 固定にする、または
-    // MentionToken の note/nevent の embed 分岐を消す。どちらも `q` タグを
-    // 付けずに本文へ貼るだけのクライアント (実在する) の引用が、request も
-    // compact の EventView も出さずに丸ごと消える。
+    // 捕まえる変異: eventRefs を "text" 固定にする (q タグ無しの引用が消える)。
     const events = createRecordingEventRequests();
     const quoted = signed(32);
     const event = signed(33, {
@@ -507,8 +458,8 @@ describe("NoteFull", () => {
   });
 
   it("q タグが event-address を指すときは「未対応の参照です」を出す", () => {
-    // 捕まえる変異: address 形式でも id 形式と同じく EventView (compact) を
-    // 描こうとする (id ではなく座標が渡り、EventStore は永久に見つけられない)
+    // 捕まえる変異: address 形式でも EventView を描こうとする (座標が
+    // 渡り EventStore は永久に見つけられない)
     const events = createRecordingEventRequests();
     const event = signed(9, {
       tags: [["q", `30023:${pubkeyFor(10)}:my-article`, "wss://relay/"]],
@@ -523,8 +474,7 @@ describe("NoteFull", () => {
         el.querySelector('[data-testid="unsupported-ref"]'),
       ).not.toBeNull();
       expect(el.querySelector('[data-testid="event-view"]')).toBeNull();
-      // address 形式は request の対象にすらならない (id ではないので
-      // EventRequests に渡しようが無い)。
+      // address 形式は id でないため request の対象にすらならない。
       expect(events.requested).toEqual([]);
     } finally {
       dispose();
@@ -534,8 +484,7 @@ describe("NoteFull", () => {
 
 describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
   it("本文に現れた引用は本文の中に描かれ、最下部には出ない (同じイベントが二重に出ない)", () => {
-    // 捕まえる変異: quotes() を quoteTargets に戻す (本文にも埋め込まれ、
-    // 最下部にも同じイベントがもう一度出て二重になる)
+    // 捕まえる変異: quotes() を quoteTargets に戻す (本文と最下部で二重に出る)
     const events = createRecordingEventRequests();
     const quoted = signed(60);
     const event = signed(61, {
@@ -563,11 +512,7 @@ describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
   });
 
   it("本文に埋め込まれた引用は枠 (NestedEventCard) の中にある (I-3)", () => {
-    // 捕まえる変異: 本文側の埋め込み (`NoteContent.tsx` の `MentionToken`)
-    // から `NestedEventCard` の枠を外す。「枠を描くのは置く側」という
-    // 規則により、最下部の引用 (q タグにしか無いもの) は枠付きだが、
-    // この変異が入ると本文側だけ枠が無い状態になり、同じ「引用」が
-    // 1 ノートの中で 2 通りの見た目になる。
+    // 捕まえる変異: 本文側の埋め込みから枠を外す (本文側と最下部で見た目が違う)。
     const events = createRecordingEventRequests();
     const quoted = signed(64);
     const event = signed(65, {
@@ -585,9 +530,7 @@ describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
         '[data-testid="event-view"][data-variant="compact"]',
       );
       expect(embedded).not.toBeNull();
-      // 最下部の引用と同じ枠 (`b-1 rounded p-1`) を親要素に持つ ——
-      // `renderers/Note.test.tsx` の reply-to のテストと対になる主張
-      // (あちらは「枠を持たない」ことを、こちらは「枠を持つ」ことを見る)。
+      // 最下部の引用と同じ枠 (`b-1 rounded p-1`) を親要素に持つ。
       expect(embedded?.parentElement?.className ?? "").toMatch(/(?:^|\s)b-\d/);
     } finally {
       dispose();
@@ -595,8 +538,7 @@ describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
   });
 
   it("q タグにしか無い引用は最下部に出る (本文には現れない)", () => {
-    // 捕まえる変異: tagOnlyQuoteTargets を空配列にする (タグだけの引用が
-    // 画面から丸ごと消える)
+    // 捕まえる変異: tagOnlyQuoteTargets を空配列にする
     const events = createRecordingEventRequests();
     const quoted = signed(62);
     const event = signed(63, {
@@ -620,11 +562,9 @@ describe("引用の置き場所 (仕様 4.1/4.2 節)", () => {
   });
 });
 
-describe("compact は関連イベントを一切要求しない (spec 3 節・brief Step 2)", () => {
+describe("compact は関連イベントを一切要求しない", () => {
   it("引用と返信を両方持つ kind:1 を compact で描いても request は一度も呼ばれない。同じイベントを full で描くと呼ばれる (対照)", () => {
-    // 捕まえる変異: compact でも replyTarget/quoteTargets を呼んで
-    // <EventView> を描く。これが破れても画面は深くなるだけで動いてしまう
-    // ため、ここで直接固定する (brief Step 2 の核心)。
+    // 捕まえる変異: compact でも呼び <EventView> を描く (画面が動いてしまう)。
     const parentId = signed(11).id;
     const quotedId = signed(12).id;
     const event = signed(13, {
@@ -645,9 +585,7 @@ describe("compact は関連イベントを一切要求しない (spec 3 節・br
       compactRun.dispose();
     }
 
-    // 対照: 同じイベントを full で描くと (親・引用先の compact 描画を
-    // 通じて) request が呼ばれる。この対照が無いと、上のアサーションは
-    // 「そもそも何も request しない実装」でも通ってしまう。
+    // 対照: full なら request が呼ばれる (無いと「何もしない実装」でも通る)。
     const fullEvents = createRecordingEventRequests();
     const fullRun = mount(() => NoteFull({ event }), contextWith(fullEvents));
     try {
@@ -693,9 +631,7 @@ describe("NoteCompact", () => {
   });
 
   it("本文の引用は埋め込まれずテキストになる (compact の規則を守る)", () => {
-    // 捕まえる変異: NoteBody の三項を "embed" 固定にする。compact でも
-    // 埋め込んでしまうと「compact は関連イベントを一切要求しない」規則が
-    // 破れる (返信先・引用先のプレビューの中で、さらに引用が展開される)。
+    // 捕まえる変異: eventRefs を "embed" 固定にする (compact の規則が破れる)。
     const events = createRecordingEventRequests();
     const quoted = signed(64);
     const event = signed(65, {
@@ -716,10 +652,9 @@ describe("NoteCompact", () => {
   });
 });
 
-describe("アバターの寸法 (spec 3 節)", () => {
+describe("アバターの寸法", () => {
   it("full は w-10、compact は w-8 になる", () => {
-    // 捕まえる変異: full/compact で同じ寸法クラスを使う (variant を
-    // `Avatar` の size prop へ渡し忘れる/固定値にする)
+    // 捕まえる変異: full/compact で同じ寸法クラスを使う (size prop の渡し忘れ)
     const events = createRecordingEventRequests();
     const event = signed(20, { content: "x" });
 
@@ -745,12 +680,9 @@ describe("アバターの寸法 (spec 3 節)", () => {
   });
 });
 
-describe("compact は自分で padding を持たない (spec 3 節・brief の要注意点 1)", () => {
+describe("compact は自分で padding を持たない", () => {
   it("full は padding を持ち、compact は持たない", () => {
-    // 捕まえる変異: compact のクラスにも padding を足す。
-    // compact は常に引用カード・リポスト・返信先の中に置かれる入れ子であり、
-    // 置く側が既に余白を取るため、ここで足すと二重になってガタつく
-    // (このモジュールのコメント「次の変更者へ」参照)。
+    // 捕まえる変異: compact にも padding を足す (置く側と二重でガタつく)。
     const events = createRecordingEventRequests();
     const event = signed(25, { content: "x" });
 
@@ -772,9 +704,7 @@ describe("compact は自分で padding を持たない (spec 3 節・brief の�
 
 describe("group/event", () => {
   it("NoteFull の記事要素は group/event を持つ (ホバー判定の祖先)", () => {
-    // 捕まえる変異: `group/event` クラスを落とす。`ReactionList` の展開
-    // トグルが使う `group-not-hover/event:hidden` は、この名前付き group を
-    // 持つ祖先が無いと一切効かず、三角が全ノートで常に出たままになる。
+    // 捕まえる変異: `group/event` を落とす (展開トグルの判定が効かない)。
     const events = createRecordingEventRequests();
     const event = signed(50, { content: "x" });
     const { element, dispose } = mount(
@@ -789,10 +719,7 @@ describe("group/event", () => {
   });
 
   it("NoteFull の記事要素は group-[_]/event:p-0 を持つ (祖先の group/event の中で padding を潰す)", () => {
-    // 捕まえる変異: `group-[_]/event:p-0` クラスを落とす。対象を `full` で
-    // 描く (spec 3 節) ようになったことで、リポスト/リアクションの枠の
-    // 中にこの記事要素がそのまま入る。このクラスが無いと、置く側
-    // (`RepostFull`/`ReactionFull`) の padding と足し合わさって二重になる。
+    // 捕まえる変異: `group-[_]/event:p-0` を落とす (置く側と padding が二重)。
     const events = createRecordingEventRequests();
     const event = signed(53, { content: "x" });
     const { element, dispose } = mount(
@@ -809,7 +736,7 @@ describe("group/event", () => {
   });
 });
 
-describe("リアクション一覧の設置 (spec 5 節・brief Step 4)", () => {
+describe("リアクション一覧の設置", () => {
   it("NoteFull はリアクションがあれば reaction-list を出す", () => {
     // 捕まえる変異: NoteFull へ ReactionList を設置し忘れる
     const events = createRecordingEventRequests();
@@ -833,9 +760,7 @@ describe("リアクション一覧の設置 (spec 5 節・brief Step 4)", () => 
   });
 
   it("NoteCompact はリアクションがあっても reaction-list を出さない", () => {
-    // 捕まえる変異: NoteCompact にも ReactionList を設置する。compact が
-    // 関連イベントを一切要求しない規則 (このファイルの他のテストと同じ)
-    // に、リアクション取得の要求も含まれる。
+    // 捕まえる変異: NoteCompact にも ReactionList を設置する。
     const events = createRecordingEventRequests();
     const event = signed(53, { content: "x" });
     const store = new EventStore();
@@ -869,8 +794,7 @@ describe("本文が空のとき本文の器を出さない (design 6 節)", () =
     try {
       const el = element();
       expect(el.querySelector('[data-testid="note-content"]')).toBeNull();
-      // 骨格 (アバター・著者) 自体は残る —— 本文が無いだけで行ごと消える
-      // わけではない
+      // 骨格 (アバター・著者) は残る —— 本文が無いだけで行ごと消えない
       expect(el.querySelector('[data-testid="avatar"]')).not.toBeNull();
       expect(el.querySelector('[data-testid="note-author"]')).not.toBeNull();
     } finally {
@@ -879,8 +803,7 @@ describe("本文が空のとき本文の器を出さない (design 6 節)", () =
   });
 
   it("空白だけの本文も「空」として扱う", () => {
-    // 捕まえる変異: 空文字列だけを見て trim しない (空白だけの本文で
-    // 見た目には何も無い note-content の器が残る)
+    // 捕まえる変異: trim しない (空白だけの本文で空の器が残る)
     const events = createRecordingEventRequests();
     const event = signed(22, { content: "   \n  " });
     const { element, dispose } = mount(
@@ -897,10 +820,9 @@ describe("本文が空のとき本文の器を出さない (design 6 節)", () =
   });
 });
 
-/** `getBoundingClientRect` が返す高さを差し替える (`createElementSize` が
- * `ResizeObserver` の発火を待たず、ref 到着時にこれを同期的に一度読む —
- * `vitest.setup.ts` のコメント参照)。DOMRect 全体を満たす必要は無いが、
- * 型を通すためのダミー値を並べる。
+/**
+ * `getBoundingClientRect` が返す高さを差し替える (`ResizeObserver` の
+ * 発火を待たず ref 到着時に同期で一度読むため)。他はダミー値。
  */
 const fakeRect = (height: number): DOMRect =>
   ({
@@ -917,7 +839,7 @@ const fakeRect = (height: number): DOMRect =>
     },
   }) as DOMRect;
 
-describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
+describe("本文の高さ制限", () => {
   it("400px 未満では展開ボタンが出ない", async () => {
     // 捕まえる変異: 高さに関わらず常に展開ボタンを出す
     const rect = vi
@@ -931,8 +853,7 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
         contextWith(events),
       );
       try {
-        // createElementSize の計測は createEffect 経由 (マイクロタスク) ——
-        // EventView.test.tsx と同じ理由で waitFor する。
+        // 高さの計測は createEffect 経由 (マイクロタスク) なので waitFor する。
         await vi.waitFor(() => {
           expect(
             element().querySelector('[data-testid="note-content"]'),
@@ -950,16 +871,10 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
   });
 
   it("展開ボタンの背景が透明 (UA 既定の buttonface が透けない)", async () => {
-    // 捕まえる変異: `bg-transparent` を落とす。`<button>` の UA 既定背景は
-    // `buttonface` (Chromium では不透明な #efefef) で、`appearance-none` は
-    // これを消さない。背景色はグラデーションの下に敷かれるので、ぼかしの
-    // 透明な側から灰色が透ける (実測: computed backgroundColor が
-    // rgb(239,239,239) だった)。
-    //
-    // 始点の `from-white/0` も併せて固定する。現行の Chromium は
-    // `in oklch` の乗算済みアルファで補間するので `from-transparent` でも
-    // 見た目は同じだが、補間空間の指定が外れた環境では `rgba(0,0,0,0)`
-    // からの補間が灰色を経由しうる。
+    // 捕まえる変異: `bg-transparent` を落とす。UA 既定の button 背景
+    // (buttonface) は `appearance-none` では消えず、グラデーション下から
+    // 灰色が透ける。始点も `from-white/0` に固定する —— 補間空間によって
+    // `from-transparent` だと灰色を経由しうるため。
     const rect = vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockReturnValue(fakeRect(500));
@@ -992,8 +907,7 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
   });
 
   it("400px 以上では展開ボタンが出て、押すと全文が出る", async () => {
-    // 捕まえる変異: 折り畳んだまま展開できない (ボタンを押しても
-    // max-height が外れない)
+    // 捕まえる変異: 折り畳んだまま展開できない (max-height が外れない)
     const rect = vi
       .spyOn(Element.prototype, "getBoundingClientRect")
       .mockReturnValue(fakeRect(500));
@@ -1004,8 +918,7 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
         () => NoteFull({ event }),
         contextWith(events),
       );
-      // クリックは document への bubble を経由して Solid の delegated event
-      // (`v1-core.test.tsx` と同じ理由) で拾われるため、実 DOM に接続する。
+      // delegated event が document 経由で拾われるため実 DOM に接続する。
       document.body.appendChild(element());
       try {
         await vi.waitFor(() => {
@@ -1037,12 +950,10 @@ describe("本文の高さ制限 (spec 3 節・brief Step 3)", () => {
   });
 });
 
-describe("プロフィールカードのホバー (仕様 5 節)", () => {
+describe("プロフィールカードのホバー", () => {
   it("著者行 (note-author) は hover-card のトリガーを持つ", () => {
     // 捕まえる変異: `<Profile>` を `<ProfileHover>` で包むのをやめる
-    // (著者名にホバーしてもカードが出なくなる)。属性名は実際に描画して
-    // 確かめたもの (`data-scope`/`data-part`、`ProfileHover.test.tsx` と
-    // 同じ)。
+    // (著者名にホバーしてもカードが出なくなる)。
     const events = createRecordingEventRequests();
     const event = signed(70, { content: "x" });
     const { element, dispose } = mount(
@@ -1061,11 +972,8 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
   });
 
   it("本文中の言及 (nostr:npub) も hover-card のトリガーを持つ", () => {
-    // 捕まえる変異: `<Profile>` からホバーを外し、著者行だけに戻す。
-    // 名前が出る場所ではすべてカードを出す方針なので、本文中の言及・
-    // 返信先・リポスト/リアクションの見出し・リアクション一覧の名前も
-    // 対象になる —— それらはすべて `<Profile>` を通るので、この 1 件が
-    // 代表して守る。
+    // 捕まえる変異: `<Profile>` からホバーを外し著者行だけに戻す (全て
+    // `<Profile>` を通るのでこの 1 件が代表して守る)。
     const events = createRecordingEventRequests();
     const mentioned = pubkeyFor(71);
     const event = signed(72, {
@@ -1091,9 +999,7 @@ describe("プロフィールカードのホバー (仕様 5 節)", () => {
 
 describe("hideReplyPreview (ThreadView の focus が親を二重に描かないための prop)", () => {
   it("true なら親のプレビュー (compact の EventView) を出さないが、reply-to は残す", () => {
-    // 捕まえる変異: hideReplyPreview を無視して常に親のプレビューを描く。
-    // `ThreadView` は背骨の focus をこの prop 付きで描く —— 無視される
-    // と、祖先の最後の 1 件 (= この親) が focus の中にもう一度並ぶ。
+    // 捕まえる変異: hideReplyPreview を無視する (祖先が focus の中に二重に並ぶ)。
     const events = createRecordingEventRequests();
     const parentId = signed(95).id;
     const replierPubkey = pubkeyFor(96);
@@ -1109,7 +1015,7 @@ describe("hideReplyPreview (ThreadView の focus が親を二重に描かない�
       expect(
         el.querySelector('[data-testid="event-view"][data-variant="compact"]'),
       ).toBeNull();
-      // 「誰への返信か」のラベル自体は親のプレビューとは別物なので残る。
+      // 誰への返信かのラベルは親プレビューとは別物なので残る。
       expect(el.querySelector('[data-testid="reply-to"]')).not.toBeNull();
     } finally {
       dispose();
@@ -1117,7 +1023,7 @@ describe("hideReplyPreview (ThreadView の focus が親を二重に描かない�
   });
 
   it("渡さなければ従来どおり親のプレビューを出す (対照)", () => {
-    // これが無いと上のテストは「そもそも親を描かない実装」でも通ってしまう。
+    // これが無いと上のテストは「親を描かない実装」でも通ってしまう。
     const events = createRecordingEventRequests();
     const parentId = signed(98).id;
     const event = signed(99, {
@@ -1161,14 +1067,10 @@ describe("スレッドを開く", () => {
   });
 
   it("入れ子のノートを押すと内側の id で開き、外側へ伝播しない", () => {
-    // 捕まえる変異: stopPropagation を落とす —— 引用先を押したのに
-    // 外側のノートのスレッドが開く（あるいは 2 回開く）。
-    //
-    // renderer-registry 経由で本物の NoteFull/NoteCompact を子として
-    // 描くと、Solid の DEV `createComponent` がその関数自体に印を付け、
-    // 以降このファイルで同じ関数を直接呼ぶテストが壊れる (このファイル
-    // 冒頭のコメント参照)。そのため renderer-registry を経由せず、
-    // 内側の要素を直接呼んで外側の DOM に差し込む。
+    // 捕まえる変異: stopPropagation を落とす (外側のスレッドも開く)。
+    // renderer-registry 経由で本物を子に描くと Solid の DEV
+    // `createComponent` が関数に印を付け以降のテストが壊れるので、内側の
+    // 要素を直接呼んで外側の DOM に差し込む。
     const events = createRecordingEventRequests();
     const outer = signed(81, { content: "outer" });
     const inner = signed(82, { content: "inner" });
@@ -1197,8 +1099,7 @@ describe("スレッドを開く", () => {
   });
 
   it("名前のホバートリガーを押してもスレッドは開かない", () => {
-    // 捕まえる変異: 対話要素の判定を落とす —— 名前を押すと
-    // ホバーカードではなくスレッドが開く。
+    // 捕まえる変異: 対話要素の判定を落とす (名前を押すとスレッドが開く)。
     const events = createRecordingEventRequests();
     const event = signed(83, { content: "x" });
     const opened: string[] = [];
@@ -1223,7 +1124,6 @@ describe("スレッドを開く", () => {
 
   it("useThreadNav が undefined なら押せる見た目を持たない", () => {
     // 捕まえる変異: 常に cursor-pointer と onClick を付ける。
-    // ADR-0026「押しても何も起きないものを押せる見た目にしない」。
     const events = createRecordingEventRequests();
     const event = signed(84, { content: "x" });
     const { element, dispose } = mount(
@@ -1233,8 +1133,7 @@ describe("スレッドを開く", () => {
     document.body.appendChild(element());
     try {
       expect(element().className).not.toMatch(/cursor-pointer/);
-      // onClick も付いていないことを、実際に click しても何も起きない
-      // (例外も投げない) ことで確かめる。
+      // click しても例外を投げないことで onClick 未設定を確かめる。
       expect(() =>
         element().dispatchEvent(new MouseEvent("click", { bubbles: true })),
       ).not.toThrow();
@@ -1245,9 +1144,7 @@ describe("スレッドを開く", () => {
   });
 
   it("disableThreadOpen が true なら useThreadNav があっても押せる見た目・動作を持たない", () => {
-    // 捕まえる変異: disableThreadOpen を無視する。`ThreadView` は背骨の
-    // focus にこれを立てる —— focus を押しても、ナビゲーションスタックの
-    // 重複 push ガードにより実際には何も起きない (ADR-0026 の対象そのもの)。
+    // 捕まえる変異: disableThreadOpen を無視する (押しても実際は何も起きない)。
     const events = createRecordingEventRequests();
     const event = signed(86, { content: "x" });
     const opened: string[] = [];
@@ -1268,12 +1165,8 @@ describe("スレッドを開く", () => {
   });
 
   it("EventMenu (Portal で描かれるメニュー項目) を押してもスレッドは開かない", () => {
-    // 捕まえる変異: `article.contains(e.target)` のチェックを外す。
-    // `<Portal>` は `_$host` を張るので、Solid の delegated event は
-    // メニュー項目 (`document.body` 直下、実 DOM 上は article の外) の
-    // click を article の onClick まで届けてしまう。`role="menuitem"` は
-    // 対話要素の selector に元々掛からないので、このチェックが無いと
-    // 「リンクをコピー」を押すたびにスレッドも開いてしまう。
+    // 捕まえる変異: `article.contains(e.target)` のチェックを外す (Portal
+    // 経由で article 外の click も届く)。
     const events = createRecordingEventRequests();
     const event = signed(90, { content: "x" });
     const opened: string[] = [];
@@ -1297,11 +1190,8 @@ describe("スレッドを開く", () => {
   });
 
   it("アバター (asChild のホバートリガー) を押してもスレッドは開かない", () => {
-    // 捕まえる変異: isInteractive の selector から `[data-part='trigger']`
-    // を落とす。`Avatar` は `ProfileHover` の `asChild` で `<div>` へ
-    // トリガーを合流させており、zag の `getTriggerProps()` は role を
-    // 持たない —— 名前 (button 版トリガー) と違い、role/tag だけを見る
-    // selector では対話要素と判定できない。
+    // 捕まえる変異: selector から `[data-part='trigger']` を落とす
+    // (Avatar の asChild トリガーは role を受け取らない)。
     const events = createRecordingEventRequests();
     const event = signed(91, { content: "x" });
     const opened: string[] = [];
@@ -1323,8 +1213,7 @@ describe("スレッドを開く", () => {
   });
 
   it("ドラッグでテキストを選択した後は開かない", () => {
-    // 捕まえる変異: mousedown の座標を覚えない —— 本文を選択しようと
-    // するたびにスレッドが開き、コピーができない。
+    // 捕まえる変異: mousedown の座標を覚えない (選択のたびに開いてしまう)。
     const events = createRecordingEventRequests();
     const event = signed(85, { content: "select me" });
     const opened: string[] = [];

@@ -1,11 +1,8 @@
 import type { NostrEvent } from "../event";
 
 /**
- * ビルダが返すもの。**`pubkey` と `created_at` を持たない。**
- *
- * その 2 つを押すのは `Writer` の責務 (spec 4 節)。ビルダに持たせると
- * 時計の取り方が 9 ファイルに散り、`created_at` を付け忘れたビルダが
- * 1 つ混ざっても型が通る。持てない形にしてあるので押し忘れは型で落ちる。
+ * ビルダが返すもの。**`pubkey` と `created_at` を持たない** —— 持たせると時計の
+ * 取り方が各ビルダへ散り付け忘れても型が通るので、持てない形にして型で防ぐ。
  */
 export type EventDraft = {
   kind: number;
@@ -13,19 +10,12 @@ export type EventDraft = {
   content: string;
 };
 
-/**
- * 置換可能イベントの差分適用。`Writer.replace` の第 3 引数に
- * そのまま渡せる形。**`current` を破壊しない。**
- */
+/** 置換可能イベントの差分適用。`Writer.replace` の第 3 引数にそのまま渡せる形で、**`current` を破壊しない**。 */
 export type Mutation = (current: NostrEvent | undefined) => EventDraft;
 
 /**
- * 全置換ビルダの共通規則。`name` のタグだけを `next` へ差し替え、
- * **それ以外のタグと `content` は `current` のまま保つ。**
- *
- * 保つ理由: 他クライアントが立てた未知のタグを消すと、その端末の設定が
- * 黙って飛ぶ。NIP-02 は `.content` を "not used" と言うが、レガシーな
- * クライアントはリレーリストの JSON をそこに入れている。
+ * 全置換ビルダの共通規則。`name` のタグだけ差し替え、他は `current` のまま
+ * 保つ —— 消すと他クライアントの未知タグ設定が飛ぶ (NIP-02 は content を "not used" と言うがレガシーはそこにリレーリストを入れる)。
  */
 export const replaceTags = (
   current: NostrEvent | undefined,
@@ -44,17 +34,8 @@ export const replaceTags = (
 };
 
 /**
- * タグ名の位置要素 2 番目 (値) 1 本を足す／落とす、kind に依存しない差分
- * 適用。`kind`・タグ名・値の意味づけは一切ここに無く、すべて呼び出し側
- * (`mute.ts`/`bookmark.ts`/`follow.ts` の `removeFollow`) が持つ ——
- * ADR-0004 の判定基準（「この kind のこのタグは何を意味するか」を
- * 含むなら kind 側、含まないなら置き場所は素直さと正しさで決めてよい）を
- * 当てると、この 2 関数はどちらにも当てはまらない。
- *
- * **公開タグだけを扱う。** 非公開項目は `content` を NIP-44 で暗号化する
- * 必要があり (NIP-51)、鍵を持たないこのアプリでは署名器への委譲が要る
- * (`Nip44UnavailableError`)。使う面がまだ無いので、テストで守れない実装を
- * 先に置かない。
+ * タグの値を 1 本足す／落とす、kind 非依存の差分適用（意味づけは呼び出し側が
+ * 持つ）。非公開項目は NIP-51/NIP-44 暗号化と署名器委譲が未対応のため、公開タグだけを扱う。
  */
 export const addTagValue =
   (kind: number, name: string, value: string): Mutation =>
@@ -65,7 +46,6 @@ export const addTagValue =
         : [...existing, [name, value]],
     );
 
-/** {@link addTagValue} の逆演算。該当する値のタグだけを落とす。 */
 export const removeTagValue =
   (kind: number, name: string, value: string): Mutation =>
   (current) =>

@@ -13,7 +13,6 @@ import type { RenderContextValue } from "../../../core/view/render-context";
 import type { EventBodyProps } from "../../../core/view/renderer-registry";
 import { ReactionCompact, ReactionFull } from "./Reaction";
 
-// Note.test.tsx と同じ手法。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -86,10 +85,8 @@ const contextWith = (events: EventRequests): RenderContextValue => ({
 });
 
 /**
- * `Note.test.tsx` の `mount` と同じ形。ここだけ返す値が `HTMLElement |
- * undefined` を許す —— `Reaction.tsx` のトップレベルは `<Show>` で、
- * 対象不明な kind:7 は**意図的に何も描かない**ため、Note.tsx の
- * `mount`(見つからなければ即例外) をそのまま使うと正常系まで落ちてしまう。
+ * 返す値が `HTMLElement | undefined` を許す —— `Reaction.tsx` の
+ * トップレベルは `<Show>` で、対象不明な kind:7 は意図的に何も描かない。
  */
 const mount = (
   render: () => unknown,
@@ -114,12 +111,8 @@ const mount = (
 };
 
 /**
- * `ReactionFull`/`ReactionCompact` を直接関数として呼ぶと、トップレベルが
- * `<Show>` (`solid-js` の `createMemo` の薄いラッパー) であるせいで戻り値は
- * DOM ノードではなく**アクセサ関数**になる (`element.dataset` 等ではなく
- * `element()` を経由しないと実体に届かない、実測して確認済み)。他の
- * レンダラ (`Note.tsx` など) はトップレベルが `<article>` なのでこの変換が
- * 要らない —— `Reaction.tsx` だけの事情なので、ここで一度だけ吸収する。
+ * トップレベルが `<Show>` のコンポーネントを直接呼ぶと、戻り値は DOM
+ * ノードでなくアクセサ関数になる。ここで一度だけ吸収する。
  */
 const mountBody = (
   Body: Component<EventBodyProps>,
@@ -133,7 +126,7 @@ const mountBody = (
 
 describe("ReactionFull", () => {
   it("ルート要素は group/event と group-[_]/event:p-0 の両方を持つ", () => {
-    // 捕まえる変異: どちらかを落とす (`RepostFull` の同名テストと同じ理由)。
+    // 捕まえる変異: どちらかを落とす。
     const targetId = signed(112).id;
     const event = signed(113, { tags: [["e", targetId]] });
     const { element, dispose } = mountBody(
@@ -151,8 +144,8 @@ describe("ReactionFull", () => {
   });
 
   it("見出しの名前は font-700 (太字) になる", () => {
-    // 捕まえる変異: 見出しの名前に font-700 を付け忘れる/落とす。単語境界で
-    // 見る (クラス文字列全体一致だと無関係なクラス追加で壊れる)。
+    // 捕まえる変異: font-700 を付け忘れる。単語境界で見る (全体一致だと
+    // クラス追加で壊れる)。
     const targetId = signed(110).id;
     const event = signed(111, { tags: [["e", targetId]] });
     const { element, dispose } = mountBody(
@@ -194,8 +187,7 @@ describe("ReactionFull", () => {
   });
 
   it("e タグが無い kind:7 は何も描かない", () => {
-    // 捕まえる変異: 見出しだけ描く (対象不明のまま「@x がリアクション」の
-    // 行だけが並ぶ意味の無い表示になる)
+    // 捕まえる変異: 見出しだけ描く (対象不明のまま意味の無い表示になる)
     const events = createRecordingEventRequests();
     const event = signed(103, { tags: [] });
     const { element, dispose } = mountBody(
@@ -262,8 +254,8 @@ describe("ReactionFull", () => {
 
 describe("ReactionCompact", () => {
   it("見出しだけを出し、対象の EventView は出さない", () => {
-    // 捕まえる変異: compact でも対象の EventView を描く (関連イベント要求の
-    // 規則が壊れる。`Note.tsx`/`Repost.tsx` の compact と同じ規則)
+    // 捕まえる変異: compact でも対象の EventView を描く (関連イベントを
+    // 要求しない規則が壊れる)
     const events = createRecordingEventRequests();
     const targetId = signed(108).id;
     const event = signed(109, { tags: [["e", targetId]] });

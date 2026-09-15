@@ -14,23 +14,11 @@ import Profile from "../Profile";
 type RepostTarget = { id: string; relay?: RelayUrl };
 
 /**
- * リポスト対象の id を決める (brief Step 3 の 3 段順)。
- *
- * 1. `content` に埋め込まれたイベント (NIP-18) があれば、それを
- *    `store.put` に通す。**埋め込みはリポストした人が書いた任意の文字列
- *    であり信用できない** —— `embeddedRepostEvent` が確かめるのは形だけ
- *    (`isNostrEvent`) で、署名検証はしていない。`put` の schnorr 検証を
- *    通った (`"rejected"` でない) ときだけ採用する。`"duplicate"` でも
- *    良い —— 既に store にある正規のものがそのまま使われる。
- * 2. 埋め込みが無い、または `"rejected"` だったら `e` タグ (`repostTarget`)
- *    の id へ引き直す。
- * 3. どちらも無ければ対象なし ("リポスト（対象不明）" を呼び出し側が出す)。
- *
- * **`k` タグは読まない。** `k` タグは対象イベントの kind を "申告" する
- * だけで、対象イベント自身が持つ本当の kind と食い違いうる。対象をどう
- * 描くかは `EventView` が対象の実イベントから引いた kind で決めるので、
- * ここで `k` を読んで分岐する理由が無い —— 読むと、`k` が嘘をついていた
- * 場合に実際の kind と食い違ったまま描画してしまう。
+ * 対象 id は (1) 埋め込み (NIP-18) が `store.put` の schnorr 検証を通れば
+ * それ、(2) だめなら e タグ、(3) どちらも無ければ undefined、の優先順で
+ * 決める (埋め込みは未検証の任意文字列なので検証を通すまで信用しない)。
+ * `k` タグは対象 kind の自己申告に過ぎず実物と食い違いうるので読まない ——
+ * 描画は `EventView` が実イベントの kind から決める。
  */
 const resolveRepostTarget = (
   event: NostrEvent,
@@ -38,16 +26,9 @@ const resolveRepostTarget = (
 ): RepostTarget | undefined => {
   const embedded = embeddedRepostEvent(event);
   if (embedded) {
-    // 第 2 引数に実在するリレーの URL を渡さない。埋め込みは**リポスト
-    // した人が書いた任意の文字列**であり、それを実在リレーが配信したもの
-    // として `seenRelays` に記録すると嘘になる。"embedded" は URL の形を
-    // していない印であり、実リレーと衝突しない。
-    //
-    // **今日の `RoutingTable` は `seenRelays` を読んでいない** —— リレー
-    // ヒントは `kind:10002` からだけ導出している。この用心が効くのは
-    // `seenRelays` をヒントとして読み始めたときで、それは
-    // `docs/design/read-layer-followups.md` の Outbox の節が予定している
-    // 将来の話である。今は無害だが、そのとき初めて必要になる。
+    // "embedded" を relay に渡す: 埋め込みは未検証の任意文字列なので、
+    // 実在リレーが配信したことにして `seenRelays` へ記録すると嘘になる。
+    // "embedded" は URL の形をしていないので実リレーと衝突しない。
     const result = store.put(embedded, "embedded");
     if (result !== "rejected") {
       return { id: embedded.id };
@@ -59,28 +40,22 @@ const resolveRepostTarget = (
 };
 
 /**
- * kind:6 (テキストノートのリポスト) と kind:16 (汎用リポスト) の詳細表示
- * (spec 6 節の表)。**同じコンポーネントを両方の kind に登録してよい** ——
- * 対象の描画は `EventView` が対象イベント自身の kind から選ぶので、
- * ここでは対象の見た目を一切知らなくてよい (未登録の kind なら fallback
- * が出る、という判断ごと `EventView` に委ねている)。
+ * kind:6/16 (テキスト/汎用リポスト) の詳細表示。対象の描画は `EventView`
+ * が実イベントの kind から選ぶので、同じコンポーネントを両方の kind に
+ * 登録してよく、対象の見た目を一切知らなくてよい。
  */
 export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
   const ctx = useRender();
-  // props.event は EventView が Show のコールバック内で 1 度だけ渡す静的な
-  // 値 (`EventView.tsx` の `{(found) => <Body event={found()} />}`) なので、
-  // ここも 1 回だけ計算すれば足りる。reactive にする必要はない。
+  // props.event は EventView の Show コールバックが 1 度だけ渡す静的値
+  // なので、ここも 1 回だけ計算すれば足りる (reactive にする必要はない)。
   const target = resolveRepostTarget(props.event, ctx.store);
 
   return (
     <div
       data-testid="repost"
-      // `group/event` + `group-[_]/event:p-0`: `NoteFull` と同じ手筋
-      // (`Note.tsx` 参照)。対象を `full` で描く (spec 3 節) ので、対象が
-      // ノート/リポスト/リアクションのどれであっても、この枠の中では
-      // padding が二重にならないよう自分自身も祖先の `group/event` を
-      // 見て潰れる。`group/event` を付けるのは、リポストの中のリポスト
-      // (対象が kind:6/7) でも同じことが起きるようにするため。
+      // 対象を `full` で描くので、祖先の `group/event` を見て自分の
+      // padding も潰す (二重 padding 防止)。`group/event` を付けるのは
+      // リポスト入れ子 (対象が kind:6/7) でも同じことが起きるため。
       class="group/event space-y-2 p-3 text-body group-[_]/event:p-0"
     >
       <p
@@ -89,10 +64,8 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
       >
         <span class="i-material-symbols:repeat-rounded c-green-5 aspect-square h-auto w-4 shrink-0" />
         {/*
-          見出しの名前は太字・1 行に丸める (spec 3.1 節)。長い表示名でも
-          「がリポスト」まで見出しが 2 行に折り返さないよう、`<Profile>`
-          自体は変えず外側で `min-w-0 truncate` を足す (`Note.tsx` の
-          `note-author` と同じ手筋)。
+          太字・1 行に丸める。`<Profile>` は変えず外側に `min-w-0 truncate`
+          を足し、長い表示名でも「がリポスト」まで 2 行に折り返させない。
         */}
         <span data-testid="repost-by-name" class="min-w-0 truncate font-700">
           <Profile
@@ -120,11 +93,9 @@ export const RepostFull: Component<{ event: NostrEvent }> = (props) => {
 };
 
 /**
- * kind:6 / kind:16 の小型表示。「@x がリポスト」の 1 行だけ —— 対象は
- * 描かない (spec 6 節の表)。対象を決める処理 (`resolveRepostTarget`) 自体を
- * 呼ばないのは `NoteCompact` と同じ理由: 呼ばないと決めておくことで、
- * 「compact は関連イベントを一切要求しない」規則がコードを読むだけで
- * 確認できる。
+ * kind:6/16 の小型表示。「@x がリポスト」の 1 行だけで対象は描かない。
+ * `resolveRepostTarget` を呼ばないのは `NoteCompact` と同じ理由 ——
+ * 「compact は関連イベントを要求しない」規則をコードで保証するため。
  */
 export const RepostCompact: Component<{ event: NostrEvent }> = (props) => {
   const ctx = useRender();

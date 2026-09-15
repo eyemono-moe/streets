@@ -79,13 +79,10 @@ describe("verifyEvent", () => {
     expect(verifyEvent({ ...sign(), sig: "zz" })).toBe(false);
   });
 
-  // IMPORTANT 3: a signer can legitimately produce an event whose
-  // `created_at` is a JSON *string*. computeEventId serializes it
-  // faithfully (JSON.stringify does not care about the field's type), so
-  // the id still matches and the schnorr signature still verifies. Nothing
-  // about the crypto catches this — only structural validation does.
-  // Downstream, `b.created_at - a.created_at` in section-reader.ts then
-  // yields NaN, corrupting sort order and eviction at the item cap.
+  // A signer can legitimately produce created_at as a JSON *string* — id and
+  // schnorr signature still verify (JSON.stringify ignores field types), so only
+  // structural validation catches it. Downstream, `b.created_at - a.created_at`
+  // in section-reader.ts yields NaN, corrupting sort order and eviction at the cap.
   it("rejects an event whose created_at is a string, even though its id and signature are internally consistent", () => {
     const malformedUnsigned = {
       pubkey,

@@ -19,11 +19,8 @@ const nip07 = (): Nip07 | undefined => (globalThis as { nostr?: Nip07 }).nostr;
 export const isNip07Available = (): boolean => nip07() !== undefined;
 
 /**
- * NIP-07 拡張を `Signer` に合わせる。
- *
- * **生成時に `window.nostr` を掴まない。** 拡張機能はページ読み込みの直後には
- * まだ注入されていないことがあり、生成時に掴んで固定すると、後から入った
- * 拡張を永久に見失う。呼び出しのたびに読み直す。
+ * NIP-07 拡張を `Signer` に合わせる。生成時に `window.nostr` を掴まない
+ * のは、後から注入された拡張を永久に見失わないため（呼び出しのたびに読み直す）。
  */
 export const createNip07Signer = (): Signer => ({
   getPublicKey: async () => {

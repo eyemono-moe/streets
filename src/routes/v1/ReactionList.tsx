@@ -21,18 +21,8 @@ import Profile from "./Profile";
 import ReactionMark from "./ReactionMark";
 
 /**
- * `groups` の `createMemo` に渡す `equals`。集計 (`groupReactions`) は
- * 呼ぶたびに新しい配列・新しいオブジェクトを返すので、素の参照比較では
- * 中身が同じでも「変わった」とみなされる。バッチ通知は「マウント中の
- * *どれか* のノートにリアクションが届いた」としか教えないので、無関係な
- * 通知のたびに全 `ReactionList` の `groups` が引き直され、`<For>` が参照
- * 同一性でキーを取る以上、中身が同じでも枠の DOM が作り直される。副作用
- * として `ReactionMark` の「画像が壊れた」フラグが毎回リセットされ、404
- * のカスタム絵文字が通知のたびに点滅する。
- *
- * 比較するのは並び・鍵・件数・押した人 (`ReactionGroup.key`/`count`/
- * `users`) —— 表示に使う全て。`content` は鍵から一意に決まるので比較に
- * 含めなくてよい。
+ * `groups` の `equals`。参照比較のままだと無関係な通知のたびに `<For>` が
+ * DOM を作り直し、`ReactionMark` の「壊れた」フラグがリセットされ絵文字が点滅する。
  */
 const groupsEqual = (a: ReactionGroup[], b: ReactionGroup[]): boolean => {
   if (a.length !== b.length) return false;
@@ -50,9 +40,8 @@ const groupsEqual = (a: ReactionGroup[], b: ReactionGroup[]): boolean => {
 };
 
 /**
- * v0 の `<button title=...>` と同じく、枠自体に反応内容のタイトルを持たせる
- * (仕様 5 節)。`truncate` で切れた長文の text リアクションをホバーで読める
- * ようにするため。
+ * 枠自体に反応内容のタイトルを持たせる —— `truncate` で切れた長文の
+ * text リアクションをホバーで読めるようにするため。
  */
 const groupTitle = (content: ReactionContent): string | undefined => {
   switch (content.type) {
@@ -66,24 +55,14 @@ const groupTitle = (content: ReactionContent): string | undefined => {
 };
 
 /**
- * ノートに付いたリアクションの一覧 (仕様 5 節)。`+` の絵文字ピッカーと
- * 送信は範囲外 —— ここは `EventStore` に既にあるものを読んで並べるだけ。
- *
- * `ctx.store.eventsByTag("e", props.eventId)` は「このノートを `e` タグに
- * 持つイベント」を返す。返信も同じ `e` タグを使うが、`parseReaction` の
- * kind チェックでまず落ちる。それでも `targetId` (NIP-25 の最後の `e` タグ)
- * が `props.eventId` と一致するかを別途確かめるのは、リアクションが
- * NIP-10 のスレッド祖先を先に並べ、対象そのものを最後に置く形式のため ——
- * このノートが誰かの返信の**祖先**として並んでいるだけの kind:7 まで
- * 拾ってしまうと、そのノート自身への反応ではないものが数に混ざる。
+ * ノートに付いたリアクションの一覧。`targetId` を別途確かめるのは、
+ * 返信の**祖先**として並ぶだけの kind:7 を反応として数えないため。
  */
 const ReactionList: Component<{ eventId: string }> = (props) => {
   const ctx = useRender();
   const [expand, setExpand] = createSignal(false);
-  // コアレッサの完了と EventStore の直接変更を同じ再計算契機へまとめる。
-  // ここで setVersion するのは「groups() を引き直すきっかけ」を作るため
-  // だけで、その値自体を effect の中で読み返さない
-  // (無限ループの罠、profile-data.ts と同じ注意)。
+  // setVersion は「groups() を引き直すきっかけ」を作るためだけで、その
+  // 値自体は読み返さない (無限ループの罠、profile-data.ts と同じ注意)。
   const [version, setVersion] = createSignal(0);
 
   createEffect(() => {
@@ -144,19 +123,13 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
           <For each={groups()}>
             {(group) => (
               <div class="flex items-start gap-1">
-                {/*
-                  角丸は 6px。ノート本体・画像の 8px の内側に入る部品なので
-                  一段小さくする。**丸ピル (`rounded-full`) にはしない** ——
-                  絵文字は字面が四角く、丸で囲うと左右の余白だけが増えて
-                  1 列に入る数が減る。
-                  高さは追加ボタンと揃えるため `h-6` で固定する。
-                */}
+                {/* **丸ピルにはしない** —— 絵文字は字面が四角く、丸で囲うと余白だけ増えて 1 列に入る数が減る。 */}
                 {/* biome-ignore lint/a11y/useKeyWithClickEvents: 非対話要素が親の委譲 click を止めるだけ */}
                 <div
                   data-testid="reaction-group"
                   class="b-1 flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1.5"
                   classList={{
-                    // 自分が押していれば強調する (仕様 5 節)。
+                    // 自分が押していれば強調する。
                     "b-accent-5 bg-accent-5/10":
                       ctx.viewerPubkey !== undefined &&
                       group.users.has(ctx.viewerPubkey),
@@ -174,7 +147,7 @@ const ReactionList: Component<{ eventId: string }> = (props) => {
                     {group.count}
                   </span>
                 </div>
-                {/* 展開時だけ「@name, @name (2)」を右に出す (仕様 5 節)。 */}
+                {/* 展開時だけ「@name, @name (2)」を右に出す。 */}
                 <Show when={expand()}>
                   <span class="c-secondary text-caption">
                     <For each={[...group.users.entries()]}>

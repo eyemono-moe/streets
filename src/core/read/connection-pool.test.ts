@@ -12,9 +12,8 @@ import {
 } from "./connection-pool";
 
 /**
- * publish() のテストだけが使う、内容を気にしない最小のイベント。
- * `ConnectionPool.publish()` は署名検証をしない (それは `EventStore.put` の
- * 責務) ので、id/sig は本物である必要が無い。
+ * `publish()` は署名検証をしない (`EventStore.put` の責務) ので、
+ * id/sig は本物である必要が無い。
  */
 const fakeEvent = (id: string): NostrEvent => ({
   id,
@@ -32,23 +31,9 @@ const noopHandlers = (): RelaySubscriptionHandlers => ({
   onClosed: () => {},
 });
 
-/**
- * 手で進める偽スケジューラ。`vi.useFakeTimers()` ではなくこちらを注入する
- * ことで、プール (読み取り層) が実タイマーも DOM も掴んでいないことを型と
- * 構造の両方で示す。`advance(ms)` は「起床予定時刻 <= 進めた後の現在時刻」
- * のタイマーだけを、起床予定時刻の昇順で発火する。発火中に新しく積まれた
- * タイマー (再接続失敗時の再スケジュールなど) は、この呼び出しのスナップ
- * ショットに含まれないので同じ `advance()` 内では発火しない — 次の
- * `advance()` を待つ。
- */
-// The handle type is deliberately `ReturnType<typeof setTimeout>` (matching
-// `Scheduler`), not a bare `number` -- with @types/node in this project's
-// ambient scope, that resolves to `NodeJS.Timeout`, not `number`. An earlier
-// draft of this fake typed the handle as plain `number` and it type-checked
-// under `pnpm exec vitest run` (which strips types) but silently failed a
-// standalone `tsc` pass, exactly the class of hand-built-mock bug the task
-// brief calls out. The fake still tracks handles as numbers internally; only
-// the public shape is cast to match `Scheduler`.
+/** 手で進める偽スケジューラ。プールが実タイマーを掴んでいないことを型で示す。 */
+// ハンドル型が `number` でないのは、@types/node 下では `NodeJS.Timeout` に
+// 解決されるため —— `number` だと `vitest run` は通っても `tsc` が落ちる。
 type TimerHandle = ReturnType<typeof setTimeout>;
 
 type FakeClock = {
@@ -57,20 +42,13 @@ type FakeClock = {
   now: () => number;
   advance(ms: number): void;
   /**
-   * Fix round 1 (Important 4): how many times `clearTimeout` was actually
-   * called. `connectCalls` staying flat after a `close()` is not proof the
-   * pending timer was cancelled -- `#reconnect`'s `!pooled` guard makes that
-   * hold even if `#drop`'s `clearTimeout` call were deleted outright (the
-   * dropped record is gone, so a leaked timer's `#reconnect` call finds
-   * nothing and no-ops). Only a direct count on the scheduler itself proves
-   * cancellation happened.
+   * `clearTimeout` が実際に呼ばれた回数。`connectCalls` が増えないことは
+   * タイマー解除の証拠にならないため、直接数えるのが唯一の証拠になる。
    */
   clearTimeoutCallCount: number;
   /**
-   * Task 2: every delay passed to `setTimeout`, in call order. Lets a test
-   * assert on the exact backoff sequence (e.g. "the 2nd delay is exactly
-   * double the 1st") without having to reverse-engineer it from repeated
-   * `advance()` calls and `connectCalls` lengths alone.
+   * `setTimeout` に渡された遅延を呼び出し順に記録する。`advance()` を
+   * 繰り返さずにバックオフの倍加を直接検証できる。
    */
   readonly scheduledDelays: number[];
 };
@@ -118,37 +96,26 @@ type CreatePoolOptions = {
   failing?: RelayUrl[];
   /** connection.subscribe() throws for any url in this list. */
   subscribeFailing?: RelayUrl[];
-  /** Task 9: ジッタの決定性を保つための注入。既定は Math.random。 */
+  /** ジッタの決定性を保つための注入。既定は Math.random。 */
   random?: () => number;
   /**
-   * Fix round 1 (Important 1, Important 3): per-url predicate deciding
-   * whether the Nth `connect()` call for that url (0-indexed, counted
-   * independently per url) should throw. Lets a single test build "fails
-   * once then recovers" or "succeeds once then stays down forever" without
-   * a bespoke `connect` mock -- both shapes matter for the reconnect logic
-   * and neither is expressible with the always-fails `failing` list alone.
+   * url ごとに N 回目の `connect()` を落とすか決める述語。「1 回失敗して
+   * 復帰」「1 回成功して以後ずっと落ちる」の両方を単一のテストで作れる。
    */
   failWhen?: Partial<Record<RelayUrl, (callIndex: number) => boolean>>;
   /**
-   * publish() を reject させる (relay がイベントを拒否した想定)。
-   * `connection.publish()` の失敗をプールが握り潰さず forward することを
-   * 確かめるためだけの注入 — 理由の文字列をそのまま呼び出し元へ伝えられる
-   * ことも一緒に確認する。
+   * publish() を reject させる。プールが `connection.publish()` の失敗を
+   * 握り潰さず、理由の文字列ごと forward することを確かめるための注入。
    */
   publishFailing?: Partial<Record<RelayUrl, string>>;
   /**
-   * publish() を一生 settle させない (final review, Critical 1)。実在する
-   * リレーがレート制限中に EVENT フレームを黙って捨てる挙動の再現 — OK も
-   * 来なければソケットが死にもしない。`ConnectionPool.publish()` 自身の
-   * タイムアウトだけがこれを決着させられることを確かめるための注入。
+   * publish() を一生 settle させない (レート制限中に EVENT を黙って捨てる
+   * relay の再現)。`publish()` 自身のタイムアウトだけがこれを決着させる。
    */
   publishSilent?: RelayUrl[];
   /**
-   * Task 2: `connect()` はソケットオブジェクトを作って即座に返すが、
-   * `onOpen` は決して発火しない (`FakeRelayConnection`'s `{ autoOpen: false
-   * }`) -- ソケットは作れるが決して開かない、恒久的に到達不能なリレー
-   * (`wss://nfrelay.app` が実地で示した状況) をこの url について再現する。
-   * `.open()` を明示的に呼べば「実際に開いた」ことにできる。
+   * ソケットは作れるが `onOpen` が発火しない、恒久的に到達不能なリレーを
+   * 再現する。`.open()` を明示的に呼べば「実際に開いた」ことにできる。
    */
   neverOpens?: RelayUrl[];
 };
@@ -284,10 +251,8 @@ describe("ConnectionPool", () => {
     expect(() => sub?.close()).not.toThrow();
   });
 
-  // Not in the brief's verbatim list, but the same total-close guarantee
-  // must also hold when connect() succeeds but connection.subscribe()
-  // itself throws (step 4 of the brief's algorithm) — a different failure
-  // point than connect() rejecting outright.
+  // 同じ「全体クローズ」保証は、connect() ではなく connection.subscribe()
+  // 自体が投げる場合 (別の失敗点) でも成り立たねばならない。
   it("reports the relay as closed instead of throwing when connection.subscribe() fails", () => {
     const { pool } = createPool({ subscribeFailing: ["wss://flaky/"] });
     const reasons: string[] = [];
@@ -302,8 +267,8 @@ describe("ConnectionPool", () => {
     expect(() => sub?.close()).not.toThrow();
   });
 
-  // Ruling A: PooledSubscription.close() must be total — never throw, no
-  // matter how many times it's called or in what order relative to dispose().
+  // PooledSubscription.close() must be total — never throw, no matter how
+  // many times it's called or in what order relative to dispose().
   it("close() never throws, including double-close and close-after-dispose", () => {
     const { pool } = createPool();
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
@@ -326,8 +291,8 @@ describe("ConnectionPool", () => {
     expect(pool.size).toBe(0);
   });
 
-  // A relay whose connect() failed keeps its entry (for a later reconnect,
-  // Task 9) but must not occupy budget — ambiguity 1 in the brief.
+  // A relay whose connect() failed keeps its entry (for a later reconnect)
+  // but must not occupy budget.
   it("does not count a failed connection against the budget", () => {
     const { pool } = createPool({
       maxConnections: 1,
@@ -343,8 +308,8 @@ describe("ConnectionPool", () => {
     expect(pool.size).toBe(1);
   });
 
-  // Task 8: a socket that dies on its own (as opposed to being close()d by
-  // the pool) must not keep occupying a budget slot (ADR-0021).
+  // A socket that dies on its own (as opposed to being close()d by the
+  // pool) must not keep occupying a budget slot.
   it("frees the slot when a connection dies on its own", () => {
     const { pool, connections } = createPool({ maxConnections: 1 });
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
@@ -352,17 +317,16 @@ describe("ConnectionPool", () => {
 
     connections.get("wss://one/")?.die();
 
-    // A dead socket must not keep holding one of the 30 slots (ADR-0021).
+    // A dead socket must not keep holding one of the 30 slots.
     expect(pool.size).toBe(0);
     expect(
       pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
     ).toBeDefined();
   });
 
-  // Task 12 fix round 1: `size` alone cannot prove a budget was respected,
-  // because a connection that violated it and then died erases the evidence.
-  // `peakSize` is the high-water mark taken at the moment each socket is
-  // actually created, so it survives deaths.
+  // `size` だけでは予算を守ったか証明できない (違反した接続が死ねば証拠が
+  // 消える)。`peakSize` はソケットを作った瞬間の高水位マークなので、
+  // 死んでも消えない。
   it("peakSize records the high-water mark and survives connections dying", () => {
     const { pool, connections } = createPool({ maxConnections: 2 });
     expect(pool.peakSize).toBe(0);
@@ -388,15 +352,9 @@ describe("ConnectionPool", () => {
     expect(pool.peakSize).toBe(2);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 9a: ADR-0025 and the design spec
-  // both described bootstrap's `{ reserved: true }` as "pinned" -- it
-  // isn't; `pinned` is a selectRelays concept, `reserved` bypasses
-  // ConnectionPool's budget check entirely and never reaches selectRelays.
-  // reservedSize exposes how many currently-live connections are open via
-  // that bypass, so the discrepancy (and its "30 + reservedSize" peak
-  // concurrency consequence) is at least observable instead of silent.
-  // ---------------------------------------------------------------------
+  // `reserved` はいわゆる `pinned` (selectRelays 概念) とは別物 ——
+  // 予算チェック自体を迂回し selectRelays には一切届かない。`reservedSize`
+  // はその迂回によるライブ接続数を露出し、食い違いを観測可能にする。
   it("reservedSize counts only currently-live connections opened via the reserved bypass", () => {
     const { pool, connections } = createPool({ maxConnections: 1 });
     expect(pool.reservedSize).toBe(0);
@@ -435,12 +393,8 @@ describe("ConnectionPool", () => {
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
   });
 
-  // Decision 1 (the brief's most emphasized rule): the connection itself
-  // (FakeRelayConnection.die() / WebSocketRelayConnection.fail()) already
-  // distributes onClosed to every handler it holds. The pool must not call
-  // it a second time — that would double-count incomplete.unreachableRelays,
-  // a defect invisible downstream because SectionReader.status is a boolean
-  // per relay. Only a raw callback-count assertion can catch it.
+  // 接続自身が既に配り終えている。二重に呼ぶと incomplete.unreachableRelays
+  // が二重計上されるが、SectionReader.status は真偽値で見た目に現れない。
   it("does not call onClosed a second time when the connection dies", () => {
     const { pool, connections } = createPool();
     let closedCount = 0;
@@ -482,16 +436,8 @@ describe("ConnectionPool", () => {
     expect(bClosed).toBe(1);
   });
 
-  // Decision 2: the pooled record (and its entry set) must survive a
-  // death, distinguishable from the whole record being discarded. That
-  // distinction isn't visible through `size` alone (both read 0 once the
-  // connection is null) — it only becomes observable once something reuses
-  // the retained record: a fresh subscribe() to the same URL. If the
-  // record had been discarded, the fresh subscribe() would start an empty
-  // entry set containing only the new entry, and closing that entry alone
-  // would immediately empty it and tear the new connection down. If the
-  // record was correctly retained, the pre-death entry is still counted,
-  // so the new connection must survive the new entry's close alone.
+  // record の生存は `size` だけでは見えない (どちらも 0) ので、再
+  // subscribe() が古いエントリを道連れにせず生き残ることで初めて観測できる。
   it("does not drop the pooled record until every entry, including ones added after death, has closed", () => {
     const { pool, connections, connectCalls } = createPool();
     const stale = pool.subscribe(
@@ -520,12 +466,8 @@ describe("ConnectionPool", () => {
     expect(reconnected?.closed).toBe(true);
   });
 
-  // ---------------------------------------------------------------------
-  // Task 9: reconnection. ADR-0021 (now accepted) says the pool never gives
-  // up, backs off exponentially with jitter capped at 60s, and re-issues the
-  // entries retained across a death (Decision 2 above) unchanged — no
-  // `since` backfill.
-  // ---------------------------------------------------------------------
+  // Reconnection: 諦めない、指数バックオフ + ジッタは 60s で頭打ち、
+  // 死んだ時点のエントリをそのまま張り直す (`since` backfill はしない)。
 
   it("reconnects with exponential backoff after a death", () => {
     const { pool, connections, connectCalls, clock } = createPool({
@@ -557,13 +499,8 @@ describe("ConnectionPool", () => {
     ]);
   });
 
-  // Fix round 1, Important 3: renamed from "caps the backoff at 60 seconds
-  // and never gives up". Every reconnect here succeeds, so `attempts` resets
-  // to 0 each cycle and the computed delay never exceeds ~1000ms across all
-  // 12 cycles -- this proves only the "never gives up" half. Deleting the
-  // cap or the exponent would not fail it. The cap and the doubling
-  // themselves are proven by the next test, which drives consecutive
-  // failures far enough to actually observe both.
+  // ここでは毎回再接続が成功するため delay は常に ~1000ms —— 「諦めない」
+  // だけを証明する。cap や指数増加は次のテスト (連続失敗) が証明する。
   it("never gives up reconnecting after repeated deaths (does not stop after 8 attempts)", () => {
     const { pool, connections, connectCalls, clock } = createPool({
       random: () => 0.5,
@@ -580,15 +517,9 @@ describe("ConnectionPool", () => {
     expect(connectCalls.length).toBe(13);
   });
 
-  // Fix round 1, Important 3: the test above only exercises the "never
-  // gives up" half of the decision table, because every reconnect in it
-  // succeeds (attempts resets to 0 each cycle, so the delay stays ~1000ms
-  // throughout). This test drives *consecutive* connect() failures instead
-  // -- the relay connects once, dies, and every reconnect attempt after
-  // that fails -- so the backoff has to actually keep growing:
-  // 1000 -> 2000 -> 4000 -> 8000 -> 16000 -> 32000 -> 60000 (cap) -> 60000
-  // (still capped, proving it flattens rather than continuing to
-  // 128000ms uncapped).
+  // 前のテストと違い、初回接続後は毎回 connect() が失敗し続けるので、
+  // バックオフが 1000→...→60000 (cap) で頭打ちし、それ以上伸びないことを
+  // 実際に確かめられる。
   it("doubles the backoff on each consecutive failure and flattens at the 60s cap", () => {
     let succeeded = false;
     const { pool, connections, connectCalls, clock } = createPool({
@@ -661,12 +592,9 @@ describe("ConnectionPool", () => {
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
     connections.get("wss://one/")?.die();
 
-    // Fix round 1, Important 4: `connectCalls` staying flat below is not by
-    // itself proof the pending reconnect timer was cancelled -- #reconnect's
-    // `!pooled` guard would make that hold even if #drop's clearTimeout call
-    // were deleted outright (the dropped record is gone, so a leaked timer's
-    // #reconnect call finds nothing and silently no-ops). Assert directly on
-    // the scheduler that clearTimeout was actually invoked.
+    // `connectCalls` が増えないことはタイマー解除の証拠にならない
+    // (`#reconnect` の `!pooled` ガードが素通りしてしまうため) ので、
+    // スケジューラに直接 clearTimeout の呼び出しを確認する。
     const clearsBeforeClose = clock.clearTimeoutCallCount;
     sub?.close();
     expect(clock.clearTimeoutCallCount).toBe(clearsBeforeClose + 1);
@@ -675,13 +603,9 @@ describe("ConnectionPool", () => {
     expect(connectCalls).toHaveLength(1);
   });
 
-  // Fix round 1, Important 1: a relay whose very first connect() call fails
-  // (as opposed to one that connected and later died) was not scheduled for
-  // any retry at all -- ADR-0021 says "never give up", but a column dead
-  // from the start degraded permanently while a column that died a second
-  // after opening recovered forever. `subscribe()` must schedule a
-  // reconnect for this case too, entirely on its own -- no external
-  // replan() and no second subscribe() call from the caller.
+  // 初回の connect() 失敗 (接続後に死んだ場合と違う) は、これが無いと
+  // 一度も再試行が積まれず、開始直後から死んでいたカラムだけが永久に
+  // degraded のままになる。
   it("retries an initial connect() failure and recovers on its own, with no external replan() or new subscribe() call", () => {
     const { pool, connections, connectCalls, clock } = createPool({
       random: () => 0.5,
@@ -739,19 +663,12 @@ describe("ConnectionPool", () => {
   });
 });
 
-// ---------------------------------------------------------------------
-// Task 3 (2026-08-05 connection-layer-repairs): `bootstrap.ts` used to keep
-// an indexer's connection alive between phases by opening a subscription
-// with a filter that can never match (`{ ids: [NEVER_MATCHING_ID] }`). A
-// real-key run showed some relays answer that with
-// `blocked: filters must specify at least one kind` and CLOSE the
-// subscription -- so the trick didn't even achieve what it was for.
-// `hold()` replaces it: a first-class "keep this connection open" handle
-// that never calls `connection.subscribe()`, so nothing reaches the wire.
-// ---------------------------------------------------------------------
+// 絶対にマッチしないフィルタの REQ で「開けたままにしておく」ことはでき
+// ない (一部のリレーは `blocked` で CLOSE する)。`hold()` はワイヤに何も
+// 出さずに接続の寿命だけを握る、専用の経路。
 describe("ConnectionPool.hold()", () => {
-  // 変異: hold() を subscribe() で実装すると落ちる。これがこのタスクの
-  // 中心的な主張 — 接続の保持はワイヤに何も出してはならない。
+  // 変異: hold() を subscribe() で実装すると落ちる。接続の保持はワイヤに
+  // 何も出してはならない。
   it("opens the connection without sending any REQ", () => {
     const { pool, connections } = createPool();
     const held = pool.hold("wss://one/");
@@ -761,7 +678,7 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.size).toBe(1);
   });
 
-  // 変異: #drop の条件に holds を足し忘れると落ちる。これがアンカーの
+  // 変異: #drop の条件に holds を足し忘れると落ちる。これが hold() の
   // 存在理由そのもの (フェーズ間で接続を落とさない)。
   it("keeps the connection alive when the last subscription closes", () => {
     const { pool, connections } = createPool();
@@ -828,14 +745,9 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.size).toBe(1);
   });
 
-  // ブリーフのステップ 3 の主張の裏取り: hold() も #ensureConnection を
-  // 通すので、subscribe()/publish() と同じ `{ reserved: true }` の迂回が
-  // 効く -- アンカーの subscribe() から hold() へ載せ替えても、予算超過でも
-  // 必ず開けるという性質 (bootstrap.ts) は失われていない。
   // 変異: release() の同一性チェック (current !== pooled) を消すと落ちる。
-  // dispose() を挟んで同じ URL が開き直された場合、古い release() が後から
-  // 作られた無関係な hold の枠を奪い、まだ握っている呼び出し元の接続を
-  // 落としてしまう。subscribe() の close() は同じ危険を既に防いでいる。
+  // dispose() を挟んで同じ URL が開き直されると、古い release() が新しい
+  // hold の枠を奪い、まだ握っている接続を落としてしまう。
   it("release() from a disposed pool entry does not drop a newer hold", () => {
     const { pool } = createPool();
     const stale = pool.hold("wss://one/");
@@ -868,16 +780,9 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.reservedSize).toBe(1);
   });
 
-  // ブリーフの雛形には無い追加テスト。subscribe() には「初回 connect() の
-  // 失敗でも外部からの再購読なしに自力で再試行する」という対称の保証がある
-  // (上の "retries an initial connect() failure..." 参照、Fix round 1,
-  // Important 1)。hold() だけこの保証を欠くと、hold のみで開いた到達不能な
-  // インデクサは ADR-0021 の「決して諦めない」の外に置き去りになる —
-  // subscribe() 由来のエントリが同じ URL に 1 つも無い限り、二度と
-  // #scheduleReconnect が呼ばれない。
-  //
-  // 変異: hold() の `!pooled.connection` 分岐から #scheduleReconnect の
-  // 呼び出しを削除すると落ちる。
+  // subscribe() と対称の保証: 初回 connect() 失敗でも自力で再試行する。
+  // hold() の `!pooled.connection` 分岐がこれを怠ると、hold のみで開いた
+  // 不能な relay は二度と #scheduleReconnect が呼ばれず置き去りになる。
   it("retries an initial connect() failure for a hold-only url and recovers on its own", () => {
     const { pool, connectCalls, clock } = createPool({
       random: () => 0.5,
@@ -897,16 +802,12 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.size).toBe(1);
   });
 
-  // ブリーフの雛形には無い追加テスト。5 箇所の `entries.size === 0` ガードの
-  // うち、publish() の中にある 2 箇所 (連結を確保できなかった場合の cleanup
-  // と、publish 完了時の release()) は上のテスト群のどれも通らない
-  // (hold() と publish() の両方が同じ URL に絡む場面が無いため)。ここで
-  // その 2 箇所を個別に確かめる。
+  // publish() 内の 2 箇所の `entries.size === 0` ガード (cleanup と
+  // release()) は、hold()/publish() が同じ URL に絡む場面が無いため上の
+  // テスト群のどれも通らない。ここで個別に確かめる。
   describe("interaction with publish()", () => {
-    // guard: publish() の release() (connection-pool.ts の
-    // `if (current.entries.size === 0 && current.holds === 0)`)。
-    //
-    // 変異: この release() から `&& current.holds === 0` を削ると落ちる。
+    // guard: publish() の release() の `&& current.holds === 0`。
+    // 変異: これを削ると落ちる。
     it("keeps the connection alive after publish() releases its temporary entry, when a hold still needs it", async () => {
       const { pool, connections } = createPool();
       pool.hold("wss://one/");
@@ -919,10 +820,8 @@ describe("ConnectionPool.hold()", () => {
       expect(pool.size).toBe(1);
     });
 
-    // guard: publish() の「connect() が失敗した後の cleanup」
-    // (`if (pooled.entries.size === 0 && pooled.holds === 0) this.#pool.delete(url)`)。
-    //
-    // 変異: この cleanup から `&& pooled.holds === 0` を削ると落ちる。
+    // guard: publish() の「connect() 失敗後の cleanup」の
+    // `&& pooled.holds === 0`。変異: これを削ると落ちる。
     it("keeps a hold-only pool record (and its pending reconnect timer) alive when publish() also fails to connect", async () => {
       const { pool, connectCalls, clock } = createPool({
         failing: ["wss://one/"],
@@ -940,11 +839,10 @@ describe("ConnectionPool.hold()", () => {
       ).rejects.toThrow();
       expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
 
-      // hold() が積んだ再接続タイマーがまだ生きていることの証拠: 進めると
-      // もう一度 connect() が試みられる。cleanup が pooled レコードごと
-      // 消していたら (holds を見ずに entries だけで判断していたら)、この
-      // タイマーの `#reconnect` 呼び出しは `#pool.get(url)` で何も見つけ
-      // られず無言で何もせず、connectCalls はここで増えないままになる。
+      // 再接続タイマーがまだ生きている証拠: 進めると connect() が再試行
+      // される。cleanup が entries だけで判断し record ごと消していたら、
+      // この `#reconnect` は `#pool.get(url)` で何も見つからず無言で
+      // 何もしないままになる。
       clock.advance(999);
       expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
       clock.advance(1); // first backoff: 1000 * (0.5 + 0.5)
@@ -954,10 +852,9 @@ describe("ConnectionPool.hold()", () => {
 });
 
 describe("ConnectionPool.publish()", () => {
-  // Mutation caught: an implementation that calls `options.connect()`
-  // directly for publish (bypassing `#ensureConnection`'s budget check)
-  // would open this socket anyway and resolve. This must reject and must
-  // not have opened a new connection.
+  // Mutation: publish() が `#ensureConnection` の予算チェックを迂回して
+  // `options.connect()` を直接呼ぶと、このソケットは開いて resolve して
+  // しまう。reject し、新しい接続も開かないことを確かめる。
   it("does not open a new socket past the budget, and rejects instead", async () => {
     const { pool, connectCalls } = createPool({ maxConnections: 1 });
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
@@ -971,10 +868,8 @@ describe("ConnectionPool.publish()", () => {
     expect(pool.size).toBe(1);
   });
 
-  // Mutation caught: swallowing the budget-exhausted case and resolving
-  // anyway (i.e. treating it as accepted) instead of surfacing it as a
-  // rejection. ADR-0011 forbids hiding degradation -- publisher.ts relies on
-  // this rejection to put the relay in `rejected`.
+  // Mutation: 予算超過を握り潰して resolve してしまうと、publisher.ts が
+  // reject に依存してリレーを `rejected` に分類する処理が壊れる。
   it("never resolves when the budget is exhausted", async () => {
     const { pool } = createPool({ maxConnections: 1 });
     pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
@@ -1067,18 +962,11 @@ describe("ConnectionPool.publish()", () => {
     expect(pool.size).toBe(0);
   });
 
-  // -------------------------------------------------------------------
-  // Critical 1 (final review): a relay that never sends OK and never dies
-  // (NIP-01 says relays MUST send OK, but real relays drop EVENT frames
-  // silently under rate limiting) must not pin a budget slot forever.
-  // Without a timeout, `release()` -- which only runs from
-  // `.then(onFulfilled, onRejected)` -- never runs, `pooled.entries` never
-  // empties, and `#drop()` never runs: that socket holds one of the 30
-  // slots for a relay nobody is subscribed to, and (since publisher.ts uses
-  // Promise.allSettled and v1.tsx awaits the whole publish) the
-  // composer's `finally { setPosting(false) }` never runs either.
-  // -------------------------------------------------------------------
-  it("times out and releases the slot when the relay never sends OK or dies (Critical 1)", async () => {
+  // NIP-01 は OK 送信を relay に義務づけるが、実際のリレーはレート制限中に
+  // EVENT を黙って捨てる。タイムアウトが無いと `release()` は一生走らず、
+  // ソケットが 30 枠の 1 つを永久に握ったまま、composer の
+  // `finally { setPosting(false) }` も一生走らない。
+  it("times out and releases the slot when the relay never sends OK or dies", async () => {
     const { pool, clock } = createPool({
       maxConnections: 1,
       publishSilent: ["wss://one/"],
@@ -1115,31 +1003,17 @@ describe("ConnectionPool.publish()", () => {
     // that never settles, because the next subscribe() still gets refused.
     expect(pool.size).toBe(0);
 
-    // The reproduction from the review: with the budget exhausted by the
-    // silent relay, a later genuine subscribe() to a *different* relay was
-    // refused for budget. Once the slot is actually released, it must not
-    // be.
+    // 予算が埋まった状態で別のリレーへの subscribe() が拒否される再現。
+    // 枠が実際に解放された後は拒否されてはならない。
     expect(
       pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
     ).toBeDefined();
   });
 });
 
-// ---------------------------------------------------------------------
-// Critical 2 (final review): reviving a connection that a subscription is
-// waiting on must restore what was waiting on it, regardless of which path
-// (`subscribe()` or `publish()`) does the reviving. Before this fix,
-// `#ensureConnection` (publish's path into connection-opening) reconnected
-// without clearing the pending backoff timer, resetting `attempts`, or
-// re-issuing the REQs of entries already waiting on that URL -- so a
-// column subscribed to a relay that died, then got revived by an unrelated
-// publish() to the same relay, went dark forever: the backoff timer later
-// fired, `#reconnect()` saw `pooled.connection` non-null and returned
-// early (having already nulled `pooled.timer`, so nothing re-armed), and
-// since the socket was now healthy `#onConnectionDied` never fired again
-// either.
-// ---------------------------------------------------------------------
-describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
+// 蘇生させたのが subscribe()/publish() どちらであっても同じ後始末が要る
+// (`#attachConnection` 参照) —— 怠るとカラムは REQ を二度と送れず沈黙する。
+describe("ConnectionPool: reviving a dead connection", () => {
   it("re-issues a waiting subscription's REQ when publish() revives the connection before the backoff timer fires", async () => {
     const { pool, connections, connectCalls } = createPool({
       random: () => 0.5,
@@ -1162,10 +1036,8 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
 
     // Mutation caught: reviving the connection in `#ensureConnection`
-    // without re-issuing the waiting entry's REQ leaves this empty forever
-    // -- exactly what the review found ("the revived socket had zero
-    // subscriptions"). The column would be dark on this relay for the life
-    // of the page.
+    // without re-issuing the waiting entry's REQ leaves this empty forever.
+    // The column would be dark on this relay for the life of the page.
     expect(connections.get("wss://one/")?.subscriptions[0]?.filters).toEqual([
       { kinds: [1], authors: ["abc"] },
     ]);
@@ -1187,36 +1059,14 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
 
     // Mutation: delete the `pooled.timer` teardown at the top of
-    // `#attachConnection`. The old version of this test only advanced the
-    // clock and asserted `connectCalls` stayed flat -- which holds either
-    // way, because `#reconnect()`'s `pooled.connection` guard makes the
-    // leaked timer a no-op. Counting the scheduler's own calls is the only
-    // direct evidence that the timer was cancelled rather than merely
-    // rendered harmless (final review of the vertical slice; the same
-    // reasoning that added `clearTimeoutCallCount` in the first place).
+    // `#attachConnection`。`#reconnect()` の `pooled.connection` ガードが
+    // 漏れたタイマーを無害化するため、`connectCalls` の観測だけでは
+    // 検出できない —— clearTimeout の直接カウントだけが証拠になる。
     //
-    // Measured, not derived (task-4-brief.md warns the `+ 2` in its draft
-    // was a guess -- it was; the true count is 3). Three clears happen in
-    // this window:
-    // (1) `#attachConnection`'s teardown of `pooled.timer`, the backoff
-    // timer `die()` armed above -- revival cancelling the pending
-    // reconnect, the assertion this test exists to make.
-    // (2) `#clearFailures`'s teardown of the `DEGRADED_COOLDOWN_MS` failure
-    // record's own timer (`#failures`, a *different* timer from (1) --
-    // `Pooled.timer` is the reconnect backoff, `#failures.get(url).timer`
-    // is the cooldown that would otherwise forget this failure after 5
-    // minutes). This fires synchronously and *inside* `#attachConnection`:
-    // `pooled.offOpen = connection.onOpen(() => this.#clearFailures(url))`
-    // registers the listener, and `FakeRelayConnection.onOpen()` calls a
-    // listener immediately when the connection is already open (autoOpen
-    // defaults true here), so `#clearFailures` runs before `#attachConnection`
-    // returns.
-    // (3) `publish()`'s own `PUBLISH_TIMEOUT_MS` timer, cleared in the
-    // success branch of `connection.publish().then(...)` once
-    // `FakeRelayConnection.publish()` resolves. `publish()` also calls
-    // `release()` on success, but that only decrements `pooled.entries`
-    // (the original subscribe()'s entry is still registered, so it never
-    // reaches `#drop()` and never clears a fourth timer).
+    // +3 の内訳: (1) `pooled.timer` (再接続バックオフ) の解除、
+    // (2) `#failures` のクールダウンタイマー (`onOpen` が
+    // `#attachConnection` 内で同期発火するため即座に `#clearFailures`)、
+    // (3) `publish()` 自身の `PUBLISH_TIMEOUT_MS`。
     expect(clock.clearTimeoutCallCount).toBe(clearsBeforeRevival + 3);
 
     // And the original assertion: no stale timer ever fires a reconnect.
@@ -1224,31 +1074,10 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     expect(connectCalls).toEqual(["wss://one/", "wss://one/"]);
   });
 
-  // Task 3 (2026-08-06 degraded-recovery-and-isolation): `#attachConnection`'s
-  // re-attach loop calls `entry.handlers.onClosed(...)` for every entry that
-  // fails to re-subscribe. `handlers` is arbitrary consumer code (a section,
-  // via SubscriptionManager). Before this task that call was unguarded, so
-  // one throwing handler escaped the `for` loop and every entry after it in
-  // iteration order never got its own `onClosed` -- its subscription stayed
-  // `null` with a live socket, so `#onConnectionDied` never fires again and
-  // that column goes dark for the life of the page (ADR-0011's "hidden
-  // degradation"). Same shape as the vertical slice's final-review finding 4
-  // (`#replanOnce` / `SectionReader.#notify`).
-  //
-  // `subscribeFailing` makes *every* `connection.subscribe()` call for this
-  // url throw, including the two calls the initial `pool.subscribe()`s make
-  // directly (that call site is a separate, already-guarded-by-design spot:
-  // `subscribe()` reports failure via a direct, unguarded
-  // `handlers.onClosed(...)` call of its own, out of scope for this task).
-  // A `shouldThrow` flag keeps the first entry's handler quiet during that
-  // unrelated initial call and only starts throwing once the die()/retryNow()
-  // cycle drives `#attachConnection`'s loop over *both* entries -- confirmed
-  // by tracing `#ensureConnection` -> `#attachConnection` (pooled.entries is
-  // still empty at that point) -> `subscribe()`'s own try/catch (which is
-  // where the first two "first"/"second" pushes actually come from, not from
-  // the loop under test) -> `die()` -> `#onConnectionDied` -> `#scheduleReconnect`
-  // -> `retryNow()` -> `#reconnect()` -> `#attachConnection` again, this time
-  // with both entries already registered in `pooled.entries`.
+  // #attachConnection の再アタッチループの隔離 (#attachConnection 参照)。
+  // `subscribeFailing` は初回の subscribe() 自体も失敗させる (無関係) ので、
+  // `shouldThrow` は die()/retryNow() がループを両エントリに回すときだけ
+  // 発火させる。
   it("isolates a throwing onClosed so the remaining entries are still re-attached", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { pool, connections } = createPool({
@@ -1276,11 +1105,8 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
     seen.length = 0;
     shouldThrow = true;
 
-    // Kill the socket so the reconnect path re-runs `#attachConnection`
-    // over *both* entries in one loop -- that loop is what the isolation
-    // protects. `retryNow()` (rather than advancing the backoff timer) is
-    // used because it deterministically drives `#reconnect` synchronously
-    // without depending on jitter.
+    // retryNow() を使うのは、ジッタに依存せず `#reconnect` を同期的に
+    // 駆動できるため。
     connections.get("wss://one/")?.die();
     pool.retryNow();
 
@@ -1289,23 +1115,14 @@ describe("ConnectionPool: reviving a dead connection (Critical 2)", () => {
   });
 });
 
-// ---------------------------------------------------------------------
-// Task 2 (2026-08-05 connection-layer-repairs): a real-key run against
-// public relays showed the backoff never growing -- three unreachable
-// relays retried at a flat ~3s interval forever. The root cause was
-// `#attachConnection` resetting the failure counter the instant `connect()`
-// returned a socket *object*, not when the socket actually opened
-// (`connect()` -- `new WebSocket(url)` -- succeeds and returns immediately
-// for an unreachable relay too). `neverOpens` models that: `connect()`
-// succeeds (a `FakeRelayConnection` is created) but `onOpen` never fires
-// until the test calls `.open()` explicitly.
-// ---------------------------------------------------------------------
+// 失敗カウンタは実際に開いた (`onOpen`) 時だけリセットする —— `connect()` が
+// 返しただけでは「開いた」ことにならない (理由は接続プール側のコメント
+// 参照)。`neverOpens` はソケットは作れるが `onOpen` が発火しないリレーを
+// 再現する。
 describe("backoff growth and degraded relays", () => {
-  // Mutation: restore `attempts = 0` (here: `#clearFailures(url)`) to run
-  // unconditionally in `#attachConnection` instead of inside the `onOpen`
-  // callback. That resurrects the exact defect observed in the field: a
-  // relay whose socket is created but never opens gets its backoff reset on
-  // every reconnect attempt, so the delay never grows past the base.
+  // Mutation: `#clearFailures` を `onOpen` 内ではなく無条件に呼ぶよう戻す
+  // と、一度も開かないリレーでもバックオフが毎回リセットされ、遅延が
+  // base を超えて伸びなくなる。
   it("grows the delay when the socket never actually opens", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1334,12 +1151,9 @@ describe("backoff growth and degraded relays", () => {
     expect(reconnectDelays()).toEqual([1000, 2000]);
   });
 
-  // Mutation: reset the failure counter from `connect()`'s return instead
-  // of from `onOpen` firing (e.g. clearing it right after
-  // `this.#options.connect(url)` succeeds in `#attachConnection`, the same
-  // shape as the mutation above but phrased as "reset on success" rather
-  // than "reset unconditionally"). Doubles as the positive case: once a
-  // socket really opens, the next failure must start from the base again.
+  // Mutation: `connect()` の成功時点でリセットする (`onOpen` 発火を待たない)
+  // よう戻すと同じ穴が開く。逆に、実際に開いた後は次の失敗が base から
+  // 再スタートすることも同時に確認する (正のケース)。
   it("resets the delay to the base once the socket really opens", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1366,13 +1180,9 @@ describe("backoff growth and degraded relays", () => {
     expect(reconnectDelays()).toEqual([1000, 2000, 1000]);
   });
 
-  // Mutation: move the failure counter from the pool's own `#failures` map
-  // back onto the per-URL `Pooled` record (i.e. restore `attempts` there).
-  // Task 4 will drop degraded relays from selection, which drops their last
-  // subscription, which calls `#drop` -- if the counter lived on `Pooled`,
-  // that would erase the very failure history that justified degrading the
-  // relay, and the relay would look brand new the moment it's re-selected.
-  // This test is the guard against that oscillation.
+  // Mutation: `#failures` を `Pooled` へ戻すと、degraded な relay が選択から
+  // 外れて最後の購読が閉じ `#drop` が走った瞬間に履歴が消え、再選択された
+  // 途端に新品に見えてしまう (振動)。このテストはその防止を守る。
   it("remembers failures across a drop of the pool entry", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1454,11 +1264,9 @@ describe("backoff growth and degraded relays", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 
-  // Mutation: don't arm a cooldown timer when noting a failure. Since a
-  // degraded URL loses its subscribers (Task 4 drops it from selection),
-  // nobody re-subscribes, so `#scheduleReconnect` never runs again either --
-  // without this timer, a URL that degrades has no path back and stays
-  // excluded forever.
+  // Mutation: 失敗を記録する際にクールダウンタイマーを張らないと、degraded
+  // な URL は購読者が居ないため `#scheduleReconnect` も二度と走らず、
+  // 戻る経路が無くなり永久に除外されたままになる。
   it("clears degraded after the cooldown elapses with no further failures", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1484,11 +1292,9 @@ describe("backoff growth and degraded relays", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 
-  // Mutation: revert the cooldown timer's callback in `#noteFailure` to a
-  // bare `this.#failures.delete(url)` (its shape before this task). The URL
-  // still leaves `degradedRelays`, so the existing cooldown test stays
-  // green -- only this one notices that nobody was told, which is exactly
-  // how the gap survived the last slice.
+  // Mutation: クールダウンのコールバックを素の `#failures.delete(url)` に
+  // 戻しても `degradedRelays` からは消えるので既存のテストは通る ——
+  // 通知されないことだけは、このテストしか検出できない。
   it("notifies when a url leaves the degraded set after the cooldown", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1541,10 +1347,9 @@ describe("backoff growth and degraded relays", () => {
     expect(changed).toEqual(["wss://one/", "wss://one/"]);
   });
 
-  // Mutation: notify unconditionally in `#clearFailures` (i.e. drop the
-  // `hard >= DEGRADED_AFTER_FAILURES` guard). Then every ordinary blip --
-  // one failure followed by a successful open -- would fire a replan, which
-  // is precisely the churn ADR-0021 refuses to create.
+  // Mutation: `#clearFailures` のガード (`hard >= DEGRADED_AFTER_FAILURES`)
+  // を外すと、1 回失敗して開き直しただけの日常的なブリップでも replan が
+  // 発火してしまう。
   it("does not notify when a url that never degraded loses its history", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1562,11 +1367,9 @@ describe("backoff growth and degraded relays", () => {
     expect(changed).toEqual([]);
   });
 
-  // Mutation: route `dispose()`'s failure-history teardown through
-  // `#clearFailures` instead of clearing the map directly. Disposal is not
-  // a recovery -- there is no pool left to re-plan for, and the manager has
-  // already unsubscribed, so a notification here can only reach a listener
-  // that outlived its owner.
+  // Mutation: dispose() の失敗履歴の後始末を `#clearFailures` 経由にすると、
+  // disposal は復帰ではなく再選択すべきプールも無いのに、既に owner を
+  // 失った listener へ通知してしまう。
   it("does not notify on dispose()", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1589,11 +1392,9 @@ describe("backoff growth and degraded relays", () => {
     expect(changed).toEqual(["wss://one/"]); // no exit notification
   });
 
-  // Mutation: only arm the cooldown timer on the first failure for a url
-  // (`if (!existing) { ...set timer... }`) instead of re-arming it on every
-  // failure. Without re-arming, a relay that keeps failing during the
-  // cooldown window would have its degraded status cleared out from under
-  // it mid-failure, purely because the *first* failure happened long ago.
+  // Mutation: 初回の失敗でだけクールダウンタイマーを張り、以後は張り直さ
+  // ないと、失敗し続けている最中でも最初の失敗時刻を起点に degraded 判定
+  // が解除されてしまう。
   it("postpones the cooldown on each new failure", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1623,25 +1424,14 @@ describe("backoff growth and degraded relays", () => {
   });
 });
 
-// ---------------------------------------------------------------------
-// Final review (2026-08-06), Important 1: `degradedRelays` was exposed but
-// nothing in the running app ever read it -- `SubscriptionManager` never
-// called `replan()` in response to a relay dying, so an excluded relay kept
-// its selection slot until a human happened to add/remove a column. Fixing
-// that requires a pool-level notification fired at the *moment* a url
-// crosses into degraded (not a level you'd have to poll), which
-// `SubscriptionManager` subscribes to and turns into a (batched) replan.
-// `onDegradedChanged` is the notification; the batching lives in
-// `subscription-manager.test.ts` since it needs the manager's own
-// `Scheduler` seam. It was originally named `onDegraded` and fired only on
-// entry; this task renamed it and made it also fire on exit (see the exit
-// tests appended to "backoff growth and degraded relays" above), closing
-// the mirror-image gap left by the entry-side fix.
-// ---------------------------------------------------------------------
+// `degradedRelays` を誰も継続的に読まないので、`replan()` を起こすには
+// 交差した瞬間の通知が要る (ポーリングではなく)。`onDegradedChanged` が
+// それで、集合への出入り両方で発火する。バッチ処理は
+// `subscription-manager.test.ts` 側の責務。
 describe("ConnectionPool.onDegradedChanged", () => {
   // Mutation: fire the listener on every `#noteFailure` call instead of only
   // the one that pushes `hard` across `DEGRADED_AFTER_FAILURES` -- this is
-  // the "crossing, not level" distinction the final review named explicitly.
+  // the "crossing, not level" distinction this notification exists to make.
   it("fires exactly once, at the failure that crosses DEGRADED_AFTER_FAILURES", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1664,12 +1454,9 @@ describe("ConnectionPool.onDegradedChanged", () => {
     expect(crossings).toEqual(["wss://one/"]);
   });
 
-  // Mutation: remove the `previousHard < DEGRADED_AFTER_FAILURES` guard so
-  // the listener fires again on every failure once already degraded -- this
-  // is exactly the "one replan per crossing, not per failure" burst-of-churn
-  // scenario the manager's batching exists to avoid. A caller that only
-  // ever gets one notification per real crossing would replan once per
-  // failure instead if this guard were missing.
+  // Mutation: `previousHard < DEGRADED_AFTER_FAILURES` ガードを外すと、
+  // 既に degraded な URL の以後の失敗ごとに発火してしまい、「交差ごとに
+  // 1 回」ではなく「失敗ごとに replan」というバースト状態を招く。
   it("does not fire again for failures after the crossing", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1723,30 +1510,10 @@ describe("ConnectionPool.onDegradedChanged", () => {
     expect(pool.degradedRelays).toEqual(["wss://one/"]); // the state itself is unaffected
   });
 
-  // Final review (2026-08-06), Important 1: `#notifyDegradedChanged` called
-  // listeners with a bare `for` loop. `subscribe()` documents that it never
-  // throws, but `subscribe()` -> `#scheduleReconnect` -> `#noteFailure` ->
-  // `#notifyDegradedChanged` is a synchronous path into arbitrary consumer
-  // code with nothing in between -- a throwing listener escaped `subscribe()`
-  // itself. The loop also has the mirror-image bug: a throw from listener 1
-  // stops the loop, so listener 2 (registered after) never hears about the
-  // crossing and its view of the degraded set goes stale. Same shape as
-  // `#attachConnection`'s Task 3 fix and `SubscriptionManager.#deliver`.
-  //
-  // Reproduction (from the review): drive a url to 3 relay-caused failures
-  // via connect() itself throwing (not die()/reconnect, so the 4th failure's
-  // crossing happens inside a *fresh* `subscribe()` call rather than a
-  // background reconnect timer), close() the subscription (drops the
-  // `Pooled` record, but `#failures` survives by design -- see "remembers
-  // failures across a drop of the pool entry" above), register a throwing
-  // listener followed by a normal one, then `subscribe()` the same url
-  // again. The 4th failure crosses DEGRADED_AFTER_FAILURES synchronously
-  // inside that `subscribe()` call.
-  //
-  // Mutation caught: delete the try/catch around `listener(url)` in
-  // `#notifyDegradedChanged` (bare `for (const listener of [...]) listener(url);`).
-  // `subscribe()` then throws synchronously, and the second listener never
-  // sees the crossing.
+  // `#notifyDegradedChanged` を素の for ループにすると `subscribe()` の
+  // 「例外を投げない」保証を破る (#attachConnection と同じ形)。再現に
+  // connect() の失敗を使うのは、4 回目の交差を新しい `subscribe()` 呼び出し
+  // の中で同期的に起こすため。
   it("isolates a throwing onDegradedChanged listener so subscribe() stays total and later listeners still hear the crossing", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { pool, clock } = createPool({
@@ -1783,37 +1550,15 @@ describe("ConnectionPool.onDegradedChanged", () => {
   });
 });
 
-// ---------------------------------------------------------------------
-// Task 2 fix round 1 (2026-08-05). Reviewer findings on the first pass:
-//
-// Important 1: `#reconnect`'s budget-exhaustion guard called
-// `#scheduleReconnect`, which (after this task's initial pass) always
-// called `#noteFailure` -- so a *healthy* relay stuck behind a saturated
-// budget (someone else holding the only slot) accumulated the same
-// counter that drives `degradedRelays`, and could be reported degraded
-// without `connect()` ever once failing for it. `#failures` now splits
-// `count` (drives backoff, grows for any reschedule reason) from `hard`
-// (drives `degradedRelays`, grows only for reason `"relay"`).
-//
-// Important 2: `dispose()` dropped every `Pooled` record but left
-// `#failures` (and its cooldown `setTimeout`s) untouched -- a real-timer
-// leak that keeps a disposed pool reachable for up to
-// `DEGRADED_COOLDOWN_MS`.
-//
-// Minor: `retryNow()` only reached URLs with a live `Pooled` record, so a
-// degraded URL whose last subscriber had already closed (dropping its
-// `Pooled` record but not its `#failures` entry, by design) stayed
-// excluded for the rest of the cooldown even after a human explicitly
-// asked to retry.
-// ---------------------------------------------------------------------
-describe("Task 2 fix round 1: budget vs relay health, and cleanup", () => {
-  // Mutation: delete the `reason === "relay"` check in `#noteFailure` (let
-  // `hard` grow on every call regardless of reason) -- a relay that never
-  // once failed to connect gets marked degraded purely because another
-  // relay was holding the only budget slot. Mutation (the other
-  // direction): skip `#noteFailure` entirely on the budget path -- then
-  // the backoff never grows for a URL stuck behind a saturated budget, and
-  // it spins at the base interval forever. Both halves are asserted below.
+// budget 由来のバウンスは relay の健全性と無関係 (`ReconnectReason` 参照)、
+// dispose() は `#failures` も掃除しないと実タイマーが漏れる (`dispose()`
+// 参照)、retryNow() は Pooled レコードが無い degraded URL にも届く必要が
+// ある (`retryNow()` 参照) —— この 3 点をまとめて検証する。
+describe("budget vs relay health, and cleanup", () => {
+  // Mutation A: `reason === "relay"` チェックを外すと、予算超過で待たされ
+  // ただけの健全なリレーまで degraded になる。Mutation B: budget 経路で
+  // `#noteFailure` 自体を飛ばすと、バックオフが伸びず base 間隔で回り続け
+  // る。両方をこの下で確認する。
   it("does not count budget-exhaustion bounces as relay failures, but still grows the backoff", () => {
     const { pool, connections, clock } = createPool({
       maxConnections: 1,
@@ -1849,13 +1594,10 @@ describe("Task 2 fix round 1: budget vs relay health, and cleanup", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 
-  // Mutation: delete the `#failures` cleanup loop in `dispose()` (leave
-  // `#pool.clear()` as the only teardown) -- the reconnect timer still
-  // gets cleared via `#drop`, but the cooldown timer leaks, keeping the
-  // disposed pool reachable through its closure for up to
-  // `DEGRADED_COOLDOWN_MS` under the real scheduler, and (under an
-  // injected clock, as here) still fires against -- and mutates -- an
-  // already-disposed pool if the clock is advanced afterward.
+  // Mutation: dispose() から `#failures` の後始末ループを消すと、
+  // 再接続タイマーは `#drop` で消えるが冷却タイマーは残る —— 実タイマー
+  // なら最大 `DEGRADED_COOLDOWN_MS` 分プールをクロージャ越しに漏らし、
+  // 偽クロックなら dispose 済みプールを後から書き換えてしまう。
   it("clears every failure cooldown timer on dispose()", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,
@@ -1881,13 +1623,10 @@ describe("Task 2 fix round 1: budget vs relay health, and cleanup", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 
-  // Mutation: have retryNow() only clear failures reachable through its
-  // `#pool` loop (i.e. drop the wholesale `#failures.clear()` this fix
-  // adds) -- a degraded URL whose last subscriber already closed (so its
-  // `Pooled` record is gone, per "remembers failures across a drop" above)
-  // never gets reached by that loop, so a human hitting retry after
-  // coming back online finds exactly the URL that most needs retrying
-  // still excluded for the rest of the cooldown.
+  // Mutation: retryNow() が `#pool` ループ経由でしか失敗履歴を消さないと
+  // (この修正が足す `#failures.clear()` を外すと)、最後の購読者が既に
+  // 閉じて Pooled レコードが無い degraded URL に届かず、人間が復帰して
+  // retry しても一番必要な URL だけ除外されたままになる。
   it("retryNow() clears a degraded URL's failure history even after its Pooled record is gone", () => {
     const { pool, connections, clock } = createPool({
       random: () => 0.5,

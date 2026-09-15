@@ -69,7 +69,7 @@ describe("RoutingTable", () => {
     ]);
     store.put(event, "wss://indexer");
 
-    // 予算は大域セレクタが持つ。ここは事実だけを返す
+    // 予算は大域セレクタが持つので、ここは事実だけを返す
     expect(new RoutingTable(store).writeRelaysFor(event.pubkey)).toEqual([
       "wss://one/",
       "wss://two/",

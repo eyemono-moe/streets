@@ -19,9 +19,8 @@ export type DeviceSettings = {
 };
 
 /**
- * 端末設定のinterface。保存形式とSolid stateの同期を呼び出し側から隠す。
- * アカウント設定（プロフィール・リレー・ミュート）はNostrイベントとして
- * 読み書きするため、このmoduleへ混ぜない。
+ * 端末設定の interface。保存形式と Solid state の同期を呼び出し側から隠す。
+ * アカウント設定 (プロフィール等) は Nostr イベントとして扱うため混ぜない。
  */
 export const createDeviceSettings = (
   storage: DeviceSettingsStorage,

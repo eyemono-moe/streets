@@ -3,8 +3,8 @@ import { verifyOptimisticInsert } from "./verify-optimistic-insert";
 
 describe("verifyOptimisticInsert", () => {
   it("rejected な verdict は投稿エラーとして throw する", () => {
-    // 捕まえる変異: store.put() の戻り値を無視してそのまま進む (元の
-    // バグ)。壊れた id/署名の投稿を EventStore に入れないまま楽観表示だけ
+    // 捕まえる変異: store.put() の戻り値を無視してそのまま進む。壊れた
+    // id/署名の投稿を EventStore に入れないまま楽観表示だけ
     // 出し、publisher.publish() へもそのまま渡してしまう。
     expect(() => verifyOptimisticInsert("rejected")).toThrow();
   });

@@ -7,9 +7,7 @@ const HEX = "a".repeat(64);
 const pubkeyHex =
   "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
 
-// `decodeNip19` の入力は TLV バイト列の bech32 表現なので、production の
-// `encodeBech32`(hex しか受けない) だけではテストデータを作れない。ここだけの
-// 小さな TLV エンコーダを組み立てる。
+// `decodeNip19` の入力は TLV バイト列の bech32 表現で、production の `encodeBech32` (hex しか受けない) だけではテストデータを作れないため、ここだけの小さな TLV エンコーダを組み立てる
 type TlvEntry = { type: number; value: Uint8Array };
 
 const encodeTlv = (entries: TlvEntry[]): Uint8Array => {
@@ -43,11 +41,7 @@ const kindBytes = (kind: number): Uint8Array => {
 const encodeEntity = (prefix: string, entries: TlvEntry[]): string =>
   encodeBech32(prefix, bytesToHex(encodeTlv(entries)));
 
-// `decodeNpub` を足した際に一度削除されたが復元した (A-1 Task 2 のレビュー、
-// Minor 1)。`decodeBech32`/`encodeBech32` は npub 以外の TLV
-// (`nevent`/`naddr`) でも使う前提で公開されており、**投げる**という契約を
-// 持つ。`decodeNpub` 経由の間接的な網羅では、任意 prefix の往復も
-// チェックサム不一致で投げることも確かめられない。
+// `decodeBech32`/`encodeBech32` は npub 以外の TLV (`nevent`/`naddr`) でも使う前提で「投げる」契約を持ち、`decodeNpub` 経由の間接的な網羅では任意 prefix の往復や投げる契約を確かめられない
 describe("nip19", () => {
   it("produces a value with the requested prefix", () => {
     const encoded = encodeBech32("npub", pubkeyHex);
@@ -86,24 +80,19 @@ describe("decodeNpub", () => {
   });
 
   it("npub を hex へ変換する", () => {
-    // 捕まえる変異: 成功時に dataHex ではなく prefix を返す (検証済み:
-    // 「prefix を確かめずに dataHex を返す」という変異は実際にはここでは
-    // なく次の「npub 以外の bech32 は undefined」のほうを落とす —— npub の
-    // 入力では prefix チェックを外しても dataHex 自体は変わらず正しいまま
-    // なので、このテストだけでは検出できない)
+    // 捕まえる変異: 成功時に dataHex ではなく prefix を返す —— この変異は実際
+    // には次の「npub 以外の bech32 は undefined」テストで落ちる。npub 入力では
+    // prefix チェックを外しても dataHex 自体は変わらないため、ここでは検出できない
     expect(decodeNpub(encodeBech32("npub", HEX))).toBe(HEX);
   });
 
   it("npub 以外の bech32 は undefined", () => {
-    // 捕まえる変異: prefix を見ない (nsec を貼られたら秘密鍵を著者フィルタ
-    // として扱ってしまう —— ADR-0008 は秘密鍵をアプリに渡さないと決めて
-    // いるので、受け付けた時点で方針違反になる)
+    // 捕まえる変異: prefix を見ない (nsec を著者フィルタとして扱うと、秘密鍵をアプリに渡さない方針を受け付けた時点で破る)
     expect(decodeNpub(encodeBech32("nsec", HEX))).toBeUndefined();
   });
 
   it("壊れた入力は例外ではなく undefined", () => {
-    // 捕まえる変異: try/catch を省く (decodeBech32 が投げ、フォームの
-    // 送信ハンドラから例外が抜けて画面が壊れる)
+    // 捕まえる変異: try/catch を省く (decodeBech32 が投げ、フォームの送信ハンドラから例外が抜けて画面が壊れる)
     expect(decodeNpub("not-a-key")).toBeUndefined();
   });
 
@@ -136,8 +125,7 @@ describe("decodeNip19", () => {
   });
 
   it("nprofile の pubkey と relays が取れる", () => {
-    // 捕まえる変異: special (TLV type 0) を読まずに pubkey を undefined の
-    // まま返す / relay (type 1) をまったく拾わない
+    // 捕まえる変異: special (TLV type 0) を読まず pubkey を undefined のまま返す / relay (type 1) を拾わない
     const value = encodeEntity("nprofile", [
       { type: 0, value: hexToBytes(pubkeyHex) },
       { type: 1, value: asciiBytes("wss://relay.example") },
@@ -187,8 +175,7 @@ describe("decodeNip19", () => {
   });
 
   it("未知の TLV 型を無視して残りを読み続ける", () => {
-    // 捕まえる変異: 未知の型で undefined を返す (将来 NIP が型を足すたびに
-    // 全部読めなくなる)
+    // 捕まえる変異: 未知の型で undefined を返す (将来 NIP が型を足すたびに全部読めなくなる)
     const value = encodeEntity("nprofile", [
       { type: 99, value: asciiBytes("future-field") },
       { type: 0, value: hexToBytes(pubkeyHex) },
@@ -202,9 +189,7 @@ describe("decodeNip19", () => {
   });
 
   it("naddr の識別子が空文字でも成立する", () => {
-    // 捕まえる変異: 空文字を欠損として undefined を返す (通常の置換可能
-    // イベント (kind:0 / 10002 など) は d タグを持たないので、これを弾くと
-    // それらが全部読めなくなる)
+    // 捕まえる変異: 空文字を欠損として undefined を返す (kind:0/10002 など d タグを持たない通常の置換可能イベントが全部読めなくなる)
     const value = encodeEntity("naddr", [
       { type: 0, value: new Uint8Array(0) },
       { type: 2, value: hexToBytes(pubkeyHex) },
@@ -220,8 +205,8 @@ describe("decodeNip19", () => {
   });
 
   it("nsec は undefined", () => {
-    // 捕まえる変異: デコードして秘密鍵を構造化データとして持つ (ADR-0008
-    // 違反)
+    // 捕まえる変異: デコードして秘密鍵を構造化データとして持ってしまう
+    // (秘密鍵を構造化データにしてはいけない)
     expect(decodeNip19(encodeBech32("nsec", HEX))).toBeUndefined();
   });
 
@@ -249,10 +234,7 @@ describe("decodeNip19", () => {
   });
 
   it("L が残りバイト数を超えているとき undefined", () => {
-    // 捕まえる変異: 宣言された長さを検証せず、実際に読めた分 (subarray が
-    // 自動で切り詰めた分) で妥協する。truncate された値を「正常に読めた
-    // 短いエントリ」として受理してしまう
-    // type=0, length=50 のはずが実際には 3 バイトしか続かない、壊れた TLV
+    // 捕まえる変異: 宣言された長さを検証せず、subarray が自動で切り詰めた短い分で妥協して受理してしまう (type=0,length=50 だが実際は 3 バイトしかない壊れた TLV)
     const truncated = new Uint8Array([0, 50, 1, 2, 3]);
     const value = encodeBech32("nprofile", bytesToHex(truncated));
     expect(decodeNip19(value)).toBeUndefined();

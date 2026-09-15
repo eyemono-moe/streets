@@ -6,10 +6,8 @@ export type ActiveSigner = Signer & {
 };
 
 /**
- * `Writer` から見える署名器を、ログイン方式と同時に切り替える。
- *
- * メソッドの開始時にだけ現在値を読む。進行中の署名要求まで別 signer へ
- * 差し替えることはせず、次の操作から新しい session を使う。
+ * `Writer` から見える署名器を、ログイン方式と同時に切り替える。開始時に
+ * だけ現在値を読むので、進行中の署名要求は差し替わらず次の操作から新 session。
  */
 export const createActiveSigner = (): ActiveSigner => {
   let current: Signer | undefined;

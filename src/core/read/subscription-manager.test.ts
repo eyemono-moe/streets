@@ -69,12 +69,11 @@ const setup = () => {
   return { relays, store, manager, delivery };
 };
 
-// Task 6 helpers: replan() pools demand across every registered section, so
-// these tests need to mint many distinct authors (each with its own kind:10002)
-// and inspect a manager's global connection set rather than a single relay's
-// subscriptions. `seedByPubkey` lets `relayListFor` take a pubkey (as the brief
-// specifies) while still being able to sign for it, by remembering which seed
-// produced that pubkey.
+// replan() pools demand across every registered section, so these tests need
+// to mint many distinct authors (each with its own kind:10002) and inspect a
+// manager's global connection set rather than a single relay's subscriptions.
+// `seedByPubkey` lets `relayListFor` take a pubkey while still being able to
+// sign for it, by remembering which seed produced that pubkey.
 const seedByPubkey = new Map<string, number>();
 
 const pubkeyFor = (seed: number): string => {
@@ -231,11 +230,11 @@ describe("SubscriptionManager", () => {
     ]);
   });
 
-  // Review finding: the explicit-relays branch handed the very same `filters`
-  // array instance to every relay via perRelay.set(url, filters). The routed
-  // path (query-plan.ts) shallow-copies per relay specifically to prevent
-  // this kind of cross-relay aliasing (commit 7416368); the bypass path had
-  // reintroduced the hazard it fixed one layer down.
+  // The explicit-relays branch handed the very same `filters` array instance
+  // to every relay via perRelay.set(url, filters). The routed path
+  // (query-plan.ts) shallow-copies per relay specifically to prevent this
+  // kind of cross-relay aliasing; the bypass path had reintroduced the
+  // hazard fixed one layer down.
   it("gives each explicitly named relay its own filters array, not a shared reference", () => {
     const { relays, manager, delivery } = setup();
     const filters = [{ kinds: [1] }];
@@ -255,11 +254,11 @@ describe("SubscriptionManager", () => {
     expect(relays.has("wss://given/")).toBe(true);
   });
 
-  // ADR-0011 forbids silently dropping a place we couldn't check. An
-  // explicit relay list containing a URL that fails normalizeRelayUrl must
-  // not just vanish — that would be indistinguishable from "checked
-  // everywhere, found nothing". Report it through onRelayUnreachable so it
-  // shows up as incomplete, same as a relay that connected and then closed.
+  // Silently dropping a place we couldn't check is forbidden: an explicit
+  // relay list containing a URL that fails normalizeRelayUrl must not just
+  // vanish — that would be indistinguishable from "checked everywhere, found
+  // nothing". Report it through onRelayUnreachable so it shows up as
+  // incomplete, same as a relay that connected and then closed.
   it("reports an unnormalizable explicit relay url as unreachable instead of silently dropping it", () => {
     const { manager, delivery } = setup();
     const d = delivery();
@@ -404,14 +403,11 @@ describe("SubscriptionManager", () => {
     expect(d.onEvent).not.toHaveBeenCalled();
   });
 
-  // Task 7 rewrite (ruling A). This test used to assert that connect()
-  // throwing for one relay propagated out of manager.subscribe() and rolled
-  // back the connections already acquired for earlier relays in the same
-  // call. That path is gone by design now: ConnectionPool absorbs connect()
-  // failures and reports them through onClosed -> onRelayUnreachable instead
-  // of throwing (SectionReader.stop() doesn't try/catch handle.close(), so a
-  // throw there used to permanently wedge #started -- see the brief). The
-  // already-good connection must simply stay open; nothing rolls back.
+  // ConnectionPool absorbs connect() failures and reports them through
+  // onClosed -> onRelayUnreachable instead of throwing -- SectionReader.stop()
+  // doesn't try/catch handle.close(), so a throw there would permanently
+  // wedge #started. The already-good connection must simply stay open;
+  // nothing rolls back.
   it("keeps an already-acquired relay open and reports the failing one via onRelayUnreachable, instead of throwing, when connect() fails for a later relay in the same subscribe() call", () => {
     const store = new EventStore();
     const opened: FakeRelayConnection[] = [];
@@ -441,15 +437,15 @@ describe("SubscriptionManager", () => {
     expect(opened).toHaveLength(1);
     expect(opened[0].closed).toBe(false);
     // Only wss://ok/ counts as a live connection -- wss://broken/'s pool
-    // entry is retained (for a later reconnect, Task 9) with a null
+    // entry is retained (for a later reconnect) with a null
     // connection, which `size` deliberately excludes.
     expect(manager.connectionCount).toBe(1);
     expect(unreachable).toEqual(["wss://broken/"]);
   });
 
-  // Task 7 rewrite (ruling A). Same story as above but the failure point is
-  // connection.subscribe() throwing rather than connect() -- a different
-  // step of the pool's algorithm, also absorbed rather than propagated.
+  // Here the failure point is connection.subscribe() throwing rather than
+  // connect() -- a different step of the pool's algorithm, also absorbed
+  // rather than propagated.
   // Both sockets "connect" successfully here (connect() never throws in
   // this setup); only wss://broken/'s subscribe() call fails, so per the
   // pool's model that connection is still live (a failed REQ is not a dead
@@ -492,8 +488,8 @@ describe("SubscriptionManager", () => {
     expect(unreachable).toEqual(["wss://broken/"]);
   });
 
-  // Ruling A: PooledSubscription.close() (and therefore SectionHandle.close())
-  // must be total. Reproduces the exact chain the brief names: handle.close()
+  // PooledSubscription.close() (and therefore SectionHandle.close())
+  // must be total. Reproduces the chain: handle.close()
   // ends by calling replan(), which frees budget and lets a previously
   // budget-refused relay attempt connect() for the first time -- if that
   // connect() throws, it must not propagate out of close().
@@ -538,9 +534,6 @@ describe("SubscriptionManager", () => {
     expect(unreachable).toContain("wss://broken/");
   });
 
-  // Coverage gap flagged by review round 1: the brief names dispose() vs
-  // outstanding handles as a risk area, but no test exercised dispose() at
-  // all.
   it("dispose() closes every pooled connection and zeroes connectionCount", () => {
     const { relays, manager, delivery } = setup();
     manager.subscribe(
@@ -556,7 +549,7 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
   });
 
-  // Task 12 fix round 1: connectionCount alone cannot prove a budget was
+  // connectionCount alone cannot prove a budget was
   // ever respected, because sockets that violated it and later died erase
   // the evidence before anyone reads connectionCount. peakConnectionCount
   // is the high-water mark, taken when each socket is actually created, so
@@ -576,7 +569,7 @@ describe("SubscriptionManager", () => {
     expect(manager.peakConnectionCount).toBe(2);
   });
 
-  // Review finding: dispose() abandons outstanding SectionHandles instead of
+  // dispose() abandons outstanding SectionHandles instead of
   // neutralizing them. Sequence: subscribe wss://x (refCount 1) -> dispose()
   // clears the pool -> subscribe wss://x again (a *new* connection, refCount
   // 1) -> the stale handle from the first subscribe calls close(), which
@@ -640,19 +633,10 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 3: dispose() -> #pool.dispose() ->
-  // #drop() closes the connection but never marked entry.closed on the
-  // SubscriptionManager's own SectionEntry. With FakeRelayConnection,
-  // connection.close() synchronously delivers onClosed to every live
-  // subscription (mirroring what WebSocketRelayConnection.fail() does
-  // asynchronously for a real socket) -- so that delivery reaches
-  // #handlersFor's onClosed handler, whose only guard is `if
-  // (!entry.closed)`. If dispose() never sets entry.closed, this fires
-  // onRelayUnreachable into a delivery callback whose owning SectionReader
-  // already had stop() called (or never gets to, since dispose() was
-  // supposed to be the final word).
-  // ---------------------------------------------------------------------
+  // FakeRelayConnection.close() synchronously delivers onClosed to every
+  // live subscription, reaching #handlersFor's `if (!entry.closed)` guard --
+  // if dispose() never sets entry.closed, this fires onRelayUnreachable
+  // into a callback whose SectionReader already had stop() called.
   it("marks every entry closed before pool.dispose(), so the pool's synchronous close-delivery cannot reach a delivery callback after dispose()", () => {
     const { manager, delivery } = setup();
     const d = delivery();
@@ -663,10 +647,8 @@ describe("SubscriptionManager", () => {
     expect(d.onRelayUnreachable).not.toHaveBeenCalled();
   });
 
-  // Coverage gap flagged by review round 1: this is the security-relevant
-  // property named by the brief (ADR-0024) — a duplicate delivery must
-  // still reach every section, and a forged event reusing a known id must
-  // never overwrite the verified body in EventStore.
+  // A duplicate delivery must still reach every section, and a forged event
+  // reusing a known id must never overwrite the verified body in EventStore.
   it("still delivers the id on a duplicate, and never lets a forged duplicate overwrite the stored body", () => {
     const { relays, store, manager, delivery } = setup();
     const dA = delivery();
@@ -695,8 +677,6 @@ describe("SubscriptionManager", () => {
     expect(store.get(note.id)).toEqual(note);
   });
 
-  // Coverage gap flagged by review round 1: the `closed` guard makes a
-  // second close() a no-op by inspection, but nothing asserted it.
   it("calling close() twice on a handle only releases the shared connection once", () => {
     const { relays, manager, delivery } = setup();
     const first = manager.subscribe(
@@ -721,7 +701,7 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(0);
   });
 
-  // Task 6: the budget is global (ADR-0025), so two sections that each look
+  // The budget is global, so two sections that each look
   // at their own five authors must still share one 30 (here 3) connection
   // ceiling, not each get their own.
   it("shares one budget across every section", () => {
@@ -760,8 +740,7 @@ describe("SubscriptionManager", () => {
   // The whole point of diffing (rather than tearing down and re-opening
   // everything on every replan) is that a relay both the old and new plan
   // keep is left alone. Without the diff, re-planning would roll every
-  // section's phase back from settled to streaming on every replan() call —
-  // see the brief's rationale.
+  // section's phase back from settled to streaming on every replan() call.
   it("does not reopen a relay that both plans keep", () => {
     const { manager, connectCalls } =
       createManagerWithTwoAuthorsSharingARelay();
@@ -781,14 +760,10 @@ describe("SubscriptionManager", () => {
     expect(plans.at(-1)?.uncoveredAuthors).toBeGreaterThan(0);
   });
 
-  // Task 7 rewrite (ruling E, 2026-08-01 ADR-0025 addendum). The original
-  // version of this test asserted a stronger claim -- "never drops" -- which
-  // is no longer true once ConnectionPool is the single place the budget is
-  // enforced: ADR-0005's "explicit relays bypass author routing" says
-  // nothing about bypassing ADR-0011's socket ceiling, and ADR-0025 already
-  // truncates `pinned` at `budget`. What's actually true, and worth testing,
-  // is that an explicit relay wins the contest for a scarce slot over a
-  // routed one.
+  // Explicit relays bypass author routing, but not the connection budget --
+  // `pinned` is truncated at `budget` like everything else. What's worth
+  // testing is that an explicit relay wins the contest for a scarce slot
+  // over a routed one.
   it("prefers an explicitly named relay over a routed one when the budget is tight", () => {
     const { manager, store, connections } = createManager({
       maxConnections: 1,
@@ -805,10 +780,10 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(1);
   });
 
-  // Ruling E: pinned is priority, not exemption. A section naming more
+  // pinned is priority, not exemption. A section naming more
   // relays than the whole app can afford still gets truncated at the
   // budget -- the surviving relays are reported unreachable through
-  // onRelayUnreachable (ruling C: there are no authors behind an explicit
+  // onRelayUnreachable (there are no authors behind an explicit
   // relay, so uncoveredAuthors cannot describe this).
   it("truncates an explicit relay list at the budget instead of exempting it from it", () => {
     const { manager, connections } = createManager({ maxConnections: 2 });
@@ -828,7 +803,7 @@ describe("SubscriptionManager", () => {
 
     expect(connections.size).toBe(2);
     expect(unreachable).toEqual(["wss://e3/"]);
-    // Ruling D: the refused relay stays in plan.relays so SectionReader
+    // The refused relay stays in plan.relays so SectionReader
     // keeps a record of it (and its unreachable flag) instead of losing it
     // at the next plan change.
     expect(handle.initialPlan.relays).toEqual([
@@ -838,12 +813,10 @@ describe("SubscriptionManager", () => {
     ]);
   });
 
-  // Ruling B: the widened bug the pool exists to close. planQuery
-  // broadcasts an author with no known kind:10002 to every fallback relay
-  // -- before Task 7, the manager opened all of them unconditionally, so
-  // one unroutable author in a section could burn the app's entire budget
-  // on a single fallback broadcast. The pool now caps this exactly like the
-  // routed and explicit paths.
+  // planQuery broadcasts an author with no known kind:10002 to every
+  // fallback relay, so one unroutable author in a section could burn the
+  // app's entire budget on a single fallback broadcast if left unchecked.
+  // The pool caps this exactly like the routed and explicit paths.
   it("caps a fallback broadcast at the budget instead of opening every fallback relay for one unroutable author", () => {
     const { manager, connections } = createManager({
       maxConnections: 1,
@@ -872,13 +845,11 @@ describe("SubscriptionManager", () => {
     ]);
   });
 
-  // ---------------------------------------------------------------------
-  // Fix round 1 (post-review). Critical 1: the diff in #applyEntryDiff was
-  // keyed on relay URL alone, so a relay that survives both plans kept its
-  // stale filters forever even when the set of authors routed to it changed
-  // — the section would report settled while an author it should be
-  // watching was subscribed nowhere at all (ADR-0011's cardinal sin).
-  // ---------------------------------------------------------------------
+  // If the diff in #applyEntryDiff were keyed on relay URL alone, a relay
+  // that survives both plans would keep its stale filters forever even when
+  // the set of authors routed to it changed — the section would report
+  // settled while an author it should be watching was subscribed nowhere at
+  // all.
   it("re-subscribes a kept relay in place when its routed authors change, and reports the restart", () => {
     const { manager, store, connections, connectCalls } = createManager();
     const A = pubkeyFor(40_001);
@@ -922,10 +893,8 @@ describe("SubscriptionManager", () => {
     expect(connections.get("wss://x/")?.subscriptions[0]?.closed).toBe(true);
   });
 
-  // ---------------------------------------------------------------------
-  // Fix round 1. Important 3: #planEqual prevents onPlanChanged from firing
-  // when a replan() produces the exact same observable plan.
-  // ---------------------------------------------------------------------
+  // #planEqual prevents onPlanChanged from firing when a replan() produces
+  // the exact same observable plan.
   it("never fires onPlanChanged when repeated replan() calls produce the same plan", () => {
     const { manager, store } = createManager();
     const A = pubkeyFor(42_001);
@@ -947,13 +916,10 @@ describe("SubscriptionManager", () => {
     expect(onPlanChanged).not.toHaveBeenCalled();
   });
 
-  // planEqual is exported specifically so its order-insensitivity can be
-  // pinned directly: constructing a genuine "same set, different array
-  // order" case through the public API turned out to be effectively
-  // impossible (perRelay's key order is a deterministic function of filter
-  // author order and each author's own kind:10002 tag order, never of
-  // selectRelays' internal pick order), so a direct unit test is the honest
-  // way to cover this property rather than a contrived integration scenario.
+  // planEqual is exported so its order-insensitivity can be pinned directly
+  // -- a genuine "same set, different order" case is effectively impossible
+  // to construct through the public API, since perRelay's key order tracks
+  // filter/tag order, never selectRelays' pick order.
   it("planEqual treats relay order as insignificant", () => {
     const a: SectionPlan = {
       relays: ["wss://x/", "wss://y/"],
@@ -982,14 +948,12 @@ describe("SubscriptionManager", () => {
     expect(planEqual(a, b)).toBe(false);
   });
 
-  // ---------------------------------------------------------------------
-  // Fix round 1. Important 3: onPlanChanged must never fire synchronously
-  // from inside the subscribe() call that registers the section — the
-  // caller doesn't hold the handle yet. subscribeWithPlans' `plans` array
-  // (seeded manually with initialPlan) can't distinguish "no spurious fire"
-  // from "a fire happened but plans already had the right value" — this
-  // asserts on the raw callback directly instead.
-  // ---------------------------------------------------------------------
+  // onPlanChanged must never fire synchronously from inside the subscribe()
+  // call that registers the section — the caller doesn't hold the handle
+  // yet. subscribeWithPlans' `plans` array (seeded manually with
+  // initialPlan) can't distinguish "no spurious fire" from "a fire happened
+  // but plans already had the right value" — this asserts on the raw
+  // callback directly instead.
   it("never calls onPlanChanged synchronously from within the subscribe() call that registers the section", () => {
     const { manager, store } = createManager();
     const A = pubkeyFor(43_001);
@@ -1007,20 +971,11 @@ describe("SubscriptionManager", () => {
     expect(onPlanChanged).not.toHaveBeenCalled();
   });
 
-  // ---------------------------------------------------------------------
-  // Fix round 1. Critical 2(a): a section registered reentrantly (from
-  // inside a delivery callback fired synchronously during an in-progress
-  // replan) must not be visited by the still-running outer pass using its
-  // stale, pre-registration selection. Built by making one relay answer
-  // with a synchronous EOSE (mimicking a very fast relay, the same
-  // synchronous-callback contract Task 1 gave dead connections) and
-  // reacting to that EOSE by registering a brand new section for an author
-  // whose kind:10002 is already known. `planB` mirrors how a real caller
-  // combines `initialPlan` with subsequent `onPlanChanged` calls (see
-  // SectionReader.start()) — it's the "what does this section's owner
-  // actually end up believing" signal, regardless of which exact mechanism
-  // (synchronous initialPlan vs. a deferred onPlanChanged) delivers it.
-  // ---------------------------------------------------------------------
+  // A section registered reentrantly (from inside a delivery callback fired
+  // during an in-progress replan) must not be visited by the still-running
+  // outer pass using its stale, pre-registration selection. `planB` mirrors
+  // how a real caller combines `initialPlan` with `onPlanChanged`, since
+  // which mechanism delivers the plan shouldn't matter.
   it("does not corrupt a section registered reentrantly from inside a replan callback", () => {
     const store = new EventStore();
     const AUTHOR = pubkeyFor(41_001);
@@ -1032,11 +987,9 @@ describe("SubscriptionManager", () => {
       connect: (url) => ({
         url,
         subscribe: (filters, handlers) => {
-          // Simulate a relay that answers instantly: EOSE fires
-          // synchronously, before connection.subscribe() (and therefore
-          // manager.subscribe()) returns — exactly like the dead-connection
-          // case Task 1 documented, but via onEose instead of onClosed so
-          // this test is isolated from Critical 2(b) below.
+          // A relay that answers instantly: EOSE fires before
+          // manager.subscribe() returns, via onEose (not onClosed) so this
+          // stays isolated from the reentrant-onClosed test below.
           if (url === "wss://trigger/") handlers.onEose();
           void filters;
           return { close: () => {} };
@@ -1088,16 +1041,11 @@ describe("SubscriptionManager", () => {
     });
   });
 
-  // ---------------------------------------------------------------------
-  // Fix round 1. Critical 2(b): connection.subscribe() on an already-dead
-  // pooled connection fires onClosed synchronously (Task 1's contract). If
-  // a delivery callback reacts to that by calling replan() itself, the
-  // reentrant call must not re-run #applyEntryDiff's "add" loop for the
-  // same entry while the original add is still in flight — otherwise it
-  // #acquires the same url a second time (a leaked refCount for an orphaned
-  // second subscription) and, unbounded, the same synchronous chain
-  // recurses without limit.
-  // ---------------------------------------------------------------------
+  // connection.subscribe() on an already-dead pooled connection fires
+  // onClosed synchronously. If a delivery callback reacts by calling
+  // replan(), the reentrant call must not re-run the "add" loop for the
+  // same entry while the original add is in flight -- otherwise it
+  // double-acquires the url and, unbounded, recurses without limit.
   it("does not stack-overflow or double-subscribe when a delivery callback reacts to a dead connection by calling replan()", () => {
     const store = new EventStore();
     let subscribeCallCount = 0;
@@ -1109,9 +1057,7 @@ describe("SubscriptionManager", () => {
         url,
         subscribe: (_filters, handlers) => {
           subscribeCallCount += 1;
-          // Always dead: every subscribe() attempt reports closed
-          // synchronously, exactly like a pooled connection whose socket
-          // already died (Task 1's onClosed contract).
+          // Always dead: every subscribe() attempt reports closed synchronously.
           handlers.onClosed("socket closed");
           return { close: () => {} };
         },
@@ -1127,10 +1073,8 @@ describe("SubscriptionManager", () => {
       manager.subscribe([{ kinds: [1] }], ["wss://dead/"], {
         onEvent: () => {},
         onRelayComplete: () => {},
-        // Reacting to the dead relay by asking the manager to re-plan is
-        // exactly the pattern the coordinator's repro used to trigger the
-        // recursion — deliberately unconditional (no "only once" guard in
-        // the test) so a regression would still stack-overflow.
+        // Deliberately unconditional (no "only once" guard) so a
+        // regression would still stack-overflow.
         onRelayUnreachable: () => manager.replan(),
         onPlanChanged: () => {},
         onRelayRestarted: () => {},
@@ -1141,19 +1085,11 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(1);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 1: the test above only exercises a
-  // single relay at the default budget of 30, so the subscribe() there
-  // always succeeds -- the URL lands in entry.opened and filtersEqual
-  // short-circuits pass 2, so #dirty never gets set a second time. A relay
-  // *refused for budget* (pool.subscribe() returns undefined, not a dead
-  // connection) never enters entry.opened, so every pass re-attempts it,
-  // is refused again, and (with an unconditional onRelayUnreachable ->
-  // replan() delivery callback, the pattern the test above documents as
-  // supported) sets #dirty every single time -- a synchronous infinite
-  // loop. This needs two relays under a budget of 1 so one is accepted and
-  // the other is refused on every pass.
-  // ---------------------------------------------------------------------
+  // A relay *refused for budget* (pool.subscribe() returns undefined, not a
+  // dead connection) never enters entry.opened, so every pass re-attempts,
+  // re-refuses, and -- with an unconditional onRelayUnreachable -> replan()
+  // callback -- sets #dirty every time, a synchronous infinite loop. Needs
+  // two relays under a budget of 1 so one is accepted, one refused always.
   it("converges to a steady state instead of looping forever when a delivery callback replans after a relay is refused for budget", () => {
     const store = new EventStore();
     const manager = new SubscriptionManager({
@@ -1170,8 +1106,7 @@ describe("SubscriptionManager", () => {
         onEvent: () => {},
         onRelayComplete: () => {},
         // wss://one/ takes the only budget slot; wss://two/ is refused
-        // every pass. Reacting to the refusal by replanning, unconditionally,
-        // is exactly the pattern the coordinator's repro used.
+        // every pass and unconditionally triggers a replan.
         onRelayUnreachable: () => {
           unreachableCalls += 1;
           manager.replan();
@@ -1181,26 +1116,17 @@ describe("SubscriptionManager", () => {
       }),
     ).not.toThrow();
 
-    // wss://two/ must be reported exactly once -- the transition into
-    // "refused" -- not once per pass. Reported every pass is the infinite
-    // loop; reported zero times would hide the incompleteness ADR-0011
-    // forbids.
+    // Reported exactly once (the transition into "refused"), not once per
+    // pass (infinite loop) and not zero times (hides the incompleteness).
     expect(unreachableCalls).toBe(1);
     expect(manager.connectionCount).toBe(1);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 1 (second half): the transition-only
-  // guard above stops *that* particular non-convergent case, but nothing
-  // pins that #runReplan's do/while loop is bounded independently of it --
-  // if convergence ever fails for a different reason (a delivery callback
-  // that keeps manufacturing new demand rather than repeating old demand),
-  // the loop must still terminate rather than hang. Every refusal spawns a
-  // brand-new section with a brand-new explicit relay (also immediately
-  // refused, since the budget is already exhausted by a filler section),
-  // recreating a fresh "transition into refused" forever -- convergence
-  // never happens by construction.
-  // ---------------------------------------------------------------------
+  // The transition-only guard above stops that non-convergent case, but the
+  // do/while loop must also stay bounded when convergence fails for a
+  // different reason -- a callback that keeps manufacturing new demand.
+  // Every refusal spawns a brand-new section with its own explicit relay
+  // (also immediately refused), so convergence never happens by construction.
   it("bounds the replan loop and reports instead of hanging when convergence keeps failing", () => {
     const store = new EventStore();
     const manager = new SubscriptionManager({
@@ -1224,10 +1150,8 @@ describe("SubscriptionManager", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     let spawnCount = 0;
 
-    // Every spawned section's own onRelayUnreachable spawns *another* new
-    // section the same way -- each one is refused for budget on its first
-    // pass (the filler still owns the only slot) and reacts by growing the
-    // demand further, so this never settles down on its own.
+    // Each spawned section's onRelayUnreachable spawns another, growing
+    // demand forever since the filler still owns the only slot.
     const spawningDelivery = (): SectionDelivery => ({
       onEvent: () => {},
       onRelayComplete: () => {},
@@ -1253,17 +1177,11 @@ describe("SubscriptionManager", () => {
     errorSpy.mockRestore();
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 2: pool.subscribe() can fire
-  // handlers.onClosed *synchronously* (connection.subscribe() throwing is
-  // one way this happens -- see connection-pool.ts's "if
-  // (!entry.subscription) handlers.onClosed(...)"). That reaches
+  // pool.subscribe() can fire handlers.onClosed *synchronously*, reaching
   // onRelayUnreachable -> an arbitrary delivery callback. If that callback
-  // closes the section, #close() drains and clears entry.opened *before*
-  // pool.subscribe() has returned to #applyEntryDiff's "new" branch --
-  // which then unconditionally does entry.opened.set(url, ...), repopulating
-  // a closed entry with a live PooledSubscription nothing will ever close.
-  // ---------------------------------------------------------------------
+  // closes the section, #close() clears entry.opened *before*
+  // pool.subscribe() returns -- the "new" branch would then repopulate a
+  // closed entry with a live PooledSubscription nothing ever closes.
   it("does not leak a socket into a closed entry when pool.subscribe() synchronously reports failure and the delivery callback closes the section", () => {
     const store = new EventStore();
     const A = pubkeyFor(46_003);
@@ -1292,22 +1210,17 @@ describe("SubscriptionManager", () => {
       fallbackRelays: ["wss://fallback/"],
     });
 
-    // The initial subscribe() must complete normally (and return a handle)
-    // before the failing relay ever enters the picture -- otherwise the
-    // synchronous failure would fire *during* subscribe() itself, before
-    // the caller has a handle to close with, which is a different (already
-    // covered) scenario, not this one.
+    // subscribe() must return a handle before the failing relay enters the
+    // picture -- a failure *during* subscribe() is a different, already
+    // covered scenario.
     const handle = manager.subscribe(
       [{ kinds: [1], authors: [A] }],
       undefined,
       {
         onEvent: () => {},
         onRelayComplete: () => {},
-        // The section closes itself in reaction to the (synchronous) failure
-        // report -- a legitimate thing for a consumer to do. Safe to
-        // reference `handle` here even though this closure is created before
-        // the `const` initializer finishes: the callback only ever *runs*
-        // later (from replan(), below), by which point `handle` is assigned.
+        // Safe to reference `handle` here despite the closure predating the
+        // `const` -- it only runs later, from replan() below.
         onRelayUnreachable: () => handle.close(),
         onPlanChanged: () => {},
         onRelayRestarted: () => {},
@@ -1315,28 +1228,21 @@ describe("SubscriptionManager", () => {
     );
     expect(handle.initialPlan.relays).toEqual(["wss://fallback/"]);
 
-    // A's kind:10002 now resolves to wss://bad/ -- a *new* relay entering
-    // this entry's plan (the "new" branch of #applyEntryDiff, not the
-    // in-place restart branch), whose subscribe() fails synchronously.
+    // A's kind:10002 now resolves to wss://bad/ -- a *new* relay (not an
+    // in-place restart), whose subscribe() fails synchronously.
     store.put(relayListFor(A, ["wss://bad/"]), "wss://indexer/");
     expect(() => manager.replan()).not.toThrow();
 
-    // Without the entry.closed guard, #applyEntryDiff repopulates
-    // entry.opened with the PooledSubscription after #close() already
-    // cleared it. Nothing ever calls .close() on it again, so the
-    // underlying connection is never closed and the pool still counts it.
+    // Without the entry.closed guard this would repopulate entry.opened
+    // after #close() cleared it, leaking a connection nothing ever closes.
     expect(manager.connectionCount).toBe(0);
     expect(closeCalls).toBeGreaterThan(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 2 (restart branch): the same hole
-  // exists after onRelayRestarted, one branch down in #applyEntryDiff --
+  // The same hole exists after onRelayRestarted, one branch down --
   // it fires before the in-place restart's own pool.subscribe() call, so a
-  // delivery callback that closes the section there has the identical
-  // window to leak a freshly (re)opened subscription into a cleared
-  // entry.opened.
-  // ---------------------------------------------------------------------
+  // delivery callback that closes the section there has the same window
+  // to leak a subscription into a cleared entry.opened.
   it("does not leak a socket into a closed entry when onRelayRestarted synchronously closes the section (in-place restart)", () => {
     const store = new EventStore();
     const A = pubkeyFor(46_001);
@@ -1361,38 +1267,28 @@ describe("SubscriptionManager", () => {
         onPlanChanged: () => {},
         onRelayRestarted: () => {
           restarted = true;
-          // Safe: this callback only runs later, from replan() below, by
-          // which point `handle` is assigned.
+          // Safe: runs later, from replan() below.
           handle.close();
         },
       },
     );
 
-    // B's kind:10002 declares the SAME relay A already uses -- wss://x/
-    // survives in both the old and new plan, but the author bucket routed
-    // to it changes from [A] to [A, B], triggering the in-place restart
-    // for that URL (same shape as the Task 7 fix-round-1 test above).
+    // B's kind:10002 declares the SAME relay A already uses, so the author
+    // bucket routed to wss://x/ changes from [A] to [A, B], triggering
+    // an in-place restart for that URL.
     store.put(relayListFor(B, ["wss://x/"]), "wss://indexer/");
     expect(() => manager.replan()).not.toThrow();
 
     expect(restarted).toBe(true);
-    // The section closed itself synchronously from inside onRelayRestarted.
-    // Nothing should still be holding wss://x/ open on its behalf.
+    // Nothing should still be holding wss://x/ open on the section's behalf.
     expect(manager.connectionCount).toBe(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Task 7 fix round 1, Important 1: no test at either level covered
-  // connection.subscribe() throwing during an *in-place restart* — a URL
-  // already pooled and live, whose filters change (same shape as
-  // "re-subscribes a kept relay in place..." above), where the re-subscribe
-  // call itself fails. This pins the #applyEntryDiff "same relay kept,
-  // filters changed" branch specifically: it must converge to exactly one
-  // onRelayUnreachable (via the pool's synchronous onClosed, not a second
-  // direct call from the manager), leave entry.opened in a state with no
-  // leaked duplicate registration for the URL, leave sibling relays
-  // untouched, and still let close() be total afterward.
-  // ---------------------------------------------------------------------
+  // Pins the "same relay kept, filters changed" branch when the re-subscribe
+  // call itself fails: must converge to exactly one onRelayUnreachable (via
+  // the pool's synchronous onClosed, not a second direct call), leave no
+  // leaked duplicate registration, leave siblings untouched, and stay
+  // close()-total afterward.
   it("reports exactly one onRelayUnreachable, leaks nothing, and stays close()-total when connection.subscribe() throws during an in-place restart", () => {
     const store = new EventStore();
     const A = pubkeyFor(45_001);
@@ -1418,10 +1314,8 @@ describe("SubscriptionManager", () => {
           subscribe: (filters, _handlers) => {
             xSubscribeCalls += 1;
             void filters;
-            // First call (initial open) succeeds; the second call (the
-            // in-place restart triggered by B joining A on wss://x/)
-            // throws — a fake whose subscribe() fails only on that
-            // second call for this URL, per the coordinator's guidance.
+            // First call (initial open) succeeds; the second (the in-place
+            // restart triggered by B joining A) throws.
             if (xSubscribeCalls === 2) throw new Error("boom");
             return { close: () => {} };
           },
@@ -1453,50 +1347,36 @@ describe("SubscriptionManager", () => {
     expect(unreachable).toEqual([]);
     expect(manager.connectionCount).toBe(2); // wss://x/ and wss://c/
 
-    // B's kind:10002 arrives declaring the SAME relay A already uses.
-    // wss://x/ survives in both the old and new plan, but the author
-    // bucket routed to it changes from [A] to [A, B] — triggering the
-    // in-place restart, whose subscribe() call is the one wired to throw.
+    // B's kind:10002 arrives declaring the SAME relay A already uses, so the
+    // author bucket routed to it changes -- the in-place restart's
+    // subscribe() call is the one wired to throw.
     store.put(relayListFor(B, ["wss://x/"]), "wss://indexer/");
     expect(() => manager.replan()).not.toThrow();
 
     expect(xSubscribeCalls).toBe(2);
     expect(xConnectCalls).toBe(1); // no second connect() — same connection
-    // Exactly one report for wss://x/, converged through the pool's
-    // synchronous onClosed -> #handlersFor -> onRelayUnreachable path, not
+    // Exactly one report, via the pool's synchronous onClosed path, not
     // doubled by a separate direct call from the manager.
     expect(unreachable).toEqual(["wss://x/"]);
-    // wss://x/'s connection itself is still counted live (only its REQ
-    // failed, not the socket) and wss://c/ is untouched by any of this.
+    // Only the REQ failed, not the socket, so wss://x/ is still live.
     expect(manager.connectionCount).toBe(2);
 
-    // A further replan() with no routing change must not re-attempt the
-    // failed restart (entry.opened already reflects the last-attempted
-    // [A, B] filters, so the diff sees "unchanged") and must not re-report
-    // it — proving there is exactly one live bookkeeping record for
-    // wss://x/, not a stale one left over from before the restart.
+    // A further replan() must not re-attempt or re-report -- entry.opened
+    // already reflects the last-attempted filters, so the diff sees
+    // "unchanged".
     manager.replan();
     expect(xSubscribeCalls).toBe(2);
     expect(unreachable).toEqual(["wss://x/"]);
 
-    // close() must still be total, and must actually tear the connection
-    // down exactly once — if the failed restart had left a duplicate
-    // registration behind (the old entry never released), this would
-    // either throw, fire close() more than once, or leave connectionCount
-    // showing wss://x/ as still live afterward.
+    // close() must still be total and tear the connection down exactly once.
     expect(() => handle.close()).not.toThrow();
     expect(xConnectionCloseCalls).toBe(1);
     expect(manager.connectionCount).toBe(0);
   });
 
-  // ---------------------------------------------------------------------
-  // Final whole-branch review, finding 4: #replanOnce iterates every
-  // registered entry in one bare for loop, calling onPlanChanged /
-  // onRelayUnreachable / onRelayRestarted directly. If one entry's callback
-  // throws, entries processed later in that same pass never get their
-  // updated plan -- hidden degradation ADR-0011 forbids, triggered by
-  // ordinary (if buggy) consumer code, not anything adversarial.
-  // ---------------------------------------------------------------------
+  // #replanOnce iterates every entry in one bare for loop. If one entry's
+  // callback throws, entries processed later in that pass must still get
+  // their updated plan.
   it("does not strand later entries in the same replan pass when an earlier entry's onPlanChanged callback throws", () => {
     const store = new EventStore();
     const A = pubkeyFor(47_001);
@@ -1536,8 +1416,7 @@ describe("SubscriptionManager", () => {
     expect(handleA.initialPlan.relays).toEqual(["wss://fallback/"]);
 
     // Both authors' relay lists resolve before the SAME replan() call, so
-    // #replanOnce's for loop visits both entries in one pass: A (throws)
-    // then B (registered after, later in iteration order).
+    // one pass visits A (throws) then B.
     store.put(relayListFor(A, ["wss://a-write/"]), "wss://indexer/");
     store.put(relayListFor(B, ["wss://b-write/"]), "wss://indexer/");
 
@@ -1545,13 +1424,6 @@ describe("SubscriptionManager", () => {
 
     expect(plansB.at(-1)?.relays).toEqual(["wss://b-write/"]);
   });
-
-  // ---------------------------------------------------------------------
-  // Fix round 1, Important 2: Task 9 added ConnectionPool.retryNow() and
-  // ConnectionPoolOptions.scheduler/random, with SubscriptionManager meant
-  // to delegate/pass them straight through -- but no test here exercised
-  // either, despite both being brief-mandated public interface.
-  // ---------------------------------------------------------------------
 
   it("retryNow() delegates to the pool and reconnects a dead relay immediately", () => {
     const store = new EventStore();
@@ -1606,14 +1478,12 @@ describe("SubscriptionManager", () => {
     manager.subscribe([{ kinds: [1] }], ["wss://one/"], noopDelivery());
     connections.get("wss://one/")?.die();
 
-    // If `scheduler` weren't actually reaching the pool, it would fall back
-    // to a real setTimeout and advancing this fake clock would do nothing --
-    // connectCalls would stay at 1 for the rest of this synchronous test.
+    // If `scheduler` weren't reaching the pool, this fake clock advance
+    // would do nothing and connectCalls would stay at 1.
     clock.advance(999);
     expect(connectCalls).toHaveLength(1);
-    // First backoff is exactly 1000 * (0.5 + 0.5) -- deterministic only
-    // because `random` also reached the pool; real Math.random() would make
-    // this 999-vs-1000 boundary check flaky.
+    // First backoff is exactly 1000 * (0.5 + 0.5), deterministic only
+    // because `random` also reached the pool.
     clock.advance(1);
     expect(connectCalls).toHaveLength(2);
   });
@@ -1629,8 +1499,7 @@ describe("SubscriptionManager", () => {
       store,
       routing: new RoutingTable(store),
       connect: (url) => {
-        // autoOpen: false の接続しか返さない -- 恒久的に到達不能なリレー
-        // (`.onion` が実地で示した状況) を再現する。
+        // autoOpen: false -- 恒久的に到達不能なリレーを再現する。
         const relay = new FakeRelayConnection(url, { autoOpen: false });
         connections.set(url, relay);
         return relay;
@@ -1656,14 +1525,10 @@ describe("SubscriptionManager", () => {
       },
     );
 
-    // Before it degrades, the author's only declared relay is picked as
-    // normal.
     expect(handle.initialPlan.relays).toEqual(["wss://dead/"]);
 
-    // DEGRADED_AFTER_FAILURES (4) consecutive relay-attributable failures,
-    // advancing the injected clock through each exponential-backoff
-    // reconnect in between so the pool actually retries and re-fails --
-    // same sequence connection-pool.test.ts uses to reach degraded.
+    // DEGRADED_AFTER_FAILURES (4) consecutive failures, advancing the clock
+    // through each backoff so the pool actually retries and re-fails.
     connections.get("wss://dead/")?.die(); // failure 1
     clock.advance(1000);
     connections.get("wss://dead/")?.die(); // failure 2
@@ -1674,9 +1539,7 @@ describe("SubscriptionManager", () => {
 
     expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
 
-    // ADR-0021: connection death does not itself trigger replan() --
-    // callers own that decision. Trigger it explicitly, as replan()'s own
-    // doc comment says a routing change would.
+    // Connection death does not itself trigger replan() -- callers own that.
     manager.replan();
 
     expect(plans.at(-1)?.relays).toEqual([]);
@@ -1684,32 +1547,13 @@ describe("SubscriptionManager", () => {
   });
 });
 
-// ---------------------------------------------------------------------
-// Final review (2026-08-06), Important 1: the test above
-// ("excludes a degraded relay on the next replan") proves the pure-function
-// wiring (`selectRelays({ degraded })`) is correct, but it drives the
-// replan by calling `manager.replan()` by hand -- in the real app, nothing
-// ever called that. `SubscriptionManager.#runReplan()` had exactly two
-// internal callers (`subscribe()`, `#close()`); a relay dying and staying
-// dead never triggered one on its own, so a `.onion`-style permanently
-// unreachable relay kept its selection slot forever in production.
-//
-// These tests drive the same `FakeRelayConnection({ autoOpen: false })` +
-// clock-advance sequence as the test above, but *never* call
-// `manager.replan()` by hand -- the whole point is that the constructor's
-// `pool.onDegradedChanged()` wiring (`connection-pool.ts`) plus the batching
-// in `#scheduleDegradedReplan()` (`subscription-manager.ts`) must produce the
-// replan on their own. These tests only drive the entry side (crossing into
-// degraded); the exit side is covered at the pool level
-// (`connection-pool.test.ts`'s `onDegradedChanged` tests) and relies on the
-// same batching wired here.
-// ---------------------------------------------------------------------
+// The test above calls `manager.replan()` by hand, proving the pure-function
+// wiring but not that the real app ever calls it. These tests never call it
+// by hand -- the constructor's `onDegradedChanged` wiring plus the batching
+// must produce the replan on their own.
 describe("SubscriptionManager: automatic replan on a degraded transition", () => {
-  // Mutation: delete `this.#pool.onDegradedChanged(...)` from the
-  // constructor (or have it call nothing) -- this is the end-to-end
-  // assertion the slice was missing. It fails not with a clearly-wrong
-  // number but with the plan simply never changing: `plans` stays empty
-  // forever, no matter how far the clock is advanced.
+  // If the constructor never wired `onDegradedChanged`, this fails not with
+  // a clearly-wrong number but with `plans` staying empty forever.
   it("degrading a relay's last connection automatically replans it out, with no manual replan() call", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
@@ -1720,8 +1564,7 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
       routing: new RoutingTable(store),
       connect: (url) => {
         connectCalls.push(url);
-        // autoOpen: false -- socket objects get created but never prove
-        // they opened, same as the real .onion relay this slice was fixing.
+        // autoOpen: false -- socket objects get created but never prove they opened.
         const relay = new FakeRelayConnection(url, { autoOpen: false });
         connections.set(url, relay);
         return relay;
@@ -1743,8 +1586,7 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
       onRelayRestarted: () => {},
     });
 
-    // Same DEGRADED_AFTER_FAILURES (4) exponential-backoff sequence as
-    // connection-pool.test.ts and the hand-triggered test above -- but no
+    // Same DEGRADED_AFTER_FAILURES (4) backoff sequence, but no
     // manager.replan() call anywhere below.
     connections.get("wss://dead/")?.die(); // failure 1
     clock.advance(1000);
@@ -1754,8 +1596,7 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     clock.advance(4000);
     connections.get("wss://dead/")?.die(); // failure 4 -> crosses into degraded
 
-    // The crossing notification is batched (DEGRADED_REPLAN_BATCH_MS) --
-    // nothing has fired synchronously yet.
+    // The crossing notification is batched -- nothing fired synchronously yet.
     expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
     expect(plans).toHaveLength(0);
 
@@ -1766,11 +1607,9 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     expect(plans[0].relays).toEqual([]);
     expect(plans[0].uncoveredAuthors).toBe(1);
 
-    // "no longer subscribed", made concrete: the replan dropped the last
-    // subscriber for wss://dead/, which (per ConnectionPool's `#drop`)
-    // cancels its pending reconnect timer too. If it were still subscribed,
-    // advancing far past any backoff delay would produce more connect()
-    // calls (ADR-0021 "never give up"); since it's gone, it doesn't.
+    // The replan dropped the last subscriber, which cancels its pending
+    // reconnect timer too -- otherwise advancing past any backoff would
+    // produce more connect() calls.
     const callsSoFar = connectCalls.filter((u) => u === "wss://dead/").length;
     clock.advance(120_000);
     expect(connectCalls.filter((u) => u === "wss://dead/").length).toBe(
@@ -1778,13 +1617,10 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     );
   });
 
-  // Mutation: revert `retryNow()` to a bare `this.#pool.retryNow()`. The
-  // degraded URL's failure history is cleared either way, so
-  // `degradedRelays` goes empty and the pool looks healthy -- but nothing
-  // re-selects, so the relay stays out of every section's plan. Note the
-  // assertions run with NO clock.advance(): once Task 1 notifies on the way
-  // out of the degraded set, advancing the clock would replan through the
-  // batch window and hide the defect entirely.
+  // Catches reverting retryNow() to a bare pool.retryNow(): failure history
+  // clears either way, but without a re-selection the relay stays out of
+  // the plan. No clock.advance() here -- advancing would replan through
+  // the batch window and hide the defect.
   it("retryNow() re-selects a degraded relay synchronously, and leaves no second replan queued", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
@@ -1827,11 +1663,9 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     expect(plans[0].relays).toEqual([]); // dropped from the plan
     expect(plans[0].uncoveredAuthors).toBe(1);
 
-    // The human hits "retry now". The pooled record for wss://dead/ is
-    // already gone (the replan above dropped its last subscriber), so
-    // `ConnectionPool.retryNow()`'s loop over live records cannot reach it
-    // at all -- clearing the failure history is all the pool can do. Only a
-    // re-selection can put the relay back in the plan.
+    // The pooled record for wss://dead/ is already gone, so
+    // `retryNow()`'s loop over live records can't reach it -- only a
+    // re-selection can put the relay back.
     manager.retryNow();
 
     expect(manager.pool.degradedRelays).toEqual([]);
@@ -1839,21 +1673,14 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     expect(plans[1].relays).toEqual(["wss://dead/"]);
     expect(plans[1].uncoveredAuthors).toBe(0);
 
-    // Mutation: drop the pending-batch teardown from `retryNow()`. Task 1's
-    // notification arms the batch timer on the way through
-    // `pool.retryNow()`; leaving it armed costs a second, redundant replan
-    // 200ms after every manual retry. Nothing else is scheduled at this
-    // point (the reconnect timer died with the dropped record, the cooldown
-    // timer was just cleared), so the count is exact.
+    // Catches dropping the pending-batch teardown from retryNow(): leaving
+    // it armed costs a second, redundant replan 200ms later.
     expect(clock.pendingCount).toBe(0);
   });
 
-  // Mutation: remove the batching (call `this.#runReplan()` directly from
-  // the pool.onDegradedChanged callback instead of arming/reusing a timer) -- this
-  // is the ADR-0021 churn concern named explicitly in the final review: "if
-  // 30 relays die together they all cross the threshold at nearly the same
-  // jittered moment; one replan per crossing would be exactly the churn
-  // ADR-0021 exists to prevent."
+  // Catches removing the batching (calling #runReplan() directly from the
+  // callback) -- if 30 relays die together, one replan per crossing would
+  // be exactly the churn batching exists to prevent.
   it("coalesces several relays degrading within the same batch window into one replan", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
@@ -1890,9 +1717,8 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     );
 
     const urls: RelayUrl[] = ["wss://dead-a/", "wss://dead-b/"];
-    // Both relays die and reconnect in lockstep, as a shared network outage
-    // would produce -- driving both to their 4th (crossing) failure inside
-    // the same batch window.
+    // Both relays die in lockstep, driving both to their 4th (crossing)
+    // failure inside the same batch window.
     for (const url of urls) connections.get(url)?.die(); // failure 1 each
     clock.advance(1000);
     for (const url of urls) connections.get(url)?.die(); // failure 2 each
@@ -1915,10 +1741,8 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     expect(plans[0].uncoveredAuthors).toBe(2);
   });
 
-  // Mutation: delete `this.#offDegraded()` from `dispose()` --
-  // `degradedListenerCount` stays 1 instead of dropping to 0.
-  // Mutation: delete the `#degradedReplanTimer` clear from `dispose()` --
-  // `clock.pendingCount` stays > 0 instead of dropping to 0.
+  // Catches dropping `#offDegraded()` from dispose() (listenerCount stays 1)
+  // or the timer clear (pendingCount stays > 0).
   it("dispose() cancels a pending replan batch and unsubscribes from the pool's onDegradedChanged notification", () => {
     const store = new EventStore();
     const connections = new Map<RelayUrl, FakeRelayConnection>();
@@ -1953,7 +1777,6 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     connections.get("wss://dead/")?.die();
     clock.advance(4000);
     connections.get("wss://dead/")?.die(); // crosses -> arms the replan batch
-    // (and a pending reconnect timer for wss://dead/ besides).
 
     expect(manager.pool.degradedRelays).toEqual(["wss://dead/"]);
     expect(clock.pendingCount).toBeGreaterThan(0); // sanity before dispose()
@@ -1963,10 +1786,8 @@ describe("SubscriptionManager: automatic replan on a degraded transition", () =>
     expect(manager.pool.degradedListenerCount).toBe(0);
     expect(clock.pendingCount).toBe(0);
 
-    // Advancing well past the batch window and any backoff delay afterward
-    // must not resurrect anything -- if either the timer or the
-    // subscription had survived, this is where a leaked callback would run
-    // against disposed internals.
+    // If either the timer or the subscription survived, a leaked callback
+    // would run against disposed internals here.
     clock.advance(120_000);
     expect(clock.pendingCount).toBe(0);
   });
@@ -2042,14 +1863,8 @@ describe("ローカルフィルタ照合 (信頼境界)", () => {
   });
 
   it("同じリレー上の各購読が、それぞれ自分のフィルタで判定される", () => {
-    // クロージャ捕捉が効いていることの主張。同じ接続の上に 2 セクション分の
-    // REQ が並ぶ状況で、片方だけが要求している著者のイベントを *もう片方の*
-    // 購読へ流す。`entry.opened` を実行時に引く実装や、フィルタを 1 つに
-    // 混ぜてしまう実装だと、これが通ってしまう。
-    //
-    // 1 本目を close() してから 2 本目を張る形にしてはならない ——
-    // エントリが 0 になるとプールが接続を落とし、再購読で `connect()` が
-    // 二度呼ばれて setup() のガード (`connect called twice`) に当たる。
+    // クロージャ捕捉の主張。`entry.opened` を実行時に引く実装や、フィルタを
+    // 1 つに混ぜる実装だと、片方の著者のイベントがもう片方の購読へ漏れる。
     const { relays, store, manager, delivery } = setup();
     const authorOne = signed(1).pubkey;
     const authorTwo = signed(2).pubkey;
@@ -2081,28 +1896,12 @@ describe("ローカルフィルタ照合 (信頼境界)", () => {
   });
 
   it("フォロー中の著者の kind:10002 を push されても replan() は呼ばれない", () => {
-    // 削除した引き金 (仕様 6 節) が復活していないことの主張。
-    //
-    // fix round 1, finding 1: この主張には 2 つの落とし穴があった。
-    //
-    // (1) 実スケジューラのまま同期的に判定すると非可反証だった —— 削除した
-    // #scheduleReplan() は setTimeout 経由のデバウンスだったので、トリガーが
-    // 復活していてもその場では何も起きず、assertion はどのみち通ってしまう。
-    // 偽クロックを注入し、あり得るデバウンス幅 (かつての既定は 100ms) を
-    // 十分に超えて時間を進めてから判定する。
-    //
-    // (2) セクションのフィルタを `{ kinds: [1], authors }` のままにすると、
-    // 照合器 (このタスクの本体、恒久的に残る) 自体が kind:10002 をどのみち
-    // 落とすので、引き金が復活していてもそこへ辿り着けず、この主張は別の
-    // 理由でやはり非可反証になる。フィルタから kinds を外し、この著者からの
-    // どんな kind でも照合器を通過するようにする —— この一点だけを許して、
-    // それでも引き金が引かれないことを主張する。
-    //
-    // 「デバウンスタイマーが積まれないこと」ではなく `replan()` 自体を直接
-    // スパイする —— 明示リレー購読では `replan()` が呼ばれても計画
-    // (relays の集合) は変化しないため、`onPlanChanged` はここでは何も
-    // 検出できない弱い信号になる (削除した Task 10 のテスト群がまさに
-    // この理由で `replan()` を直接見ていた)。
+    // 偽クロックで十分に時間を進めてから判定する —— 実スケジューラだと
+    // デバウンス由来の遅延で判定が非可反証になるため。フィルタから kinds を
+    // 外すのは、`{ kinds: [1] }` のままだと照合器自体が kind:10002 を落とし、
+    // 別の理由で非可反証になってしまうため。`replan()` 自体を直接スパイする
+    // のは、明示リレー購読では計画が変化せず `onPlanChanged` が弱い信号に
+    // なるため。
     const clock = createFakeClock();
     const relays = new Map<RelayUrl, FakeRelayConnection>();
     const store = new EventStore();
@@ -2125,39 +1924,28 @@ describe("ローカルフィルタ照合 (信頼境界)", () => {
     const relay = relays.get("wss://x/");
     if (!relay) throw new Error("relay was not opened");
 
-    // その著者本人の、まだ誰も知らない kind:10002。かつては再プランの引き金
-    // だった。フィルタに kinds 指定が無いので照合器は通過する
-    // (store.put() は "inserted" を返す)。
+    // フィルタに kinds 指定が無いので照合器は通過する。
     const relayList = signed(1, {
       kind: 10002,
       created_at: 1_800_000_000,
       tags: [["r", "wss://newly-declared/", "write"]],
     });
     relay.emitEvent(0, relayList);
-    // かつてのデバウンス窓 (既定 100ms) を大きく超えて進める。
     clock.advance(1000);
 
-    // 前提条件そのものを可反証にする: もし照合器がこのフィクスチャを
-    // 落としていたら (例えばフィルタの緩め方を今後変えた結果)、
-    // 下の replanSpy の主張は「引き金が削除されているから」ではなく
-    // 「イベントがそもそも store に届いていないから」空洞化して通ってしまう。
-    // store に入っていることを直接見て、その逃げ道を塞ぐ。
+    // 照合器がこのフィクスチャを落としていたら replanSpy の主張が空洞化
+    // するので、store に入っていることを直接見て逃げ道を塞ぐ。
     expect(store.get(relayList.id)).toBeDefined();
     expect(replanSpy).not.toHaveBeenCalled();
   });
 });
 
-describe("fetchOnce (仕様 5 節)", () => {
+describe("fetchOnce", () => {
   /**
-   * `FakeRelayConnection` 自身の `sub.closed` ガードは、一度閉じた購読への
-   * 2 回目の `onEose`/`onClosed` を黙って握り潰す。「同じリレーが EOSE の
-   * あと CLOSED を出しても二重に数えない」の主張をこれ越しに書くと、
-   * `collect()` 自身の `settled` セットを消しても `FakeRelayConnection` の
-   * ガードだけで assertion が通ってしまい、非可反証になる。
-   * `bootstrap.test.ts` の `UnguardedConnection` と同じ理由でここにも同じ
-   * 形の二重化なしコネクションを用意する —— close() 後も onEose/onClosed を
-   * 好きなだけ呼べるので、防いでいるのが `collect()` 自身であることが
-   * 直接主張できる。
+   * `FakeRelayConnection` の `sub.closed` ガードは、閉じた購読への 2 回目の
+   * `onEose`/`onClosed` を黙って握り潰す。それ越しに二重カウント防止を主張
+   * すると `collect()` 自身の `settled` セットを消しても通ってしまうので、
+   * close() 後も呼べる二重化なしコネクションを用意する。
    */
   class UnguardedConnection implements RelayConnection {
     readonly handlers: RelaySubscriptionHandlers[] = [];
@@ -2339,9 +2127,7 @@ describe("fetchOnce (仕様 5 節)", () => {
     await pending;
 
     expect(store.get(intruder.id)).toBeUndefined();
-    // Task 4 決定: fetchOnce は新しい受信経路なので matchesAnyFilter を
-    // 継承する。捨てた件数は warmUpRouting のような専用の戻り値ではなく、
-    // 既存の unrequestedEventsByRelay (仕様 5.1) へ合流させる。
+    // 捨てた件数は専用の戻り値ではなく既存の unrequestedEventsByRelay へ合流させる。
     expect(manager.unrequestedEventsByRelay.get("wss://a/")).toBe(1);
   });
 

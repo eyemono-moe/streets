@@ -15,27 +15,17 @@ export type WriteResult = {
 };
 
 /**
- * 楽観挿入を UI へ映す方法は書き込む側ごとに違う —— compose はカラムへ
- * 重ねる必要があり、リアクションは `ReactionList` が
- * `store.eventsByTag` から自動で拾うので何も要らない。`Writer` が
- * 一般化しようとすると、どちらにも合わない中途半端な形になる。
+ * 楽観挿入を UI へ映す方法は書き込む側で異なる (compose はカラムへ重ね、
+ * リアクションは自動で拾う) ので、`Writer` 側では一般化しない。
  *
- * `startedAt` は `store.put()` を呼ぶ直前の `performance.now()`。ADR-0011
- * の 100ms 予算が見たいのは signEvent を除いた楽観挿入の経路全体 ——
- * `store.put()` は毎回 schnorr 検証を走らせる (`event-store.ts` の
- * `verifyEvent`) ので、そこを含めずに計測すると予算の実測にならない。
- * フック自身は `store.put()` の**後**に呼ばれるため、フックの中で
- * `performance.now()` を取っても検証の時間が測定区間から漏れる —— 開始
- * 時刻は `Writer` 側で先に取っておいて渡す必要がある。
+ * `startedAt` は `store.put()` 直前の `performance.now()`。100ms 予算は
+ * signEvent を除く楽観挿入全体を測るためのもので、schnorr 検証を含む
+ * put() の後にフック内で計測すると検証コストが漏れる。
  *
- * `putResult` は `store.put()` の verdict (`"rejected"` は
- * `verifyOptimisticInsert` が例外にするのでここには来ない)。同じ本文を
- * 同じ秒に 2 回投稿すると id が衝突し (event id は署名を含まないハッシュ
- * なので、内容が同じなら同じ id になる)、2 回目は `"duplicate"` になる。
- * `Writer` は publish が全滅したとき `"inserted"` の場合だけ
- * `store.remove()` する (下記参照) —— この判断は呼び出し側の表示状態
- * (楽観挿入した一覧など) にもそのまま当てはまるため、同じ verdict を
- * 渡して呼び出し側が同じ判断をできるようにしている。
+ * `putResult` は `store.put()` の verdict (`"rejected"` は例外になり
+ * ここには来ない)。同一本文を同じ秒に 2 回投稿すると id が衝突し
+ * 2 回目は `"duplicate"` になる —— `Writer` は `"inserted"` のときだけ
+ * remove するため、呼び出し側にも同じ verdict を渡して同じ判断をさせる。
  */
 export type WriteHooks = {
   onOptimisticInsert?: (
@@ -61,11 +51,8 @@ export class WriteFailedError extends Error {
 export type Writer = {
   publish(draft: EventDraft, hooks?: WriteHooks): Promise<WriteResult>;
   /**
-   * `mutate` には store が持つ**生きたイベント**をそのまま渡す
-   * (`fetchLatest` が返したものは `store.latestReplaceable` 経由で store の
-   * 参照そのもの)。`Mutation` の「`current` を破壊しない」契約 (`draft.ts`)
-   * が破られると、store の中身を呼び出し側が知らないうちに書き換えることに
-   * なる。
+   * `mutate` には store が持つ生きたイベントをそのまま渡す (`fetchLatest`
+   * は参照そのものを返す)。`current` を破壊すると store が黙って書き換わる。
    */
   replace(
     kind: number,
@@ -76,12 +63,9 @@ export type Writer = {
 };
 
 /**
- * 置換可能イベントの最新版を受け取り、次の draft を返す。
- *
- * NIP-51 の非公開リストは、最新版の content を外部署名器で復号してから
- * 差分を適用し、再暗号化する必要がある。取得を Writer の外へ出すと、その
- * 間に届いた最新版を古い内容で上書きできるため、非同期処理もこの seam の
- * 内側で待つ。既存の同期 Mutation もこの型へそのまま代入できる。
+ * 置換可能イベントの最新版を受け取り、次の draft を返す。NIP-51 の
+ * 非公開リストは復号・再暗号化で非同期になり得るが、seam の外で待つと
+ * 届いたばかりの最新版を上書きしうるため、待つのは必ず内側で行う。
  */
 export type Replacement = (
   current: NostrEvent | undefined,
@@ -96,10 +80,8 @@ export type CreateWriterOptions = {
   /** 秒。テストが `created_at` を決めるために注入する。 */
   now?: () => number;
   /**
-   * 置換可能イベントの現在の版を **write リレーから** 引く
-   * (`src/core/write/fetch-latest.ts`)。関数として注入するのは、
-   * `Writer` を `ConnectionPool` から独立させ、テストがネットワークを
-   * 組み立てずに済むようにするため。
+   * 置換可能イベントの現在の版を write リレーから引く関数。注入するのは、
+   * テストが `ConnectionPool` を組み立てずに済むようにするため。
    */
   fetchLatest: (
     kind: number,
@@ -166,15 +148,7 @@ export const createWriter = ({
 
     const result = await publisher.publish(signed, { additionalRelays });
     if (result.accepted.length === 0) {
-      // 1 本も通っていない。**この呼び出しが新規に挿入したときだけ**
-      // store (と永続層) から取り除く —— 残すと「送れていないのに送れた
-      // ように見えるノート」が次回起動でも復活するのが本来の理由だが、
-      // putResult が "duplicate" (= 同じ id のイベントが既にストアに
-      // あった) の場合は話が違う。同じ本文を同じ秒に 2 回投稿すると id が
-      // 衝突するため (event id は署名を含まないハッシュ)、2 回目の失敗で
-      // 無条件に remove すると、1 回目の投稿として既に成功していた
-      // イベントまで一緒に消してしまう。戻す先 (本文をフォームへ、押下
-      // 状態を元へ) は呼び出し側の責務で、ここでは扱わない。
+      // 全滅時、新規挿入 ("inserted") のときだけ store から取り除く —— "duplicate" を無条件 remove すると、先に成功していた既存イベントまで消えてしまう。
       if (putResult === "inserted") {
         store.remove(signed.id);
       }

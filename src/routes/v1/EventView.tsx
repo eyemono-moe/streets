@@ -18,7 +18,7 @@ import { useOptionalMuteList } from "./mute-list";
 export type EventViewProps = {
   id: string;
   variant: EventVariant;
-  /** タグが運ぶリレーヒント。Task 2 のとおり今は使われない。 */
+  /** タグが運ぶリレーヒント。今は使われない。 */
   relayHint?: RelayUrl;
   /** レンダラへそのまま渡す (`EventBodyProps.threadLine`)。 */
   threadLine?: boolean;
@@ -31,12 +31,8 @@ export type EventViewProps = {
 };
 
 /**
- * 唯一の描画入口 (design 2 節)。id から `EventStore` を引き、無ければ
- * `events.request` で要求して届くのを待つ。カラムのアイテムも、引用先も、
- * 返信の親も、リポストの対象も、すべてこれ 1 つを通る (Task 4 で配線)。
- *
- * このタスクではまだどこからも呼ばれない —— `rendererFor` が空集合でも
- * 壊れず fallback (`UnknownKind`) を描くことだけを保証する。
+ * 唯一の描画入口。id から `EventStore` を引き、無ければ要求して待つ。
+ * `rendererFor` が空集合でも壊れず fallback を描く。
  */
 const EventView: Component<EventViewProps> = (props) => {
   const ctx = useRender();
@@ -110,9 +106,8 @@ const EventView: Component<EventViewProps> = (props) => {
             );
           };
           const renderer = rendererFor(ctx.renderers, found().kind);
-          // 未登録の kind でも描く —— fallback 経路 (ADR-0003/ADR-0004,
-          // design 9 節)。レンダラ集合が空でもここが壊れないことがこの
-          // タスクの要求そのもの。
+          // 未登録の kind でも描く —— fallback 経路。
+          // レンダラ集合が空でもここが壊れないことを保証する。
           const Body = renderer
             ? props.variant === "full"
               ? renderer.full

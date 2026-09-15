@@ -18,10 +18,8 @@ export type ParsedProfile = {
 };
 
 /**
- * kind:0 の `content` (JSON 文字列) をパースする。リレーから来た値であり
- * `EventStore` は形を保証しない (task-5-brief の注意 1) —— JSON として壊れて
- * いても、`name`/`picture` の型が期待と違っても (数値・オブジェクトなど)、
- * 例外を投げずに安全側の `undefined` へ倒す。
+ * kind:0 の `content` をパースする。リレー由来で形を保証されないので、
+ * JSON が壊れていても型が違っても、例外を投げず `undefined` へ倒す。
  */
 export const parseProfileContent = (
   content: string,
@@ -48,12 +46,8 @@ export const parseProfileContent = (
 };
 
 /**
- * `<Profile>`（名前）・`<Avatar>`（アイコン）・`<ProfileCard>`（カード）が
- * 共有するプロフィール取得ロジック。どれも独立に `requests.request()` を
- * 呼びうるが、`ProfileRequests` は pubkey を `Set` でまとめる
- * (`profile-requests.ts`) ので同じ pubkey への重複要求は実害が無い ——
- * 各コンポーネントがそれぞれ「自分は他の購読者の存在を知らない」という
- * 単純さを保てる。
+ * `<Profile>`/`<Avatar>`/`<ProfileCard>` が共有する取得ロジック。各々が
+ * 独立に `request()` を呼んでも `ProfileRequests` が pubkey をまとめる。
  */
 export const useProfileData = (
   pubkey: () => string,

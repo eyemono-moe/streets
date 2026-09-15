@@ -4,44 +4,26 @@ import type { RelayListState } from "../settings/relay-list-state";
 import { type ColumnSource, NOTIFICATION_KINDS, TIMELINE_KINDS } from "./deck";
 
 /**
- * `followees` を遅延アクセサにしているのは、呼び出し側 (`DeckColumn.tsx`)
- * が `createMemo` の中でこれを呼ぶため —— 引数として即時評価される値
- * (`{ followees: props.followees() }`) だと、それを組み立てるためだけに
- * `props.followees()` を呼ぶ必要があり、`literal` 列であっても
- * `warmUpRouting` の結果 (フォローリストのリソース) を毎回読むことになる。
- * Solid の `createMemo` は「実行中に読んだシグナル」を機械的に依存として
- * 記録するので、これ 1 つで `literal` 列まで warmUp の解決に巻き込まれ、
- * ウォームアップが settle するたびに全カラムの `source` memo が再計算 →
- * `createSection` の `createEffect` が古い `SectionReader` を破棄して
- * 新しいものを張り直す、という再購読が起きる。
- * `followees` を呼び出すのを `kind === "followees"` の分岐の中だけに
- * 限定すれば、その分岐を実際に評価したときだけ依存が生まれる。
+ * `followees` を遅延アクセサにするのは、即時評価すると settle のたびに
+ * 全カラムが再購読されるため。`followees` 分岐内でだけ呼び、評価時だけ依存させる。
  */
 export type ResolveContext = {
   followees: () => readonly string[];
   /**
-   * 現在の閲覧者。`notifications` の `#p` の値になる。
-   *
-   * 遅延アクセサにしないのは `followees` / `readRelays` と違ってこれが
-   * 「変わる値」ではないため —— ログイン中は固定で、同期的に読めるので、
-   * どの分岐で読んでも再購読を招かない。
+   * 現在の閲覧者 (`notifications` の `#p` になる)。`followees` と違い
+   * ログイン中は固定値なので、遅延アクセサにせずどの分岐で読んでもよい。
    */
   viewer: string;
   /**
-   * 閲覧者の NIP-65 リレーリスト。`followees` と同じ理由で遅延アクセサに
-   * している。取得中と欠落を区別する状態ごと渡すのは、取得中だけは
-   * fallback へ一瞬購読せず、取得が片付くまで 0 本で待つため。
+   * 閲覧者の NIP-65 リレーリスト。`followees` と同じ理由で遅延アクセサ。
+   * 取得中は fallback へ一瞬購読せず 0 本で待つため、状態ごと渡す。
    */
   relayList: () => RelayListState;
 };
 
 /**
- * デッキが保存している「意図」(`ColumnSource`) を、読み取り層が理解する
- * 「クエリ」(`NostrSource`) へ変える唯一の場所。
- *
- * 分けている理由は、フォローリストのような**変わる値をデッキに焼き込まない**
- * ため。焼き込むと、誰かをフォローしてもホーム列はデッキを作り直すまで
- * 永久に反映されない (2026-08-06 時点の実装がまさにそうだった)。
+ * デッキが保存する「意図」を読み取り層の「クエリ」へ変える唯一の場所 ——
+ * フォローリストのような変わる値をデッキへ焼き込むと更新が反映されなくなる。
  */
 export const resolveSource = (
   source: ColumnSource,
@@ -61,9 +43,7 @@ export const resolveSource = (
     // `#p` フィルタには `authors` が無いので Outbox でルーティングできない
     // (`query-plan.ts`: 著者を指定していないフィルタは fallback へ同報)。
     // NIP-65 は publish 側に「`#p` で指した相手の read リレーへも送る」を
-    // SHOULD で求めているので、待ち受けるべきはそこ ——
-    // `docs/design/notification-relay-selection.md` に原文と各クライアントの
-    // 実態を残してある。
+    // SHOULD で求めているので、待ち受けるべきはそこ。
     const relayList = context.relayList();
     const readRelays =
       relayList.phase === "ready"

@@ -106,9 +106,7 @@ export const inboxes$ = combineLatest([mailboxes$, localSettings.fallbackRelays]
 );
 ```
 
-`socialNotificationsLoader$` / `shareNotificationsLoader$` / `zapNotificationsLoader$` はいずれも `inboxes$` を購読先リレーとして `{"#p": [account.pubkey], kinds: [...]}` を投げている。
-
-`mailboxes.inboxes` の定義は依存ライブラリ applesauce 側。出典: [`packages/core/src/helpers/mailboxes.ts`](https://github.com/hzrd149/applesauce/blob/ec51f7d4ecfd3db6099e786e8eec0062255588d4/packages/core/src/helpers/mailboxes.ts)
+`socialNotificationsLoader$` / `shareNotificationsLoader$` / `zapNotificationsLoader$` はいずれも `inboxes$` を購読先リレーとして `{"#p": [account.pubkey], kinds: [...]}` を投げている。`mailboxes.inboxes` の定義は依存ライブラリ applesauce 側。出典: [`packages/core/src/helpers/mailboxes.ts`](https://github.com/hzrd149/applesauce/blob/ec51f7d4ecfd3db6099e786e8eec0062255588d4/packages/core/src/helpers/mailboxes.ts)
 
 ```ts
 /** Parses a 10002 event and stores the inboxes in the event using the {@link MailboxesInboxesSymbol} symbol */
@@ -272,9 +270,7 @@ private func computeRelaysToConnectTo(with relayList: NIP65.RelayList) -> [Relay
 
 ### Nostur・Primal
 
-Nostur は `Nostur/Relays/Network/OutboxLoader.swift` を確認したが、これはフォロー中著者の write リレー（kind:10002）を先読みしてタイムライン用に使うための仕組みであり、通知専用の relay 選択ロジックではなかった。同ファイルには `getInboxRelays(forPubkey:)` という read リレーを計算する関数があるが、本体が `return []` で終わっており呼び出し元も見つからなかった——死んでいるコードに見えるが、通知に使われている確証もない。**通知専用の relay 選択ロジックの所在は確認できなかった。**
-
-Primal は独自バックエンド（caching relay）を持つことで知られているが、そのバックエンドが通知取得に何を使っているかを示す一次情報（ソースコード）には到達できなかった。**確認できなかった。**
+Nostur は `Nostur/Relays/Network/OutboxLoader.swift` を確認したが、これはフォロー中著者の write リレー（kind:10002）を先読みしてタイムライン用に使うための仕組みであり、通知専用の relay 選択ロジックではなかった。同ファイルには `getInboxRelays(forPubkey:)` という read リレーを計算する関数があるが、本体が `return []` で終わっており呼び出し元も見つからなかった——死んでいるコードに見えるが、通知に使われている確証もない。**通知専用の relay 選択ロジックの所在は確認できなかった。** Primal は独自バックエンド（caching relay）を持つことで知られているが、そのバックエンドが通知取得に何を使っているかを示す一次情報（ソースコード）には到達できなかった。**確認できなかった。**
 
 ### ライブラリの outbox 実装
 
@@ -302,7 +298,7 @@ Primal は独自バックエンド（caching relay）を持つことで知られ
 
 3 節で relay 選択ロジックの中身まで確認できた 4 クライアント（nostrudel・coracle/welshman・Amethyst・Snort）は、全て「自分の read/inbox リレー」を通知の購読先にしていた。「自分の write リレーを読む」という設計を採用している実装は、調査した範囲では 1 つも見つからなかった。
 
-NIP 側にもこの設計を示唆する規定は無い（2 節）。NIP-65 の write リレーの定義は「そのユーザーが書いたものを他人が読みに行く場所」であり、通知（他人が自分について書いたもの）を拾う場所としての規定は無い。ユーザーの見立てにあった「自分への通知を書く人は自分の write リレーを read しているはず」という推論は、**「NIP-65 準拠のクライアントは publish 時に `#p` で指した相手の read リレーへ送る」という規定（2 節）と両立しない前提**——read リレーへ届く設計になっているものを、あえて write リレー側で待ち受ける理由がクライアント側に無い。
+NIP 側にもこの設計を示唆する規定は無い（2 節）。NIP-65 の write リレーの定義は「そのユーザーが書いたものを他人が読みに行く場所」であり、通知（他人が自分について書いたもの）を拾う場所としての規定は無い。「自分への通知を書く人は自分の write リレーを read しているはず」という推論は、**「NIP-65 準拠のクライアントは publish 時に `#p` で指した相手の read リレーへ送る」という規定（2 節）と両立しない前提**である——read リレーへ届く設計になっているものを、あえて write リレー側で待ち受ける理由がクライアント側に無い。
 
 ---
 

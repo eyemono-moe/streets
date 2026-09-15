@@ -18,10 +18,7 @@ export type FakeRelayConnectionOptions = {
   autoOpen?: boolean;
 };
 
-/**
- * テスト用の RelayConnection。
- * emitEvent / emitEose / emitClosed で任意のタイミングを再現する。
- */
+/** テスト用の RelayConnection。emitEvent/emitEose/emitClosed で任意のタイミングを再現する。 */
 export class FakeRelayConnection implements RelayConnection {
   readonly subscriptions: FakeSubscription[] = [];
   readonly published: NostrEvent[] = [];
@@ -42,9 +39,7 @@ export class FakeRelayConnection implements RelayConnection {
     handlers: RelaySubscriptionHandlers,
   ): RelaySubscription {
     if (this.closed) {
-      // ソケットが既に閉じている場合は即座に閉じたことを通知する。
-      // そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
-      // 購読は active subscriptions に追加しない。
+      // 呼び出し元が来ない onEose/onClosed を待たないよう、即座に onClosed を通知する。
       handlers.onClosed("socket closed");
       return { close: () => {} };
     }

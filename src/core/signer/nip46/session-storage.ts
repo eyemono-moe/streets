@@ -8,8 +8,7 @@ export const NIP46_REQUIRED_PERMISSIONS =
 
 const hex64 = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/));
 const sessionSchema = v.strictObject({
-  // v3 は現在の機能が必要とする権限文字列そのものも保存する。version だけ
-  // 上げ忘れて権限不足の session を復元する事故を、literal の照合で防ぐ。
+  // v3 は現在必要な権限文字列そのものを保存し、version だけ上げ忘れて権限不足の session を復元する事故を literal 照合で防ぐ。
   version: v.literal(3),
   permissions: v.literal(NIP46_REQUIRED_PERMISSIONS),
   clientSecret: hex64,

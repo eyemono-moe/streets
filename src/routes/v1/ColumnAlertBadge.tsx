@@ -3,14 +3,8 @@ import type { Component } from "solid-js";
 import type { ColumnAlert } from "../../core/deck/column-alerts";
 
 /**
- * カラムに起きた「ユーザーが行動できる異常」の入口 (ADR-0026)。判定は
- * `columnAlerts` (Task 2, ユニットテスト済み) に集約済みで、ここは結果を
- * 出すだけ —— 何が行動可能かの判断をこのコンポーネントに持ち込まない。
- *
- * **`developerMode` を見ない。** `DiagnosticsPanel` (同じディレクトリ) が
- * 診断値を開発者モードの背後に置くのと対照的に、こちらは常時描画する ——
- * ADR-0026 が割いた 2 分類 (行動できる異常は常に見せる／診断値は開発者
- * モードの背後) をここで再び 1 つに畳むと、常に見せるべきものまで隠れる。
+ * カラムの「行動できる異常」の表示口。`DiagnosticsPanel` と対照的に
+ * `developerMode` を見ない —— 行動できる異常は常時表示する。
  */
 const ColumnAlertBadge: Component<{ alerts: () => ColumnAlert[] }> = (
   props,

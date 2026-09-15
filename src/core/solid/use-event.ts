@@ -56,7 +56,6 @@ export const useCoreEventByID = <T = ReturnType<typeof parseNostrEvent>>(
     return data;
   };
 
-  // Keep the cache-shaped Solid accessor synchronized with the v1 EventStore.
   createEffect(() => {
     const eventId = id();
     if (!eventId) {

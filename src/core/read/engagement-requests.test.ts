@@ -6,7 +6,6 @@ import type { SubscriptionManager } from "./subscription-manager";
 const TARGET = "a".repeat(64);
 const OTHER = "b".repeat(64);
 
-/** `fetchOnce` の呼び出しを記録するテストダブル。 */
 const createFakeManager = () => {
   const calls: unknown[][] = [];
   return {
@@ -21,8 +20,7 @@ const createFakeManager = () => {
 
 describe("createEngagementRequests", () => {
   it("窓の間に溜めた対象 id を 1 本のフィルタにまとめる", () => {
-    // 捕まえる変異: request のたびに fetchOnce を呼ぶ (40 件のノートで
-    // 40 本の REQ が飛ぶ)
+    // 捕まえる変異: request のたびに fetchOnce を呼ぶ (40 件で 40 本の REQ が飛ぶ)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createEngagementRequests({ manager, scheduler: clock });
@@ -34,8 +32,7 @@ describe("createEngagementRequests", () => {
   });
 
   it("同じ対象を 2 度要求しても 1 度しか投げない", () => {
-    // 捕まえる変異: 要求済みを覚えない (窓が回るたびに全ノートを引き直し、
-    // REQ が際限なく伸びる)
+    // 捕まえる変異: 要求済みを覚えない (窓が回るたびに全ノートを引き直し REQ が伸び続ける)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createEngagementRequests({ manager, scheduler: clock });
@@ -47,8 +44,7 @@ describe("createEngagementRequests", () => {
   });
 
   it("窓が閉じた後の要求は次のバッチになる", () => {
-    // 捕まえる変異: flush で pending を差し替えない (次の要求が今回の
-    // バッチへ混ざる or 取りこぼす)
+    // 捕まえる変異: flush で pending を差し替えない (次の要求が混ざる/取りこぼす)
     const clock = createFakeClock();
     const { calls, manager } = createFakeManager();
     const requests = createEngagementRequests({ manager, scheduler: clock });
@@ -82,8 +78,7 @@ describe("createEngagementRequests", () => {
     const requests = createEngagementRequests({ manager, scheduler: clock });
     requests.request(TARGET);
     requests.dispose();
-    // advance の後で見ると、タイマーは発火して pending から消えた後なので
-    // 「片付けた」と「発火した」を区別できない。dispose の直後に見る。
+    // advance 後だと発火済みで区別できないため、dispose 直後に見る。
     expect(clock.pendingCount).toBe(0);
     clock.advance(200);
     expect(calls).toHaveLength(0);
@@ -102,14 +97,12 @@ describe("createEngagementRequests", () => {
     expect(requests.lastBatchSize).toBe(2);
     expect(requests.maxBatchSize).toBe(2);
 
-    // 2 回目のバッチが小さい場合、lastBatchSize は下がるが maxBatchSize は上がらない
     const NEW1 = "c".repeat(64);
     requests.request(NEW1);
     clock.advance(200);
     expect(requests.lastBatchSize).toBe(1);
     expect(requests.maxBatchSize).toBe(2);
 
-    // 3 回目のバッチがより大きい場合、maxBatchSize が上がる
     const IDS = Array.from({ length: 5 }, (_, i) =>
       String(i + 100).padStart(64, "0"),
     );

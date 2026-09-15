@@ -14,19 +14,15 @@ export type NoteContentProps = {
   tags: readonly string[][];
   variant: EventVariant;
   /**
-   * イベントへの参照 (`note`/`nevent`/`naddr`) をどう描くか。**省略可能に
-   * しない** —— 決めずに書けると、本文の `nostr:note` が黙って消えて文が
-   * 途中で切れる形が再発する。
+   * イベント参照の描き方。**省略可能にしない** —— 決めずに書けると
+   * `nostr:note` が黙って消え、文が途中で切れる。
    */
   eventRefs: "text" | "embed";
 };
 
 /**
- * 画像 URL は `full` でだけインライン展開する。`compact` は引用先・返信先・
- * リポスト対象として置かれる (design 4 節) —— 原寸画像を並べるとカラームが
- * 画像で埋まり、元の投稿が見えなくなる (v0 の `showEmbeddings={!props.small}`
- * と同じ判断)。読み込みに失敗したら通常の URL リンクへ落とす —— 本文から
- * このトークンが消えるわけではない (design 6 節)。
+ * 画像 URL は `full` でだけインライン展開する —— `compact` の入れ子で
+ * 原寸画像を並べると元の投稿が見えなくなる。失敗時は URL リンクへ落とす。
  */
 const UrlToken: Component<{ url: string; variant: EventVariant }> = (props) => {
   const [broken, setBroken] = createSignal(false);
@@ -67,9 +63,8 @@ const UrlToken: Component<{ url: string; variant: EventVariant }> = (props) => {
 };
 
 /**
- * NIP-30 の絵文字。読み込みに失敗したら `:shortcode:` のテキストへ戻す
- * (design 6 節) —— 画像が 404 でも本文がそこだけ空白になったり、書いた
- * ショートコードが跡形もなく消えたりしない。
+ * NIP-30 の絵文字。読み込み失敗時は `:shortcode:` のテキストへ戻す ——
+ * 画像が 404 でも本文が空白になったりショートコードが消えたりしない。
  */
 const EmojiToken: Component<{ shortcode: string; url: string }> = (props) => {
   const [broken, setBroken] = createSignal(false);
@@ -90,11 +85,8 @@ const EmojiToken: Component<{ shortcode: string; url: string }> = (props) => {
 };
 
 /**
- * イベント参照を短縮したテキスト。`nostr:` を落として bech32 の先頭 12 桁
- * だけを見せる —— 60 桁を丸ごと出すと、`about` のような狭い枠では本文が
- * それだけで埋まる。元の文字列は `title` で丸ごと読める。
- *
- * **押せそうには見せない** (ADR-0026)。押して開く先のカラムがまだ無い。
+ * イベント参照を短縮したテキスト。狭い枠が埋まらないよう先頭 12 桁だけ
+ * 見せる (元の文字列は `title` で読める)。押せる先のカラムはまだ無い。
  */
 const EventRefText: Component<{ raw: string }> = (props) => {
   const label = () => {
@@ -110,15 +102,8 @@ const EventRefText: Component<{ raw: string }> = (props) => {
 };
 
 /**
- * `npub`/`nprofile` は名前解決 (`<Profile>` が担う)。
- *
- * イベントへの参照は `eventRefs` で決まる (仕様 4.1 節):
- * `"embed"` はその位置に対象を `compact` で描き、`"text"` は短縮した
- * テキストで残す。**捨てる選択肢は無い** —— 捨てると「この投稿
- * nostr:note1… が面白い」のような文が途中で切れる。
- *
- * `naddr` は座標 (kind:pubkey:d) の解決経路がまだ無いので `"embed"` でも
- * 埋め込めない。落として本文を欠けさせるのではなく固定文言を残す。
+ * `npub`/`nprofile` は `<Profile>` に、イベント参照は `eventRefs` で
+ * `"embed"`/`"text"` を決める。`naddr` は座標解決が無いので固定文言にする。
  */
 const MentionToken: Component<{
   mention: Nip19Ref;
@@ -147,11 +132,7 @@ const MentionToken: Component<{
           when={props.eventRefs === "embed"}
           fallback={<EventRefText raw={props.raw} />}
         >
-          {/*
-            枠を描くのは置く側という規則 (`NestedEventCard` 参照) —— 最下部の
-            引用 (`NoteFull` の `tagOnlyQuoteTargets`) と枠を揃えないと、
-            同じ「引用」が 1 ノートの中で 2 通りの見た目になる。
-          */}
+          {/* 枠を描くのは置く側という規則 —— 最下部の引用と揃えないと、同じ「引用」が 2 通りの見た目になる。 */}
           <NestedEventCard>
             <EventView
               id={ref.id}
@@ -191,11 +172,9 @@ const Token: Component<{
     case "emoji":
       return <EmojiToken shortcode={token.shortcode} url={token.url} />;
     case "hashtag":
-      // 検索カラムが無く押しても何も起きない (#203/#204)。リンクの見た目
-      // (下線・アクセントカラー) にすると「まだ無い」と「壊れている」の
-      // 区別が付かなくなる —— relay 診断で採った判断と同じ (押せない要素は
-      // 押せそうに見せない)。`raw` は元の大文字小文字を保った表記
-      // (`content.ts` 側のコメント参照)。
+      // 検索カラムが無く押しても何も起きない。リンクの見た目にすると
+      // 「まだ無い」と「壊れている」の区別が付かなくなる。`raw` は元の
+      // 大文字小文字を保った表記。
       return <span>{token.raw}</span>;
     case "mention":
       return (
@@ -209,17 +188,8 @@ const Token: Component<{
 };
 
 /**
- * 本文をトークン列として描く (design 4 節の表)。イベントに限らず、文字列
- * (`content`) とタグがあれば描ける。`content`/`tags` が呼び出し側
- * (プロパティ) で再描画のあいだ安定していれば、`parseContent` を
- * `createMemo` で包むことでトークン化を都度やり直さずに済む。
- *
- * 同じ id への `nostr:note`/`nostr:nevent` が本文に 2 回以上現れることは
- * 珍しくない (「さっきの投稿 nostr:note1x… だけど、nostr:note1x… には
- * 続きがあって…」のような書き方)。**最初の出現だけ埋め込み対象にする** ——
- * `eventRefs="embed"` のまま全部埋め込むと、同じ引用カードが本文中に
- * 複数回並ぶ。2 回目以降は `MentionToken` 側の `"text"` 経路 (短縮テキスト)
- * へ強制的に落とす。
+ * 本文をトークン列として描く。`parseContent` を `createMemo` で包み、
+ * 同じ id への参照は**最初の出現だけ埋め込み**、以降は短縮テキストへ落とす。
  */
 const NoteContent: Component<NoteContentProps> = (props) => {
   const tokens = createMemo(() => {

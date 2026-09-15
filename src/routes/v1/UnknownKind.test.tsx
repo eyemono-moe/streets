@@ -14,12 +14,7 @@ const noteWith = (overrides: Partial<NostrEvent> = {}): NostrEvent => ({
   ...overrides,
 });
 
-/**
- * Solid のコンポーネントは (SolidStart/SSR ではなくブラウザ向けの
- * client-side compile では) 呼ぶと実 DOM ノードを返す。
- * `src/routes/debug/v1-core.test.tsx` と同じ手法で、`createRoot` の中で
- * 関数として直接呼び、返ってきたノードを検証する。
- */
+/** ブラウザ向け client-side compile では呼ぶと実 DOM ノードを返すので、`createRoot` の中で直接呼ぶ。 */
 const renderFull = (event: NostrEvent): HTMLElement => {
   let element: HTMLElement | undefined;
   createRoot((dispose) => {
@@ -63,12 +58,9 @@ describe("UnknownKindFull", () => {
   });
 
   it("サロゲートペアを割らずに切り詰める", () => {
-    // 捕まえる変異: `content.slice(0, 200)` (UTF-16 コードユニット単位)。
-    // "a" を 199 個 + 絵文字 (サロゲートペア、2 コードユニット) を content に
-    // 置くと、コードユニット単位の slice(0, 200) は絵文字の上位サロゲート
-    // だけを含めて下位サロゲートを切り落とし、孤立サロゲートを残す。
-    // コードポイント単位 (Array.from) なら 200 要素目に絵文字全体が入り、
-    // 割れない。
+    // 捕まえる変異: `content.slice(0, 200)` (UTF-16 コードユニット単位だと
+    // サロゲートペアの絵文字を上位だけ残して割ってしまう。コードポイント
+    // 単位 (Array.from) なら割れない)。
     const emoji = "😀";
     const content = `${"a".repeat(199)}${emoji}${"z".repeat(50)}`;
     const element = renderFull(noteWith({ content }));
@@ -79,12 +71,8 @@ describe("UnknownKindFull", () => {
   });
 
   it("200 文字未満の content はそのまま出す", () => {
-    // このアサーションが実際に保証すること: 短い content が変形されずに
-    // そのまま通ること。上の「切り詰める」テストと違い、slice の境界に
-    // 触れないので、切り詰め処理そのものを削っても検出できない
-    // (検証済み: truncate を素通し (`(content) => content`) に変えても
-    // このテスト単体は通る) —— 短い content を壊さないという別の性質を
-    // 確かめるためのテスト。
+    // slice の境界に触れないので truncate を素通しにしてもこのテスト単体
+    // は通る —— 短い content を壊さないという別の性質を確かめる。
     const element = renderFull(noteWith({ content: "short" }));
     expect(
       element.querySelector('[data-testid="unknown-kind-content"]')
@@ -95,8 +83,7 @@ describe("UnknownKindFull", () => {
 
 describe("UnknownKindCompact", () => {
   it("kind 番号だけを出し、content は出さない", () => {
-    // 捕まえる変異: compact でも content を出す (spec 6 節の表: compact は
-    // kind 番号のみ)
+    // 捕まえる変異: compact でも content を出す (compact は kind 番号のみ)
     const element = renderCompact(
       noteWith({ kind: 7, content: "should not appear" }),
     );
@@ -105,8 +92,7 @@ describe("UnknownKindCompact", () => {
   });
 
   it('data-testid="unknown-kind" を持つ', () => {
-    // 捕まえる変異: data-testid を落とす (e2e が fallback の描画を
-    // 主張できなくなる)
+    // 捕まえる変異: data-testid を落とす (e2e が fallback を主張できない)
     expect(renderCompact(noteWith()).getAttribute("data-testid")).toBe(
       "unknown-kind",
     );

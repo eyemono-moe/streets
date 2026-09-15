@@ -8,18 +8,11 @@ export type ThreadSpine = {
   focus: NostrEvent | undefined;
   /** `created_at` 昇順。`focus` を直接の親とするものだけ。 */
   replies: NostrEvent[];
-  /**
-   * 祖先の連鎖が根まで到達したか。**`false` を黙らせないこと** ——
-   * 途中の祖先が欠けたスレッドは「根から始まっている」ように見え、
-   * 誰が誰に返信したのかを読み違える (ADR-0011)。
-   */
+  /** 祖先の連鎖が根まで到達したか。**`false` を黙らせないこと**——途中が欠けると「根から始まる」ように見え読み違える。 */
   reachedRoot: boolean;
 };
 
-/**
- * 表示する 1 本の背骨を計算する。木ではない —— 兄弟の枝も返信の返信も
- * 出さない (仕様 1 節)。ネットワークも store も触らない。
- */
+/** 表示する 1 本の背骨を計算する。木ではない —— 兄弟の枝も返信の返信も出さない。ネットワーク/store は触らない。 */
 export const threadSpine = (
   events: readonly NostrEvent[],
   focusId: string,
@@ -35,9 +28,7 @@ export const threadSpine = (
     };
   }
 
-  // 上へ登る。**訪問済みを持つ** —— 壊れた (あるいは悪意ある) イベントは
-  // 自分自身や祖先を親として指せる。リレーは NIP-10 のタグ意味論を検証
-  // しないので、この形は publish できてしまう。
+  // 上へ登る。**訪問済みを持つ**——壊れた (悪意ある) イベントは自分自身や祖先を親として指せる (NIP-10 の意味論はリレーが検証しない)。
   const ancestors: NostrEvent[] = [];
   const seen = new Set<string>([focus.id]);
   let cursor = focus;

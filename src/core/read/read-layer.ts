@@ -22,11 +22,8 @@ export type ReadLayerOptions = {
   fallbackRelays?: RelayUrl[];
   maxConnections?: number;
   /**
-   * store・manager (= ConnectionPool)・coalescer の 4 者すべてがこの 1 つを
-   * 共有する。呼び出し側が個別に別々の Scheduler を組み立てて 2 つ目を
-   * どこかへ渡す経路を、型の形として作らない。**store が `fetchedAt` を刻む
-   * 時計と、鮮度を判定する側の時計が別だと、経過時間が動かない**ので、
-   * 規約ではなく構造で 1 つに縛る。
+   * store・manager・coalescer 全員がこの 1 つを共有する。時計が別だと
+   * `fetchedAt` の経過時間が動かないため、型の形で 1 つに縛る。
    */
   scheduler?: Scheduler;
   random?: () => number;
@@ -49,9 +46,8 @@ export type ReadLayer = {
 export const ROUTING_REPLAN_BATCH_MS = 200;
 
 /**
- * 読み取り層の合成ルート (spec 9 節)。`EventStore` はここでしか
- * `new` されない —— `createSection` はもう `store` を公開オプションとして
- * 受け取らず、`manager.store` を使う (`create-section.ts` 参照)。
+ * 読み取り層の合成ルート。`EventStore` はここでしか `new` されない ——
+ * 他は `manager.store` 経由で参照する。
  */
 export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   const scheduler = options.scheduler ?? defaultScheduler;
@@ -88,13 +84,9 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     }, ROUTING_REPLAN_BATCH_MS);
   });
 
-  // `persistence.load()` は仕様上 reject しない実装だけを渡す契約だが、
-  // ここで信用しきって `await` だけに任せると、その規約が守られなかった
-  // 世界 (あるいは渡された stand-in が規約を破っている場合) で `ready` が
-  // 永久に reject し、起動そのものが止まる。プライベートブラウジングで
-  // 「キャッシュが無いだけ」のはずが「アプリが起動しない」に化けるのは
-  // 受け入れられない (spec 7 節) ので、async 関数の中で吸収して
-  // ready 自身は常に resolve する形にする。
+  // `persistence.load()` は reject しない契約だが、それが破られた場合に
+  // `ready` が永久に reject して起動が止まるのは避けたい —— 「キャッシュが
+  // 無いだけ」が「起動しない」に化けないよう、ここで吸収して常に resolve する。
   const ready = (async () => {
     try {
       const { events: persisted, deletionRequests } =

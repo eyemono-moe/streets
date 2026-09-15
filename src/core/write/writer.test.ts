@@ -23,10 +23,7 @@ const deferred = <T>() => {
   return { promise, resolve };
 };
 
-/**
- * `replace` のテスト用に「現在の版」を作る署名ヘルパー。
- * `fetch-latest.test.ts` と同じ形 —— seed から鍵を作って署名まで済ませる。
- */
+/** `replace` テスト用の署名ヘルパー (`fetch-latest.test.ts` と同じ形)。 */
 const sign = (
   seed: number,
   fields: Omit<NostrEvent, "id" | "pubkey" | "sig">,
@@ -39,12 +36,7 @@ const sign = (
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
-/**
- * 呼び出し順を観察するための最小限の道具立て。`store`/`signer` を直に
- * 包んで呼び出しを記録し、`publisher` は結果を差し替えられるスタブに
- * する。順序テストが見たいのは「誰が呼ばれたか」ではなく「何番目に
- * 呼ばれたか」なので、記録先の配列は 1 本に共有する。
- */
+/** 呼び出し順の道具立て。store/signer/publisher の呼び出しを 1 本の配列に記録する。 */
 const setup = (publishResult: PublishResult) => {
   const calls: string[] = [];
   const store = new EventStore();
@@ -104,16 +96,14 @@ const stubPublisher = (
 
 describe("publish", () => {
   it("署名 → 楽観挿入 → publish の順に進む", async () => {
-    // 捕まえる変異: put を publish の後に動かす。そうすると楽観挿入が
-    // リレーの応答を待つことになり、ADR-0011 の 100ms 予算が崩れる。
+    // 捕まえる変異: put を publish の後に動かす (楽観挿入がリレー応答を待つことになり 100ms 予算が崩れる)。
     const { writer, calls } = setup(ok);
     await writer.publish({ kind: 1, tags: [], content: "hi" });
     expect(calls).toEqual(["sign", "put", "publish"]);
   });
 
   it("now を渡さなければ現在時刻を秒で使う", async () => {
-    // 捕まえる変異: 既定値を () => undefined にする、または
-    // Date.now() をミリ秒のまま使う (created_at が現在の 1000 倍になる)。
+    // 捕まえる変異: Date.now() をミリ秒のまま使う (created_at が現在の 1000 倍になる)。
     const store = new EventStore();
     const writer = createWriter({
       signer: createFakeSigner(SK),
@@ -130,8 +120,7 @@ describe("publish", () => {
   });
 
   it("追加送信先を指定しなければ空配列を Publisher へ渡す", async () => {
-    // 捕まえる変異: additionalRelays の既定値に実在しない送信先を
-    // 入れ、通常投稿まで不要なリレーへ送る。
+    // 捕まえる変異: additionalRelays の既定値に実在しない送信先を入れる。
     let additional: readonly RelayUrl[] | undefined;
     const writer = createWriter({
       signer: createFakeSigner(SK),
@@ -200,8 +189,7 @@ describe("publish", () => {
   });
 
   it("kind:5 の全リレー失敗では削除依頼を巻き戻して対象を再表示する", async () => {
-    // 捕まえる変異: kind:5 の remove で削除索引を外さない。送信失敗を表示した
-    // 後も、対象ノートだけがローカルでは削除済みのまま残る。
+    // 捕まえる変異: kind:5 の remove で削除索引を外さない (対象ノートが削除済みのまま残る)。
     const store = new EventStore();
     const signer = createFakeSigner(SK);
     const target = await signer.signEvent({
@@ -241,9 +229,7 @@ describe("publish", () => {
   });
 
   it("onOptimisticInsert は put の直後・publish の前に同期的に呼ばれる", async () => {
-    // 捕まえる変異: await の後に呼ぶ。ADR-0011 の optimisticInsertMs は
-    // signEvent を含めないことが本質なので、publish の後に呼ぶと
-    // 計測しているものが変わってしまう。
+    // 捕まえる変異: await の後に呼ぶ (signEvent を含めない計測が本質なので、publish 後では対象が変わる)。
     const { writer, calls } = setup(ok);
     await writer.publish(
       { kind: 1, tags: [], content: "hi" },
@@ -253,14 +239,10 @@ describe("publish", () => {
   });
 
   it("onOptimisticInsert に渡る startedAt は store.put() より前の時刻", async () => {
-    // 捕まえる変異: 開始時刻をフックの中 (= store.put() の後) で取る。
-    // store.put() は毎回 schnorr 検証を走らせる (event-store.ts の
-    // verifyEvent) ので、put() の後で計測を始めると検証コストが
-    // ADR-0011 の予算の実測から漏れる。put() に観測可能な時間を
-    // 使わせて (busy-wait)、開始時刻がその手前で取られていることを
-    // 実測で確かめる —— 呼び出し順だけを見る上のテストでは、開始時刻を
-    // 取る位置をフックの中へ動かしても呼び出し順は変わらないため
-    // 捕まえられない。
+    // 捕まえる変異: 開始時刻をフックの中 (= store.put() の後) で取ると、
+    // schnorr 検証のコストが予算の実測から漏れる。put() を busy-wait
+    // させ、開始時刻がその手前で取られていることを実測で確かめる
+    // (呼び出し順だけを見るテストでは、位置をずらしても順序は変わらず捕まえられない)。
     const store = new EventStore();
     const originalPut = store.put.bind(store);
     let putStartedAt = -1;
@@ -296,16 +278,13 @@ describe("publish", () => {
 
     expect(putStartedAt).toBeGreaterThan(0);
     expect(startedAt).toBeGreaterThan(0);
-    // put() の busy-wait より前に取られていなければ、この不等式は
-    // (5ms 分) 成立しない。
+    // busy-wait より前に取られていなければこの不等式 (5ms 分) は成立しない。
     expect(startedAt).toBeLessThanOrEqual(putStartedAt);
     expect(startedAt).toBeLessThan(putFinishedAt - 4);
   });
 
   it("hooks はあっても onOptimisticInsert が無ければそのまま進む", async () => {
-    // 捕まえる変異: 内側の ?. を外して hooks?.onOptimisticInsert(...) にする。
-    // hooks オブジェクト自体は渡すが onOptimisticInsert を渡さない
-    // 呼び出し側で "not a function" として落ちる。
+    // 捕まえる変異: 内側の ?. を外す (onOptimisticInsert を渡さない呼び出しで "not a function" になる)。
     const { writer } = setup(ok);
     await expect(
       writer.publish({ kind: 1, tags: [], content: "hi" }, {}),
@@ -313,10 +292,8 @@ describe("publish", () => {
   });
 
   it("store.put が rejected を返す署名は挿入扱いにせず例外を投げる", async () => {
-    // 捕まえる変異: store.put() の戻り値を無視してそのまま onOptimisticInsert/
-    // publish へ進む (verify-optimistic-insert.ts を経由しない)。`signEvent`
-    // が返す `NostrEvent` は拡張機能の応答を無検証キャストしただけの値
-    // (`nip07-signer.ts` 参照) —— ここでは sig を壊した signer でそれを模す。
+    // 捕まえる変異: store.put() の戻り値を無視して進む (verify-optimistic-insert.ts を経由しない)。
+    // signEvent の NostrEvent は無検証キャストの値なので、ここでは sig を壊した signer で模す。
     const store = new EventStore();
     const calls: string[] = [];
     const brokenSigner: Signer = {
@@ -347,12 +324,7 @@ describe("publish", () => {
   });
 
   it("duplicate な put が全滅しても、先に成功していたイベントは remove しない", async () => {
-    // 捕まえる変異: putResult を見ずに無条件で remove する。同じ本文を
-    // 同じ秒に 2 回投稿すると id が衝突する (event id は署名を含まない
-    // ハッシュ) —— 2 回目の store.put() は "duplicate" になり、これは
-    // 「1 回目の呼び出しが既に挿入済み」という意味でしかない。2 回目が
-    // 全滅したときに無条件で remove すると、1 回目の成功で既にリレーへ
-    // 届いていたイベントまで一緒に消えてしまう。
+    // 捕まえる変異: putResult を見ずに無条件で remove する (id 衝突で "duplicate" になった 2 回目の全滅で、1 回目の成功イベントまで消えてしまう)。
     const store = new EventStore();
     const removedIds: string[] = [];
     const originalRemove = store.remove.bind(store);
@@ -376,8 +348,7 @@ describe("publish", () => {
     const first = await firstWriter.publish(draft);
     expect(store.get(first.event.id)).toBeDefined();
 
-    // 2 回目: 同じ signer・同じ draft・同じ now() なので同じ id になり、
-    // store.put() は "duplicate" を返す。publish は全滅させる。
+    // 2 回目: 同じ signer/draft/now() で id が衝突し "duplicate" になる。publish は全滅させる。
     const secondWriter = createWriter({
       signer,
       store,
@@ -421,8 +392,7 @@ describe("replace", () => {
     viewer = OTHER_PUBKEY;
     latest.resolve(undefined);
 
-    // 捕まえる変異: fetchLatest直後のaccount確認を外す。旧accountの
-    // currentを、新しい署名器で処理するmutationへ渡してしまう。
+    // 捕まえる変異: fetchLatest 直後の account 確認を外す (旧 account の current を新しい署名器の mutation へ渡す)。
     await expect(result).rejects.toBeInstanceOf(SignerUnavailableError);
     expect(mutate).not.toHaveBeenCalled();
     expect(signEvent).not.toHaveBeenCalled();
@@ -450,8 +420,7 @@ describe("replace", () => {
     viewer = OTHER_PUBKEY;
     mutation.resolve({ kind: 3, tags: [], content: "" });
 
-    // 捕まえる変異: mutation後のaccount確認を外す。NIP-44承認待ち中に
-    // 切り替わった署名器へ、旧accountのdraftを渡してしまう。
+    // 捕まえる変異: mutation 後の account 確認を外す (NIP-44 承認待ち中に切り替わった署名器へ旧 draft を渡す)。
     await expect(result).rejects.toBeInstanceOf(SignerUnavailableError);
     expect(signEvent).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
@@ -499,8 +468,7 @@ describe("replace", () => {
       content: "cipher",
     }));
 
-    // 捕まえる変異: identifier を tags へ反映しない、または mutation の
-    // 古い d を残す。同じ event が複数 address を名乗る。
+    // 捕まえる変異: identifier を反映しない、または mutation の古い d を残す (同じ event が複数 address を名乗る)。
     expect(result.event.tags).toEqual([
       ["d", "streets/deck"],
       ["alt", "deck"],
@@ -538,8 +506,7 @@ describe("replace", () => {
   };
 
   it("再取得 → mutate → 署名 の順に進む", async () => {
-    // 捕まえる変異: store の値で mutate する (再取得を待たない)。
-    // 古いコピーに差分を当てると他端末の変更を消す。
+    // 捕まえる変異: store の値で mutate する (再取得を待たず、古いコピーに差分を当てて他端末の変更を消す)。
     const { writer, calls } = setupReplace(undefined);
     await writer.replace(3, undefined, () => ({
       kind: 3,
@@ -567,8 +534,7 @@ describe("replace", () => {
   });
 
   it("再取得が失敗したら何も書かない", async () => {
-    // 捕まえる変異: current = undefined で続行する。既存のフォローリストを
-    // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+    // 捕まえる変異: current = undefined で続行する (既存のリストを 1 件だけで上書きする破壊になる)。
     const { writer, store, calls } = setupReplace(undefined, {
       refetchThrows: new RefetchFailedError([]),
     });
@@ -580,8 +546,7 @@ describe("replace", () => {
   });
 
   it("created_at が現在の版以下なら +1 に繰り上げる", async () => {
-    // 捕まえる変異: 常に now() を使う。リレーは created_at で新旧を決める
-    // ので、同一秒内の 2 回目の更新が黙って捨てられる。
+    // 捕まえる変異: 常に now() を使う (created_at で新旧を決めるリレーが同一秒内の更新を黙って捨てる)。
     const current = sign(1, {
       kind: 3,
       created_at: 1_700_000_000, // now() と同値
@@ -632,8 +597,7 @@ describe("replace", () => {
   });
 
   it("楽観挿入前の publish 先を追加先として保持する", async () => {
-    // 捕まえる変異: store.put 後に解決した送信先だけへ publish する。
-    // kind:10002 の変更で外した旧 write リレーに旧版が残る。
+    // 捕まえる変異: store.put 後に解決した送信先だけへ publish する (kind:10002 変更で外した旧リレーに旧版が残る)。
     const additional: (readonly RelayUrl[])[] = [];
     const writer = createWriter({
       signer: createFakeSigner(SK),
@@ -660,8 +624,7 @@ describe("replace", () => {
   });
 
   it("部分失敗した旧 publish 先を次回の replace でも再試行する", async () => {
-    // 捕まえる変異: 部分成功時の rejected を保持しない。kind:10002 の
-    // 楽観挿入後は旧リレーが routing から消え、次回は二度と送られない。
+    // 捕まえる変異: 部分成功時の rejected を保持しない (楽観挿入後は旧リレーが routing から消え、二度と送られない)。
     const additional: (readonly RelayUrl[])[] = [];
     let targetCall = 0;
     let publishCall = 0;
@@ -709,8 +672,7 @@ describe("replace", () => {
   });
 
   it("全滅した旧 publish 先も次回の replace で再試行する", async () => {
-    // 捕まえる変異: WriteFailedError で投げる経路で、失敗した
-    // 旧送信先を保持しない。次回の保存が新リレーだけに送られる。
+    // 捕まえる変異: WriteFailedError の経路で失敗した旧送信先を保持しない (次回が新リレーだけに送られる)。
     const additional: (readonly RelayUrl[])[] = [];
     let targetCall = 0;
     let publishCall = 0;
@@ -751,8 +713,7 @@ describe("replace", () => {
   });
 
   it("WriteFailedError 以外の例外をそのまま伝播する", async () => {
-    // 捕まえる変異: すべての例外を WriteFailedError とみなし、
-    // `rejected` を読もうとして元の署名エラーを握り潰す。
+    // 捕まえる変異: すべての例外を WriteFailedError とみなし、元の署名エラーを握り潰す。
     const cause = new Error("signing denied");
     const writer = createWriter({
       signer: {
@@ -778,8 +739,7 @@ describe("replace", () => {
   });
 
   it("保留した旧 publish 先を別 kind の replace へ混ぜない", async () => {
-    // 捕まえる変異: 置換対象のキーを空にし、ある kind の失敗先を
-    // 無関係な置換可能イベントの送信先にも混ぜる。
+    // 捕まえる変異: 置換対象のキーを空にし、失敗先を無関係な kind の送信先にも混ぜる。
     const additional: (readonly RelayUrl[])[] = [];
     let targetCall = 0;
     let publishCall = 0;

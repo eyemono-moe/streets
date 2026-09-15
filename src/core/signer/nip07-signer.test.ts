@@ -26,8 +26,7 @@ describe("createNip07Signer", () => {
   });
 
   it("拡張機能が無い状態で getPublicKey を呼ぶと SignerUnavailableError", async () => {
-    // 捕まえる変異: undefined へのアクセスを素通しして TypeError を投げる
-    // (呼び出し側が「拡張が無い」と「拡張が壊れている」を区別できなくなる)
+    // 捕まえる変異: undefined へのアクセスを素通しして TypeError を投げる（「拡張が無い」と「壊れている」を区別できなくなる）。
     setNostr(undefined);
     const signer = createNip07Signer();
     await expect(signer.getPublicKey()).rejects.toBeInstanceOf(
@@ -36,9 +35,7 @@ describe("createNip07Signer", () => {
   });
 
   it("signer の生成時点では拡張機能の有無を確かめない", async () => {
-    // 捕まえる変異: createNip07Signer() の中で window.nostr を掴んで固定する
-    // (ページ読み込み直後は拡張がまだ注入されていないことがあり、
-    //  生成時に掴むと「後から入った拡張」を永久に見失う)
+    // 捕まえる変異: createNip07Signer() の中で window.nostr を掴んで固定する（後から入った拡張を永久に見失う）。
     setNostr(undefined);
     const signer = createNip07Signer();
     setNostr({

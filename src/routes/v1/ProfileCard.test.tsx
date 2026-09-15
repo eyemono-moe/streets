@@ -13,7 +13,7 @@ import type { RenderContextValue } from "../../core/view/render-context";
 import ProfileCard from "./ProfileCard";
 import { npubLabel } from "./npub-label";
 
-// Note.test.tsx と同じ手法: 種から 32 byte 鍵を作り schnorr で実署名する。
+// EventStore.put の verifyEvent を通すため、種から作った鍵で実署名する。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
@@ -91,11 +91,7 @@ const contextWith = (
   renderers: [],
 });
 
-/**
- * `Note.test.tsx` の `mount` と同じ形。`ProfileCard` のトップレベルは
- * `<div>` (`<Show>` ではない) なので `Reaction.test.tsx` の `mountBody` の
- * ようなアクセサ変換は要らない。
- */
+/** `ProfileCard` のトップレベルは `<div>` (`<Show>` ではない) なのでアクセサ変換は要らない。 */
 const mount = (
   render: () => unknown,
   ctx: RenderContextValue,
@@ -163,10 +159,8 @@ describe("ProfileCard", () => {
   });
 
   it("display_name が無いとき @name を重ねて出さない (同じ文字列が2度並ばない)", () => {
-    // 捕まえる変異: `name` があれば無条件で `@name` も出す。`display_name`
-    // が無い kind:0 では大きい名前欄が `name` へ落ちるので、`@name` を
-    // 無条件に足すと「alice」「@alice」が縦に並んで同じ文字列が2度出る
-    // (`Profile.tsx` の `<Show when={displayName() && name()}>` と同じ規則)。
+    // 捕まえる変異: `name` があれば無条件で `@name` も出す (display_name
+    // が無いと name が太字側へ落ちるので、同じ文字列が2度出る)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(208, {
@@ -188,7 +182,7 @@ describe("ProfileCard", () => {
   });
 
   it('about のカスタム絵文字が <img data-testid="content-emoji"> になる', () => {
-    // 捕まえる変異: about を素のテキストで出す (v0 が取りこぼしている点)
+    // 捕まえる変異: about を素のテキストで出す
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(202, {
@@ -238,11 +232,8 @@ describe("ProfileCard", () => {
   });
 
   it("about の中の nostr:npub 言及にはホバーのトリガーを付けない (入れ子でカードが出ない)", () => {
-    // 捕まえる変異: `ProfileHoverSuppressedProvider` を外す。名前が出る場所
-    // では原則カードを出す方針だが、**カードの中の自己紹介文だけは例外**
-    // —— そこにホバーを付けると「カードの中の言及にホバー → またカード」
-    // という入れ子になる。`<Profile>` はカードの外では必ずトリガーを持つ
-    // ので、その差がここでしか観測できない。
+    // 捕まえる変異: `ProfileHoverSuppressedProvider` を外す (カードの中の
+    // 自己紹介文にホバーを付けると「またカード」の入れ子になる)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const mentioned = pubkeyFor(206);
@@ -258,7 +249,7 @@ describe("ProfileCard", () => {
     );
     try {
       const el = element();
-      // 言及そのものは描かれている (ホバーが無いだけで名前は出る)。
+      // 言及自体は描かれる (ホバーが無いだけ)。
       expect(el.querySelector('[data-testid="profile"]')).not.toBeNull();
       expect(
         el.querySelector('[data-scope="hover-card"][data-part="trigger"]'),
@@ -269,9 +260,8 @@ describe("ProfileCard", () => {
   });
 
   it("website が javascript: のとき <a> にならず、素のテキストで行が残る", () => {
-    // 捕まえる変異: scheme を確かめずリンクにする。
-    // 仕様 3.2 節・8 節: `http(s)` 以外はリンクにしないが、行ごと消しては
-    // いけない (素のテキストで出す)。
+    // 捕まえる変異: scheme を確かめずリンクにする (http(s) 以外は素の
+    // テキストで残す)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(205, {
@@ -294,8 +284,8 @@ describe("ProfileCard", () => {
   });
 
   it("website がスキーム無し (example.com) のとき、行ごと消えず素のテキストで残る", () => {
-    // 捕まえる変異: http(s) でない website を undefined へ落として
-    // <Show> ごと消す (I-1)。スキーム無しは実データで非常に多い形。
+    // 捕まえる変異: http(s) でない website を undefined へ落として消す
+    // (スキーム無しは実データで非常に多い)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(209, {
@@ -318,8 +308,7 @@ describe("ProfileCard", () => {
   });
 
   it("website が https:// のとき <a href> のリンクになる", () => {
-    // 捕まえる変異: isHttpUrl を常に false に倒す (http(s) でも決して
-    // リンクにならなくなる)。
+    // 捕まえる変異: isHttpUrl を常に false に倒す。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(210, {
@@ -383,9 +372,8 @@ describe("ProfileCard", () => {
   });
 
   it("nip05 の @ の後ろ (ドメイン部分) だけが出る", () => {
-    // 捕まえる変異: nip05Domain を素通し (nip05 をそのまま返す) にする ——
-    // 仕様 3.1 節が求めるのは「ドメイン部分」だけで、ローカル部分
-    // (`@` の前) を含めて出すと嘘の見た目になる (M-3)。
+    // 捕まえる変異: nip05Domain を素通しにする (ローカル部分を含めると
+    // 嘘の見た目になる)。
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(211, {
@@ -407,8 +395,7 @@ describe("ProfileCard", () => {
   });
 
   it("nip05 が @ を含まなければ行を出さない (ドメインを取り出せない)", () => {
-    // 捕まえる変異: nip05Domain を素通しにする (常に truthy を返し、
-    // ドメインが取り出せない形でも行を出してしまう)
+    // 捕まえる変異: nip05Domain を素通しにする (常に truthy を返す)
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(212, {
@@ -428,9 +415,7 @@ describe("ProfileCard", () => {
   });
 
   it("banner を持つとき <img data-testid=profile-banner> を描く", () => {
-    // 捕まえる変異: banner の <img> を丸ごと消す (I-2)。banner/picture の
-    // testid はこれまでどのテストからも参照されておらず、img を消す変異が
-    // 全部通っていた。
+    // 捕まえる変異: banner の <img> を丸ごと消す
     const events = createRecordingEventRequests();
     const store = new EventStore();
     const profileEvent = signed(213, {

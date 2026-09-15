@@ -8,17 +8,14 @@ import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import type { SubscriptionManager } from "./subscription-manager";
 
-// テスト専用の 32 byte 鍵を種から作る (profile-requests.test.ts と同じ手法)。
 const keyFor = (seed: number) =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, i) => ((seed + i * 7) % 255) + 1),
   );
 
 /**
- * 実在のイベントを必要としないテスト用の id。`request()`/`isUnresolved()`
- * は id を文字列として扱うだけで検証しない (`event-refs.ts` 側で既に
- * hex 64 桁を検証済みの id しか渡ってこない前提) ので、64 桁 hex の見た目に
- * 揃えつつ種から決定的に作れれば足りる。
+ * request()/isUnresolved() は id を文字列として扱うだけで検証しない (event-refs.ts
+ * が既に hex 64 桁検証済みの id しか渡さない前提)。64 桁 hex の見た目に揃えれば足りる。
  */
 const idFor = (seed: number): string => seed.toString(16).padStart(64, "0");
 
@@ -37,9 +34,8 @@ const noteEvent = (seed: number, content = `note ${seed}`): NostrEvent => {
 };
 
 /**
- * `manager` は `fetchOnce` の呼ばれ方だけを観測するスタブ。コアレッサは
- * `SubscriptionManager` の他のメンバを一切使わないので、テストダブルは
- * `fetchOnce` だけを持てば足りる (profile-requests.test.ts と同じ)。
+ * コアレッサは SubscriptionManager の他のメンバを一切使わないので、スタブは
+ * fetchOnce の呼ばれ方だけを観測できれば足りる。
  */
 const stubManager = () => {
   const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(
@@ -52,8 +48,8 @@ const stubManager = () => {
 
 describe("createEventRequests", () => {
   it("窓の中の複数の request を 1 回の fetchOnce にまとめる", () => {
-    // 捕まえる変異1: 要求ごとに fetchOnce を撃つ (N+1 の復活、ADR-0017 が
-    // 恐れたもの) —— 「呼ばれた回数が 1」で検出する
+    // 捕まえる変異1: 要求ごとに fetchOnce を撃つ (N+1 の復活) ——
+    // 「呼ばれた回数が 1」で検出する
     // 捕まえる変異2: 窓を持たず同期的に撃つ —— 「advance 前は呼ばれない」で検出する
     const manager = stubManager();
     const clock = createFakeClock();
@@ -67,7 +63,6 @@ describe("createEventRequests", () => {
     requests.request(idFor(2));
     requests.request(idFor(3));
 
-    // 窓が閉じるまでは何も投げない。
     expect(manager.fetchOnce).not.toHaveBeenCalled();
 
     clock.advance(200);
@@ -176,10 +171,10 @@ describe("createEventRequests", () => {
     const b = idFor(2);
 
     requests.request(a);
-    clock.advance(200); // 1 本目の窓を閉じる
+    clock.advance(200);
 
     requests.request(b);
-    clock.advance(200); // 2 本目の窓を閉じる
+    clock.advance(200);
 
     expect(manager.fetchOnce).toHaveBeenCalledTimes(2);
     const [firstFilters] = manager.fetchOnce.mock.calls[0] as [RelayFilter[]];
@@ -272,13 +267,9 @@ describe("createEventRequests", () => {
   });
 
   it("再要求すると、次のバッチが片付くまで isUnresolved は false に戻る", async () => {
-    // 捕まえる変異: settled を追加専用のままにする (request() が再要求時に
-    // settled.delete(id) を呼ばない)。この変異のもとでは、2 回目の
-    // fetchOnce がまだ解決していない間も isUnresolved が (1 回目のバッチの
-    // settled が残ったままなので) true を返し続け、以下の
-    // 「2 回目を要求した直後は false」のアサーションだけが落ちる —— 他の
-    // isUnresolved テストは 1 回しか request() しないので、この変異では
-    // 落ちない。
+    // 捕まえる変異: request() が再要求時に settled.delete(id) を呼ばない (settled が
+    // 追加専用のまま)。2 回目の fetchOnce 未解決中も isUnresolved が true を返し続け、
+    // 「再要求直後は false」のアサーションが落ちる — 1 回しか request しない他テストでは捕まらない。
     const clock = createFakeClock();
     const store = new EventStore();
     let resolveFirst: () => void = () => {};

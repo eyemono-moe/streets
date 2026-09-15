@@ -7,47 +7,29 @@ export type ProfileHoverProps = {
   pubkey: string;
   onClick?: JSX.EventHandlerUnion<HTMLElement, MouseEvent>;
   /**
-   * トリガーを**既存の要素そのもの**にしたいときに渡す。`Avatar` の枠は
-   * `sticky top-0` で、包む要素を挟むと `sticky` はその小さな包みの中で
-   * 動くことになり効かなくなる (仕様 5.1 節)。
+   * トリガーを**既存の要素そのもの**にしたいときに渡す —— `Avatar` の枠は
+   * `sticky top-0` で、別要素で包むと効かなくなる。
    */
   asChild?: (props: () => JSX.HTMLAttributes<HTMLElement>) => JSX.Element;
 };
 
 /**
- * 名前やアイコンにホバーするとプロフィールカードを出す (仕様 5 節)。
- *
- * **押せる見た目にしてある。** 押しても今は何も起きないが、ユーザー詳細
- * カラム (#205) が入れば押してカラムを開く挙動にする予定であり、それまで
- * わざわざ見た目を分ける理由が無い (v0 の `EmbedUser` も同じ見た目)。
+ * 名前やアイコンにホバーするとプロフィールカードを出す。**押せる見た目に
+ * してある** —— 今は何も起きないが、ユーザー詳細カラムが入れば開く予定。
  */
 const ProfileHover: ParentComponent<ProfileHoverProps> = (props) => (
-  // `lazyMount`/`unmountOnExit` が無いと ark-ui 5.38.1 の `usePresence` は
-  // `unmounted` を常に `false` にし、`HoverCard.Content` (= `ProfileCard`)
-  // がホバー前から `hidden` 属性だけで隠れた状態で常時マウントされる
-  // (1 カラムの初期表示 40 件 × 著者名/アイコンの 2 箇所で 80 個の
-  // 非表示ツリーが `document.body` にぶら下がる。カラム数やレンダウィンドウ
-  // の伸長を数えれば実際にはこれより増える —— 「最大」ではない)。
-  // 仕様 7 節の「ホバーしたから増える通信は無い」——取得済みの著者では
-  // 成り立つが、kind:0 をまだ持たない著者では `profile-requests.ts` の
-  // `request()` が窓ごとに再要求するので厳密には成り立たない——を
-  // DOM マウント数の面から補強するには、開くまでマウントしない
-  // (`lazyMount`) だけでなく、閉じたら畳む (`unmountOnExit`) も要る ——
-  // 前者だけだと一度開いたノートは以後ずっとマウントされたままになる。
+  // `lazyMount`/`unmountOnExit` が無いと ark-ui は開く前から `hidden` で
+  // 隠れたまま常時マウントし続け、DOM が肥大化する。「ホバーで通信は
+  // 増えない」のは取得済みの著者だけ (未取得だと窓ごとに再要求される) ので、
+  // マウント数を抑えるため両方とも要る。
   <HoverCard.Root lazyMount unmountOnExit>
     <Show
       when={props.asChild}
       fallback={
-        // `HoverCard.Trigger` の実体は `<button>`。UnoCSS のリセット
-        // (`@unocss/reset/tailwind-compat.css`) は `background-color:
-        // transparent` の行がコメントアウトされているため、素の `<button>` は
-        // UA 既定の `ButtonFace` 背景を保持したまま描かれる
-        // (`renderers/Note.tsx` の展開ボタンで実測済みの罠と同じ) ——
-        // `bg-transparent` が要る。
-        //
-        // 名前は本文の途中にも埋まるので `break-anywhere` と `max-w-full` で
-        // 折り返させる。`<button>` の既定は中央寄せなので `text-left` で
-        // 地の文に揃える。
+        // `HoverCard.Trigger` は `<button>` 実体。UnoCSS のリセットは
+        // `background-color: transparent` がコメントアウトされているため
+        // UA 既定の背景が残る —— `bg-transparent` が要る。名前は本文途中に
+        // 埋まるので `break-anywhere`/`max-w-full`、`text-left` で地の文に揃える。
         <HoverCard.Trigger
           data-testid="profile-hover-trigger"
           class="break-anywhere max-w-full cursor-pointer appearance-none bg-transparent text-left hover:underline"

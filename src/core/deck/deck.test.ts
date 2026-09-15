@@ -25,10 +25,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("notifications 列を読み戻せる", () => {
-    // 捕まえる変異: columnSourceSchema に notifications の variant を
-    // 足さない。保存はできてもリロードで **デッキ全体が** undefined になり
-    // (valibot の variant は 1 つでも外れると全体が失敗)、通知カラムを
-    // 足したユーザーは次の起動でカラムを全部失う。
+    // 捕まえる変異: notifications の variant を足さない (variant は 1 つでも外れると全体が失敗し、カラムを全部失う)。
     const withNotifications = {
       version: 2 as const,
       columns: [
@@ -39,14 +36,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("null (未保存) は undefined", () => {
-    // このアサーションが実際に保証すること: JSON.parse(null) は例外を
-    // 投げない ("null" へ強制変換されて JSON の null リテラルとしてパースが
-    // 成功する) —— raw === null の早期リターンを削っても valibot 側の
-    // スキーマ検証が最終的に undefined を返すので、この 1 本のアサーション
-    // 単体では早期リターンの有無を区別できない (だから「捕まえる変異」は
-    // 無い)。それでも早期リターンを残すのは、「raw が無い」という呼び出し
-    // 側の意図を JSON.parse の型強制という偶然の挙動任せにせず、コードとして
-    // 明示するため。
+    // JSON.parse(null) は例外を投げず null 扱いになるため検証はできないが、意図を明示するため早期リターンを残す。
     expect(loadDeck(null)).toBeUndefined();
   });
 
@@ -56,27 +46,15 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("version が違えば undefined", () => {
-    // 捕まえる変異: version を見ない
-    // (NIP-78 へ移すとき、古い形を新しい形として読んで壊れる)
+    // 捕まえる変異: version を見ない (NIP-78 移行時に古い形を新しい形として読み壊れる)。
     expect(loadDeck(JSON.stringify({ ...deck, version: 1 }))).toBeUndefined();
   });
 
   it("version 1 の古い形は undefined", () => {
-    // 捕まえる変異: version チェックと kind 判別のどちらか片方だけを外す。
-    // このフィクスチャは二重に守られている —— version を見なくても、旧
-    // source `{ type: "nostr", filters }` には `kind` が無いので
-    // v.variant("kind", ...) が弾く。逆に kind 判別を緩めても、version が
-    // 2 でなければ弾かれる。実際に落とせたのは両方を同時に緩めたときだけ
-    // (`version: v.number()` かつ `kind` を optional にして `v.union` へ
-    // 差し替え) —— 検証済み。どちらか一方だけを壊す変異は他のテスト
-    // (「version が違えば undefined」「kind の無い source は undefined」)
-    // が個別に捕まえる。それでもこのフィクスチャを残すのは、実際に手元の
-    // localStorage に残りうる「本物の旧デッキ」の形を通しで確かめるため。
-    //
-    // 旧 version 1 の source は `{ type: "nostr", filters }` という別の形
-    // なので、これを Deck として読むと `source.kind` が undefined になり、
-    // resolveSource がどちらの分岐にも入らない (= literal 側へ落ちて
-    // `filters: undefined` を読み取り層へ渡す)。
+    // 捕まえる変異: version と kind 判別を両方同時に緩めたときだけ検知
+    // できる (片方だけなら他のテストが捕まえる)。旧 version 1 の
+    // `{ type: "nostr", filters }` は kind を持たないため、素通りすると
+    // resolveSource が壊れた literal (`filters: undefined`) を返してしまう。
     expect(
       loadDeck(
         JSON.stringify({
@@ -140,11 +118,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter の authors が配列でなければ undefined", () => {
-    // 捕まえる変異: filter の中身の型を確かめない。
-    // subscription-manager.ts の `for (const author of filter.authors ?? [])`
-    // は `??` が null/undefined しか捕まえないので `42 ?? []` は `42` のまま
-    // になり、`for...of` が非同期の外、createSection のマウント中に同期的に
-    // TypeError を投げて白画面になる。
+    // 捕まえる変異: filter の中身の型を確かめない (`?? []` は null/undefined しか捕まえないので、authors が数値だと for...of が TypeError で白画面になる)。
     expect(
       loadDeck(
         JSON.stringify({
@@ -186,9 +160,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter が空オブジェクトなら undefined", () => {
-    // 捕まえる変異: 空フィルタを許す。
-    // {} は「著者も種類も問わない」= 無制限購読 (firehose) になり、壊れた
-    // デッキが本物のリレーへの無制限購読として通ってしまう。
+    // 捕まえる変異: 空フィルタを許す ({} は無制限購読になり、壊れたデッキが本物のリレーへそのまま通ってしまう)。
     expect(
       loadDeck(
         JSON.stringify({
@@ -202,10 +174,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter が since/until/limit/search だけなら undefined", () => {
-    // 捕まえる変異: scoping フィールド (ids/authors/kinds/#tag) の有無を
-    // 見ない。{ since: 123 } は空オブジェクトと同じ穴 —— since は範囲を
-    // 絞り込むだけで、誰の・何のイベントかという範囲そのものは定めない
-    // ので、これも無制限購読になる。
+    // 捕まえる変異: scoping フィールドの有無を見ない ({ since: 123 } も範囲を絞るだけで無制限購読と同じ穴)。
     expect(
       loadDeck(
         JSON.stringify({
@@ -223,9 +192,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("filter が #tag だけでも scoping として受け付ける", () => {
-    // 捕まえる変異: scoping フィールドの判定から #tag を落とす。#e/#p
-    // などのタグ絞り込みは合法な scoping であり、空フィルタ扱いにして
-    // 巻き添えで拒否してはいけない (退行防止)。
+    // 捕まえる変異: scoping 判定から #tag を落とす (#e/#p は合法な scoping であり空フィルタ扱いにしない)。
     const withTagFilter: Deck = {
       version: 2,
       columns: [
@@ -243,8 +210,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("ユーザー関連カラムを保存形式から復元する", () => {
-    // 捕まえる変異: 新しい source kind をスキーマへ追加せず、再読み込み時に
-    // デッキ全体を既定値へ戻す。
+    // 捕まえる変異: 新しい source kind をスキーマへ追加せず、デッキ全体を既定値へ戻す。
     const pubkey = "a".repeat(64);
     const deck: Deck = {
       version: 2,
@@ -266,8 +232,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("ユーザー関連カラムの不正な公開鍵を拒否する", () => {
-    // 捕まえる変異: pubkey を任意文字列として受け付け、永久に一致しない
-    // カラムを復元する。
+    // 捕まえる変異: pubkey を任意文字列として受け付け、永久に一致しないカラムを復元する。
     expect(
       loadDeck(
         JSON.stringify({
@@ -285,8 +250,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("旧 user プリセットをユーザー詳細カラムへ移行する", () => {
-    // 捕まえる変異: version 2 の旧 literal をそのまま返し、既存ユーザーだけ
-    // プロフィールとフォロー操作を使えない状態にする。
+    // 捕まえる変異: version 2 の旧 literal をそのまま返し、既存ユーザーがプロフィール/フォロー操作を使えなくなる。
     const pubkey = "a".repeat(64);
     expect(
       loadDeck(
@@ -317,8 +281,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("旧 user と区別できない改名済み literal は変換しない", () => {
-    // 捕まえる変異: 単一著者の literal をすべて user に変え、任意フィルタの
-    // 意図をプロフィール列へ変えてしまう。
+    // 捕まえる変異: 単一著者の literal をすべて user に変え、任意フィルタの意図を変えてしまう。
     const literal: Deck = {
       version: 2,
       columns: [
@@ -336,8 +299,7 @@ describe("loadDeck / saveDeck", () => {
   });
 
   it("旧 user に似ていても追加条件を持つ literal は変換しない", () => {
-    // 捕まえる変異: authors/kinds だけで旧プリセットと判定し、limit などの
-    // 追加条件を user への変換で黙って失う。
+    // 捕まえる変異: authors/kinds だけで旧プリセットと判定し、limit などの追加条件を黙って失う。
     const pubkey = "a".repeat(64);
     const literal: Deck = {
       version: 2,
@@ -378,9 +340,7 @@ describe("defaultDeck", () => {
       filters: [{ kinds: [1, 6], authors: [viewerPubkey] }],
     });
 
-    // 明示リレー: Outbox をバイパスして relays を直接持つ。他の 2 本と同じく
-    // 構造を丸ごと比較する (relays.length > 0 だけの緩いアサーションだと
-    // kinds を落とす変異を捕まえられない)。
+    // 明示リレー: 構造を丸ごと比較する (relays.length > 0 だけの緩いアサーションでは kinds を落とす変異を捕まえられない)。
     const explicit = result.columns.find(
       (c) => c.source.kind === "literal" && c.source.relays,
     );
@@ -392,10 +352,7 @@ describe("defaultDeck", () => {
   });
 
   it("ホームと自分の投稿はリポストも集める", () => {
-    // 捕まえる変異: TIMELINE_KINDS から 6 を落とす。上の toEqual でも
-    // 落とせるが、そちらは 3 本の構造をまとめて見ているので「なぜ 6 が
-    // 要るのか」が読めない。フォロー相手のリポストが列から丸ごと消える、
-    // というのがこの 1 行が守っているもの。
+    // 捕まえる変異: TIMELINE_KINDS から 6 を落とす (上の toEqual でも捕まるが、これはリポストが消える理由を明示する)。
     const result = defaultDeck(viewerPubkey);
 
     const home = result.columns.find((c) => c.id === "home");
@@ -414,7 +371,7 @@ describe("defaultDeck", () => {
   });
 });
 
-describe("deckStorageKey (final review, Important 3)", () => {
+describe("deckStorageKey", () => {
   const pubkeyA = "a".repeat(64);
   const pubkeyB = "b".repeat(64);
 
@@ -423,18 +380,12 @@ describe("deckStorageKey (final review, Important 3)", () => {
   });
 
   it("pubkey ごとに異なるキーを返す", () => {
-    // 捕まえる変異: pubkey を無視して固定のキーを返す (旧 DECK_STORAGE_KEY
-    // が全アカウントで 1 本を共有していたバグに逆戻りする)。これを見逃す
-    // と、B でログインしたときに A が保存したデッキ (A の followees を
-    // 焼き込んだ home 列、A の pubkey を著者に持つ mine 列) をそのまま
-    // 読み込んでしまう。
+    // 捕まえる変異: pubkey を無視して固定キーを返す (B ログイン時に A のデッキをそのまま読み込んでしまう)。
     expect(deckStorageKey(pubkeyA)).not.toBe(deckStorageKey(pubkeyB));
   });
 
   it("A が保存したデッキは B のキーからは読めない", () => {
-    // v1.tsx の `window.localStorage` の代わりに Map で十分 ——
-    // ここで確かめたいのはキーの分離そのもので、Storage API の挙動では
-    // ない。
+    // `window.localStorage` の代わりに Map で十分 —— 確かめたいのはキーの分離自体で Storage API の挙動ではない。
     const storage = new Map<string, string>();
     const deckA: Deck = {
       version: 2,
@@ -451,10 +402,7 @@ describe("deckStorageKey (final review, Important 3)", () => {
     };
     storage.set(deckStorageKey(pubkeyA), saveDeck(deckA));
 
-    // 捕まえる変異: deckStorageKey が pubkey を無視する、あるいは
-    // v1.tsx 側が保存済みデッキを pubkey を確かめずそのまま使う
-    // (アカウント境界の欠落)。B のキーでは A のデッキは存在しない
-    // (undefined = defaultDeck へ落ちる) ことを確かめる。
+    // 捕まえる変異: deckStorageKey が pubkey を無視する、または呼び出し側が確かめずそのまま使う (アカウント境界の欠落)。
     expect(
       loadDeck(storage.get(deckStorageKey(pubkeyB)) ?? null),
     ).toBeUndefined();

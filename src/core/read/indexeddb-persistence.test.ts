@@ -15,11 +15,7 @@ import { compareEvents } from "./sorted-events";
 
 let nextId = 0;
 
-/**
- * `selectForPersistence` は署名や id の形を見ないので、テストはハッシュらしい
- * 値を作らず短い文字列で足りる (`isNostrEvent` を通す必要があるのは
- * `readAllEvents` 側のテストだけ)。
- */
+/** selectForPersistence は署名や id の形を見ないので短い文字列で足りる (isNostrEvent が要るのは readAllEvents 側のテストだけ)。 */
 const makeEvent = (
   overrides: Pick<NostrEvent, "pubkey" | "kind" | "created_at"> &
     Partial<NostrEvent>,
@@ -37,9 +33,7 @@ const persistedEvent = (event: NostrEvent): PersistedEvent => ({
   fetchedAt: 0,
 });
 
-/** 待っているのは flush() 内の `getDb().then(...)` の解決。実タイマーの
- * マクロタスク境界まで待てば、注入した FakeClock を進めなくても
- * 先に積まれたマイクロタスクは必ず片付いている。 */
+/** flush() 内の getDb().then(...) を待つ。実タイマーのマクロタスク境界まで待てば、FakeClock を進めなくても先のマイクロタスクは片付く。 */
 const waitForAsyncWork = () =>
   new Promise<void>((resolve) => setTimeout(resolve, 0));
 
@@ -58,8 +52,7 @@ describe("selectForPersistence", () => {
   };
 
   it("retention: none の kind は書かれない", () => {
-    // 捕まえる変異: none の分岐で continue せず winners に加えてしまう
-    // (フォローリストなど、書いてはいけない kind が永続化されてしまう)
+    // 捕まえる変異: none の分岐で continue せず winners に加える (書いてはいけない kind が永続化される)。
     const entry = persistedEvent(
       makeEvent({ pubkey: "p1", kind: 3, created_at: 1 }),
     );
@@ -67,9 +60,7 @@ describe("selectForPersistence", () => {
   });
 
   it("latest-per-author は created_at が大きいほうを残す (到着順に依存しない)", () => {
-    // 捕まえる変異: created_at を比較せず「後から来たほうで上書き」にする
-    // (compareEvents を使わない実装は、entries の並び順が変わると結果も
-    // 変わってしまう)
+    // 捕まえる変異: created_at を比較せず「後から来た方で上書き」にする (entries の並び順で結果が変わってしまう)。
     const older = persistedEvent(
       makeEvent({ id: "old", pubkey: "p1", kind: 0, created_at: 100 }),
     );
@@ -91,10 +82,8 @@ describe("selectForPersistence", () => {
   });
 
   it("created_at 同値のときは sorted-events.ts の compareEvents と同じ全順序で決まる", () => {
-    // 捕まえる変異: 同値のとき常に配列の後ろ (または前) を機械的に勝たせる
-    // (compareEvents を呼ばずに決める)。sorted-events.ts と食い違う勝者を
-    // 選ぶと、同じ2つのイベントについて「保存された版」と「メモリ上でSortedEvents
-    // が保持する版」が別々の全順序で決まる
+    // 捕まえる変異: 同値のとき機械的に配列の前後を勝たせる (compareEvents を呼ばない)。
+    // sorted-events.ts と食い違う勝者を選ぶと、保存された版とメモリ上の版が別々の全順序で決まる。
     const a = persistedEvent(
       makeEvent({ id: "aaa", pubkey: "p1", kind: 0, created_at: 100 }),
     );
@@ -112,8 +101,7 @@ describe("selectForPersistence", () => {
   });
 
   it("異なる (kind, pubkey) の組は互いに影響しない", () => {
-    // 捕まえる変異: 勝者を集約する鍵に kind を含めず pubkey だけにする
-    // (別 kind の置換可能イベント同士が誤って競合し、一方が消える)
+    // 捕まえる変異: 勝者の集約鍵に kind を含めず pubkey だけにする (別 kind 同士が誤って競合し一方が消える)。
     const kind0 = persistedEvent(
       makeEvent({ id: "e1", pubkey: "p1", kind: 0, created_at: 1 }),
     );
@@ -130,9 +118,7 @@ describe("selectForPersistence", () => {
   });
 
   it("scope が public でない kind は retention があっても書かれない", () => {
-    // 捕まえる変異: selectForPersistence が scope を見ず retention だけで
-    // 決める (= このスライスが防ごうとした穴そのもの。account/session を
-    // 名乗った kind が本番の共有 DB へ書かれる)
+    // 捕まえる変異: scope を見ず retention だけで決める (account/session の kind が本番の共有 DB へ書かれる)。
     for (const scope of ["account", "session"] as const) {
       const nonPublic: CachePolicy = {
         staleMs: 0,
@@ -148,8 +134,7 @@ describe("selectForPersistence", () => {
   });
 
   it("retention: capped はこのスライスで未実装のため例外を投げる", () => {
-    // 捕まえる変異: capped の分岐で何もせず抜ける (無言で捨てるのは「実装
-    // しない」の意図と違う —— ポリシー側に capped が現れても誰も気づけない)
+    // 捕まえる変異: capped の分岐で何もせず抜ける (無言で捨てると、capped が現れても誰も気づけない)。
     const entry = persistedEvent(
       makeEvent({ pubkey: "p1", kind: 999, created_at: 1 }),
     );
@@ -166,13 +151,8 @@ describe("selectForPersistence", () => {
 
 describe("createIndexedDbPersistence — load() は reject しない", () => {
   it("indexedDB が無い環境では空を返す", async () => {
-    // 捕まえる変異: `openDatabase()` の try/catch を外す (`idb` が undefined
-    // のまま `idb.open` を呼びに行き、プロパティアクセスの TypeError が
-    // `load()` まで伝播して reject する)。`load()` 自身は内部の各関数が
-    // 失敗を吸収し切る前提で素通しにしている (二重に catch すると、片方が
-    // 発火しない死んだコードになる) —— reject しない契約はこの層が守る。
-    // jsdom/Node のテスト環境には元々 indexedDB が無いが、ここでは環境依存に
-    // せず明示的に注入して固定する
+    // 捕まえる変異: openDatabase() の try/catch を外す (idb が undefined のまま呼び
+    // TypeError が load() まで伝播して reject する)。indexedDB は環境依存を避け明示的に undefined を注入する。
     const persistence = createIndexedDbPersistence({ indexedDB: undefined });
     await expect(persistence.load()).resolves.toEqual({
       events: [],
@@ -181,9 +161,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
   });
 
   it("open() が同期的に投げても空を返す", async () => {
-    // 捕まえる変異: `openDatabase()` の try/catch を外す (open() の同期例外が
-    // そのまま `load()` まで伝播し reject する)。プライベートブラウジングの
-    // 実装は open() がこの形で同期的に失敗する
+    // 捕まえる変異: openDatabase() の try/catch を外す (プライベートブラウジングでは open() がこの形で同期的に失敗する)。
     const throwingIdb: IDBFactory = {
       open: () => {
         throw new Error("simulated: private browsing blocks IndexedDB");
@@ -200,8 +178,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
   });
 
   it("open() が非同期にエラーになっても空を返す", async () => {
-    // 捕まえる変異: `openDatabase()` の `request.onerror` ハンドラを外す
-    // (request が永久に pending のままで load() が解決しなくなる)
+    // 捕まえる変異: openDatabase() の request.onerror ハンドラを外す (load() が永久に解決しなくなる)。
     const failingRequest = {} as IDBOpenDBRequest;
     const failingIdb: IDBFactory = {
       open: () => {
@@ -220,9 +197,7 @@ describe("createIndexedDbPersistence — load() は reject しない", () => {
 
 describe("createIndexedDbPersistence — 書き込みの窓", () => {
   it("save を連続で呼んでもタイマーは 1 本にまとまる", () => {
-    // 捕まえる変異: `scheduleFlush` の `if (timer === null)` ガードを外す
-    // (save() のたびに新しいタイマーを張り、PERSIST_BATCH_MS の窓が意味を
-    // 持たなくなる)
+    // 捕まえる変異: scheduleFlush の if (timer === null) ガードを外す (PERSIST_BATCH_MS の窓が意味を持たなくなる)。
     const clock = createFakeClock();
     const persistence = createIndexedDbPersistence({
       scheduler: clock,
@@ -241,8 +216,7 @@ describe("createIndexedDbPersistence — 書き込みの窓", () => {
   });
 
   it("dispose は張ったタイマーを解除する", () => {
-    // 捕まえる変異: dispose() が `clearTimeout` を呼ばない (save() から
-    // PERSIST_BATCH_MS 後、dispose 後にもかかわらず flush が走ってしまう)
+    // 捕まえる変異: dispose() が clearTimeout を呼ばない (dispose 後にも flush が走ってしまう)。
     const clock = createFakeClock();
     const persistence = createIndexedDbPersistence({
       scheduler: clock,
@@ -278,8 +252,7 @@ describe("createIndexedDbPersistence — 書き込みの窓", () => {
   });
 
   it("同じインスタンスでは open() を複数回試みない", async () => {
-    // 捕まえる変異: `dbPromise` のメモ化を外し、flush のたびに `idb.open()`
-    // を呼び直す (失敗し続ける環境で、バッチのたびに同じ失敗を繰り返す)
+    // 捕まえる変異: dbPromise のメモ化を外し flush のたび idb.open() を呼び直す (失敗環境でバッチごとに同じ失敗を繰り返す)。
     let openCalls = 0;
     const idb: IDBFactory = {
       open: () => {
@@ -309,22 +282,16 @@ describe("createIndexedDbPersistence — 書き込みの窓", () => {
   });
 });
 
-// production コード (`writeBatch`) は注入されていない生の `IDBKeyRange` を
-// 直接参照する。jsdom/Node には元々存在しないので、実ストレージへの
-// 読み書きを検証する以下のテストのためにここでだけグローバルへ補う
-// (`vitest.setup.ts` の ResizeObserver/IntersectionObserver スタブと同じ形)。
+// writeBatch は注入されていない生の IDBKeyRange を直接参照するが jsdom/Node には
+// 元々存在しないため、実ストレージを検証する以下のテストのためにここでだけグローバルへ補う。
 if (typeof globalThis.IDBKeyRange === "undefined") {
   globalThis.IDBKeyRange = FakeIDBKeyRange as unknown as typeof IDBKeyRange;
 }
 
 describe("createIndexedDbPersistence — delete() は IndexedDB から実際に消す", () => {
   /**
-   * `readAllEvents` は `isNostrEvent` を通った record しか返さない
-   * (`toPersistedEvent`) ため、この describe だけは 64/128 桁 hex の形を
-   * した id/pubkey/sig を持つ実物らしい event を使う。kind は 0
-   * (`retention: "latest-per-author"`, `scope: "public"`) —— 永続化されない
-   * kind では `selectForPersistence` が弾いてしまい、delete() が実際に
-   * 何を消しているのかを確かめられない。
+   * readAllEvents は isNostrEvent 検証済みの record しか返さないため hex 形の
+   * event を kind:0 (永続化対象) で使う — 他 kind は弾かれ delete() を確認できない。
    */
   const realEvent = (id: string, pubkey: string): NostrEvent => ({
     id,
@@ -339,11 +306,8 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   const eventB = persistedEvent(realEvent("b".repeat(64), "2".repeat(64)));
 
   /**
-   * fake-indexeddb はリクエストの継続処理に Node の `setImmediate`
-   * (check フェーズ) を使う。`waitForAsyncWork` の 1 回の
-   * `setTimeout(…, 0)` 待ちでは、cursor 検索 → put のような複数ホップの
-   * 完了を保証できない (実測でも稀に取りこぼす) ので、check フェーズを
-   * 複数回回してから読む。
+   * fake-indexeddb は setImmediate で継続処理するため、cursor 検索→put のような
+   * 複数ホップは setTimeout(0) 1 回では完了を保証できず、check フェーズを複数回回す。
    */
   const settle = async (): Promise<void> => {
     for (let i = 0; i < 20; i++) {
@@ -351,8 +315,7 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
     }
   };
 
-  /** テストごとに新しい `FakeIDBFactory` を注入する —— DB_NAME はモジュール
-   * 内で固定なので、同じインスタンスを使い回すとテスト間で状態が漏れる。 */
+  /** テストごとに新しい FakeIDBFactory を注入する —— DB_NAME は固定なので使い回すと状態が漏れる。 */
   const setup = (): {
     persistence: ReturnType<typeof createIndexedDbPersistence>;
     scheduler: FakeClock;
@@ -371,8 +334,7 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   };
 
   it("delete した id は load で戻ってこない", async () => {
-    // 捕まえる変異: delete を no-op のままにする。放置すると publish に
-    // 失敗して巻き戻したイベントが次回起動の水和で戻ってくる。
+    // 捕まえる変異: delete を no-op のままにする (publish 失敗で巻き戻したイベントが次回起動の水和で戻ってくる)。
     const { persistence, flush } = setup();
     persistence.save([eventA, eventB]);
     await flush();
@@ -385,11 +347,8 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   });
 
   it("同じ flush の中で save した直後の id も消える", async () => {
-    // 捕まえる変異: `writeBatch` の `removalSet` によるフィルタを外し、
-    // retained をそのまま cursor 経由で put する。cursor 越しの put は
-    // 非同期にしか確定しないため、同じ id への delete() が先に (まだ何も
-    // 無い所を消す no-op として) 処理され、後から確定する put がそれを
-    // 上書きして残ってしまう。
+    // 捕まえる変異: writeBatch の removalSet フィルタを外す。cursor 越しの put は
+    // 非同期にしか確定せず、先に no-op 処理された delete() を後から put が上書きして残ってしまう。
     const { persistence, flush } = setup();
     persistence.save([eventA]);
     persistence.delete([eventA.event.id]);
@@ -400,8 +359,7 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   });
 
   it("同じ flush の delete より後に再保存した id は残す", async () => {
-    // 捕まえる変異: 同一バッチでは呼び出し順を見ず常に delete を勝たせる。
-    // 巻き戻し直後にリレーから同じイベントを再受信しても、次回起動で消える。
+    // 捕まえる変異: 同一バッチで呼び出し順を見ず常に delete を勝たせる (巻き戻し直後の再受信も次回起動で消える)。
     const { persistence, flush } = setup();
     persistence.save([eventA]);
     persistence.delete([eventA.event.id]);
@@ -413,10 +371,7 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   });
 
   it("deleteDeletionRequest で取り消した id は load に戻ってこない", async () => {
-    // 捕まえる変異: deleteDeletionRequest を no-op のままにする。
-    // EventStore.remove() が kind:5 の巻き戻しでこれを呼んでも
-    // deletions ストアのレコードが残り続け、publish が全滅したのに
-    // 対象イベントが次回起動のたびに hydrate で弾かれ続ける。
+    // 捕まえる変異: deleteDeletionRequest を no-op のままにする (publish 全滅後も対象が hydrate で弾かれ続ける)。
     const { persistence, flush } = setup();
     const target = "d".repeat(64);
     const request = makeEvent({
@@ -436,11 +391,8 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   });
 
   it("同じ flush の中で保存した直後の削除依頼も個別削除で消える", async () => {
-    // 捕まえる変異: 同じ flush 内での「保存」と「巻き戻し」が両方積まれた
-    // とき、deletionRemovalSet によるフィルタを外す。deletions ストアの
-    // put/delete は cursor を経由しないので実際には発行順で確定するが、
-    // フィルタを外すと「巻き戻しを勝たせる」という契約そのものが崩れ、
-    // 発行順を偶然守っているだけの状態になる。
+    // 捕まえる変異: 同じ flush 内で保存と巻き戻しが両方積まれたとき deletionRemovalSet
+    // フィルタを外す。「巻き戻しを勝たせる」契約が崩れ、発行順を偶然守るだけの状態になる。
     const { persistence, flush } = setup();
     const target = "e".repeat(64);
     const request = makeEvent({
@@ -458,8 +410,7 @@ describe("createIndexedDbPersistence — delete() は IndexedDB から実際に�
   });
 
   it("同じ flush の巻き戻しより後に再受信した削除依頼は残す", async () => {
-    // 捕まえる変異: deletionRemovalIds をバッチ末尾まで残し、後着の
-    // saveDeletionRequest も巻き込んで消す。Store と次回水和が食い違う。
+    // 捕まえる変異: deletionRemovalIds をバッチ末尾まで残し後着の save も巻き込んで消す (Store と次回水和が食い違う)。
     const { persistence, flush } = setup();
     const id = "f".repeat(64);
     const request = makeEvent({

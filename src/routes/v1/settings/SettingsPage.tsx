@@ -5,7 +5,7 @@ type SettingsPageProps = {
   description: string;
 };
 
-/** すべての設定ページで Penpot と同じ見出し位置と本文幅を保つ。 */
+/** すべての設定ページで見出し位置と本文幅を揃える。 */
 const SettingsPage: ParentComponent<SettingsPageProps> = (
   props,
 ): JSX.Element => (

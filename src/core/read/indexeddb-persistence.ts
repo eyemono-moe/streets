@@ -11,9 +11,8 @@ const DELETIONS_STORE = "deletions";
 const REPLACEABLE_INDEX = "replaceableKey";
 
 /**
- * 書き込みをまとめる窓 (`profile-requests.ts` の `PROFILE_BATCH_MS` と同じ形)。
- * 起動直後のバーストで数百件が流れるため、1 件 1 トランザクションでは
- * 書き込みが描画を圧迫する (spec 7 節)。
+ * 書き込みをまとめる窓。起動直後のバーストで数百件が流れるため、1 件 1
+ * トランザクションでは書き込みが描画を圧迫する。
  */
 const PERSIST_BATCH_MS = 1000;
 
@@ -24,9 +23,8 @@ type StoredEventRecord = {
   seenRelays: PersistedEvent["seenRelays"];
   fetchedAt: number;
   /**
-   * `latest-per-author` の対象だけが持つ `${kind}:${pubkey}`。ストアの主キーは
-   * event id なので、この索引が無いと「同じ著者の前の版」を探すのに全件走査
-   * するしかない。
+   * `latest-per-author` の対象だけが持つ `${kind}:${pubkey}`。無いと
+   * 「同じ著者の前の版」を探すのに全件走査するしかない。
    */
   replaceableKey?: string;
 };
@@ -38,21 +36,9 @@ export type RetainedEntry = {
 };
 
 /**
- * `policyFor(kind).retention` に基づき、このバッチの中で実際に書くエントリを
- * 選ぶ純関数。IndexedDB に触れないので、実装を差し替えずにユニットテストで
- * 固定できる —— retention の意味を確かめるのに DB を起動する必要が無い。
- *
- * `none` は書かず、`latest-per-author` は同一 `(kind, pubkey)` のうち
- * `compareEvents` の全順序で先頭に来るほう 1 件だけを残す (`sorted-events.ts`
- * と同じ順序を使うのは、2 つのファイルが「どちらが新しいか」で食い違わない
- * ようにするため)。`capped` はこのスライスで対象の kind が無く、
- * 実装しない代わりに投げる —— 将来ポリシー側に `capped` が現れたとき、
- * ここが未実装のまま静かに `none` 相当の挙動をするより早く気づける。
- *
- * `persistableScope` を先頭で通すのは、`retention` だけを見るループが
- * `scope: "account"`/`"session"` を無視してそのまま共有 DB へ書いてしまう
- * 穴を塞ぐため —— `shouldPersist`（kind 経由の同じ関数）と入口を共有する
- * ことで、「書いてよいか」の規則が 2 箇所に別々に存在する状態を作らない。
+ * `policyFor(kind).retention` に基づき書くエントリを選ぶ純関数。
+ * `latest-per-author` は `compareEvents` で先頭 1 件だけ残す。`capped` は
+ * 未実装として投げ、`persistableScope` は `shouldPersist` と入口を共有する。
  */
 export const selectForPersistence = (
   entries: readonly PersistedEvent[],
@@ -90,7 +76,7 @@ export const selectForPersistence = (
 const toPersistedEvent = (record: StoredEventRecord): PersistedEvent[] => {
   if (!isNostrEvent(record.event)) return [];
   // fetchedAt が壊れている/無いものを現在時刻で埋めると、実際には古い値を
-  // 新鮮と誤判定させてしまう (spec 12 節) —— 0 にして必ず取り直させる。
+  // 新鮮と誤判定させてしまう —— 0 にして必ず取り直させる。
   const fetchedAt =
     typeof record.fetchedAt === "number" && Number.isFinite(record.fetchedAt)
       ? record.fetchedAt
@@ -103,9 +89,8 @@ export type CreateIndexedDbPersistenceOptions = {
   /** バッチ窓のタイマー注入口 (テスト用)。既定は実タイマー。 */
   scheduler?: Scheduler;
   /**
-   * `indexedDB` の注入口 (テスト用)。既定は `globalThis.indexedDB`。
-   * jsdom/Node のテスト環境には無いので、そのまま使うと自然に
-   * 「IndexedDB が使えない」経路を通る。
+   * `indexedDB` の注入口 (テスト用)。既定は `globalThis.indexedDB` ——
+   * jsdom/Node には無いので、自然に「使えない」経路を通る。
    */
   indexedDB?: IDBFactory;
 };
@@ -123,9 +108,8 @@ const openDatabase = (idb: IDBFactory): Promise<IDBDatabase | null> =>
 
     request.onupgradeneeded = () => {
       const db = request.result;
-      // 移行コードを書かない方針 (ADR-0019 Consequences)。バージョンを上げる
-      // 将来の変更が「一部だけ新しいスキーマ」の中途半端な状態を残さないよう、
-      // 既存ストアを必ず全部消してから作り直す。
+      // 移行コードを書かない方針。バージョンを上げる将来の変更が「一部だけ
+      // 新しいスキーマ」を残さないよう、既存ストアを全部消してから作り直す。
       for (const name of Array.from(db.objectStoreNames)) {
         db.deleteObjectStore(name);
       }
@@ -194,7 +178,7 @@ const writeBatch = (
       resolve();
       return;
     }
-    // 書き込みの失敗は黙って捨てる (spec 12 節の表) —— 次回の起動が
+    // 書き込みの失敗は黙って捨てる —— 次回の起動が
     // 遅くなるだけで、アプリを止める理由にはならない。
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
@@ -204,15 +188,10 @@ const writeBatch = (
     const deletionsStore = tx.objectStore(DELETIONS_STORE);
     const replaceableIndex = eventsStore.index(REPLACEABLE_INDEX);
 
-    // 呼び出し側で id ごとの最後の操作へ畳んでいるが、残った「保存」と
-    // 「巻き戻し (delete)」では巻き戻しを勝たせる。**単に delete のループを
-    // 後に置くだけでは足りない** ——
-    // retained の put() は replaceableIndex の cursor を経由するため
-    // 非同期に確定し、IndexedDB はリクエストを積んだ順 (=生成順) に処理する。
-    // cursor がまだ何も持たない新規保存では delete() の方が先に (無を消す
-    // no-op として) 処理され、後から確定する put() がそれを上書きして
-    // 残ってしまう。retained 側から該当 id をあらかじめ除いておけば、この
-    // 非同期の確定順に依存せずに「delete が save に勝つ」を保証できる。
+    // 「保存」と「巻き戻し (delete)」が同じ id に来たら delete を勝たせる。
+    // put() は cursor 経由で非同期に確定するため、単に delete のループを
+    // 後に置くだけでは足りない (delete が先に no-op として処理され、後から
+    // 確定する put() に上書きされる) —— retained から該当 id を先に除く。
     const removalSet = new Set(removalIds);
     for (const { entry, replaceableKey } of retained) {
       if (removalSet.has(entry.event.id)) continue;
@@ -233,9 +212,8 @@ const writeBatch = (
           return;
         }
         const existing = cursor.value as StoredEventRecord;
-        // 同じ id への再書き込み (restamp) は上書きでよいが、別 id の古い版が
-        // 残っていると「著者ごと最新1件」(ADR-0019) が破れ、ストアが
-        // 見た版すべてを溜め込み続けることになる。
+        // 同じ id への再書き込み (restamp) は上書きでよいが、別 id の古い版
+        // が残ると「著者ごと最新 1 件」が破れ、版が溜まり続ける。
         if (
           existing.id === entry.event.id ||
           compareEvents(entry.event, existing.event) < 0
@@ -246,9 +224,8 @@ const writeBatch = (
       };
     }
 
-    // deletionRemovalIds (`EventStore.remove()` が kind:5 を巻き戻した) に
-    // 挙がっている id は書かない —— events 側の removalSet と同じ理由で、
-    // ここで先に除いておけば put/delete の発行順に依存しない。
+    // deletionRemovalIds に挙がる id は書かない —— events 側と同じ理由で、
+    // 先に除いておけば put/delete の発行順に依存しない。
     const deletionRemovalSet = new Set(deletionRemovalIds);
     for (const event of deletionRequests) {
       const id = event.id;
@@ -266,12 +243,8 @@ const writeBatch = (
   });
 
 /**
- * IndexedDB 版の `EventPersistence` (ADR-0018)。スキーマは spec 12 節のとおり
- * `streets.v1` / `events` (key: id) / `deletions` (key: id) / version 2。
- *
- * `load()` は決して reject しない —— IndexedDB はプライベートブラウジング・
- * 容量超過・ブラウザ設定で普通に失敗し、その失敗はキャッシュが無いのと
- * 同じであって、アプリが起動しない理由にはならない (spec 7 節)。
+ * IndexedDB 版の `EventPersistence`。`load()` は決して reject しない ——
+ * 失敗はキャッシュが無いのと同じで起動を止めない。
  */
 export const createIndexedDbPersistence = (
   options: CreateIndexedDbPersistenceOptions = {},
@@ -319,9 +292,8 @@ export const createIndexedDbPersistence = (
     )
       return;
 
-    // `getDb()` は `openDatabase()` の内側で失敗を吸収しているので今日は
-    // reject しないが、`.then` だけだと将来そこが崩れたときに補足されない
-    // rejection を作ってしまう。ここでも黙って捨てる終端にしておく。
+    // getDb() は openDatabase() 内で失敗を吸収するので今日は reject しないが、
+    // 将来そこが崩れた時のため、ここでも黙って捨てる終端にしておく。
     void getDb()
       .then(async (db) => {
         if (!db || disposed) return;
@@ -335,7 +307,7 @@ export const createIndexedDbPersistence = (
             deletionRemovalsToWrite,
           );
         } catch {
-          // 黙って捨てる (spec 12 節)。
+          // 黙って捨てる。
         }
       })
       .catch(() => {});
@@ -349,10 +321,8 @@ export const createIndexedDbPersistence = (
 
   return {
     async load() {
-      // ここに try/catch を重ねない —— `getDb()` / `readAllEvents()` /
-      // `readAllDeletionRequests()` はいずれも内部で失敗を吸収し尽くしていて
-      // 例外を外に出さない。ここで包むと決して発火しない catch が残り、
-      // 「本当にどこで失敗を止めているか」を追うときの手がかりを 1 つ増やす。
+      // try/catch を重ねない —— 下の 3 つは内部で失敗を吸収し尽くしていて
+      // 例外を出さない。ここで包むと決して発火しない catch が手がかりを増やす。
       const db = await getDb();
       if (!db) return { events: [], deletionRequests: [] };
       const [events, deletionRequests] = await Promise.all([

@@ -5,12 +5,8 @@ import { parseRelayList } from "./relay-list";
 const RELAY_LIST_KIND = 10002;
 
 /**
- * 著者 → 取得先リレーの対応表。
- *
- * 表を自分で保持せず、EventStore の kind:10002 から毎回導出する (ADR-0016)。
- * 専用の永続化も TTL も持たない — 永続化は EventStore 側 (ADR-0018/0019) が
- * kind:10002 を普通のイベントとして保存すれば自動的に得られ、鮮度は
- * 置換可能イベントの created_at 後勝ちで決まる。
+ * 著者 → 取得先リレーの対応表。EventStore の kind:10002 から毎回導出し、
+ * 永続化・鮮度も EventStore 側 (保存/created_at) に委ねる。
  */
 export class RoutingTable {
   readonly #store: EventStore;

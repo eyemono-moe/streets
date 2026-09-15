@@ -8,15 +8,8 @@ import { useRender } from "../../core/view/render-context";
 import { type MuteList, useOptionalMuteList } from "./mute-list";
 
 /**
- * イベントの右上に置くメニュー。**アクション列 (返信・リポスト等) とは
- * 別の層**として分けてある: アクション列はイベントの種別ごとに有無が
- * 変わる「本文に対する操作」で、こちらは author と id がどのイベントにも
- * 必ずある以上、**種別に関わらず必ず出せる操作**だけを持つ。
- *
- * フォロー/ブロック/通報は送信経路がまだ無いので置かない。ミュートは
- * `MuteList` が保存まで担うため、リンク・JSON のコピーと並べて提供する。
- * 押しても何も起きない項目を先に並べると「未実装」と「壊れている」が
- * 区別できなくなる (ADR-0026)。
+ * イベント右上のメニュー。アクション列とは別の層で、種別に関わらず
+ * 出せる操作だけを持つ。何も起きない項目を先に並べて誤解させない。
  */
 const EventMenu: Component<{ event: NostrEvent }> = (props) => {
   const render = useRender();

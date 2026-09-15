@@ -17,8 +17,7 @@ const evt = (fields: Partial<NostrEvent>): NostrEvent =>
 
 describe("buildReaction", () => {
   it("like は content が + で、e/p/k を持つ", () => {
-    // 捕まえる変異: k タグを落とす。読み取り側の parseReaction が
-    // 既に見ているので、落とすと自分が書いたものを自分で読めなくなる。
+    // 捕まえる変異: k タグを落とす —— 読み取り側の parseReaction が既に見ているので、落とすと自分が書いたものを自分で読めなくなる
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64), kind: 1 });
     const draft = buildReaction(target, { type: "like" });
     expect(draft.kind).toBe(7);
@@ -31,9 +30,7 @@ describe("buildReaction", () => {
   });
 
   it("k タグが target.kind から導出される (kind 30023 で検証)", () => {
-    // 捕まえる変異: k タグを String(target.kind) ではなく硬コードされた
-    // "1" に置き換える。fixture の kind デフォルトが 1 なので、全テストが
-    // 同じ値でしかテストできない。この例外テストで検証。
+    // 捕まえる変異: k タグを硬コードの "1" に置き換える —— fixture の kind 既定値が 1 なので他は検出できず、この例外ケースで検証する
     const target = evt({
       id: "1".repeat(64),
       pubkey: "9".repeat(64),
@@ -48,9 +45,7 @@ describe("buildReaction", () => {
   });
 
   it("カスタム絵文字は emoji タグ 1 つと :shortcode: 1 つ", () => {
-    // 捕まえる変異: content に飾りを足す (":x: すごい" など)。NIP-25 は
-    // "The content can be set only one :shortcode:" と定めており、
-    // 足すと他クライアントが素のテキストとして描く。
+    // 捕まえる変異: content に飾りを足す (":x: すごい" など)。NIP-25: "The content can be set only one :shortcode:" —— 足すと他クライアントが素のテキストとして描く
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     const draft = buildReaction(target, {
       type: "emoji",
@@ -71,8 +66,7 @@ describe("buildReaction", () => {
   });
 
   it("往復: buildReaction で作ったものを parseReaction が読み戻せる", () => {
-    // 捕まえる変異: どちらか一方だけを NIP に沿わせる。書いたものを自分で
-    // 読めないのは、同じ NIP を 2 箇所で別々に解釈している証拠。
+    // 捕まえる変異: どちらか一方だけを NIP に沿わせる —— 書いたものを自分で読めないのは、同じ NIP を 2 箇所で別々に解釈している証拠
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
     for (const input of [
       { type: "like" } as const,

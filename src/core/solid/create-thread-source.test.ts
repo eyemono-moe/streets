@@ -33,13 +33,9 @@ const signed = (seed: number, tags: string[][] = []): NostrEvent => {
 
 describe("createThreadSource", () => {
   it("同じ根のまま 1 段進んでも source() の参照は変わらない", () => {
-    // 捕まえる変異: relayHints (または source) が focusId() を直接
-    // 追跡するように戻す。`mid`/`leaf` はどちらも relay ヒントを持たない
-    // (`e` タグの 3 番目が空文字) ので、素朴に focusId() を追跡すると
-    // 1 段進むたびに「中身は同じ空配列だが参照は新しい」配列を返す ——
-    // 既定の等価性 (`===`) はそれを「変わった」と誤判定し、source() が
-    // 再計算されて createSection の createEffect が購読を張り直す
-    // (参照の安定性を保つ必要があるのはこのため)。
+    // 捕まえる変異: relayHints/source が focusId() を直接追跡する。すると
+    // 中身は同じでも参照が新しい配列を返し、`===` が「変わった」と誤判定
+    // して source() が再計算され、createSection の購読が張り直る。
     const store = new EventStore();
     const root = signed(1);
     const mid = signed(2, [["e", root.id, "", "root"]]);
@@ -98,9 +94,7 @@ describe("createThreadSource", () => {
 
   it("カラムに明示リレーが無くヒントがあれば、ヒントを FALLBACK_RELAYS に足す (置き換えない)", () => {
     // 捕まえる変異: ヒントだけを relays に使う (fallback を含めない)。
-    // フォーカスしたイベント自身にヒントが 1 本あるだけで、本来 3 本の
-    // fallback へ同報されるはずの購読がヒント 1 本だけに narrow されて
-    // しまう (E-2 の回帰)。
+    // ヒント 1 本だけで、本来 3 本の fallback 同報が narrow されてしまう。
     const store = new EventStore();
     const root = signed(6);
     const focus = signed(7, [["e", root.id, "wss://hinted-relay/", "root"]]);

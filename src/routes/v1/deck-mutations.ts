@@ -1,17 +1,8 @@
 import type { ColumnDef, Deck } from "../../core/deck/deck";
 
 /**
- * デッキの 4 つの変更操作を `Deck → Deck` の純関数として切り出したもの。
- * `v1.tsx` の `updateDeck` (localStorage への書き込みを伴う) から分けて
- * あるのは、副作用の無い形でユニットテストできるようにするため ——
- * とくに `renameColumnIn` の「空タイトルは拒否する」は e2e (Step 6) では
- * 覆われない (リロード確認は追加・削除・並べ替えの 3 主張だけ) ので、
- * ここで直接固定する。
- *
- * 変化が無い呼び出し (`moveColumnIn` の端、`renameColumnIn` の空文字) は
- * 受け取った `deck` をそのまま (同一参照で) 返す —— 呼び出し側 (`v1.tsx`)
- * が参照比較だけで「書き込む必要が無い」と判定でき、無駄な
- * `localStorage.setItem` を避けられる。
+ * デッキの 4 操作を `Deck → Deck` の純関数として切り出し、副作用を持つ
+ * `updateDeck` から分離 —— 変化が無ければ同じ参照を返し無駄な書き込みを避ける。
  */
 
 export const addColumnTo = (deck: Deck, column: ColumnDef): Deck => ({
@@ -46,14 +37,11 @@ export const renameColumnIn = (deck: Deck, id: string, title: string): Deck => {
   // 空のタイトルを保存してはいけない。`loadDeck` の `minLength(1)` が
   // そのカラムを弾き、**カラム 1 本ではなくデッキ全体**が「壊れている」
   // 判定になって次のリロードで既定デッキに戻る —— 1 本のタイトルを消し
-  // ただけで全部消えるという壊れ方になる (task-4-brief.md)。
+  // ただけで全部消えるという壊れ方になる。
   if (trimmed.length === 0) return deck;
-  // 実際に値が変わらない改名も同じ参照を返す (最終レビュー Minor 2) ——
-  // `commitTitle` はタイトルを見るためにクリックして blur しただけでも
-  // 発火するので、ここで弾かないと「クリックして見ただけ」で該当カラムの
-  // オブジェクト参照が変わり、`<For>` がそのカラムを丸ごと remount して
-  // 購読を張り直してしまう (identity ではなく `id` でカラムを追う根本修正は
-  // 次のスライスへ繰延、`docs/design/read-layer-followups.md` 参照)。
+  // 変わらない改名も同じ参照を返す —— `commitTitle` はクリックして blur
+  // しただけでも発火するので、弾かないと参照が変わり `<For>` がカラムを
+  // 丸ごと remount して購読を張り直してしまう。
   const target = deck.columns.find((column) => column.id === id);
   if (target && target.title === trimmed) return deck;
   return {

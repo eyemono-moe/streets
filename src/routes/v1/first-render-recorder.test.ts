@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createFirstRenderRecorder } from "./first-render-recorder";
 
-describe("createFirstRenderRecorder (task-5-brief.md Step 1)", () => {
+describe("createFirstRenderRecorder", () => {
   it("最初の呼び出しでは渡した ms をそのまま返す", () => {
     const record = createFirstRenderRecorder();
     expect(record(123.45)).toBe(123.45);

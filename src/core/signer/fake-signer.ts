@@ -4,12 +4,10 @@ import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { Signer } from "./signer";
 
 /**
- * テストからのみ使う偽の署名器 (`src/core/relay/fake-relay-connection.ts` や
- * `src/core/read/fake-clock.ts` と同じ位置づけ)。**本物の署名を作る** ——
- * `EventStore.put` は schnorr 検証を通すので、偽の sig では素通りしない。
- *
- * このファイルだけは秘密鍵を引数に取る。ADR-0008 が禁じているのは
- * **アプリが**鍵を保持することであり、テストが自分で鍵を作ることではない。
+ * テストからのみ使う偽の署名器（`fake-relay-connection.ts`/`fake-clock.ts`
+ * と同じ位置づけ）。**本物の署名を作る**——`EventStore.put` の schnorr 検証を
+ * 通すため。このファイルだけ秘密鍵を引数に取るのは、禁止対象が**アプリが**
+ * 鍵を保持することであり、テストが自分で鍵を作ることではないため。
  */
 export const createFakeSigner = (secretKey: Uint8Array): Signer => {
   const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));

@@ -1,11 +1,8 @@
 import type { RelayListEntry } from "../read/relay-list";
 
 /**
- * アクティブアカウントの NIP-65 リレーリスト。
- *
- * `loading` と `missing` を空配列へ潰さない。通知カラムでは前者が
- * 「まだ外部へ接続しない」、後者が「fallback で待つ」という別の動作に
- * なるため、件数だけでは正しく分岐できない。
+ * アクティブアカウントの NIP-65 リレーリスト。`loading`/`missing` を空配列に
+ * 潰さない —— 通知カラムでは前者「まだ接続しない」、後者「fallback で待つ」で動作が違う。
  */
 export type RelayListState =
   | { phase: "signed-out" }

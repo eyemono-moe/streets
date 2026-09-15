@@ -26,8 +26,7 @@ type PendingPublish = {
 };
 
 /**
- * NIP-01 を話す 1 リレー専用の接続 (ADR-0014, ADR-0020)。
- * Nostr ライブラリには依存しない。
+ * NIP-01 を話す 1 リレー専用の接続。Nostr ライブラリには依存しない。
  */
 export class WebSocketRelayConnection implements RelayConnection {
   readonly #socket: WebSocketLike;
@@ -50,8 +49,7 @@ export class WebSocketRelayConnection implements RelayConnection {
       if (this.#opened) return;
       const queued = this.#outbox.splice(0);
       for (const message of queued) socket.send(message);
-      // キューを流し終えてから通知する — listener から publish された
-      // メッセージが、既に取り出し済みのキューの後ろに紛れないように。
+      // publish されたメッセージが既に取り出し済みのキューの後ろに紛れないよう、流し終えてから通知する。
       this.#opened = true;
       for (const listener of [...this.#openListeners]) listener();
     };
@@ -81,8 +79,7 @@ export class WebSocketRelayConnection implements RelayConnection {
     handlers: RelaySubscriptionHandlers,
   ): RelaySubscription {
     if (this.#isClosed()) {
-      // ソケットが既に閉じている(またはクローズ中の)場合は即座に閉じたことを
-      // 通知する。そうしないと呼び出し元は二度と来ない onEose/onClosed を待ち続ける。
+      // 呼び出し元が来ない onEose/onClosed を待たないよう、閉じている (またはクローズ中の) 場合は即座に onClosed を通知する。
       handlers.onClosed("socket closed");
       return { close: () => {} };
     }
@@ -107,8 +104,7 @@ export class WebSocketRelayConnection implements RelayConnection {
     return new Promise((resolve, reject) => {
       const pending = this.#publishes.get(event.id);
       if (pending) {
-        // 同じ id のイベントが同時に publish された場合、
-        // 先に登録された Promise を上書きして迷子にしないよう配列で保持する。
+        // 同じ id のイベントが同時に publish されても先の Promise を上書きして迷子にしないよう、配列で保持する。
         pending.push({ resolve, reject });
       } else {
         this.#publishes.set(event.id, [{ resolve, reject }]);
@@ -150,10 +146,9 @@ export class WebSocketRelayConnection implements RelayConnection {
   }
 
   /**
-   * `onclose`/`onerror` はソケットが実際に閉じてからしか発火しないが、
-   * `readyState` は `.close()` 呼び出しと同時に CLOSING (2) 以上へ
-   * 同期的に切り替わる。そのギャップの間に登録された subscribe/publish が
-   * 二度と来ない onopen を待ち続けないよう、readyState も直接見る。
+   * `onclose`/`onerror` は実際に閉じてからしか発火しないが `readyState` は
+   * `.close()` と同時に CLOSING (2) 以上へ同期的に変わるので、そのギャップで
+   * 登録された subscribe/publish が来ない onopen を待たないよう readyState も見る。
    */
   #isClosed(): boolean {
     return this.#closed || this.#socket.readyState >= CLOSING;
@@ -164,7 +159,7 @@ export class WebSocketRelayConnection implements RelayConnection {
     try {
       message = JSON.parse(raw);
     } catch {
-      return; // 壊れたメッセージは黙って捨てる
+      return;
     }
     if (!Array.isArray(message) || typeof message[0] !== "string") return;
 
@@ -201,8 +196,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         if (!pending) return;
         this.#publishes.delete(eventId);
         for (const { resolve, reject } of pending) {
-          // ok は仕様上 boolean。真偽値以外の値(壊れたリレー応答)は
-          // 成功として扱わない。
+          // ok は仕様上 boolean。真偽値以外 (壊れたリレー応答) は成功として扱わない。
           if (ok === true) {
             resolve();
           } else {
@@ -212,7 +206,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         return;
       }
       default:
-        // NOTICE / AUTH などはこの計画では扱わない
+        // NOTICE / AUTH は扱わない
         return;
     }
   }

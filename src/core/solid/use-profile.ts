@@ -57,8 +57,6 @@ export const useCoreProfile = <T = Metadata>(
     return data;
   };
 
-  // Keep the cache-shaped Solid accessor synchronized with ProfileView, which derives
-  // metadata from raw kind:0 events in EventStore instead of a profile collection.
   createEffect(() => {
     const profilePubkey = pubkey();
     if (!profilePubkey) {

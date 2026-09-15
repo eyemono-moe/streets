@@ -25,9 +25,7 @@ const noteWith = (content: string, tags: string[][] = []): NostrEvent => ({
   tags,
 });
 
-/** `text` の `text`、`url` の `url`、`mention`/`hashtag` の `raw`、`emoji` の
- * `:${shortcode}:` を順に繋げば、パース前の content に戻るはずという不変
- * 条件をテストで固定するためのヘルパー。 */
+/** トークンを text/url/raw/`:shortcode:` の順で繋げば元の content に戻るという不変条件を固定するヘルパー。 */
 const concatTokens = (tokens: ContentToken[]): string =>
   tokens
     .map((t) => {
@@ -47,8 +45,7 @@ const concatTokens = (tokens: ContentToken[]): string =>
     .join("");
 
 // content.ts の production 側は hex しか受けないので、nprofile/nevent/naddr
-// のテストデータを組むための最小 TLV エンコーダをここでも持つ
-// (nip19.test.ts と同じ理由 —— production の encodeBech32 は hex しか受けない)。
+// のテストデータを組むための最小 TLV エンコーダをここでも持つ。
 type TlvEntry = { type: number; value: Uint8Array };
 
 const encodeTlv = (entries: TlvEntry[]): Uint8Array => {
@@ -80,9 +77,7 @@ const encodeEntity = (prefix: string, entries: TlvEntry[]): string =>
 
 describe("parseContent: 不変条件", () => {
   it("空白で区切られていない日本語が URL に飲み込まれない", () => {
-    // 捕まえる変異: URL の文字集合を \S+ に戻す。RFC 3986 が URI に許す
-    // 文字はすべて ASCII なので、非 ASCII で止めなければ区切りの空白が
-    // 無い日本語の本文で URL が後続の文章を丸ごと取る
+    // 捕まえる変異: URL の文字集合を \S+ に戻す —— RFC 3986 の URI 文字は全て ASCII なので、非 ASCII で止めないと区切り空白の無い日本語本文で後続文を丸ごと取る
     const event = noteWith("詳細は https://example.com/doc。ご確認ください");
     const tokens = parseContent(event.content, event.tags);
     const url = tokens.find((t) => t.type === "url");
@@ -93,9 +88,7 @@ describe("parseContent: 不変条件", () => {
   });
 
   it("トークンを連結すると元の content に戻る", () => {
-    // 捕まえる変異: どのトークンでも、元の文字列の一部を落とす/重複させる。
-    // トークン化は本文を「分ける」だけで「変える」処理ではない —— 落ちても
-    // 画面には出ないので、この不変条件でしか機械的に検出できない。
+    // 捕まえる変異: どのトークンでも元の文字列の一部を落とす/重複させる —— 欠落は画面に出ないので、この不変条件でしか機械的に検出できない
     const npub = `nostr:${encodeBech32("npub", PUBKEY)}`;
     const emojiTag = ["emoji", "foo", "https://cdn.example/foo.png"];
     const samples = [
@@ -118,16 +111,13 @@ describe("parseContent: 不変条件", () => {
   });
 
   it("content が空なら空配列を返す", () => {
-    // 捕まえる変異: 空文字を長さ 0 の text トークン 1 件として返す
-    // (concatTokens では区別できないが、レンダラ側が空配列を前提にしている
-    // かもしれないので、型どおり [] を直接確認しておく)
+    // 捕まえる変異: 空文字を長さ 0 の text トークン 1 件として返す (concatTokens では区別できないため、型どおり [] を直接確認する)
     const event = noteWith("");
     expect(parseContent(event.content, event.tags)).toEqual([]);
   });
 
   it("イベントを組み立てずに本文とタグだけで呼べる", () => {
-    // 捕まえる変異: 引数をイベントに戻す。プロフィールの about は
-    // イベントではない文字列なので、イベントを要求すると呼べない。
+    // 捕まえる変異: 引数をイベントに戻す —— プロフィールの about はイベントでない文字列なので、要求すると呼べない
     const tokens = parseContent(":happy: と https://example.com/", [
       ["emoji", "happy", "https://cdn.example/happy.png"],
     ]);
@@ -143,8 +133,7 @@ describe("parseContent: 不変条件", () => {
 
 describe("parseContent: URL", () => {
   it("# を含む URL がハッシュタグに割れない", () => {
-    // 捕まえる変異: URL がフラグメントの # を取り込まない
-    // (ハッシュタグがそれを横取りする形と等価)
+    // 捕まえる変異: URL がフラグメントの # を取り込まない (ハッシュタグがそれを横取りする形と等価)
     const content = "見て https://example.com/path#section です";
     const event = noteWith(content);
     expect(parseContent(event.content, event.tags)).toEqual([
@@ -155,13 +144,10 @@ describe("parseContent: URL", () => {
   });
 
   it(": を含む URL（ポート番号相当）が絵文字に割れない", () => {
-    // 捕まえる変異: URL の文字集合が埋め込みの ':' を手放す
-    // (URL の 4 マッチャは開始文字が h/n/:/# で互いに排他なので、?? の並び順
-    // 自体を入れ替えても各マッチャの開始位置では衝突しない —— 実際に確認
-    // した。真に効くのは URL 自身の切り出しが ':' の手前で止まる変異で、
-    // これだと URL が "http://example.com/room" で終わり、残りの
-    // ":8080:live" が絵文字マッチャに渡って emoji タグのショートコード
-    // "8080" を拾ってしまう)
+    // 捕まえる変異: URL の文字集合が埋め込みの ':' を手放す。4 マッチャは開始
+    // 文字 (h/n/:/#) で排他なので順序を変えても衝突せず、効くのは URL 切り出し
+    // が ':' 手前で止まる変異だけ —— それだと "http://example.com/room" で
+    // 終わり、残り ":8080:live" が絵文字マッチャへ渡って "8080" を拾ってしまう
     const event = noteWith("詳細 http://example.com/room:8080:live へ", [
       ["emoji", "8080", "https://cdn.example/8080.png"],
     ]);
@@ -195,8 +181,7 @@ describe("parseContent: URL", () => {
   });
 
   it("URL 内部で対応している ')' は含める", () => {
-    // 捕まえる変異: 対応を見ず常に末尾の ')' を剥がす
-    // (Wikipedia のような URL の一部を落としてしまう)
+    // 捕まえる変異: 対応を見ず常に末尾の ')' を剥がす (Wikipedia のような URL の一部を落としてしまう)
     const content =
       "https://en.wikipedia.org/wiki/Example_(disambiguation) 参照";
     const event = noteWith(content);
@@ -238,8 +223,7 @@ describe("parseContent: nostr: URI", () => {
 
   it("nsec がテキストのまま残る", () => {
     // 捕まえる変異: decodeNip19 が undefined を返したことを無視して
-    // mention トークンを作ってしまう (ADR-0008 違反 —— 秘密鍵を構造化データ
-    // にしてはいけない)
+    // mention トークンを作ってしまう —— 秘密鍵を構造化データにしてはいけない
     const raw = `nostr:${encodeBech32("nsec", PUBKEY)}`;
     const content = `危険 ${raw} 注意`;
     const event = noteWith(content);
@@ -317,8 +301,7 @@ describe("parseContent: 絵文字", () => {
 
 describe("parseContent: ハッシュタグ", () => {
   it("日本語のハッシュタグが取れる", () => {
-    // 捕まえる変異: 文字クラスを ASCII だけに絞る
-    // (\p{L}/\p{N} ではなく [a-zA-Z0-9_-] にする)
+    // 捕まえる変異: 文字クラスを ASCII だけに絞る (\p{L}/\p{N} ではなく [a-zA-Z0-9_-] にする)
     const content = "今日は #天気 がいい";
     const event = noteWith(content);
     expect(parseContent(event.content, event.tags)).toEqual([
@@ -329,8 +312,7 @@ describe("parseContent: ハッシュタグ", () => {
   });
 
   it("tag は小文字化され、raw に元の表記が残る", () => {
-    // 捕まえる変異: tag を小文字化しない
-    // (カラムの #t フィルタは小文字で引くので、タップしても何も出なくなる)
+    // 捕まえる変異: tag を小文字化しない (カラムの #t フィルタは小文字で引くので、タップしても何も出なくなる)
     const content = "#HelloWorld です";
     const event = noteWith(content);
     expect(parseContent(event.content, event.tags)).toEqual([
@@ -352,8 +334,7 @@ describe("isProbablyImageUrl", () => {
   });
 
   it("クエリ文字列つきでも拡張子で判定する", () => {
-    // 捕まえる変異: クエリ文字列を切り離さずに拡張子を判定する
-    // (末尾が拡張子ではなくクエリ値になり、常に false になる)
+    // 捕まえる変異: クエリ文字列を切り離さずに拡張子を判定する (末尾が拡張子でなくクエリ値になり、常に false になる)
     expect(isProbablyImageUrl("https://example.com/cat.jpg?w=100")).toBe(true);
   });
 

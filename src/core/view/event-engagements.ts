@@ -11,9 +11,8 @@ export type EventEngagements = {
 };
 
 /**
- * Store にある `#e` の候補を、イベント種別ごとの意味で絞り込む。
- * Store はタグ索引までしか知らず、直接返信・リポスト・Like の解釈は
- * kind 固有の parser を呼ぶこの module に閉じる (ADR-0004)。
+ * Store にある `#e` の候補を、イベント種別ごとの意味で絞り込む。Store は
+ * タグ索引までしか知らず、kind 固有の解釈（返信/リポスト/Like）はこの module に閉じる。
  */
 export const eventEngagements = (
   store: Pick<EventStore, "eventsByTag">,

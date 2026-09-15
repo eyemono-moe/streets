@@ -6,11 +6,8 @@ import type { ProfileRequests } from "../read/profile-requests";
 import type { EventRenderer } from "./renderer-registry";
 
 /**
- * `EventView` とレンダラ (Task 4) が共有する依存の束 (spec 2.1 節)。
- * props でこの 4 つを毎回下へ渡すと、レンダラの中に現れる `EventView`
- * (引用先・返信の親・リポスト対象) 1 つを書くたびに配線コードが増え、
- * 渡し忘れが型でしか (=実行するまで) 止まらない。context にすることで
- * `/v1` が 1 箇所で組み立て、レンダラは `useRender()` を呼ぶだけにする。
+ * `EventView` とレンダラが共有する依存の束。props で都度渡すと入れ子の
+ * `EventView` ごとに配線が増え渡し忘れも型で止まらないので、`/v1` が context で 1 箇所に組み立てる。
  */
 export type RenderContextValue = {
   store: EventStore;
@@ -18,10 +15,8 @@ export type RenderContextValue = {
   profiles: ProfileRequests;
   engagements: EngagementRequests;
   /**
-   * ログイン中の viewer の pubkey。未ログインなら `undefined`。**必須
-   * フィールドにする** —— 省略可能にすると、レンダラが自分が押した
-   * リアクションを強調し忘れても型では止まらず、実行するまで気付けない
-   * (spec 5 節)。
+   * ログイン中の viewer の pubkey (未ログインは `undefined`)。**必須にする**
+   * —— 省略可能だと、自分のリアクション強調忘れが型で止まらず実行時まで気付けない。
    */
   viewerPubkey: string | undefined;
   renderers: readonly EventRenderer[];
@@ -38,9 +33,8 @@ export const RenderProvider: ParentComponent<{ value: RenderContextValue }> = (
 );
 
 /**
- * provider の外で呼ばれたら例外を投げる。`undefined` を返して呼び出し側の
- * 分岐に委ねると、provider を渡し忘れたときに「静かに何も描かれない」
- * 実行時バグになり、テストで踏むまで気付けない。
+ * provider の外なら例外を投げる。`undefined` を返し分岐に委ねると、
+ * 渡し忘れが「静かに何も描かれない」実行時バグになり、テストで踏むまで気付けない。
  */
 export const useRender = (): RenderContextValue => {
   const ctx = useContext(RenderContext);

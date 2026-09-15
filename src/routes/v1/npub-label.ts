@@ -1,11 +1,8 @@
 import { encodeBech32 } from "../../core/nostr/nip19";
 
 /**
- * 名前が無いときに人物を指す文字列。`encodeBech32` は 64 桁 hex 以外で
- * 投げるが、pubkey は NIP-10 の `e` タグ 5 番目の要素など**リレー由来の
- * 任意文字列**から来ることがある —— 投げさせるとカラム全体が落ちる
- * (`<For>` の周りに ErrorBoundary が無い) ので、hex として読めない値は
- * 短縮 hex のまま出す。
+ * 名前が無いときの表示用文字列。pubkey はリレー由来の任意文字列のことも
+ * あり、`encodeBech32` が投げると ErrorBoundary が無くカラムごと落ちる。
  */
 export const npubLabel = (pubkey: string): string => {
   try {

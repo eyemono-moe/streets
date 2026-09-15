@@ -54,7 +54,6 @@ const normalizedTarget = (target: MuteTarget): MuteTarget | undefined => {
   }
 };
 
-/** フォーム入力を対象種別に合わせて解釈し、秘密鍵形式は受け付けない。 */
 export const parseMuteTarget = (
   type: MuteTarget["type"],
   input: string,
@@ -214,7 +213,6 @@ const changeTags = (
   return [...tags.map((tag) => [...tag]), tagOf(target)];
 };
 
-/** kind:10000 全体を一度だけ更新し、未知の公開・非公開タグを保つ。 */
 export const changeMuteList =
   (signer: Signer, pubkey: string, change: MuteChange): Replacement =>
   async (current) => {
@@ -248,7 +246,6 @@ export const changeMuteList =
     return { kind: MUTE_KIND, tags: publicTags, content };
   };
 
-/** 1 件のイベントに一致する項目を、設定画面と同じ entry で返す。 */
 export const matchingMutes = (
   entries: readonly MuteEntry[],
   event: NostrEvent,
@@ -276,7 +273,6 @@ export const matchingMutes = (
   });
 };
 
-/** メニューからの thread 対象は、返信なら根、根なら自分自身。 */
 export const threadMuteTarget = (event: NostrEvent): MuteTarget => ({
   type: "thread",
   value: threadRoot(event)?.id ?? event.id,
