@@ -3,7 +3,10 @@ import {
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
 import { buildReply } from "@streets/core/nostr/build/note";
-import { buildReaction } from "@streets/core/nostr/build/reaction";
+import {
+  type ReactionInput,
+  buildReaction,
+} from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
@@ -31,7 +34,7 @@ export type EventActions = {
   viewer: string;
   reply(target: NostrEvent, content: string): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
-  like(target: NostrEvent): Promise<void>;
+  react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
@@ -92,8 +95,8 @@ export const createEventActions = (options: {
       if (!draft) throw new Error("この投稿はリポストできません");
       await writer.publish(draft);
     },
-    async like(event) {
-      await writer.publish(buildReaction(event, { type: "like" }));
+    async react(event, input) {
+      await writer.publish(buildReaction(event, input));
     },
     bookmarked: (id) =>
       bookmarks()?.tags.some((tag) => tag[0] === "e" && tag[1] === id) ?? false,

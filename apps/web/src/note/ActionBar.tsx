@@ -1,37 +1,17 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { eventEngagements } from "@streets/core/view/event-engagements";
-import {
-  type Component,
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-} from "solid-js";
-import { actionErrorMessage, useEventActions } from "../actions";
+import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { useEventActions } from "../actions";
 import { useReadLayer } from "../read-layer";
 import ReplyDialog from "./ReplyDialog";
+import { useEngagementChanges } from "./use-engagement-changes";
+import { useSend } from "./use-send";
 
 const useEngagements = (event: () => NostrEvent, viewer: string) => {
-  const { store, engagements } = useReadLayer();
-  const [version, setVersion] = createSignal(0);
-  const bump = () => setVersion((current) => current + 1);
-
-  createEffect(() => {
-    const id = event().id;
-    engagements.request(id);
-    onCleanup(engagements.subscribe(bump));
-    onCleanup(
-      store.subscribe((change) => {
-        if (change.event.tags.some((tag) => tag[0] === "e" && tag[1] === id)) {
-          bump();
-        }
-      }),
-    );
-  });
-
+  const { store } = useReadLayer();
+  const changed = useEngagementChanges(() => event().id);
   return createMemo(() => {
-    version();
+    changed();
     return eventEngagements(store, event().id, viewer);
   });
 };
@@ -61,25 +41,6 @@ const Action: Component<{
     <Show when={props.count}>{(count) => <span>{count()}</span>}</Show>
   </button>
 );
-
-/** 押している間は二重に送らない。失敗したら理由を出し、もう一度押せるようにする。 */
-const useSend = () => {
-  const [sending, setSending] = createSignal(false);
-  const [error, setError] = createSignal<string>();
-  const run = async (task: () => Promise<void>) => {
-    if (sending()) return;
-    setSending(true);
-    setError(undefined);
-    try {
-      await task();
-    } catch (cause) {
-      setError(actionErrorMessage(cause));
-    } finally {
-      setSending(false);
-    }
-  };
-  return { sending, error, run };
-};
 
 const ActionBar: Component<{ event: NostrEvent }> = (props) => {
   const actions = useEventActions();
@@ -126,7 +87,11 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 active={engagement().viewerLiked}
                 count={engagement().likes}
                 disabled={like.sending() || engagement().viewerLiked}
-                onClick={() => void like.run(() => actions().like(props.event))}
+                onClick={() =>
+                  void like.run(() =>
+                    actions().react(props.event, { type: "like" }),
+                  )
+                }
               />
               <Action
                 label="Zap（未対応）"

@@ -26,6 +26,7 @@ import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
+import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
 import { useProfile } from "./use-profile";
 
@@ -212,6 +213,7 @@ const Note: Component<ContentProps> = (props) => {
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
       <Show when={props.size === "normal"}>
+        <ReactionList event={props.event} />
         <ActionBar event={props.event} />
       </Show>
     </Row>

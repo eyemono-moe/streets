@@ -56,8 +56,8 @@ const storyActions = (
         if (!draft) throw new Error("この投稿はリポストできません");
         return viewer.event(draft);
       }),
-    like: (target) =>
-      send(() => viewer.event(buildReaction(target, { type: "like" }))),
+    react: (target, input) =>
+      send(() => viewer.event(buildReaction(target, input))),
     bookmarked: (id) =>
       bookmarks()?.tags.some((tag) => tag[0] === "e" && tag[1] === id) ?? false,
     setBookmark: (target, on) =>

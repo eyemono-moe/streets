@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
+import type { NostrEvent } from "../nostr/event";
 import type { ParsedReaction } from "../nostr/reaction";
-import { groupReactions } from "./reaction-groups";
+import {
+  eventReactionGroups,
+  groupReactions,
+  sameReactionGroups,
+} from "./reaction-groups";
 
 const TARGET = "a".repeat(64);
 const entry = (pubkey: string, parsed: ParsedReaction) => ({ pubkey, parsed });
@@ -66,5 +71,54 @@ describe("groupReactions", () => {
       entry("u3", text("🎉")),
     ]);
     expect(groups.map((g) => g.key)).toEqual(["text:🎉", "like"]);
+  });
+});
+
+const reactionEvent = (
+  pubkey: string,
+  content: string,
+  tags: string[][],
+): NostrEvent => ({
+  id: `${pubkey}${content}`.padEnd(64, "0"),
+  pubkey,
+  created_at: 0,
+  kind: 7,
+  tags,
+  content,
+  sig: "",
+});
+
+describe("eventReactionGroups", () => {
+  it("最後の e タグが対象のものだけを数える", () => {
+    const other = "b".repeat(64);
+    const events = [
+      reactionEvent("u1", "🎉", [["e", TARGET]]),
+      // 返信への反応で、TARGET は祖先として前に並んでいるだけ。
+      reactionEvent("u2", "🎉", [
+        ["e", TARGET],
+        ["e", other],
+      ]),
+    ];
+    const groups = eventReactionGroups({ eventsByTag: () => events }, TARGET);
+    expect(groups.map((group) => [group.key, group.count])).toEqual([
+      ["text:🎉", 1],
+    ]);
+  });
+});
+
+describe("sameReactionGroups", () => {
+  it("押した人の回数まで同じなら同じとみなす", () => {
+    const build = () =>
+      groupReactions([entry("u1", like), entry("u2", text("🎉"))]);
+    expect(sameReactionGroups(build(), build())).toBe(true);
+  });
+
+  it("同じ件数でも押した人が違えば別物", () => {
+    expect(
+      sameReactionGroups(
+        groupReactions([entry("u1", like)]),
+        groupReactions([entry("u2", like)]),
+      ),
+    ).toBe(false);
   });
 });
