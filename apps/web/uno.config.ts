@@ -63,7 +63,7 @@ for (const color of Object.values(colors)) {
 
 export default defineConfig({
   presets: [
-    presetUno(),
+    presetUno({ dark: "media" }),
     presetIcons({
       autoInstall: true,
       collections: {
@@ -168,10 +168,6 @@ export default defineConfig({
             animation-duration: 0ms !important;
             transition-duration: 0ms !important;
           }
-        }
-        nl-auth {
-          /* KobalteのDialogを開いた状態でもNostrLogin側でpointer eventを受け取れるようにする */
-          pointer-events: auto;
         }
       `,
     },
