@@ -65,3 +65,5 @@ export const createStoryAuthor = (seed: number, profile: StoryProfile = {}) => {
     },
   };
 };
+
+export type StoryAuthor = ReturnType<typeof createStoryAuthor>;

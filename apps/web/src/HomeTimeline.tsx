@@ -11,6 +11,7 @@ import {
   createEffect,
   createResource,
 } from "solid-js";
+import { EventActionsProvider, createEventActions } from "./actions";
 import { setDiagnostics } from "./devtools/diagnostics";
 import Event from "./note/Event";
 import type { Session } from "./session";
@@ -65,6 +66,15 @@ const Timeline: Component<{
 const HomeTimeline: Component<{ readLayer: ReadLayer; session: Session }> = (
   props,
 ) => {
+  // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
+  // biome-ignore lint/style/noNonNullAssertion: ログイン中にしか描かれない
+  const viewer = props.session.pubkey()!;
+  const actions = createEventActions({
+    readLayer: props.readLayer,
+    signer: props.session.signer,
+    viewer,
+  });
+
   const [warmUp] = createResource(props.session.pubkey, async (pubkey) => {
     // 水和を待たずに始めると、空のストアを「キャッシュ無し」と見なして全員分を取り直す。
     await props.readLayer.ready;
@@ -82,40 +92,43 @@ const HomeTimeline: Component<{ readLayer: ReadLayer; session: Session }> = (
   });
 
   return (
-    <div class="flex h-dvh flex-col">
-      <header class="flex items-center justify-between gap-2 border-primary border-b px-4 py-2">
-        <h1 class="font-bold text-body">ホーム</h1>
-        <button
-          type="button"
-          class="c-secondary bg-transparent text-caption hover:underline"
-          onClick={props.session.logout}
-        >
-          ログアウト
-        </button>
-      </header>
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <Switch>
-          <Match when={warmUp.error}>
-            <p role="alert" class="p-4 text-caption text-red-500">
-              フォローリストを取得できませんでした。
-            </p>
-          </Match>
-          <Match when={warmUp()}>
-            {(result) => (
-              <Timeline
-                readLayer={props.readLayer}
-                // biome-ignore lint/style/noNonNullAssertion: warmUp はログイン中にしか解決しない
-                viewer={props.session.pubkey()!}
-                followees={result().followees}
-              />
-            )}
-          </Match>
-          <Match when={true}>
-            <p class="c-secondary p-4 text-caption">フォローリストを取得中…</p>
-          </Match>
-        </Switch>
+    <EventActionsProvider value={actions}>
+      <div class="flex h-dvh flex-col">
+        <header class="flex items-center justify-between gap-2 border-primary border-b px-4 py-2">
+          <h1 class="font-bold text-body">ホーム</h1>
+          <button
+            type="button"
+            class="c-secondary bg-transparent text-caption hover:underline"
+            onClick={props.session.logout}
+          >
+            ログアウト
+          </button>
+        </header>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <Switch>
+            <Match when={warmUp.error}>
+              <p role="alert" class="c-danger p-4 text-caption">
+                フォローリストを取得できませんでした。
+              </p>
+            </Match>
+            <Match when={warmUp()}>
+              {(result) => (
+                <Timeline
+                  readLayer={props.readLayer}
+                  viewer={viewer}
+                  followees={result().followees}
+                />
+              )}
+            </Match>
+            <Match when={true}>
+              <p class="c-secondary p-4 text-caption">
+                フォローリストを取得中…
+              </p>
+            </Match>
+          </Switch>
+        </div>
       </div>
-    </div>
+    </EventActionsProvider>
   );
 };
 

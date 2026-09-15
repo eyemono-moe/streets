@@ -12,6 +12,7 @@
     "storybook:build": "storybook build"
   },
   "dependencies": {
+    "@ark-ui/solid": "5.38.1",
     "@streets/core": "workspace:*",
     "@unocss/reset": "65.5.0",
     "solid-js": "1.9.13"

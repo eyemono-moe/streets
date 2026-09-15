@@ -2,7 +2,10 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 
 /** 画面が読み取り層から使う分だけ。Storybook が固定のイベントで差し替えられる幅に留める。 */
-export type ReadAccess = Pick<ReadLayer, "store" | "events" | "profiles">;
+export type ReadAccess = Pick<
+  ReadLayer,
+  "store" | "events" | "profiles" | "engagements"
+>;
 
 const ReadLayerContext = createContext<ReadAccess>();
 

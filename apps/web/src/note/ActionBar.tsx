@@ -1,0 +1,168 @@
+import type { NostrEvent } from "@streets/core/nostr/event";
+import { eventEngagements } from "@streets/core/view/event-engagements";
+import {
+  type Component,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+} from "solid-js";
+import { actionErrorMessage, useEventActions } from "../actions";
+import { useReadLayer } from "../read-layer";
+import ReplyDialog from "./ReplyDialog";
+
+const useEngagements = (event: () => NostrEvent, viewer: string) => {
+  const { store, engagements } = useReadLayer();
+  const [version, setVersion] = createSignal(0);
+  const bump = () => setVersion((current) => current + 1);
+
+  createEffect(() => {
+    const id = event().id;
+    engagements.request(id);
+    onCleanup(engagements.subscribe(bump));
+    onCleanup(
+      store.subscribe((change) => {
+        if (change.event.tags.some((tag) => tag[0] === "e" && tag[1] === id)) {
+          bump();
+        }
+      }),
+    );
+  });
+
+  return createMemo(() => {
+    version();
+    return eventEngagements(store, event().id, viewer);
+  });
+};
+
+const Action: Component<{
+  label: string;
+  icon: string;
+  active?: boolean;
+  count?: number;
+  disabled?: boolean;
+  onClick?: () => void;
+}> = (props) => (
+  <button
+    type="button"
+    aria-label={props.label}
+    aria-pressed={props.active}
+    class="flex items-center gap-1 bg-transparent text-caption enabled:cursor-pointer disabled:cursor-default"
+    classList={{
+      "c-secondary enabled:hover:c-primary": !props.active,
+      "c-accent-5": props.active,
+      "opacity-50": props.disabled && !props.active,
+    }}
+    disabled={props.disabled}
+    onClick={() => props.onClick?.()}
+  >
+    <span class={`${props.icon} size-4.5`} aria-hidden="true" />
+    <Show when={props.count}>{(count) => <span>{count()}</span>}</Show>
+  </button>
+);
+
+/** 押している間は二重に送らない。失敗したら理由を出し、もう一度押せるようにする。 */
+const useSend = () => {
+  const [sending, setSending] = createSignal(false);
+  const [error, setError] = createSignal<string>();
+  const run = async (task: () => Promise<void>) => {
+    if (sending()) return;
+    setSending(true);
+    setError(undefined);
+    try {
+      await task();
+    } catch (cause) {
+      setError(actionErrorMessage(cause));
+    } finally {
+      setSending(false);
+    }
+  };
+  return { sending, error, run };
+};
+
+const ActionBar: Component<{ event: NostrEvent }> = (props) => {
+  const actions = useEventActions();
+
+  return (
+    <Show when={actions}>
+      {(actions) => {
+        const engagement = useEngagements(() => props.event, actions().viewer);
+        const [replyOpen, setReplyOpen] = createSignal(false);
+        const repost = useSend();
+        const like = useSend();
+        const bookmark = useSend();
+        const bookmarked = () => actions().bookmarked(props.event.id);
+        const error = () => repost.error() ?? like.error() ?? bookmark.error();
+
+        return (
+          <>
+            <div class="flex items-center justify-between">
+              <Action
+                label="返信"
+                icon="i-material-symbols:mode-comment-outline-rounded"
+                count={engagement().replies}
+                onClick={() => setReplyOpen(true)}
+              />
+              <Action
+                label={
+                  engagement().viewerReposted ? "リポスト済み" : "リポスト"
+                }
+                icon="i-material-symbols:repeat-rounded"
+                active={engagement().viewerReposted}
+                // 取り消し（kind:5）はまだ作らないので、一度押したら押せなくする。
+                disabled={repost.sending() || engagement().viewerReposted}
+                onClick={() =>
+                  void repost.run(() => actions().repost(props.event))
+                }
+              />
+              <Action
+                label={engagement().viewerLiked ? "いいね済み" : "いいね"}
+                icon={
+                  engagement().viewerLiked
+                    ? "i-material-symbols:favorite-rounded"
+                    : "i-material-symbols:favorite-outline-rounded"
+                }
+                active={engagement().viewerLiked}
+                count={engagement().likes}
+                disabled={like.sending() || engagement().viewerLiked}
+                onClick={() => void like.run(() => actions().like(props.event))}
+              />
+              <Action
+                label="Zap（未対応）"
+                icon="i-material-symbols:bolt-outline-rounded"
+                disabled
+              />
+              <Action
+                label={bookmarked() ? "ブックマークを外す" : "ブックマーク"}
+                icon={
+                  bookmarked()
+                    ? "i-material-symbols:bookmark-rounded"
+                    : "i-material-symbols:bookmark-outline-rounded"
+                }
+                active={bookmarked()}
+                disabled={bookmark.sending()}
+                onClick={() =>
+                  void bookmark.run(() =>
+                    actions().setBookmark(props.event, !bookmarked()),
+                  )
+                }
+              />
+            </div>
+            <Show when={error()}>
+              {(message) => <p class="c-danger text-caption">{message()}</p>}
+            </Show>
+            <Show when={replyOpen()}>
+              <ReplyDialog
+                target={props.event}
+                onClose={() => setReplyOpen(false)}
+              />
+            </Show>
+          </>
+        );
+      }}
+    </Show>
+  );
+};
+
+export default ActionBar;

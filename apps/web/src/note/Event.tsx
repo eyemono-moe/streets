@@ -22,6 +22,8 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import ActionBar from "./ActionBar";
+import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
 import { useEvent } from "./use-event";
@@ -45,30 +47,11 @@ const Notice: Component<{ children: JSX.Element }> = (props) => (
 );
 
 const Head: Component<ContentProps> = (props) => {
-  const profile = useProfile(() => props.event.pubkey);
   const date = () => new Date(props.event.created_at * 1000);
 
   return (
     <div class="flex items-end gap-1.5">
-      <span class="flex min-w-0 flex-1 items-end gap-1.5">
-        <span
-          class="c-primary truncate font-600"
-          classList={{
-            "text-body": props.size === "normal",
-            "text-[14px]": props.size === "compact",
-          }}
-        >
-          {profileLabel(profile(), props.event.pubkey)}
-        </span>
-        {/* display_name が無いと太字側が name に落ちるので、同じ文字列を 2 回並べない。 */}
-        <Show when={profile()?.displayName && profile()?.name}>
-          {(name) => (
-            <span class="c-secondary min-w-0 truncate text-caption">
-              @{name()}
-            </span>
-          )}
-        </Show>
-      </span>
+      <AuthorNames pubkey={props.event.pubkey} size={props.size} />
       <time
         class="c-secondary shrink-0 text-caption"
         datetime={date().toISOString()}
@@ -227,6 +210,10 @@ const Note: Component<ContentProps> = (props) => {
         {(url) => <MediaImage url={url} size={props.size} />}
       </For>
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
+      {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
+      <Show when={props.size === "normal"}>
+        <ActionBar event={props.event} />
+      </Show>
     </Row>
   );
 };

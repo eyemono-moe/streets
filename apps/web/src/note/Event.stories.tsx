@@ -1,3 +1,5 @@
+import { addBookmark } from "@streets/core/nostr/build/bookmark";
+import { buildReaction } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import type { Component } from "solid-js";
@@ -16,7 +18,13 @@ const alice = createStoryAuthor(11, {
 const bob = createStoryAuthor(22, { name: "bob", displayName: "ほかのひと" });
 const carol = createStoryAuthor(33, { name: "carol" });
 const nameless = createStoryAuthor(44);
-const profiles = [alice.profile(), bob.profile(), carol.profile()];
+const viewer = createStoryAuthor(55, { name: "me", displayName: "わたし" });
+const profiles = [
+  alice.profile(),
+  bob.profile(),
+  carol.profile(),
+  viewer.profile(),
+];
 
 const plain = alice.note(
   "マルチカラムのクライアントは、1 列に入る情報量が体験を決める。余白は削るところと残すところを分ける。",
@@ -36,6 +44,17 @@ const quoteOfQuote = carol.quote(
   "引用の引用。中の引用は取りにいかない。",
 );
 const repost = carol.repost(plain);
+const engaged = [
+  bob.reply(plain, "わかる"),
+  carol.reply(plain, "たしかに"),
+  bob.event(buildReaction(plain, { type: "like" })),
+  carol.event(buildReaction(plain, { type: "like" })),
+];
+const viewerEngaged = [
+  viewer.event(buildReaction(plain, { type: "like" })),
+  viewer.repost(plain),
+  viewer.event(addBookmark({ type: "note", value: plain.id })(undefined)),
+];
 const unknown = alice.event({ kind: 30023, tags: [], content: "# 長文記事" });
 const noProfile = nameless.note("kind:0 が無い人の投稿。");
 
@@ -54,6 +73,7 @@ const EventStory: Component<Props> = (props) => (
 
 const scene = (...events: NostrEvent[]): EventScene => ({
   events: [...profiles, ...events],
+  viewer,
 });
 
 const meta = {
@@ -71,6 +91,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = { args: { event: plain, scene: scene(plain) } };
+
+export const 反応の件数: Story = {
+  args: { event: plain, scene: scene(plain, ...engaged) },
+};
+
+export const 自分が反応済み: Story = {
+  args: { event: plain, scene: scene(plain, ...engaged, ...viewerEngaged) },
+};
+
+export const 書き込みに失敗する: Story = {
+  args: { event: plain, scene: { ...scene(plain), failWrites: true } },
+};
+
+export const ログインしていない: Story = {
+  args: { event: plain, scene: { events: [...profiles, plain] } },
+};
 
 export const 本文のトークン: Story = {
   args: { event: tokens, scene: scene(tokens) },
