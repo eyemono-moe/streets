@@ -35,8 +35,12 @@ const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
 /**
  * 画像と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
  * 抜いた URL や参照の文字列を本文に残すと、同じものが 2 回見える。
+ * `quotes: false` のときは引用を抜かず、参照を本文の文字として残す。
  */
-export const layoutNote = (event: NostrEvent): NoteLayout => {
+export const layoutNote = (
+  event: NostrEvent,
+  options: { quotes: boolean },
+): NoteLayout => {
   const text: ContentToken[] = [];
   const images: string[] = [];
   const quotes: EventRef[] = [];
@@ -48,6 +52,7 @@ export const layoutNote = (event: NostrEvent): NoteLayout => {
       continue;
     }
     if (
+      options.quotes &&
       token.type === "mention" &&
       (token.ref.kind === "note" || token.ref.kind === "nevent")
     ) {
@@ -73,6 +78,6 @@ export const layoutNote = (event: NostrEvent): NoteLayout => {
     }
   }
 
-  quotes.push(...tagOnlyQuoteTargets(event));
+  if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
   return { text: trimEdges(text), images, quotes };
 };

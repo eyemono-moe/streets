@@ -12,7 +12,7 @@ import {
   createResource,
 } from "solid-js";
 import { setDiagnostics } from "./devtools/diagnostics";
-import TimelineItem from "./note/TimelineItem";
+import Event from "./note/Event";
 import type { Session } from "./session";
 
 const Timeline: Component<{
@@ -46,7 +46,7 @@ const Timeline: Component<{
         {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
         <div class="flex flex-col gap-px bg-tertiary pb-px">
           <For each={section.items()}>
-            {(event) => <TimelineItem event={event} />}
+            {(event) => <Event event={event} size="normal" />}
           </For>
         </div>
       </Match>

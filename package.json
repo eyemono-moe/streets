@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @streets/web dev",
     "build": "pnpm --filter @streets/web build",
+    "storybook": "pnpm --filter @streets/web storybook",
     "check": "biome check .",
     "fix": "biome check --write .",
     "typecheck": "pnpm -r typecheck",

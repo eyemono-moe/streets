@@ -76,10 +76,15 @@ const Token: Component<{ token: ContentToken }> = (props) => (
   </Switch>
 );
 
-const NoteText: Component<{ tokens: ContentToken[]; class: string }> = (
-  props,
-) => (
-  <p class={`break-anywhere whitespace-pre-wrap ${props.class}`}>
+const NoteText: Component<{
+  tokens: ContentToken[];
+  class: string;
+  classList?: Record<string, boolean>;
+}> = (props) => (
+  <p
+    class={`break-anywhere whitespace-pre-wrap ${props.class}`}
+    classList={props.classList}
+  >
     <For each={props.tokens}>{(token) => <Token token={token} />}</For>
   </p>
 );
