@@ -23,6 +23,16 @@ pnpm workspace の 2 パッケージ。
 - 画面は #343 の順に 1 枚ずつ作る。デバッグ用の画面やルートは作らず、診断値は TanStack Devtools のパネル（`apps/web/src/devtools/`）へ出す
 - `v1` が開発ブランチ。`main` へ直接マージしない
 
+## デザイン
+
+画面の見た目は、Penpot の Streets ファイルにある **[v1 / redesign](https://design.penpot.app/#/workspace?team-id=3be9e5e1-190f-8090-8008-7ccafe3c749b&file-id=3be9e5e1-190f-8090-8008-7ccb2d4a25bd&page-id=cefceceb-896a-8085-8008-83839412efd3) ページ**に合わせる。
+
+- 同じファイルの「v1 / deprecated」ページは古いので見ない
+- Penpot の MCP から読める。ボードの構造や CSS はそこから取り、値を推測で埋めない
+- 画面ごとに見るボードは #343 の表にある
+- `apps/web/legacy/` の部品もこのデザインを参考に作られている。移植するときは、デザインと食い違っていないか確かめる
+- デザインに無いもの（ログイン画面など）は、既存のトークンと部品の見た目に揃える
+
 ## テスト
 
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
@@ -72,4 +82,4 @@ publish 用の別経路を作らず、`ConnectionPool` 一本に集約します�
 
 ### UI プリミティブは Ark UI
 
-メニュー・ダイアログ・ポップオーバーは `@ark-ui/solid` を使います。見た目の一次情報は Penpot の streets ファイルです。
+メニュー・ダイアログ・ポップオーバーは `@ark-ui/solid` を使います。
