@@ -63,7 +63,8 @@ for (const color of Object.values(colors)) {
 
 export default defineConfig({
   presets: [
-    presetUno({ dark: "media" }),
+    // dark: は `.dark` クラスで効かせる。OS 設定・ライト・ダークのどれに従うかはアプリが theme.ts で決める。
+    presetUno(),
     presetIcons({
       autoInstall: true,
       collections: {
