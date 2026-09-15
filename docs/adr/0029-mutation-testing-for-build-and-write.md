@@ -1,8 +1,11 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # テストが宣言する変異は実際に落とせなければならない、を `src/core/nostr/build/`・`src/core/write/` で Stryker により強制する
+
+> **廃止。** workspace 分割の際に Stryker を外した。テストの量に対して、この強制を保つ手間が見合わなかった。
+
 
 このリポジトリには以前から規約がある。**すべてのテストは、コメントで「自分がどの変異 (mutation) を捕まえるためのものか」を書く。** 縦断スライスの計画・実装・レビューを何回か経て自然に生まれた慣習で、[read-layer-followups.md](../design/read-layer-followups.md) の随所に実例が残っている。しかし**この規約自体を定めた文書は無かった** —— 存在するのは各スライスの実装計画（`docs/superpowers/archive/` へ消える）と、そこから転記されたテストコメントだけである。本 ADR がこれを初めて明文化する。
 

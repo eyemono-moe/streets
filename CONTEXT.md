@@ -27,7 +27,7 @@ _Avoid_: データソース、プロバイダ、クエリ
 _Avoid_: ビュー、カード、アイテムコンポーネント
 
 **トークン**:
-`parseContent`（`src/core/nostr/content.ts`）が `content` を分けた一片。テキスト・URL・メンション・カスタム絵文字・ハッシュタグのいずれか1種。レンダラはこれを受け取って描くだけで、`content` の生文字列を直接扱わない。
+`parseContent`（`packages/core/src/nostr/content.ts`）が `content` を分けた一片。テキスト・URL・メンション・カスタム絵文字・ハッシュタグのいずれか1種。レンダラはこれを受け取って描くだけで、`content` の生文字列を直接扱わない。
 _Avoid_: セグメント、チャンク、認証トークン（NIP-98 等の別概念と紛れる）
 
 **フォールバック表示**:
@@ -102,7 +102,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0026](./docs/adr/0026-actionable-errors-visible-diagnostics-behind-developer-mode.md) | 常に見せるのは行動できる異常だけとし、診断値は開発者モードの背後に置く |
 | [0027](./docs/adr/0027-account-boundary-and-cache-scope.md) | キャッシュする kind を「誰が見てよいか」で分類し、名乗らないものは永続化しない |
 | [0028](./docs/adr/0028-ark-ui-for-v1-ui-primitives.md) | v1 の UI プリミティブは Ark UI に統一する |
-| [0029](./docs/adr/0029-mutation-testing-for-build-and-write.md) | テストが宣言する変異は実際に落とせなければならない、を `src/core/nostr/build/`・`src/core/write/` で Stryker により強制する |
+| [0029](./docs/adr/0029-mutation-testing-for-build-and-write.md) | テストが宣言する変異は実際に落とせなければならない、を `src/core/nostr/build/`・`src/core/write/` で Stryker により強制する（廃止） |
 | [0030](./docs/adr/0030-single-verification-entrypoint.md) | ローカルと CI の検証入口を `verify` に揃える |
 | [0031](./docs/adr/0031-nip46-session-key-boundary.md) | NIP-46 transport の通信専用 client key と本人鍵の境界を固定する |
 
