@@ -37,6 +37,7 @@ pnpm workspace の 2 パッケージ。
 
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
 - UI コンポーネントの単体テストは原則書かない。画面の確認は手で動かして行う
+- 部品の見た目は Storybook（`apps/web/src/**/*.stories.tsx`）で確認する。ストーリーはテストではなく、リレーに繋がずに固定のイベントを並べるカタログ。署名済みイベントの作り方と読み取り層の差し替えは `apps/web/src/storybook/` にある
 - 既存のテストがリファクタの邪魔になり、バグを捕まえていないなら、その場で消してよい
 
 ## 検証
@@ -50,6 +51,7 @@ pnpm fix      # 整形と import 順
 
 ```sh
 pnpm dev                                          # 5173
+pnpm storybook                                    # 6006。部品の見た目を固定のイベントで確認する
 docker compose up -d nostr-rs-relay nostr-rs-relay-2   # ローカルリレー 8080 / 8081
 pnpm seed:dev                                     # スレッドの各形をローカルリレーへ
 ```
