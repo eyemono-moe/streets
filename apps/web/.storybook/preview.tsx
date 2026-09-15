@@ -1,6 +1,7 @@
 import "@unocss/reset/tailwind-compat.css";
 import "virtual:uno.css";
 import { type Preview, createDecorator } from "storybook-solidjs-vite";
+import { MINIMAL_VIEWPORTS } from "storybook/viewport";
 import {
   type ColorScheme,
   PALETTES,
@@ -10,6 +11,13 @@ import {
 } from "../src/theme";
 
 let stopColorScheme = () => {};
+
+// カラム幅は可変にする予定なので、デザインの 380px の前後を並べる。高さは見本の置き場なので広めに取る。
+const columnViewport = (width: number) => ({
+  name: `カラム ${width}px`,
+  styles: { width: `${width}px`, height: "900px" },
+  type: "desktop" as const,
+});
 
 const preview: Preview = {
   globalTypes: {
@@ -39,9 +47,19 @@ const preview: Preview = {
   initialGlobals: {
     palette: "purple",
     colorScheme: "light",
+    viewport: { value: "column380", isRotated: false },
   },
   parameters: {
     layout: "fullscreen",
+    viewport: {
+      options: {
+        column320: columnViewport(320),
+        column380: columnViewport(380),
+        column480: columnViewport(480),
+        column640: columnViewport(640),
+        ...MINIMAL_VIEWPORTS,
+      },
+    },
   },
   decorators: [
     createDecorator((Story, context) => {
@@ -51,12 +69,10 @@ const preview: Preview = {
       stopColorScheme = applyColorScheme(
         context.globals.colorScheme as ColorScheme,
       );
-      // 幅はデザインのカラム幅（380px）に合わせる。
+      // 幅はビューポートに任せ、見本はその幅いっぱいに描く。
       return (
-        <div class="c-primary min-h-screen bg-secondary p-6 font-sans">
-          <div class="w-95 overflow-hidden bg-primary">
-            <Story />
-          </div>
+        <div class="c-primary min-h-screen bg-primary font-sans">
+          <Story />
         </div>
       );
     }),

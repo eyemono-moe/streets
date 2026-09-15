@@ -5,8 +5,6 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
-// 小さい SVG は data URI に埋め込まれ、本文の URL として拾われなくなるので、ファイルのまま配信させる。
-import mediaUrl from "../storybook/media-fixture.svg?no-inline";
 import { createStoryAuthor } from "../storybook/story-events";
 import Event, { type EventSize } from "./Event";
 
@@ -29,10 +27,6 @@ const tokens = bob.note(
     ["t", "nostr"],
     ["emoji", "party", emojiUrl],
   ],
-);
-// 本文の URL は http(s) で始まらないと画像として拾われないので、開発サーバーの origin を付ける。
-const media = alice.note(
-  `画像は角丸 8、列幅いっぱい。\n${new URL(mediaUrl, location.href).href}`,
 );
 const reply = alice.reply(plain, "返信の本文。");
 const quoted = bob.note("引用されたノートの本文。");
@@ -80,10 +74,6 @@ export const 通常: Story = { args: { event: plain, scene: scene(plain) } };
 
 export const 本文のトークン: Story = {
   args: { event: tokens, scene: scene(tokens) },
-};
-
-export const メディアつき: Story = {
-  args: { event: media, scene: scene(media) },
 };
 
 export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
