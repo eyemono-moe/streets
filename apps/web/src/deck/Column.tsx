@@ -21,7 +21,12 @@ import Event from "../note/Event";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
-import { ThreadNavProvider } from "./thread-nav";
+import {
+  ColumnStackProvider,
+  type StackEntry,
+  stackKey,
+  stackTitle,
+} from "./column-stack";
 
 export type ColumnProps = {
   column: ColumnDef;
@@ -116,8 +121,9 @@ const Header: Component<{
   );
 };
 
-/** 押して潜った先のヘッダー。戻り先と、いま何段目かを出す。 */
-const ThreadHeader: Component<{
+/** 重ねた先のヘッダー。戻り先と、いま何段目かを出す。 */
+const StackHeader: Component<{
+  title: string;
   depth: number;
   backTo: string;
   onBack: () => void;
@@ -135,7 +141,7 @@ const ThreadHeader: Component<{
       />
     </button>
     <div class="flex min-w-0 flex-1 flex-col">
-      <h2 class="truncate font-600 text-body">スレッド</h2>
+      <h2 class="truncate font-600 text-body">{props.title}</h2>
       <p class="c-secondary truncate text-caption">{props.backTo}に戻る</p>
     </div>
     {/* 何段潜ったかを点で出す。数字より場所を取らず、戻る回数が分かる。 */}
@@ -174,11 +180,16 @@ const Column: Component<ColumnProps> = (props) => {
   const items = () => visibleColumnItems(section.items(), show(), facets());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
-  // 押して潜った先。カラムの中だけの状態で、デッキには保存しない。
-  const [stack, setStack] = createSignal<string[]>([]);
-  const focusId = () => stack().at(-1);
-  const openThread = (id: string) =>
-    setStack((current) => (current.at(-1) === id ? current : [...current, id]));
+  // 重ねたもの。カラムの中だけの状態で、デッキには保存しない。
+  const [stack, setStack] = createSignal<StackEntry[]>([]);
+  const top = () => stack().at(-1);
+  const push = (entry: StackEntry) =>
+    setStack((current) => {
+      const last = current.at(-1);
+      return last && stackKey(last) === stackKey(entry)
+        ? current
+        : [...current, entry];
+    });
   const back = () => setStack((current) => current.slice(0, -1));
 
   createEffect(() =>
@@ -189,7 +200,7 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   return (
-    <ThreadNavProvider value={{ open: openThread }}>
+    <ColumnStackProvider value={{ push }}>
       <section
         class="flex h-full min-h-0 w-full flex-col bg-primary"
         // 保存されていないことを枠で示す。
@@ -201,14 +212,17 @@ const Column: Component<ColumnProps> = (props) => {
         <Show when={props.chrome !== false}>
           <div class="h-0.75 shrink-0 bg-accent-primary" />
         </Show>
-        <Show when={focusId()}>
-          <ThreadHeader
-            depth={stack().length - 1}
-            backTo={stack().length > 1 ? "ひとつ前" : props.column.title}
-            onBack={back}
-          />
+        <Show when={top()}>
+          {(entry) => (
+            <StackHeader
+              title={stackTitle(entry())}
+              depth={stack().length - 1}
+              backTo={stack().length > 1 ? "ひとつ前" : props.column.title}
+              onBack={back}
+            />
+          )}
         </Show>
-        <Show when={props.chrome !== false && focusId() === undefined}>
+        <Show when={props.chrome !== false && top() === undefined}>
           <Header
             column={props.column}
             open={props.settingsOpen}
@@ -244,51 +258,61 @@ const Column: Component<ColumnProps> = (props) => {
             </p>
           )}
         </For>
-        <div class="min-h-0 flex-1 overflow-y-auto">
-          <Show
-            when={focusId()}
-            fallback={
-              <Switch>
-                <Match when={items().length > 0}>
-                  {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-                  <div class="flex flex-col gap-px bg-tertiary pb-px">
-                    <For each={items()}>
-                      {(event) => (
-                        <Event
-                          event={event}
-                          size={
-                            props.column.density === "compact"
-                              ? "compact"
-                              : "normal"
-                          }
-                          expandMedia={props.column.expandMedia !== false}
-                        />
-                      )}
-                    </For>
-                  </div>
-                </Match>
-                <Match when={section.status().phase === "settled"}>
-                  <p class="c-secondary p-4 text-caption">
-                    まだ投稿がありません。
-                  </p>
-                </Match>
-                <Match when={true}>
-                  <p class="c-secondary p-4 text-caption">読み込み中…</p>
-                </Match>
-              </Switch>
-            }
-          >
-            {(id) => (
-              <ThreadView
-                focusId={id()}
-                readLayer={props.readLayer}
-                expandMedia={props.column.expandMedia !== false}
-              />
-            )}
-          </Show>
+        {/*
+        重ねても一覧を取り外さない。取り外すとスクロール位置が失われ、
+        戻ったときに読んでいた場所が分からなくなる。
+      */}
+        <div
+          class="min-h-0 flex-1 overflow-y-auto"
+          classList={{ hidden: top() !== undefined }}
+        >
+          <Switch>
+            <Match when={items().length > 0}>
+              {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+              <div class="flex flex-col gap-px bg-tertiary pb-px">
+                <For each={items()}>
+                  {(event) => (
+                    <Event
+                      event={event}
+                      size={
+                        props.column.density === "compact"
+                          ? "compact"
+                          : "normal"
+                      }
+                      expandMedia={props.column.expandMedia !== false}
+                    />
+                  )}
+                </For>
+              </div>
+            </Match>
+            <Match when={section.status().phase === "settled"}>
+              <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+            </Match>
+            <Match when={true}>
+              <p class="c-secondary p-4 text-caption">読み込み中…</p>
+            </Match>
+          </Switch>
         </div>
+        <For each={stack()}>
+          {(entry, index) => (
+            <div
+              class="min-h-0 flex-1 overflow-y-auto"
+              classList={{ hidden: index() !== stack().length - 1 }}
+            >
+              <Show when={entry.kind === "thread" && entry}>
+                {(thread) => (
+                  <ThreadView
+                    focusId={thread().focusId}
+                    readLayer={props.readLayer}
+                    expandMedia={props.column.expandMedia !== false}
+                  />
+                )}
+              </Show>
+            </div>
+          )}
+        </For>
       </section>
-    </ThreadNavProvider>
+    </ColumnStackProvider>
   );
 };
 

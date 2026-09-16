@@ -21,7 +21,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import { useThreadNav } from "../deck/thread-nav";
+import { useColumnStack } from "../deck/column-stack";
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
@@ -307,17 +307,17 @@ const isInteractive = (target: EventTarget | null) =>
   target instanceof Element &&
   target.closest("a, button, input, textarea, [role='button']") !== null;
 
-/** 手元にあるイベントを 1 件描く。押すとそのカラムの中でスレッドを開く。 */
+/** 手元にあるイベントを 1 件描く。押すとそのカラムの上にスレッドを重ねる。 */
 const Event: Component<ContentProps> = (props) => {
-  const thread = useThreadNav();
+  const stack = useColumnStack();
   let downAt: { x: number; y: number } | undefined;
 
   return (
     <Frame
       size={props.size}
-      // 引用の中（compact）からは開かない。開いた先で操作する。
+      // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
       onOpen={
-        thread && props.size === "normal"
+        stack
           ? (event) => {
               if (isInteractive(event.target)) return;
               const moved =
@@ -325,7 +325,7 @@ const Event: Component<ContentProps> = (props) => {
                 (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
                   Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
               if (moved) return;
-              thread.open(props.event.id);
+              stack.push({ kind: "thread", focusId: props.event.id });
             }
           : undefined
       }
