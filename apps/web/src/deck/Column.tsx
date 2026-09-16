@@ -33,6 +33,8 @@ export type ColumnProps = {
   onToggleSettings: () => void;
   /** ヘッダーを掴んで並べ替えるための配線。 */
   onDragStart?: (event: DragEvent) => void;
+  /** URL から開いたカラム。保存されていないので、残すか閉じるかを選ばせる。 */
+  temporary?: { onKeep: () => void; onClose: () => void };
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
 };
@@ -42,6 +44,7 @@ const Header: Component<{
   open: boolean;
   onToggle: () => void;
   onDragStart?: (event: DragEvent) => void;
+  temporary?: { onKeep: () => void; onClose: () => void };
 }> = (props) => {
   const meta = () => columnMeta(props.column);
   return (
@@ -60,22 +63,52 @@ const Header: Component<{
         <h2 class="truncate font-600 text-body">{props.column.title}</h2>
         <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
       </div>
-      <button
-        type="button"
-        aria-label="カラムの設定"
-        aria-expanded={props.open}
-        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-        onClick={() => props.onToggle()}
-      >
-        <span
-          class="size-4.5"
-          classList={{
-            "i-material-symbols:more-horiz": !props.open,
-            "i-material-symbols:close-rounded": props.open,
-          }}
-          aria-hidden="true"
-        />
-      </button>
+      <Show when={props.temporary}>
+        {(temporary) => (
+          <>
+            <button
+              type="button"
+              class="c-secondary flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-2.5 font-600 text-caption"
+              onClick={() => temporary().onKeep()}
+            >
+              <span
+                class="i-material-symbols:bookmark-outline-rounded size-3.5"
+                aria-hidden="true"
+              />
+              カラムに残す
+            </button>
+            <button
+              type="button"
+              aria-label="閉じる"
+              class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+              onClick={() => temporary().onClose()}
+            >
+              <span
+                class="i-material-symbols:close-rounded size-4.5"
+                aria-hidden="true"
+              />
+            </button>
+          </>
+        )}
+      </Show>
+      <Show when={!props.temporary}>
+        <button
+          type="button"
+          aria-label="カラムの設定"
+          aria-expanded={props.open}
+          class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+          onClick={() => props.onToggle()}
+        >
+          <span
+            class="size-4.5"
+            classList={{
+              "i-material-symbols:more-horiz": !props.open,
+              "i-material-symbols:close-rounded": props.open,
+            }}
+            aria-hidden="true"
+          />
+        </button>
+      </Show>
     </header>
   );
 };
@@ -107,7 +140,14 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   return (
-    <section class="flex h-full min-h-0 w-full flex-col bg-primary">
+    <section
+      class="flex h-full min-h-0 w-full flex-col bg-primary"
+      // 保存されていないことを枠で示す。
+      classList={{
+        "outline outline-2 -outline-offset-2 outline-accent-5":
+          props.temporary !== undefined,
+      }}
+    >
       <Show when={props.chrome !== false}>
         <div class="h-0.75 shrink-0 bg-accent-primary" />
         <Header
@@ -115,6 +155,7 @@ const Column: Component<ColumnProps> = (props) => {
           open={props.settingsOpen}
           onToggle={props.onToggleSettings}
           onDragStart={props.onDragStart}
+          temporary={props.temporary}
         />
       </Show>
       {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}

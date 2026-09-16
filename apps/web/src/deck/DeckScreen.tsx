@@ -1,3 +1,4 @@
+import { useNavigate, useParams } from "@solidjs/router";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import {
   addColumnTo,
@@ -5,6 +6,7 @@ import {
   removeColumnFrom,
   updateColumnIn,
 } from "@streets/core/deck/deck-mutations";
+import { tempColumnFor } from "@streets/core/deck/temp-column";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import {
@@ -95,8 +97,25 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   });
   const columns = () => deckStore.value()?.columns ?? [];
 
-  // 消えたカラムを選んだままにしない。
+  // URL の 1 区画から開く一時カラム。デッキへは保存せず、左端に出す（ADR-0032）。
+  const params = useParams<{ entity?: string }>();
+  const navigate = useNavigate();
+  const temp = () => (params.entity ? tempColumnFor(params.entity) : undefined);
+  const closeTemp = () => navigate("/");
+  const keepTemp = () => {
+    const column = temp();
+    if (!column) return;
+    navigate("/");
+    addColumn({ ...column, id: crypto.randomUUID() });
+  };
+  const temporary = { onKeep: keepTemp, onClose: closeTemp };
+
+  // 消えたカラムを選んだままにしない。URL から開いたらそれを選ぶ。
   createEffect(() => {
+    if (temp()) {
+      setActive("temp");
+      return;
+    }
     const current = active();
     if (current && columns().some((column) => column.id === current)) return;
     setActive(columns()[0]?.id);
@@ -202,6 +221,25 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 ref={columnsEl}
                 class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
               >
+                <Show when={temp()}>
+                  {(column) => (
+                    <div class="h-full w-95 shrink-0">
+                      <Column
+                        column={column()}
+                        {...columnControls(column())}
+                        temporary={temporary}
+                        {...shared}
+                      />
+                    </div>
+                  )}
+                </Show>
+                <Show when={params.entity && !temp()}>
+                  <div class="h-full w-95 shrink-0 bg-primary p-4">
+                    <p role="alert" class="c-secondary text-caption">
+                      このリンクは読めませんでした：{params.entity}
+                    </p>
+                  </div>
+                </Show>
                 <For each={columns()}>
                   {(column) => (
                     <div
@@ -238,6 +276,34 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
           <div class="relative flex h-dvh flex-col">
             <div class="h-0.75 shrink-0 bg-accent-primary" />
             <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
+              <Show when={temp()}>
+                {(column) => (
+                  <button
+                    type="button"
+                    class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
+                    classList={{
+                      "c-primary font-600": active() === "temp",
+                      "c-secondary": active() !== "temp",
+                    }}
+                    onClick={() => {
+                      setActive("temp");
+                      setPanel(undefined);
+                    }}
+                  >
+                    <span class="flex items-center gap-1.5">
+                      <span
+                        class={`size-4 ${columnMeta(column()).icon}`}
+                        aria-hidden="true"
+                      />
+                      {column().title}
+                    </span>
+                    <span
+                      class="h-0.5 w-6 rounded-full"
+                      classList={{ "bg-accent-primary": active() === "temp" }}
+                    />
+                  </button>
+                )}
+              </Show>
               <For each={columns()}>
                 {(column) => (
                   <button
@@ -305,6 +371,23 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               タブを戻すたびに取得し直しになり、スクロール位置も失われる。
             */}
             <div class="min-h-0 flex-1">
+              <Show when={temp()}>
+                {(column) => (
+                  <div
+                    class="h-full"
+                    classList={{
+                      hidden: panel() !== undefined || active() !== "temp",
+                    }}
+                  >
+                    <Column
+                      column={column()}
+                      {...columnControls(column())}
+                      temporary={temporary}
+                      {...shared}
+                    />
+                  </div>
+                )}
+              </Show>
               <For each={columns()}>
                 {(column) => (
                   <div
