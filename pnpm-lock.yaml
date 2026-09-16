@@ -32,6 +32,9 @@ importers:
       '@ark-ui/solid':
         specifier: 5.38.1
         version: 5.38.1(solid-js@1.9.13)
+      '@solidjs/router':
+        specifier: ^1.0.0
+        version: 1.0.0(solid-js@1.9.13)
       '@streets/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -1180,6 +1183,11 @@ packages:
     resolution: {integrity: sha512-AeGTBg8Wtkh/0s+evyLtP8piQoS4wyqqQaAFs2HJcFMMjYAtUgo+ZPduRXLjPlqKVc2ejeR544oeqpbn8Egn8A==}
     peerDependencies:
       solid-js: ^1.6.12
+
+  '@solidjs/router@1.0.0':
+    resolution: {integrity: sha512-cCSk1hvgCowiMa9bzzYWHiLu1U4E22+DfJe6/rOwAyECKrxc3jrd5QnoW3sDDJtW+e077cz/M67bPl3DqOBw1Q==}
+    peerDependencies:
+      solid-js: ^1.8.6
 
   '@storybook/builder-vite@10.6.0':
     resolution: {integrity: sha512-7zt8tYB6dnSO8fbjUz91MHexGDpf9HrLlA3FAmlVb+2ZL3eWUs499L3I6BDUymcWu7oW5WCBJlB8ERj8ZLLzig==}
@@ -3539,6 +3547,10 @@ snapshots:
       solid-js: 1.9.13
 
   '@solid-primitives/utils@6.4.0(solid-js@1.9.13)':
+    dependencies:
+      solid-js: 1.9.13
+
+  '@solidjs/router@1.0.0(solid-js@1.9.13)':
     dependencies:
       solid-js: 1.9.13
 

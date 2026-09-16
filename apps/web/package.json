@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ark-ui/solid": "5.38.1",
+    "@solidjs/router": "^1.0.0",
     "@streets/core": "workspace:*",
     "@unocss/reset": "65.5.0",
     "solid-js": "1.9.13"
