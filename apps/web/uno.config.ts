@@ -166,6 +166,14 @@ export default defineConfig({
           scrollbar-width: thin;
           border-color: inherit;
         }
+        /*
+          Ark UI は閉じている部品に hidden 属性を付ける。display を指定する
+          ユーティリティ（flex / grid など）が当たっていると打ち消され、
+          閉じたはずのメニューが出たままになる。
+        */
+        [hidden] {
+          display: none !important;
+        }
         @media (prefers-reduced-motion) {
           * {
             animation-duration: 0ms !important;

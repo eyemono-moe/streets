@@ -85,3 +85,5 @@ publish 用の別経路を作らず、`ConnectionPool` 一本に集約します�
 ### UI プリミティブは Ark UI
 
 メニュー・ダイアログ・ポップオーバーは `@ark-ui/solid` を使います。
+
+**閉じている部品には `hidden` 属性が付くだけ**なので、`flex` や `grid` を当てると `display` が勝って閉じなくなります（#348 で踏みました）。`uno.config.ts` の preflight で `[hidden] { display: none !important }` を入れて塞いでありますが、独自の CSS で `display` を上書きするときは同じ罠に注意します。
