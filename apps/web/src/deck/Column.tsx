@@ -1,5 +1,6 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { columnAlerts } from "@streets/core/deck/column-alerts";
+import { columnFacets } from "@streets/core/deck/column-facets";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -93,7 +94,8 @@ const Column: Component<ColumnProps> = (props) => {
       }),
   });
   const show = () => columnShow(props.column);
-  const items = () => visibleColumnItems(section.items(), show());
+  const facets = () => columnFacets(props.column);
+  const items = () => visibleColumnItems(section.items(), show(), facets());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
 
@@ -125,6 +127,7 @@ const Column: Component<ColumnProps> = (props) => {
         <Collapsible.Content>
           <ColumnSettings
             column={props.column}
+            facets={facets()}
             onPatch={props.onPatch}
             onRemove={props.onRemove}
           />

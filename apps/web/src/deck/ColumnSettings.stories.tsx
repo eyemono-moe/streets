@@ -1,3 +1,4 @@
+import { columnFacets } from "@streets/core/deck/column-facets";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -16,6 +17,7 @@ const meta = {
     return (
       <ColumnSettings
         column={column()}
+        facets={columnFacets(column())}
         onPatch={(patch: ColumnPatch) =>
           setColumn((current) => ({ ...current, ...patch }))
         }
@@ -31,6 +33,22 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 既定: Story = {};
+
+export const 通知: Story = {
+  args: {
+    initial: { id: "n", title: "通知", source: { kind: "notifications" } },
+  },
+};
+
+export const ハッシュタグ: Story = {
+  args: {
+    initial: {
+      id: "t",
+      title: "#nostr",
+      source: { kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] },
+    },
+  },
+};
 
 export const 変更済み: Story = {
   args: {

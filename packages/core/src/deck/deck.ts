@@ -30,6 +30,8 @@ export type ColumnShow = {
   replies: boolean;
   /** 引用（NIP-18 の `q`）。通知カラムで「引用されたことを知らせるか」を決めるのに要る。 */
   quotes: boolean;
+  /** 自分宛だが返信でも引用でもない投稿。自分宛を集めるカラムでしか意味を持たない。 */
+  mentions: boolean;
   reposts: boolean;
   reactions: boolean;
   media: boolean;
@@ -47,6 +49,7 @@ export type ColumnDef = {
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   replies: true,
   quotes: true,
+  mentions: true,
   reposts: true,
   reactions: true,
   media: true,
@@ -192,6 +195,7 @@ const columnDefSchema = v.object({
     v.object({
       replies: v.optional(v.boolean()),
       quotes: v.optional(v.boolean()),
+      mentions: v.optional(v.boolean()),
       reposts: v.optional(v.boolean()),
       reactions: v.optional(v.boolean()),
       media: v.optional(v.boolean()),

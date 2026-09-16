@@ -1,5 +1,6 @@
 import { SegmentGroup } from "@ark-ui/solid/segment-group";
 import { Switch } from "@ark-ui/solid/switch";
+import type { ColumnFacet } from "@streets/core/deck/column-facets";
 import type {
   ColumnDef,
   ColumnDensity,
@@ -7,7 +8,7 @@ import type {
   ColumnWidth,
 } from "@streets/core/deck/deck";
 import { columnShow } from "@streets/core/deck/deck";
-import { type Component, For } from "solid-js";
+import { type Component, For, Show } from "solid-js";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id" | "source">>;
 
@@ -22,13 +23,14 @@ const DENSITIES: { value: ColumnDensity; label: string }[] = [
   { value: "compact", label: "高密度" },
 ];
 
-const TOGGLES: { key: keyof ColumnShow; label: string }[] = [
-  { key: "replies", label: "リプライ" },
-  { key: "quotes", label: "引用" },
-  { key: "reposts", label: "リポスト" },
-  { key: "reactions", label: "リアクション" },
-  { key: "media", label: "画像・動画を展開" },
-];
+const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
+  replies: "リプライ",
+  quotes: "引用",
+  mentions: "メンション",
+  reposts: "リポスト",
+  reactions: "リアクション",
+  media: "画像・動画を展開",
+};
 
 const Field: Component<{ label: string; children: unknown }> = (props) => (
   <div class="flex w-full flex-col gap-1.5">
@@ -71,6 +73,8 @@ const Segmented = <T extends string>(props: {
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */
 const ColumnSettings: Component<{
   column: ColumnDef;
+  /** そのカラムで意味のある項目だけ。切っても何も起きない項目は出さない。 */
+  facets: readonly ColumnFacet[];
   onPatch: (patch: ColumnPatch) => void;
   onRemove: () => void;
 }> = (props) => {
@@ -108,29 +112,31 @@ const ColumnSettings: Component<{
         />
       </Field>
 
-      <Field label="表示するもの">
-        <For each={TOGGLES}>
-          {(toggle) => (
-            <Switch.Root
-              class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
-              checked={show()[toggle.key]}
-              onCheckedChange={(details) =>
-                props.onPatch({
-                  show: { ...props.column.show, [toggle.key]: details.checked },
-                })
-              }
-            >
-              <Switch.Label class="min-w-0 flex-1 truncate">
-                {toggle.label}
-              </Switch.Label>
-              <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full bg-tertiary p-0.5 transition-colors data-[state=checked]:bg-accent-primary">
-                <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
-              </Switch.Control>
-              <Switch.HiddenInput />
-            </Switch.Root>
-          )}
-        </For>
-      </Field>
+      <Show when={props.facets.length > 0}>
+        <Field label="表示するもの">
+          <For each={props.facets}>
+            {(facet) => (
+              <Switch.Root
+                class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
+                checked={show()[facet]}
+                onCheckedChange={(details) =>
+                  props.onPatch({
+                    show: { ...props.column.show, [facet]: details.checked },
+                  })
+                }
+              >
+                <Switch.Label class="min-w-0 flex-1 truncate">
+                  {TOGGLE_LABELS[facet]}
+                </Switch.Label>
+                <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full bg-tertiary p-0.5 transition-colors data-[state=checked]:bg-accent-primary">
+                  <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
+                </Switch.Control>
+                <Switch.HiddenInput />
+              </Switch.Root>
+            )}
+          </For>
+        </Field>
+      </Show>
 
       <button
         type="button"
