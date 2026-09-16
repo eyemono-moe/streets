@@ -23,7 +23,8 @@ const DENSITIES: { value: ColumnDensity; label: string }[] = [
 ];
 
 const TOGGLES: { key: keyof ColumnShow; label: string }[] = [
-  { key: "replies", label: "返信" },
+  { key: "replies", label: "リプライ" },
+  { key: "quotes", label: "引用" },
   { key: "reposts", label: "リポスト" },
   { key: "reactions", label: "リアクション" },
   { key: "media", label: "画像・動画を展開" },

@@ -28,6 +28,8 @@ export type ColumnDensity = "comfortable" | "compact";
  */
 export type ColumnShow = {
   replies: boolean;
+  /** 引用（NIP-18 の `q`）。通知カラムで「引用されたことを知らせるか」を決めるのに要る。 */
+  quotes: boolean;
   reposts: boolean;
   reactions: boolean;
   media: boolean;
@@ -44,6 +46,7 @@ export type ColumnDef = {
 
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   replies: true,
+  quotes: true,
   reposts: true,
   reactions: true,
   media: true,
@@ -188,6 +191,7 @@ const columnDefSchema = v.object({
   show: v.optional(
     v.object({
       replies: v.optional(v.boolean()),
+      quotes: v.optional(v.boolean()),
       reposts: v.optional(v.boolean()),
       reactions: v.optional(v.boolean()),
       media: v.optional(v.boolean()),

@@ -1,6 +1,6 @@
 import type { ColumnShow } from "../deck/deck";
 import type { NostrEvent } from "../nostr/event";
-import { replyTarget } from "../nostr/event-refs";
+import { quoteTargets, replyTarget } from "../nostr/event-refs";
 
 /**
  * カラム設定の「表示するもの」で流れを間引く。購読は変えない ——
@@ -13,7 +13,9 @@ export const visibleColumnItems = (
   events.filter((event) => {
     if (!show.reposts && (event.kind === 6 || event.kind === 16)) return false;
     if (!show.reactions && event.kind === 7) return false;
-    // 返信かどうかはタグで決まる。kind:1 のうち親を持つものだけを落とす。
-    if (!show.replies && event.kind === 1 && replyTarget(event)) return false;
+    if (event.kind !== 1) return true;
+    // 返信と引用は別物。返信でもある引用は返信として扱い、片方だけを切っても消えない。
+    if (replyTarget(event)) return show.replies;
+    if (quoteTargets(event).length > 0) return show.quotes;
     return true;
   });
