@@ -66,11 +66,10 @@ const Row: Component<{
   </button>
 );
 
-/** デッキの末尾に出る、カラムを追加するための列。 */
-const AddColumnPanel: Component<{
-  onAdd: (column: ColumnDef) => void;
-  onClose: () => void;
-}> = (props) => {
+/** サイドバーのパネルに出す、カラムを追加するための中身。題名と閉じるはパネル側が持つ。 */
+const AddColumnPanel: Component<{ onAdd: (column: ColumnDef) => void }> = (
+  props,
+) => {
   const [query, setQuery] = createSignal("");
   const trimmed = () => query().trim();
   // `#` で始まればハッシュタグ、npub / nprofile ならユーザー、それ以外は本文の検索。
@@ -103,80 +102,58 @@ const AddColumnPanel: Component<{
   };
 
   return (
-    <section class="flex h-full min-h-0 w-full flex-col bg-primary">
-      <div class="h-0.75 shrink-0 bg-accent-primary" />
-      <header class="flex h-11.25 shrink-0 items-center gap-2.5 px-3">
+    <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+      <form
+        class="flex h-10 items-center gap-2 rounded-full border border-primary px-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const column = searchColumn();
+          if (column) props.onAdd(column);
+        }}
+      >
         <span
-          class="i-material-symbols:add-rounded c-secondary size-4.5 shrink-0"
+          class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
           aria-hidden="true"
         />
-        <h2 class="min-w-0 flex-1 truncate font-600 text-body">カラムを追加</h2>
-        <button
-          type="button"
-          aria-label="閉じる"
-          class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-          onClick={() => props.onClose()}
-        >
-          <span
-            class="i-material-symbols:close-rounded size-4.5"
-            aria-hidden="true"
-          />
-        </button>
-      </header>
+        <input
+          class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
+          placeholder="本文の検索・#ハッシュタグ・npub"
+          aria-label="追加するカラムを検索"
+          value={query()}
+          onInput={(event) => setQuery(event.currentTarget.value)}
+        />
+      </form>
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
-        <form
-          class="flex h-10 items-center gap-2 rounded-full border border-primary px-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const column = searchColumn();
-            if (column) props.onAdd(column);
-          }}
-        >
-          <span
-            class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
-            aria-hidden="true"
-          />
-          <input
-            class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-            placeholder="本文の検索・#ハッシュタグ・npub"
-            aria-label="追加するカラムを検索"
-            value={query()}
-            onInput={(event) => setQuery(event.currentTarget.value)}
-          />
-        </form>
+      <Show when={searchColumn()}>
+        {(column) => (
+          <div class="mt-2 overflow-hidden rounded-2 border border-primary">
+            <Row
+              icon={searchMeta().icon}
+              label={column().title}
+              description={searchMeta().description}
+              onClick={() => props.onAdd(column())}
+            />
+          </div>
+        )}
+      </Show>
 
-        <Show when={searchColumn()}>
-          {(column) => (
-            <div class="mt-2 overflow-hidden rounded-2 border border-primary">
-              <Row
-                icon={searchMeta().icon}
-                label={column().title}
-                description={searchMeta().description}
-                onClick={() => props.onAdd(column())}
-              />
-            </div>
+      <h3 class="c-secondary mt-4 mb-1 font-600 text-caption">プリセット</h3>
+      <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
+        <For each={PRESETS}>
+          {(preset) => (
+            <Row
+              icon={preset.icon}
+              label={preset.label}
+              description={preset.description}
+              onClick={() => {
+                const column = buildColumn(preset.kind, "");
+                if (column) props.onAdd(column);
+              }}
+            />
           )}
-        </Show>
-
-        <h3 class="c-secondary mt-4 mb-1 font-600 text-caption">プリセット</h3>
-        <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-          <For each={PRESETS}>
-            {(preset) => (
-              <Row
-                icon={preset.icon}
-                label={preset.label}
-                description={preset.description}
-                onClick={() => {
-                  const column = buildColumn(preset.kind, "");
-                  if (column) props.onAdd(column);
-                }}
-              />
-            )}
-          </For>
-        </div>
+        </For>
       </div>
-    </section>
+    </div>
   );
 };
 

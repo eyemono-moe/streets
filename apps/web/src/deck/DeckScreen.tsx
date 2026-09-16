@@ -20,13 +20,14 @@ import {
 } from "solid-js";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { setDiagnostics } from "../devtools/diagnostics";
-import ComposeDialog from "../note/ComposeDialog";
+import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import type { ColumnPatch } from "./ColumnSettings";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, Sidebar, TabBar } from "./Nav";
+import SidePanel from "./SidePanel";
 import { columnMeta } from "./column-meta";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
@@ -53,19 +54,14 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     viewer,
   });
   const isWide = useIsWide();
-  const [adding, setAdding] = createSignal(false);
+  const [panel, setPanel] = createSignal<"compose" | "add-column">();
   const [settingsFor, setSettingsFor] = createSignal<string>();
-  const [composing, setComposing] = createSignal(false);
   let columnsEl: HTMLDivElement | undefined;
-  // 右端に生えるので、そのままだと追加したことに気づけない。描いた後に端まで送る。
+  // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
   const scrollToEnd = () =>
     requestAnimationFrame(() =>
       columnsEl?.scrollTo({ left: columnsEl.scrollWidth, behavior: "smooth" }),
     );
-  const openAddColumn = () => {
-    setAdding(true);
-    scrollToEnd();
-  };
   const [active, setActive] = createSignal<string>();
 
   const [warmUp] = createResource(props.session.pubkey, async (pubkey) => {
@@ -108,10 +104,39 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
 
   const addColumn = (column: ColumnDef) => {
     deckStore.update((deck) => addColumnTo(deck, column));
-    setAdding(false);
+    setPanel(undefined);
     setActive(column.id);
     scrollToEnd();
   };
+
+  const panelView = (full: boolean) => (
+    <Show when={panel()}>
+      {(current) => (
+        <Show
+          when={current() === "compose"}
+          fallback={
+            <SidePanel
+              title="カラムを追加"
+              icon="i-material-symbols:add-rounded"
+              onClose={() => setPanel(undefined)}
+              full={full}
+            >
+              <AddColumnPanel onAdd={addColumn} />
+            </SidePanel>
+          }
+        >
+          <SidePanel
+            title="ノートを書く"
+            icon="i-material-symbols:edit-square-outline-rounded"
+            onClose={() => setPanel(undefined)}
+            full={full}
+          >
+            <ComposePanel onPosted={() => setPanel(undefined)} />
+          </SidePanel>
+        </Show>
+      )}
+    </Show>
+  );
 
   const columnControls = (column: ColumnDef) => ({
     onPatch: (patch: ColumnPatch) =>
@@ -152,9 +177,6 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
 
   return (
     <EventActionsProvider value={write.actions}>
-      <Show when={composing()}>
-        <ComposeDialog onClose={() => setComposing(false)} />
-      </Show>
       <Switch>
         <Match when={warmUp.error}>
           <p role="alert" class="c-danger p-4 text-caption">
@@ -169,9 +191,10 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             <Sidebar
               pubkey={viewer}
               onLogout={props.session.logout}
-              onAddColumn={openAddColumn}
-              onCompose={() => setComposing(true)}
+              onAddColumn={() => setPanel("add-column")}
+              onCompose={() => setPanel("compose")}
             />
+            {panelView(false)}
             <div class="flex min-w-0 flex-1 flex-col">
               <DeckSyncNotice store={deckStore} />
               {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
@@ -207,14 +230,6 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     </div>
                   )}
                 </For>
-                <Show when={adding()}>
-                  <div class="h-full w-95 shrink-0">
-                    <AddColumnPanel
-                      onAdd={addColumn}
-                      onClose={() => setAdding(false)}
-                    />
-                  </div>
-                </Show>
               </div>
             </div>
           </div>
@@ -229,12 +244,14 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     type="button"
                     class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
                     classList={{
-                      "c-primary font-600": !adding() && active() === column.id,
-                      "c-secondary": adding() || active() !== column.id,
+                      "c-primary font-600":
+                        panel() === undefined && active() === column.id,
+                      "c-secondary":
+                        panel() !== undefined || active() !== column.id,
                     }}
                     onClick={() => {
                       setActive(column.id);
-                      setAdding(false);
+                      setPanel(undefined);
                     }}
                   >
                     <span class="flex items-center gap-1.5">
@@ -248,7 +265,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                       class="h-0.5 w-6 rounded-full"
                       classList={{
                         "bg-accent-primary":
-                          !adding() && active() === column.id,
+                          panel() === undefined && active() === column.id,
                       }}
                     />
                   </button>
@@ -258,7 +275,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 type="button"
                 aria-label="カラムを追加"
                 class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                onClick={openAddColumn}
+                onClick={() => setPanel("add-column")}
               >
                 <span
                   class="i-material-symbols:add-rounded size-4.5"
@@ -292,7 +309,9 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 {(column) => (
                   <div
                     class="h-full"
-                    classList={{ hidden: adding() || active() !== column.id }}
+                    classList={{
+                      hidden: panel() !== undefined || active() !== column.id,
+                    }}
                   >
                     <Column
                       column={column}
@@ -303,14 +322,12 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                   </div>
                 )}
               </For>
-              <Show when={adding()}>
-                <AddColumnPanel
-                  onAdd={addColumn}
-                  onClose={() => setAdding(false)}
-                />
-              </Show>
+              {panelView(true)}
             </div>
-            <ComposeFab onCompose={() => setComposing(true)} />
+            {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
+            <Show when={panel() === undefined}>
+              <ComposeFab onCompose={() => setPanel("compose")} />
+            </Show>
             <TabBar pubkey={viewer} onLogout={props.session.logout} />
           </div>
         </Match>
