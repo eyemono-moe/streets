@@ -72,41 +72,28 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
         void submit();
       }}
     >
-      <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 pb-2">
-        <div class="flex items-start gap-3">
-          <Show when={actions}>
-            {(actions) => <Avatar pubkey={actions().viewer} size="normal" />}
-          </Show>
-          {/* 5 行ぶんの高さを確保し、必要なら伸ばす。パネルの高さいっぱいには広げない。 */}
-          <textarea
-            autofocus
-            aria-label="ノートの本文"
-            rows={5}
-            class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:border-accent-5"
-            disabled={sending()}
-            placeholder="いま何してる？"
-            value={content()}
-            onInput={(event) => setContent(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                void submit();
-              }
-            }}
-          />
-        </div>
-
-        <Show when={previewEvent()}>
-          {(event) => (
-            <div class="flex flex-col gap-1.5">
-              <span class="c-secondary font-600 text-caption">プレビュー</span>
-              <div class="overflow-hidden rounded-2 border border-primary">
-                {/* compact で描く —— 操作列やリアクションは、まだ存在しないノートには出せない。 */}
-                <Event event={event()} size="compact" />
-              </div>
-            </div>
-          )}
+      {/* 上から 本文 → 操作 → プレビュー。操作を一番下に置くと、書いた後に遠くなる。 */}
+      <div class="flex shrink-0 items-start gap-2 px-4">
+        <Show when={actions}>
+          {(actions) => <Avatar pubkey={actions().viewer} size="compact" />}
         </Show>
+        {/* 5 行ぶんの高さを確保し、必要なら伸ばす。パネルの高さいっぱいには広げない。 */}
+        <textarea
+          autofocus
+          aria-label="ノートの本文"
+          rows={5}
+          class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:border-accent-5"
+          disabled={sending()}
+          placeholder="いま何してる？"
+          value={content()}
+          onInput={(event) => setContent(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              void submit();
+            }
+          }}
+        />
       </div>
 
       <Show when={error()}>
@@ -120,6 +107,20 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
         sending={sending()}
         disabled={content().trim().length === 0}
       />
+
+      <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">
+        <Show when={previewEvent()}>
+          {(event) => (
+            <>
+              <span class="c-secondary font-600 text-caption">プレビュー</span>
+              <div class="overflow-hidden rounded-2 border border-primary">
+                {/* compact で描く —— 操作列やリアクションは、まだ存在しないノートには出せない。 */}
+                <Event event={event()} size="compact" />
+              </div>
+            </>
+          )}
+        </Show>
+      </div>
     </form>
   );
 };
