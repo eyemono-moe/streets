@@ -42,6 +42,8 @@ type ContentProps = {
   size: EventSize;
   /** 画像を展開するか。カラム設定で切ると、URL のリンクだけにする。 */
   expandMedia?: boolean;
+  /** 会話が下に続くことを、アイコンの下から伸びる線で示す。 */
+  threadLine?: boolean;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -78,7 +80,14 @@ const Row: ParentComponent<ContentProps> = (props) => (
       "gap-2": props.size === "compact",
     }}
   >
-    <Avatar pubkey={props.event.pubkey} size={props.size} />
+    {/* アイコン列。線はアイコンの下からこの列の下端まで伸びる（次の投稿へ続く印）。 */}
+    <div class="flex shrink-0 flex-col items-center gap-1 self-stretch">
+      <Avatar pubkey={props.event.pubkey} size={props.size} />
+      <Show when={props.threadLine}>
+        {/* -mb-2 で 8px はみ出し、投稿の間の隙間を線が跨ぐ。 */}
+        <div class="-mb-3 min-h-2 w-0.5 flex-1 bg-tertiary" />
+      </Show>
+    </div>
     <div
       class="flex min-w-0 flex-1 flex-col"
       classList={{
@@ -134,6 +143,8 @@ const MediaImage: Component<{ url: string; size: EventSize }> = (props) => {
 const Lookup: Component<{
   target: { id: string; relay?: RelayUrl };
   missing: string;
+  /** 取得中・不在の 1 行に付ける余白。枠の中に置くときに要る。 */
+  noticeClass?: string;
   children: (event: NostrEvent) => JSX.Element;
 }> = (props) => {
   const lookup = useEvent(() => props.target);
@@ -148,10 +159,14 @@ const Lookup: Component<{
         {(event) => props.children(event())}
       </Match>
       <Match when={lookup().phase === "missing"}>
-        <Notice>{props.missing}</Notice>
+        <div class={props.noticeClass}>
+          <Notice>{props.missing}</Notice>
+        </div>
       </Match>
       <Match when={true}>
-        <Notice>読み込み中…</Notice>
+        <div class={props.noticeClass}>
+          <Notice>読み込み中…</Notice>
+        </div>
       </Match>
     </Switch>
   );
@@ -171,7 +186,18 @@ const Frame: ParentComponent<{
       "cursor-pointer": props.onOpen !== undefined,
     }}
     onMouseDown={(event) => props.onDown?.(event)}
-    onClick={(event) => props.onOpen?.(event)}
+    onClick={(event) => {
+      // 押された場所に一番近い投稿が自分のときだけ開く。引用の中を押したら
+      // 引用元が起点になる。Solid は click を委譲するので stopPropagation では止まらない。
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("article") !== event.currentTarget
+      ) {
+        return;
+      }
+      props.onOpen?.(event);
+    }}
   >
     {props.children}
   </article>
@@ -199,7 +225,7 @@ const Note: Component<ContentProps> = (props) => {
   const replyTo = () => replyTarget(props.event)?.pubkey;
 
   return (
-    <Row event={props.event} size={props.size}>
+    <Row event={props.event} size={props.size} threadLine={props.threadLine}>
       <Show when={replyTo()}>
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
@@ -292,6 +318,7 @@ const EventContent: Component<ContentProps> = (props) => (
         event={props.event}
         size={props.size}
         expandMedia={props.expandMedia}
+        threadLine={props.threadLine}
       />
     </Match>
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
@@ -337,6 +364,7 @@ const Event: Component<ContentProps> = (props) => {
         event={props.event}
         size={props.size}
         expandMedia={props.expandMedia}
+        threadLine={props.threadLine}
       />
     </Frame>
   );
@@ -346,12 +374,18 @@ const Event: Component<ContentProps> = (props) => {
 export const EventRefView: Component<{
   target: { id: string; relay?: RelayUrl };
   size: EventSize;
+  expandMedia?: boolean;
 }> = (props) => (
-  <Frame size={props.size}>
-    <Lookup target={props.target} missing="読み込めませんでした">
-      {(event) => <EventContent event={event} size={props.size} />}
-    </Lookup>
-  </Frame>
+  <Lookup
+    target={props.target}
+    missing="読み込めませんでした"
+    noticeClass="p-2.5"
+  >
+    {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
+    {(event) => (
+      <Event event={event} size={props.size} expandMedia={props.expandMedia} />
+    )}
+  </Lookup>
 );
 
 export default Event;

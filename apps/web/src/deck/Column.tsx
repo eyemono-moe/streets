@@ -259,58 +259,69 @@ const Column: Component<ColumnProps> = (props) => {
           )}
         </For>
         {/*
-        重ねても一覧を取り外さない。取り外すとスクロール位置が失われ、
-        戻ったときに読んでいた場所が分からなくなる。
-      */}
-        <div
-          class="min-h-0 flex-1 overflow-y-auto"
-          classList={{ hidden: top() !== undefined }}
-        >
-          <Switch>
-            <Match when={items().length > 0}>
-              {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-              <div class="flex flex-col gap-px bg-tertiary pb-px">
-                <For each={items()}>
-                  {(event) => (
-                    <Event
-                      event={event}
-                      size={
-                        props.column.density === "compact"
-                          ? "compact"
-                          : "normal"
-                      }
+          重ねても一覧を取り外さない。取り外すとスクロール位置が失われ、
+          戻ったときに読んでいた場所が分からなくなる。重ねた層は下の層を
+          少しだけ覗かせて浮かせ、同じカラムの上に道が重なったように見せる。
+        */}
+        <div class="relative min-h-0 flex-1">
+          {/* 下の層は覆って暗くする。覗いた部分が本文として読めると、重なりに見えない。 */}
+          <Show when={top()}>
+            <div
+              class="pointer-events-none absolute inset-0 z-1 bg-ui-950/25"
+              aria-hidden="true"
+            />
+          </Show>
+          <div class="absolute inset-0 overflow-y-auto">
+            <Switch>
+              <Match when={items().length > 0}>
+                {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+                <div class="flex flex-col gap-px bg-tertiary pb-px">
+                  <For each={items()}>
+                    {(event) => (
+                      <Event
+                        event={event}
+                        size={
+                          props.column.density === "compact"
+                            ? "compact"
+                            : "normal"
+                        }
+                        expandMedia={props.column.expandMedia !== false}
+                      />
+                    )}
+                  </For>
+                </div>
+              </Match>
+              <Match when={section.status().phase === "settled"}>
+                <p class="c-secondary p-4 text-caption">
+                  まだ投稿がありません。
+                </p>
+              </Match>
+              <Match when={true}>
+                <p class="c-secondary p-4 text-caption">読み込み中…</p>
+              </Match>
+            </Switch>
+          </div>
+          <For each={stack()}>
+            {(entry, index) => (
+              <div
+                class="absolute inset-x-0 bottom-0 z-2 overflow-y-auto rounded-t-3 bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)]"
+                // 段ごとに少しずつ下げて、下の層が覗くようにする（上限 3 段ぶん）。
+                style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
+                classList={{ hidden: index() !== stack().length - 1 }}
+              >
+                <Show when={entry.kind === "thread" && entry}>
+                  {(thread) => (
+                    <ThreadView
+                      focusId={thread().focusId}
+                      readLayer={props.readLayer}
                       expandMedia={props.column.expandMedia !== false}
                     />
                   )}
-                </For>
+                </Show>
               </div>
-            </Match>
-            <Match when={section.status().phase === "settled"}>
-              <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
-            </Match>
-            <Match when={true}>
-              <p class="c-secondary p-4 text-caption">読み込み中…</p>
-            </Match>
-          </Switch>
+            )}
+          </For>
         </div>
-        <For each={stack()}>
-          {(entry, index) => (
-            <div
-              class="min-h-0 flex-1 overflow-y-auto"
-              classList={{ hidden: index() !== stack().length - 1 }}
-            >
-              <Show when={entry.kind === "thread" && entry}>
-                {(thread) => (
-                  <ThreadView
-                    focusId={thread().focusId}
-                    readLayer={props.readLayer}
-                    expandMedia={props.column.expandMedia !== false}
-                  />
-                )}
-              </Show>
-            </div>
-          )}
-        </For>
       </section>
     </ColumnStackProvider>
   );

@@ -43,9 +43,15 @@ const ThreadView: Component<{
           このスレッドの上の方は取得できませんでした。
         </p>
       </Show>
+      {/* 祖先はアイコンの下の線で焦点まで繋ぐ。線が切れると、どこから続いているか読めない。 */}
       <For each={spine().ancestors}>
         {(event) => (
-          <Event event={event} size="normal" expandMedia={props.expandMedia} />
+          <Event
+            event={event}
+            size="normal"
+            expandMedia={props.expandMedia}
+            threadLine
+          />
         )}
       </For>
       <Show
@@ -61,6 +67,7 @@ const ThreadView: Component<{
               event={focus()}
               size="normal"
               expandMedia={props.expandMedia}
+              threadLine={spine().replies.length > 0}
             />
           </div>
         )}
