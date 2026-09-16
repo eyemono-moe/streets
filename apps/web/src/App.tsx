@@ -2,8 +2,8 @@ import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persist
 import { createReadLayer } from "@streets/core/read/read-layer";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
-import HomeTimeline from "./HomeTimeline";
 import LoginScreen from "./LoginScreen";
+import DeckScreen from "./deck/DeckScreen";
 import { ReadLayerProvider } from "./read-layer";
 import { createSession } from "./session";
 
@@ -27,7 +27,7 @@ const App: Component = () => {
         keyed
       >
         <ReadLayerProvider value={readLayer}>
-          <HomeTimeline readLayer={readLayer} session={session} />
+          <DeckScreen readLayer={readLayer} session={session} />
         </ReadLayerProvider>
       </Show>
       <Show when={import.meta.env.DEV}>
