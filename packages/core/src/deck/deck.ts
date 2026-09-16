@@ -11,6 +11,7 @@ export type ColumnSource =
   | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
   | { kind: "followees"; kinds: number[] }
   | { kind: "notifications" }
+  | { kind: "bookmarks" }
   | { kind: "user"; pubkey: string }
   | { kind: "followees-list"; pubkey: string }
   | { kind: "followers-list"; pubkey: string };
@@ -123,6 +124,9 @@ const columnSourceSchema = v.variant("kind", [
   }),
   v.object({
     kind: v.literal("notifications"),
+  }),
+  v.object({
+    kind: v.literal("bookmarks"),
   }),
   v.object({
     kind: v.literal("user"),

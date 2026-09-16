@@ -14,6 +14,7 @@ import {
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
+import ColumnMenu, { type ColumnCommands } from "./ColumnMenu";
 import { columnMeta } from "./column-meta";
 
 export type ColumnProps = {
@@ -22,11 +23,15 @@ export type ColumnProps = {
   viewer: string;
   followees: () => readonly string[];
   relayList: () => RelayListState;
+  bookmarks: () => readonly string[];
+  commands: ColumnCommands;
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
 };
 
-const Header: Component<{ column: ColumnDef }> = (props) => {
+const Header: Component<{ column: ColumnDef; commands: ColumnCommands }> = (
+  props,
+) => {
   const meta = () => columnMeta(props.column);
   return (
     <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
@@ -38,18 +43,7 @@ const Header: Component<{ column: ColumnDef }> = (props) => {
         <h2 class="truncate font-600 text-body">{props.column.title}</h2>
         <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
       </div>
-      {/* カラム設定はこの後の PR で作る。場所だけ取っておく。 */}
-      <button
-        type="button"
-        aria-label="カラムの設定（未対応）"
-        class="c-secondary grid size-6 shrink-0 place-items-center rounded-1.5 bg-transparent opacity-50"
-        disabled
-      >
-        <span
-          class="i-material-symbols:more-horiz size-4.5"
-          aria-hidden="true"
-        />
-      </button>
+      <ColumnMenu commands={props.commands} />
     </header>
   );
 };
@@ -64,6 +58,7 @@ const Column: Component<ColumnProps> = (props) => {
         followees: props.followees,
         viewer: props.viewer,
         relayList: props.relayList,
+        bookmarks: props.bookmarks,
       }),
   });
   const alerts = () =>
@@ -80,7 +75,7 @@ const Column: Component<ColumnProps> = (props) => {
     <section class="flex h-full min-h-0 w-full flex-col bg-primary">
       <Show when={props.chrome !== false}>
         <div class="h-0.75 shrink-0 bg-accent-primary" />
-        <Header column={props.column} />
+        <Header column={props.column} commands={props.commands} />
       </Show>
       <For each={alerts()}>
         {(alert) => (

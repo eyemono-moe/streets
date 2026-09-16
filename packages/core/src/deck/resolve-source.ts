@@ -19,6 +19,11 @@ export type ResolveContext = {
    * 取得中は fallback へ一瞬購読せず 0 本で待つため、状態ごと渡す。
    */
   relayList: () => RelayListState;
+  /**
+   * 閲覧者がブックマークしたノートの id。`followees` と同じ理由で遅延アクセサ。
+   * kind:10003 が届くたびに変わるので、デッキへは焼き込まない。
+   */
+  bookmarks: () => readonly string[];
 };
 
 /**
@@ -64,6 +69,11 @@ export const resolveSource = (
             ? readRelays
             : [...FALLBACK_RELAYS],
     };
+  }
+
+  if (source.kind === "bookmarks") {
+    // 空配列は「該当なし」。`ids` ごと落とすと無制限購読になる。
+    return { type: "nostr", filters: [{ ids: [...context.bookmarks()] }] };
   }
 
   if (source.kind === "user") {

@@ -41,21 +41,28 @@ const NavButton: Component<{
   </button>
 );
 
-export const Sidebar: Component<{ pubkey: string; onLogout: () => void }> = (
-  props,
-) => (
+export const Sidebar: Component<{
+  pubkey: string;
+  onLogout: () => void;
+  onAddColumn: () => void;
+}> = (props) => (
   <nav class="flex w-14 shrink-0 flex-col items-center gap-1 bg-primary px-2 py-2.5">
     <For each={NAV_ITEMS}>
       {(item) => (
         <NavButton label={item.label} icon={item.icon} size="sidebar" />
       )}
     </For>
-    {/* カラムの追加はこの後の PR で作る。 */}
-    <NavButton
-      label="カラムを追加"
-      icon="i-material-symbols:add-rounded"
-      size="sidebar"
-    />
+    <button
+      type="button"
+      aria-label="カラムを追加"
+      class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+      onClick={() => props.onAddColumn()}
+    >
+      <span
+        class="i-material-symbols:add-rounded size-5.5"
+        aria-hidden="true"
+      />
+    </button>
     <span class="flex-1" />
     <NavButton
       label="設定"

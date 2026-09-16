@@ -19,7 +19,11 @@ import {
   fetchLatest,
 } from "@streets/core/write/fetch-latest";
 import { createPublisher } from "@streets/core/write/publisher";
-import { WriteFailedError, createWriter } from "@streets/core/write/writer";
+import {
+  WriteFailedError,
+  type Writer,
+  createWriter,
+} from "@streets/core/write/writer";
 import {
   type ParentComponent,
   createContext,
@@ -32,6 +36,8 @@ const BOOKMARK_KIND = 10003;
 
 export type EventActions = {
   viewer: string;
+  /** ブックマークしたノートの id。ブックマークのカラムが購読に使う。 */
+  bookmarkIds(): readonly string[];
   reply(target: NostrEvent, content: string): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
@@ -40,11 +46,22 @@ export type EventActions = {
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
 };
 
-export const createEventActions = (options: {
+export type WriteStack = {
+  actions: EventActions;
+  /** NIP-78 の文書（デッキなど）が置換に使う。 */
+  writer: Pick<Writer, "replace">;
+  fetchLatest(
+    kind: number,
+    identifier: string | undefined,
+    pubkey: string,
+  ): Promise<NostrEvent | undefined>;
+};
+
+export const createWriteStack = (options: {
   readLayer: Pick<ReadLayer, "store" | "routing" | "manager">;
   signer: Signer;
   viewer: string;
-}): EventActions => {
+}): WriteStack => {
   const { store, routing, manager } = options.readLayer;
   const target = {
     pool: manager.pool,
@@ -83,8 +100,14 @@ export const createEventActions = (options: {
     () => {},
   );
 
-  return {
+  const bookmarkIds = () =>
+    bookmarks()
+      ?.tags.filter((tag) => tag[0] === "e" && tag[1])
+      .map((tag) => tag[1] as string) ?? [];
+
+  const actions: EventActions = {
     viewer: options.viewer,
+    bookmarkIds,
     async reply(event, content) {
       await writer.publish(
         buildReply(event, content, { relayHint: relayHintFor(event.id) }),
@@ -98,8 +121,7 @@ export const createEventActions = (options: {
     async react(event, input) {
       await writer.publish(buildReaction(event, input));
     },
-    bookmarked: (id) =>
-      bookmarks()?.tags.some((tag) => tag[0] === "e" && tag[1] === id) ?? false,
+    bookmarked: (id) => bookmarkIds().includes(id),
     async setBookmark(event, on) {
       const mutation = (on ? addBookmark : removeBookmark)({
         type: "note",
@@ -107,6 +129,13 @@ export const createEventActions = (options: {
       });
       await writer.replace(BOOKMARK_KIND, undefined, mutation);
     },
+  };
+
+  return {
+    actions,
+    writer,
+    fetchLatest: (kind, identifier, pubkey) =>
+      fetchLatest(target, kind, identifier, pubkey),
   };
 };
 
