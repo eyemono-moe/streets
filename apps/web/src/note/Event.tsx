@@ -21,6 +21,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { useThreadNav } from "../deck/thread-nav";
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
@@ -156,13 +157,21 @@ const Lookup: Component<{
   );
 };
 
-const Frame: ParentComponent<{ size: EventSize }> = (props) => (
+const Frame: ParentComponent<{
+  size: EventSize;
+  onOpen?: (event: MouseEvent) => void;
+  onDown?: (event: MouseEvent) => void;
+}> = (props) => (
+  // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
   <article
     class="flex flex-col bg-primary"
     classList={{
       "gap-2 p-3": props.size === "normal",
       "gap-1.5 p-2": props.size === "compact",
+      "cursor-pointer": props.onOpen !== undefined,
     }}
+    onMouseDown={(event) => props.onDown?.(event)}
+    onClick={(event) => props.onOpen?.(event)}
   >
     {props.children}
   </article>
@@ -291,16 +300,47 @@ const EventContent: Component<ContentProps> = (props) => (
   </Switch>
 );
 
-/** 手元にあるイベントを 1 件描く。 */
-const Event: Component<ContentProps> = (props) => (
-  <Frame size={props.size}>
-    <EventContent
-      event={props.event}
+/** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
+const DRAG_SLOP = 4;
+
+const isInteractive = (target: EventTarget | null) =>
+  target instanceof Element &&
+  target.closest("a, button, input, textarea, [role='button']") !== null;
+
+/** 手元にあるイベントを 1 件描く。押すとそのカラムの中でスレッドを開く。 */
+const Event: Component<ContentProps> = (props) => {
+  const thread = useThreadNav();
+  let downAt: { x: number; y: number } | undefined;
+
+  return (
+    <Frame
       size={props.size}
-      expandMedia={props.expandMedia}
-    />
-  </Frame>
-);
+      // 引用の中（compact）からは開かない。開いた先で操作する。
+      onOpen={
+        thread && props.size === "normal"
+          ? (event) => {
+              if (isInteractive(event.target)) return;
+              const moved =
+                downAt !== undefined &&
+                (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
+                  Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
+              if (moved) return;
+              thread.open(props.event.id);
+            }
+          : undefined
+      }
+      onDown={(event) => {
+        downAt = { x: event.clientX, y: event.clientY };
+      }}
+    >
+      <EventContent
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
+    </Frame>
+  );
+};
 
 /** id しか分からないイベントを取りにいって描く。 */
 export const EventRefView: Component<{

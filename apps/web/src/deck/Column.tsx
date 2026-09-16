@@ -14,11 +14,14 @@ import {
   Show,
   Switch,
   createEffect,
+  createSignal,
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
+import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
+import { ThreadNavProvider } from "./thread-nav";
 
 export type ColumnProps = {
   column: ColumnDef;
@@ -113,6 +116,46 @@ const Header: Component<{
   );
 };
 
+/** 押して潜った先のヘッダー。戻り先と、いま何段目かを出す。 */
+const ThreadHeader: Component<{
+  depth: number;
+  backTo: string;
+  onBack: () => void;
+}> = (props) => (
+  <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
+    <button
+      type="button"
+      aria-label="戻る"
+      class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+      onClick={() => props.onBack()}
+    >
+      <span
+        class="i-material-symbols:chevron-left-rounded size-5.5"
+        aria-hidden="true"
+      />
+    </button>
+    <div class="flex min-w-0 flex-1 flex-col">
+      <h2 class="truncate font-600 text-body">スレッド</h2>
+      <p class="c-secondary truncate text-caption">{props.backTo}に戻る</p>
+    </div>
+    {/* 何段潜ったかを点で出す。数字より場所を取らず、戻る回数が分かる。 */}
+    <div class="flex shrink-0 items-center gap-0.75" aria-hidden="true">
+      <For each={Array.from({ length: props.depth + 1 })}>
+        {(_, index) => (
+          <span
+            class="size-1.25 rounded-full"
+            classList={{
+              "bg-accent-primary": index() === props.depth,
+              "bg-tertiary": index() !== props.depth,
+            }}
+          />
+        )}
+      </For>
+    </div>
+    <span class="c-secondary sr-only">{props.depth} 段目</span>
+  </header>
+);
+
 /** デッキの 1 列。購読はこの列が持ち、並べ方は `Event` に任せる。 */
 const Column: Component<ColumnProps> = (props) => {
   const section = createSection({
@@ -131,6 +174,12 @@ const Column: Component<ColumnProps> = (props) => {
   const items = () => visibleColumnItems(section.items(), show(), facets());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
+  // 押して潜った先。カラムの中だけの状態で、デッキには保存しない。
+  const [stack, setStack] = createSignal<string[]>([]);
+  const focusId = () => stack().at(-1);
+  const openThread = (id: string) =>
+    setStack((current) => (current.at(-1) === id ? current : [...current, id]));
+  const back = () => setStack((current) => current.slice(0, -1));
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -140,78 +189,106 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   return (
-    <section
-      class="flex h-full min-h-0 w-full flex-col bg-primary"
-      // 保存されていないことを枠で示す。
-      classList={{
-        "outline outline-2 -outline-offset-2 outline-accent-5":
-          props.temporary !== undefined,
-      }}
-    >
-      <Show when={props.chrome !== false}>
-        <div class="h-0.75 shrink-0 bg-accent-primary" />
-        <Header
-          column={props.column}
-          open={props.settingsOpen}
-          onToggle={props.onToggleSettings}
-          onDragStart={props.onDragStart}
-          temporary={props.temporary}
-        />
-      </Show>
-      {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
-      <Collapsible.Root
-        open={props.settingsOpen}
-        lazyMount
-        unmountOnExit
-        class="shrink-0"
+    <ThreadNavProvider value={{ open: openThread }}>
+      <section
+        class="flex h-full min-h-0 w-full flex-col bg-primary"
+        // 保存されていないことを枠で示す。
+        classList={{
+          "outline outline-2 -outline-offset-2 outline-accent-5":
+            props.temporary !== undefined,
+        }}
       >
-        <Collapsible.Content>
-          <ColumnSettings
-            column={props.column}
-            facets={facets()}
-            onPatch={props.onPatch}
-            onRemove={props.onRemove}
+        <Show when={props.chrome !== false}>
+          <div class="h-0.75 shrink-0 bg-accent-primary" />
+        </Show>
+        <Show when={focusId()}>
+          <ThreadHeader
+            depth={stack().length - 1}
+            backTo={stack().length > 1 ? "ひとつ前" : props.column.title}
+            onBack={back}
           />
-        </Collapsible.Content>
-      </Collapsible.Root>
-      <For each={alerts()}>
-        {(alert) => (
-          <p
-            role="alert"
-            class="c-secondary bg-secondary px-3 py-2 text-caption"
+        </Show>
+        <Show when={props.chrome !== false && focusId() === undefined}>
+          <Header
+            column={props.column}
+            open={props.settingsOpen}
+            onToggle={props.onToggleSettings}
+            onDragStart={props.onDragStart}
+            temporary={props.temporary}
+          />
+        </Show>
+        {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
+        <Collapsible.Root
+          open={props.settingsOpen}
+          lazyMount
+          unmountOnExit
+          class="shrink-0"
+        >
+          <Collapsible.Content>
+            <ColumnSettings
+              column={props.column}
+              facets={facets()}
+              onPatch={props.onPatch}
+              onRemove={props.onRemove}
+            />
+          </Collapsible.Content>
+        </Collapsible.Root>
+        <For each={alerts()}>
+          {(alert) => (
+            <p
+              role="alert"
+              class="c-secondary bg-secondary px-3 py-2 text-caption"
+            >
+              {alert.message}
+              {alert.action ? `。${alert.action}` : ""}
+            </p>
+          )}
+        </For>
+        <div class="min-h-0 flex-1 overflow-y-auto">
+          <Show
+            when={focusId()}
+            fallback={
+              <Switch>
+                <Match when={items().length > 0}>
+                  {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+                  <div class="flex flex-col gap-px bg-tertiary pb-px">
+                    <For each={items()}>
+                      {(event) => (
+                        <Event
+                          event={event}
+                          size={
+                            props.column.density === "compact"
+                              ? "compact"
+                              : "normal"
+                          }
+                          expandMedia={props.column.expandMedia !== false}
+                        />
+                      )}
+                    </For>
+                  </div>
+                </Match>
+                <Match when={section.status().phase === "settled"}>
+                  <p class="c-secondary p-4 text-caption">
+                    まだ投稿がありません。
+                  </p>
+                </Match>
+                <Match when={true}>
+                  <p class="c-secondary p-4 text-caption">読み込み中…</p>
+                </Match>
+              </Switch>
+            }
           >
-            {alert.message}
-            {alert.action ? `。${alert.action}` : ""}
-          </p>
-        )}
-      </For>
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <Switch>
-          <Match when={items().length > 0}>
-            {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-            <div class="flex flex-col gap-px bg-tertiary pb-px">
-              <For each={items()}>
-                {(event) => (
-                  <Event
-                    event={event}
-                    size={
-                      props.column.density === "compact" ? "compact" : "normal"
-                    }
-                    expandMedia={props.column.expandMedia !== false}
-                  />
-                )}
-              </For>
-            </div>
-          </Match>
-          <Match when={section.status().phase === "settled"}>
-            <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
-          </Match>
-          <Match when={true}>
-            <p class="c-secondary p-4 text-caption">読み込み中…</p>
-          </Match>
-        </Switch>
-      </div>
-    </section>
+            {(id) => (
+              <ThreadView
+                focusId={id()}
+                readLayer={props.readLayer}
+                expandMedia={props.column.expandMedia !== false}
+              />
+            )}
+          </Show>
+        </div>
+      </section>
+    </ThreadNavProvider>
   );
 };
 
