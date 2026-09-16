@@ -226,6 +226,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     <div class="h-full w-95 shrink-0">
                       <Column
                         column={column()}
+                        onOpenAsColumn={addColumn}
                         {...columnControls(column())}
                         temporary={temporary}
                         {...shared}
@@ -258,6 +259,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     >
                       <Column
                         column={column}
+                        onOpenAsColumn={addColumn}
                         {...columnControls(column)}
                         onDragStart={(event) => {
                           setDragging(column.id);
@@ -381,6 +383,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                   >
                     <Column
                       column={column()}
+                      onOpenAsColumn={addColumn}
                       {...columnControls(column())}
                       temporary={temporary}
                       {...shared}
@@ -398,6 +401,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                   >
                     <Column
                       column={column}
+                      onOpenAsColumn={addColumn}
                       {...columnControls(column)}
                       chrome={false}
                       {...shared}

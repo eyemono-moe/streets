@@ -25,6 +25,11 @@ export const columnMeta = (column: ColumnDef): ColumnMeta => {
         icon: "i-material-symbols:bookmark-outline-rounded",
         subtitle: "保存したノート",
       };
+    case "thread":
+      return {
+        icon: "i-material-symbols:mode-comment-outline-rounded",
+        subtitle: "スレッド",
+      };
     case "notifications":
       return {
         icon: "i-material-symbols:notifications-outline-rounded",

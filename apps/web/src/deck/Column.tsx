@@ -24,6 +24,7 @@ import { columnMeta } from "./column-meta";
 import {
   ColumnStackProvider,
   type StackEntry,
+  stackColumn,
   stackKey,
   stackTitle,
 } from "./column-stack";
@@ -45,6 +46,8 @@ export type ColumnProps = {
   temporary?: { onKeep: () => void; onClose: () => void };
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
+  /** 重ねたものを、デッキの正規のカラムとして開き直す。 */
+  onOpenAsColumn?: (column: ColumnDef) => void;
 };
 
 const Header: Component<{
@@ -121,12 +124,12 @@ const Header: Component<{
   );
 };
 
-/** 重ねた先のヘッダー。戻り先と、いま何段目かを出す。 */
+/** 重ねた先のヘッダー。戻る操作と、デッキのカラムとして開き直す導線を持つ。 */
 const StackHeader: Component<{
   title: string;
-  depth: number;
   backTo: string;
   onBack: () => void;
+  onOpenAsColumn?: () => void;
 }> = (props) => (
   <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
     <button
@@ -144,36 +147,41 @@ const StackHeader: Component<{
       <h2 class="truncate font-600 text-body">{props.title}</h2>
       <p class="c-secondary truncate text-caption">{props.backTo}に戻る</p>
     </div>
-    {/* 何段潜ったかを点で出す。数字より場所を取らず、戻る回数が分かる。 */}
-    <div class="flex shrink-0 items-center gap-0.75" aria-hidden="true">
-      <For each={Array.from({ length: props.depth + 1 })}>
-        {(_, index) => (
+    <Show when={props.onOpenAsColumn}>
+      {(open) => (
+        <button
+          type="button"
+          aria-label="デッキのカラムとして開く"
+          title="デッキのカラムとして開く"
+          class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+          onClick={() => open()()}
+        >
           <span
-            class="size-1.25 rounded-full"
-            classList={{
-              "bg-accent-primary": index() === props.depth,
-              "bg-tertiary": index() !== props.depth,
-            }}
+            class="i-material-symbols:open-in-new-rounded size-4.5"
+            aria-hidden="true"
           />
-        )}
-      </For>
-    </div>
-    <span class="c-secondary sr-only">{props.depth} 段目</span>
+        </button>
+      )}
+    </Show>
   </header>
 );
 
 /** デッキの 1 列。購読はこの列が持ち、並べ方は `Event` に任せる。 */
 const Column: Component<ColumnProps> = (props) => {
+  // スレッドのカラムは `ThreadView` が自分で購読する。ここで張ると二重になる。
+  const isThread = () => props.column.source.kind === "thread";
   const section = createSection({
     manager: props.readLayer.manager,
     // ウォームアップの結果を memo の外で読むと、settle のたびに全カラムの購読が張り直される。
     source: () =>
-      resolveSource(props.column.source, {
-        followees: props.followees,
-        viewer: props.viewer,
-        relayList: props.relayList,
-        bookmarks: props.bookmarks,
-      }),
+      isThread()
+        ? { type: "nostr", filters: [] }
+        : resolveSource(props.column.source, {
+            followees: props.followees,
+            viewer: props.viewer,
+            relayList: props.relayList,
+            bookmarks: props.bookmarks,
+          }),
   });
   const show = () => columnShow(props.column);
   const facets = () => columnFacets(props.column);
@@ -212,17 +220,8 @@ const Column: Component<ColumnProps> = (props) => {
         <Show when={props.chrome !== false}>
           <div class="h-0.75 shrink-0 bg-accent-primary" />
         </Show>
-        <Show when={top()}>
-          {(entry) => (
-            <StackHeader
-              title={stackTitle(entry())}
-              depth={stack().length - 1}
-              backTo={stack().length > 1 ? "ひとつ前" : props.column.title}
-              onBack={back}
-            />
-          )}
-        </Show>
-        <Show when={props.chrome !== false && top() === undefined}>
+        {/* 元のカラムのヘッダーは重ねても残す。下に何があるかが分かる。 */}
+        <Show when={props.chrome !== false}>
           <Header
             column={props.column}
             open={props.settingsOpen}
@@ -272,52 +271,91 @@ const Column: Component<ColumnProps> = (props) => {
             />
           </Show>
           <div class="absolute inset-0 overflow-y-auto">
-            <Switch>
-              <Match when={items().length > 0}>
-                {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-                <div class="flex flex-col gap-px bg-tertiary pb-px">
-                  <For each={items()}>
-                    {(event) => (
-                      <Event
-                        event={event}
-                        size={
-                          props.column.density === "compact"
-                            ? "compact"
-                            : "normal"
-                        }
-                        expandMedia={props.column.expandMedia !== false}
-                      />
-                    )}
-                  </For>
-                </div>
-              </Match>
-              <Match when={section.status().phase === "settled"}>
-                <p class="c-secondary p-4 text-caption">
-                  まだ投稿がありません。
-                </p>
-              </Match>
-              <Match when={true}>
-                <p class="c-secondary p-4 text-caption">読み込み中…</p>
-              </Match>
-            </Switch>
+            <Show
+              when={
+                props.column.source.kind === "thread" && props.column.source
+              }
+              fallback={
+                <Switch>
+                  <Match when={items().length > 0}>
+                    {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+                    <div class="flex flex-col gap-px bg-tertiary pb-px">
+                      <For each={items()}>
+                        {(event) => (
+                          <Event
+                            event={event}
+                            size={
+                              props.column.density === "compact"
+                                ? "compact"
+                                : "normal"
+                            }
+                            expandMedia={props.column.expandMedia !== false}
+                          />
+                        )}
+                      </For>
+                    </div>
+                  </Match>
+                  <Match when={section.status().phase === "settled"}>
+                    <p class="c-secondary p-4 text-caption">
+                      まだ投稿がありません。
+                    </p>
+                  </Match>
+                  <Match when={true}>
+                    <p class="c-secondary p-4 text-caption">読み込み中…</p>
+                  </Match>
+                </Switch>
+              }
+            >
+              {(source) => (
+                <ThreadView
+                  focusId={source().rootId}
+                  readLayer={props.readLayer}
+                  expandMedia={props.column.expandMedia !== false}
+                />
+              )}
+            </Show>
           </div>
           <For each={stack()}>
             {(entry, index) => (
+              // 1 枚のカラムがそのまま上に乗る。ヘッダーも自分で持つ。
               <div
-                class="absolute inset-x-0 bottom-0 z-2 overflow-y-auto rounded-t-3 bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)]"
-                // 段ごとに少しずつ下げて、下の層が覗くようにする（上限 3 段ぶん）。
+                class="absolute inset-x-0 bottom-0 z-2 flex flex-col overflow-hidden rounded-t-3 bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)]"
+                // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
                 style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                 classList={{ hidden: index() !== stack().length - 1 }}
               >
-                <Show when={entry.kind === "thread" && entry}>
-                  {(thread) => (
-                    <ThreadView
-                      focusId={thread().focusId}
-                      readLayer={props.readLayer}
-                      expandMedia={props.column.expandMedia !== false}
-                    />
-                  )}
-                </Show>
+                <StackHeader
+                  title={stackTitle(entry)}
+                  backTo={index() > 0 ? "ひとつ前" : props.column.title}
+                  onBack={back}
+                  onOpenAsColumn={
+                    props.onOpenAsColumn
+                      ? () => props.onOpenAsColumn?.(stackColumn(entry))
+                      : undefined
+                  }
+                />
+                <div class="min-h-0 flex-1 overflow-y-auto">
+                  <Show when={entry.kind === "thread" && entry}>
+                    {(thread) => (
+                      <ThreadView
+                        focusId={thread().focusId}
+                        readLayer={props.readLayer}
+                        expandMedia={props.column.expandMedia !== false}
+                      />
+                    )}
+                  </Show>
+                  <Show when={entry.kind === "column" && entry}>
+                    {(stacked) => (
+                      <Column
+                        {...props}
+                        column={stacked().column}
+                        chrome={false}
+                        settingsOpen={false}
+                        onToggleSettings={() => {}}
+                      />
+                    )}
+                  </Show>
+                </div>
               </div>
             )}
           </For>

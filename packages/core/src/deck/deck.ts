@@ -12,6 +12,8 @@ export type ColumnSource =
   | { kind: "followees"; kinds: number[] }
   | { kind: "notifications" }
   | { kind: "bookmarks" }
+  /** 1 本のスレッド。根とその子孫が集まる（NIP-10 は根への `e` タグを要求する）。 */
+  | { kind: "thread"; rootId: string }
   | { kind: "user"; pubkey: string }
   | { kind: "followees-list"; pubkey: string }
   | { kind: "followers-list"; pubkey: string };
@@ -170,6 +172,10 @@ const columnSourceSchema = v.variant("kind", [
   }),
   v.object({
     kind: v.literal("bookmarks"),
+  }),
+  v.object({
+    kind: v.literal("thread"),
+    rootId: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
   }),
   v.object({
     kind: v.literal("user"),

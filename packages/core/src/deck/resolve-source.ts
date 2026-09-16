@@ -76,6 +76,14 @@ export const resolveSource = (
     return { type: "nostr", filters: [{ ids: [...context.bookmarks()] }] };
   }
 
+  if (source.kind === "thread") {
+    // 根そのものと、根を指すものを集める。NIP-10 は子孫に根への `e` タグを要求する。
+    return {
+      type: "nostr",
+      filters: [{ ids: [source.rootId] }, { "#e": [source.rootId] }],
+    };
+  }
+
   if (source.kind === "user") {
     return {
       type: "nostr",

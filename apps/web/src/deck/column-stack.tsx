@@ -34,6 +34,17 @@ export const stackKey = (entry: StackEntry): string =>
     ? `thread:${entry.focusId}`
     : `column:${entry.column.id}`;
 
+/** 重ねたものを、デッキの正規のカラムとして開き直すための定義。 */
+export const stackColumn = (entry: StackEntry): ColumnDef =>
+  entry.kind === "column"
+    ? { ...entry.column, id: crypto.randomUUID() }
+    : {
+        id: crypto.randomUUID(),
+        title: "スレッド",
+        // 根ではなく焦点を根として保存する。焦点より上は、そのカラムでは追わない。
+        source: { kind: "thread", rootId: entry.focusId },
+      };
+
 /** 重ねたものの題名と、その下に出す戻り先の説明。 */
 export const stackTitle = (entry: StackEntry): string =>
   entry.kind === "thread" ? "スレッド" : entry.column.title;

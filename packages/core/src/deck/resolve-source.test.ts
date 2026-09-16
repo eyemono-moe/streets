@@ -220,6 +220,14 @@ describe("resolveSource", () => {
     ).toMatchObject({ relays: [...FALLBACK_RELAYS] });
   });
 
+  it("thread は根そのものと、根を指すものを集める", () => {
+    // 捕まえる変異: ids だけにする（返信が集まらず 1 件しか出ない）
+    expect(resolveSource({ kind: "thread", rootId: "a" }, ctx())).toEqual({
+      type: "nostr",
+      filters: [{ ids: ["a"] }, { "#e": ["a"] }],
+    });
+  });
+
   it("bookmarks は今のブックマークを ids にする", () => {
     // 捕まえる変異: 追加時点の ids を焼き込む（後から付けた分が出なくなる）
     expect(
