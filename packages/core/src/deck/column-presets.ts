@@ -1,5 +1,5 @@
 import { decodeNpub, encodeBech32 } from "../nostr/nip19";
-import { FALLBACK_RELAYS } from "../read/default-relays";
+import { FALLBACK_RELAYS, SEARCH_RELAYS } from "../read/default-relays";
 import { type ColumnDef, TIMELINE_KINDS } from "./deck";
 
 export type ColumnPresetKind =
@@ -8,7 +8,8 @@ export type ColumnPresetKind =
   | "user"
   | "hashtag"
   | "global"
-  | "bookmarks";
+  | "bookmarks"
+  | "search";
 
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
@@ -68,6 +69,21 @@ export const buildColumn = (
         id,
         title: `#${tag}`,
         source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
+      };
+    }
+
+    case "search": {
+      const query = input.trim();
+      if (query.length === 0) return undefined;
+      return {
+        id,
+        title: query,
+        source: {
+          kind: "literal",
+          filters: [{ kinds: [1], search: query }],
+          // 検索は著者を指定しないので Outbox で行き先を決められない。対応リレーを明示する。
+          relays: [...SEARCH_RELAYS],
+        },
       };
     }
 

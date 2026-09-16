@@ -29,3 +29,12 @@ export const MAX_CONNECTIONS = 30;
  * まま消える。2 本の代償は被覆低下 (99〜100%→96〜98%) と重複配信の増加。
  */
 export const RELAY_REDUNDANCY = 2;
+
+/**
+ * NIP-50 の検索に答えるリレー。検索は Outbox で行き先を決められない
+ * （著者を指定しないフィルタなので）ため、対応しているリレーを明示する。
+ */
+export const SEARCH_RELAYS: readonly RelayUrl[] = [
+  "wss://search.nos.today/",
+  "wss://relay.nostr.band/",
+];

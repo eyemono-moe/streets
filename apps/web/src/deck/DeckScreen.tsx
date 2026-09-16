@@ -52,6 +52,16 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   });
   const isWide = useIsWide();
   const [adding, setAdding] = createSignal(false);
+  let columnsEl: HTMLDivElement | undefined;
+  // 右端に生えるので、そのままだと追加したことに気づけない。描いた後に端まで送る。
+  const scrollToEnd = () =>
+    requestAnimationFrame(() =>
+      columnsEl?.scrollTo({ left: columnsEl.scrollWidth, behavior: "smooth" }),
+    );
+  const openAddColumn = () => {
+    setAdding(true);
+    scrollToEnd();
+  };
   const [active, setActive] = createSignal<string>();
 
   const [warmUp] = createResource(props.session.pubkey, async (pubkey) => {
@@ -96,6 +106,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     deckStore.update((deck) => addColumnTo(deck, column));
     setAdding(false);
     setActive(column.id);
+    scrollToEnd();
   };
 
   const commandsFor = (column: ColumnDef) => {
@@ -142,12 +153,15 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             <Sidebar
               pubkey={viewer}
               onLogout={props.session.logout}
-              onAddColumn={() => setAdding(true)}
+              onAddColumn={openAddColumn}
             />
             <div class="flex min-w-0 flex-1 flex-col">
               <DeckSyncNotice store={deckStore} />
               {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-              <div class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary">
+              <div
+                ref={columnsEl}
+                class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
+              >
                 <For each={columns()}>
                   {(column) => (
                     <div class="h-full w-95 shrink-0">
@@ -210,7 +224,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 type="button"
                 aria-label="カラムを追加"
                 class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                onClick={() => setAdding(true)}
+                onClick={openAddColumn}
               >
                 <span
                   class="i-material-symbols:add-rounded size-4.5"

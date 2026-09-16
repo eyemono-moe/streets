@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FALLBACK_RELAYS } from "../read/default-relays";
+import { FALLBACK_RELAYS, SEARCH_RELAYS } from "../read/default-relays";
 import { buildColumn } from "./column-presets";
 
 const HEX = "a".repeat(64);
@@ -151,5 +151,18 @@ describe("buildColumn", () => {
   it("bookmarks は何も焼き込まない", () => {
     // 捕まえる変異: 追加した時点のブックマークをフィルタへ書き込む
     expect(buildColumn("bookmarks", "")?.source).toEqual({ kind: "bookmarks" });
+  });
+
+  it("search は NIP-50 の search と検索リレーを持つ", () => {
+    // 捕まえる変異: search を #t のハッシュタグとして扱う／リレーを指定しない
+    expect(buildColumn("search", " nostr のこと ")?.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], search: "nostr のこと" }],
+      relays: [...SEARCH_RELAYS],
+    });
+  });
+
+  it("search は空文字では作らない", () => {
+    expect(buildColumn("search", "   ")).toBeUndefined();
   });
 });

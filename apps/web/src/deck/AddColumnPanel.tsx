@@ -73,11 +73,34 @@ const AddColumnPanel: Component<{
 }> = (props) => {
   const [query, setQuery] = createSignal("");
   const trimmed = () => query().trim();
-  // npub / nprofile ならユーザー、それ以外はハッシュタグとして扱う。
+  // `#` で始まればハッシュタグ、npub / nprofile ならユーザー、それ以外は本文の検索。
   const searchKind = (): ColumnPresetKind =>
-    decodeNpub(trimmed()) ? "user" : "hashtag";
+    trimmed().startsWith("#")
+      ? "hashtag"
+      : decodeNpub(trimmed())
+        ? "user"
+        : "search";
   const searchColumn = () =>
     trimmed().length > 0 ? buildColumn(searchKind(), trimmed()) : undefined;
+  const searchMeta = () => {
+    switch (searchKind()) {
+      case "user":
+        return {
+          icon: "i-material-symbols:person-outline-rounded",
+          description: "ノートと返信",
+        };
+      case "hashtag":
+        return {
+          icon: "i-material-symbols:tag-rounded",
+          description: "ハッシュタグ",
+        };
+      default:
+        return {
+          icon: "i-material-symbols:search-rounded",
+          description: "本文の検索（検索に対応したリレーへ問い合わせる）",
+        };
+    }
+  };
 
   return (
     <section class="flex h-full min-h-0 w-full flex-col bg-primary">
@@ -116,7 +139,7 @@ const AddColumnPanel: Component<{
           />
           <input
             class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-            placeholder="ユーザー・ハッシュタグ・npub で検索"
+            placeholder="本文の検索・#ハッシュタグ・npub"
             aria-label="追加するカラムを検索"
             value={query()}
             onInput={(event) => setQuery(event.currentTarget.value)}
@@ -127,15 +150,9 @@ const AddColumnPanel: Component<{
           {(column) => (
             <div class="mt-2 overflow-hidden rounded-2 border border-primary">
               <Row
-                icon={
-                  searchKind() === "user"
-                    ? "i-material-symbols:person-outline-rounded"
-                    : "i-material-symbols:tag-rounded"
-                }
+                icon={searchMeta().icon}
                 label={column().title}
-                description={
-                  searchKind() === "user" ? "ノートと返信" : "ハッシュタグ"
-                }
+                description={searchMeta().description}
                 onClick={() => props.onAdd(column())}
               />
             </div>
