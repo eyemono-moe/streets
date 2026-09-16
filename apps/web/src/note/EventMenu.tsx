@@ -128,7 +128,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
-            <Menu.Content class="c-primary flex w-70 flex-col gap-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+            <Menu.Content class="c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">
                   このイベント
