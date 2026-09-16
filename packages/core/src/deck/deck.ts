@@ -16,7 +16,50 @@ export type ColumnSource =
   | { kind: "followees-list"; pubkey: string }
   | { kind: "followers-list"; pubkey: string };
 
-export type ColumnDef = { id: string; title: string; source: ColumnSource };
+/** カラムの幅。数値ではなく段で持ち、実際の px は画面側が決める。 */
+export type ColumnWidth = "s" | "m" | "l";
+
+/** 1 件あたりの余白と文字の大きさ。`Event` の size と同じ意味。 */
+export type ColumnDensity = "comfortable" | "compact";
+
+/**
+ * そのカラムに何を流すか。保存された値が無いときは全て true として扱う
+ * （既存のデッキが黙って中身を失わないため）。
+ */
+export type ColumnShow = {
+  replies: boolean;
+  /** 引用（NIP-18 の `q`）。通知カラムで「引用されたことを知らせるか」を決めるのに要る。 */
+  quotes: boolean;
+  /** 自分宛だが返信でも引用でもない投稿。自分宛を集めるカラムでしか意味を持たない。 */
+  mentions: boolean;
+  reposts: boolean;
+  reactions: boolean;
+};
+
+export type ColumnDef = {
+  id: string;
+  title: string;
+  source: ColumnSource;
+  width?: ColumnWidth;
+  density?: ColumnDensity;
+  show?: Partial<ColumnShow>;
+  /** 画像を展開するか。何を流すかではなく、どう見せるかなので `show` とは分ける。 */
+  expandMedia?: boolean;
+};
+
+export const DEFAULT_COLUMN_SHOW: ColumnShow = {
+  replies: true,
+  quotes: true,
+  mentions: true,
+  reposts: true,
+  reactions: true,
+};
+
+/** 保存された値と既定値を合わせる。カラムを読む側はこれだけを見る。 */
+export const columnShow = (column: ColumnDef): ColumnShow => ({
+  ...DEFAULT_COLUMN_SHOW,
+  ...column.show,
+});
 
 /**
  * 「誰かの投稿を時系列で並べる」列が集める kind。kind:6 はタイムラインへ
@@ -146,6 +189,18 @@ const columnDefSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
   title: v.pipe(v.string(), v.minLength(1)),
   source: columnSourceSchema,
+  width: v.optional(v.picklist(["s", "m", "l"])),
+  density: v.optional(v.picklist(["comfortable", "compact"])),
+  expandMedia: v.optional(v.boolean()),
+  show: v.optional(
+    v.object({
+      replies: v.optional(v.boolean()),
+      quotes: v.optional(v.boolean()),
+      mentions: v.optional(v.boolean()),
+      reposts: v.optional(v.boolean()),
+      reactions: v.optional(v.boolean()),
+    }),
+  ),
 });
 
 const deckSchema = v.object({

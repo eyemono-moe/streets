@@ -3,9 +3,21 @@ import type { ColumnDef, Deck } from "./deck";
 import {
   addColumnTo,
   moveColumnIn,
+  moveColumnToIn,
   removeColumnFrom,
   renameColumnIn,
+  updateColumnIn,
 } from "./deck-mutations";
+
+const deckOf = (...columns: Partial<ColumnDef>[]): Deck => ({
+  version: 2,
+  columns: columns.map((over) => ({
+    id: "x",
+    title: "x",
+    source: { kind: "literal", filters: [{ kinds: [1] }] },
+    ...over,
+  })),
+});
 
 const column = (id: string, title = id): ColumnDef => ({
   id,
@@ -74,5 +86,52 @@ describe("renameColumnIn", () => {
     // カラムオブジェクトができ、`<For>` が remount してしまう)
     const current = deck("a");
     expect(renameColumnIn(current, "a", "  a  ")).toBe(current);
+  });
+});
+
+describe("updateColumnIn", () => {
+  it("設定を差し替える", () => {
+    const deck = deckOf({ id: "a", title: "ホーム" });
+    expect(
+      updateColumnIn(deck, "a", { width: "l", density: "compact" }).columns[0],
+    ).toMatchObject({ width: "l", density: "compact" });
+  });
+
+  it("変化が無ければ同じ参照を返す", () => {
+    // 捕まえる変異: 毎回新しいデッキを作る（カラムが作り直され購読が張り直される）
+    const deck = deckOf({ id: "a", title: "ホーム", width: "m" });
+    expect(updateColumnIn(deck, "a", { width: "m" })).toBe(deck);
+  });
+
+  it("空のタイトルは保存しない", () => {
+    // 捕まえる変異: 空文字を通す（loadDeck がデッキ全体を捨てる）
+    const deck = deckOf({ id: "a", title: "ホーム" });
+    expect(updateColumnIn(deck, "a", { title: "  " })).toBe(deck);
+  });
+
+  it("知らない id では何もしない", () => {
+    const deck = deckOf({ id: "a", title: "ホーム" });
+    expect(updateColumnIn(deck, "zzz", { width: "l" })).toBe(deck);
+  });
+});
+
+describe("moveColumnToIn", () => {
+  it("指定した位置へ動かす", () => {
+    const deck = deckOf(
+      { id: "a", title: "A" },
+      { id: "b", title: "B" },
+      { id: "c", title: "C" },
+    );
+    expect(moveColumnToIn(deck, "a", 2).columns.map((c) => c.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+  });
+
+  it("範囲の外と同じ位置では何もしない", () => {
+    const deck = deckOf({ id: "a", title: "A" }, { id: "b", title: "B" });
+    expect(moveColumnToIn(deck, "a", 0)).toBe(deck);
+    expect(moveColumnToIn(deck, "a", 2)).toBe(deck);
   });
 });
