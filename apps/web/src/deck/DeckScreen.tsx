@@ -5,7 +5,6 @@ import {
   type Component,
   For,
   Match,
-  Show,
   Switch,
   createResource,
   createSignal,
@@ -65,8 +64,6 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   const relayList = () =>
     relayListState(props.readLayer.store, viewer, settled());
 
-  const activeColumn = () =>
-    deck.columns.find((column) => column.id === active());
   const shared = {
     get readLayer() {
       return props.readLayer;
@@ -143,12 +140,21 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 />
               </button>
             </div>
+            {/*
+              隠れたカラムも描いたままにする。取り外すと購読ごと消え、
+              タブを戻すたびに取得し直しになり、スクロール位置も失われる。
+            */}
             <div class="min-h-0 flex-1">
-              <Show when={activeColumn()}>
+              <For each={deck.columns}>
                 {(column) => (
-                  <Column column={column()} chrome={false} {...shared} />
+                  <div
+                    class="h-full"
+                    classList={{ hidden: active() !== column.id }}
+                  >
+                    <Column column={column} chrome={false} {...shared} />
+                  </div>
                 )}
-              </Show>
+              </For>
             </div>
             <TabBar pubkey={viewer} onLogout={props.session.logout} />
           </div>
