@@ -8,6 +8,7 @@ const ctx = (over: Partial<ResolveContext> = {}): ResolveContext => ({
   followees: () => [],
   viewer: VIEWER,
   relayList: () => ({ phase: "missing" }),
+  bookmarks: () => [],
   ...over,
 });
 
@@ -217,5 +218,23 @@ describe("resolveSource", () => {
         }),
       ),
     ).toMatchObject({ relays: [...FALLBACK_RELAYS] });
+  });
+
+  it("bookmarks は今のブックマークを ids にする", () => {
+    // 捕まえる変異: 追加時点の ids を焼き込む（後から付けた分が出なくなる）
+    expect(
+      resolveSource(
+        { kind: "bookmarks" },
+        ctx({ bookmarks: () => ["a", "b"] }),
+      ),
+    ).toEqual({ type: "nostr", filters: [{ ids: ["a", "b"] }] });
+  });
+
+  it("ブックマークが 0 件でも ids を落とさない", () => {
+    // 捕まえる変異: 空なら ids を省く（NIP-01 では「誰の何でもよい」になる）
+    expect(resolveSource({ kind: "bookmarks" }, ctx())).toEqual({
+      type: "nostr",
+      filters: [{ ids: [] }],
+    });
   });
 });

@@ -1,21 +1,32 @@
-import { defaultDeck } from "@streets/core/deck/deck";
+import type { ColumnDef } from "@streets/core/deck/deck";
+import {
+  addColumnTo,
+  moveColumnIn,
+  removeColumnFrom,
+} from "@streets/core/deck/deck-mutations";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import {
   type Component,
   For,
   Match,
+  Show,
   Switch,
+  createEffect,
   createResource,
   createSignal,
   onCleanup,
 } from "solid-js";
-import { EventActionsProvider, createEventActions } from "../actions";
+import { EventActionsProvider, createWriteStack } from "../actions";
 import { setDiagnostics } from "../devtools/diagnostics";
 import type { Session } from "../session";
+import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
+import ColumnMenu from "./ColumnMenu";
+import DeckSyncNotice from "./DeckSyncNotice";
 import { Sidebar, TabBar } from "./Nav";
 import { columnMeta } from "./column-meta";
+import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
 
 /** カラムを横に並べられる幅かどうか。狭い端末ではタブで 1 列ずつ見せる。 */
@@ -34,15 +45,24 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
   // biome-ignore lint/style/noNonNullAssertion: ログイン中にしか描かれない
   const viewer = props.session.pubkey()!;
-  const actions = createEventActions({
+  const write = createWriteStack({
     readLayer: props.readLayer,
     signer: props.session.signer,
     viewer,
   });
   const isWide = useIsWide();
-  // カラムの追加・削除・並べ替えと保存はこの後の PR で作る。今は既定のデッキを出す。
-  const deck = defaultDeck(viewer);
-  const [active, setActive] = createSignal(deck.columns[0]?.id);
+  const [adding, setAdding] = createSignal(false);
+  let columnsEl: HTMLDivElement | undefined;
+  // 右端に生えるので、そのままだと追加したことに気づけない。描いた後に端まで送る。
+  const scrollToEnd = () =>
+    requestAnimationFrame(() =>
+      columnsEl?.scrollTo({ left: columnsEl.scrollWidth, behavior: "smooth" }),
+    );
+  const openAddColumn = () => {
+    setAdding(true);
+    scrollToEnd();
+  };
+  const [active, setActive] = createSignal<string>();
 
   const [warmUp] = createResource(props.session.pubkey, async (pubkey) => {
     // 水和を待たずに始めると、空のストアを「キャッシュ無し」と見なして全員分を取り直す。
@@ -64,6 +84,49 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   const relayList = () =>
     relayListState(props.readLayer.store, viewer, settled());
 
+  const deckStore = createDeckStore({
+    pubkey: props.session.pubkey,
+    // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
+    routingSettled: settled,
+    signer: props.session.signer,
+    writer: write.writer,
+    fetchLatest: write.fetchLatest,
+    storage: localStorage,
+  });
+  const columns = () => deckStore.value()?.columns ?? [];
+
+  // 消えたカラムを選んだままにしない。
+  createEffect(() => {
+    const current = active();
+    if (current && columns().some((column) => column.id === current)) return;
+    setActive(columns()[0]?.id);
+  });
+
+  const addColumn = (column: ColumnDef) => {
+    deckStore.update((deck) => addColumnTo(deck, column));
+    setAdding(false);
+    setActive(column.id);
+    scrollToEnd();
+  };
+
+  const commandsFor = (column: ColumnDef) => {
+    const index = () => columns().findIndex(({ id }) => id === column.id);
+    return {
+      get canMoveLeft() {
+        return index() > 0;
+      },
+      get canMoveRight() {
+        return index() >= 0 && index() < columns().length - 1;
+      },
+      onMoveLeft: () =>
+        deckStore.update((deck) => moveColumnIn(deck, column.id, -1)),
+      onMoveRight: () =>
+        deckStore.update((deck) => moveColumnIn(deck, column.id, 1)),
+      onRemove: () =>
+        deckStore.update((deck) => removeColumnFrom(deck, column.id)),
+    };
+  };
+
   const shared = {
     get readLayer() {
       return props.readLayer;
@@ -71,28 +134,54 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     viewer,
     followees,
     relayList,
+    bookmarks: write.actions.bookmarkIds,
   };
 
   return (
-    <EventActionsProvider value={actions}>
+    <EventActionsProvider value={write.actions}>
       <Switch>
         <Match when={warmUp.error}>
           <p role="alert" class="c-danger p-4 text-caption">
             フォローリストを取得できませんでした。
           </p>
         </Match>
+        <Match when={deckStore.value() === undefined}>
+          <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
+        </Match>
         <Match when={isWide()}>
           <div class="flex h-dvh">
-            <Sidebar pubkey={viewer} onLogout={props.session.logout} />
-            {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-            <div class="flex min-w-0 flex-1 gap-px overflow-x-auto bg-tertiary">
-              <For each={deck.columns}>
-                {(column) => (
+            <Sidebar
+              pubkey={viewer}
+              onLogout={props.session.logout}
+              onAddColumn={openAddColumn}
+            />
+            <div class="flex min-w-0 flex-1 flex-col">
+              <DeckSyncNotice store={deckStore} />
+              {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+              <div
+                ref={columnsEl}
+                class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
+              >
+                <For each={columns()}>
+                  {(column) => (
+                    <div class="h-full w-95 shrink-0">
+                      <Column
+                        column={column}
+                        commands={commandsFor(column)}
+                        {...shared}
+                      />
+                    </div>
+                  )}
+                </For>
+                <Show when={adding()}>
                   <div class="h-full w-95 shrink-0">
-                    <Column column={column} {...shared} />
+                    <AddColumnPanel
+                      onAdd={addColumn}
+                      onClose={() => setAdding(false)}
+                    />
                   </div>
-                )}
-              </For>
+                </Show>
+              </div>
             </div>
           </div>
         </Match>
@@ -100,16 +189,19 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
           <div class="flex h-dvh flex-col">
             <div class="h-0.75 shrink-0 bg-accent-primary" />
             <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
-              <For each={deck.columns}>
+              <For each={columns()}>
                 {(column) => (
                   <button
                     type="button"
                     class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
                     classList={{
-                      "c-primary font-600": active() === column.id,
-                      "c-secondary": active() !== column.id,
+                      "c-primary font-600": !adding() && active() === column.id,
+                      "c-secondary": adding() || active() !== column.id,
                     }}
-                    onClick={() => setActive(column.id)}
+                    onClick={() => {
+                      setActive(column.id);
+                      setAdding(false);
+                    }}
                   >
                     <span class="flex items-center gap-1.5">
                       <span
@@ -121,40 +213,57 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     <span
                       class="h-0.5 w-6 rounded-full"
                       classList={{
-                        "bg-accent-primary": active() === column.id,
+                        "bg-accent-primary":
+                          !adding() && active() === column.id,
                       }}
                     />
                   </button>
                 )}
               </For>
-              {/* カラム設定はこの後の PR で作る。場所だけ取っておく。 */}
               <button
                 type="button"
-                aria-label="カラムの設定（未対応）"
-                class="c-secondary grid size-8 shrink-0 place-items-center rounded-2 bg-transparent opacity-50"
-                disabled
+                aria-label="カラムを追加"
+                class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+                onClick={openAddColumn}
               >
                 <span
-                  class="i-material-symbols:more-horiz size-4.5"
+                  class="i-material-symbols:add-rounded size-4.5"
                   aria-hidden="true"
                 />
               </button>
+              <Show when={columns().find((column) => column.id === active())}>
+                {(column) => (
+                  <ColumnMenu commands={commandsFor(column())} class="size-8" />
+                )}
+              </Show>
             </div>
+            <DeckSyncNotice store={deckStore} />
             {/*
               隠れたカラムも描いたままにする。取り外すと購読ごと消え、
               タブを戻すたびに取得し直しになり、スクロール位置も失われる。
             */}
             <div class="min-h-0 flex-1">
-              <For each={deck.columns}>
+              <For each={columns()}>
                 {(column) => (
                   <div
                     class="h-full"
-                    classList={{ hidden: active() !== column.id }}
+                    classList={{ hidden: adding() || active() !== column.id }}
                   >
-                    <Column column={column} chrome={false} {...shared} />
+                    <Column
+                      column={column}
+                      commands={commandsFor(column)}
+                      chrome={false}
+                      {...shared}
+                    />
                   </div>
                 )}
               </For>
+              <Show when={adding()}>
+                <AddColumnPanel
+                  onAdd={addColumn}
+                  onClose={() => setAdding(false)}
+                />
+              </Show>
             </div>
             <TabBar pubkey={viewer} onLogout={props.session.logout} />
           </div>

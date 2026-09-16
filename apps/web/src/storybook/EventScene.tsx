@@ -46,8 +46,13 @@ const storyActions = (
   const [bookmarks, setBookmarks] = createSignal(
     store.latestReplaceable(10003, viewer.pubkey),
   );
+  const bookmarkIds = () =>
+    bookmarks()
+      ?.tags.filter((tag) => tag[0] === "e" && tag[1])
+      .map((tag) => tag[1] as string) ?? [];
   return {
     viewer: viewer.pubkey,
+    bookmarkIds,
     reply: (target, content) =>
       send(() => viewer.event(buildReply(target, content))),
     repost: (target) =>
@@ -58,8 +63,7 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
-    bookmarked: (id) =>
-      bookmarks()?.tags.some((tag) => tag[0] === "e" && tag[1] === id) ?? false,
+    bookmarked: (id) => bookmarkIds().includes(id),
     setBookmark: (target, on) =>
       send(() => {
         const mutation = on ? addBookmark : removeBookmark;
