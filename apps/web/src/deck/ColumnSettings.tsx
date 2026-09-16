@@ -1,3 +1,5 @@
+import { SegmentGroup } from "@ark-ui/solid/segment-group";
+import { Switch } from "@ark-ui/solid/switch";
 import type {
   ColumnDef,
   ColumnDensity,
@@ -5,8 +7,7 @@ import type {
   ColumnWidth,
 } from "@streets/core/deck/deck";
 import { columnShow } from "@streets/core/deck/deck";
-import { type Component, For, Show } from "solid-js";
-import { PALETTES, type PaletteName } from "../theme";
+import { type Component, For } from "solid-js";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id" | "source">>;
 
@@ -35,30 +36,35 @@ const Field: Component<{ label: string; children: unknown }> = (props) => (
   </div>
 );
 
+/** 排他の選択。ラジオグループなので、矢印キーでも選べる。 */
 const Segmented = <T extends string>(props: {
+  label: string;
   options: { value: T; label: string }[];
   current: T;
   onSelect: (value: T) => void;
 }) => (
-  <div class="flex w-full gap-0.5 rounded-2 border border-primary bg-primary p-0.5">
+  <SegmentGroup.Root
+    // 既定は縦。横に並べるので、矢印キーの向きも合わせる。
+    orientation="horizontal"
+    class="flex w-full gap-0.5 rounded-2 border border-primary bg-primary p-0.5"
+    value={props.current}
+    onValueChange={(details) => {
+      if (details.value) props.onSelect(details.value as T);
+    }}
+  >
+    <SegmentGroup.Label class="sr-only">{props.label}</SegmentGroup.Label>
     <For each={props.options}>
       {(option) => (
-        <button
-          type="button"
-          aria-pressed={props.current === option.value}
-          // bg-transparent を静的に置くと、選択時の背景色を打ち消す。
-          class="h-7.5 flex-1 cursor-pointer rounded-1.5 text-caption"
-          classList={{
-            "bg-accent-primary c-white": props.current === option.value,
-            "c-primary bg-transparent": props.current !== option.value,
-          }}
-          onClick={() => props.onSelect(option.value)}
+        <SegmentGroup.Item
+          value={option.value}
+          class="data-[state=checked]:c-white flex h-7.5 flex-1 cursor-pointer items-center justify-center rounded-1.5 text-caption data-[state=checked]:bg-accent-primary"
         >
-          {option.label}
-        </button>
+          <SegmentGroup.ItemText>{option.label}</SegmentGroup.ItemText>
+          <SegmentGroup.ItemHiddenInput />
+        </SegmentGroup.Item>
       )}
     </For>
-  </div>
+  </SegmentGroup.Root>
 );
 
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */
@@ -85,6 +91,7 @@ const ColumnSettings: Component<{
 
       <Field label="幅">
         <Segmented
+          label="幅"
           options={WIDTHS}
           current={props.column.width ?? "m"}
           onSelect={(width) => props.onPatch({ width })}
@@ -93,6 +100,7 @@ const ColumnSettings: Component<{
 
       <Field label="表示密度">
         <Segmented
+          label="表示密度"
           options={DENSITIES}
           current={props.column.density ?? "comfortable"}
           onSelect={(density) => props.onPatch({ density })}
@@ -102,62 +110,25 @@ const ColumnSettings: Component<{
       <Field label="表示するもの">
         <For each={TOGGLES}>
           {(toggle) => (
-            <label class="flex h-8 w-full cursor-pointer items-center gap-2 text-body">
-              <span class="min-w-0 flex-1 truncate">{toggle.label}</span>
-              <input
-                type="checkbox"
-                class="h-5 w-9 shrink-0 cursor-pointer appearance-none rounded-full bg-tertiary transition-colors before:ml-0.5 before:block before:size-4 before:translate-y-0.5 before:rounded-full before:bg-primary before:transition-transform checked:bg-accent-primary checked:before:translate-x-4"
-                checked={show()[toggle.key]}
-                onChange={(event) =>
-                  props.onPatch({
-                    show: {
-                      ...props.column.show,
-                      [toggle.key]: event.currentTarget.checked,
-                    },
-                  })
-                }
-              />
-            </label>
+            <Switch.Root
+              class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
+              checked={show()[toggle.key]}
+              onCheckedChange={(details) =>
+                props.onPatch({
+                  show: { ...props.column.show, [toggle.key]: details.checked },
+                })
+              }
+            >
+              <Switch.Label class="min-w-0 flex-1 truncate">
+                {toggle.label}
+              </Switch.Label>
+              <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full bg-tertiary p-0.5 transition-colors data-[state=checked]:bg-accent-primary">
+                <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
+              </Switch.Control>
+              <Switch.HiddenInput />
+            </Switch.Root>
           )}
         </For>
-      </Field>
-
-      <Field label="アクセント">
-        <div class="flex gap-2">
-          <For each={Object.keys(PALETTES) as PaletteName[]}>
-            {(name) => (
-              <button
-                type="button"
-                aria-label={name}
-                aria-pressed={props.column.accent === name}
-                class="grid size-7 cursor-pointer place-items-center rounded-full"
-                style={{ "background-color": PALETTES[name].accent }}
-                onClick={() => props.onPatch({ accent: name })}
-              >
-                <Show when={props.column.accent === name}>
-                  <span
-                    class="i-material-symbols:check-rounded c-white size-4"
-                    aria-hidden="true"
-                  />
-                </Show>
-              </button>
-            )}
-          </For>
-          <button
-            type="button"
-            aria-label="アプリ全体の色に合わせる"
-            aria-pressed={props.column.accent === undefined}
-            class="grid size-7 cursor-pointer place-items-center rounded-full bg-tertiary"
-            onClick={() => props.onPatch({ accent: undefined })}
-          >
-            <Show when={props.column.accent === undefined}>
-              <span
-                class="i-material-symbols:check-rounded c-secondary size-4"
-                aria-hidden="true"
-              />
-            </Show>
-          </button>
-        </div>
       </Field>
 
       <button

@@ -1,3 +1,4 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
 import { columnAlerts } from "@streets/core/deck/column-alerts";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
@@ -15,7 +16,6 @@ import {
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
-import { PALETTES, type PaletteName } from "../theme";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
 import { columnMeta } from "./column-meta";
 
@@ -97,13 +97,6 @@ const Column: Component<ColumnProps> = (props) => {
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
 
-  const accent = () => {
-    const name = props.column.accent;
-    return name && name in PALETTES
-      ? PALETTES[name as PaletteName].accent
-      : undefined;
-  };
-
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
       ...section.status(),
@@ -112,11 +105,7 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   return (
-    <section
-      class="flex h-full min-h-0 w-full flex-col bg-primary"
-      // カラムごとのアクセント色。指定が無ければアプリ全体の色のまま。
-      style={accent() ? { "--theme-accent-color": accent() } : undefined}
-    >
+    <section class="flex h-full min-h-0 w-full flex-col bg-primary">
       <Show when={props.chrome !== false}>
         <div class="h-0.75 shrink-0 bg-accent-primary" />
         <Header
@@ -126,13 +115,21 @@ const Column: Component<ColumnProps> = (props) => {
           onDragStart={props.onDragStart}
         />
       </Show>
-      <Show when={props.settingsOpen}>
-        <ColumnSettings
-          column={props.column}
-          onPatch={props.onPatch}
-          onRemove={props.onRemove}
-        />
-      </Show>
+      {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
+      <Collapsible.Root
+        open={props.settingsOpen}
+        lazyMount
+        unmountOnExit
+        class="shrink-0"
+      >
+        <Collapsible.Content>
+          <ColumnSettings
+            column={props.column}
+            onPatch={props.onPatch}
+            onRemove={props.onRemove}
+          />
+        </Collapsible.Content>
+      </Collapsible.Root>
       <For each={alerts()}>
         {(alert) => (
           <p

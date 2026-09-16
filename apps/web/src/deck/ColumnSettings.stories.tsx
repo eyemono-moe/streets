@@ -40,7 +40,6 @@ export const 変更済み: Story = {
       width: "l",
       density: "compact",
       show: { replies: false, media: false },
-      accent: "cyan",
     },
   },
 };

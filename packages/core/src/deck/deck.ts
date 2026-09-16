@@ -40,8 +40,6 @@ export type ColumnDef = {
   width?: ColumnWidth;
   density?: ColumnDensity;
   show?: Partial<ColumnShow>;
-  /** テーマ色の名前。カラムごとに変えられる。省略時はアプリ全体の色。 */
-  accent?: string;
 };
 
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
@@ -195,7 +193,6 @@ const columnDefSchema = v.object({
       media: v.optional(v.boolean()),
     }),
   ),
-  accent: v.optional(v.string()),
 });
 
 const deckSchema = v.object({
