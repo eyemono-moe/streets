@@ -51,3 +51,41 @@ export const renameColumnIn = (deck: Deck, id: string, title: string): Deck => {
     ),
   };
 };
+
+/**
+ * 1 本のカラムの設定を差し替える。変化が無ければ同じ参照を返す ——
+ * 参照が変わると `<For>` がカラムを作り直し、購読まで張り直される。
+ */
+export const updateColumnIn = (
+  deck: Deck,
+  id: string,
+  patch: Partial<Omit<ColumnDef, "id" | "source">>,
+): Deck => {
+  const target = deck.columns.find((column) => column.id === id);
+  if (!target) return deck;
+  const next = { ...target, ...patch };
+  // 空のタイトルは保存しない。`loadDeck` がそのカラムを弾き、デッキ全体が
+  // 「壊れている」判定になって既定デッキへ戻ってしまう。
+  if (next.title.trim().length === 0) return deck;
+  const normalized = { ...next, title: next.title.trim() };
+  if (JSON.stringify(normalized) === JSON.stringify(target)) return deck;
+  return {
+    ...deck,
+    columns: deck.columns.map((column) =>
+      column.id === id ? normalized : column,
+    ),
+  };
+};
+
+/** ドラッグでの並べ替え。`to` は移動後に入ってほしい位置。 */
+export const moveColumnToIn = (deck: Deck, id: string, to: number): Deck => {
+  const from = deck.columns.findIndex((column) => column.id === id);
+  if (from < 0 || to < 0 || to >= deck.columns.length || from === to) {
+    return deck;
+  }
+  const columns = [...deck.columns];
+  const [moved] = columns.splice(from, 1);
+  if (!moved) return deck;
+  columns.splice(to, 0, moved);
+  return { ...deck, columns };
+};

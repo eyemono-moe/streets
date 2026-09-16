@@ -1,9 +1,10 @@
 import { columnAlerts } from "@streets/core/deck/column-alerts";
-import type { ColumnDef } from "@streets/core/deck/deck";
+import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
+import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
   type Component,
   For,
@@ -14,7 +15,8 @@ import {
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
-import ColumnMenu, { type ColumnCommands } from "./ColumnMenu";
+import { PALETTES, type PaletteName } from "../theme";
+import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
 import { columnMeta } from "./column-meta";
 
 export type ColumnProps = {
@@ -24,17 +26,31 @@ export type ColumnProps = {
   followees: () => readonly string[];
   relayList: () => RelayListState;
   bookmarks: () => readonly string[];
-  commands: ColumnCommands;
+  onPatch: (patch: ColumnPatch) => void;
+  onRemove: () => void;
+  settingsOpen: boolean;
+  onToggleSettings: () => void;
+  /** ヘッダーを掴んで並べ替えるための配線。 */
+  onDragStart?: (event: DragEvent) => void;
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
 };
 
-const Header: Component<{ column: ColumnDef; commands: ColumnCommands }> = (
-  props,
-) => {
+const Header: Component<{
+  column: ColumnDef;
+  open: boolean;
+  onToggle: () => void;
+  onDragStart?: (event: DragEvent) => void;
+}> = (props) => {
   const meta = () => columnMeta(props.column);
   return (
-    <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
+    // ヘッダーを掴んでカラムを並べ替える。本文まで draggable にすると本文を選べなくなる。
+    <header
+      class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3"
+      classList={{ "cursor-grab": props.onDragStart !== undefined }}
+      draggable={props.onDragStart !== undefined}
+      onDragStart={(event) => props.onDragStart?.(event)}
+    >
       <span
         class={`c-secondary size-4.5 shrink-0 ${meta().icon}`}
         aria-hidden="true"
@@ -43,7 +59,22 @@ const Header: Component<{ column: ColumnDef; commands: ColumnCommands }> = (
         <h2 class="truncate font-600 text-body">{props.column.title}</h2>
         <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
       </div>
-      <ColumnMenu commands={props.commands} />
+      <button
+        type="button"
+        aria-label="カラムの設定"
+        aria-expanded={props.open}
+        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+        onClick={() => props.onToggle()}
+      >
+        <span
+          class="size-4.5"
+          classList={{
+            "i-material-symbols:more-horiz": !props.open,
+            "i-material-symbols:close-rounded": props.open,
+          }}
+          aria-hidden="true"
+        />
+      </button>
     </header>
   );
 };
@@ -61,8 +92,17 @@ const Column: Component<ColumnProps> = (props) => {
         bookmarks: props.bookmarks,
       }),
   });
+  const show = () => columnShow(props.column);
+  const items = () => visibleColumnItems(section.items(), show());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
+
+  const accent = () => {
+    const name = props.column.accent;
+    return name && name in PALETTES
+      ? PALETTES[name as PaletteName].accent
+      : undefined;
+  };
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -72,10 +112,26 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   return (
-    <section class="flex h-full min-h-0 w-full flex-col bg-primary">
+    <section
+      class="flex h-full min-h-0 w-full flex-col bg-primary"
+      // カラムごとのアクセント色。指定が無ければアプリ全体の色のまま。
+      style={accent() ? { "--theme-accent-color": accent() } : undefined}
+    >
       <Show when={props.chrome !== false}>
         <div class="h-0.75 shrink-0 bg-accent-primary" />
-        <Header column={props.column} commands={props.commands} />
+        <Header
+          column={props.column}
+          open={props.settingsOpen}
+          onToggle={props.onToggleSettings}
+          onDragStart={props.onDragStart}
+        />
+      </Show>
+      <Show when={props.settingsOpen}>
+        <ColumnSettings
+          column={props.column}
+          onPatch={props.onPatch}
+          onRemove={props.onRemove}
+        />
       </Show>
       <For each={alerts()}>
         {(alert) => (
@@ -90,11 +146,19 @@ const Column: Component<ColumnProps> = (props) => {
       </For>
       <div class="min-h-0 flex-1 overflow-y-auto">
         <Switch>
-          <Match when={section.items().length > 0}>
+          <Match when={items().length > 0}>
             {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
             <div class="flex flex-col gap-px bg-tertiary pb-px">
-              <For each={section.items()}>
-                {(event) => <Event event={event} size="normal" />}
+              <For each={items()}>
+                {(event) => (
+                  <Event
+                    event={event}
+                    size={
+                      props.column.density === "compact" ? "compact" : "normal"
+                    }
+                    expandMedia={show().media}
+                  />
+                )}
               </For>
             </div>
           </Match>

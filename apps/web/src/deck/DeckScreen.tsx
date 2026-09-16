@@ -1,8 +1,9 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import {
   addColumnTo,
-  moveColumnIn,
+  moveColumnToIn,
   removeColumnFrom,
+  updateColumnIn,
 } from "@streets/core/deck/deck-mutations";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -22,7 +23,7 @@ import { setDiagnostics } from "../devtools/diagnostics";
 import type { Session } from "../session";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
-import ColumnMenu from "./ColumnMenu";
+import type { ColumnPatch } from "./ColumnSettings";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { Sidebar, TabBar } from "./Nav";
 import { columnMeta } from "./column-meta";
@@ -52,6 +53,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   });
   const isWide = useIsWide();
   const [adding, setAdding] = createSignal(false);
+  const [settingsFor, setSettingsFor] = createSignal<string>();
   let columnsEl: HTMLDivElement | undefined;
   // 右端に生えるので、そのままだと追加したことに気づけない。描いた後に端まで送る。
   const scrollToEnd = () =>
@@ -109,22 +111,31 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     scrollToEnd();
   };
 
-  const commandsFor = (column: ColumnDef) => {
-    const index = () => columns().findIndex(({ id }) => id === column.id);
-    return {
-      get canMoveLeft() {
-        return index() > 0;
-      },
-      get canMoveRight() {
-        return index() >= 0 && index() < columns().length - 1;
-      },
-      onMoveLeft: () =>
-        deckStore.update((deck) => moveColumnIn(deck, column.id, -1)),
-      onMoveRight: () =>
-        deckStore.update((deck) => moveColumnIn(deck, column.id, 1)),
-      onRemove: () =>
-        deckStore.update((deck) => removeColumnFrom(deck, column.id)),
-    };
+  const columnControls = (column: ColumnDef) => ({
+    onPatch: (patch: ColumnPatch) =>
+      deckStore.update((deck) => updateColumnIn(deck, column.id, patch)),
+    onRemove: () => {
+      setSettingsFor(undefined);
+      deckStore.update((deck) => removeColumnFrom(deck, column.id));
+    },
+    get settingsOpen() {
+      return settingsFor() === column.id;
+    },
+    onToggleSettings: () =>
+      setSettingsFor((current) =>
+        current === column.id ? undefined : column.id,
+      ),
+  });
+
+  // 掴んでいるカラムを覚え、離した先のカラムの位置へ差し込む。
+  const [dragging, setDragging] = createSignal<string>();
+  const dropOn = (targetId: string) => {
+    const id = dragging();
+    setDragging(undefined);
+    if (!id || id === targetId) return;
+    const to = columns().findIndex((column) => column.id === targetId);
+    if (to < 0) return;
+    deckStore.update((deck) => moveColumnToIn(deck, id, to));
   };
 
   const shared = {
@@ -164,10 +175,27 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               >
                 <For each={columns()}>
                   {(column) => (
-                    <div class="h-full w-95 shrink-0">
+                    <div
+                      class="h-full shrink-0"
+                      classList={{
+                        "w-80": column.width === "s",
+                        "w-95": column.width !== "s" && column.width !== "l",
+                        "w-110": column.width === "l",
+                        "opacity-50": dragging() === column.id,
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        dropOn(column.id);
+                      }}
+                    >
                       <Column
                         column={column}
-                        commands={commandsFor(column)}
+                        {...columnControls(column)}
+                        onDragStart={(event) => {
+                          setDragging(column.id);
+                          event.dataTransfer?.setData("text/plain", column.id);
+                        }}
                         {...shared}
                       />
                     </div>
@@ -233,7 +261,18 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               </button>
               <Show when={columns().find((column) => column.id === active())}>
                 {(column) => (
-                  <ColumnMenu commands={commandsFor(column())} class="size-8" />
+                  <button
+                    type="button"
+                    aria-label="カラムの設定"
+                    aria-expanded={settingsFor() === column().id}
+                    class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+                    onClick={() => columnControls(column()).onToggleSettings()}
+                  >
+                    <span
+                      class="i-material-symbols:more-horiz size-4.5"
+                      aria-hidden="true"
+                    />
+                  </button>
                 )}
               </Show>
             </div>
@@ -251,7 +290,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                   >
                     <Column
                       column={column}
-                      commands={commandsFor(column)}
+                      {...columnControls(column)}
                       chrome={false}
                       {...shared}
                     />

@@ -36,7 +36,12 @@ import { useEvent } from "./use-event";
  */
 export type EventSize = "normal" | "compact";
 
-type ContentProps = { event: NostrEvent; size: EventSize };
+type ContentProps = {
+  event: NostrEvent;
+  size: EventSize;
+  /** 画像を展開するか。カラム設定で切ると、URL のリンクだけにする。 */
+  expandMedia?: boolean;
+};
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
   <p class="c-secondary text-caption">{props.children}</p>
@@ -207,7 +212,23 @@ const Note: Component<ContentProps> = (props) => {
         />
       </Show>
       <For each={layout().images}>
-        {(url) => <MediaImage url={url} size={props.size} />}
+        {(url) => (
+          <Show
+            when={props.expandMedia !== false}
+            fallback={
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-all text-caption text-link"
+              >
+                {url}
+              </a>
+            }
+          >
+            <MediaImage url={url} size={props.size} />
+          </Show>
+        )}
       </For>
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
@@ -235,7 +256,13 @@ const Repost: Component<ContentProps> = (props) => (
       >
         {(ref) => (
           <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
-            {(event) => <EventContent event={event} size={props.size} />}
+            {(event) => (
+              <EventContent
+                event={event}
+                size={props.size}
+                expandMedia={props.expandMedia}
+              />
+            )}
           </Lookup>
         )}
       </Show>
@@ -252,7 +279,11 @@ const Unsupported: Component<ContentProps> = (props) => (
 const EventContent: Component<ContentProps> = (props) => (
   <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
     <Match when={props.event.kind === 1}>
-      <Note event={props.event} size={props.size} />
+      <Note
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
     </Match>
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
       <Repost event={props.event} size={props.size} />
@@ -263,7 +294,11 @@ const EventContent: Component<ContentProps> = (props) => (
 /** 手元にあるイベントを 1 件描く。 */
 const Event: Component<ContentProps> = (props) => (
   <Frame size={props.size}>
-    <EventContent event={props.event} size={props.size} />
+    <EventContent
+      event={props.event}
+      size={props.size}
+      expandMedia={props.expandMedia}
+    />
   </Frame>
 );
 
