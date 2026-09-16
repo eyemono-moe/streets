@@ -1,24 +1,16 @@
 import { Dialog } from "@ark-ui/solid/dialog";
-import { parseContent } from "@streets/core/nostr/content";
-import type { NostrEvent } from "@streets/core/nostr/event";
-import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { type Component, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { actionErrorMessage, useEventActions } from "../actions";
-import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
-import NoteText from "./NoteText";
 import { ComposeTools, countCharacters } from "./compose-parts";
 
-const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
-  props,
-) => {
+/** 新しいノートを書く。返信は `ReplyDialog`（返信先を上に出す点だけが違う）。 */
+const ComposeDialog: Component<{ onClose: () => void }> = (props) => {
   const actions = useEventActions();
   const [content, setContent] = createSignal("");
   const [sending, setSending] = createSignal(false);
   const [error, setError] = createSignal<string>();
-  const targetTokens = createMemo(() =>
-    parseContent(props.target.content.trim(), props.target.tags),
-  );
 
   const submit = async () => {
     const text = content().trim();
@@ -26,7 +18,7 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
     setSending(true);
     setError(undefined);
     try {
-      await actions.reply(props.target, text);
+      await actions.post(text);
       props.onClose();
     } catch (cause) {
       // 本文は残し、そのまま再試行できるようにする。
@@ -49,7 +41,7 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
           <Dialog.Content class="c-primary w-full max-w-130 overflow-hidden rounded-3 border border-primary bg-primary outline-none">
             <div class="flex h-12 items-center gap-2 pr-3 pl-4">
               <Dialog.Title class="flex-1 font-600 text-body">
-                返信する
+                ノートを書く
               </Dialog.Title>
               <Dialog.CloseTrigger
                 aria-label="閉じる"
@@ -61,20 +53,6 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                   aria-hidden="true"
                 />
               </Dialog.CloseTrigger>
-            </div>
-
-            <div class="flex items-start gap-2.5 px-4 pb-3">
-              <div class="flex flex-col items-center gap-1 self-stretch">
-                <Avatar pubkey={props.target.pubkey} size="compact" />
-                <div class="min-h-6 w-0.5 flex-1 bg-tertiary" />
-              </div>
-              <div class="flex min-w-0 flex-1 flex-col gap-1">
-                <AuthorNames pubkey={props.target.pubkey} size="normal" />
-                <NoteText
-                  tokens={targetTokens()}
-                  class="c-secondary text-body"
-                />
-              </div>
             </div>
 
             <form
@@ -91,10 +69,10 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                 </Show>
                 <textarea
                   autofocus
-                  aria-label="返信の本文"
+                  aria-label="ノートの本文"
                   class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
                   disabled={sending()}
-                  placeholder="返信を書く"
+                  placeholder="いま何してる？"
                   value={content()}
                   onInput={(event) => setContent(event.currentTarget.value)}
                   onKeyDown={(event) => {
@@ -114,8 +92,8 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                 )}
               </Show>
               <ComposeTools
-                count={`${countCharacters(content())}`}
-                label="返信"
+                count={`${countCharacters(content())} 文字`}
+                label="投稿"
                 sending={sending()}
                 disabled={content().trim().length === 0}
               />
@@ -127,4 +105,4 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
   );
 };
 
-export default ReplyDialog;
+export default ComposeDialog;

@@ -20,12 +20,13 @@ import {
 } from "solid-js";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { setDiagnostics } from "../devtools/diagnostics";
+import ComposeDialog from "../note/ComposeDialog";
 import type { Session } from "../session";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import type { ColumnPatch } from "./ColumnSettings";
 import DeckSyncNotice from "./DeckSyncNotice";
-import { Sidebar, TabBar } from "./Nav";
+import { ComposeFab, Sidebar, TabBar } from "./Nav";
 import { columnMeta } from "./column-meta";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
@@ -54,6 +55,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   const isWide = useIsWide();
   const [adding, setAdding] = createSignal(false);
   const [settingsFor, setSettingsFor] = createSignal<string>();
+  const [composing, setComposing] = createSignal(false);
   let columnsEl: HTMLDivElement | undefined;
   // 右端に生えるので、そのままだと追加したことに気づけない。描いた後に端まで送る。
   const scrollToEnd = () =>
@@ -150,6 +152,9 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
 
   return (
     <EventActionsProvider value={write.actions}>
+      <Show when={composing()}>
+        <ComposeDialog onClose={() => setComposing(false)} />
+      </Show>
       <Switch>
         <Match when={warmUp.error}>
           <p role="alert" class="c-danger p-4 text-caption">
@@ -165,6 +170,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               pubkey={viewer}
               onLogout={props.session.logout}
               onAddColumn={openAddColumn}
+              onCompose={() => setComposing(true)}
             />
             <div class="flex min-w-0 flex-1 flex-col">
               <DeckSyncNotice store={deckStore} />
@@ -214,7 +220,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
           </div>
         </Match>
         <Match when={true}>
-          <div class="flex h-dvh flex-col">
+          <div class="relative flex h-dvh flex-col">
             <div class="h-0.75 shrink-0 bg-accent-primary" />
             <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
               <For each={columns()}>
@@ -304,6 +310,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 />
               </Show>
             </div>
+            <ComposeFab onCompose={() => setComposing(true)} />
             <TabBar pubkey={viewer} onLogout={props.session.logout} />
           </div>
         </Match>
