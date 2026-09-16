@@ -4,7 +4,6 @@ import {
   replyTarget,
   repostTarget,
 } from "@streets/core/nostr/event-refs";
-import { profileLabel } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   formatEventTime,
@@ -25,9 +24,10 @@ import {
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
+import Name from "./Name";
 import NoteText from "./NoteText";
+import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
-import { useProfile } from "./use-profile";
 
 /**
  * `compact` は関連イベント（引用・リポスト元）を取りにいかない。
@@ -36,11 +36,6 @@ import { useProfile } from "./use-profile";
 export type EventSize = "normal" | "compact";
 
 type ContentProps = { event: NostrEvent; size: EventSize };
-
-const Name: Component<{ pubkey: string }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
-  return <>{profileLabel(profile(), props.pubkey)}</>;
-};
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
   <p class="c-secondary text-caption">{props.children}</p>
@@ -212,6 +207,7 @@ const Note: Component<ContentProps> = (props) => {
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
       <Show when={props.size === "normal"}>
+        <ReactionList event={props.event} />
         <ActionBar event={props.event} />
       </Show>
     </Row>

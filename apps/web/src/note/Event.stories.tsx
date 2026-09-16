@@ -1,5 +1,8 @@
 import { addBookmark } from "@streets/core/nostr/build/bookmark";
-import { buildReaction } from "@streets/core/nostr/build/reaction";
+import {
+  type ReactionInput,
+  buildReaction,
+} from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import type { Component } from "solid-js";
@@ -7,7 +10,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
-import { createStoryAuthor } from "../storybook/story-events";
+import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import Event, { type EventSize } from "./Event";
 
 const alice = createStoryAuthor(11, {
@@ -44,14 +47,23 @@ const quoteOfQuote = carol.quote(
   "引用の引用。中の引用は取りにいかない。",
 );
 const repost = carol.repost(plain);
+const react = (author: StoryAuthor, input: ReactionInput) =>
+  author.event(buildReaction(plain, input));
 const engaged = [
   bob.reply(plain, "わかる"),
   carol.reply(plain, "たしかに"),
-  bob.event(buildReaction(plain, { type: "like" })),
-  carol.event(buildReaction(plain, { type: "like" })),
+  react(bob, { type: "like" }),
+  react(carol, { type: "like" }),
+  react(alice, { type: "text", content: "🥰" }),
+  react(bob, { type: "text", content: "🥰" }),
+  react(carol, { type: "text", content: "🎉" }),
+  react(bob, { type: "emoji", shortcode: "party", url: emojiUrl }),
+  react(carol, { type: "text", content: "とても長いテキストのリアクション" }),
+  react(alice, { type: "emoji", shortcode: "broken", url: "/missing.png" }),
 ];
 const viewerEngaged = [
-  viewer.event(buildReaction(plain, { type: "like" })),
+  react(viewer, { type: "like" }),
+  react(viewer, { type: "text", content: "🥰" }),
   viewer.repost(plain),
   viewer.event(addBookmark({ type: "note", value: plain.id })(undefined)),
 ];
