@@ -1,7 +1,31 @@
 import type { RelayUrl } from "../../relay/relay-connection";
+import { parseContent } from "../content";
 import type { NostrEvent } from "../event";
 import { encodeBech32 } from "../nip19";
 import type { EventDraft } from "./draft";
+
+/**
+ * 本文のハッシュタグを `t` タグにする。NIP-24 は小文字を SHOULD としており、
+ * `parseContent` が既に小文字へ寄せているので、ここでは重複だけを落とす。
+ */
+const hashtagTags = (content: string): string[][] =>
+  [
+    ...new Set(
+      parseContent(content, [])
+        .filter((token) => token.type === "hashtag")
+        .map((token) => (token as { tag: string }).tag),
+    ),
+  ].map((tag) => ["t", tag]);
+
+/**
+ * 新しいノート。`t` タグを付けるのは、付けないと本文に `#nostr` と書いても
+ * ハッシュタグのカラムに出ないため（カラムは `#t` フィルタで集める）。
+ */
+export const buildNote = (content: string): EventDraft => ({
+  kind: 1,
+  tags: hashtagTags(content),
+  content,
+});
 
 /** 親が持つ `root` マーカー付きの `e` タグ。無ければ親自身が根。 */
 const rootTagOf = (parent: NostrEvent): string[] | undefined =>

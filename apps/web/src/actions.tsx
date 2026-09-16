@@ -2,7 +2,7 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
-import { buildReply } from "@streets/core/nostr/build/note";
+import { buildNote, buildReply } from "@streets/core/nostr/build/note";
 import {
   type ReactionInput,
   buildReaction,
@@ -38,6 +38,7 @@ export type EventActions = {
   viewer: string;
   /** ブックマークしたノートの id。ブックマークのカラムが購読に使う。 */
   bookmarkIds(): readonly string[];
+  post(content: string): Promise<void>;
   reply(target: NostrEvent, content: string): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
@@ -108,6 +109,9 @@ export const createWriteStack = (options: {
   const actions: EventActions = {
     viewer: options.viewer,
     bookmarkIds,
+    async post(content) {
+      await writer.publish(buildNote(content));
+    },
     async reply(event, content) {
       await writer.publish(
         buildReply(event, content, { relayHint: relayHintFor(event.id) }),

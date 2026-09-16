@@ -7,20 +7,7 @@ import { actionErrorMessage, useEventActions } from "../actions";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
-
-const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
-const countCharacters = (text: string) => [...graphemes.segment(text)].length;
-
-const ToolButton: Component<{ label: string; icon: string }> = (props) => (
-  <button
-    type="button"
-    aria-label={`${props.label}（未対応）`}
-    class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent opacity-50"
-    disabled
-  >
-    <span class={`${props.icon} size-5`} aria-hidden="true" />
-  </button>
-);
+import { ComposeTools, countCharacters } from "./compose-parts";
 
 const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
   props,
@@ -126,28 +113,12 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                   <p class="c-danger px-4 pt-2 text-caption">{message()}</p>
                 )}
               </Show>
-              <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
-                <ToolButton
-                  label="画像"
-                  icon="i-material-symbols:image-outline-rounded"
-                />
-                <ToolButton
-                  label="追加"
-                  icon="i-material-symbols:add-rounded"
-                />
-                <ToolButton label="公開範囲" icon="i-material-symbols:globe" />
-                <span class="flex-1" />
-                <span class="c-secondary text-caption">
-                  {countCharacters(content())}
-                </span>
-                <button
-                  type="submit"
-                  class="h-8.5 rounded-full bg-accent-primary px-4.5 font-600 text-caption text-white enabled:cursor-pointer enabled:hover:bg-accent-hover disabled:opacity-50"
-                  disabled={sending() || content().trim().length === 0}
-                >
-                  {sending() ? "送信中…" : "返信"}
-                </button>
-              </div>
+              <ComposeTools
+                count={`${countCharacters(content())}`}
+                label="返信"
+                sending={sending()}
+                disabled={content().trim().length === 0}
+              />
             </form>
           </Dialog.Content>
         </Dialog.Positioner>

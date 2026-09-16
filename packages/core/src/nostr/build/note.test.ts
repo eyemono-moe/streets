@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../event";
 import { encodeBech32 } from "../nip19";
-import { buildQuote, buildReply } from "./note";
+import { buildNote, buildQuote, buildReply } from "./note";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({
@@ -178,5 +178,27 @@ describe("buildQuote", () => {
     const uri = `nostr:${encodeBech32("note", "1".repeat(64))}`;
     const draft = buildQuote(target, `${uri} これ面白い`);
     expect(draft.content).toBe(`${uri} これ面白い`);
+  });
+});
+
+describe("buildNote", () => {
+  it("本文のハッシュタグを t タグにする", () => {
+    // 捕まえる変異: t タグを付けない（自分の投稿がハッシュタグのカラムに出ない）
+    expect(buildNote("#Nostr と #streets の話").tags).toEqual([
+      ["t", "nostr"],
+      ["t", "streets"],
+    ]);
+  });
+
+  it("同じハッシュタグは 1 回だけ", () => {
+    expect(buildNote("#nostr #nostr").tags).toEqual([["t", "nostr"]]);
+  });
+
+  it("ハッシュタグが無ければタグも無い", () => {
+    expect(buildNote("ただの本文")).toEqual({
+      kind: 1,
+      tags: [],
+      content: "ただの本文",
+    });
   });
 });
