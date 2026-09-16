@@ -220,15 +220,28 @@ const Column: Component<ColumnProps> = (props) => {
         <Show when={props.chrome !== false}>
           <div class="h-0.75 shrink-0 bg-accent-primary" />
         </Show>
-        {/* 元のカラムのヘッダーは重ねても残す。下に何があるかが分かる。 */}
+        {/*
+          元のカラムのヘッダーは重ねても残す。下に何があるかが分かる。
+          重なっている間は、ヘッダーを押しても 1 段戻る（外側を押した扱い）。
+        */}
         <Show when={props.chrome !== false}>
-          <Header
-            column={props.column}
-            open={props.settingsOpen}
-            onToggle={props.onToggleSettings}
-            onDragStart={props.onDragStart}
-            temporary={props.temporary}
-          />
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからはヘッダーの「戻る」ボタンで戻る */}
+          <div
+            onClick={(event) => {
+              if (top() === undefined) return;
+              const target = event.target;
+              if (target instanceof Element && target.closest("button")) return;
+              back();
+            }}
+          >
+            <Header
+              column={props.column}
+              open={props.settingsOpen}
+              onToggle={props.onToggleSettings}
+              onDragStart={props.onDragStart}
+              temporary={props.temporary}
+            />
+          </div>
         </Show>
         {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
         <Collapsible.Root
@@ -265,9 +278,12 @@ const Column: Component<ColumnProps> = (props) => {
         <div class="relative min-h-0 flex-1">
           {/* 下の層は覆って暗くする。覗いた部分が本文として読めると、重なりに見えない。 */}
           <Show when={top()}>
-            <div
-              class="pointer-events-none absolute inset-0 z-1 bg-ui-950/25"
-              aria-hidden="true"
+            {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
+            <button
+              type="button"
+              aria-label="重ねた表示を閉じる"
+              class="absolute inset-0 z-1 w-full cursor-pointer bg-ui-950/25"
+              onClick={back}
             />
           </Show>
           <div class="absolute inset-0 overflow-y-auto">
@@ -319,7 +335,8 @@ const Column: Component<ColumnProps> = (props) => {
             {(entry, index) => (
               // 1 枚のカラムがそのまま上に乗る。ヘッダーも自分で持つ。
               <div
-                class="absolute inset-x-0 bottom-0 z-2 flex flex-col overflow-hidden rounded-t-3 bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)]"
+                // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
+                class="absolute inset-x-0 bottom-0 z-2 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                 // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
                 style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                 classList={{ hidden: index() !== stack().length - 1 }}
