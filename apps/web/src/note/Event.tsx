@@ -24,6 +24,7 @@ import {
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
+import EventMenu from "./EventMenu";
 import Name from "./Name";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
@@ -54,6 +55,10 @@ const Head: Component<ContentProps> = (props) => {
       >
         {formatEventTime(date(), new Date())}
       </time>
+      {/* 引用の中（compact）には出さない。開いた先で操作する。 */}
+      <Show when={props.size === "normal"}>
+        <EventMenu event={props.event} />
+      </Show>
     </div>
   );
 };
