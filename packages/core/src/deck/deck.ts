@@ -34,7 +34,6 @@ export type ColumnShow = {
   mentions: boolean;
   reposts: boolean;
   reactions: boolean;
-  media: boolean;
 };
 
 export type ColumnDef = {
@@ -44,6 +43,8 @@ export type ColumnDef = {
   width?: ColumnWidth;
   density?: ColumnDensity;
   show?: Partial<ColumnShow>;
+  /** 画像を展開するか。何を流すかではなく、どう見せるかなので `show` とは分ける。 */
+  expandMedia?: boolean;
 };
 
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
@@ -52,7 +53,6 @@ export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   mentions: true,
   reposts: true,
   reactions: true,
-  media: true,
 };
 
 /** 保存された値と既定値を合わせる。カラムを読む側はこれだけを見る。 */
@@ -191,6 +191,7 @@ const columnDefSchema = v.object({
   source: columnSourceSchema,
   width: v.optional(v.picklist(["s", "m", "l"])),
   density: v.optional(v.picklist(["comfortable", "compact"])),
+  expandMedia: v.optional(v.boolean()),
   show: v.optional(
     v.object({
       replies: v.optional(v.boolean()),
@@ -198,7 +199,6 @@ const columnDefSchema = v.object({
       mentions: v.optional(v.boolean()),
       reposts: v.optional(v.boolean()),
       reactions: v.optional(v.boolean()),
-      media: v.optional(v.boolean()),
     }),
   ),
 });

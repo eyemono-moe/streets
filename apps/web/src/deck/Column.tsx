@@ -156,7 +156,7 @@ const Column: Component<ColumnProps> = (props) => {
                     size={
                       props.column.density === "compact" ? "compact" : "normal"
                     }
-                    expandMedia={show().media}
+                    expandMedia={props.column.expandMedia !== false}
                   />
                 )}
               </For>

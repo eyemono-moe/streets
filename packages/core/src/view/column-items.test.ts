@@ -32,7 +32,6 @@ const ALL_FACETS: ColumnFacet[] = [
   "mentions",
   "reposts",
   "reactions",
-  "media",
 ];
 
 describe("visibleColumnItems", () => {

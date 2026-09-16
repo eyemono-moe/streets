@@ -29,8 +29,27 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   mentions: "メンション",
   reposts: "リポスト",
   reactions: "リアクション",
-  media: "画像・動画を展開",
 };
+
+/** 1 行のスイッチ。色は data-state で切り替える —— bg-tertiary を静的に置くと、
+ *  ダークモードの `.dark .bg-tertiary` が checked の色を打ち消す。 */
+const Toggle: Component<{
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}> = (props) => (
+  <Switch.Root
+    class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
+    checked={props.checked}
+    onCheckedChange={(details) => props.onChange(details.checked)}
+  >
+    <Switch.Label class="min-w-0 flex-1 truncate">{props.label}</Switch.Label>
+    <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors data-[state=checked]:bg-accent-primary data-[state=unchecked]:bg-tertiary">
+      <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
+    </Switch.Control>
+    <Switch.HiddenInput />
+  </Switch.Root>
+);
 
 const Field: Component<{ label: string; children: unknown }> = (props) => (
   <div class="flex w-full flex-col gap-1.5">
@@ -112,27 +131,25 @@ const ColumnSettings: Component<{
         />
       </Field>
 
+      <Toggle
+        label="画像・動画を展開"
+        checked={props.column.expandMedia !== false}
+        onChange={(expandMedia) => props.onPatch({ expandMedia })}
+      />
+
       <Show when={props.facets.length > 0}>
         <Field label="表示するもの">
           <For each={props.facets}>
             {(facet) => (
-              <Switch.Root
-                class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
+              <Toggle
+                label={TOGGLE_LABELS[facet]}
                 checked={show()[facet]}
-                onCheckedChange={(details) =>
+                onChange={(checked) =>
                   props.onPatch({
-                    show: { ...props.column.show, [facet]: details.checked },
+                    show: { ...props.column.show, [facet]: checked },
                   })
                 }
-              >
-                <Switch.Label class="min-w-0 flex-1 truncate">
-                  {TOGGLE_LABELS[facet]}
-                </Switch.Label>
-                <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full bg-tertiary p-0.5 transition-colors data-[state=checked]:bg-accent-primary">
-                  <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
-                </Switch.Control>
-                <Switch.HiddenInput />
-              </Switch.Root>
+              />
             )}
           </For>
         </Field>

@@ -49,6 +49,5 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   }
   if (has(6) || has(16)) facets.push("reposts");
   if (has(7)) facets.push("reactions");
-  if (has(1)) facets.push("media");
   return facets;
 };

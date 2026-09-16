@@ -9,13 +9,12 @@ const column = (source: ColumnSource): ColumnDef => ({
 });
 
 describe("columnFacets", () => {
-  it("ホームはリプライ・引用・リポスト・画像を出し、リアクションとメンションは出さない", () => {
+  it("ホームはリプライ・引用・リポストを出し、リアクションとメンションは出さない", () => {
     // 捕まえる変異: 種類に関わらず全項目を出す
     expect(columnFacets(column({ kind: "followees", kinds: [1, 6] }))).toEqual([
       "replies",
       "quotes",
       "reposts",
-      "media",
     ]);
   });
 
@@ -35,13 +34,13 @@ describe("columnFacets", () => {
       columnFacets(
         column({ kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] }),
       ),
-    ).toEqual(["replies", "quotes", "media"]);
+    ).toEqual(["replies", "quotes"]);
   });
 
   it("kinds を持たないフィルタは決められないので全項目を出す", () => {
     expect(
       columnFacets(column({ kind: "literal", filters: [{ ids: ["a"] }] })),
-    ).toEqual(["replies", "quotes", "reposts", "reactions", "media"]);
+    ).toEqual(["replies", "quotes", "reposts", "reactions"]);
   });
 
   it("フォロー一覧（kind:3）には項目が無い", () => {
