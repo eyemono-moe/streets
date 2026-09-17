@@ -4,6 +4,7 @@ import {
   type Deck,
   deckStorageKey,
   defaultDeck,
+  groupsNotifications,
   loadDeck,
   saveDeck,
 } from "./deck";
@@ -410,5 +411,38 @@ describe("deckStorageKey", () => {
     expect(loadDeck(storage.get(deckStorageKey(pubkeyA)) ?? null)).toEqual(
       deckA,
     );
+  });
+});
+
+describe("groupsNotifications", () => {
+  it("通知カラムは、指定が無ければまとめる", () => {
+    expect(
+      groupsNotifications({
+        id: "n",
+        title: "通知",
+        source: { kind: "notifications" },
+      }),
+    ).toBe(true);
+  });
+
+  it("通知カラムでも、切っていればまとめない", () => {
+    expect(
+      groupsNotifications({
+        id: "n",
+        title: "通知",
+        source: { kind: "notifications" },
+        groupNotifications: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("通知以外のカラムはまとめない", () => {
+    expect(
+      groupsNotifications({
+        id: "h",
+        title: "ホーム",
+        source: { kind: "followees", kinds: [1, 6] },
+      }),
+    ).toBe(false);
   });
 });

@@ -24,12 +24,13 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
+import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
-import Name from "./Name";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
+import UserLink from "./UserLink";
 import { useEvent } from "./use-event";
 
 /**
@@ -260,9 +261,7 @@ const Note: Component<ContentProps> = (props) => {
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
             <span class="shrink-0">返信先</span>
-            <span class="truncate">
-              <Name pubkey={pubkey()} />
-            </span>
+            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
           </p>
         )}
       </Show>
@@ -309,9 +308,7 @@ const Repost: Component<ContentProps> = (props) => (
   <>
     <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
       <span class="i-material-symbols:repeat-rounded size-3.5 shrink-0" />
-      <span class="truncate">
-        <Name pubkey={props.event.pubkey} />
-      </span>
+      <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
       <span class="shrink-0">がリポスト</span>
     </p>
     <Show when={props.size === "normal"}>
@@ -368,6 +365,17 @@ const isInteractive = (target: EventTarget | null) =>
 const Event: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
   let downAt: { x: number; y: number } | undefined;
+
+  // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
+  if (props.event.kind === 7) {
+    return (
+      <ActionNotice
+        events={[props.event]}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
+    );
+  }
 
   return (
     <Frame

@@ -7,7 +7,7 @@ import type {
   ColumnShow,
   ColumnWidth,
 } from "@streets/core/deck/deck";
-import { columnShow } from "@streets/core/deck/deck";
+import { columnShow, groupsNotifications } from "@streets/core/deck/deck";
 import { type Component, For, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 
@@ -136,6 +136,15 @@ const ColumnSettings: Component<{
         checked={props.column.expandMedia !== false}
         onChange={(expandMedia) => patch({ expandMedia })}
       />
+
+      {/* 通知カラムだけの設定。ほかのカラムに出しても、切り替えて何も起きない。 */}
+      <Show when={props.column.source.kind === "notifications"}>
+        <Toggle
+          label="同じノートへのリアクション・リポストをまとめる"
+          checked={groupsNotifications(props.column)}
+          onChange={(groupNotifications) => patch({ groupNotifications })}
+        />
+      </Show>
 
       <Show when={props.facets.length > 0}>
         <Field label="表示するもの">

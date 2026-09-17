@@ -19,7 +19,7 @@ import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
-import Name from "./Name";
+import UserLink from "./UserLink";
 import { useEngagementChanges } from "./use-engagement-changes";
 
 const inputOf = (content: ReactionContent): ReactionInput =>
@@ -34,7 +34,8 @@ const titleOf = (content: ReactionContent): string =>
       ? content.content
       : "+";
 
-const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
+/** リアクションの中身。いいねはハート、カスタム絵文字は画像、それ以外は文字で出す。 */
+export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
   props,
 ) => {
   const [broken, setBroken] = createSignal(false);
@@ -75,7 +76,7 @@ const Reactors: Component<{ users: Map<string, number> }> = (props) => (
       {([pubkey, count], index) => (
         <>
           <Show when={index() > 0}>{", "}</Show>
-          <Name pubkey={pubkey} />
+          <UserLink pubkey={pubkey} />
           <Show when={count > 1}>{` (${count})`}</Show>
         </>
       )}

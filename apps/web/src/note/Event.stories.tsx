@@ -67,6 +67,17 @@ const viewerEngaged = [
   viewer.repost(plain),
   viewer.event(addBookmark({ type: "note", value: plain.id })(undefined)),
 ];
+const likeReaction = react(bob, { type: "like" });
+const textReaction = react(carol, { type: "text", content: "🥰" });
+const emojiReaction = react(bob, {
+  type: "emoji",
+  shortcode: "party",
+  url: emojiUrl,
+});
+const longReaction = react(carol, {
+  type: "text",
+  content: "とても長いテキストのリアクションで一行に収まらないもの",
+});
 const unknown = alice.event({ kind: 30023, tags: [], content: "# 長文記事" });
 const noProfile = nameless.note("kind:0 が無い人の投稿。");
 
@@ -74,6 +85,9 @@ const missingTarget = bob.note("このイベントはシーンに入れない");
 const repostOfMissing = carol.repost(missingTarget);
 const loadingTarget = bob.note("このイベントもシーンに入れない");
 const repostOfLoading = carol.repost(loadingTarget);
+const reactionToMissing = bob.event(
+  buildReaction(missingTarget, { type: "like" }),
+);
 
 type Props = { event: NostrEvent; scene: EventScene; size: EventSize };
 
@@ -156,6 +170,30 @@ export const リポスト元が見つからない: Story = {
   args: {
     event: repostOfMissing,
     scene: { ...scene(repostOfMissing), missingIds: [missingTarget.id] },
+  },
+};
+
+// 通知カラムに流れるリアクション。元のノートは自分のものなので、アクション列を出さない。
+export const リアクション_いいね: Story = {
+  args: { event: likeReaction, scene: scene(likeReaction, plain) },
+};
+
+export const リアクション_絵文字: Story = {
+  args: { event: textReaction, scene: scene(textReaction, plain) },
+};
+
+export const リアクション_カスタム絵文字: Story = {
+  args: { event: emojiReaction, scene: scene(emojiReaction, plain) },
+};
+
+export const リアクション_長い文字: Story = {
+  args: { event: longReaction, scene: scene(longReaction, plain) },
+};
+
+export const リアクションの対象が見つからない: Story = {
+  args: {
+    event: reactionToMissing,
+    scene: { ...scene(reactionToMissing), missingIds: [missingTarget.id] },
   },
 };
 
