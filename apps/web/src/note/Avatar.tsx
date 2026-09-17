@@ -1,6 +1,7 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
 import { type Component, Show, createSignal } from "solid-js";
 import { useColumnStack } from "../deck/column-stack";
+import UserCardHover from "../profile/UserCardHover";
 import type { EventSize } from "./Event";
 import { useProfile } from "./use-profile";
 
@@ -15,29 +16,37 @@ const Avatar: Component<{ pubkey: string; size: EventSize }> = (props) => {
   };
 
   return (
-    <button
-      type="button"
-      aria-label="この人のカラムを開く"
-      class="shrink-0 overflow-hidden rounded-2 bg-secondary p-0 enabled:cursor-pointer"
-      classList={{
-        "size-10": props.size === "normal",
-        "size-8": props.size === "compact",
-      }}
-      disabled={stack === undefined}
-      onClick={() => stack?.push(buildUserColumn(props.pubkey))}
-    >
-      <Show when={picture()}>
-        {(url) => (
-          <img
-            src={url()}
-            alt=""
-            loading="lazy"
-            class="size-full object-cover"
-            onError={() => setBroken(url())}
-          />
-        )}
-      </Show>
-    </button>
+    <UserCardHover
+      pubkey={props.pubkey}
+      trigger={(triggerProps) => (
+        <button
+          {...triggerProps({
+            type: "button",
+            "aria-label": "この人のカラムを開く",
+            class:
+              "shrink-0 overflow-hidden rounded-2 bg-secondary p-0 enabled:cursor-pointer",
+            disabled: stack === undefined,
+            onClick: () => stack?.push(buildUserColumn(props.pubkey)),
+          })}
+          classList={{
+            "size-10": props.size === "normal",
+            "size-8": props.size === "compact",
+          }}
+        >
+          <Show when={picture()}>
+            {(url) => (
+              <img
+                src={url()}
+                alt=""
+                loading="lazy"
+                class="size-full object-cover"
+                onError={() => setBroken(url())}
+              />
+            )}
+          </Show>
+        </button>
+      )}
+    />
   );
 };
 
