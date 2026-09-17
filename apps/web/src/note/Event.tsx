@@ -22,7 +22,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import { useColumnStack } from "../deck/column-stack";
+import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
@@ -364,28 +364,27 @@ const isInteractive = (target: EventTarget | null) =>
   target instanceof Element &&
   target.closest("a, button, input, textarea, [role='button']") !== null;
 
-/** 手元にあるイベントを 1 件描く。押すとそのカラムの上にスレッドを重ねる。 */
+/** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const Event: Component<ContentProps> = (props) => {
-  const stack = useColumnStack();
+  const dispatch = useDispatch();
   let downAt: { x: number; y: number } | undefined;
 
   return (
     <Frame
       size={props.size}
       // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
-      onOpen={
-        stack
-          ? (event) => {
-              if (isInteractive(event.target)) return;
-              const moved =
-                downAt !== undefined &&
-                (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
-                  Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
-              if (moved) return;
-              stack.push(buildThreadColumn(props.event.id));
-            }
-          : undefined
-      }
+      onOpen={(event) => {
+        if (isInteractive(event.target)) return;
+        const moved =
+          downAt !== undefined &&
+          (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
+            Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
+        if (moved) return;
+        dispatch({
+          type: "stack/open",
+          column: buildThreadColumn(props.event.id),
+        });
+      }}
       onDown={(event) => {
         downAt = { x: event.clientX, y: event.clientY };
       }}

@@ -6,7 +6,7 @@ import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, createMemo } from "solid-js";
-import { useColumnStack } from "../deck/column-stack";
+import { useDispatch } from "../ui-events";
 import ProfileHeaderView from "./ProfileHeaderView";
 
 /**
@@ -17,7 +17,7 @@ const ProfileHeader: Component<{
   pubkey: string;
   readLayer: ReadLayer;
 }> = (props) => {
-  const stack = useColumnStack();
+  const dispatch = useDispatch();
   const followees = createSection({
     manager: props.readLayer.manager,
     source: () => ({
@@ -45,11 +45,17 @@ const ProfileHeader: Component<{
       pubkey={props.pubkey}
       followeeCount={followeeCount()}
       followerCount={followerCount()}
-      onOpenFollowees={
-        stack && (() => stack.push(buildFolloweesColumn(props.pubkey)))
+      onOpenFollowees={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildFolloweesColumn(props.pubkey),
+        })
       }
-      onOpenFollowers={
-        stack && (() => stack.push(buildFollowersColumn(props.pubkey)))
+      onOpenFollowers={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildFollowersColumn(props.pubkey),
+        })
       }
     />
   );

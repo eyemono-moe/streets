@@ -2,6 +2,12 @@ import { Collapsible } from "@ark-ui/solid/collapsible";
 import { Drawer } from "@ark-ui/solid/drawer";
 import { columnAlerts } from "@streets/core/deck/column-alerts";
 import { columnFacets } from "@streets/core/deck/column-facets";
+import {
+  type ColumnStackState,
+  columnStackTransition,
+  emptyColumnStack,
+  openLayers,
+} from "@streets/core/deck/column-stack";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
@@ -10,39 +16,28 @@ import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
-  type Accessor,
   type Component,
   For,
   Match,
   Show,
   Switch,
   createEffect,
-  createSignal,
 } from "solid-js";
+import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
+import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
 import ColumnTitle from "./ColumnTitle";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
-import { ColumnStackProvider } from "./column-stack";
 
-/** 重ねられたカラムが、下の段へ戻るための配線。 */
+/** 重ねられている間だけ渡る。戻る・開き直すはイベントとして下のカラムへ渡す。 */
 export type StackedColumn = {
-  onBack: () => void;
-  /** デッキの正規のカラムとして開き直す。 */
-  onOpenAsColumn: () => void;
   /** 戻った先の名前。ヘッダーの説明に出す。 */
   backTo: string;
-};
-
-/** 重ねた 1 段。閉じても、閉じる動きが終わるまでは配列に残る。 */
-type StackLayer = {
-  column: ColumnDef;
-  open: Accessor<boolean>;
-  close: () => void;
 };
 
 export type ColumnProps = {
@@ -64,8 +59,6 @@ export type ColumnProps = {
   chrome?: boolean;
   /** 重ねられている間だけ渡る。ヘッダーが「戻る」側に変わる。 */
   stacked?: StackedColumn;
-  /** 重なりから、デッキの正規のカラムとして開き直す。 */
-  onOpenAsColumn?: (column: ColumnDef) => void;
 };
 
 const Header: Component<{
@@ -148,41 +141,46 @@ const Header: Component<{
 const StackedHeader: Component<{
   column: ColumnDef;
   stacked: StackedColumn;
-}> = (props) => (
-  <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
-    <button
-      type="button"
-      aria-label="戻る"
-      class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-      onClick={() => props.stacked.onBack()}
-    >
-      <span
-        class="i-material-symbols:chevron-left-rounded size-5.5"
-        aria-hidden="true"
-      />
-    </button>
-    <div class="flex min-w-0 flex-1 flex-col">
-      <h2 class="truncate font-600 text-body">
-        <ColumnTitle column={props.column} />
-      </h2>
-      <p class="c-secondary truncate text-caption">
-        {props.stacked.backTo}に戻る
-      </p>
-    </div>
-    <button
-      type="button"
-      aria-label="デッキのカラムとして開く"
-      title="デッキのカラムとして開く"
-      class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-      onClick={() => props.stacked.onOpenAsColumn()}
-    >
-      <span
-        class="i-material-symbols:open-in-new-rounded size-4.5"
-        aria-hidden="true"
-      />
-    </button>
-  </header>
-);
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
+      <button
+        type="button"
+        aria-label="戻る"
+        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+        onClick={() => dispatch({ type: "stack/back" })}
+      >
+        <span
+          class="i-material-symbols:chevron-left-rounded size-5.5"
+          aria-hidden="true"
+        />
+      </button>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <h2 class="truncate font-600 text-body">
+          <ColumnTitle column={props.column} />
+        </h2>
+        <p class="c-secondary truncate text-caption">
+          {props.stacked.backTo}に戻る
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label="デッキのカラムとして開く"
+        title="デッキのカラムとして開く"
+        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+        onClick={() =>
+          dispatch({ type: "deck/add-column", column: props.column })
+        }
+      >
+        <span
+          class="i-material-symbols:open-in-new-rounded size-4.5"
+          aria-hidden="true"
+        />
+      </button>
+    </header>
+  );
+};
 
 /**
  * デッキの 1 列。カラムの上にはカラムを重ねられる（スタック）。重ねるものは
@@ -228,21 +226,26 @@ const Column: Component<ColumnProps> = (props) => {
     props.column.density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => props.column.expandMedia !== false;
 
-  // 重ねたカラム。いちばん下のカラムだけが持ち、デッキには保存しない。
-  // 開閉は段ごとの Drawer（Ark UI）が状態機械として持つ。閉じた段は、閉じる動きが
-  // 終わってから配列から外す（すぐ外すと消える動きが見えない）。
-  const [stack, setStack] = createSignal<StackLayer[]>([]);
-  const openLayers = () => stack().filter((layer) => layer.open());
-  const push = (column: ColumnDef) =>
-    setStack((current) => {
-      const top = current.filter((layer) => layer.open()).at(-1);
-      if (top?.column.id === column.id) return current;
-      const [open, setOpen] = createSignal(true);
-      return [...current, { column, open, close: () => setOpen(false) }];
-    });
-  const back = () => openLayers().at(-1)?.close();
-  const remove = (layer: StackLayer) =>
-    setStack((current) => current.filter((entry) => entry !== layer));
+  // 重ねたカラム。いちばん下のカラムが持ち、デッキには保存しない。
+  // 遷移は core の純粋関数で、ここは結果を store へ当てるだけ。reconcile で段を key ごとに
+  // 突き合わせるので、開閉しても段の Drawer は作り直されず、閉じる動きが残る。
+  const [stack, setStack] = createStore<ColumnStackState>(emptyColumnStack());
+  const handle = (event: UiEvent): boolean => {
+    switch (event.type) {
+      case "stack/open":
+      case "stack/back":
+      case "stack/closed":
+        setStack(
+          reconcile(columnStackTransition(unwrap(stack), event), {
+            key: "key",
+          }),
+        );
+        return true;
+      default:
+        return false;
+    }
+  };
+  const opened = () => openLayers(stack).length > 0;
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -327,12 +330,12 @@ const Column: Component<ColumnProps> = (props) => {
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからはヘッダーの「戻る」ボタンで戻る */}
             <div
               onClick={(event) => {
-                if (openLayers().length === 0) return;
+                if (!opened()) return;
                 const target = event.target;
                 if (target instanceof Element && target.closest("button")) {
                   return;
                 }
-                back();
+                handle({ type: "stack/back" });
               }}
             >
               <Header
@@ -403,24 +406,27 @@ const Column: Component<ColumnProps> = (props) => {
             中の重ね順（sticky なアイコンなど）が外へ漏れないよう、段ごとに isolate する。
           */}
           <div class="absolute inset-0 isolate flex flex-col">{body()}</div>
-          <Show when={stack().length > 0}>
+          <Show when={stack.layers.length > 0}>
             {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
             <button
               type="button"
               aria-label="重ねた表示を閉じる"
               class="motion-fade absolute inset-0 w-full cursor-pointer bg-ui-950/25"
-              data-state={openLayers().length > 0 ? "open" : "closed"}
-              onClick={back}
+              data-state={opened() ? "open" : "closed"}
+              onClick={() => handle({ type: "stack/back" })}
             />
           </Show>
-          <For each={stack()}>
+          <For each={stack.layers}>
             {(layer, index) => (
               <Drawer.Root
-                open={layer.open()}
+                open={layer.open}
                 onOpenChange={(details) => {
-                  if (!details.open) layer.close();
+                  // Escape とスワイプは、開いている一番上の段にしか届かない。
+                  if (!details.open) handle({ type: "stack/back" });
                 }}
-                onExitComplete={() => remove(layer)}
+                onExitComplete={() =>
+                  handle({ type: "stack/closed", key: layer.key })
+                }
                 lazyMount
                 unmountOnExit
                 // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
@@ -448,12 +454,9 @@ const Column: Component<ColumnProps> = (props) => {
                       onDragStart={undefined}
                       temporary={undefined}
                       stacked={{
-                        onBack: back,
-                        onOpenAsColumn: () =>
-                          props.onOpenAsColumn?.(layer.column),
                         backTo:
                           index() > 0
-                            ? (stack()[index() - 1]?.column.title ??
+                            ? (stack.layers[index() - 1]?.column.title ??
                               props.column.title)
                             : props.column.title,
                       }}
@@ -468,11 +471,11 @@ const Column: Component<ColumnProps> = (props) => {
     </section>
   );
 
-  // 重ねられた側は自分のスタックを持たず、下のカラムの provider をそのまま使う。
+  // 重ねられた側は自分のスタックを持たず、イベントは下のカラムの段がそのまま裁定する。
   return props.stacked ? (
     inner()
   ) : (
-    <ColumnStackProvider value={{ push }}>{inner()}</ColumnStackProvider>
+    <Mediates handle={handle}>{inner()}</Mediates>
   );
 };
 
