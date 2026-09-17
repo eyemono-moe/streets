@@ -9,7 +9,7 @@ import {
 
 /**
  * View が上へ渡すイベント。View は「何が起きたか」だけを言い、どう裁定するかは
- * 受け取った段の Mediator が決める（ADR-0033）。
+ * 受け取った段の Mediator が決める。
  */
 export type UiEvent =
   | ColumnStackEvent

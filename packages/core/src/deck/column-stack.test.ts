@@ -4,12 +4,12 @@ import {
   type ColumnStackEvent,
   type ColumnStackState,
   columnStackTransition,
-  initialColumnStack,
+  emptyColumnStack,
   openLayers,
 } from "./column-stack";
 
 const run = (...events: ColumnStackEvent[]): ColumnStackState =>
-  events.reduce(columnStackTransition, initialColumnStack);
+  events.reduce(columnStackTransition, emptyColumnStack());
 
 const thread = buildThreadColumn("a".repeat(64));
 const user = buildUserColumn("b".repeat(64));
@@ -98,8 +98,14 @@ describe("columnStackTransition", () => {
   });
 
   it("開いている段が無ければ、戻っても何も変えない", () => {
-    expect(
-      columnStackTransition(initialColumnStack, { type: "stack/back" }),
-    ).toBe(initialColumnStack);
+    const empty = emptyColumnStack();
+    expect(columnStackTransition(empty, { type: "stack/back" })).toBe(empty);
+  });
+
+  it("何も重ねていない状態は、呼ぶたびに別のオブジェクトになる", () => {
+    const a = emptyColumnStack();
+    const b = emptyColumnStack();
+    expect(a).not.toBe(b);
+    expect(a.layers).not.toBe(b.layers);
   });
 });

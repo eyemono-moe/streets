@@ -106,7 +106,6 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0030](./docs/adr/0030-single-verification-entrypoint.md) | ローカルと CI の検証入口を `verify` に揃える |
 | [0031](./docs/adr/0031-nip46-session-key-boundary.md) | NIP-46 transport の通信専用 client key と本人鍵の境界を固定する |
 | [0032](./docs/adr/0032-url-opens-a-temporary-column.md) | URL はデッキを置き換えず、一時カラムを開く |
-| [0033](./docs/adr/0033-passive-views-bubble-intents-to-mediators.md) | 画面は Passive View に徹し、動作はイベントを上へ渡して Mediator が裁定する |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 

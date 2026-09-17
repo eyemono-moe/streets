@@ -24,7 +24,14 @@ export type ColumnStackEvent =
   /** その段の閉じる動きが終わった。 */
   | { type: "stack/closed"; key: number };
 
-export const initialColumnStack: ColumnStackState = { layers: [], nextKey: 0 };
+/**
+ * 何も重ねていない状態。呼ぶたびに新しく作る —— Solid の store は渡したオブジェクトを
+ * そのまま書き換えるので、共有の定数にすると全カラムで同じ段を持ってしまう。
+ */
+export const emptyColumnStack = (): ColumnStackState => ({
+  layers: [],
+  nextKey: 0,
+});
 
 /** 開いている段。閉じている途中の段は含めない。 */
 export const openLayers = (state: ColumnStackState): StackLayer[] =>

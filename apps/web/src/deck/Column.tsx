@@ -3,9 +3,9 @@ import { Drawer } from "@ark-ui/solid/drawer";
 import { columnAlerts } from "@streets/core/deck/column-alerts";
 import { columnFacets } from "@streets/core/deck/column-facets";
 import {
-  type ColumnStackEvent,
+  type ColumnStackState,
   columnStackTransition,
-  initialColumnStack,
+  emptyColumnStack,
   openLayers,
 } from "@streets/core/deck/column-stack";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
@@ -22,9 +22,8 @@ import {
   Show,
   Switch,
   createEffect,
-  createMemo,
-  createSignal,
 } from "solid-js";
+import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
@@ -227,27 +226,26 @@ const Column: Component<ColumnProps> = (props) => {
     props.column.density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => props.column.expandMedia !== false;
 
-  // 重ねたカラム。いちばん下のカラムがこの段の Mediator として持ち、デッキには保存しない。
-  // 遷移は core の純粋関数（columnStackTransition）で、ここは受け取って当てるだけ。
-  const [stack, setStack] = createSignal(initialColumnStack);
+  // 重ねたカラム。いちばん下のカラムが持ち、デッキには保存しない。
+  // 遷移は core の純粋関数で、ここは結果を store へ当てるだけ。reconcile で段を key ごとに
+  // 突き合わせるので、開閉しても段の Drawer は作り直されず、閉じる動きが残る。
+  const [stack, setStack] = createStore<ColumnStackState>(emptyColumnStack());
   const handle = (event: UiEvent): boolean => {
-    if (!event.type.startsWith("stack/")) return false;
-    setStack((current) =>
-      columnStackTransition(current, event as ColumnStackEvent),
-    );
-    return true;
+    switch (event.type) {
+      case "stack/open":
+      case "stack/back":
+      case "stack/closed":
+        setStack(
+          reconcile(columnStackTransition(unwrap(stack), event), {
+            key: "key",
+          }),
+        );
+        return true;
+      default:
+        return false;
+    }
   };
-  const opened = () => openLayers(stack()).length > 0;
-  // 段は key で描き分ける。段のオブジェクトは開閉のたびに作り直されるので、
-  // 参照で描き分けると閉じた瞬間に Drawer ごと作り直され、閉じる動きが消える。
-  const layerKeys = createMemo(
-    () => stack().layers.map((layer) => layer.key),
-    [],
-    {
-      equals: (a, b) =>
-        a.length === b.length && a.every((key, index) => key === b[index]),
-    },
-  );
+  const opened = () => openLayers(stack).length > 0;
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -408,7 +406,7 @@ const Column: Component<ColumnProps> = (props) => {
             中の重ね順（sticky なアイコンなど）が外へ漏れないよう、段ごとに isolate する。
           */}
           <div class="absolute inset-0 isolate flex flex-col">{body()}</div>
-          <Show when={stack().layers.length > 0}>
+          <Show when={stack.layers.length > 0}>
             {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
             <button
               type="button"
@@ -418,56 +416,54 @@ const Column: Component<ColumnProps> = (props) => {
               onClick={() => handle({ type: "stack/back" })}
             />
           </Show>
-          <For each={layerKeys()}>
-            {(key, index) => (
-              <Show when={stack().layers.find((layer) => layer.key === key)}>
-                {(layer) => (
-                  <Drawer.Root
-                    open={layer().open}
-                    onOpenChange={(details) => {
-                      // Escape とスワイプは、開いている一番上の段にしか届かない。
-                      if (!details.open) handle({ type: "stack/back" });
-                    }}
-                    onExitComplete={() => handle({ type: "stack/closed", key })}
-                    lazyMount
-                    unmountOnExit
-                    // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
-                    modal={false}
-                    trapFocus={false}
-                    preventScroll={false}
-                    // 外側は上の暗幕が受ける。他のカラムを押しただけで閉じないように切る。
-                    closeOnInteractOutside={false}
-                    swipeDirection="down"
+          <For each={stack.layers}>
+            {(layer, index) => (
+              <Drawer.Root
+                open={layer.open}
+                onOpenChange={(details) => {
+                  // Escape とスワイプは、開いている一番上の段にしか届かない。
+                  if (!details.open) handle({ type: "stack/back" });
+                }}
+                onExitComplete={() =>
+                  handle({ type: "stack/closed", key: layer.key })
+                }
+                lazyMount
+                unmountOnExit
+                // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
+                modal={false}
+                trapFocus={false}
+                preventScroll={false}
+                // 外側は上の暗幕が受ける。他のカラムを押しただけで閉じないように切る。
+                closeOnInteractOutside={false}
+                swipeDirection="down"
+              >
+                {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
+                <Drawer.Positioner class="absolute inset-0 isolate">
+                  <Drawer.Content
+                    aria-label={layer.column.title}
+                    // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
+                    class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                    // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
+                    style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                   >
-                    {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
-                    <Drawer.Positioner class="absolute inset-0 isolate">
-                      <Drawer.Content
-                        aria-label={layer().column.title}
-                        // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                        class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
-                        // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
-                        style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
-                      >
-                        <Column
-                          {...props}
-                          column={layer().column}
-                          settingsOpen={false}
-                          onToggleSettings={() => {}}
-                          onDragStart={undefined}
-                          temporary={undefined}
-                          stacked={{
-                            backTo:
-                              index() > 0
-                                ? (stack().layers[index() - 1]?.column.title ??
-                                  props.column.title)
-                                : props.column.title,
-                          }}
-                        />
-                      </Drawer.Content>
-                    </Drawer.Positioner>
-                  </Drawer.Root>
-                )}
-              </Show>
+                    <Column
+                      {...props}
+                      column={layer.column}
+                      settingsOpen={false}
+                      onToggleSettings={() => {}}
+                      onDragStart={undefined}
+                      temporary={undefined}
+                      stacked={{
+                        backTo:
+                          index() > 0
+                            ? (stack.layers[index() - 1]?.column.title ??
+                              props.column.title)
+                            : props.column.title,
+                      }}
+                    />
+                  </Drawer.Content>
+                </Drawer.Positioner>
+              </Drawer.Root>
             )}
           </For>
         </div>
