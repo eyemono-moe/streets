@@ -25,7 +25,7 @@ export const notifyError = (cause: unknown, what?: string): void => {
 export const ErrorToaster: Component = () => (
   <Toaster toaster={toaster}>
     {(toast) => (
-      <Toast.Root class="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-2 border border-primary bg-primary p-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+      <Toast.Root class="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-2 border border-primary bg-primary p-3 shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-[translate,scale,opacity] duration-150 ease-out dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
         <div class="flex items-start gap-2">
           <span
             class="i-material-symbols:error-outline-rounded c-danger size-4.5 shrink-0"

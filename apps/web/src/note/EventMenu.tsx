@@ -111,7 +111,13 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
 
   return (
     <span class="relative shrink-0">
+      {/*
+        閉じている間は中身を作らない。投稿 1 件ごとにメニューがあるので、
+        作り続けるとカラム 1 本で DOM が 200 要素単位で増える。
+      */}
       <Menu.Root
+        lazyMount
+        unmountOnExit
         onSelect={(details) => {
           if (details.value === "copy-link") void copyLink();
           if (details.value === "details") setDetails(true);
@@ -128,7 +134,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         </Menu.Trigger>
         <Portal>
           <Menu.Positioner>
-            <Menu.Content class="c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+            <Menu.Content class="motion-pop c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">
                   このイベント
