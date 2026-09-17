@@ -1,21 +1,20 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
 import { profileLabel } from "@streets/core/nostr/profile";
 import { type Component, Show } from "solid-js";
-import { useColumnStack } from "../deck/column-stack";
 import Avatar from "../note/Avatar";
 import { useProfile } from "../note/use-profile";
+import { useDispatch } from "../ui-events";
 import FollowButton from "./FollowButton";
 
 /** 一覧の 1 人。押すとその人のカラムを重ねる。 */
 const ProfileRow: Component<{ pubkey: string }> = (props) => {
-  const stack = useColumnStack();
+  const dispatch = useDispatch();
   const profile = useProfile(() => props.pubkey);
 
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでカラムを開く経路はまだ無い（押せるのはポインタだけ）
     <div
-      class="flex items-start gap-3 bg-primary px-3 py-2.5"
-      classList={{ "cursor-pointer": stack !== undefined }}
+      class="flex cursor-pointer items-start gap-3 bg-primary px-3 py-2.5"
       onClick={(event) => {
         // ボタンの上で押したときは開かない。フォローだけしたい人を邪魔しない。
         if (
@@ -24,7 +23,7 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
         ) {
           return;
         }
-        stack?.push(buildUserColumn(props.pubkey));
+        dispatch({ type: "stack/open", column: buildUserColumn(props.pubkey) });
       }}
     >
       <Avatar pubkey={props.pubkey} size="normal" />
