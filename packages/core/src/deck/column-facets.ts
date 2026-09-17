@@ -16,6 +16,8 @@ const kindsOf = (column: ColumnDef): number[] | undefined => {
       return source.kinds;
     case "notifications":
       return [...NOTIFICATION_KINDS];
+    case "thread":
+      return [1];
     case "user":
       return [...TIMELINE_KINDS];
     case "followees-list":

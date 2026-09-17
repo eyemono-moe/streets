@@ -14,11 +14,23 @@ import {
   Show,
   Switch,
   createEffect,
+  createSignal,
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
+import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
+import { ColumnStackProvider } from "./column-stack";
+
+/** 重ねられたカラムが、下の段へ戻るための配線。 */
+export type StackedColumn = {
+  onBack: () => void;
+  /** デッキの正規のカラムとして開き直す。 */
+  onOpenAsColumn: () => void;
+  /** 戻った先の名前。ヘッダーの説明に出す。 */
+  backTo: string;
+};
 
 export type ColumnProps = {
   column: ColumnDef;
@@ -37,6 +49,10 @@ export type ColumnProps = {
   temporary?: { onKeep: () => void; onClose: () => void };
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
+  /** 重ねられている間だけ渡る。ヘッダーが「戻る」側に変わる。 */
+  stacked?: StackedColumn;
+  /** 重なりから、デッキの正規のカラムとして開き直す。 */
+  onOpenAsColumn?: (column: ColumnDef) => void;
 };
 
 const Header: Component<{
@@ -113,8 +129,54 @@ const Header: Component<{
   );
 };
 
-/** デッキの 1 列。購読はこの列が持ち、並べ方は `Event` に任せる。 */
+/** 重ねられたカラムのヘッダー。戻る操作と、正規のカラムとして開く導線を持つ。 */
+const StackedHeader: Component<{
+  column: ColumnDef;
+  stacked: StackedColumn;
+}> = (props) => (
+  <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
+    <button
+      type="button"
+      aria-label="戻る"
+      class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+      onClick={() => props.stacked.onBack()}
+    >
+      <span
+        class="i-material-symbols:chevron-left-rounded size-5.5"
+        aria-hidden="true"
+      />
+    </button>
+    <div class="flex min-w-0 flex-1 flex-col">
+      <h2 class="truncate font-600 text-body">{props.column.title}</h2>
+      <p class="c-secondary truncate text-caption">
+        {props.stacked.backTo}に戻る
+      </p>
+    </div>
+    <button
+      type="button"
+      aria-label="デッキのカラムとして開く"
+      title="デッキのカラムとして開く"
+      class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+      onClick={() => props.stacked.onOpenAsColumn()}
+    >
+      <span
+        class="i-material-symbols:open-in-new-rounded size-4.5"
+        aria-hidden="true"
+      />
+    </button>
+  </header>
+);
+
+/**
+ * デッキの 1 列。カラムの上にはカラムを重ねられる（スタック）。重ねるものは
+ * ただのカラム定義で、スレッドもユーザー詳細も外から見れば同じ「カラム」。
+ */
 const Column: Component<ColumnProps> = (props) => {
+  // スレッドのカラムは `ThreadView` が自分で購読する（根は store から決まる）。
+  const threadFocus = () =>
+    props.column.source.kind === "thread"
+      ? props.column.source.focus
+      : undefined;
   const section = createSection({
     manager: props.readLayer.manager,
     // ウォームアップの結果を memo の外で読むと、settle のたびに全カラムの購読が張り直される。
@@ -131,6 +193,18 @@ const Column: Component<ColumnProps> = (props) => {
   const items = () => visibleColumnItems(section.items(), show(), facets());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
+  const size = () =>
+    props.column.density === "compact" ? "compact" : ("normal" as const);
+  const expandMedia = () => props.column.expandMedia !== false;
+
+  // 重ねたカラム。いちばん下のカラムだけが持ち、デッキには保存しない。
+  const [stack, setStack] = createSignal<ColumnDef[]>([]);
+  const top = () => stack().at(-1);
+  const push = (column: ColumnDef) =>
+    setStack((current) =>
+      current.at(-1)?.id === column.id ? current : [...current, column],
+    );
+  const back = () => setStack((current) => current.slice(0, -1));
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -139,24 +213,86 @@ const Column: Component<ColumnProps> = (props) => {
     }),
   );
 
-  return (
-    <section
-      class="flex h-full min-h-0 w-full flex-col bg-primary"
-      // 保存されていないことを枠で示す。
-      classList={{
-        "outline outline-2 -outline-offset-2 outline-accent-5":
-          props.temporary !== undefined,
-      }}
-    >
-      <Show when={props.chrome !== false}>
+  // 中身は関数にして、下の provider の中で作る。Solid の context は
+  // 「要素を作った場所」で決まるので、外で組み立てると provider が届かない。
+  const body = () => (
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <Show
+        when={threadFocus()}
+        fallback={
+          <Switch>
+            <Match when={items().length > 0}>
+              {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+              <div class="flex flex-col gap-px bg-tertiary pb-px">
+                <For each={items()}>
+                  {(event) => (
+                    <Event
+                      event={event}
+                      size={size()}
+                      expandMedia={expandMedia()}
+                    />
+                  )}
+                </For>
+              </div>
+            </Match>
+            <Match when={section.status().phase === "settled"}>
+              <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+            </Match>
+            <Match when={true}>
+              <p class="c-secondary p-4 text-caption">読み込み中…</p>
+            </Match>
+          </Switch>
+        }
+      >
+        {(focus) => (
+          <ThreadView
+            focus={focus()}
+            readLayer={props.readLayer}
+            expandMedia={expandMedia()}
+          />
+        )}
+      </Show>
+    </div>
+  );
+
+  const chrome = () => (
+    <>
+      <Show when={props.chrome !== false && !props.stacked}>
         <div class="h-0.75 shrink-0 bg-accent-primary" />
-        <Header
-          column={props.column}
-          open={props.settingsOpen}
-          onToggle={props.onToggleSettings}
-          onDragStart={props.onDragStart}
-          temporary={props.temporary}
-        />
+      </Show>
+      <Show
+        when={props.stacked}
+        fallback={
+          <Show when={props.chrome !== false}>
+            {/*
+              重なっている間は、下のカラムのヘッダーを押しても 1 段戻る
+              （ダイアログの外側を押した扱い）。
+            */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからはヘッダーの「戻る」ボタンで戻る */}
+            <div
+              onClick={(event) => {
+                if (top() === undefined) return;
+                const target = event.target;
+                if (target instanceof Element && target.closest("button")) {
+                  return;
+                }
+                back();
+              }}
+            >
+              <Header
+                column={props.column}
+                open={props.settingsOpen}
+                onToggle={props.onToggleSettings}
+                onDragStart={props.onDragStart}
+                temporary={props.temporary}
+              />
+            </div>
+          </Show>
+        }
+      >
+        {(stacked) => (
+          <StackedHeader column={props.column} stacked={stacked()} />
+        )}
       </Show>
       {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
       <Collapsible.Root
@@ -185,33 +321,75 @@ const Column: Component<ColumnProps> = (props) => {
           </p>
         )}
       </For>
-      <div class="min-h-0 flex-1 overflow-y-auto">
-        <Switch>
-          <Match when={items().length > 0}>
-            {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-            <div class="flex flex-col gap-px bg-tertiary pb-px">
-              <For each={items()}>
-                {(event) => (
-                  <Event
-                    event={event}
-                    size={
-                      props.column.density === "compact" ? "compact" : "normal"
-                    }
-                    expandMedia={props.column.expandMedia !== false}
-                  />
-                )}
-              </For>
-            </div>
-          </Match>
-          <Match when={section.status().phase === "settled"}>
-            <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
-          </Match>
-          <Match when={true}>
-            <p class="c-secondary p-4 text-caption">読み込み中…</p>
-          </Match>
-        </Switch>
-      </div>
+    </>
+  );
+
+  // 重ねられた側は自分でスタックを持たない。押されたものは下のカラムのスタックへ積む。
+  const inner = () => (
+    <section
+      // 重なりの影が隣のカラムまで伸びないように、カラムの中で切る。
+      class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary"
+      // 保存されていないことを枠で示す。
+      classList={{
+        "outline outline-2 -outline-offset-2 outline-accent-5":
+          props.temporary !== undefined,
+      }}
+    >
+      {chrome()}
+      <Show when={!props.stacked} fallback={body()}>
+        {/*
+          重ねても下のカラムを取り外さない。取り外すとスクロール位置が失われ、
+          戻ったときに読んでいた場所が分からなくなる。
+        */}
+        <div class="relative min-h-0 flex-1">
+          <Show when={top()}>
+            {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
+            <button
+              type="button"
+              aria-label="重ねた表示を閉じる"
+              class="absolute inset-0 z-1 w-full cursor-pointer bg-ui-950/25"
+              onClick={back}
+            />
+          </Show>
+          <div class="absolute inset-0 flex flex-col">{body()}</div>
+          <For each={stack()}>
+            {(stacked, index) => (
+              <div
+                // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
+                class="absolute inset-x-0 bottom-0 z-2 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
+                style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
+                classList={{ hidden: index() !== stack().length - 1 }}
+              >
+                <Column
+                  {...props}
+                  column={stacked}
+                  settingsOpen={false}
+                  onToggleSettings={() => {}}
+                  onDragStart={undefined}
+                  temporary={undefined}
+                  stacked={{
+                    onBack: back,
+                    onOpenAsColumn: () => props.onOpenAsColumn?.(stacked),
+                    backTo:
+                      index() > 0
+                        ? (stack()[index() - 1]?.title ?? props.column.title)
+                        : props.column.title,
+                  }}
+                />
+              </div>
+            )}
+          </For>
+        </div>
+      </Show>
     </section>
+  );
+
+  // 重ねられた側は自分のスタックを持たず、下のカラムの provider をそのまま使う。
+  return props.stacked ? (
+    inner()
+  ) : (
+    <ColumnStackProvider value={{ push }}>{inner()}</ColumnStackProvider>
   );
 };
 

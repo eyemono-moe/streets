@@ -1,3 +1,4 @@
+import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type EventRef,
@@ -21,6 +22,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { useColumnStack } from "../deck/column-stack";
 import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
@@ -41,6 +43,8 @@ type ContentProps = {
   size: EventSize;
   /** 画像を展開するか。カラム設定で切ると、URL のリンクだけにする。 */
   expandMedia?: boolean;
+  /** 会話が続く向きを、アイコンから伸びる線で示す。 */
+  threadLine?: "above" | "below" | "both";
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -68,6 +72,16 @@ const Head: Component<ContentProps> = (props) => {
   );
 };
 
+/**
+ * 縦線の横位置。compact のアイコン中心（枠の左から 24px）に揃える。
+ * normal と compact が混ざるスレッドで、アイコンの中央に置くと段ごとにずれて繋がらない。
+ * 枠の内側の余白が size で違うぶん、ここで打ち消す。
+ */
+const lineX = (size: EventSize) => ({
+  "left-3": size === "normal",
+  "left-4": size === "compact",
+});
+
 /** アイコン列と本文列。どの kind も同じ骨格に載せる。 */
 const Row: ParentComponent<ContentProps> = (props) => (
   <div
@@ -77,7 +91,33 @@ const Row: ParentComponent<ContentProps> = (props) => (
       "gap-2": props.size === "compact",
     }}
   >
-    <Avatar pubkey={props.event.pubkey} size={props.size} />
+    {/* アイコン列。線は絶対配置にして、アイコンは上に揃えたまま上下へ伸ばす。 */}
+    <div class="relative flex shrink-0 flex-col self-stretch">
+      <Show when={props.threadLine === "above" || props.threadLine === "both"}>
+        {/* 上へはみ出して、投稿の間の隙間を跨ぐ。 */}
+        <div
+          class="-top-3 -translate-x-1/2 absolute h-3 w-0.5 bg-tertiary"
+          classList={lineX(props.size)}
+        />
+      </Show>
+      <Show when={props.threadLine === "below" || props.threadLine === "both"}>
+        <div
+          class="-bottom-3 -translate-x-1/2 absolute w-0.5 bg-tertiary"
+          classList={{
+            ...lineX(props.size),
+            "top-11": props.size === "normal",
+            "top-9": props.size === "compact",
+          }}
+        />
+      </Show>
+      {/* 長い投稿でも、読んでいる間アイコンが見えているようにする。 */}
+      <div
+        class="z-1"
+        classList={{ "sticky top-2": props.threadLine !== undefined }}
+      >
+        <Avatar pubkey={props.event.pubkey} size={props.size} />
+      </div>
+    </div>
     <div
       class="flex min-w-0 flex-1 flex-col"
       classList={{
@@ -133,6 +173,8 @@ const MediaImage: Component<{ url: string; size: EventSize }> = (props) => {
 const Lookup: Component<{
   target: { id: string; relay?: RelayUrl };
   missing: string;
+  /** 取得中・不在の 1 行に付ける余白。枠の中に置くときに要る。 */
+  noticeClass?: string;
   children: (event: NostrEvent) => JSX.Element;
 }> = (props) => {
   const lookup = useEvent(() => props.target);
@@ -147,21 +189,44 @@ const Lookup: Component<{
         {(event) => props.children(event())}
       </Match>
       <Match when={lookup().phase === "missing"}>
-        <Notice>{props.missing}</Notice>
+        <div class={props.noticeClass}>
+          <Notice>{props.missing}</Notice>
+        </div>
       </Match>
       <Match when={true}>
-        <Notice>読み込み中…</Notice>
+        <div class={props.noticeClass}>
+          <Notice>読み込み中…</Notice>
+        </div>
       </Match>
     </Switch>
   );
 };
 
-const Frame: ParentComponent<{ size: EventSize }> = (props) => (
+const Frame: ParentComponent<{
+  size: EventSize;
+  onOpen?: (event: MouseEvent) => void;
+  onDown?: (event: MouseEvent) => void;
+}> = (props) => (
+  // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
   <article
     class="flex flex-col bg-primary"
     classList={{
       "gap-2 p-3": props.size === "normal",
       "gap-1.5 p-2": props.size === "compact",
+      "cursor-pointer": props.onOpen !== undefined,
+    }}
+    onMouseDown={(event) => props.onDown?.(event)}
+    onClick={(event) => {
+      // 押された場所に一番近い投稿が自分のときだけ開く。引用の中を押したら
+      // 引用元が起点になる。Solid は click を委譲するので stopPropagation では止まらない。
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("article") !== event.currentTarget
+      ) {
+        return;
+      }
+      props.onOpen?.(event);
     }}
   >
     {props.children}
@@ -190,7 +255,7 @@ const Note: Component<ContentProps> = (props) => {
   const replyTo = () => replyTarget(props.event)?.pubkey;
 
   return (
-    <Row event={props.event} size={props.size}>
+    <Row event={props.event} size={props.size} threadLine={props.threadLine}>
       <Show when={replyTo()}>
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
@@ -283,6 +348,7 @@ const EventContent: Component<ContentProps> = (props) => (
         event={props.event}
         size={props.size}
         expandMedia={props.expandMedia}
+        threadLine={props.threadLine}
       />
     </Match>
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
@@ -291,27 +357,65 @@ const EventContent: Component<ContentProps> = (props) => (
   </Switch>
 );
 
-/** 手元にあるイベントを 1 件描く。 */
-const Event: Component<ContentProps> = (props) => (
-  <Frame size={props.size}>
-    <EventContent
-      event={props.event}
+/** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
+const DRAG_SLOP = 4;
+
+const isInteractive = (target: EventTarget | null) =>
+  target instanceof Element &&
+  target.closest("a, button, input, textarea, [role='button']") !== null;
+
+/** 手元にあるイベントを 1 件描く。押すとそのカラムの上にスレッドを重ねる。 */
+const Event: Component<ContentProps> = (props) => {
+  const stack = useColumnStack();
+  let downAt: { x: number; y: number } | undefined;
+
+  return (
+    <Frame
       size={props.size}
-      expandMedia={props.expandMedia}
-    />
-  </Frame>
-);
+      // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
+      onOpen={
+        stack
+          ? (event) => {
+              if (isInteractive(event.target)) return;
+              const moved =
+                downAt !== undefined &&
+                (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
+                  Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
+              if (moved) return;
+              stack.push(buildThreadColumn(props.event.id));
+            }
+          : undefined
+      }
+      onDown={(event) => {
+        downAt = { x: event.clientX, y: event.clientY };
+      }}
+    >
+      <EventContent
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+        threadLine={props.threadLine}
+      />
+    </Frame>
+  );
+};
 
 /** id しか分からないイベントを取りにいって描く。 */
 export const EventRefView: Component<{
   target: { id: string; relay?: RelayUrl };
   size: EventSize;
+  expandMedia?: boolean;
 }> = (props) => (
-  <Frame size={props.size}>
-    <Lookup target={props.target} missing="読み込めませんでした">
-      {(event) => <EventContent event={event} size={props.size} />}
-    </Lookup>
-  </Frame>
+  <Lookup
+    target={props.target}
+    missing="読み込めませんでした"
+    noticeClass="p-2.5"
+  >
+    {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
+    {(event) => (
+      <Event event={event} size={props.size} expandMedia={props.expandMedia} />
+    )}
+  </Lookup>
 );
 
 export default Event;

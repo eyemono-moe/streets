@@ -33,6 +33,16 @@ export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
 });
 
 /**
+ * スレッドのカラム。id を `focus` から決めるので、同じスレッドを 2 回開いても
+ * 重ならない（スタックの重複判定は id で行う）。
+ */
+export const buildThreadColumn = (focus: string): ColumnDef => ({
+  id: `thread:${focus}`,
+  title: "スレッド",
+  source: { kind: "thread", focus },
+});
+
+/**
  * 追加フォームの入力から `ColumnDef` を作る。入力が不正なら `undefined` を
  * 返し、呼び出し側はフォームを閉じずにエラーを出す —— 黙って作らない。
  */

@@ -12,6 +12,8 @@ export type ColumnSource =
   | { kind: "followees"; kinds: number[] }
   | { kind: "notifications" }
   | { kind: "bookmarks" }
+  /** 1 本のスレッド。`focus` を中心に、その祖先と返信を見せる。 */
+  | { kind: "thread"; focus: string }
   | { kind: "user"; pubkey: string }
   | { kind: "followees-list"; pubkey: string }
   | { kind: "followers-list"; pubkey: string };
@@ -170,6 +172,10 @@ const columnSourceSchema = v.variant("kind", [
   }),
   v.object({
     kind: v.literal("bookmarks"),
+  }),
+  v.object({
+    kind: v.literal("thread"),
+    focus: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
   }),
   v.object({
     kind: v.literal("user"),

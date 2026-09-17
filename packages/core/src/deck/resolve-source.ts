@@ -76,6 +76,12 @@ export const resolveSource = (
     return { type: "nostr", filters: [{ ids: [...context.bookmarks()] }] };
   }
 
+  if (source.kind === "thread") {
+    // スレッドの購読先は根から決まり、根は store を見ないと分からない
+    // （`createThreadSource` が持つ）。ここでは何も購読しない。
+    return { type: "nostr", filters: [] };
+  }
+
   if (source.kind === "user") {
     return {
       type: "nostr",

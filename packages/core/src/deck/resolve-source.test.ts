@@ -220,6 +220,14 @@ describe("resolveSource", () => {
     ).toMatchObject({ relays: [...FALLBACK_RELAYS] });
   });
 
+  it("thread はここでは購読しない（根は store から決まる）", () => {
+    // 捕まえる変異: focus だけを ids にする（祖先も返信も集まらない購読が二重に張られる）
+    expect(resolveSource({ kind: "thread", focus: "a" }, ctx())).toEqual({
+      type: "nostr",
+      filters: [],
+    });
+  });
+
   it("bookmarks は今のブックマークを ids にする", () => {
     // 捕まえる変異: 追加時点の ids を焼き込む（後から付けた分が出なくなる）
     expect(
