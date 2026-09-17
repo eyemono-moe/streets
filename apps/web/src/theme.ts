@@ -83,3 +83,9 @@ export const setColorScheme = (scheme: ColorScheme, save = true) => {
     // 保存できなくても、今の画面には当たっている。
   }
 };
+
+/**
+ * 色を変えてから、アカウントへ保存するまでの待ち。続けて選んでいる間はまとめる ——
+ * 1 回ごとに署名とリレーへの書き込みが走ると、選ぶ操作そのものが重くなる。
+ */
+export const APPEARANCE_SAVE_DELAY_MS = 800;

@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@solidjs/router";
-import type { ColumnDef } from "@streets/core/deck/deck";
+import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import {
   addColumnTo,
   moveColumnToIn,
@@ -35,11 +35,13 @@ import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
 import SettingsDialog from "../settings/SettingsDialog";
 import {
+  APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
   applyColors,
   savedColorScheme,
   setColorScheme,
 } from "../theme";
+import { notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
@@ -144,8 +146,34 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
 
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
-  const appearance = () => deckStore.value()?.appearance ?? DEFAULT_APPEARANCE;
+  // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
+  // 署名とリレーへの書き込みをすると、つまみを動かすだけで待たされる。
+  const [appearance, setAppearance] =
+    createSignal<DeckAppearance>(DEFAULT_APPEARANCE);
+  createEffect(() => {
+    const saved = deckStore.value()?.appearance;
+    if (saved) setAppearance(saved);
+  });
   createEffect(() => applyColors(appearance()));
+
+  let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
+  let savingAppearance = false;
+  const saveAppearance = (next: DeckAppearance) => {
+    clearTimeout(appearanceTimer);
+    appearanceTimer = setTimeout(() => {
+      savingAppearance = true;
+      deckStore.update((deck) => ({ ...deck, appearance: next }));
+    }, APPEARANCE_SAVE_DELAY_MS);
+  };
+  // 保存はデッキの同期に任せているので、同期が終わった合図で知らせる。
+  createEffect(() => {
+    const current = deckStore.state();
+    if (!savingAppearance) return;
+    if (current.phase !== "ready" || current.sync !== "synced") return;
+    savingAppearance = false;
+    notifySaved("表示の設定を保存しました");
+  });
+  onCleanup(() => clearTimeout(appearanceTimer));
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
   onCleanup(() => applyColors(DEFAULT_APPEARANCE));
 
@@ -198,11 +226,12 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
         setColorScheme(event.scheme);
         return true;
       case "deck/preview-appearance":
-        applyColors(event.appearance);
+        // 動かしている最中。画面にだけ当てる。
+        setAppearance(event.appearance);
         return true;
       case "deck/set-appearance":
-        applyColors(event.appearance);
-        deckStore.update((deck) => ({ ...deck, appearance: event.appearance }));
+        setAppearance(event.appearance);
+        saveAppearance(event.appearance);
         return true;
       default:
         return false;
