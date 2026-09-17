@@ -30,6 +30,11 @@ const wordy = createStoryAuthor(66, {
       `${index + 1} 行目の自己紹介。長い文章でもカラムの幅からはみ出さないことを確かめる。`,
   ).join("\n"),
 });
+const longName = createStoryAuthor(77, {
+  name: "very-long-handle-that-will-not-fit-in-one-column",
+  displayName: "とても長い表示名を持っている人のためのユーザー",
+  about: "名前も id もはみ出さずに切れることを確かめる。",
+});
 const viewer = createStoryAuthor(55, { name: "me", displayName: "わたし" });
 
 const profiles = [
@@ -37,6 +42,7 @@ const profiles = [
   bob.profile(),
   carol.profile(),
   wordy.profile(),
+  longName.profile(),
   viewer.profile(),
 ];
 /** 閲覧者は alice だけをフォローしている。ボタンの 2 つの状態を 1 画面で見る。 */
@@ -126,7 +132,13 @@ const ListStory: Component<{
 export const 一覧: StoryObj<typeof ListStory> = {
   render: (props) => <ListStory {...props} />,
   args: {
-    people: [alice.pubkey, bob.pubkey, carol.pubkey, wordy.pubkey],
+    people: [
+      alice.pubkey,
+      bob.pubkey,
+      carol.pubkey,
+      wordy.pubkey,
+      longName.pubkey,
+    ],
     settled: true,
     scene: scene(),
   },
