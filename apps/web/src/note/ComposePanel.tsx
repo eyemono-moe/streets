@@ -1,5 +1,6 @@
 import { buildNote } from "@streets/core/nostr/build/note";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ComposeState } from "@streets/core/view/compose";
 import {
   type Component,
   Show,
@@ -8,7 +9,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { useEventActions } from "../actions";
-import { notifyError } from "../toast";
+import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import Event from "./Event";
 import { ComposeTools, countCharacters } from "./compose-parts";
@@ -28,11 +29,10 @@ const useDebounced = (value: () => string, ms: number) => {
  * 新しいノートを書く。デッキを閉じずに書けるよう、ダイアログではなく
  * サイドバーのパネルに置く。返信は文脈が要るのでダイアログのまま。
  */
-const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
+const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const actions = useEventActions();
-  const [content, setContent] = createSignal("");
-  const [sending, setSending] = createSignal(false);
-  const preview = useDebounced(content, 400);
+  const dispatch = useDispatch();
+  const preview = useDebounced(() => props.state.content, 400);
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
@@ -47,28 +47,12 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
     };
   };
 
-  const submit = async () => {
-    const text = content().trim();
-    if (!actions || text.length === 0 || sending()) return;
-    setSending(true);
-    try {
-      await actions.post(text);
-      setContent("");
-      props.onPosted();
-    } catch (cause) {
-      // 本文は残し、そのまま再試行できるようにする。理由はトーストで出す。
-      notifyError(cause, "投稿できませんでした");
-    } finally {
-      setSending(false);
-    }
-  };
-
   return (
     <form
       class="flex min-h-0 flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
-        void submit();
+        dispatch({ type: "compose/submit" });
       }}
     >
       {/* 上から 本文 → 操作 → プレビュー。操作を一番下に置くと、書いた後に遠くなる。 */}
@@ -82,24 +66,29 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
           aria-label="ノートの本文"
           rows={5}
           class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:border-accent-5"
-          disabled={sending()}
+          disabled={props.state.sending}
           placeholder="いま何してる？"
-          value={content()}
-          onInput={(event) => setContent(event.currentTarget.value)}
+          value={props.state.content}
+          onInput={(event) =>
+            dispatch({
+              type: "compose/input",
+              content: event.currentTarget.value,
+            })
+          }
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
-              void submit();
+              dispatch({ type: "compose/submit" });
             }
           }}
         />
       </div>
 
       <ComposeTools
-        count={`${countCharacters(content())} 文字`}
+        count={`${countCharacters(props.state.content)} 文字`}
         label="投稿"
-        sending={sending()}
-        disabled={content().trim().length === 0}
+        sending={props.state.sending}
+        disabled={props.state.content.trim().length === 0}
       />
 
       <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">
