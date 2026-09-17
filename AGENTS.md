@@ -36,6 +36,15 @@ pnpm workspace の 2 パッケージ。
 - 開閉するもの（ダイアログ・メニュー・ホバーカード・折りたたみ・重ねたカラム・サイドパネル）には動きを付ける。`uno.config.ts` の `motion-fade` / `motion-pop` / `motion-collapse` と `animate-*` を使い、長さは 100〜180ms に収める。`prefers-reduced-motion` は preflight が 0ms に落とすので、部品ごとに分岐を書かない
 - Ark UI の開閉する部品は `lazyMount` と `unmountOnExit` を付ける。閉じている間も中身を作ると、投稿の数だけ DOM が増える
 
+## 画面の組み立て
+
+[ADR-0033](./docs/adr/0033-passive-views-bubble-intents-to-mediators.md) に従う。
+
+- すべてのコンポーネントを Root からなる階層の下に置く
+- コンポーネントは MVP の **Passive View** として、描画に関わるパラメータだけを扱う。取得も書き込みもしない
+- 動作は **Chain of Responsibility** でイベントを上へ泡立て、ステートマシンとして振る舞う **Mediator** に裁定させる
+- 既存の部品はまだこの形になっていない（整理は Issue で進める）。新しく作る部品はこの形で書く
+
 ## テスト
 
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
