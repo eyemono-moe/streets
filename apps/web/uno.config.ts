@@ -97,8 +97,9 @@ export default defineConfig({
         "collapse-up": "{from{height:var(--height)}to{height:0}}",
         "stack-in":
           "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
+        // スワイプで引き下げた位置（Drawer の --drawer-translate-y）から消える。
         "stack-out":
-          "{from{opacity:1;transform:none}to{opacity:0;transform:translateY(16px)}}",
+          "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0;transform:translate3d(0,calc(var(--drawer-translate-y,0px) + 24px),0)}}",
         "panel-in":
           "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
       },
@@ -206,7 +207,7 @@ export default defineConfig({
       // 出どころ（トリガーの位置）から開く。Ark UI が --transform-origin を置く。
       "motion-pop":
         "origin-[var(--transform-origin)] data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
-      // 重ねたカラム。閉じる動きが終わってから取り除く（Column.tsx）。
+      // 重ねたカラム。Ark UI の Drawer が閉じる動きの終わりを待ってから外す。
       "motion-stack":
         "data-[state=open]:animate-stack-in data-[state=closed]:animate-stack-out",
       "motion-collapse":
