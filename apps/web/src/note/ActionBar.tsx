@@ -5,6 +5,7 @@ import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
+import { ComposeMediator } from "./ComposeMediator";
 import ReplyDialog from "./ReplyDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
 
@@ -120,10 +121,14 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               />
             </div>
             <Show when={replyOpen()}>
-              <ReplyDialog
-                target={props.event}
+              <ComposeMediator
+                send={(text) => actions().reply(props.event, text)}
+                failure="返信できませんでした"
+                onSent={() => setReplyOpen(false)}
                 onClose={() => setReplyOpen(false)}
-              />
+              >
+                {(state) => <ReplyDialog target={props.event} state={state} />}
+              </ComposeMediator>
             </Show>
           </>
         );

@@ -3,6 +3,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ComposeEvent } from "@streets/core/view/compose";
 import {
   type JSX,
   type ParentComponent,
@@ -15,7 +16,16 @@ import type { ColumnPatch } from "./deck/ColumnSettings";
  * View が上へ渡すイベント。View は「何が起きたか」だけを言い、どう裁定するかは
  * 受け取った段の Mediator が決める。
  */
-export type UiEvent = ColumnStackEvent | ActionEvent | DeckEvent;
+export type UiEvent =
+  | ColumnStackEvent
+  | ActionEvent
+  | DeckEvent
+  | ComposeViewEvent;
+
+/** 投稿・返信の書きかけに、View から渡すもの。送れた・失敗したは裁定する段が当てる。 */
+export type ComposeViewEvent =
+  | Extract<ComposeEvent, { type: "compose/input" | "compose/submit" }>
+  | { type: "compose/close" };
 
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =

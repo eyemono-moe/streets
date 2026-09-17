@@ -1,45 +1,30 @@
 import { Dialog } from "@ark-ui/solid/dialog";
 import { parseContent } from "@streets/core/nostr/content";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type Component, Show, createMemo, createSignal } from "solid-js";
+import type { ComposeState } from "@streets/core/view/compose";
+import { type Component, Show, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
-import { notifyError } from "../toast";
+import { useDispatch } from "../ui-events";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
 import { ComposeTools, countCharacters } from "./compose-parts";
 
-const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
+const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
 ) => {
   const actions = useEventActions();
-  const [content, setContent] = createSignal("");
-  const [sending, setSending] = createSignal(false);
+  const dispatch = useDispatch();
   const targetTokens = createMemo(() =>
     parseContent(props.target.content.trim(), props.target.tags),
   );
-
-  const submit = async () => {
-    const text = content().trim();
-    if (!actions || text.length === 0 || sending()) return;
-    setSending(true);
-    try {
-      await actions.reply(props.target, text);
-      props.onClose();
-    } catch (cause) {
-      // 本文は残し、そのまま再試行できるようにする。理由はトーストで出す。
-      notifyError(cause, "返信できませんでした");
-    } finally {
-      setSending(false);
-    }
-  };
 
   return (
     <Dialog.Root
       open
       onOpenChange={(details) => {
-        if (!details.open && !sending()) props.onClose();
+        if (!details.open) dispatch({ type: "compose/close" });
       }}
     >
       <Portal>
@@ -53,7 +38,7 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
               <Dialog.CloseTrigger
                 aria-label="閉じる"
                 class="grid size-7 place-items-center rounded-2 bg-secondary enabled:cursor-pointer"
-                disabled={sending()}
+                disabled={props.state.sending}
               >
                 <span
                   class="i-material-symbols:close-rounded size-4.5"
@@ -79,7 +64,7 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                void submit();
+                dispatch({ type: "compose/submit" });
               }}
             >
               <div class="flex items-start gap-3 px-4">
@@ -92,26 +77,31 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                   autofocus
                   aria-label="返信の本文"
                   class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
-                  disabled={sending()}
+                  disabled={props.state.sending}
                   placeholder="返信を書く"
-                  value={content()}
-                  onInput={(event) => setContent(event.currentTarget.value)}
+                  value={props.state.content}
+                  onInput={(event) =>
+                    dispatch({
+                      type: "compose/input",
+                      content: event.currentTarget.value,
+                    })
+                  }
                   onKeyDown={(event) => {
                     if (
                       event.key === "Enter" &&
                       (event.metaKey || event.ctrlKey)
                     ) {
                       event.preventDefault();
-                      void submit();
+                      dispatch({ type: "compose/submit" });
                     }
                   }}
                 />
               </div>
               <ComposeTools
-                count={`${countCharacters(content())}`}
+                count={`${countCharacters(props.state.content)}`}
                 label="返信"
-                sending={sending()}
-                disabled={content().trim().length === 0}
+                sending={props.state.sending}
+                disabled={props.state.content.trim().length === 0}
               />
             </form>
           </Dialog.Content>

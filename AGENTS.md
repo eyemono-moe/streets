@@ -52,7 +52,6 @@ pnpm workspace の 2 パッケージ。
 - 状態を持たない単発の書き込み（いいね・リポスト・ブックマーク・フォローなど）も、イベントとして上へ渡す（`ActionEvent`）。`src/actions-mediator.tsx` が `actions` を呼び、送っている間の二重送信を防ぎ、失敗をトーストに出す。View は `useSending` で押せない見た目にするだけで、遷移関数は要らない
 - 読み取り（store・購読）は、Storybook で全状態を並べたい部品から、読み取る部分と描く部分に分ける（例: `ThreadView` と `ThreadSpineView`）。一律には分けない
 - Ark UI の開閉・フォーカス・ホバーの遅延は Ark UI に任せる。アプリの動作が開閉に依存するもの（重ねたカラムの段など）だけ `open` を制御する
-- この形になっていない既存の部品（`ComposePanel` / `ReplyDialog` の送信中）は #368 で直す
 
 ## テスト
 

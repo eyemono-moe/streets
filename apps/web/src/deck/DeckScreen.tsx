@@ -30,6 +30,7 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
+import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -199,9 +200,13 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             icon="i-material-symbols:edit-square-outline-rounded"
             full={full}
           >
-            <ComposePanel
-              onPosted={() => handle({ type: "deck/close-panel" })}
-            />
+            <ComposeMediator
+              send={(text) => write.actions.post(text)}
+              failure="投稿できませんでした"
+              onSent={() => handle({ type: "deck/close-panel" })}
+            >
+              {(state) => <ComposePanel state={state} />}
+            </ComposeMediator>
           </SidePanel>
         </Show>
       )}
