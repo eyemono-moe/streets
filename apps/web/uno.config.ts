@@ -174,6 +174,15 @@ export default defineConfig({
         [hidden] {
           display: none !important;
         }
+        /*
+          アプリの中の重ね順をアプリの中に閉じ込める。ポップアップやダイアログは
+          body の末尾へ出すので、z-index を足さなくても DOM の順でアプリより上に乗る。
+          （Ark UI の Positioner は z-index を inline で上書きするので、クラスでは効かない）
+        */
+        #root,
+        #storybook-root {
+          isolation: isolate;
+        }
         @media (prefers-reduced-motion) {
           * {
             animation-duration: 0ms !important;

@@ -25,8 +25,7 @@ const UserCardHover: Component<{
   <HoverCard.Root lazyMount unmountOnExit openDelay={400} closeDelay={120}>
     <HoverCard.Trigger asChild={props.trigger} />
     <Portal>
-      {/* カラムの重なり（z-2）や画像より上に出す。重ね順を指定しないと下に潜る。 */}
-      <HoverCard.Positioner class="z-80">
+      <HoverCard.Positioner>
         <HoverCard.Content class="overflow-hidden rounded-3 border border-primary bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
           <UserCard pubkey={props.pubkey} />
         </HoverCard.Content>

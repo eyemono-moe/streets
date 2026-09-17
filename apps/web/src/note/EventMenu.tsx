@@ -127,8 +127,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
           />
         </Menu.Trigger>
         <Portal>
-          {/* カラムの重なり（z-2）より上に出す。重ね順を指定しないと下に潜る。 */}
-          <Menu.Positioner class="z-80">
+          <Menu.Positioner>
             <Menu.Content class="c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">

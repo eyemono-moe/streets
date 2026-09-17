@@ -91,3 +91,5 @@ publish 用の別経路を作らず、`ConnectionPool` 一本に集約します�
 メニュー・ダイアログ・ポップオーバーは `@ark-ui/solid` を使います。
 
 **閉じている部品には `hidden` 属性が付くだけ**なので、`flex` や `grid` を当てると `display` が勝って閉じなくなります（#348 で踏みました）。`uno.config.ts` の preflight で `[hidden] { display: none !important }` を入れて塞いでありますが、独自の CSS で `display` を上書きするときは同じ罠に注意します。
+
+**重ね順は z-index の数字で決めない。** Ark UI の Positioner は `z-index: var(--z-index)` を inline で当てるので、クラスで `z-80` などを付けても効きません。`#root` を `isolation: isolate` にしてあり、アプリの中の重ね順はアプリの中に閉じます。ポップアップやダイアログは body の末尾へ出るので、DOM の順だけでアプリより上に乗ります。アプリの中で重ねるもの（カラムの重なりなど）も、後ろに置いたものが上に来る DOM の順で決め、中の重ね順が漏れないように `isolate` で区切ります。
