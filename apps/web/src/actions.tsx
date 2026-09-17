@@ -2,6 +2,7 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { buildNote, buildReply } from "@streets/core/nostr/build/note";
 import {
   type ReactionInput,
@@ -9,6 +10,7 @@ import {
 } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { followeesFrom } from "@streets/core/nostr/follow-list";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
@@ -33,6 +35,7 @@ import {
 } from "solid-js";
 
 const BOOKMARK_KIND = 10003;
+const FOLLOW_KIND = 3;
 
 export type EventActions = {
   viewer: string;
@@ -45,6 +48,10 @@ export type EventActions = {
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
+  /** 自分がフォローしている人（kind:3）。カラムの購読にも使う。 */
+  followeeIds(): readonly string[];
+  following(pubkey: string): boolean;
+  setFollow(pubkey: string, on: boolean): Promise<void>;
 };
 
 export type WriteStack = {
@@ -85,26 +92,30 @@ export const createWriteStack = (options: {
       .map(normalizeRelayUrl)
       .find((relay) => relay !== undefined);
 
-  const [bookmarks, setBookmarks] = createSignal(
-    store.latestReplaceable(BOOKMARK_KIND, options.viewer),
-  );
-  onCleanup(
-    store.onReplaceableChanged((change) => {
-      if (change.kind !== BOOKMARK_KIND || change.pubkey !== options.viewer) {
-        return;
-      }
-      setBookmarks(store.latestReplaceable(BOOKMARK_KIND, options.viewer));
-    }),
-  );
-  // 押す前から付いているかを出すため、ログイン時に一度だけ引いておく。届かなくても押せば replace が引き直す。
-  void fetchLatest(target, BOOKMARK_KIND, undefined, options.viewer).catch(
-    () => {},
-  );
+  /** 自分の置換可能イベントを追う。届くたびに画面へ反映し、押す前から状態を出す。 */
+  const mine = (kind: number) => {
+    const [event, setEvent] = createSignal(
+      store.latestReplaceable(kind, options.viewer),
+    );
+    onCleanup(
+      store.onReplaceableChanged((change) => {
+        if (change.kind !== kind || change.pubkey !== options.viewer) return;
+        setEvent(store.latestReplaceable(kind, options.viewer));
+      }),
+    );
+    // ログイン時に一度だけ引いておく。届かなくても、押せば replace が引き直す。
+    void fetchLatest(target, kind, undefined, options.viewer).catch(() => {});
+    return event;
+  };
+
+  const bookmarks = mine(BOOKMARK_KIND);
+  const follows = mine(FOLLOW_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
       ?.tags.filter((tag) => tag[0] === "e" && tag[1])
       .map((tag) => tag[1] as string) ?? [];
+  const followeeIds = () => followeesFrom(follows());
 
   const actions: EventActions = {
     viewer: options.viewer,
@@ -132,6 +143,17 @@ export const createWriteStack = (options: {
         value: event.id,
       });
       await writer.replace(BOOKMARK_KIND, undefined, mutation);
+    },
+    followeeIds,
+    following: (pubkey) => followeeIds().includes(pubkey),
+    async setFollow(pubkey, on) {
+      // 自分をフォローする操作は出さない。押せてしまうと kind:3 に自分が混ざる。
+      if (pubkey === options.viewer) return;
+      await writer.replace(
+        FOLLOW_KIND,
+        undefined,
+        on ? addFollow(pubkey) : removeFollow(pubkey),
+      );
     },
   };
 

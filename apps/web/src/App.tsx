@@ -6,6 +6,7 @@ import LoginScreen from "./LoginScreen";
 import DeckScreen from "./deck/DeckScreen";
 import { ReadLayerProvider } from "./read-layer";
 import { createSession } from "./session";
+import { ErrorToaster } from "./toast";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
 
@@ -30,6 +31,7 @@ const App: Component = () => {
           <DeckScreen readLayer={readLayer} session={session} />
         </ReadLayerProvider>
       </Show>
+      <ErrorToaster />
       <Show when={import.meta.env.DEV}>
         <AppDevtools readLayer={readLayer} />
       </Show>

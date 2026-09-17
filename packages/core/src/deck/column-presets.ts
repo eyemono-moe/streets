@@ -14,20 +14,24 @@ export type ColumnPresetKind =
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
 
+/**
+ * 重ねるカラムの id は中身から決める。同じものを 2 回押しても重ならない
+ * （スタックの重複判定は id で行う）。デッキへ足すときは呼び出し側が振り直す。
+ */
 export const buildUserColumn = (pubkey: string): ColumnDef => ({
-  id: crypto.randomUUID(),
+  id: `user:${pubkey}`,
   title: userTitle(pubkey),
   source: { kind: "user", pubkey },
 });
 
 export const buildFolloweesColumn = (pubkey: string): ColumnDef => ({
-  id: crypto.randomUUID(),
+  id: `followees:${pubkey}`,
   title: `${userTitle(pubkey)} のフォロー`,
   source: { kind: "followees-list", pubkey },
 });
 
 export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
-  id: crypto.randomUUID(),
+  id: `followers:${pubkey}`,
   title: `${userTitle(pubkey)} のフォロワー`,
   source: { kind: "followers-list", pubkey },
 });

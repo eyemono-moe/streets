@@ -50,11 +50,10 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
       {(actions) => {
         const engagement = useEngagements(() => props.event, actions().viewer);
         const [replyOpen, setReplyOpen] = createSignal(false);
-        const repost = useSend();
-        const like = useSend();
-        const bookmark = useSend();
+        const repost = useSend("リポストできませんでした");
+        const like = useSend("リアクションを送れませんでした");
+        const bookmark = useSend("ブックマークを保存できませんでした");
         const bookmarked = () => actions().bookmarked(props.event.id);
-        const error = () => repost.error() ?? like.error() ?? bookmark.error();
 
         return (
           <>
@@ -114,9 +113,6 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 }
               />
             </div>
-            <Show when={error()}>
-              {(message) => <p class="c-danger text-caption">{message()}</p>}
-            </Show>
             <Show when={replyOpen()}>
               <ReplyDialog
                 target={props.event}

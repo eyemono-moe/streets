@@ -3,7 +3,8 @@ import { parseContent } from "@streets/core/nostr/content";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
-import { actionErrorMessage, useEventActions } from "../actions";
+import { useEventActions } from "../actions";
+import { notifyError } from "../toast";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
@@ -15,7 +16,6 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
   const actions = useEventActions();
   const [content, setContent] = createSignal("");
   const [sending, setSending] = createSignal(false);
-  const [error, setError] = createSignal<string>();
   const targetTokens = createMemo(() =>
     parseContent(props.target.content.trim(), props.target.tags),
   );
@@ -24,13 +24,12 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
     const text = content().trim();
     if (!actions || text.length === 0 || sending()) return;
     setSending(true);
-    setError(undefined);
     try {
       await actions.reply(props.target, text);
       props.onClose();
     } catch (cause) {
-      // 本文は残し、そのまま再試行できるようにする。
-      setError(actionErrorMessage(cause));
+      // 本文は残し、そのまま再試行できるようにする。理由はトーストで出す。
+      notifyError(cause, "返信できませんでした");
     } finally {
       setSending(false);
     }
@@ -108,11 +107,6 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
                   }}
                 />
               </div>
-              <Show when={error()}>
-                {(message) => (
-                  <p class="c-danger px-4 pt-2 text-caption">{message()}</p>
-                )}
-              </Show>
               <ComposeTools
                 count={`${countCharacters(content())}`}
                 label="返信"

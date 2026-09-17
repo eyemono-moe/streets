@@ -3,6 +3,7 @@ import { columnAlerts } from "@streets/core/deck/column-alerts";
 import { columnFacets } from "@streets/core/deck/column-facets";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
+import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
@@ -18,7 +19,10 @@ import {
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
+import ProfileHeader from "../profile/ProfileHeader";
+import ProfileList from "../profile/ProfileList";
 import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
+import ColumnTitle from "./ColumnTitle";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
 import { ColumnStackProvider } from "./column-stack";
@@ -76,7 +80,9 @@ const Header: Component<{
         aria-hidden="true"
       />
       <div class="flex min-w-0 flex-1 flex-col">
-        <h2 class="truncate font-600 text-body">{props.column.title}</h2>
+        <h2 class="truncate font-600 text-body">
+          <ColumnTitle column={props.column} />
+        </h2>
         <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
       </div>
       <Show when={props.temporary}>
@@ -147,7 +153,9 @@ const StackedHeader: Component<{
       />
     </button>
     <div class="flex min-w-0 flex-1 flex-col">
-      <h2 class="truncate font-600 text-body">{props.column.title}</h2>
+      <h2 class="truncate font-600 text-body">
+        <ColumnTitle column={props.column} />
+      </h2>
       <p class="c-secondary truncate text-caption">
         {props.stacked.backTo}に戻る
       </p>
@@ -177,6 +185,20 @@ const Column: Component<ColumnProps> = (props) => {
     props.column.source.kind === "thread"
       ? props.column.source.focus
       : undefined;
+  // ユーザーのカラムは、投稿の上にプロフィールを出す。
+  const profilePubkey = () =>
+    props.column.source.kind === "user"
+      ? props.column.source.pubkey
+      : undefined;
+  /** フォロー・フォロワーのカラムが並べる人。kind:3 から取り出す。 */
+  const people = (): readonly string[] | undefined => {
+    const source = props.column.source;
+    if (source.kind === "followees-list") {
+      return followeesFrom(section.items()[0]);
+    }
+    if (source.kind === "followers-list") return followersFrom(section.items());
+    return undefined;
+  };
   const section = createSection({
     manager: props.readLayer.manager,
     // ウォームアップの結果を memo の外で読むと、settle のたびに全カラムの購読が張り直される。
@@ -215,43 +237,61 @@ const Column: Component<ColumnProps> = (props) => {
 
   // 中身は関数にして、下の provider の中で作る。Solid の context は
   // 「要素を作った場所」で決まるので、外で組み立てると provider が届かない。
+  const events = () => (
+    <Switch>
+      <Match when={items().length > 0}>
+        {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
+        <div class="flex flex-col gap-px bg-tertiary pb-px">
+          <For each={items()}>
+            {(event) => (
+              <Event event={event} size={size()} expandMedia={expandMedia()} />
+            )}
+          </For>
+        </div>
+      </Match>
+      <Match when={section.status().phase === "settled"}>
+        <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+      </Match>
+      <Match when={true}>
+        <p class="c-secondary p-4 text-caption">読み込み中…</p>
+      </Match>
+    </Switch>
+  );
+
   const body = () => (
     <div class="min-h-0 flex-1 overflow-y-auto">
-      <Show
-        when={threadFocus()}
-        fallback={
-          <Switch>
-            <Match when={items().length > 0}>
-              {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-              <div class="flex flex-col gap-px bg-tertiary pb-px">
-                <For each={items()}>
-                  {(event) => (
-                    <Event
-                      event={event}
-                      size={size()}
-                      expandMedia={expandMedia()}
-                    />
-                  )}
-                </For>
-              </div>
-            </Match>
-            <Match when={section.status().phase === "settled"}>
-              <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
-            </Match>
-            <Match when={true}>
-              <p class="c-secondary p-4 text-caption">読み込み中…</p>
-            </Match>
-          </Switch>
-        }
-      >
-        {(focus) => (
-          <ThreadView
-            focus={focus()}
-            readLayer={props.readLayer}
-            expandMedia={expandMedia()}
-          />
-        )}
-      </Show>
+      <Switch fallback={events()}>
+        <Match when={threadFocus()}>
+          {(focus) => (
+            <ThreadView
+              focus={focus()}
+              readLayer={props.readLayer}
+              expandMedia={expandMedia()}
+            />
+          )}
+        </Match>
+        <Match when={profilePubkey()}>
+          {(pubkey) => (
+            <>
+              <ProfileHeader pubkey={pubkey()} readLayer={props.readLayer} />
+              {events()}
+            </>
+          )}
+        </Match>
+        <Match when={people()}>
+          {(people) => (
+            <ProfileList
+              people={people()}
+              settled={section.status().phase === "settled"}
+              empty={
+                props.column.source.kind === "followers-list"
+                  ? "フォロワーを取得できませんでした。"
+                  : "まだ誰もフォローしていません。"
+              }
+            />
+          )}
+        </Match>
+      </Switch>
     </div>
   );
 

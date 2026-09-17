@@ -2,10 +2,12 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { buildNote, buildReply } from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
@@ -46,6 +48,9 @@ const storyActions = (
   const [bookmarks, setBookmarks] = createSignal(
     store.latestReplaceable(10003, viewer.pubkey),
   );
+  const [follows, setFollows] = createSignal(
+    store.latestReplaceable(3, viewer.pubkey),
+  );
   const bookmarkIds = () =>
     bookmarks()
       ?.tags.filter((tag) => tag[0] === "e" && tag[1])
@@ -64,6 +69,16 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    followeeIds: () => followeesFrom(follows()),
+    following: (pubkey) => followeesFrom(follows()).includes(pubkey),
+    setFollow: (pubkey, on) =>
+      send(() => {
+        const next = viewer.event(
+          (on ? addFollow(pubkey) : removeFollow(pubkey))(follows()),
+        );
+        setFollows(next);
+        return next;
+      }),
     bookmarked: (id) => bookmarkIds().includes(id),
     setBookmark: (target, on) =>
       send(() => {
