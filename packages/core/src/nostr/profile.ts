@@ -8,12 +8,18 @@ const profileSchema = v.looseObject({
   name: optionalText,
   display_name: optionalText,
   picture: optionalText,
+  about: optionalText,
+  banner: optionalText,
 });
 
 export type Profile = {
   name?: string;
   displayName?: string;
   picture?: string;
+  /** 自己紹介。ユーザー詳細でだけ出す。 */
+  about?: string;
+  /** ヘッダー画像。 */
+  banner?: string;
 };
 
 const nonBlank = (value: string | undefined): string | undefined =>
@@ -33,6 +39,8 @@ export const parseProfile = (content: string): Profile | undefined => {
     name: nonBlank(result.output.name),
     displayName: nonBlank(result.output.display_name),
     picture: nonBlank(result.output.picture),
+    about: nonBlank(result.output.about),
+    banner: nonBlank(result.output.banner),
   };
 };
 

@@ -82,7 +82,12 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     return result;
   });
   const settled = () => warmUp.state === "ready" || warmUp.state === "errored";
-  const followees = () => warmUp()?.followees ?? [];
+  // フォローした結果をその場でタイムラインへ反映する。kind:3 がまだ無い間は、
+  // ウォームアップが読んだ値で待つ（0 人で購読し直さない）。
+  const followees = () => {
+    const live = write.actions.followeeIds();
+    return live.length > 0 ? live : (warmUp()?.followees ?? []);
+  };
   const relayList = () =>
     relayListState(props.readLayer.store, viewer, settled());
 

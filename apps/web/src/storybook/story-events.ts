@@ -9,6 +9,8 @@ export type StoryProfile = {
   name?: string;
   displayName?: string;
   picture?: string;
+  about?: string;
+  banner?: string;
 };
 
 const keyFor = (seed: number): Uint8Array =>
@@ -50,7 +52,15 @@ export const createStoryAuthor = (seed: number, profile: StoryProfile = {}) => {
           name: profile.name,
           display_name: profile.displayName,
           picture: profile.picture,
+          about: profile.about,
+          banner: profile.banner,
         }),
+      }),
+    follows: (pubkeys: readonly string[]) =>
+      event({
+        kind: 3,
+        tags: pubkeys.map((pubkey) => ["p", pubkey]),
+        content: "",
       }),
     note: (content: string, tags: string[][] = []) =>
       event({ kind: 1, tags, content }),
