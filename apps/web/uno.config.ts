@@ -80,6 +80,47 @@ export default defineConfig({
       sans: '"Noto Sans JP", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"',
     },
     colors,
+    /*
+      動きは短く、始まりを速く終わりを緩める。要素が「どこから来たか」だけを
+      見せ、待たせない。`prefers-reduced-motion` では preflight で 0ms に落とす。
+    */
+    animation: {
+      keyframes: {
+        "fade-in": "{from{opacity:0}to{opacity:1}}",
+        "fade-out": "{from{opacity:1}to{opacity:0}}",
+        "pop-in":
+          "{from{opacity:0;transform:scale(0.97) translateY(-4px)}to{opacity:1;transform:none}}",
+        "pop-out":
+          "{from{opacity:1;transform:none}to{opacity:0;transform:scale(0.98)}}",
+        // Ark UI の Collapsible が測った高さ。閉じている間は 0。
+        "collapse-down": "{from{height:0}to{height:var(--height)}}",
+        "collapse-up": "{from{height:var(--height)}to{height:0}}",
+        "stack-in":
+          "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
+        "panel-in":
+          "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
+      },
+      durations: {
+        "fade-in": "120ms",
+        "fade-out": "100ms",
+        "pop-in": "140ms",
+        "pop-out": "100ms",
+        "collapse-down": "160ms",
+        "collapse-up": "140ms",
+        "stack-in": "180ms",
+        "panel-in": "160ms",
+      },
+      timingFns: {
+        "fade-in": "ease-out",
+        "fade-out": "ease-in",
+        "pop-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "pop-out": "ease-in",
+        "collapse-down": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "collapse-up": "ease-in",
+        "stack-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
+    },
   },
   rules: [
     [
@@ -152,6 +193,16 @@ export default defineConfig({
 
       // border color
       "border-primary": "b-ui-2 dark:b-ui-7",
+
+      // motion
+      // 開閉する部品の出入り。Ark UI が付ける data-state に合わせる。
+      "motion-fade":
+        "data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out",
+      // 出どころ（トリガーの位置）から開く。Ark UI が --transform-origin を置く。
+      "motion-pop":
+        "origin-[var(--transform-origin)] data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
+      "motion-collapse":
+        "overflow-hidden data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up",
 
       // scrollbar
       "scrollbar-color-theme":

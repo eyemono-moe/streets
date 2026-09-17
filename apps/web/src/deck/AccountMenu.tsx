@@ -8,6 +8,8 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
   props,
 ) => (
   <Menu.Root
+    lazyMount
+    unmountOnExit
     onSelect={(details) => {
       if (details.value === "logout") props.onLogout();
     }}
@@ -20,7 +22,7 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
     </Menu.Trigger>
     <Portal>
       <Menu.Positioner>
-        <Menu.Content class="c-primary w-40 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+        <Menu.Content class="motion-pop c-primary w-40 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
           <Menu.Item
             value="logout"
             class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"

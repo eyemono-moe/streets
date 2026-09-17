@@ -33,6 +33,8 @@ pnpm workspace の 2 パッケージ。
 - `apps/web/legacy/` の部品もこのデザインを参考に作られている。移植するときは、デザインと食い違っていないか確かめる
 - デザインに無いもの（ログイン画面など）は、既存のトークンと部品の見た目に揃える
 - 操作が失敗したことは、ボタンの脇ではなく画面のトースト（`src/toast.tsx` の `notifyError`）で知らせる。押した場所ごとに出方を変えない。狭いカラムで行が押し出されて本文が動くのも避ける
+- 開閉するもの（ダイアログ・メニュー・ホバーカード・折りたたみ・重ねたカラム・サイドパネル）には動きを付ける。`uno.config.ts` の `motion-fade` / `motion-pop` / `motion-collapse` と `animate-*` を使い、長さは 100〜180ms に収める。`prefers-reduced-motion` は preflight が 0ms に落とすので、部品ごとに分岐を書かない
+- Ark UI の開閉する部品は `lazyMount` と `unmountOnExit` を付ける。閉じている間も中身を作ると、投稿の数だけ DOM が増える
 
 ## テスト
 
