@@ -43,8 +43,8 @@ type ContentProps = {
   size: EventSize;
   /** 画像を展開するか。カラム設定で切ると、URL のリンクだけにする。 */
   expandMedia?: boolean;
-  /** 会話が下に続くことを、アイコンの下から伸びる線で示す。 */
-  threadLine?: boolean;
+  /** 会話が続く向きを、アイコンから伸びる線で示す。 */
+  threadLine?: "above" | "below" | "both";
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -81,11 +81,14 @@ const Row: ParentComponent<ContentProps> = (props) => (
       "gap-2": props.size === "compact",
     }}
   >
-    {/* アイコン列。線はアイコンの下からこの列の下端まで伸びる（次の投稿へ続く印）。 */}
+    {/* アイコン列。線はアイコンから列の端まで伸びる（会話が続いている印）。 */}
     <div class="flex shrink-0 flex-col items-center gap-1 self-stretch">
+      <Show when={props.threadLine === "above" || props.threadLine === "both"}>
+        {/* 負のマージンで枠の外へはみ出し、投稿の間の隙間を線が跨ぐ。 */}
+        <div class="-mt-3 min-h-2 w-0.5 flex-1 bg-tertiary" />
+      </Show>
       <Avatar pubkey={props.event.pubkey} size={props.size} />
-      <Show when={props.threadLine}>
-        {/* -mb-2 で 8px はみ出し、投稿の間の隙間を線が跨ぐ。 */}
+      <Show when={props.threadLine === "below" || props.threadLine === "both"}>
         <div class="-mb-3 min-h-2 w-0.5 flex-1 bg-tertiary" />
       </Show>
     </div>

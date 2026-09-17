@@ -327,7 +327,8 @@ const Column: Component<ColumnProps> = (props) => {
   // 重ねられた側は自分でスタックを持たない。押されたものは下のカラムのスタックへ積む。
   const inner = () => (
     <section
-      class="flex h-full min-h-0 w-full flex-col bg-primary"
+      // 重なりの影が隣のカラムまで伸びないように、カラムの中で切る。
+      class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary"
       // 保存されていないことを枠で示す。
       classList={{
         "outline outline-2 -outline-offset-2 outline-accent-5":
