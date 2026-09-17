@@ -41,9 +41,12 @@ pnpm workspace の 2 パッケージ。
 [ADR-0033](./docs/adr/0033-passive-views-bubble-intents-to-mediators.md) に従う。
 
 - すべてのコンポーネントを Root からなる階層の下に置く
-- コンポーネントは MVP の **Passive View** として、描画に関わるパラメータだけを扱う。取得も書き込みもしない
-- 動作は **Chain of Responsibility** でイベントを上へ泡立て、ステートマシンとして振る舞う **Mediator** に裁定させる
-- 既存の部品はまだこの形になっていない（整理は Issue で進める）。新しく作る部品はこの形で書く
+- **View** は MVP の Passive View として、props を描くだけにする。取得も書き込みもせず、押されたらイベントを上へ渡す
+- **Presenter** が読み取り（store・購読）を View の props に変える。投稿 1 件ごとのプロフィールや反応の数もここ
+- イベントは Chain of Responsibility で上へ泡立てる。各段が Solid の context で `dispatch` を配り、裁定しないものは親へ渡す（DOM のイベントは Portal の先から届かないので使わない）
+- **Mediator** は段ごと（Root・デッキ・カラム）のステートマシン。遷移は `(state, event) => state` の純粋関数として `@streets/core` に書いてテストし、書き込みやトーストは遷移の結果を見て `apps/web` 側で行う
+- Ark UI の開閉・フォーカス・ホバーの遅延は View の内側に残す。アプリの動作が開閉に依存するもの（重ねたカラムの段など）だけ `open` を制御して Mediator が持つ
+- 既存の部品はまだこの形になっていない（#368 で整理する）。新しく作る部品はこの形で書く
 
 ## テスト
 
