@@ -77,11 +77,9 @@ export const resolveSource = (
   }
 
   if (source.kind === "thread") {
-    // 根そのものと、根を指すものを集める。NIP-10 は子孫に根への `e` タグを要求する。
-    return {
-      type: "nostr",
-      filters: [{ ids: [source.rootId] }, { "#e": [source.rootId] }],
-    };
+    // スレッドの購読先は根から決まり、根は store を見ないと分からない
+    // （`createThreadSource` が持つ）。ここでは何も購読しない。
+    return { type: "nostr", filters: [] };
   }
 
   if (source.kind === "user") {

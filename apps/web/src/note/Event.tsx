@@ -1,3 +1,4 @@
+import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type EventRef,
@@ -352,7 +353,7 @@ const Event: Component<ContentProps> = (props) => {
                 (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
                   Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
               if (moved) return;
-              stack.push({ kind: "thread", focusId: props.event.id });
+              stack.push(buildThreadColumn(props.event.id));
             }
           : undefined
       }

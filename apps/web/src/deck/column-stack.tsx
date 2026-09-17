@@ -2,16 +2,12 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 
 /**
- * カラムの上に重ねて見せるもの。スレッドだけでなく、ユーザー詳細やフォロー一覧も
- * ここへ積む —— 本質は「カラムを重ねる」ことで、中身は何でもよい。
+ * カラムの上にカラムを重ねる口。重ねるものはただのカラム定義で、
+ * スレッドもユーザー詳細も外から見れば同じ「カラム」。
  */
-export type StackEntry =
-  | { kind: "thread"; focusId: string }
-  | { kind: "column"; column: ColumnDef };
-
 export type ColumnStack = {
-  /** 一番上へ積む。同じものが既に一番上なら何もしない。 */
-  push: (entry: StackEntry) => void;
+  /** 一番上へ積む。同じ id が既に一番上なら何もしない。 */
+  push: (column: ColumnDef) => void;
 };
 
 const ColumnStackContext = createContext<ColumnStack>();
@@ -27,24 +23,3 @@ export const ColumnStackProvider: ParentComponent<{ value: ColumnStack }> = (
 /** カラムの外（Storybook など）では undefined。押しても何も起きない。 */
 export const useColumnStack = (): ColumnStack | undefined =>
   useContext(ColumnStackContext);
-
-/** 同じものを二重に積まないための鍵。戻る操作の単位にもなる。 */
-export const stackKey = (entry: StackEntry): string =>
-  entry.kind === "thread"
-    ? `thread:${entry.focusId}`
-    : `column:${entry.column.id}`;
-
-/** 重ねたものを、デッキの正規のカラムとして開き直すための定義。 */
-export const stackColumn = (entry: StackEntry): ColumnDef =>
-  entry.kind === "column"
-    ? { ...entry.column, id: crypto.randomUUID() }
-    : {
-        id: crypto.randomUUID(),
-        title: "スレッド",
-        // 根ではなく焦点を根として保存する。焦点より上は、そのカラムでは追わない。
-        source: { kind: "thread", rootId: entry.focusId },
-      };
-
-/** 重ねたものの題名と、その下に出す戻り先の説明。 */
-export const stackTitle = (entry: StackEntry): string =>
-  entry.kind === "thread" ? "スレッド" : entry.column.title;

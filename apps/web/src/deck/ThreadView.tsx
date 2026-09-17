@@ -7,16 +7,16 @@ import { type Component, For, Show, createMemo } from "solid-js";
 import Event from "../note/Event";
 
 /**
- * 1 本の背骨（根 → 焦点 → その直接の返信）。木は描かない —— 兄弟の枝まで出すと、
- * 1 カラムの幅では会話の筋を追えなくなる。
+ * 1 本の背骨。焦点までの祖先と、焦点への返信を出す。祖先と返信は compact、
+ * 焦点だけ normal —— どれを開いているかが、前後に埋もれないようにする。
  */
 const ThreadView: Component<{
-  focusId: string;
+  focus: string;
   readLayer: ReadLayer;
   expandMedia: boolean;
 }> = (props) => {
   const thread = createThreadSource({
-    focusId: () => props.focusId,
+    focusId: () => props.focus,
     store: props.readLayer.store,
     columnRelays: () => undefined,
     relaysOverride: undefined,
@@ -28,12 +28,12 @@ const ThreadView: Component<{
 
   const events = (): NostrEvent[] => {
     const items = section.items();
-    if (items.some((event) => event.id === props.focusId)) return items;
+    if (items.some((event) => event.id === props.focus)) return items;
     // 焦点は押した時点で store にある。購読の応答を待つと、押しても何も出ない間ができる。
-    const seeded = props.readLayer.store.get(props.focusId);
+    const seeded = props.readLayer.store.get(props.focus);
     return seeded ? [...items, seeded] : items;
   };
-  const spine = createMemo(() => threadSpine(events(), props.focusId));
+  const spine = createMemo(() => threadSpine(events(), props.focus));
 
   return (
     <div class="flex flex-col gap-px bg-tertiary pb-px">
@@ -43,12 +43,11 @@ const ThreadView: Component<{
           このスレッドの上の方は取得できませんでした。
         </p>
       </Show>
-      {/* 祖先はアイコンの下の線で焦点まで繋ぐ。線が切れると、どこから続いているか読めない。 */}
       <For each={spine().ancestors}>
         {(event) => (
           <Event
             event={event}
-            size="normal"
+            size="compact"
             expandMedia={props.expandMedia}
             threadLine
           />
@@ -61,20 +60,16 @@ const ThreadView: Component<{
         }
       >
         {(focus) => (
-          // 焦点だけ背景を変える。どれを開いているかが、返信に埋もれて分からなくなるため。
-          <div class="bg-secondary">
-            <Event
-              event={focus()}
-              size="normal"
-              expandMedia={props.expandMedia}
-              threadLine={spine().replies.length > 0}
-            />
-          </div>
+          <Event
+            event={focus()}
+            size="normal"
+            expandMedia={props.expandMedia}
+          />
         )}
       </Show>
       <For each={spine().replies}>
         {(event) => (
-          <Event event={event} size="normal" expandMedia={props.expandMedia} />
+          <Event event={event} size="compact" expandMedia={props.expandMedia} />
         )}
       </For>
     </div>

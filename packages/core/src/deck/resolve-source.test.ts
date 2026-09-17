@@ -220,11 +220,11 @@ describe("resolveSource", () => {
     ).toMatchObject({ relays: [...FALLBACK_RELAYS] });
   });
 
-  it("thread は根そのものと、根を指すものを集める", () => {
-    // 捕まえる変異: ids だけにする（返信が集まらず 1 件しか出ない）
-    expect(resolveSource({ kind: "thread", rootId: "a" }, ctx())).toEqual({
+  it("thread はここでは購読しない（根は store から決まる）", () => {
+    // 捕まえる変異: focus だけを ids にする（祖先も返信も集まらない購読が二重に張られる）
+    expect(resolveSource({ kind: "thread", focus: "a" }, ctx())).toEqual({
       type: "nostr",
-      filters: [{ ids: ["a"] }, { "#e": ["a"] }],
+      filters: [],
     });
   });
 
