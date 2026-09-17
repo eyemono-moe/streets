@@ -7,7 +7,8 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
-import { actionErrorMessage, useEventActions } from "../actions";
+import { useEventActions } from "../actions";
+import { notifyError } from "../toast";
 import Avatar from "./Avatar";
 import Event from "./Event";
 import { ComposeTools, countCharacters } from "./compose-parts";
@@ -31,7 +32,6 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
   const actions = useEventActions();
   const [content, setContent] = createSignal("");
   const [sending, setSending] = createSignal(false);
-  const [error, setError] = createSignal<string>();
   const preview = useDebounced(content, 400);
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
@@ -51,14 +51,13 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
     const text = content().trim();
     if (!actions || text.length === 0 || sending()) return;
     setSending(true);
-    setError(undefined);
     try {
       await actions.post(text);
       setContent("");
       props.onPosted();
     } catch (cause) {
-      // 本文は残し、そのまま再試行できるようにする。
-      setError(actionErrorMessage(cause));
+      // 本文は残し、そのまま再試行できるようにする。理由はトーストで出す。
+      notifyError(cause, "投稿できませんでした");
     } finally {
       setSending(false);
     }
@@ -96,11 +95,6 @@ const ComposePanel: Component<{ onPosted: () => void }> = (props) => {
         />
       </div>
 
-      <Show when={error()}>
-        {(message) => (
-          <p class="c-danger shrink-0 px-4 pt-2 text-caption">{message()}</p>
-        )}
-      </Show>
       <ComposeTools
         count={`${countCharacters(content())} 文字`}
         label="投稿"

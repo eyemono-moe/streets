@@ -41,7 +41,7 @@ const ProfileHeaderView: Component<{
   const picture = () => (pictureBroken() ? undefined : profile()?.picture);
 
   return (
-    <section class="flex flex-col bg-primary">
+    <section class="flex flex-col border-primary border-b bg-primary">
       <div class="h-28 shrink-0 overflow-hidden bg-secondary">
         <Show when={banner()}>
           {(url) => (

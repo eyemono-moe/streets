@@ -95,7 +95,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
     [],
     { equals: sameReactionGroups },
   );
-  const send = useSend();
+  const send = useSend("リアクションを送れませんでした");
   const [expanded, setExpanded] = createSignal(false);
 
   return (
@@ -171,9 +171,6 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
           </button>
         </div>
       </div>
-      <Show when={send.error()}>
-        {(message) => <p class="c-danger text-caption">{message()}</p>}
-      </Show>
     </Show>
   );
 };

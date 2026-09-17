@@ -25,7 +25,7 @@ const FollowButton: Component<{
   size?: FollowButtonSize;
 }> = (props) => {
   const actions = useEventActions();
-  const send = useSend();
+  const send = useSend("フォローの状態を保存できませんでした");
   const [hover, setHover] = createSignal(false);
   const following = () => actions?.following(props.pubkey) === true;
   const unfollowing = () => following() && hover();
@@ -34,56 +34,44 @@ const FollowButton: Component<{
     // 自分自身と、ログインしていないときは出さない。押せない操作を置かない。
     <Show when={actions?.viewer !== props.pubkey ? actions : undefined}>
       {(actions) => (
-        <div class="flex min-w-0 flex-col items-end gap-1">
-          <button
-            type="button"
-            class="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full font-600 text-caption disabled:cursor-default"
-            classList={{
-              "h-8.5 px-4.5": props.size !== "small",
-              "h-7.5 px-3.5": props.size === "small",
-              "bg-accent-primary c-white": !following() && !send.sending(),
-              "border border-primary bg-primary":
-                following() && !send.sending(),
-              "c-danger": unfollowing(),
-              "c-primary": following() && !unfollowing(),
-              "c-secondary bg-secondary": send.sending(),
-            }}
-            disabled={send.sending()}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
-            onFocus={() => setHover(true)}
-            onBlur={() => setHover(false)}
-            onClick={() =>
-              void send.run(() =>
-                actions().setFollow(props.pubkey, !following()),
-              )
-            }
-          >
-            <Switch>
-              <Match when={send.sending()}>
-                <Label>送信中…</Label>
-              </Match>
-              <Match when={unfollowing()}>
-                <Label icon="i-material-symbols:close-rounded">
-                  フォロー解除
-                </Label>
-              </Match>
-              <Match when={following()}>
-                <Label icon="i-material-symbols:check-rounded">
-                  フォロー中
-                </Label>
-              </Match>
-              <Match when={true}>
-                <Label>フォロー</Label>
-              </Match>
-            </Switch>
-          </button>
-          <Show when={send.error()}>
-            {(message) => (
-              <p class="c-danger text-right text-caption">{message()}</p>
-            )}
-          </Show>
-        </div>
+        <button
+          type="button"
+          class="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full font-600 text-caption disabled:cursor-default"
+          classList={{
+            "h-8.5 px-4.5": props.size !== "small",
+            "h-7.5 px-3.5": props.size === "small",
+            "bg-accent-primary c-white": !following() && !send.sending(),
+            "border border-primary bg-primary": following() && !send.sending(),
+            "c-danger": unfollowing(),
+            "c-primary": following() && !unfollowing(),
+            "c-secondary bg-secondary": send.sending(),
+          }}
+          disabled={send.sending()}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          onFocus={() => setHover(true)}
+          onBlur={() => setHover(false)}
+          onClick={() =>
+            void send.run(() => actions().setFollow(props.pubkey, !following()))
+          }
+        >
+          <Switch>
+            <Match when={send.sending()}>
+              <Label>送信中…</Label>
+            </Match>
+            <Match when={unfollowing()}>
+              <Label icon="i-material-symbols:close-rounded">
+                フォロー解除
+              </Label>
+            </Match>
+            <Match when={following()}>
+              <Label icon="i-material-symbols:check-rounded">フォロー中</Label>
+            </Match>
+            <Match when={true}>
+              <Label>フォロー</Label>
+            </Match>
+          </Switch>
+        </button>
       )}
     </Show>
   );

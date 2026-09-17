@@ -9,6 +9,7 @@ import {
   applyColorScheme,
   applyPalette,
 } from "../src/theme";
+import { ErrorToaster } from "../src/toast";
 
 let stopColorScheme = () => {};
 
@@ -73,6 +74,8 @@ const preview: Preview = {
       return (
         <div class="c-primary min-h-screen bg-primary font-sans">
           <Story />
+          {/* 失敗の知らせはアプリと同じくトーストに出る。ストーリーでも同じ場所に出す。 */}
+          <ErrorToaster />
         </div>
       );
     }),

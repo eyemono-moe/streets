@@ -9,7 +9,8 @@ const ProfileList: Component<{
 }> = (props) => (
   <Switch>
     <Match when={props.people.length > 0}>
-      <div class="flex flex-col gap-px bg-tertiary pb-px">
+      {/* 上下にも 1px。ヘッダー（や重なりの縁）との境目を見せる。 */}
+      <div class="flex flex-col gap-px bg-tertiary py-px">
         <For each={props.people}>
           {(pubkey) => <ProfileRow pubkey={pubkey} />}
         </For>
