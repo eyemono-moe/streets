@@ -124,3 +124,23 @@ describe("deckUiTransition", () => {
     expect(emptyDeckUi()).not.toBe(emptyDeckUi());
   });
 });
+
+describe("設定のダイアログ", () => {
+  it("開くとパネルは閉じ、閉じると元に戻る", () => {
+    const opened = run(
+      { type: "deck/open-panel", panel: "compose" },
+      { type: "deck/open-settings" },
+    );
+    expect(opened).toMatchObject({ settingsOpen: true, panel: undefined });
+    expect(
+      deckUiTransition(opened, { type: "deck/close-settings" }).settingsOpen,
+    ).toBe(false);
+  });
+
+  it("開いていないときに閉じても、状態は変わらない", () => {
+    const state = emptyDeckUi();
+    expect(deckUiTransition(state, { type: "deck/close-settings" })).toBe(
+      state,
+    );
+  });
+});

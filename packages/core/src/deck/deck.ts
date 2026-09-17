@@ -88,7 +88,15 @@ export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7];
  * `version` は NIP-78 移行のために残す (無いと壊れているのか形が違う
  * だけか区別できない)。version 1 は開発者の手元にしか無いため移行コードは書かない。
  */
-export type Deck = { version: 2; columns: ColumnDef[] };
+export type Deck = {
+  version: 2;
+  columns: ColumnDef[];
+  /** 見た目のうち、アカウントに保存するもの（どの端末でも同じ色にする）。無ければ既定の色。 */
+  appearance?: DeckAppearance;
+};
+
+/** テーマ色の元になる 2 色。50〜950 の段は画面側がこの 2 色から作る。`#rrggbb`。 */
+export type DeckAppearance = { accent: string; ui: string };
 
 /**
  * localStorage キーの接頭辞。単独では使わない —— pubkey を継ぎ足さないと、
@@ -219,9 +227,16 @@ const columnDefSchema = v.object({
   ),
 });
 
+const hexColorSchema = v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/));
+
 const deckSchema = v.object({
   version: v.literal(2),
   columns: v.array(columnDefSchema),
+  // 色が壊れていても、デッキ（カラムの並び）ごと捨てない。色だけ既定に戻す。
+  appearance: v.fallback(
+    v.optional(v.object({ accent: hexColorSchema, ui: hexColorSchema })),
+    undefined,
+  ),
 });
 
 const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {

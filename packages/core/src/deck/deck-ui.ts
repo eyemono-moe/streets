@@ -13,11 +13,15 @@ export type DeckUiState = {
   active: string | undefined;
   /** 並べ替えのために掴んでいるカラム。 */
   dragging: string | undefined;
+  /** 設定のダイアログを開いているか。 */
+  settingsOpen: boolean;
 };
 
 export type DeckUiEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
+  | { type: "deck/open-settings" }
+  | { type: "deck/close-settings" }
   | { type: "deck/select-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
   | { type: "deck/drag-start"; id: string }
@@ -37,6 +41,7 @@ export const emptyDeckUi = (): DeckUiState => ({
   settingsFor: undefined,
   active: undefined,
   dragging: undefined,
+  settingsOpen: false,
 });
 
 export const deckUiTransition = (
@@ -48,6 +53,11 @@ export const deckUiTransition = (
       return { ...state, panel: event.panel };
     case "deck/close-panel":
       return state.panel === undefined ? state : { ...state, panel: undefined };
+    case "deck/open-settings":
+      // 設定はデッキの上に開くダイアログ。パネルは閉じる（狭い画面ではパネルが全面を覆う）。
+      return { ...state, settingsOpen: true, panel: undefined };
+    case "deck/close-settings":
+      return state.settingsOpen ? { ...state, settingsOpen: false } : state;
     case "deck/select-column":
       // タブを選んだらパネルは閉じる。狭い画面ではパネルがカラムを覆っている。
       return { ...state, active: event.id, panel: undefined };

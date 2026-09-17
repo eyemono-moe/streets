@@ -79,11 +79,17 @@ export const Sidebar: Component<{
         />
       </button>
       <span class="flex-1" />
-      <NavButton
-        label="設定"
-        icon="i-material-symbols:settings-outline-rounded"
-        size="sidebar"
-      />
+      <button
+        type="button"
+        aria-label="設定"
+        class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+        onClick={() => dispatch({ type: "deck/open-settings" })}
+      >
+        <span
+          class="i-material-symbols:settings-outline-rounded size-5.5"
+          aria-hidden="true"
+        />
+      </button>
       <AccountMenu pubkey={props.pubkey} onLogout={props.onLogout} />
     </nav>
   );

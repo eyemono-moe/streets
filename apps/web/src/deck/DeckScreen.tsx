@@ -33,6 +33,13 @@ import { setDiagnostics } from "../devtools/diagnostics";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
+import SettingsDialog from "../settings/SettingsDialog";
+import {
+  DEFAULT_APPEARANCE,
+  applyColors,
+  savedColorScheme,
+  setColorScheme,
+} from "../theme";
 import { Mediates, type UiEvent } from "../ui-events";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
@@ -135,6 +142,13 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     scrollToEnd();
   };
 
+  // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
+  const [scheme, setScheme] = createSignal(savedColorScheme());
+  const appearance = () => deckStore.value()?.appearance ?? DEFAULT_APPEARANCE;
+  createEffect(() => applyColors(appearance()));
+  // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
+  onCleanup(() => applyColors(DEFAULT_APPEARANCE));
+
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
@@ -174,6 +188,21 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
       }
       case "deck/close-temp":
         navigate("/");
+        return true;
+      case "deck/open-settings":
+      case "deck/close-settings":
+        applyUi(event);
+        return true;
+      case "deck/set-color-scheme":
+        setScheme(event.scheme);
+        setColorScheme(event.scheme);
+        return true;
+      case "deck/preview-appearance":
+        applyColors(event.appearance);
+        return true;
+      case "deck/set-appearance":
+        applyColors(event.appearance);
+        deckStore.update((deck) => ({ ...deck, appearance: event.appearance }));
         return true;
       default:
         return false;
@@ -454,6 +483,12 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               </div>
             </Match>
           </Switch>
+          <SettingsDialog
+            open={ui.settingsOpen}
+            wide={isWide()}
+            scheme={scheme()}
+            appearance={appearance()}
+          />
         </Mediates>
       </ActionsMediator>
     </EventActionsProvider>

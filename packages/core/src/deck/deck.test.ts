@@ -446,3 +446,23 @@ describe("groupsNotifications", () => {
     ).toBe(false);
   });
 });
+
+describe("デッキの見た目（appearance）", () => {
+  it("色を保存して読み戻せる", () => {
+    const withColors: Deck = {
+      ...deck,
+      appearance: { accent: "#8440BD", ui: "#302170" },
+    };
+    expect(loadDeck(saveDeck(withColors))).toEqual(withColors);
+  });
+
+  it("色が壊れていても、カラムの並びは捨てずに色だけ既定に戻す", () => {
+    const broken = JSON.stringify({
+      ...deck,
+      appearance: { accent: "purple", ui: "#302170" },
+    });
+    const loaded = loadDeck(broken);
+    expect(loaded?.columns).toEqual(deck.columns);
+    expect(loaded?.appearance).toBeUndefined();
+  });
+});
