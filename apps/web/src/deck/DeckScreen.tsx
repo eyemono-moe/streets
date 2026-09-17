@@ -21,6 +21,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { EventActionsProvider, createWriteStack } from "../actions";
+import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
 import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
@@ -210,35 +211,202 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
 
   return (
     <EventActionsProvider value={write.actions}>
-      <Mediates handle={handle}>
-        <Switch>
-          <Match when={warmUp.error}>
-            <p role="alert" class="c-danger p-4 text-caption">
-              フォローリストを取得できませんでした。
-            </p>
-          </Match>
-          <Match when={deckStore.value() === undefined}>
-            <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
-          </Match>
-          <Match when={isWide()}>
-            <div class="flex h-dvh">
-              <Sidebar
-                pubkey={viewer}
-                onLogout={props.session.logout}
-                onAddColumn={() => setPanel("add-column")}
-                onCompose={() => setPanel("compose")}
-              />
-              {panelView(false)}
-              <div class="flex min-w-0 flex-1 flex-col">
-                <DeckSyncNotice store={deckStore} />
-                {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-                <div
-                  ref={columnsEl}
-                  class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
-                >
+      {/* デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。 */}
+      <ActionsMediator actions={write.actions}>
+        <Mediates handle={handle}>
+          <Switch>
+            <Match when={warmUp.error}>
+              <p role="alert" class="c-danger p-4 text-caption">
+                フォローリストを取得できませんでした。
+              </p>
+            </Match>
+            <Match when={deckStore.value() === undefined}>
+              <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
+            </Match>
+            <Match when={isWide()}>
+              <div class="flex h-dvh">
+                <Sidebar
+                  pubkey={viewer}
+                  onLogout={props.session.logout}
+                  onAddColumn={() => setPanel("add-column")}
+                  onCompose={() => setPanel("compose")}
+                />
+                {panelView(false)}
+                <div class="flex min-w-0 flex-1 flex-col">
+                  <DeckSyncNotice store={deckStore} />
+                  {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+                  <div
+                    ref={columnsEl}
+                    class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
+                  >
+                    <Show when={temp()}>
+                      {(column) => (
+                        <div class="h-full w-95 shrink-0">
+                          <Column
+                            column={column()}
+                            {...columnControls(column())}
+                            temporary={temporary}
+                            {...shared}
+                          />
+                        </div>
+                      )}
+                    </Show>
+                    <Show when={params.entity && !temp()}>
+                      <div class="h-full w-95 shrink-0 bg-primary p-4">
+                        <p role="alert" class="c-secondary text-caption">
+                          このリンクは読めませんでした：{params.entity}
+                        </p>
+                      </div>
+                    </Show>
+                    <For each={columns()}>
+                      {(column) => (
+                        <div
+                          class="h-full shrink-0"
+                          classList={{
+                            "w-80": column.width === "s",
+                            "w-95":
+                              column.width !== "s" && column.width !== "l",
+                            "w-110": column.width === "l",
+                            "opacity-50": dragging() === column.id,
+                          }}
+                          onDragOver={(event) => event.preventDefault()}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            dropOn(column.id);
+                          }}
+                        >
+                          <Column
+                            column={column}
+                            {...columnControls(column)}
+                            onDragStart={(event) => {
+                              setDragging(column.id);
+                              event.dataTransfer?.setData(
+                                "text/plain",
+                                column.id,
+                              );
+                            }}
+                            {...shared}
+                          />
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </div>
+            </Match>
+            <Match when={true}>
+              <div class="relative flex h-dvh flex-col">
+                <div class="h-0.75 shrink-0 bg-accent-primary" />
+                <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
                   <Show when={temp()}>
                     {(column) => (
-                      <div class="h-full w-95 shrink-0">
+                      <button
+                        type="button"
+                        class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
+                        classList={{
+                          "c-primary font-600": active() === "temp",
+                          "c-secondary": active() !== "temp",
+                        }}
+                        onClick={() => {
+                          setActive("temp");
+                          setPanel(undefined);
+                        }}
+                      >
+                        <span class="flex items-center gap-1.5">
+                          <span
+                            class={`size-4 ${columnMeta(column()).icon}`}
+                            aria-hidden="true"
+                          />
+                          {column().title}
+                        </span>
+                        <span
+                          class="h-0.5 w-6 rounded-full"
+                          classList={{
+                            "bg-accent-primary": active() === "temp",
+                          }}
+                        />
+                      </button>
+                    )}
+                  </Show>
+                  <For each={columns()}>
+                    {(column) => (
+                      <button
+                        type="button"
+                        class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
+                        classList={{
+                          "c-primary font-600":
+                            panel() === undefined && active() === column.id,
+                          "c-secondary":
+                            panel() !== undefined || active() !== column.id,
+                        }}
+                        onClick={() => {
+                          setActive(column.id);
+                          setPanel(undefined);
+                        }}
+                      >
+                        <span class="flex items-center gap-1.5">
+                          <span
+                            class={`size-4 ${columnMeta(column).icon}`}
+                            aria-hidden="true"
+                          />
+                          {column.title}
+                        </span>
+                        <span
+                          class="h-0.5 w-6 rounded-full"
+                          classList={{
+                            "bg-accent-primary":
+                              panel() === undefined && active() === column.id,
+                          }}
+                        />
+                      </button>
+                    )}
+                  </For>
+                  <button
+                    type="button"
+                    aria-label="カラムを追加"
+                    class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+                    onClick={() => setPanel("add-column")}
+                  >
+                    <span
+                      class="i-material-symbols:add-rounded size-4.5"
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <Show
+                    when={columns().find((column) => column.id === active())}
+                  >
+                    {(column) => (
+                      <button
+                        type="button"
+                        aria-label="カラムの設定"
+                        aria-expanded={settingsFor() === column().id}
+                        class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+                        onClick={() =>
+                          columnControls(column()).onToggleSettings()
+                        }
+                      >
+                        <span
+                          class="i-material-symbols:more-horiz size-4.5"
+                          aria-hidden="true"
+                        />
+                      </button>
+                    )}
+                  </Show>
+                </div>
+                <DeckSyncNotice store={deckStore} />
+                {/*
+              隠れたカラムも描いたままにする。取り外すと購読ごと消え、
+              タブを戻すたびに取得し直しになり、スクロール位置も失われる。
+            */}
+                <div class="min-h-0 flex-1">
+                  <Show when={temp()}>
+                    {(column) => (
+                      <div
+                        class="h-full"
+                        classList={{
+                          hidden: panel() !== undefined || active() !== "temp",
+                        }}
+                      >
                         <Column
                           column={column()}
                           {...columnControls(column())}
@@ -248,194 +416,36 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                       </div>
                     )}
                   </Show>
-                  <Show when={params.entity && !temp()}>
-                    <div class="h-full w-95 shrink-0 bg-primary p-4">
-                      <p role="alert" class="c-secondary text-caption">
-                        このリンクは読めませんでした：{params.entity}
-                      </p>
-                    </div>
-                  </Show>
                   <For each={columns()}>
                     {(column) => (
                       <div
-                        class="h-full shrink-0"
+                        class="h-full"
                         classList={{
-                          "w-80": column.width === "s",
-                          "w-95": column.width !== "s" && column.width !== "l",
-                          "w-110": column.width === "l",
-                          "opacity-50": dragging() === column.id,
-                        }}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={(event) => {
-                          event.preventDefault();
-                          dropOn(column.id);
+                          hidden:
+                            panel() !== undefined || active() !== column.id,
                         }}
                       >
                         <Column
                           column={column}
                           {...columnControls(column)}
-                          onDragStart={(event) => {
-                            setDragging(column.id);
-                            event.dataTransfer?.setData(
-                              "text/plain",
-                              column.id,
-                            );
-                          }}
+                          chrome={false}
                           {...shared}
                         />
                       </div>
                     )}
                   </For>
+                  {panelView(true)}
                 </div>
-              </div>
-            </div>
-          </Match>
-          <Match when={true}>
-            <div class="relative flex h-dvh flex-col">
-              <div class="h-0.75 shrink-0 bg-accent-primary" />
-              <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
-                <Show when={temp()}>
-                  {(column) => (
-                    <button
-                      type="button"
-                      class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                      classList={{
-                        "c-primary font-600": active() === "temp",
-                        "c-secondary": active() !== "temp",
-                      }}
-                      onClick={() => {
-                        setActive("temp");
-                        setPanel(undefined);
-                      }}
-                    >
-                      <span class="flex items-center gap-1.5">
-                        <span
-                          class={`size-4 ${columnMeta(column()).icon}`}
-                          aria-hidden="true"
-                        />
-                        {column().title}
-                      </span>
-                      <span
-                        class="h-0.5 w-6 rounded-full"
-                        classList={{ "bg-accent-primary": active() === "temp" }}
-                      />
-                    </button>
-                  )}
+                {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
+                <Show when={panel() === undefined}>
+                  <ComposeFab onCompose={() => setPanel("compose")} />
                 </Show>
-                <For each={columns()}>
-                  {(column) => (
-                    <button
-                      type="button"
-                      class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                      classList={{
-                        "c-primary font-600":
-                          panel() === undefined && active() === column.id,
-                        "c-secondary":
-                          panel() !== undefined || active() !== column.id,
-                      }}
-                      onClick={() => {
-                        setActive(column.id);
-                        setPanel(undefined);
-                      }}
-                    >
-                      <span class="flex items-center gap-1.5">
-                        <span
-                          class={`size-4 ${columnMeta(column).icon}`}
-                          aria-hidden="true"
-                        />
-                        {column.title}
-                      </span>
-                      <span
-                        class="h-0.5 w-6 rounded-full"
-                        classList={{
-                          "bg-accent-primary":
-                            panel() === undefined && active() === column.id,
-                        }}
-                      />
-                    </button>
-                  )}
-                </For>
-                <button
-                  type="button"
-                  aria-label="カラムを追加"
-                  class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                  onClick={() => setPanel("add-column")}
-                >
-                  <span
-                    class="i-material-symbols:add-rounded size-4.5"
-                    aria-hidden="true"
-                  />
-                </button>
-                <Show when={columns().find((column) => column.id === active())}>
-                  {(column) => (
-                    <button
-                      type="button"
-                      aria-label="カラムの設定"
-                      aria-expanded={settingsFor() === column().id}
-                      class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                      onClick={() =>
-                        columnControls(column()).onToggleSettings()
-                      }
-                    >
-                      <span
-                        class="i-material-symbols:more-horiz size-4.5"
-                        aria-hidden="true"
-                      />
-                    </button>
-                  )}
-                </Show>
+                <TabBar pubkey={viewer} onLogout={props.session.logout} />
               </div>
-              <DeckSyncNotice store={deckStore} />
-              {/*
-              隠れたカラムも描いたままにする。取り外すと購読ごと消え、
-              タブを戻すたびに取得し直しになり、スクロール位置も失われる。
-            */}
-              <div class="min-h-0 flex-1">
-                <Show when={temp()}>
-                  {(column) => (
-                    <div
-                      class="h-full"
-                      classList={{
-                        hidden: panel() !== undefined || active() !== "temp",
-                      }}
-                    >
-                      <Column
-                        column={column()}
-                        {...columnControls(column())}
-                        temporary={temporary}
-                        {...shared}
-                      />
-                    </div>
-                  )}
-                </Show>
-                <For each={columns()}>
-                  {(column) => (
-                    <div
-                      class="h-full"
-                      classList={{
-                        hidden: panel() !== undefined || active() !== column.id,
-                      }}
-                    >
-                      <Column
-                        column={column}
-                        {...columnControls(column)}
-                        chrome={false}
-                        {...shared}
-                      />
-                    </div>
-                  )}
-                </For>
-                {panelView(true)}
-              </div>
-              {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
-              <Show when={panel() === undefined}>
-                <ComposeFab onCompose={() => setPanel("compose")} />
-              </Show>
-              <TabBar pubkey={viewer} onLogout={props.session.logout} />
-            </div>
-          </Match>
-        </Switch>
-      </Mediates>
+            </Match>
+          </Switch>
+        </Mediates>
+      </ActionsMediator>
     </EventActionsProvider>
   );
 };

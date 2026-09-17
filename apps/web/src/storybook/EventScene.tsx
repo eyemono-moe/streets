@@ -16,6 +16,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { type ParentComponent, Show, createSignal, onCleanup } from "solid-js";
 import { type EventActions, EventActionsProvider } from "../actions";
+import { ActionsMediator } from "../actions-mediator";
 import { ReadLayerProvider } from "../read-layer";
 import type { StoryAuthor } from "./story-events";
 
@@ -145,17 +146,20 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   return (
     <ReadLayerProvider value={{ store, events, profiles, engagements }}>
       <Show when={props.scene.viewer} fallback={props.children}>
-        {(viewer) => (
-          <EventActionsProvider
-            value={storyActions(
-              store,
-              viewer(),
-              props.scene.failWrites ?? false,
-            )}
-          >
-            {props.children}
-          </EventActionsProvider>
-        )}
+        {(viewer) => {
+          const actions = storyActions(
+            store,
+            viewer(),
+            props.scene.failWrites ?? false,
+          );
+          return (
+            <EventActionsProvider value={actions}>
+              <ActionsMediator actions={actions}>
+                {props.children}
+              </ActionsMediator>
+            </EventActionsProvider>
+          );
+        }}
       </Show>
     </ReadLayerProvider>
   );

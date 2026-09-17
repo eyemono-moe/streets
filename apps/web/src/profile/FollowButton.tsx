@@ -1,6 +1,7 @@
 import { type Component, Match, Show, Switch, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
-import { useSend } from "../note/use-send";
+import { useSending } from "../actions-mediator";
+import { useDispatch } from "../ui-events";
 
 /** 一覧の中では小さい方を使う（Penpot: Follow states の list）。 */
 export type FollowButtonSize = "normal" | "small";
@@ -25,54 +26,51 @@ const FollowButton: Component<{
   size?: FollowButtonSize;
 }> = (props) => {
   const actions = useEventActions();
-  const send = useSend("フォローの状態を保存できませんでした");
+  const dispatch = useDispatch();
   const [hover, setHover] = createSignal(false);
   const following = () => actions?.following(props.pubkey) === true;
+  const follow = () =>
+    ({ type: "user/follow", pubkey: props.pubkey, on: !following() }) as const;
+  const sending = useSending(follow);
   const unfollowing = () => following() && hover();
 
   return (
     // 自分自身と、ログインしていないときは出さない。押せない操作を置かない。
-    <Show when={actions?.viewer !== props.pubkey ? actions : undefined}>
-      {(actions) => (
-        <button
-          type="button"
-          class="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full font-600 text-caption disabled:cursor-default"
-          classList={{
-            "h-8.5 px-4.5": props.size !== "small",
-            "h-7.5 px-3.5": props.size === "small",
-            "bg-accent-primary c-white": !following() && !send.sending(),
-            "border border-primary bg-primary": following() && !send.sending(),
-            "c-danger": unfollowing(),
-            "c-primary": following() && !unfollowing(),
-            "c-secondary bg-secondary": send.sending(),
-          }}
-          disabled={send.sending()}
-          onMouseEnter={() => setHover(true)}
-          onMouseLeave={() => setHover(false)}
-          onFocus={() => setHover(true)}
-          onBlur={() => setHover(false)}
-          onClick={() =>
-            void send.run(() => actions().setFollow(props.pubkey, !following()))
-          }
-        >
-          <Switch>
-            <Match when={send.sending()}>
-              <Label>送信中…</Label>
-            </Match>
-            <Match when={unfollowing()}>
-              <Label icon="i-material-symbols:close-rounded">
-                フォロー解除
-              </Label>
-            </Match>
-            <Match when={following()}>
-              <Label icon="i-material-symbols:check-rounded">フォロー中</Label>
-            </Match>
-            <Match when={true}>
-              <Label>フォロー</Label>
-            </Match>
-          </Switch>
-        </button>
-      )}
+    <Show when={actions !== undefined && actions.viewer !== props.pubkey}>
+      <button
+        type="button"
+        class="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full font-600 text-caption disabled:cursor-default"
+        classList={{
+          "h-8.5 px-4.5": props.size !== "small",
+          "h-7.5 px-3.5": props.size === "small",
+          "bg-accent-primary c-white": !following() && !sending(),
+          "border border-primary bg-primary": following() && !sending(),
+          "c-danger": unfollowing(),
+          "c-primary": following() && !unfollowing(),
+          "c-secondary bg-secondary": sending(),
+        }}
+        disabled={sending()}
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        onFocus={() => setHover(true)}
+        onBlur={() => setHover(false)}
+        onClick={() => dispatch(follow())}
+      >
+        <Switch>
+          <Match when={sending()}>
+            <Label>送信中…</Label>
+          </Match>
+          <Match when={unfollowing()}>
+            <Label icon="i-material-symbols:close-rounded">フォロー解除</Label>
+          </Match>
+          <Match when={following()}>
+            <Label icon="i-material-symbols:check-rounded">フォロー中</Label>
+          </Match>
+          <Match when={true}>
+            <Label>フォロー</Label>
+          </Match>
+        </Switch>
+      </button>
     </Show>
   );
 };

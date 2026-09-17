@@ -16,10 +16,11 @@ import {
   createSignal,
 } from "solid-js";
 import { useEventActions } from "../actions";
+import { useSending } from "../actions-mediator";
 import { useReadLayer } from "../read-layer";
+import { useDispatch } from "../ui-events";
 import Name from "./Name";
 import { useEngagementChanges } from "./use-engagement-changes";
-import { useSend } from "./use-send";
 
 const inputOf = (content: ReactionContent): ReactionInput =>
   content.type === "emoji"
@@ -95,7 +96,13 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
     [],
     { equals: sameReactionGroups },
   );
-  const send = useSend("リアクションを送れませんでした");
+  const dispatch = useDispatch();
+  // 送っている途中は、どの絵文字も押せなくする（1 件の投稿に kind:7 を 1 件ずつ送る）。
+  const sending = useSending(() => ({
+    type: "note/react",
+    target: props.event,
+    input: { type: "like" },
+  }));
   const [expanded, setExpanded] = createSignal(false);
 
   return (
@@ -136,11 +143,13 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                         !mine(),
                     }}
                     // 取り消し（kind:5）はまだ作らないので、自分が付けた絵文字は押せない。
-                    disabled={!actions || mine() || send.sending()}
+                    disabled={!actions || mine() || sending()}
                     onClick={() =>
-                      void send.run(async () =>
-                        actions?.react(props.event, inputOf(group.content)),
-                      )
+                      dispatch({
+                        type: "note/react",
+                        target: props.event,
+                        input: inputOf(group.content),
+                      })
                     }
                   >
                     <Mark content={group.content} mine={mine()} />
