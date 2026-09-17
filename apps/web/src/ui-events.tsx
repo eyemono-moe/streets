@@ -1,5 +1,7 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type JSX,
   type ParentComponent,
@@ -13,8 +15,17 @@ import {
  */
 export type UiEvent =
   | ColumnStackEvent
+  | ActionEvent
   /** 重ねた段を、デッキの正規のカラムとして開き直す。 */
   | { type: "deck/add-column"; column: ColumnDef };
+
+/** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
+export type ActionEvent =
+  | { type: "note/repost"; target: NostrEvent }
+  | { type: "note/react"; target: NostrEvent; input: ReactionInput }
+  /** `on` は押した後に付いているべき状態。 */
+  | { type: "note/bookmark"; target: NostrEvent; on: boolean }
+  | { type: "user/follow"; pubkey: string; on: boolean };
 
 type Dispatch = (event: UiEvent) => void;
 

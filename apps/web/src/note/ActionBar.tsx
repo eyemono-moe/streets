@@ -2,10 +2,11 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { eventEngagements } from "@streets/core/view/event-engagements";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
+import { useSending } from "../actions-mediator";
 import { useReadLayer } from "../read-layer";
+import { useDispatch } from "../ui-events";
 import ReplyDialog from "./ReplyDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
-import { useSend } from "./use-send";
 
 const useEngagements = (event: () => NostrEvent, viewer: string) => {
   const { store } = useReadLayer();
@@ -50,10 +51,25 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
       {(actions) => {
         const engagement = useEngagements(() => props.event, actions().viewer);
         const [replyOpen, setReplyOpen] = createSignal(false);
-        const repost = useSend("リポストできませんでした");
-        const like = useSend("リアクションを送れませんでした");
-        const bookmark = useSend("ブックマークを保存できませんでした");
+        const dispatch = useDispatch();
         const bookmarked = () => actions().bookmarked(props.event.id);
+        const repost = () =>
+          ({ type: "note/repost", target: props.event }) as const;
+        const like = () =>
+          ({
+            type: "note/react",
+            target: props.event,
+            input: { type: "like" },
+          }) as const;
+        const bookmark = () =>
+          ({
+            type: "note/bookmark",
+            target: props.event,
+            on: !bookmarked(),
+          }) as const;
+        const reposting = useSending(repost);
+        const liking = useSending(like);
+        const bookmarking = useSending(bookmark);
 
         return (
           <>
@@ -71,10 +87,8 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 icon="i-material-symbols:repeat-rounded"
                 active={engagement().viewerReposted}
                 // 取り消し（kind:5）はまだ作らないので、一度押したら押せなくする。
-                disabled={repost.sending() || engagement().viewerReposted}
-                onClick={() =>
-                  void repost.run(() => actions().repost(props.event))
-                }
+                disabled={reposting() || engagement().viewerReposted}
+                onClick={() => dispatch(repost())}
               />
               <Action
                 label={engagement().viewerLiked ? "いいね済み" : "いいね"}
@@ -85,12 +99,8 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 }
                 active={engagement().viewerLiked}
                 count={engagement().likes}
-                disabled={like.sending() || engagement().viewerLiked}
-                onClick={() =>
-                  void like.run(() =>
-                    actions().react(props.event, { type: "like" }),
-                  )
-                }
+                disabled={liking() || engagement().viewerLiked}
+                onClick={() => dispatch(like())}
               />
               <Action
                 label="Zap（未対応）"
@@ -105,12 +115,8 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                     : "i-material-symbols:bookmark-outline-rounded"
                 }
                 active={bookmarked()}
-                disabled={bookmark.sending()}
-                onClick={() =>
-                  void bookmark.run(() =>
-                    actions().setBookmark(props.event, !bookmarked()),
-                  )
-                }
+                disabled={bookmarking()}
+                onClick={() => dispatch(bookmark())}
               />
             </div>
             <Show when={replyOpen()}>
