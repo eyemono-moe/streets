@@ -97,9 +97,10 @@ export default defineConfig({
         "collapse-up": "{from{height:var(--height)}to{height:0}}",
         "stack-in":
           "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
-        // スワイプで引き下げた位置（Drawer の --drawer-translate-y）から消える。
+        // その場で消える。to に transform を書かないので、終わりの位置は Drawer が inline で
+        // 当てている transform（スワイプで引き下げた位置）になり、そこから動かない。
         "stack-out":
-          "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0;transform:translate3d(0,calc(var(--drawer-translate-y,0px) + 24px),0)}}",
+          "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0}}",
         "panel-in":
           "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
       },
