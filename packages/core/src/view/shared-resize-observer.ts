@@ -5,10 +5,11 @@
  * 監視コストに乗るので、複数要素を監視できる 1 個を共有する。`undefined`
  * を渡せるのは Solid の `ref` がマウント後にしか埋まらないため。
  */
-type HeightListener = (height: number) => void;
+type SizeListener = (size: number) => void;
 
 let observer: ResizeObserver | undefined;
-const listeners = new WeakMap<Element, HeightListener>();
+const heightListeners = new WeakMap<Element, SizeListener>();
+const widthListeners = new WeakMap<Element, SizeListener>();
 
 const ensureObserver = (): ResizeObserver | undefined => {
   if (observer) return observer;
@@ -17,24 +18,35 @@ const ensureObserver = (): ResizeObserver | undefined => {
   observer = new ResizeObserver((entries) => {
     for (const entry of entries) {
       // `borderBoxSize` はレイアウト済み配列だが、取れないブラウザ向けに `contentRect` へ落とす。
-      const height =
-        entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-      listeners.get(entry.target)?.(height);
+      const box = entry.borderBoxSize?.[0];
+      heightListeners.get(entry.target)?.(
+        box?.blockSize ?? entry.contentRect.height,
+      );
+      widthListeners.get(entry.target)?.(
+        box?.inlineSize ?? entry.contentRect.width,
+      );
     }
   });
   return observer;
 };
 
-export const observeHeight = (
-  target: Element,
-  listener: HeightListener,
-): (() => void) => {
-  const shared = ensureObserver();
-  if (!shared) return () => {};
-  listeners.set(target, listener);
-  shared.observe(target);
-  return () => {
-    listeners.delete(target);
-    shared.unobserve(target);
+const observeWith =
+  (listeners: WeakMap<Element, SizeListener>) =>
+  (target: Element, listener: SizeListener): (() => void) => {
+    const shared = ensureObserver();
+    if (!shared) return () => {};
+    listeners.set(target, listener);
+    shared.observe(target);
+    return () => {
+      listeners.delete(target);
+      // 高さと幅の両方を見ている要素は、片方を外しても監視を続ける。
+      if (!heightListeners.has(target) && !widthListeners.has(target)) {
+        shared.unobserve(target);
+      }
+    };
   };
-};
+
+export const observeHeight = observeWith(heightListeners);
+
+/** 幅に合わせて並べる数を変える部品（アイコンの列など）が使う。 */
+export const observeWidth = observeWith(widthListeners);

@@ -8,7 +8,11 @@ import {
   emptyColumnStack,
   openLayers,
 } from "@streets/core/deck/column-stack";
-import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  columnShow,
+  groupsNotifications,
+} from "@streets/core/deck/deck";
 import { excludeOwnActions } from "@streets/core/deck/notification-filter";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
@@ -16,6 +20,11 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { visibleColumnItems } from "@streets/core/view/column-items";
+import {
+  type NotificationRow,
+  actionTarget,
+  notificationRows,
+} from "@streets/core/view/notification-rows";
 import {
   type Component,
   For,
@@ -26,6 +35,7 @@ import {
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setDiagnostics } from "../devtools/diagnostics";
+import ActionNotice from "../note/ActionNotice";
 import Event from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
@@ -228,6 +238,23 @@ const Column: Component<ColumnProps> = (props) => {
       ? excludeOwnActions(section.items(), props.viewer)
       : section.items();
   const items = () => visibleColumnItems(received(), show(), facets());
+
+  // 通知は行に並べ直す（同じノートへの連続したリアクション・リポストを 1 行にまとめる）。
+  // 行は key ごとに突き合わせる。まとまりに 1 件足されるたびに行を作り直すと、
+  // 対象のノートを取り直し、並べたアイコンもちらつく。
+  const isNotifications = () => props.column.source.kind === "notifications";
+  const [rows, setRows] = createStore<{ list: NotificationRow[] }>({
+    list: [],
+  });
+  createEffect(() => {
+    if (!isNotifications()) return;
+    setRows(
+      "list",
+      reconcile(notificationRows(items(), groupsNotifications(props.column)), {
+        key: "key",
+      }),
+    );
+  });
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
   const size = () =>
@@ -269,11 +296,58 @@ const Column: Component<ColumnProps> = (props) => {
       <Match when={items().length > 0}>
         {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
         <div class="flex flex-col gap-px bg-tertiary pb-px">
-          <For each={items()}>
-            {(event) => (
-              <Event event={event} size={size()} expandMedia={expandMedia()} />
-            )}
-          </For>
+          <Show
+            when={isNotifications()}
+            fallback={
+              <For each={items()}>
+                {(event) => (
+                  <Event
+                    event={event}
+                    size={size()}
+                    expandMedia={expandMedia()}
+                  />
+                )}
+              </For>
+            }
+          >
+            <For each={rows.list}>
+              {(row) => (
+                <Show
+                  when={row.type === "group" && row}
+                  fallback={
+                    <Show when={row.type === "event" && row}>
+                      {(single) => (
+                        <Show
+                          when={actionTarget(single().event)}
+                          fallback={
+                            <Event
+                              event={single().event}
+                              size={size()}
+                              expandMedia={expandMedia()}
+                            />
+                          }
+                        >
+                          <ActionNotice
+                            events={[single().event]}
+                            size={size()}
+                            expandMedia={expandMedia()}
+                          />
+                        </Show>
+                      )}
+                    </Show>
+                  }
+                >
+                  {(group) => (
+                    <ActionNotice
+                      events={group().events}
+                      size={size()}
+                      expandMedia={expandMedia()}
+                    />
+                  )}
+                </Show>
+              )}
+            </For>
+          </Show>
         </div>
       </Match>
       <Match when={section.status().phase === "settled"}>

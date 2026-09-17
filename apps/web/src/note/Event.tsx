@@ -5,7 +5,6 @@ import {
   replyTarget,
   repostTarget,
 } from "@streets/core/nostr/event-refs";
-import { parseReaction } from "@streets/core/nostr/reaction";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   formatEventTime,
@@ -25,12 +24,13 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
+import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
 import Name from "./Name";
 import NoteText from "./NoteText";
-import ReactionList, { Mark } from "./ReactionList";
+import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
 
 /**
@@ -46,11 +46,6 @@ type ContentProps = {
   expandMedia?: boolean;
   /** 会話が続く向きを、アイコンから伸びる線で示す。 */
   threadLine?: "above" | "below" | "both";
-  /**
-   * 返信・リポスト・いいねなどのアクション列を出すか。リアクションの通知の中の元ノートは、
-   * 自分のノートなので出さない（右上のメニューは出す）。
-   */
-  actions?: boolean;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -303,7 +298,7 @@ const Note: Component<ContentProps> = (props) => {
       </For>
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
-      <Show when={props.size === "normal" && props.actions !== false}>
+      <Show when={props.size === "normal"}>
         <ReactionList event={props.event} />
         <ActionBar event={props.event} />
       </Show>
@@ -341,62 +336,6 @@ const Repost: Component<ContentProps> = (props) => (
   </>
 );
 
-const Reaction: Component<ContentProps> = (props) => {
-  const reaction = () => parseReaction(props.event);
-  return (
-    <>
-      <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
-        <span
-          class="i-material-symbols:favorite-outline-rounded size-3.5 shrink-0"
-          aria-hidden="true"
-        />
-        <span class="truncate">
-          <Name pubkey={props.event.pubkey} />
-        </span>
-        <Show
-          when={reaction()?.content}
-          fallback={<span class="shrink-0">がリアクション</span>}
-        >
-          {(content) => (
-            <Show
-              when={content().type !== "like"}
-              fallback={<span class="shrink-0">がいいね</span>}
-            >
-              <span class="shrink-0">が</span>
-              <span class="flex shrink-0 items-center">
-                <Mark content={content()} mine={false} />
-              </span>
-              <span class="shrink-0">でリアクション</span>
-            </Show>
-          )}
-        </Show>
-      </p>
-      <Show when={props.size === "normal"}>
-        <Show
-          when={reaction()}
-          fallback={<Notice>リアクションの対象が指定されていません</Notice>}
-        >
-          {(parsed) => (
-            <Lookup
-              target={{ id: parsed().targetId }}
-              missing="リアクションされたノートを読み込めませんでした"
-            >
-              {(event) => (
-                <EventContent
-                  event={event}
-                  size={props.size}
-                  expandMedia={props.expandMedia}
-                  actions={false}
-                />
-              )}
-            </Lookup>
-          )}
-        </Show>
-      </Show>
-    </>
-  );
-};
-
 const Unsupported: Component<ContentProps> = (props) => (
   <Row event={props.event} size={props.size}>
     <Notice>未対応のイベントです（kind:{props.event.kind}）</Notice>
@@ -411,18 +350,10 @@ const EventContent: Component<ContentProps> = (props) => (
         size={props.size}
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
-        actions={props.actions}
       />
     </Match>
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
       <Repost event={props.event} size={props.size} />
-    </Match>
-    <Match when={props.event.kind === 7}>
-      <Reaction
-        event={props.event}
-        size={props.size}
-        expandMedia={props.expandMedia}
-      />
     </Match>
   </Switch>
 );
@@ -438,6 +369,17 @@ const isInteractive = (target: EventTarget | null) =>
 const Event: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
   let downAt: { x: number; y: number } | undefined;
+
+  // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
+  if (props.event.kind === 7) {
+    return (
+      <ActionNotice
+        events={[props.event]}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
+    );
+  }
 
   return (
     <Frame

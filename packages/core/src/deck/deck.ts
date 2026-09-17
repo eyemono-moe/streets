@@ -47,7 +47,16 @@ export type ColumnDef = {
   show?: Partial<ColumnShow>;
   /** 画像を展開するか。何を流すかではなく、どう見せるかなので `show` とは分ける。 */
   expandMedia?: boolean;
+  /**
+   * 通知カラムで、同じノートへの連続したリアクション・リポストを 1 行にまとめるか。
+   * 保存された値が無いときはまとめる（`groupsNotifications`）。
+   */
+  groupNotifications?: boolean;
 };
+
+/** 通知をまとめるか。通知カラムだけが意味を持つ。 */
+export const groupsNotifications = (column: ColumnDef): boolean =>
+  column.source.kind === "notifications" && column.groupNotifications !== false;
 
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   replies: true,
@@ -198,6 +207,7 @@ const columnDefSchema = v.object({
   width: v.optional(v.picklist(["s", "m", "l"])),
   density: v.optional(v.picklist(["comfortable", "compact"])),
   expandMedia: v.optional(v.boolean()),
+  groupNotifications: v.optional(v.boolean()),
   show: v.optional(
     v.object({
       replies: v.optional(v.boolean()),
