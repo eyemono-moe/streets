@@ -9,6 +9,7 @@ import type {
 } from "@streets/core/deck/deck";
 import { columnShow } from "@streets/core/deck/deck";
 import { type Component, For, Show } from "solid-js";
+import { useDispatch } from "../ui-events";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id" | "source">>;
 
@@ -94,10 +95,11 @@ const ColumnSettings: Component<{
   column: ColumnDef;
   /** そのカラムで意味のある項目だけ。切っても何も起きない項目は出さない。 */
   facets: readonly ColumnFacet[];
-  onPatch: (patch: ColumnPatch) => void;
-  onRemove: () => void;
 }> = (props) => {
+  const dispatch = useDispatch();
   const show = () => columnShow(props.column);
+  const patch = (patch: ColumnPatch) =>
+    dispatch({ type: "deck/patch-column", id: props.column.id, patch });
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
@@ -107,9 +109,7 @@ const ColumnSettings: Component<{
           value={props.column.title}
           aria-label="カラム名"
           // 空のままにするとカラムが保存できないので、変更は入力のたびに送り、空は上流で弾く。
-          onInput={(event) =>
-            props.onPatch({ title: event.currentTarget.value })
-          }
+          onInput={(event) => patch({ title: event.currentTarget.value })}
         />
       </Field>
 
@@ -118,7 +118,7 @@ const ColumnSettings: Component<{
           label="幅"
           options={WIDTHS}
           current={props.column.width ?? "m"}
-          onSelect={(width) => props.onPatch({ width })}
+          onSelect={(width) => patch({ width })}
         />
       </Field>
 
@@ -127,14 +127,14 @@ const ColumnSettings: Component<{
           label="表示密度"
           options={DENSITIES}
           current={props.column.density ?? "comfortable"}
-          onSelect={(density) => props.onPatch({ density })}
+          onSelect={(density) => patch({ density })}
         />
       </Field>
 
       <Toggle
         label="画像・動画を展開"
         checked={props.column.expandMedia !== false}
-        onChange={(expandMedia) => props.onPatch({ expandMedia })}
+        onChange={(expandMedia) => patch({ expandMedia })}
       />
 
       <Show when={props.facets.length > 0}>
@@ -145,7 +145,7 @@ const ColumnSettings: Component<{
                 label={TOGGLE_LABELS[facet]}
                 checked={show()[facet]}
                 onChange={(checked) =>
-                  props.onPatch({
+                  patch({
                     show: { ...props.column.show, [facet]: checked },
                   })
                 }
@@ -158,7 +158,9 @@ const ColumnSettings: Component<{
       <button
         type="button"
         class="c-danger flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-2 border border-primary bg-primary font-600 text-caption"
-        onClick={() => props.onRemove()}
+        onClick={() =>
+          dispatch({ type: "deck/remove-column", id: props.column.id })
+        }
       >
         <span
           class="i-material-symbols:delete-outline-rounded size-4.5"

@@ -2,9 +2,9 @@ import {
   type ColumnPresetKind,
   buildColumn,
 } from "@streets/core/deck/column-presets";
-import type { ColumnDef } from "@streets/core/deck/deck";
 import { decodeNpub } from "@streets/core/nostr/nip19";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { useDispatch } from "../ui-events";
 
 type Preset = {
   kind: ColumnPresetKind;
@@ -67,9 +67,8 @@ const Row: Component<{
 );
 
 /** サイドバーのパネルに出す、カラムを追加するための中身。題名と閉じるはパネル側が持つ。 */
-const AddColumnPanel: Component<{ onAdd: (column: ColumnDef) => void }> = (
-  props,
-) => {
+const AddColumnPanel: Component = () => {
+  const dispatch = useDispatch();
   const [query, setQuery] = createSignal("");
   const trimmed = () => query().trim();
   // `#` で始まればハッシュタグ、npub / nprofile ならユーザー、それ以外は本文の検索。
@@ -108,7 +107,7 @@ const AddColumnPanel: Component<{ onAdd: (column: ColumnDef) => void }> = (
         onSubmit={(event) => {
           event.preventDefault();
           const column = searchColumn();
-          if (column) props.onAdd(column);
+          if (column) dispatch({ type: "deck/add-column", column: column });
         }}
       >
         <span
@@ -131,7 +130,9 @@ const AddColumnPanel: Component<{ onAdd: (column: ColumnDef) => void }> = (
               icon={searchMeta().icon}
               label={column().title}
               description={searchMeta().description}
-              onClick={() => props.onAdd(column())}
+              onClick={() =>
+                dispatch({ type: "deck/add-column", column: column() })
+              }
             />
           </div>
         )}
@@ -147,7 +148,8 @@ const AddColumnPanel: Component<{ onAdd: (column: ColumnDef) => void }> = (
               description={preset.description}
               onClick={() => {
                 const column = buildColumn(preset.kind, "");
-                if (column) props.onAdd(column);
+                if (column)
+                  dispatch({ type: "deck/add-column", column: column });
               }}
             />
           )}

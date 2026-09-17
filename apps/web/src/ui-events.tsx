@@ -1,5 +1,6 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
@@ -8,16 +9,31 @@ import {
   createContext,
   useContext,
 } from "solid-js";
+import type { ColumnPatch } from "./deck/ColumnSettings";
 
 /**
  * View が上へ渡すイベント。View は「何が起きたか」だけを言い、どう裁定するかは
  * 受け取った段の Mediator が決める。
  */
-export type UiEvent =
-  | ColumnStackEvent
-  | ActionEvent
-  /** 重ねた段を、デッキの正規のカラムとして開き直す。 */
-  | { type: "deck/add-column"; column: ColumnDef };
+export type UiEvent = ColumnStackEvent | ActionEvent | DeckEvent;
+
+/** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
+export type DeckEvent =
+  | { type: "deck/open-panel"; panel: DeckPanel }
+  | { type: "deck/close-panel" }
+  | { type: "deck/select-column"; id: string }
+  | { type: "deck/toggle-settings"; id: string }
+  | { type: "deck/drag-start"; id: string }
+  | { type: "deck/drag-end" }
+  /** 掴んでいたカラムを、このカラムの位置へ差し込む。 */
+  | { type: "deck/drop"; targetId: string }
+  /** 足す。id は裁定する段が振り直す（重ねた段の id は中身から作ってあり衝突する）。 */
+  | { type: "deck/add-column"; column: ColumnDef }
+  | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
+  | { type: "deck/remove-column"; id: string }
+  /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
+  | { type: "deck/keep-temp" }
+  | { type: "deck/close-temp" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
 export type ActionEvent =

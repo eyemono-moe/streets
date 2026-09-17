@@ -2,7 +2,8 @@ import { columnFacets } from "@streets/core/deck/column-facets";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
+import { Mediates } from "../ui-events";
+import ColumnSettings from "./ColumnSettings";
 
 const base: ColumnDef = {
   id: "home",
@@ -15,14 +16,17 @@ const meta = {
   component: (props: { initial: ColumnDef }) => {
     const [column, setColumn] = createSignal(props.initial);
     return (
-      <ColumnSettings
-        column={column()}
-        facets={columnFacets(column())}
-        onPatch={(patch: ColumnPatch) =>
-          setColumn((current) => ({ ...current, ...patch }))
-        }
-        onRemove={() => {}}
-      />
+      // 変更はデッキの段が保存する。ストーリーでは手元の値に当てて、切り替えた結果を見せる。
+      // それ以外（削除など）は Actions パネルへ流す。
+      <Mediates
+        handle={(event) => {
+          if (event.type !== "deck/patch-column") return false;
+          setColumn((current) => ({ ...current, ...event.patch }));
+          return true;
+        }}
+      >
+        <ColumnSettings column={column()} facets={columnFacets(column())} />
+      </Mediates>
     );
   },
   args: { initial: base },

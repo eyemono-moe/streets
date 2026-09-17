@@ -6,7 +6,13 @@ import {
   removeColumnFrom,
   updateColumnIn,
 } from "@streets/core/deck/deck-mutations";
-import { tempColumnFor } from "@streets/core/deck/temp-column";
+import {
+  type DeckUiEvent,
+  type DeckUiState,
+  deckUiTransition,
+  emptyDeckUi,
+} from "@streets/core/deck/deck-ui";
+import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import {
@@ -20,6 +26,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { createStore, reconcile, unwrap } from "solid-js/store";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
@@ -28,7 +35,6 @@ import type { Session } from "../session";
 import { Mediates, type UiEvent } from "../ui-events";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
-import type { ColumnPatch } from "./ColumnSettings";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, Sidebar, TabBar } from "./Nav";
 import SidePanel from "./SidePanel";
@@ -58,15 +64,16 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     viewer,
   });
   const isWide = useIsWide();
-  const [panel, setPanel] = createSignal<"compose" | "add-column">();
-  const [settingsFor, setSettingsFor] = createSignal<string>();
+  // 保存しない画面の状態。遷移は core の純粋関数で、ここは結果を store へ当てるだけ。
+  const [ui, setUi] = createStore<DeckUiState>(emptyDeckUi());
+  const applyUi = (event: DeckUiEvent) =>
+    setUi(reconcile(deckUiTransition(unwrap(ui), event)));
   let columnsEl: HTMLDivElement | undefined;
   // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
   const scrollToEnd = () =>
     requestAnimationFrame(() =>
       columnsEl?.scrollTo({ left: columnsEl.scrollWidth, behavior: "smooth" }),
     );
-  const [active, setActive] = createSignal<string>();
 
   const [warmUp] = createResource(props.session.pubkey, async (pubkey) => {
     // 水和を待たずに始めると、空のストアを「キャッシュ無し」と見なして全員分を取り直す。
@@ -108,43 +115,72 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   const params = useParams<{ entity?: string }>();
   const navigate = useNavigate();
   const temp = () => (params.entity ? tempColumnFor(params.entity) : undefined);
-  const closeTemp = () => navigate("/");
-  const keepTemp = () => {
-    const column = temp();
-    if (!column) return;
-    navigate("/");
-    addColumn({ ...column, id: crypto.randomUUID() });
-  };
-  const temporary = { onKeep: keepTemp, onClose: closeTemp };
 
-  // 消えたカラムを選んだままにしない。URL から開いたらそれを選ぶ。
-  createEffect(() => {
-    if (temp()) {
-      setActive("temp");
-      return;
-    }
-    const current = active();
-    if (current && columns().some((column) => column.id === current)) return;
-    setActive(columns()[0]?.id);
-  });
+  // 並んでいるカラムが変わったら、選んでいるタブを合わせる（消えたカラムを選んだままにしない）。
+  createEffect(() =>
+    applyUi({
+      type: "deck/columns-changed",
+      ids: columns().map((column) => column.id),
+      temp: temp() ? TEMP_COLUMN_ID : undefined,
+    }),
+  );
 
+  // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
   const addColumn = (column: ColumnDef) => {
-    deckStore.update((deck) => addColumnTo(deck, column));
-    setPanel(undefined);
-    setActive(column.id);
+    // 重ねた段の id は中身から作ってあり（`thread:…`）、同じものを 2 回足すと衝突する。
+    const added = { ...column, id: crypto.randomUUID() };
+    deckStore.update((deck) => addColumnTo(deck, added));
+    applyUi({ type: "deck/column-added", id: added.id });
     scrollToEnd();
   };
 
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
   const handle = (event: UiEvent): boolean => {
-    if (event.type !== "deck/add-column") return false;
-    // 重ねた段の id は中身から作ってあり（`thread:…`）、同じものを 2 回開き直すと衝突する。
-    addColumn({ ...event.column, id: crypto.randomUUID() });
-    return true;
+    switch (event.type) {
+      case "deck/open-panel":
+      case "deck/close-panel":
+      case "deck/select-column":
+      case "deck/toggle-settings":
+      case "deck/drag-start":
+      case "deck/drag-end":
+        applyUi(event);
+        return true;
+      case "deck/drop": {
+        const id = ui.dragging;
+        applyUi({ type: "deck/drag-end" });
+        if (!id || id === event.targetId) return true;
+        const to = columns().findIndex(
+          (column) => column.id === event.targetId,
+        );
+        if (to >= 0) deckStore.update((deck) => moveColumnToIn(deck, id, to));
+        return true;
+      }
+      case "deck/add-column":
+        addColumn(event.column);
+        return true;
+      case "deck/patch-column":
+        deckStore.update((deck) => updateColumnIn(deck, event.id, event.patch));
+        return true;
+      case "deck/remove-column":
+        deckStore.update((deck) => removeColumnFrom(deck, event.id));
+        applyUi({ type: "deck/column-removed", id: event.id });
+        return true;
+      case "deck/keep-temp": {
+        const column = temp();
+        navigate("/");
+        if (column) addColumn(column);
+        return true;
+      }
+      case "deck/close-temp":
+        navigate("/");
+        return true;
+      default:
+        return false;
+    }
   };
 
   const panelView = (full: boolean) => (
-    <Show when={panel()}>
+    <Show when={ui.panel}>
       {(current) => (
         <Show
           when={current() === "compose"}
@@ -152,52 +188,25 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             <SidePanel
               title="カラムを追加"
               icon="i-material-symbols:add-rounded"
-              onClose={() => setPanel(undefined)}
               full={full}
             >
-              <AddColumnPanel onAdd={addColumn} />
+              <AddColumnPanel />
             </SidePanel>
           }
         >
           <SidePanel
             title="ノートを書く"
             icon="i-material-symbols:edit-square-outline-rounded"
-            onClose={() => setPanel(undefined)}
             full={full}
           >
-            <ComposePanel onPosted={() => setPanel(undefined)} />
+            <ComposePanel
+              onPosted={() => handle({ type: "deck/close-panel" })}
+            />
           </SidePanel>
         </Show>
       )}
     </Show>
   );
-
-  const columnControls = (column: ColumnDef) => ({
-    onPatch: (patch: ColumnPatch) =>
-      deckStore.update((deck) => updateColumnIn(deck, column.id, patch)),
-    onRemove: () => {
-      setSettingsFor(undefined);
-      deckStore.update((deck) => removeColumnFrom(deck, column.id));
-    },
-    get settingsOpen() {
-      return settingsFor() === column.id;
-    },
-    onToggleSettings: () =>
-      setSettingsFor((current) =>
-        current === column.id ? undefined : column.id,
-      ),
-  });
-
-  // 掴んでいるカラムを覚え、離した先のカラムの位置へ差し込む。
-  const [dragging, setDragging] = createSignal<string>();
-  const dropOn = (targetId: string) => {
-    const id = dragging();
-    setDragging(undefined);
-    if (!id || id === targetId) return;
-    const to = columns().findIndex((column) => column.id === targetId);
-    if (to < 0) return;
-    deckStore.update((deck) => moveColumnToIn(deck, id, to));
-  };
 
   const shared = {
     get readLayer() {
@@ -225,12 +234,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             </Match>
             <Match when={isWide()}>
               <div class="flex h-dvh">
-                <Sidebar
-                  pubkey={viewer}
-                  onLogout={props.session.logout}
-                  onAddColumn={() => setPanel("add-column")}
-                  onCompose={() => setPanel("compose")}
-                />
+                <Sidebar pubkey={viewer} onLogout={props.session.logout} />
                 {panelView(false)}
                 <div class="flex min-w-0 flex-1 flex-col">
                   <DeckSyncNotice store={deckStore} />
@@ -244,8 +248,8 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         <div class="h-full w-95 shrink-0">
                           <Column
                             column={column()}
-                            {...columnControls(column())}
-                            temporary={temporary}
+                            settingsOpen={false}
+                            temporary
                             {...shared}
                           />
                         </div>
@@ -267,24 +271,18 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                             "w-95":
                               column.width !== "s" && column.width !== "l",
                             "w-110": column.width === "l",
-                            "opacity-50": dragging() === column.id,
+                            "opacity-50": ui.dragging === column.id,
                           }}
                           onDragOver={(event) => event.preventDefault()}
                           onDrop={(event) => {
                             event.preventDefault();
-                            dropOn(column.id);
+                            handle({ type: "deck/drop", targetId: column.id });
                           }}
                         >
                           <Column
                             column={column}
-                            {...columnControls(column)}
-                            onDragStart={(event) => {
-                              setDragging(column.id);
-                              event.dataTransfer?.setData(
-                                "text/plain",
-                                column.id,
-                              );
-                            }}
+                            settingsOpen={ui.settingsFor === column.id}
+                            draggable
                             {...shared}
                           />
                         </div>
@@ -304,13 +302,15 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         type="button"
                         class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
                         classList={{
-                          "c-primary font-600": active() === "temp",
-                          "c-secondary": active() !== "temp",
+                          "c-primary font-600": ui.active === "temp",
+                          "c-secondary": ui.active !== "temp",
                         }}
-                        onClick={() => {
-                          setActive("temp");
-                          setPanel(undefined);
-                        }}
+                        onClick={() =>
+                          handle({
+                            type: "deck/select-column",
+                            id: TEMP_COLUMN_ID,
+                          })
+                        }
                       >
                         <span class="flex items-center gap-1.5">
                           <span
@@ -322,7 +322,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         <span
                           class="h-0.5 w-6 rounded-full"
                           classList={{
-                            "bg-accent-primary": active() === "temp",
+                            "bg-accent-primary": ui.active === "temp",
                           }}
                         />
                       </button>
@@ -335,14 +335,13 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
                         classList={{
                           "c-primary font-600":
-                            panel() === undefined && active() === column.id,
+                            ui.panel === undefined && ui.active === column.id,
                           "c-secondary":
-                            panel() !== undefined || active() !== column.id,
+                            ui.panel !== undefined || ui.active !== column.id,
                         }}
-                        onClick={() => {
-                          setActive(column.id);
-                          setPanel(undefined);
-                        }}
+                        onClick={() =>
+                          handle({ type: "deck/select-column", id: column.id })
+                        }
                       >
                         <span class="flex items-center gap-1.5">
                           <span
@@ -355,7 +354,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                           class="h-0.5 w-6 rounded-full"
                           classList={{
                             "bg-accent-primary":
-                              panel() === undefined && active() === column.id,
+                              ui.panel === undefined && ui.active === column.id,
                           }}
                         />
                       </button>
@@ -365,7 +364,9 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     type="button"
                     aria-label="カラムを追加"
                     class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                    onClick={() => setPanel("add-column")}
+                    onClick={() =>
+                      handle({ type: "deck/open-panel", panel: "add-column" })
+                    }
                   >
                     <span
                       class="i-material-symbols:add-rounded size-4.5"
@@ -373,16 +374,19 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                     />
                   </button>
                   <Show
-                    when={columns().find((column) => column.id === active())}
+                    when={columns().find((column) => column.id === ui.active)}
                   >
                     {(column) => (
                       <button
                         type="button"
                         aria-label="カラムの設定"
-                        aria-expanded={settingsFor() === column().id}
+                        aria-expanded={ui.settingsFor === column().id}
                         class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
                         onClick={() =>
-                          columnControls(column()).onToggleSettings()
+                          handle({
+                            type: "deck/toggle-settings",
+                            id: column().id,
+                          })
                         }
                       >
                         <span
@@ -404,13 +408,14 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                       <div
                         class="h-full"
                         classList={{
-                          hidden: panel() !== undefined || active() !== "temp",
+                          hidden:
+                            ui.panel !== undefined || ui.active !== "temp",
                         }}
                       >
                         <Column
                           column={column()}
-                          {...columnControls(column())}
-                          temporary={temporary}
+                          settingsOpen={false}
+                          temporary
                           {...shared}
                         />
                       </div>
@@ -422,12 +427,12 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         class="h-full"
                         classList={{
                           hidden:
-                            panel() !== undefined || active() !== column.id,
+                            ui.panel !== undefined || ui.active !== column.id,
                         }}
                       >
                         <Column
                           column={column}
-                          {...columnControls(column)}
+                          settingsOpen={ui.settingsFor === column.id}
                           chrome={false}
                           {...shared}
                         />
@@ -437,8 +442,8 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                   {panelView(true)}
                 </div>
                 {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
-                <Show when={panel() === undefined}>
-                  <ComposeFab onCompose={() => setPanel("compose")} />
+                <Show when={ui.panel === undefined}>
+                  <ComposeFab />
                 </Show>
                 <TabBar pubkey={viewer} onLogout={props.session.logout} />
               </div>
