@@ -43,9 +43,9 @@ const ReplyDialog: Component<{ target: NostrEvent; onClose: () => void }> = (
       }}
     >
       <Portal>
-        <Dialog.Backdrop class="fixed inset-0 bg-ui-950/40" />
+        <Dialog.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
         <Dialog.Positioner class="fixed inset-0 grid place-items-center p-4">
-          <Dialog.Content class="c-primary w-full max-w-130 overflow-hidden rounded-3 border border-primary bg-primary outline-none">
+          <Dialog.Content class="motion-pop c-primary w-full max-w-130 overflow-hidden rounded-3 border border-primary bg-primary outline-none">
             <div class="flex h-12 items-center gap-2 pr-3 pl-4">
               <Dialog.Title class="flex-1 font-600 text-body">
                 返信する

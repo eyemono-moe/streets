@@ -13,7 +13,7 @@ const SidePanel: Component<{
   full?: boolean;
 }> = (props) => (
   <section
-    class="flex h-full min-h-0 flex-col border-primary bg-primary"
+    class="flex h-full min-h-0 animate-panel-in flex-col border-primary bg-primary"
     classList={{ "w-full": props.full, "w-90 shrink-0 border-r": !props.full }}
   >
     <div class="h-0.75 shrink-0 bg-accent-primary" />

@@ -26,7 +26,7 @@ const UserCardHover: Component<{
     <HoverCard.Trigger asChild={props.trigger} />
     <Portal>
       <HoverCard.Positioner>
-        <HoverCard.Content class="overflow-hidden rounded-3 border border-primary bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+        <HoverCard.Content class="motion-pop overflow-hidden rounded-3 border border-primary bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
           <UserCard pubkey={props.pubkey} />
         </HoverCard.Content>
       </HoverCard.Positioner>

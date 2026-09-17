@@ -341,7 +341,7 @@ const Column: Component<ColumnProps> = (props) => {
         unmountOnExit
         class="shrink-0"
       >
-        <Collapsible.Content>
+        <Collapsible.Content class="motion-collapse">
           <ColumnSettings
             column={props.column}
             facets={facets()}
@@ -400,7 +400,7 @@ const Column: Component<ColumnProps> = (props) => {
             {(stacked, index) => (
               <div
                 // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                class="absolute inset-x-0 bottom-0 isolate flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                class="absolute inset-x-0 bottom-0 isolate flex animate-stack-in flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                 // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
                 style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                 classList={{ hidden: index() !== stack().length - 1 }}
