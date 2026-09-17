@@ -227,7 +227,7 @@ const ActionNotice: Component<{
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
     <article
-      class="flex bg-primary"
+      class="offscreen-skip flex bg-primary"
       classList={{
         "gap-3 p-3": props.size === "normal",
         "flex-col gap-1.5 p-2": props.size === "compact",

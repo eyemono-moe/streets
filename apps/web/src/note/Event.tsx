@@ -210,7 +210,7 @@ const Frame: ParentComponent<{
 }> = (props) => (
   // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
   <article
-    class="flex flex-col bg-primary"
+    class="offscreen-skip flex flex-col bg-primary"
     classList={{
       "gap-2 p-3": props.size === "normal",
       "gap-1.5 p-2": props.size === "compact",

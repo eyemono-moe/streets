@@ -14,7 +14,7 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでカラムを開く経路はまだ無い（押せるのはポインタだけ）
     <div
-      class="flex cursor-pointer items-start gap-3 bg-primary px-3 py-2.5"
+      class="offscreen-skip flex cursor-pointer items-start gap-3 bg-primary px-3 py-2.5"
       onClick={(event) => {
         // ボタンの上で押したときは開かない。フォローだけしたい人を邪魔しない。
         if (

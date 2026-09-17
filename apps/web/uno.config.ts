@@ -130,6 +130,19 @@ export default defineConfig({
     },
   },
   rules: [
+    /*
+      画面の外にあるノートの描画を飛ばす。デッキは数万要素になるので、テーマ色を
+      変えたときのように木全体のスタイル計算が走ると、見えている分だけを計算する
+      場合の 4 倍ほどかかる。`auto` は一度描いた高さを覚えるので、スクロール位置は
+      ずれない（まだ描いていない分だけ 160px と見積もる）。
+    */
+    [
+      "offscreen-skip",
+      {
+        "content-visibility": "auto",
+        "contain-intrinsic-size": "auto 160px",
+      },
+    ],
     [
       /^scroll(?:bar)?-(track|thumb)-(.+)$/,
       ([s, section, colorMatch], context) => {
