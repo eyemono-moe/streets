@@ -28,9 +28,9 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
-import Name from "./Name";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
+import UserLink from "./UserLink";
 import { useEvent } from "./use-event";
 
 /**
@@ -261,9 +261,7 @@ const Note: Component<ContentProps> = (props) => {
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
             <span class="shrink-0">返信先</span>
-            <span class="truncate">
-              <Name pubkey={pubkey()} />
-            </span>
+            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
           </p>
         )}
       </Show>
@@ -310,9 +308,7 @@ const Repost: Component<ContentProps> = (props) => (
   <>
     <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
       <span class="i-material-symbols:repeat-rounded size-3.5 shrink-0" />
-      <span class="truncate">
-        <Name pubkey={props.event.pubkey} />
-      </span>
+      <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
       <span class="shrink-0">がリポスト</span>
     </p>
     <Show when={props.size === "normal"}>

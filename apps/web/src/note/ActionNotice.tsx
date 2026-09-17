@@ -15,8 +15,8 @@ import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import { EventRefView, type EventSize } from "./Event";
-import Name from "./Name";
 import { Mark } from "./ReactionList";
+import UserLink from "./UserLink";
 
 // 1 人ぶんのアイコンの幅と、並べるときの間隔（px）。`Avatar` の大きさと合わせる。
 const AVATAR_PX = { compact: 32, tiny: 20 } as const;
@@ -108,9 +108,14 @@ const Summary: Component<{
         "text-[14px]": props.size === "compact",
       }}
     >
-      <span class="c-primary max-w-1/2 shrink-0 truncate font-600">
-        <Show when={actors()[0]}>{(pubkey) => <Name pubkey={pubkey()} />}</Show>
-      </span>
+      <Show when={actors()[0]}>
+        {(pubkey) => (
+          <UserLink
+            pubkey={pubkey()}
+            class="c-primary max-w-1/2 shrink-0 truncate font-600"
+          />
+        )}
+      </Show>
       <Show when={others() > 0}>
         <span class="shrink-0">ほか {others()} 人</span>
       </Show>
