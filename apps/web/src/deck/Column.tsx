@@ -431,14 +431,8 @@ const Column: Component<ColumnProps> = (props) => {
                 closeOnInteractOutside={false}
                 swipeDirection="down"
               >
-                <Drawer.Positioner
-                  class="absolute inset-0 isolate"
-                  // 下の段は display で消さずに見えなくするだけにする。display で消すと、
-                  // 上の段を閉じて現れたときに出てくる動きがもう一度走る。
-                  classList={{
-                    invisible: layer.open() && layer !== openLayers().at(-1),
-                  }}
-                >
+                {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
+                <Drawer.Positioner class="absolute inset-0 isolate">
                   <Drawer.Content
                     aria-label={layer.column.title}
                     // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
