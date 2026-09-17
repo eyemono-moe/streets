@@ -3,13 +3,10 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
 import { createThreadSource } from "@streets/core/solid/create-thread-source";
 import { threadSpine } from "@streets/core/view/thread-spine";
-import { type Component, For, Show, createMemo } from "solid-js";
-import Event from "../note/Event";
+import { type Component, createMemo } from "solid-js";
+import ThreadSpineView from "./ThreadSpineView";
 
-/**
- * 1 本の背骨。焦点までの祖先と、焦点への返信を出す。祖先と返信は compact、
- * 焦点だけ normal —— どれを開いているかが、前後に埋もれないようにする。
- */
+/** 焦点のイベントを起点に、根までの祖先とその返信を集めて出す。 */
 const ThreadView: Component<{
   focus: string;
   readLayer: ReadLayer;
@@ -36,45 +33,11 @@ const ThreadView: Component<{
   const spine = createMemo(() => threadSpine(events(), props.focus));
 
   return (
-    <div class="flex flex-col gap-px bg-tertiary pb-px">
-      {/* 根まで辿れないことを黙らせない。途中が欠けると「根から始まる」ように見える。 */}
-      <Show when={!spine().reachedRoot && section.status().phase === "settled"}>
-        <p class="c-secondary bg-primary px-3 py-2 text-caption">
-          このスレッドの上の方は取得できませんでした。
-        </p>
-      </Show>
-      <For each={spine().ancestors}>
-        {(event, index) => (
-          <Event
-            event={event}
-            size="compact"
-            expandMedia={props.expandMedia}
-            // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
-            threadLine={index() === 0 && spine().reachedRoot ? "below" : "both"}
-          />
-        )}
-      </For>
-      <Show
-        when={spine().focus}
-        fallback={
-          <p class="c-secondary bg-primary p-4 text-caption">読み込み中…</p>
-        }
-      >
-        {(focus) => (
-          <Event
-            event={focus()}
-            size="normal"
-            expandMedia={props.expandMedia}
-            threadLine={spine().ancestors.length > 0 ? "above" : undefined}
-          />
-        )}
-      </Show>
-      <For each={spine().replies}>
-        {(event) => (
-          <Event event={event} size="compact" expandMedia={props.expandMedia} />
-        )}
-      </For>
-    </div>
+    <ThreadSpineView
+      spine={spine()}
+      settled={section.status().phase === "settled"}
+      expandMedia={props.expandMedia}
+    />
   );
 };
 

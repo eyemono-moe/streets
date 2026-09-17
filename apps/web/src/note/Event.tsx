@@ -72,6 +72,16 @@ const Head: Component<ContentProps> = (props) => {
   );
 };
 
+/**
+ * 縦線の横位置。compact のアイコン中心（枠の左から 24px）に揃える。
+ * normal と compact が混ざるスレッドで、アイコンの中央に置くと段ごとにずれて繋がらない。
+ * 枠の内側の余白が size で違うぶん、ここで打ち消す。
+ */
+const lineX = (size: EventSize) => ({
+  "left-3": size === "normal",
+  "left-4": size === "compact",
+});
+
 /** アイコン列と本文列。どの kind も同じ骨格に載せる。 */
 const Row: ParentComponent<ContentProps> = (props) => (
   <div
@@ -81,16 +91,32 @@ const Row: ParentComponent<ContentProps> = (props) => (
       "gap-2": props.size === "compact",
     }}
   >
-    {/* アイコン列。線はアイコンから列の端まで伸びる（会話が続いている印）。 */}
-    <div class="flex shrink-0 flex-col items-center gap-1 self-stretch">
+    {/* アイコン列。線は絶対配置にして、アイコンは上に揃えたまま上下へ伸ばす。 */}
+    <div class="relative flex shrink-0 flex-col self-stretch">
       <Show when={props.threadLine === "above" || props.threadLine === "both"}>
-        {/* 負のマージンで枠の外へはみ出し、投稿の間の隙間を線が跨ぐ。 */}
-        <div class="-mt-3 min-h-2 w-0.5 flex-1 bg-tertiary" />
+        {/* 上へはみ出して、投稿の間の隙間を跨ぐ。 */}
+        <div
+          class="-top-3 -translate-x-1/2 absolute h-3 w-0.5 bg-tertiary"
+          classList={lineX(props.size)}
+        />
       </Show>
-      <Avatar pubkey={props.event.pubkey} size={props.size} />
       <Show when={props.threadLine === "below" || props.threadLine === "both"}>
-        <div class="-mb-3 min-h-2 w-0.5 flex-1 bg-tertiary" />
+        <div
+          class="-bottom-3 -translate-x-1/2 absolute w-0.5 bg-tertiary"
+          classList={{
+            ...lineX(props.size),
+            "top-11": props.size === "normal",
+            "top-9": props.size === "compact",
+          }}
+        />
       </Show>
+      {/* 長い投稿でも、読んでいる間アイコンが見えているようにする。 */}
+      <div
+        class="z-1"
+        classList={{ "sticky top-2": props.threadLine !== undefined }}
+      >
+        <Avatar pubkey={props.event.pubkey} size={props.size} />
+      </div>
     </div>
     <div
       class="flex min-w-0 flex-1 flex-col"
