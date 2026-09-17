@@ -29,7 +29,7 @@ import Event from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
-import ColumnSettings, { type ColumnPatch } from "./ColumnSettings";
+import ColumnSettings from "./ColumnSettings";
 import ColumnTitle from "./ColumnTitle";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
@@ -47,14 +47,11 @@ export type ColumnProps = {
   followees: () => readonly string[];
   relayList: () => RelayListState;
   bookmarks: () => readonly string[];
-  onPatch: (patch: ColumnPatch) => void;
-  onRemove: () => void;
   settingsOpen: boolean;
-  onToggleSettings: () => void;
-  /** ヘッダーを掴んで並べ替えるための配線。 */
-  onDragStart?: (event: DragEvent) => void;
+  /** ヘッダーを掴んで並べ替えられるか。 */
+  draggable?: boolean;
   /** URL から開いたカラム。保存されていないので、残すか閉じるかを選ばせる。 */
-  temporary?: { onKeep: () => void; onClose: () => void };
+  temporary?: boolean;
   /** モバイルでは題名をタブが持つので、アクセント線とヘッダーを出さない。 */
   chrome?: boolean;
   /** 重ねられている間だけ渡る。ヘッダーが「戻る」側に変わる。 */
@@ -64,18 +61,23 @@ export type ColumnProps = {
 const Header: Component<{
   column: ColumnDef;
   open: boolean;
-  onToggle: () => void;
-  onDragStart?: (event: DragEvent) => void;
-  temporary?: { onKeep: () => void; onClose: () => void };
+  draggable?: boolean;
+  temporary?: boolean;
 }> = (props) => {
+  const dispatch = useDispatch();
   const meta = () => columnMeta(props.column);
   return (
     // ヘッダーを掴んでカラムを並べ替える。本文まで draggable にすると本文を選べなくなる。
     <header
       class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3"
-      classList={{ "cursor-grab": props.onDragStart !== undefined }}
-      draggable={props.onDragStart !== undefined}
-      onDragStart={(event) => props.onDragStart?.(event)}
+      classList={{ "cursor-grab": props.draggable === true }}
+      draggable={props.draggable === true}
+      onDragStart={(event) => {
+        event.dataTransfer?.setData("text/plain", props.column.id);
+        dispatch({ type: "deck/drag-start", id: props.column.id });
+      }}
+      // 落とし先の外で離しても、掴んだままの見た目を残さない。
+      onDragEnd={() => dispatch({ type: "deck/drag-end" })}
     >
       <span
         class={`c-secondary size-4.5 shrink-0 ${meta().icon}`}
@@ -88,32 +90,30 @@ const Header: Component<{
         <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
       </div>
       <Show when={props.temporary}>
-        {(temporary) => (
-          <>
-            <button
-              type="button"
-              class="c-secondary flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-2.5 font-600 text-caption"
-              onClick={() => temporary().onKeep()}
-            >
-              <span
-                class="i-material-symbols:bookmark-outline-rounded size-3.5"
-                aria-hidden="true"
-              />
-              カラムに残す
-            </button>
-            <button
-              type="button"
-              aria-label="閉じる"
-              class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-              onClick={() => temporary().onClose()}
-            >
-              <span
-                class="i-material-symbols:close-rounded size-4.5"
-                aria-hidden="true"
-              />
-            </button>
-          </>
-        )}
+        <>
+          <button
+            type="button"
+            class="c-secondary flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-2.5 font-600 text-caption"
+            onClick={() => dispatch({ type: "deck/keep-temp" })}
+          >
+            <span
+              class="i-material-symbols:bookmark-outline-rounded size-3.5"
+              aria-hidden="true"
+            />
+            カラムに残す
+          </button>
+          <button
+            type="button"
+            aria-label="閉じる"
+            class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+            onClick={() => dispatch({ type: "deck/close-temp" })}
+          >
+            <span
+              class="i-material-symbols:close-rounded size-4.5"
+              aria-hidden="true"
+            />
+          </button>
+        </>
       </Show>
       <Show when={!props.temporary}>
         <button
@@ -121,7 +121,9 @@ const Header: Component<{
           aria-label="カラムの設定"
           aria-expanded={props.open}
           class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-          onClick={() => props.onToggle()}
+          onClick={() =>
+            dispatch({ type: "deck/toggle-settings", id: props.column.id })
+          }
         >
           <span
             class="size-4.5"
@@ -341,8 +343,7 @@ const Column: Component<ColumnProps> = (props) => {
               <Header
                 column={props.column}
                 open={props.settingsOpen}
-                onToggle={props.onToggleSettings}
-                onDragStart={props.onDragStart}
+                draggable={props.draggable}
                 temporary={props.temporary}
               />
             </div>
@@ -361,12 +362,7 @@ const Column: Component<ColumnProps> = (props) => {
         class="shrink-0"
       >
         <Collapsible.Content class="motion-collapse">
-          <ColumnSettings
-            column={props.column}
-            facets={facets()}
-            onPatch={props.onPatch}
-            onRemove={props.onRemove}
-          />
+          <ColumnSettings column={props.column} facets={facets()} />
         </Collapsible.Content>
       </Collapsible.Root>
       <For each={alerts()}>
@@ -391,7 +387,7 @@ const Column: Component<ColumnProps> = (props) => {
       // 保存されていないことを枠で示す。
       classList={{
         "outline outline-2 -outline-offset-2 outline-accent-5":
-          props.temporary !== undefined,
+          props.temporary === true,
       }}
     >
       {chrome()}
@@ -450,9 +446,8 @@ const Column: Component<ColumnProps> = (props) => {
                       {...props}
                       column={layer.column}
                       settingsOpen={false}
-                      onToggleSettings={() => {}}
-                      onDragStart={undefined}
-                      temporary={undefined}
+                      draggable={false}
+                      temporary={false}
                       stacked={{
                         backTo:
                           index() > 0
