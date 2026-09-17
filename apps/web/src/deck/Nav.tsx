@@ -90,7 +90,7 @@ export const ComposeFab: Component<{ onCompose: () => void }> = (props) => (
   <button
     type="button"
     aria-label="ノートを書く"
-    class="absolute right-4 bottom-20 z-10 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
+    class="absolute right-4 bottom-20 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
     onClick={() => props.onCompose()}
   >
     <span

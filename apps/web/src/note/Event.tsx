@@ -110,11 +110,11 @@ const Row: ParentComponent<ContentProps> = (props) => (
           }}
         />
       </Show>
-      {/* 長い投稿でも、読んでいる間アイコンが見えているようにする。 */}
-      <div
-        class="z-1"
-        classList={{ "sticky top-2": props.threadLine !== undefined }}
-      >
+      {/*
+        長い投稿でも、読んでいる間アイコンが見えているようにする。
+        縦線より後ろに置くので、z-index 無しで線の上に乗る。
+      */}
+      <div classList={{ "sticky top-2": props.threadLine !== undefined }}>
         <Avatar pubkey={props.event.pubkey} size={props.size} />
       </div>
     </div>

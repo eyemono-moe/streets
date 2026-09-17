@@ -6,6 +6,7 @@ import avatarUrl from "../storybook/avatar-fixture.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import ProfileHeaderView from "./ProfileHeaderView";
 import ProfileList from "./ProfileList";
+import UserCard from "./UserCard";
 
 const alice = createStoryAuthor(11, {
   name: "alice",
@@ -152,4 +153,28 @@ export const 一覧が空: StoryObj<typeof ListStory> = {
 export const 一覧を取得中: StoryObj<typeof ListStory> = {
   render: (props) => <ListStory {...props} />,
   args: { people: [], settled: false, scene: scene() },
+};
+
+const CardStory: Component<{ pubkey: string; scene: EventScene }> = (props) => (
+  <EventSceneProvider scene={props.scene}>
+    {/* 実際は浮かせて出す。枠と影はホバーカード側が持つ。 */}
+    <div class="w-max overflow-hidden rounded-3 border border-primary">
+      <UserCard pubkey={props.pubkey} />
+    </div>
+  </EventSceneProvider>
+);
+
+export const 名刺: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: alice.pubkey, scene: scene() },
+};
+
+export const 名刺_情報が少ない: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: carol.pubkey, scene: scene() },
+};
+
+export const 名刺_自己紹介が長い: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: wordy.pubkey, scene: scene() },
 };

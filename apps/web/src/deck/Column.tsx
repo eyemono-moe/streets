@@ -382,21 +382,25 @@ const Column: Component<ColumnProps> = (props) => {
           戻ったときに読んでいた場所が分からなくなる。
         */}
         <div class="relative min-h-0 flex-1">
+          {/*
+            重ね順は z-index ではなく DOM の順で決める：下のカラム → 外側 → 重ねたカラム。
+            中の重ね順（sticky なアイコンなど）が外へ漏れないよう、段ごとに isolate する。
+          */}
+          <div class="absolute inset-0 isolate flex flex-col">{body()}</div>
           <Show when={top()}>
             {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
             <button
               type="button"
               aria-label="重ねた表示を閉じる"
-              class="absolute inset-0 z-1 w-full cursor-pointer bg-ui-950/25"
+              class="absolute inset-0 w-full cursor-pointer bg-ui-950/25"
               onClick={back}
             />
           </Show>
-          <div class="absolute inset-0 flex flex-col">{body()}</div>
           <For each={stack()}>
             {(stacked, index) => (
               <div
                 // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                class="absolute inset-x-0 bottom-0 z-2 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                class="absolute inset-x-0 bottom-0 isolate flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                 // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
                 style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                 classList={{ hidden: index() !== stack().length - 1 }}
