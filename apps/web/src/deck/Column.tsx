@@ -294,8 +294,11 @@ const Column: Component<ColumnProps> = (props) => {
   const events = () => (
     <Switch>
       <Match when={items().length > 0}>
-        {/* 投稿の間の 1px を背景色で見せる。最後の投稿の下にも線を引く。 */}
-        <div class="flex flex-col gap-px bg-tertiary pb-px">
+        {/*
+          区切りは投稿ごとの下線で引く。親の背景を 1px の隙間から覗かせる引き方は、
+          content-visibility を当てた投稿が端数の位置で丸められると消えることがある。
+        */}
+        <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
           <Show
             when={isNotifications()}
             fallback={
