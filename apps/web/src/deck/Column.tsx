@@ -9,6 +9,7 @@ import {
   openLayers,
 } from "@streets/core/deck/column-stack";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
+import { excludeOwnActions } from "@streets/core/deck/notification-filter";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -221,7 +222,12 @@ const Column: Component<ColumnProps> = (props) => {
   });
   const show = () => columnShow(props.column);
   const facets = () => columnFacets(props.column);
-  const items = () => visibleColumnItems(section.items(), show(), facets());
+  // 通知は自分宛（#p）で集めるので、自分の返信やリアクションも混ざる。自分の操作は知らせない。
+  const received = () =>
+    props.column.source.kind === "notifications"
+      ? excludeOwnActions(section.items(), props.viewer)
+      : section.items();
+  const items = () => visibleColumnItems(received(), show(), facets());
   const alerts = () =>
     columnAlerts(props.column, section.status(), props.relayList());
   const size = () =>

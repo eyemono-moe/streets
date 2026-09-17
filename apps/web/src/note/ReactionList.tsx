@@ -34,7 +34,8 @@ const titleOf = (content: ReactionContent): string =>
       ? content.content
       : "+";
 
-const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
+/** リアクションの中身。いいねはハート、カスタム絵文字は画像、それ以外は文字で出す。 */
+export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
   props,
 ) => {
   const [broken, setBroken] = createSignal(false);
