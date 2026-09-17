@@ -241,13 +241,6 @@ const Column: Component<ColumnProps> = (props) => {
       return [...current, { column, open, close: () => setOpen(false) }];
     });
   const back = () => openLayers().at(-1)?.close();
-  /** 自分より上に、開いている段があるか。 */
-  const coveredBy = (layer: StackLayer) =>
-    layer.open() && layer !== openLayers().at(-1);
-  const closeAbove = (layer: StackLayer) => {
-    const layers = openLayers();
-    for (const above of layers.slice(layers.indexOf(layer) + 1)) above.close();
-  };
   const remove = (layer: StackLayer) =>
     setStack((current) => current.filter((entry) => entry !== layer));
 
@@ -464,23 +457,6 @@ const Column: Component<ColumnProps> = (props) => {
                               props.column.title)
                             : props.column.title,
                       }}
-                    />
-                    {/*
-                      上に段が重なっている間は、この段も暗くする。下の段と上の段は見た目が
-                      似ているので、暗くしないと上の段を引き下げたときに区別が付かない。
-                      押すと、この段まで戻る（下のカラムの暗幕と同じ勘）。
-                      出し入れは transition にする。keyframes だと、段を積んだ瞬間に
-                      消える動きが一度走って暗くちらつく。
-                    */}
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      aria-label="この段まで戻る"
-                      class="absolute inset-0 cursor-pointer bg-ui-950/25 transition-opacity duration-150 ease-out"
-                      classList={{
-                        "pointer-events-none opacity-0": !coveredBy(layer),
-                      }}
-                      onClick={() => closeAbove(layer)}
                     />
                   </Drawer.Content>
                 </Drawer.Positioner>
