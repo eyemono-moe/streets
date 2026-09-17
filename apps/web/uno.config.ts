@@ -97,6 +97,8 @@ export default defineConfig({
         "collapse-up": "{from{height:var(--height)}to{height:0}}",
         "stack-in":
           "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
+        "stack-out":
+          "{from{opacity:1;transform:none}to{opacity:0;transform:translateY(16px)}}",
         "panel-in":
           "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
       },
@@ -108,16 +110,19 @@ export default defineConfig({
         "collapse-down": "160ms",
         "collapse-up": "140ms",
         "stack-in": "180ms",
+        "stack-out": "140ms",
         "panel-in": "160ms",
       },
       timingFns: {
         "fade-in": "ease-out",
-        "fade-out": "ease-in",
+        // 消える側は最後の状態で止める。止めないと、取り除かれるまでの 1 フレームで元の見た目に戻ってちらつく。
+        "fade-out": "ease-in both",
         "pop-in": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "pop-out": "ease-in",
+        "pop-out": "ease-in both",
         "collapse-down": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "collapse-up": "ease-in",
+        "collapse-up": "ease-in both",
         "stack-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "stack-out": "ease-in both",
         "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
       },
     },
@@ -201,6 +206,9 @@ export default defineConfig({
       // 出どころ（トリガーの位置）から開く。Ark UI が --transform-origin を置く。
       "motion-pop":
         "origin-[var(--transform-origin)] data-[state=open]:animate-pop-in data-[state=closed]:animate-pop-out",
+      // 重ねたカラム。閉じる動きが終わってから取り除く（Column.tsx）。
+      "motion-stack":
+        "data-[state=open]:animate-stack-in data-[state=closed]:animate-stack-out",
       "motion-collapse":
         "overflow-hidden data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up",
 

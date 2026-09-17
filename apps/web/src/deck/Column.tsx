@@ -16,6 +16,7 @@ import {
   Switch,
   createEffect,
   createSignal,
+  onCleanup,
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
 import Event from "../note/Event";
@@ -226,7 +227,22 @@ const Column: Component<ColumnProps> = (props) => {
     setStack((current) =>
       current.at(-1)?.id === column.id ? current : [...current, column],
     );
-  const back = () => setStack((current) => current.slice(0, -1));
+  // 閉じるときは、いちばん上の段に消える動きを付けてから取り除く。
+  // 動きの終わり（animationend）で取り除き、届かなかったときのために時間でも抜ける。
+  const [closing, setClosing] = createSignal(false);
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
+  const finishBack = () => {
+    clearTimeout(closeTimer);
+    if (!closing()) return;
+    setClosing(false);
+    setStack((current) => current.slice(0, -1));
+  };
+  const back = () => {
+    if (stack().length === 0 || closing()) return;
+    setClosing(true);
+    closeTimer = setTimeout(finishBack, 400);
+  };
+  onCleanup(() => clearTimeout(closeTimer));
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -392,7 +408,8 @@ const Column: Component<ColumnProps> = (props) => {
             <button
               type="button"
               aria-label="重ねた表示を閉じる"
-              class="absolute inset-0 w-full cursor-pointer bg-ui-950/25"
+              class="motion-fade absolute inset-0 w-full cursor-pointer bg-ui-950/25"
+              data-state={closing() && stack().length === 1 ? "closed" : "open"}
               onClick={back}
             />
           </Show>
@@ -400,10 +417,31 @@ const Column: Component<ColumnProps> = (props) => {
             {(stacked, index) => (
               <div
                 // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                class="absolute inset-x-0 bottom-0 isolate flex animate-stack-in flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                class="motion-stack absolute inset-x-0 bottom-0 isolate flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                 // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
                 style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
-                classList={{ hidden: index() !== stack().length - 1 }}
+                data-state={
+                  closing() && index() === stack().length - 1
+                    ? "closed"
+                    : "open"
+                }
+                // 下の段は display で消さずに見えなくするだけにする。display で消すと、
+                // 上の段を閉じて現れたときに出てくる動きがもう一度走る。
+                classList={{
+                  invisible: !(
+                    index() === stack().length - 1 ||
+                    (closing() && index() === stack().length - 2)
+                  ),
+                }}
+                onAnimationEnd={(event) => {
+                  // 中の部品（メニューなど）の動きの終わりも泡立ってくるので、自分の分だけ見る。
+                  if (
+                    event.target === event.currentTarget &&
+                    event.animationName === "stack-out"
+                  ) {
+                    finishBack();
+                  }
+                }}
               >
                 <Column
                   {...props}
