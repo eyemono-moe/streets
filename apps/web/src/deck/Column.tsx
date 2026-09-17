@@ -1,4 +1,5 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
+import { Drawer } from "@ark-ui/solid/drawer";
 import { columnAlerts } from "@streets/core/deck/column-alerts";
 import { columnFacets } from "@streets/core/deck/column-facets";
 import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
@@ -9,6 +10,7 @@ import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
+  type Accessor,
   type Component,
   For,
   Match,
@@ -34,6 +36,13 @@ export type StackedColumn = {
   onOpenAsColumn: () => void;
   /** 戻った先の名前。ヘッダーの説明に出す。 */
   backTo: string;
+};
+
+/** 重ねた 1 段。閉じても、閉じる動きが終わるまでは配列に残る。 */
+type StackLayer = {
+  column: ColumnDef;
+  open: Accessor<boolean>;
+  close: () => void;
 };
 
 export type ColumnProps = {
@@ -220,13 +229,20 @@ const Column: Component<ColumnProps> = (props) => {
   const expandMedia = () => props.column.expandMedia !== false;
 
   // 重ねたカラム。いちばん下のカラムだけが持ち、デッキには保存しない。
-  const [stack, setStack] = createSignal<ColumnDef[]>([]);
-  const top = () => stack().at(-1);
+  // 開閉は段ごとの Drawer（Ark UI）が状態機械として持つ。閉じた段は、閉じる動きが
+  // 終わってから配列から外す（すぐ外すと消える動きが見えない）。
+  const [stack, setStack] = createSignal<StackLayer[]>([]);
+  const openLayers = () => stack().filter((layer) => layer.open());
   const push = (column: ColumnDef) =>
-    setStack((current) =>
-      current.at(-1)?.id === column.id ? current : [...current, column],
-    );
-  const back = () => setStack((current) => current.slice(0, -1));
+    setStack((current) => {
+      const top = current.filter((layer) => layer.open()).at(-1);
+      if (top?.column.id === column.id) return current;
+      const [open, setOpen] = createSignal(true);
+      return [...current, { column, open, close: () => setOpen(false) }];
+    });
+  const back = () => openLayers().at(-1)?.close();
+  const remove = (layer: StackLayer) =>
+    setStack((current) => current.filter((entry) => entry !== layer));
 
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
@@ -311,7 +327,7 @@ const Column: Component<ColumnProps> = (props) => {
             {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからはヘッダーの「戻る」ボタンで戻る */}
             <div
               onClick={(event) => {
-                if (top() === undefined) return;
+                if (openLayers().length === 0) return;
                 const target = event.target;
                 if (target instanceof Element && target.closest("button")) {
                   return;
@@ -387,41 +403,64 @@ const Column: Component<ColumnProps> = (props) => {
             中の重ね順（sticky なアイコンなど）が外へ漏れないよう、段ごとに isolate する。
           */}
           <div class="absolute inset-0 isolate flex flex-col">{body()}</div>
-          <Show when={top()}>
+          <Show when={stack().length > 0}>
             {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
             <button
               type="button"
               aria-label="重ねた表示を閉じる"
-              class="absolute inset-0 w-full cursor-pointer bg-ui-950/25"
+              class="motion-fade absolute inset-0 w-full cursor-pointer bg-ui-950/25"
+              data-state={openLayers().length > 0 ? "open" : "closed"}
               onClick={back}
             />
           </Show>
           <For each={stack()}>
-            {(stacked, index) => (
-              <div
-                // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                class="absolute inset-x-0 bottom-0 isolate flex animate-stack-in flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
-                // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
-                style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
-                classList={{ hidden: index() !== stack().length - 1 }}
+            {(layer, index) => (
+              <Drawer.Root
+                open={layer.open()}
+                onOpenChange={(details) => {
+                  if (!details.open) layer.close();
+                }}
+                onExitComplete={() => remove(layer)}
+                lazyMount
+                unmountOnExit
+                // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
+                modal={false}
+                trapFocus={false}
+                preventScroll={false}
+                // 外側は上の暗幕が受ける。他のカラムを押しただけで閉じないように切る。
+                closeOnInteractOutside={false}
+                swipeDirection="down"
               >
-                <Column
-                  {...props}
-                  column={stacked}
-                  settingsOpen={false}
-                  onToggleSettings={() => {}}
-                  onDragStart={undefined}
-                  temporary={undefined}
-                  stacked={{
-                    onBack: back,
-                    onOpenAsColumn: () => props.onOpenAsColumn?.(stacked),
-                    backTo:
-                      index() > 0
-                        ? (stack()[index() - 1]?.title ?? props.column.title)
-                        : props.column.title,
-                  }}
-                />
-              </div>
+                {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
+                <Drawer.Positioner class="absolute inset-0 isolate">
+                  <Drawer.Content
+                    aria-label={layer.column.title}
+                    // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
+                    class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                    // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
+                    style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
+                  >
+                    <Column
+                      {...props}
+                      column={layer.column}
+                      settingsOpen={false}
+                      onToggleSettings={() => {}}
+                      onDragStart={undefined}
+                      temporary={undefined}
+                      stacked={{
+                        onBack: back,
+                        onOpenAsColumn: () =>
+                          props.onOpenAsColumn?.(layer.column),
+                        backTo:
+                          index() > 0
+                            ? (stack()[index() - 1]?.column.title ??
+                              props.column.title)
+                            : props.column.title,
+                      }}
+                    />
+                  </Drawer.Content>
+                </Drawer.Positioner>
+              </Drawer.Root>
             )}
           </For>
         </div>
