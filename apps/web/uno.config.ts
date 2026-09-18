@@ -75,6 +75,13 @@ for (const color of Object.values(colors)) {
 }
 
 export default defineConfig({
+  // 既定では .ts を読まない。クラス名を .ts に書くと（column-meta.ts のアイコンなど）、
+  // 同じ名前がどこかの .tsx に無い限り CSS が作られず、黙って消える。
+  content: {
+    pipeline: {
+      include: [/\.([jt]sx?|mdx?|html)($|\?)/],
+    },
+  },
   presets: [
     // dark: は `.dark` クラスで効かせる。OS 設定・ライト・ダークのどれに従うかはアプリが theme.ts で決める。
     presetUno(),
