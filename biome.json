@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/1.8.3/schema.json",
   "files": {
-    "ignore": ["tsconfig.json", "tsconfig.*.json", "apps/web/legacy"]
+    "ignore": ["tsconfig.json", "tsconfig.*.json", ".claude"]
   },
   "formatter": {
     "indentStyle": "space"
