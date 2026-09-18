@@ -779,3 +779,62 @@ describe("replace", () => {
     expect(additional).toEqual([["wss://old/"], ["wss://current/"]]);
   });
 });
+
+describe("進み具合", () => {
+  it("replace は 確かめる → 署名 → 送る の順に知らせ、送る間はリレーごとの結果を渡す", async () => {
+    // 捕まえる変異: 署名の前に「送っている」と知らせる、publisher の途中経過を捨てる。
+    const phases: string[] = [];
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: stubPublisher(async (_event, options) => {
+        options?.onProgress?.([
+          { relay: "wss://a.example" as RelayUrl, state: "pending" },
+        ]);
+        options?.onProgress?.([
+          { relay: "wss://a.example" as RelayUrl, state: "accepted" },
+        ]);
+        return ok;
+      }),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => {
+        phases.push("fetch");
+        return undefined;
+      },
+    });
+
+    await writer.replace(
+      10_000,
+      undefined,
+      () => ({ kind: 10_000, tags: [], content: "" }),
+      {
+        onProgress: (progress) =>
+          phases.push(
+            progress.phase === "sending"
+              ? `sending:${progress.relays.map((r) => r.state).join(",")}`
+              : progress.phase,
+          ),
+      },
+    );
+
+    expect(phases).toEqual([
+      "checking",
+      "fetch",
+      "signing",
+      "sending:pending",
+      "sending:accepted",
+    ]);
+  });
+
+  it("publish は確かめる段を飛ばす", async () => {
+    const phases: string[] = [];
+    const { writer } = setup(ok);
+    await writer.publish(
+      { kind: 1, tags: [], content: "hi" },
+      { onProgress: (progress) => phases.push(progress.phase) },
+    );
+    expect(phases[0]).toBe("signing");
+    expect(phases).not.toContain("checking");
+  });
+});

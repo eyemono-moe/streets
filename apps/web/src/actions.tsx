@@ -15,17 +15,9 @@ import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import type { Signer } from "@streets/core/signer/signer";
-import { SignerUnavailableError } from "@streets/core/signer/signer";
-import {
-  RefetchFailedError,
-  fetchLatest,
-} from "@streets/core/write/fetch-latest";
+import { fetchLatest } from "@streets/core/write/fetch-latest";
 import { createPublisher } from "@streets/core/write/publisher";
-import {
-  WriteFailedError,
-  type Writer,
-  createWriter,
-} from "@streets/core/write/writer";
+import { type Writer, createWriter } from "@streets/core/write/writer";
 import {
   type Accessor,
   type ParentComponent,
@@ -34,6 +26,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
+import { trackWrites } from "./write-progress";
 
 const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
@@ -92,6 +85,9 @@ export const createWriteStack = (options: {
       fetchLatest(target, kind, identifier, pubkey),
   });
 
+  // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
+  const tracked = (label: string) => trackWrites(writer, label);
+
   const relayHintFor = (id: string) =>
     store
       .seenRelays(id)
@@ -131,20 +127,20 @@ export const createWriteStack = (options: {
     viewer: options.viewer,
     bookmarkIds,
     async post(content) {
-      await writer.publish(buildNote(content));
+      await tracked("投稿").publish(buildNote(content));
     },
     async reply(event, content) {
-      await writer.publish(
+      await tracked("返信").publish(
         buildReply(event, content, { relayHint: relayHintFor(event.id) }),
       );
     },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
-      await writer.publish(draft);
+      await tracked("リポスト").publish(draft);
     },
     async react(event, input) {
-      await writer.publish(buildReaction(event, input));
+      await tracked("リアクション").publish(buildReaction(event, input));
     },
     bookmarked: (id) => bookmarkIds().includes(id),
     async setBookmark(event, on) {
@@ -152,14 +148,14 @@ export const createWriteStack = (options: {
         type: "note",
         value: event.id,
       });
-      await writer.replace(BOOKMARK_KIND, undefined, mutation);
+      await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),
     async setFollow(pubkey, on) {
       // 自分をフォローする操作は出さない。押せてしまうと kind:3 に自分が混ざる。
       if (pubkey === options.viewer) return;
-      await writer.replace(
+      await tracked("フォロー").replace(
         FOLLOW_KIND,
         undefined,
         on ? addFollow(pubkey) : removeFollow(pubkey),
@@ -175,19 +171,6 @@ export const createWriteStack = (options: {
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };
-};
-
-export const actionErrorMessage = (error: unknown): string => {
-  if (error instanceof WriteFailedError) {
-    return `どのリレーにも届きませんでした（${error.rejected.length} 本が拒否）`;
-  }
-  if (error instanceof RefetchFailedError) {
-    return "保存する前に今の状態を取得できませんでした。時間をおいて再試行してください";
-  }
-  if (error instanceof SignerUnavailableError) {
-    return "署名器を利用できません。ログインし直してください";
-  }
-  return `送信に失敗しました: ${error instanceof Error ? error.message : String(error)}`;
 };
 
 const EventActionsContext = createContext<EventActions>();

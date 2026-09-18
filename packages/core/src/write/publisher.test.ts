@@ -258,3 +258,34 @@ describe("createPublisher", () => {
     expect(result.rejected[0]?.relay).toBe("wss://busy/");
   });
 });
+
+describe("publish の途中経過", () => {
+  // 捕まえる変異: 全部の結果が出てからまとめて 1 回だけ知らせる —— それでは
+  // 「どこかには届いた」を早く出せない。
+  it("はじめに全部待ちを、1 本の結果が出るたびにその時点の様子を知らせる", async () => {
+    const store = new EventStore();
+    const author = relayListEvent(9, [
+      ["r", "wss://good/", "write"],
+      ["r", "wss://bad/", "write"],
+    ]);
+    store.put(author, "wss://indexer/");
+    const pool = poolWithFakes(new Map(), {
+      publishFailing: { "wss://bad/": "blocked" },
+    });
+    const publisher = createPublisher({
+      pool,
+      routing: new RoutingTable(store),
+      fallbackRelays: [],
+    });
+
+    const seen: string[] = [];
+    await publisher.publish(sign(9, { ...base, kind: 1, content: "p" }), {
+      onProgress: (relays) =>
+        seen.push(relays.map((r) => `${r.relay}=${r.state}`).join(" ")),
+    });
+
+    expect(seen[0]).toBe("wss://good/=pending wss://bad/=pending");
+    expect(seen).toHaveLength(3);
+    expect(seen.at(-1)).toBe("wss://good/=accepted wss://bad/=rejected");
+  });
+});

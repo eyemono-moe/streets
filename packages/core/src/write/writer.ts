@@ -5,6 +5,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import { type Signer, SignerUnavailableError } from "../signer/signer";
 import type { Publisher } from "./publisher";
 import { verifyOptimisticInsert } from "./verify-optimistic-insert";
+import type { WriteProgress } from "./write-progress";
 
 export type WriteResult = {
   event: NostrEvent;
@@ -28,6 +29,8 @@ export type WriteResult = {
  * remove するため、呼び出し側にも同じ verdict を渡して同じ判断をさせる。
  */
 export type WriteHooks = {
+  /** どこまで進んだか。画面に進み具合を出すときに使う。 */
+  onProgress?: (progress: WriteProgress) => void;
   onOptimisticInsert?: (
     event: NostrEvent,
     startedAt: number,
@@ -132,6 +135,7 @@ export const createWriter = ({
     // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
     // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
     // 出せなくなる。この行より前では何も挿入していない。
+    hooks?.onProgress?.({ phase: "signing" });
     const signed = await signer.signEvent(unsigned);
 
     // 開始時刻は store.put() (schnorr 検証を含む) より前に取る —— フックへ
@@ -146,7 +150,10 @@ export const createWriter = ({
     );
     hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
 
-    const result = await publisher.publish(signed, { additionalRelays });
+    const result = await publisher.publish(signed, {
+      additionalRelays,
+      onProgress: (relays) => hooks?.onProgress?.({ phase: "sending", relays }),
+    });
     if (result.accepted.length === 0) {
       // 全滅時、新規挿入 ("inserted") のときだけ store から取り除く —— "duplicate" を無条件 remove すると、先に成功していた既存イベントまで消えてしまう。
       if (putResult === "inserted") {
@@ -178,6 +185,7 @@ export const createWriter = ({
       // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
       // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
       // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+      hooks?.onProgress?.({ phase: "checking" });
       const current = await fetchLatest(kind, identifier, author);
       // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
       // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー

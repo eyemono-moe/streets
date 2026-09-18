@@ -45,6 +45,11 @@ import {
 } from "../theme";
 import { notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
+import { trackReplaces } from "../write-progress";
+import {
+  setShowWriteProgress,
+  showWriteProgress,
+} from "../write-progress-setting";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import DeckSyncNotice from "./DeckSyncNotice";
@@ -117,7 +122,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
     routingSettled: settled,
     signer: props.session.signer,
-    writer: write.writer,
+    writer: trackReplaces(write.writer, "デッキの設定"),
     fetchLatest: write.fetchLatest,
     storage: localStorage,
   });
@@ -230,6 +235,9 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
         setAppearance(event.appearance);
+        return true;
+      case "deck/set-write-progress":
+        setShowWriteProgress(event.on);
         return true;
       case "deck/set-appearance":
         setAppearance(event.appearance);
@@ -515,7 +523,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
             </Match>
           </Switch>
           <RelayMediator
-            writer={write.writer}
+            writer={trackReplaces(write.writer, "リレーの設定")}
             relayList={write.relayList}
             settled={write.relayListSettled}
             statusOf={(url) => props.readLayer.manager.pool.statusOf(url)}
@@ -526,6 +534,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               wide={isWide()}
               scheme={scheme()}
               appearance={appearance()}
+              writeProgress={showWriteProgress()}
             />
           </RelayMediator>
         </Mediates>

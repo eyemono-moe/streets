@@ -28,6 +28,7 @@ const SettingsDialog: Component<{
   wide: boolean;
   scheme: ColorScheme;
   appearance: DeckAppearance;
+  writeProgress: boolean;
   /** 開いたときに出すページ。 */
   initialPage?: string;
 }> = (props) => {
@@ -60,9 +61,13 @@ const SettingsDialog: Component<{
       label: "表示",
       icon: "i-material-symbols:visibility-outline-rounded",
       title: "表示",
-      description: "画面の色を選びます。",
+      description: "画面の色と、保存したときの知らせ方を選びます。",
       content: () => (
-        <DisplaySettings scheme={props.scheme} appearance={props.appearance} />
+        <DisplaySettings
+          scheme={props.scheme}
+          appearance={props.appearance}
+          writeProgress={props.writeProgress}
+        />
       ),
     },
   ];

@@ -7,6 +7,7 @@ import { PALETTES, type PaletteName, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
 import SegmentedControl from "../ui/SegmentedControl";
+import Switch from "../ui/Switch";
 import DisplayPreview from "./DisplayPreview";
 import SettingsSection from "./SettingsSection";
 
@@ -20,6 +21,8 @@ const SCHEMES: { value: ColorScheme; label: string }[] = [
 const DisplaySettings: Component<{
   scheme: ColorScheme;
   appearance: DeckAppearance;
+  /** 保存の進み具合を出すか（この端末の設定）。 */
+  writeProgress: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const current = () => paletteOf(props.appearance);
@@ -36,6 +39,18 @@ const DisplaySettings: Component<{
 
   return (
     <div class="flex flex-col gap-7">
+      <SettingsSection
+        title="保存の進み具合"
+        scope="device"
+        description="投稿やいいね、設定を保存するとき、送り先のリレーそれぞれに届いたかを画面の右下に出します。どこか 1 つに届いた時点で「保存しました」と出ます。切ると、設定を保存したときと、届かなかったときだけ知らせます。"
+      >
+        <Switch
+          label="保存の進み具合を表示する"
+          checked={props.writeProgress}
+          onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
+        />
+      </SettingsSection>
+
       <SettingsSection
         title="カラーテーマ"
         scope="device"

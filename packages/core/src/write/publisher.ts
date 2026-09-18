@@ -2,6 +2,11 @@ import type { NostrEvent } from "../nostr/event";
 import type { ConnectionPool } from "../read/connection-pool";
 import type { RoutingTable } from "../read/routing-table";
 import type { RelayUrl } from "../relay/relay-connection";
+import {
+  type RelayProgress,
+  pendingRelays,
+  settleRelay,
+} from "./write-progress";
 
 /**
  * 1 回の publish の結果。受理・拒否 (理由付き) を両方見せ、黙って
@@ -24,7 +29,15 @@ export type Publisher = {
   targets(pubkey: string): RelayUrl[];
   publish(
     event: NostrEvent,
-    options?: { additionalRelays?: readonly RelayUrl[] },
+    options?: {
+      additionalRelays?: readonly RelayUrl[];
+      /**
+       * 送り先が決まったとき（全部待ち）と、1 本の結果が出るたびに呼ぶ。
+       * 戻り値の Promise は全部の結果が出るまで待つので、先に「どこかには
+       * 届いた」を知りたい画面はこちらを見る。
+       */
+      onProgress?: (relays: RelayProgress[]) => void;
+    },
   ): Promise<PublishResult>;
 };
 
@@ -60,8 +73,26 @@ export const createPublisher = ({
         ...new Set([...currentTargets, ...(options?.additionalRelays ?? [])]),
       ];
 
+      let progress = pendingRelays(publishTargets);
+      options?.onProgress?.(progress);
       const settled = await Promise.allSettled(
-        publishTargets.map((relay) => pool.publish(relay, event)),
+        publishTargets.map((relay) =>
+          pool.publish(relay, event).then(
+            () => {
+              progress = settleRelay(progress, relay, { accepted: true });
+              options?.onProgress?.(progress);
+            },
+            (reason: unknown) => {
+              progress = settleRelay(progress, relay, {
+                accepted: false,
+                reason:
+                  reason instanceof Error ? reason.message : String(reason),
+              });
+              options?.onProgress?.(progress);
+              throw reason;
+            },
+          ),
+        ),
       );
 
       const accepted: RelayUrl[] = [];
