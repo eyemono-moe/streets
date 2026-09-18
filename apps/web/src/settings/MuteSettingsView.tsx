@@ -93,7 +93,7 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
           </p>
         </Show>
         <Show when={props.privatePart === "invalid"}>
-          <p class="c-danger rounded-2 bg-secondary p-3 text-caption">
+          <p class="c-danger rounded-2 bg-danger-subtle p-3 text-caption">
             非公開のミュートを読み取れませんでした。公開のミュートだけを表示しています。
           </p>
         </Show>

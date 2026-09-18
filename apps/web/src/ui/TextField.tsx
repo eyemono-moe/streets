@@ -20,8 +20,7 @@ const TextField: Component<{
   const noteId = `${id}-note`;
   const inputClass =
     "c-primary placeholder:c-secondary w-full rounded-2 border bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5";
-  const border = () =>
-    props.error ? "border-[#C5221F] dark:border-[#F28B82]" : "border-primary";
+  const border = () => (props.error ? "border-danger" : "border-primary");
   return (
     <div class="flex min-w-0 flex-col gap-1">
       <label for={id} class="c-secondary font-600 text-caption">

@@ -82,12 +82,11 @@ const ProgressRing: Component<{ counts?: RingCounts }> = (props) => {
         stroke-width={STROKE}
         class="stroke-ui-2 dark:stroke-ui-7"
       />
-      {/* 接続の様子の点と同じ緑・赤。成功・失敗はテーマ色にしない。 */}
       {/* 弧は常に置いておく。最初の結果が届いたとき、0 から伸びて見える。 */}
-      <ArcCircle arc={arc(0, doneShare(), both())} class="stroke-[#188038]" />
+      <ArcCircle arc={arc(0, doneShare(), both())} class="stroke-status-ok" />
       <ArcCircle
         arc={arc(doneShare(), doneShare() + failedShare(), both())}
-        class="stroke-[#C5221F] dark:stroke-[#F28B82]"
+        class="stroke-danger"
       />
       <Show when={settled() === 0}>
         <circle

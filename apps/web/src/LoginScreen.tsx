@@ -65,7 +65,7 @@ const LoginScreen: Component<{ session: Session }> = (props) => {
         </Show>
         <Show when={props.session.error()}>
           {(message) => (
-            <p role="alert" class="text-caption text-red-500">
+            <p role="alert" class="c-danger text-caption">
               {message()}
             </p>
           )}
