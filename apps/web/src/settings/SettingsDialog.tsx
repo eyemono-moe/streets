@@ -160,10 +160,16 @@ const SettingsDialog: Component<{
                 {(page) => (
                   <Tabs.Content
                     value={page.value}
-                    class="min-h-0 overflow-y-auto"
-                    classList={{ "p-6": props.wide, "p-4": !props.wide }}
+                    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
                   >
-                    <div class="mb-6 flex items-start gap-3">
+                    {/* 閉じるボタンは見出しの行にあるので、流すのは本文だけにする。 */}
+                    <div
+                      class="flex items-start gap-3"
+                      classList={{
+                        "px-6 pt-6 pb-4": props.wide,
+                        "px-4 pt-4 pb-3": !props.wide,
+                      }}
+                    >
                       <div class="flex min-w-0 flex-1 flex-col gap-1">
                         <h2 class="font-600 text-h3">{page.title}</h2>
                         <Show when={page.description}>
@@ -186,7 +192,17 @@ const SettingsDialog: Component<{
                         />
                       </Show>
                     </div>
-                    <Show when={page.content}>{(content) => content()()}</Show>
+                    <div
+                      class="overflow-y-auto"
+                      classList={{
+                        "px-6 pb-6": props.wide,
+                        "px-4 pb-4": !props.wide,
+                      }}
+                    >
+                      <Show when={page.content}>
+                        {(content) => content()()}
+                      </Show>
+                    </div>
                   </Tabs.Content>
                 )}
               </For>

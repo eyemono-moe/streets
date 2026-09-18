@@ -30,6 +30,11 @@ const SIZE: Record<ButtonSize, string> = {
   md: "h-8.5 gap-1.5 px-4.5",
 };
 
+const ICON_ONLY_SIZE: Record<ButtonSize, string> = {
+  sm: "size-7.5",
+  md: "size-8.5",
+};
+
 export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
@@ -37,7 +42,7 @@ export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   shape?: "pill" | "rounded";
   /** 横幅いっぱいにする。 */
   block?: boolean;
-  /** 先頭に置くアイコンの class（`i-material-symbols:…`）。 */
+  /** 先頭に置くアイコンの class（`i-material-symbols:…`）。文字が無ければ、アイコンだけの正方形になる。 */
   icon?: string;
 };
 
@@ -56,12 +61,13 @@ const Button: ParentComponent<ButtonProps> = (props) => {
     "children",
     "type",
   ]);
+  const iconOnly = () => own.icon !== undefined && own.children === undefined;
   const className = () =>
     [
       // 高さを決めているので、折り返さずに切る。
       "inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap font-600 text-caption transition-colors enabled:cursor-pointer disabled:cursor-default",
       own.shape === "rounded" ? "rounded-2" : "rounded-full",
-      SIZE[own.size ?? "md"],
+      iconOnly() ? ICON_ONLY_SIZE[own.size ?? "md"] : SIZE[own.size ?? "md"],
       VARIANT[own.variant ?? "secondary"],
       // muted は押せない見た目そのものなので、さらに薄くしない。
       own.variant === "muted" ? "" : "disabled:opacity-50",
@@ -79,7 +85,8 @@ const Button: ParentComponent<ButtonProps> = (props) => {
           aria-hidden="true"
         />
       ) : null}
-      <span class="min-w-0 truncate">{own.children}</span>
+      {/* 空の span でも gap が効いて、アイコンが中心からずれる。 */}
+      {iconOnly() ? null : <span class="min-w-0 truncate">{own.children}</span>}
     </button>
   );
 };
