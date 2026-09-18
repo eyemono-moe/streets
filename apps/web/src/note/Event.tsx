@@ -210,10 +210,8 @@ const Frame: ParentComponent<{
 }> = (props) => (
   // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
   <article
-    class="offscreen-skip flex flex-col bg-primary"
+    class="flex flex-col bg-primary"
     classList={{
-      "gap-2 p-3": props.size === "normal",
-      "gap-1.5 p-2": props.size === "compact",
       "cursor-pointer": props.onOpen !== undefined,
     }}
     onMouseDown={(event) => props.onDown?.(event)}
@@ -230,7 +228,19 @@ const Frame: ParentComponent<{
       props.onOpen?.(event);
     }}
   >
-    {props.children}
+    {/*
+      画面の外を飛ばすのは中身だけ。`article` そのものに当てると、下線が端数の
+      位置で丸められて消えることがある（区切りが 2、3 本に 1 本抜ける）。
+    */}
+    <div
+      class="offscreen-skip flex flex-col"
+      classList={{
+        "gap-2 p-3": props.size === "normal",
+        "gap-1.5 p-2": props.size === "compact",
+      }}
+    >
+      {props.children}
+    </div>
   </article>
 );
 

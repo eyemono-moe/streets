@@ -227,10 +227,8 @@ const ActionNotice: Component<{
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
     <article
-      class="offscreen-skip flex bg-primary"
+      class="flex flex-col bg-primary"
       classList={{
-        "gap-3 p-3": props.size === "normal",
-        "flex-col gap-1.5 p-2": props.size === "compact",
         "cursor-pointer": target() !== undefined,
       }}
       onClick={(event) => {
@@ -249,52 +247,71 @@ const ActionNotice: Component<{
         });
       }}
     >
-      <Show
-        when={props.size === "normal"}
-        fallback={
-          <>
+      {/*
+        画面の外を飛ばすのは中身だけ。`article` そのものに当てると、下線が端数の
+        位置で丸められて消えることがある。
+      */}
+      <div
+        class="offscreen-skip flex"
+        classList={{
+          "gap-3 p-3": props.size === "normal",
+          "flex-col gap-1.5 p-2": props.size === "compact",
+        }}
+      >
+        <Show
+          when={props.size === "normal"}
+          fallback={
+            <>
+              <div ref={measure} class="flex min-w-0 items-center gap-2">
+                <span
+                  class={`${icon()} size-3.5 shrink-0`}
+                  aria-hidden="true"
+                />
+                <AvatarRow pubkeys={actors()} size="tiny" budget={budget()} />
+                <Summary
+                  events={props.events}
+                  action={action()}
+                  size="compact"
+                />
+                {time()}
+              </div>
+              <div class="pl-5.5">{targetCard()}</div>
+            </>
+          }
+        >
+          <span class={`${icon()} mt-1.5 size-5 shrink-0`} aria-hidden="true" />
+          <div class="flex min-w-0 flex-1 flex-col gap-2">
             <div ref={measure} class="flex min-w-0 items-center gap-2">
-              <span class={`${icon()} size-3.5 shrink-0`} aria-hidden="true" />
-              <AvatarRow pubkeys={actors()} size="tiny" budget={budget()} />
-              <Summary events={props.events} action={action()} size="compact" />
+              <Show
+                when={grouped()}
+                fallback={
+                  <>
+                    <Avatar pubkey={actors()[0] ?? ""} size="compact" />
+                    <Summary
+                      events={props.events}
+                      action={action()}
+                      size="normal"
+                    />
+                  </>
+                }
+              >
+                <div class="min-w-0 flex-1">
+                  <AvatarRow
+                    pubkeys={actors()}
+                    size="compact"
+                    budget={budget()}
+                  />
+                </div>
+              </Show>
               {time()}
             </div>
-            <div class="pl-5.5">{targetCard()}</div>
-          </>
-        }
-      >
-        <span class={`${icon()} mt-1.5 size-5 shrink-0`} aria-hidden="true" />
-        <div class="flex min-w-0 flex-1 flex-col gap-2">
-          <div ref={measure} class="flex min-w-0 items-center gap-2">
-            <Show
-              when={grouped()}
-              fallback={
-                <>
-                  <Avatar pubkey={actors()[0] ?? ""} size="compact" />
-                  <Summary
-                    events={props.events}
-                    action={action()}
-                    size="normal"
-                  />
-                </>
-              }
-            >
-              <div class="min-w-0 flex-1">
-                <AvatarRow
-                  pubkeys={actors()}
-                  size="compact"
-                  budget={budget()}
-                />
-              </div>
+            <Show when={grouped()}>
+              <Summary events={props.events} action={action()} size="normal" />
             </Show>
-            {time()}
+            {targetCard()}
           </div>
-          <Show when={grouped()}>
-            <Summary events={props.events} action={action()} size="normal" />
-          </Show>
-          {targetCard()}
-        </div>
-      </Show>
+        </Show>
+      </div>
     </article>
   );
 };
