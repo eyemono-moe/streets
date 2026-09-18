@@ -1,4 +1,4 @@
-import { type Component, Show, createUniqueId } from "solid-js";
+import { type Component, type JSX, Show, createUniqueId } from "solid-js";
 
 /**
  * 名前の付いた入力欄。名前・入力・（誤りか説明）の順に縦に並べる。誤りがあるときは
@@ -9,8 +9,8 @@ const TextField: Component<{
   value: string;
   onInput: (value: string) => void;
   placeholder?: string;
-  /** 入力の下に出す説明。誤りがあるときは出さない。 */
-  hint?: string;
+  /** 入力の下に出す説明。誤りがあるときは出さない。詳しい説明へのリンクを含めてよい。 */
+  hint?: JSX.Element;
   error?: string;
   /** 複数行（自己紹介など）。 */
   multiline?: boolean;

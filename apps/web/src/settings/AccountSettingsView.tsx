@@ -1,12 +1,19 @@
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { shortNpub } from "@streets/core/nostr/profile";
 import {
   type ProfileEditState,
   type ProfileField,
   isProfileDirty,
   profileErrors,
+  profileFromDraft,
 } from "@streets/core/settings/profile-edit";
-import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type Component,
+  type JSX,
+  Show,
+  createSignal,
+  onCleanup,
+} from "solid-js";
+import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
@@ -82,7 +89,19 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               label="ドメインでの本人確認（NIP-05）"
               type="email"
               placeholder="name@example.com"
-              hint="持っているドメインで、このアカウントが自分のものだと示せます。"
+              hint={
+                <>
+                  持っているドメインで、このアカウントが自分のものだと示せます。
+                  <a
+                    class="text-link"
+                    href="https://welcome.nostr-jp.org/tutorial/nip-05.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    NIP-05 とは？
+                  </a>
+                </>
+              }
             />
             <ProfileInput
               field="website"
@@ -146,7 +165,7 @@ const ProfileInput: Component<{
   state: ProfileEditState;
   label: string;
   placeholder?: string;
-  hint?: string;
+  hint?: JSX.Element;
   multiline?: boolean;
   type?: "text" | "url" | "email";
 }> = (props) => {
@@ -167,68 +186,26 @@ const ProfileInput: Component<{
   );
 };
 
-/** 書きかけのままのプロフィールの見た目。保存する前に確かめられる。 */
+/**
+ * 書きかけのままのプロフィールを、ユーザーのカラムの先頭と同じ部品・同じ幅で
+ * 見せる。保存したらほかの人にどう見えるかを、そのまま確かめられる。
+ */
 const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
   props,
-) => {
-  const draft = () => props.state.draft;
-  const [bannerBroken, setBannerBroken] = createSignal<string>();
-  const [pictureBroken, setPictureBroken] = createSignal<string>();
-  const banner = () => {
-    const url = draft().banner.trim();
-    return url && url !== bannerBroken() ? url : undefined;
-  };
-  const picture = () => {
-    const url = draft().picture.trim();
-    return url && url !== pictureBroken() ? url : undefined;
-  };
-  const name = () =>
-    draft().display_name.trim() ||
-    draft().name.trim() ||
-    shortNpub(props.pubkey);
-
-  return (
+) => (
+  <div class="flex flex-col gap-1.5">
+    <span class="c-secondary text-caption">カラムでの見え方</span>
     <div
-      class="overflow-hidden rounded-3 border border-primary"
+      class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0"
       aria-hidden="true"
     >
-      <div class="h-16 bg-tertiary">
-        <Show when={banner()}>
-          {(url) => (
-            <img
-              src={url()}
-              alt=""
-              class="size-full object-cover"
-              onError={() => setBannerBroken(url())}
-            />
-          )}
-        </Show>
-      </div>
-      <div class="flex items-end gap-3 px-3 pb-3">
-        <div class="-mt-7 size-14 shrink-0 overflow-hidden rounded-3 border-3 border-white bg-secondary dark:border-ui-950">
-          <Show when={picture()}>
-            {(url) => (
-              <img
-                src={url()}
-                alt=""
-                class="size-full object-cover"
-                onError={() => setPictureBroken(url())}
-              />
-            )}
-          </Show>
-        </div>
-        <div class="flex min-w-0 flex-col">
-          <span class="c-primary truncate font-600 text-body">{name()}</span>
-          <Show when={draft().name.trim()}>
-            {(handle) => (
-              <span class="c-secondary truncate text-caption">@{handle()}</span>
-            )}
-          </Show>
-        </div>
-      </div>
+      <ProfileHeaderCard
+        pubkey={props.pubkey}
+        profile={profileFromDraft(props.state.draft)}
+      />
     </div>
-  );
-};
+  </div>
+);
 
 const AccountId: Component<{ pubkey: string }> = (props) => {
   const npub = () => encodeBech32("npub", props.pubkey);

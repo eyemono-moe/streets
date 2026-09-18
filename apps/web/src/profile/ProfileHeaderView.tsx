@@ -1,5 +1,9 @@
-import { profileLabel, shortNpub } from "@streets/core/nostr/profile";
-import { type Component, Show, createSignal } from "solid-js";
+import {
+  type Profile,
+  profileLabel,
+  shortNpub,
+} from "@streets/core/nostr/profile";
+import { type Component, type JSX, Show, createSignal } from "solid-js";
 import { useProfile } from "../note/use-profile";
 import FollowButton from "./FollowButton";
 
@@ -26,19 +30,29 @@ const Count: Component<{
   </button>
 );
 
-/** ユーザーのカラムの先頭。プロフィールとフォローの操作を置く。 */
-const ProfileHeaderView: Component<{
+/**
+ * プロフィールの見た目。ユーザーのカラムの先頭と、設定での書きかけの見本が同じ
+ * ものを使う（見本が本物とずれない）。操作（フォロー）と数は置き場所ごとに渡す。
+ */
+export const ProfileHeaderCard: Component<{
   pubkey: string;
-  followeeCount: number;
-  followerCount: number;
-  onOpenFollowees?: () => void;
-  onOpenFollowers?: () => void;
+  profile: Profile | undefined;
+  /** アイコンの右に置く操作。 */
+  action?: JSX.Element;
+  /** 自己紹介の下に置くもの（フォロー・フォロワーの数）。 */
+  footer?: JSX.Element;
 }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
-  const [bannerBroken, setBannerBroken] = createSignal(false);
-  const [pictureBroken, setPictureBroken] = createSignal(false);
-  const banner = () => (bannerBroken() ? undefined : profile()?.banner);
-  const picture = () => (pictureBroken() ? undefined : profile()?.picture);
+  // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
+  const [bannerBroken, setBannerBroken] = createSignal<string>();
+  const [pictureBroken, setPictureBroken] = createSignal<string>();
+  const banner = () => {
+    const url = props.profile?.banner;
+    return url && url !== bannerBroken() ? url : undefined;
+  };
+  const picture = () => {
+    const url = props.profile?.picture;
+    return url && url !== pictureBroken() ? url : undefined;
+  };
 
   return (
     <section class="flex flex-col border-primary border-b bg-primary">
@@ -49,14 +63,14 @@ const ProfileHeaderView: Component<{
               src={url()}
               alt=""
               class="size-full object-cover"
-              onError={() => setBannerBroken(true)}
+              onError={() => setBannerBroken(url())}
             />
           )}
         </Show>
       </div>
       {/* アイコンはヘッダー画像に重ねる。上へ 32px 引き上げて、その分を下で戻す。 */}
       <div class="-mt-8 flex flex-col gap-3 px-3 pb-3">
-        <div class="flex items-end justify-between gap-2">
+        <div class="flex min-h-20 items-end justify-between gap-2">
           <div class="size-20 shrink-0 overflow-hidden rounded-3 border-3 border-white bg-secondary dark:border-ui-950">
             <Show when={picture()}>
               {(url) => (
@@ -64,28 +78,49 @@ const ProfileHeaderView: Component<{
                   src={url()}
                   alt=""
                   class="size-full object-cover"
-                  onError={() => setPictureBroken(true)}
+                  onError={() => setPictureBroken(url())}
                 />
               )}
             </Show>
           </div>
-          <FollowButton pubkey={props.pubkey} />
+          {props.action}
         </div>
         <div class="flex flex-col">
           <h3 class="c-primary break-anywhere font-600 text-h3">
-            {profileLabel(profile(), props.pubkey)}
+            {profileLabel(props.profile, props.pubkey)}
           </h3>
           <p class="c-secondary break-anywhere text-caption">
-            @{profile()?.name ?? shortNpub(props.pubkey)}
+            @{props.profile?.name ?? shortNpub(props.pubkey)}
           </p>
         </div>
-        <Show when={profile()?.about}>
+        <Show when={props.profile?.about}>
           {(about) => (
             <p class="c-primary break-anywhere whitespace-pre-wrap text-caption">
               {about()}
             </p>
           )}
         </Show>
+        {props.footer}
+      </div>
+    </section>
+  );
+};
+
+/** ユーザーのカラムの先頭。プロフィールとフォローの操作を置く。 */
+const ProfileHeaderView: Component<{
+  pubkey: string;
+  followeeCount: number;
+  followerCount: number;
+  onOpenFollowees?: () => void;
+  onOpenFollowers?: () => void;
+}> = (props) => {
+  const profile = useProfile(() => props.pubkey);
+  return (
+    <ProfileHeaderCard
+      pubkey={props.pubkey}
+      profile={profile()}
+      action={<FollowButton pubkey={props.pubkey} />}
+      footer={
         <div class="flex gap-4">
           <Count
             count={props.followeeCount}
@@ -100,8 +135,8 @@ const ProfileHeaderView: Component<{
             onOpen={props.onOpenFollowers}
           />
         </div>
-      </div>
-    </section>
+      }
+    />
   );
 };
 

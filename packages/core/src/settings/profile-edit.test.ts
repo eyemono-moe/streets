@@ -8,6 +8,7 @@ import {
   profileDraftFrom,
   profileEditTransition,
   profileErrors,
+  profileFromDraft,
 } from "./profile-edit";
 
 const content = (fields: Record<string, unknown>) => JSON.stringify(fields);
@@ -118,5 +119,23 @@ describe("profileErrors", () => {
     expect(
       profileErrors({ ...emptyProfileEdit().draft, nip05: "me@example.com" }),
     ).toEqual({});
+  });
+});
+
+describe("profileFromDraft", () => {
+  it("読む側と同じ形にし、空欄は書いていないとみなす", () => {
+    expect(
+      profileFromDraft({
+        ...emptyProfileEdit().draft,
+        display_name: " わたし ",
+        about: "  ",
+      }),
+    ).toEqual({
+      name: undefined,
+      displayName: "わたし",
+      picture: undefined,
+      about: undefined,
+      banner: undefined,
+    });
   });
 });

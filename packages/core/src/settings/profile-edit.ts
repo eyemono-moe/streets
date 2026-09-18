@@ -1,3 +1,5 @@
+import type { Profile } from "../nostr/profile";
+
 /**
  * プロフィール（kind:0）の編集。フォームはここに挙げた項目だけを扱い、保存する
  * ときは変えた項目だけを最新の版へ重ねる（`mergeProfile`）。ほかのアプリが
@@ -150,4 +152,19 @@ export const profileErrors = (
     errors.nip05 = "name@example.com の形で入力してください";
   }
   return errors;
+};
+
+/**
+ * 書きかけを、読む側（カラムの先頭など）と同じ形にする。見本を本物と同じ部品で
+ * 描くため。空欄は「書いていない」として扱う。
+ */
+export const profileFromDraft = (draft: ProfileDraft): Profile => {
+  const text = (value: string) => value.trim() || undefined;
+  return {
+    name: text(draft.name),
+    displayName: text(draft.display_name),
+    picture: text(draft.picture),
+    about: text(draft.about),
+    banner: text(draft.banner),
+  };
 };
