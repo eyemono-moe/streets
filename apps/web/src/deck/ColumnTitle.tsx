@@ -1,44 +1,34 @@
-import type { ColumnDef, ColumnSource } from "@streets/core/deck/deck";
+import { columnTitle } from "@streets/core/deck/column-title";
+import type { ColumnDef } from "@streets/core/deck/deck";
 import { profileLabel } from "@streets/core/nostr/profile";
-import { type Component, Match, Switch } from "solid-js";
+import type { Accessor, Component } from "solid-js";
 import { useProfile } from "../note/use-profile";
 
-/** その人に紐づくカラムなら、題名に使う pubkey と付ける語。 */
-const personOf = (
-  source: ColumnSource,
-): { pubkey: string; suffix: string } | undefined => {
-  if (source.kind === "user") return { pubkey: source.pubkey, suffix: "" };
-  if (source.kind === "followees-list") {
-    return { pubkey: source.pubkey, suffix: " のフォロー" };
-  }
-  if (source.kind === "followers-list") {
-    return { pubkey: source.pubkey, suffix: " のフォロワー" };
-  }
-  return undefined;
-};
-
-const PersonTitle: Component<{ pubkey: string; suffix: string }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
-  return (
-    <>
-      {profileLabel(profile(), props.pubkey)}
-      {props.suffix}
-    </>
-  );
-};
-
 /**
- * ヘッダーに出す題名。人に紐づくカラムは、kind:0 が届いたら npub ではなく
- * 名前で呼ぶ —— 開いた先に誰がいるのかが、題名だけで分かるようにする。
+ * カラムの題名の文字。中身から決め、人に紐づくカラムは kind:0 が届いたら npub では
+ * なく名前で呼ぶ。ヘッダー・タブ・「〜に戻る」・読み上げの名前など、題名を出す
+ * どこでもこれを使う（保存した `title` をそのまま出さない）。
  */
-const ColumnTitle: Component<{ column: ColumnDef }> = (props) => (
-  <Switch fallback={props.column.title}>
-    <Match when={personOf(props.column.source)}>
-      {(person) => (
-        <PersonTitle pubkey={person().pubkey} suffix={person().suffix} />
-      )}
-    </Match>
-  </Switch>
-);
+export const useColumnTitle = (
+  column: Accessor<ColumnDef>,
+): Accessor<string> => {
+  const title = () => columnTitle(column());
+  const person = () => {
+    const current = title();
+    return "person" in current ? current.person : undefined;
+  };
+  const profile = useProfile(person);
+  return () => {
+    const current = title();
+    return "person" in current
+      ? `${profileLabel(profile(), current.person)}${current.suffix}`
+      : current.text;
+  };
+};
+
+const ColumnTitle: Component<{ column: ColumnDef }> = (props) => {
+  const title = useColumnTitle(() => props.column);
+  return <>{title()}</>;
+};
 
 export default ColumnTitle;

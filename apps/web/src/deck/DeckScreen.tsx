@@ -54,6 +54,7 @@ import {
 } from "../write-progress-setting";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
+import ColumnTitle from "./ColumnTitle";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, Sidebar, TabBar } from "./Nav";
 import SidePanel from "./SidePanel";
@@ -423,7 +424,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                                 class={`size-4 ${columnMeta(column()).icon}`}
                                 aria-hidden="true"
                               />
-                              {column().title}
+                              <ColumnTitle column={column()} />
                             </span>
                             <span
                               class="h-0.5 w-6 rounded-full"
@@ -459,7 +460,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                                 class={`size-4 ${columnMeta(column).icon}`}
                                 aria-hidden="true"
                               />
-                              {column.title}
+                              <ColumnTitle column={column} />
                             </span>
                             <span
                               class="h-0.5 w-6 rounded-full"

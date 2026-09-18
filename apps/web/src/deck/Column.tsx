@@ -42,14 +42,15 @@ import ProfileList from "../profile/ProfileList";
 import { useMutes } from "../settings/MuteMediator";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import ColumnSettings from "./ColumnSettings";
-import ColumnTitle from "./ColumnTitle";
+import ColumnTitle, { useColumnTitle } from "./ColumnTitle";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
 
 /** 重ねられている間だけ渡る。戻る・開き直すはイベントとして下のカラムへ渡す。 */
 export type StackedColumn = {
   /** 戻った先の名前。ヘッダーの説明に出す。 */
-  backTo: string;
+  /** 戻る先（1 段下）のカラム。題名は `ColumnTitle` で中身から決める。 */
+  backTo: ColumnDef;
 };
 
 export type ColumnProps = {
@@ -200,7 +201,8 @@ const StackedHeader: Component<{
           <ColumnTitle column={props.column} />
         </h2>
         <p class="c-secondary w-full truncate text-caption">
-          {props.stacked.backTo}に戻る
+          <ColumnTitle column={props.stacked.backTo} />
+          に戻る
         </p>
       </button>
       <button
@@ -551,53 +553,56 @@ const Column: Component<ColumnProps> = (props) => {
             />
           </Show>
           <For each={stack.layers}>
-            {(layer, index) => (
-              <Drawer.Root
-                open={layer.open}
-                onOpenChange={(details) => {
-                  // Escape とスワイプは、開いている一番上の段にしか届かない。
-                  if (!details.open) handle({ type: "stack/back" });
-                }}
-                onExitComplete={() =>
-                  handle({ type: "stack/closed", key: layer.key })
-                }
-                lazyMount
-                unmountOnExit
-                // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
-                modal={false}
-                trapFocus={false}
-                preventScroll={false}
-                // 外側は上の暗幕が受ける。他のカラムを押しただけで閉じないように切る。
-                closeOnInteractOutside={false}
-                swipeDirection="down"
-              >
-                {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
-                <Drawer.Positioner class="absolute inset-0 isolate">
-                  <Drawer.Content
-                    aria-label={layer.column.title}
-                    // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
-                    class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
-                    // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
-                    style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
-                  >
-                    <Column
-                      {...props}
-                      column={layer.column}
-                      settingsOpen={false}
-                      draggable={false}
-                      temporary={false}
-                      stacked={{
-                        backTo:
-                          index() > 0
-                            ? (stack.layers[index() - 1]?.column.title ??
-                              props.column.title)
-                            : props.column.title,
-                      }}
-                    />
-                  </Drawer.Content>
-                </Drawer.Positioner>
-              </Drawer.Root>
-            )}
+            {(layer, index) => {
+              const layerTitle = useColumnTitle(() => layer.column);
+              return (
+                <Drawer.Root
+                  open={layer.open}
+                  onOpenChange={(details) => {
+                    // Escape とスワイプは、開いている一番上の段にしか届かない。
+                    if (!details.open) handle({ type: "stack/back" });
+                  }}
+                  onExitComplete={() =>
+                    handle({ type: "stack/closed", key: layer.key })
+                  }
+                  lazyMount
+                  unmountOnExit
+                  // カラムの中の重なりなので、デッキの他のカラムは触れたままにする。
+                  modal={false}
+                  trapFocus={false}
+                  preventScroll={false}
+                  // 外側は上の暗幕が受ける。他のカラムを押しただけで閉じないように切る。
+                  closeOnInteractOutside={false}
+                  swipeDirection="down"
+                >
+                  {/* 下の段も隠さない。段ごとにずらして重ね、深さが見えるようにする。 */}
+                  <Drawer.Positioner class="absolute inset-0 isolate">
+                    <Drawer.Content
+                      aria-label={layerTitle()}
+                      // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
+                      class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
+                      // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
+                      style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
+                    >
+                      <Column
+                        {...props}
+                        column={layer.column}
+                        settingsOpen={false}
+                        draggable={false}
+                        temporary={false}
+                        stacked={{
+                          backTo:
+                            index() > 0
+                              ? (stack.layers[index() - 1]?.column ??
+                                props.column)
+                              : props.column,
+                        }}
+                      />
+                    </Drawer.Content>
+                  </Drawer.Positioner>
+                </Drawer.Root>
+              );
+            }}
           </For>
         </div>
       </Show>

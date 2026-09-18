@@ -53,16 +53,6 @@ const ColumnSettings: Component<{
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
-      <Field label="カラム名">
-        <input
-          class="c-primary h-9 w-full rounded-2 border border-primary bg-primary px-2.5 text-body outline-none"
-          value={props.column.title}
-          aria-label="カラム名"
-          // 空のままにするとカラムが保存できないので、変更は入力のたびに送り、空は上流で弾く。
-          onInput={(event) => patch({ title: event.currentTarget.value })}
-        />
-      </Field>
-
       <Field label="幅">
         <SegmentedControl
           label="幅"
