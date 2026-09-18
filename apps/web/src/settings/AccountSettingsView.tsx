@@ -141,42 +141,47 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               placeholder="https://"
             />
           </div>
+          {/* 案内の文は 1 行を使い、ボタンはその下に右寄せで並べる。横に並べると、
+              ボタンの幅に押されて文が中途半端な位置で折り返す。 */}
           <div
             ref={actions}
-            class="flex scroll-m-4 flex-wrap items-center justify-end gap-x-3 gap-y-2"
+            class="flex scroll-m-4 flex-col items-stretch gap-2"
             classList={{ "animate-shake": shaking() }}
             onAnimationEnd={() => setShaking(false)}
           >
             <Show when={dirty()}>
-              <span
-                class="mr-auto text-caption"
+              <p
+                class="text-caption"
                 classList={{
                   "c-secondary": !warned(),
-                  // 長い文なので 1 行を使い、ボタンは並べたまま下に置く。
-                  "c-danger basis-full font-600": warned(),
+                  "c-danger font-600": warned(),
                 }}
                 role={warned() ? "alert" : undefined}
               >
                 {warned()
                   ? "保存していない変更があります。保存するか、元に戻してから閉じてください"
                   : "保存するまで、ほかの人には反映されません"}
-              </span>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={props.state.saving}
-                onClick={() => dispatch({ type: "profile/reset" })}
-              >
-                元に戻す
-              </Button>
+              </p>
             </Show>
-            <Button
-              type="submit"
-              variant={props.state.saving ? "muted" : "primary"}
-              disabled={!canSave()}
-            >
-              {props.state.saving ? "保存中…" : "保存"}
-            </Button>
+            <div class="flex flex-wrap items-center justify-end gap-2">
+              <Show when={dirty()}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={props.state.saving}
+                  onClick={() => dispatch({ type: "profile/reset" })}
+                >
+                  元に戻す
+                </Button>
+              </Show>
+              <Button
+                type="submit"
+                variant={props.state.saving ? "muted" : "primary"}
+                disabled={!canSave()}
+              >
+                {props.state.saving ? "保存中…" : "保存"}
+              </Button>
+            </div>
           </div>
         </form>
       </SettingsSection>
