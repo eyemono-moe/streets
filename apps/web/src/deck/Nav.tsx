@@ -20,7 +20,8 @@ const ColumnButton: Component<{ column: ColumnDef; index: number }> = (
       type="button"
       aria-label={number() ? `${title()}（${number()}）` : title()}
       title={title()}
-      class="c-secondary relative grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+      // 番号がボタンの外へはみ出すと、それだけで一覧がスクロールできるようになる。中で切る。
+      class="c-secondary relative grid size-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-2 bg-transparent hover:bg-secondary"
       onClick={() =>
         dispatch({ type: "deck/focus-column", id: props.column.id })
       }
@@ -32,7 +33,7 @@ const ColumnButton: Component<{ column: ColumnDef; index: number }> = (
       <Show when={number()}>
         {(n) => (
           <span
-            class="absolute right-0.5 bottom-0 font-600 text-[10px] leading-none"
+            class="absolute right-1 bottom-1 font-600 text-[10px] leading-none"
             aria-hidden="true"
           >
             {n()}
@@ -66,7 +67,8 @@ export const Sidebar: Component<{
         />
       </button>
       {/* 縦にだけ送る。横は隠す（auto のままだと、横のはみ出しでスクロールバーが出る）。 */}
-      <div class="flex min-h-0 flex-col items-center gap-1 overflow-y-auto overflow-x-hidden">
+      {/* 上下の余白は、フォントの違いで中身が数 px はみ出しても送れる状態にしないため。 */}
+      <div class="flex min-h-0 flex-col items-center gap-1 overflow-y-auto overflow-x-hidden py-1">
         <For each={props.columns}>
           {(column, index) => <ColumnButton column={column} index={index()} />}
         </For>
