@@ -57,7 +57,9 @@ export type DeckEvent =
   /** 色を動かしている途中。当てるだけで保存しない。 */
   | { type: "deck/preview-appearance"; appearance: DeckAppearance }
   /** 色を確定する。デッキと一緒にアカウントへ保存する。 */
-  | { type: "deck/set-appearance"; appearance: DeckAppearance };
+  | { type: "deck/set-appearance"; appearance: DeckAppearance }
+  /** 保存の進み具合を出すか。この端末に保存する。 */
+  | { type: "deck/set-write-progress"; on: boolean };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
 export type ActionEvent =

@@ -28,6 +28,7 @@ const relayList = (tags: string[][]): NostrEvent => ({
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
   const [appearance, setAppearance] = createSignal(props.appearance);
+  const [writeProgress, setWriteProgress] = createSignal(true);
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
     relayList([
@@ -67,6 +68,9 @@ const Story = (props: Props) => {
             case "deck/preview-appearance":
               applyColors(event.appearance);
               return true;
+            case "deck/set-write-progress":
+              setWriteProgress(event.on);
+              return true;
             case "deck/set-appearance":
               applyColors(event.appearance);
               setAppearance(event.appearance);
@@ -81,6 +85,7 @@ const Story = (props: Props) => {
           wide={props.wide}
           scheme={scheme()}
           appearance={appearance()}
+          writeProgress={writeProgress()}
           initialPage={props.page}
         />
       </Mediates>
