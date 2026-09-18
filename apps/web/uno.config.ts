@@ -46,6 +46,19 @@ const colors: Colors = {
     950: "oklch(from var(--theme-ui-color) 0.1287 calc(0.0405 * c / 0.37) h / <alpha-value>)",
   },
   uiOriginal: "var(--theme-ui-color)",
+
+  // 意味を持つ色。Penpot の Color Mode の text.danger・bg.danger.subtle・status.*。
+  // テーマ色から作らない（アクセントを変えても、危険や成功の色は変わらない）。
+  // ライト／ダークの値は preflight の変数に置き、UI からは色の値を書かずにこの名前で使う。
+  danger: {
+    DEFAULT: "var(--color-danger)",
+    subtle: "var(--color-danger-subtle)",
+  },
+  status: {
+    ok: "var(--color-status-ok)",
+    warn: "var(--color-status-warn)",
+    off: "var(--color-status-off)",
+  },
 };
 
 // assign default color and add color shortcuts
@@ -200,8 +213,6 @@ export default defineConfig({
       // text color
       "c-primary": "c-ui-9 dark:c-ui-1",
       "c-secondary": "c-ui-6 dark:c-ui-4",
-      // Penpot の text.danger。テーマ色から作らない固定の色。
-      "c-danger": "c-[#C5221F] dark:c-[#F28B82]",
       "text-link":
         "text-accent-5 visited:text-accent-8 dark:text-accent-5 dark:visited:text-accent-4 hover:underline",
 
@@ -262,6 +273,21 @@ export default defineConfig({
         #root,
         #storybook-root {
           isolation: isolate;
+        }
+        /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
+        :root {
+          --color-danger: #C5221F;
+          --color-danger-subtle: #FCE8E6;
+          --color-status-ok: #188038;
+          --color-status-warn: #E37400;
+          --color-status-off: oklch(from var(--theme-ui-color) 0.4455 calc(0.0374 * c / 0.37) h);
+        }
+        .dark {
+          --color-danger: #F28B82;
+          --color-danger-subtle: #3C1F1D;
+          --color-status-ok: #81C995;
+          --color-status-warn: #FDD663;
+          --color-status-off: oklch(from var(--theme-ui-color) 0.7106 calc(0.0350 * c / 0.37) h);
         }
         @media (prefers-reduced-motion) {
           * {

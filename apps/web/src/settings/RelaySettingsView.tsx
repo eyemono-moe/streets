@@ -27,10 +27,10 @@ import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
 const STATUS: Record<RelayStatus, { label: string; dot: string }> = {
-  "in-use": { label: "つながっています", dot: "bg-[#188038]" },
-  failing: { label: "つながりにくくなっています", dot: "bg-[#E37400]" },
+  "in-use": { label: "つながっています", dot: "bg-status-ok" },
+  failing: { label: "つながりにくくなっています", dot: "bg-status-warn" },
   // 必要になったときだけつなぐので、つないでいないのは異常ではない。
-  idle: { label: "今は使っていません", dot: "bg-ui-6" },
+  idle: { label: "今は使っていません", dot: "bg-status-off" },
 };
 
 export type RelaySettingsViewProps = {
