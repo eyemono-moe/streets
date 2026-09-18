@@ -7,6 +7,7 @@ import { Portal } from "solid-js/web";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import DisplaySettings from "./DisplaySettings";
+import MuteSettings from "./MuteSettings";
 import RelaySettings from "./RelaySettings";
 
 type Page = {
@@ -54,7 +55,8 @@ const SettingsDialog: Component<{
       label: "ミュート",
       icon: "i-material-symbols:volume-off-outline-rounded",
       title: "ミュート",
-      description: "",
+      description: "見たくない人や投稿を隠します。",
+      content: () => <MuteSettings />,
     },
     {
       value: "display",

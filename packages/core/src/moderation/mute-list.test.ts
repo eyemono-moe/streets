@@ -3,7 +3,9 @@ import type { NostrEvent } from "../nostr/event";
 import type { Signer } from "../signer/signer";
 import {
   InvalidPrivateMuteListError,
+  applyMuteChanges,
   changeMuteList,
+  changeMuteListMany,
   decodeMuteList,
   matchingMutes,
   parseMuteTarget,
@@ -194,6 +196,83 @@ describe("decodeMuteList / changeMuteList", () => {
         },
       )(event({ kind: 10_000, content: "cipher" })),
     ).rejects.toBeInstanceOf(InvalidPrivateMuteListError);
+  });
+});
+
+describe("changeMuteListMany", () => {
+  it("いくつもの変更を、復号・暗号化 1 回ずつでまとめて当てる", async () => {
+    // 捕まえる変異: 変更ごとに復号・暗号化する（拡張機能の確認が変更の数だけ出る）。
+    const decrypt = vi.fn(async () => '[["word","old"]]');
+    const encrypt = vi.fn(
+      async (_peer: string, plaintext: string) => plaintext,
+    );
+    const draft = await changeMuteListMany(
+      signer({ nip44: { decrypt, encrypt } }),
+      PUBKEY,
+      [
+        {
+          type: "add",
+          entry: {
+            target: { type: "word", value: "a" },
+            visibility: "private",
+          },
+        },
+        {
+          type: "remove",
+          entry: {
+            target: { type: "word", value: "old" },
+            visibility: "private",
+          },
+        },
+        {
+          type: "add",
+          entry: {
+            target: { type: "hashtag", value: "x" },
+            visibility: "public",
+          },
+        },
+      ],
+    )(event({ kind: 10_000, content: "cipher" }));
+    expect(decrypt).toHaveBeenCalledTimes(1);
+    expect(encrypt).toHaveBeenCalledTimes(1);
+    expect(draft.content).toBe('[["word","a"]]');
+    expect(draft.tags).toEqual([["t", "x"]]);
+  });
+
+  it("公開の変更だけなら、非公開部に触れない", async () => {
+    const decrypt = vi.fn(async () => "[]");
+    const draft = await changeMuteListMany(
+      signer({ nip44: { decrypt, encrypt: async () => "x" } }),
+      PUBKEY,
+      [
+        {
+          type: "add",
+          entry: { target: { type: "word", value: "a" }, visibility: "public" },
+        },
+      ],
+    )(event({ kind: 10_000, content: "keep" }));
+    expect(decrypt).not.toHaveBeenCalled();
+    expect(draft.content).toBe("keep");
+  });
+});
+
+describe("applyMuteChanges", () => {
+  const entry = (value: string, visibility: "private" | "public") => ({
+    target: { type: "word" as const, value },
+    visibility,
+  });
+
+  it("足す・外す・公開範囲を移すを、保存と同じ規則で当てる", () => {
+    const next = applyMuteChanges(
+      [entry("a", "private"), entry("b", "public")],
+      [
+        { type: "add", entry: entry("A", "private") },
+        { type: "remove", entry: entry("b", "public") },
+        { type: "move", entry: entry("a", "private"), to: "public" },
+      ],
+    );
+    // 単語は小文字にそろうので、"A" は "a" と同じもの。
+    expect(next).toEqual([entry("a", "public")]);
   });
 });
 

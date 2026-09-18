@@ -31,6 +31,7 @@ import { trackWrites } from "./write-progress";
 const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
 const RELAY_LIST_KIND = 10002;
+const MUTE_KIND = 10000;
 
 export type EventActions = {
   viewer: string;
@@ -57,6 +58,9 @@ export type WriteStack = {
   relayList: Accessor<NostrEvent | undefined>;
   /** リレーの一覧を一度取りに行き終えたか。まだなら「無い」とは言えない。 */
   relayListSettled: Accessor<boolean>;
+  /** 自分のミュートの一覧（kind:10000）。非公開の項目は暗号化されたまま。 */
+  muteList: Accessor<NostrEvent | undefined>;
+  muteListSettled: Accessor<boolean>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -116,6 +120,7 @@ export const createWriteStack = (options: {
   const bookmarks = mine(BOOKMARK_KIND).event;
   const follows = mine(FOLLOW_KIND).event;
   const relayList = mine(RELAY_LIST_KIND);
+  const muteList = mine(MUTE_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -168,6 +173,8 @@ export const createWriteStack = (options: {
     writer,
     relayList: relayList.event,
     relayListSettled: relayList.settled,
+    muteList: muteList.event,
+    muteListSettled: muteList.settled,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };

@@ -1,6 +1,11 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
+import type {
+  MuteEntry,
+  MuteVisibility,
+} from "@streets/core/moderation/mute-list";
+import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
@@ -23,7 +28,14 @@ export type UiEvent =
   | ActionEvent
   | DeckEvent
   | ComposeViewEvent
-  | RelayViewEvent;
+  | RelayViewEvent
+  | MuteViewEvent;
+
+/** ミュートの足し外し。まとめて保存するのは裁定する段。 */
+export type MuteViewEvent =
+  /** `visibility` を省くと、裁定する段が決める（読める限り非公開）。 */
+  | { type: "mutes/add"; target: MuteTarget; visibility?: MuteVisibility }
+  | { type: "mutes/remove"; entry: MuteEntry };
 
 /** リレーの設定。View は操作を渡すだけで、まとめて保存するのは裁定する段。 */
 export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
