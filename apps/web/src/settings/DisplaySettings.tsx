@@ -40,6 +40,18 @@ const DisplaySettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
+        title="保存の進み具合"
+        scope="device"
+        description="投稿やいいね、設定を保存するとき、送り先のリレーそれぞれに届いたかを画面の右下に出します。どこか 1 つに届いた時点で「保存しました」と出ます。切ると、設定を保存したときと、届かなかったときだけ知らせます。"
+      >
+        <Switch
+          label="保存の進み具合を表示する"
+          checked={props.writeProgress}
+          onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
+        />
+      </SettingsSection>
+
+      <SettingsSection
         title="カラーテーマ"
         scope="device"
         description="画面を明るい色で表示するか、暗い色で表示するかを選びます。「OS に合わせる」にすると、端末のダークモードの設定に合わせて切り替わります。"
@@ -131,18 +143,6 @@ const DisplaySettings: Component<{
             </div>
           </Collapsible.Content>
         </Collapsible.Root>
-      </SettingsSection>
-
-      <SettingsSection
-        title="保存の進み具合"
-        scope="device"
-        description="投稿やいいね、設定を保存するとき、送り先のリレーそれぞれに届いたかを画面の右下に出します。どこか 1 つに届いた時点で「保存しました」と出ます。切ると、設定を保存したときと、届かなかったときだけ知らせます。"
-      >
-        <Switch
-          label="保存の進み具合を表示する"
-          checked={props.writeProgress}
-          onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
-        />
       </SettingsSection>
 
       <SettingsSection

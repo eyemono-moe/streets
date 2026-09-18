@@ -61,7 +61,7 @@ const SettingsDialog: Component<{
       label: "表示",
       icon: "i-material-symbols:visibility-outline-rounded",
       title: "表示",
-      description: "画面の色を選びます。",
+      description: "画面の色と、保存したときの知らせ方を選びます。",
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
