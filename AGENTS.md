@@ -11,8 +11,6 @@ pnpm workspace の 2 パッケージ。
 | `packages/core`（`@streets/core`） | Nostr の読み書き。読み取り層 `read/`、接続 `relay/`、イベントの組み立て `nostr/`、書き込み `write/`、署名者 `signer/`、デッキ `deck/` など。UI を持たない |
 | `apps/web`（`@streets/web`） | 画面。`@streets/core` だけを参照する |
 
-`apps/web/legacy/` は、前の v1 画面を部品の移植元として一時的に置いているだけ。ビルド・型検査・lint の対象外で、画面を作り終えたら削除する。丸ごと戻さず、必要な部品だけを `src/` へ持ってくる。
-
 用語は [CONTEXT.md](./CONTEXT.md)、後から戻しにくい決定は [docs/adr/](./docs/adr/)。作業に関係する箇所だけを読む。
 
 ## 進め方
@@ -30,7 +28,6 @@ pnpm workspace の 2 パッケージ。
 - 同じファイルの「v1 / deprecated」ページは古いので見ない
 - Penpot の MCP から読める。ボードの構造や CSS はそこから取り、値を推測で埋めない
 - 画面ごとに見るボードは #343 の表にある
-- `apps/web/legacy/` の部品もこのデザインを参考に作られている。移植するときは、デザインと食い違っていないか確かめる
 - デザインに無いもの（ログイン画面など）は、既存のトークンと部品の見た目に揃える
 - ボタン・排他の選択（トグルグループ）・スイッチ・色を選ぶ欄・保存先のヒントは、`src/ui/` の primitive を使い、画面ごとに書かない。足りない形は primitive に足して、`UI/*` のストーリーで単体で見られるようにする
 - 意味を持つ色は、色の値や `red-500` のような色の名前で書かない。`uno.config.ts` の意味の名前（`danger`・`danger-subtle`・`status-ok`・`status-warn`・`status-off`）で書く（`c-danger`・`border-danger`・`bg-status-ok`・`stroke-status-ok` など）。値は Penpot の Color Mode に合わせてライト／ダークを preflight の変数に置いてある。新しい意味が要るときは、Penpot にトークンを足してから名前を足す
