@@ -137,7 +137,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                     title={titleOf(group.content)}
                     aria-label={`${titleOf(group.content)} ${group.count} 件${mine() ? "（リアクション済み）" : ""}`}
                     aria-pressed={mine()}
-                    class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-2 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
+                    class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
                     classList={{
                       "bg-accent-primary": mine(),
                       "border border-primary bg-primary enabled:hover:bg-secondary":
@@ -171,7 +171,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
           <button
             type="button"
             aria-label="リアクションを選ぶ（未対応）"
-            class="c-secondary flex h-6 w-fit items-center rounded-1.5 border border-primary bg-primary px-2 opacity-50"
+            class="c-secondary flex h-6 w-fit items-center rounded-1.5 border border-primary bg-primary px-1 opacity-50"
             disabled
           >
             <span
