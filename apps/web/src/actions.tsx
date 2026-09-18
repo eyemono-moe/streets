@@ -32,6 +32,7 @@ const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
 const RELAY_LIST_KIND = 10002;
 const MUTE_KIND = 10000;
+const PROFILE_KIND = 0;
 
 export type EventActions = {
   viewer: string;
@@ -61,6 +62,8 @@ export type WriteStack = {
   /** 自分のミュートの一覧（kind:10000）。非公開の項目は暗号化されたまま。 */
   muteList: Accessor<NostrEvent | undefined>;
   muteListSettled: Accessor<boolean>;
+  /** 自分のプロフィール（kind:0）。 */
+  profile: Accessor<NostrEvent | undefined>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -121,6 +124,7 @@ export const createWriteStack = (options: {
   const follows = mine(FOLLOW_KIND).event;
   const relayList = mine(RELAY_LIST_KIND);
   const muteList = mine(MUTE_KIND);
+  const profile = mine(PROFILE_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -175,6 +179,7 @@ export const createWriteStack = (options: {
     relayListSettled: relayList.settled,
     muteList: muteList.event,
     muteListSettled: muteList.settled,
+    profile: profile.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };

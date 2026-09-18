@@ -103,6 +103,9 @@ export default defineConfig({
           "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0}}",
         "panel-in":
           "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
+        // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
+        shake:
+          "{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}",
       },
       durations: {
         "fade-in": "120ms",
@@ -114,6 +117,8 @@ export default defineConfig({
         "stack-in": "180ms",
         "stack-out": "140ms",
         "panel-in": "160ms",
+        // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
+        shake: "320ms",
       },
       timingFns: {
         "fade-in": "ease-out",
@@ -126,6 +131,7 @@ export default defineConfig({
         "stack-in": "cubic-bezier(0.16, 1, 0.3, 1)",
         "stack-out": "ease-in both",
         "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        shake: "ease-out",
       },
     },
   },

@@ -9,6 +9,7 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import {
@@ -29,7 +30,14 @@ export type UiEvent =
   | DeckEvent
   | ComposeViewEvent
   | RelayViewEvent
-  | MuteViewEvent;
+  | MuteViewEvent
+  | ProfileViewEvent;
+
+/** プロフィールの編集。保存するのは裁定する段。 */
+export type ProfileViewEvent = Extract<
+  ProfileEditEvent,
+  { type: "profile/input" | "profile/save" | "profile/reset" }
+>;
 
 /** ミュートの足し外し。まとめて保存するのは裁定する段。 */
 export type MuteViewEvent =
@@ -71,7 +79,9 @@ export type DeckEvent =
   /** 色を確定する。デッキと一緒にアカウントへ保存する。 */
   | { type: "deck/set-appearance"; appearance: DeckAppearance }
   /** 保存の進み具合を出すか。この端末に保存する。 */
-  | { type: "deck/set-write-progress"; on: boolean };
+  | { type: "deck/set-write-progress"; on: boolean }
+  /** この端末からログアウトする。 */
+  | { type: "deck/logout" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
 export type ActionEvent =
