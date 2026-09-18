@@ -62,6 +62,17 @@ export const 一覧: Story = {
             <Button variant={variant} icon="i-material-symbols:check-rounded">
               アイコン
             </Button>
+            <Button
+              variant={variant}
+              icon="i-material-symbols:close-rounded"
+              aria-label="閉じる"
+            />
+            <Button
+              variant={variant}
+              size="sm"
+              icon="i-material-symbols:close-rounded"
+              aria-label="閉じる"
+            />
           </div>
         )}
       </For>
