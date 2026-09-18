@@ -57,6 +57,12 @@ export type SectionHandle = {
    * ため、この型自体は生きたフィールドを持たない。
    */
   readonly initialPlan: SectionPlan;
+  /**
+   * 今開いているリレーそれぞれへ、今の filters に `until`・`limit` を付けて
+   * 一度だけ取りに行き、取れたものをこのセクションへ配る（古い投稿の取り足し）。
+   * 配った件数を返す。全リレーが片付くかタイムアウトで解決する。
+   */
+  fetchOlder(page: { until: number; limit: number }): Promise<number>;
   close(): void;
 };
 
@@ -335,6 +341,7 @@ export class SubscriptionManager {
 
     return {
       initialPlan,
+      fetchOlder: (page) => this.#fetchOlder(entry, page),
       close: () => this.#close(entry),
     };
   }
@@ -673,6 +680,43 @@ export class SubscriptionManager {
         }
       }
     }
+  }
+
+  /**
+   * リレーごとに違う filters（担当著者）をそのまま使う。全リレーへ同じ filters を
+   * 投げると、ルーティングで分けた著者を全リレーへ問い合わせることになる。
+   */
+  async #fetchOlder(
+    entry: SectionEntry,
+    page: { until: number; limit: number },
+  ): Promise<number> {
+    if (entry.closed) return 0;
+    let delivered = 0;
+    await Promise.all(
+      [...entry.opened].map(([url, open]) =>
+        collect(
+          this.#pool,
+          [url],
+          open.filters.map((filter) => ({
+            ...filter,
+            until: page.until,
+            limit: page.limit,
+          })),
+          this.#options.store,
+          DEFAULT_FETCH_ONCE_TIMEOUT_MS,
+          new Map(),
+          {
+            onUnrequested: (relay) => this.#recordUnrequested(relay),
+            onStored: (event, relay) => {
+              if (entry.closed) return;
+              delivered += 1;
+              entry.delivery.onEvent(event.id, relay);
+            },
+          },
+        ),
+      ),
+    );
+    return delivered;
   }
 
   /**

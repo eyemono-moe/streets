@@ -13,12 +13,26 @@ export const compareEvents = (a: NostrEvent, b: NostrEvent): number =>
  * 場所で持つ —— 別々だと追い出しのたびに全件を舐め直す (O(n))。
  */
 export class SortedEvents {
-  readonly #capacity: number;
+  #capacity: number;
   #items: NostrEvent[] = [];
   readonly #ids = new Set<string>();
 
   constructor(capacity: number) {
     this.#capacity = capacity;
+  }
+
+  get capacity(): number {
+    return this.#capacity;
+  }
+
+  /** 上限を広げる（古い投稿を取り足すとき）。狭めはしない。 */
+  grow(capacity: number): void {
+    if (capacity > this.#capacity) this.#capacity = capacity;
+  }
+
+  /** いちばん古い（保持順の末尾の）イベント。 */
+  get last(): NostrEvent | undefined {
+    return this.#items[this.#items.length - 1];
   }
 
   get size(): number {

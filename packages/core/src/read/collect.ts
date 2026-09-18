@@ -20,6 +20,11 @@ export type CollectOptions = {
    * 最も遅い 1 本で決まるため、合計値だけでは遅いリレーを特定できない。
    */
   onRelaySettled?: (settle: RelaySettle) => void;
+  /**
+   * store に入れた（または既にあった）イベントを都度知らせる。取ったものを
+   * そのままセクションへ渡したい呼び出し元（古い投稿の取得）が使う。
+   */
+  onStored?: (event: NostrEvent, url: RelayUrl) => void;
 };
 
 export type RelaySettle = {
@@ -106,7 +111,8 @@ export const collect = (
               options?.onUnrequested?.(url);
               return;
             }
-            store.put(event, url);
+            if (store.put(event, url) === "rejected") return;
+            options?.onStored?.(event, url);
           },
           onEose: () => settleOnce(url, "eose"),
           onClosed: () => settleOnce(url, "closed"),
