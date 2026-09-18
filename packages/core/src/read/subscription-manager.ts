@@ -73,7 +73,20 @@ export type SubscriptionManagerOptions = {
   scheduler?: ConnectionPoolOptions["scheduler"];
   /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
   random?: ConnectionPoolOptions["random"];
+  /**
+   * セクションの出入りによる張り直しをまとめる窓（ms）。0（既定）はまとめず、
+   * 出入りのたびにすぐ張り直す。アプリでは `REPLAN_BATCH_MS` を渡す。
+   */
+  replanBatchMs?: number;
 };
+
+/**
+ * アプリが使う、張り直しをまとめる窓。カラムの出入り（開く・閉じる・重ねる）の
+ * たびに全体を張り直すと、各リレーへの REQ を組み直して送り直すことになる。
+ * 同じ描画で出入りしたもの（ログイン直後に全カラムが作られるときなど）は 1 回に
+ * まとめ、そのあと 500ms の間の出入りも 1 回にまとめる。
+ */
+export const REPLAN_BATCH_MS = 500;
 
 /**
  * `#runReplan()` の `do/while` を打ち切るまでの最大反復回数。この巡が
@@ -224,6 +237,10 @@ export class SubscriptionManager {
   // degraded 出入りのバッチタイマー。#notify() と同じ「デバウンスでなく
   // バッチ」の形 —— 最初の出入りで 1 本張り、残りは相乗りする。
   #degradedReplanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  // セクションの出入りによる張り直しのまとめ（#requestReplan 参照）。
+  #replanQueued = false;
+  #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  #lastReplanAt = Number.NEGATIVE_INFINITY;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -321,7 +338,7 @@ export class SubscriptionManager {
     this.#entries.set(entry.id, entry);
 
     try {
-      this.#runReplan();
+      this.#requestReplan();
     } catch (error) {
       this.#entries.delete(entry.id);
       throw error;
@@ -391,6 +408,11 @@ export class SubscriptionManager {
     // pool の通知購読とバッチタイマーを真っ先に断つ —— 後始末の順序に
     // 依存しない形にしておく。
     this.#offDegraded();
+    this.#replanQueued = false;
+    if (this.#replanTimer !== null) {
+      this.#scheduler.clearTimeout(this.#replanTimer);
+      this.#replanTimer = null;
+    }
     if (this.#degradedReplanTimer !== null) {
       this.#scheduler.clearTimeout(this.#degradedReplanTimer);
       this.#degradedReplanTimer = null;
@@ -435,8 +457,39 @@ export class SubscriptionManager {
     }
     entry.opened.clear();
 
-    // 解放した予算を他のセクションが受け取れるよう、必ず replan() する。
-    this.replan();
+    // 解放した予算を他のセクションが受け取れるよう、必ず張り直す（まとめてよい）。
+    this.#requestReplan();
+  }
+
+  /**
+   * セクションの出入りによる張り直し。まとめる窓が 0 ならすぐ張り直す。そうでなければ、
+   * 直前の張り直しから窓が明けていれば同じ描画の出入りを待って（マイクロタスク）1 回、
+   * 明けていなければ窓の終わりに 1 回だけ張り直す。張り直すまでの間、新しいセクションは
+   * 空の計画のまま返り、計画は onPlanChanged で届く（再入で遅れたときと同じ経路）。
+   */
+  #requestReplan(): void {
+    const batchMs = this.#options.replanBatchMs ?? 0;
+    if (batchMs <= 0) {
+      this.#runReplan();
+      return;
+    }
+    if (this.#replanQueued || this.#replanTimer !== null) return;
+    const run = () => {
+      this.#replanQueued = false;
+      this.#replanTimer = null;
+      this.#lastReplanAt = this.#scheduler.now();
+      this.#runReplan();
+    };
+    const wait = this.#lastReplanAt + batchMs - this.#scheduler.now();
+    if (wait <= 0) {
+      this.#replanQueued = true;
+      queueMicrotask(() => {
+        // dispose() が挟まったら張り直さない。
+        if (this.#replanQueued) run();
+      });
+      return;
+    }
+    this.#replanTimer = this.#scheduler.setTimeout(run, wait);
   }
 
   /** `#replanOnce()` への一本化された入口。再入時は実行を遅延する。 */
