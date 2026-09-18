@@ -39,6 +39,7 @@ import ActionNotice from "../note/ActionNotice";
 import Event from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
+import { useMutes } from "../settings/MuteMediator";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import ColumnSettings from "./ColumnSettings";
 import ColumnTitle from "./ColumnTitle";
@@ -233,10 +234,22 @@ const Column: Component<ColumnProps> = (props) => {
   const show = () => columnShow(props.column);
   const facets = () => columnFacets(props.column);
   // 通知は自分宛（#p）で集めるので、自分の返信やリアクションも混ざる。自分の操作は知らせない。
-  const received = () =>
-    props.column.source.kind === "notifications"
-      ? excludeOwnActions(section.items(), props.viewer)
-      : section.items();
+  const mutes = useMutes();
+  // ミュートは流れてくるものだけに当てる。人のページ・スレッド・ブックマークは
+  // 自分で開いたものなので隠さない。
+  const hidesMuted = () =>
+    props.column.source.kind === "followees" ||
+    props.column.source.kind === "notifications" ||
+    props.column.source.kind === "literal";
+  const received = () => {
+    const items =
+      props.column.source.kind === "notifications"
+        ? excludeOwnActions(section.items(), props.viewer)
+        : section.items();
+    return mutes && hidesMuted()
+      ? items.filter((event) => !mutes.hides(event))
+      : items;
+  };
   const items = () => visibleColumnItems(received(), show(), facets());
 
   // 通知は行に並べ直す（同じノートへの連続したリアクション・リポストを 1 行にまとめる）。

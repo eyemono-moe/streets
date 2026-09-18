@@ -213,13 +213,26 @@ const changeTags = (
   return [...tags.map((tag) => [...tag]), tagOf(target)];
 };
 
-export const changeMuteList =
-  (signer: Signer, pubkey: string, change: MuteChange): Replacement =>
+/**
+ * いくつもの変更を 1 つの版にまとめて当てる。非公開部の復号と暗号化は 1 回ずつ
+ * にする —— 拡張機能の署名器は復号・暗号化のたびに確認を出すことがある。
+ */
+export const changeMuteListMany =
+  (
+    signer: Signer,
+    pubkey: string,
+    changes: readonly MuteChange[],
+  ): Replacement =>
   async (current) => {
-    const publicTags = changeTags(current?.tags ?? [], change, "public");
-    const touchesPrivate =
-      change.entry.visibility === "private" ||
-      (change.type === "move" && change.to === "private");
+    const publicTags = changes.reduce<string[][]>(
+      (tags, change) => changeTags(tags, change, "public"),
+      (current?.tags ?? []).map((tag) => [...tag]),
+    );
+    const touchesPrivate = changes.some(
+      (change) =>
+        change.entry.visibility === "private" ||
+        (change.type === "move" && change.to === "private"),
+    );
     if (!touchesPrivate) {
       return {
         kind: MUTE_KIND,
@@ -238,13 +251,61 @@ export const changeMuteList =
       }
       throw new InvalidPrivateMuteListError();
     }
-    const privateTags = changeTags(privateResult.tags, change, "private");
+    const privateTags = changes.reduce<string[][]>(
+      (tags, change) => changeTags(tags, change, "private"),
+      privateResult.tags,
+    );
     const content = await signer.nip44.encrypt(
       pubkey,
       JSON.stringify(privateTags),
     );
     return { kind: MUTE_KIND, tags: publicTags, content };
   };
+
+export const changeMuteList = (
+  signer: Signer,
+  pubkey: string,
+  change: MuteChange,
+): Replacement => changeMuteListMany(signer, pubkey, [change]);
+
+const sameEntry = (left: MuteEntry, right: MuteEntry): boolean =>
+  left.visibility === right.visibility && sameTarget(left.target, right.target);
+
+/**
+ * 保存を待たずに画面へ出すため、読み取った項目へ変更を当てる。保存のときに
+ * タグへ当てる `changeTags` と同じ規則（同じ公開範囲に同じ対象は 1 つ）に従う。
+ */
+export const applyMuteChanges = (
+  entries: readonly MuteEntry[],
+  changes: readonly MuteChange[],
+): MuteEntry[] => {
+  let current = [...entries];
+  for (const change of changes) {
+    const target = normalizedTarget(change.entry.target);
+    if (!target) continue;
+    const entry = { ...change.entry, target };
+    switch (change.type) {
+      case "add":
+        if (!current.some((existing) => sameEntry(existing, entry))) {
+          current.push(entry);
+        }
+        break;
+      case "remove":
+        current = current.filter((existing) => !sameEntry(existing, entry));
+        break;
+      case "move": {
+        const moved = { target, visibility: change.to };
+        current = current.filter(
+          (existing) =>
+            !sameEntry(existing, entry) && !sameEntry(existing, moved),
+        );
+        current.push(moved);
+        break;
+      }
+    }
+  }
+  return current;
+};
 
 export const matchingMutes = (
   entries: readonly MuteEntry[],

@@ -1,8 +1,13 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { threadMuteTarget } from "@streets/core/moderation/mute-list";
+import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
+import { useEventActions } from "../actions";
+import { useMutes } from "../settings/MuteMediator";
+import { useDispatch } from "../ui-events";
 import EventDetailsDialog from "./EventDetailsDialog";
 import Name from "./Name";
 import { useProfile } from "./use-profile";
@@ -27,12 +32,6 @@ const EVENT_ITEMS: MenuItem[] = [
     label: "詳細（JSON・リレー）",
     icon: "i-material-symbols:code-rounded",
   },
-  {
-    value: "mute-note",
-    label: "このノートをミュート",
-    icon: "i-material-symbols:volume-off-outline-rounded",
-    todo: true,
-  },
 ];
 
 const AUTHOR_ITEMS: MenuItem[] = [
@@ -40,12 +39,6 @@ const AUTHOR_ITEMS: MenuItem[] = [
     value: "follow",
     label: "フォロー",
     icon: "i-material-symbols:person-add-outline-rounded",
-    todo: true,
-  },
-  {
-    value: "mute-author",
-    label: "ミュート",
-    icon: "i-material-symbols:person-off-outline-rounded",
     todo: true,
   },
   {
@@ -86,6 +79,65 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
  */
 const EventMenu: Component<{ event: NostrEvent }> = (props) => {
   const profile = useProfile(() => props.event.pubkey);
+  const dispatch = useDispatch();
+  const mutes = useMutes();
+  const viewer = useEventActions()?.viewer;
+  const mine = () => props.event.pubkey === viewer;
+  // ミュートは今の状態で出し分ける。スレッドやその人のページでは、ミュートした
+  // 投稿も出ているので、そこから解除できるようにする。
+  const mutedEntry = (target: MuteTarget) =>
+    mutes
+      ?.entries()
+      .find(
+        (entry) =>
+          entry.target.type === target.type &&
+          entry.target.value === target.value,
+      );
+  const threadTarget = () => threadMuteTarget(props.event);
+  const authorTarget = (): MuteTarget => ({
+    type: "pubkey",
+    value: props.event.pubkey,
+  });
+  const eventItems = (): MenuItem[] => {
+    const muted = mutedEntry(threadTarget()) !== undefined;
+    return [
+      ...EVENT_ITEMS,
+      {
+        value: "mute-event",
+        label: muted
+          ? "このイベントのミュートを解除"
+          : "このイベントをミュート",
+        icon: muted
+          ? "i-material-symbols:volume-up-outline-rounded"
+          : "i-material-symbols:volume-off-outline-rounded",
+        todo: mutes === undefined,
+      },
+    ];
+  };
+  const authorItems = (): MenuItem[] => {
+    // 自分をミュートしても、自分の投稿は隠さない。押せても意味が無いので出さない。
+    if (mine()) return AUTHOR_ITEMS;
+    const muted = mutedEntry(authorTarget()) !== undefined;
+    const [follow, ...rest] = AUTHOR_ITEMS;
+    return [
+      ...(follow ? [follow] : []),
+      {
+        value: "mute-author",
+        label: muted ? "ミュートを解除" : "ミュート",
+        icon: muted
+          ? "i-material-symbols:person-outline-rounded"
+          : "i-material-symbols:person-off-outline-rounded",
+        todo: mutes === undefined,
+      },
+      ...rest,
+    ];
+  };
+  const toggleMute = (target: MuteTarget) => {
+    const entry = mutedEntry(target);
+    dispatch(
+      entry ? { type: "mutes/remove", entry } : { type: "mutes/add", target },
+    );
+  };
   const [details, setDetails] = createSignal(false);
   const [notice, setNotice] = createSignal<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -121,6 +173,8 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         onSelect={(details) => {
           if (details.value === "copy-link") void copyLink();
           if (details.value === "details") setDetails(true);
+          if (details.value === "mute-event") toggleMute(threadTarget());
+          if (details.value === "mute-author") toggleMute(authorTarget());
         }}
       >
         <Menu.Trigger
@@ -139,7 +193,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
                 <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">
                   このイベント
                 </Menu.ItemGroupLabel>
-                <Items items={EVENT_ITEMS} />
+                <Items items={eventItems()} />
               </Menu.ItemGroup>
               <Menu.Separator class="border-primary border-t" />
               <Menu.ItemGroup>
@@ -147,7 +201,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
                   <Name pubkey={props.event.pubkey} />
                   <Show when={profile()?.name}>{(name) => ` @${name()}`}</Show>
                 </Menu.ItemGroupLabel>
-                <Items items={AUTHOR_ITEMS} />
+                <Items items={authorItems()} />
               </Menu.ItemGroup>
             </Menu.Content>
           </Menu.Positioner>

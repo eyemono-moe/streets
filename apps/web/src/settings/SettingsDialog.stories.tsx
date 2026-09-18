@@ -6,6 +6,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
+import { MuteMediator } from "./MuteMediator";
 import { RelayMediator } from "./RelayMediator";
 import SettingsDialog from "./SettingsDialog";
 
@@ -25,6 +26,26 @@ const relayList = (tags: string[][]): NostrEvent => ({
  * アプリではデッキの段が受け取るイベントを、ここで受けて手元の値に当てる。
  * 色はストーリーの画面全体に当たる（ツールバーのテーマ色より優先される）。
  */
+const STORY_VIEWER = "1".repeat(64);
+
+/** 暗号化はせず、そのまま通す署名器。ストーリーでは非公開のミュートも読み書きできる。 */
+const storySigner = {
+  getPublicKey: async () => STORY_VIEWER,
+  signEvent: async () => {
+    throw new Error("ストーリーでは署名しません");
+  },
+  nip44: {
+    encrypt: async (_peer: string, plaintext: string) => plaintext,
+    decrypt: async (_peer: string, ciphertext: string) => ciphertext,
+  },
+};
+
+const muteListEvent = (tags: string[][], content: string): NostrEvent => ({
+  ...relayList(tags),
+  kind: 10000,
+  content,
+});
+
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
   const [appearance, setAppearance] = createSignal(props.appearance);
@@ -37,59 +58,83 @@ const Story = (props: Props) => {
       ["r", "wss://yabu.me/", "read"],
     ]),
   );
+  const [mutes, setMutes] = createSignal<NostrEvent | undefined>(
+    muteListEvent(
+      [["t", "spoiler"]],
+      JSON.stringify([
+        ["word", "ネタバレ"],
+        ["e", "a".repeat(64)],
+      ]),
+    ),
+  );
   applyColors(props.appearance);
   return (
-    <RelayMediator
+    <MuteMediator
       writer={{
         replace: async (_kind, _identifier, mutation) => {
-          const draft = await mutation(relays());
-          const next = relayList(draft.tags);
-          setRelays(next);
+          const draft = await mutation(mutes());
+          const next = muteListEvent(draft.tags, draft.content);
+          setMutes(next);
           return { event: next } as never;
         },
       }}
-      relayList={relays}
+      signer={storySigner}
+      viewer={STORY_VIEWER}
+      muteList={mutes}
       settled={() => true}
-      statusOf={(url: RelayUrl) =>
-        url === "wss://yabu.me/" ? "failing" : "in-use"
-      }
-      infoOf={(url: RelayUrl) =>
-        url === "wss://yabu.me/"
-          ? { name: "yabu.me", description: "日本のリレーです。" }
-          : undefined
-      }
     >
-      <Mediates
-        handle={(event) => {
-          switch (event.type) {
-            case "deck/set-color-scheme":
-              setScheme(event.scheme);
-              return false;
-            case "deck/preview-appearance":
-              applyColors(event.appearance);
-              return true;
-            case "deck/set-write-progress":
-              setWriteProgress(event.on);
-              return true;
-            case "deck/set-appearance":
-              applyColors(event.appearance);
-              setAppearance(event.appearance);
-              return true;
-            default:
-              return false;
-          }
+      <RelayMediator
+        writer={{
+          replace: async (_kind, _identifier, mutation) => {
+            const draft = await mutation(relays());
+            const next = relayList(draft.tags);
+            setRelays(next);
+            return { event: next } as never;
+          },
         }}
+        relayList={relays}
+        settled={() => true}
+        statusOf={(url: RelayUrl) =>
+          url === "wss://yabu.me/" ? "failing" : "in-use"
+        }
+        infoOf={(url: RelayUrl) =>
+          url === "wss://yabu.me/"
+            ? { name: "yabu.me", description: "日本のリレーです。" }
+            : undefined
+        }
       >
-        <SettingsDialog
-          open
-          wide={props.wide}
-          scheme={scheme()}
-          appearance={appearance()}
-          writeProgress={writeProgress()}
-          initialPage={props.page}
-        />
-      </Mediates>
-    </RelayMediator>
+        <Mediates
+          handle={(event) => {
+            switch (event.type) {
+              case "deck/set-color-scheme":
+                setScheme(event.scheme);
+                return false;
+              case "deck/preview-appearance":
+                applyColors(event.appearance);
+                return true;
+              case "deck/set-write-progress":
+                setWriteProgress(event.on);
+                return true;
+              case "deck/set-appearance":
+                applyColors(event.appearance);
+                setAppearance(event.appearance);
+                return true;
+              default:
+                return false;
+            }
+          }}
+        >
+          <SettingsDialog
+            open
+            wide={props.wide}
+            scheme={scheme()}
+            appearance={appearance()}
+            writeProgress={writeProgress()}
+            initialPage={props.page}
+          />
+        </Mediates>
+      </RelayMediator>
+    </MuteMediator>
   );
 };
 
@@ -119,3 +164,7 @@ export const 表示_シアン: S = {
 export const リレー_広い画面: S = { args: { page: "relays" } };
 
 export const リレー_狭い画面: S = { args: { page: "relays", wide: false } };
+
+export const ミュート_広い画面: S = { args: { page: "mute" } };
+
+export const ミュート_狭い画面: S = { args: { page: "mute", wide: false } };
