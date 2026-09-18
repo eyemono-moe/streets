@@ -18,6 +18,7 @@ pnpm workspace の 2 パッケージ。
 - **タスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。** Issue とチャットでの確認を仕様とし、spec や plan のファイルは作らない
 - ADR を書くのは、秘密鍵の境界や永続形式など、後から戻しにくい決定だけ。数行で書く
 - **画面の順序と進み具合は [#343](https://github.com/eyemono-moe/streets/issues/343) にある。** 着手前に読み、画面を 1 枚作り終えたらチェックを付けて PR 番号を書く
+- **v1 リリースまでの作業の正本は [マイルストーン v1](https://github.com/eyemono-moe/streets/milestone/1)。** v1 に要る作業は Issue を立て、優先度 P1 を付けてこのマイルストーンに入れる。リリースの PR（#147）の本文にはチェックリストを持たない
 - 画面は #343 の順に 1 枚ずつ作る。デバッグ用の画面やルートは作らず、診断値は TanStack Devtools のパネル（`apps/web/src/devtools/`）へ出す
 - `v1` が開発ブランチ。`main` へ直接マージしない
 
