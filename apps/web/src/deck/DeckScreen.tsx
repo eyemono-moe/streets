@@ -165,6 +165,47 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     scrollToEnd();
   };
 
+  // カラムを見せる。広い画面では横に送って画面に収め、狭い画面ではそのタブを選ぶ。
+  const focusColumn = (id: string) => {
+    if (!isWide()) {
+      applyUi({ type: "deck/select-column", id });
+      return;
+    }
+    columnsEl
+      ?.querySelector(`[data-column-id="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({
+        inline: "nearest",
+        block: "nearest",
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+      });
+  };
+
+  // 1〜9 の数字キーで、その番号のカラムを見せる（v0 と同じ）。入力中・修飾キー付き・
+  // ダイアログやパネルを開いている間は奪わない。
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
+      return;
+    }
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        target.closest("input, textarea, select, [role=dialog]"))
+    ) {
+      return;
+    }
+    if (ui.settingsOpen || ui.panel !== undefined) return;
+    if (!/^[1-9]$/.test(event.key)) return;
+    const column = columns()[Number(event.key) - 1];
+    if (!column) return;
+    event.preventDefault();
+    focusColumn(column.id);
+  };
+  document.addEventListener("keydown", onKeyDown);
+  onCleanup(() => document.removeEventListener("keydown", onKeyDown));
+
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
   // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
@@ -237,6 +278,9 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
       }
       case "deck/close-temp":
         navigate("/");
+        return true;
+      case "deck/focus-column":
+        focusColumn(event.id);
         return true;
       case "deck/open-settings":
       case "deck/close-settings":
@@ -338,7 +382,11 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                 </Match>
                 <Match when={isWide()}>
                   <div class="flex h-dvh">
-                    <Sidebar pubkey={viewer} onLogout={props.session.logout} />
+                    <Sidebar
+                      pubkey={viewer}
+                      columns={columns()}
+                      onLogout={props.session.logout}
+                    />
                     {panelView(false)}
                     <div class="flex min-w-0 flex-1 flex-col">
                       <DeckSyncNotice store={deckStore} />
@@ -369,6 +417,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
                         <For each={columns()}>
                           {(column) => (
                             <div
+                              data-column-id={column.id}
                               class="h-full shrink-0"
                               classList={{
                                 "w-80": column.width === "s",

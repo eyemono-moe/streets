@@ -58,6 +58,8 @@ export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }
+  /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
+  | { type: "deck/focus-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
   | { type: "deck/drag-start"; id: string }
   | { type: "deck/drag-end" }
