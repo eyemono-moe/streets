@@ -75,6 +75,8 @@ const Header: Component<{
   open: boolean;
   draggable?: boolean;
   temporary?: boolean;
+  /** 題名を押したとき。ヘッダーの空いたところを押したときも同じにする（外側で拾う）。 */
+  onTitle: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const meta = () => columnMeta(props.column);
@@ -95,12 +97,20 @@ const Header: Component<{
         class={`c-secondary size-4.5 shrink-0 ${meta().icon}`}
         aria-hidden="true"
       />
-      <div class="flex min-w-0 flex-1 flex-col">
-        <h2 class="truncate font-600 text-body">
+      {/* 題名はボタンにして、キーボードからも先頭へ戻れるようにする。 */}
+      <button
+        type="button"
+        title="先頭へ戻る"
+        class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
+        onClick={() => props.onTitle()}
+      >
+        <h2 class="w-full truncate font-600 text-body">
           <ColumnTitle column={props.column} />
         </h2>
-        <p class="c-secondary truncate text-caption">{meta().subtitle}</p>
-      </div>
+        <p class="c-secondary w-full truncate text-caption">
+          {meta().subtitle}
+        </p>
+      </button>
       <Show when={props.temporary}>
         <>
           <button
@@ -155,10 +165,20 @@ const Header: Component<{
 const StackedHeader: Component<{
   column: ColumnDef;
   stacked: StackedColumn;
+  onTitle: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    <header class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3">
+    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからは題名のボタンで先頭へ戻る
+    <header
+      class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3"
+      onClick={(event) => {
+        if (event.target instanceof Element && event.target.closest("button")) {
+          return;
+        }
+        props.onTitle();
+      }}
+    >
       <button
         type="button"
         aria-label="戻る"
@@ -170,14 +190,19 @@ const StackedHeader: Component<{
           aria-hidden="true"
         />
       </button>
-      <div class="flex min-w-0 flex-1 flex-col">
-        <h2 class="truncate font-600 text-body">
+      <button
+        type="button"
+        title="先頭へ戻る"
+        class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
+        onClick={() => props.onTitle()}
+      >
+        <h2 class="w-full truncate font-600 text-body">
           <ColumnTitle column={props.column} />
         </h2>
-        <p class="c-secondary truncate text-caption">
+        <p class="c-secondary w-full truncate text-caption">
           {props.stacked.backTo}に戻る
         </p>
-      </div>
+      </button>
       <button
         type="button"
         aria-label="デッキのカラムとして開く"
@@ -375,8 +400,21 @@ const Column: Component<ColumnProps> = (props) => {
     </Switch>
   );
 
+  let scroller: HTMLDivElement | undefined;
+  const scrollToTop = () =>
+    scroller?.scrollTo({
+      top: 0,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  // 重なっている間は 1 段戻る（ダイアログの外側を押した扱い）。重なっていなければ
+  // 一覧の先頭（最新）へ戻る。
+  const onHeader = () =>
+    opened() ? handle({ type: "stack/back" }) : scrollToTop();
+
   const body = () => (
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <div ref={scroller} class="min-h-0 flex-1 overflow-y-auto">
       <Switch fallback={events()}>
         <Match when={threadFocus()}>
           {(focus) => (
@@ -422,18 +460,17 @@ const Column: Component<ColumnProps> = (props) => {
         fallback={
           <Show when={props.chrome !== false}>
             {/*
-              重なっている間は、下のカラムのヘッダーを押しても 1 段戻る
-              （ダイアログの外側を押した扱い）。
+              ヘッダーの空いたところを押したとき。重なっている間は 1 段戻り、
+              そうでなければ先頭へ戻る（題名のボタンと同じ）。
             */}
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからはヘッダーの「戻る」ボタンで戻る */}
+            {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからは題名のボタンと「戻る」ボタンで操作する */}
             <div
               onClick={(event) => {
-                if (!opened()) return;
                 const target = event.target;
                 if (target instanceof Element && target.closest("button")) {
                   return;
                 }
-                handle({ type: "stack/back" });
+                onHeader();
               }}
             >
               <Header
@@ -441,13 +478,18 @@ const Column: Component<ColumnProps> = (props) => {
                 open={props.settingsOpen}
                 draggable={props.draggable}
                 temporary={props.temporary}
+                onTitle={onHeader}
               />
             </div>
           </Show>
         }
       >
         {(stacked) => (
-          <StackedHeader column={props.column} stacked={stacked()} />
+          <StackedHeader
+            column={props.column}
+            stacked={stacked()}
+            onTitle={scrollToTop}
+          />
         )}
       </Show>
       {/* 閉じている間は中身を作らない（lazyMount）。カラムの数だけ設定の DOM を持たないため。 */}
