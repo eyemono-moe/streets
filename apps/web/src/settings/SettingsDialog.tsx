@@ -7,6 +7,7 @@ import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import DisplaySettings from "./DisplaySettings";
+import RelaySettings from "./RelaySettings";
 
 type Page = {
   value: string;
@@ -27,6 +28,8 @@ const SettingsDialog: Component<{
   wide: boolean;
   scheme: ColorScheme;
   appearance: DeckAppearance;
+  /** 開いたときに出すページ。 */
+  initialPage?: string;
 }> = (props) => {
   const dispatch = useDispatch();
   const pages: Page[] = [
@@ -42,7 +45,8 @@ const SettingsDialog: Component<{
       label: "リレー",
       icon: "i-material-symbols:globe",
       title: "リレー",
-      description: "",
+      description: "投稿を預けるサーバーを選びます。",
+      content: () => <RelaySettings />,
     },
     {
       value: "mute",
@@ -90,7 +94,7 @@ const SettingsDialog: Component<{
               アカウントと、この端末の表示を設定します。
             </Dialog.Description>
             <Tabs.Root
-              defaultValue="display"
+              defaultValue={props.initialPage ?? "display"}
               orientation={props.wide ? "vertical" : "horizontal"}
               class="grid h-full min-h-0"
               classList={{

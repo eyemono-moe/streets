@@ -27,6 +27,7 @@ import {
   createWriter,
 } from "@streets/core/write/writer";
 import {
+  type Accessor,
   type ParentComponent,
   createContext,
   createSignal,
@@ -36,6 +37,7 @@ import {
 
 const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
+const RELAY_LIST_KIND = 10002;
 
 export type EventActions = {
   viewer: string;
@@ -56,8 +58,12 @@ export type EventActions = {
 
 export type WriteStack = {
   actions: EventActions;
-  /** NIP-78 の文書（デッキなど）が置換に使う。 */
+  /** NIP-78 の文書（デッキなど）とリレーの設定が置換に使う。 */
   writer: Pick<Writer, "replace">;
+  /** 自分のリレーの一覧（kind:10002）。 */
+  relayList: Accessor<NostrEvent | undefined>;
+  /** リレーの一覧を一度取りに行き終えたか。まだなら「無い」とは言えない。 */
+  relayListSettled: Accessor<boolean>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -97,6 +103,7 @@ export const createWriteStack = (options: {
     const [event, setEvent] = createSignal(
       store.latestReplaceable(kind, options.viewer),
     );
+    const [settled, setSettled] = createSignal(event() !== undefined);
     onCleanup(
       store.onReplaceableChanged((change) => {
         if (change.kind !== kind || change.pubkey !== options.viewer) return;
@@ -104,12 +111,15 @@ export const createWriteStack = (options: {
       }),
     );
     // ログイン時に一度だけ引いておく。届かなくても、押せば replace が引き直す。
-    void fetchLatest(target, kind, undefined, options.viewer).catch(() => {});
-    return event;
+    void fetchLatest(target, kind, undefined, options.viewer)
+      .catch(() => {})
+      .finally(() => setSettled(true));
+    return { event, settled };
   };
 
-  const bookmarks = mine(BOOKMARK_KIND);
-  const follows = mine(FOLLOW_KIND);
+  const bookmarks = mine(BOOKMARK_KIND).event;
+  const follows = mine(FOLLOW_KIND).event;
+  const relayList = mine(RELAY_LIST_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -160,6 +170,8 @@ export const createWriteStack = (options: {
   return {
     actions,
     writer,
+    relayList: relayList.event,
+    relayListSettled: relayList.settled,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };
@@ -170,7 +182,7 @@ export const actionErrorMessage = (error: unknown): string => {
     return `どのリレーにも届きませんでした（${error.rejected.length} 本が拒否）`;
   }
   if (error instanceof RefetchFailedError) {
-    return "今のブックマークを取得できませんでした。時間をおいて再試行してください";
+    return "保存する前に今の状態を取得できませんでした。時間をおいて再試行してください";
   }
   if (error instanceof SignerUnavailableError) {
     return "署名器を利用できません。ログインし直してください";
