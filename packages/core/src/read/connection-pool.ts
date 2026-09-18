@@ -94,6 +94,8 @@ export type ConnectionPoolOptions = {
   random?: () => number;
 };
 
+export type RelayStatus = "in-use" | "failing" | "idle";
+
 /** 1 本の `subscribe()` 呼び出しに対応する登録。 */
 type Entry = {
   filters: RelayFilter[];
@@ -205,6 +207,16 @@ export class ConnectionPool {
       if (hard >= DEGRADED_AFTER_FAILURES) urls.push(url);
     }
     return urls;
+  }
+
+  /**
+   * 設定の画面に出す、その URL の今の様子。接続は必要になったときだけ開くので、
+   * `idle` は「壊れている」ではなく「今は使っていない」。`failing` は開けずに
+   * 失敗が残っている間（開けたか冷却が明けると消える）。
+   */
+  statusOf(url: RelayUrl): RelayStatus {
+    if (this.#failures.has(url)) return "failing";
+    return this.#pool.get(url)?.connection ? "in-use" : "idle";
   }
 
   /**

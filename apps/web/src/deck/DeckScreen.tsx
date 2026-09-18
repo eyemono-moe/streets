@@ -33,7 +33,9 @@ import { setDiagnostics } from "../devtools/diagnostics";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
+import { RelayMediator } from "../settings/RelayMediator";
 import SettingsDialog from "../settings/SettingsDialog";
+import { relayInfo } from "../settings/relay-info-cache";
 import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
@@ -512,12 +514,20 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
               </div>
             </Match>
           </Switch>
-          <SettingsDialog
-            open={ui.settingsOpen}
-            wide={isWide()}
-            scheme={scheme()}
-            appearance={appearance()}
-          />
+          <RelayMediator
+            writer={write.writer}
+            relayList={write.relayList}
+            settled={write.relayListSettled}
+            statusOf={(url) => props.readLayer.manager.pool.statusOf(url)}
+            infoOf={relayInfo}
+          >
+            <SettingsDialog
+              open={ui.settingsOpen}
+              wide={isWide()}
+              scheme={scheme()}
+              appearance={appearance()}
+            />
+          </RelayMediator>
         </Mediates>
       </ActionsMediator>
     </EventActionsProvider>

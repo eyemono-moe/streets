@@ -5,7 +5,12 @@ import SegmentedControl from "./SegmentedControl";
 type Props = {
   variant: "primary" | "secondary";
   block: boolean;
-  options: { value: string; label: string }[];
+  options: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+    hint?: string;
+  }[];
 };
 
 const Story = (props: Props) => {
@@ -74,6 +79,31 @@ export const 項目が多い: S = {
       { value: "light", label: "ライト" },
       { value: "dark", label: "ダーク" },
       { value: "extra", label: "とても長い選択肢の名前" },
+    ],
+  },
+};
+
+export const アイコンと選べない項目: S = {
+  args: {
+    variant: "secondary",
+    options: [
+      {
+        value: "both",
+        label: "両方",
+        icon: "i-material-symbols:swap-vert-rounded",
+      },
+      {
+        value: "read",
+        label: "読み込み",
+        icon: "i-material-symbols:download-rounded",
+      },
+      {
+        value: "write",
+        label: "書き込み",
+        icon: "i-material-symbols:upload-rounded",
+        disabled: true,
+        hint: "読み込みに使うリレーが 1 つも無くなります",
+      },
     ],
   },
 };

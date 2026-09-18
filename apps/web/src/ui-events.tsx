@@ -4,6 +4,7 @@ import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import {
   type JSX,
@@ -21,7 +22,11 @@ export type UiEvent =
   | ColumnStackEvent
   | ActionEvent
   | DeckEvent
-  | ComposeViewEvent;
+  | ComposeViewEvent
+  | RelayViewEvent;
+
+/** リレーの設定。View は操作を渡すだけで、まとめて保存するのは裁定する段。 */
+export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
 
 /** 投稿・返信の書きかけに、View から渡すもの。送れた・失敗したは裁定する段が当てる。 */
 export type ComposeViewEvent =

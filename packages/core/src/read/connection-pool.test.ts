@@ -1654,3 +1654,26 @@ describe("budget vs relay health, and cleanup", () => {
     expect(pool.degradedRelays).toEqual([]);
   });
 });
+
+describe("statusOf", () => {
+  it("誰も使っていない URL は idle、購読すると in-use", () => {
+    const { pool } = createPool({});
+    expect(pool.statusOf("wss://one/")).toBe("idle");
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.statusOf("wss://one/")).toBe("in-use");
+  });
+
+  it("開けずに落ちたら failing、開けたら in-use に戻る", () => {
+    const { pool, connections, clock } = createPool({
+      random: () => 0.5,
+      neverOpens: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    connections.get("wss://one/")?.die();
+    expect(pool.statusOf("wss://one/")).toBe("failing");
+
+    clock.advance(1000);
+    connections.get("wss://one/")?.open();
+    expect(pool.statusOf("wss://one/")).toBe("in-use");
+  });
+});
