@@ -6,6 +6,7 @@ import { type Component, For, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
 import MuteSettings from "./MuteSettings";
 import RelaySettings from "./RelaySettings";
@@ -40,7 +41,8 @@ const SettingsDialog: Component<{
       label: "アカウント",
       icon: "i-material-symbols:person-outline-rounded",
       title: "アカウント",
-      description: "",
+      description: "プロフィールを編集し、この端末からログアウトします。",
+      content: () => <AccountSettings />,
     },
     {
       value: "relays",

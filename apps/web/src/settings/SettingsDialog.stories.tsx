@@ -7,6 +7,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
 import { MuteMediator } from "./MuteMediator";
+import { ProfileMediator } from "./ProfileMediator";
 import { RelayMediator } from "./RelayMediator";
 import SettingsDialog from "./SettingsDialog";
 
@@ -67,74 +68,98 @@ const Story = (props: Props) => {
       ]),
     ),
   );
+  const [profile, setProfile] = createSignal<NostrEvent | undefined>({
+    ...relayList([]),
+    kind: 0,
+    content: JSON.stringify({
+      display_name: "わたし",
+      name: "me",
+      about: "Nostr のクライアントを作っています。",
+      nip05: "me@example.com",
+      website: "https://example.com",
+    }),
+  });
   applyColors(props.appearance);
   return (
-    <MuteMediator
+    <ProfileMediator
       writer={{
         replace: async (_kind, _identifier, mutation) => {
-          const draft = await mutation(mutes());
-          const next = muteListEvent(draft.tags, draft.content);
-          setMutes(next);
+          const draft = await mutation(profile());
+          const next = { ...relayList([]), kind: 0, content: draft.content };
+          setProfile(next);
           return { event: next } as never;
         },
       }}
-      signer={storySigner}
-      viewer={STORY_VIEWER}
-      muteList={mutes}
-      settled={() => true}
+      pubkey={STORY_VIEWER}
+      profile={profile}
     >
-      <RelayMediator
+      <MuteMediator
         writer={{
           replace: async (_kind, _identifier, mutation) => {
-            const draft = await mutation(relays());
-            const next = relayList(draft.tags);
-            setRelays(next);
+            const draft = await mutation(mutes());
+            const next = muteListEvent(draft.tags, draft.content);
+            setMutes(next);
             return { event: next } as never;
           },
         }}
-        relayList={relays}
+        signer={storySigner}
+        viewer={STORY_VIEWER}
+        muteList={mutes}
         settled={() => true}
-        statusOf={(url: RelayUrl) =>
-          url === "wss://yabu.me/" ? "failing" : "in-use"
-        }
-        infoOf={(url: RelayUrl) =>
-          url === "wss://yabu.me/"
-            ? { name: "yabu.me", description: "日本のリレーです。" }
-            : undefined
-        }
       >
-        <Mediates
-          handle={(event) => {
-            switch (event.type) {
-              case "deck/set-color-scheme":
-                setScheme(event.scheme);
-                return false;
-              case "deck/preview-appearance":
-                applyColors(event.appearance);
-                return true;
-              case "deck/set-write-progress":
-                setWriteProgress(event.on);
-                return true;
-              case "deck/set-appearance":
-                applyColors(event.appearance);
-                setAppearance(event.appearance);
-                return true;
-              default:
-                return false;
-            }
+        <RelayMediator
+          writer={{
+            replace: async (_kind, _identifier, mutation) => {
+              const draft = await mutation(relays());
+              const next = relayList(draft.tags);
+              setRelays(next);
+              return { event: next } as never;
+            },
           }}
+          relayList={relays}
+          settled={() => true}
+          statusOf={(url: RelayUrl) =>
+            url === "wss://yabu.me/" ? "failing" : "in-use"
+          }
+          infoOf={(url: RelayUrl) =>
+            url === "wss://yabu.me/"
+              ? { name: "yabu.me", description: "日本のリレーです。" }
+              : undefined
+          }
         >
-          <SettingsDialog
-            open
-            wide={props.wide}
-            scheme={scheme()}
-            appearance={appearance()}
-            writeProgress={writeProgress()}
-            initialPage={props.page}
-          />
-        </Mediates>
-      </RelayMediator>
-    </MuteMediator>
+          <Mediates
+            handle={(event) => {
+              switch (event.type) {
+                case "deck/set-color-scheme":
+                  setScheme(event.scheme);
+                  return false;
+                case "deck/preview-appearance":
+                  applyColors(event.appearance);
+                  return true;
+                case "deck/set-write-progress":
+                  setWriteProgress(event.on);
+                  return true;
+                case "deck/set-appearance":
+                  applyColors(event.appearance);
+                  setAppearance(event.appearance);
+                  return true;
+                default:
+                  return false;
+              }
+            }}
+          >
+            <SettingsDialog
+              open
+              wide={props.wide}
+              scheme={scheme()}
+              appearance={appearance()}
+              writeProgress={writeProgress()}
+              initialPage={props.page}
+            />
+          </Mediates>
+        </RelayMediator>
+      </MuteMediator>
+    </ProfileMediator>
   );
 };
 
@@ -168,3 +193,9 @@ export const リレー_狭い画面: S = { args: { page: "relays", wide: false }
 export const ミュート_広い画面: S = { args: { page: "mute" } };
 
 export const ミュート_狭い画面: S = { args: { page: "mute", wide: false } };
+
+export const アカウント_広い画面: S = { args: { page: "account" } };
+
+export const アカウント_狭い画面: S = {
+  args: { page: "account", wide: false },
+};
