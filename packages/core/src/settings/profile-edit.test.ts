@@ -112,6 +112,16 @@ describe("profileErrors", () => {
     });
   });
 
+  it("空白だけは空欄とみなし、http の URL も通す", () => {
+    expect(
+      profileErrors({
+        ...emptyProfileEdit().draft,
+        picture: "   ",
+        banner: " http://example.com/b.png ",
+      }),
+    ).toEqual({});
+  });
+
   it("NIP-05 は name@domain の形", () => {
     expect(
       profileErrors({ ...emptyProfileEdit().draft, nip05: "me" }).nip05,

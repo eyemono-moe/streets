@@ -1,3 +1,4 @@
+import * as v from "valibot";
 import type { Profile } from "../nostr/profile";
 
 /**
@@ -127,29 +128,40 @@ export const profileEditTransition = (
   }
 };
 
-const isWebUrl = (value: string) => {
-  try {
-    const url = new URL(value);
-    return url.protocol === "https:" || url.protocol === "http:";
-  } catch {
-    return false;
-  }
-};
+const URL_MESSAGE = "https:// で始まる URL を入力してください";
+const NIP05_MESSAGE = "name@example.com の形で入力してください";
 
-/** 保存を止める誤り。空欄は誤りにしない（書かない、という選択）。 */
+/**
+ * 空欄は誤りにしない（書かない、という選択）。前後の空白は落としてから確かめる。
+ * union は中の検証の文言を返すので、文言は中の検証それぞれに付ける。
+ */
+const blankOr = (schema: v.GenericSchema<string, string>) =>
+  v.pipe(v.string(), v.trim(), v.union([v.literal(""), schema]));
+
+const webUrl = blankOr(
+  v.pipe(v.string(), v.url(URL_MESSAGE), v.regex(/^https?:\/\//i, URL_MESSAGE)),
+);
+
+const profileSchema = v.object({
+  picture: webUrl,
+  banner: webUrl,
+  website: webUrl,
+  nip05: blankOr(
+    v.pipe(v.string(), v.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, NIP05_MESSAGE)),
+  ),
+});
+
+/** 保存を止める誤り。項目ごとに最初の 1 つを返す。 */
 export const profileErrors = (
   draft: ProfileDraft,
 ): Partial<Record<ProfileField, string>> => {
+  const result = v.safeParse(profileSchema, draft);
+  if (result.success) return {};
+  const nested = v.flatten<typeof profileSchema>(result.issues).nested ?? {};
   const errors: Partial<Record<ProfileField, string>> = {};
-  for (const field of ["picture", "banner", "website"] as const) {
-    const value = draft[field].trim();
-    if (value && !isWebUrl(value)) {
-      errors[field] = "https:// で始まる URL を入力してください";
-    }
-  }
-  const nip05 = draft.nip05.trim();
-  if (nip05 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nip05)) {
-    errors.nip05 = "name@example.com の形で入力してください";
+  for (const [field, messages] of Object.entries(nested)) {
+    const message = messages?.[0];
+    if (message) errors[field as ProfileField] = message;
   }
   return errors;
 };
