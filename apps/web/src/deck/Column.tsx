@@ -17,6 +17,7 @@ import { excludeOwnActions } from "@streets/core/deck/notification-filter";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { PAGE_SIZE } from "@streets/core/read/source";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { visibleColumnItems } from "@streets/core/view/column-items";
@@ -44,6 +45,7 @@ import { useMutes } from "../settings/MuteMediator";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import ColumnSettings from "./ColumnSettings";
 import ColumnTitle, { useColumnTitle } from "./ColumnTitle";
+import OlderLoader from "./OlderLoader";
 import ThreadView from "./ThreadView";
 import { columnMeta } from "./column-meta";
 
@@ -248,8 +250,14 @@ const Column: Component<ColumnProps> = (props) => {
     if (source.kind === "followers-list") return followersFrom(section.items());
     return undefined;
   };
+  // 流れてくるカラムは 1 ページずつ取る。人の一覧（フォロー・フォロワー）は、切ると
+  // 人数が変わってしまうので今までどおり。
+  const paged = !["followees-list", "followers-list", "thread"].includes(
+    props.column.source.kind,
+  );
   const section = createSection({
     manager: props.readLayer.manager,
+    pageSize: paged ? PAGE_SIZE : undefined,
     // ウォームアップの結果を memo の外で読むと、settle のたびに全カラムの購読が張り直される。
     source: () =>
       resolveSource(props.column.source, {
@@ -401,6 +409,13 @@ const Column: Component<ColumnProps> = (props) => {
             </For>
           </Show>
         </div>
+        <Show when={paged}>
+          <OlderLoader
+            paging={section.paging()}
+            ready={section.status().phase === "settled"}
+            onReach={section.loadMore}
+          />
+        </Show>
       </Match>
       <Match when={section.status().phase === "settled"}>
         <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>

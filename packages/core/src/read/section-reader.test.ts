@@ -129,6 +129,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
           unroutableAuthors: 0,
           uncoveredAuthors: 0,
         },
+        fetchOlder: async () => 0,
         close: () => {},
       };
     },
@@ -991,5 +992,110 @@ describe("SectionReader with Outbox routing", () => {
 
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete?.unroutableAuthors).toBe(3);
+  });
+});
+
+describe("古い投稿の取り足し（pageSize）", () => {
+  const setupPaged = (pageSize: number) => {
+    const clock = createFakeClock();
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      scheduler: clock,
+      pageSize,
+    });
+    reader.start();
+    const relay = () => relays.get("wss://a/") as FakeRelayConnection;
+    // loadOlder の Promise が片付くのを待つ（マイクロタスクを回す）。
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      clock.advance(16);
+    };
+    return { reader, relay, settle, clock };
+  };
+
+  it("最初は 1 ページぶんだけ取る（購読の filters に limit を付ける）", () => {
+    const { relay } = setupPaged(2);
+    expect(relay().subscriptions[0]?.filters).toEqual([
+      { kinds: [1], limit: 2 },
+    ]);
+  });
+
+  it("いちばん古い投稿より前を、同じリレーへ until と limit で取り足す", async () => {
+    const { reader, relay, settle, clock } = setupPaged(2);
+    relay().emitEvent(0, event("new", 300));
+    relay().emitEvent(0, event("mid", 200));
+    relay().emitEose(0);
+    clock.advance(16);
+    expect(reader.items.map((e) => e.id)).toEqual(["new", "mid"]);
+
+    reader.loadOlder();
+    expect(reader.paging).toBe("loading");
+    expect(relay().subscriptions[1]?.filters).toEqual([
+      { kinds: [1], limit: 2, until: 200 },
+    ]);
+    relay().emitEvent(1, event("old", 100));
+    relay().emitEvent(1, event("older", 50));
+    relay().emitEose(1);
+    await settle();
+
+    // 上限が 1 ページぶん広がるので、最初の 2 件は追い出されない。
+    expect(reader.items.map((e) => e.id)).toEqual([
+      "new",
+      "mid",
+      "old",
+      "older",
+    ]);
+    expect(reader.paging).toBe("idle");
+  });
+
+  it("最初のページが揃う（EOSE）までは取り足さない", () => {
+    const { reader, relay, clock } = setupPaged(2);
+    relay().emitEvent(0, event("streaming", 300));
+    clock.advance(16);
+    reader.loadOlder();
+    expect(relay().subscriptions).toHaveLength(1);
+    expect(reader.paging).toBe("idle");
+  });
+
+  it("取り足しても何も増えなければ、もう無いとみなす", async () => {
+    const { reader, relay, settle, clock } = setupPaged(2);
+    relay().emitEvent(0, event("only", 300));
+    relay().emitEose(0);
+    clock.advance(16);
+
+    reader.loadOlder();
+    relay().emitEose(1);
+    await settle();
+    expect(reader.paging).toBe("exhausted");
+
+    // もう取りに行かない。
+    reader.loadOlder();
+    expect(relay().subscriptions).toHaveLength(2);
+  });
+
+  it("pageSize を指定しないセクションは取り足さない", () => {
+    const { reader, relay } = setup();
+    reader.start();
+    expect(relay()?.subscriptions[0]?.filters).toEqual([{ kinds: [1] }]);
+    expect(reader.paging).toBe("exhausted");
   });
 });

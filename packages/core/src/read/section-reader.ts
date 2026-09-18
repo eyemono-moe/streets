@@ -5,8 +5,10 @@ import type { EventStore, EventStoreChange } from "./event-store";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
   MAX_ITEMS_PER_SECTION,
+  MAX_PAGED_ITEMS,
   type NostrSource,
   type Order,
+  type Paging,
   type SectionStatus,
 } from "./source";
 import type {
@@ -33,6 +35,13 @@ export type SectionReaderOptions = {
    * 「注入されなければ実タイマー」の規約を一箇所に集約する。
    */
   scheduler?: Scheduler;
+  /**
+   * 指定すると、最初はこの件数だけ取り（購読の filters に `limit` を付ける）、
+   * `loadOlder()` のたびに同じ件数ずつ古いものを取り足す。指定しなければ、
+   * 今までどおり `MAX_ITEMS_PER_SECTION` まで持つ（人の一覧のように、切ると
+   * 意味が変わるもの）。
+   */
+  pageSize?: number;
 };
 
 type RelayState = {
@@ -43,7 +52,8 @@ type RelayState = {
 export class SectionReader {
   readonly #options: SectionReaderOptions;
   readonly #listeners = new Set<() => void>();
-  readonly #events = new SortedEvents(MAX_ITEMS_PER_SECTION);
+  readonly #events: SortedEvents;
+  #paging: Paging = "idle";
   /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
   readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
@@ -59,6 +69,50 @@ export class SectionReader {
   constructor(options: SectionReaderOptions) {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
+    this.#events = new SortedEvents(options.pageSize ?? MAX_ITEMS_PER_SECTION);
+  }
+
+  get paging(): Paging {
+    return this.#options.pageSize === undefined ? "exhausted" : this.#paging;
+  }
+
+  /**
+   * 今いちばん古い投稿より前を、1 ページぶん取り足す。取っている間・もう無いとき・
+   * まだ 1 件も無いときは何もしない。上限（`MAX_PAGED_ITEMS`）に着いたら、それ以上は
+   * 取らない。
+   */
+  loadOlder(): void {
+    const pageSize = this.#options.pageSize;
+    const handle = this.#handle;
+    const oldest = this.#events.last;
+    if (!pageSize || !handle || !oldest || this.#paging !== "idle") return;
+    // 最初のページが揃う（全リレーの EOSE）までは取り足さない。揃う前は一覧が短く、
+    // 下端がすぐ見えるので、届きかけの途中から古い方を取り始めてしまう。
+    if (this.status.phase !== "settled") return;
+    if (this.#events.capacity >= MAX_PAGED_ITEMS) {
+      this.#paging = "exhausted";
+      this.#notify();
+      return;
+    }
+    this.#events.grow(
+      Math.min(this.#events.capacity + pageSize, MAX_PAGED_ITEMS),
+    );
+    this.#paging = "loading";
+    this.#notify();
+    const before = this.#events.size;
+    // until は含む（同じ秒の投稿を取りこぼさない）。重なった分は id で弾かれる。
+    void handle
+      .fetchOlder({ until: oldest.created_at, limit: pageSize })
+      .then(
+        () => this.#events.size > before,
+        () => false,
+      )
+      .then((grew) => {
+        // 取っている間に止めた・作り直した（別の handle になった）なら何もしない。
+        if (this.#handle !== handle) return;
+        this.#paging = grew ? "idle" : "exhausted";
+        this.#notify();
+      });
   }
 
   get items(): NostrEvent[] {
@@ -101,7 +155,18 @@ export class SectionReader {
     // manager.subscribe() は同期的にイベントを配送しうる。先に Store の変化を
     // 購読し、配信と削除依頼の間に hide/show を取りこぼす窓を作らない。
     this.#offStore = store.subscribe((change) => this.#onStoreChange(change));
-    this.#handle = manager.subscribe(source.filters, source.relays, {
+    const pageSize = this.#options.pageSize;
+    // 最初は 1 ページぶんだけ取る。limit を持つ filter（最新の 1 件だけを取る kind:3
+    // など）はそのまま。
+    const filters =
+      pageSize === undefined
+        ? source.filters
+        : source.filters.map((filter) =>
+            filter.limit === undefined
+              ? { ...filter, limit: pageSize }
+              : filter,
+          );
+    this.#handle = manager.subscribe(filters, source.relays, {
       onEvent: (id, relay) => this.#onEvent(id, relay),
       onRelayComplete: (relay) => {
         // 再接続後の EOSE の可能性もあるので unreachable も一緒に晴らす。
@@ -176,6 +241,7 @@ export class SectionReader {
     this.#relays = new Map();
     this.#plan = null;
     this.#started = false;
+    this.#paging = "idle";
     this.#events.clear();
     this.#hiddenMembers.clear();
     if (this.#notifyTimer !== null) {
