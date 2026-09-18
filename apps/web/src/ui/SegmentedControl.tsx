@@ -1,5 +1,5 @@
 import { SegmentGroup } from "@ark-ui/solid/segment-group";
-import { For } from "solid-js";
+import { For, Show } from "solid-js";
 
 /**
  * 排他の選択。ラジオグループなので、矢印キーでも選べる。
@@ -16,6 +16,8 @@ const SegmentedControl = <T extends string>(props: {
     disabled?: boolean;
     /** 選べない理由。ポインタを載せると出る。 */
     hint?: string;
+    /** 文字の前に置くアイコンの class（`i-material-symbols:…`）。 */
+    icon?: string;
   }[];
   value: T;
   onChange: (value: T) => void;
@@ -49,7 +51,7 @@ const SegmentedControl = <T extends string>(props: {
             title={option.disabled ? option.hint : undefined}
             // 選んだ／選んでいないの色は、どちらも data-state で当てる。片方を固定の class に
             // すると、ダークモードの `.dark` 付きの規則に負けて選んだ色が消える。
-            class="flex h-7.5 cursor-pointer items-center justify-center whitespace-nowrap rounded-1.5 px-3 text-caption transition-colors data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40"
+            class="flex h-7.5 cursor-pointer items-center justify-center gap-1 whitespace-nowrap rounded-1.5 px-3 text-caption transition-colors data-[disabled]:cursor-not-allowed data-[disabled]:opacity-40"
             classList={{
               "flex-1": props.block,
               "data-[state=checked]:bg-accent-primary data-[state=checked]:c-white data-[state=unchecked]:c-secondary":
@@ -58,6 +60,11 @@ const SegmentedControl = <T extends string>(props: {
                 !primary(),
             }}
           >
+            <Show when={option.icon}>
+              {(icon) => (
+                <span class={`${icon()} size-4 shrink-0`} aria-hidden="true" />
+              )}
+            </Show>
             <SegmentGroup.ItemText>{option.label}</SegmentGroup.ItemText>
             <SegmentGroup.ItemHiddenInput />
           </SegmentGroup.Item>

@@ -56,7 +56,7 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
       <SettingsSection
         title="使うリレー"
         scope="account"
-        description="リレーは、投稿やリアクションを預けておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。"
+        description="リレーは、投稿やリアクションを預けておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
       >
         <Switch>
           <Match when={props.loading}>
@@ -99,10 +99,24 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
   );
 };
 
-const USAGES: { value: RelayUsage; label: string }[] = [
-  { value: "both", label: "読み書き" },
-  { value: "read", label: "読むだけ" },
-  { value: "write", label: "書くだけ" },
+// 説明の「読み込み」「書き込み」と同じ語を使う。矢印は受け取る（↓）・送る（↑）の向き。
+// 雲のアイコンは「アカウントに保存」の印に使っているので、ここでは使わない。
+const USAGES: { value: RelayUsage; label: string; icon: string }[] = [
+  {
+    value: "both",
+    label: "両方",
+    icon: "i-material-symbols:swap-vert-rounded",
+  },
+  {
+    value: "read",
+    label: "読み込み",
+    icon: "i-material-symbols:download-rounded",
+  },
+  {
+    value: "write",
+    label: "書き込み",
+    icon: "i-material-symbols:upload-rounded",
+  },
 ];
 
 const RelayRow: Component<{

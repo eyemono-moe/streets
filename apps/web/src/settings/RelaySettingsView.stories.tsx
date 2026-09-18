@@ -114,7 +114,7 @@ export const 読み込み中: S = { args: { loading: true, entries: [] } };
 /** 一覧をまだ作っていない人。既定のリレーを使っていることを見せる。 */
 export const まだ選んでいない: S = { args: { entries: [] } };
 
-/** 書き込み先が 1 つだけ。そのリレーの「読むだけ」と「外す」は選べない。 */
+/** 書き込み先が 1 つだけ。そのリレーの「読み込み」と「外す」は選べない。 */
 export const 最後の書き込み先: S = {
   args: {
     entries: [relay("relay.damus.io"), relay("nos.lol", true, false)],
