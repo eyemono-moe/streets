@@ -1,4 +1,5 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
+import { StreetSign } from "@streets/sign";
 import { type Component, Show, createSignal } from "solid-js";
 import UserCardHover from "../profile/UserCardHover";
 import { useDispatch } from "../ui-events";
@@ -35,7 +36,12 @@ const Avatar: Component<{
 
   // 枠は画像の有無にかかわらず描く。プロフィールは後から届くので、画像待ちで行がずれないようにする。
   const image = () => (
-    <Show when={picture()}>
+    <Show
+      when={picture()}
+      fallback={
+        <StreetSign name={props.pubkey} classList={sizeClass(props.size)} />
+      }
+    >
       {(url) => (
         <img
           src={url()}

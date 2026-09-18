@@ -4,6 +4,7 @@ import {
   shortNpub,
 } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
+import { StreetSign } from "../../../../packages/sign/src/StreetSign";
 import { useProfile } from "../note/use-profile";
 import FollowButton from "./FollowButton";
 
@@ -72,7 +73,15 @@ export const ProfileHeaderCard: Component<{
       <div class="-mt-8 flex flex-col gap-3 px-3 pb-3">
         <div class="flex min-h-20 items-end justify-between gap-2">
           <div class="size-20 shrink-0 overflow-hidden rounded-3 border-3 border-white bg-secondary dark:border-ui-950">
-            <Show when={picture()}>
+            <Show
+              when={picture()}
+              fallback={
+                <StreetSign
+                  name={props.pubkey}
+                  class="size-full object-cover"
+                />
+              }
+            >
               {(url) => (
                 <img
                   src={url()}
