@@ -139,7 +139,10 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
   createEffect(() => {
     const next = deckStore.value()?.columns ?? [];
     // nextにproxyが含まれておりそのままだとstructuredCloneでDataCloneErrorが発生するためunwrapする
-    setDeckView("columns", reconcile(structuredClone(unwrap(next)), { key: "id" }));
+    setDeckView(
+      "columns",
+      reconcile(structuredClone(unwrap(next)), { key: "id" }),
+    );
   });
   const columns = () => deckView.columns;
 
