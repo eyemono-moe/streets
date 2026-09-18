@@ -20,7 +20,7 @@ import {
   createSignal,
 } from "solid-js";
 import Avatar from "../note/Avatar";
-import Name from "../note/Name";
+import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -239,10 +239,8 @@ const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
         <>
           <dt class="c-secondary">管理者</dt>
           <dd class="c-primary flex min-w-0 items-center gap-1.5">
-            <Avatar pubkey={pubkey()} size="tiny" static />
-            <span class="truncate">
-              <Name pubkey={pubkey()} />
-            </span>
+            <Avatar pubkey={pubkey()} size="tiny" />
+            <UserLink pubkey={pubkey()} class="c-primary min-w-0 truncate" />
           </dd>
         </>
       )}
