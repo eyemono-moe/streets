@@ -83,6 +83,7 @@ describe("describeRejection", () => {
       "短い間に送りすぎて断られました（slow down）",
     );
     expect(describeRejection("blocked:")).toBe("このリレーに断られました");
+    expect(describeRejection("blocked")).toBe("このリレーに断られました");
   });
 
   it("接続の失敗を言い換える", () => {

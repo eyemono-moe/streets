@@ -43,7 +43,7 @@ export const describeRejection = (reason: string): string => {
   if (/budget exhausted/.test(reason)) {
     return "同時につなげる数の上限に達していました";
   }
-  const match = /^([a-z-]+):\s*(.*)$/.exec(reason);
+  const match = /^([a-z-]+)(?::\s*(.*))?$/.exec(reason);
   const known = match?.[1] ? PREFIXES[match[1]] : undefined;
   if (known) return match?.[2] ? `${known}（${match[2]}）` : known;
   return reason || "理由は分かりません";

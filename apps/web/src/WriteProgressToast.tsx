@@ -1,7 +1,10 @@
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { WriteOutcome } from "@streets/core/view/write-status";
 import { writeStatus } from "@streets/core/view/write-status";
-import type { WriteProgress } from "@streets/core/write/write-progress";
+import {
+  type WriteProgress,
+  summarizeRelays,
+} from "@streets/core/write/write-progress";
 import { type Component, For, Show } from "solid-js";
 import ProgressRing from "./ui/ProgressRing";
 
@@ -19,6 +22,16 @@ const WriteProgressToast: Component<{ meta: WriteToastMeta["write"] }> = (
   props,
 ) => {
   const status = () => writeStatus(props.meta.progress, props.meta.outcome);
+  const counts = () => {
+    const relays = status().relays;
+    if (!relays) return undefined;
+    const summary = summarizeRelays(relays);
+    return {
+      done: summary.accepted,
+      failed: summary.rejected,
+      pending: summary.pending,
+    };
+  };
   return (
     <div class="flex min-w-0 flex-col gap-1">
       <div class="flex items-center gap-2">
@@ -31,15 +44,7 @@ const WriteProgressToast: Component<{ meta: WriteToastMeta["write"] }> = (
             />
           }
         >
-          <ProgressRing
-            segments={status().relays?.map((entry) =>
-              entry.state === "accepted"
-                ? "done"
-                : entry.state === "rejected"
-                  ? "failed"
-                  : "pending",
-            )}
-          />
+          <ProgressRing counts={counts()} />
         </Show>
         <span class="c-primary min-w-0 flex-1 truncate font-600 text-body">
           {props.meta.label}
