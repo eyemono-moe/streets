@@ -10,6 +10,22 @@ export type RelayOp =
   | { type: "remove"; url: RelayUrl }
   | { type: "set-usage"; url: RelayUrl; read: boolean; write: boolean };
 
+/**
+ * リレーの使い方。読み込み・書き込みを別々に入り切りさせると「どちらもしない」が
+ * 作れてしまうので、3 つから選ばせる。
+ */
+export type RelayUsage = "both" | "read" | "write";
+
+export const usageOf = (entry: RelayListEntry): RelayUsage =>
+  entry.read && entry.write ? "both" : entry.read ? "read" : "write";
+
+export const usageOp = (url: RelayUrl, usage: RelayUsage): RelayOp => ({
+  type: "set-usage",
+  url,
+  read: usage !== "write",
+  write: usage !== "read",
+});
+
 const applyOne = (current: RelayListEntry[], op: RelayOp): RelayListEntry[] => {
   switch (op.type) {
     case "add":

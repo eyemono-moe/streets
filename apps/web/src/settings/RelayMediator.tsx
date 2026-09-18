@@ -5,6 +5,7 @@ import {
   parseRelayList,
 } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { RelayInfo } from "@streets/core/relay/relay-info";
 import {
   type RelayEditEvent,
   type RelayOp,
@@ -40,6 +41,7 @@ export type RelayEdit = {
   loading: Accessor<boolean>;
   allows: (op: RelayOp) => boolean;
   statusOf: (url: RelayUrl) => RelayStatus;
+  infoOf: (url: RelayUrl) => RelayInfo | undefined;
 };
 
 const RelayEditContext = createContext<RelayEdit>();
@@ -53,6 +55,7 @@ export const RelayMediator: ParentComponent<{
   relayList: Accessor<NostrEvent | undefined>;
   settled: Accessor<boolean>;
   statusOf: (url: RelayUrl) => RelayStatus;
+  infoOf: (url: RelayUrl) => RelayInfo | undefined;
 }> = (props) => {
   const [state, setState] = createStore(emptyRelayEdit());
   const apply = (event: RelayEditEvent) =>
@@ -115,6 +118,7 @@ export const RelayMediator: ParentComponent<{
     loading: () => !props.settled() && props.relayList() === undefined,
     allows: (op) => allowsRelayOp(entries(), op),
     statusOf: props.statusOf,
+    infoOf: props.infoOf,
   };
 
   return (

@@ -1,10 +1,15 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
 import type { RelayStatus } from "@streets/core/read/connection-pool";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { RelayInfo } from "@streets/core/relay/relay-info";
 import {
   type RelayOp,
+  type RelayUsage,
   parseRelayInput,
   relayLabel,
+  usageOf,
+  usageOp,
 } from "@streets/core/settings/relay-edit";
 import {
   type Component,
@@ -14,9 +19,11 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
+import Avatar from "../note/Avatar";
+import Name from "../note/Name";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
-import ToggleChip from "../ui/ToggleChip";
+import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
 
 const STATUS: Record<RelayStatus, { label: string; dot: string }> = {
@@ -35,6 +42,8 @@ export type RelaySettingsViewProps = {
   allows: (op: RelayOp) => boolean;
   /** 一覧が無い人が今使っているリレー。 */
   fallback: readonly RelayUrl[];
+  /** リレーが自分について答えた内容。取れていなければ undefined。 */
+  infoOf: (url: RelayUrl) => RelayInfo | undefined;
 };
 
 /** リレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -72,6 +81,7 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
                   <RelayRow
                     entry={entry}
                     status={props.statusOf(entry.url)}
+                    info={props.infoOf(entry.url)}
                     allows={props.allows}
                     onEdit={edit}
                   />
@@ -89,76 +99,180 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
   );
 };
 
+const USAGES: { value: RelayUsage; label: string }[] = [
+  { value: "both", label: "読み書き" },
+  { value: "read", label: "読むだけ" },
+  { value: "write", label: "書くだけ" },
+];
+
 const RelayRow: Component<{
   entry: RelayListEntry;
   status: RelayStatus;
+  info: RelayInfo | undefined;
   allows: (op: RelayOp) => boolean;
   onEdit: (op: RelayOp) => void;
 }> = (props) => {
-  const usage = (read: boolean, write: boolean): RelayOp => ({
-    type: "set-usage",
-    url: props.entry.url,
-    read,
-    write,
-  });
   const remove = (): RelayOp => ({ type: "remove", url: props.entry.url });
-  // 押せない理由は 2 通り。両方切ると使わないリレーになる（それなら外す）か、
-  // 最後の読み込み先・書き込み先を無くしてしまうか。
-  const reason = (read: boolean, write: boolean) =>
-    !read && !write
-      ? "使わないなら、× で一覧から外してください"
-      : "これを切ると、使うリレーが 1 つも無くなります";
+  const label = () => relayLabel(props.entry.url);
+  // 名前を名乗っていなければ、URL を名前の代わりにする。
+  const name = () => props.info?.name ?? label().replace(/^wss?:\/\//, "");
+  const hasDetails = () =>
+    props.info?.description !== undefined ||
+    props.info?.pubkey !== undefined ||
+    props.info?.contact !== undefined;
 
   return (
-    // 狭いときは、操作を URL の下へ回す。横に詰めると URL が 1 文字も見えなくなる。
-    <li class="flex min-h-13 flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2">
-      <div class="flex min-w-48 flex-1 items-center gap-3">
-        <span
-          class={`size-2 shrink-0 rounded-full ${STATUS[props.status].dot}`}
-          aria-hidden="true"
-        />
-        <div class="flex min-w-0 flex-1 flex-col">
-          <span class="c-primary truncate text-body">
-            {relayLabel(props.entry.url)}
-          </span>
-          <span class="c-secondary truncate text-caption">
-            {STATUS[props.status].label}
-          </span>
+    <li class="bg-primary">
+      <Collapsible.Root lazyMount unmountOnExit disabled={!hasDetails()}>
+        {/* 狭いときは、操作を名前の下へ回す。横に詰めると名前が 1 文字も見えなくなる。 */}
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
+          <Collapsible.Trigger class="group flex min-w-48 flex-1 items-center gap-3 bg-transparent p-0 text-left enabled:cursor-pointer">
+            <RelayIcon info={props.info} status={props.status} />
+            <div class="flex min-w-0 flex-1 flex-col">
+              <span class="c-primary flex min-w-0 items-center gap-1 text-body">
+                <span class="truncate font-600">{name()}</span>
+                <Show when={hasDetails()}>
+                  <span
+                    class="i-material-symbols:expand-more-rounded c-secondary size-4.5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
+                    aria-hidden="true"
+                  />
+                </Show>
+              </span>
+              {/* 切れるなら URL の側から切れるよう、様子を先に書く。 */}
+              <span class="c-secondary truncate text-caption">
+                {STATUS[props.status].label}・{label()}
+              </span>
+            </div>
+          </Collapsible.Trigger>
+          <div class="ml-auto flex items-center gap-1">
+            <SegmentedControl
+              label={`${name()} の使い方`}
+              variant="secondary"
+              value={usageOf(props.entry)}
+              options={USAGES.map((usage) => ({
+                ...usage,
+                disabled: !props.allows(usageOp(props.entry.url, usage.value)),
+                hint: "これにすると、読み込みか書き込みに使うリレーが 1 つも無くなります",
+              }))}
+              onChange={(usage) =>
+                props.onEdit(usageOp(props.entry.url, usage))
+              }
+            />
+            {/* 一覧から外すだけで、リレーそのものは消えない（remove）。ゴミ箱や × にしない。 */}
+            <Button
+              variant="ghost"
+              size="sm"
+              shape="rounded"
+              icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+              aria-label={`${name()} を一覧から外す`}
+              disabled={!props.allows(remove())}
+              title={
+                props.allows(remove())
+                  ? `${name()} を一覧から外す`
+                  : "これを外すと、読み込みか書き込みに使うリレーが 1 つも無くなります"
+              }
+              onClick={() => props.onEdit(remove())}
+            />
+          </div>
         </div>
-      </div>
-      <div class="ml-auto flex items-center gap-3">
-        <ToggleChip
-          label="読み込み"
-          pressed={props.entry.read}
-          disabled={!props.allows(usage(!props.entry.read, props.entry.write))}
-          disabledReason={reason(!props.entry.read, props.entry.write)}
-          onChange={(read) => props.onEdit(usage(read, props.entry.write))}
-        />
-        <ToggleChip
-          label="書き込み"
-          pressed={props.entry.write}
-          disabled={!props.allows(usage(props.entry.read, !props.entry.write))}
-          disabledReason={reason(props.entry.read, !props.entry.write)}
-          onChange={(write) => props.onEdit(usage(props.entry.read, write))}
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
-          icon="i-material-symbols:close-rounded"
-          aria-label={`${relayLabel(props.entry.url)} を外す`}
-          disabled={!props.allows(remove())}
-          title={
-            props.allows(remove())
-              ? undefined
-              : "これを外すと、使うリレーが 1 つも無くなります"
-          }
-          onClick={() => props.onEdit(remove())}
-        />
-      </div>
+        <Collapsible.Content class="motion-collapse">
+          <RelayDetails info={props.info} />
+        </Collapsible.Content>
+      </Collapsible.Root>
     </li>
   );
 };
+
+/** リレーのアイコン。接続の様子を右下の点で重ねる。 */
+const RelayIcon: Component<{
+  info: RelayInfo | undefined;
+  status: RelayStatus;
+}> = (props) => {
+  const [broken, setBroken] = createSignal(false);
+  return (
+    <span class="relative size-8 shrink-0">
+      <Show
+        when={props.info?.icon && !broken() ? props.info.icon : undefined}
+        fallback={
+          <span class="c-secondary grid size-full place-items-center rounded-2 bg-secondary">
+            <span
+              class="i-material-symbols:globe size-4.5"
+              aria-hidden="true"
+            />
+          </span>
+        }
+      >
+        {(icon) => (
+          <img
+            src={icon()}
+            alt=""
+            class="size-full rounded-2 bg-secondary object-cover"
+            loading="lazy"
+            onError={() => setBroken(true)}
+          />
+        )}
+      </Show>
+      <span
+        // 縁を行の背景と同じ色にして、アイコンから切り離して見せる。
+        class={`-bottom-0.5 -right-0.5 absolute size-2.5 rounded-full border-2 border-white dark:border-ui-950 ${STATUS[props.status].dot}`}
+        aria-hidden="true"
+      />
+    </span>
+  );
+};
+
+/** リレーが自分について答えた内容。答えた項目だけを並べる。 */
+const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
+  <dl class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 px-3 pb-3 pl-14 text-caption">
+    <Show when={props.info?.description}>
+      {(description) => (
+        <>
+          <dt class="c-secondary">説明</dt>
+          <dd class="c-primary break-anywhere line-clamp-4 whitespace-pre-wrap">
+            {description()}
+          </dd>
+        </>
+      )}
+    </Show>
+    <Show when={props.info?.pubkey}>
+      {(pubkey) => (
+        <>
+          <dt class="c-secondary">管理者</dt>
+          <dd class="c-primary flex min-w-0 items-center gap-1.5">
+            <Avatar pubkey={pubkey()} size="tiny" static />
+            <span class="truncate">
+              <Name pubkey={pubkey()} />
+            </span>
+          </dd>
+        </>
+      )}
+    </Show>
+    <Show when={props.info?.contact}>
+      {(contact) => (
+        <>
+          <dt class="c-secondary">連絡先</dt>
+          <dd class="c-primary break-all">
+            <Show
+              when={/^(mailto:|https:\/\/)/.test(contact()) && contact()}
+              fallback={contact()}
+            >
+              {(href) => (
+                <a
+                  class="text-link"
+                  href={href()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {href().replace(/^mailto:/, "")}
+                </a>
+              )}
+            </Show>
+          </dd>
+        </>
+      )}
+    </Show>
+  </dl>
+);
 
 const AddRelay: Component<{
   entries: readonly RelayListEntry[];

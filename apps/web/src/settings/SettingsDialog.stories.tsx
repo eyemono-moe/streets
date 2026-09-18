@@ -52,6 +52,11 @@ const Story = (props: Props) => {
       statusOf={(url: RelayUrl) =>
         url === "wss://yabu.me/" ? "failing" : "in-use"
       }
+      infoOf={(url: RelayUrl) =>
+        url === "wss://yabu.me/"
+          ? { name: "yabu.me", description: "日本のリレーです。" }
+          : undefined
+      }
     >
       <Mediates
         handle={(event) => {

@@ -28,6 +28,7 @@ const RelaySettings: Component = () => {
             return edit().statusOf(url);
           }}
           fallback={FALLBACK_RELAYS}
+          infoOf={edit().infoOf}
         />
       )}
     </Show>

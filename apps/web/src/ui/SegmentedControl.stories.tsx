@@ -5,7 +5,12 @@ import SegmentedControl from "./SegmentedControl";
 type Props = {
   variant: "primary" | "secondary";
   block: boolean;
-  options: { value: string; label: string }[];
+  options: {
+    value: string;
+    label: string;
+    disabled?: boolean;
+    hint?: string;
+  }[];
 };
 
 const Story = (props: Props) => {
@@ -74,6 +79,22 @@ export const 項目が多い: S = {
       { value: "light", label: "ライト" },
       { value: "dark", label: "ダーク" },
       { value: "extra", label: "とても長い選択肢の名前" },
+    ],
+  },
+};
+
+export const 選べない項目: S = {
+  args: {
+    variant: "secondary",
+    options: [
+      { value: "both", label: "読み書き" },
+      { value: "read", label: "読むだけ" },
+      {
+        value: "write",
+        label: "書くだけ",
+        disabled: true,
+        hint: "読み込みに使うリレーが 1 つも無くなります",
+      },
     ],
   },
 };

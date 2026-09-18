@@ -13,6 +13,8 @@ import {
   relayEditTransition,
   relayLabel,
   relayOpsMutation,
+  usageOf,
+  usageOp,
 } from "./relay-edit";
 
 const A = "wss://a.example/" as RelayUrl;
@@ -212,5 +214,23 @@ describe("parseRelayInput", () => {
 describe("relayLabel", () => {
   it("末尾の / を見せない", () => {
     expect(relayLabel(A)).toBe("wss://a.example");
+  });
+});
+
+describe("使い方の 3 択", () => {
+  it("入り切りの組を、3 つのどれかとして読む", () => {
+    expect(usageOf(both(A))).toBe("both");
+    expect(usageOf({ url: A, read: true, write: false })).toBe("read");
+    expect(usageOf({ url: A, read: false, write: true })).toBe("write");
+  });
+
+  it("選んだものを、入り切りの組に戻す", () => {
+    expect(usageOp(A, "read")).toEqual({
+      type: "set-usage",
+      url: A,
+      read: true,
+      write: false,
+    });
+    expect(usageOp(A, "both")).toMatchObject({ read: true, write: true });
   });
 });
