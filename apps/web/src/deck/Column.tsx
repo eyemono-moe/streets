@@ -27,6 +27,7 @@ import {
 } from "@streets/core/view/notification-rows";
 import {
   type Component,
+  ErrorBoundary,
   For,
   Match,
   Show,
@@ -36,7 +37,7 @@ import {
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setDiagnostics } from "../devtools/diagnostics";
 import ActionNotice from "../note/ActionNotice";
-import Event from "../note/Event";
+import Event, { BrokenEvent } from "../note/Event";
 import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
 import { useMutes } from "../settings/MuteMediator";
@@ -355,39 +356,47 @@ const Column: Component<ColumnProps> = (props) => {
           >
             <For each={rows.list}>
               {(row) => (
-                <Show
-                  when={row.type === "group" && row}
-                  fallback={
-                    <Show when={row.type === "event" && row}>
-                      {(single) => (
-                        <Show
-                          when={actionTarget(single().event)}
-                          fallback={
-                            <Event
-                              event={single().event}
+                // 通知の 1 行も投稿と同じく、描けなければその行だけを置き換える。
+                <ErrorBoundary
+                  fallback={(error) => {
+                    console.error("通知を描けませんでした", row.key, error);
+                    return <BrokenEvent />;
+                  }}
+                >
+                  <Show
+                    when={row.type === "group" && row}
+                    fallback={
+                      <Show when={row.type === "event" && row}>
+                        {(single) => (
+                          <Show
+                            when={actionTarget(single().event)}
+                            fallback={
+                              <Event
+                                event={single().event}
+                                size={size()}
+                                expandMedia={expandMedia()}
+                              />
+                            }
+                          >
+                            <ActionNotice
+                              events={[single().event]}
                               size={size()}
                               expandMedia={expandMedia()}
                             />
-                          }
-                        >
-                          <ActionNotice
-                            events={[single().event]}
-                            size={size()}
-                            expandMedia={expandMedia()}
-                          />
-                        </Show>
-                      )}
-                    </Show>
-                  }
-                >
-                  {(group) => (
-                    <ActionNotice
-                      events={group().events}
-                      size={size()}
-                      expandMedia={expandMedia()}
-                    />
-                  )}
-                </Show>
+                          </Show>
+                        )}
+                      </Show>
+                    }
+                  >
+                    {(group) => (
+                      <ActionNotice
+                        events={group().events}
+                        size={size()}
+                        expandMedia={expandMedia()}
+                      />
+                    )}
+                  </Show>
+                </ErrorBoundary>
               )}
             </For>
           </Show>
@@ -417,38 +426,57 @@ const Column: Component<ColumnProps> = (props) => {
 
   const body = () => (
     <div ref={scroller} class="min-h-0 flex-1 overflow-y-auto">
-      <Switch fallback={events()}>
-        <Match when={threadFocus()}>
-          {(focus) => (
-            <ThreadView
-              focus={focus()}
-              readLayer={props.readLayer}
-              expandMedia={expandMedia()}
-            />
-          )}
-        </Match>
-        <Match when={profilePubkey()}>
-          {(pubkey) => (
-            <>
-              <ProfileHeader pubkey={pubkey()} readLayer={props.readLayer} />
-              {events()}
-            </>
-          )}
-        </Match>
-        <Match when={people()}>
-          {(people) => (
-            <ProfileList
-              people={people()}
-              settled={section.status().phase === "settled"}
-              empty={
-                props.column.source.kind === "followers-list"
-                  ? "フォロワーを取得できませんでした。"
-                  : "まだ誰もフォローしていません。"
-              }
-            />
-          )}
-        </Match>
-      </Switch>
+      {/* 投稿・通知の 1 件ずつの境界で捕まえきれなかったものの受け皿。カラムの中身だけを置き換え、ほかのカラムは動き続ける。 */}
+      <ErrorBoundary
+        fallback={(error, reset) => {
+          console.error("カラムを描けませんでした", props.column.id, error);
+          return (
+            <div class="c-secondary flex flex-col items-start gap-2 p-4 text-caption">
+              <p>このカラムを表示できませんでした。</p>
+              <button
+                type="button"
+                class="c-primary cursor-pointer rounded-full border border-primary bg-primary px-3 py-1 font-600 hover:bg-secondary"
+                onClick={reset}
+              >
+                もう一度表示する
+              </button>
+            </div>
+          );
+        }}
+      >
+        <Switch fallback={events()}>
+          <Match when={threadFocus()}>
+            {(focus) => (
+              <ThreadView
+                focus={focus()}
+                readLayer={props.readLayer}
+                expandMedia={expandMedia()}
+              />
+            )}
+          </Match>
+          <Match when={profilePubkey()}>
+            {(pubkey) => (
+              <>
+                <ProfileHeader pubkey={pubkey()} readLayer={props.readLayer} />
+                {events()}
+              </>
+            )}
+          </Match>
+          <Match when={people()}>
+            {(people) => (
+              <ProfileList
+                people={people()}
+                settled={section.status().phase === "settled"}
+                empty={
+                  props.column.source.kind === "followers-list"
+                    ? "フォロワーを取得できませんでした。"
+                    : "まだ誰もフォローしていません。"
+                }
+              />
+            )}
+          </Match>
+        </Switch>
+      </ErrorBoundary>
     </div>
   );
 
