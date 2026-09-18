@@ -13,6 +13,7 @@ import {
 import { layoutNote } from "@streets/core/view/note-layout";
 import {
   type Component,
+  ErrorBoundary,
   For,
   type JSX,
   Match,
@@ -372,7 +373,7 @@ const isInteractive = (target: EventTarget | null) =>
   target.closest("a, button, input, textarea, [role='button']") !== null;
 
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
-const Event: Component<ContentProps> = (props) => {
+const EventBody: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
   let downAt: { x: number; y: number } | undefined;
 
@@ -433,6 +434,37 @@ export const EventRefView: Component<{
       <Event event={event} size={props.size} expandMedia={props.expandMedia} />
     )}
   </Lookup>
+);
+
+/**
+ * 描けなかった投稿の代わり。リレーから来るイベントは形を保証されないので、1 件が
+ * 描画の途中で投げても、カラムごと落とさずにその 1 件だけをこれに置き換える。
+ */
+export const BrokenEvent: Component<{ id?: string; kind?: number }> = (
+  props,
+) => (
+  <div class="c-secondary flex items-center gap-2 bg-primary p-3 text-caption">
+    <span
+      class="i-material-symbols:error-outline-rounded size-4 shrink-0"
+      aria-hidden="true"
+    />
+    <span class="min-w-0">
+      この投稿を表示できませんでした
+      <Show when={props.kind !== undefined}>（kind:{props.kind}）</Show>
+    </span>
+  </div>
+);
+
+/** 投稿 1 件。描けなかったときは `BrokenEvent` に置き換える。 */
+const Event: Component<ContentProps> = (props) => (
+  <ErrorBoundary
+    fallback={(error) => {
+      console.error("投稿を描けませんでした", props.event?.id, error);
+      return <BrokenEvent id={props.event?.id} kind={props.event?.kind} />;
+    }}
+  >
+    <EventBody {...props} />
+  </ErrorBoundary>
 );
 
 export default Event;

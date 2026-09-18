@@ -204,3 +204,14 @@ export const 未対応のkind: Story = {
 export const プロフィールが無い: Story = {
   args: { event: noProfile, scene: scene(noProfile) },
 };
+
+/**
+ * 形の崩れたイベント（リレーから来るものは形を保証されない）。描画の途中で投げても、
+ * この 1 件だけを「表示できませんでした」に置き換え、周りは描き続ける。
+ */
+export const 描けないイベント: Story = {
+  args: {
+    event: { ...unknown, kind: 1, tags: null } as unknown as NostrEvent,
+    scene: scene(),
+  },
+};
