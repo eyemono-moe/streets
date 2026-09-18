@@ -4,6 +4,7 @@ import {
   type ProfileEditEvent,
   type ProfileEditState,
   emptyProfileEdit,
+  isProfileDirty,
   profileChanges,
   profileEditTransition,
   profileErrors,
@@ -14,7 +15,9 @@ import {
   type ParentComponent,
   createContext,
   createEffect,
+  createSignal,
   on,
+  onCleanup,
   useContext,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
@@ -28,6 +31,11 @@ export type ProfileEdit = {
   pubkey: string;
   state: ProfileEditState;
   loaded: Accessor<boolean>;
+  /**
+   * 書きかけのまま閉じようとした回数。増えたら、画面は書きかけの場所へ
+   * 目を向けさせる（ページを切り替え、保存の欄を見せて揺らす）。
+   */
+  attention: Accessor<number>;
 };
 
 const ProfileEditContext = createContext<ProfileEdit>();
@@ -73,8 +81,25 @@ export const ProfileMediator: ParentComponent<{
     );
   };
 
+  const [attention, setAttention] = createSignal(0);
+  const dirty = () => isProfileDirty(state);
+
+  // タブを閉じる・再読み込みするときも、書きかけがあればブラウザに確かめさせる。
+  const beforeUnload = (event: BeforeUnloadEvent) => {
+    if (!dirty()) return;
+    event.preventDefault();
+  };
+  window.addEventListener("beforeunload", beforeUnload);
+  onCleanup(() => window.removeEventListener("beforeunload", beforeUnload));
+
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
+      case "deck/close-settings":
+        // 書きかけがあるうちは閉じさせない。黙って閉じると、開き直したときに
+        // 書きかけが残っているのか消えたのか分からない。保存か「元に戻す」で抜ける。
+        if (!dirty()) return false;
+        setAttention((count) => count + 1);
+        return true;
       case "profile/input":
       case "profile/reset":
         apply(event);
@@ -93,6 +118,7 @@ export const ProfileMediator: ParentComponent<{
         pubkey: props.pubkey,
         state,
         loaded: () => props.profile() !== undefined,
+        attention,
       }}
     >
       <Mediates handle={handle}>{props.children}</Mediates>

@@ -8,7 +8,11 @@ const AccountSettings: Component = () => {
   return (
     <Show when={edit}>
       {(edit) => (
-        <AccountSettingsView pubkey={edit().pubkey} state={edit().state} />
+        <AccountSettingsView
+          pubkey={edit().pubkey}
+          state={edit().state}
+          attention={edit().attention()}
+        />
       )}
     </Show>
   );

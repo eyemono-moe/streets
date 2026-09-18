@@ -12,7 +12,7 @@ import AccountSettingsView from "./AccountSettingsView";
 const PUBKEY =
   "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
 
-type Args = { events: ProfileEditEvent[]; width: number };
+type Args = { events: ProfileEditEvent[]; width: number; attention?: number };
 
 const loaded = (fields: Record<string, string>): ProfileEditEvent => ({
   type: "profile/loaded",
@@ -58,7 +58,11 @@ const Story = (props: Args) => {
       }}
     >
       <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
-        <AccountSettingsView pubkey={PUBKEY} state={state()} />
+        <AccountSettingsView
+          pubkey={PUBKEY}
+          state={state()}
+          attention={props.attention}
+        />
       </div>
     </Mediates>
   );
@@ -123,3 +127,14 @@ export const 長い値: S = {
 };
 
 export const 狭い幅: S = { args: { width: 360 } };
+
+/** 書きかけのまま閉じようとした。保存の欄を見せて揺らし、文言を強める。 */
+export const 閉じようとした: S = {
+  args: {
+    attention: 1,
+    events: [
+      mine,
+      { type: "profile/input", field: "about", value: "書きかけの自己紹介" },
+    ],
+  },
+};

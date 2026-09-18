@@ -10,7 +10,9 @@ import {
   type Component,
   type JSX,
   Show,
+  createEffect,
   createSignal,
+  on,
   onCleanup,
 } from "solid-js";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
@@ -22,6 +24,8 @@ import SettingsSection from "./SettingsSection";
 export type AccountSettingsViewProps = {
   pubkey: string;
   state: ProfileEditState;
+  /** 書きかけのまま閉じようとした回数。増えたら保存の欄を見せて揺らす。 */
+  attention?: number;
 };
 
 /** アカウントの設定。プロフィールの書きかけを受け取って描き、変えたらイベントを上へ渡す。 */
@@ -31,6 +35,32 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   const dirty = () => isProfileDirty(props.state);
   const canSave = () =>
     dirty() && !props.state.saving && Object.keys(errors()).length === 0;
+
+  // 閉じようとして止められたら、保存の欄まで送って揺らし、文言を強める。
+  let actions: HTMLDivElement | undefined;
+  const [shaking, setShaking] = createSignal(false);
+  const [warned, setWarned] = createSignal(false);
+  createEffect(
+    on(
+      () => props.attention ?? 0,
+      (count) => {
+        if (count === 0) return;
+        setWarned(true);
+        // 別のページから切り替わってきたときは、まだページが描かれていない。
+        // 描き終えてから送り、揺らす。続けて閉じようとしても揺れるよう、いったん外す。
+        setShaking(false);
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            actions?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            setShaking(true);
+          }),
+        );
+      },
+    ),
+  );
+  createEffect(() => {
+    if (!dirty()) setWarned(false);
+  });
 
   return (
     <div class="flex flex-col gap-7">
@@ -111,10 +141,25 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               placeholder="https://"
             />
           </div>
-          <div class="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+          <div
+            ref={actions}
+            class="flex scroll-m-4 flex-wrap items-center justify-end gap-x-3 gap-y-2"
+            classList={{ "animate-shake": shaking() }}
+            onAnimationEnd={() => setShaking(false)}
+          >
             <Show when={dirty()}>
-              <span class="c-secondary mr-auto text-caption">
-                保存するまで、ほかの人には反映されません
+              <span
+                class="mr-auto text-caption"
+                classList={{
+                  "c-secondary": !warned(),
+                  // 長い文なので 1 行を使い、ボタンは並べたまま下に置く。
+                  "c-danger basis-full font-600": warned(),
+                }}
+                role={warned() ? "alert" : undefined}
+              >
+                {warned()
+                  ? "保存していない変更があります。保存するか、元に戻してから閉じてください"
+                  : "保存するまで、ほかの人には反映されません"}
               </span>
               <Button
                 type="button"

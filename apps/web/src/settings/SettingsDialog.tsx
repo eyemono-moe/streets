@@ -2,13 +2,22 @@ import { Dialog } from "@ark-ui/solid/dialog";
 import { Tabs } from "@ark-ui/solid/tabs";
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
-import { type Component, For, type JSX, Show } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  Show,
+  createEffect,
+  createSignal,
+  on,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
 import MuteSettings from "./MuteSettings";
+import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
 
 type Page = {
@@ -35,6 +44,19 @@ const SettingsDialog: Component<{
   initialPage?: string;
 }> = (props) => {
   const dispatch = useDispatch();
+  const [page, setPage] = createSignal(props.initialPage ?? "display");
+  // プロフィールを書きかけのまま閉じようとしたら、そのページを見せる。
+  const profileEdit = useProfileEdit();
+  createEffect(
+    on(
+      () => profileEdit?.attention() ?? 0,
+      (count) => {
+        if (count > 0) setPage("account");
+      },
+      { defer: true },
+    ),
+  );
+
   const pages: Page[] = [
     {
       value: "account",
@@ -113,7 +135,8 @@ const SettingsDialog: Component<{
                 アカウントと、この端末の表示を設定します。
               </Dialog.Description>
               <Tabs.Root
-                defaultValue={props.initialPage ?? "display"}
+                value={page()}
+                onValueChange={(details) => setPage(details.value)}
                 orientation={props.wide ? "vertical" : "horizontal"}
                 class="grid h-full min-h-0"
                 classList={{
