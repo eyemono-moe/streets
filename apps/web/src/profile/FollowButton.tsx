@@ -2,6 +2,7 @@ import { type Component, Match, Show, Switch, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 
 /** 一覧の中では小さい方を使う（Penpot: Follow states の list）。 */
 export type FollowButtonSize = "normal" | "small";
@@ -37,18 +38,17 @@ const FollowButton: Component<{
   return (
     // 自分自身と、ログインしていないときは出さない。押せない操作を置かない。
     <Show when={actions !== undefined && actions.viewer !== props.pubkey}>
-      <button
-        type="button"
-        class="flex shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-full font-600 text-caption disabled:cursor-default"
-        classList={{
-          "h-8.5 px-4.5": props.size !== "small",
-          "h-7.5 px-3.5": props.size === "small",
-          "bg-accent-primary c-white": !following() && !sending(),
-          "border border-primary bg-primary": following() && !sending(),
-          "c-danger": unfollowing(),
-          "c-primary": following() && !unfollowing(),
-          "c-secondary bg-secondary": sending(),
-        }}
+      <Button
+        variant={
+          sending()
+            ? "muted"
+            : unfollowing()
+              ? "danger"
+              : following()
+                ? "secondary"
+                : "primary"
+        }
+        size={props.size === "small" ? "sm" : "md"}
         disabled={sending()}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
@@ -70,7 +70,7 @@ const FollowButton: Component<{
             <Label>フォロー</Label>
           </Match>
         </Switch>
-      </button>
+      </Button>
     </Show>
   );
 };

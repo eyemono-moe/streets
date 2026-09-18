@@ -13,7 +13,7 @@ const ThreadSpineView: Component<{
   settled: boolean;
   expandMedia: boolean;
 }> = (props) => (
-  <div class="flex flex-col gap-px bg-tertiary pb-px">
+  <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
     {/* 途中が欠けると「根から始まる」ように見えるので、そのときは断っておく。 */}
     <Show when={!props.spine.reachedRoot && props.settled}>
       <p class="c-secondary bg-primary px-3 py-2 text-caption">

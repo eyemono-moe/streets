@@ -1,4 +1,5 @@
 import { type Component, Show } from "solid-js";
+import Button from "../ui/Button";
 
 const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
 
@@ -30,14 +31,14 @@ export const ComposeTools: Component<{
     <ToolButton label="公開範囲" icon="i-material-symbols:globe" />
     <span class="flex-1" />
     <span class="c-secondary text-caption">{props.count}</span>
-    <button
+    <Button
       type="submit"
-      class="h-8.5 rounded-full bg-accent-primary px-4.5 font-600 text-caption text-white enabled:cursor-pointer enabled:hover:bg-accent-hover disabled:opacity-50"
+      variant="primary"
       disabled={props.sending || props.disabled}
     >
       <Show when={!props.sending} fallback="送信中…">
         {props.label}
       </Show>
-    </button>
+    </Button>
   </div>
 );

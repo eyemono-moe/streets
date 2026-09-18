@@ -1,5 +1,3 @@
-import { SegmentGroup } from "@ark-ui/solid/segment-group";
-import { Switch } from "@ark-ui/solid/switch";
 import type { ColumnFacet } from "@streets/core/deck/column-facets";
 import type {
   ColumnDef,
@@ -10,6 +8,9 @@ import type {
 import { columnShow, groupsNotifications } from "@streets/core/deck/deck";
 import { type Component, For, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
+import SegmentedControl from "../ui/SegmentedControl";
+import Switch from "../ui/Switch";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id" | "source">>;
 
@@ -32,62 +33,11 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   reactions: "リアクション",
 };
 
-/** 1 行のスイッチ。色は data-state で切り替える —— bg-tertiary を静的に置くと、
- *  ダークモードの `.dark .bg-tertiary` が checked の色を打ち消す。 */
-const Toggle: Component<{
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}> = (props) => (
-  <Switch.Root
-    class="flex h-8 w-full cursor-pointer items-center gap-2 text-body"
-    checked={props.checked}
-    onCheckedChange={(details) => props.onChange(details.checked)}
-  >
-    <Switch.Label class="min-w-0 flex-1 truncate">{props.label}</Switch.Label>
-    <Switch.Control class="flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors data-[state=checked]:bg-accent-primary data-[state=unchecked]:bg-tertiary">
-      <Switch.Thumb class="size-4 rounded-full bg-primary transition-transform data-[state=checked]:translate-x-4" />
-    </Switch.Control>
-    <Switch.HiddenInput />
-  </Switch.Root>
-);
-
 const Field: Component<{ label: string; children: unknown }> = (props) => (
   <div class="flex w-full flex-col gap-1.5">
     <span class="c-secondary font-600 text-caption">{props.label}</span>
     {props.children as never}
   </div>
-);
-
-/** 排他の選択。ラジオグループなので、矢印キーでも選べる。 */
-const Segmented = <T extends string>(props: {
-  label: string;
-  options: { value: T; label: string }[];
-  current: T;
-  onSelect: (value: T) => void;
-}) => (
-  <SegmentGroup.Root
-    // 既定は縦。横に並べるので、矢印キーの向きも合わせる。
-    orientation="horizontal"
-    class="flex w-full gap-0.5 rounded-2 border border-primary bg-primary p-0.5"
-    value={props.current}
-    onValueChange={(details) => {
-      if (details.value) props.onSelect(details.value as T);
-    }}
-  >
-    <SegmentGroup.Label class="sr-only">{props.label}</SegmentGroup.Label>
-    <For each={props.options}>
-      {(option) => (
-        <SegmentGroup.Item
-          value={option.value}
-          class="data-[state=checked]:c-white flex h-7.5 flex-1 cursor-pointer items-center justify-center rounded-1.5 text-caption data-[state=checked]:bg-accent-primary"
-        >
-          <SegmentGroup.ItemText>{option.label}</SegmentGroup.ItemText>
-          <SegmentGroup.ItemHiddenInput />
-        </SegmentGroup.Item>
-      )}
-    </For>
-  </SegmentGroup.Root>
 );
 
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */
@@ -114,24 +64,26 @@ const ColumnSettings: Component<{
       </Field>
 
       <Field label="幅">
-        <Segmented
+        <SegmentedControl
           label="幅"
           options={WIDTHS}
-          current={props.column.width ?? "m"}
-          onSelect={(width) => patch({ width })}
+          value={props.column.width ?? "m"}
+          onChange={(width) => patch({ width })}
+          block
         />
       </Field>
 
       <Field label="表示密度">
-        <Segmented
+        <SegmentedControl
           label="表示密度"
           options={DENSITIES}
-          current={props.column.density ?? "comfortable"}
-          onSelect={(density) => patch({ density })}
+          value={props.column.density ?? "comfortable"}
+          onChange={(density) => patch({ density })}
+          block
         />
       </Field>
 
-      <Toggle
+      <Switch
         label="画像・動画を展開"
         checked={props.column.expandMedia !== false}
         onChange={(expandMedia) => patch({ expandMedia })}
@@ -139,7 +91,7 @@ const ColumnSettings: Component<{
 
       {/* 通知カラムだけの設定。ほかのカラムに出しても、切り替えて何も起きない。 */}
       <Show when={props.column.source.kind === "notifications"}>
-        <Toggle
+        <Switch
           label="同じノートへのリアクション・リポストをまとめる"
           checked={groupsNotifications(props.column)}
           onChange={(groupNotifications) => patch({ groupNotifications })}
@@ -150,7 +102,7 @@ const ColumnSettings: Component<{
         <Field label="表示するもの">
           <For each={props.facets}>
             {(facet) => (
-              <Toggle
+              <Switch
                 label={TOGGLE_LABELS[facet]}
                 checked={show()[facet]}
                 onChange={(checked) =>
@@ -164,19 +116,17 @@ const ColumnSettings: Component<{
         </Field>
       </Show>
 
-      <button
-        type="button"
-        class="c-danger flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-2 border border-primary bg-primary font-600 text-caption"
+      <Button
+        variant="danger"
+        shape="rounded"
+        block
+        icon="i-material-symbols:delete-outline-rounded"
         onClick={() =>
           dispatch({ type: "deck/remove-column", id: props.column.id })
         }
       >
-        <span
-          class="i-material-symbols:delete-outline-rounded size-4.5"
-          aria-hidden="true"
-        />
         このカラムを削除
-      </button>
+      </Button>
     </div>
   );
 };

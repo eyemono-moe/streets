@@ -1,8 +1,9 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
-import type { ColumnDef } from "@streets/core/deck/deck";
+import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import {
   type JSX,
@@ -43,7 +44,15 @@ export type DeckEvent =
   | { type: "deck/remove-column"; id: string }
   /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
   | { type: "deck/keep-temp" }
-  | { type: "deck/close-temp" };
+  | { type: "deck/close-temp" }
+  | { type: "deck/open-settings" }
+  | { type: "deck/close-settings" }
+  /** カラーテーマ。この端末に保存する。 */
+  | { type: "deck/set-color-scheme"; scheme: ColorScheme }
+  /** 色を動かしている途中。当てるだけで保存しない。 */
+  | { type: "deck/preview-appearance"; appearance: DeckAppearance }
+  /** 色を確定する。デッキと一緒にアカウントへ保存する。 */
+  | { type: "deck/set-appearance"; appearance: DeckAppearance };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
 export type ActionEvent =

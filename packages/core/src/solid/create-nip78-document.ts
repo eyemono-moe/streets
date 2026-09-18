@@ -5,6 +5,7 @@ import type { Scheduler } from "../read/connection-pool";
 import { defaultScheduler } from "../read/connection-pool";
 import { Nip44UnavailableError, type Signer } from "../signer/signer";
 import type { WriteResult, Writer } from "../write/writer";
+import { isRemoteChange } from "./nip78-conflict";
 
 export const NIP78_KIND = 30_078;
 export const NIP78_SAVE_DEBOUNCE_MS = 2_000;
@@ -122,6 +123,8 @@ export const createNip78Document = <T>(
   let queue: Promise<void> = Promise.resolve();
   let disposed = false;
   let storageFailed = false;
+  // 自分が書いた版の id。置換の直前に引いた版がこれなら、別の端末の変更ではない。
+  const published = new Set<string>();
 
   const clearTimer = () => {
     if (timer === undefined) return;
@@ -270,9 +273,9 @@ export const createNip78Document = <T>(
           if (!validRun(expectedGeneration, expectedAuthor)) {
             throw new Error("NIP-78 document の account が変わりました");
           }
-          // current が無い場合は、消えた document を local から復旧してよい。
-          // current が別 id なら、確認していない remote を上書きしない。
-          if (current && current.id !== snapshot.remote?.id) {
+          // 確認していない版は上書きしない。ただし、自分が書いた版や、把握している版より
+          // 古い版（追いついていないリレーの取り残し）は別の端末の変更ではない。
+          if (current && isRemoteChange(current, snapshot.remote, published)) {
             throw new RemoteChangedError(current);
           }
           // NIP-44 adapter を await の前に固定するので、ActiveSigner が途中で切り替わっても処理中の暗号化先は変わらない。
@@ -341,6 +344,12 @@ export const createNip78Document = <T>(
     if (!validRun(expectedGeneration, expectedAuthor) || !local) return;
     // 保存中の update が置いた debounce timer は、revision 差の即時再送と二重になるため必ず片付ける。
     clearTimer();
+    published.add(result.event.id);
+    // 覚えておくのは直近だけ。際限なく持つと、長く開いている画面で増え続ける。
+    if (published.size > 20) {
+      const oldest = published.values().next().value;
+      if (oldest !== undefined) published.delete(oldest);
+    }
     const changedWhileSaving = revision !== snapshotRevision;
     local = {
       ...local,
@@ -460,7 +469,7 @@ export const createNip78Document = <T>(
         return;
       }
 
-      if (local.remote?.id === event.id) {
+      if (!isRemoteChange(event, local.remote, published)) {
         transition({
           phase: "ready",
           sync: "pending",
