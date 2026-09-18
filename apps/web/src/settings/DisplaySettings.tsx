@@ -72,16 +72,21 @@ const DisplaySettings: Component<{
                 value={name}
                 class="group grid size-12 cursor-pointer place-items-center rounded-full border border-primary transition-colors data-[state=checked]:border-2 data-[state=checked]:border-ui-9 dark:data-[state=checked]:border-ui-1"
               >
-                {/* 左がアクセント、右が文字と背景の色味。 */}
-                <span class="flex h-8 w-8 overflow-hidden rounded-full">
-                  <span
-                    class="h-full w-1/2"
-                    style={{ background: palette.accent }}
-                  />
-                  <span
-                    class="h-full w-1/2"
-                    style={{ background: palette.ui }}
-                  />
+                {/*
+                  左がアクセント、右が文字と背景の色味。境目は斜めにする（v0 と同じ）。
+                  斜めにすると角が欠けるので、中身を丸より広げてはみ出させる。
+                */}
+                <span class="h-8 w-8 overflow-hidden rounded-full">
+                  <span class="-ml-[20%] -skew-x-12 flex h-full w-[140%]">
+                    <span
+                      class="h-full w-1/2"
+                      style={{ background: palette.accent }}
+                    />
+                    <span
+                      class="h-full w-1/2"
+                      style={{ background: palette.ui }}
+                    />
+                  </span>
                 </span>
                 <RadioGroup.ItemText class="sr-only">
                   {palette.label}
