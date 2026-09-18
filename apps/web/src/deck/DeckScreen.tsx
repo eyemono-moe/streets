@@ -128,7 +128,18 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
     fetchLatest: write.fetchLatest,
     storage: localStorage,
   });
-  const columns = () => deckStore.value()?.columns ?? [];
+  // カラムは id で突き合わせて store に当てる。デッキは読み込み・同期・保存のたびに
+  // 丸ごと新しい値になるので、そのまま <For> に渡すと全カラムが作り直され、購読・
+  // スクロール位置・重ねた段がすべて消える。当てるのは複製 —— reconcile は store の
+  // 中身をその場で書き換えるので、同期の層が持つ値を渡すと、そちらまで書き換わる。
+  const [deckView, setDeckView] = createStore<{ columns: ColumnDef[] }>({
+    columns: [],
+  });
+  createEffect(() => {
+    const next = deckStore.value()?.columns ?? [];
+    setDeckView("columns", reconcile(structuredClone(next), { key: "id" }));
+  });
+  const columns = () => deckView.columns;
 
   // URL の 1 区画から開く一時カラム。デッキへは保存せず、左端に出す（ADR-0032）。
   const params = useParams<{ entity?: string }>();

@@ -1,7 +1,18 @@
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import {
+  type Accessor,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import type { NostrEvent } from "../nostr/event";
 import { SectionReader } from "../read/section-reader";
-import type { NostrSource, Order, SectionStatus } from "../read/source";
+import {
+  type NostrSource,
+  type Order,
+  type SectionStatus,
+  sameSource,
+} from "../read/source";
 import type { SubscriptionManager } from "../read/subscription-manager";
 
 export type CreateSectionOptions = {
@@ -24,9 +35,12 @@ export const createSection = (options: CreateSectionOptions): Section => {
     phase: "initial",
   });
 
+  // 中身が同じ source に作り直されても張り直さない（カラムの題名や幅を変えたときなど）。
+  const source = createMemo(options.source, undefined, { equals: sameSource });
+
   createEffect(() => {
     const reader = new SectionReader({
-      source: options.source(),
+      source: source(),
       order: options.order ?? "created-at-desc",
       // manager が構築時に受け取った store をそのまま使う。呼び出し側が別の store を選べる余地を無くす。
       store: options.manager.store,
