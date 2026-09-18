@@ -126,7 +126,7 @@ const RelayRow: Component<{
       <Collapsible.Root lazyMount unmountOnExit disabled={!hasDetails()}>
         {/* 狭いときは、操作を名前の下へ回す。横に詰めると名前が 1 文字も見えなくなる。 */}
         <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
-          <Collapsible.Trigger class="group flex min-w-48 flex-1 items-center gap-3 bg-transparent p-0 text-left enabled:cursor-pointer">
+          <Collapsible.Trigger class="group flex min-w-48 flex-1 items-start gap-3 bg-transparent p-0 text-left enabled:cursor-pointer">
             <RelayIcon info={props.info} status={props.status} />
             <div class="flex min-w-0 flex-1 flex-col">
               <span class="c-primary flex min-w-0 items-center gap-1 text-body">
@@ -138,9 +138,10 @@ const RelayRow: Component<{
                   />
                 </Show>
               </span>
-              {/* 切れるなら URL の側から切れるよう、様子を先に書く。 */}
-              <span class="c-secondary truncate text-caption">
-                {STATUS[props.status].label}・{label()}
+              {/* URL はリレーを見分ける唯一の手がかり。切らずに折り返す。 */}
+              <span class="c-primary break-all text-caption">{label()}</span>
+              <span class="c-secondary text-caption">
+                {STATUS[props.status].label}
               </span>
             </div>
           </Collapsible.Trigger>
