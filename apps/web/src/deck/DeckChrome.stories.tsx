@@ -38,11 +38,13 @@ type Story = StoryObj<typeof meta>;
 
 export const カラムヘッダー: Story = {
   render: () => (
-    <Mediates handle={() => true}>
-      <div class="w-[360px] border-primary border-x">
-        <Header column={home} open={false} draggable onTitle={() => {}} />
-      </div>
-    </Mediates>
+    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+      <Mediates handle={() => true}>
+        <div class="w-[360px] border-primary border-x">
+          <Header column={home} open={false} draggable onTitle={() => {}} />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
   ),
 };
 
