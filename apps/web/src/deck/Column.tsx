@@ -213,9 +213,10 @@ const StackedHeader: Component<{
         aria-label="デッキのカラムとして開く"
         title="デッキのカラムとして開く"
         class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-        onClick={() =>
-          dispatch({ type: "deck/add-column", column: props.column })
-        }
+        onClick={() => {
+          dispatch({ type: "stack/back" });
+          dispatch({ type: "deck/add-column", column: props.column });
+        }}
       >
         <span
           class="i-material-symbols:open-in-new-rounded size-4.5"
