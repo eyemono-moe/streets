@@ -1,9 +1,9 @@
 import { parseContent } from "@streets/core/nostr/content";
-import { parseProfile, shortNpub } from "@streets/core/nostr/profile";
-import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { shortNpub } from "@streets/core/nostr/profile";
+import { type Component, Show, createSignal } from "solid-js";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
-import { useProfileEvent } from "../note/use-profile";
+import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
@@ -13,11 +13,8 @@ import FollowButton from "./FollowButton";
  * 続きはカードを押してユーザーのカラムを開いてもらう。
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
-  const profileEvent = useProfileEvent(() => props.pubkey);
-  const profile = createMemo(() => {
-    const event = profileEvent();
-    return event ? parseProfile(event.content) : undefined;
-  });
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);
   const banner = () => (bannerBroken() ? undefined : profile()?.banner);
 
@@ -51,21 +48,21 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
             <ProfileName
               pubkey={props.pubkey}
               profile={profile()}
-              tags={profileEvent()?.tags}
+              tags={details()?.tags}
             />
           </span>
           <span class="c-secondary truncate text-caption">
             @
             <ProfileText
               text={profile()?.name ?? shortNpub(props.pubkey)}
-              tags={profileEvent()?.tags}
+              tags={details()?.tags}
             />
           </span>
         </div>
         <Show when={profile()?.about}>
           {(about) => (
             <NoteText
-              tokens={parseContent(about(), profileEvent()?.tags ?? [])}
+              tokens={parseContent(about(), details()?.tags ?? [])}
               class="c-secondary line-clamp-3 text-caption"
               emojiClass="h-[1em]"
             />

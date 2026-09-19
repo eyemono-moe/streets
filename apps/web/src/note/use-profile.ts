@@ -1,4 +1,3 @@
-import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Profile, parseProfile } from "@streets/core/nostr/profile";
 import {
   type Accessor,
@@ -9,23 +8,32 @@ import {
 } from "solid-js";
 import { useReadLayer } from "../read-layer";
 
-/** kind:0 をタグごと読む。表示名だけでなく NIP-30 の emoji タグを使う場所向け。 */
-export const useProfileEvent = (
+export type ProfileDetails = {
+  profile: Profile | undefined;
+  tags: readonly string[][];
+};
+
+/** kind:0 を一度だけ読み、解析したプロフィールと NIP-30 の emoji タグを返す。 */
+export const useProfileDetails = (
   pubkey: Accessor<string | undefined>,
-): Accessor<NostrEvent | undefined> => {
+): Accessor<ProfileDetails | undefined> => {
   const { store, profiles } = useReadLayer();
-  const [event, setEvent] = createSignal<NostrEvent>();
+  const [details, setDetails] = createSignal<ProfileDetails>();
 
   createEffect(() => {
-    // この effect では pubkey だけを追跡する。event を読むと set のたびに再実行されて止まらない。
+    // この effect では pubkey だけを追跡する。details を読むと set のたびに再実行されて止まらない。
     const key = pubkey();
     if (key === undefined) {
-      setEvent(undefined);
+      setDetails(undefined);
       return;
     }
     const load = () => {
       const latest = store.latestReplaceable(0, key);
-      setEvent(latest);
+      setDetails(
+        latest
+          ? { profile: parseProfile(latest.content), tags: latest.tags }
+          : undefined,
+      );
       return latest !== undefined;
     };
 
@@ -43,16 +51,13 @@ export const useProfileEvent = (
     onCleanup(unsubscribe);
   });
 
-  return event;
+  return details;
 };
 
 /** `pubkey` が undefined の間は何も取りに行かない（人に紐づかないカラムの題名など）。 */
 export const useProfile = (
   pubkey: Accessor<string | undefined>,
 ): Accessor<Profile | undefined> => {
-  const event = useProfileEvent(pubkey);
-  return createMemo(() => {
-    const current = event();
-    return current ? parseProfile(current.content) : undefined;
-  });
+  const details = useProfileDetails(pubkey);
+  return createMemo(() => details()?.profile);
 };

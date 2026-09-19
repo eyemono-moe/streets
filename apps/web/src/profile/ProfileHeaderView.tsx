@@ -1,19 +1,9 @@
 import { parseContent } from "@streets/core/nostr/content";
-import {
-  type Profile,
-  parseProfile,
-  shortNpub,
-} from "@streets/core/nostr/profile";
-import {
-  type Component,
-  type JSX,
-  Show,
-  createMemo,
-  createSignal,
-} from "solid-js";
+import { type Profile, shortNpub } from "@streets/core/nostr/profile";
+import { type Component, type JSX, Show, createSignal } from "solid-js";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
-import { useProfileEvent } from "../note/use-profile";
+import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
@@ -126,16 +116,12 @@ const ProfileHeaderView: Component<{
   onOpenFollowees?: () => void;
   onOpenFollowers?: () => void;
 }> = (props) => {
-  const profileEvent = useProfileEvent(() => props.pubkey);
-  const profile = createMemo(() => {
-    const event = profileEvent();
-    return event ? parseProfile(event.content) : undefined;
-  });
+  const details = useProfileDetails(() => props.pubkey);
   return (
     <ProfileHeaderCard
       pubkey={props.pubkey}
-      profile={profile()}
-      profileTags={profileEvent()?.tags}
+      profile={details()?.profile}
+      profileTags={details()?.tags}
       action={<FollowButton pubkey={props.pubkey} />}
       footer={
         <div class="flex gap-4">

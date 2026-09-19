@@ -1,9 +1,9 @@
 import { parseContent } from "@streets/core/nostr/content";
 import type { Profile } from "@streets/core/nostr/profile";
-import { parseProfile, profileLabel } from "@streets/core/nostr/profile";
-import { type Component, createMemo } from "solid-js";
+import { profileLabel } from "@streets/core/nostr/profile";
+import type { Component } from "solid-js";
 import { ContentTokens } from "./NoteText";
-import { useProfileEvent } from "./use-profile";
+import { useProfileDetails } from "./use-profile";
 
 export const ProfileText: Component<{
   text: string;
@@ -29,16 +29,12 @@ export const ProfileName: Component<{
 
 /** その人を 1 語で指す名前。表示名が無ければ npub の先頭。 */
 const Name: Component<{ pubkey: string }> = (props) => {
-  const event = useProfileEvent(() => props.pubkey);
-  const profile = createMemo(() => {
-    const current = event();
-    return current ? parseProfile(current.content) : undefined;
-  });
+  const details = useProfileDetails(() => props.pubkey);
   return (
     <ProfileName
       pubkey={props.pubkey}
-      profile={profile()}
-      tags={event()?.tags}
+      profile={details()?.profile}
+      tags={details()?.tags}
     />
   );
 };

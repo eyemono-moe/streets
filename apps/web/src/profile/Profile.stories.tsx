@@ -42,7 +42,7 @@ const linkedNote = alice.note("自己紹介のリンクから開く投稿");
 const linked = createStoryAuthor(88, {
   name: "links",
   displayName: ":wave: リンクの人",
-  about: `Web: https://example.com/\n人: nostr:${encodeBech32("npub", alice.pubkey)}\n投稿: nostr:${encodeBech32("note", linkedNote.id)}`,
+  about: `Web: https://example.com/\n人（NIP-21）: nostr:${encodeBech32("npub", alice.pubkey)}\n人（裸のNIP-19）: ${encodeBech32("npub", bob.pubkey)}\n投稿（裸のNIP-19）: ${encodeBech32("note", linkedNote.id)}`,
 });
 const linkedProfile = linked.profile([["emoji", "wave", avatarUrl]]);
 

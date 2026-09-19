@@ -75,6 +75,7 @@ const matchUrl = (content: string, i: number): Match | undefined => {
  * `decodeNip19` に委ねる（狭めても壊れた入力の切り出し方が変わるだけ）。
  */
 const NOSTR_URI_RE = /nostr:([a-zA-Z0-9]+)/y;
+const BARE_NIP19_RE = /(?:npub|note|nprofile|nevent|naddr)1[a-zA-Z0-9]+/iy;
 
 const matchMention = (content: string, i: number): Match | undefined => {
   NOSTR_URI_RE.lastIndex = i;
@@ -86,6 +87,20 @@ const matchMention = (content: string, i: number): Match | undefined => {
   // 壊れている/nsec/nrelay は undefined —— token を作らず通常のテキスト前進に委ねる。本文が欠けるより失敗部分をテキストのままにする方がまし
   if (!ref) return undefined;
   return { consumed: m[0].length, token: { type: "mention", ref, raw: m[0] } };
+};
+
+/** 推奨の NIP-21 URI でない裸の NIP-19 も、他クライアントとの相互運用のため読む。 */
+const matchBareMention = (content: string, i: number): Match | undefined => {
+  const previous = content[i - 1];
+  if (previous !== undefined && /[A-Za-z0-9_]/.test(previous)) return undefined;
+
+  BARE_NIP19_RE.lastIndex = i;
+  const m = BARE_NIP19_RE.exec(content);
+  if (!m) return undefined;
+  const raw = m[0];
+  const ref = decodeNip19(raw);
+  if (!ref) return undefined;
+  return { consumed: raw.length, token: { type: "mention", ref, raw } };
 };
 
 /** NIP-30 が MUST として定める形。この形に合わないタグは索引に入れない。 */
@@ -166,10 +181,11 @@ export const parseContent = (
   let i = 0;
 
   while (i < content.length) {
-    // URL → nostr: → :shortcode: → #hashtag の順で試す —— URL を最初にし、`#`/`:` がハッシュタグ・絵文字候補に横取りされるのを避ける
+    // URL → nostr: → 裸の NIP-19 → :shortcode: → #hashtag の順で試す —— URL を最初にし、URL 内の文字列を横取りしない
     const matched =
       matchUrl(content, i) ??
       matchMention(content, i) ??
+      matchBareMention(content, i) ??
       matchEmoji(content, i, emojiIndex) ??
       matchHashtag(content, i);
 

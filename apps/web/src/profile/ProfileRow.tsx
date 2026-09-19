@@ -1,22 +1,18 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
 import { parseContent } from "@streets/core/nostr/content";
-import { parseProfile } from "@streets/core/nostr/profile";
-import { type Component, Show, createMemo } from "solid-js";
+import { type Component, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
-import { useProfileEvent } from "../note/use-profile";
+import { useProfileDetails } from "../note/use-profile";
 import { useDispatch } from "../ui-events";
 import FollowButton from "./FollowButton";
 
 /** 一覧の 1 人。押すとその人のカラムを重ねる。 */
 const ProfileRow: Component<{ pubkey: string }> = (props) => {
   const dispatch = useDispatch();
-  const profileEvent = useProfileEvent(() => props.pubkey);
-  const profile = createMemo(() => {
-    const event = profileEvent();
-    return event ? parseProfile(event.content) : undefined;
-  });
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
 
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでカラムを開く経路はまだ無い（押せるのはポインタだけ）
@@ -50,14 +46,14 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
                 <ProfileName
                   pubkey={props.pubkey}
                   profile={profile()}
-                  tags={profileEvent()?.tags}
+                  tags={details()?.tags}
                 />
               </span>
               <Show when={profile()?.displayName && profile()?.name}>
                 {(name) => (
                   <span class="c-secondary truncate text-caption">
                     @
-                    <ProfileText text={name()} tags={profileEvent()?.tags} />
+                    <ProfileText text={name()} tags={details()?.tags} />
                   </span>
                 )}
               </Show>
@@ -67,7 +63,7 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
           <Show when={profile()?.about}>
             {(about) => (
               <NoteText
-                tokens={parseContent(about(), profileEvent()?.tags ?? [])}
+                tokens={parseContent(about(), details()?.tags ?? [])}
                 class="c-secondary line-clamp-3 text-caption"
                 emojiClass="h-[1em]"
               />

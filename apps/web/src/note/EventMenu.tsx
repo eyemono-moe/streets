@@ -3,22 +3,14 @@ import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { parseProfile } from "@streets/core/nostr/profile";
-import {
-  type Component,
-  For,
-  Show,
-  createMemo,
-  createSignal,
-  onCleanup,
-} from "solid-js";
+import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import EventDetailsDialog from "./EventDetailsDialog";
 import { ProfileName, ProfileText } from "./Name";
-import { useProfileEvent } from "./use-profile";
+import { useProfileDetails } from "./use-profile";
 
 type MenuItem = {
   value: string;
@@ -86,11 +78,8 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
  * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
  */
 const EventMenu: Component<{ event: NostrEvent }> = (props) => {
-  const profileEvent = useProfileEvent(() => props.event.pubkey);
-  const profile = createMemo(() => {
-    const event = profileEvent();
-    return event ? parseProfile(event.content) : undefined;
-  });
+  const profileDetails = useProfileDetails(() => props.event.pubkey);
+  const profile = () => profileDetails()?.profile;
   const dispatch = useDispatch();
   const mutes = useMutes();
   const viewer = useEventActions()?.viewer;
@@ -213,7 +202,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
                   <ProfileName
                     pubkey={props.event.pubkey}
                     profile={profile()}
-                    tags={profileEvent()?.tags}
+                    tags={profileDetails()?.tags}
                   />
                   <Show when={profile()?.name}>
                     {(name) => (
@@ -221,7 +210,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
                         {" @"}
                         <ProfileText
                           text={name()}
-                          tags={profileEvent()?.tags}
+                          tags={profileDetails()?.tags}
                         />
                       </>
                     )}
