@@ -24,3 +24,9 @@ export const relayListTemplate = (relayUrl, createdAt) => ({
   tags: [["r", relayUrl]],
   content: "",
 });
+
+/** 順序を保ちながら、seed中のイベント数が増えても未来時刻を作らない。 */
+export const createPastTimestampSequence = (now, lookbackSeconds = 300) => {
+  let tick = 0;
+  return () => Math.min(now - lookbackSeconds + tick++, now);
+};

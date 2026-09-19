@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   assertLocalRelayUrl,
+  createPastTimestampSequence,
   relayListTemplate,
 } from "./seed-dev-fixtures.mjs";
 
@@ -28,5 +29,14 @@ describe("seed-dev fixtures", () => {
       tags: [["r", "ws://127.0.0.1:8080"]],
       content: "",
     });
+  });
+
+  it("イベント数が増えても created_at が現在より先へ進まない", () => {
+    const now = 1_000;
+    const nextCreatedAt = createPastTimestampSequence(now, 2);
+    assert.deepEqual(
+      Array.from({ length: 5 }, () => nextCreatedAt()),
+      [998, 999, 1000, 1000, 1000],
+    );
   });
 });

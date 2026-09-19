@@ -57,6 +57,7 @@ import { Relay, nip19 } from "nostr-tools";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
 import {
   assertLocalRelayUrl,
+  createPastTimestampSequence,
   relayListTemplate,
 } from "./seed-dev-fixtures.mjs";
 
@@ -138,12 +139,10 @@ const profileFixtures = [
   pubkey: getPublicKey(fixture.key),
 }));
 
-// 実行時刻を起点にする。過去の固定時刻 (e2e フィクスチャの流儀) にしないのは、
-// このシードが「決定的な assertion の材料」ではなく「人間が画面で見つけたい
-// 最新のノート」だから — 列の先頭近くに出た方が探しやすい。
+// 5分前から順に振り、親子の時系列を保ちつつ必ず現在以下に収める。
+// 現在から加算すると、件数ぶん未来のイベントになりタイムラインの until から外れる。
 const startedAt = Math.floor(Date.now() / 1000);
-let tick = 0;
-const nextCreatedAt = () => startedAt + tick++;
+const nextCreatedAt = createPastTimestampSequence(startedAt);
 
 // 実在のイベントを指さない、意図的に偽の id。すべて "a" にしているのは
 // 「これは publish されていない」ことが見た目からも分かるようにするため。
