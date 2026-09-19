@@ -130,12 +130,9 @@ importers:
       typescript:
         specifier: 5.7.3
         version: 5.7.3
-      vite:
-        specifier: 6.1.0
-        version: 6.1.0(@types/node@22.19.19)(jiti@2.4.2)(terser@5.39.0)(tsx@4.22.0)
-      vite-plugin-solid:
-        specifier: 2.11.1
-        version: 2.11.1(@testing-library/jest-dom@6.9.1)(solid-js@1.9.13)(vite@6.1.0(@types/node@22.19.19)(jiti@2.4.2)(terser@5.39.0)(tsx@4.22.0))
+      vitest:
+        specifier: 3.0.5
+        version: 3.0.5(@types/node@22.19.19)(jiti@2.4.2)(jsdom@26.0.0(bufferutil@4.0.9)(utf-8-validate@6.0.5))(terser@5.39.0)(tsx@4.22.0)
 
 packages:
 

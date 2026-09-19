@@ -30,7 +30,7 @@ const facePositionMap: Record<RoadPattern, { x: number; y: number }> = {
 
 const SIZE = 400;
 
-const generateSign = (id: string) => {
+export const generateSign = (id: string) => {
   const random = createRandom(hashString(id));
 
   const palette = pick(random, boardPalettes);
