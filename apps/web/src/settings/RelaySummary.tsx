@@ -6,6 +6,7 @@ import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
+import { useRelayInfo } from "./relay-info-cache";
 
 const STATUS: Record<RelayStatus, { label: string; dot: string }> = {
   "in-use": { label: "つながっています", dot: "bg-status-ok" },
@@ -105,23 +106,29 @@ const RelayDetails: Component<{ info: RelayInfo | undefined }> = (props) => (
 
 const RelaySummary: Component<{
   url: RelayUrl;
-  info: RelayInfo | undefined;
+  info?: RelayInfo;
+  loadInfo?: boolean;
   status?: RelayStatus;
   subtitle?: JSX.Element;
   actions?: JSX.Element;
 }> = (props) => {
+  const query = useRelayInfo(
+    () => props.url,
+    () => props.loadInfo ?? props.info === undefined,
+  );
+  const info = () => props.info ?? query.data;
   const label = () => relayLabel(props.url);
-  const name = () => props.info?.name ?? label().replace(/^wss?:\/\//, "");
+  const name = () => info()?.name ?? label().replace(/^wss?:\/\//, "");
   const hasDetails = () =>
-    props.info?.description !== undefined ||
-    props.info?.pubkey !== undefined ||
-    props.info?.contact !== undefined;
+    info()?.description !== undefined ||
+    info()?.pubkey !== undefined ||
+    info()?.contact !== undefined;
 
   return (
     <Collapsible.Root lazyMount unmountOnExit disabled={!hasDetails()}>
       <div class="flex flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5">
         <Collapsible.Trigger class="group flex min-w-48 flex-1 items-start gap-3 bg-transparent p-0 text-left enabled:cursor-pointer">
-          <RelayIcon info={props.info} status={props.status} />
+          <RelayIcon info={info()} status={props.status} />
           <div class="flex min-w-0 flex-1 flex-col">
             <span class="c-primary flex min-w-0 items-center gap-1 text-body">
               <span class="truncate font-600">{name()}</span>
@@ -146,7 +153,7 @@ const RelaySummary: Component<{
         {props.actions}
       </div>
       <Collapsible.Content class="motion-collapse">
-        <RelayDetails info={props.info} />
+        <RelayDetails info={info()} />
       </Collapsible.Content>
     </Collapsible.Root>
   );

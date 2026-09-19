@@ -41,7 +41,7 @@ export type RelayEdit = {
   loading: Accessor<boolean>;
   allows: (op: RelayOp) => boolean;
   statusOf: (url: RelayUrl) => RelayStatus;
-  infoOf: (url: RelayUrl) => RelayInfo | undefined;
+  infoOf?: (url: RelayUrl) => RelayInfo | undefined;
 };
 
 const RelayEditContext = createContext<RelayEdit>();
@@ -55,7 +55,7 @@ export const RelayMediator: ParentComponent<{
   relayList: Accessor<NostrEvent | undefined>;
   settled: Accessor<boolean>;
   statusOf: (url: RelayUrl) => RelayStatus;
-  infoOf: (url: RelayUrl) => RelayInfo | undefined;
+  infoOf?: (url: RelayUrl) => RelayInfo | undefined;
 }> = (props) => {
   const [state, setState] = createStore(emptyRelayEdit());
   const apply = (event: RelayEditEvent) =>
