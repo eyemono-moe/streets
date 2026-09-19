@@ -74,7 +74,7 @@ export type ColumnProps = {
   stacked?: StackedColumn;
 };
 
-const Header: Component<{
+export const Header: Component<{
   column: ColumnDef;
   open: boolean;
   draggable?: boolean;

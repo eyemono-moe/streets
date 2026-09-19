@@ -93,7 +93,10 @@ type Props = { event: NostrEvent; scene: EventScene; size: EventSize };
 
 const EventStory: Component<Props> = (props) => (
   <EventSceneProvider scene={props.scene}>
-    <Event event={props.event} size={props.size} />
+    {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
+    <div class="w-[360px]">
+      <Event event={props.event} size={props.size} />
+    </div>
   </EventSceneProvider>
 );
 
