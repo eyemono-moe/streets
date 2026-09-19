@@ -17,8 +17,9 @@
  *
  * ## 画面から辿り着く方法
  *
- * 人間は自分の NIP-07 拡張でログインするので、このシードの著者本人には
- * なれない。`/v1?relays=ws://127.0.0.1:8080` を開いて（`?relays=` は
+ * スクリプトの出力するローカル専用 nsec を、普段使いと分離した NIP-07
+ * プロフィールへ入れてログインできる。`/v1?relays=ws://127.0.0.1:8080` を
+ * 開いて（`?relays=` は
  * `src/routes/v1/parse-relays.ts` が読む e2e 専用の抜け道で、
  * `fallbackRelays`/`indexers` をローカルリレーへ丸ごと差し替える）、
  * 「+ カラムを追加」→「ユーザー」→ 下に印字される npub を貼って追加する
@@ -54,8 +55,14 @@
 
 import { Relay, nip19 } from "nostr-tools";
 import { finalizeEvent, getPublicKey } from "nostr-tools/pure";
+import {
+  assertLocalRelayUrl,
+  relayListTemplate,
+} from "./seed-dev-fixtures.mjs";
 
-const relayUrl = process.env.STREETS_E2E_RELAY_URL ?? "ws://127.0.0.1:8080";
+const relayUrl = assertLocalRelayUrl(
+  process.env.STREETS_E2E_RELAY_URL ?? "ws://127.0.0.1:8080",
+);
 
 // e2e フィクスチャ (`e2e/fixtures/*.ts`) と同じ組み立て式。既存の
 // どの `secretKey(seed)` 呼び出しとも `% 255` を含めて衝突しない帯
@@ -68,6 +75,68 @@ const secretKey = (seed) =>
 
 const authorSecretKey = secretKey(130_000);
 const authorPubkey = getPublicKey(authorSecretKey);
+const loginSecretKey = secretKey(131_000);
+const loginPubkey = getPublicKey(loginSecretKey);
+
+const profileFixtures = [
+  {
+    label: "短い名前・正常な画像",
+    key: secretKey(131_001),
+    profile: {
+      name: "a",
+      display_name: "短名",
+      about: "短い自己紹介。",
+      picture: "http://127.0.0.1:5173/src/storybook/avatar-fixture.svg",
+    },
+    tags: [],
+  },
+  {
+    label: "長い名前・壊れた画像・長い自己紹介",
+    key: secretKey(131_002),
+    profile: {
+      name: "very-long-handle-that-does-not-fit-in-a-narrow-column",
+      display_name:
+        "とても長い表示名を持っていて狭いカラムでは一行に収まらない検証用ユーザー",
+      about: Array.from(
+        { length: 6 },
+        (_, index) =>
+          `${index + 1}行目。長い自己紹介がカラム内で折り返され、一覧では適切に省略されることを確認する。`,
+      ).join("\n"),
+      picture: "http://127.0.0.1:5173/missing-profile-image.png",
+    },
+    tags: [],
+  },
+  {
+    label: "カスタム絵文字・リンク・メンション",
+    key: secretKey(131_003),
+    profile: {
+      name: "emoji_user",
+      display_name: ":party: 絵文字の人",
+      about: ":party: Web https://example.com/",
+      picture: "http://127.0.0.1:5173/src/storybook/avatar-fixture.svg",
+    },
+    tags: [
+      [
+        "emoji",
+        "party",
+        "http://127.0.0.1:5173/src/storybook/emoji-fixture.svg",
+      ],
+    ],
+  },
+  {
+    label: "name/display_name/画像が未設定",
+    key: secretKey(131_004),
+    profile: { about: "名前と画像を設定していないプロフィール。" },
+    tags: [],
+  },
+  {
+    label: "プロフィールイベント自体が無い",
+    key: secretKey(131_005),
+  },
+].map((fixture) => ({
+  ...fixture,
+  pubkey: getPublicKey(fixture.key),
+}));
 
 // 実行時刻を起点にする。過去の固定時刻 (e2e フィクスチャの流儀) にしないのは、
 // このシードが「決定的な assertion の材料」ではなく「人間が画面で見つけたい
@@ -257,6 +326,146 @@ const seedUnmarkedPositionalTag = async (relay) => {
 
 const noteId = (id) => nip19.noteEncode(id);
 
+const profileTemplate = (profile, tags = []) => ({
+  kind: 0,
+  created_at: nextCreatedAt(),
+  tags,
+  content: JSON.stringify(profile),
+});
+
+const seedLoginUser = async (relay) => {
+  await publish(
+    relay,
+    profileTemplate({
+      name: "streets_local_tester",
+      display_name: "Streets ローカル検証用",
+      about:
+        "ローカルリレー専用のテストユーザーです。実在のアカウントではありません。",
+      picture: "http://127.0.0.1:5173/src/storybook/avatar-fixture.svg",
+    }),
+    loginSecretKey,
+  );
+  await publish(
+    relay,
+    relayListTemplate(relayUrl, nextCreatedAt()),
+    loginSecretKey,
+  );
+
+  for (const fixture of profileFixtures) {
+    if (fixture.profile) {
+      const profile = { ...fixture.profile };
+      if (fixture.label === "カスタム絵文字・リンク・メンション") {
+        const short = profileFixtures[0];
+        profile.about = `${profile.about}\n裸のNIP-19: ${nip19.npubEncode(short.pubkey)}\nNIP-21: nostr:${nip19.nprofileEncode({ pubkey: short.pubkey, relays: [relayUrl] })}`;
+      }
+      await publish(relay, profileTemplate(profile, fixture.tags), fixture.key);
+    }
+    await publish(
+      relay,
+      relayListTemplate(relayUrl, nextCreatedAt()),
+      fixture.key,
+    );
+  }
+
+  await publish(
+    relay,
+    {
+      kind: 3,
+      created_at: nextCreatedAt(),
+      tags: profileFixtures.map((fixture) => [
+        "p",
+        fixture.pubkey,
+        relayUrl,
+        "",
+      ]),
+      content: "",
+    },
+    loginSecretKey,
+  );
+
+  const root = await publish(
+    relay,
+    note(
+      "[streets dev seed] ログインユーザー本人の投稿。返信・引用・リアクション・通知の対象。",
+      [],
+    ),
+    loginSecretKey,
+  );
+
+  for (const fixture of profileFixtures) {
+    await publish(
+      relay,
+      note(`[streets dev seed] ${fixture.label}のユーザーによる通常投稿。`, []),
+      fixture.key,
+    );
+  }
+
+  const [short, long, emoji, nameless, noProfile] = profileFixtures;
+  await publish(
+    relay,
+    note("[streets dev seed] ログインユーザーへの返信。通知にも出る。", [
+      ["e", root.id, relayUrl, "root", loginPubkey],
+      ["p", loginPubkey],
+    ]),
+    short.key,
+  );
+  await publish(
+    relay,
+    {
+      kind: 7,
+      created_at: nextCreatedAt(),
+      tags: [
+        ["e", root.id],
+        ["p", loginPubkey],
+        ["k", "1"],
+        [
+          "emoji",
+          "party",
+          "http://127.0.0.1:5173/src/storybook/emoji-fixture.svg",
+        ],
+      ],
+      content: ":party:",
+    },
+    emoji.key,
+  );
+  await publish(
+    relay,
+    {
+      kind: 1,
+      created_at: nextCreatedAt(),
+      tags: [
+        ["q", root.id, relayUrl, loginPubkey],
+        ["p", loginPubkey],
+      ],
+      content: `[streets dev seed] ログインユーザーの投稿を引用。\n\nnostr:${noteId(root.id)}`,
+    },
+    long.key,
+  );
+  await publish(
+    relay,
+    {
+      kind: 6,
+      created_at: nextCreatedAt(),
+      tags: [
+        ["e", root.id, relayUrl, "", loginPubkey],
+        ["p", loginPubkey],
+      ],
+      content: JSON.stringify(root),
+    },
+    nameless.key,
+  );
+  await publish(
+    relay,
+    note(
+      `[streets dev seed] 裸のNIP-19でログインユーザーをメンション: ${nip19.npubEncode(loginPubkey)}`,
+      [["p", loginPubkey]],
+    ),
+    noProfile.key,
+  );
+
+  return { root };
+};
+
 const main = async () => {
   const relay = await Relay.connect(relayUrl);
   try {
@@ -266,6 +475,7 @@ const main = async () => {
     const missingAncestor = await seedMissingAncestor(relay);
     const replyMarkerOnly = await seedReplyMarkerOnly(relay);
     const positional = await seedUnmarkedPositionalTag(relay);
+    const login = await seedLoginUser(relay);
 
     const npub = nip19.npubEncode(authorPubkey);
 
@@ -303,6 +513,29 @@ const main = async () => {
       "循環は作っていない — スクリプト冒頭のコメント参照 (id は自分自身の",
     );
     console.log("タグを含むハッシュなので、実在のリレー上には構成できない)。");
+    console.log("");
+    console.log("ローカル検証用ログインユーザー:");
+    console.log(
+      "  注意: 次の秘密鍵はローカル開発専用。実運用や外部リレーでは使わない。",
+    );
+    console.log(`  nsec  ${nip19.nsecEncode(loginSecretKey)}`);
+    console.log(`  npub  ${nip19.npubEncode(loginPubkey)}`);
+    console.log(`  relay ${relayUrl} (kind:10002でread/write両用に設定済み)`);
+    console.log("");
+    console.log("ログイン方法:");
+    console.log(
+      "  1. 普段使いと分離した NIP-07 のテスト用プロフィールへ nsec を入れる",
+    );
+    console.log(
+      `  2. http://127.0.0.1:5173/v1?relays=${encodeURIComponent(relayUrl)} を開いてログインする`,
+    );
+    console.log("  3. ホーム、通知、ユーザーカラム、プロフィールを確認する");
+    console.log(`  本人投稿 ${noteId(login.root.id)}`);
+    console.log("");
+    console.log("フォロー済みプロフィール:");
+    for (const fixture of profileFixtures) {
+      console.log(`  ${fixture.label}: ${nip19.npubEncode(fixture.pubkey)}`);
+    }
   } finally {
     relay.close();
   }
