@@ -5,6 +5,7 @@ import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
+import Button from "../ui/Button";
 import FollowButton from "./FollowButton";
 
 const Count: Component<{
@@ -115,6 +116,7 @@ const ProfileHeaderView: Component<{
   followerCount: number;
   onOpenFollowees?: () => void;
   onOpenFollowers?: () => void;
+  onOpenRelays?: () => void;
 }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
   return (
@@ -124,7 +126,7 @@ const ProfileHeaderView: Component<{
       profileTags={details()?.tags}
       action={<FollowButton pubkey={props.pubkey} />}
       footer={
-        <div class="flex gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <Count
             count={props.followeeCount}
             label="フォロー"
@@ -137,6 +139,14 @@ const ProfileHeaderView: Component<{
             title="対応リレーから取得できた人数"
             onOpen={props.onOpenFollowers}
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="i-material-symbols:hub-outline-rounded"
+            onClick={() => props.onOpenRelays?.()}
+          >
+            リレー
+          </Button>
         </div>
       }
     />
