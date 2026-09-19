@@ -57,10 +57,10 @@ const Head: Component<ContentProps> = (props) => {
   const date = () => new Date(props.event.created_at * 1000);
 
   return (
-    <div class="flex items-end gap-1.5">
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
       <AuthorNames pubkey={props.event.pubkey} size={props.size} />
       <time
-        class="c-secondary shrink-0 text-caption"
+        class="c-secondary text-caption"
         datetime={date().toISOString()}
         title={formatEventTimeFull(date())}
       >

@@ -18,7 +18,7 @@ const AuthorNames: Component<{ pubkey: string; size: EventSize }> = (props) => {
           {...triggerProps({
             type: "button",
             class:
-              "flex min-w-0 flex-1 items-end gap-1.5 bg-transparent text-left enabled:cursor-pointer enabled:hover:underline",
+              "flex w-fit max-w-full items-end gap-1.5 bg-transparent text-left enabled:cursor-pointer enabled:hover:underline",
             onClick: () =>
               dispatch({
                 type: "stack/open",

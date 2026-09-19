@@ -74,7 +74,7 @@ export type ColumnProps = {
   stacked?: StackedColumn;
 };
 
-const Header: Component<{
+export const Header: Component<{
   column: ColumnDef;
   open: boolean;
   draggable?: boolean;
@@ -87,7 +87,7 @@ const Header: Component<{
   return (
     // ヘッダーを掴んでカラムを並べ替える。本文まで draggable にすると本文を選べなくなる。
     <header
-      class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3"
+      class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
       classList={{ "cursor-grab": props.draggable === true }}
       draggable={props.draggable === true}
       onDragStart={(event) => {
@@ -175,7 +175,7 @@ const StackedHeader: Component<{
   return (
     // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからは題名のボタンで先頭へ戻る
     <header
-      class="flex h-11.25 shrink-0 items-center gap-2.5 bg-primary px-3"
+      class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
       onClick={(event) => {
         if (event.target instanceof Element && event.target.closest("button")) {
           return;

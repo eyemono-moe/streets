@@ -54,7 +54,7 @@ export const Sidebar: Component<{
     // 行：投稿・カラムの一覧・カラムを追加・（空き）・設定・アカウント。一覧の行は
     // 中身の高さ（max-content）まで伸び、画面の高さが足りないときだけ縮んで送れる
     // ようになる。ほかの行は縮まない。
-    <nav class="grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_1fr_auto_auto] justify-items-center gap-1 bg-primary px-2 py-2.5">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_1fr_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
         aria-label="ノートを書く"
