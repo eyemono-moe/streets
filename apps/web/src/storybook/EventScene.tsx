@@ -3,7 +3,11 @@ import {
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
-import { buildNote, buildReply } from "@streets/core/nostr/build/note";
+import {
+  buildNote,
+  buildQuote,
+  buildReply,
+} from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -62,6 +66,8 @@ const storyActions = (
     post: (content) => send(() => viewer.event(buildNote(content))),
     reply: (target, content) =>
       send(() => viewer.event(buildReply(target, content))),
+    quote: (target, content) =>
+      send(() => viewer.event(buildQuote(target, content))),
     repost: (target) =>
       send(() => {
         const draft = buildRepost(target);
