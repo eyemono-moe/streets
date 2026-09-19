@@ -3,7 +3,11 @@ import {
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
-import { buildNote, buildReply } from "@streets/core/nostr/build/note";
+import {
+  buildNote,
+  buildQuote,
+  buildReply,
+} from "@streets/core/nostr/build/note";
 import {
   type ReactionInput,
   buildReaction,
@@ -40,6 +44,7 @@ export type EventActions = {
   bookmarkIds(): readonly string[];
   post(content: string): Promise<void>;
   reply(target: NostrEvent, content: string): Promise<void>;
+  quote(target: NostrEvent, content: string): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
@@ -141,6 +146,11 @@ export const createWriteStack = (options: {
     async reply(event, content) {
       await tracked("返信").publish(
         buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+      );
+    },
+    async quote(event, content) {
+      await tracked("引用").publish(
+        buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
       );
     },
     async repost(event) {

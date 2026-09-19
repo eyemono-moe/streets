@@ -1,11 +1,14 @@
+import { Menu } from "@ark-ui/solid/menu";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { eventEngagements } from "@streets/core/view/event-engagements";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import { ComposeMediator } from "./ComposeMediator";
+import QuoteDialog from "./QuoteDialog";
 import ReplyDialog from "./ReplyDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
 
@@ -52,6 +55,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
       {(actions) => {
         const engagement = useEngagements(() => props.event, actions().viewer);
         const [replyOpen, setReplyOpen] = createSignal(false);
+        const [quoteOpen, setQuoteOpen] = createSignal(false);
         const dispatch = useDispatch();
         const bookmarked = () => actions().bookmarked(props.event.id);
         const repost = () =>
@@ -81,16 +85,64 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 count={engagement().replies}
                 onClick={() => setReplyOpen(true)}
               />
-              <Action
-                label={
-                  engagement().viewerReposted ? "リポスト済み" : "リポスト"
-                }
-                icon="i-material-symbols:repeat-rounded"
-                active={engagement().viewerReposted}
-                // 取り消し（kind:5）はまだ作らないので、一度押したら押せなくする。
-                disabled={reposting() || engagement().viewerReposted}
-                onClick={() => dispatch(repost())}
-              />
+              <Menu.Root
+                lazyMount
+                unmountOnExit
+                onSelect={(details) => {
+                  if (details.value === "repost") dispatch(repost());
+                  if (details.value === "quote") setQuoteOpen(true);
+                }}
+              >
+                <Menu.Trigger
+                  aria-label={
+                    engagement().viewerReposted ? "リポスト済み" : "リポスト"
+                  }
+                  aria-pressed={engagement().viewerReposted}
+                  class="c-secondary data-[state=open]:c-primary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                  classList={{
+                    "c-accent-5": engagement().viewerReposted,
+                  }}
+                >
+                  <span
+                    class="i-material-symbols:repeat-rounded size-4.5"
+                    aria-hidden="true"
+                  />
+                  <Show when={engagement().reposts}>
+                    {(count) => <span>{count()}</span>}
+                  </Show>
+                </Menu.Trigger>
+                <Portal>
+                  <Menu.Positioner>
+                    <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+                      <Menu.Item
+                        value="repost"
+                        disabled={reposting() || engagement().viewerReposted}
+                        class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+                      >
+                        <span
+                          class="i-material-symbols:repeat-rounded size-4.5"
+                          aria-hidden="true"
+                        />
+                        <span>
+                          {engagement().viewerReposted
+                            ? "リポスト済み"
+                            : "リポスト"}
+                        </span>
+                      </Menu.Item>
+                      <Menu.Item
+                        value="quote"
+                        class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+                      >
+                        <span
+                          class="i-material-symbols:format-quote-rounded size-4.5"
+                          aria-hidden="true"
+                        />
+                        <span>引用</span>
+                      </Menu.Item>
+                    </Menu.Content>
+                  </Menu.Positioner>
+                </Portal>
+              </Menu.Root>
               <Action
                 label={engagement().viewerLiked ? "いいね済み" : "いいね"}
                 icon={
@@ -128,6 +180,16 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 onClose={() => setReplyOpen(false)}
               >
                 {(state) => <ReplyDialog target={props.event} state={state} />}
+              </ComposeMediator>
+            </Show>
+            <Show when={quoteOpen()}>
+              <ComposeMediator
+                send={(text) => actions().quote(props.event, text)}
+                failure="引用できませんでした"
+                onSent={() => setQuoteOpen(false)}
+                onClose={() => setQuoteOpen(false)}
+              >
+                {(state) => <QuoteDialog target={props.event} state={state} />}
               </ComposeMediator>
             </Show>
           </>
