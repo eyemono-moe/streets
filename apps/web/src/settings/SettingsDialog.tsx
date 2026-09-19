@@ -1,4 +1,3 @@
-import { Dialog } from "@ark-ui/solid/dialog";
 import { Tabs } from "@ark-ui/solid/tabs";
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
@@ -11,9 +10,15 @@ import {
   createSignal,
   on,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import {
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "../ui/Dialog";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
 import MuteSettings from "./MuteSettings";
@@ -109,154 +114,129 @@ const SettingsDialog: Component<{
 
   return (
     <Mediates handle={handle}>
-      <Dialog.Root
+      <DialogRoot
         open={props.open}
-        onOpenChange={(details) => {
-          if (!details.open) dispatch({ type: "deck/close-settings" });
-        }}
-        lazyMount
-        unmountOnExit
+        onClose={() => dispatch({ type: "deck/close-settings" })}
       >
-        <Portal>
-          <Dialog.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
-          <Dialog.Positioner
-            class="fixed inset-0 grid place-items-center"
-            classList={{ "p-6": props.wide }}
+        <DialogPortal class="" classList={{ "p-6": props.wide }}>
+          <DialogContent
+            classList={{
+              "h-[min(640px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
+                props.wide,
+              "h-dvh w-screen": !props.wide,
+            }}
           >
-            <Dialog.Content
-              class="motion-pop c-primary overflow-hidden bg-primary outline-none"
+            <DialogDescription class="sr-only">
+              アカウントと、この端末の表示を設定します。
+            </DialogDescription>
+            <Tabs.Root
+              value={page()}
+              onValueChange={(details) => setPage(details.value)}
+              orientation={props.wide ? "vertical" : "horizontal"}
+              class="grid h-full min-h-0"
               classList={{
-                "h-[min(640px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
-                  props.wide,
-                "h-dvh w-screen": !props.wide,
+                "grid-cols-[220px_minmax(0,1fr)]": props.wide,
+                "grid-rows-[auto_minmax(0,1fr)]": !props.wide,
               }}
             >
-              <Dialog.Description class="sr-only">
-                アカウントと、この端末の表示を設定します。
-              </Dialog.Description>
-              <Tabs.Root
-                value={page()}
-                onValueChange={(details) => setPage(details.value)}
-                orientation={props.wide ? "vertical" : "horizontal"}
-                class="grid h-full min-h-0"
+              <div
+                class="flex min-w-0 bg-secondary"
                 classList={{
-                  "grid-cols-[220px_minmax(0,1fr)]": props.wide,
-                  "grid-rows-[auto_minmax(0,1fr)]": !props.wide,
+                  "flex-col gap-1 px-2 py-3": props.wide,
+                  // 横へ流すのはページの一覧だけ。閉じるボタンまで流すと、見えなくなる。
+                  "items-center gap-1 px-2 py-2": !props.wide,
                 }}
               >
-                <div
-                  class="flex min-w-0 bg-secondary"
+                <DialogTitle
+                  class="font-600 text-h3"
                   classList={{
-                    "flex-col gap-1 px-2 py-3": props.wide,
-                    // 横へ流すのはページの一覧だけ。閉じるボタンまで流すと、見えなくなる。
-                    "items-center gap-1 px-2 py-2": !props.wide,
+                    "px-3 pb-2": props.wide,
+                    "sr-only": !props.wide,
                   }}
                 >
-                  <Dialog.Title
-                    class="font-600 text-h3"
-                    classList={{
-                      "px-3 pb-2": props.wide,
-                      "sr-only": !props.wide,
-                    }}
-                  >
-                    設定
-                  </Dialog.Title>
-                  <Tabs.List
-                    class="flex gap-1"
-                    classList={{
-                      "flex-col": props.wide,
-                      "min-w-0 flex-1 overflow-x-auto": !props.wide,
-                    }}
-                  >
-                    <For each={pages}>
-                      {(page) => (
-                        <Tabs.Trigger
-                          value={page.value}
-                          disabled={page.content === undefined}
-                          class="c-primary flex h-9 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-2 bg-transparent px-3 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5 enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-40 data-[selected]:bg-primary data-[selected]:font-600"
-                        >
-                          <span
-                            class={`${page.icon} size-4.5`}
-                            aria-hidden="true"
-                          />
-                          {page.label}
-                          <Show when={page.content === undefined}>
-                            <span class="sr-only">（準備中）</span>
-                          </Show>
-                        </Tabs.Trigger>
-                      )}
-                    </For>
-                  </Tabs.List>
-                  <Show when={!props.wide}>
-                    <Dialog.CloseTrigger
-                      asChild={(triggerProps) => (
-                        <Button
-                          {...triggerProps()}
-                          variant="ghost"
-                          size="sm"
-                          icon="i-material-symbols:close-rounded"
-                          aria-label="設定を閉じる"
+                  設定
+                </DialogTitle>
+                <Tabs.List
+                  class="flex gap-1"
+                  classList={{
+                    "flex-col": props.wide,
+                    "min-w-0 flex-1 overflow-x-auto": !props.wide,
+                  }}
+                >
+                  <For each={pages}>
+                    {(page) => (
+                      <Tabs.Trigger
+                        value={page.value}
+                        disabled={page.content === undefined}
+                        class="c-primary flex h-9 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-2 bg-transparent px-3 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5 enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-40 data-[selected]:bg-primary data-[selected]:font-600"
+                      >
+                        <span
+                          class={`${page.icon} size-4.5`}
+                          aria-hidden="true"
                         />
-                      )}
-                    />
-                  </Show>
-                </div>
+                        {page.label}
+                        <Show when={page.content === undefined}>
+                          <span class="sr-only">（準備中）</span>
+                        </Show>
+                      </Tabs.Trigger>
+                    )}
+                  </For>
+                </Tabs.List>
+                <Show when={!props.wide}>
+                  <DialogClose
+                    aria-label="設定を閉じる"
+                    class="bg-transparent hover:bg-secondary"
+                  />
+                </Show>
+              </div>
 
-                <For each={pages}>
-                  {(page) => (
-                    <Tabs.Content
-                      value={page.value}
-                      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+              <For each={pages}>
+                {(page) => (
+                  <Tabs.Content
+                    value={page.value}
+                    class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+                  >
+                    {/* 閉じるボタンは見出しの行にあるので、流すのは本文だけにする。 */}
+                    <div
+                      class="flex items-start gap-3"
+                      classList={{
+                        "px-6 pt-6 pb-4": props.wide,
+                        "px-4 pt-4 pb-3": !props.wide,
+                      }}
                     >
-                      {/* 閉じるボタンは見出しの行にあるので、流すのは本文だけにする。 */}
-                      <div
-                        class="flex items-start gap-3"
-                        classList={{
-                          "px-6 pt-6 pb-4": props.wide,
-                          "px-4 pt-4 pb-3": !props.wide,
-                        }}
-                      >
-                        <div class="flex min-w-0 flex-1 flex-col gap-1">
-                          <h2 class="font-600 text-h3">{page.title}</h2>
-                          <Show when={page.description}>
-                            <p class="c-secondary text-caption">
-                              {page.description}
-                            </p>
-                          </Show>
-                        </div>
-                        <Show when={props.wide}>
-                          <Dialog.CloseTrigger
-                            asChild={(triggerProps) => (
-                              <Button
-                                {...triggerProps()}
-                                variant="ghost"
-                                size="sm"
-                                icon="i-material-symbols:close-rounded"
-                                aria-label="設定を閉じる"
-                              />
-                            )}
-                          />
+                      <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <h2 class="font-600 text-h3">{page.title}</h2>
+                        <Show when={page.description}>
+                          <p class="c-secondary text-caption">
+                            {page.description}
+                          </p>
                         </Show>
                       </div>
-                      <div
-                        class="overflow-y-auto"
-                        classList={{
-                          "px-6 pb-6": props.wide,
-                          "px-4 pb-4": !props.wide,
-                        }}
-                      >
-                        <Show when={page.content}>
-                          {(content) => content()()}
-                        </Show>
-                      </div>
-                    </Tabs.Content>
-                  )}
-                </For>
-              </Tabs.Root>
-            </Dialog.Content>
-          </Dialog.Positioner>
-        </Portal>
-      </Dialog.Root>
+                      <Show when={props.wide}>
+                        <DialogClose
+                          aria-label="設定を閉じる"
+                          class="bg-transparent hover:bg-secondary"
+                        />
+                      </Show>
+                    </div>
+                    <div
+                      class="overflow-y-auto"
+                      classList={{
+                        "px-6 pb-6": props.wide,
+                        "px-4 pb-4": !props.wide,
+                      }}
+                    >
+                      <Show when={page.content}>
+                        {(content) => content()()}
+                      </Show>
+                    </div>
+                  </Tabs.Content>
+                )}
+              </For>
+            </Tabs.Root>
+          </DialogContent>
+        </DialogPortal>
+      </DialogRoot>
     </Mediates>
   );
 };
