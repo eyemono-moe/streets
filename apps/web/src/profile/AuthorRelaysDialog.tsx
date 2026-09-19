@@ -3,6 +3,8 @@ import { BOOTSTRAP_INDEXERS } from "@streets/core/read/default-relays";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import { parseRelayList } from "@streets/core/read/relay-list";
 import type { SectionStatus } from "@streets/core/read/source";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { RelayInfo } from "@streets/core/relay/relay-info";
 import type { RelayUsage } from "@streets/core/settings/relay-edit";
 import {
   relayLabel,
@@ -13,15 +15,20 @@ import { createSection } from "@streets/core/solid/create-section";
 import {
   type Component,
   For,
+  type JSX,
   Match,
   Show,
   Switch,
   createSignal,
 } from "solid-js";
 import { Portal } from "solid-js/web";
+import { ProfileName } from "../note/Name";
+import { useProfileDetails } from "../note/use-profile";
 import { useReadLayer } from "../read-layer";
 import { useRelayEdit } from "../settings/RelayMediator";
-import { notifyError } from "../toast";
+import RelaySummary from "../settings/RelaySummary";
+import { relayInfo } from "../settings/relay-info-cache";
+import { notifyError, notifySuccess } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -132,16 +139,17 @@ const AddRelayDialog: Component<{
 
 export const AuthorRelaysDialogView: Component<{
   state: AuthorRelaysState;
+  title?: JSX.Element;
+  infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   onClose: () => void;
 }> = (props) => {
   const relayEdit = useRelayEdit();
   const [adding, setAdding] = createSignal<RelayListEntry>();
-  const [notice, setNotice] = createSignal<string>();
   const ownEntry = (entry: RelayListEntry) =>
     relayEdit?.entries().find((own) => own.url === entry.url);
   const copy = (entry: RelayListEntry) => {
     void navigator.clipboard.writeText(entry.url).then(
-      () => setNotice("URL をコピーしました"),
+      () => notifySuccess("URL をコピーしました"),
       (cause) => notifyError(cause, "URL をコピーできませんでした"),
     );
   };
@@ -158,13 +166,13 @@ export const AuthorRelaysDialogView: Component<{
           <Dialog.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
           <Dialog.Positioner class="fixed inset-0 grid place-items-center p-4">
             <Dialog.Content class="motion-pop c-primary flex max-h-[80vh] w-full max-w-130 flex-col overflow-hidden rounded-3 border border-primary bg-primary outline-none">
-              <div class="flex h-12 items-center gap-2 pr-3 pl-4">
-                <Dialog.Title class="flex-1 font-600 text-body">
-                  このユーザーが使うリレー
+              <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
+                <Dialog.Title class="break-anywhere min-w-0 flex-1 font-600 text-body">
+                  {props.title ?? "このユーザーが使っているリレー"}
                 </Dialog.Title>
                 <Dialog.CloseTrigger
                   aria-label="閉じる"
-                  class="grid size-7 cursor-pointer place-items-center rounded-2 bg-secondary"
+                  class="grid size-7 shrink-0 cursor-pointer place-items-center rounded-2 bg-secondary"
                 >
                   <span
                     class="i-material-symbols:close-rounded size-4.5"
@@ -223,42 +231,50 @@ export const AuthorRelaysDialogView: Component<{
                               {(entry) => {
                                 const own = () => ownEntry(entry);
                                 return (
-                                  <li class="flex flex-wrap items-center gap-2 p-3">
-                                    <div class="min-w-48 flex-1">
-                                      <p class="break-all text-caption">
-                                        {relayLabel(entry.url)}
-                                      </p>
-                                      <p class="c-secondary text-caption">
-                                        {usageLabel(entry)}
-                                      </p>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      icon="i-material-symbols:content-copy-outline-rounded"
-                                      aria-label={`${entry.url} をコピー`}
-                                      onClick={() => copy(entry)}
-                                    />
-                                    <Show when={relayEdit}>
-                                      <Show
-                                        when={own()}
-                                        fallback={
+                                  <li class="bg-primary">
+                                    <RelaySummary
+                                      url={entry.url}
+                                      info={props.infoOf?.(entry.url)}
+                                      subtitle={
+                                        <span class="c-secondary text-caption">
+                                          {usageLabel(entry)}
+                                        </span>
+                                      }
+                                      actions={
+                                        <div class="ml-auto flex items-center gap-1">
                                           <Button
-                                            variant="secondary"
+                                            variant="ghost"
                                             size="sm"
-                                            onClick={() => setAdding(entry)}
-                                          >
-                                            自分も使う
-                                          </Button>
-                                        }
-                                      >
-                                        {(current) => (
-                                          <span class="c-secondary text-caption">
-                                            使用中（{usageLabel(current())}）
-                                          </span>
-                                        )}
-                                      </Show>
-                                    </Show>
+                                            icon="i-material-symbols:content-copy-outline-rounded"
+                                            aria-label={`${entry.url} をコピー`}
+                                            onClick={() => copy(entry)}
+                                          />
+                                          <Show when={relayEdit}>
+                                            <Show
+                                              when={own()}
+                                              fallback={
+                                                <Button
+                                                  variant="secondary"
+                                                  size="sm"
+                                                  onClick={() =>
+                                                    setAdding(entry)
+                                                  }
+                                                >
+                                                  自分も使う
+                                                </Button>
+                                              }
+                                            >
+                                              {(current) => (
+                                                <span class="c-secondary text-caption">
+                                                  使用中（
+                                                  {usageLabel(current())}）
+                                                </span>
+                                              )}
+                                            </Show>
+                                          </Show>
+                                        </div>
+                                      }
+                                    />
                                   </li>
                                 );
                               }}
@@ -269,13 +285,6 @@ export const AuthorRelaysDialogView: Component<{
                     }}
                   </Match>
                 </Switch>
-                <Show when={notice()}>
-                  {(message) => (
-                    <output class="c-secondary mt-2 block text-caption">
-                      {message()}
-                    </output>
-                  )}
-                </Show>
               </div>
             </Dialog.Content>
           </Dialog.Positioner>
@@ -297,12 +306,25 @@ const AuthorRelaysDialog: Component<{ pubkey: string; onClose: () => void }> = (
   props,
 ) => {
   const { manager } = useReadLayer();
+  const profile = useProfileDetails(() => props.pubkey);
+  const title = () => (
+    <>
+      <ProfileName
+        pubkey={props.pubkey}
+        profile={profile()?.profile}
+        tags={profile()?.tags}
+      />
+      さんが使っているリレー
+    </>
+  );
   // EventScene はネットワークを持たない。ダイアログ自体の各状態は View の
   // ストーリーで固定して確認する。
   if (!manager) {
     return (
       <AuthorRelaysDialogView
         state={{ phase: "failed" }}
+        title={title()}
+        infoOf={relayInfo}
         onClose={props.onClose}
       />
     );
@@ -324,6 +346,8 @@ const AuthorRelaysDialog: Component<{ pubkey: string; onClose: () => void }> = (
   return (
     <AuthorRelaysDialogView
       state={stateFrom(event() !== undefined, entries(), section.status())}
+      title={title()}
+      infoOf={relayInfo}
       onClose={props.onClose}
     />
   );

@@ -5,9 +5,8 @@ import {
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
-import { type Component, Show, createMemo, createSignal } from "solid-js";
+import { type Component, createMemo } from "solid-js";
 import { useDispatch } from "../ui-events";
-import AuthorRelaysDialog from "./AuthorRelaysDialog";
 import ProfileHeaderView from "./ProfileHeaderView";
 
 /**
@@ -19,7 +18,6 @@ const ProfileHeader: Component<{
   readLayer: ReadLayer;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [relaysOpen, setRelaysOpen] = createSignal(false);
   const followees = createSection({
     manager: props.readLayer.manager,
     source: () => ({
@@ -43,32 +41,23 @@ const ProfileHeader: Component<{
   );
 
   return (
-    <>
-      <ProfileHeaderView
-        pubkey={props.pubkey}
-        followeeCount={followeeCount()}
-        followerCount={followerCount()}
-        onOpenRelays={() => setRelaysOpen(true)}
-        onOpenFollowees={() =>
-          dispatch({
-            type: "stack/open",
-            column: buildFolloweesColumn(props.pubkey),
-          })
-        }
-        onOpenFollowers={() =>
-          dispatch({
-            type: "stack/open",
-            column: buildFollowersColumn(props.pubkey),
-          })
-        }
-      />
-      <Show when={relaysOpen()}>
-        <AuthorRelaysDialog
-          pubkey={props.pubkey}
-          onClose={() => setRelaysOpen(false)}
-        />
-      </Show>
-    </>
+    <ProfileHeaderView
+      pubkey={props.pubkey}
+      followeeCount={followeeCount()}
+      followerCount={followerCount()}
+      onOpenFollowees={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildFolloweesColumn(props.pubkey),
+        })
+      }
+      onOpenFollowers={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildFollowersColumn(props.pubkey),
+        })
+      }
+    />
   );
 };
 

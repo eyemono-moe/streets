@@ -22,6 +22,11 @@ export const notifySaved = (title: string): void => {
   toaster.create({ type: "success", title });
 };
 
+/** コピーなど、書き込み進捗とは無関係な操作の成功を知らせる。 */
+export const notifySuccess = (title: string): void => {
+  toaster.create({ type: "success", title });
+};
+
 /** 操作が失敗したことを知らせる。理由の文言は `actionErrorMessage` に揃える。 */
 export const notifyError = (cause: unknown, what?: string): void => {
   // 書き込みの進み具合のトーストが、もう同じ失敗を出している。

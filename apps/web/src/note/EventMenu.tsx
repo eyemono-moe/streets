@@ -45,7 +45,7 @@ const AUTHOR_ITEMS: MenuItem[] = [
   {
     value: "author-relays",
     label: "リレー設定",
-    icon: "i-material-symbols:hub-outline-rounded",
+    icon: "i-material-symbols:hub-outline",
   },
   {
     value: "block",
