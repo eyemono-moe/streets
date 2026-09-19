@@ -98,8 +98,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                     engagement().viewerReposted ? "リポスト済み" : "リポスト"
                   }
                   aria-pressed={engagement().viewerReposted}
-                  class="c-secondary data-[state=open]:c-primary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                  class="flex cursor-pointer items-center gap-1 bg-transparent text-caption"
                   classList={{
+                    "c-secondary hover:c-primary": !engagement().viewerReposted,
                     "c-accent-5": engagement().viewerReposted,
                   }}
                 >
