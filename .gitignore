@@ -12,6 +12,7 @@ lerna-debug.log*
 
 node_modules
 dist
+storybook-static
 dist-ssr
 *.local
 
@@ -32,3 +33,12 @@ dist-ssr
 
 # dev
 data
+
+# Playwright
+playwright-report
+test-results
+
+# Stryker (mutation testing)
+.stryker-tmp
+reports
+.worktrees/

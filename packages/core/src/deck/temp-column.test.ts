@@ -1,0 +1,28 @@
+import { describe, expect, it } from "vitest";
+import { encodeBech32 } from "../nostr/nip19";
+import { TEMP_COLUMN_ID, tempColumnFor } from "./temp-column";
+
+const PUBKEY = "a".repeat(64);
+const EVENT_ID = "b".repeat(64);
+
+describe("tempColumnFor", () => {
+  it("npub はその人のカラムになる", () => {
+    const column = tempColumnFor(encodeBech32("npub", PUBKEY));
+    expect(column?.source).toEqual({ kind: "user", pubkey: PUBKEY });
+    expect(column?.id).toBe(TEMP_COLUMN_ID);
+  });
+
+  it("note はそのイベント 1 件を引くカラムになる", () => {
+    // 捕まえる変異: ids ではなく authors で引く（本人の全投稿が出てしまう）
+    expect(tempColumnFor(encodeBech32("note", EVENT_ID))?.source).toEqual({
+      kind: "literal",
+      filters: [{ ids: [EVENT_ID] }],
+    });
+  });
+
+  it("読めない文字列では作らない", () => {
+    // 捕まえる変異: 例外を握って空のカラムを返す
+    expect(tempColumnFor("nostr")).toBeUndefined();
+    expect(tempColumnFor("")).toBeUndefined();
+  });
+});

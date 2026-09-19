@@ -1,0 +1,253 @@
+import type { EventDraft, Mutation } from "../nostr/build/draft";
+import type { NostrEvent, UnsignedEvent } from "../nostr/event";
+import type { EventStore } from "../read/event-store";
+import type { RelayUrl } from "../relay/relay-connection";
+import { type Signer, SignerUnavailableError } from "../signer/signer";
+import type { Publisher } from "./publisher";
+import { verifyOptimisticInsert } from "./verify-optimistic-insert";
+import type { WriteProgress } from "./write-progress";
+
+export type WriteResult = {
+  event: NostrEvent;
+  accepted: RelayUrl[];
+  rejected: { relay: RelayUrl; reason: string }[];
+  /** `replace` のときだけ入る、再取得した直前の版。 */
+  replaced?: NostrEvent;
+};
+
+/**
+ * 楽観挿入を UI へ映す方法は書き込む側で異なる (compose はカラムへ重ね、
+ * リアクションは自動で拾う) ので、`Writer` 側では一般化しない。
+ *
+ * `startedAt` は `store.put()` 直前の `performance.now()`。100ms 予算は
+ * signEvent を除く楽観挿入全体を測るためのもので、schnorr 検証を含む
+ * put() の後にフック内で計測すると検証コストが漏れる。
+ *
+ * `putResult` は `store.put()` の verdict (`"rejected"` は例外になり
+ * ここには来ない)。同一本文を同じ秒に 2 回投稿すると id が衝突し
+ * 2 回目は `"duplicate"` になる —— `Writer` は `"inserted"` のときだけ
+ * remove するため、呼び出し側にも同じ verdict を渡して同じ判断をさせる。
+ */
+export type WriteHooks = {
+  /** どこまで進んだか。画面に進み具合を出すときに使う。 */
+  onProgress?: (progress: WriteProgress) => void;
+  onOptimisticInsert?: (
+    event: NostrEvent,
+    startedAt: number,
+    putResult: "inserted" | "duplicate",
+  ) => void;
+};
+
+/** publish が 1 本も通らなかった。挿入は巻き戻し済み。 */
+export class WriteFailedError extends Error {
+  readonly rejected: { relay: RelayUrl; reason: string }[];
+  constructor(rejected: { relay: RelayUrl; reason: string }[]) {
+    // Stryker disable next-line StringLiteral: 呼び出し側は instanceof
+    // WriteFailedError で分岐しており、メッセージ文言は判定に使わない。
+    super(`publish rejected by all ${rejected.length} relay(s)`);
+    // Stryker disable next-line StringLiteral: 同上。name も分岐に使わない。
+    this.name = "WriteFailedError";
+    this.rejected = rejected;
+  }
+}
+
+export type Writer = {
+  publish(draft: EventDraft, hooks?: WriteHooks): Promise<WriteResult>;
+  /**
+   * `mutate` には store が持つ生きたイベントをそのまま渡す (`fetchLatest`
+   * は参照そのものを返す)。`current` を破壊すると store が黙って書き換わる。
+   */
+  replace(
+    kind: number,
+    identifier: string | undefined,
+    mutate: Replacement,
+    hooks?: WriteHooks,
+  ): Promise<WriteResult>;
+};
+
+/**
+ * 置換可能イベントの最新版を受け取り、次の draft を返す。NIP-51 の
+ * 非公開リストは復号・再暗号化で非同期になり得るが、seam の外で待つと
+ * 届いたばかりの最新版を上書きしうるため、待つのは必ず内側で行う。
+ */
+export type Replacement = (
+  current: NostrEvent | undefined,
+) => ReturnType<Mutation> | Promise<ReturnType<Mutation>>;
+
+export type CreateWriterOptions = {
+  signer: Signer;
+  store: EventStore;
+  publisher: Publisher;
+  /** 現在の閲覧者。ログアウト・切替で変わるので値ではなく関数で受ける。 */
+  pubkey: () => string;
+  /** 秒。テストが `created_at` を決めるために注入する。 */
+  now?: () => number;
+  /**
+   * 置換可能イベントの現在の版を write リレーから引く関数。注入するのは、
+   * テストが `ConnectionPool` を組み立てずに済むようにするため。
+   */
+  fetchLatest: (
+    kind: number,
+    identifier: string | undefined,
+    pubkey: string,
+  ) => Promise<NostrEvent | undefined>;
+};
+
+export const createWriter = ({
+  signer,
+  store,
+  publisher,
+  pubkey,
+  now = () => Math.floor(Date.now() / 1000),
+  fetchLatest,
+}: CreateWriterOptions): Writer => {
+  // 置換イベントの部分成功で、旧送信先だけが失敗した場合の再試行先。
+  // kind:10002 を楽観挿入すると routing は新リストへ切り替わり、旧 URL は
+  // 次回の targets() から消えるため、成功するまで Writer が保持する。
+  const pendingReplaceTargets = new Map<string, RelayUrl[]>();
+  const rememberFailedPreviousTargets = (
+    replacementKey: string,
+    previousTargets: readonly RelayUrl[],
+    rejected: readonly { relay: RelayUrl }[],
+  ) => {
+    const previousTargetSet = new Set(previousTargets);
+    const failedPreviousTargets = rejected
+      .map(({ relay }) => relay)
+      .filter((relay) => previousTargetSet.has(relay));
+
+    // 先に前回分を消し、今回も失敗した URL だけを積み直す。
+    // 配列が空なら for に入らず、このキーは消えたままになる。
+    pendingReplaceTargets.delete(replacementKey);
+    for (const relay of failedPreviousTargets) {
+      pendingReplaceTargets.set(replacementKey, [
+        ...(pendingReplaceTargets.get(replacementKey) ?? []),
+        relay,
+      ]);
+    }
+  };
+
+  const send = async (
+    unsigned: UnsignedEvent,
+    hooks: WriteHooks | undefined,
+    replaced: NostrEvent | undefined,
+    additionalRelays: readonly RelayUrl[] = [],
+  ): Promise<WriteResult> => {
+    // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
+    // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
+    // 出せなくなる。この行より前では何も挿入していない。
+    hooks?.onProgress?.({ phase: "signing" });
+    const signed = await signer.signEvent(unsigned);
+
+    // 開始時刻は store.put() (schnorr 検証を含む) より前に取る —— フックへ
+    // 渡すのはこの時刻で、フック自身は put() の後にしか呼べないため
+    // (WriteHooks のコメント参照)。
+    const optimisticStartedAt = performance.now();
+    // "local" は実在するリレー URL ではない —— 手元での挿入だという印。
+    // 戻り値を捨てない —— 拡張機能が返した id/署名が壊れていれば
+    // "rejected" になる。詳細は verify-optimistic-insert.ts のコメント参照。
+    const putResult = verifyOptimisticInsert(
+      store.put(signed, "local" as RelayUrl),
+    );
+    hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
+
+    const result = await publisher.publish(signed, {
+      additionalRelays,
+      onProgress: (relays) => hooks?.onProgress?.({ phase: "sending", relays }),
+    });
+    if (result.accepted.length === 0) {
+      // 全滅時、新規挿入 ("inserted") のときだけ store から取り除く —— "duplicate" を無条件 remove すると、先に成功していた既存イベントまで消えてしまう。
+      if (putResult === "inserted") {
+        store.remove(signed.id);
+      }
+      throw new WriteFailedError(result.rejected);
+    }
+    return { event: signed, ...result, replaced };
+  };
+
+  return {
+    publish: (draft, hooks) =>
+      send({ ...draft, pubkey: pubkey(), created_at: now() }, hooks, undefined),
+
+    // `identifier` は NIP-33 addressable event の `d`。mutation が返した
+    // tags よりこの引数を正として、下でちょうど 1 個に正規化する。
+    replace: async (kind, identifier, mutate, hooks) => {
+      const author = pubkey();
+      const assertAuthorUnchanged = () => {
+        if (pubkey() !== author) {
+          throw new SignerUnavailableError(
+            // Stryker disable next-line StringLiteral: 呼び出し側は error の
+            // 型で分岐し、表示文言を判定には使わない。
+            "replace の途中で署名アカウントが変わりました",
+          );
+        }
+      };
+      const replacementKey = JSON.stringify([kind, author, identifier]);
+      // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
+      // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
+      // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+      hooks?.onProgress?.({ phase: "checking" });
+      const current = await fetchLatest(kind, identifier, author);
+      // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
+      // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー
+      // も追加しないと削除したリレーに旧版だけが残る。
+      const previousTargets = [
+        ...new Set([
+          ...publisher.targets(author),
+          ...(pendingReplaceTargets.get(replacementKey) ?? []),
+        ]),
+      ];
+      // 再取得の待機中に logout / account 切替が起きた場合、旧 account の
+      // current を新しい署名器へ渡す前に止める。
+      assertAuthorUnchanged();
+      const draft = await mutate(current);
+      // mutate は NIP-44 の承認待ちを含み得る。その間に account が
+      // 変わった場合も、旧 account の draft を署名へ進めない。
+      assertAuthorUnchanged();
+      const addressedDraft =
+        identifier === undefined
+          ? draft
+          : {
+              ...draft,
+              // address は Writer.replace の引数が正。mutation が古い `d` を
+              // 持ち越しても、同じ event に複数の識別子を残さない。
+              tags: [
+                ["d", identifier],
+                ...draft.tags.filter((tag) => tag[0] !== "d"),
+              ],
+            };
+
+      // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
+      // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、
+      // リレーの実装次第で黙って捨てられる。繰り上げてそれを防ぐ。
+      const stamped = now();
+      const createdAt =
+        current && stamped <= current.created_at
+          ? current.created_at + 1
+          : stamped;
+
+      try {
+        const result = await send(
+          { ...addressedDraft, pubkey: author, created_at: createdAt },
+          hooks,
+          current,
+          previousTargets,
+        );
+        rememberFailedPreviousTargets(
+          replacementKey,
+          previousTargets,
+          result.rejected,
+        );
+        return result;
+      } catch (error) {
+        if (error instanceof WriteFailedError) {
+          rememberFailedPreviousTargets(
+            replacementKey,
+            previousTargets,
+            error.rejected,
+          );
+        }
+        throw error;
+      }
+    },
+  };
+};

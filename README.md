@@ -35,6 +35,10 @@ pnpm install
 pnpm run dev # development
 
 pnpm run build # production
+
+pnpm storybook # v1 UI カタログ（ローカルリレー不要）
+
+pnpm verify # 静的検査・型検査・単体テスト・本体と Storybook のビルド
 ```
 
 ### setup local relay and file server
