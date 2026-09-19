@@ -6,6 +6,7 @@ import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
+import ProfileMenu from "./ProfileMenu";
 
 const Count: Component<{
   count: number;
@@ -122,9 +123,14 @@ const ProfileHeaderView: Component<{
       pubkey={props.pubkey}
       profile={details()?.profile}
       profileTags={details()?.tags}
-      action={<FollowButton pubkey={props.pubkey} />}
+      action={
+        <div class="flex items-center gap-1.5">
+          <FollowButton pubkey={props.pubkey} />
+          <ProfileMenu pubkey={props.pubkey} />
+        </div>
+      }
       footer={
-        <div class="flex gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <Count
             count={props.followeeCount}
             label="フォロー"

@@ -144,7 +144,14 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   onCleanup(() => events.dispose());
 
   return (
-    <ReadLayerProvider value={{ store, events, profiles, engagements }}>
+    <ReadLayerProvider
+      value={{
+        store,
+        events,
+        profiles,
+        engagements,
+      }}
+    >
       <Show when={props.scene.viewer} fallback={props.children}>
         {(viewer) => {
           const actions = storyActions(

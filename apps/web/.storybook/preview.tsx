@@ -1,8 +1,10 @@
 import "@unocss/reset/tailwind-compat.css";
 import "virtual:uno.css";
+import { QueryClientProvider } from "@tanstack/solid-query";
 import { type Preview, createDecorator } from "storybook-solidjs-vite";
 import { action } from "storybook/actions";
 import { MINIMAL_VIEWPORTS } from "storybook/viewport";
+import { createAppQueryClient } from "../src/query-client";
 import {
   type ColorScheme,
   PALETTES,
@@ -14,6 +16,7 @@ import { ErrorToaster } from "../src/toast";
 import { Mediates } from "../src/ui-events";
 
 let stopColorScheme = () => {};
+const queryClient = createAppQueryClient();
 
 // カラム幅は可変にする予定なので、デザインの 380px の前後を並べる。高さは見本の置き場なので広めに取る。
 const columnViewport = (width: number) => ({
@@ -74,22 +77,24 @@ const preview: Preview = {
       );
       // 幅はビューポートに任せ、見本はその幅いっぱいに描く。
       return (
-        <div class="c-primary min-h-screen bg-primary font-sans">
-          {/*
+        <QueryClientProvider client={queryClient}>
+          <div class="c-primary min-h-screen bg-primary font-sans">
+            {/*
             部品が上へ渡したイベントは、アプリなら Mediator が裁定する。ストーリーでは
             Actions パネルへ出すだけにして、何が起きるはずかを確かめられるようにする。
           */}
-          <Mediates
-            handle={(event) => {
-              action(event.type)(event);
-              return true;
-            }}
-          >
-            <Story />
-          </Mediates>
-          {/* 失敗の知らせはアプリと同じくトーストに出る。ストーリーでも同じ場所に出す。 */}
-          <ErrorToaster />
-        </div>
+            <Mediates
+              handle={(event) => {
+                action(event.type)(event);
+                return true;
+              }}
+            >
+              <Story />
+            </Mediates>
+            {/* 失敗の知らせはアプリと同じくトーストに出る。ストーリーでも同じ場所に出す。 */}
+            <ErrorToaster />
+          </div>
+        </QueryClientProvider>
       );
     }),
   ],

@@ -6,6 +6,7 @@ import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
+import AuthorRelaysDialog from "../profile/AuthorRelaysDialog";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import EventDetailsDialog from "./EventDetailsDialog";
@@ -40,6 +41,11 @@ const AUTHOR_ITEMS: MenuItem[] = [
     label: "フォロー",
     icon: "i-material-symbols:person-add-outline-rounded",
     todo: true,
+  },
+  {
+    value: "author-relays",
+    label: "リレー設定",
+    icon: "i-material-symbols:hub-outline",
   },
   {
     value: "block",
@@ -140,6 +146,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
     );
   };
   const [details, setDetails] = createSignal(false);
+  const [authorRelays, setAuthorRelays] = createSignal(false);
   const [notice, setNotice] = createSignal<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(timer));
@@ -174,6 +181,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         onSelect={(details) => {
           if (details.value === "copy-link") void copyLink();
           if (details.value === "details") setDetails(true);
+          if (details.value === "author-relays") setAuthorRelays(true);
           if (details.value === "mute-event") toggleMute(threadTarget());
           if (details.value === "mute-author") toggleMute(authorTarget());
         }}
@@ -233,6 +241,12 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         <EventDetailsDialog
           event={props.event}
           onClose={() => setDetails(false)}
+        />
+      </Show>
+      <Show when={authorRelays()}>
+        <AuthorRelaysDialog
+          pubkey={props.event.pubkey}
+          onClose={() => setAuthorRelays(false)}
         />
       </Show>
     </span>

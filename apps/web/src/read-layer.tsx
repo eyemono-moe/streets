@@ -5,7 +5,8 @@ import { type ParentComponent, createContext, useContext } from "solid-js";
 export type ReadAccess = Pick<
   ReadLayer,
   "store" | "events" | "profiles" | "engagements"
->;
+> &
+  Partial<Pick<ReadLayer, "manager">>;
 
 const ReadLayerContext = createContext<ReadAccess>();
 
