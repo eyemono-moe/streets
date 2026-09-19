@@ -82,7 +82,9 @@ const NoteText: Component<{
   classList?: Record<string, boolean>;
 }> = (props) => (
   <p
-    class={`break-anywhere whitespace-pre-wrap ${props.class}`}
+    // 重ねたカラムでも Drawer のスワイプより文字の選択を優先する。
+    data-no-drag=""
+    class={`break-anywhere select-text whitespace-pre-wrap ${props.class}`}
     classList={props.classList}
   >
     <For each={props.tokens}>{(token) => <Token token={token} />}</For>

@@ -394,6 +394,8 @@ const EventBody: Component<ContentProps> = (props) => {
       // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
       onOpen={(event) => {
         if (isInteractive(event.target)) return;
+        // 文字を選び終えた click では、移動量が小さくてもスレッドを開かない。
+        if (document.getSelection()?.isCollapsed === false) return;
         const moved =
           downAt !== undefined &&
           (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
