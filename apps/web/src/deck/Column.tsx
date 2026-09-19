@@ -442,7 +442,7 @@ const Column: Component<ColumnProps> = (props) => {
   const body = () => (
     <div
       ref={scroller}
-      class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
     >
       {/* 投稿・通知の 1 件ずつの境界で捕まえきれなかったものの受け皿。カラムの中身だけを置き換え、ほかのカラムは動き続ける。 */}
       <ErrorBoundary
