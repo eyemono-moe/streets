@@ -1,8 +1,9 @@
 import { Dialog } from "@ark-ui/solid/dialog";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type Component, For, Show, createSignal } from "solid-js";
+import { type Component, For, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useReadLayer } from "../read-layer";
+import { notifyError, notifySuccess } from "../toast";
 
 /** 投稿の素の中身と、どのリレーから受け取ったか。 */
 const EventDetailsDialog: Component<{
@@ -10,7 +11,6 @@ const EventDetailsDialog: Component<{
   onClose: () => void;
 }> = (props) => {
   const { store } = useReadLayer();
-  const [notice, setNotice] = createSignal<string>();
   const json = () => JSON.stringify(props.event, null, 2);
   // "local" は自分が書いて手元へ入れた印で、実在のリレーではない。
   const relays = () => store.seenRelays(props.event.id);
@@ -67,11 +67,6 @@ const EventDetailsDialog: Component<{
             </div>
 
             <div class="flex h-13 items-center gap-2 py-2.5 pr-3 pl-4">
-              <Show when={notice()}>
-                {(message) => (
-                  <output class="c-secondary text-caption">{message()}</output>
-                )}
-              </Show>
               <span class="flex-1" />
               <button
                 type="button"
@@ -79,9 +74,11 @@ const EventDetailsDialog: Component<{
                 onClick={() => {
                   void navigator.clipboard
                     .writeText(json())
-                    .then(() => setNotice("JSON をコピーしました"))
+                    .then(() => notifySuccess("JSON をコピーしました"))
                     // 非セキュアな接続や権限拒否で失敗する。黙って終わらせない。
-                    .catch(() => setNotice("コピーできませんでした"));
+                    .catch((cause) =>
+                      notifyError(cause, "JSON をコピーできませんでした"),
+                    );
                 }}
               >
                 JSON をコピー
