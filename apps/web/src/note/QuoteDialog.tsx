@@ -2,7 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ComposeState } from "@streets/core/view/compose";
 import { type Component, Show } from "solid-js";
 import { useEventActions } from "../actions";
-import { useDispatch } from "../ui-events";
+import { Mediates, useDispatch } from "../ui-events";
 import {
   DialogClose,
   DialogContent,
@@ -70,7 +70,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
             </div>
 
             <div class="mx-4 max-h-48 overflow-y-auto rounded-2 border border-primary">
-              <Event event={props.target} size="compact" />
+              {/* 引用対象は確認用。ホバーカードは出すが、元のカラムは動かさない。 */}
+              <Mediates handle={(event) => event.type === "stack/open"}>
+                <Event event={props.target} size="compact" />
+              </Mediates>
             </div>
 
             <ComposeTools
