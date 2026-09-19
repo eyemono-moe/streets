@@ -1,20 +1,18 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { type RelayInfo, fetchRelayInfo } from "@streets/core/relay/relay-info";
-import { type Accessor, createSignal } from "solid-js";
+import { fetchRelayInfo } from "@streets/core/relay/relay-info";
+import { createQuery } from "@tanstack/solid-query";
+import type { Accessor } from "solid-js";
 
 /**
- * リレーが自分について答えた内容。ページを開くたびに取り直さないよう、
- * 開いている間（タブを閉じるまで）覚えておく。答えなかったリレーも覚える。
+ * リレーが自分について答えた内容。同じ URL の取得を共有し、24 時間は
+ * 新鮮なデータとして扱う。使われなくなったデータも 7 日間はメモリに残る。
  */
-const cache = new Map<RelayUrl, Accessor<RelayInfo | undefined>>();
-
-export const relayInfo = (url: RelayUrl): RelayInfo | undefined => {
-  let info = cache.get(url);
-  if (!info) {
-    const [value, setValue] = createSignal<RelayInfo | undefined>();
-    void fetchRelayInfo(url).then(setValue);
-    info = value;
-    cache.set(url, info);
-  }
-  return info();
-};
+export const useRelayInfo = (
+  url: Accessor<RelayUrl>,
+  enabled: Accessor<boolean>,
+) =>
+  createQuery(() => ({
+    queryKey: ["relay-info", url()],
+    queryFn: () => fetchRelayInfo(url()),
+    enabled: enabled(),
+  }));

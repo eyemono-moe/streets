@@ -38,7 +38,6 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import SettingsDialog from "../settings/SettingsDialog";
-import { relayInfo } from "../settings/relay-info-cache";
 import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
@@ -375,7 +374,6 @@ const DeckScreen: Component<{
               relayList={write.relayList}
               settled={write.relayListSettled}
               statusOf={(url) => props.readLayer.manager.pool.statusOf(url)}
-              infoOf={relayInfo}
             >
               <MuteMediator
                 writer={trackReplaces(write.writer, "ミュート")}

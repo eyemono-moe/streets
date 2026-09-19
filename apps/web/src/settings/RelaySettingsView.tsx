@@ -34,7 +34,7 @@ export type RelaySettingsViewProps = {
   /** 一覧が無い人が今使っているリレー。 */
   fallback: readonly RelayUrl[];
   /** リレーが自分について答えた内容。取れていなければ undefined。 */
-  infoOf: (url: RelayUrl) => RelayInfo | undefined;
+  infoOf?: (url: RelayUrl) => RelayInfo | undefined;
 };
 
 /** リレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -72,7 +72,8 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
                   <RelayRow
                     entry={entry}
                     status={props.statusOf(entry.url)}
-                    info={props.infoOf(entry.url)}
+                    info={props.infoOf?.(entry.url)}
+                    loadInfo={props.infoOf === undefined}
                     allows={props.allows}
                     onEdit={edit}
                   />
@@ -114,6 +115,7 @@ const RelayRow: Component<{
   entry: RelayListEntry;
   status: RelayStatus;
   info: RelayInfo | undefined;
+  loadInfo: boolean;
   allows: (op: RelayOp) => boolean;
   onEdit: (op: RelayOp) => void;
 }> = (props) => {
@@ -124,6 +126,7 @@ const RelayRow: Component<{
       <RelaySummary
         url={props.entry.url}
         info={props.info}
+        loadInfo={props.loadInfo}
         status={props.status}
         actions={
           <div class="ml-auto flex items-center gap-1">

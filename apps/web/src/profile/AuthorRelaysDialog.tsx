@@ -27,7 +27,6 @@ import { useProfileDetails } from "../note/use-profile";
 import { useReadLayer } from "../read-layer";
 import { useRelayEdit } from "../settings/RelayMediator";
 import RelaySummary from "../settings/RelaySummary";
-import { relayInfo } from "../settings/relay-info-cache";
 import { notifyError, notifySuccess } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -235,6 +234,7 @@ export const AuthorRelaysDialogView: Component<{
                                     <RelaySummary
                                       url={entry.url}
                                       info={props.infoOf?.(entry.url)}
+                                      loadInfo={props.infoOf === undefined}
                                       subtitle={
                                         <span class="c-secondary text-caption">
                                           {usageLabel(entry)}
@@ -324,7 +324,6 @@ const AuthorRelaysDialog: Component<{ pubkey: string; onClose: () => void }> = (
       <AuthorRelaysDialogView
         state={{ phase: "failed" }}
         title={title()}
-        infoOf={relayInfo}
         onClose={props.onClose}
       />
     );
@@ -347,7 +346,6 @@ const AuthorRelaysDialog: Component<{ pubkey: string; onClose: () => void }> = (
     <AuthorRelaysDialogView
       state={stateFrom(event() !== undefined, entries(), section.status())}
       title={title()}
-      infoOf={relayInfo}
       onClose={props.onClose}
     />
   );
