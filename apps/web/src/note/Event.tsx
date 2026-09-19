@@ -11,6 +11,7 @@ import {
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
 import { layoutNote } from "@streets/core/view/note-layout";
+import { observeHeight } from "@streets/core/view/shared-resize-observer";
 import {
   type Component,
   ErrorBoundary,
@@ -20,8 +21,10 @@ import {
   type ParentComponent,
   Show,
   Switch,
+  createEffect,
   createMemo,
   createSignal,
+  onCleanup,
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -39,6 +42,8 @@ import { useEvent } from "./use-event";
  * 引用は compact で出すので、入れ子は 1 段で止まり、1 件の投稿が取得を連鎖させない。
  */
 export type EventSize = "normal" | "compact";
+
+const MAX_CONTENT_HEIGHT = 400;
 
 type ContentProps = {
   event: NostrEvent;
@@ -260,6 +265,48 @@ const Quote: Component<{ quote: EventRef }> = (props) => (
   </div>
 );
 
+/** 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。 */
+const CollapsibleBody: ParentComponent = (props) => {
+  const [body, setBody] = createSignal<HTMLDivElement>();
+  const [height, setHeight] = createSignal(0);
+  const [expanded, setExpanded] = createSignal(false);
+  const overflows = () => height() >= MAX_CONTENT_HEIGHT;
+
+  createEffect(() => {
+    const element = body();
+    if (element) onCleanup(observeHeight(element, setHeight));
+  });
+
+  return (
+    <div class="relative">
+      <div
+        ref={setBody}
+        class="overflow-hidden"
+        style={{
+          "max-height": expanded() ? "none" : `${MAX_CONTENT_HEIGHT}px`,
+        }}
+      >
+        {props.children}
+      </div>
+      <Show when={overflows() && !expanded()}>
+        <button
+          type="button"
+          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
+          onClick={() => setExpanded(true)}
+        >
+          <span class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
+            <span
+              class="i-material-symbols:expand-more-rounded h-1.25lh w-auto"
+              aria-hidden="true"
+            />
+            <span>さらに表示</span>
+          </span>
+        </button>
+      </Show>
+    </div>
+  );
+};
+
 const Note: Component<ContentProps> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
@@ -277,14 +324,16 @@ const Note: Component<ContentProps> = (props) => {
         )}
       </Show>
       <Show when={layout().text.length > 0}>
-        <NoteText
-          tokens={layout().text}
-          class="c-primary"
-          classList={{
-            "text-body": props.size === "normal",
-            "text-[14px]": props.size === "compact",
-          }}
-        />
+        <Show
+          when={props.size === "normal"}
+          fallback={
+            <NoteText tokens={layout().text} class="c-primary text-[14px]" />
+          }
+        >
+          <CollapsibleBody>
+            <NoteText tokens={layout().text} class="c-primary text-body" />
+          </CollapsibleBody>
+        </Show>
       </Show>
       <For each={layout().images}>
         {(url) => (

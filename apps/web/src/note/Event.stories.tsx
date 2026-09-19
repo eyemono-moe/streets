@@ -39,6 +39,13 @@ const tokens = bob.note(
     ["emoji", "party", emojiUrl],
   ],
 );
+const longBody = alice.note(
+  Array.from(
+    { length: 18 },
+    (_, index) =>
+      `${index + 1}. 長い投稿でもタイムライン全体を占有しないように、最初は本文を省略して表示します。リンク https://example.com/${index + 1} と絵文字 🏙️ を含む行です。`,
+  ).join("\n"),
+);
 const reply = alice.reply(plain, "返信の本文。");
 const quoted = bob.note("引用されたノートの本文。");
 const quote = alice.quote(quoted, "引用つきのノート。");
@@ -139,6 +146,10 @@ export const ログインしていない: Story = {
 
 export const 本文のトークン: Story = {
   args: { event: tokens, scene: scene(tokens) },
+};
+
+export const 長い本文: Story = {
+  args: { event: longBody, scene: scene(longBody) },
 };
 
 export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
