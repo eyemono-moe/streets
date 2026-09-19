@@ -18,14 +18,14 @@
  * ## 画面から辿り着く方法
  *
  * スクリプトの出力するローカル専用 nsec を、普段使いと分離した NIP-07
- * プロフィールへ入れてログインできる。`/v1?relays=ws://127.0.0.1:8080` を
- * 開いて（`?relays=` は
- * `src/routes/v1/parse-relays.ts` が読む e2e 専用の抜け道で、
- * `fallbackRelays`/`indexers` をローカルリレーへ丸ごと差し替える）、
+ * プロフィールへ入れてログインできる。`/?relays=ws://127.0.0.1:8080` を
+ * 開いて（`?relays=` は `apps/web/src/dev-relay-override.ts` が開発時だけ読み、
+ * `App.tsx` の `fallbackRelays` と `DeckScreen.tsx` の bootstrap indexer を
+ * ローカルリレーへ丸ごと差し替える）、
  * 「+ カラムを追加」→「ユーザー」→ 下に印字される npub を貼って追加する
  * だけでよい。`user` 列の `ColumnSource` は明示 `relays` を持たない
  * (`column-presets.ts`) が、`?relays=` は `createReadLayer` の
- * `fallbackRelays` そのものを差し替える (`src/routes/v1.tsx`) ので、
+ * `fallbackRelays` そのものを差し替えるので、
  * 明示リレーの無い列もローカルリレーへ落ちる。スレッドを開いたときの
  * 購読 (`createThreadSource`) も同じ `fallbackRelays` を継承するので、
  * 追加の設定は要らない — 実際にコードを読んで確認した。
@@ -483,7 +483,7 @@ const main = async () => {
     console.log("著者 (全ノート共通)");
     console.log(`  npub  ${npub}`);
     console.log("");
-    console.log("画面での辿り着き方: /v1?relays=ws://127.0.0.1:8080 を開き、");
+    console.log("画面での辿り着き方: /?relays=ws://127.0.0.1:8080 を開き、");
     console.log(
       "「+ カラムを追加」→「ユーザー」に上の npub を貼って追加する。",
     );
@@ -526,7 +526,7 @@ const main = async () => {
       "  1. 普段使いと分離した NIP-07 のテスト用プロフィールへ nsec を入れる",
     );
     console.log(
-      `  2. http://127.0.0.1:5173/v1?relays=${encodeURIComponent(relayUrl)} を開いてログインする`,
+      `  2. http://127.0.0.1:5173/?relays=${encodeURIComponent(relayUrl)} を開いてログインする`,
     );
     console.log("  3. ホーム、通知、ユーザーカラム、プロフィールを確認する");
     console.log(`  本人投稿 ${noteId(login.root.id)}`);
