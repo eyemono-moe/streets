@@ -14,7 +14,7 @@ import {
   createProfileRequests,
 } from "./profile-requests";
 import { RoutingTable } from "./routing-table";
-import { SubscriptionManager } from "./subscription-manager";
+import { REPLAN_BATCH_MS, SubscriptionManager } from "./subscription-manager";
 
 export type ReadLayerOptions = {
   connect: (url: RelayUrl) => RelayConnection;
@@ -27,6 +27,8 @@ export type ReadLayerOptions = {
    */
   scheduler?: Scheduler;
   random?: () => number;
+  /** 張り直しをまとめる窓。既定は `REPLAN_BATCH_MS`。テストは 0 にしてすぐ張り直させる。 */
+  replanBatchMs?: number;
 };
 
 export type ReadLayer = {
@@ -61,6 +63,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     maxConnections: options.maxConnections,
     scheduler,
     random: options.random,
+    replanBatchMs: options.replanBatchMs ?? REPLAN_BATCH_MS,
   });
   const profileRequestsOptions: CreateProfileRequestsOptions = {
     store,
