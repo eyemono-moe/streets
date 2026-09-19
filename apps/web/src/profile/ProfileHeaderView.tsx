@@ -5,6 +5,7 @@ import {
 } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
 import { useProfile } from "../note/use-profile";
+import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
 const Count: Component<{
@@ -44,14 +45,9 @@ export const ProfileHeaderCard: Component<{
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
-  const [pictureBroken, setPictureBroken] = createSignal<string>();
   const banner = () => {
     const url = props.profile?.banner;
     return url && url !== bannerBroken() ? url : undefined;
-  };
-  const picture = () => {
-    const url = props.profile?.picture;
-    return url && url !== pictureBroken() ? url : undefined;
   };
 
   return (
@@ -71,18 +67,12 @@ export const ProfileHeaderCard: Component<{
       {/* アイコンはヘッダー画像に重ねる。上へ 32px 引き上げて、その分を下で戻す。 */}
       <div class="-mt-8 flex flex-col gap-3 px-3 pb-3">
         <div class="flex min-h-20 items-end justify-between gap-2">
-          <div class="size-20 shrink-0 overflow-hidden rounded-3 border-3 border-white bg-secondary dark:border-ui-950">
-            <Show when={picture()}>
-              {(url) => (
-                <img
-                  src={url()}
-                  alt=""
-                  class="size-full object-cover"
-                  onError={() => setPictureBroken(url())}
-                />
-              )}
-            </Show>
-          </div>
+          <Avatar
+            pubkey={props.pubkey}
+            picture={props.profile?.picture}
+            loading="eager"
+            class="size-20 rounded-3 border-3 border-white dark:border-ui-950"
+          />
           {props.action}
         </div>
         <div class="flex flex-col">

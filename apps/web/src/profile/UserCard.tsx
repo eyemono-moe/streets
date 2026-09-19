@@ -1,6 +1,7 @@
 import { profileLabel, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, Show, createSignal } from "solid-js";
 import { useProfile } from "../note/use-profile";
+import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
 /**
@@ -11,9 +12,7 @@ import FollowButton from "./FollowButton";
 const UserCard: Component<{ pubkey: string }> = (props) => {
   const profile = useProfile(() => props.pubkey);
   const [bannerBroken, setBannerBroken] = createSignal(false);
-  const [pictureBroken, setPictureBroken] = createSignal(false);
   const banner = () => (bannerBroken() ? undefined : profile()?.banner);
-  const picture = () => (pictureBroken() ? undefined : profile()?.picture);
 
   return (
     <div class="flex w-80 max-w-[calc(100vw-2rem)] flex-col">
@@ -33,19 +32,11 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
       {/* アイコンはヘッダー画像に重ねる。上へ 24px 引き上げて、その分を下で戻す。 */}
       <div class="-mt-6 flex flex-col gap-2 px-3 pb-3">
         <div class="flex items-end justify-between gap-2">
-          <div class="size-14 shrink-0 overflow-hidden rounded-2 border-3 border-white bg-secondary dark:border-ui-950">
-            <Show when={picture()}>
-              {(url) => (
-                <img
-                  src={url()}
-                  alt=""
-                  loading="lazy"
-                  class="size-full object-cover"
-                  onError={() => setPictureBroken(true)}
-                />
-              )}
-            </Show>
-          </div>
+          <Avatar
+            pubkey={props.pubkey}
+            picture={profile()?.picture}
+            class="size-14 rounded-2 border-3 border-white dark:border-ui-950"
+          />
           <FollowButton pubkey={props.pubkey} size="small" />
         </div>
         <div class="flex min-w-0 flex-col">
