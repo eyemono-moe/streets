@@ -3,14 +3,22 @@ import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
+import { parseProfile } from "@streets/core/nostr/profile";
+import {
+  type Component,
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import EventDetailsDialog from "./EventDetailsDialog";
-import Name from "./Name";
-import { useProfile } from "./use-profile";
+import { ProfileName, ProfileText } from "./Name";
+import { useProfileEvent } from "./use-profile";
 
 type MenuItem = {
   value: string;
@@ -78,7 +86,11 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
  * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
  */
 const EventMenu: Component<{ event: NostrEvent }> = (props) => {
-  const profile = useProfile(() => props.event.pubkey);
+  const profileEvent = useProfileEvent(() => props.event.pubkey);
+  const profile = createMemo(() => {
+    const event = profileEvent();
+    return event ? parseProfile(event.content) : undefined;
+  });
   const dispatch = useDispatch();
   const mutes = useMutes();
   const viewer = useEventActions()?.viewer;
@@ -198,8 +210,22 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
               <Menu.Separator class="border-primary border-t" />
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class="c-secondary block truncate px-2.5 py-0.5 font-600 text-caption">
-                  <Name pubkey={props.event.pubkey} />
-                  <Show when={profile()?.name}>{(name) => ` @${name()}`}</Show>
+                  <ProfileName
+                    pubkey={props.event.pubkey}
+                    profile={profile()}
+                    tags={profileEvent()?.tags}
+                  />
+                  <Show when={profile()?.name}>
+                    {(name) => (
+                      <>
+                        {" @"}
+                        <ProfileText
+                          text={name()}
+                          tags={profileEvent()?.tags}
+                        />
+                      </>
+                    )}
+                  </Show>
                 </Menu.ItemGroupLabel>
                 <Items items={authorItems()} />
               </Menu.ItemGroup>

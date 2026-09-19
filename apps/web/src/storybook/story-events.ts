@@ -44,10 +44,10 @@ export const createStoryAuthor = (seed: number, profile: StoryProfile = {}) => {
   return {
     pubkey,
     event,
-    profile: () =>
+    profile: (tags: string[][] = []) =>
       event({
         kind: 0,
-        tags: [],
+        tags,
         content: JSON.stringify({
           name: profile.name,
           display_name: profile.displayName,

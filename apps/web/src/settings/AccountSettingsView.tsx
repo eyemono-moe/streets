@@ -245,10 +245,7 @@ const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
 ) => (
   <div class="flex flex-col gap-1.5">
     <span class="c-secondary text-caption">カラムでの見え方</span>
-    <div
-      class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0"
-      aria-hidden="true"
-    >
+    <div class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0">
       <ProfileHeaderCard
         pubkey={props.pubkey}
         profile={profileFromDraft(props.state.draft)}

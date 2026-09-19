@@ -1,4 +1,5 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
@@ -37,6 +38,13 @@ const longName = createStoryAuthor(77, {
   about: "名前も id もはみ出さずに切れることを確かめる。",
 });
 const viewer = createStoryAuthor(55, { name: "me", displayName: "わたし" });
+const linkedNote = alice.note("自己紹介のリンクから開く投稿");
+const linked = createStoryAuthor(88, {
+  name: "links",
+  displayName: ":wave: リンクの人",
+  about: `Web: https://example.com/\n人: nostr:${encodeBech32("npub", alice.pubkey)}\n投稿: nostr:${encodeBech32("note", linkedNote.id)}`,
+});
+const linkedProfile = linked.profile([["emoji", "wave", avatarUrl]]);
 
 const profiles = [
   alice.profile(),
@@ -45,6 +53,7 @@ const profiles = [
   wordy.profile(),
   longName.profile(),
   viewer.profile(),
+  linkedProfile,
 ];
 /** 閲覧者は alice だけをフォローしている。ボタンの 2 つの状態を 1 画面で見る。 */
 const viewerFollows = viewer.follows([alice.pubkey]);
@@ -79,7 +88,7 @@ const HeaderStory: Component<HeaderProps> = (props) => (
 const meta = {
   title: "ユーザー/ProfileHeaderView",
   component: HeaderStory,
-  args: { followeeCount: 128, followerCount: 64, scene: scene() },
+  args: { followeeCount: 128, followerCount: 64, scene: scene(linkedNote) },
   argTypes: { scene: { control: false }, pubkey: { control: false } },
 } satisfies Meta<typeof HeaderStory>;
 
@@ -104,6 +113,10 @@ export const 画像も自己紹介もない: Story = {
 
 export const 自己紹介が長い: Story = {
   args: { pubkey: wordy.pubkey },
+};
+
+export const リンクとカスタム絵文字: Story = {
+  args: { pubkey: linked.pubkey },
 };
 
 export const ログインしていない: Story = {
