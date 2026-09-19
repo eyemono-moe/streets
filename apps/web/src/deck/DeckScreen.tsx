@@ -15,6 +15,7 @@ import {
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type Component,
   For,
@@ -72,9 +73,11 @@ const useIsWide = () => {
   return wide;
 };
 
-const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
-  props,
-) => {
+const DeckScreen: Component<{
+  readLayer: ReadLayer;
+  session: Session;
+  bootstrapIndexers?: RelayUrl[];
+}> = (props) => {
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
   // biome-ignore lint/style/noNonNullAssertion: ログイン中にしか描かれない
   const viewer = props.session.pubkey()!;
@@ -103,6 +106,7 @@ const DeckScreen: Component<{ readLayer: ReadLayer; session: Session }> = (
       pubkey,
       store: props.readLayer.store,
       pool: props.readLayer.manager.pool,
+      indexers: props.bootstrapIndexers,
     });
     setDiagnostics("warmUp", {
       ...result,

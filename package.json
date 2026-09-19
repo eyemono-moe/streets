@@ -9,7 +9,7 @@
     "check": "biome check .",
     "fix": "biome check --write .",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test",
+    "test": "pnpm -r test && node --test scripts/*.test.mjs",
     "verify": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build",
     "dev:relay:wait": "node scripts/wait-for-relays.mjs",
     "dev:relay:reset": "node scripts/reset-local-relay-db.mjs",
