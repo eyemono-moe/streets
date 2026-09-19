@@ -440,7 +440,10 @@ const Column: Component<ColumnProps> = (props) => {
     opened() ? handle({ type: "stack/back" }) : scrollToTop();
 
   const body = () => (
-    <div ref={scroller} class="min-h-0 flex-1 overflow-y-auto">
+    <div
+      ref={scroller}
+      class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+    >
       {/* 投稿・通知の 1 件ずつの境界で捕まえきれなかったものの受け皿。カラムの中身だけを置き換え、ほかのカラムは動き続ける。 */}
       <ErrorBoundary
         fallback={(error, reset) => {
@@ -584,7 +587,14 @@ const Column: Component<ColumnProps> = (props) => {
             重ね順は z-index ではなく DOM の順で決める：下のカラム → 外側 → 重ねたカラム。
             中の重ね順（sticky なアイコンなど）が外へ漏れないよう、段ごとに isolate する。
           */}
-          <div class="absolute inset-0 isolate flex flex-col">{body()}</div>
+          <div
+            class="absolute inset-0 isolate flex flex-col"
+            // 閉じるスワイプで上の段が hidden になってから退場し終えるまで、
+            // 同じ指の click が背面の行へ抜けないようにする。
+            inert={stack.layers.length > 0}
+          >
+            {body()}
+          </div>
           <Show when={stack.layers.length > 0}>
             {/* 覗いている部分＝重なりの外側。押したら 1 段戻る（ダイアログと同じ勘）。 */}
             <button
@@ -622,6 +632,9 @@ const Column: Component<ColumnProps> = (props) => {
                   <Drawer.Positioner class="absolute inset-0 isolate">
                     <Drawer.Content
                       aria-label={layerTitle()}
+                      // 上の段が閉じる途中も layers には残る。その間、背面の段へ
+                      // pointerup 後の click が抜けないようにする。
+                      inert={index() < stack.layers.length - 1}
                       // 影だけではダークモードで沈むので、上辺の枠線でも縁を見せる。
                       class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                       // 段ごとに少しずつ下げて、下のカラムが覗くようにする（上限 3 段ぶん）。
