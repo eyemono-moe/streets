@@ -1,14 +1,15 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
-import { profileLabel } from "@streets/core/nostr/profile";
 import { type Component, Show } from "solid-js";
 import UserCardHover from "../profile/UserCardHover";
 import { useDispatch } from "../ui-events";
 import type { EventSize } from "./Event";
-import { useProfile } from "./use-profile";
+import { ProfileName, ProfileText } from "./Name";
+import { useProfileDetails } from "./use-profile";
 
 /** 表示名と `@name`。触れると名刺、押すとその人のカラムを重ねる。 */
 const AuthorNames: Component<{ pubkey: string; size: EventSize }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
   const dispatch = useDispatch();
   return (
     <UserCardHover
@@ -33,13 +34,17 @@ const AuthorNames: Component<{ pubkey: string; size: EventSize }> = (props) => {
               "text-[14px]": props.size === "compact",
             }}
           >
-            {profileLabel(profile(), props.pubkey)}
+            <ProfileName
+              pubkey={props.pubkey}
+              profile={profile()}
+              tags={details()?.tags}
+            />
           </span>
           {/* display_name が無いと太字側が name に落ちるので、同じ文字列を 2 回並べない。 */}
           <Show when={profile()?.displayName && profile()?.name}>
             {(name) => (
               <span class="c-secondary min-w-0 truncate text-caption">
-                @{name()}
+                @<ProfileText text={name()} tags={details()?.tags} />
               </span>
             )}
           </Show>

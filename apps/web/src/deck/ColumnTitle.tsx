@@ -1,7 +1,8 @@
 import { columnTitle } from "@streets/core/deck/column-title";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { profileLabel } from "@streets/core/nostr/profile";
-import type { Accessor, Component } from "solid-js";
+import { type Accessor, type Component, Show } from "solid-js";
+import Name from "../note/Name";
 import { useProfile } from "../note/use-profile";
 
 /**
@@ -28,7 +29,21 @@ export const useColumnTitle = (
 
 const ColumnTitle: Component<{ column: ColumnDef }> = (props) => {
   const title = useColumnTitle(() => props.column);
-  return <>{title()}</>;
+  const parts = () => columnTitle(props.column);
+  const person = () => {
+    const current = parts();
+    return "person" in current ? current : undefined;
+  };
+  return (
+    <Show when={person()} fallback={title()}>
+      {(current) => (
+        <>
+          <Name pubkey={current().person} />
+          {current().suffix}
+        </>
+      )}
+    </Show>
+  );
 };
 
 export default ColumnTitle;

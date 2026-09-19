@@ -1,10 +1,9 @@
-import {
-  type Profile,
-  profileLabel,
-  shortNpub,
-} from "@streets/core/nostr/profile";
+import { parseContent } from "@streets/core/nostr/content";
+import { type Profile, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
-import { useProfile } from "../note/use-profile";
+import { ProfileName, ProfileText } from "../note/Name";
+import NoteText from "../note/NoteText";
+import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
@@ -38,6 +37,8 @@ const Count: Component<{
 export const ProfileHeaderCard: Component<{
   pubkey: string;
   profile: Profile | undefined;
+  /** kind:0 のタグ。名前と自己紹介にある NIP-30 絵文字を解決する。 */
+  profileTags?: readonly string[][];
   /** アイコンの右に置く操作。 */
   action?: JSX.Element;
   /** 自己紹介の下に置くもの（フォロー・フォロワーの数）。 */
@@ -49,6 +50,7 @@ export const ProfileHeaderCard: Component<{
     const url = props.profile?.banner;
     return url && url !== bannerBroken() ? url : undefined;
   };
+  const tags = () => props.profileTags ?? [];
 
   return (
     <section class="flex flex-col border-primary border-b bg-primary">
@@ -77,17 +79,27 @@ export const ProfileHeaderCard: Component<{
         </div>
         <div class="flex flex-col">
           <h3 class="c-primary break-anywhere font-600 text-h3">
-            {profileLabel(props.profile, props.pubkey)}
+            <ProfileName
+              pubkey={props.pubkey}
+              profile={props.profile}
+              tags={tags()}
+            />
           </h3>
           <p class="c-secondary break-anywhere text-caption">
-            @{props.profile?.name ?? shortNpub(props.pubkey)}
+            @
+            <ProfileText
+              text={props.profile?.name ?? shortNpub(props.pubkey)}
+              tags={tags()}
+            />
           </p>
         </div>
         <Show when={props.profile?.about}>
           {(about) => (
-            <p class="c-primary break-anywhere whitespace-pre-wrap text-caption">
-              {about()}
-            </p>
+            <NoteText
+              tokens={parseContent(about(), tags())}
+              class="c-primary text-caption"
+              emojiClass="h-[1em]"
+            />
           )}
         </Show>
         {props.footer}
@@ -104,11 +116,12 @@ const ProfileHeaderView: Component<{
   onOpenFollowees?: () => void;
   onOpenFollowers?: () => void;
 }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
+  const details = useProfileDetails(() => props.pubkey);
   return (
     <ProfileHeaderCard
       pubkey={props.pubkey}
-      profile={profile()}
+      profile={details()?.profile}
+      profileTags={details()?.tags}
       action={<FollowButton pubkey={props.pubkey} />}
       footer={
         <div class="flex gap-4">

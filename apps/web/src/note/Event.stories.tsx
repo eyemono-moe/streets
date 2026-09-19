@@ -33,7 +33,7 @@ const plain = alice.note(
   "マルチカラムのクライアントは、1 列に入る情報量が体験を決める。余白は削るところと残すところを分ける。",
 );
 const tokens = bob.note(
-  `リンク https://example.com/ 、ハッシュタグ #nostr 、メンション nostr:${encodeBech32("npub", alice.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
+  `リンク https://example.com/ 、ハッシュタグ #nostr 、NIP-21メンション nostr:${encodeBech32("npub", alice.pubkey)} 、裸のNIP-19メンション ${encodeBech32("npub", carol.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
   [
     ["t", "nostr"],
     ["emoji", "party", emojiUrl],

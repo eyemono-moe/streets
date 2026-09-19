@@ -1,6 +1,9 @@
-import { profileLabel, shortNpub } from "@streets/core/nostr/profile";
+import { parseContent } from "@streets/core/nostr/content";
+import { shortNpub } from "@streets/core/nostr/profile";
 import { type Component, Show, createSignal } from "solid-js";
-import { useProfile } from "../note/use-profile";
+import { ProfileName, ProfileText } from "../note/Name";
+import NoteText from "../note/NoteText";
+import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 
@@ -10,7 +13,8 @@ import FollowButton from "./FollowButton";
  * 続きはカードを押してユーザーのカラムを開いてもらう。
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
-  const profile = useProfile(() => props.pubkey);
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);
   const banner = () => (bannerBroken() ? undefined : profile()?.banner);
 
@@ -41,17 +45,27 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
         </div>
         <div class="flex min-w-0 flex-col">
           <span class="c-primary truncate font-600 text-body">
-            {profileLabel(profile(), props.pubkey)}
+            <ProfileName
+              pubkey={props.pubkey}
+              profile={profile()}
+              tags={details()?.tags}
+            />
           </span>
           <span class="c-secondary truncate text-caption">
-            @{profile()?.name ?? shortNpub(props.pubkey)}
+            @
+            <ProfileText
+              text={profile()?.name ?? shortNpub(props.pubkey)}
+              tags={details()?.tags}
+            />
           </span>
         </div>
         <Show when={profile()?.about}>
           {(about) => (
-            <p class="c-secondary break-anywhere line-clamp-3 whitespace-pre-wrap text-caption">
-              {about()}
-            </p>
+            <NoteText
+              tokens={parseContent(about(), details()?.tags ?? [])}
+              class="c-secondary line-clamp-3 text-caption"
+              emojiClass="h-[1em]"
+            />
           )}
         </Show>
       </div>

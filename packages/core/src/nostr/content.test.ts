@@ -221,6 +221,30 @@ describe("parseContent: nostr: URI", () => {
     expect(mention).toMatchObject({ type: "mention", raw });
   });
 
+  it.each<[string, string]>([
+    ["npub", encodeBech32("npub", PUBKEY)],
+    ["note", encodeBech32("note", ID)],
+    [
+      "nprofile",
+      encodeEntity("nprofile", [{ type: 0, value: hexToBytes(PUBKEY) }]),
+    ],
+    ["nevent", encodeEntity("nevent", [{ type: 0, value: hexToBytes(ID) }])],
+  ])("nostr: が無い %s も mention になる", (_kind, raw) => {
+    const tokens = parseContent(`見て ${raw} です`, []);
+    expect(tokens.find((token) => token.type === "mention")).toMatchObject({
+      type: "mention",
+      raw,
+    });
+  });
+
+  it("単語の途中にある NIP-19 風の文字列は mention にしない", () => {
+    const npub = encodeBech32("npub", PUBKEY);
+    const content = `prefix${npub} suffix`;
+    const tokens = parseContent(content, []);
+    expect(tokens.some((token) => token.type === "mention")).toBe(false);
+    expect(concatTokens(tokens)).toBe(content);
+  });
+
   it("nsec がテキストのまま残る", () => {
     // 捕まえる変異: decodeNip19 が undefined を返したことを無視して
     // mention トークンを作ってしまう —— 秘密鍵を構造化データにしてはいけない

@@ -9,8 +9,8 @@ import { useEventActions } from "../actions";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import EventDetailsDialog from "./EventDetailsDialog";
-import Name from "./Name";
-import { useProfile } from "./use-profile";
+import { ProfileName, ProfileText } from "./Name";
+import { useProfileDetails } from "./use-profile";
 
 type MenuItem = {
   value: string;
@@ -78,7 +78,8 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
  * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
  */
 const EventMenu: Component<{ event: NostrEvent }> = (props) => {
-  const profile = useProfile(() => props.event.pubkey);
+  const profileDetails = useProfileDetails(() => props.event.pubkey);
+  const profile = () => profileDetails()?.profile;
   const dispatch = useDispatch();
   const mutes = useMutes();
   const viewer = useEventActions()?.viewer;
@@ -198,8 +199,22 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
               <Menu.Separator class="border-primary border-t" />
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class="c-secondary block truncate px-2.5 py-0.5 font-600 text-caption">
-                  <Name pubkey={props.event.pubkey} />
-                  <Show when={profile()?.name}>{(name) => ` @${name()}`}</Show>
+                  <ProfileName
+                    pubkey={props.event.pubkey}
+                    profile={profile()}
+                    tags={profileDetails()?.tags}
+                  />
+                  <Show when={profile()?.name}>
+                    {(name) => (
+                      <>
+                        {" @"}
+                        <ProfileText
+                          text={name()}
+                          tags={profileDetails()?.tags}
+                        />
+                      </>
+                    )}
+                  </Show>
                 </Menu.ItemGroupLabel>
                 <Items items={authorItems()} />
               </Menu.ItemGroup>
