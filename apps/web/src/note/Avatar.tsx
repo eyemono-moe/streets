@@ -9,12 +9,11 @@ import { useProfile } from "./use-profile";
 /** `tiny` は、通知の 1 行に何人も並べるときの大きさ。 */
 export type AvatarSize = EventSize | "tiny";
 
-const sizeClass = (size: AvatarSize) =>
-  ({
-    normal: "size-10 rounded-2",
-    compact: "size-8 rounded-2",
-    tiny: "size-5 rounded-1.5",
-  })[size];
+const sizeClass = (size: AvatarSize) => ({
+  "size-10 rounded-2": size === "normal",
+  "size-8 rounded-2": size === "compact",
+  "size-5 rounded-1.5": size === "tiny",
+});
 
 /**
  * その人のアイコン。触れると名刺、押すとその人のカラムを重ねる。
@@ -40,7 +39,10 @@ const Avatar: Component<{
     <Show
       when={!props.static}
       fallback={
-        <span class={`block shrink-0 overflow-hidden ${sizeClass(props.size)}`}>
+        <span
+          class="block shrink-0 overflow-hidden"
+          classList={sizeClass(props.size)}
+        >
           {image()}
         </span>
       }
@@ -60,7 +62,7 @@ const Avatar: Component<{
                   column: buildUserColumn(props.pubkey),
                 }),
             })}
-            class={sizeClass(props.size)}
+            classList={sizeClass(props.size)}
           >
             {image()}
           </button>
