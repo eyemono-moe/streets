@@ -1,16 +1,21 @@
+import type { ColumnDef } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
 import { createThreadSource } from "@streets/core/solid/create-thread-source";
 import { threadSpine } from "@streets/core/view/thread-spine";
-import { type Component, createMemo } from "solid-js";
+import { type Component, createEffect, createMemo } from "solid-js";
+import { setDiagnostics } from "../devtools/diagnostics";
+import ColumnBody from "./ColumnBody";
 import ThreadSpineView from "./ThreadSpineView";
 
 /** 焦点のイベントを起点に、根までの祖先とその返信を集めて出す。 */
 const ThreadColumn: Component<{
   focus: string;
+  column: ColumnDef;
   readLayer: ReadLayer;
   expandMedia: boolean;
+  scrollerRef: (element: HTMLDivElement) => void;
 }> = (props) => {
   const thread = createThreadSource({
     focusId: () => props.focus,
@@ -31,13 +36,21 @@ const ThreadColumn: Component<{
     return seeded ? [...items, seeded] : items;
   };
   const spine = createMemo(() => threadSpine(events(), props.focus));
+  createEffect(() =>
+    setDiagnostics("sections", props.column.id, {
+      ...section.status(),
+      items: section.items().length,
+    }),
+  );
 
   return (
-    <ThreadSpineView
-      spine={spine()}
-      settled={section.status().phase === "settled"}
-      expandMedia={props.expandMedia}
-    />
+    <ColumnBody columnId={props.column.id} scrollerRef={props.scrollerRef}>
+      <ThreadSpineView
+        spine={spine()}
+        settled={section.status().phase === "settled"}
+        expandMedia={props.expandMedia}
+      />
+    </ColumnBody>
   );
 };
 

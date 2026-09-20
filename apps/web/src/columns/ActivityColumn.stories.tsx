@@ -2,7 +2,7 @@ import type { EventActivity } from "@streets/core/view/event-activity";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
-import ActivityColumn from "./ActivityColumn";
+import { ActivityView } from "./ActivityColumn";
 
 const alice = createStoryAuthor(11, {
   name: "alice",
@@ -54,7 +54,7 @@ const meta = {
       }}
     >
       <div class="h-120 w-full bg-primary">
-        <ActivityColumn {...props} />
+        <ActivityView {...props} />
       </div>
     </EventSceneProvider>
   ),
