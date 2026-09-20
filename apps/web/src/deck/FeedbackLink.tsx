@@ -11,7 +11,7 @@ import {
 
 const context = (): string =>
   [
-    `Streets: ${import.meta.env.VITE_APP_VERSION || "unknown"}`,
+    `Commit: ${import.meta.env.VITE_COMMIT_SHA}`,
     `Origin: ${window.location.origin}`,
     `Browser: ${navigator.userAgent}`,
   ].join("\n");
