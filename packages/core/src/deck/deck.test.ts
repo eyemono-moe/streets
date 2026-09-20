@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { FALLBACK_RELAYS } from "../read/default-relays";
 import {
   type Deck,
   deckStorageKey,
@@ -334,53 +333,23 @@ describe("loadDeck / saveDeck", () => {
 });
 
 describe("defaultDeck", () => {
-  const viewerPubkey = "a".repeat(64);
-
-  it("ホーム・単一著者・明示リレーの 3 本を返す", () => {
-    const result = defaultDeck(viewerPubkey);
+  it("ホーム・通知の 2 本を返す", () => {
+    const result = defaultDeck();
 
     expect(result.version).toBe(2);
-    expect(result.columns).toHaveLength(3);
+    expect(result.columns).toHaveLength(2);
 
     // ホーム: フォローの展開を resolveSource に任せる派生ソース
-    const home = result.columns.find((c) => c.id === "home");
+    const home = result.columns[0];
     expect(home?.source).toEqual({ kind: "followees", kinds: [1, 6] });
 
-    // 単一著者: 自分の投稿だけを、フォロー数によらず必ず映す対照群
-    const mine = result.columns.find(
-      (c) => c.source.kind === "literal" && !c.source.relays,
-    );
-    expect(mine?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1, 6], authors: [viewerPubkey] }],
-    });
-
-    // 明示リレー: 構造を丸ごと比較する (relays.length > 0 だけの緩いアサーションでは kinds を落とす変異を捕まえられない)。
-    const explicit = result.columns.find(
-      (c) => c.source.kind === "literal" && c.source.relays,
-    );
-    expect(explicit?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1] }],
-      relays: [...FALLBACK_RELAYS],
-    });
-  });
-
-  it("ホームと自分の投稿はリポストも集める", () => {
-    // 捕まえる変異: TIMELINE_KINDS から 6 を落とす (上の toEqual でも捕まるが、これはリポストが消える理由を明示する)。
-    const result = defaultDeck(viewerPubkey);
-
-    const home = result.columns.find((c) => c.id === "home");
-    expect(home?.source.kind === "followees" && home.source.kinds).toContain(6);
-
-    const mine = result.columns.find((c) => c.id === "mine");
-    expect(
-      mine?.source.kind === "literal" && mine.source.filters[0]?.kinds,
-    ).toContain(6);
+    // 通知: 自分の投稿に対するリポスト・引用・リアクションを集める派生ソース
+    const notifications = result.columns[1];
+    expect(notifications?.source).toEqual({ kind: "notifications" });
   });
 
   it("column の id が重複しない", () => {
-    const result = defaultDeck(viewerPubkey);
+    const result = defaultDeck();
     const ids = result.columns.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });

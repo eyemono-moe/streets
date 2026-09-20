@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { encodeBech32 } from "../nostr/nip19";
-import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import { buildColumn } from "./column-presets";
 
 /**
  * デッキが保存する「意図」。フォローリストのような変わる値を焼き込まない
@@ -115,35 +115,12 @@ export const deckStorageKey = (pubkey: string): string =>
 
 /**
  * 初回起動時の既定デッキ (モバイル初回訪問者はデスクトップでデッキを
- * 組んでいないため必須)。`home` は派生ソース、`mine` はフォロー数に
- * よらず自分の投稿が映るかの対照群、`global` は Outbox バイパスの証明。
+ * 組んでいないため必須)。
  */
-export const defaultDeck = (viewerPubkey: string): Deck => ({
+export const defaultDeck = (): Deck => ({
   version: 2,
-  columns: [
-    {
-      id: "home",
-      title: "ホーム",
-      source: { kind: "followees", kinds: [...TIMELINE_KINDS] },
-    },
-    {
-      id: "mine",
-      title: "自分の投稿",
-      source: {
-        kind: "literal",
-        filters: [{ kinds: [...TIMELINE_KINDS], authors: [viewerPubkey] }],
-      },
-    },
-    {
-      id: "global",
-      title: "グローバル",
-      source: {
-        kind: "literal",
-        filters: [{ kinds: [1] }],
-        relays: [...FALLBACK_RELAYS],
-      },
-    },
-  ],
+  // biome-ignore lint/style/noNonNullAssertion: `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
+  columns: [buildColumn("home", "")!, buildColumn("notifications", "")!],
 });
 
 export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
