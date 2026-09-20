@@ -19,6 +19,7 @@ const ColumnBody: ParentComponent<{
     </For>
     <div
       ref={props.scrollerRef}
+      data-scroll-container
       class="min-h-0 flex-1"
       classList={{
         "flex flex-col overflow-hidden": props.scrollsInternally === true,
