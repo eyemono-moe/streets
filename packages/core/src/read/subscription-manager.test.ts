@@ -2166,3 +2166,128 @@ describe("fetchOnce", () => {
     expect(manager.connectionCount).toBe(1);
   });
 });
+
+describe("張り直しをまとめる（replanBatchMs）", () => {
+  const setupBatched = () => {
+    const clock = createFakeClock();
+    const relays = new Map<RelayUrl, FakeRelayConnection>();
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      scheduler: clock,
+      replanBatchMs: 500,
+    });
+    const delivery = () => ({
+      onEvent: vi.fn(),
+      onRelayComplete: vi.fn(),
+      onRelayUnreachable: vi.fn(),
+      onPlanChanged: vi.fn(),
+      onRelayRestarted: vi.fn(),
+    });
+    const reqs = () =>
+      [...relays.values()].reduce(
+        (sum, relay) => sum + relay.subscriptions.length,
+        0,
+      );
+    return { manager, relays, clock, delivery, reqs };
+  };
+
+  it("同じ描画で出入りしたセクションは、1 回の張り直しにまとめる", async () => {
+    const { manager, delivery, reqs } = setupBatched();
+    const a = delivery();
+    const b = delivery();
+    const handleA = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://a/" as RelayUrl],
+      a,
+    );
+    manager.subscribe([{ kinds: [7] }], ["wss://b/" as RelayUrl], b);
+
+    expect(reqs()).toBe(0);
+    expect(handleA.initialPlan.relays).toEqual([]);
+
+    await Promise.resolve();
+    expect(reqs()).toBe(2);
+    expect(a.onPlanChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ relays: ["wss://a/"] }),
+    );
+    expect(b.onPlanChanged).toHaveBeenCalledWith(
+      expect.objectContaining({ relays: ["wss://b/"] }),
+    );
+  });
+
+  it("張り直した直後の出入りは、窓の終わりにまとめる", async () => {
+    const { manager, clock, delivery, reqs } = setupBatched();
+    manager.subscribe([{ kinds: [1] }], ["wss://a/" as RelayUrl], delivery());
+    await Promise.resolve();
+    expect(reqs()).toBe(1);
+
+    manager.subscribe([{ kinds: [7] }], ["wss://b/" as RelayUrl], delivery());
+    manager.subscribe([{ kinds: [6] }], ["wss://c/" as RelayUrl], delivery());
+    await Promise.resolve();
+    expect(reqs()).toBe(1);
+
+    clock.advance(500);
+    expect(reqs()).toBe(3);
+  });
+
+  it("窓内で閉じたセクションの購読は開かない", async () => {
+    const { manager, delivery, reqs } = setupBatched();
+    manager.subscribe([{ kinds: [1] }], ["wss://a/" as RelayUrl], delivery());
+    const removed = manager.subscribe(
+      [{ kinds: [7] }],
+      ["wss://removed/" as RelayUrl],
+      delivery(),
+    );
+    removed.close();
+
+    await Promise.resolve();
+
+    expect(reqs()).toBe(1);
+  });
+
+  it("明示的な replan は保留中のタイマーを消化して二重実行しない", async () => {
+    const clock = createFakeClock();
+    const store = new EventStore();
+    const routing = new RoutingTable(store);
+    const writeRelaysFor = vi
+      .spyOn(routing, "writeRelaysFor")
+      .mockReturnValue(["wss://relay/" as RelayUrl]);
+    const manager = new SubscriptionManager({
+      store,
+      routing,
+      connect: (url) => new FakeRelayConnection(url),
+      scheduler: clock,
+      replanBatchMs: 500,
+    });
+
+    manager.subscribe(
+      [{ kinds: [1], authors: ["a".repeat(64)] }],
+      undefined,
+      noopDelivery(),
+    );
+    await Promise.resolve();
+    manager.subscribe(
+      [{ kinds: [1], authors: ["b".repeat(64)] }],
+      undefined,
+      noopDelivery(),
+    );
+
+    manager.replan();
+    expect(writeRelaysFor).toHaveBeenCalledTimes(3);
+    clock.advance(500);
+    expect(writeRelaysFor).toHaveBeenCalledTimes(3);
+  });
+
+  it("窓が 0（既定）なら、今までどおりすぐ張り直す", () => {
+    const { manager, relays, delivery } = setup();
+    manager.subscribe([{ kinds: [1] }], ["wss://a/" as RelayUrl], delivery());
+    expect(relays.get("wss://a/" as RelayUrl)?.subscriptions).toHaveLength(1);
+  });
+});

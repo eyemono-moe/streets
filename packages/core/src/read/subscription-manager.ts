@@ -79,7 +79,15 @@ export type SubscriptionManagerOptions = {
   scheduler?: ConnectionPoolOptions["scheduler"];
   /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
   random?: ConnectionPoolOptions["random"];
+  /**
+   * セクションの出入りによる張り直しをまとめる窓（ms）。0（既定）はまとめず、
+   * 出入りのたびにすぐ張り直す。アプリでは `REPLAN_BATCH_MS` を渡す。
+   */
+  replanBatchMs?: number;
 };
+
+/** アプリが使う、セクションの出入りによる張り直しをまとめる窓。 */
+export const REPLAN_BATCH_MS = 500;
 
 /**
  * `#runReplan()` の `do/while` を打ち切るまでの最大反復回数。この巡が
@@ -222,8 +230,7 @@ export class SubscriptionManager {
   // 外側の呼び出しだけが変化がなくなるまでトップレベルで回る形にする。
   #replanning = false;
   #dirty = false;
-  // pool への受け渡しと degraded バッチ窓の 2 箇所だけで使う注入口 ——
-  // マネージャ自身はタイマーを持たない。
+  // pool への受け渡しと、degraded／需要変更のバッチ窓で使う注入口。
   readonly #scheduler: Scheduler;
   // pool.onDegradedChanged() の購読解除。dispose() で必ず呼ばないと、
   // 同じ pool が再利用されたとき、もう存在しないはずのクロージャが
@@ -232,6 +239,11 @@ export class SubscriptionManager {
   // degraded 出入りのバッチタイマー。#notify() と同じ「デバウンスでなく
   // バッチ」の形 —— 最初の出入りで 1 本張り、残りは相乗りする。
   #degradedReplanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  // セクションの出入りによる張り直しのまとめ（#requestReplan 参照）。
+  #replanQueued = false;
+  #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  #replanGeneration = 0;
+  #lastReplanAt = Number.NEGATIVE_INFINITY;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -286,7 +298,7 @@ export class SubscriptionManager {
    */
   retryNow(): void {
     this.#pool.retryNow();
-    this.#runReplan();
+    this.replan();
     if (this.#degradedReplanTimer !== null) {
       this.#scheduler.clearTimeout(this.#degradedReplanTimer);
       this.#degradedReplanTimer = null;
@@ -329,7 +341,7 @@ export class SubscriptionManager {
     this.#entries.set(entry.id, entry);
 
     try {
-      this.#runReplan();
+      this.#requestReplan();
     } catch (error) {
       this.#entries.delete(entry.id);
       throw error;
@@ -384,6 +396,7 @@ export class SubscriptionManager {
    * 自身が起こす (`#scheduleDegradedReplan` 参照)。
    */
   replan(): void {
+    this.#cancelRequestedReplan();
     this.#runReplan();
   }
 
@@ -397,7 +410,8 @@ export class SubscriptionManager {
     if (this.#degradedReplanTimer !== null) return;
     this.#degradedReplanTimer = this.#scheduler.setTimeout(() => {
       this.#degradedReplanTimer = null;
-      this.#runReplan();
+      // 同じ時点までに溜まった需要変更もここで反映し、後の重複実行を消す。
+      this.replan();
     }, DEGRADED_REPLAN_BATCH_MS);
   }
 
@@ -405,6 +419,7 @@ export class SubscriptionManager {
     // pool の通知購読とバッチタイマーを真っ先に断つ —— 後始末の順序に
     // 依存しない形にしておく。
     this.#offDegraded();
+    this.#cancelRequestedReplan();
     if (this.#degradedReplanTimer !== null) {
       this.#scheduler.clearTimeout(this.#degradedReplanTimer);
       this.#degradedReplanTimer = null;
@@ -449,8 +464,50 @@ export class SubscriptionManager {
     }
     entry.opened.clear();
 
-    // 解放した予算を他のセクションが受け取れるよう、必ず replan() する。
-    this.replan();
+    // 解放した予算を他のセクションが受け取れるよう、必ず張り直す（まとめてよい）。
+    this.#requestReplan();
+  }
+
+  /** 保留中の需要変更を、明示的な再計画や破棄より後に重複実行させない。 */
+  #cancelRequestedReplan(): void {
+    this.#replanGeneration += 1;
+    this.#replanQueued = false;
+    if (this.#replanTimer === null) return;
+    this.#scheduler.clearTimeout(this.#replanTimer);
+    this.#replanTimer = null;
+  }
+
+  /**
+   * 同じ描画内の出入りはマイクロタスクで 1 回にまとめ、その直後の出入りは
+   * `replanBatchMs` の窓の終わりに 1 回だけ張り直す。デバウンスではないため、
+   * 出入りが続いても実行時刻は後ろへ延びない。
+   */
+  #requestReplan(): void {
+    const batchMs = this.#options.replanBatchMs ?? 0;
+    if (batchMs <= 0) {
+      this.#runReplan();
+      return;
+    }
+    if (this.#replanQueued || this.#replanTimer !== null) return;
+
+    const run = () => {
+      this.#replanQueued = false;
+      this.#replanTimer = null;
+      this.#lastReplanAt = this.#scheduler.now();
+      this.#runReplan();
+    };
+    const wait = this.#lastReplanAt + batchMs - this.#scheduler.now();
+    if (wait > 0) {
+      this.#replanTimer = this.#scheduler.setTimeout(run, wait);
+      return;
+    }
+
+    this.#replanQueued = true;
+    const generation = ++this.#replanGeneration;
+    queueMicrotask(() => {
+      // dispose() や明示的な replan() が挟まった古いマイクロタスクは捨てる。
+      if (this.#replanQueued && this.#replanGeneration === generation) run();
+    });
   }
 
   /** `#replanOnce()` への一本化された入口。再入時は実行を遅延する。 */
