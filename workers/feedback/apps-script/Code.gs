@@ -41,7 +41,7 @@ function feedbackSummary(details) {
 
 function ensureSystemColumns(sheet) {
   const lock = LockService.getDocumentLock();
-  lock.waitLock(10_000);
+  lock.waitLock(10000);
   try {
     const lastColumn = Math.max(sheet.getLastColumn(), 1);
     const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
@@ -118,7 +118,7 @@ function onFormSubmit(event) {
     sheet.getRange(row, columns["処理状態"]).setValue("failed");
     sheet
       .getRange(row, columns["処理エラー"])
-      .setValue(String(error).slice(0, 2_000));
+      .setValue(String(error).slice(0, 2000));
     throw error;
   }
 }
