@@ -1,10 +1,10 @@
 import { type ColumnDef, TIMELINE_KINDS } from "@streets/core/deck/deck";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { ColumnHeader } from "../columns/ColumnHeader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
-import { Header } from "./Column";
 import { Sidebar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {
@@ -41,7 +41,12 @@ export const カラムヘッダー: Story = {
     <EventSceneProvider scene={{ events: [viewer.profile()] }}>
       <Mediates handle={() => true}>
         <div class="w-[360px] border-primary border-x">
-          <Header column={home} open={false} draggable onTitle={() => {}} />
+          <ColumnHeader
+            column={home}
+            open={false}
+            draggable
+            onTitle={() => {}}
+          />
         </div>
       </Mediates>
     </EventSceneProvider>

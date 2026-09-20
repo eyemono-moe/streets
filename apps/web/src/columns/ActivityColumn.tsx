@@ -68,7 +68,7 @@ const Reactions: Component<{ people: readonly ActivityReaction[] }> = (
   </div>
 );
 
-export const ActivityView: Component<{
+export const ActivityColumn: Component<{
   activity: EventActivity;
   settled: boolean;
   incomplete?: boolean;
@@ -135,4 +135,4 @@ export const ActivityView: Component<{
   );
 };
 
-export default ActivityView;
+export default ActivityColumn;

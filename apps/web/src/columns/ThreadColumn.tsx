@@ -7,7 +7,7 @@ import { type Component, createMemo } from "solid-js";
 import ThreadSpineView from "./ThreadSpineView";
 
 /** 焦点のイベントを起点に、根までの祖先とその返信を集めて出す。 */
-const ThreadView: Component<{
+const ThreadColumn: Component<{
   focus: string;
   readLayer: ReadLayer;
   expandMedia: boolean;
@@ -41,4 +41,4 @@ const ThreadView: Component<{
   );
 };
 
-export default ThreadView;
+export default ThreadColumn;
