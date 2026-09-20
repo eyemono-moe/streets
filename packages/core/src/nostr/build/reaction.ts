@@ -1,3 +1,4 @@
+import type { RelayUrl } from "../../relay/relay-connection";
 import type { NostrEvent } from "../event";
 import type { EventDraft } from "./draft";
 
@@ -13,10 +14,12 @@ export type ReactionInput =
 export const buildReaction = (
   target: NostrEvent,
   input: ReactionInput,
+  options?: { relayHint?: RelayUrl },
 ): EventDraft => {
+  const hint = options?.relayHint ?? "";
   const tags: string[][] = [
-    ["e", target.id],
-    ["p", target.pubkey],
+    ["e", target.id, hint, target.pubkey],
+    ["p", target.pubkey, hint],
     ["k", String(target.kind)],
   ];
   if (input.type === "emoji") {
