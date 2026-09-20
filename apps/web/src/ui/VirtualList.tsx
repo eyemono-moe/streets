@@ -1,5 +1,12 @@
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { For, type JSX, Show } from "solid-js";
+import {
+  For,
+  type JSX,
+  Show,
+  createEffect,
+  onCleanup,
+  onMount,
+} from "solid-js";
 
 export type VirtualListProps<T> = {
   items: readonly T[];
@@ -16,6 +23,8 @@ export type VirtualListProps<T> = {
  */
 const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   let root: HTMLDivElement | undefined;
+  let followsStart = true;
+  let firstKey: string | undefined;
   const scrollElement = () =>
     (root?.closest("[data-scroll-container]") as HTMLDivElement | null) ??
     (root?.parentElement as HTMLDivElement | null);
@@ -41,6 +50,30 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     // 先頭への追加で既存の投稿が後ろへずれても、表示中の投稿を同じ位置に保つ。
     anchorTo: "end",
     overscan: 5,
+  });
+
+  onMount(() => {
+    const scroller = scrollElement();
+    if (!scroller) return;
+    const updateFollowsStart = () => {
+      followsStart = scroller.scrollTop <= virtualizer.options.scrollMargin + 1;
+    };
+    updateFollowsStart();
+    scroller.addEventListener("scroll", updateFollowsStart, { passive: true });
+    onCleanup(() => scroller.removeEventListener("scroll", updateFollowsStart));
+  });
+
+  createEffect(() => {
+    const first = props.items[0];
+    const nextKey = first === undefined ? undefined : props.itemKey(first);
+    const shouldFollow =
+      firstKey !== undefined && nextKey !== firstKey && followsStart;
+    firstKey = nextKey;
+    if (shouldFollow) {
+      // anchorTo は既存行を安定させるため常に有効にし、一覧先頭にいた場合だけ
+      // その補正後に新しい先頭へ追従する。
+      queueMicrotask(() => virtualizer.scrollToOffset(0));
+    }
   });
 
   return (
