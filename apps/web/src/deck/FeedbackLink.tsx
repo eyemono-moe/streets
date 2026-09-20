@@ -1,5 +1,5 @@
 import { type Component, Show, createSignal } from "solid-js";
-import Button from "../ui/Button";
+import Button, { ButtonLink } from "../ui/Button";
 import {
   DialogClose,
   DialogContent,
@@ -104,16 +104,16 @@ const FeedbackLink: Component<{
                   <Button variant="ghost" onClick={() => setOpen(false)}>
                     閉じる
                   </Button>
-                  <Button
+                  <ButtonLink
                     variant="primary"
                     icon="i-material-symbols:open-in-new-rounded"
-                    onClick={() => {
-                      window.open(url(), "_blank", "noopener,noreferrer");
-                      setOpen(false);
-                    }}
+                    href={url()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setOpen(false)}
                   >
                     不具合を報告・機能をリクエスト
-                  </Button>
+                  </ButtonLink>
                 </div>
               </DialogContent>
             </DialogPortal>

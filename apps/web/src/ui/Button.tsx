@@ -46,6 +46,51 @@ export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: string;
 };
 
+export type ButtonLinkProps = JSX.AnchorHTMLAttributes<HTMLAnchorElement> &
+  Pick<ButtonProps, "variant" | "size" | "shape" | "block" | "icon">;
+
+type VisualProps = Pick<
+  ButtonProps,
+  "variant" | "size" | "shape" | "block" | "icon" | "class" | "children"
+>;
+
+const buttonClassName = (props: VisualProps, link = false): string => {
+  const iconOnly = props.icon !== undefined && props.children === undefined;
+  return [
+    `inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap font-600 text-caption transition-colors ${link ? "cursor-pointer" : "enabled:cursor-pointer disabled:cursor-default"}`,
+    props.shape === "rounded" ? "rounded-2" : "rounded-full",
+    iconOnly ? ICON_ONLY_SIZE[props.size ?? "md"] : SIZE[props.size ?? "md"],
+    link
+      ? VARIANT[props.variant ?? "secondary"].replaceAll("enabled:", "")
+      : VARIANT[props.variant ?? "secondary"],
+    link || props.variant === "muted" ? "" : "disabled:opacity-50",
+    props.block ? "w-full" : "",
+    props.class ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+};
+
+const ButtonContents: ParentComponent<Pick<ButtonProps, "icon" | "size">> = (
+  props,
+) => {
+  const iconOnly = () =>
+    props.icon !== undefined && props.children === undefined;
+  return (
+    <>
+      {props.icon ? (
+        <span
+          class={`${props.icon} shrink-0 ${props.size === "sm" ? "size-3.5" : "size-4"}`}
+          aria-hidden="true"
+        />
+      ) : null}
+      {iconOnly() ? null : (
+        <span class="min-w-0 truncate">{props.children}</span>
+      )}
+    </>
+  );
+};
+
 /**
  * ボタンの見た目の元。種類ごとの色は 1 つの class にまとめて当てる ——
  * 固定の class と classList に色を分けて書くと、どちらが勝つかが CSS の並びで決まる。
@@ -61,33 +106,32 @@ const Button: ParentComponent<ButtonProps> = (props) => {
     "children",
     "type",
   ]);
-  const iconOnly = () => own.icon !== undefined && own.children === undefined;
-  const className = () =>
-    [
-      // 高さを決めているので、折り返さずに切る。
-      "inline-flex min-w-0 shrink-0 items-center justify-center whitespace-nowrap font-600 text-caption transition-colors enabled:cursor-pointer disabled:cursor-default",
-      own.shape === "rounded" ? "rounded-2" : "rounded-full",
-      iconOnly() ? ICON_ONLY_SIZE[own.size ?? "md"] : SIZE[own.size ?? "md"],
-      VARIANT[own.variant ?? "secondary"],
-      // muted は押せない見た目そのものなので、さらに薄くしない。
-      own.variant === "muted" ? "" : "disabled:opacity-50",
-      own.block ? "w-full" : "",
-      own.class ?? "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-
   return (
-    <button type={own.type ?? "button"} class={className()} {...rest}>
-      {own.icon ? (
-        <span
-          class={`${own.icon} shrink-0 ${own.size === "sm" ? "size-3.5" : "size-4"}`}
-          aria-hidden="true"
-        />
-      ) : null}
-      {/* 空の span でも gap が効いて、アイコンが中心からずれる。 */}
-      {iconOnly() ? null : <span class="min-w-0 truncate">{own.children}</span>}
+    <button type={own.type ?? "button"} class={buttonClassName(own)} {...rest}>
+      <ButtonContents icon={own.icon} size={own.size}>
+        {own.children}
+      </ButtonContents>
     </button>
+  );
+};
+
+/** 別ページへ移動する操作を、ボタンと同じ見た目で表示する。 */
+export const ButtonLink: ParentComponent<ButtonLinkProps> = (props) => {
+  const [own, rest] = splitProps(props, [
+    "variant",
+    "size",
+    "shape",
+    "block",
+    "icon",
+    "class",
+    "children",
+  ]);
+  return (
+    <a class={buttonClassName(own, true)} {...rest}>
+      <ButtonContents icon={own.icon} size={own.size}>
+        {own.children}
+      </ButtonContents>
+    </a>
   );
 };
 
