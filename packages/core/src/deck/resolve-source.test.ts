@@ -135,6 +135,17 @@ describe("resolveSource", () => {
     });
   });
 
+  it("activity は e と q の両方で対象イベントを逆引きする", () => {
+    const target = "b".repeat(64);
+    expect(resolveSource({ kind: "activity", target }, ctx())).toEqual({
+      type: "nostr",
+      filters: [
+        { kinds: [6, 7, 16], "#e": [target] },
+        { kinds: [1], "#q": [target] },
+      ],
+    });
+  });
+
   it("notifications は自分宛を read リレーで待つ", () => {
     // 捕まえる変異: `#p` に viewer ではなく空配列を入れる (誰にもマッチ
     // しないカラムになる) / kinds を [1] だけにする (リアクションと

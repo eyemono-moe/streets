@@ -46,6 +46,12 @@ export const buildThreadColumn = (focus: string): ColumnDef => ({
   source: { kind: "thread", focus },
 });
 
+export const buildActivityColumn = (target: string): ColumnDef => ({
+  id: `activity:${target}`,
+  title: "アクティビティ",
+  source: { kind: "activity", target },
+});
+
 /**
  * 追加フォームの入力から `ColumnDef` を作る。入力が不正なら `undefined` を
  * 返し、呼び出し側はフォームを閉じずにエラーを出す —— 黙って作らない。

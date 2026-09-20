@@ -1,6 +1,6 @@
 import { buildUserColumn } from "@streets/core/deck/column-presets";
 import { parseContent } from "@streets/core/nostr/content";
-import { type Component, Show } from "solid-js";
+import { type Component, type JSX, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
@@ -9,7 +9,9 @@ import { useDispatch } from "../ui-events";
 import FollowButton from "./FollowButton";
 
 /** 一覧の 1 人。押すとその人のカラムを重ねる。 */
-const ProfileRow: Component<{ pubkey: string }> = (props) => {
+const ProfileRow: Component<{ pubkey: string; detail?: JSX.Element }> = (
+  props,
+) => {
   const dispatch = useDispatch();
   const details = useProfileDetails(() => props.pubkey);
   const profile = () => details()?.profile;
@@ -60,6 +62,7 @@ const ProfileRow: Component<{ pubkey: string }> = (props) => {
             </div>
             <FollowButton pubkey={props.pubkey} size="small" />
           </div>
+          {props.detail}
           <Show when={profile()?.about}>
             {(about) => (
               <NoteText

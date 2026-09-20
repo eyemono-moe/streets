@@ -18,6 +18,8 @@ export const columnTitle = (column: ColumnDef): ColumnTitle => {
       return { text: "ブックマーク" };
     case "thread":
       return { text: "スレッド" };
+    case "activity":
+      return { text: "アクティビティ" };
     case "user":
       return { person: source.pubkey, suffix: "" };
     case "followees-list":

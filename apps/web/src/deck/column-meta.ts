@@ -30,6 +30,11 @@ export const columnMeta = (column: ColumnDef): ColumnMeta => {
         icon: "i-material-symbols:mode-comment-outline-rounded",
         subtitle: "スレッド",
       };
+    case "activity":
+      return {
+        icon: "i-material-symbols:monitoring-rounded",
+        subtitle: "リポスト・引用・リアクション",
+      };
     case "notifications":
       return {
         icon: "i-material-symbols:notifications-outline-rounded",
