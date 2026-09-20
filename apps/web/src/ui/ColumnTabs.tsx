@@ -37,7 +37,7 @@ const ColumnTabs: Component<{
           </Tabs.Trigger>
         )}
       </For>
-      <Tabs.Indicator class="absolute bottom-0 flex h-0.5 items-center justify-center transition-[width,transform] duration-150">
+      <Tabs.Indicator class="absolute bottom-0 flex h-0.5 w-[var(--width)] items-center justify-center">
         <span class="h-0.5 w-6 rounded-full bg-accent-primary" />
       </Tabs.Indicator>
     </Tabs.List>

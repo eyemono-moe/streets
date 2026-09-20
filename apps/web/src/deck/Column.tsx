@@ -210,23 +210,21 @@ const StackedHeader: Component<{
           に戻る
         </p>
       </button>
-      <Show when={props.column.source.kind !== "activity"}>
-        <button
-          type="button"
-          aria-label="デッキのカラムとして開く"
-          title="デッキのカラムとして開く"
-          class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-          onClick={() => {
-            dispatch({ type: "stack/back" });
-            dispatch({ type: "deck/add-column", column: props.column });
-          }}
-        >
-          <span
-            class="i-material-symbols:open-in-new-rounded size-4.5"
-            aria-hidden="true"
-          />
-        </button>
-      </Show>
+      <button
+        type="button"
+        aria-label="デッキのカラムとして開く"
+        title="デッキのカラムとして開く"
+        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+        onClick={() => {
+          dispatch({ type: "stack/back" });
+          dispatch({ type: "deck/add-column", column: props.column });
+        }}
+      >
+        <span
+          class="i-material-symbols:open-in-new-rounded size-4.5"
+          aria-hidden="true"
+        />
+      </button>
     </header>
   );
 };
