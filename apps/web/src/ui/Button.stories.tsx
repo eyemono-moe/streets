@@ -1,6 +1,10 @@
 import { For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import Button, { type ButtonProps, type ButtonVariant } from "./Button";
+import Button, {
+  ButtonLink,
+  type ButtonProps,
+  type ButtonVariant,
+} from "./Button";
 
 const VARIANTS: ButtonVariant[] = [
   "primary",
@@ -40,6 +44,20 @@ export const アイコン付き: Story = {
     icon: "i-material-symbols:add-rounded",
     children: "追加",
   },
+};
+
+export const 外部リンク: Story = {
+  render: () => (
+    <ButtonLink
+      variant="primary"
+      icon="i-material-symbols:open-in-new-rounded"
+      href="https://example.com"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      外部ページを開く
+    </ButtonLink>
+  ),
 };
 
 /** 種類 × 大きさ × 押せない状態を並べる。 */

@@ -5,7 +5,8 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
-import { Sidebar } from "./Nav";
+import FeedbackLink from "./FeedbackLink";
+import { Sidebar, TabBar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {
   name: "me",
@@ -62,6 +63,52 @@ export const サイドバー: Story = {
             pubkey={viewer.pubkey}
             columns={columns}
             onLogout={() => {}}
+            feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+          />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
+
+export const フィードバック未設定: Story = {
+  render: () => (
+    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+      <Mediates handle={() => true}>
+        <div class="flex h-[480px] bg-secondary">
+          <Sidebar
+            pubkey={viewer.pubkey}
+            columns={columns}
+            onLogout={() => {}}
+            feedbackUrl={null}
+          />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
+
+export const フィードバック案内: Story = {
+  render: () => (
+    <div class="grid min-h-120 place-items-center bg-secondary p-4">
+      <FeedbackLink
+        size="sidebar"
+        initialOpen
+        template="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+      />
+    </div>
+  ),
+};
+
+export const 狭い画面の下部ナビ: Story = {
+  render: () => (
+    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+      <Mediates handle={() => true}>
+        <div class="w-[390px] bg-secondary pt-80">
+          <TabBar
+            pubkey={viewer.pubkey}
+            onLogout={() => {}}
+            feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
           />
         </div>
       </Mediates>
