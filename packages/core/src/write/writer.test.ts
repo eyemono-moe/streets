@@ -533,6 +533,72 @@ describe("replace", () => {
     expect(seen).toEqual([current]);
   });
 
+  it("同じ置換対象への並行変更を直列化し、後続は先行版を取り直す", async () => {
+    let remoteCurrent: NostrEvent | undefined;
+    const fetched: (NostrEvent | undefined)[] = [];
+    const published: NostrEvent[] = [];
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: stubPublisher(async (event) => {
+        published.push(event);
+        remoteCurrent = event;
+        return ok;
+      }),
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => {
+        fetched.push(remoteCurrent);
+        return remoteCurrent;
+      },
+    });
+    const follow = (followee: string) =>
+      writer.replace(3, undefined, (current) => ({
+        kind: 3,
+        tags: [...(current?.tags ?? []), ["p", followee]],
+        content: "",
+      }));
+
+    const [first, second] = await Promise.all([follow("a"), follow("b")]);
+
+    // 捕まえる変異: replace を並行実行し、両方が undefined を元に作られる。
+    expect(fetched).toEqual([undefined, first.event]);
+    expect(published).toEqual([first.event, second.event]);
+    expect(second.event.tags).toEqual([
+      ["p", "a"],
+      ["p", "b"],
+    ]);
+    expect(second.event.created_at).toBe(first.event.created_at + 1);
+  });
+
+  it("先行する置換が失敗しても、同じ対象の後続を止めない", async () => {
+    let fetchCount = 0;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: stubPublisher(async () => ok),
+      pubkey: () => PUBKEY,
+      fetchLatest: async () => {
+        fetchCount += 1;
+        if (fetchCount === 1) throw new RefetchFailedError([]);
+        return undefined;
+      },
+    });
+    const replace = () =>
+      writer.replace(3, undefined, () => ({
+        kind: 3,
+        tags: [],
+        content: "",
+      }));
+
+    const first = replace();
+    const second = replace();
+
+    await expect(first).rejects.toBeInstanceOf(RefetchFailedError);
+    await expect(second).resolves.toBeDefined();
+    expect(fetchCount).toBe(2);
+  });
+
   it("再取得が失敗したら何も書かない", async () => {
     // 捕まえる変異: current = undefined で続行する (既存のリストを 1 件だけで上書きする破壊になる)。
     const { writer, store, calls } = setupReplace(undefined, {
