@@ -5,6 +5,7 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
+import FeedbackLink from "./FeedbackLink";
 import { Sidebar, TabBar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {
@@ -84,6 +85,18 @@ export const フィードバック未設定: Story = {
         </div>
       </Mediates>
     </EventSceneProvider>
+  ),
+};
+
+export const フィードバック案内: Story = {
+  render: () => (
+    <div class="grid min-h-120 place-items-center bg-secondary p-4">
+      <FeedbackLink
+        size="sidebar"
+        initialOpen
+        template="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+      />
+    </div>
   ),
 };
 
