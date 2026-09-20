@@ -21,6 +21,7 @@ import { PAGE_SIZE } from "@streets/core/read/source";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { visibleColumnItems } from "@streets/core/view/column-items";
+import { eventActivity } from "@streets/core/view/event-activity";
 import {
   type NotificationRow,
   actionTarget,
@@ -43,6 +44,7 @@ import ProfileHeader from "../profile/ProfileHeader";
 import ProfileList from "../profile/ProfileList";
 import { useMutes } from "../settings/MuteMediator";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
+import ActivityView from "./ActivityView";
 import ColumnSettings from "./ColumnSettings";
 import ColumnTitle, { useColumnTitle } from "./ColumnTitle";
 import OlderLoader from "./OlderLoader";
@@ -237,6 +239,10 @@ const Column: Component<ColumnProps> = (props) => {
     props.column.source.kind === "thread"
       ? props.column.source.focus
       : undefined;
+  const activityTarget = () =>
+    props.column.source.kind === "activity"
+      ? props.column.source.target
+      : undefined;
   // ユーザーのカラムは、投稿の上にプロフィールを出す。
   const profilePubkey = () =>
     props.column.source.kind === "user"
@@ -253,9 +259,12 @@ const Column: Component<ColumnProps> = (props) => {
   };
   // 流れてくるカラムは 1 ページずつ取る。人の一覧（フォロー・フォロワー）は、切ると
   // 人数が変わってしまうので今までどおり。
-  const paged = !["followees-list", "followers-list", "thread"].includes(
-    props.column.source.kind,
-  );
+  const paged = ![
+    "followees-list",
+    "followers-list",
+    "thread",
+    "activity",
+  ].includes(props.column.source.kind);
   const section = createSection({
     manager: props.readLayer.manager,
     pageSize: paged ? PAGE_SIZE : undefined,
@@ -443,7 +452,11 @@ const Column: Component<ColumnProps> = (props) => {
   const body = () => (
     <div
       ref={scroller}
-      class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+      class="min-h-0 flex-1"
+      classList={{
+        "flex flex-col overflow-hidden": activityTarget() !== undefined,
+        "overflow-y-auto overscroll-y-contain": activityTarget() === undefined,
+      }}
     >
       {/* 投稿・通知の 1 件ずつの境界で捕まえきれなかったものの受け皿。カラムの中身だけを置き換え、ほかのカラムは動き続ける。 */}
       <ErrorBoundary
@@ -470,6 +483,15 @@ const Column: Component<ColumnProps> = (props) => {
                 focus={focus()}
                 readLayer={props.readLayer}
                 expandMedia={expandMedia()}
+              />
+            )}
+          </Match>
+          <Match when={activityTarget()}>
+            {(target) => (
+              <ActivityView
+                activity={eventActivity(section.items(), target())}
+                settled={section.status().phase === "settled"}
+                incomplete={section.status().incomplete !== undefined}
               />
             )}
           </Match>

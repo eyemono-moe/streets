@@ -82,6 +82,16 @@ export const resolveSource = (
     return { type: "nostr", filters: [] };
   }
 
+  if (source.kind === "activity") {
+    return {
+      type: "nostr",
+      filters: [
+        { kinds: [6, 7, 16], "#e": [source.target] },
+        { kinds: [1], "#q": [source.target] },
+      ],
+    };
+  }
+
   if (source.kind === "user") {
     return {
       type: "nostr",

@@ -36,6 +36,20 @@ describe("loadDeck / saveDeck", () => {
     expect(loadDeck(saveDeck(withNotifications))).toEqual(withNotifications);
   });
 
+  it("activity 列を読み戻せる", () => {
+    const withActivity: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "a",
+          title: "アクティビティ",
+          source: { kind: "activity", target: "a".repeat(64) },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(withActivity))).toEqual(withActivity);
+  });
+
   it("null (未保存) は undefined", () => {
     // JSON.parse(null) は例外を投げず null 扱いになるため検証はできないが、意図を明示するため早期リターンを残す。
     expect(loadDeck(null)).toBeUndefined();

@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { FALLBACK_RELAYS, SEARCH_RELAYS } from "../read/default-relays";
-import { buildColumn } from "./column-presets";
+import { buildActivityColumn, buildColumn } from "./column-presets";
 
 const HEX = "a".repeat(64);
 // HEX の npub 表現。実際に走らせた値 (手計算では出せない)。
 const NPUB = "npub1424242424242424242424242424242424242424242424242424qamrcaj";
 
 describe("buildColumn", () => {
+  it("activity は対象イベントから重複しないidを作る", () => {
+    expect(buildActivityColumn(HEX)).toEqual({
+      id: `activity:${HEX}`,
+      title: "アクティビティ",
+      source: { kind: "activity", target: HEX },
+    });
+  });
   it("home は派生ソースを作る", () => {
     // 捕まえる変異: home もフィルタを焼き込む
     expect(buildColumn("home", "")?.source).toEqual({

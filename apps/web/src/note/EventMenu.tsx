@@ -1,4 +1,5 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { buildActivityColumn } from "@streets/core/deck/column-presets";
 import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -23,6 +24,11 @@ type MenuItem = {
 };
 
 const EVENT_ITEMS: MenuItem[] = [
+  {
+    value: "activity",
+    label: "アクティビティを見る",
+    icon: "i-material-symbols:monitoring-rounded",
+  },
   {
     value: "copy-link",
     label: "リンクをコピー",
@@ -179,6 +185,12 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         lazyMount
         unmountOnExit
         onSelect={(details) => {
+          if (details.value === "activity") {
+            dispatch({
+              type: "stack/open",
+              column: buildActivityColumn(props.event.id),
+            });
+          }
           if (details.value === "copy-link") void copyLink();
           if (details.value === "details") setDetails(true);
           if (details.value === "author-relays") setAuthorRelays(true);
