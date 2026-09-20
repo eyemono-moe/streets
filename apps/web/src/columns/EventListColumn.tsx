@@ -9,7 +9,6 @@ import {
 import {
   type Component,
   ErrorBoundary,
-  For,
   Match,
   Show,
   Switch,
@@ -19,6 +18,7 @@ import { createStore, reconcile } from "solid-js/store";
 import OlderLoader from "../deck/OlderLoader";
 import ActionNotice from "../note/ActionNotice";
 import Event, { BrokenEvent } from "../note/Event";
+import VirtualList from "../ui/VirtualList";
 
 /** 投稿または通知を並べ、必要なら古いページを取り足す。 */
 const EventListColumn: Component<{
@@ -53,7 +53,11 @@ const EventListColumn: Component<{
           <Show
             when={notifications()}
             fallback={
-              <For each={props.items}>
+              <VirtualList
+                items={props.items}
+                itemKey={(event) => event.id}
+                class="[&>*]:border-primary [&>*]:border-b"
+              >
                 {(event) => (
                   <Event
                     event={event}
@@ -61,10 +65,14 @@ const EventListColumn: Component<{
                     expandMedia={expandMedia()}
                   />
                 )}
-              </For>
+              </VirtualList>
             }
           >
-            <For each={rows.list}>
+            <VirtualList
+              items={rows.list}
+              itemKey={(row) => row.key}
+              class="[&>*]:border-primary [&>*]:border-b"
+            >
               {(row) => (
                 <ErrorBoundary
                   fallback={(error) => {
@@ -107,7 +115,7 @@ const EventListColumn: Component<{
                   </Show>
                 </ErrorBoundary>
               )}
-            </For>
+            </VirtualList>
           </Show>
         </div>
         <Show when={props.paged}>
