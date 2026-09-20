@@ -16,14 +16,19 @@ const carol = createStoryAuthor(33, {
   name: "carol",
   displayName: "リアクションしたひと",
 });
+const original = alice.note("引用される元の投稿です。");
+const quote = bob.quote(original, "この観点が参考になります。");
 
 const activity: EventActivity = {
   reposts: [alice.pubkey],
-  quotes: [bob.pubkey],
+  quotes: [quote],
   reactions: [
     {
       pubkey: carol.pubkey,
-      contents: [{ type: "like" }, { type: "text", content: "🎉" }],
+      contents: [
+        { content: { type: "like" }, count: 3 },
+        { content: { type: "text", content: "🎉" }, count: 1 },
+      ],
     },
   ],
 };
@@ -38,9 +43,17 @@ const meta = {
   title: "カラム/イベントのアクティビティ",
   component: (props: Props) => (
     <EventSceneProvider
-      scene={{ events: [alice.profile(), bob.profile(), carol.profile()] }}
+      scene={{
+        events: [
+          alice.profile(),
+          bob.profile(),
+          carol.profile(),
+          original,
+          quote,
+        ],
+      }}
     >
-      <div class="w-full bg-primary">
+      <div class="h-120 w-full bg-primary">
         <ActivityView {...props} />
       </div>
     </EventSceneProvider>

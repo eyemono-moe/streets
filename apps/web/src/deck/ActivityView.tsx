@@ -3,6 +3,7 @@ import type {
   EventActivity,
 } from "@streets/core/view/event-activity";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
+import Event from "../note/Event";
 import { Mark } from "../note/ReactionList";
 import ProfileRow from "../profile/ProfileRow";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
@@ -52,9 +53,12 @@ const Reactions: Component<{ people: readonly ActivityReaction[] }> = (
           detail={
             <span class="c-secondary flex flex-wrap gap-1.5 text-caption">
               <For each={person.contents}>
-                {(content) => (
+                {(reaction) => (
                   <span class="flex min-h-6 items-center rounded-1.5 border border-primary px-1.5">
-                    <Mark content={content} mine={false} />
+                    <Mark content={reaction.content} mine={false} />
+                    <Show when={reaction.count > 1}>
+                      <span class="ml-1 tabular-nums">×{reaction.count}</span>
+                    </Show>
                   </span>
                 )}
               </For>
@@ -100,7 +104,11 @@ export const ActivityView: Component<{
           count={props.activity.quotes.length}
           empty="引用はまだありません。"
         >
-          <People people={props.activity.quotes} />
+          <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
+            <For each={props.activity.quotes}>
+              {(event) => <Event event={event} size="normal" />}
+            </For>
+          </div>
         </Result>
       ),
     },

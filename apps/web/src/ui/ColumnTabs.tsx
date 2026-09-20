@@ -18,7 +18,7 @@ const ColumnTabs: Component<{
     defaultValue={props.defaultValue ?? props.tabs[0]?.value}
     lazyMount
     unmountOnExit
-    class="min-h-0"
+    class="flex h-full min-h-0 flex-1 flex-col"
   >
     <Tabs.List
       aria-label={props.label}
@@ -37,11 +37,16 @@ const ColumnTabs: Component<{
           </Tabs.Trigger>
         )}
       </For>
-      <Tabs.Indicator class="absolute bottom-0 h-0.5 bg-accent-primary transition-[width,transform] duration-150" />
+      <Tabs.Indicator class="absolute bottom-0 flex h-0.5 items-center justify-center transition-[width,transform] duration-150">
+        <span class="h-0.5 w-6 rounded-full bg-accent-primary" />
+      </Tabs.Indicator>
     </Tabs.List>
     <For each={props.tabs}>
       {(tab) => (
-        <Tabs.Content value={tab.value} class="outline-none">
+        <Tabs.Content
+          value={tab.value}
+          class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain outline-none"
+        >
           {tab.content()}
         </Tabs.Content>
       )}

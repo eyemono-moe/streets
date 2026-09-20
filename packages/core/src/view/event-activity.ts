@@ -4,12 +4,12 @@ import { type ReactionContent, parseReaction } from "../nostr/reaction";
 
 export type ActivityReaction = {
   pubkey: string;
-  contents: ReactionContent[];
+  contents: { content: ReactionContent; count: number }[];
 };
 
 export type EventActivity = {
   reposts: string[];
-  quotes: string[];
+  quotes: NostrEvent[];
   reactions: ActivityReaction[];
 };
 
@@ -26,8 +26,11 @@ export const eventActivity = (
   targetId: string,
 ): EventActivity => {
   const reposts = new Set<string>();
-  const quotes = new Set<string>();
-  const reactions = new Map<string, Map<string, ReactionContent>>();
+  const quotes = new Map<string, NostrEvent>();
+  const reactions = new Map<
+    string,
+    Map<string, { content: ReactionContent; count: number }>
+  >();
 
   for (const event of events) {
     if (
@@ -43,19 +46,24 @@ export const eventActivity = (
         (target) => target.form === "id" && target.id === targetId,
       )
     ) {
-      quotes.add(event.pubkey);
+      quotes.set(event.id, event);
       continue;
     }
     const reaction = parseReaction(event);
     if (reaction?.targetId !== targetId) continue;
     const contents = reactions.get(event.pubkey) ?? new Map();
-    contents.set(reactionKey(reaction.content), reaction.content);
+    const key = reactionKey(reaction.content);
+    const current = contents.get(key);
+    contents.set(key, {
+      content: reaction.content,
+      count: (current?.count ?? 0) + 1,
+    });
     reactions.set(event.pubkey, contents);
   }
 
   return {
     reposts: [...reposts],
-    quotes: [...quotes],
+    quotes: [...quotes.values()],
     reactions: [...reactions].map(([pubkey, contents]) => ({
       pubkey,
       contents: [...contents.values()],

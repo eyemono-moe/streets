@@ -15,12 +15,14 @@ const event = (kind: number, pubkey: string, tags: string[][], content = "") =>
   }) satisfies NostrEvent;
 
 describe("eventActivity", () => {
-  it("操作を種類ごとに分け、同じ利用者を重複させない", () => {
+  it("操作を種類ごとに分け、同じリアクションの回数を残す", () => {
+    const quote = event(1, "quoter", [["q", TARGET]]);
     const result = eventActivity(
       [
         event(6, "reposter", [["e", TARGET]]),
         event(6, "reposter", [["e", TARGET]]),
-        event(1, "quoter", [["q", TARGET]]),
+        quote,
+        event(7, "reactor", [["e", TARGET]], "+"),
         event(7, "reactor", [["e", TARGET]], "+"),
         event(7, "reactor", [["e", TARGET]], "🎉"),
       ],
@@ -28,11 +30,14 @@ describe("eventActivity", () => {
     );
 
     expect(result.reposts).toEqual(["reposter"]);
-    expect(result.quotes).toEqual(["quoter"]);
+    expect(result.quotes).toEqual([quote]);
     expect(result.reactions).toEqual([
       {
         pubkey: "reactor",
-        contents: [{ type: "like" }, { type: "text", content: "🎉" }],
+        contents: [
+          { content: { type: "like" }, count: 2 },
+          { content: { type: "text", content: "🎉" }, count: 1 },
+        ],
       },
     ]);
   });
