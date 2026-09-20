@@ -159,7 +159,9 @@ export const createWriteStack = (options: {
       await tracked("リポスト").publish(draft);
     },
     async react(event, input) {
-      await tracked("リアクション").publish(buildReaction(event, input));
+      await tracked("リアクション").publish(
+        buildReaction(event, input, { relayHint: relayHintFor(event.id) }),
+      );
     },
     bookmarked: (id) => bookmarkIds().includes(id),
     async setBookmark(event, on) {

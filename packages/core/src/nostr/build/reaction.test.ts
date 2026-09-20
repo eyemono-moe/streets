@@ -19,12 +19,18 @@ describe("buildReaction", () => {
   it("like は content が + で、e/p/k を持つ", () => {
     // 捕まえる変異: k タグを落とす —— 読み取り側の parseReaction が既に見ているので、落とすと自分が書いたものを自分で読めなくなる
     const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64), kind: 1 });
-    const draft = buildReaction(target, { type: "like" });
+    const draft = buildReaction(
+      target,
+      { type: "like" },
+      {
+        relayHint: "wss://relay.example",
+      },
+    );
     expect(draft.kind).toBe(7);
     expect(draft.content).toBe("+");
     expect(draft.tags).toEqual([
-      ["e", "1".repeat(64)],
-      ["p", "9".repeat(64)],
+      ["e", "1".repeat(64), "wss://relay.example", "9".repeat(64)],
+      ["p", "9".repeat(64), "wss://relay.example"],
       ["k", "1"],
     ]);
   });
@@ -38,9 +44,18 @@ describe("buildReaction", () => {
     });
     const draft = buildReaction(target, { type: "like" });
     expect(draft.tags).toEqual([
-      ["e", "1".repeat(64)],
-      ["p", "9".repeat(64)],
+      ["e", "1".repeat(64), "", "9".repeat(64)],
+      ["p", "9".repeat(64), ""],
       ["k", "30023"],
+    ]);
+  });
+
+  it("relayHint が無くても著者ヒントの位置を崩さない", () => {
+    const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
+    const draft = buildReaction(target, { type: "like" });
+    expect(draft.tags.slice(0, 2)).toEqual([
+      ["e", target.id, "", target.pubkey],
+      ["p", target.pubkey, ""],
     ]);
   });
 
