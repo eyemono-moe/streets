@@ -2,11 +2,18 @@ import type {
   ActivityReaction,
   EventActivity,
 } from "@streets/core/view/event-activity";
+import { eventActivity } from "@streets/core/view/event-activity";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import Event from "../note/Event";
 import { ReactionChip } from "../note/ReactionList";
 import ProfileRow from "../profile/ProfileRow";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
+import ColumnBody from "./ColumnBody";
+import {
+  type ColumnReadProps,
+  alertsFor,
+  createColumnSection,
+} from "./column-section";
 
 const Result: Component<{
   count: number;
@@ -135,4 +142,27 @@ export const ActivityView: Component<{
   );
 };
 
-export default ActivityView;
+const ActivityColumn: Component<
+  ColumnReadProps & {
+    target: string;
+    scrollerRef: (element: HTMLDivElement) => void;
+  }
+> = (props) => {
+  const section = createColumnSection(props);
+  return (
+    <ColumnBody
+      columnId={props.column.id}
+      alerts={alertsFor(props, section.status)}
+      scrollsInternally
+      scrollerRef={props.scrollerRef}
+    >
+      <ActivityView
+        activity={eventActivity(section.items(), props.target)}
+        settled={section.status().phase === "settled"}
+        incomplete={section.status().incomplete !== undefined}
+      />
+    </ColumnBody>
+  );
+};
+
+export default ActivityColumn;
