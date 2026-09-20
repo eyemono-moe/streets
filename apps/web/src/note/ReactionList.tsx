@@ -9,6 +9,7 @@ import {
 import {
   type Component,
   For,
+  type JSX,
   Match,
   Show,
   Switch,
@@ -67,6 +68,37 @@ export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
         )}
       </Match>
     </Switch>
+  );
+};
+
+/** イベント内と一覧表示で共通して使うリアクションのチップ。 */
+export const ReactionChip: Component<{
+  content: ReactionContent;
+  count: number;
+  mine?: boolean;
+  disabled?: boolean;
+  onClick?: JSX.EventHandlerUnion<HTMLButtonElement, MouseEvent>;
+}> = (props) => {
+  const mine = () => props.mine === true;
+  return (
+    <button
+      type="button"
+      title={titleOf(props.content)}
+      aria-label={`${titleOf(props.content)} ${props.count} 件${mine() ? "（リアクション済み）" : ""}`}
+      aria-pressed={props.onClick ? mine() : undefined}
+      class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
+      classList={{
+        "bg-accent-primary": mine(),
+        "border border-primary bg-primary enabled:hover:bg-secondary": !mine(),
+      }}
+      disabled={props.onClick === undefined || props.disabled}
+      onClick={props.onClick}
+    >
+      <Mark content={props.content} mine={mine()} />
+      <span classList={{ "c-white": mine(), "c-secondary": !mine() }}>
+        {props.count}
+      </span>
+    </button>
   );
 };
 
@@ -132,17 +164,10 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                 actions !== undefined && group.users.has(actions.viewer);
               return (
                 <div class="flex min-w-0 items-center gap-1.5">
-                  <button
-                    type="button"
-                    title={titleOf(group.content)}
-                    aria-label={`${titleOf(group.content)} ${group.count} 件${mine() ? "（リアクション済み）" : ""}`}
-                    aria-pressed={mine()}
-                    class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
-                    classList={{
-                      "bg-accent-primary": mine(),
-                      "border border-primary bg-primary enabled:hover:bg-secondary":
-                        !mine(),
-                    }}
+                  <ReactionChip
+                    content={group.content}
+                    count={group.count}
+                    mine={mine()}
                     // 取り消し（kind:5）はまだ作らないので、自分が付けた絵文字は押せない。
                     disabled={!actions || mine() || sending()}
                     onClick={() =>
@@ -152,14 +177,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                         input: inputOf(group.content),
                       })
                     }
-                  >
-                    <Mark content={group.content} mine={mine()} />
-                    <span
-                      classList={{ "c-white": mine(), "c-secondary": !mine() }}
-                    >
-                      {group.count}
-                    </span>
-                  </button>
+                  />
                   {/* 開いたときだけ、そのリアクションを押した人を右に並べる。 */}
                   <Show when={expanded()}>
                     <Reactors users={group.users} />
