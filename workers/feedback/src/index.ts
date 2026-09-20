@@ -1,5 +1,4 @@
 import {
-  benefitsFromOrganization,
   fallbackOrganization,
   issueBody,
   parseFeedback,
@@ -74,9 +73,6 @@ const organize = async (
   input: FeedbackInput,
   env: Env,
 ): Promise<OrganizedFeedback> => {
-  if (!benefitsFromOrganization(input)) {
-    return fallbackOrganization(input, false);
-  }
   try {
     const response = await env.AI.run(env.AI_MODEL as keyof AiModels, {
       messages: [{ role: "user", content: aiPrompt(input) }],

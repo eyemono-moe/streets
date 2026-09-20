@@ -99,21 +99,12 @@ const section = (title: string, body: string | undefined): string =>
 
 const comparable = (value: string): string => value.replace(/\s+/g, " ").trim();
 
-const originalReport = (input: FeedbackInput): string =>
-  input.details.includes(input.summary)
-    ? input.details
-    : `${input.summary}\n\n${input.details}`;
-
-export const benefitsFromOrganization = (input: FeedbackInput): boolean =>
-  input.details.length >= 240 || input.details.split(/\r?\n/).length >= 3;
-
 export const issueBody = (
   input: FeedbackInput,
   organized: OrganizedFeedback,
 ): string => {
-  const original = originalReport(input);
+  const original = input.details;
   const preserveOriginal =
-    benefitsFromOrganization(input) &&
     comparable(organized.summary) !== comparable(original);
   return (
     `${section("概要", organized.summary)}` +
@@ -129,7 +120,6 @@ export const issueBody = (
 
 export const fallbackOrganization = (
   input: FeedbackInput,
-  needsHumanReview = true,
 ): OrganizedFeedback => ({
   title: input.summary.slice(0, 100),
   category: input.kind,
@@ -138,5 +128,5 @@ export const fallbackOrganization = (
   expected: input.expected,
   actual: input.actual,
   labels: [CATEGORY_LABELS[input.kind]],
-  needsHumanReview,
+  needsHumanReview: true,
 });

@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  benefitsFromOrganization,
-  issueBody,
-  parseFeedback,
-  parseOrganizedFeedback,
-} from "./feedback";
+import { issueBody, parseFeedback, parseOrganizedFeedback } from "./feedback";
 
 const input = parseFeedback({
   id: "response-1",
@@ -50,7 +45,8 @@ describe("issueBody", () => {
   it("原文と重複防止IDを必ず残す", () => {
     const detailedInput = {
       ...input,
-      details: "投稿ボタンを押しても完了しません\n操作を繰り返しました\n補足情報です",
+      details:
+        "投稿ボタンを押しても完了しません\n操作を繰り返しました\n補足情報です",
     };
     const body = issueBody(detailedInput, {
       title: "投稿に失敗する",
@@ -75,20 +71,5 @@ describe("issueBody", () => {
     });
     expect(body.match(/投稿ボタンを押しても完了しません/g)).toHaveLength(1);
     expect(body).not.toContain("報告内容（原文）");
-  });
-});
-
-describe("benefitsFromOrganization", () => {
-  it("短い単一段落ではAIによる整理を省く", () => {
-    expect(benefitsFromOrganization(input)).toBe(false);
-  });
-
-  it("長文または複数行はAIで整理する", () => {
-    expect(
-      benefitsFromOrganization({ ...input, details: "a".repeat(240) }),
-    ).toBe(true);
-    expect(benefitsFromOrganization({ ...input, details: "a\nb\nc" })).toBe(
-      true,
-    );
   });
 });
