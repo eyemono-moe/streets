@@ -36,7 +36,7 @@ describe("parseOrganizedFeedback", () => {
       },
       input,
     );
-    expect(organized.labels).toEqual(["bug", "ui"]);
+    expect(organized.labels).toEqual(["feedback", "needs-triage", "bug", "ui"]);
     expect(organized.steps).toHaveLength(10);
   });
 });

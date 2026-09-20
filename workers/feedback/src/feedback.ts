@@ -15,6 +15,8 @@ const CATEGORY_LABELS: Record<FeedbackKind, string> = {
   question: "question",
 };
 
+const FEEDBACK_LABELS = ["feedback", "needs-triage"];
+
 const text = (
   value: unknown,
   name: string,
@@ -89,7 +91,9 @@ export const parseOrganizedFeedback = (
     steps,
     expected: clean(output.expected, 2_000),
     actual: clean(output.actual, 2_000),
-    labels: [...new Set([CATEGORY_LABELS[category], ...labels])],
+    labels: [
+      ...new Set([...FEEDBACK_LABELS, CATEGORY_LABELS[category], ...labels]),
+    ],
     needsHumanReview: output.needsHumanReview !== false,
   };
 };
@@ -127,6 +131,6 @@ export const fallbackOrganization = (
   steps: [],
   expected: input.expected,
   actual: input.actual,
-  labels: [CATEGORY_LABELS[input.kind]],
+  labels: [...FEEDBACK_LABELS, CATEGORY_LABELS[input.kind]],
   needsHumanReview: true,
 });
