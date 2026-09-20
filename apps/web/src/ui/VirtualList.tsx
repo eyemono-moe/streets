@@ -1,5 +1,5 @@
 import { createVirtualizer } from "@tanstack/solid-virtual";
-import { For, type JSX } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 
 export type VirtualListProps<T> = {
   items: readonly T[];
@@ -38,6 +38,8 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
         scroller.scrollTop
       );
     },
+    // 先頭への追加で既存の投稿が後ろへずれても、表示中の投稿を同じ位置に保つ。
+    anchorTo: "end",
     overscan: 5,
   });
 
@@ -51,18 +53,28 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
         {(virtualRow) => {
           const item = () => props.items[virtualRow.index];
           return (
-            <div
-              data-index={virtualRow.index}
-              ref={(element) =>
-                queueMicrotask(() => virtualizer.measureElement(element))
-              }
-              class="absolute top-0 left-0 w-full"
-              style={{
-                transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-              }}
-            >
-              {item() === undefined ? undefined : props.children(item() as T)}
-            </div>
+            // Solid adapter は仮想行を index で再利用する。イベントが入れ替わった
+            // ときだけ実DOMを作り直し、TanStackに新しい key として実測させる。
+            <Show when={item()} keyed>
+              {(current) => (
+                <div
+                  data-index={virtualRow.index}
+                  ref={(element) =>
+                    queueMicrotask(() => {
+                      if (element.isConnected) {
+                        virtualizer.measureElement(element);
+                      }
+                    })
+                  }
+                  class="absolute top-0 left-0 w-full"
+                  style={{
+                    transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
+                  }}
+                >
+                  {props.children(current)}
+                </div>
+              )}
+            </Show>
           );
         }}
       </For>
