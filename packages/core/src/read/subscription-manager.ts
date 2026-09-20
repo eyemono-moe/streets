@@ -97,6 +97,8 @@ const REPLAN_MAX_ITERATIONS = 10;
  * `collect()` の判定を使うので、値を変える理由が無い。
  */
 const DEFAULT_FETCH_ONCE_TIMEOUT_MS = 10_000;
+/** 要求対象のイベントも EOSE/CLOSED も来なくなってから、残りを待つ時間。 */
+export const FETCH_ONCE_SOFT_TIMEOUT_MS = 2_000;
 
 /**
  * degraded 集合の出入り通知をまとめる窓。再接続はジッタで別々の
@@ -348,8 +350,9 @@ export class SubscriptionManager {
 
   /**
    * 一度きりの取得。指定 (省略時は fallbackRelays) 全リレーが EOSE/CLOSED
-   * を報告するか `timeoutMs` 経過で解決し、購読を閉じる —— イベントは
-   * store にあり戻り値では返さない。ページネーションと予算迂回は持たない。
+   * を報告するか、実応答が途切れてからソフト期限または `timeoutMs` が経過すると
+   * 解決して購読を閉じる —— イベントは store にあり戻り値では返さない。
+   * ページネーションと予算迂回は持たない。
    */
   async fetchOnce(
     filters: RelayFilter[],
@@ -365,7 +368,11 @@ export class SubscriptionManager {
       this.#options.store,
       options?.timeoutMs ?? DEFAULT_FETCH_ONCE_TIMEOUT_MS,
       open,
-      { onUnrequested: (url) => this.#recordUnrequested(url) },
+      {
+        softTimeoutMs: FETCH_ONCE_SOFT_TIMEOUT_MS,
+        scheduler: this.#scheduler,
+        onUnrequested: (url) => this.#recordUnrequested(url),
+      },
     );
   }
 

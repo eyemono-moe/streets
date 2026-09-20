@@ -1,10 +1,19 @@
 import type { NostrEvent } from "../nostr/event";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
-import type { ConnectionPool, PooledSubscription } from "./connection-pool";
+import {
+  type ConnectionPool,
+  type PooledSubscription,
+  type Scheduler,
+  defaultScheduler,
+} from "./connection-pool";
 import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
 
 export type CollectOptions = {
+  /** 実応答が途切れてから、残りのリレーを待つ時間。省略時はハード期限だけを使う。 */
+  softTimeoutMs?: number;
+  /** タイマーの注入口。 */
+  scheduler?: Scheduler;
   /**
    * 予算チェックを丸ごと迂回する `bootstrap.ts` 専用フラグ。インデクサは
    * ルーティング表そのものを作る処理なので、予算に阻まれると循環する。
@@ -39,9 +48,11 @@ export type RelaySettle = {
 
 /**
  * 複数のリレーへ同じフィルタを投げ、全 URL が片付く (EOSE/CLOSED) かタイム
- * アウトするまで待つ。EOSE の後に CLOSED が届くリレーが実在するため、1 URL
- * の片付きは 1 回しか数えない。`open` は collect() が両終了経路で必ず空に
- * するので、呼び出し元の `finally` は安全網に過ぎない。
+ * アウトするまで待つ。`softTimeoutMs` があれば、要求したイベントまたは
+ * EOSE/CLOSED を受けるたびに期限を延長し、実応答が途切れてからその時間だけ
+ * 残りを待つ。EOSE の後に CLOSED が届くリレーが実在するため、1 URL の片付きは
+ * 1 回しか数えない。`open` は collect() が全終了経路で必ず空にするので、
+ * 呼び出し元の `finally` は安全網に過ぎない。
  */
 export const collect = (
   pool: ConnectionPool,
@@ -53,23 +64,26 @@ export const collect = (
   options?: CollectOptions,
 ): Promise<number> =>
   new Promise((resolve) => {
-    const startedAt = performance.now();
+    const scheduler = options?.scheduler ?? defaultScheduler;
+    const startedAt = scheduler.now();
     let unrequested = 0;
     let pending = urls.length;
     let done = false;
+    let softTimer: ReturnType<typeof setTimeout> | undefined;
     const settled = new Set<RelayUrl>();
 
     const finish = () => {
       if (done) return;
       done = true;
-      clearTimeout(timer);
+      scheduler.clearTimeout(hardTimer);
+      if (softTimer !== undefined) scheduler.clearTimeout(softTimer);
       // 未 settle の URL も「応答なし」として報告する —— 知りたい相手だけ記録漏れになる。
       for (const url of urls) {
         if (settled.has(url)) continue;
         settled.add(url);
         options?.onRelaySettled?.({
           url,
-          ms: performance.now() - startedAt,
+          ms: scheduler.now() - startedAt,
           reason: "timeout",
         });
       }
@@ -77,26 +91,37 @@ export const collect = (
       open.clear();
       resolve(unrequested);
     };
-    const timer = setTimeout(finish, timeoutMs);
+    const hardTimer = scheduler.setTimeout(finish, timeoutMs);
 
     if (urls.length === 0) {
       finish();
       return;
     }
 
+    const refreshSoftDeadline = () => {
+      if (options?.softTimeoutMs === undefined || done) return;
+      if (softTimer !== undefined) scheduler.clearTimeout(softTimer);
+      softTimer = scheduler.setTimeout(finish, options.softTimeoutMs);
+    };
+
     const settleOnce = (url: RelayUrl, reason: RelaySettle["reason"]) => {
       if (settled.has(url)) return;
       settled.add(url);
       options?.onRelaySettled?.({
         url,
-        ms: performance.now() - startedAt,
+        ms: scheduler.now() - startedAt,
         reason,
       });
       // 二重に閉じても安全 (close() は冪等)。
       open.get(url)?.close();
       open.delete(url);
       pending -= 1;
-      if (pending <= 0) finish();
+      if (pending <= 0) {
+        finish();
+      } else if (reason === "eose" || reason === "closed") {
+        // 予算切れ (`rejected`) はリレーからの応答ではないため起点にしない。
+        refreshSoftDeadline();
+      }
     };
 
     for (const url of urls) {
@@ -112,6 +137,7 @@ export const collect = (
               return;
             }
             if (store.put(event, url) === "rejected") return;
+            refreshSoftDeadline();
             options?.onStored?.(event, url);
           },
           onEose: () => settleOnce(url, "eose"),

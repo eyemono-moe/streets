@@ -14,6 +14,11 @@ import type { EventStore } from "./event-store";
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;
 const DEFAULT_TIMEOUT_MS = 10_000;
+/**
+ * インデクサから要求対象のイベントも EOSE/CLOSED も来なくなってから、
+ * 残りの応答を待つ時間。
+ */
+export const BOOTSTRAP_SOFT_TIMEOUT_MS = 2_000;
 
 export type WarmUpResult = {
   followees: string[];
@@ -101,6 +106,8 @@ export const warmUpRouting = async ({
       // ブートストラップ専用の予算迂回 (`CollectOptions` 参照)。他では使わない。
       {
         reserved: true,
+        softTimeoutMs: BOOTSTRAP_SOFT_TIMEOUT_MS,
+        scheduler,
         onRelaySettled: (settle) => phase1Relays.push(settle),
       },
     );
@@ -149,6 +156,8 @@ export const warmUpRouting = async ({
         // ブートストラップ専用の予算迂回 (`CollectOptions` 参照)。他では使わない。
         {
           reserved: true,
+          softTimeoutMs: BOOTSTRAP_SOFT_TIMEOUT_MS,
+          scheduler,
           onRelaySettled: (settle) => phase2Relays.push(settle),
         },
       );
