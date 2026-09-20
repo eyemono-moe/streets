@@ -95,9 +95,9 @@ const FeedbackLink: Component<{
                     Streetsは現在β版です。不具合、分かりにくいところ、欲しい機能をぜひ教えてください。
                   </p>
                   <p class="c-secondary">
-                    送信内容はGoogle
+                    入力した報告本文はGoogle
                     Formsに保存され、AIで整理したうえで公開GitHub
-                    Issueとして登録されます。個人情報、秘密鍵、公開したくない内容は入力しないでください。
+                    Issueとして登録されます。スクリーンショット等はAIやGitHubへ自動送信されません。個人情報、秘密鍵、公開したくない内容は入力しないでください。
                   </p>
                 </DialogDescription>
                 <div class="flex justify-end gap-2 border-primary border-t p-3">

@@ -16,9 +16,27 @@ function first(namedValues, name) {
 }
 
 function feedbackKind(value) {
-  if (value === "不具合") return "bug";
-  if (value === "機能リクエスト") return "request";
-  return "question";
+  if (value === "不具合報告") return "bug";
+  if (value === "機能追加リクエスト") return "request";
+  if (value === "その他") return "question";
+  throw new Error(`未知の報告種別です: ${value || "(空)"}`);
+}
+
+function feedbackDetails(namedValues, kind) {
+  const field =
+    kind === "bug"
+      ? "不具合内容"
+      : kind === "request"
+        ? "追加してほしい機能内容"
+        : "報告内容";
+  const details = first(namedValues, field);
+  if (!details) throw new Error(`${field}が空です`);
+  return details;
+}
+
+function feedbackSummary(details) {
+  const firstLine = details.split(/\r?\n/, 1)[0].trim();
+  return (firstLine || details).slice(0, 120);
 }
 
 function ensureSystemColumns(sheet) {
@@ -80,15 +98,14 @@ function onFormSubmit(event) {
   sheet.getRange(row, columns["処理状態"]).setValue("processing");
 
   const named = event.namedValues;
+  const kind = feedbackKind(first(named, "報告種別を選択してください"));
+  const details = feedbackDetails(named, kind);
   const payload = {
     id,
     submittedAt: new Date().toISOString(),
-    kind: feedbackKind(first(named, "種別")),
-    summary: first(named, "概要"),
-    details: first(named, "詳細"),
-    steps: first(named, "再現手順"),
-    expected: first(named, "期待した結果"),
-    actual: first(named, "実際の結果"),
+    kind,
+    summary: feedbackSummary(details),
+    details,
     context: first(named, "環境情報"),
   };
 
