@@ -105,6 +105,26 @@ export const createWriter = ({
   // kind:10002 を楽観挿入すると routing は新リストへ切り替わり、旧 URL は
   // 次回の targets() から消えるため、成功するまで Writer が保持する。
   const pendingReplaceTargets = new Map<string, RelayUrl[]>();
+  // 同じ置換対象への変更は、前の publish が終わってから最新版を取り直す。
+  // 値には必ず resolve する tail を置き、失敗した変更が後続を塞がないようにする。
+  const replacementTails = new Map<string, Promise<void>>();
+  const enqueueReplacement = async <T>(
+    key: string,
+    task: () => Promise<T>,
+  ): Promise<T> => {
+    const previous = replacementTails.get(key) ?? Promise.resolve();
+    const result = previous.then(task);
+    const tail = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    replacementTails.set(key, tail);
+    try {
+      return await result;
+    } finally {
+      if (replacementTails.get(key) === tail) replacementTails.delete(key);
+    }
+  };
   const rememberFailedPreviousTargets = (
     replacementKey: string,
     previousTargets: readonly RelayUrl[],
@@ -170,84 +190,89 @@ export const createWriter = ({
 
     // `identifier` は NIP-33 addressable event の `d`。mutation が返した
     // tags よりこの引数を正として、下でちょうど 1 個に正規化する。
-    replace: async (kind, identifier, mutate, hooks) => {
+    replace: (kind, identifier, mutate, hooks) => {
       const author = pubkey();
-      const assertAuthorUnchanged = () => {
-        if (pubkey() !== author) {
-          throw new SignerUnavailableError(
-            // Stryker disable next-line StringLiteral: 呼び出し側は error の
-            // 型で分岐し、表示文言を判定には使わない。
-            "replace の途中で署名アカウントが変わりました",
-          );
-        }
-      };
       const replacementKey = JSON.stringify([kind, author, identifier]);
-      // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
-      // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
-      // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
-      hooks?.onProgress?.({ phase: "checking" });
-      const current = await fetchLatest(kind, identifier, author);
-      // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
-      // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー
-      // も追加しないと削除したリレーに旧版だけが残る。
-      const previousTargets = [
-        ...new Set([
-          ...publisher.targets(author),
-          ...(pendingReplaceTargets.get(replacementKey) ?? []),
-        ]),
-      ];
-      // 再取得の待機中に logout / account 切替が起きた場合、旧 account の
-      // current を新しい署名器へ渡す前に止める。
-      assertAuthorUnchanged();
-      const draft = await mutate(current);
-      // mutate は NIP-44 の承認待ちを含み得る。その間に account が
-      // 変わった場合も、旧 account の draft を署名へ進めない。
-      assertAuthorUnchanged();
-      const addressedDraft =
-        identifier === undefined
-          ? draft
-          : {
-              ...draft,
-              // address は Writer.replace の引数が正。mutation が古い `d` を
-              // 持ち越しても、同じ event に複数の識別子を残さない。
-              tags: [
-                ["d", identifier],
-                ...draft.tags.filter((tag) => tag[0] !== "d"),
-              ],
-            };
+      return enqueueReplacement(replacementKey, async () => {
+        const assertAuthorUnchanged = () => {
+          if (pubkey() !== author) {
+            throw new SignerUnavailableError(
+              // Stryker disable next-line StringLiteral: 呼び出し側は error の
+              // 型で分岐し、表示文言を判定には使わない。
+              "replace の途中で署名アカウントが変わりました",
+            );
+          }
+        };
+        // キューを待っている間に account が変わった場合、旧 account の
+        // リレーへ問い合わせる前に止める。
+        assertAuthorUnchanged();
+        // 再取得が投げたらここで止まる —— **何も署名していないし挿入もして
+        // いない**。「取れなかった」を「無い」と取り違えると、既存のリストを
+        // 1 件だけのリストで丸ごと上書きする巻き戻せない破壊になる。
+        hooks?.onProgress?.({ phase: "checking" });
+        const current = await fetchLatest(kind, identifier, author);
+        // fetchLatest 後・楽観挿入前の送信先を保持する。kind:10002 の更新では
+        // store.put() 後に routing が新リストへ切り替わるため、旧 write リレー
+        // も追加しないと削除したリレーに旧版だけが残る。
+        const previousTargets = [
+          ...new Set([
+            ...publisher.targets(author),
+            ...(pendingReplaceTargets.get(replacementKey) ?? []),
+          ]),
+        ];
+        // 再取得の待機中に logout / account 切替が起きた場合、旧 account の
+        // current を新しい署名器へ渡す前に止める。
+        assertAuthorUnchanged();
+        const draft = await mutate(current);
+        // mutate は NIP-44 の承認待ちを含み得る。その間に account が
+        // 変わった場合も、旧 account の draft を署名へ進めない。
+        assertAuthorUnchanged();
+        const addressedDraft =
+          identifier === undefined
+            ? draft
+            : {
+                ...draft,
+                // address は Writer.replace の引数が正。mutation が古い `d` を
+                // 持ち越しても、同じ event に複数の識別子を残さない。
+                tags: [
+                  ["d", identifier],
+                  ...draft.tags.filter((tag) => tag[0] !== "d"),
+                ],
+              };
 
-      // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
-      // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、
-      // リレーの実装次第で黙って捨てられる。繰り上げてそれを防ぐ。
-      const stamped = now();
-      const createdAt =
-        current && stamped <= current.created_at
-          ? current.created_at + 1
-          : stamped;
+        // リレーは置換可能イベントの新旧を created_at で決める (NIP-01)。
+        // 同一秒内の 2 回目の更新は「古くない」だけで**新しくもない**ので、
+        // リレーの実装次第で黙って捨てられる。繰り上げてそれを防ぐ。
+        const stamped = now();
+        const createdAt =
+          current && stamped <= current.created_at
+            ? current.created_at + 1
+            : stamped;
 
-      try {
-        const result = await send(
-          { ...addressedDraft, pubkey: author, created_at: createdAt },
-          hooks,
-          current,
-          previousTargets,
-        );
-        rememberFailedPreviousTargets(
-          replacementKey,
-          previousTargets,
-          result.rejected,
-        );
-        return result;
-      } catch (error) {
-        if (error instanceof WriteFailedError) {
+        try {
+          const result = await send(
+            { ...addressedDraft, pubkey: author, created_at: createdAt },
+            hooks,
+            current,
+            previousTargets,
+          );
           rememberFailedPreviousTargets(
             replacementKey,
             previousTargets,
-            error.rejected,
+            result.rejected,
           );
+          return result;
+        } catch (error) {
+          if (error instanceof WriteFailedError) {
+            rememberFailedPreviousTargets(
+              replacementKey,
+              previousTargets,
+              error.rejected,
+            );
+          }
+          throw error;
         }
-        throw error;
-      }
+      });
     },
   };
 };
