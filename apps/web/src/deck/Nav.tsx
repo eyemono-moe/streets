@@ -3,6 +3,7 @@ import { type Component, For, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import { useColumnTitle } from "./ColumnTitle";
+import FeedbackLink from "./FeedbackLink";
 import { columnMeta } from "./column-meta";
 
 /**
@@ -48,13 +49,14 @@ export const Sidebar: Component<{
   pubkey: string;
   columns: readonly ColumnDef[];
   onLogout: () => void;
+  feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
     // 行：投稿・カラムの一覧・カラムを追加・（空き）・設定・アカウント。一覧の行は
     // 中身の高さ（max-content）まで伸び、画面の高さが足りないときだけ縮んで送れる
     // ようになる。ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_1fr_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_1fr_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
         aria-label="ノートを書く"
@@ -87,6 +89,7 @@ export const Sidebar: Component<{
         />
       </button>
       <span aria-hidden="true" />
+      <FeedbackLink template={props.feedbackUrl} size="sidebar" />
       <button
         type="button"
         aria-label="設定"
@@ -121,9 +124,11 @@ export const ComposeFab: Component = () => {
   );
 };
 
-export const TabBar: Component<{ pubkey: string; onLogout: () => void }> = (
-  props,
-) => {
+export const TabBar: Component<{
+  pubkey: string;
+  onLogout: () => void;
+  feedbackUrl?: string | null;
+}> = (props) => {
   const dispatch = useDispatch();
   return (
     <nav class="flex shrink-0 items-center justify-around bg-primary px-5 pb-2.5">
@@ -140,6 +145,7 @@ export const TabBar: Component<{ pubkey: string; onLogout: () => void }> = (
           aria-hidden="true"
         />
       </button>
+      <FeedbackLink template={props.feedbackUrl} size="tab" />
       <button
         type="button"
         aria-label="設定"
