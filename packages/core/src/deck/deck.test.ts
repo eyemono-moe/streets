@@ -337,7 +337,7 @@ describe("defaultDeck", () => {
   const viewerPubkey = "a".repeat(64);
 
   it("ホーム・単一著者・明示リレーの 3 本を返す", () => {
-    const result = defaultDeck(viewerPubkey);
+    const result = defaultDeck();
 
     expect(result.version).toBe(2);
     expect(result.columns).toHaveLength(3);
@@ -368,7 +368,7 @@ describe("defaultDeck", () => {
 
   it("ホームと自分の投稿はリポストも集める", () => {
     // 捕まえる変異: TIMELINE_KINDS から 6 を落とす (上の toEqual でも捕まるが、これはリポストが消える理由を明示する)。
-    const result = defaultDeck(viewerPubkey);
+    const result = defaultDeck();
 
     const home = result.columns.find((c) => c.id === "home");
     expect(home?.source.kind === "followees" && home.source.kinds).toContain(6);
@@ -380,7 +380,7 @@ describe("defaultDeck", () => {
   });
 
   it("column の id が重複しない", () => {
-    const result = defaultDeck(viewerPubkey);
+    const result = defaultDeck();
     const ids = result.columns.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });

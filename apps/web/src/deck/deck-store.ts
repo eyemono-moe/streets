@@ -21,7 +21,7 @@ export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
 const deckDocumentDefinition = {
   identifier: DECK_EVENT_IDENTIFIER,
   cacheKey: deckStorageKey,
-  initial: defaultDeck,
+  initial: (_) => defaultDeck(),
   serialize: saveDeck,
   parse: (raw) => loadDeck(raw),
   equals: (left, right) => saveDeck(left) === saveDeck(right),

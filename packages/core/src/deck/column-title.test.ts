@@ -28,7 +28,7 @@ describe("columnTitle", () => {
 
   it("種類で決まるカラムは、保存した題名を使わない", () => {
     const home: ColumnDef = {
-      ...must(defaultDeck(PUBKEY).columns[0]),
+      ...must(defaultDeck().columns[0]),
       title: "変えた名前",
     };
     expect(columnTitle(home)).toEqual({ text: "ホーム" });
@@ -47,7 +47,7 @@ describe("columnTitle", () => {
   });
 
   it("条件を直に書いたカラムは、足したときの題名を使う", () => {
-    const mine = must(defaultDeck(PUBKEY).columns[1]);
+    const mine = must(defaultDeck().columns[1]);
     expect(columnTitle(mine)).toEqual({ text: "自分の投稿" });
     const custom: ColumnDef = {
       id: "x",
