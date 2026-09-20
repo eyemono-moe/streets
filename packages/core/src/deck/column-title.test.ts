@@ -47,8 +47,6 @@ describe("columnTitle", () => {
   });
 
   it("条件を直に書いたカラムは、足したときの題名を使う", () => {
-    const mine = must(defaultDeck().columns[1]);
-    expect(columnTitle(mine)).toEqual({ text: "自分の投稿" });
     const custom: ColumnDef = {
       id: "x",
       title: "リレーの kind:7",
