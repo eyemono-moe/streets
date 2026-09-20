@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { issueBody, parseFeedback, parseOrganizedFeedback } from "./feedback";
+import {
+  benefitsFromOrganization,
+  issueBody,
+  parseFeedback,
+  parseOrganizedFeedback,
+} from "./feedback";
 
 const input = parseFeedback({
   id: "response-1",
@@ -43,7 +48,11 @@ describe("parseOrganizedFeedback", () => {
 
 describe("issueBody", () => {
   it("原文と重複防止IDを必ず残す", () => {
-    const body = issueBody(input, {
+    const detailedInput = {
+      ...input,
+      details: "投稿ボタンを押しても完了しません\n操作を繰り返しました\n補足情報です",
+    };
+    const body = issueBody(detailedInput, {
       title: "投稿に失敗する",
       category: "bug",
       summary: "整理した概要",
@@ -53,5 +62,33 @@ describe("issueBody", () => {
     });
     expect(body).toContain("投稿ボタンを押しても完了しません");
     expect(body).toContain("<!-- streets-feedback-id:response-1 -->");
+  });
+
+  it("短い報告を本文内で重複させない", () => {
+    const body = issueBody(input, {
+      title: input.summary,
+      category: "bug",
+      summary: input.details,
+      steps: [],
+      labels: ["bug"],
+      needsHumanReview: false,
+    });
+    expect(body.match(/投稿ボタンを押しても完了しません/g)).toHaveLength(1);
+    expect(body).not.toContain("報告内容（原文）");
+  });
+});
+
+describe("benefitsFromOrganization", () => {
+  it("短い単一段落ではAIによる整理を省く", () => {
+    expect(benefitsFromOrganization(input)).toBe(false);
+  });
+
+  it("長文または複数行はAIで整理する", () => {
+    expect(
+      benefitsFromOrganization({ ...input, details: "a".repeat(240) }),
+    ).toBe(true);
+    expect(benefitsFromOrganization({ ...input, details: "a\nb\nc" })).toBe(
+      true,
+    );
   });
 });

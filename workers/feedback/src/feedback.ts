@@ -97,21 +97,39 @@ export const parseOrganizedFeedback = (
 const section = (title: string, body: string | undefined): string =>
   body ? `## ${title}\n\n${body}\n\n` : "";
 
+const comparable = (value: string): string => value.replace(/\s+/g, " ").trim();
+
+const originalReport = (input: FeedbackInput): string =>
+  input.details.includes(input.summary)
+    ? input.details
+    : `${input.summary}\n\n${input.details}`;
+
+export const benefitsFromOrganization = (input: FeedbackInput): boolean =>
+  input.details.length >= 240 || input.details.split(/\r?\n/).length >= 3;
+
 export const issueBody = (
   input: FeedbackInput,
   organized: OrganizedFeedback,
-): string =>
-  `${section("概要", organized.summary)}` +
-  `${section("再現手順", organized.steps.length > 0 ? organized.steps.map((step, index) => `${index + 1}. ${step}`).join("\n") : input.steps)}` +
-  `${section("期待した結果", organized.expected ?? input.expected)}` +
-  `${section("実際の結果", organized.actual ?? input.actual)}` +
-  `${section("報告内容（原文）", `${input.summary}\n\n${input.details}`)}` +
-  `${section("環境", input.context)}` +
-  `${organized.needsHumanReview ? "> AIによる整理結果を人が確認する必要があります。\n\n" : ""}` +
-  `<!-- streets-feedback-id:${input.id} -->`;
+): string => {
+  const original = originalReport(input);
+  const preserveOriginal =
+    benefitsFromOrganization(input) &&
+    comparable(organized.summary) !== comparable(original);
+  return (
+    `${section("概要", organized.summary)}` +
+    `${section("再現手順", organized.steps.length > 0 ? organized.steps.map((step, index) => `${index + 1}. ${step}`).join("\n") : input.steps)}` +
+    `${section("期待した結果", organized.expected ?? input.expected)}` +
+    `${section("実際の結果", organized.actual ?? input.actual)}` +
+    `${section("報告内容（原文）", preserveOriginal ? original : undefined)}` +
+    `${section("環境", input.context)}` +
+    `${organized.needsHumanReview ? "> AIによる整理結果を人が確認する必要があります。\n\n" : ""}` +
+    `<!-- streets-feedback-id:${input.id} -->`
+  );
+};
 
 export const fallbackOrganization = (
   input: FeedbackInput,
+  needsHumanReview = true,
 ): OrganizedFeedback => ({
   title: input.summary.slice(0, 100),
   category: input.kind,
@@ -120,5 +138,5 @@ export const fallbackOrganization = (
   expected: input.expected,
   actual: input.actual,
   labels: [CATEGORY_LABELS[input.kind]],
-  needsHumanReview: true,
+  needsHumanReview,
 });
