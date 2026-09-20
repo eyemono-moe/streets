@@ -2,58 +2,68 @@ import type {
   ActivityReaction,
   EventActivity,
 } from "@streets/core/view/event-activity";
-import { type Component, For, Match, Show, Switch } from "solid-js";
+import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { Mark } from "../note/ReactionList";
 import ProfileRow from "../profile/ProfileRow";
+import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
 
-const Section: Component<{
-  title: string;
-  people: readonly string[];
+const Result: Component<{
+  count: number;
+  settled: boolean;
+  incomplete?: boolean;
+  empty: string;
+  children: JSX.Element;
 }> = (props) => (
-  <Show when={props.people.length > 0}>
-    <section>
-      <h3 class="c-secondary px-3 py-2 font-600 text-caption">
-        {props.title}（{props.people.length}）
-      </h3>
-      <div class="flex flex-col border-primary [&>*]:border-primary [&>*]:border-b">
-        <For each={props.people}>
-          {(pubkey) => <ProfileRow pubkey={pubkey} />}
-        </For>
-      </div>
-    </section>
-  </Show>
+  <Switch>
+    <Match when={props.count > 0}>
+      <Show when={props.incomplete}>
+        <p class="c-secondary bg-secondary px-3 py-2 text-caption">
+          一部のリレーからは取得できませんでした。
+        </p>
+      </Show>
+      {props.children}
+    </Match>
+    <Match when={props.settled && props.incomplete}>
+      <p class="c-secondary p-4 text-caption">取得できませんでした。</p>
+    </Match>
+    <Match when={props.settled}>
+      <p class="c-secondary p-4 text-caption">{props.empty}</p>
+    </Match>
+    <Match when={true}>
+      <p class="c-secondary p-4 text-caption">読み込み中…</p>
+    </Match>
+  </Switch>
+);
+
+const People: Component<{ people: readonly string[] }> = (props) => (
+  <div class="flex flex-col border-primary [&>*]:border-primary [&>*]:border-b">
+    <For each={props.people}>{(pubkey) => <ProfileRow pubkey={pubkey} />}</For>
+  </div>
 );
 
 const Reactions: Component<{ people: readonly ActivityReaction[] }> = (
   props,
 ) => (
-  <Show when={props.people.length > 0}>
-    <section>
-      <h3 class="c-secondary px-3 py-2 font-600 text-caption">
-        リアクション（{props.people.length}）
-      </h3>
-      <div class="flex flex-col border-primary [&>*]:border-primary [&>*]:border-b">
-        <For each={props.people}>
-          {(person) => (
-            <ProfileRow
-              pubkey={person.pubkey}
-              detail={
-                <span class="c-secondary flex flex-wrap gap-1.5 text-caption">
-                  <For each={person.contents}>
-                    {(content) => (
-                      <span class="flex min-h-6 items-center rounded-1.5 border border-primary px-1.5">
-                        <Mark content={content} mine={false} />
-                      </span>
-                    )}
-                  </For>
-                </span>
-              }
-            />
-          )}
-        </For>
-      </div>
-    </section>
-  </Show>
+  <div class="flex flex-col border-primary [&>*]:border-primary [&>*]:border-b">
+    <For each={props.people}>
+      {(person) => (
+        <ProfileRow
+          pubkey={person.pubkey}
+          detail={
+            <span class="c-secondary flex flex-wrap gap-1.5 text-caption">
+              <For each={person.contents}>
+                {(content) => (
+                  <span class="flex min-h-6 items-center rounded-1.5 border border-primary px-1.5">
+                    <Mark content={content} mine={false} />
+                  </span>
+                )}
+              </For>
+            </span>
+          }
+        />
+      )}
+    </For>
+  </div>
 );
 
 export const ActivityView: Component<{
@@ -61,36 +71,61 @@ export const ActivityView: Component<{
   settled: boolean;
   incomplete?: boolean;
 }> = (props) => {
-  const count = () =>
-    props.activity.reposts.length +
-    props.activity.quotes.length +
-    props.activity.reactions.length;
+  const common = () => ({
+    settled: props.settled,
+    incomplete: props.incomplete,
+  });
+  const tabs = (): ColumnTab[] => [
+    {
+      value: "reposts",
+      label: "リポスト",
+      count: props.activity.reposts.length,
+      content: () => (
+        <Result
+          {...common()}
+          count={props.activity.reposts.length}
+          empty="リポストはまだありません。"
+        >
+          <People people={props.activity.reposts} />
+        </Result>
+      ),
+    },
+    {
+      value: "quotes",
+      label: "引用",
+      count: props.activity.quotes.length,
+      content: () => (
+        <Result
+          {...common()}
+          count={props.activity.quotes.length}
+          empty="引用はまだありません。"
+        >
+          <People people={props.activity.quotes} />
+        </Result>
+      ),
+    },
+    {
+      value: "reactions",
+      label: "リアクション",
+      count: props.activity.reactions.length,
+      content: () => (
+        <Result
+          {...common()}
+          count={props.activity.reactions.length}
+          empty="リアクションはまだありません。"
+        >
+          <Reactions people={props.activity.reactions} />
+        </Result>
+      ),
+    },
+  ];
+
   return (
-    <Switch>
-      <Match when={count() > 0}>
-        <Show when={props.incomplete}>
-          <p class="c-secondary bg-secondary px-3 py-2 text-caption">
-            一部のリレーからは取得できませんでした。
-          </p>
-        </Show>
-        <Section title="リポスト" people={props.activity.reposts} />
-        <Section title="引用" people={props.activity.quotes} />
-        <Reactions people={props.activity.reactions} />
-      </Match>
-      <Match when={props.settled && props.incomplete}>
-        <p class="c-secondary p-4 text-caption">
-          アクティビティを取得できませんでした。
-        </p>
-      </Match>
-      <Match when={props.settled}>
-        <p class="c-secondary p-4 text-caption">
-          アクティビティはまだありません。
-        </p>
-      </Match>
-      <Match when={true}>
-        <p class="c-secondary p-4 text-caption">読み込み中…</p>
-      </Match>
-    </Switch>
+    <ColumnTabs
+      label="アクティビティの種類"
+      defaultValue="reposts"
+      tabs={tabs()}
+    />
   );
 };
 
