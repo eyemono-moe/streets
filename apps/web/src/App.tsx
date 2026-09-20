@@ -1,7 +1,15 @@
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
-import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
+import {
+  type Component,
+  Match,
+  Show,
+  Switch,
+  lazy,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import LoginScreen from "./LoginScreen";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
@@ -25,19 +33,22 @@ const App: Component = () => {
 
   return (
     <>
-      <Show
-        when={session.pubkey()}
-        fallback={<LoginScreen session={session} />}
-        keyed
-      >
-        <ReadLayerProvider value={readLayer}>
-          <DeckScreen
-            readLayer={readLayer}
-            session={session}
-            bootstrapIndexers={relayOverride}
-          />
-        </ReadLayerProvider>
-      </Show>
+      <Switch>
+        <Match when={session.state() === "signed-out"}>
+          <LoginScreen session={session} />
+        </Match>
+        <Match when={session.state() === "signed-in"}>
+          <Show when={session.pubkey()} keyed>
+            <ReadLayerProvider value={readLayer}>
+              <DeckScreen
+                readLayer={readLayer}
+                session={session}
+                bootstrapIndexers={relayOverride}
+              />
+            </ReadLayerProvider>
+          </Show>
+        </Match>
+      </Switch>
       <ErrorToaster />
       <Show when={import.meta.env.DEV}>
         <AppDevtools readLayer={readLayer} />
