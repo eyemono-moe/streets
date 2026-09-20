@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createNip07Signer, isNip07Available } from "./nip07-signer";
+import {
+  createNip07Signer,
+  isNip07Available,
+  waitForNip07,
+} from "./nip07-signer";
 import { SignerUnavailableError } from "./signer";
 
 const setNostr = (value: unknown) => {
@@ -7,6 +11,8 @@ const setNostr = (value: unknown) => {
 };
 
 afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   (globalThis as { nostr?: unknown }).nostr = undefined;
 });
 
@@ -43,6 +49,45 @@ describe("createNip07Signer", () => {
       signEvent: async (e: unknown) => e,
     });
     await expect(signer.getPublicKey()).resolves.toBe("a".repeat(64));
+  });
+
+  it("ページ読み込み後に注入された拡張機能を待つ", async () => {
+    vi.useFakeTimers();
+    setNostr(undefined);
+    const waiting = waitForNip07(1_000, 50);
+
+    await vi.advanceTimersByTimeAsync(100);
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+    });
+    await vi.advanceTimersByTimeAsync(50);
+
+    await expect(waiting).resolves.toBe(true);
+  });
+
+  it("期限までに注入されなければ待機を終える", async () => {
+    vi.useFakeTimers();
+    setNostr(undefined);
+    const waiting = waitForNip07(100, 50);
+
+    await vi.advanceTimersByTimeAsync(100);
+
+    await expect(waiting).resolves.toBe(false);
+  });
+
+  it("確認間隔を指数関数的に広げる", async () => {
+    vi.useFakeTimers();
+    setNostr(undefined);
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const waiting = waitForNip07(200, 25);
+
+    await vi.advanceTimersByTimeAsync(200);
+
+    await expect(waiting).resolves.toBe(false);
+    expect(setTimeoutSpy.mock.calls.map(([, delay]) => delay)).toEqual([
+      25, 50, 100, 25,
+    ]);
   });
 
   it("getPublicKey が返した値をそのまま通す", async () => {

@@ -19,6 +19,28 @@ const nip07 = (): Nip07 | undefined => (globalThis as { nostr?: Nip07 }).nostr;
 export const isNip07Available = (): boolean => nip07() !== undefined;
 
 /**
+ * ページ読み込み後に拡張機能が `window.nostr` を注入するまで待つ。
+ * NIP-07 には注入完了イベントが無いため、指数バックオフで存在を確認する。
+ */
+export const waitForNip07 = async (
+  timeoutMs = 1_000,
+  intervalMs = 50,
+): Promise<boolean> => {
+  if (isNip07Available()) return true;
+
+  const deadline = Date.now() + timeoutMs;
+  let delayMs = intervalMs;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.min(delayMs, deadline - Date.now())),
+    );
+    if (isNip07Available()) return true;
+    delayMs *= 2;
+  }
+  return false;
+};
+
+/**
  * NIP-07 拡張を `Signer` に合わせる。生成時に `window.nostr` を掴まない
  * のは、後から注入された拡張を永久に見失わないため（呼び出しのたびに読み直す）。
  */
