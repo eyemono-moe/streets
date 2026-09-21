@@ -23,6 +23,8 @@ const DisplaySettings: Component<{
   appearance: DeckAppearance;
   /** 保存の進み具合を出すか（この端末の設定）。 */
   writeProgress: boolean;
+  /** 不具合の報告を送るか（この端末の設定）。 */
+  errorReport: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const current = () => paletteOf(props.appearance);
@@ -48,6 +50,18 @@ const DisplaySettings: Component<{
           label="保存の進み具合を表示する"
           checked={props.writeProgress}
           onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="エラーの報告"
+        scope="device"
+        description="不具合の発生時に、エラーの内容と端末・ブラウザの情報を開発元へ送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
+      >
+        <Switch
+          label="エラーの報告を送信する"
+          checked={props.errorReport}
+          onChange={(on) => dispatch({ type: "deck/set-error-report", on })}
         />
       </SettingsSection>
 

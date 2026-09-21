@@ -1,4 +1,5 @@
 import { scrubText, scrubUrl } from "@streets/core/telemetry/scrub";
+import { errorReport } from "./error-report-setting";
 
 /**
  * 壊れたときに気付けるようにする（Sentry）。送るのは「どこで何が起きたか」
@@ -12,6 +13,13 @@ let sentry: typeof import("@sentry/solid") | undefined;
 export const startTelemetry = async () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn || import.meta.env.DEV) return;
+  if (!errorReport()) {
+    // 設定で止めているときは送らない。読み込み済みなら、そこで閉じる。
+    sentry?.close();
+    sentry = undefined;
+    return;
+  }
+  if (sentry) return;
 
   const Sentry = await import("@sentry/solid");
   Sentry.init({
