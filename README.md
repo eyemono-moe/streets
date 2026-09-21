@@ -56,6 +56,24 @@ This will start the following services:
 設定 →「画像」で `http://localhost:8090` を足すと、ここへアップロードするようになります
 （アップロードしたものは `GET http://localhost:8090/list/<自分の pubkey>` で一覧できます）。
 
+### Sentry（壊れたときの報告）
+
+`VITE_SENTRY_DSN` を渡してビルドすると、壊れたときに Sentry へ送ります。渡さなければ何も送らず、SDK も配りません（開発中も送りません）。
+
+```bash
+VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview pnpm build
+```
+
+送る前に、鍵・公開鍵・イベント id を落とします（`packages/core/src/telemetry/scrub.ts`）。IP アドレスや Cookie は送りません。
+
+ソースマップを送ると、本番のスタックトレースが元のコードで読めます。次の 3 つが揃ったビルドでだけ送ります（`VITE_` を付けないこと。付けると画面側へ混ざります）。
+
+```bash
+SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=streets pnpm build
+```
+
+送ったマップは配らずに消すので、公開されるものは変わりません。送れなかったときは警告を出して、ビルドは続けます。
+
 ### Contact
 
 - eyemono.moe: <nostr:npub1m0n0eyetgrflxghneeckkv95ukrn0fdpzyysscy4vha3gm64739qxn23sk>

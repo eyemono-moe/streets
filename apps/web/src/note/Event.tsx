@@ -26,6 +26,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
 import ActionNotice from "./ActionNotice";
@@ -516,6 +517,7 @@ const Event: Component<ContentProps> = (props) => (
   <ErrorBoundary
     fallback={(error) => {
       console.error("投稿を描けませんでした", props.event?.id, error);
+      reportError(error, "event-render");
       return <BrokenEvent id={props.event?.id} kind={props.event?.kind} />;
     }}
   >

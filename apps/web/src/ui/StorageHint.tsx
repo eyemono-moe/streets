@@ -12,7 +12,7 @@ const HINT: Record<
   device: {
     icon: "i-material-symbols:devices-outline-rounded",
     label: "この端末に保存",
-    text: "この設定は、この端末にだけ保存されます。ほかの端末では、それぞれで選べます。",
+    text: "この設定はこの端末にのみ保存されます。ほかの端末では、それぞれで別の設定を保存できます。",
   },
   account: {
     icon: "i-material-symbols:cloud-outline",
