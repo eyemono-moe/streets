@@ -122,13 +122,13 @@ for (const [path, fileRows] of byFile) {
 for (const { row } of applied) {
   if (!hasJapanese(row.text)) {
     problems.push(
-      `${row.file}:${row.line} 直したあとの文に日本語がありません: ${row.text}`,
+      `${row.position} 直したあとの文に日本語がありません: ${row.text}`,
     );
   }
 }
 
 for (const { row, before } of applied) {
-  console.log(`- ${row.file}:${row.line} ${before} → ${row.text}`);
+  console.log(`- ${row.position} ${before} → ${row.text}`);
 }
 for (const problem of problems) console.error(`! ${problem}`);
 

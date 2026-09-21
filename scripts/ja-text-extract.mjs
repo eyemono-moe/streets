@@ -60,7 +60,13 @@ for (const file of project.getSourceFiles()) {
     const index = counts.get(kind) ?? 0;
     counts.set(kind, index + 1);
     const { line, column } = file.getLineAndColumnAtPos(node.getStart());
-    entries.push({ file: path, line, column, kind, index, text });
+    entries.push({
+      position: `${path}:${line}:${column}`,
+      file: path,
+      kind,
+      index,
+      text,
+    });
   };
 
   file.forEachDescendant((node) => {

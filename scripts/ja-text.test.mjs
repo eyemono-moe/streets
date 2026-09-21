@@ -19,9 +19,8 @@ test("日本語を含むかを見分ける", () => {
 test("改行・カンマ・引用符を含む文を CSV に出して読み戻せる", () => {
   const entries = [
     {
+      position: "a.tsx:1:2",
       file: "a.tsx",
-      line: 1,
-      column: 2,
       kind: "jsx-text",
       index: 0,
       text: '1 行目、2 行目\nと "引用" を含む',
@@ -30,6 +29,7 @@ test("改行・カンマ・引用符を含む文を CSV に出して読み戻せ
   const rows = parseCsv(toCsv(entries));
   assert.equal(rows.length, 1);
   assert.equal(rows[0].text, entries[0].text);
+  assert.equal(rows[0].position, "a.tsx:1:2");
   assert.equal(rows[0].kind, "jsx-text");
   assert.equal(rows[0].index, "0");
 });

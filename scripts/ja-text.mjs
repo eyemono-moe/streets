@@ -6,9 +6,9 @@
  * 1 件はこの形（CSV の列もこの順）。
  *
  *   type JapaneseTextEntry = {
+ *     // エディタや端末からそのまま開ける形（file:line:column）。
+ *     position: string;
  *     file: string;
- *     line: number;
- *     column: number;
  *     kind: "jsx-text" | "jsx-attribute" | "string-literal" | "template-literal";
  *     // そのファイルの、その種類の中で何番目か（0 始まり）。文そのものを書き
  *     // 換えても場所が分かるよう、行番号ではなくこれで照合する。
@@ -17,7 +17,7 @@
  *   };
  */
 
-export const COLUMNS = ["file", "line", "column", "kind", "index", "text"];
+export const COLUMNS = ["position", "file", "kind", "index", "text"];
 
 /** ひらがな・カタカナ・漢字・日本語の約物のどれかを含むか。 */
 const JAPANESE =
