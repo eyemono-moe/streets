@@ -86,7 +86,7 @@ export const ComposeAttachments: Component<{
   const errors = () => props.attachments.filter((a) => a.error !== undefined);
   return (
     <Show when={props.attachments.length > 0}>
-      <ul class="flex flex-wrap gap-2 px-4 pb-1">
+      <ul class="flex flex-wrap gap-2 px-4 pt-2">
         <For each={props.attachments}>
           {(attachment, index) => (
             <li
