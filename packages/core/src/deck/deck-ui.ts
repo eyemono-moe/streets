@@ -1,5 +1,5 @@
 /** サイドバーから開くパネル。 */
-export type DeckPanel = "compose" | "add-column";
+export type DeckPanel = "compose" | "add-column" | "search";
 
 /**
  * デッキの画面の状態のうち、保存しないもの。カラムの並びや設定はデッキ（NIP-78）に
