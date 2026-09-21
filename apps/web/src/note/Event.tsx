@@ -66,8 +66,6 @@ type ContentProps = {
    * タイムラインのカラムで使う。スレッドのカラムは自分で祖先を並べるので要らない。
    */
   replyContext?: boolean;
-  /** すぐ上に返信先を出しているか。「返信先 @名前」の行と二重にしないために使う。 */
-  parentAbove?: boolean;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -327,9 +325,7 @@ const Note: Component<ContentProps> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
-  // すぐ上に返信先そのものを出しているときだけ、名前の 1 行を省く。
-  const replyTo = () =>
-    props.parentAbove ? undefined : replyTarget(props.event);
+  const replyTo = () => replyTarget(props.event);
 
   return (
     <Row event={props.event} size={props.size} threadLine={props.threadLine}>
@@ -426,7 +422,6 @@ const EventContent: Component<ContentProps> = (props) => (
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
         stickyAvatar={props.stickyAvatar}
-        parentAbove={props.parentAbove}
         media={props.media}
       />
     </Match>
@@ -510,7 +505,6 @@ const EventBody: Component<ContentProps> = (props) => {
           expandMedia={props.expandMedia}
           threadLine={parent() ? "above" : props.threadLine}
           stickyAvatar={props.stickyAvatar}
-          parentAbove={parent() !== undefined}
           media={props.media}
         />
       </Frame>
