@@ -24,7 +24,7 @@ const shot = (
   name: string,
   preview: string,
   extra: Partial<Attachment> = {},
-): Attachment => ({ id, name, preview, type: "image/png", ...extra });
+): Attachment => ({ id, name, preview, ...extra });
 
 const blob = {
   url: "https://a.example/1.png",

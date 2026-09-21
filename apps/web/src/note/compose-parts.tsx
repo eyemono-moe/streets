@@ -33,6 +33,50 @@ const ToolButton: Component<{
   </button>
 );
 
+/** 一覧に出す見本の一辺（`size-20`）。 */
+const THUMBNAIL = 80;
+
+/**
+ * 添えた画像の見本。切り抜く範囲が決まっていれば、その範囲だけが見えるように
+ * 元の画像をずらして出す —— 画素を作るのは預ける直前の 1 回だけにしたいので、
+ * ここでは切らない。
+ */
+const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
+  const [natural, setNatural] = createSignal<{
+    width: number;
+    height: number;
+  }>();
+  const framed = () => {
+    const crop = props.attachment.crop;
+    const size = natural();
+    if (!crop || !size) return undefined;
+    // 切り抜く範囲が見本いっぱいになる倍率。はみ出た分は左右・上下で均す。
+    const scale = Math.max(THUMBNAIL / crop.width, THUMBNAIL / crop.height);
+    return {
+      position: "absolute" as const,
+      "max-width": "none",
+      width: `${size.width * scale}px`,
+      height: `${size.height * scale}px`,
+      left: `${(THUMBNAIL - crop.width * scale) / 2 - crop.x * scale}px`,
+      top: `${(THUMBNAIL - crop.height * scale) / 2 - crop.y * scale}px`,
+    };
+  };
+  return (
+    <img
+      src={props.attachment.preview}
+      alt=""
+      class={framed() ? "" : "size-full object-cover"}
+      style={framed()}
+      onLoad={(event) =>
+        setNatural({
+          width: event.currentTarget.naturalWidth,
+          height: event.currentTarget.naturalHeight,
+        })
+      }
+    />
+  );
+};
+
 /** 添えたファイル。押すと切り抜ける。並べ替えた順が、本文に並ぶ順になる。 */
 export const ComposeAttachments: Component<{
   attachments: readonly Attachment[];
@@ -59,11 +103,7 @@ export const ComposeAttachments: Component<{
                 title={`${attachment.name} を切り抜く`}
                 onClick={() => setCropping(attachment)}
               >
-                <img
-                  src={attachment.preview}
-                  alt=""
-                  class="size-full object-cover"
-                />
+                <Thumbnail attachment={attachment} />
               </button>
 
               <Show when={attachment.uploading}>
@@ -160,12 +200,12 @@ export const ComposeAttachments: Component<{
           <CropDialog
             src={attachment().preview}
             name={attachment().name}
-            type={attachment().type ?? ""}
-            onDone={(image) => {
+            crop={attachment().crop}
+            onDone={(crop) => {
               dispatch({
                 type: "compose/attach-crop",
                 id: attachment().id,
-                image,
+                crop,
               });
               setCropping(undefined);
             }}

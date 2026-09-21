@@ -156,15 +156,43 @@ describe("ファイルを添える", () => {
     expect(state.attachments.map((a) => a.id)).toEqual(["2", "1"]);
   });
 
-  it("切り抜くと見本が変わり、預け直しになる", () => {
+  it("切り抜く範囲を持つ。元の画像はそのまま残す", () => {
+    const crop = { x: 10, y: 20, width: 100, height: 80 };
+    const state = run(add("1", "cat.png"), {
+      type: "compose/attach-crop",
+      id: "1",
+      crop,
+    });
+    expect(state.attachments[0]?.crop).toEqual(crop);
+    // 何度でも切り直せるよう、元の画像の見本は差し替えない。
+    expect(state.attachments[0]?.preview).toBe("blob:1");
+  });
+
+  it("切り抜き直すと、預けたものは捨てて預け直す", () => {
     const state = run(
       add("1", "cat.png"),
       { type: "compose/attach-done", id: "1", blob },
-      { type: "compose/attach-cropped", id: "1", preview: "blob:cropped" },
+      {
+        type: "compose/attach-crop",
+        id: "1",
+        crop: { x: 0, y: 0, width: 10, height: 10 },
+      },
     );
-    expect(state.attachments[0]?.preview).toBe("blob:cropped");
     expect(composeMedia(state)).toEqual([]);
     expect(pendingAttachments(state).map((a) => a.id)).toEqual(["1"]);
+  });
+
+  it("切り抜きをやめると全体に戻る", () => {
+    const state = run(
+      add("1", "cat.png"),
+      {
+        type: "compose/attach-crop",
+        id: "1",
+        crop: { x: 0, y: 0, width: 10, height: 10 },
+      },
+      { type: "compose/attach-crop", id: "1", crop: undefined },
+    );
+    expect(state.attachments[0]?.crop).toBeUndefined();
   });
 
   it("外したファイルは添えない", () => {

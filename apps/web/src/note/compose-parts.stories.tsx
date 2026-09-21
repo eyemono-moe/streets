@@ -17,7 +17,7 @@ const shot = (
   name: string,
   preview: string,
   extra: Partial<Attachment> = {},
-): Attachment => ({ id, name, preview, type: "image/png", ...extra });
+): Attachment => ({ id, name, preview, ...extra });
 
 const blob = {
   url: "https://a.example/1.png",
@@ -119,6 +119,18 @@ export const 複数添えた: Story = {
       shot("1", "1.png", landscapeUrl),
       shot("2", "2.png", squareUrl),
       shot("3", "3.png", portraitUrl),
+    ],
+  },
+};
+
+/** 切り抜いた画像。元の画像は残していて、押せば範囲を直せる。 */
+export const 切り抜いた: Story = {
+  args: {
+    attachments: [
+      shot("1", "ねこ.png", landscapeUrl, {
+        crop: { x: 500, y: 150, width: 600, height: 600 },
+      }),
+      shot("2", "そのまま.png", landscapeUrl),
     ],
   },
 };

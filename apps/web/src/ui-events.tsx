@@ -62,10 +62,13 @@ export type ComposeViewEvent =
   | { type: "compose/attach"; files: readonly File[] }
   | Extract<
       ComposeEvent,
-      { type: "compose/attach-remove" | "compose/attach-move" }
-    >
-  /** 切り抜いた結果。見本を作り直すのは裁定する段。 */
-  | { type: "compose/attach-crop"; id: string; image: Blob };
+      {
+        type:
+          | "compose/attach-remove"
+          | "compose/attach-move"
+          | "compose/attach-crop";
+      }
+    >;
 
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =

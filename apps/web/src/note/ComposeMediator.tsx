@@ -12,6 +12,7 @@ import {
 import type { Component, JSX } from "solid-js";
 import { onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { renderCrop } from "../media/crop";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -50,8 +51,6 @@ export const ComposeMediator: Component<{
   };
   const keep = (id: string, file: File) => {
     const preview = URL.createObjectURL(file);
-    const old = previews.get(id);
-    if (old) URL.revokeObjectURL(old);
     files.set(id, file);
     previews.set(id, preview);
     return preview;
@@ -68,7 +67,6 @@ export const ComposeMediator: Component<{
         id,
         name: file.name,
         preview: keep(id, file),
-        mime: file.type || undefined,
       });
     }
   };
@@ -76,10 +74,15 @@ export const ComposeMediator: Component<{
   /** 送る直前に、まだ預けていないものを順に預ける。1 つでも駄目なら送らない。 */
   const uploadPending = async () => {
     for (const attachment of pendingAttachments(unwrap(state))) {
-      const file = files.get(attachment.id);
-      if (!file) continue;
+      const raw = files.get(attachment.id);
+      if (!raw) continue;
       apply({ type: "compose/attach-uploading", id: attachment.id });
       try {
+        // 実際に切るのはここだけ。書いている間は範囲を持つだけにして、
+        // 元の画像を残しておく（何度でも切り直せる）。
+        const file = attachment.crop
+          ? await renderCrop(raw, attachment.crop)
+          : raw;
         const blob = await uploader?.upload(file);
         if (!blob) throw new Error("画像の預け先が設定されていません");
         apply({ type: "compose/attach-done", id: attachment.id, blob });
@@ -132,20 +135,9 @@ export const ComposeMediator: Component<{
       case "compose/attach-move":
         apply(event);
         return true;
-      case "compose/attach-crop": {
-        const before = files.get(event.id);
-        if (!before) return true;
-        const cropped = new File([event.image], before.name, {
-          type: event.image.type || before.type,
-        });
-        apply({
-          type: "compose/attach-cropped",
-          id: event.id,
-          preview: keep(event.id, cropped),
-          mime: cropped.type || undefined,
-        });
+      case "compose/attach-crop":
+        apply(event);
         return true;
-      }
       case "compose/close":
         if (!state.sending) props.onClose?.();
         return true;

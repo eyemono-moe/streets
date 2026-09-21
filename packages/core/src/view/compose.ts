@@ -5,14 +5,22 @@ import type { BlobDescriptor } from "../media/blossom";
  * 預けた結果だけを置く。預けるのは送るときなので、書いている間はまだどこにも
  * 送っていない —— 切り抜いてから預けられるし、書くのをやめれば何も残らない。
  */
+/** 切り抜く範囲。元の画像の画素で数える（左上が 0, 0）。 */
+export type CropRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type Attachment = {
   id: string;
   name: string;
-  /** 手元で作った見本の URL。 */
+  /** 元の画像の URL。切り抜いても差し替えない —— 何度でも切り直せるように。 */
   preview: string;
-  /** ファイルの種類（`image/jpeg` など）。切り抜いた結果の種類を決めるのに使う。 */
-  type?: string;
-  /** 預け終わったもの。切り抜くと預け直しになるので消える。 */
+  /** 切り抜く範囲。無ければ全体。実際に切るのは、預ける直前。 */
+  crop?: CropRect;
+  /** 預け終わったもの。切り抜き直すと預け直しになるので消える。 */
   blob?: BlobDescriptor;
   uploading?: boolean;
   /** 預けられなかった理由。 */
@@ -36,24 +44,12 @@ export type ComposeEvent =
   /** 送れなかった。本文は残して、そのまま送り直せるようにする。 */
   | { type: "compose/failed" }
   /** ファイルを添えた（まだ預けていない）。 */
-  | {
-      type: "compose/attach-add";
-      id: string;
-      name: string;
-      preview: string;
-      /** ファイルの種類。 */
-      mime?: string;
-    }
+  | { type: "compose/attach-add"; id: string; name: string; preview: string }
   | { type: "compose/attach-remove"; id: string }
   /** 並べ替える。`to` は動かした先の位置。 */
   | { type: "compose/attach-move"; id: string; to: number }
-  /** 切り抜いた見本に差し替える。預け直しになる。 */
-  | {
-      type: "compose/attach-cropped";
-      id: string;
-      preview: string;
-      mime?: string;
-    }
+  /** 切り抜く範囲を決める（`undefined` で全体に戻す）。預け直しになる。 */
+  | { type: "compose/attach-crop"; id: string; crop: CropRect | undefined }
   | { type: "compose/attach-uploading"; id: string }
   | { type: "compose/attach-done"; id: string; blob: BlobDescriptor }
   | { type: "compose/attach-failed"; id: string; error: string };
@@ -139,12 +135,7 @@ export const composeTransition = (
         ...state,
         attachments: [
           ...state.attachments,
-          {
-            id: event.id,
-            name: event.name,
-            preview: event.preview,
-            type: event.mime,
-          },
+          { id: event.id, name: event.name, preview: event.preview },
         ],
       };
     case "compose/attach-remove":
@@ -159,11 +150,11 @@ export const composeTransition = (
         ...state,
         attachments: moveAttachment(state.attachments, event.id, event.to),
       };
-    case "compose/attach-cropped":
+    case "compose/attach-crop":
       return mapAttachment(state, event.id, (attachment) => ({
         ...attachment,
-        preview: event.preview,
-        type: event.mime ?? attachment.type,
+        crop: event.crop,
+        // 切る範囲が変われば、預けたものはもう違う画像。預け直す。
         blob: undefined,
         error: undefined,
       }));
