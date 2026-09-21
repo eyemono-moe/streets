@@ -50,6 +50,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+  # 画像の預け先（Blossom / NIP-B7）。投稿に画像を添える動きをローカルで試す。
+  blossom:
+    image: ghcr.io/hzrd149/blossom-server:master
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./.local-dev/blossom-config.yml
+        target: /app/config.yml
+      - ./data/blossom:/app/data
+    ports:
+      - "8090:3000"
   nostrcheck:
     # see: https://github.com/quentintaranpino/nostrcheck-server/blob/main/compose.yml
     image: nostrcheckme/nostrcheck-server:latest

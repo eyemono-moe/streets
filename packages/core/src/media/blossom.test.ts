@@ -147,8 +147,12 @@ describe("uploadBlob", () => {
     const authorization = (seen.init?.headers as Record<string, string>)
       .authorization;
     expect(authorization.startsWith("Nostr ")).toBe(true);
+    // base64url で送る（`+` `/` `=` を含まない）。ふつうの base64 を base64url
+    // として読む預け先があり、中身が壊れて「署名が違う」と断られる。
+    const encoded = authorization.slice("Nostr ".length);
+    expect(encoded).not.toMatch(/[+/=]/);
     expect(
-      JSON.parse(atob(authorization.slice("Nostr ".length))),
+      JSON.parse(atob(encoded.replace(/-/g, "+").replace(/_/g, "/"))),
     ).toMatchObject({ kind: 24_242 });
     expect(blob).toEqual({
       url: "https://a.example/abc.png",

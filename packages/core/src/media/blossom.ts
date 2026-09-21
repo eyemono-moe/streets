@@ -154,6 +154,17 @@ export const buildUploadAuth = (options: {
   ],
 });
 
+/**
+ * 認可イベントの入れ物（BUD-11）。ふつうの base64 ではなく base64url（JWT と
+ * 同じ形）で送る —— `+` `/` を含む base64 を base64url として読む預け先があり、
+ * 中身が壊れて「署名が違う」と断られる。
+ */
+const base64url = (text: string): string =>
+  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+
 const parseBlob = (
   json: unknown,
   fallbackHash: string,
@@ -183,11 +194,7 @@ export const uploadBlob = async (options: {
   signal?: AbortSignal;
 }): Promise<BlobDescriptor> => {
   const fetcher = options.fetcher ?? fetch;
-  const authorization = `Nostr ${btoa(
-    String.fromCharCode(
-      ...new TextEncoder().encode(JSON.stringify(options.auth)),
-    ),
-  )}`;
+  const authorization = `Nostr ${base64url(JSON.stringify(options.auth))}`;
   let response: Response;
   try {
     response = await fetcher(`${options.server}/upload`, {
