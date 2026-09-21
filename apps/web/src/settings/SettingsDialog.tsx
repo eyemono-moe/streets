@@ -31,7 +31,7 @@ type Page = {
   label: string;
   icon: string;
   title: string;
-  description: string;
+  description?: string;
   /** まだ作っていないページは、並べるが押せなくする。 */
   content?: () => JSX.Element;
 };
@@ -70,7 +70,6 @@ const SettingsDialog: Component<{
       label: "アカウント",
       icon: "i-material-symbols:person-outline-rounded",
       title: "アカウント",
-      description: "プロフィールを編集し、この端末からログアウトします。",
       content: () => <AccountSettings />,
     },
     {
@@ -78,7 +77,6 @@ const SettingsDialog: Component<{
       label: "リレー",
       icon: "i-material-symbols:globe",
       title: "リレー",
-      description: "投稿をアップロードするサーバーを選びます。",
       content: () => <RelaySettings />,
     },
 
@@ -87,7 +85,6 @@ const SettingsDialog: Component<{
       label: "画像",
       icon: "i-material-symbols:image-outline-rounded",
       title: "画像",
-      description: "投稿に付ける画像のアップロード先を決めます。",
       content: () => <MediaSettings />,
     },
     {
@@ -95,7 +92,6 @@ const SettingsDialog: Component<{
       label: "ミュート",
       icon: "i-material-symbols:volume-off-outline-rounded",
       title: "ミュート",
-      description: "見たくない人や投稿を隠します。",
       content: () => <MuteSettings />,
     },
     {
@@ -103,7 +99,6 @@ const SettingsDialog: Component<{
       label: "表示",
       icon: "i-material-symbols:visibility-outline-rounded",
       title: "表示",
-      description: "画面の色と、保存したときの知らせ方を選びます。",
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
