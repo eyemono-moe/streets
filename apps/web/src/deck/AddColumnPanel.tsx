@@ -3,7 +3,6 @@ import {
   buildColumn,
   buildRelayColumn,
 } from "@streets/core/deck/column-presets";
-import { decodeNpub } from "@streets/core/nostr/nip19";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show, createSignal } from "solid-js";
@@ -78,40 +77,10 @@ const AddColumnPanel: Component<{
   initialRelayOpen?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [query, setQuery] = createSignal("");
   const [relayOpen, setRelayOpen] = createSignal(
     props.initialRelayOpen ?? false,
   );
   const [selectedRelays, setSelectedRelays] = createSignal<RelayUrl[]>([]);
-  const trimmed = () => query().trim();
-  // `#` で始まればハッシュタグ、npub / nprofile ならユーザー、それ以外は本文の検索。
-  const searchKind = (): ColumnPresetKind =>
-    trimmed().startsWith("#")
-      ? "hashtag"
-      : decodeNpub(trimmed())
-        ? "user"
-        : "search";
-  const searchColumn = () =>
-    trimmed().length > 0 ? buildColumn(searchKind(), trimmed()) : undefined;
-  const searchMeta = () => {
-    switch (searchKind()) {
-      case "user":
-        return {
-          icon: "i-material-symbols:person-outline-rounded",
-          description: "ノートと返信",
-        };
-      case "hashtag":
-        return {
-          icon: "i-material-symbols:tag-rounded",
-          description: "ハッシュタグ",
-        };
-      default:
-        return {
-          icon: "i-material-symbols:search-rounded",
-          description: "本文の検索（検索に対応したリレーへ問い合わせる）",
-        };
-    }
-  };
 
   return (
     <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
@@ -119,46 +88,9 @@ const AddColumnPanel: Component<{
         when={relayOpen()}
         fallback={
           <div class="motion-fade animate-in">
-            <form
-              class="flex h-10 items-center gap-2 rounded-full border border-primary px-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const column = searchColumn();
-                if (column)
-                  dispatch({ type: "deck/add-column", column: column });
-              }}
-            >
-              <span
-                class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
-                aria-hidden="true"
-              />
-              <input
-                class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-                placeholder="本文の検索・#ハッシュタグ・npub"
-                aria-label="追加するカラムを検索"
-                value={query()}
-                onInput={(event) => setQuery(event.currentTarget.value)}
-              />
-            </form>
-
-            <Show when={searchColumn()}>
-              {(column) => (
-                <div class="mt-2 overflow-hidden rounded-2 border border-primary">
-                  <Row
-                    icon={searchMeta().icon}
-                    label={column().title}
-                    description={searchMeta().description}
-                    onClick={() =>
-                      dispatch({ type: "deck/add-column", column: column() })
-                    }
-                  />
-                </div>
-              )}
-            </Show>
-
-            <h3 class="c-secondary mt-4 mb-1 font-600 text-caption">
-              プリセット
-            </h3>
+            <p class="c-secondary mb-3 text-caption">
+              追加したいカラムを選んでください。言葉から探すときは、虫めがねのボタンから。
+            </p>
             <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
               <For each={PRESETS}>
                 {(preset) => (

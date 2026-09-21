@@ -67,6 +67,7 @@ import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import ColumnTitle from "./ColumnTitle";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, Sidebar, TabBar } from "./Nav";
+import SearchPanel from "./SearchPanel";
 import SidePanel from "./SidePanel";
 import { columnMeta } from "./column-meta";
 import { createDeckStore } from "./deck-store";
@@ -363,13 +364,26 @@ const DeckScreen: Component<{
         <Show
           when={current() === "compose"}
           fallback={
-            <SidePanel
-              title="カラムを追加"
-              icon="i-material-symbols:add-rounded"
-              full={full}
+            <Show
+              when={current() === "search"}
+              fallback={
+                <SidePanel
+                  title="カラムを追加"
+                  icon="i-material-symbols:add-rounded"
+                  full={full}
+                >
+                  <AddColumnPanel relayList={relayList()} />
+                </SidePanel>
+              }
             >
-              <AddColumnPanel relayList={relayList()} />
-            </SidePanel>
+              <SidePanel
+                title="探す"
+                icon="i-material-symbols:search-rounded"
+                full={full}
+              >
+                <SearchPanel />
+              </SidePanel>
+            </Show>
           }
         >
           <SidePanel
