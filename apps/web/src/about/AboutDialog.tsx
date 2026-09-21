@@ -58,7 +58,7 @@ const TOOLS: Tool[] = [
     tool: "Sentry",
     terms: "https://sentry.io/terms/",
     privacy: "https://sentry.io/privacy/",
-    optOut: "—",
+    optOut: "設定 →「表示」→「エラーの報告」から停止できます",
     sends: "エラーの内容と発生箇所、端末とブラウザの情報、アプリのバージョン",
     purpose: "不具合の把握と修正のため",
   },
