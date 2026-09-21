@@ -1,11 +1,15 @@
-import { type ComposeState, emptyCompose } from "@streets/core/view/compose";
+import {
+  type Attachment,
+  type ComposeState,
+  emptyCompose,
+} from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { useEventActions } from "../actions";
 import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
-// 小さい SVG は data URI に埋め込まれ、本文の URL として拾われなくなるので、ファイルのまま配信させる。
-import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
+import landscapeUrl from "../storybook/media-landscape.svg";
+import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import { ComposeMediator } from "./ComposeMediator";
 import ReplyDialog from "./ReplyDialog";
@@ -21,8 +25,12 @@ const viewer = createStoryAuthor(55, {
 });
 const target = parent.note("返信元のノートの本文。");
 
-// 本文の URL は http(s) で始まらないと画像として拾われないので、配信元の origin を付ける。
-const absolute = (url: string) => new URL(url, location.href).href;
+const shot = (
+  id: string,
+  name: string,
+  preview: string,
+  extra: Partial<Attachment> = {},
+): Attachment => ({ id, name, preview, type: "image/png", ...extra });
 
 type Props = {
   failWrites: boolean;
@@ -87,12 +95,34 @@ export const 送信中: Story = {
   },
 };
 
+export const 画像を添えた: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "これ見て",
+      attachments: [shot("1", "ねこ.png", landscapeUrl)],
+    },
+  },
+};
+
+/** 送ってはじめて預ける。預け終わったものから印が消える。 */
 export const 画像を預けている途中: Story = {
   args: {
     state: {
       ...emptyCompose(),
       content: "これ見て",
-      uploads: [{ id: "1", name: "ねこ.png" }],
+      sending: true,
+      attachments: [
+        shot("1", "1.png", landscapeUrl, {
+          blob: {
+            url: "https://a.example/1.png",
+            sha256: "a".repeat(64),
+            size: 1024,
+            type: "image/png",
+          },
+        }),
+        shot("2", "2.png", squareUrl, { uploading: true }),
+      ],
     },
   },
 };
@@ -102,26 +132,9 @@ export const 画像を預けられなかった: Story = {
     state: {
       ...emptyCompose(),
       content: "これ見て",
-      uploads: [{ id: "1", name: "ねこ.png", error: "大きすぎます" }],
-    },
-  },
-};
-
-/** 預け終わったものは本文の URL になる。途中のものと混ざる。 */
-export const 画像を複数添えた: Story = {
-  args: {
-    state: {
-      ...emptyCompose(),
-      content: `2 枚。\n${absolute(landscapeUrl)}`,
-      media: [
-        {
-          url: absolute(landscapeUrl),
-          sha256: "a".repeat(64),
-          size: 1024,
-          type: "image/svg+xml",
-        },
+      attachments: [
+        shot("1", "ねこ.png", landscapeUrl, { error: "大きすぎます" }),
       ],
-      uploads: [{ id: "2", name: "いぬ.jpg" }],
     },
   },
 };

@@ -1,9 +1,10 @@
-import type { Upload } from "@streets/core/view/compose";
-import { type Component, For, Show } from "solid-js";
+import type { Attachment } from "@streets/core/view/compose";
+import { type Component, For, Show, createSignal } from "solid-js";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import CropDialog from "./CropDialog";
 
 const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
 
@@ -32,68 +33,150 @@ const ToolButton: Component<{
   </button>
 );
 
-/**
- * 預けている途中・預けられなかったファイル。預け終わったものは本文の URL になるので
- * ここには出ない。
- */
-export const ComposeUploads: Component<{ uploads: readonly Upload[] }> = (
-  props,
-) => {
+/** 添えたファイル。押すと切り抜ける。並べ替えた順が、本文に並ぶ順になる。 */
+export const ComposeAttachments: Component<{
+  attachments: readonly Attachment[];
+}> = (props) => {
   const dispatch = useDispatch();
+  const [cropping, setCropping] = createSignal<Attachment>();
+  const errors = () => props.attachments.filter((a) => a.error !== undefined);
   return (
-    <Show when={props.uploads.length > 0}>
-      <ul class="flex flex-col gap-1 px-4 pb-1">
-        <For each={props.uploads}>
-          {(upload) => (
-            <li class="flex items-center gap-2 text-caption">
-              <span
-                class="size-4 shrink-0"
-                classList={{
-                  "i-material-symbols:progress-activity animate-spin c-secondary":
-                    upload.error === undefined,
-                  "i-material-symbols:error-outline-rounded c-danger":
-                    upload.error !== undefined,
-                }}
-                aria-hidden="true"
-              />
-              <span class="c-primary min-w-0 max-w-40 truncate">
-                {upload.name}
-              </span>
-              <span
-                class="min-w-0 flex-1 truncate"
-                classList={{
-                  "c-secondary": upload.error === undefined,
-                  "c-danger": upload.error !== undefined,
-                }}
+    <Show when={props.attachments.length > 0}>
+      <ul class="flex flex-wrap gap-2 px-4 pb-1">
+        <For each={props.attachments}>
+          {(attachment, index) => (
+            <li
+              class="relative size-20 overflow-hidden rounded-2 border"
+              classList={{
+                "border-primary": attachment.error === undefined,
+                "border-danger": attachment.error !== undefined,
+              }}
+            >
+              <button
+                type="button"
+                class="size-full cursor-pointer border-none bg-transparent p-0"
+                aria-label={`${attachment.name} を切り抜く`}
+                title={`${attachment.name} を切り抜く`}
+                onClick={() => setCropping(attachment)}
               >
-                {upload.error ?? "アップロード中…"}
-              </span>
-              <Show when={upload.error}>
-                <button
-                  type="button"
-                  aria-label={`${upload.name} の失敗を消す`}
-                  class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-                  onClick={() =>
-                    dispatch({ type: "compose/attach-dismiss", id: upload.id })
-                  }
-                >
+                <img
+                  src={attachment.preview}
+                  alt=""
+                  class="size-full object-cover"
+                />
+              </button>
+
+              <Show when={attachment.uploading}>
+                <span class="absolute inset-0 grid place-items-center bg-black/50">
                   <span
-                    class="i-material-symbols:close-rounded size-4"
-                    aria-hidden="true"
+                    class="i-material-symbols:progress-activity c-white size-6 animate-spin"
+                    aria-label="アップロード中"
                   />
-                </button>
+                </span>
+              </Show>
+
+              <button
+                type="button"
+                aria-label={`${attachment.name} を外す`}
+                class="c-white absolute top-0.5 right-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-none bg-black/60"
+                onClick={() =>
+                  dispatch({
+                    type: "compose/attach-remove",
+                    id: attachment.id,
+                  })
+                }
+              >
+                <span
+                  class="i-material-symbols:close-rounded size-4"
+                  aria-hidden="true"
+                />
+              </button>
+
+              {/* 並べ替えは前後へ 1 つずつ。掴んで動かすのは、まだ作っていない。 */}
+              <Show when={props.attachments.length > 1}>
+                <div class="absolute inset-x-0 bottom-0 flex justify-between bg-black/50">
+                  <button
+                    type="button"
+                    aria-label={`${attachment.name} を前へ`}
+                    disabled={index() === 0}
+                    class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
+                    onClick={() =>
+                      dispatch({
+                        type: "compose/attach-move",
+                        id: attachment.id,
+                        to: index() - 1,
+                      })
+                    }
+                  >
+                    <span
+                      class="i-material-symbols:chevron-left-rounded size-4"
+                      aria-hidden="true"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${attachment.name} を後ろへ`}
+                    disabled={index() === props.attachments.length - 1}
+                    class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
+                    onClick={() =>
+                      dispatch({
+                        type: "compose/attach-move",
+                        id: attachment.id,
+                        to: index() + 1,
+                      })
+                    }
+                  >
+                    <span
+                      class="i-material-symbols:chevron-right-rounded size-4"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
               </Show>
             </li>
           )}
         </For>
       </ul>
+
+      <Show when={errors().length > 0}>
+        <ul class="flex flex-col gap-1 px-4 pb-1">
+          <For each={errors()}>
+            {(attachment) => (
+              <li class="c-danger flex items-center gap-1.5 text-caption">
+                <span
+                  class="i-material-symbols:error-outline-rounded size-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span class="min-w-0 max-w-40 truncate">{attachment.name}</span>
+                <span class="min-w-0 flex-1 truncate">{attachment.error}</span>
+              </li>
+            )}
+          </For>
+        </ul>
+      </Show>
+
+      <Show when={cropping()}>
+        {(attachment) => (
+          <CropDialog
+            src={attachment().preview}
+            name={attachment().name}
+            type={attachment().type ?? ""}
+            onDone={(image) => {
+              dispatch({
+                type: "compose/attach-crop",
+                id: attachment().id,
+                image,
+              });
+              setCropping(undefined);
+            }}
+            onClose={() => setCropping(undefined)}
+          />
+        )}
+      </Show>
     </Show>
   );
 };
 
-/**
- * 貼り付け・ドラッグして落とす、でファイルを添える。textarea に付ける。
- */
 const NO_SERVER_MESSAGE =
   "画像を添えるには、設定の「画像」で預け先を決めてください";
 
@@ -112,6 +195,7 @@ export const useAttachGuard = () => {
   };
 };
 
+/** 貼り付け・ドラッグして落とす、でファイルを添える。textarea に付ける。 */
 export const useDropAndPaste = () => {
   const dispatch = useDispatch();
   const guard = useAttachGuard();

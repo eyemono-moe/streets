@@ -1,6 +1,6 @@
 import { parseContent } from "@streets/core/nostr/content";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type ComposeState, isUploading } from "@streets/core/view/compose";
+import { type ComposeState, canSend } from "@streets/core/view/compose";
 import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
@@ -14,7 +14,11 @@ import {
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
-import { ComposeTools, ComposeUploads, countCharacters } from "./compose-parts";
+import {
+  ComposeAttachments,
+  ComposeTools,
+  countCharacters,
+} from "./compose-parts";
 
 const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
@@ -83,15 +87,12 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                 }}
               />
             </div>
-            <ComposeUploads uploads={props.state.uploads} />
+            <ComposeAttachments attachments={props.state.attachments} />
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
               label="返信"
               sending={props.state.sending}
-              disabled={
-                props.state.content.trim().length === 0 ||
-                isUploading(props.state)
-              }
+              disabled={!canSend(props.state)}
             />
           </form>
         </DialogContent>

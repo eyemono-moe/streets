@@ -58,9 +58,14 @@ export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
 export type ComposeViewEvent =
   | Extract<ComposeEvent, { type: "compose/input" | "compose/submit" }>
   | { type: "compose/close" }
-  /** 選んだ・貼り付けた・落としたファイルを預ける。 */
+  /** 選んだ・貼り付けた・落としたファイルを添える（預けるのは送るとき）。 */
   | { type: "compose/attach"; files: readonly File[] }
-  | Extract<ComposeEvent, { type: "compose/attach-dismiss" }>;
+  | Extract<
+      ComposeEvent,
+      { type: "compose/attach-remove" | "compose/attach-move" }
+    >
+  /** 切り抜いた結果。見本を作り直すのは裁定する段。 */
+  | { type: "compose/attach-crop"; id: string; image: Blob };
 
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =

@@ -1,21 +1,42 @@
-import type { Upload } from "@streets/core/view/compose";
+import type { Attachment } from "@streets/core/view/compose";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { UploaderProvider } from "../media/uploader";
+import landscapeUrl from "../storybook/media-landscape.svg";
+import portraitUrl from "../storybook/media-portrait.svg";
+import squareUrl from "../storybook/media-square.svg";
 import { Mediates } from "../ui-events";
-import { ComposeTools, ComposeUploads, countCharacters } from "./compose-parts";
+import {
+  ComposeAttachments,
+  ComposeTools,
+  countCharacters,
+} from "./compose-parts";
 
-/** 投稿パネル・返信・引用で共通の足まわり（ファイルの行と、下の操作列）だけを見る。 */
+const shot = (
+  id: string,
+  name: string,
+  preview: string,
+  extra: Partial<Attachment> = {},
+): Attachment => ({ id, name, preview, type: "image/png", ...extra });
+
+const blob = {
+  url: "https://a.example/1.png",
+  sha256: "a".repeat(64),
+  size: 1024,
+  type: "image/png",
+};
+
+/** 投稿パネル・返信・引用で共通の足まわり（添えたファイルと、下の操作列）だけを見る。 */
 type Args = {
   content: string;
-  uploads: Upload[];
+  attachments: Attachment[];
   /** 預け先。空にすると、画像を添えるボタンが使えない見た目になる。 */
   servers: string[];
   sending: boolean;
 };
 
 const Parts = (props: Args) => {
-  const [uploads, setUploads] = createSignal(props.uploads);
+  const [attachments, setAttachments] = createSignal(props.attachments);
   return (
     <UploaderProvider
       value={{
@@ -25,27 +46,42 @@ const Parts = (props: Args) => {
     >
       <Mediates
         handle={(event) => {
-          if (event.type === "compose/attach-dismiss") {
-            setUploads((current) => current.filter((u) => u.id !== event.id));
+          if (event.type === "compose/attach-remove") {
+            setAttachments((current) =>
+              current.filter((a) => a.id !== event.id),
+            );
+            return true;
+          }
+          if (event.type === "compose/attach-move") {
+            setAttachments((current) => {
+              const from = current.findIndex((a) => a.id === event.id);
+              const moved = current[from];
+              if (from === -1 || !moved) return current;
+              const rest = current.filter((_, index) => index !== from);
+              return [
+                ...rest.slice(0, event.to),
+                moved,
+                ...rest.slice(event.to),
+              ];
+            });
             return true;
           }
           return false;
         }}
       >
         <div class="w-100 overflow-hidden rounded-3 border border-primary bg-primary">
-          <div class="px-4 pt-4">
+          <div class="px-4 pt-4 pb-2">
             <div class="c-primary min-h-20 whitespace-pre-wrap rounded-2 border border-primary bg-secondary p-2.5 text-body">
               {props.content}
             </div>
           </div>
-          <ComposeUploads uploads={uploads()} />
+          <ComposeAttachments attachments={attachments()} />
           <ComposeTools
             count={`${countCharacters(props.content)} 文字`}
             label="投稿"
             sending={props.sending}
             disabled={
-              props.content.trim().length === 0 ||
-              uploads().some((u) => u.error === undefined)
+              props.content.trim().length === 0 && attachments().length === 0
             }
           />
         </div>
@@ -59,11 +95,11 @@ const meta = {
   component: Parts,
   args: {
     content: "書きかけの本文。",
-    uploads: [],
+    attachments: [],
     servers: ["https://blossom.example"],
     sending: false,
   },
-  argTypes: { uploads: { control: false } },
+  argTypes: { attachments: { control: false } },
 } satisfies Meta<Args>;
 
 export default meta;
@@ -71,32 +107,42 @@ type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = {};
 
-export const 預けている途中: Story = {
-  args: { uploads: [{ id: "1", name: "ねこ.png" }] },
+/** 添えた画像は押すと切り抜ける。預けるのは送るとき。 */
+export const 画像を添えた: Story = {
+  args: { attachments: [shot("1", "ねこ.png", landscapeUrl)] },
 };
 
-export const 預けられなかった: Story = {
+/** 2 枚以上あるときだけ、前後へ動かすボタンを出す。 */
+export const 複数添えた: Story = {
   args: {
-    uploads: [{ id: "1", name: "ねこ.png", error: "大きすぎます" }],
-  },
-};
-
-/** 何枚か同時に落としたところ。終わったものから本文の URL に変わっていく。 */
-export const 複数を預けている: Story = {
-  args: {
-    content: "3 枚。\nhttps://example.com/1.png",
-    uploads: [
-      { id: "2", name: "とても長いファイル名の画像ファイル-2026-09-21.png" },
-      {
-        id: "3",
-        name: "いぬ.jpg",
-        error: "預け先が受け取ってくれませんでした",
-      },
+    attachments: [
+      shot("1", "1.png", landscapeUrl),
+      shot("2", "2.png", squareUrl),
+      shot("3", "3.png", portraitUrl),
     ],
   },
 };
 
-/** 預け先を決めていない人。画像のボタンは押せる（押すと設定へ案内する）。 */
+export const 預けている途中: Story = {
+  args: {
+    attachments: [
+      shot("1", "1.png", landscapeUrl, { blob }),
+      shot("2", "2.png", squareUrl, { uploading: true }),
+    ],
+    sending: true,
+  },
+};
+
+export const 預けられなかった: Story = {
+  args: {
+    attachments: [
+      shot("1", "1.png", landscapeUrl, { blob }),
+      shot("2", "2.png", squareUrl, { error: "大きすぎます" }),
+    ],
+  },
+};
+
+/** 預け先を決めていない人。画像のボタンは薄いが押せて、押すと設定へ案内する。 */
 export const 預け先が無い: Story = { args: { servers: [] } };
 
 export const 送信中: Story = { args: { sending: true } };

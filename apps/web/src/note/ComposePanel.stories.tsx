@@ -1,12 +1,15 @@
-import { type ComposeState, emptyCompose } from "@streets/core/view/compose";
+import {
+  type Attachment,
+  type ComposeState,
+  emptyCompose,
+} from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SidePanel from "../deck/SidePanel";
 import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
-// 小さい SVG は data URI に埋め込まれ、本文の URL として拾われなくなるので、ファイルのまま配信させる。
-import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
-import squareUrl from "../storybook/media-square.svg?no-inline";
+import landscapeUrl from "../storybook/media-landscape.svg";
+import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import ComposePanel from "./ComposePanel";
 
@@ -16,15 +19,19 @@ const viewer = createStoryAuthor(55, {
   picture: avatarUrl,
 });
 
-// 本文の URL は http(s) で始まらないと画像として拾われないので、配信元の origin を付ける。
-const absolute = (url: string) => new URL(url, location.href).href;
+const shot = (
+  id: string,
+  name: string,
+  preview: string,
+  extra: Partial<Attachment> = {},
+): Attachment => ({ id, name, preview, type: "image/png", ...extra });
 
-const blob = (url: string, seed: string) => ({
-  url,
-  sha256: seed.repeat(64).slice(0, 64),
+const blob = {
+  url: "https://a.example/1.png",
+  sha256: "a".repeat(64),
   size: 1024,
-  type: "image/svg+xml",
-});
+  type: "image/png",
+};
 
 type Props = {
   state: ComposeState;
@@ -85,13 +92,41 @@ export const 送信中: Story = {
   },
 };
 
-/** 預け終わるまで送れない（送信ボタンではなく、文字数の隣の行で状況を見せる）。 */
-export const 画像を預けている途中: Story = {
+/** 添えた画像は押すと切り抜ける。並べ替えた順で、送るときに URL が並ぶ。 */
+export const 画像を添えた: Story = {
   args: {
     state: {
       ...emptyCompose(),
       content: "ねこの写真",
-      uploads: [{ id: "1", name: "ねこ.png" }],
+      attachments: [shot("1", "ねこ.png", landscapeUrl)],
+    },
+  },
+};
+
+export const 画像を複数添えた: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "2 枚できた。",
+      attachments: [
+        shot("1", "1.png", landscapeUrl),
+        shot("2", "2.png", squareUrl),
+      ],
+    },
+  },
+};
+
+/** 送ってはじめて預ける。預け終わったものから印が消える。 */
+export const 画像を預けている途中: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "2 枚できた。",
+      sending: true,
+      attachments: [
+        shot("1", "1.png", landscapeUrl, { blob }),
+        shot("2", "2.png", squareUrl, { uploading: true }),
+      ],
     },
   },
 };
@@ -100,36 +135,10 @@ export const 画像を預けられなかった: Story = {
   args: {
     state: {
       ...emptyCompose(),
-      content: "ねこの写真",
-      uploads: [{ id: "1", name: "ねこ.png", error: "大きすぎます" }],
-    },
-  },
-};
-
-/** 預け終わったものは本文の URL になり、プレビューに画像として出る。 */
-export const 画像を複数添えた: Story = {
-  args: {
-    state: {
-      ...emptyCompose(),
-      content: `2 枚できた。\n${absolute(landscapeUrl)}\n${absolute(squareUrl)}`,
-      media: [
-        blob(absolute(landscapeUrl), "a"),
-        blob(absolute(squareUrl), "b"),
-      ],
-    },
-  },
-};
-
-/** 1 枚は終わって、もう 1 枚を預けている途中。 */
-export const 添え終わりと途中が混ざる: Story = {
-  args: {
-    state: {
-      ...emptyCompose(),
-      content: `3 枚。\n${absolute(landscapeUrl)}`,
-      media: [blob(absolute(landscapeUrl), "a")],
-      uploads: [
-        { id: "2", name: "いぬ.jpg" },
-        { id: "3", name: "とり.png", error: "預け先が受け取ってくれません" },
+      content: "2 枚できた。",
+      attachments: [
+        shot("1", "1.png", landscapeUrl, { blob }),
+        shot("2", "2.png", squareUrl, { error: "大きすぎます" }),
       ],
     },
   },

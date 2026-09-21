@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   type ComposeEvent,
   type ComposeState,
+  canSend,
   composeMedia,
   composeTransition,
   emptyCompose,
-  isUploading,
+  pendingAttachments,
   sendableText,
 } from "./compose";
 
@@ -66,7 +67,7 @@ describe("composeTransition", () => {
       { type: "compose/failed" },
     );
     expect(state).toEqual({ ...emptyCompose(), content: "送る" });
-    expect(sendableText(state)).toBe("送る");
+    expect(canSend(state)).toBe(true);
   });
 
   it("送っていないのに届いた「送れた」は無視する", () => {
@@ -81,11 +82,27 @@ describe("sendableText", () => {
       "本文",
     );
   });
+});
 
-  it("送っている途中は返さない", () => {
-    expect(
-      sendableText({ ...emptyCompose(), content: "本文", sending: true }),
-    ).toBeUndefined();
+describe("canSend", () => {
+  it("本文もファイルも無ければ送らない", () => {
+    expect(canSend(emptyCompose())).toBe(false);
+  });
+
+  it("送っている途中は送らない", () => {
+    expect(canSend({ ...emptyCompose(), content: "本文", sending: true })).toBe(
+      false,
+    );
+  });
+
+  it("本文が空でも、ファイルを添えていれば送れる", () => {
+    const state = run({
+      type: "compose/attach-add",
+      id: "1",
+      name: "cat.png",
+      preview: "blob:cat",
+    });
+    expect(canSend(state)).toBe(true);
   });
 });
 
@@ -96,91 +113,95 @@ describe("ファイルを添える", () => {
     size: 3,
     type: "image/png",
   };
-
-  it("預けている途中は送らせない", () => {
-    const state = composeTransition(
-      composeTransition(emptyCompose(), {
-        type: "compose/input",
-        content: "ねこ",
-      }),
-      { type: "compose/attach-start", id: "1", name: "cat.png" },
-    );
-    expect(isUploading(state)).toBe(true);
-    expect(sendableText(state)).toBeUndefined();
+  const add = (id: string, name: string): ComposeEvent => ({
+    type: "compose/attach-add",
+    id,
+    name,
+    preview: `blob:${id}`,
   });
 
-  it("預け終わったら本文の末尾に URL を足し、添えるものに数える", () => {
-    let state = composeTransition(emptyCompose(), {
-      type: "compose/input",
-      content: "ねこ",
-    });
-    state = composeTransition(state, {
-      type: "compose/attach-start",
-      id: "1",
-      name: "cat.png",
-    });
-    state = composeTransition(state, {
-      type: "compose/attach-done",
-      id: "1",
-      blob,
-    });
-    expect(state.content).toBe(`ねこ\n${blob.url}`);
-    expect(state.uploads).toEqual([]);
-    expect(composeMedia(state)).toEqual([blob]);
-    expect(sendableText(state)).toBe(`ねこ\n${blob.url}`);
-  });
-
-  it("本文から URL を消したら、そのファイルは添えない", () => {
-    let state = composeTransition(emptyCompose(), {
-      type: "compose/attach-start",
-      id: "1",
-      name: "cat.png",
-    });
-    state = composeTransition(state, {
-      type: "compose/attach-done",
-      id: "1",
-      blob,
-    });
-    state = composeTransition(state, {
-      type: "compose/input",
-      content: "やっぱりやめた",
-    });
+  it("添えただけでは、まだ預けていない", () => {
+    const state = run(add("1", "cat.png"));
+    expect(pendingAttachments(state).map((a) => a.id)).toEqual(["1"]);
     expect(composeMedia(state)).toEqual([]);
+    // 本文は触らない —— URL は送るときに末尾へ並べる。
+    expect(state.content).toBe("");
   });
 
-  it("失敗は理由を残し、消せる。ほかのファイルは送れる", () => {
-    let state = composeTransition(emptyCompose(), {
-      type: "compose/attach-start",
+  it("預け終わったものは、添えるものに数える", () => {
+    const state = run(add("1", "cat.png"), {
+      type: "compose/attach-done",
       id: "1",
-      name: "cat.png",
+      blob,
     });
+    expect(pendingAttachments(state)).toEqual([]);
+    expect(composeMedia(state)).toEqual([blob]);
+  });
+
+  it("並べ替えた順で添える", () => {
+    const state = run(add("1", "1.png"), add("2", "2.png"), add("3", "3.png"), {
+      type: "compose/attach-move",
+      id: "3",
+      to: 0,
+    });
+    expect(state.attachments.map((a) => a.id)).toEqual(["3", "1", "2"]);
+  });
+
+  it("並べ替えの行き先が端を越えても、端で止める", () => {
+    const state = run(add("1", "1.png"), add("2", "2.png"), {
+      type: "compose/attach-move",
+      id: "1",
+      to: 9,
+    });
+    expect(state.attachments.map((a) => a.id)).toEqual(["2", "1"]);
+  });
+
+  it("切り抜くと見本が変わり、預け直しになる", () => {
+    const state = run(
+      add("1", "cat.png"),
+      { type: "compose/attach-done", id: "1", blob },
+      { type: "compose/attach-cropped", id: "1", preview: "blob:cropped" },
+    );
+    expect(state.attachments[0]?.preview).toBe("blob:cropped");
+    expect(composeMedia(state)).toEqual([]);
+    expect(pendingAttachments(state).map((a) => a.id)).toEqual(["1"]);
+  });
+
+  it("外したファイルは添えない", () => {
+    const state = run(add("1", "cat.png"), {
+      type: "compose/attach-remove",
+      id: "1",
+    });
+    expect(state.attachments).toEqual([]);
+  });
+
+  it("預けられなかった理由を持ち、送り直すと消える", () => {
+    let state = run(add("1", "cat.png"), {
+      type: "compose/attach-uploading",
+      id: "1",
+    });
+    expect(state.attachments[0]?.uploading).toBe(true);
     state = composeTransition(state, {
       type: "compose/attach-failed",
       id: "1",
       error: "大きすぎます",
     });
-    expect(isUploading(state)).toBe(false);
-    expect(state.uploads[0]?.error).toBe("大きすぎます");
-    state = composeTransition(state, {
-      type: "compose/attach-dismiss",
-      id: "1",
+    expect(state.attachments[0]).toMatchObject({
+      uploading: false,
+      error: "大きすぎます",
     });
-    expect(state.uploads).toEqual([]);
+    state = composeTransition(state, { type: "compose/submit" });
+    expect(state.attachments[0]?.error).toBeUndefined();
+    expect(state.sending).toBe(true);
   });
 
   it("送れたら、添えたものごと空になる", () => {
-    let state = composeTransition(emptyCompose(), {
-      type: "compose/attach-start",
-      id: "1",
-      name: "cat.png",
-    });
-    state = composeTransition(state, {
-      type: "compose/attach-done",
-      id: "1",
-      blob,
-    });
-    state = composeTransition(state, { type: "compose/submit" });
-    state = composeTransition(state, { type: "compose/sent" });
+    const state = run(
+      add("1", "cat.png"),
+      { type: "compose/attach-done", id: "1", blob },
+      { type: "compose/submit" },
+      { type: "compose/sent" },
+    );
     expect(state).toEqual(emptyCompose());
   });
 });
