@@ -23,12 +23,12 @@ const version = () =>
 const Overview: Component = () => (
   <div class="flex flex-col gap-7">
     <p class="c-primary text-body">
-      Streets は Nostr のクライアントです。カラムを並べて、読みたいものを並べて
-      見られます。まだ作っている途中なので、思わぬ不具合や、大きな作り替えが
-      起きることがあります。
+      Streets は Nostr
+      のクライアントです。カラムを並べて、フォロー中の投稿や通知を同時に見られます。
+      現在はベータ版のため、不具合や仕様の変更が発生する可能性があります。
     </p>
     <dl class="c-secondary grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-caption">
-      <dt>ビルド</dt>
+      <dt>バージョン</dt>
       <dd>{version()}</dd>
       <dt>ソースコード</dt>
       <dd>
@@ -59,46 +59,53 @@ const TOOLS: Tool[] = [
     terms: "https://sentry.io/terms/",
     privacy: "https://sentry.io/privacy/",
     optOut: "—",
-    sends: "端末の情報、エラーの記録",
-    purpose: "不具合に気付いて直すため",
+    sends: "エラーの内容と発生箇所、端末とブラウザの情報、アプリのバージョン",
+    purpose: "不具合の把握と修正のため",
   },
 ];
 
 const Privacy: Component = () => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="外部へ送っているもの"
-      description="不具合に気付くために、エラーが起きたときだけ、その記録を外部のサービスへ送っています。"
+      title="エラー収集ツールの利用について"
+      description="本アプリでは、不具合の把握と修正を目的として、エラーの発生時にその記録を第三者が提供するツールへ送信しています。"
     >
-      <ul class="c-primary flex list-disc flex-col gap-1.5 pl-5 text-body">
-        <li>
-          送るのは、どこで何が起きたかだけです。秘密鍵・公開鍵・イベントの id
-          は、送る前に取り除いています。
-        </li>
-        <li>投稿の本文や、入力中の文字は送っていません。</li>
-        <li>IP アドレスと Cookie は送っていません。</li>
-        <li>
-          アクセス解析（どのページが何回見られたかを数えるもの）は使っていません。
-        </li>
-      </ul>
+      <dl class="c-primary flex flex-col gap-2 text-body">
+        <div class="flex flex-col gap-0.5">
+          <dt class="font-600">送信する情報</dt>
+          <dd>
+            エラーの内容と発生箇所、端末とブラウザの情報、アプリのバージョン。
+          </dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="font-600">送信しない情報</dt>
+          <dd>
+            秘密鍵、公開鍵、イベント ID、投稿の本文、入力中の文字列、IP
+            アドレス、Cookie。公開鍵とイベント ID は、送信前に取り除いています。
+          </dd>
+        </div>
+      </dl>
+      <p class="c-secondary text-caption">
+        アクセス解析ツール（ページの閲覧数などを計測するもの）は利用していません。
+      </p>
       <div class="overflow-x-auto">
         <table class="w-full min-w-140 border-collapse text-caption">
           <thead>
             <tr class="c-secondary text-left">
               <th class="border border-primary px-2 py-1 font-600">
-                提供している会社
+                提供事業者
               </th>
+              <th class="border border-primary px-2 py-1 font-600">ツール</th>
               <th class="border border-primary px-2 py-1 font-600">
-                使っているもの
+                取得する情報
               </th>
-              <th class="border border-primary px-2 py-1 font-600">送る情報</th>
-              <th class="border border-primary px-2 py-1 font-600">使いみち</th>
+              <th class="border border-primary px-2 py-1 font-600">利用目的</th>
               <th class="border border-primary px-2 py-1 font-600">利用規約</th>
               <th class="border border-primary px-2 py-1 font-600">
                 プライバシーポリシー
               </th>
               <th class="border border-primary px-2 py-1 font-600">
-                送らないようにする方法
+                オプトアウト
               </th>
             </tr>
           </thead>
@@ -130,13 +137,13 @@ const Privacy: Component = () => (
     </SettingsSection>
 
     <SettingsSection
-      title="この端末に置いているもの"
-      description="設定やログインの状態は、この端末の中だけに保存しています。"
+      title="情報の保存と公開範囲"
+      description="設定とログイン状態は、この端末のブラウザ内にのみ保存します。"
     >
       <p class="c-primary text-body">
-        鍵はアプリでは持たず、ブラウザの拡張機能（NIP-07）や、つないだ署名器
-        （NIP-46）に任せています。投稿やプロフィールは Nostr
-        のリレーへ送られ、そこから誰でも読めます。
+        秘密鍵はアプリでは保持せず、ブラウザの拡張機能（NIP-07）または接続した
+        署名器（NIP-46）に委ねています。投稿・プロフィール・フォローリストなどは
+        Nostr のリレーへ送信され、リレーを通じて誰でも閲覧できます。
       </p>
     </SettingsSection>
   </div>
@@ -152,15 +159,13 @@ const AboutDialog: Component<{ open: boolean; wide: boolean }> = (props) => {
       label: "このアプリについて",
       icon: "i-material-symbols:info-outline-rounded",
       title: "このアプリについて",
-      description: "Streets が何で、どこで作られているか。",
       content: () => <Overview />,
     },
     {
       value: "privacy",
-      label: "プライバシー",
+      label: "プライバシーポリシー",
       icon: "i-material-symbols:shield-outline",
-      title: "プライバシー",
-      description: "何を外へ送っていて、何を送っていないか。",
+      title: "プライバシーポリシー",
       content: () => <Privacy />,
     },
   ];
@@ -169,7 +174,7 @@ const AboutDialog: Component<{ open: boolean; wide: boolean }> = (props) => {
       open={props.open}
       wide={props.wide}
       title="Streets について"
-      description="このアプリの情報と、プライバシーについての説明です。"
+      description="アプリの情報と、プライバシーポリシーを表示します。"
       pages={pages}
       page={page()}
       onPageChange={setPage}
