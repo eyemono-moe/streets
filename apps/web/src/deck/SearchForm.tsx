@@ -19,11 +19,15 @@ const fromDateInput = (value: string): number | undefined => {
   return Number.isNaN(time) ? undefined : Math.floor(time / 1000);
 };
 
-const Field: Component<{ label: string; children: unknown }> = (props) => (
-  <label class="flex flex-col gap-1">
-    <span class="c-secondary font-600 text-caption">{props.label}</span>
+const Field: Component<{ id: string; label: string; children: unknown }> = (
+  props,
+) => (
+  <div class="flex flex-col gap-1">
+    <label class="c-secondary font-600 text-caption" for={props.id}>
+      {props.label}
+    </label>
     {props.children as never}
-  </label>
+  </div>
 );
 
 const inputClass =
@@ -44,8 +48,9 @@ const SearchForm: Component<{
 
   return (
     <div class="flex flex-col gap-2.5">
-      <Field label="言葉">
+      <Field id="search-words" label="言葉">
         <input
+          id="search-words"
           class={inputClass}
           placeholder="本文に含む言葉"
           value={props.query.words.join(" ")}
@@ -54,8 +59,9 @@ const SearchForm: Component<{
           }
         />
       </Field>
-      <Field label="ハッシュタグ">
+      <Field id="search-hashtags" label="ハッシュタグ">
         <input
+          id="search-hashtags"
           class={inputClass}
           placeholder="nostr streets"
           value={props.query.hashtags.join(" ")}
@@ -68,8 +74,9 @@ const SearchForm: Component<{
           }
         />
       </Field>
-      <Field label="書いた人">
+      <Field id="search-from" label="書いた人">
         <input
+          id="search-from"
           class={inputClass}
           placeholder="npub1… / nprofile1…"
           value={props.query.from ?? ""}
@@ -78,8 +85,9 @@ const SearchForm: Component<{
           }
         />
       </Field>
-      <Field label="宛先">
+      <Field id="search-to" label="宛先">
         <input
+          id="search-to"
           class={inputClass}
           placeholder="npub1… / nprofile1…"
           value={props.query.to ?? ""}
@@ -90,8 +98,9 @@ const SearchForm: Component<{
       </Field>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">
-          <Field label="この日から">
+          <Field id="search-since" label="この日から">
             <input
+              id="search-since"
               type="date"
               class={inputClass}
               value={toDateInput(props.query.since)}
@@ -102,8 +111,9 @@ const SearchForm: Component<{
           </Field>
         </div>
         <div class="min-w-0 flex-1">
-          <Field label="この日まで">
+          <Field id="search-until" label="この日まで">
             <input
+              id="search-until"
               type="date"
               class={inputClass}
               value={toDateInput(props.query.until)}
@@ -114,8 +124,9 @@ const SearchForm: Component<{
           </Field>
         </div>
       </div>
-      <Field label="kind">
+      <Field id="search-kinds" label="kind">
         <input
+          id="search-kinds"
           class={inputClass}
           placeholder="1（省略するとテキストノート）"
           value={props.query.kinds.join(" ")}
