@@ -26,6 +26,7 @@ const ThreadSpineView: Component<{
           event={event}
           size="compact"
           expandMedia={props.expandMedia}
+          stickyAvatar
           // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
           threadLine={
             index() === 0 && props.spine.reachedRoot ? "below" : "both"
@@ -44,6 +45,7 @@ const ThreadSpineView: Component<{
           event={focus()}
           size="normal"
           expandMedia={props.expandMedia}
+          stickyAvatar
           threadLine={props.spine.ancestors.length > 0 ? "above" : undefined}
         />
       )}

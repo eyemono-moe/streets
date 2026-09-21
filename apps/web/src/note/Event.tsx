@@ -53,6 +53,12 @@ type ContentProps = {
   expandMedia?: boolean;
   /** 会話が続く向きを、アイコンから伸びる線で示す。 */
   threadLine?: "above" | "below" | "both";
+  /**
+   * 長い投稿を読んでいる間も、アイコンを見えたままにする（スレッドのカラム）。
+   * タイムラインは仮想リストで行の位置を `transform` で決めるため、ここで
+   * 貼り付けるとアイコンだけが下へずれる。既定は貼り付けない。
+   */
+  stickyAvatar?: boolean;
   /** 本文の下に足すもの。書きかけのプレビューで、まだアップロードしていない画像を出す。 */
   media?: JSX.Element;
   /**
@@ -60,6 +66,8 @@ type ContentProps = {
    * タイムラインのカラムで使う。スレッドのカラムは自分で祖先を並べるので要らない。
    */
   replyContext?: boolean;
+  /** すぐ上に返信先を出しているか。「返信先 @名前」の行と二重にしないために使う。 */
+  parentAbove?: boolean;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -129,7 +137,7 @@ const Row: ParentComponent<ContentProps> = (props) => (
         長い投稿でも、読んでいる間アイコンが見えているようにする。
         縦線より後ろに置くので、z-index 無しで線の上に乗る。
       */}
-      <div classList={{ "sticky top-2": props.threadLine !== undefined }}>
+      <div classList={{ "sticky top-2": props.stickyAvatar }}>
         <Avatar pubkey={props.event.pubkey} size={props.size} />
       </div>
     </div>
@@ -319,10 +327,9 @@ const Note: Component<ContentProps> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
-  // 返信先が線でつながって上に出ているなら、名前の 1 行は要らない。
-  const linkedAbove = () =>
-    props.threadLine === "above" || props.threadLine === "both";
-  const replyTo = () => (linkedAbove() ? undefined : replyTarget(props.event));
+  // すぐ上に返信先そのものを出しているときだけ、名前の 1 行を省く。
+  const replyTo = () =>
+    props.parentAbove ? undefined : replyTarget(props.event);
 
   return (
     <Row event={props.event} size={props.size} threadLine={props.threadLine}>
@@ -418,6 +425,8 @@ const EventContent: Component<ContentProps> = (props) => (
         size={props.size}
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
+        stickyAvatar={props.stickyAvatar}
+        parentAbove={props.parentAbove}
         media={props.media}
       />
     </Match>
@@ -500,6 +509,8 @@ const EventBody: Component<ContentProps> = (props) => {
           size={props.size}
           expandMedia={props.expandMedia}
           threadLine={parent() ? "above" : props.threadLine}
+          stickyAvatar={props.stickyAvatar}
+          parentAbove={parent() !== undefined}
           media={props.media}
         />
       </Frame>
