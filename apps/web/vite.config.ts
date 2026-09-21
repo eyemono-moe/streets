@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
@@ -16,11 +17,49 @@ const commitSha = (): string => {
   }
 };
 
+/**
+ * Sentry へソースマップを送る。送り先の鍵（`SENTRY_AUTH_TOKEN`）が無ければ
+ * 何もしない —— 手元のビルドや、鍵を持たない CI でも落ちないようにする。
+ * 鍵と組織名は `VITE_` を付けない。付けると画面側へ混ざってしまう。
+ */
+const sentryUpload = (release: string) => {
+  const authToken = process.env.SENTRY_AUTH_TOKEN;
+  const org = process.env.SENTRY_ORG;
+  const project = process.env.SENTRY_PROJECT;
+  if (!authToken || !org || !project) return [];
+  return [
+    sentryVitePlugin({
+      authToken,
+      org,
+      project,
+      // 画面側が送る `release` と同じ名前にしないと、送ったマップが結び付かない。
+      release: { name: release },
+      sourcemaps: {
+        // 送ったあとは配らない。ソースが誰からでも読めてしまう。
+        filesToDeleteAfterUpload: ["./dist/**/*.js.map"],
+      },
+      // 送れなくてもデプロイは続ける（読みにくいスタックのまま出る）。
+      errorHandler: (error) => {
+        console.warn("Sentry へソースマップを送れませんでした", error.message);
+      },
+    }),
+  ];
+};
+
+const release = commitSha();
+
 export default defineConfig({
   define: {
-    "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(commitSha()),
+    "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(release),
+    // Sentry から、使っていない機能（重さの計測・デバッグ出力）を落とす。
+    __SENTRY_TRACING__: "false",
+    __SENTRY_DEBUG__: "false",
   },
-  plugins: [...devtools(), UnoCSS(), solid()],
+  plugins: [...devtools(), UnoCSS(), solid(), ...sentryUpload(release)],
+  build: {
+    // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
+    sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
+  },
   server: {
     port: 5173,
   },

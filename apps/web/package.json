@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@ark-ui/solid": "5.38.1",
+    "@sentry/solid": "^10.75.0",
     "@solidjs/router": "^1.0.0",
     "@streets/core": "workspace:*",
     "@streets/sign": "workspace:*",
@@ -13,6 +14,7 @@
     "@iconify-json/material-symbols": "1.2.14",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
+    "@sentry/vite-plugin": "^5.4.0",
     "@tanstack/devtools-vite": "^0.7.0",
     "@tanstack/solid-devtools": "^0.8.5",
     "@unocss/preset-mini": "65.5.0",
