@@ -63,6 +63,7 @@ const EventListColumn: Component<{
                     event={event}
                     size={size()}
                     expandMedia={expandMedia()}
+                    replyContext
                   />
                 )}
               </VirtualList>

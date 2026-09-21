@@ -96,13 +96,23 @@ const reactionToMissing = bob.event(
   buildReaction(missingTarget, { type: "like" }),
 );
 
-type Props = { event: NostrEvent; scene: EventScene; size: EventSize };
+type Props = {
+  event: NostrEvent;
+  scene: EventScene;
+  size: EventSize;
+  /** 返信のとき、返信先を上に 1 件出す（タイムラインのカラムと同じ）。 */
+  replyContext?: boolean;
+};
 
 const EventStory: Component<Props> = (props) => (
   <EventSceneProvider scene={props.scene}>
     {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
     <div class="w-[360px]">
-      <Event event={props.event} size={props.size} />
+      <Event
+        event={props.event}
+        size={props.size}
+        replyContext={props.replyContext}
+      />
     </div>
   </EventSceneProvider>
 );
@@ -152,14 +162,16 @@ export const 長い本文: Story = {
   args: { event: longBody, scene: scene(longBody) },
 };
 
-/** 返信先そのものを 1 件だけ出す。押すと、その返信先からスレッドが開く。 */
-export const 返信: Story = {
-  args: { event: reply, scene: scene(reply, plain) },
+export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
+
+/** タイムラインでは、返信先を 1 件だけ線でつないで上に出す。 */
+export const 返信_返信先つき: Story = {
+  args: { event: reply, scene: scene(reply, plain), replyContext: true },
 };
 
 /** 返信先がまだ手元に無いとき。連鎖して取りにいかないので、ここで止まる。 */
-export const 返信先が見つからない: Story = {
-  args: { event: reply, scene: scene(reply) },
+export const 返信_返信先が見つからない: Story = {
+  args: { event: reply, scene: scene(reply), replyContext: true },
 };
 
 export const 引用: Story = {
