@@ -1,3 +1,4 @@
+import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import {
@@ -424,7 +425,7 @@ const DeckScreen: Component<{
                         {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
                         <div
                           ref={columnsEl}
-                          class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
+                          class="flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
                         >
                           <Show when={temp()}>
                             {(column) => (
@@ -450,7 +451,7 @@ const DeckScreen: Component<{
                               <>
                                 <div
                                   data-column-id={column.id}
-                                  class="h-full shrink-0"
+                                  class="h-full shrink-0 border-primary border-r"
                                   classList={{
                                     "w-80": column.width === "s",
                                     "w-95":
@@ -475,17 +476,24 @@ const DeckScreen: Component<{
                                     {...shared}
                                   />
                                 </div>
-                                <Show when={ui.settingsFor === column.id}>
-                                  <div
-                                    data-settings-for={column.id}
-                                    class="h-full w-95 shrink-0"
-                                  >
-                                    <ColumnSettingsPanel
-                                      column={column}
-                                      relayList={relayList()}
-                                    />
-                                  </div>
-                                </Show>
+                                <Collapsible.Root
+                                  lazyMount
+                                  unmountOnExit
+                                  open={ui.settingsFor === column.id}
+                                  class="bg-secondary"
+                                >
+                                  <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
+                                    <div
+                                      data-settings-for={column.id}
+                                      class="h-full w-95 shrink-0 border-primary border-r"
+                                    >
+                                      <ColumnSettingsPanel
+                                        column={column}
+                                        relayList={relayList()}
+                                      />
+                                    </div>
+                                  </Collapsible.Content>
+                                </Collapsible.Root>
                               </>
                             )}
                           </For>

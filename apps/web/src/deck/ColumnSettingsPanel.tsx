@@ -14,7 +14,7 @@ const ColumnSettingsPanel: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    <aside class="motion-fade flex h-full min-h-0 animate-in flex-col bg-secondary">
+    <aside class="flex h-full min-h-0 flex-col">
       <header class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3">
         <span
           class="i-material-symbols:tune-rounded c-secondary size-4.5 shrink-0"
