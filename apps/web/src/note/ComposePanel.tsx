@@ -116,7 +116,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
                 <Event
                   event={event()}
                   size="compact"
-                  // 添えた画像は、まだ預けていないので URL が無い。手元の見本を渡す。
+                  // 添えた画像は、まだアップロードしていないので URL が無い。手元の見本を渡す。
                   media={
                     <ComposePreviewMedia
                       attachments={props.state.attachments}

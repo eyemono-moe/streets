@@ -16,13 +16,13 @@ import {
 
 export class NoUploadServerError extends Error {
   constructor() {
-    super("画像の預け先が設定されていません");
+    super("画像のアップロード先が設定されていません");
     this.name = "NoUploadServerError";
   }
 }
 
 export type Uploader = {
-  /** 預け先。1 つも無ければ、画像を添える操作を出さない。 */
+  /** アップロード先。1 つも無ければ、画像を添える操作を出さない。 */
   servers: Accessor<readonly BlossomServer[]>;
   upload: (file: File) => Promise<BlobDescriptor>;
 };
@@ -30,8 +30,8 @@ export type Uploader = {
 const UploaderContext = createContext<Uploader>();
 
 /**
- * 画像などを Blossom のサーバーへ預ける。設定の並び順に試し、最初に受け取って
- * くれたところの URL を使う（1 つのサーバーが落ちていても預けられる）。
+ * 画像などを Blossom のサーバーへアップロードする。設定の並び順に試し、最初に受け取って
+ * くれたところの URL を使う（1 つのサーバーが落ちていてもアップロードできる）。
  */
 export const createUploader = (options: {
   signer: Signer;
@@ -45,7 +45,7 @@ export const createUploader = (options: {
     if (servers.length === 0) throw new NoUploadServerError();
     const bytes = new Uint8Array(await file.arrayBuffer());
     const nowSeconds = Math.floor((options.now?.() ?? Date.now()) / 1000);
-    // 認可はファイルの中身に結び付く（BUD-01）ので、1 回署名すればどの預け先にも使える。
+    // 認可はファイルの中身に結び付く（BUD-01）ので、1 回署名すればどのアップロード先にも使える。
     const auth = await options.signer.signEvent({
       ...buildUploadAuth({
         sha256: hashBytes(bytes),

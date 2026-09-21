@@ -50,7 +50,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  # 画像の預け先（Blossom / NIP-B7）。投稿に画像を添える動きをローカルで試す。
+  # 画像のアップロード先（Blossom / NIP-B7）。投稿に画像を添える動きをローカルで試す。
   blossom:
     image: ghcr.io/hzrd149/blossom-server:master
     restart: unless-stopped

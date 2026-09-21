@@ -2,8 +2,8 @@ import type { BlobDescriptor } from "../media/blossom";
 
 /**
  * 書きかけに添えたファイル。中身（File）はアプリ側が持ち、ここには見せ方と
- * 預けた結果だけを置く。預けるのは送るときなので、書いている間はまだどこにも
- * 送っていない —— 切り抜いてから預けられるし、書くのをやめれば何も残らない。
+ * アップロードした結果だけを置く。アップロードするのは送るときなので、書いている間はまだどこにも
+ * 送っていない —— 切り抜いてからアップロードできるし、書くのをやめれば何も残らない。
  */
 /** 切り抜く範囲。元の画像の画素で数える（左上が 0, 0）。 */
 export type CropRect = {
@@ -20,12 +20,12 @@ export type Attachment = {
   preview: string;
   /** ファイルの種類（`image/gif`・`video/mp4` など）。動画は切り抜けない。 */
   type?: string;
-  /** 切り抜く範囲。無ければ全体。実際に切るのは、預ける直前。 */
+  /** 切り抜く範囲。無ければ全体。実際に切るのは、アップロードする直前。 */
   crop?: CropRect;
-  /** 預け終わったもの。切り抜き直すと預け直しになるので消える。 */
+  /** アップロードが終わったもの。切り抜き直すとアップロードし直しになるので消える。 */
   blob?: BlobDescriptor;
   uploading?: boolean;
-  /** 預けられなかった理由。 */
+  /** アップロードできなかった理由。 */
   error?: string;
 };
 
@@ -45,7 +45,7 @@ export type ComposeEvent =
   | { type: "compose/sent" }
   /** 送れなかった。本文は残して、そのまま送り直せるようにする。 */
   | { type: "compose/failed" }
-  /** ファイルを添えた（まだ預けていない）。 */
+  /** ファイルを添えた（まだアップロードしていない）。 */
   | {
       type: "compose/attach-add";
       id: string;
@@ -56,7 +56,7 @@ export type ComposeEvent =
   | { type: "compose/attach-remove"; id: string }
   /** 並べ替える。`to` は動かした先の位置。 */
   | { type: "compose/attach-move"; id: string; to: number }
-  /** 切り抜く範囲を決める（`undefined` で全体に戻す）。預け直しになる。 */
+  /** 切り抜く範囲を決める（`undefined` で全体に戻す）。アップロードし直しになる。 */
   | { type: "compose/attach-crop"; id: string; crop: CropRect | undefined }
   | { type: "compose/attach-uploading"; id: string }
   | { type: "compose/attach-done"; id: string; blob: BlobDescriptor }
@@ -69,7 +69,7 @@ export const emptyCompose = (): ComposeState => ({
   attachments: [],
 });
 
-/** まだ預けていないファイル。送るときに、この順で預ける。 */
+/** まだアップロードしていないファイル。送るときに、この順でアップロードする。 */
 export const pendingAttachments = (state: ComposeState): Attachment[] =>
   state.attachments.filter((attachment) => attachment.blob === undefined);
 
@@ -123,7 +123,7 @@ export const composeTransition = (
     case "compose/input":
       return state.sending ? state : { ...state, content: event.content };
     case "compose/submit":
-      // 送り直すときは、前に失敗した理由を消してから預け直す。
+      // 送り直すときは、前に失敗した理由を消してからアップロードし直す。
       return canSend(state)
         ? {
             ...state,
@@ -167,7 +167,7 @@ export const composeTransition = (
       return mapAttachment(state, event.id, (attachment) => ({
         ...attachment,
         crop: event.crop,
-        // 切る範囲が変われば、預けたものはもう違う画像。預け直す。
+        // 切る範囲が変われば、アップロードしたものはもう違う画像。アップロードし直す。
         blob: undefined,
         error: undefined,
       }));

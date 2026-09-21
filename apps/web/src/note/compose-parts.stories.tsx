@@ -32,7 +32,7 @@ const blob = {
 type Args = {
   content: string;
   attachments: Attachment[];
-  /** 預け先。空にすると、画像を添えるボタンが使えない見た目になる。 */
+  /** アップロード先。空にすると、画像を添えるボタンが使えない見た目になる。 */
   servers: string[];
   sending: boolean;
 };
@@ -43,7 +43,7 @@ const Parts = (props: Args) => {
     <UploaderProvider
       value={{
         servers: () => props.servers,
-        upload: () => Promise.reject(new Error("story では預けない")),
+        upload: () => Promise.reject(new Error("story ではアップロードしない")),
       }}
     >
       <Mediates
@@ -112,7 +112,7 @@ type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = {};
 
-/** 添えた画像は押すと切り抜ける。預けるのは送るとき。 */
+/** 添えた画像は押すと切り抜ける。アップロードするのは送るとき。 */
 export const 画像を添えた: Story = {
   args: { attachments: [shot("1", "ねこ.png", landscapeUrl)] },
 };
@@ -162,8 +162,8 @@ export const 切り抜いた: Story = {
   },
 };
 
-/** 預けている間は、外すのも並べ替えるのもできない（送る中身はもう決まっている）。 */
-export const 預けている途中: Story = {
+/** アップロードしている間は、外すのも並べ替えるのもできない（送る中身はもう決まっている）。 */
+export const アップロードしている途中: Story = {
   args: {
     attachments: [
       shot("1", "1.png", landscapeUrl, { blob }),
@@ -173,7 +173,7 @@ export const 預けている途中: Story = {
   },
 };
 
-export const 預けられなかった: Story = {
+export const アップロードできなかった: Story = {
   args: {
     attachments: [
       shot("1", "1.png", landscapeUrl, { blob }),
@@ -199,7 +199,7 @@ export const 動画を添えた: Story = {
   },
 };
 
-/** 預け先を決めていない人。画像のボタンは薄いが押せて、押すと設定へ案内する。 */
-export const 預け先が無い: Story = { args: { servers: [] } };
+/** アップロード先を決めていない人。画像のボタンは薄いが押せて、押すと設定へ案内する。 */
+export const アップロード先が無い: Story = { args: { servers: [] } };
 
 export const 送信中: Story = { args: { sending: true } };

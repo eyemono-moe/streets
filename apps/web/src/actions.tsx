@@ -80,7 +80,7 @@ export type WriteStack = {
   muteListSettled: Accessor<boolean>;
   /** 自分のプロフィール（kind:0）。 */
   profile: Accessor<NostrEvent | undefined>;
-  /** 自分の画像の預け先（kind:10063。Blossom）。 */
+  /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
   fetchLatest(
     kind: number,

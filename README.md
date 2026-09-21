@@ -50,11 +50,11 @@ docker compose up -d
 This will start the following services:
 
 - [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay): `ws://localhost:8080`
-- [blossom-server](https://github.com/hzrd149/blossom-server): `http://localhost:8090`（画像の預け先 / NIP-B7）
+- [blossom-server](https://github.com/hzrd149/blossom-server): `http://localhost:8090`（画像のアップロード先 / NIP-B7）
 
-画像の預け先だけを立てるなら `docker compose up -d blossom`。アプリ側は
-設定 →「画像」で `http://localhost:8090` を足すと、ここへ預けるようになります
-（預けたものは `GET http://localhost:8090/list/<自分の pubkey>` で一覧できます）。
+画像のアップロード先だけを立てるなら `docker compose up -d blossom`。アプリ側は
+設定 →「画像」で `http://localhost:8090` を足すと、ここへアップロードするようになります
+（アップロードしたものは `GET http://localhost:8090/list/<自分の pubkey>` で一覧できます）。
 
 ### Contact
 

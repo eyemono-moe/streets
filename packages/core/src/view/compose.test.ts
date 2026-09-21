@@ -120,7 +120,7 @@ describe("ファイルを添える", () => {
     preview: `blob:${id}`,
   });
 
-  it("添えただけでは、まだ預けていない", () => {
+  it("添えただけでは、まだアップロードしていない", () => {
     const state = run(add("1", "cat.png"));
     expect(pendingAttachments(state).map((a) => a.id)).toEqual(["1"]);
     expect(composeMedia(state)).toEqual([]);
@@ -128,7 +128,7 @@ describe("ファイルを添える", () => {
     expect(state.content).toBe("");
   });
 
-  it("預け終わったものは、添えるものに数える", () => {
+  it("アップロードが終わったものは、添えるものに数える", () => {
     const state = run(add("1", "cat.png"), {
       type: "compose/attach-done",
       id: "1",
@@ -168,7 +168,7 @@ describe("ファイルを添える", () => {
     expect(state.attachments[0]?.preview).toBe("blob:1");
   });
 
-  it("切り抜き直すと、預けたものは捨てて預け直す", () => {
+  it("切り抜き直すと、アップロードしたものは捨ててアップロードし直す", () => {
     const state = run(
       add("1", "cat.png"),
       { type: "compose/attach-done", id: "1", blob },
@@ -203,7 +203,7 @@ describe("ファイルを添える", () => {
     expect(state.attachments).toEqual([]);
   });
 
-  it("預けられなかった理由を持ち、送り直すと消える", () => {
+  it("アップロードできなかった理由を持ち、送り直すと消える", () => {
     let state = run(add("1", "cat.png"), {
       type: "compose/attach-uploading",
       id: "1",

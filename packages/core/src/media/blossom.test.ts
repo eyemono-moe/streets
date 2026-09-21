@@ -31,7 +31,7 @@ const signedAuth: NostrEvent = {
 
 const bytes = new Uint8Array([1, 2, 3]);
 
-describe("預け先の一覧（kind:10063）", () => {
+describe("アップロード先の一覧（kind:10063）", () => {
   it("server タグを順番どおりに読み、末尾の / をそろえる", () => {
     expect(
       parseBlossomServers(
@@ -93,7 +93,10 @@ describe("parseServerInput", () => {
     expect(parseServerInput("javascript:alert(1)", []).ok).toBe(false);
     expect(
       parseServerInput("https://a.example/", ["https://a.example"]),
-    ).toMatchObject({ ok: false, message: "この預け先はもう入っています" });
+    ).toMatchObject({
+      ok: false,
+      message: "このアップロード先はもう入っています",
+    });
   });
 
   it("normalizeServerUrl は末尾の / と検索文字列を落とす", () => {
@@ -148,7 +151,7 @@ describe("uploadBlob", () => {
       .authorization;
     expect(authorization.startsWith("Nostr ")).toBe(true);
     // base64url で送る（`+` `/` `=` を含まない）。ふつうの base64 を base64url
-    // として読む預け先があり、中身が壊れて「署名が違う」と断られる。
+    // として読むアップロード先があり、中身が壊れて「署名が違う」と断られる。
     const encoded = authorization.slice("Nostr ".length);
     expect(encoded).not.toMatch(/[+/=]/);
     expect(

@@ -47,7 +47,7 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
       <SettingsSection
         title="使うリレー"
         scope="account"
-        description="リレーは、投稿やリアクションを預けておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
+        description="リレーは、投稿やリアクションをアップロードして保存しておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
       >
         <Switch>
           <Match when={props.loading}>

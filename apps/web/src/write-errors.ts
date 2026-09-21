@@ -27,15 +27,15 @@ export const markReported = (cause: unknown): void => {
 export const wasReported = (cause: unknown): boolean =>
   typeof cause === "object" && cause !== null && reported.has(cause);
 
-/** 預けられなかった理由。添えたファイルの行に短く出す。 */
+/** アップロードできなかった理由。添えたファイルの行に短く出す。 */
 export const uploadErrorMessage = (error: unknown): string => {
   if (error instanceof NoUploadServerError) {
-    return "設定で画像の預け先を決めてください";
+    return "設定で画像のアップロード先を決めてください";
   }
   if (error instanceof UploadFailedError) {
     return error.status === 413
       ? "ファイルが大きすぎます"
-      : `預けられませんでした（${error.message}）`;
+      : `アップロードできませんでした（${error.message}）`;
   }
   return error instanceof Error ? error.message : String(error);
 };

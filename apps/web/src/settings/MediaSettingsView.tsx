@@ -22,23 +22,23 @@ export type MediaSettingsViewProps = {
   chosen: boolean;
 };
 
-/** 画像の預け先の設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
+/** 画像のアップロード先の設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
 const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="画像の預け先"
+      title="画像のアップロード先"
       scope="account"
-      description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へ預け、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへ預けます。"
+      description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。"
     >
       <Show when={!props.chosen && props.servers.length > 0}>
         <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
-          まだ自分で選んでいません。いまは下の預け先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
+          まだ自分で選んでいません。いまは下のアップロード先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
         </p>
       </Show>
       <Switch>
         <Match when={props.servers.length === 0}>
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            預け先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
+            アップロード先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
             を入れてください。
           </p>
         </Match>
@@ -63,7 +63,7 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
     <SettingsSection
       title="送る前の下ごしらえ"
       scope="account"
-      description="添えた画像は、預ける直前にこちらで作り直してから送ります。"
+      description="添えた画像は、アップロードする直前にこちらで作り直してから送ります。"
     >
       <ul class="c-secondary flex list-disc flex-col gap-1.5 pl-5 text-caption">
         <li>長辺が 1920px を超える画像は、その大きさまで縮めます。</li>
@@ -72,8 +72,8 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
         </li>
         <li>
           動く画像（GIF
-          など）と動画は、そのまま預けます。切り抜いたときだけ、動きの無い 1
-          枚になります。
+          など）と動画は、そのままアップロードします。切り抜いたときだけ、動きの無い
+          1 枚になります。
         </li>
       </ul>
     </SettingsSection>
@@ -95,7 +95,7 @@ const ServerRow: Component<{
         <Show when={props.primary}>
           <span class="c-secondary text-caption">いちばん先に試す</span>
         </Show>
-        {/* 一覧から外すだけで、預けたファイルは消えない（remove）。 */}
+        {/* 一覧から外すだけで、アップロードしたファイルは消えない（remove）。 */}
         <Button
           variant="ghost"
           size="sm"
@@ -113,7 +113,7 @@ const ServerRow: Component<{
   );
 };
 
-/** よく使われている預け先。押すとその 1 つを足す。 */
+/** よく使われているアップロード先。押すとその 1 つを足す。 */
 const Recommended: Component<{
   servers: readonly BlossomServer[];
   disabled: boolean;
@@ -178,7 +178,7 @@ const AddServer: Component<{
         <input
           class="c-primary placeholder:c-secondary h-9 min-w-0 flex-1 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
           placeholder="https://"
-          aria-label="足す預け先の URL"
+          aria-label="足すアップロード先の URL"
           aria-invalid={error() !== undefined}
           aria-describedby="media-input-error"
           value={text()}
@@ -200,7 +200,7 @@ const AddServer: Component<{
         when={error()}
         fallback={
           <p class="c-secondary text-caption">
-            預け先は自分で選べます。運営者や保存期間はサーバーごとに違うので、預けたものが消えても困らないものだけを置いてください。
+            アップロード先は自分で選べます。運営者や保存期間はサーバーごとに違うので、アップロードしたものが消えても困らないものだけを置いてください。
           </p>
         }
       >

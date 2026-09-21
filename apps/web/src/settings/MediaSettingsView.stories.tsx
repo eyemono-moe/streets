@@ -43,7 +43,7 @@ const Story = (props: Args) => {
 };
 
 const meta = {
-  title: "設定/画像の預け先",
+  title: "設定/画像のアップロード先",
   component: Story,
   args: {
     servers: ["https://blossom.example", "https://backup.example"],
@@ -58,13 +58,13 @@ export default meta;
 type S = StoryObj<typeof meta>;
 
 export const いつもの: S = {};
-/** まだ自分で選んでいない人。既定の預け先をそのまま使っている。 */
+/** まだ自分で選んでいない人。既定のアップロード先をそのまま使っている。 */
 export const 既定のまま: S = {
   args: { chosen: false, servers: [...DEFAULT_BLOSSOM_SERVERS] },
 };
 
 /** 自分で全部外した人。画像を添えられない。 */
-export const 預け先が無い: S = { args: { servers: [] } };
+export const アップロード先が無い: S = { args: { servers: [] } };
 export const 保存中: S = { args: { saving: true } };
 export const 長い_URL: S = {
   args: {

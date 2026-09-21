@@ -77,7 +77,7 @@ const SettingsDialog: Component<{
       label: "リレー",
       icon: "i-material-symbols:globe",
       title: "リレー",
-      description: "投稿を預けるサーバーを選びます。",
+      description: "投稿をアップロードするサーバーを選びます。",
       content: () => <RelaySettings />,
     },
 
@@ -86,7 +86,7 @@ const SettingsDialog: Component<{
       label: "画像",
       icon: "i-material-symbols:image-outline-rounded",
       title: "画像",
-      description: "投稿に付ける画像の預け先を決めます。",
+      description: "投稿に付ける画像のアップロード先を決めます。",
       content: () => <MediaSettings />,
     },
     {

@@ -28,7 +28,7 @@ export type MediaServers = {
 const MediaServersContext = createContext<MediaServers>();
 
 /**
- * 画像の預け先（kind:10063）を裁定する段。足す・外すはその場で保存する ——
+ * 画像のアップロード先（kind:10063）を裁定する段。足す・外すはその場で保存する ——
  * リレーやミュートと違って続けて変えることが少ないので、まとめる待ちは置かない。
  */
 export const MediaMediator: ParentComponent<{
@@ -48,10 +48,10 @@ export const MediaMediator: ParentComponent<{
     props.writer
       .replace(BLOSSOM_SERVER_LIST_KIND, undefined, setBlossomServers(next))
       .then(
-        () => notifySaved("画像の預け先を保存しました"),
+        () => notifySaved("画像のアップロード先を保存しました"),
         (cause) => {
           setPending(undefined);
-          notifyError(cause, "画像の預け先を保存できませんでした");
+          notifyError(cause, "画像のアップロード先を保存できませんでした");
         },
       )
       .finally(() => setSaving(false));
