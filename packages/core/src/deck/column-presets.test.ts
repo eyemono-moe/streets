@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { FALLBACK_RELAYS, SEARCH_RELAYS } from "../read/default-relays";
-import { buildActivityColumn, buildColumn } from "./column-presets";
+import { SEARCH_RELAYS } from "../read/default-relays";
+import {
+  buildActivityColumn,
+  buildColumn,
+  buildRelayColumn,
+} from "./column-presets";
 
 const HEX = "a".repeat(64);
 // HEX の npub 表現。実際に走らせた値 (手計算では出せない)。
@@ -29,7 +33,7 @@ describe("buildColumn", () => {
     expect(home?.kind === "followees" && home.kinds).toContain(6);
   });
 
-  it("hashtag と global はリポストを集めない", () => {
+  it("hashtag と relay はリポストを集めない", () => {
     // 捕まえる変異: TIMELINE_KINDS を全種別へ広げる (リポストは t タグを
     // 引き継がずハッシュタグ列では増えない)。
     const hashtag = buildColumn("hashtag", "#nostr")?.source;
@@ -37,8 +41,8 @@ describe("buildColumn", () => {
       1,
     ]);
 
-    const global = buildColumn("global", "")?.source;
-    expect(global?.kind === "literal" && global.filters[0]?.kinds).toEqual([1]);
+    const relay = buildRelayColumn(["wss://relay.example/"])?.source;
+    expect(relay?.kind === "literal" && relay.filters[0]?.kinds).toEqual([1]);
   });
 
   it("user はユーザー詳細の意図と hex 公開鍵を保存する", () => {
@@ -102,13 +106,17 @@ describe("buildColumn", () => {
     expect(buildColumn("hashtag", "#")).toBeUndefined();
   });
 
-  it("global は明示リレーを持つ", () => {
+  it("relay は選んだ明示リレーを重複なく持つ", () => {
     // 捕まえる変異: relays を落とす (Outbox 経路になり明示リレーが消える)
-    expect(buildColumn("global", "")?.source).toEqual({
+    expect(
+      buildRelayColumn(["wss://relay.example/", "wss://relay.example/"])
+        ?.source,
+    ).toEqual({
       kind: "literal",
       filters: [{ kinds: [1] }],
-      relays: [...FALLBACK_RELAYS],
+      relays: ["wss://relay.example/"],
     });
+    expect(buildRelayColumn([])).toBeUndefined();
   });
 
   it("notifications は意図だけを保存する", () => {
@@ -149,9 +157,13 @@ describe("buildColumn", () => {
       expect(buildColumn("hashtag", "#nostr")?.title).toBe("#nostr");
     });
 
-    it("global は「グローバル」", () => {
-      // 捕まえる変異: タイトルを別の種別と取り違える
-      expect(buildColumn("global", "")?.title).toBe("グローバル");
+    it("relay は1本ならURL、複数なら本数", () => {
+      expect(buildRelayColumn(["wss://relay.example/"])?.title).toBe(
+        "wss://relay.example",
+      );
+      expect(
+        buildRelayColumn(["wss://a.example/", "wss://b.example/"])?.title,
+      ).toBe("リレー（2）");
     });
   });
 

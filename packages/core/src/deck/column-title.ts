@@ -36,7 +36,12 @@ export const columnTitle = (column: ColumnDef): ColumnTitle => {
         Object.keys(filter).every((key) => key === "kinds"),
       );
       if (onlyKinds && source.relays && source.relays.length > 0) {
-        return { text: "グローバル" };
+        return {
+          text:
+            source.relays.length === 1
+              ? source.relays[0].replace(/\/$/, "")
+              : `リレー（${source.relays.length}）`,
+        };
       }
       // 条件を直に書いたカラム（「自分の投稿」など）は、中身から名前を決められない。
       // 足したときの題名を使う。

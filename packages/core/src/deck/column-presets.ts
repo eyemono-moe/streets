@@ -1,5 +1,6 @@
 import { decodeNpub, encodeBech32 } from "../nostr/nip19";
-import { FALLBACK_RELAYS, SEARCH_RELAYS } from "../read/default-relays";
+import { SEARCH_RELAYS } from "../read/default-relays";
+import type { RelayUrl } from "../relay/relay-connection";
 import { type ColumnDef, TIMELINE_KINDS } from "./deck";
 
 export type ColumnPresetKind =
@@ -7,7 +8,6 @@ export type ColumnPresetKind =
   | "notifications"
   | "user"
   | "hashtag"
-  | "global"
   | "bookmarks"
   | "search";
 
@@ -51,6 +51,26 @@ export const buildActivityColumn = (target: string): ColumnDef => ({
   title: "アクティビティ",
   source: { kind: "activity", target },
 });
+
+/** 選んだリレーだけから公開ノートを読むカラムを作る。 */
+export const buildRelayColumn = (
+  relays: readonly RelayUrl[],
+): ColumnDef | undefined => {
+  const unique = [...new Set(relays)];
+  if (unique.length === 0) return undefined;
+  return {
+    id: crypto.randomUUID(),
+    title:
+      unique.length === 1
+        ? unique[0].replace(/\/$/, "")
+        : `リレー（${unique.length}）`,
+    source: {
+      kind: "literal",
+      filters: [{ kinds: [1] }],
+      relays: unique,
+    },
+  };
+};
 
 /**
  * 追加フォームの入力から `ColumnDef` を作る。入力が不正なら `undefined` を
@@ -106,17 +126,6 @@ export const buildColumn = (
         },
       };
     }
-
-    case "global":
-      return {
-        id,
-        title: "グローバル",
-        source: {
-          kind: "literal",
-          filters: [{ kinds: [1] }],
-          relays: [...FALLBACK_RELAYS],
-        },
-      };
 
     case "bookmarks":
       // どのノートを入れるかは kind:10003 が決めるので、デッキには何も焼き込まない。
