@@ -94,10 +94,20 @@ const CropDialog: Component<{
                   {(position) => (
                     <ImageCropper.Handle
                       position={position}
-                      class="size-3 rounded-0.5 bg-white"
-                    />
+                      class="grid place-items-center"
+                    >
+                      <div class="size-3 rounded-0.5 bg-white" />
+                    </ImageCropper.Handle>
                   )}
                 </For>
+                <ImageCropper.Grid
+                  class="pointer-events-none absolute inset-x-0 inset-y-1/3 border-white/50 border-y opacity-0 transition-opacity data-[dragging]:opacity-100 data-[panning]:opacity-100"
+                  axis="horizontal"
+                />
+                <ImageCropper.Grid
+                  class="pointer-events-none absolute inset-x-1/3 inset-y-0 border-white/50 border-x opacity-0 transition-opacity data-[dragging]:opacity-100 data-[panning]:opacity-100"
+                  axis="vertical"
+                />
               </ImageCropper.Selection>
             </ImageCropper.Viewport>
           </ImageCropper.RootProvider>
