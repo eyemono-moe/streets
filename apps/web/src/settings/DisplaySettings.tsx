@@ -40,12 +40,12 @@ const DisplaySettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="保存の進み具合"
+        title="ローディング表示"
         scope="device"
-        description="投稿やいいね、設定を保存するとき、送り先のリレーそれぞれに届いたかを画面の右下に出します。どこか 1 つに届いた時点で「保存しました」と出ます。切ると、設定を保存したときと、届かなかったときだけ知らせます。"
+        description="投稿やいいね、設定を保存するとき、アップロード先のそれぞれのリレーに届いたかを画面の右下に出します。オフにすると、設定を保存 または 保存に失敗したときだけ表示します。"
       >
         <Switch
-          label="保存の進み具合を表示する"
+          label="ローディングの進行状況を表示する"
           checked={props.writeProgress}
           onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
         />
@@ -69,7 +69,7 @@ const DisplaySettings: Component<{
       <SettingsSection
         title="アクセントカラー"
         scope="account"
-        description="ボタン、選んでいる項目、リンク、自分が付けたいいねなどに使う色です。"
+        description="ボタン、リンク、自分が付けたいいねなどに使う色を設定できます。"
       >
         <RadioGroup.Root
           orientation="horizontal"
@@ -145,10 +145,7 @@ const DisplaySettings: Component<{
         </Collapsible.Root>
       </SettingsSection>
 
-      <SettingsSection
-        title="プレビュー"
-        description="選んだ色が、投稿でどう見えるかの見本です。"
-      >
+      <SettingsSection title="プレビュー">
         <DisplayPreview />
       </SettingsSection>
     </div>
