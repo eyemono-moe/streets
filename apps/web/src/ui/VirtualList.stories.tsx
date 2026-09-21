@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import VirtualList from "./VirtualList";
 
@@ -35,7 +35,7 @@ type Story = StoryObj<typeof meta>;
 
 export const 高さが異なる200件: Story = {};
 
-const RealtimeExample = () => {
+const RealtimeExample = (props: { profile?: boolean }) => {
   const [liveItems, setLiveItems] = createSignal(items.slice(0, 30));
   let next = 30;
   return (
@@ -60,6 +60,14 @@ const RealtimeExample = () => {
         先頭に投稿を追加
       </button>
       <div data-scroll-container class="min-h-0 flex-1 overflow-y-auto">
+        <Show when={props.profile}>
+          <div class="flex h-36 flex-col justify-end gap-1 bg-secondary p-4">
+            <strong>プロフィール</strong>
+            <span class="c-secondary text-caption">
+              一覧より前にある内容も見えたまま追従する
+            </span>
+          </div>
+        </Show>
         <VirtualList items={liveItems()} itemKey={(item) => item.id}>
           {(item) => <p class="border-primary border-b p-3">{item.text}</p>}
         </VirtualList>
@@ -69,6 +77,11 @@ const RealtimeExample = () => {
 };
 
 export const リアルタイム追加: Story = {
-  render: () => <RealtimeExample />,
+  render: () => <RealtimeExample profile={false} />,
+  decorators: [],
+};
+
+export const プロフィールの下でリアルタイム追加: Story = {
+  render: () => <RealtimeExample profile />,
   decorators: [],
 };
