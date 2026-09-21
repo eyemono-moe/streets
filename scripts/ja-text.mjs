@@ -10,27 +10,14 @@
  *     line: number;
  *     column: number;
  *     kind: "jsx-text" | "jsx-attribute" | "string-literal" | "template-literal";
- *     // 同じ文が同じファイルに複数あるとき、何番目か（0 始まり）。行がずれても
- *     // 書き戻せるよう、行番号ではなくこれで照合する。
- *     occurrence: number;
+ *     // そのファイルの、その種類の中で何番目か（0 始まり）。文そのものを書き
+ *     // 換えても場所が分かるよう、行番号ではなくこれで照合する。
+ *     index: number;
  *     text: string;
- *     llmLikelihood?: "low" | "medium" | "high";
- *     reason?: string;
- *     suggestedText?: string;
  *   };
  */
 
-export const COLUMNS = [
-  "file",
-  "line",
-  "column",
-  "kind",
-  "occurrence",
-  "text",
-  "llmLikelihood",
-  "reason",
-  "suggestedText",
-];
+export const COLUMNS = ["file", "line", "column", "kind", "index", "text"];
 
 /** ひらがな・カタカナ・漢字・日本語の約物のどれかを含むか。 */
 const JAPANESE =
@@ -138,41 +125,3 @@ export const samePlaceholders = (before, after) => {
   const b = placeholders(after);
   return a.length === b.length && a.every((value, i) => value === b[i]);
 };
-
-/**
- * 機械で分かる範囲の「LLM が書いた文らしさ」。当てにするものではなく、人が見る
- * 順番を決めるための目安。判定そのものは LLM と人が CSV の上で直す。
- */
-const RULES = [
-  {
-    pattern: /することができます|することが可能です/,
-    reason: "冗長な可能表現",
-  },
-  {
-    pattern: /を行います|を行ってください|を実施/,
-    reason: "「〜を行う」の言い回し",
-  },
-  { pattern: /適切に|正しく設定|必要に応じて/, reason: "中身の無い副詞" },
-  { pattern: /ご利用|いただけます|くださいませ/, reason: "過剰な敬語" },
-  {
-    pattern: /エラーが発生しました|問題が発生しました/,
-    reason: "定型のエラー文",
-  },
-  { pattern: /〜|——/, reason: "説明的なダッシュ・波ダッシュ" },
-  { pattern: /また、|さらに、|なお、/, reason: "文章語の接続詞" },
-  { pattern: /である。|だ。/, reason: "です・ます と だ・である の混在" },
-];
-
-export const scoreText = (text) => {
-  const hits = RULES.filter((rule) => rule.pattern.test(text));
-  // 句点で切らずに長く続く文は、読ませる気の無い説明文になりやすい。
-  const longSentence =
-    text.replace(/\s+/g, "").length >= 60 && !text.includes("。");
-  const reasons = hits.map((hit) => hit.reason);
-  if (longSentence) reasons.push("一文が長い");
-  const level =
-    reasons.length >= 2 ? "high" : reasons.length === 1 ? "medium" : "low";
-  return { level, reason: reasons.join(" / ") };
-};
-
-export const LEVEL_ORDER = { high: 0, medium: 1, low: 2 };

@@ -5,24 +5,18 @@
  *
  * 集めるのは JSX の地の文・JSX の属性・文字列・テンプレート文字列のうち、
  * 日本語を含むもの。コメントは集めない（画面に出ないため）。
+ * 直すときは CSV の `text` の列を書き換え、`ja-text-apply.mjs` で戻す。
  *
  * オプション
  *   --out <path>        書き出し先（拡張子 .csv / .json）。既定は tmp/ja-text.csv
  *   --root <dir>        見に行く場所。複数指定できる。既定は apps/web/src と packages/core/src
  *   --include-stories   *.stories.tsx も集める（既定は除く）
  *   --include-tests     *.test.ts(x) も集める（既定は除く）
- *   --sort              LLM っぽさの目安が高い順に並べる（既定はファイル順）
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { Project, SyntaxKind } from "ts-morph";
-import {
-  LEVEL_ORDER,
-  hasJapanese,
-  normalizeJsxText,
-  scoreText,
-  toCsv,
-} from "./ja-text.mjs";
+import { hasJapanese, normalizeJsxText, toCsv } from "./ja-text.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -38,9 +32,8 @@ const roots = values("root").length
 const out = values("out")[0] ?? "tmp/ja-text.csv";
 
 const project = new Project({
-  tsConfigFilePath: undefined,
   skipAddingFilesFromTsConfig: true,
-  compilerOptions: { jsx: 4, allowJs: false },
+  compilerOptions: { jsx: 4 },
 });
 for (const root of roots) {
   project.addSourceFilesAtPaths([
@@ -59,27 +52,15 @@ const entries = [];
 for (const file of project.getSourceFiles()) {
   const path = relative(repoRoot, file.getFilePath());
   if (skip(path)) continue;
-  /** 同じ文が同じファイルに何度も出るときの通し番号。 */
-  const seen = new Map();
+  /** そのファイルの、その種類の中で何番目か。書き戻すときの目印。 */
+  const counts = new Map();
 
   const push = (node, kind, text) => {
     if (!hasJapanese(text)) return;
-    const key = `${kind}\u0000${text}`;
-    const occurrence = seen.get(key) ?? 0;
-    seen.set(key, occurrence + 1);
+    const index = counts.get(kind) ?? 0;
+    counts.set(kind, index + 1);
     const { line, column } = file.getLineAndColumnAtPos(node.getStart());
-    const { level, reason } = scoreText(text);
-    entries.push({
-      file: path,
-      line,
-      column,
-      kind,
-      occurrence,
-      text,
-      llmLikelihood: level,
-      reason,
-      suggestedText: "",
-    });
+    entries.push({ file: path, line, column, kind, index, text });
   };
 
   file.forEachDescendant((node) => {
@@ -110,15 +91,6 @@ for (const file of project.getSourceFiles()) {
   });
 }
 
-if (flag("sort")) {
-  entries.sort(
-    (a, b) =>
-      LEVEL_ORDER[a.llmLikelihood] - LEVEL_ORDER[b.llmLikelihood] ||
-      a.file.localeCompare(b.file) ||
-      a.line - b.line,
-  );
-}
-
 const target = resolve(repoRoot, out);
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(
@@ -128,14 +100,9 @@ writeFileSync(
     : toCsv(entries),
 );
 
-const counts = entries.reduce((acc, entry) => {
+const kinds = entries.reduce((acc, entry) => {
   acc[entry.kind] = (acc[entry.kind] ?? 0) + 1;
   return acc;
 }, {});
-const levels = entries.reduce((acc, entry) => {
-  acc[entry.llmLikelihood] = (acc[entry.llmLikelihood] ?? 0) + 1;
-  return acc;
-}, {});
 console.log(`${entries.length} 件を ${out} に書き出しました`);
-console.log("種類:", counts);
-console.log("目安:", levels);
+console.log("種類:", kinds);
