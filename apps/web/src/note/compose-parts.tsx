@@ -33,6 +33,10 @@ const ToolButton: Component<{
   </button>
 );
 
+/** 動画は切り抜けない（枠の座標を元の画素に直せないし、切ると音も動きも失う）。 */
+const isVideo = (attachment: Attachment) =>
+  attachment.type?.startsWith("video/") ?? false;
+
 /** 画像の元の大きさ。切り抜く範囲を割合に直すのに要る。 */
 const useNaturalSize = () => {
   const [natural, setNatural] = createSignal<{
@@ -73,13 +77,38 @@ const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
     };
   };
   return (
-    <img
-      src={props.attachment.preview}
-      alt=""
-      class={framed() ? "" : "size-full object-cover"}
-      style={framed()}
-      onLoad={onLoad}
-    />
+    <Show
+      when={!isVideo(props.attachment)}
+      fallback={
+        <>
+          {/*
+            動画は 1 コマ目を出す。`#t=0.1` を付けないと、多くのブラウザが
+            何も描かずに黒いままになる。切り抜けないので、ずらす必要も無い。
+          */}
+          <video
+            src={`${props.attachment.preview}#t=0.1`}
+            muted
+            playsinline
+            preload="metadata"
+            class="size-full bg-black object-cover"
+          />
+          <span class="pointer-events-none absolute inset-0 grid place-items-center">
+            <span
+              class="i-material-symbols:play-circle-outline c-white size-8 opacity-90"
+              aria-label="動画"
+            />
+          </span>
+        </>
+      }
+    >
+      <img
+        src={props.attachment.preview}
+        alt=""
+        class={framed() ? "" : "size-full object-cover"}
+        style={framed()}
+        onLoad={onLoad}
+      />
+    </Show>
   );
 };
 
@@ -111,6 +140,19 @@ const PreviewImage: Component<{ attachment: Attachment }> = (props) => {
       top: `${(-crop.y / crop.height) * 100}%`,
     };
   };
+  if (isVideo(props.attachment)) {
+    return (
+      // biome-ignore lint/a11y/useMediaCaption: 手元の動画を送る前に確かめるだけで、字幕のもとになるものが無い
+      <video
+        src={`${props.attachment.preview}#t=0.1`}
+        controls
+        playsinline
+        preload="metadata"
+        class="w-full rounded-2 bg-black"
+        style={{ "max-height": `${PREVIEW_MAX_HEIGHT}px` }}
+      />
+    );
+  }
   return (
     <div
       class="relative w-full overflow-hidden rounded-2 bg-secondary"
@@ -174,9 +216,17 @@ export const ComposeAttachments: Component<{
               <button
                 type="button"
                 class="size-full border-none bg-transparent p-0 enabled:cursor-pointer"
-                aria-label={`${attachment.name} を切り抜く`}
-                title={`${attachment.name} を切り抜く`}
-                disabled={props.disabled}
+                aria-label={
+                  isVideo(attachment)
+                    ? attachment.name
+                    : `${attachment.name} を切り抜く`
+                }
+                title={
+                  isVideo(attachment)
+                    ? "動画は切り抜けません"
+                    : `${attachment.name} を切り抜く`
+                }
+                disabled={props.disabled || isVideo(attachment)}
                 onClick={() => setCropping(attachment)}
               >
                 <Thumbnail attachment={attachment} />

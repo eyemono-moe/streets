@@ -2,6 +2,8 @@ import type { Attachment } from "@streets/core/view/compose";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { UploaderProvider } from "../media/uploader";
+import animatedUrl from "../storybook/media-animated.gif";
+import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import portraitUrl from "../storybook/media-portrait.svg";
 import squareUrl from "../storybook/media-square.svg";
@@ -176,6 +178,23 @@ export const 預けられなかった: Story = {
     attachments: [
       shot("1", "1.png", landscapeUrl, { blob }),
       shot("2", "2.png", squareUrl, { error: "大きすぎます" }),
+    ],
+  },
+};
+
+/** 動く画像（GIF・APNG・アニメ WebP）。そのまま添えれば動いたまま上がる。 */
+export const 動く画像を添えた: Story = {
+  args: {
+    attachments: [shot("1", "うごく.gif", animatedUrl, { type: "image/gif" })],
+  },
+};
+
+/** 動画は切り抜けない（押しても切り抜きは開かない）。 */
+export const 動画を添えた: Story = {
+  args: {
+    attachments: [
+      shot("1", "うごき.mp4", clipUrl, { type: "video/mp4" }),
+      shot("2", "1.png", landscapeUrl),
     ],
   },
 };

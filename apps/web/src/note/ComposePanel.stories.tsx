@@ -8,6 +8,7 @@ import SidePanel from "../deck/SidePanel";
 import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -140,6 +141,17 @@ export const 画像を預けられなかった: Story = {
         shot("1", "1.png", landscapeUrl, { blob }),
         shot("2", "2.png", squareUrl, { error: "大きすぎます" }),
       ],
+    },
+  },
+};
+
+/** 動画も添えられる。プレビューでは再生して確かめられる。 */
+export const 動画を添えた: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "動くもの",
+      attachments: [shot("1", "うごき.mp4", clipUrl, { type: "video/mp4" })],
     },
   },
 };

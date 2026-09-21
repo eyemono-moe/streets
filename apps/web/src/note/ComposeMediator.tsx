@@ -67,6 +67,7 @@ export const ComposeMediator: Component<{
         id,
         name: file.name,
         preview: keep(id, file),
+        mime: file.type || undefined,
       });
     }
   };

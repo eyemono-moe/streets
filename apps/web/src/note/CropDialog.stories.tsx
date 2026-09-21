@@ -1,5 +1,6 @@
 import type { CropRect } from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import animatedUrl from "../storybook/media-animated.gif";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import portraitUrl from "../storybook/media-portrait.svg";
 import CropDialog from "./CropDialog";
@@ -37,6 +38,10 @@ export const 長い名前: Story = {
 /** 一度切り抜いたものを開き直したところ。前の範囲から直せる。 */
 export const 切り抜き済み: Story = {
   args: { crop: { x: 100, y: 60, width: 700, height: 500 } },
+};
+/** 動く画像は、切ると 1 枚の絵になる。切る前に知らせる。 */
+export const 動く画像: Story = {
+  args: { src: animatedUrl, name: "うごく.gif" },
 };
 export const 狭い幅: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },

@@ -18,6 +18,8 @@ export type Attachment = {
   name: string;
   /** 元の画像の URL。切り抜いても差し替えない —— 何度でも切り直せるように。 */
   preview: string;
+  /** ファイルの種類（`image/gif`・`video/mp4` など）。動画は切り抜けない。 */
+  type?: string;
   /** 切り抜く範囲。無ければ全体。実際に切るのは、預ける直前。 */
   crop?: CropRect;
   /** 預け終わったもの。切り抜き直すと預け直しになるので消える。 */
@@ -44,7 +46,13 @@ export type ComposeEvent =
   /** 送れなかった。本文は残して、そのまま送り直せるようにする。 */
   | { type: "compose/failed" }
   /** ファイルを添えた（まだ預けていない）。 */
-  | { type: "compose/attach-add"; id: string; name: string; preview: string }
+  | {
+      type: "compose/attach-add";
+      id: string;
+      name: string;
+      preview: string;
+      mime?: string;
+    }
   | { type: "compose/attach-remove"; id: string }
   /** 並べ替える。`to` は動かした先の位置。 */
   | { type: "compose/attach-move"; id: string; to: number }
@@ -135,7 +143,12 @@ export const composeTransition = (
         ...state,
         attachments: [
           ...state.attachments,
-          { id: event.id, name: event.name, preview: event.preview },
+          {
+            id: event.id,
+            name: event.name,
+            preview: event.preview,
+            type: event.mime,
+          },
         ],
       };
     case "compose/attach-remove":

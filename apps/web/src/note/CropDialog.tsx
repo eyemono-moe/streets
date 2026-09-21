@@ -1,4 +1,5 @@
 import { ImageCropper, useImageCropper } from "@ark-ui/solid/image-cropper";
+import { isAnimatedImage } from "@streets/core/media/animation";
 import type { CropRect } from "@streets/core/view/compose";
 import { type Component, For, Show, createSignal, onMount } from "solid-js";
 import Button from "../ui/Button";
@@ -36,6 +37,8 @@ const Editor: Component<{
   src: string;
   box: Box;
   crop: CropRect | undefined;
+  /** 動きのある画像か。切ると 1 枚の静止画になるので、その前に知らせる。 */
+  animated: boolean;
   onDone: (crop: CropRect | undefined) => void;
   onClose: () => void;
 }> = (props) => {
@@ -101,6 +104,16 @@ const Editor: Component<{
         </ImageCropper.Viewport>
       </ImageCropper.RootProvider>
 
+      <Show when={props.animated}>
+        <p class="c-secondary flex items-center gap-1.5 px-4 pt-2 text-caption">
+          <span
+            class="i-material-symbols:info-outline-rounded size-4 shrink-0"
+            aria-hidden="true"
+          />
+          切り抜くと、動きは止まって 1 枚の絵になります
+        </p>
+      </Show>
+
       <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
         <IconButton
           label="縮小"
@@ -144,7 +157,20 @@ const CropDialog: Component<{
   onClose: () => void;
 }> = (props) => {
   const [box, setBox] = createSignal<Box>();
+  const [animated, setAnimated] = createSignal(false);
   let area: HTMLDivElement | undefined;
+
+  // 種類だけでは分からない（1 枚だけの GIF もある）ので、中身を見て確かめる。
+  onMount(async () => {
+    try {
+      const bytes = new Uint8Array(
+        await (await fetch(props.src)).arrayBuffer(),
+      );
+      setAnimated(isAnimatedImage(bytes));
+    } catch {
+      setAnimated(false);
+    }
+  });
 
   // 元の画素へ戻す倍率が要るので、先に画像の大きさを読む。読めてから枠を出す。
   onMount(async () => {
@@ -191,6 +217,7 @@ const CropDialog: Component<{
                   src={props.src}
                   box={box()}
                   crop={props.crop}
+                  animated={animated()}
                   onDone={props.onDone}
                   onClose={props.onClose}
                 />
