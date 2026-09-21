@@ -1,6 +1,4 @@
-import { Collapsible } from "@ark-ui/solid/collapsible";
 import { Drawer } from "@ark-ui/solid/drawer";
-import { columnFacets } from "@streets/core/deck/column-facets";
 import {
   type ColumnStackState,
   columnStackTransition,
@@ -19,7 +17,6 @@ import {
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
 import { Mediates, type UiEvent } from "../ui-events";
-import ColumnSettings from "./ColumnSettings";
 import { useColumnTitle } from "./ColumnTitle";
 
 export type ColumnProps = {
@@ -38,7 +35,6 @@ export type ColumnProps = {
 
 /** 共通の枠とスタックを持ち、カラム固有の本文は `ColumnContent` に委ねる。 */
 const Column: Component<ColumnProps> = (props) => {
-  const facets = () => columnFacets(props.column);
   const [stack, setStack] = createStore<ColumnStackState>(emptyColumnStack());
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
@@ -120,20 +116,6 @@ const Column: Component<ColumnProps> = (props) => {
           />
         )}
       </Show>
-      <Collapsible.Root
-        open={props.settingsOpen}
-        lazyMount
-        unmountOnExit
-        class="shrink-0"
-      >
-        <Collapsible.Content class="motion-collapse">
-          <ColumnSettings
-            column={props.column}
-            facets={facets()}
-            relayList={props.relayList()}
-          />
-        </Collapsible.Content>
-      </Collapsible.Root>
     </>
   );
 

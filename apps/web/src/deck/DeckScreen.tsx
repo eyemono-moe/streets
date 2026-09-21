@@ -54,6 +54,7 @@ import {
 } from "../write-progress-setting";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
+import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import ColumnTitle from "./ColumnTitle";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, Sidebar, TabBar } from "./Nav";
@@ -252,11 +253,28 @@ const DeckScreen: Component<{
       case "deck/open-panel":
       case "deck/close-panel":
       case "deck/select-column":
-      case "deck/toggle-settings":
       case "deck/drag-start":
       case "deck/drag-end":
         applyUi(event);
         return true;
+      case "deck/toggle-settings": {
+        const opening = ui.settingsFor !== event.id;
+        applyUi(event);
+        if (opening) {
+          requestAnimationFrame(() =>
+            columnsEl
+              ?.querySelector(`[data-settings-for="${CSS.escape(event.id)}"]`)
+              ?.scrollIntoView({
+                inline: "nearest",
+                block: "nearest",
+                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                  ? "auto"
+                  : "smooth",
+              }),
+          );
+        }
+        return true;
+      }
       case "deck/drop": {
         const id = ui.dragging;
         applyUi({ type: "deck/drag-end" });
@@ -429,33 +447,46 @@ const DeckScreen: Component<{
                           </Show>
                           <For each={columns()}>
                             {(column) => (
-                              <div
-                                data-column-id={column.id}
-                                class="h-full shrink-0"
-                                classList={{
-                                  "w-80": column.width === "s",
-                                  "w-95":
-                                    column.width !== "s" &&
-                                    column.width !== "l",
-                                  "w-110": column.width === "l",
-                                  "opacity-50": ui.dragging === column.id,
-                                }}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  handle({
-                                    type: "deck/drop",
-                                    targetId: column.id,
-                                  });
-                                }}
-                              >
-                                <Column
-                                  column={column}
-                                  settingsOpen={ui.settingsFor === column.id}
-                                  draggable
-                                  {...shared}
-                                />
-                              </div>
+                              <>
+                                <div
+                                  data-column-id={column.id}
+                                  class="h-full shrink-0"
+                                  classList={{
+                                    "w-80": column.width === "s",
+                                    "w-95":
+                                      column.width !== "s" &&
+                                      column.width !== "l",
+                                    "w-110": column.width === "l",
+                                    "opacity-50": ui.dragging === column.id,
+                                  }}
+                                  onDragOver={(event) => event.preventDefault()}
+                                  onDrop={(event) => {
+                                    event.preventDefault();
+                                    handle({
+                                      type: "deck/drop",
+                                      targetId: column.id,
+                                    });
+                                  }}
+                                >
+                                  <Column
+                                    column={column}
+                                    settingsOpen={ui.settingsFor === column.id}
+                                    draggable
+                                    {...shared}
+                                  />
+                                </div>
+                                <Show when={ui.settingsFor === column.id}>
+                                  <div
+                                    data-settings-for={column.id}
+                                    class="h-full w-95 shrink-0"
+                                  >
+                                    <ColumnSettingsPanel
+                                      column={column}
+                                      relayList={relayList()}
+                                    />
+                                  </div>
+                                </Show>
+                              </>
                             )}
                           </For>
                         </div>
@@ -605,21 +636,38 @@ const DeckScreen: Component<{
                         </Show>
                         <For each={columns()}>
                           {(column) => (
-                            <div
-                              class="h-full"
-                              classList={{
-                                hidden:
-                                  ui.panel !== undefined ||
-                                  ui.active !== column.id,
-                              }}
-                            >
-                              <Column
-                                column={column}
-                                settingsOpen={ui.settingsFor === column.id}
-                                chrome={false}
-                                {...shared}
-                              />
-                            </div>
+                            <>
+                              <div
+                                class="h-full"
+                                classList={{
+                                  hidden:
+                                    ui.panel !== undefined ||
+                                    ui.active !== column.id ||
+                                    ui.settingsFor === column.id,
+                                }}
+                              >
+                                <Column
+                                  column={column}
+                                  settingsOpen={ui.settingsFor === column.id}
+                                  chrome={false}
+                                  {...shared}
+                                />
+                              </div>
+                              <Show
+                                when={
+                                  ui.panel === undefined &&
+                                  ui.active === column.id &&
+                                  ui.settingsFor === column.id
+                                }
+                              >
+                                <div class="h-full">
+                                  <ColumnSettingsPanel
+                                    column={column}
+                                    relayList={relayList()}
+                                  />
+                                </div>
+                              </Show>
+                            </>
                           )}
                         </For>
                         {panelView(true)}
