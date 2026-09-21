@@ -56,7 +56,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     const scroller = scrollElement();
     if (!scroller) return;
     const updateFollowsStart = () => {
-      followsStart = scroller.scrollTop <= virtualizer.options.scrollMargin + 1;
+      followsStart = scroller.scrollTop <= 1;
     };
     updateFollowsStart();
     scroller.addEventListener("scroll", updateFollowsStart, { passive: true });
@@ -71,8 +71,9 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     firstKey = nextKey;
     if (shouldFollow) {
       // anchorTo は既存行を安定させるため常に有効にし、一覧先頭にいた場合だけ
-      // その補正後に新しい先頭へ追従する。
-      queueMicrotask(() => virtualizer.scrollToOffset(0));
+      // その補正後にカラム全体の先頭へ追従する。virtualizer の offset 0 は
+      // scrollMargin の後ろなので、一覧より上に内容があるとそこまで隠してしまう。
+      queueMicrotask(() => scrollElement()?.scrollTo({ top: 0 }));
     }
   });
 
