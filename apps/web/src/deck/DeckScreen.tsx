@@ -30,6 +30,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
@@ -322,6 +323,8 @@ const DeckScreen: Component<{
         return true;
       case "deck/open-settings":
       case "deck/close-settings":
+      case "deck/open-about":
+      case "deck/close-about":
         applyUi(event);
         return true;
       case "deck/set-color-scheme":
@@ -723,6 +726,7 @@ const DeckScreen: Component<{
                         </div>
                       </Match>
                     </Switch>
+                    <AboutDialog open={ui.aboutOpen} wide={isWide()} />
                     <SettingsDialog
                       open={ui.settingsOpen}
                       wide={isWide()}

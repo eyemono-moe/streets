@@ -15,6 +15,8 @@ export type DeckUiState = {
   dragging: string | undefined;
   /** 設定のダイアログを開いているか。 */
   settingsOpen: boolean;
+  /** 「Streets について」のダイアログを開いているか。 */
+  aboutOpen: boolean;
 };
 
 export type DeckUiEvent =
@@ -22,6 +24,8 @@ export type DeckUiEvent =
   | { type: "deck/close-panel" }
   | { type: "deck/open-settings" }
   | { type: "deck/close-settings" }
+  | { type: "deck/open-about" }
+  | { type: "deck/close-about" }
   | { type: "deck/select-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
   | { type: "deck/drag-start"; id: string }
@@ -42,6 +46,7 @@ export const emptyDeckUi = (): DeckUiState => ({
   active: undefined,
   dragging: undefined,
   settingsOpen: false,
+  aboutOpen: false,
 });
 
 export const deckUiTransition = (
@@ -55,9 +60,24 @@ export const deckUiTransition = (
       return state.panel === undefined ? state : { ...state, panel: undefined };
     case "deck/open-settings":
       // 設定はデッキの上に開くダイアログ。パネルは閉じる（狭い画面ではパネルが全面を覆う）。
-      return { ...state, settingsOpen: true, panel: undefined };
+      return {
+        ...state,
+        settingsOpen: true,
+        aboutOpen: false,
+        panel: undefined,
+      };
     case "deck/close-settings":
       return state.settingsOpen ? { ...state, settingsOpen: false } : state;
+    case "deck/open-about":
+      // 設定と同じく、デッキの上に開く。2 つ同時には開かない。
+      return {
+        ...state,
+        aboutOpen: true,
+        settingsOpen: false,
+        panel: undefined,
+      };
+    case "deck/close-about":
+      return state.aboutOpen ? { ...state, aboutOpen: false } : state;
     case "deck/select-column":
       // タブを選んだらパネルは閉じる。狭い画面ではパネルがカラムを覆っている。
       return { ...state, active: event.id, panel: undefined };
