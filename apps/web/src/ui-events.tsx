@@ -31,7 +31,13 @@ export type UiEvent =
   | ComposeViewEvent
   | RelayViewEvent
   | MuteViewEvent
-  | ProfileViewEvent;
+  | ProfileViewEvent
+  | MediaViewEvent;
+
+/** 画像の預け先（Blossom のサーバー）の足し外し。 */
+export type MediaViewEvent =
+  | { type: "media/add-server"; url: string }
+  | { type: "media/remove-server"; url: string };
 
 /** プロフィールの編集。保存するのは裁定する段。 */
 export type ProfileViewEvent = Extract<
@@ -51,7 +57,10 @@ export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
 /** 投稿・返信の書きかけに、View から渡すもの。送れた・失敗したは裁定する段が当てる。 */
 export type ComposeViewEvent =
   | Extract<ComposeEvent, { type: "compose/input" | "compose/submit" }>
-  | { type: "compose/close" };
+  | { type: "compose/close" }
+  /** 選んだ・貼り付けた・落としたファイルを預ける。 */
+  | { type: "compose/attach"; files: readonly File[] }
+  | Extract<ComposeEvent, { type: "compose/attach-dismiss" }>;
 
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =

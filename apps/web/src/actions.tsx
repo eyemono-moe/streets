@@ -1,8 +1,10 @@
+import type { BlobDescriptor } from "@streets/core/media/blossom";
 import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
+import { withMedia } from "@streets/core/nostr/build/media";
 import {
   buildNote,
   buildQuote,
@@ -37,14 +39,23 @@ const FOLLOW_KIND = 3;
 const RELAY_LIST_KIND = 10002;
 const MUTE_KIND = 10000;
 const PROFILE_KIND = 0;
+const BLOSSOM_SERVERS_KIND = 10063;
 
 export type EventActions = {
   viewer: string;
   /** ブックマークしたノートの id。ブックマークのカラムが購読に使う。 */
   bookmarkIds(): readonly string[];
-  post(content: string): Promise<void>;
-  reply(target: NostrEvent, content: string): Promise<void>;
-  quote(target: NostrEvent, content: string): Promise<void>;
+  post(content: string, media?: readonly BlobDescriptor[]): Promise<void>;
+  reply(
+    target: NostrEvent,
+    content: string,
+    media?: readonly BlobDescriptor[],
+  ): Promise<void>;
+  quote(
+    target: NostrEvent,
+    content: string,
+    media?: readonly BlobDescriptor[],
+  ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
@@ -69,6 +80,8 @@ export type WriteStack = {
   muteListSettled: Accessor<boolean>;
   /** 自分のプロフィール（kind:0）。 */
   profile: Accessor<NostrEvent | undefined>;
+  /** 自分の画像の預け先（kind:10063。Blossom）。 */
+  blossomServers: Accessor<NostrEvent | undefined>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -130,6 +143,7 @@ export const createWriteStack = (options: {
   const relayList = mine(RELAY_LIST_KIND);
   const muteList = mine(MUTE_KIND);
   const profile = mine(PROFILE_KIND);
+  const blossomServers = mine(BLOSSOM_SERVERS_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -140,17 +154,23 @@ export const createWriteStack = (options: {
   const actions: EventActions = {
     viewer: options.viewer,
     bookmarkIds,
-    async post(content) {
-      await tracked("投稿").publish(buildNote(content));
+    async post(content, media) {
+      await tracked("投稿").publish(withMedia(buildNote(content), media ?? []));
     },
-    async reply(event, content) {
+    async reply(event, content, media) {
       await tracked("返信").publish(
-        buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+        withMedia(
+          buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+          media ?? [],
+        ),
       );
     },
-    async quote(event, content) {
+    async quote(event, content, media) {
       await tracked("引用").publish(
-        buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+        withMedia(
+          buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+          media ?? [],
+        ),
       );
     },
     async repost(event) {
@@ -192,6 +212,7 @@ export const createWriteStack = (options: {
     muteList: muteList.event,
     muteListSettled: muteList.settled,
     profile: profile.event,
+    blossomServers: blossomServers.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };

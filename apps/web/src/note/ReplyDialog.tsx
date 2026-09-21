@@ -14,7 +14,7 @@ import {
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import NoteText from "./NoteText";
-import { ComposeTools, countCharacters } from "./compose-parts";
+import { ComposeTools, ComposeUploads, countCharacters } from "./compose-parts";
 
 const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
@@ -83,6 +83,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                 }}
               />
             </div>
+            <ComposeUploads uploads={props.state.uploads} />
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
               label="返信"

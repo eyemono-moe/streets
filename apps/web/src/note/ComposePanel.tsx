@@ -12,7 +12,12 @@ import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import Event from "./Event";
-import { ComposeTools, countCharacters } from "./compose-parts";
+import {
+  ComposeTools,
+  ComposeUploads,
+  countCharacters,
+  useDropAndPaste,
+} from "./compose-parts";
 
 /** 打つたびに作り直さないよう、少し止まってからプレビューへ渡す。 */
 const useDebounced = (value: () => string, ms: number) => {
@@ -33,6 +38,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
   const preview = useDebounced(() => props.state.content, 400);
+  const dropAndPaste = useDropAndPaste();
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
@@ -75,6 +81,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
               content: event.currentTarget.value,
             })
           }
+          {...dropAndPaste}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
@@ -83,6 +90,8 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
           }}
         />
       </div>
+
+      <ComposeUploads uploads={props.state.uploads} />
 
       <ComposeTools
         count={`${countCharacters(props.state.content)} 文字`}

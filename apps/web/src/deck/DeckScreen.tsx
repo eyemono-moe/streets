@@ -13,6 +13,7 @@ import {
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
+import { parseBlossomServers } from "@streets/core/media/blossom";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -31,9 +32,11 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
+import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import type { Session } from "../session";
+import { MediaMediator } from "../settings/MediaMediator";
 import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
@@ -171,6 +174,13 @@ const DeckScreen: Component<{
     applyUi({ type: "deck/column-added", id: added.id });
     scrollToEnd();
   };
+
+  // 画像の預け先は、設定（kind:10063）の並び順にそのまま使う。
+  const uploader = createUploader({
+    signer: props.session.signer,
+    viewer,
+    servers: () => parseBlossomServers(write.blossomServers()),
+  });
 
   // カラムを見せる。広い画面では横に送って画面に収め、狭い画面ではそのタブを選ぶ。
   const focusColumn = (id: string) => {
@@ -337,7 +347,7 @@ const DeckScreen: Component<{
             full={full}
           >
             <ComposeMediator
-              send={(text) => write.actions.post(text)}
+              send={(text, media) => write.actions.post(text, media)}
               failure="投稿できませんでした"
               onSent={() => handle({ type: "deck/close-panel" })}
             >
@@ -361,289 +371,307 @@ const DeckScreen: Component<{
 
   return (
     <EventActionsProvider value={write.actions}>
-      {/* デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。 */}
-      <ActionsMediator actions={write.actions}>
-        <Mediates handle={handle}>
-          <ProfileMediator
-            writer={trackReplaces(write.writer, "プロフィール")}
-            pubkey={viewer}
-            profile={write.profile}
-          >
-            <RelayMediator
-              writer={trackReplaces(write.writer, "リレーの設定")}
-              relayList={write.relayList}
-              settled={write.relayListSettled}
-              statusOf={(url) => props.readLayer.manager.pool.statusOf(url)}
+      <UploaderProvider value={uploader}>
+        {/* デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。 */}
+        <ActionsMediator actions={write.actions}>
+          <Mediates handle={handle}>
+            <MediaMediator
+              writer={trackReplaces(write.writer, "画像の預け先")}
+              serverList={write.blossomServers}
             >
-              <MuteMediator
-                writer={trackReplaces(write.writer, "ミュート")}
-                signer={props.session.signer}
-                viewer={viewer}
-                muteList={write.muteList}
-                settled={write.muteListSettled}
+              <ProfileMediator
+                writer={trackReplaces(write.writer, "プロフィール")}
+                pubkey={viewer}
+                profile={write.profile}
               >
-                <Switch>
-                  <Match when={warmUp.error}>
-                    <p role="alert" class="c-danger p-4 text-caption">
-                      フォローリストを取得できませんでした。
-                    </p>
-                  </Match>
-                  <Match when={deckStore.value() === undefined}>
-                    <p class="c-secondary p-4 text-caption">
-                      デッキを読み込み中…
-                    </p>
-                  </Match>
-                  <Match when={isWide()}>
-                    <div class="flex h-dvh">
-                      <Sidebar
-                        pubkey={viewer}
-                        columns={columns()}
-                        onLogout={props.session.logout}
-                      />
-                      {panelView(false)}
-                      <div class="flex min-w-0 flex-1 flex-col">
-                        <DeckSyncNotice store={deckStore} />
-                        {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-                        <div
-                          ref={columnsEl}
-                          class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
-                        >
-                          <Show when={temp()}>
-                            {(column) => (
-                              <div class="h-full w-95 shrink-0">
-                                <Column
-                                  column={column()}
-                                  settingsOpen={false}
-                                  temporary
-                                  {...shared}
-                                />
-                              </div>
-                            )}
-                          </Show>
-                          <Show when={params.entity && !temp()}>
-                            <div class="h-full w-95 shrink-0 bg-primary p-4">
-                              <p role="alert" class="c-secondary text-caption">
-                                このリンクは読めませんでした：{params.entity}
-                              </p>
-                            </div>
-                          </Show>
-                          <For each={columns()}>
-                            {(column) => (
-                              <div
-                                data-column-id={column.id}
-                                class="h-full shrink-0"
-                                classList={{
-                                  "w-80": column.width === "s",
-                                  "w-95":
-                                    column.width !== "s" &&
-                                    column.width !== "l",
-                                  "w-110": column.width === "l",
-                                  "opacity-50": ui.dragging === column.id,
-                                }}
-                                onDragOver={(event) => event.preventDefault()}
-                                onDrop={(event) => {
-                                  event.preventDefault();
-                                  handle({
-                                    type: "deck/drop",
-                                    targetId: column.id,
-                                  });
-                                }}
-                              >
-                                <Column
-                                  column={column}
-                                  settingsOpen={ui.settingsFor === column.id}
-                                  draggable
-                                  {...shared}
-                                />
-                              </div>
-                            )}
-                          </For>
-                        </div>
-                      </div>
-                    </div>
-                  </Match>
-                  <Match when={true}>
-                    <div class="relative flex h-dvh flex-col">
-                      <div class="h-0.75 shrink-0 bg-accent-primary" />
-                      <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
-                        <Show when={temp()}>
-                          {(column) => (
-                            <button
-                              type="button"
-                              class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                              classList={{
-                                "c-primary font-600": ui.active === "temp",
-                                "c-secondary": ui.active !== "temp",
-                              }}
-                              onClick={() =>
-                                handle({
-                                  type: "deck/select-column",
-                                  id: TEMP_COLUMN_ID,
-                                })
-                              }
-                            >
-                              <span class="flex items-center gap-1.5">
-                                <span
-                                  class={`size-4 ${columnMeta(column()).icon}`}
-                                  aria-hidden="true"
-                                />
-                                <ColumnTitle column={column()} />
-                              </span>
-                              <span
-                                class="h-0.5 w-6 rounded-full"
-                                classList={{
-                                  "bg-accent-primary": ui.active === "temp",
-                                }}
-                              />
-                            </button>
-                          )}
-                        </Show>
-                        <For each={columns()}>
-                          {(column) => (
-                            <button
-                              type="button"
-                              class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                              classList={{
-                                "c-primary font-600":
-                                  ui.panel === undefined &&
-                                  ui.active === column.id,
-                                "c-secondary":
-                                  ui.panel !== undefined ||
-                                  ui.active !== column.id,
-                              }}
-                              onClick={() =>
-                                handle({
-                                  type: "deck/select-column",
-                                  id: column.id,
-                                })
-                              }
-                            >
-                              <span class="flex items-center gap-1.5">
-                                <span
-                                  class={`size-4 ${columnMeta(column).icon}`}
-                                  aria-hidden="true"
-                                />
-                                <ColumnTitle column={column} />
-                              </span>
-                              <span
-                                class="h-0.5 w-6 rounded-full"
-                                classList={{
-                                  "bg-accent-primary":
-                                    ui.panel === undefined &&
-                                    ui.active === column.id,
-                                }}
-                              />
-                            </button>
-                          )}
-                        </For>
-                        <button
-                          type="button"
-                          aria-label="カラムを追加"
-                          class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                          onClick={() =>
-                            handle({
-                              type: "deck/open-panel",
-                              panel: "add-column",
-                            })
-                          }
-                        >
-                          <span
-                            class="i-material-symbols:add-rounded size-4.5"
-                            aria-hidden="true"
+                <RelayMediator
+                  writer={trackReplaces(write.writer, "リレーの設定")}
+                  relayList={write.relayList}
+                  settled={write.relayListSettled}
+                  statusOf={(url) => props.readLayer.manager.pool.statusOf(url)}
+                >
+                  <MuteMediator
+                    writer={trackReplaces(write.writer, "ミュート")}
+                    signer={props.session.signer}
+                    viewer={viewer}
+                    muteList={write.muteList}
+                    settled={write.muteListSettled}
+                  >
+                    <Switch>
+                      <Match when={warmUp.error}>
+                        <p role="alert" class="c-danger p-4 text-caption">
+                          フォローリストを取得できませんでした。
+                        </p>
+                      </Match>
+                      <Match when={deckStore.value() === undefined}>
+                        <p class="c-secondary p-4 text-caption">
+                          デッキを読み込み中…
+                        </p>
+                      </Match>
+                      <Match when={isWide()}>
+                        <div class="flex h-dvh">
+                          <Sidebar
+                            pubkey={viewer}
+                            columns={columns()}
+                            onLogout={props.session.logout}
                           />
-                        </button>
-                        <Show
-                          when={columns().find(
-                            (column) => column.id === ui.active,
-                          )}
-                        >
-                          {(column) => (
+                          {panelView(false)}
+                          <div class="flex min-w-0 flex-1 flex-col">
+                            <DeckSyncNotice store={deckStore} />
+                            {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+                            <div
+                              ref={columnsEl}
+                              class="flex min-h-0 flex-1 gap-px overflow-x-auto bg-tertiary"
+                            >
+                              <Show when={temp()}>
+                                {(column) => (
+                                  <div class="h-full w-95 shrink-0">
+                                    <Column
+                                      column={column()}
+                                      settingsOpen={false}
+                                      temporary
+                                      {...shared}
+                                    />
+                                  </div>
+                                )}
+                              </Show>
+                              <Show when={params.entity && !temp()}>
+                                <div class="h-full w-95 shrink-0 bg-primary p-4">
+                                  <p
+                                    role="alert"
+                                    class="c-secondary text-caption"
+                                  >
+                                    このリンクは読めませんでした：
+                                    {params.entity}
+                                  </p>
+                                </div>
+                              </Show>
+                              <For each={columns()}>
+                                {(column) => (
+                                  <div
+                                    data-column-id={column.id}
+                                    class="h-full shrink-0"
+                                    classList={{
+                                      "w-80": column.width === "s",
+                                      "w-95":
+                                        column.width !== "s" &&
+                                        column.width !== "l",
+                                      "w-110": column.width === "l",
+                                      "opacity-50": ui.dragging === column.id,
+                                    }}
+                                    onDragOver={(event) =>
+                                      event.preventDefault()
+                                    }
+                                    onDrop={(event) => {
+                                      event.preventDefault();
+                                      handle({
+                                        type: "deck/drop",
+                                        targetId: column.id,
+                                      });
+                                    }}
+                                  >
+                                    <Column
+                                      column={column}
+                                      settingsOpen={
+                                        ui.settingsFor === column.id
+                                      }
+                                      draggable
+                                      {...shared}
+                                    />
+                                  </div>
+                                )}
+                              </For>
+                            </div>
+                          </div>
+                        </div>
+                      </Match>
+                      <Match when={true}>
+                        <div class="relative flex h-dvh flex-col">
+                          <div class="h-0.75 shrink-0 bg-accent-primary" />
+                          <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
+                            <Show when={temp()}>
+                              {(column) => (
+                                <button
+                                  type="button"
+                                  class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
+                                  classList={{
+                                    "c-primary font-600": ui.active === "temp",
+                                    "c-secondary": ui.active !== "temp",
+                                  }}
+                                  onClick={() =>
+                                    handle({
+                                      type: "deck/select-column",
+                                      id: TEMP_COLUMN_ID,
+                                    })
+                                  }
+                                >
+                                  <span class="flex items-center gap-1.5">
+                                    <span
+                                      class={`size-4 ${columnMeta(column()).icon}`}
+                                      aria-hidden="true"
+                                    />
+                                    <ColumnTitle column={column()} />
+                                  </span>
+                                  <span
+                                    class="h-0.5 w-6 rounded-full"
+                                    classList={{
+                                      "bg-accent-primary": ui.active === "temp",
+                                    }}
+                                  />
+                                </button>
+                              )}
+                            </Show>
+                            <For each={columns()}>
+                              {(column) => (
+                                <button
+                                  type="button"
+                                  class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
+                                  classList={{
+                                    "c-primary font-600":
+                                      ui.panel === undefined &&
+                                      ui.active === column.id,
+                                    "c-secondary":
+                                      ui.panel !== undefined ||
+                                      ui.active !== column.id,
+                                  }}
+                                  onClick={() =>
+                                    handle({
+                                      type: "deck/select-column",
+                                      id: column.id,
+                                    })
+                                  }
+                                >
+                                  <span class="flex items-center gap-1.5">
+                                    <span
+                                      class={`size-4 ${columnMeta(column).icon}`}
+                                      aria-hidden="true"
+                                    />
+                                    <ColumnTitle column={column} />
+                                  </span>
+                                  <span
+                                    class="h-0.5 w-6 rounded-full"
+                                    classList={{
+                                      "bg-accent-primary":
+                                        ui.panel === undefined &&
+                                        ui.active === column.id,
+                                    }}
+                                  />
+                                </button>
+                              )}
+                            </For>
                             <button
                               type="button"
-                              aria-label="カラムの設定"
-                              aria-expanded={ui.settingsFor === column().id}
+                              aria-label="カラムを追加"
                               class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
                               onClick={() =>
                                 handle({
-                                  type: "deck/toggle-settings",
-                                  id: column().id,
+                                  type: "deck/open-panel",
+                                  panel: "add-column",
                                 })
                               }
                             >
                               <span
-                                class="i-material-symbols:more-horiz size-4.5"
+                                class="i-material-symbols:add-rounded size-4.5"
                                 aria-hidden="true"
                               />
                             </button>
-                          )}
-                        </Show>
-                      </div>
-                      <DeckSyncNotice store={deckStore} />
-                      {/*
+                            <Show
+                              when={columns().find(
+                                (column) => column.id === ui.active,
+                              )}
+                            >
+                              {(column) => (
+                                <button
+                                  type="button"
+                                  aria-label="カラムの設定"
+                                  aria-expanded={ui.settingsFor === column().id}
+                                  class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+                                  onClick={() =>
+                                    handle({
+                                      type: "deck/toggle-settings",
+                                      id: column().id,
+                                    })
+                                  }
+                                >
+                                  <span
+                                    class="i-material-symbols:more-horiz size-4.5"
+                                    aria-hidden="true"
+                                  />
+                                </button>
+                              )}
+                            </Show>
+                          </div>
+                          <DeckSyncNotice store={deckStore} />
+                          {/*
               隠れたカラムも描いたままにする。取り外すと購読ごと消え、
               タブを戻すたびに取得し直しになり、スクロール位置も失われる。
             */}
-                      <div class="min-h-0 flex-1">
-                        <Show when={temp()}>
-                          {(column) => (
-                            <div
-                              class="h-full"
-                              classList={{
-                                hidden:
-                                  ui.panel !== undefined ||
-                                  ui.active !== "temp",
-                              }}
-                            >
-                              <Column
-                                column={column()}
-                                settingsOpen={false}
-                                temporary
-                                {...shared}
-                              />
-                            </div>
-                          )}
-                        </Show>
-                        <For each={columns()}>
-                          {(column) => (
-                            <div
-                              class="h-full"
-                              classList={{
-                                hidden:
-                                  ui.panel !== undefined ||
-                                  ui.active !== column.id,
-                              }}
-                            >
-                              <Column
-                                column={column}
-                                settingsOpen={ui.settingsFor === column.id}
-                                chrome={false}
-                                {...shared}
-                              />
-                            </div>
-                          )}
-                        </For>
-                        {panelView(true)}
-                      </div>
-                      {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
-                      <Show when={ui.panel === undefined}>
-                        <ComposeFab />
-                      </Show>
-                      <TabBar pubkey={viewer} onLogout={props.session.logout} />
-                    </div>
-                  </Match>
-                </Switch>
-                <SettingsDialog
-                  open={ui.settingsOpen}
-                  wide={isWide()}
-                  scheme={scheme()}
-                  appearance={appearance()}
-                  writeProgress={showWriteProgress()}
-                />
-              </MuteMediator>
-            </RelayMediator>
-          </ProfileMediator>
-        </Mediates>
-      </ActionsMediator>
+                          <div class="min-h-0 flex-1">
+                            <Show when={temp()}>
+                              {(column) => (
+                                <div
+                                  class="h-full"
+                                  classList={{
+                                    hidden:
+                                      ui.panel !== undefined ||
+                                      ui.active !== "temp",
+                                  }}
+                                >
+                                  <Column
+                                    column={column()}
+                                    settingsOpen={false}
+                                    temporary
+                                    {...shared}
+                                  />
+                                </div>
+                              )}
+                            </Show>
+                            <For each={columns()}>
+                              {(column) => (
+                                <div
+                                  class="h-full"
+                                  classList={{
+                                    hidden:
+                                      ui.panel !== undefined ||
+                                      ui.active !== column.id,
+                                  }}
+                                >
+                                  <Column
+                                    column={column}
+                                    settingsOpen={ui.settingsFor === column.id}
+                                    chrome={false}
+                                    {...shared}
+                                  />
+                                </div>
+                              )}
+                            </For>
+                            {panelView(true)}
+                          </div>
+                          {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
+                          <Show when={ui.panel === undefined}>
+                            <ComposeFab />
+                          </Show>
+                          <TabBar
+                            pubkey={viewer}
+                            onLogout={props.session.logout}
+                          />
+                        </div>
+                      </Match>
+                    </Switch>
+                    <SettingsDialog
+                      open={ui.settingsOpen}
+                      wide={isWide()}
+                      scheme={scheme()}
+                      appearance={appearance()}
+                      writeProgress={showWriteProgress()}
+                    />
+                  </MuteMediator>
+                </RelayMediator>
+              </ProfileMediator>
+            </MediaMediator>
+          </Mediates>
+        </ActionsMediator>
+      </UploaderProvider>
     </EventActionsProvider>
   );
 };

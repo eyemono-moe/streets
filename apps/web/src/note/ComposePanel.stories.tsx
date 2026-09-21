@@ -1,4 +1,4 @@
-import type { ComposeState } from "@streets/core/view/compose";
+import { type ComposeState, emptyCompose } from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SidePanel from "../deck/SidePanel";
 import { EventSceneProvider } from "../storybook/EventScene";
@@ -27,7 +27,7 @@ const meta = {
       </div>
     </EventSceneProvider>
   ),
-  args: { state: { content: "", sending: false } },
+  args: { state: { ...emptyCompose(), content: "", sending: false } },
 } satisfies Meta<{ state: ComposeState }>;
 
 export default meta;
@@ -45,7 +45,13 @@ export const 書きかけ: Story = {
 };
 
 export const 送信中: Story = {
-  args: { state: { content: "送っている途中のノート。", sending: true } },
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "送っている途中のノート。",
+      sending: true,
+    },
+  },
 };
 
 export const 長い本文: Story = {

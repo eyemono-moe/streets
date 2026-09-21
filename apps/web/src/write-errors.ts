@@ -1,6 +1,8 @@
+import { UploadFailedError } from "@streets/core/media/blossom";
 import { SignerUnavailableError } from "@streets/core/signer/signer";
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
+import { NoUploadServerError } from "./media/uploader";
 
 export const actionErrorMessage = (error: unknown): string => {
   if (error instanceof WriteFailedError) {
@@ -24,3 +26,16 @@ export const markReported = (cause: unknown): void => {
 
 export const wasReported = (cause: unknown): boolean =>
   typeof cause === "object" && cause !== null && reported.has(cause);
+
+/** 預けられなかった理由。添えたファイルの行に短く出す。 */
+export const uploadErrorMessage = (error: unknown): string => {
+  if (error instanceof NoUploadServerError) {
+    return "設定で画像の預け先を決めてください";
+  }
+  if (error instanceof UploadFailedError) {
+    return error.status === 413
+      ? "ファイルが大きすぎます"
+      : `預けられませんでした（${error.message}）`;
+  }
+  return error instanceof Error ? error.message : String(error);
+};

@@ -12,7 +12,7 @@ import {
 } from "../ui/Dialog";
 import Avatar from "./Avatar";
 import Event from "./Event";
-import { ComposeTools, countCharacters } from "./compose-parts";
+import { ComposeTools, ComposeUploads, countCharacters } from "./compose-parts";
 
 const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
@@ -75,6 +75,8 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                 <Event event={props.target} size="compact" />
               </Mediates>
             </div>
+
+            <ComposeUploads uploads={props.state.uploads} />
 
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}

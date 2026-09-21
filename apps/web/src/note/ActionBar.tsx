@@ -175,7 +175,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
             </div>
             <Show when={replyOpen()}>
               <ComposeMediator
-                send={(text) => actions().reply(props.event, text)}
+                send={(text, media) =>
+                  actions().reply(props.event, text, media)
+                }
                 failure="返信できませんでした"
                 onSent={() => setReplyOpen(false)}
                 onClose={() => setReplyOpen(false)}
@@ -185,7 +187,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
             </Show>
             <Show when={quoteOpen()}>
               <ComposeMediator
-                send={(text) => actions().quote(props.event, text)}
+                send={(text, media) =>
+                  actions().quote(props.event, text, media)
+                }
                 failure="引用できませんでした"
                 onSent={() => setQuoteOpen(false)}
                 onClose={() => setQuoteOpen(false)}
