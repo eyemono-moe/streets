@@ -52,6 +52,8 @@ type ContentProps = {
   expandMedia?: boolean;
   /** 会話が続く向きを、アイコンから伸びる線で示す。 */
   threadLine?: "above" | "below" | "both";
+  /** 本文の下に足すもの。書きかけのプレビューで、まだ預けていない画像を出す。 */
+  media?: JSX.Element;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -354,6 +356,7 @@ const Note: Component<ContentProps> = (props) => {
           </Show>
         )}
       </For>
+      {props.media}
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
       <Show when={props.size === "normal"}>
@@ -406,6 +409,7 @@ const EventContent: Component<ContentProps> = (props) => (
         size={props.size}
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
+        media={props.media}
       />
     </Match>
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
@@ -464,6 +468,7 @@ const EventBody: Component<ContentProps> = (props) => {
         size={props.size}
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
+        media={props.media}
       />
     </Frame>
   );

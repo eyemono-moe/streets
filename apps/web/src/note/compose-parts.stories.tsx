@@ -75,7 +75,10 @@ const Parts = (props: Args) => {
               {props.content}
             </div>
           </div>
-          <ComposeAttachments attachments={attachments()} />
+          <ComposeAttachments
+            attachments={attachments()}
+            disabled={props.sending}
+          />
           <ComposeTools
             count={`${countCharacters(props.content)} 文字`}
             label="投稿"
@@ -112,13 +115,35 @@ export const 画像を添えた: Story = {
   args: { attachments: [shot("1", "ねこ.png", landscapeUrl)] },
 };
 
-/** 2 枚以上あるときだけ、前後へ動かすボタンを出す。 */
-export const 複数添えた: Story = {
+export const 二枚添えた: Story = {
+  args: {
+    attachments: [
+      shot("1", "1.png", landscapeUrl),
+      shot("2", "2.png", squareUrl),
+    ],
+  },
+};
+
+/** 3 つまでは横一列。2 枚以上あるときだけ、前後へ動かすボタンを出す。 */
+export const 三枚添えた: Story = {
   args: {
     attachments: [
       shot("1", "1.png", landscapeUrl),
       shot("2", "2.png", squareUrl),
       shot("3", "3.png", portraitUrl),
+    ],
+  },
+};
+
+/** 4 つ目からは折り返して、3 つずつ並べる。 */
+export const 五枚添えた: Story = {
+  args: {
+    attachments: [
+      shot("1", "1.png", landscapeUrl),
+      shot("2", "2.png", squareUrl),
+      shot("3", "3.png", portraitUrl),
+      shot("4", "4.png", landscapeUrl),
+      shot("5", "5.png", squareUrl),
     ],
   },
 };
@@ -135,6 +160,7 @@ export const 切り抜いた: Story = {
   },
 };
 
+/** 預けている間は、外すのも並べ替えるのもできない（送る中身はもう決まっている）。 */
 export const 預けている途中: Story = {
   args: {
     attachments: [

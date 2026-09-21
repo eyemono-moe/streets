@@ -87,7 +87,10 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                 }}
               />
             </div>
-            <ComposeAttachments attachments={props.state.attachments} />
+            <ComposeAttachments
+              attachments={props.state.attachments}
+              disabled={props.state.sending}
+            />
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
               label="返信"

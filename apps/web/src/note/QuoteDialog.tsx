@@ -80,7 +80,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               </Mediates>
             </div>
 
-            <ComposeAttachments attachments={props.state.attachments} />
+            <ComposeAttachments
+              attachments={props.state.attachments}
+              disabled={props.state.sending}
+            />
 
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}

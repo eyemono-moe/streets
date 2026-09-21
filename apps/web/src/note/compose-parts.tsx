@@ -33,32 +33,43 @@ const ToolButton: Component<{
   </button>
 );
 
-/** 一覧に出す見本の一辺（`size-20`）。 */
-const THUMBNAIL = 80;
-
-/**
- * 添えた画像の見本。切り抜く範囲が決まっていれば、その範囲だけが見えるように
- * 元の画像をずらして出す —— 画素を作るのは預ける直前の 1 回だけにしたいので、
- * ここでは切らない。
- */
-const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
+/** 画像の元の大きさ。切り抜く範囲を割合に直すのに要る。 */
+const useNaturalSize = () => {
   const [natural, setNatural] = createSignal<{
     width: number;
     height: number;
   }>();
+  return {
+    natural,
+    onLoad: (event: { currentTarget: HTMLImageElement }) =>
+      setNatural({
+        width: event.currentTarget.naturalWidth,
+        height: event.currentTarget.naturalHeight,
+      }),
+  };
+};
+
+/**
+ * 正方形の枠いっぱいに、切り抜く範囲だけを見せる。実際に切らずに、元の画像を
+ * 拡げてずらす —— 画素を作るのは預ける直前の 1 回だけにしたいため。
+ * 枠が正方形なので、縦と横の割合を同じ基準で書ける。
+ */
+const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
+  const { natural, onLoad } = useNaturalSize();
   const framed = () => {
     const crop = props.attachment.crop;
     const size = natural();
     if (!crop || !size) return undefined;
-    // 切り抜く範囲が見本いっぱいになる倍率。はみ出た分は左右・上下で均す。
-    const scale = Math.max(THUMBNAIL / crop.width, THUMBNAIL / crop.height);
+    // 短い辺を枠に合わせると、範囲が枠を覆う。はみ出た分は左右・上下で均す。
+    const unit = Math.min(crop.width, crop.height);
+    const percent = (value: number) => `${(value / unit) * 100}%`;
     return {
       position: "absolute" as const,
       "max-width": "none",
-      width: `${size.width * scale}px`,
-      height: `${size.height * scale}px`,
-      left: `${(THUMBNAIL - crop.width * scale) / 2 - crop.x * scale}px`,
-      top: `${(THUMBNAIL - crop.height * scale) / 2 - crop.y * scale}px`,
+      width: percent(size.width),
+      height: percent(size.height),
+      left: percent((unit - crop.width) / 2 - crop.x),
+      top: percent((unit - crop.height) / 2 - crop.y),
     };
   };
   return (
@@ -67,30 +78,94 @@ const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
       alt=""
       class={framed() ? "" : "size-full object-cover"}
       style={framed()}
-      onLoad={(event) =>
-        setNatural({
-          width: event.currentTarget.naturalWidth,
-          height: event.currentTarget.naturalHeight,
-        })
-      }
+      onLoad={onLoad}
     />
   );
 };
 
-/** 添えたファイル。押すと切り抜ける。並べ替えた順が、本文に並ぶ順になる。 */
+/** プレビューに出す画像の高さの上限。compact の `MediaImage`（`h-30`）に合わせる。 */
+const PREVIEW_MAX_HEIGHT = 120;
+
+/**
+ * 投稿したときの見え方。切り抜いた形のまま出したいので、枠の縦横比を範囲に
+ * 合わせ、高さの上限は幅の上限に言い換える（高さを削ると比が崩れる）。
+ */
+const PreviewImage: Component<{ attachment: Attachment }> = (props) => {
+  const { natural, onLoad } = useNaturalSize();
+  const ratio = () => {
+    const crop = props.attachment.crop;
+    if (crop) return crop.width / crop.height;
+    const size = natural();
+    return size ? size.width / size.height : undefined;
+  };
+  const framed = () => {
+    const crop = props.attachment.crop;
+    const size = natural();
+    if (!crop || !size) return undefined;
+    return {
+      position: "absolute" as const,
+      "max-width": "none",
+      width: `${(size.width / crop.width) * 100}%`,
+      height: `${(size.height / crop.height) * 100}%`,
+      left: `${(-crop.x / crop.width) * 100}%`,
+      top: `${(-crop.y / crop.height) * 100}%`,
+    };
+  };
+  return (
+    <div
+      class="relative w-full overflow-hidden rounded-2 bg-secondary"
+      style={{
+        "aspect-ratio": ratio() ? `${ratio()}` : undefined,
+        "max-width": ratio()
+          ? `${PREVIEW_MAX_HEIGHT * (ratio() ?? 1)}px`
+          : undefined,
+      }}
+    >
+      <img
+        src={props.attachment.preview}
+        alt=""
+        class={framed() ? "" : "size-full object-cover"}
+        style={framed()}
+        onLoad={onLoad}
+      />
+    </div>
+  );
+};
+
+/** 書きかけのプレビューに出す、まだ預けていない画像。 */
+export const ComposePreviewMedia: Component<{
+  attachments: readonly Attachment[];
+}> = (props) => (
+  <For each={props.attachments}>
+    {(attachment) => <PreviewImage attachment={attachment} />}
+  </For>
+);
+
+/**
+ * 添えたファイル。押すと切り抜ける。並べ替えた順が、本文に並ぶ順になる。
+ * 3 つまでは横一列、それより多ければ 3 つずつ折り返す。
+ */
 export const ComposeAttachments: Component<{
   attachments: readonly Attachment[];
+  /** 預けている間は触らせない（並べ替えても、もう送る中身は決まっている）。 */
+  disabled?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const [cropping, setCropping] = createSignal<Attachment>();
   const errors = () => props.attachments.filter((a) => a.error !== undefined);
+  const columns = () => Math.min(props.attachments.length, 3);
   return (
     <Show when={props.attachments.length > 0}>
-      <ul class="flex flex-wrap gap-2 px-4 pt-2">
+      <ul
+        class="grid gap-2 px-4 pt-2"
+        style={{
+          "grid-template-columns": `repeat(${columns()}, minmax(0, 1fr))`,
+        }}
+      >
         <For each={props.attachments}>
           {(attachment, index) => (
             <li
-              class="relative size-20 overflow-hidden rounded-2 border"
+              class="relative aspect-square overflow-hidden rounded-2 border"
               classList={{
                 "border-primary": attachment.error === undefined,
                 "border-danger": attachment.error !== undefined,
@@ -98,9 +173,10 @@ export const ComposeAttachments: Component<{
             >
               <button
                 type="button"
-                class="size-full cursor-pointer border-none bg-transparent p-0"
+                class="size-full border-none bg-transparent p-0 enabled:cursor-pointer"
                 aria-label={`${attachment.name} を切り抜く`}
                 title={`${attachment.name} を切り抜く`}
+                disabled={props.disabled}
                 onClick={() => setCropping(attachment)}
               >
                 <Thumbnail attachment={attachment} />
@@ -115,63 +191,65 @@ export const ComposeAttachments: Component<{
                 </span>
               </Show>
 
-              <button
-                type="button"
-                aria-label={`${attachment.name} を外す`}
-                class="c-white absolute top-0.5 right-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-none bg-black/60"
-                onClick={() =>
-                  dispatch({
-                    type: "compose/attach-remove",
-                    id: attachment.id,
-                  })
-                }
-              >
-                <span
-                  class="i-material-symbols:close-rounded size-4"
-                  aria-hidden="true"
-                />
-              </button>
+              <Show when={!props.disabled}>
+                <button
+                  type="button"
+                  aria-label={`${attachment.name} を外す`}
+                  class="c-white absolute top-0.5 right-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-none bg-black/60"
+                  onClick={() =>
+                    dispatch({
+                      type: "compose/attach-remove",
+                      id: attachment.id,
+                    })
+                  }
+                >
+                  <span
+                    class="i-material-symbols:close-rounded size-4"
+                    aria-hidden="true"
+                  />
+                </button>
 
-              {/* 並べ替えは前後へ 1 つずつ。掴んで動かすのは、まだ作っていない。 */}
-              <Show when={props.attachments.length > 1}>
-                <div class="absolute inset-x-0 bottom-0 flex justify-between bg-black/50">
-                  <button
-                    type="button"
-                    aria-label={`${attachment.name} を前へ`}
-                    disabled={index() === 0}
-                    class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
-                    onClick={() =>
-                      dispatch({
-                        type: "compose/attach-move",
-                        id: attachment.id,
-                        to: index() - 1,
-                      })
-                    }
-                  >
-                    <span
-                      class="i-material-symbols:chevron-left-rounded size-4"
-                      aria-hidden="true"
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`${attachment.name} を後ろへ`}
-                    disabled={index() === props.attachments.length - 1}
-                    class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
-                    onClick={() =>
-                      dispatch({
-                        type: "compose/attach-move",
-                        id: attachment.id,
-                        to: index() + 1,
-                      })
-                    }
-                  >
-                    <span
-                      class="i-material-symbols:chevron-right-rounded size-4"
-                      aria-hidden="true"
-                    />
-                  </button>
-                </div>
+                {/* 並べ替えは前後へ 1 つずつ。掴んで動かすのは、まだ作っていない。 */}
+                <Show when={props.attachments.length > 1}>
+                  <div class="absolute inset-x-0 bottom-0 flex justify-between bg-black/50">
+                    <button
+                      type="button"
+                      aria-label={`${attachment.name} を前へ`}
+                      disabled={index() === 0}
+                      class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
+                      onClick={() =>
+                        dispatch({
+                          type: "compose/attach-move",
+                          id: attachment.id,
+                          to: index() - 1,
+                        })
+                      }
+                    >
+                      <span
+                        class="i-material-symbols:chevron-left-rounded size-4"
+                        aria-hidden="true"
+                      />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`${attachment.name} を後ろへ`}
+                      disabled={index() === props.attachments.length - 1}
+                      class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
+                      onClick={() =>
+                        dispatch({
+                          type: "compose/attach-move",
+                          id: attachment.id,
+                          to: index() + 1,
+                        })
+                      }
+                    >
+                      <span
+                        class="i-material-symbols:chevron-right-rounded size-4"
+                        aria-hidden="true"
+                      />
+                    </button>
+                  </div>
+                </Show>
               </Show>
             </li>
           )}
@@ -179,7 +257,7 @@ export const ComposeAttachments: Component<{
       </ul>
 
       <Show when={errors().length > 0}>
-        <ul class="flex flex-col gap-1 px-4 pb-1">
+        <ul class="flex flex-col gap-1 px-4 pt-2">
           <For each={errors()}>
             {(attachment) => (
               <li class="c-danger flex items-center gap-1.5 text-caption">
