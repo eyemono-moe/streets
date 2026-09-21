@@ -152,7 +152,15 @@ export const 長い本文: Story = {
   args: { event: longBody, scene: scene(longBody) },
 };
 
-export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
+/** 返信先そのものを 1 件だけ出す。押すと、その返信先からスレッドが開く。 */
+export const 返信: Story = {
+  args: { event: reply, scene: scene(reply, plain) },
+};
+
+/** 返信先がまだ手元に無いとき。連鎖して取りにいかないので、ここで止まる。 */
+export const 返信先が見つからない: Story = {
+  args: { event: reply, scene: scene(reply) },
+};
 
 export const 引用: Story = {
   args: { event: quote, scene: scene(quote, quoted) },

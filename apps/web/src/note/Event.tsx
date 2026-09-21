@@ -314,16 +314,40 @@ const Note: Component<ContentProps> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
-  const replyTo = () => replyTarget(props.event)?.pubkey;
+  const replyTo = () => replyTarget(props.event);
+  /**
+   * 返信先そのものを 1 件だけ出す。compact では出さない —— 関連イベントを
+   * 取りにいかない決まりなので、返信の返信で連鎖して取りに行ってしまう。
+   */
+  const replyCard = () => {
+    const ref = replyTo();
+    if (props.size !== "normal" || ref?.form !== "id") return undefined;
+    return ref;
+  };
 
   return (
     <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-      <Show when={replyTo()}>
-        {(pubkey) => (
-          <p class="c-secondary flex min-w-0 gap-1 text-caption">
-            <span class="shrink-0">返信先</span>
-            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
-          </p>
+      <Show
+        when={replyCard()}
+        fallback={
+          <Show when={replyTo()?.pubkey}>
+            {(pubkey) => (
+              <p class="c-secondary flex min-w-0 gap-1 text-caption">
+                <span class="shrink-0">返信先</span>
+                <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
+              </p>
+            )}
+          </Show>
+        }
+      >
+        {(ref) => (
+          <div class="w-full overflow-hidden rounded-2 border border-primary">
+            <EventRefView
+              target={ref()}
+              size="compact"
+              expandMedia={props.expandMedia}
+            />
+          </div>
         )}
       </Show>
       <Show when={layout().text.length > 0}>
