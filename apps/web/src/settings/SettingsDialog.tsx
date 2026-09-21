@@ -46,6 +46,8 @@ const SettingsDialog: Component<{
   scheme: ColorScheme;
   appearance: DeckAppearance;
   writeProgress: boolean;
+  /** 不具合の報告を送るか（この端末の設定）。 */
+  errorReport: boolean;
   /** 開いたときに出すページ。 */
   initialPage?: string;
 }> = (props) => {
@@ -104,6 +106,7 @@ const SettingsDialog: Component<{
           scheme={props.scheme}
           appearance={props.appearance}
           writeProgress={props.writeProgress}
+          errorReport={props.errorReport}
         />
       ),
     },
