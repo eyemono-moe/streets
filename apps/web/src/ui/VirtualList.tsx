@@ -2,8 +2,8 @@ import { createVirtualizer } from "@tanstack/solid-virtual";
 import {
   For,
   type JSX,
-  Show,
   createEffect,
+  createMemo,
   onCleanup,
   onMount,
 } from "solid-js";
@@ -56,7 +56,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     const scroller = scrollElement();
     if (!scroller) return;
     const updateFollowsStart = () => {
-      followsStart = scroller.scrollTop <= virtualizer.options.scrollMargin + 1;
+      followsStart = scroller.scrollTop <= 1;
     };
     updateFollowsStart();
     scroller.addEventListener("scroll", updateFollowsStart, { passive: true });
@@ -71,9 +71,34 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     firstKey = nextKey;
     if (shouldFollow) {
       // anchorTo は既存行を安定させるため常に有効にし、一覧先頭にいた場合だけ
-      // その補正後に新しい先頭へ追従する。
-      queueMicrotask(() => virtualizer.scrollToOffset(0));
+      // その補正後にカラム全体の先頭へ追従する。virtualizer の offset 0 は
+      // scrollMargin の後ろなので、一覧より上に内容があるとそこまで隠してしまう。
+      queueMicrotask(() => scrollElement()?.scrollTo({ top: 0 }));
     }
+  });
+
+  /**
+   * 表示する中身と、その置き場所。TanStack は「何番目か」で行を返すが、行を
+   * 番号で作り直すと、先頭に 1 件入っただけで全部の行が作り直される —— 開いて
+   * いたメニューやダイアログが消えてしまう。中身ごとに行を持ち、位置だけを
+   * 動かす。
+   */
+  const placements = createMemo(() => {
+    const map = new Map<string, { index: number; start: number }>();
+    for (const row of virtualizer.getVirtualItems()) {
+      const item = props.items[row.index];
+      if (item === undefined) continue;
+      map.set(props.itemKey(item), { index: row.index, start: row.start });
+    }
+    return map;
+  });
+  const visible = createMemo(() => {
+    const items: T[] = [];
+    for (const row of virtualizer.getVirtualItems()) {
+      const item = props.items[row.index];
+      if (item !== undefined) items.push(item);
+    }
+    return items;
   });
 
   return (
@@ -82,32 +107,27 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
       class={`relative w-full ${props.class ?? ""}`}
       style={{ height: `${virtualizer.getTotalSize()}px` }}
     >
-      <For each={virtualizer.getVirtualItems()}>
-        {(virtualRow) => {
-          const item = () => props.items[virtualRow.index];
+      <For each={visible()}>
+        {(item) => {
+          const placement = () => placements().get(props.itemKey(item));
+          let element: HTMLDivElement | undefined;
+          // 番号が変わったら測り直させる。TanStack は data-index で行を見分ける。
+          // ここで測ると、先頭への追従（下の scrollTo）より先に高さが確定する。
+          createEffect(() => {
+            if (placement()?.index === undefined) return;
+            if (element?.isConnected) virtualizer.measureElement(element);
+          });
           return (
-            // Solid adapter は仮想行を index で再利用する。イベントが入れ替わった
-            // ときだけ実DOMを作り直し、TanStackに新しい key として実測させる。
-            <Show when={item()} keyed>
-              {(current) => (
-                <div
-                  data-index={virtualRow.index}
-                  ref={(element) =>
-                    queueMicrotask(() => {
-                      if (element.isConnected) {
-                        virtualizer.measureElement(element);
-                      }
-                    })
-                  }
-                  class="absolute top-0 left-0 w-full"
-                  style={{
-                    transform: `translateY(${virtualRow.start - virtualizer.options.scrollMargin}px)`,
-                  }}
-                >
-                  {props.children(current)}
-                </div>
-              )}
-            </Show>
+            <div
+              ref={element}
+              data-index={placement()?.index}
+              class="absolute top-0 left-0 w-full"
+              style={{
+                transform: `translateY(${(placement()?.start ?? 0) - virtualizer.options.scrollMargin}px)`,
+              }}
+            >
+              {props.children(item)}
+            </div>
           );
         }}
       </For>

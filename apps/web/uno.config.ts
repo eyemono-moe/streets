@@ -115,6 +115,8 @@ export default defineConfig({
         // Ark UI の Collapsible が測った高さ。閉じている間は 0。
         "collapse-down": "{from{height:0}to{height:var(--height)}}",
         "collapse-up": "{from{height:var(--height)}to{height:0}}",
+        "collapse-right": "{from{width:0}to{width:var(--width)}}",
+        "collapse-left": "{from{width:var(--width)}to{width:0}}",
         "stack-in":
           "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
         // その場で消える。to に transform を書かないので、終わりの位置は Drawer が inline で
@@ -134,6 +136,8 @@ export default defineConfig({
         "pop-out": "100ms",
         "collapse-down": "160ms",
         "collapse-up": "140ms",
+        "collapse-right": "160ms",
+        "collapse-left": "140ms",
         "stack-in": "180ms",
         "stack-out": "140ms",
         "panel-in": "160ms",
@@ -148,6 +152,8 @@ export default defineConfig({
         "pop-out": "ease-in both",
         "collapse-down": "cubic-bezier(0.16, 1, 0.3, 1)",
         "collapse-up": "ease-in both",
+        "collapse-right": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "collapse-left": "ease-in both",
         "stack-in": "cubic-bezier(0.16, 1, 0.3, 1)",
         "stack-out": "ease-in both",
         "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
@@ -250,6 +256,8 @@ export default defineConfig({
         "data-[state=open]:animate-stack-in data-[state=closed]:animate-stack-out",
       "motion-collapse":
         "overflow-hidden data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up",
+      "motion-collapse-right":
+        "overflow-hidden data-[state=open]:animate-collapse-right data-[state=closed]:animate-collapse-left",
 
       // scrollbar
       "scrollbar-color-theme":
