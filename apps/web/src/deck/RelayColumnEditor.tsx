@@ -1,7 +1,14 @@
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { parseRelayInput, relayLabel } from "@streets/core/settings/relay-edit";
-import { type Component, For, Show, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  Show,
+  createSignal,
+  createUniqueId,
+} from "solid-js";
+import RelaySummary from "../settings/RelaySummary";
 import Button from "../ui/Button";
 
 const selectedEntries = (urls: readonly RelayUrl[]): RelayListEntry[] =>
@@ -12,16 +19,17 @@ const RelayColumnEditor: Component<{
   candidates: readonly RelayListEntry[];
   selected: readonly RelayUrl[];
   onChange: (selected: RelayUrl[]) => void;
+  minimum?: number;
 }> = (props) => {
+  const inputId = createUniqueId();
   const [input, setInput] = createSignal("");
   const [error, setError] = createSignal<string>();
   const selected = (url: RelayUrl) => props.selected.includes(url);
-  const toggle = (url: RelayUrl) =>
-    props.onChange(
-      selected(url)
-        ? props.selected.filter((item) => item !== url)
-        : [...props.selected, url],
-    );
+  const add = (url: RelayUrl) => {
+    if (!selected(url)) props.onChange([...props.selected, url]);
+  };
+  const remove = (url: RelayUrl) =>
+    props.onChange(props.selected.filter((item) => item !== url));
 
   const addInput = () => {
     const result = parseRelayInput(input(), selectedEntries(props.selected));
@@ -29,7 +37,7 @@ const RelayColumnEditor: Component<{
       setError(result.message);
       return;
     }
-    props.onChange([...props.selected, result.url]);
+    add(result.url);
     setInput("");
     setError(undefined);
   };
@@ -37,35 +45,41 @@ const RelayColumnEditor: Component<{
   return (
     <div class="flex flex-col gap-3">
       <Show when={props.candidates.length > 0}>
-        <fieldset class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-          <legend class="c-secondary mb-1 px-1 font-600 text-caption">
+        <section>
+          <h4 class="c-secondary mb-1 font-600 text-caption">
             アカウントで使っているリレー
-          </legend>
-          <For each={props.candidates}>
-            {(entry) => (
-              <label class="flex cursor-pointer items-center gap-3 bg-primary px-3 py-2.5 hover:bg-secondary">
-                <input
-                  type="checkbox"
-                  class="size-4 shrink-0 accent-accent-primary"
-                  checked={selected(entry.url)}
-                  onChange={() => toggle(entry.url)}
-                />
-                <span class="min-w-0 flex-1">
-                  <span class="c-primary block truncate text-body">
-                    {relayLabel(entry.url)}
-                  </span>
-                  <span class="c-secondary block text-caption">
-                    {entry.read && entry.write
-                      ? "読み書き"
-                      : entry.read
-                        ? "読み込み"
-                        : "書き込み"}
-                  </span>
-                </span>
-              </label>
-            )}
-          </For>
-        </fieldset>
+          </h4>
+          <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
+            <For each={props.candidates}>
+              {(entry) => (
+                <li class="bg-primary">
+                  <RelaySummary
+                    url={entry.url}
+                    subtitle={
+                      <span class="c-secondary text-caption">
+                        {entry.read && entry.write
+                          ? "読み書き"
+                          : entry.read
+                            ? "読み込み"
+                            : "書き込み"}
+                      </span>
+                    }
+                    actions={
+                      <Button
+                        size="sm"
+                        variant={selected(entry.url) ? "muted" : "secondary"}
+                        disabled={selected(entry.url)}
+                        onClick={() => add(entry.url)}
+                      >
+                        {selected(entry.url) ? "追加済み" : "追加する"}
+                      </Button>
+                    }
+                  />
+                </li>
+              )}
+            </For>
+          </ul>
+        </section>
       </Show>
 
       <form
@@ -75,12 +89,12 @@ const RelayColumnEditor: Component<{
           addInput();
         }}
       >
-        <label for="relay-column-url" class="c-secondary font-600 text-caption">
+        <label for={inputId} class="c-secondary font-600 text-caption">
           URLを直接入力
         </label>
         <div class="flex gap-2">
           <input
-            id="relay-column-url"
+            id={inputId}
             class="c-primary min-w-0 flex-1 rounded-2 border border-primary bg-primary px-3 text-body outline-none focus:border-accent-primary"
             placeholder="wss://relay.example"
             value={input()}
@@ -89,8 +103,8 @@ const RelayColumnEditor: Component<{
               setError(undefined);
             }}
           />
-          <Button type="submit" size="sm" shape="rounded">
-            選択に追加
+          <Button type="submit" size="sm" shape="rounded" variant="primary">
+            追加する
           </Button>
         </div>
         <Show when={error()}>
@@ -99,24 +113,39 @@ const RelayColumnEditor: Component<{
       </form>
 
       <Show when={props.selected.length > 0}>
-        <div class="flex flex-wrap gap-1.5" aria-label="選択中のリレー">
-          <For each={props.selected}>
-            {(url) => (
-              <button
-                type="button"
-                class="c-primary inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full bg-secondary py-1 pr-1.5 pl-2.5 text-caption hover:bg-tertiary"
-                onClick={() => toggle(url)}
-                aria-label={`${relayLabel(url)}を選択から外す`}
-              >
-                <span class="truncate">{relayLabel(url)}</span>
-                <span
-                  class="i-material-symbols:close-rounded size-3.5 shrink-0"
-                  aria-hidden="true"
-                />
-              </button>
-            )}
-          </For>
-        </div>
+        <section>
+          <h4 class="c-secondary mb-1 font-600 text-caption">追加するリレー</h4>
+          <ul
+            class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary"
+            aria-label="追加するリレー"
+          >
+            <For each={props.selected}>
+              {(url) => (
+                <li class="bg-primary">
+                  <RelaySummary
+                    url={url}
+                    actions={
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        shape="rounded"
+                        icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+                        aria-label={`${relayLabel(url)}を追加対象から外す`}
+                        disabled={props.selected.length <= (props.minimum ?? 0)}
+                        title={
+                          props.selected.length <= (props.minimum ?? 0)
+                            ? "リレーを1つ以上選んでください"
+                            : undefined
+                        }
+                        onClick={() => remove(url)}
+                      />
+                    }
+                  />
+                </li>
+              )}
+            </For>
+          </ul>
+        </section>
       </Show>
     </div>
   );

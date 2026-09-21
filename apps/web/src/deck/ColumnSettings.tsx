@@ -130,8 +130,8 @@ const ColumnSettings: Component<{
                   : []
               }
               selected={source().relays ?? []}
+              minimum={1}
               onChange={(relays) => {
-                if (relays.length === 0) return;
                 patch({
                   title:
                     relays.length === 1
