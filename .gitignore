@@ -42,3 +42,9 @@ test-results
 .stryker-tmp
 reports
 .worktrees/
+
+# 日本語の見直しなど、作業用の中間データ
+tmp
+
+# 別セッションの作業用 worktree
+.claude/worktrees
