@@ -1,3 +1,4 @@
+import { parseSearchQuery } from "../search/query";
 import type { ColumnDef, ColumnShow } from "./deck";
 import { NOTIFICATION_KINDS, TIMELINE_KINDS } from "./deck";
 
@@ -28,6 +29,11 @@ const kindsOf = (column: ColumnDef): number[] | undefined => {
     case "bookmarks":
       // id で引くので kind は決まらない。何を保存したかは人による。
       return undefined;
+    case "search": {
+      // 書いた条件で決まる。`kind:` を指定していなければテキストノート。
+      const kinds = parseSearchQuery(source.query).kinds;
+      return kinds.length > 0 ? kinds : [1];
+    }
     default: {
       const kinds = source.filters.flatMap((filter) => filter.kinds ?? []);
       // kinds を持たないフィルタは「その他すべて」なので決められない。

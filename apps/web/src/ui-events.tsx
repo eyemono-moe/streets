@@ -32,7 +32,13 @@ export type UiEvent =
   | RelayViewEvent
   | MuteViewEvent
   | ProfileViewEvent
-  | MediaViewEvent;
+  | MediaViewEvent
+  | SearchRelayViewEvent;
+
+/** 検索を投げるリレーの足し外し。 */
+export type SearchRelayViewEvent =
+  | { type: "search-relays/add"; url: string }
+  | { type: "search-relays/remove"; url: string };
 
 /** 画像のアップロード先（Blossom のサーバー）の足し外し。 */
 export type MediaViewEvent =

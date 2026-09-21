@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { SEARCH_RELAYS } from "../read/default-relays";
 import {
   buildActivityColumn,
   buildColumn,
@@ -172,12 +171,11 @@ describe("buildColumn", () => {
     expect(buildColumn("bookmarks", "")?.source).toEqual({ kind: "bookmarks" });
   });
 
-  it("search は NIP-50 の search と検索リレーを持つ", () => {
-    // 捕まえる変異: search を #t のハッシュタグとして扱う／リレーを指定しない
+  it("search は書いた条件だけを持つ（問い合わせ先は解決のたびに決める）", () => {
+    // 捕まえる変異: リレーをデッキへ焼き込む／前後の空白を残す
     expect(buildColumn("search", " nostr のこと ")?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1], search: "nostr のこと" }],
-      relays: [...SEARCH_RELAYS],
+      kind: "search",
+      query: "nostr のこと",
     });
   });
 
