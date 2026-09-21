@@ -34,6 +34,7 @@ import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
+import { errorReport, setErrorReport } from "../error-report-setting";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -43,6 +44,7 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import SettingsDialog from "../settings/SettingsDialog";
+import { startTelemetry } from "../telemetry";
 import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
@@ -338,6 +340,11 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
+        return true;
+      case "deck/set-error-report":
+        setErrorReport(event.on);
+        // 止めたらその場で送るのをやめ、戻したらもう一度用意する。
+        void startTelemetry();
         return true;
       case "deck/set-appearance":
         setAppearance(event.appearance);
@@ -726,6 +733,7 @@ const DeckScreen: Component<{
                       scheme={scheme()}
                       appearance={appearance()}
                       writeProgress={showWriteProgress()}
+                      errorReport={errorReport()}
                     />
                   </MuteMediator>
                 </RelayMediator>
