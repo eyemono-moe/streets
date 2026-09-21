@@ -4,7 +4,7 @@ import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
 import { useDispatch } from "../ui-events";
 
-/** 自分のアイコン。設定とログアウトを持つ。 */
+/** 自分のアイコン。設定・Streets について・ログアウトを持つ。 */
 const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
   props,
 ) => {
@@ -16,6 +16,7 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
       onSelect={(details) => {
         if (details.value === "settings")
           dispatch({ type: "deck/open-settings" });
+        if (details.value === "about") dispatch({ type: "deck/open-about" });
         if (details.value === "logout") props.onLogout();
       }}
     >
@@ -37,6 +38,16 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
                 aria-hidden="true"
               />
               設定
+            </Menu.Item>
+            <Menu.Item
+              value="about"
+              class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+            >
+              <span
+                class="i-material-symbols:info-outline-rounded c-secondary size-4.5"
+                aria-hidden="true"
+              />
+              Streets について
             </Menu.Item>
             <Menu.Item
               value="logout"

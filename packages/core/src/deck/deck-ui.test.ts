@@ -144,3 +144,29 @@ describe("設定のダイアログ", () => {
     );
   });
 });
+
+describe("Streets について", () => {
+  it("開くと、設定とパネルは閉じる", () => {
+    const state = deckUiTransition(
+      { ...emptyDeckUi(), settingsOpen: true, panel: "compose" },
+      { type: "deck/open-about" },
+    );
+    expect(state.aboutOpen).toBe(true);
+    expect(state.settingsOpen).toBe(false);
+    expect(state.panel).toBeUndefined();
+  });
+
+  it("開いていなければ、閉じても何も変わらない", () => {
+    const closed = emptyDeckUi();
+    expect(deckUiTransition(closed, { type: "deck/close-about" })).toBe(closed);
+  });
+
+  it("設定を開くと、Streets について は閉じる", () => {
+    const state = deckUiTransition(
+      { ...emptyDeckUi(), aboutOpen: true },
+      { type: "deck/open-settings" },
+    );
+    expect(state.settingsOpen).toBe(true);
+    expect(state.aboutOpen).toBe(false);
+  });
+});

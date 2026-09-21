@@ -1,0 +1,161 @@
+import { Tabs } from "@ark-ui/solid/tabs";
+import { type Component, For, type JSX, Show } from "solid-js";
+import {
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogPortal,
+  DialogRoot,
+  DialogTitle,
+} from "./Dialog";
+
+export type DialogPage = {
+  value: string;
+  label: string;
+  icon: string;
+  title: string;
+  description?: string;
+  /** まだ作っていないページは、並べるが押せなくする。 */
+  content?: () => JSX.Element;
+};
+
+/**
+ * 左（狭い画面では上）にページの一覧を置くダイアログ。設定と「Streets に
+ * ついて」で同じ形を使う。どのページを出すかは、開いた側が持つ。
+ */
+const PagedDialog: Component<{
+  open: boolean;
+  /** 狭い画面では、ページの一覧を横に並べて全面に出す。 */
+  wide: boolean;
+  title: string;
+  /** 読み上げ用の説明。画面には出ない。 */
+  description: string;
+  pages: DialogPage[];
+  page: string;
+  onPageChange: (value: string) => void;
+  onClose: () => void;
+}> = (props) => {
+  const closeLabel = () => `${props.title}を閉じる`;
+  return (
+    <DialogRoot open={props.open} onClose={props.onClose}>
+      <DialogPortal class="" classList={{ "p-6": props.wide }}>
+        <DialogContent
+          classList={{
+            "h-[min(640px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
+              props.wide,
+            "h-dvh w-screen": !props.wide,
+          }}
+        >
+          <DialogDescription class="sr-only">
+            {props.description}
+          </DialogDescription>
+          <Tabs.Root
+            value={props.page}
+            onValueChange={(details) => props.onPageChange(details.value)}
+            orientation={props.wide ? "vertical" : "horizontal"}
+            class="grid h-full min-h-0"
+            classList={{
+              "grid-cols-[220px_minmax(0,1fr)]": props.wide,
+              "grid-rows-[auto_minmax(0,1fr)]": !props.wide,
+            }}
+          >
+            <div
+              class="flex min-w-0 bg-secondary"
+              classList={{
+                "flex-col gap-1 px-2 py-3": props.wide,
+                // 横へ流すのはページの一覧だけ。閉じるボタンまで流すと、見えなくなる。
+                "items-center gap-1 px-2 py-2": !props.wide,
+              }}
+            >
+              <DialogTitle
+                class="font-600 text-h3"
+                classList={{
+                  "px-3 pb-2": props.wide,
+                  "sr-only": !props.wide,
+                }}
+              >
+                {props.title}
+              </DialogTitle>
+              <Tabs.List
+                class="flex gap-1"
+                classList={{
+                  "flex-col": props.wide,
+                  "min-w-0 flex-1 overflow-x-auto": !props.wide,
+                }}
+              >
+                <For each={props.pages}>
+                  {(page) => (
+                    <Tabs.Trigger
+                      value={page.value}
+                      disabled={page.content === undefined}
+                      class="c-primary flex h-9 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-2 bg-transparent px-3 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5 enabled:cursor-pointer enabled:hover:bg-alpha-hover disabled:opacity-40 data-[selected]:bg-primary data-[selected]:font-600"
+                    >
+                      <span
+                        class={`${page.icon} size-4.5`}
+                        aria-hidden="true"
+                      />
+                      {page.label}
+                      <Show when={page.content === undefined}>
+                        <span class="sr-only">（準備中）</span>
+                      </Show>
+                    </Tabs.Trigger>
+                  )}
+                </For>
+              </Tabs.List>
+              <Show when={!props.wide}>
+                <DialogClose
+                  aria-label={closeLabel()}
+                  class="bg-transparent hover:bg-secondary"
+                />
+              </Show>
+            </div>
+
+            <For each={props.pages}>
+              {(page) => (
+                <Tabs.Content
+                  value={page.value}
+                  class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+                >
+                  {/* 閉じるボタンは見出しの行にあるので、流すのは本文だけにする。 */}
+                  <div
+                    class="flex items-start gap-3"
+                    classList={{
+                      "px-6 pt-6 pb-4": props.wide,
+                      "px-4 pt-4 pb-3": !props.wide,
+                    }}
+                  >
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                      <h2 class="font-600 text-h3">{page.title}</h2>
+                      <Show when={page.description}>
+                        <p class="c-secondary text-caption">
+                          {page.description}
+                        </p>
+                      </Show>
+                    </div>
+                    <Show when={props.wide}>
+                      <DialogClose
+                        aria-label={closeLabel()}
+                        class="bg-transparent hover:bg-secondary"
+                      />
+                    </Show>
+                  </div>
+                  <div
+                    class="overflow-y-auto"
+                    classList={{
+                      "px-6 pb-6": props.wide,
+                      "px-4 pb-4": !props.wide,
+                    }}
+                  >
+                    <Show when={page.content}>{(content) => content()()}</Show>
+                  </div>
+                </Tabs.Content>
+              )}
+            </For>
+          </Tabs.Root>
+        </DialogContent>
+      </DialogPortal>
+    </DialogRoot>
+  );
+};
+
+export default PagedDialog;
