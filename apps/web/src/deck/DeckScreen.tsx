@@ -321,6 +321,8 @@ const DeckScreen: Component<{
         return true;
       case "deck/open-settings":
       case "deck/close-settings":
+      case "deck/open-about":
+      case "deck/close-about":
         applyUi(event);
         return true;
       case "deck/set-color-scheme":
