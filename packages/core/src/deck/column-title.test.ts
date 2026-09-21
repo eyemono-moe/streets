@@ -3,6 +3,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import {
   buildColumn,
   buildFolloweesColumn,
+  buildRelayColumn,
   buildUserColumn,
 } from "./column-presets";
 import { columnTitle } from "./column-title";
@@ -41,8 +42,10 @@ describe("columnTitle", () => {
     expect(columnTitle(must(buildColumn("search", "ねこ")))).toEqual({
       text: "ねこ",
     });
-    expect(columnTitle(must(buildColumn("global", "")))).toEqual({
-      text: "グローバル",
+    expect(
+      columnTitle(must(buildRelayColumn(["wss://relay.example/"]))),
+    ).toEqual({
+      text: "wss://relay.example",
     });
   });
 

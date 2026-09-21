@@ -6,13 +6,16 @@ import type {
   ColumnWidth,
 } from "@streets/core/deck/deck";
 import { columnShow, groupsNotifications } from "@streets/core/deck/deck";
+import { relayLabel } from "@streets/core/settings/relay-edit";
+import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
+import RelayColumnEditor from "./RelayColumnEditor";
 
-export type ColumnPatch = Partial<Omit<ColumnDef, "id" | "source">>;
+export type ColumnPatch = Partial<Omit<ColumnDef, "id">>;
 
 const WIDTHS: { value: ColumnWidth; label: string }[] = [
   { value: "s", label: "S 320" },
@@ -45,11 +48,22 @@ const ColumnSettings: Component<{
   column: ColumnDef;
   /** そのカラムで意味のある項目だけ。切っても何も起きない項目は出さない。 */
   facets: readonly ColumnFacet[];
+  relayList?: RelayListState;
 }> = (props) => {
   const dispatch = useDispatch();
   const show = () => columnShow(props.column);
   const patch = (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: props.column.id, patch });
+  const relaySource = () => {
+    const source = props.column.source;
+    if (source.kind !== "literal" || !source.relays) return undefined;
+    const onlyPublicNotes =
+      source.filters.length === 1 &&
+      source.filters[0]?.kinds?.length === 1 &&
+      source.filters[0]?.kinds?.[0] === 1 &&
+      Object.keys(source.filters[0]).length === 1;
+    return onlyPublicNotes ? source : undefined;
+  };
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
@@ -104,6 +118,31 @@ const ColumnSettings: Component<{
             )}
           </For>
         </Field>
+      </Show>
+
+      <Show when={relaySource()}>
+        {(source) => (
+          <Field label="購読するリレー">
+            <RelayColumnEditor
+              candidates={
+                props.relayList?.phase === "ready"
+                  ? props.relayList.entries
+                  : []
+              }
+              selected={source().relays ?? []}
+              onChange={(relays) => {
+                if (relays.length === 0) return;
+                patch({
+                  title:
+                    relays.length === 1
+                      ? relayLabel(relays[0])
+                      : `リレー（${relays.length}）`,
+                  source: { ...source(), relays },
+                });
+              }}
+            />
+          </Field>
+        )}
       </Show>
 
       <Button

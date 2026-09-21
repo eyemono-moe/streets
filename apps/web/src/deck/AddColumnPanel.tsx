@@ -1,13 +1,18 @@
 import {
   type ColumnPresetKind,
   buildColumn,
+  buildRelayColumn,
 } from "@streets/core/deck/column-presets";
 import { decodeNpub } from "@streets/core/nostr/nip19";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show, createSignal } from "solid-js";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
+import RelayColumnEditor from "./RelayColumnEditor";
 
 type Preset = {
-  kind: ColumnPresetKind;
+  kind: ColumnPresetKind | "relay";
   label: string;
   description: string;
   icon: string;
@@ -27,9 +32,9 @@ const PRESETS: Preset[] = [
     icon: "i-material-symbols:notifications-outline-rounded",
   },
   {
-    kind: "global",
-    label: "グローバル",
-    description: "指定したリレーの全体",
+    kind: "relay",
+    label: "リレー",
+    description: "選んだリレーの公開ノート",
     icon: "i-material-symbols:globe",
   },
   {
@@ -67,9 +72,17 @@ const Row: Component<{
 );
 
 /** サイドバーのパネルに出す、カラムを追加するための中身。題名と閉じるはパネル側が持つ。 */
-const AddColumnPanel: Component = () => {
+const AddColumnPanel: Component<{
+  relayList: RelayListState;
+  /** Storybook でリレー選択の端を並べるための初期状態。 */
+  initialRelayOpen?: boolean;
+}> = (props) => {
   const dispatch = useDispatch();
   const [query, setQuery] = createSignal("");
+  const [relayOpen, setRelayOpen] = createSignal(
+    props.initialRelayOpen ?? false,
+  );
+  const [selectedRelays, setSelectedRelays] = createSignal<RelayUrl[]>([]);
   const trimmed = () => query().trim();
   // `#` で始まればハッシュタグ、npub / nprofile ならユーザー、それ以外は本文の検索。
   const searchKind = (): ColumnPresetKind =>
@@ -147,6 +160,10 @@ const AddColumnPanel: Component = () => {
               label={preset.label}
               description={preset.description}
               onClick={() => {
+                if (preset.kind === "relay") {
+                  setRelayOpen(true);
+                  return;
+                }
                 const column = buildColumn(preset.kind, "");
                 if (column)
                   dispatch({ type: "deck/add-column", column: column });
@@ -155,6 +172,46 @@ const AddColumnPanel: Component = () => {
           )}
         </For>
       </div>
+
+      <Show when={relayOpen()}>
+        <section class="mt-4 flex flex-col gap-3">
+          <div>
+            <h3 class="c-primary font-600 text-body">リレーを選ぶ</h3>
+            <p class="c-secondary mt-0.5 text-caption">
+              選んだリレーにある公開ノートを時系列で表示します。
+            </p>
+          </div>
+          <Show when={props.relayList.phase === "loading"}>
+            <p class="c-secondary text-caption">
+              リレー設定を読み込んでいます…
+            </p>
+          </Show>
+          <Show when={props.relayList.phase === "missing"}>
+            <p class="c-secondary text-caption">
+              アカウントのリレー設定がありません。URLを直接入力できます。
+            </p>
+          </Show>
+          <RelayColumnEditor
+            candidates={
+              props.relayList.phase === "ready" ? props.relayList.entries : []
+            }
+            selected={selectedRelays()}
+            onChange={setSelectedRelays}
+          />
+          <Button
+            variant="primary"
+            shape="rounded"
+            block
+            disabled={selectedRelays().length === 0}
+            onClick={() => {
+              const column = buildRelayColumn(selectedRelays());
+              if (column) dispatch({ type: "deck/add-column", column });
+            }}
+          >
+            リレーカラムを追加
+          </Button>
+        </section>
+      </Show>
     </div>
   );
 };

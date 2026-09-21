@@ -327,7 +327,7 @@ const DeckScreen: Component<{
               icon="i-material-symbols:add-rounded"
               full={full}
             >
-              <AddColumnPanel />
+              <AddColumnPanel relayList={relayList()} />
             </SidePanel>
           }
         >

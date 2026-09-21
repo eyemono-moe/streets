@@ -127,7 +127,11 @@ const Column: Component<ColumnProps> = (props) => {
         class="shrink-0"
       >
         <Collapsible.Content class="motion-collapse">
-          <ColumnSettings column={props.column} facets={facets()} />
+          <ColumnSettings
+            column={props.column}
+            facets={facets()}
+            relayList={props.relayList()}
+          />
         </Collapsible.Content>
       </Collapsible.Root>
     </>

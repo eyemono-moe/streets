@@ -25,7 +25,11 @@ const meta = {
           return true;
         }}
       >
-        <ColumnSettings column={column()} facets={columnFacets(column())} />
+        <ColumnSettings
+          column={column()}
+          facets={columnFacets(column())}
+          relayList={{ phase: "missing" }}
+        />
       </Mediates>
     );
   },
@@ -50,6 +54,20 @@ export const ハッシュタグ: Story = {
       id: "t",
       title: "#nostr",
       source: { kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] },
+    },
+  },
+};
+
+export const リレーカラム: Story = {
+  args: {
+    initial: {
+      id: "relay",
+      title: "relay.example",
+      source: {
+        kind: "literal",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://relay.example/"],
+      },
     },
   },
 };
