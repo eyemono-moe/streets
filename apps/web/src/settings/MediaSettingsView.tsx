@@ -59,6 +59,24 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
       <Recommended servers={props.servers} disabled={props.saving} />
       <AddServer servers={props.servers} disabled={props.saving} />
     </SettingsSection>
+
+    <SettingsSection
+      title="送る前の下ごしらえ"
+      scope="account"
+      description="添えた画像は、預ける直前にこちらで作り直してから送ります。"
+    >
+      <ul class="c-secondary flex list-disc flex-col gap-1.5 pl-5 text-caption">
+        <li>長辺が 1920px を超える画像は、その大きさまで縮めます。</li>
+        <li>
+          撮った場所や日時などの情報（EXIF）は外します。描き直すので残りません。向きは直したうえで写します。
+        </li>
+        <li>
+          動く画像（GIF
+          など）と動画は、そのまま預けます。切り抜いたときだけ、動きの無い 1
+          枚になります。
+        </li>
+      </ul>
+    </SettingsSection>
   </div>
 );
 

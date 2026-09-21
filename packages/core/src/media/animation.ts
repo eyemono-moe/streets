@@ -3,49 +3,32 @@
  * 見分ける。切り抜くと 1 枚の静止画になってしまうので、切る前に知らせるために使う。
  * 拡張子や種類だけでは分からない —— `.gif` でも 1 枚だけのものがある。
  */
-
-const ascii = (bytes: Uint8Array, offset: number, length: number): string =>
-  Array.from(bytes.subarray(offset, offset + length), (byte) =>
-    String.fromCharCode(byte),
-  ).join("");
-
-const uint32BE = (bytes: Uint8Array, offset: number): number =>
-  ((bytes[offset] ?? 0) << 24) +
-  ((bytes[offset + 1] ?? 0) << 16) +
-  ((bytes[offset + 2] ?? 0) << 8) +
-  (bytes[offset + 3] ?? 0);
-
-const uint32LE = (bytes: Uint8Array, offset: number): number =>
-  (bytes[offset] ?? 0) +
-  ((bytes[offset + 1] ?? 0) << 8) +
-  ((bytes[offset + 2] ?? 0) << 16) +
-  ((bytes[offset + 3] ?? 0) << 24);
-
-const PNG_SIGNATURE = [137, 80, 78, 71, 13, 10, 26, 10];
+import { ascii, eachPngChunk, eachRiffChunk, isPng, isRiffWebp } from "./bytes";
 
 /** APNG は `acTL` を持つ。`IDAT` より前に置くと決まっているので、そこで打ち切る。 */
 const isAnimatedPng = (bytes: Uint8Array): boolean => {
-  let offset = 8;
-  while (offset + 8 <= bytes.length) {
-    const length = uint32BE(bytes, offset);
-    const type = ascii(bytes, offset + 4, 4);
-    if (type === "acTL") return true;
-    if (type === "IDAT") return false;
-    offset += 12 + length;
-  }
-  return false;
+  let animated = false;
+  eachPngChunk(bytes, (type) => {
+    if (type === "acTL") {
+      animated = true;
+      return "stop";
+    }
+    return type === "IDAT" ? "stop" : undefined;
+  });
+  return animated;
 };
 
 /** アニメーション WebP は `ANIM` チャンクを持つ。 */
 const isAnimatedWebp = (bytes: Uint8Array): boolean => {
-  let offset = 12;
-  while (offset + 8 <= bytes.length) {
-    const type = ascii(bytes, offset, 4);
-    if (type === "ANIM") return true;
-    const size = uint32LE(bytes, offset + 4);
-    offset += 8 + size + (size % 2);
-  }
-  return false;
+  let animated = false;
+  eachRiffChunk(bytes, (type) => {
+    if (type === "ANIM") {
+      animated = true;
+      return "stop";
+    }
+    return undefined;
+  });
+  return animated;
 };
 
 /** 画像の塊（`0x2C`）が 2 つ以上あれば動く。ブロックをたどって数える。 */
@@ -90,11 +73,7 @@ const isAnimatedGif = (bytes: Uint8Array): boolean => {
 
 export const isAnimatedImage = (bytes: Uint8Array): boolean => {
   if (ascii(bytes, 0, 3) === "GIF") return isAnimatedGif(bytes);
-  if (PNG_SIGNATURE.every((byte, index) => bytes[index] === byte)) {
-    return isAnimatedPng(bytes);
-  }
-  if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") {
-    return isAnimatedWebp(bytes);
-  }
+  if (isPng(bytes)) return isAnimatedPng(bytes);
+  if (isRiffWebp(bytes)) return isAnimatedWebp(bytes);
   return false;
 };

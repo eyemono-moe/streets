@@ -43,7 +43,8 @@ describe("isAnimatedImage", () => {
   });
 
   const png = [137, "PNG", 13, 10, 26, 10] as const;
-  const chunk = (type: string) => [0, 0, 0, 0, type] as const;
+  /** 長さ 0 のチャンク（長さ 4 ＋ 種類 4 ＋ CRC 4 バイト）。 */
+  const chunk = (type: string) => [0, 0, 0, 0, type, 0, 0, 0, 0] as const;
 
   it("acTL を持つ PNG（APNG）は動く", () => {
     expect(isAnimatedImage(bytes(...png, ...chunk("acTL")))).toBe(true);

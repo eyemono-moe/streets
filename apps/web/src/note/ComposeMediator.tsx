@@ -12,7 +12,7 @@ import {
 import type { Component, JSX } from "solid-js";
 import { onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import { renderCrop } from "../media/crop";
+import { prepareForUpload } from "../media/prepare";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -79,11 +79,9 @@ export const ComposeMediator: Component<{
       if (!raw) continue;
       apply({ type: "compose/attach-uploading", id: attachment.id });
       try {
-        // 実際に切るのはここだけ。書いている間は範囲を持つだけにして、
+        // 画素を作るのはここだけ。書いている間は切り抜く範囲を持つだけにして、
         // 元の画像を残しておく（何度でも切り直せる）。
-        const file = attachment.crop
-          ? await renderCrop(raw, attachment.crop)
-          : raw;
+        const file = await prepareForUpload(raw, attachment.crop);
         const blob = await uploader?.upload(file);
         if (!blob) throw new Error("画像の預け先が設定されていません");
         apply({ type: "compose/attach-done", id: attachment.id, blob });
