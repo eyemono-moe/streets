@@ -1,6 +1,6 @@
 import { buildNote } from "@streets/core/nostr/build/note";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { ComposeState } from "@streets/core/view/compose";
+import { type ComposeState, canSend } from "@streets/core/view/compose";
 import {
   type Component,
   Show,
@@ -12,7 +12,13 @@ import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import Event from "./Event";
-import { ComposeTools, countCharacters } from "./compose-parts";
+import {
+  ComposeAttachments,
+  ComposePreviewMedia,
+  ComposeTools,
+  countCharacters,
+  useDropAndPaste,
+} from "./compose-parts";
 
 /** 打つたびに作り直さないよう、少し止まってからプレビューへ渡す。 */
 const useDebounced = (value: () => string, ms: number) => {
@@ -33,11 +39,14 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
   const preview = useDebounced(() => props.state.content, 400);
+  const dropAndPaste = useDropAndPaste();
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
     const text = preview().trim();
-    if (!actions || text.length === 0) return undefined;
+    // 画像だけの投稿もあるので、本文が空でも添えたものがあれば見せる。
+    const empty = text.length === 0 && props.state.attachments.length === 0;
+    if (!actions || empty) return undefined;
     return {
       ...buildNote(text),
       id: "",
@@ -75,6 +84,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
               content: event.currentTarget.value,
             })
           }
+          {...dropAndPaste}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault();
@@ -84,11 +94,16 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         />
       </div>
 
+      <ComposeAttachments
+        attachments={props.state.attachments}
+        disabled={props.state.sending}
+      />
+
       <ComposeTools
         count={`${countCharacters(props.state.content)} 文字`}
         label="投稿"
         sending={props.state.sending}
-        disabled={props.state.content.trim().length === 0}
+        disabled={!canSend(props.state)}
       />
 
       <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">
@@ -98,7 +113,16 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
               <span class="c-secondary font-600 text-caption">プレビュー</span>
               <div class="overflow-hidden rounded-2 border border-primary">
                 {/* compact で描く —— 操作列やリアクションは、まだ存在しないノートには出せない。 */}
-                <Event event={event()} size="compact" />
+                <Event
+                  event={event()}
+                  size="compact"
+                  // 添えた画像は、まだ預けていないので URL が無い。手元の見本を渡す。
+                  media={
+                    <ComposePreviewMedia
+                      attachments={props.state.attachments}
+                    />
+                  }
+                />
               </div>
             </>
           )}

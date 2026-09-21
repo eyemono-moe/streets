@@ -21,6 +21,7 @@ import {
 } from "../ui/Dialog";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
+import MediaSettings from "./MediaSettings";
 import MuteSettings from "./MuteSettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
@@ -78,6 +79,15 @@ const SettingsDialog: Component<{
       title: "リレー",
       description: "投稿を預けるサーバーを選びます。",
       content: () => <RelaySettings />,
+    },
+
+    {
+      value: "media",
+      label: "画像",
+      icon: "i-material-symbols:image-outline-rounded",
+      title: "画像",
+      description: "投稿に付ける画像の預け先を決めます。",
+      content: () => <MediaSettings />,
     },
     {
       value: "mute",

@@ -1,8 +1,15 @@
-import type { ComposeState } from "@streets/core/view/compose";
+import {
+  type Attachment,
+  type ComposeState,
+  emptyCompose,
+} from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { useEventActions } from "../actions";
+import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import landscapeUrl from "../storybook/media-landscape.svg";
+import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
 import { ComposeMediator } from "./ComposeMediator";
 import QuoteDialog from "./QuoteDialog";
@@ -26,8 +33,17 @@ const longTarget = author.note(
   ).join("\n"),
 );
 
+const shot = (
+  id: string,
+  name: string,
+  preview: string,
+  extra: Partial<Attachment> = {},
+): Attachment => ({ id, name, preview, ...extra });
+
 type Props = {
   target: NostrEvent;
+  /** 画像の預け先。空にすると、画像のボタンが使えない見た目になる。 */
+  servers: string[];
   includeProfile: boolean;
   failWrites: boolean;
   state?: ComposeState;
@@ -60,14 +76,26 @@ const meta = {
         failWrites: props.failWrites,
       }}
     >
-      {props.state ? (
-        <QuoteDialog target={props.target} state={props.state} />
-      ) : (
-        <Interactive target={props.target} />
-      )}
+      <UploaderProvider
+        value={{
+          servers: () => props.servers,
+          upload: () => Promise.reject(new Error("story では預けない")),
+        }}
+      >
+        {props.state ? (
+          <QuoteDialog target={props.target} state={props.state} />
+        ) : (
+          <Interactive target={props.target} />
+        )}
+      </UploaderProvider>
     </EventSceneProvider>
   ),
-  args: { target, includeProfile: true, failWrites: false },
+  args: {
+    target,
+    includeProfile: true,
+    failWrites: false,
+    servers: ["https://blossom.example"],
+  },
   argTypes: { target: { control: false } },
 } satisfies Meta<Props>;
 
@@ -77,8 +105,61 @@ type Story = StoryObj<typeof meta>;
 export const 通常: Story = {};
 export const 送信に失敗する: Story = { args: { failWrites: true } };
 export const 送信中: Story = {
-  args: { state: { content: "送っている途中の引用。", sending: true } },
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "送っている途中の引用。",
+      sending: true,
+    },
+  },
 };
+
+export const 画像を添えた: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "これ見て",
+      attachments: [shot("1", "ねこ.png", landscapeUrl)],
+    },
+  },
+};
+
+/** 送ってはじめて預ける。預け終わったものから印が消える。 */
+export const 画像を預けている途中: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "これ見て",
+      sending: true,
+      attachments: [
+        shot("1", "1.png", landscapeUrl, {
+          blob: {
+            url: "https://a.example/1.png",
+            sha256: "a".repeat(64),
+            size: 1024,
+            type: "image/png",
+          },
+        }),
+        shot("2", "2.png", squareUrl, { uploading: true }),
+      ],
+    },
+  },
+};
+
+export const 画像を預けられなかった: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "これ見て",
+      attachments: [
+        shot("1", "ねこ.png", landscapeUrl, { error: "大きすぎます" }),
+      ],
+    },
+  },
+};
+
+/** 預け先を決めていない人。画像のボタンは薄いが押せて、押すと設定へ案内する。 */
+export const 預け先が無い: Story = { args: { servers: [] } };
 export const 長い引用対象: Story = { args: { target: longTarget } };
 export const プロフィール未取得: Story = { args: { includeProfile: false } };
 export const 狭い幅: Story = {

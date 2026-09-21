@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { ComposeState } from "@streets/core/view/compose";
+import { type ComposeState, canSend } from "@streets/core/view/compose";
 import { type Component, Show } from "solid-js";
 import { useEventActions } from "../actions";
 import { Mediates, useDispatch } from "../ui-events";
@@ -12,7 +12,11 @@ import {
 } from "../ui/Dialog";
 import Avatar from "./Avatar";
 import Event from "./Event";
-import { ComposeTools, countCharacters } from "./compose-parts";
+import {
+  ComposeAttachments,
+  ComposeTools,
+  countCharacters,
+} from "./compose-parts";
 
 const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
@@ -76,11 +80,16 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               </Mediates>
             </div>
 
+            <ComposeAttachments
+              attachments={props.state.attachments}
+              disabled={props.state.sending}
+            />
+
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}
               label="引用"
               sending={props.state.sending}
-              disabled={props.state.content.trim().length === 0}
+              disabled={!canSend(props.state)}
             />
           </form>
         </DialogContent>
