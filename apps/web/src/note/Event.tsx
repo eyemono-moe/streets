@@ -53,8 +53,19 @@ type ContentProps = {
   expandMedia?: boolean;
   /** 会話が続く向きを、アイコンから伸びる線で示す。 */
   threadLine?: "above" | "below" | "both";
+  /**
+   * 長い投稿を読んでいる間も、アイコンを見えたままにする（スレッドのカラム）。
+   * タイムラインは仮想リストで行の位置を `transform` で決めるため、ここで
+   * 貼り付けるとアイコンだけが下へずれる。既定は貼り付けない。
+   */
+  stickyAvatar?: boolean;
   /** 本文の下に足すもの。書きかけのプレビューで、まだアップロードしていない画像を出す。 */
   media?: JSX.Element;
+  /**
+   * 返信のとき、その返信先を上に 1 件出す（スレッドと同じ、線でつないだ形）。
+   * タイムラインのカラムで使う。スレッドのカラムは自分で祖先を並べるので要らない。
+   */
+  replyContext?: boolean;
 };
 
 const Notice: Component<{ children: JSX.Element }> = (props) => (
@@ -124,7 +135,7 @@ const Row: ParentComponent<ContentProps> = (props) => (
         長い投稿でも、読んでいる間アイコンが見えているようにする。
         縦線より後ろに置くので、z-index 無しで線の上に乗る。
       */}
-      <div classList={{ "sticky top-2": props.threadLine !== undefined }}>
+      <div classList={{ "sticky top-2": props.stickyAvatar }}>
         <Avatar pubkey={props.event.pubkey} size={props.size} />
       </div>
     </div>
@@ -314,11 +325,11 @@ const Note: Component<ContentProps> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
-  const replyTo = () => replyTarget(props.event)?.pubkey;
+  const replyTo = () => replyTarget(props.event);
 
   return (
     <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-      <Show when={replyTo()}>
+      <Show when={replyTo()?.pubkey}>
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
             <span class="shrink-0">返信先</span>
@@ -410,6 +421,7 @@ const EventContent: Component<ContentProps> = (props) => (
         size={props.size}
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
+        stickyAvatar={props.stickyAvatar}
         media={props.media}
       />
     </Match>
@@ -431,6 +443,17 @@ const EventBody: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
   let downAt: { x: number; y: number } | undefined;
 
+  /**
+   * 上に出す返信先。テキストノートで、normal のときだけ。compact は関連
+   * イベントを取りにいかない決まりなので、返信の返信で連鎖してしまう。
+   */
+  const parent = () => {
+    if (!props.replyContext || props.size !== "normal") return undefined;
+    if (props.event.kind !== 1) return undefined;
+    const ref = replyTarget(props.event);
+    return ref?.form === "id" ? ref : undefined;
+  };
+
   // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
   if (props.event.kind === 7) {
     return (
@@ -443,35 +466,49 @@ const EventBody: Component<ContentProps> = (props) => {
   }
 
   return (
-    <Frame
-      size={props.size}
-      // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
-      onOpen={(event) => {
-        if (isInteractive(event.target)) return;
-        // 文字を選び終えた click では、移動量が小さくてもスレッドを開かない。
-        if (document.getSelection()?.isCollapsed === false) return;
-        const moved =
-          downAt !== undefined &&
-          (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
-            Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
-        if (moved) return;
-        dispatch({
-          type: "stack/open",
-          column: buildThreadColumn(props.event.id),
-        });
-      }}
-      onDown={(event) => {
-        downAt = { x: event.clientX, y: event.clientY };
-      }}
-    >
-      <EventContent
-        event={props.event}
+    <>
+      {/* 返信先は線でつないで上に置く。スレッドのカラムと同じ並べ方。 */}
+      <Show when={parent()}>
+        {(ref) => (
+          <EventRefView
+            target={ref()}
+            size="compact"
+            expandMedia={props.expandMedia}
+            threadLine="below"
+          />
+        )}
+      </Show>
+      <Frame
         size={props.size}
-        expandMedia={props.expandMedia}
-        threadLine={props.threadLine}
-        media={props.media}
-      />
-    </Frame>
+        // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
+        onOpen={(event) => {
+          if (isInteractive(event.target)) return;
+          // 文字を選び終えた click では、移動量が小さくてもスレッドを開かない。
+          if (document.getSelection()?.isCollapsed === false) return;
+          const moved =
+            downAt !== undefined &&
+            (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
+              Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
+          if (moved) return;
+          dispatch({
+            type: "stack/open",
+            column: buildThreadColumn(props.event.id),
+          });
+        }}
+        onDown={(event) => {
+          downAt = { x: event.clientX, y: event.clientY };
+        }}
+      >
+        <EventContent
+          event={props.event}
+          size={props.size}
+          expandMedia={props.expandMedia}
+          threadLine={parent() ? "above" : props.threadLine}
+          stickyAvatar={props.stickyAvatar}
+          media={props.media}
+        />
+      </Frame>
+    </>
   );
 };
 
@@ -480,6 +517,7 @@ export const EventRefView: Component<{
   target: { id: string; relay?: RelayUrl };
   size: EventSize;
   expandMedia?: boolean;
+  threadLine?: "above" | "below" | "both";
 }> = (props) => (
   <Lookup
     target={props.target}
@@ -488,7 +526,12 @@ export const EventRefView: Component<{
   >
     {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
     {(event) => (
-      <Event event={event} size={props.size} expandMedia={props.expandMedia} />
+      <Event
+        event={event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+        threadLine={props.threadLine}
+      />
     )}
   </Lookup>
 );
