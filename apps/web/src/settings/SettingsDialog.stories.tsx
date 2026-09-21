@@ -11,7 +11,12 @@ import { ProfileMediator } from "./ProfileMediator";
 import { RelayMediator } from "./RelayMediator";
 import SettingsDialog from "./SettingsDialog";
 
-type Props = { wide: boolean; appearance: DeckAppearance; page: string };
+type Props = {
+  wide: boolean;
+  appearance: DeckAppearance;
+  /** 省略すると、ダイアログが決める既定のページ（アカウント）で開く。 */
+  page?: string;
+};
 
 const relayList = (tags: string[][]): NostrEvent => ({
   id: "0".repeat(64),
@@ -166,7 +171,7 @@ const Story = (props: Props) => {
 const meta = {
   title: "設定/設定のダイアログ",
   component: Story,
-  args: { wide: true, appearance: DEFAULT_APPEARANCE, page: "display" },
+  args: { wide: true, appearance: DEFAULT_APPEARANCE },
   argTypes: { appearance: { control: false } },
   parameters: { viewport: { defaultViewport: "responsive" } },
 } satisfies Meta<Props>;
@@ -174,16 +179,25 @@ const meta = {
 export default meta;
 type S = StoryObj<typeof meta>;
 
-export const 表示_広い画面: S = {};
+/** 開いた直後。一覧の先頭（アカウント）から始まる。 */
+export const 開いた直後: S = {};
 
-export const 表示_狭い画面: S = { args: { wide: false } };
+export const 表示_広い画面: S = { args: { page: "display" } };
+
+export const 表示_狭い画面: S = { args: { page: "display", wide: false } };
 
 export const 表示_自分で選んだ色: S = {
-  args: { appearance: { accent: "#E0457B", ui: "#1F3B4D" } },
+  args: {
+    page: "display",
+    appearance: { accent: "#E0457B", ui: "#1F3B4D" },
+  },
 };
 
 export const 表示_シアン: S = {
-  args: { appearance: { accent: PALETTES.cyan.accent, ui: PALETTES.cyan.ui } },
+  args: {
+    page: "display",
+    appearance: { accent: PALETTES.cyan.accent, ui: PALETTES.cyan.ui },
+  },
 };
 
 export const リレー_広い画面: S = { args: { page: "relays" } };

@@ -50,7 +50,8 @@ const SettingsDialog: Component<{
   initialPage?: string;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [page, setPage] = createSignal(props.initialPage ?? "display");
+  // 一覧の先頭（アカウント）から開く。どこから開いても同じ場所で始まる。
+  const [page, setPage] = createSignal(props.initialPage ?? "account");
   // プロフィールを書きかけのまま閉じようとしたら、そのページを見せる。
   const profileEdit = useProfileEdit();
   createEffect(
