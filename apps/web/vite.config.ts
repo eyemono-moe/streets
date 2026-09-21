@@ -19,6 +19,9 @@ const commitSha = (): string => {
 export default defineConfig({
   define: {
     "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(commitSha()),
+    // Sentry から、使っていない機能（重さの計測・デバッグ出力）を落とす。
+    __SENTRY_TRACING__: "false",
+    __SENTRY_DEBUG__: "false",
   },
   plugins: [...devtools(), UnoCSS(), solid()],
   server: {

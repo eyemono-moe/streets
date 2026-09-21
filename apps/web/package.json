@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@ark-ui/solid": "5.38.1",
+    "@sentry/solid": "^10.75.0",
     "@solidjs/router": "^1.0.0",
     "@streets/core": "workspace:*",
     "@streets/sign": "workspace:*",

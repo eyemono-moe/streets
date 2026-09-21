@@ -4,9 +4,13 @@ import { QueryClientProvider } from "@tanstack/solid-query";
 import { render } from "solid-js/web";
 import App from "./App";
 import { createAppQueryClient } from "./query-client";
+import { startTelemetry } from "./telemetry";
 import { savedColorScheme, setColorScheme } from "./theme";
 import "@unocss/reset/tailwind-compat.css";
 import "virtual:uno.css";
+
+// 描画より先に始める。読み込みの途中で壊れたときも拾えるように。
+void startTelemetry();
 
 // 描画前に付けないと、ダークの環境で一瞬ライトで描かれる。
 setColorScheme(savedColorScheme(), false);
