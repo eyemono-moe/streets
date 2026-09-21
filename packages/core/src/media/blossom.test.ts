@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../nostr/event";
 import {
+  DEFAULT_BLOSSOM_SERVERS,
   UploadFailedError,
   buildUploadAuth,
+  effectiveBlossomServers,
   hashBytes,
   normalizeServerUrl,
   parseBlossomServers,
@@ -59,6 +61,22 @@ describe("預け先の一覧（kind:10063）", () => {
       ["other", "keep"],
     ]);
     expect(draft.kind).toBe(10_063);
+  });
+});
+
+describe("effectiveBlossomServers", () => {
+  it("まだ決めていない（一覧が無い）人には既定を使う", () => {
+    expect(effectiveBlossomServers(undefined)).toEqual(DEFAULT_BLOSSOM_SERVERS);
+  });
+
+  it("空の一覧を保存した人には既定を使わない（自分で決めた状態）", () => {
+    expect(effectiveBlossomServers(event([]))).toEqual([]);
+  });
+
+  it("決めている人はその一覧", () => {
+    expect(
+      effectiveBlossomServers(event([["server", "https://a.example"]])),
+    ).toEqual(["https://a.example"]);
   });
 });
 

@@ -1,5 +1,6 @@
 import {
   type BlossomServer,
+  DEFAULT_BLOSSOM_SERVERS,
   parseServerInput,
 } from "@streets/core/media/blossom";
 import {
@@ -17,6 +18,8 @@ import SettingsSection from "./SettingsSection";
 export type MediaSettingsViewProps = {
   servers: readonly BlossomServer[];
   saving: boolean;
+  /** 自分で選んだ一覧か。false なら既定をそのまま使っている。 */
+  chosen: boolean;
 };
 
 /** 画像の預け先の設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -27,11 +30,16 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
       scope="account"
       description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へ預け、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへ預けます。"
     >
+      <Show when={!props.chosen && props.servers.length > 0}>
+        <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
+          まだ自分で選んでいません。いまは下の預け先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
+        </p>
+      </Show>
       <Switch>
         <Match when={props.servers.length === 0}>
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだ預け先がありません。1
-            つ足すと、投稿に画像を添えられるようになります。
+            預け先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
+            を入れてください。
           </p>
         </Match>
         <Match when={true}>
@@ -48,6 +56,7 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
           </ul>
         </Match>
       </Switch>
+      <Recommended servers={props.servers} disabled={props.saving} />
       <AddServer servers={props.servers} disabled={props.saving} />
     </SettingsSection>
   </div>
@@ -83,6 +92,40 @@ const ServerRow: Component<{
         />
       </div>
     </li>
+  );
+};
+
+/** よく使われている預け先。押すとその 1 つを足す。 */
+const Recommended: Component<{
+  servers: readonly BlossomServer[];
+  disabled: boolean;
+}> = (props) => {
+  const dispatch = useDispatch();
+  const rest = () =>
+    DEFAULT_BLOSSOM_SERVERS.filter((server) => !props.servers.includes(server));
+  return (
+    <Show when={rest().length > 0}>
+      <div class="flex flex-col gap-1.5">
+        <span class="c-secondary font-600 text-caption">おすすめ</span>
+        <div class="flex flex-wrap gap-2">
+          <For each={rest()}>
+            {(server) => (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon="i-material-symbols:add-rounded"
+                disabled={props.disabled}
+                onClick={() =>
+                  dispatch({ type: "media/add-server", url: server })
+                }
+              >
+                {server.replace(/^https:\/\//, "")}
+              </Button>
+            )}
+          </For>
+        </div>
+      </div>
+    </Show>
   );
 };
 

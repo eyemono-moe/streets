@@ -1,6 +1,7 @@
 import type { Upload } from "@streets/core/view/compose";
 import { type Component, For, Show } from "solid-js";
 import { useUploader } from "../media/uploader";
+import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 
@@ -13,12 +14,17 @@ export const countCharacters = (text: string) =>
 const ToolButton: Component<{
   label: string;
   icon: string;
+  title?: string;
+  /** 押せるが、今は使えない見た目にする。 */
+  muted?: boolean;
   onClick?: () => void;
 }> = (props) => (
   <button
     type="button"
     aria-label={props.onClick ? props.label : `${props.label}（未対応）`}
+    title={props.title}
     class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-secondary disabled:opacity-50"
+    classList={{ "opacity-50": props.muted }}
     disabled={props.onClick === undefined}
     onClick={() => props.onClick?.()}
   >
@@ -50,7 +56,9 @@ export const ComposeUploads: Component<{ uploads: readonly Upload[] }> = (
                 }}
                 aria-hidden="true"
               />
-              <span class="c-primary min-w-0 truncate">{upload.name}</span>
+              <span class="c-primary min-w-0 max-w-40 truncate">
+                {upload.name}
+              </span>
               <span
                 class="min-w-0 flex-1 truncate"
                 classList={{
@@ -86,11 +94,30 @@ export const ComposeUploads: Component<{ uploads: readonly Upload[] }> = (
 /**
  * 貼り付け・ドラッグして落とす、でファイルを添える。textarea に付ける。
  */
+const NO_SERVER_MESSAGE =
+  "画像を添えるには、設定の「画像」で預け先を決めてください";
+
+/** 預け先が無いときの案内。押した・貼った・落としたときにだけ出す。 */
+export const useAttachGuard = () => {
+  const uploader = useUploader();
+  return {
+    /** 添えられるか。添えられないときは案内を出して false を返す。 */
+    allow: () => {
+      if (uploader && uploader.servers().length > 0) return true;
+      notifyError(new Error(NO_SERVER_MESSAGE), "画像を添えられません");
+      return false;
+    },
+    ready: () => (uploader?.servers().length ?? 0) > 0,
+    message: NO_SERVER_MESSAGE,
+  };
+};
+
 export const useDropAndPaste = () => {
   const dispatch = useDispatch();
-  const uploader = useUploader();
+  const guard = useAttachGuard();
   const attach = (files: readonly File[]) => {
-    if (!uploader || files.length === 0) return false;
+    if (files.length === 0) return false;
+    if (!guard.allow()) return true;
     dispatch({ type: "compose/attach", files });
     return true;
   };
@@ -100,9 +127,7 @@ export const useDropAndPaste = () => {
       if (attach(files)) event.preventDefault();
     },
     onDragOver: (event: DragEvent) => {
-      if (uploader && event.dataTransfer?.types.includes("Files")) {
-        event.preventDefault();
-      }
+      if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
     },
     onDrop: (event: DragEvent) => {
       const files = [...(event.dataTransfer?.files ?? [])];
@@ -117,22 +142,23 @@ export const useDropAndPaste = () => {
  */
 const ImageButton: Component = () => {
   const dispatch = useDispatch();
-  const uploader = useUploader();
+  const guard = useAttachGuard();
   let input: HTMLInputElement | undefined;
   return (
-    <Show
-      when={uploader}
-      fallback={
-        <ToolButton
-          label="画像"
-          icon="i-material-symbols:image-outline-rounded"
-        />
-      }
-    >
+    <>
+      {/*
+        預け先が無いときは押せない見た目にするが、押せなくはしない —— 本当に
+        disabled にすると、なぜ使えないのかを知らせる機会が無くなる。
+      */}
       <ToolButton
         label="画像を添える"
         icon="i-material-symbols:image-outline-rounded"
-        onClick={() => input?.click()}
+        muted={!guard.ready()}
+        title={guard.ready() ? "画像を添える" : guard.message}
+        onClick={() => {
+          if (!guard.allow()) return;
+          input?.click();
+        }}
       />
       <input
         ref={input}
@@ -146,7 +172,7 @@ const ImageButton: Component = () => {
           if (files.length > 0) dispatch({ type: "compose/attach", files });
         }}
       />
-    </Show>
+    </>
   );
 };
 

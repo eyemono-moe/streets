@@ -1,10 +1,18 @@
-import type { BlossomServer } from "@streets/core/media/blossom";
+import {
+  type BlossomServer,
+  DEFAULT_BLOSSOM_SERVERS,
+} from "@streets/core/media/blossom";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Mediates } from "../ui-events";
 import MediaSettingsView from "./MediaSettingsView";
 
-type Args = { servers: BlossomServer[]; saving: boolean; width: number };
+type Args = {
+  servers: BlossomServer[];
+  saving: boolean;
+  chosen: boolean;
+  width: number;
+};
 
 /** アプリでは MediaMediator が裁定するイベントを、ここで手元の一覧に当てる。 */
 const Story = (props: Args) => {
@@ -24,7 +32,11 @@ const Story = (props: Args) => {
       }}
     >
       <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
-        <MediaSettingsView servers={servers()} saving={props.saving} />
+        <MediaSettingsView
+          servers={servers()}
+          saving={props.saving}
+          chosen={props.chosen}
+        />
       </div>
     </Mediates>
   );
@@ -36,6 +48,7 @@ const meta = {
   args: {
     servers: ["https://blossom.example", "https://backup.example"],
     saving: false,
+    chosen: true,
     width: 660,
   },
   argTypes: { servers: { control: false } },
@@ -45,7 +58,13 @@ export default meta;
 type S = StoryObj<typeof meta>;
 
 export const いつもの: S = {};
-export const まだ無い: S = { args: { servers: [] } };
+/** まだ自分で選んでいない人。既定の預け先をそのまま使っている。 */
+export const 既定のまま: S = {
+  args: { chosen: false, servers: [...DEFAULT_BLOSSOM_SERVERS] },
+};
+
+/** 自分で全部外した人。画像を添えられない。 */
+export const 預け先が無い: S = { args: { servers: [] } };
 export const 保存中: S = { args: { saving: true } };
 export const 長い_URL: S = {
   args: {

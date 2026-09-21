@@ -1,5 +1,5 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { ComposeState } from "@streets/core/view/compose";
+import { type ComposeState, isUploading } from "@streets/core/view/compose";
 import { type Component, Show } from "solid-js";
 import { useEventActions } from "../actions";
 import { Mediates, useDispatch } from "../ui-events";
@@ -82,7 +82,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               count={`${countCharacters(props.state.content)}`}
               label="引用"
               sending={props.state.sending}
-              disabled={props.state.content.trim().length === 0}
+              disabled={
+                props.state.content.trim().length === 0 ||
+                isUploading(props.state)
+              }
             />
           </form>
         </DialogContent>

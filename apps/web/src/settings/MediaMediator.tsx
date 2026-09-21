@@ -1,7 +1,7 @@
 import {
   BLOSSOM_SERVER_LIST_KIND,
   type BlossomServer,
-  parseBlossomServers,
+  effectiveBlossomServers,
   setBlossomServers,
 } from "@streets/core/media/blossom";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -19,6 +19,8 @@ import { Mediates, type UiEvent } from "../ui-events";
 
 export type MediaServers = {
   servers: Accessor<readonly BlossomServer[]>;
+  /** 自分で選んだ一覧か（false なら既定をそのまま使っている）。 */
+  chosen: Accessor<boolean>;
   /** 保存している途中。続けて押させない。 */
   saving: Accessor<boolean>;
 };
@@ -34,7 +36,7 @@ export const MediaMediator: ParentComponent<{
   serverList: Accessor<NostrEvent | undefined>;
 }> = (props) => {
   const [saving, setSaving] = createSignal(false);
-  const saved = createMemo(() => parseBlossomServers(props.serverList()));
+  const saved = createMemo(() => effectiveBlossomServers(props.serverList()));
   // 保存が届くまでの間も、足した・外した結果を見せる。
   const [pending, setPending] = createSignal<readonly BlossomServer[]>();
   const servers = () => pending() ?? saved();
@@ -70,7 +72,14 @@ export const MediaMediator: ParentComponent<{
   };
 
   return (
-    <MediaServersContext.Provider value={{ servers, saving }}>
+    <MediaServersContext.Provider
+      value={{
+        servers,
+        saving,
+        chosen: () =>
+          pending() !== undefined || props.serverList() !== undefined,
+      }}
+    >
       <Mediates handle={handle}>{props.children}</Mediates>
     </MediaServersContext.Provider>
   );

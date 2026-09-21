@@ -13,7 +13,7 @@ import {
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
-import { parseBlossomServers } from "@streets/core/media/blossom";
+import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -179,7 +179,7 @@ const DeckScreen: Component<{
   const uploader = createUploader({
     signer: props.session.signer,
     viewer,
-    servers: () => parseBlossomServers(write.blossomServers()),
+    servers: () => effectiveBlossomServers(write.blossomServers()),
   });
 
   // カラムを見せる。広い画面では横に送って画面に収め、狭い画面ではそのタブを選ぶ。

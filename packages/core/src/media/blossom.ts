@@ -22,6 +22,18 @@ const AUTH_TTL_SECONDS = 300;
 /** 末尾の `/` を落とした https の URL。比較と表示を 1 つの形にそろえる。 */
 export type BlossomServer = string;
 
+/**
+ * 自分で決めていない人が最初から画像を投稿できるようにするための預け先。上から順に
+ * 試す。2026-09-21 に、どれも `PUT /upload` を受け付け（認可が無ければ 401）、
+ * ブラウザから使えること（CORS が `*` で `Authorization` を許す）を確かめた。
+ * 運営者・保存期間・容量の決まりはサーバーごとに違うので、設定から変えられる。
+ */
+export const DEFAULT_BLOSSOM_SERVERS: readonly BlossomServer[] = [
+  "https://blossom.band",
+  "https://nostr.download",
+  "https://blossom.primal.net",
+];
+
 export const normalizeServerUrl = (
   input: string,
 ): BlossomServer | undefined => {
@@ -52,6 +64,15 @@ export const parseBlossomServers = (
   }
   return servers;
 };
+
+/**
+ * 実際に預けに行く先。まだ自分で決めていない（kind:10063 が無い）ときは既定を使う。
+ * 空の一覧を保存した人には既定を使わない —— 自分で「どこにも預けない」と決めた状態。
+ */
+export const effectiveBlossomServers = (
+  event: NostrEvent | undefined,
+): readonly BlossomServer[] =>
+  event === undefined ? DEFAULT_BLOSSOM_SERVERS : parseBlossomServers(event);
 
 export const setBlossomServers =
   (servers: readonly BlossomServer[]): Mutation =>

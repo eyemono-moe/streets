@@ -1,6 +1,6 @@
 import { buildNote } from "@streets/core/nostr/build/note";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { ComposeState } from "@streets/core/view/compose";
+import { type ComposeState, isUploading } from "@streets/core/view/compose";
 import {
   type Component,
   Show,
@@ -97,7 +97,9 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         count={`${countCharacters(props.state.content)} 文字`}
         label="投稿"
         sending={props.state.sending}
-        disabled={props.state.content.trim().length === 0}
+        disabled={
+          props.state.content.trim().length === 0 || isUploading(props.state)
+        }
       />
 
       <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">

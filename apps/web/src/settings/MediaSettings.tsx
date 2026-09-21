@@ -11,6 +11,7 @@ const MediaSettings: Component = () => {
         <MediaSettingsView
           servers={media().servers()}
           saving={media().saving()}
+          chosen={media().chosen()}
         />
       )}
     </Show>
