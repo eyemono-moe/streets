@@ -22,8 +22,8 @@ import { uploadErrorMessage } from "../write-errors";
  * 投稿・返信の書きかけを持ち、送る段。何を送るか（投稿か返信か）と、送れたあと
  * どうするか（パネルを閉じる・ダイアログを閉じる）は置き場所ごとに違うので受け取る。
  *
- * 添えたファイルは、送るまで手元に置く。切り抜いてから預けられるし、書くのを
- * やめたときに、出さなかった画像が預け先に残らない。
+ * 添えたファイルは、送るまで手元に置く。切り抜いてからアップロードできるし、書くのを
+ * やめたときに、出さなかった画像がアップロード先に残らない。
  */
 export const ComposeMediator: Component<{
   send: (text: string, media: readonly BlobDescriptor[]) => Promise<void>;
@@ -72,7 +72,7 @@ export const ComposeMediator: Component<{
     }
   };
 
-  /** 送る直前に、まだ預けていないものを順に預ける。1 つでも駄目なら送らない。 */
+  /** 送る直前に、まだアップロードしていないものを順にアップロードする。1 つでも駄目なら送らない。 */
   const uploadPending = async () => {
     for (const attachment of pendingAttachments(unwrap(state))) {
       const raw = files.get(attachment.id);
@@ -83,7 +83,7 @@ export const ComposeMediator: Component<{
         // 元の画像を残しておく（何度でも切り直せる）。
         const file = await prepareForUpload(raw, attachment.crop);
         const blob = await uploader?.upload(file);
-        if (!blob) throw new Error("画像の預け先が設定されていません");
+        if (!blob) throw new Error("画像のアップロード先が設定されていません");
         apply({ type: "compose/attach-done", id: attachment.id, blob });
       } catch (cause) {
         apply({

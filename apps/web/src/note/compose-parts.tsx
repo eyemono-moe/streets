@@ -55,7 +55,7 @@ const useNaturalSize = () => {
 
 /**
  * 正方形の枠いっぱいに、切り抜く範囲だけを見せる。実際に切らずに、元の画像を
- * 拡げてずらす —— 画素を作るのは預ける直前の 1 回だけにしたいため。
+ * 拡げてずらす —— 画素を作るのはアップロードする直前の 1 回だけにしたいため。
  * 枠が正方形なので、縦と横の割合を同じ基準で書ける。
  */
 const Thumbnail: Component<{ attachment: Attachment }> = (props) => {
@@ -174,7 +174,7 @@ const PreviewImage: Component<{ attachment: Attachment }> = (props) => {
   );
 };
 
-/** 書きかけのプレビューに出す、まだ預けていない画像。 */
+/** 書きかけのプレビューに出す、まだアップロードしていない画像。 */
 export const ComposePreviewMedia: Component<{
   attachments: readonly Attachment[];
 }> = (props) => (
@@ -189,7 +189,7 @@ export const ComposePreviewMedia: Component<{
  */
 export const ComposeAttachments: Component<{
   attachments: readonly Attachment[];
-  /** 預けている間は触らせない（並べ替えても、もう送る中身は決まっている）。 */
+  /** アップロードしている間は触らせない（並べ替えても、もう送る中身は決まっている）。 */
   disabled?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
@@ -346,9 +346,9 @@ export const ComposeAttachments: Component<{
 };
 
 const NO_SERVER_MESSAGE =
-  "画像を添えるには、設定の「画像」で預け先を決めてください";
+  "画像を添えるには、設定の「画像」でアップロード先を決めてください";
 
-/** 預け先が無いときの案内。押した・貼った・落としたときにだけ出す。 */
+/** アップロード先が無いときの案内。押した・貼った・落としたときにだけ出す。 */
 export const useAttachGuard = () => {
   const uploader = useUploader();
   return {
@@ -389,7 +389,7 @@ export const useDropAndPaste = () => {
 };
 
 /**
- * 画像を選ぶ。預け先を決めていないときは押せる状態にし、押したら設定へ案内する
+ * 画像を選ぶ。アップロード先を決めていないときは押せる状態にし、押したら設定へ案内する
  * （押せないボタンだけ出すと、なぜ使えないのか分からない）。
  */
 const ImageButton: Component = () => {
@@ -399,7 +399,7 @@ const ImageButton: Component = () => {
   return (
     <>
       {/*
-        預け先が無いときは押せない見た目にするが、押せなくはしない —— 本当に
+        アップロード先が無いときは押せない見た目にするが、押せなくはしない —— 本当に
         disabled にすると、なぜ使えないのかを知らせる機会が無くなる。
       */}
       <ToolButton

@@ -177,7 +177,7 @@ const DeckScreen: Component<{
     scrollToEnd();
   };
 
-  // 画像の預け先は、設定（kind:10063）の並び順にそのまま使う。
+  // 画像のアップロード先は、設定（kind:10063）の並び順にそのまま使う。
   const uploader = createUploader({
     signer: props.session.signer,
     viewer,
@@ -394,7 +394,7 @@ const DeckScreen: Component<{
       <ActionsMediator actions={write.actions}>
         <Mediates handle={handle}>
           <MediaMediator
-            writer={trackReplaces(write.writer, "画像の預け先")}
+            writer={trackReplaces(write.writer, "画像のアップロード先")}
             serverList={write.blossomServers}
           >
             <UploaderProvider value={uploader}>

@@ -2,7 +2,7 @@ import { type Component, Show } from "solid-js";
 import { useMediaServers } from "./MediaMediator";
 import MediaSettingsView from "./MediaSettingsView";
 
-/** 画像の預け先のページ。一覧と保存は `MediaMediator` が持つ。 */
+/** 画像のアップロード先のページ。一覧と保存は `MediaMediator` が持つ。 */
 const MediaSettings: Component = () => {
   const media = useMediaServers();
   return (

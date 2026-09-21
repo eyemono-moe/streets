@@ -34,7 +34,7 @@ export type UiEvent =
   | ProfileViewEvent
   | MediaViewEvent;
 
-/** 画像の預け先（Blossom のサーバー）の足し外し。 */
+/** 画像のアップロード先（Blossom のサーバー）の足し外し。 */
 export type MediaViewEvent =
   | { type: "media/add-server"; url: string }
   | { type: "media/remove-server"; url: string };
@@ -58,7 +58,7 @@ export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
 export type ComposeViewEvent =
   | Extract<ComposeEvent, { type: "compose/input" | "compose/submit" }>
   | { type: "compose/close" }
-  /** 選んだ・貼り付けた・落としたファイルを添える（預けるのは送るとき）。 */
+  /** 選んだ・貼り付けた・落としたファイルを添える（アップロードするのは送るとき）。 */
   | { type: "compose/attach"; files: readonly File[] }
   | Extract<
       ComposeEvent,

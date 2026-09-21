@@ -8,12 +8,12 @@ import {
 import type { NostrEvent } from "../nostr/event";
 
 /**
- * 画像などのファイルの預け先（Blossom。NIP-B7 / BUD-01〜03）。ファイルは中身の
+ * 画像などのファイルのアップロード先（Blossom。NIP-B7 / BUD-01〜03）。ファイルは中身の
  * SHA-256 で指すので、同じファイルはどのサーバーでも同じ名前になり、1 つのサーバーが
  * 落ちても別のサーバーから同じものを取れる。
  */
 export const BLOSSOM_SERVER_LIST_KIND = 10_063;
-/** 預けるときの認可イベント（BUD-01）。 */
+/** アップロードするときの認可イベント（BUD-01）。 */
 export const BLOSSOM_AUTH_KIND = 24_242;
 
 /** 認可イベントの有効期間。短くしておく（奪われても使える時間を短くする）。 */
@@ -23,7 +23,7 @@ const AUTH_TTL_SECONDS = 300;
 export type BlossomServer = string;
 
 /**
- * 自分で決めていない人が最初から画像を投稿できるようにするための預け先。上から順に
+ * 自分で決めていない人が最初から画像を投稿できるようにするためのアップロード先。上から順に
  * 試す。2026-09-21 に、どれも `PUT /upload` を受け付け（認可が無ければ 401）、
  * ブラウザから使えること（CORS が `*` で `Authorization` を許す）を確かめた。
  * 運営者・保存期間・容量の決まりはサーバーごとに違うので、設定から変えられる。
@@ -51,7 +51,7 @@ export const normalizeServerUrl = (
   return parsed.toString().replace(/\/$/, "");
 };
 
-/** kind:10063 の `server` タグ（BUD-03）。並び順が優先順（先頭から預ける）。 */
+/** kind:10063 の `server` タグ（BUD-03）。並び順が優先順（先頭からアップロードする）。 */
 export const parseBlossomServers = (
   event: NostrEvent | undefined,
 ): BlossomServer[] => {
@@ -66,8 +66,8 @@ export const parseBlossomServers = (
 };
 
 /**
- * 実際に預けに行く先。まだ自分で決めていない（kind:10063 が無い）ときは既定を使う。
- * 空の一覧を保存した人には既定を使わない —— 自分で「どこにも預けない」と決めた状態。
+ * 実際にアップロードしに行く先。まだ自分で決めていない（kind:10063 が無い）ときは既定を使う。
+ * 空の一覧を保存した人には既定を使わない —— 自分で「どこにもアップロードしない」と決めた状態。
  */
 export const effectiveBlossomServers = (
   event: NostrEvent | undefined,
@@ -85,14 +85,14 @@ export type ServerInputResult =
   | { ok: true; url: BlossomServer }
   | { ok: false; message: string };
 
-/** 入力された預け先の URL を確かめる。`https://` を省いて打つ人が多いので補う。 */
+/** 入力されたアップロード先の URL を確かめる。`https://` を省いて打つ人が多いので補う。 */
 export const parseServerInput = (
   input: string,
   existing: readonly BlossomServer[],
 ): ServerInputResult => {
   const text = input.trim();
   if (text === "" || text === "https://") {
-    return { ok: false, message: "預け先の URL を入力してください" };
+    return { ok: false, message: "アップロード先の URL を入力してください" };
   }
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
     ? text
@@ -105,12 +105,12 @@ export const parseServerInput = (
     };
   }
   if (existing.includes(url)) {
-    return { ok: false, message: "この預け先はもう入っています" };
+    return { ok: false, message: "このアップロード先はもう入っています" };
   }
   return { ok: true, url };
 };
 
-/** 預けたファイル（BUD-02 の blob descriptor）。 */
+/** アップロードしたファイル（BUD-02 の blob descriptor）。 */
 export type BlobDescriptor = {
   url: string;
   sha256: string;
@@ -133,8 +133,8 @@ export const hashBytes = (bytes: Uint8Array): string =>
   bytesToHex(sha256(bytes));
 
 /**
- * 預けてよいことを示す認可イベント（BUD-01 の kind:24242）。ファイルの中身の
- * ハッシュを入れるので、この 1 つの認可で別のファイルは預けられない。
+ * アップロードしてよいことを示す認可イベント（BUD-01 の kind:24242）。ファイルの中身の
+ * ハッシュを入れるので、この 1 つの認可で別のファイルはアップロードできない。
  */
 export const buildUploadAuth = (options: {
   sha256: string;
@@ -156,7 +156,7 @@ export const buildUploadAuth = (options: {
 
 /**
  * 認可イベントの入れ物（BUD-11）。ふつうの base64 ではなく base64url（JWT と
- * 同じ形）で送る —— `+` `/` を含む base64 を base64url として読む預け先があり、
+ * 同じ形）で送る —— `+` `/` を含む base64 を base64url として読むアップロード先があり、
  * 中身が壊れて「署名が違う」と断られる。
  */
 const base64url = (text: string): string =>
@@ -182,7 +182,7 @@ const parseBlob = (
 };
 
 /**
- * 1 つのサーバーへ預ける（BUD-02 の `PUT /upload`）。認可イベントは署名済みのものを
+ * 1 つのサーバーへアップロードする（BUD-02 の `PUT /upload`）。認可イベントは署名済みのものを
  * 受け取る —— 署名はアプリの署名器の仕事で、ここでは鍵に触れない。
  */
 export const uploadBlob = async (options: {
@@ -229,7 +229,7 @@ export const uploadBlob = async (options: {
   if (!blob) {
     throw new UploadFailedError(
       options.server,
-      "預け先の返事を読み取れませんでした",
+      "アップロード先の返事を読み取れませんでした",
       response.status,
     );
   }

@@ -60,7 +60,7 @@ const Editor: Component<{
       width: Math.round(data.width),
       height: Math.round(data.height),
     };
-    // 画像まるごとなら、切り抜きは無かったことにする（預けるのは元の画像）。
+    // 画像まるごとなら、切り抜きは無かったことにする（アップロードするのは元の画像）。
     const whole =
       rect.x === 0 &&
       rect.y === 0 &&
@@ -147,7 +147,7 @@ const Editor: Component<{
 
 /**
  * 添えた画像の、切り抜く範囲を決める。ここでは画素を作らない —— 元の画像を
- * 残したまま範囲だけを持ち、実際に切るのは預ける直前。何度でも直せる。
+ * 残したまま範囲だけを持ち、実際に切るのはアップロードする直前。何度でも直せる。
  */
 const CropDialog: Component<{
   src: string;

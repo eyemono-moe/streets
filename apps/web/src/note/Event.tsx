@@ -52,7 +52,7 @@ type ContentProps = {
   expandMedia?: boolean;
   /** 会話が続く向きを、アイコンから伸びる線で示す。 */
   threadLine?: "above" | "below" | "both";
-  /** 本文の下に足すもの。書きかけのプレビューで、まだ預けていない画像を出す。 */
+  /** 本文の下に足すもの。書きかけのプレビューで、まだアップロードしていない画像を出す。 */
   media?: JSX.Element;
 };
 
