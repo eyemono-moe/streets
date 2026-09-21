@@ -15,7 +15,9 @@
     "dev:relay:reset": "node scripts/reset-local-relay-db.mjs",
     "dev:relay:inspect": "node scripts/inspect-local-relay.mjs",
     "dev:relay:publish": "node scripts/publish-test-note.mjs",
-    "seed:dev": "node scripts/seed-dev-threads.mjs"
+    "seed:dev": "node scripts/seed-dev-threads.mjs",
+    "ja:extract": "node scripts/ja-text-extract.mjs",
+    "ja:apply": "node scripts/ja-text-apply.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
@@ -23,6 +25,7 @@
     "@noble/hashes": "^2.2.0",
     "@types/node": "22",
     "nostr-tools": "2.10.4",
+    "ts-morph": "^28.0.0",
     "typescript": "5.7.3"
   },
   "packageManager": "pnpm@9.7.0+sha512.dc09430156b427f5ecfc79888899e1c39d2d690f004be70e05230b72cb173d96839587545d09429b55ac3c429c801b4dc3c0e002f653830a420fa2dd4e3cf9cf"
