@@ -62,8 +62,27 @@ export const サイドバー: Story = {
           <Sidebar
             pubkey={viewer.pubkey}
             columns={columns}
+            panel={undefined}
             onLogout={() => {}}
             feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+          />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
+
+export const パネルを開いているサイドバー: Story = {
+  render: () => (
+    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+      <Mediates handle={() => true}>
+        <div class="flex h-[480px] bg-secondary">
+          <Sidebar
+            pubkey={viewer.pubkey}
+            columns={columns}
+            panel="search"
+            onLogout={() => {}}
+            feedbackUrl={null}
           />
         </div>
       </Mediates>
@@ -79,6 +98,7 @@ export const フィードバック未設定: Story = {
           <Sidebar
             pubkey={viewer.pubkey}
             columns={columns}
+            panel={undefined}
             onLogout={() => {}}
             feedbackUrl={null}
           />
@@ -107,6 +127,7 @@ export const 狭い画面の下部ナビ: Story = {
         <div class="w-[390px] bg-secondary pt-80">
           <TabBar
             pubkey={viewer.pubkey}
+            panel={undefined}
             onLogout={() => {}}
             feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
           />

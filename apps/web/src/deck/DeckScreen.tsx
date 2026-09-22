@@ -268,6 +268,7 @@ const DeckScreen: Component<{
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
       case "deck/open-panel":
+      case "deck/toggle-panel":
       case "deck/close-panel":
       case "deck/select-column":
       case "deck/drag-start":
@@ -466,6 +467,7 @@ const DeckScreen: Component<{
                             <Sidebar
                               pubkey={viewer}
                               columns={columns()}
+                              panel={ui.panel}
                               onLogout={props.session.logout}
                             />
                             {panelView(false)}
@@ -641,7 +643,7 @@ const DeckScreen: Component<{
                                 class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
                                 onClick={() =>
                                   handle({
-                                    type: "deck/open-panel",
+                                    type: "deck/toggle-panel",
                                     panel: "add-column",
                                   })
                                 }
@@ -750,6 +752,7 @@ const DeckScreen: Component<{
                             </Show>
                             <TabBar
                               pubkey={viewer}
+                              panel={ui.panel}
                               onLogout={props.session.logout}
                             />
                           </div>

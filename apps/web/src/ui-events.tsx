@@ -79,6 +79,7 @@ export type ComposeViewEvent =
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
+  | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }
   /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
