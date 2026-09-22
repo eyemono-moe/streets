@@ -6,6 +6,7 @@ import {
   decodeNpub,
   encodeBech32,
   encodeNaddr,
+  encodeNprofile,
 } from "./nip19";
 
 const HEX = "a".repeat(64);
@@ -299,5 +300,34 @@ describe("encodeNaddr", () => {
     expect(
       encodeNaddr({ identifier: "neko", pubkey: "nope", eventKind: 30030 }),
     ).toBeUndefined();
+  });
+});
+
+describe("encodeNprofile", () => {
+  const pubkey = "a".repeat(64);
+
+  it("書いたものは読み戻せる", () => {
+    const nprofile = encodeNprofile({
+      pubkey,
+      relays: ["wss://a.example", "wss://b.example"],
+    });
+    expect(nprofile?.startsWith("nprofile1")).toBe(true);
+    expect(decodeNip19(nprofile as string)).toEqual({
+      kind: "nprofile",
+      pubkey,
+      relays: ["wss://a.example", "wss://b.example"],
+    });
+  });
+
+  it("リレーが無くても作れる", () => {
+    expect(decodeNip19(encodeNprofile({ pubkey }) as string)).toEqual({
+      kind: "nprofile",
+      pubkey,
+      relays: [],
+    });
+  });
+
+  it("hex でない pubkey は作らない", () => {
+    expect(encodeNprofile({ pubkey: "npub1xyz" })).toBeUndefined();
   });
 });

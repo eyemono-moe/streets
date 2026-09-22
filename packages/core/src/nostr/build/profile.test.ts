@@ -69,4 +69,22 @@ describe("mergeProfile", () => {
       ["alt", "profile"],
     ]);
   });
+
+  it("名前などで使った :shortcode: の emoji タグを持つ", () => {
+    const current = evt({
+      kind: 0,
+      tags: [["emoji", "old", "https://e.example/old.png"]],
+      content: JSON.stringify({ name: ":old:" }),
+    });
+    const draft = mergeProfile(
+      { name: "えいも:neko:" },
+      {
+        emoji: (shortcode) =>
+          shortcode === "neko" ? "https://e.example/neko.png" : undefined,
+      },
+    )(current);
+    expect(draft.tags).toEqual([
+      ["emoji", "neko", "https://e.example/neko.png"],
+    ]);
+  });
 });

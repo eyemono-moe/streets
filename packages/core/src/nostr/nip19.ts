@@ -201,6 +201,27 @@ const eventKindBytes = (kind: number): Uint8Array => {
   return out;
 };
 
+/** TLV の項目を並べて bech32 にする。入らない項目が 1 つでもあれば `undefined`。 */
+const encodeTlv = (
+  prefix: string,
+  parts: readonly (Uint8Array | undefined)[],
+): string | undefined => {
+  const entries: Uint8Array[] = [];
+  for (const part of parts) {
+    if (part === undefined) return undefined;
+    entries.push(part);
+  }
+  const bytes = new Uint8Array(
+    entries.reduce((total, part) => total + part.length, 0),
+  );
+  let offset = 0;
+  for (const part of entries) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bech32.encode(prefix, bech32.toWords(bytes), LIMIT);
+};
+
 /**
  * `naddr`（置換可能イベントの住所）を作る。共有したり、他クライアントへ
  * 貼ったりするための文字列。入らない値のときは `undefined` —— 例外にすると、
@@ -214,28 +235,30 @@ export const encodeNaddr = (ref: {
 }): string | undefined => {
   try {
     const encoder = new TextEncoder();
-    const parts = [
+    return encodeTlv("naddr", [
       tlvEntry(0, encoder.encode(ref.identifier)),
       ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
       tlvEntry(2, hexToBytes(ref.pubkey)),
       tlvEntry(3, eventKindBytes(ref.eventKind)),
-    ];
-    const entries: Uint8Array[] = [];
-    for (const part of parts) {
-      if (part === undefined) return undefined;
-      entries.push(part);
-    }
-    const bytes = new Uint8Array(
-      entries.reduce((total, part) => total + part.length, 0),
-    );
-    let offset = 0;
-    for (const part of entries) {
-      bytes.set(part, offset);
-      offset += part.length;
-    }
-    return bech32.encode("naddr", bech32.toWords(bytes), LIMIT);
+    ]);
   } catch {
     // pubkey が hex でないなど、渡すものが間違っているとき。
     return undefined;
   }
+};
+
+/**
+ * `nprofile`（人とその人のリレー）を作る。本文で人を指すときに使う —— 読む側が
+ * 添えたリレーからプロフィールを引ける（NIP-27 の例もこの形）。
+ */
+export const encodeNprofile = (ref: {
+  pubkey: string;
+  relays?: readonly string[];
+}): string | undefined => {
+  if (!HEX_PUBKEY.test(ref.pubkey)) return undefined;
+  const encoder = new TextEncoder();
+  return encodeTlv("nprofile", [
+    tlvEntry(0, hexToBytes(ref.pubkey)),
+    ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
+  ]);
 };

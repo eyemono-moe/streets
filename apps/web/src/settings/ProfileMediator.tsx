@@ -21,6 +21,7 @@ import {
   useContext,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
@@ -50,6 +51,7 @@ export const ProfileMediator: ParentComponent<{
   pubkey: string;
   profile: Accessor<NostrEvent | undefined>;
 }> = (props) => {
+  const emoji = useEmojiLookup();
   const [state, setState] = createStore(emptyProfileEdit());
   const apply = (event: ProfileEditEvent) =>
     setState(reconcile(profileEditTransition(unwrap(state), event)));
@@ -69,16 +71,18 @@ export const ProfileMediator: ParentComponent<{
     apply({ type: "profile/save" });
     if (!unwrap(state).saving) return;
     const changes = profileChanges(unwrap(state));
-    props.writer.replace(PROFILE_KIND, undefined, mergeProfile(changes)).then(
-      () => {
-        apply({ type: "profile/saved" });
-        notifySaved("プロフィールを保存しました");
-      },
-      (cause) => {
-        apply({ type: "profile/failed" });
-        notifyError(cause, "プロフィールを保存できませんでした");
-      },
-    );
+    props.writer
+      .replace(PROFILE_KIND, undefined, mergeProfile(changes, { emoji }))
+      .then(
+        () => {
+          apply({ type: "profile/saved" });
+          notifySaved("プロフィールを保存しました");
+        },
+        (cause) => {
+          apply({ type: "profile/failed" });
+          notifyError(cause, "プロフィールを保存できませんでした");
+        },
+      );
   };
 
   const [attention, setAttention] = createSignal(0);

@@ -14,6 +14,10 @@ import {
   type ReactionInput,
   buildReaction,
 } from "@streets/core/nostr/build/reaction";
+import {
+  type EmojiLookup,
+  withReferences,
+} from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
@@ -47,16 +51,23 @@ export type EventActions = {
   viewer: string;
   /** ブックマークしたノートの id。ブックマークのカラムが購読に使う。 */
   bookmarkIds(): readonly string[];
-  post(content: string, media?: readonly BlobDescriptor[]): Promise<void>;
+  /** `emoji` は、本文の `:shortcode:` に `emoji` タグを付けるために引く先。 */
+  post(
+    content: string,
+    media?: readonly BlobDescriptor[],
+    emoji?: EmojiLookup,
+  ): Promise<void>;
   reply(
     target: NostrEvent,
     content: string,
     media?: readonly BlobDescriptor[],
+    emoji?: EmojiLookup,
   ): Promise<void>;
   quote(
     target: NostrEvent,
     content: string,
     media?: readonly BlobDescriptor[],
+    emoji?: EmojiLookup,
   ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
@@ -161,21 +172,29 @@ export const createWriteStack = (options: {
   const actions: EventActions = {
     viewer: options.viewer,
     bookmarkIds,
-    async post(content, media) {
-      await tracked("投稿").publish(withMedia(buildNote(content), media ?? []));
+    async post(content, media, emoji) {
+      await tracked("投稿").publish(
+        withMedia(withReferences(buildNote(content), { emoji }), media ?? []),
+      );
     },
-    async reply(event, content, media) {
+    async reply(event, content, media, emoji) {
       await tracked("返信").publish(
         withMedia(
-          buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+          withReferences(
+            buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+            { emoji },
+          ),
           media ?? [],
         ),
       );
     },
-    async quote(event, content, media) {
+    async quote(event, content, media, emoji) {
       await tracked("引用").publish(
         withMedia(
-          buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+          withReferences(
+            buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+            { emoji },
+          ),
           media ?? [],
         ),
       );
