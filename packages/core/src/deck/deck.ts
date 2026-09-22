@@ -212,9 +212,26 @@ const columnDefSchema = v.object({
 
 const hexColorSchema = v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/));
 
+/**
+ * 読めないカラムは、そのカラムだけ捨てる。1 本のせいでデッキ全体が読めなく
+ * なると、並びも設定も丸ごと失う —— 新しい版のアプリで足したカラム（この版が
+ * 知らない種類）を、古い版で開いたときに実際に起きた。
+ */
+const columnListSchema = v.pipe(
+  v.array(v.unknown()),
+  v.transform((columns) =>
+    columns.flatMap((column) => {
+      const parsed = v.safeParse(columnDefSchema, column);
+      if (parsed.success) return [parsed.output];
+      console.warn("読めないカラムを飛ばしました", column);
+      return [];
+    }),
+  ),
+);
+
 const deckSchema = v.object({
   version: v.literal(2),
-  columns: v.array(columnDefSchema),
+  columns: columnListSchema,
   // 色が壊れていても、デッキ（カラムの並び）ごと捨てない。色だけ既定に戻す。
   appearance: v.fallback(
     v.optional(v.object({ accent: hexColorSchema, ui: hexColorSchema })),
