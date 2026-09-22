@@ -1,3 +1,4 @@
+import { ScrollArea } from "@ark-ui/solid/scroll-area";
 import { useToc } from "@ark-ui/solid/toc";
 import {
   type SearchableEmoji,
@@ -122,33 +123,54 @@ const PickerList: Component<{
   return (
     <>
       <Show when={props.tabs}>
-        <div
+        {/* 横に送れる帯。スクロールバーは触っている間だけ出す。 */}
+        <ScrollArea.Root
           ref={strip}
-          class="flex shrink-0 gap-0.5 overflow-x-auto"
-          role="tablist"
-          aria-label="絵文字の種類"
+          class="b-b-1 relative shrink-0 border-primary"
         >
-          <For each={props.groups}>
-            {(group) => (
-              <button
-                type="button"
-                role="tab"
-                data-group={group.id}
-                aria-selected={active() === group.id}
-                title={group.title}
-                class="h-7 shrink-0 cursor-pointer whitespace-nowrap rounded-1.5 px-2 text-caption"
-                classList={{
-                  "c-primary bg-secondary font-600": active() === group.id,
-                  "c-secondary bg-transparent hover:bg-secondary":
-                    active() !== group.id,
-                }}
-                onClick={() => toc().scrollTo(headingId(group.id))}
-              >
-                {group.title}
-              </button>
-            )}
-          </For>
-        </div>
+          <ScrollArea.Viewport class="overflow-x-auto">
+            <ScrollArea.Content
+              class="flex w-max"
+              role="tablist"
+              aria-label="絵文字の種類"
+            >
+              <For each={props.groups}>
+                {(group) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    data-group={group.id}
+                    aria-selected={active() === group.id}
+                    title={group.title}
+                    class="flex h-9 shrink-0 cursor-pointer flex-col items-center justify-between gap-1 whitespace-nowrap bg-transparent px-2.5 pt-1.5 text-caption"
+                    classList={{
+                      "c-primary font-600": active() === group.id,
+                      "c-secondary hover:c-primary": active() !== group.id,
+                    }}
+                    onClick={() => toc().scrollTo(headingId(group.id))}
+                  >
+                    <span>{group.title}</span>
+                    {/* 狭い画面のカラムの帯と同じ、下の線で今いる場所を出す。 */}
+                    <span
+                      class="h-0.5 w-full rounded-full"
+                      classList={{
+                        "bg-accent-primary": active() === group.id,
+                      }}
+                    />
+                  </button>
+                )}
+              </For>
+            </ScrollArea.Content>
+          </ScrollArea.Viewport>
+          <ScrollArea.Scrollbar
+            orientation="horizontal"
+            // 帯の上に重ねる。列に場所を取らせると、今いる場所を出す下線と
+            // 並んでしまう。
+            class="absolute inset-x-0 bottom-0 flex h-1 touch-none select-none opacity-0 transition-opacity data-[dragging]:opacity-100 data-[hover]:opacity-100 data-[scrolling]:opacity-100"
+          >
+            <ScrollArea.Thumb class="rounded-full bg-tertiary" />
+          </ScrollArea.Scrollbar>
+        </ScrollArea.Root>
       </Show>
       <div ref={scrollEl} class="h-64 overflow-y-auto">
         <For each={props.groups}>
@@ -156,9 +178,11 @@ const PickerList: Component<{
             <section>
               {/* 見出しは下の箱の外に置く。中に入れると、描画を省いている間は
                   位置を持たず、いま見ている見出しが分からなくなる。 */}
+              {/* 下のグリッドは `content-visibility` で重ね順のかたまりになる。
+                  z を持たせないと、送ったときに見出しがその裏へ回る。 */}
               <h3
                 id={headingId(group.id)}
-                class="c-secondary sticky top-0 bg-primary py-1 font-600 text-caption"
+                class="c-secondary sticky top-0 z-1 bg-primary py-1 font-600 text-caption"
               >
                 {group.title}
               </h3>
