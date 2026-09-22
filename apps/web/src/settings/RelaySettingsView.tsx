@@ -21,6 +21,7 @@ import {
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
+import { textInputClass } from "../ui/TextField";
 import RelaySummary from "./RelaySummary";
 import SettingsSection from "./SettingsSection";
 
@@ -193,7 +194,7 @@ const AddRelay: Component<{
     >
       <div class="flex items-center gap-2">
         <input
-          class="c-primary placeholder:c-secondary h-9 min-w-0 flex-1 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
+          class={`${textInputClass} min-w-0 flex-1`}
           placeholder="wss://"
           aria-label="足すリレーの URL"
           aria-invalid={error() !== undefined}

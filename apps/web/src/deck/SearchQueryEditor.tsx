@@ -78,7 +78,8 @@ const SearchQueryEditor: Component<{
 
   return (
     <div class="flex flex-col gap-3">
-      <div class="flex h-10 items-center gap-2 rounded-full border border-primary bg-primary px-3">
+      {/* 枠はこの箱が持っているので、焦点も箱に出す。 */}
+      <div class="flex h-10 items-center gap-2 rounded-full border border-primary bg-primary px-3 focus-within:ring-2 focus-within:ring-accent-5">
         <span
           class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
           aria-hidden="true"

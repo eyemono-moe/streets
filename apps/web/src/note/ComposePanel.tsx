@@ -82,7 +82,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
           ref={body}
           aria-label="ノートの本文"
           rows={5}
-          class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:border-accent-5"
+          class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
           disabled={props.state.sending}
           placeholder="いま何してる？"
           value={props.state.content}

@@ -3,6 +3,7 @@ import {
   formatSearchQuery,
 } from "@streets/core/search/query";
 import { type Component, Show } from "solid-js";
+import { textInputClass } from "../ui/TextField";
 
 /** 秒 → `yyyy-mm-dd`（日付の入力欄の形）。 */
 const toDateInput = (seconds: number | undefined): string => {
@@ -30,8 +31,7 @@ const Field: Component<{ id: string; label: string; children: unknown }> = (
   </div>
 );
 
-const inputClass =
-  "c-primary placeholder:c-secondary h-8.5 w-full rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:border-accent-5";
+const inputClass = `${textInputClass} w-full`;
 
 /**
  * 検索の条件を項目ごとに触る。入力欄の文字列と同じものを指していて、どちらを

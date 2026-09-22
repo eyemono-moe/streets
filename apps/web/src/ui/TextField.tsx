@@ -1,6 +1,22 @@
 import { type Component, type JSX, Show, createUniqueId } from "solid-js";
 
 /**
+ * 文字を打つ欄の見た目。名前を縦に添えない場所（一覧に 1 件足す欄など）でも
+ * 同じ形になるよう、ここから配る。角を丸めきるのは検索窓だけで、フォームの
+ * 入力欄はこの四角を使う。
+ */
+const inputBase =
+  "c-primary placeholder:c-secondary rounded-2 border bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5";
+
+export const textInputClass = `${inputBase} h-9 border-primary`;
+
+/**
+ * その場で絞り込む検索窓。角を丸めきるのはここだけ —— 打つと結果が変わる箱
+ * であることを、形で見分けられるようにする。
+ */
+export const searchInputClass = `${inputBase} h-9 rounded-full border-primary px-3.5`;
+
+/**
  * 名前の付いた入力欄。名前・入力・（誤りか説明）の順に縦に並べる。誤りがあるときは
  * 説明の代わりに出し、読み上げでも入力欄と結び付ける。
  */
@@ -18,8 +34,7 @@ const TextField: Component<{
 }> = (props) => {
   const id = createUniqueId();
   const noteId = `${id}-note`;
-  const inputClass =
-    "c-primary placeholder:c-secondary w-full rounded-2 border bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5";
+  // 枠の色は、誤りがあるときだけ変える。
   const border = () => (props.error ? "border-danger" : "border-primary");
   return (
     <div class="flex min-w-0 flex-col gap-1">
@@ -32,7 +47,7 @@ const TextField: Component<{
           <input
             id={id}
             type={props.type ?? "text"}
-            class={`${inputClass} ${border()} h-9`}
+            class={`${inputBase} ${border()} h-9 w-full`}
             placeholder={props.placeholder}
             value={props.value}
             aria-invalid={props.error !== undefined}
@@ -44,7 +59,7 @@ const TextField: Component<{
         <textarea
           id={id}
           rows={3}
-          class={`${inputClass} ${border()} resize-y py-2`}
+          class={`${inputBase} ${border()} w-full resize-y py-2`}
           placeholder={props.placeholder}
           value={props.value}
           aria-invalid={props.error !== undefined}
