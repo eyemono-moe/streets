@@ -12,6 +12,7 @@ import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
+import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import {
@@ -110,6 +111,8 @@ export type DeckEvent =
   | { type: "deck/set-appearance"; appearance: DeckAppearance }
   /** 保存の進み具合を出すか。この端末に保存する。 */
   | { type: "deck/set-write-progress"; on: boolean }
+  /** 投稿を読むリレーの決め方。この端末に保存する。 */
+  | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }
   /** ショートカットキーの割り当てを変える。この端末に保存する。 */

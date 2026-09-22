@@ -3,6 +3,7 @@ import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
+import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import {
   allowsRelayOp,
   applyRelayOps,
@@ -20,6 +21,7 @@ type Args = {
   status: Record<string, RelayStatus>;
   info: Record<string, RelayInfo>;
   loading: boolean;
+  readMode: ReadRoutingMode;
   /** 置く幅。狭いカラムや携帯の幅を見る。 */
   width: number;
 };
@@ -39,10 +41,15 @@ const relay = (host: string, read = true, write = true): RelayListEntry => ({
 /** アプリでは RelayMediator が裁定するイベントを、ここで手元の一覧に当てる。 */
 const Story = (props: Args) => {
   const [entries, setEntries] = createSignal(props.entries);
+  const [readMode, setReadMode] = createSignal(props.readMode);
   return (
     <EventSceneProvider scene={{ events: [admin.profile()] }}>
       <Mediates
         handle={(event) => {
+          if (event.type === "deck/set-read-routing") {
+            setReadMode(event.mode);
+            return true;
+          }
           if (event.type !== "relays/edit") return false;
           setEntries((current) => applyRelayOps(current, [event.op]));
           return true;
@@ -56,6 +63,7 @@ const Story = (props: Args) => {
             infoOf={(url) => props.info[url]}
             allows={(op) => allowsRelayOp(entries(), op)}
             fallback={FALLBACK_RELAYS}
+            readMode={readMode()}
           />
         </div>
       </Mediates>
@@ -94,12 +102,14 @@ const meta = {
       },
     },
     loading: false,
+    readMode: "outbox",
     width: 660,
   },
   argTypes: {
     entries: { control: false },
     status: { control: false },
     info: { control: false },
+    readMode: { control: "inline-radio", options: ["outbox", "direct"] },
   },
 } satisfies Meta<Args>;
 
@@ -149,3 +159,15 @@ export const たくさん: S = {
 };
 
 export const 狭い幅: S = { args: { width: 340 } };
+
+/** 読み込みリレーだけを読む。どのリレーから読んでいるかを見せる。 */
+export const 読み込みリレーだけ: S = { args: { readMode: "direct" } };
+
+/** 読み込みリレーが無いので、既定のリレーから読んでいる。 */
+export const 読み込みリレーだけ_一覧なし: S = {
+  args: { readMode: "direct", entries: [] },
+};
+
+export const 読み込みリレーだけ_狭い幅: S = {
+  args: { readMode: "direct", width: 340 },
+};

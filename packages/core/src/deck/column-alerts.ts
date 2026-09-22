@@ -1,4 +1,5 @@
 import type { SectionStatus } from "../read/source";
+import type { ReadRoutingMode } from "../settings/read-routing-setting";
 import {
   type RelayListState,
   readRelayCount,
@@ -20,10 +21,37 @@ export const columnAlerts = (
   column: ColumnDef,
   status: SectionStatus,
   relayList: RelayListState,
+  readMode: ReadRoutingMode = "outbox",
 ): ColumnAlert[] => {
   const alerts: ColumnAlert[] = [];
   const source = column.source;
   const unreachable = status.incomplete?.unreachableRelays ?? 0;
+  const byAuthor = source.kind === "followees" || source.kind === "user";
+
+  // 読み込みリレーだけを読んでいるなら、そこが落ちると何も出ない。
+  if (readMode === "direct" && byAuthor && unreachable > 0) {
+    alerts.push({
+      message: `読み込みに使うリレーに接続できません (${unreachable} 本)`,
+      action:
+        "設定の「リレー」で読み込みリレーを確かめるか、読み方を「人ごとに選ぶ」に戻してください",
+    });
+  }
+
+  // 1 人を見るカラムでは、その人のリレー設定が無いと既定のリレーにしか行けない。
+  // フォロー中の人のカラムでは、設定の無い人が少しいるのは普通なので出さない。
+  if (
+    readMode === "outbox" &&
+    source.kind === "user" &&
+    status.phase === "settled" &&
+    (status.incomplete?.unroutableAuthors ?? 0) > 0
+  ) {
+    alerts.push({
+      message:
+        "この人のリレー設定が見つからないため、既定のリレーから読んでいます",
+      action:
+        "投稿が出ない場合は、設定の「リレー」で読み方を「読み込みリレーだけ」に切り替えてください",
+    });
+  }
 
   // ユーザーが指定した URL だけが対象 —— Outbox が選んだリレーはユーザーには変えられない。
   if (

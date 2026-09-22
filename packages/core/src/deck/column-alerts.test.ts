@@ -176,3 +176,71 @@ describe("columnAlerts", () => {
     expect(alerts[0]?.message).not.toContain("あなたの設定した read リレー");
   });
 });
+
+describe("columnAlerts と読み方", () => {
+  const user: ColumnDef = {
+    id: "u",
+    title: "u",
+    source: { kind: "user", pubkey: "f".repeat(64) },
+  };
+  const incomplete = (
+    patch: Partial<NonNullable<SectionStatus["incomplete"]>>,
+  ) =>
+    status({
+      unreachableRelays: 0,
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+      ...patch,
+    });
+
+  it("読み込みリレーだけを読んでいて届かないなら知らせる", () => {
+    const alerts = columnAlerts(
+      routed,
+      incomplete({ unreachableRelays: 2 }),
+      hasRelays,
+      "direct",
+    );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].message).toContain("2 本");
+  });
+
+  it("Outbox で読んでいるときは、Outbox が選んだリレーの不達を知らせない", () => {
+    expect(
+      columnAlerts(routed, incomplete({ unreachableRelays: 2 }), hasRelays),
+    ).toEqual([]);
+  });
+
+  it("1 人のカラムでその人のリレー設定が無ければ、切り替えられることを知らせる", () => {
+    const alerts = columnAlerts(
+      user,
+      incomplete({ unroutableAuthors: 1 }),
+      hasRelays,
+      "outbox",
+    );
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].action).toContain("読み込みリレーだけ");
+  });
+
+  it("取得中はリレー設定が無いと言わない", () => {
+    expect(
+      columnAlerts(
+        user,
+        {
+          phase: "streaming",
+          incomplete: {
+            unreachableRelays: 0,
+            unroutableAuthors: 1,
+            uncoveredAuthors: 0,
+          },
+        },
+        hasRelays,
+      ),
+    ).toEqual([]);
+  });
+
+  it("フォロー中の人のカラムでは、設定の無い人がいても知らせない", () => {
+    expect(
+      columnAlerts(routed, incomplete({ unroutableAuthors: 3 }), hasRelays),
+    ).toEqual([]);
+  });
+});
