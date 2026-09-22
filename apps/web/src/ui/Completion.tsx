@@ -64,7 +64,12 @@ const Completion = (props: {
 
   const triggers = () => props.sources.map((source) => source.trigger);
   const sourceOf = (match: CompletionMatch) =>
-    props.sources.find((source) => source.trigger.kind === match.kind);
+    props.sources.find(
+      (source) =>
+        source.trigger.kind === match.kind &&
+        (source.trigger.prefixes.length === 0 ||
+          source.trigger.prefixes.includes(match.prefix)),
+    );
   const items = createMemo(() => {
     const match = state.match;
     if (!match) return [];

@@ -25,3 +25,7 @@ export const useReadLayer = (): ReadAccess => {
   if (!readLayer) throw new Error("ReadLayerProvider が見つかりません");
   return readLayer;
 };
+
+/** 読み取り層が無い場所（Storybook の一部など）では undefined。無くても描ける部品が使う。 */
+export const useOptionalReadLayer = (): ReadAccess | undefined =>
+  useContext(ReadLayerContext);

@@ -90,10 +90,23 @@ const emojiSource: CompletionSource = {
     })),
 };
 
+/** 欄全体で人を探す（検索の「書いた人」など）。選ぶと欄が nprofile だけになる。 */
+const wholeSource: CompletionSource = {
+  ...userSource,
+  trigger: { kind: "user", prefixes: [] },
+  items: (query) =>
+    userSource.items(query).map((item) => ({
+      ...item,
+      insert: item.insert.replace(/^nostr:/, ""),
+      space: false,
+    })),
+};
+
 type Args = {
   initial: string;
   multiline: boolean;
   emojiOnly?: boolean;
+  whole?: boolean;
   width: string;
 };
 
@@ -110,7 +123,11 @@ const Story = (props: Args) => {
     field.setSelectionRange(field.value.length, field.value.length);
     field.dispatchEvent(new Event("input"));
   });
-  const sources = props.emojiOnly ? [emojiSource] : [userSource, emojiSource];
+  const sources = props.whole
+    ? [wholeSource]
+    : props.emojiOnly
+      ? [emojiSource]
+      : [userSource, emojiSource];
   return (
     <div class="flex flex-col gap-2 p-4" style={{ width: props.width }}>
       <Completion sources={sources} label="入れる候補">
@@ -163,3 +180,6 @@ export const スタンプだけの1行の欄: S = {
   args: { initial: "えいも:ne", multiline: false, emojiOnly: true },
 };
 export const 狭いカラム: S = { args: { width: "240px" } };
+export const 欄全体で人を探す: S = {
+  args: { initial: "al", multiline: false, whole: true },
+};
