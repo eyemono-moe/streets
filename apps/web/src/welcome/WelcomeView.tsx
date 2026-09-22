@@ -14,6 +14,7 @@ const WelcomeView: Component<{
   onExtension: () => void;
   onBunker: (uri: string) => void;
   onNostrConnect: () => ConnectAttempt;
+  onRetryRestore: () => void;
   initialStep?: LoginStep;
   initialRemoteOpen?: boolean;
   initialDevice?: DeviceKind;
@@ -40,6 +41,7 @@ const WelcomeView: Component<{
         onExtension={props.onExtension}
         onBunker={props.onBunker}
         onNostrConnect={props.onNostrConnect}
+        onRetryRestore={props.onRetryRestore}
         initialStep={props.initialStep}
         initialRemoteOpen={props.initialRemoteOpen}
         initialDevice={props.initialDevice}

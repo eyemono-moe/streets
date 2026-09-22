@@ -39,6 +39,7 @@ const meta = {
     login: { pending: false },
     onExtension: () => {},
     onBunker: () => {},
+    onRetryRestore: () => {},
     onNostrConnect: () => ({
       uri: `nostrconnect://${"a".repeat(64)}?relay=wss%3A%2F%2Fnos.lol%2F&secret=0123456789abcdef&name=Streets`,
       // ストーリーでは承認されないまま待ち続ける。
@@ -94,6 +95,17 @@ export const ログインできなかった: Story = {
     login: {
       pending: false,
       error: "NIP-07 対応の拡張機能が見つかりません。",
+    },
+  },
+};
+
+export const ログインを戻せなかった: Story = {
+  args: {
+    login: {
+      pending: false,
+      error:
+        "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
+      restoreFailed: true,
     },
   },
 };

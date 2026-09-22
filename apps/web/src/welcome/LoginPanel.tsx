@@ -2,6 +2,7 @@ import { Collapsible } from "@ark-ui/solid/collapsible";
 import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
 import { type Component, Match, Show, Switch, createSignal } from "solid-js";
 import type { ConnectAttempt } from "../session";
+import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
 import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
@@ -11,6 +12,8 @@ export type LoginState = {
   error?: string;
   /** 署名器が承認のために開いてほしいページ。 */
   authUrl?: URL;
+  /** 保存したログインを戻せなかった。署名器が戻れば試し直せる。 */
+  restoreFailed?: boolean;
 };
 
 export type LoginStep = "choose" | "new" | "existing";
@@ -37,6 +40,7 @@ const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  onRetryRestore: () => void;
   /** 署名器の側から繋いでもらう。QR を出している間だけ待つ。 */
   onNostrConnect: () => ConnectAttempt;
   /** 最初に見せる段。ストーリーで各段を並べるため。 */
@@ -118,12 +122,22 @@ const LoginPanel: Component<{
 
           <Show when={props.state.error}>
             {(message) => (
-              <p
+              <div
                 role="alert"
-                class="c-danger rounded-2 bg-danger-subtle px-3 py-2 text-caption"
+                class="flex flex-col items-start gap-2 rounded-2 bg-danger-subtle px-3 py-2"
               >
-                {message()}
-              </p>
+                <p class="c-danger text-caption">{message()}</p>
+                <Show when={props.state.restoreFailed}>
+                  <Button
+                    size="sm"
+                    icon="i-material-symbols:refresh-rounded"
+                    disabled={props.state.pending}
+                    onClick={() => props.onRetryRestore()}
+                  >
+                    もう一度試す
+                  </Button>
+                </Show>
+              </div>
             )}
           </Show>
 
