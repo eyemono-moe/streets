@@ -190,6 +190,42 @@ const MediaImage: Component<{ url: string; size: EventSize }> = (props) => {
   );
 };
 
+const MediaVideo: Component<{ url: string; size: EventSize }> = (props) => {
+  const [broken, setBroken] = createSignal(false);
+  const source = () =>
+    props.url.includes("#") ? props.url : `${props.url}#t=0.1`;
+  return (
+    <Show
+      when={!broken()}
+      fallback={
+        <a
+          href={props.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="break-all text-caption text-link"
+        >
+          {props.url}
+        </a>
+      }
+    >
+      {/* リレー上の動画には字幕トラックが無く、投稿者のファイルへ後付けできない。 */}
+      {/* biome-ignore lint/a11y/useMediaCaption: 外部の投稿に字幕が添えられていない場合も再生する。 */}
+      <video
+        src={source()}
+        controls
+        playsinline
+        preload="metadata"
+        class="block w-full rounded-2 bg-secondary object-contain"
+        classList={{
+          "h-45": props.size === "normal",
+          "h-30": props.size === "compact",
+        }}
+        onError={() => setBroken(true)}
+      />
+    </Show>
+  );
+};
+
 /** 取得中と見つからなかったを別の文言で出す。 */
 const Lookup: Component<{
   target: { id: string; relay?: RelayUrl };
@@ -349,22 +385,27 @@ const Note: Component<ContentProps> = (props) => {
           </CollapsibleBody>
         </Show>
       </Show>
-      <For each={layout().images}>
-        {(url) => (
+      <For each={layout().media}>
+        {(item) => (
           <Show
             when={props.expandMedia !== false}
             fallback={
               <a
-                href={url}
+                href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="break-all text-caption text-link"
               >
-                {url}
+                {item.url}
               </a>
             }
           >
-            <MediaImage url={url} size={props.size} />
+            <Show
+              when={item.type === "image"}
+              fallback={<MediaVideo url={item.url} size={props.size} />}
+            >
+              <MediaImage url={item.url} size={props.size} />
+            </Show>
           </Show>
         )}
       </For>

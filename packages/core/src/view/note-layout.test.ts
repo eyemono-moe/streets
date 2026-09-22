@@ -22,7 +22,9 @@ describe("layoutNote", () => {
       quotes: true,
     });
     expect(layout.text).toEqual([{ type: "text", text: "見て" }]);
-    expect(layout.images).toEqual(["https://example.com/a.png"]);
+    expect(layout.media).toEqual([
+      { type: "image", url: "https://example.com/a.png" },
+    ]);
   });
 
   it("画像でない URL は本文に残す", () => {
@@ -32,7 +34,39 @@ describe("layoutNote", () => {
     expect(layout.text).toEqual([
       { type: "url", url: "https://example.com/page" },
     ]);
-    expect(layout.images).toEqual([]);
+    expect(layout.media).toEqual([]);
+  });
+
+  it("画像と動画を本文の順に抜き、拡張子が無い動画も imeta から判定する", () => {
+    const layout = layoutNote(
+      note(
+        "https://example.com/a.png https://example.com/clip https://example.com/b.webm",
+        [["imeta", "url https://example.com/clip", "m video/mp4"]],
+      ),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([
+      { type: "image", url: "https://example.com/a.png" },
+      { type: "video", url: "https://example.com/clip" },
+      { type: "video", url: "https://example.com/b.webm" },
+    ]);
+    expect(layout.text).toEqual([]);
+  });
+
+  it("imeta の MIME は拡張子より優先し、対応しない種類はリンクに残す", () => {
+    const layout = layoutNote(
+      note("https://example.com/a.mp4 https://example.com/b.jpg", [
+        ["imeta", "url https://example.com/a.mp4", "m image/jpeg"],
+        ["imeta", "url https://example.com/b.jpg", "m application/pdf"],
+      ]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([
+      { type: "image", url: "https://example.com/a.mp4" },
+    ]);
+    expect(layout.text).toEqual([
+      { type: "url", url: "https://example.com/b.jpg" },
+    ]);
   });
 
   it("nostr:note を引用として抜き、同じ id は 1 回だけにする", () => {
