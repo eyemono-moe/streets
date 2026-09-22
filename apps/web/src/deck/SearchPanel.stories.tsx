@@ -11,7 +11,7 @@ const meta = {
     // 開いたカラムはデッキが受け取る。ここでは受け取って捨てる。
     <Mediates handle={(event) => event.type === "deck/add-column"}>
       <div class="flex h-[560px]" style={{ width: `${props.width}px` }}>
-        <SidePanel title="探す" icon="i-material-symbols:search-rounded">
+        <SidePanel title="検索する" icon="i-material-symbols:search-rounded">
           <SearchPanel />
         </SidePanel>
       </div>
