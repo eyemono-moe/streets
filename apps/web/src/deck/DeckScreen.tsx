@@ -471,6 +471,7 @@ const DeckScreen: Component<{
                       }
                       readPlan={readPlan}
                       routingSettled={settled}
+                      followees={followees}
                     >
                       <MuteMediator
                         writer={trackReplaces(write.writer, "ミュート")}

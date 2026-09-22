@@ -47,6 +47,8 @@ export type RelayEdit = {
   readPlan?: Accessor<ReadPlan>;
   /** フォロー中の人のリレー設定を探し終えたか。 */
   routingSettled?: Accessor<boolean>;
+  /** フォロー中の人。おすすめのリレーを数えるのに使う。 */
+  followees?: Accessor<readonly string[]>;
 };
 
 const RelayEditContext = createContext<RelayEdit>();
@@ -63,6 +65,7 @@ export const RelayMediator: ParentComponent<{
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   readPlan?: Accessor<ReadPlan>;
   routingSettled?: Accessor<boolean>;
+  followees?: Accessor<readonly string[]>;
 }> = (props) => {
   const [state, setState] = createStore(emptyRelayEdit());
   const apply = (event: RelayEditEvent) =>
@@ -128,6 +131,7 @@ export const RelayMediator: ParentComponent<{
     infoOf: props.infoOf,
     readPlan: props.readPlan,
     routingSettled: props.routingSettled,
+    followees: props.followees,
   };
 
   return (
