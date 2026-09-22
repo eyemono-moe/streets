@@ -28,7 +28,7 @@ const ChoiceButton: ParentComponent<ChoiceButtonProps> = (props) => {
   return (
     <button
       type={own.type ?? "button"}
-      class={`group c-primary flex w-full cursor-pointer items-center gap-3 rounded-2 border border-primary bg-primary px-3.5 py-3 text-left transition-colors enabled:hover:bg-secondary disabled:cursor-default disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-5 ${own.class ?? ""}`}
+      class={`group c-primary flex w-full cursor-pointer items-center gap-3 rounded-2 border border-primary bg-primary px-3.5 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-5 enabled:hover:bg-secondary disabled:cursor-default disabled:opacity-50 ${own.class ?? ""}`}
       {...rest}
     >
       <span
