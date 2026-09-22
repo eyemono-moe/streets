@@ -102,13 +102,15 @@ export const useUserCandidates = (
     const ranked: { pubkey: string; rank: number }[] = [];
     const add = (pubkeys: readonly string[], rank: number) => {
       for (const pubkey of pubkeys) {
-        if (seen.has(pubkey) || pubkey === actions?.viewer) continue;
+        if (seen.has(pubkey)) continue;
         seen.add(pubkey);
         ranked.push({ pubkey, rank });
       }
     };
     add(first?.() ?? [], 0);
     add(actions?.followeeIds() ?? [], 1);
+    // 自分も指せるように、フォロー中の人の後ろに出す。
+    if (actions) add([actions.viewer], 1);
     return ranked;
   };
 
