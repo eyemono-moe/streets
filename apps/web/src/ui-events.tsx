@@ -113,6 +113,8 @@ export type DeckEvent =
   | { type: "deck/set-error-report"; on: boolean }
   /** ショートカットキーの割り当てを変える。この端末に保存する。 */
   | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
+  /** 数字キーでカラムを見せるか。この端末に保存する。 */
+  | { type: "deck/set-column-digits"; on: boolean }
   /** この端末からログアウトする。 */
   | { type: "deck/logout" };
 

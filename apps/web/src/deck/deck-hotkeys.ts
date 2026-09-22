@@ -38,6 +38,8 @@ export const createDeckHotkeys = (options: {
   enabled: () => boolean;
   /** パネルを開いているか。開いている間は数字キーを奪わない。 */
   panelOpen: () => boolean;
+  /** 数字キーでカラムを見せるか（設定で切れる）。 */
+  columnDigits: () => boolean;
   togglePanel: (panel: DeckPanel) => void;
   focusColumn: (id: string) => void;
 }) => {
@@ -69,7 +71,8 @@ export const createDeckHotkeys = (options: {
       },
       options: {
         // パネルを開いている間は、パネルの中を触っているので奪わない。
-        enabled: options.enabled() && !options.panelOpen(),
+        enabled:
+          options.enabled() && !options.panelOpen() && options.columnDigits(),
         meta: { name: `${index + 1} 番目のカラムへ`, group: "デッキ" },
       },
     })),

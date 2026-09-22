@@ -10,14 +10,18 @@ import { columnMeta } from "./column-meta";
 
 /**
  * デッキのカラムを 1 つずつ並べるボタン。押すと、そのカラムが画面に収まるよう
- * 送る（狭い画面ではそのタブを選ぶ）。1〜9 番目は数字キーでも同じ。
+ * 送る（狭い画面ではそのタブを選ぶ）。1〜9 番目は数字キーでも同じ（設定で切れる）。
  */
-const ColumnButton: Component<{ column: ColumnDef; index: number }> = (
-  props,
-) => {
+const ColumnButton: Component<{
+  column: ColumnDef;
+  index: number;
+  /** 数字キーで見せられるカラムに、その番号を出す。 */
+  numbers: boolean;
+}> = (props) => {
   const dispatch = useDispatch();
   const title = useColumnTitle(() => props.column);
-  const number = () => (props.index < 9 ? props.index + 1 : undefined);
+  const number = () =>
+    props.numbers && props.index < 9 ? props.index + 1 : undefined;
   return (
     <button
       type="button"
@@ -52,6 +56,8 @@ export const Sidebar: Component<{
   columns: readonly ColumnDef[];
   /** いま開いているパネル。押したボタンが開いているかを出すために使う。 */
   panel: DeckPanel | undefined;
+  /** カラムに数字キーの番号を出すか。 */
+  numbers: boolean;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
@@ -101,7 +107,13 @@ export const Sidebar: Component<{
       */}
       <div class="flex min-h-0 w-full flex-col items-center gap-1 self-start overflow-y-auto overflow-x-hidden py-1">
         <For each={props.columns}>
-          {(column, index) => <ColumnButton column={column} index={index()} />}
+          {(column, index) => (
+            <ColumnButton
+              column={column}
+              index={index()}
+              numbers={props.numbers}
+            />
+          )}
         </For>
         {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。 */}
         <button

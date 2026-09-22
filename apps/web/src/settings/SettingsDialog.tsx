@@ -27,6 +27,8 @@ const SettingsDialog: Component<{
   errorReport: boolean;
   /** ショートカットキーの割り当て（この端末の設定）。 */
   keymap: Keymap;
+  /** 数字キーでカラムを見せるか（この端末の設定）。 */
+  columnDigits: boolean;
   /** 開いたときに出すページ。 */
   initialPage?: string;
 }> = (props) => {
@@ -88,7 +90,12 @@ const SettingsDialog: Component<{
       label: "キーボード",
       icon: "i-material-symbols:keyboard-outline-rounded",
       title: "キーボード",
-      content: () => <KeyboardSettings keymap={props.keymap} />,
+      content: () => (
+        <KeyboardSettings
+          keymap={props.keymap}
+          columnDigits={props.columnDigits}
+        />
+      ),
     },
     {
       value: "display",

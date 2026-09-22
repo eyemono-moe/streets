@@ -7,10 +7,18 @@ import {
   conflictingAction,
 } from "@streets/core/settings/keymap";
 import { createHotkeyRecorder } from "@tanstack/solid-hotkeys";
-import { type Component, For, Show, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  Show,
+  createEffect,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import { displayHotkey } from "../keymap";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import Switch from "../ui/Switch";
 import SettingsSection from "./SettingsSection";
 
 /**
@@ -18,7 +26,11 @@ import SettingsSection from "./SettingsSection";
  * 上へ渡す。キーは実際に押して決める —— 打ち込む形だと、`[KeyN]` のような
  * 書き方を覚えないと変えられないため。
  */
-const KeyboardSettings: Component<{ keymap: Keymap }> = (props) => {
+const KeyboardSettings: Component<{
+  keymap: Keymap;
+  /** 数字キーでカラムを見せるか（この端末の設定）。 */
+  columnDigits: boolean;
+}> = (props) => {
   const dispatch = useDispatch();
   const [editing, setEditing] = createSignal<ShortcutAction>();
   const [error, setError] = createSignal<string>();
@@ -62,6 +74,21 @@ const KeyboardSettings: Component<{ keymap: Keymap }> = (props) => {
     setEditing(action);
     recorder.startRecording();
   };
+
+  // キーを待っている間の Esc は、変更の取り消しだけに使う。設定のダイアログも
+  // Esc で閉じるので、いちばん外側（window の捕捉）で受け取って先に止める。
+  createEffect(() => {
+    if (!recorder.isRecording()) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      recorder.cancelRecording();
+      setEditing(undefined);
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    onCleanup(() => window.removeEventListener("keydown", onKeyDown, true));
+  });
 
   return (
     <div class="flex flex-col gap-7">
@@ -112,9 +139,18 @@ const KeyboardSettings: Component<{ keymap: Keymap }> = (props) => {
         <Show when={error()}>
           {(message) => <p class="c-danger text-caption">{message()}</p>}
         </Show>
-        <p class="c-secondary text-caption">
-          数字の 1〜9 は、左から数えたカラムを見せます。こちらは変えられません。
-        </p>
+      </SettingsSection>
+
+      <SettingsSection
+        title="数字キーでカラムへ移動"
+        scope="device"
+        description="1〜9 を押すと、左から数えたその番号のカラムを見せます。オフにすると、数字キーは効かなくなり、サイドバーの番号も出なくなります。"
+      >
+        <Switch
+          label="数字キーでカラムへ移動する"
+          checked={props.columnDigits}
+          onChange={(on) => dispatch({ type: "deck/set-column-digits", on })}
+        />
       </SettingsSection>
     </div>
   );

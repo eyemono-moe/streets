@@ -59,6 +59,7 @@ const Story = (props: Props) => {
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
+  const [columnDigits, setColumnDigits] = createSignal(true);
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
     relayList([
@@ -150,6 +151,9 @@ const Story = (props: Props) => {
                 case "deck/set-error-report":
                   setErrorReport(event.on);
                   return true;
+                case "deck/set-column-digits":
+                  setColumnDigits(event.on);
+                  return true;
                 case "deck/set-shortcut":
                   setKeymap((current) => ({
                     ...current,
@@ -173,6 +177,7 @@ const Story = (props: Props) => {
               writeProgress={writeProgress()}
               errorReport={errorReport()}
               keymap={keymap()}
+              columnDigits={columnDigits()}
               initialPage={props.page}
             />
           </Mediates>
