@@ -5,9 +5,11 @@ import {
 } from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SidePanel from "../deck/SidePanel";
+import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import emojiUrl from "../storybook/emoji-fixture.svg";
 import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
@@ -44,23 +46,30 @@ const meta = {
   title: "操作/投稿パネル",
   component: (props: Props) => (
     <EventSceneProvider scene={{ events: [viewer.profile()], viewer }}>
-      <UploaderProvider
-        value={{
-          servers: () => props.servers,
-          upload: () =>
-            Promise.reject(new Error("story ではアップロードしない")),
-        }}
+      <StaticCustomEmojis
+        emojis={[
+          { shortcode: "neko", url: emojiUrl },
+          { shortcode: "party", url: emojiUrl },
+        ]}
       >
-        {/* サイドバーに開いたときと同じ幅・高さに載せる。 */}
-        <div class="flex h-[640px]">
-          <SidePanel
-            title="投稿する"
-            icon="i-material-symbols:edit-square-outline-rounded"
-          >
-            <ComposePanel state={props.state} />
-          </SidePanel>
-        </div>
-      </UploaderProvider>
+        <UploaderProvider
+          value={{
+            servers: () => props.servers,
+            upload: () =>
+              Promise.reject(new Error("story ではアップロードしない")),
+          }}
+        >
+          {/* サイドバーに開いたときと同じ幅・高さに載せる。 */}
+          <div class="flex h-[640px]">
+            <SidePanel
+              title="投稿する"
+              icon="i-material-symbols:edit-square-outline-rounded"
+            >
+              <ComposePanel state={props.state} />
+            </SidePanel>
+          </div>
+        </UploaderProvider>
+      </StaticCustomEmojis>
     </EventSceneProvider>
   ),
   args: {
@@ -80,6 +89,16 @@ export const 書きかけ: Story = {
     state: {
       ...emptyCompose(),
       content: "プレビューに出る本文。 #nostr https://example.com/",
+    },
+  },
+};
+
+/** 自分の絵文字にある :shortcode: は、プレビューで絵文字になる。無いもの（:nai:）は文字のまま。 */
+export const スタンプを含む本文: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "かわいい:neko: :party: と :nai:",
     },
   },
 };

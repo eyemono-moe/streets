@@ -210,3 +210,36 @@ export const useEmojiLookup = (): EmojiLookup => {
   const context = useCustomEmojis();
   return context?.lookup ?? (() => undefined);
 };
+
+/**
+ * 自分の絵文字を固定の一覧で渡す（Storybook 用）。アプリでは `CustomEmojisMediator` が
+ * kind:10030 から作る。
+ */
+export const StaticCustomEmojis: ParentComponent<{
+  emojis: readonly CustomEmoji[];
+}> = (props) => {
+  const list = (): EmojiList => ({ emojis: [...props.emojis], sets: [] });
+  const catalog = () => customEmojiGroups(list(), []);
+  return (
+    <CustomEmojisContext.Provider
+      value={{
+        groups: () =>
+          catalog().map((group) => ({
+            id: group.id,
+            title: group.title,
+            emojis: group.emojis.map((emoji) => ({
+              kind: "custom" as const,
+              shortcode: emoji.shortcode,
+              url: emoji.url,
+            })),
+          })),
+        list,
+        sets: () => [],
+        saving: () => false,
+        lookup: (shortcode) => findCustomEmoji(catalog(), shortcode)?.url,
+      }}
+    >
+      {props.children}
+    </CustomEmojisContext.Provider>
+  );
+};
