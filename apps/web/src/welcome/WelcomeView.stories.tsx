@@ -46,6 +46,7 @@ const meta = {
       done: new Promise<void>(() => {}),
       cancel: () => {},
     }),
+    narrow: false,
     feedTitle: "wss://yabu.me",
     feed: <Feed />,
   },
@@ -136,5 +137,11 @@ export const 投稿の取得中: Story = {
 };
 
 export const 幅の狭い画面: Story = {
+  args: { narrow: true },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+export const 幅の狭い画面_引き上げた: Story = {
+  args: { narrow: true, initialExpanded: true },
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };

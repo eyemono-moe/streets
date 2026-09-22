@@ -8,6 +8,7 @@ import { PAGE_SIZE } from "@streets/core/read/source";
 import { createSection } from "@streets/core/solid/create-section";
 import type { Component } from "solid-js";
 import EventListColumn from "../columns/EventListColumn";
+import { useIsWide } from "../is-wide";
 import { ReadLayerProvider } from "../read-layer";
 import type { Session } from "../session";
 import { Mediates } from "../ui-events";
@@ -42,23 +43,27 @@ const WelcomeFeed: Component<{ readLayer: ReadLayer }> = (props) => {
 
 const WelcomeScreen: Component<{ session: Session; readLayer: ReadLayer }> = (
   props,
-) => (
-  <ReadLayerProvider value={props.readLayer}>
-    <WelcomeView
-      login={{
-        pending: props.session.pending(),
-        error: props.session.error(),
-        authUrl: props.session.authUrl(),
-        restoreFailed: props.session.restoreFailed(),
-      }}
-      onExtension={() => void props.session.loginWithExtension()}
-      onBunker={(uri) => void props.session.loginWithBunker(uri)}
-      onNostrConnect={props.session.loginWithNostrConnect}
-      onRetryRestore={props.session.restore}
-      feedTitle={COLUMN.title}
-      feed={<WelcomeFeed readLayer={props.readLayer} />}
-    />
-  </ReadLayerProvider>
-);
+) => {
+  const wide = useIsWide();
+  return (
+    <ReadLayerProvider value={props.readLayer}>
+      <WelcomeView
+        narrow={!wide()}
+        login={{
+          pending: props.session.pending(),
+          error: props.session.error(),
+          authUrl: props.session.authUrl(),
+          restoreFailed: props.session.restoreFailed(),
+        }}
+        onExtension={() => void props.session.loginWithExtension()}
+        onBunker={(uri) => void props.session.loginWithBunker(uri)}
+        onNostrConnect={props.session.loginWithNostrConnect}
+        onRetryRestore={props.session.restore}
+        feedTitle={COLUMN.title}
+        feed={<WelcomeFeed readLayer={props.readLayer} />}
+      />
+    </ReadLayerProvider>
+  );
+};
 
 export default WelcomeScreen;
