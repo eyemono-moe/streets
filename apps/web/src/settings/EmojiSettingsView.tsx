@@ -4,6 +4,8 @@ import {
   type CustomEmoji,
   EMOJI_SET_KIND,
   type EmojiSetRef,
+  emojiShortcodeFromFileName,
+  isEmojiShortcode,
 } from "@streets/core/settings/emoji-list";
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
 import {
@@ -14,6 +16,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { NoUploadServerError, useUploader } from "../media/uploader";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
@@ -303,19 +306,22 @@ const AddEmoji: Component<{
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const uploader = useUploader();
   const [shortcode, setShortcode] = createSignal("");
   const [url, setUrl] = createSignal("");
   const [error, setError] = createSignal<string>();
+  const [uploading, setUploading] = createSignal(false);
+  let picker: HTMLInputElement | undefined;
+
+  const name = () => shortcode().trim().replace(/^:|:$/g, "");
 
   const submit = () => {
-    // 打つ人は `:name:` の形で覚えているので、前後の `:` は落として受ける。
-    const name = shortcode().trim().replace(/^:|:$/g, "");
     const src = url().trim();
-    if (name === "" || src === "") {
+    if (name() === "" || src === "") {
       setError("名前と画像の URL を両方入力してください");
       return;
     }
-    if (!/^[0-9a-zA-Z_-]+$/.test(name)) {
+    if (!isEmojiShortcode(name())) {
       setError("名前は半角の英数字と _ - だけが使えます");
       return;
     }
@@ -323,16 +329,34 @@ const AddEmoji: Component<{
       setError("画像の URL は http:// か https:// で始めてください");
       return;
     }
-    dispatch({ type: "emoji/add", shortcode: name, url: src });
+    dispatch({ type: "emoji/add", shortcode: name(), url: src });
     setShortcode("");
     setUrl("");
     setError(undefined);
   };
 
+  const uploadImage = async (file: File) => {
+    if (!uploader) return;
+    setUploading(true);
+    setError(undefined);
+    try {
+      const blob = await uploader.upload(file);
+      setUrl(blob.url);
+      // 名前をまだ決めていなければ、ファイル名から埋める。
+      if (name() === "") setShortcode(emojiShortcodeFromFileName(file.name));
+    } catch (cause) {
+      setError(
+        cause instanceof NoUploadServerError
+          ? "画像のアップロード先が設定されていません。「画像」の設定で追加してください。"
+          : "画像をアップロードできませんでした",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const replacing = () =>
-    props.emojis.some(
-      (emoji) => emoji.shortcode === shortcode().trim().replace(/^:|:$/g, ""),
-    );
+    props.emojis.some((emoji) => emoji.shortcode === name());
 
   return (
     <form
@@ -362,17 +386,39 @@ const AddEmoji: Component<{
           aria-invalid={error() !== undefined}
           aria-describedby={error() ? "emoji-add-error" : undefined}
           value={url()}
-          disabled={props.disabled}
+          disabled={props.disabled || uploading()}
           onInput={(event) => {
             setUrl(event.currentTarget.value);
             setError(undefined);
           }}
         />
+        <Show when={uploader}>
+          {/* 画像を選んで上げる。URL を手で用意しなくても足せるように。 */}
+          <input
+            ref={picker}
+            type="file"
+            accept="image/*"
+            class="hidden"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void uploadImage(file);
+            }}
+          />
+          <Button
+            variant="secondary"
+            icon="i-material-symbols:upload-rounded"
+            disabled={props.disabled || uploading()}
+            onClick={() => picker?.click()}
+          >
+            {uploading() ? "アップロード中…" : "画像を選ぶ"}
+          </Button>
+        </Show>
         <Button
           type="submit"
           variant="primary"
           icon="i-material-symbols:add-rounded"
-          disabled={props.disabled}
+          disabled={props.disabled || uploading()}
         >
           追加
         </Button>
@@ -383,7 +429,7 @@ const AddEmoji: Component<{
           <p class="c-secondary text-caption">
             {replacing()
               ? "同じ名前の絵文字が既にあります。足すと画像が入れ替わります。"
-              : "名前は `:` で囲まずに入力してください（例: neko）。"}
+              : "名前に使えるのは半角の英数字と _ - です（例: neko）。日本語や記号は使えません。"}
           </p>
         }
       >
