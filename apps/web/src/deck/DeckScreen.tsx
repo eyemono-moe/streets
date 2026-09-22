@@ -414,7 +414,9 @@ const DeckScreen: Component<{
             full={full}
           >
             <ComposeMediator
-              send={(text, media) => write.actions.post(text, media)}
+              send={(text, media, emoji) =>
+                write.actions.post(text, media, emoji)
+              }
               failure="投稿できませんでした"
               onSent={() => handle({ type: "deck/close-panel" })}
             >

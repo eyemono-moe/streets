@@ -1,4 +1,5 @@
 import type { EventDraft, Mutation } from "./draft";
+import { type EmojiLookup, profileEmojiTags } from "./references";
 
 const PROFILE_KIND = 0;
 
@@ -7,7 +8,10 @@ const PROFILE_KIND = 0;
  * 他クライアントの値を消さない）。JSON として読めない content は `changes` だけで作り直す。
  */
 export const mergeProfile =
-  (changes: Record<string, unknown>): Mutation =>
+  (
+    changes: Record<string, unknown>,
+    options?: { emoji?: EmojiLookup },
+  ): Mutation =>
   (current): EventDraft => {
     let base: Record<string, unknown> = {};
     // Stryker disable next-line ConditionalExpression: current が偽になるのは
@@ -24,9 +28,11 @@ export const mergeProfile =
         // 壊れた JSON。changes だけで作り直す。
       }
     }
+    const merged = { ...base, ...changes };
     return {
       kind: PROFILE_KIND,
-      tags: current?.tags ?? [],
-      content: JSON.stringify({ ...base, ...changes }),
+      // 名前などに書いた `:shortcode:` を絵文字として出せるよう、使っている分の emoji タグを持つ（NIP-30）。
+      tags: profileEmojiTags(current?.tags ?? [], merged, options?.emoji),
+      content: JSON.stringify(merged),
     };
   };

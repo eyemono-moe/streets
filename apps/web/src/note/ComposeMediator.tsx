@@ -1,4 +1,5 @@
 import type { BlobDescriptor } from "@streets/core/media/blossom";
+import type { EmojiLookup } from "@streets/core/nostr/build/references";
 import {
   type ComposeEvent,
   type ComposeState,
@@ -12,6 +13,7 @@ import {
 import type { Component, JSX } from "solid-js";
 import { onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { prepareForUpload } from "../media/prepare";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
@@ -26,7 +28,11 @@ import { uploadErrorMessage } from "../write-errors";
  * やめたときに、出さなかった画像がアップロード先に残らない。
  */
 export const ComposeMediator: Component<{
-  send: (text: string, media: readonly BlobDescriptor[]) => Promise<void>;
+  send: (
+    text: string,
+    media: readonly BlobDescriptor[],
+    emoji: EmojiLookup,
+  ) => Promise<void>;
   /** 失敗したときのトーストの見出し。 */
   failure: string;
   onSent: () => void;
@@ -38,6 +44,7 @@ export const ComposeMediator: Component<{
   const apply = (event: ComposeEvent) =>
     setState(reconcile(composeTransition(unwrap(state), event)));
   const uploader = useUploader();
+  const emoji = useEmojiLookup();
 
   // 中身は core に持たせない（純粋な遷移に File は要らない）。見本の URL も
   // ここで作り、外したときに捨てる。
@@ -99,7 +106,7 @@ export const ComposeMediator: Component<{
   const submit = async () => {
     await uploadPending();
     const current = unwrap(state);
-    await props.send(sendableText(current), composeMedia(current));
+    await props.send(sendableText(current), composeMedia(current), emoji);
   };
 
   const handle = (event: UiEvent): boolean => {

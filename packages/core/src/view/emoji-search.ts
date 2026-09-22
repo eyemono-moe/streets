@@ -3,6 +3,8 @@
  * どれでも引ける —— Slack などで `:cat:` に慣れている人がそのまま打てるように。
  */
 
+import { normalizeForMatch as normalize } from "./text-match";
+
 /** 引く手がかり。どこから来た絵文字でも、この形にしてから絞る。 */
 export type SearchableEmoji = {
   /** 日本語の名前（カスタム絵文字にはない）。 */
@@ -12,20 +14,6 @@ export type SearchableEmoji = {
   /** 英語のショートコード。カスタム絵文字は自分の名前がこれに当たる。 */
   shortcodes?: readonly string[];
 };
-
-/**
- * 比べる前に形を揃える。カタカナはひらがなにする —— 絵文字の日本語の名前は
- * 「ネコ」のようにカタカナで、打つ人は「ねこ」と打つため。
- */
-const normalize = (value: string): string =>
-  value
-    // 全角の英数字を半角にする（「ｃａｔ」と打っても引けるように）。
-    .normalize("NFKC")
-    .toLowerCase()
-    .replace(/[\u30a1-\u30f6]/g, (kana) =>
-      String.fromCharCode(kana.charCodeAt(0) - 0x60),
-    )
-    .replace(/[_\s]+/g, "");
 
 /**
  * どれくらい近いか。小さいほど近い。前から一致するものを、途中で一致する
