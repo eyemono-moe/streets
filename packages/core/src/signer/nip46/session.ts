@@ -5,6 +5,7 @@ import { normalizeRelayUrl } from "../../relay/relay-url";
 import type { Signer } from "../signer";
 import { type BunkerConnection, MAX_NIP46_RELAYS } from "./bunker-uri";
 import {
+  NIP46_OPTIONAL_RPC_TIMEOUT_MS,
   type Nip46Client,
   type Nip46ClientHooks,
   createNip46Client,
@@ -55,7 +56,11 @@ const finishSession = async (
 
   let relays = [...fallbackRelays];
   try {
-    const switched = parseRelaySwitch(await client.request("switch_relays"));
+    const switched = parseRelaySwitch(
+      await client.request("switch_relays", [], {
+        timeoutMs: NIP46_OPTIONAL_RPC_TIMEOUT_MS,
+      }),
+    );
     if (switched && client.switchRelays(switched)) relays = switched;
   } catch {
     // connect 自体は成立済み。切替だけの失敗では初期 relay を維持する。
