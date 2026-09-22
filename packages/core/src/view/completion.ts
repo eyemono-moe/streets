@@ -199,8 +199,13 @@ export const completionTransition = (
 /** 人の候補。 */
 export type SearchableUser = {
   pubkey: string;
-  /** 引く手がかり（表示名・name・NIP-05・npub など）。無いものは省いてよい。 */
+  /** 引く手がかり（表示名・name など）。無いものは省いてよい。 */
   names: readonly (string | undefined)[];
+  /**
+   * 前から一致するときだけ当てる手がかり（npub）。英数字の羅列なので、途中で
+   * 当てると 1 文字でほぼ誰にでも当たる。
+   */
+  ids?: readonly string[];
   /** 小さいほど先に出す（返信先の人 → フォロー中の人 など）。 */
   rank: number;
 };
@@ -223,6 +228,9 @@ export const rankUsers = <T extends SearchableUser>(
         if (name === undefined) continue;
         const index = normalizeForMatch(name).indexOf(needle);
         if (index >= 0) score = Math.min(score, index === 0 ? 0 : 1);
+      }
+      for (const id of user.ids ?? []) {
+        if (id.toLowerCase().startsWith(needle)) score = 0;
       }
     }
     if (score === Number.POSITIVE_INFINITY) return;
