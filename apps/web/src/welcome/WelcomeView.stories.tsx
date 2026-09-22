@@ -55,8 +55,16 @@ type Story = StoryObj<typeof meta>;
 
 export const 最初の二択: Story = {};
 
-export const はじめての方: Story = {
-  args: { initialStep: "new" },
+export const はじめての方_Android: Story = {
+  args: { initialStep: "new", initialDevice: "android" },
+};
+
+export const はじめての方_iPhone: Story = {
+  args: { initialStep: "new", initialDevice: "ios" },
+};
+
+export const はじめての方_パソコン: Story = {
+  args: { initialStep: "new", initialDevice: "pc" },
 };
 
 export const アカウントを持っている方: Story = {

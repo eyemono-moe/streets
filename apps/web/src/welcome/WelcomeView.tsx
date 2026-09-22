@@ -1,3 +1,4 @@
+import type { DeviceKind } from "@streets/core/view/device-kind";
 import type { Component, JSX } from "solid-js";
 import type { ConnectAttempt } from "../session";
 import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
@@ -15,6 +16,7 @@ const WelcomeView: Component<{
   onNostrConnect: () => ConnectAttempt;
   initialStep?: LoginStep;
   initialRemoteOpen?: boolean;
+  initialDevice?: DeviceKind;
   initialBunkerUri?: string;
   /** 流しているリレーの名前。 */
   feedTitle: string;
@@ -40,6 +42,7 @@ const WelcomeView: Component<{
         onNostrConnect={props.onNostrConnect}
         initialStep={props.initialStep}
         initialRemoteOpen={props.initialRemoteOpen}
+        initialDevice={props.initialDevice}
         initialBunkerUri={props.initialBunkerUri}
       />
 

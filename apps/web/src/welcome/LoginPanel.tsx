@@ -1,9 +1,10 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
+import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
 import { type Component, Match, Show, Switch, createSignal } from "solid-js";
 import type { ConnectAttempt } from "../session";
 import ChoiceButton from "../ui/ChoiceButton";
+import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
-import { GUIDE, GuideLink } from "./guide";
 
 export type LoginState = {
   pending: boolean;
@@ -42,10 +43,16 @@ const LoginPanel: Component<{
   initialStep?: LoginStep;
   /** リモート署名器の欄を開いた状態で始める。ストーリーで QR を見せるため。 */
   initialRemoteOpen?: boolean;
+  /** はじめての方に最初に見せる端末。省くと実際の端末から推す。 */
+  initialDevice?: DeviceKind;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
   // 復元に失敗して戻ってきた人は、アカウントを持っている。
+  // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
+  const [remoteOpen, setRemoteOpen] = createSignal(
+    props.initialRemoteOpen === true || props.initialBunkerUri !== undefined,
+  );
   const [step, setStep] = createSignal<LoginStep>(
     props.initialStep ?? (props.state.error ? "existing" : "choose"),
   );
@@ -86,14 +93,16 @@ const LoginPanel: Component<{
           <h2 id="new-heading" class="font-600 text-body">
             はじめての方
           </h2>
-          <p class="text-caption">
-            Nostr
-            のアカウントは、鍵を預かる拡張機能か署名器のアプリで作ります。Streets
-            は鍵を預からず、署名をそれらに頼みます。
-          </p>
-          <p class="text-caption">
-            <GuideLink href={GUIDE}>Nostr のはじめかた</GuideLink>
-          </p>
+          <NewcomerGuide
+            initialDevice={
+              props.initialDevice ??
+              deviceKind(navigator.userAgent, navigator.maxTouchPoints)
+            }
+            onDone={(device) => {
+              setRemoteOpen(device !== "pc");
+              setStep("existing");
+            }}
+          />
         </section>
       </Match>
 
@@ -129,10 +138,7 @@ const LoginPanel: Component<{
           <Collapsible.Root
             lazyMount
             unmountOnExit
-            defaultOpen={
-              props.initialRemoteOpen === true ||
-              props.initialBunkerUri !== undefined
-            }
+            defaultOpen={remoteOpen()}
             class="flex flex-col gap-2"
           >
             <Collapsible.Trigger
@@ -141,7 +147,7 @@ const LoginPanel: Component<{
                   {...trigger()}
                   icon="i-material-symbols:phonelink-lock-outline-rounded"
                   title="リモート署名器でログイン"
-                  description="Amber など、鍵を預かる別のアプリに署名を頼みます"
+                  description="Amber や Primal など、鍵を預かる別のアプリに署名を頼みます"
                   trailing="expand"
                 />
               )}
