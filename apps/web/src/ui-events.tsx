@@ -9,6 +9,7 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
@@ -79,6 +80,7 @@ export type ComposeViewEvent =
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
+  | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }
   /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
@@ -109,6 +111,10 @@ export type DeckEvent =
   | { type: "deck/set-write-progress"; on: boolean }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }
+  /** ショートカットキーの割り当てを変える。この端末に保存する。 */
+  | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
+  /** 数字キーでカラムを見せるか。この端末に保存する。 */
+  | { type: "deck/set-column-digits"; on: boolean }
   /** この端末からログアウトする。 */
   | { type: "deck/logout" };
 

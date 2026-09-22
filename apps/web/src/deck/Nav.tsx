@@ -1,5 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import { type Component, For, Show } from "solid-js";
+import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import { useColumnTitle } from "./ColumnTitle";
@@ -8,14 +10,18 @@ import { columnMeta } from "./column-meta";
 
 /**
  * デッキのカラムを 1 つずつ並べるボタン。押すと、そのカラムが画面に収まるよう
- * 送る（狭い画面ではそのタブを選ぶ）。1〜9 番目は数字キーでも同じ。
+ * 送る（狭い画面ではそのタブを選ぶ）。1〜9 番目は数字キーでも同じ（設定で切れる）。
  */
-const ColumnButton: Component<{ column: ColumnDef; index: number }> = (
-  props,
-) => {
+const ColumnButton: Component<{
+  column: ColumnDef;
+  index: number;
+  /** 数字キーで見せられるカラムに、その番号を出す。 */
+  numbers: boolean;
+}> = (props) => {
   const dispatch = useDispatch();
   const title = useColumnTitle(() => props.column);
-  const number = () => (props.index < 9 ? props.index + 1 : undefined);
+  const number = () =>
+    props.numbers && props.index < 9 ? props.index + 1 : undefined;
   return (
     <button
       type="button"
@@ -48,6 +54,10 @@ const ColumnButton: Component<{ column: ColumnDef; index: number }> = (
 export const Sidebar: Component<{
   pubkey: string;
   columns: readonly ColumnDef[];
+  /** いま開いているパネル。押したボタンが開いているかを出すために使う。 */
+  panel: DeckPanel | undefined;
+  /** カラムに数字キーの番号を出すか。 */
+  numbers: boolean;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
@@ -58,9 +68,14 @@ export const Sidebar: Component<{
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
-        aria-label="ノートを書く"
+        aria-label="投稿パネルを開く"
+        title={shortcutTitle("compose")}
+        aria-keyshortcuts={ariaKeyShortcuts("compose")}
+        aria-expanded={props.panel === "compose"}
         class="grid size-10 cursor-pointer place-items-center rounded-2 bg-accent-primary hover:bg-accent-hover"
-        onClick={() => dispatch({ type: "deck/open-panel", panel: "compose" })}
+        onClick={() =>
+          dispatch({ type: "deck/toggle-panel", panel: "compose" })
+        }
       >
         <span
           class="i-material-symbols:edit-square-outline-rounded c-white size-5.5"
@@ -69,9 +84,16 @@ export const Sidebar: Component<{
       </button>
       <button
         type="button"
-        aria-label="探す"
-        class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-        onClick={() => dispatch({ type: "deck/open-panel", panel: "search" })}
+        aria-label="検索パネルを開く"
+        title={shortcutTitle("search")}
+        aria-keyshortcuts={ariaKeyShortcuts("search")}
+        aria-expanded={props.panel === "search"}
+        class="grid size-10 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
+        classList={{
+          "c-primary bg-secondary": props.panel === "search",
+          "c-secondary bg-transparent": props.panel !== "search",
+        }}
+        onClick={() => dispatch({ type: "deck/toggle-panel", panel: "search" })}
       >
         <span
           class="i-material-symbols:search-rounded size-5.5"
@@ -85,15 +107,28 @@ export const Sidebar: Component<{
       */}
       <div class="flex min-h-0 w-full flex-col items-center gap-1 self-start overflow-y-auto overflow-x-hidden py-1">
         <For each={props.columns}>
-          {(column, index) => <ColumnButton column={column} index={index()} />}
+          {(column, index) => (
+            <ColumnButton
+              column={column}
+              index={index()}
+              numbers={props.numbers}
+            />
+          )}
         </For>
         {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。 */}
         <button
           type="button"
           aria-label="カラムを追加"
-          class="c-secondary sticky bottom-0 grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 bg-primary hover:bg-secondary"
+          title={shortcutTitle("add-column")}
+          aria-keyshortcuts={ariaKeyShortcuts("add-column")}
+          aria-expanded={props.panel === "add-column"}
+          class="sticky bottom-0 grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
+          classList={{
+            "c-primary bg-secondary": props.panel === "add-column",
+            "c-secondary bg-primary": props.panel !== "add-column",
+          }}
           onClick={() =>
-            dispatch({ type: "deck/open-panel", panel: "add-column" })
+            dispatch({ type: "deck/toggle-panel", panel: "add-column" })
           }
         >
           <span
@@ -125,9 +160,11 @@ export const ComposeFab: Component = () => {
   return (
     <button
       type="button"
-      aria-label="ノートを書く"
+      aria-label="投稿パネルを開く"
+      title={shortcutTitle("compose")}
+      aria-keyshortcuts={ariaKeyShortcuts("compose")}
       class="absolute right-4 bottom-20 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
-      onClick={() => dispatch({ type: "deck/open-panel", panel: "compose" })}
+      onClick={() => dispatch({ type: "deck/toggle-panel", panel: "compose" })}
     >
       <span
         class="i-material-symbols:edit-square-outline-rounded c-white size-6"
@@ -139,6 +176,7 @@ export const ComposeFab: Component = () => {
 
 export const TabBar: Component<{
   pubkey: string;
+  panel: DeckPanel | undefined;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
@@ -147,9 +185,16 @@ export const TabBar: Component<{
     <nav class="flex shrink-0 items-center justify-around bg-primary px-5 pb-2.5">
       <button
         type="button"
-        aria-label="探す"
-        class="c-secondary grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
-        onClick={() => dispatch({ type: "deck/open-panel", panel: "search" })}
+        aria-label="検索パネルを開く"
+        title={shortcutTitle("search")}
+        aria-keyshortcuts={ariaKeyShortcuts("search")}
+        aria-expanded={props.panel === "search"}
+        class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        classList={{
+          "c-accent-5": props.panel === "search",
+          "c-secondary": props.panel !== "search",
+        }}
+        onClick={() => dispatch({ type: "deck/toggle-panel", panel: "search" })}
       >
         <span
           class="i-material-symbols:search-rounded size-6"
@@ -159,9 +204,16 @@ export const TabBar: Component<{
       <button
         type="button"
         aria-label="カラムを追加"
-        class="c-secondary grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        title={shortcutTitle("add-column")}
+        aria-keyshortcuts={ariaKeyShortcuts("add-column")}
+        aria-expanded={props.panel === "add-column"}
+        class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        classList={{
+          "c-accent-5": props.panel === "add-column",
+          "c-secondary": props.panel !== "add-column",
+        }}
         onClick={() =>
-          dispatch({ type: "deck/open-panel", panel: "add-column" })
+          dispatch({ type: "deck/toggle-panel", panel: "add-column" })
         }
       >
         <span

@@ -34,8 +34,10 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
+import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { errorReport, setErrorReport } from "../error-report-setting";
+import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -70,6 +72,7 @@ import { ComposeFab, Sidebar, TabBar } from "./Nav";
 import SearchPanel from "./SearchPanel";
 import SidePanel from "./SidePanel";
 import { columnMeta } from "./column-meta";
+import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
 
@@ -207,29 +210,15 @@ const DeckScreen: Component<{
       });
   };
 
-  // 1〜9 の数字キーで、その番号のカラムを見せる（v0 と同じ）。入力中・修飾キー付き・
-  // ダイアログやパネルを開いている間は奪わない。
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
-      return;
-    }
-    const target = event.target;
-    if (
-      target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        target.closest("input, textarea, select, [role=dialog]"))
-    ) {
-      return;
-    }
-    if (ui.settingsOpen || ui.panel !== undefined) return;
-    if (!/^[1-9]$/.test(event.key)) return;
-    const column = columns()[Number(event.key) - 1];
-    if (!column) return;
-    event.preventDefault();
-    focusColumn(column.id);
-  };
-  document.addEventListener("keydown", onKeyDown);
-  onCleanup(() => document.removeEventListener("keydown", onKeyDown));
+  createDeckHotkeys({
+    keymap,
+    columns,
+    enabled: () => !ui.settingsOpen && !ui.aboutOpen,
+    panelOpen: () => ui.panel !== undefined,
+    columnDigits,
+    togglePanel: (panel) => handle({ type: "deck/toggle-panel", panel }),
+    focusColumn,
+  });
 
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
@@ -268,6 +257,7 @@ const DeckScreen: Component<{
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
       case "deck/open-panel":
+      case "deck/toggle-panel":
       case "deck/close-panel":
       case "deck/select-column":
       case "deck/drag-start":
@@ -344,6 +334,12 @@ const DeckScreen: Component<{
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
         return true;
+      case "deck/set-shortcut":
+        setShortcut(event.action, event.hotkey);
+        return true;
+      case "deck/set-column-digits":
+        setColumnDigits(event.on);
+        return true;
       case "deck/set-error-report":
         setErrorReport(event.on);
         // 止めたらその場で送るのをやめ、戻したらもう一度用意する。
@@ -368,7 +364,7 @@ const DeckScreen: Component<{
               when={current() === "search"}
               fallback={
                 <SidePanel
-                  title="カラムを追加"
+                  title="カラムを追加する"
                   icon="i-material-symbols:add-rounded"
                   full={full}
                 >
@@ -377,7 +373,7 @@ const DeckScreen: Component<{
               }
             >
               <SidePanel
-                title="探す"
+                title="検索する"
                 icon="i-material-symbols:search-rounded"
                 full={full}
               >
@@ -387,7 +383,7 @@ const DeckScreen: Component<{
           }
         >
           <SidePanel
-            title="ノートを書く"
+            title="投稿する"
             icon="i-material-symbols:edit-square-outline-rounded"
             full={full}
           >
@@ -466,6 +462,8 @@ const DeckScreen: Component<{
                             <Sidebar
                               pubkey={viewer}
                               columns={columns()}
+                              panel={ui.panel}
+                              numbers={columnDigits()}
                               onLogout={props.session.logout}
                             />
                             {panelView(false)}
@@ -641,7 +639,7 @@ const DeckScreen: Component<{
                                 class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
                                 onClick={() =>
                                   handle({
-                                    type: "deck/open-panel",
+                                    type: "deck/toggle-panel",
                                     panel: "add-column",
                                   })
                                 }
@@ -750,6 +748,7 @@ const DeckScreen: Component<{
                             </Show>
                             <TabBar
                               pubkey={viewer}
+                              panel={ui.panel}
                               onLogout={props.session.logout}
                             />
                           </div>
@@ -763,6 +762,8 @@ const DeckScreen: Component<{
                         appearance={appearance()}
                         writeProgress={showWriteProgress()}
                         errorReport={errorReport()}
+                        keymap={keymap()}
+                        columnDigits={columnDigits()}
                       />
                     </MuteMediator>
                   </RelayMediator>

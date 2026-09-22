@@ -54,7 +54,7 @@ const meta = {
         {/* サイドバーに開いたときと同じ幅・高さに載せる。 */}
         <div class="flex h-[640px]">
           <SidePanel
-            title="ノートを書く"
+            title="投稿する"
             icon="i-material-symbols:edit-square-outline-rounded"
           >
             <ComposePanel state={props.state} />
