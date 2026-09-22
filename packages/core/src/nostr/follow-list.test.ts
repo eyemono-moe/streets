@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { followeesFrom, followersFrom } from "./follow-list";
+import { followeesFrom, followersFrom, followsPubkey } from "./follow-list";
 
 describe("followeesFrom", () => {
   it("p タグの順序を保ったまま pubkey を取り出す", () => {
@@ -46,5 +46,31 @@ describe("followersFrom", () => {
     expect(
       followersFrom([{ pubkey: "a" }, { pubkey: "b" }, { pubkey: "a" }]),
     ).toEqual(["a", "b"]);
+  });
+});
+
+describe("followsPubkey", () => {
+  const me = "a".repeat(64);
+
+  it("p タグに自分がいればフォローされている", () => {
+    expect(
+      followsPubkey(
+        {
+          tags: [
+            ["p", "b".repeat(64)],
+            ["p", me],
+          ],
+        },
+        me,
+      ),
+    ).toBe(true);
+  });
+
+  it("p 以外のタグに自分がいてもフォローではない", () => {
+    expect(followsPubkey({ tags: [["e", me]] }, me)).toBe(false);
+  });
+
+  it("kind:3 が無いときは分からない", () => {
+    expect(followsPubkey(undefined, me)).toBeUndefined();
   });
 });

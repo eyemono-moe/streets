@@ -6,14 +6,18 @@ import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
+import FollowsYouBadge from "./FollowsYouBadge";
+import { useFollowsYou } from "./follows-you";
 
 /**
- * 名前やアイコンに触れたときに出す名刺。kind:0 に載っていることだけを出す ——
+ * 名前やアイコンに触れたときに出す名刺。kind:0 に載っていることを出す ——
  * 触れただけでフォロー数のような別の購読を増やすと、流し読みで通信が膨らむ。
- * 続きはカードを押してユーザーのカラムを開いてもらう。
+ * 例外は「フォローされています」で、自分を指す kind:3 を 1 件だけ、開いている
+ * 間だけ聞く（`useFollowsYou`）。続きはカードを押してユーザーのカラムを開いてもらう。
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
+  const followsYou = useFollowsYou(() => props.pubkey);
   const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);
   const banner = () => (bannerBroken() ? undefined : profile()?.banner);
@@ -51,12 +55,17 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
               tags={details()?.tags}
             />
           </span>
-          <span class="c-secondary truncate text-caption">
-            @
-            <ProfileText
-              text={profile()?.name ?? shortNpub(props.pubkey)}
-              tags={details()?.tags}
-            />
+          <span class="flex min-w-0 items-center gap-2">
+            <span class="c-secondary min-w-0 truncate text-caption">
+              @
+              <ProfileText
+                text={profile()?.name ?? shortNpub(props.pubkey)}
+                tags={details()?.tags}
+              />
+            </span>
+            <Show when={followsYou()}>
+              <FollowsYouBadge />
+            </Show>
           </span>
         </div>
         <Show when={profile()?.about}>

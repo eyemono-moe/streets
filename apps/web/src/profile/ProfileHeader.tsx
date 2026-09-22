@@ -2,10 +2,15 @@ import {
   buildFolloweesColumn,
   buildFollowersColumn,
 } from "@streets/core/deck/column-presets";
-import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
+import {
+  followeesFrom,
+  followersFrom,
+  followsPubkey,
+} from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, createMemo } from "solid-js";
+import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
 import ProfileHeaderView from "./ProfileHeaderView";
 
@@ -18,6 +23,7 @@ const ProfileHeader: Component<{
   readLayer: ReadLayer;
 }> = (props) => {
   const dispatch = useDispatch();
+  const viewer = useEventActions()?.viewer;
   const followees = createSection({
     manager: props.readLayer.manager,
     source: () => ({
@@ -39,12 +45,18 @@ const ProfileHeader: Component<{
   const followerCount = createMemo(
     () => followersFrom(followers.items()).length,
   );
+  // フォロー数のために読んでいる kind:3 をそのまま使う。別に聞き直さない。
+  const followsYou = () =>
+    viewer !== undefined &&
+    viewer !== props.pubkey &&
+    followsPubkey(followees.items()[0], viewer) === true;
 
   return (
     <ProfileHeaderView
       pubkey={props.pubkey}
       followeeCount={followeeCount()}
       followerCount={followerCount()}
+      followsYou={followsYou()}
       onOpenFollowees={() =>
         dispatch({
           type: "stack/open",

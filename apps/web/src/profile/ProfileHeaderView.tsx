@@ -6,6 +6,7 @@ import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
+import FollowsYouBadge from "./FollowsYouBadge";
 import ProfileMenu from "./ProfileMenu";
 
 const Count: Component<{
@@ -44,6 +45,8 @@ export const ProfileHeaderCard: Component<{
   action?: JSX.Element;
   /** 自己紹介の下に置くもの（フォロー・フォロワーの数）。 */
   footer?: JSX.Element;
+  /** ID の横に置く印（フォローされています）。 */
+  badge?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -86,13 +89,16 @@ export const ProfileHeaderCard: Component<{
               tags={tags()}
             />
           </h3>
-          <p class="c-secondary break-anywhere text-caption">
-            @
-            <ProfileText
-              text={props.profile?.name ?? shortNpub(props.pubkey)}
-              tags={tags()}
-            />
-          </p>
+          <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <p class="c-secondary break-anywhere min-w-0 text-caption">
+              @
+              <ProfileText
+                text={props.profile?.name ?? shortNpub(props.pubkey)}
+                tags={tags()}
+              />
+            </p>
+            {props.badge}
+          </div>
         </div>
         <Show when={props.profile?.about}>
           {(about) => (
@@ -114,6 +120,8 @@ const ProfileHeaderView: Component<{
   pubkey: string;
   followeeCount: number;
   followerCount: number;
+  /** 相手が自分をフォローしている。 */
+  followsYou?: boolean;
   onOpenFollowees?: () => void;
   onOpenFollowers?: () => void;
 }> = (props) => {
@@ -123,6 +131,11 @@ const ProfileHeaderView: Component<{
       pubkey={props.pubkey}
       profile={details()?.profile}
       profileTags={details()?.tags}
+      badge={
+        <Show when={props.followsYou}>
+          <FollowsYouBadge />
+        </Show>
+      }
       action={
         <div class="flex items-center gap-1.5">
           <FollowButton pubkey={props.pubkey} />

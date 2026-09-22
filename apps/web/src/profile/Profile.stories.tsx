@@ -57,14 +57,20 @@ const profiles = [
 ];
 /** 閲覧者は alice だけをフォローしている。ボタンの 2 つの状態を 1 画面で見る。 */
 const viewerFollows = viewer.follows([alice.pubkey]);
+/** alice と bob は閲覧者をフォローしている（相互と、片方だけ）。 */
+const followsViewer = [
+  alice.follows([viewer.pubkey]),
+  bob.follows([viewer.pubkey, carol.pubkey]),
+];
 
 const scene = (...events: NostrEvent[]): EventScene => ({
-  events: [...profiles, viewerFollows, ...events],
+  events: [...profiles, viewerFollows, ...followsViewer, ...events],
   viewer,
 });
 
 type HeaderProps = {
   pubkey: string;
+  followsYou?: boolean;
   followeeCount: number;
   followerCount: number;
   scene: EventScene;
@@ -78,6 +84,7 @@ const HeaderStory: Component<HeaderProps> = (props) => (
         pubkey={props.pubkey}
         followeeCount={props.followeeCount}
         followerCount={props.followerCount}
+        followsYou={props.followsYou}
         onOpenFollowees={() => {}}
         onOpenFollowers={() => {}}
       />
@@ -101,6 +108,21 @@ export const フォローしていない人: Story = {
 
 export const フォロー中の人: Story = {
   args: { pubkey: alice.pubkey },
+};
+
+/** 相手も自分をフォローしている（相互）。 */
+export const フォローされている_相互: Story = {
+  args: { pubkey: alice.pubkey, followsYou: true },
+};
+
+/** 自分はフォローしていないが、相手はしている。 */
+export const フォローされている_片方: Story = {
+  args: { pubkey: bob.pubkey, followsYou: true },
+};
+
+/** ID が長くても、印は折り返して次の行に出る。 */
+export const フォローされている_長い名前: Story = {
+  args: { pubkey: longName.pubkey, followsYou: true },
 };
 
 export const 自分: Story = {
@@ -180,6 +202,18 @@ const CardStory: Component<{ pubkey: string; scene: EventScene }> = (props) => (
 export const 名刺: StoryObj<typeof CardStory> = {
   render: (props) => <CardStory {...props} />,
   args: { pubkey: alice.pubkey, scene: scene() },
+};
+
+/** 閲覧者をフォローしている人（相互）。 */
+export const 名刺_フォローされている: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: alice.pubkey, scene: scene() },
+};
+
+/** 閲覧者をフォローしていない人には印を出さない。 */
+export const 名刺_フォローされていない: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: carol.pubkey, scene: scene() },
 };
 
 export const 名刺_情報が少ない: StoryObj<typeof CardStory> = {
