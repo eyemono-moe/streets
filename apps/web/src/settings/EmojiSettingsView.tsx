@@ -83,15 +83,15 @@ export const EmojiPreview: Component<{
 const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="自分の絵文字"
+      title="自分の絵文字リスト"
       scope="account"
-      description="リアクションのピッカーに出る絵文字です。誰かが作った絵文字セット（NIP-30 の kind:30030）を入れることも、絵文字を 1 つずつ足すこともできます。"
+      description="リアクションのピッカーに出る絵文字の一覧です。誰かが作った絵文字セットを入れることも、絵文字を自分で 1 つずつ足すこともできます。"
     >
       <Show
         when={props.sets.length > 0 || props.emojis.length > 0}
         fallback={
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだ何も入っていません。下から絵文字を足すと、リアクションのピッカーに出るようになります。
+            まだ何も入っていません。下から絵文字を追加すると、リアクションのピッカーに出るようになります。
           </p>
         }
       >
@@ -122,7 +122,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
       {(search) => (
         <SettingsSection
           title="絵文字セットを探す"
-          description="誰かが作った絵文字セットを見つけて、自分の絵文字に入れます。入れたセットは、作った人が絵文字を足すとこちらにも増えます。"
+          description="誰かが作った絵文字セットを見つけて、自分の絵文字リストに加えられます。"
         >
           {search() as never}
         </SettingsSection>
@@ -131,7 +131,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
 
     <SettingsSection
       title="もっと絵文字を管理する"
-      description="絵文字セットを作る・中身を並べ替える・画像を整えるといったことは、それ専用のクライアントのほうが早くできます。ここで入れた絵文字とは同じもの（kind:10030 と kind:30030）を扱うので、どちらで直しても両方に反映されます。"
+      description="絵文字セットの作成・整理は、専用のクライアントからも可能です。外部クライアントで設定した絵文字はStreetsにも反映されます。"
     >
       <div class="flex">
         <ButtonLink
@@ -428,7 +428,7 @@ const AddEmoji: Component<{
         fallback={
           <p class="c-secondary text-caption">
             {replacing()
-              ? "同じ名前の絵文字が既にあります。足すと画像が入れ替わります。"
+              ? "同じ名前の絵文字が既に存在します。この状態で追加すると画像を更新することができます。"
               : "名前に使えるのは半角の英数字と _ - です（例: neko）。日本語や記号は使えません。"}
           </p>
         }

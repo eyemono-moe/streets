@@ -60,14 +60,7 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
           探す
         </Button>
       </form>
-      <Show
-        when={props.error}
-        fallback={
-          <p class="c-secondary text-caption">
-            何も入れずに押すと、新しく作られたものが並びます。作った人（npub）やセットの住所（naddr）を貼っても取り込めます。
-          </p>
-        }
-      >
+      <Show when={props.error}>
         {(message) => (
           <p id="emoji-set-search-error" class="c-danger text-caption">
             {message()}
