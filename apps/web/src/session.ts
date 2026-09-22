@@ -6,6 +6,10 @@ import {
 } from "@streets/core/signer/nip07-signer";
 import { parseBunkerUri } from "@streets/core/signer/nip46/bunker-uri";
 import {
+  NostrConnectCancelledError,
+  startNostrConnect,
+} from "@streets/core/signer/nip46/nostrconnect";
+import {
   type Nip46Session,
   connectNip46,
   restoreNip46,
@@ -27,6 +31,16 @@ const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
 export type SessionState = "loading" | "signed-out" | "signed-in";
+
+/** 署名器の側から繋いでもらう 1 回分。 */
+export type ConnectAttempt = {
+  uri: string;
+  /** 繋がると解決する。取り消したときは `cancelled` で拒否する。 */
+  done: Promise<void>;
+  cancel: () => void;
+};
+
+export class ConnectCancelledError extends Error {}
 
 export const createSession = (pool: ConnectionPool) => {
   const [state, setState] = createSignal<SessionState>("loading");
@@ -106,6 +120,20 @@ export const createSession = (pool: ConnectionPool) => {
       }
     });
 
+  const loginWithNostrConnect = (): ConnectAttempt => {
+    const attempt = startNostrConnect({
+      pool,
+      metadata: { name: "Streets", url: location.origin },
+      hooks,
+    });
+    const done = attempt.session.then(activateNip46, (e) => {
+      throw e instanceof NostrConnectCancelledError
+        ? new ConnectCancelledError()
+        : e;
+    });
+    return { uri: attempt.uri, done, cancel: attempt.cancel };
+  };
+
   const restore = () => {
     const methodRaw = localStorage.getItem(LOGIN_METHOD_STORAGE_KEY);
     const method = loadLoginMethod(methodRaw);
@@ -146,7 +174,7 @@ export const createSession = (pool: ConnectionPool) => {
       localStorage.removeItem(LOGIN_METHOD_STORAGE_KEY);
       setState("signed-out");
       setError(
-        "署名器の権限が更新されました。bunker URI で再接続してください。",
+        "署名器の権限が更新されました。リモート署名器で繋ぎ直してください。",
       );
       return;
     }
@@ -156,7 +184,7 @@ export const createSession = (pool: ConnectionPool) => {
       } catch {
         setState("signed-out");
         setError(
-          "署名器との接続を復元できませんでした。接続を確認して再読み込みするか、bunker URI で再接続してください。",
+          "署名器との接続を復元できませんでした。接続を確かめて再読み込みするか、リモート署名器で繋ぎ直してください。",
         );
       }
     });
@@ -190,6 +218,7 @@ export const createSession = (pool: ConnectionPool) => {
     signer,
     loginWithExtension,
     loginWithBunker,
+    loginWithNostrConnect,
     restore,
     logout,
   };

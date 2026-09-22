@@ -1,7 +1,8 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { type Component, Match, Show, Switch, createSignal } from "solid-js";
+import type { ConnectAttempt } from "../session";
 import ChoiceButton from "../ui/ChoiceButton";
-import BunkerForm from "./BunkerForm";
+import RemoteSignerLogin from "./RemoteSignerLogin";
 import { GUIDE, GuideLink } from "./guide";
 
 export type LoginState = {
@@ -35,8 +36,12 @@ const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  /** 署名器の側から繋いでもらう。QR を出している間だけ待つ。 */
+  onNostrConnect: () => ConnectAttempt;
   /** 最初に見せる段。ストーリーで各段を並べるため。 */
   initialStep?: LoginStep;
+  /** リモート署名器の欄を開いた状態で始める。ストーリーで QR を見せるため。 */
+  initialRemoteOpen?: boolean;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
@@ -124,7 +129,10 @@ const LoginPanel: Component<{
           <Collapsible.Root
             lazyMount
             unmountOnExit
-            defaultOpen={props.initialBunkerUri !== undefined}
+            defaultOpen={
+              props.initialRemoteOpen === true ||
+              props.initialBunkerUri !== undefined
+            }
             class="flex flex-col gap-2"
           >
             <Collapsible.Trigger
@@ -140,10 +148,11 @@ const LoginPanel: Component<{
             />
             <Collapsible.Content class="motion-collapse">
               <div class="pt-1">
-                <BunkerForm
+                <RemoteSignerLogin
                   pending={props.state.pending}
                   onBunker={props.onBunker}
-                  initialValue={props.initialBunkerUri}
+                  onNostrConnect={props.onNostrConnect}
+                  initialBunkerUri={props.initialBunkerUri}
                 />
               </div>
             </Collapsible.Content>

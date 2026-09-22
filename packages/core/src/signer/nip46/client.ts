@@ -77,7 +77,7 @@ const signClientEvent = (
   };
 };
 
-const parseResponse = (
+export const parseResponse = (
   plaintext: string,
 ): { id: string; result?: string; error?: string } | undefined => {
   try {
