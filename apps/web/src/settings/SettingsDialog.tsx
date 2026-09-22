@@ -9,6 +9,7 @@ import MediaSettings from "./MediaSettings";
 import MuteSettings from "./MuteSettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
+import SearchSettings from "./SearchSettings";
 
 /**
  * 設定。デッキの上に開くダイアログで、左（狭い画面では上）にページの一覧を置く。
@@ -62,6 +63,14 @@ const SettingsDialog: Component<{
       icon: "i-material-symbols:image-outline-rounded",
       title: "画像",
       content: () => <MediaSettings />,
+    },
+    {
+      value: "search",
+      label: "検索",
+      icon: "i-material-symbols:search-rounded",
+      title: "検索",
+      description: "言葉での検索を、どのリレーへ問い合わせるかを決めます。",
+      content: () => <SearchSettings />,
     },
     {
       value: "mute",

@@ -2,6 +2,7 @@ import { columnAlerts } from "@streets/core/deck/column-alerts";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { resolveSource } from "@streets/core/deck/resolve-source";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { createEffect } from "solid-js";
@@ -14,6 +15,7 @@ export type ColumnReadProps = {
   followees: () => readonly string[];
   relayList: () => RelayListState;
   bookmarks: () => readonly string[];
+  searchRelays: () => readonly RelayUrl[];
 };
 
 /** カラムの意図を購読へ変換し、購読の診断値も登録する。 */
@@ -30,6 +32,7 @@ export const createColumnSection = (
         viewer: props.viewer,
         relayList: props.relayList,
         bookmarks: props.bookmarks,
+        searchRelays: props.searchRelays,
       }),
   });
   createEffect(() =>

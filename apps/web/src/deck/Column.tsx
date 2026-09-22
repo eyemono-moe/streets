@@ -7,6 +7,7 @@ import {
 } from "@streets/core/deck/column-stack";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
@@ -26,6 +27,7 @@ export type ColumnProps = {
   followees: () => readonly string[];
   relayList: () => RelayListState;
   bookmarks: () => readonly string[];
+  searchRelays: () => readonly RelayUrl[];
   settingsOpen: boolean;
   draggable?: boolean;
   temporary?: boolean;
@@ -72,6 +74,7 @@ const Column: Component<ColumnProps> = (props) => {
       followees={props.followees}
       relayList={props.relayList}
       bookmarks={props.bookmarks}
+      searchRelays={props.searchRelays}
       scrollerRef={(element) => {
         scroller = element;
       }}

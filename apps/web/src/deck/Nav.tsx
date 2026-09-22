@@ -53,10 +53,9 @@ export const Sidebar: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // 行：投稿・カラムの一覧・探す・カラムを追加・（空き）・設定・アカウント。一覧の行は
-    // 中身の高さ（max-content）まで伸び、画面の高さが足りないときだけ縮んで送れる
-    // ようになる。ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_auto_1fr_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
+    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・フィードバック・設定・
+    // アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
         aria-label="ノートを書く"
@@ -68,13 +67,6 @@ export const Sidebar: Component<{
           aria-hidden="true"
         />
       </button>
-      {/* 縦にだけ送る。横は隠す（auto のままだと、横のはみ出しでスクロールバーが出る）。 */}
-      {/* 上下の余白は、フォントの違いで中身が数 px はみ出しても送れる状態にしないため。 */}
-      <div class="flex min-h-0 flex-col items-center gap-1 overflow-y-auto overflow-x-hidden py-1">
-        <For each={props.columns}>
-          {(column, index) => <ColumnButton column={column} index={index()} />}
-        </For>
-      </div>
       <button
         type="button"
         aria-label="探す"
@@ -86,20 +78,30 @@ export const Sidebar: Component<{
           aria-hidden="true"
         />
       </button>
-      <button
-        type="button"
-        aria-label="カラムを追加"
-        class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-        onClick={() =>
-          dispatch({ type: "deck/open-panel", panel: "add-column" })
-        }
-      >
-        <span
-          class="i-material-symbols:add-rounded size-5.5"
-          aria-hidden="true"
-        />
-      </button>
-      <span aria-hidden="true" />
+      {/*
+        カラムの一覧と「追加」を 1 つの送れる帯にする。横は隠す（auto のままだと
+        横のはみ出しでスクロールバーが出る）。上下の余白は、フォントの違いで
+        中身が数 px はみ出しても送れる状態にしないため。
+      */}
+      <div class="flex min-h-0 w-full flex-col items-center gap-1 self-start overflow-y-auto overflow-x-hidden py-1">
+        <For each={props.columns}>
+          {(column, index) => <ColumnButton column={column} index={index()} />}
+        </For>
+        {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。 */}
+        <button
+          type="button"
+          aria-label="カラムを追加"
+          class="c-secondary sticky bottom-0 grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 bg-primary hover:bg-secondary"
+          onClick={() =>
+            dispatch({ type: "deck/open-panel", panel: "add-column" })
+          }
+        >
+          <span
+            class="i-material-symbols:add-rounded size-5.5"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
       <FeedbackLink template={props.feedbackUrl} size="sidebar" />
       <button
         type="button"

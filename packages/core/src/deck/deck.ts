@@ -9,6 +9,11 @@ import { buildColumn } from "./column-presets";
  */
 export type ColumnSource =
   | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
+  /**
+   * 言葉から探す。問い合わせ先は設定（kind:10007）で変わるので、デッキには
+   * 書いた条件だけを残し、リレーは解決のたびに決める。
+   */
+  | { kind: "search"; query: string }
   | { kind: "followees"; kinds: number[] }
   | { kind: "notifications" }
   | { kind: "bookmarks" }

@@ -26,6 +26,8 @@ export const columnTitle = (column: ColumnDef): ColumnTitle => {
       return { person: source.pubkey, suffix: " のフォロー" };
     case "followers-list":
       return { person: source.pubkey, suffix: " のフォロワー" };
+    case "search":
+      return { text: source.query };
     case "literal": {
       const tags = source.filters.flatMap((filter) => filter["#t"] ?? []);
       if (tags.length > 0)

@@ -1,5 +1,7 @@
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
+import type { RelayUrl } from "../relay/relay-connection";
+import { parseSearchQuery, searchFilter } from "../search/query";
 import type { RelayListState } from "../settings/relay-list-state";
 import { type ColumnSource, NOTIFICATION_KINDS, TIMELINE_KINDS } from "./deck";
 
@@ -24,6 +26,10 @@ export type ResolveContext = {
    * kind:10003 が届くたびに変わるので、デッキへは焼き込まない。
    */
   bookmarks: () => readonly string[];
+  /**
+   * 検索を投げる先（kind:10007 か既定）。`followees` と同じ理由で遅延アクセサ。
+   */
+  searchRelays: () => readonly RelayUrl[];
 };
 
 /**
@@ -41,6 +47,16 @@ export const resolveSource = (
     return {
       type: "nostr",
       filters: [{ kinds: source.kinds, authors: [...context.followees()] }],
+    };
+  }
+
+  if (source.kind === "search") {
+    // 著者を指定しない問い合わせなので Outbox で行き先を決められない。
+    // 検索に答えるリレー（設定か既定）へ明示的に送る。
+    return {
+      type: "nostr",
+      filters: [searchFilter(parseSearchQuery(source.query))],
+      relays: [...context.searchRelays()],
     };
   }
 

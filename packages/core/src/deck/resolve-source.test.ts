@@ -9,6 +9,7 @@ const ctx = (over: Partial<ResolveContext> = {}): ResolveContext => ({
   viewer: VIEWER,
   relayList: () => ({ phase: "missing" }),
   bookmarks: () => [],
+  searchRelays: () => ["wss://search.example/"],
   ...over,
 });
 
@@ -254,6 +255,23 @@ describe("resolveSource", () => {
     expect(resolveSource({ kind: "bookmarks" }, ctx())).toEqual({
       type: "nostr",
       filters: [{ ids: [] }],
+    });
+  });
+});
+
+describe("search", () => {
+  it("書いた条件を NIP-50 の問い合わせに直し、検索リレーへ送る", () => {
+    // 捕まえる変異: 検索リレーを無視して Outbox に任せる（著者が無いので
+    // どこへも届かない）／条件を素通しする
+    expect(
+      resolveSource(
+        { kind: "search", query: "ねこ #nostr kind:1" },
+        ctx({ searchRelays: () => ["wss://search.example/"] }),
+      ),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1], search: "ねこ", "#t": ["nostr"] }],
+      relays: ["wss://search.example/"],
     });
   });
 });

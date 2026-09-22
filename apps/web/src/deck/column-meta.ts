@@ -55,6 +55,11 @@ export const columnMeta = (column: ColumnDef): ColumnMeta => {
         icon: "i-material-symbols:person-outline-rounded",
         subtitle: "フォロワー",
       };
+    case "search":
+      return {
+        icon: "i-material-symbols:search-rounded",
+        subtitle: "検索",
+      };
     default: {
       const hashtag = hashtagOf(source);
       if (hashtag) {

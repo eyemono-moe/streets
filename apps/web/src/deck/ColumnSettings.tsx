@@ -14,6 +14,7 @@ import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
 import RelayColumnEditor from "./RelayColumnEditor";
+import SearchQueryEditor from "./SearchQueryEditor";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id">>;
 
@@ -54,6 +55,10 @@ const ColumnSettings: Component<{
   const show = () => columnShow(props.column);
   const patch = (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: props.column.id, patch });
+  const searchQuery = () => {
+    const source = props.column.source;
+    return source.kind === "search" ? source.query : undefined;
+  };
   const relaySource = () => {
     const source = props.column.source;
     if (source.kind !== "literal" || !source.relays) return undefined;
@@ -118,6 +123,24 @@ const ColumnSettings: Component<{
             )}
           </For>
         </Field>
+      </Show>
+
+      <Show when={searchQuery()}>
+        {(query) => (
+          <Field label="検索の条件">
+            {/* 探したときと同じ触り方で、後から条件を変えられるようにする。 */}
+            <SearchQueryEditor
+              text={query()}
+              // 打つたびに購読し直すと、やり取りが増えて画面もちらつく。
+              debounceMs={600}
+              onChange={(text) => {
+                const next = text.trim();
+                if (next === "") return;
+                patch({ title: next, source: { kind: "search", query: next } });
+              }}
+            />
+          </Field>
+        )}
       </Show>
 
       <Show when={relaySource()}>

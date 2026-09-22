@@ -1,5 +1,4 @@
 import { decodeNpub, encodeBech32 } from "../nostr/nip19";
-import { SEARCH_RELAYS } from "../read/default-relays";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type ColumnDef, TIMELINE_KINDS } from "./deck";
 
@@ -115,16 +114,8 @@ export const buildColumn = (
     case "search": {
       const query = input.trim();
       if (query.length === 0) return undefined;
-      return {
-        id,
-        title: query,
-        source: {
-          kind: "literal",
-          filters: [{ kinds: [1], search: query }],
-          // 検索は著者を指定しないので Outbox で行き先を決められない。対応リレーを明示する。
-          relays: [...SEARCH_RELAYS],
-        },
-      };
+      // 問い合わせ先はデッキに焼き込まない —— 設定（kind:10007）で変えられる。
+      return { id, title: query, source: { kind: "search", query } };
     }
 
     case "bookmarks":

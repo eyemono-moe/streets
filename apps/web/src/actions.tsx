@@ -40,6 +40,7 @@ const RELAY_LIST_KIND = 10002;
 const MUTE_KIND = 10000;
 const PROFILE_KIND = 0;
 const BLOSSOM_SERVERS_KIND = 10063;
+const SEARCH_RELAY_LIST_KIND = 10007;
 
 export type EventActions = {
   viewer: string;
@@ -82,6 +83,7 @@ export type WriteStack = {
   profile: Accessor<NostrEvent | undefined>;
   /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
+  searchRelays: Accessor<NostrEvent | undefined>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -144,6 +146,7 @@ export const createWriteStack = (options: {
   const muteList = mine(MUTE_KIND);
   const profile = mine(PROFILE_KIND);
   const blossomServers = mine(BLOSSOM_SERVERS_KIND);
+  const searchRelays = mine(SEARCH_RELAY_LIST_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -213,6 +216,7 @@ export const createWriteStack = (options: {
     muteListSettled: muteList.settled,
     profile: profile.event,
     blossomServers: blossomServers.event,
+    searchRelays: searchRelays.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };
