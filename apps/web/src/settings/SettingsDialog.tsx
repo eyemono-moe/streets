@@ -76,7 +76,6 @@ const SettingsDialog: Component<{
       label: "検索",
       icon: "i-material-symbols:search-rounded",
       title: "検索",
-      description: "言葉での検索を、どのリレーへ問い合わせるかを決めます。",
       content: () => <SearchSettings />,
     },
     {
@@ -84,8 +83,7 @@ const SettingsDialog: Component<{
       label: "絵文字",
       icon: "i-material-symbols:add-reaction-outline-rounded",
       title: "絵文字",
-      description:
-        "リアクションのピッカーに出る絵文字を決めます（NIP-51 の kind:10030）。",
+      description: "リアクションのピッカーに出る絵文字を設定します",
       content: () => <EmojiSettings />,
     },
     {

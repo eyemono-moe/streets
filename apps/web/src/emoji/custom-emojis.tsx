@@ -7,6 +7,7 @@ import {
   type EmojiList,
   type EmojiSetRef,
   addEmoji,
+  addEmojiSet,
   emojiSetAddress,
   parseEmojiList,
   removeEmoji,
@@ -137,6 +138,17 @@ export const CustomEmojisMediator: ParentComponent<{
           removeEmoji(event.shortcode),
         );
         return true;
+      case "emoji-set/add": {
+        const address = emojiSetAddress(event.ref);
+        if (list().sets.some((ref) => emojiSetAddress(ref) === address)) {
+          return true;
+        }
+        save(
+          { ...list(), sets: [...list().sets, event.ref] },
+          addEmojiSet(event.ref),
+        );
+        return true;
+      }
       case "emoji-set/remove": {
         const address = emojiSetAddress(event.ref);
         save(

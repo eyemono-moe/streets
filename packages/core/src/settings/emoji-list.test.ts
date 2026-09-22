@@ -5,6 +5,8 @@ import {
   addEmoji,
   addEmojiSet,
   emojiSetAddress,
+  emojiShortcodeFromFileName,
+  isEmojiShortcode,
   parseEmojiList,
   parseEmojiSetAddress,
   removeEmoji,
@@ -125,5 +127,39 @@ describe("書き換え", () => {
       ]),
     );
     expect(next.tags).toEqual([["emoji", "dora", "https://y"]]);
+  });
+});
+
+describe("isEmojiShortcode", () => {
+  it("英数字と _ - だけを通す", () => {
+    expect(isEmojiShortcode("neko_1-a")).toBe(true);
+    // 捕まえる変異: 日本語や記号を通す（NIP-30 が使える文字を決めている）
+    expect(isEmojiShortcode("ねこ")).toBe(false);
+    expect(isEmojiShortcode("ne ko")).toBe(false);
+    expect(isEmojiShortcode("ne:ko")).toBe(false);
+    expect(isEmojiShortcode("")).toBe(false);
+  });
+});
+
+describe("emojiShortcodeFromFileName", () => {
+  it("拡張子を落として名前にする", () => {
+    expect(emojiShortcodeFromFileName("neko.png")).toBe("neko");
+    expect(emojiShortcodeFromFileName("my neko!.png")).toBe("myneko");
+  });
+
+  it("英字が残らなければ諦める", () => {
+    // 捕まえる変異: そのまま返す（`ねこ-01.png` が `-01` という名前になる）
+    expect(emojiShortcodeFromFileName("ねこ-01.png")).toBe("");
+    expect(emojiShortcodeFromFileName("１２３.png")).toBe("");
+  });
+
+  it("前後のハイフンとアンダースコアは落とす", () => {
+    expect(emojiShortcodeFromFileName("_neko_.png")).toBe("neko");
+  });
+
+  it("長すぎる名前は切る", () => {
+    expect(emojiShortcodeFromFileName(`${"a".repeat(50)}.png`)).toHaveLength(
+      32,
+    );
   });
 });

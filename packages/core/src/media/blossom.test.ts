@@ -150,13 +150,13 @@ describe("uploadBlob", () => {
     const authorization = (seen.init?.headers as Record<string, string>)
       .authorization;
     expect(authorization.startsWith("Nostr ")).toBe(true);
-    // base64url で送る（`+` `/` `=` を含まない）。ふつうの base64 を base64url
-    // として読むアップロード先があり、中身が壊れて「署名が違う」と断られる。
-    const encoded = authorization.slice("Nostr ".length);
-    expect(encoded).not.toMatch(/[+/=]/);
-    expect(
-      JSON.parse(atob(encoded.replace(/-/g, "+").replace(/_/g, "/"))),
-    ).toMatchObject({ kind: 24_242 });
+    // ASCII だけの base64 で送る。日本語をそのまま入れると読み違えるアップロード先がある。
+    const decoded = atob(authorization.slice("Nostr ".length));
+    expect(decoded).toMatch(/^[\x20-\x7e]*$/);
+    expect(JSON.parse(decoded)).toMatchObject({
+      kind: 24_242,
+      content: signedAuth.content,
+    });
     expect(blob).toEqual({
       url: "https://a.example/abc.png",
       sha256: "f".repeat(64),

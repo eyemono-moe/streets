@@ -155,15 +155,19 @@ export const buildUploadAuth = (options: {
 });
 
 /**
- * 認可イベントの入れ物（BUD-11）。ふつうの base64 ではなく base64url（JWT と
- * 同じ形）で送る —— `+` `/` を含む base64 を base64url として読むアップロード先があり、
- * 中身が壊れて「署名が違う」と断られる。
+ * 認可イベントの入れ物（BUD-01 の base64）。ASCII 以外の文字は JSON の `\uXXXX` に逃がす
+ * —— 日本語のファイル名などをそのまま UTF-8 で入れると、中身を Latin-1 として読む
+ * アップロード先（blossom.band・blossom-server）で読み違えられ、断られる。逃がしても
+ * JSON として読めば同じ値なので、署名はそのまま通る。base64url で送ると、多くの
+ * アップロード先がそもそも読めない。
  */
-const base64url = (text: string): string =>
-  btoa(String.fromCharCode(...new TextEncoder().encode(text)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+const encodeAuth = (auth: NostrEvent): string =>
+  btoa(
+    JSON.stringify(auth).replace(
+      /[\u007f-\uffff]/g,
+      (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, "0")}`,
+    ),
+  );
 
 const parseBlob = (
   json: unknown,
@@ -194,7 +198,7 @@ export const uploadBlob = async (options: {
   signal?: AbortSignal;
 }): Promise<BlobDescriptor> => {
   const fetcher = options.fetcher ?? fetch;
-  const authorization = `Nostr ${base64url(JSON.stringify(options.auth))}`;
+  const authorization = `Nostr ${encodeAuth(options.auth)}`;
   let response: Response;
   try {
     response = await fetcher(`${options.server}/upload`, {

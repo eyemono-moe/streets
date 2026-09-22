@@ -4,12 +4,22 @@ import {
   type CustomEmoji,
   EMOJI_SET_KIND,
   type EmojiSetRef,
+  emojiShortcodeFromFileName,
+  isEmojiShortcode,
 } from "@streets/core/settings/emoji-list";
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
-import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  Show,
+  createSignal,
+  onCleanup,
+} from "solid-js";
+import { NoUploadServerError, useUploader } from "../media/uploader";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import Button, { ButtonLink } from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
@@ -20,6 +30,8 @@ export type EmojiSetRow = {
 };
 
 export type EmojiSettingsViewProps = {
+  /** 「絵文字セットを探す」の中身。読み取り層を触るので外から渡す。 */
+  search?: JSX.Element;
   /** 直接持っている絵文字（kind:10030 の `emoji` タグ）。 */
   emojis: readonly CustomEmoji[];
   sets: readonly EmojiSetRow[];
@@ -30,7 +42,10 @@ export type EmojiSettingsViewProps = {
  * 絵文字 1 つ。読めない URL でも、何が入っているかが消えないようにする。
  * 名前を隣に出している場所（`named`）では、代わりに読めない印だけを出す。
  */
-const Emoji: Component<{ emoji: CustomEmoji; named?: boolean }> = (props) => {
+export const EmojiPreview: Component<{
+  emoji: CustomEmoji;
+  named?: boolean;
+}> = (props) => {
   const [broken, setBroken] = createSignal(false);
   return (
     <Show
@@ -68,15 +83,15 @@ const Emoji: Component<{ emoji: CustomEmoji; named?: boolean }> = (props) => {
 const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="自分の絵文字"
+      title="自分の絵文字リスト"
       scope="account"
-      description="リアクションのピッカーに出る絵文字です。誰かが作った絵文字セット（NIP-30 の kind:30030）を入れることも、絵文字を 1 つずつ足すこともできます。"
+      description="リアクションのピッカーに出る絵文字の一覧です。誰かが作った絵文字セットを入れることも、絵文字を自分で 1 つずつ足すこともできます。"
     >
       <Show
         when={props.sets.length > 0 || props.emojis.length > 0}
         fallback={
           <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            まだ何も入っていません。下から絵文字を足すと、リアクションのピッカーに出るようになります。
+            まだ何も入っていません。下から絵文字を追加すると、リアクションのピッカーに出るようになります。
           </p>
         }
       >
@@ -101,6 +116,35 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
         </ul>
       </Show>
       <AddEmoji emojis={props.emojis} disabled={props.saving} />
+    </SettingsSection>
+
+    <Show when={props.search}>
+      {(search) => (
+        <SettingsSection
+          title="絵文字セットを探す"
+          description="誰かが作った絵文字セットを見つけて、自分の絵文字リストに加えられます。"
+        >
+          {search() as never}
+        </SettingsSection>
+      )}
+    </Show>
+
+    <SettingsSection
+      title="もっと絵文字を管理する"
+      description="絵文字セットの作成・整理は、専用のクライアントからも可能です。外部クライアントで設定した絵文字はStreetsにも反映されます。"
+    >
+      <div class="flex">
+        <ButtonLink
+          variant="secondary"
+          size="sm"
+          icon="i-material-symbols:open-in-new-rounded"
+          href="https://koteitan.github.io/emoemo/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          emoemo を開く
+        </ButtonLink>
+      </div>
     </SettingsSection>
   </div>
 );
@@ -147,7 +191,7 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
               <Show when={!api().open}>
                 <div class="flex flex-wrap items-center gap-1.5">
                   <For each={emojis().slice(0, 12)}>
-                    {(emoji) => <Emoji emoji={emoji} />}
+                    {(emoji) => <EmojiPreview emoji={emoji} />}
                   </For>
                   <Show when={emojis().length > 12}>
                     <span class="c-secondary text-caption">
@@ -166,7 +210,7 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
                 <For each={emojis()}>
                   {(emoji) => (
                     <li class="flex items-center gap-2">
-                      <Emoji emoji={emoji} named />
+                      <EmojiPreview emoji={emoji} named />
                       <span class="c-primary min-w-0 flex-1 break-all text-body">
                         {`:${emoji.shortcode}:`}
                       </span>
@@ -237,7 +281,7 @@ const EmojiRow: Component<{ emoji: CustomEmoji; disabled: boolean }> = (
   const dispatch = useDispatch();
   return (
     <li class="flex items-center gap-2">
-      <Emoji emoji={props.emoji} named />
+      <EmojiPreview emoji={props.emoji} named />
       <span class="c-primary min-w-0 flex-1 break-all text-body">
         {`:${props.emoji.shortcode}:`}
       </span>
@@ -262,19 +306,22 @@ const AddEmoji: Component<{
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const uploader = useUploader();
   const [shortcode, setShortcode] = createSignal("");
   const [url, setUrl] = createSignal("");
   const [error, setError] = createSignal<string>();
+  const [uploading, setUploading] = createSignal(false);
+  let picker: HTMLInputElement | undefined;
+
+  const name = () => shortcode().trim().replace(/^:|:$/g, "");
 
   const submit = () => {
-    // 打つ人は `:name:` の形で覚えているので、前後の `:` は落として受ける。
-    const name = shortcode().trim().replace(/^:|:$/g, "");
     const src = url().trim();
-    if (name === "" || src === "") {
+    if (name() === "" || src === "") {
       setError("名前と画像の URL を両方入力してください");
       return;
     }
-    if (!/^[0-9a-zA-Z_-]+$/.test(name)) {
+    if (!isEmojiShortcode(name())) {
       setError("名前は半角の英数字と _ - だけが使えます");
       return;
     }
@@ -282,16 +329,34 @@ const AddEmoji: Component<{
       setError("画像の URL は http:// か https:// で始めてください");
       return;
     }
-    dispatch({ type: "emoji/add", shortcode: name, url: src });
+    dispatch({ type: "emoji/add", shortcode: name(), url: src });
     setShortcode("");
     setUrl("");
     setError(undefined);
   };
 
+  const uploadImage = async (file: File) => {
+    if (!uploader) return;
+    setUploading(true);
+    setError(undefined);
+    try {
+      const blob = await uploader.upload(file);
+      setUrl(blob.url);
+      // 名前をまだ決めていなければ、ファイル名から埋める。
+      if (name() === "") setShortcode(emojiShortcodeFromFileName(file.name));
+    } catch (cause) {
+      setError(
+        cause instanceof NoUploadServerError
+          ? "画像のアップロード先が設定されていません。「画像」の設定で追加してください。"
+          : "画像をアップロードできませんでした",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const replacing = () =>
-    props.emojis.some(
-      (emoji) => emoji.shortcode === shortcode().trim().replace(/^:|:$/g, ""),
-    );
+    props.emojis.some((emoji) => emoji.shortcode === name());
 
   return (
     <form
@@ -321,17 +386,39 @@ const AddEmoji: Component<{
           aria-invalid={error() !== undefined}
           aria-describedby={error() ? "emoji-add-error" : undefined}
           value={url()}
-          disabled={props.disabled}
+          disabled={props.disabled || uploading()}
           onInput={(event) => {
             setUrl(event.currentTarget.value);
             setError(undefined);
           }}
         />
+        <Show when={uploader}>
+          {/* 画像を選んで上げる。URL を手で用意しなくても足せるように。 */}
+          <input
+            ref={picker}
+            type="file"
+            accept="image/*"
+            class="hidden"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void uploadImage(file);
+            }}
+          />
+          <Button
+            variant="secondary"
+            icon="i-material-symbols:upload-rounded"
+            disabled={props.disabled || uploading()}
+            onClick={() => picker?.click()}
+          >
+            {uploading() ? "アップロード中…" : "画像を選ぶ"}
+          </Button>
+        </Show>
         <Button
           type="submit"
           variant="primary"
           icon="i-material-symbols:add-rounded"
-          disabled={props.disabled}
+          disabled={props.disabled || uploading()}
         >
           追加
         </Button>
@@ -341,8 +428,8 @@ const AddEmoji: Component<{
         fallback={
           <p class="c-secondary text-caption">
             {replacing()
-              ? "同じ名前の絵文字が既にあります。足すと画像が入れ替わります。"
-              : "名前は `:` で囲まずに入力してください（例: neko）。"}
+              ? "同じ名前の絵文字が既に存在します。この状態で追加すると画像を更新することができます。"
+              : "名前に使えるのは半角の英数字と _ - です（例: neko）。日本語や記号は使えません。"}
           </p>
         }
       >

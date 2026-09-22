@@ -80,6 +80,29 @@ export const parseEmojiList = (event: NostrEvent | undefined): EmojiList => {
   return { emojis: parseCustomEmojis(event), sets };
 };
 
+/**
+ * NIP-30 のショートコードに使える文字。英数字とハイフンとアンダースコアだけ
+ * で、日本語や記号は使えない（`:` で囲んだ形を本文から見つけるため）。
+ */
+const SHORTCODE = /^[0-9a-zA-Z_-]+$/;
+
+export const isEmojiShortcode = (value: string): boolean =>
+  SHORTCODE.test(value);
+
+/**
+ * 選んだ画像のファイル名から、名前の候補を作る。使えない文字を落とすと
+ * 意味の残らない名前（`ねこ-01.png` → `-01`）になるので、英字が 1 つも
+ * 残らなければ諦めて空にする —— 打ってもらったほうが早い。
+ */
+export const emojiShortcodeFromFileName = (fileName: string): string => {
+  const candidate = fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/[^0-9a-zA-Z_-]/g, "")
+    .replace(/^[-_]+|[-_]+$/g, "")
+    .slice(0, 32);
+  return /[a-zA-Z]/.test(candidate) ? candidate : "";
+};
+
 export const addEmojiSet = (ref: EmojiSetRef): Mutation =>
   addTagValue(EMOJI_LIST_KIND, "a", emojiSetAddress(ref));
 
