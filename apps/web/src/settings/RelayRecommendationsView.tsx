@@ -132,9 +132,6 @@ const RecommendationRow: Component<{
         loadInfo={props.loadInfo}
         subtitle={
           <span class="flex flex-col gap-0.5 pt-0.5">
-            <span class="c-primary font-600 text-caption">
-              おすすめ度 {props.item.score}
-            </span>
             <span class="flex flex-wrap gap-x-2 gap-y-0.5">
               <For each={props.item.reasons}>
                 {(reason) => (
