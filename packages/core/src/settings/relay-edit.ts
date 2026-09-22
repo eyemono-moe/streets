@@ -6,7 +6,8 @@ import { normalizeRelayUrl } from "../relay/relay-url";
 
 /** リレーの一覧に対する 1 回の操作。 */
 export type RelayOp =
-  | { type: "add"; url: RelayUrl }
+  /** `usage` を省くと両方に使う。 */
+  | { type: "add"; url: RelayUrl; usage?: RelayUsage }
   | { type: "remove"; url: RelayUrl }
   | { type: "set-usage"; url: RelayUrl; read: boolean; write: boolean };
 
@@ -31,7 +32,14 @@ const applyOne = (current: RelayListEntry[], op: RelayOp): RelayListEntry[] => {
     case "add":
       return current.some((entry) => entry.url === op.url)
         ? current
-        : [...current, { url: op.url, read: true, write: true }];
+        : [
+            ...current,
+            {
+              url: op.url,
+              read: op.usage !== "write",
+              write: op.usage !== "read",
+            },
+          ];
     case "remove":
       return current.filter((entry) => entry.url !== op.url);
     case "set-usage":

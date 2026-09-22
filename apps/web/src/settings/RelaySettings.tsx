@@ -3,6 +3,7 @@ import { type Component, Show, createSignal, onCleanup } from "solid-js";
 import { readRoutingMode } from "../read-routing-setting";
 import { useRelayEdit } from "./RelayMediator";
 import RelayPlanView from "./RelayPlanView";
+import RelayRecommendations from "./RelayRecommendations";
 import RelaySettingsView from "./RelaySettingsView";
 
 /**
@@ -46,6 +47,7 @@ const RelaySettings: Component = () => {
             }}
             infoOf={edit().infoOf}
           />
+          <RelayRecommendations edit={edit()} />
         </div>
       )}
     </Show>
