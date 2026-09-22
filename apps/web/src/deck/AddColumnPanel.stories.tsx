@@ -41,6 +41,9 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** 開いた直後。カラムの種類を選ぶところ。 */
+export const カラムの種類: Story = { args: { initialRelayOpen: false } };
+
 export const リレー設定あり: Story = {};
 
 export const 読み込み中: Story = {

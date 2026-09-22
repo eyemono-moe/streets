@@ -53,10 +53,10 @@ export const Sidebar: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // 行：投稿・カラムの一覧・カラムを追加・（空き）・設定・アカウント。一覧の行は
+    // 行：投稿・カラムの一覧・探す・カラムを追加・（空き）・設定・アカウント。一覧の行は
     // 中身の高さ（max-content）まで伸び、画面の高さが足りないときだけ縮んで送れる
     // ようになる。ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_1fr_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_minmax(0,max-content)_auto_auto_1fr_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
         aria-label="ノートを書く"
@@ -75,6 +75,17 @@ export const Sidebar: Component<{
           {(column, index) => <ColumnButton column={column} index={index()} />}
         </For>
       </div>
+      <button
+        type="button"
+        aria-label="探す"
+        class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+        onClick={() => dispatch({ type: "deck/open-panel", panel: "search" })}
+      >
+        <span
+          class="i-material-symbols:search-rounded size-5.5"
+          aria-hidden="true"
+        />
+      </button>
       <button
         type="button"
         aria-label="カラムを追加"
@@ -132,6 +143,17 @@ export const TabBar: Component<{
   const dispatch = useDispatch();
   return (
     <nav class="flex shrink-0 items-center justify-around bg-primary px-5 pb-2.5">
+      <button
+        type="button"
+        aria-label="探す"
+        class="c-secondary grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        onClick={() => dispatch({ type: "deck/open-panel", panel: "search" })}
+      >
+        <span
+          class="i-material-symbols:search-rounded size-6"
+          aria-hidden="true"
+        />
+      </button>
       <button
         type="button"
         aria-label="カラムを追加"
