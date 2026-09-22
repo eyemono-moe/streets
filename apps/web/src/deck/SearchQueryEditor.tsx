@@ -98,10 +98,6 @@ const SearchQueryEditor: Component<{
         />
       </div>
       <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
-      <p class="c-secondary text-caption">
-        入力欄には # でハッシュタグ、from: で書いた人、since: until:
-        で日付、kind: で種類を書けます。上の項目と同じものです。
-      </p>
     </div>
   );
 };

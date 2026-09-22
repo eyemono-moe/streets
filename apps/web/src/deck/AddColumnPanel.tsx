@@ -88,9 +88,6 @@ const AddColumnPanel: Component<{
         when={relayOpen()}
         fallback={
           <div class="motion-fade animate-in">
-            <p class="c-secondary mb-3 text-caption">
-              追加したいカラムを選んでください。言葉から探すときは、虫めがねのボタンから。
-            </p>
             <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
               <For each={PRESETS}>
                 {(preset) => (

@@ -48,11 +48,11 @@ const SearchForm: Component<{
 
   return (
     <div class="flex flex-col gap-2.5">
-      <Field id="search-words" label="言葉">
+      <Field id="search-words" label="単語">
         <input
           id="search-words"
           class={inputClass}
-          placeholder="本文に含む言葉"
+          placeholder="ねこ"
           value={props.query.words.join(" ")}
           onChange={(event) =>
             patch({ words: words(event.currentTarget.value) })
@@ -63,7 +63,7 @@ const SearchForm: Component<{
         <input
           id="search-hashtags"
           class={inputClass}
-          placeholder="nostr streets"
+          placeholder="nostr"
           value={props.query.hashtags.join(" ")}
           onChange={(event) =>
             patch({
