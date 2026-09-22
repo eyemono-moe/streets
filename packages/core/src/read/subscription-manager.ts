@@ -22,6 +22,13 @@ import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
 import { planQuery } from "./query-plan";
 import {
+  EMPTY_READ_PLAN,
+  type ReadPlan,
+  type SectionPlanInput,
+  readPlanEqual,
+  summarizeReadPlan,
+} from "./read-plan";
+import {
   OUTBOX_ROUTING,
   type ReadRouting,
   sameReadRouting,
@@ -250,6 +257,8 @@ export class SubscriptionManager {
   #replanGeneration = 0;
   #lastReplanAt = Number.NEGATIVE_INFINITY;
   #readRouting: ReadRouting = OUTBOX_ROUTING;
+  #readPlan: ReadPlan = EMPTY_READ_PLAN;
+  readonly #readPlanListeners = new Set<(plan: ReadPlan) => void>();
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -366,6 +375,17 @@ export class SubscriptionManager {
     };
   }
 
+  /** 直近の張り直しで決めた、全カラム分の読み取り先。 */
+  get readPlan(): ReadPlan {
+    return this.#readPlan;
+  }
+
+  /** 読み取り先が変わったら呼ぶ。同じ計画の張り直しでは呼ばない。 */
+  onReadPlanChanged(listener: (plan: ReadPlan) => void): () => void {
+    this.#readPlanListeners.add(listener);
+    return () => this.#readPlanListeners.delete(listener);
+  }
+
   get readRouting(): ReadRouting {
     return this.#readRouting;
   }
@@ -461,6 +481,7 @@ export class SubscriptionManager {
     // エントリの登録は丸ごと捨てる —— 捨てないと replan() がこれを生きた
     // セクションとして扱い、再接続してしまう。
     this.#entries.clear();
+    this.#readPlanListeners.clear();
   }
 
   #normalizeExplicit(
@@ -640,13 +661,14 @@ export class SubscriptionManager {
     });
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
+    const planInputs: SectionPlanInput[] = [];
     for (const entry of entries) {
       // スナップショット後に close() されたエントリは触らない (#close() 済み)。
       if (entry.closed) continue;
 
       let perRelay: Map<RelayUrl, RelayFilter[]>;
-      let unroutableAuthors = 0;
-      let uncoveredAuthors = 0;
+      let unroutable: readonly string[] = [];
+      let uncovered: readonly string[] = [];
 
       if (entry.explicitRelays !== undefined) {
         // 明示リレーは選択を経由しない —— ユーザーが名指ししたリレーを
@@ -674,23 +696,41 @@ export class SubscriptionManager {
         });
         perRelay = plan.perRelay;
         // direct では fallback 行きが本来の行き先なので、欠落として数えない。
-        unroutableAuthors = direct ? 0 : plan.unroutableAuthors.length;
-        uncoveredAuthors = plan.uncoveredAuthors.length;
+        unroutable = direct ? [] : plan.unroutableAuthors;
+        uncovered = plan.uncoveredAuthors;
       }
+      planInputs.push({
+        explicit: entry.explicitRelays !== undefined,
+        perRelay,
+        unroutableAuthors: unroutable,
+        uncoveredAuthors: uncovered,
+      });
 
       const suppressCallback = entry.pendingInitialDelivery;
       this.#applyEntryDiff(entry, perRelay);
 
       const newPlan: SectionPlan = {
         relays: [...perRelay.keys()],
-        unroutableAuthors,
-        uncoveredAuthors,
+        unroutableAuthors: unroutable.length,
+        uncoveredAuthors: uncovered.length,
       };
       const changed = !suppressCallback && !planEqual(entry.plan, newPlan);
       entry.plan = newPlan;
       // suppressCallback は handle 未返却の間だけ真 —— 再入で遅延された
       // 巡はもう返却済みなので、ここで正しく通知される。
       if (changed) this.#deliver(() => entry.delivery.onPlanChanged(newPlan));
+    }
+
+    const readPlan = summarizeReadPlan({
+      mode: this.#readRouting.mode,
+      fallbackRelays,
+      sections: planInputs,
+    });
+    if (!readPlanEqual(this.#readPlan, readPlan)) {
+      this.#readPlan = readPlan;
+      for (const listener of this.#readPlanListeners) {
+        this.#deliver(() => listener(readPlan));
+      }
     }
   }
 
