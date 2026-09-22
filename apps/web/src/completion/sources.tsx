@@ -46,7 +46,7 @@ export const UserRow = (props: { user: UserEntry }) => {
       <Avatar
         pubkey={props.user.pubkey}
         picture={props.user.profile?.picture}
-        class="size-6 rounded-full"
+        class="size-6 rounded-1.5"
       />
       <span class="flex min-w-0 flex-1 items-baseline gap-1.5">
         <span class="min-w-0 truncate font-600 text-body">

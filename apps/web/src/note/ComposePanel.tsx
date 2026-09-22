@@ -1,4 +1,5 @@
 import { buildNote } from "@streets/core/nostr/build/note";
+import { withReferences } from "@streets/core/nostr/build/references";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type ComposeState, canSend } from "@streets/core/view/compose";
 import {
@@ -11,6 +12,7 @@ import {
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useNoteSources } from "../completion/sources";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import Avatar from "./Avatar";
@@ -43,6 +45,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const dispatch = useDispatch();
   const preview = useDebounced(() => props.state.content, 400);
   const dropAndPaste = useDropAndPaste();
+  const emoji = useEmojiLookup();
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
@@ -51,7 +54,8 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
     const empty = text.length === 0 && props.state.attachments.length === 0;
     if (!actions || empty) return undefined;
     return {
-      ...buildNote(text),
+      // 送るときと同じく、自分の絵文字の :shortcode: を絵文字で見せる。
+      ...withReferences(buildNote(text), { emoji }),
       id: "",
       sig: "",
       pubkey: actions.viewer,
