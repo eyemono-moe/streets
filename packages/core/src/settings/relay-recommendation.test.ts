@@ -185,14 +185,4 @@ describe("recommendRelays", () => {
       [A, 42, false],
     ]);
   });
-
-  it("人数・速さの順にも並べ替えられる", () => {
-    expect(
-      recommendRelays({ ...input, sort: "users" }).map((item) => item.url),
-    ).toEqual([B, C, A]);
-    // 計測の無いリレーは最後。
-    expect(
-      recommendRelays({ ...input, sort: "latency" }).map((item) => item.url),
-    ).toEqual([C, A, B]);
-  });
 });

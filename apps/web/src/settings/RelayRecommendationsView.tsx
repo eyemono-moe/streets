@@ -3,7 +3,6 @@ import type { RelayInfo } from "@streets/core/relay/relay-info";
 import { type RelayUsage, relayLabel } from "@streets/core/settings/relay-edit";
 import type {
   RecommendationReason,
-  RecommendationSort,
   RelayRecommendation,
 } from "@streets/core/settings/relay-recommendation";
 import {
@@ -34,16 +33,8 @@ export type RecommendationState =
 
 export type RelayRecommendationsViewProps = {
   state: RecommendationState;
-  sort: RecommendationSort;
-  onSort: (sort: RecommendationSort) => void;
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
 };
-
-const SORTS: { value: RecommendationSort; label: string }[] = [
-  { value: "score", label: "おすすめ度" },
-  { value: "users", label: "使っている人" },
-  { value: "latency", label: "速さ" },
-];
 
 /** おすすめのリレー。足すときはイベントを上へ渡す（`relays/edit`）。 */
 const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
@@ -51,7 +42,7 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
 ) => (
   <SettingsSection
     title="おすすめのリレー"
-    description="フォローしている人がよく使っているリレーほど、上に並びます。リレーを計測している人が公開している応答の速さや、Streets が使う機能に対応しているかも加味します。足したリレーは、上の「使うリレー」に入ります。"
+    description="フォローしている人がよく使っているリレーの一覧です。"
   >
     <Switch>
       <Match when={props.state.phase === "loading"}>
@@ -70,13 +61,6 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
       <Match when={props.state.phase === "ready" && props.state}>
         {(state) => (
           <>
-            <SegmentedControl
-              label="並べ方"
-              variant="secondary"
-              value={props.sort}
-              options={SORTS}
-              onChange={props.onSort}
-            />
             <Switch>
               <Match when={state().discovery === "loading"}>
                 <p class="c-secondary text-caption">
@@ -211,23 +195,20 @@ const NIP_NAMES: Record<number, string> = {
   11: "リレーの情報",
 };
 
-const signed = (points: number) =>
-  points > 0 ? `+${points}` : points < 0 ? `−${-points}` : "±0";
-
 const reasonLabel = (reason: RecommendationReason): string => {
   switch (reason.type) {
     case "users":
-      return `フォロー中の ${reason.users} 人が使用（${signed(reason.points)}）`;
+      return `フォロー中の ${reason.users} 人が使用`;
     case "latency":
-      return `応答 ${reason.ms}ms（${signed(reason.points)}）`;
+      return `応答 ${reason.ms}ms`;
     case "nips":
       return reason.missing.length === 0
-        ? `必要な機能に対応（${signed(reason.points)}）`
-        : `${reason.missing.map((nip) => NIP_NAMES[nip] ?? `NIP-${nip}`).join("・")}に未対応（${signed(reason.points)}）`;
+        ? "必要な機能に対応"
+        : `${reason.missing.map((nip) => NIP_NAMES[nip] ?? `NIP-${nip}`).join("・")}に未対応`;
     case "payment":
-      return `書き込みに支払いが必要（${signed(reason.points)}）`;
+      return "書き込みに支払いが必要";
     case "auth":
-      return `ログインが必要（${signed(reason.points)}）`;
+      return "ログインが必要";
   }
 };
 

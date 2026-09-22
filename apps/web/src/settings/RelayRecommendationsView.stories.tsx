@@ -1,6 +1,5 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
-  type RecommendationSort,
   type RelayDiscovery,
   recommendRelays,
 } from "@streets/core/settings/relay-recommendation";
@@ -70,7 +69,6 @@ const discoveries = new Map<RelayUrl, RelayDiscovery>([
 ]);
 
 const Story = (props: Args) => {
-  const [sort, setSort] = createSignal<RecommendationSort>("score");
   const [own, setOwn] = createSignal([
     { url: url("relay.damus.io"), read: true, write: true },
   ]);
@@ -85,7 +83,6 @@ const Story = (props: Args) => {
             followees: 800,
             discoveries: props.discovery === "ready" ? discoveries : new Map(),
             own: own(),
-            sort: sort(),
           }),
         }
       : { phase: props.phase };
@@ -110,12 +107,7 @@ const Story = (props: Args) => {
         }}
       >
         <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
-          <RelayRecommendationsView
-            state={state()}
-            sort={sort()}
-            onSort={setSort}
-            infoOf={() => undefined}
-          />
+          <RelayRecommendationsView state={state()} infoOf={() => undefined} />
         </div>
       </Mediates>
     </EventSceneProvider>

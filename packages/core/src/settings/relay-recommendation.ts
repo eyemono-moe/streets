@@ -202,21 +202,13 @@ export const topCandidates = (
     .slice(0, limit)
     .map(([url]) => url);
 
-export type RecommendationSort = "score" | "users" | "latency";
-
-const latencyOf = (item: RelayRecommendation) =>
-  item.discovery?.rttRead ??
-  item.discovery?.rttOpen ??
-  Number.POSITIVE_INFINITY;
-
-/** 候補に点数を付けて並べる。 */
+/** 候補に点数を付けて、おすすめ度の順に並べる。 */
 export const recommendRelays = (input: {
   candidates: readonly RelayUrl[];
   users: ReadonlyMap<RelayUrl, number>;
   followees: number;
   discoveries: ReadonlyMap<RelayUrl, RelayDiscovery>;
   own: readonly RelayListEntry[];
-  sort?: RecommendationSort;
 }): RelayRecommendation[] => {
   const ownUrls = new Set(input.own.map((entry) => entry.url));
   const items = input.candidates.map((url) => {
@@ -236,15 +228,8 @@ export const recommendRelays = (input: {
       added: ownUrls.has(url),
     };
   });
-  const sort = input.sort ?? "score";
   return items.sort(
     (a, b) =>
-      (sort === "users"
-        ? b.users - a.users
-        : sort === "latency"
-          ? latencyOf(a) - latencyOf(b)
-          : b.score - a.score) ||
-      b.score - a.score ||
-      a.url.localeCompare(b.url),
+      b.score - a.score || b.users - a.users || a.url.localeCompare(b.url),
   );
 };

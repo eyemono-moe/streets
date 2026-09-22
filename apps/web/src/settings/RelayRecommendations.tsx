@@ -3,7 +3,6 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   RELAY_DISCOVERY_KIND,
   RELAY_MONITOR_RELAYS,
-  type RecommendationSort,
   type RelayDiscovery,
   countFolloweeRelays,
   discoveryFilter,
@@ -12,7 +11,7 @@ import {
   topCandidates,
 } from "@streets/core/settings/relay-recommendation";
 import { createQuery } from "@tanstack/solid-query";
-import { type Component, createMemo, createSignal } from "solid-js";
+import { type Component, createMemo } from "solid-js";
 import { useReadLayer } from "../read-layer";
 import type { RelayEdit } from "./RelayMediator";
 import RelayRecommendationsView, {
@@ -32,7 +31,6 @@ const DISCOVERY_STALE_MS = 60 * 60 * 1000;
  */
 const RelayRecommendations: Component<{ edit: RelayEdit }> = (props) => {
   const { store, manager } = useReadLayer();
-  const [sort, setSort] = createSignal<RecommendationSort>("score");
 
   const followees = () => props.edit.followees?.() ?? [];
   const settled = () => props.edit.routingSettled?.() ?? true;
@@ -86,18 +84,12 @@ const RelayRecommendations: Component<{ edit: RelayEdit }> = (props) => {
         followees: followees().length,
         discoveries,
         own: props.edit.entries(),
-        sort: sort(),
       }).slice(0, SHOWN),
     };
   };
 
   return (
-    <RelayRecommendationsView
-      state={state()}
-      sort={sort()}
-      onSort={setSort}
-      infoOf={props.edit.infoOf}
-    />
+    <RelayRecommendationsView state={state()} infoOf={props.edit.infoOf} />
   );
 };
 
