@@ -106,6 +106,21 @@ const PickerList: Component<{
     rootMargin: "0px 0px -75% 0px",
   });
 
+  /**
+   * そのかたまりの先頭へ送る。見出しは貼り付いていて、送り終えた場所では
+   * かたまりの下端に居ることがある。見出しの位置を当てにすると、上へ戻る
+   * ときにかたまりの終わりへ飛ぶ。
+   */
+  const jumpTo = (id: string) => {
+    const section = document.getElementById(headingId(id))?.parentElement;
+    if (!section || !scrollEl) return;
+    const top =
+      section.getBoundingClientRect().top -
+      scrollEl.getBoundingClientRect().top +
+      scrollEl.scrollTop;
+    scrollEl.scrollTo({ top, behavior: "smooth" });
+  };
+
   const active = () => {
     const id = toc().activeIds[0];
     return id === undefined ? undefined : id.slice(uid.length + 1);
@@ -128,7 +143,7 @@ const PickerList: Component<{
           ref={strip}
           class="b-b-1 relative shrink-0 border-primary"
         >
-          <ScrollArea.Viewport class="overflow-x-auto">
+          <ScrollArea.Viewport class="scrollbar-none overflow-x-auto">
             <ScrollArea.Content
               class="flex w-max"
               role="tablist"
@@ -147,7 +162,7 @@ const PickerList: Component<{
                       "c-primary font-600": active() === group.id,
                       "c-secondary hover:c-primary": active() !== group.id,
                     }}
-                    onClick={() => toc().scrollTo(headingId(group.id))}
+                    onClick={() => jumpTo(group.id)}
                   >
                     <span>{group.title}</span>
                     {/* 狭い画面のカラムの帯と同じ、下の線で今いる場所を出す。 */}
