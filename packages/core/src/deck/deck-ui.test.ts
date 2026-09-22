@@ -22,6 +22,26 @@ describe("deckUiTransition", () => {
     ).toBeUndefined();
   });
 
+  it("同じパネルのボタンをもう一度押すと閉じる", () => {
+    // 捕まえる変異: 開くだけにする（押しても閉じず、開いたままになる）
+    expect(
+      run(
+        { type: "deck/toggle-panel", panel: "compose" },
+        { type: "deck/toggle-panel", panel: "compose" },
+      ).panel,
+    ).toBeUndefined();
+  });
+
+  it("別のパネルのボタンを押すと、そちらへ移る", () => {
+    // 捕まえる変異: 開いている間は何もしない（別のボタンが効かなくなる）
+    expect(
+      run(
+        { type: "deck/toggle-panel", panel: "compose" },
+        { type: "deck/toggle-panel", panel: "search" },
+      ).panel,
+    ).toBe("search");
+  });
+
   it("別のパネルを開くと、開いていたパネルと入れ替わる", () => {
     const state = run(
       { type: "deck/open-panel", panel: "compose" },

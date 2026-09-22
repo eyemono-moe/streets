@@ -47,6 +47,9 @@ importers:
       '@streets/sign':
         specifier: workspace:*
         version: link:../../packages/sign
+      '@tanstack/solid-hotkeys':
+        specifier: ^0.11.0
+        version: 0.11.0(solid-js@1.9.13)
       '@tanstack/solid-query':
         specifier: ^5.103.1
         version: 5.103.1(solid-js@1.9.13)
@@ -1771,6 +1774,10 @@ packages:
     peerDependencies:
       solid-js: '>=1.9.7'
 
+  '@tanstack/hotkeys@0.9.0':
+    resolution: {integrity: sha512-y6zHjzDPTQZZ0OEtUujmGpq3TAFafgs6dCMlnTVoKJXZm3Eda0EhLuMdtb1lDdGc6/cSdEi1eptfh27mZkFzMQ==}
+    engines: {node: '>=18'}
+
   '@tanstack/query-core@5.103.1':
     resolution: {integrity: sha512-rms8HqTGp6zA00dM+cUQ2eBcgzNJefuu5CAMB37i/6MiGT1zulPOytCFu2a0qjLqVR2n1jENPj9woqFQNuCzWA==}
 
@@ -1780,8 +1787,19 @@ packages:
     peerDependencies:
       solid-js: '>=1.9.7'
 
+  '@tanstack/solid-hotkeys@0.11.0':
+    resolution: {integrity: sha512-722agYOHjBCtUxqhSOSsRHFSuW/n8AY0JTf05UJw/XTt+ZLcpT6OGwokM5Tt2NZM8t5NjtSBxF0BrNHplDcUKw==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      solid-js: '>=1.7.0'
+
   '@tanstack/solid-query@5.103.1':
     resolution: {integrity: sha512-QqVhd9ujRC84G+W5ZU0E5u021ZVlUiq5nLcAfzHfc3TBbzo9/hkqbv1RmBzuBHUB/5L388Jg6CJZrHawgy1HJw==}
+    peerDependencies:
+      solid-js: ^1.6.0
+
+  '@tanstack/solid-store@0.11.1':
+    resolution: {integrity: sha512-wzJsiqqLHyQacqbYPT8dKNfhR00NNu743vGeWz2lEpOyE/R+6AYIfFLhXsCIT/Kb+KKiT1KDkB2/35DhLEGx8g==}
     peerDependencies:
       solid-js: ^1.6.0
 
@@ -1789,6 +1807,9 @@ packages:
     resolution: {integrity: sha512-+YNHjRP8Te4d4Iy3ux+eixsPkADFjUiFTPNFFXlZzzSRXSo2kMudczrVYTwFqWyY5/g1to3HSLjY6PNuuV3dVw==}
     peerDependencies:
       solid-js: ^1.3.0
+
+  '@tanstack/store@0.11.1':
+    resolution: {integrity: sha512-mzTOBhypOuDJAy/D8n2MfUZ1HFkXnmSETviRyhqEC8LUE7/IZQExOTxMANj3KjTofYTkFNpBY67qaVrT41YccA==}
 
   '@tanstack/virtual-core@3.17.11':
     resolution: {integrity: sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g==}
@@ -4728,6 +4749,10 @@ snapshots:
       - csstype
       - utf-8-validate
 
+  '@tanstack/hotkeys@0.9.0':
+    dependencies:
+      '@tanstack/store': 0.11.1
+
   '@tanstack/query-core@5.103.1': {}
 
   '@tanstack/solid-devtools@0.8.5(bufferutil@4.0.9)(csstype@3.2.3)(solid-js@1.9.13)(utf-8-validate@6.0.5)':
@@ -4739,15 +4764,28 @@ snapshots:
       - csstype
       - utf-8-validate
 
+  '@tanstack/solid-hotkeys@0.11.0(solid-js@1.9.13)':
+    dependencies:
+      '@tanstack/hotkeys': 0.9.0
+      '@tanstack/solid-store': 0.11.1(solid-js@1.9.13)
+      solid-js: 1.9.13
+
   '@tanstack/solid-query@5.103.1(solid-js@1.9.13)':
     dependencies:
       '@tanstack/query-core': 5.103.1
+      solid-js: 1.9.13
+
+  '@tanstack/solid-store@0.11.1(solid-js@1.9.13)':
+    dependencies:
+      '@tanstack/store': 0.11.1
       solid-js: 1.9.13
 
   '@tanstack/solid-virtual@3.13.40(solid-js@1.9.13)':
     dependencies:
       '@tanstack/virtual-core': 3.17.11
       solid-js: 1.9.13
+
+  '@tanstack/store@0.11.1': {}
 
   '@tanstack/virtual-core@3.17.11': {}
 
