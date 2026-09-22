@@ -1,5 +1,6 @@
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import { readRoutingMode } from "../read-routing-setting";
 import { useRelayEdit } from "./RelayMediator";
 import RelaySettingsView from "./RelaySettingsView";
 
@@ -29,6 +30,7 @@ const RelaySettings: Component = () => {
           }}
           fallback={FALLBACK_RELAYS}
           infoOf={edit().infoOf}
+          readMode={readRoutingMode()}
         />
       )}
     </Show>

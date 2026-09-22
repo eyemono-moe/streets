@@ -2291,3 +2291,114 @@ describe("張り直しをまとめる（replanBatchMs）", () => {
     expect(relays.get("wss://a/" as RelayUrl)?.subscriptions).toHaveLength(1);
   });
 });
+
+describe("SubscriptionManager の読み取り先の切り替え", () => {
+  const routedAuthor = (store: EventStore) => {
+    const author = signed(1, {
+      kind: 10002,
+      tags: [["r", "wss://author-write/", "write"]],
+      content: "",
+    });
+    store.put(author, "wss://indexer/");
+    return author.pubkey;
+  };
+
+  it("direct では kind:10002 を見ず、全著者を指定のリレーから読む", () => {
+    const { relays, store, manager, delivery } = setup();
+    const known = routedAuthor(store);
+    const unknown = "f".repeat(64);
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [known, unknown] }],
+      undefined,
+      delivery(),
+    );
+
+    expect(handle.initialPlan).toEqual({
+      relays: ["wss://mine/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+    expect(relays.get("wss://mine/")?.subscriptions[0].filters).toEqual([
+      { kinds: [1], authors: [known, unknown] },
+    ]);
+    expect(relays.has("wss://author-write/")).toBe(false);
+    expect(relays.has("wss://fallback/")).toBe(false);
+  });
+
+  it("切り替えると生きているセクションを張り直す", () => {
+    const { relays, store, manager, delivery } = setup();
+    const known = routedAuthor(store);
+    const d = delivery();
+    manager.subscribe([{ kinds: [1], authors: [known] }], undefined, d);
+    expect(relays.has("wss://author-write/")).toBe(true);
+
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    expect(d.onPlanChanged).toHaveBeenLastCalledWith({
+      relays: ["wss://mine/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+    expect(
+      relays.get("wss://author-write/")?.subscriptions.every((s) => s.closed),
+    ).toBe(true);
+
+    manager.setReadRouting({ mode: "outbox" });
+    expect(d.onPlanChanged).toHaveBeenLastCalledWith({
+      relays: ["wss://author-write/"],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+  });
+
+  it("同じ値を入れ直しても張り直さない", () => {
+    const { manager, delivery } = setup();
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    const d = delivery();
+    manager.subscribe(
+      [{ kinds: [1], authors: ["f".repeat(64)] }],
+      undefined,
+      d,
+    );
+
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    expect(d.onPlanChanged).not.toHaveBeenCalled();
+  });
+
+  it("direct のリレーが 0 本なら、fallback へ送らずに待つ", () => {
+    const { relays, manager, delivery } = setup();
+    manager.setReadRouting({ mode: "direct", relays: [] });
+
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: ["f".repeat(64)] }],
+      undefined,
+      delivery(),
+    );
+
+    expect(handle.initialPlan.relays).toEqual([]);
+    expect(relays.size).toBe(0);
+  });
+
+  it("明示リレーのセクションは direct でもそのまま", () => {
+    const { manager, delivery } = setup();
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    const handle = manager.subscribe(
+      [{ kinds: [1] }],
+      ["wss://given/"],
+      delivery(),
+    );
+    expect(handle.initialPlan.relays).toEqual(["wss://given/"]);
+  });
+
+  it("行き先を指定しない fetchOnce は direct のリレーへ送る", async () => {
+    const { relays, manager } = setup();
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    const done = manager.fetchOnce([{ ids: ["a".repeat(64)] }], {
+      timeoutMs: 1,
+    });
+    expect(relays.has("wss://mine/")).toBe(true);
+    expect(relays.has("wss://fallback/")).toBe(false);
+    await done;
+  });
+});

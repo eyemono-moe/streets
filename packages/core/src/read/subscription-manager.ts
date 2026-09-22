@@ -21,6 +21,11 @@ import {
 import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
 import { planQuery } from "./query-plan";
+import {
+  OUTBOX_ROUTING,
+  type ReadRouting,
+  sameReadRouting,
+} from "./read-routing";
 import { selectRelays } from "./relay-selector";
 import type { RoutingTable } from "./routing-table";
 
@@ -244,6 +249,7 @@ export class SubscriptionManager {
   #replanTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
   #replanGeneration = 0;
   #lastReplanAt = Number.NEGATIVE_INFINITY;
+  #readRouting: ReadRouting = OUTBOX_ROUTING;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -360,8 +366,31 @@ export class SubscriptionManager {
     };
   }
 
+  get readRouting(): ReadRouting {
+    return this.#readRouting;
+  }
+
   /**
-   * 一度きりの取得。指定 (省略時は fallbackRelays) 全リレーが EOSE/CLOSED
+   * 著者を指定した読み取りの送り先を切り替え、全セクションを張り直す。
+   * 同じ値なら何もしない —— 自分の一覧が届くたびに呼ばれても購読を揺らさない。
+   */
+  setReadRouting(routing: ReadRouting): void {
+    if (sameReadRouting(this.#readRouting, routing)) return;
+    this.#readRouting =
+      routing.mode === "outbox"
+        ? OUTBOX_ROUTING
+        : { mode: "direct", relays: [...routing.relays] };
+    this.replan();
+  }
+
+  /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけを読む。 */
+  #defaultRelays(): readonly RelayUrl[] {
+    if (this.#readRouting.mode === "direct") return this.#readRouting.relays;
+    return this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+  }
+
+  /**
+   * 一度きりの取得。指定 (省略時は `#defaultRelays()`) 全リレーが EOSE/CLOSED
    * を報告するか、実応答が途切れてからソフト期限または `timeoutMs` が経過すると
    * 解決して購読を閉じる —— イベントは store にあり戻り値では返さない。
    * ページネーションと予算迂回は持たない。
@@ -370,8 +399,7 @@ export class SubscriptionManager {
     filters: RelayFilter[],
     options?: { relays?: RelayUrl[]; timeoutMs?: number },
   ): Promise<void> {
-    const urls =
-      options?.relays ?? this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+    const urls = options?.relays ?? this.#defaultRelays();
     const open = new Map<RelayUrl, PooledSubscription>();
     await collect(
       this.#pool,
@@ -560,16 +588,19 @@ export class SubscriptionManager {
    * stale な selection で処理してしまう。
    */
   #replanOnce(): void {
-    const fallbackRelays = this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+    const direct = this.#readRouting.mode === "direct";
+    const fallbackRelays = this.#defaultRelays();
     const budget = this.#options.maxConnections ?? MAX_CONNECTIONS;
     const redundancy = this.#options.redundancy ?? RELAY_REDUNDANCY;
 
     const entries = [...this.#entries.values()];
 
     // 1. 大域の需要。writeRelaysFor は毎回パースをやり直すので著者ごとに 1 回だけ呼ぶ。
+    // direct では需要を作らない —— 全著者が `fallbackRelays`（= direct のリレー）へ行く。
     const demand = new Map<string, readonly RelayUrl[]>();
     const seenAuthors = new Set<string>();
     for (const entry of entries) {
+      if (direct) break;
       if (entry.explicitRelays !== undefined) continue; // バイパス経路は需要に入らない
       for (const filter of entry.filters) {
         for (const author of filter.authors ?? []) {
@@ -642,7 +673,8 @@ export class SubscriptionManager {
           fallbackRelays,
         });
         perRelay = plan.perRelay;
-        unroutableAuthors = plan.unroutableAuthors.length;
+        // direct では fallback 行きが本来の行き先なので、欠落として数えない。
+        unroutableAuthors = direct ? 0 : plan.unroutableAuthors.length;
         uncoveredAuthors = plan.uncoveredAuthors.length;
       }
 

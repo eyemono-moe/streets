@@ -7,6 +7,7 @@ import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { createSection } from "@streets/core/solid/create-section";
 import { createEffect } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
+import { readRoutingMode } from "../read-routing-setting";
 
 export type ColumnReadProps = {
   column: ColumnDef;
@@ -47,4 +48,4 @@ export const createColumnSection = (
 export const alertsFor = (
   props: ColumnReadProps,
   status: ReturnType<typeof createColumnSection>["status"],
-) => columnAlerts(props.column, status(), props.relayList());
+) => columnAlerts(props.column, status(), props.relayList(), readRoutingMode());
