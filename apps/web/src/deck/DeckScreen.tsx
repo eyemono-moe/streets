@@ -36,6 +36,7 @@ import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { errorReport, setErrorReport } from "../error-report-setting";
+import { keymap } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -70,6 +71,7 @@ import { ComposeFab, Sidebar, TabBar } from "./Nav";
 import SearchPanel from "./SearchPanel";
 import SidePanel from "./SidePanel";
 import { columnMeta } from "./column-meta";
+import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
 
@@ -207,29 +209,14 @@ const DeckScreen: Component<{
       });
   };
 
-  // 1〜9 の数字キーで、その番号のカラムを見せる（v0 と同じ）。入力中・修飾キー付き・
-  // ダイアログやパネルを開いている間は奪わない。
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) {
-      return;
-    }
-    const target = event.target;
-    if (
-      target instanceof HTMLElement &&
-      (target.isContentEditable ||
-        target.closest("input, textarea, select, [role=dialog]"))
-    ) {
-      return;
-    }
-    if (ui.settingsOpen || ui.panel !== undefined) return;
-    if (!/^[1-9]$/.test(event.key)) return;
-    const column = columns()[Number(event.key) - 1];
-    if (!column) return;
-    event.preventDefault();
-    focusColumn(column.id);
-  };
-  document.addEventListener("keydown", onKeyDown);
-  onCleanup(() => document.removeEventListener("keydown", onKeyDown));
+  createDeckHotkeys({
+    keymap,
+    columns,
+    enabled: () => !ui.settingsOpen && !ui.aboutOpen,
+    panelOpen: () => ui.panel !== undefined,
+    togglePanel: (panel) => handle({ type: "deck/toggle-panel", panel }),
+    focusColumn,
+  });
 
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());

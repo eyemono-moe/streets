@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import { type Component, For, Show } from "solid-js";
+import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import { useColumnTitle } from "./ColumnTitle";
@@ -62,6 +63,8 @@ export const Sidebar: Component<{
       <button
         type="button"
         aria-label="ノートを書く"
+        title={shortcutTitle("compose")}
+        aria-keyshortcuts={ariaKeyShortcuts("compose")}
         aria-expanded={props.panel === "compose"}
         class="grid size-10 cursor-pointer place-items-center rounded-2 bg-accent-primary hover:bg-accent-hover"
         onClick={() =>
@@ -76,6 +79,8 @@ export const Sidebar: Component<{
       <button
         type="button"
         aria-label="探す"
+        title={shortcutTitle("search")}
+        aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
         class="grid size-10 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
         classList={{
@@ -102,6 +107,8 @@ export const Sidebar: Component<{
         <button
           type="button"
           aria-label="カラムを追加"
+          title={shortcutTitle("add-column")}
+          aria-keyshortcuts={ariaKeyShortcuts("add-column")}
           aria-expanded={props.panel === "add-column"}
           class="sticky bottom-0 grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
           classList={{
@@ -142,6 +149,8 @@ export const ComposeFab: Component = () => {
     <button
       type="button"
       aria-label="ノートを書く"
+      title={shortcutTitle("compose")}
+      aria-keyshortcuts={ariaKeyShortcuts("compose")}
       class="absolute right-4 bottom-20 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
       onClick={() => dispatch({ type: "deck/toggle-panel", panel: "compose" })}
     >
@@ -165,6 +174,8 @@ export const TabBar: Component<{
       <button
         type="button"
         aria-label="探す"
+        title={shortcutTitle("search")}
+        aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
         class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
         classList={{
@@ -181,6 +192,8 @@ export const TabBar: Component<{
       <button
         type="button"
         aria-label="カラムを追加"
+        title={shortcutTitle("add-column")}
+        aria-keyshortcuts={ariaKeyShortcuts("add-column")}
         aria-expanded={props.panel === "add-column"}
         class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
         classList={{

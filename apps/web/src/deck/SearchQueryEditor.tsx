@@ -4,6 +4,7 @@ import {
   createEffect,
   createSignal,
   onCleanup,
+  onMount,
 } from "solid-js";
 import SearchForm from "./SearchForm";
 
@@ -60,6 +61,15 @@ const SearchQueryEditor: Component<{
   };
 
   /** 項目ごとのフォームからの変更。打っている途中とは違い、その場で渡す。 */
+  /**
+   * 開いたときに打ち始められるようにする。`autofocus` 属性は、後から差し込んだ
+   * 要素には効かないので、自分で当てる。
+   */
+  let input: HTMLInputElement | undefined;
+  onMount(() => {
+    if (props.autofocus) input?.focus();
+  });
+
   const chosen = (value: string) => {
     clearTimeout(timer);
     setDraft(undefined);
@@ -74,10 +84,10 @@ const SearchQueryEditor: Component<{
           aria-hidden="true"
         />
         <input
+          ref={input}
           class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
           placeholder="ねこ #nostr from:npub1…"
           aria-label="探すもの"
-          autofocus={props.autofocus}
           value={shown()}
           onInput={(event) => typed(event.currentTarget.value)}
           onCompositionStart={() => {
