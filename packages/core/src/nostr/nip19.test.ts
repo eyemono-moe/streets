@@ -1,6 +1,12 @@
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vitest";
-import { decodeBech32, decodeNip19, decodeNpub, encodeBech32 } from "./nip19";
+import {
+  decodeBech32,
+  decodeNip19,
+  decodeNpub,
+  encodeBech32,
+  encodeNaddr,
+} from "./nip19";
 
 const HEX = "a".repeat(64);
 
@@ -238,5 +244,60 @@ describe("decodeNip19", () => {
     const truncated = new Uint8Array([0, 50, 1, 2, 3]);
     const value = encodeBech32("nprofile", bytesToHex(truncated));
     expect(decodeNip19(value)).toBeUndefined();
+  });
+});
+
+describe("encodeNaddr", () => {
+  const pubkey = "a".repeat(64);
+
+  it("書いたものは読み戻せる", () => {
+    const naddr = encodeNaddr({
+      identifier: "neko",
+      pubkey,
+      eventKind: 30030,
+    });
+    expect(naddr?.startsWith("naddr1")).toBe(true);
+    expect(decodeNip19(naddr as string)).toEqual({
+      kind: "naddr",
+      identifier: "neko",
+      pubkey,
+      eventKind: 30030,
+      relays: [],
+    });
+  });
+
+  it("リレーも一緒に入れられる", () => {
+    const naddr = encodeNaddr({
+      identifier: "neko",
+      pubkey,
+      eventKind: 30030,
+      relays: ["wss://relay.example/"],
+    });
+    expect(decodeNip19(naddr as string)).toMatchObject({
+      relays: ["wss://relay.example/"],
+    });
+  });
+
+  it("日本語の identifier も往復できる", () => {
+    // 捕まえる変異: 1 文字 1 バイトとして長さを書く（UTF-8 では読む側がずれる）
+    const naddr = encodeNaddr({
+      identifier: "ねこ",
+      pubkey,
+      eventKind: 30030,
+    });
+    expect(decodeNip19(naddr as string)).toMatchObject({ identifier: "ねこ" });
+  });
+
+  it("255 バイトに収まらない identifier は作らない", () => {
+    // 捕まえる変異: そのまま書く（長さが回り込み、読む側が別のものを読む）
+    expect(
+      encodeNaddr({ identifier: "あ".repeat(100), pubkey, eventKind: 30030 }),
+    ).toBeUndefined();
+  });
+
+  it("pubkey が hex でなければ作らない", () => {
+    expect(
+      encodeNaddr({ identifier: "neko", pubkey: "nope", eventKind: 30030 }),
+    ).toBeUndefined();
   });
 });

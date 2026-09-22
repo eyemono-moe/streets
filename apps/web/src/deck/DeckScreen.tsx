@@ -36,7 +36,7 @@ import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
-import { CustomEmojisProvider } from "../emoji/custom-emojis";
+import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
@@ -426,7 +426,8 @@ const DeckScreen: Component<{
               writer={trackReplaces(write.writer, "検索するリレー")}
               relayList={write.searchRelays}
             >
-              <CustomEmojisProvider
+              <CustomEmojisMediator
+                writer={trackReplaces(write.writer, "自分の絵文字")}
                 list={write.emojiList}
                 fetchLatest={write.fetchLatest}
               >
@@ -774,7 +775,7 @@ const DeckScreen: Component<{
                     </RelayMediator>
                   </ProfileMediator>
                 </UploaderProvider>
-              </CustomEmojisProvider>
+              </CustomEmojisMediator>
             </SearchRelayMediator>
           </MediaMediator>
         </Mediates>

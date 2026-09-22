@@ -6,6 +6,7 @@ import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
+import EmojiSettings from "./EmojiSettings";
 import KeyboardSettings from "./KeyboardSettings";
 import MediaSettings from "./MediaSettings";
 import MuteSettings from "./MuteSettings";
@@ -77,6 +78,15 @@ const SettingsDialog: Component<{
       title: "検索",
       description: "言葉での検索を、どのリレーへ問い合わせるかを決めます。",
       content: () => <SearchSettings />,
+    },
+    {
+      value: "emoji",
+      label: "絵文字",
+      icon: "i-material-symbols:add-reaction-outline-rounded",
+      title: "絵文字",
+      description:
+        "リアクションのピッカーに出る絵文字を決めます（NIP-51 の kind:10030）。",
+      content: () => <EmojiSettings />,
     },
     {
       value: "mute",

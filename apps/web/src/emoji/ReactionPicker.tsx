@@ -5,7 +5,7 @@ import type { Component, JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
 import EmojiPicker from "./EmojiPicker";
-import { useCustomEmojis } from "./custom-emojis";
+import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
 import { rememberEmoji } from "./recent-emoji";
 
@@ -32,7 +32,7 @@ const ReactionPicker: Component<{
   trigger: (props: PickerTrigger) => JSX.Element;
 }> = (props) => {
   const dispatch = useDispatch();
-  const customGroups = useCustomEmojis();
+  const customGroups = useEmojiGroups();
   return (
     // 閉じている間は中身を作らない（絵文字は 1900 件あり、投稿ごとに 2 か所ある）。
     <Popover.Root

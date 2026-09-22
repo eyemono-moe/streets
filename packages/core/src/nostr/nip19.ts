@@ -181,3 +181,61 @@ export const decodeNip19 = (value: string): Nip19Ref | undefined => {
     return undefined;
   }
 };
+
+/**
+ * TLV の 1 項目。長さは 1 バイトなので 255 バイトを超える値は入らない
+ * （入れると長さが回り込み、読む側が別のものを読む）。
+ */
+const tlvEntry = (type: number, value: Uint8Array): Uint8Array | undefined => {
+  if (value.length > 255) return undefined;
+  const out = new Uint8Array(value.length + 2);
+  out[0] = type;
+  out[1] = value.length;
+  out.set(value, 2);
+  return out;
+};
+
+const eventKindBytes = (kind: number): Uint8Array => {
+  const out = new Uint8Array(4);
+  new DataView(out.buffer).setUint32(0, kind, false);
+  return out;
+};
+
+/**
+ * `naddr`（置換可能イベントの住所）を作る。共有したり、他クライアントへ
+ * 貼ったりするための文字列。入らない値のときは `undefined` —— 例外にすると、
+ * ただの表示のために画面ごと落ちる。
+ */
+export const encodeNaddr = (ref: {
+  identifier: string;
+  pubkey: string;
+  eventKind: number;
+  relays?: readonly string[];
+}): string | undefined => {
+  try {
+    const encoder = new TextEncoder();
+    const parts = [
+      tlvEntry(0, encoder.encode(ref.identifier)),
+      ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
+      tlvEntry(2, hexToBytes(ref.pubkey)),
+      tlvEntry(3, eventKindBytes(ref.eventKind)),
+    ];
+    const entries: Uint8Array[] = [];
+    for (const part of parts) {
+      if (part === undefined) return undefined;
+      entries.push(part);
+    }
+    const bytes = new Uint8Array(
+      entries.reduce((total, part) => total + part.length, 0),
+    );
+    let offset = 0;
+    for (const part of entries) {
+      bytes.set(part, offset);
+      offset += part.length;
+    }
+    return bech32.encode("naddr", bech32.toWords(bytes), LIMIT);
+  } catch {
+    // pubkey が hex でないなど、渡すものが間違っているとき。
+    return undefined;
+  }
+};

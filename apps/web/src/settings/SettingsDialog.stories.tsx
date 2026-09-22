@@ -219,6 +219,8 @@ export const 表示_シアン: S = {
   },
 };
 
+export const 絵文字_広い画面: S = { args: { page: "emoji" } };
+
 export const キーボード_広い画面: S = { args: { page: "keyboard" } };
 
 export const キーボード_狭い画面: S = {
