@@ -33,6 +33,7 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
+import NoteMediaView from "./NoteMedia";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
 import UserLink from "./UserLink";
@@ -151,80 +152,6 @@ const Row: ParentComponent<ContentProps> = (props) => (
     </div>
   </div>
 );
-
-const MediaImage: Component<{ url: string; size: EventSize }> = (props) => {
-  const [broken, setBroken] = createSignal(false);
-  return (
-    <Show
-      when={!broken()}
-      fallback={
-        <a
-          href={props.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="break-all text-caption text-link"
-        >
-          {props.url}
-        </a>
-      }
-    >
-      <a
-        href={props.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="block w-full"
-      >
-        <img
-          src={props.url}
-          alt=""
-          loading="lazy"
-          class="block w-full rounded-2 bg-secondary object-cover"
-          classList={{
-            "h-45": props.size === "normal",
-            "h-30": props.size === "compact",
-          }}
-          onError={() => setBroken(true)}
-        />
-      </a>
-    </Show>
-  );
-};
-
-const MediaVideo: Component<{ url: string; size: EventSize }> = (props) => {
-  const [broken, setBroken] = createSignal(false);
-  const source = () =>
-    props.url.includes("#") ? props.url : `${props.url}#t=0.1`;
-  return (
-    <Show
-      when={!broken()}
-      fallback={
-        <a
-          href={props.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="break-all text-caption text-link"
-        >
-          {props.url}
-        </a>
-      }
-    >
-      {/* リレー上の動画には字幕トラックが無く、投稿者のファイルへ後付けできない。 */}
-      {/* biome-ignore lint/a11y/useMediaCaption: 外部の投稿に字幕が添えられていない場合も再生する。 */}
-      <video
-        src={source()}
-        controls
-        playsinline
-        preload="metadata"
-        class="block w-full rounded-2 bg-secondary object-contain"
-        classList={{
-          "h-45": props.size === "normal",
-          "h-30": props.size === "compact",
-        }}
-        onError={() => setBroken(true)}
-      />
-    </Show>
-  );
-};
 
 /** 取得中と見つからなかったを別の文言で出す。 */
 const Lookup: Component<{
@@ -400,12 +327,7 @@ const Note: Component<ContentProps> = (props) => {
               </a>
             }
           >
-            <Show
-              when={item.type === "image"}
-              fallback={<MediaVideo url={item.url} size={props.size} />}
-            >
-              <MediaImage url={item.url} size={props.size} />
-            </Show>
+            <NoteMediaView media={item} size={props.size} />
           </Show>
         )}
       </For>

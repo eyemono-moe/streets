@@ -10,11 +10,19 @@ import {
   relayOf,
   tagOnlyQuoteTargets,
 } from "../nostr/event-refs";
+import { type MediaDimensions, inlineMediaMetadata } from "../nostr/imeta";
+
+export type NoteMedia = {
+  type: "image" | "video";
+  url: string;
+  dimensions?: MediaDimensions;
+  blurhash?: string;
+};
 
 export type NoteLayout = {
   /** 本文として流す部分。前後の空白は落としてある。 */
   text: ContentToken[];
-  media: Array<{ type: "image" | "video"; url: string }>;
+  media: NoteMedia[];
   /** 本文中の `nostr:` 参照とタグにしか無い `q` の和。同じ id は最初の 1 回だけ。 */
   quotes: EventRef[];
 };
@@ -46,17 +54,12 @@ export const layoutNote = (
   const media: NoteLayout["media"] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
-  const mediaTypes = new Map<string, string>();
-  for (const tag of event.tags) {
-    if (tag[0] !== "imeta") continue;
-    const url = tag.find((value) => value.startsWith("url "))?.slice(4);
-    const mime = tag.find((value) => value.startsWith("m "))?.slice(2);
-    if (url && mime && !mediaTypes.has(url)) mediaTypes.set(url, mime);
-  }
+  const metadata = inlineMediaMetadata(event.tags);
 
   for (const token of parseContent(event.content, event.tags)) {
     if (token.type === "url") {
-      const mime = mediaTypes.get(token.url)?.toLowerCase();
+      const details = metadata.get(token.url);
+      const mime = details?.mime?.toLowerCase();
       const type = mime
         ? mime.startsWith("image/")
           ? "image"
@@ -69,7 +72,12 @@ export const layoutNote = (
             ? "video"
             : undefined;
       if (type) {
-        media.push({ type, url: token.url });
+        media.push({
+          type,
+          url: token.url,
+          ...(details?.dimensions ? { dimensions: details.dimensions } : {}),
+          ...(details?.blurhash ? { blurhash: details.blurhash } : {}),
+        });
         continue;
       }
     }

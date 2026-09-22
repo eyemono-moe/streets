@@ -90,7 +90,7 @@ const unknown = alice.event({ kind: 30023, tags: [], content: "# 長文記事" }
 const noProfile = nameless.note("kind:0 が無い人の投稿。");
 const videoUrl = new URL(clipUrl, location.href).href;
 const withVideo = alice.note(`動画を添えました。\n${videoUrl}`, [
-  ["imeta", `url ${videoUrl}`, "m video/mp4"],
+  ["imeta", `url ${videoUrl}`, "m video/mp4", "dim 320x180"],
 ]);
 
 const missingTarget = bob.note("このイベントはシーンに入れない");
@@ -171,6 +171,10 @@ export const 長い本文: Story = {
 
 export const 動画つき: Story = {
   args: { event: withVideo, scene: scene(withVideo) },
+};
+
+export const 動画_コンパクト: Story = {
+  args: { event: withVideo, scene: scene(withVideo), size: "compact" },
 };
 
 export const 動画の展開を切る: Story = {

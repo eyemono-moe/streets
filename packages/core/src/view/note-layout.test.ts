@@ -53,6 +53,29 @@ describe("layoutNote", () => {
     expect(layout.text).toEqual([]);
   });
 
+  it("本文にある URL と一致した imeta の寸法・Blurhash だけを添える", () => {
+    const layout = layoutNote(
+      note("https://example.com/a.png", [
+        [
+          "imeta",
+          "url https://example.com/a.png",
+          "dim 640x480",
+          "blurhash LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+        ],
+        ["imeta", "url https://example.com/other.png", "dim 1x1"],
+      ]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([
+      {
+        type: "image",
+        url: "https://example.com/a.png",
+        dimensions: { width: 640, height: 480 },
+        blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+      },
+    ]);
+  });
+
   it("imeta の MIME は拡張子より優先し、対応しない種類はリンクに残す", () => {
     const layout = layoutNote(
       note("https://example.com/a.mp4 https://example.com/b.jpg", [
