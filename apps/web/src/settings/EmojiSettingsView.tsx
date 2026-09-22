@@ -1,9 +1,12 @@
-import type {
-  CustomEmoji,
-  EmojiSetRef,
+import { Collapsible } from "@ark-ui/solid/collapsible";
+import { encodeNaddr } from "@streets/core/nostr/nip19";
+import {
+  type CustomEmoji,
+  EMOJI_SET_KIND,
+  type EmojiSetRef,
 } from "@streets/core/settings/emoji-list";
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
-import { type Component, For, Show, createSignal } from "solid-js";
+import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -104,47 +107,126 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
 const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
   const dispatch = useDispatch();
   const name = () => props.row.set?.title ?? props.row.ref.identifier;
+  const emojis = () => props.row.set?.emojis ?? [];
   return (
-    <li class="flex flex-col gap-2 bg-primary px-3 py-2.5">
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="c-primary min-w-32 flex-1 break-all font-600 text-body">
-          {name()}
-        </span>
-        <UserLink
-          pubkey={props.row.ref.pubkey}
-          class="c-secondary text-caption"
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
-          icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          aria-label={`${name()} を自分の絵文字から外す`}
-          title="外す"
-          disabled={props.disabled}
-          onClick={() =>
-            dispatch({ type: "emoji-set/remove", ref: props.row.ref })
-          }
-        />
-      </div>
-      <Show
-        when={props.row.set}
-        fallback={<span class="c-secondary text-caption">読み込み中…</span>}
-      >
-        {(set) => (
-          <div class="flex flex-wrap items-center gap-1.5">
-            <For each={set().emojis.slice(0, 16)}>
-              {(emoji) => <Emoji emoji={emoji} />}
-            </For>
-            <Show when={set().emojis.length > 16}>
-              <span class="c-secondary text-caption">
-                ほか {set().emojis.length - 16}
-              </span>
+    <li class="bg-primary px-3 py-2.5">
+      <Collapsible.Root>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Collapsible.Trigger class="c-primary group flex min-w-32 flex-1 cursor-pointer items-center gap-1 bg-transparent text-left font-600 text-body">
+            <span
+              class="i-material-symbols:arrow-drop-down-rounded c-secondary group-data-[state=closed]:-rotate-90 size-5 shrink-0 transition-transform"
+              aria-hidden="true"
+            />
+            <span class="min-w-0 break-all">{name()}</span>
+          </Collapsible.Trigger>
+          <UserLink
+            pubkey={props.row.ref.pubkey}
+            class="c-secondary text-caption"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            shape="rounded"
+            icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+            aria-label={`${name()} を自分の絵文字から外す`}
+            title="外す"
+            disabled={props.disabled}
+            onClick={() =>
+              dispatch({ type: "emoji-set/remove", ref: props.row.ref })
+            }
+          />
+        </div>
+        <Show
+          when={props.row.set}
+          fallback={<span class="c-secondary text-caption">読み込み中…</span>}
+        >
+          {/* 閉じている間は、中身の見本だけを 1 行で出す。 */}
+          <Collapsible.Context>
+            {(api) => (
+              <Show when={!api().open}>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <For each={emojis().slice(0, 12)}>
+                    {(emoji) => <Emoji emoji={emoji} />}
+                  </For>
+                  <Show when={emojis().length > 12}>
+                    <span class="c-secondary text-caption">
+                      ほか {emojis().length - 12}
+                    </span>
+                  </Show>
+                </div>
+              </Show>
+            )}
+          </Collapsible.Context>
+        </Show>
+        <Collapsible.Content class="motion-collapse">
+          <div class="flex flex-col gap-2 pt-2">
+            <Show when={emojis().length > 0}>
+              <ul class="flex flex-col gap-1.5">
+                <For each={emojis()}>
+                  {(emoji) => (
+                    <li class="flex items-center gap-2">
+                      <Emoji emoji={emoji} named />
+                      <span class="c-primary min-w-0 flex-1 break-all text-body">
+                        {`:${emoji.shortcode}:`}
+                      </span>
+                    </li>
+                  )}
+                </For>
+              </ul>
             </Show>
+            <SetAddress target={props.row.ref} />
           </div>
-        )}
-      </Show>
+        </Collapsible.Content>
+      </Collapsible.Root>
     </li>
+  );
+};
+
+/**
+ * セットの住所。外したあとに入れ直したり、人に渡したりするために出す
+ * （他クライアントは naddr で受け取る）。
+ */
+// `ref` という名前では渡せない（Solid が要素の参照として横取りする）。
+const SetAddress: Component<{ target: EmojiSetRef }> = (props) => {
+  const naddr = () =>
+    encodeNaddr({
+      identifier: props.target.identifier,
+      pubkey: props.target.pubkey,
+      eventKind: EMOJI_SET_KIND,
+    });
+  const [copied, setCopied] = createSignal<string>();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(timer));
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied("コピーしました");
+    } catch {
+      // 安全でない接続や、権限を断られたとき。黙っていると壊れて見える。
+      setCopied("コピーできませんでした");
+    }
+    clearTimeout(timer);
+    timer = setTimeout(() => setCopied(undefined), 2500);
+  };
+
+  return (
+    <Show when={naddr()}>
+      {(naddr) => (
+        <div class="flex flex-wrap items-center gap-2 rounded-2 border border-primary p-2.5">
+          <code class="c-secondary min-w-0 flex-1 break-all text-caption">
+            {naddr()}
+          </code>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon="i-material-symbols:content-copy-outline-rounded"
+            onClick={() => void copy(naddr())}
+          >
+            {copied() ?? "コピー"}
+          </Button>
+        </div>
+      )}
+    </Show>
   );
 };
 

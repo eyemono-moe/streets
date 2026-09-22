@@ -81,7 +81,10 @@ const meta = {
           pubkey: AUTHOR,
           identifier: "neko",
           title: "ねこスタンプ",
-          emojis: ["neko1", "neko2", "neko3"].map(emoji),
+          // 閉じているときは見本だけ、開くと全部出ることを確かめられる数。
+          emojis: Array.from({ length: 20 }, (_, index) =>
+            emoji(`neko${index + 1}`),
+          ),
         },
       },
       // まだ中身が届いていないセット
