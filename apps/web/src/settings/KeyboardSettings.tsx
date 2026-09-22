@@ -95,7 +95,7 @@ const KeyboardSettings: Component<{
       <SettingsSection
         title="ショートカットキー"
         scope="device"
-        description="使用するキー変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
+        description="使用するキーを変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
       >
         <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
           <For each={SHORTCUT_ACTIONS}>
