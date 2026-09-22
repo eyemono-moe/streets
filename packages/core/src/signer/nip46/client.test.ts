@@ -3,7 +3,11 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../nostr/event";
 import type { RelaySubscriptionHandlers } from "../../relay/relay-connection";
-import { Nip46RpcError, createNip46Client } from "./client";
+import {
+  NIP46_RPC_TIMEOUT_MS,
+  Nip46RpcError,
+  createNip46Client,
+} from "./client";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
 
 const keyFor = (byte: number): Uint8Array => new Uint8Array(32).fill(byte);
@@ -90,7 +94,7 @@ describe("Nip46Client", () => {
     const pending = base.client.request("ping");
     base.respond({ id: "not-the-request", result: "pong" });
     const rejected = expect(pending).rejects.toBeInstanceOf(Nip46RpcError);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
     await rejected;
     vi.useRealTimers();
   });
@@ -108,7 +112,7 @@ describe("Nip46Client", () => {
     const handler = base.pool.subscribe.mock.calls[0]?.[2];
     handler.onEvent(forged);
     const rejected = expect(pending).rejects.toBeInstanceOf(Nip46RpcError);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
     // 捕まえる変異: verifyEvent(event) のガードを削除して復号する。
     await rejected;
     vi.useRealTimers();
