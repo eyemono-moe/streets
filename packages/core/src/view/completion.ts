@@ -31,6 +31,8 @@ export const EMOJI_TRIGGER: CompletionTrigger = {
 
 export type CompletionMatch = {
   kind: CompletionKind;
+  /** 打たれた印（欄全体を問い合わせにする形では空）。同じ種類でも印で入れる形を変えられる。 */
+  prefix: string;
   /** 印の後ろ、カーソルまでに打った言葉。 */
   query: string;
   /** 選んだものに置き換える範囲。 */
@@ -83,7 +85,13 @@ export const findCompletion = (
 ): CompletionMatch | undefined => {
   const whole = triggers.find((trigger) => trigger.prefixes.length === 0);
   if (whole) {
-    return { kind: whole.kind, query: text.trim(), start: 0, end: text.length };
+    return {
+      kind: whole.kind,
+      prefix: "",
+      query: text.trim(),
+      start: 0,
+      end: text.length,
+    };
   }
 
   const before = text.slice(0, caret);
@@ -106,6 +114,7 @@ export const findCompletion = (
 
   return {
     kind: found.trigger.kind,
+    prefix: found.prefix,
     query,
     start: found.trigger.keepPrefix ? queryStart : found.index,
     end: caret,
@@ -156,6 +165,7 @@ export type CompletionEvent =
 const sameQuery = (a: CompletionMatch | undefined, b: CompletionMatch) =>
   a !== undefined &&
   a.kind === b.kind &&
+  a.prefix === b.prefix &&
   a.start === b.start &&
   a.query === b.query;
 

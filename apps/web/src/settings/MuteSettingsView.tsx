@@ -15,10 +15,12 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
+import { useUserCandidates, userSource } from "../completion/sources";
 import Avatar from "../note/Avatar";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import Completion from "../ui/Completion";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
@@ -135,6 +137,13 @@ const AddMute: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const [type, setType] = createSignal<TargetType>("pubkey");
+  // 「ユーザー」を選んでいる間は、欄全体で人を探す。
+  const people = [
+    userSource(useUserCandidates(), {
+      trigger: { kind: "user", prefixes: [] },
+      format: (nprofile) => nprofile,
+    }),
+  ];
   const [chosen, setChosen] = createSignal<MuteVisibility>("private");
   // 非公開を扱えないなら、選んでいても公開として足す。
   const visibility = (): MuteVisibility =>
@@ -199,18 +208,26 @@ const AddMute: Component<{
         />
       </div>
       <div class="flex items-center gap-2">
-        <input
-          class={`${textInputClass} min-w-0 flex-1`}
-          placeholder={current()?.placeholder}
-          aria-label={`ミュートする${current()?.label ?? ""}`}
-          aria-invalid={error() !== undefined}
-          aria-describedby="mute-input-error"
-          value={text()}
-          onInput={(event) => {
-            setText(event.currentTarget.value);
-            setError(undefined);
-          }}
-        />
+        <Completion
+          sources={type() === "pubkey" ? people : []}
+          label="人の候補"
+        >
+          {(attach) => (
+            <input
+              ref={attach}
+              class={`${textInputClass} min-w-0 flex-1`}
+              placeholder={current()?.placeholder}
+              aria-label={`ミュートする${current()?.label ?? ""}`}
+              aria-invalid={error() !== undefined}
+              aria-describedby="mute-input-error"
+              value={text()}
+              onInput={(event) => {
+                setText(event.currentTarget.value);
+                setError(undefined);
+              }}
+            />
+          )}
+        </Completion>
         <Button
           type="submit"
           variant="primary"

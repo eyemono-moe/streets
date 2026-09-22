@@ -11,7 +11,7 @@ import { Show, createMemo, createSignal, onCleanup } from "solid-js";
 import { useEventActions } from "../actions";
 import { useEmojiGroups } from "../emoji/custom-emojis";
 import { ProfileName } from "../note/Name";
-import { useReadLayer } from "../read-layer";
+import { useOptionalReadLayer } from "../read-layer";
 import Avatar from "../ui/Avatar";
 import type { CompletionItem, CompletionSource } from "../ui/Completion";
 
@@ -68,21 +68,26 @@ export const UserRow = (props: { user: UserEntry }) => {
   );
 };
 
+/** 人の候補を集めたもの。入れ方の違う欄（`from:` と `@` など）で使い回す。 */
+export type UserCandidates = {
+  /** 打った言葉に合う人を、近い順に。 */
+  find: (query: string) => { pubkey: string; user: UserEntry }[];
+  /** その人を指す nprofile。書き込みリレーを添える。 */
+  nprofile: (pubkey: string) => string;
+};
+
 /**
- * 人の候補（`@` で出す）。先に出す人（返信先など）→ フォロー中の人の順。
- * 選ぶと、その人のリレーを添えた nprofile を `format` の形で入れる。
+ * 人の候補を集める。先に出す人（返信先など）→ フォロー中の人の順。読み取り層が
+ * 無い場所（Storybook の一部など）では誰も出さない。
  */
-export const useUserSource = (options: {
-  /** 入れる文字。本文なら `nostr:${nprofile}`、検索なら `nprofile` のまま。 */
-  format: (nprofile: string) => string;
-  trigger?: CompletionTrigger;
-  /** 後ろに空白を置くか。 */
-  space?: boolean;
-  /** 先に出す人（返信先の人など）。 */
-  first?: () => readonly string[];
-}): CompletionSource => {
-  const { store, profiles, routing } = useReadLayer();
+export const useUserCandidates = (
+  first?: () => readonly string[],
+): UserCandidates => {
+  const readLayer = useOptionalReadLayer();
   const actions = useEventActions();
+  const npubOf = (pubkey: string) => encodeBech32("npub", pubkey);
+  if (!readLayer) return { find: () => [], nprofile: npubOf };
+  const { store, profiles, routing } = readLayer;
 
   // プロフィールが届くたびに候補を作り直す。
   const [version, setVersion] = createSignal(0);
@@ -97,13 +102,15 @@ export const useUserSource = (options: {
     const ranked: { pubkey: string; rank: number }[] = [];
     const add = (pubkeys: readonly string[], rank: number) => {
       for (const pubkey of pubkeys) {
-        if (seen.has(pubkey) || pubkey === actions?.viewer) continue;
+        if (seen.has(pubkey)) continue;
         seen.add(pubkey);
         ranked.push({ pubkey, rank });
       }
     };
-    add(options.first?.() ?? [], 0);
+    add(first?.() ?? [], 0);
     add(actions?.followeeIds() ?? [], 1);
+    // 自分も指せるように、フォロー中の人の後ろに出す。
+    if (actions) add([actions.viewer], 1);
     return ranked;
   };
 
@@ -134,47 +141,56 @@ export const useUserSource = (options: {
     version();
     return people().map(({ pubkey, rank }) => {
       const latest = store.latestReplaceable(0, pubkey);
-      const npub = encodeBech32("npub", pubkey);
       const profile = latest ? parseProfile(latest.content) : undefined;
       return {
         pubkey,
         rank,
-        npub,
         user: { pubkey, profile, tags: latest?.tags ?? [] },
         names: [profile?.displayName, profile?.name],
-        ids: [npub],
+        ids: [npubOf(pubkey)],
       };
     });
   });
 
-  const insertFor = (pubkey: string) => {
-    const relays = routing?.writeRelaysFor(pubkey).slice(0, RELAY_HINTS) ?? [];
-    const nprofile =
-      encodeNprofile({ pubkey, relays }) ?? encodeBech32("npub", pubkey);
-    return options.format(nprofile);
-  };
-
   return {
-    trigger: options.trigger ?? USER_TRIGGER,
-    items: (query) => {
+    find: (query) => {
       const all = entries();
       requestMissing(all.map((entry) => entry.pubkey));
-      return rankUsers(all, query)
-        .slice(0, LIMIT)
-        .map(
-          (entry): CompletionItem => ({
-            key: entry.pubkey,
-            // 選んだ時点のリレーを添える（一覧を出した後に届いた分も入る）。
-            get insert() {
-              return insertFor(entry.pubkey);
-            },
-            space: options.space,
-            view: () => <UserRow user={entry.user} />,
-          }),
-        );
+      return rankUsers(all, query).slice(0, LIMIT);
+    },
+    nprofile: (pubkey) => {
+      const relays =
+        routing?.writeRelaysFor(pubkey).slice(0, RELAY_HINTS) ?? [];
+      return encodeNprofile({ pubkey, relays }) ?? npubOf(pubkey);
     },
   };
 };
+
+/** 人の候補を、欄に合った入れ方で出す。 */
+export const userSource = (
+  candidates: UserCandidates,
+  options: {
+    trigger?: CompletionTrigger;
+    /** 入れる文字。本文なら `nostr:${nprofile}`、検索なら `nprofile` のまま。 */
+    format: (nprofile: string) => string;
+    /** 後ろに空白を置くか。 */
+    space?: boolean;
+  },
+): CompletionSource => ({
+  trigger: options.trigger ?? USER_TRIGGER,
+  items: (query) =>
+    candidates.find(query).map(
+      (entry): CompletionItem => ({
+        key: entry.pubkey,
+        // 選んだ時点のリレーを添える（一覧を出した後に届いた分も入る）。
+        get insert() {
+          return options.format(candidates.nprofile(entry.pubkey));
+        },
+        space: options.space,
+        view: () => <UserRow user={entry.user} />,
+      }),
+    ),
+});
 
 /** スタンプの候補の 1 行。入っているセットの名前を添える（同じ名前が別のセットにもあるため）。 */
 export const EmojiRow = (props: {
@@ -241,10 +257,9 @@ export const useEmojiSource = (): CompletionSource => {
 export const useNoteSources = (
   first?: () => readonly string[],
 ): CompletionSource[] => [
-  useUserSource({
+  userSource(useUserCandidates(first), {
     format: (nprofile) => `nostr:${nprofile}`,
     space: true,
-    first,
   }),
   useEmojiSource(),
 ];

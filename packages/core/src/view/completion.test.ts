@@ -18,11 +18,21 @@ describe("findCompletion", () => {
   it("@ の直後から人の補完を出す", () => {
     expect(at("こんにちは @")).toEqual({
       kind: "user",
+      prefix: "@",
       query: "",
       start: 6,
       end: 7,
     });
     expect(at("こんにちは @eye")?.query).toBe("eye");
+  });
+
+  it("打たれた印を返す（同じ種類でも印で入れる形を変えられるように）", () => {
+    const search = [
+      { kind: "user" as const, prefixes: ["from:", "to:"], keepPrefix: true },
+      USER_TRIGGER,
+    ];
+    expect(findCompletion("to:e", 4, search)?.prefix).toBe("to:");
+    expect(findCompletion("ねこ @e", 5, search)?.prefix).toBe("@");
   });
 
   it("全角の ＠ ：でも出す", () => {
@@ -33,6 +43,7 @@ describe("findCompletion", () => {
   it("直前が日本語でも出す", () => {
     expect(at("かわいい:ne")).toEqual({
       kind: "emoji",
+      prefix: ":",
       query: "ne",
       start: 4,
       end: 7,
@@ -66,6 +77,7 @@ describe("findCompletion", () => {
   it("カーソルより後ろは見ない", () => {
     expect(findCompletion("@eyemono です", 4, both)).toEqual({
       kind: "user",
+      prefix: "@",
       query: "eye",
       start: 0,
       end: 4,
@@ -84,6 +96,7 @@ describe("findCompletion", () => {
     };
     expect(findCompletion("ねこ from:eye", 11, [from])).toEqual({
       kind: "user",
+      prefix: "from:",
       query: "eye",
       start: 8,
       end: 11,
@@ -94,6 +107,7 @@ describe("findCompletion", () => {
     const whole = { kind: "user" as const, prefixes: [] };
     expect(findCompletion(" eye ", 2, [whole])).toEqual({
       kind: "user",
+      prefix: "",
       query: "eye",
       start: 0,
       end: 5,
@@ -127,6 +141,7 @@ describe("applyCompletion", () => {
 describe("completionTransition", () => {
   const match = (query: string, start = 0): CompletionMatch => ({
     kind: "user",
+    prefix: "@",
     query,
     start,
     end: start + query.length + 1,

@@ -6,6 +6,8 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { useUserCandidates, userSource } from "../completion/sources";
+import Completion from "../ui/Completion";
 import SearchForm from "./SearchForm";
 
 /**
@@ -66,6 +68,23 @@ const SearchQueryEditor: Component<{
    * 要素には効かないので、自分で当てる。
    */
   let input: HTMLInputElement | undefined;
+  // from: / to: の後ろ、または @ で人を選べる。@ は「その人が書いたもの」として入れる。
+  const people = useUserCandidates();
+  const sources = [
+    userSource(people, {
+      trigger: {
+        kind: "user",
+        prefixes: ["from:", "by:", "to:"],
+        keepPrefix: true,
+      },
+      format: (nprofile) => nprofile,
+      space: true,
+    }),
+    userSource(people, {
+      format: (nprofile) => `from:${nprofile}`,
+      space: true,
+    }),
+  ];
   onMount(() => {
     if (props.autofocus) input?.focus();
   });
@@ -84,29 +103,36 @@ const SearchQueryEditor: Component<{
           class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
           aria-hidden="true"
         />
-        <input
-          ref={input}
-          class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-          placeholder="ねこ #nostr from:npub1…"
-          aria-label="検索クエリ"
-          value={shown()}
-          onInput={(event) => typed(event.currentTarget.value)}
-          onCompositionStart={() => {
-            composing = true;
-            clearTimeout(timer);
-          }}
-          onCompositionEnd={(event) => {
-            composing = false;
-            typed(event.currentTarget.value);
-          }}
-          onBlur={(event) => {
-            // 離れるときは待たない。閉じる直前の 1 文字を落とさないため。
-            if (!composing) {
-              clearTimeout(timer);
-              send(event.currentTarget.value);
-            }
-          }}
-        />
+        <Completion sources={sources} label="入れる候補">
+          {(attach) => (
+            <input
+              ref={(el) => {
+                input = el;
+                attach(el);
+              }}
+              class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
+              placeholder="ねこ #nostr from:npub1…"
+              aria-label="検索クエリ"
+              value={shown()}
+              onInput={(event) => typed(event.currentTarget.value)}
+              onCompositionStart={() => {
+                composing = true;
+                clearTimeout(timer);
+              }}
+              onCompositionEnd={(event) => {
+                composing = false;
+                typed(event.currentTarget.value);
+              }}
+              onBlur={(event) => {
+                // 離れるときは待たない。閉じる直前の 1 文字を落とさないため。
+                if (!composing) {
+                  clearTimeout(timer);
+                  send(event.currentTarget.value);
+                }
+              }}
+            />
+          )}
+        </Completion>
       </div>
       <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
     </div>

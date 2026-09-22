@@ -16,10 +16,14 @@ import {
   on,
   onCleanup,
 } from "solid-js";
-import { useEmojiSource } from "../completion/sources";
+import {
+  useEmojiSource,
+  useUserCandidates,
+  userSource,
+} from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
-import { useDispatch } from "../ui-events";
+import { Mediates, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
@@ -101,6 +105,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             field="about"
             state={props.state}
             emoji
+            mention
             label="自己紹介"
             multiline
           />
@@ -226,12 +231,26 @@ const ProfileInput: Component<{
   type?: "text" | "url" | "email";
   /** 名前や自己紹介のように、スタンプを入れられる項目か（NIP-30）。 */
   emoji?: boolean;
+  /** 自己紹介のように、人を指せる項目か。読む側で `nostr:` が人へのリンクになる。 */
+  mention?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const emojiSource = useEmojiSource();
+  const userCandidates = useUserCandidates();
+  const completion = () => [
+    ...(props.mention
+      ? [
+          userSource(userCandidates, {
+            format: (nprofile) => `nostr:${nprofile}`,
+            space: true,
+          }),
+        ]
+      : []),
+    ...(props.emoji ? [emojiSource] : []),
+  ];
   return (
     <TextField
-      completion={props.emoji ? [emojiSource] : undefined}
+      completion={completion()}
       label={props.label}
       placeholder={props.placeholder}
       hint={props.hint}
@@ -260,11 +279,14 @@ const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
     <div class="flex flex-col gap-1.5">
       <span class="c-secondary text-caption">カラムでの見え方</span>
       <div class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0">
-        <ProfileHeaderCard
-          pubkey={props.pubkey}
-          profile={profileFromDraft(props.state.draft)}
-          profileTags={tags()}
-        />
+        {/* 見え方を確かめるだけなので、自己紹介の中の人やノートを押してもカラムは開かない。 */}
+        <Mediates handle={(event) => event.type === "stack/open"}>
+          <ProfileHeaderCard
+            pubkey={props.pubkey}
+            profile={profileFromDraft(props.state.draft)}
+            profileTags={tags()}
+          />
+        </Mediates>
       </div>
     </div>
   );
