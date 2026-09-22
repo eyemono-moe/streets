@@ -9,6 +9,7 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
@@ -110,6 +111,8 @@ export type DeckEvent =
   | { type: "deck/set-write-progress"; on: boolean }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }
+  /** ショートカットキーの割り当てを変える。この端末に保存する。 */
+  | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
   /** この端末からログアウトする。 */
   | { type: "deck/logout" };
 

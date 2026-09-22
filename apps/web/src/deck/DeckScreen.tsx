@@ -36,7 +36,7 @@ import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { errorReport, setErrorReport } from "../error-report-setting";
-import { keymap } from "../keymap";
+import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -331,6 +331,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
+        return true;
+      case "deck/set-shortcut":
+        setShortcut(event.action, event.hotkey);
         return true;
       case "deck/set-error-report":
         setErrorReport(event.on);
@@ -753,6 +756,7 @@ const DeckScreen: Component<{
                         appearance={appearance()}
                         writeProgress={showWriteProgress()}
                         errorReport={errorReport()}
+                        keymap={keymap()}
                       />
                     </MuteMediator>
                   </RelayMediator>

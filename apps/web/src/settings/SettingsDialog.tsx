@@ -1,10 +1,12 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { Keymap } from "@streets/core/settings/keymap";
 import { type Component, createEffect, createSignal, on } from "solid-js";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
+import KeyboardSettings from "./KeyboardSettings";
 import MediaSettings from "./MediaSettings";
 import MuteSettings from "./MuteSettings";
 import { useProfileEdit } from "./ProfileMediator";
@@ -23,6 +25,8 @@ const SettingsDialog: Component<{
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
   errorReport: boolean;
+  /** ショートカットキーの割り当て（この端末の設定）。 */
+  keymap: Keymap;
   /** 開いたときに出すページ。 */
   initialPage?: string;
 }> = (props) => {
@@ -78,6 +82,13 @@ const SettingsDialog: Component<{
       icon: "i-material-symbols:volume-off-outline-rounded",
       title: "ミュート",
       content: () => <MuteSettings />,
+    },
+    {
+      value: "keyboard",
+      label: "キーボード",
+      icon: "i-material-symbols:keyboard-outline-rounded",
+      title: "キーボード",
+      content: () => <KeyboardSettings keymap={props.keymap} />,
     },
     {
       value: "display",
