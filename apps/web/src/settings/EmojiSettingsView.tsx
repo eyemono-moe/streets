@@ -16,7 +16,7 @@ import {
 } from "solid-js";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import Button, { ButtonLink } from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
@@ -125,6 +125,24 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
         </SettingsSection>
       )}
     </Show>
+
+    <SettingsSection
+      title="もっと絵文字を管理する"
+      description="絵文字セットを作る・中身を並べ替える・画像を整えるといったことは、それ専用のクライアントのほうが早くできます。ここで入れた絵文字とは同じもの（kind:10030 と kind:30030）を扱うので、どちらで直しても両方に反映されます。"
+    >
+      <div class="flex">
+        <ButtonLink
+          variant="secondary"
+          size="sm"
+          icon="i-material-symbols:open-in-new-rounded"
+          href="https://koteitan.github.io/emoemo/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          emoemo を開く
+        </ButtonLink>
+      </div>
+    </SettingsSection>
   </div>
 );
 

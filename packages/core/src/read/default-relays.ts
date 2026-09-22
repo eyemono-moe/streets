@@ -38,3 +38,16 @@ export const SEARCH_RELAYS: readonly RelayUrl[] = [
   "wss://search.nos.today/",
   "wss://relay.nostr.band/",
 ];
+
+/**
+ * 絵文字セット（kind:30030）を探しに行く既定のリレー。著者を指定しない
+ * 問い合わせなので Outbox では行き先を決められず、検索に答えるリレーも
+ * 少ない。カスタム絵文字は日本語圏でよく使われているので、その周辺を既定に
+ * 置く。自分が読んでいるリレーと合わせて問い合わせる。
+ */
+export const EMOJI_SET_RELAYS: readonly RelayUrl[] = [
+  "wss://yabu.me/",
+  "wss://relay-jp.nostr.wirednet.jp/",
+  "wss://r.kojira.io/",
+  "wss://nostr.compile-error.net/",
+];

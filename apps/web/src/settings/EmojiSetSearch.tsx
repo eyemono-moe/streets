@@ -1,3 +1,4 @@
+import { EMOJI_SET_RELAYS } from "@streets/core/read/default-relays";
 import { emojiSetAddress } from "@streets/core/settings/emoji-list";
 import { parseEmojiSet } from "@streets/core/settings/emoji-set";
 import {
@@ -68,8 +69,8 @@ const Results: Component<{
 
   /**
    * 著者を指定しない問い合わせ（新着・言葉での検索）の行き先。Outbox で
-   * 決められないので、自分が読んでいるリレーと検索リレーの両方へ送る ——
-   * 絵文字セットを持っているのは、たいてい普段使っているリレーのほう。
+   * 決められないので、自分が読んでいるリレーと、検索リレーと、絵文字セットの
+   * ある既定のリレーへまとめて送る —— どれか 1 つでは薄い。
    */
   const openRelays = () => [
     ...new Set([
@@ -77,6 +78,7 @@ const Results: Component<{
         .filter((entry) => entry.read)
         .map((entry) => entry.url),
       ...(searchRelays?.relays() ?? []),
+      ...EMOJI_SET_RELAYS,
     ]),
   ];
 
