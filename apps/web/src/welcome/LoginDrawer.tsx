@@ -1,5 +1,5 @@
 import { Drawer } from "@ark-ui/solid/drawer";
-import { type ParentComponent, createSignal, onMount } from "solid-js";
+import { type ParentComponent, Show, createSignal, onMount } from "solid-js";
 
 /**
  * 覗かせる高さ。取っ手（1rem）と見出し（3.5rem）の合計で、中身を少しも見せない。
@@ -69,20 +69,26 @@ const LoginDrawer: ParentComponent<{
           >
             <span class="flex items-center gap-2.5">
               <img src="/favicon.svg" alt="" class="size-8" />
-              <span class="flex flex-col">
-                <span class="font-700 text-body">Streets</span>
-                <span class="c-secondary text-caption">
-                  {expanded()
-                    ? "Nostr のクライアント"
-                    : "ログインしてもっと見る"}
-                </span>
-              </span>
+              <span class="font-700 text-body">Streets</span>
             </span>
-            <span
-              class="i-material-symbols:expand-less-rounded c-secondary size-6 shrink-0 transition-transform"
-              classList={{ "rotate-180": expanded() }}
-              aria-hidden="true"
-            />
+            <Show
+              when={expanded()}
+              fallback={
+                <span class="c-white flex h-8.5 items-center gap-1 rounded-full bg-accent-primary pr-3 pl-4 font-600 text-caption">
+                  ログインしてもっと見る
+                  <span
+                    class="i-material-symbols:expand-less-rounded size-5 animate-nudge-up"
+                    aria-hidden="true"
+                  />
+                </span>
+              }
+            >
+              <span
+                class="i-material-symbols:expand-more-rounded c-secondary size-6 shrink-0"
+                aria-hidden="true"
+              />
+              <span class="sr-only">下げる</span>
+            </Show>
           </button>
           {/* 覗かせている間は中身に触れさせない（見えていない入力欄へ焦点が移らないように）。 */}
           <div

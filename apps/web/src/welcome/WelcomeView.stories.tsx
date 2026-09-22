@@ -1,8 +1,10 @@
-import { For, type JSX } from "solid-js";
+import { For, type JSX, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import AboutDialog from "../about/AboutDialog";
 import Event from "../note/Event";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
+import { Mediates } from "../ui-events";
 import WelcomeView from "./WelcomeView";
 
 const alice = createStoryAuthor(11, { name: "alice", displayName: "ありす" });
@@ -27,13 +29,26 @@ type Props = Parameters<typeof WelcomeView>[0];
 
 const meta = {
   title: "入口/入口の画面",
-  component: (props: Props) => (
-    <EventSceneProvider
-      scene={{ events: [alice.profile(), bob.profile(), ...notes] }}
-    >
-      <WelcomeView {...props} />
-    </EventSceneProvider>
-  ),
+  component: (props: Props) => {
+    const [about, setAbout] = createSignal(false);
+    return (
+      <EventSceneProvider
+        scene={{ events: [alice.profile(), bob.profile(), ...notes] }}
+      >
+        <Mediates
+          handle={(event) => {
+            if (event.type === "deck/open-about") setAbout(true);
+            else if (event.type === "deck/close-about") setAbout(false);
+            else return false;
+            return true;
+          }}
+        >
+          <WelcomeView {...props} />
+          <AboutDialog open={about()} wide={!props.narrow} />
+        </Mediates>
+      </EventSceneProvider>
+    );
+  },
   globals: { viewport: { value: "responsive", isRotated: false } },
   args: {
     login: { pending: false },

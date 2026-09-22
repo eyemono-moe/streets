@@ -4,8 +4,6 @@ import type { ConnectAttempt } from "../session";
 import LoginDrawer, { DRAWER_PEEK } from "./LoginDrawer";
 import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
 
-const REPOSITORY = "https://github.com/eyemono-moe/streets";
-
 type WelcomeViewProps = {
   login: LoginState;
   onExtension: () => void;
@@ -24,26 +22,6 @@ type WelcomeViewProps = {
   feedTitle: string;
   feed: JSX.Element;
 };
-
-const Intro: Component = () => (
-  <p class="text-body">
-    Nostr
-    のクライアントです。カラムを並べて、フォロー中の投稿や通知、気になる話題を同時に見られます。
-  </p>
-);
-
-const SourceLink: Component = () => (
-  <footer class="c-secondary text-caption">
-    <a
-      href={REPOSITORY}
-      target="_blank"
-      rel="noopener noreferrer"
-      class="text-link"
-    >
-      ソースコード
-    </a>
-  </footer>
-);
 
 const Feed: Component<{
   title: string;
@@ -104,17 +82,11 @@ const WelcomeView: Component<WelcomeViewProps> = (props) => {
       fallback={
         <main class="c-primary grid h-dvh grid-cols-[minmax(0,26rem)_minmax(0,36rem)] justify-center gap-6 bg-secondary p-6">
           <div class="flex flex-col gap-8 overflow-y-auto rounded-3 bg-primary px-8 py-8">
-            <header class="flex flex-col gap-3">
-              <div class="flex items-center gap-3">
-                <img src="/favicon.svg" alt="" class="size-10" />
-                <h1 class="font-700 text-h3">Streets</h1>
-              </div>
-              <Intro />
+            <header class="flex items-center gap-3">
+              <img src="/favicon.svg" alt="" class="size-10" />
+              <h1 class="font-700 text-h3">Streets</h1>
             </header>
             {panel()}
-            <div class="mt-auto">
-              <SourceLink />
-            </div>
           </div>
           <Feed
             title={props.feedTitle}
@@ -133,11 +105,7 @@ const WelcomeView: Component<WelcomeViewProps> = (props) => {
           class="min-h-0 flex-1"
         />
         <LoginDrawer initialExpanded={props.initialExpanded}>
-          <div class="flex flex-col gap-6">
-            <Intro />
-            {panel()}
-            <SourceLink />
-          </div>
+          {panel()}
         </LoginDrawer>
       </main>
     </Show>
