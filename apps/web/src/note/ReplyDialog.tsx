@@ -3,7 +3,9 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { type ComposeState, canSend } from "@streets/core/view/compose";
 import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
+import { useNoteSources } from "../completion/sources";
 import { useDispatch } from "../ui-events";
+import Completion from "../ui/Completion";
 import {
   DialogClose,
   DialogContent,
@@ -25,6 +27,13 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
 ) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
+  // 返信先・引用元の人を、人の候補の先頭に出す。
+  const sources = useNoteSources(() => [
+    props.target.pubkey,
+    ...props.target.tags
+      .filter((tag) => tag[0] === "p" && tag[1])
+      .map((tag) => tag[1] as string),
+  ]);
   const targetTokens = createMemo(() =>
     parseContent(props.target.content.trim(), props.target.tags),
   );
@@ -63,29 +72,34 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                   <Avatar pubkey={actions().viewer} size="normal" />
                 )}
               </Show>
-              <textarea
-                autofocus
-                aria-label="返信の本文"
-                class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
-                disabled={props.state.sending}
-                placeholder="返信を書く"
-                value={props.state.content}
-                onInput={(event) =>
-                  dispatch({
-                    type: "compose/input",
-                    content: event.currentTarget.value,
-                  })
-                }
-                onKeyDown={(event) => {
-                  if (
-                    event.key === "Enter" &&
-                    (event.metaKey || event.ctrlKey)
-                  ) {
-                    event.preventDefault();
-                    dispatch({ type: "compose/submit" });
-                  }
-                }}
-              />
+              <Completion sources={sources} label="入れる候補">
+                {(attach) => (
+                  <textarea
+                    ref={attach}
+                    autofocus
+                    aria-label="返信の本文"
+                    class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
+                    disabled={props.state.sending}
+                    placeholder="返信を書く"
+                    value={props.state.content}
+                    onInput={(event) =>
+                      dispatch({
+                        type: "compose/input",
+                        content: event.currentTarget.value,
+                      })
+                    }
+                    onKeyDown={(event) => {
+                      if (
+                        event.key === "Enter" &&
+                        (event.metaKey || event.ctrlKey)
+                      ) {
+                        event.preventDefault();
+                        dispatch({ type: "compose/submit" });
+                      }
+                    }}
+                  />
+                )}
+              </Completion>
             </div>
             <ComposeAttachments
               attachments={props.state.attachments}

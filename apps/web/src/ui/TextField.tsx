@@ -1,4 +1,5 @@
 import { type Component, type JSX, Show, createUniqueId } from "solid-js";
+import Completion, { type CompletionSource } from "./Completion";
 
 /**
  * 文字を打つ欄の見た目。名前を縦に添えない場所（一覧に 1 件足す欄など）でも
@@ -31,6 +32,8 @@ const TextField: Component<{
   /** 複数行（自己紹介など）。 */
   multiline?: boolean;
   type?: "text" | "url" | "email";
+  /** 打つ途中で出す候補（スタンプなど）。 */
+  completion?: readonly CompletionSource[];
 }> = (props) => {
   const id = createUniqueId();
   const noteId = `${id}-note`;
@@ -41,32 +44,40 @@ const TextField: Component<{
       <label for={id} class="c-secondary font-600 text-caption">
         {props.label}
       </label>
-      <Show
-        when={props.multiline}
-        fallback={
-          <input
-            id={id}
-            type={props.type ?? "text"}
-            class={`${inputBase} ${border()} h-9 w-full`}
-            placeholder={props.placeholder}
-            value={props.value}
-            aria-invalid={props.error !== undefined}
-            aria-describedby={props.error || props.hint ? noteId : undefined}
-            onInput={(event) => props.onInput(event.currentTarget.value)}
-          />
-        }
-      >
-        <textarea
-          id={id}
-          rows={3}
-          class={`${inputBase} ${border()} w-full resize-y py-2`}
-          placeholder={props.placeholder}
-          value={props.value}
-          aria-invalid={props.error !== undefined}
-          aria-describedby={props.error || props.hint ? noteId : undefined}
-          onInput={(event) => props.onInput(event.currentTarget.value)}
-        />
-      </Show>
+      <Completion sources={props.completion ?? []} label="入れる候補">
+        {(attach) => (
+          <Show
+            when={props.multiline}
+            fallback={
+              <input
+                ref={attach}
+                id={id}
+                type={props.type ?? "text"}
+                class={`${inputBase} ${border()} h-9 w-full`}
+                placeholder={props.placeholder}
+                value={props.value}
+                aria-invalid={props.error !== undefined}
+                aria-describedby={
+                  props.error || props.hint ? noteId : undefined
+                }
+                onInput={(event) => props.onInput(event.currentTarget.value)}
+              />
+            }
+          >
+            <textarea
+              ref={attach}
+              id={id}
+              rows={3}
+              class={`${inputBase} ${border()} w-full resize-y py-2`}
+              placeholder={props.placeholder}
+              value={props.value}
+              aria-invalid={props.error !== undefined}
+              aria-describedby={props.error || props.hint ? noteId : undefined}
+              onInput={(event) => props.onInput(event.currentTarget.value)}
+            />
+          </Show>
+        )}
+      </Completion>
       <Show
         when={props.error}
         fallback={

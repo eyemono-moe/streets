@@ -6,7 +6,8 @@ export type ReadAccess = Pick<
   ReadLayer,
   "store" | "events" | "profiles" | "engagements"
 > &
-  Partial<Pick<ReadLayer, "manager">>;
+  // routing は、本文で人を指すときに添えるリレーを引くのに使う。無ければ添えない。
+  Partial<Pick<ReadLayer, "manager" | "routing">>;
 
 const ReadLayerContext = createContext<ReadAccess>();
 

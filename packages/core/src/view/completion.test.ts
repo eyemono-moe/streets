@@ -246,6 +246,12 @@ describe("rankUsers", () => {
     expect(pubkeys(rankUsers([alice, bob], "ありす"))).toEqual(["a"]);
   });
 
+  it("npub は前から一致するときだけ当てる", () => {
+    const withId = { ...user("n", ["ねこ"]), ids: ["npub1abc"] };
+    expect(pubkeys(rankUsers([withId], "npub1a"))).toEqual(["n"]);
+    expect(rankUsers([withId], "abc")).toEqual([]);
+  });
+
   it("当たらない人は出さない", () => {
     expect(rankUsers([alice, bob], "carol")).toEqual([]);
   });

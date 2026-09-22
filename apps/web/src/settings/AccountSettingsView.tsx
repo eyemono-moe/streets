@@ -1,3 +1,4 @@
+import { profileEmojiTags } from "@streets/core/nostr/build/references";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import {
   type ProfileEditState,
@@ -15,6 +16,8 @@ import {
   on,
   onCleanup,
 } from "solid-js";
+import { useEmojiSource } from "../completion/sources";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -81,12 +84,14 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             <ProfileInput
               field="display_name"
               state={props.state}
+              emoji
               label="表示名"
               placeholder="例：わたし"
             />
             <ProfileInput
               field="name"
               state={props.state}
+              emoji
               label="ユーザー名"
               placeholder="例：me"
               hint="表示名の下に @ を付けて出ます。"
@@ -95,6 +100,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
           <ProfileInput
             field="about"
             state={props.state}
+            emoji
             label="自己紹介"
             multiline
           />
@@ -218,10 +224,14 @@ const ProfileInput: Component<{
   hint?: JSX.Element;
   multiline?: boolean;
   type?: "text" | "url" | "email";
+  /** 名前や自己紹介のように、スタンプを入れられる項目か（NIP-30）。 */
+  emoji?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const emojiSource = useEmojiSource();
   return (
     <TextField
+      completion={props.emoji ? [emojiSource] : undefined}
       label={props.label}
       placeholder={props.placeholder}
       hint={props.hint}
@@ -242,17 +252,23 @@ const ProfileInput: Component<{
  */
 const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
   props,
-) => (
-  <div class="flex flex-col gap-1.5">
-    <span class="c-secondary text-caption">カラムでの見え方</span>
-    <div class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0">
-      <ProfileHeaderCard
-        pubkey={props.pubkey}
-        profile={profileFromDraft(props.state.draft)}
-      />
+) => {
+  const emoji = useEmojiLookup();
+  // 書きかけの :shortcode: も、保存したときと同じく絵文字で見せる。
+  const tags = () => profileEmojiTags([], props.state.draft, emoji);
+  return (
+    <div class="flex flex-col gap-1.5">
+      <span class="c-secondary text-caption">カラムでの見え方</span>
+      <div class="w-full max-w-[380px] overflow-hidden rounded-3 border border-primary [&>section]:border-b-0">
+        <ProfileHeaderCard
+          pubkey={props.pubkey}
+          profile={profileFromDraft(props.state.draft)}
+          profileTags={tags()}
+        />
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const AccountId: Component<{ pubkey: string }> = (props) => {
   const npub = () => encodeBech32("npub", props.pubkey);
