@@ -18,9 +18,9 @@ export type Keymap = Record<ShortcutAction, string>;
 
 /** 設定の画面と、ボタンの説明に出す名前。 */
 export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
-  compose: "ノートを書く",
-  search: "探す",
-  "add-column": "カラムを追加",
+  compose: "投稿パネルを開く",
+  search: "検索パネルを開く",
+  "add-column": "カラム追加パネルを開く",
 };
 
 export const DEFAULT_KEYMAP: Keymap = {

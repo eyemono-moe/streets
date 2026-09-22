@@ -364,7 +364,7 @@ const DeckScreen: Component<{
               when={current() === "search"}
               fallback={
                 <SidePanel
-                  title="カラムを追加"
+                  title="カラムを追加する"
                   icon="i-material-symbols:add-rounded"
                   full={full}
                 >
@@ -373,7 +373,7 @@ const DeckScreen: Component<{
               }
             >
               <SidePanel
-                title="探す"
+                title="検索する"
                 icon="i-material-symbols:search-rounded"
                 full={full}
               >
@@ -383,7 +383,7 @@ const DeckScreen: Component<{
           }
         >
           <SidePanel
-            title="ノートを書く"
+            title="投稿する"
             icon="i-material-symbols:edit-square-outline-rounded"
             full={full}
           >

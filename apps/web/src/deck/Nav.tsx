@@ -68,7 +68,7 @@ export const Sidebar: Component<{
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
-        aria-label="ノートを書く"
+        aria-label="投稿パネルを開く"
         title={shortcutTitle("compose")}
         aria-keyshortcuts={ariaKeyShortcuts("compose")}
         aria-expanded={props.panel === "compose"}
@@ -84,7 +84,7 @@ export const Sidebar: Component<{
       </button>
       <button
         type="button"
-        aria-label="探す"
+        aria-label="検索パネルを開く"
         title={shortcutTitle("search")}
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
@@ -160,7 +160,7 @@ export const ComposeFab: Component = () => {
   return (
     <button
       type="button"
-      aria-label="ノートを書く"
+      aria-label="投稿パネルを開く"
       title={shortcutTitle("compose")}
       aria-keyshortcuts={ariaKeyShortcuts("compose")}
       class="absolute right-4 bottom-20 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
@@ -185,7 +185,7 @@ export const TabBar: Component<{
     <nav class="flex shrink-0 items-center justify-around bg-primary px-5 pb-2.5">
       <button
         type="button"
-        aria-label="探す"
+        aria-label="検索パネルを開く"
         title={shortcutTitle("search")}
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}

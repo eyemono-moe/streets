@@ -87,7 +87,7 @@ const SearchQueryEditor: Component<{
           ref={input}
           class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
           placeholder="ねこ #nostr from:npub1…"
-          aria-label="探すもの"
+          aria-label="検索クエリ"
           value={shown()}
           onInput={(event) => typed(event.currentTarget.value)}
           onCompositionStart={() => {
