@@ -58,6 +58,17 @@ export const ハッシュタグ: Story = {
   },
 };
 
+/** 検索カラムは、探したときと同じ形で条件を変えられる。 */
+export const 検索カラム: Story = {
+  args: {
+    initial: {
+      id: "s",
+      title: "ねこ #nostr",
+      source: { kind: "search", query: "ねこ #nostr" },
+    },
+  },
+};
+
 export const リレーカラム: Story = {
   args: {
     initial: {

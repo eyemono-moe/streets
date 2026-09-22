@@ -6,7 +6,7 @@ import {
 import { type Component, createSignal } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
-import SearchForm from "./SearchForm";
+import SearchQueryEditor from "./SearchQueryEditor";
 
 /**
  * 探すための入口。カラムを追加する入口とは分けている —— 「今あるものから選ぶ」
@@ -33,21 +33,7 @@ const SearchPanel: Component = () => {
           open();
         }}
       >
-        <div class="flex h-10 items-center gap-2 rounded-full border border-primary px-3">
-          <span
-            class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
-            aria-hidden="true"
-          />
-          <input
-            class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-            placeholder="ねこ #nostr from:npub1…"
-            aria-label="探すもの"
-            autofocus
-            value={text()}
-            onInput={(event) => setText(event.currentTarget.value)}
-          />
-        </div>
-        <SearchForm query={query()} onChange={setText} />
+        <SearchQueryEditor text={text()} onChange={setText} autofocus />
         <Button
           type="submit"
           variant="primary"
@@ -58,11 +44,6 @@ const SearchPanel: Component = () => {
           この条件でカラムを開く
         </Button>
       </form>
-
-      <p class="c-secondary text-caption">
-        入力欄には # でハッシュタグ、from: で書いた人、since: until: で日付、
-        kind: で種類を書けます。上の項目と同じものです。
-      </p>
     </div>
   );
 };
