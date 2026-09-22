@@ -131,6 +131,8 @@ const ColumnSettings: Component<{
             {/* 探したときと同じ触り方で、後から条件を変えられるようにする。 */}
             <SearchQueryEditor
               text={query()}
+              // 打つたびに購読し直すと、やり取りが増えて画面もちらつく。
+              debounceMs={600}
               onChange={(text) => {
                 const next = text.trim();
                 if (next === "") return;
