@@ -303,7 +303,7 @@ const AddEmoji: Component<{
       <span class="c-secondary font-600 text-caption">絵文字を 1 つ足す</span>
       <div class="flex flex-wrap items-center gap-2">
         <input
-          class="c-primary placeholder:c-secondary h-8.5 w-32 rounded-full border border-primary bg-primary px-3.5 text-body outline-none focus-visible:border-accent-5"
+          class="c-primary placeholder:c-secondary h-9 w-32 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
           placeholder="名前"
           aria-label="絵文字の名前"
           value={shortcode()}
@@ -314,7 +314,7 @@ const AddEmoji: Component<{
           }}
         />
         <input
-          class="c-primary placeholder:c-secondary h-8.5 min-w-48 flex-1 rounded-full border border-primary bg-primary px-3.5 text-body outline-none focus-visible:border-accent-5"
+          class="c-primary placeholder:c-secondary h-9 min-w-48 flex-1 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
           placeholder="https://example/neko.png"
           aria-label="絵文字の画像の URL"
           aria-invalid={error() !== undefined}
