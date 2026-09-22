@@ -14,6 +14,8 @@ export type EmojiSetResult = {
 
 export type EmojiSetSearchViewProps = {
   results: readonly EmojiSetResult[];
+  /** 言葉で絞らず、新しく作られたものを並べている。 */
+  recent: boolean;
   /** 問い合わせている途中。 */
   searching: boolean;
   /** 一度でも探したか。まだなら「見つかりません」を出さない。 */
@@ -22,6 +24,8 @@ export type EmojiSetSearchViewProps = {
   disabled: boolean;
   error?: string;
   onSearch: (text: string) => void;
+  /** 続きを取る。取れるものが無い・取っている途中なら undefined。 */
+  onMore?: () => void;
 };
 
 /**
@@ -60,7 +64,7 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
         when={props.error}
         fallback={
           <p class="c-secondary text-caption">
-            名前で探すほか、作った人（npub）やセットの住所（naddr）を貼っても取り込めます。
+            何も入れずに押すと、新しく作られたものが並びます。作った人（npub）やセットの住所（naddr）を貼っても取り込めます。
           </p>
         }
       >
@@ -86,8 +90,8 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
         when={props.searched && !props.searching && props.results.length === 0}
       >
         <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-          見つかりませんでした。絵文字セットを索引しているリレーは多くありません。作った人の
-          npub か、セットの naddr を貼ってみてください。
+          見つかりませんでした。言葉での検索に答えるリレーは多くありません。入力を空にして押すと新しく作られたものが並びます。作った人の
+          npub か、セットの naddr を貼っても取り込めます。
         </p>
       </Show>
     </div>

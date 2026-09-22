@@ -1,6 +1,7 @@
 import { emojiSetAddress } from "@streets/core/settings/emoji-list";
 import { parseEmojiSet } from "@streets/core/settings/emoji-set";
 import {
+  EMOJI_SET_SEARCH_LIMIT,
   type EmojiSetQuery,
   emojiSetFilters,
   parseEmojiSetQuery,
@@ -10,6 +11,7 @@ import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { useCustomEmojis } from "../emoji/custom-emojis";
 import { useReadLayer } from "../read-layer";
 import EmojiSetSearchView, { type EmojiSetResult } from "./EmojiSetSearchView";
+import { useRelayEdit } from "./RelayMediator";
 import { useSearchRelays } from "./SearchRelayMediator";
 
 /**
@@ -18,18 +20,15 @@ import { useSearchRelays } from "./SearchRelayMediator";
  * 行き先が変わる。
  */
 const EmojiSetSearch: Component = () => {
-  const [query, setQuery] = createSignal<EmojiSetQuery>();
+  // 開いた時点で新着を出す。言葉で探しても見つからないことが多く、
+  // 「並んでいるものから選ぶ」のが主な探し方になるため。
+  const [query, setQuery] = createSignal<EmojiSetQuery>({ kind: "recent" });
   const [error, setError] = createSignal<string>();
 
   const search = (text: string) => {
     const next = parseEmojiSetQuery(text);
     if (!next) {
-      setError(
-        text.trim() === ""
-          ? "探すものを入力してください"
-          : "絵文字セットの住所（naddr）ではありません",
-      );
-      setQuery(undefined);
+      setError("絵文字セットの住所（naddr）ではありません");
       return;
     }
     setError(undefined);
@@ -42,6 +41,7 @@ const EmojiSetSearch: Component = () => {
       fallback={
         <EmojiSetSearchView
           results={[]}
+          recent
           searching={false}
           searched={false}
           disabled={false}
@@ -64,17 +64,32 @@ const Results: Component<{
   const { manager } = useReadLayer();
   const emojis = useCustomEmojis();
   const searchRelays = useSearchRelays();
+  const relays = useRelayEdit();
+
+  /**
+   * 著者を指定しない問い合わせ（新着・言葉での検索）の行き先。Outbox で
+   * 決められないので、自分が読んでいるリレーと検索リレーの両方へ送る ——
+   * 絵文字セットを持っているのは、たいてい普段使っているリレーのほう。
+   */
+  const openRelays = () => [
+    ...new Set([
+      ...(relays?.entries() ?? [])
+        .filter((entry) => entry.read)
+        .map((entry) => entry.url),
+      ...(searchRelays?.relays() ?? []),
+    ]),
+  ];
 
   const section = manager
     ? createSection({
         manager,
+        pageSize: EMOJI_SET_SEARCH_LIMIT,
         source: () => ({
           type: "nostr",
           filters: emojiSetFilters(props.query),
-          // 言葉での検索だけは行き先を決められない（著者を指定しないため）。
           relays:
-            props.query.kind === "words"
-              ? [...(searchRelays?.relays() ?? [])]
+            props.query.kind === "recent" || props.query.kind === "words"
+              ? openRelays()
               : undefined,
         }),
       })
@@ -88,7 +103,8 @@ const Results: Component<{
     const out: EmojiSetResult[] = [];
     for (const event of section?.items() ?? []) {
       const set = parseEmojiSet(event);
-      if (!set) continue;
+      // 中身の無いセットは出さない。作りかけや消したあとのものが混ざる。
+      if (!set || set.emojis.length === 0) continue;
       const address = emojiSetAddress(set);
       if (seen.has(address)) continue;
       seen.add(address);
@@ -100,11 +116,13 @@ const Results: Component<{
   return (
     <EmojiSetSearchView
       results={results()}
+      recent={props.query.kind === "recent"}
       searching={section?.status().phase !== "settled"}
       searched
       disabled={emojis?.saving() ?? false}
       error={props.error}
       onSearch={props.onSearch}
+      onMore={section?.paging() === "idle" ? section?.loadMore : undefined}
     />
   );
 };

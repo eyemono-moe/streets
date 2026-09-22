@@ -11,8 +11,10 @@ const NADDR = encodeNaddr({
 }) as string;
 
 describe("parseEmojiSetQuery", () => {
-  it("空なら探さない", () => {
-    expect(parseEmojiSetQuery("   ")).toBeUndefined();
+  it("空なら新着を見せる", () => {
+    // 捕まえる変異: undefined を返す（押しても何も起きないボタンになる。
+    // 言葉での検索に答えるリレーは少なく、新着一覧が主な探し方になる）
+    expect(parseEmojiSetQuery("   ")).toEqual({ kind: "recent" });
   });
 
   it("naddr はその 1 つを指す", () => {
@@ -59,6 +61,11 @@ describe("parseEmojiSetQuery", () => {
 });
 
 describe("emojiSetFilters", () => {
+  it("新着は種別だけで取る（検索に対応したリレーが要らない）", () => {
+    const filters = emojiSetFilters({ kind: "recent" });
+    expect(filters).toEqual([{ kinds: [30_030], limit: 30 }]);
+  });
+
   it("住所は作者と d を指定して 1 つだけ取る", () => {
     expect(
       emojiSetFilters({

@@ -11,6 +11,8 @@ import { EMOJI_SET_KIND, type EmojiSetRef } from "./emoji-list";
  * 少ないため。言葉で見つからなくても、貼れば取り込める道を残す。
  */
 export type EmojiSetQuery =
+  /** 何も打っていないとき。新しく作られたものから並べる。 */
+  | { kind: "recent" }
   | { kind: "address"; ref: EmojiSetRef }
   | { kind: "author"; pubkey: string }
   | { kind: "words"; words: string };
@@ -22,7 +24,9 @@ export const parseEmojiSetQuery = (
   input: string,
 ): EmojiSetQuery | undefined => {
   const text = input.trim();
-  if (text === "") return undefined;
+  // 何も打たずに押したら、新しく作られたものを見せる —— 言葉での検索に
+  // 答えるリレーは少なく、打っても見つからないことが多い。
+  if (text === "") return { kind: "recent" };
 
   // `nostr:` が付いたまま貼られることがある。
   const bare = text.replace(/^nostr:/i, "");
@@ -47,6 +51,8 @@ export const parseEmojiSetQuery = (
 /** 問い合わせの中身。言葉での検索だけは、検索に答えるリレーへ送る。 */
 export const emojiSetFilters = (query: EmojiSetQuery): RelayFilter[] => {
   switch (query.kind) {
+    case "recent":
+      return [{ kinds: [EMOJI_SET_KIND], limit: EMOJI_SET_SEARCH_LIMIT }];
     case "address":
       return [
         {

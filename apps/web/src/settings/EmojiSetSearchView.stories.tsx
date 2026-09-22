@@ -24,6 +24,7 @@ const set = (identifier: string, title: string, count: number): EmojiSet => ({
 
 type Args = {
   results: EmojiSetResult[];
+  recent: boolean;
   searching: boolean;
   searched: boolean;
   disabled: boolean;
@@ -48,6 +49,8 @@ const Story = (props: Args) => {
               ...result,
               added: result.added || added().includes(result.set.identifier),
             }))}
+            recent={props.recent}
+            onMore={props.results.length > 0 ? () => {} : undefined}
             searching={props.searching}
             searched={props.searched}
             disabled={props.disabled}
@@ -68,6 +71,7 @@ const meta = {
       { set: set("neko", "ねこスタンプ", 20), added: false },
       { set: set("kome", "おこめ", 3), added: true },
     ],
+    recent: true,
     searching: false,
     searched: true,
     disabled: false,
@@ -78,7 +82,9 @@ const meta = {
 export default meta;
 type S = StoryObj<Args>;
 
-export const 見つかったとき: S = {};
+export const 新着が並んでいるとき: S = {};
+
+export const 言葉で見つかったとき: S = { args: { recent: false } };
 
 export const まだ探していないとき: S = {
   args: { results: [], searched: false },
@@ -88,7 +94,9 @@ export const 探している途中: S = {
   args: { results: [], searching: true, searched: true },
 };
 
-export const 見つからなかったとき: S = { args: { results: [] } };
+export const 見つからなかったとき: S = {
+  args: { results: [], recent: false },
+};
 
 export const 入力の誤り: S = {
   args: {
