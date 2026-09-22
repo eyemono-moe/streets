@@ -41,6 +41,7 @@ const MUTE_KIND = 10000;
 const PROFILE_KIND = 0;
 const BLOSSOM_SERVERS_KIND = 10063;
 const SEARCH_RELAY_LIST_KIND = 10007;
+const EMOJI_LIST_KIND = 10030;
 
 export type EventActions = {
   viewer: string;
@@ -84,6 +85,8 @@ export type WriteStack = {
   /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
   searchRelays: Accessor<NostrEvent | undefined>;
+  /** 自分の絵文字の一覧（kind:10030）。ピッカーに出すもの。 */
+  emojiList: Accessor<NostrEvent | undefined>;
   fetchLatest(
     kind: number,
     identifier: string | undefined,
@@ -147,6 +150,7 @@ export const createWriteStack = (options: {
   const profile = mine(PROFILE_KIND);
   const blossomServers = mine(BLOSSOM_SERVERS_KIND);
   const searchRelays = mine(SEARCH_RELAY_LIST_KIND);
+  const emojiList = mine(EMOJI_LIST_KIND);
 
   const bookmarkIds = () =>
     bookmarks()
@@ -217,6 +221,7 @@ export const createWriteStack = (options: {
     profile: profile.event,
     blossomServers: blossomServers.event,
     searchRelays: searchRelays.event,
+    emojiList: emojiList.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   };

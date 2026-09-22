@@ -273,6 +273,16 @@ export default defineConfig({
           border-color: inherit;
         }
         /*
+          OS のスクロールバーを消す。自前のスクロールバー（Ark UI の
+          ScrollArea）を重ねる場所で使う —— 消さないと 2 本並ぶ。
+        */
+        .scrollbar-none {
+          scrollbar-width: none;
+        }
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
+        }
+        /*
           Ark UI は閉じている部品に hidden 属性を付ける。display を指定する
           ユーティリティ（flex / grid など）が当たっていると打ち消され、
           閉じたはずのメニューが出たままになる。

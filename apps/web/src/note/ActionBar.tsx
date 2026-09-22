@@ -5,6 +5,7 @@ import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import ReactionPicker from "../emoji/ReactionPicker";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import { ComposeMediator } from "./ComposeMediator";
@@ -155,6 +156,22 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 count={engagement().likes}
                 disabled={liking() || engagement().viewerLiked}
                 onClick={() => dispatch(like())}
+              />
+              <ReactionPicker
+                target={props.event}
+                trigger={(triggerProps) => (
+                  <button
+                    {...triggerProps()}
+                    type="button"
+                    aria-label="リアクション"
+                    class="c-secondary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                  >
+                    <span
+                      class="i-material-symbols:add-reaction-outline-rounded size-4.5"
+                      aria-hidden="true"
+                    />
+                  </button>
+                )}
               />
               <Action
                 label="Zap（未対応）"

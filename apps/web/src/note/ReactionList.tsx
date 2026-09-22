@@ -18,6 +18,7 @@ import {
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import ReactionPicker from "../emoji/ReactionPicker";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import UserLink from "./UserLink";
@@ -186,17 +187,24 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
               );
             }}
           </For>
-          <button
-            type="button"
-            aria-label="リアクションを選ぶ（未対応）"
-            class="c-secondary flex h-6 w-fit items-center rounded-1.5 border border-primary bg-primary px-1 opacity-50"
-            disabled
-          >
-            <span
-              class="i-material-symbols:add-rounded size-3.5"
-              aria-hidden="true"
+          <Show when={actions !== undefined}>
+            <ReactionPicker
+              target={props.event}
+              trigger={(triggerProps) => (
+                <button
+                  {...triggerProps()}
+                  type="button"
+                  aria-label="リアクションを選ぶ"
+                  class="c-secondary flex h-6 w-fit cursor-pointer items-center rounded-1.5 border border-primary bg-primary px-1 hover:bg-secondary"
+                >
+                  <span
+                    class="i-material-symbols:add-rounded size-3.5"
+                    aria-hidden="true"
+                  />
+                </button>
+              )}
             />
-          </button>
+          </Show>
         </div>
       </div>
     </Show>

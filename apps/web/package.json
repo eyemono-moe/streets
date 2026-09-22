@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@ark-ui/solid": "5.38.1",
+    "@ark-ui/solid": "5.39.2",
     "@sentry/solid": "^10.75.0",
     "@solidjs/router": "^1.0.0",
     "@streets/core": "workspace:*",
@@ -9,6 +9,7 @@
     "@tanstack/solid-query": "^5.103.1",
     "@tanstack/solid-virtual": "3.13.40",
     "@unocss/reset": "65.5.0",
+    "emojibase-data": "^17.0.0",
     "solid-js": "1.9.13"
   },
   "devDependencies": {
