@@ -10,6 +10,7 @@ import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
 /** 参照しているセット 1 つ。中身がまだ届いていないこともある。 */
@@ -303,7 +304,7 @@ const AddEmoji: Component<{
       <span class="c-secondary font-600 text-caption">絵文字を 1 つ足す</span>
       <div class="flex flex-wrap items-center gap-2">
         <input
-          class="c-primary placeholder:c-secondary h-9 w-32 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
+          class={`${textInputClass} w-32`}
           placeholder="名前"
           aria-label="絵文字の名前"
           value={shortcode()}
@@ -314,7 +315,7 @@ const AddEmoji: Component<{
           }}
         />
         <input
-          class="c-primary placeholder:c-secondary h-9 min-w-48 flex-1 rounded-2 border border-primary bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
+          class={`${textInputClass} min-w-48 flex-1`}
           placeholder="https://example/neko.png"
           aria-label="絵文字の画像の URL"
           aria-invalid={error() !== undefined}

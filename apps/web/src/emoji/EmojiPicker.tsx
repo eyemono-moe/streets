@@ -14,6 +14,7 @@ import {
   createSignal,
   createUniqueId,
 } from "solid-js";
+import { searchInputClass } from "../ui/TextField";
 import {
   type PickerEmoji,
   type PickerGroup,
@@ -280,7 +281,7 @@ const EmojiPicker: Component<{
   return (
     <div class="flex w-88 flex-col gap-2 rounded-2 border border-primary bg-primary p-2 shadow-lg">
       <input
-        class="c-primary placeholder:c-secondary h-8.5 w-full rounded-full border border-primary bg-primary px-3.5 text-body outline-none focus-visible:border-accent-5"
+        class={`${searchInputClass} w-full`}
         placeholder="絵文字を探す（ねこ / cat）"
         aria-label="絵文字を探す"
         value={query()}

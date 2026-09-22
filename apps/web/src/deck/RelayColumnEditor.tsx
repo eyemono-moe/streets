@@ -10,6 +10,7 @@ import {
 } from "solid-js";
 import RelaySummary from "../settings/RelaySummary";
 import Button from "../ui/Button";
+import { textInputClass } from "../ui/TextField";
 
 const selectedEntries = (urls: readonly RelayUrl[]): RelayListEntry[] =>
   urls.map((url) => ({ url, read: true, write: false }));
@@ -95,7 +96,7 @@ const RelayColumnEditor: Component<{
         <div class="flex gap-2">
           <input
             id={inputId}
-            class="c-primary min-w-0 flex-1 rounded-2 border border-primary bg-primary px-3 text-body outline-none focus:border-accent-primary"
+            class={`${textInputClass} min-w-0 flex-1`}
             placeholder="wss://relay.example"
             value={input()}
             onInput={(event) => {

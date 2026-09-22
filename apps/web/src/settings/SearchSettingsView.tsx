@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
 export type SearchSettingsViewProps = {
@@ -152,7 +153,7 @@ const AddRelay: Component<{
     >
       <div class="flex flex-wrap items-center gap-2">
         <input
-          class="c-primary placeholder:c-secondary h-8.5 min-w-48 flex-1 rounded-full border border-primary bg-primary px-3.5 text-body outline-none focus-visible:border-accent-5"
+          class={`${textInputClass} min-w-48 flex-1`}
           placeholder="wss://search.example"
           aria-label="足す検索リレーの URL"
           aria-invalid={error() !== undefined}
