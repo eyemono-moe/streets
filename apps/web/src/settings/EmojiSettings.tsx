@@ -1,5 +1,6 @@
 import { type Component, Show } from "solid-js";
 import { useCustomEmojis } from "../emoji/custom-emojis";
+import EmojiSetSearch from "./EmojiSetSearch";
 import EmojiSettingsView from "./EmojiSettingsView";
 
 /** 自分の絵文字のページ。一覧と保存は `CustomEmojisMediator` が持つ。 */
@@ -23,6 +24,7 @@ const EmojiSettings: Component = () => {
                 ),
             }))}
           saving={emojis().saving()}
+          search={<EmojiSetSearch />}
         />
       )}
     </Show>

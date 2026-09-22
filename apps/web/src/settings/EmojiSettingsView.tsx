@@ -6,7 +6,14 @@ import {
   type EmojiSetRef,
 } from "@streets/core/settings/emoji-list";
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
-import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  Show,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -20,6 +27,8 @@ export type EmojiSetRow = {
 };
 
 export type EmojiSettingsViewProps = {
+  /** 「絵文字セットを探す」の中身。読み取り層を触るので外から渡す。 */
+  search?: JSX.Element;
   /** 直接持っている絵文字（kind:10030 の `emoji` タグ）。 */
   emojis: readonly CustomEmoji[];
   sets: readonly EmojiSetRow[];
@@ -30,7 +39,10 @@ export type EmojiSettingsViewProps = {
  * 絵文字 1 つ。読めない URL でも、何が入っているかが消えないようにする。
  * 名前を隣に出している場所（`named`）では、代わりに読めない印だけを出す。
  */
-const Emoji: Component<{ emoji: CustomEmoji; named?: boolean }> = (props) => {
+export const EmojiPreview: Component<{
+  emoji: CustomEmoji;
+  named?: boolean;
+}> = (props) => {
   const [broken, setBroken] = createSignal(false);
   return (
     <Show
@@ -102,6 +114,17 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
       </Show>
       <AddEmoji emojis={props.emojis} disabled={props.saving} />
     </SettingsSection>
+
+    <Show when={props.search}>
+      {(search) => (
+        <SettingsSection
+          title="絵文字セットを探す"
+          description="誰かが作った絵文字セットを見つけて、自分の絵文字に入れます。入れたセットは、作った人が絵文字を足すとこちらにも増えます。"
+        >
+          {search() as never}
+        </SettingsSection>
+      )}
+    </Show>
   </div>
 );
 
@@ -147,7 +170,7 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
               <Show when={!api().open}>
                 <div class="flex flex-wrap items-center gap-1.5">
                   <For each={emojis().slice(0, 12)}>
-                    {(emoji) => <Emoji emoji={emoji} />}
+                    {(emoji) => <EmojiPreview emoji={emoji} />}
                   </For>
                   <Show when={emojis().length > 12}>
                     <span class="c-secondary text-caption">
@@ -166,7 +189,7 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
                 <For each={emojis()}>
                   {(emoji) => (
                     <li class="flex items-center gap-2">
-                      <Emoji emoji={emoji} named />
+                      <EmojiPreview emoji={emoji} named />
                       <span class="c-primary min-w-0 flex-1 break-all text-body">
                         {`:${emoji.shortcode}:`}
                       </span>
@@ -237,7 +260,7 @@ const EmojiRow: Component<{ emoji: CustomEmoji; disabled: boolean }> = (
   const dispatch = useDispatch();
   return (
     <li class="flex items-center gap-2">
-      <Emoji emoji={props.emoji} named />
+      <EmojiPreview emoji={props.emoji} named />
       <span class="c-primary min-w-0 flex-1 break-all text-body">
         {`:${props.emoji.shortcode}:`}
       </span>

@@ -119,6 +119,8 @@ export type DeckEvent =
   /** 自分の絵文字（kind:10030）に 1 つ足す。同じ名前があれば差し替える。 */
   | { type: "emoji/add"; shortcode: string; url: string }
   | { type: "emoji/remove"; shortcode: string }
+  /** 絵文字セットを自分の絵文字に入れる（参照を足すだけ）。 */
+  | { type: "emoji-set/add"; ref: EmojiSetRef }
   /** 参照している絵文字セットを外す（セットそのものは消さない）。 */
   | { type: "emoji-set/remove"; ref: EmojiSetRef }
   /** この端末からログアウトする。 */
