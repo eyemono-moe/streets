@@ -63,6 +63,7 @@ export const サイドバー: Story = {
             pubkey={viewer.pubkey}
             columns={columns}
             panel={undefined}
+            numbers
             onLogout={() => {}}
             feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
           />
@@ -81,6 +82,7 @@ export const パネルを開いているサイドバー: Story = {
             pubkey={viewer.pubkey}
             columns={columns}
             panel="search"
+            numbers
             onLogout={() => {}}
             feedbackUrl={null}
           />
@@ -99,6 +101,7 @@ export const フィードバック未設定: Story = {
             pubkey={viewer.pubkey}
             columns={columns}
             panel={undefined}
+            numbers
             onLogout={() => {}}
             feedbackUrl={null}
           />

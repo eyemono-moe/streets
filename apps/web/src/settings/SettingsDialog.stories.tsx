@@ -2,6 +2,7 @@ import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
@@ -57,6 +58,8 @@ const Story = (props: Props) => {
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
+  const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
+  const [columnDigits, setColumnDigits] = createSignal(true);
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
     relayList([
@@ -148,6 +151,15 @@ const Story = (props: Props) => {
                 case "deck/set-error-report":
                   setErrorReport(event.on);
                   return true;
+                case "deck/set-column-digits":
+                  setColumnDigits(event.on);
+                  return true;
+                case "deck/set-shortcut":
+                  setKeymap((current) => ({
+                    ...current,
+                    [event.action]: event.hotkey,
+                  }));
+                  return true;
                 case "deck/set-appearance":
                   applyColors(event.appearance);
                   setAppearance(event.appearance);
@@ -164,6 +176,8 @@ const Story = (props: Props) => {
               appearance={appearance()}
               writeProgress={writeProgress()}
               errorReport={errorReport()}
+              keymap={keymap()}
+              columnDigits={columnDigits()}
               initialPage={props.page}
             />
           </Mediates>
@@ -203,6 +217,12 @@ export const 表示_シアン: S = {
     page: "display",
     appearance: { accent: PALETTES.cyan.accent, ui: PALETTES.cyan.ui },
   },
+};
+
+export const キーボード_広い画面: S = { args: { page: "keyboard" } };
+
+export const キーボード_狭い画面: S = {
+  args: { page: "keyboard", wide: false },
 };
 
 export const リレー_広い画面: S = { args: { page: "relays" } };

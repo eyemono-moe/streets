@@ -34,9 +34,10 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
+import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { errorReport, setErrorReport } from "../error-report-setting";
-import { keymap } from "../keymap";
+import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -214,6 +215,7 @@ const DeckScreen: Component<{
     columns,
     enabled: () => !ui.settingsOpen && !ui.aboutOpen,
     panelOpen: () => ui.panel !== undefined,
+    columnDigits,
     togglePanel: (panel) => handle({ type: "deck/toggle-panel", panel }),
     focusColumn,
   });
@@ -331,6 +333,12 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
+        return true;
+      case "deck/set-shortcut":
+        setShortcut(event.action, event.hotkey);
+        return true;
+      case "deck/set-column-digits":
+        setColumnDigits(event.on);
         return true;
       case "deck/set-error-report":
         setErrorReport(event.on);
@@ -455,6 +463,7 @@ const DeckScreen: Component<{
                               pubkey={viewer}
                               columns={columns()}
                               panel={ui.panel}
+                              numbers={columnDigits()}
                               onLogout={props.session.logout}
                             />
                             {panelView(false)}
@@ -753,6 +762,8 @@ const DeckScreen: Component<{
                         appearance={appearance()}
                         writeProgress={showWriteProgress()}
                         errorReport={errorReport()}
+                        keymap={keymap()}
+                        columnDigits={columnDigits()}
                       />
                     </MuteMediator>
                   </RelayMediator>

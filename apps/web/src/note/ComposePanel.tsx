@@ -7,6 +7,7 @@ import {
   createEffect,
   createSignal,
   onCleanup,
+  onMount,
 } from "solid-js";
 import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
@@ -56,6 +57,13 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
     };
   };
 
+  /**
+   * 開いたらすぐ打ち始められるようにする。`autofocus` 属性は、後から差し込んだ
+   * 要素には当たらないことがあるので、自分で当てる。
+   */
+  let body: HTMLTextAreaElement | undefined;
+  onMount(() => body?.focus());
+
   return (
     <form
       class="flex min-h-0 flex-1 flex-col"
@@ -71,7 +79,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         </Show>
         {/* 5 行ぶんの高さを確保し、必要なら伸ばす。パネルの高さいっぱいには広げない。 */}
         <textarea
-          autofocus
+          ref={body}
           aria-label="ノートの本文"
           rows={5}
           class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:border-accent-5"
