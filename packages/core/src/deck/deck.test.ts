@@ -92,14 +92,15 @@ describe("loadDeck / saveDeck", () => {
     ).toBeUndefined();
   });
 
-  it("column の必須フィールドが欠けていれば undefined", () => {
-    // 捕まえる変異: 要素の中身を確かめない (title の無いカラムで描画時に落ちる)
+  it("column の必須フィールドが欠けていれば、そのカラムを捨てる", () => {
+    // 捕まえる変異: 要素の中身を確かめない (title の無いカラムで描画時に落ちる)。
+    // デッキ全体は守る —— 1 本のために並びごと失わない。
     expect(
-      loadDeck(JSON.stringify({ version: 2, columns: [{ id: "a" }] })),
-    ).toBeUndefined();
+      loadDeck(JSON.stringify({ version: 2, columns: [{ id: "a" }] }))?.columns,
+    ).toEqual([]);
   });
 
-  it("kind の無い source は undefined", () => {
+  it("kind の無い source のカラムは捨てる", () => {
     // 捕まえる変異: variant の判別キーを見ずに union のどちらかへ通す
     expect(
       loadDeck(
@@ -109,11 +110,11 @@ describe("loadDeck / saveDeck", () => {
             { id: "a", title: "a", source: { filters: [{ kinds: [1] }] } },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
-  it("followees の kinds が数値配列でなければ undefined", () => {
+  it("followees の kinds が数値配列でないカラムは捨てる", () => {
     // 捕まえる変異: valibot のスキーマで kinds を v.unknown() にする
     expect(
       loadDeck(
@@ -127,11 +128,11 @@ describe("loadDeck / saveDeck", () => {
             },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
-  it("filter の authors が配列でなければ undefined", () => {
+  it("filter の authors が配列でないカラムは捨てる", () => {
     // 捕まえる変異: filter の中身の型を確かめない (`?? []` は null/undefined しか捕まえないので、authors が数値だと for...of が TypeError で白画面になる)。
     expect(
       loadDeck(
@@ -148,11 +149,11 @@ describe("loadDeck / saveDeck", () => {
             },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
-  it("filter の kinds が数値配列でなければ undefined", () => {
+  it("filter の kinds が数値配列でないカラムは捨てる", () => {
     // 捕まえる変異: kinds の要素型を確かめない
     expect(
       loadDeck(
@@ -169,11 +170,11 @@ describe("loadDeck / saveDeck", () => {
             },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
-  it("filter が空オブジェクトなら undefined", () => {
+  it("filter が空オブジェクトのカラムは捨てる", () => {
     // 捕まえる変異: 空フィルタを許す ({} は無制限購読になり、壊れたデッキが本物のリレーへそのまま通ってしまう)。
     expect(
       loadDeck(
@@ -183,11 +184,11 @@ describe("loadDeck / saveDeck", () => {
             { id: "a", title: "b", source: { kind: "literal", filters: [{}] } },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
-  it("filter が since/until/limit/search だけなら undefined", () => {
+  it("filter が since/until/limit/search だけのカラムは捨てる", () => {
     // 捕まえる変異: scoping フィールドの有無を見ない ({ since: 123 } も範囲を絞るだけで無制限購読と同じ穴)。
     expect(
       loadDeck(
@@ -201,8 +202,8 @@ describe("loadDeck / saveDeck", () => {
             },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
   it("filter が #tag だけでも scoping として受け付ける", () => {
@@ -245,7 +246,7 @@ describe("loadDeck / saveDeck", () => {
     expect(loadDeck(saveDeck(deck))).toEqual(deck);
   });
 
-  it("ユーザー関連カラムの不正な公開鍵を拒否する", () => {
+  it("ユーザー関連カラムの公開鍵が不正なら、そのカラムを捨てる", () => {
     // 捕まえる変異: pubkey を任意文字列として受け付け、永久に一致しないカラムを復元する。
     expect(
       loadDeck(
@@ -259,8 +260,8 @@ describe("loadDeck / saveDeck", () => {
             },
           ],
         }),
-      ),
-    ).toBeUndefined();
+      )?.columns,
+    ).toEqual([]);
   });
 
   it("旧 user プリセットをユーザー詳細カラムへ移行する", () => {
@@ -447,5 +448,38 @@ describe("デッキの見た目（appearance）", () => {
     const loaded = loadDeck(broken);
     expect(loaded?.columns).toEqual(deck.columns);
     expect(loaded?.appearance).toBeUndefined();
+  });
+});
+
+describe("知らない種類のカラムが混ざったとき", () => {
+  const deck = (columns: unknown[]) => JSON.stringify({ version: 2, columns });
+  const home = {
+    id: "home",
+    title: "ホーム",
+    source: { kind: "followees", kinds: [1] },
+  };
+
+  it("そのカラムだけ捨てて、残りは読む", () => {
+    // 捕まえる変異: 1 本でも読めなければデッキ全体を捨てる（新しい版で足した
+    // カラムがあるだけで、並びも設定も丸ごと失う）
+    const loaded = loadDeck(
+      deck([
+        home,
+        { id: "s", title: "ねこ", source: { kind: "みらいの種類", q: "ねこ" } },
+      ]),
+    );
+    expect(loaded?.columns).toEqual([home]);
+  });
+
+  it("全部読めなければ、カラムの無いデッキになる", () => {
+    const loaded = loadDeck(deck([{ id: "s", title: "x", source: {} }]));
+    expect(loaded?.columns).toEqual([]);
+  });
+
+  it("デッキそのものの形が違えば、これまでどおり読めない", () => {
+    expect(
+      loadDeck(JSON.stringify({ version: 1, columns: [] })),
+    ).toBeUndefined();
+    expect(loadDeck("{")).toBeUndefined();
   });
 });
