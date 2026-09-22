@@ -95,7 +95,7 @@ const KeyboardSettings: Component<{
       <SettingsSection
         title="ショートカットキー"
         scope="device"
-        description="押すキーを変えられます。「変更」を押してから、割り当てたいキーを押してください。取り消すときは Esc、そのショートカットを使わないことにするときは Backspace を押します。"
+        description="使用するキー変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
       >
         <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
           <For each={SHORTCUT_ACTIONS}>
@@ -142,9 +142,9 @@ const KeyboardSettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="数字キーでカラムへ移動"
+        title="数字キーでのカラム移動"
         scope="device"
-        description="1〜9 を押すと、左から数えたその番号のカラムを見せます。オフにすると、数字キーは効かなくなり、サイドバーの番号も出なくなります。"
+        description="オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動します。オフにすると、数字キーは効かなくなります。"
       >
         <Switch
           label="数字キーでカラムへ移動する"
