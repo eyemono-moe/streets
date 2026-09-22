@@ -1,9 +1,7 @@
-import { StreetSign } from "@streets/sign";
 import type { Component, JSX } from "solid-js";
-import LoginPanel, { type LoginState } from "./LoginPanel";
+import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
 
 const REPOSITORY = "https://github.com/eyemono-moe/streets";
-const GUIDE = "https://welcome.nostr-jp.org";
 
 /**
  * ログインしていない人に出す入口。狭い画面では紹介とログインを上に、流れている
@@ -13,6 +11,7 @@ const WelcomeView: Component<{
   login: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  initialStep?: LoginStep;
   initialBunkerUri?: string;
   /** 流しているリレーの名前。 */
   feedTitle: string;
@@ -22,7 +21,7 @@ const WelcomeView: Component<{
     <div class="flex flex-col gap-8 bg-primary px-4 py-8 md:overflow-y-auto md:rounded-3 md:px-8">
       <header class="flex flex-col gap-3">
         <div class="flex items-center gap-3">
-          <StreetSign name="streets" class="size-10 rounded-2" />
+          <img src="/favicon.svg" alt="" class="size-10" />
           <h1 class="font-700 text-h3">Streets</h1>
         </div>
         <p class="text-body">
@@ -35,26 +34,9 @@ const WelcomeView: Component<{
         state={props.login}
         onExtension={props.onExtension}
         onBunker={props.onBunker}
+        initialStep={props.initialStep}
         initialBunkerUri={props.initialBunkerUri}
       />
-
-      <section class="flex flex-col gap-2" aria-labelledby="new-heading">
-        <h2 id="new-heading" class="font-600 text-body">
-          はじめての方
-        </h2>
-        <p class="c-secondary text-caption">
-          Nostr のアカウントは、鍵を預かる拡張機能か署名器で作ります。Streets
-          は鍵を預からず、署名をそれらに頼みます。
-          <a
-            href={GUIDE}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-link"
-          >
-            Nostr のはじめかた
-          </a>
-        </p>
-      </section>
 
       <footer class="c-secondary mt-auto text-caption">
         <a

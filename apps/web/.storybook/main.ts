@@ -18,6 +18,8 @@ const withoutDevtools = (plugins: PluginOption[]): PluginOption[] =>
 
 const config = {
   stories: ["../src/**/*.stories.tsx"],
+  // ロゴなど、アプリが /favicon.svg のように直に指すもの。
+  staticDirs: ["../public"],
   framework: {
     name: "storybook-solidjs-vite",
     options: {},

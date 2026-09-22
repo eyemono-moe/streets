@@ -47,14 +47,23 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const 普通: Story = {};
+export const 最初の二択: Story = {};
+
+export const はじめての方: Story = {
+  args: { initialStep: "new" },
+};
+
+export const アカウントを持っている方: Story = {
+  args: { initialStep: "existing" },
+};
 
 export const ログインしている途中: Story = {
-  args: { login: { pending: true } },
+  args: { initialStep: "existing", login: { pending: true } },
 };
 
 export const 署名器の承認待ち: Story = {
   args: {
+    initialStep: "existing",
     login: {
       pending: true,
       authUrl: new URL("https://signer.example/approve?token=abc"),
@@ -73,6 +82,7 @@ export const ログインできなかった: Story = {
 
 export const 秘密鍵を貼り付けた: Story = {
   args: {
+    initialStep: "existing",
     initialBunkerUri: `nsec1${"q".repeat(58)}`,
   },
 };

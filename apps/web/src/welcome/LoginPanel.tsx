@@ -1,8 +1,8 @@
-import { type Component, Show, createSignal } from "solid-js";
-import Button from "../ui/Button";
-import { textInputClass } from "../ui/TextField";
-
-const GUIDE = "https://welcome.nostr-jp.org";
+import { Collapsible } from "@ark-ui/solid/collapsible";
+import { type Component, Match, Show, Switch, createSignal } from "solid-js";
+import ChoiceButton from "../ui/ChoiceButton";
+import BunkerForm from "./BunkerForm";
+import { GUIDE, GuideLink } from "./guide";
 
 export type LoginState = {
   pending: boolean;
@@ -11,132 +11,159 @@ export type LoginState = {
   authUrl?: URL;
 };
 
-const ExternalLink: Component<{ href: string; children: string }> = (props) => (
-  <a
-    href={props.href}
-    target="_blank"
-    rel="noopener noreferrer"
-    class="text-link"
+export type LoginStep = "choose" | "new" | "existing";
+
+const BackButton: Component<{ onClick: () => void }> = (props) => (
+  <button
+    type="button"
+    class="c-secondary -ml-1 flex w-fit cursor-pointer items-center gap-1 rounded-1.5 bg-transparent px-1 py-0.5 text-caption hover:bg-secondary"
+    onClick={() => props.onClick()}
   >
-    {props.children}
-  </a>
+    <span
+      class="i-material-symbols:arrow-back-rounded size-4"
+      aria-hidden="true"
+    />
+    戻る
+  </button>
 );
 
-/** 秘密鍵を貼られたときに、受け付けない理由を出す（ADR-0008）。 */
-const looksLikeSecretKey = (input: string) =>
-  /^nsec1/i.test(input.trim()) || /^[0-9a-f]{64}$/i.test(input.trim());
-
-/** 既に Nostr のアカウントを持っている人のための入口。 */
+/**
+ * 入口の左側。はじめての方か、アカウントを持っている方かを先に選んでもらい、
+ * それぞれに要るものだけを見せる。
+ */
 const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  /** 最初に見せる段。ストーリーで各段を並べるため。 */
+  initialStep?: LoginStep;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
-  const [bunkerUri, setBunkerUri] = createSignal(props.initialBunkerUri ?? "");
-  const secretKey = () => looksLikeSecretKey(bunkerUri());
+  // 復元に失敗して戻ってきた人は、アカウントを持っている。
+  const [step, setStep] = createSignal<LoginStep>(
+    props.initialStep ?? (props.state.error ? "existing" : "choose"),
+  );
 
   return (
-    <section class="flex flex-col gap-4" aria-labelledby="login-heading">
-      <h2 id="login-heading" class="font-600 text-body">
-        Nostr のアカウントを持っている方
-      </h2>
-
-      <Show when={props.state.error}>
-        {(message) => (
-          <p
-            role="alert"
-            class="c-danger rounded-2 bg-danger-subtle px-3 py-2 text-caption"
-          >
-            {message()}
-          </p>
-        )}
-      </Show>
-
-      <div class="flex flex-col gap-1.5">
-        <Button
-          variant="primary"
-          shape="rounded"
-          block
-          icon="i-material-symbols:extension-outline-rounded"
-          disabled={props.state.pending}
-          onClick={() => props.onExtension()}
+    <Switch>
+      <Match when={step() === "choose"}>
+        <section
+          class="flex animate-fade-in flex-col gap-3"
+          aria-labelledby="choose-heading"
         >
-          拡張機能でログイン
-        </Button>
-        <p class="c-secondary text-caption">
-          nos2x や Alby など、Nostr の鍵を預かるブラウザ拡張機能を使います。
-          <ExternalLink href={`${GUIDE}/tutorial/nip-07.html`}>
-            拡張機能の入れ方
-          </ExternalLink>
-        </p>
-      </div>
-
-      <form
-        class="flex flex-col gap-1.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!secretKey()) props.onBunker(bunkerUri().trim());
-        }}
-      >
-        <label for="bunker-uri" class="font-600 text-caption">
-          リモート署名器でログイン
-        </label>
-        <div class="flex gap-2">
-          <input
-            id="bunker-uri"
-            type="password"
-            autocomplete="off"
-            spellcheck={false}
-            placeholder="bunker://…"
-            class={`${textInputClass} min-w-0 flex-1`}
-            aria-invalid={secretKey()}
-            aria-describedby="bunker-uri-note"
-            value={bunkerUri()}
-            onInput={(event) => setBunkerUri(event.currentTarget.value)}
+          <h2 id="choose-heading" class="font-600 text-body">
+            はじめる
+          </h2>
+          <ChoiceButton
+            icon="i-material-symbols:person-add-outline-rounded"
+            title="はじめての方"
+            description="Nostr のアカウントを作るところから案内します"
+            trailing="next"
+            onClick={() => setStep("new")}
           />
-          <Button
-            type="submit"
-            shape="rounded"
-            class="h-9"
-            disabled={props.state.pending || !bunkerUri().trim() || secretKey()}
-          >
-            接続
-          </Button>
-        </div>
-        <Show
-          when={secretKey()}
-          fallback={
-            <p id="bunker-uri-note" class="c-secondary text-caption">
-              nsec.app や Amber などの署名器が表示する、bunker://
-              で始まる文字列を貼り付けます。
-            </p>
-          }
-        >
-          <p id="bunker-uri-note" class="c-danger text-caption">
-            これは秘密鍵です。Streets
-            は秘密鍵を受け付けません。秘密鍵が一度でも漏れると、アカウントを取り戻す方法がないためです。拡張機能か署名器に秘密鍵を預けてから、そちらでログインしてください。
-            <ExternalLink href={`${GUIDE}/faq.html#why-is-nsec-confidential`}>
-              秘密鍵を人に渡してはいけない理由
-            </ExternalLink>
-          </p>
-        </Show>
-      </form>
+          <ChoiceButton
+            icon="i-material-symbols:login-rounded"
+            title="Nostr のアカウントを持っている方"
+            description="拡張機能かリモート署名器でログインします"
+            trailing="next"
+            onClick={() => setStep("existing")}
+          />
+        </section>
+      </Match>
 
-      <Show when={props.state.authUrl}>
-        {(url) => (
-          <a
-            class="text-caption text-link"
-            href={url().href}
-            target="_blank"
-            rel="noopener noreferrer"
+      <Match when={step() === "new"}>
+        <section
+          class="flex animate-fade-in flex-col gap-3"
+          aria-labelledby="new-heading"
+        >
+          <BackButton onClick={() => setStep("choose")} />
+          <h2 id="new-heading" class="font-600 text-body">
+            はじめての方
+          </h2>
+          <p class="text-caption">
+            Nostr
+            のアカウントは、鍵を預かる拡張機能か署名器のアプリで作ります。Streets
+            は鍵を預からず、署名をそれらに頼みます。
+          </p>
+          <p class="text-caption">
+            <GuideLink href={GUIDE}>Nostr のはじめかた</GuideLink>
+          </p>
+        </section>
+      </Match>
+
+      <Match when={step() === "existing"}>
+        <section
+          class="flex animate-fade-in flex-col gap-3"
+          aria-labelledby="existing-heading"
+        >
+          <BackButton onClick={() => setStep("choose")} />
+          <h2 id="existing-heading" class="font-600 text-body">
+            Nostr のアカウントを持っている方
+          </h2>
+
+          <Show when={props.state.error}>
+            {(message) => (
+              <p
+                role="alert"
+                class="c-danger rounded-2 bg-danger-subtle px-3 py-2 text-caption"
+              >
+                {message()}
+              </p>
+            )}
+          </Show>
+
+          <ChoiceButton
+            icon="i-material-symbols:extension-outline-rounded"
+            title="拡張機能でログイン"
+            description="nos2x や Alby など、ブラウザの拡張機能に署名を頼みます"
+            disabled={props.state.pending}
+            onClick={() => props.onExtension()}
+          />
+
+          <Collapsible.Root
+            lazyMount
+            unmountOnExit
+            defaultOpen={props.initialBunkerUri !== undefined}
+            class="flex flex-col gap-2"
           >
-            署名器で接続を承認する
-          </a>
-        )}
-      </Show>
-    </section>
+            <Collapsible.Trigger
+              asChild={(trigger) => (
+                <ChoiceButton
+                  {...trigger()}
+                  icon="i-material-symbols:phonelink-lock-outline-rounded"
+                  title="リモート署名器でログイン"
+                  description="Amber など、鍵を預かる別のアプリに署名を頼みます"
+                  trailing="expand"
+                />
+              )}
+            />
+            <Collapsible.Content class="motion-collapse">
+              <div class="pt-1">
+                <BunkerForm
+                  pending={props.state.pending}
+                  onBunker={props.onBunker}
+                  initialValue={props.initialBunkerUri}
+                />
+              </div>
+            </Collapsible.Content>
+          </Collapsible.Root>
+
+          <Show when={props.state.authUrl}>
+            {(url) => (
+              <a
+                class="text-caption text-link"
+                href={url().href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                署名器で接続を承認する
+              </a>
+            )}
+          </Show>
+        </section>
+      </Match>
+    </Switch>
   );
 };
 
