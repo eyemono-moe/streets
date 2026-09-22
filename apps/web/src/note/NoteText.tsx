@@ -80,7 +80,7 @@ const Token: Component<{
           if (props.interactive === false) return token().raw;
           const ref = token().ref;
           if (ref.kind === "npub" || ref.kind === "nprofile") {
-            return <UserLink pubkey={ref.pubkey} class="text-link" />;
+            return <UserLink pubkey={ref.pubkey} mention class="text-link" />;
           }
           if (ref.kind === "note" || ref.kind === "nevent") {
             return (
