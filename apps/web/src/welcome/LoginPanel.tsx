@@ -1,6 +1,14 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
-import { type Component, Match, Show, Switch, createSignal } from "solid-js";
+import {
+  type Component,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createSignal,
+  on,
+} from "solid-js";
 import type { ConnectAttempt } from "../session";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
@@ -52,13 +60,22 @@ const LoginPanel: Component<{
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
-  // 復元に失敗して戻ってきた人は、アカウントを持っている。
   // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
   const [remoteOpen, setRemoteOpen] = createSignal(
     props.initialRemoteOpen === true || props.initialBunkerUri !== undefined,
   );
   const [step, setStep] = createSignal<LoginStep>(
-    props.initialStep ?? (props.state.error ? "existing" : "choose"),
+    props.initialStep ?? "choose",
+  );
+  // 失敗はアカウントを持っている方の段にだけ出す。復元の失敗はこの画面が出た後に
+  // 届くので、届いたときにその段へ移る。
+  createEffect(
+    on(
+      () => props.state.error,
+      (error) => {
+        if (error && step() === "choose") setStep("existing");
+      },
+    ),
   );
 
   return (
