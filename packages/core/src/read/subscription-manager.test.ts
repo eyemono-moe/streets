@@ -2402,3 +2402,54 @@ describe("SubscriptionManager の読み取り先の切り替え", () => {
     await done;
   });
 });
+
+describe("SubscriptionManager の読み取り先の計画", () => {
+  it("張り直すたびに全カラム分の計画を出し、変わったときだけ知らせる", () => {
+    const { store, manager, delivery } = setup();
+    const author = signed(1, {
+      kind: 10002,
+      tags: [["r", "wss://author-write/", "write"]],
+      content: "",
+    });
+    store.put(author, "wss://indexer/");
+    const listener = vi.fn();
+    manager.onReadPlanChanged(listener);
+
+    const handle = manager.subscribe(
+      [{ kinds: [1], authors: [author.pubkey, "f".repeat(64)] }],
+      undefined,
+      delivery(),
+    );
+    expect(manager.readPlan).toEqual({
+      mode: "outbox",
+      relays: [
+        {
+          url: "wss://author-write/",
+          authors: 1,
+          fallback: false,
+          explicit: false,
+        },
+        { url: "wss://fallback/", authors: 0, fallback: true, explicit: false },
+      ],
+      unroutableAuthors: 1,
+      uncoveredAuthors: 0,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    manager.replan();
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });
+    expect(listener).toHaveBeenLastCalledWith({
+      mode: "direct",
+      relays: [
+        { url: "wss://mine/", authors: 2, fallback: false, explicit: false },
+      ],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 0,
+    });
+
+    handle.close();
+    expect(manager.readPlan.relays).toEqual([]);
+  });
+});

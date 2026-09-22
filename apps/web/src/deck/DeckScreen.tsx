@@ -155,6 +155,11 @@ const DeckScreen: Component<{
   });
   onCleanup(() => props.readLayer.manager.setReadRouting(OUTBOX_ROUTING));
 
+  const [readPlan, setReadPlan] = createSignal(
+    props.readLayer.manager.readPlan,
+  );
+  onCleanup(props.readLayer.manager.onReadPlanChanged(setReadPlan));
+
   const deckStore = createDeckStore({
     pubkey: props.session.pubkey,
     // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
@@ -464,6 +469,8 @@ const DeckScreen: Component<{
                       statusOf={(url) =>
                         props.readLayer.manager.pool.statusOf(url)
                       }
+                      readPlan={readPlan}
+                      routingSettled={settled}
                     >
                       <MuteMediator
                         writer={trackReplaces(write.writer, "ミュート")}

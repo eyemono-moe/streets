@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayStatus } from "@streets/core/read/connection-pool";
+import type { ReadPlan } from "@streets/core/read/read-plan";
 import {
   type RelayListEntry,
   parseRelayList,
@@ -42,6 +43,10 @@ export type RelayEdit = {
   allows: (op: RelayOp) => boolean;
   statusOf: (url: RelayUrl) => RelayStatus;
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
+  /** 全カラム分の読み取り先。 */
+  readPlan?: Accessor<ReadPlan>;
+  /** フォロー中の人のリレー設定を探し終えたか。 */
+  routingSettled?: Accessor<boolean>;
 };
 
 const RelayEditContext = createContext<RelayEdit>();
@@ -56,6 +61,8 @@ export const RelayMediator: ParentComponent<{
   settled: Accessor<boolean>;
   statusOf: (url: RelayUrl) => RelayStatus;
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
+  readPlan?: Accessor<ReadPlan>;
+  routingSettled?: Accessor<boolean>;
 }> = (props) => {
   const [state, setState] = createStore(emptyRelayEdit());
   const apply = (event: RelayEditEvent) =>
@@ -119,6 +126,8 @@ export const RelayMediator: ParentComponent<{
     allows: (op) => allowsRelayOp(entries(), op),
     statusOf: props.statusOf,
     infoOf: props.infoOf,
+    readPlan: props.readPlan,
+    routingSettled: props.routingSettled,
   };
 
   return (
