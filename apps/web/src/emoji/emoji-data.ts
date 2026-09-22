@@ -20,23 +20,46 @@ export type PickerEmoji =
 export type PickerGroup = {
   id: string;
   title: string;
+  /**
+   * 上の帯のタブに出すアイコン（`i-...`）。名前は長く、帯に並べきれないため。
+   * 無ければ先頭の絵文字を出す（カスタム絵文字のかたまりは、中身で見分ける）。
+   */
+  icon?: string;
   emojis: PickerEmoji[];
 };
 
 /**
- * emojibase のグループ番号に付ける名前。2（肌色などの部品）は単体では使わない
- * ので出さない。
+ * emojibase のグループ番号に付ける名前とアイコン。2（肌色などの部品）は単体では
+ * 使わないので出さない。
  */
-const GROUP_TITLES: Record<number, string> = {
-  0: "顔と気持ち",
-  1: "人と体",
-  3: "動物と自然",
-  4: "食べ物と飲み物",
-  5: "旅行と場所",
-  6: "アクティビティ",
-  7: "もの",
-  8: "記号",
-  9: "旗",
+const GROUPS: Record<number, { title: string; icon: string }> = {
+  0: {
+    title: "顔と気持ち",
+    icon: "i-material-symbols:sentiment-satisfied-outline-rounded",
+  },
+  1: { title: "人と体", icon: "i-material-symbols:emoji-people-rounded" },
+  3: {
+    title: "動物と自然",
+    icon: "i-material-symbols:pets",
+  },
+  4: {
+    title: "食べ物と飲み物",
+    icon: "i-material-symbols:fastfood-outline-rounded",
+  },
+  5: {
+    title: "旅行と場所",
+    icon: "i-material-symbols:emoji-transportation-outline-rounded",
+  },
+  6: {
+    title: "アクティビティ",
+    icon: "i-material-symbols:sports-tennis-outline-rounded",
+  },
+  7: {
+    title: "もの",
+    icon: "i-material-symbols:emoji-objects-outline-rounded",
+  },
+  8: { title: "記号", icon: "i-material-symbols:emoji-symbols-rounded" },
+  9: { title: "旗", icon: "i-material-symbols:flag-outline-rounded" },
 };
 
 type CompactEmoji = {
@@ -57,7 +80,7 @@ const build = (
 ): PickerGroup[] => {
   const byGroup = new Map<number, { emoji: PickerEmoji; order: number }[]>();
   for (const entry of data) {
-    if (entry.group === undefined || GROUP_TITLES[entry.group] === undefined) {
+    if (entry.group === undefined || GROUPS[entry.group] === undefined) {
       continue;
     }
     const list = byGroup.get(entry.group) ?? [];
@@ -73,12 +96,13 @@ const build = (
     });
     byGroup.set(entry.group, list);
   }
-  return Object.entries(GROUP_TITLES)
-    .map(([group, title]) => ({ group: Number(group), title }))
+  return Object.entries(GROUPS)
+    .map(([group, meta]) => ({ group: Number(group), ...meta }))
     .filter(({ group }) => byGroup.has(group))
-    .map(({ group, title }) => ({
+    .map(({ group, title, icon }) => ({
       id: `unicode-${group}`,
       title,
+      icon,
       emojis: (byGroup.get(group) ?? [])
         .sort((a, b) => a.order - b.order)
         .map((entry) => entry.emoji),

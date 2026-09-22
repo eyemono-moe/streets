@@ -7,7 +7,9 @@ import {
 import {
   type Component,
   For,
+  Match,
   Show,
+  Switch,
   createEffect,
   createMemo,
   createResource,
@@ -62,6 +64,43 @@ const Cell: Component<{
         )}
       </Show>
     </button>
+  );
+};
+
+/** タブの顔。アイコンが無ければ、先頭の絵文字を小さく出す。 */
+const TabFace: Component<{ group: PickerGroup }> = (props) => {
+  const first = () => props.group.emojis[0];
+  const custom = () => {
+    const emoji = first();
+    return emoji?.kind === "custom" ? emoji : undefined;
+  };
+  const unicode = () => {
+    const emoji = first();
+    return emoji?.kind === "unicode" ? emoji : undefined;
+  };
+  return (
+    <Switch>
+      <Match when={props.group.icon}>
+        {(icon) => <span class={`${icon()} size-5`} aria-hidden="true" />}
+      </Match>
+      <Match when={custom()}>
+        {(emoji) => (
+          <img
+            src={emoji().url}
+            alt=""
+            loading="lazy"
+            class="size-5 object-contain"
+          />
+        )}
+      </Match>
+      <Match when={unicode()}>
+        {(emoji) => (
+          <span class="text-[18px] leading-5" aria-hidden="true">
+            {emoji().char}
+          </span>
+        )}
+      </Match>
+    </Switch>
   );
 };
 
@@ -158,14 +197,15 @@ const PickerList: Component<{
                     data-group={group.id}
                     aria-selected={active() === group.id}
                     title={group.title}
-                    class="flex h-9 shrink-0 cursor-pointer flex-col items-center justify-between gap-1 whitespace-nowrap bg-transparent px-2.5 pt-1.5 text-caption"
+                    aria-label={group.title}
+                    class="flex h-9 shrink-0 cursor-pointer flex-col items-center justify-between gap-1 bg-transparent px-2 pt-1.5"
                     classList={{
                       "c-primary font-600": active() === group.id,
                       "c-secondary hover:c-primary": active() !== group.id,
                     }}
                     onClick={() => jumpTo(group.id)}
                   >
-                    <span>{group.title}</span>
+                    <TabFace group={group} />
                     {/* 狭い画面のカラムの帯と同じ、下の線で今いる場所を出す。 */}
                     <span
                       class="h-0.5 w-full rounded-full"
@@ -244,6 +284,7 @@ const EmojiPicker: Component<{
       all.push({
         id: RECENT_GROUP_ID,
         title: "よく使う",
+        icon: "i-material-symbols:history-rounded",
         emojis: [...recentEmojis()],
       });
     }
@@ -267,6 +308,7 @@ const EmojiPicker: Component<{
       {
         id: RESULT_GROUP_ID,
         title: "検索結果",
+        icon: "i-material-symbols:search-rounded",
         emojis: searchEmojis(all, query()).map((entry) => entry.emoji),
       },
     ];
