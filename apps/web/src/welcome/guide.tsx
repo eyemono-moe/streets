@@ -10,8 +10,12 @@ export const GuideLink: Component<{ href: string; children: string }> = (
     href={props.href}
     target="_blank"
     rel="noopener noreferrer"
-    class="text-link"
+    class="inline-flex items-center gap-0.5 text-link "
   >
     {props.children}
+    <span
+      class="i-material-symbols:open-in-new-rounded size-3.5 text-link"
+      aria-hidden="true"
+    />
   </a>
 );

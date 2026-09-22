@@ -7,14 +7,10 @@ const Intro: Component = () => {
   const dispatch = useDispatch();
   return (
     <div class="flex flex-col gap-2.5">
-      <p class="font-700 text-h3 leading-snug">
-        見たい Nostr を、
-        <br />
-        見たいだけ並べる。
-      </p>
+      <p class="font-700 text-[24px] leading-snug">See it your way.</p>
       <p class="text-body">
-        Streets は、ブラウザで使える Nostr
-        のクライアントです。フォロー中の投稿、通知、ハッシュタグ、リレーの流れをカラムにして、自分だけの画面を組み立てられます。
+        Streets はブラウザで使える Nostr
+        のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
       </p>
       <p class="flex flex-wrap gap-x-4 gap-y-1 text-caption">
         <a

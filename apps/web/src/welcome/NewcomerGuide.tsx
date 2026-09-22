@@ -65,8 +65,9 @@ const NewcomerGuide: Component<{
   return (
     <div class="flex flex-col gap-4">
       <p class="text-caption">
-        Nostr のアカウントは、秘密鍵を預かるアプリや拡張機能で作ります。Streets
-        は秘密鍵を預からず、署名をそれらに頼みます。
+        Nostrでは、秘密鍵があなたのアカウントの鍵になります。
+        この鍵は他人に見せず、なくさないように大切に保管してください。
+        Streetsでは秘密鍵を保存せず、専用のアプリや拡張機能を通して安全に利用します。
       </p>
       <SegmentedControl
         label="使っている端末"
@@ -96,7 +97,7 @@ const NewcomerGuide: Component<{
         <Match when={device() === "android"}>
           <Steps>
             <Step>
-              <p>秘密鍵を預かるアプリを入れます。</p>
+              <p>秘密鍵を保存するアプリを入手します。</p>
               <Links
                 links={[
                   { href: PRIMAL_ANDROID, label: "Primal（Google Play）" },
@@ -113,7 +114,7 @@ const NewcomerGuide: Component<{
         <Match when={device() === "ios"}>
           <Steps>
             <Step>
-              <p>秘密鍵を預かるアプリを入れます。</p>
+              <p>秘密鍵を保存するアプリを入手します。</p>
               <Links
                 links={[{ href: PRIMAL_IOS, label: "Primal（App Store）" }]}
               />
@@ -123,16 +124,11 @@ const NewcomerGuide: Component<{
             </Step>
             <RemoteLoginStep />
           </Steps>
-          <p class="c-secondary text-caption">
-            Primal で繋がらないときは、
-            <GuideLink href={AEGIS}>Aegis（TestFlight 版）</GuideLink>
-            も使えます。
-          </p>
         </Match>
         <Match when={device() === "pc"}>
           <Steps>
             <Step>
-              <p>ブラウザに、秘密鍵を預かる拡張機能を入れます。</p>
+              <p>秘密鍵を保存する拡張機能を入手します。</p>
               <Links
                 links={[
                   { href: NOS2X_CHROME, label: "nos2x（Chrome）" },
@@ -160,7 +156,7 @@ const NewcomerGuide: Component<{
       </p>
       <ChoiceButton
         icon="i-material-symbols:login-rounded"
-        title="アカウントを作ったら、ログインへ"
+        title="アカウントを作ったらログインへ"
         trailing="next"
         onClick={() => props.onDone(device())}
       />
