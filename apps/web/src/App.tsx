@@ -10,12 +10,12 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import LoginScreen from "./LoginScreen";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
 import { createSession } from "./session";
 import { ErrorToaster } from "./toast";
+import WelcomeScreen from "./welcome/WelcomeScreen";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
 
@@ -35,7 +35,7 @@ const App: Component = () => {
     <>
       <Switch>
         <Match when={session.state() === "signed-out"}>
-          <LoginScreen session={session} />
+          <WelcomeScreen session={session} readLayer={readLayer} />
         </Match>
         <Match when={session.state() === "signed-in"}>
           <Show when={session.pubkey()} keyed>
