@@ -26,6 +26,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import ProfileRow from "../profile/ProfileRow";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -418,6 +419,11 @@ const EventBody: Component<ContentProps> = (props) => {
     const ref = replyTarget(props.event);
     return ref?.form === "id" ? ref : undefined;
   };
+
+  // プロフィールは人そのものなので、フォロー一覧と同じ行で描く。押すとその人のカラムを開く。
+  if (props.event.kind === 0) {
+    return <ProfileRow pubkey={props.event.pubkey} />;
+  }
 
   // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
   if (props.event.kind === 7) {
