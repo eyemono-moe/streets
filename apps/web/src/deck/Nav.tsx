@@ -1,12 +1,19 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
-import { type Component, For, Show } from "solid-js";
+import {
+  type Component,
+  For,
+  Show,
+  createEffect,
+  createSignal,
+} from "solid-js";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
+import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
-import FeedbackLink from "./FeedbackLink";
-import { columnMeta } from "./column-meta";
+import ColumnTitle from "./ColumnTitle";
+import FeedbackLink, { FeedbackDialog, feedbackHref } from "./FeedbackLink";
 
 /**
  * デッキのカラムを 1 つずつ並べるボタン。押すと、そのカラムが画面に収まるよう
@@ -33,9 +40,10 @@ const ColumnButton: Component<{
         dispatch({ type: "deck/focus-column", id: props.column.id })
       }
     >
-      <span
-        class={`${columnMeta(props.column).icon} size-5.5`}
-        aria-hidden="true"
+      <ColumnIcon
+        column={props.column}
+        class="size-5.5"
+        avatarClass="size-6 rounded-1.5"
       />
       <Show when={number()}>
         {(n) => (
@@ -163,7 +171,7 @@ export const ComposeFab: Component = () => {
       aria-label="投稿パネルを開く"
       title={shortcutTitle("compose")}
       aria-keyshortcuts={ariaKeyShortcuts("compose")}
-      class="absolute right-4 bottom-20 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
+      class="absolute right-4 bottom-4 grid size-14 cursor-pointer place-items-center rounded-full bg-accent-primary shadow-lg hover:bg-accent-hover"
       onClick={() => dispatch({ type: "deck/toggle-panel", panel: "compose" })}
     >
       <span
@@ -174,22 +182,143 @@ export const ComposeFab: Component = () => {
   );
 };
 
-export const TabBar: Component<{
+/**
+ * 狭い画面の上のバー。左の自分のアイコンから、設定・フィードバック・ログアウトを
+ * 開く（下のバーはカラムの切り替えに使うので、ここへ寄せる）。真ん中に今のカラム、
+ * 右にそのカラムの設定。
+ */
+export const MobileTopBar: Component<{
   pubkey: string;
-  panel: DeckPanel | undefined;
+  /** 今見ているカラム。パネルを開いている間は undefined。 */
+  column: ColumnDef | undefined;
+  /** 一時カラム（URL で開いたもの）を見ている。設定は持たない。 */
+  temporary: boolean;
+  settingsOpen: boolean;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
+  const [feedbackOpen, setFeedbackOpen] = createSignal(false);
+  const href = () => feedbackHref(props.feedbackUrl);
   return (
-    <nav class="flex shrink-0 items-center justify-around bg-primary px-5 pb-2.5">
+    <header class="flex h-12 shrink-0 items-center gap-2.5 border-primary border-b bg-primary px-3">
+      <AccountMenu
+        pubkey={props.pubkey}
+        onLogout={props.onLogout}
+        onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
+      />
+      <Show when={href()}>
+        {(url) => (
+          <FeedbackDialog
+            href={url()}
+            open={feedbackOpen()}
+            onClose={() => setFeedbackOpen(false)}
+          />
+        )}
+      </Show>
+      <Show when={props.column}>
+        {(column) => (
+          <>
+            <h1 class="flex min-w-0 flex-1 items-center gap-2 font-600 text-body">
+              <ColumnIcon
+                column={column()}
+                class="c-secondary size-4.5 shrink-0"
+                avatarClass="size-5 shrink-0 rounded-1.5"
+              />
+              <span class="min-w-0 truncate">
+                <ColumnTitle column={column()} />
+              </span>
+            </h1>
+            <Show when={!props.temporary}>
+              <button
+                type="button"
+                aria-label="カラムの設定"
+                aria-expanded={props.settingsOpen}
+                class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
+                classList={{
+                  "c-primary bg-secondary": props.settingsOpen,
+                  "c-secondary bg-transparent": !props.settingsOpen,
+                }}
+                onClick={() =>
+                  dispatch({ type: "deck/toggle-settings", id: column().id })
+                }
+              >
+                <span
+                  class="i-material-symbols:more-horiz size-5"
+                  aria-hidden="true"
+                />
+              </button>
+            </Show>
+          </>
+        )}
+      </Show>
+    </header>
+  );
+};
+
+/**
+ * 狭い画面の下のバー。広い画面のサイドバーと同じく「探す｜カラム｜足す」の順に
+ * 並べ、カラムの帯だけを横に送れるようにする。
+ */
+export const MobileTabBar: Component<{
+  columns: readonly ColumnDef[];
+  /** 一時カラム（URL で開いたもの）。先頭に並べる。 */
+  temp: ColumnDef | undefined;
+  /** 選んでいるカラムの id。パネルを開いている間は undefined。 */
+  active: string | undefined;
+  panel: DeckPanel | undefined;
+}> = (props) => {
+  const dispatch = useDispatch();
+  let strip: HTMLDivElement | undefined;
+  // 選んだカラムのタブを、帯の中に見えるように送る。
+  createEffect(() => {
+    const id = props.active;
+    if (id === undefined) return;
+    strip
+      ?.querySelector(`[data-tab="${CSS.escape(id)}"]`)
+      ?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  });
+  const tab = (column: ColumnDef, id: string) => {
+    const title = useColumnTitle(() => column);
+    const selected = () => props.active === id;
+    return (
+      <button
+        type="button"
+        data-tab={id}
+        aria-label={title()}
+        aria-current={selected() ? "page" : undefined}
+        class="relative grid size-11 shrink-0 cursor-pointer place-items-center bg-transparent"
+        classList={{
+          "c-accent-5": selected(),
+          "c-secondary": !selected(),
+        }}
+        onClick={() => dispatch({ type: "deck/focus-column", id })}
+      >
+        <ColumnIcon
+          column={column}
+          class="size-6"
+          avatarClass="size-6.5 rounded-1.5"
+        />
+        <span
+          class="absolute bottom-1 h-0.75 w-4 rounded-full"
+          classList={{ "bg-accent-primary": selected() }}
+          aria-hidden="true"
+        />
+      </button>
+    );
+  };
+  return (
+    <nav
+      aria-label="カラム"
+      class="flex shrink-0 items-center border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
+    >
       <button
         type="button"
         aria-label="検索パネルを開く"
         title={shortcutTitle("search")}
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
-        class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        class="grid h-12 w-12 shrink-0 cursor-pointer place-items-center bg-transparent"
         classList={{
           "c-accent-5": props.panel === "search",
           "c-secondary": props.panel !== "search",
@@ -201,13 +330,21 @@ export const TabBar: Component<{
           aria-hidden="true"
         />
       </button>
+      {/* 帯の端が切れていることで、横に送れると分かるようにする。 */}
+      <div
+        ref={strip}
+        class="scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overscroll-x-contain border-primary border-x px-1"
+      >
+        <Show when={props.temp}>{(column) => tab(column(), "temp")}</Show>
+        <For each={props.columns}>{(column) => tab(column, column.id)}</For>
+      </div>
       <button
         type="button"
         aria-label="カラムを追加"
         title={shortcutTitle("add-column")}
         aria-keyshortcuts={ariaKeyShortcuts("add-column")}
         aria-expanded={props.panel === "add-column"}
-        class="grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
+        class="grid h-12 w-12 shrink-0 cursor-pointer place-items-center bg-transparent"
         classList={{
           "c-accent-5": props.panel === "add-column",
           "c-secondary": props.panel !== "add-column",
@@ -221,19 +358,6 @@ export const TabBar: Component<{
           aria-hidden="true"
         />
       </button>
-      <FeedbackLink template={props.feedbackUrl} size="tab" />
-      <button
-        type="button"
-        aria-label="設定"
-        class="c-secondary grid h-11 w-11 cursor-pointer place-items-center bg-transparent"
-        onClick={() => dispatch({ type: "deck/open-settings" })}
-      >
-        <span
-          class="i-material-symbols:settings-outline-rounded size-6"
-          aria-hidden="true"
-        />
-      </button>
-      <AccountMenu pubkey={props.pubkey} onLogout={props.onLogout} />
     </nav>
   );
 };

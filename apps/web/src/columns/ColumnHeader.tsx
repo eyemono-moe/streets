@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
+import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { columnMeta } from "../deck/column-meta";
 import { useDispatch } from "../ui-events";
@@ -28,9 +29,10 @@ export const ColumnHeader: Component<{
       }}
       onDragEnd={() => dispatch({ type: "deck/drag-end" })}
     >
-      <span
-        class={`c-secondary size-4.5 shrink-0 ${meta().icon}`}
-        aria-hidden="true"
+      <ColumnIcon
+        column={props.column}
+        class="c-secondary size-4.5 shrink-0"
+        avatarClass="size-5 shrink-0 rounded-1.5"
       />
       <button
         type="button"

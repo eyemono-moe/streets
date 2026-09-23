@@ -307,6 +307,15 @@ export default defineConfig({
         #storybook-root {
           isolation: isolate;
         }
+        /*
+          ブラウザの「引っ張って再読み込み」を止める。重ねたカラムを下へ払って
+          閉じるとき、そのまま画面ごと読み直されてしまう。タイムラインは自分で
+          新着を取るので、読み直す出番は無い。
+        */
+        html,
+        body {
+          overscroll-behavior-y: none;
+        }
         /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
         :root {
           --color-danger: #C5221F;

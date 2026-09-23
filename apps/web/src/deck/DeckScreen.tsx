@@ -73,12 +73,10 @@ import { ZapMediator } from "../zap/ZapMediator";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
-import ColumnTitle from "./ColumnTitle";
 import DeckSyncNotice from "./DeckSyncNotice";
-import { ComposeFab, Sidebar, TabBar } from "./Nav";
+import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import SearchPanel from "./SearchPanel";
 import SidePanel from "./SidePanel";
-import { columnMeta } from "./column-meta";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
@@ -233,6 +231,47 @@ const DeckScreen: Component<{
           : "smooth",
       });
   };
+
+  // 狭い画面のカラムの帯。払って止まった位置と、選んでいるカラムを行き来させる。
+  let stripEl: HTMLDivElement | undefined;
+  const stripIds = () => [
+    ...(temp() ? [TEMP_COLUMN_ID] : []),
+    ...columns().map((column) => column.id),
+  ];
+  const activeColumn = (): ColumnDef | undefined =>
+    ui.active === TEMP_COLUMN_ID
+      ? temp()
+      : columns().find((column) => column.id === ui.active);
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(settleTimer));
+  // scrollend を持たないブラウザ（Safari）もあるので、止まってしばらく経ったら拾う。
+  const onStripScroll = () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => {
+      if (!stripEl || stripEl.clientWidth === 0) return;
+      const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
+      const id = stripIds()[index];
+      if (id !== undefined && id !== ui.active) {
+        applyUi({ type: "deck/select-column", id });
+      }
+    }, 120);
+  };
+  // タブや数字キーで選んだら、そのカラムまで送る。払って選んだときは既にそこにいる。
+  let placed = false;
+  createEffect(() => {
+    const id = ui.active;
+    const index = id === undefined ? -1 : stripIds().indexOf(id);
+    if (isWide() || !stripEl || index < 0) return;
+    const left = index * stripEl.clientWidth;
+    if (Math.abs(stripEl.scrollLeft - left) < 2) return;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // 開いた直後は動かさずにその場へ置く。
+    stripEl.scrollTo({
+      left,
+      behavior: placed && !reduced ? "smooth" : "auto",
+    });
+    placed = true;
+  });
 
   createDeckHotkeys({
     keymap,
@@ -604,196 +643,101 @@ const DeckScreen: Component<{
                             <Match when={true}>
                               <div class="relative flex h-dvh flex-col">
                                 <div class="h-0.75 shrink-0 bg-accent-primary" />
-                                <div class="flex shrink-0 items-center gap-1 overflow-x-auto bg-primary px-2">
-                                  <Show when={temp()}>
-                                    {(column) => (
-                                      <button
-                                        type="button"
-                                        class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                                        classList={{
-                                          "c-primary font-600":
-                                            ui.active === "temp",
-                                          "c-secondary": ui.active !== "temp",
-                                        }}
-                                        onClick={() =>
-                                          handle({
-                                            type: "deck/select-column",
-                                            id: TEMP_COLUMN_ID,
-                                          })
-                                        }
-                                      >
-                                        <span class="flex items-center gap-1.5">
-                                          <span
-                                            class={`size-4 ${columnMeta(column()).icon}`}
-                                            aria-hidden="true"
-                                          />
-                                          <ColumnTitle column={column()} />
-                                        </span>
-                                        <span
-                                          class="h-0.5 w-6 rounded-full"
-                                          classList={{
-                                            "bg-accent-primary":
-                                              ui.active === "temp",
-                                          }}
-                                        />
-                                      </button>
-                                    )}
-                                  </Show>
-                                  <For each={columns()}>
-                                    {(column) => (
-                                      <button
-                                        type="button"
-                                        class="flex h-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 bg-transparent px-3 text-body"
-                                        classList={{
-                                          "c-primary font-600":
-                                            ui.panel === undefined &&
-                                            ui.active === column.id,
-                                          "c-secondary":
-                                            ui.panel !== undefined ||
-                                            ui.active !== column.id,
-                                        }}
-                                        onClick={() =>
-                                          handle({
-                                            type: "deck/select-column",
-                                            id: column.id,
-                                          })
-                                        }
-                                      >
-                                        <span class="flex items-center gap-1.5">
-                                          <span
-                                            class={`size-4 ${columnMeta(column).icon}`}
-                                            aria-hidden="true"
-                                          />
-                                          <ColumnTitle column={column} />
-                                        </span>
-                                        <span
-                                          class="h-0.5 w-6 rounded-full"
-                                          classList={{
-                                            "bg-accent-primary":
-                                              ui.panel === undefined &&
-                                              ui.active === column.id,
-                                          }}
-                                        />
-                                      </button>
-                                    )}
-                                  </For>
-                                  <button
-                                    type="button"
-                                    aria-label="カラムを追加"
-                                    class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                                    onClick={() =>
-                                      handle({
-                                        type: "deck/toggle-panel",
-                                        panel: "add-column",
-                                      })
-                                    }
-                                  >
-                                    <span
-                                      class="i-material-symbols:add-rounded size-4.5"
-                                      aria-hidden="true"
-                                    />
-                                  </button>
-                                  <Show
-                                    when={columns().find(
-                                      (column) => column.id === ui.active,
-                                    )}
-                                  >
-                                    {(column) => (
-                                      <button
-                                        type="button"
-                                        aria-label="カラムの設定"
-                                        aria-expanded={
-                                          ui.settingsFor === column().id
-                                        }
-                                        class="c-secondary grid size-8 shrink-0 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-                                        onClick={() =>
-                                          handle({
-                                            type: "deck/toggle-settings",
-                                            id: column().id,
-                                          })
-                                        }
-                                      >
-                                        <span
-                                          class="i-material-symbols:more-horiz size-4.5"
-                                          aria-hidden="true"
-                                        />
-                                      </button>
-                                    )}
-                                  </Show>
-                                </div>
+                                <MobileTopBar
+                                  pubkey={viewer}
+                                  column={
+                                    ui.panel === undefined
+                                      ? activeColumn()
+                                      : undefined
+                                  }
+                                  temporary={ui.active === TEMP_COLUMN_ID}
+                                  settingsOpen={
+                                    ui.active !== undefined &&
+                                    ui.settingsFor === ui.active
+                                  }
+                                  onLogout={props.session.logout}
+                                />
                                 <DeckSyncNotice store={deckStore} />
-                                {/*
-              隠れたカラムも描いたままにする。取り外すと購読ごと消え、
-              タブを戻すたびに取得し直しになり、スクロール位置も失われる。
-            */}
-                                <div class="min-h-0 flex-1">
-                                  <Show when={temp()}>
-                                    {(column) => (
-                                      <div
-                                        class="h-full"
-                                        classList={{
-                                          hidden:
-                                            ui.panel !== undefined ||
-                                            ui.active !== "temp",
-                                        }}
-                                      >
-                                        <Column
-                                          column={column()}
-                                          settingsOpen={false}
-                                          temporary
-                                          {...shared}
-                                        />
-                                      </div>
-                                    )}
-                                  </Show>
-                                  <For each={columns()}>
-                                    {(column) => (
-                                      <>
-                                        <div
-                                          class="h-full"
-                                          classList={{
-                                            hidden:
-                                              ui.panel !== undefined ||
-                                              ui.active !== column.id ||
-                                              ui.settingsFor === column.id,
-                                          }}
-                                        >
+                                <div class="relative min-h-0 flex-1">
+                                  {/*
+                                    カラムを横に並べ、1 枚ずつ止まるように送る（左右に払って切り替える）。
+                                    隠れたカラムも描いたままにする —— 取り外すと購読ごと消え、戻るたびに
+                                    取得し直しになり、スクロール位置も失われる。
+                                  */}
+                                  <div
+                                    ref={stripEl}
+                                    class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+                                    onScroll={onStripScroll}
+                                  >
+                                    <Show when={temp()}>
+                                      {(column) => (
+                                        <div class="isolate h-full w-full shrink-0 snap-start snap-always">
                                           <Column
-                                            column={column}
-                                            settingsOpen={
-                                              ui.settingsFor === column.id
-                                            }
-                                            chrome={false}
+                                            column={column()}
+                                            settingsOpen={false}
+                                            temporary
                                             {...shared}
                                           />
                                         </div>
-                                        <Show
-                                          when={
-                                            ui.panel === undefined &&
-                                            ui.active === column.id &&
-                                            ui.settingsFor === column.id
-                                          }
-                                        >
-                                          <div class="h-full">
-                                            <ColumnSettingsPanel
+                                      )}
+                                    </Show>
+                                    <For each={columns()}>
+                                      {(column) => (
+                                        <div class="isolate h-full w-full shrink-0 snap-start snap-always">
+                                          <div
+                                            class="h-full"
+                                            classList={{
+                                              hidden:
+                                                ui.settingsFor === column.id,
+                                            }}
+                                          >
+                                            <Column
                                               column={column}
-                                              relayList={relayList()}
+                                              settingsOpen={
+                                                ui.settingsFor === column.id
+                                              }
+                                              chrome={false}
+                                              {...shared}
                                             />
                                           </div>
-                                        </Show>
-                                      </>
-                                    )}
-                                  </For>
-                                  {panelView(true)}
+                                          <Show
+                                            when={ui.settingsFor === column.id}
+                                          >
+                                            <div class="h-full">
+                                              <ColumnSettingsPanel
+                                                column={column}
+                                                relayList={relayList()}
+                                              />
+                                            </div>
+                                          </Show>
+                                        </div>
+                                      )}
+                                    </For>
+                                  </div>
+                                  {/*
+                                    パネルはカラムの上に重ねる。カラムを隠すと、送った位置が失われる。
+                                    開いている間だけ作る —— hidden で隠すと flex の display に負けて、
+                                    閉じていてもカラムを覆う。
+                                  */}
+                                  <Show when={ui.panel !== undefined}>
+                                    <div class="absolute inset-0 flex bg-primary">
+                                      {panelView(true)}
+                                    </div>
+                                  </Show>
+                                  {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
+                                  <Show when={ui.panel === undefined}>
+                                    <ComposeFab />
+                                  </Show>
                                 </div>
-                                {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
-                                <Show when={ui.panel === undefined}>
-                                  <ComposeFab />
-                                </Show>
-                                <TabBar
-                                  pubkey={viewer}
+                                <MobileTabBar
+                                  columns={columns()}
+                                  temp={temp()}
+                                  active={
+                                    ui.panel === undefined
+                                      ? ui.active
+                                      : undefined
+                                  }
                                   panel={ui.panel}
-                                  onLogout={props.session.logout}
                                 />
                               </div>
                             </Match>

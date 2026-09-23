@@ -1,13 +1,16 @@
 import { Menu } from "@ark-ui/solid/menu";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
 import { useDispatch } from "../ui-events";
 
 /** 自分のアイコン。設定・Streets について・ログアウトを持つ。 */
-const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
-  props,
-) => {
+const AccountMenu: Component<{
+  pubkey: string;
+  onLogout: () => void;
+  /** フィードバックも並べる（狭い画面で、下のバーに置き場所が無いため）。 */
+  onFeedback?: () => void;
+}> = (props) => {
   const dispatch = useDispatch();
   return (
     <Menu.Root
@@ -17,6 +20,7 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
         if (details.value === "settings")
           dispatch({ type: "deck/open-settings" });
         if (details.value === "about") dispatch({ type: "deck/open-about" });
+        if (details.value === "feedback") props.onFeedback?.();
         if (details.value === "logout") props.onLogout();
       }}
     >
@@ -49,6 +53,18 @@ const AccountMenu: Component<{ pubkey: string; onLogout: () => void }> = (
               />
               Streets について
             </Menu.Item>
+            <Show when={props.onFeedback}>
+              <Menu.Item
+                value="feedback"
+                class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+              >
+                <span
+                  class="i-material-symbols:feedback-outline-rounded c-secondary size-4.5"
+                  aria-hidden="true"
+                />
+                フィードバックを送る
+              </Menu.Item>
+            </Show>
             <Menu.Item
               value="logout"
               class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
