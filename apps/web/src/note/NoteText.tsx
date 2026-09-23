@@ -1,4 +1,7 @@
-import { buildThreadColumn } from "@streets/core/deck/column-presets";
+import {
+  buildHashtagColumn,
+  buildThreadColumn,
+} from "@streets/core/deck/column-presets";
 import type { ContentToken } from "@streets/core/nostr/content";
 import {
   type Component,
@@ -71,9 +74,22 @@ const Token: Component<{
           />
         )}
       </Match>
-      {/* 押した先の検索カラムがまだ無いので、リンクの見た目にしない。 */}
       <Match when={props.token.type === "hashtag" && props.token}>
-        {(token) => token().raw}
+        {(token) => {
+          if (props.interactive === false) return token().raw;
+          return (
+            <button
+              type="button"
+              class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
+              onClick={() => {
+                const column = buildHashtagColumn(token().tag);
+                if (column) dispatch({ type: "stack/open", column });
+              }}
+            >
+              {token().raw}
+            </button>
+          );
+        }}
       </Match>
       <Match when={props.token.type === "mention" && props.token}>
         {(token) => {

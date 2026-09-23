@@ -45,6 +45,12 @@ const linked = createStoryAuthor(88, {
   about: `Web: https://example.com/\n人（NIP-21）: nostr:${encodeBech32("npub", alice.pubkey)}\n人（裸のNIP-19）: ${encodeBech32("npub", bob.pubkey)}\n投稿（裸のNIP-19）: ${encodeBech32("note", linkedNote.id)}`,
 });
 const linkedProfile = linked.profile([["emoji", "wave", avatarUrl]]);
+const withHashtags = createStoryAuthor(99, {
+  name: "hashtags",
+  displayName: "街歩きの人",
+  about:
+    "好きな話題は #Nostr と #東京。URL の https://example.com/#fragment は URL のまま表示する。",
+});
 
 const profiles = [
   alice.profile(),
@@ -54,6 +60,7 @@ const profiles = [
   longName.profile(),
   viewer.profile(),
   linkedProfile,
+  withHashtags.profile(),
 ];
 /** 閲覧者は alice だけをフォローしている。ボタンの 2 つの状態を 1 画面で見る。 */
 const viewerFollows = viewer.follows([alice.pubkey]);
@@ -139,6 +146,10 @@ export const 自己紹介が長い: Story = {
 
 export const リンクとカスタム絵文字: Story = {
   args: { pubkey: linked.pubkey },
+};
+
+export const 自己紹介のハッシュタグ: Story = {
+  args: { pubkey: withHashtags.pubkey },
 };
 
 export const ログインしていない: Story = {

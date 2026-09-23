@@ -98,10 +98,7 @@ export const buildColumn = (
     }
 
     case "hashtag": {
-      // NIP-12 のタグ値に `#` は含まれない。先頭の `#` は複数あっても
-      // すべて落とす —— 1 個だけ落とすと `##nostr` が `#nostr` というタグ値
-      // になり、本物のイベントには存在せず永久に一致しない。NIP-24 は
-      // 小文字を SHOULD とし主要クライアントも従うので、小文字化もする。
+      // 追加プリセットは従来どおり通常リレーへ直接問い合わせる。
       const tag = input.trim().replace(/^#+/, "").toLowerCase();
       if (tag.length === 0) return undefined;
       return {
@@ -127,4 +124,11 @@ export const buildColumn = (
       // `resolveSource` が解決のたびに最新の値で組み立てる。
       return { id, title: "通知", source: { kind: "notifications" } };
   }
+};
+
+/** 本文・自己紹介のハッシュタグから、編集可能な通常の検索カラムを開く。 */
+export const buildHashtagColumn = (input: string): ColumnDef | undefined => {
+  // NIP-24 の `t` は小文字。画面に出す元の綴りはトークン側へ残す。
+  const tag = input.trim().replace(/^#+/, "").toLowerCase();
+  return tag.length > 0 ? buildColumn("search", `#${tag}`) : undefined;
 };
