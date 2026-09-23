@@ -48,3 +48,6 @@ tmp
 
 # 別セッションの作業用 worktree
 .claude/worktrees
+
+# wrangler dev の作業用フォルダ
+.wrangler/

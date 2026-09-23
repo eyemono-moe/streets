@@ -2,8 +2,12 @@ import { execFileSync } from "node:child_process";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 import UnoCSS from "unocss/vite";
-import { defineConfig } from "vite";
+import { type Plugin, defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import {
+  LINK_CARD_PATH,
+  handleLinkCard,
+} from "../../workers/app/src/link-card-handler";
 
 const commitSha = (): string => {
   const provided = process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA;
@@ -46,6 +50,26 @@ const sentryUpload = (release: string) => {
   ];
 };
 
+/**
+ * 本番では Worker（`workers/app`）が受ける `/api/link-card` を、開発サーバーでも
+ * 同じ処理で返す。回数の制限とキャッシュは無い。
+ */
+const linkCardApi = (): Plugin => ({
+  name: "streets-link-card-api",
+  configureServer(server) {
+    server.middlewares.use(async (req, res, next) => {
+      if (!req.url?.startsWith(LINK_CARD_PATH)) return next();
+      const response = await handleLinkCard(
+        new Request(new URL(req.url, "http://localhost")),
+        { fetch, skipSiteCheck: true },
+      );
+      res.statusCode = response.status;
+      res.setHeader("content-type", "application/json");
+      res.end(await response.text());
+    });
+  },
+});
+
 const release = commitSha();
 
 export default defineConfig({
@@ -55,7 +79,13 @@ export default defineConfig({
     __SENTRY_TRACING__: "false",
     __SENTRY_DEBUG__: "false",
   },
-  plugins: [...devtools(), UnoCSS(), solid(), ...sentryUpload(release)],
+  plugins: [
+    ...devtools(),
+    UnoCSS(),
+    solid(),
+    linkCardApi(),
+    ...sentryUpload(release),
+  ],
   build: {
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
