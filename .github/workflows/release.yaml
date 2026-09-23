@@ -2,6 +2,7 @@
 #   1. 版をプレビューに上げる（本番には出さない）。URL はジョブの要約に出る
 #   2. 本番のジョブが承認待ちで止まる（production 環境の必須レビュアー）
 #   3. 承認したら、プレビューで確かめたのと同じ版を本番に出し、GitHub の Release を作る
+#   4. Nostr にリリースを知らせる
 # 本文は apps/web/src/releases/<タグ>.md。無ければ止まる。手順は docs/release.md。
 name: Release
 
@@ -109,3 +110,14 @@ jobs:
             --title "$GITHUB_REF_NAME" \
             --notes-file "$RUNNER_TEMP/notes.md" \
             --generate-notes
+      - name: Nostr に知らせる
+        uses: snow-actions/nostr@v2.0.0
+        with:
+          relays: ${{ vars.NOSTR_RELAYS }}
+          private-key: ${{ secrets.NOSTR_PRIVATE_KEY }}
+          content: |
+            Streets ${{ github.ref_name }} がリリースされました🎉
+            ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+            #Streets
+          tags: |
+            - ["t", "streets"]
