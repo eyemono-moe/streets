@@ -48,6 +48,8 @@ export const createSession = (pool: ConnectionPool) => {
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string>();
   const [authUrl, setAuthUrl] = createSignal<URL>();
+  // 保存したログインを戻せなかったが、消してはいない。署名器が戻れば試し直せる。
+  const [restoreFailed, setRestoreFailed] = createSignal(false);
   const signer = createActiveSigner();
   let nip46: Nip46Session | undefined;
   onCleanup(() => nip46?.client.close());
@@ -57,6 +59,7 @@ export const createSession = (pool: ConnectionPool) => {
   const run = async (task: () => Promise<void>) => {
     setPending(true);
     setError(undefined);
+    setRestoreFailed(false);
     try {
       await task();
     } finally {
@@ -145,6 +148,7 @@ export const createSession = (pool: ConnectionPool) => {
         if (!(await waitForNip07())) {
           setState("signed-out");
           setError("NIP-07 対応の拡張機能が見つかりません。");
+          setRestoreFailed(true);
           return;
         }
         try {
@@ -156,6 +160,7 @@ export const createSession = (pool: ConnectionPool) => {
         } catch (e) {
           setState("signed-out");
           setError(`ログインの復元に失敗しました: ${errorText(e)}`);
+          setRestoreFailed(true);
         }
       });
       return;
@@ -184,8 +189,9 @@ export const createSession = (pool: ConnectionPool) => {
       } catch {
         setState("signed-out");
         setError(
-          "署名器との接続を復元できませんでした。接続を確かめて再読み込みするか、リモート署名器で繋ぎ直してください。",
+          "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
         );
+        setRestoreFailed(true);
       }
     });
   };
@@ -220,6 +226,7 @@ export const createSession = (pool: ConnectionPool) => {
     loginWithBunker,
     loginWithNostrConnect,
     restore,
+    restoreFailed,
     logout,
   };
 };

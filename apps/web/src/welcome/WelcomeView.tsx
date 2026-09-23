@@ -1,3 +1,4 @@
+import type { DeviceKind } from "@streets/core/view/device-kind";
 import type { Component, JSX } from "solid-js";
 import type { ConnectAttempt } from "../session";
 import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
@@ -13,8 +14,10 @@ const WelcomeView: Component<{
   onExtension: () => void;
   onBunker: (uri: string) => void;
   onNostrConnect: () => ConnectAttempt;
+  onRetryRestore: () => void;
   initialStep?: LoginStep;
   initialRemoteOpen?: boolean;
+  initialDevice?: DeviceKind;
   initialBunkerUri?: string;
   /** 流しているリレーの名前。 */
   feedTitle: string;
@@ -38,8 +41,10 @@ const WelcomeView: Component<{
         onExtension={props.onExtension}
         onBunker={props.onBunker}
         onNostrConnect={props.onNostrConnect}
+        onRetryRestore={props.onRetryRestore}
         initialStep={props.initialStep}
         initialRemoteOpen={props.initialRemoteOpen}
+        initialDevice={props.initialDevice}
         initialBunkerUri={props.initialBunkerUri}
       />
 

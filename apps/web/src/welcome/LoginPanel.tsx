@@ -1,15 +1,27 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
-import { type Component, Match, Show, Switch, createSignal } from "solid-js";
+import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
+import {
+  type Component,
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createSignal,
+  on,
+} from "solid-js";
 import type { ConnectAttempt } from "../session";
+import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
+import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
-import { GUIDE, GuideLink } from "./guide";
 
 export type LoginState = {
   pending: boolean;
   error?: string;
   /** 署名器が承認のために開いてほしいページ。 */
   authUrl?: URL;
+  /** 保存したログインを戻せなかった。署名器が戻れば試し直せる。 */
+  restoreFailed?: boolean;
 };
 
 export type LoginStep = "choose" | "new" | "existing";
@@ -36,18 +48,34 @@ const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  onRetryRestore: () => void;
   /** 署名器の側から繋いでもらう。QR を出している間だけ待つ。 */
   onNostrConnect: () => ConnectAttempt;
   /** 最初に見せる段。ストーリーで各段を並べるため。 */
   initialStep?: LoginStep;
   /** リモート署名器の欄を開いた状態で始める。ストーリーで QR を見せるため。 */
   initialRemoteOpen?: boolean;
+  /** はじめての方に最初に見せる端末。省くと実際の端末から推す。 */
+  initialDevice?: DeviceKind;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
-  // 復元に失敗して戻ってきた人は、アカウントを持っている。
+  // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
+  const [remoteOpen, setRemoteOpen] = createSignal(
+    props.initialRemoteOpen === true || props.initialBunkerUri !== undefined,
+  );
   const [step, setStep] = createSignal<LoginStep>(
-    props.initialStep ?? (props.state.error ? "existing" : "choose"),
+    props.initialStep ?? "choose",
+  );
+  // 失敗はアカウントを持っている方の段にだけ出す。復元の失敗はこの画面が出た後に
+  // 届くので、届いたときにその段へ移る。
+  createEffect(
+    on(
+      () => props.state.error,
+      (error) => {
+        if (error && step() === "choose") setStep("existing");
+      },
+    ),
   );
 
   return (
@@ -86,14 +114,16 @@ const LoginPanel: Component<{
           <h2 id="new-heading" class="font-600 text-body">
             はじめての方
           </h2>
-          <p class="text-caption">
-            Nostr
-            のアカウントは、鍵を預かる拡張機能か署名器のアプリで作ります。Streets
-            は鍵を預からず、署名をそれらに頼みます。
-          </p>
-          <p class="text-caption">
-            <GuideLink href={GUIDE}>Nostr のはじめかた</GuideLink>
-          </p>
+          <NewcomerGuide
+            initialDevice={
+              props.initialDevice ??
+              deviceKind(navigator.userAgent, navigator.maxTouchPoints)
+            }
+            onDone={(device) => {
+              setRemoteOpen(device !== "pc");
+              setStep("existing");
+            }}
+          />
         </section>
       </Match>
 
@@ -109,12 +139,22 @@ const LoginPanel: Component<{
 
           <Show when={props.state.error}>
             {(message) => (
-              <p
+              <div
                 role="alert"
-                class="c-danger rounded-2 bg-danger-subtle px-3 py-2 text-caption"
+                class="flex flex-col items-start gap-2 rounded-2 bg-danger-subtle px-3 py-2"
               >
-                {message()}
-              </p>
+                <p class="c-danger text-caption">{message()}</p>
+                <Show when={props.state.restoreFailed}>
+                  <Button
+                    size="sm"
+                    icon="i-material-symbols:refresh-rounded"
+                    disabled={props.state.pending}
+                    onClick={() => props.onRetryRestore()}
+                  >
+                    もう一度試す
+                  </Button>
+                </Show>
+              </div>
             )}
           </Show>
 
@@ -129,10 +169,7 @@ const LoginPanel: Component<{
           <Collapsible.Root
             lazyMount
             unmountOnExit
-            defaultOpen={
-              props.initialRemoteOpen === true ||
-              props.initialBunkerUri !== undefined
-            }
+            defaultOpen={remoteOpen()}
             class="flex flex-col gap-2"
           >
             <Collapsible.Trigger
@@ -141,7 +178,7 @@ const LoginPanel: Component<{
                   {...trigger()}
                   icon="i-material-symbols:phonelink-lock-outline-rounded"
                   title="リモート署名器でログイン"
-                  description="Amber など、鍵を預かる別のアプリに署名を頼みます"
+                  description="Amber や Primal など、鍵を預かる別のアプリに署名を頼みます"
                   trailing="expand"
                 />
               )}
