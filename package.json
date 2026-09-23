@@ -16,6 +16,9 @@
     "dev:relay:inspect": "node scripts/inspect-local-relay.mjs",
     "dev:relay:publish": "node scripts/publish-test-note.mjs",
     "seed:dev": "node scripts/seed-dev-threads.mjs",
+    "screenshot": "pnpm --filter @streets/screenshot start",
+    "screenshot:seed": "pnpm --filter @streets/screenshot seed",
+    "screenshot:generate": "pnpm --filter @streets/screenshot generate",
     "ja:extract": "node scripts/ja-text-extract.mjs",
     "ja:apply": "node scripts/ja-text-apply.mjs"
   },

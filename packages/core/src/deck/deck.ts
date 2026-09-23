@@ -152,6 +152,9 @@ export const defaultDeck = (relays: readonly RelayUrl[]): Deck => {
   };
 };
 
+/** デッキを保存する kind:30078 の `d` タグ。 */
+export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
+
 export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
 
 /**
@@ -217,6 +220,10 @@ const columnSourceSchema = v.variant("kind", [
   v.object({
     kind: v.literal("followers-list"),
     pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+  }),
+  v.object({
+    kind: v.literal("search"),
+    query: v.pipe(v.string(), v.minLength(1)),
   }),
 ]);
 

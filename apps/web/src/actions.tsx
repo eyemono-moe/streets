@@ -23,6 +23,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import type { Signer } from "@streets/core/signer/signer";
 import { fetchLatest } from "@streets/core/write/fetch-latest";
@@ -109,13 +110,15 @@ export const createWriteStack = (options: {
   readLayer: Pick<ReadLayer, "store" | "routing" | "manager">;
   signer: Signer;
   viewer: string;
+  /** 行き先が分からないときに送る先。開発時の `?relays=` で差し替える。 */
+  fallbackRelays?: readonly RelayUrl[];
 }): WriteStack => {
   const { store, routing, manager } = options.readLayer;
   const target = {
     pool: manager.pool,
     routing,
     store,
-    fallbackRelays: FALLBACK_RELAYS,
+    fallbackRelays: options.fallbackRelays ?? FALLBACK_RELAYS,
   };
   const writer = createWriter({
     signer: options.signer,

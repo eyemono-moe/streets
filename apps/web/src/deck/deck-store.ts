@@ -1,4 +1,5 @@
 import {
+  DECK_EVENT_IDENTIFIER,
   type Deck,
   deckStorageKey,
   defaultDeck,
@@ -13,7 +14,7 @@ import {
 } from "@streets/core/solid/create-nip78-document";
 import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 
-export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
+export { DECK_EVENT_IDENTIFIER };
 
 /**
  * kind:30078 の同期機構へ、デッキ固有の識別子と codec だけを渡す。

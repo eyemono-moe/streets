@@ -47,6 +47,7 @@ import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
+import { screenshotMode } from "../screenshot-mode";
 import type { Session } from "../session";
 import { MediaMediator } from "../settings/MediaMediator";
 import { MuteMediator } from "../settings/MuteMediator";
@@ -86,6 +87,7 @@ import { relayListState } from "./relay-list";
 const DeckScreen: Component<{
   readLayer: ReadLayer;
   session: Session;
+  /** 開発時の `?relays=`。最初に引く先・行き先の分からない読み書き・検索を、ここへ寄せる。 */
   bootstrapIndexers?: RelayUrl[];
 }> = (props) => {
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
@@ -95,6 +97,8 @@ const DeckScreen: Component<{
     readLayer: props.readLayer,
     signer: props.session.signer,
     viewer,
+    // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
+    fallbackRelays: props.bootstrapIndexers,
   });
   const isWide = useIsWide();
   const deckTour = createDeckTour(isWide);
@@ -278,7 +282,8 @@ const DeckScreen: Component<{
 
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
   // ダイアログが開いている間は待つ（閉じたら出す）。
-  let tourOffered = tourSeen();
+  // スクリーンショットを撮るとき（?screenshot）は、案内を写さない。
+  let tourOffered = tourSeen() || screenshotMode();
   createEffect(() => {
     if (tourOffered) return;
     if (deckStore.value() === undefined || columns().length === 0) return;
@@ -497,7 +502,9 @@ const DeckScreen: Component<{
     relayList,
     bookmarks: write.actions.bookmarkIds,
     // 検索の問い合わせ先。設定（kind:10007）を変えたら、次の購読から効く。
-    searchRelays: () => effectiveSearchRelays(write.searchRelays()),
+    // 開発時の ?relays= では、検索も差し替えた先へ聞く（外の既定の検索リレーへ行かない）。
+    searchRelays: () =>
+      props.bootstrapIndexers ?? effectiveSearchRelays(write.searchRelays()),
   };
 
   return (
