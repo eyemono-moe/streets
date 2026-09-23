@@ -18,4 +18,5 @@ date: 2026-10-01
 
 - 読むのは Streets を使う人。コードの言葉ではなく、画面で何が変わったかを書く
 - 見出しは `##` から（版の番号と日付は画面が出す）
+- 人を書くときは `nostr:npub1…`（または `nostr:nprofile1…`）。画面では投稿と同じ名前の表示になり（触れると名刺、押すとその人のカラム）、GitHub の Release では njump.me へのリンクになる
 - 下書きは `.claude/skills/release-notes` の手順で作る
