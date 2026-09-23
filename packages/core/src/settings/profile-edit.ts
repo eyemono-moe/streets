@@ -4,7 +4,7 @@ import type { Profile } from "../nostr/profile";
 /**
  * プロフィール（kind:0）の編集。フォームはここに挙げた項目だけを扱い、保存する
  * ときは変えた項目だけを最新の版へ重ねる（`mergeProfile`）。ほかのアプリが
- * 入れた項目（lud16 など）には触れない。
+ * 入れた項目（lud06 など）には触れない。
  */
 export const PROFILE_FIELDS = [
   "display_name",
@@ -14,6 +14,8 @@ export const PROFILE_FIELDS = [
   "banner",
   "nip05",
   "website",
+  /** Zap の受け取り先（ライトニングアドレス。LUD-16）。 */
+  "lud16",
 ] as const;
 
 export type ProfileField = (typeof PROFILE_FIELDS)[number];
@@ -27,6 +29,7 @@ const emptyDraft = (): ProfileDraft => ({
   banner: "",
   nip05: "",
   website: "",
+  lud16: "",
 });
 
 /** kind:0 の content から、フォームに入れる値を読む。文字列でない値は空にする。 */
@@ -130,6 +133,8 @@ export const profileEditTransition = (
 
 const URL_MESSAGE = "https:// で始まる URL を入力してください";
 const NIP05_MESSAGE = "name@example.com の形で入力してください";
+const LIGHTNING_ADDRESS_MESSAGE =
+  "name@wallet.example の形で入力してください（ウォレットのアプリに表示されています）";
 
 /**
  * 空欄は誤りにしない（書かない、という選択）。前後の空白は落としてから確かめる。
@@ -148,6 +153,13 @@ const profileSchema = v.object({
   website: webUrl,
   nip05: blankOr(
     v.pipe(v.string(), v.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, NIP05_MESSAGE)),
+  ),
+  // LUD-16 の名前の部分は a-z 0-9 - _ . だけ。大文字はウォレットによって書くので許す。
+  lud16: blankOr(
+    v.pipe(
+      v.string(),
+      v.regex(/^[a-z0-9._-]+@[^\s@]+\.[^\s@]+$/i, LIGHTNING_ADDRESS_MESSAGE),
+    ),
   ),
 });
 

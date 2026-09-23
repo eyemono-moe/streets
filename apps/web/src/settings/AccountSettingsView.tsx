@@ -151,6 +151,14 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
               type="url"
               placeholder="https://"
             />
+            <ProfileInput
+              field="lud16"
+              state={props.state}
+              label="Zap の受け取り先（ライトニングアドレス）"
+              type="email"
+              placeholder="name@wallet.example"
+              hint="Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。"
+            />
           </div>
           {/* 案内の文は 1 行を使い、ボタンはその下に右寄せで並べる。横に並べると、
               ボタンの幅に押されて文が中途半端な位置で折り返す。 */}
