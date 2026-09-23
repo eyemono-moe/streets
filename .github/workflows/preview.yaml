@@ -48,9 +48,15 @@ jobs:
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           marker="<!-- streets-preview -->"
+          # URL は Markdown のリンクにして表に入れる。裸の URL の直後に日本語や括弧が
+          # 続くと、GitHub がそこまでをリンクに含めてしまう。
           body="${marker}
-          プレビュー: ${{ steps.upload.outputs.alias-url }}（この PR の最新）
-          この版だけ: ${{ steps.upload.outputs.version-url }}（${SHA:0:7}）"
+          ### プレビュー
+
+          | | |
+          |---|---|
+          | この PR の最新 | [${{ steps.upload.outputs.alias-url }}](${{ steps.upload.outputs.alias-url }}) |
+          | この版だけ（\`${SHA:0:7}\`） | [${{ steps.upload.outputs.version-url }}](${{ steps.upload.outputs.version-url }}) |"
           existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
             --jq "map(select(.body | startswith(\"$marker\"))) | first | .id // empty")
           if [ -n "$existing" ]; then
