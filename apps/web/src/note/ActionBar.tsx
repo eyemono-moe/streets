@@ -1,6 +1,7 @@
 import { Menu } from "@ark-ui/solid/menu";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { eventEngagements } from "@streets/core/view/event-engagements";
+import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, Show, createMemo, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
@@ -12,6 +13,7 @@ import { ComposeMediator } from "./ComposeMediator";
 import QuoteDialog from "./QuoteDialog";
 import ReplyDialog from "./ReplyDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
+import { useProfileDetails } from "./use-profile";
 
 const useEngagements = (event: () => NostrEvent, viewer: string) => {
   const { store } = useReadLayer();
@@ -76,6 +78,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
         const reposting = useSending(repost);
         const liking = useSending(like);
         const bookmarking = useSending(bookmark);
+        // 送り先（lud16 / lud06）を書いている人にだけ送れる。
+        const author = useProfileDetails(() => props.event.pubkey);
+        const zappable = () => zapEndpointOf(author()?.content) !== undefined;
 
         return (
           <>
@@ -174,9 +179,14 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 )}
               />
               <Action
-                label="Zap（未対応）"
+                label={
+                  zappable() ? "Zap する" : "この人は Zap を受け取れません"
+                }
                 icon="i-material-symbols:bolt-outline-rounded"
-                disabled
+                disabled={!zappable()}
+                onClick={() =>
+                  dispatch({ type: "zap/open", target: props.event })
+                }
               />
               <Action
                 label={bookmarked() ? "ブックマークを外す" : "ブックマーク"}
