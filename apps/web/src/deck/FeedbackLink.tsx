@@ -42,13 +42,14 @@ export const FeedbackDialog: Component<{
       <DialogContent class="flex w-full max-w-110 flex-col rounded-3 border border-primary">
         <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
           <DialogTitle class="min-w-0 flex-1 font-600 text-body">
-            Streets β版へのフィードバック
+            Streets へのフィードバック
           </DialogTitle>
           <DialogClose />
         </div>
         <DialogDescription class="flex flex-col gap-3 px-4 pb-4 text-caption">
           <p>
-            Streetsは現在β版です。不具合、分かりにくいところ、欲しい機能をぜひ教えてください。
+            不具合や分かりにくいところ、欲しい機能を教えてください。いただいた声は、Streets
+            をよくするために使います。
           </p>
           <p class="c-secondary">
             入力した報告本文はGoogle
