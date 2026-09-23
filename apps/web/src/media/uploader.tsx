@@ -13,6 +13,7 @@ import {
   createContext,
   useContext,
 } from "solid-js";
+import { uploadMetadata } from "./metadata";
 
 export class NoUploadServerError extends Error {
   constructor() {
@@ -43,6 +44,8 @@ export const createUploader = (options: {
   upload: async (file) => {
     const servers = options.servers();
     if (servers.length === 0) throw new NoUploadServerError();
+    // 動画のフレーム待ちはアップロードと並行させる。
+    const metadata = uploadMetadata(file);
     const bytes = new Uint8Array(await file.arrayBuffer());
     const nowSeconds = Math.floor((options.now?.() ?? Date.now()) / 1000);
     // 認可はファイルの中身に結び付く（BUD-01）ので、1 回署名すればどのアップロード先にも使える。
@@ -59,12 +62,17 @@ export const createUploader = (options: {
     let lastError: unknown;
     for (const server of servers) {
       try {
-        return await uploadBlob({
+        const blob = await uploadBlob({
           server,
           bytes,
           type: file.type || undefined,
           auth,
         });
+        return {
+          ...blob,
+          type: (blob.type ?? file.type) || undefined,
+          ...(await metadata),
+        };
       } catch (cause) {
         lastError = cause;
       }

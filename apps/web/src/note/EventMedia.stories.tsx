@@ -21,6 +21,15 @@ const MEDIA = {
   "1:4": tallUrl,
 };
 type Aspect = keyof typeof MEDIA;
+const DIMENSIONS: Record<Aspect, string> = {
+  "16:9": "1600x900",
+  "4:3": "1200x900",
+  "1:1": "900x900",
+  "9:16": "900x1600",
+  "4:1": "1600x400",
+  "1:4": "400x1600",
+};
+const SAMPLE_BLURHASH = "LEHV6nWB2yk8pyo0adR*.7kCMdnj";
 
 // 本文の URL は http(s) で始まらないと画像として拾われないので、配信元の origin を付ける。
 const absolute = (url: string) => new URL(url, location.href).href;
@@ -31,7 +40,11 @@ const alice = createStoryAuthor(11, {
   picture: avatarUrl,
 });
 
-type Props = { aspects: Aspect[]; size: EventSize };
+type Props = {
+  aspects: Aspect[];
+  size: EventSize;
+  metadata?: "dimensions" | "blurhash";
+};
 
 const MediaStory: Component<Props> = (props) => {
   const event = createMemo(() =>
@@ -39,6 +52,17 @@ const MediaStory: Component<Props> = (props) => {
       `縦横比 ${props.aspects.join(" / ")} の画像。\n${props.aspects
         .map((aspect) => absolute(MEDIA[aspect]))
         .join("\n")}`,
+      props.metadata
+        ? props.aspects.map((aspect) => [
+            "imeta",
+            `url ${absolute(MEDIA[aspect])}`,
+            "m image/svg+xml",
+            `dim ${DIMENSIONS[aspect]}`,
+            ...(props.metadata === "blurhash"
+              ? [`blurhash ${SAMPLE_BLURHASH}`]
+              : []),
+          ])
+        : [],
     ),
   );
   // Controls で枚数を変えたとき、シーンごと作り直す。
@@ -60,6 +84,10 @@ const meta = {
   argTypes: {
     size: { control: "inline-radio", options: ["normal", "compact"] },
     aspects: { control: "check", options: Object.keys(MEDIA) },
+    metadata: {
+      control: "inline-radio",
+      options: [undefined, "dimensions", "blurhash"],
+    },
   },
 } satisfies Meta<typeof MediaStory>;
 
@@ -73,4 +101,16 @@ export const パノラマ: Story = { args: { aspects: ["4:1"] } };
 export const 極端な縦長: Story = { args: { aspects: ["1:4"] } };
 export const 複数枚: Story = {
   args: { aspects: ["16:9", "4:3", "1:1", "9:16", "4:1", "1:4"] },
+};
+
+export const 寸法つき: Story = {
+  args: { aspects: ["16:9", "9:16", "4:1", "1:4"], metadata: "dimensions" },
+};
+
+export const Blurhashつき: Story = {
+  args: { aspects: ["16:9", "9:16"], metadata: "blurhash" },
+};
+
+export const コンパクト_寸法つき: Story = {
+  args: { aspects: ["16:9", "9:16"], metadata: "dimensions", size: "compact" },
 };

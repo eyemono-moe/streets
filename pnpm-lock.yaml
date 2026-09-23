@@ -59,6 +59,9 @@ importers:
       '@unocss/reset':
         specifier: 65.5.0
         version: 65.5.0
+      blurhash:
+        specifier: 2.0.5
+        version: 2.0.5
       emojibase-data:
         specifier: ^17.0.0
         version: 17.0.0(emojibase@17.0.0)
@@ -2332,6 +2335,9 @@ packages:
 
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
+
+  blurhash@2.0.5:
+    resolution: {integrity: sha512-cRygWd7kGBQO3VEhPiTgq4Wc43ctsM+o46urrmPOiuAe+07fzlSB9OJVdpgDL0jPqXUVQ9ht7aq7kxOeJHRK+w==}
 
   brace-expansion@5.0.12:
     resolution: {integrity: sha512-YovQ3rzhaLMIrDjNDMkNS01tea93qhEhG5xy8f6+R0l+dw3Ki+5sCoIoI942iuLZTHWogWktgwVDhU09iNEimQ==}
@@ -5788,6 +5794,8 @@ snapshots:
   binary-extensions@2.3.0: {}
 
   blake3-wasm@2.1.5: {}
+
+  blurhash@2.0.5: {}
 
   brace-expansion@5.0.12:
     dependencies:

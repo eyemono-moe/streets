@@ -8,6 +8,8 @@ const blob: BlobDescriptor = {
   sha256: "f".repeat(64),
   size: 1234,
   type: "image/png",
+  dimensions: { width: 400, height: 300 },
+  blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 };
 
 describe("imetaTag", () => {
@@ -18,6 +20,8 @@ describe("imetaTag", () => {
       "m image/png",
       `x ${"f".repeat(64)}`,
       "size 1234",
+      "dim 400x300",
+      "blurhash LEHV6nWB2yk8pyo0adR*.7kCMdnj",
     ]);
   });
 

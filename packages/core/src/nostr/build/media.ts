@@ -11,6 +11,10 @@ export const imetaTag = (blob: BlobDescriptor): string[] => [
   ...(blob.type ? [`m ${blob.type}`] : []),
   `x ${blob.sha256}`,
   ...(blob.size > 0 ? [`size ${blob.size}`] : []),
+  ...(blob.dimensions
+    ? [`dim ${blob.dimensions.width}x${blob.dimensions.height}`]
+    : []),
+  ...(blob.blurhash ? [`blurhash ${blob.blurhash}`] : []),
 ];
 
 /**

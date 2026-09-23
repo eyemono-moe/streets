@@ -116,6 +116,9 @@ export type BlobDescriptor = {
   sha256: string;
   size: number;
   type?: string;
+  /** 投稿時に手元のファイルから得た情報。Blossom の応答には無くてもよい。 */
+  dimensions?: { width: number; height: number };
+  blurhash?: string;
 };
 
 export class UploadFailedError extends Error {

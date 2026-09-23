@@ -9,6 +9,7 @@
     "@tanstack/solid-query": "^5.103.1",
     "@tanstack/solid-virtual": "3.13.40",
     "@unocss/reset": "65.5.0",
+    "blurhash": "2.0.5",
     "emojibase-data": "^17.0.0",
     "solid-js": "1.9.13"
   },
