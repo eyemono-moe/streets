@@ -24,9 +24,8 @@ const version = () =>
 const Overview: Component<{ tour?: boolean }> = (props) => (
   <div class="flex flex-col gap-7">
     <p class="c-primary text-body">
-      Streets は Nostr
-      のクライアントです。カラムを並べて、フォロー中の投稿や通知を同時に見られます。
-      現在はベータ版のため、不具合や仕様の変更が発生する可能性があります。
+      Streets はブラウザで使える Nostr
+      のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
     </p>
     <dl class="c-secondary grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-caption">
       <dt>バージョン</dt>

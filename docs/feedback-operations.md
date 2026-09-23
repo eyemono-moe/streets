@@ -1,6 +1,6 @@
 # フィードバック受付の運用
 
-Streets β版では、Google Forms の回答を Cloudflare Workers AI で整理し、GitHub Issue として登録する。
+Streets では、Google Forms の回答を Cloudflare Workers AI で整理し、GitHub Issue として登録する。
 連絡先は AI と GitHub へ送らず、フォームの回答先 Spreadsheet にだけ保存する。
 
 ```text
@@ -37,7 +37,7 @@ https://docs.google.com/forms/d/e/1FAIpQLSfP4d8Nmf1oRMC1m40UQ6KvFwKYRvis-EV7Nab8
 
 フォーム冒頭には次の文面を掲載する。角括弧の部分は公開前に確定する。
 
-> このフォームでは、Streets β版の改善を目的として、不具合報告・機能要望を受け付けます。
+> このフォームでは、Streets の改善を目的として、不具合報告・機能要望を受け付けます。
 >
 > 入力した報告内容と、アプリが付加する環境情報（Streetsのビルド識別子、配信元、ブラウザ情報）はGoogle Forms／Sheetsに保存され、Cloudflare Workers AIで整理したうえで、公開GitHub Issueとして掲載される場合があります。アップロードしたスクリーンショット等はAIやGitHubへ自動送信されず、運営者が不具合調査のために確認します。
 >
@@ -61,7 +61,7 @@ https://docs.google.com/forms/d/e/1FAIpQLSfP4d8Nmf1oRMC1m40UQ6KvFwKYRvis-EV7Nab8
 
 ### フィードバック情報の取り扱い
 
-Streets は、β版の品質改善、不具合調査および機能要望の検討のため、利用者がフォームへ入力した報告内容、任意でアップロードしたスクリーンショット等と、Streets のビルド識別子、アクセス元のオリジンおよびブラウザ情報を取得します。
+Streets は、品質改善、不具合調査および機能要望の検討のため、利用者がフォームへ入力した報告内容、任意でアップロードしたスクリーンショット等と、Streets のビルド識別子、アクセス元のオリジンおよびブラウザ情報を取得します。
 
 入力内容は Google Forms／Google Sheets に保存され、報告内容を要約・分類するため Cloudflare Workers／Workers AI で処理されます。報告内容は、公開 GitHub Issue に掲載される場合があります。スクリーンショット等はAIおよびGitHubへ自動送信せず、運営者が不具合調査のために確認します。Cloudflare は、顧客の明示的な同意なしに Workers AI の顧客コンテンツをモデルの学習または改善に利用しない旨を案内しています。
 
