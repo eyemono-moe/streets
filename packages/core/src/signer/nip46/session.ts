@@ -45,7 +45,7 @@ const parseRelaySwitch = (result: string): string[] | undefined => {
   }
 };
 
-const finishSession = async (
+export const finishSession = async (
   client: Nip46Client,
   clientSecret: Uint8Array,
   remoteSignerPubkey: string,

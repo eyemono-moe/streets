@@ -39,6 +39,12 @@ const meta = {
     login: { pending: false },
     onExtension: () => {},
     onBunker: () => {},
+    onNostrConnect: () => ({
+      uri: `nostrconnect://${"a".repeat(64)}?relay=wss%3A%2F%2Fnos.lol%2F&secret=0123456789abcdef&name=Streets`,
+      // ストーリーでは承認されないまま待ち続ける。
+      done: new Promise<void>(() => {}),
+      cancel: () => {},
+    }),
     feedTitle: "wss://yabu.me",
     feed: <Feed />,
   },
@@ -55,6 +61,10 @@ export const はじめての方: Story = {
 
 export const アカウントを持っている方: Story = {
   args: { initialStep: "existing" },
+};
+
+export const QRコードで繋ぐ: Story = {
+  args: { initialStep: "existing", initialRemoteOpen: true },
 };
 
 export const ログインしている途中: Story = {
@@ -84,6 +94,18 @@ export const 秘密鍵を貼り付けた: Story = {
   args: {
     initialStep: "existing",
     initialBunkerUri: `nsec1${"q".repeat(58)}`,
+  },
+};
+
+export const 署名器と繋がらなかった: Story = {
+  args: {
+    initialStep: "existing",
+    initialRemoteOpen: true,
+    onNostrConnect: () => ({
+      uri: `nostrconnect://${"a".repeat(64)}`,
+      done: Promise.reject(new Error("remote signer did not connect in time")),
+      cancel: () => {},
+    }),
   },
 };
 

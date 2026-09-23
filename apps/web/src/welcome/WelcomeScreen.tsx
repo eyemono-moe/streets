@@ -52,6 +52,7 @@ const WelcomeScreen: Component<{ session: Session; readLayer: ReadLayer }> = (
       }}
       onExtension={() => void props.session.loginWithExtension()}
       onBunker={(uri) => void props.session.loginWithBunker(uri)}
+      onNostrConnect={props.session.loginWithNostrConnect}
       feedTitle={COLUMN.title}
       feed={<WelcomeFeed readLayer={props.readLayer} />}
     />

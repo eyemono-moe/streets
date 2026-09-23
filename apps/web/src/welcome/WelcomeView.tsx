@@ -1,4 +1,5 @@
 import type { Component, JSX } from "solid-js";
+import type { ConnectAttempt } from "../session";
 import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
 
 const REPOSITORY = "https://github.com/eyemono-moe/streets";
@@ -11,7 +12,9 @@ const WelcomeView: Component<{
   login: LoginState;
   onExtension: () => void;
   onBunker: (uri: string) => void;
+  onNostrConnect: () => ConnectAttempt;
   initialStep?: LoginStep;
+  initialRemoteOpen?: boolean;
   initialBunkerUri?: string;
   /** 流しているリレーの名前。 */
   feedTitle: string;
@@ -34,7 +37,9 @@ const WelcomeView: Component<{
         state={props.login}
         onExtension={props.onExtension}
         onBunker={props.onBunker}
+        onNostrConnect={props.onNostrConnect}
         initialStep={props.initialStep}
+        initialRemoteOpen={props.initialRemoteOpen}
         initialBunkerUri={props.initialBunkerUri}
       />
 
