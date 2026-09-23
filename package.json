@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @streets/web dev",
+    "dev": "pnpm --parallel --filter @streets/web --filter @streets/app-worker dev",
     "build": "pnpm --filter @streets/web build",
     "storybook": "pnpm --filter @streets/web storybook",
     "check": "biome check .",

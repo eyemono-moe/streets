@@ -158,6 +158,28 @@ importers:
         specifier: 3.0.5
         version: 3.0.5(@types/node@22.19.19)(jiti@2.4.2)(jsdom@26.0.0(bufferutil@4.0.9)(utf-8-validate@6.0.5))(terser@5.39.0)(tsx@4.22.0)
 
+  workers/app:
+    dependencies:
+      '@hono/valibot-validator':
+        specifier: 0.6.1
+        version: 0.6.1(hono@4.13.8)(valibot@1.4.1(typescript@5.7.3))
+      hono:
+        specifier: 4.13.8
+        version: 4.13.8
+      valibot:
+        specifier: 1.4.1
+        version: 1.4.1(typescript@5.7.3)
+    devDependencies:
+      typescript:
+        specifier: 5.7.3
+        version: 5.7.3
+      vitest:
+        specifier: 3.0.5
+        version: 3.0.5(@types/node@22.19.19)(jiti@2.4.2)(jsdom@26.0.0(bufferutil@4.0.9)(utf-8-validate@6.0.5))(terser@5.39.0)(tsx@4.22.0)
+      wrangler:
+        specifier: 4.135.0
+        version: 4.135.0(@cloudflare/workers-types@5.20260920.1)(@types/node@22.19.19)(bufferutil@4.0.9)(utf-8-validate@6.0.5)
+
   workers/feedback:
     devDependencies:
       '@cloudflare/workers-types':
@@ -899,6 +921,12 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@hono/valibot-validator@0.6.1':
+    resolution: {integrity: sha512-rqKhQJI8IVR8gRRNHHf2wGtIT7sKEqV1KoGL5f2SocNytl+tBNn4EtRu4zfk/D6axgWSswnaxeiuJhM5yNFrCg==}
+    peerDependencies:
+      hono: '>=3.9.0'
+      valibot: ^1.0.0 || ^1.0.0-beta.4 || ^1.0.0-rc
 
   '@iconify-json/material-symbols@1.2.14':
     resolution: {integrity: sha512-S0AAFFQPVr8Dkrprspz/otNjxdD3rJRXDGZjbO8a8zn8ZR5mO8jAF81lVoTfUWxPH6SCtH2lK1JQGXHGPxld7g==}
@@ -2671,6 +2699,10 @@ packages:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
 
+  hono@4.13.8:
+    resolution: {integrity: sha512-/Gng7NfoykZl2pjukW5Z6+8Yxm3BPRf86GTbQnt0SbySkvax4fyL4H3HhY1cCpBGmiW9XDRFzRV+CXK2W8QudQ==}
+    engines: {node: '>=16.9.0'}
+
   html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
     engines: {node: '>=18'}
@@ -4071,6 +4103,11 @@ snapshots:
       '@floating-ui/utils': 0.2.12
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@hono/valibot-validator@0.6.1(hono@4.13.8)(valibot@1.4.1(typescript@5.7.3))':
+    dependencies:
+      hono: 4.13.8
+      valibot: 1.4.1(typescript@5.7.3)
 
   '@iconify-json/material-symbols@1.2.14':
     dependencies:
@@ -6170,6 +6207,8 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
     optional: true
+
+  hono@4.13.8: {}
 
   html-encoding-sniffer@4.0.0:
     dependencies:

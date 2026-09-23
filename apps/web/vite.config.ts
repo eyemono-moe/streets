@@ -62,5 +62,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // 本番では Worker（workers/app）が受ける /api を、`wrangler dev` へ渡す。
+    // ルートの `pnpm dev` が両方を立ち上げる。
+    proxy: { "/api": "http://localhost:8787" },
   },
 });
