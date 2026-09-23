@@ -3,7 +3,11 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vitest";
 import { type NostrEvent, computeEventId } from "../../nostr/event";
 import type { RelaySubscriptionHandlers } from "../../relay/relay-connection";
-import { Nip46RpcError, createNip46Client } from "./client";
+import {
+  NIP46_RPC_TIMEOUT_MS,
+  Nip46RpcError,
+  createNip46Client,
+} from "./client";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
 
 const keyFor = (byte: number): Uint8Array => new Uint8Array(32).fill(byte);
@@ -90,7 +94,7 @@ describe("Nip46Client", () => {
     const pending = base.client.request("ping");
     base.respond({ id: "not-the-request", result: "pong" });
     const rejected = expect(pending).rejects.toBeInstanceOf(Nip46RpcError);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
     await rejected;
     vi.useRealTimers();
   });
@@ -108,7 +112,7 @@ describe("Nip46Client", () => {
     const handler = base.pool.subscribe.mock.calls[0]?.[2];
     handler.onEvent(forged);
     const rejected = expect(pending).rejects.toBeInstanceOf(Nip46RpcError);
-    await vi.advanceTimersByTimeAsync(30_000);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
     // 捕まえる変異: verifyEvent(event) のガードを削除して復号する。
     await rejected;
     vi.useRealTimers();
@@ -139,6 +143,27 @@ describe("Nip46Client", () => {
     base.respond({ id: request.id, result: "signed" });
     await expect(pending).resolves.toBe("signed");
     expect(onAuthUrl).toHaveBeenLastCalledWith(undefined, request.id);
+  });
+
+  it("result が null の応答を、応答として受け取る", async () => {
+    // Primal は switch_relays に result: null で応える（NIP-46 の「変更なし」）。
+    // 捕まえる変異: null を不正な応答として捨てる（30 秒の時間切れまでログインが終わらない）
+    const base = setup();
+    const pending = base.client.request("switch_relays");
+    base.respond({ id: base.request().id, result: null as unknown as string });
+    await expect(pending).resolves.toBe("null");
+  });
+
+  it("待つ上限を問い合わせごとに変えられる", async () => {
+    vi.useFakeTimers();
+    const base = setup();
+    const pending = base.client.request("switch_relays", [], {
+      timeoutMs: 5_000,
+    });
+    const rejected = expect(pending).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(5_000);
+    await rejected;
+    vi.useRealTimers();
   });
 
   it("closeでpendingを失敗させる", async () => {

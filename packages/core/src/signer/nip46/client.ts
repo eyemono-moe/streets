@@ -13,7 +13,16 @@ import type { RelayUrl } from "../../relay/relay-connection";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
 
 export const NIP46_KIND = 24_133;
-export const NIP46_RPC_TIMEOUT_MS = 30_000;
+/**
+ * 署名器の応答を待つ上限。署名器が止まっていると、この間ずっと保存や再読み込み
+ * 後の復元が進まない。承認のページを出した（auth_url）ときは別に長く待つ。
+ */
+export const NIP46_RPC_TIMEOUT_MS = 10_000;
+/**
+ * 任意の問い合わせ（`switch_relays` など）を待つ上限。応えない署名器もあり、
+ * 待ちすぎるとその間ログインが終わらない。
+ */
+export const NIP46_OPTIONAL_RPC_TIMEOUT_MS = 5_000;
 export const NIP46_AUTH_TIMEOUT_MS = 120_000;
 
 export type Nip46Method =
@@ -48,7 +57,11 @@ export class Nip46RpcError extends Error {
 
 export type Nip46Client = {
   readonly clientPubkey: string;
-  request(method: Nip46Method, params?: string[]): Promise<string>;
+  request(
+    method: Nip46Method,
+    params?: string[],
+    options?: { timeoutMs?: number },
+  ): Promise<string>;
   switchRelays(relays: readonly RelayUrl[]): boolean;
   close(): void;
 };
@@ -77,7 +90,7 @@ const signClientEvent = (
   };
 };
 
-const parseResponse = (
+export const parseResponse = (
   plaintext: string,
 ): { id: string; result?: string; error?: string } | undefined => {
   try {
@@ -85,6 +98,9 @@ const parseResponse = (
     if (typeof value !== "object" || value === null) return undefined;
     const response = value as Record<string, unknown>;
     if (typeof response.id !== "string") return undefined;
+    // `switch_relays` は「変えるものが無い」を null で返す（NIP-46）。捨てると
+    // 応答が無かったことになり、時間切れまで待たされる。JSON の null として渡す。
+    if (response.result === null) response.result = "null";
     if (response.result !== undefined && typeof response.result !== "string") {
       return undefined;
     }
@@ -213,7 +229,7 @@ export const createNip46Client = (options: {
 
   return {
     clientPubkey,
-    request(method, params = []) {
+    request(method, params = [], requestOptions = {}) {
       if (closed) {
         return Promise.reject(new Nip46RpcError("NIP-46 client is closed"));
       }
@@ -228,7 +244,10 @@ export const createNip46Client = (options: {
       );
 
       return new Promise<string>((resolve, reject) => {
-        const timer = settleTimeout(id, NIP46_RPC_TIMEOUT_MS);
+        const timer = settleTimeout(
+          id,
+          requestOptions.timeoutMs ?? NIP46_RPC_TIMEOUT_MS,
+        );
         pending.set(id, { resolve, reject, timer });
         const attempts = currentRelays.map((relay) =>
           options.pool.publish(relay, event),
