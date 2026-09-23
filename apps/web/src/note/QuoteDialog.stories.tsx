@@ -5,9 +5,11 @@ import {
 } from "@streets/core/view/compose";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { useEventActions } from "../actions";
+import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { UploaderProvider } from "../media/uploader";
 import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import emojiUrl from "../storybook/emoji-fixture.svg";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -76,19 +78,21 @@ const meta = {
         failWrites: props.failWrites,
       }}
     >
-      <UploaderProvider
-        value={{
-          servers: () => props.servers,
-          upload: () =>
-            Promise.reject(new Error("story ではアップロードしない")),
-        }}
-      >
-        {props.state ? (
-          <QuoteDialog target={props.target} state={props.state} />
-        ) : (
-          <Interactive target={props.target} />
-        )}
-      </UploaderProvider>
+      <StaticCustomEmojis emojis={[{ shortcode: "neko", url: emojiUrl }]}>
+        <UploaderProvider
+          value={{
+            servers: () => props.servers,
+            upload: () =>
+              Promise.reject(new Error("story ではアップロードしない")),
+          }}
+        >
+          {props.state ? (
+            <QuoteDialog target={props.target} state={props.state} />
+          ) : (
+            <Interactive target={props.target} />
+          )}
+        </UploaderProvider>
+      </StaticCustomEmojis>
     </EventSceneProvider>
   ),
   args: {

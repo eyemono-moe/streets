@@ -24,6 +24,7 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 /** 打つたびに作り直さないよう、少し止まってからプレビューへ渡す。 */
 const useDebounced = (value: () => string, ms: number) => {
@@ -46,6 +47,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const preview = useDebounced(() => props.state.content, 400);
   const dropAndPaste = useDropAndPaste();
   const emoji = useEmojiLookup();
+  const emojiInsertion = useComposeEmojiInsertion();
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
@@ -91,6 +93,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
               ref={(el) => {
                 body = el;
                 attach(el);
+                emojiInsertion.ref(el);
               }}
               aria-label="ノートの本文"
               rows={5}
@@ -126,6 +129,8 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         label="投稿"
         sending={props.state.sending}
         disabled={!canSend(props.state)}
+        onEmojiSelect={emojiInsertion.insert}
+        emojiField={emojiInsertion.field}
       />
 
       <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">

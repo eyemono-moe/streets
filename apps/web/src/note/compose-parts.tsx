@@ -1,5 +1,7 @@
 import type { Attachment } from "@streets/core/view/compose";
 import { type Component, For, Show, createSignal } from "solid-js";
+import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
+import type { PickerEmoji } from "../emoji/emoji-data";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
@@ -428,17 +430,22 @@ const ImageButton: Component = () => {
   );
 };
 
-/** 投稿と返信で同じ足まわり。追加・公開範囲はまだ作っていない。 */
+/** 投稿・返信・引用で同じ足まわり。 */
 export const ComposeTools: Component<{
   count: string;
   label: string;
   sending: boolean;
   disabled: boolean;
+  onEmojiSelect: (emoji: PickerEmoji) => void;
+  emojiField: () => HTMLTextAreaElement | undefined;
 }> = (props) => (
   <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
     <ImageButton />
-    <ToolButton label="追加" icon="i-material-symbols:add-rounded" />
-    <ToolButton label="公開範囲" icon="i-material-symbols:globe" />
+    <ComposeEmojiPicker
+      disabled={props.sending}
+      onSelect={props.onEmojiSelect}
+      field={props.emojiField}
+    />
     <span class="flex-1" />
     <span class="c-secondary text-caption">{props.count}</span>
     <Button

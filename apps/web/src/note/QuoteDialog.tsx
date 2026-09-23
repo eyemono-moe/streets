@@ -20,12 +20,14 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
 ) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
+  const emojiInsertion = useComposeEmojiInsertion();
   const dropAndPaste = useDropAndPaste();
   // 返信先・引用元の人を、人の候補の先頭に出す。
   const sources = useNoteSources(() => [props.target.pubkey]);
@@ -57,7 +59,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               <Completion sources={sources} label="入れる候補">
                 {(attach) => (
                   <textarea
-                    ref={attach}
+                    ref={(element) => {
+                      attach(element);
+                      emojiInsertion.ref(element);
+                    }}
                     autofocus
                     aria-label="引用の本文"
                     class="c-primary placeholder:c-secondary min-h-20 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
@@ -102,6 +107,8 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               label="引用"
               sending={props.state.sending}
               disabled={!canSend(props.state)}
+              onEmojiSelect={emojiInsertion.insert}
+              emojiField={emojiInsertion.field}
             />
           </form>
         </DialogContent>
