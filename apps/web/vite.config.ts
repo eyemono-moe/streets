@@ -4,6 +4,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { releaseNotes } from "./release-notes-plugin";
 
 const commitSha = (): string => {
   const provided = process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA;
@@ -55,7 +56,13 @@ export default defineConfig({
     __SENTRY_TRACING__: "false",
     __SENTRY_DEBUG__: "false",
   },
-  plugins: [...devtools(), UnoCSS(), solid(), ...sentryUpload(release)],
+  plugins: [
+    ...devtools(),
+    UnoCSS(),
+    solid(),
+    releaseNotes(),
+    ...sentryUpload(release),
+  ],
   build: {
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
