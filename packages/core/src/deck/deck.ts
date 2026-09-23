@@ -211,6 +211,10 @@ const columnSourceSchema = v.variant("kind", [
     kind: v.literal("followers-list"),
     pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
   }),
+  v.object({
+    kind: v.literal("search"),
+    query: v.pipe(v.string(), v.minLength(1)),
+  }),
 ]);
 
 const columnDefSchema = v.object({

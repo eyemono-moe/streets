@@ -50,6 +50,31 @@ describe("loadDeck / saveDeck", () => {
     expect(loadDeck(saveDeck(withActivity))).toEqual(withActivity);
   });
 
+  it("検索の列を読み戻せる", () => {
+    // 捕まえる変異: search の variant を足さない。検索カラムが読み直すたびに消える。
+    const withSearch: Deck = {
+      version: 2,
+      columns: [
+        {
+          id: "s",
+          title: "#coffee",
+          source: { kind: "search", query: "#coffee" },
+        },
+      ],
+    };
+    expect(loadDeck(saveDeck(withSearch))).toEqual(withSearch);
+  });
+
+  it("問い合わせが空の検索の列は捨てる", () => {
+    const empty = {
+      version: 2,
+      columns: [
+        { id: "s", title: "検索", source: { kind: "search", query: "" } },
+      ],
+    };
+    expect(loadDeck(JSON.stringify(empty))?.columns).toEqual([]);
+  });
+
   it("null (未保存) は undefined", () => {
     // JSON.parse(null) は例外を投げず null 扱いになるため検証はできないが、意図を明示するため早期リターンを残す。
     expect(loadDeck(null)).toBeUndefined();
