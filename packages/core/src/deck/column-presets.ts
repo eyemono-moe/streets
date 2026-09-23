@@ -51,6 +51,18 @@ export const buildActivityColumn = (target: string): ColumnDef => ({
   source: { kind: "activity", target },
 });
 
+/** 本文・自己紹介から開く検索用の段。同じタグなら同じ id にする。 */
+export const buildHashtagColumn = (input: string): ColumnDef | undefined => {
+  // NIP-24 の `t` は小文字。画面に出す元の綴りはトークン側へ残す。
+  const tag = input.trim().replace(/^#+/, "").toLowerCase();
+  if (tag.length === 0) return undefined;
+  return {
+    id: `hashtag:${tag}`,
+    title: `#${tag}`,
+    source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
+  };
+};
+
 /** 選んだリレーだけから公開ノートを読むカラムを作る。 */
 export const buildRelayColumn = (
   relays: readonly RelayUrl[],
@@ -98,17 +110,8 @@ export const buildColumn = (
     }
 
     case "hashtag": {
-      // NIP-12 のタグ値に `#` は含まれない。先頭の `#` は複数あっても
-      // すべて落とす —— 1 個だけ落とすと `##nostr` が `#nostr` というタグ値
-      // になり、本物のイベントには存在せず永久に一致しない。NIP-24 は
-      // 小文字を SHOULD とし主要クライアントも従うので、小文字化もする。
-      const tag = input.trim().replace(/^#+/, "").toLowerCase();
-      if (tag.length === 0) return undefined;
-      return {
-        id,
-        title: `#${tag}`,
-        source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
-      };
+      const column = buildHashtagColumn(input);
+      return column ? { ...column, id } : undefined;
     }
 
     case "search": {

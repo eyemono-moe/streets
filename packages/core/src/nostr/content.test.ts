@@ -344,6 +344,19 @@ describe("parseContent: ハッシュタグ", () => {
       { type: "text", text: " です" },
     ] satisfies ContentToken[]);
   });
+
+  it("自己紹介も同じ文字列として読めるが、t タグだけでは表示を増やさない", () => {
+    const about = "街歩き #Nostr #東京";
+    expect(parseContent(about, [["t", "別のタグ"]])).toEqual([
+      { type: "text", text: "街歩き " },
+      { type: "hashtag", tag: "nostr", raw: "#Nostr" },
+      { type: "text", text: " " },
+      { type: "hashtag", tag: "東京", raw: "#東京" },
+    ] satisfies ContentToken[]);
+    expect(parseContent("街歩き", [["t", "nostr"]])).toEqual([
+      { type: "text", text: "街歩き" },
+    ] satisfies ContentToken[]);
+  });
 });
 
 describe("isProbablyImageUrl", () => {

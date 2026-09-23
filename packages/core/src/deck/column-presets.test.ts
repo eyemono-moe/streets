@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildActivityColumn,
   buildColumn,
+  buildHashtagColumn,
   buildRelayColumn,
 } from "./column-presets";
 
@@ -65,7 +66,7 @@ describe("buildColumn", () => {
   });
 
   it("hashtag は #t フィルタを作り、先頭の # を落とす", () => {
-    // 捕まえる変異: 入力をそのまま入れる (NIP-12 のタグ値に # は含まれず
+    // 捕まえる変異: 入力をそのまま入れる (t のタグ値に # は含まれず
     // リレー側で一致しない)
     expect(buildColumn("hashtag", "#nostr")?.source).toEqual({
       kind: "literal",
@@ -87,8 +88,8 @@ describe("buildColumn", () => {
   });
 
   it("hashtag は大文字を小文字化する (最終レビュー Minor 3)", () => {
-    // 捕まえる変異: 大文字小文字をそのまま保存する (NIP-24 は小文字化を
-    // SHOULD しており、主要クライアントは小文字で publish するため)
+    // 捕まえる変異: 大文字小文字をそのまま保存する (NIP-24 は小文字を
+    // MUST としており、主要クライアントも小文字で publish するため)
     expect(buildColumn("hashtag", "#Nostr")?.source).toEqual({
       kind: "literal",
       filters: [{ kinds: [1], "#t": ["nostr"] }],
@@ -103,6 +104,21 @@ describe("buildColumn", () => {
     // 捕まえる変異: 空を通す (`#t: [""]` のカラムができる)
     expect(buildColumn("hashtag", "  ")).toBeUndefined();
     expect(buildColumn("hashtag", "#")).toBeUndefined();
+  });
+
+  it("本文から開くハッシュタグは正規化したタグで同じ段にし、#t で探す", () => {
+    const column = buildHashtagColumn("#Nostr");
+    expect(column).toEqual({
+      id: "hashtag:nostr",
+      title: "#nostr",
+      source: { kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] },
+    });
+    expect(buildHashtagColumn("nostr")?.id).toBe(column?.id);
+    expect(buildHashtagColumn("#天気")?.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["天気"] }],
+    });
+    expect(buildHashtagColumn("#")).toBeUndefined();
   });
 
   it("relay は選んだ明示リレーを重複なく持つ", () => {

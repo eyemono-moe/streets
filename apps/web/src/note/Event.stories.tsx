@@ -38,11 +38,14 @@ const plain = alice.note(
   "マルチカラムのクライアントは、1 列に入る情報量が体験を決める。余白は削るところと残すところを分ける。",
 );
 const tokens = bob.note(
-  `リンク https://example.com/ 、ハッシュタグ #nostr 、NIP-21メンション nostr:${encodeBech32("npub", alice.pubkey)} 、裸のNIP-19メンション ${encodeBech32("npub", carol.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
+  `リンク https://example.com/#nostr 、ハッシュタグ #Nostr と #東京 、NIP-21メンション nostr:${encodeBech32("npub", alice.pubkey)} 、裸のNIP-19メンション ${encodeBech32("npub", carol.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
   [
     ["t", "nostr"],
     ["emoji", "party", emojiUrl],
   ],
+);
+const hashtagInNarrowColumn = bob.note(
+  "今日の散歩 #東京 #とても長いハッシュタグを狭いカラムで表示する #Nostr",
 );
 const longBody = alice.note(
   Array.from(
@@ -188,6 +191,14 @@ export const ログインしていない: Story = {
 
 export const 本文のトークン: Story = {
   args: { event: tokens, scene: scene(tokens) },
+};
+
+export const 狭いカラムのハッシュタグ: Story = {
+  args: {
+    event: hashtagInNarrowColumn,
+    scene: scene(hashtagInNarrowColumn),
+    size: "compact",
+  },
 };
 
 export const 長い本文: Story = {
