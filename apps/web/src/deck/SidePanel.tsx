@@ -21,7 +21,6 @@ const SidePanel: Component<{
         "w-90 shrink-0 border-r": !props.full,
       }}
     >
-      <div class="h-0.75 shrink-0 bg-accent-primary" />
       <header class="flex h-12 shrink-0 items-center gap-2.5 pr-3 pl-4">
         <span
           class={`c-secondary size-4.5 shrink-0 ${props.icon}`}
