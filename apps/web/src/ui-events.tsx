@@ -106,6 +106,8 @@ export type DeckEvent =
   | { type: "deck/close-settings" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
+  /** 使い方の案内を、もう一度始める。 */
+  | { type: "deck/start-tour" }
   /** カラーテーマ。この端末に保存する。 */
   | { type: "deck/set-color-scheme"; scheme: ColorScheme }
   /** 色を動かしている途中。当てるだけで保存しない。 */

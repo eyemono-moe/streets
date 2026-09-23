@@ -2,6 +2,7 @@ import { Menu } from "@ark-ui/solid/menu";
 import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
+import { tourTarget } from "../tour/DeckTour";
 import { useDispatch } from "../ui-events";
 
 /** 自分のアイコン。設定・Streets について・ログアウトを持つ。 */
@@ -25,6 +26,7 @@ const AccountMenu: Component<{
       }}
     >
       <Menu.Trigger
+        {...tourTarget("account")}
         aria-label="アカウント"
         class="cursor-pointer rounded-full bg-transparent"
       >

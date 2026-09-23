@@ -63,6 +63,8 @@ import {
   setColorScheme,
 } from "../theme";
 import { notifySaved } from "../toast";
+import { tourSeen } from "../tour-setting";
+import { DeckTour, createDeckTour } from "../tour/DeckTour";
 import { Mediates, type UiEvent } from "../ui-events";
 import { trackReplaces } from "../write-progress";
 import {
@@ -95,6 +97,7 @@ const DeckScreen: Component<{
     viewer,
   });
   const isWide = useIsWide();
+  const deckTour = createDeckTour(isWide);
   // 保存しない画面の状態。遷移は core の純粋関数で、ここは結果を store へ当てるだけ。
   const [ui, setUi] = createStore<DeckUiState>(emptyDeckUi());
   const applyUi = (event: DeckUiEvent) =>
@@ -273,6 +276,18 @@ const DeckScreen: Component<{
     placed = true;
   });
 
+  // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
+  // ダイアログが開いている間は待つ（閉じたら出す）。
+  let tourOffered = tourSeen();
+  createEffect(() => {
+    if (tourOffered) return;
+    if (deckStore.value() === undefined || columns().length === 0) return;
+    if (ui.settingsOpen || ui.aboutOpen) return;
+    tourOffered = true;
+    // カラムが描かれてから指す。
+    requestAnimationFrame(() => deckTour.start());
+  });
+
   createDeckHotkeys({
     keymap,
     columns,
@@ -382,6 +397,11 @@ const DeckScreen: Component<{
       case "deck/open-about":
       case "deck/close-about":
         applyUi(event);
+        return true;
+      case "deck/start-tour":
+        // 「Streets について」から始めたときは、ダイアログを閉じてから指す。
+        applyUi({ type: "deck/close-about" });
+        requestAnimationFrame(() => deckTour.start());
         return true;
       case "deck/set-color-scheme":
         setScheme(event.scheme);
@@ -581,10 +601,15 @@ const DeckScreen: Component<{
                                       </div>
                                     </Show>
                                     <For each={columns()}>
-                                      {(column) => (
+                                      {(column, index) => (
                                         <>
                                           <div
                                             data-column-id={column.id}
+                                            data-tour={
+                                              index() === 0
+                                                ? "columns"
+                                                : undefined
+                                            }
                                             class="h-full shrink-0 border-primary border-r"
                                             classList={{
                                               "w-80": column.width === "s",
@@ -742,7 +767,12 @@ const DeckScreen: Component<{
                               </div>
                             </Match>
                           </Switch>
-                          <AboutDialog open={ui.aboutOpen} wide={isWide()} />
+                          <AboutDialog
+                            open={ui.aboutOpen}
+                            wide={isWide()}
+                            tour
+                          />
+                          <DeckTour tour={deckTour.tour} />
                           <SettingsDialog
                             open={ui.settingsOpen}
                             wide={isWide()}
