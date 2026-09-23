@@ -8,7 +8,7 @@
 2. **タグを打つ**：main のそのコミットに `v1.2.3` のタグを打って push する
 3. **プレビュー**（`.github/workflows/release.yaml` の Preview）：ビルドして Worker の版を上げる。本番には出さない。版のプレビュー URL がジョブの要約に出る
 4. **承認**：プレビューで確かめ、Production のジョブを承認する（`production` 環境の必須レビュアー）
-5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る
+5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。その Release へのリンクを Nostr に投稿して知らせる
 
 タグが main に入っていないコミットを指しているとき、ノートのファイルが無いときは、3 で止まる。
 
@@ -37,6 +37,7 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
 - **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`
 - **GitHub の variables**：リポジトリに `VITE_FEEDBACK_URL`（フィードバックの Google フォーム。値は `apps/web/.env.example`）。無いとフィードバックの導線が押せない
+- **Nostr へのお知らせ**：variables の `NOSTR_RELAYS`（投稿先のリレー。1 行に 1 つ）と、secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿するアカウントの鍵）
 - **`production` 環境**：必須レビュアーと、出してよい参照を `v*` のタグだけにする
 - **タグの保護**：`v*` のタグを作れる・消せるのを管理者だけにするルールセット
 - **Workers Builds**：Cloudflare の画面の GitHub 連携は止める（二重に出さない）
