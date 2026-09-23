@@ -23,3 +23,15 @@ export const followeesFrom = (
 export const followersFrom = (
   events: readonly { pubkey: string }[],
 ): readonly string[] => [...new Set(events.map((event) => event.pubkey))];
+
+/**
+ * その kind:3 の書き手が `pubkey` をフォローしているか。kind:3 がまだ無い
+ * （取得中・公開していない）ときは分からないので false とせず undefined を返す。
+ */
+export const followsPubkey = (
+  event: { tags: readonly (readonly string[])[] } | undefined,
+  pubkey: string,
+): boolean | undefined =>
+  event === undefined
+    ? undefined
+    : event.tags.some((tag) => tag[0] === "p" && tag[1] === pubkey);
