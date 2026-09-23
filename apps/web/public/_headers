@@ -1,0 +1,6 @@
+# Cloudflare Workers の静的ファイルに付けるヘッダー。
+# NIP-05 の本人確認は、ほかのクライアントがブラウザから読むので、どこからでも読めるようにする。
+/.well-known/nostr.json
+  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Methods: GET, OPTIONS
+  Access-Control-Allow-Headers: *

@@ -1,0 +1,109 @@
+# タグ（v1.2.3）を打つとリリースする。
+#   1. 版をプレビューに上げる（本番には出さない）。URL はジョブの要約に出る
+#   2. 本番のジョブが承認待ちで止まる（production 環境の必須レビュアー）
+#   3. 承認したら、プレビューで確かめたのと同じ版を本番に出し、GitHub の Release を作る
+# 本文は apps/web/src/releases/<タグ>.md。無ければ止まる。手順は docs/release.md。
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Preview
+    runs-on: ubuntu-24.04
+    environment: preview
+    outputs:
+      version-id: ${{ steps.upload.outputs.version-id }}
+      preview-url: ${{ steps.upload.outputs.preview-url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: main に入ったコミットか確かめる
+        run: |
+          git fetch origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::タグ ${GITHUB_REF_NAME} は main に入っていないコミットを指しています"
+            exit 1
+          fi
+      - name: リリースノートがあるか確かめる
+        run: |
+          notes="apps/web/src/releases/${GITHUB_REF_NAME}.md"
+          if [ ! -s "$notes" ]; then
+            echo "::error::${notes} がありません。リリースの準備の PR をマージしてからタグを打ってください"
+            exit 1
+          fi
+      - uses: ./.github/actions/setup
+      - name: ビルド
+        run: pnpm build
+        env:
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENV: production
+      - name: 版を上げる（本番には出さない）
+        id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.ndjson
+        run: |
+          pnpm exec wrangler versions upload \
+            --tag "$GITHUB_REF_NAME" \
+            --message "$GITHUB_REF_NAME ($GITHUB_SHA)"
+          result=$(jq -cs 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
+          echo "version-id=$(jq -r .version_id <<<"$result")" >> "$GITHUB_OUTPUT"
+          echo "preview-url=$(jq -r .preview_url <<<"$result")" >> "$GITHUB_OUTPUT"
+      - name: 要約にプレビューの URL を出す
+        run: |
+          {
+            echo "## ${GITHUB_REF_NAME} のプレビュー"
+            echo
+            echo "${{ steps.upload.outputs.preview-url }}"
+            echo
+            echo "確かめたら、Production のジョブを承認すると本番に出ます。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  production:
+    name: Production
+    needs: preview
+    runs-on: ubuntu-24.04
+    # 必須レビュアーの承認を待つ。承認したらプレビューと同じ版を出す（ビルドし直さない）。
+    environment:
+      name: production
+      url: https://streets.eyemono.moe
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: 本番に出す
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          pnpm exec wrangler versions deploy \
+            "${{ needs.preview.outputs.version-id }}@100%" \
+            --message "$GITHUB_REF_NAME" --yes
+      - name: GitHub の Release を作る
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # 本文はアプリと同じノート。先頭の日付（--- で囲んだ部分）は GitHub では崩れるので外し、
+        # 人の参照（nostr:npub1…）は GitHub では押せないので njump.me へのリンクにする。
+        # その後ろに、GitHub が作る PR の一覧と前の版からの比較を足す（--generate-notes）。
+        run: |
+          awk 'NR == 1 && /^---$/ { front = 1; next }
+               front && /^---$/ { front = 0; next }
+               !front' "apps/web/src/releases/${GITHUB_REF_NAME}.md" |
+            sed -E 's#nostr:((npub|nprofile)1[02-9ac-hj-np-z]+)#[\1](https://njump.me/\1)#g' \
+            > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --generate-notes
