@@ -41,6 +41,7 @@ import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { errorReport, setErrorReport } from "../error-report-setting";
+import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
@@ -80,16 +81,6 @@ import { columnMeta } from "./column-meta";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
-
-/** カラムを横に並べられる幅かどうか。狭い端末ではタブで 1 列ずつ見せる。 */
-const useIsWide = () => {
-  const query = matchMedia("(min-width: 768px)");
-  const [wide, setWide] = createSignal(query.matches);
-  const sync = () => setWide(query.matches);
-  query.addEventListener("change", sync);
-  onCleanup(() => query.removeEventListener("change", sync));
-  return wide;
-};
 
 const DeckScreen: Component<{
   readLayer: ReadLayer;

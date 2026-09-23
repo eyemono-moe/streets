@@ -12,6 +12,7 @@ import {
 import type { ConnectAttempt } from "../session";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
+import Intro from "./Intro";
 import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
 
@@ -85,7 +86,8 @@ const LoginPanel: Component<{
           class="flex animate-fade-in flex-col gap-3"
           aria-labelledby="choose-heading"
         >
-          <h2 id="choose-heading" class="font-600 text-body">
+          <Intro />
+          <h2 id="choose-heading" class="mt-3 font-600 text-body">
             はじめる
           </h2>
           <ChoiceButton

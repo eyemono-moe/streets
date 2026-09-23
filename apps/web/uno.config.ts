@@ -126,6 +126,9 @@ export default defineConfig({
         "panel-in":
           "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
+        // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
+        "nudge-up":
+          "{0%,50%,100%{transform:none}25%{transform:translateY(-3px)}}",
         shake:
           "{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}",
       },
@@ -143,6 +146,7 @@ export default defineConfig({
         "panel-in": "160ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
+        "nudge-up": "1800ms",
       },
       timingFns: {
         "fade-in": "ease-out",
@@ -158,6 +162,10 @@ export default defineConfig({
         "stack-out": "ease-in both",
         "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
         shake: "ease-out",
+        "nudge-up": "ease-in-out",
+      },
+      counts: {
+        "nudge-up": "infinite",
       },
     },
   },
