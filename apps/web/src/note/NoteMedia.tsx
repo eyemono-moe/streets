@@ -61,7 +61,7 @@ const MediaFrame: Component<{
   actual?: Dimensions;
   children: JSX.Element;
 }> = (props) => {
-  const maxHeight = () => (props.size === "normal" ? 180 : 120);
+  const maxHeight = () => (props.size === "normal" ? 320 : 240);
   const ratio = () => {
     const dimensions = props.actual ?? props.media.dimensions;
     return dimensions ? dimensions.width / dimensions.height : 16 / 9;
