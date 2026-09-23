@@ -1,9 +1,9 @@
 import { Popover } from "@ark-ui/solid/popover";
-import type { Component } from "solid-js";
+import { type Component, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
 import EmojiPicker from "./EmojiPicker";
 import { useEmojiGroups } from "./custom-emojis";
-import type { PickerEmoji } from "./emoji-data";
+import { type PickerEmoji, loadUnicodeEmojis } from "./emoji-data";
 import { rememberEmoji } from "./recent-emoji";
 
 /** 投稿・返信・引用の本文に入れる絵文字を選ぶ。 */
@@ -13,6 +13,11 @@ const ComposeEmojiPicker: Component<{
   field: () => HTMLTextAreaElement | undefined;
 }> = (props) => {
   const customGroups = useEmojiGroups();
+  // 投稿パネルや返信・引用のダイアログは開いたときに描かれる。ピッカーを開いてから
+  // 読み始めると一覧が出るまで待たせるので、書き始めた時点で読んでおく。
+  onMount(() => {
+    loadUnicodeEmojis().catch(() => {});
+  });
   return (
     <Popover.Root
       lazyMount
