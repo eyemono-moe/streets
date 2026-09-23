@@ -11,6 +11,8 @@ import { useReadLayer } from "../read-layer";
 export type ProfileDetails = {
   profile: Profile | undefined;
   tags: readonly string[][];
+  /** kind:0 の content そのもの。読む側が扱う項目（Zap の送り先など）を取り出すため。 */
+  content: string;
 };
 
 /** kind:0 を一度だけ読み、解析したプロフィールと NIP-30 の emoji タグを返す。 */
@@ -31,7 +33,11 @@ export const useProfileDetails = (
       const latest = store.latestReplaceable(0, key);
       setDetails(
         latest
-          ? { profile: parseProfile(latest.content), tags: latest.tags }
+          ? {
+              profile: parseProfile(latest.content),
+              tags: latest.tags,
+              content: latest.content,
+            }
           : undefined,
       );
       return latest !== undefined;

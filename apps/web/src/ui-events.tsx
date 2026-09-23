@@ -15,6 +15,7 @@ import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ComposeEvent } from "@streets/core/view/compose";
+import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
   type JSX,
   type ParentComponent,
@@ -36,7 +37,9 @@ export type UiEvent =
   | MuteViewEvent
   | ProfileViewEvent
   | MediaViewEvent
-  | SearchRelayViewEvent;
+  | SearchRelayViewEvent
+  /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
+  | ZapFlowEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
