@@ -335,23 +335,31 @@ describe("loadDeck / saveDeck", () => {
 });
 
 describe("defaultDeck", () => {
-  it("ホーム・通知の 2 本を返す", () => {
-    const result = defaultDeck();
+  const relays = ["wss://yabu.me/"];
+
+  it("ホーム・リレー・通知の 3 本をこの順で返す", () => {
+    const result = defaultDeck(relays);
 
     expect(result.version).toBe(2);
-    expect(result.columns).toHaveLength(2);
+    expect(result.columns.map((c) => c.source)).toEqual([
+      // ホーム: フォローの展開を resolveSource に任せる派生ソース
+      { kind: "followees", kinds: [1, 6] },
+      // 誰もフォローしていない新規ユーザーにも流れが見えるよう、渡したリレーを読む
+      { kind: "literal", filters: [{ kinds: [1] }], relays },
+      // 通知: 自分の投稿に対するリポスト・引用・リアクションを集める派生ソース
+      { kind: "notifications" },
+    ]);
+  });
 
-    // ホーム: フォローの展開を resolveSource に任せる派生ソース
-    const home = result.columns[0];
-    expect(home?.source).toEqual({ kind: "followees", kinds: [1, 6] });
-
-    // 通知: 自分の投稿に対するリポスト・引用・リアクションを集める派生ソース
-    const notifications = result.columns[1];
-    expect(notifications?.source).toEqual({ kind: "notifications" });
+  it("リレーが 0 本ならホームと通知だけにする", () => {
+    expect(defaultDeck([]).columns.map((c) => c.source.kind)).toEqual([
+      "followees",
+      "notifications",
+    ]);
   });
 
   it("column の id が重複しない", () => {
-    const result = defaultDeck();
+    const result = defaultDeck(relays);
     const ids = result.columns.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
