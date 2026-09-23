@@ -714,15 +714,16 @@ const DeckScreen: Component<{
                                       )}
                                     </For>
                                   </div>
-                                  {/* パネルはカラムの上に重ねる。カラムを隠すと、送った位置が失われる。 */}
-                                  <div
-                                    class="absolute inset-0 flex bg-primary"
-                                    classList={{
-                                      hidden: ui.panel === undefined,
-                                    }}
-                                  >
-                                    {panelView(true)}
-                                  </div>
+                                  {/*
+                                    パネルはカラムの上に重ねる。カラムを隠すと、送った位置が失われる。
+                                    開いている間だけ作る —— hidden で隠すと flex の display に負けて、
+                                    閉じていてもカラムを覆う。
+                                  */}
+                                  <Show when={ui.panel !== undefined}>
+                                    <div class="absolute inset-0 flex bg-primary">
+                                      {panelView(true)}
+                                    </div>
+                                  </Show>
                                   {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
                                   <Show when={ui.panel === undefined}>
                                     <ComposeFab />
