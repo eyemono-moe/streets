@@ -22,6 +22,7 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   props,
@@ -29,6 +30,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   const actions = useEventActions();
   const dispatch = useDispatch();
   const dropAndPaste = useDropAndPaste();
+  const emojiInsertion = useComposeEmojiInsertion();
   // 返信先・引用元の人を、人の候補の先頭に出す。
   const sources = useNoteSources(() => [
     props.target.pubkey,
@@ -77,7 +79,10 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               <Completion sources={sources} label="入れる候補">
                 {(attach) => (
                   <textarea
-                    ref={attach}
+                    ref={(element) => {
+                      attach(element);
+                      emojiInsertion.ref(element);
+                    }}
                     autofocus
                     aria-label="返信の本文"
                     class="c-primary placeholder:c-secondary min-h-10 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
@@ -113,6 +118,8 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               label="返信"
               sending={props.state.sending}
               disabled={!canSend(props.state)}
+              onEmojiSelect={emojiInsertion.insert}
+              emojiField={emojiInsertion.field}
             />
           </form>
         </DialogContent>

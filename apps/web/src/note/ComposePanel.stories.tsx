@@ -14,6 +14,7 @@ import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
+import { ComposeMediator } from "./ComposeMediator";
 import ComposePanel from "./ComposePanel";
 
 const viewer = createStoryAuthor(55, {
@@ -38,9 +39,20 @@ const blob = {
 
 type Props = {
   state: ComposeState;
+  interactive?: boolean;
   /** 画像のアップロード先。空にすると、画像のボタンが使えない見た目になる。 */
   servers: string[];
 };
+
+const Interactive = () => (
+  <ComposeMediator
+    send={() => Promise.resolve()}
+    failure="投稿できませんでした"
+    onSent={() => {}}
+  >
+    {(state) => <ComposePanel state={state} />}
+  </ComposeMediator>
+);
 
 const meta = {
   title: "操作/投稿パネル",
@@ -65,7 +77,11 @@ const meta = {
               title="投稿する"
               icon="i-material-symbols:edit-square-outline-rounded"
             >
-              <ComposePanel state={props.state} />
+              {props.interactive ? (
+                <Interactive />
+              ) : (
+                <ComposePanel state={props.state} />
+              )}
             </SidePanel>
           </div>
         </UploaderProvider>
@@ -83,6 +99,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 空: Story = {};
+
+/** 絵文字を選ぶと、カーソル位置へ Unicode または :shortcode: が入る。 */
+export const 絵文字を挿入する: Story = { args: { interactive: true } };
 
 export const 書きかけ: Story = {
   args: {

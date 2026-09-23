@@ -88,6 +88,8 @@ const Parts = (props: Args) => {
             disabled={
               props.content.trim().length === 0 && attachments().length === 0
             }
+            onEmojiSelect={() => {}}
+            emojiField={() => undefined}
           />
         </div>
       </Mediates>

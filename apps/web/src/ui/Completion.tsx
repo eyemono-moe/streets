@@ -20,6 +20,7 @@ import {
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { Portal } from "solid-js/web";
 import { type CaretOffset, caretOffset, caretRect } from "./caret";
+import { insertText } from "./insert-text";
 
 type Field = HTMLInputElement | HTMLTextAreaElement;
 
@@ -132,13 +133,8 @@ const Completion = (props: {
     });
     const tail = el.value.length - match.end;
     const inserted = result.text.slice(match.start, result.text.length - tail);
-    el.focus();
-    el.setSelectionRange(match.start, match.end);
-    // 取り消しで戻せるよう、ブラウザの入力として入れる。使えないブラウザでは直に書き換える。
-    if (!document.execCommand("insertText", false, inserted)) {
-      el.setRangeText(inserted, match.start, match.end, "end");
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    insertText(el, inserted, match);
+    // 後ろに空白が続いていたときは、その空白の後ろへ送る。
     el.setSelectionRange(result.caret, result.caret);
     apply({ type: "completion/chosen" });
   };
