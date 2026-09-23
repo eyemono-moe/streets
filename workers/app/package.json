@@ -10,5 +10,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@hono/valibot-validator": "0.6.1",
+    "hono": "4.13.8",
+    "valibot": "1.4.1"
+  }
 }
