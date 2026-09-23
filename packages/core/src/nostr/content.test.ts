@@ -335,6 +335,15 @@ describe("parseContent: ハッシュタグ", () => {
     ] satisfies ContentToken[]);
   });
 
+  it("日本語・カタカナ・数字が続くハッシュタグを丸ごと読む", () => {
+    const raw = "#東京Nostr散歩2026";
+    expect(parseContent(`参加します ${raw}！`, [["t", raw.slice(1)]])).toEqual([
+      { type: "text", text: "参加します " },
+      { type: "hashtag", tag: "東京nostr散歩2026", raw },
+      { type: "text", text: "！" },
+    ] satisfies ContentToken[]);
+  });
+
   it("tag は小文字化され、raw に元の表記が残る", () => {
     // 捕まえる変異: tag を小文字化しない (カラムの #t フィルタは小文字で引くので、タップしても何も出なくなる)
     const content = "#HelloWorld です";

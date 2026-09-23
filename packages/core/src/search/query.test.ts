@@ -105,4 +105,11 @@ describe("searchFilter", () => {
       "#t": ["nostr"],
     });
   });
+
+  it("日本語のハッシュタグを #t で探せる", () => {
+    expect(searchFilter(parseSearchQuery("#東京Nostr散歩2026"))).toEqual({
+      kinds: [1],
+      "#t": ["東京nostr散歩2026"],
+    });
+  });
 });

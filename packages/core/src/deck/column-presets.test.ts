@@ -117,6 +117,10 @@ describe("buildColumn", () => {
       kind: "search",
       query: "#天気",
     });
+    expect(buildHashtagColumn("#東京Nostr散歩2026")?.source).toEqual({
+      kind: "search",
+      query: "#東京nostr散歩2026",
+    });
     expect(buildHashtagColumn("#")).toBeUndefined();
   });
 

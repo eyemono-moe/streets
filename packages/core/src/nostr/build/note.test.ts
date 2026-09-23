@@ -208,6 +208,12 @@ describe("buildNote", () => {
     ]);
   });
 
+  it("日本語の長いハッシュタグも t タグにする", () => {
+    expect(buildNote("#東京Nostr散歩2026 に参加").tags).toEqual([
+      ["t", "東京nostr散歩2026"],
+    ]);
+  });
+
   it("同じハッシュタグは 1 回だけ", () => {
     expect(buildNote("#nostr #nostr").tags).toEqual([["t", "nostr"]]);
   });
