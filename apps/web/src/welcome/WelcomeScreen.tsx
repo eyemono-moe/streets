@@ -79,8 +79,9 @@ const WelcomeScreen: Component<{ session: Session; readLayer: ReadLayer }> = (
           feedTitle={COLUMN.title}
           feed={<WelcomeFeed readLayer={props.readLayer} />}
         />
+        {/* リリースノートの中の人の名前を読むので、読み取り層の中に置く。 */}
+        <AboutDialog open={aboutOpen()} wide={wide()} />
       </ReadLayerProvider>
-      <AboutDialog open={aboutOpen()} wide={wide()} />
     </Mediates>
   );
 };

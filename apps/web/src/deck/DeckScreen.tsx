@@ -15,6 +15,7 @@ import {
 } from "@streets/core/deck/deck-ui";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -771,6 +772,10 @@ const DeckScreen: Component<{
                             open={ui.aboutOpen}
                             wide={isWide()}
                             tour
+                            onOpenUser={(pubkey) => {
+                              handle({ type: "deck/close-about" });
+                              navigate(`/${encodeBech32("npub", pubkey)}`);
+                            }}
                           />
                           <DeckTour tour={deckTour.tour} />
                           <SettingsDialog
