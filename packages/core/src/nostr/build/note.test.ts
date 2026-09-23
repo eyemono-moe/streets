@@ -130,6 +130,15 @@ describe("buildReply", () => {
     expect(draft.kind).toBe(1);
     expect(draft.content).toBe("本文");
   });
+
+  it("返信本文のハッシュタグを重複なく t タグにし、親の t タグは引き継がない", () => {
+    const parent = evt({ tags: [["t", "parent"]] });
+    const draft = buildReply(parent, "#Nostr と #東京、もう一度 #nostr");
+    expect(draft.tags.filter((tag) => tag[0] === "t")).toEqual([
+      ["t", "nostr"],
+      ["t", "東京"],
+    ]);
+  });
 });
 
 describe("buildQuote", () => {
@@ -178,6 +187,15 @@ describe("buildQuote", () => {
     const uri = `nostr:${encodeBech32("note", "1".repeat(64))}`;
     const draft = buildQuote(target, `${uri} これ面白い`);
     expect(draft.content).toBe(`${uri} これ面白い`);
+  });
+
+  it("引用本文のハッシュタグを重複なく t タグにし、引用先の t タグは引き継がない", () => {
+    const target = evt({ tags: [["t", "target"]] });
+    const draft = buildQuote(target, "#Nostr #東京 #nostr");
+    expect(draft.tags.filter((tag) => tag[0] === "t")).toEqual([
+      ["t", "nostr"],
+      ["t", "東京"],
+    ]);
   });
 });
 
