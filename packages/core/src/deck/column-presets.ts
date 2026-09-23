@@ -51,18 +51,6 @@ export const buildActivityColumn = (target: string): ColumnDef => ({
   source: { kind: "activity", target },
 });
 
-/** 本文・自己紹介から開く検索用の段。同じタグなら同じ id にする。 */
-export const buildHashtagColumn = (input: string): ColumnDef | undefined => {
-  // NIP-24 の `t` は小文字。画面に出す元の綴りはトークン側へ残す。
-  const tag = input.trim().replace(/^#+/, "").toLowerCase();
-  if (tag.length === 0) return undefined;
-  return {
-    id: `hashtag:${tag}`,
-    title: `#${tag}`,
-    source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
-  };
-};
-
 /** 選んだリレーだけから公開ノートを読むカラムを作る。 */
 export const buildRelayColumn = (
   relays: readonly RelayUrl[],
@@ -110,8 +98,14 @@ export const buildColumn = (
     }
 
     case "hashtag": {
-      const column = buildHashtagColumn(input);
-      return column ? { ...column, id } : undefined;
+      // 追加プリセットは従来どおり通常リレーへ直接問い合わせる。
+      const tag = input.trim().replace(/^#+/, "").toLowerCase();
+      if (tag.length === 0) return undefined;
+      return {
+        id,
+        title: `#${tag}`,
+        source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
+      };
     }
 
     case "search": {
@@ -130,4 +124,11 @@ export const buildColumn = (
       // `resolveSource` が解決のたびに最新の値で組み立てる。
       return { id, title: "通知", source: { kind: "notifications" } };
   }
+};
+
+/** 本文・自己紹介のハッシュタグから、編集可能な通常の検索カラムを開く。 */
+export const buildHashtagColumn = (input: string): ColumnDef | undefined => {
+  // NIP-24 の `t` は小文字。画面に出す元の綴りはトークン側へ残す。
+  const tag = input.trim().replace(/^#+/, "").toLowerCase();
+  return tag.length > 0 ? buildColumn("search", `#${tag}`) : undefined;
 };

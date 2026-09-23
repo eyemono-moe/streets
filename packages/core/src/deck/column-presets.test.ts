@@ -106,17 +106,16 @@ describe("buildColumn", () => {
     expect(buildColumn("hashtag", "#")).toBeUndefined();
   });
 
-  it("本文から開くハッシュタグは正規化したタグで同じ段にし、#t で探す", () => {
+  it("本文から開くハッシュタグは通常の検索カラムに条件を入れる", () => {
     const column = buildHashtagColumn("#Nostr");
-    expect(column).toEqual({
-      id: "hashtag:nostr",
+    expect(column).toMatchObject({
       title: "#nostr",
-      source: { kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] },
+      source: { kind: "search", query: "#nostr" },
     });
-    expect(buildHashtagColumn("nostr")?.id).toBe(column?.id);
+    expect(buildHashtagColumn("nostr")?.id).not.toBe(column?.id);
     expect(buildHashtagColumn("#天気")?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1], "#t": ["天気"] }],
+      kind: "search",
+      query: "#天気",
     });
     expect(buildHashtagColumn("#")).toBeUndefined();
   });
