@@ -1,3 +1,4 @@
+import type { LinkCardMode } from "@streets/core/deck/deck";
 import { addBookmark } from "@streets/core/nostr/build/bookmark";
 import {
   type ReactionInput,
@@ -5,14 +6,17 @@ import {
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import type { Component } from "solid-js";
+import { type Component, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
 import clipUrl from "../storybook/media-clip.mp4";
+import landscapeUrl from "../storybook/media-landscape.svg";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
+import SegmentedControl from "../ui/SegmentedControl";
 import Event, { type EventSize } from "./Event";
+import { LinkCardModeProvider } from "./link-card";
 
 const alice = createStoryAuthor(11, {
   name: "alice",
@@ -101,6 +105,24 @@ const reactionToMissing = bob.event(
   buildReaction(missingTarget, { type: "like" }),
 );
 
+const ARTICLE = "https://example.com/articles/streets";
+const MISSING = "https://example.com/no-ogp";
+const withLinks = alice.note(
+  `読んだ記事 ${ARTICLE} と、題名の取れないページ ${MISSING}`,
+);
+const linkScene = {
+  linkCards: {
+    [ARTICLE]: {
+      url: ARTICLE,
+      title: "カラムで Nostr を読む",
+      description: "Streets の使い方を、カラムの足し方から順に紹介します。",
+      image: landscapeUrl,
+      siteName: "Example Blog",
+    },
+    [MISSING]: null,
+  },
+};
+
 type Props = {
   event: NostrEvent;
   scene: EventScene;
@@ -108,18 +130,21 @@ type Props = {
   /** 返信のとき、返信先を上に 1 件出す（タイムラインのカラムと同じ）。 */
   replyContext?: boolean;
   expandMedia?: boolean;
+  linkCards?: LinkCardMode;
 };
 
 const EventStory: Component<Props> = (props) => (
   <EventSceneProvider scene={props.scene}>
     {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
     <div class="w-[360px]">
-      <Event
-        event={props.event}
-        size={props.size}
-        replyContext={props.replyContext}
-        expandMedia={props.expandMedia}
-      />
+      <LinkCardModeProvider value={() => props.linkCards ?? "compact"}>
+        <Event
+          event={props.event}
+          size={props.size}
+          replyContext={props.replyContext}
+          expandMedia={props.expandMedia}
+        />
+      </LinkCardModeProvider>
     </div>
   </EventSceneProvider>
 );
@@ -266,5 +291,65 @@ export const 描けないイベント: Story = {
   args: {
     event: { ...unknown, kind: 1, tags: null } as unknown as NostrEvent,
     scene: scene(),
+  },
+};
+
+export const リンクのカード_小さく: Story = {
+  args: { event: withLinks, scene: { ...scene(withLinks), ...linkScene } },
+};
+
+export const リンクのカード_大きく: Story = {
+  args: {
+    event: withLinks,
+    scene: { ...scene(withLinks), ...linkScene },
+    linkCards: "large",
+  },
+};
+
+export const リンクのカード_コンパクト: Story = {
+  args: {
+    event: withLinks,
+    scene: { ...scene(withLinks), ...linkScene },
+    size: "compact",
+  },
+};
+
+export const リンクのカード_出さない: Story = {
+  args: {
+    event: withLinks,
+    scene: { ...scene(withLinks), ...linkScene },
+    linkCards: "off",
+  },
+};
+
+/** カラムの設定を変えたときに、描いてあるカードがその場で変わることを確かめる。 */
+export const リンクのカード_設定を切り替える: Story = {
+  args: { event: withLinks, scene: { ...scene(withLinks), ...linkScene } },
+  render: (props) => {
+    const [mode, setMode] = createSignal<LinkCardMode>("compact");
+    return (
+      <div class="flex flex-col gap-3">
+        <div class="w-[360px]">
+          <SegmentedControl
+            label="リンクのカード"
+            options={[
+              { value: "off", label: "出さない" },
+              { value: "compact", label: "小さく" },
+              { value: "large", label: "大きく" },
+            ]}
+            value={mode()}
+            onChange={setMode}
+            block
+          />
+        </div>
+        <EventSceneProvider scene={props.scene}>
+          <div class="w-[360px]">
+            <LinkCardModeProvider value={mode}>
+              <Event event={props.event} size={props.size} />
+            </LinkCardModeProvider>
+          </div>
+        </EventSceneProvider>
+      </div>
+    );
   },
 };

@@ -1,4 +1,6 @@
+import { columnLinkCards } from "@streets/core/deck/deck";
 import { type Component, Match, Switch } from "solid-js";
+import { LinkCardModeProvider } from "../note/link-card";
 import ActivityColumn from "./ActivityColumn";
 import FeedColumn from "./FeedColumn";
 import PeopleColumn from "./PeopleColumn";
@@ -26,31 +28,33 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
   };
 
   return (
-    <Switch fallback={<FeedColumn {...props} />}>
-      <Match when={threadFocus()}>
-        {(focus) => (
-          <ThreadColumn
-            column={props.column}
-            focus={focus()}
-            readLayer={props.readLayer}
-            expandMedia={props.column.expandMedia !== false}
-            scrollerRef={props.scrollerRef}
-          />
-        )}
-      </Match>
-      <Match when={activityTarget()}>
-        {(target) => <ActivityColumn {...props} target={target()} />}
-      </Match>
-      <Match when={profilePubkey()}>
-        {(pubkey) => <UserColumn {...props} pubkey={pubkey()} />}
-      </Match>
-      <Match when={props.column.source.kind === "followees-list"}>
-        <PeopleColumn {...props} kind="followees-list" />
-      </Match>
-      <Match when={props.column.source.kind === "followers-list"}>
-        <PeopleColumn {...props} kind="followers-list" />
-      </Match>
-    </Switch>
+    <LinkCardModeProvider value={() => columnLinkCards(props.column)}>
+      <Switch fallback={<FeedColumn {...props} />}>
+        <Match when={threadFocus()}>
+          {(focus) => (
+            <ThreadColumn
+              column={props.column}
+              focus={focus()}
+              readLayer={props.readLayer}
+              expandMedia={props.column.expandMedia !== false}
+              scrollerRef={props.scrollerRef}
+            />
+          )}
+        </Match>
+        <Match when={activityTarget()}>
+          {(target) => <ActivityColumn {...props} target={target()} />}
+        </Match>
+        <Match when={profilePubkey()}>
+          {(pubkey) => <UserColumn {...props} pubkey={pubkey()} />}
+        </Match>
+        <Match when={props.column.source.kind === "followees-list"}>
+          <PeopleColumn {...props} kind="followees-list" />
+        </Match>
+        <Match when={props.column.source.kind === "followers-list"}>
+          <PeopleColumn {...props} kind="followers-list" />
+        </Match>
+      </Switch>
+    </LinkCardModeProvider>
   );
 };
 

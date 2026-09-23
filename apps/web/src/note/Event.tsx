@@ -33,6 +33,7 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
+import LinkCards from "./LinkCards";
 import NoteMediaView from "./NoteMedia";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
@@ -332,6 +333,7 @@ const Note: Component<ContentProps> = (props) => {
         )}
       </For>
       {props.media}
+      <LinkCards urls={layout().links} size={props.size} />
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
       <Show when={props.size === "normal"}>

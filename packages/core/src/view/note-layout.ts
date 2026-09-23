@@ -23,9 +23,17 @@ export type NoteLayout = {
   /** 本文として流す部分。前後の空白は落としてある。 */
   text: ContentToken[];
   media: NoteMedia[];
+  /**
+   * カードにするリンク（画像・動画でない http(s) の URL）。本文にもリンクとして
+   * 残す。同じ URL は 1 回、先頭から `MAX_LINK_CARDS` 件まで。
+   */
+  links: string[];
   /** 本文中の `nostr:` 参照とタグにしか無い `q` の和。同じ id は最初の 1 回だけ。 */
   quotes: EventRef[];
 };
+
+/** 1 件の投稿に並べるカードの上限。URL を並べただけの投稿で縦に伸びすぎない。 */
+export const MAX_LINK_CARDS = 3;
 
 const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
   const result = [...tokens];
@@ -52,6 +60,7 @@ export const layoutNote = (
 ): NoteLayout => {
   const text: ContentToken[] = [];
   const media: NoteLayout["media"] = [];
+  const links: string[] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
   const metadata = inlineMediaMetadata(event.tags);
@@ -79,6 +88,10 @@ export const layoutNote = (
           ...(details?.blurhash ? { blurhash: details.blurhash } : {}),
         });
         continue;
+      }
+      // カードは本文の下に足すだけで、リンクは本文に残す（どこを指していたか読めるように）。
+      if (links.length < MAX_LINK_CARDS && !links.includes(token.url)) {
+        links.push(token.url);
       }
     }
     if (
@@ -109,5 +122,5 @@ export const layoutNote = (
   }
 
   if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
-  return { text: trimEdges(text), media, quotes };
+  return { text: trimEdges(text), media, links, quotes };
 };
