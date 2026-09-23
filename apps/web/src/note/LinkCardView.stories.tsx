@@ -75,6 +75,25 @@ export const 区切りの無い英数字: Story = {
     },
   },
 };
+export const 小さく_文字が画像より高い: Story = {
+  args: {
+    card: {
+      ...card,
+      title: "題名が 2 行にわたる長さのとき、画像の下に隙間ができないこと",
+      description: "説明も入れて、文字の側を画像より高くする。",
+    },
+  },
+};
+export const 小さく_文字が画像より高い_表示密度コンパクト: Story = {
+  args: {
+    card: {
+      ...card,
+      title: "題名が 2 行にわたる長さのとき、画像の下に隙間ができないこと",
+      description: "説明も入れて、文字の側を画像より高くする。",
+    },
+    size: "compact",
+  },
+};
 export const 取得中: Story = { args: { card: undefined } };
 export const 取得中_大きく: Story = {
   args: { card: undefined, mode: "large" },

@@ -35,7 +35,7 @@ const LinkCards: Component<{ urls: readonly string[]; size: EventSize }> = (
 ) => {
   const mode = useLinkCardMode();
   return (
-    <Show when={mode !== "off" && mode}>
+    <Show when={mode() !== "off" && mode()}>
       {(shown) => (
         <For each={props.urls}>
           {(url) => (
