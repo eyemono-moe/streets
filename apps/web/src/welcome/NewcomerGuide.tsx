@@ -15,7 +15,6 @@ const PRIMAL_ANDROID =
   "https://play.google.com/store/apps/details?id=net.primal.android";
 const PRIMAL_IOS = "https://apps.apple.com/app/primal/id1673134518";
 const AMBER = "https://github.com/greenart7c3/Amber/releases";
-const AEGIS = "https://testflight.apple.com/join/DUzVMDMK";
 const NOS2X_CHROME =
   "https://chromewebstore.google.com/detail/nos2x/kpgefcfmnafjgpblomihpgmejjdanjjp";
 const NOS2X_FIREFOX = "https://addons.mozilla.org/firefox/addon/nos2x-fox/";
