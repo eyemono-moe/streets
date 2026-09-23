@@ -12,6 +12,7 @@ lerna-debug.log*
 
 node_modules
 dist
+storybook-static
 dist-ssr
 *.local
 
@@ -32,3 +33,22 @@ dist-ssr
 
 # dev
 data
+
+# Playwright
+playwright-report
+test-results
+
+# Stryker (mutation testing)
+.stryker-tmp
+reports
+.worktrees/
+
+# 日本語の見直しなど、作業用の中間データ
+tmp
+
+# 別セッションの作業用 worktree
+.claude/worktrees
+
+# wrangler dev の作業用フォルダ
+.wrangler/
+tools/screenshot/.out/

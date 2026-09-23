@@ -35,6 +35,10 @@ pnpm install
 pnpm run dev # development
 
 pnpm run build # production
+
+pnpm storybook # v1 UI カタログ（ローカルリレー不要）
+
+pnpm verify # 静的検査・型検査・単体テスト・本体と Storybook のビルド
 ```
 
 ### setup local relay and file server
@@ -46,7 +50,40 @@ docker compose up -d
 This will start the following services:
 
 - [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay): `ws://localhost:8080`
-- [nostrcheck](https://github.com/quentintaranpino/nostrcheck-server): `http://localhost:3000`
+- [blossom-server](https://github.com/hzrd149/blossom-server): `http://localhost:8090`（画像のアップロード先 / NIP-B7）
+
+画像のアップロード先だけを立てるなら `docker compose up -d blossom`。アプリ側は
+設定 →「画像」で `http://localhost:8090` を足すと、ここへアップロードするようになります
+（アップロードしたものは `GET http://localhost:8090/list/<自分の pubkey>` で一覧できます）。
+
+### スクリーンショット用の環境
+
+宣伝用のスクリーンショットを撮るときは、架空の人たちの投稿を入れたリレーを立てられます
+（[nak](https://github.com/fiatjaf/nak) が要ります）。
+
+```bash
+pnpm screenshot many-columns --time "2026-09-23T19:00:00+09:00"
+```
+
+シナリオの一覧と書き足し方は [tools/screenshot/README.md](./tools/screenshot/README.md) にあります。
+
+### Sentry（壊れたときの報告）
+
+`VITE_SENTRY_DSN` を渡してビルドすると、壊れたときに Sentry へ送ります。渡さなければ何も送らず、SDK も配りません（開発中も送りません）。
+
+```bash
+VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview pnpm build
+```
+
+送る前に、鍵・公開鍵・イベント id を落とします（`packages/core/src/telemetry/scrub.ts`）。IP アドレスや Cookie は送りません。
+
+ソースマップを送ると、本番のスタックトレースが元のコードで読めます。次の 3 つが揃ったビルドでだけ送ります（`VITE_` を付けないこと。付けると画面側へ混ざります）。
+
+```bash
+SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=streets pnpm build
+```
+
+送ったマップは配らずに消すので、公開されるものは変わりません。送れなかったときは警告を出して、ビルドは続けます。
 
 ### Contact
 

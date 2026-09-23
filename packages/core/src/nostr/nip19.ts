@@ -1,0 +1,264 @@
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import { bech32 } from "@scure/base";
+
+/** NIP-19 の bech32 は 5000 文字まで許容する（既定の 90 では naddr が入らない） */
+const LIMIT = 5000;
+
+export const encodeBech32 = (prefix: string, dataHex: string): string =>
+  bech32.encode(prefix, bech32.toWords(hexToBytes(dataHex)), LIMIT);
+
+/** TLV デコードはバイト列を要る。`decodeBech32` は hex 化して公開しているので
+ * ここだけ bytes を返す形を内部に持つ。 */
+const decodeBech32Bytes = (
+  value: string,
+): { prefix: string; bytes: Uint8Array } => {
+  const { prefix, words } = bech32.decode(value, LIMIT);
+  return { prefix, bytes: bech32.fromWords(words) };
+};
+
+export const decodeBech32 = (
+  value: string,
+): { prefix: string; dataHex: string } => {
+  const { prefix, bytes } = decodeBech32Bytes(value);
+  return { prefix, dataHex: bytesToHex(bytes) };
+};
+
+/** 小文字 hex のみ。NIP-01 の pubkey は 32 バイトの hex 表現である。 */
+const HEX_PUBKEY = /^[0-9a-f]{64}$/;
+
+/**
+ * 入力文字列から pubkey (hex) を取り出す。npub と hex を受け、例外を投げない
+ * （フォーム入力用で書き忘れが画面破壊になる）。`nsec` は貼り間違いで方針を破らせないため拒否する。
+ */
+export const decodeNpub = (input: string): string | undefined => {
+  const trimmed = input.trim();
+  if (HEX_PUBKEY.test(trimmed)) return trimmed;
+
+  try {
+    const { prefix, dataHex } = decodeBech32(trimmed);
+    return prefix === "npub" && HEX_PUBKEY.test(dataHex) ? dataHex : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export type Nip19Ref =
+  | { kind: "npub"; pubkey: string }
+  | { kind: "note"; id: string }
+  | { kind: "nprofile"; pubkey: string; relays: string[] }
+  | {
+      kind: "nevent";
+      id: string;
+      relays: string[];
+      author?: string;
+      eventKind?: number;
+    }
+  | {
+      kind: "naddr";
+      identifier: string;
+      pubkey: string;
+      eventKind: number;
+      relays: string[];
+    };
+
+type Tlv = { type: number; value: Uint8Array };
+
+/** `L` が残りを超えていたら中断して `undefined`。truncate された入力で範囲外
+ * を読まない。 */
+const readTlv = (bytes: Uint8Array): Tlv[] | undefined => {
+  const out: Tlv[] = [];
+  let i = 0;
+  while (i + 2 <= bytes.length) {
+    const type = bytes[i];
+    const length = bytes[i + 1];
+    const start = i + 2;
+    const end = start + length;
+    if (type === undefined || length === undefined || end > bytes.length) {
+      return undefined;
+    }
+    out.push({ type, value: bytes.subarray(start, end) });
+    i = end;
+  }
+  return i === bytes.length ? out : undefined;
+};
+
+const decodeAscii = (bytes: Uint8Array): string =>
+  new TextDecoder().decode(bytes);
+
+/** NIP-19 の kind (TLV type 3) はビッグエンディアンの 32 ビット符号なし整数。
+ * リトルエンディアンで読むと kind 1 が 16777216 になる。 */
+const readEventKind = (bytes: Uint8Array): number =>
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(
+    0,
+    false,
+  );
+
+const decodeNprofile = (bytes: Uint8Array): Nip19Ref | undefined => {
+  const tlv = readTlv(bytes);
+  if (!tlv) return undefined;
+
+  let pubkey: string | undefined;
+  const relays: string[] = [];
+  for (const { type, value } of tlv) {
+    // 未知の型は NIP-19 が明示的に無視を求めている —— ここで undefined を返すと将来の NIP 追加でそのエンティティ全体が読めなくなる
+    if (type === 0 && pubkey === undefined) pubkey = bytesToHex(value);
+    else if (type === 1) relays.push(decodeAscii(value));
+  }
+  if (pubkey === undefined) return undefined;
+  return { kind: "nprofile", pubkey, relays };
+};
+
+const decodeNevent = (bytes: Uint8Array): Nip19Ref | undefined => {
+  const tlv = readTlv(bytes);
+  if (!tlv) return undefined;
+
+  let id: string | undefined;
+  let author: string | undefined;
+  let eventKind: number | undefined;
+  const relays: string[] = [];
+  for (const { type, value } of tlv) {
+    if (type === 0 && id === undefined) id = bytesToHex(value);
+    else if (type === 1) relays.push(decodeAscii(value));
+    else if (type === 2 && author === undefined) author = bytesToHex(value);
+    else if (type === 3 && eventKind === undefined) {
+      eventKind = readEventKind(value);
+    }
+  }
+  if (id === undefined) return undefined;
+  return { kind: "nevent", id, relays, author, eventKind };
+};
+
+const decodeNaddr = (bytes: Uint8Array): Nip19Ref | undefined => {
+  const tlv = readTlv(bytes);
+  if (!tlv) return undefined;
+
+  let identifier: string | undefined;
+  let pubkey: string | undefined;
+  let eventKind: number | undefined;
+  const relays: string[] = [];
+  for (const { type, value } of tlv) {
+    // 空文字は d タグ無しの置換可能イベントの正しい値で欠損ではない —— `identifier === undefined` でのみ「無い」を表す
+    if (type === 0 && identifier === undefined) identifier = decodeAscii(value);
+    else if (type === 1) relays.push(decodeAscii(value));
+    else if (type === 2 && pubkey === undefined) pubkey = bytesToHex(value);
+    else if (type === 3 && eventKind === undefined) {
+      eventKind = readEventKind(value);
+    }
+  }
+  if (
+    identifier === undefined ||
+    pubkey === undefined ||
+    eventKind === undefined
+  ) {
+    return undefined;
+  }
+  return { kind: "naddr", identifier, pubkey, eventKind, relays };
+};
+
+/**
+ * `nostr:` の本文参照を構造化データへ。例外を投げない（1 件の壊れた参照で
+ * カラム全体を落とせない）。`nsec`/`nrelay` は常に `undefined`（deprecated かつ秘密鍵非保持のため）。
+ */
+export const decodeNip19 = (value: string): Nip19Ref | undefined => {
+  try {
+    const { prefix, bytes } = decodeBech32Bytes(value);
+    switch (prefix) {
+      case "npub":
+        return { kind: "npub", pubkey: bytesToHex(bytes) };
+      case "note":
+        return { kind: "note", id: bytesToHex(bytes) };
+      case "nprofile":
+        return decodeNprofile(bytes);
+      case "nevent":
+        return decodeNevent(bytes);
+      case "naddr":
+        return decodeNaddr(bytes);
+      default:
+        // nsec と nrelay を含む、上記以外すべて。
+        return undefined;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * TLV の 1 項目。長さは 1 バイトなので 255 バイトを超える値は入らない
+ * （入れると長さが回り込み、読む側が別のものを読む）。
+ */
+const tlvEntry = (type: number, value: Uint8Array): Uint8Array | undefined => {
+  if (value.length > 255) return undefined;
+  const out = new Uint8Array(value.length + 2);
+  out[0] = type;
+  out[1] = value.length;
+  out.set(value, 2);
+  return out;
+};
+
+const eventKindBytes = (kind: number): Uint8Array => {
+  const out = new Uint8Array(4);
+  new DataView(out.buffer).setUint32(0, kind, false);
+  return out;
+};
+
+/** TLV の項目を並べて bech32 にする。入らない項目が 1 つでもあれば `undefined`。 */
+const encodeTlv = (
+  prefix: string,
+  parts: readonly (Uint8Array | undefined)[],
+): string | undefined => {
+  const entries: Uint8Array[] = [];
+  for (const part of parts) {
+    if (part === undefined) return undefined;
+    entries.push(part);
+  }
+  const bytes = new Uint8Array(
+    entries.reduce((total, part) => total + part.length, 0),
+  );
+  let offset = 0;
+  for (const part of entries) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bech32.encode(prefix, bech32.toWords(bytes), LIMIT);
+};
+
+/**
+ * `naddr`（置換可能イベントの住所）を作る。共有したり、他クライアントへ
+ * 貼ったりするための文字列。入らない値のときは `undefined` —— 例外にすると、
+ * ただの表示のために画面ごと落ちる。
+ */
+export const encodeNaddr = (ref: {
+  identifier: string;
+  pubkey: string;
+  eventKind: number;
+  relays?: readonly string[];
+}): string | undefined => {
+  try {
+    const encoder = new TextEncoder();
+    return encodeTlv("naddr", [
+      tlvEntry(0, encoder.encode(ref.identifier)),
+      ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
+      tlvEntry(2, hexToBytes(ref.pubkey)),
+      tlvEntry(3, eventKindBytes(ref.eventKind)),
+    ]);
+  } catch {
+    // pubkey が hex でないなど、渡すものが間違っているとき。
+    return undefined;
+  }
+};
+
+/**
+ * `nprofile`（人とその人のリレー）を作る。本文で人を指すときに使う —— 読む側が
+ * 添えたリレーからプロフィールを引ける（NIP-27 の例もこの形）。
+ */
+export const encodeNprofile = (ref: {
+  pubkey: string;
+  relays?: readonly string[];
+}): string | undefined => {
+  if (!HEX_PUBKEY.test(ref.pubkey)) return undefined;
+  const encoder = new TextEncoder();
+  return encodeTlv("nprofile", [
+    tlvEntry(0, hexToBytes(ref.pubkey)),
+    ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
+  ]);
+};

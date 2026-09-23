@@ -1,0 +1,35 @@
+# ローカルで画像のアップロード先（Blossom）を試すための設定。本番の設定ではない。
+# hzrd149/blossom-server の config.yml。項目は src/config/schema.ts を参照。
+
+# 空にすると、受けた要求の Host から URL を組み立てる（127.0.0.1:8090 でも
+# localhost:8090 でも、そのまま使える URL が返る）。
+publicDomain: ""
+port: 3000
+
+database:
+  path: /app/data/sqlite.db
+
+storage:
+  backend: local
+  local:
+    dir: /app/data/blobs
+  # 種類ごとの保存期間。ここに無い種類は 415 で断られる（許可一覧を兼ねる）。
+  rules:
+    - type: "image/*"
+      expiration: "30 days"
+    - type: "video/*"
+      expiration: "30 days"
+
+upload:
+  enabled: true
+  # 本物と同じく認可イベント（kind:24242）を求める。ここを false にすると、
+  # 署名の不具合に気付けなくなる。
+  requireAuth: true
+  maxSize: 104857600
+
+# アップロードしたものを一覧できると、消えたか残ったかを確かめやすい。
+list:
+  enabled: true
+
+dashboard:
+  enabled: false
