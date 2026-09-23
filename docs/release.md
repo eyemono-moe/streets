@@ -4,7 +4,7 @@
 
 ## 流れ
 
-1. **リリースの準備**：リリースノート `apps/web/src/releases/<タグ>.md` を足す PR をマージする
+1. **リリースの準備**：手元の Claude Code で `/release-notes` を実行する。前のタグから入った PR を読んで版の番号を提案し、決めた番号でリリースノート `apps/web/src/releases/<タグ>.md` の下書きを書いて PR を出す。人がその PR で直してマージする
 2. **タグを打つ**：main のそのコミットに `v1.2.3` のタグを打って push する
 3. **プレビュー**（`.github/workflows/release.yaml` の Preview）：ビルドして Worker の版を上げる。本番には出さない。版のプレビュー URL がジョブの要約に出る
 4. **承認**：プレビューで確かめ、Production のジョブを承認する（`production` 環境の必須レビュアー）
