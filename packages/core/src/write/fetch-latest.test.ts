@@ -128,6 +128,57 @@ describe("fetchLatest", () => {
     expect(connections.has("wss://fallback/")).toBe(false);
   });
 
+  it("先に答えたリレーが古い版でも、後から答えたリレーの新しい版を採る", async () => {
+    // 捕まえる変異: 最初の EOSE で打ち切る（一部のリレーだけが古い版を持つとき、
+    // その古い版にフォローを足して送り、ほかの端末で足したフォローを消す）。
+    const store = new EventStore();
+    const relayList = sign(1, {
+      ...base,
+      kind: 10002,
+      tags: [
+        ["r", "wss://stale/", "write"],
+        ["r", "wss://fresh/", "write"],
+      ],
+    });
+    store.put(relayList, "wss://indexer/");
+    const author = relayList.pubkey;
+
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const promise = fetchLatest(
+      {
+        pool: poolWithFakes(connections),
+        routing: new RoutingTable(store),
+        store,
+        fallbackRelays: [],
+      },
+      3,
+      undefined,
+      author,
+    );
+    await vi.waitFor(() => {
+      expect(connections.get("wss://stale/")?.subscriptions).toHaveLength(1);
+      expect(connections.get("wss://fresh/")?.subscriptions).toHaveLength(1);
+    });
+
+    const older = sign(1, { ...base, kind: 3, tags: [["p", "a".repeat(64)]] });
+    const newer = sign(1, {
+      ...base,
+      created_at: base.created_at + 60,
+      kind: 3,
+      tags: [
+        ["p", "a".repeat(64)],
+        ["p", "b".repeat(64)],
+      ],
+    });
+    connections.get("wss://stale/")?.emitEvent(0, older);
+    connections.get("wss://stale/")?.emitEose(0);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    connections.get("wss://fresh/")?.emitEvent(0, newer);
+    connections.get("wss://fresh/")?.emitEose(0);
+
+    expect((await promise)?.id).toBe(newer.id);
+  });
+
   // 捕まえる変異: undefined を返して呼び出し側に続行させる。
   // 「取れなかった」を「無い」と取り違えると、既存のフォローリストを
   // 1 件だけのリストで丸ごと上書きする。
