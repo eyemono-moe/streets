@@ -20,6 +20,7 @@ import {
   ComposeAttachments,
   ComposeTools,
   countCharacters,
+  useDropAndPaste,
 } from "./compose-parts";
 
 const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
@@ -27,6 +28,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
 ) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
+  const dropAndPaste = useDropAndPaste();
   // 返信先・引用元の人を、人の候補の先頭に出す。
   const sources = useNoteSources(() => [
     props.target.pubkey,
@@ -88,6 +90,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                         content: event.currentTarget.value,
                       })
                     }
+                    {...dropAndPaste}
                     onKeyDown={(event) => {
                       if (
                         event.key === "Enter" &&
