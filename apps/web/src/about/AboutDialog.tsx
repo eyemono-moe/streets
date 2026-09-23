@@ -81,14 +81,7 @@ const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
         {(note) => (
           <section class="flex flex-col gap-2">
             <h3 class="flex items-baseline gap-2">
-              <a
-                href={`${REPOSITORY}/releases/tag/${note.version}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="c-primary font-700 text-h3 hover:underline"
-              >
-                {note.version}
-              </a>
+              <span class="c-primary font-700 text-h3">{note.version}</span>
               <Show when={note.date}>
                 {(date) => (
                   <time class="c-secondary text-caption" datetime={date()}>
@@ -102,6 +95,19 @@ const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
               // 本文はリポジトリのファイル（PR でレビューしたもの）をビルドで HTML にしたもの。
               innerHTML={note.html}
             />
+            {/* GitHub の Release には、この本文に加えて入った PR の一覧と前の版との比較がある。 */}
+            <a
+              href={`${REPOSITORY}/releases/tag/${note.version}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex w-fit items-center gap-0.5 text-caption text-link"
+            >
+              GitHub で見る
+              <span
+                class="i-material-symbols:open-in-new-rounded size-3.5"
+                aria-hidden="true"
+              />
+            </a>
           </section>
         )}
       </For>
