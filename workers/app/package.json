@@ -1,14 +1,16 @@
 {
   "devDependencies": {
-    "@cloudflare/workers-types": "5.20260920.1",
     "typescript": "5.7.3",
-    "vitest": "3.0.5"
+    "vitest": "3.0.5",
+    "wrangler": "4.135.0"
   },
   "name": "@streets/app-worker",
   "private": true,
   "scripts": {
+    "dev": "node -e \"require('node:fs').mkdirSync('../../apps/web/dist', { recursive: true })\" && wrangler dev --config ../../wrangler.jsonc --port 8787",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "wrangler types --check --config ../../wrangler.jsonc worker-configuration.d.ts && tsc --noEmit",
+    "types": "wrangler types --config ../../wrangler.jsonc worker-configuration.d.ts"
   },
   "type": "module",
   "dependencies": {

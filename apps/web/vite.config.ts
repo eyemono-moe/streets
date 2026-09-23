@@ -2,9 +2,8 @@ import { execFileSync } from "node:child_process";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 import UnoCSS from "unocss/vite";
-import { type Plugin, defineConfig } from "vite";
+import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
-import { createApp } from "../../workers/app/src/app";
 
 const commitSha = (): string => {
   const provided = process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA;
@@ -47,28 +46,6 @@ const sentryUpload = (release: string) => {
   ];
 };
 
-/**
- * 本番では Worker（`workers/app`）が受ける `/api/*` を、開発サーバーでも同じ
- * アプリで返す。回数の制限とキャッシュは無い。
- */
-const workerApi = (): Plugin => ({
-  name: "streets-worker-api",
-  configureServer(server) {
-    const api = createApp({ skipSiteCheck: true });
-    server.middlewares.use(async (req, res, next) => {
-      if (!req.url?.startsWith("/api/")) return next();
-      const response = await api.fetch(
-        new Request(new URL(req.url, "http://localhost"), {
-          method: req.method,
-        }),
-      );
-      res.statusCode = response.status;
-      response.headers.forEach((value, key) => res.setHeader(key, value));
-      res.end(Buffer.from(await response.arrayBuffer()));
-    });
-  },
-});
-
 const release = commitSha();
 
 export default defineConfig({
@@ -78,18 +55,15 @@ export default defineConfig({
     __SENTRY_TRACING__: "false",
     __SENTRY_DEBUG__: "false",
   },
-  plugins: [
-    ...devtools(),
-    UnoCSS(),
-    solid(),
-    workerApi(),
-    ...sentryUpload(release),
-  ],
+  plugins: [...devtools(), UnoCSS(), solid(), ...sentryUpload(release)],
   build: {
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
   },
   server: {
     port: 5173,
+    // 本番では Worker（workers/app）が受ける /api を、`wrangler dev` へ渡す。
+    // ルートの `pnpm dev` が両方を立ち上げる。
+    proxy: { "/api": "http://localhost:8787" },
   },
 });

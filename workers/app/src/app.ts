@@ -5,19 +5,6 @@ import * as v from "valibot";
 import { fetchLinkCard } from "./fetch-card";
 import { type LinkCard, allowedTarget } from "./ogp";
 
-/**
- * Cloudflare の Rate Limiting のうち使う形だけ。開発サーバー（vite.config.ts）も
- * このファイルを読むので、Workers にしか無い型を持ち込まない。
- */
-type Limiter = {
-  limit(options: { key: string }): Promise<{ success: boolean }>;
-};
-
-export type Env = {
-  /** 外へ取りに行く回数を IP ごとに絞る。開発サーバーには無い。 */
-  LINK_CARD_LIMITER?: Limiter;
-};
-
 /** 画面へ返す形。取れなかったときも `card: null` で返し、それもキャッシュする。 */
 export type LinkCardResponse = { card: LinkCard | null };
 
@@ -53,12 +40,13 @@ const sameSiteOnly: MiddlewareHandler = async (c, next) => {
  */
 const rateLimited =
   (
-    pick: (env: Env) => Limiter | undefined,
+    pick: (env: Env) => RateLimit | undefined,
   ): MiddlewareHandler<{
     Bindings: Env;
   }> =>
   async (c, next) => {
-    const limiter = pick(c.env ?? {});
+    // テストで env を渡さないときは数えない。
+    const limiter = c.env ? pick(c.env) : undefined;
     if (limiter) {
       const key = c.req.header("cf-connecting-ip") ?? "unknown";
       const { success } = await limiter.limit({ key });
@@ -77,7 +65,7 @@ const linkCardQuery = v.object({
 export type AppOptions = {
   /** 外へ取りに行く fetch。テストで差し替える。 */
   fetch?: typeof fetch;
-  /** 開発サーバーでは同じサイトかを確かめない。 */
+  /** 同じサイトかを確かめない。テストで使う。 */
   skipSiteCheck?: boolean;
   /**
    * キャッシュへの保存を待ってから返す。`waitUntil` の無い場所（テスト）で使う。

@@ -104,7 +104,7 @@ describe("GET /api/link-card", () => {
     const fetch = pageFetch();
     const limit = vi.fn(async () => ({ success: true }));
     const app = createApp({ fetch, waitForCache: true });
-    const env = { LINK_CARD_LIMITER: { limit } };
+    const env = { LINK_CARD_LIMITER: { limit } } as unknown as Env;
     for (let i = 0; i < 2; i += 1) {
       const response = await app.request(
         path("https://example.com/"),

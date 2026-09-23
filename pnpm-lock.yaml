@@ -170,15 +170,15 @@ importers:
         specifier: 1.4.1
         version: 1.4.1(typescript@5.7.3)
     devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 5.20260920.1
-        version: 5.20260920.1
       typescript:
         specifier: 5.7.3
         version: 5.7.3
       vitest:
         specifier: 3.0.5
         version: 3.0.5(@types/node@22.19.19)(jiti@2.4.2)(jsdom@26.0.0(bufferutil@4.0.9)(utf-8-validate@6.0.5))(terser@5.39.0)(tsx@4.22.0)
+      wrangler:
+        specifier: 4.135.0
+        version: 4.135.0(@cloudflare/workers-types@5.20260920.1)(@types/node@22.19.19)(bufferutil@4.0.9)(utf-8-validate@6.0.5)
 
   workers/feedback:
     devDependencies:
