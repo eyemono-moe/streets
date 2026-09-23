@@ -6,7 +6,7 @@ import {
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import type { Component } from "solid-js";
+import { type Component, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
@@ -14,6 +14,7 @@ import emojiUrl from "../storybook/emoji-fixture.svg";
 import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
+import SegmentedControl from "../ui/SegmentedControl";
 import Event, { type EventSize } from "./Event";
 import { LinkCardModeProvider } from "./link-card";
 
@@ -136,7 +137,7 @@ const EventStory: Component<Props> = (props) => (
   <EventSceneProvider scene={props.scene}>
     {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
     <div class="w-[360px]">
-      <LinkCardModeProvider value={props.linkCards ?? "compact"}>
+      <LinkCardModeProvider value={() => props.linkCards ?? "compact"}>
         <Event
           event={props.event}
           size={props.size}
@@ -318,5 +319,37 @@ export const リンクのカード_出さない: Story = {
     event: withLinks,
     scene: { ...scene(withLinks), ...linkScene },
     linkCards: "off",
+  },
+};
+
+/** カラムの設定を変えたときに、描いてあるカードがその場で変わることを確かめる。 */
+export const リンクのカード_設定を切り替える: Story = {
+  args: { event: withLinks, scene: { ...scene(withLinks), ...linkScene } },
+  render: (props) => {
+    const [mode, setMode] = createSignal<LinkCardMode>("compact");
+    return (
+      <div class="flex flex-col gap-3">
+        <div class="w-[360px]">
+          <SegmentedControl
+            label="リンクのカード"
+            options={[
+              { value: "off", label: "出さない" },
+              { value: "compact", label: "小さく" },
+              { value: "large", label: "大きく" },
+            ]}
+            value={mode()}
+            onChange={setMode}
+            block
+          />
+        </div>
+        <EventSceneProvider scene={props.scene}>
+          <div class="w-[360px]">
+            <LinkCardModeProvider value={mode}>
+              <Event event={props.event} size={props.size} />
+            </LinkCardModeProvider>
+          </div>
+        </EventSceneProvider>
+      </div>
+    );
   },
 };

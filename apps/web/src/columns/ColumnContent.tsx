@@ -28,7 +28,7 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
   };
 
   return (
-    <LinkCardModeProvider value={columnLinkCards(props.column)}>
+    <LinkCardModeProvider value={() => columnLinkCards(props.column)}>
       <Switch fallback={<FeedColumn {...props} />}>
         <Match when={threadFocus()}>
           {(focus) => (

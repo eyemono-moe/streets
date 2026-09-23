@@ -37,7 +37,12 @@ export const useLinkCard = (url: Accessor<string>) =>
     retry: false,
   }));
 
-/** カラムの設定。カラムの外（入口など）では小さなカードにする。 */
-const LinkCardModeContext = createContext<LinkCardMode>("compact");
+/**
+ * カラムの設定。値ではなく読み出す関数を渡す —— Solid のコンテキストは渡した値を
+ * 一度読むだけなので、値を渡すと設定を変えても描いてあるカードに届かない。
+ * カラムの外（入口など）では小さなカードにする。
+ */
+const compact = (): LinkCardMode => "compact";
+const LinkCardModeContext = createContext<Accessor<LinkCardMode>>(compact);
 export const LinkCardModeProvider = LinkCardModeContext.Provider;
 export const useLinkCardMode = () => useContext(LinkCardModeContext);

@@ -48,12 +48,14 @@ const LinkCardView: Component<LinkCardViewProps> = (props) => {
             decoding="async"
             referrerpolicy="no-referrer"
             onError={() => setImageFailed(true)}
+            // 小さくのときは、文字の側が画像より高くなっても下に隙間を作らないよう、
+            // 高さをカードに合わせて伸ばす（幅は固定、最低でも正方形）。
             class="shrink-0 bg-secondary object-cover"
             classList={{
               "aspect-[1.91/1] w-full border-primary border-b": large(),
-              "size-20 border-primary border-r":
+              "w-20 min-h-20 self-stretch border-primary border-r":
                 !large() && props.size === "normal",
-              "size-14 border-primary border-r":
+              "w-14 min-h-14 self-stretch border-primary border-r":
                 !large() && props.size === "compact",
             }}
           />
