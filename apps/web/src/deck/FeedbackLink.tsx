@@ -31,6 +31,59 @@ const resolveFeedbackUrl = (
   }
 };
 
+/** フィードバックの送り先を開く前に、何が公開されるかを知らせる。 */
+export const FeedbackDialog: Component<{
+  href: string;
+  open: boolean;
+  onClose: () => void;
+}> = (props) => (
+  <DialogRoot open={props.open} onClose={props.onClose}>
+    <DialogPortal>
+      <DialogContent class="flex w-full max-w-110 flex-col rounded-3 border border-primary">
+        <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
+          <DialogTitle class="min-w-0 flex-1 font-600 text-body">
+            Streets β版へのフィードバック
+          </DialogTitle>
+          <DialogClose />
+        </div>
+        <DialogDescription class="flex flex-col gap-3 px-4 pb-4 text-caption">
+          <p>
+            Streetsは現在β版です。不具合、分かりにくいところ、欲しい機能をぜひ教えてください。
+          </p>
+          <p class="c-secondary">
+            入力した報告本文はGoogle
+            Formsに保存され、AIで整理したうえで公開GitHub
+            Issueとして登録されます。スクリーンショット等はAIやGitHubへ自動送信されません。個人情報、秘密鍵、公開したくない内容は入力しないでください。
+          </p>
+        </DialogDescription>
+        <div class="flex justify-end gap-2 border-primary border-t p-3">
+          <Button variant="ghost" onClick={props.onClose}>
+            閉じる
+          </Button>
+          <ButtonLink
+            variant="primary"
+            icon="i-material-symbols:open-in-new-rounded"
+            href={props.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={props.onClose}
+          >
+            不具合を報告・機能をリクエスト
+          </ButtonLink>
+        </div>
+      </DialogContent>
+    </DialogPortal>
+  </DialogRoot>
+);
+
+/** 送り先の URL。設定されていなければ undefined（フィードバックの操作を出さない）。 */
+export const feedbackHref = (template?: string | null): string | undefined =>
+  resolveFeedbackUrl(
+    template === null
+      ? undefined
+      : (template ?? import.meta.env.VITE_FEEDBACK_URL),
+  );
+
 const FeedbackLink: Component<{
   /** Storybookでは実際のフォームを開かないURLを注入する。nullなら未設定状態。 */
   template?: string | null;
@@ -39,11 +92,7 @@ const FeedbackLink: Component<{
   initialOpen?: boolean;
 }> = (props) => {
   const [open, setOpen] = createSignal(props.initialOpen ?? false);
-  const template = () =>
-    props.template === null
-      ? undefined
-      : (props.template ?? import.meta.env.VITE_FEEDBACK_URL);
-  const href = () => resolveFeedbackUrl(template());
+  const href = () => feedbackHref(props.template);
   const className = () =>
     props.size === "sidebar"
       ? "c-secondary grid size-10 shrink-0 place-items-center rounded-2 bg-transparent hover:bg-secondary"
@@ -81,43 +130,11 @@ const FeedbackLink: Component<{
               aria-hidden="true"
             />
           </button>
-          <DialogRoot open={open()} onClose={() => setOpen(false)}>
-            <DialogPortal>
-              <DialogContent class="flex w-full max-w-110 flex-col rounded-3 border border-primary">
-                <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
-                  <DialogTitle class="min-w-0 flex-1 font-600 text-body">
-                    Streets β版へのフィードバック
-                  </DialogTitle>
-                  <DialogClose />
-                </div>
-                <DialogDescription class="flex flex-col gap-3 px-4 pb-4 text-caption">
-                  <p>
-                    Streetsは現在β版です。不具合、分かりにくいところ、欲しい機能をぜひ教えてください。
-                  </p>
-                  <p class="c-secondary">
-                    入力した報告本文はGoogle
-                    Formsに保存され、AIで整理したうえで公開GitHub
-                    Issueとして登録されます。スクリーンショット等はAIやGitHubへ自動送信されません。個人情報、秘密鍵、公開したくない内容は入力しないでください。
-                  </p>
-                </DialogDescription>
-                <div class="flex justify-end gap-2 border-primary border-t p-3">
-                  <Button variant="ghost" onClick={() => setOpen(false)}>
-                    閉じる
-                  </Button>
-                  <ButtonLink
-                    variant="primary"
-                    icon="i-material-symbols:open-in-new-rounded"
-                    href={url()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setOpen(false)}
-                  >
-                    不具合を報告・機能をリクエスト
-                  </ButtonLink>
-                </div>
-              </DialogContent>
-            </DialogPortal>
-          </DialogRoot>
+          <FeedbackDialog
+            href={url()}
+            open={open()}
+            onClose={() => setOpen(false)}
+          />
         </>
       )}
     </Show>
