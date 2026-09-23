@@ -163,7 +163,7 @@ describe("resolveSource", () => {
       ),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
       relays: ["wss://inbox/"],
     });
   });
@@ -179,7 +179,7 @@ describe("resolveSource", () => {
       ),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
@@ -212,7 +212,7 @@ describe("resolveSource", () => {
       ),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
       relays: [],
     });
   });

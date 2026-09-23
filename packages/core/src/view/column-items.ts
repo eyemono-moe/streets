@@ -20,6 +20,7 @@ export const visibleColumnItems = (
   return events.filter((event) => {
     if (off("reposts") && (event.kind === 6 || event.kind === 16)) return false;
     if (off("reactions") && event.kind === 7) return false;
+    if (off("zaps") && event.kind === 9735) return false;
     if (event.kind !== 1) return true;
     // 返信と引用は別物。返信でもある引用は返信として扱い、片方だけを切っても消えない。
     if (replyTarget(event)) return !off("replies");
