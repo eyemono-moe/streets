@@ -65,7 +65,8 @@ export type DeckColumn<U extends string> =
   | { kind: "home" }
   | { kind: "notifications" }
   | { kind: "user"; user: U }
-  | { kind: "hashtag"; tag: string };
+  /** 検索カラム。`"#coffee"` のようにハッシュタグでも、言葉でも書ける。 */
+  | { kind: "search"; query: string };
 
 /** 1 枚のスクリーンショットのための状態。 */
 export type Scenario<U extends string> = {

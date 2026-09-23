@@ -26,11 +26,12 @@ import { setRelayList } from "@streets/core/nostr/build/relay-list";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import { type NostrEvent, computeEventId } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
+import { setSearchRelays } from "@streets/core/settings/search-relay-list";
 import {
   conversationKey,
   encryptNip44,
 } from "@streets/core/signer/nip46/nip44";
-import type { AssetName, DeckColumn, Scenario } from "./define";
+import type { AssetName, DeckColumn, Scenario, UserProfile } from "./define";
 import { pubkeyFor, secretKeyFor } from "./keys";
 import { resolveTime } from "./time";
 import { type UserId, users } from "./users";
@@ -84,7 +85,7 @@ const deckColumn = (
   if (column.kind === "user") return buildUserColumn(pubkeyFor(column.user));
   const built = buildColumn(
     column.kind,
-    column.kind === "hashtag" ? column.tag : "",
+    column.kind === "search" ? column.query : "",
   );
   // 作り直すたびに id が変わると、デッキのイベントの id も変わってしまう。
   return built && { ...built, id: `screenshot-${index}-${column.kind}` };
@@ -113,10 +114,9 @@ export const generate = (
 
   for (const [id, profile] of Object.entries(users) as [
     UserId,
-    (typeof users)[UserId],
+    UserProfile,
   ][]) {
-    const picture = "picture" in profile ? profile.picture : undefined;
-    const banner = "banner" in profile ? profile.banner : undefined;
+    const { picture, banner, website } = profile;
     events.push(
       sign(
         id,
@@ -126,7 +126,7 @@ export const generate = (
           about: profile.about,
           ...(picture ? { picture: options.asset(picture).url } : {}),
           ...(banner ? { banner: options.asset(banner).url } : {}),
-          ...("website" in profile ? { website: profile.website } : {}),
+          ...(website ? { website } : {}),
         })(undefined),
         setupAt,
       ),
@@ -138,6 +138,8 @@ export const generate = (
         ),
         setupAt,
       ),
+      // 検索カラムもこのリレーへ聞く。無いと、外の既定の検索リレーへ問い合わせてしまう。
+      sign(id, setSearchRelays([options.relayUrl])(undefined), setupAt),
     );
   }
 

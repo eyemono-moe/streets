@@ -7,11 +7,12 @@ import { defineScenario } from "../scenario";
 import notifications from "./notifications";
 
 /**
- * 複数カラム。ホーム・通知・#coffee・#music・kai のカラムを並べ、どのカラムにも
+ * 複数カラム。ホーム・通知・検索（#coffee・#music）・kai のカラムを並べ、どのカラムにも
  * 違う中身が出るよう、ハッシュタグの投稿を足している。
  */
 export default defineScenario({
-  description: "複数カラム：ホーム・通知・#coffee・#music・kai を並べる",
+  description:
+    "複数カラム：ホーム・通知・検索（#coffee・#music）・kai を並べる",
   viewer: "mio",
   follows: everydayFollows,
   posts: [
@@ -58,8 +59,8 @@ export default defineScenario({
   deck: [
     { kind: "home" },
     { kind: "notifications" },
-    { kind: "hashtag", tag: "coffee" },
-    { kind: "hashtag", tag: "music" },
+    { kind: "search", query: "#coffee" },
+    { kind: "search", query: "#music" },
     { kind: "user", user: "kai" },
   ],
 });

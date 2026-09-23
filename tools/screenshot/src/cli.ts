@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:net";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -104,6 +105,15 @@ const publish = async (list: readonly NostrEvent[]) => {
   console.log(`${relayUrl} へ ${accepted} / ${list.length} 件を投入しました。`);
 };
 
+/** そのポートで待ち受けられるか。 */
+const portFree = (port: number) =>
+  new Promise<boolean>((resolve) => {
+    const server = createServer()
+      .once("error", () => resolve(false))
+      .once("listening", () => server.close(() => resolve(true)))
+      .listen(port);
+  });
+
 /** リレーに繋がるまで待つ。立ち上がりは 1 秒もかからないが、遅い環境のために 10 秒まで待つ。 */
 const waitForRelay = async () => {
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -127,6 +137,15 @@ const bunkerUrl = `bunker://${viewerPubkey}?relay=${encodeURIComponent(relayUrl)
 if (command === "seed") {
   await publish(events);
 } else if (command === "serve") {
+  // 前に立てたものが残っていると、新しいリレーは立たず、古いリレーに繋がってしまう。
+  for (const port of [values["relay-port"], values["asset-port"]]) {
+    if (!(await portFree(Number(port)))) {
+      console.error(
+        `ポート ${port} は使われています。前の pnpm screenshot が残っていないか確かめてください（--relay-port・--asset-port で変えられます）。`,
+      );
+      process.exit(1);
+    }
+  }
   const onSpawnError = (error: Error) => {
     console.error(
       `nak を起動できません（${error.message}）。README の「必要なもの」を見てください。`,
@@ -138,6 +157,10 @@ if (command === "seed") {
     ["serve", "--port", values["relay-port"], "--events", file],
     { stdio: "inherit" },
   ).on("error", onSpawnError);
+  relay.on("exit", (code) => {
+    console.error(`リレー（nak serve）が止まりました（終了コード ${code}）。`);
+    process.exit(1);
+  });
   // 署名器はリレーに繋ぎに行くので、リレーが受け付け始めてから立てる。
   await waitForRelay();
   const bunker = spawn(
@@ -156,6 +179,7 @@ if (command === "seed") {
   const children = [relay, bunker];
   const assets = serveAssets(Number(values["asset-port"]));
   const stop = () => {
+    relay.removeAllListeners("exit");
     for (const child of children) child.kill();
     assets.close();
     process.exit(0);

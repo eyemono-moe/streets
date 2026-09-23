@@ -43,7 +43,7 @@ export default defineScenario({
   reposts: everydayReposts,
   deck: [
     { kind: "home" },
-    { kind: "hashtag", tag: "photography" },
+    { kind: "search", query: "#photography" },
     { kind: "notifications" },
   ],
 });

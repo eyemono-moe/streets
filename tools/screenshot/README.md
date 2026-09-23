@@ -42,7 +42,7 @@ Ctrl+C でリレー・画像・署名器をまとめて止める。次に立て�
 | `notifications` | 通知。返信・リアクション・リポスト・引用・メンション・Zap |
 | `thread` | スレッド。ひとつの問いかけに何人かが答えている（`thread-root` の投稿を開く） |
 | `profile` | プロフィール。写真を撮る haru のカラム |
-| `many-columns` | 複数カラム。ホーム・通知・#coffee・#music・kai |
+| `many-columns` | 複数カラム。ホーム・通知・検索（`#coffee`・`#music`）・kai |
 | `media` | 画像。写真やイラストの投稿 |
 
 どのシナリオも、見る人（ログインする人）は `mio`。`pnpm screenshot` でシナリオを省くと `home`。
@@ -80,12 +80,11 @@ export const users = {
     name: "yui",
     displayName: "Yui",
     about: "パン屋で働いています。",
-    picture: "avatar-yui.svg",
   },
 } as const satisfies Record<string, UserProfile>;
 ```
 
-アイコンの画像は `assets/` に置く。シナリオに無い ID を書くと、型検査（`pnpm typecheck`）で分かる。
+アイコンは付けない（Streets が pubkey から作る標識で見分けられる）。付けるなら `picture: "<assets/ のファイル名>"`。シナリオに無い ID を書くと、型検査（`pnpm typecheck`）で分かる。
 
 ### 投稿を足す
 
@@ -127,7 +126,7 @@ export default defineScenario({
   follows: everydayFollows,
   posts: [...everydayPosts /* , このシナリオの投稿 */],
   // 見る人のデッキ。省くと Streets の既定（ホームと通知）
-  deck: [{ kind: "home" }, { kind: "hashtag", tag: "bread" }],
+  deck: [{ kind: "home" }, { kind: "search", query: "#bread" }],
 });
 ```
 
