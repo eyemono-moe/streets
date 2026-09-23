@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { encodeBech32 } from "../nostr/nip19";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
-import { buildColumn } from "./column-presets";
+import { buildColumn, buildRelayColumn } from "./column-presets";
 
 /**
  * デッキが保存する「意図」。フォローリストのような変わる値を焼き込まない
@@ -134,13 +134,23 @@ export const deckStorageKey = (pubkey: string): string =>
 
 /**
  * 初回起動時の既定デッキ (モバイル初回訪問者はデスクトップでデッキを
- * 組んでいないため必須)。
+ * 組んでいないため必須)。新規ユーザーは誰もフォローしておらずホームが空なので、
+ * 入口で見ていたリレーの流れを間に置く。
  */
-export const defaultDeck = (): Deck => ({
-  version: 2,
-  // biome-ignore lint/style/noNonNullAssertion: `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
-  columns: [buildColumn("home", "")!, buildColumn("notifications", "")!],
-});
+export const defaultDeck = (relays: readonly RelayUrl[]): Deck => {
+  const relayColumn = buildRelayColumn(relays);
+  return {
+    version: 2,
+    columns: [
+      // biome-ignore lint/style/noNonNullAssertion: `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
+      buildColumn("home", "")!,
+      // リレーが 0 本だと列を作れない。そのときはホームと通知だけにする。
+      ...(relayColumn ? [relayColumn] : []),
+      // biome-ignore lint/style/noNonNullAssertion: 同上。
+      buildColumn("notifications", "")!,
+    ],
+  };
+};
 
 export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
 

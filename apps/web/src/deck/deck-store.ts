@@ -11,6 +11,7 @@ import {
   type Nip78DocumentDefinition,
   createNip78Document,
 } from "@streets/core/solid/create-nip78-document";
+import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 
 export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
 
@@ -21,7 +22,7 @@ export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
 const deckDocumentDefinition = {
   identifier: DECK_EVENT_IDENTIFIER,
   cacheKey: deckStorageKey,
-  initial: (_) => defaultDeck(),
+  initial: (_) => defaultDeck(WELCOME_RELAYS),
   serialize: saveDeck,
   parse: (raw) => loadDeck(raw),
   equals: (left, right) => saveDeck(left) === saveDeck(right),

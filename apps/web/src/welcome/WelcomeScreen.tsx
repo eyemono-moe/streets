@@ -1,8 +1,4 @@
-import {
-  showsOnWelcome,
-  welcomeColumn,
-  welcomeRelays,
-} from "@streets/core/deck/welcome-feed";
+import { showsOnWelcome, welcomeColumn } from "@streets/core/deck/welcome-feed";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { PAGE_SIZE } from "@streets/core/read/source";
 import { createSection } from "@streets/core/solid/create-section";
@@ -14,8 +10,8 @@ import { ReadLayerProvider } from "../read-layer";
 import type { Session } from "../session";
 import { Mediates } from "../ui-events";
 import WelcomeView from "./WelcomeView";
+import { WELCOME_RELAYS as RELAYS } from "./welcome-relays";
 
-const RELAYS = welcomeRelays(import.meta.env.VITE_WELCOME_RELAYS);
 const COLUMN = welcomeColumn(RELAYS);
 
 /** 入口に流す投稿。見せるだけで、スレッドやユーザーを重ねる先は無い。 */
