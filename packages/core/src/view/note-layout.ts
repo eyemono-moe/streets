@@ -1,6 +1,7 @@
 import {
   type ContentToken,
   isProbablyImageUrl,
+  isProbablyVideoUrl,
   parseContent,
 } from "../nostr/content";
 import type { NostrEvent } from "../nostr/event";
@@ -13,7 +14,7 @@ import {
 export type NoteLayout = {
   /** 本文として流す部分。前後の空白は落としてある。 */
   text: ContentToken[];
-  images: string[];
+  media: Array<{ type: "image" | "video"; url: string }>;
   /** 本文中の `nostr:` 参照とタグにしか無い `q` の和。同じ id は最初の 1 回だけ。 */
   quotes: EventRef[];
 };
@@ -33,7 +34,7 @@ const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
 };
 
 /**
- * 画像と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
+ * 画像・動画と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
  * 抜いた URL や参照の文字列を本文に残すと、同じものが 2 回見える。
  * `quotes: false` のときは引用を抜かず、参照を本文の文字として残す。
  */
@@ -42,14 +43,35 @@ export const layoutNote = (
   options: { quotes: boolean },
 ): NoteLayout => {
   const text: ContentToken[] = [];
-  const images: string[] = [];
+  const media: NoteLayout["media"] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
+  const mediaTypes = new Map<string, string>();
+  for (const tag of event.tags) {
+    if (tag[0] !== "imeta") continue;
+    const url = tag.find((value) => value.startsWith("url "))?.slice(4);
+    const mime = tag.find((value) => value.startsWith("m "))?.slice(2);
+    if (url && mime && !mediaTypes.has(url)) mediaTypes.set(url, mime);
+  }
 
   for (const token of parseContent(event.content, event.tags)) {
-    if (token.type === "url" && isProbablyImageUrl(token.url)) {
-      images.push(token.url);
-      continue;
+    if (token.type === "url") {
+      const mime = mediaTypes.get(token.url)?.toLowerCase();
+      const type = mime
+        ? mime.startsWith("image/")
+          ? "image"
+          : mime.startsWith("video/")
+            ? "video"
+            : undefined
+        : isProbablyImageUrl(token.url)
+          ? "image"
+          : isProbablyVideoUrl(token.url)
+            ? "video"
+            : undefined;
+      if (type) {
+        media.push({ type, url: token.url });
+        continue;
+      }
     }
     if (
       options.quotes &&
@@ -79,5 +101,5 @@ export const layoutNote = (
   }
 
   if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
-  return { text: trimEdges(text), images, quotes };
+  return { text: trimEdges(text), media, quotes };
 };

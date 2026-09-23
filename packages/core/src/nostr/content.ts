@@ -218,12 +218,21 @@ const IMAGE_EXTENSIONS = new Set([
   "bmp",
   "svg",
 ]);
+const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v"]);
+
+const urlExtension = (url: string): string | undefined => {
+  const withoutQueryOrFragment = url.split(/[?#]/)[0] ?? url;
+  return /\.([a-zA-Z0-9]+)$/.exec(withoutQueryOrFragment)?.[1]?.toLowerCase();
+};
 
 /** 拡張子だけを見る。実際に画像かどうかは取得してみるまで分からない。 */
 export const isProbablyImageUrl = (url: string): boolean => {
-  const withoutQueryOrFragment = url.split(/[?#]/)[0] ?? url;
-  const match = /\.([a-zA-Z0-9]+)$/.exec(withoutQueryOrFragment);
-  if (!match) return false;
-  const ext = match[1];
-  return ext !== undefined && IMAGE_EXTENSIONS.has(ext.toLowerCase());
+  const ext = urlExtension(url);
+  return ext !== undefined && IMAGE_EXTENSIONS.has(ext);
+};
+
+/** 拡張子だけを見る。再生できるかどうかはブラウザに委ねる。 */
+export const isProbablyVideoUrl = (url: string): boolean => {
+  const ext = urlExtension(url);
+  return ext !== undefined && VIDEO_EXTENSIONS.has(ext);
 };

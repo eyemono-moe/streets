@@ -10,6 +10,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
+import clipUrl from "../storybook/media-clip.mp4";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import Event, { type EventSize } from "./Event";
 
@@ -87,6 +88,10 @@ const longReaction = react(carol, {
 });
 const unknown = alice.event({ kind: 30023, tags: [], content: "# 長文記事" });
 const noProfile = nameless.note("kind:0 が無い人の投稿。");
+const videoUrl = new URL(clipUrl, location.href).href;
+const withVideo = alice.note(`動画を添えました。\n${videoUrl}`, [
+  ["imeta", `url ${videoUrl}`, "m video/mp4"],
+]);
 
 const missingTarget = bob.note("このイベントはシーンに入れない");
 const repostOfMissing = carol.repost(missingTarget);
@@ -102,6 +107,7 @@ type Props = {
   size: EventSize;
   /** 返信のとき、返信先を上に 1 件出す（タイムラインのカラムと同じ）。 */
   replyContext?: boolean;
+  expandMedia?: boolean;
 };
 
 const EventStory: Component<Props> = (props) => (
@@ -112,6 +118,7 @@ const EventStory: Component<Props> = (props) => (
         event={props.event}
         size={props.size}
         replyContext={props.replyContext}
+        expandMedia={props.expandMedia}
       />
     </div>
   </EventSceneProvider>
@@ -160,6 +167,14 @@ export const 本文のトークン: Story = {
 
 export const 長い本文: Story = {
   args: { event: longBody, scene: scene(longBody) },
+};
+
+export const 動画つき: Story = {
+  args: { event: withVideo, scene: scene(withVideo) },
+};
+
+export const 動画の展開を切る: Story = {
+  args: { event: withVideo, scene: scene(withVideo), expandMedia: false },
 };
 
 export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
