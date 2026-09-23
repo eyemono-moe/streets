@@ -10,6 +10,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import SignerWaitOverlay from "./SignerWaitOverlay";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
@@ -50,6 +51,10 @@ const App: Component = () => {
         </Match>
       </Switch>
       <ErrorToaster />
+      <SignerWaitOverlay
+        message={session.signerWait()}
+        authUrl={session.authUrl()}
+      />
       <Show when={import.meta.env.DEV}>
         <AppDevtools readLayer={readLayer} />
       </Show>

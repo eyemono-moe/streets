@@ -26,6 +26,7 @@ import {
 } from "@streets/core/signer/session-storage";
 import { SignerUnavailableError } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
+import { createSignerWait, observeSigner } from "./signer-wait";
 
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -50,18 +51,29 @@ export const createSession = (pool: ConnectionPool) => {
   const [authUrl, setAuthUrl] = createSignal<URL>();
   // 保存したログインを戻せなかったが、消してはいない。署名器が戻れば試し直せる。
   const [restoreFailed, setRestoreFailed] = createSignal(false);
-  const signer = createActiveSigner();
+  const signerWait = createSignerWait();
+  const signer = observeSigner(createActiveSigner(), signerWait);
   let nip46: Nip46Session | undefined;
   onCleanup(() => nip46?.client.close());
 
   const hooks = { onAuthUrl: (url: URL | undefined) => setAuthUrl(url) };
 
-  const run = async (task: () => Promise<void>) => {
+  const run = async (
+    task: () => Promise<void>,
+    waitMessage?: string,
+    immediate = false,
+  ) => {
+    if (pending()) return;
     setPending(true);
     setError(undefined);
+    setAuthUrl(undefined);
     setRestoreFailed(false);
     try {
-      await task();
+      if (waitMessage) {
+        await signerWait.track(waitMessage, task, immediate ? 0 : undefined);
+      } else {
+        await task();
+      }
     } finally {
       setPending(false);
     }
@@ -82,46 +94,54 @@ export const createSession = (pool: ConnectionPool) => {
   };
 
   const loginWithExtension = () =>
-    run(async () => {
-      try {
-        const extension = createNip07Signer();
-        const pk = await extension.getPublicKey();
-        nip46?.client.close();
-        nip46 = undefined;
-        localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
-        localStorage.setItem(
-          LOGIN_METHOD_STORAGE_KEY,
-          saveLoginMethod("nip07"),
-        );
-        signer.set(extension);
-        setPubkey(pk);
-        setState("signed-in");
-      } catch (e) {
-        setState("signed-out");
-        setError(
-          e instanceof SignerUnavailableError
-            ? "NIP-07 対応の拡張機能が見つかりません。"
-            : `ログインに失敗しました: ${errorText(e)}`,
-        );
-      }
-    });
+    run(
+      async () => {
+        try {
+          const extension = createNip07Signer();
+          const pk = await extension.getPublicKey();
+          nip46?.client.close();
+          nip46 = undefined;
+          localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
+          localStorage.setItem(
+            LOGIN_METHOD_STORAGE_KEY,
+            saveLoginMethod("nip07"),
+          );
+          signer.set(extension);
+          setPubkey(pk);
+          setState("signed-in");
+        } catch (e) {
+          setState("signed-out");
+          setError(
+            e instanceof SignerUnavailableError
+              ? "NIP-07 対応の拡張機能が見つかりません。"
+              : `ログインに失敗しました: ${errorText(e)}`,
+          );
+        }
+      },
+      "ログインを待っています",
+      true,
+    );
 
   const loginWithBunker = (uri: string) =>
-    run(async () => {
-      try {
-        activateNip46(
-          await connectNip46({
-            pool,
-            bunker: parseBunkerUri(uri),
-            hooks,
-            metadataUrl: location.origin,
-          }),
-        );
-      } catch (e) {
-        setState("signed-out");
-        setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
-      }
-    });
+    run(
+      async () => {
+        try {
+          activateNip46(
+            await connectNip46({
+              pool,
+              bunker: parseBunkerUri(uri),
+              hooks,
+              metadataUrl: location.origin,
+            }),
+          );
+        } catch (e) {
+          setState("signed-out");
+          setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
+        }
+      },
+      "ログインを待っています",
+      true,
+    );
 
   const loginWithNostrConnect = (): ConnectAttempt => {
     const attempt = startNostrConnect({
@@ -162,7 +182,7 @@ export const createSession = (pool: ConnectionPool) => {
           setError(`ログインの復元に失敗しました: ${errorText(e)}`);
           setRestoreFailed(true);
         }
-      });
+      }, "ログインの復元を待っています");
       return;
     }
 
@@ -193,7 +213,7 @@ export const createSession = (pool: ConnectionPool) => {
         );
         setRestoreFailed(true);
       }
-    });
+    }, "ログインの復元を待っています");
   };
 
   const logout = () => {
@@ -222,6 +242,7 @@ export const createSession = (pool: ConnectionPool) => {
     error,
     authUrl,
     signer,
+    signerWait: signerWait.message,
     loginWithExtension,
     loginWithBunker,
     loginWithNostrConnect,
