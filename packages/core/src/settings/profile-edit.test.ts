@@ -19,10 +19,17 @@ const run = (...events: ProfileEditEvent[]): ProfileEditState =>
 describe("profileDraftFrom", () => {
   it("扱う項目の文字列だけを読み、ほかは空にする", () => {
     const draft = profileDraftFrom(
-      content({ name: "me", about: 42, lud16: "me@wallet" }),
+      content({ name: "me", about: 42, lud06: "lnurl1dp68gurn8ghj7" }),
     );
     expect(draft).toMatchObject({ name: "me", about: "" });
-    expect(draft).not.toHaveProperty("lud16");
+    // 捕まえる変異: 扱わない項目までフォームに入れる（保存で他のアプリの値を書き換える）
+    expect(draft).not.toHaveProperty("lud06");
+  });
+
+  it("Zap の受け取り先（lud16）を読む", () => {
+    expect(
+      profileDraftFrom(content({ lud16: "me@wallet.example" })).lud16,
+    ).toBe("me@wallet.example");
   });
 
   it("壊れた content や未作成は空のフォームにする", () => {
@@ -129,6 +136,34 @@ describe("profileErrors", () => {
     expect(
       profileErrors({ ...emptyProfileEdit().draft, nip05: "me@example.com" }),
     ).toEqual({});
+  });
+});
+
+describe("profileErrors の lud16", () => {
+  const draft = (lud16: string) => ({ ...emptyProfileEdit().draft, lud16 });
+
+  it("name@domain の形だけを通し、空欄は通す", () => {
+    expect(profileErrors(draft("me@wallet.example"))).toEqual({});
+    expect(profileErrors(draft("Me.Name_1@wallet.example"))).toEqual({});
+    expect(profileErrors(draft(""))).toEqual({});
+    expect(profileErrors(draft("  "))).toEqual({});
+  });
+
+  it.each([
+    ["me"],
+    ["me@wallet"],
+    ["名前@wallet.example"],
+    ["me @wallet.example"],
+  ])("%s は誤り", (value) => {
+    expect(profileErrors(draft(value)).lud16).toBeDefined();
+  });
+
+  it("変えたら、前後の空白を落として保存する", () => {
+    const state = run(
+      { type: "profile/loaded", content: content({ name: "me" }) },
+      { type: "profile/input", field: "lud16", value: " me@wallet.example " },
+    );
+    expect(profileChanges(state)).toEqual({ lud16: "me@wallet.example" });
   });
 });
 

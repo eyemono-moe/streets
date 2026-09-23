@@ -29,6 +29,7 @@ const mine = loaded({
   banner: "https://example.com/banner.png",
   nip05: "me@example.com",
   website: "https://example.com",
+  lud16: "me@wallet.example",
 });
 
 /** アプリでは ProfileMediator が裁定するイベントを、ここで手元の状態に当てる。 */
@@ -98,6 +99,7 @@ export const 入力の誤り: S = {
       mine,
       { type: "profile/input", field: "picture", value: "example.com/me.png" },
       { type: "profile/input", field: "nip05", value: "me" },
+      { type: "profile/input", field: "lud16", value: "me@wallet" },
     ],
   },
 };
