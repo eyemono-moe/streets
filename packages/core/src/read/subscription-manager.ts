@@ -616,7 +616,7 @@ export class SubscriptionManager {
 
     const entries = [...this.#entries.values()];
 
-    // 1. 大域の需要。writeRelaysFor は毎回パースをやり直すので著者ごとに 1 回だけ呼ぶ。
+    // 1. 大域の需要。複数のフィルタに同じ著者がいても 1 回だけ引く。
     // direct では需要を作らない —— 全著者が `fallbackRelays`（= direct のリレー）へ行く。
     const demand = new Map<string, readonly RelayUrl[]>();
     const seenAuthors = new Set<string>();

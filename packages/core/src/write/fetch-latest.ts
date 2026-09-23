@@ -63,7 +63,7 @@ export const fetchLatest = async (
   }
 
   const writeRelays = routing.writeRelaysFor(pubkey);
-  const urls = writeRelays.length > 0 ? writeRelays : [...fallbackRelays];
+  const urls = [...(writeRelays.length > 0 ? writeRelays : fallbackRelays)];
 
   const answered: RelayUrl[] = [];
   const open = new Map<RelayUrl, PooledSubscription>();
