@@ -5,7 +5,12 @@ import type {
   ColumnShow,
   ColumnWidth,
 } from "@streets/core/deck/deck";
-import { columnShow, groupsNotifications } from "@streets/core/deck/deck";
+import {
+  type LinkCardMode,
+  columnLinkCards,
+  columnShow,
+  groupsNotifications,
+} from "@streets/core/deck/deck";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show } from "solid-js";
@@ -22,6 +27,12 @@ const WIDTHS: { value: ColumnWidth; label: string }[] = [
   { value: "s", label: "S 320" },
   { value: "m", label: "M 380" },
   { value: "l", label: "L 440" },
+];
+
+const LINK_CARDS: { value: LinkCardMode; label: string }[] = [
+  { value: "off", label: "出さない" },
+  { value: "compact", label: "小さく" },
+  { value: "large", label: "大きく" },
 ];
 
 const DENSITIES: { value: ColumnDensity; label: string }[] = [
@@ -97,6 +108,16 @@ const ColumnSettings: Component<{
         checked={props.column.expandMedia !== false}
         onChange={(expandMedia) => patch({ expandMedia })}
       />
+
+      <Field label="リンクのカード">
+        <SegmentedControl
+          label="リンクのカード"
+          options={LINK_CARDS}
+          value={columnLinkCards(props.column)}
+          onChange={(linkCards) => patch({ linkCards })}
+          block
+        />
+      </Field>
 
       {/* 通知カラムだけの設定。ほかのカラムに出しても、切り替えて何も起きない。 */}
       <Show when={props.column.source.kind === "notifications"}>

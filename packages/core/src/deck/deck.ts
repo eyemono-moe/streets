@@ -45,6 +45,12 @@ export type ColumnShow = {
   reactions: boolean;
 };
 
+/**
+ * 本文のリンクをどう見せるか。`compact` は小さな画像を横に並べ、`large` は画像を
+ * 上に大きく出す。`off` はカードを出さず、本文のリンクだけにする。
+ */
+export type LinkCardMode = "off" | "compact" | "large";
+
 export type ColumnDef = {
   id: string;
   title: string;
@@ -54,12 +60,17 @@ export type ColumnDef = {
   show?: Partial<ColumnShow>;
   /** 画像を展開するか。何を流すかではなく、どう見せるかなので `show` とは分ける。 */
   expandMedia?: boolean;
+  /** 保存された値が無いときは `compact`（`columnLinkCards`）。 */
+  linkCards?: LinkCardMode;
   /**
    * 通知カラムで、同じノートへの連続したリアクション・リポストを 1 行にまとめるか。
    * 保存された値が無いときはまとめる（`groupsNotifications`）。
    */
   groupNotifications?: boolean;
 };
+
+export const columnLinkCards = (column: ColumnDef): LinkCardMode =>
+  column.linkCards ?? "compact";
 
 /** 通知をまとめるか。通知カラムだけが意味を持つ。 */
 export const groupsNotifications = (column: ColumnDef): boolean =>
@@ -203,6 +214,11 @@ const columnDefSchema = v.object({
   width: v.optional(v.picklist(["s", "m", "l"])),
   density: v.optional(v.picklist(["comfortable", "compact"])),
   expandMedia: v.optional(v.boolean()),
+  // 知らない値（新しい版が足した見せ方）でカラムごと捨てない。既定の見せ方に戻す。
+  linkCards: v.fallback(
+    v.optional(v.picklist(["off", "compact", "large"])),
+    undefined,
+  ),
   groupNotifications: v.optional(v.boolean()),
   show: v.optional(
     v.object({

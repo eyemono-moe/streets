@@ -11,7 +11,8 @@
     "@unocss/reset": "65.5.0",
     "blurhash": "2.0.5",
     "emojibase-data": "^17.0.0",
-    "solid-js": "1.9.13"
+    "solid-js": "1.9.13",
+    "valibot": "1.4.1"
   },
   "devDependencies": {
     "@iconify-json/material-symbols": "1.2.14",

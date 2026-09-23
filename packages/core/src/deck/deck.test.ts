@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   type Deck,
+  columnLinkCards,
   deckStorageKey,
   defaultDeck,
   groupsNotifications,
@@ -481,5 +482,34 @@ describe("知らない種類のカラムが混ざったとき", () => {
       loadDeck(JSON.stringify({ version: 1, columns: [] })),
     ).toBeUndefined();
     expect(loadDeck("{")).toBeUndefined();
+  });
+});
+
+describe("linkCards", () => {
+  const column = deck.columns[0];
+  if (!column) throw new Error("fixture");
+
+  it("保存された値が無ければ小さなカードにする", () => {
+    expect(columnLinkCards(column)).toBe("compact");
+    expect(columnLinkCards({ ...column, linkCards: "off" })).toBe("off");
+  });
+
+  it("保存して読み戻せる", () => {
+    const saved: Deck = {
+      ...deck,
+      columns: [{ ...column, linkCards: "large" }],
+    };
+    expect(loadDeck(saveDeck(saved))?.columns[0]?.linkCards).toBe("large");
+  });
+
+  it("知らない値ならカラムを残して既定に戻す", () => {
+    const raw = JSON.stringify({
+      ...deck,
+      columns: [{ ...column, linkCards: "medium" }],
+    });
+    // 捕まえる変異: 知らない値でカラムごと捨てる（新しい版の設定を古い版で開くと消える）
+    const loaded = loadDeck(raw)?.columns[0];
+    expect(loaded?.id).toBe(column.id);
+    expect(loaded && columnLinkCards(loaded)).toBe("compact");
   });
 });

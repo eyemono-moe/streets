@@ -18,9 +18,11 @@ import { EventStore } from "@streets/core/read/event-store";
 import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { WriteFailedError } from "@streets/core/write/writer";
+import { useQueryClient } from "@tanstack/solid-query";
 import { type ParentComponent, Show, createSignal, onCleanup } from "solid-js";
 import { type EventActions, EventActionsProvider } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
+import { type LinkCard, linkCardQueryKey } from "../note/link-card";
 import { ReadLayerProvider } from "../read-layer";
 import type { StoryAuthor } from "./story-events";
 
@@ -32,6 +34,11 @@ export type EventScene = {
   viewer?: StoryAuthor;
   /** 書き込みを全リレーに拒否された扱いにする。 */
   failWrites?: boolean;
+  /**
+   * リンクのカードの答え。取得口へは取りに行かず、この答えを使う。`null` は
+   * 取れなかった扱い。ここに無い URL は、Storybook では取れずにカードが出ない。
+   */
+  linkCards?: Record<string, LinkCard | null>;
 };
 
 const STORY_RELAY = "wss://storybook.invalid/" as RelayUrl;
@@ -143,6 +150,10 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
         `ストーリーのイベントを検証できませんでした: ${event.id}`,
       );
     }
+  }
+  const queryClient = useQueryClient();
+  for (const [url, card] of Object.entries(props.scene.linkCards ?? {})) {
+    queryClient.setQueryData(linkCardQueryKey(url), card);
   }
   const events = eventRequestsFor(new Set(props.scene.missingIds));
   const profiles = inertRequests();

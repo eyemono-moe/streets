@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NostrEvent } from "../nostr/event";
 import { encodeBech32 } from "../nostr/nip19";
-import { layoutNote } from "./note-layout";
+import { MAX_LINK_CARDS, layoutNote } from "./note-layout";
 
 const ID_A = "a".repeat(64);
 const ID_B = "b".repeat(64);
@@ -123,5 +123,41 @@ describe("layoutNote", () => {
     });
     expect(layout.quotes).toEqual([]);
     expect(layout.text.map((token) => token.type)).toEqual(["text", "mention"]);
+  });
+
+  describe("links", () => {
+    it("画像・動画でない URL をカードにし、本文にもリンクとして残す", () => {
+      const layout = layoutNote(
+        note("読んだ https://example.com/article と https://example.com/a.png"),
+        { quotes: true },
+      );
+      expect(layout.links).toEqual(["https://example.com/article"]);
+      expect(layout.text).toContainEqual({
+        type: "url",
+        url: "https://example.com/article",
+      });
+      expect(layout.media.map((item) => item.url)).toEqual([
+        "https://example.com/a.png",
+      ]);
+    });
+
+    it("同じ URL は 1 回、上限まで", () => {
+      const urls = Array.from(
+        { length: MAX_LINK_CARDS + 2 },
+        (_, i) => `https://example.com/${i}`,
+      );
+      const layout = layoutNote(note([urls[0], ...urls].join(" ")), {
+        quotes: true,
+      });
+      // 捕まえる変異: 上限を見ない（URL を並べただけの投稿が縦に伸び続ける）
+      expect(layout.links).toEqual(urls.slice(0, MAX_LINK_CARDS));
+    });
+
+    it("nostr: の参照はカードにしない", () => {
+      const layout = layoutNote(note(`nostr:${encodeBech32("note", ID_A)}`), {
+        quotes: true,
+      });
+      expect(layout.links).toEqual([]);
+    });
   });
 });
