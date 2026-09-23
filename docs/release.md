@@ -36,6 +36,7 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
 
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
 - **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`
+- **GitHub の variables**：リポジトリに `VITE_FEEDBACK_URL`（フィードバックの Google フォーム。値は `apps/web/.env.example`）。無いとフィードバックの導線が押せない
 - **`production` 環境**：必須レビュアーと、出してよい参照を `v*` のタグだけにする
 - **タグの保護**：`v*` のタグを作れる・消せるのを管理者だけにするルールセット
 - **Workers Builds**：Cloudflare の画面の GitHub 連携は止める（二重に出さない）
