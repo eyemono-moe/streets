@@ -5,15 +5,15 @@ import { encodeBech32 } from "../nip19";
 import type { EventDraft } from "./draft";
 
 /**
- * 本文のハッシュタグを `t` タグにする。NIP-24 は小文字を SHOULD としており、
- * `parseContent` が既に小文字へ寄せているので、ここでは重複だけを落とす。
+ * kind:1 の本文のハッシュタグを `t` タグにする。`parseContent` が
+ * NIP-24 に合わせて小文字へ寄せるので、ここでは重複だけを落とす。
  */
 const hashtagTags = (content: string): string[][] =>
   [
     ...new Set(
-      parseContent(content, [])
-        .filter((token) => token.type === "hashtag")
-        .map((token) => (token as { tag: string }).tag),
+      parseContent(content, []).flatMap((token) =>
+        token.type === "hashtag" ? [token.tag] : [],
+      ),
     ),
   ].map((tag) => ["t", tag]);
 
@@ -58,7 +58,11 @@ export const buildReply = (
 
   return {
     kind: 1,
-    tags: [...e, ...[...pubkeys].map((pubkey) => ["p", pubkey])],
+    tags: [
+      ...e,
+      ...[...pubkeys].map((pubkey) => ["p", pubkey]),
+      ...hashtagTags(content),
+    ],
     content,
   };
 };
@@ -79,6 +83,7 @@ export const buildQuote = (
     tags: [
       ["q", target.id, options?.relayHint ?? "", target.pubkey],
       ["p", target.pubkey],
+      ...hashtagTags(content),
     ],
     content: content.includes(uri) ? content : `${content}\n\n${uri}`,
   };
