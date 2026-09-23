@@ -30,37 +30,58 @@ const track = async <T>(
   if (!showWriteProgress()) return run();
   let progress: WriteProgress | undefined;
   const meta = (write: WriteToastMeta["write"]): WriteToastMeta => ({ write });
-  const id = toaster.create({
-    type: "loading",
-    title: label,
-    duration: Number.POSITIVE_INFINITY,
-    meta: meta({ label }),
-  });
+  let id: string | undefined;
+  const show = (
+    write: WriteToastMeta["write"],
+    type: "loading" | "success" | "error" = "loading",
+  ) => {
+    if (id) {
+      toaster.update(id, { type, meta: meta(write) });
+    } else {
+      id = toaster.create({
+        type,
+        title: label,
+        duration: Number.POSITIVE_INFINITY,
+        meta: meta(write),
+      });
+    }
+  };
   try {
     const result = await run((next) => {
       progress = next;
-      toaster.update(id, { meta: meta({ label, progress }) });
+      if (next.phase === "signing") {
+        // 署名器の確認中は中央の待機表示に譲り、同じ待機をトーストに重ねない。
+        if (id) toaster.remove(id);
+        id = undefined;
+      } else {
+        show({ label, progress });
+      }
     });
     const troubled =
       progress?.phase === "sending" &&
       summarizeRelays(progress.relays).rejected > 0;
-    toaster.update(id, {
-      type: "success",
-      duration: troubled ? TROUBLE_DURATION_MS : SAVED_DURATION_MS,
-      meta: meta({ label, progress, outcome: { kind: "done" } }),
-    });
+    show({ label, progress, outcome: { kind: "done" } }, "success");
+    if (id)
+      toaster.update(id, {
+        type: "success",
+        duration: troubled ? TROUBLE_DURATION_MS : SAVED_DURATION_MS,
+      });
     return result;
   } catch (cause) {
     markReported(cause);
-    toaster.update(id, {
-      type: "error",
-      duration: TROUBLE_DURATION_MS,
-      meta: meta({
+    show(
+      {
         label,
         progress,
         outcome: { kind: "failed", message: actionErrorMessage(cause) },
-      }),
-    });
+      },
+      "error",
+    );
+    if (id)
+      toaster.update(id, {
+        type: "error",
+        duration: TROUBLE_DURATION_MS,
+      });
     throw cause;
   }
 };

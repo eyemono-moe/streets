@@ -40,10 +40,6 @@ type S = StoryObj<typeof meta>;
 
 export const 最新の状態を確認中: S = {};
 
-export const 署名を待っている: S = {
-  args: { meta: { label: "リアクション", progress: { phase: "signing" } } },
-};
-
 export const 送信中: S = {
   args: sending(
     "リアクション",
