@@ -59,5 +59,7 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   }
   if (has(6) || has(16)) facets.push("reposts");
   if (has(7)) facets.push("reactions");
+  // Zap は誰かの通知にしか流れない（kind を決められないカラムにも出さない）。
+  if (kinds?.includes(9735)) facets.push("zaps");
   return facets;
 };

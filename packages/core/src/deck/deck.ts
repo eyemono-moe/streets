@@ -43,6 +43,8 @@ export type ColumnShow = {
   mentions: boolean;
   reposts: boolean;
   reactions: boolean;
+  /** Zap の受領（kind:9735）。通知カラムでしか意味を持たない。 */
+  zaps: boolean;
 };
 
 /**
@@ -82,6 +84,7 @@ export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   mentions: true,
   reposts: true,
   reactions: true,
+  zaps: true,
 };
 
 /** 保存された値と既定値を合わせる。カラムを読む側はこれだけを見る。 */
@@ -100,7 +103,7 @@ export const TIMELINE_KINDS: readonly number[] = [1, 6];
  * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
  * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
  */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7];
+export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735];
 
 /**
  * `version` は NIP-78 移行のために残す (無いと壊れているのか形が違う
@@ -227,6 +230,7 @@ const columnDefSchema = v.object({
       mentions: v.optional(v.boolean()),
       reposts: v.optional(v.boolean()),
       reactions: v.optional(v.boolean()),
+      zaps: v.optional(v.boolean()),
     }),
   ),
 });

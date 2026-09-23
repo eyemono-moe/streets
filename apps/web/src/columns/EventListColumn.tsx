@@ -19,6 +19,7 @@ import OlderLoader from "../deck/OlderLoader";
 import ActionNotice from "../note/ActionNotice";
 import Event, { BrokenEvent } from "../note/Event";
 import VirtualList from "../ui/VirtualList";
+import ZapNotice from "../zap/ZapNotice";
 
 /** 投稿または通知を並べ、必要なら古いページを取り足す。 */
 const EventListColumn: Component<{
@@ -87,20 +88,31 @@ const EventListColumn: Component<{
                       <Show when={row.type === "event" && row}>
                         {(single) => (
                           <Show
-                            when={actionTarget(single().event)}
+                            when={single().event.kind !== 9735}
                             fallback={
-                              <Event
-                                event={single().event}
+                              <ZapNotice
+                                receipt={single().event}
                                 size={size()}
                                 expandMedia={expandMedia()}
                               />
                             }
                           >
-                            <ActionNotice
-                              events={[single().event]}
-                              size={size()}
-                              expandMedia={expandMedia()}
-                            />
+                            <Show
+                              when={actionTarget(single().event)}
+                              fallback={
+                                <Event
+                                  event={single().event}
+                                  size={size()}
+                                  expandMedia={expandMedia()}
+                                />
+                              }
+                            >
+                              <ActionNotice
+                                events={[single().event]}
+                                size={size()}
+                                expandMedia={expandMedia()}
+                              />
+                            </Show>
                           </Show>
                         )}
                       </Show>

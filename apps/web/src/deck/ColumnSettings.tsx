@@ -46,6 +46,7 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   mentions: "メンション",
   reposts: "リポスト",
   reactions: "リアクション",
+  zaps: "Zap",
 };
 
 const Field: Component<{ label: string; children: unknown }> = (props) => (

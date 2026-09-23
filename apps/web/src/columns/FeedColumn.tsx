@@ -1,10 +1,13 @@
 import { columnFacets } from "@streets/core/deck/column-facets";
 import { columnShow } from "@streets/core/deck/deck";
 import { excludeOwnActions } from "@streets/core/deck/notification-filter";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import { PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
+import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
 import type { Component } from "solid-js";
 import { useMutes } from "../settings/MuteMediator";
+import { useOwnZapKey } from "../zap/own-zap-key";
 import ColumnBody from "./ColumnBody";
 import EventListColumn from "./EventListColumn";
 import {
@@ -19,11 +22,19 @@ const FeedColumn: Component<
 > = (props) => {
   const section = createColumnSection(props, PAGE_SIZE);
   const mutes = useMutes();
+  const zapKey = useOwnZapKey(() => props.viewer);
+  // 偽の Zap（宛先・金額・受領の署名者が食い違うもの）は通知に並べない。
+  const genuine = (event: NostrEvent) =>
+    event.kind !== 9735 ||
+    parseZapReceipt(event, {
+      recipient: props.viewer,
+      nostrPubkey: zapKey(),
+    }) !== undefined;
   const items = () => {
     const source = props.column.source;
     const received =
       source.kind === "notifications"
-        ? excludeOwnActions(section.items(), props.viewer)
+        ? excludeOwnActions(section.items(), props.viewer).filter(genuine)
         : section.items();
     const hidesMuted =
       source.kind === "followees" ||
