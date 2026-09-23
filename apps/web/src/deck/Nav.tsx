@@ -8,6 +8,7 @@ import {
   createSignal,
 } from "solid-js";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
+import { tourTarget } from "../tour/DeckTour";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
@@ -76,6 +77,7 @@ export const Sidebar: Component<{
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <button
         type="button"
+        {...tourTarget("compose")}
         aria-label="投稿パネルを開く"
         title={shortcutTitle("compose")}
         aria-keyshortcuts={ariaKeyShortcuts("compose")}
@@ -126,6 +128,7 @@ export const Sidebar: Component<{
         {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。 */}
         <button
           type="button"
+          {...tourTarget("add-column")}
           aria-label="カラムを追加"
           title={shortcutTitle("add-column")}
           aria-keyshortcuts={ariaKeyShortcuts("add-column")}
@@ -168,6 +171,7 @@ export const ComposeFab: Component = () => {
   return (
     <button
       type="button"
+      {...tourTarget("compose")}
       aria-label="投稿パネルを開く"
       title={shortcutTitle("compose")}
       aria-keyshortcuts={ariaKeyShortcuts("compose")}
@@ -333,6 +337,7 @@ export const MobileTabBar: Component<{
       {/* 帯の端が切れていることで、横に送れると分かるようにする。 */}
       <div
         ref={strip}
+        {...tourTarget("columns")}
         class="scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overscroll-x-contain border-primary border-x px-1"
       >
         <Show when={props.temp}>{(column) => tab(column(), "temp")}</Show>
@@ -340,6 +345,7 @@ export const MobileTabBar: Component<{
       </div>
       <button
         type="button"
+        {...tourTarget("add-column")}
         aria-label="カラムを追加"
         title={shortcutTitle("add-column")}
         aria-keyshortcuts={ariaKeyShortcuts("add-column")}

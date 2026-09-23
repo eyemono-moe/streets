@@ -1,6 +1,7 @@
-import { type Component, For, createSignal } from "solid-js";
+import { type Component, For, Show, createSignal } from "solid-js";
 import SettingsSection from "../settings/SettingsSection";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
 
 const REPOSITORY = "https://github.com/eyemono-moe/streets";
@@ -20,7 +21,7 @@ const Link: Component<{ href: string; children: string }> = (props) => (
 const version = () =>
   import.meta.env.DEV ? "開発中" : (import.meta.env.VITE_COMMIT_SHA ?? "不明");
 
-const Overview: Component = () => (
+const Overview: Component<{ tour?: boolean }> = (props) => (
   <div class="flex flex-col gap-7">
     <p class="c-primary text-body">
       Streets は Nostr
@@ -39,8 +40,27 @@ const Overview: Component = () => (
         <Link href={`${REPOSITORY}/blob/main/LICENCE`}>MIT</Link>
       </dd>
     </dl>
+    <Show when={props.tour}>
+      <TourButton />
+    </Show>
   </div>
 );
+
+/** 使い方の案内をもう一度見る。押すとダイアログを閉じて、案内を始める。 */
+const TourButton: Component = () => {
+  const dispatch = useDispatch();
+  return (
+    <div>
+      <Button
+        variant="secondary"
+        icon="i-material-symbols:tour-outline-rounded"
+        onClick={() => dispatch({ type: "deck/start-tour" })}
+      >
+        使い方を確認する
+      </Button>
+    </div>
+  );
+};
 
 type Tool = {
   provider: string;
@@ -150,7 +170,12 @@ const Privacy: Component = () => (
 );
 
 /** アイコンのメニューから開く「Streets について」。 */
-const AboutDialog: Component<{ open: boolean; wide: boolean }> = (props) => {
+const AboutDialog: Component<{
+  open: boolean;
+  wide: boolean;
+  /** 使い方の案内を始められる（ログインしてデッキを開いているとき）。 */
+  tour?: boolean;
+}> = (props) => {
   const dispatch = useDispatch();
   const [page, setPage] = createSignal("overview");
   const pages: DialogPage[] = [
@@ -159,7 +184,7 @@ const AboutDialog: Component<{ open: boolean; wide: boolean }> = (props) => {
       label: "このアプリについて",
       icon: "i-material-symbols:info-outline-rounded",
       title: "このアプリについて",
-      content: () => <Overview />,
+      content: () => <Overview tour={props.tour} />,
     },
     {
       value: "privacy",
