@@ -1,4 +1,5 @@
 import { buildNote } from "@streets/core/nostr/build/note";
+import { withReferences } from "@streets/core/nostr/build/references";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type ComposeState, canSend } from "@streets/core/view/compose";
 import {
@@ -10,7 +11,10 @@ import {
   onMount,
 } from "solid-js";
 import { useEventActions } from "../actions";
+import { useNoteSources } from "../completion/sources";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { useDispatch } from "../ui-events";
+import Completion from "../ui/Completion";
 import Avatar from "./Avatar";
 import Event from "./Event";
 import {
@@ -41,6 +45,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
   const dispatch = useDispatch();
   const preview = useDebounced(() => props.state.content, 400);
   const dropAndPaste = useDropAndPaste();
+  const emoji = useEmojiLookup();
 
   // 署名前の姿を見せるだけなので、id と sig は空。`Event` は描くのに使わない。
   const previewEvent = (): NostrEvent | undefined => {
@@ -49,7 +54,8 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
     const empty = text.length === 0 && props.state.attachments.length === 0;
     if (!actions || empty) return undefined;
     return {
-      ...buildNote(text),
+      // 送るときと同じく、自分の絵文字の :shortcode: を絵文字で見せる。
+      ...withReferences(buildNote(text), { emoji }),
       id: "",
       sig: "",
       pubkey: actions.viewer,
@@ -63,6 +69,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
    */
   let body: HTMLTextAreaElement | undefined;
   onMount(() => body?.focus());
+  const sources = useNoteSources();
 
   return (
     <form
@@ -78,28 +85,35 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
           {(actions) => <Avatar pubkey={actions().viewer} size="compact" />}
         </Show>
         {/* 5 行ぶんの高さを確保し、必要なら伸ばす。パネルの高さいっぱいには広げない。 */}
-        <textarea
-          ref={body}
-          aria-label="ノートの本文"
-          rows={5}
-          class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
-          disabled={props.state.sending}
-          placeholder="いま何してる？"
-          value={props.state.content}
-          onInput={(event) =>
-            dispatch({
-              type: "compose/input",
-              content: event.currentTarget.value,
-            })
-          }
-          {...dropAndPaste}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-              event.preventDefault();
-              dispatch({ type: "compose/submit" });
-            }
-          }}
-        />
+        <Completion sources={sources} label="入れる候補">
+          {(attach) => (
+            <textarea
+              ref={(el) => {
+                body = el;
+                attach(el);
+              }}
+              aria-label="ノートの本文"
+              rows={5}
+              class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
+              disabled={props.state.sending}
+              placeholder="いま何してる？"
+              value={props.state.content}
+              onInput={(event) =>
+                dispatch({
+                  type: "compose/input",
+                  content: event.currentTarget.value,
+                })
+              }
+              {...dropAndPaste}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                  event.preventDefault();
+                  dispatch({ type: "compose/submit" });
+                }
+              }}
+            />
+          )}
+        </Completion>
       </div>
 
       <ComposeAttachments

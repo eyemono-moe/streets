@@ -1,8 +1,10 @@
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { useUserCandidates, userSource } from "../completion/sources";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import Completion from "../ui/Completion";
 import { searchInputClass } from "../ui/TextField";
 import { EmojiPreview } from "./EmojiSettingsView";
 
@@ -34,6 +36,10 @@ export type EmojiSetSearchViewProps = {
  */
 const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
   const [text, setText] = createSignal("");
+  // @ で人を選ぶと、その人のセットを探せる。
+  const sources = [
+    userSource(useUserCandidates(), { format: (nprofile) => nprofile }),
+  ];
   return (
     <div class="flex flex-col gap-2.5">
       <form
@@ -43,15 +49,22 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
           props.onSearch(text());
         }}
       >
-        <input
-          class={`${searchInputClass} min-w-48 flex-1`}
-          placeholder="ねこ / npub1… / naddr1…"
-          aria-label="絵文字セットを探す"
-          aria-invalid={props.error !== undefined}
-          aria-describedby={props.error ? "emoji-set-search-error" : undefined}
-          value={text()}
-          onInput={(event) => setText(event.currentTarget.value)}
-        />
+        <Completion sources={sources} label="人の候補">
+          {(attach) => (
+            <input
+              ref={attach}
+              class={`${searchInputClass} min-w-48 flex-1`}
+              placeholder="ねこ / @名前 / npub1… / naddr1…"
+              aria-label="絵文字セットを探す"
+              aria-invalid={props.error !== undefined}
+              aria-describedby={
+                props.error ? "emoji-set-search-error" : undefined
+              }
+              value={text()}
+              onInput={(event) => setText(event.currentTarget.value)}
+            />
+          )}
+        </Completion>
         <Button
           type="submit"
           variant="primary"

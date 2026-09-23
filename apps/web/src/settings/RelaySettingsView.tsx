@@ -3,6 +3,10 @@ import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
 import {
+  type ReadRoutingMode,
+  readRoutingFor,
+} from "@streets/core/settings/read-routing-setting";
+import {
   type RelayOp,
   type RelayUsage,
   parseRelayInput,
@@ -36,6 +40,8 @@ export type RelaySettingsViewProps = {
   fallback: readonly RelayUrl[];
   /** リレーが自分について答えた内容。取れていなければ undefined。 */
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
+  /** 投稿を読むリレーの決め方（この端末の設定）。 */
+  readMode: ReadRoutingMode;
 };
 
 /** リレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -88,6 +94,12 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
           onAdd={(url) => edit({ type: "add", url })}
         />
       </SettingsSection>
+      <ReadRoutingSection
+        mode={props.readMode}
+        entries={props.entries}
+        loading={props.loading}
+        fallback={props.fallback}
+      />
     </div>
   );
 };
@@ -163,6 +175,71 @@ const RelayRow: Component<{
         }
       />
     </li>
+  );
+};
+
+const READ_MODES: { value: ReadRoutingMode; label: string }[] = [
+  { value: "outbox", label: "人ごとに選ぶ" },
+  { value: "direct", label: "読み込みリレーだけ" },
+];
+
+const ReadRoutingSection: Component<{
+  mode: ReadRoutingMode;
+  entries: readonly RelayListEntry[];
+  loading: boolean;
+  fallback: readonly RelayUrl[];
+}> = (props) => {
+  const dispatch = useDispatch();
+  const routing = () =>
+    readRoutingFor(
+      props.mode,
+      props.loading
+        ? { phase: "loading" }
+        : props.entries.length > 0
+          ? { phase: "ready", entries: props.entries }
+          : { phase: "missing" },
+      props.fallback,
+    );
+  const directRelays = () => {
+    const current = routing();
+    return current.mode === "direct" ? current.relays : [];
+  };
+  const usesFallback = () =>
+    !props.loading && !props.entries.some((entry) => entry.read);
+
+  return (
+    <SettingsSection
+      title="投稿を読むリレー"
+      scope="device"
+      description="ふつうは、フォローしている人ごとに、その人が書き込みに使っているリレーを探して投稿を読みます。その人のリレーの設定が見つからないと、決まったリレーから読むので、手元で動かしているリレーや、限られた人だけのリレーにある投稿は出ないことがあります。「読み込みリレーだけ」にすると、誰の投稿も、上で「読み込み」にしたリレーから読みます。"
+    >
+      <SegmentedControl
+        label="投稿を読むリレー"
+        variant="secondary"
+        value={props.mode}
+        options={READ_MODES}
+        onChange={(mode) => dispatch({ type: "deck/set-read-routing", mode })}
+      />
+      <Show when={props.mode === "direct"}>
+        <div class="c-secondary rounded-2 border border-primary p-3 text-caption">
+          <Switch>
+            <Match when={props.loading}>読み込み中…</Match>
+            <Match when={true}>
+              {usesFallback()
+                ? "読み込みにしたリレーが無いので、いまは次のリレーから読んでいます。"
+                : "いまは次のリレーから読んでいます。"}
+              <For each={directRelays()}>
+                {(url) => (
+                  <span class="c-primary block break-all">
+                    {relayLabel(url)}
+                  </span>
+                )}
+              </For>
+            </Match>
+          </Switch>
+        </div>
+      </Show>
+    </SettingsSection>
   );
 };
 

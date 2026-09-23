@@ -1,4 +1,5 @@
 import type { Mutation } from "@streets/core/nostr/build/draft";
+import type { EmojiLookup } from "@streets/core/nostr/build/references";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type CustomEmoji,
@@ -14,7 +15,10 @@ import {
   removeEmojiSet,
 } from "@streets/core/settings/emoji-list";
 import { type EmojiSet, parseEmojiSet } from "@streets/core/settings/emoji-set";
-import { customEmojiGroups } from "@streets/core/view/emoji-catalog";
+import {
+  customEmojiGroups,
+  findCustomEmoji,
+} from "@streets/core/view/emoji-catalog";
 import type { Writer } from "@streets/core/write/writer";
 import {
   type Accessor,
@@ -38,6 +42,8 @@ export type CustomEmojis = {
   sets: Accessor<EmojiSet[]>;
   /** 保存している途中。続けて押させない。 */
   saving: Accessor<boolean>;
+  /** ショートコードから画像を引く。送るときに `emoji` タグを付けるのに使う。 */
+  lookup: EmojiLookup;
 };
 
 const CustomEmojisContext = createContext<CustomEmojis>();
@@ -165,8 +171,12 @@ export const CustomEmojisMediator: ParentComponent<{
     }
   };
 
+  const catalog = createMemo(() => customEmojiGroups(list(), sets()));
+  const lookup: EmojiLookup = (shortcode) =>
+    findCustomEmoji(catalog(), shortcode)?.url;
+
   const groups = createMemo<PickerGroup[]>(() =>
-    customEmojiGroups(list(), sets()).map((group) => ({
+    catalog().map((group) => ({
       id: group.id,
       title: group.title,
       emojis: group.emojis.map((emoji) => ({
@@ -178,7 +188,9 @@ export const CustomEmojisMediator: ParentComponent<{
   );
 
   return (
-    <CustomEmojisContext.Provider value={{ groups, list, sets, saving }}>
+    <CustomEmojisContext.Provider
+      value={{ groups, list, sets, saving, lookup }}
+    >
       <Mediates handle={handle}>{props.children}</Mediates>
     </CustomEmojisContext.Provider>
   );
@@ -191,4 +203,43 @@ export const useCustomEmojis = (): CustomEmojis | undefined =>
 export const useEmojiGroups = (): Accessor<PickerGroup[]> => {
   const context = useCustomEmojis();
   return context?.groups ?? (() => []);
+};
+
+/** ショートコードから画像を引く。読んでいない場所（Storybook など）では何も引けない。 */
+export const useEmojiLookup = (): EmojiLookup => {
+  const context = useCustomEmojis();
+  return context?.lookup ?? (() => undefined);
+};
+
+/**
+ * 自分の絵文字を固定の一覧で渡す（Storybook 用）。アプリでは `CustomEmojisMediator` が
+ * kind:10030 から作る。
+ */
+export const StaticCustomEmojis: ParentComponent<{
+  emojis: readonly CustomEmoji[];
+}> = (props) => {
+  const list = (): EmojiList => ({ emojis: [...props.emojis], sets: [] });
+  const catalog = () => customEmojiGroups(list(), []);
+  return (
+    <CustomEmojisContext.Provider
+      value={{
+        groups: () =>
+          catalog().map((group) => ({
+            id: group.id,
+            title: group.title,
+            emojis: group.emojis.map((emoji) => ({
+              kind: "custom" as const,
+              shortcode: emoji.shortcode,
+              url: emoji.url,
+            })),
+          })),
+        list,
+        sets: () => [],
+        saving: () => false,
+        lookup: (shortcode) => findCustomEmoji(catalog(), shortcode)?.url,
+      }}
+    >
+      {props.children}
+    </CustomEmojisContext.Provider>
+  );
 };

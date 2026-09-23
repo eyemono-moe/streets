@@ -16,6 +16,7 @@ pnpm workspace の 2 パッケージ。
 ## 進め方
 
 - **タスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。** Issue とチャットでの確認を仕様とし、spec や plan のファイルは作らない
+- 着手前に Issue だけでなく、その Issue を進めている open PR も見る。Issue が開いたまま、複数の PR に分けて作業していることがある
 - ADR を書くのは、秘密鍵の境界や永続形式など、後から戻しにくい決定だけ。数行で書く
 - **画面の順序と進み具合は [#343](https://github.com/eyemono-moe/streets/issues/343) にある。** 着手前に読み、画面を 1 枚作り終えたらチェックを付けて PR 番号を書く
 - **v1 リリースまでの作業の正本は [マイルストーン v1](https://github.com/eyemono-moe/streets/milestone/1)。** v1 に要る作業は Issue を立て、優先度 P1 を付けてこのマイルストーンに入れる。リリースの PR（#147）の本文にはチェックリストを持たない
@@ -66,6 +67,7 @@ pnpm workspace の 2 パッケージ。
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
 - UI コンポーネントの単体テストは原則書かない。画面の確認は手で動かして行う
 - 部品の見た目は Storybook（`apps/web/src/**/*.stories.tsx`）で確認する。ストーリーはテストではなく、リレーに繋がずに固定のイベントを並べるカタログ。署名済みイベントの作り方と読み取り層の差し替えは `apps/web/src/storybook/` にある
+- メディアの URL を本文に入れるストーリーでは、import した fixture のパスを `new URL(asset, location.href).href` で絶対 URL にする。本文の URL パーサーは `http(s)` で始まるものだけを拾う
 - **見た目を変えたら、同じ PR で Storybook も更新する**。ストーリーが無い部品なら追加する。レビューする側が、アプリを立ち上げずに変更を見られる状態にしておく
 - ストーリーには普通の状態だけでなく、崩れやすい端（長い本文、空、取得中、読み込めなかった、プロフィールが無い、幅の狭いカラム）も並べる。手で試した端は、その場でストーリーとして残す
 - 読み取り層に繋がる画面は、見た目だけの部品を切り出してストーリーにする（例: `ThreadView` に対する `ThreadSpineView`）
@@ -76,6 +78,7 @@ pnpm workspace の 2 パッケージ。
 ```sh
 pnpm verify   # biome + 型検査 + テスト + ビルド。CI も同じものを呼ぶ
 pnpm fix      # 整形と import 順
+pnpm --filter @streets/web storybook:build  # ストーリーを変えたとき。verify には含まれない
 ```
 
 ## 手で触る

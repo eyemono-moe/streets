@@ -16,8 +16,11 @@ import {
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
+import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { OUTBOX_ROUTING } from "@streets/core/read/read-routing";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import { readRoutingFor } from "@streets/core/settings/read-routing-setting";
 import { effectiveSearchRelays } from "@streets/core/settings/search-relay-list";
 import {
   type Component,
@@ -42,6 +45,7 @@ import { keymap, setShortcut } from "../keymap";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
+import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
 import type { Session } from "../session";
 import { MediaMediator } from "../settings/MediaMediator";
 import { MuteMediator } from "../settings/MuteMediator";
@@ -137,6 +141,24 @@ const DeckScreen: Component<{
   };
   const relayList = () =>
     relayListState(props.readLayer.store, viewer, settled());
+
+  // 読み込みリレーだけを読む設定なら、自分の一覧が変わるたびに読み先を当て直す。
+  createEffect(() => {
+    write.relayList();
+    props.readLayer.manager.setReadRouting(
+      readRoutingFor(
+        readRoutingMode(),
+        relayList(),
+        props.bootstrapIndexers ?? FALLBACK_RELAYS,
+      ),
+    );
+  });
+  onCleanup(() => props.readLayer.manager.setReadRouting(OUTBOX_ROUTING));
+
+  const [readPlan, setReadPlan] = createSignal(
+    props.readLayer.manager.readPlan,
+  );
+  onCleanup(props.readLayer.manager.onReadPlanChanged(setReadPlan));
 
   const deckStore = createDeckStore({
     pubkey: props.session.pubkey,
@@ -335,6 +357,9 @@ const DeckScreen: Component<{
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
         return true;
+      case "deck/set-read-routing":
+        setReadRoutingMode(event.mode);
+        return true;
       case "deck/set-shortcut":
         setShortcut(event.action, event.hotkey);
         return true;
@@ -389,7 +414,9 @@ const DeckScreen: Component<{
             full={full}
           >
             <ComposeMediator
-              send={(text, media) => write.actions.post(text, media)}
+              send={(text, media, emoji) =>
+                write.actions.post(text, media, emoji)
+              }
               failure="投稿できませんでした"
               onSent={() => handle({ type: "deck/close-panel" })}
             >
@@ -444,6 +471,9 @@ const DeckScreen: Component<{
                       statusOf={(url) =>
                         props.readLayer.manager.pool.statusOf(url)
                       }
+                      readPlan={readPlan}
+                      routingSettled={settled}
+                      followees={followees}
                     >
                       <MuteMediator
                         writer={trackReplaces(write.writer, "ミュート")}

@@ -13,10 +13,14 @@ import type { RelayUrl } from "../../relay/relay-connection";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
 
 export const NIP46_KIND = 24_133;
-export const NIP46_RPC_TIMEOUT_MS = 30_000;
+/**
+ * 署名器の応答を待つ上限。署名器が止まっていると、この間ずっと保存や再読み込み
+ * 後の復元が進まない。承認のページを出した（auth_url）ときは別に長く待つ。
+ */
+export const NIP46_RPC_TIMEOUT_MS = 10_000;
 /**
  * 任意の問い合わせ（`switch_relays` など）を待つ上限。応えない署名器もあり、
- * 30 秒待つとその間ログインが終わらない。
+ * 待ちすぎるとその間ログインが終わらない。
  */
 export const NIP46_OPTIONAL_RPC_TIMEOUT_MS = 5_000;
 export const NIP46_AUTH_TIMEOUT_MS = 120_000;

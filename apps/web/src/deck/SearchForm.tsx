@@ -3,6 +3,8 @@ import {
   formatSearchQuery,
 } from "@streets/core/search/query";
 import { type Component, Show } from "solid-js";
+import { useUserCandidates, userSource } from "../completion/sources";
+import Completion from "../ui/Completion";
 import { textInputClass } from "../ui/TextField";
 
 /** 秒 → `yyyy-mm-dd`（日付の入力欄の形）。 */
@@ -43,6 +45,13 @@ const SearchForm: Component<{
 }> = (props) => {
   const patch = (change: Partial<SearchQuery>) =>
     props.onChange(formatSearchQuery({ ...props.query, ...change }));
+  // 「書いた人」「宛先」は、欄全体で人を探す。
+  const whole = [
+    userSource(useUserCandidates(), {
+      trigger: { kind: "user", prefixes: [] },
+      format: (nprofile) => nprofile,
+    }),
+  ];
   const words = (text: string) =>
     text.split(/\s+/).filter((word) => word.length > 0);
 
@@ -75,26 +84,36 @@ const SearchForm: Component<{
         />
       </Field>
       <Field id="search-from" label="書いた人">
-        <input
-          id="search-from"
-          class={inputClass}
-          placeholder="npub1… / nprofile1…"
-          value={props.query.from ?? ""}
-          onChange={(event) =>
-            patch({ from: event.currentTarget.value.trim() || undefined })
-          }
-        />
+        <Completion sources={whole} label="人の候補">
+          {(attach) => (
+            <input
+              ref={attach}
+              id="search-from"
+              class={inputClass}
+              placeholder="npub1… / nprofile1…"
+              value={props.query.from ?? ""}
+              onChange={(event) =>
+                patch({ from: event.currentTarget.value.trim() || undefined })
+              }
+            />
+          )}
+        </Completion>
       </Field>
       <Field id="search-to" label="宛先">
-        <input
-          id="search-to"
-          class={inputClass}
-          placeholder="npub1… / nprofile1…"
-          value={props.query.to ?? ""}
-          onChange={(event) =>
-            patch({ to: event.currentTarget.value.trim() || undefined })
-          }
-        />
+        <Completion sources={whole} label="人の候補">
+          {(attach) => (
+            <input
+              ref={attach}
+              id="search-to"
+              class={inputClass}
+              placeholder="npub1… / nprofile1…"
+              value={props.query.to ?? ""}
+              onChange={(event) =>
+                patch({ to: event.currentTarget.value.trim() || undefined })
+              }
+            />
+          )}
+        </Completion>
       </Field>
       <div class="flex gap-2">
         <div class="min-w-0 flex-1">

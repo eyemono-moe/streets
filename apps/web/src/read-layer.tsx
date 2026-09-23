@@ -6,7 +6,8 @@ export type ReadAccess = Pick<
   ReadLayer,
   "store" | "events" | "profiles" | "engagements"
 > &
-  Partial<Pick<ReadLayer, "manager">>;
+  // routing は、本文で人を指すときに添えるリレーを引くのに使う。無ければ添えない。
+  Partial<Pick<ReadLayer, "manager" | "routing">>;
 
 const ReadLayerContext = createContext<ReadAccess>();
 
@@ -24,3 +25,7 @@ export const useReadLayer = (): ReadAccess => {
   if (!readLayer) throw new Error("ReadLayerProvider が見つかりません");
   return readLayer;
 };
+
+/** 読み取り層が無い場所（Storybook の一部など）では undefined。無くても描ける部品が使う。 */
+export const useOptionalReadLayer = (): ReadAccess | undefined =>
+  useContext(ReadLayerContext);

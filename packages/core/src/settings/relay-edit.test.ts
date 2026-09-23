@@ -45,6 +45,22 @@ describe("applyRelayOps", () => {
     expect(applyRelayOps([], [{ type: "add", url: A }])).toEqual([both(A)]);
   });
 
+  it("使い方を決めて足せる", () => {
+    expect(
+      applyRelayOps(
+        [both(A)],
+        [
+          { type: "add", url: B, usage: "read" },
+          { type: "add", url: C, usage: "write" },
+        ],
+      ),
+    ).toEqual([
+      both(A),
+      { url: B, read: true, write: false },
+      { url: C, read: false, write: true },
+    ]);
+  });
+
   it("同じリレーを 2 回足しても 1 本", () => {
     expect(applyRelayOps([both(A)], [{ type: "add", url: A }])).toEqual([
       both(A),
