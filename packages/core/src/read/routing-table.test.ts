@@ -100,4 +100,18 @@ describe("RoutingTable", () => {
     store.put(event, "wss://indexer");
     expect(table.writeRelaysFor(event.pubkey)).toEqual(["wss://late.example/"]);
   });
+
+  it("reuses the parsed relays until a newer relay list arrives", () => {
+    const store = new EventStore();
+    const table = new RoutingTable(store);
+    const older = relayList(6, [["r", "wss://old.example", "write"]], 1_000);
+    store.put(older, "wss://indexer");
+
+    const first = table.writeRelaysFor(older.pubkey);
+    expect(table.writeRelaysFor(older.pubkey)).toBe(first);
+
+    const newer = relayList(6, [["r", "wss://new.example", "write"]], 2_000);
+    store.put(newer, "wss://indexer");
+    expect(table.writeRelaysFor(newer.pubkey)).toEqual(["wss://new.example/"]);
+  });
 });
