@@ -112,8 +112,9 @@ const build = (
 let loading: Promise<PickerGroup[]> | undefined;
 
 /**
- * Unicode の絵文字の一覧。1949 件あって小さくないので、ピッカーを初めて開いた
- * ときに読む。2 回目からは読んだものを使い回す。
+ * Unicode の絵文字の一覧。1949 件あって小さくないので、起動時には読まず、
+ * 投稿や返信を書き始めたとき（またはピッカーを初めて開いたとき）に読む。
+ * 2 回目からは読んだものを使い回す。
  */
 export const loadUnicodeEmojis = (): Promise<PickerGroup[]> => {
   if (!loading) {
