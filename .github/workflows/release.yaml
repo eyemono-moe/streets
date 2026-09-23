@@ -93,12 +93,15 @@ jobs:
       - name: GitHub の Release を作る
         env:
           GH_TOKEN: ${{ github.token }}
-        # 本文はアプリと同じノート。先頭の日付（--- で囲んだ部分）は GitHub では崩れるので外す。
+        # 本文はアプリと同じノート。先頭の日付（--- で囲んだ部分）は GitHub では崩れるので外し、
+        # 人の参照（nostr:npub1…）は GitHub では押せないので njump.me へのリンクにする。
         # その後ろに、GitHub が作る PR の一覧と前の版からの比較を足す（--generate-notes）。
         run: |
           awk 'NR == 1 && /^---$/ { front = 1; next }
                front && /^---$/ { front = 0; next }
-               !front' "apps/web/src/releases/${GITHUB_REF_NAME}.md" > "$RUNNER_TEMP/notes.md"
+               !front' "apps/web/src/releases/${GITHUB_REF_NAME}.md" |
+            sed -E 's#nostr:((npub|nprofile)1[02-9ac-hj-np-z]+)#[\1](https://njump.me/\1)#g' \
+            > "$RUNNER_TEMP/notes.md"
           gh release create "$GITHUB_REF_NAME" \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
