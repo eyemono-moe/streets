@@ -47,6 +47,7 @@ import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
+import { screenshotMode } from "../screenshot-mode";
 import type { Session } from "../session";
 import { MediaMediator } from "../settings/MediaMediator";
 import { MuteMediator } from "../settings/MuteMediator";
@@ -278,7 +279,8 @@ const DeckScreen: Component<{
 
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
   // ダイアログが開いている間は待つ（閉じたら出す）。
-  let tourOffered = tourSeen();
+  // スクリーンショットを撮るとき（?screenshot）は、案内を写さない。
+  let tourOffered = tourSeen() || screenshotMode();
   createEffect(() => {
     if (tourOffered) return;
     if (deckStore.value() === undefined || columns().length === 0) return;

@@ -142,6 +142,9 @@ export const defaultDeck = (): Deck => ({
   columns: [buildColumn("home", "")!, buildColumn("notifications", "")!],
 });
 
+/** デッキを保存する kind:30078 の `d` タグ。 */
+export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
+
 export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
 
 /**
