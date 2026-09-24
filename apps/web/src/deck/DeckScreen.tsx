@@ -30,6 +30,7 @@ import {
   Show,
   Switch,
   createEffect,
+  createMemo,
   createResource,
   createSignal,
   onCleanup,
@@ -80,7 +81,7 @@ import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import SearchPanel from "./SearchPanel";
-import SidePanel from "./SidePanel";
+import SidePanel, { SidePanelMotion } from "./SidePanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
@@ -446,8 +447,11 @@ const DeckScreen: Component<{
     }
   };
 
+  // 閉じる動きの間も、最後に開いていたパネルの中身を描き続ける。
+  const shownPanel = createMemo<typeof ui.panel>((last) => ui.panel ?? last);
+
   const panelView = (full: boolean) => (
-    <Show when={ui.panel}>
+    <Show when={shownPanel()}>
       {(current) => (
         <Show
           when={current() === "compose"}
@@ -577,7 +581,9 @@ const DeckScreen: Component<{
                                   numbers={columnDigits()}
                                   onLogout={props.session.logout}
                                 />
-                                {panelView(false)}
+                                <SidePanelMotion open={ui.panel !== undefined}>
+                                  {panelView(false)}
+                                </SidePanelMotion>
                                 <div class="flex min-w-0 flex-1 flex-col">
                                   <DeckSyncNotice store={deckStore} />
                                   {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
@@ -747,16 +753,12 @@ const DeckScreen: Component<{
                                       )}
                                     </For>
                                   </div>
-                                  {/*
-                                    パネルはカラムの上に重ねる。カラムを隠すと、送った位置が失われる。
-                                    開いている間だけ作る —— hidden で隠すと flex の display に負けて、
-                                    閉じていてもカラムを覆う。
-                                  */}
-                                  <Show when={ui.panel !== undefined}>
-                                    <div class="absolute inset-0 flex bg-primary">
-                                      {panelView(true)}
-                                    </div>
-                                  </Show>
+                                  <SidePanelMotion
+                                    open={ui.panel !== undefined}
+                                    full
+                                  >
+                                    {panelView(true)}
+                                  </SidePanelMotion>
                                   {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
                                   <Show when={ui.panel === undefined}>
                                     <ComposeFab />
