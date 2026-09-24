@@ -41,6 +41,8 @@ export const createSection = (options: CreateSectionOptions): Section => {
   });
   const [paging, setPaging] = createSignal<Paging>("idle");
   let current: SectionReader | undefined;
+  // 取る中身が変わって作り直すとき、それまで伸ばした件数から始める。
+  let carried: number | undefined;
 
   // 中身が同じ source に作り直されても張り直さない（カラムの題名や幅を変えたときなど）。
   const source = createMemo(options.source, undefined, { equals: sameSource });
@@ -53,6 +55,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       store: options.manager.store,
       manager: options.manager,
       pageSize: options.pageSize,
+      initialSize: carried,
     });
     current = reader;
 
@@ -68,6 +71,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
     sync();
 
     onCleanup(() => {
+      carried = reader.items.length;
       unsubscribe();
       reader.stop();
       if (current === reader) current = undefined;

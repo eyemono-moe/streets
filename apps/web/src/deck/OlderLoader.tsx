@@ -18,8 +18,6 @@ const AHEAD_PX = 800;
  */
 const OlderLoader: Component<{
   paging: Paging;
-  /** 最初のページが揃ったか。揃うまでは取り足さない（`SectionReader` も同じ判定をする）。 */
-  ready: boolean;
   onReach: () => void;
 }> = (props) => {
   let sentinel: HTMLDivElement | undefined;
@@ -45,9 +43,9 @@ const OlderLoader: Component<{
   // ときは、交わりが変わらないので通知が来ない。見張り直して、今の状態をもう一度受け取る。
   createEffect(
     on(
-      () => [props.paging, props.ready] as const,
-      ([paging, ready]) => {
-        if (paging !== "idle" || !ready || !sentinel || !observer) return;
+      () => props.paging,
+      (paging) => {
+        if (paging !== "idle" || !sentinel || !observer) return;
         observer.unobserve(sentinel);
         observer.observe(sentinel);
       },
