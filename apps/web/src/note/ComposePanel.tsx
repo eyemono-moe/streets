@@ -67,10 +67,11 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
 
   /**
    * 開いたらすぐ打ち始められるようにする。`autofocus` 属性は、後から差し込んだ
-   * 要素には当たらないことがあるので、自分で当てる。
+   * 要素には当たらないことがあるので、自分で当てる。パネルは開く動きの途中で
+   * まだ画面の外にずれているので、スクロールさせない（させると、外側の箱ごと動く）。
    */
   let body: HTMLTextAreaElement | undefined;
-  onMount(() => body?.focus());
+  onMount(() => body?.focus({ preventScroll: true }));
   const sources = useNoteSources();
 
   return (

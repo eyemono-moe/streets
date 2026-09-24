@@ -1,3 +1,4 @@
+import { Collapsible, Presence } from "@ark-ui/solid";
 import { type Component, type JSX, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 
@@ -15,7 +16,7 @@ const SidePanel: Component<{
   const dispatch = useDispatch();
   return (
     <section
-      class="flex h-full min-h-0 animate-panel-in flex-col border-primary bg-primary"
+      class="flex h-full min-h-0 flex-col border-primary bg-primary"
       classList={{
         "w-full": props.full,
         "w-90 shrink-0 border-r": !props.full,
@@ -45,5 +46,36 @@ const SidePanel: Component<{
     </section>
   );
 };
+
+/**
+ * パネルの開閉の動き。広い画面ではカラムの設定と同じく横に開き、狭い画面では
+ * 下のバーから開いたものとして下から上がる。狭い画面ではカラムの上に重ねる ——
+ * カラムを隠すと、送った位置とスクロール位置が失われる。
+ */
+export const SidePanelMotion: Component<{
+  open: boolean;
+  full?: boolean;
+  children: JSX.Element;
+}> = (props) => (
+  <Show
+    when={props.full}
+    fallback={
+      <Collapsible.Root lazyMount unmountOnExit open={props.open}>
+        <Collapsible.Content class="motion-collapse-right h-full">
+          {props.children}
+        </Collapsible.Content>
+      </Collapsible.Root>
+    }
+  >
+    <Presence
+      lazyMount
+      unmountOnExit
+      present={props.open}
+      class="motion-sheet absolute inset-0 flex bg-primary"
+    >
+      {props.children}
+    </Presence>
+  </Show>
+);
 
 export default SidePanel;

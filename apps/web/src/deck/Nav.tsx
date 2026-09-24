@@ -8,7 +8,7 @@ import {
   createSignal,
 } from "solid-js";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
-import { tourTarget } from "../tour/DeckTour";
+import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
@@ -312,9 +312,10 @@ export const MobileTabBar: Component<{
     );
   };
   return (
+    // 下から上がるパネルより上に描く（位置を持たせ、DOM の順で重ねる）。
     <nav
       aria-label="カラム"
-      class="flex shrink-0 items-center border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
+      class="relative flex shrink-0 items-center border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
     >
       <button
         type="button"

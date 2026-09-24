@@ -1,5 +1,4 @@
-import shortcodesUrl from "emojibase-data/en/shortcodes/iamcal.json?url";
-import dataUrl from "emojibase-data/ja/compact.json?url";
+import type { UnicodeEmojiRow } from "../../emoji-data-plugin";
 
 /**
  * ピッカーに並べる絵文字。Unicode の絵文字と、誰かが作ったカスタム絵文字の
@@ -62,39 +61,14 @@ const GROUPS: Record<number, { title: string; icon: string }> = {
   9: { title: "旗", icon: "i-material-symbols:flag-outline-rounded" },
 };
 
-type CompactEmoji = {
-  group?: number;
-  hexcode: string;
-  label: string;
-  order?: number;
-  tags?: string[];
-  unicode: string;
-};
-
-const asArray = (value: string | string[] | undefined): string[] =>
-  value === undefined ? [] : Array.isArray(value) ? value : [value];
-
-const build = (
-  data: CompactEmoji[],
-  shortcodes: Record<string, string | string[]>,
-): PickerGroup[] => {
-  const byGroup = new Map<number, { emoji: PickerEmoji; order: number }[]>();
-  for (const entry of data) {
-    if (entry.group === undefined || GROUPS[entry.group] === undefined) {
-      continue;
-    }
-    const list = byGroup.get(entry.group) ?? [];
-    list.push({
-      order: entry.order ?? 0,
-      emoji: {
-        kind: "unicode",
-        char: entry.unicode,
-        label: entry.label,
-        tags: entry.tags ?? [],
-        shortcodes: asArray(shortcodes[entry.hexcode]),
-      },
-    });
-    byGroup.set(entry.group, list);
+const build = (rows: readonly UnicodeEmojiRow[]): PickerGroup[] => {
+  const byGroup = new Map<number, PickerEmoji[]>();
+  // 並び順は emoji-data-plugin が決めてある。
+  for (const [group, char, label, tags, shortcodes] of rows) {
+    if (GROUPS[group] === undefined) continue;
+    const list = byGroup.get(group) ?? [];
+    list.push({ kind: "unicode", char, label, tags, shortcodes });
+    byGroup.set(group, list);
   }
   return Object.entries(GROUPS)
     .map(([group, meta]) => ({ group: Number(group), ...meta }))
@@ -103,32 +77,22 @@ const build = (
       id: `unicode-${group}`,
       title,
       icon,
-      emojis: (byGroup.get(group) ?? [])
-        .sort((a, b) => a.order - b.order)
-        .map((entry) => entry.emoji),
+      emojis: byGroup.get(group) ?? [],
     }));
 };
 
 let loading: Promise<PickerGroup[]> | undefined;
 
 /**
- * Unicode の絵文字の一覧。1949 件あって小さくないので、ピッカーを初めて開いた
- * ときに読む。2 回目からは読んだものを使い回す。
+ * Unicode の絵文字の一覧。1949 件あって小さくないので、起動時には読まず、
+ * 投稿や返信を書き始めたとき（またはピッカーを初めて開いたとき）に読む。
+ * 2 回目からは読んだものを使い回す。
  */
 export const loadUnicodeEmojis = (): Promise<PickerGroup[]> => {
   if (!loading) {
-    loading = (async () => {
-      const [data, shortcodes] = await Promise.all([
-        fetch(dataUrl).then(
-          (response) => response.json() as Promise<CompactEmoji[]>,
-        ),
-        fetch(shortcodesUrl).then(
-          (response) =>
-            response.json() as Promise<Record<string, string | string[]>>,
-        ),
-      ]);
-      return build(data, shortcodes);
-    })();
+    loading = import("virtual:unicode-emojis").then((module) =>
+      build(module.default),
+    );
     // 読めなかったときに、次に開いたらもう一度試せるようにする。
     loading.catch(() => {
       loading = undefined;

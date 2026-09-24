@@ -56,6 +56,17 @@ This will start the following services:
 設定 →「画像」で `http://localhost:8090` を足すと、ここへアップロードするようになります
 （アップロードしたものは `GET http://localhost:8090/list/<自分の pubkey>` で一覧できます）。
 
+### スクリーンショット用の環境
+
+宣伝用のスクリーンショットを撮るときは、架空の人たちの投稿を入れたリレーを立てられます
+（[nak](https://github.com/fiatjaf/nak) が要ります）。
+
+```bash
+pnpm screenshot many-columns --time "2026-09-23T19:00:00+09:00"
+```
+
+シナリオの一覧と書き足し方は [tools/screenshot/README.md](./tools/screenshot/README.md) にあります。
+
 ### Sentry（壊れたときの報告）
 
 `VITE_SENTRY_DSN` を渡してビルドすると、壊れたときに Sentry へ送ります。渡さなければ何も送らず、SDK も配りません（開発中も送りません）。

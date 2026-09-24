@@ -1,0 +1,23 @@
+{
+  "name": "@streets/screenshot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts serve",
+    "seed": "tsx src/cli.ts seed",
+    "generate": "tsx src/cli.ts generate",
+    "typecheck": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
+    "@streets/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22",
+    "tsx": "^4.20.0",
+    "typescript": "5.7.3",
+    "vitest": "3.0.5"
+  }
+}

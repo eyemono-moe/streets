@@ -29,7 +29,7 @@ describe("columnTitle", () => {
 
   it("種類で決まるカラムは、保存した題名を使わない", () => {
     const home: ColumnDef = {
-      ...must(defaultDeck().columns[0]),
+      ...must(defaultDeck([]).columns[0]),
       title: "変えた名前",
     };
     expect(columnTitle(home)).toEqual({ text: "ホーム" });

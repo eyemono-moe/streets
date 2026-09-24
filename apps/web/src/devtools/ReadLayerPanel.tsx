@@ -45,7 +45,9 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
   onCleanup(() => clearInterval(timer));
 
   return (
-    <div class="flex flex-col gap-6 p-4 font-mono text-sm">
+    // パネルの中身は自分で送る。高さは TanStack Devtools がパネルに置く変数から取る。
+    // height は Devtools 自身のスタイル（孫要素に height: 100%）に上書きされるので、max-height で当てる。
+    <div class="flex max-h-[var(--tsd-main-panel-height)] flex-col gap-6 overflow-y-auto p-4 font-mono text-sm">
       <Section title="connections">
         <Rows rows={Object.entries(stats())} />
       </Section>

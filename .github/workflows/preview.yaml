@@ -1,0 +1,68 @@
+# PR ごとのプレビュー。本番には出さず、PR ごとの URL（pr-123-streets.…workers.dev）に版を上げ、
+# PR にコメントで知らせる。fork からの PR は secrets を読めないので動かない。
+name: Preview
+
+on:
+  pull_request:
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Preview
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    environment: preview
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: ビルド
+        run: pnpm build
+        env:
+          VITE_APP_VERSION: pr-${{ github.event.pull_request.number }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENV: preview
+          # フィードバックの Google フォーム。公開してよい値なので secrets ではなく vars に置く。
+          VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
+      - name: 版を上げる（本番には出さない）
+        id: upload
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.ndjson
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          pnpm exec wrangler versions upload \
+            --preview-alias "pr-$PR" \
+            --message "PR #$PR ($SHA)"
+          result=$(jq -cs 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
+          echo "alias-url=$(jq -r .preview_alias_url <<<"$result")" >> "$GITHUB_OUTPUT"
+          echo "version-url=$(jq -r .preview_url <<<"$result")" >> "$GITHUB_OUTPUT"
+      - name: PR に知らせる
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marker="<!-- streets-preview -->"
+          # URL は Markdown のリンクにして表に入れる。裸の URL の直後に日本語や括弧が
+          # 続くと、GitHub がそこまでをリンクに含めてしまう。
+          body="${marker}
+          ### プレビュー
+
+          | | |
+          |---|---|
+          | この PR の最新 | [${{ steps.upload.outputs.alias-url }}](${{ steps.upload.outputs.alias-url }}) |
+          | この版だけ（\`${SHA:0:7}\`） | [${{ steps.upload.outputs.version-url }}](${{ steps.upload.outputs.version-url }}) |"
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq "map(select(.body | startswith(\"$marker\"))) | first | .id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -f body="$body" >/dev/null
+          else
+            gh pr comment "$PR" --body "$body"
+          fi

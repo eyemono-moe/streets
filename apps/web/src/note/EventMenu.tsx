@@ -7,12 +7,17 @@ import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
-import AuthorRelaysDialog from "../profile/AuthorRelaysDialog";
+import { lazyPart } from "../lazy-part";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
-import EventDetailsDialog from "./EventDetailsDialog";
 import { ProfileName, ProfileText } from "./Name";
 import { useProfileDetails } from "./use-profile";
+
+const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
+
+const AuthorRelaysDialog = lazyPart(
+  () => import("../profile/AuthorRelaysDialog"),
+);
 
 type MenuItem = {
   value: string;

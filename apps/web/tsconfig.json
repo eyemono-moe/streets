@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["vite/client"]
   },
-  "include": [".storybook", "src", "vite.config.ts", "vitest.config.ts", "uno.config.ts"]
+  "include": [".storybook", "src", "vite.config.ts", "release-notes-plugin.ts", "emoji-data-plugin.ts", "vitest.config.ts", "uno.config.ts"]
 }

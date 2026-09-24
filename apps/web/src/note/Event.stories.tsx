@@ -96,6 +96,34 @@ const longReaction = react(carol, {
 });
 const unknown = alice.event({ kind: 30023, tags: [], content: "# 長文記事" });
 const noProfile = nameless.note("kind:0 が無い人の投稿。");
+const profileAuthor = createStoryAuthor(66, {
+  name: "dave",
+  displayName: "でいぶ",
+  picture: avatarUrl,
+  about: "カラムで Nostr を読んでいます。\n写真と散歩の話が多めです。",
+});
+const profileEvent = profileAuthor.profile();
+const longNameAuthor = createStoryAuthor(77, {
+  name: "a_very_long_account_name_that_does_not_fit_in_a_column",
+  displayName: "とても長い表示名でカラムの幅には収まりきらない人の名前",
+  picture: avatarUrl,
+  about: Array.from(
+    { length: 6 },
+    () => "自己紹介が長いときは 3 行で切ります。",
+  ).join(""),
+});
+const longNameProfile = longNameAuthor.profile();
+const noAboutAuthor = createStoryAuthor(88, {
+  name: "erin",
+  picture: avatarUrl,
+});
+const noAboutProfile = noAboutAuthor.profile();
+const noPictureAuthor = createStoryAuthor(99, {
+  name: "frank",
+  displayName: "ふらんく",
+  about: "アイコンを設定していない人。",
+});
+const noPictureProfile = noPictureAuthor.profile();
 const videoUrl = new URL(clipUrl, location.href).href;
 const withVideo = alice.note(`動画を添えました。\n${videoUrl}`, [
   ["imeta", `url ${videoUrl}`, "m video/mp4", "dim 320x180"],
@@ -350,6 +378,23 @@ export const 未対応のkind: Story = {
 
 export const プロフィールが無い: Story = {
   args: { event: noProfile, scene: scene(noProfile) },
+};
+
+/** 検索などで kind:0 が届いたとき。フォロー一覧と同じユーザーの行で描く。 */
+export const プロフィール: Story = {
+  args: { event: profileEvent, scene: scene(profileEvent) },
+};
+
+export const プロフィール_名前が長い: Story = {
+  args: { event: longNameProfile, scene: scene(longNameProfile) },
+};
+
+export const プロフィール_自己紹介が無い: Story = {
+  args: { event: noAboutProfile, scene: scene(noAboutProfile) },
+};
+
+export const プロフィール_画像が無い: Story = {
+  args: { event: noPictureProfile, scene: scene(noPictureProfile) },
 };
 
 /**

@@ -63,6 +63,7 @@ export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
             src={emoji().url}
             alt={`:${emoji().name}:`}
             loading="lazy"
+            decoding="async"
             class="h-4.5 w-auto max-w-12 object-contain"
             onError={() => setBroken(true)}
           />

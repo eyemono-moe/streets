@@ -18,10 +18,10 @@ pnpm workspace の 2 パッケージ。
 - **タスクの正は [GitHub Issues](https://github.com/eyemono-moe/streets/issues)。** Issue とチャットでの確認を仕様とし、spec や plan のファイルは作らない
 - 着手前に Issue だけでなく、その Issue を進めている open PR も見る。Issue が開いたまま、複数の PR に分けて作業していることがある
 - ADR を書くのは、秘密鍵の境界や永続形式など、後から戻しにくい決定だけ。数行で書く
-- **画面の順序と進み具合は [#343](https://github.com/eyemono-moe/streets/issues/343) にある。** 着手前に読み、画面を 1 枚作り終えたらチェックを付けて PR 番号を書く
-- **v1 リリースまでの作業の正本は [マイルストーン v1](https://github.com/eyemono-moe/streets/milestone/1)。** v1 に要る作業は Issue を立て、優先度 P1 を付けてこのマイルストーンに入れる。リリースの PR（#147）の本文にはチェックリストを持たない
-- 画面は #343 の順に 1 枚ずつ作る。デバッグ用の画面やルートは作らず、診断値は TanStack Devtools のパネル（`apps/web/src/devtools/`）へ出す
-- `v1` が開発ブランチ。`main` へ直接マージしない
+- Issue には優先度（`P1`〜`P3`）のラベルを付ける。何から手を付けるかは優先度で決める
+- デバッグ用の画面やルートは作らず、診断値は TanStack Devtools のパネル（`apps/web/src/devtools/`）へ出す
+- **作業は `main` から切り、`main` へ PR を出す。** `main` に入れただけでは本番は変わらず、本番はタグで決まる（[docs/release.md](./docs/release.md)）
+- PR の `Closes #N` は `main` へのマージで Issue を閉じる
 
 ## デザイン
 
@@ -29,7 +29,7 @@ pnpm workspace の 2 パッケージ。
 
 - 同じファイルの「v1 / deprecated」ページは古いので見ない
 - Penpot の MCP から読める。ボードの構造や CSS はそこから取り、値を推測で埋めない
-- 画面ごとに見るボードは #343 の表にある
+- 画面ごとに見るボードは [#343](https://github.com/eyemono-moe/streets/issues/343) の表にある（v1 の画面を作ったときの対応表）
 - デザインに無いもの（ログイン画面など）は、既存のトークンと部品の見た目に揃える
 - ボタン・排他の選択（トグルグループ）・スイッチ・色を選ぶ欄・保存先のヒントは、`src/ui/` の primitive を使い、画面ごとに書かない。足りない形は primitive に足して、`UI/*` のストーリーで単体で見られるようにする
 - 文字を打つ欄は `src/ui/TextField.tsx` の `textInputClass` を使う。角は `rounded-2`、焦点は `focus-visible:ring-2 focus-visible:ring-accent-5`、高さは `h-9`。角を丸めきる（`rounded-full`）のは**その場で絞り込む検索窓だけ**（デッキの検索欄、絵文字ピッカーの検索欄）。設定で値を足す・変える欄は、1 行で横に並べるものも含めてすべて四角にする
@@ -61,6 +61,7 @@ pnpm workspace の 2 パッケージ。
 - 状態を持たない単発の書き込み（いいね・リポスト・ブックマーク・フォローなど）も、イベントとして上へ渡す（`ActionEvent`）。`src/actions-mediator.tsx` が `actions` を呼び、送っている間の二重送信を防ぎ、失敗をトーストに出す。View は `useSending` で押せない見た目にするだけで、遷移関数は要らない
 - 読み取り（store・購読）は、Storybook で全状態を並べたい部品から、読み取る部分と描く部分に分ける（例: `ThreadView` と `ThreadSpineView`）。一律には分けない
 - Ark UI の開閉・フォーカス・ホバーの遅延は Ark UI に任せる。アプリの動作が開閉に依存するもの（重ねたカラムの段など）だけ `open` を制御する
+- 開くまで要らない重い部品（設定・案内・切り抜き・Zap などのダイアログ）は、`src/lazy-part.tsx` の `lazyPart` で別のファイルに分ける。開閉の動きがあるものは `onceTrue` で一度開いたら残し、開くまで待たせたくないものは `whenIdle` で先読みする。Solid の `lazy` は読めなかった結果を覚えるので使わない
 
 ## テスト
 
@@ -79,6 +80,7 @@ pnpm workspace の 2 パッケージ。
 pnpm verify   # biome + 型検査 + テスト + ビルド。CI も同じものを呼ぶ
 pnpm fix      # 整形と import 順
 pnpm --filter @streets/web storybook:build  # ストーリーを変えたとき。verify には含まれない
+pnpm --filter @streets/web build:analyze   # チャンクの中身を apps/web/stats/chunks.html に描く
 ```
 
 ## 手で触る

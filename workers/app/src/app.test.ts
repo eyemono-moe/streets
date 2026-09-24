@@ -131,6 +131,22 @@ describe("GET /api/link-card", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
+  it("自分のページは外へ取りに行かず、静的ファイルから読む", async () => {
+    const fetch = pageFetch();
+    const assets = pageFetch();
+    const response = await createApp({ fetch }).request(
+      path(`${ORIGIN}/`),
+      { headers: SAME_SITE },
+      { ASSETS: { fetch: assets } } as unknown as Env,
+    );
+    expect(((await response.json()) as LinkCardResponse).card?.title).toBe(
+      "題名",
+    );
+    // 捕まえる変異: ホスト名を比べずに外への fetch を使う（本番では自分に届かず null になる）
+    expect(fetch).not.toHaveBeenCalled();
+    expect(assets).toHaveBeenCalledTimes(1);
+  });
+
   it("知らない API は 404", async () => {
     const response = await createApp().request(`${ORIGIN}/api/nothing`, {
       headers: SAME_SITE,

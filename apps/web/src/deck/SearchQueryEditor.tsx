@@ -65,7 +65,8 @@ const SearchQueryEditor: Component<{
   /** 項目ごとのフォームからの変更。打っている途中とは違い、その場で渡す。 */
   /**
    * 開いたときに打ち始められるようにする。`autofocus` 属性は、後から差し込んだ
-   * 要素には効かないので、自分で当てる。
+   * 要素には効かないので、自分で当てる。パネルは開く動きの途中でまだ画面の外に
+   * ずれているので、スクロールさせない（させると、外側の箱ごと動く）。
    */
   let input: HTMLInputElement | undefined;
   // from: / to: の後ろ、または @ で人を選べる。@ は「その人が書いたもの」として入れる。
@@ -86,7 +87,7 @@ const SearchQueryEditor: Component<{
     }),
   ];
   onMount(() => {
-    if (props.autofocus) input?.focus();
+    if (props.autofocus) input?.focus({ preventScroll: true });
   });
 
   const chosen = (value: string) => {

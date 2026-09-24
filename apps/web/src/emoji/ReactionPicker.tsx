@@ -4,9 +4,9 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Component, JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
-import EmojiPicker from "./EmojiPicker";
 import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
+import { EmojiPicker } from "./lazy-emoji-picker";
 import { rememberEmoji } from "./recent-emoji";
 
 /**

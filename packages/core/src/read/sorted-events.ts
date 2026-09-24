@@ -30,6 +30,11 @@ export class SortedEvents {
     if (capacity > this.#capacity) this.#capacity = capacity;
   }
 
+  /** いちばん新しい（保持順の先頭の）イベント。 */
+  get first(): NostrEvent | undefined {
+    return this.#items[0];
+  }
+
   /** いちばん古い（保持順の末尾の）イベント。 */
   get last(): NostrEvent | undefined {
     return this.#items[this.#items.length - 1];

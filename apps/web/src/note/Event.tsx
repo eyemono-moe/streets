@@ -1,16 +1,13 @@
 import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import {
-  type EventRef,
-  replyTarget,
-  repostTarget,
-} from "@streets/core/nostr/event-refs";
+import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   formatEventTime,
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
 import { layoutNote } from "@streets/core/view/note-layout";
+import { resolveRepostTarget } from "@streets/core/view/repost-target";
 import { observeHeight } from "@streets/core/view/shared-resize-observer";
 import {
   type Component,
@@ -26,6 +23,8 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import ProfileRow from "../profile/ProfileRow";
+import { useReadLayer } from "../read-layer";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -344,33 +343,36 @@ const Note: Component<ContentProps> = (props) => {
   );
 };
 
-const Repost: Component<ContentProps> = (props) => (
-  <>
-    <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
-      <span class="i-material-symbols:repeat-rounded size-3.5 shrink-0" />
-      <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
-      <span class="shrink-0">がリポスト</span>
-    </p>
-    <Show when={props.size === "normal"}>
-      <Show
-        when={repostTarget(props.event)}
-        fallback={<Notice>リポスト元が指定されていません</Notice>}
-      >
-        {(ref) => (
-          <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
-            {(event) => (
-              <EventContent
-                event={event}
-                size={props.size}
-                expandMedia={props.expandMedia}
-              />
-            )}
-          </Lookup>
-        )}
+const Repost: Component<ContentProps> = (props) => {
+  const { store } = useReadLayer();
+  return (
+    <>
+      <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
+        <span class="i-material-symbols:repeat-rounded size-3.5 shrink-0" />
+        <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
+        <span class="shrink-0">がリポスト</span>
+      </p>
+      <Show when={props.size === "normal"}>
+        <Show
+          when={resolveRepostTarget(props.event, store)}
+          fallback={<Notice>リポスト元が指定されていません</Notice>}
+        >
+          {(ref) => (
+            <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
+              {(event) => (
+                <EventContent
+                  event={event}
+                  size={props.size}
+                  expandMedia={props.expandMedia}
+                />
+              )}
+            </Lookup>
+          )}
+        </Show>
       </Show>
-    </Show>
-  </>
-);
+    </>
+  );
+};
 
 const Unsupported: Component<ContentProps> = (props) => (
   <Row event={props.event} size={props.size}>
@@ -418,6 +420,11 @@ const EventBody: Component<ContentProps> = (props) => {
     const ref = replyTarget(props.event);
     return ref?.form === "id" ? ref : undefined;
   };
+
+  // プロフィールは人そのものなので、フォロー一覧と同じ行で描く。押すとその人のカラムを開く。
+  if (props.event.kind === 0) {
+    return <ProfileRow pubkey={props.event.pubkey} />;
+  }
 
   // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
   if (props.event.kind === 7) {

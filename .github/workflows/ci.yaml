@@ -7,6 +7,8 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-22.04
+    # 同期の無限ループはテスト単位のタイムアウトで割り込めず、既定の 6 時間まで止まらない
+    timeout-minutes: 15
     strategy:
       matrix:
         node-version: [22]

@@ -2,6 +2,9 @@
   "name": "streets",
   "main": "./workers/app/src/index.ts",
   "compatibility_date": "2026-09-20",
+  // 版ごと・PR ごとのプレビュー URL（…workers.dev）を使う。本番は独自ドメイン。
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./apps/web/dist",
     "binding": "ASSETS",

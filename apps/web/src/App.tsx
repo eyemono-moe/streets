@@ -13,12 +13,15 @@ import {
 import SignerWaitOverlay from "./SignerWaitOverlay";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
+import { lazyPart } from "./lazy-part";
 import { ReadLayerProvider } from "./read-layer";
+import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
 import { ErrorToaster } from "./toast";
-import WelcomeScreen from "./welcome/WelcomeScreen";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
+// ログインしている人（ほとんどの起動）には要らない。
+const WelcomeScreen = lazyPart(() => import("./welcome/WelcomeScreen"));
 
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
@@ -55,7 +58,7 @@ const App: Component = () => {
         message={session.signerWait()}
         authUrl={session.authUrl()}
       />
-      <Show when={import.meta.env.DEV}>
+      <Show when={import.meta.env.DEV && !screenshotMode()}>
         <AppDevtools readLayer={readLayer} />
       </Show>
     </>

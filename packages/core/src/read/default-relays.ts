@@ -36,7 +36,7 @@ export const RELAY_REDUNDANCY = 2;
  */
 export const SEARCH_RELAYS: readonly RelayUrl[] = [
   "wss://search.nos.today/",
-  "wss://relay.nostr.band/",
+  "wss://relay.ditto.pub/",
 ];
 
 /**

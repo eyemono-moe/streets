@@ -73,6 +73,7 @@ export const EmojiPreview: Component<{
         alt={`:${props.emoji.shortcode}:`}
         title={`:${props.emoji.shortcode}:`}
         loading="lazy"
+        decoding="async"
         class="size-6 object-contain"
         onError={() => setBroken(true)}
       />

@@ -2,7 +2,7 @@ import { Menu } from "@ark-ui/solid/menu";
 import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
-import { tourTarget } from "../tour/DeckTour";
+import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 
 /** 自分のアイコン。設定・Streets について・ログアウトを持つ。 */

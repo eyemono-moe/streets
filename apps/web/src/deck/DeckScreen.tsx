@@ -15,6 +15,7 @@ import {
 } from "@streets/core/deck/deck-ui";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -29,12 +30,12 @@ import {
   Show,
   Switch,
   createEffect,
+  createMemo,
   createResource,
   createSignal,
   onCleanup,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
@@ -44,20 +45,22 @@ import {
 } from "../default-reaction-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
+import { EmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
+import { lazyPart, onceTrue, whenIdle } from "../lazy-part";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
+import { screenshotMode } from "../screenshot-mode";
 import type { Session } from "../session";
 import { MediaMediator } from "../settings/MediaMediator";
 import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
-import SettingsDialog from "../settings/SettingsDialog";
 import { startTelemetry } from "../telemetry";
 import {
   APPEARANCE_SAVE_DELAY_MS,
@@ -68,7 +71,6 @@ import {
 } from "../theme";
 import { notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
-import { DeckTour, createDeckTour } from "../tour/DeckTour";
 import { Mediates, type UiEvent } from "../ui-events";
 import { trackReplaces } from "../write-progress";
 import {
@@ -82,14 +84,20 @@ import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import SearchPanel from "./SearchPanel";
-import SidePanel from "./SidePanel";
+import SidePanel, { SidePanelMotion } from "./SidePanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
 
+// 開くまで要らないものは別のファイルに分け、起動が落ち着いてから読む。
+const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
+const AboutDialog = lazyPart(() => import("../about/AboutDialog"));
+const DeckTour = lazyPart(() => import("../tour/DeckTour"));
+
 const DeckScreen: Component<{
   readLayer: ReadLayer;
   session: Session;
+  /** 開発時の `?relays=`。最初に引く先・行き先の分からない読み書き・検索を、ここへ寄せる。 */
   bootstrapIndexers?: RelayUrl[];
 }> = (props) => {
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
@@ -99,13 +107,25 @@ const DeckScreen: Component<{
     readLayer: props.readLayer,
     signer: props.session.signer,
     viewer,
+    // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
+    fallbackRelays: props.bootstrapIndexers,
   });
   const isWide = useIsWide();
-  const deckTour = createDeckTour(isWide);
+  // 増えるたびに案内を始める。0 のうちは案内の部品を読み込まない。
+  const [tourRequests, setTourRequests] = createSignal(0);
+  const startTour = () => setTourRequests((count) => count + 1);
   // 保存しない画面の状態。遷移は core の純粋関数で、ここは結果を store へ当てるだけ。
   const [ui, setUi] = createStore<DeckUiState>(emptyDeckUi());
   const applyUi = (event: DeckUiEvent) =>
     setUi(reconcile(deckUiTransition(unwrap(ui), event)));
+  // 閉じる動きを見せるため、一度開いたら残す。
+  const settingsMounted = onceTrue(() => ui.settingsOpen);
+  const aboutMounted = onceTrue(() => ui.aboutOpen);
+  whenIdle(() => {
+    SettingsDialog.preload();
+    AboutDialog.preload();
+    EmojiPicker.preload();
+  });
   let columnsEl: HTMLDivElement | undefined;
   // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
   const scrollToEnd = () =>
@@ -282,14 +302,15 @@ const DeckScreen: Component<{
 
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
   // ダイアログが開いている間は待つ（閉じたら出す）。
-  let tourOffered = tourSeen();
+  // スクリーンショットを撮るとき（?screenshot）は、案内を写さない。
+  let tourOffered = tourSeen() || screenshotMode();
   createEffect(() => {
     if (tourOffered) return;
     if (deckStore.value() === undefined || columns().length === 0) return;
     if (ui.settingsOpen || ui.aboutOpen) return;
     tourOffered = true;
     // カラムが描かれてから指す。
-    requestAnimationFrame(() => deckTour.start());
+    requestAnimationFrame(startTour);
   });
 
   createDeckHotkeys({
@@ -350,17 +371,22 @@ const DeckScreen: Component<{
         const opening = ui.settingsFor !== event.id;
         applyUi(event);
         if (opening) {
-          requestAnimationFrame(() =>
-            columnsEl
-              ?.querySelector(`[data-settings-for="${CSS.escape(event.id)}"]`)
-              ?.scrollIntoView({
-                inline: "nearest",
-                block: "nearest",
-                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-                  ? "auto"
-                  : "smooth",
-              }),
-          );
+          // 設定の列は幅 0 から広がる。広がりきる前に送ると、まだ無い幅までしか送れず画面の外に残る。
+          requestAnimationFrame(async () => {
+            const panel = columnsEl?.querySelector(
+              `[data-settings-for="${CSS.escape(event.id)}"]`,
+            );
+            const growing = panel?.parentElement?.getAnimations() ?? [];
+            await Promise.allSettled(growing.map((a) => a.finished));
+            if (ui.settingsFor !== event.id) return;
+            panel?.scrollIntoView({
+              inline: "nearest",
+              block: "nearest",
+              behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+            });
+          });
         }
         return true;
       }
@@ -405,7 +431,7 @@ const DeckScreen: Component<{
       case "deck/start-tour":
         // 「Streets について」から始めたときは、ダイアログを閉じてから指す。
         applyUi({ type: "deck/close-about" });
-        requestAnimationFrame(() => deckTour.start());
+        requestAnimationFrame(startTour);
         return true;
       case "deck/set-color-scheme":
         setScheme(event.scheme);
@@ -447,8 +473,11 @@ const DeckScreen: Component<{
     }
   };
 
+  // 閉じる動きの間も、最後に開いていたパネルの中身を描き続ける。
+  const shownPanel = createMemo<typeof ui.panel>((last) => ui.panel ?? last);
+
   const panelView = (full: boolean) => (
-    <Show when={ui.panel}>
+    <Show when={shownPanel()}>
       {(current) => (
         <Show
           when={current() === "compose"}
@@ -504,7 +533,9 @@ const DeckScreen: Component<{
     relayList,
     bookmarks: write.actions.bookmarkIds,
     // 検索の問い合わせ先。設定（kind:10007）を変えたら、次の購読から効く。
-    searchRelays: () => effectiveSearchRelays(write.searchRelays()),
+    // 開発時の ?relays= では、検索も差し替えた先へ聞く（外の既定の検索リレーへ行かない）。
+    searchRelays: () =>
+      props.bootstrapIndexers ?? effectiveSearchRelays(write.searchRelays()),
   };
 
   return (
@@ -576,7 +607,9 @@ const DeckScreen: Component<{
                                   numbers={columnDigits()}
                                   onLogout={props.session.logout}
                                 />
-                                {panelView(false)}
+                                <SidePanelMotion open={ui.panel !== undefined}>
+                                  {panelView(false)}
+                                </SidePanelMotion>
                                 <div class="flex min-w-0 flex-1 flex-col">
                                   <DeckSyncNotice store={deckStore} />
                                   {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
@@ -746,16 +779,12 @@ const DeckScreen: Component<{
                                       )}
                                     </For>
                                   </div>
-                                  {/*
-                                    パネルはカラムの上に重ねる。カラムを隠すと、送った位置が失われる。
-                                    開いている間だけ作る —— hidden で隠すと flex の display に負けて、
-                                    閉じていてもカラムを覆う。
-                                  */}
-                                  <Show when={ui.panel !== undefined}>
-                                    <div class="absolute inset-0 flex bg-primary">
-                                      {panelView(true)}
-                                    </div>
-                                  </Show>
+                                  <SidePanelMotion
+                                    open={ui.panel !== undefined}
+                                    full
+                                  >
+                                    {panelView(true)}
+                                  </SidePanelMotion>
                                   {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
                                   <Show when={ui.panel === undefined}>
                                     <ComposeFab />
@@ -774,23 +803,36 @@ const DeckScreen: Component<{
                               </div>
                             </Match>
                           </Switch>
-                          <AboutDialog
-                            open={ui.aboutOpen}
-                            wide={isWide()}
-                            tour
-                          />
-                          <DeckTour tour={deckTour.tour} />
-                          <SettingsDialog
-                            open={ui.settingsOpen}
-                            wide={isWide()}
-                            scheme={scheme()}
-                            appearance={appearance()}
-                            writeProgress={showWriteProgress()}
-                            errorReport={errorReport()}
-                            keymap={keymap()}
-                            columnDigits={columnDigits()}
-                            defaultReaction={defaultReaction()}
-                          />
+                          <Show when={aboutMounted()}>
+                            <AboutDialog
+                              open={ui.aboutOpen}
+                              wide={isWide()}
+                              tour
+                              onOpenUser={(pubkey) => {
+                                handle({ type: "deck/close-about" });
+                                navigate(`/${encodeBech32("npub", pubkey)}`);
+                              }}
+                            />
+                          </Show>
+                          <Show when={tourRequests() > 0}>
+                            <DeckTour
+                              requests={tourRequests()}
+                              wide={isWide()}
+                            />
+                          </Show>
+                          <Show when={settingsMounted()}>
+                            <SettingsDialog
+                              open={ui.settingsOpen}
+                              wide={isWide()}
+                              scheme={scheme()}
+                              appearance={appearance()}
+                              writeProgress={showWriteProgress()}
+                              errorReport={errorReport()}
+                              keymap={keymap()}
+                              columnDigits={columnDigits()}
+                              defaultReaction={defaultReaction()}
+                            />
+                          </Show>
                         </ZapMediator>
                       </MuteMediator>
                     </RelayMediator>

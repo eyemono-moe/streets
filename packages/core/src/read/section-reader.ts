@@ -23,6 +23,11 @@ import type {
  */
 const NOTIFY_BATCH_MS = 16;
 const DELETION_KIND = 5;
+/**
+ * 最初のページを待つ時間の上限。EOSE を返さないリレーが 1 本でもあると、全リレーが
+ * 揃うのを待つだけでは古い投稿をいつまでも取り足せない。
+ */
+export const FIRST_PAGE_WAIT_MS = 5000;
 
 export type SectionReaderOptions = {
   source: NostrSource;
@@ -42,6 +47,11 @@ export type SectionReaderOptions = {
    * 意味が変わるもの）。
    */
   pageSize?: number;
+  /**
+   * `pageSize` と一緒に指定すると、最初にこの件数まで取る（`MAX_PAGED_ITEMS` まで）。
+   * 取る中身が変わって作り直すとき、それまで伸ばした一覧を 1 ページに戻さないため。
+   */
+  initialSize?: number;
 };
 
 type RelayState = {
@@ -54,6 +64,12 @@ export class SectionReader {
   readonly #listeners = new Set<() => void>();
   readonly #events: SortedEvents;
   #paging: Paging = "idle";
+  /**
+   * 最初のページが揃ったか（全リレーの EOSE か、待つ時間の上限）。一度揃ったら戻さない。
+   * 後からリレーが増えたり張り直されたりしても、すでに並んでいる一覧は最初のページのままなので。
+   */
+  #ready = false;
+  #firstPageTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
   /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
   readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
@@ -69,11 +85,27 @@ export class SectionReader {
   constructor(options: SectionReaderOptions) {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
-    this.#events = new SortedEvents(options.pageSize ?? MAX_ITEMS_PER_SECTION);
+    this.#events = new SortedEvents(
+      this.#firstPageSize ?? MAX_ITEMS_PER_SECTION,
+    );
+  }
+
+  /** 最初に取る件数。ページ送りしないセクションでは無い。 */
+  get #firstPageSize(): number | undefined {
+    const { pageSize, initialSize } = this.#options;
+    if (pageSize === undefined) return undefined;
+    return Math.min(Math.max(pageSize, initialSize ?? 0), MAX_PAGED_ITEMS);
   }
 
   get paging(): Paging {
-    return this.#options.pageSize === undefined ? "exhausted" : this.#paging;
+    if (this.#options.pageSize === undefined) return "exhausted";
+    if (this.#paging === "idle" && !this.#isReady()) return "waiting";
+    return this.#paging;
+  }
+
+  #isReady(): boolean {
+    if (!this.#ready && this.status.phase === "settled") this.#ready = true;
+    return this.#ready;
   }
 
   /**
@@ -86,9 +118,9 @@ export class SectionReader {
     const handle = this.#handle;
     const oldest = this.#events.last;
     if (!pageSize || !handle || !oldest || this.#paging !== "idle") return;
-    // 最初のページが揃う（全リレーの EOSE）までは取り足さない。揃う前は一覧が短く、
-    // 下端がすぐ見えるので、届きかけの途中から古い方を取り始めてしまう。
-    if (this.status.phase !== "settled") return;
+    // 最初のページが揃うまでは取り足さない。揃う前は一覧が短く、下端がすぐ見えるので、
+    // 届きかけの途中から古い方を取り始めてしまう。
+    if (!this.#isReady()) return;
     if (this.#events.capacity >= MAX_PAGED_ITEMS) {
       this.#paging = "exhausted";
       this.#notify();
@@ -155,7 +187,7 @@ export class SectionReader {
     // manager.subscribe() は同期的にイベントを配送しうる。先に Store の変化を
     // 購読し、配信と削除依頼の間に hide/show を取りこぼす窓を作らない。
     this.#offStore = store.subscribe((change) => this.#onStoreChange(change));
-    const pageSize = this.#options.pageSize;
+    const pageSize = this.#firstPageSize;
     // 最初は 1 ページぶんだけ取る。limit を持つ filter（最新の 1 件だけを取る kind:3
     // など）はそのまま。
     const filters =
@@ -166,6 +198,13 @@ export class SectionReader {
               ? { ...filter, limit: pageSize }
               : filter,
           );
+    if (pageSize !== undefined) {
+      this.#firstPageTimer = this.#scheduler.setTimeout(() => {
+        this.#firstPageTimer = null;
+        this.#ready = true;
+        this.#notify();
+      }, FIRST_PAGE_WAIT_MS);
+    }
     this.#handle = manager.subscribe(filters, source.relays, {
       onEvent: (id, relay) => this.#onEvent(id, relay),
       onRelayComplete: (relay) => {
@@ -242,6 +281,11 @@ export class SectionReader {
     this.#plan = null;
     this.#started = false;
     this.#paging = "idle";
+    this.#ready = false;
+    if (this.#firstPageTimer !== null) {
+      this.#scheduler.clearTimeout(this.#firstPageTimer);
+      this.#firstPageTimer = null;
+    }
     this.#events.clear();
     this.#hiddenMembers.clear();
     if (this.#notifyTimer !== null) {
@@ -267,6 +311,18 @@ export class SectionReader {
     // kind:5 は同じ購読で取得して EventStore へ適用するが、カラム自身の
     // メンバーではない。削除依頼カードとして表示上限を消費させない。
     if (stored.kind === DELETION_KIND) return;
+
+    // 最初のページが揃った後に届いた新しい投稿は、上限を広げて入れる。広げないと、
+    // 読んでいる一覧の古い方が新しい投稿に押し出されて消える。
+    const head = this.#events.first;
+    if (
+      this.#options.pageSize !== undefined &&
+      head &&
+      compareEvents(stored, head) < 0 &&
+      this.#isReady()
+    ) {
+      this.#events.grow(Math.min(this.#events.size + 1, MAX_PAGED_ITEMS));
+    }
 
     // 上限に達した状態で保持順の末尾より後ろに来たイベントは採用されない。
     // その場合は画面に何の変化も無いので、通知も積まない。

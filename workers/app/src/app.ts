@@ -100,10 +100,17 @@ export const createApp = (options: AppOptions = {}) => {
     rateLimited((env) => env.LINK_CARD_LIMITER),
     async (c) => {
       const target = allowedTarget(c.req.valid("query").url);
+      // Worker から自分のホスト名への fetch は本番で通らない。静的ファイルから直接読む。
+      const host = new URL(c.req.url).host;
+      const assets = c.env?.ASSETS;
+      const fetchPage: typeof fetch = (input, init) =>
+        assets && new URL(String(input)).host === host
+          ? assets.fetch(input, init)
+          : outbound(input, init);
       let card: LinkCard | undefined;
       try {
         card = target
-          ? await fetchLinkCard(target, { fetch: outbound })
+          ? await fetchLinkCard(target, { fetch: fetchPage })
           : undefined;
       } catch {
         card = undefined;
