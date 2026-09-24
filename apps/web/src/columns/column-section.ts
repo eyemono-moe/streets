@@ -22,11 +22,11 @@ export type ColumnReadProps = {
 /** カラムの意図を購読へ変換し、購読の診断値も登録する。 */
 export const createColumnSection = (
   props: ColumnReadProps,
-  pageSize?: number,
+  size: { pageSize?: number; maxItems?: number } = {},
 ) => {
   const section = createSection({
     manager: props.readLayer.manager,
-    pageSize,
+    ...size,
     source: () =>
       resolveSource(props.column.source, {
         followees: props.followees,

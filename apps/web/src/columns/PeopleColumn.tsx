@@ -14,7 +14,10 @@ const PeopleColumn: Component<
     scrollerRef: (element: HTMLDivElement) => void;
   }
 > = (props) => {
-  const section = createColumnSection(props);
+  // フォロワーは kind:3 を 1 人 1 件で数えるので、件数で切ると人数が頭打ちになる。
+  const section = createColumnSection(props, {
+    maxItems: props.kind === "followers-list" ? Infinity : undefined,
+  });
   const people = () =>
     props.kind === "followees-list"
       ? followeesFrom(section.items()[0])
