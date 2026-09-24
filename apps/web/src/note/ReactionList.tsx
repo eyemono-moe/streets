@@ -21,8 +21,8 @@ import { useSending } from "../actions-mediator";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
-import UserLink from "./UserLink";
 import { useEngagementChanges } from "./use-engagement-changes";
+import UserLink from "./UserLink";
 
 const inputOf = (content: ReactionContent): ReactionInput =>
   content.type === "emoji"

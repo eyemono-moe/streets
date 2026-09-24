@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadWriteProgress, saveWriteProgress } from "./write-progress-setting";
 
 describe("書き込みの進み具合を出すか", () => {

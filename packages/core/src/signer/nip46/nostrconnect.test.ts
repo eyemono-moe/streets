@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../../nostr/event";
 import type { RelaySubscriptionHandlers } from "../../relay/relay-connection";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
@@ -88,7 +88,7 @@ const setup = (options: { budget?: boolean } = {}) => {
   /** 送られた要求に、署名器として答える。 */
   const answerRequests = async () => {
     const key = conversationKey(SIGNER_SECRET, clientPubkey);
-    for (let seen = 0; seen < 2; ) {
+    for (let seen = 0; seen < 2;) {
       await vi.waitFor(() => expect(sent.length).toBeGreaterThan(seen));
       const request = JSON.parse(decryptNip44(sent[seen].content, key));
       if (request.method === "get_public_key") {

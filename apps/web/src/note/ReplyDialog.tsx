@@ -15,13 +15,13 @@ import {
 } from "../ui/Dialog";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
-import NoteText from "./NoteText";
 import {
   ComposeAttachments,
   ComposeTools,
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import NoteText from "./NoteText";
 import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (

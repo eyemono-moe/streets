@@ -13,13 +13,13 @@ import {
   DialogTitle,
 } from "../ui/Dialog";
 import Avatar from "./Avatar";
-import Event from "./Event";
 import {
   ComposeAttachments,
   ComposeTools,
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import Event from "./Event";
 import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (

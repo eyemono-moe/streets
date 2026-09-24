@@ -14,3 +14,8 @@ updates:
         update-types:
           - "patch"
           - "minor"
+  # CI の setup-vp は正確な版で固定するので、上がったら知らせる。
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

@@ -1,5 +1,5 @@
 import { bech32 } from "@scure/base";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { parseZapPayInfo, zapEndpointOf } from "./lnurl";
 
 const lnurlOf = (url: string) =>

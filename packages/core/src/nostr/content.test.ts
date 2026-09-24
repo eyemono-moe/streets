@@ -1,5 +1,5 @@
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ContentToken } from "./content";
 import { isProbablyImageUrl, parseContent } from "./content";
 import type { NostrEvent } from "./event";

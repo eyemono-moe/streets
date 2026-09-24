@@ -13,7 +13,6 @@ export function createRandom(seed: number) {
   let state = seed;
 
   return () => {
-    // biome-ignore lint/suspicious/noAssignInExpressions:
     let t = (state += 0x6d2b79f5);
 
     t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -24,7 +23,7 @@ export function createRandom(seed: number) {
 }
 
 export function pick<T>(random: () => number, values: readonly T[]): T {
-  // biome-ignore lint/style/noNonNullAssertion: random() * values.length will always be in the range of 0 to values.length - 1
+  // random() * values.length will always be in the range of 0 to values.length - 1
   return values[Math.floor(random() * values.length)]!;
 }
 

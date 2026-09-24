@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { encodeBech32, encodeNprofile } from "../nip19";
 import { profileEmojiTags, shortcodesIn, withReferences } from "./references";
 

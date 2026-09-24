@@ -37,8 +37,8 @@ import MediaViewer from "./MediaViewer";
 import NoteMediaView from "./NoteMedia";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
-import UserLink from "./UserLink";
 import { useEvent } from "./use-event";
+import UserLink from "./UserLink";
 
 /**
  * `compact` は関連イベント（引用・リポスト元）を取りにいかない。
@@ -192,7 +192,7 @@ const Frame: ParentComponent<{
   onOpen?: (event: MouseEvent) => void;
   onDown?: (event: MouseEvent) => void;
 }> = (props) => (
-  // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
+  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
   <article
     class="flex flex-col bg-primary"
     classList={{

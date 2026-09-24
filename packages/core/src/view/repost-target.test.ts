@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { EventStore } from "../read/event-store";
 import { resolveRepostTarget } from "./repost-target";
@@ -73,7 +73,10 @@ describe("resolveRepostTarget", () => {
     for (const content of ["", "{ not json"]) {
       expect(
         resolveRepostTarget(repost(content, [["e", original.id]]), store),
-      ).toEqual({ form: "id", id: original.id });
+      ).toEqual({
+        form: "id",
+        id: original.id,
+      });
     }
     expect(store.get(original.id)).toBeUndefined();
   });

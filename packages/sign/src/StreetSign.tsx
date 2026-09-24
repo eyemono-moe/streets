@@ -7,18 +7,8 @@ import {
   createUniqueId,
   splitProps,
 } from "solid-js";
-import { boardPalettes, skyPalettes } from "./palettes";
-import { createRandom, hashString, pick, randomRange } from "./random";
-import type { AvatarProps, RoadPattern, SignShape } from "./types";
-
-const shapes: SignShape[] = ["circle", "square", "diamond", "octagon"];
-const patterns: RoadPattern[] = [
-  "straight",
-  "left",
-  "right",
-  "left-branch",
-  "right-branch",
-];
+import { generateSign } from "./generate";
+import type { AvatarProps, RoadPattern } from "./types";
 
 const facePositionMap: Record<RoadPattern, { x: number; y: number }> = {
   straight: { x: 150, y: 77 },
@@ -30,26 +20,6 @@ const facePositionMap: Record<RoadPattern, { x: number; y: number }> = {
 
 const SIZE = 400;
 
-export const generateSign = (id: string) => {
-  const random = createRandom(hashString(id));
-
-  const palette = pick(random, boardPalettes);
-
-  return {
-    boardBgColor: palette.bg,
-    boardFgColor: palette.fg,
-    skyColor: pick(random, skyPalettes),
-    pattern: pick(random, patterns),
-    boardShape: pick(random, shapes),
-    faceRotation: randomRange(random, -15, 15),
-    boardRotation: randomRange(random, -15, 15),
-    isMouthOpen: random() > 0.5,
-    translateX: randomRange(random, -40, 40),
-    translateY: randomRange(random, 0, 40),
-    scale: randomRange(random, 1, 1.2),
-  };
-};
-
 export const StreetSign: Component<AvatarProps> = (props) => {
   const avatar = createMemo(() => generateSign(props.name));
   const maskID = createUniqueId();
@@ -57,7 +27,7 @@ export const StreetSign: Component<AvatarProps> = (props) => {
   const [localProps, restProps] = splitProps(props, ["name", "size", "title"]);
 
   return (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: show when title is provided
+    // show when title is provided
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${SIZE} ${SIZE}`}

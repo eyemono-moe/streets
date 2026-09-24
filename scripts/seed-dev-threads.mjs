@@ -45,12 +45,12 @@
  *
  * ## 実行
  *
- *   pnpm seed:dev
+ *   vp run seed:dev
  *
  * 著者鍵は固定 (使い捨てではない) なので、追加したユーザー列は再実行後も
  * 同じ npub のまま使える。ただし `created_at` は実行時刻を使うため、
  * 再実行するたびに内容は同じでも id の異なる新しい一式が積み増される。
- * まっさらな状態から見たいときは先に `pnpm dev:relay:reset` を挟む。
+ * まっさらな状態から見たいときは先に `vp run dev:relay:reset` を挟む。
  */
 
 import { Relay, nip19 } from "nostr-tools";

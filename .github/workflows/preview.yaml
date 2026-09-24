@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup
       - name: ビルド
-        run: pnpm build
+        run: vp run build
         env:
           VITE_APP_VERSION: pr-${{ github.event.pull_request.number }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
@@ -37,7 +37,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          pnpm exec wrangler versions upload \
+          vp exec wrangler versions upload \
             --preview-alias "pr-$PR" \
             --message "PR #$PR ($SHA)"
           result=$(jq -cs 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")

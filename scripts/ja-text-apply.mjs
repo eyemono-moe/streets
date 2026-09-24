@@ -9,7 +9,7 @@
  * 行を消しても良いが、`file` `kind` `index` は触らないこと。ソースの側を
  * 直したあとは、集め直してから使う（`index` がずれるため）。
  *
- * 書き換えたあとは `pnpm fix` で整形し、`pnpm verify` を通すこと。
+ * 書き換えたあとは `vp check --fix` で整形し、`vp run verify` を通すこと。
  */
 import { readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
@@ -71,7 +71,7 @@ for (const [path, fileRows] of byFile) {
         if (text === "" || !hasJapanese(text)) break;
         const row = take("jsx-text");
         if (!row || row.text === text) break;
-        // 前後の改行と字下げは残し、見える部分だけを入れ替える（整形は biome に任せる）。
+        // 前後の改行と字下げは残し、見える部分だけを入れ替える（整形は oxfmt に任せる）。
         const start = raw.length - raw.trimStart().length;
         const end = raw.trimEnd().length;
         node.replaceWithText(raw.slice(0, start) + row.text + raw.slice(end));
@@ -135,7 +135,7 @@ for (const problem of problems) console.error(`! ${problem}`);
 if (write) {
   project.saveSync();
   console.log(
-    `${applied.length} 件を書き戻しました（${byFile.size} ファイル）。pnpm fix で整形してください`,
+    `${applied.length} 件を書き戻しました（${byFile.size} ファイル）。vp check --fix で整形してください`,
   );
 } else {
   console.log(

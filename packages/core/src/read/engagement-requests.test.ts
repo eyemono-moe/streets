@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { createEngagementRequests } from "./engagement-requests";
 import { createFakeClock } from "./fake-clock";
 import type { SubscriptionManager } from "./subscription-manager";

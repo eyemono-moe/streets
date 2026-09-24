@@ -13,7 +13,7 @@ lerna-debug.log*
 node_modules
 dist
 storybook-static
-# pnpm build:analyze が出すチャンクの図
+# vp run @streets/web#build:analyze が出すチャンクの図
 apps/web/stats
 dist-ssr
 *.local
@@ -32,6 +32,9 @@ dist-ssr
 .stats.html
 
 *.tsbuildinfo
+
+# Vitest の作業用フォルダ
+.vitest/
 
 # dev
 data

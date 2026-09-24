@@ -146,7 +146,7 @@ const PreviewImage: Component<{ attachment: Attachment }> = (props) => {
   };
   if (isVideo(props.attachment)) {
     return (
-      // biome-ignore lint/a11y/useMediaCaption: 手元の動画を送る前に確かめるだけで、字幕のもとになるものが無い
+      // oxlint-disable-next-line jsx-a11y/media-has-caption -- 手元の動画を送る前に確かめるだけで、字幕のもとになるものが無い
       <video
         src={`${props.attachment.preview}#t=0.1`}
         controls

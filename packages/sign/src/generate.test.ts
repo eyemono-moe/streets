@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { generateSign } from "./StreetSign";
+import { describe, expect, it } from "vite-plus/test";
+import { generateSign } from "./generate";
 
 describe("generateSign", () => {
   it("同じ名前から同じ標識を作る", () => {

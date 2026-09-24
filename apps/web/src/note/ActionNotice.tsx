@@ -225,7 +225,7 @@ const ActionNotice: Component<{
   );
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
     <article
       class="flex flex-col bg-primary"
       classList={{

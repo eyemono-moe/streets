@@ -8,13 +8,13 @@ import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
 import type { Component } from "solid-js";
 import { useMutes } from "../settings/MuteMediator";
 import { useOwnZapKey } from "../zap/own-zap-key";
-import ColumnBody from "./ColumnBody";
-import EventListColumn from "./EventListColumn";
 import {
   type ColumnReadProps,
   alertsFor,
   createColumnSection,
 } from "./column-section";
+import ColumnBody from "./ColumnBody";
+import EventListColumn from "./EventListColumn";
 
 /** 通常の時系列、通知、ブックマーク、明示フィルタのカラム。 */
 const FeedColumn: Component<

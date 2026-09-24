@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { followeesFrom, followersFrom, followsPubkey } from "./follow-list";
 
 describe("followeesFrom", () => {

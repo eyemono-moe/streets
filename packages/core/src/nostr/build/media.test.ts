@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { BlobDescriptor } from "../../media/blossom";
 import { appendMediaUrl, imetaTag, withMedia } from "./media";
 import { buildNote } from "./note";

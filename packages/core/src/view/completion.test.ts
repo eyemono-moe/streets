@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   type CompletionMatch,
   type CompletionState,
@@ -128,13 +128,19 @@ describe("applyCompletion", () => {
   it("space なら後ろに空白を 1 つ置く", () => {
     expect(
       applyCompletion("hi @eye", match, "nostr:x", { space: true }),
-    ).toEqual({ text: "hi nostr:x ", caret: 11 });
+    ).toEqual({
+      text: "hi nostr:x ",
+      caret: 11,
+    });
   });
 
   it("既に空白が続いていれば足さずに、その後ろへ送る", () => {
     expect(
       applyCompletion("hi @eye です", match, "nostr:x", { space: true }),
-    ).toEqual({ text: "hi nostr:x です", caret: 11 });
+    ).toEqual({
+      text: "hi nostr:x です",
+      caret: 11,
+    });
   });
 });
 

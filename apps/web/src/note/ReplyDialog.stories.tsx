@@ -7,9 +7,9 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { useEventActions } from "../actions";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { UploaderProvider } from "../media/uploader";
-import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
+import { EventSceneProvider } from "../storybook/EventScene";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -155,8 +155,7 @@ export const 長い本文: Story = {
           `${index + 1} 行目。長い返信でもダイアログからはみ出さないか。`,
       ).join("\n"),
       sending: false,
-      uploads: [],
-      media: [],
+      attachments: [],
     },
   },
 };

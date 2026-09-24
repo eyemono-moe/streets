@@ -101,6 +101,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
         target="_blank"
         rel="noopener noreferrer"
         class="block max-w-full"
+        aria-label="画像を開く"
         onClick={(event) => {
           // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
           if (
@@ -163,7 +164,7 @@ const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
         loaded={loaded()}
         actual={actual()}
       >
-        {/* biome-ignore lint/a11y/useMediaCaption: 外部の投稿に字幕が添えられていない場合も再生する。 */}
+        {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
         <video
           src={source()}
           controls

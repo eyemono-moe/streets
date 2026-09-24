@@ -81,13 +81,13 @@ import { ZapMediator } from "../zap/ZapMediator";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
-import DeckSyncNotice from "./DeckSyncNotice";
-import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
-import SearchPanel from "./SearchPanel";
-import SidePanel, { SidePanelMotion } from "./SidePanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
+import DeckSyncNotice from "./DeckSyncNotice";
+import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import { relayListState } from "./relay-list";
+import SearchPanel from "./SearchPanel";
+import SidePanel, { SidePanelMotion } from "./SidePanel";
 
 // 開くまで要らないものは別のファイルに分け、起動が落ち着いてから読む。
 const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
@@ -101,7 +101,7 @@ const DeckScreen: Component<{
   bootstrapIndexers?: RelayUrl[];
 }> = (props) => {
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
-  // biome-ignore lint/style/noNonNullAssertion: ログイン中にしか描かれない
+  // ログイン中にしか描かれない
   const viewer = props.session.pubkey()!;
   const write = createWriteStack({
     readLayer: props.readLayer,

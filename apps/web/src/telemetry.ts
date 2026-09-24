@@ -15,7 +15,7 @@ export const startTelemetry = async () => {
   if (!dsn || import.meta.env.DEV) return;
   if (!errorReport()) {
     // 設定で止めているときは送らない。読み込み済みなら、そこで閉じる。
-    sentry?.close();
+    void sentry?.close();
     sentry = undefined;
     return;
   }
@@ -26,13 +26,14 @@ export const startTelemetry = async () => {
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENV ?? "production",
     release: import.meta.env.VITE_COMMIT_SHA,
-    // IP アドレスや Cookie を送らせない。
-    sendDefaultPii: false,
+    // IP アドレス・Cookie・ヘッダーを送らせない。
+    dataCollection: { userInfo: false, cookies: false, httpHeaders: false },
     // 重さの計測（#387）は別途。今は壊れたことだけを拾う。
     tracesSampleRate: 0,
-    integrations: [
-      // 入力された文字や本文が混ざらないよう、操作とコンソールの記録は取らない。
-      Sentry.breadcrumbsIntegration({ dom: false, console: false }),
+    // 入力された文字や本文が混ざらないよう、操作とコンソールの記録は取らない。
+    integrations: (defaults) => [
+      ...defaults.filter((integration) => integration.name !== "Console"),
+      Sentry.breadcrumbsIntegration({ dom: false }),
     ],
     beforeSend: (event) => {
       if (event.request?.url) {

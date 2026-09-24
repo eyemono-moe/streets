@@ -25,7 +25,7 @@ const ViewerSlide: Component<{
   });
   return (
     // 画像の外の余白を押したら閉じる。画像そのものを押しても閉じない。
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでは Esc と閉じるボタンで閉じる。
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- キーボードでは Esc と閉じるボタンで閉じる。
     <div
       class="absolute inset-0 flex items-center justify-center p-4 sm:px-16 sm:py-14"
       onClick={(event) => {
@@ -44,7 +44,7 @@ const ViewerSlide: Component<{
         <Show
           when={props.media.type === "image"}
           fallback={
-            // biome-ignore lint/a11y/useMediaCaption: 外部の投稿に字幕が添えられていない場合も再生する。
+            // oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。
             <video
               ref={video}
               src={props.media.url}

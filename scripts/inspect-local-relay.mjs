@@ -6,7 +6,7 @@
  * 画面の items とここの kind:1 件数が一致していれば、届いたイベントが
  * すべて id 再計算・schnorr 署名検証・構造検証を通過したということ。
  *
- *   pnpm dev:relay:inspect
+ *   vp run dev:relay:inspect
  *
  * 手順の全体は docs/design/verifying-v1-section.md を参照。
  */

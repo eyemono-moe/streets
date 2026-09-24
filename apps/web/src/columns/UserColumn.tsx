@@ -4,13 +4,13 @@ import { PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import type { Component } from "solid-js";
 import ProfileHeader from "../profile/ProfileHeader";
-import ColumnBody from "./ColumnBody";
-import EventListColumn from "./EventListColumn";
 import {
   type ColumnReadProps,
   alertsFor,
   createColumnSection,
 } from "./column-section";
+import ColumnBody from "./ColumnBody";
+import EventListColumn from "./EventListColumn";
 
 const UserColumn: Component<
   ColumnReadProps & {

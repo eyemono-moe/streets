@@ -1,8 +1,8 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
+import { columnMeta } from "../deck/column-meta";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
-import { columnMeta } from "../deck/column-meta";
 import { useDispatch } from "../ui-events";
 
 export type StackedColumn = {
@@ -104,7 +104,7 @@ export const StackedColumnHeader: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからは題名のボタンで先頭へ戻る
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- キーボードからは題名のボタンで先頭へ戻る
     <header
       class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
       onClick={(event) => {

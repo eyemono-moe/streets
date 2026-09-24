@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ColumnFacet } from "../deck/column-facets";
 import { DEFAULT_COLUMN_SHOW } from "../deck/deck";
 import type { NostrEvent } from "../nostr/event";

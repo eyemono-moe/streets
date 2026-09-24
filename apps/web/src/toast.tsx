@@ -1,9 +1,9 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import WriteProgressToast, { type WriteToastMeta } from "./WriteProgressToast";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
+import WriteProgressToast, { type WriteToastMeta } from "./WriteProgressToast";
 
 /**
  * 失敗の知らせは 1 か所に集める。ボタンごとに文言を置くと、押した場所ごとに

@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { ConnectionPool } from "../read/connection-pool";
 import { EventStore } from "../read/event-store";

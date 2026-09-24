@@ -3,8 +3,8 @@ import { type Component, For, createEffect, on } from "solid-js";
 import { Portal } from "solid-js/web";
 import { markTourSeen } from "../tour-setting";
 import Button from "../ui/Button";
-import TourCard from "./TourCard";
 import type { TourTarget } from "./tour-target";
+import TourCard from "./TourCard";
 
 const target = (name: TourTarget) => () =>
   document.querySelector<HTMLElement>(`[data-tour="${name}"]`);

@@ -1,16 +1,15 @@
 {
-  "devDependencies": {
-    "@cloudflare/workers-types": "5.20260920.1",
-    "typescript": "5.7.3",
-    "vitest": "3.0.5",
-    "wrangler": "4.135.0"
-  },
   "name": "@streets/feedback-worker",
   "private": true,
+  "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "test": "vp test"
   },
-  "type": "module"
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260923.1",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:",
+    "wrangler": "4.137.0"
+  }
 }

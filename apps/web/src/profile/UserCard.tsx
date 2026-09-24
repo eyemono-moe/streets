@@ -6,9 +6,9 @@ import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
+import { useFollowsYou } from "./follows-you";
 import FollowsYouBadge from "./FollowsYouBadge";
 import Nip05Badge from "./Nip05Badge";
-import { useFollowsYou } from "./follows-you";
 
 /**
  * 名前やアイコンに触れたときに出す名刺。kind:0 に載っていることを出す ——

@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
 import { EventStore } from "../read/event-store";
@@ -92,7 +92,10 @@ const allFailed: PublishResult = {
 const stubPublisher = (
   publish: Publisher["publish"],
   targets: RelayUrl[] = [],
-): Publisher => ({ publish, targets: () => [...targets] });
+): Publisher => ({
+  publish,
+  targets: () => [...targets],
+});
 
 describe("publish", () => {
   it("署名 → 楽観挿入 → publish の順に進む", async () => {

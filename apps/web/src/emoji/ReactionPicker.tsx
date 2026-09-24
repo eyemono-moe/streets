@@ -16,7 +16,7 @@ import { rememberEmoji } from "./recent-emoji";
  */
 export type PickerTrigger = (
   userProps?: JSX.IntrinsicElements["button"],
-  // biome-ignore lint/suspicious/noExplicitAny: Ark UI の `asChild` の型に合わせる
+  // Ark UI の `asChild` の型に合わせる
 ) => JSX.HTMLAttributes<any>;
 
 export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>

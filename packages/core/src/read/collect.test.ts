@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayUrl } from "../relay/relay-connection";
 import { collect } from "./collect";

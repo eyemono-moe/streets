@@ -7,23 +7,23 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vp test"
   },
   "dependencies": {
-    "@noble/ciphers": "0.5.3",
-    "@noble/curves": "^2.2.0",
-    "@noble/hashes": "^2.2.0",
-    "@scure/base": "^2.2.0",
-    "valibot": "1.4.1"
+    "@noble/ciphers": "2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@scure/base": "^2.4.0",
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "fake-indexeddb": "^6.2.5",
+    "solid-js": "1.9.15",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:"
   },
   "peerDependencies": {
     "solid-js": "^1.9.0"
-  },
-  "devDependencies": {
-    "fake-indexeddb": "^6.2.5",
-    "solid-js": "1.9.13",
-    "typescript": "5.7.3",
-    "vitest": "3.0.5"
   }
 }

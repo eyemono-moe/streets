@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { ColumnDef, Deck } from "./deck";
 import {
   addColumnTo,
@@ -94,7 +94,10 @@ describe("updateColumnIn", () => {
     const deck = deckOf({ id: "a", title: "ホーム" });
     expect(
       updateColumnIn(deck, "a", { width: "l", density: "compact" }).columns[0],
-    ).toMatchObject({ width: "l", density: "compact" });
+    ).toMatchObject({
+      width: "l",
+      density: "compact",
+    });
   });
 
   it("変化が無ければ同じ参照を返す", () => {

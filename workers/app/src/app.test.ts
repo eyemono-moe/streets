@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { type LinkCardResponse, createApp } from "./app";
 
 const ORIGIN = "https://streets.example";
@@ -62,7 +62,9 @@ describe("GET /api/link-card", () => {
     const fetch = pageFetch();
     const response = await createApp({ fetch }).request(
       path("https://example.com/"),
-      { headers: { "sec-fetch-site": "cross-site" } },
+      {
+        headers: { "sec-fetch-site": "cross-site" },
+      },
     );
     expect(response.status).toBe(403);
     expect(fetch).not.toHaveBeenCalled();

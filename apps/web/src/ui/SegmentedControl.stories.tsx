@@ -10,6 +10,7 @@ type Props = {
     label: string;
     disabled?: boolean;
     hint?: string;
+    icon?: string;
   }[];
 };
 

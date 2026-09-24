@@ -4,8 +4,8 @@ import {
 } from "@streets/core/moderation/mute-list";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { EventSceneProvider } from "../storybook/EventScene";
 import avatar from "../storybook/avatar-fixture.svg";
+import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
 import MuteSettingsView, {

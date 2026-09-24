@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { isRemoteChange } from "./nip78-conflict";
 
 const known = { id: "known", createdAt: 100 };

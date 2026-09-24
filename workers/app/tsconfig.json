@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022"],
-    // 実行環境と Env の型は `pnpm types`（wrangler types）で作った worker-configuration.d.ts から取る。
+    // 実行環境と Env の型は `vp run types`（wrangler types）で作った worker-configuration.d.ts から取る。
     "types": []
   },
   "include": ["src", "worker-configuration.d.ts"]

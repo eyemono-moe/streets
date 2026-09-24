@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import type { Signer } from "../signer/signer";
 import {
@@ -72,7 +72,10 @@ describe("decodeMuteList / changeMuteList", () => {
     // 捕まえる変異: event が無いことだけで privatePart を ready にする。
     await expect(
       decodeMuteList(undefined, signer({ nip44: undefined }), PUBKEY),
-    ).resolves.toEqual({ entries: [], privatePart: "unavailable" });
+    ).resolves.toEqual({
+      entries: [],
+      privatePart: "unavailable",
+    });
   });
 
   it("公開タグと NIP-44 非公開タグを同じ entry 形式へ読む", async () => {
@@ -303,6 +306,9 @@ describe("matchingMutes", () => {
   it("メニューのスレッド対象は root があれば root を使う", () => {
     expect(
       threadMuteTarget(event({ tags: [["e", ROOT_ID, "", "root"]] })),
-    ).toEqual({ type: "thread", value: ROOT_ID });
+    ).toEqual({
+      type: "thread",
+      value: ROOT_ID,
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
@@ -703,7 +703,7 @@ describe("SectionReader", () => {
       ...genuine,
       pubkey: "ff".repeat(32),
       content: "ATTACKER CONTENT",
-      // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed to prove the type-confusion hazard
+      // deliberately malformed to prove the type-confusion hazard
       created_at: "1700000000" as any,
       sig: "00".repeat(64),
     };

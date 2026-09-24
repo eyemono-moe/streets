@@ -3,8 +3,8 @@ import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import UnoCSS from "unocss/vite";
-import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { defineConfig, lazyPlugins } from "vite-plus";
 import { unicodeEmojis } from "./emoji-data-plugin";
 import { releaseNotes } from "./release-notes-plugin";
 
@@ -50,7 +50,7 @@ const sentryUpload = (release: string) => {
 };
 
 /**
- * `pnpm build:analyze` のときだけ、チャンクの中身を面積で描いた図を `stats/` に出す。
+ * `vp run @streets/web#build:analyze` のときだけ、チャンクの中身を面積で描いた図を `stats/` に出す。
  * `dist` に置くと、そのまま本番に配られてしまう。
  */
 const analyze = (mode: string) =>
@@ -74,7 +74,7 @@ export default defineConfig(({ mode }) => ({
     __SENTRY_TRACING__: "false",
     __SENTRY_DEBUG__: "false",
   },
-  plugins: [
+  plugins: lazyPlugins(() => [
     ...devtools(),
     UnoCSS(),
     solid(),
@@ -82,7 +82,7 @@ export default defineConfig(({ mode }) => ({
     unicodeEmojis(),
     ...sentryUpload(release),
     ...analyze(mode),
-  ],
+  ]),
   build: {
     // Vite 7 以降の既定（Baseline Widely Available）と同じ。Vite 6 の既定では
     // core のクラスの private フィールド（`#events` など）が WeakMap の呼び出しに
@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 5173,
     // 本番では Worker（workers/app）が受ける /api を、`wrangler dev` へ渡す。
-    // ルートの `pnpm dev` が両方を立ち上げる。
+    // ルートの `vp run dev` が両方を立ち上げる。
     proxy: { "/api": "http://localhost:8787" },
   },
 }));

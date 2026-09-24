@@ -434,7 +434,7 @@ Nostr のイベント id は `pubkey, created_at, kind, tags, content` のハッ
 
 ### キーボードではスレッドを開けない（実行: [#289](https://github.com/eyemono-moe/streets/issues/289)）
 
-`useOpenThreadOnClick` はポインタ操作しか見ておらず `<article>` に `biome-ignore lint/a11y/useKeyWithClickEvents` で抑制している。直し方は自明ではない——`<article>` 自体を focusable にすると1カラム最大200件のノートが全部タブ順に入る。本来の答えは記事内に実体を持つ focusable な要素（タイムスタンプへのリンク、返信数ボタン等）を置くことだが、これは「押せる面をどこに置くか」という設計そのものの変更になるため決めずに残した。
+`useOpenThreadOnClick` はポインタ操作しか見ておらず `<article>` に `oxlint-disable-next-line jsx-a11y/click-events-have-key-events` で抑制している。直し方は自明ではない——`<article>` 自体を focusable にすると1カラム最大200件のノートが全部タブ順に入る。本来の答えは記事内に実体を持つ focusable な要素（タイムスタンプへのリンク、返信数ボタン等）を置くことだが、これは「押せる面をどこに置くか」という設計そのものの変更になるため決めずに残した。
 
 ### リアクションチップはクリック除外セレクタに入っていない（実行: [#290](https://github.com/eyemono-moe/streets/issues/290)）
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   fetchNip05,
   nip05Label,
@@ -72,25 +72,35 @@ describe("fetchNip05", () => {
         address,
         respond({ names: { alice: pubkey.toUpperCase() } }),
       ),
-    ).toEqual({ kind: "found", pubkey });
+    ).toEqual({
+      kind: "found",
+      pubkey,
+    });
   });
 
   it("大文字で載っている名前も見つける", async () => {
     expect(
       await fetchNip05(address, respond({ names: { Alice: pubkey } })),
-    ).toEqual({ kind: "found", pubkey });
+    ).toEqual({
+      kind: "found",
+      pubkey,
+    });
   });
 
   it("名前が載っていなければ missing", async () => {
     expect(
       await fetchNip05(address, respond({ names: { bob: pubkey } })),
-    ).toEqual({ kind: "missing" });
+    ).toEqual({
+      kind: "missing",
+    });
   });
 
   it("pubkey の形でなければ missing", async () => {
     expect(
       await fetchNip05(address, respond({ names: { alice: "npub1xyz" } })),
-    ).toEqual({ kind: "missing" });
+    ).toEqual({
+      kind: "missing",
+    });
   });
 
   it("エラーの応答・形の違う答え・接続できないは unreachable", async () => {

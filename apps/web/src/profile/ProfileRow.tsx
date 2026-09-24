@@ -17,7 +17,7 @@ const ProfileRow: Component<{ pubkey: string; detail?: JSX.Element }> = (
   const profile = () => details()?.profile;
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでカラムを開く経路はまだ無い（押せるのはポインタだけ）
+    // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- キーボードでカラムを開く経路はまだ無い（押せるのはポインタだけ）
     <div
       class="cursor-pointer bg-primary"
       onClick={(event) => {
