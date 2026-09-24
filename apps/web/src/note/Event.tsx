@@ -33,6 +33,7 @@ import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
 import LinkCards from "./LinkCards";
+import MediaViewer from "./MediaViewer";
 import NoteMediaView from "./NoteMedia";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
@@ -289,6 +290,7 @@ const Note: Component<ContentProps> = (props) => {
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
   const replyTo = () => replyTarget(props.event);
+  const [viewing, setViewing] = createSignal<number>();
 
   return (
     <Row event={props.event} size={props.size} threadLine={props.threadLine}>
@@ -313,7 +315,7 @@ const Note: Component<ContentProps> = (props) => {
         </Show>
       </Show>
       <For each={layout().media}>
-        {(item) => (
+        {(item, index) => (
           <Show
             when={props.expandMedia !== false}
             fallback={
@@ -327,10 +329,23 @@ const Note: Component<ContentProps> = (props) => {
               </a>
             }
           >
-            <NoteMediaView media={item} size={props.size} />
+            <NoteMediaView
+              media={item}
+              size={props.size}
+              onOpen={() => setViewing(index())}
+            />
           </Show>
         )}
       </For>
+      {/* 添付の無い投稿にまでダイアログの状態を持たせない。 */}
+      <Show when={props.expandMedia !== false && layout().media.length > 0}>
+        <MediaViewer
+          media={layout().media}
+          index={viewing()}
+          onIndexChange={setViewing}
+          onClose={() => setViewing(undefined)}
+        />
+      </Show>
       {props.media}
       <LinkCards urls={layout().links} size={props.size} />
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
