@@ -8,6 +8,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { EventSceneProvider } from "../storybook/EventScene";
+import { useStoryNip05 } from "../storybook/nip05";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
 import { MuteMediator } from "./MuteMediator";
@@ -95,6 +96,9 @@ const Story = (props: Props) => {
     }),
   });
   applyColors(props.appearance);
+  useStoryNip05({
+    "me@example.com": { kind: "found", pubkey: STORY_VIEWER },
+  });
   return (
     // 「絵文字セットを探す」が読み取り層を引く。リレーには繋がず、何も見つからない。
     // 自分の絵文字は固定の一覧で渡す（アプリでは CustomEmojisMediator が持つ）。

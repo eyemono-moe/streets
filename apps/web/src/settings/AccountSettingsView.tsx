@@ -1,4 +1,10 @@
 import { profileEmojiTags } from "@streets/core/nostr/build/references";
+import {
+  type Nip05Status,
+  nip05Label,
+  nip05Status,
+  parseNip05,
+} from "@streets/core/nostr/nip05";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import {
   type ProfileEditState,
@@ -8,10 +14,14 @@ import {
   profileFromDraft,
 } from "@streets/core/settings/profile-edit";
 import {
+  type Accessor,
   type Component,
   type JSX,
+  Match,
   Show,
+  Switch,
   createEffect,
+  createMemo,
   createSignal,
   on,
   onCleanup,
@@ -22,7 +32,9 @@ import {
   userSource,
 } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { Nip05View } from "../profile/Nip05Badge";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
+import { useNip05Lookup } from "../profile/nip05";
 import { Mediates, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
@@ -42,6 +54,10 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   const dirty = () => isProfileDirty(props.state);
   const canSave = () =>
     dirty() && !props.state.saving && Object.keys(errors()).length === 0;
+  const nip05 = createNip05Check(
+    () => props.pubkey,
+    () => props.state,
+  );
 
   // 閉じようとして止められたら、保存の欄まで送って揺らし、文言を強める。
   let actions: HTMLDivElement | undefined;
@@ -76,7 +92,11 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
         scope="account"
         description="ほかの人に見える名前やアイコンです。ほかのアプリでも同じプロフィールが表示されます。"
       >
-        <ProfilePreview pubkey={props.pubkey} state={props.state} />
+        <ProfilePreview
+          pubkey={props.pubkey}
+          state={props.state}
+          nip05={nip05}
+        />
         <form
           class="flex flex-col gap-3"
           onSubmit={(event) => {
@@ -127,6 +147,8 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             <ProfileInput
               field="nip05"
               state={props.state}
+              onBlur={nip05.check}
+              status={<Nip05CheckResult check={nip05} />}
               label="ドメインでの本人確認（NIP-05）"
               type="email"
               placeholder="name@example.com"
@@ -228,6 +250,88 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   );
 };
 
+type Nip05Check = ReturnType<typeof createNip05Check>;
+
+/**
+ * 設定の NIP-05 をドメインに確かめる。打つたびには聞かず、欄から離れたときに
+ * 聞く。同じ値で離れ直したら聞き直す —— ドメイン側を直してから確かめ直せるように。
+ * 読み取った版は、開いたときに確かめておく。
+ */
+const createNip05Check = (
+  pubkey: Accessor<string>,
+  state: Accessor<ProfileEditState>,
+) => {
+  const [checked, setChecked] = createSignal("");
+  createEffect(on(() => state().base.nip05.trim(), setChecked));
+  const address = createMemo(() => parseNip05(checked()));
+  const lookup = useNip05Lookup(address);
+  const draft = () => state().draft.nip05.trim();
+  /** 聞いた答えが、いま欄にある値のものか。打ちかけの値に古い答えを出さない。 */
+  const current = () => address() !== undefined && draft() === checked();
+  return {
+    check: () => {
+      if (profileErrors(state().draft).nip05 !== undefined) return;
+      if (draft() === checked()) void lookup.refetch();
+      else setChecked(draft());
+    },
+    address,
+    lookup,
+    current,
+    pubkey,
+    previewStatus: (): Nip05Status =>
+      current() && !lookup.isFetching
+        ? nip05Status(lookup.data, pubkey())
+        : "pending",
+  };
+};
+
+/** 欄の下に出す、ドメインに聞いた答え。直すための手がかりを添える。 */
+const Nip05CheckResult: Component<{ check: Nip05Check }> = (props) => {
+  const lookup = () => props.check.lookup.data;
+  const name = () => props.check.address()?.name ?? "";
+  const domain = () => props.check.address()?.domain ?? "";
+  return (
+    <Show when={props.check.current()}>
+      <Switch>
+        <Match when={props.check.lookup.isFetching}>
+          <p class="c-secondary text-caption">ドメインに確認しています…</p>
+        </Match>
+        <Match
+          when={nip05Status(lookup(), props.check.pubkey()) === "verified"}
+        >
+          <p class="c-accent-5 flex items-center gap-1 text-caption">
+            <span class="i-material-symbols:verified-rounded size-[1.15em] shrink-0" />
+            ドメインで本人と確認できました
+          </p>
+        </Match>
+        <Match when={lookup()?.kind === "found"}>
+          <p class="c-danger text-caption">
+            このドメインには、別のアカウントが「{name()}
+            」として登録されています。
+            {domain()} の nostr.json で「{name()}
+            」に書く公開鍵を、このアカウントのもの（hex）にしてください
+          </p>
+        </Match>
+        <Match when={lookup()?.kind === "missing"}>
+          <p class="c-danger text-caption">
+            {domain()} の nostr.json に「{name()}
+            」が登録されていません。名前の綴りか、nostr.json
+            の中身を確かめてください
+          </p>
+        </Match>
+        <Match when={lookup()?.kind === "unreachable"}>
+          <p class="c-danger break-anywhere text-caption">
+            確認できませんでした。アドレスが合っているか、https://{domain()}
+            /.well-known/nostr.json
+            をほかのサイトから読めるようになっているか（CORS
+            の設定）を確かめてください
+          </p>
+        </Match>
+      </Switch>
+    </Show>
+  );
+};
+
 /** プロフィールの 1 項目。書きかけの値と誤りを読み、打ったらイベントを上へ渡す。 */
 const ProfileInput: Component<{
   field: ProfileField;
@@ -241,6 +345,8 @@ const ProfileInput: Component<{
   emoji?: boolean;
   /** 自己紹介のように、人を指せる項目か。読む側で `nostr:` が人へのリンクになる。 */
   mention?: boolean;
+  onBlur?: () => void;
+  status?: JSX.Element;
 }> = (props) => {
   const dispatch = useDispatch();
   const emojiSource = useEmojiSource();
@@ -266,6 +372,8 @@ const ProfileInput: Component<{
       type={props.type}
       value={props.state.draft[props.field]}
       error={profileErrors(props.state.draft)[props.field]}
+      onBlur={props.onBlur}
+      status={props.status}
       onInput={(value) =>
         dispatch({ type: "profile/input", field: props.field, value })
       }
@@ -277,9 +385,11 @@ const ProfileInput: Component<{
  * 書きかけのままのプロフィールを、ユーザーのカラムの先頭と同じ部品・同じ幅で
  * 見せる。保存したらほかの人にどう見えるかを、そのまま確かめられる。
  */
-const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
-  props,
-) => {
+const ProfilePreview: Component<{
+  pubkey: string;
+  state: ProfileEditState;
+  nip05: Nip05Check;
+}> = (props) => {
   const emoji = useEmojiLookup();
   // 書きかけの :shortcode: も、保存したときと同じく絵文字で見せる。
   const tags = () => profileEmojiTags([], props.state.draft, emoji);
@@ -293,6 +403,18 @@ const ProfilePreview: Component<{ pubkey: string; state: ProfileEditState }> = (
             pubkey={props.pubkey}
             profile={profileFromDraft(props.state.draft)}
             profileTags={tags()}
+            nip05={
+              <Show when={parseNip05(props.state.draft.nip05)}>
+                {(address) => (
+                  <div class="mt-1 flex min-w-0">
+                    <Nip05View
+                      label={nip05Label(address())}
+                      status={props.nip05.previewStatus()}
+                    />
+                  </div>
+                )}
+              </Show>
+            }
           />
         </Mediates>
       </div>
