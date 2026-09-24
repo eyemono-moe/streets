@@ -15,11 +15,14 @@ const alice = createStoryAuthor(11, {
   picture: avatarUrl,
   about: "Nostr のクライアントを作っています。",
   banner: avatarUrl,
+  nip05: "alice@example.com",
 });
 const bob = createStoryAuthor(22, {
   name: "bob",
   displayName: "ほかのひと",
   about: "リレー運用。",
+  // なりすまし: ドメインは別の人（alice）を返す。
+  nip05: "_@alice.example",
 });
 const carol = createStoryAuthor(33, { name: "carol" });
 const wordy = createStoryAuthor(66, {
@@ -31,11 +34,14 @@ const wordy = createStoryAuthor(66, {
     (_, index) =>
       `${index + 1} 行目の自己紹介。長い文章でもカラムの幅からはみ出さないことを確かめる。`,
   ).join("\n"),
+  nip05: "wordy@unreachable.example",
 });
 const longName = createStoryAuthor(77, {
   name: "very-long-handle-that-will-not-fit-in-one-column",
   displayName: "とても長い表示名を持っている人のためのユーザー",
   about: "名前も id もはみ出さずに切れることを確かめる。",
+  nip05:
+    "very-long-handle-that-will-not-fit@a-very-long-subdomain.of-some-long-domain.example",
 });
 const viewer = createStoryAuthor(55, { name: "me", displayName: "わたし" });
 const linkedNote = alice.note("自己紹介のリンクから開く投稿");
@@ -70,9 +76,19 @@ const followsViewer = [
   bob.follows([viewer.pubkey, carol.pubkey]),
 ];
 
+/** 名前ごとに、確かめた結果が違うように答える。 */
+const nip05 = {
+  "alice@example.com": { kind: "found", pubkey: alice.pubkey },
+  "_@alice.example": { kind: "found", pubkey: alice.pubkey },
+  "wordy@unreachable.example": { kind: "unreachable" },
+  "very-long-handle-that-will-not-fit@a-very-long-subdomain.of-some-long-domain.example":
+    { kind: "found", pubkey: longName.pubkey },
+} satisfies EventScene["nip05"];
+
 const scene = (...events: NostrEvent[]): EventScene => ({
   events: [...profiles, viewerFollows, ...followsViewer, ...events],
   viewer,
+  nip05,
 });
 
 type HeaderProps = {
@@ -230,6 +246,17 @@ export const 名刺_フォローされていない: StoryObj<typeof CardStory> =
 export const 名刺_情報が少ない: StoryObj<typeof CardStory> = {
   render: (props) => <CardStory {...props} />,
   args: { pubkey: carol.pubkey, scene: scene() },
+};
+
+/** ドメインが別の人を返した。本人と認められていない印を出す。 */
+export const 名刺_NIP05_なりすまし: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: bob.pubkey, scene: scene() },
+};
+
+export const 名刺_NIP05_長い: StoryObj<typeof CardStory> = {
+  render: (props) => <CardStory {...props} />,
+  args: { pubkey: longName.pubkey, scene: scene() },
 };
 
 export const 名刺_自己紹介が長い: StoryObj<typeof CardStory> = {

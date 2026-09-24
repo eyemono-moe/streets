@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { parseNip05 } from "../nostr/nip05";
 import type { Profile } from "../nostr/profile";
 
 /**
@@ -151,8 +152,12 @@ const profileSchema = v.object({
   picture: webUrl,
   banner: webUrl,
   website: webUrl,
+  // 読む側と同じ読み方で確かめる。ここを通って読む側で読めない値は、保存しても確認されない。
   nip05: blankOr(
-    v.pipe(v.string(), v.regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, NIP05_MESSAGE)),
+    v.pipe(
+      v.string(),
+      v.check((text) => parseNip05(text) !== undefined, NIP05_MESSAGE),
+    ),
   ),
   // LUD-16 の名前の部分は a-z 0-9 - _ . だけ。大文字はウォレットによって書くので許す。
   lud16: blankOr(
@@ -190,5 +195,6 @@ export const profileFromDraft = (draft: ProfileDraft): Profile => {
     picture: text(draft.picture),
     about: text(draft.about),
     banner: text(draft.banner),
+    nip05: text(draft.nip05),
   };
 };

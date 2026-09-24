@@ -7,6 +7,7 @@ import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
+import Nip05Badge from "./Nip05Badge";
 import { useFollowsYou } from "./follows-you";
 
 /**
@@ -68,6 +69,13 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
               <FollowsYouBadge />
             </Show>
           </span>
+          <Show when={profile()?.nip05}>
+            {(nip05) => (
+              <span class="mt-0.5 flex min-w-0">
+                <Nip05Badge pubkey={props.pubkey} nip05={nip05()} />
+              </span>
+            )}
+          </Show>
         </div>
         <Show when={profile()?.about}>
           {(about) => (

@@ -11,6 +11,7 @@ export type StoryProfile = {
   picture?: string;
   about?: string;
   banner?: string;
+  nip05?: string;
 };
 
 const keyFor = (seed: number): Uint8Array =>
@@ -54,6 +55,7 @@ export const createStoryAuthor = (seed: number, profile: StoryProfile = {}) => {
           picture: profile.picture,
           about: profile.about,
           banner: profile.banner,
+          nip05: profile.nip05,
         }),
       }),
     follows: (pubkeys: readonly string[]) =>

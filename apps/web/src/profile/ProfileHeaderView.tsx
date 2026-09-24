@@ -7,6 +7,7 @@ import { useProfileDetails } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
+import Nip05Badge from "./Nip05Badge";
 import ProfileMenu from "./ProfileMenu";
 
 const Count: Component<{
@@ -47,6 +48,11 @@ export const ProfileHeaderCard: Component<{
   footer?: JSX.Element;
   /** ID の横に置く印（フォローされています）。 */
   badge?: JSX.Element;
+  /**
+   * ID の下に置く、ドメインでの本人確認。確かめる時機が置き場所ごとに違う（設定の
+   * 見本は、打つたびにドメインへ聞きに行かない）ので、外から渡す。
+   */
+  nip05?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -99,6 +105,7 @@ export const ProfileHeaderCard: Component<{
             </p>
             {props.badge}
           </div>
+          {props.nip05}
         </div>
         <Show when={props.profile?.about}>
           {(about) => (
@@ -131,6 +138,15 @@ const ProfileHeaderView: Component<{
       pubkey={props.pubkey}
       profile={details()?.profile}
       profileTags={details()?.tags}
+      nip05={
+        <Show when={details()?.profile?.nip05}>
+          {(nip05) => (
+            <div class="mt-1 flex min-w-0">
+              <Nip05Badge pubkey={props.pubkey} nip05={nip05()} />
+            </div>
+          )}
+        </Show>
+      }
       badge={
         <Show when={props.followsYou}>
           <FollowsYouBadge />
