@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "node -e \"require('node:fs').mkdirSync('../../apps/web/dist', { recursive: true })\" && wrangler dev --config ../../wrangler.jsonc --port 8787",
     "test": "vp test",
-    "types": "wrangler types --config ../../wrangler.jsonc worker-configuration.d.ts",
-    "types:check": "wrangler types --check --config ../../wrangler.jsonc worker-configuration.d.ts"
+    "types": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --config ../../wrangler.jsonc worker-configuration.d.ts",
+    "types:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler types --check --config ../../wrangler.jsonc worker-configuration.d.ts"
   },
   "dependencies": {
     "@hono/valibot-validator": "0.6.1",
