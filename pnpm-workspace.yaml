@@ -3,3 +3,9 @@ packages:
   - "apps/*"
   - "workers/*"
   - "tools/*"
+allowBuilds:
+  "@sentry/cli": true
+  esbuild: true
+  workerd: true
+minimumReleaseAgeExclude:
+  - vite@8.3.1
