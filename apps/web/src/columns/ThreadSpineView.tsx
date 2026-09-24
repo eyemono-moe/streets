@@ -50,6 +50,12 @@ const ThreadSpineView: Component<{
         />
       )}
     </Show>
+    {/* 落ちるのは古い返信なので、並びの先頭に断っておく。 */}
+    <Show when={props.spine.focus && props.spine.repliesMayBeMissing}>
+      <p class="c-secondary bg-primary px-3 py-2 text-caption">
+        返信が多いため、古い返信の一部を表示できていないことがあります。
+      </p>
+    </Show>
     <For each={props.spine.replies}>
       {(event) => (
         <Event event={event} size="compact" expandMedia={props.expandMedia} />

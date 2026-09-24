@@ -53,6 +53,7 @@ const longReplies = [
 type Props = {
   events: NostrEvent[];
   focusId: string;
+  oldestKept?: number;
   settled: boolean;
   expandMedia: boolean;
 };
@@ -67,7 +68,9 @@ const ThreadStory: Component<Props> = (props) => {
       {/* カラムと同じ幅・同じ縦スクロールに載せる（アイコンの sticky を確かめる）。 */}
       <div class="h-[600px] w-[360px] overflow-y-auto border border-primary">
         <ThreadSpineView
-          spine={threadSpine(props.events, props.focusId)}
+          spine={threadSpine(props.events, props.focusId, {
+            oldestKept: props.oldestKept,
+          })}
           settled={props.settled}
           expandMedia={props.expandMedia}
         />
@@ -114,4 +117,12 @@ export const 長い投稿が混ざる: Story = {
 
 export const 返信がない: Story = {
   args: { events: [root, middle, focus], focusId: focus.id },
+};
+
+export const 返信が上限で欠けている: Story = {
+  args: {
+    events: [root, middle, focus, ...replies],
+    focusId: focus.id,
+    oldestKept: focus.created_at,
+  },
 };

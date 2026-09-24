@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { MAX_ITEMS_PER_SECTION } from "@streets/core/read/source";
 import { createSection } from "@streets/core/solid/create-section";
 import { createThreadSource } from "@streets/core/solid/create-thread-source";
 import { threadSpine } from "@streets/core/view/thread-spine";
@@ -35,7 +36,17 @@ const ThreadColumn: Component<{
     const seeded = props.readLayer.store.get(props.focus);
     return seeded ? [...items, seeded] : items;
   };
-  const spine = createMemo(() => threadSpine(events(), props.focus));
+  // 上限に達すると古いものから落ちる。焦点を補った後の一覧で見ると、焦点が最古に見えて欠けを見逃す。
+  const oldestKept = (): number | undefined => {
+    const items = section.items();
+    // 一覧は新しい順なので、末尾が最古。
+    return items.length >= MAX_ITEMS_PER_SECTION
+      ? items.at(-1)?.created_at
+      : undefined;
+  };
+  const spine = createMemo(() =>
+    threadSpine(events(), props.focus, { oldestKept: oldestKept() }),
+  );
   createEffect(() =>
     setDiagnostics("sections", props.column.id, {
       ...section.status(),

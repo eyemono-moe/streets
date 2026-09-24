@@ -107,4 +107,30 @@ describe("threadSpine", () => {
     expect(spine.ancestors).toEqual([]);
     expect(spine.replies).toEqual([]);
   });
+  it("上限に達した一覧で、焦点が残っている最古以前なら返信が欠けうると返す", () => {
+    // 捕まえる変異: 同じ秒を除外する（< にする）—— 焦点と同じ秒の返信が追い出されても黙る。
+    const focus = note("1", { at: 100 });
+    const reply = note("2", { reply: "1", at: 150 });
+    expect(
+      threadSpine([focus, reply], id("1"), { oldestKept: 100 })
+        .repliesMayBeMissing,
+    ).toBe(true);
+    expect(
+      threadSpine([focus, reply], id("1"), { oldestKept: 120 })
+        .repliesMayBeMissing,
+    ).toBe(true);
+  });
+
+  it("焦点が残っている最古より新しい、または上限に達していなければ欠けていない", () => {
+    // 捕まえる変異: 上限に達しただけで欠けているとする —— 新しい投稿を開くたびに断り書きが出る。
+    const focus = note("1", { at: 200 });
+    const reply = note("2", { reply: "1", at: 250 });
+    expect(
+      threadSpine([focus, reply], id("1"), { oldestKept: 100 })
+        .repliesMayBeMissing,
+    ).toBe(false);
+    expect(threadSpine([focus, reply], id("1")).repliesMayBeMissing).toBe(
+      false,
+    );
+  });
 });
