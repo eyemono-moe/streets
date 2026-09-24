@@ -177,7 +177,8 @@ export default defineConfig({
       画面の外にあるノートの描画を飛ばす。デッキは数万要素になるので、テーマ色を
       変えたときのように木全体のスタイル計算が走ると、見えている分だけを計算する
       場合の 4 倍ほどかかる。`auto` は一度描いた高さを覚えるので、スクロール位置は
-      ずれない（まだ描いていない分だけ 160px と見積もる）。
+      ずれない（まだ描いていない分だけ 160px と見積もる）。仮想スクロールの行の中
+      では preflight で打ち消す。
     */
     [
       "offscreen-skip",
@@ -302,6 +303,17 @@ export default defineConfig({
         */
         [hidden] {
           display: none !important;
+        }
+        /*
+          仮想スクロールの行は画面から離れると DOM ごと捨てられ、戻ると作り直される。
+          作り直した要素は content-visibility: auto の「一度描いた高さ」を持たないので、
+          先読みの位置で 160px と測られ、画面に入ると本当の高さに戻る。上へ戻る
+          スクロールでは位置の補正が効かず、その差だけ本文が揺れる。画面の外は
+          仮想スクロールがすでに DOM から外しているので、ここでは描画を飛ばさない。
+        */
+        [data-virtual-row] .offscreen-skip {
+          content-visibility: visible;
+          contain-intrinsic-size: none;
         }
         /*
           アプリの中の重ね順をアプリの中に閉じ込める。ポップアップやダイアログは
