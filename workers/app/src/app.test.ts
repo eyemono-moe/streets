@@ -171,27 +171,26 @@ describe("GET /api/image", () => {
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         new Response("bytes", {
           headers: {
-            "content-type": "image/avif",
+            "content-type": "image/webp",
             "cf-resized": "internal=ok/- q=0 n=100",
             ...headers,
           },
         }),
     );
 
-  it("決めた大きさに縮め、ブラウザが読める形式で返す", async () => {
+  it("決めた大きさと形式に縮めて返す", async () => {
     const fetch = resizedFetch();
     const response = await createApp({ fetch }).request(imagePath(AVATAR), {
       headers: AS_IMAGE,
     });
     expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("image/avif");
+    expect(response.headers.get("content-type")).toBe("image/webp");
     expect(response.headers.get("cache-control")).toBe(
       "public, max-age=604800",
     );
-    expect(response.headers.get("vary")).toBe("accept");
-    // 捕まえる変異: 画面から大きさを受け取る（無料枠を大きさの数だけ使われる）
+    // 捕まえる変異: 画面から大きさを受け取る・Accept で形式を変える（無料枠をその数だけ使う）
     expect(fetch.mock.calls[0]?.[1]).toMatchObject({
-      cf: { image: { width: 160, height: 160, fit: "crop", format: "avif" } },
+      cf: { image: { width: 160, height: 160, fit: "crop", format: "webp" } },
     });
   });
 
@@ -233,14 +232,28 @@ describe("GET /api/image", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("画像として読まれたのでなければ飛ばさない", async () => {
-    // 捕まえる変異: リンクとして踏ませても飛ぶ（このドメインが任意のサイトへの踏み台になる）
+  it("利用者が自分で開いたときは、縮めた画像をそのまま見せる", async () => {
     const fetch = resizedFetch();
     const response = await createApp({ fetch }).request(imagePath(AVATAR), {
-      headers: { "sec-fetch-site": "cross-site", "sec-fetch-dest": "document" },
+      headers: { "sec-fetch-site": "none", "sec-fetch-dest": "document" },
     });
-    expect(response.status).toBe(400);
-    expect(response.headers.get("location")).toBeNull();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/webp");
+  });
+
+  it("画像として読まれたのでなければ飛ばさず、元の URL を文字で示す", async () => {
+    // 捕まえる変異: ページとして開かせても飛ぶ（このドメインが任意のサイトへの踏み台になる）
+    const app = createApp({
+      fetch: resizedFetch({ "cf-resized": "err=9422" }),
+    });
+    for (const site of ["cross-site", "none"]) {
+      const response = await app.request(imagePath(AVATAR), {
+        headers: { "sec-fetch-site": site, "sec-fetch-dest": "document" },
+      });
+      expect(response.status).toBe(400);
+      expect(response.headers.get("location")).toBeNull();
+      expect(await response.text()).toContain(AVATAR);
+    }
   });
 
   it("http の元画像・内部のアドレス・知らない型は 400", async () => {
@@ -267,7 +280,7 @@ describe("GET /api/image", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("キャッシュに当たれば縮小し直さず、形式ごとに分けて覚える", async () => {
+  it("キャッシュに当たれば縮小し直さず、回数も数えない", async () => {
     stubCaches();
     const fetch = resizedFetch();
     const limit = vi.fn(async () => ({ success: true }));
@@ -284,12 +297,5 @@ describe("GET /api/image", () => {
     }
     expect(fetch).toHaveBeenCalledTimes(1);
     expect(limit).toHaveBeenCalledTimes(1);
-    // 捕まえる変異: Accept をキャッシュの分け目に入れない（AVIF を読めないブラウザに AVIF を返す）
-    await app.request(
-      imagePath(AVATAR),
-      { headers: { ...AS_IMAGE, accept: "image/png,*/*" } },
-      env,
-    );
-    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

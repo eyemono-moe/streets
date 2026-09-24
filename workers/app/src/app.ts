@@ -8,7 +8,6 @@ import {
   type ImagePreset,
   imageSource,
   isImagePreset,
-  outputFormat,
   resized,
 } from "./image";
 import { type LinkCard, allowedTarget } from "./ogp";
@@ -78,13 +77,27 @@ const imageRequestOf = (c: Context): ImageRequest | undefined => {
 };
 
 /**
+ * 縮小を頼んでよい呼び出しか。Streets の画面からのほかに、利用者がアドレス欄に貼る・
+ * 「新しいタブで開く」など自分で開いたとき（`none`）も縮小して返す。`none` は
+ * ほかのサイトのページからは作れない。
+ */
+const mayResize = (request: Request): boolean =>
+  request.headers.get("sec-fetch-site") === "none" || fromSameSite(request);
+
+/**
  * 縮小できないときは元の画像へ飛ばし、画面には今までどおり元の画像が出るようにする。
- * 画像として読まれたときだけ飛ばす —— リンクとして踏ませると、このドメインから
- * 任意のサイトへ飛ばす踏み台になる。
+ * 飛ばすのは画像として読まれたときだけ —— ページとして開かせて飛ばすと、このドメインから
+ * 任意のサイトへ飛ばす踏み台になる（貼られた URL を開いたときも `none` になるので、
+ * 自分で開いたときも飛ばさない）。その代わり、元の URL を文字で示す。
  */
 const fallbackTo = (c: Context, source: URL): Response => {
   if (c.req.header("sec-fetch-dest") !== "image") {
-    return c.json({ error: "not-image" }, 400);
+    c.header("cache-control", "no-store");
+    c.header("x-content-type-options", "nosniff");
+    return c.text(
+      `この画像は縮小できませんでした。\n元の画像: ${source.toString()}\n`,
+      400,
+    );
   }
   c.header("cache-control", `private, max-age=${FALLBACK_MAX_AGE}`);
   return c.redirect(source.toString(), 302);
@@ -165,7 +178,7 @@ export const createApp = (options: AppOptions = {}) => {
       const request = imageRequestOf(c);
       if (!request) return c.json({ error: "url" }, 400);
       // 他のサイトから使われても、縮小はせず元へ飛ばすだけにする（得をさせない）。
-      if (!options.skipSiteCheck && !fromSameSite(c.req.raw)) {
+      if (!options.skipSiteCheck && !mayResize(c.req.raw)) {
         return fallbackTo(c, request.source);
       }
       await next();
@@ -173,12 +186,11 @@ export const createApp = (options: AppOptions = {}) => {
     cache({
       cacheName: "image",
       wait: options.waitForCache ?? false,
-      vary: ["accept"],
       keyGenerator: (c) => {
         const request = imageRequestOf(c);
-        return `${new URL(c.req.url).origin}/api/image?preset=${request?.preset}&format=${outputFormat(
-          c.req.header("accept") ?? null,
-        )}&url=${encodeURIComponent(request?.source.toString() ?? "")}`;
+        return `${new URL(c.req.url).origin}/api/image?preset=${request?.preset}&url=${encodeURIComponent(
+          request?.source.toString() ?? "",
+        )}`;
       },
       onCacheNotAvailable: false,
     }),
@@ -194,15 +206,11 @@ export const createApp = (options: AppOptions = {}) => {
     async (c) => {
       const request = imageRequestOf(c);
       if (!request) return c.json({ error: "url" }, 400);
-      const format = outputFormat(c.req.header("accept") ?? null);
       let response: Response;
       try {
         response = await outbound(request.source.toString(), {
           cf: {
-            image: {
-              ...IMAGE_PRESETS[request.preset],
-              ...(format ? { format } : {}),
-            },
+            image: IMAGE_PRESETS[request.preset],
           },
           signal: AbortSignal.timeout(10_000),
         });
@@ -217,7 +225,6 @@ export const createApp = (options: AppOptions = {}) => {
         headers: {
           "content-type": response.headers.get("content-type") ?? "",
           "cache-control": `public, max-age=${IMAGE_MAX_AGE}`,
-          vary: "accept",
           // このドメインから返すので、画像以外として解釈させない。
           "x-content-type-options": "nosniff",
           "content-security-policy": "default-src 'none'",
