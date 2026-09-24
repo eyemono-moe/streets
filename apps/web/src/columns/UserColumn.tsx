@@ -18,7 +18,7 @@ const UserColumn: Component<
     scrollerRef: (element: HTMLDivElement) => void;
   }
 > = (props) => {
-  const section = createColumnSection(props, PAGE_SIZE);
+  const section = createColumnSection(props, { pageSize: PAGE_SIZE });
   const items = () =>
     visibleColumnItems(
       section.items(),

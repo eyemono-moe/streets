@@ -439,6 +439,29 @@ describe("SectionReader", () => {
     expect(phasesSeen.length).toBeGreaterThan(0);
   });
 
+  it("capacity に Infinity を渡すと、件数で切らない", () => {
+    const { store, manager, relay } = setup();
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      scheduler: createFakeClock(),
+      capacity: Number.POSITIVE_INFINITY,
+    });
+    reader.start();
+
+    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
+      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
+    }
+
+    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION + 10);
+  });
+
   it("keeps at most MAX_ITEMS_PER_SECTION items, dropping the oldest", () => {
     const { relay, reader } = setup();
     reader.start();

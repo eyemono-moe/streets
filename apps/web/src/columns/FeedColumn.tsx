@@ -20,7 +20,7 @@ import {
 const FeedColumn: Component<
   ColumnReadProps & { scrollerRef: (element: HTMLDivElement) => void }
 > = (props) => {
-  const section = createColumnSection(props, PAGE_SIZE);
+  const section = createColumnSection(props, { pageSize: PAGE_SIZE });
   const mutes = useMutes();
   const zapKey = useOwnZapKey(() => props.viewer);
   // 偽の Zap（宛先・金額・受領の署名者が食い違うもの）は通知に並べない。

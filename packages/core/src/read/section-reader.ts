@@ -42,6 +42,11 @@ export type SectionReaderOptions = {
    * 意味が変わるもの）。
    */
   pageSize?: number;
+  /**
+   * ページ送りしないセクションの件数の上限。既定は `MAX_ITEMS_PER_SECTION`。
+   * `Infinity` で切らない（フォロワーの一覧のように、切ると数が変わるもの）。
+   */
+  capacity?: number;
 };
 
 type RelayState = {
@@ -69,7 +74,9 @@ export class SectionReader {
   constructor(options: SectionReaderOptions) {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
-    this.#events = new SortedEvents(options.pageSize ?? MAX_ITEMS_PER_SECTION);
+    this.#events = new SortedEvents(
+      options.pageSize ?? options.capacity ?? MAX_ITEMS_PER_SECTION,
+    );
   }
 
   get paging(): Paging {

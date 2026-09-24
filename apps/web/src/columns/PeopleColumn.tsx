@@ -14,7 +14,11 @@ const PeopleColumn: Component<
     scrollerRef: (element: HTMLDivElement) => void;
   }
 > = (props) => {
-  const section = createColumnSection(props);
+  // フォロワーは kind:3 を 1 人 1 件で数えるので、件数で切ると人数が切れる。
+  const section = createColumnSection(props, {
+    capacity:
+      props.kind === "followers-list" ? Number.POSITIVE_INFINITY : undefined,
+  });
   const people = () =>
     props.kind === "followees-list"
       ? followeesFrom(section.items()[0])
