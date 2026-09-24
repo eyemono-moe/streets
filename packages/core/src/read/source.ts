@@ -45,8 +45,11 @@ export const PAGE_SIZE = 50;
  */
 export const MAX_PAGED_ITEMS = 500;
 
-/** 古い投稿の取り足し：`idle` は取れる、`loading` は取っている、`exhausted` はもう無い（上限に着いたときも）。 */
-export type Paging = "idle" | "loading" | "exhausted";
+/**
+ * 古い投稿の取り足し：`waiting` は最初のページを待っている、`idle` は取れる、`loading` は
+ * 取っている、`exhausted` はもう無い（上限に着いたときも）。
+ */
+export type Paging = "waiting" | "idle" | "loading" | "exhausted";
 
 /**
  * 同じものを読む source か。カラムの題名や幅を変えただけで source を作り直すと、

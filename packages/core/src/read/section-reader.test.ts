@@ -8,7 +8,7 @@ import type { Scheduler } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
-import { SectionReader } from "./section-reader";
+import { FIRST_PAGE_WAIT_MS, SectionReader } from "./section-reader";
 import { MAX_ITEMS_PER_SECTION, type SectionStatus } from "./source";
 import {
   type SectionDelivery,
@@ -1073,7 +1073,49 @@ describe("古い投稿の取り足し（pageSize）", () => {
     clock.advance(16);
     reader.loadOlder();
     expect(relay().subscriptions).toHaveLength(1);
+    expect(reader.paging).toBe("waiting");
+  });
+
+  it("EOSE が来なくても、待つ時間の上限を過ぎたら取り足せる", () => {
+    const { reader, relay, clock } = setupPaged(2);
+    relay().emitEvent(0, event("new", 300));
+    relay().emitEvent(0, event("mid", 200));
+    clock.advance(FIRST_PAGE_WAIT_MS);
+    expect(reader.status.phase).toBe("streaming");
     expect(reader.paging).toBe("idle");
+
+    reader.loadOlder();
+    expect(reader.paging).toBe("loading");
+    expect(relay().subscriptions[1]?.filters).toEqual([
+      { kinds: [1], limit: 2, until: 200 },
+    ]);
+  });
+
+  it("最初のページが揃った後に届いた新しい投稿は、古い投稿を押し出さない", () => {
+    const { reader, relay, clock } = setupPaged(2);
+    relay().emitEvent(0, event("new", 300));
+    relay().emitEvent(0, event("mid", 200));
+    relay().emitEose(0);
+    clock.advance(16);
+
+    relay().emitEvent(0, event("newer", 400));
+    relay().emitEvent(0, event("newest", 500));
+    clock.advance(16);
+    expect(reader.items.map((e) => e.id)).toEqual([
+      "newest",
+      "newer",
+      "new",
+      "mid",
+    ]);
+  });
+
+  it("最初のページを取っている間は、新しい 1 ページぶんに絞る", () => {
+    const { reader, relay, clock } = setupPaged(2);
+    relay().emitEvent(0, event("mid", 200));
+    relay().emitEvent(0, event("new", 300));
+    relay().emitEvent(0, event("newer", 400));
+    clock.advance(16);
+    expect(reader.items.map((e) => e.id)).toEqual(["newer", "new"]);
   });
 
   it("取り足しても何も増えなければ、もう無いとみなす", async () => {
@@ -1090,6 +1132,48 @@ describe("古い投稿の取り足し（pageSize）", () => {
     // もう取りに行かない。
     reader.loadOlder();
     expect(relay().subscriptions).toHaveLength(2);
+  });
+
+  it("initialSize を指定すると、最初からその件数まで取る", () => {
+    const clock = createFakeClock();
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      scheduler: clock,
+      pageSize: 2,
+      initialSize: 3,
+    });
+    reader.start();
+    const relay = relays.get("wss://a/") as FakeRelayConnection;
+    expect(relay.subscriptions[0]?.filters).toEqual([{ kinds: [1], limit: 3 }]);
+    for (const [id, at] of [
+      ["a", 400],
+      ["b", 300],
+      ["c", 200],
+      ["d", 100],
+    ] as const) {
+      relay.emitEvent(0, event(id, at));
+    }
+    clock.advance(16);
+    expect(reader.items.map((e) => e.id)).toEqual(["a", "b", "c"]);
   });
 
   it("pageSize を指定しないセクションは取り足さない", () => {

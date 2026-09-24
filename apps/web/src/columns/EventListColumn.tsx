@@ -134,7 +134,6 @@ const EventListColumn: Component<{
         <Show when={props.paged}>
           <OlderLoader
             paging={props.section.paging()}
-            ready={props.section.status().phase === "settled"}
             onReach={props.section.loadMore}
           />
         </Show>
