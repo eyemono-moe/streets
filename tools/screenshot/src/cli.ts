@@ -14,9 +14,9 @@ import { type ScenarioName, scenarios } from "./scenarios";
 import { parseBaseTime } from "./time";
 
 const USAGE = `使い方:
-  pnpm screenshot [シナリオ] [--time <日時>]        リレー・画像・署名器を立てる（Ctrl+C で止める）
-  pnpm screenshot:seed [シナリオ] [--time <日時>]   立っているリレーへ投入し直す
-  pnpm screenshot:generate [シナリオ] [--time <日時>] イベントを JSONL に書き出すだけ
+  vp run screenshot [シナリオ] [--time <日時>]        リレー・画像・署名器を立てる（Ctrl+C で止める）
+  vp run screenshot:seed [シナリオ] [--time <日時>]   立っているリレーへ投入し直す
+  vp run screenshot:generate [シナリオ] [--time <日時>] イベントを JSONL に書き出すだけ
 
 シナリオ: ${Object.keys(scenarios).join(", ")}（省くと home）
 --time: 基準時刻（例 "2026-09-23T19:00:00+09:00"）。省くと今。`;
@@ -80,7 +80,7 @@ const publish = async (list: readonly NostrEvent[]) => {
       () =>
         reject(
           new Error(
-            `${relayUrl} に繋がりません。pnpm screenshot で立ててください。`,
+            `${relayUrl} に繋がりません。vp run screenshot で立ててください。`,
           ),
         ),
       { once: true },
@@ -141,7 +141,7 @@ if (command === "seed") {
   for (const port of [values["relay-port"], values["asset-port"]]) {
     if (!(await portFree(Number(port)))) {
       console.error(
-        `ポート ${port} は使われています。前の pnpm screenshot が残っていないか確かめてください（--relay-port・--asset-port で変えられます）。`,
+        `ポート ${port} は使われています。前の vp run screenshot が残っていないか確かめてください（--relay-port・--asset-port で変えられます）。`,
       );
       process.exit(1);
     }
@@ -191,7 +191,7 @@ if (command === "seed") {
 画像        ${assetUrl}
 見る人      ${scenario.viewer}（${encodeBech32("npub", viewerPubkey)}）
 
-1. 別の端末で  pnpm dev
+1. 別の端末で  vp run dev
 2. 開く        ${values["app-url"]}/?relays=${relayUrl}&screenshot
 3. ログイン    「リモート署名器でログイン」に次を貼る
                ${bunkerUrl}

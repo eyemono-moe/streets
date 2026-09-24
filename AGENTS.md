@@ -77,24 +77,25 @@ pnpm workspace の 2 パッケージ。
 ## 検証
 
 ```sh
-pnpm verify   # vp check（整形・lint・型検査）+ テスト + ビルド。CI も同じものを呼ぶ
-pnpm fix      # 整形と import 順、lint の自動修正（vp check --fix）
-pnpm --filter @streets/web storybook:build  # ストーリーを変えたとき。verify には含まれない
-pnpm --filter @streets/web build:analyze   # チャンクの中身を apps/web/stats/chunks.html に描く
+vp run verify                        # vp check（整形・lint・型検査）+ テスト + ビルド。CI も同じものを呼ぶ
+vp check --fix                       # 整形と import 順、lint の自動修正
+vp run @streets/web#storybook:build  # ストーリーを変えたとき。verify には含まれない
+vp run @streets/web#build:analyze    # チャンクの中身を apps/web/stats/chunks.html に描く
 ```
 
+- コマンドは `vp` から呼び、`pnpm` を直に呼ばない。スクリプトは `vp run <名前>`、パッケージのものは `vp run <パッケージ>#<名前>`、全パッケージは `vp run -r <名前>`、依存の追加は `vp add`。pnpm は `vp` が `packageManager` の版で裏で使う
 - ツールチェーンは Vite+（`vp`）。整形は Oxfmt、lint は Oxlint、型検査は `vp check` が tsgo で行う。設定はルートの `vite.config.ts` の `fmt` / `lint` にまとめてあり、パッケージごとには置かない
-- コミット時に、ステージした分へ `vp check --fix` が走る（`.vite-hooks/pre-commit`）。`pnpm install` の `prepare` で有効になる
+- コミット時に、ステージした分へ `vp check --fix` が走る（`.vite-hooks/pre-commit`）。`vp install` の `prepare` で有効になる
 - lint を 1 か所だけ止めるときは `// oxlint-disable-next-line <規則> -- <理由>` と書く。JSX の中では `{/* … */}` で包む。使われていない止め書きは lint が落とす
 - pnpm は公開から 1 日経っていない版を入れない（`minimumReleaseAge`）。依存を上げて入らないときは、1 日前までの版を指定する
 
 ## 手で触る
 
 ```sh
-pnpm dev                                          # 5173
-pnpm storybook                                    # 6006。部品の見た目を固定のイベントで確認する
+vp run dev                                        # 5173
+vp run storybook                                  # 6006。部品の見た目を固定のイベントで確認する
 docker compose up -d nostr-rs-relay nostr-rs-relay-2   # ローカルリレー 8080 / 8081
-pnpm seed:dev                                     # スレッドの各形をローカルリレーへ
+vp run seed:dev                                   # スレッドの各形をローカルリレーへ
 ```
 
 ## 知らないと踏む罠

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
-    "test": "vp test run"
+    "test": "vp test"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260923.1",

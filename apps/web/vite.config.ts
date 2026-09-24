@@ -50,7 +50,7 @@ const sentryUpload = (release: string) => {
 };
 
 /**
- * `pnpm build:analyze` のときだけ、チャンクの中身を面積で描いた図を `stats/` に出す。
+ * `vp run @streets/web#build:analyze` のときだけ、チャンクの中身を面積で描いた図を `stats/` に出す。
  * `dist` に置くと、そのまま本番に配られてしまう。
  */
 const analyze = (mode: string) =>
@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     port: 5173,
     // 本番では Worker（workers/app）が受ける /api を、`wrangler dev` へ渡す。
-    // ルートの `pnpm dev` が両方を立ち上げる。
+    // ルートの `vp run dev` が両方を立ち上げる。
     proxy: { "/api": "http://localhost:8787" },
   },
 }));

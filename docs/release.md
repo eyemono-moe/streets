@@ -23,9 +23,9 @@ git push origin v1.2.3
 前の版を出し直す。版は Cloudflare に残っている。
 
 ```sh
-pnpm exec wrangler rollback            # 直前の版へ
-pnpm exec wrangler versions list       # 版の ID を見る
-pnpm exec wrangler versions deploy <版の ID>@100%
+vp exec wrangler rollback            # 直前の版へ
+vp exec wrangler versions list       # 版の ID を見る
+vp exec wrangler versions deploy <版の ID>@100%
 ```
 
 ## PR ごとのプレビュー

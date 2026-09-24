@@ -7,7 +7,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "test": "vp test run"
+    "test": "vp test"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",

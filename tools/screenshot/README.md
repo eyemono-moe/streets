@@ -19,12 +19,12 @@ nak を使う理由は 2 つ。
 ## 撮る
 
 ```sh
-pnpm screenshot many-columns --time "2026-09-23T19:00:00+09:00"
+vp run screenshot many-columns --time "2026-09-23T19:00:00+09:00"
 ```
 
 リレー（`ws://localhost:10547`）・画像（`http://localhost:10548`）・署名器が立ち、次にすることが表示される。
 
-1. 別の端末で `pnpm dev`
+1. 別の端末で `vp run dev`
 2. 表示された URL（`http://localhost:5173/?relays=ws://localhost:10547&screenshot`）を開く
    - `?relays=` は、開発時だけアプリの読み書き先をこのリレーに差し替える
    - `?screenshot` は、開発用のパネルと使い方の案内を写さないようにする
@@ -45,7 +45,7 @@ Ctrl+C でリレー・画像・署名器をまとめて止める。次に立て�
 | `many-columns` | 複数カラム。ホーム・通知・検索（`#coffee`・`#music`）・kai |
 | `media` | 画像。写真やイラストの投稿 |
 
-どのシナリオも、見る人（ログインする人）は `mio`。`pnpm screenshot` でシナリオを省くと `home`。
+どのシナリオも、見る人（ログインする人）は `mio`。`vp run screenshot` でシナリオを省くと `home`。
 
 Streets の通知にフォローは出ないので、フォローはフォロー・フォロワーの一覧で見える形（kind:3）だけを作っている。
 
@@ -54,18 +54,18 @@ Streets の通知にフォローは出ないので、フォローはフォロー
 投稿の時刻は、基準時刻から「どれだけ前か」で書いてある。`--time` で基準時刻を決めると、画面に出る時刻まで毎回同じになる。省くと今。
 
 ```sh
-pnpm screenshot home --time "2026-09-23T19:00:00+09:00"
+vp run screenshot home --time "2026-09-23T19:00:00+09:00"
 ```
 
 ### 立てたリレーへ入れ直す
 
 ```sh
-pnpm screenshot:seed notifications --time "2026-09-23T19:00:00+09:00"
+vp run screenshot:seed notifications --time "2026-09-23T19:00:00+09:00"
 ```
 
-立っているリレーへ、WebSocket でイベントを送り直す。同じ基準時刻なら同じイベントなので、何度送っても増えない。まっさらにしたいときは `pnpm screenshot` を立て直す。
+立っているリレーへ、WebSocket でイベントを送り直す。同じ基準時刻なら同じイベントなので、何度送っても増えない。まっさらにしたいときは `vp run screenshot` を立て直す。
 
-`pnpm screenshot:generate <シナリオ>` は、イベントを `tools/screenshot/.out/<シナリオ>.jsonl` に書き出すだけで何も立てない。
+`vp run screenshot:generate <シナリオ>` は、イベントを `tools/screenshot/.out/<シナリオ>.jsonl` に書き出すだけで何も立てない。
 
 ## 書き足す
 
@@ -84,7 +84,7 @@ export const users = {
 } as const satisfies Record<string, UserProfile>;
 ```
 
-アイコンは付けない（Streets が pubkey から作る標識で見分けられる）。付けるなら `picture: "<assets/ のファイル名>"`。シナリオに無い ID を書くと、型検査（`pnpm check`）で分かる。
+アイコンは付けない（Streets が pubkey から作る標識で見分けられる）。付けるなら `picture: "<assets/ のファイル名>"`。シナリオに無い ID を書くと、型検査（`vp check`）で分かる。
 
 ### 投稿を足す
 
@@ -130,7 +130,7 @@ export default defineScenario({
 });
 ```
 
-`pnpm --filter @streets/screenshot test` が、どのシナリオも組み立てられて、署名がアプリの検証を通ることを確かめる。
+`vp run @streets/screenshot#test` が、どのシナリオも組み立てられて、署名がアプリの検証を通ることを確かめる。
 
 ## 注意
 

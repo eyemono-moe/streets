@@ -6,7 +6,7 @@
     "start": "tsx src/cli.ts serve",
     "seed": "tsx src/cli.ts seed",
     "generate": "tsx src/cli.ts generate",
-    "test": "vp test run"
+    "test": "vp test"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",

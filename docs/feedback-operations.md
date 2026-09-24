@@ -79,17 +79,17 @@ AI処理に失敗した場合も原文からIssueを作成し、D1とIssue本文
 1. D1を作成し、表示されたIDを `wrangler.jsonc` の `database_id` に設定する。
 
    ```sh
-   pnpm --filter @streets/feedback-worker exec wrangler d1 create streets-feedback
-   pnpm --filter @streets/feedback-worker exec wrangler d1 migrations apply streets-feedback --remote
+   vp exec --filter @streets/feedback-worker wrangler d1 create streets-feedback
+   vp exec --filter @streets/feedback-worker wrangler d1 migrations apply streets-feedback --remote
    ```
 
 2. `eyemono-moe/streets` だけを対象に、Issues の読み書きを許可した fine-grained personal access token を作る。
 3. GitHub token と十分に長いランダムな共有鍵をSecretへ保存する。
 
    ```sh
-   pnpm --filter @streets/feedback-worker exec wrangler secret put GITHUB_TOKEN
-   pnpm --filter @streets/feedback-worker exec wrangler secret put WEBHOOK_SECRET
-   pnpm --filter @streets/feedback-worker deploy
+   vp exec --filter @streets/feedback-worker wrangler secret put GITHUB_TOKEN
+   vp exec --filter @streets/feedback-worker wrangler secret put WEBHOOK_SECRET
+   vp run @streets/feedback-worker#deploy
    ```
 
 ## Apps Script

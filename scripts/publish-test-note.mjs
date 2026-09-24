@@ -6,8 +6,8 @@
  * リストの先頭に現れる。購読が張りっぱなしで新着が Solid のシグナルまで
  * 届いていることの確認に使う。
  *
- *   pnpm dev:relay:publish
- *   pnpm dev:relay:publish "好きな本文"
+ *   vp run dev:relay:publish
+ *   vp run dev:relay:publish "好きな本文"
  *
  * 鍵は実行のたびに使い捨てで生成する。署名は本物なのでリレーに受理される。
  * 手順の全体は docs/design/verifying-v1-section.md を参照。

@@ -30,15 +30,15 @@
 🚧This code is still very much a work-in-progress. Major features are still missing.🚧
 
 ```bash
-pnpm install
+vp install
 
-pnpm run dev # development
+vp run dev # development
 
-pnpm run build # production
+vp run build # production
 
-pnpm storybook # v1 UI カタログ（ローカルリレー不要）
+vp run storybook # v1 UI カタログ（ローカルリレー不要）
 
-pnpm verify # 静的検査・型検査・単体テスト・本体と Storybook のビルド
+vp run verify # 静的検査・型検査・単体テスト・本体のビルド
 ```
 
 ### setup local relay and file server
@@ -62,7 +62,7 @@ This will start the following services:
 （[nak](https://github.com/fiatjaf/nak) が要ります）。
 
 ```bash
-pnpm screenshot many-columns --time "2026-09-23T19:00:00+09:00"
+vp run screenshot many-columns --time "2026-09-23T19:00:00+09:00"
 ```
 
 シナリオの一覧と書き足し方は [tools/screenshot/README.md](./tools/screenshot/README.md) にあります。
@@ -72,7 +72,7 @@ pnpm screenshot many-columns --time "2026-09-23T19:00:00+09:00"
 `VITE_SENTRY_DSN` を渡してビルドすると、壊れたときに Sentry へ送ります。渡さなければ何も送らず、SDK も配りません（開発中も送りません）。
 
 ```bash
-VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview pnpm build
+VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview vp run build
 ```
 
 送る前に、鍵・公開鍵・イベント id を落とします（`packages/core/src/telemetry/scrub.ts`）。IP アドレスや Cookie は送りません。
@@ -80,7 +80,7 @@ VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview pnpm 
 ソースマップを送ると、本番のスタックトレースが元のコードで読めます。次の 3 つが揃ったビルドでだけ送ります（`VITE_` を付けないこと。付けると画面側へ混ざります）。
 
 ```bash
-SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=streets pnpm build
+SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=streets vp run build
 ```
 
 送ったマップは配らずに消すので、公開されるものは変わりません。送れなかったときは警告を出して、ビルドは続けます。
