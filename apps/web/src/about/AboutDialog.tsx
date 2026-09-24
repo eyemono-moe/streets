@@ -227,6 +227,35 @@ const Privacy: Component = () => (
     </SettingsSection>
 
     <SettingsSection
+      title="画像とリンクの取得"
+      description="一部の画像とリンク先のページは、Streets のサーバー（Cloudflare Workers）が代わりに取得しています。"
+    >
+      <dl class="c-primary flex flex-col gap-2 text-body">
+        <div class="flex flex-col gap-0.5">
+          <dt class="font-600">アイコン</dt>
+          <dd>
+            表示に合う大きさへ縮めてから届けるため、Streets
+            のサーバーを通して読み込みます（Cloudflare
+            の画像変換を利用しています）。縮められなかったアイコンは、画像の置き場所から直接読み込みます。
+          </dd>
+        </div>
+        <div class="flex flex-col gap-0.5">
+          <dt class="font-600">リンクのプレビュー</dt>
+          <dd>
+            投稿の中のリンクの題名や説明は、Streets
+            のサーバーがリンク先のページを取得して作ります。
+          </dd>
+        </div>
+      </dl>
+      <p class="c-secondary text-caption">
+        サーバーを通したものは、取得先に Streets
+        のサーバーからのアクセスとして届き、利用者の IP
+        アドレスは伝わりません。Streets
+        のサーバーは、どの画像やリンクを取得したかを記録していません。
+      </p>
+    </SettingsSection>
+
+    <SettingsSection
       title="情報の保存と公開範囲"
       description="設定とログイン状態は、この端末のブラウザ内にのみ保存します。"
     >
