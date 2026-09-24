@@ -23,7 +23,7 @@ jobs:
       version-id: ${{ steps.upload.outputs.version-id }}
       preview-url: ${{ steps.upload.outputs.preview-url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: main に入ったコミットか確かめる
@@ -83,7 +83,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: 本番に出す
         env:

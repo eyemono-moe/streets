@@ -10,7 +10,7 @@ jobs:
     # 同期の無限ループはテスト単位のタイムアウトで割り込めず、既定の 6 時間まで止まらない
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup
       - name: Run verification
         run: vp run verify
