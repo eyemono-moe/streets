@@ -353,17 +353,22 @@ const DeckScreen: Component<{
         const opening = ui.settingsFor !== event.id;
         applyUi(event);
         if (opening) {
-          requestAnimationFrame(() =>
-            columnsEl
-              ?.querySelector(`[data-settings-for="${CSS.escape(event.id)}"]`)
-              ?.scrollIntoView({
-                inline: "nearest",
-                block: "nearest",
-                behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-                  ? "auto"
-                  : "smooth",
-              }),
-          );
+          // 設定の列は幅 0 から広がる。広がりきる前に送ると、まだ無い幅までしか送れず画面の外に残る。
+          requestAnimationFrame(async () => {
+            const panel = columnsEl?.querySelector(
+              `[data-settings-for="${CSS.escape(event.id)}"]`,
+            );
+            const growing = panel?.parentElement?.getAnimations() ?? [];
+            await Promise.allSettled(growing.map((a) => a.finished));
+            if (ui.settingsFor !== event.id) return;
+            panel?.scrollIntoView({
+              inline: "nearest",
+              block: "nearest",
+              behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+            });
+          });
         }
         return true;
       }
