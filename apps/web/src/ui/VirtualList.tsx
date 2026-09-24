@@ -120,6 +120,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
           return (
             <div
               ref={element}
+              data-virtual-row
               data-index={placement()?.index}
               class="absolute top-0 left-0 w-full"
               style={{
