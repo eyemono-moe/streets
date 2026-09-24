@@ -92,3 +92,9 @@ export const リリースノート_人の参照: S = {
     ],
   },
 };
+
+export const プライバシー: S = { args: { initialPage: "privacy" } };
+
+export const プライバシー_狭い画面: S = {
+  args: { wide: false, initialPage: "privacy" },
+};
