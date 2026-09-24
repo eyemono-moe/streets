@@ -36,15 +36,16 @@ import {
   onCleanup,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
+import { EmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
+import { lazyPart, onceTrue, whenIdle } from "../lazy-part";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
@@ -56,7 +57,6 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
-import SettingsDialog from "../settings/SettingsDialog";
 import { startTelemetry } from "../telemetry";
 import {
   APPEARANCE_SAVE_DELAY_MS,
@@ -67,7 +67,6 @@ import {
 } from "../theme";
 import { notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
-import { DeckTour, createDeckTour } from "../tour/DeckTour";
 import { Mediates, type UiEvent } from "../ui-events";
 import { trackReplaces } from "../write-progress";
 import {
@@ -86,6 +85,11 @@ import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
 import { relayListState } from "./relay-list";
 
+// 開くまで要らないものは別のファイルに分け、起動が落ち着いてから読む。
+const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
+const AboutDialog = lazyPart(() => import("../about/AboutDialog"));
+const DeckTour = lazyPart(() => import("../tour/DeckTour"));
+
 const DeckScreen: Component<{
   readLayer: ReadLayer;
   session: Session;
@@ -103,11 +107,21 @@ const DeckScreen: Component<{
     fallbackRelays: props.bootstrapIndexers,
   });
   const isWide = useIsWide();
-  const deckTour = createDeckTour(isWide);
+  // 増えるたびに案内を始める。0 のうちは案内の部品を読み込まない。
+  const [tourRequests, setTourRequests] = createSignal(0);
+  const startTour = () => setTourRequests((count) => count + 1);
   // 保存しない画面の状態。遷移は core の純粋関数で、ここは結果を store へ当てるだけ。
   const [ui, setUi] = createStore<DeckUiState>(emptyDeckUi());
   const applyUi = (event: DeckUiEvent) =>
     setUi(reconcile(deckUiTransition(unwrap(ui), event)));
+  // 閉じる動きを見せるため、一度開いたら残す。
+  const settingsMounted = onceTrue(() => ui.settingsOpen);
+  const aboutMounted = onceTrue(() => ui.aboutOpen);
+  whenIdle(() => {
+    SettingsDialog.preload();
+    AboutDialog.preload();
+    EmojiPicker.preload();
+  });
   let columnsEl: HTMLDivElement | undefined;
   // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
   const scrollToEnd = () =>
@@ -292,7 +306,7 @@ const DeckScreen: Component<{
     if (ui.settingsOpen || ui.aboutOpen) return;
     tourOffered = true;
     // カラムが描かれてから指す。
-    requestAnimationFrame(() => deckTour.start());
+    requestAnimationFrame(startTour);
   });
 
   createDeckHotkeys({
@@ -413,7 +427,7 @@ const DeckScreen: Component<{
       case "deck/start-tour":
         // 「Streets について」から始めたときは、ダイアログを閉じてから指す。
         applyUi({ type: "deck/close-about" });
-        requestAnimationFrame(() => deckTour.start());
+        requestAnimationFrame(startTour);
         return true;
       case "deck/set-color-scheme":
         setScheme(event.scheme);
@@ -782,26 +796,35 @@ const DeckScreen: Component<{
                               </div>
                             </Match>
                           </Switch>
-                          <AboutDialog
-                            open={ui.aboutOpen}
-                            wide={isWide()}
-                            tour
-                            onOpenUser={(pubkey) => {
-                              handle({ type: "deck/close-about" });
-                              navigate(`/${encodeBech32("npub", pubkey)}`);
-                            }}
-                          />
-                          <DeckTour tour={deckTour.tour} />
-                          <SettingsDialog
-                            open={ui.settingsOpen}
-                            wide={isWide()}
-                            scheme={scheme()}
-                            appearance={appearance()}
-                            writeProgress={showWriteProgress()}
-                            errorReport={errorReport()}
-                            keymap={keymap()}
-                            columnDigits={columnDigits()}
-                          />
+                          <Show when={aboutMounted()}>
+                            <AboutDialog
+                              open={ui.aboutOpen}
+                              wide={isWide()}
+                              tour
+                              onOpenUser={(pubkey) => {
+                                handle({ type: "deck/close-about" });
+                                navigate(`/${encodeBech32("npub", pubkey)}`);
+                              }}
+                            />
+                          </Show>
+                          <Show when={tourRequests() > 0}>
+                            <DeckTour
+                              requests={tourRequests()}
+                              wide={isWide()}
+                            />
+                          </Show>
+                          <Show when={settingsMounted()}>
+                            <SettingsDialog
+                              open={ui.settingsOpen}
+                              wide={isWide()}
+                              scheme={scheme()}
+                              appearance={appearance()}
+                              writeProgress={showWriteProgress()}
+                              errorReport={errorReport()}
+                              keymap={keymap()}
+                              columnDigits={columnDigits()}
+                            />
+                          </Show>
                         </ZapMediator>
                       </MuteMediator>
                     </RelayMediator>

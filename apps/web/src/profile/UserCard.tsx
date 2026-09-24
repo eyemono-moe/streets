@@ -31,6 +31,7 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
               src={url()}
               alt=""
               loading="lazy"
+              decoding="async"
               class="size-full object-cover"
               onError={() => setBannerBroken(true)}
             />

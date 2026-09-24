@@ -61,6 +61,7 @@ pnpm workspace の 2 パッケージ。
 - 状態を持たない単発の書き込み（いいね・リポスト・ブックマーク・フォローなど）も、イベントとして上へ渡す（`ActionEvent`）。`src/actions-mediator.tsx` が `actions` を呼び、送っている間の二重送信を防ぎ、失敗をトーストに出す。View は `useSending` で押せない見た目にするだけで、遷移関数は要らない
 - 読み取り（store・購読）は、Storybook で全状態を並べたい部品から、読み取る部分と描く部分に分ける（例: `ThreadView` と `ThreadSpineView`）。一律には分けない
 - Ark UI の開閉・フォーカス・ホバーの遅延は Ark UI に任せる。アプリの動作が開閉に依存するもの（重ねたカラムの段など）だけ `open` を制御する
+- 開くまで要らない重い部品（設定・案内・切り抜き・Zap などのダイアログ）は、`src/lazy-part.tsx` の `lazyPart` で別のファイルに分ける。開閉の動きがあるものは `onceTrue` で一度開いたら残し、開くまで待たせたくないものは `whenIdle` で先読みする。Solid の `lazy` は読めなかった結果を覚えるので使わない
 
 ## テスト
 
@@ -79,6 +80,7 @@ pnpm workspace の 2 パッケージ。
 pnpm verify   # biome + 型検査 + テスト + ビルド。CI も同じものを呼ぶ
 pnpm fix      # 整形と import 順
 pnpm --filter @streets/web storybook:build  # ストーリーを変えたとき。verify には含まれない
+pnpm --filter @streets/web build:analyze   # チャンクの中身を apps/web/stats/chunks.html に描く
 ```
 
 ## 手で触る

@@ -8,7 +8,7 @@ import {
   createSignal,
 } from "solid-js";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
-import { tourTarget } from "../tour/DeckTour";
+import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";

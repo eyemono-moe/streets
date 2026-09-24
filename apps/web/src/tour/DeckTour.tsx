@@ -1,15 +1,10 @@
 import { Tour, type TourStepDetails, useTour } from "@ark-ui/solid/tour";
-import { type Accessor, type Component, For } from "solid-js";
+import { type Component, For, createEffect, on } from "solid-js";
 import { Portal } from "solid-js/web";
 import { markTourSeen } from "../tour-setting";
 import Button from "../ui/Button";
 import TourCard from "./TourCard";
-
-/** 案内が指す場所。広い画面と狭い画面の、同じ役割の要素に同じ印を付ける。 */
-export type TourTarget = "columns" | "add-column" | "compose" | "account";
-
-/** 指す場所に付ける属性。今描いている画面にだけあるので、幅に合わせて指す先が替わる。 */
-export const tourTarget = (name: TourTarget) => ({ "data-tour": name });
+import type { TourTarget } from "./tour-target";
 
 const target = (name: TourTarget) => () =>
   document.querySelector<HTMLElement>(`[data-tour="${name}"]`);
@@ -86,8 +81,19 @@ export const tourSteps = (wide: boolean): Step[] => [
   ),
 ];
 
-/** 案内を動かす。始めるときに、その時の画面の幅でステップを作り直す。 */
-export const createDeckTour = (wide: Accessor<boolean>) => {
+/** 進むもの（次へ・はじめる・案内を見る）を目立たせ、飛ばすものは控えめにする。 */
+const variantOf = (action: Action) =>
+  action.action === "skip"
+    ? "ghost"
+    : action.action === "prev"
+      ? "secondary"
+      : "primary";
+
+/**
+ * 案内を出す。`requests` が増えるたびに、その時の画面の幅でステップを作り直して
+ * 始める。一度も案内しない起動では読み込まれない（ツアーの部品は重い）。
+ */
+const DeckTour: Component<{ requests: number; wide: boolean }> = (props) => {
   const tour = useTour({
     steps: [],
     // 指す場所の外を押しても閉じない（押し間違いで案内が消えないように）。
@@ -101,67 +107,58 @@ export const createDeckTour = (wide: Accessor<boolean>) => {
       }
     },
   });
-  return {
-    tour,
-    start: () => {
-      tour().setSteps(tourSteps(wide()));
-      tour().start();
-    },
-  };
+  createEffect(
+    on(
+      () => props.requests,
+      () => {
+        tour().setSteps(tourSteps(props.wide));
+        tour().start();
+      },
+    ),
+  );
+  return (
+    <Tour.Root tour={tour} lazyMount unmountOnExit>
+      <Portal>
+        <Tour.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+        <Tour.Spotlight class="rounded-2 ring-2 ring-accent-5" />
+        {/* 真ん中に出すステップ（dialog）は、Ark UI が置き場所を決めないので自分で置く。 */}
+        <Tour.Positioner class="data-[type=dialog]:pointer-events-none data-[type=dialog]:fixed data-[type=dialog]:inset-0 data-[type=dialog]:grid data-[type=dialog]:place-items-center">
+          <Tour.Content class="motion-pop pointer-events-auto w-max outline-none">
+            <TourCard
+              welcome={tour().step?.meta?.welcome === true}
+              title={<Tour.Title class="font-600 text-body" />}
+              description={<Tour.Description />}
+              progress={
+                tour().step?.meta?.welcome ? undefined : <Tour.ProgressText />
+              }
+              actions={
+                <Tour.Actions>
+                  {(actions) => (
+                    <For each={actions()}>
+                      {(action) => (
+                        <Tour.ActionTrigger
+                          action={action}
+                          asChild={(triggerProps) => (
+                            <Button
+                              {...triggerProps()}
+                              variant={variantOf(action)}
+                              size="sm"
+                            >
+                              {action.label}
+                            </Button>
+                          )}
+                        />
+                      )}
+                    </For>
+                  )}
+                </Tour.Actions>
+              }
+            />
+          </Tour.Content>
+        </Tour.Positioner>
+      </Portal>
+    </Tour.Root>
+  );
 };
 
-/** 進むもの（次へ・はじめる・案内を見る）を目立たせ、飛ばすものは控えめにする。 */
-const variantOf = (action: Action) =>
-  action.action === "skip"
-    ? "ghost"
-    : action.action === "prev"
-      ? "secondary"
-      : "primary";
-
-export const DeckTour: Component<{
-  tour: ReturnType<typeof useTour>;
-}> = (props) => (
-  <Tour.Root tour={props.tour} lazyMount unmountOnExit>
-    <Portal>
-      <Tour.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
-      <Tour.Spotlight class="rounded-2 ring-2 ring-accent-5" />
-      {/* 真ん中に出すステップ（dialog）は、Ark UI が置き場所を決めないので自分で置く。 */}
-      <Tour.Positioner class="data-[type=dialog]:pointer-events-none data-[type=dialog]:fixed data-[type=dialog]:inset-0 data-[type=dialog]:grid data-[type=dialog]:place-items-center">
-        <Tour.Content class="motion-pop pointer-events-auto w-max outline-none">
-          <TourCard
-            welcome={props.tour().step?.meta?.welcome === true}
-            title={<Tour.Title class="font-600 text-body" />}
-            description={<Tour.Description />}
-            progress={
-              props.tour().step?.meta?.welcome ? undefined : (
-                <Tour.ProgressText />
-              )
-            }
-            actions={
-              <Tour.Actions>
-                {(actions) => (
-                  <For each={actions()}>
-                    {(action) => (
-                      <Tour.ActionTrigger
-                        action={action}
-                        asChild={(triggerProps) => (
-                          <Button
-                            {...triggerProps()}
-                            variant={variantOf(action)}
-                            size="sm"
-                          >
-                            {action.label}
-                          </Button>
-                        )}
-                      />
-                    )}
-                  </For>
-                )}
-              </Tour.Actions>
-            }
-          />
-        </Tour.Content>
-      </Tour.Positioner>
-    </Portal>
-  </Tour.Root>
-);
+export default DeckTour;

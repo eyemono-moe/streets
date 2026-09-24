@@ -3,9 +3,11 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { type Component, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
+import { lazyPart } from "../lazy-part";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
-import AuthorRelaysDialog from "./AuthorRelaysDialog";
+
+const AuthorRelaysDialog = lazyPart(() => import("./AuthorRelaysDialog"));
 
 export const ProfileMenuView: Component<{
   open?: boolean;

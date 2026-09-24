@@ -38,6 +38,7 @@ const RelayIcon: Component<{
             alt=""
             class="size-full rounded-2 bg-secondary object-cover"
             loading="lazy"
+            decoding="async"
             onError={() => setBroken(true)}
           />
         )}

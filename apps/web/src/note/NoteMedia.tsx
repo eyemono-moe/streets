@@ -107,6 +107,7 @@ const MediaImage: Component<{ media: NoteMedia; size: EventSize }> = (
             src={props.media.url}
             alt=""
             loading="lazy"
+            decoding="async"
             class="absolute inset-0 size-full object-contain"
             classList={{ "opacity-0": !loaded() }}
             onLoad={(event) => {
