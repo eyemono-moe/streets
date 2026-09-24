@@ -90,7 +90,7 @@ export const 変更済み: Story = {
       title: "フォロー中",
       width: "l",
       density: "compact",
-      show: { replies: false, media: false },
+      show: { replies: false, reposts: false },
     },
   },
 };

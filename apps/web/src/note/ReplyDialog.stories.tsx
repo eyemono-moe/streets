@@ -155,8 +155,7 @@ export const 長い本文: Story = {
           `${index + 1} 行目。長い返信でもダイアログからはみ出さないか。`,
       ).join("\n"),
       sending: false,
-      uploads: [],
-      media: [],
+      attachments: [],
     },
   },
 };
