@@ -26,6 +26,7 @@ const Emoji: Component<{ shortcode: string; url: string; class?: string }> = (
         alt={`:${props.shortcode}:`}
         title={`:${props.shortcode}:`}
         loading="lazy"
+        decoding="async"
         class={`inline-block w-auto object-contain ${props.class ?? "h-6"}`}
         onError={() => setBroken(true)}
       />

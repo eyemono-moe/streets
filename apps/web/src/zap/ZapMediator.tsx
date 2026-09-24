@@ -21,11 +21,13 @@ import {
   parseInvoiceResponse,
   zapInvoiceUrl,
 } from "@streets/core/zap/zap-request";
-import { type Accessor, type ParentComponent, onCleanup } from "solid-js";
+import { type Accessor, type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError, notifySuccess } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
-import ZapDialog from "./ZapDialog";
+
+const ZapDialog = lazyPart(() => import("./ZapDialog"));
 
 /** ブラウザのライトニングのウォレット（WebLN。Alby などの拡張機能が入れる）。 */
 type WebLN = {
@@ -216,10 +218,15 @@ export const ZapMediator: ParentComponent<{
     }
   };
 
+  // 閉じる動きを見せるため、一度開いたら残す。
+  const dialogMounted = onceTrue(() => state.flow.phase !== "closed");
+
   return (
     <Mediates handle={handle}>
       {props.children}
-      <ZapDialog state={state.flow} />
+      <Show when={dialogMounted()}>
+        <ZapDialog state={state.flow} />
+      </Show>
     </Mediates>
   );
 };

@@ -1,9 +1,11 @@
 import { execFileSync } from "node:child_process";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import { devtools } from "@tanstack/devtools-vite";
+import { visualizer } from "rollup-plugin-visualizer";
 import UnoCSS from "unocss/vite";
 import { defineConfig } from "vite";
 import solid from "vite-plugin-solid";
+import { unicodeEmojis } from "./emoji-data-plugin";
 import { releaseNotes } from "./release-notes-plugin";
 
 const commitSha = (): string => {
@@ -47,9 +49,25 @@ const sentryUpload = (release: string) => {
   ];
 };
 
+/**
+ * `pnpm build:analyze` のときだけ、チャンクの中身を面積で描いた図を `stats/` に出す。
+ * `dist` に置くと、そのまま本番に配られてしまう。
+ */
+const analyze = (mode: string) =>
+  mode === "analyze"
+    ? [
+        visualizer({
+          filename: "stats/chunks.html",
+          template: "treemap",
+          gzipSize: true,
+          brotliSize: true,
+        }),
+      ]
+    : [];
+
 const release = commitSha();
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   define: {
     "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(release),
     // Sentry から、使っていない機能（重さの計測・デバッグ出力）を落とす。
@@ -61,9 +79,15 @@ export default defineConfig({
     UnoCSS(),
     solid(),
     releaseNotes(),
+    unicodeEmojis(),
     ...sentryUpload(release),
+    ...analyze(mode),
   ],
   build: {
+    // Vite 7 以降の既定（Baseline Widely Available）と同じ。Vite 6 の既定では
+    // core のクラスの private フィールド（`#events` など）が WeakMap の呼び出しに
+    // 書き換えられ、イベントを読むたびに余計な手間がかかる。
+    target: ["chrome107", "edge107", "firefox104", "safari16"],
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
   },
@@ -73,4 +97,4 @@ export default defineConfig({
     // ルートの `pnpm dev` が両方を立ち上げる。
     proxy: { "/api": "http://localhost:8787" },
   },
-});
+}));

@@ -203,6 +203,7 @@ export const EmojiRow = (props: {
       src={props.url}
       alt=""
       loading="lazy"
+      decoding="async"
       class="size-6 shrink-0 object-contain"
     />
     <span class="min-w-0 flex-1 truncate text-body">:{props.shortcode}:</span>

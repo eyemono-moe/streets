@@ -31,6 +31,7 @@ const Avatar: Component<{
             src={url()}
             alt=""
             loading={props.loading ?? "lazy"}
+            decoding="async"
             class="size-full object-cover"
             onError={() => setBroken(url())}
           />

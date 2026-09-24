@@ -2,11 +2,13 @@ import type { Attachment } from "@streets/core/view/compose";
 import { type Component, For, Show, createSignal } from "solid-js";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
 import type { PickerEmoji } from "../emoji/emoji-data";
+import { lazyPart } from "../lazy-part";
 import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
-import CropDialog from "./CropDialog";
+
+const CropDialog = lazyPart(() => import("./CropDialog"));
 
 const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
 

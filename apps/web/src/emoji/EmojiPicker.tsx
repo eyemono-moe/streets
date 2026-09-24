@@ -59,6 +59,7 @@ const Cell: Component<{
             src={custom().url}
             alt=""
             loading="lazy"
+            decoding="async"
             class="size-6 object-contain"
           />
         )}
@@ -89,6 +90,7 @@ const TabFace: Component<{ group: PickerGroup }> = (props) => {
             src={emoji().url}
             alt=""
             loading="lazy"
+            decoding="async"
             class="size-5 object-contain"
           />
         )}
