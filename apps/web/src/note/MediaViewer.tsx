@@ -6,6 +6,7 @@ import {
   For,
   Show,
   createEffect,
+  createMemo,
   createSignal,
 } from "solid-js";
 import Button, { ButtonLink } from "../ui/Button";
@@ -80,9 +81,11 @@ const MediaViewer: Component<{
   onClose: () => void;
 }> = (props) => {
   const count = () => props.media.length;
-  const current = () => props.media[props.index ?? 0];
+  // 閉じる動きの間も、最後に開いていた位置に留める。0 に戻すと 1 枚目へ送られてから消える。
+  const page = createMemo<number>((last) => props.index ?? last, 0);
+  const current = () => props.media[page()];
   const move = (delta: number) => {
-    const next = (props.index ?? 0) + delta;
+    const next = page() + delta;
     if (next >= 0 && next < count()) props.onIndexChange(next);
   };
   return (
@@ -107,7 +110,7 @@ const MediaViewer: Component<{
         >
           <Carousel.Root
             slideCount={count()}
-            page={props.index ?? 0}
+            page={page()}
             onPageChange={(details) => props.onIndexChange(details.page)}
             class="size-full"
           >
@@ -117,7 +120,7 @@ const MediaViewer: Component<{
                   <Carousel.Item index={index()} class="relative h-full">
                     <ViewerSlide
                       media={item}
-                      active={index() === props.index}
+                      active={index() === page()}
                       onClose={props.onClose}
                     />
                   </Carousel.Item>
@@ -163,7 +166,7 @@ const MediaViewer: Component<{
             />
             <Show when={count() > 1}>
               <span class="c-white rounded-full bg-ui-950/60 px-3 py-1 text-caption tabular-nums">
-                {(props.index ?? 0) + 1} / {count()}
+                {page() + 1} / {count()}
               </span>
             </Show>
             <ButtonLink
