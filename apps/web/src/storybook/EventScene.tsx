@@ -12,6 +12,7 @@ import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
+import type { Nip05Lookup } from "@streets/core/nostr/nip05";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
@@ -24,6 +25,7 @@ import { type EventActions, EventActionsProvider } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { type LinkCard, linkCardQueryKey } from "../note/link-card";
 import { ReadLayerProvider } from "../read-layer";
+import { useStoryNip05 } from "./nip05";
 import type { StoryAuthor } from "./story-events";
 
 export type EventScene = {
@@ -39,6 +41,8 @@ export type EventScene = {
    * 取れなかった扱い。ここに無い URL は、Storybook では取れずにカードが出ない。
    */
   linkCards?: Record<string, LinkCard | null>;
+  /** NIP-05 の答え。ここに無い宛先は、Storybook からドメインへ聞きに行ってしまう。 */
+  nip05?: Record<string, Nip05Lookup>;
 };
 
 const STORY_RELAY = "wss://storybook.invalid/" as RelayUrl;
@@ -155,6 +159,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   for (const [url, card] of Object.entries(props.scene.linkCards ?? {})) {
     queryClient.setQueryData(linkCardQueryKey(url), card);
   }
+  useStoryNip05(props.scene.nip05 ?? {});
   const events = eventRequestsFor(new Set(props.scene.missingIds));
   const profiles = inertRequests();
   const engagements = inertRequests();

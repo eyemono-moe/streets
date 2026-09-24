@@ -34,6 +34,9 @@ const TextField: Component<{
   type?: "text" | "url" | "email";
   /** 打つ途中で出す候補（スタンプなど）。 */
   completion?: readonly CompletionSource[];
+  onBlur?: () => void;
+  /** 説明や誤りの下に出す、入力を確かめた結果（ドメインに聞いた答えなど）。 */
+  status?: JSX.Element;
 }> = (props) => {
   const id = createUniqueId();
   const noteId = `${id}-note`;
@@ -61,6 +64,7 @@ const TextField: Component<{
                   props.error || props.hint ? noteId : undefined
                 }
                 onInput={(event) => props.onInput(event.currentTarget.value)}
+                onBlur={() => props.onBlur?.()}
               />
             }
           >
@@ -74,6 +78,7 @@ const TextField: Component<{
               aria-invalid={props.error !== undefined}
               aria-describedby={props.error || props.hint ? noteId : undefined}
               onInput={(event) => props.onInput(event.currentTarget.value)}
+              onBlur={() => props.onBlur?.()}
             />
           </Show>
         )}
@@ -92,6 +97,7 @@ const TextField: Component<{
           {props.error}
         </p>
       </Show>
+      <output class="empty:hidden">{props.status}</output>
     </div>
   );
 };
