@@ -123,8 +123,9 @@ export default defineConfig({
         // 当てている transform（スワイプで引き下げた位置）になり、そこから動かない。
         "stack-out":
           "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0}}",
-        "panel-in":
-          "{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}",
+        // 狭い画面で下のバーから開くパネル。下から上がり、閉じるときは下へ下がる。
+        "sheet-up": "{from{transform:translateY(100%)}to{transform:none}}",
+        "sheet-down": "{from{transform:none}to{transform:translateY(100%)}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
@@ -143,7 +144,8 @@ export default defineConfig({
         "collapse-left": "140ms",
         "stack-in": "180ms",
         "stack-out": "140ms",
-        "panel-in": "160ms",
+        "sheet-up": "180ms",
+        "sheet-down": "140ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
@@ -160,7 +162,8 @@ export default defineConfig({
         "collapse-left": "ease-in both",
         "stack-in": "cubic-bezier(0.16, 1, 0.3, 1)",
         "stack-out": "ease-in both",
-        "panel-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "sheet-up": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "sheet-down": "ease-in both",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
       },
@@ -266,6 +269,8 @@ export default defineConfig({
         "overflow-hidden data-[state=open]:animate-collapse-down data-[state=closed]:animate-collapse-up",
       "motion-collapse-right":
         "overflow-hidden data-[state=open]:animate-collapse-right data-[state=closed]:animate-collapse-left",
+      "motion-sheet":
+        "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down",
 
       // scrollbar
       "scrollbar-color-theme":
