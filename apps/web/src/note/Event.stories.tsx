@@ -8,6 +8,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { setDefaultReaction } from "../default-reaction-setting";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
@@ -162,23 +163,29 @@ type Props = {
   replyContext?: boolean;
   expandMedia?: boolean;
   linkCards?: LinkCardMode;
+  /** いいねボタンで送るもの。省くとハート。 */
+  defaultReaction?: ReactionInput;
 };
 
-const EventStory: Component<Props> = (props) => (
-  <EventSceneProvider scene={props.scene}>
-    {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
-    <div class="w-[360px]">
-      <LinkCardModeProvider value={() => props.linkCards ?? "compact"}>
-        <Event
-          event={props.event}
-          size={props.size}
-          replyContext={props.replyContext}
-          expandMedia={props.expandMedia}
-        />
-      </LinkCardModeProvider>
-    </div>
-  </EventSceneProvider>
-);
+const EventStory: Component<Props> = (props) => {
+  // 端末の設定をそのまま差し替える。どのストーリーも必ず当てるので、前の値は残らない。
+  setDefaultReaction(props.defaultReaction ?? { type: "like" });
+  return (
+    <EventSceneProvider scene={props.scene}>
+      {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
+      <div class="w-[360px]">
+        <LinkCardModeProvider value={() => props.linkCards ?? "compact"}>
+          <Event
+            event={props.event}
+            size={props.size}
+            replyContext={props.replyContext}
+            expandMedia={props.expandMedia}
+          />
+        </LinkCardModeProvider>
+      </div>
+    </EventSceneProvider>
+  );
+};
 
 const scene = (...events: NostrEvent[]): EventScene => ({
   events: [...profiles, ...events],
@@ -193,6 +200,7 @@ const meta = {
     size: { control: "inline-radio", options: ["normal", "compact"] },
     event: { control: false },
     scene: { control: false },
+    defaultReaction: { control: false },
   },
 } satisfies Meta<typeof EventStory>;
 
@@ -207,6 +215,56 @@ export const 反応の件数: Story = {
 
 export const 自分が反応済み: Story = {
   args: { event: plain, scene: scene(plain, ...engaged, ...viewerEngaged) },
+};
+
+export const いいねボタンがUnicodeの絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
+
+/** 🥰 を送った後。いいねボタンは既定の 🥰 で「済み」になる。 */
+export const いいねボタンの絵文字で送った後: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged, ...viewerEngaged),
+    defaultReaction: { type: "text", content: "🥰" },
+  },
+};
+
+/** 前にハートを送っていても、既定を変えた後は新しい絵文字で押せる。 */
+export const 既定を変える前に送ったハート: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, react(viewer, { type: "like" })),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
+
+export const いいねボタンがカスタム絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: {
+      type: "emoji",
+      shortcode: "party",
+      url: new URL(emojiUrl, location.href).href,
+    },
+  },
+};
+
+export const いいねボタンのカスタム絵文字が読めない: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: {
+      type: "emoji",
+      shortcode: "broken",
+      url: "https://example.invalid/broken.png",
+    },
+  },
 };
 
 export const 書き込みに失敗する: Story = {

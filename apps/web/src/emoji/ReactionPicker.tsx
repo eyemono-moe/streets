@@ -4,6 +4,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Component, JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
+import PopoverTrigger from "../ui/PopoverTrigger";
 import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
 import { EmojiPicker } from "./lazy-emoji-picker";
@@ -18,7 +19,7 @@ export type PickerTrigger = (
   // biome-ignore lint/suspicious/noExplicitAny: Ark UI の `asChild` の型に合わせる
 ) => JSX.HTMLAttributes<any>;
 
-const inputOf = (emoji: PickerEmoji): ReactionInput =>
+export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>
   emoji.kind === "unicode"
     ? { type: "text", content: emoji.char }
     : { type: "emoji", shortcode: emoji.shortcode, url: emoji.url };
@@ -40,7 +41,7 @@ const ReactionPicker: Component<{
       unmountOnExit
       positioning={{ placement: "bottom-start" }}
     >
-      <Popover.Trigger asChild={props.trigger} />
+      <PopoverTrigger asChild={props.trigger} />
       <Portal>
         <Popover.Positioner>
           <Popover.Content class="motion-pop outline-none">
@@ -53,7 +54,7 @@ const ReactionPicker: Component<{
                     dispatch({
                       type: "note/react",
                       target: props.target,
-                      input: inputOf(emoji),
+                      input: reactionInputOf(emoji),
                     });
                     api().setOpen(false);
                   }}

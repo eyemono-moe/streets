@@ -18,7 +18,7 @@ export type ReactionGroup = {
  * 鍵に**種別を含める**（絵文字 `:smile:` とテキスト "smile" は別物)。URL は
  * 含めない —— 別ドメインの同じショートコードで山が割れ数が読めなくなるため。
  */
-const keyOf = (content: ReactionContent): string => {
+export const reactionKey = (content: ReactionContent): string => {
   switch (content.type) {
     case "like":
       return "like";
@@ -36,7 +36,7 @@ export const groupReactions = (
 ): ReactionGroup[] => {
   const groups = new Map<string, ReactionGroup>();
   for (const { pubkey, parsed } of reactions) {
-    const key = keyOf(parsed.content);
+    const key = reactionKey(parsed.content);
     const current = groups.get(key);
     if (!current) {
       groups.set(key, {

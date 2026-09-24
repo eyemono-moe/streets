@@ -124,6 +124,8 @@ export type DeckEvent =
   | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
   /** 数字キーでカラムを見せるか。この端末に保存する。 */
   | { type: "deck/set-column-digits"; on: boolean }
+  /** いいねボタンで送るリアクション。この端末に保存する。 */
+  | { type: "deck/set-default-reaction"; input: ReactionInput }
   /** 自分の絵文字（kind:10030）に 1 つ足す。同じ名前があれば差し替える。 */
   | { type: "emoji/add"; shortcode: string; url: string }
   | { type: "emoji/remove"; shortcode: string }

@@ -1,4 +1,5 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { Keymap } from "@streets/core/settings/keymap";
 import { type Component, createEffect, createSignal, on } from "solid-js";
@@ -30,6 +31,8 @@ const SettingsDialog: Component<{
   keymap: Keymap;
   /** 数字キーでカラムを見せるか（この端末の設定）。 */
   columnDigits: boolean;
+  /** いいねボタンで送るリアクション（この端末の設定）。 */
+  defaultReaction: ReactionInput;
   /** 開いたときに出すページ。 */
   initialPage?: string;
 }> = (props) => {
@@ -83,8 +86,9 @@ const SettingsDialog: Component<{
       label: "絵文字",
       icon: "i-material-symbols:add-reaction-outline-rounded",
       title: "絵文字",
-      description: "リアクションのピッカーに出る絵文字を設定します",
-      content: () => <EmojiSettings />,
+      description:
+        "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します",
+      content: () => <EmojiSettings defaultReaction={props.defaultReaction} />,
     },
     {
       value: "mute",
