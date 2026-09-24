@@ -1,4 +1,5 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
@@ -60,6 +61,9 @@ const Story = (props: Props) => {
   const [errorReport, setErrorReport] = createSignal(true);
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
+  const [defaultReaction, setDefaultReaction] = createSignal<ReactionInput>({
+    type: "like",
+  });
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
     relayList([
@@ -154,6 +158,9 @@ const Story = (props: Props) => {
                 case "deck/set-column-digits":
                   setColumnDigits(event.on);
                   return true;
+                case "deck/set-default-reaction":
+                  setDefaultReaction(event.input);
+                  return true;
                 case "deck/set-shortcut":
                   setKeymap((current) => ({
                     ...current,
@@ -178,6 +185,7 @@ const Story = (props: Props) => {
               errorReport={errorReport()}
               keymap={keymap()}
               columnDigits={columnDigits()}
+              defaultReaction={defaultReaction()}
               initialPage={props.page}
             />
           </Mediates>

@@ -18,7 +18,7 @@ export type PickerTrigger = (
   // biome-ignore lint/suspicious/noExplicitAny: Ark UI の `asChild` の型に合わせる
 ) => JSX.HTMLAttributes<any>;
 
-const inputOf = (emoji: PickerEmoji): ReactionInput =>
+export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>
   emoji.kind === "unicode"
     ? { type: "text", content: emoji.char }
     : { type: "emoji", shortcode: emoji.shortcode, url: emoji.url };
@@ -53,7 +53,7 @@ const ReactionPicker: Component<{
                     dispatch({
                       type: "note/react",
                       target: props.target,
-                      input: inputOf(emoji),
+                      input: reactionInputOf(emoji),
                     });
                     api().setOpen(false);
                   }}

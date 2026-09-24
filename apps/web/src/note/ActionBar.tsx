@@ -1,16 +1,26 @@
 import { Menu } from "@ark-ui/solid/menu";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { reactionContentOf } from "@streets/core/settings/default-reaction";
 import { eventEngagements } from "@streets/core/view/event-engagements";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
-import { type Component, Show, createMemo, createSignal } from "solid-js";
+import {
+  type Component,
+  type JSX,
+  Show,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import { ComposeMediator } from "./ComposeMediator";
 import QuoteDialog from "./QuoteDialog";
+import ReactionButtonMark from "./ReactionButtonMark";
 import ReplyDialog from "./ReplyDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
 import { useProfileDetails } from "./use-profile";
@@ -20,13 +30,25 @@ const useEngagements = (event: () => NostrEvent, viewer: string) => {
   const changed = useEngagementChanges(() => event().id);
   return createMemo(() => {
     changed();
-    return eventEngagements(store, event().id, viewer);
+    return eventEngagements(
+      store,
+      event().id,
+      viewer,
+      reactionContentOf(defaultReaction()),
+    );
   });
 };
 
+const reactionLabel = (input: ReactionInput): string =>
+  input.type === "like"
+    ? "いいね"
+    : `${input.type === "text" ? input.content : `:${input.shortcode}:`} でリアクション`;
+
 const Action: Component<{
   label: string;
-  icon: string;
+  /** アイコンの class。`mark` を渡したときは使わない。 */
+  icon?: string;
+  mark?: JSX.Element;
   active?: boolean;
   count?: number;
   disabled?: boolean;
@@ -36,7 +58,7 @@ const Action: Component<{
     type="button"
     aria-label={props.label}
     aria-pressed={props.active}
-    class="flex items-center gap-1 bg-transparent text-caption enabled:cursor-pointer disabled:cursor-default"
+    class="group flex items-center gap-1 bg-transparent text-caption enabled:cursor-pointer disabled:cursor-default"
     classList={{
       "c-secondary enabled:hover:c-primary": !props.active,
       "c-accent-5": props.active,
@@ -45,7 +67,7 @@ const Action: Component<{
     disabled={props.disabled}
     onClick={() => props.onClick?.()}
   >
-    <span class={`${props.icon} size-4.5`} aria-hidden="true" />
+    {props.mark ?? <span class={`${props.icon} size-4.5`} aria-hidden="true" />}
     <Show when={props.count}>{(count) => <span>{count()}</span>}</Show>
   </button>
 );
@@ -67,7 +89,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
           ({
             type: "note/react",
             target: props.event,
-            input: { type: "like" },
+            input: defaultReaction(),
           }) as const;
         const bookmark = () =>
           ({
@@ -151,15 +173,16 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                 </Portal>
               </Menu.Root>
               <Action
-                label={engagement().viewerLiked ? "いいね済み" : "いいね"}
-                icon={
-                  engagement().viewerLiked
-                    ? "i-material-symbols:favorite-rounded"
-                    : "i-material-symbols:favorite-outline-rounded"
+                label={`${reactionLabel(defaultReaction())}${engagement().viewerReacted ? "（済み）" : ""}`}
+                mark={
+                  <ReactionButtonMark
+                    input={defaultReaction()}
+                    active={engagement().viewerReacted}
+                  />
                 }
-                active={engagement().viewerLiked}
-                count={engagement().likes}
-                disabled={liking() || engagement().viewerLiked}
+                active={engagement().viewerReacted}
+                count={engagement().reactions}
+                disabled={liking() || engagement().viewerReacted}
                 onClick={() => dispatch(like())}
               />
               <ReactionPicker

@@ -1,4 +1,5 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import { encodeNaddr } from "@streets/core/nostr/nip19";
 import {
   type CustomEmoji,
@@ -21,6 +22,7 @@ import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
+import DefaultReactionField from "./DefaultReactionField";
 import SettingsSection from "./SettingsSection";
 
 /** 参照しているセット 1 つ。中身がまだ届いていないこともある。 */
@@ -36,6 +38,8 @@ export type EmojiSettingsViewProps = {
   emojis: readonly CustomEmoji[];
   sets: readonly EmojiSetRow[];
   saving: boolean;
+  /** いいねボタンで送るリアクション（この端末の設定）。 */
+  defaultReaction: ReactionInput;
 };
 
 /**
@@ -82,6 +86,14 @@ export const EmojiPreview: Component<{
  */
 const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
+    <SettingsSection
+      title="いいねボタンの絵文字"
+      scope="device"
+      description="投稿の下のいいねボタンを押したときに送る絵文字です。選ばなければハートを送ります。"
+    >
+      <DefaultReactionField value={props.defaultReaction} />
+    </SettingsSection>
+
     <SettingsSection
       title="自分の絵文字リスト"
       scope="account"

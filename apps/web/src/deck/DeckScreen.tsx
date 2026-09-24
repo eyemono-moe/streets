@@ -38,6 +38,10 @@ import AboutDialog from "../about/AboutDialog";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
+import {
+  defaultReaction,
+  setDefaultReaction,
+} from "../default-reaction-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { errorReport, setErrorReport } from "../error-report-setting";
@@ -426,6 +430,9 @@ const DeckScreen: Component<{
       case "deck/set-column-digits":
         setColumnDigits(event.on);
         return true;
+      case "deck/set-default-reaction":
+        setDefaultReaction(event.input);
+        return true;
       case "deck/set-error-report":
         setErrorReport(event.on);
         // 止めたらその場で送るのをやめ、戻したらもう一度用意する。
@@ -782,6 +789,7 @@ const DeckScreen: Component<{
                             errorReport={errorReport()}
                             keymap={keymap()}
                             columnDigits={columnDigits()}
+                            defaultReaction={defaultReaction()}
                           />
                         </ZapMediator>
                       </MuteMediator>

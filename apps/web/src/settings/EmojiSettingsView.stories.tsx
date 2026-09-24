@@ -1,3 +1,4 @@
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { CustomEmoji } from "@streets/core/settings/emoji-list";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -25,6 +26,7 @@ type Args = {
   emojis: CustomEmoji[];
   sets: EmojiSetRow[];
   saving: boolean;
+  defaultReaction: ReactionInput;
   width: number;
 };
 
@@ -32,6 +34,9 @@ type Args = {
 const Story = (props: Args) => {
   const [emojis, setEmojis] = createSignal(props.emojis);
   const [sets, setSets] = createSignal(props.sets);
+  const [defaultReaction, setDefaultReaction] = createSignal(
+    props.defaultReaction,
+  );
   // 実際には上げず、少し待ってから決まった URL を返す。
   const uploader = {
     servers: () => ["https://blossom.example/"] as never,
@@ -48,6 +53,10 @@ const Story = (props: Args) => {
     <EventSceneProvider scene={{ events: [author.profile()] }}>
       <Mediates
         handle={(event) => {
+          if (event.type === "deck/set-default-reaction") {
+            setDefaultReaction(event.input);
+            return true;
+          }
           if (event.type === "emoji/add") {
             setEmojis((current) => [
               ...current.filter((other) => other.shortcode !== event.shortcode),
@@ -80,6 +89,7 @@ const Story = (props: Args) => {
               emojis={emojis()}
               sets={sets()}
               saving={props.saving}
+              defaultReaction={defaultReaction()}
             />
           </UploaderProvider>
         </div>
@@ -110,6 +120,7 @@ const meta = {
       { ref: { pubkey: AUTHOR, identifier: "kome" }, set: undefined },
     ],
     saving: false,
+    defaultReaction: { type: "like" },
     uploads: true,
     width: 560,
   },
@@ -127,3 +138,18 @@ export const 保存している途中: S = { args: { saving: true } };
 export const アップロード先が無いとき: S = { args: { uploads: false } };
 
 export const 狭い画面: S = { args: { width: 340 } };
+
+export const いいねボタンがUnicodeの絵文字: S = {
+  args: { defaultReaction: { type: "text", content: "🔥" } },
+};
+
+/** 画像が読めないので、ショートコードの文字で出る。 */
+export const いいねボタンがカスタム絵文字: S = {
+  args: {
+    defaultReaction: {
+      type: "emoji",
+      shortcode: "very_long_custom_emoji_shortcode",
+      url: "https://example.invalid/very_long_custom_emoji_shortcode.png",
+    },
+  },
+};
