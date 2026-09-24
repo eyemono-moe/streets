@@ -10,13 +10,13 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import SignerWaitOverlay from "./SignerWaitOverlay";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
 import { lazyPart } from "./lazy-part";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
+import SignerWaitOverlay from "./SignerWaitOverlay";
 import { ErrorToaster } from "./toast";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));

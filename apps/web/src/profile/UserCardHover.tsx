@@ -9,7 +9,7 @@ import UserCard from "./UserCard";
  */
 export type HoverTrigger = (
   userProps?: JSX.IntrinsicElements["button"],
-  // biome-ignore lint/suspicious/noExplicitAny: Ark UI の `asChild` の型に合わせる
+  // Ark UI の `asChild` の型に合わせる
 ) => JSX.HTMLAttributes<any>;
 
 /**

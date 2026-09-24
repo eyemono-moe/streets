@@ -1,12 +1,10 @@
 name: Setup
-description: pnpm・Node を用意し、依存を入れる
+description: Vite+（vp）・Node・pnpm を用意し、依存を入れる
 runs:
   using: composite
   steps:
-    - uses: pnpm/action-setup@v4
-    - uses: actions/setup-node@v4
+    # Node は .node-version、pnpm は package.json の packageManager、vp は vite-plus の版に合わせる。
+    - uses: voidzero-dev/setup-vp@v1.21.1
       with:
-        node-version: 22
-        cache: pnpm
-    - run: pnpm install --frozen-lockfile
-      shell: bash
+        node-version-file: .node-version
+        cache: true

@@ -1,8 +1,8 @@
 import { type ColumnDef, TIMELINE_KINDS } from "@streets/core/deck/deck";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ColumnHeader } from "../columns/ColumnHeader";
-import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
 import FeedbackLink from "./FeedbackLink";
@@ -44,13 +44,11 @@ const columns: ColumnDef[] = [
 /** 狭い画面で、帯を横に送らないと入りきらない数。 */
 const many: ColumnDef[] = [
   ...columns,
-  ...["猫", "犬", "写真", "音楽", "旅行"].map(
-    (tag, index): ColumnDef => ({
-      id: `tag-${index}`,
-      title: tag,
-      source: { kind: "literal", filters: [{ "#t": [tag] }] },
-    }),
-  ),
+  ...["猫", "犬", "写真", "音楽", "旅行"].map((tag, index): ColumnDef => ({
+    id: `tag-${index}`,
+    title: tag,
+    source: { kind: "literal", filters: [{ "#t": [tag] }] },
+  })),
 ];
 
 const meta = {

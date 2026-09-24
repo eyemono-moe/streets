@@ -262,22 +262,21 @@ const Completion = (props: {
           >
             {/* フォーカスは欄に残し、欄の aria-activedescendant で候補を指す（combobox の形）。
                 一覧と候補はフォーカスを受け取らず、キーボードでは欄から操作する。 */}
-            {/* biome-ignore lint/a11y/useFocusableInteractive: 上のとおり、フォーカスは欄に残す */}
+            {/* 上のとおり、フォーカスは欄に残す */}
             <div
               ref={list}
               id={listId}
-              // biome-ignore lint/a11y/useSemanticElements: select では、打ちながら選ぶ形にできない
+              // select では、打ちながら選ぶ形にできない
               role="listbox"
               aria-label={props.label}
               class="max-h-61 overflow-y-auto p-1"
             >
               <For each={items()}>
                 {(item, index) => (
-                  // biome-ignore lint/a11y/useFocusableInteractive: キーボードでは欄から ↑↓ と Enter で選ぶ
-                  // biome-ignore lint/a11y/useKeyWithClickEvents: キーボードでは欄から ↑↓ と Enter で選ぶ
+                  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus -- キーボードでは欄から ↑↓ と Enter で選ぶ
                   <div
                     id={optionId(index())}
-                    // biome-ignore lint/a11y/useSemanticElements: 一覧と同じ理由
+                    // 一覧と同じ理由
                     role="option"
                     aria-selected={index() === active()}
                     class="flex h-9.5 cursor-pointer items-center gap-2 rounded-1.5 px-2 hover:bg-secondary"

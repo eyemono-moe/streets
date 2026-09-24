@@ -42,7 +42,7 @@ jobs:
           fi
       - uses: ./.github/actions/setup
       - name: ビルド
-        run: pnpm build
+        run: vp run build
         env:
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
@@ -56,7 +56,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler.ndjson
         run: |
-          pnpm exec wrangler versions upload \
+          vp exec wrangler versions upload \
             --tag "$GITHUB_REF_NAME" \
             --message "$GITHUB_REF_NAME ($GITHUB_SHA)"
           result=$(jq -cs 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
@@ -90,7 +90,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          pnpm exec wrangler versions deploy \
+          vp exec wrangler versions deploy \
             "${{ needs.preview.outputs.version-id }}@100%" \
             --message "$GITHUB_REF_NAME" --yes
       - name: GitHub の Release を作る

@@ -1,21 +1,21 @@
 {
-  "devDependencies": {
-    "typescript": "7.0.2",
-    "vitest": "5.0.1",
-    "wrangler": "4.137.0"
-  },
   "name": "@streets/app-worker",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "node -e \"require('node:fs').mkdirSync('../../apps/web/dist', { recursive: true })\" && wrangler dev --config ../../wrangler.jsonc --port 8787",
-    "test": "vitest run",
-    "typecheck": "wrangler types --check --config ../../wrangler.jsonc worker-configuration.d.ts && tsc --noEmit",
-    "types": "wrangler types --config ../../wrangler.jsonc worker-configuration.d.ts"
+    "test": "vp test run",
+    "types": "wrangler types --config ../../wrangler.jsonc worker-configuration.d.ts",
+    "types:check": "wrangler types --check --config ../../wrangler.jsonc worker-configuration.d.ts"
   },
-  "type": "module",
   "dependencies": {
     "@hono/valibot-validator": "0.6.1",
     "hono": "4.13.8",
     "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:",
+    "wrangler": "4.137.0"
   }
 }

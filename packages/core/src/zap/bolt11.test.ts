@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { bolt11AmountMsat } from "./bolt11";
 
 // BOLT-11 の仕様書の例（金額の部分だけを読むので、後ろのデータは省略してよい）

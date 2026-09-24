@@ -1,10 +1,10 @@
 import type { WriteProgress } from "@streets/core/write/write-progress";
 import { summarizeRelays } from "@streets/core/write/write-progress";
 import type { WriteHooks, Writer } from "@streets/core/write/writer";
-import type { WriteToastMeta } from "./WriteProgressToast";
 import { toaster } from "./toast";
 import { actionErrorMessage, markReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
+import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Tracked = Pick<Writer, "publish" | "replace">;
 

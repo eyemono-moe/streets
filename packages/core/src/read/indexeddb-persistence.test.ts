@@ -2,7 +2,7 @@ import {
   IDBFactory as FakeIDBFactory,
   IDBKeyRange as FakeIDBKeyRange,
 } from "fake-indexeddb";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import type { CachePolicy } from "./cache-policy";
 import type { PersistedEvent } from "./event-persistence";

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "./event";
 import { parseReaction } from "./reaction";
 
@@ -24,14 +24,18 @@ describe("parseReaction", () => {
     // 捕まえる変異: like の分岐を消して全部 text にする
     expect(
       parseReaction(reaction({ tags: [["e", TARGET]], content: "+" }))?.content,
-    ).toEqual({ type: "like" });
+    ).toEqual({
+      type: "like",
+    });
   });
 
   it("空文字も like", () => {
     // 捕まえる変異: `content === "+"` だけを like にする。NIP-25: 「空文字はクライアントが `+` とみなすべき」—— text に落とすと空のリアクションが画面に出る
     expect(
       parseReaction(reaction({ tags: [["e", TARGET]], content: "" }))?.content,
-    ).toEqual({ type: "like" });
+    ).toEqual({
+      type: "like",
+    });
   });
 
   it("emoji タグと `:name:` が一致すれば emoji", () => {

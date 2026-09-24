@@ -134,10 +134,10 @@ const decryptPrivateTags = async (
 > => {
   if (event.content === "") return { status: "ready", tags: [] };
   const legacy = event.content.includes("?iv=");
-  const decrypt = legacy ? signer.nip04?.decrypt : signer.nip44?.decrypt;
-  if (!decrypt) return { status: "unavailable" };
+  const cipher = legacy ? signer.nip04 : signer.nip44;
+  if (!cipher) return { status: "unavailable" };
   try {
-    const plaintext = await decrypt(pubkey, event.content);
+    const plaintext = await cipher.decrypt(pubkey, event.content);
     const tags = parsePrivateTags(plaintext);
     return tags ? { status: "ready", tags } : { status: "invalid" };
   } catch {

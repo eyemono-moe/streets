@@ -104,7 +104,8 @@ export const createApp = (options: AppOptions = {}) => {
       const host = new URL(c.req.url).host;
       const assets = c.env?.ASSETS;
       const fetchPage: typeof fetch = (input, init) =>
-        assets && new URL(String(input)).host === host
+        assets &&
+        new URL(input instanceof Request ? input.url : input).host === host
           ? assets.fetch(input, init)
           : outbound(input, init);
       let card: LinkCard | undefined;

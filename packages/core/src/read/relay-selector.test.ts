@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { selectRelays } from "./relay-selector";
 
 const A = "a".repeat(64);

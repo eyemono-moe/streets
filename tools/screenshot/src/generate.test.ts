@@ -5,7 +5,7 @@ import {
   decryptNip44,
 } from "@streets/core/signer/nip46/nip44";
 import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { generate } from "./generate";
 import { pubkeyFor, secretKeyFor } from "./keys";
 import { scenarios } from "./scenarios";

@@ -5,7 +5,9 @@ function scriptConfig() {
   const workerUrl = properties.getProperty("FEEDBACK_WORKER_URL");
   const secret = properties.getProperty("FEEDBACK_WEBHOOK_SECRET");
   if (!workerUrl || !secret) {
-    throw new Error("FEEDBACK_WORKER_URL / FEEDBACK_WEBHOOK_SECRET が未設定です");
+    throw new Error(
+      "FEEDBACK_WORKER_URL / FEEDBACK_WEBHOOK_SECRET が未設定です",
+    );
   }
   return { workerUrl, secret };
 }
@@ -82,7 +84,9 @@ function sendFeedback(payload) {
   const status = response.getResponseCode();
   const result = JSON.parse(response.getContentText() || "{}");
   if (status < 200 || status >= 300 || !result.issueUrl) {
-    throw new Error(`Worker ${status}: ${result.error || "Issue URLがありません"}`);
+    throw new Error(
+      `Worker ${status}: ${result.error || "Issue URLがありません"}`,
+    );
   }
   return result.issueUrl;
 }

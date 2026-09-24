@@ -2,8 +2,8 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { threadSpine } from "@streets/core/view/thread-spine";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import ThreadSpineView from "./ThreadSpineView";
 

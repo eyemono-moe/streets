@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { SectionStatus } from "../read/source";
 import { columnAlerts } from "./column-alerts";
 import type { ColumnDef } from "./deck";

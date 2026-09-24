@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { allowedTarget, charsetOf, parseLinkCard } from "./ogp";
 
 const PAGE = new URL("https://example.com/articles/1");

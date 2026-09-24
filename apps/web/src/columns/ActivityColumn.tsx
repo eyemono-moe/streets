@@ -8,12 +8,12 @@ import Event from "../note/Event";
 import { ReactionChip } from "../note/ReactionList";
 import ProfileRow from "../profile/ProfileRow";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
-import ColumnBody from "./ColumnBody";
 import {
   type ColumnReadProps,
   alertsFor,
   createColumnSection,
 } from "./column-section";
+import ColumnBody from "./ColumnBody";
 
 const Result: Component<{
   count: number;

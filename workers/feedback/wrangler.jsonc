@@ -9,12 +9,12 @@
       "binding": "DB",
       "database_name": "streets-feedback",
       "database_id": "REPLACE_WITH_D1_DATABASE_ID",
-      "migrations_dir": "migrations"
-    }
+      "migrations_dir": "migrations",
+    },
   ],
   "vars": {
     "GITHUB_REPOSITORY": "eyemono-moe/streets",
-    "AI_MODEL": "@cf/meta/llama-3.2-3b-instruct"
+    "AI_MODEL": "@cf/meta/llama-3.2-3b-instruct",
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
 }

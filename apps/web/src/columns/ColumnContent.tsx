@@ -2,11 +2,11 @@ import { columnLinkCards } from "@streets/core/deck/deck";
 import { type Component, Match, Switch } from "solid-js";
 import { LinkCardModeProvider } from "../note/link-card";
 import ActivityColumn from "./ActivityColumn";
+import type { ColumnReadProps } from "./column-section";
 import FeedColumn from "./FeedColumn";
 import PeopleColumn from "./PeopleColumn";
 import ThreadColumn from "./ThreadColumn";
 import UserColumn from "./UserColumn";
-import type { ColumnReadProps } from "./column-section";
 
 export type ColumnContentProps = ColumnReadProps & {
   scrollerRef: (element: HTMLDivElement) => void;

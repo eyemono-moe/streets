@@ -85,7 +85,7 @@ const organize = async (
   }
 };
 
-const githubHeaders = (env: Env): HeadersInit => ({
+const githubHeaders = (env: Env): Record<string, string> => ({
   accept: "application/vnd.github+json",
   authorization: `Bearer ${env.GITHUB_TOKEN}`,
   "user-agent": "streets-feedback-worker",

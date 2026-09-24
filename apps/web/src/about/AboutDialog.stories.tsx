@@ -1,11 +1,10 @@
-import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { Mediates } from "../ui-events";
-import AboutDialog from "./AboutDialog";
-
 import { encodeBech32 } from "@streets/core/nostr/nip19";
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { ReleaseNote } from "../../release-notes-plugin";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
+import { Mediates } from "../ui-events";
+import AboutDialog from "./AboutDialog";
 
 const alice = createStoryAuthor(11, { name: "alice", displayName: "ありす" });
 const bob = createStoryAuthor(22, { name: "bob", displayName: "ぼぶ" });

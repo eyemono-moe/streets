@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadDeveloperMode, saveDeveloperMode } from "./developer-mode";
 
 describe("開発者モードの永続化", () => {

@@ -1,12 +1,12 @@
 import { followeesFrom, followersFrom } from "@streets/core/nostr/follow-list";
 import type { Component } from "solid-js";
 import ProfileList from "../profile/ProfileList";
-import ColumnBody from "./ColumnBody";
 import {
   type ColumnReadProps,
   alertsFor,
   createColumnSection,
 } from "./column-section";
+import ColumnBody from "./ColumnBody";
 
 const PeopleColumn: Component<
   ColumnReadProps & {

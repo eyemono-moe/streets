@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { parseProfile, profileLabel, shortNpub } from "./profile";
 
 const PUBKEY =
@@ -30,13 +30,21 @@ describe("parseProfile", () => {
   it("型が違う項目だけを捨て、他の項目は残す", () => {
     expect(
       parseProfile(JSON.stringify({ name: 42, display_name: "Alice" })),
-    ).toEqual({ name: undefined, displayName: "Alice", picture: undefined });
+    ).toEqual({
+      name: undefined,
+      displayName: "Alice",
+      picture: undefined,
+    });
   });
 
   it("空白だけの値は無いものとして扱う", () => {
     expect(
       parseProfile(JSON.stringify({ name: "alice", display_name: "  " })),
-    ).toEqual({ name: "alice", displayName: undefined, picture: undefined });
+    ).toEqual({
+      name: "alice",
+      displayName: undefined,
+      picture: undefined,
+    });
   });
 });
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { EmojiList } from "../settings/emoji-list";
 import type { EmojiSet } from "../settings/emoji-set";
 import { customEmojiGroups, findCustomEmoji } from "./emoji-catalog";

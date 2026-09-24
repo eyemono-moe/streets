@@ -33,6 +33,9 @@ dist-ssr
 
 *.tsbuildinfo
 
+# Vitest の作業用フォルダ
+.vitest/
+
 # dev
 data
 

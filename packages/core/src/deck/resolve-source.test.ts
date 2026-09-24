@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import { type ResolveContext, resolveSource } from "./resolve-source";
 
@@ -71,7 +71,10 @@ describe("resolveSource", () => {
         { kind: "followees", kinds: [1] },
         ctx({ followees: () => [] }),
       ),
-    ).toEqual({ type: "nostr", filters: [{ kinds: [1], authors: [] }] });
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1], authors: [] }],
+    });
   });
 
   it("context のフォローリストを共有しない", () => {
@@ -247,7 +250,10 @@ describe("resolveSource", () => {
         { kind: "bookmarks" },
         ctx({ bookmarks: () => ["a", "b"] }),
       ),
-    ).toEqual({ type: "nostr", filters: [{ ids: ["a", "b"] }] });
+    ).toEqual({
+      type: "nostr",
+      filters: [{ ids: ["a", "b"] }],
+    });
   });
 
   it("ブックマークが 0 件でも ids を落とさない", () => {

@@ -142,11 +142,11 @@ export const defaultDeck = (relays: readonly RelayUrl[]): Deck => {
   return {
     version: 2,
     columns: [
-      // biome-ignore lint/style/noNonNullAssertion: `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
+      // `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
       buildColumn("home", "")!,
       // リレーが 0 本だと列を作れない。そのときはホームと通知だけにする。
       ...(relayColumn ? [relayColumn] : []),
-      // biome-ignore lint/style/noNonNullAssertion: 同上。
+      // 同上。
       buildColumn("notifications", "")!,
     ],
   };

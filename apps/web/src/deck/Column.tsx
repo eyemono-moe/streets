@@ -90,7 +90,7 @@ const Column: Component<ColumnProps> = (props) => {
         when={props.stacked}
         fallback={
           <Show when={props.chrome !== false}>
-            {/* biome-ignore lint/a11y/useKeyWithClickEvents: キーボードからは題名のボタンと「戻る」ボタンで操作する */}
+            {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- キーボードからは題名のボタンと「戻る」ボタンで操作する */}
             <div
               onClick={(event) => {
                 const target = event.target;

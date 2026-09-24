@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import EmojiPicker from "./EmojiPicker";
 import type { PickerEmoji, PickerGroup } from "./emoji-data";
+import EmojiPicker from "./EmojiPicker";
 import { emojiKey } from "./recent-emoji";
 
 const custom = (title: string, names: string[]): PickerGroup => ({

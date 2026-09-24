@@ -179,17 +179,15 @@ export const userSource = (
 ): CompletionSource => ({
   trigger: options.trigger ?? USER_TRIGGER,
   items: (query) =>
-    candidates.find(query).map(
-      (entry): CompletionItem => ({
-        key: entry.pubkey,
-        // 選んだ時点のリレーを添える（一覧を出した後に届いた分も入る）。
-        get insert() {
-          return options.format(candidates.nprofile(entry.pubkey));
-        },
-        space: options.space,
-        view: () => <UserRow user={entry.user} />,
-      }),
-    ),
+    candidates.find(query).map((entry): CompletionItem => ({
+      key: entry.pubkey,
+      // 選んだ時点のリレーを添える（一覧を出した後に届いた分も入る）。
+      get insert() {
+        return options.format(candidates.nprofile(entry.pubkey));
+      },
+      space: options.space,
+      view: () => <UserRow user={entry.user} />,
+    })),
 });
 
 /** スタンプの候補の 1 行。入っているセットの名前を添える（同じ名前が別のセットにもあるため）。 */
@@ -241,13 +239,11 @@ export const useEmojiSource = (): CompletionSource => {
         query,
       )
         .slice(0, LIMIT)
-        .map(
-          (emoji): CompletionItem => ({
-            key: emoji.shortcode,
-            insert: `:${emoji.shortcode}:`,
-            view: () => <EmojiRow {...emoji} />,
-          }),
-        ),
+        .map((emoji): CompletionItem => ({
+          key: emoji.shortcode,
+          insert: `:${emoji.shortcode}:`,
+          view: () => <EmojiRow {...emoji} />,
+        })),
   };
 };
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadErrorReport, saveErrorReport } from "./error-report-setting";
 
 describe("エラーの報告の設定", () => {

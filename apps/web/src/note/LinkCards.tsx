@@ -2,8 +2,8 @@ import { embedOf } from "@streets/core/view/embed";
 import { type Component, For, Match, Show, Switch } from "solid-js";
 import { XEmbed, YouTubeEmbed } from "./EmbedView";
 import type { EventSize } from "./Event";
-import LinkCardView from "./LinkCardView";
 import { useLinkCard, useLinkCardMode } from "./link-card";
+import LinkCardView from "./LinkCardView";
 
 const LinkCardItem: Component<{
   url: string;

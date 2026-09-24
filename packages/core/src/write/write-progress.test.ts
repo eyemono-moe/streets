@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { RelayUrl } from "../relay/relay-connection";
 import { pendingRelays, settleRelay, summarizeRelays } from "./write-progress";
 

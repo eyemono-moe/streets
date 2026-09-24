@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import { EMOJI_SET_KIND } from "./emoji-list";
 import {

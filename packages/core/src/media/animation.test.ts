@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { isAnimatedImage } from "./animation";
 
 const bytes = (...values: (number | string)[]): Uint8Array => {

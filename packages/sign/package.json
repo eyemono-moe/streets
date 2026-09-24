@@ -1,24 +1,23 @@
 {
-  "devDependencies": {
-    "solid-js": "1.9.15",
-    "typescript": "7.0.2",
-    "vitest": "5.0.1"
-  },
-  "exports": {
-    ".": "./src/index.ts"
-  },
+  "name": "@streets/sign",
+  "version": "0.0.0",
+  "private": true,
   "files": [
     "dist"
   ],
-  "name": "@streets/sign",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vp test run"
+  },
+  "devDependencies": {
+    "solid-js": "1.9.15",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:"
+  },
   "peerDependencies": {
     "solid-js": "^1.9.0"
-  },
-  "private": true,
-  "scripts": {
-    "test": "vitest run",
-    "typecheck": "tsc --noEmit"
-  },
-  "type": "module",
-  "version": "0.0.0"
+  }
 }

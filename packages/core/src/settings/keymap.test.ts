@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   DEFAULT_KEYMAP,
   type Keymap,
@@ -28,7 +28,10 @@ describe("loadKeymap", () => {
     // 捕まえる変異: 1 つでも読めなければ全部既定に戻す（別の割り当てまで消える）
     expect(
       loadKeymap('{"compose":"[KeyJ]","search":42,"nope":"[KeyZ]"}'),
-    ).toEqual({ ...DEFAULT_KEYMAP, compose: "[KeyJ]" });
+    ).toEqual({
+      ...DEFAULT_KEYMAP,
+      compose: "[KeyJ]",
+    });
   });
 
   it("JSON でない文字列は既定", () => {

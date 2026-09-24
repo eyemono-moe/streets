@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import { encodeBech32 } from "../nostr/nip19";
 import { MAX_LINK_CARDS, layoutNote } from "./note-layout";

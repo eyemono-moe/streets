@@ -84,7 +84,7 @@ export const users = {
 } as const satisfies Record<string, UserProfile>;
 ```
 
-アイコンは付けない（Streets が pubkey から作る標識で見分けられる）。付けるなら `picture: "<assets/ のファイル名>"`。シナリオに無い ID を書くと、型検査（`pnpm typecheck`）で分かる。
+アイコンは付けない（Streets が pubkey から作る標識で見分けられる）。付けるなら `picture: "<assets/ のファイル名>"`。シナリオに無い ID を書くと、型検査（`pnpm check`）で分かる。
 
 ### 投稿を足す
 

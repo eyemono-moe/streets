@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { encodeBech32, encodeNaddr } from "../nostr/nip19";
 import { emojiSetFilters, parseEmojiSetQuery } from "./emoji-set-search";
 

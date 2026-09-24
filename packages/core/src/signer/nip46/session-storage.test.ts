@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import {
   NIP46_REQUIRED_PERMISSIONS,
   type StoredNip46SessionV3,

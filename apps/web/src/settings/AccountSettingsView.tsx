@@ -32,9 +32,9 @@ import {
   userSource,
 } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import { useNip05Lookup } from "../profile/nip05";
 import { Nip05View } from "../profile/Nip05Badge";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
-import { useNip05Lookup } from "../profile/nip05";
 import { Mediates, useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";

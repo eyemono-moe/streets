@@ -7,8 +7,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsc",
-    "test": "vitest run"
+    "test": "vp test run"
   },
   "dependencies": {
     "@noble/ciphers": "2.4.0",
@@ -17,14 +16,14 @@
     "@scure/base": "^2.4.0",
     "valibot": "1.5.0"
   },
-  "peerDependencies": {
-    "solid-js": "^1.9.0"
-  },
   "devDependencies": {
     "@types/node": "24",
     "fake-indexeddb": "^6.2.5",
     "solid-js": "1.9.15",
     "typescript": "7.0.2",
-    "vitest": "5.0.1"
+    "vite-plus": "catalog:"
+  },
+  "peerDependencies": {
+    "solid-js": "^1.9.0"
   }
 }

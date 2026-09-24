@@ -6,11 +6,10 @@
     "dev": "pnpm --parallel --filter @streets/web --filter @streets/app-worker dev",
     "build": "pnpm --filter @streets/web build",
     "storybook": "pnpm --filter @streets/web storybook",
-    "check": "biome check .",
-    "fix": "biome check --write .",
-    "typecheck": "pnpm -r typecheck",
+    "check": "vp check",
+    "fix": "vp check --fix",
     "test": "pnpm -r test && node --test scripts/*.test.mjs",
-    "verify": "pnpm run check && pnpm run typecheck && pnpm run test && pnpm run build",
+    "verify": "pnpm run check && pnpm --filter @streets/app-worker types:check && pnpm run test && pnpm run build",
     "dev:relay:wait": "node scripts/wait-for-relays.mjs",
     "dev:relay:reset": "node scripts/reset-local-relay-db.mjs",
     "dev:relay:inspect": "node scripts/inspect-local-relay.mjs",
@@ -20,16 +19,17 @@
     "screenshot:seed": "pnpm --filter @streets/screenshot seed",
     "screenshot:generate": "pnpm --filter @streets/screenshot generate",
     "ja:extract": "node scripts/ja-text-extract.mjs",
-    "ja:apply": "node scripts/ja-text-apply.mjs"
+    "ja:apply": "node scripts/ja-text-apply.mjs",
+    "prepare": "vp config"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "@types/node": "24",
     "nostr-tools": "2.25.2",
     "ts-morph": "^28.0.0",
     "typescript": "7.0.2",
+    "vite-plus": "catalog:",
     "wrangler": "4.137.0"
   },
   "packageManager": "pnpm@12.6.0"

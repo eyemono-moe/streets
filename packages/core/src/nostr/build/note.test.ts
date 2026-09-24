@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../event";
 import { encodeBech32 } from "../nip19";
 import { buildNote, buildQuote, buildReply } from "./note";

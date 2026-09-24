@@ -16,7 +16,6 @@ import { useEmojiLookup } from "../emoji/custom-emojis";
 import { useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import Avatar from "./Avatar";
-import Event from "./Event";
 import {
   ComposeAttachments,
   ComposePreviewMedia,
@@ -24,6 +23,7 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import Event from "./Event";
 import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
 /** 打つたびに作り直さないよう、少し止まってからプレビューへ渡す。 */

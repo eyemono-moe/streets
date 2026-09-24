@@ -5,8 +5,8 @@ import type { RelayUsage } from "@streets/core/settings/relay-edit";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { RelayMediator } from "../settings/RelayMediator";
-import { EventSceneProvider } from "../storybook/EventScene";
 import avatar from "../storybook/avatar-fixture.svg";
+import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import {
   AuthorRelaysDialogView,

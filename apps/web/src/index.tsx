@@ -26,6 +26,6 @@ render(
       </Router>
     </QueryClientProvider>
   ),
-  // biome-ignore lint/style/noNonNullAssertion: div#root in index.html
+  // div#root in index.html
   document.getElementById("root")!,
 );

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadColumnDigits, saveColumnDigits } from "./column-digits-setting";
 
 describe("数字キーでカラムを見せる設定", () => {

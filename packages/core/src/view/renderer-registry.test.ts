@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { type EventRenderer, rendererFor } from "./renderer-registry";
 
 /** full/compact の中身はこのテストの関心事ではない。identity の比較にだけ使う。 */

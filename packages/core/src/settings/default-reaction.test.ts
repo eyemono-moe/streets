@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { loadDefaultReaction, saveDefaultReaction } from "./default-reaction";
 
 describe("いいねボタンで送るリアクション", () => {
@@ -24,6 +24,8 @@ describe("いいねボタンで送るリアクション", () => {
     });
     expect(
       loadDefaultReaction('{"type":"emoji","shortcode":"wave","url":"x"}'),
-    ).toEqual({ type: "like" });
+    ).toEqual({
+      type: "like",
+    });
   });
 });

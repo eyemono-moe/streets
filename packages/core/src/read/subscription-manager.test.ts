@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type {
@@ -2103,7 +2103,9 @@ describe("fetchOnce", () => {
     const wanted = signed(1);
     const pending = manager.fetchOnce(
       [{ kinds: [1], authors: [wanted.pubkey] }],
-      { relays: ["wss://a/"] },
+      {
+        relays: ["wss://a/"],
+      },
     );
 
     relays.get("wss://a/")?.emitEvent(0, wanted);
@@ -2119,7 +2121,9 @@ describe("fetchOnce", () => {
     const intruder = signed(2);
     const pending = manager.fetchOnce(
       [{ kinds: [1], authors: [wanted.pubkey] }],
-      { relays: ["wss://a/"] },
+      {
+        relays: ["wss://a/"],
+      },
     );
 
     relays.get("wss://a/")?.emitEvent(0, intruder);

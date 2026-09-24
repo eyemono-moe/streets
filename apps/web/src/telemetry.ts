@@ -15,7 +15,7 @@ export const startTelemetry = async () => {
   if (!dsn || import.meta.env.DEV) return;
   if (!errorReport()) {
     // 設定で止めているときは送らない。読み込み済みなら、そこで閉じる。
-    sentry?.close();
+    void sentry?.close();
     sentry = undefined;
     return;
   }

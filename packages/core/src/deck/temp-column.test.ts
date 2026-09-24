@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { encodeBech32 } from "../nostr/nip19";
 import { TEMP_COLUMN_ID, tempColumnFor } from "./temp-column";
 

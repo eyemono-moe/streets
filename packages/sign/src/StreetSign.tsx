@@ -27,7 +27,7 @@ export const StreetSign: Component<AvatarProps> = (props) => {
   const [localProps, restProps] = splitProps(props, ["name", "size", "title"]);
 
   return (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: show when title is provided
+    // show when title is provided
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox={`0 0 ${SIZE} ${SIZE}`}

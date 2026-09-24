@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import {
   DEFAULT_BLOSSOM_SERVERS,
@@ -147,7 +147,7 @@ describe("uploadBlob", () => {
 
     expect(seen.url).toBe("https://a.example/upload");
     expect(seen.init?.method).toBe("PUT");
-    const authorization = (seen.init?.headers as Record<string, string>)
+    const authorization = ((seen.init?.headers ?? {}) as Record<string, string>)
       .authorization;
     expect(authorization.startsWith("Nostr ")).toBe(true);
     // ASCII だけの base64 で送る。日本語をそのまま入れると読み違えるアップロード先がある。

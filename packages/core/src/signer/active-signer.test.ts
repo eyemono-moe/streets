@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { createActiveSigner } from "./active-signer";
 import type { Signer } from "./signer";
 import { SignerUnavailableError } from "./signer";

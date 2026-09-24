@@ -9,8 +9,8 @@ import { useIsWide } from "../is-wide";
 import { ReadLayerProvider } from "../read-layer";
 import type { Session } from "../session";
 import { Mediates } from "../ui-events";
-import WelcomeView from "./WelcomeView";
 import { WELCOME_RELAYS as RELAYS } from "./welcome-relays";
+import WelcomeView from "./WelcomeView";
 
 const COLUMN = welcomeColumn(RELAYS);
 

@@ -7,8 +7,8 @@ import {
 } from "solid-js";
 import Button from "../ui/Button";
 import type { EventSize } from "./Event";
-import LinkCardView from "./LinkCardView";
 import type { LinkCard } from "./link-card";
+import LinkCardView from "./LinkCardView";
 
 /**
  * YouTube。押すまではサムネイル（i.ytimg.com の画像）だけを出し、Google の

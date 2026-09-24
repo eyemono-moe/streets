@@ -1,7 +1,7 @@
 import { type Component, Show, createMemo } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { EventSceneProvider } from "../storybook/EventScene";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import { EventSceneProvider } from "../storybook/EventScene";
 // 小さい SVG は data URI に埋め込まれ、本文の URL として拾われなくなるので、ファイルのまま配信させる。
 import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
 import panoramaUrl from "../storybook/media-panorama.svg?no-inline";

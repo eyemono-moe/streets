@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { columnFacets } from "./column-facets";
 import type { ColumnDef, ColumnSource } from "./deck";
 
