@@ -18,10 +18,14 @@ export const DialogRoot: ParentComponent<{
 
 export const DialogPortal: ParentComponent<{
   class?: string;
+  /** 背景の色。既定は、後ろの画面が透けて見える薄い暗さ。 */
+  backdropClass?: string;
   classList?: Record<string, boolean | undefined>;
 }> = (props) => (
   <Portal>
-    <ArkDialog.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+    <ArkDialog.Backdrop
+      class={`motion-fade fixed inset-0 ${props.backdropClass ?? "bg-ui-950/40"}`}
+    />
     <ArkDialog.Positioner
       class={`fixed inset-0 grid place-items-center ${props.class ?? "p-4"}`}
       classList={props.classList}

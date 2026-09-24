@@ -6,13 +6,15 @@ import { type JSX, type ParentComponent, splitProps } from "solid-js";
  * - `danger`：取り消せない、または失うものがある操作（削除・ログアウト・フォロー解除）
  * - `muted`：送っている途中など、押せないことを見せたいとき
  * - `ghost`：枠も背景も要らない小さな操作（閉じる・メニュー）
+ * - `overlay`：画像の拡大表示のように、暗い背景や写真の上に重ねて置く操作
  */
 export type ButtonVariant =
   | "primary"
   | "secondary"
   | "danger"
   | "muted"
-  | "ghost";
+  | "ghost"
+  | "overlay";
 export type ButtonSize = "sm" | "md";
 
 const VARIANT: Record<ButtonVariant, string> = {
@@ -23,6 +25,7 @@ const VARIANT: Record<ButtonVariant, string> = {
     "border border-primary bg-primary c-danger enabled:hover:bg-secondary",
   muted: "bg-secondary c-secondary",
   ghost: "bg-transparent c-secondary enabled:hover:bg-secondary",
+  overlay: "bg-ui-950/60 c-white enabled:hover:bg-ui-950/80",
 };
 
 const SIZE: Record<ButtonSize, string> = {

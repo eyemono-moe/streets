@@ -1,5 +1,6 @@
 import { For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
 import Button, {
   ButtonLink,
   type ButtonProps,
@@ -12,6 +13,7 @@ const VARIANTS: ButtonVariant[] = [
   "danger",
   "muted",
   "ghost",
+  "overlay",
 ];
 
 const meta = {
@@ -107,6 +109,30 @@ export const 一覧: Story = {
           とても長いラベルのボタンが狭い場所に置かれたとき
         </Button>
       </div>
+    </div>
+  ),
+};
+
+/** overlay は写真や暗い背景の上に重ねて使う。 */
+export const 写真の上: Story = {
+  render: () => (
+    <div
+      class="flex items-center gap-2 bg-center bg-cover p-6"
+      style={{ "background-image": `url(${landscapeUrl})` }}
+    >
+      <Button
+        variant="overlay"
+        icon="i-material-symbols:close-rounded"
+        aria-label="閉じる"
+      />
+      <Button variant="overlay" icon="i-material-symbols:open-in-new-rounded">
+        元の画像を開く
+      </Button>
+      <Button
+        variant="overlay"
+        icon="i-material-symbols:chevron-left-rounded"
+        aria-label="前へ"
+      />
     </div>
   ),
 };

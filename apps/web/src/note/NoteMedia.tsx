@@ -83,9 +83,14 @@ const MediaFrame: Component<{
   );
 };
 
-const MediaImage: Component<{ media: NoteMedia; size: EventSize }> = (
-  props,
-) => {
+type MediaViewProps = {
+  media: NoteMedia;
+  size: EventSize;
+  /** 画像を押したとき。無ければ、画像の URL を新しいタブで開く。 */
+  onOpen?: () => void;
+};
+
+const MediaImage: Component<MediaViewProps> = (props) => {
   const [broken, setBroken] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [actual, setActual] = createSignal<Dimensions>();
@@ -96,6 +101,20 @@ const MediaImage: Component<{ media: NoteMedia; size: EventSize }> = (
         target="_blank"
         rel="noopener noreferrer"
         class="block max-w-full"
+        onClick={(event) => {
+          // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
+          if (
+            !props.onOpen ||
+            event.button !== 0 ||
+            event.ctrlKey ||
+            event.metaKey ||
+            event.shiftKey ||
+            event.altKey
+          )
+            return;
+          event.preventDefault();
+          props.onOpen();
+        }}
       >
         <MediaFrame
           media={props.media}
@@ -170,14 +189,12 @@ const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
   );
 };
 
-const NoteMediaView: Component<{ media: NoteMedia; size: EventSize }> = (
-  props,
-) => (
+const NoteMediaView: Component<MediaViewProps> = (props) => (
   <Show
     when={props.media.type === "image"}
     fallback={<MediaVideo media={props.media} size={props.size} />}
   >
-    <MediaImage media={props.media} size={props.size} />
+    <MediaImage media={props.media} size={props.size} onOpen={props.onOpen} />
   </Show>
 );
 
