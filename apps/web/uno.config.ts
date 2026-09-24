@@ -80,6 +80,11 @@ export default defineConfig({
   content: {
     pipeline: {
       include: [/\.([jt]sx?|mdx?|html)($|\?)/],
+      // 依存の圧縮済みのコード（`m$1(n,l)` など）をクラス名と読み違え、壊れた CSS を作る。
+      exclude: [
+        /[\\/]node_modules[\\/]/,
+        /\.(css|postcss|sass|scss|less|styl)($|\?)/,
+      ],
     },
   },
   presets: [
