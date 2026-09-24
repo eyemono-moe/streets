@@ -6,6 +6,8 @@ import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { StaticCustomEmojis } from "../emoji/custom-emojis";
+import { EventSceneProvider } from "../storybook/EventScene";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
 import { MuteMediator } from "./MuteMediator";
@@ -94,104 +96,118 @@ const Story = (props: Props) => {
   });
   applyColors(props.appearance);
   return (
-    <ProfileMediator
-      writer={{
-        replace: async (_kind, _identifier, mutation) => {
-          const draft = await mutation(profile());
-          const next = { ...relayList([]), kind: 0, content: draft.content };
-          setProfile(next);
-          return { event: next } as never;
-        },
-      }}
-      pubkey={STORY_VIEWER}
-      profile={profile}
-    >
-      <MuteMediator
-        writer={{
-          replace: async (_kind, _identifier, mutation) => {
-            const draft = await mutation(mutes());
-            const next = muteListEvent(draft.tags, draft.content);
-            setMutes(next);
-            return { event: next } as never;
-          },
-        }}
-        signer={storySigner}
-        viewer={STORY_VIEWER}
-        muteList={mutes}
-        settled={() => true}
+    // 「絵文字セットを探す」が読み取り層を引く。リレーには繋がず、何も見つからない。
+    // 自分の絵文字は固定の一覧で渡す（アプリでは CustomEmojisMediator が持つ）。
+    <EventSceneProvider scene={{ events: [] }}>
+      <StaticCustomEmojis
+        emojis={[
+          { shortcode: "neko", url: "https://example.invalid/neko.png" },
+        ]}
       >
-        <RelayMediator
+        <ProfileMediator
           writer={{
             replace: async (_kind, _identifier, mutation) => {
-              const draft = await mutation(relays());
-              const next = relayList(draft.tags);
-              setRelays(next);
+              const draft = await mutation(profile());
+              const next = {
+                ...relayList([]),
+                kind: 0,
+                content: draft.content,
+              };
+              setProfile(next);
               return { event: next } as never;
             },
           }}
-          relayList={relays}
-          settled={() => true}
-          statusOf={(url: RelayUrl) =>
-            url === "wss://yabu.me/" ? "failing" : "in-use"
-          }
-          infoOf={(url: RelayUrl) =>
-            url === "wss://yabu.me/"
-              ? { name: "yabu.me", description: "日本のリレーです。" }
-              : undefined
-          }
+          pubkey={STORY_VIEWER}
+          profile={profile}
         >
-          <Mediates
-            handle={(event) => {
-              switch (event.type) {
-                case "deck/set-color-scheme":
-                  setScheme(event.scheme);
-                  return false;
-                case "deck/preview-appearance":
-                  applyColors(event.appearance);
-                  return true;
-                case "deck/set-write-progress":
-                  setWriteProgress(event.on);
-                  return true;
-                case "deck/set-error-report":
-                  setErrorReport(event.on);
-                  return true;
-                case "deck/set-column-digits":
-                  setColumnDigits(event.on);
-                  return true;
-                case "deck/set-default-reaction":
-                  setDefaultReaction(event.input);
-                  return true;
-                case "deck/set-shortcut":
-                  setKeymap((current) => ({
-                    ...current,
-                    [event.action]: event.hotkey,
-                  }));
-                  return true;
-                case "deck/set-appearance":
-                  applyColors(event.appearance);
-                  setAppearance(event.appearance);
-                  return true;
-                default:
-                  return false;
-              }
+          <MuteMediator
+            writer={{
+              replace: async (_kind, _identifier, mutation) => {
+                const draft = await mutation(mutes());
+                const next = muteListEvent(draft.tags, draft.content);
+                setMutes(next);
+                return { event: next } as never;
+              },
             }}
+            signer={storySigner}
+            viewer={STORY_VIEWER}
+            muteList={mutes}
+            settled={() => true}
           >
-            <SettingsDialog
-              open
-              wide={props.wide}
-              scheme={scheme()}
-              appearance={appearance()}
-              writeProgress={writeProgress()}
-              errorReport={errorReport()}
-              keymap={keymap()}
-              columnDigits={columnDigits()}
-              defaultReaction={defaultReaction()}
-              initialPage={props.page}
-            />
-          </Mediates>
-        </RelayMediator>
-      </MuteMediator>
-    </ProfileMediator>
+            <RelayMediator
+              writer={{
+                replace: async (_kind, _identifier, mutation) => {
+                  const draft = await mutation(relays());
+                  const next = relayList(draft.tags);
+                  setRelays(next);
+                  return { event: next } as never;
+                },
+              }}
+              relayList={relays}
+              settled={() => true}
+              statusOf={(url: RelayUrl) =>
+                url === "wss://yabu.me/" ? "failing" : "in-use"
+              }
+              infoOf={(url: RelayUrl) =>
+                url === "wss://yabu.me/"
+                  ? { name: "yabu.me", description: "日本のリレーです。" }
+                  : undefined
+              }
+            >
+              <Mediates
+                handle={(event) => {
+                  switch (event.type) {
+                    case "deck/set-color-scheme":
+                      setScheme(event.scheme);
+                      return false;
+                    case "deck/preview-appearance":
+                      applyColors(event.appearance);
+                      return true;
+                    case "deck/set-write-progress":
+                      setWriteProgress(event.on);
+                      return true;
+                    case "deck/set-error-report":
+                      setErrorReport(event.on);
+                      return true;
+                    case "deck/set-column-digits":
+                      setColumnDigits(event.on);
+                      return true;
+                    case "deck/set-default-reaction":
+                      setDefaultReaction(event.input);
+                      return true;
+                    case "deck/set-shortcut":
+                      setKeymap((current) => ({
+                        ...current,
+                        [event.action]: event.hotkey,
+                      }));
+                      return true;
+                    case "deck/set-appearance":
+                      applyColors(event.appearance);
+                      setAppearance(event.appearance);
+                      return true;
+                    default:
+                      return false;
+                  }
+                }}
+              >
+                <SettingsDialog
+                  open
+                  wide={props.wide}
+                  scheme={scheme()}
+                  appearance={appearance()}
+                  writeProgress={writeProgress()}
+                  errorReport={errorReport()}
+                  keymap={keymap()}
+                  columnDigits={columnDigits()}
+                  defaultReaction={defaultReaction()}
+                  initialPage={props.page}
+                />
+              </Mediates>
+            </RelayMediator>
+          </MuteMediator>
+        </ProfileMediator>
+      </StaticCustomEmojis>
+    </EventSceneProvider>
   );
 };
 

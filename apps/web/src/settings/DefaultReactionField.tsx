@@ -9,6 +9,7 @@ import { rememberEmoji } from "../emoji/recent-emoji";
 import ReactionButtonMark from "../note/ReactionButtonMark";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import PopoverTrigger from "../ui/PopoverTrigger";
 
 const nameOf = (input: ReactionInput): string =>
   input.type === "like"
@@ -37,7 +38,7 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
         unmountOnExit
         positioning={{ placement: "bottom-start" }}
       >
-        <Popover.Trigger
+        <PopoverTrigger
           asChild={(triggerProps) => (
             <Button {...triggerProps()} variant="secondary" size="sm">
               絵文字を選ぶ

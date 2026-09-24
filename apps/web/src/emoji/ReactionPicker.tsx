@@ -4,6 +4,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Component, JSX } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
+import PopoverTrigger from "../ui/PopoverTrigger";
 import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
 import { EmojiPicker } from "./lazy-emoji-picker";
@@ -40,7 +41,7 @@ const ReactionPicker: Component<{
       unmountOnExit
       positioning={{ placement: "bottom-start" }}
     >
-      <Popover.Trigger asChild={props.trigger} />
+      <PopoverTrigger asChild={props.trigger} />
       <Portal>
         <Popover.Positioner>
           <Popover.Content class="motion-pop outline-none">

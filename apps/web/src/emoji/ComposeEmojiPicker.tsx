@@ -1,6 +1,7 @@
 import { Popover } from "@ark-ui/solid/popover";
 import { type Component, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
+import PopoverTrigger from "../ui/PopoverTrigger";
 import { useEmojiGroups } from "./custom-emojis";
 import { type PickerEmoji, loadUnicodeEmojis } from "./emoji-data";
 import { EmojiPicker } from "./lazy-emoji-picker";
@@ -26,27 +27,17 @@ const ComposeEmojiPicker: Component<{
       finalFocusEl={() => props.field() ?? null}
       positioning={{ placement: "top-start" }}
     >
-      <Popover.Context>
-        {(api) => (
-          <Popover.Trigger
-            type="button"
-            aria-label="絵文字を挿入"
-            // Ark UI の Trigger は開いている間 aria-controls="false" を出す。返信・引用の
-            // ダイアログのフォーカストラップは aria-controls でポップオーバーを自分の一部と
-            // 見なすので、正しい値が無いと検索欄へのフォーカスを奪い返してしまう。
-            aria-controls={
-              api().open ? api().getTriggerProps()["aria-controls"] : undefined
-            }
-            disabled={props.disabled}
-            class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-secondary disabled:opacity-50"
-          >
-            <span
-              class="i-material-symbols:add-reaction-outline-rounded size-5"
-              aria-hidden="true"
-            />
-          </Popover.Trigger>
-        )}
-      </Popover.Context>
+      <PopoverTrigger
+        type="button"
+        aria-label="絵文字を挿入"
+        disabled={props.disabled}
+        class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-secondary disabled:opacity-50"
+      >
+        <span
+          class="i-material-symbols:add-reaction-outline-rounded size-5"
+          aria-hidden="true"
+        />
+      </PopoverTrigger>
       <Portal>
         <Popover.Positioner>
           <Popover.Content class="motion-pop outline-none">
