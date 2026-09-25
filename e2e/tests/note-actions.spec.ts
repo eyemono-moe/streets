@@ -1,16 +1,13 @@
 import { column } from "../src/deck";
 import { expect, test } from "../src/fixtures";
 import { waitForEvent } from "../src/relay";
-import { createUser } from "../src/users";
+import { type User, createUser } from "../src/users";
 
 /**
  * 相手の投稿をホームに出す。フォロー（kind:3）はアプリを開く前に届けておく
  * —— 開いた後に届くと、購読がフォロー一覧を読み直すまで画面に出ない。
  */
-const setUpAliceNote = async (
-  me: Awaited<ReturnType<typeof createUser>>,
-  content: string,
-) => {
+const setUpAliceNote = async (me: User, content: string) => {
   const alice = await createUser("alice");
   const note = await alice.post({ kind: 1, content });
   await me.post({ kind: 3, tags: [["p", alice.pubkey]] });
