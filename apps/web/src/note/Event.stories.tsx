@@ -52,6 +52,8 @@ const longUrls = alice.note(
     "長いリンク https://example.com/articles/2026/09/streets-multi-column-client?utm_source=nostr&utm_medium=social#comments を含む本文。",
     "ホストが長いリンク https://a-very-long-subdomain.of-some-long-host.example.co.jp/path/to/the/page/index.html",
     "短いリンク https://example.com/short",
+    "符号化された日本語 https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%AB%E3%83%81%E3%82%AB%E3%83%A9%E3%83%A0%E3%83%BB%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88",
+    "日本語のフラグメント https://example.com/guide#はじめに 。",
   ].join("\n"),
 );
 const hashtagInNarrowColumn = bob.note(
