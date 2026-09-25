@@ -34,7 +34,7 @@ jobs:
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
       - name: ブラウザを入れる
         working-directory: e2e
-        run: vp exec playwright install --with-deps chromium
+        run: vp exec playwright install --with-deps --only-shell chromium
       - name: E2E
         run: vp run e2e
       - name: 失敗したときの記録
