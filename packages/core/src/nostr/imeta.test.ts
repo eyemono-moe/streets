@@ -32,4 +32,22 @@ describe("inlineMediaMetadata", () => {
     expect(result.get("https://example.com/c")?.dimensions).toBeUndefined();
     expect(result.size).toBe(3);
   });
+
+  it("MIME の形でない m を捨て、小数点以下が 0 の寸法は読む", () => {
+    const result = inlineMediaMetadata([
+      [
+        "imeta",
+        "url https://blossom.primal.net/a.jpg",
+        "m jpeg",
+        "dim 4284.0x5712.0",
+      ],
+      ["imeta", "url https://example.com/b", "dim 400.5x300"],
+    ]);
+    expect(result.get("https://blossom.primal.net/a.jpg")).toEqual({
+      mime: undefined,
+      dimensions: { width: 4284, height: 5712 },
+      blurhash: undefined,
+    });
+    expect(result.get("https://example.com/b")?.dimensions).toBeUndefined();
+  });
 });
