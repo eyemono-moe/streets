@@ -3,6 +3,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { BrowserContext } from "@playwright/test";
+import {
+  conversationKey,
+  decryptNip44,
+  encryptNip44,
+} from "@streets/core/signer/nip46/nip44";
 import { RELAY_URL } from "./env";
 import type { Template, User } from "./users";
 
@@ -35,16 +40,44 @@ export const installNip07 = async (
       }
     },
   );
+  // NIP-78（デッキの同期など）は NIP-44 で暗号化する。対応した拡張機能を模すため、
+  // ここでも同じ NIP-44 の実装（core の NIP-46 client key と共用）で応じる。
+  await context.exposeFunction(
+    "__e2eNip07Nip44",
+    async (op: "encrypt" | "decrypt", peerPubkey: string, text: string) => {
+      const current = user();
+      if (!current) throw new Error("拡張機能に鍵がありません");
+      const key = conversationKey(current.secretKey, peerPubkey);
+      return op === "encrypt"
+        ? encryptNip44(text, key)
+        : decryptNip44(text, key);
+    },
+  );
   await context.addInitScript(() => {
     const call = (
       window as unknown as {
         __e2eNip07: (method: string, arg?: unknown) => Promise<unknown>;
       }
     ).__e2eNip07;
+    const nip44 = (
+      window as unknown as {
+        __e2eNip07Nip44: (
+          op: "encrypt" | "decrypt",
+          peerPubkey: string,
+          text: string,
+        ) => Promise<string>;
+      }
+    ).__e2eNip07Nip44;
     Object.assign(window, {
       nostr: {
         getPublicKey: () => call("getPublicKey"),
         signEvent: (template: unknown) => call("signEvent", template),
+        nip44: {
+          encrypt: (peerPubkey: string, plaintext: string) =>
+            nip44("encrypt", peerPubkey, plaintext),
+          decrypt: (peerPubkey: string, ciphertext: string) =>
+            nip44("decrypt", peerPubkey, ciphertext),
+        },
       },
     });
   });
