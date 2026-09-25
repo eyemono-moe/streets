@@ -8,7 +8,8 @@ export type InlineMediaMetadata = {
 };
 
 const parseDimensions = (value: string): MediaDimensions | undefined => {
-  const match = /^([1-9][0-9]*)x([1-9][0-9]*)$/.exec(value);
+  // 小数点以下が 0 の書き方（`4284.0x5712.0`）で送るクライアントがある。
+  const match = /^([1-9][0-9]*)(?:\.0+)?x([1-9][0-9]*)(?:\.0+)?$/.exec(value);
   if (!match) return undefined;
   const width = Number(match[1]);
   const height = Number(match[2]);
@@ -23,6 +24,13 @@ const parseDimensions = (value: string): MediaDimensions | undefined => {
   }
   return { width, height };
 };
+
+/**
+ * `type/subtype` の形をしていない `m`（`jpeg` など）は捨てる。残すと拡張子より
+ * 優先されて、画像の URL がリンクに落ちる。
+ */
+const parseMime = (value: string | undefined): string | undefined =>
+  value && /^[^\s/]+\/[^\s/]+$/.test(value) ? value : undefined;
 
 /** `imeta` の項目を URL で引ける形にする。同じ URL は最初のタグを使う。 */
 export const inlineMediaMetadata = (
@@ -41,7 +49,7 @@ export const inlineMediaMetadata = (
     const url = fields.get("url");
     if (!url || result.has(url)) continue;
     result.set(url, {
-      mime: fields.get("m") || undefined,
+      mime: parseMime(fields.get("m")),
       dimensions: parseDimensions(fields.get("dim") ?? ""),
       blurhash: fields.get("blurhash") || undefined,
     });

@@ -14,6 +14,7 @@ import emojiUrl from "../storybook/emoji-fixture.svg";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
+import portraitUrl from "../storybook/media-portrait.svg";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import SegmentedControl from "../ui/SegmentedControl";
 import Event, { type EventSize } from "./Event";
@@ -127,6 +128,12 @@ const noPictureProfile = noPictureAuthor.profile();
 const videoUrl = new URL(clipUrl, location.href).href;
 const withVideo = alice.note(`動画を添えました。\n${videoUrl}`, [
   ["imeta", `url ${videoUrl}`, "m video/mp4", "dim 320x180"],
+]);
+// Primal は `m` に MIME でなく拡張子を、`dim` に小数を書く。
+const primalImageUrl = new URL(portraitUrl, location.href).href;
+const withLooseImeta = alice.note(`写真です。\n${primalImageUrl}`, [
+  ["imeta", `url ${primalImageUrl}`, "m jpeg", "dim 900.0x1600.0"],
+  ["client", "Primal iOS"],
 ]);
 
 const missingTarget = bob.note("このイベントはシーンに入れない");
@@ -301,6 +308,10 @@ export const 動画_コンパクト: Story = {
 
 export const 動画の展開を切る: Story = {
   args: { event: withVideo, scene: scene(withVideo), expandMedia: false },
+};
+
+export const 画像_imetaのMIMEが崩れている: Story = {
+  args: { event: withLooseImeta, scene: scene(withLooseImeta) },
 };
 
 export const 返信: Story = { args: { event: reply, scene: scene(reply) } };
