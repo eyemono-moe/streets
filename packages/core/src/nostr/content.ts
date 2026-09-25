@@ -219,6 +219,16 @@ const IMAGE_EXTENSIONS = new Set([
   "svg",
 ]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v"]);
+const AUDIO_EXTENSIONS = new Set([
+  "mp3",
+  "m4a",
+  "aac",
+  "ogg",
+  "oga",
+  "opus",
+  "wav",
+  "flac",
+]);
 
 const urlExtension = (url: string): string | undefined => {
   const withoutQueryOrFragment = url.split(/[?#]/)[0] ?? url;
@@ -235,4 +245,10 @@ export const isProbablyImageUrl = (url: string): boolean => {
 export const isProbablyVideoUrl = (url: string): boolean => {
   const ext = urlExtension(url);
   return ext !== undefined && VIDEO_EXTENSIONS.has(ext);
+};
+
+/** 拡張子だけを見る。再生できるかどうかはブラウザに委ねる。 */
+export const isProbablyAudioUrl = (url: string): boolean => {
+  const ext = urlExtension(url);
+  return ext !== undefined && AUDIO_EXTENSIONS.has(ext);
 };

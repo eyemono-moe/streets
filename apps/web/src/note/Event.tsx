@@ -34,7 +34,7 @@ import Avatar from "./Avatar";
 import EventMenu from "./EventMenu";
 import LinkCards from "./LinkCards";
 import MediaViewer from "./MediaViewer";
-import NoteMediaView from "./NoteMedia";
+import NoteMediaView, { NoteAudio } from "./NoteMedia";
 import NoteText from "./NoteText";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
@@ -334,6 +334,25 @@ const Note: Component<ContentProps> = (props) => {
               size={props.size}
               onOpen={() => setViewing(index())}
             />
+          </Show>
+        )}
+      </For>
+      <For each={layout().audio}>
+        {(url) => (
+          <Show
+            when={props.expandMedia !== false}
+            fallback={
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="break-all text-caption text-link"
+              >
+                {url}
+              </a>
+            }
+          >
+            <NoteAudio url={url} />
           </Show>
         )}
       </For>

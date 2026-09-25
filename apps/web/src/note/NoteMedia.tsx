@@ -190,6 +190,23 @@ const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
   );
 };
 
+/** 音声には絵が無いので、枠を取らずにブラウザの再生バーを本文の幅で置く。 */
+export const NoteAudio: Component<{ url: string }> = (props) => {
+  const [broken, setBroken] = createSignal(false);
+  return (
+    <Show when={!broken()} fallback={<MediaLink url={props.url} />}>
+      {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
+      <audio
+        src={props.url}
+        controls
+        preload="metadata"
+        class="block h-10 w-full max-w-120"
+        onError={() => setBroken(true)}
+      />
+    </Show>
+  );
+};
+
 const NoteMediaView: Component<MediaViewProps> = (props) => (
   <Show
     when={props.media.type === "image"}
