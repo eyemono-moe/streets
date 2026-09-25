@@ -12,7 +12,7 @@ import { type ColumnSource, NOTIFICATION_KINDS, TIMELINE_KINDS } from "./deck";
 export type ResolveContext = {
   followees: () => readonly string[];
   /**
-   * 現在の閲覧者 (`notifications` の `#p` になる)。`followees` と違い
+   * 現在の閲覧者 (`notifications` の `#p`、ホームの `authors` に入る)。`followees` と違い
    * ログイン中は固定値なので、遅延アクセサにせずどの分岐で読んでもよい。
    */
   viewer: string;
@@ -44,9 +44,16 @@ export const resolveSource = (
     // フォロー 0 人でも `authors` を落とさない —— `{ kinds: [1] }` は
     // NIP-01 では「誰の投稿でもよい」であり、本物のリレーへの無制限購読に
     // なる。空配列は「該当者なし」であって「無制限」ではない。
+    // 自分をフォローしていなくても自分の投稿はホームに出す。フォロー一覧
+    // （kind:3）には書き足さず、読むときだけ足す。
     return {
       type: "nostr",
-      filters: [{ kinds: source.kinds, authors: [...context.followees()] }],
+      filters: [
+        {
+          kinds: source.kinds,
+          authors: [...new Set([...context.followees(), context.viewer])],
+        },
+      ],
     };
   }
 

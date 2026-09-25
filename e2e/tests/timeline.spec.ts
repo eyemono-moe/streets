@@ -1,4 +1,3 @@
-import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { column } from "../src/deck";
 import { expect, test } from "../src/fixtures";
 import { waitForEvent } from "../src/relay";
@@ -87,8 +86,8 @@ test("自分へのリアクションが通知に出る", async ({
   ).toBeVisible();
 });
 
-/** 今の画面には自分の投稿だけを見る入口が無いので、`from:` の検索で探す。 */
-test("自分の投稿が画面に出る", async ({ page, me, openApp, signIn }) => {
+/** 自分をフォローしていなくても、自分の投稿はホームに出る。 */
+test("自分の投稿がホームに出る", async ({ page, me, openApp, signIn }) => {
   await openApp();
   await signIn();
 
@@ -101,12 +100,7 @@ test("自分の投稿が画面に出る", async ({ page, me, openApp, signIn }) 
     (event) => event.content === text,
   );
 
-  const npub = encodeBech32("npub", me.pubkey);
-  await page.getByRole("button", { name: "検索パネルを開く" }).click();
-  await page.getByRole("textbox", { name: "検索クエリ" }).fill(`from:${npub}`);
-  await page.getByRole("button", { name: "この条件でカラムを開く" }).click();
-
   await expect(
-    column(page, `from:${npub}`).getByRole("article").filter({ hasText: text }),
+    column(page, "ホーム").getByRole("article").filter({ hasText: text }),
   ).toBeVisible();
 });
