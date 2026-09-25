@@ -1,12 +1,25 @@
 import { createVirtualizer } from "@tanstack/solid-virtual";
 import {
+  type Accessor,
   For,
   type JSX,
+  createContext,
   createEffect,
   createMemo,
+  createSignal,
   onCleanup,
   onMount,
+  useContext,
 } from "solid-js";
+
+const ScrollContainerContext =
+  createContext<Accessor<HTMLElement | undefined>>();
+
+/**
+ * 一覧を包むスクロール領域を、一覧が描かれる前から教える。一覧は作られる途中で
+ * 今の位置を読むが、その時点では自分の要素がまだ無く、領域を辿れない。
+ */
+export const ScrollContainerProvider = ScrollContainerContext.Provider;
 
 export type VirtualListProps<T> = {
   items: readonly T[];
@@ -25,12 +38,36 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   let root: HTMLDivElement | undefined;
   let followsStart = true;
   let firstKey: string | undefined;
+  const container = useContext(ScrollContainerContext);
+  /**
+   * 置かれるまで行を 0 件と見せる。置かれる前は一覧の位置（scrollMargin）を
+   * 測れず 0 になり、その値で並べた行の高さの補正が、スクロール位置を
+   * 実際とずれた向きへ動かす。
+   */
+  const [mounted, setMounted] = createSignal(false);
+  /**
+   * 一覧より上にあるもの（プロフィールなど）の高さ。TanStack は options を
+   * 渡された時点の値で写し取るので、DOM を読む getter では古い値が残る。測って
+   * signal に入れ、変わったら options を渡し直させる。
+   */
+  const [margin, setMargin] = createSignal(0);
+  const measureMargin = () => {
+    const scroller = scrollElement();
+    if (!root || !scroller) return;
+    setMargin(
+      root.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top +
+        scroller.scrollTop,
+    );
+  };
   const scrollElement = () =>
-    (root?.closest("[data-scroll-container]") as HTMLDivElement | null) ??
-    (root?.parentElement as HTMLDivElement | null);
-  const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
+    (root?.closest("[data-scroll-container]") as HTMLElement | null) ??
+    container?.() ??
+    root?.parentElement ??
+    null;
+  const virtualizer = createVirtualizer<HTMLElement, HTMLDivElement>({
     get count() {
-      return props.items.length;
+      return mounted() ? props.items.length : 0;
     },
     getScrollElement: scrollElement,
     estimateSize: () => props.estimateSize ?? 180,
@@ -39,22 +76,31 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
       return item === undefined ? index : props.itemKey(item);
     },
     get scrollMargin() {
-      const scroller = scrollElement();
-      if (!root || !scroller) return 0;
-      return (
-        root.getBoundingClientRect().top -
-        scroller.getBoundingClientRect().top +
-        scroller.scrollTop
-      );
+      return margin();
     },
+    // 付けた時点の位置から始める。既定の 0 だと、付けたとたんにスクロール領域を
+    // 先頭へ動かす —— 領域は一覧より上のもの（プロフィールなど）と共有なので、
+    // タブを切り替えるたびにカラムの先頭まで戻ってしまう。
+    initialOffset: () => scrollElement()?.scrollTop ?? 0,
     // 先頭への追加で既存の投稿が後ろへずれても、表示中の投稿を同じ位置に保つ。
     anchorTo: "end",
+    // 末尾に張り付く扱いを切る。`anchorTo: "end"` は末尾まで見えている一覧を
+    // 「末尾にいる」とみなし、行の高さが見積もりから縮むたびに末尾を保つよう
+    // スクロール位置を戻す。短い一覧の上にプロフィールがあると、そこまで引き戻される。
+    // 末尾は一番古い投稿なので、張り付く理由が無い。
+    scrollEndThreshold: -1,
     overscan: 5,
   });
 
   onMount(() => {
+    measureMargin();
+    setMounted(true);
     const scroller = scrollElement();
     if (!scroller) return;
+    // 上にあるものの高さが変わる（画像が読み込まれるなど）と、一覧の位置も変わる。
+    const resize = new ResizeObserver(measureMargin);
+    for (const child of scroller.children) resize.observe(child);
+    onCleanup(() => resize.disconnect());
     const updateFollowsStart = () => {
       followsStart = scroller.scrollTop <= 1;
     };

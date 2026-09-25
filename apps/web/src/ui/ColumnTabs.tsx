@@ -28,7 +28,12 @@ const ColumnTabs: Component<{
     lazyMount
     unmountOnExit
     class="isolate flex flex-col"
-    classList={{ "h-full min-h-0 flex-1": props.scroll !== "column" }}
+    classList={{
+      "h-full min-h-0 flex-1": props.scroll !== "column",
+      // 切り替えた直後は中身が短い（読み込み中）。カラムの高さぶんを保たないと、
+      // 縮んだ分だけブラウザが位置を詰め、タブの並びがプロフィールの下まで戻る。
+      "min-h-full": props.scroll === "column",
+    }}
   >
     <Tabs.List
       aria-label={props.label}
