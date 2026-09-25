@@ -61,11 +61,23 @@ const trimTrailingPunctuation = (raw: string): string => {
   return raw.slice(0, end);
 };
 
+/**
+ * ブラウザのアドレス欄からは、`#` の後ろ（ページ内の見出しなど）が符号化されない
+ * 日本語のままコピーされることがある。フラグメントに限り、空白か日本語の約物・括弧まで
+ * 読み進める。パスやクエリは ASCII のままで、区切りの無い後続文を飲み込む範囲をここに閉じる。
+ */
+const FRAGMENT_REST_RE = /[^\s、。，．「」『』【】《》〈〉（）［］！？]*/uy;
+
 const matchUrl = (content: string, i: number): Match | undefined => {
   URL_RE.lastIndex = i;
   const m = URL_RE.exec(content);
   if (!m) return undefined;
-  const url = trimTrailingPunctuation(m[0]);
+  let raw = m[0];
+  if (raw.includes("#")) {
+    FRAGMENT_REST_RE.lastIndex = i + raw.length;
+    raw += FRAGMENT_REST_RE.exec(content)?.[0] ?? "";
+  }
+  const url = trimTrailingPunctuation(raw);
   if (url.length === 0) return undefined;
   return { consumed: url.length, token: { type: "url", url } };
 };

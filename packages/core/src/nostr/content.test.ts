@@ -143,6 +143,29 @@ describe("parseContent: URL", () => {
     ] satisfies ContentToken[]);
   });
 
+  it("フラグメントの日本語を URL に含める", () => {
+    // 捕まえる変異: フラグメントも ASCII で止める（#見出し が URL から外れ、ハッシュタグのように見える）
+    const event = noteWith(
+      "見て https://example.com/page#概要-2 と https://example.com/#見出し。次の文",
+    );
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "text", text: "見て " },
+      { type: "url", url: "https://example.com/page#概要-2" },
+      { type: "text", text: " と " },
+      { type: "url", url: "https://example.com/#見出し" },
+      { type: "text", text: "。次の文" },
+    ] satisfies ContentToken[]);
+  });
+
+  it("フラグメントの無い URL は、続く日本語を含めない", () => {
+    // 捕まえる変異: フラグメントの有無を見ずに非 ASCII まで読み進める
+    const event = noteWith("https://example.com/docを見て");
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "url", url: "https://example.com/doc" },
+      { type: "text", text: "を見て" },
+    ] satisfies ContentToken[]);
+  });
+
   it(": を含む URL（ポート番号相当）が絵文字に割れない", () => {
     // 捕まえる変異: URL の文字集合が埋め込みの ':' を手放す。4 マッチャは開始
     // 文字 (h/n/:/#) で排他なので順序を変えても衝突せず、効くのは URL 切り出し
