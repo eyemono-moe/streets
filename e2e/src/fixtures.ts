@@ -123,7 +123,7 @@ export const test = base.extend<
         }
       }
       await expect(
-        page.getByRole("button", { name: "アカウント" }),
+        page.getByRole("button", { name: "アカウント", exact: true }),
       ).toBeVisible();
     });
   },
