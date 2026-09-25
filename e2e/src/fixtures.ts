@@ -125,7 +125,16 @@ export const test = base.extend<
             .getByRole("link", { name: "この端末の署名器で開く" })
             .getAttribute("href");
           if (!uri) throw new Error("nostrconnect:// が出ていません");
-          signerState.remotes.push(await answerNostrConnect(user, uri));
+          const remote = await answerNostrConnect(user, uri);
+          signerState.remotes.push(remote);
+          // 画面が URI を出してからリレーで待ち受けを始めるまでの間に応答すると、nak serve は
+          // 聞き手のいない一時イベントとして捨てる。ログインが済むまで送り直す。
+          await expect(async () => {
+            await remote.connect();
+            await expect(
+              page.getByRole("button", { name: "アカウント", exact: true }),
+            ).toBeVisible({ timeout: 2_000 });
+          }).toPass({ timeout: 20_000 });
         }
       }
       await expect(

@@ -145,7 +145,7 @@ export const startBunker = async (
 export const answerNostrConnect = async (
   user: User,
   uri: string,
-): Promise<RemoteSigner> => {
+): Promise<RemoteSigner & { connect(): Promise<void> }> => {
   const config = await mkdtemp(join(tmpdir(), "nak-"));
   const common = ["--config-path", config];
   const child = spawnNak([
@@ -168,17 +168,18 @@ export const answerNostrConnect = async (
     stop();
     throw error;
   }
-  const code = await new Promise<number | null>((resolve) =>
-    spawnNak([...common, "bunker", "connect", "--profile", PROFILE, uri]).on(
-      "exit",
-      resolve,
-    ),
-  );
-  if (code !== 0) {
-    stop();
-    throw new Error("nak の署名器が nostrconnect:// に繋げませんでした");
-  }
-  return { stop };
+  const connect = async () => {
+    const code = await new Promise<number | null>((resolve) =>
+      spawnNak([...common, "bunker", "connect", "--profile", PROFILE, uri]).on(
+        "exit",
+        resolve,
+      ),
+    );
+    if (code !== 0) {
+      throw new Error("nak の署名器が nostrconnect:// に繋げませんでした");
+    }
+  };
+  return { stop, connect };
 };
 
 const PROFILE = "e2e";
