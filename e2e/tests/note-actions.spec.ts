@@ -54,8 +54,9 @@ test("リポストできる", async ({ page, me, openApp, signIn }) => {
     .filter({ hasText: text });
   await article.getByRole("button", { name: "リポスト", exact: true }).click();
   await page.getByRole("menuitem", { name: "リポスト", exact: true }).click();
+  // 自分のリポストもホームに流れるので、同じ本文の行が元の投稿とリポストの 2 つになる。
   await expect(
-    article.getByRole("button", { name: "リポスト済み", exact: true }),
+    article.getByRole("button", { name: "リポスト済み", exact: true }).first(),
   ).toBeVisible();
 
   const repost = await waitForEvent(

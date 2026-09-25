@@ -58,8 +58,19 @@ describe("resolveSource", () => {
       ),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1], authors: ["a", "b"] }],
+      filters: [{ kinds: [1], authors: ["a", "b", VIEWER] }],
     });
+  });
+
+  it("自分をフォローしていなくても followees に自分を含め、重ねない", () => {
+    // 捕まえる変異: フォロー一覧だけを authors にする (自分の投稿がホームに
+    // 出ない) / 自己フォローのとき自分を 2 回入れる
+    expect(
+      resolveSource(
+        { kind: "followees", kinds: [1] },
+        ctx({ followees: () => ["a", VIEWER] }),
+      ).filters[0].authors,
+    ).toEqual(["a", VIEWER]);
   });
 
   it("フォロー 0 人でも authors を落とさない", () => {
@@ -73,7 +84,7 @@ describe("resolveSource", () => {
       ),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1], authors: [] }],
+      filters: [{ kinds: [1], authors: [VIEWER] }],
     });
   });
 
@@ -87,7 +98,7 @@ describe("resolveSource", () => {
       ctx({ followees: () => followees }),
     );
     followees.push("b");
-    expect(resolved.filters[0].authors).toEqual(["a"]);
+    expect(resolved.filters[0].authors).toEqual(["a", VIEWER]);
   });
 
   it("literal では followees アクセサを呼ばない", () => {
