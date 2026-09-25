@@ -10,6 +10,9 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // 1 つの開発サーバーと nak を全員で使う。並べすぎると応答が遅れて時間切れになり、
+  // nak の署名器が落ちることもある（14 並列で実際に落ちた）。
+  workers: process.env.CI ? 2 : 4,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: APP_URL,
