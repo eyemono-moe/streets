@@ -53,7 +53,7 @@ const longUrls = alice.note(
     "ホストが長いリンク https://a-very-long-subdomain.of-some-long-host.example.co.jp/path/to/the/page/index.html",
     "短いリンク https://example.com/short",
     "符号化された日本語 https://ja.wikipedia.org/wiki/%E3%83%9E%E3%83%AB%E3%83%81%E3%82%AB%E3%83%A9%E3%83%A0%E3%83%BB%E3%82%AF%E3%83%A9%E3%82%A4%E3%82%A2%E3%83%B3%E3%83%88",
-    "日本語のフラグメント https://example.com/guide#はじめに 。",
+    "符号化されていない日本語 https://dic.pixiv.net/a/ピクシブ百科辞典で始まる長い記事の名前 、見出し https://example.com/guide#はじめに 。",
   ].join("\n"),
 );
 const hashtagInNarrowColumn = bob.note(
