@@ -13,6 +13,7 @@
     "dev:relay:inspect": "node scripts/inspect-local-relay.mjs",
     "dev:relay:publish": "node scripts/publish-test-note.mjs",
     "seed:dev": "node scripts/seed-dev-threads.mjs",
+    "e2e": "vp run @streets/e2e#test:e2e",
     "screenshot": "vp run @streets/screenshot#start",
     "screenshot:seed": "vp run @streets/screenshot#seed",
     "screenshot:generate": "vp run @streets/screenshot#generate",

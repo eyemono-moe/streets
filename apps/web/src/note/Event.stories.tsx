@@ -14,6 +14,7 @@ import emojiUrl from "../storybook/emoji-fixture.svg";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
+import portraitUrl from "../storybook/media-portrait.svg";
 import toneUrl from "../storybook/media-tone.mp3";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -136,6 +137,12 @@ const withAudio = alice.note(`声を録りました。\n${audioUrl}`, [
 const withBrokenAudio = alice.note(
   "読み込めない音声。\nhttps://example.invalid/voice.m4a",
 );
+// Primal は `m` に MIME でなく拡張子を、`dim` に小数を書く。
+const primalImageUrl = new URL(portraitUrl, location.href).href;
+const withLooseImeta = alice.note(`写真です。\n${primalImageUrl}`, [
+  ["imeta", `url ${primalImageUrl}`, "m jpeg", "dim 900.0x1600.0"],
+  ["client", "Primal iOS"],
+]);
 
 const missingTarget = bob.note("このイベントはシーンに入れない");
 const repostOfMissing = carol.repost(missingTarget);
@@ -326,6 +333,10 @@ export const 音声の展開を切る: Story = {
 /** 読み込めない音声は、再生バーの代わりにリンクを出す。 */
 export const 音声_読み込めない: Story = {
   args: { event: withBrokenAudio, scene: scene(withBrokenAudio) },
+};
+
+export const 画像_imetaのMIMEが崩れている: Story = {
+  args: { event: withLooseImeta, scene: scene(withLooseImeta) },
 };
 
 export const 返信: Story = { args: { event: reply, scene: scene(reply) } };

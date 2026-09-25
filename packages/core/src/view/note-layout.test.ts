@@ -111,6 +111,28 @@ describe("layoutNote", () => {
     ]);
   });
 
+  it("MIME の形でない m は無視して拡張子で判定する", () => {
+    const layout = layoutNote(
+      note("https://blossom.primal.net/a.jpg", [
+        [
+          "imeta",
+          "url https://blossom.primal.net/a.jpg",
+          "m jpeg",
+          "dim 4284.0x5712.0",
+        ],
+      ]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([
+      {
+        type: "image",
+        url: "https://blossom.primal.net/a.jpg",
+        dimensions: { width: 4284, height: 5712 },
+      },
+    ]);
+    expect(layout.text).toEqual([]);
+  });
+
   it("nostr:note を引用として抜き、同じ id は 1 回だけにする", () => {
     const ref = `nostr:${encodeBech32("note", ID_A)}`;
     const layout = layoutNote(note(`これ ${ref} と ${ref}`), {

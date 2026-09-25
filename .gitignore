@@ -16,6 +16,7 @@ storybook-static
 # vp run @streets/web#build:analyze が出すチャンクの図
 apps/web/stats
 dist-ssr
+dist-e2e
 *.local
 
 # Editor directories and files
