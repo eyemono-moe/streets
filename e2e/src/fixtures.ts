@@ -11,9 +11,13 @@ import { type User, createUser } from "./users";
 
 export type LoginMethod = "nip07" | "bunker" | "nostrconnect";
 
-/** 署名器を止める・拒否させる。NIP-46（nak）には拒否させられず、止めることしかできない。 */
+/**
+ * 署名器の振る舞いを変える。拒否・無応答は NIP-07 の偽物でだけ作れ、nak の署名器
+ * （NIP-46）は止めることしかできない。
+ */
 export type SignerControl = {
   set(behavior: Exclude<SignerBehavior, "sign">): void;
+  stop(): void;
 };
 
 type Fixtures = {
@@ -69,12 +73,14 @@ export const test = base.extend<
         behavior: "sign",
         remotes: [],
         set(next) {
-          if (loginMethod === "nip07") {
-            state.behavior = next;
-            return;
+          if (loginMethod !== "nip07") {
+            throw new Error("nak の署名器には拒否・無応答をさせられません");
           }
-          if (next === "reject") {
-            throw new Error("nak の署名器には拒否させられません");
+          state.behavior = next;
+        },
+        stop() {
+          if (loginMethod === "nip07") {
+            throw new Error("NIP-07 の署名器は止められません");
           }
           for (const remote of state.remotes) remote.stop();
         },

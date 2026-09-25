@@ -82,7 +82,9 @@ test("署名器が応答しないと、待っていることを知らせる", as
   openApp,
   signIn,
   signer,
+  loginMethod,
 }) => {
+  test.skip(loginMethod !== "nip07", "nak の署名器には無応答をさせられない");
   await openApp();
   await signIn();
   signer.set("hang");
@@ -93,4 +95,25 @@ test("署名器が応答しないと、待っていることを知らせる", as
   await expect(
     page.getByRole("dialog", { name: "投稿の署名を待っています" }),
   ).toBeVisible();
+});
+
+test("署名器が止まると、送れなかったことを知らせる", async ({
+  page,
+  openApp,
+  signIn,
+  signer,
+  loginMethod,
+}) => {
+  test.skip(loginMethod === "nip07", "拡張機能は止められない");
+  await openApp();
+  await signIn();
+  signer.stop();
+
+  await page.getByRole("button", { name: "投稿パネルを開く" }).click();
+  await page.getByRole("textbox", { name: "ノートの本文" }).fill("届かない");
+  await page.getByRole("button", { name: "投稿", exact: true }).click();
+  await expect(page.getByText(/送信に失敗しました/)).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "ノートの本文" })).toHaveValue(
+    "届かない",
+  );
 });

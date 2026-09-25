@@ -29,4 +29,4 @@ vp run @streets/e2e#test:e2e --project=nip07 tests/post.spec.ts   # 絞る
 - 要素は役割と名前（`getByRole("button", { name: "投稿" })`）で探す。クラス名や DOM の形に頼らない。名前で探せない要素があるなら、テストのために `data-testid` を足さず、まず画面側に `aria-label` が要らないかを考える
 - 待つのは `expect(...).toBeVisible()` などの自動で待つ形にする。`waitForTimeout` で決め打ちに待たない
 - 1 本のテストは 1 つの操作の流れにする。前のテストの状態を引き継がない
-- 署名器を止める・拒否させるのは `signer.set("hang" | "reject")`。nak の署名器には拒否させられないので、`reject` は `nip07` の project でだけ使う（`test.skip` で外す）
+- 署名器を拒否・無応答にさせるのは `signer.set("reject" | "hang")`、止めるのは `signer.stop()`。拒否・無応答は `nip07` の project でだけ、止めるのは NIP-46 の project でだけ作れるので、ほかは `test.skip` で外す
