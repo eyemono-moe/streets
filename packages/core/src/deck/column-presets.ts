@@ -1,6 +1,7 @@
 import { decodeNpub, encodeBech32 } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
-import { type ColumnDef, TIMELINE_KINDS } from "./deck";
+import { TIMELINE_KINDS } from "./column-kinds";
+import type { ColumnDef } from "./deck";
 
 export type ColumnPresetKind =
   | "home"

@@ -1,10 +1,9 @@
 import { showsOnWelcome, welcomeColumn } from "@streets/core/deck/welcome-feed";
 import type { ReadLayer } from "@streets/core/read/read-layer";
-import { PAGE_SIZE } from "@streets/core/read/source";
-import { createSection } from "@streets/core/solid/create-section";
 import { type Component, createSignal } from "solid-js";
 import AboutDialog from "../about/AboutDialog";
-import EventListColumn from "../columns/EventListColumn";
+import EventList from "../columns/blocks/EventList";
+import { ColumnScope } from "../columns/column-scope";
 import { useIsWide } from "../is-wide";
 import { ReadLayerProvider } from "../read-layer";
 import type { Session } from "../session";
@@ -15,28 +14,21 @@ import WelcomeView from "./WelcomeView";
 const COLUMN = welcomeColumn(RELAYS);
 
 /** 入口に流す投稿。見せるだけで、スレッドやユーザーを重ねる先は無い。 */
-const WelcomeFeed: Component<{ readLayer: ReadLayer }> = (props) => {
-  const section = createSection({
-    manager: props.readLayer.manager,
-    pageSize: PAGE_SIZE,
-    source: () => ({
-      type: "nostr",
-      filters: [{ kinds: [1] }],
-      relays: [...RELAYS],
-    }),
-  });
-  return (
-    // 投稿を押したときの「重ねる」などを受ける段が無い。親まで渡さずここで止める。
-    <Mediates handle={() => true}>
-      <EventListColumn
-        column={COLUMN}
-        items={section.items().filter(showsOnWelcome)}
-        section={section}
-        paged
+const WelcomeFeed: Component<{ readLayer: ReadLayer }> = (props) => (
+  // 投稿を押したときの「重ねる」などを受ける段が無い。親まで渡さずここで止める。
+  <Mediates handle={() => true}>
+    <ColumnScope value={{ column: () => COLUMN, readLayer: props.readLayer }}>
+      <EventList
+        source={() => ({
+          type: "nostr",
+          filters: [{ kinds: [1] }],
+          relays: [...RELAYS],
+        })}
+        filter={showsOnWelcome}
       />
-    </Mediates>
-  );
-};
+    </ColumnScope>
+  </Mediates>
+);
 
 const WelcomeScreen: Component<{ session: Session; readLayer: ReadLayer }> = (
   props,

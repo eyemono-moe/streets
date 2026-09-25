@@ -1,19 +1,15 @@
+import { activitySource } from "@streets/core/deck/column-sources";
 import type {
   ActivityReaction,
   EventActivity,
 } from "@streets/core/view/event-activity";
 import { eventActivity } from "@streets/core/view/event-activity";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
-import Event from "../note/Event";
-import { ReactionChip } from "../note/ReactionList";
-import ProfileRow from "../profile/ProfileRow";
-import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
-import {
-  type ColumnReadProps,
-  alertsFor,
-  createColumnSection,
-} from "./column-section";
-import ColumnBody from "./ColumnBody";
+import Event from "../../note/Event";
+import { ReactionChip } from "../../note/ReactionList";
+import ProfileRow from "../../profile/ProfileRow";
+import ColumnTabs, { type ColumnTab } from "../../ui/ColumnTabs";
+import { createBlockSection } from "../column-scope";
 
 const Result: Component<{
   count: number;
@@ -142,27 +138,18 @@ export const ActivityView: Component<{
   );
 };
 
-const ActivityColumn: Component<
-  ColumnReadProps & {
-    target: string;
-    scrollerRef: (element: HTMLDivElement) => void;
-  }
-> = (props) => {
-  const section = createColumnSection(props);
+/** 1 件の投稿へのリポスト・引用・リアクションを、1 本の購読から種類ごとのタブに分ける。 */
+const Activity: Component<{ target: string }> = (props) => {
+  const section = createBlockSection({
+    source: () => activitySource(props.target),
+  });
   return (
-    <ColumnBody
-      columnId={props.column.id}
-      alerts={alertsFor(props, section.status)}
-      scrollsInternally
-      scrollerRef={props.scrollerRef}
-    >
-      <ActivityView
-        activity={eventActivity(section.items(), props.target)}
-        settled={section.status().phase === "settled"}
-        incomplete={section.status().incomplete !== undefined}
-      />
-    </ColumnBody>
+    <ActivityView
+      activity={eventActivity(section.items(), props.target)}
+      settled={section.status().phase === "settled"}
+      incomplete={section.status().incomplete !== undefined}
+    />
   );
 };
 
-export default ActivityColumn;
+export default Activity;

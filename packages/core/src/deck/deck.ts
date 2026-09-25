@@ -1,29 +1,12 @@
 import * as v from "valibot";
 import { encodeBech32 } from "../nostr/nip19";
-import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import type { RelayUrl } from "../relay/relay-connection";
+import {
+  type ColumnSource,
+  TIMELINE_KINDS,
+  columnSourceSchema,
+} from "./column-kinds";
 import { buildColumn, buildRelayColumn } from "./column-presets";
-
-/**
- * デッキが保存する「意図」。フォローリストのような変わる値を焼き込まない
- * ため `NostrSource` (クエリ) とは別物にしており、`resolveSource` が唯一の変換場所になる。
- */
-export type ColumnSource =
-  | { kind: "literal"; filters: RelayFilter[]; relays?: RelayUrl[] }
-  /**
-   * 言葉から探す。問い合わせ先は設定（kind:10007）で変わるので、デッキには
-   * 書いた条件だけを残し、リレーは解決のたびに決める。
-   */
-  | { kind: "search"; query: string }
-  | { kind: "followees"; kinds: number[] }
-  | { kind: "notifications" }
-  | { kind: "bookmarks" }
-  /** 1 本のスレッド。`focus` を中心に、その祖先と返信を見せる。 */
-  | { kind: "thread"; focus: string }
-  /** 1件の投稿に対するリポスト・引用・リアクション。 */
-  | { kind: "activity"; target: string }
-  | { kind: "user"; pubkey: string }
-  | { kind: "followees-list"; pubkey: string }
-  | { kind: "followers-list"; pubkey: string };
 
 /** カラムの幅。数値ではなく段で持ち、実際の px は画面側が決める。 */
 export type ColumnWidth = "s" | "m" | "l";
@@ -94,18 +77,6 @@ export const columnShow = (column: ColumnDef): ColumnShow => ({
 });
 
 /**
- * 「誰かの投稿を時系列で並べる」列が集める kind。kind:6 はタイムラインへ
- * 流したものとして含め、kind:16 は対象外コンテンツで意図が曖昧になるため除外。
- */
-export const TIMELINE_KINDS: readonly number[] = [1, 6];
-
-/**
- * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
- * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
- */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735];
-
-/**
  * `version` は NIP-78 移行のために残す (無いと壊れているのか形が違う
  * だけか区別できない)。version 1 は開発者の手元にしか無いため移行コードは書かない。
  */
@@ -156,76 +127,6 @@ export const defaultDeck = (relays: readonly RelayUrl[]): Deck => {
 export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
 
 export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
-
-/**
- * NIP-01 フィルタの検証。ワイヤ形式でなく保存デッキ用なので valibot 可。
- * `looseObject` でなく `objectWithRest` を使うのは余剰キー型の不一致のため。
- */
-const relayFilterSchema = v.pipe(
-  v.objectWithRest(
-    {
-      ids: v.optional(v.array(v.string())),
-      authors: v.optional(v.array(v.string())),
-      kinds: v.optional(v.array(v.number())),
-      since: v.optional(v.number()),
-      until: v.optional(v.number()),
-      limit: v.optional(v.number()),
-      search: v.optional(v.string()),
-    },
-    v.array(v.string()),
-  ),
-  // ids/authors/kinds/#tag が全て無いフィルタ ({} や { since: 123 } など) は無制限購読になるため受け付けない。
-  v.check(
-    (filter) =>
-      filter.ids !== undefined ||
-      filter.authors !== undefined ||
-      filter.kinds !== undefined ||
-      Object.keys(filter).some((key) => key.startsWith("#")),
-    "scoping フィールドを 1 つも持たないフィルタは無制限購読になる",
-  ),
-);
-
-const columnSourceSchema = v.variant("kind", [
-  v.object({
-    kind: v.literal("literal"),
-    filters: v.array(relayFilterSchema),
-    relays: v.optional(v.array(v.string())),
-  }),
-  v.object({
-    kind: v.literal("followees"),
-    kinds: v.array(v.number()),
-  }),
-  v.object({
-    kind: v.literal("notifications"),
-  }),
-  v.object({
-    kind: v.literal("bookmarks"),
-  }),
-  v.object({
-    kind: v.literal("thread"),
-    focus: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
-  }),
-  v.object({
-    kind: v.literal("activity"),
-    target: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
-  }),
-  v.object({
-    kind: v.literal("user"),
-    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
-  }),
-  v.object({
-    kind: v.literal("followees-list"),
-    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
-  }),
-  v.object({
-    kind: v.literal("followers-list"),
-    pubkey: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
-  }),
-  v.object({
-    kind: v.literal("search"),
-    query: v.pipe(v.string(), v.minLength(1)),
-  }),
-]);
 
 const columnDefSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),

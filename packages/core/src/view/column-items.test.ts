@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { ColumnFacet } from "../deck/column-facets";
+import type { ColumnFacet } from "../deck/column-kinds";
 import { DEFAULT_COLUMN_SHOW } from "../deck/deck";
 import type { NostrEvent } from "../nostr/event";
 import { visibleColumnItems } from "./column-items";

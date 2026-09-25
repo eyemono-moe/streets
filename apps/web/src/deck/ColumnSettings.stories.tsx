@@ -1,4 +1,4 @@
-import { columnFacets } from "@streets/core/deck/column-facets";
+import { columnFacets } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";

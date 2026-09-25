@@ -17,7 +17,8 @@ import {
 import type { SubscriptionManager } from "../read/subscription-manager";
 
 export type CreateSectionOptions = {
-  source: Accessor<NostrSource>;
+  /** `undefined` は「まだ分からない」。その間は購読を張らず、取得中のまま待つ。 */
+  source: Accessor<NostrSource | undefined>;
   order?: Order;
   /** 接続と購読は manager が所有する。 */
   manager: SubscriptionManager;
@@ -45,11 +46,22 @@ export const createSection = (options: CreateSectionOptions): Section => {
   let carried: number | undefined;
 
   // 中身が同じ source に作り直されても張り直さない（カラムの題名や幅を変えたときなど）。
-  const source = createMemo(options.source, undefined, { equals: sameSource });
+  const source = createMemo(options.source, undefined, {
+    equals: (left, right) =>
+      left === right ||
+      (left !== undefined && right !== undefined && sameSource(left, right)),
+  });
 
   createEffect(() => {
+    const next = source();
+    if (next === undefined) {
+      setItems([]);
+      setStatus({ phase: "initial" });
+      setPaging("waiting");
+      return;
+    }
     const reader = new SectionReader({
-      source: source(),
+      source: next,
       order: options.order ?? "created-at-desc",
       // manager が構築時に受け取った store をそのまま使う。呼び出し側が別の store を選べる余地を無くす。
       store: options.manager.store,

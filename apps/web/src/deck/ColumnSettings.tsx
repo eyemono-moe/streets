@@ -1,4 +1,4 @@
-import type { ColumnFacet } from "@streets/core/deck/column-facets";
+import type { ColumnFacet } from "@streets/core/deck/column-kinds";
 import type {
   ColumnDef,
   ColumnDensity,
@@ -9,17 +9,16 @@ import {
   type LinkCardMode,
   columnLinkCards,
   columnShow,
-  groupsNotifications,
 } from "@streets/core/deck/deck";
-import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
+import { columnView } from "../columns/column-views";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
-import RelayColumnEditor from "./RelayColumnEditor";
-import SearchQueryEditor from "./SearchQueryEditor";
+import Field from "./SettingField";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id">>;
 
@@ -49,13 +48,6 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   zaps: "Zap",
 };
 
-const Field: Component<{ label: string; children: unknown }> = (props) => (
-  <div class="flex w-full flex-col gap-1.5">
-    <span class="c-secondary font-600 text-caption">{props.label}</span>
-    {props.children as never}
-  </div>
-);
-
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */
 const ColumnSettings: Component<{
   column: ColumnDef;
@@ -67,20 +59,6 @@ const ColumnSettings: Component<{
   const show = () => columnShow(props.column);
   const patch = (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: props.column.id, patch });
-  const searchQuery = () => {
-    const source = props.column.source;
-    return source.kind === "search" ? source.query : undefined;
-  };
-  const relaySource = () => {
-    const source = props.column.source;
-    if (source.kind !== "literal" || !source.relays) return undefined;
-    const onlyPublicNotes =
-      source.filters.length === 1 &&
-      source.filters[0]?.kinds?.length === 1 &&
-      source.filters[0]?.kinds?.[0] === 1 &&
-      Object.keys(source.filters[0]).length === 1;
-    return onlyPublicNotes ? source : undefined;
-  };
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
@@ -120,15 +98,6 @@ const ColumnSettings: Component<{
         />
       </Field>
 
-      {/* 通知カラムだけの設定。ほかのカラムに出しても、切り替えて何も起きない。 */}
-      <Show when={props.column.source.kind === "notifications"}>
-        <Switch
-          label="同じノートへのリアクション・リポストをまとめる"
-          checked={groupsNotifications(props.column)}
-          onChange={(groupNotifications) => patch({ groupNotifications })}
-        />
-      </Show>
-
       <Show when={props.facets.length > 0}>
         <Field label="表示するもの">
           <For each={props.facets}>
@@ -147,46 +116,14 @@ const ColumnSettings: Component<{
         </Field>
       </Show>
 
-      <Show when={searchQuery()}>
-        {(query) => (
-          <Field label="検索の条件">
-            {/* 探したときと同じ触り方で、後から条件を変えられるようにする。 */}
-            <SearchQueryEditor
-              text={query()}
-              // 打つたびに購読し直すと、やり取りが増えて画面もちらつく。
-              debounceMs={600}
-              onChange={(text) => {
-                const next = text.trim();
-                if (next === "") return;
-                patch({ title: next, source: { kind: "search", query: next } });
-              }}
-            />
-          </Field>
-        )}
-      </Show>
-
-      <Show when={relaySource()}>
-        {(source) => (
-          <Field label="購読するリレー">
-            <RelayColumnEditor
-              candidates={
-                props.relayList?.phase === "ready"
-                  ? props.relayList.entries
-                  : []
-              }
-              selected={source().relays ?? []}
-              minimum={1}
-              onChange={(relays) => {
-                patch({
-                  title:
-                    relays.length === 1
-                      ? relayLabel(relays[0])
-                      : `リレー（${relays.length}）`,
-                  source: { ...source(), relays },
-                });
-              }}
-            />
-          </Field>
+      <Show when={columnView(props.column.source).Settings}>
+        {(settings) => (
+          <Dynamic
+            component={settings()}
+            column={props.column}
+            source={props.column.source}
+            relayList={props.relayList}
+          />
         )}
       </Show>
 

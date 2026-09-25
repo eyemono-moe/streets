@@ -1,4 +1,4 @@
-import { columnTitle } from "@streets/core/deck/column-title";
+import { columnTitle } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { profileLabel } from "@streets/core/nostr/profile";
 import { type Accessor, type Component, Show } from "solid-js";

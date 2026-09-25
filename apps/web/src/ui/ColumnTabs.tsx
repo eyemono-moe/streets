@@ -8,21 +8,43 @@ export type ColumnTab = {
   content: () => JSX.Element;
 };
 
-/** カラム内の表示を、横幅を増やさず切り替えるタブ。 */
+/**
+ * カラム内の表示を、横幅を増やさず切り替えるタブ。開いていないタブの中身は
+ * 作らない（購読も張らない）ので、戻ると取り直しになる。
+ */
 const ColumnTabs: Component<{
   tabs: readonly ColumnTab[];
   label: string;
   defaultValue?: string;
+  /**
+   * `inner` はタブの中身だけをスクロールする（タブがカラムの全体を占めるとき）。
+   * `column` は上にあるもの（プロフィールなど）ごとカラムでスクロールし、
+   * タブの並びは上端に留める。
+   */
+  scroll?: "inner" | "column";
 }> = (props) => (
   <Tabs.Root
     defaultValue={props.defaultValue ?? props.tabs[0]?.value}
     lazyMount
     unmountOnExit
-    class="flex h-full min-h-0 flex-1 flex-col"
+    class="isolate flex flex-col"
+    classList={{
+      "h-full min-h-0 flex-1": props.scroll !== "column",
+      // 切り替えた直後は中身が短い（読み込み中）。カラムの高さぶんを保たないと、
+      // 縮んだ分だけブラウザが位置を詰め、タブの並びがプロフィールの下まで戻る。
+      "min-h-full": props.scroll === "column",
+    }}
   >
     <Tabs.List
       aria-label={props.label}
-      class="relative flex min-w-0 overflow-x-auto border-primary border-b bg-primary px-2"
+      // 後に並ぶ中身（仮想スクロールの行は transform で重なりを作る）より上に出す。
+      // Root を isolate で区切っているので、この重なりは外へ漏れない。
+      class="flex min-w-0 overflow-x-auto border-primary border-b bg-primary px-2"
+      // sticky も位置を持つので、下線の Indicator はどちらでも List に合わせて置ける。
+      classList={{
+        relative: props.scroll !== "column",
+        "sticky top-0 z-1": props.scroll === "column",
+      }}
     >
       <For each={props.tabs}>
         {(tab) => (
@@ -45,7 +67,11 @@ const ColumnTabs: Component<{
       {(tab) => (
         <Tabs.Content
           value={tab.value}
-          class="min-h-0 flex-1 overflow-y-auto overscroll-y-contain outline-none"
+          class="outline-none"
+          classList={{
+            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain":
+              props.scroll !== "column",
+          }}
         >
           {tab.content()}
         </Tabs.Content>

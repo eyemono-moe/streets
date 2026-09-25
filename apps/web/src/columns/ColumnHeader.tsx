@@ -1,9 +1,9 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
-import { columnMeta } from "../deck/column-meta";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
+import { columnView } from "./column-views";
 
 export type StackedColumn = {
   backTo: ColumnDef;
@@ -17,7 +17,7 @@ export const ColumnHeader: Component<{
   onTitle: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
-  const meta = () => columnMeta(props.column);
+  const meta = () => columnView(props.column.source).meta(props.column.source);
   return (
     <header
       class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
