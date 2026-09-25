@@ -7,14 +7,6 @@ export type NostrSource = {
   relays?: RelayUrl[];
 };
 
-/** NIP-11。Nostr イベントですらない供給元 */
-export type RelayInfoSource = {
-  type: "relay-info";
-  url: RelayUrl;
-};
-
-export type Source = NostrSource | RelayInfoSource;
-
 export type Order = "created-at-desc" | "created-at-asc";
 
 /**

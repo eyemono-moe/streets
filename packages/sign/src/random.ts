@@ -34,11 +34,3 @@ export function randomRange(
 ): number {
   return min + random() * (max - min);
 }
-
-export function randomInt(
-  random: () => number,
-  min: number,
-  max: number,
-): number {
-  return Math.floor(randomRange(random, min, max + 1));
-}
