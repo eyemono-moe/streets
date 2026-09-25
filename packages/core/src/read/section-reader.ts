@@ -43,10 +43,16 @@ export type SectionReaderOptions = {
   /**
    * 指定すると、最初はこの件数だけ取り（購読の filters に `limit` を付ける）、
    * `loadOlder()` のたびに同じ件数ずつ古いものを取り足す。指定しなければ、
-   * 今までどおり `MAX_ITEMS_PER_SECTION` まで持つ（人の一覧のように、切ると
+   * 今までどおり `maxItems` まで持つ（人の一覧のように、切ると
    * 意味が変わるもの）。
    */
   pageSize?: number;
+  /**
+   * ページ送りしないセクションが持つ件数の上限。既定は `MAX_ITEMS_PER_SECTION`。
+   * 件数で切ると中身の意味が変わる一覧（フォロワーの数え上げ）は `Infinity` にする。
+   * 受け取ったイベントはどのみち `EventStore` に入るので、上限を外しても持つ量は増えない。
+   */
+  maxItems?: number;
   /**
    * `pageSize` と一緒に指定すると、最初にこの件数まで取る（`MAX_PAGED_ITEMS` まで）。
    * 取る中身が変わって作り直すとき、それまで伸ばした一覧を 1 ページに戻さないため。
@@ -86,7 +92,7 @@ export class SectionReader {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
     this.#events = new SortedEvents(
-      this.#firstPageSize ?? MAX_ITEMS_PER_SECTION,
+      this.#firstPageSize ?? options.maxItems ?? MAX_ITEMS_PER_SECTION,
     );
   }
 
