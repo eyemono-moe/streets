@@ -67,6 +67,7 @@ pnpm workspace の 2 パッケージ。
 
 - テストは core の純粋なロジック（パース、フィルタ、ストア、イベントの組み立て）に書く
 - UI コンポーネントの単体テストは原則書かない。画面の確認は手で動かして行う
+- E2E（`e2e/`、Playwright）は、ふつうの人がする主な操作の流れ（ログイン・投稿・リアクション・カラムの編集など）が通ることだけを守る。見た目や端の状態は E2E で見ず、Storybook で見る。書き方は [e2e/README.md](./e2e/README.md)
 - 部品の見た目は Storybook（`apps/web/src/**/*.stories.tsx`）で確認する。ストーリーはテストではなく、リレーに繋がずに固定のイベントを並べるカタログ。署名済みイベントの作り方と読み取り層の差し替えは `apps/web/src/storybook/` にある
 - メディアの URL を本文に入れるストーリーでは、import した fixture のパスを `new URL(asset, location.href).href` で絶対 URL にする。本文の URL パーサーは `http(s)` で始まるものだけを拾う
 - **見た目を変えたら、同じ PR で Storybook も更新する**。ストーリーが無い部品なら追加する。レビューする側が、アプリを立ち上げずに変更を見られる状態にしておく
@@ -81,6 +82,7 @@ vp run verify                        # vp check（整形・lint・型検査）+ 
 vp check --fix                       # 整形と import 順、lint の自動修正
 vp run @streets/web#storybook:build  # ストーリーを変えたとき。verify には含まれない
 vp run @streets/web#build:analyze    # チャンクの中身を apps/web/stats/chunks.html に描く
+vp run e2e                           # E2E。nak が要る。verify には含まれず、CI では別のジョブで走る
 ```
 
 - コマンドは `vp` から呼び、`pnpm` を直に呼ばない。スクリプトは `vp run <名前>`、パッケージのものは `vp run <パッケージ>#<名前>`、全パッケージは `vp run -r <名前>`、依存の追加は `vp add`。pnpm は `vp` が `packageManager` の版で裏で使う

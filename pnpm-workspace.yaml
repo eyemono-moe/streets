@@ -3,6 +3,7 @@ packages:
   - "apps/*"
   - "workers/*"
   - "tools/*"
+  - "e2e"
 allowBuilds:
   "@sentry/cli": true
   esbuild: true

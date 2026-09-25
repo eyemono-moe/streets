@@ -32,7 +32,9 @@ const App: Component = () => {
   });
   onCleanup(() => readLayer.dispose());
 
-  const session = createSession(readLayer.manager.pool);
+  const session = createSession(readLayer.manager.pool, {
+    nostrConnectRelays: relayOverride,
+  });
   onMount(session.restore);
 
   return (

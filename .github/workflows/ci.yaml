@@ -14,3 +14,35 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Run verification
         run: vp run verify
+
+  e2e:
+    name: E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      # E2E のリレーと署名器。1 ファイルの実行ファイルで数秒で落とせるので、キャッシュしない。
+      NAK_VERSION: v0.20.6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: nak を入れる
+        run: |
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -fsSL -o "$RUNNER_TEMP/bin/nak" \
+            "https://github.com/fiatjaf/nak/releases/download/$NAK_VERSION/nak-$NAK_VERSION-linux-amd64"
+          chmod +x "$RUNNER_TEMP/bin/nak"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: ブラウザを入れる
+        working-directory: e2e
+        run: vp exec playwright install --with-deps --only-shell chromium
+      - name: E2E
+        run: vp run e2e
+      - name: 失敗したときの記録
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7
