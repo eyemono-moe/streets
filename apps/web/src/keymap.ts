@@ -64,9 +64,6 @@ export const setShortcut = (action: ShortcutAction, hotkey: string) => {
   }
 };
 
-export const resetShortcut = (action: ShortcutAction) =>
-  setShortcut(action, DEFAULT_KEYMAP[action]);
-
 /** キーの見た目（`[KeyN]` → `N`）。刻印が分かる端末では、その文字で出す。 */
 export const displayHotkey = (hotkey: string): string =>
   hotkey === ""
