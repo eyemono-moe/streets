@@ -77,7 +77,7 @@ const encodeEntity = (prefix: string, entries: TlvEntry[]): string =>
 
 describe("parseContent: 不変条件", () => {
   it("空白で区切られていない日本語が URL に飲み込まれない", () => {
-    // 捕まえる変異: URL の文字集合を \S+ に戻す —— RFC 3986 の URI 文字は全て ASCII なので、非 ASCII で止めないと区切り空白の無い日本語本文で後続文を丸ごと取る
+    // 捕まえる変異: URL の文字集合を \S+ に戻す —— 日本語の約物で止めないと、区切り空白の無い日本語本文で後続文を丸ごと取る
     const event = noteWith("詳細は https://example.com/doc。ご確認ください");
     const tokens = parseContent(event.content, event.tags);
     const url = tokens.find((t) => t.type === "url");
@@ -141,6 +141,43 @@ describe("parseContent: URL", () => {
       { type: "url", url: "https://example.com/path#section" },
       { type: "text", text: " です" },
     ] satisfies ContentToken[]);
+  });
+
+  it("符号化されていない日本語を URL に含める", () => {
+    // 捕まえる変異: URL の文字集合を ASCII に戻す（アドレス欄からコピーした URL が途中で切れる）
+    const event = noteWith(
+      "見て https://dic.pixiv.net/a/ピクシブ百科辞典 と https://ja.wikipedia.org/wiki/レオナルド・ダ・ヴィンチ と https://example.com/page?q=東京#概要-2\nhttps://日本語.jp/",
+    );
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "text", text: "見て " },
+      { type: "url", url: "https://dic.pixiv.net/a/ピクシブ百科辞典" },
+      { type: "text", text: " と " },
+      {
+        type: "url",
+        url: "https://ja.wikipedia.org/wiki/レオナルド・ダ・ヴィンチ",
+      },
+      { type: "text", text: " と " },
+      { type: "url", url: "https://example.com/page?q=東京#概要-2" },
+      { type: "text", text: "\n" },
+      { type: "url", url: "https://日本語.jp/" },
+    ] satisfies ContentToken[]);
+  });
+
+  it.each([
+    ["全角の空白", "https://example.com/東京　次の文", "　次の文"],
+    ["読点", "https://example.com/東京、次の文", "、次の文"],
+    ["句点", "https://example.com/東京。次の文", "。次の文"],
+    ["かぎ括弧", "「https://example.com/東京」を見て", "」を見て"],
+    ["全角の括弧", "（https://example.com/東京）", "）"],
+  ])("日本語の URL は%sで終わる", (_, content, rest) => {
+    // 捕まえる変異: 非 ASCII を空白まで取る（区切りの約物の後ろの本文を飲み込む）
+    const event = noteWith(content);
+    const tokens = parseContent(event.content, event.tags);
+    expect(tokens.find((t) => t.type === "url")).toEqual({
+      type: "url",
+      url: "https://example.com/東京",
+    });
+    expect(tokens.at(-1)).toEqual({ type: "text", text: rest });
   });
 
   it(": を含む URL（ポート番号相当）が絵文字に割れない", () => {

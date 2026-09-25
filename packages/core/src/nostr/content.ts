@@ -10,10 +10,15 @@ export type ContentToken =
 type Match = { consumed: number; token: ContentToken };
 
 /**
- * `#`/`:` を除外しない（URL を優先順位の先頭で試すため確保される）。RFC 3986
- * の URI 文字は全て ASCII なので `\S+` ではなく ASCII 限定にし、日本語本文の飲み込みを防ぐ。
+ * `#`/`:` を除外しない（URL を優先順位の先頭で試すため確保される）。
+ *
+ * ASCII 以外も取る —— ブラウザのアドレス欄は `https://dic.pixiv.net/a/ピクシブ百科辞典`
+ * のように符号化を戻して見せるので、そこからコピーした日本語のままの URL が本文に来る
+ * （IRI・WHATWG URL ではこれも正しい URL）。空白で区切られていない本文を飲み込まないよう、
+ * 空白と日本語の約物・括弧で止める。区切りの無いまま続く文（`…/docを見て`）は区別できず飲み込む。
  */
-const URL_RE = /https?:\/\/[A-Za-z0-9\-._~%:/?#[\]@!$&'()*+,;=]+/y;
+const URL_RE =
+  /https?:\/\/(?:[A-Za-z0-9\-._~%:/?#[\]@!$&'()*+,;=]|[^\p{ASCII}\s、。，．「」『』【】《》〈〉（）［］｛｝！？：；…“”‘’])+/uy;
 
 /** URL の外側にある約物であり、URL 自体が保持する情報ではない。 */
 const TRAILING_PUNCTUATION = new Set([
