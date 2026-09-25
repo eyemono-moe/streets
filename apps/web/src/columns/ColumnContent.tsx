@@ -1,60 +1,67 @@
-import { columnLinkCards } from "@streets/core/deck/deck";
-import { type Component, Match, Switch } from "solid-js";
+import { columnAlerts, columnStatus } from "@streets/core/deck/column-kinds";
+import { type ColumnDef, columnLinkCards } from "@streets/core/deck/deck";
+import type { ReadLayer } from "@streets/core/read/read-layer";
+import type { SectionStatus } from "@streets/core/read/source";
+import {
+  type Accessor,
+  type Component,
+  createSignal,
+  onCleanup,
+} from "solid-js";
+import { Dynamic } from "solid-js/web";
 import { LinkCardModeProvider } from "../note/link-card";
-import ActivityColumn from "./ActivityColumn";
-import type { ColumnReadProps } from "./column-section";
-import FeedColumn from "./FeedColumn";
-import PeopleColumn from "./PeopleColumn";
-import ThreadColumn from "./ThreadColumn";
-import UserColumn from "./UserColumn";
+import { readRoutingMode } from "../read-routing-setting";
+import { ColumnScope } from "./column-scope";
+import { type ColumnInputs, columnView } from "./column-views";
+import ColumnBody from "./ColumnBody";
 
-export type ColumnContentProps = ColumnReadProps & {
+export type ColumnContentProps = ColumnInputs & {
+  column: ColumnDef;
+  readLayer: ReadLayer;
   scrollerRef: (element: HTMLDivElement) => void;
 };
 
-/** source の種類に対応するカラムを選ぶだけのルーター。 */
+/** カラムの中身の枠。種類ごとの中身は `column-views` の表から選ぶ。 */
 const ColumnContent: Component<ColumnContentProps> = (props) => {
-  const threadFocus = () => {
-    const source = props.column.source;
-    return source.kind === "thread" ? source.focus : undefined;
+  const [statuses, setStatuses] = createSignal<Accessor<SectionStatus>[]>([]);
+  const report = (status: Accessor<SectionStatus>) => {
+    setStatuses((current) => [...current, status]);
+    onCleanup(() =>
+      setStatuses((current) => current.filter((item) => item !== status)),
+    );
   };
-  const activityTarget = () => {
-    const source = props.column.source;
-    return source.kind === "activity" ? source.target : undefined;
-  };
-  const profilePubkey = () => {
-    const source = props.column.source;
-    return source.kind === "user" ? source.pubkey : undefined;
-  };
+  const view = () => columnView(props.column.source);
+  const alerts = () =>
+    columnAlerts(
+      props.column,
+      columnStatus(statuses().map((status) => status())),
+      props.relayList(),
+      readRoutingMode(),
+    );
 
   return (
-    <LinkCardModeProvider value={() => columnLinkCards(props.column)}>
-      <Switch fallback={<FeedColumn {...props} />}>
-        <Match when={threadFocus()}>
-          {(focus) => (
-            <ThreadColumn
-              column={props.column}
-              focus={focus()}
-              readLayer={props.readLayer}
-              expandMedia={props.column.expandMedia !== false}
-              scrollerRef={props.scrollerRef}
-            />
-          )}
-        </Match>
-        <Match when={activityTarget()}>
-          {(target) => <ActivityColumn {...props} target={target()} />}
-        </Match>
-        <Match when={profilePubkey()}>
-          {(pubkey) => <UserColumn {...props} pubkey={pubkey()} />}
-        </Match>
-        <Match when={props.column.source.kind === "followees-list"}>
-          <PeopleColumn {...props} kind="followees-list" />
-        </Match>
-        <Match when={props.column.source.kind === "followers-list"}>
-          <PeopleColumn {...props} kind="followers-list" />
-        </Match>
-      </Switch>
-    </LinkCardModeProvider>
+    <ColumnScope
+      value={{
+        column: () => props.column,
+        readLayer: props.readLayer,
+        report,
+      }}
+    >
+      <LinkCardModeProvider value={() => columnLinkCards(props.column)}>
+        <ColumnBody
+          columnId={props.column.id}
+          alerts={alerts()}
+          scrollsInternally={view().scrollsInternally}
+          scrollerRef={props.scrollerRef}
+        >
+          <Dynamic
+            component={view().Content}
+            source={props.column.source}
+            inputs={props}
+          />
+        </ColumnBody>
+      </LinkCardModeProvider>
+    </ColumnScope>
   );
 };
 

@@ -1,8 +1,8 @@
 import type { EventActivity } from "@streets/core/view/event-activity";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { EventSceneProvider } from "../storybook/EventScene";
-import { createStoryAuthor } from "../storybook/story-events";
-import { ActivityView } from "./ActivityColumn";
+import { EventSceneProvider } from "../../storybook/EventScene";
+import { createStoryAuthor } from "../../storybook/story-events";
+import { ActivityView } from "./Activity";
 
 const alice = createStoryAuthor(11, {
   name: "alice",

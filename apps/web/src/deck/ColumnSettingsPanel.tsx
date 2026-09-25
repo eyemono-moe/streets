@@ -1,4 +1,4 @@
-import { columnFacets } from "@streets/core/deck/column-facets";
+import { columnFacets } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import type { Component } from "solid-js";

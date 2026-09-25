@@ -1,4 +1,4 @@
-import type { ColumnAlert } from "@streets/core/deck/column-alerts";
+import type { ColumnAlert } from "@streets/core/deck/column-kinds";
 import { ErrorBoundary, For, type ParentComponent } from "solid-js";
 
 /** カラム本文の共通枠。警告はスクロール領域の外に置く。 */

@@ -1,4 +1,4 @@
-import type { ColumnFacet } from "../deck/column-facets";
+import type { ColumnFacet } from "../deck/column-kinds";
 import type { ColumnShow } from "../deck/deck";
 import type { NostrEvent } from "../nostr/event";
 import { quoteTargets, replyTarget } from "../nostr/event-refs";

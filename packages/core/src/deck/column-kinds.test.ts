@@ -1,7 +1,122 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { SectionStatus } from "../read/source";
-import { columnAlerts } from "./column-alerts";
-import type { ColumnDef } from "./deck";
+import type { RelayUrl } from "../relay/relay-connection";
+import {
+  type ColumnSource,
+  columnAlerts,
+  columnFacets,
+  columnStatus,
+  columnTitle,
+} from "./column-kinds";
+import {
+  buildColumn,
+  buildFolloweesColumn,
+  buildRelayColumn,
+  buildUserColumn,
+} from "./column-presets";
+import { type ColumnDef, defaultDeck } from "./deck";
+
+const PUBKEY = "a".repeat(64);
+
+const must = <T>(value: T | undefined): T => {
+  if (value === undefined) throw new Error("想定したカラムが作れなかった");
+  return value;
+};
+
+describe("columnTitle", () => {
+  it("人に紐づくカラムは、保存した npub ではなく人として返す", () => {
+    const column = buildUserColumn(PUBKEY);
+    expect(column.title).toMatch(/^@npub/);
+    expect(columnTitle(column)).toEqual({ person: PUBKEY, suffix: "" });
+    expect(columnTitle(buildFolloweesColumn(PUBKEY))).toEqual({
+      person: PUBKEY,
+      suffix: " のフォロー",
+    });
+  });
+
+  it("種類で決まるカラムは、保存した題名を使わない", () => {
+    const home: ColumnDef = {
+      ...must(defaultDeck([]).columns[0]),
+      title: "変えた名前",
+    };
+    expect(columnTitle(home)).toEqual({ text: "ホーム" });
+  });
+
+  it("ハッシュタグ・検索・リレー全体は、条件から決める", () => {
+    expect(columnTitle(must(buildColumn("hashtag", "#Nostr")))).toEqual({
+      text: "#nostr",
+    });
+    expect(columnTitle(must(buildColumn("search", "ねこ")))).toEqual({
+      text: "ねこ",
+    });
+    expect(
+      columnTitle(must(buildRelayColumn(["wss://relay.example/"]))),
+    ).toEqual({
+      text: "wss://relay.example",
+    });
+  });
+
+  it("条件を直に書いたカラムは、足したときの題名を使う", () => {
+    const custom: ColumnDef = {
+      id: "x",
+      title: "リレーの kind:7",
+      source: {
+        kind: "literal",
+        filters: [{ kinds: [7], authors: [PUBKEY] }],
+        relays: ["wss://a.example/" as RelayUrl],
+      },
+    };
+    expect(columnTitle(custom)).toEqual({ text: "リレーの kind:7" });
+  });
+});
+
+const column = (source: ColumnSource): ColumnDef => ({
+  id: "x",
+  title: "x",
+  source,
+});
+
+describe("columnFacets", () => {
+  it("ホームはリプライ・引用・リポストを出し、リアクションとメンションは出さない", () => {
+    // 捕まえる変異: 種類に関わらず全項目を出す
+    expect(columnFacets(column({ kind: "followees", kinds: [1, 6] }))).toEqual([
+      "replies",
+      "quotes",
+      "reposts",
+    ]);
+  });
+
+  it("通知だけがメンションを出す", () => {
+    // 捕まえる変異: メンションをどのカラムにも出す（ホームで切ると普通の投稿が消える）
+    expect(columnFacets(column({ kind: "notifications" }))).toContain(
+      "mentions",
+    );
+    expect(columnFacets(column({ kind: "user", pubkey: "a" }))).not.toContain(
+      "mentions",
+    );
+  });
+
+  it("ハッシュタグ（literal）はフィルタの kinds で決まる", () => {
+    // 捕まえる変異: literal をまとめて「決められない」にする（無意味な項目が出る）
+    expect(
+      columnFacets(
+        column({ kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] }),
+      ),
+    ).toEqual(["replies", "quotes"]);
+  });
+
+  it("kinds を持たないフィルタは決められないので全項目を出す", () => {
+    expect(
+      columnFacets(column({ kind: "literal", filters: [{ ids: ["a"] }] })),
+    ).toEqual(["replies", "quotes", "reposts", "reactions"]);
+  });
+
+  it("フォロー一覧（kind:3）には項目が無い", () => {
+    expect(
+      columnFacets(column({ kind: "followees-list", pubkey: "a" })),
+    ).toEqual([]);
+  });
+});
 
 const status = (incomplete?: SectionStatus["incomplete"]): SectionStatus => ({
   phase: "settled",
@@ -242,5 +357,43 @@ describe("columnAlerts と読み方", () => {
     expect(
       columnAlerts(routed, incomplete({ unroutableAuthors: 3 }), hasRelays),
     ).toEqual([]);
+  });
+});
+
+describe("columnStatus", () => {
+  it("セクションが無ければ取得前", () => {
+    // 捕まえる変異: 空の every を真として「落ち着いた」にする（通知の警告が起動直後に出る）
+    expect(columnStatus([])).toEqual({ phase: "initial" });
+  });
+
+  it("全部が落ち着くまでは落ち着いたとしない", () => {
+    expect(
+      columnStatus([{ phase: "settled" }, { phase: "initial" }]).phase,
+    ).toBe("streaming");
+    expect(
+      columnStatus([{ phase: "settled" }, { phase: "settled" }]).phase,
+    ).toBe("settled");
+  });
+
+  it("届かなかった数を足し合わせる", () => {
+    const incomplete = {
+      unreachableRelays: 1,
+      unroutableAuthors: 2,
+      uncoveredAuthors: 0,
+    };
+    expect(
+      columnStatus([
+        { phase: "settled", incomplete },
+        { phase: "settled" },
+        { phase: "settled", incomplete },
+      ]),
+    ).toEqual({
+      phase: "settled",
+      incomplete: {
+        unreachableRelays: 2,
+        unroutableAuthors: 4,
+        uncoveredAuthors: 0,
+      },
+    });
   });
 });

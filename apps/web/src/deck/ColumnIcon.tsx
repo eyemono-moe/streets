@@ -1,8 +1,8 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
+import { columnView } from "../columns/column-views";
 import { useProfile } from "../note/use-profile";
 import Avatar from "../ui/Avatar";
-import { columnMeta } from "./column-meta";
 
 /**
  * カラムの印。ユーザーのカラムはその人のアイコンにする —— 人のカラムを
@@ -16,16 +16,14 @@ const ColumnIcon: Component<{
   avatarClass: string;
 }> = (props) => {
   const person = () =>
-    props.column.source.kind === "user"
-      ? props.column.source.pubkey
-      : undefined;
+    columnView(props.column.source).avatar?.(props.column.source);
   const profile = useProfile(person);
   return (
     <Show
       when={person()}
       fallback={
         <span
-          class={`${columnMeta(props.column).icon} ${props.class}`}
+          class={`${columnView(props.column.source).meta(props.column.source).icon} ${props.class}`}
           aria-hidden="true"
         />
       }

@@ -1,4 +1,5 @@
-import { type ColumnDef, TIMELINE_KINDS } from "@streets/core/deck/deck";
+import { TIMELINE_KINDS } from "@streets/core/deck/column-kinds";
+import type { ColumnDef } from "@streets/core/deck/deck";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ColumnHeader } from "../columns/ColumnHeader";
 import avatarUrl from "../storybook/avatar-fixture.svg";
