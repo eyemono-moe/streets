@@ -53,6 +53,25 @@ describe("layoutNote", () => {
     expect(layout.text).toEqual([]);
   });
 
+  it("音声は画像・動画と分けて抜き、拡張子が無いものも imeta から判定する", () => {
+    const layout = layoutNote(
+      note(
+        "聞いて https://example.com/a.mp3 https://example.com/b.png https://example.com/voice",
+        [["imeta", "url https://example.com/voice", "m audio/ogg"]],
+      ),
+      { quotes: true },
+    );
+    expect(layout.audio).toEqual([
+      "https://example.com/a.mp3",
+      "https://example.com/voice",
+    ]);
+    expect(layout.media).toEqual([
+      { type: "image", url: "https://example.com/b.png" },
+    ]);
+    expect(layout.links).toEqual([]);
+    expect(layout.text).toEqual([{ type: "text", text: "聞いて" }]);
+  });
+
   it("本文にある URL と一致した imeta の寸法・Blurhash だけを添える", () => {
     const layout = layoutNote(
       note("https://example.com/a.png", [

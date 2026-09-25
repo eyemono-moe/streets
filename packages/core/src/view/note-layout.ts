@@ -1,5 +1,6 @@
 import {
   type ContentToken,
+  isProbablyAudioUrl,
   isProbablyImageUrl,
   isProbablyVideoUrl,
   parseContent,
@@ -24,7 +25,12 @@ export type NoteLayout = {
   text: ContentToken[];
   media: NoteMedia[];
   /**
-   * カードにするリンク（画像・動画でない http(s) の URL）。本文にもリンクとして
+   * 再生する音声の URL。拡大表示で送る画像・動画の並びに混ぜると、
+   * 絵の無い頁ができるので分けて持つ。
+   */
+  audio: string[];
+  /**
+   * カードにするリンク（画像・動画・音声でない http(s) の URL）。本文にもリンクとして
    * 残す。同じ URL は 1 回、先頭から `MAX_LINK_CARDS` 件まで。
    */
   links: string[];
@@ -50,7 +56,7 @@ const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
 };
 
 /**
- * 画像・動画と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
+ * 画像・動画・音声と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
  * 抜いた URL や参照の文字列を本文に残すと、同じものが 2 回見える。
  * `quotes: false` のときは引用を抜かず、参照を本文の文字として残す。
  */
@@ -60,6 +66,7 @@ export const layoutNote = (
 ): NoteLayout => {
   const text: ContentToken[] = [];
   const media: NoteLayout["media"] = [];
+  const audio: string[] = [];
   const links: string[] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
@@ -74,12 +81,20 @@ export const layoutNote = (
           ? "image"
           : mime.startsWith("video/")
             ? "video"
-            : undefined
+            : mime.startsWith("audio/")
+              ? "audio"
+              : undefined
         : isProbablyImageUrl(token.url)
           ? "image"
           : isProbablyVideoUrl(token.url)
             ? "video"
-            : undefined;
+            : isProbablyAudioUrl(token.url)
+              ? "audio"
+              : undefined;
+      if (type === "audio") {
+        audio.push(token.url);
+        continue;
+      }
       if (type) {
         media.push({
           type,
@@ -122,5 +137,5 @@ export const layoutNote = (
   }
 
   if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
-  return { text: trimEdges(text), media, links, quotes };
+  return { text: trimEdges(text), media, audio, links, quotes };
 };
