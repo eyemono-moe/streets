@@ -10,6 +10,7 @@ import {
   notificationsSource,
   searchSource,
   userPostsSource,
+  userReactionsSource,
 } from "./column-sources";
 
 const VIEWER = "f".repeat(64);
@@ -90,6 +91,13 @@ describe("人と投稿", () => {
     expect(userPostsSource("a".repeat(64))).toEqual({
       type: "nostr",
       filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
+    });
+  });
+
+  it("ユーザーのリアクションは対象ユーザーの kind:7 を集める", () => {
+    expect(userReactionsSource("a".repeat(64))).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [7], authors: ["a".repeat(64)] }],
     });
   });
 

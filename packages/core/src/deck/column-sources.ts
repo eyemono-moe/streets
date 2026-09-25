@@ -99,6 +99,12 @@ export const userPostsSource = (pubkey: string): NostrSource => ({
   filters: [{ kinds: [...TIMELINE_KINDS], authors: [pubkey] }],
 });
 
+/** その人が付けたリアクション。 */
+export const userReactionsSource = (pubkey: string): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [7], authors: [pubkey] }],
+});
+
 export const followListSource = (pubkey: string): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [3], authors: [pubkey], limit: 1 }],

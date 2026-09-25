@@ -12,6 +12,7 @@ import {
   notificationsSource,
   searchSource,
   userPostsSource,
+  userReactionsSource,
 } from "@streets/core/deck/column-sources";
 import { type ColumnDef, groupsNotifications } from "@streets/core/deck/deck";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -24,6 +25,7 @@ import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
+import ColumnTabs from "../ui/ColumnTabs";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
@@ -241,7 +243,32 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
             pubkey={props.source.pubkey}
             readLayer={scope.readLayer}
           />
-          <EventList source={() => userPostsSource(props.source.pubkey)} />
+          <ColumnTabs
+            label="この人の表示"
+            scroll="column"
+            tabs={[
+              {
+                value: "posts",
+                label: "投稿",
+                content: () => (
+                  <EventList
+                    name="posts"
+                    source={() => userPostsSource(props.source.pubkey)}
+                  />
+                ),
+              },
+              {
+                value: "reactions",
+                label: "リアクション",
+                content: () => (
+                  <EventList
+                    name="reactions"
+                    source={() => userReactionsSource(props.source.pubkey)}
+                  />
+                ),
+              },
+            ]}
+          />
         </>
       );
     },
