@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import type { ColumnKind, ColumnSourceOf } from "./column-kinds";
 import {
   type Deck,
   columnLinkCards,
@@ -544,5 +545,34 @@ describe("linkCards", () => {
     const loaded = loadDeck(raw)?.columns[0];
     expect(loaded?.id).toBe(column.id);
     expect(loaded && columnLinkCards(loaded)).toBe("compact");
+  });
+});
+
+describe("カラムの種類ごとの保存", () => {
+  // 種類をキーにした表なので、種類を足すとここにも例を書くまで型検査が落ちる。
+  const EXAMPLES: { [K in ColumnKind]: ColumnSourceOf<K> } = {
+    literal: {
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["nostr"] }],
+      relays: ["wss://relay.example/"],
+    },
+    search: { kind: "search", query: "ねこ kind:1" },
+    followees: { kind: "followees", kinds: [1, 6] },
+    notifications: { kind: "notifications" },
+    bookmarks: { kind: "bookmarks" },
+    thread: { kind: "thread", focus: "a".repeat(64) },
+    activity: { kind: "activity", target: "b".repeat(64) },
+    user: { kind: "user", pubkey: "c".repeat(64) },
+    "followees-list": { kind: "followees-list", pubkey: "d".repeat(64) },
+    "followers-list": { kind: "followers-list", pubkey: "e".repeat(64) },
+  };
+
+  it.each(Object.values(EXAMPLES))("$kind は保存して読み戻せる", (source) => {
+    // 捕まえる変異: 型にある種類を保存形式の検証に書き忘れる（読み直すたびにカラムが消える）
+    const deck: Deck = {
+      version: 2,
+      columns: [{ id: "x", title: "x", source }],
+    };
+    expect(loadDeck(saveDeck(deck))).toEqual(deck);
   });
 });
