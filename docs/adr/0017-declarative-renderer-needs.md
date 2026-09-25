@@ -62,3 +62,4 @@ defineRenderer({
   **失うもの（正直に記録する）:** 本 ADR は宣言的 `needs` の利点として、[ADR-0007](./0007-nip-tracking-pipeline-draft-pr-only.md) の NIP 追従 LLM 自動 PR パイプラインにとって「純粋関数として宣言された依存は生成しやすく、レビューで検証しやすい」ことを挙げていた。実行時要求ではこれを失う —— 「このレンダラが何を引くか」はコンポーネントを読まないと分からない。代替の担保は `compact` が何も要求しないという規則であり、これは「どのレンダラが何を引くか」を知らなくても取得量の上界を決められるが、依存関係そのものを機械的に列挙・検証する手段ではない。
 
   詳細と実測の根拠は [仕様](../superpowers/archive/specs/2026-08-07-renderers-and-related-events-design.md) 4.1 節、実装は Task 1〜5（`.superpowers/sdd/2026-08-07-renderers-and-related-events/`）、実測に基づく評価は [followups](../design/read-layer-followups.md) の「A-2 レンダラと関連イベント」節を参照。
+- **登録簿をやめる（2026-09-26、#573）** — A-2 の `defineRenderer` / `rendererFor` と `RenderProvider` は、画面を作り直したときに使われなくなっていたので消した。描き分けは `apps/web/src/note/Event.tsx` の kind の分岐で行い、`full` / `compact` は `size`（`normal` / `compact`）が担う。`compact` が関連イベントを取りにいかない規則はそのまま。
