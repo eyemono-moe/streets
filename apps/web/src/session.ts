@@ -1,4 +1,5 @@
 import type { ConnectionPool } from "@streets/core/read/connection-pool";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { createActiveSigner } from "@streets/core/signer/active-signer";
 import {
   createNip07Signer,
@@ -43,7 +44,10 @@ export type ConnectAttempt = {
 
 export class ConnectCancelledError extends Error {}
 
-export const createSession = (pool: ConnectionPool) => {
+export const createSession = (
+  pool: ConnectionPool,
+  options: { nostrConnectRelays?: readonly RelayUrl[] } = {},
+) => {
   const [state, setState] = createSignal<SessionState>("loading");
   const [pubkey, setPubkey] = createSignal<string>();
   const [pending, setPending] = createSignal(false);
@@ -146,6 +150,7 @@ export const createSession = (pool: ConnectionPool) => {
   const loginWithNostrConnect = (): ConnectAttempt => {
     const attempt = startNostrConnect({
       pool,
+      relays: options.nostrConnectRelays,
       metadata: { name: "Streets", url: location.origin },
       hooks,
     });
