@@ -19,6 +19,8 @@
 
 ![Streets screenshot](/.github/assets/screenshot.png)
 
+Streets はブラウザで使える Nostr のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
+
 ### Built With
 
 [![TypeScript][typescript-image]][typescript-url]
@@ -27,16 +29,18 @@
 
 ## Development
 
-🚧This code is still very much a work-in-progress. Major features are still missing.🚧
+コードを変える前に [AGENTS.md](./AGENTS.md) を読んでください。構成・画面の組み立て方・テストと検証の決まりをまとめてあります。
+
+コマンドは [Vite+](https://viteplus.dev/)（`vp`）から呼びます。pnpm は `vp` が裏で使うので、直に呼びません。
 
 ```bash
 vp install
 
-vp run dev # development
+vp run dev # development（http://localhost:5173）
 
 vp run build # production
 
-vp run storybook # v1 UI カタログ（ローカルリレー不要）
+vp run storybook # UI カタログ（http://localhost:6006、ローカルリレー不要）
 
 vp run verify # 静的検査・型検査・単体テスト・本体のビルド
 ```
@@ -49,8 +53,10 @@ docker compose up -d
 
 This will start the following services:
 
-- [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay): `ws://localhost:8080`
+- [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay): `ws://localhost:8080` と `ws://localhost:8081`（2 本）
 - [blossom-server](https://github.com/hzrd149/blossom-server): `http://localhost:8090`（画像のアップロード先 / NIP-B7）
+
+リレーだけを立てるなら `docker compose up -d nostr-rs-relay nostr-rs-relay-2`。スレッドのいろいろな形の投稿を入れるには `vp run seed:dev` を使います。
 
 画像のアップロード先だけを立てるなら `docker compose up -d blossom`。アプリ側は
 設定 →「画像」で `http://localhost:8090` を足すと、ここへアップロードするようになります

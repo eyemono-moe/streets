@@ -5,12 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Streets</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="description" content="Column based Nostr client" />
+    <meta
+      name="description"
+      content="Streets はブラウザで使える Nostr のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。"
+    />
+    <!-- bg-primary（白と、ダークでは既定の紫の ui-950）。ほかの色を選んだ人にはわずかにずれる -->
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#07060c"
+      media="(prefers-color-scheme: dark)"
+    />
     <meta property="og:title" content="Streets" />
-    <meta property="og:description" content="Column based Nostr client" />
+    <meta
+      property="og:description"
+      content="Streets はブラウザで使える Nostr のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。"
+    />
     <meta property="og:image" content="https://streets.eyemono.moe/ogp.webp" />
     <meta property="og:url" content="https://streets.eyemono.moe" />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Streets" />
+    <meta name="twitter:card" content="summary_large_image" />
     <style>
       /* JS より先に色を決めるため、src/theme.ts の PALETTES.purple をここにも書く */
       :root {
