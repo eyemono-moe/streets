@@ -39,7 +39,6 @@
     "storybook-solidjs-vite": "10.7.2",
     "typescript": "7.0.2",
     "unocss": "66.10.5",
-    "unocss-preset-scrollbar": "4.0.0",
     "vite": "catalog:",
     "vite-plugin-solid": "2.11.14",
     "vite-plus": "catalog:"

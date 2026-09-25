@@ -100,7 +100,7 @@ graph TD
 |---|---|
 | `section-reader.ts` | 1 カラムのメンバーシップと `status` |
 | `sorted-events.ts` | 全順序を保つ配列。二分探索で挿入し、上限超過で末尾を捨てる |
-| `source.ts` | `Source` / `Order` / `SectionStatus` の型と 200 件上限 |
+| `source.ts` | `NostrSource` / `Order` / `SectionStatus` の型と 200 件上限 |
 
 ### コアレッサ（N+1 を畳む）
 
