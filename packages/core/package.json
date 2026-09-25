@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./view/render-context": "./src/view/render-context.tsx",
     "./*": "./src/*.ts"
   },
   "scripts": {

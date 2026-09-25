@@ -1,0 +1,40 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  // 部品の Props 型のように、同じファイルの中で使っている export までは数えない。
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.mjs", "scripts/research/*.mjs"],
+      "ignoreDependencies": [
+        // Workers のデプロイは CI が `vp exec wrangler` でルートから呼ぶ。
+        "wrangler",
+        // ルートの tsconfig の `jsxImportSource`。各パッケージが自分の依存に持っている。
+        "solid-js",
+      ],
+    },
+    "apps/web": {
+      "entry": ["src/**/*.stories.tsx", ".storybook/*.{ts,tsx}"],
+      "ignoreDependencies": [
+        // ビルド時に emoji-data-plugin.ts がファイルとして読む。
+        "emojibase-data",
+        // UnoCSS がクラス名（`i-material-symbols:…`）からアイコンを読む。
+        "@iconify-json/material-symbols",
+      ],
+    },
+    "packages/core": {
+      // `exports` の `./*` で全部を外へ出しているので、入口を絞らないと、どこからも import されていない export を拾えない。
+      "entry": [],
+      "includeEntryExports": true,
+      "ignore": [
+        // 開発者モード。設定の画面へまだ繋いでいない。
+        "src/settings/developer-mode.ts",
+      ],
+    },
+    "e2e": {
+      "ignoreBinaries": ["nak"],
+    },
+    "tools/screenshot": {
+      "ignoreBinaries": ["nak"],
+    },
+  },
+}
