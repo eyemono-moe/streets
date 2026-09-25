@@ -3,6 +3,7 @@ import {
   buildThreadColumn,
 } from "@streets/core/deck/column-presets";
 import type { ContentToken } from "@streets/core/nostr/content";
+import { shortenUrl } from "@streets/core/view/short-url";
 import {
   type Component,
   For,
@@ -59,9 +60,10 @@ const Token: Component<{
               href={token().url}
               target="_blank"
               rel="noopener noreferrer"
+              title={token().url}
               class="break-all text-link"
             >
-              {token().url}
+              {shortenUrl(token().url)}
             </a>
           )
         }

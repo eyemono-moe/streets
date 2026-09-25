@@ -47,6 +47,13 @@ const tokens = bob.note(
     ["emoji", "party", emojiUrl],
   ],
 );
+const longUrls = alice.note(
+  [
+    "長いリンク https://example.com/articles/2026/09/streets-multi-column-client?utm_source=nostr&utm_medium=social#comments を含む本文。",
+    "ホストが長いリンク https://a-very-long-subdomain.of-some-long-host.example.co.jp/path/to/the/page/index.html",
+    "短いリンク https://example.com/short",
+  ].join("\n"),
+);
 const hashtagInNarrowColumn = bob.note(
   "今日の散歩 #東京 #とても長いハッシュタグを狭いカラムで表示する #Nostr",
 );
@@ -292,6 +299,14 @@ export const ログインしていない: Story = {
 
 export const 本文のトークン: Story = {
   args: { event: tokens, scene: scene(tokens) },
+};
+
+export const 長いURL: Story = {
+  args: { event: longUrls, scene: scene(longUrls) },
+};
+
+export const 長いURL_狭いカラム: Story = {
+  args: { event: longUrls, scene: scene(longUrls), size: "compact" },
 };
 
 export const 狭いカラムのハッシュタグ: Story = {
