@@ -2,6 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import {
   activitySource,
+  allChannelsSource,
+  recentChannelMessagesSource,
   channelMessagesSource,
   channelSource,
   channelsSource,
@@ -241,5 +243,23 @@ describe("チャンネル", () => {
   it("チャンネルの id が無ければ情報を取りにいかない", () => {
     // 捕まえる変異: ids: [] で購読する（該当なしの購読が張られる）
     expect(channelsSource([], RELAYS)).toBeUndefined();
+  });
+});
+
+describe("チャンネルの一覧", () => {
+  const RELAYS = ["wss://yabu.me/" as const];
+
+  it("すべてのチャンネルは件数に上限を切って取る", () => {
+    // 捕まえる変異: limit を外す（リレーにあるチャンネルを全部返させる）
+    expect(allChannelsSource(RELAYS)?.filters).toEqual([
+      { kinds: [40], limit: 1000 },
+      { kinds: [41], limit: 1000 },
+    ]);
+  });
+
+  it("最近の発言は期間と件数を切って取る", () => {
+    expect(recentChannelMessagesSource(RELAYS, 100)?.filters).toEqual([
+      { kinds: [42], since: 100, limit: 500 },
+    ]);
   });
 });

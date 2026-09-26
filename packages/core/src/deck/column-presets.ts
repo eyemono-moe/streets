@@ -9,7 +9,8 @@ export type ColumnPresetKind =
   | "user"
   | "hashtag"
   | "bookmarks"
-  | "search";
+  | "search"
+  | "channels";
 
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
@@ -137,6 +138,9 @@ export const buildColumn = (
     case "bookmarks":
       // どのノートを入れるかは kind:10003 が決めるので、デッキには何も焼き込まない。
       return { id, title: "ブックマーク", source: { kind: "bookmarks" } };
+
+    case "channels":
+      return { id, title: "チャンネル", source: { kind: "channel-list" } };
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、

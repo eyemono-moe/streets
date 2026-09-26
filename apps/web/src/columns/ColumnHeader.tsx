@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
@@ -10,8 +11,8 @@ export type StackedColumn = {
 };
 
 /**
- * カラムの見出しの右側。一時カラムなら「カラムに残す」と閉じる、それ以外なら
- * カラムの設定。広い画面のカラムの見出しと、狭い画面の上のバーの両方がこれを使う。
+ * カラムの見出しの右側。カラムの種類ごとの操作に続けて、一時カラムなら
+ * 「カラムに残す」と閉じる、それ以外ならカラムの設定。広い画面のカラムの見出しと、狭い画面の上のバーの両方がこれを使う。
  */
 export const ColumnHeaderActions: Component<{
   column: ColumnDef;
@@ -22,6 +23,11 @@ export const ColumnHeaderActions: Component<{
   const dispatch = useDispatch();
   return (
     <>
+      <Show when={columnView(props.column.source).HeaderActions}>
+        {(actions) => (
+          <Dynamic component={actions()} source={props.column.source} />
+        )}
+      </Show>
       <Show when={props.temporary}>
         <>
           <button
@@ -161,6 +167,11 @@ export const StackedColumnHeader: Component<{
           に戻る
         </p>
       </button>
+      <Show when={columnView(props.column.source).HeaderActions}>
+        {(actions) => (
+          <Dynamic component={actions()} source={props.column.source} />
+        )}
+      </Show>
       <button
         type="button"
         aria-label="デッキのカラムとして開く"

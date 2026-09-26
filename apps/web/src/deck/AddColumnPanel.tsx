@@ -37,6 +37,12 @@ const PRESETS: Preset[] = [
     icon: "i-material-symbols:globe",
   },
   {
+    kind: "channels",
+    label: "チャンネル",
+    description: "お気に入りと最近アクティブなチャンネル",
+    icon: "i-material-symbols:forum-outline-rounded",
+  },
+  {
     kind: "bookmarks",
     label: "ブックマーク",
     description: "保存したノート",

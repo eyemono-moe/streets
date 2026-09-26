@@ -3,7 +3,11 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
-import { buildChannelMessage } from "@streets/core/nostr/build/channel";
+import {
+  addFavoriteChannel,
+  buildChannelMessage,
+  removeFavoriteChannel,
+} from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
 import {
@@ -20,7 +24,11 @@ import {
   withReferences,
 } from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
-import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
+import {
+  CHANNEL_MESSAGE_KIND,
+  PUBLIC_CHATS_KIND,
+  favoriteChannels,
+} from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
@@ -91,6 +99,9 @@ export type EventActions = {
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
   /** 自分がフォローしている人（kind:3）。カラムの購読にも使う。 */
+  /** お気に入りのチャンネル（kind:10005 の公開の項目）。 */
+  favoriteChannelIds(): readonly string[];
+  setFavoriteChannel(id: string, on: boolean): Promise<void>;
   followeeIds(): readonly string[];
   following(pubkey: string): boolean;
   setFollow(pubkey: string, on: boolean): Promise<void>;
@@ -178,6 +189,7 @@ export const createWriteStack = (options: {
   };
 
   const bookmarks = mine(BOOKMARK_KIND).event;
+  const publicChats = mine(PUBLIC_CHATS_KIND).event;
   const follows = mine(FOLLOW_KIND).event;
   const relayList = mine(RELAY_LIST_KIND);
   const muteList = mine(MUTE_KIND);
@@ -261,6 +273,14 @@ export const createWriteStack = (options: {
         value: event.id,
       });
       await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
+    },
+    favoriteChannelIds: () => favoriteChannels(publicChats()),
+    async setFavoriteChannel(id, on) {
+      await tracked("お気に入り").replace(
+        PUBLIC_CHATS_KIND,
+        undefined,
+        on ? addFavoriteChannel(id) : removeFavoriteChannel(id),
+      );
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),

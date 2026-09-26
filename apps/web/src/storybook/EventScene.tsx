@@ -2,7 +2,11 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
-import { buildChannelMessage } from "@streets/core/nostr/build/channel";
+import {
+  addFavoriteChannel,
+  buildChannelMessage,
+  removeFavoriteChannel,
+} from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import {
   buildNote,
@@ -11,6 +15,7 @@ import {
 } from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
@@ -68,6 +73,9 @@ const storyActions = (
   const [follows, setFollows] = createSignal(
     store.latestReplaceable(3, viewer.pubkey),
   );
+  const [publicChats, setPublicChats] = createSignal(
+    store.latestReplaceable(10005, viewer.pubkey),
+  );
   const bookmarkIds = () =>
     bookmarks()
       ?.tags.filter((tag) => tag[0] === "e" && tag[1])
@@ -96,6 +104,17 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    favoriteChannelIds: () => favoriteChannels(publicChats()),
+    setFavoriteChannel: (id, on) =>
+      send(() => {
+        const next = viewer.event(
+          (on ? addFavoriteChannel(id) : removeFavoriteChannel(id))(
+            publicChats(),
+          ),
+        );
+        setPublicChats(next);
+        return next;
+      }),
     followeeIds: () => followeesFrom(follows()),
     following: (pubkey) => followeesFrom(follows()).includes(pubkey),
     setFollow: (pubkey, on) =>

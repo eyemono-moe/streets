@@ -24,6 +24,8 @@ const pendingKey = (event: ActionEvent): string => {
       return `bookmark:${event.target.id}`;
     case "user/follow":
       return `follow:${event.pubkey}`;
+    case "channel/favorite":
+      return `favorite-channel:${event.id}`;
   }
 };
 
@@ -70,6 +72,11 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
       case "user/follow":
         run(event, "フォローの状態を保存できませんでした", () =>
           actions.setFollow(event.pubkey, event.on),
+        );
+        return true;
+      case "channel/favorite":
+        run(event, "お気に入りを保存できませんでした", () =>
+          actions.setFavoriteChannel(event.id, event.on),
         );
         return true;
       default:

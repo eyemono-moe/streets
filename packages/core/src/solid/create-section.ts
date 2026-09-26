@@ -24,6 +24,8 @@ export type CreateSectionOptions = {
   manager: SubscriptionManager;
   /** 指定すると、この件数ずつ取る（`loadMore` で古いものを取り足す）。 */
   pageSize?: number;
+  /** ページ送りしないときの件数の上限（`SectionReaderOptions.maxItems`）。 */
+  maxItems?: number;
 };
 
 export type Section = {
@@ -67,6 +69,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       store: options.manager.store,
       manager: options.manager,
       pageSize: options.pageSize,
+      maxItems: options.maxItems,
       initialSize: carried,
     });
     current = reader;
