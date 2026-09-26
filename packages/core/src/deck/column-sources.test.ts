@@ -2,6 +2,10 @@ import { describe, expect, it } from "vite-plus/test";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import {
   activitySource,
+  channelMessagesSource,
+  channelSource,
+  channelsSource,
+  chatModerationSource,
   bookmarksSource,
   followListSource,
   followeesSource,
@@ -206,5 +210,44 @@ describe("searchSource", () => {
       filters: [{ kinds: [1], search: "ねこ", "#t": ["nostr"] }],
       relays: ["wss://search.example/"],
     });
+  });
+});
+
+describe("チャンネル", () => {
+  const CHANNEL = "1".repeat(64);
+  const RELAYS = ["wss://yabu.me/" as const];
+
+  it("リレーが 1 本も分からないうちは購読しない", () => {
+    // 捕まえる変異: relays: [] を載せる（0 本の明示指定になり、何も届かないまま終わる）
+    expect(channelMessagesSource(CHANNEL, [])).toBeUndefined();
+    expect(channelSource(CHANNEL, [])).toBeUndefined();
+  });
+
+  it("発言はチャンネルを #e で指すものを、チャンネルのリレーから取る", () => {
+    expect(channelMessagesSource(CHANNEL, RELAYS)).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [42], "#e": [CHANNEL] }],
+      relays: ["wss://yabu.me/"],
+    });
+  });
+
+  it("ミュートは、自分のものと、並んでいる発言・書き手に向いたものを取る", () => {
+    expect(
+      chatModerationSource(VIEWER, ["2".repeat(64)], ["3".repeat(64)], RELAYS)
+        ?.filters,
+    ).toEqual([
+      { kinds: [43, 44], authors: [VIEWER] },
+      { kinds: [43], "#e": ["2".repeat(64)] },
+      { kinds: [44], "#p": ["3".repeat(64)] },
+    ]);
+    // 捕まえる変異: 空の #e を載せる（「該当なし」になり、条件として意味が無い）
+    expect(chatModerationSource(VIEWER, [], [], RELAYS)?.filters).toEqual([
+      { kinds: [43, 44], authors: [VIEWER] },
+    ]);
+  });
+
+  it("チャンネルの id が無ければ情報を取りにいかない", () => {
+    // 捕まえる変異: ids: [] で購読する（該当なしの購読が張られる）
+    expect(channelsSource([], RELAYS)).toBeUndefined();
   });
 });
