@@ -6,6 +6,7 @@ import {
   decodeNpub,
   encodeBech32,
   encodeNaddr,
+  encodeNevent,
   encodeNprofile,
 } from "./nip19";
 
@@ -329,5 +330,30 @@ describe("encodeNprofile", () => {
 
   it("hex でない pubkey は作らない", () => {
     expect(encodeNprofile({ pubkey: "npub1xyz" })).toBeUndefined();
+  });
+});
+
+describe("encodeNevent", () => {
+  it("読み戻すと id・リレー・書き手・種類がそろう", () => {
+    const id = "a".repeat(64);
+    const author = "b".repeat(64);
+    const encoded = encodeNevent({
+      id,
+      relays: ["wss://yabu.me/"],
+      author,
+      eventKind: 40,
+    });
+    // 捕まえる変異: kind をリトルエンディアンで書く（読み戻すと別の kind になる）
+    expect(encoded && decodeNip19(encoded)).toEqual({
+      kind: "nevent",
+      id,
+      relays: ["wss://yabu.me/"],
+      author,
+      eventKind: 40,
+    });
+  });
+
+  it("id が hex でなければ作らない", () => {
+    expect(encodeNevent({ id: "zz" })).toBeUndefined();
   });
 });

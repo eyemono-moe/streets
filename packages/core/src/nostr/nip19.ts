@@ -262,3 +262,27 @@ export const encodeNprofile = (ref: {
     ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
   ]);
 };
+
+/**
+ * `nevent`（イベントと、それがあるリレー）を作る。チャンネル（kind:40）のように、
+ * 種類を添えないと開く側が何のカラムで開けばよいか分からないものに使う。
+ */
+export const encodeNevent = (ref: {
+  id: string;
+  relays?: readonly string[];
+  author?: string;
+  eventKind?: number;
+}): string | undefined => {
+  if (!HEX_PUBKEY.test(ref.id)) return undefined;
+  if (ref.author !== undefined && !HEX_PUBKEY.test(ref.author))
+    return undefined;
+  const encoder = new TextEncoder();
+  return encodeTlv("nevent", [
+    tlvEntry(0, hexToBytes(ref.id)),
+    ...(ref.relays ?? []).map((relay) => tlvEntry(1, encoder.encode(relay))),
+    ...(ref.author ? [tlvEntry(2, hexToBytes(ref.author))] : []),
+    ...(ref.eventKind !== undefined
+      ? [tlvEntry(3, eventKindBytes(ref.eventKind))]
+      : []),
+  ]);
+};

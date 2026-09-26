@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { encodeBech32 } from "../nostr/nip19";
+import { encodeBech32, encodeNevent } from "../nostr/nip19";
 import { TEMP_COLUMN_ID, tempColumnFor } from "./temp-column";
 
 const PUBKEY = "a".repeat(64);
@@ -24,5 +24,21 @@ describe("tempColumnFor", () => {
     // 捕まえる変異: 例外を握って空のカラムを返す
     expect(tempColumnFor("nostr")).toBeUndefined();
     expect(tempColumnFor("")).toBeUndefined();
+  });
+});
+
+describe("tempColumnFor（チャンネル）", () => {
+  it("kind:40 を指す nevent は、そのチャンネルのカラムになる", () => {
+    const nevent = encodeNevent({
+      id: EVENT_ID,
+      relays: ["wss://yabu.me/"],
+      eventKind: 40,
+    });
+    // 捕まえる変異: 種類を見ずに、チャンネルそのもの 1 件を出すカラムにする
+    expect(nevent && tempColumnFor(nevent)?.source).toEqual({
+      kind: "channel",
+      id: EVENT_ID,
+      relays: ["wss://yabu.me/"],
+    });
   });
 });

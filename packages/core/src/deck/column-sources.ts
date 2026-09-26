@@ -155,27 +155,19 @@ export const channelMessagesSource = (
   withRelays([{ kinds: [CHANNEL_MESSAGE_KIND], "#e": [channelId] }], relays);
 
 /**
- * 並んでいる発言に関わるチャット内のミュート。自分のミュートは全部、ほかの人の
- * ミュートは並んでいる発言と書き手に向いたものだけを取る。
+ * チャット内のミュート（kind:43・44）。チャンネルのリレーにあるものを全部取る。
+ * 並んでいる発言の id で絞ると、発言が届くたびに条件が変わり、購読を張り直す
+ * ことになる。kind:43・44 は数が少ない（yabu.me で全期間 100 件に満たない）。
  */
 export const chatModerationSource = (
-  viewer: string,
-  messageIds: readonly string[],
-  authors: readonly string[],
   relays: readonly RelayUrl[],
 ): NostrSource | undefined =>
   withRelays(
     [
       {
         kinds: [CHANNEL_HIDE_MESSAGE_KIND, CHANNEL_MUTE_USER_KIND],
-        authors: [viewer],
+        limit: 500,
       },
-      ...(messageIds.length > 0
-        ? [{ kinds: [CHANNEL_HIDE_MESSAGE_KIND], "#e": [...messageIds] }]
-        : []),
-      ...(authors.length > 0
-        ? [{ kinds: [CHANNEL_MUTE_USER_KIND], "#p": [...authors] }]
-        : []),
     ],
     relays,
   );

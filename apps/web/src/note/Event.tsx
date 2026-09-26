@@ -285,23 +285,23 @@ const CollapsibleBody: ParentComponent = (props) => {
   );
 };
 
-const Note: Component<ContentProps> = (props) => {
+/**
+ * 本文・画像・音声・リンクのカード・引用。投稿の枠（アイコン・名前・操作）とは
+ * 分けてあり、チャンネルの発言も同じ本文の見せ方を使う。
+ */
+export const NoteContent: Component<{
+  event: NostrEvent;
+  size: EventSize;
+  expandMedia?: boolean;
+  /** 本文の下に足すもの。 */
+  media?: JSX.Element;
+}> = (props) => {
   const layout = createMemo(() =>
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
-  const replyTo = () => replyTarget(props.event);
   const [viewing, setViewing] = createSignal<number>();
-
   return (
-    <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-      <Show when={replyTo()?.pubkey}>
-        {(pubkey) => (
-          <p class="c-secondary flex min-w-0 gap-1 text-caption">
-            <span class="shrink-0">返信先</span>
-            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
-          </p>
-        )}
-      </Show>
+    <>
       <Show when={layout().text.length > 0}>
         <Show
           when={props.size === "normal"}
@@ -368,6 +368,29 @@ const Note: Component<ContentProps> = (props) => {
       {props.media}
       <LinkCards urls={layout().links} size={props.size} />
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
+    </>
+  );
+};
+
+const Note: Component<ContentProps> = (props) => {
+  const replyTo = () => replyTarget(props.event);
+
+  return (
+    <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+      <Show when={replyTo()?.pubkey}>
+        {(pubkey) => (
+          <p class="c-secondary flex min-w-0 gap-1 text-caption">
+            <span class="shrink-0">返信先</span>
+            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
+          </p>
+        )}
+      </Show>
+      <NoteContent
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+        media={props.media}
+      />
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
       <Show when={props.size === "normal"}>
         <ReactionList event={props.event} />

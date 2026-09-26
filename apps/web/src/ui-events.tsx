@@ -14,6 +14,7 @@ import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
+import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
@@ -39,7 +40,8 @@ export type UiEvent =
   | MediaViewEvent
   | SearchRelayViewEvent
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
-  | ZapFlowEvent;
+  | ZapFlowEvent
+  | ChatViewEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -137,6 +139,12 @@ export type DeckEvent =
   | { type: "deck/logout" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
+/** チャンネルのカラムの中の操作。返信先を選ぶ・外す。 */
+export type ChatViewEvent = Extract<
+  ChatReplyEvent,
+  { type: "chat/reply" | "chat/cancel-reply" }
+>;
+
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
