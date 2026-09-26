@@ -566,6 +566,7 @@ describe("カラムの種類ごとの保存", () => {
     "followees-list": { kind: "followees-list", pubkey: "d".repeat(64) },
     "followers-list": { kind: "followers-list", pubkey: "e".repeat(64) },
     "channel-list": { kind: "channel-list" },
+    "channel-info": { kind: "channel-info", id: "e".repeat(64) },
     channel: {
       kind: "channel",
       id: "f".repeat(64),

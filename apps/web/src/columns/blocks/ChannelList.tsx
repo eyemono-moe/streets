@@ -144,6 +144,12 @@ const ChannelList: Component<{
       onQuery={setQuery}
       onOpen={open}
       onPeek={peek()}
+      onCreate={
+        actions
+          ? () =>
+              dispatch({ type: "channel-form/open-create", relays: relays() })
+          : undefined
+      }
     />
   );
 };

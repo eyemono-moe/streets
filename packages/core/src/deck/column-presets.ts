@@ -71,6 +71,20 @@ export const buildChannelColumn = (
   },
 });
 
+/** チャンネルの情報。チャンネルのカラムに重ねて開く。 */
+export const buildChannelInfoColumn = (
+  channelId: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `channel-info:${channelId}`,
+  title: "チャンネルの情報",
+  source: {
+    kind: "channel-info",
+    id: channelId,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
 /** 選んだリレーだけから公開ノートを読むカラムを作る。 */
 export const buildRelayColumn = (
   relays: readonly RelayUrl[],
