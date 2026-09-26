@@ -13,12 +13,13 @@ import { PAGE_SIZE } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type ChatReplyEvent,
+  type ChatRow,
   channelReadRelays,
   chatReplyTransition,
   chatRows,
   emptyChatReply,
 } from "@streets/core/view/chat";
-import { type Component, createMemo } from "solid-js";
+import { type Component, createComputed, createMemo } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEventActions } from "../../actions";
 import ChatComposer from "../../chat/ChatComposer";
@@ -91,12 +92,21 @@ const ChannelChat: Component<{
     name: "moderation",
   });
 
-  const rows = createMemo(() => {
+  // 行は key で突き合わせて当てる。作り直した配列をそのまま渡すと、発言やミュートが
+  // 1 件届くたびに <For> が全行を作り直し、画像が読み込み直されてちらつく。
+  const [view, setView] = createStore<{ rows: ChatRow[] }>({ rows: [] });
+  createComputed(() => {
     const received = messages.items();
     const visible = mutes
       ? received.filter((event) => !mutes.hides(event))
       : received;
-    return chatRows(visible, chatModeration(moderation.items()), props.viewer);
+    setView(
+      "rows",
+      reconcile(
+        chatRows(visible, chatModeration(moderation.items()), props.viewer),
+        { key: "key" },
+      ),
+    );
   });
 
   const [reply, setReply] = createStore(emptyChatReply());
@@ -133,7 +143,7 @@ const ChannelChat: Component<{
       >
         {(state) => (
           <ChatView
-            rows={rows()}
+            rows={view.rows}
             relays={relays()}
             expandMedia={scope.column().expandMedia !== false}
             paging={messages.paging()}
