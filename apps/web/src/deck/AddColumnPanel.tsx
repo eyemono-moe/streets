@@ -245,7 +245,8 @@ const AddColumnPanel: Component<{
             </div>
             <div>
               <p class="c-secondary mt-0.5 text-caption">
-                URLを入力するか、アカウントで使っているリレーから追加してください。
+                URL
+                を入れるか、候補から選んでください。候補には、アカウントとフォローしている人が使っているリレーが出ます。
               </p>
             </div>
             <Show when={props.relayList.phase === "loading"}>
