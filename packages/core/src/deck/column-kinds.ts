@@ -85,6 +85,8 @@ export const columnSourceSchema = v.variant("kind", [
    * NIP-28 のチャンネル。`relays` は開いたときに分かっていたリレー（nevent の
    * ヒントなど）。チャンネルの情報が届けば、そこに書かれたリレーも使う。
    */
+  /** チャンネルの一覧（お気に入り・最近アクティブ・すべてから探す）。 */
+  v.object({ kind: v.literal("channel-list") }),
   v.object({
     kind: v.literal("channel"),
     id: hexId,
@@ -104,7 +106,11 @@ export type ColumnSourceOf<K extends ColumnKind> = Extract<
  * 短縮形）を保存して出すと、名前が分かったあとも npub のまま残る。人に紐づく
  * カラムは、名前を読み取ってから出す（`person` の部分を名前に置き換える）。
  */
-export type ColumnTitle = { text: string } | { person: string; suffix: string };
+export type ColumnTitle =
+  | { text: string }
+  | { person: string; suffix: string }
+  /** チャンネルは、情報が届いたらその名前で呼ぶ。届くまでは `fallback`。 */
+  | { channel: string; fallback: string };
 
 /** 「表示するもの」で切り替えられる項目。 */
 export type ColumnFacet = keyof ColumnShow;
@@ -296,9 +302,14 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => [3],
     hidesMuted: false,
   },
+  "channel-list": {
+    title: () => ({ text: "チャンネル" }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
   channel: {
-    // 名前はチャンネルの情報に書かれていて、カラムを足したときの名前を保存している。
-    title: (_, column) => ({ text: column.title }),
+    // URL や「覗く」で開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
+    title: (source, column) => ({ channel: source.id, fallback: column.title }),
     kinds: () => [CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
   },

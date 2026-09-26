@@ -103,6 +103,8 @@ export type DeckEvent =
   | { type: "deck/remove-column"; id: string }
   /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
   | { type: "deck/keep-temp" }
+  /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。覗くだけでデッキには足さない。 */
+  | { type: "deck/open-temp"; entity: string }
   | { type: "deck/close-temp" }
   | { type: "deck/open-settings" }
   | { type: "deck/close-settings" }
@@ -150,7 +152,9 @@ export type ActionEvent =
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
   /** `on` は押した後に付いているべき状態。 */
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
-  | { type: "user/follow"; pubkey: string; on: boolean };
+  | { type: "user/follow"; pubkey: string; on: boolean }
+  /** チャンネルをお気に入りに入れる・外す。`on` は押した後に入っているべき状態。 */
+  | { type: "channel/favorite"; id: string; on: boolean };
 
 type Dispatch = (event: UiEvent) => void;
 

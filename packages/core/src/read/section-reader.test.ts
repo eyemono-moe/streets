@@ -451,6 +451,40 @@ describe("SectionReader", () => {
     expect(reader.items.at(-1)?.id).toBe("note-10");
   });
 
+  it("maxItems: Infinity なら MAX_ITEMS_PER_SECTION を超えても切らない", () => {
+    // 捕まえる変異: maxItems を読まずに既定の上限で切る（すべてのチャンネルが 200 件で途切れる）
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      maxItems: Infinity,
+    });
+    reader.start();
+
+    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
+      relays.get("wss://a/")?.emitEvent(0, event(`note-${i}`, 1000 + i));
+    }
+
+    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION + 10);
+  });
+
   it("keeps the most recently arrived items when capped in ascending order", () => {
     const relays = new Map<string, FakeRelayConnection>();
     const store = new PassThroughStore();

@@ -397,3 +397,16 @@ describe("columnStatus", () => {
     });
   });
 });
+
+describe("columnTitle（チャンネル）", () => {
+  it("チャンネルは情報が届いたら名前で呼べるよう、id と足したときの題名を返す", () => {
+    // 捕まえる変異: 保存した題名だけを返す（URL から開くと「チャンネル」のままになる）
+    expect(
+      columnTitle({
+        id: "x",
+        title: "チャンネル",
+        source: { kind: "channel", id: "a".repeat(64) },
+      }),
+    ).toEqual({ channel: "a".repeat(64), fallback: "チャンネル" });
+  });
+});

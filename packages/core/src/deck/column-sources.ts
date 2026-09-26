@@ -186,3 +186,29 @@ export const channelsSource = (
         relays,
       )
     : undefined;
+
+/**
+ * 最近アクティブなチャンネルを見つけるための、直近の発言。件数に上限を切る ——
+ * 動いているチャンネルを知るのが目的で、発言そのものは読まない。
+ */
+export const recentChannelMessagesSource = (
+  relays: readonly RelayUrl[],
+  since: number,
+): NostrSource | undefined =>
+  withRelays([{ kinds: [CHANNEL_MESSAGE_KIND], since, limit: 500 }], relays);
+
+/**
+ * すべてのチャンネルから探すときの、チャンネルとその情報の書き換え。リレーへの
+ * 負荷を抑えるため件数に上限を切り、呼び出し側は探す表示に入ったときに一度だけ
+ * 張る。絞り込みは画面の側で行い、打つたびに問い合わせない。
+ */
+export const allChannelsSource = (
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      { kinds: [CHANNEL_CREATE_KIND], limit: 1000 },
+      { kinds: [CHANNEL_METADATA_KIND], limit: 1000 },
+    ],
+    relays,
+  );
