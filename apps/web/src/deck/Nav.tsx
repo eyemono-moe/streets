@@ -7,6 +7,7 @@ import {
   createEffect,
   createSignal,
 } from "solid-js";
+import { ColumnHeaderActions } from "../columns/ColumnHeader";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
@@ -189,19 +190,19 @@ export const ComposeFab: Component = () => {
 /**
  * 狭い画面の上のバー。左の自分のアイコンから、設定・フィードバック・ログアウトを
  * 開く（下のバーはカラムの切り替えに使うので、ここへ寄せる）。真ん中に今のカラム、
- * 右にそのカラムの設定。
+ * 右は広い画面のカラムの見出しと同じ操作。狭い画面ではカラムごとの見出しを出さず、
+ * このバーが今のカラムの見出しを兼ねる。
  */
 export const MobileTopBar: Component<{
   pubkey: string;
   /** 今見ているカラム。パネルを開いている間は undefined。 */
   column: ColumnDef | undefined;
-  /** 一時カラム（URL で開いたもの）を見ている。設定は持たない。 */
+  /** 一時カラム（URL で開いたもの）を見ている。設定の代わりに「カラムに残す」と閉じるを出す。 */
   temporary: boolean;
   settingsOpen: boolean;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
-  const dispatch = useDispatch();
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);
   const href = () => feedbackHref(props.feedbackUrl);
   return (
@@ -233,26 +234,11 @@ export const MobileTopBar: Component<{
                 <ColumnTitle column={column()} />
               </span>
             </h1>
-            <Show when={!props.temporary}>
-              <button
-                type="button"
-                aria-label="カラムの設定"
-                aria-expanded={props.settingsOpen}
-                class="grid size-9 shrink-0 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
-                classList={{
-                  "c-primary bg-secondary": props.settingsOpen,
-                  "c-secondary bg-transparent": !props.settingsOpen,
-                }}
-                onClick={() =>
-                  dispatch({ type: "deck/toggle-settings", id: column().id })
-                }
-              >
-                <span
-                  class="i-material-symbols:more-horiz size-5"
-                  aria-hidden="true"
-                />
-              </button>
-            </Show>
+            <ColumnHeaderActions
+              column={column()}
+              open={props.settingsOpen}
+              temporary={props.temporary}
+            />
           </>
         )}
       </Show>

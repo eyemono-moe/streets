@@ -747,6 +747,7 @@ const DeckScreen: Component<{
                                             column={column()}
                                             settingsOpen={false}
                                             temporary
+                                            chrome={false}
                                             {...shared}
                                           />
                                         </div>

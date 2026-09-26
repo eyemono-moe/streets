@@ -181,16 +181,22 @@ const MobileBars = (props: {
   columns: ColumnDef[];
   active: string | undefined;
   panel?: "search" | "add-column";
+  /** 一時カラム。渡すと、それを見ている状態にする。 */
+  temp?: ColumnDef;
 }) => (
   <EventSceneProvider
     scene={{ events: [viewer.profile(), friend.profile()], viewer }}
   >
     <Mediates handle={() => true}>
       <div class="flex h-[640px] w-[390px] flex-col bg-secondary">
+        <ColumnAccentBar temporary={props.temp !== undefined} />
         <MobileTopBar
           pubkey={viewer.pubkey}
-          column={props.columns.find((column) => column.id === props.active)}
-          temporary={false}
+          column={
+            props.temp ??
+            props.columns.find((column) => column.id === props.active)
+          }
+          temporary={props.temp !== undefined}
           settingsOpen={false}
           onLogout={() => {}}
           feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
@@ -198,8 +204,8 @@ const MobileBars = (props: {
         <div class="flex-1" />
         <MobileTabBar
           columns={props.columns}
-          temp={undefined}
-          active={props.active}
+          temp={props.temp}
+          active={props.temp?.id ?? props.active}
           panel={props.panel}
         />
       </div>
@@ -209,6 +215,21 @@ const MobileBars = (props: {
 
 export const 狭い画面の上下のバー: Story = {
   render: () => <MobileBars columns={columns} active="home" />,
+};
+
+/** 一時カラムでは、上のバーの右に「カラムに残す」と閉じるを出し、上端の帯を破線にする。 */
+export const 狭い画面_一時カラムを見ている: Story = {
+  render: () => (
+    <MobileBars
+      columns={columns}
+      active={undefined}
+      temp={{
+        id: "temp",
+        title: "ともだち",
+        source: { kind: "user", pubkey: friend.pubkey },
+      }}
+    />
+  ),
 };
 
 export const 狭い画面_ユーザーのカラムを選ぶ: Story = {
