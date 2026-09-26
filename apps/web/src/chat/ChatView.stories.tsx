@@ -63,8 +63,29 @@ const long = say(
   ),
 );
 const mine = say(viewer, 13, "わたしも来ました");
+const longName = createStoryAuthor(77, {
+  name: "averyveryverylongusernamethatdoesnotfitinthecolumn",
+  displayName:
+    "とても長い表示名の人で、カラムの幅にまったく収まらないくらい長い",
+});
+const replyToLong = say(
+  longName,
+  14,
+  "長い発言への返信は、返信先を 1 行だけ出す",
+  long,
+);
 
-const messages = [hello, usual, quiet, spam, sameOne, trollAgain, long, mine];
+const messages = [
+  hello,
+  usual,
+  quiet,
+  spam,
+  sameOne,
+  trollAgain,
+  long,
+  mine,
+  replyToLong,
+];
 const moderation = chatModeration([
   at(mama, 4, buildHideMessage(spam.id, "宣伝")),
   at(viewer, 10, buildMuteUser(troll.pubkey)),
@@ -89,6 +110,7 @@ const meta = {
           other.profile(),
           troll.profile(),
           spammer.profile(),
+          longName.profile(),
           ...messages,
         ],
         viewer,

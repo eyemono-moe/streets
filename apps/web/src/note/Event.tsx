@@ -31,6 +31,7 @@ import ActionBar from "./ActionBar";
 import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
+import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
 import EventMenu from "./EventMenu";
 import LinkCards from "./LinkCards";
 import MediaViewer from "./MediaViewer";
@@ -481,6 +482,20 @@ const EventBody: Component<ContentProps> = (props) => {
   // プロフィールは人そのものなので、フォロー一覧と同じ行で描く。押すとその人のカラムを開く。
   if (props.event.kind === 0) {
     return <ProfileRow pubkey={props.event.pubkey} />;
+  }
+
+  // チャンネル（NIP-28）は、チャンネルとして見せて開けるようにする。
+  if (props.event.kind === 40 || props.event.kind === 41) {
+    return <ChannelCard event={props.event} size={props.size} />;
+  }
+  if (props.event.kind === 42) {
+    return (
+      <ChannelMessageCard
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
+    );
   }
 
   // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。

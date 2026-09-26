@@ -17,6 +17,11 @@ export const useEvent = (
 
   createEffect(() => {
     const { id, relay } = ref();
+    // 指す先が無い（タグが壊れている）ものは取りにいかない。空の id を要求しない。
+    if (id === "") {
+      setLookup({ phase: "missing" });
+      return;
+    }
     const load = () => {
       const event = store.get(id);
       if (event) setLookup({ phase: "found", event });
