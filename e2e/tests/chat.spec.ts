@@ -36,7 +36,7 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
     name: "テストの部屋 にメッセージを送信",
   });
   await box.fill(text);
-  await box.press("Enter");
+  await box.press("Control+Enter");
 
   const sent = await waitForEvent(
     { authors: [me.pubkey], kinds: [42] },

@@ -16,8 +16,7 @@ import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 
 /**
- * チャンネルの入力欄。Enter で送り、Shift+Enter で改行する（チャットの慣例）。
- * 変換中の Enter は確定なので送らない —— 日本語入力で、確定のたびに送られてしまう。
+ * チャンネルの入力欄。投稿欄と同じく、Enter は改行で、Ctrl+Enter（Mac は ⌘+Enter）で送る。
  */
 const ChatComposer: Component<{
   state: ComposeState;
@@ -95,11 +94,7 @@ const ChatComposer: Component<{
               }
               {...dropAndPaste}
               onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.isComposing
-                ) {
+                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault();
                   dispatch({ type: "compose/submit" });
                 }
