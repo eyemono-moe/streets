@@ -1,3 +1,10 @@
+import {
+  CHANNEL_CREATE_KIND,
+  CHANNEL_HIDE_MESSAGE_KIND,
+  CHANNEL_MESSAGE_KIND,
+  CHANNEL_METADATA_KIND,
+  CHANNEL_MUTE_USER_KIND,
+} from "../nostr/channel";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -114,3 +121,76 @@ export const followersSource = (pubkey: string): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [3], "#p": [pubkey] }],
 });
+
+/*
+ * NIP-28 のチャンネル。著者で行き先が決まらないので、どれもリレーを明示して読む。
+ * リレーがまだ 1 本も分からないうちは `undefined`（購読を張らない）。空配列を
+ * 渡すと「0 本の明示指定」になり、何も届かないまま終わる。
+ */
+const withRelays = (
+  filters: NostrSource["filters"],
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  relays.length > 0
+    ? { type: "nostr", filters, relays: [...relays] }
+    : undefined;
+
+/** チャンネルそのもの（kind:40）と、その情報の書き換え（kind:41）。 */
+export const channelSource = (
+  channelId: string,
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      { ids: [channelId] },
+      { kinds: [CHANNEL_METADATA_KIND], "#e": [channelId] },
+    ],
+    relays,
+  );
+
+export const channelMessagesSource = (
+  channelId: string,
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays([{ kinds: [CHANNEL_MESSAGE_KIND], "#e": [channelId] }], relays);
+
+/**
+ * 並んでいる発言に関わるチャット内のミュート。自分のミュートは全部、ほかの人の
+ * ミュートは並んでいる発言と書き手に向いたものだけを取る。
+ */
+export const chatModerationSource = (
+  viewer: string,
+  messageIds: readonly string[],
+  authors: readonly string[],
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      {
+        kinds: [CHANNEL_HIDE_MESSAGE_KIND, CHANNEL_MUTE_USER_KIND],
+        authors: [viewer],
+      },
+      ...(messageIds.length > 0
+        ? [{ kinds: [CHANNEL_HIDE_MESSAGE_KIND], "#e": [...messageIds] }]
+        : []),
+      ...(authors.length > 0
+        ? [{ kinds: [CHANNEL_MUTE_USER_KIND], "#p": [...authors] }]
+        : []),
+    ],
+    relays,
+  );
+
+/** いくつかのチャンネルの情報。`ids` が空なら何も取らない。 */
+export const channelsSource = (
+  channelIds: readonly string[],
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  channelIds.length > 0
+    ? withRelays(
+        [
+          { kinds: [CHANNEL_CREATE_KIND], ids: [...channelIds] },
+          { kinds: [CHANNEL_METADATA_KIND], "#e": [...channelIds] },
+        ],
+        relays,
+      )
+    : undefined;
