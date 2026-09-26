@@ -131,7 +131,7 @@ const PERSON_ICON = "i-material-symbols:person-outline-rounded";
  * 自分の読み込みリレー。取得中は空（まだ探さない）。設定が無いか読み込みリレーが
  * 無ければ既定のリレーで探す —— 空のままだと、チャンネルを永久に見つけられない。
  */
-const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
+export const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
   if (state.phase === "loading" || state.phase === "signed-out") return [];
   const read =
     state.phase === "ready"

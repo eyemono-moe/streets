@@ -8,12 +8,14 @@ const meta = {
   component: (props: {
     relayList: RelayListState;
     initialRelayOpen: boolean;
+    initialChannelOpen?: boolean;
   }) => (
     <Mediates handle={() => true}>
       <div class="flex h-150 w-95 flex-col bg-primary pt-3">
         <AddColumnPanel
           relayList={props.relayList}
           initialRelayOpen={props.initialRelayOpen}
+          initialChannelOpen={props.initialChannelOpen}
         />
       </div>
     </Mediates>
@@ -36,6 +38,7 @@ const meta = {
 } satisfies Meta<{
   relayList: RelayListState;
   initialRelayOpen: boolean;
+  initialChannelOpen?: boolean;
 }>;
 
 export default meta;
@@ -52,4 +55,12 @@ export const 読み込み中: Story = {
 
 export const リレー設定なし: Story = {
   args: { relayList: { phase: "missing" } },
+};
+
+/**
+ * チャンネルを選ぶところ。一覧は読み取り層に繋がるのでここには出さない。
+ * 一覧の見た目は「チャット/チャンネルの一覧」の「カラムを追加のパネル」で見る。
+ */
+export const チャンネルを選ぶ: Story = {
+  args: { initialRelayOpen: false, initialChannelOpen: true },
 };

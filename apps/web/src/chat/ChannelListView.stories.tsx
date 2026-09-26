@@ -116,3 +116,7 @@ export const 探すと多すぎる: Story = {
 export const 狭いカラム: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },
 };
+/** カラムを追加のパネルの中。行に「覗く」が付く。 */
+export const カラムを追加のパネル: Story = {
+  args: { onPeek: () => {} },
+};

@@ -420,6 +420,9 @@ const DeckScreen: Component<{
       case "deck/close-temp":
         navigate("/");
         return true;
+      case "deck/open-temp":
+        navigate(`/${event.entity}`);
+        return true;
       case "deck/focus-column":
         focusColumn(event.id);
         return true;
@@ -491,7 +494,10 @@ const DeckScreen: Component<{
                   icon="i-material-symbols:add-rounded"
                   full={full}
                 >
-                  <AddColumnPanel relayList={relayList()} />
+                  <AddColumnPanel
+                    relayList={relayList()}
+                    readLayer={props.readLayer}
+                  />
                 </SidePanel>
               }
             >
