@@ -113,15 +113,14 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
                 {current().metadata.about ?? "説明がありません"}
               </span>
             </div>
-            <Show when={props.size === "normal"}>
-              <Button
-                size="sm"
-                icon="i-material-symbols:forum-outline-rounded"
-                onClick={() => open(current())}
-              >
-                開く
-              </Button>
-            </Show>
+            {/* 本文に埋め込んだとき（compact）も開けるようにする。 */}
+            <Button
+              size="sm"
+              icon="i-material-symbols:forum-outline-rounded"
+              onClick={() => open(current())}
+            >
+              開く
+            </Button>
           </div>
         )}
       </Show>

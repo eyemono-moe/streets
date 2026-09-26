@@ -553,6 +553,21 @@ export const チャンネルの情報の書き換え: Story = {
 export const チャンネルでの発言: Story = {
   args: { event: channelMessage, scene: scene(channelCreate, channelMessage) },
 };
+// 本文に埋め込んだとき（compact）も、チャンネルを開けて、どのチャンネルの発言か分かる。
+const channelQuote = bob.quote(channelCreate, "ここのチャンネルおすすめです");
+const channelMessageQuote = carol.quote(channelMessage, "この発言が好き");
+export const チャンネルを埋め込んだ投稿: Story = {
+  args: {
+    event: channelQuote,
+    scene: scene(channelQuote, channelCreate),
+  },
+};
+export const チャンネルでの発言を埋め込んだ投稿: Story = {
+  args: {
+    event: channelMessageQuote,
+    scene: scene(channelMessageQuote, channelMessage, channelCreate),
+  },
+};
 export const チャンネルが読めない発言: Story = {
   args: {
     event: channelMessage,
