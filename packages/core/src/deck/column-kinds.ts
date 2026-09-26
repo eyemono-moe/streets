@@ -149,6 +149,11 @@ type ColumnKindDef<S> = {
    * ここでしか意味を持たず、ほかで切ると普通の投稿まで消える。
    */
   addressedToViewer?: boolean;
+  /**
+   * チャンネルでの発言（kind:42）を「表示するもの」で入り切りできるか。チャンネルの
+   * カラムでは発言そのものが中身なので、切れるようにしない。
+   */
+  togglesChats?: boolean;
   /** ユーザーが行動できる異常だけを返す（診断値は含めない）。 */
   alerts?: (source: S, input: ColumnAlertInput) => ColumnAlert[];
 };
@@ -221,8 +226,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   },
   followees: {
     title: () => ({ text: "ホーム" }),
-    kinds: (source) => source.kinds,
+    // チャンネルでの発言は保存した kinds に無く、「表示するもの」で入れたときに取る。
+    kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
+    togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
   },
   notifications: {
@@ -230,6 +237,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => NOTIFICATION_KINDS,
     hidesMuted: true,
     addressedToViewer: true,
+    togglesChats: true,
     alerts: (_, input) => {
       const { relayList, status } = input;
       const unreachable = status.incomplete?.unreachableRelays ?? 0;
@@ -359,9 +367,9 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   if (has(7)) facets.push("reactions");
   // Zap は誰かの通知にしか流れない（kind を決められないカラムにも出さない）。
   if (kinds?.includes(9735)) facets.push("zaps");
-  // チャンネルでの返信・メンション。自分宛を集めるカラムでだけ切り替える
-  // （チャンネルのカラムでは、発言そのものが中身なので切らない）。
-  if (kind.addressedToViewer && kinds?.includes(42)) facets.push("chats");
+  if (kind.togglesChats && kinds?.includes(CHANNEL_MESSAGE_KIND)) {
+    facets.push("chats");
+  }
   return facets;
 };
 

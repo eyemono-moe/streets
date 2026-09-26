@@ -81,6 +81,20 @@ describe("followeesSource", () => {
     });
   });
 
+  it("チャンネルでの発言は、入れているときだけ取る", () => {
+    // 捕まえる変異: 切っていても kind:42 を取る（使わない発言を流し続ける）/
+    // 既に入っている kind を重ねる
+    expect(followeesSource([1, 6], ["a"], VIEWER).filters[0].kinds).toEqual([
+      1, 6,
+    ]);
+    expect(
+      followeesSource([1, 6], ["a"], VIEWER, { chats: true }).filters[0].kinds,
+    ).toEqual([1, 6, 42]);
+    expect(
+      followeesSource([1, 42], ["a"], VIEWER, { chats: true }).filters[0].kinds,
+    ).toEqual([1, 42]);
+  });
+
   it("渡したフォローリストを共有しない", () => {
     // 捕まえる変異: 配列を参照のまま渡す (呼び出し側が後で配列を破壊的に
     // 変更すると、既に作った NostrSource の中身が黙って変わる)

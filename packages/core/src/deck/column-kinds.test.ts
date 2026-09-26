@@ -77,16 +77,17 @@ const column = (source: ColumnSource): ColumnDef => ({
 });
 
 describe("columnFacets", () => {
-  it("ホームはリプライ・引用・リポストを出し、リアクションとメンションは出さない", () => {
+  it("ホームはリプライ・引用・リポスト・チャンネルでの発言を出し、リアクションとメンションは出さない", () => {
     // 捕まえる変異: 種類に関わらず全項目を出す
     expect(columnFacets(column({ kind: "followees", kinds: [1, 6] }))).toEqual([
       "replies",
       "quotes",
       "reposts",
+      "chats",
     ]);
   });
 
-  it("チャンネルでの返信・メンションの切り替えは通知にだけ出す", () => {
+  it("チャンネルでの発言の切り替えは通知とホームに出し、チャンネルのカラムには出さない", () => {
     // 捕まえる変異: チャンネルのカラムにも出す（切ると発言が全部消える）
     expect(columnFacets(column({ kind: "notifications" }))).toContain("chats");
     expect(

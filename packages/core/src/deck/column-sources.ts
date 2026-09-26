@@ -41,10 +41,23 @@ export const followeesSource = (
   kinds: readonly number[],
   followees: readonly string[],
   viewer: string,
+  /**
+   * チャンネルでの発言（kind:42）も取る。ほかの「表示するもの」と違い、切っている
+   * ときは取らない —— 発言の多い人がいると、描かない発言でページが埋まる。
+   */
+  options: { chats?: boolean } = {},
 ): NostrSource => ({
   type: "nostr",
   filters: [
-    { kinds: [...kinds], authors: [...new Set([...followees, viewer])] },
+    {
+      kinds: [
+        ...new Set([
+          ...kinds,
+          ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+        ]),
+      ],
+      authors: [...new Set([...followees, viewer])],
+    },
   ],
 });
 

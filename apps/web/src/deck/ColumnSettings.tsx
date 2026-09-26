@@ -46,7 +46,7 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   reposts: "リポスト",
   reactions: "リアクション",
   zaps: "Zap",
-  chats: "チャンネルでの返信・メンション",
+  chats: "チャンネルでの発言",
 };
 
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */

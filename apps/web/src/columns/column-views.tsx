@@ -15,7 +15,11 @@ import {
   userPostsSource,
   userReactionsSource,
 } from "@streets/core/deck/column-sources";
-import { type ColumnDef, groupsNotifications } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  columnShow,
+  groupsNotifications,
+} from "@streets/core/deck/deck";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
@@ -246,17 +250,21 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:home-outline-rounded",
       subtitle: "フォロー中",
     }),
-    Content: (props) => (
-      <EventList
-        source={() =>
-          followeesSource(
-            props.source.kinds,
-            props.inputs.followees(),
-            props.inputs.viewer,
-          )
-        }
-      />
-    ),
+    Content: (props) => {
+      const scope = useColumnScope();
+      return (
+        <EventList
+          source={() =>
+            followeesSource(
+              props.source.kinds,
+              props.inputs.followees(),
+              props.inputs.viewer,
+              { chats: columnShow(scope.column()).chats },
+            )
+          }
+        />
+      );
+    },
   },
   notifications: {
     meta: () => ({

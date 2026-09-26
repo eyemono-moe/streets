@@ -28,7 +28,10 @@ export type ColumnShow = {
   reactions: boolean;
   /** Zap の受領（kind:9735）。通知カラムでしか意味を持たない。 */
   zaps: boolean;
-  /** チャンネル（NIP-28）での自分への返信・メンション。通知カラムでしか意味を持たない。 */
+  /**
+   * チャンネル（NIP-28）での発言。通知では自分への返信・メンション、ホームでは
+   * フォローしている人の発言。
+   */
   chats: boolean;
 };
 
