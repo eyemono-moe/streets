@@ -7,6 +7,8 @@ import {
   buildChannelCreate,
   buildChannelMessage,
   buildChannelMetadata,
+  buildHideMessage,
+  buildMuteUser,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
@@ -113,6 +115,14 @@ const storyActions = (
     },
     editChannel: (channelId, input) =>
       send(() => viewer.event(buildChannelMetadata(channelId, input))),
+    muteInChat: (kind, target, reason) =>
+      send(() =>
+        viewer.event(
+          kind === "message"
+            ? buildHideMessage(target.messageId, reason)
+            : buildMuteUser(target.pubkey, reason),
+        ),
+      ),
     favoriteChannelIds: () => favoriteChannels(publicChats()),
     setFavoriteChannel: (id, on) =>
       send(() => {

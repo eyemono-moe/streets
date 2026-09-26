@@ -9,6 +9,8 @@ import {
   buildChannelCreate,
   buildChannelMessage,
   buildChannelMetadata,
+  buildHideMessage,
+  buildMuteUser,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
@@ -109,6 +111,16 @@ export type EventActions = {
   createChannel(input: ChannelMetadataInput): Promise<string>;
   /** チャンネルの情報を直す（kind:41）。作った人のものだけが採られる。 */
   editChannel(channelId: string, input: ChannelMetadataInput): Promise<void>;
+  /**
+   * チャット内でミュートする。`message` はその発言（kind:43）、`user` はその人
+   * （kind:44）。チャンネルのリレーへも送る —— ほかの人の画面でも畳まれるように。
+   */
+  muteInChat(
+    kind: "message" | "user",
+    target: { messageId: string; pubkey: string },
+    reason: string,
+    relays: readonly RelayUrl[],
+  ): Promise<void>;
   /** お気に入りのチャンネル（kind:10005 の公開の項目）。 */
   favoriteChannelIds(): readonly string[];
   setFavoriteChannel(id: string, on: boolean): Promise<void>;
@@ -297,6 +309,15 @@ export const createWriteStack = (options: {
         buildChannelMetadata(channelId, input, input.relays[0]),
         undefined,
         { relays: input.relays },
+      );
+    },
+    async muteInChat(kind, target, reason, relays) {
+      await tracked("チャット内のミュート").publish(
+        kind === "message"
+          ? buildHideMessage(target.messageId, reason)
+          : buildMuteUser(target.pubkey, reason),
+        undefined,
+        { relays },
       );
     },
     favoriteChannelIds: () => favoriteChannels(publicChats()),
