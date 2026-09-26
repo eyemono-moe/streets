@@ -23,10 +23,11 @@ const ChannelRow: Component<{
   const name = () =>
     props.entry.channel.metadata.name ?? "名前の無いチャンネル";
   return (
-    <li class="flex items-center gap-2.5 bg-primary px-3 py-2.5">
+    // 行全体を押せるように、開くボタンを行いっぱいに広げ、★ はその上に重ねる。
+    <li class="relative bg-primary">
       <button
         type="button"
-        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 bg-transparent p-0 text-left"
+        class="flex w-full min-w-0 cursor-pointer items-center gap-2.5 bg-transparent py-2.5 pr-12 pl-3 text-left outline-none hover:bg-alpha-hover focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset"
         onClick={() => props.onOpen(props.entry)}
       >
         <ChannelPicture
@@ -43,29 +44,31 @@ const ChannelRow: Component<{
           {lastLabel(props.entry.lastMessageAt)}
         </span>
       </button>
-      <Button
-        variant="ghost"
-        size="sm"
-        shape="rounded"
-        icon={
-          props.entry.favorite
-            ? "i-material-symbols:star-rounded c-accent-5"
-            : "i-material-symbols:star-outline-rounded"
-        }
-        aria-label={
-          props.entry.favorite
-            ? `${name()} をお気に入りから外す`
-            : `${name()} をお気に入りに入れる`
-        }
-        aria-pressed={props.entry.favorite}
-        onClick={() =>
-          dispatch({
-            type: "channel/favorite",
-            id: props.entry.channel.id,
-            on: !props.entry.favorite,
-          })
-        }
-      />
+      <div class="absolute top-1/2 right-2 -translate-y-1/2">
+        <Button
+          variant="ghost"
+          size="sm"
+          shape="rounded"
+          icon={
+            props.entry.favorite
+              ? "i-material-symbols:star-rounded c-accent-5"
+              : "i-material-symbols:star-outline-rounded"
+          }
+          aria-label={
+            props.entry.favorite
+              ? `${name()} をお気に入りから外す`
+              : `${name()} をお気に入りに入れる`
+          }
+          aria-pressed={props.entry.favorite}
+          onClick={() =>
+            dispatch({
+              type: "channel/favorite",
+              id: props.entry.channel.id,
+              on: !props.entry.favorite,
+            })
+          }
+        />
+      </div>
     </li>
   );
 };
