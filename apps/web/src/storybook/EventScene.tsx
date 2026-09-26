@@ -2,6 +2,7 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import { buildChannelMessage } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import {
   buildNote,
@@ -79,6 +80,14 @@ const storyActions = (
       send(() => viewer.event(buildReply(target, content))),
     quote: (target, content) =>
       send(() => viewer.event(buildQuote(target, content))),
+    channelMessage: (channel, content, options) =>
+      send(() =>
+        viewer.event(
+          buildChannelMessage(channel.id, content, {
+            replyTo: options?.replyTo,
+          }),
+        ),
+      ),
     repost: (target) =>
       send(() => {
         const draft = buildRepost(target);

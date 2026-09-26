@@ -565,6 +565,11 @@ describe("カラムの種類ごとの保存", () => {
     user: { kind: "user", pubkey: "c".repeat(64) },
     "followees-list": { kind: "followees-list", pubkey: "d".repeat(64) },
     "followers-list": { kind: "followers-list", pubkey: "e".repeat(64) },
+    channel: {
+      kind: "channel",
+      id: "f".repeat(64),
+      relays: ["wss://yabu.me/"],
+    },
   };
 
   it.each(Object.values(EXAMPLES))("$kind は保存して読み戻せる", (source) => {

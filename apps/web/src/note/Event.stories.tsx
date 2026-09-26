@@ -1,6 +1,11 @@
 import type { LinkCardMode } from "@streets/core/deck/deck";
 import { addBookmark } from "@streets/core/nostr/build/bookmark";
 import {
+  buildChannelCreate,
+  buildChannelMessage,
+  buildChannelMetadata,
+} from "@streets/core/nostr/build/channel";
+import {
   type ReactionInput,
   buildReaction,
 } from "@streets/core/nostr/build/reaction";
@@ -518,5 +523,39 @@ export const リンクのカード_設定を切り替える: Story = {
         </EventSceneProvider>
       </div>
     );
+  },
+};
+
+// チャンネル（NIP-28）。検索の結果や通知に出てきたとき。
+const channelCreate = alice.event(
+  buildChannelCreate({
+    name: "さびれたスナック",
+    about: "夜にだらだら話す場所",
+    relays: ["wss://relay.example/"],
+  }),
+);
+const channelUpdate = alice.event(
+  buildChannelMetadata(channelCreate.id, {
+    name: "さびれたスナック（改装中）",
+    about: "しばらくお休みします",
+    relays: ["wss://relay.example/"],
+  }),
+);
+const channelMessage = alice.event(
+  buildChannelMessage(channelCreate.id, "こんばんは。今日もやってますか？"),
+);
+export const チャンネル: Story = {
+  args: { event: channelCreate, scene: scene(channelCreate) },
+};
+export const チャンネルの情報の書き換え: Story = {
+  args: { event: channelUpdate, scene: scene(channelCreate, channelUpdate) },
+};
+export const チャンネルでの発言: Story = {
+  args: { event: channelMessage, scene: scene(channelCreate, channelMessage) },
+};
+export const チャンネルが読めない発言: Story = {
+  args: {
+    event: channelMessage,
+    scene: { ...scene(channelMessage), missingIds: [channelCreate.id] },
   },
 };

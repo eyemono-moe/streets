@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import type { SectionStatus } from "../read/source";
 import type { RelayFilter } from "../relay/relay-connection";
 import { parseSearchQuery } from "../search/query";
@@ -80,6 +81,15 @@ export const columnSourceSchema = v.variant("kind", [
   v.object({ kind: v.literal("user"), pubkey: hexId }),
   v.object({ kind: v.literal("followees-list"), pubkey: hexId }),
   v.object({ kind: v.literal("followers-list"), pubkey: hexId }),
+  /**
+   * NIP-28 のチャンネル。`relays` は開いたときに分かっていたリレー（nevent の
+   * ヒントなど）。チャンネルの情報が届けば、そこに書かれたリレーも使う。
+   */
+  v.object({
+    kind: v.literal("channel"),
+    id: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
 ]);
 
 export type ColumnSource = v.InferOutput<typeof columnSourceSchema>;
@@ -285,6 +295,12 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     title: (source) => ({ person: source.pubkey, suffix: " のフォロワー" }),
     kinds: () => [3],
     hidesMuted: false,
+  },
+  channel: {
+    // 名前はチャンネルの情報に書かれていて、カラムを足したときの名前を保存している。
+    title: (_, column) => ({ text: column.title }),
+    kinds: () => [CHANNEL_MESSAGE_KIND],
+    hidesMuted: true,
   },
 };
 

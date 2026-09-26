@@ -3,6 +3,7 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import { buildChannelMessage } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
 import {
@@ -19,6 +20,7 @@ import {
   withReferences,
 } from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
@@ -69,6 +71,19 @@ export type EventActions = {
     content: string,
     media?: readonly BlobDescriptor[],
     emoji?: EmojiLookup,
+  ): Promise<void>;
+  /**
+   * チャンネルで発言する。`relays` はそのチャンネルを読むリレーで、自分の write
+   * リレーに加えてそこへも送る（チャンネルの発言は著者でなくチャンネルで読まれる）。
+   */
+  channelMessage(
+    channel: { id: string; relays: readonly RelayUrl[] },
+    content: string,
+    options?: {
+      replyTo?: NostrEvent;
+      media?: readonly BlobDescriptor[];
+      emoji?: EmojiLookup;
+    },
   ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
@@ -132,6 +147,11 @@ export const createWriteStack = (options: {
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
 
+  const seenRelays = (id: string) =>
+    store
+      .seenRelays(id)
+      .map(normalizeRelayUrl)
+      .filter((relay) => relay !== undefined);
   const relayHintFor = (id: string) =>
     store
       .seenRelays(id)
@@ -202,6 +222,22 @@ export const createWriteStack = (options: {
         ),
       );
     },
+    async channelMessage(channel, content, options) {
+      await tracked("チャンネルでの発言").publish(
+        withMedia(
+          withReferences(
+            buildChannelMessage(channel.id, content, {
+              relayHint: channel.relays[0],
+              replyTo: options?.replyTo,
+            }),
+            { emoji: options?.emoji },
+          ),
+          options?.media ?? [],
+        ),
+        undefined,
+        { relays: channel.relays },
+      );
+    },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
@@ -210,6 +246,12 @@ export const createWriteStack = (options: {
     async react(event, input) {
       await tracked("リアクション").publish(
         buildReaction(event, input, { relayHint: relayHintFor(event.id) }),
+        undefined,
+        // チャンネルの発言は、書き手ではなくチャンネルのリレーで読まれる。
+        // 自分の write リレーだけに送ると、チャンネルにいる人にリアクションが見えない。
+        event.kind === CHANNEL_MESSAGE_KIND
+          ? { relays: seenRelays(event.id) }
+          : undefined,
       );
     },
     bookmarked: (id) => bookmarkIds().includes(id),
