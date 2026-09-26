@@ -1,4 +1,5 @@
 import { encodeNevent } from "@streets/core/nostr/nip19";
+import { column } from "../src/deck";
 import { RELAY_URL } from "../src/env";
 import { expect, test } from "../src/fixtures";
 import { waitForEvent } from "../src/relay";
@@ -201,4 +202,40 @@ test("チャンネルの発言をミュートできる", async ({
   await expect(page.getByText("ミュートしたメッセージです")).toBeVisible();
   await page.getByRole("button", { name: "表示する" }).click();
   await expect(page.getByText(spam.content)).toBeVisible();
+});
+
+test("チャンネルでの自分への返信が通知に出る", async ({
+  page,
+  me,
+  openApp,
+  signIn,
+}) => {
+  const owner = await createUser("owner");
+  const channel = await owner.post({
+    kind: 40,
+    content: JSON.stringify({ name: "通知の部屋", relays: [RELAY_URL] }),
+  });
+  const mine = await me.post({
+    kind: 42,
+    content: "こんばんは",
+    tags: [["e", channel.id, RELAY_URL, "root"]],
+  });
+  const text = `いらっしゃい ${Date.now()}`;
+  await owner.post({
+    kind: 42,
+    content: text,
+    tags: [
+      ["e", channel.id, RELAY_URL, "root"],
+      ["e", mine.id, RELAY_URL, "reply", me.pubkey],
+      ["p", me.pubkey, RELAY_URL],
+    ],
+  });
+
+  await openApp();
+  await signIn();
+  const notice = column(page, "通知")
+    .getByRole("article")
+    .filter({ hasText: text });
+  await expect(notice).toBeVisible();
+  await expect(notice.getByText("通知の部屋 での発言")).toBeVisible();
 });

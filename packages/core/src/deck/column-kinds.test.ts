@@ -86,6 +86,14 @@ describe("columnFacets", () => {
     ]);
   });
 
+  it("チャンネルでの返信・メンションの切り替えは通知にだけ出す", () => {
+    // 捕まえる変異: チャンネルのカラムにも出す（切ると発言が全部消える）
+    expect(columnFacets(column({ kind: "notifications" }))).toContain("chats");
+    expect(
+      columnFacets(column({ kind: "channel", id: "a".repeat(64) })),
+    ).not.toContain("chats");
+  });
+
   it("通知だけがメンションを出す", () => {
     // 捕まえる変異: メンションをどのカラムにも出す（ホームで切ると普通の投稿が消える）
     expect(columnFacets(column({ kind: "notifications" }))).toContain(

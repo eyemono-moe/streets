@@ -19,8 +19,9 @@ export const TIMELINE_KINDS: readonly number[] = [1, 6];
 /**
  * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
  * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
+ * kind:42 はチャンネル（NIP-28）での自分への返信・メンション。
  */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735];
+export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42];
 
 /**
  * NIP-01 フィルタの検証。ワイヤ形式でなく保存デッキ用なので valibot 可。
@@ -350,6 +351,9 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   if (has(7)) facets.push("reactions");
   // Zap は誰かの通知にしか流れない（kind を決められないカラムにも出さない）。
   if (kinds?.includes(9735)) facets.push("zaps");
+  // チャンネルでの返信・メンション。自分宛を集めるカラムでだけ切り替える
+  // （チャンネルのカラムでは、発言そのものが中身なので切らない）。
+  if (kind.addressedToViewer && kinds?.includes(42)) facets.push("chats");
   return facets;
 };
 
