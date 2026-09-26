@@ -37,6 +37,7 @@ const Editor: Component<{
   src: string;
   box: Box;
   crop: CropRect | undefined;
+  aspectRatio: number | undefined;
   /** 動きのある画像か。切ると 1 枚の静止画になるので、その前に知らせる。 */
   animated: boolean;
   onDone: (crop: CropRect | undefined) => void;
@@ -49,7 +50,10 @@ const Editor: Component<{
     width: props.crop.width * props.box.scale,
     height: props.crop.height * props.box.scale,
   };
-  const cropper = useImageCropper({ initialCrop });
+  const cropper = useImageCropper({
+    initialCrop,
+    aspectRatio: props.aspectRatio,
+  });
 
   const done = () => {
     const data = cropper().getCropData();
@@ -126,11 +130,12 @@ const Editor: Component<{
           onClick={() => cropper().zoomBy(0.1)}
         />
         <IconButton
-          label="全体に戻す"
+          label={props.aspectRatio === undefined ? "全体に戻す" : "枠を戻す"}
           icon="i-material-symbols:restart-alt-rounded"
           onClick={() => {
             cropper().reset();
-            props.onDone(undefined);
+            // 形が決まっているときは、全体が収まるとは限らない。枠を戻すだけにする。
+            if (props.aspectRatio === undefined) props.onDone(undefined);
           }}
         />
         <span class="flex-1" />
@@ -153,6 +158,8 @@ const CropDialog: Component<{
   src: string;
   name: string;
   crop?: CropRect;
+  /** 枠の縦横比（幅 ÷ 高さ）。アイコンのように形が決まっているときに渡す。 */
+  aspectRatio?: number;
   onDone: (crop: CropRect | undefined) => void;
   onClose: () => void;
 }> = (props) => {
@@ -217,6 +224,7 @@ const CropDialog: Component<{
                   src={props.src}
                   box={box()}
                   crop={props.crop}
+                  aspectRatio={props.aspectRatio}
                   animated={animated()}
                   onDone={props.onDone}
                   onClose={props.onClose}

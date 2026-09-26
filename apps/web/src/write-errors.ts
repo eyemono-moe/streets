@@ -14,6 +14,9 @@ export const actionErrorMessage = (error: unknown): string => {
   if (error instanceof SignerUnavailableError) {
     return "署名器を利用できません。ログインし直してください";
   }
+  if (error instanceof NoUploadServerError) {
+    return "画像のアップロード先がありません。設定の「画像」で追加してください";
+  }
   return `送信に失敗しました: ${error instanceof Error ? error.message : String(error)}`;
 };
 

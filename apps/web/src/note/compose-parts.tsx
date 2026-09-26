@@ -8,7 +8,7 @@ import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 
-const CropDialog = lazyPart(() => import("./CropDialog"));
+const CropDialog = lazyPart(() => import("../media/CropDialog"));
 
 const graphemes = new Intl.Segmenter("ja", { granularity: "grapheme" });
 

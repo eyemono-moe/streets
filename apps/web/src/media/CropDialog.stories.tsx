@@ -10,6 +10,7 @@ type Props = {
   name: string;
   /** 前に決めた範囲。開き直したときに、そこから直せる。 */
   crop?: CropRect;
+  aspectRatio?: number;
 };
 
 const meta = {
@@ -19,6 +20,7 @@ const meta = {
       src={props.src}
       name={props.name}
       crop={props.crop}
+      aspectRatio={props.aspectRatio}
       onDone={() => {}}
       onClose={() => {}}
     />
@@ -39,6 +41,8 @@ export const 長い名前: Story = {
 export const 切り抜き済み: Story = {
   args: { crop: { x: 100, y: 60, width: 700, height: 500 } },
 };
+/** アイコンのように形が決まっているもの。枠は正方形のまま大きさだけ変わる。 */
+export const 正方形: Story = { args: { aspectRatio: 1 } };
 /** 動く画像は、切ると 1 枚の絵になる。切る前に知らせる。 */
 export const 動く画像: Story = {
   args: { src: animatedUrl, name: "うごく.gif" },

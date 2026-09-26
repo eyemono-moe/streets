@@ -11,6 +11,9 @@ const inputBase =
 
 export const textInputClass = `${inputBase} h-9 border-primary`;
 
+/** 誤りがあるときの `textInputClass`。枠の色だけを変える。 */
+export const invalidTextInputClass = `${inputBase} h-9 border-danger`;
+
 /**
  * その場で絞り込む検索窓。角を丸めきるのはここだけ —— 打つと結果が変わる箱
  * であることを、形で見分けられるようにする。
