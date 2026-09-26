@@ -134,7 +134,7 @@ const meta = {
               composer={
                 <ChatComposer
                   state={state}
-                  channelName={props.channelName ?? "さびれたスナック"}
+                  channelName={props.channelName ?? "ねこの画像チャンネル"}
                   replyTo={props.replyTo}
                 />
               }

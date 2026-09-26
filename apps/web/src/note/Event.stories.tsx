@@ -529,14 +529,14 @@ export const リンクのカード_設定を切り替える: Story = {
 // チャンネル（NIP-28）。検索の結果や通知に出てきたとき。
 const channelCreate = alice.event(
   buildChannelCreate({
-    name: "さびれたスナック",
-    about: "夜にだらだら話す場所",
+    name: "ねこの画像チャンネル",
+    about: "ねこの写真を貼る場所",
     relays: ["wss://relay.example/"],
   }),
 );
 const channelUpdate = alice.event(
   buildChannelMetadata(channelCreate.id, {
-    name: "さびれたスナック（改装中）",
+    name: "ねこの画像チャンネル（改装中）",
     about: "しばらくお休みします",
     relays: ["wss://relay.example/"],
   }),
