@@ -18,6 +18,7 @@ import {
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
 import { Mediates, type UiEvent } from "../ui-events";
+import ColumnAccentBar from "./ColumnAccentBar";
 import { useColumnTitle } from "./ColumnTitle";
 
 export type ColumnProps = {
@@ -84,7 +85,7 @@ const Column: Component<ColumnProps> = (props) => {
   const chrome = () => (
     <>
       <Show when={props.chrome !== false && !props.stacked}>
-        <div class="h-0.75 shrink-0 bg-accent-primary" />
+        <ColumnAccentBar temporary={props.temporary} />
       </Show>
       <Show
         when={props.stacked}
@@ -123,13 +124,7 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   const inner = () => (
-    <section
-      class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary"
-      classList={{
-        "outline outline-2 -outline-offset-2 outline-accent-5":
-          props.temporary === true,
-      }}
-    >
+    <section class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary">
       {chrome()}
       <Show when={!props.stacked} fallback={body()}>
         <div class="relative min-h-0 flex-1">

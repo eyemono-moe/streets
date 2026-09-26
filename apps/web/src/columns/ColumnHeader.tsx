@@ -9,44 +9,19 @@ export type StackedColumn = {
   backTo: ColumnDef;
 };
 
-export const ColumnHeader: Component<{
+/**
+ * カラムの見出しの右側。一時カラムなら「カラムに残す」と閉じる、それ以外なら
+ * カラムの設定。広い画面のカラムの見出しと、狭い画面の上のバーの両方がこれを使う。
+ */
+export const ColumnHeaderActions: Component<{
   column: ColumnDef;
+  /** カラムの設定を開いている。 */
   open: boolean;
-  draggable?: boolean;
   temporary?: boolean;
-  onTitle: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
-  const meta = () => columnView(props.column.source).meta(props.column.source);
   return (
-    <header
-      class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
-      classList={{ "cursor-grab": props.draggable === true }}
-      draggable={props.draggable === true}
-      onDragStart={(event) => {
-        event.dataTransfer?.setData("text/plain", props.column.id);
-        dispatch({ type: "deck/drag-start", id: props.column.id });
-      }}
-      onDragEnd={() => dispatch({ type: "deck/drag-end" })}
-    >
-      <ColumnIcon
-        column={props.column}
-        class="c-secondary size-4.5 shrink-0"
-        avatarClass="size-5 shrink-0 rounded-1.5"
-      />
-      <button
-        type="button"
-        title="先頭へ戻る"
-        class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
-        onClick={() => props.onTitle()}
-      >
-        <h2 class="w-full truncate font-600 text-body">
-          <ColumnTitle column={props.column} />
-        </h2>
-        <p class="c-secondary w-full truncate text-caption">
-          {meta().subtitle}
-        </p>
-      </button>
+    <>
       <Show when={props.temporary}>
         <>
           <button
@@ -93,6 +68,53 @@ export const ColumnHeader: Component<{
           />
         </button>
       </Show>
+    </>
+  );
+};
+
+export const ColumnHeader: Component<{
+  column: ColumnDef;
+  open: boolean;
+  draggable?: boolean;
+  temporary?: boolean;
+  onTitle: () => void;
+}> = (props) => {
+  const dispatch = useDispatch();
+  const meta = () => columnView(props.column.source).meta(props.column.source);
+  return (
+    <header
+      class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
+      classList={{ "cursor-grab": props.draggable === true }}
+      draggable={props.draggable === true}
+      onDragStart={(event) => {
+        event.dataTransfer?.setData("text/plain", props.column.id);
+        dispatch({ type: "deck/drag-start", id: props.column.id });
+      }}
+      onDragEnd={() => dispatch({ type: "deck/drag-end" })}
+    >
+      <ColumnIcon
+        column={props.column}
+        class="c-secondary size-4.5 shrink-0"
+        avatarClass="size-5 shrink-0 rounded-1.5"
+      />
+      <button
+        type="button"
+        title="先頭へ戻る"
+        class="flex min-w-0 flex-1 cursor-pointer flex-col bg-transparent p-0 text-left"
+        onClick={() => props.onTitle()}
+      >
+        <h2 class="w-full truncate font-600 text-body">
+          <ColumnTitle column={props.column} />
+        </h2>
+        <p class="c-secondary w-full truncate text-caption">
+          {meta().subtitle}
+        </p>
+      </button>
+      <ColumnHeaderActions
+        column={props.column}
+        open={props.open}
+        temporary={props.temporary}
+      />
     </header>
   );
 };
