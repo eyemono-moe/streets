@@ -231,18 +231,10 @@ describe("チャンネル", () => {
     });
   });
 
-  it("ミュートは、自分のものと、並んでいる発言・書き手に向いたものを取る", () => {
-    expect(
-      chatModerationSource(VIEWER, ["2".repeat(64)], ["3".repeat(64)], RELAYS)
-        ?.filters,
-    ).toEqual([
-      { kinds: [43, 44], authors: [VIEWER] },
-      { kinds: [43], "#e": ["2".repeat(64)] },
-      { kinds: [44], "#p": ["3".repeat(64)] },
-    ]);
-    // 捕まえる変異: 空の #e を載せる（「該当なし」になり、条件として意味が無い）
-    expect(chatModerationSource(VIEWER, [], [], RELAYS)?.filters).toEqual([
-      { kinds: [43, 44], authors: [VIEWER] },
+  it("ミュートは、並んでいる発言によらない条件で取る", () => {
+    // 捕まえる変異: 発言の id を条件に入れる（発言が届くたびに購読を張り直す）
+    expect(chatModerationSource(RELAYS)?.filters).toEqual([
+      { kinds: [43, 44], limit: 500 },
     ]);
   });
 

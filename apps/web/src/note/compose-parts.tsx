@@ -396,7 +396,7 @@ export const useDropAndPaste = () => {
  * 画像を選ぶ。アップロード先を決めていないときは押せる状態にし、押したら設定へ案内する
  * （押せないボタンだけ出すと、なぜ使えないのか分からない）。
  */
-const ImageButton: Component = () => {
+export const ImageButton: Component = () => {
   const dispatch = useDispatch();
   const guard = useAttachGuard();
   let input: HTMLInputElement | undefined;

@@ -52,6 +52,24 @@ export const buildActivityColumn = (target: string): ColumnDef => ({
   source: { kind: "activity", target },
 });
 
+/**
+ * チャンネルのカラム。id をチャンネルから決めるので、同じチャンネルを 2 回開いても
+ * 重ならない。`relays` はそのチャンネルがあると分かっているリレー。
+ */
+export const buildChannelColumn = (
+  channelId: string,
+  name: string | undefined,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `channel:${channelId}`,
+  title: name ?? "チャンネル",
+  source: {
+    kind: "channel",
+    id: channelId,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
 /** 選んだリレーだけから公開ノートを読むカラムを作る。 */
 export const buildRelayColumn = (
   relays: readonly RelayUrl[],

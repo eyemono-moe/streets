@@ -31,6 +31,9 @@ export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>
 const ReactionPicker: Component<{
   target: NostrEvent;
   trigger: (props: PickerTrigger) => JSX.Element;
+  /** 外から開くとき（メニューの「リアクションする」など）。渡さなければトリガーで開閉する。 */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const customGroups = useEmojiGroups();
@@ -40,6 +43,8 @@ const ReactionPicker: Component<{
       lazyMount
       unmountOnExit
       positioning={{ placement: "bottom-start" }}
+      open={props.open}
+      onOpenChange={(details) => props.onOpenChange?.(details.open)}
     >
       <PopoverTrigger asChild={props.trigger} />
       <Portal>

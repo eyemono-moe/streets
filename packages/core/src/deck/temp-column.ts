@@ -1,6 +1,7 @@
+import { CHANNEL_CREATE_KIND } from "../nostr/channel";
 import { relayOf } from "../nostr/event-refs";
 import { decodeNip19 } from "../nostr/nip19";
-import { buildUserColumn } from "./column-presets";
+import { buildChannelColumn, buildUserColumn } from "./column-presets";
 import type { ColumnDef } from "./deck";
 
 /** URL の 1 区画（`nevent1…` など）から開くカラム。デッキへは保存しない。 */
@@ -16,6 +17,18 @@ export const tempColumnFor = (entity: string): ColumnDef | undefined => {
 
   if (ref.kind === "npub" || ref.kind === "nprofile") {
     return { ...buildUserColumn(ref.pubkey), id: TEMP_COLUMN_ID };
+  }
+
+  // チャンネル（kind:40）を指す nevent は、発言を並べるチャンネルのカラムで開く。
+  if (ref.kind === "nevent" && ref.eventKind === CHANNEL_CREATE_KIND) {
+    const relays = ref.relays.flatMap((relay) => {
+      const url = relayOf(relay);
+      return url ? [url] : [];
+    });
+    return {
+      ...buildChannelColumn(ref.id, undefined, relays),
+      id: TEMP_COLUMN_ID,
+    };
   }
 
   if (ref.kind === "note" || ref.kind === "nevent") {

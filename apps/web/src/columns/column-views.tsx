@@ -29,6 +29,7 @@ import ColumnTabs from "../ui/ColumnTabs";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
+import ChannelChat from "./blocks/ChannelChat";
 import EventList from "./blocks/EventList";
 import FollowList from "./blocks/FollowList";
 import NotificationList from "./blocks/NotificationList";
@@ -85,6 +86,12 @@ const relayColumnSource = (source: ColumnSourceOf<"literal">) => {
 };
 
 const PERSON_ICON = "i-material-symbols:person-outline-rounded";
+
+/** 自分の読み込みリレー。まだ分からなければ空。 */
+const viewerReadRelays = (state: RelayListState): RelayUrl[] =>
+  state.phase === "ready"
+    ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
+    : [];
 
 const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   literal: {
@@ -272,6 +279,21 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         </>
       );
     },
+  },
+  channel: {
+    meta: () => ({
+      icon: "i-material-symbols:forum-outline-rounded",
+      subtitle: "チャンネル",
+    }),
+    scrollsInternally: true,
+    Content: (props) => (
+      <ChannelChat
+        channelId={props.source.id}
+        hints={props.source.relays ?? []}
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+        viewer={props.inputs.viewer}
+      />
+    ),
   },
   "followees-list": {
     meta: () => ({ icon: PERSON_ICON, subtitle: "フォロー中の人" }),

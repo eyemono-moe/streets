@@ -104,11 +104,12 @@ const trackedReplace =
  * `label` は何を書いたか（「リアクション」「リレーの設定」など）。
  */
 export const trackWrites = (writer: Tracked, label: string): Tracked => ({
-  publish: (draft, hooks) =>
+  publish: (draft, hooks, options) =>
     track(label, (onProgress) =>
       writer.publish(
         draft,
         onProgress ? withProgress(hooks, onProgress) : hooks,
+        options,
       ),
     ),
   replace: trackedReplace(writer, label),
