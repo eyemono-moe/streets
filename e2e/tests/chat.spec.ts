@@ -51,7 +51,7 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
   await expect(box).toHaveValue("");
 });
 
-test("チャンネルの一覧から開き、お気に入りに入れられる", async ({
+test("カラムを追加からチャンネルを選び、お気に入りに入れられる", async ({
   page,
   me,
   openApp,
@@ -71,10 +71,13 @@ test("チャンネルの一覧から開き、お気に入りに入れられる",
 
   await openApp();
   await signIn();
-  await page.getByRole("button", { name: "カラムを追加" }).first().click();
+  await page
+    .getByRole("button", { name: "カラムを追加", exact: true })
+    .first()
+    .click();
   await page.getByRole("button", { name: /^チャンネル/ }).click();
 
-  // 最近アクティブなチャンネルに出る。★ でお気に入りに入れる。
+  // パネルの「最近アクティブなチャンネル」に出る。★ でお気に入りに入れる。
   await page
     .getByRole("button", { name: `${name} をお気に入りに入れる` })
     .click();
@@ -84,14 +87,12 @@ test("チャンネルの一覧から開き、お気に入りに入れられる",
       event.tags.some((tag) => tag[0] === "e" && tag[1] === channel.id),
   );
   expect(list.tags).toContainEqual(["e", channel.id]);
-  await expect(
-    page.getByRole("button", { name: `${name} をお気に入りから外す` }),
-  ).toBeVisible();
 
-  // 押すと、そのチャンネルの発言が出る。
+  // 押すと、そのチャンネルがデッキのカラムとして足される。
   await page
     .getByRole("button", { name: new RegExp(name) })
     .first()
     .click();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
   await expect(page.getByText("だれかいますか")).toBeVisible();
 });

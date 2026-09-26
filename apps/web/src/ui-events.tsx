@@ -103,6 +103,8 @@ export type DeckEvent =
   | { type: "deck/remove-column"; id: string }
   /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
   | { type: "deck/keep-temp" }
+  /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。覗くだけでデッキには足さない。 */
+  | { type: "deck/open-temp"; entity: string }
   | { type: "deck/close-temp" }
   | { type: "deck/open-settings" }
   | { type: "deck/close-settings" }

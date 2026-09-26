@@ -4,6 +4,7 @@ import {
   channelsSource,
   recentChannelMessagesSource,
 } from "@streets/core/deck/column-sources";
+import type { ColumnDef } from "@streets/core/deck/deck";
 import { activeChannels } from "@streets/core/nostr/channel";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
@@ -32,6 +33,10 @@ const ACTIVE_WITHIN = 7 * 24 * 60 * 60;
  */
 const ChannelList: Component<{
   viewerRead: () => readonly RelayUrl[];
+  /** 押したときにすること。渡さなければ、そのカラムの中に重ねて開く。 */
+  onOpen?: (column: ColumnDef) => void;
+  /** 渡すと、行に「覗く」を出す。 */
+  onPeek?: (entry: ChannelEntry, relays: readonly RelayUrl[]) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const actions = useEventActions();
@@ -99,17 +104,25 @@ const ChannelList: Component<{
       : [],
   );
 
-  const open = (entry: ChannelEntry) =>
-    dispatch({
-      type: "stack/open",
-      column: buildChannelColumn(
-        entry.channel.id,
-        entry.channel.metadata.name,
-        entry.channel.metadata.relays.length > 0
-          ? entry.channel.metadata.relays
-          : relays(),
-      ),
-    });
+  const relaysOf = (entry: ChannelEntry) =>
+    entry.channel.metadata.relays.length > 0
+      ? entry.channel.metadata.relays
+      : relays();
+  const open = (entry: ChannelEntry) => {
+    const column = buildChannelColumn(
+      entry.channel.id,
+      entry.channel.metadata.name,
+      relaysOf(entry),
+    );
+    if (props.onOpen) props.onOpen(column);
+    else dispatch({ type: "stack/open", column });
+  };
+  const peek = () => {
+    const onPeek = props.onPeek;
+    return onPeek
+      ? (entry: ChannelEntry) => onPeek(entry, relaysOf(entry))
+      : undefined;
+  };
 
   return (
     <ChannelListView
@@ -130,6 +143,7 @@ const ChannelList: Component<{
       }}
       onQuery={setQuery}
       onOpen={open}
+      onPeek={peek()}
     />
   );
 };
