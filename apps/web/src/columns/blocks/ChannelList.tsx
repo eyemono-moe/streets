@@ -71,9 +71,8 @@ const ChannelList: Component<{
     maxItems: Number.POSITIVE_INFINITY,
   });
 
-  const [searching, setSearching] = createSignal(false);
   const [query, setQuery] = createSignal("");
-  // 一度探したら持ち続ける。探す表示を閉じても購読は閉じない。
+  // 「すべて」を一度開いたら持ち続ける。タブを戻しても購読は閉じない。
   const [browsed, setBrowsed] = createSignal(false);
   const all = createBlockSection({
     source: () => (browsed() ? allChannelsSource(relays()) : undefined),
@@ -92,7 +91,7 @@ const ChannelList: Component<{
     }),
   );
   const results = createMemo(() =>
-    searching()
+    browsed()
       ? searchChannels({
           channels: channels(),
           favorites: favorites(),
@@ -118,7 +117,6 @@ const ChannelList: Component<{
 
   return (
     <ChannelListView
-      searching={searching()}
       query={query()}
       favorites={directory().favorites}
       active={directory().active}
@@ -128,12 +126,8 @@ const ChannelList: Component<{
       }
       activeSettled={recent.status().phase === "settled"}
       allSettled={all.status().phase === "settled"}
-      onSearch={(next) => {
-        setSearching(next);
-        if (next) setBrowsed(true);
-        else setQuery("");
-      }}
       onQuery={setQuery}
+      onBrowse={() => setBrowsed(true)}
       onOpen={open}
     />
   );

@@ -22,9 +22,12 @@ const ColumnTabs: Component<{
    * タブの並びは上端に留める。
    */
   scroll?: "inner" | "column";
+  /** タブが切り替わったとき（開いたときに初めて取りにいくものがある場合など）。 */
+  onValueChange?: (value: string) => void;
 }> = (props) => (
   <Tabs.Root
     defaultValue={props.defaultValue ?? props.tabs[0]?.value}
+    onValueChange={(details) => props.onValueChange?.(details.value)}
     lazyMount
     unmountOnExit
     class="isolate flex flex-col"

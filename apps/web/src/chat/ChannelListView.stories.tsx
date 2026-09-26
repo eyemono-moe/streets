@@ -61,7 +61,6 @@ const meta = {
     </EventSceneProvider>
   ),
   args: {
-    searching: false,
     query: "",
     favorites,
     active,
@@ -69,7 +68,7 @@ const meta = {
     favoritesSettled: true,
     activeSettled: true,
     allSettled: true,
-    onSearch: () => {},
+    onBrowse: () => {},
     onQuery: () => {},
     onOpen: () => {},
   },
@@ -96,7 +95,7 @@ export const 読み込み中: Story = {
 export const 最近アクティブが無い: Story = { args: { active: [] } };
 export const 探している: Story = {
   args: {
-    searching: true,
+    initialTab: "all",
     query: "スナック",
     results: [
       favorites[0] as ChannelEntry,
@@ -105,13 +104,13 @@ export const 探している: Story = {
   },
 };
 export const 探して見つからない: Story = {
-  args: { searching: true, query: "存在しない", results: [] },
+  args: { initialTab: "all", query: "存在しない", results: [] },
 };
 export const すべてを取得中: Story = {
-  args: { searching: true, allSettled: false, results: [] },
+  args: { initialTab: "all", allSettled: false, results: [] },
 };
 export const 探すと多すぎる: Story = {
-  args: { searching: true, results: many },
+  args: { initialTab: "all", results: many },
 };
 export const 狭いカラム: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },

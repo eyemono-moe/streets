@@ -2,6 +2,7 @@ import type { ChannelEntry } from "@streets/core/view/channel-directory";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
 import { searchInputClass } from "../ui/TextField";
 import ChannelPicture from "./ChannelPicture";
 
@@ -113,11 +114,10 @@ const Section: Component<{
 );
 
 /**
- * チャンネルの一覧。普段はお気に入りと最近アクティブなチャンネルを出し、
- * 検索欄に焦点を当てるとすべてのチャンネルから探す表示に切り替える。
+ * チャンネルの一覧。「お気に入り・最近」と「すべて」の 2 つのタブに分ける。
+ * 「すべて」は名前で絞り込め、初めて開いたときに取りにいく（`onBrowse`）。
  */
 const ChannelListView: Component<{
-  searching: boolean;
   query: string;
   favorites: readonly ChannelEntry[];
   active: readonly ChannelEntry[];
@@ -125,98 +125,108 @@ const ChannelListView: Component<{
   favoritesSettled: boolean;
   activeSettled: boolean;
   allSettled: boolean;
-  onSearch: (searching: boolean) => void;
   onQuery: (query: string) => void;
+  /** 「すべて」のタブを開いた。 */
+  onBrowse: () => void;
   onOpen: (entry: ChannelEntry) => void;
+  /** Storybook で「すべて」を開いた状態から始めるため。 */
+  initialTab?: "recent" | "all";
 }> = (props) => {
   let input: HTMLInputElement | undefined;
-  return (
-    <div class="flex flex-col gap-3 p-3">
-      <div class="relative flex items-center">
-        <span
-          class="i-material-symbols:search-rounded c-secondary pointer-events-none absolute left-3 size-4.5"
-          aria-hidden="true"
-        />
-        <input
-          ref={input}
-          type="search"
-          aria-label="チャンネルを名前で探す"
-          placeholder="チャンネルを名前で探す"
-          class={`${searchInputClass} w-full pl-9`}
-          classList={{ "pr-9": props.searching }}
-          value={props.query}
-          onFocus={() => props.onSearch(true)}
-          onInput={(event) => props.onQuery(event.currentTarget.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              props.onSearch(false);
-              event.currentTarget.blur();
-            }
-          }}
-        />
-        <Show when={props.searching}>
-          <Button
-            variant="ghost"
-            size="sm"
-            icon="i-material-symbols:close-rounded"
-            aria-label="探すのをやめる"
-            class="absolute right-1"
-            onClick={() => props.onSearch(false)}
+  const tabs = (): ColumnTab[] => [
+    {
+      value: "recent",
+      label: "お気に入り・最近",
+      content: () => (
+        <div class="flex flex-col gap-3 p-3">
+          <Section
+            title="お気に入りのチャンネル"
+            entries={props.favorites}
+            settled={props.favoritesSettled}
+            empty="★ を押したチャンネルがここに並びます。"
+            onOpen={props.onOpen}
           />
-        </Show>
-      </div>
-      <Show
-        when={props.searching}
-        fallback={
-          <>
-            <Section
-              title="お気に入りのチャンネル"
-              entries={props.favorites}
-              settled={props.favoritesSettled}
-              empty="★ を押したチャンネルがここに並びます。"
-              onOpen={props.onOpen}
+          <Section
+            title="最近アクティブなチャンネル"
+            entries={props.active}
+            settled={props.activeSettled}
+            empty="この 7 日間に発言のあったチャンネルはありません。"
+            onOpen={props.onOpen}
+          />
+        </div>
+      ),
+    },
+    {
+      value: "all",
+      label: "すべて",
+      content: () => (
+        <div class="flex flex-col gap-3 p-3">
+          <div class="relative flex items-center">
+            <span
+              class="i-material-symbols:search-rounded c-secondary pointer-events-none absolute left-3 size-4.5"
+              aria-hidden="true"
             />
-            <Section
-              title="最近アクティブなチャンネル"
-              entries={props.active}
-              settled={props.activeSettled}
-              empty="この 7 日間に発言のあったチャンネルはありません。"
-              onOpen={props.onOpen}
-            />
-            <Button
-              variant="secondary"
-              shape="rounded"
-              block
-              icon="i-material-symbols:search-rounded"
-              onClick={() => {
-                props.onSearch(true);
-                input?.focus();
+            <input
+              ref={input}
+              type="text"
+              aria-label="チャンネルを名前で絞り込む"
+              placeholder="名前で絞り込む"
+              class={`${searchInputClass} w-full pl-9`}
+              classList={{ "pr-9": props.query !== "" }}
+              value={props.query}
+              onInput={(event) => props.onQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && props.query !== "") {
+                  event.preventDefault();
+                  props.onQuery("");
+                }
               }}
-            >
-              すべてのチャンネルから探す
-            </Button>
-          </>
-        }
-      >
-        <Section
-          title="すべてのチャンネル（名前順）"
-          limit={RESULT_LIMIT}
-          trailing={
-            <Show when={props.allSettled}>
-              <span class="font-400">{props.results.length} 件</span>
+            />
+            <Show when={props.query !== ""}>
+              <Button
+                variant="ghost"
+                size="sm"
+                icon="i-material-symbols:close-rounded"
+                aria-label="絞り込みを消す"
+                class="absolute right-1"
+                onClick={() => {
+                  props.onQuery("");
+                  input?.focus();
+                }}
+              />
             </Show>
-          }
-          entries={props.results}
-          settled={props.allSettled}
-          empty={
-            props.query.trim()
-              ? "名前や説明に合うチャンネルが見つかりませんでした。"
-              : "チャンネルが見つかりませんでした。"
-          }
-          onOpen={props.onOpen}
-        />
-      </Show>
-    </div>
+          </div>
+          <Section
+            title="すべてのチャンネル（名前順）"
+            limit={RESULT_LIMIT}
+            trailing={
+              <Show when={props.allSettled}>
+                <span class="font-400">{props.results.length} 件</span>
+              </Show>
+            }
+            entries={props.results}
+            settled={props.allSettled}
+            empty={
+              props.query.trim()
+                ? "名前や説明に合うチャンネルが見つかりませんでした。"
+                : "チャンネルが見つかりませんでした。"
+            }
+            onOpen={props.onOpen}
+          />
+        </div>
+      ),
+    },
+  ];
+  return (
+    <ColumnTabs
+      label="チャンネルの一覧"
+      scroll="column"
+      tabs={tabs()}
+      defaultValue={props.initialTab ?? "recent"}
+      onValueChange={(value) => {
+        if (value === "all") props.onBrowse();
+      }}
+    />
   );
 };
 

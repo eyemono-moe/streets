@@ -90,6 +90,15 @@ test("カラムを追加からチャンネルを選び、お気に入りに入�
   );
   expect(list.tags).toContainEqual(["e", channel.id]);
 
+  // 「すべて」のタブで名前を打つと絞り込める。
+  await page.getByRole("tab", { name: "すべて" }).click();
+  await page
+    .getByRole("textbox", { name: "チャンネルを名前で絞り込む" })
+    .fill(name.slice(0, 6));
+  await expect(
+    page.getByRole("button", { name: `${name} をお気に入りから外す` }),
+  ).toBeVisible();
+
   // 押すと、そのチャンネルを一時カラムで開く。「カラムに残す」でデッキに残す。
   await page
     .getByRole("button", { name: new RegExp(name) })
