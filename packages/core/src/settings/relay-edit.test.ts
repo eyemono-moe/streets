@@ -203,6 +203,11 @@ describe("relayEditTransition", () => {
 });
 
 describe("parseRelayInput", () => {
+  it("途中に空白のあるものは URL として受け付けない", () => {
+    // 捕まえる変異: 空白を %20 に直して通す（wss://not%20a%20url/ が足される）
+    expect(parseRelayInput("not a url", []).ok).toBe(false);
+  });
+
   it("wss:// を省いても補う", () => {
     expect(parseRelayInput("nos.lol", [])).toEqual({
       ok: true,

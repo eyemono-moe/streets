@@ -1,19 +1,11 @@
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { parseRelayInput, relayLabel } from "@streets/core/settings/relay-edit";
-import {
-  type Component,
-  For,
-  Show,
-  createSignal,
-  createUniqueId,
-} from "solid-js";
+import { relayLabel } from "@streets/core/settings/relay-edit";
+import { type Component, For, Show } from "solid-js";
 import RelaySummary from "../settings/RelaySummary";
 import Button from "../ui/Button";
-import { textInputClass } from "../ui/TextField";
-
-const selectedEntries = (urls: readonly RelayUrl[]): RelayListEntry[] =>
-  urls.map((url) => ({ url, read: true, write: false }));
+import RelayInput from "./RelayInput";
+import { useFolloweeWriteRelays } from "./use-followee-relays";
 
 /** リレーカラムの追加と設定で共用する、購読先の選択欄。 */
 const RelayColumnEditor: Component<{
@@ -21,10 +13,13 @@ const RelayColumnEditor: Component<{
   selected: readonly RelayUrl[];
   onChange: (selected: RelayUrl[]) => void;
   minimum?: number;
+  /**
+   * フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く
+   * （Storybook では固定の値を渡す）。
+   */
+  followeeWriteRelays?: readonly (readonly RelayUrl[])[];
 }> = (props) => {
-  const inputId = createUniqueId();
-  const [input, setInput] = createSignal("");
-  const [error, setError] = createSignal<string>();
+  const followeeRelays = useFolloweeWriteRelays();
   const selected = (url: RelayUrl) => props.selected.includes(url);
   const add = (url: RelayUrl) => {
     if (!selected(url)) props.onChange([...props.selected, url]);
@@ -32,87 +27,8 @@ const RelayColumnEditor: Component<{
   const remove = (url: RelayUrl) =>
     props.onChange(props.selected.filter((item) => item !== url));
 
-  const addInput = () => {
-    const result = parseRelayInput(input(), selectedEntries(props.selected));
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    add(result.url);
-    setInput("");
-    setError(undefined);
-  };
-
   return (
     <div class="flex flex-col gap-3">
-      <Show when={props.candidates.length > 0}>
-        <section>
-          <h4 class="c-secondary mb-1 font-600 text-caption">
-            アカウントで使っているリレー
-          </h4>
-          <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-            <For each={props.candidates}>
-              {(entry) => (
-                <li class="bg-primary">
-                  <RelaySummary
-                    url={entry.url}
-                    subtitle={
-                      <span class="c-secondary text-caption">
-                        {entry.read && entry.write
-                          ? "読み書き"
-                          : entry.read
-                            ? "読み込み"
-                            : "書き込み"}
-                      </span>
-                    }
-                    actions={
-                      <Button
-                        size="sm"
-                        variant={selected(entry.url) ? "muted" : "secondary"}
-                        disabled={selected(entry.url)}
-                        onClick={() => add(entry.url)}
-                      >
-                        {selected(entry.url) ? "追加済み" : "追加する"}
-                      </Button>
-                    }
-                  />
-                </li>
-              )}
-            </For>
-          </ul>
-        </section>
-      </Show>
-
-      <form
-        class="flex flex-col gap-1.5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          addInput();
-        }}
-      >
-        <label for={inputId} class="c-secondary font-600 text-caption">
-          URLを直接入力
-        </label>
-        <div class="flex gap-2">
-          <input
-            id={inputId}
-            class={`${textInputClass} min-w-0 flex-1`}
-            placeholder="wss://relay.example"
-            value={input()}
-            onInput={(event) => {
-              setInput(event.currentTarget.value);
-              setError(undefined);
-            }}
-          />
-          <Button type="submit" size="sm" shape="rounded" variant="primary">
-            追加する
-          </Button>
-        </div>
-        <Show when={error()}>
-          {(message) => <span class="c-danger text-caption">{message()}</span>}
-        </Show>
-      </form>
-
       <Show when={props.selected.length > 0}>
         <section>
           <h4 class="c-secondary mb-1 font-600 text-caption">追加するリレー</h4>
@@ -148,6 +64,12 @@ const RelayColumnEditor: Component<{
           </ul>
         </section>
       </Show>
+      <RelayInput
+        account={props.candidates}
+        followeeWriteRelays={props.followeeWriteRelays ?? followeeRelays()}
+        selected={props.selected}
+        onAdd={add}
+      />
     </div>
   );
 };
