@@ -80,6 +80,7 @@ import {
 import { ZapMediator } from "../zap/ZapMediator";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
+import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
@@ -707,7 +708,12 @@ const DeckScreen: Component<{
                             </Match>
                             <Match when={true}>
                               <div class="relative flex h-dvh flex-col">
-                                <div class="h-0.75 shrink-0 bg-accent-primary" />
+                                <ColumnAccentBar
+                                  temporary={
+                                    ui.panel === undefined &&
+                                    ui.active === TEMP_COLUMN_ID
+                                  }
+                                />
                                 <MobileTopBar
                                   pubkey={viewer}
                                   column={

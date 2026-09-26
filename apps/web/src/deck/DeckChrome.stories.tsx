@@ -6,6 +6,7 @@ import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
+import ColumnAccentBar from "./ColumnAccentBar";
 import FeedbackLink from "./FeedbackLink";
 import { MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 
@@ -70,6 +71,36 @@ export const カラムヘッダー: Story = {
             draggable
             onTitle={() => {}}
           />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
+
+/** 上端の帯が実線なら保存したカラム、破線なら一時カラム（デッキに保存していない）。 */
+export const 一時カラムのヘッダー: Story = {
+  render: () => (
+    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+      <Mediates handle={() => true}>
+        <div class="flex flex-col gap-4 p-4">
+          <div class="w-[360px] border-primary border-x">
+            <ColumnAccentBar />
+            <ColumnHeader
+              column={home}
+              open={false}
+              draggable
+              onTitle={() => {}}
+            />
+          </div>
+          <div class="w-[360px] border-primary border-x">
+            <ColumnAccentBar temporary />
+            <ColumnHeader
+              column={home}
+              open={false}
+              temporary
+              onTitle={() => {}}
+            />
+          </div>
         </div>
       </Mediates>
     </EventSceneProvider>
