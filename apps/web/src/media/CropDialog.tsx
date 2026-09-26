@@ -10,25 +10,10 @@ import {
   DialogRoot,
   DialogTitle,
 } from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 
 /** 枠の高さの上限。これより縦長の画像は、幅を詰めて収める。 */
 const MAX_VIEWPORT_HEIGHT = 320;
-
-const IconButton: Component<{
-  label: string;
-  icon: string;
-  onClick: () => void;
-}> = (props) => (
-  <button
-    type="button"
-    aria-label={props.label}
-    title={props.label}
-    class="c-secondary grid size-8 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-    onClick={() => props.onClick()}
-  >
-    <span class={`${props.icon} size-5`} aria-hidden="true" />
-  </button>
-);
 
 /** 画面に映す大きさと、元の画素との倍率。 */
 type Box = { scale: number; width: number; height: number };
@@ -120,16 +105,19 @@ const Editor: Component<{
 
       <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
         <IconButton
+          size="md"
           label="縮小"
           icon="i-material-symbols:zoom-out-rounded"
           onClick={() => cropper().zoomBy(-0.1)}
         />
         <IconButton
+          size="md"
           label="拡大"
           icon="i-material-symbols:zoom-in-rounded"
           onClick={() => cropper().zoomBy(0.1)}
         />
         <IconButton
+          size="md"
           label={props.aspectRatio === undefined ? "全体に戻す" : "枠を戻す"}
           icon="i-material-symbols:restart-alt-rounded"
           onClick={() => {

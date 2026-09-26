@@ -25,16 +25,14 @@ pnpm workspace の 2 パッケージ。
 
 ## デザイン
 
-画面の見た目は、Penpot の Streets ファイルにある **[v1 / redesign](https://design.penpot.app/#/workspace?team-id=3be9e5e1-190f-8090-8008-7ccafe3c749b&file-id=3be9e5e1-190f-8090-8008-7ccb2d4a25bd&page-id=cefceceb-896a-8085-8008-83839412efd3) ページ**に合わせる。
+画面の見た目は、いまの画面と `src/ui/` の部品に合わせる。Penpot の Streets ファイルは更新が止まっているので、見た目の正として読まない。
 
-- 同じファイルの「v1 / deprecated」ページは古いので見ない
-- Penpot の MCP から読める。ボードの構造や CSS はそこから取り、値を推測で埋めない
-- 画面ごとに見るボードは [#343](https://github.com/eyemono-moe/streets/issues/343) の表にある（v1 の画面を作ったときの対応表）
-- デザインに無いもの（ログイン画面など）は、既存のトークンと部品の見た目に揃える
-- ボタン・排他の選択（トグルグループ）・スイッチ・色を選ぶ欄・保存先のヒントは、`src/ui/` の primitive を使い、画面ごとに書かない。足りない形は primitive に足して、`UI/*` のストーリーで単体で見られるようにする
+- 新しい画面は、似た役割の既存の画面を探し、同じ部品と同じ大きさ・余白で組む
+- ボタン・アイコンだけのボタン・排他の選択（トグルグループ）・スイッチ・色を選ぶ欄・保存先のヒントは、`src/ui/` の primitive を使い、画面ごとに書かない。`class` で大きさや色を上書きして、その場だけの形を作ることもしない。足りない形は primitive に足して、`UI/*` のストーリーで単体で見られるようにする
+- アイコンだけのボタンは `src/ui/IconButton.tsx`。`Button` は文字が必須で、アイコンだけの形を持たない。大きさは置く場所で決める（カラムの見出し・投稿やチャットの操作・一覧の行は `sm`、投稿欄の道具・ダイアログの「閉じる」は `md`、サイドバーは `lg`）。入っている状態（お気に入りに入れた、など）は `active`、開いているパネルのボタンは `variant="filled"` で表す。Ark UI の開き口は `asChild` で `IconButton` を描かせる
 - 文字を打つ欄は `src/ui/TextField.tsx` の `textInputClass` を使う。角は `rounded-2`、焦点は `focus-visible:ring-2 focus-visible:ring-accent-5`、高さは `h-9`。角を丸めきる（`rounded-full`）のは**その場で絞り込む検索窓だけ**（デッキの検索欄、絵文字ピッカーの検索欄）。設定で値を足す・変える欄は、1 行で横に並べるものも含めてすべて四角にする
 - フォームの項目名（スイッチの名前・入力欄の名前など）は `truncate` で切らず、折り返す。切れると何を変えるのか分からなくなる。切ってよいのは、切れても中身が分かるもの（投稿の本文・人の名前・URL の続きなど）だけ
-- 意味を持つ色は、色の値や `red-500` のような色の名前で書かない。`uno.config.ts` の意味の名前（`danger`・`danger-subtle`・`status-ok`・`status-warn`・`status-off`）で書く（`c-danger`・`border-danger`・`bg-status-ok`・`stroke-status-ok` など）。値は Penpot の Color Mode に合わせてライト／ダークを preflight の変数に置いてある。新しい意味が要るときは、Penpot にトークンを足してから名前を足す
+- 意味を持つ色は、色の値や `red-500` のような色の名前で書かない。`uno.config.ts` の意味の名前（`danger`・`danger-subtle`・`status-ok`・`status-warn`・`status-off`）で書く（`c-danger`・`border-danger`・`bg-status-ok`・`stroke-status-ok` など）。値はライト／ダークを preflight の変数に置いてある。新しい意味が要るときは、`uno.config.ts` に名前を足す
 - ボタンは「押すと何かが起きる」ものだけに使う。入り切りは `Switch`、いくつかから 1 つを選ぶのは `SegmentedControl` にし、ボタンの色で状態を表さない。組み合わせに選べないもの（読み込みも書き込みもしない、など）があるなら、入り切りを並べず、選べる組だけを選択肢にする
 - 消す操作はアイコンを使い分ける。そのもの自体が無くなる（投稿・カラムの削除）はゴミ箱、一覧から外すだけでそのものは残る（リレーを一覧から外す、ミュートを解く）は ⊖（`do-not-disturb-on-outline-rounded`）、表示や入力を空に戻す・閉じるは ×
 - 設定の説明は、Nostr の仕組みを知らない人にも分かる言葉で書く（「kind:10002」「NIP-65」のような語を説明の主語にしない）。保存先（この端末／アカウント）は各項目の名前の横に `StorageHint` で示す

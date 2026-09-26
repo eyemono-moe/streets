@@ -4,6 +4,8 @@ import { Dynamic } from "solid-js/web";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import { columnView } from "./column-views";
 
 export type StackedColumn = {
@@ -12,7 +14,8 @@ export type StackedColumn = {
 
 /**
  * カラムの見出しの右側。カラムの種類ごとの操作に続けて、一時カラムなら
- * 「カラムに残す」と閉じる、それ以外ならカラムの設定。広い画面のカラムの見出しと、狭い画面の上のバーの両方がこれを使う。
+ * 「カラムに残す」と閉じる、それ以外ならカラムの設定。広い画面のカラムの見出しと、
+ * 狭い画面の上のバーの両方がこれを使う。
  */
 export const ColumnHeaderActions: Component<{
   column: ColumnDef;
@@ -30,49 +33,33 @@ export const ColumnHeaderActions: Component<{
       </Show>
       <Show when={props.temporary}>
         <>
-          <button
-            type="button"
-            class="c-secondary flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full bg-secondary px-2.5 font-600 text-caption"
+          <Button
+            size="sm"
+            icon="i-material-symbols:bookmark-outline-rounded"
             onClick={() => dispatch({ type: "deck/keep-temp" })}
           >
-            <span
-              class="i-material-symbols:bookmark-outline-rounded size-3.5"
-              aria-hidden="true"
-            />
             カラムに残す
-          </button>
-          <button
-            type="button"
-            aria-label="閉じる"
-            class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+          </Button>
+          <IconButton
+            icon="i-material-symbols:close-rounded"
+            label="閉じる"
             onClick={() => dispatch({ type: "deck/close-temp" })}
-          >
-            <span
-              class="i-material-symbols:close-rounded size-4.5"
-              aria-hidden="true"
-            />
-          </button>
+          />
         </>
       </Show>
       <Show when={!props.temporary}>
-        <button
-          type="button"
-          aria-label="カラムの設定"
+        <IconButton
+          icon={
+            props.open
+              ? "i-material-symbols:close-rounded"
+              : "i-material-symbols:more-horiz"
+          }
+          label="カラムの設定"
           aria-expanded={props.open}
-          class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
           onClick={() =>
             dispatch({ type: "deck/toggle-settings", id: props.column.id })
           }
-        >
-          <span
-            class="size-4.5"
-            classList={{
-              "i-material-symbols:more-horiz": !props.open,
-              "i-material-symbols:close-rounded": props.open,
-            }}
-            aria-hidden="true"
-          />
-        </button>
+        />
       </Show>
     </>
   );
@@ -142,17 +129,11 @@ export const StackedColumnHeader: Component<{
         props.onTitle();
       }}
     >
-      <button
-        type="button"
-        aria-label="戻る"
-        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+      <IconButton
+        icon="i-material-symbols:chevron-left-rounded"
+        label="戻る"
         onClick={() => dispatch({ type: "stack/back" })}
-      >
-        <span
-          class="i-material-symbols:chevron-left-rounded size-5.5"
-          aria-hidden="true"
-        />
-      </button>
+      />
       <button
         type="button"
         title="先頭へ戻る"
@@ -172,21 +153,14 @@ export const StackedColumnHeader: Component<{
           <Dynamic component={actions()} source={props.column.source} />
         )}
       </Show>
-      <button
-        type="button"
-        aria-label="デッキのカラムとして開く"
-        title="デッキのカラムとして開く"
-        class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
+      <IconButton
+        icon="i-material-symbols:open-in-new-rounded"
+        label="デッキのカラムとして開く"
         onClick={() => {
           dispatch({ type: "stack/back" });
           dispatch({ type: "deck/add-column", column: props.column });
         }}
-      >
-        <span
-          class="i-material-symbols:open-in-new-rounded size-4.5"
-          aria-hidden="true"
-        />
-      </button>
+      />
     </header>
   );
 };

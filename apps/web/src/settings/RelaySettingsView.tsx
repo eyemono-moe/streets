@@ -24,6 +24,7 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import RelaySummary from "./RelaySummary";
@@ -157,12 +158,9 @@ const RelayRow: Component<{
               }
             />
             {/* 一覧から外すだけで、リレーそのものは消えない（remove）。ゴミ箱や × にしない。 */}
-            <Button
-              variant="ghost"
-              size="sm"
-              shape="rounded"
+            <IconButton
               icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-              aria-label={`${relayLabel(props.entry.url)} を一覧から外す`}
+              label={`${relayLabel(props.entry.url)} を一覧から外す`}
               disabled={!props.allows(remove())}
               title={
                 props.allows(remove())

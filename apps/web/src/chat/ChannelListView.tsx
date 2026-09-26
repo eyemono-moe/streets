@@ -3,6 +3,7 @@ import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
+import IconButton from "../ui/IconButton";
 import { searchInputClass } from "../ui/TextField";
 import ChannelPicture from "./ChannelPicture";
 
@@ -45,16 +46,14 @@ const ChannelRow: Component<{
         </span>
       </button>
       <div class="absolute top-1/2 right-2 -translate-y-1/2">
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon={
             props.entry.favorite
-              ? "i-material-symbols:star-rounded c-accent-5"
+              ? "i-material-symbols:star-rounded"
               : "i-material-symbols:star-outline-rounded"
           }
-          aria-label={
+          active={props.entry.favorite}
+          label={
             props.entry.favorite
               ? `${name()} をお気に入りから外す`
               : `${name()} をお気に入りに入れる`
@@ -188,11 +187,9 @@ const ChannelListView: Component<{
               }}
             />
             <Show when={props.query !== ""}>
-              <Button
-                variant="ghost"
-                size="sm"
+              <IconButton
                 icon="i-material-symbols:close-rounded"
-                aria-label="絞り込みを消す"
+                label="絞り込みを消す"
                 class="absolute right-1"
                 onClick={() => {
                   props.onQuery("");

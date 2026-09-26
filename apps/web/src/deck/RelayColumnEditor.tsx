@@ -3,7 +3,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, Show } from "solid-js";
 import RelaySummary from "../settings/RelaySummary";
-import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import RelayInput from "./RelayInput";
 import { useFolloweeWriteRelays } from "./use-followee-relays";
 
@@ -42,12 +42,9 @@ const RelayColumnEditor: Component<{
                   <RelaySummary
                     url={url}
                     actions={
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        shape="rounded"
+                      <IconButton
                         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                        aria-label={`${relayLabel(url)}を追加対象から外す`}
+                        label={`${relayLabel(url)}を追加対象から外す`}
                         disabled={props.selected.length <= (props.minimum ?? 0)}
                         title={
                           props.selected.length <= (props.minimum ?? 0)

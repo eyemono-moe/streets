@@ -1,6 +1,7 @@
 import { Popover } from "@ark-ui/solid/popover";
 import { type Component, onMount } from "solid-js";
 import { Portal } from "solid-js/web";
+import IconButton from "../ui/IconButton";
 import PopoverTrigger from "../ui/PopoverTrigger";
 import { useEmojiGroups } from "./custom-emojis";
 import { type PickerEmoji, loadUnicodeEmojis } from "./emoji-data";
@@ -28,16 +29,16 @@ const ComposeEmojiPicker: Component<{
       positioning={{ placement: "top-start" }}
     >
       <PopoverTrigger
-        type="button"
-        aria-label="絵文字を挿入"
         disabled={props.disabled}
-        class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-secondary disabled:opacity-50"
-      >
-        <span
-          class="i-material-symbols:add-reaction-outline-rounded size-5"
-          aria-hidden="true"
-        />
-      </PopoverTrigger>
+        asChild={(trigger) => (
+          <IconButton
+            {...trigger()}
+            size="md"
+            icon="i-material-symbols:add-reaction-outline-rounded"
+            label="絵文字を挿入"
+          />
+        )}
+      />
       <Portal>
         <Popover.Positioner>
           <Popover.Content class="motion-pop outline-none">

@@ -1,6 +1,12 @@
 import { Dialog as ArkDialog } from "@ark-ui/solid/dialog";
-import { type JSX, type ParentComponent, splitProps } from "solid-js";
+import {
+  type Component,
+  type JSX,
+  type ParentComponent,
+  splitProps,
+} from "solid-js";
 import { Portal } from "solid-js/web";
+import IconButton from "./IconButton";
 
 export const DialogRoot: ParentComponent<{
   open: boolean;
@@ -49,25 +55,27 @@ export const DialogContent: ParentComponent<
   );
 };
 
-export const DialogClose: ParentComponent<
-  JSX.ButtonHTMLAttributes<HTMLButtonElement>
-> = (props) => {
-  const [own, rest] = splitProps(props, ["class", "children"]);
-  return (
-    <ArkDialog.CloseTrigger
-      aria-label="閉じる"
-      class={`grid size-7 shrink-0 place-items-center rounded-2 bg-secondary enabled:cursor-pointer ${own.class ?? ""}`}
-      {...rest}
-    >
-      {own.children ?? (
-        <span
-          class="i-material-symbols:close-rounded size-4.5"
-          aria-hidden="true"
-        />
-      )}
-    </ArkDialog.CloseTrigger>
-  );
-};
+/** ダイアログの見出しに置く「閉じる」。 */
+export const DialogClose: Component<{
+  disabled?: boolean;
+  /** 読み上げの名前。何を閉じるのかを言いたいとき。 */
+  label?: string;
+  class?: string;
+}> = (props) => (
+  <ArkDialog.CloseTrigger
+    asChild={(trigger) => (
+      <IconButton
+        {...trigger()}
+        variant="filled"
+        size="md"
+        icon="i-material-symbols:close-rounded"
+        label={props.label ?? "閉じる"}
+        disabled={props.disabled}
+        class={props.class}
+      />
+    )}
+  />
+);
 
 export const DialogTitle = ArkDialog.Title;
 export const DialogDescription = ArkDialog.Description;

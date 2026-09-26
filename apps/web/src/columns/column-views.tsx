@@ -29,8 +29,8 @@ import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import ColumnTabs from "../ui/ColumnTabs";
+import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
@@ -101,12 +101,9 @@ const ChannelInfoButton: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      shape="rounded"
+    <IconButton
       icon="i-material-symbols:info-outline-rounded"
-      aria-label="チャンネルの情報"
+      label="チャンネルの情報"
       onClick={() =>
         dispatch({
           type: "stack/open",
@@ -130,16 +127,14 @@ const FavoriteChannelButton: Component<{ id: string }> = (props) => {
   }));
   return (
     <Show when={actions}>
-      <Button
-        variant="ghost"
-        size="sm"
-        shape="rounded"
+      <IconButton
         icon={
           favorite()
-            ? "i-material-symbols:star-rounded c-accent-5"
+            ? "i-material-symbols:star-rounded"
             : "i-material-symbols:star-outline-rounded"
         }
-        aria-label={favorite() ? "お気に入りから外す" : "お気に入りに入れる"}
+        active={favorite()}
+        label={favorite() ? "お気に入りから外す" : "お気に入りに入れる"}
         aria-pressed={favorite()}
         disabled={sending()}
         onClick={() =>

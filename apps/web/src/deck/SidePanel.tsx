@@ -1,6 +1,7 @@
 import { Collapsible, Presence } from "@ark-ui/solid";
 import { type Component, type JSX, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
+import IconButton from "../ui/IconButton";
 
 /**
  * アイコン列の右に開くパネル。投稿・カラム追加・設定はここへ寄せる ——
@@ -30,17 +31,13 @@ const SidePanel: Component<{
         <h2 class="min-w-0 flex-1 truncate font-600 text-body">
           {props.title}
         </h2>
-        <button
-          type="button"
-          aria-label="閉じる"
-          class="c-secondary grid size-7 shrink-0 cursor-pointer place-items-center rounded-2 bg-secondary"
+        <IconButton
+          variant="filled"
+          size="md"
+          icon="i-material-symbols:close-rounded"
+          label="閉じる"
           onClick={() => dispatch({ type: "deck/close-panel" })}
-        >
-          <span
-            class="i-material-symbols:close-rounded size-4.5"
-            aria-hidden="true"
-          />
-        </button>
+        />
       </header>
       <Show when={props.children}>{props.children}</Show>
     </section>

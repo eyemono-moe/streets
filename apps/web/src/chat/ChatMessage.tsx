@@ -23,7 +23,7 @@ import { useEvent } from "../note/use-event";
 import { useProfile } from "../note/use-profile";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 
 /** 日付は区切りの行が出すので、発言には時刻だけを出す。 */
 const chatTime = (date: Date): string =>
@@ -151,20 +151,14 @@ export const ChatMessage: Component<{
         role="toolbar"
         aria-label="この発言の操作"
       >
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:reply-rounded"
-          aria-label="返信する"
+          label="返信する"
           onClick={reply}
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:favorite-outline-rounded"
-          aria-label="いいね"
+          label="いいね"
           onClick={() =>
             dispatch({
               type: "note/react",
@@ -178,12 +172,9 @@ export const ChatMessage: Component<{
           open={picking()}
           onOpenChange={setPicking}
           trigger={(trigger) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              shape="rounded"
+            <IconButton
               icon="i-material-symbols:add-reaction-outline-rounded"
-              aria-label="リアクションする"
+              label="リアクションする"
               {...trigger()}
             />
           )}
@@ -211,12 +202,9 @@ export const ChatMessage: Component<{
         >
           <Menu.Trigger
             asChild={(trigger) => (
-              <Button
-                variant="ghost"
-                size="sm"
-                shape="rounded"
+              <IconButton
                 icon="i-material-symbols:more-horiz"
-                aria-label="そのほかの操作"
+                label="そのほかの操作"
                 {...trigger()}
               />
             )}

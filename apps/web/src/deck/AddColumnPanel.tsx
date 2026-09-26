@@ -15,6 +15,7 @@ import { ColumnScope } from "../columns/column-scope";
 import { viewerReadRelays } from "../columns/column-views";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import RelayColumnEditor from "./RelayColumnEditor";
 
 type Preset = {
@@ -97,11 +98,9 @@ const ChannelPicker: Component<{
   return (
     <section class="motion-fade flex animate-in flex-col gap-3">
       <div class="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
+        <IconButton
           icon="i-material-symbols:arrow-back-rounded"
-          aria-label="カラムの種類へ戻る"
+          label="カラムの種類へ戻る"
           onClick={() => props.onBack()}
         />
         <div>
@@ -110,12 +109,9 @@ const ChannelPicker: Component<{
             選んだチャンネルのメッセージを表示します。
           </p>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:open-in-new-rounded"
-          aria-label="一覧をデッキのカラムとして足す"
+          label="一覧をデッキのカラムとして足す"
           title="一覧をデッキのカラムとして足す"
           class="ml-auto self-start"
           onClick={() => {
@@ -225,11 +221,9 @@ const AddColumnPanel: Component<{
         >
           <section class="motion-fade flex animate-in flex-col gap-3">
             <div class="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
+              <IconButton
                 icon="i-material-symbols:arrow-back-rounded"
-                aria-label="カラムの種類へ戻る"
+                label="カラムの種類へ戻る"
                 onClick={() => setRelayOpen(false)}
               />
               <div>

@@ -6,6 +6,7 @@ import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
+import IconButton from "../ui/IconButton";
 
 const AuthorRelaysDialog = lazyPart(() => import("./AuthorRelaysDialog"));
 
@@ -28,14 +29,17 @@ export const ProfileMenuView: Component<{
       }}
     >
       <Menu.Trigger
-        aria-label="このユーザーの操作"
-        class="c-secondary grid size-8.5 cursor-pointer place-items-center rounded-full border border-primary bg-primary hover:bg-secondary"
-      >
-        <span
-          class="i-material-symbols:more-horiz size-4.5"
-          aria-hidden="true"
-        />
-      </Menu.Trigger>
+        asChild={(trigger) => (
+          <IconButton
+            {...trigger()}
+            variant="secondary"
+            size="md"
+            circle
+            icon="i-material-symbols:more-horiz"
+            label="このユーザーの操作"
+          />
+        )}
+      />
       <Portal>
         <Menu.Positioner>
           <Menu.Content class="motion-pop c-primary w-60 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">

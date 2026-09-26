@@ -21,6 +21,7 @@ import { NoUploadServerError, useUploader } from "../media/uploader";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import { textInputClass } from "../ui/TextField";
 import DefaultReactionField from "./DefaultReactionField";
 import SettingsSection from "./SettingsSection";
@@ -181,12 +182,9 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
             pubkey={props.row.ref.pubkey}
             class="c-secondary text-caption"
           />
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="rounded"
+          <IconButton
             icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-            aria-label={`${name()} を自分の絵文字から外す`}
+            label={`${name()} を自分の絵文字から外す`}
             title="外す"
             disabled={props.disabled}
             onClick={() =>
@@ -298,12 +296,9 @@ const EmojiRow: Component<{ emoji: CustomEmoji; disabled: boolean }> = (
       <span class="c-primary min-w-0 flex-1 break-all text-body">
         {`:${props.emoji.shortcode}:`}
       </span>
-      <Button
-        variant="ghost"
-        size="sm"
-        shape="rounded"
+      <IconButton
         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-        aria-label={`:${props.emoji.shortcode}: を外す`}
+        label={`:${props.emoji.shortcode}: を外す`}
         title="外す"
         disabled={props.disabled}
         onClick={() =>

@@ -7,6 +7,7 @@ import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 
 const CropDialog = lazyPart(() => import("../media/CropDialog"));
 
@@ -24,17 +25,15 @@ const ToolButton: Component<{
   muted?: boolean;
   onClick?: () => void;
 }> = (props) => (
-  <button
-    type="button"
-    aria-label={props.onClick ? props.label : `${props.label}（未対応）`}
+  <IconButton
+    size="md"
+    icon={props.icon}
+    label={props.onClick ? props.label : `${props.label}（未対応）`}
     title={props.title}
-    class="c-secondary grid size-8 place-items-center rounded-2 bg-transparent enabled:cursor-pointer enabled:hover:bg-secondary disabled:opacity-50"
-    classList={{ "opacity-50": props.muted }}
+    class={props.muted ? "opacity-50" : undefined}
     disabled={props.onClick === undefined}
     onClick={() => props.onClick?.()}
-  >
-    <span class={`${props.icon} size-5`} aria-hidden="true" />
-  </button>
+  />
 );
 
 /** 動画は切り抜けない（枠の座標を元の画素に直せないし、切ると音も動きも失う）。 */
@@ -246,31 +245,29 @@ export const ComposeAttachments: Component<{
               </Show>
 
               <Show when={!props.disabled}>
-                <button
-                  type="button"
-                  aria-label={`${attachment.name} を外す`}
-                  class="c-white absolute top-0.5 right-0.5 grid size-6 cursor-pointer place-items-center rounded-full border-none bg-black/60"
+                <IconButton
+                  variant="overlay"
+                  circle
+                  icon="i-material-symbols:close-rounded"
+                  label={`${attachment.name} を外す`}
+                  class="absolute top-0.5 right-0.5"
                   onClick={() =>
                     dispatch({
                       type: "compose/attach-remove",
                       id: attachment.id,
                     })
                   }
-                >
-                  <span
-                    class="i-material-symbols:close-rounded size-4"
-                    aria-hidden="true"
-                  />
-                </button>
+                />
 
                 {/* 並べ替えは前後へ 1 つずつ。掴んで動かすのは、まだ作っていない。 */}
                 <Show when={props.attachments.length > 1}>
-                  <div class="absolute inset-x-0 bottom-0 flex justify-between bg-black/50">
-                    <button
-                      type="button"
-                      aria-label={`${attachment.name} を前へ`}
+                  <div class="absolute inset-x-0.5 bottom-0.5 flex justify-between">
+                    <IconButton
+                      variant="overlay"
+                      circle
+                      icon="i-material-symbols:chevron-left-rounded"
+                      label={`${attachment.name} を前へ`}
                       disabled={index() === 0}
-                      class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
                       onClick={() =>
                         dispatch({
                           type: "compose/attach-move",
@@ -278,17 +275,13 @@ export const ComposeAttachments: Component<{
                           to: index() - 1,
                         })
                       }
-                    >
-                      <span
-                        class="i-material-symbols:chevron-left-rounded size-4"
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`${attachment.name} を後ろへ`}
+                    />
+                    <IconButton
+                      variant="overlay"
+                      circle
+                      icon="i-material-symbols:chevron-right-rounded"
+                      label={`${attachment.name} を後ろへ`}
                       disabled={index() === props.attachments.length - 1}
-                      class="c-white grid size-6 place-items-center border-none bg-transparent enabled:cursor-pointer disabled:opacity-30"
                       onClick={() =>
                         dispatch({
                           type: "compose/attach-move",
@@ -296,12 +289,7 @@ export const ComposeAttachments: Component<{
                           to: index() + 1,
                         })
                       }
-                    >
-                      <span
-                        class="i-material-symbols:chevron-right-rounded size-4"
-                        aria-hidden="true"
-                      />
-                    </button>
+                    />
                   </div>
                 </Show>
               </Show>

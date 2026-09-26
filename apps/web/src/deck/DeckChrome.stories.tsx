@@ -169,7 +169,6 @@ export const フィードバック案内: Story = {
   render: () => (
     <div class="grid min-h-120 place-items-center bg-secondary p-4">
       <FeedbackLink
-        size="sidebar"
         initialOpen
         template="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
       />

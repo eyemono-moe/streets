@@ -12,8 +12,8 @@ import {
 import { useComposeEmojiInsertion } from "../note/use-compose-emoji-insertion";
 import { useProfile } from "../note/use-profile";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import Completion from "../ui/Completion";
+import IconButton from "../ui/IconButton";
 
 /**
  * チャンネルの入力欄。Enter で送り、Shift+Enter で改行する（チャットの慣例）。
@@ -50,12 +50,9 @@ const ChatComposer: Component<{
             <span class="min-w-0 flex-1 truncate">
               {profileLabel(replyProfile(), target().pubkey)} に返信
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
+            <IconButton
               icon="i-material-symbols:close-rounded"
-              aria-label="返信をやめる"
-              class="size-6"
+              label="返信をやめる"
               onClick={() => dispatch({ type: "chat/cancel-reply" })}
             />
           </div>
@@ -110,12 +107,13 @@ const ChatComposer: Component<{
             />
           )}
         </Completion>
-        <Button
+        <IconButton
           type="submit"
           variant="primary"
           icon="i-material-symbols:send-rounded"
-          aria-label="送る"
-          class="size-9"
+          label="送る"
+          size="md"
+          circle
           disabled={props.state.sending || !canSend(props.state)}
         />
       </div>
