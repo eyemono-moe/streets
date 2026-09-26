@@ -32,8 +32,8 @@ const create = evt({
   id: CHANNEL,
   kind: 40,
   content: JSON.stringify({
-    name: "さびれたスナック",
-    about: "夜の話",
+    name: "ねこの画像チャンネル",
+    about: "写真の話",
     relays: ["wss://yabu.me", "not a url"],
   }),
 });
@@ -42,8 +42,8 @@ describe("parseChannelMetadata", () => {
   it("読めない値は捨て、リレーは URL の形にそろえる", () => {
     // 捕まえる変異: リレーを検証せずに素通しする（壊れた URL へ接続しにいく）
     expect(parseChannelMetadata(create.content)).toEqual({
-      name: "さびれたスナック",
-      about: "夜の話",
+      name: "ねこの画像チャンネル",
+      about: "写真の話",
       picture: undefined,
       relays: ["wss://yabu.me/"],
     });
@@ -93,7 +93,7 @@ describe("channelFrom", () => {
     ]);
     expect(channel?.metadata).toEqual({
       name: "改名",
-      about: "夜の話",
+      about: "写真の話",
       picture: undefined,
       relays: ["wss://yabu.me/"],
     });
@@ -108,7 +108,7 @@ describe("channelFrom", () => {
         content: JSON.stringify({ name: "よそ" }),
       }),
     ]);
-    expect(channel?.metadata.name).toBe("さびれたスナック");
+    expect(channel?.metadata.name).toBe("ねこの画像チャンネル");
   });
 });
 
