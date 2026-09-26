@@ -96,6 +96,7 @@ type Props = {
   paging: Paging;
   settled: boolean;
   replyTo?: NostrEvent;
+  channelName?: string;
 };
 
 const meta = {
@@ -133,7 +134,7 @@ const meta = {
               composer={
                 <ChatComposer
                   state={state}
-                  channelName="さびれたスナック"
+                  channelName={props.channelName ?? "さびれたスナック"}
                   replyTo={props.replyTo}
                 />
               }
@@ -160,6 +161,13 @@ export const 古い発言を読み込み中: Story = { args: { paging: "loading"
 export const まだ発言が無い: Story = { args: { rows: [] } };
 export const 取得中: Story = {
   args: { rows: [], settled: false, paging: "waiting" },
+};
+/** 名前が長くても、書く欄は 1 行のまま始まる。 */
+export const 長いチャンネル名: Story = {
+  args: {
+    channelName:
+      "とても長い名前のチャンネルで、カラムの幅にまったく収まらないくらい長い名前",
+  },
 };
 export const 狭いカラム: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },

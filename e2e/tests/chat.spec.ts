@@ -31,7 +31,9 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
   await message.getByRole("button", { name: "返信する" }).click();
 
   const text = `こんばんは ${Date.now()}`;
-  const box = page.getByRole("textbox", { name: "テストの部屋 に書く" });
+  const box = page.getByRole("textbox", {
+    name: "テストの部屋 にメッセージを送信",
+  });
   await box.fill(text);
   await box.press("Enter");
 

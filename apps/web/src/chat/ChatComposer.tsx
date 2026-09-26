@@ -80,10 +80,15 @@ const ChatComposer: Component<{
                 emojiInsertion.ref(element);
               }}
               rows={1}
-              aria-label={`${props.channelName} に書く`}
-              class="c-primary placeholder:c-secondary max-h-40 min-h-9 min-w-0 flex-1 resize-none rounded-2 border border-secondary bg-primary px-3 py-1.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
+              aria-label={`${props.channelName} にメッセージを送信`}
+              class="c-primary placeholder:c-secondary max-h-40 min-h-9 min-w-0 flex-1 resize-none rounded-2 border border-secondary bg-primary px-3 py-1.5 text-body outline-none placeholder:truncate focus-visible:ring-2 focus-visible:ring-accent-5"
+              // 空の間は置き文字に合わせて伸ばさない。狭いカラムで置き文字が折り返し、
+              // 何も書いていないのに欄が 2 行になる。
+              classList={{
+                "[field-sizing:content]": props.state.content !== "",
+              }}
               disabled={props.state.sending}
-              placeholder={`${props.channelName} に書く`}
+              placeholder="このチャンネルにメッセージを送信"
               value={props.state.content}
               onInput={(event) =>
                 dispatch({
