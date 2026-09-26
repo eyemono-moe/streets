@@ -26,7 +26,9 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
   });
   await page.goto(`/${nevent}?relays=${encodeURIComponent(RELAY_URL)}`);
 
-  const message = page.getByRole("article").filter({ hasText: hello.content });
+  // 自分の発言はホームにも流れるので、チャンネルのカラムの中で探す。
+  const room = column(page, "テストの部屋");
+  const message = room.getByRole("article").filter({ hasText: hello.content });
   await expect(message).toBeVisible();
   await message.hover();
   await message.getByRole("button", { name: "返信する" }).click();
@@ -49,7 +51,7 @@ test("チャンネルで返信を書ける", async ({ page, me, openApp, signIn 
     ["p", owner.pubkey, undefined],
   ]);
   await expect(
-    page.getByRole("article").filter({ hasText: text }),
+    room.getByRole("article").filter({ hasText: text }),
   ).toBeVisible();
   await expect(box).toHaveValue("");
 });
@@ -252,4 +254,36 @@ test("チャンネルでの自分への返信が通知に出る", async ({
     .filter({ hasText: text });
   await expect(notice).toBeVisible();
   await expect(notice.getByText("通知の部屋 での発言")).toBeVisible();
+});
+
+test("フォローしている人のチャンネルでの発言がホームに出て、表示するもので切れる", async ({
+  page,
+  me,
+  openApp,
+  signIn,
+}) => {
+  const alice = await createUser("alice");
+  const channel = await alice.post({
+    kind: 40,
+    content: JSON.stringify({ name: "ホームの部屋", relays: [RELAY_URL] }),
+  });
+  const said = await alice.post({
+    kind: 42,
+    content: `チャンネルで話した ${Date.now()}`,
+    tags: [["e", channel.id, RELAY_URL, "root"]],
+  });
+  await me.post({ kind: 3, tags: [["p", alice.pubkey]] });
+
+  await openApp();
+  await signIn();
+
+  const home = column(page, "ホーム");
+  const message = home.getByRole("article").filter({ hasText: said.content });
+  await expect(message).toBeVisible();
+  // どのチャンネルでの発言かを出す。
+  await expect(message.getByText("ホームの部屋 での発言")).toBeVisible();
+
+  await home.getByRole("button", { name: "カラムの設定", exact: true }).click();
+  await page.getByText("チャンネルでの発言", { exact: true }).click();
+  await expect(message).toBeHidden();
 });
