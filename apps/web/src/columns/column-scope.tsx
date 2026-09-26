@@ -52,12 +52,14 @@ export const useColumnScope = (): ColumnScopeValue => {
 export const createBlockSection = (options: {
   source: Accessor<NostrSource | undefined>;
   pageSize?: number;
+  maxItems?: number;
   name?: string;
 }): Section => {
   const scope = useColumnScope();
   const section = createSection({
     manager: scope.readLayer.manager,
     pageSize: options.pageSize,
+    maxItems: options.maxItems,
     source: options.source,
   });
   const key = () =>

@@ -15,21 +15,26 @@ import {
   userReactionsSource,
 } from "@streets/core/deck/column-sources";
 import { type ColumnDef, groupsNotifications } from "@streets/core/deck/deck";
+import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, Show } from "solid-js";
+import { useEventActions } from "../actions";
+import { useSending } from "../actions-mediator";
 import type { ColumnPatch } from "../deck/ColumnSettings";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 import ColumnTabs from "../ui/ColumnTabs";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
 import ChannelChat from "./blocks/ChannelChat";
+import ChannelList from "./blocks/ChannelList";
 import EventList from "./blocks/EventList";
 import FollowList from "./blocks/FollowList";
 import NotificationList from "./blocks/NotificationList";
@@ -60,6 +65,8 @@ type ColumnView<S> = {
   scrollsInternally?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
+  /** 見出しの右に置く、その種類だけの操作（チャンネルのお気に入りなど）。 */
+  HeaderActions?: Component<{ source: S }>;
   /** その種類だけの設定。共通の設定の下に出す。 */
   Settings?: Component<{
     column: ColumnDef;
@@ -85,13 +92,53 @@ const relayColumnSource = (source: ColumnSourceOf<"literal">) => {
   return onlyPublicNotes ? source : undefined;
 };
 
+/** 見出しの ★。押すとお気に入りに入れる・外す。ログインしていなければ出さない。 */
+const FavoriteChannelButton: Component<{ id: string }> = (props) => {
+  const dispatch = useDispatch();
+  const actions = useEventActions();
+  const favorite = () =>
+    actions?.favoriteChannelIds().includes(props.id) ?? false;
+  const sending = useSending(() => ({
+    type: "channel/favorite",
+    id: props.id,
+    on: !favorite(),
+  }));
+  return (
+    <Show when={actions}>
+      <Button
+        variant="ghost"
+        size="sm"
+        shape="rounded"
+        icon={
+          favorite()
+            ? "i-material-symbols:star-rounded c-accent-5"
+            : "i-material-symbols:star-outline-rounded"
+        }
+        aria-label={favorite() ? "お気に入りから外す" : "お気に入りに入れる"}
+        aria-pressed={favorite()}
+        disabled={sending()}
+        onClick={() =>
+          dispatch({ type: "channel/favorite", id: props.id, on: !favorite() })
+        }
+      />
+    </Show>
+  );
+};
+
 const PERSON_ICON = "i-material-symbols:person-outline-rounded";
 
-/** 自分の読み込みリレー。まだ分からなければ空。 */
-const viewerReadRelays = (state: RelayListState): RelayUrl[] =>
-  state.phase === "ready"
-    ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
-    : [];
+/**
+ * 自分の読み込みリレー。取得中は空（まだ探さない）。設定が無いか読み込みリレーが
+ * 無ければ既定のリレーで探す —— 空のままだと、チャンネルを永久に見つけられない。
+ */
+const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
+  if (state.phase === "loading" || state.phase === "signed-out") return [];
+  const read =
+    state.phase === "ready"
+      ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
+      : [];
+  return read.length > 0 ? read : [...FALLBACK_RELAYS];
+};
 
 const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   literal: {
@@ -280,11 +327,23 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       );
     },
   },
+  "channel-list": {
+    meta: () => ({
+      icon: "i-material-symbols:forum-outline-rounded",
+      subtitle: "お気に入りと最近アクティブなチャンネル",
+    }),
+    Content: (props) => (
+      <ChannelList
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+      />
+    ),
+  },
   channel: {
     meta: () => ({
       icon: "i-material-symbols:forum-outline-rounded",
       subtitle: "チャンネル",
     }),
+    HeaderActions: (props) => <FavoriteChannelButton id={props.source.id} />,
     scrollsInternally: true,
     Content: (props) => (
       <ChannelChat

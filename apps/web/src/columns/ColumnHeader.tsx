@@ -1,5 +1,6 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
@@ -17,7 +18,8 @@ export const ColumnHeader: Component<{
   onTitle: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
-  const meta = () => columnView(props.column.source).meta(props.column.source);
+  const view = () => columnView(props.column.source);
+  const meta = () => view().meta(props.column.source);
   return (
     <header
       class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
@@ -47,6 +49,11 @@ export const ColumnHeader: Component<{
           {meta().subtitle}
         </p>
       </button>
+      <Show when={view().HeaderActions}>
+        {(actions) => (
+          <Dynamic component={actions()} source={props.column.source} />
+        )}
+      </Show>
       <Show when={props.temporary}>
         <>
           <button
@@ -139,6 +146,11 @@ export const StackedColumnHeader: Component<{
           に戻る
         </p>
       </button>
+      <Show when={columnView(props.column.source).HeaderActions}>
+        {(actions) => (
+          <Dynamic component={actions()} source={props.column.source} />
+        )}
+      </Show>
       <button
         type="button"
         aria-label="デッキのカラムとして開く"
