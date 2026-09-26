@@ -11,6 +11,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { formatEventTimeFull } from "@streets/core/view/format-time";
 import { type Component, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
+import { useEventActions } from "../actions";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { lazyPart } from "../lazy-part";
@@ -81,6 +82,8 @@ export const ChatMessage: Component<{
   expandMedia: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const viewer = useEventActions()?.viewer;
+  const mine = () => props.event.pubkey === viewer;
   const [picking, setPicking] = createSignal(false);
   const [details, setDetails] = createSignal(false);
   const replyTo = () => channelReplyTarget(props.event);
@@ -193,6 +196,17 @@ export const ChatMessage: Component<{
             if (details.value === "react") setPicking(true);
             if (details.value === "copy-link") void copyLink();
             if (details.value === "details") setDetails(true);
+            if (
+              details.value === "mute-message" ||
+              details.value === "mute-user"
+            ) {
+              dispatch({
+                type: "chat-mute/open",
+                kind: details.value === "mute-message" ? "message" : "user",
+                messageId: props.event.id,
+                pubkey: props.event.pubkey,
+              });
+            }
           }}
         >
           <Menu.Trigger
@@ -230,6 +244,20 @@ export const ChatMessage: Component<{
                   icon="i-material-symbols:code-rounded"
                   label="発言の詳細"
                 />
+                {/* 自分の発言はミュートしても自分には畳まれないので、出さない。 */}
+                <Show when={!mine()}>
+                  <Menu.Separator class="my-1 border-primary border-t" />
+                  <MenuItem
+                    value="mute-message"
+                    icon="i-material-symbols:visibility-off-outline-rounded"
+                    label="このメッセージをミュートする"
+                  />
+                  <MenuItem
+                    value="mute-user"
+                    icon="i-material-symbols:person-off-outline-rounded"
+                    label="このユーザーをミュートする"
+                  />
+                </Show>
               </Menu.Content>
             </Menu.Positioner>
           </Portal>
