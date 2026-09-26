@@ -153,3 +153,52 @@ test("チャンネルを作り、情報を直せる", async ({
     about: "新しい説明",
   });
 });
+
+test("チャンネルの発言をミュートできる", async ({
+  page,
+  me,
+  openApp,
+  signIn,
+}) => {
+  const owner = await createUser("owner");
+  const channel = await owner.post({
+    kind: 40,
+    content: JSON.stringify({ name: "ミュートの部屋", relays: [RELAY_URL] }),
+  });
+  const spam = await owner.post({
+    kind: 42,
+    content: `宣伝です ${Date.now()}`,
+    tags: [["e", channel.id, RELAY_URL, "root"]],
+  });
+
+  await openApp();
+  await signIn();
+  const nevent = encodeNevent({
+    id: channel.id,
+    relays: [RELAY_URL],
+    eventKind: 40,
+  });
+  await page.goto(`/${nevent}?relays=${encodeURIComponent(RELAY_URL)}`);
+
+  const message = page.getByRole("article").filter({ hasText: spam.content });
+  await message.hover();
+  await message.getByRole("button", { name: "そのほかの操作" }).click();
+  await page
+    .getByRole("menuitem", { name: "このメッセージをミュートする" })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "このメッセージをミュートする",
+  });
+  await dialog.getByRole("textbox", { name: "理由（任意）" }).fill("宣伝");
+  await dialog.getByRole("button", { name: "ミュートする" }).click();
+
+  const hide = await waitForEvent(
+    { authors: [me.pubkey], kinds: [43] },
+    (event) => event.tags.some((tag) => tag[0] === "e" && tag[1] === spam.id),
+  );
+  expect(JSON.parse(hide.content)).toEqual({ reason: "宣伝" });
+  // 消さずに畳む。押せば読める。
+  await expect(page.getByText("ミュートしたメッセージです")).toBeVisible();
+  await page.getByRole("button", { name: "表示する" }).click();
+  await expect(page.getByText(spam.content)).toBeVisible();
+});

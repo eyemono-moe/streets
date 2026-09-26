@@ -16,6 +16,7 @@ import type { ReadRoutingMode } from "@streets/core/settings/read-routing-settin
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
+import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
@@ -43,7 +44,8 @@ export type UiEvent =
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
   | ZapFlowEvent
   | ChatViewEvent
-  | ChannelFormViewEvent;
+  | ChannelFormViewEvent
+  | ChatMuteViewEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -143,6 +145,12 @@ export type DeckEvent =
   | { type: "deck/logout" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
+/** チャット内のミュートの確認。チャンネルのカラムの段が裁定する。 */
+export type ChatMuteViewEvent = Exclude<
+  ChatMuteEvent,
+  { type: "chat-mute/sent" | "chat-mute/failed" }
+>;
+
 /** チャンネルを作る・直すフォーム。デッキの段の ChannelFormMediator が裁定する。 */
 export type ChannelFormViewEvent = Exclude<
   ChannelFormEvent,
