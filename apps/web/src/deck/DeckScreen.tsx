@@ -620,7 +620,7 @@ const DeckScreen: Component<{
                                   >
                                     <Show when={temp()}>
                                       {(column) => (
-                                        <div class="h-full w-95 shrink-0">
+                                        <div class="h-full w-95 shrink-0 border-primary border-r">
                                           <Column
                                             column={column()}
                                             settingsOpen={false}

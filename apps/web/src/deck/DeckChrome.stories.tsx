@@ -77,27 +77,28 @@ export const カラムヘッダー: Story = {
   ),
 };
 
-/** 上端の帯が実線なら保存したカラム、破線なら一時カラム（デッキに保存していない）。 */
+/** 上端の帯が破線なら一時カラム（デッキに保存していない）、実線なら保存したカラム。 */
 export const 一時カラムのヘッダー: Story = {
   render: () => (
     <EventSceneProvider scene={{ events: [viewer.profile()] }}>
       <Mediates handle={() => true}>
-        <div class="flex flex-col gap-4 p-4">
-          <div class="w-[360px] border-primary border-x">
-            <ColumnAccentBar />
-            <ColumnHeader
-              column={home}
-              open={false}
-              draggable
-              onTitle={() => {}}
-            />
-          </div>
-          <div class="w-[360px] border-primary border-x">
+        {/* デッキと同じく、一時カラムを左端に置き、カラムの右に線を引いて並べる。 */}
+        <div class="flex bg-primary">
+          <div class="w-[360px] border-primary border-r">
             <ColumnAccentBar temporary />
             <ColumnHeader
               column={home}
               open={false}
               temporary
+              onTitle={() => {}}
+            />
+          </div>
+          <div class="w-[360px] border-primary border-r">
+            <ColumnAccentBar />
+            <ColumnHeader
+              column={home}
+              open={false}
+              draggable
               onTitle={() => {}}
             />
           </div>
