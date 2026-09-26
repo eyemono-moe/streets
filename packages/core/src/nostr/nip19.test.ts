@@ -4,6 +4,7 @@ import {
   decodeBech32,
   decodeNip19,
   decodeNpub,
+  decodeUserInput,
   encodeBech32,
   encodeNaddr,
   encodeNevent,
@@ -355,5 +356,16 @@ describe("encodeNevent", () => {
 
   it("id が hex でなければ作らない", () => {
     expect(encodeNevent({ id: "zz" })).toBeUndefined();
+  });
+});
+
+describe("decodeUserInput", () => {
+  it("npub・nprofile・nostr: 付きを受け、note は受けない", () => {
+    // 捕まえる変異: nprofile を落とす（補完で選んだ人を足せない）
+    expect(decodeUserInput(`nostr:${encodeBech32("npub", HEX)}`)).toBe(HEX);
+    expect(
+      decodeUserInput(encodeNprofile({ pubkey: HEX, relays: [] }) ?? ""),
+    ).toBe(HEX);
+    expect(decodeUserInput(encodeBech32("note", HEX))).toBeUndefined();
   });
 });
