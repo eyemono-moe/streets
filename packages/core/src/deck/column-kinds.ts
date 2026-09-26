@@ -115,8 +115,8 @@ export type ColumnSourceOf<K extends ColumnKind> = Extract<
 export type ColumnTitle =
   | { text: string }
   | { person: string; suffix: string }
-  /** チャンネルは、情報が届いたらその名前で呼ぶ。届くまでは `fallback`。 */
-  | { channel: string; fallback: string };
+  /** チャンネルは、情報が届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`。 */
+  | { channel: string; suffix: string; fallback: string };
 
 /** 「表示するもの」で切り替えられる項目。 */
 export type ColumnFacet = keyof ColumnShow;
@@ -309,7 +309,11 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     hidesMuted: false,
   },
   "channel-info": {
-    title: (source, column) => ({ channel: source.id, fallback: column.title }),
+    title: (source, column) => ({
+      channel: source.id,
+      suffix: "の情報",
+      fallback: column.title,
+    }),
     kinds: () => [],
     hidesMuted: false,
   },
@@ -319,8 +323,12 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     hidesMuted: false,
   },
   channel: {
-    // URL や「覗く」で開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
-    title: (source, column) => ({ channel: source.id, fallback: column.title }),
+    // URL などから開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
+    title: (source, column) => ({
+      channel: source.id,
+      suffix: "",
+      fallback: column.title,
+    }),
     kinds: () => [CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
   },

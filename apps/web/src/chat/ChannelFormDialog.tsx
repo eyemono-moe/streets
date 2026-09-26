@@ -173,7 +173,7 @@ const ChannelFormDialog: Component<{
                         value,
                       })
                     }
-                    placeholder="例：さびれたスナック"
+                    placeholder="例：ねこの画像チャンネル"
                   />
                   <TextField
                     label="説明"

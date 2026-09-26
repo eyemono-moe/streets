@@ -407,6 +407,21 @@ describe("columnTitle（チャンネル）", () => {
         title: "チャンネル",
         source: { kind: "channel", id: "a".repeat(64) },
       }),
-    ).toEqual({ channel: "a".repeat(64), fallback: "チャンネル" });
+    ).toEqual({ channel: "a".repeat(64), suffix: "", fallback: "チャンネル" });
+  });
+
+  it("チャンネルの情報は「〈名前〉の情報」と呼ぶ", () => {
+    // 捕まえる変異: 名前だけを返す（チャンネルのカラムと情報のカラムが同じ題名になる）
+    expect(
+      columnTitle({
+        id: "x",
+        title: "チャンネルの情報",
+        source: { kind: "channel-info", id: "a".repeat(64) },
+      }),
+    ).toEqual({
+      channel: "a".repeat(64),
+      suffix: "の情報",
+      fallback: "チャンネルの情報",
+    });
   });
 });

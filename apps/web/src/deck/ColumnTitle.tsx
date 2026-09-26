@@ -34,7 +34,10 @@ export const useColumnTitle = (
     if ("person" in current) {
       return `${profileLabel(profile(), current.person)}${current.suffix}`;
     }
-    if ("channel" in current) return channelName() ?? current.fallback;
+    if ("channel" in current) {
+      const name = channelName();
+      return name === undefined ? current.fallback : `${name}${current.suffix}`;
+    }
     return current.text;
   };
 };

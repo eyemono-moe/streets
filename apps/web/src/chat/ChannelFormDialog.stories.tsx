@@ -78,8 +78,8 @@ export const 直す: Story = {
         id: "1".repeat(64),
         creator: "c".repeat(64),
         metadata: {
-          name: "さびれたスナック",
-          about: "夜にだらだら話す場所",
+          name: "ねこの画像チャンネル",
+          about: "ねこの写真を貼る場所",
           relays: [RELAY],
         },
         updatedAt: 0,

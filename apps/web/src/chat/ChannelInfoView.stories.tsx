@@ -9,8 +9,8 @@ const channel: Channel = {
   id: "1".repeat(64),
   creator: mama.pubkey,
   metadata: {
-    name: "さびれたスナック",
-    about: "夜にだらだら話す場所。だれでもどうぞ。\n宣伝はミュートします。",
+    name: "ねこの画像チャンネル",
+    about: "ねこの写真を貼る場所。だれでもどうぞ。\n宣伝はミュートします。",
     relays: ["wss://relay.example/", "wss://relay-jp.example/"],
   },
   updatedAt: 0,
