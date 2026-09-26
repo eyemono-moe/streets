@@ -6,6 +6,7 @@ import {
 } from "@streets/core/deck/column-sources";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { activeChannels } from "@streets/core/nostr/channel";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type ChannelEntry,
@@ -14,7 +15,13 @@ import {
   searchChannels,
 } from "@streets/core/view/channel-directory";
 import { channelReadRelays } from "@streets/core/view/chat";
-import { type Component, createMemo, createSignal } from "solid-js";
+import {
+  type Component,
+  createComputed,
+  createMemo,
+  createSignal,
+} from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { useEventActions } from "../../actions";
 import ChannelListView from "../../chat/ChannelListView";
 import { useDispatch } from "../../ui-events";
@@ -80,9 +87,15 @@ const ChannelList: Component<{
     maxItems: Number.POSITIVE_INFINITY,
   });
 
-  const channels = createMemo(() =>
-    channelsFrom([...info.items(), ...all.items()]),
-  );
+  // 届いたチャンネルの情報は、購読を張り直しても手元に残す。知っている id が増える
+  // たびに情報の購読を張り直すので、そのまま使うと張り直した直後に一覧が空になる。
+  const received = new Map<string, NostrEvent>();
+  const channels = createMemo(() => {
+    for (const event of [...info.items(), ...all.items()]) {
+      received.set(event.id, event);
+    }
+    return channelsFrom([...received.values()]);
+  });
   const directory = createMemo(() =>
     channelDirectory({
       channels: channels(),
@@ -101,6 +114,24 @@ const ChannelList: Component<{
       : [],
   );
 
+  // 行はチャンネルの id で突き合わせて当てる。作り直した配列をそのまま渡すと、発言が
+  // 1 件届くたびに <For> が全行を作り直し、チャンネルの画像がちらつく。
+  type Keyed = ChannelEntry & { id: string };
+  const keyed = (entries: readonly ChannelEntry[]): Keyed[] =>
+    entries.map((entry) => ({ ...entry, id: entry.channel.id }));
+  const [lists, setLists] = createStore<{
+    favorites: Keyed[];
+    active: Keyed[];
+    results: Keyed[];
+  }>({ favorites: [], active: [], results: [] });
+  createComputed(() =>
+    setLists("favorites", reconcile(keyed(directory().favorites))),
+  );
+  createComputed(() =>
+    setLists("active", reconcile(keyed(directory().active))),
+  );
+  createComputed(() => setLists("results", reconcile(keyed(results()))));
+
   const relaysOf = (entry: ChannelEntry) =>
     entry.channel.metadata.relays.length > 0
       ? entry.channel.metadata.relays
@@ -118,9 +149,9 @@ const ChannelList: Component<{
   return (
     <ChannelListView
       query={query()}
-      favorites={directory().favorites}
-      active={directory().active}
-      results={results()}
+      favorites={lists.favorites}
+      active={lists.active}
+      results={lists.results}
       favoritesSettled={
         favorites().length === 0 || info.status().phase === "settled"
       }
