@@ -52,7 +52,15 @@ export class WriteFailedError extends Error {
 }
 
 export type Writer = {
-  publish(draft: EventDraft, hooks?: WriteHooks): Promise<WriteResult>;
+  /**
+   * `relays` は自分の write リレーに加えて送る先。著者で行き先が決まらない
+   * イベント（チャンネルでの発言は、チャンネルのリレーで読まれる）に使う。
+   */
+  publish(
+    draft: EventDraft,
+    hooks?: WriteHooks,
+    options?: { relays?: readonly RelayUrl[] },
+  ): Promise<WriteResult>;
   /**
    * `mutate` には store が持つ生きたイベントをそのまま渡す (`fetchLatest`
    * は参照そのものを返す)。`current` を破壊すると store が黙って書き換わる。
@@ -185,8 +193,13 @@ export const createWriter = ({
   };
 
   return {
-    publish: (draft, hooks) =>
-      send({ ...draft, pubkey: pubkey(), created_at: now() }, hooks, undefined),
+    publish: (draft, hooks, options) =>
+      send(
+        { ...draft, pubkey: pubkey(), created_at: now() },
+        hooks,
+        undefined,
+        options?.relays,
+      ),
 
     // `identifier` は NIP-33 addressable event の `d`。mutation が返した
     // tags よりこの引数を正として、下でちょうど 1 個に正規化する。
