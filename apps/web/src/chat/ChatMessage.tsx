@@ -4,7 +4,6 @@ import {
   channelReplyTarget,
 } from "@streets/core/nostr/channel";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
-import { parseContent } from "@streets/core/nostr/content";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import { profileLabel } from "@streets/core/nostr/profile";
@@ -18,7 +17,6 @@ import { lazyPart } from "../lazy-part";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
 import { NoteContent } from "../note/Event";
-import NoteText from "../note/NoteText";
 import ReactionList from "../note/ReactionList";
 import { useEvent } from "../note/use-event";
 import { useProfile } from "../note/use-profile";
@@ -59,10 +57,10 @@ const ReplyContext: Component<{
           </span>
           <Show when={parent()}>
             {(event) => (
-              <NoteText
-                tokens={parseContent(event().content.trim(), event().tags)}
-                class="min-w-0 truncate"
-              />
+              // 1 行だけ出す。本文の改行や画像をそのまま描くと、返信の行が崩れる。
+              <span class="min-w-0 truncate">
+                {event().content.replace(/\s+/g, " ").trim()}
+              </span>
             )}
           </Show>
         </p>
@@ -104,7 +102,7 @@ export const ChatMessage: Component<{
 
   return (
     <article
-      class="group relative flex gap-2.5 px-3 hover:bg-secondary focus-within:bg-secondary"
+      class="group relative flex gap-2.5 px-3 hover:bg-alpha-hover focus-within:bg-alpha-hover"
       classList={{ "pt-2.5 pb-1": !props.continued, "py-0.5": props.continued }}
     >
       <div class="w-8 shrink-0">
@@ -115,7 +113,10 @@ export const ChatMessage: Component<{
       <div class="flex min-w-0 flex-1 flex-col gap-1">
         <Show when={!props.continued}>
           <div class="flex min-w-0 items-baseline gap-1.5">
-            <AuthorNames pubkey={props.event.pubkey} size="compact" />
+            {/* 名前が長いときは名前の側を詰める。詰めないとカラムが横にはみ出す。 */}
+            <div class="min-w-0 shrink">
+              <AuthorNames pubkey={props.event.pubkey} size="compact" />
+            </div>
             <time
               class="c-secondary shrink-0 text-caption"
               datetime={date().toISOString()}
