@@ -3,6 +3,7 @@ import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import { searchInputClass } from "../ui/TextField";
+import ChannelPicture from "./ChannelPicture";
 
 /** 最後の発言の時刻。今日なら時刻、それ以外は日付。直近に無ければ「しばらく前」。 */
 const lastLabel = (at: number | undefined): string => {
@@ -12,33 +13,6 @@ const lastLabel = (at: number | undefined): string => {
     ? date.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })
     : date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
 };
-
-/** チャンネルの画像。無いか読めなければ、チャットの印を出す。 */
-export const ChannelPicture: Component<{ url?: string; class: string }> = (
-  props,
-) => (
-  <Show
-    when={props.url}
-    fallback={
-      <span
-        class={`c-secondary grid shrink-0 place-items-center bg-secondary ${props.class}`}
-        aria-hidden="true"
-      >
-        <span class="i-material-symbols:forum-outline-rounded size-1/2" />
-      </span>
-    }
-  >
-    {(url) => (
-      <img
-        src={url()}
-        alt=""
-        class={`shrink-0 bg-secondary object-cover ${props.class}`}
-        loading="lazy"
-        decoding="async"
-      />
-    )}
-  </Show>
-);
 
 const ChannelRow: Component<{
   entry: ChannelEntry;
