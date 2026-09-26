@@ -14,6 +14,7 @@ import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
+import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
@@ -41,7 +42,8 @@ export type UiEvent =
   | SearchRelayViewEvent
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
   | ZapFlowEvent
-  | ChatViewEvent;
+  | ChatViewEvent
+  | ChannelFormViewEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -141,6 +143,12 @@ export type DeckEvent =
   | { type: "deck/logout" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
+/** チャンネルを作る・直すフォーム。デッキの段の ChannelFormMediator が裁定する。 */
+export type ChannelFormViewEvent = Exclude<
+  ChannelFormEvent,
+  { type: "channel-form/saved" | "channel-form/failed" }
+>;
+
 /** チャンネルのカラムの中の操作。返信先を選ぶ・外す。 */
 export type ChatViewEvent = Extract<
   ChatReplyEvent,

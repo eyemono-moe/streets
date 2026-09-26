@@ -134,6 +134,8 @@ const ChannelListView: Component<{
   onOpen: (entry: ChannelEntry) => void;
   /** Storybook で「すべて」を開いた状態から始めるため。 */
   initialTab?: "recent" | "all";
+  /** 渡すと、一番上に「チャンネルを作る」を出す。 */
+  onCreate?: () => void;
 }> = (props) => {
   let input: HTMLInputElement | undefined;
   const tabs = (): ColumnTab[] => [
@@ -221,15 +223,32 @@ const ChannelListView: Component<{
     },
   ];
   return (
-    <ColumnTabs
-      label="チャンネルの一覧"
-      scroll="column"
-      tabs={tabs()}
-      defaultValue={props.initialTab ?? "recent"}
-      onValueChange={(value) => {
-        if (value === "all") props.onBrowse();
-      }}
-    />
+    <div class="flex flex-col">
+      <Show when={props.onCreate}>
+        {(create) => (
+          <div class="px-3 pt-3">
+            <Button
+              variant="primary"
+              shape="rounded"
+              block
+              icon="i-material-symbols:add-rounded"
+              onClick={() => create()()}
+            >
+              チャンネルを作る
+            </Button>
+          </div>
+        )}
+      </Show>
+      <ColumnTabs
+        label="チャンネルの一覧"
+        scroll="column"
+        tabs={tabs()}
+        defaultValue={props.initialTab ?? "recent"}
+        onValueChange={(value) => {
+          if (value === "all") props.onBrowse();
+        }}
+      />
+    </div>
   );
 };
 

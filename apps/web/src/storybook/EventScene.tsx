@@ -4,7 +4,9 @@ import {
 } from "@streets/core/nostr/build/bookmark";
 import {
   addFavoriteChannel,
+  buildChannelCreate,
   buildChannelMessage,
+  buildChannelMetadata,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
@@ -104,6 +106,13 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    createChannel: async (input) => {
+      const event = viewer.event(buildChannelCreate(input));
+      await send(() => event);
+      return event.id;
+    },
+    editChannel: (channelId, input) =>
+      send(() => viewer.event(buildChannelMetadata(channelId, input))),
     favoriteChannelIds: () => favoriteChannels(publicChats()),
     setFavoriteChannel: (id, on) =>
       send(() => {

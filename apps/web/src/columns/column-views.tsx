@@ -3,6 +3,7 @@ import type {
   ColumnSource,
   ColumnSourceOf,
 } from "@streets/core/deck/column-kinds";
+import { buildChannelInfoColumn } from "@streets/core/deck/column-presets";
 import {
   bookmarksSource,
   followListSource,
@@ -34,6 +35,7 @@ import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
 import ChannelChat from "./blocks/ChannelChat";
+import ChannelInfo from "./blocks/ChannelInfo";
 import ChannelList from "./blocks/ChannelList";
 import EventList from "./blocks/EventList";
 import FollowList from "./blocks/FollowList";
@@ -90,6 +92,29 @@ const relayColumnSource = (source: ColumnSourceOf<"literal">) => {
     source.filters[0]?.kinds?.[0] === 1 &&
     Object.keys(source.filters[0]).length === 1;
   return onlyPublicNotes ? source : undefined;
+};
+
+/** 見出しの ⓘ。チャンネルの情報をカラムの中に重ねる。 */
+const ChannelInfoButton: Component<{
+  id: string;
+  relays: readonly RelayUrl[];
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      shape="rounded"
+      icon="i-material-symbols:info-outline-rounded"
+      aria-label="チャンネルの情報"
+      onClick={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildChannelInfoColumn(props.id, props.relays),
+        })
+      }
+    />
+  );
 };
 
 /** 見出しの ★。押すとお気に入りに入れる・外す。ログインしていなければ出さない。 */
@@ -327,6 +352,19 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       );
     },
   },
+  "channel-info": {
+    meta: () => ({
+      icon: "i-material-symbols:info-outline-rounded",
+      subtitle: "チャンネルの情報",
+    }),
+    Content: (props) => (
+      <ChannelInfo
+        channelId={props.source.id}
+        hints={props.source.relays ?? []}
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+      />
+    ),
+  },
   "channel-list": {
     meta: () => ({
       icon: "i-material-symbols:forum-outline-rounded",
@@ -343,7 +381,15 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:forum-outline-rounded",
       subtitle: "チャンネル",
     }),
-    HeaderActions: (props) => <FavoriteChannelButton id={props.source.id} />,
+    HeaderActions: (props) => (
+      <>
+        <ChannelInfoButton
+          id={props.source.id}
+          relays={props.source.relays ?? []}
+        />
+        <FavoriteChannelButton id={props.source.id} />
+      </>
+    ),
     scrollsInternally: true,
     Content: (props) => (
       <ChannelChat

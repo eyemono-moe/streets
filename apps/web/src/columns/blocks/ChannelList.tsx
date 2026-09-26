@@ -160,6 +160,12 @@ const ChannelList: Component<{
       onQuery={setQuery}
       onBrowse={() => setBrowsed(true)}
       onOpen={open}
+      onCreate={
+        actions
+          ? () =>
+              dispatch({ type: "channel-form/open-create", relays: relays() })
+          : undefined
+      }
     />
   );
 };
