@@ -231,6 +231,18 @@ export const 狭い画面_一時カラムを見ている: Story = {
   ),
 };
 
+/** カラムの種類ごとの見出しの操作（チャンネルの情報など）も、上のバーに出る。 */
+export const 狭い画面_チャンネルのカラム: Story = {
+  render: () => {
+    const channel: ColumnDef = {
+      id: "channel",
+      title: "さびれたスナック",
+      source: { kind: "channel", id: "a".repeat(64) },
+    };
+    return <MobileBars columns={[...columns, channel]} active="channel" />;
+  },
+};
+
 export const 狭い画面_ユーザーのカラムを選ぶ: Story = {
   render: () => <MobileBars columns={columns} active="friend" />,
 };
