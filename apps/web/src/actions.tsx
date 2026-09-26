@@ -131,8 +131,8 @@ export type EventActions = {
 
 export type WriteStack = {
   actions: EventActions;
-  /** NIP-78 の文書（デッキなど）とリレーの設定が置換に使う。 */
-  writer: Pick<Writer, "replace">;
+  /** 段ごとの書き込み（デッキ・リレーの設定の置換、リストの削除など）に使う。 */
+  writer: Pick<Writer, "replace" | "publish">;
   /** 自分のリレーの一覧（kind:10002）。 */
   relayList: Accessor<NostrEvent | undefined>;
   /** リレーの一覧を一度取りに行き終えたか。まだなら「無い」とは言えない。 */

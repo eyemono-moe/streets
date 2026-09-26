@@ -4,19 +4,25 @@ import { type Component, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
+import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 
 const AuthorRelaysDialog = lazyPart(() => import("./AuthorRelaysDialog"));
 
+const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
+
 export const ProfileMenuView: Component<{
   open?: boolean;
   mine: boolean;
   muted: boolean;
   muteAvailable: boolean;
+  /** ログインしていれば、リストに入れられる。 */
+  listAvailable: boolean;
   onMute: () => void;
   onOpenRelays: () => void;
+  onAddToList: () => void;
 }> = (props) => {
   return (
     <Menu.Root
@@ -26,6 +32,7 @@ export const ProfileMenuView: Component<{
       onSelect={(details) => {
         if (details.value === "relays") props.onOpenRelays();
         if (details.value === "mute") props.onMute();
+        if (details.value === "add-to-list") props.onAddToList();
       }}
     >
       <Menu.Trigger
@@ -52,6 +59,17 @@ export const ProfileMenuView: Component<{
                 aria-hidden="true"
               />
               リレー設定
+            </Menu.Item>
+            <Menu.Item
+              value="add-to-list"
+              disabled={!props.listAvailable}
+              class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+            >
+              <span
+                class="i-material-symbols:playlist-add-rounded size-4.5"
+                aria-hidden="true"
+              />
+              リストに追加
             </Menu.Item>
             <Show when={!props.mine}>
               <Menu.Item
@@ -105,7 +123,9 @@ const ProfileMenu: Component<{ pubkey: string }> = (props) => {
   const dispatch = useDispatch();
   const mutes = useMutes();
   const viewer = useEventActions()?.viewer;
+  const lists = useFollowSets();
   const [relaysOpen, setRelaysOpen] = createSignal(false);
+  const [addingToList, setAddingToList] = createSignal(false);
   const target = (): MuteTarget => ({ type: "pubkey", value: props.pubkey });
   const mutedEntry = () =>
     mutes
@@ -129,9 +149,17 @@ const ProfileMenu: Component<{ pubkey: string }> = (props) => {
         mine={props.pubkey === viewer}
         muted={mutedEntry() !== undefined}
         muteAvailable={mutes !== undefined}
+        listAvailable={lists !== undefined}
         onMute={toggleMute}
         onOpenRelays={() => setRelaysOpen(true)}
+        onAddToList={() => setAddingToList(true)}
       />
+      <Show when={addingToList()}>
+        <AddToListDialog
+          pubkey={props.pubkey}
+          onClose={() => setAddingToList(false)}
+        />
+      </Show>
       <Show when={relaysOpen()}>
         <AuthorRelaysDialog
           pubkey={props.pubkey}

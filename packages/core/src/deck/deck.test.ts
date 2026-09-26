@@ -572,6 +572,17 @@ describe("カラムの種類ごとの保存", () => {
       id: "f".repeat(64),
       relays: ["wss://yabu.me/"],
     },
+    "follow-sets": { kind: "follow-sets" },
+    "follow-set": {
+      kind: "follow-set",
+      pubkey: "e".repeat(64),
+      identifier: "friends",
+    },
+    "follow-set-info": {
+      kind: "follow-set-info",
+      pubkey: "e".repeat(64),
+      identifier: "friends",
+    },
   };
 
   it.each(Object.values(EXAMPLES))("$kind は保存して読み戻せる", (source) => {

@@ -9,8 +9,10 @@ const meta = {
     mine: false,
     muted: false,
     muteAvailable: true,
+    listAvailable: true,
     onMute: () => {},
     onOpenRelays: () => {},
+    onAddToList: () => {},
   },
 } satisfies Meta<typeof ProfileMenuView>;
 
@@ -20,7 +22,9 @@ type S = StoryObj<typeof meta>;
 export const 他のユーザー: S = {};
 export const ミュート中: S = { args: { muted: true } };
 export const 自分: S = { args: { mine: true } };
-export const ログインしていない: S = { args: { muteAvailable: false } };
+export const ログインしていない: S = {
+  args: { muteAvailable: false, listAvailable: false },
+};
 export const 狭い画面: S = {
   parameters: { viewport: { defaultViewport: "mobile1" } },
 };

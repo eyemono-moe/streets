@@ -82,6 +82,23 @@ export const columnSourceSchema = v.variant("kind", [
   v.object({ kind: v.literal("user"), pubkey: hexId }),
   v.object({ kind: v.literal("followees-list"), pubkey: hexId }),
   v.object({ kind: v.literal("followers-list"), pubkey: hexId }),
+  /** リスト（NIP-51 のフォローセット）の一覧。作ったものと、入っているもの。 */
+  v.object({ kind: v.literal("follow-sets") }),
+  /**
+   * 1 つのリストに入っている人の投稿。どのリストかだけを持ち、メンバーは
+   * 焼き込まない —— リストを直したら、開いているカラムにもそのまま効く。
+   */
+  v.object({
+    kind: v.literal("follow-set"),
+    pubkey: hexId,
+    identifier: v.string(),
+  }),
+  /** リストの情報とメンバー。リストのカラムの見出しの ⓘ から重ねて開く。 */
+  v.object({
+    kind: v.literal("follow-set-info"),
+    pubkey: hexId,
+    identifier: v.string(),
+  }),
   /**
    * NIP-28 のチャンネル。`relays` は開いたときに分かっていたリレー（nevent の
    * ヒントなど）。チャンネルの情報が届けば、そこに書かれたリレーも使う。
@@ -117,7 +134,13 @@ export type ColumnTitle =
   | { text: string }
   | { person: string; suffix: string }
   /** チャンネルは、情報が届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`。 */
-  | { channel: string; suffix: string; fallback: string };
+  | { channel: string; suffix: string; fallback: string }
+  /** リストも、届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`（開いたときの名前）。 */
+  | {
+      followSet: { pubkey: string; identifier: string };
+      suffix: string;
+      fallback: string;
+    };
 
 /** 「表示するもの」で切り替えられる項目。 */
 export type ColumnFacet = keyof ColumnShow;
@@ -321,6 +344,31 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   "channel-info": {
     title: (source, column) => ({
       channel: source.id,
+      suffix: "の情報",
+      fallback: column.title,
+    }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
+  "follow-sets": {
+    title: () => ({ text: "リスト" }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
+  "follow-set": {
+    title: (source, column) => ({
+      followSet: { pubkey: source.pubkey, identifier: source.identifier },
+      suffix: "",
+      fallback: column.title,
+    }),
+    kinds: () => TIMELINE_KINDS,
+    // ホームと同じく、選んで集めた人の流れなのでミュートを効かせる。
+    hidesMuted: true,
+    alerts: (_, input) => directReadUnreachable(input),
+  },
+  "follow-set-info": {
+    title: (source, column) => ({
+      followSet: { pubkey: source.pubkey, identifier: source.identifier },
       suffix: "の情報",
       fallback: column.title,
     }),

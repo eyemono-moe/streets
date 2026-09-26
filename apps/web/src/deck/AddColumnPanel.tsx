@@ -1,6 +1,7 @@
 import {
   type ColumnPresetKind,
   buildColumn,
+  buildFollowSetsColumn,
   buildRelayColumn,
 } from "@streets/core/deck/column-presets";
 import type { ColumnDef } from "@streets/core/deck/deck";
@@ -11,6 +12,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show, createSignal } from "solid-js";
 import ChannelList from "../columns/blocks/ChannelList";
+import { FollowSetList } from "../columns/blocks/FollowSets";
 import { ColumnScope } from "../columns/column-scope";
 import { viewerReadRelays } from "../columns/column-views";
 import { useDispatch } from "../ui-events";
@@ -19,7 +21,7 @@ import IconButton from "../ui/IconButton";
 import RelayColumnEditor from "./RelayColumnEditor";
 
 type Preset = {
-  kind: ColumnPresetKind | "relay";
+  kind: ColumnPresetKind | "relay" | "follow-sets";
   label: string;
   description: string;
   icon: string;
@@ -55,6 +57,12 @@ const PRESETS: Preset[] = [
     label: "ブックマーク",
     description: "保存したノート",
     icon: "i-material-symbols:bookmark-outline-rounded",
+  },
+  {
+    kind: "follow-sets",
+    label: "リスト",
+    description: "選んだ人たちの投稿",
+    icon: "i-material-symbols:format-list-bulleted-rounded",
   },
 ];
 
@@ -151,6 +159,75 @@ const ChannelPicker: Component<{
   );
 };
 
+/**
+ * リストを選ぶ。押したリストのカラムをデッキに足す。一覧そのものをカラムとして
+ * 置いておく人は少ないので、一覧はここで見せ、足すのは選んだリストだけにする。
+ */
+const FollowSetPicker: Component<{
+  relayList: RelayListState;
+  readLayer?: ReadLayer;
+  onBack: () => void;
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <section class="motion-fade flex animate-in flex-col gap-3">
+      <div class="flex items-center gap-1">
+        <IconButton
+          icon="i-material-symbols:arrow-back-rounded"
+          label="カラムの種類へ戻る"
+          onClick={() => props.onBack()}
+        />
+        <div>
+          <h3 class="c-primary font-600 text-body">リストを選ぶ</h3>
+          <p class="c-secondary mt-0.5 text-caption">
+            選んだリストに入っている人の投稿を表示します。
+          </p>
+        </div>
+        <IconButton
+          icon="i-material-symbols:open-in-new-rounded"
+          label="一覧をデッキのカラムとして足す"
+          title="一覧をデッキのカラムとして足す"
+          class="ml-auto self-start"
+          onClick={() =>
+            dispatch({
+              type: "deck/add-column",
+              column: buildFollowSetsColumn(),
+            })
+          }
+        />
+      </div>
+      <Show when={props.readLayer}>
+        {(layer) => (
+          <div class="-mx-3">
+            <ColumnScope
+              value={{
+                column: () => FOLLOW_SET_PICKER_COLUMN,
+                readLayer: layer(),
+              }}
+            >
+              <FollowSetList
+                viewerRead={() => viewerReadRelays(props.relayList)}
+                onOpen={(column) =>
+                  dispatch({
+                    type: "deck/add-column",
+                    column: { ...column, id: crypto.randomUUID() },
+                  })
+                }
+              />
+            </ColumnScope>
+          </div>
+        )}
+      </Show>
+    </section>
+  );
+};
+
+const FOLLOW_SET_PICKER_COLUMN: ColumnDef = {
+  id: "add-column/follow-sets",
+  title: "リスト",
+  source: { kind: "follow-sets" },
+};
+
 /** パネルの中の一覧は、デッキのカラムではない。診断値の名前と見せ方の既定にだけ使う。 */
 const PICKER_COLUMN: ColumnDef = {
   id: "add-column/channels",
@@ -164,6 +241,8 @@ const AddColumnPanel: Component<{
   initialRelayOpen?: boolean;
   /** Storybook でチャンネル選択を開いた状態から始めるため。 */
   initialChannelOpen?: boolean;
+  /** Storybook でリスト選択を開いた状態から始めるため。 */
+  initialFollowSetOpen?: boolean;
   /** チャンネルを選ぶ一覧が読む。Storybook では渡さない（一覧の見た目は別のストーリーで見る）。 */
   readLayer?: ReadLayer;
 }> = (props) => {
@@ -174,101 +253,124 @@ const AddColumnPanel: Component<{
   const [channelOpen, setChannelOpen] = createSignal(
     props.initialChannelOpen ?? false,
   );
+  const [followSetOpen, setFollowSetOpen] = createSignal(
+    props.initialFollowSetOpen ?? false,
+  );
   const [selectedRelays, setSelectedRelays] = createSignal<RelayUrl[]>([]);
 
   return (
     <div class="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
       <Show
-        when={!channelOpen()}
+        when={!followSetOpen()}
         fallback={
-          <ChannelPicker
+          <FollowSetPicker
             relayList={props.relayList}
             readLayer={props.readLayer}
-            onBack={() => setChannelOpen(false)}
+            onBack={() => setFollowSetOpen(false)}
           />
         }
       >
         <Show
-          when={relayOpen()}
+          when={!channelOpen()}
           fallback={
-            <div class="motion-fade animate-in">
-              <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-                <For each={PRESETS}>
-                  {(preset) => (
-                    <Row
-                      icon={preset.icon}
-                      label={preset.label}
-                      description={preset.description}
-                      onClick={() => {
-                        if (preset.kind === "relay") {
-                          setRelayOpen(true);
-                          return;
-                        }
-                        if (preset.kind === "channels") {
-                          setChannelOpen(true);
-                          return;
-                        }
-                        const column = buildColumn(preset.kind, "");
-                        if (column)
-                          dispatch({ type: "deck/add-column", column: column });
-                      }}
-                    />
-                  )}
-                </For>
-              </div>
-            </div>
+            <ChannelPicker
+              relayList={props.relayList}
+              readLayer={props.readLayer}
+              onBack={() => setChannelOpen(false)}
+            />
           }
         >
-          <section class="motion-fade flex animate-in flex-col gap-3">
-            <div class="flex items-center gap-1">
-              <IconButton
-                icon="i-material-symbols:arrow-back-rounded"
-                label="カラムの種類へ戻る"
-                onClick={() => setRelayOpen(false)}
-              />
+          <Show
+            when={relayOpen()}
+            fallback={
+              <div class="motion-fade animate-in">
+                <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
+                  <For each={PRESETS}>
+                    {(preset) => (
+                      <Row
+                        icon={preset.icon}
+                        label={preset.label}
+                        description={preset.description}
+                        onClick={() => {
+                          if (preset.kind === "relay") {
+                            setRelayOpen(true);
+                            return;
+                          }
+                          if (preset.kind === "channels") {
+                            setChannelOpen(true);
+                            return;
+                          }
+                          if (preset.kind === "follow-sets") {
+                            setFollowSetOpen(true);
+                            return;
+                          }
+                          const column = buildColumn(preset.kind, "");
+                          if (column)
+                            dispatch({
+                              type: "deck/add-column",
+                              column: column,
+                            });
+                        }}
+                      />
+                    )}
+                  </For>
+                </div>
+              </div>
+            }
+          >
+            <section class="motion-fade flex animate-in flex-col gap-3">
+              <div class="flex items-center gap-1">
+                <IconButton
+                  icon="i-material-symbols:arrow-back-rounded"
+                  label="カラムの種類へ戻る"
+                  onClick={() => setRelayOpen(false)}
+                />
+                <div>
+                  <h3 class="c-primary font-600 text-body">リレーを選ぶ</h3>
+                  <p class="c-secondary mt-0.5 text-caption">
+                    選んだリレーにある公開ノートを時系列で表示します。
+                  </p>
+                </div>
+              </div>
               <div>
-                <h3 class="c-primary font-600 text-body">リレーを選ぶ</h3>
                 <p class="c-secondary mt-0.5 text-caption">
-                  選んだリレーにある公開ノートを時系列で表示します。
+                  URL
+                  を入れるか、候補から選んでください。候補には、アカウントとフォローしている人が使っているリレーが出ます。
                 </p>
               </div>
-            </div>
-            <div>
-              <p class="c-secondary mt-0.5 text-caption">
-                URL
-                を入れるか、候補から選んでください。候補には、アカウントとフォローしている人が使っているリレーが出ます。
-              </p>
-            </div>
-            <Show when={props.relayList.phase === "loading"}>
-              <p class="c-secondary text-caption">
-                リレー設定を読み込んでいます…
-              </p>
-            </Show>
-            <Show when={props.relayList.phase === "missing"}>
-              <p class="c-secondary text-caption">
-                アカウントのリレー設定がありません。URLを直接入力できます。
-              </p>
-            </Show>
-            <RelayColumnEditor
-              candidates={
-                props.relayList.phase === "ready" ? props.relayList.entries : []
-              }
-              selected={selectedRelays()}
-              onChange={setSelectedRelays}
-            />
-            <Button
-              variant="primary"
-              shape="rounded"
-              block
-              disabled={selectedRelays().length === 0}
-              onClick={() => {
-                const column = buildRelayColumn(selectedRelays());
-                if (column) dispatch({ type: "deck/add-column", column });
-              }}
-            >
-              リレーカラムを追加
-            </Button>
-          </section>
+              <Show when={props.relayList.phase === "loading"}>
+                <p class="c-secondary text-caption">
+                  リレー設定を読み込んでいます…
+                </p>
+              </Show>
+              <Show when={props.relayList.phase === "missing"}>
+                <p class="c-secondary text-caption">
+                  アカウントのリレー設定がありません。URLを直接入力できます。
+                </p>
+              </Show>
+              <RelayColumnEditor
+                candidates={
+                  props.relayList.phase === "ready"
+                    ? props.relayList.entries
+                    : []
+                }
+                selected={selectedRelays()}
+                onChange={setSelectedRelays}
+              />
+              <Button
+                variant="primary"
+                shape="rounded"
+                block
+                disabled={selectedRelays().length === 0}
+                onClick={() => {
+                  const column = buildRelayColumn(selectedRelays());
+                  if (column) dispatch({ type: "deck/add-column", column });
+                }}
+              >
+                リレーカラムを追加
+              </Button>
+            </section>
+          </Show>
         </Show>
       </Show>
     </div>

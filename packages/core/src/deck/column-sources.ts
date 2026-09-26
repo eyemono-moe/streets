@@ -1,3 +1,4 @@
+import { FOLLOW_SET_KIND } from "../lists/follow-set";
 import {
   CHANNEL_CREATE_KIND,
   CHANNEL_HIDE_MESSAGE_KIND,
@@ -141,6 +142,55 @@ export const followListSource = (pubkey: string): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [3], authors: [pubkey], limit: 1 }],
 });
+
+/** その人のリストすべて。古い版も届くので、読む側で `latestFollowSets` を通す。 */
+export const followSetsSource = (pubkey: string): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [FOLLOW_SET_KIND], authors: [pubkey] }],
+});
+
+export const followSetSource = (
+  pubkey: string,
+  identifier: string,
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    { kinds: [FOLLOW_SET_KIND], authors: [pubkey], "#d": [identifier] },
+  ],
+});
+
+/**
+ * その人が入っているリスト。書いた人が分からないので Outbox で行き先を決められ
+ * ない。NIP-65 は「`p` で指した相手の読み込みリレーにも送る」を求めているので、
+ * その人の読み込みリレーで待つ。リレーがまだ分からない間は張らない。
+ */
+export const followSetsIncludingSource = (
+  pubkey: string,
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  relays.length > 0
+    ? {
+        type: "nostr",
+        filters: [{ kinds: [FOLLOW_SET_KIND], "#p": [pubkey], limit: 200 }],
+        relays: [...relays],
+      }
+    : undefined;
+
+/**
+ * リストに入っている人の投稿。`members` が `undefined`（リストがまだ届いて
+ * いない）の間は張らない。0 人なら `authors: []`（該当者なし）のまま渡す。
+ */
+export const followSetPostsSource = (
+  members: readonly string[] | undefined,
+): NostrSource | undefined =>
+  members === undefined
+    ? undefined
+    : {
+        type: "nostr",
+        filters: [
+          { kinds: [...TIMELINE_KINDS], authors: [...new Set(members)] },
+        ],
+      };
 
 export const followersSource = (pubkey: string): NostrSource => ({
   type: "nostr",
