@@ -21,18 +21,18 @@ const entry = (
 };
 
 const favorites = [
-  entry(1, "さびれたスナック", "夜にだらだら話す場所", {
+  entry(1, "ねこの画像チャンネル", "ねこの写真を貼る場所", {
     lastMessageAt: now - 120,
     favorite: true,
   }),
-  entry(2, "Nostr麻雀開発部", "麻雀クライアントを作っています", {
+  entry(2, "Nostr猫部", "猫のクライアントを作っています", {
     lastMessageAt: now - 86_400,
     favorite: true,
   }),
   entry(3, "しずかな部屋", undefined, { favorite: true }),
 ];
 const active = [
-  entry(4, "persona-bubble-field prototype", "試作の話", {
+  entry(4, "cat-toy prototype", "試作の話", {
     lastMessageAt: now - 3_600,
   }),
   entry(5, "Streets のフィードバック", "要望・不具合・使い方の相談", {
@@ -96,10 +96,10 @@ export const 最近アクティブが無い: Story = { args: { active: [] } };
 export const 探している: Story = {
   args: {
     initialTab: "all",
-    query: "スナック",
+    query: "ねこ",
     results: [
       favorites[0] as ChannelEntry,
-      entry(7, "スナック研究会", "スナックの話をしよう"),
+      entry(7, "ねこ研究会", "ねこの話をしよう"),
     ],
   },
 };

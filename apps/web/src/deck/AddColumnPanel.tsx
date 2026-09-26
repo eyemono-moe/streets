@@ -46,7 +46,7 @@ const PRESETS: Preset[] = [
   {
     kind: "channels",
     label: "チャンネル",
-    description: "お気に入りと最近アクティブなチャンネル",
+    description: "みんなで会話できるチャットチャンネル",
     icon: "i-material-symbols:forum-outline-rounded",
   },
   {
@@ -107,7 +107,7 @@ const ChannelPicker: Component<{
         <div>
           <h3 class="c-primary font-600 text-body">チャンネルを選ぶ</h3>
           <p class="c-secondary mt-0.5 text-caption">
-            選んだチャンネルを左端に開きます。「カラムに残す」で残せます。
+            選んだチャンネルのメッセージを表示します。
           </p>
         </div>
         <Button

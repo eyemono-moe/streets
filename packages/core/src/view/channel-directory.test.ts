@@ -81,10 +81,10 @@ describe("channelDirectory", () => {
 
 describe("searchChannels", () => {
   const channels = map(
-    channel(id(1), "さびれたスナック", "夜の話"),
-    channel(id(2), "Nostr麻雀開発部"),
+    channel(id(1), "ねこの画像チャンネル", "写真の話"),
+    channel(id(2), "Nostr猫部"),
     channel(id(3), undefined, "名前なし"),
-    channel(id(4), "スナック研究会"),
+    channel(id(4), "ねこ研究会"),
   );
   const names = (query: string) =>
     searchChannels({ channels, favorites: [], active: [], query }).map(
@@ -92,13 +92,13 @@ describe("searchChannels", () => {
     );
 
   it("名前と説明で絞り込み、名前順に並べる", () => {
-    expect(names("スナック")).toEqual(["さびれたスナック", "スナック研究会"]);
-    expect(names("夜")).toEqual(["さびれたスナック"]);
+    expect(names("ねこ")).toEqual(["ねこの画像チャンネル", "ねこ研究会"]);
+    expect(names("写真")).toEqual(["ねこの画像チャンネル"]);
   });
 
   it("全角・半角と大文字・小文字の違いを無視する", () => {
     // 捕まえる変異: そのまま比べる（「ｎｏｓｔｒ」で Nostr が見つからない）
-    expect(names("ｎｏｓｔｒ")).toEqual(["Nostr麻雀開発部"]);
+    expect(names("ｎｏｓｔｒ")).toEqual(["Nostr猫部"]);
   });
 
   it("空なら全部で、名前の無いものは後ろ", () => {

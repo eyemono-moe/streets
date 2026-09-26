@@ -330,7 +330,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   "channel-list": {
     meta: () => ({
       icon: "i-material-symbols:forum-outline-rounded",
-      subtitle: "お気に入りと最近アクティブなチャンネル",
+      subtitle: "みんなで会話できるチャットチャンネル",
     }),
     Content: (props) => (
       <ChannelList
