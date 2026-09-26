@@ -17,7 +17,6 @@ const lastLabel = (at: number | undefined): string => {
 const ChannelRow: Component<{
   entry: ChannelEntry;
   onOpen: (entry: ChannelEntry) => void;
-  onPeek?: (entry: ChannelEntry) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const name = () =>
@@ -43,19 +42,6 @@ const ChannelRow: Component<{
           {lastLabel(props.entry.lastMessageAt)}
         </span>
       </button>
-      <Show when={props.onPeek}>
-        {(peek) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="rounded"
-            icon="i-material-symbols:visibility-outline-rounded"
-            aria-label={`${name()} を覗く`}
-            title="デッキに足さずに覗く"
-            onClick={() => peek()(props.entry)}
-          />
-        )}
-      </Show>
       <Button
         variant="ghost"
         size="sm"
@@ -94,7 +80,6 @@ const Section: Component<{
   settled: boolean;
   empty: string;
   onOpen: (entry: ChannelEntry) => void;
-  onPeek?: (entry: ChannelEntry) => void;
 }> = (props) => (
   <section class="flex flex-col gap-1.5">
     <h3 class="c-secondary flex items-center gap-2 font-600 text-caption">
@@ -105,13 +90,7 @@ const Section: Component<{
       <Match when={props.entries.length > 0}>
         <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
           <For each={props.entries.slice(0, props.limit ?? Infinity)}>
-            {(entry) => (
-              <ChannelRow
-                entry={entry}
-                onOpen={props.onOpen}
-                onPeek={props.onPeek}
-              />
-            )}
+            {(entry) => <ChannelRow entry={entry} onOpen={props.onOpen} />}
           </For>
         </ul>
         <Show
@@ -149,8 +128,6 @@ const ChannelListView: Component<{
   onSearch: (searching: boolean) => void;
   onQuery: (query: string) => void;
   onOpen: (entry: ChannelEntry) => void;
-  /** 渡すと、行に「覗く」を出す（カラムを追加のパネルで使う）。 */
-  onPeek?: (entry: ChannelEntry) => void;
 }> = (props) => {
   let input: HTMLInputElement | undefined;
   return (
@@ -198,7 +175,6 @@ const ChannelListView: Component<{
               settled={props.favoritesSettled}
               empty="★ を押したチャンネルがここに並びます。"
               onOpen={props.onOpen}
-              onPeek={props.onPeek}
             />
             <Section
               title="最近アクティブなチャンネル"
@@ -206,7 +182,6 @@ const ChannelListView: Component<{
               settled={props.activeSettled}
               empty="この 7 日間に発言のあったチャンネルはありません。"
               onOpen={props.onOpen}
-              onPeek={props.onPeek}
             />
             <Button
               variant="secondary"
@@ -239,7 +214,6 @@ const ChannelListView: Component<{
               : "チャンネルが見つかりませんでした。"
           }
           onOpen={props.onOpen}
-          onPeek={props.onPeek}
         />
       </Show>
     </div>

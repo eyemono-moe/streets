@@ -90,11 +90,14 @@ test("カラムを追加からチャンネルを選び、お気に入りに入�
   );
   expect(list.tags).toContainEqual(["e", channel.id]);
 
-  // 押すと、そのチャンネルがデッキのカラムとして足される。
+  // 押すと、そのチャンネルを一時カラムで開く。「カラムに残す」でデッキに残す。
   await page
     .getByRole("button", { name: new RegExp(name) })
     .first()
     .click();
   await expect(page.getByRole("heading", { name })).toBeVisible();
   await expect(page.getByText("だれかいますか")).toBeVisible();
+  await page.getByRole("button", { name: "カラムに残す" }).click();
+  await expect(page.getByRole("button", { name: "カラムに残す" })).toBeHidden();
+  await expect(page.getByRole("heading", { name })).toBeVisible();
 });

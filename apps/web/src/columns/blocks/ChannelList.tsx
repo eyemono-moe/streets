@@ -35,8 +35,6 @@ const ChannelList: Component<{
   viewerRead: () => readonly RelayUrl[];
   /** 押したときにすること。渡さなければ、そのカラムの中に重ねて開く。 */
   onOpen?: (column: ColumnDef) => void;
-  /** 渡すと、行に「覗く」を出す。 */
-  onPeek?: (entry: ChannelEntry, relays: readonly RelayUrl[]) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const actions = useEventActions();
@@ -117,12 +115,6 @@ const ChannelList: Component<{
     if (props.onOpen) props.onOpen(column);
     else dispatch({ type: "stack/open", column });
   };
-  const peek = () => {
-    const onPeek = props.onPeek;
-    return onPeek
-      ? (entry: ChannelEntry) => onPeek(entry, relaysOf(entry))
-      : undefined;
-  };
 
   return (
     <ChannelListView
@@ -143,7 +135,6 @@ const ChannelList: Component<{
       }}
       onQuery={setQuery}
       onOpen={open}
-      onPeek={peek()}
     />
   );
 };

@@ -85,8 +85,8 @@ const Row: Component<{
 
 /** サイドバーのパネルに出す、カラムを追加するための中身。題名と閉じるはパネル側が持つ。 */
 /**
- * チャンネルを選ぶ。押したチャンネルはそのままデッキに足し、「覗く」はデッキに
- * 足さずに一時カラムで開く。一覧そのものをカラムとして置くこともできる。
+ * チャンネルを選ぶ。押したチャンネルは一時カラム（左端）で開き、残すかは開いた先の
+ * 「カラムに残す」で決める。一覧そのものをデッキのカラムとして足すこともできる。
  */
 const ChannelPicker: Component<{
   relayList: RelayListState;
@@ -107,22 +107,23 @@ const ChannelPicker: Component<{
         <div>
           <h3 class="c-primary font-600 text-body">チャンネルを選ぶ</h3>
           <p class="c-secondary mt-0.5 text-caption">
-            選んだチャンネルをカラムとして足します。
+            選んだチャンネルを左端に開きます。「カラムに残す」で残せます。
           </p>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          shape="rounded"
+          icon="i-material-symbols:open-in-new-rounded"
+          aria-label="一覧をデッキのカラムとして足す"
+          title="一覧をデッキのカラムとして足す"
+          class="ml-auto self-start"
+          onClick={() => {
+            const column = buildColumn("channels", "");
+            if (column) dispatch({ type: "deck/add-column", column });
+          }}
+        />
       </div>
-      <Button
-        variant="secondary"
-        shape="rounded"
-        block
-        icon="i-material-symbols:forum-outline-rounded"
-        onClick={() => {
-          const column = buildColumn("channels", "");
-          if (column) dispatch({ type: "deck/add-column", column });
-        }}
-      >
-        一覧をカラムとして足す
-      </Button>
       <Show when={props.readLayer}>
         {(layer) => (
           <div class="-mx-3">
@@ -134,17 +135,12 @@ const ChannelPicker: Component<{
             >
               <ChannelList
                 viewerRead={() => viewerReadRelays(props.relayList)}
-                onOpen={(column) =>
-                  dispatch({
-                    type: "deck/add-column",
-                    // デッキでは同じチャンネルを 2 本置けるよう、id は足すたびに振る。
-                    column: { ...column, id: crypto.randomUUID() },
-                  })
-                }
-                onPeek={(entry, relays) => {
+                // 押したら一時カラムで開く。デッキに残すかは、開いた先の「カラムに残す」で決める。
+                onOpen={(column) => {
+                  if (column.source.kind !== "channel") return;
                   const nevent = encodeNevent({
-                    id: entry.channel.id,
-                    relays: relays.slice(0, 2),
+                    id: column.source.id,
+                    relays: (column.source.relays ?? []).slice(0, 2),
                     eventKind: CHANNEL_CREATE_KIND,
                   });
                   if (nevent)

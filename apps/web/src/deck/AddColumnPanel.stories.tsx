@@ -59,7 +59,7 @@ export const リレー設定なし: Story = {
 
 /**
  * チャンネルを選ぶところ。一覧は読み取り層に繋がるのでここには出さない。
- * 一覧の見た目は「チャット/チャンネルの一覧」の「カラムを追加のパネル」で見る。
+ * 一覧の見た目は「チャット/チャンネルの一覧」で見る。
  */
 export const チャンネルを選ぶ: Story = {
   args: { initialRelayOpen: false, initialChannelOpen: true },
