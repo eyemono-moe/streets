@@ -4,8 +4,16 @@ import {
   canSubmitChannelForm,
   isChannelFormDirty,
 } from "@streets/core/view/channel-form";
-import { type Component, Show, createEffect, createSignal, on } from "solid-js";
+import {
+  type Component,
+  Show,
+  createEffect,
+  createSignal,
+  createUniqueId,
+  on,
+} from "solid-js";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
+import { NoUploadServerError, useUploader } from "../media/uploader";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -17,7 +25,92 @@ import {
 } from "../ui/Dialog";
 import StorageHint from "../ui/StorageHint";
 import Switch from "../ui/Switch";
-import TextField from "../ui/TextField";
+import TextField, { textInputClass } from "../ui/TextField";
+import ChannelPicture from "./ChannelPicture";
+
+/**
+ * チャンネルの画像。URL を書くか、画像を選んでアップロードする（絵文字を足す欄と
+ * 同じ形）。上げ終わったら URL の欄に入る。
+ */
+const PictureField: Component<{
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+  onUploading: (uploading: boolean) => void;
+}> = (props) => {
+  const uploader = useUploader();
+  const [uploading, setUploading] = createSignal(false);
+  const [error, setError] = createSignal<string>();
+  const inputId = createUniqueId();
+  let picker: HTMLInputElement | undefined;
+  const upload = async (file: File) => {
+    if (!uploader) return;
+    setUploading(true);
+    props.onUploading(true);
+    setError(undefined);
+    try {
+      const blob = await uploader.upload(file);
+      props.onChange(blob.url);
+    } catch (cause) {
+      setError(
+        cause instanceof NoUploadServerError
+          ? "画像のアップロード先が設定されていません。設定の「画像」で追加してください。"
+          : "画像をアップロードできませんでした",
+      );
+    } finally {
+      setUploading(false);
+      props.onUploading(false);
+    }
+  };
+  return (
+    <div class="flex flex-col gap-1.5">
+      <label for={inputId} class="c-secondary font-600 text-caption">
+        画像
+      </label>
+      <div class="flex items-center gap-2">
+        <ChannelPicture
+          url={props.value.trim() || undefined}
+          class="size-9 rounded-2"
+        />
+        <input
+          id={inputId}
+          type="url"
+          class={`${textInputClass} min-w-0 flex-1`}
+          placeholder="https://"
+          value={props.value}
+          disabled={props.disabled || uploading()}
+          onInput={(event) => {
+            props.onChange(event.currentTarget.value);
+            setError(undefined);
+          }}
+        />
+        <Show when={uploader}>
+          <input
+            ref={picker}
+            type="file"
+            accept="image/*"
+            class="hidden"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (file) void upload(file);
+            }}
+          />
+          <Button
+            icon="i-material-symbols:upload-rounded"
+            disabled={props.disabled || uploading()}
+            onClick={() => picker?.click()}
+          >
+            {uploading() ? "アップロード中…" : "画像を選ぶ"}
+          </Button>
+        </Show>
+      </div>
+      <Show when={error()}>
+        {(message) => <p class="c-danger text-caption">{message()}</p>}
+      </Show>
+    </div>
+  );
+};
 
 /**
  * チャンネルを作る・直すダイアログ。状態は裁定する段（ChannelFormMediator）が持つ。
@@ -31,6 +124,8 @@ const ChannelFormDialog: Component<{
   const editing = () =>
     props.form.phase === "closed" ? undefined : props.form;
   const [shaking, setShaking] = createSignal(false);
+  // 画像を上げている間は送らせない。上げ終わる前に送ると、画像の無いチャンネルになる。
+  const [uploading, setUploading] = createSignal(false);
   let actions: HTMLDivElement | undefined;
   createEffect(
     on(
@@ -93,18 +188,17 @@ const ChannelFormDialog: Component<{
                     }
                     placeholder="どんな話をする場所か"
                   />
-                  <TextField
-                    label="画像の URL"
-                    type="url"
+                  <PictureField
                     value={form().draft.picture}
-                    onInput={(value) =>
+                    disabled={form().phase === "saving"}
+                    onUploading={setUploading}
+                    onChange={(value) =>
                       dispatch({
                         type: "channel-form/input",
                         field: "picture",
                         value,
                       })
                     }
-                    placeholder="https://"
                   />
                   <section class="flex flex-col gap-1.5">
                     <h3 class="c-secondary font-600 text-caption">
@@ -163,7 +257,7 @@ const ChannelFormDialog: Component<{
                             ? "i-material-symbols:add-rounded"
                             : undefined
                         }
-                        disabled={!canSubmitChannelForm(form())}
+                        disabled={!canSubmitChannelForm(form()) || uploading()}
                       >
                         <Show
                           when={form().phase !== "saving"}

@@ -5,6 +5,7 @@ import {
   closedChannelForm,
 } from "@streets/core/view/channel-form";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { UploaderProvider } from "../media/uploader";
 import { Mediates } from "../ui-events";
 import ChannelFormDialog from "./ChannelFormDialog";
 
@@ -19,6 +20,19 @@ const named = channelFormTransition(creating, {
   value: "日本語のチャンネル",
 });
 
+// 実際には上げず、少し待ってから決まった URL を返す。
+const uploader = {
+  servers: () => ["https://blossom.example/"],
+  upload: async (file: File) => {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    return {
+      url: `https://example.invalid/${file.name}`,
+      sha256: "0".repeat(64),
+      size: file.size,
+    };
+  },
+};
+
 type Props = { form: ChannelFormState };
 
 const meta = {
@@ -26,13 +40,19 @@ const meta = {
   component: (props: Props) => (
     // 裁定する段は置かない。押しても何も起きない、見た目だけのカタログ。
     <Mediates handle={() => true}>
-      <ChannelFormDialog
-        form={props.form}
-        account={[
-          { url: RELAY, read: true, write: true },
-          { url: "wss://inbox.example/" as RelayUrl, read: true, write: false },
-        ]}
-      />
+      <UploaderProvider value={uploader as never}>
+        <ChannelFormDialog
+          form={props.form}
+          account={[
+            { url: RELAY, read: true, write: true },
+            {
+              url: "wss://inbox.example/" as RelayUrl,
+              read: true,
+              write: false,
+            },
+          ]}
+        />
+      </UploaderProvider>
     </Mediates>
   ),
   args: { form: creating },
