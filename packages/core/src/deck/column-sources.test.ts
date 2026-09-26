@@ -147,7 +147,7 @@ describe("notificationsSource", () => {
       }),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
       relays: ["wss://inbox/"],
     });
   });
@@ -158,7 +158,7 @@ describe("notificationsSource", () => {
     // カラムが黙って出来上がる (`authors: []` と同じ罠)。
     expect(notificationsSource(VIEWER, { phase: "missing" })).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
