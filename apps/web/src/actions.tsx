@@ -4,8 +4,11 @@ import {
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
 import {
+  type ChannelMetadataInput,
   addFavoriteChannel,
+  buildChannelCreate,
   buildChannelMessage,
+  buildChannelMetadata,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
@@ -99,6 +102,13 @@ export type EventActions = {
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
   /** 自分がフォローしている人（kind:3）。カラムの購読にも使う。 */
+  /**
+   * チャンネルを作る（kind:40）。チャンネルのリレーへも送る。作ったチャンネルの
+   * id を返す。
+   */
+  createChannel(input: ChannelMetadataInput): Promise<string>;
+  /** チャンネルの情報を直す（kind:41）。作った人のものだけが採られる。 */
+  editChannel(channelId: string, input: ChannelMetadataInput): Promise<void>;
   /** お気に入りのチャンネル（kind:10005 の公開の項目）。 */
   favoriteChannelIds(): readonly string[];
   setFavoriteChannel(id: string, on: boolean): Promise<void>;
@@ -273,6 +283,21 @@ export const createWriteStack = (options: {
         value: event.id,
       });
       await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
+    },
+    async createChannel(input) {
+      const result = await tracked("チャンネルを作る").publish(
+        buildChannelCreate(input),
+        undefined,
+        { relays: input.relays },
+      );
+      return result.event.id;
+    },
+    async editChannel(channelId, input) {
+      await tracked("チャンネルの情報").publish(
+        buildChannelMetadata(channelId, input, input.relays[0]),
+        undefined,
+        { relays: input.relays },
+      );
     },
     favoriteChannelIds: () => favoriteChannels(publicChats()),
     async setFavoriteChannel(id, on) {

@@ -85,6 +85,12 @@ export const columnSourceSchema = v.variant("kind", [
    * NIP-28 のチャンネル。`relays` は開いたときに分かっていたリレー（nevent の
    * ヒントなど）。チャンネルの情報が届けば、そこに書かれたリレーも使う。
    */
+  /** チャンネルの情報。チャンネルのカラムの見出しの ⓘ から重ねて開く。 */
+  v.object({
+    kind: v.literal("channel-info"),
+    id: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
   /** チャンネルの一覧（お気に入り・最近アクティブ・すべてから探す）。 */
   v.object({ kind: v.literal("channel-list") }),
   v.object({
@@ -300,6 +306,11 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   "followers-list": {
     title: (source) => ({ person: source.pubkey, suffix: " のフォロワー" }),
     kinds: () => [3],
+    hidesMuted: false,
+  },
+  "channel-info": {
+    title: (source, column) => ({ channel: source.id, fallback: column.title }),
+    kinds: () => [],
     hidesMuted: false,
   },
   "channel-list": {

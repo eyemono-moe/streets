@@ -96,3 +96,60 @@ test("カラムを追加からチャンネルを選び、お気に入りに入�
   await expect(page.getByRole("heading", { name })).toBeVisible();
   await expect(page.getByText("だれかいますか")).toBeVisible();
 });
+
+test("チャンネルを作り、情報を直せる", async ({
+  page,
+  me,
+  openApp,
+  signIn,
+}) => {
+  await openApp();
+  await signIn();
+  await page
+    .getByRole("button", { name: "カラムを追加", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: /^チャンネル/ }).click();
+  await page.getByRole("button", { name: "チャンネルを作る" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "チャンネルを作る" });
+  const name = `作った部屋 ${Date.now()}`;
+  await dialog.getByRole("textbox", { name: "名前（必須）" }).fill(name);
+
+  // 書きかけのまま閉じようとしても閉じない。
+  await page.keyboard.press("Escape");
+  await expect(
+    dialog.getByText("保存するか、やめてから閉じてください"),
+  ).toBeVisible();
+
+  await dialog.getByRole("button", { name: "チャンネルを作る" }).click();
+  const created = await waitForEvent(
+    { authors: [me.pubkey], kinds: [40] },
+    (event) => event.content.includes(name),
+  );
+  expect(JSON.parse(created.content).relays.length).toBeGreaterThan(0);
+  // 作ったらお気に入りに入れる（既定で入）。
+  await waitForEvent({ authors: [me.pubkey], kinds: [10005] }, (event) =>
+    event.tags.some((tag) => tag[0] === "e" && tag[1] === created.id),
+  );
+  await expect(dialog).toBeHidden();
+
+  // 作ったチャンネルがデッキのカラムになる。ⓘ から情報を開いて直す。
+  const column = page.locator("section").filter({
+    has: page.getByRole("heading", { name }),
+  });
+  await column.getByRole("button", { name: "チャンネルの情報" }).click();
+  await page.getByRole("button", { name: "情報を直す" }).click();
+  const edit = page.getByRole("dialog", { name: "チャンネルの情報を直す" });
+  await edit.getByRole("textbox", { name: "説明" }).fill("新しい説明");
+  await edit.getByRole("button", { name: "保存" }).click();
+  const updated = await waitForEvent(
+    { authors: [me.pubkey], kinds: [41] },
+    (event) =>
+      event.tags.some((tag) => tag[0] === "e" && tag[1] === created.id),
+  );
+  expect(JSON.parse(updated.content)).toMatchObject({
+    name,
+    about: "新しい説明",
+  });
+});

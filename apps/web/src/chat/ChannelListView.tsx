@@ -151,6 +151,8 @@ const ChannelListView: Component<{
   onOpen: (entry: ChannelEntry) => void;
   /** 渡すと、行に「覗く」を出す（カラムを追加のパネルで使う）。 */
   onPeek?: (entry: ChannelEntry) => void;
+  /** 渡すと、末尾に「チャンネルを作る」を出す。 */
+  onCreate?: () => void;
 }> = (props) => {
   let input: HTMLInputElement | undefined;
   return (
@@ -220,6 +222,18 @@ const ChannelListView: Component<{
             >
               すべてのチャンネルから探す
             </Button>
+            <Show when={props.onCreate}>
+              {(create) => (
+                <Button
+                  variant="primary"
+                  icon="i-material-symbols:add-rounded"
+                  class="self-start"
+                  onClick={() => create()()}
+                >
+                  チャンネルを作る
+                </Button>
+              )}
+            </Show>
           </>
         }
       >
