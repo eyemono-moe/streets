@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import { encodeNprofile } from "../nostr/nip19";
 import {
   buildActivityColumn,
   buildColumn,
@@ -54,6 +55,18 @@ describe("buildColumn", () => {
     // 捕まえる変異: 入力をデコードせずそのまま使う (HEX 入力では区別が
     // 付かないので npub 入力で確かめる)。
     expect(buildColumn("user", NPUB)?.source).toEqual({
+      kind: "user",
+      pubkey: HEX,
+    });
+  });
+
+  it("user は補完で入る nprofile も読む", () => {
+    // 捕まえる変異: npub だけを読む（補完で選んだ人を追加できない）。
+    const nprofile = encodeNprofile({
+      pubkey: HEX,
+      relays: ["wss://relay.example/"],
+    });
+    expect(buildColumn("user", `nostr:${nprofile}`)?.source).toEqual({
       kind: "user",
       pubkey: HEX,
     });

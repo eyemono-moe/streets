@@ -1,4 +1,4 @@
-import { decodeNpub, encodeBech32 } from "../nostr/nip19";
+import { decodeUserInput, encodeBech32 } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
 import { TIMELINE_KINDS } from "./column-kinds";
 import type { ColumnDef } from "./deck";
@@ -158,7 +158,7 @@ export const buildColumn = (
       };
 
     case "user": {
-      const pubkey = decodeNpub(input);
+      const pubkey = decodeUserInput(input);
       if (!pubkey) return undefined;
       return { ...buildUserColumn(pubkey), id };
     }

@@ -1,23 +1,22 @@
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
+import type { ComponentProps } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Mediates } from "../ui-events";
 import AddColumnPanel from "./AddColumnPanel";
 
+type Props = {
+  relayList: RelayListState;
+  initialPicker?: ComponentProps<typeof AddColumnPanel>["initialPicker"];
+};
+
 const meta = {
   title: "デッキ/カラム追加",
-  component: (props: {
-    relayList: RelayListState;
-    initialRelayOpen: boolean;
-    initialChannelOpen?: boolean;
-    initialFollowSetOpen?: boolean;
-  }) => (
+  component: (props: Props) => (
     <Mediates handle={() => true}>
       <div class="flex h-150 w-95 flex-col bg-primary pt-3">
         <AddColumnPanel
           relayList={props.relayList}
-          initialRelayOpen={props.initialRelayOpen}
-          initialChannelOpen={props.initialChannelOpen}
-          initialFollowSetOpen={props.initialFollowSetOpen}
+          initialPicker={props.initialPicker}
         />
       </div>
     </Mediates>
@@ -31,23 +30,19 @@ const meta = {
         { url: "wss://outbox.example/", read: false, write: true },
       ],
     },
-    initialRelayOpen: true,
+    initialPicker: "relay",
   },
   argTypes: {
     relayList: { control: false },
-    initialRelayOpen: { control: false },
+    initialPicker: { control: false },
   },
-} satisfies Meta<{
-  relayList: RelayListState;
-  initialRelayOpen: boolean;
-  initialChannelOpen?: boolean;
-}>;
+} satisfies Meta<Props>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 /** 開いた直後。カラムの種類を選ぶところ。 */
-export const カラムの種類: Story = { args: { initialRelayOpen: false } };
+export const カラムの種類: Story = { args: { initialPicker: undefined } };
 
 export const リレー設定あり: Story = {};
 
@@ -64,7 +59,7 @@ export const リレー設定なし: Story = {
  * 一覧の見た目は「チャット/チャンネルの一覧」で見る。
  */
 export const チャンネルを選ぶ: Story = {
-  args: { initialRelayOpen: false, initialChannelOpen: true },
+  args: { initialPicker: "channels" },
 };
 
 /**
@@ -72,5 +67,10 @@ export const チャンネルを選ぶ: Story = {
  * 一覧の見た目は「リスト/一覧」で見る。
  */
 export const リストを選ぶ: Story = {
-  args: { initialRelayOpen: false, initialFollowSetOpen: true },
+  args: { initialPicker: "follow-sets" },
+};
+
+/** ユーザーを選ぶところ。読み取り層が無いので、名前の補完は出ない。 */
+export const ユーザーを選ぶ: Story = {
+  args: { initialPicker: "user" },
 };
