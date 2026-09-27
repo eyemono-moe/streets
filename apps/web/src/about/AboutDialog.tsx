@@ -1,3 +1,4 @@
+import { NIP_SUPPORT } from "@streets/core/nostr/nip-support";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, For, type JSX, Show, createSignal } from "solid-js";
 import type { ReleaseNote } from "../../release-notes-plugin";
@@ -114,6 +115,38 @@ const ReleaseNotes: Component<{ notes: readonly ReleaseNote[] }> = (props) => (
       </For>
     </div>
   </Show>
+);
+
+const NipSupport: Component = () => (
+  <div class="flex flex-col gap-5">
+    <p class="c-secondary text-body">
+      Streets が扱う Nostr
+      の仕様です。「一部」は、その仕様の一部の機能だけを使えることを示します。
+    </p>
+    <div class="flex flex-col divide-y divide-primary">
+      <For each={NIP_SUPPORT}>
+        {(entry) => (
+          <div class="flex flex-col gap-1 py-3 first:pt-0">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <a
+                href={`https://github.com/nostr-protocol/nips/blob/master/${entry.nip}.md`}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="font-600 text-body text-link"
+              >
+                NIP-{entry.nip}
+              </a>
+              <span class="c-secondary text-caption">{entry.status}</span>
+            </div>
+            <p class="c-primary text-body">{entry.summary}</p>
+            <Show when={entry.gap}>
+              <p class="c-secondary text-caption">{entry.gap}</p>
+            </Show>
+          </div>
+        )}
+      </For>
+    </div>
+  </div>
 );
 
 /** 使い方の案内をもう一度見る。押すとダイアログを閉じて、案内を始める。 */
@@ -304,6 +337,13 @@ const AboutDialog: Component<{
       content: () => (
         <ReleaseNotes notes={props.releaseNotes ?? bundledReleaseNotes} />
       ),
+    },
+    {
+      value: "nips",
+      label: "対応している NIP",
+      icon: "i-material-symbols:fact-check-outline-rounded",
+      title: "対応している NIP",
+      content: () => <NipSupport />,
     },
     {
       value: "privacy",

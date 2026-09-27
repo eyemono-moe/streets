@@ -98,3 +98,9 @@ export const プライバシー: S = { args: { initialPage: "privacy" } };
 export const プライバシー_狭い画面: S = {
   args: { wide: false, initialPage: "privacy" },
 };
+
+export const 対応しているNIP: S = { args: { initialPage: "nips" } };
+
+export const 対応しているNIP_狭い画面: S = {
+  args: { wide: false, initialPage: "nips" },
+};

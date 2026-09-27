@@ -21,6 +21,7 @@
     "memory": "vp run @streets/memory#start",
     "ja:extract": "node scripts/ja-text-extract.mjs",
     "ja:apply": "node scripts/ja-text-apply.mjs",
+    "nips:generate": "node scripts/generate-nips.mjs",
     "prepare": "vp config"
   },
   "devDependencies": {
