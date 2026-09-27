@@ -60,13 +60,43 @@ export type Zap<U extends string> = When & {
   message?: string;
 };
 
+/** 公開チャンネルと、その中の発言。返信先は同じチャンネルの発言の id。 */
+export type Channel<U extends string> = When & {
+  id: string;
+  author: U;
+  name: string;
+  about: string;
+  messages: readonly (When & {
+    id?: string;
+    author: U;
+    content: string;
+    replyTo?: string;
+  })[];
+};
+
+/** NIP-51 のユーザーリスト。非公開の人は暗号化して content に入れる。 */
+export type FollowSet<U extends string> = {
+  owner: U;
+  identifier: string;
+  title: string;
+  description: string;
+  publicMembers: readonly U[];
+  privateMembers?: readonly U[];
+};
+
 /** 見る人のデッキに並べるカラム。 */
-export type DeckColumn<U extends string> =
+export type DeckColumn<U extends string> = (
   | { kind: "home" }
   | { kind: "notifications" }
   | { kind: "user"; user: U }
+  | { kind: "channels" }
+  | { kind: "channel"; channel: string }
+  | { kind: "follow-sets" }
+  | { kind: "follow-set"; owner: U; identifier: string; title: string }
+  | { kind: "follow-set-info"; owner: U; identifier: string; title: string }
   /** 検索カラム。`"#coffee"` のようにハッシュタグでも、言葉でも書ける。 */
-  | { kind: "search"; query: string };
+  | { kind: "search"; query: string }
+) & { width?: "s" | "m" | "l" };
 
 /** 1 枚のスクリーンショットのための状態。 */
 export type Scenario<U extends string> = {
@@ -80,6 +110,9 @@ export type Scenario<U extends string> = {
   reactions?: readonly Reaction<U>[];
   reposts?: readonly Repost<U>[];
   zaps?: readonly Zap<U>[];
+  channels?: readonly Channel<U>[];
+  favoriteChannels?: readonly string[];
+  followSets?: readonly FollowSet<U>[];
   /** 見る人のデッキ（kind:30078）。省くと Streets の既定（ホームと通知）のまま。 */
   deck?: readonly DeckColumn<U>[];
 };

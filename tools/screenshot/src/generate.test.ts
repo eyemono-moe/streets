@@ -1,4 +1,5 @@
 import { loadDeck } from "@streets/core/deck/deck";
+import { FOLLOW_SET_KIND, readFollowSet } from "@streets/core/lists/follow-set";
 import { verifyEvent } from "@streets/core/nostr/event";
 import {
   conversationKey,
@@ -64,5 +65,66 @@ describe("キーの決まり方", () => {
   it("同じ ID なら同じ pubkey", () => {
     expect(pubkeyFor("mio")).toBe(pubkeyFor("mio"));
     expect(pubkeyFor("mio")).not.toBe(pubkeyFor("haru"));
+  });
+});
+
+describe("チャンネルとユーザーリストの撮影データ", () => {
+  const events = generate(scenarios["channels-and-lists"], options);
+
+  it("お気に入りが実在するチャンネルを指し、返信が発言とチャンネルを指す", () => {
+    const channels = events.filter((event) => event.kind === 40);
+    const cafe = channels.find(
+      (event) => JSON.parse(event.content).name === "街の喫茶室",
+    );
+    const favorite = events.find((event) => event.kind === 10005);
+    expect(channels).toHaveLength(2);
+    expect(favorite?.tags).toContainEqual(["e", cafe?.id]);
+
+    const messages = events.filter((event) => event.kind === 42);
+    expect(messages).toHaveLength(6);
+    const reply = messages.find((event) =>
+      event.tags.some((tag) => tag[3] === "reply"),
+    );
+    expect(reply?.tags).toContainEqual([
+      "e",
+      cafe?.id,
+      options.relayUrl,
+      "root",
+    ]);
+    expect(
+      messages.some((event) =>
+        reply?.tags.some((tag) => tag[3] === "reply" && tag[1] === event.id),
+      ),
+    ).toBe(true);
+  });
+
+  it("公開メンバーと暗号化した非公開メンバーを生成する", () => {
+    const set = events.find(
+      (event) =>
+        event.kind === FOLLOW_SET_KIND &&
+        event.tags.some((tag) => tag[0] === "d" && tag[1] === "city-notes"),
+    );
+    expect(set).toBeDefined();
+    if (!set) return;
+    expect(readFollowSet(set).members).toHaveLength(3);
+    const key = conversationKey(secretKeyFor("mio"), pubkeyFor("mio"));
+    expect(JSON.parse(decryptNip44(set.content, key))).toEqual([
+      ["p", pubkeyFor("ren")],
+    ]);
+  });
+});
+
+describe("all-in の撮影データ", () => {
+  it("個別シナリオのイベントを重複なくすべて含む", () => {
+    const combined = generate(scenarios["all-in"], options);
+    const ids = new Set(combined.map((event) => event.id));
+    expect(ids.size).toBe(combined.length);
+    for (const [name, scenario] of Object.entries(scenarios)) {
+      if (name === "all-in") continue;
+      for (const event of generate(scenario, options)) {
+        // デッキだけは各シナリオで構成が異なる。
+        if (event.kind !== 30078) expect(ids.has(event.id)).toBe(true);
+      }
+    }
   });
 });
