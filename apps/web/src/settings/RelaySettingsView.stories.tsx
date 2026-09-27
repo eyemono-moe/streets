@@ -38,6 +38,12 @@ const relay = (host: string, read = true, write = true): RelayListEntry => ({
   write,
 });
 
+const followeeWriteRelays = [
+  ["wss://relay.nostr.band/", "wss://yabu.me/"],
+  ["wss://relay.nostr.band/", "wss://nostr.wine/"],
+  ["wss://nostr.wine/", "wss://relay.damus.io/"],
+] as RelayUrl[][];
+
 /** アプリでは RelayMediator が裁定するイベントを、ここで手元の一覧に当てる。 */
 const Story = (props: Args) => {
   const [entries, setEntries] = createSignal(props.entries);
@@ -64,6 +70,7 @@ const Story = (props: Args) => {
             allows={(op) => allowsRelayOp(entries(), op)}
             fallback={FALLBACK_RELAYS}
             readMode={readMode()}
+            followeeWriteRelays={followeeWriteRelays}
           />
         </div>
       </Mediates>

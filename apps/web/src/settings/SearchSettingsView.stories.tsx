@@ -1,9 +1,19 @@
+import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { DEFAULT_SEARCH_RELAYS } from "@streets/core/settings/search-relay-list";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Mediates } from "../ui-events";
 import SearchSettingsView from "./SearchSettingsView";
+
+const account: RelayListEntry[] = [
+  { url: "wss://yabu.me/" as RelayUrl, read: true, write: true },
+  { url: "wss://nos.lol/" as RelayUrl, read: true, write: true },
+];
+const followeeWriteRelays = [
+  ["wss://relay.nostr.band/", "wss://yabu.me/"],
+  ["wss://relay.nostr.band/", "wss://nostr.wine/"],
+] as RelayUrl[][];
 
 type Args = {
   relays: RelayUrl[];
@@ -36,6 +46,8 @@ const Story = (props: Args) => {
           relays={relays()}
           saving={props.saving}
           chosen={props.chosen}
+          account={account}
+          followeeWriteRelays={followeeWriteRelays}
         />
       </div>
     </Mediates>

@@ -5,7 +5,6 @@ import { type Component, For, Show } from "solid-js";
 import RelaySummary from "../settings/RelaySummary";
 import IconButton from "../ui/IconButton";
 import RelayInput from "./RelayInput";
-import { useFolloweeWriteRelays } from "./use-followee-relays";
 
 /** リレーカラムの追加と設定で共用する、購読先の選択欄。 */
 const RelayColumnEditor: Component<{
@@ -13,13 +12,9 @@ const RelayColumnEditor: Component<{
   selected: readonly RelayUrl[];
   onChange: (selected: RelayUrl[]) => void;
   minimum?: number;
-  /**
-   * フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く
-   * （Storybook では固定の値を渡す）。
-   */
+  /** フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
 }> = (props) => {
-  const followeeRelays = useFolloweeWriteRelays();
   const selected = (url: RelayUrl) => props.selected.includes(url);
   const add = (url: RelayUrl) => {
     if (!selected(url)) props.onChange([...props.selected, url]);
@@ -63,7 +58,7 @@ const RelayColumnEditor: Component<{
       </Show>
       <RelayInput
         account={props.candidates}
-        followeeWriteRelays={props.followeeWriteRelays ?? followeeRelays()}
+        followeeWriteRelays={props.followeeWriteRelays}
         selected={props.selected}
         onAdd={add}
       />

@@ -10,6 +10,7 @@ import { type Component, For, Show, createMemo, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import Button from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
+import { useFolloweeWriteRelays } from "./use-followee-relays";
 
 const GROUP_LABEL: Record<RelaySuggestion["group"], string> = {
   account: "アカウントで使っているリレー",
@@ -23,17 +24,23 @@ const GROUP_LABEL: Record<RelaySuggestion["group"], string> = {
  */
 const RelayInput: Component<{
   account: readonly RelayListEntry[];
-  followeeWriteRelays: readonly (readonly RelayUrl[])[];
+  /**
+   * フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く
+   * （Storybook では固定の値を渡す）。
+   */
+  followeeWriteRelays?: readonly (readonly RelayUrl[])[];
   selected: readonly RelayUrl[];
   onAdd: (url: RelayUrl) => void;
+  disabled?: boolean;
 }> = (props) => {
+  const followeeRelays = useFolloweeWriteRelays();
   const [query, setQuery] = createSignal("");
   const [error, setError] = createSignal<string>();
   const [highlighted, setHighlighted] = createSignal<string | null>(null);
   const items = createMemo(() =>
     relaySuggestions({
       account: props.account,
-      followeeWriteRelays: props.followeeWriteRelays,
+      followeeWriteRelays: props.followeeWriteRelays ?? followeeRelays(),
       selected: props.selected,
       query: query(),
     }),
@@ -79,6 +86,7 @@ const RelayInput: Component<{
         if (url) add(url);
       }}
       openOnClick
+      disabled={props.disabled}
       allowCustomValue
       inputBehavior="none"
       selectionBehavior="clear"
@@ -106,7 +114,13 @@ const RelayInput: Component<{
             }
           }}
         />
-        <Button size="sm" shape="rounded" variant="primary" onClick={addTyped}>
+        <Button
+          size="sm"
+          shape="rounded"
+          variant="primary"
+          disabled={props.disabled}
+          onClick={addTyped}
+        >
           追加する
         </Button>
       </Combobox.Control>

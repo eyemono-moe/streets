@@ -9,24 +9,15 @@ import {
 import {
   type RelayOp,
   type RelayUsage,
-  parseRelayInput,
   relayLabel,
   usageOf,
   usageOp,
 } from "@streets/core/settings/relay-edit";
-import {
-  type Component,
-  For,
-  Match,
-  Show,
-  Switch,
-  createSignal,
-} from "solid-js";
+import { type Component, For, Match, Show, Switch } from "solid-js";
+import RelayInput from "../deck/RelayInput";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
-import { textInputClass } from "../ui/TextField";
 import RelaySummary from "./RelaySummary";
 import SettingsSection from "./SettingsSection";
 
@@ -43,6 +34,8 @@ export type RelaySettingsViewProps = {
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   /** 投稿を読むリレーの決め方（この端末の設定）。 */
   readMode: ReadRoutingMode;
+  /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
+  followeeWriteRelays?: readonly (readonly RelayUrl[])[];
 };
 
 /** リレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -90,8 +83,11 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
             </ul>
           </Match>
         </Switch>
-        <AddRelay
-          entries={props.entries}
+        {/* 自分のリレーはすぐ上に並んでいるので、候補にはフォローしている人のものだけを出す。 */}
+        <RelayInput
+          account={[]}
+          followeeWriteRelays={props.followeeWriteRelays}
+          selected={props.entries.map((entry) => entry.url)}
           onAdd={(url) => edit({ type: "add", url })}
         />
       </SettingsSection>
@@ -238,64 +234,6 @@ const ReadRoutingSection: Component<{
         </div>
       </Show>
     </SettingsSection>
-  );
-};
-
-const AddRelay: Component<{
-  entries: readonly RelayListEntry[];
-  onAdd: (url: RelayUrl) => void;
-}> = (props) => {
-  const [text, setText] = createSignal("");
-  const [error, setError] = createSignal<string>();
-
-  const submit = () => {
-    const result = parseRelayInput(text(), props.entries);
-    if (!result.ok) {
-      setError(result.message);
-      return;
-    }
-    props.onAdd(result.url);
-    setText("");
-    setError(undefined);
-  };
-
-  return (
-    <form
-      class="flex flex-col gap-1.5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit();
-      }}
-    >
-      <div class="flex items-center gap-2">
-        <input
-          class={`${textInputClass} min-w-0 flex-1`}
-          placeholder="wss://"
-          aria-label="足すリレーの URL"
-          aria-invalid={error() !== undefined}
-          aria-describedby="relay-input-error"
-          value={text()}
-          onInput={(event) => {
-            setText(event.currentTarget.value);
-            setError(undefined);
-          }}
-        />
-        <Button
-          type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-        >
-          追加
-        </Button>
-      </div>
-      <Show when={error()}>
-        {(message) => (
-          <p id="relay-input-error" class="c-danger text-caption">
-            {message()}
-          </p>
-        )}
-      </Show>
-    </form>
   );
 };
 
