@@ -18,6 +18,7 @@
     "screenshot": "vp run @streets/screenshot#start",
     "screenshot:seed": "vp run @streets/screenshot#seed",
     "screenshot:generate": "vp run @streets/screenshot#generate",
+    "memory": "vp run @streets/memory#start",
     "ja:extract": "node scripts/ja-text-extract.mjs",
     "ja:apply": "node scripts/ja-text-apply.mjs",
     "prepare": "vp config"
