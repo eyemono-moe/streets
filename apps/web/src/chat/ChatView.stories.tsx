@@ -158,6 +158,14 @@ type Story = StoryObj<typeof meta>;
 export const 通常: Story = {};
 export const 返信を書いている: Story = { args: { replyTo: usual } };
 export const 古い発言を読み込み中: Story = { args: { paging: "loading" } };
+/** 一部のリレーから届いたが、ほかのリレーを待っている。揃うまでは古い発言を取り足さない。 */
+export const ほかのリレーを待っている: Story = {
+  args: {
+    rows: chatRows(messages.slice(0, 2), moderation, viewer.pubkey),
+    settled: false,
+    paging: "waiting",
+  },
+};
 export const まだ発言が無い: Story = { args: { rows: [] } };
 export const 取得中: Story = {
   args: { rows: [], settled: false, paging: "waiting" },

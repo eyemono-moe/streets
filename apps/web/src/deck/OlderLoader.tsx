@@ -56,6 +56,10 @@ const OlderLoader: Component<{
   return (
     <div ref={sentinel} class="c-secondary p-4 text-center text-caption">
       <Switch>
+        {/* 取り足すのは最初のページが揃ってから。黙っていると、下端まで来ても止まって見える。 */}
+        <Match when={props.paging === "waiting"}>
+          ほかのリレーから届くのを待っています…
+        </Match>
         <Match when={props.paging === "loading"}>古い投稿を読み込み中…</Match>
         <Match when={props.paging === "exhausted"}>
           これより前の投稿はありません

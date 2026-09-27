@@ -104,6 +104,20 @@ const ChatView: Component<{
     );
     if (top) observer.observe(top);
     onCleanup(() => observer.disconnect());
+
+    // 最初のページが揃ったときや、取り足しても一番上がまだ見えているときは、交わりが
+    // 変わらないので通知が来ない。見張り直して、今の状態をもう一度受け取る。
+    createEffect(
+      on(
+        () => props.paging,
+        (paging) => {
+          if (paging !== "idle" || !top) return;
+          observer.unobserve(top);
+          observer.observe(top);
+        },
+        { defer: true },
+      ),
+    );
   });
 
   return (
@@ -120,6 +134,11 @@ const ChatView: Component<{
               class="c-secondary px-3 py-3 text-center text-caption"
             >
               <Switch>
+                <Match
+                  when={props.paging === "waiting" && props.rows.length > 0}
+                >
+                  ほかのリレーから届くのを待っています…
+                </Match>
                 <Match when={props.paging === "loading"}>
                   古い発言を読み込み中…
                 </Match>
