@@ -71,6 +71,7 @@ const longBody = alice.note(
       `${index + 1}. 長い投稿でもタイムライン全体を占有しないように、最初は本文を省略して表示します。リンク https://example.com/${index + 1} と絵文字 🏙️ を含む行です。`,
   ).join("\n"),
 );
+const quoteOfLongBody = bob.quote(longBody, "長い投稿を引用する。");
 const reply = alice.reply(plain, "返信の本文。");
 const quoted = bob.note("引用されたノートの本文。");
 const quote = alice.quote(quoted, "引用つきのノート。");
@@ -326,6 +327,14 @@ export const 狭いカラムのハッシュタグ: Story = {
 
 export const 長い本文: Story = {
   args: { event: longBody, scene: scene(longBody) },
+};
+
+export const 長い本文_コンパクト: Story = {
+  args: { event: longBody, scene: scene(longBody), size: "compact" },
+};
+
+export const 長い本文の引用: Story = {
+  args: { event: quoteOfLongBody, scene: scene(quoteOfLongBody, longBody) },
 };
 
 export const 動画つき: Story = {
