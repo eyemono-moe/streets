@@ -1,5 +1,11 @@
 import { encodeBech32, encodeNprofile } from "@streets/core/nostr/nip19";
 import { type Profile, parseProfile } from "@streets/core/nostr/profile";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import {
+  USER_SEARCH_LIMIT,
+  userSearchFilter,
+} from "@streets/core/search/user-search";
+import { createSection } from "@streets/core/solid/create-section";
 import {
   type CompletionTrigger,
   EMOJI_TRIGGER,
@@ -7,7 +13,14 @@ import {
   rankUsers,
 } from "@streets/core/view/completion";
 import { searchEmojis } from "@streets/core/view/emoji-search";
-import { Show, createMemo, createSignal, onCleanup } from "solid-js";
+import {
+  type Accessor,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import { useEventActions } from "../actions";
 import { useEmojiGroups } from "../emoji/custom-emojis";
 import { ProfileName } from "../note/Name";
@@ -25,6 +38,8 @@ const RELAY_HINTS = 2;
  */
 const PROFILE_CHUNK = 100;
 const PROFILE_CHUNK_MS = 300;
+/** 打ち終わるのを待ってから検索リレーへ聞く。1 文字ごとに問い合わせない。 */
+const SEARCH_DEBOUNCE_MS = 400;
 
 export type UserEntry = {
   pubkey: string;
@@ -76,12 +91,70 @@ export type UserCandidates = {
   nprofile: (pubkey: string) => string;
 };
 
+/** 検索リレーで見つかった人。 */
+export type UserSearch = {
+  /** 見つかった人。打った言葉がリレーの側で合ったものなので、手元では絞らない。 */
+  found: Accessor<readonly string[]>;
+  /** 問い合わせて、まだ答えがそろっていない。 */
+  searching: Accessor<boolean>;
+  /** 問い合わせて、答えがそろった。 */
+  searched: Accessor<boolean>;
+};
+
 /**
- * 人の候補を集める。先に出す人（返信先など）→ フォロー中の人の順。読み取り層が
+ * 打った言葉で、検索リレーへ人を探しに行く。フォロー中の人の外から選ぶため。
+ * 読み取り層が無い場所（Storybook など）では何もしない。
+ */
+export const useUserSearch = (
+  text: Accessor<string>,
+  relays: Accessor<readonly RelayUrl[]>,
+): UserSearch => {
+  const manager = useOptionalReadLayer()?.manager;
+  const [words, setWords] = createSignal("");
+  createEffect(() => {
+    const next = text();
+    const timer = setTimeout(() => setWords(next), SEARCH_DEBOUNCE_MS);
+    onCleanup(() => clearTimeout(timer));
+  });
+  const filter = createMemo(() => userSearchFilter(words()));
+  const section = manager
+    ? createSection({
+        manager,
+        maxItems: USER_SEARCH_LIMIT,
+        source: () => {
+          const current = filter();
+          return current
+            ? { type: "nostr", filters: [current], relays: [...relays()] }
+            : undefined;
+        },
+      })
+    : undefined;
+  // 打っている途中（問い合わせる前）も探している最中として見せる。
+  const pending = () =>
+    userSearchFilter(text()) !== undefined && text() !== words();
+  return {
+    found: () =>
+      filter() ? (section?.items() ?? []).map((event) => event.pubkey) : [],
+    searching: () =>
+      section !== undefined &&
+      (pending() ||
+        (filter() !== undefined && section.status().phase !== "settled")),
+    searched: () =>
+      section !== undefined &&
+      !pending() &&
+      filter() !== undefined &&
+      section.status().phase === "settled",
+  };
+};
+
+/**
+ * 人の候補を集める。先に出す人（返信先など）→ フォロー中の人の順。`found`
+ * （検索リレーで見つかった人）を渡すと、その後ろに足す。読み取り層が
  * 無い場所（Storybook の一部など）では誰も出さない。
  */
 export const useUserCandidates = (
   first?: () => readonly string[],
+  found?: () => readonly string[],
 ): UserCandidates => {
   const readLayer = useOptionalReadLayer();
   const actions = useEventActions();
@@ -152,11 +225,23 @@ export const useUserCandidates = (
     });
   });
 
+  const entryOf = (pubkey: string) => {
+    const latest = store.latestReplaceable(0, pubkey);
+    const profile = latest ? parseProfile(latest.content) : undefined;
+    return { pubkey, user: { pubkey, profile, tags: latest?.tags ?? [] } };
+  };
+
   return {
     find: (query) => {
       const all = entries();
       requestMissing(all.map((entry) => entry.pubkey));
-      return rankUsers(all, query).slice(0, LIMIT);
+      const ranked = rankUsers(all, query).slice(0, LIMIT);
+      const shown = new Set(ranked.map((entry) => entry.pubkey));
+      const more = (found?.() ?? [])
+        .filter((pubkey) => !shown.has(pubkey))
+        .map(entryOf);
+      // 手元の候補で埋まっても、見つかった人を押し出さない（一覧は流せる）。
+      return [...ranked, ...more];
     },
     nprofile: (pubkey) => {
       const relays =

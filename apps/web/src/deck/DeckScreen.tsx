@@ -518,6 +518,7 @@ const DeckScreen: Component<{
                   <AddColumnPanel
                     relayList={relayList()}
                     readLayer={props.readLayer}
+                    searchRelays={shared.searchRelays}
                   />
                 </SidePanel>
               }

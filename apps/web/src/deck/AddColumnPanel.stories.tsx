@@ -2,7 +2,7 @@ import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import type { ComponentProps } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Mediates } from "../ui-events";
-import AddColumnPanel from "./AddColumnPanel";
+import AddColumnPanel, { UserSearchStatus } from "./AddColumnPanel";
 
 type Props = {
   relayList: RelayListState;
@@ -17,6 +17,7 @@ const meta = {
         <AddColumnPanel
           relayList={props.relayList}
           initialPicker={props.initialPicker}
+          searchRelays={() => []}
         />
       </div>
     </Mediates>
@@ -73,4 +74,18 @@ export const リストを選ぶ: Story = {
 /** ユーザーを選ぶところ。読み取り層が無いので、名前の補完は出ない。 */
 export const ユーザーを選ぶ: Story = {
   args: { initialPicker: "user" },
+};
+
+/**
+ * 名前で探したときの、検索リレーへの問い合わせの進み具合。見つかった人は
+ * 入力欄の補完に、フォロー中の人の後ろへ並ぶ。
+ */
+export const ユーザー検索の進み具合: Story = {
+  render: () => (
+    <div class="flex w-95 flex-col gap-3 bg-primary p-3">
+      <UserSearchStatus searching found={undefined} />
+      <UserSearchStatus searching={false} found={3} />
+      <UserSearchStatus searching={false} found={0} />
+    </div>
+  ),
 };
