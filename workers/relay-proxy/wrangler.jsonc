@@ -1,0 +1,10 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "streets-nostr-relay-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-21",
+  // 日本のリレーには、日本の外からの書き込みを断るものがある。GitHub Actions はアメリカで
+  // 動くので、東京で動かしたこの Worker を経由して届ける。
+  "placement": { "region": "aws:ap-northeast-1" },
+  "observability": { "enabled": true },
+}

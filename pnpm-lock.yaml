@@ -449,6 +449,25 @@ importers:
         specifier: 4.137.0
         version: 4.137.0(@cloudflare/workers-types@5.20260923.1)(@types/node@24.13.6)
 
+  workers/relay-proxy:
+    dependencies:
+      valibot:
+        specifier: 1.5.0
+        version: 1.5.0(typescript@7.0.2)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 5.20260923.1
+        version: 5.20260923.1
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+      vite-plus:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.0(@types/node@24.13.6)(@vitest/ui@5.0.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
+      wrangler:
+        specifier: 4.137.0
+        version: 4.137.0(@cloudflare/workers-types@5.20260923.1)(@types/node@24.13.6)
+
 packages:
 
   '@adobe/css-tools@4.5.0':
