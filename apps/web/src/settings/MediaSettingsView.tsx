@@ -13,6 +13,7 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
@@ -79,12 +80,9 @@ const ServerRow: Component<{
           <span class="c-secondary text-caption">いちばん先に試す</span>
         </Show>
         {/* 一覧から外すだけで、アップロードしたファイルは消えない（remove）。 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          aria-label={`${props.server} を一覧から外す`}
+          label={`${props.server} を一覧から外す`}
           title="一覧から外す"
           disabled={props.disabled}
           onClick={() =>

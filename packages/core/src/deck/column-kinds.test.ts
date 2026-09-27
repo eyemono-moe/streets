@@ -77,13 +77,29 @@ const column = (source: ColumnSource): ColumnDef => ({
 });
 
 describe("columnFacets", () => {
-  it("ホームはリプライ・引用・リポストを出し、リアクションとメンションは出さない", () => {
+  it("ホームはリプライ・引用・リポスト・チャンネルでの発言を出し、リアクションとメンションは出さない", () => {
     // 捕まえる変異: 種類に関わらず全項目を出す
     expect(columnFacets(column({ kind: "followees", kinds: [1, 6] }))).toEqual([
       "replies",
       "quotes",
       "reposts",
+      "chats",
     ]);
+  });
+
+  it("チャンネルでの発言の切り替えは通知とホームに出し、チャンネルのカラムには出さない", () => {
+    // 捕まえる変異: チャンネルのカラムにも出す（切ると発言が全部消える）
+    expect(columnFacets(column({ kind: "notifications" }))).toContain("chats");
+    expect(
+      columnFacets(column({ kind: "channel", id: "a".repeat(64) })),
+    ).not.toContain("chats");
+  });
+
+  it("ユーザーのカラムも、チャンネルでの発言を切り替えられる", () => {
+    // 捕まえる変異: ホームと通知にだけ出す（ユーザーのカラムで切れない）
+    expect(columnFacets(column({ kind: "user", pubkey: "a" }))).toContain(
+      "chats",
+    );
   });
 
   it("通知だけがメンションを出す", () => {
@@ -394,6 +410,34 @@ describe("columnStatus", () => {
         unroutableAuthors: 4,
         uncoveredAuthors: 0,
       },
+    });
+  });
+});
+
+describe("columnTitle（チャンネル）", () => {
+  it("チャンネルは情報が届いたら名前で呼べるよう、id と足したときの題名を返す", () => {
+    // 捕まえる変異: 保存した題名だけを返す（URL から開くと「チャンネル」のままになる）
+    expect(
+      columnTitle({
+        id: "x",
+        title: "チャンネル",
+        source: { kind: "channel", id: "a".repeat(64) },
+      }),
+    ).toEqual({ channel: "a".repeat(64), suffix: "", fallback: "チャンネル" });
+  });
+
+  it("チャンネルの情報は「〈名前〉の情報」と呼ぶ", () => {
+    // 捕まえる変異: 名前だけを返す（チャンネルのカラムと情報のカラムが同じ題名になる）
+    expect(
+      columnTitle({
+        id: "x",
+        title: "チャンネルの情報",
+        source: { kind: "channel-info", id: "a".repeat(64) },
+      }),
+    ).toEqual({
+      channel: "a".repeat(64),
+      suffix: "の情報",
+      fallback: "チャンネルの情報",
     });
   });
 });

@@ -165,6 +165,13 @@ export const parseRelayInput = (
   if (text === "" || text === "wss://") {
     return { ok: false, message: "リレーの URL を入力してください" };
   }
+  // 途中に空白のあるものは URL ではない。そのまま通すと `%20` に直されて足されてしまう。
+  if (/\s/.test(text)) {
+    return {
+      ok: false,
+      message: "wss:// で始まるリレーの URL を入力してください",
+    };
+  }
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text)
     ? text
     : `wss://${text}`;

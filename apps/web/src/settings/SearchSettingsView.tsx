@@ -11,6 +11,7 @@ import {
 } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
@@ -62,12 +63,9 @@ const RelayRow: Component<{ relay: RelayUrl; disabled: boolean }> = (props) => {
       <span class="c-primary min-w-48 flex-1 break-all text-body">
         {props.relay}
       </span>
-      <Button
-        variant="ghost"
-        size="sm"
-        shape="rounded"
+      <IconButton
         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-        aria-label={`${props.relay} を一覧から外す`}
+        label={`${props.relay} を一覧から外す`}
         title="一覧から外す"
         disabled={props.disabled}
         onClick={() =>

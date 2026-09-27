@@ -103,10 +103,7 @@ const PagedDialog: Component<{
                 </For>
               </Tabs.List>
               <Show when={!props.wide}>
-                <DialogClose
-                  aria-label={closeLabel()}
-                  class="bg-transparent hover:bg-secondary"
-                />
+                <DialogClose label={closeLabel()} />
               </Show>
             </div>
 
@@ -133,10 +130,7 @@ const PagedDialog: Component<{
                       </Show>
                     </div>
                     <Show when={props.wide}>
-                      <DialogClose
-                        aria-label={closeLabel()}
-                        class="bg-transparent hover:bg-secondary"
-                      />
+                      <DialogClose label={closeLabel()} />
                     </Show>
                   </div>
                   <div

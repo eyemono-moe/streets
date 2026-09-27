@@ -2,6 +2,15 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import {
+  addFavoriteChannel,
+  buildChannelCreate,
+  buildChannelMessage,
+  buildChannelMetadata,
+  buildHideMessage,
+  buildMuteUser,
+  removeFavoriteChannel,
+} from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import {
   buildNote,
@@ -10,6 +19,7 @@ import {
 } from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
@@ -67,6 +77,9 @@ const storyActions = (
   const [follows, setFollows] = createSignal(
     store.latestReplaceable(3, viewer.pubkey),
   );
+  const [publicChats, setPublicChats] = createSignal(
+    store.latestReplaceable(10005, viewer.pubkey),
+  );
   const bookmarkIds = () =>
     bookmarks()
       ?.tags.filter((tag) => tag[0] === "e" && tag[1])
@@ -79,6 +92,14 @@ const storyActions = (
       send(() => viewer.event(buildReply(target, content))),
     quote: (target, content) =>
       send(() => viewer.event(buildQuote(target, content))),
+    channelMessage: (channel, content, options) =>
+      send(() =>
+        viewer.event(
+          buildChannelMessage(channel.id, content, {
+            replyTo: options?.replyTo,
+          }),
+        ),
+      ),
     repost: (target) =>
       send(() => {
         const draft = buildRepost(target);
@@ -87,6 +108,32 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    createChannel: async (input) => {
+      const event = viewer.event(buildChannelCreate(input));
+      await send(() => event);
+      return event.id;
+    },
+    editChannel: (channelId, input) =>
+      send(() => viewer.event(buildChannelMetadata(channelId, input))),
+    muteInChat: (kind, target, reason) =>
+      send(() =>
+        viewer.event(
+          kind === "message"
+            ? buildHideMessage(target.messageId, reason)
+            : buildMuteUser(target.pubkey, reason),
+        ),
+      ),
+    favoriteChannelIds: () => favoriteChannels(publicChats()),
+    setFavoriteChannel: (id, on) =>
+      send(() => {
+        const next = viewer.event(
+          (on ? addFavoriteChannel(id) : removeFavoriteChannel(id))(
+            publicChats(),
+          ),
+        );
+        setPublicChats(next);
+        return next;
+      }),
     followeeIds: () => followeesFrom(follows()),
     following: (pubkey) => followeesFrom(follows()).includes(pubkey),
     setFollow: (pubkey, on) =>

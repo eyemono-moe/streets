@@ -135,3 +135,25 @@ describe("visibleColumnItems", () => {
     ).toEqual([note, reply]);
   });
 });
+
+describe("visibleColumnItems（チャンネル）", () => {
+  const chat = event(42, [["e", ID, "", "root"]]);
+
+  it("chats を切るとチャンネルでの発言だけを落とす", () => {
+    // 捕まえる変異: kind:42 を返信として扱い、replies で落とす
+    expect(
+      visibleColumnItems(
+        [note, chat],
+        { ...DEFAULT_COLUMN_SHOW, chats: false },
+        ["replies", "chats"],
+      ),
+    ).toEqual([note]);
+    expect(
+      visibleColumnItems(
+        [note, chat],
+        { ...DEFAULT_COLUMN_SHOW, replies: false },
+        ["replies", "chats"],
+      ),
+    ).toEqual([note, chat]);
+  });
+});

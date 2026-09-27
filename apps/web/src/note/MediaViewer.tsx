@@ -9,8 +9,9 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import Button, { ButtonLink } from "../ui/Button";
+import { ButtonLink } from "../ui/Button";
 import { DialogPortal, DialogRoot } from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 
 const ViewerSlide: Component<{
   media: NoteMedia;
@@ -130,22 +131,26 @@ const MediaViewer: Component<{
             <Show when={count() > 1}>
               <Carousel.PrevTrigger
                 asChild={(triggerProps) => (
-                  <Button
+                  <IconButton
                     {...triggerProps()}
                     variant="overlay"
+                    size="lg"
+                    circle
                     icon="i-material-symbols:chevron-left-rounded"
-                    aria-label="前へ"
+                    label="前へ"
                     class="-translate-y-1/2 absolute top-1/2 left-3 disabled:invisible"
                   />
                 )}
               />
               <Carousel.NextTrigger
                 asChild={(triggerProps) => (
-                  <Button
+                  <IconButton
                     {...triggerProps()}
                     variant="overlay"
+                    size="lg"
+                    circle
                     icon="i-material-symbols:chevron-right-rounded"
-                    aria-label="次へ"
+                    label="次へ"
                     class="-translate-y-1/2 absolute top-1/2 right-3 disabled:invisible"
                   />
                 )}
@@ -155,11 +160,13 @@ const MediaViewer: Component<{
           <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3">
             <ArkDialog.CloseTrigger
               asChild={(closeProps) => (
-                <Button
+                <IconButton
                   {...closeProps()}
                   variant="overlay"
+                  size="md"
+                  circle
                   icon="i-material-symbols:close-rounded"
-                  aria-label="閉じる"
+                  label="閉じる"
                   class="pointer-events-auto"
                 />
               )}

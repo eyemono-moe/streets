@@ -9,6 +9,7 @@ import { rememberEmoji } from "../emoji/recent-emoji";
 import ReactionButtonMark from "../note/ReactionButtonMark";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import PopoverTrigger from "../ui/PopoverTrigger";
 
 const nameOf = (input: ReactionInput): string =>
@@ -65,11 +66,9 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
         </Portal>
       </Popover.Root>
       <Show when={props.value.type !== "like"}>
-        <Button
-          variant="ghost"
-          size="sm"
+        <IconButton
           icon="i-material-symbols:close-rounded"
-          aria-label="ハートに戻す"
+          label="ハートに戻す"
           title="ハートに戻す"
           onClick={() => set({ type: "like" })}
         />

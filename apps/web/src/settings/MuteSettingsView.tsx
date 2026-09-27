@@ -21,6 +21,7 @@ import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
+import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
@@ -271,12 +272,9 @@ const MuteRow: Component<{ entry: MuteEntry }> = (props) => {
           {props.entry.visibility === "private" ? "非公開" : "公開"}
         </span>
         {/* 一覧から外すだけで、相手や投稿が消えるわけではない（remove）。 */}
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          aria-label="ミュートを解除"
+          label="ミュートを解除"
           title="ミュートを解除"
           onClick={() => dispatch({ type: "mutes/remove", entry: props.entry })}
         />

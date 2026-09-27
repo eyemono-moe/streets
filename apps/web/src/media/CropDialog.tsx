@@ -10,25 +10,10 @@ import {
   DialogRoot,
   DialogTitle,
 } from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 
 /** 枠の高さの上限。これより縦長の画像は、幅を詰めて収める。 */
 const MAX_VIEWPORT_HEIGHT = 320;
-
-const IconButton: Component<{
-  label: string;
-  icon: string;
-  onClick: () => void;
-}> = (props) => (
-  <button
-    type="button"
-    aria-label={props.label}
-    title={props.label}
-    class="c-secondary grid size-8 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
-    onClick={() => props.onClick()}
-  >
-    <span class={`${props.icon} size-5`} aria-hidden="true" />
-  </button>
-);
 
 /** 画面に映す大きさと、元の画素との倍率。 */
 type Box = { scale: number; width: number; height: number };
@@ -37,6 +22,7 @@ const Editor: Component<{
   src: string;
   box: Box;
   crop: CropRect | undefined;
+  aspectRatio: number | undefined;
   /** 動きのある画像か。切ると 1 枚の静止画になるので、その前に知らせる。 */
   animated: boolean;
   onDone: (crop: CropRect | undefined) => void;
@@ -49,7 +35,10 @@ const Editor: Component<{
     width: props.crop.width * props.box.scale,
     height: props.crop.height * props.box.scale,
   };
-  const cropper = useImageCropper({ initialCrop });
+  const cropper = useImageCropper({
+    initialCrop,
+    aspectRatio: props.aspectRatio,
+  });
 
   const done = () => {
     const data = cropper().getCropData();
@@ -116,21 +105,25 @@ const Editor: Component<{
 
       <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
         <IconButton
+          size="md"
           label="縮小"
           icon="i-material-symbols:zoom-out-rounded"
           onClick={() => cropper().zoomBy(-0.1)}
         />
         <IconButton
+          size="md"
           label="拡大"
           icon="i-material-symbols:zoom-in-rounded"
           onClick={() => cropper().zoomBy(0.1)}
         />
         <IconButton
-          label="全体に戻す"
+          size="md"
+          label={props.aspectRatio === undefined ? "全体に戻す" : "枠を戻す"}
           icon="i-material-symbols:restart-alt-rounded"
           onClick={() => {
             cropper().reset();
-            props.onDone(undefined);
+            // 形が決まっているときは、全体が収まるとは限らない。枠を戻すだけにする。
+            if (props.aspectRatio === undefined) props.onDone(undefined);
           }}
         />
         <span class="flex-1" />
@@ -153,6 +146,8 @@ const CropDialog: Component<{
   src: string;
   name: string;
   crop?: CropRect;
+  /** 枠の縦横比（幅 ÷ 高さ）。アイコンのように形が決まっているときに渡す。 */
+  aspectRatio?: number;
   onDone: (crop: CropRect | undefined) => void;
   onClose: () => void;
 }> = (props) => {
@@ -217,6 +212,7 @@ const CropDialog: Component<{
                   src={props.src}
                   box={box()}
                   crop={props.crop}
+                  aspectRatio={props.aspectRatio}
                   animated={animated()}
                   onDone={props.onDone}
                   onClose={props.onClose}

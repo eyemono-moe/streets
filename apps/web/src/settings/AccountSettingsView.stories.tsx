@@ -7,6 +7,8 @@ import {
 } from "@streets/core/settings/profile-edit";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { UploaderProvider } from "../media/uploader";
+import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
 import { useStoryNip05 } from "../storybook/nip05";
 import { Mediates } from "../ui-events";
 import AccountSettingsView from "./AccountSettingsView";
@@ -14,7 +16,26 @@ import AccountSettingsView from "./AccountSettingsView";
 const PUBKEY =
   "3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d";
 
-type Args = { events: ProfileEditEvent[]; width: number; attention?: number };
+type Args = {
+  events: ProfileEditEvent[];
+  width: number;
+  attention?: number;
+  /** 画像のアップロード先を決めているか。 */
+  uploads: boolean;
+};
+
+// 実際には上げず、少し待ってから読める画像の URL を返す（フォームは http(s) だけを通す）。
+const uploader = (servers: readonly string[]) => ({
+  servers: () => servers,
+  upload: async (file: File) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    return {
+      url: new URL(landscapeUrl, location.href).href,
+      sha256: "0".repeat(64),
+      size: file.size,
+    };
+  },
+});
 
 const loaded = (fields: Record<string, string>): ProfileEditEvent => ({
   type: "profile/loaded",
@@ -71,13 +92,19 @@ const Story = (props: Args) => {
         }
       }}
     >
-      <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
-        <AccountSettingsView
-          pubkey={PUBKEY}
-          state={state()}
-          attention={props.attention}
-        />
-      </div>
+      <UploaderProvider
+        value={
+          uploader(props.uploads ? ["https://blossom.example/"] : []) as never
+        }
+      >
+        <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
+          <AccountSettingsView
+            pubkey={PUBKEY}
+            state={state()}
+            attention={props.attention}
+          />
+        </div>
+      </UploaderProvider>
     </Mediates>
   );
 };
@@ -85,7 +112,7 @@ const Story = (props: Args) => {
 const meta = {
   title: "設定/アカウント",
   component: Story,
-  args: { events: [mine], width: 660 },
+  args: { events: [mine], width: 660, uploads: true },
   argTypes: { events: { control: false } },
 } satisfies Meta<Args>;
 
@@ -142,6 +169,9 @@ export const 長い値: S = {
 };
 
 export const 狭い幅: S = { args: { width: 360 } };
+
+/** 画像のアップロード先を決めていない。「画像を選ぶ」を押すと、設定の「画像」へ案内する。 */
+export const アップロード先なし: S = { args: { uploads: false } };
 
 const withNip05 = (nip05: string) =>
   loaded({ display_name: "わたし", name: "me", nip05 });

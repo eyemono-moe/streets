@@ -14,6 +14,9 @@ import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
+import type { ChannelFormEvent } from "@streets/core/view/channel-form";
+import type { ChatReplyEvent } from "@streets/core/view/chat";
+import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
 import type { ComposeEvent } from "@streets/core/view/compose";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
@@ -39,7 +42,10 @@ export type UiEvent =
   | MediaViewEvent
   | SearchRelayViewEvent
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
-  | ZapFlowEvent;
+  | ZapFlowEvent
+  | ChatViewEvent
+  | ChannelFormViewEvent
+  | ChatMuteViewEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -101,6 +107,8 @@ export type DeckEvent =
   | { type: "deck/remove-column"; id: string }
   /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
   | { type: "deck/keep-temp" }
+  /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。デッキにはまだ足さない。 */
+  | { type: "deck/open-temp"; entity: string }
   | { type: "deck/close-temp" }
   | { type: "deck/open-settings" }
   | { type: "deck/close-settings" }
@@ -137,12 +145,32 @@ export type DeckEvent =
   | { type: "deck/logout" };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
+/** チャット内のミュートの確認。チャンネルのカラムの段が裁定する。 */
+export type ChatMuteViewEvent = Exclude<
+  ChatMuteEvent,
+  { type: "chat-mute/sent" | "chat-mute/failed" }
+>;
+
+/** チャンネルを作る・直すフォーム。デッキの段の ChannelFormMediator が裁定する。 */
+export type ChannelFormViewEvent = Exclude<
+  ChannelFormEvent,
+  { type: "channel-form/saved" | "channel-form/failed" }
+>;
+
+/** チャンネルのカラムの中の操作。返信先を選ぶ・外す。 */
+export type ChatViewEvent = Extract<
+  ChatReplyEvent,
+  { type: "chat/reply" | "chat/cancel-reply" }
+>;
+
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
   /** `on` は押した後に付いているべき状態。 */
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
-  | { type: "user/follow"; pubkey: string; on: boolean };
+  | { type: "user/follow"; pubkey: string; on: boolean }
+  /** チャンネルをお気に入りに入れる・外す。`on` は押した後に入っているべき状態。 */
+  | { type: "channel/favorite"; id: string; on: boolean };
 
 type Dispatch = (event: UiEvent) => void;
 

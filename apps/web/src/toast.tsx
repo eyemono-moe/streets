@@ -1,6 +1,7 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import IconButton from "./ui/IconButton";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
 import WriteProgressToast, { type WriteToastMeta } from "./WriteProgressToast";
@@ -67,14 +68,14 @@ export const ErrorToaster: Component = () => (
                     {toast().title}
                   </Toast.Title>
                   <Toast.CloseTrigger
-                    aria-label="閉じる"
-                    class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-                  >
-                    <span
-                      class="i-material-symbols:close-rounded size-4.5"
-                      aria-hidden="true"
-                    />
-                  </Toast.CloseTrigger>
+                    asChild={(trigger) => (
+                      <IconButton
+                        {...trigger()}
+                        icon="i-material-symbols:close-rounded"
+                        label="閉じる"
+                      />
+                    )}
+                  />
                 </div>
                 <Show when={toast().description}>
                   <Toast.Description class="c-secondary break-anywhere pl-6.5 text-caption">
@@ -90,14 +91,14 @@ export const ErrorToaster: Component = () => (
                   <WriteProgressToast meta={write()} />
                 </div>
                 <Toast.CloseTrigger
-                  aria-label="閉じる"
-                  class="c-secondary grid size-6 shrink-0 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-                >
-                  <span
-                    class="i-material-symbols:close-rounded size-4.5"
-                    aria-hidden="true"
-                  />
-                </Toast.CloseTrigger>
+                  asChild={(trigger) => (
+                    <IconButton
+                      {...trigger()}
+                      icon="i-material-symbols:close-rounded"
+                      label="閉じる"
+                    />
+                  )}
+                />
               </div>
             )}
           </Show>

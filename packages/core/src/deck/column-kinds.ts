@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import type { SectionStatus } from "../read/source";
 import type { RelayFilter } from "../relay/relay-connection";
 import { parseSearchQuery } from "../search/query";
@@ -18,8 +19,9 @@ export const TIMELINE_KINDS: readonly number[] = [1, 6];
 /**
  * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
  * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
+ * kind:42 はチャンネル（NIP-28）での自分への返信・メンション。
  */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735];
+export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42];
 
 /**
  * NIP-01 フィルタの検証。ワイヤ形式でなく保存デッキ用なので valibot 可。
@@ -80,6 +82,23 @@ export const columnSourceSchema = v.variant("kind", [
   v.object({ kind: v.literal("user"), pubkey: hexId }),
   v.object({ kind: v.literal("followees-list"), pubkey: hexId }),
   v.object({ kind: v.literal("followers-list"), pubkey: hexId }),
+  /**
+   * NIP-28 のチャンネル。`relays` は開いたときに分かっていたリレー（nevent の
+   * ヒントなど）。チャンネルの情報が届けば、そこに書かれたリレーも使う。
+   */
+  /** チャンネルの情報。チャンネルのカラムの見出しの ⓘ から重ねて開く。 */
+  v.object({
+    kind: v.literal("channel-info"),
+    id: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
+  /** チャンネルの一覧（お気に入り・最近アクティブ・すべてから探す）。 */
+  v.object({ kind: v.literal("channel-list") }),
+  v.object({
+    kind: v.literal("channel"),
+    id: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
 ]);
 
 export type ColumnSource = v.InferOutput<typeof columnSourceSchema>;
@@ -94,7 +113,11 @@ export type ColumnSourceOf<K extends ColumnKind> = Extract<
  * 短縮形）を保存して出すと、名前が分かったあとも npub のまま残る。人に紐づく
  * カラムは、名前を読み取ってから出す（`person` の部分を名前に置き換える）。
  */
-export type ColumnTitle = { text: string } | { person: string; suffix: string };
+export type ColumnTitle =
+  | { text: string }
+  | { person: string; suffix: string }
+  /** チャンネルは、情報が届いたらその名前に `suffix` を続けて呼ぶ。届くまでは `fallback`。 */
+  | { channel: string; suffix: string; fallback: string };
 
 /** 「表示するもの」で切り替えられる項目。 */
 export type ColumnFacet = keyof ColumnShow;
@@ -126,6 +149,11 @@ type ColumnKindDef<S> = {
    * ここでしか意味を持たず、ほかで切ると普通の投稿まで消える。
    */
   addressedToViewer?: boolean;
+  /**
+   * チャンネルでの発言（kind:42）を「表示するもの」で入り切りできるか。チャンネルの
+   * カラムでは発言そのものが中身なので、切れるようにしない。
+   */
+  togglesChats?: boolean;
   /** ユーザーが行動できる異常だけを返す（診断値は含めない）。 */
   alerts?: (source: S, input: ColumnAlertInput) => ColumnAlert[];
 };
@@ -198,8 +226,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   },
   followees: {
     title: () => ({ text: "ホーム" }),
-    kinds: (source) => source.kinds,
+    // チャンネルでの発言は保存した kinds に無く、「表示するもの」で入れたときに取る。
+    kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
+    togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
   },
   notifications: {
@@ -207,6 +237,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => NOTIFICATION_KINDS,
     hidesMuted: true,
     addressedToViewer: true,
+    togglesChats: true,
     alerts: (_, input) => {
       const { relayList, status } = input;
       const unreachable = status.incomplete?.unreachableRelays ?? 0;
@@ -256,8 +287,9 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   },
   user: {
     title: (source) => ({ person: source.pubkey, suffix: "" }),
-    kinds: () => TIMELINE_KINDS,
+    kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
     hidesMuted: false,
+    togglesChats: true,
     alerts: (_, input) => [
       ...directReadUnreachable(input),
       // 1 人を見るカラムでは、その人のリレー設定が無いと既定のリレーにしか行けない。
@@ -286,6 +318,30 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => [3],
     hidesMuted: false,
   },
+  "channel-info": {
+    title: (source, column) => ({
+      channel: source.id,
+      suffix: "の情報",
+      fallback: column.title,
+    }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
+  "channel-list": {
+    title: () => ({ text: "チャンネル" }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
+  channel: {
+    // URL などから開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
+    title: (source, column) => ({
+      channel: source.id,
+      suffix: "",
+      fallback: column.title,
+    }),
+    kinds: () => [CHANNEL_MESSAGE_KIND],
+    hidesMuted: true,
+  },
 };
 
 // 種類と中身の型の対応は union の分配では表せないので、引く場所をここ 1 つに閉じる。
@@ -312,6 +368,9 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   if (has(7)) facets.push("reactions");
   // Zap は誰かの通知にしか流れない（kind を決められないカラムにも出さない）。
   if (kinds?.includes(9735)) facets.push("zaps");
+  if (kind.togglesChats && kinds?.includes(CHANNEL_MESSAGE_KIND)) {
+    facets.push("chats");
+  }
   return facets;
 };
 

@@ -32,10 +32,12 @@ import {
   userSource,
 } from "../completion/sources";
 import { useEmojiLookup } from "../emoji/custom-emojis";
+import ImageUrlField from "../media/ImageUrlField";
 import { useNip05Lookup } from "../profile/nip05";
 import { Nip05View } from "../profile/Nip05Badge";
 import { ProfileHeaderCard } from "../profile/ProfileHeaderView";
 import { Mediates, useDispatch } from "../ui-events";
+import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
@@ -52,8 +54,15 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   const dispatch = useDispatch();
   const errors = () => profileErrors(props.state.draft);
   const dirty = () => isProfileDirty(props.state);
+  // 画像を上げている間は保存させない。上げ終わる前に保存すると、画像の無いプロフィールになる。
+  const [uploads, setUploads] = createSignal(0);
+  const countUpload = (uploading: boolean) =>
+    setUploads((count) => count + (uploading ? 1 : -1));
   const canSave = () =>
-    dirty() && !props.state.saving && Object.keys(errors()).length === 0;
+    dirty() &&
+    !props.state.saving &&
+    uploads() === 0 &&
+    Object.keys(errors()).length === 0;
   const nip05 = createNip05Check(
     () => props.pubkey,
     () => props.state,
@@ -129,21 +138,29 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
             label="自己紹介"
             multiline
           />
+          {/* 見本とボタンが並ぶので、2 列に割らず 1 行を使う。 */}
+          <ProfileImageInput
+            field="picture"
+            state={props.state}
+            label="アイコン画像"
+            aspectRatio={1}
+            onUploading={countUpload}
+            preview={(url) => (
+              <Avatar
+                pubkey={props.pubkey}
+                picture={url}
+                class="size-9 rounded-2"
+              />
+            )}
+          />
+          <ProfileImageInput
+            field="banner"
+            state={props.state}
+            label="ヘッダー画像"
+            onUploading={countUpload}
+            preview={(url) => <BannerThumb url={url} />}
+          />
           <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
-            <ProfileInput
-              field="picture"
-              state={props.state}
-              label="アイコン画像の URL"
-              type="url"
-              placeholder="https://"
-            />
-            <ProfileInput
-              field="banner"
-              state={props.state}
-              label="ヘッダー画像の URL"
-              type="url"
-              placeholder="https://"
-            />
             <ProfileInput
               field="nip05"
               state={props.state}
@@ -329,6 +346,52 @@ const Nip05CheckResult: Component<{ check: Nip05Check }> = (props) => {
         </Match>
       </Switch>
     </Show>
+  );
+};
+
+/** ヘッダー画像の小さな見本。読めない URL は、壊れた画像の印を出さず空の枠にする。 */
+const BannerThumb: Component<{ url: string | undefined }> = (props) => {
+  const [broken, setBroken] = createSignal<string>();
+  return (
+    <span class="block h-9 w-16 shrink-0 overflow-hidden rounded-2 bg-secondary">
+      <Show when={props.url !== broken() && props.url}>
+        {(url) => (
+          <img
+            src={url()}
+            alt=""
+            class="size-full object-cover"
+            decoding="async"
+            onError={() => setBroken(url())}
+          />
+        )}
+      </Show>
+    </span>
+  );
+};
+
+/** プロフィールの画像の項目。URL を書くか、画像を選んでアップロードする。 */
+const ProfileImageInput: Component<{
+  field: "picture" | "banner";
+  state: ProfileEditState;
+  label: string;
+  aspectRatio?: number;
+  onUploading: (uploading: boolean) => void;
+  preview: (url: string | undefined) => JSX.Element;
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <ImageUrlField
+      label={props.label}
+      value={props.state.draft[props.field]}
+      error={profileErrors(props.state.draft)[props.field]}
+      aspectRatio={props.aspectRatio}
+      disabled={props.state.saving}
+      preview={props.preview}
+      onUploading={props.onUploading}
+      onChange={(value) =>
+        dispatch({ type: "profile/input", field: props.field, value })
+      }
+    />
   );
 };
 

@@ -18,6 +18,7 @@ import {
 import { displayHotkey } from "../keymap";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import SettingsSection from "./SettingsSection";
 
@@ -123,11 +124,9 @@ const KeyboardSettings: Component<{
                 >
                   {editing() === action ? "やめる" : "変更"}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <IconButton
                   icon="i-material-symbols:refresh-rounded"
-                  aria-label={`${SHORTCUT_LABELS[action]} を既定のキーに戻す`}
+                  label={`${SHORTCUT_LABELS[action]} を既定のキーに戻す`}
                   title="既定に戻す"
                   disabled={props.keymap[action] === DEFAULT_KEYMAP[action]}
                   onClick={() => set(action, DEFAULT_KEYMAP[action])}

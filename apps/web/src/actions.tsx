@@ -3,6 +3,16 @@ import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
+import {
+  type ChannelMetadataInput,
+  addFavoriteChannel,
+  buildChannelCreate,
+  buildChannelMessage,
+  buildChannelMetadata,
+  buildHideMessage,
+  buildMuteUser,
+  removeFavoriteChannel,
+} from "@streets/core/nostr/build/channel";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
 import {
@@ -19,6 +29,11 @@ import {
   withReferences,
 } from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import {
+  CHANNEL_MESSAGE_KIND,
+  PUBLIC_CHATS_KIND,
+  favoriteChannels,
+} from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
@@ -70,12 +85,45 @@ export type EventActions = {
     media?: readonly BlobDescriptor[],
     emoji?: EmojiLookup,
   ): Promise<void>;
+  /**
+   * チャンネルで発言する。`relays` はそのチャンネルを読むリレーで、自分の write
+   * リレーに加えてそこへも送る（チャンネルの発言は著者でなくチャンネルで読まれる）。
+   */
+  channelMessage(
+    channel: { id: string; relays: readonly RelayUrl[] },
+    content: string,
+    options?: {
+      replyTo?: NostrEvent;
+      media?: readonly BlobDescriptor[];
+      emoji?: EmojiLookup;
+    },
+  ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
   /** 自分がフォローしている人（kind:3）。カラムの購読にも使う。 */
+  /**
+   * チャンネルを作る（kind:40）。チャンネルのリレーへも送る。作ったチャンネルの
+   * id を返す。
+   */
+  createChannel(input: ChannelMetadataInput): Promise<string>;
+  /** チャンネルの情報を直す（kind:41）。作った人のものだけが採られる。 */
+  editChannel(channelId: string, input: ChannelMetadataInput): Promise<void>;
+  /**
+   * チャット内でミュートする。`message` はその発言（kind:43）、`user` はその人
+   * （kind:44）。チャンネルのリレーへも送る —— ほかの人の画面でも畳まれるように。
+   */
+  muteInChat(
+    kind: "message" | "user",
+    target: { messageId: string; pubkey: string },
+    reason: string,
+    relays: readonly RelayUrl[],
+  ): Promise<void>;
+  /** お気に入りのチャンネル（kind:10005 の公開の項目）。 */
+  favoriteChannelIds(): readonly string[];
+  setFavoriteChannel(id: string, on: boolean): Promise<void>;
   followeeIds(): readonly string[];
   following(pubkey: string): boolean;
   setFollow(pubkey: string, on: boolean): Promise<void>;
@@ -132,6 +180,11 @@ export const createWriteStack = (options: {
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
 
+  const seenRelays = (id: string) =>
+    store
+      .seenRelays(id)
+      .map(normalizeRelayUrl)
+      .filter((relay) => relay !== undefined);
   const relayHintFor = (id: string) =>
     store
       .seenRelays(id)
@@ -158,6 +211,7 @@ export const createWriteStack = (options: {
   };
 
   const bookmarks = mine(BOOKMARK_KIND).event;
+  const publicChats = mine(PUBLIC_CHATS_KIND).event;
   const follows = mine(FOLLOW_KIND).event;
   const relayList = mine(RELAY_LIST_KIND);
   const muteList = mine(MUTE_KIND);
@@ -202,6 +256,22 @@ export const createWriteStack = (options: {
         ),
       );
     },
+    async channelMessage(channel, content, options) {
+      await tracked("チャンネルでの発言").publish(
+        withMedia(
+          withReferences(
+            buildChannelMessage(channel.id, content, {
+              relayHint: channel.relays[0],
+              replyTo: options?.replyTo,
+            }),
+            { emoji: options?.emoji },
+          ),
+          options?.media ?? [],
+        ),
+        undefined,
+        { relays: channel.relays },
+      );
+    },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
@@ -210,6 +280,12 @@ export const createWriteStack = (options: {
     async react(event, input) {
       await tracked("リアクション").publish(
         buildReaction(event, input, { relayHint: relayHintFor(event.id) }),
+        undefined,
+        // チャンネルの発言は、書き手ではなくチャンネルのリレーで読まれる。
+        // 自分の write リレーだけに送ると、チャンネルにいる人にリアクションが見えない。
+        event.kind === CHANNEL_MESSAGE_KIND
+          ? { relays: seenRelays(event.id) }
+          : undefined,
       );
     },
     bookmarked: (id) => bookmarkIds().includes(id),
@@ -219,6 +295,38 @@ export const createWriteStack = (options: {
         value: event.id,
       });
       await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
+    },
+    async createChannel(input) {
+      const result = await tracked("チャンネルを作る").publish(
+        buildChannelCreate(input),
+        undefined,
+        { relays: input.relays },
+      );
+      return result.event.id;
+    },
+    async editChannel(channelId, input) {
+      await tracked("チャンネルの情報").publish(
+        buildChannelMetadata(channelId, input, input.relays[0]),
+        undefined,
+        { relays: input.relays },
+      );
+    },
+    async muteInChat(kind, target, reason, relays) {
+      await tracked("チャット内のミュート").publish(
+        kind === "message"
+          ? buildHideMessage(target.messageId, reason)
+          : buildMuteUser(target.pubkey, reason),
+        undefined,
+        { relays },
+      );
+    },
+    favoriteChannelIds: () => favoriteChannels(publicChats()),
+    async setFavoriteChannel(id, on) {
+      await tracked("お気に入り").replace(
+        PUBLIC_CHATS_KIND,
+        undefined,
+        on ? addFavoriteChannel(id) : removeFavoriteChannel(id),
+      );
     },
     followeeIds,
     following: (pubkey) => followeeIds().includes(pubkey),

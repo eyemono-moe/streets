@@ -35,6 +35,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 
 export type AuthorRelaysState =
@@ -224,11 +225,9 @@ export const AuthorRelaysDialogView: Component<{
                                     }
                                     actions={
                                       <div class="ml-auto flex items-center gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
+                                        <IconButton
                                           icon="i-material-symbols:content-copy-outline-rounded"
-                                          aria-label={`${entry.url} をコピー`}
+                                          label={`${entry.url} をコピー`}
                                           onClick={() => copy(entry)}
                                         />
                                         <Show when={relayEdit}>

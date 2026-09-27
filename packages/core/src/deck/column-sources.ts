@@ -1,3 +1,10 @@
+import {
+  CHANNEL_CREATE_KIND,
+  CHANNEL_HIDE_MESSAGE_KIND,
+  CHANNEL_MESSAGE_KIND,
+  CHANNEL_METADATA_KIND,
+  CHANNEL_MUTE_USER_KIND,
+} from "../nostr/channel";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -34,10 +41,23 @@ export const followeesSource = (
   kinds: readonly number[],
   followees: readonly string[],
   viewer: string,
+  /**
+   * チャンネルでの発言（kind:42）も取る。ほかの「表示するもの」と違い、切っている
+   * ときは取らない —— 発言の多い人がいると、描かない発言でページが埋まる。
+   */
+  options: { chats?: boolean } = {},
 ): NostrSource => ({
   type: "nostr",
   filters: [
-    { kinds: [...kinds], authors: [...new Set([...followees, viewer])] },
+    {
+      kinds: [
+        ...new Set([
+          ...kinds,
+          ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+        ]),
+      ],
+      authors: [...new Set([...followees, viewer])],
+    },
   ],
 });
 
@@ -94,9 +114,21 @@ export const activitySource = (target: string): NostrSource => ({
   ],
 });
 
-export const userPostsSource = (pubkey: string): NostrSource => ({
+export const userPostsSource = (
+  pubkey: string,
+  /** チャンネルでの発言（kind:42）も取る。切っているときに取らない理由はホームと同じ。 */
+  options: { chats?: boolean } = {},
+): NostrSource => ({
   type: "nostr",
-  filters: [{ kinds: [...TIMELINE_KINDS], authors: [pubkey] }],
+  filters: [
+    {
+      kinds: [
+        ...TIMELINE_KINDS,
+        ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+      ],
+      authors: [pubkey],
+    },
+  ],
 });
 
 /** その人が付けたリアクション。 */
@@ -114,3 +146,94 @@ export const followersSource = (pubkey: string): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [3], "#p": [pubkey] }],
 });
+
+/*
+ * NIP-28 のチャンネル。著者で行き先が決まらないので、どれもリレーを明示して読む。
+ * リレーがまだ 1 本も分からないうちは `undefined`（購読を張らない）。空配列を
+ * 渡すと「0 本の明示指定」になり、何も届かないまま終わる。
+ */
+const withRelays = (
+  filters: NostrSource["filters"],
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  relays.length > 0
+    ? { type: "nostr", filters, relays: [...relays] }
+    : undefined;
+
+/** チャンネルそのもの（kind:40）と、その情報の書き換え（kind:41）。 */
+export const channelSource = (
+  channelId: string,
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      { ids: [channelId] },
+      { kinds: [CHANNEL_METADATA_KIND], "#e": [channelId] },
+    ],
+    relays,
+  );
+
+export const channelMessagesSource = (
+  channelId: string,
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays([{ kinds: [CHANNEL_MESSAGE_KIND], "#e": [channelId] }], relays);
+
+/**
+ * チャット内のミュート（kind:43・44）。チャンネルのリレーにあるものを全部取る。
+ * 並んでいる発言の id で絞ると、発言が届くたびに条件が変わり、購読を張り直す
+ * ことになる。kind:43・44 は数が少ない（yabu.me で全期間 100 件に満たない）。
+ */
+export const chatModerationSource = (
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      {
+        kinds: [CHANNEL_HIDE_MESSAGE_KIND, CHANNEL_MUTE_USER_KIND],
+        limit: 500,
+      },
+    ],
+    relays,
+  );
+
+/** いくつかのチャンネルの情報。`ids` が空なら何も取らない。 */
+export const channelsSource = (
+  channelIds: readonly string[],
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  channelIds.length > 0
+    ? withRelays(
+        [
+          { kinds: [CHANNEL_CREATE_KIND], ids: [...channelIds] },
+          { kinds: [CHANNEL_METADATA_KIND], "#e": [...channelIds] },
+        ],
+        relays,
+      )
+    : undefined;
+
+/**
+ * 最近アクティブなチャンネルを見つけるための、直近の発言。件数に上限を切る ——
+ * 動いているチャンネルを知るのが目的で、発言そのものは読まない。
+ */
+export const recentChannelMessagesSource = (
+  relays: readonly RelayUrl[],
+  since: number,
+): NostrSource | undefined =>
+  withRelays([{ kinds: [CHANNEL_MESSAGE_KIND], since, limit: 500 }], relays);
+
+/**
+ * すべてのチャンネルから探すときの、チャンネルとその情報の書き換え。リレーへの
+ * 負荷を抑えるため件数に上限を切り、呼び出し側は探す表示に入ったときに一度だけ
+ * 張る。絞り込みは画面の側で行い、打つたびに問い合わせない。
+ */
+export const allChannelsSource = (
+  relays: readonly RelayUrl[],
+): NostrSource | undefined =>
+  withRelays(
+    [
+      { kinds: [CHANNEL_CREATE_KIND], limit: 1000 },
+      { kinds: [CHANNEL_METADATA_KIND], limit: 1000 },
+    ],
+    relays,
+  );

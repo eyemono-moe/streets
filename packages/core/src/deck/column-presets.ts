@@ -9,7 +9,8 @@ export type ColumnPresetKind =
   | "user"
   | "hashtag"
   | "bookmarks"
-  | "search";
+  | "search"
+  | "channels";
 
 const userTitle = (pubkey: string): string =>
   `@${encodeBech32("npub", pubkey).slice(0, 12)}`;
@@ -50,6 +51,38 @@ export const buildActivityColumn = (target: string): ColumnDef => ({
   id: `activity:${target}`,
   title: "アクティビティ",
   source: { kind: "activity", target },
+});
+
+/**
+ * チャンネルのカラム。id をチャンネルから決めるので、同じチャンネルを 2 回開いても
+ * 重ならない。`relays` はそのチャンネルがあると分かっているリレー。
+ */
+export const buildChannelColumn = (
+  channelId: string,
+  name: string | undefined,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `channel:${channelId}`,
+  title: name ?? "チャンネル",
+  source: {
+    kind: "channel",
+    id: channelId,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
+/** チャンネルの情報。チャンネルのカラムに重ねて開く。 */
+export const buildChannelInfoColumn = (
+  channelId: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `channel-info:${channelId}`,
+  title: "チャンネルの情報",
+  source: {
+    kind: "channel-info",
+    id: channelId,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
 });
 
 /** 選んだリレーだけから公開ノートを読むカラムを作る。 */
@@ -119,6 +152,9 @@ export const buildColumn = (
     case "bookmarks":
       // どのノートを入れるかは kind:10003 が決めるので、デッキには何も焼き込まない。
       return { id, title: "ブックマーク", source: { kind: "bookmarks" } };
+
+    case "channels":
+      return { id, title: "チャンネル", source: { kind: "channel-list" } };
 
     case "notifications":
       // フィールドを持たない —— pubkey も read リレーもデッキに焼き込まず、

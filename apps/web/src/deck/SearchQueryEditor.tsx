@@ -7,7 +7,7 @@ import {
   onMount,
 } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
-import Completion from "../ui/Completion";
+import SearchInput from "../ui/SearchInput";
 import SearchForm from "./SearchForm";
 
 /**
@@ -98,43 +98,31 @@ const SearchQueryEditor: Component<{
 
   return (
     <div class="flex flex-col gap-3">
-      {/* 枠はこの箱が持っているので、焦点も箱に出す。 */}
-      <div class="flex h-10 items-center gap-2 rounded-full border border-primary bg-primary px-3 focus-within:ring-2 focus-within:ring-accent-5">
-        <span
-          class="i-material-symbols:search-rounded c-secondary size-4.5 shrink-0"
-          aria-hidden="true"
-        />
-        <Completion sources={sources} label="入れる候補">
-          {(attach) => (
-            <input
-              ref={(el) => {
-                input = el;
-                attach(el);
-              }}
-              class="c-primary placeholder:c-secondary min-w-0 flex-1 bg-transparent text-body outline-none"
-              placeholder="ねこ #nostr from:npub1…"
-              aria-label="検索クエリ"
-              value={shown()}
-              onInput={(event) => typed(event.currentTarget.value)}
-              onCompositionStart={() => {
-                composing = true;
-                clearTimeout(timer);
-              }}
-              onCompositionEnd={(event) => {
-                composing = false;
-                typed(event.currentTarget.value);
-              }}
-              onBlur={(event) => {
-                // 離れるときは待たない。閉じる直前の 1 文字を落とさないため。
-                if (!composing) {
-                  clearTimeout(timer);
-                  send(event.currentTarget.value);
-                }
-              }}
-            />
-          )}
-        </Completion>
-      </div>
+      <SearchInput
+        ref={(el) => {
+          input = el;
+        }}
+        label="検索クエリ"
+        placeholder="ねこ #nostr from:npub1…"
+        completion={sources}
+        value={shown()}
+        onValueChange={typed}
+        onCompositionStart={() => {
+          composing = true;
+          clearTimeout(timer);
+        }}
+        onCompositionEnd={(event) => {
+          composing = false;
+          typed(event.currentTarget.value);
+        }}
+        onBlur={(event) => {
+          // 離れるときは待たない。閉じる直前の 1 文字を落とさないため。
+          if (!composing) {
+            clearTimeout(timer);
+            send(event.currentTarget.value);
+          }
+        }}
+      />
       <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
     </div>
   );

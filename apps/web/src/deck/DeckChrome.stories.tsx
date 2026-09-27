@@ -169,7 +169,6 @@ export const フィードバック案内: Story = {
   render: () => (
     <div class="grid min-h-120 place-items-center bg-secondary p-4">
       <FeedbackLink
-        size="sidebar"
         initialOpen
         template="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
       />
@@ -230,6 +229,18 @@ export const 狭い画面_一時カラムを見ている: Story = {
       }}
     />
   ),
+};
+
+/** カラムの種類ごとの見出しの操作（チャンネルの情報など）も、上のバーに出る。 */
+export const 狭い画面_チャンネルのカラム: Story = {
+  render: () => {
+    const channel: ColumnDef = {
+      id: "channel",
+      title: "さびれたスナック",
+      source: { kind: "channel", id: "a".repeat(64) },
+    };
+    return <MobileBars columns={[...columns, channel]} active="channel" />;
+  },
 };
 
 export const 狭い画面_ユーザーのカラムを選ぶ: Story = {

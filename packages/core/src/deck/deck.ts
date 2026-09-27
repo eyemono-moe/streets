@@ -28,6 +28,11 @@ export type ColumnShow = {
   reactions: boolean;
   /** Zap の受領（kind:9735）。通知カラムでしか意味を持たない。 */
   zaps: boolean;
+  /**
+   * チャンネル（NIP-28）での発言。通知では自分への返信・メンション、ホームでは
+   * フォローしている人の発言、ユーザーのカラムではその人の発言。
+   */
+  chats: boolean;
 };
 
 /**
@@ -68,6 +73,7 @@ export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   reposts: true,
   reactions: true,
   zaps: true,
+  chats: true,
 };
 
 /** 保存された値と既定値を合わせる。カラムを読む側はこれだけを見る。 */
@@ -149,6 +155,7 @@ const columnDefSchema = v.object({
       reposts: v.optional(v.boolean()),
       reactions: v.optional(v.boolean()),
       zaps: v.optional(v.boolean()),
+      chats: v.optional(v.boolean()),
     }),
   ),
 });

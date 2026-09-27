@@ -3,6 +3,7 @@ import type {
   ColumnSource,
   ColumnSourceOf,
 } from "@streets/core/deck/column-kinds";
+import { buildChannelInfoColumn } from "@streets/core/deck/column-presets";
 import {
   bookmarksSource,
   followListSource,
@@ -14,11 +15,18 @@ import {
   userPostsSource,
   userReactionsSource,
 } from "@streets/core/deck/column-sources";
-import { type ColumnDef, groupsNotifications } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  columnShow,
+  groupsNotifications,
+} from "@streets/core/deck/deck";
+import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, Show } from "solid-js";
+import { useEventActions } from "../actions";
+import { useSending } from "../actions-mediator";
 import type { ColumnPatch } from "../deck/ColumnSettings";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
@@ -26,9 +34,13 @@ import SettingField from "../deck/SettingField";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
 import ColumnTabs from "../ui/ColumnTabs";
+import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
 import Authors from "./blocks/Authors";
+import ChannelChat from "./blocks/ChannelChat";
+import ChannelInfo from "./blocks/ChannelInfo";
+import ChannelList from "./blocks/ChannelList";
 import EventList from "./blocks/EventList";
 import FollowList from "./blocks/FollowList";
 import NotificationList from "./blocks/NotificationList";
@@ -59,6 +71,8 @@ type ColumnView<S> = {
   scrollsInternally?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
+  /** 見出しの右に置く、その種類だけの操作（チャンネルのお気に入りなど）。 */
+  HeaderActions?: Component<{ source: S }>;
   /** その種類だけの設定。共通の設定の下に出す。 */
   Settings?: Component<{
     column: ColumnDef;
@@ -84,7 +98,71 @@ const relayColumnSource = (source: ColumnSourceOf<"literal">) => {
   return onlyPublicNotes ? source : undefined;
 };
 
+/** 見出しの ⓘ。チャンネルの情報をカラムの中に重ねる。 */
+const ChannelInfoButton: Component<{
+  id: string;
+  relays: readonly RelayUrl[];
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <IconButton
+      icon="i-material-symbols:info-outline-rounded"
+      label="チャンネルの情報"
+      onClick={() =>
+        dispatch({
+          type: "stack/open",
+          column: buildChannelInfoColumn(props.id, props.relays),
+        })
+      }
+    />
+  );
+};
+
+/** 見出しの ★。押すとお気に入りに入れる・外す。ログインしていなければ出さない。 */
+const FavoriteChannelButton: Component<{ id: string }> = (props) => {
+  const dispatch = useDispatch();
+  const actions = useEventActions();
+  const favorite = () =>
+    actions?.favoriteChannelIds().includes(props.id) ?? false;
+  const sending = useSending(() => ({
+    type: "channel/favorite",
+    id: props.id,
+    on: !favorite(),
+  }));
+  return (
+    <Show when={actions}>
+      <IconButton
+        icon={
+          favorite()
+            ? "i-material-symbols:star-rounded"
+            : "i-material-symbols:star-outline-rounded"
+        }
+        active={favorite()}
+        label={favorite() ? "お気に入りから外す" : "お気に入りに入れる"}
+        aria-pressed={favorite()}
+        disabled={sending()}
+        onClick={() =>
+          dispatch({ type: "channel/favorite", id: props.id, on: !favorite() })
+        }
+      />
+    </Show>
+  );
+};
+
 const PERSON_ICON = "i-material-symbols:person-outline-rounded";
+
+/**
+ * 自分の読み込みリレー。取得中は空（まだ探さない）。設定が無いか読み込みリレーが
+ * 無ければ既定のリレーで探す —— 空のままだと、チャンネルを永久に見つけられない。
+ */
+export const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
+  if (state.phase === "loading" || state.phase === "signed-out") return [];
+  const read =
+    state.phase === "ready"
+      ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
+      : [];
+  return read.length > 0 ? read : [...FALLBACK_RELAYS];
+};
 
 const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   literal: {
@@ -172,17 +250,21 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:home-outline-rounded",
       subtitle: "フォロー中",
     }),
-    Content: (props) => (
-      <EventList
-        source={() =>
-          followeesSource(
-            props.source.kinds,
-            props.inputs.followees(),
-            props.inputs.viewer,
-          )
-        }
-      />
-    ),
+    Content: (props) => {
+      const scope = useColumnScope();
+      return (
+        <EventList
+          source={() =>
+            followeesSource(
+              props.source.kinds,
+              props.inputs.followees(),
+              props.inputs.viewer,
+              { chats: columnShow(scope.column()).chats },
+            )
+          }
+        />
+      );
+    },
   },
   notifications: {
     meta: () => ({
@@ -253,7 +335,11 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                 content: () => (
                   <EventList
                     name="posts"
-                    source={() => userPostsSource(props.source.pubkey)}
+                    source={() =>
+                      userPostsSource(props.source.pubkey, {
+                        chats: columnShow(scope.column()).chats,
+                      })
+                    }
                   />
                 ),
               },
@@ -272,6 +358,54 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         </>
       );
     },
+  },
+  "channel-info": {
+    meta: () => ({
+      icon: "i-material-symbols:info-outline-rounded",
+      subtitle: "チャンネルの情報",
+    }),
+    Content: (props) => (
+      <ChannelInfo
+        channelId={props.source.id}
+        hints={props.source.relays ?? []}
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+      />
+    ),
+  },
+  "channel-list": {
+    meta: () => ({
+      icon: "i-material-symbols:forum-outline-rounded",
+      subtitle: "みんなで会話できるチャットチャンネル",
+    }),
+    Content: (props) => (
+      <ChannelList
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+      />
+    ),
+  },
+  channel: {
+    meta: () => ({
+      icon: "i-material-symbols:forum-outline-rounded",
+      subtitle: "チャンネル",
+    }),
+    HeaderActions: (props) => (
+      <>
+        <ChannelInfoButton
+          id={props.source.id}
+          relays={props.source.relays ?? []}
+        />
+        <FavoriteChannelButton id={props.source.id} />
+      </>
+    ),
+    scrollsInternally: true,
+    Content: (props) => (
+      <ChannelChat
+        channelId={props.source.id}
+        hints={props.source.relays ?? []}
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+        viewer={props.inputs.viewer}
+      />
+    ),
   },
   "followees-list": {
     meta: () => ({ icon: PERSON_ICON, subtitle: "フォロー中の人" }),

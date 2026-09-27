@@ -3,7 +3,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import type { Component } from "solid-js";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import IconButton from "../ui/IconButton";
 import ColumnSettings from "./ColumnSettings";
 import ColumnTitle from "./ColumnTitle";
 
@@ -24,12 +24,9 @@ const ColumnSettingsPanel: Component<{
           <ColumnTitle column={props.column} />
           の設定
         </h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          shape="rounded"
+        <IconButton
           icon="i-material-symbols:close-rounded"
-          aria-label="カラムの設定を閉じる"
+          label="カラムの設定を閉じる"
           onClick={() =>
             dispatch({ type: "deck/toggle-settings", id: props.column.id })
           }

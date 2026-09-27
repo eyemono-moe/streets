@@ -10,6 +10,7 @@ import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
+import IconButton from "../ui/IconButton";
 import { ProfileName, ProfileText } from "./Name";
 import { useProfileDetails } from "./use-profile";
 
@@ -204,14 +205,14 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         }}
       >
         <Menu.Trigger
-          aria-label="この投稿の操作"
-          class="c-secondary grid size-6 cursor-pointer place-items-center rounded-1.5 bg-transparent hover:bg-secondary"
-        >
-          <span
-            class="i-material-symbols:more-vert size-4.5"
-            aria-hidden="true"
-          />
-        </Menu.Trigger>
+          asChild={(trigger) => (
+            <IconButton
+              {...trigger()}
+              icon="i-material-symbols:more-vert"
+              label="この投稿の操作"
+            />
+          )}
+        />
         <Portal>
           <Menu.Positioner>
             <Menu.Content class="motion-pop c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">

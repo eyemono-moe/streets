@@ -145,6 +145,31 @@ describe("publish", () => {
     expect(additional).toEqual([]);
   });
 
+  it("relays を渡すと、自分の write リレーに加えてそこへも送る", async () => {
+    // 捕まえる変異: relays を Publisher へ渡さない（チャンネルの発言がチャンネルのリレーに届かない）
+    let additional: readonly RelayUrl[] | undefined;
+    const writer = createWriter({
+      signer: createFakeSigner(SK),
+      store: new EventStore(),
+      publisher: {
+        targets: () => [],
+        publish: async (_event, options) => {
+          additional = options?.additionalRelays;
+          return ok;
+        },
+      },
+      pubkey: () => PUBKEY,
+      now: () => 1_700_000_000,
+      fetchLatest: async () => undefined,
+    });
+
+    await writer.publish({ kind: 42, tags: [], content: "hi" }, undefined, {
+      relays: ["wss://chat.example/" as RelayUrl],
+    });
+
+    expect(additional).toEqual(["wss://chat.example/"]);
+  });
+
   it("pubkey と created_at を押す", async () => {
     // 捕まえる変異: created_at を押さず undefined のまま署名へ渡す
     const { writer } = setup(ok);

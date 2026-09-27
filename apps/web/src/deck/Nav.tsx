@@ -11,6 +11,7 @@ import { ColumnHeaderActions } from "../columns/ColumnHeader";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
+import IconButton from "../ui/IconButton";
 import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
@@ -76,41 +77,29 @@ export const Sidebar: Component<{
     // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・フィードバック・設定・
     // アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
-      <button
-        type="button"
+      <IconButton
         {...tourTarget("compose")}
-        aria-label="投稿パネルを開く"
+        variant="primary"
+        size="lg"
+        icon="i-material-symbols:edit-square-outline-rounded"
+        label="投稿パネルを開く"
         title={shortcutTitle("compose")}
         aria-keyshortcuts={ariaKeyShortcuts("compose")}
         aria-expanded={props.panel === "compose"}
-        class="grid size-10 cursor-pointer place-items-center rounded-2 bg-accent-primary hover:bg-accent-hover"
         onClick={() =>
           dispatch({ type: "deck/toggle-panel", panel: "compose" })
         }
-      >
-        <span
-          class="i-material-symbols:edit-square-outline-rounded c-white size-5.5"
-          aria-hidden="true"
-        />
-      </button>
-      <button
-        type="button"
-        aria-label="検索パネルを開く"
+      />
+      <IconButton
+        variant={props.panel === "search" ? "filled" : "ghost"}
+        size="lg"
+        icon="i-material-symbols:search-rounded"
+        label="検索パネルを開く"
         title={shortcutTitle("search")}
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
-        class="grid size-10 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
-        classList={{
-          "c-primary bg-secondary": props.panel === "search",
-          "c-secondary bg-transparent": props.panel !== "search",
-        }}
         onClick={() => dispatch({ type: "deck/toggle-panel", panel: "search" })}
-      >
-        <span
-          class="i-material-symbols:search-rounded size-5.5"
-          aria-hidden="true"
-        />
-      </button>
+      />
       {/*
         カラムの一覧と「追加」を 1 つの送れる帯にする。横は隠す（auto のままだと
         横のはみ出しでスクロールバーが出る）。上下の余白は、フォントの違いで
@@ -126,41 +115,30 @@ export const Sidebar: Component<{
             />
           )}
         </For>
-        {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。 */}
-        <button
-          type="button"
-          {...tourTarget("add-column")}
-          aria-label="カラムを追加"
-          title={shortcutTitle("add-column")}
-          aria-keyshortcuts={ariaKeyShortcuts("add-column")}
-          aria-expanded={props.panel === "add-column"}
-          class="sticky bottom-0 grid size-10 shrink-0 cursor-pointer place-items-center rounded-2 hover:bg-secondary"
-          classList={{
-            "c-primary bg-secondary": props.panel === "add-column",
-            "c-secondary bg-primary": props.panel !== "add-column",
-          }}
-          onClick={() =>
-            dispatch({ type: "deck/toggle-panel", panel: "add-column" })
-          }
-        >
-          <span
-            class="i-material-symbols:add-rounded size-5.5"
-            aria-hidden="true"
+        {/* 一覧が長くても押せるよう、帯の下に貼り付けておく。下を流れるカラムが透けないよう、地の色を敷く。 */}
+        <div class="sticky bottom-0 rounded-2 bg-primary">
+          <IconButton
+            {...tourTarget("add-column")}
+            variant={props.panel === "add-column" ? "filled" : "ghost"}
+            size="lg"
+            icon="i-material-symbols:add-rounded"
+            label="カラムを追加"
+            title={shortcutTitle("add-column")}
+            aria-keyshortcuts={ariaKeyShortcuts("add-column")}
+            aria-expanded={props.panel === "add-column"}
+            onClick={() =>
+              dispatch({ type: "deck/toggle-panel", panel: "add-column" })
+            }
           />
-        </button>
+        </div>
       </div>
-      <FeedbackLink template={props.feedbackUrl} size="sidebar" />
-      <button
-        type="button"
-        aria-label="設定"
-        class="c-secondary grid size-10 cursor-pointer place-items-center rounded-2 bg-transparent hover:bg-secondary"
+      <FeedbackLink template={props.feedbackUrl} />
+      <IconButton
+        size="lg"
+        icon="i-material-symbols:settings-outline-rounded"
+        label="設定"
         onClick={() => dispatch({ type: "deck/open-settings" })}
-      >
-        <span
-          class="i-material-symbols:settings-outline-rounded size-5.5"
-          aria-hidden="true"
-        />
-      </button>
+      />
       <AccountMenu pubkey={props.pubkey} onLogout={props.onLogout} />
     </nav>
   );

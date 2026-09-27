@@ -8,6 +8,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from "../ui/Dialog";
+import IconButton from "../ui/IconButton";
 
 const context = (): string =>
   [
@@ -88,49 +89,33 @@ export const feedbackHref = (template?: string | null): string | undefined =>
 const FeedbackLink: Component<{
   /** Storybookでは実際のフォームを開かないURLを注入する。nullなら未設定状態。 */
   template?: string | null;
-  size: "sidebar" | "tab";
   /** ダイアログのStory用。 */
   initialOpen?: boolean;
 }> = (props) => {
   const [open, setOpen] = createSignal(props.initialOpen ?? false);
   const href = () => feedbackHref(props.template);
-  const className = () =>
-    props.size === "sidebar"
-      ? "c-secondary grid size-10 shrink-0 place-items-center rounded-2 bg-transparent hover:bg-secondary"
-      : "c-secondary grid h-11 w-11 place-items-center bg-transparent";
 
   return (
     <Show
       when={href()}
       fallback={
-        <span
-          aria-label="フィードバック（送信先が未設定）"
+        <IconButton
+          size="lg"
+          icon="i-material-symbols:feedback-outline-rounded"
+          label="フィードバック（送信先が未設定）"
           title="フィードバック送信先が未設定です"
-          class={`${className()} opacity-40`}
-        >
-          <span class="sr-only">フィードバックを送る</span>
-          <span
-            class="i-material-symbols:feedback-outline-rounded size-5.5"
-            aria-hidden="true"
-          />
-        </span>
+          disabled
+        />
       }
     >
       {(url) => (
         <>
-          <button
-            type="button"
+          <IconButton
+            size="lg"
+            icon="i-material-symbols:feedback-outline-rounded"
+            label="フィードバックを送る"
             onClick={() => setOpen(true)}
-            aria-label="フィードバックを送る"
-            title="フィードバックを送る"
-            class={`${className()} cursor-pointer`}
-          >
-            <span class="sr-only">フィードバックを送る</span>
-            <span
-              class="i-material-symbols:feedback-outline-rounded size-5.5"
-              aria-hidden="true"
-            />
-          </button>
+          />
           <FeedbackDialog
             href={url()}
             open={open()}

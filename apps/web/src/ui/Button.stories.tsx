@@ -6,6 +6,7 @@ import Button, {
   type ButtonProps,
   type ButtonVariant,
 } from "./Button";
+import IconButton from "./IconButton";
 
 const VARIANTS: ButtonVariant[] = [
   "primary",
@@ -82,17 +83,6 @@ export const 一覧: Story = {
             <Button variant={variant} icon="i-material-symbols:check-rounded">
               アイコン
             </Button>
-            <Button
-              variant={variant}
-              icon="i-material-symbols:close-rounded"
-              aria-label="閉じる"
-            />
-            <Button
-              variant={variant}
-              size="sm"
-              icon="i-material-symbols:close-rounded"
-              aria-label="閉じる"
-            />
           </div>
         )}
       </For>
@@ -113,25 +103,29 @@ export const 一覧: Story = {
   ),
 };
 
-/** overlay は写真や暗い背景の上に重ねて使う。 */
+/** overlay は写真や暗い背景の上に重ねて使う。アイコンだけのものは IconButton。 */
 export const 写真の上: Story = {
   render: () => (
     <div
       class="flex items-center gap-2 bg-center bg-cover p-6"
       style={{ "background-image": `url(${landscapeUrl})` }}
     >
-      <Button
+      <IconButton
         variant="overlay"
+        size="md"
+        circle
         icon="i-material-symbols:close-rounded"
-        aria-label="閉じる"
+        label="閉じる"
       />
       <Button variant="overlay" icon="i-material-symbols:open-in-new-rounded">
         元の画像を開く
       </Button>
-      <Button
+      <IconButton
         variant="overlay"
+        size="lg"
+        circle
         icon="i-material-symbols:chevron-left-rounded"
-        aria-label="前へ"
+        label="前へ"
       />
     </div>
   ),

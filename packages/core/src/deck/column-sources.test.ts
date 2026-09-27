@@ -2,6 +2,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import {
   activitySource,
+  allChannelsSource,
+  recentChannelMessagesSource,
+  channelMessagesSource,
+  channelSource,
+  channelsSource,
+  chatModerationSource,
   bookmarksSource,
   followListSource,
   followeesSource,
@@ -75,6 +81,20 @@ describe("followeesSource", () => {
     });
   });
 
+  it("チャンネルでの発言は、入れているときだけ取る", () => {
+    // 捕まえる変異: 切っていても kind:42 を取る（使わない発言を流し続ける）/
+    // 既に入っている kind を重ねる
+    expect(followeesSource([1, 6], ["a"], VIEWER).filters[0].kinds).toEqual([
+      1, 6,
+    ]);
+    expect(
+      followeesSource([1, 6], ["a"], VIEWER, { chats: true }).filters[0].kinds,
+    ).toEqual([1, 6, 42]);
+    expect(
+      followeesSource([1, 42], ["a"], VIEWER, { chats: true }).filters[0].kinds,
+    ).toEqual([1, 42]);
+  });
+
   it("渡したフォローリストを共有しない", () => {
     // 捕まえる変異: 配列を参照のまま渡す (呼び出し側が後で配列を破壊的に
     // 変更すると、既に作った NostrSource の中身が黙って変わる)
@@ -92,6 +112,13 @@ describe("人と投稿", () => {
       type: "nostr",
       filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
     });
+  });
+
+  it("ユーザーのチャンネルでの発言は、入れているときだけ取る", () => {
+    // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
+    expect(
+      userPostsSource("a".repeat(64), { chats: true }).filters[0].kinds,
+    ).toEqual([1, 6, 42]);
   });
 
   it("ユーザーのリアクションは対象ユーザーの kind:7 を集める", () => {
@@ -141,7 +168,7 @@ describe("notificationsSource", () => {
       }),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
       relays: ["wss://inbox/"],
     });
   });
@@ -152,7 +179,7 @@ describe("notificationsSource", () => {
     // カラムが黙って出来上がる (`authors: []` と同じ罠)。
     expect(notificationsSource(VIEWER, { phase: "missing" })).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
@@ -206,5 +233,54 @@ describe("searchSource", () => {
       filters: [{ kinds: [1], search: "ねこ", "#t": ["nostr"] }],
       relays: ["wss://search.example/"],
     });
+  });
+});
+
+describe("チャンネル", () => {
+  const CHANNEL = "1".repeat(64);
+  const RELAYS = ["wss://yabu.me/" as const];
+
+  it("リレーが 1 本も分からないうちは購読しない", () => {
+    // 捕まえる変異: relays: [] を載せる（0 本の明示指定になり、何も届かないまま終わる）
+    expect(channelMessagesSource(CHANNEL, [])).toBeUndefined();
+    expect(channelSource(CHANNEL, [])).toBeUndefined();
+  });
+
+  it("発言はチャンネルを #e で指すものを、チャンネルのリレーから取る", () => {
+    expect(channelMessagesSource(CHANNEL, RELAYS)).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [42], "#e": [CHANNEL] }],
+      relays: ["wss://yabu.me/"],
+    });
+  });
+
+  it("ミュートは、並んでいる発言によらない条件で取る", () => {
+    // 捕まえる変異: 発言の id を条件に入れる（発言が届くたびに購読を張り直す）
+    expect(chatModerationSource(RELAYS)?.filters).toEqual([
+      { kinds: [43, 44], limit: 500 },
+    ]);
+  });
+
+  it("チャンネルの id が無ければ情報を取りにいかない", () => {
+    // 捕まえる変異: ids: [] で購読する（該当なしの購読が張られる）
+    expect(channelsSource([], RELAYS)).toBeUndefined();
+  });
+});
+
+describe("チャンネルの一覧", () => {
+  const RELAYS = ["wss://yabu.me/" as const];
+
+  it("すべてのチャンネルは件数に上限を切って取る", () => {
+    // 捕まえる変異: limit を外す（リレーにあるチャンネルを全部返させる）
+    expect(allChannelsSource(RELAYS)?.filters).toEqual([
+      { kinds: [40], limit: 1000 },
+      { kinds: [41], limit: 1000 },
+    ]);
+  });
+
+  it("最近の発言は期間と件数を切って取る", () => {
+    expect(recentChannelMessagesSource(RELAYS, 100)?.filters).toEqual([
+      { kinds: [42], since: 100, limit: 500 },
+    ]);
   });
 });
