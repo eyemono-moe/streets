@@ -1,4 +1,5 @@
 import type { AppScenario } from "../scenario";
+import channelsAndLists from "./channels-and-lists";
 import home from "./home";
 import manyColumns from "./many-columns";
 import media from "./media";
@@ -14,6 +15,7 @@ export const scenarios = {
   profile,
   "many-columns": manyColumns,
   media,
+  "channels-and-lists": channelsAndLists,
 } satisfies Record<string, AppScenario>;
 
 export type ScenarioName = keyof typeof scenarios;

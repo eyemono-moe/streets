@@ -3,6 +3,9 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex, hexToBytes, utf8ToBytes } from "@noble/hashes/utils.js";
 import {
   buildColumn,
+  buildChannelColumn,
+  buildFollowSetColumn,
+  buildFollowSetInfoColumn,
   buildUserColumn,
 } from "@streets/core/deck/column-presets";
 import {
@@ -10,7 +13,12 @@ import {
   DECK_EVENT_IDENTIFIER,
   saveDeck,
 } from "@streets/core/deck/deck";
+import { FOLLOW_SET_KIND } from "@streets/core/lists/follow-set";
 import type { BlobDescriptor } from "@streets/core/media/blossom";
+import {
+  buildChannelCreate,
+  buildChannelMessage,
+} from "@streets/core/nostr/build/channel";
 import type { EventDraft } from "@streets/core/nostr/build/draft";
 import { addFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
@@ -24,6 +32,7 @@ import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { withReferences } from "@streets/core/nostr/build/references";
 import { setRelayList } from "@streets/core/nostr/build/relay-list";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import { PUBLIC_CHATS_KIND } from "@streets/core/nostr/channel";
 import { type NostrEvent, computeEventId } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { setSearchRelays } from "@streets/core/settings/search-relay-list";
@@ -81,14 +90,52 @@ const expandMentions = (content: string): string =>
 const deckColumn = (
   column: DeckColumn<UserId>,
   index: number,
+  channels: ReadonlyMap<string, NostrEvent>,
+  relayUrl: string,
 ): ColumnDef | undefined => {
-  if (column.kind === "user") return buildUserColumn(pubkeyFor(column.user));
-  const built = buildColumn(
-    column.kind,
-    column.kind === "search" ? column.query : "",
-  );
+  let built: ColumnDef | undefined;
+  switch (column.kind) {
+    case "user":
+      built = buildUserColumn(pubkeyFor(column.user));
+      break;
+    case "channel": {
+      const channelId = channels.get(column.channel)?.id;
+      if (!channelId)
+        throw new Error(`チャンネルがありません: ${column.channel}`);
+      built = buildChannelColumn(channelId, column.channel, [relayUrl]);
+      break;
+    }
+    case "follow-sets":
+      built = { id: "", title: "リスト", source: { kind: "follow-sets" } };
+      break;
+    case "follow-set":
+      built = buildFollowSetColumn(
+        pubkeyFor(column.owner),
+        column.identifier,
+        column.title,
+      );
+      break;
+    case "follow-set-info":
+      built = buildFollowSetInfoColumn(
+        pubkeyFor(column.owner),
+        column.identifier,
+        column.title,
+      );
+      break;
+    default:
+      built = buildColumn(
+        column.kind,
+        column.kind === "search" ? column.query : "",
+      );
+  }
   // 作り直すたびに id が変わると、デッキのイベントの id も変わってしまう。
-  return built && { ...built, id: `screenshot-${index}-${column.kind}` };
+  return (
+    built && {
+      ...built,
+      id: `screenshot-${index}-${column.kind}`,
+      ...(column.width ? { width: column.width } : {}),
+    }
+  );
 };
 
 /**
@@ -102,6 +149,7 @@ export const generate = (
   const setupAt = options.base - SETUP_AGE_SECONDS;
   const events: NostrEvent[] = [];
   const posts = new Map<string, NostrEvent>();
+  const channels = new Map<string, NostrEvent>();
   const need = (id: string, from: string) => {
     const event = posts.get(id);
     if (!event) {
@@ -154,6 +202,110 @@ export const generate = (
       );
     }
     if (draft) events.push(sign(id, draft, setupAt));
+  }
+
+  for (const channel of scenario.channels ?? []) {
+    if (channels.has(channel.id))
+      throw new Error(`チャンネルの id が重なっています: ${channel.id}`);
+    const createdAt = resolveTime(options.base, channel);
+    const created = sign(
+      channel.author,
+      buildChannelCreate({
+        name: channel.name,
+        about: channel.about,
+        relays: [options.relayUrl],
+      }),
+      createdAt,
+    );
+    events.push(created);
+    channels.set(channel.id, created);
+    const messages = new Map<string, NostrEvent>();
+    const orderedMessages = [...channel.messages]
+      .map((message, index) => ({
+        message,
+        index,
+        at: resolveTime(options.base, message),
+      }))
+      .sort((a, b) => a.at - b.at || a.index - b.index);
+    for (const { message, at } of orderedMessages) {
+      if (at <= createdAt)
+        throw new Error(`チャンネル「${channel.id}」より前に発言があります`);
+      const replyTo = message.replyTo
+        ? messages.get(message.replyTo)
+        : undefined;
+      if (message.replyTo && !replyTo) {
+        throw new Error(`チャンネルの返信先がありません: ${message.replyTo}`);
+      }
+      const event = sign(
+        message.author,
+        buildChannelMessage(created.id, expandMentions(message.content), {
+          relayHint: options.relayUrl,
+          ...(replyTo ? { replyTo } : {}),
+        }),
+        at,
+      );
+      events.push(event);
+      if (message.id) {
+        if (messages.has(message.id))
+          throw new Error(`発言の id が重なっています: ${message.id}`);
+        messages.set(message.id, event);
+      }
+    }
+  }
+
+  if (scenario.favoriteChannels?.length) {
+    events.push(
+      sign(
+        scenario.viewer,
+        {
+          kind: PUBLIC_CHATS_KIND,
+          tags: scenario.favoriteChannels.map((id) => {
+            const channel = channels.get(id);
+            if (!channel)
+              throw new Error(`お気に入りのチャンネルがありません: ${id}`);
+            return ["e", channel.id];
+          }),
+          content: "",
+        },
+        setupAt + 1,
+      ),
+    );
+  }
+
+  for (const set of scenario.followSets ?? []) {
+    const privateTags =
+      set.privateMembers?.map((id) => ["p", pubkeyFor(id)]) ?? [];
+    const content = privateTags.length
+      ? encryptNip44(
+          JSON.stringify(privateTags),
+          conversationKey(secretKeyFor(set.owner), pubkeyFor(set.owner)),
+          sha256(
+            utf8ToBytes(
+              `streets-screenshot/follow-set/${set.owner}/${set.identifier}`,
+            ),
+          ),
+        )
+      : "";
+    events.push(
+      sign(
+        set.owner,
+        {
+          kind: FOLLOW_SET_KIND,
+          tags: [
+            ["d", set.identifier],
+            ["title", set.title],
+            ["description", set.description],
+            ...set.publicMembers.map((id) => [
+              "p",
+              pubkeyFor(id),
+              options.relayUrl,
+            ]),
+          ],
+          content,
+        },
+        setupAt + 2,
+      ),
+    );
   }
 
   // 返信や引用は相手の id を含むので、古いものから組み立てる。
@@ -249,7 +401,9 @@ export const generate = (
 
   if (scenario.deck) {
     const columns = scenario.deck
-      .map(deckColumn)
+      .map((column, index) =>
+        deckColumn(column, index, channels, options.relayUrl),
+      )
       .filter((column): column is ColumnDef => column !== undefined);
     const viewer = scenario.viewer;
     // デッキは自分宛ての NIP-44 で暗号化して置く（Streets の同期と同じ形）。nonce も固定する。
