@@ -49,6 +49,7 @@ import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { EmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
+import { setImageDownscaling } from "../image-downscaling-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
 import { lazyPart, onceTrue, whenIdle } from "../lazy-part";
@@ -472,6 +473,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
+        return true;
+      case "deck/set-image-downscaling":
+        setImageDownscaling(event.on);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);

@@ -5,10 +5,13 @@ import {
   type Component,
   type JSX,
   Show,
+  createEffect,
   createSignal,
+  on,
   onCleanup,
   onMount,
 } from "solid-js";
+import { imageDownscaling } from "../image-downscaling-setting";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
 import type { EventSize } from "./Event";
 
@@ -103,6 +106,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
     MEDIA_MAX_EDGE,
     createNearViewport(anchor),
   );
+  createEffect(on(src, () => setLoaded(false), { defer: true }));
   return (
     <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
       <a
@@ -139,6 +143,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
                 src={url()}
                 alt=""
                 decoding="async"
+                loading={imageDownscaling() ? undefined : "lazy"}
                 class="absolute inset-0 size-full object-contain"
                 classList={{ "opacity-0": !loaded() }}
                 onLoad={(event) => {
