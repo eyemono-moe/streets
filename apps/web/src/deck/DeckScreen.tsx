@@ -93,6 +93,7 @@ import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
+import DeckEndSpace from "./DeckEndSpace";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import { relayListState } from "./relay-list";
@@ -766,6 +767,7 @@ const DeckScreen: Component<{
                                             </>
                                           )}
                                         </For>
+                                        <DeckEndSpace />
                                       </div>
                                     </div>
                                   </div>
