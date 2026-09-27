@@ -148,23 +148,25 @@ const TOOLS: Tool[] = [
     tool: "Sentry",
     terms: "https://sentry.io/terms/",
     privacy: "https://sentry.io/privacy/",
-    optOut: "設定 →「表示」→「エラーの報告」から停止できます",
-    sends: "エラーの内容と発生箇所、端末とブラウザの情報、アプリのバージョン",
-    purpose: "不具合の把握と修正のため",
+    optOut: "設定 →「表示」→「不具合と動作の速さの報告」から停止できます",
+    sends:
+      "エラーの内容と発生箇所、画面の読み込みや操作にかかった時間、端末とブラウザの情報、アプリのバージョン",
+    purpose: "不具合と動作の重さの把握と改善のため",
   },
 ];
 
 const Privacy: Component = () => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="エラー収集ツールの利用について"
-      description="本アプリでは、不具合の把握と修正を目的として、エラーの発生時にその記録を第三者が提供するツールへ送信しています。"
+      title="不具合と動作の速さを調べるツールの利用について"
+      description="本アプリでは、不具合と動作の重さの把握と改善を目的として、エラーの記録と、画面の読み込みや操作にかかった時間を、第三者が提供するツールへ送信しています。操作にかかった時間は、一部の回だけを送信します。"
     >
       <dl class="c-primary flex flex-col gap-2 text-body">
         <div class="flex flex-col gap-0.5">
           <dt class="font-600">送信する情報</dt>
           <dd>
-            エラーの内容と発生箇所、端末とブラウザの情報、アプリのバージョン。
+            エラーの内容と発生箇所、画面の読み込みや操作にかかった時間、開いていた画面の
+            URL（人や投稿を指す部分は取り除きます）、端末とブラウザの情報、アプリのバージョン。
           </dd>
         </div>
         <div class="flex flex-col gap-0.5">

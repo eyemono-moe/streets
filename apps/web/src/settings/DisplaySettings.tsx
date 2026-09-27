@@ -54,12 +54,12 @@ const DisplaySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="エラーの報告"
+        title="不具合と動作の速さの報告"
         scope="device"
-        description="不具合の発生時に、エラーの内容と端末・ブラウザの情報を開発元へ送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
+        description="不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
       >
         <Switch
-          label="エラーの報告を送信する"
+          label="不具合と動作の速さの報告を送信する"
           checked={props.errorReport}
           onChange={(on) => dispatch({ type: "deck/set-error-report", on })}
         />
