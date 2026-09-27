@@ -1,3 +1,4 @@
+import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
 import { NIP_SUPPORT } from "@streets/core/nostr/nip-support";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { type Component, For, type JSX, Show, createSignal } from "solid-js";
@@ -142,6 +143,27 @@ const NipSupport: Component = () => (
             <Show when={entry.gap}>
               <p class="c-secondary text-caption">{entry.gap}</p>
             </Show>
+          </div>
+        )}
+      </For>
+    </div>
+  </div>
+);
+
+const KindSupport: Component = () => (
+  <div class="flex flex-col gap-5">
+    <p class="c-secondary text-body">
+      「表示対応」はイベントとして表示できます。「内部利用」は設定や通信などに使いますが、イベントとして開くと未対応表示になります。
+    </p>
+    <div class="flex flex-col divide-y divide-primary">
+      <For each={KIND_SUPPORT}>
+        {(entry) => (
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2 first:pt-0">
+            <span class="c-primary min-w-16 font-600 text-body">
+              {entry.kind}
+            </span>
+            <span class="c-primary flex-1 text-body">{entry.summary}</span>
+            <span class="c-secondary text-caption">{entry.status}</span>
           </div>
         )}
       </For>
@@ -344,6 +366,13 @@ const AboutDialog: Component<{
       icon: "i-material-symbols:fact-check-outline-rounded",
       title: "対応している NIP",
       content: () => <NipSupport />,
+    },
+    {
+      value: "kinds",
+      label: "対応しているイベント",
+      icon: "i-material-symbols:deployed-code-outline-rounded",
+      title: "対応しているイベント",
+      content: () => <KindSupport />,
     },
     {
       value: "privacy",

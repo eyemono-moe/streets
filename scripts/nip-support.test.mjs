@@ -5,15 +5,49 @@ import test from "node:test";
 import {
   docsPath,
   readInventory,
+  readKindInventory,
   renderNipSupport,
   root,
   validateInventory,
+  validateKindInventory,
 } from "./nip-support.mjs";
 
 test("対応 NIP の一覧とドキュメントが一致する", async () => {
   const inventory = await readInventory();
+  const kinds = await readKindInventory();
   await validateInventory(inventory);
-  assert.equal(await readFile(docsPath, "utf8"), renderNipSupport(inventory));
+  validateKindInventory(inventory, kinds);
+  assert.equal(
+    await readFile(docsPath, "utf8"),
+    renderNipSupport(inventory, kinds),
+  );
+});
+
+test("表示対応の kind は Event の分岐で専用表示される", async () => {
+  const kinds = await readKindInventory();
+  const source = await readFile(
+    path.join(root, "apps/web/src/note/Event.tsx"),
+    "utf8",
+  );
+  const dispatch = source.slice(
+    source.indexOf("const EventContent:"),
+    source.indexOf("const StandardEvent:"),
+  );
+  assert.ok(dispatch.startsWith("const EventContent:"));
+  assert.ok(dispatch.includes("const EventBody:"));
+  const rendered = new Set(
+    [...dispatch.matchAll(/<Match\s+when=\{([^}]+)\}/g)].flatMap((match) =>
+      [...match[1].matchAll(/props\.event\.kind === (\d+)/g)].map((kind) =>
+        Number(kind[1]),
+      ),
+    ),
+  );
+  const declared = new Set(
+    kinds
+      .filter((entry) => entry.status === "表示対応")
+      .map((entry) => entry.kind),
+  );
+  assert.deepEqual(rendered, declared);
 });
 
 test("core の kind 定数に対応する NIP が一覧にある", async () => {

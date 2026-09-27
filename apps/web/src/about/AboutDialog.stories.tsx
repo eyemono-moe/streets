@@ -104,3 +104,11 @@ export const 対応しているNIP: S = { args: { initialPage: "nips" } };
 export const 対応しているNIP_狭い画面: S = {
   args: { wide: false, initialPage: "nips" },
 };
+
+export const 対応しているイベント: S = {
+  args: { initialPage: "kinds" },
+};
+
+export const 対応しているイベント_狭い画面: S = {
+  args: { wide: false, initialPage: "kinds" },
+};

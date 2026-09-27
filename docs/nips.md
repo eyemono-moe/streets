@@ -1,6 +1,6 @@
 # Streets の NIP 対応
 
-この表は `packages/core/src/nostr/nip-support.json` から生成する。画面の「Streets について」も同じデータを使う。`対応` は記載した機能の範囲で扱えること、`一部` は仕様の一部を扱うことを表す。NIP の全文への準拠を保証する表ではない。
+この表は `packages/core/src/nostr/nip-support.json` と `kind-support.json` から生成する。画面の「Streets について」も同じデータを使う。NIP の `対応` は記載した機能の範囲で扱えること、`一部` は仕様の一部を扱うことを表す。NIP の全文への準拠を保証する表ではない。
 
 NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残る差を更新する。生成は `vp run nips:generate`。
 
@@ -36,3 +36,39 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) | 対応 | デッキ設定をアカウントに保存 | 30078 | `d` | [`deck.ts`](../packages/core/src/deck/deck.ts)<br>[`create-nip78-document.ts`](../packages/core/src/solid/create-nip78-document.ts) | — |
 | [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) | 一部 | 添付画像・動画の情報を投稿に添える | 1 | `imeta` | [`imeta.ts`](../packages/core/src/nostr/imeta.ts)<br>[`media.ts`](../packages/core/src/nostr/build/media.ts) | 扱うメディア情報は画面に必要な項目に限る |
 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) | 一部 | Blossom サーバーの一覧とファイルのアップロード | 10063, 24242 | `server`, `t`, `x`, `expiration` | [`blossom.ts`](../packages/core/src/media/blossom.ts) | BUD の全操作やダウンロード管理は扱わない |
+
+## kind ごとの対応
+
+`表示対応` は `Event` に渡したとき専用の表示がある。`内部利用` は読み書きなどに使うが、`Event` に渡すと未対応表示になる。`未対応` は現在扱わない。NIP の対応状態と kind の表示対応は別の意味を持つ。
+
+| kind | 対応 | 内容 | 関連する NIP |
+| --- | --- | --- | --- |
+| 0 | 表示対応 | プロフィール | [NIP-05](https://github.com/nostr-protocol/nips/blob/master/05.md), [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) |
+| 1 | 表示対応 | 投稿 | [NIP-10](https://github.com/nostr-protocol/nips/blob/master/10.md), [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md), [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md), [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md), [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) |
+| 3 | 内部利用 | フォローリスト | [NIP-02](https://github.com/nostr-protocol/nips/blob/master/02.md) |
+| 5 | 内部利用 | 削除依頼 | [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) |
+| 6 | 表示対応 | リポスト | [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) |
+| 7 | 表示対応 | リアクション | [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) |
+| 16 | 表示対応 | 汎用リポスト | [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) |
+| 40 | 表示対応 | チャンネルの作成 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 41 | 表示対応 | チャンネル情報の更新 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 42 | 表示対応 | チャンネルの発言 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 43 | 内部利用 | チャンネルの発言の非表示 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 44 | 内部利用 | チャンネルのミュート | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 9734 | 内部利用 | Zap の依頼 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
+| 9735 | 内部利用 | Zap の受領 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
+| 10000 | 内部利用 | ミュートリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 10002 | 内部利用 | リレーリスト | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) |
+| 10003 | 内部利用 | ブックマークリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 10005 | 内部利用 | 公開鍵のリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 10007 | 内部利用 | 検索リレーのリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 10030 | 内部利用 | 絵文字リスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 10063 | 内部利用 | Blossom サーバーのリスト | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
+| 22242 | 未対応 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
+| 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
+| 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
+| 30000 | 内部利用 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 30023 | 未対応 | 長文記事 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) |
+| 30030 | 内部利用 | 絵文字セット | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) |
+| 30078 | 内部利用 | アプリの設定 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) |
+| 30166 | 内部利用 | リレーの計測情報 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) |
