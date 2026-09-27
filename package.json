@@ -22,6 +22,7 @@
     "ja:extract": "node scripts/ja-text-extract.mjs",
     "ja:apply": "node scripts/ja-text-apply.mjs",
     "nips:generate": "node scripts/generate-nips.mjs",
+    "nips:scan": "node scripts/scan-nips.mjs",
     "prepare": "vp config"
   },
   "devDependencies": {
