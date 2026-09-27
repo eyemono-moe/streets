@@ -37,6 +37,12 @@ export const emptyColumnStack = (): ColumnStackState => ({
 export const openLayers = (state: ColumnStackState): StackLayer[] =>
   state.layers.filter((layer) => layer.open);
 
+/** いま見えているカラム。開いている一番上の段、無ければ下のカラムそのもの。 */
+export const shownColumn = (
+  state: ColumnStackState,
+  base: ColumnDef,
+): ColumnDef => openLayers(state).at(-1)?.column ?? base;
+
 export const columnStackTransition = (
   state: ColumnStackState,
   event: ColumnStackEvent,

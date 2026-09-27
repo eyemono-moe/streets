@@ -4,12 +4,13 @@ import {
   columnStackTransition,
   emptyColumnStack,
   openLayers,
+  shownColumn,
 } from "@streets/core/deck/column-stack";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import { type Component, For, Show } from "solid-js";
+import { type Component, For, Show, createEffect } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import ColumnContent from "../columns/ColumnContent";
 import {
@@ -35,6 +36,8 @@ export type ColumnProps = {
   temporary?: boolean;
   chrome?: boolean;
   stacked?: StackedColumn;
+  /** 見えているカラム（重ねた一番上の段、無ければこのカラム）が変わった。 */
+  onShown?: (id: string, shown: ColumnDef) => void;
 };
 
 /** 共通の枠とスタックを持ち、カラム固有の本文は `ColumnContent` に委ねる。 */
@@ -59,6 +62,11 @@ const Column: Component<ColumnProps> = (props) => {
     }
   };
   const opened = () => openLayers(stack).length > 0;
+  createEffect(() => {
+    if (!props.stacked) {
+      props.onShown?.(props.column.id, shownColumn(stack, props.column));
+    }
+  });
 
   let scroller: HTMLDivElement | undefined;
   const scrollToTop = () =>

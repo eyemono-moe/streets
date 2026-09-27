@@ -79,6 +79,11 @@ type ColumnView<S> = {
   avatar?: (source: S) => string;
   /** 中身が自分でスクロールする（タブの中身だけを動かす）。 */
   scrollsInternally?: boolean;
+  /**
+   * 中身の下に自分の入力欄を持つ。狭い画面では、右下に浮かぶ投稿ボタンが入力欄の
+   * 送信ボタンに重なるので、このカラムを見ている間は出さない。
+   */
+  ownComposer?: boolean;
   /** ブロックを組み合わせた中身。 */
   Content: Component<{ source: S; inputs: ColumnInputs }>;
   /** 見出しの右に置く、その種類だけの操作（チャンネルのお気に入りなど）。 */
@@ -438,6 +443,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       </>
     ),
     scrollsInternally: true,
+    ownComposer: true,
     Content: (props) => (
       <ChannelChat
         channelId={props.source.id}
