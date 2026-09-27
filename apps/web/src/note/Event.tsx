@@ -47,7 +47,14 @@ import UserLink from "./UserLink";
  */
 export type EventSize = "normal" | "compact";
 
-const MAX_CONTENT_HEIGHT = 400;
+/**
+ * 本文を畳み始める高さ。compact は引用や高密度のカラムで並ぶので、
+ * 1 件がカラムを占めないよう normal より低くする。
+ */
+const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
+  normal: 400,
+  compact: 240,
+};
 
 type ContentProps = {
   event: NostrEvent;
@@ -245,11 +252,12 @@ const Quote: Component<{ quote: EventRef }> = (props) => (
 );
 
 /** 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。 */
-const CollapsibleBody: ParentComponent = (props) => {
+const CollapsibleBody: ParentComponent<{ size: EventSize }> = (props) => {
   const [body, setBody] = createSignal<HTMLDivElement>();
   const [height, setHeight] = createSignal(0);
   const [expanded, setExpanded] = createSignal(false);
-  const overflows = () => height() >= MAX_CONTENT_HEIGHT;
+  const maxHeight = () => MAX_CONTENT_HEIGHT[props.size];
+  const overflows = () => height() >= maxHeight();
 
   createEffect(() => {
     const element = body();
@@ -262,7 +270,7 @@ const CollapsibleBody: ParentComponent = (props) => {
         ref={setBody}
         class="overflow-hidden"
         style={{
-          "max-height": expanded() ? "none" : `${MAX_CONTENT_HEIGHT}px`,
+          "max-height": expanded() ? "none" : `${maxHeight()}px`,
         }}
       >
         {props.children}
@@ -304,16 +312,16 @@ export const NoteContent: Component<{
   return (
     <>
       <Show when={layout().text.length > 0}>
-        <Show
-          when={props.size === "normal"}
-          fallback={
-            <NoteText tokens={layout().text} class="c-primary text-[14px]" />
-          }
-        >
-          <CollapsibleBody>
-            <NoteText tokens={layout().text} class="c-primary text-body" />
-          </CollapsibleBody>
-        </Show>
+        <CollapsibleBody size={props.size}>
+          <NoteText
+            tokens={layout().text}
+            class="c-primary"
+            classList={{
+              "text-body": props.size === "normal",
+              "text-[14px]": props.size === "compact",
+            }}
+          />
+        </CollapsibleBody>
       </Show>
       <For each={layout().media}>
         {(item, index) => (
