@@ -61,47 +61,48 @@ const ChatComposer: Component<{
         attachments={props.state.attachments}
         disabled={props.state.sending}
       />
-      <div class="flex items-end gap-1.5">
+      {/* 狭いカラムでも書く欄を広く取れるよう、欄を上に、操作を下の行に置く。 */}
+      <Completion sources={sources} label="入れる候補">
+        {(attach) => (
+          <textarea
+            ref={(element) => {
+              attach(element);
+              emojiInsertion.ref(element);
+            }}
+            rows={1}
+            aria-label={`${props.channelName} にメッセージを送信`}
+            class="c-primary placeholder:c-secondary max-h-40 min-h-9 w-full resize-none rounded-2 border border-secondary bg-primary px-3 py-1.5 text-body outline-none placeholder:truncate focus-visible:ring-2 focus-visible:ring-accent-5"
+            // 空の間は置き文字に合わせて伸ばさない。狭いカラムで置き文字が折り返し、
+            // 何も書いていないのに欄が 2 行になる。
+            classList={{
+              "[field-sizing:content]": props.state.content !== "",
+            }}
+            disabled={props.state.sending}
+            placeholder="このチャンネルにメッセージを送信"
+            value={props.state.content}
+            onInput={(event) =>
+              dispatch({
+                type: "compose/input",
+                content: event.currentTarget.value,
+              })
+            }
+            {...dropAndPaste}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                dispatch({ type: "compose/submit" });
+              }
+            }}
+          />
+        )}
+      </Completion>
+      <div class="flex items-center gap-1">
         <ImageButton />
         <ComposeEmojiPicker
           disabled={props.state.sending}
           onSelect={emojiInsertion.insert}
           field={emojiInsertion.field}
         />
-        <Completion sources={sources} label="入れる候補">
-          {(attach) => (
-            <textarea
-              ref={(element) => {
-                attach(element);
-                emojiInsertion.ref(element);
-              }}
-              rows={1}
-              aria-label={`${props.channelName} にメッセージを送信`}
-              class="c-primary placeholder:c-secondary max-h-40 min-h-9 min-w-0 flex-1 resize-none rounded-2 border border-secondary bg-primary px-3 py-1.5 text-body outline-none placeholder:truncate focus-visible:ring-2 focus-visible:ring-accent-5"
-              // 空の間は置き文字に合わせて伸ばさない。狭いカラムで置き文字が折り返し、
-              // 何も書いていないのに欄が 2 行になる。
-              classList={{
-                "[field-sizing:content]": props.state.content !== "",
-              }}
-              disabled={props.state.sending}
-              placeholder="このチャンネルにメッセージを送信"
-              value={props.state.content}
-              onInput={(event) =>
-                dispatch({
-                  type: "compose/input",
-                  content: event.currentTarget.value,
-                })
-              }
-              {...dropAndPaste}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                  event.preventDefault();
-                  dispatch({ type: "compose/submit" });
-                }
-              }}
-            />
-          )}
-        </Completion>
         <IconButton
           type="submit"
           variant="primary"
@@ -109,6 +110,7 @@ const ChatComposer: Component<{
           label="送る"
           size="md"
           circle
+          class="ml-auto"
           disabled={props.state.sending || !canSend(props.state)}
         />
       </div>
