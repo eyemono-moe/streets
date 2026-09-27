@@ -1,4 +1,5 @@
 import { type Component, Show } from "solid-js";
+import { imageDownscaling } from "../image-downscaling-setting";
 import { useMediaServers } from "./MediaMediator";
 import MediaSettingsView from "./MediaSettingsView";
 
@@ -12,6 +13,7 @@ const MediaSettings: Component = () => {
           servers={media().servers()}
           saving={media().saving()}
           chosen={media().chosen()}
+          imageDownscaling={imageDownscaling()}
         />
       )}
     </Show>

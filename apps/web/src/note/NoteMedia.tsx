@@ -94,15 +94,19 @@ type MediaViewProps = {
 
 const MediaImage: Component<MediaViewProps> = (props) => {
   const [broken, setBroken] = createSignal(false);
-  const [loaded, setLoaded] = createSignal(false);
+  const [loadedSrc, setLoadedSrc] = createSignal<string>();
+  const [revealedSrc, setRevealedSrc] = createSignal<string>();
   const [actual, setActual] = createSignal<Dimensions>();
   const [anchor, setAnchor] = createSignal<HTMLAnchorElement>();
+  let revealTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(revealTimer));
   // 表示の大きさに縮めてから読む。押して開いたときは、ビューアが元の画像を読む。
   const src = createDisplayImage(
     () => props.media.url,
     MEDIA_MAX_EDGE,
     createNearViewport(anchor),
   );
+  const loaded = () => src() !== undefined && src() === loadedSrc();
   return (
     <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
       <a
@@ -130,7 +134,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
         <MediaFrame
           media={props.media}
           size={props.size}
-          loaded={loaded()}
+          loaded={loaded() && revealedSrc() === src()}
           actual={actual()}
         >
           <Show when={src()}>
@@ -139,14 +143,21 @@ const MediaImage: Component<MediaViewProps> = (props) => {
                 src={url()}
                 alt=""
                 decoding="async"
-                class="absolute inset-0 size-full object-contain"
+                class="absolute inset-0 size-full object-contain transition-opacity duration-100"
                 classList={{ "opacity-0": !loaded() }}
                 onLoad={(event) => {
                   // 縮めた画像でも縦横の比は元と同じ。
                   const { naturalWidth: width, naturalHeight: height } =
                     event.currentTarget;
                   if (width > 0 && height > 0) setActual({ width, height });
-                  setLoaded(true);
+                  const url = event.currentTarget.getAttribute("src");
+                  setLoadedSrc(url ?? undefined);
+                  clearTimeout(revealTimer);
+                  // フェード中は Blurhash を下に残す。終わってから Canvas を外す。
+                  revealTimer = setTimeout(
+                    () => setRevealedSrc(url ?? undefined),
+                    140,
+                  );
                 }}
                 onError={() => setBroken(true)}
               />

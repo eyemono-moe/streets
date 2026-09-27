@@ -14,6 +14,7 @@ import {
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import ToggleSwitch from "../ui/Switch";
 import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
@@ -22,47 +23,64 @@ export type MediaSettingsViewProps = {
   saving: boolean;
   /** 自分で選んだ一覧か。false なら既定をそのまま使っている。 */
   chosen: boolean;
+  imageDownscaling: boolean;
 };
 
-/** 画像のアップロード先の設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
-const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => (
-  <div class="flex flex-col gap-7">
-    <SettingsSection
-      title="画像のアップロード先"
-      scope="account"
-      description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。"
-    >
-      <Show when={!props.chosen && props.servers.length > 0}>
-        <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
-          まだ自分で選んでいません。いまは下のアップロード先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
-        </p>
-      </Show>
-      <Switch>
-        <Match when={props.servers.length === 0}>
-          <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-            アップロード先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
-            を入れてください。
+/** 画像の設定。今の値を受け取って描き、変えたらイベントを上へ渡す。 */
+const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <div class="flex flex-col gap-7">
+      <SettingsSection
+        title="画像の表示"
+        scope="device"
+        description="オンにすると、画像を画面に合う大きさに縮めてから表示します。使うメモリが減り、動作が軽くなる可能性がありますが、最初の表示は遅くなります。オフにすると、元の画像をそのまま読むため、最初の表示は早くなりますが、メモリを多く使う場合があります。"
+      >
+        <ToggleSwitch
+          label="画像を縮めて表示する"
+          checked={props.imageDownscaling}
+          onChange={(on) =>
+            dispatch({ type: "deck/set-image-downscaling", on })
+          }
+        />
+      </SettingsSection>
+      <SettingsSection
+        title="画像のアップロード先"
+        scope="account"
+        description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。"
+      >
+        <Show when={!props.chosen && props.servers.length > 0}>
+          <p class="c-secondary rounded-2 bg-secondary p-3 text-caption">
+            まだ自分で選んでいません。いまは下のアップロード先を、上から順に使っています。外したり足したりすると、その一覧を自分の設定として保存します。
           </p>
-        </Match>
-        <Match when={true}>
-          <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
-            <For each={props.servers}>
-              {(server, index) => (
-                <ServerRow
-                  server={server}
-                  primary={index() === 0}
-                  disabled={props.saving}
-                />
-              )}
-            </For>
-          </ul>
-        </Match>
-      </Switch>
-      <Recommended servers={props.servers} disabled={props.saving} />
-      <AddServer servers={props.servers} disabled={props.saving} />
-    </SettingsSection>
-  </div>
-);
+        </Show>
+        <Switch>
+          <Match when={props.servers.length === 0}>
+            <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
+              アップロード先がありません。このままでは画像を添えられません。下のおすすめから足すか、URL
+              を入れてください。
+            </p>
+          </Match>
+          <Match when={true}>
+            <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
+              <For each={props.servers}>
+                {(server, index) => (
+                  <ServerRow
+                    server={server}
+                    primary={index() === 0}
+                    disabled={props.saving}
+                  />
+                )}
+              </For>
+            </ul>
+          </Match>
+        </Switch>
+        <Recommended servers={props.servers} disabled={props.saving} />
+        <AddServer servers={props.servers} disabled={props.saving} />
+      </SettingsSection>
+    </div>
+  );
+};
 
 const ServerRow: Component<{
   server: BlossomServer;

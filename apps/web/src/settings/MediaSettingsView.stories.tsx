@@ -11,12 +11,16 @@ type Args = {
   servers: BlossomServer[];
   saving: boolean;
   chosen: boolean;
+  imageDownscaling: boolean;
   width: number;
 };
 
 /** アプリでは MediaMediator が裁定するイベントを、ここで手元の一覧に当てる。 */
 const Story = (props: Args) => {
   const [servers, setServers] = createSignal(props.servers);
+  const [imageDownscaling, setImageDownscaling] = createSignal(
+    props.imageDownscaling,
+  );
   return (
     <Mediates
       handle={(event) => {
@@ -28,6 +32,10 @@ const Story = (props: Args) => {
           setServers((current) => current.filter((s) => s !== event.url));
           return true;
         }
+        if (event.type === "deck/set-image-downscaling") {
+          setImageDownscaling(event.on);
+          return true;
+        }
         return false;
       }}
     >
@@ -36,6 +44,7 @@ const Story = (props: Args) => {
           servers={servers()}
           saving={props.saving}
           chosen={props.chosen}
+          imageDownscaling={imageDownscaling()}
         />
       </div>
     </Mediates>
@@ -43,12 +52,13 @@ const Story = (props: Args) => {
 };
 
 const meta = {
-  title: "設定/画像のアップロード先",
+  title: "設定/画像",
   component: Story,
   args: {
     servers: ["https://blossom.example", "https://backup.example"],
     saving: false,
     chosen: true,
+    imageDownscaling: true,
     width: 660,
   },
   argTypes: { servers: { control: false } },
@@ -58,6 +68,9 @@ export default meta;
 type S = StoryObj<typeof meta>;
 
 export const いつもの: S = {};
+export const 縮小を切ったとき: S = {
+  args: { imageDownscaling: false },
+};
 /** まだ自分で選んでいない人。既定のアップロード先をそのまま使っている。 */
 export const 既定のまま: S = {
   args: { chosen: false, servers: [...DEFAULT_BLOSSOM_SERVERS] },

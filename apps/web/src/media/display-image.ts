@@ -5,6 +5,7 @@ import {
   on,
   onCleanup,
 } from "solid-js";
+import { imageDownscaling } from "../image-downscaling-setting";
 import type { DownscaleReply, DownscaleRequest } from "./downscale.worker";
 
 /**
@@ -129,8 +130,9 @@ const acquire = (url: string, maxEdge: number): Entry => {
 
 /**
  * 表示の大きさに縮めた画像の URL。縮め終えるまでは `undefined`。`active` が
- * true になるまで（画面に近づくまで）取りに行かない。縮められないもの（CORS を
- * 許していないホスト・動く画像・もともと小さい画像）は元の URL を返す。
+ * true になるまで（画面に近づくまで）取りに行かない。設定で縮小を切ったとき、
+ * または縮められないもの（CORS を許していないホスト・動く画像・もともと小さい
+ * 画像）は元の URL を返す。
  */
 export const createDisplayImage = (
   url: Accessor<string | undefined>,
@@ -139,13 +141,14 @@ export const createDisplayImage = (
 ): Accessor<string | undefined> => {
   const [src, setSrc] = createSignal<string>();
   createEffect(
-    on([url, active], ([current, ready]) => {
+    on([url, active, imageDownscaling], ([current, ready, enabled]) => {
       setSrc(undefined);
-      if (!current || !ready) return;
-      if (!/^https?:/.test(current)) {
+      if (!current) return;
+      if (!enabled || !/^https?:/.test(current)) {
         setSrc(current);
         return;
       }
+      if (!ready) return;
       const entry = acquire(current, maxEdge);
       let alive = true;
       void entry.src.then((resolved) => {

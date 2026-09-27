@@ -143,6 +143,8 @@ export type DeckEvent =
   | { type: "deck/set-appearance"; appearance: DeckAppearance }
   /** 保存の進み具合を出すか。この端末に保存する。 */
   | { type: "deck/set-write-progress"; on: boolean }
+  /** 画像を表示サイズに縮めるか。この端末に保存する。 */
+  | { type: "deck/set-image-downscaling"; on: boolean }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */
