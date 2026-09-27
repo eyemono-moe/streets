@@ -113,3 +113,18 @@ describe("チャンネルとユーザーリストの撮影データ", () => {
     ]);
   });
 });
+
+describe("all-in の撮影データ", () => {
+  it("個別シナリオのイベントを重複なくすべて含む", () => {
+    const combined = generate(scenarios["all-in"], options);
+    const ids = new Set(combined.map((event) => event.id));
+    expect(ids.size).toBe(combined.length);
+    for (const [name, scenario] of Object.entries(scenarios)) {
+      if (name === "all-in") continue;
+      for (const event of generate(scenario, options)) {
+        // デッキだけは各シナリオで構成が異なる。
+        if (event.kind !== 30078) expect(ids.has(event.id)).toBe(true);
+      }
+    }
+  });
+});

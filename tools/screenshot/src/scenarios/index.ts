@@ -1,4 +1,5 @@
 import type { AppScenario } from "../scenario";
+import { allInScenario } from "./all-in";
 import channelsAndLists from "./channels-and-lists";
 import home from "./home";
 import manyColumns from "./many-columns";
@@ -8,7 +9,7 @@ import profile from "./profile";
 import thread from "./thread";
 
 /** シナリオの一覧。新しいシナリオはここに足す。キーがコマンドで指す名前。 */
-export const scenarios = {
+const individualScenarios = {
   home,
   notifications,
   thread,
@@ -17,5 +18,10 @@ export const scenarios = {
   media,
   "channels-and-lists": channelsAndLists,
 } satisfies Record<string, AppScenario>;
+
+export const scenarios = {
+  ...individualScenarios,
+  "all-in": allInScenario(Object.values(individualScenarios)),
+};
 
 export type ScenarioName = keyof typeof scenarios;
