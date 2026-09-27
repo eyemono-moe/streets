@@ -13,7 +13,14 @@ disable-model-invocation: true
 1. **範囲を決める**。`git fetch --tags origin` の後、`git describe --tags --abbrev=0 origin/main` で前のタグを得る。タグが無ければ最初のリリース（v1.0.0）で、範囲は v1 の全体。
    完了：前のタグ（または「無し」）と、範囲の終わりのコミット（`origin/main` の先端）が決まっている。
 
-2. **PR を集める**。範囲の first-parent のマージ（`git log --first-parent --merges <前のタグ>..origin/main`）から PR の番号を拾い、`gh pr view <番号> --json title,body,labels,closingIssuesReferences` で中身を読む。
+2. **PR を集める**。範囲のマージではないすべてのコミットから、それを入れた PR を引く。
+   ```sh
+   for c in $(git log --no-merges --format=%H <前のタグ>..origin/main); do
+     gh api repos/eyemono-moe/streets/commits/$c/pulls --jq '.[] | select(.merged_at != null) | "\(.number) \(.title)"'
+   done | sort -u
+   ```
+   マージコミットだけを見ると、マージコミットを残さずに入った PR（積み重ねた PR の土台、rebase で入れたもの）を落とす。積み重ねた PR の上の段は、コミットが土台の PR にも数えられて出てこないことがあるので、`git log --first-parent --merges <前のタグ>..origin/main` のマージの PR も足す。
+   集めた PR は `gh pr view <番号> --json title,body,labels,closingIssuesReferences` で中身を読む。PR の本文と、入ったコミットの中身が食い違うことがある（積み重ねた PR をまとめて入れたときなど）。そのときは `git log` のコミットで確かめる。
    完了：範囲のすべての PR が「ノートに書く」か「書かない（理由つき）」のどちらかに振り分けてある。書かないのは、利用者から見て何も変わらないもの（リファクタ、テスト、CI、開発者向けの文書、ストーリーだけの変更）。
 
 3. **版の番号を提案する**。利用者から見た変化で決める。
