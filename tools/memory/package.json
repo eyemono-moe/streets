@@ -1,0 +1,19 @@
+{
+  "name": "@streets/memory",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "test": "vp test"
+  },
+  "dependencies": {
+    "@streets/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "24",
+    "tsx": "^4.23.15",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:"
+  }
+}

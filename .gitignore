@@ -58,3 +58,4 @@ tmp
 # wrangler dev の作業用フォルダ
 .wrangler/
 tools/screenshot/.out/
+tools/memory/.out/
