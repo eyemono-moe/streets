@@ -1,18 +1,11 @@
+import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import { DEFAULT_SEARCH_RELAYS } from "@streets/core/settings/search-relay-list";
-import {
-  type Component,
-  For,
-  Match,
-  Show,
-  Switch,
-  createSignal,
-} from "solid-js";
+import { type Component, For, Match, Show, Switch } from "solid-js";
+import RelayInput from "../deck/RelayInput";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
-import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
 export type SearchSettingsViewProps = {
@@ -20,6 +13,10 @@ export type SearchSettingsViewProps = {
   saving: boolean;
   /** 自分で選んだ一覧か。false なら既定をそのまま使っている。 */
   chosen: boolean;
+  /** 足す欄の候補にする、自分のアカウントで使っているリレー。 */
+  account: readonly RelayListEntry[];
+  /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
+  followeeWriteRelays?: readonly (readonly RelayUrl[])[];
 };
 
 /** 検索するリレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
@@ -51,7 +48,12 @@ const SearchSettingsView: Component<SearchSettingsViewProps> = (props) => (
         </Match>
       </Switch>
       <Recommended relays={props.relays} disabled={props.saving} />
-      <AddRelay relays={props.relays} disabled={props.saving} />
+      <AddRelay
+        relays={props.relays}
+        account={props.account}
+        followeeWriteRelays={props.followeeWriteRelays}
+        disabled={props.saving}
+      />
     </SettingsSection>
   </div>
 );
@@ -112,81 +114,24 @@ const Recommended: Component<{
 
 const AddRelay: Component<{
   relays: readonly RelayUrl[];
+  account: readonly RelayListEntry[];
+  followeeWriteRelays: readonly (readonly RelayUrl[])[] | undefined;
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [input, setInput] = createSignal("");
-  const [error, setError] = createSignal<string>();
-
-  const submit = () => {
-    const text = input().trim();
-    if (text === "") {
-      setError("リレーの URL を入力してください");
-      return;
-    }
-    // `wss://` を省いて打つ人が多いので補う。
-    const url = normalizeRelayUrl(
-      /^wss?:\/\//i.test(text) ? text : `wss://${text}`,
-    );
-    if (!url) {
-      setError("wss:// で始まる URL を入力してください");
-      return;
-    }
-    if (props.relays.includes(url)) {
-      setError("このリレーはもう入っています");
-      return;
-    }
-    dispatch({ type: "search-relays/add", url });
-    setInput("");
-    setError(undefined);
-  };
-
   return (
-    <form
-      class="flex flex-col gap-1.5"
-      onSubmit={(event) => {
-        event.preventDefault();
-        submit();
-      }}
-    >
-      <div class="flex flex-wrap items-center gap-2">
-        <input
-          class={`${textInputClass} min-w-48 flex-1`}
-          placeholder="wss://search.example"
-          aria-label="足す検索リレーの URL"
-          aria-invalid={error() !== undefined}
-          aria-describedby={error() ? "search-relay-error" : undefined}
-          value={input()}
-          disabled={props.disabled}
-          onInput={(event) => {
-            setInput(event.currentTarget.value);
-            setError(undefined);
-          }}
-        />
-        <Button
-          type="submit"
-          variant="primary"
-          icon="i-material-symbols:add-rounded"
-          disabled={props.disabled}
-        >
-          追加
-        </Button>
-      </div>
-      <Show
-        when={error()}
-        fallback={
-          <p class="c-secondary text-caption">
-            検索に対応していないリレーを入れても、そこからは結果が返りません。
-          </p>
-        }
-      >
-        {(message) => (
-          <p id="search-relay-error" class="c-danger text-caption">
-            {message()}
-          </p>
-        )}
-      </Show>
-    </form>
+    <div class="flex flex-col gap-1.5">
+      <RelayInput
+        account={props.account}
+        followeeWriteRelays={props.followeeWriteRelays}
+        selected={props.relays}
+        disabled={props.disabled}
+        onAdd={(url) => dispatch({ type: "search-relays/add", url })}
+      />
+      <p class="c-secondary text-caption">
+        検索に対応していないリレーを入れても、そこからは結果が返りません。
+      </p>
+    </div>
   );
 };
 
