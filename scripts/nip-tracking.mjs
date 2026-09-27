@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { kindReferences } from "./kind-refs.mjs";
 import { readInventory, readKindInventory } from "./nip-support.mjs";
 
 const NIP_FILE = /^([0-9A-F]{2})\.md$/;
@@ -67,7 +68,14 @@ export const scanNips = async ({ repo, base, head, output }) => {
   });
   const inventory = await readInventory();
   const kinds = await readKindInventory();
+  const references = await kindReferences();
   const items = impactedNips(semantic, inventory, kinds);
+  for (const item of items) {
+    item.kindPaths = item.kinds.map(({ kind }) => ({
+      kind,
+      paths: references.get(kind) ?? [],
+    }));
+  }
   const patches = items.map((item) => ({
     ...item,
     patch: git(repo, "diff", "--unified=8", base, head, "--", `${item.nip}.md`),
@@ -120,7 +128,14 @@ export const renderImpactReport = (report) =>
       `- Streets の機能: ${item.summary}`,
       `- kind: ${item.kinds.map(({ kind, status }) => `${kind}（${status}）`).join(", ") || "該当なし"}`,
       `- タグ: ${item.tags.join(", ") || "該当なし"}`,
-      `- 実装候補: ${item.paths.join(", ") || "対応表に記載なし"}`,
+      `- 主な実装（対応表に手動で記録）: ${item.paths.join(", ") || "対応表に記載なし"}`,
+      "- kind の直接参照（静的検出。呼び出し先の機能までは追わない）:",
+      ...((item.kindPaths ?? []).length > 0
+        ? item.kindPaths.map(
+            ({ kind, paths }) =>
+              `  - ${kind}: ${paths.join(", ") || "検出なし"}`,
+          )
+        : ["  - 該当なし"]),
       `- 既知の差: ${item.gap || "なし"}`,
       `- 差分: .nip-tracking/patches/${item.nip}.patch`,
       `- 更新後の本文: .nip-tracking/nips/${item.nip}.md（削除された NIP では存在しない）`,
