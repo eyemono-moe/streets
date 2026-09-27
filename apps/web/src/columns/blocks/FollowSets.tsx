@@ -4,7 +4,7 @@ import {
   followSetSource,
   followSetsIncludingSource,
 } from "@streets/core/deck/column-sources";
-import type { ColumnDef } from "@streets/core/deck/deck";
+import { type ColumnDef, columnShow } from "@streets/core/deck/deck";
 import {
   type FollowSet,
   followSetName,
@@ -25,7 +25,7 @@ import FollowSetInfoView from "../../lists/FollowSetInfoView";
 import FollowSetListView from "../../lists/FollowSetListView";
 import { useFollowSets } from "../../lists/FollowSetMediator";
 import { useDispatch } from "../../ui-events";
-import { createBlockSection } from "../column-scope";
+import { createBlockSection, useColumnScope } from "../column-scope";
 import EventList from "./EventList";
 
 /**
@@ -129,6 +129,7 @@ export const FollowSetTimeline: Component<{
   pubkey: string;
   identifier: string;
 }> = (props) => {
+  const scope = useColumnScope();
   const list = useFollowSet(props.pubkey, props.identifier);
   const members: Accessor<string[] | undefined> = () =>
     list.set()?.members.map((member) => member.pubkey);
@@ -141,7 +142,13 @@ export const FollowSetTimeline: Component<{
         </p>
       }
     >
-      <EventList source={() => followSetPostsSource(members())} />
+      <EventList
+        source={() =>
+          followSetPostsSource(members(), {
+            chats: columnShow(scope.column()).chats,
+          })
+        }
+      />
     </Show>
   );
 };

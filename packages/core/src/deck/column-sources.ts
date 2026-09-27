@@ -182,13 +182,21 @@ export const followSetsIncludingSource = (
  */
 export const followSetPostsSource = (
   members: readonly string[] | undefined,
+  /** チャンネルでの発言（kind:42）も取る。切っているときに取らない理由はホームと同じ。 */
+  options: { chats?: boolean } = {},
 ): NostrSource | undefined =>
   members === undefined
     ? undefined
     : {
         type: "nostr",
         filters: [
-          { kinds: [...TIMELINE_KINDS], authors: [...new Set(members)] },
+          {
+            kinds: [
+              ...TIMELINE_KINDS,
+              ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+            ],
+            authors: [...new Set(members)],
+          },
         ],
       };
 

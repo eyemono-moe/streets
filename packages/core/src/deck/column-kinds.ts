@@ -361,9 +361,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       suffix: "",
       fallback: column.title,
     }),
-    kinds: () => TIMELINE_KINDS,
+    kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
     // ホームと同じく、選んで集めた人の流れなのでミュートを効かせる。
     hidesMuted: true,
+    togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
   },
   "follow-set-info": {

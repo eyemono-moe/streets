@@ -48,6 +48,16 @@ export const 通知: Story = {
   },
 };
 
+export const リスト: Story = {
+  args: {
+    initial: {
+      id: "l",
+      title: "よく見る人",
+      source: { kind: "follow-set", pubkey: "a".repeat(64), identifier: "x" },
+    },
+  },
+};
+
 export const ハッシュタグ: Story = {
   args: {
     initial: {

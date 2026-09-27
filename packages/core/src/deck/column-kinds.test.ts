@@ -102,6 +102,15 @@ describe("columnFacets", () => {
     );
   });
 
+  it("リストのカラムも、チャンネルでの発言を切り替えられる", () => {
+    // 捕まえる変異: リストのカラムで切れない（発言が流れないか、切れない）
+    expect(
+      columnFacets(
+        column({ kind: "follow-set", pubkey: "a", identifier: "x" }),
+      ),
+    ).toContain("chats");
+  });
+
   it("通知だけがメンションを出す", () => {
     // 捕まえる変異: メンションをどのカラムにも出す（ホームで切ると普通の投稿が消える）
     expect(columnFacets(column({ kind: "notifications" }))).toContain(
