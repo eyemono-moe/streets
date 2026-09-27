@@ -2,12 +2,9 @@ import {
   buildFolloweesColumn,
   buildFollowersColumn,
 } from "@streets/core/deck/column-presets";
-import {
-  followeesFrom,
-  followersFrom,
-  followsPubkey,
-} from "@streets/core/nostr/follow-list";
+import { followeesFrom, followsPubkey } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { createAuthorCount } from "@streets/core/solid/create-author-count";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
@@ -31,7 +28,8 @@ const ProfileHeader: Component<{
       filters: [{ kinds: [3], authors: [props.pubkey], limit: 1 }],
     }),
   });
-  const followers = createSection({
+  // フォロワーの kind:3 は 1 件で数千のタグを持つ。数えるだけなので、本体は持たない。
+  const followerCount = createAuthorCount({
     manager: props.readLayer.manager,
     source: () => ({
       type: "nostr",
@@ -41,9 +39,6 @@ const ProfileHeader: Component<{
 
   const followeeCount = createMemo(
     () => followeesFrom(followees.items()[0]).length,
-  );
-  const followerCount = createMemo(
-    () => followersFrom(followers.items()).length,
   );
   // フォロー数のために読んでいる kind:3 をそのまま使う。別に聞き直さない。
   const followsYou = () =>

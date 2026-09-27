@@ -1,3 +1,4 @@
+import { type NostrEvent, verifyEvent } from "../nostr/event";
 import type {
   RelayConnection,
   RelayFilter,
@@ -61,6 +62,16 @@ export type SectionDelivery = {
    * は代用しない (接続の失敗ではないため)。
    */
   onRelayRestarted: (relay: RelayUrl) => void;
+};
+
+/**
+ * 本体を EventStore に入れない購読の配信。数えるだけで本体を持たなくてよいもの
+ * （フォロワー数のための kind:3 など）に使う。kind:3 は 1 件で数千のタグを持つので、
+ * store に入れると数え終えた後もメモリに残り続ける。
+ */
+export type UnstoredDelivery = Omit<SectionDelivery, "onEvent"> & {
+  /** 署名を確かめた本体。複数のリレーから届いても、同じ id は 1 回だけ渡す。 */
+  onEvent: (event: NostrEvent, relay: RelayUrl) => void;
 };
 
 export type SectionHandle = {
@@ -147,6 +158,11 @@ type SectionEntry = {
    */
   explicitRelays: readonly RelayUrl[] | undefined;
   delivery: SectionDelivery;
+  /** `subscribeUnstored` で登録したときだけある。`seen` は署名を確かめ終えた id。 */
+  unstored?: {
+    onEvent: UnstoredDelivery["onEvent"];
+    seen: Set<string>;
+  };
   /** 直近の replan() で開いている購読。filters も保持する —— 同じリレーでも
    * 担当著者が変われば張り直しが要るため。 */
   opened: Map<RelayUrl, OpenSubscription>;
@@ -337,6 +353,38 @@ export class SubscriptionManager {
     relays: RelayUrl[] | undefined,
     delivery: SectionDelivery,
   ): SectionHandle {
+    const { entry, initialPlan } = this.#register(filters, relays, delivery);
+    return {
+      initialPlan,
+      fetchOlder: (page) => this.#fetchOlder(entry, page),
+      close: () => this.#close(entry),
+    };
+  }
+
+  /**
+   * `subscribe` と同じように張るが、届いたイベントを EventStore に入れず、
+   * 署名を確かめた本体をそのまま渡す。古いものの取り足し（`fetchOlder`）は無い。
+   */
+  subscribeUnstored(
+    filters: RelayFilter[],
+    relays: RelayUrl[] | undefined,
+    delivery: UnstoredDelivery,
+  ): Omit<SectionHandle, "fetchOlder"> {
+    const { entry, initialPlan } = this.#register(
+      filters,
+      relays,
+      { ...delivery, onEvent: () => {} },
+      { onEvent: delivery.onEvent, seen: new Set() },
+    );
+    return { initialPlan, close: () => this.#close(entry) };
+  }
+
+  #register(
+    filters: RelayFilter[],
+    relays: RelayUrl[] | undefined,
+    delivery: SectionDelivery,
+    unstored?: SectionEntry["unstored"],
+  ): { entry: SectionEntry; initialPlan: SectionPlan } {
     const explicitRelays =
       relays === undefined
         ? undefined
@@ -347,6 +395,7 @@ export class SubscriptionManager {
       filters,
       explicitRelays,
       delivery,
+      unstored,
       opened: new Map(),
       plan: EMPTY_PLAN,
       pendingInitialDelivery: true,
@@ -367,12 +416,7 @@ export class SubscriptionManager {
     // 以後を正当な通知として扱う。
     const initialPlan = entry.plan;
     entry.pendingInitialDelivery = false;
-
-    return {
-      initialPlan,
-      fetchOlder: (page) => this.#fetchOlder(entry, page),
-      close: () => this.#close(entry),
-    };
+    return { entry, initialPlan };
   }
 
   /** 直近の張り直しで決めた、全カラム分の読み取り先。 */
@@ -872,6 +916,16 @@ export class SubscriptionManager {
         // store.put() より前に置き、洪水対策を文字列比較で済ませる。
         if (!matchesAnyFilter(event, filters)) {
           this.#recordUnrequested(url);
+          return;
+        }
+        if (entry.unstored) {
+          // store を通らないので、store.put() がしている署名の確認をここでする。
+          // 確かめ終えた id だけを覚える —— 先に覚えると、同じ id を名乗る偽物が
+          // 先に届いたとき、本物まで落としてしまう。
+          const { seen, onEvent } = entry.unstored;
+          if (seen.has(event.id) || !verifyEvent(event)) return;
+          seen.add(event.id);
+          onEvent(event, url);
           return;
         }
         const result = this.#options.store.put(event, url);
