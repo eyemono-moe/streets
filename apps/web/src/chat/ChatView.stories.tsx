@@ -8,6 +8,7 @@ import { chatModeration } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Paging } from "@streets/core/read/source";
 import { chatRows } from "@streets/core/view/chat";
+import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ComposeMediator } from "../note/ComposeMediator";
 import avatarUrl from "../storybook/avatar-fixture.svg";
@@ -91,12 +92,51 @@ const moderation = chatModeration([
   at(viewer, 10, buildMuteUser(troll.pubkey)),
 ]);
 
+/** 1 分おきに、何人かが順に話す。`from` 分目から `count` 件。 */
+const chatter = (from: number, count: number): NostrEvent[] =>
+  Array.from({ length: count }, (_, index) => {
+    const minute = from + index;
+    const author = [aimono, mama, other][minute % 3] ?? aimono;
+    return say(author, minute, `${minute} 分目の発言です`);
+  });
+
+/** 上へ遡ると 50 件ずつ古い発言を足す。500 件を超えても止まらない。 */
+const OLDER_PAGE = 50;
+const olderPages = 20;
+
 type Props = {
   rows: ReturnType<typeof chatRows>;
   paging: Paging;
   settled: boolean;
   replyTo?: NostrEvent;
   channelName?: string;
+  /**
+   * `many` は 600 件を並べる。`older` は上へ遡るたびに古い発言を足す。どちらも
+   * rows・paging を使わない。署名に時間がかかるので、そのストーリーを開いたときだけ作る。
+   */
+  scenario?: "many" | "older";
+};
+
+/** 取り足しを模す。上端が見えたら少し待ってから、1 ページぶん古い発言を足す。 */
+const createOlderFeed = () => {
+  const allOlder = chatter(
+    -OLDER_PAGE * olderPages,
+    OLDER_PAGE * (olderPages + 1),
+  );
+  const [loaded, setLoaded] = createSignal(1);
+  const [paging, setPaging] = createSignal<Paging>("idle");
+  const rows = () =>
+    chatRows(allOlder.slice(-OLDER_PAGE * loaded()), moderation, viewer.pubkey);
+  const loadOlder = () => {
+    if (paging() !== "idle") return;
+    setPaging("loading");
+    setTimeout(() => {
+      const next = loaded() + 1;
+      setLoaded(next);
+      setPaging(next > olderPages ? "exhausted" : "idle");
+    }, 400);
+  };
+  return { rows, paging, loadOlder };
 };
 
 const meta = {
@@ -123,23 +163,31 @@ const meta = {
           failure="チャンネルに書けませんでした"
           onSent={() => {}}
         >
-          {(state) => (
-            <ChatView
-              rows={props.rows}
-              relays={["wss://relay.example/"]}
-              expandMedia
-              paging={props.paging}
-              settled={props.settled}
-              onLoadOlder={() => {}}
-              composer={
-                <ChatComposer
-                  state={state}
-                  channelName={props.channelName ?? "ねこの画像チャンネル"}
-                  replyTo={props.replyTo}
-                />
-              }
-            />
-          )}
+          {(state) => {
+            const feed =
+              props.scenario === "older" ? createOlderFeed() : undefined;
+            const many =
+              props.scenario === "many"
+                ? chatRows(chatter(0, 600), moderation, viewer.pubkey)
+                : undefined;
+            return (
+              <ChatView
+                rows={feed ? feed.rows() : (many ?? props.rows)}
+                relays={["wss://relay.example/"]}
+                expandMedia
+                paging={feed ? feed.paging() : props.paging}
+                settled={props.settled}
+                onLoadOlder={() => feed?.loadOlder()}
+                composer={
+                  <ChatComposer
+                    state={state}
+                    channelName={props.channelName ?? "ねこの画像チャンネル"}
+                    replyTo={props.replyTo}
+                  />
+                }
+              />
+            );
+          }}
         </ComposeMediator>
       </div>
     </EventSceneProvider>
@@ -180,3 +228,7 @@ export const 長いチャンネル名: Story = {
 export const 狭いカラム: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },
 };
+/** 見えている行とその前後だけを置く。開いたときは一番下から始まる。 */
+export const 発言が多い: Story = { args: { scenario: "many" } };
+/** 上へ遡ると 50 件ずつ足す。足しても読んでいる位置は動かず、500 件を超えても遡れる。 */
+export const 遡って読む: Story = { args: { scenario: "older" } };

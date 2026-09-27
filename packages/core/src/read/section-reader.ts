@@ -4,8 +4,6 @@ import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore, EventStoreChange } from "./event-store";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
-  MAX_ITEMS_PER_SECTION,
-  MAX_PAGED_ITEMS,
   type NostrSource,
   type Order,
   type Paging,
@@ -42,20 +40,18 @@ export type SectionReaderOptions = {
   scheduler?: Scheduler;
   /**
    * 指定すると、最初はこの件数だけ取り（購読の filters に `limit` を付ける）、
-   * `loadOlder()` のたびに同じ件数ずつ古いものを取り足す。指定しなければ、
-   * 今までどおり `MAX_ITEMS_PER_SECTION` まで持つ（人の一覧のように、切ると
-   * 意味が変わるもの）。
+   * `loadOlder()` のたびに同じ件数ずつ古いものを取り足す。取り足す回数に上限は
+   * 無い。指定しなければ、届いたものをすべて持つ（人の一覧のように、切ると意味が
+   * 変わるもの）。
    */
   pageSize?: number;
   /**
-   * ページ送りしないセクションが持つ件数の上限。既定は `MAX_ITEMS_PER_SECTION`。
-   * 件数で切ると中身の意味が変わる一覧（すべてのチャンネル）は、取るものの
-   * `limit` で量を抑えたうえで `Infinity` にする。受け取ったイベントはどのみち
-   * `EventStore` に入るので、上限を外しても持つ量はほとんど増えない。
+   * ページ送りしないセクションが持つ件数の上限。既定は上限なし。候補を数件だけ
+   * 見せる一覧（入力の補完など）のように、呼ぶ側が見せる数を決めているときに使う。
    */
   maxItems?: number;
   /**
-   * `pageSize` と一緒に指定すると、最初にこの件数まで取る（`MAX_PAGED_ITEMS` まで）。
+   * `pageSize` と一緒に指定すると、最初にこの件数まで取る。
    * 取る中身が変わって作り直すとき、それまで伸ばした一覧を 1 ページに戻さないため。
    */
   initialSize?: number;
@@ -93,7 +89,7 @@ export class SectionReader {
     this.#options = options;
     this.#scheduler = options.scheduler ?? defaultScheduler;
     this.#events = new SortedEvents(
-      this.#firstPageSize ?? options.maxItems ?? MAX_ITEMS_PER_SECTION,
+      this.#firstPageSize ?? options.maxItems ?? Number.POSITIVE_INFINITY,
     );
   }
 
@@ -101,7 +97,7 @@ export class SectionReader {
   get #firstPageSize(): number | undefined {
     const { pageSize, initialSize } = this.#options;
     if (pageSize === undefined) return undefined;
-    return Math.min(Math.max(pageSize, initialSize ?? 0), MAX_PAGED_ITEMS);
+    return Math.max(pageSize, initialSize ?? 0);
   }
 
   get paging(): Paging {
@@ -117,8 +113,7 @@ export class SectionReader {
 
   /**
    * 今いちばん古い投稿より前を、1 ページぶん取り足す。取っている間・もう無いとき・
-   * まだ 1 件も無いときは何もしない。上限（`MAX_PAGED_ITEMS`）に着いたら、それ以上は
-   * 取らない。
+   * まだ 1 件も無いときは何もしない。
    */
   loadOlder(): void {
     const pageSize = this.#options.pageSize;
@@ -128,14 +123,9 @@ export class SectionReader {
     // 最初のページが揃うまでは取り足さない。揃う前は一覧が短く、下端がすぐ見えるので、
     // 届きかけの途中から古い方を取り始めてしまう。
     if (!this.#isReady()) return;
-    if (this.#events.capacity >= MAX_PAGED_ITEMS) {
-      this.#paging = "exhausted";
-      this.#notify();
-      return;
-    }
-    this.#events.grow(
-      Math.min(this.#events.capacity + pageSize, MAX_PAGED_ITEMS),
-    );
+    // 取り足す分だけ窓を広げる。窓は「新しい方から何件」で、リレーごとに違う期間の
+    // 最初のページを新しい方から切りそろえ、次の `until` がどのリレーにも正しく効くようにしている。
+    this.#events.grow(this.#events.capacity + pageSize);
     this.#paging = "loading";
     this.#notify();
     const before = this.#events.size;
@@ -328,7 +318,7 @@ export class SectionReader {
       compareEvents(stored, head) < 0 &&
       this.#isReady()
     ) {
-      this.#events.grow(Math.min(this.#events.size + 1, MAX_PAGED_ITEMS));
+      this.#events.grow(this.#events.size + 1);
     }
 
     // 上限に達した状態で保持順の末尾より後ろに来たイベントは採用されない。

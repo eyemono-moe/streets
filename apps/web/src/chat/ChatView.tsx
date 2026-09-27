@@ -4,7 +4,6 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ChatRow } from "@streets/core/view/chat";
 import {
   type Component,
-  For,
   type JSX,
   Match,
   Show,
@@ -16,6 +15,7 @@ import {
   onMount,
 } from "solid-js";
 import Button from "../ui/Button";
+import VirtualList from "../ui/VirtualList";
 import { ChatMessage, HiddenChatMessage } from "./ChatMessage";
 
 /** 畳む理由。そのまま出す発言は `undefined`。 */
@@ -43,12 +43,59 @@ const dayLabel = (at: number): string => {
   });
 };
 
+/** 日付の区切りか、1 件の発言。 */
+const ChatRowView: Component<{
+  row: ChatRow;
+  relays: readonly RelayUrl[];
+  expandMedia: boolean;
+}> = (props) => (
+  <Switch>
+    <Match when={props.row.type === "day" && props.row}>
+      {(day) => (
+        <div
+          class="c-secondary flex items-center gap-2 px-3 py-2 text-caption"
+          role="separator"
+        >
+          <span class="h-px flex-1 bg-tertiary" />
+          {dayLabel(day().at)}
+          <span class="h-px flex-1 bg-tertiary" />
+        </div>
+      )}
+    </Match>
+    <Match when={props.row.type === "message" && props.row}>
+      {(message) => (
+        <Show
+          when={hiddenReason(message().visibility)}
+          fallback={
+            <ChatMessage
+              event={message().event}
+              continued={message().continued}
+              relays={props.relays}
+              expandMedia={props.expandMedia}
+            />
+          }
+        >
+          {(visibility) => (
+            <HiddenChatMessage
+              event={message().event}
+              visibility={visibility()}
+              relays={props.relays}
+              expandMedia={props.expandMedia}
+            />
+          )}
+        </Show>
+      )}
+    </Match>
+  </Switch>
+);
+
 /**
  * チャンネルの発言を古い順に並べ、下に入力欄を置く。
  *
  * スクロール領域は `flex-direction: column-reverse` にする。位置の基準が一番下に
  * なるので、開いたときに一番下から始まり、一番下にいれば新しい発言が来ても下に
- * 留まる。上へ古い発言を足しても、読んでいる位置はずれない。
+ * 留まる。上へ古い発言を足しても、読んでいる位置はずれない。発言は仮想リストで、
+ * 見えている行とその前後だけを置く（遡れる件数に上限が無いので）。
  */
 const ChatView: Component<{
   rows: readonly ChatRow[];
@@ -123,10 +170,13 @@ const ChatView: Component<{
   return (
     <div class="flex min-h-0 flex-1 flex-col">
       <div class="relative flex min-h-0 flex-1 flex-col">
+        {/* スクロールアンカーは切る。仮想リストの行は絶対配置でアンカーにならず、
+            ブラウザは上端の「読み込み中」を選んで保つので、一番上で古い発言を足すと
+            一番上に留まってしまう。位置は column-reverse の下の基準だけで保つ。 */}
         <div
           ref={scroller}
           data-scroll-container
-          class="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-y-contain"
+          class="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto overscroll-y-contain [overflow-anchor:none]"
         >
           <div class="flex flex-col pb-2">
             <div
@@ -151,48 +201,20 @@ const ChatView: Component<{
             </div>
             <Switch>
               <Match when={props.rows.length > 0}>
-                <For each={props.rows}>
+                <VirtualList
+                  items={props.rows}
+                  itemKey={(row) => row.key}
+                  estimateSize={64}
+                  reversed
+                >
                   {(row) => (
-                    <Switch>
-                      <Match when={row.type === "day" && row}>
-                        {(day) => (
-                          <div
-                            class="c-secondary flex items-center gap-2 px-3 py-2 text-caption"
-                            role="separator"
-                          >
-                            <span class="h-px flex-1 bg-tertiary" />
-                            {dayLabel(day().at)}
-                            <span class="h-px flex-1 bg-tertiary" />
-                          </div>
-                        )}
-                      </Match>
-                      <Match when={row.type === "message" && row}>
-                        {(message) => (
-                          <Show
-                            when={hiddenReason(message().visibility)}
-                            fallback={
-                              <ChatMessage
-                                event={message().event}
-                                continued={message().continued}
-                                relays={props.relays}
-                                expandMedia={props.expandMedia}
-                              />
-                            }
-                          >
-                            {(visibility) => (
-                              <HiddenChatMessage
-                                event={message().event}
-                                visibility={visibility()}
-                                relays={props.relays}
-                                expandMedia={props.expandMedia}
-                              />
-                            )}
-                          </Show>
-                        )}
-                      </Match>
-                    </Switch>
+                    <ChatRowView
+                      row={row}
+                      relays={props.relays}
+                      expandMedia={props.expandMedia}
+                    />
                   )}
-                </For>
+                </VirtualList>
               </Match>
               <Match when={props.settled}>
                 <p class="c-secondary p-4 text-center text-caption">

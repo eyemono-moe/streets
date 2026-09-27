@@ -9,7 +9,7 @@ import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 import { FIRST_PAGE_WAIT_MS, SectionReader } from "./section-reader";
-import { MAX_ITEMS_PER_SECTION, type SectionStatus } from "./source";
+import type { SectionStatus } from "./source";
 import {
   type SectionDelivery,
   type SectionHandle,
@@ -82,6 +82,7 @@ const event = (id: string, createdAt: number): NostrEvent => ({
 const setup = (
   relayUrls = ["wss://a/"],
   scheduler: Scheduler = createFakeClock(),
+  maxItems?: number,
 ) => {
   const relays = new Map<string, FakeRelayConnection>();
   const store = new PassThroughStore();
@@ -101,6 +102,7 @@ const setup = (
     store,
     manager,
     scheduler,
+    maxItems,
   });
   return {
     relays,
@@ -261,10 +263,10 @@ describe("SectionReader", () => {
   it("上限で弾かれたイベントは通知を積まない", () => {
     // 捕まえる変異: add() の戻り値を無視して常に通知を積む
     const clock = createFakeClock();
-    const { relay, reader } = setup(undefined, clock);
+    const { relay, reader } = setup(undefined, clock, 3);
     reader.start();
 
-    for (let i = 0; i < MAX_ITEMS_PER_SECTION; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
     clock.advance(16);
@@ -439,50 +441,28 @@ describe("SectionReader", () => {
     expect(phasesSeen.length).toBeGreaterThan(0);
   });
 
-  it("keeps at most MAX_ITEMS_PER_SECTION items, dropping the oldest", () => {
+  it("既定では上限なく、届いたものをすべて持つ", () => {
+    // 捕まえる変異: 既定の上限を戻す（スレッドの返信やチャンネルが途中で黙って欠ける）
     const { relay, reader } = setup();
     reader.start();
 
-    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
+    for (let i = 0; i < 1000; i += 1) {
       relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
-    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
-    expect(reader.items.at(-1)?.id).toBe("note-10");
+    expect(reader.items).toHaveLength(1000);
   });
 
-  it("maxItems: Infinity なら MAX_ITEMS_PER_SECTION を超えても切らない", () => {
-    // 捕まえる変異: maxItems を読まずに既定の上限で切る（すべてのチャンネルが 200 件で途切れる）
-    const relays = new Map<string, FakeRelayConnection>();
-    const store = new PassThroughStore();
-    const manager = new SubscriptionManager({
-      store,
-      routing: new RoutingTable(store),
-      connect: (url) => {
-        const relay = new FakeRelayConnection(url);
-        relays.set(url, relay);
-        return relay;
-      },
-      fallbackRelays: ["wss://fallback/"],
-    });
-    const reader = new SectionReader({
-      source: {
-        type: "nostr",
-        filters: [{ kinds: [1] }],
-        relays: ["wss://a/"],
-      },
-      order: "created-at-desc",
-      store,
-      manager,
-      maxItems: Infinity,
-    });
+  it("maxItems を渡すと、その件数まで持ち、古いものから落とす", () => {
+    const { relay, reader } = setup(undefined, undefined, 5);
     reader.start();
 
-    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
-      relays.get("wss://a/")?.emitEvent(0, event(`note-${i}`, 1000 + i));
+    for (let i = 0; i < 15; i += 1) {
+      relay()?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
-    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION + 10);
+    expect(reader.items).toHaveLength(5);
+    expect(reader.items.at(-1)?.id).toBe("note-10");
   });
 
   it("keeps the most recently arrived items when capped in ascending order", () => {
@@ -507,18 +487,19 @@ describe("SectionReader", () => {
       order: "created-at-asc",
       store,
       manager,
+      maxItems: 5,
     });
     reader.start();
 
-    for (let i = 0; i < MAX_ITEMS_PER_SECTION + 10; i += 1) {
+    for (let i = 0; i < 15; i += 1) {
       relays.get("wss://a/")?.emitEvent(0, event(`note-${i}`, 1000 + i));
     }
 
     // Ascending order: oldest-kept first, newest-arrived last. If the cap wrongly
-    // kept the oldest 500 arrivals instead of the most recent, this reads "note-0"/"note-499" instead.
-    expect(reader.items).toHaveLength(MAX_ITEMS_PER_SECTION);
+    // kept the oldest arrivals instead of the most recent, this reads "note-0"/"note-4" instead.
+    expect(reader.items).toHaveLength(5);
     expect(reader.items[0]?.id).toBe("note-10");
-    expect(reader.items.at(-1)?.id).toBe(`note-${MAX_ITEMS_PER_SECTION + 9}`);
+    expect(reader.items.at(-1)?.id).toBe("note-14");
   });
 
   it("同値の created_at は id 昇順で表示される", () => {
@@ -690,7 +671,7 @@ describe("SectionReader", () => {
   // EventStore.put returns "duplicate" via id lookup *before* verifyEvent, so a
   // malicious relay can resend a forged object under a genuine id, spoofing
   // content and feeding a non-number created_at into the sort comparator used
-  // for the MAX_ITEMS_PER_SECTION eviction cap, corrupting ordering for everyone.
+  // for the ordering (and the `maxItems` eviction), corrupting it for everyone.
   it("lists the store's verified copy, not a forged object a second relay resends under a genuine event's id", () => {
     const sharedStore = new EventStore();
     const relays = new Map<string, FakeRelayConnection>();
@@ -1150,6 +1131,29 @@ describe("古い投稿の取り足し（pageSize）", () => {
     relay().emitEvent(0, event("newer", 400));
     clock.advance(16);
     expect(reader.items.map((e) => e.id)).toEqual(["newer", "new"]);
+  });
+
+  it("取り足す回数に上限は無く、500 件を超えても遡れる", async () => {
+    // 捕まえる変異: 取り足しの上限を戻す（チャンネルを遡ると 500 件で「もう無い」と出る）
+    const { reader, relay, settle, clock } = setupPaged(200);
+    let at = 100_000;
+    const page = (subscription: number) => {
+      for (let i = 0; i < 200; i++) {
+        at -= 1;
+        relay().emitEvent(subscription, event(`note-${at}`, at));
+      }
+      relay().emitEose(subscription);
+    };
+    page(0);
+    clock.advance(16);
+
+    for (let subscription = 1; subscription <= 3; subscription++) {
+      reader.loadOlder();
+      page(subscription);
+      await settle();
+      expect(reader.paging).toBe("idle");
+    }
+    expect(reader.items).toHaveLength(800);
   });
 
   it("取り足しても何も増えなければ、もう無いとみなす", async () => {

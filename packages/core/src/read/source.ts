@@ -22,9 +22,6 @@ export type SectionStatus = {
   };
 };
 
-/** 性能予算 */
-export const MAX_ITEMS_PER_SECTION = 200;
-
 /**
  * 流れてくるカラムの 1 ページ。1 画面に見えるのは 7〜10 件なので、5 画面ぶん
  * ほど送ったら次を取れば足りる。最初もこの件数だけ取る。
@@ -32,14 +29,8 @@ export const MAX_ITEMS_PER_SECTION = 200;
 export const PAGE_SIZE = 50;
 
 /**
- * 古い投稿を取り足していったときの上限。これ以上は持たない（メモリと描く要素の
- * 数を抑える）。
- */
-export const MAX_PAGED_ITEMS = 500;
-
-/**
  * 古い投稿の取り足し：`waiting` は最初のページを待っている、`idle` は取れる、`loading` は
- * 取っている、`exhausted` はもう無い（上限に着いたときも）。
+ * 取っている、`exhausted` はもう無い（1 ページ取り足しても増えなかった）。
  */
 export type Paging = "waiting" | "idle" | "loading" | "exhausted";
 

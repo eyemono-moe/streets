@@ -1,4 +1,9 @@
-import { createVirtualizer } from "@tanstack/solid-virtual";
+import {
+  type Virtualizer,
+  createVirtualizer,
+  elementScroll,
+  observeElementOffset,
+} from "@tanstack/solid-virtual";
 import {
   type Accessor,
   For,
@@ -27,7 +32,44 @@ export type VirtualListProps<T> = {
   children: (item: T) => JSX.Element;
   /** 実測前に使う行高。大きく外れても、表示後は ResizeObserver で補正される。 */
   estimateSize?: number;
+  /**
+   * スクロール領域が `flex-direction: column-reverse`（チャットのように、下を基準に
+   * 新しいものが下へ足され、古いものを上へ取り足す）。位置を保つのはブラウザに
+   * 任せ、TanStack にはふつうの向きの位置に直して渡す。
+   */
+  reversed?: boolean;
   class?: string;
+};
+
+/**
+ * `column-reverse` の領域の位置を、先頭からの距離に直す。`scrollTop` は一番下が 0 で、
+ * 上へ行くほど負になる。
+ */
+const reversedOffset = (element: HTMLElement): number =>
+  element.scrollHeight - element.clientHeight + element.scrollTop;
+
+/**
+ * `column-reverse` の領域の位置を TanStack へ渡す。上へ足したときは `scrollTop` が
+ * 変わらずスクロールも起きないまま先頭からの距離だけが変わるので、中身の大きさが
+ * 変わったときにも渡し直す。
+ */
+const observeReversedOffset = (
+  instance: Virtualizer<HTMLElement, HTMLDivElement>,
+  callback: (offset: number, isScrolling: boolean) => void,
+) => {
+  const element = instance.scrollElement;
+  if (!element) return;
+  const report = () => callback(reversedOffset(element), false);
+  const resize = new ResizeObserver(report);
+  for (const child of element.children) resize.observe(child);
+  report();
+  const stop = observeElementOffset(instance, (_, isScrolling) =>
+    callback(reversedOffset(element), isScrolling),
+  );
+  return () => {
+    resize.disconnect();
+    stop?.();
+  };
 };
 
 /**
@@ -57,7 +99,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     setMargin(
       root.getBoundingClientRect().top -
         scroller.getBoundingClientRect().top +
-        scroller.scrollTop,
+        (props.reversed ? reversedOffset(scroller) : scroller.scrollTop),
     );
   };
   const scrollElement = () =>
@@ -81,9 +123,28 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     // 付けた時点の位置から始める。既定の 0 だと、付けたとたんにスクロール領域を
     // 先頭へ動かす —— 領域は一覧より上のもの（プロフィールなど）と共有なので、
     // タブを切り替えるたびにカラムの先頭まで戻ってしまう。
-    initialOffset: () => scrollElement()?.scrollTop ?? 0,
+    initialOffset: () => {
+      const scroller = scrollElement();
+      if (!scroller) return 0;
+      return props.reversed ? reversedOffset(scroller) : scroller.scrollTop;
+    },
+    ...(props.reversed
+      ? {
+          observeElementOffset: observeReversedOffset,
+          scrollToFn: (offset, options, instance) => {
+            const scroller = instance.scrollElement;
+            if (!scroller) return;
+            elementScroll(
+              offset - (scroller.scrollHeight - scroller.clientHeight),
+              options,
+              instance,
+            );
+          },
+        }
+      : {}),
     // 先頭への追加で既存の投稿が後ろへずれても、表示中の投稿を同じ位置に保つ。
-    anchorTo: "end",
+    // column-reverse の領域では、下を基準にするブラウザが保つ。
+    anchorTo: props.reversed ? "start" : "end",
     // 末尾に張り付く扱いを切る。`anchorTo: "end"` は末尾まで見えている一覧を
     // 「末尾にいる」とみなし、行の高さが見積もりから縮むたびに末尾を保つよう
     // スクロール位置を戻す。短い一覧の上にプロフィールがあると、そこまで引き戻される。
@@ -91,6 +152,10 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     scrollEndThreshold: -1,
     overscan: 5,
   });
+  if (props.reversed) {
+    // 行の高さが変わったときの位置の補正もブラウザに任せる。TanStack も補正すると二重になる。
+    virtualizer.shouldAdjustScrollPositionOnItemSizeChange = () => false;
+  }
 
   onMount(() => {
     measureMargin();
@@ -110,6 +175,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   });
 
   createEffect(() => {
+    if (props.reversed) return;
     const first = props.items[0];
     const nextKey = first === undefined ? undefined : props.itemKey(first);
     const shouldFollow =

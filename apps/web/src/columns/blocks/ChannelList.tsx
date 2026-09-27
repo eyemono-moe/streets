@@ -75,7 +75,6 @@ const ChannelList: Component<{
   const info = createBlockSection({
     source: () => channelsSource(knownIds(), relays()),
     name: "info",
-    maxItems: Number.POSITIVE_INFINITY,
   });
 
   const [query, setQuery] = createSignal("");
@@ -84,7 +83,6 @@ const ChannelList: Component<{
   const all = createBlockSection({
     source: () => (browsed() ? allChannelsSource(relays()) : undefined),
     name: "all",
-    maxItems: Number.POSITIVE_INFINITY,
   });
 
   // 届いたチャンネルの情報は、購読を張り直しても手元に残す。知っている id が増える
