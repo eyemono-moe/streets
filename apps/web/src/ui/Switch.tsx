@@ -4,6 +4,7 @@ import type { Component, JSX } from "solid-js";
 /**
  * 1 行のスイッチ。色は data-state で切り替える —— bg-tertiary を固定で置くと、
  * ダークモードの `.dark .bg-tertiary` が checked の色を打ち消す。
+ * HiddenInput の絶対配置はこの行を基準にし、横スクロール領域の外へ出さない。
  */
 const Switch: Component<{
   label: string;
@@ -13,7 +14,7 @@ const Switch: Component<{
   aside?: JSX.Element;
 }> = (props) => (
   <ArkSwitch.Root
-    class="flex min-h-8 w-full cursor-pointer items-start gap-2 py-1.5 text-body"
+    class="relative flex min-h-8 w-full cursor-pointer items-start gap-2 py-1.5 text-body"
     checked={props.checked}
     onCheckedChange={(details) => props.onChange(details.checked)}
   >
