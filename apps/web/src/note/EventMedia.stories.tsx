@@ -107,7 +107,12 @@ export const 寸法つき: Story = {
   args: { aspects: ["16:9", "9:16", "4:1", "1:4"], metadata: "dimensions" },
 };
 
-export const Blurhashつき: Story = {
+/** 読み込み後、Blurhash を残したまま画像が約 0.1 秒で現れる。 */
+export const Blurhashから画像へ: Story = {
+  args: { aspects: ["16:9"], metadata: "blurhash" },
+};
+
+export const Blurhashつき複数枚: Story = {
   args: { aspects: ["16:9", "9:16"], metadata: "blurhash" },
 };
 
