@@ -1,6 +1,8 @@
+import { BANNER_MAX_EDGE } from "@streets/core/media/display-size";
 import { parseContent } from "@streets/core/nostr/content";
 import { type Profile, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
+import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
@@ -60,18 +62,20 @@ export const ProfileHeaderCard: Component<{
     const url = props.profile?.banner;
     return url && url !== bannerBroken() ? url : undefined;
   };
+  // 見出しはカラムの先頭にあり、すぐ見えるので、画面に近づくのは待たない。
+  const bannerSrc = createDisplayImage(banner, BANNER_MAX_EDGE);
   const tags = () => props.profileTags ?? [];
 
   return (
     <section class="flex flex-col border-primary border-b bg-primary">
       <div class="h-28 shrink-0 overflow-hidden bg-secondary">
-        <Show when={banner()}>
-          {(url) => (
+        <Show when={bannerSrc()}>
+          {(src) => (
             <img
-              src={url()}
+              src={src()}
               alt=""
               class="size-full object-cover"
-              onError={() => setBannerBroken(url())}
+              onError={() => setBannerBroken(banner())}
             />
           )}
         </Show>

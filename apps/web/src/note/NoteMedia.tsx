@@ -1,3 +1,4 @@
+import { MEDIA_MAX_EDGE } from "@streets/core/media/display-size";
 import type { NoteMedia } from "@streets/core/view/note-layout";
 import { decode, isBlurhashValid } from "blurhash";
 import {
@@ -8,6 +9,7 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
+import { createDisplayImage, createNearViewport } from "../media/display-image";
 import type { EventSize } from "./Event";
 
 type Dimensions = { width: number; height: number };
@@ -94,9 +96,17 @@ const MediaImage: Component<MediaViewProps> = (props) => {
   const [broken, setBroken] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [actual, setActual] = createSignal<Dimensions>();
+  const [anchor, setAnchor] = createSignal<HTMLAnchorElement>();
+  // 表示の大きさに縮めてから読む。押して開いたときは、ビューアが元の画像を読む。
+  const src = createDisplayImage(
+    () => props.media.url,
+    MEDIA_MAX_EDGE,
+    createNearViewport(anchor),
+  );
   return (
     <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
       <a
+        ref={setAnchor}
         href={props.media.url}
         target="_blank"
         rel="noopener noreferrer"
@@ -123,21 +133,25 @@ const MediaImage: Component<MediaViewProps> = (props) => {
           loaded={loaded()}
           actual={actual()}
         >
-          <img
-            src={props.media.url}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            class="absolute inset-0 size-full object-contain"
-            classList={{ "opacity-0": !loaded() }}
-            onLoad={(event) => {
-              const { naturalWidth: width, naturalHeight: height } =
-                event.currentTarget;
-              if (width > 0 && height > 0) setActual({ width, height });
-              setLoaded(true);
-            }}
-            onError={() => setBroken(true)}
-          />
+          <Show when={src()}>
+            {(url) => (
+              <img
+                src={url()}
+                alt=""
+                decoding="async"
+                class="absolute inset-0 size-full object-contain"
+                classList={{ "opacity-0": !loaded() }}
+                onLoad={(event) => {
+                  // 縮めた画像でも縦横の比は元と同じ。
+                  const { naturalWidth: width, naturalHeight: height } =
+                    event.currentTarget;
+                  if (width > 0 && height > 0) setActual({ width, height });
+                  setLoaded(true);
+                }}
+                onError={() => setBroken(true)}
+              />
+            )}
+          </Show>
         </MediaFrame>
       </a>
     </Show>
