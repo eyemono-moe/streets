@@ -70,8 +70,7 @@ const release = commitSha();
 export default defineConfig(({ mode }) => ({
   define: {
     "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(release),
-    // Sentry から、使っていない機能（重さの計測・デバッグ出力）を落とす。
-    __SENTRY_TRACING__: "false",
+    // Sentry から、使っていない機能（デバッグ出力）を落とす。
     __SENTRY_DEBUG__: "false",
   },
   plugins: lazyPlugins(() => [

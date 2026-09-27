@@ -63,7 +63,13 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
-import { startTelemetry } from "../telemetry";
+import {
+  ANY_COLUMN,
+  measureUntilPaint,
+  startMeasure,
+  startTelemetry,
+  whenColumnShows,
+} from "../telemetry";
 import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
@@ -233,10 +239,20 @@ const DeckScreen: Component<{
   const addColumn = (column: ColumnDef) => {
     // 重ねた段の id は中身から作ってあり（`thread:…`）、同じものを 2 回足すと衝突する。
     const added = { ...column, id: crypto.randomUUID() };
+    const endOpen = startMeasure("column.open", "ui.column");
+    whenColumnShows(added.id, () => endOpen({ kind: added.source.kind }));
     deckStore.update((deck) => addColumnTo(deck, added));
     applyUi({ type: "deck/column-added", id: added.id });
     scrollToEnd();
   };
+
+  // ログインしてから（保存済みのログインなら開いてから）、最初の中身が出るまで。
+  const endFirstContent = startMeasure("deck.first-content", "ui.load");
+  onCleanup(
+    whenColumnShows(ANY_COLUMN, () =>
+      endFirstContent({ columns: columns().length }),
+    ),
+  );
 
   // 画像のアップロード先は、設定（kind:10063）の並び順にそのまま使う。
   const uploader = createUploader({
@@ -440,11 +456,13 @@ const DeckScreen: Component<{
         requestAnimationFrame(startTour);
         return true;
       case "deck/set-color-scheme":
+        measureUntilPaint("appearance.apply", "ui.theme");
         setScheme(event.scheme);
         setColorScheme(event.scheme);
         return true;
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
+        measureUntilPaint("appearance.apply", "ui.theme");
         setAppearance(event.appearance);
         return true;
       case "deck/logout":
@@ -471,6 +489,7 @@ const DeckScreen: Component<{
         void startTelemetry();
         return true;
       case "deck/set-appearance":
+        measureUntilPaint("appearance.apply", "ui.theme");
         setAppearance(event.appearance);
         saveAppearance(event.appearance);
         return true;

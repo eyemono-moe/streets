@@ -13,6 +13,7 @@ import {
   useContext,
 } from "solid-js";
 import { setDiagnostics } from "../devtools/diagnostics";
+import { columnShowed } from "../telemetry";
 
 /**
  * ブロックが属するカラムについて知ってよいこと。ブロックはカラムの種類を見ず、
@@ -71,5 +72,13 @@ export const createBlockSection = (options: {
     }),
   );
   scope.report?.(section.status);
+  // 重さの計測のため、最初の中身を描き終えたことをカラムの外へ知らせる。
+  let shown = false;
+  createEffect(() => {
+    if (shown || section.items().length === 0) return;
+    shown = true;
+    const id = scope.column().id;
+    requestAnimationFrame(() => setTimeout(() => columnShowed(id)));
+  });
   return section;
 };

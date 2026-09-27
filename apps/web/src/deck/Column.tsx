@@ -17,6 +17,7 @@ import {
   type StackedColumn,
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
+import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
 import ColumnAccentBar from "./ColumnAccentBar";
 import { useColumnTitle } from "./ColumnTitle";
@@ -44,6 +45,9 @@ const Column: Component<ColumnProps> = (props) => {
       case "stack/open":
       case "stack/back":
       case "stack/closed":
+        if (event.type === "stack/open") {
+          measureUntilPaint("column.stack", "ui.column");
+        }
         setStack(
           reconcile(columnStackTransition(unwrap(stack), event), {
             key: "key",
