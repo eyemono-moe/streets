@@ -8,9 +8,11 @@
 vp run build
 vp run @streets/web#preview                 # 別の端末で。http://localhost:4173
 vp run memory --pubkey <hex か npub>
+vp run memory --pubkey <hex か npub> --columns 10
 ```
 
 - 開くカラムは、ホーム・通知・自分・自分のリアクション・ユーザー 2 人（`--users <hex か npub>,<hex か npub>`。省くと、投稿も反応も多い公開アカウント 2 人）
+- `--columns 10` は、上の 6 本に `#nostr`・`#bitcoin`・`#art`・`#photography` を足す。ADR-0011 の 10 カラムのメモリ予算を確かめるときに使う
 - ログインは、公開鍵だけを返す NIP-07 の代わりで行う。署名も暗号化もしないので、計測中にその人の名前で何かが書かれることはない。デッキの同期は読めずに終わるので、リレーに保存したデッキではなく上のカラムで開く
 - 流れ：開いて `--settle` 秒（既定 60）待つ → 1 回目のヒープスナップショット → `--minutes` 分（既定 10）まで `--interval` 秒（既定 30）ごとに計る → 2 回目 → 再読み込みして `--settle` 秒待ち、3 回目（`--no-reload` で省く）。再読み込みでは、IndexedDB に溜まったキャッシュを起動時に読み込む分が乗る
 - デプロイ済みの環境を計るときは `--app-url` を渡す（アイコンの縮小は Worker が要るので、`vp preview` ではアイコンが原寸で乗る）。画面を見ながら計るときは `--headed`

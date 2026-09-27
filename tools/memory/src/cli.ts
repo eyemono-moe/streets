@@ -17,6 +17,10 @@ import {
 } from "@streets/core/deck/deck";
 import { decodeUserInput } from "@streets/core/nostr/nip19";
 import {
+  TOUR_STORAGE_KEY,
+  saveTourSeen,
+} from "@streets/core/settings/tour-setting";
+import {
   LOGIN_METHOD_STORAGE_KEY,
   saveLoginMethod,
 } from "@streets/core/signer/session-storage";
@@ -26,10 +30,11 @@ import { type ProcessMemory, processMemory } from "./processes";
 
 const USAGE = `使い方:
   vp run memory --pubkey <hex か npub> [--users <hex か npub>,<hex か npub>] [--app-url <URL>]
+                [--columns 6|10]
                 [--minutes 10] [--interval 30] [--settle 60] [--no-reload] [--headed]
 
-本番ビルドを開き、6 カラム（ホーム・通知・自分・自分のリアクション・ユーザー 2 人）で
-メモリを計る。先に別の端末で vp run build と vp run @streets/web#preview を立てておく。
+本番ビルドを開き、6 または 10 カラムでメモリを計る。
+先に別の端末で vp run build と vp run @streets/web#preview を立てておく。
 結果は tools/memory/.out/<日時>/ に書く。`;
 
 /** --users を省いたときの 2 人。投稿も反応も多い、よく知られた公開アカウント。 */
@@ -44,6 +49,7 @@ const { values } = parseArgs({
   options: {
     pubkey: { type: "string" },
     users: { type: "string" },
+    columns: { type: "string", default: "6" },
     "app-url": { type: "string", default: "http://localhost:4173" },
     minutes: { type: "string", default: "10" },
     interval: { type: "string", default: "30" },
@@ -58,7 +64,13 @@ const { values } = parseArgs({
 const pubkey = values.pubkey ? decodeUserInput(values.pubkey) : undefined;
 const userInputs = values.users?.split(",") ?? DEFAULT_USERS;
 const users = userInputs.flatMap((user) => decodeUserInput(user) ?? []);
-if (values.help || !pubkey || userInputs.length !== 2 || users.length !== 2) {
+if (
+  values.help ||
+  !pubkey ||
+  userInputs.length !== 2 ||
+  users.length !== 2 ||
+  !["6", "10"].includes(values.columns)
+) {
   console.log(USAGE);
   process.exit(values.help ? 0 : 1);
 }
@@ -89,6 +101,14 @@ const deck: Deck = {
     },
     column("user", users[0]),
     column("user", users[1]),
+    ...(values.columns === "10"
+      ? [
+          column("hashtag", "nostr"),
+          column("hashtag", "bitcoin"),
+          column("hashtag", "art"),
+          column("hashtag", "photography"),
+        ]
+      : []),
   ],
 };
 
@@ -130,6 +150,7 @@ const context = await browser.newContext({
 // この人の名前で何かが書かれることはない（デッキの同期などは失敗して終わる）。
 const storage = {
   [LOGIN_METHOD_STORAGE_KEY]: saveLoginMethod("nip07"),
+  [TOUR_STORAGE_KEY]: saveTourSeen(),
   [deckStorageKey(pubkey)]: JSON.stringify({
     cacheVersion: 1,
     serialized: saveDeck(deck),
