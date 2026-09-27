@@ -22,7 +22,11 @@ import ChannelList from "../columns/blocks/ChannelList";
 import { FollowSetList } from "../columns/blocks/FollowSets";
 import { ColumnScope } from "../columns/column-scope";
 import { viewerReadRelays } from "../columns/column-views";
-import { useUserCandidates, userSource } from "../completion/sources";
+import {
+  useUserCandidates,
+  useUserSearch,
+  userSource,
+} from "../completion/sources";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
@@ -250,26 +254,47 @@ const FollowSetPicker: Component<{
   );
 };
 
+/** 検索リレーへの問い合わせの進み具合。何も問い合わせていないときは出さない。 */
+export const UserSearchStatus: Component<{
+  searching: boolean;
+  /** 答えがそろったときの、見つかった人数。 */
+  found: number | undefined;
+}> = (props) => (
+  <Show when={props.searching || props.found !== undefined}>
+    <p class="c-secondary text-caption" aria-live="polite">
+      {props.searching
+        ? "検索リレーで探しています…"
+        : props.found === 0
+          ? "検索リレーでは見つかりませんでした"
+          : `検索リレーで ${props.found} 人見つかりました`}
+    </p>
+  </Show>
+);
+
 /**
  * 人を選ぶ。名前で補完するか、ID（npub1… / nprofile1…）を貼る。選んだ人の
- * カラムをデッキに足す。
+ * カラムをデッキに足す。候補はフォロー中の人に加え、検索リレーで見つかった人も出す。
  */
-const UserPicker: Component<{ onBack: () => void }> = (props) => {
+const UserPicker: Component<{
+  searchRelays: () => readonly RelayUrl[];
+  onBack: () => void;
+}> = (props) => {
   const dispatch = useDispatch();
+  const [text, setText] = createSignal("");
+  const [error, setError] = createSignal<string>();
+  const search = useUserSearch(text, () => props.searchRelays());
   const people = [
-    userSource(useUserCandidates(), {
+    userSource(useUserCandidates(undefined, search.found), {
       trigger: { kind: "user", prefixes: [] },
       format: (nprofile) => nprofile,
     }),
   ];
-  const [text, setText] = createSignal("");
-  const [error, setError] = createSignal<string>();
 
   const submit = () => {
     const column = buildColumn("user", text());
     if (!column) {
       setError(
-        "npub1… か nprofile1… で始まる、ユーザーの ID を入力してください",
+        "候補から選ぶか、npub1… か nprofile1… で始まるユーザーの ID を入力してください",
       );
       return;
     }
@@ -317,7 +342,15 @@ const UserPicker: Component<{ onBack: () => void }> = (props) => {
             />
           )}
         </Completion>
-        <Show when={error()}>
+        <Show
+          when={error()}
+          fallback={
+            <UserSearchStatus
+              searching={search.searching()}
+              found={search.searched() ? search.found().length : undefined}
+            />
+          }
+        >
           {(message) => <p class="c-danger text-caption">{message()}</p>}
         </Show>
         <Button
@@ -353,6 +386,8 @@ const AddColumnPanel: Component<{
   initialPicker?: Picker;
   /** チャンネルやリストを選ぶ一覧が読む。Storybook では渡さない（一覧の見た目は別のストーリーで見る）。 */
   readLayer?: ReadLayer;
+  /** 人を名前で探すときの問い合わせ先。 */
+  searchRelays: () => readonly RelayUrl[];
 }> = (props) => {
   const dispatch = useDispatch();
   const [picker, setPicker] = createSignal<Picker | undefined>(
@@ -408,7 +443,7 @@ const AddColumnPanel: Component<{
           />
         </Match>
         <Match when={picker() === "user"}>
-          <UserPicker onBack={back} />
+          <UserPicker searchRelays={props.searchRelays} onBack={back} />
         </Match>
         <Match when={picker() === "relay"}>
           <section class="motion-fade flex animate-in flex-col gap-3">
