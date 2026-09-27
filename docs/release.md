@@ -8,7 +8,7 @@
 2. **タグを打つ**：main のそのコミットに `v1.2.3` のタグを打って push する
 3. **プレビュー**（`.github/workflows/release.yaml` の Preview）：ビルドして Worker の版を上げる。本番には出さない。版のプレビュー URL がジョブの要約に出る
 4. **承認**：プレビューで確かめ、Production のジョブを承認する（`production` 環境の必須レビュアー）
-5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。その Release へのリンクを Nostr に投稿して知らせる
+5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。ノートの中身と Streets・その Release へのリンクを Nostr に投稿して知らせる
 
 タグが main に入っていないコミットを指しているとき、ノートのファイルが無いときは、3 で止まる。
 
@@ -37,7 +37,17 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
 - **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`
 - **GitHub の variables**：リポジトリに `VITE_FEEDBACK_URL`（フィードバックの Google フォーム。値は `apps/web/.env.example`）。無いとフィードバックの導線が押せない
-- **Nostr へのお知らせ**：variables の `NOSTR_RELAYS`（投稿先のリレー。1 行に 1 つ）と、secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿するアカウントの鍵）
+- **Nostr へのお知らせ**：secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿するアカウントの鍵）。投稿先は 2 つに分ける（どちらも 1 行に 1 つ）
+  - variables の `NOSTR_RELAYS`：Actions（アメリカ）から直に送るリレー
+  - variables の `NOSTR_PROXY_RELAYS`：日本の外からの書き込みを断る日本のリレー。東京で動かす Worker（`workers/relay-proxy`）を経由して送る。Worker の URL を variables の `NOSTR_PROXY_URL` に、呼ぶためのトークンを secrets の `NOSTR_PROXY_TOKEN` に置く
+  - Worker は手で出す。トークンは Worker とワークフローで同じ値にする
+
+    ```sh
+    vp exec --filter @streets/relay-proxy-worker wrangler secret put TOKEN
+    vp run @streets/relay-proxy-worker#deploy
+    ```
+
+  - Cloudflare の保護の下にあるリレー（r.kojira.io・nostr.compile-error.net など）は、Worker を経由しても断られる。足す前に、Actions から Worker を呼んで届くか確かめる
 - **`production` 環境**：必須レビュアーと、出してよい参照を `v*` のタグだけにする
 - **タグの保護**：`v*` のタグを作れる・消せるのを管理者だけにするルールセット
 - **Workers Builds**：Cloudflare の画面の GitHub 連携は止める（二重に出さない）
