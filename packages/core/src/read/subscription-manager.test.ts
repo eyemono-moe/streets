@@ -2457,3 +2457,68 @@ describe("SubscriptionManager の読み取り先の計画", () => {
     expect(manager.readPlan.relays).toEqual([]);
   });
 });
+
+describe("subscribeUnstored", () => {
+  const setupUnstored = () => {
+    const { relays, store, manager, delivery } = setup();
+    const d = { ...delivery(), onEvent: vi.fn() };
+    const handle = manager.subscribeUnstored(
+      [{ kinds: [3], authors: [signed(1).pubkey] }],
+      ["wss://a/", "wss://b/"],
+      d,
+    );
+    const a = relays.get("wss://a/");
+    const b = relays.get("wss://b/");
+    if (!a || !b) throw new Error("relays were not opened");
+    return { a, b, store, delivery: d, handle };
+  };
+
+  it("署名を確かめた本体を渡し、store には入れない", () => {
+    const { a, store, delivery } = setupUnstored();
+    const followList = signed(1, { kind: 3, tags: [["p", "x".repeat(64)]] });
+
+    a.emitEvent(0, followList);
+
+    expect(delivery.onEvent).toHaveBeenCalledWith(followList, "wss://a/");
+    expect(store.get(followList.id)).toBeUndefined();
+  });
+
+  it("同じイベントが別のリレーから届いても 1 回だけ渡す", () => {
+    const { a, b, delivery } = setupUnstored();
+    const followList = signed(1, { kind: 3 });
+
+    a.emitEvent(0, followList);
+    b.emitEvent(0, followList);
+
+    expect(delivery.onEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it("署名が合わないものは渡さず、後から届いた本物は渡す", () => {
+    const { a, b, delivery } = setupUnstored();
+    const followList = signed(1, { kind: 3 });
+    const forged = { ...followList, sig: "0".repeat(128) };
+
+    a.emitEvent(0, forged);
+    expect(delivery.onEvent).not.toHaveBeenCalled();
+
+    b.emitEvent(0, followList);
+    expect(delivery.onEvent).toHaveBeenCalledWith(followList, "wss://b/");
+  });
+
+  it("要求していないイベントは渡さない", () => {
+    const { a, delivery } = setupUnstored();
+
+    a.emitEvent(0, signed(2, { kind: 3 }));
+
+    expect(delivery.onEvent).not.toHaveBeenCalled();
+  });
+
+  it("閉じた後は渡さない", () => {
+    const { a, delivery, handle } = setupUnstored();
+    handle.close();
+
+    a.emitEvent(0, signed(1, { kind: 3 }));
+
+    expect(delivery.onEvent).not.toHaveBeenCalled();
+  });
+});
