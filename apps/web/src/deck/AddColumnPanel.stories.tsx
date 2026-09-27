@@ -9,6 +9,7 @@ const meta = {
     relayList: RelayListState;
     initialRelayOpen: boolean;
     initialChannelOpen?: boolean;
+    initialFollowSetOpen?: boolean;
   }) => (
     <Mediates handle={() => true}>
       <div class="flex h-150 w-95 flex-col bg-primary pt-3">
@@ -16,6 +17,7 @@ const meta = {
           relayList={props.relayList}
           initialRelayOpen={props.initialRelayOpen}
           initialChannelOpen={props.initialChannelOpen}
+          initialFollowSetOpen={props.initialFollowSetOpen}
         />
       </div>
     </Mediates>
@@ -63,4 +65,12 @@ export const リレー設定なし: Story = {
  */
 export const チャンネルを選ぶ: Story = {
   args: { initialRelayOpen: false, initialChannelOpen: true },
+};
+
+/**
+ * リストを選ぶところ。一覧は読み取り層に繋がるのでここには出さない。
+ * 一覧の見た目は「リスト/一覧」で見る。
+ */
+export const リストを選ぶ: Story = {
+  args: { initialRelayOpen: false, initialFollowSetOpen: true },
 };

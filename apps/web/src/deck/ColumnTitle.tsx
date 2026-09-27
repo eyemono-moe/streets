@@ -1,11 +1,13 @@
 import { columnTitle } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import { followSetName } from "@streets/core/lists/follow-set";
 import {
   CHANNEL_CREATE_KIND,
   parseChannelMetadata,
 } from "@streets/core/nostr/channel";
 import { profileLabel } from "@streets/core/nostr/profile";
 import { type Accessor, type Component, Show } from "solid-js";
+import { useFollowSets } from "../lists/FollowSetMediator";
 import Name from "../note/Name";
 import { useEvent } from "../note/use-event";
 import { useProfile } from "../note/use-profile";
@@ -29,8 +31,16 @@ export const useColumnTitle = (
     const current = title();
     return "channel" in current ? current.channel : undefined;
   });
+  const lists = useFollowSets();
   return () => {
     const current = title();
+    if ("followSet" in current) {
+      // 自分のリストは、名前を変えたら開いているカラムの題名もその場で変わる。
+      // ほかの人のリストは、開いたときの名前で呼ぶ。
+      const { pubkey, identifier } = current.followSet;
+      const set = lists?.viewer === pubkey ? lists.find(identifier) : undefined;
+      return set ? `${followSetName(set)}${current.suffix}` : current.fallback;
+    }
     if ("person" in current) {
       return `${profileLabel(profile(), current.person)}${current.suffix}`;
     }

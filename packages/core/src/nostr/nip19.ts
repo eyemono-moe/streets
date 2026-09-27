@@ -286,3 +286,17 @@ export const encodeNevent = (ref: {
       : []),
   ]);
 };
+
+/**
+ * 人を指す入力（hex・npub・nprofile、`nostr:` 付きも）から pubkey を取り出す。
+ * 補完で選ぶと nprofile が入るので、npub だけでは足りない。
+ */
+export const decodeUserInput = (input: string): string | undefined => {
+  const value = input.trim().replace(/^nostr:/, "");
+  const direct = decodeNpub(value);
+  if (direct) return direct;
+  const ref = decodeNip19(value);
+  return ref?.kind === "nprofile" && HEX_PUBKEY.test(ref.pubkey)
+    ? ref.pubkey
+    : undefined;
+};

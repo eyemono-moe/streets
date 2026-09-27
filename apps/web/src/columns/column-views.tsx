@@ -3,7 +3,10 @@ import type {
   ColumnSource,
   ColumnSourceOf,
 } from "@streets/core/deck/column-kinds";
-import { buildChannelInfoColumn } from "@streets/core/deck/column-presets";
+import {
+  buildChannelInfoColumn,
+  buildFollowSetInfoColumn,
+} from "@streets/core/deck/column-presets";
 import {
   bookmarksSource,
   followListSource,
@@ -20,6 +23,7 @@ import {
   columnShow,
   groupsNotifications,
 } from "@streets/core/deck/deck";
+import { followSetName } from "@streets/core/lists/follow-set";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { relayLabel } from "@streets/core/settings/relay-edit";
@@ -31,6 +35,7 @@ import type { ColumnPatch } from "../deck/ColumnSettings";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
+import { useFollowSets } from "../lists/FollowSetMediator";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
 import ColumnTabs from "../ui/ColumnTabs";
@@ -43,6 +48,11 @@ import ChannelInfo from "./blocks/ChannelInfo";
 import ChannelList from "./blocks/ChannelList";
 import EventList from "./blocks/EventList";
 import FollowList from "./blocks/FollowList";
+import {
+  FollowSetInfo,
+  FollowSetList,
+  FollowSetTimeline,
+} from "./blocks/FollowSets";
 import NotificationList from "./blocks/NotificationList";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
@@ -114,6 +124,36 @@ const ChannelInfoButton: Component<{
           column: buildChannelInfoColumn(props.id, props.relays),
         })
       }
+    />
+  );
+};
+
+/** 見出しの ⓘ。リストの情報と入っている人をカラムの中に重ねる。 */
+const FollowSetInfoButton: Component<{
+  pubkey: string;
+  identifier: string;
+}> = (props) => {
+  const dispatch = useDispatch();
+  const lists = useFollowSets();
+  return (
+    <IconButton
+      icon="i-material-symbols:info-outline-rounded"
+      label="リストの情報"
+      onClick={() => {
+        // 題名は届いたリストの名前で決まる。これは届くまでの仮の名前。
+        const set =
+          lists?.viewer === props.pubkey
+            ? lists.find(props.identifier)
+            : undefined;
+        dispatch({
+          type: "stack/open",
+          column: buildFollowSetInfoColumn(
+            props.pubkey,
+            props.identifier,
+            set ? followSetName(set) : "リスト",
+          ),
+        });
+      }}
     />
   );
 };
@@ -419,6 +459,47 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       <Authors
         source={() => followersSource(props.source.pubkey)}
         empty="フォロワーを取得できませんでした。"
+      />
+    ),
+  },
+  "follow-sets": {
+    meta: () => ({
+      icon: "i-material-symbols:format-list-bulleted-rounded",
+      subtitle: "人をまとめたリスト",
+    }),
+    Content: (props) => (
+      <FollowSetList
+        viewerRead={() => viewerReadRelays(props.inputs.relayList())}
+      />
+    ),
+  },
+  "follow-set": {
+    meta: () => ({
+      icon: "i-material-symbols:group-outline-rounded",
+      subtitle: "リスト内ユーザーのタイムライン",
+    }),
+    HeaderActions: (props) => (
+      <FollowSetInfoButton
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+      />
+    ),
+    Content: (props) => (
+      <FollowSetTimeline
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+      />
+    ),
+  },
+  "follow-set-info": {
+    meta: () => ({
+      icon: "i-material-symbols:info-outline-rounded",
+      subtitle: "リストの情報",
+    }),
+    Content: (props) => (
+      <FollowSetInfo
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
       />
     ),
   },

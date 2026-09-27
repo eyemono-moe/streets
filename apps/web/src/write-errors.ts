@@ -1,4 +1,8 @@
 import { UploadFailedError } from "@streets/core/media/blossom";
+import {
+  InvalidPrivateItemsError,
+  PrivateItemsUnavailableError,
+} from "@streets/core/nostr/private-tags";
 import { SignerUnavailableError } from "@streets/core/signer/signer";
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
@@ -10,6 +14,12 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof RefetchFailedError) {
     return "保存する前に今の状態を取得できませんでした。時間をおいて再試行してください";
+  }
+  if (error instanceof PrivateItemsUnavailableError) {
+    return "今のログインの方法では、非公開の項目を扱えません";
+  }
+  if (error instanceof InvalidPrivateItemsError) {
+    return "非公開の項目を読み取れなかったため、保存しませんでした";
   }
   if (error instanceof SignerUnavailableError) {
     return "署名器を利用できません。ログインし直してください";

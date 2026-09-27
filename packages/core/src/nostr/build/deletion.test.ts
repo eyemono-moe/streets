@@ -27,13 +27,26 @@ describe("buildDeletion", () => {
     expect(draft.content).toBe("");
   });
 
-  it("k タグが target.kind から導出される (kind 30023 で検証)", () => {
+  it("k タグが target.kind から導出される (kind 7 で検証)", () => {
     // 捕まえる変異: k タグを硬コードの "1" に置き換える。fixture の kind 既定値が 1 なので他は検出できず、この例外ケースで検証する
-    const target = evt({ id: "1".repeat(64), kind: 30023 });
-    const draft = buildDeletion(target);
-    expect(draft.tags).toEqual([
+    const target = evt({ id: "1".repeat(64), kind: 7 });
+    expect(buildDeletion(target).tags).toEqual([
       ["e", "1".repeat(64)],
-      ["k", "30023"],
+      ["k", "7"],
+    ]);
+  });
+
+  it("addressable event は a でも指す", () => {
+    // 捕まえる変異: a を落とす（e だけだと別の版が残る）、d を読まない
+    const target = evt({
+      id: "1".repeat(64),
+      kind: 30000,
+      tags: [["d", "friends"]],
+    });
+    expect(buildDeletion(target).tags).toEqual([
+      ["e", "1".repeat(64)],
+      ["a", `30000:${"b".repeat(64)}:friends`],
+      ["k", "30000"],
     ]);
   });
 

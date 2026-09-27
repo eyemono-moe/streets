@@ -10,6 +10,8 @@ import {
   chatModerationSource,
   bookmarksSource,
   followListSource,
+  followSetPostsSource,
+  followSetsIncludingSource,
   followeesSource,
   followersSource,
   literalSource,
@@ -282,5 +284,30 @@ describe("チャンネルの一覧", () => {
     expect(recentChannelMessagesSource(RELAYS, 100)?.filters).toEqual([
       { kinds: [42], since: 100, limit: 500 },
     ]);
+  });
+});
+
+describe("followSetPostsSource", () => {
+  it("リストが届くまでは張らず、0 人なら該当者なしのまま渡す", () => {
+    // 捕まえる変異: 0 人で authors を落とす（誰の投稿でもよい購読になる）
+    expect(followSetPostsSource(undefined)).toBeUndefined();
+    expect(followSetPostsSource([])).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 6], authors: [] }],
+    });
+  });
+});
+
+describe("followSetsIncludingSource", () => {
+  it("リレーが分かるまでは張らない", () => {
+    // 捕まえる変異: 0 本の明示指定で張る（何も届かないまま終わる）
+    expect(followSetsIncludingSource(VIEWER, [])).toBeUndefined();
+    expect(followSetsIncludingSource(VIEWER, ["wss://relay.example/"])).toEqual(
+      {
+        type: "nostr",
+        filters: [{ kinds: [30000], "#p": [VIEWER], limit: 200 }],
+        relays: ["wss://relay.example/"],
+      },
+    );
   });
 });

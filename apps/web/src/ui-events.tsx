@@ -1,6 +1,8 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
+import type { FollowSetMember } from "@streets/core/lists/follow-set";
+import type { FollowSetFormEvent } from "@streets/core/lists/follow-set-form";
 import type {
   MuteEntry,
   MuteVisibility,
@@ -38,6 +40,7 @@ export type UiEvent =
   | ComposeViewEvent
   | RelayViewEvent
   | MuteViewEvent
+  | FollowSetViewEvent
   | ProfileViewEvent
   | MediaViewEvent
   | SearchRelayViewEvent
@@ -68,6 +71,22 @@ export type MuteViewEvent =
   /** `visibility` を省くと、裁定する段が決める（読める限り非公開）。 */
   | { type: "mutes/add"; target: MuteTarget; visibility?: MuteVisibility }
   | { type: "mutes/remove"; entry: MuteEntry };
+
+/** 自分のリスト（フォローセット）を作る・直す・消す。書き込むのは裁定する段。 */
+export type FollowSetViewEvent =
+  /**
+   * 名前だけで作り、その人を入れる（「リストに追加」から作ったとき）。名前・説明・
+   * 画像を書いて作るのは、フォーム（`follow-set-form/*`）から。
+   */
+  | { type: "follow-sets/create"; title: string; member: FollowSetMember }
+  | { type: "follow-sets/add"; identifier: string; member: FollowSetMember }
+  | { type: "follow-sets/remove"; identifier: string; member: FollowSetMember }
+  | { type: "follow-sets/delete"; identifier: string }
+  /** リストを作る・直すフォーム。送れた・失敗したは裁定する段が当てる。 */
+  | Exclude<
+      FollowSetFormEvent,
+      { type: "follow-set-form/saved" | "follow-set-form/failed" }
+    >;
 
 /** リレーの設定。View は操作を渡すだけで、まとめて保存するのは裁定する段。 */
 export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;

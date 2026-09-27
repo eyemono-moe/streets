@@ -8,6 +8,7 @@ import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
+import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
@@ -19,6 +20,8 @@ const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
 const AuthorRelaysDialog = lazyPart(
   () => import("../profile/AuthorRelaysDialog"),
 );
+
+const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 type MenuItem = {
   value: string;
@@ -100,6 +103,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
   const profile = () => profileDetails()?.profile;
   const dispatch = useDispatch();
   const mutes = useMutes();
+  const lists = useFollowSets();
   const viewer = useEventActions()?.viewer;
   const mine = () => props.event.pubkey === viewer;
   // ミュートは今の状態で出し分ける。スレッドやその人のページでは、ミュートした
@@ -134,12 +138,20 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
     ];
   };
   const authorItems = (): MenuItem[] => {
-    // 自分をミュートしても、自分の投稿は隠さない。押せても意味が無いので出さない。
-    if (mine()) return AUTHOR_ITEMS;
-    const muted = mutedEntry(authorTarget()) !== undefined;
     const [follow, ...rest] = AUTHOR_ITEMS;
+    // 自分もリストに入れられる（自分の投稿もそのリストのカラムに流したいことがある）。
+    const addToList: MenuItem = {
+      value: "add-to-list",
+      label: "リストに追加",
+      icon: "i-material-symbols:playlist-add-rounded",
+      todo: lists === undefined,
+    };
+    // 自分をミュートしても、自分の投稿は隠さない。押せても意味が無いので出さない。
+    if (mine()) return [...(follow ? [follow] : []), addToList, ...rest];
+    const muted = mutedEntry(authorTarget()) !== undefined;
     return [
       ...(follow ? [follow] : []),
+      addToList,
       {
         value: "mute-author",
         label: muted ? "ミュートを解除" : "ミュート",
@@ -159,6 +171,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
   };
   const [details, setDetails] = createSignal(false);
   const [authorRelays, setAuthorRelays] = createSignal(false);
+  const [addingToList, setAddingToList] = createSignal(false);
   const [notice, setNotice] = createSignal<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(timer));
@@ -200,6 +213,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
           if (details.value === "copy-link") void copyLink();
           if (details.value === "details") setDetails(true);
           if (details.value === "author-relays") setAuthorRelays(true);
+          if (details.value === "add-to-list") setAddingToList(true);
           if (details.value === "mute-event") toggleMute(threadTarget());
           if (details.value === "mute-author") toggleMute(authorTarget());
         }}
@@ -265,6 +279,12 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         <AuthorRelaysDialog
           pubkey={props.event.pubkey}
           onClose={() => setAuthorRelays(false)}
+        />
+      </Show>
+      <Show when={addingToList()}>
+        <AddToListDialog
+          pubkey={props.event.pubkey}
+          onClose={() => setAddingToList(false)}
         />
       </Show>
     </span>

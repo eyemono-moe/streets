@@ -2,12 +2,18 @@ import type { MuteTarget } from "../nostr/build/mute";
 import type { NostrEvent } from "../nostr/event";
 import { replyTarget, threadRoot } from "../nostr/event-refs";
 import { decodeNip19, decodeNpub } from "../nostr/nip19";
+import {
+  type ItemVisibility,
+  type PrivatePartStatus,
+  decryptPrivateTags,
+  rewritePrivateTags,
+} from "../nostr/private-tags";
 import type { Signer } from "../signer/signer";
 import type { Replacement } from "../write/writer";
 
 export const MUTE_KIND = 10_000;
 
-export type MuteVisibility = "private" | "public";
+export type MuteVisibility = ItemVisibility;
 export type MuteEntry = {
   target: MuteTarget;
   visibility: MuteVisibility;
@@ -15,27 +21,13 @@ export type MuteEntry = {
 
 export type DecodedMuteList = {
   entries: readonly MuteEntry[];
-  privatePart: "ready" | "unavailable" | "invalid";
+  privatePart: PrivatePartStatus;
 };
 
 export type MuteChange =
   | { type: "add"; entry: MuteEntry }
   | { type: "remove"; entry: MuteEntry }
   | { type: "move"; entry: MuteEntry; to: MuteVisibility };
-
-export class PrivateMuteUnavailableError extends Error {
-  constructor(message = "signer cannot access private mute items") {
-    super(message);
-    this.name = "PrivateMuteUnavailableError";
-  }
-}
-
-export class InvalidPrivateMuteListError extends Error {
-  constructor(message = "private mute items could not be decoded") {
-    super(message);
-    this.name = "InvalidPrivateMuteListError";
-  }
-}
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -109,41 +101,6 @@ const targetOf = (tag: readonly string[]): MuteTarget | undefined => {
 
 const sameTarget = (left: MuteTarget, right: MuteTarget): boolean =>
   left.type === right.type && left.value === right.value;
-
-const parsePrivateTags = (plaintext: string): string[][] | undefined => {
-  try {
-    const value: unknown = JSON.parse(plaintext);
-    return Array.isArray(value) &&
-      value.every(
-        (tag) =>
-          Array.isArray(tag) && tag.every((item) => typeof item === "string"),
-      )
-      ? (value as string[][])
-      : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-const decryptPrivateTags = async (
-  event: NostrEvent,
-  signer: Signer,
-  pubkey: string,
-): Promise<
-  { status: "ready"; tags: string[][] } | { status: "unavailable" | "invalid" }
-> => {
-  if (event.content === "") return { status: "ready", tags: [] };
-  const legacy = event.content.includes("?iv=");
-  const cipher = legacy ? signer.nip04 : signer.nip44;
-  if (!cipher) return { status: "unavailable" };
-  try {
-    const plaintext = await cipher.decrypt(pubkey, event.content);
-    const tags = parsePrivateTags(plaintext);
-    return tags ? { status: "ready", tags } : { status: "invalid" };
-  } catch {
-    return { status: "invalid" };
-  }
-};
 
 export const decodeMuteList = async (
   event: NostrEvent | undefined,
@@ -241,23 +198,11 @@ export const changeMuteListMany =
       };
     }
 
-    if (!signer.nip44) throw new PrivateMuteUnavailableError();
-    const privateResult = current
-      ? await decryptPrivateTags(current, signer, pubkey)
-      : { status: "ready" as const, tags: [] };
-    if (privateResult.status !== "ready") {
-      if (privateResult.status === "unavailable") {
-        throw new PrivateMuteUnavailableError();
-      }
-      throw new InvalidPrivateMuteListError();
-    }
-    const privateTags = changes.reduce<string[][]>(
-      (tags, change) => changeTags(tags, change, "private"),
-      privateResult.tags,
-    );
-    const content = await signer.nip44.encrypt(
-      pubkey,
-      JSON.stringify(privateTags),
+    const content = await rewritePrivateTags(current, signer, pubkey, (tags) =>
+      changes.reduce<string[][]>(
+        (next, change) => changeTags(next, change, "private"),
+        tags,
+      ),
     );
     return { kind: MUTE_KIND, tags: publicTags, content };
   };

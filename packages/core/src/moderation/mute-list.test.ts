@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
+import { InvalidPrivateItemsError } from "../nostr/private-tags";
 import type { Signer } from "../signer/signer";
 import {
-  InvalidPrivateMuteListError,
   applyMuteChanges,
   changeMuteList,
   changeMuteListMany,
@@ -198,7 +198,7 @@ describe("decodeMuteList / changeMuteList", () => {
           },
         },
       )(event({ kind: 10_000, content: "cipher" })),
-    ).rejects.toBeInstanceOf(InvalidPrivateMuteListError);
+    ).rejects.toBeInstanceOf(InvalidPrivateItemsError);
   });
 });
 

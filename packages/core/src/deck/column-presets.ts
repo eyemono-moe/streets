@@ -37,6 +37,38 @@ export const buildFollowersColumn = (pubkey: string): ColumnDef => ({
   source: { kind: "followers-list", pubkey },
 });
 
+/** リストの一覧（作ったものと、入っているもの）。 */
+export const buildFollowSetsColumn = (): ColumnDef => ({
+  id: crypto.randomUUID(),
+  title: "リスト",
+  source: { kind: "follow-sets" },
+});
+
+/**
+ * 1 つのリストのカラム。id をリストから決めるので、同じリストを 2 回開いても
+ * 重ならない。`name` は開いたときの名前で、リストが届くまでの題名に使う。
+ */
+export const buildFollowSetColumn = (
+  pubkey: string,
+  identifier: string,
+  name: string,
+): ColumnDef => ({
+  id: `follow-set:${pubkey}:${identifier}`,
+  title: name,
+  source: { kind: "follow-set", pubkey, identifier },
+});
+
+/** リストの情報とメンバー。リストのカラムに重ねて開く。 */
+export const buildFollowSetInfoColumn = (
+  pubkey: string,
+  identifier: string,
+  name: string,
+): ColumnDef => ({
+  id: `follow-set-info:${pubkey}:${identifier}`,
+  title: `${name}の情報`,
+  source: { kind: "follow-set-info", pubkey, identifier },
+});
+
 /**
  * スレッドのカラム。id を `focus` から決めるので、同じスレッドを 2 回開いても
  * 重ならない（スタックの重複判定は id で行う）。
