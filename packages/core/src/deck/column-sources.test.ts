@@ -296,6 +296,14 @@ describe("followSetPostsSource", () => {
       filters: [{ kinds: [1, 6], authors: [] }],
     });
   });
+
+  it("チャンネルでの発言は、入れているときだけ取る", () => {
+    // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
+    expect(followSetPostsSource(["a"])?.filters[0].kinds).toEqual([1, 6]);
+    expect(
+      followSetPostsSource(["a"], { chats: true })?.filters[0].kinds,
+    ).toEqual([1, 6, 42]);
+  });
 });
 
 describe("followSetsIncludingSource", () => {
