@@ -20,6 +20,7 @@ import {
   LOGIN_METHOD_STORAGE_KEY,
   saveLoginMethod,
 } from "@streets/core/signer/session-storage";
+import { type Allocators, rendererAllocators } from "./allocators";
 import { type HeapSummary, summarizeHeapSnapshot } from "./heap-summary";
 import { type ProcessMemory, processMemory } from "./processes";
 
@@ -48,6 +49,7 @@ const { values } = parseArgs({
     interval: { type: "string", default: "30" },
     settle: { type: "string", default: "60" },
     "no-reload": { type: "boolean", default: false },
+    "no-snapshot": { type: "boolean", default: false },
     headed: { type: "boolean", default: false },
     help: { type: "boolean", short: "h" },
   },
@@ -97,9 +99,15 @@ type Sample = {
   jsHeapTotal: number;
   domNodes: number;
   listeners: number;
-  images: { count: number; decodedBytes: number; oversizedBytes: number };
+  images: {
+    count: number;
+    decodedBytes: number;
+    oversizedBytes: number;
+    resizedBytes: number;
+  };
   storageUsage: number;
   processes: ProcessMemory;
+  allocators: Allocators;
 };
 
 const OUT_DIR = fileURLToPath(
@@ -146,6 +154,7 @@ await context.addInitScript({
 
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
+const browserSession = await browser.newBrowserCDPSession();
 await cdp.send("Performance.enable");
 await cdp.send("HeapProfiler.enable");
 
@@ -183,6 +192,7 @@ const measure = async (
     let count = 0;
     let decodedBytes = 0;
     let oversizedBytes = 0;
+    let resizedBytes = 0;
     for (const image of document.images) {
       if (!image.complete || image.naturalWidth === 0) continue;
       count++;
@@ -191,10 +201,14 @@ const measure = async (
       const shown = image.clientWidth * image.clientHeight * dpr * dpr;
       // 表示の 4 倍より多い画素を読んでいるものは、縮小せずに読み込んでいる。
       if (shown > 0 && bytes > shown * 4 * 4) oversizedBytes += bytes;
+      // Worker が縮小して配ったもの（アイコン）。失敗して元の画像へ戻ったものは入らない。
+      if (new URL(image.currentSrc).pathname === "/api/image") {
+        resizedBytes += bytes;
+      }
     }
     const estimate = await navigator.storage.estimate();
     return {
-      images: { count, decodedBytes, oversizedBytes },
+      images: { count, decodedBytes, oversizedBytes, resizedBytes },
       storageUsage: estimate.usage ?? 0,
     };
   });
@@ -207,6 +221,7 @@ const measure = async (
     listeners: metric(metrics, "JSEventListeners"),
     ...pageSide,
     processes: processMemory(browserPid),
+    allocators: await rendererAllocators(browserSession),
   };
   console.log(
     `  [${phase} ${seconds}s] JS ${mb(sample.jsHeapUsed)} / DOM ${sample.domNodes} / renderer ${mb(sample.processes.renderer ?? 0)}`,
@@ -227,7 +242,9 @@ await wait(settleSec);
 // カラムが読み込めているか（ログインできたか）を後から確かめる。
 await page.screenshot({ path: join(OUT_DIR, "start.png") });
 samples.push(await measure(cdp, page, "起動", settleSec));
-snapshots.push({ name: "起動直後", summary: await takeSnapshot("start") });
+if (!values["no-snapshot"]) {
+  snapshots.push({ name: "起動直後", summary: await takeSnapshot("start") });
+}
 
 const endSec = minutes * 60;
 for (
@@ -238,7 +255,12 @@ for (
   await wait(intervalSec);
   samples.push(await measure(cdp, page, "経過", seconds));
 }
-snapshots.push({ name: `${minutes} 分後`, summary: await takeSnapshot("end") });
+if (!values["no-snapshot"]) {
+  snapshots.push({
+    name: `${minutes} 分後`,
+    summary: await takeSnapshot("end"),
+  });
+}
 
 if (!values["no-reload"]) {
   // IndexedDB に溜まったキャッシュを起動時に読み込む分を見る。
@@ -265,6 +287,15 @@ const processTypes = [
   ...new Set(samples.flatMap((sample) => Object.keys(sample.processes))),
 ].sort();
 
+// 表の列は、どこかの時点で 10 MB を超えたアロケータだけにする。
+const allocatorNames = [
+  ...new Set(samples.flatMap((sample) => Object.keys(sample.allocators))),
+]
+  .filter((name) =>
+    samples.some((sample) => (sample.allocators[name] ?? 0) > 10 * 1024 * 1024),
+  )
+  .sort();
+
 const report = [
   `# メモリの計測（${new Date().toISOString()}）`,
   "",
@@ -285,6 +316,7 @@ const report = [
       "画像（枚）",
       "画像（見積もり）",
       "うち縮小なし",
+      "うち /api/image",
       "IndexedDB など",
       ...processTypes,
     ],
@@ -297,8 +329,22 @@ const report = [
       String(sample.images.count),
       mb(sample.images.decodedBytes),
       mb(sample.images.oversizedBytes),
+      mb(sample.images.resizedBytes),
       mb(sample.storageUsage),
       ...processTypes.map((type) => mb(sample.processes[type] ?? 0)),
+    ]),
+  ),
+  "",
+  "## renderer の内訳",
+  "",
+  "Chrome の memory-infra が数えた、renderer のアロケータごとの大きさ（10 MB を超えたことがあるものだけ）。`a/b` は `a` の内訳。`cc/image_memory` がデコード済みの画像、`cc/tile_memory` が描いたタイル、`v8` が JS、`blink_gc` が DOM などの Blink のオブジェクト。`discardable` と `shared_memory` は、デコード済みの画像などの置き場で、`cc/image_memory` と同じメモリを数え直している。足し合わせない。",
+  "",
+  table(
+    ["段", "秒", ...allocatorNames],
+    samples.map((sample) => [
+      sample.phase,
+      String(sample.seconds),
+      ...allocatorNames.map((name) => mb(sample.allocators[name] ?? 0)),
     ]),
   ),
   "",
