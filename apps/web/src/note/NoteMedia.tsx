@@ -5,13 +5,10 @@ import {
   type Component,
   type JSX,
   Show,
-  createEffect,
   createSignal,
-  on,
   onCleanup,
   onMount,
 } from "solid-js";
-import { imageDownscaling } from "../image-downscaling-setting";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
 import type { EventSize } from "./Event";
 
@@ -97,7 +94,7 @@ type MediaViewProps = {
 
 const MediaImage: Component<MediaViewProps> = (props) => {
   const [broken, setBroken] = createSignal(false);
-  const [loaded, setLoaded] = createSignal(false);
+  const [loadedSrc, setLoadedSrc] = createSignal<string>();
   const [actual, setActual] = createSignal<Dimensions>();
   const [anchor, setAnchor] = createSignal<HTMLAnchorElement>();
   // 表示の大きさに縮めてから読む。押して開いたときは、ビューアが元の画像を読む。
@@ -106,7 +103,7 @@ const MediaImage: Component<MediaViewProps> = (props) => {
     MEDIA_MAX_EDGE,
     createNearViewport(anchor),
   );
-  createEffect(on(src, () => setLoaded(false), { defer: true }));
+  const loaded = () => src() !== undefined && src() === loadedSrc();
   return (
     <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
       <a
@@ -143,7 +140,6 @@ const MediaImage: Component<MediaViewProps> = (props) => {
                 src={url()}
                 alt=""
                 decoding="async"
-                loading={imageDownscaling() ? undefined : "lazy"}
                 class="absolute inset-0 size-full object-contain"
                 classList={{ "opacity-0": !loaded() }}
                 onLoad={(event) => {
@@ -151,7 +147,9 @@ const MediaImage: Component<MediaViewProps> = (props) => {
                   const { naturalWidth: width, naturalHeight: height } =
                     event.currentTarget;
                   if (width > 0 && height > 0) setActual({ width, height });
-                  setLoaded(true);
+                  setLoadedSrc(
+                    event.currentTarget.getAttribute("src") ?? undefined,
+                  );
                 }}
                 onError={() => setBroken(true)}
               />
