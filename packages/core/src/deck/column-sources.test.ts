@@ -114,6 +114,13 @@ describe("人と投稿", () => {
     });
   });
 
+  it("ユーザーのチャンネルでの発言は、入れているときだけ取る", () => {
+    // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
+    expect(
+      userPostsSource("a".repeat(64), { chats: true }).filters[0].kinds,
+    ).toEqual([1, 6, 42]);
+  });
+
   it("ユーザーのリアクションは対象ユーザーの kind:7 を集める", () => {
     expect(userReactionsSource("a".repeat(64))).toEqual({
       type: "nostr",

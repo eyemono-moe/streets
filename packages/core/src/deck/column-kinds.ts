@@ -287,8 +287,9 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   },
   user: {
     title: (source) => ({ person: source.pubkey, suffix: "" }),
-    kinds: () => TIMELINE_KINDS,
+    kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
     hidesMuted: false,
+    togglesChats: true,
     alerts: (_, input) => [
       ...directReadUnreachable(input),
       // 1 人を見るカラムでは、その人のリレー設定が無いと既定のリレーにしか行けない。

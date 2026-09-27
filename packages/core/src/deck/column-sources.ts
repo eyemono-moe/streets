@@ -114,9 +114,21 @@ export const activitySource = (target: string): NostrSource => ({
   ],
 });
 
-export const userPostsSource = (pubkey: string): NostrSource => ({
+export const userPostsSource = (
+  pubkey: string,
+  /** チャンネルでの発言（kind:42）も取る。切っているときに取らない理由はホームと同じ。 */
+  options: { chats?: boolean } = {},
+): NostrSource => ({
   type: "nostr",
-  filters: [{ kinds: [...TIMELINE_KINDS], authors: [pubkey] }],
+  filters: [
+    {
+      kinds: [
+        ...TIMELINE_KINDS,
+        ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+      ],
+      authors: [pubkey],
+    },
+  ],
 });
 
 /** その人が付けたリアクション。 */

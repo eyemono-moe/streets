@@ -95,6 +95,13 @@ describe("columnFacets", () => {
     ).not.toContain("chats");
   });
 
+  it("ユーザーのカラムも、チャンネルでの発言を切り替えられる", () => {
+    // 捕まえる変異: ホームと通知にだけ出す（ユーザーのカラムで切れない）
+    expect(columnFacets(column({ kind: "user", pubkey: "a" }))).toContain(
+      "chats",
+    );
+  });
+
   it("通知だけがメンションを出す", () => {
     // 捕まえる変異: メンションをどのカラムにも出す（ホームで切ると普通の投稿が消える）
     expect(columnFacets(column({ kind: "notifications" }))).toContain(

@@ -335,7 +335,11 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                 content: () => (
                   <EventList
                     name="posts"
-                    source={() => userPostsSource(props.source.pubkey)}
+                    source={() =>
+                      userPostsSource(props.source.pubkey, {
+                        chats: columnShow(scope.column()).chats,
+                      })
+                    }
                   />
                 ),
               },
