@@ -1,5 +1,6 @@
 import { TIMELINE_KINDS } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import { Show } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ColumnHeader } from "../columns/ColumnHeader";
 import avatarUrl from "../storybook/avatar-fixture.svg";
@@ -8,7 +9,7 @@ import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
 import ColumnAccentBar from "./ColumnAccentBar";
 import FeedbackLink from "./FeedbackLink";
-import { MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
+import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {
   name: "me",
@@ -182,6 +183,8 @@ const MobileBars = (props: {
   panel?: "search" | "add-column";
   /** 一時カラム。渡すと、それを見ている状態にする。 */
   temp?: ColumnDef;
+  /** 右下に浮かぶ投稿ボタンを出す。パネルや自分の入力欄を持つカラムでは出さない。 */
+  fab?: boolean;
 }) => (
   <EventSceneProvider
     scene={{ events: [viewer.profile(), friend.profile()], viewer }}
@@ -200,7 +203,11 @@ const MobileBars = (props: {
           onLogout={() => {}}
           feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
         />
-        <div class="flex-1" />
+        <div class="relative flex-1">
+          <Show when={props.fab ?? props.panel === undefined}>
+            <ComposeFab />
+          </Show>
+        </div>
         <MobileTabBar
           columns={props.columns}
           temp={props.temp}
@@ -231,7 +238,10 @@ export const 狭い画面_一時カラムを見ている: Story = {
   ),
 };
 
-/** カラムの種類ごとの見出しの操作（チャンネルの情報など）も、上のバーに出る。 */
+/**
+ * カラムの種類ごとの見出しの操作（チャンネルの情報など）も、上のバーに出る。
+ * チャンネルは下に自分の入力欄を持つので、右下の投稿ボタンを出さない。
+ */
 export const 狭い画面_チャンネルのカラム: Story = {
   render: () => {
     const channel: ColumnDef = {
@@ -239,7 +249,13 @@ export const 狭い画面_チャンネルのカラム: Story = {
       title: "さびれたスナック",
       source: { kind: "channel", id: "a".repeat(64) },
     };
-    return <MobileBars columns={[...columns, channel]} active="channel" />;
+    return (
+      <MobileBars
+        columns={[...columns, channel]}
+        active="channel"
+        fab={false}
+      />
+    );
   },
 };
 

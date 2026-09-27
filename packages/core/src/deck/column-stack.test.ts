@@ -6,6 +6,7 @@ import {
   columnStackTransition,
   emptyColumnStack,
   openLayers,
+  shownColumn,
 } from "./column-stack";
 
 const run = (...events: ColumnStackEvent[]): ColumnStackState =>
@@ -107,5 +108,20 @@ describe("columnStackTransition", () => {
     const b = emptyColumnStack();
     expect(a).not.toBe(b);
     expect(a.layers).not.toBe(b.layers);
+  });
+});
+
+describe("shownColumn", () => {
+  it("何も重ねていなければ、下のカラムを返す", () => {
+    expect(shownColumn(emptyColumnStack(), user)).toBe(user);
+  });
+
+  it("開いている一番上の段を返し、閉じている途中の段は飛ばす", () => {
+    const state = run(
+      { type: "stack/open", column: thread },
+      { type: "stack/open", column: user },
+      { type: "stack/back" },
+    );
+    expect(shownColumn(state, user)).toBe(thread);
   });
 });

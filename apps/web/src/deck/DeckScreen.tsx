@@ -40,6 +40,7 @@ import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
+import { columnView } from "../columns/column-views";
 import {
   defaultReaction,
   setDefaultReaction,
@@ -553,7 +554,18 @@ const DeckScreen: Component<{
     </Show>
   );
 
+  // カラムごとに、見えているカラムが自分の入力欄を持つか。重ねた段はカラムの中に
+  // 閉じているので、カラムから知らせてもらう。
+  const [ownComposer, setOwnComposer] = createStore<Record<string, boolean>>(
+    {},
+  );
+  const activeHasComposer = () =>
+    ui.active !== undefined &&
+    ui.settingsFor !== ui.active &&
+    ownComposer[ui.active] === true;
   const shared = {
+    onShown: (id: string, shown: ColumnDef) =>
+      setOwnComposer(id, columnView(shown.source).ownComposer === true),
     get readLayer() {
       return props.readLayer;
     },
@@ -847,8 +859,13 @@ const DeckScreen: Component<{
                                       >
                                         {panelView(true)}
                                       </SidePanelMotion>
-                                      {/* パネルを開いている間は、送信ボタンと重なるので出さない。 */}
-                                      <Show when={ui.panel === undefined}>
+                                      {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。 */}
+                                      <Show
+                                        when={
+                                          ui.panel === undefined &&
+                                          !activeHasComposer()
+                                        }
+                                      >
                                         <ComposeFab />
                                       </Show>
                                     </div>
