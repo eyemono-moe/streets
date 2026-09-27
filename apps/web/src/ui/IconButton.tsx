@@ -1,4 +1,4 @@
-import { type JSX, type ParentComponent, splitProps } from "solid-js";
+import { type Component, type JSX, splitProps } from "solid-js";
 import { BUTTON_VARIANT, type ButtonVariant } from "./Button";
 
 /**
@@ -43,9 +43,9 @@ export type IconButtonProps = Omit<
 
 /**
  * アイコンだけのボタン。大きさと色はここで決め、画面ごとに箱やアイコンの大きさを
- * 書かない。`children` はアイコンに重ねる印（未読の数など）に使う。
+ * 書かない。位置（`position`）は持たない —— 置く側が `absolute` で重ねられるように。
  */
-const IconButton: ParentComponent<IconButtonProps> = (props) => {
+const IconButton: Component<IconButtonProps> = (props) => {
   const [own, rest] = splitProps(props, [
     "icon",
     "label",
@@ -54,7 +54,6 @@ const IconButton: ParentComponent<IconButtonProps> = (props) => {
     "circle",
     "active",
     "class",
-    "children",
     "type",
     "title",
   ]);
@@ -67,7 +66,7 @@ const IconButton: ParentComponent<IconButtonProps> = (props) => {
       aria-label={own.label}
       title={own.title ?? own.label}
       class={[
-        "relative grid shrink-0 place-items-center transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-50",
+        "grid shrink-0 place-items-center transition-colors enabled:cursor-pointer disabled:cursor-default disabled:opacity-50",
         size().box,
         own.circle ? "rounded-full" : "",
         VARIANT[own.variant ?? "ghost"],
@@ -78,7 +77,6 @@ const IconButton: ParentComponent<IconButtonProps> = (props) => {
         .join(" ")}
     >
       <span class={`${own.icon} ${size().icon}`} aria-hidden="true" />
-      {own.children}
     </button>
   );
 };
