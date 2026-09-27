@@ -20,7 +20,7 @@ disable-model-invocation: true
    ```
 
    次に当たる Issue は候補から外す。人の判断が先に要るか、ほかの誰かが進めている。
-   - ラベルが `design-needed`（デザインの検討が要る）・`needs-triage`（中身と優先度を人が確かめる）・`observation`（実鍵でしか答えられない）・`question`・`wontfix`・`duplicate`
+   - ラベルが `observation`（実鍵でしか答えられない）・`question`・`wontfix`・`duplicate`
    - 題名や本文の目的が、実装ではなく「〜かを決める」「〜を用意するかどうか」のような判断そのもの
    - open PR の `closingIssuesReferences` にある、または PR の題名や本文がその Issue を進めていると読める
    - `main` に入っていないブランチに、この 7 日のうちのコミットがある。ブランチ名は `issue-<N>` で終わるものと `issue-<N>-…` の両方がある。それより古いだけのブランチは放置とみなして外さず、選んだときの報告で触れる
