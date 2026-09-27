@@ -4,7 +4,7 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
 import IconButton from "../ui/IconButton";
-import { searchInputClass } from "../ui/TextField";
+import SearchInput from "../ui/SearchInput";
 import ChannelPicture from "./ChannelPicture";
 
 /** 最後の発言の時刻。今日なら時刻、それ以外は日付。直近に無ければ「しばらく前」。 */
@@ -136,7 +136,6 @@ const ChannelListView: Component<{
   /** 渡すと、一番上に「チャンネルを作る」を出す。 */
   onCreate?: () => void;
 }> = (props) => {
-  let input: HTMLInputElement | undefined;
   const tabs = (): ColumnTab[] => [
     {
       value: "recent",
@@ -165,39 +164,13 @@ const ChannelListView: Component<{
       label: "すべて",
       content: () => (
         <div class="flex flex-col gap-3 p-3">
-          <div class="relative flex items-center">
-            <span
-              class="i-material-symbols:search-rounded c-secondary pointer-events-none absolute left-3 size-4.5"
-              aria-hidden="true"
-            />
-            <input
-              ref={input}
-              type="text"
-              aria-label="チャンネルを名前で絞り込む"
-              placeholder="名前で絞り込む"
-              class={`${searchInputClass} w-full pl-9`}
-              classList={{ "pr-9": props.query !== "" }}
-              value={props.query}
-              onInput={(event) => props.onQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && props.query !== "") {
-                  event.preventDefault();
-                  props.onQuery("");
-                }
-              }}
-            />
-            <Show when={props.query !== ""}>
-              <IconButton
-                icon="i-material-symbols:close-rounded"
-                label="絞り込みを消す"
-                class="absolute right-1"
-                onClick={() => {
-                  props.onQuery("");
-                  input?.focus();
-                }}
-              />
-            </Show>
-          </div>
+          <SearchInput
+            label="チャンネルを名前で絞り込む"
+            placeholder="名前で絞り込む"
+            value={props.query}
+            onValueChange={props.onQuery}
+            clearable
+          />
           <Section
             title="すべてのチャンネル（名前順）"
             limit={RESULT_LIMIT}

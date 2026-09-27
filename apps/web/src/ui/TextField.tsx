@@ -3,8 +3,8 @@ import Completion, { type CompletionSource } from "./Completion";
 
 /**
  * 文字を打つ欄の見た目。名前を縦に添えない場所（一覧に 1 件足す欄など）でも
- * 同じ形になるよう、ここから配る。角を丸めきるのは検索窓だけで、フォームの
- * 入力欄はこの四角を使う。
+ * 同じ形になるよう、ここから配る。角を丸めきるのは検索窓（`SearchInput`）だけで、
+ * フォームの入力欄はこの四角を使う。
  */
 const inputBase =
   "c-primary placeholder:c-secondary rounded-2 border bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5";
@@ -13,12 +13,6 @@ export const textInputClass = `${inputBase} h-9 border-primary`;
 
 /** 誤りがあるときの `textInputClass`。枠の色だけを変える。 */
 export const invalidTextInputClass = `${inputBase} h-9 border-danger`;
-
-/**
- * その場で絞り込む検索窓。角を丸めきるのはここだけ —— 打つと結果が変わる箱
- * であることを、形で見分けられるようにする。
- */
-export const searchInputClass = `${inputBase} h-9 rounded-full border-primary px-3.5`;
 
 /**
  * 名前の付いた入力欄。名前・入力・（誤りか説明）の順に縦に並べる。誤りがあるときは

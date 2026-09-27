@@ -4,8 +4,7 @@ import { useUserCandidates, userSource } from "../completion/sources";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
-import Completion from "../ui/Completion";
-import { searchInputClass } from "../ui/TextField";
+import SearchInput from "../ui/SearchInput";
 import { EmojiPreview } from "./EmojiSettingsView";
 
 export type EmojiSetResult = {
@@ -49,22 +48,17 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
           props.onSearch(text());
         }}
       >
-        <Completion sources={sources} label="人の候補">
-          {(attach) => (
-            <input
-              ref={attach}
-              class={`${searchInputClass} min-w-48 flex-1`}
-              placeholder="ねこ / @名前 / npub1… / naddr1…"
-              aria-label="絵文字セットを探す"
-              aria-invalid={props.error !== undefined}
-              aria-describedby={
-                props.error ? "emoji-set-search-error" : undefined
-              }
-              value={text()}
-              onInput={(event) => setText(event.currentTarget.value)}
-            />
-          )}
-        </Completion>
+        <SearchInput
+          class="min-w-48 flex-1"
+          label="絵文字セットを探す"
+          placeholder="ねこ / @名前 / npub1… / naddr1…"
+          completion={sources}
+          completionLabel="人の候補"
+          aria-invalid={props.error !== undefined}
+          aria-describedby={props.error ? "emoji-set-search-error" : undefined}
+          value={text()}
+          onValueChange={setText}
+        />
         <Button
           type="submit"
           variant="primary"
