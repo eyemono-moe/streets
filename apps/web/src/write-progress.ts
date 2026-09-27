@@ -1,16 +1,12 @@
 import type { WriteProgress } from "@streets/core/write/write-progress";
 import { summarizeRelays } from "@streets/core/write/write-progress";
 import type { WriteHooks, Writer } from "@streets/core/write/writer";
-import { toaster } from "./toast";
+import { SAVED_DURATION_MS, TROUBLE_DURATION_MS, toaster } from "./toast";
 import { actionErrorMessage, markReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Tracked = Pick<Writer, "publish" | "replace">;
-
-const SAVED_DURATION_MS = 2500;
-/** 届かなかったリレーがあるときは、読めるだけ長く出す。 */
-const TROUBLE_DURATION_MS = 8000;
 
 const withProgress = (
   hooks: WriteHooks | undefined,
