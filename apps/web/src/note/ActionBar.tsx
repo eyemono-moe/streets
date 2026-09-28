@@ -63,7 +63,7 @@ const Action: Component<{
     type="button"
     aria-label={props.label}
     aria-pressed={props.active}
-    class="flex items-center gap-1 text-caption enabled:cursor-pointer disabled:cursor-default"
+    class="group flex items-center gap-1 text-caption enabled:cursor-pointer disabled:cursor-default"
     classList={{
       "h-6 min-w-6 justify-center rounded-full px-0.75 transition-colors":
         props.filled,
