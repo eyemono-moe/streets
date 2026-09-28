@@ -61,7 +61,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <AuthorNames pubkey={props.target.pubkey} size="normal" />
-              {/* 注意書きで隠している投稿は、返信先としても本文を出さない。 */}
+              {/* 閲覧注意で隠している投稿は、返信先としても本文を出さない。 */}
               <Show
                 when={!hiddenUnderWarning(props.target)}
                 fallback={

@@ -42,7 +42,7 @@ export const welcomeColumn = (relays: readonly RelayUrl[]): ColumnDef => ({
 });
 
 /**
- * 入口ではミュートを持たない人が見る。投稿者が注意書き（NIP-36）を付けたものは
+ * 入口ではミュートを持たない人が見る。投稿者が閲覧注意（NIP-36）にしたものは
  * 出さない。
  */
 export const showsOnWelcome = (event: NostrEvent): boolean =>

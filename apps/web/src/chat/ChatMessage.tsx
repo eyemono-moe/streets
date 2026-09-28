@@ -60,7 +60,7 @@ const ReplyContext: Component<{
           <Show when={parent()}>
             {(event) => (
               // 1 行だけ出す。本文の改行や画像をそのまま描くと、返信の行が崩れる。
-              // 注意書きで隠している発言は、ここにも本文を出さない。
+              // 閲覧注意で隠している発言は、ここにも本文を出さない。
               <span class="min-w-0 truncate">
                 {hiddenUnderWarning(event())
                   ? warningLabel(event())

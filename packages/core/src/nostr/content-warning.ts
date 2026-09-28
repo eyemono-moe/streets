@@ -1,11 +1,11 @@
 import type { NostrEvent } from "./event";
 
-/** 投稿者が付けた注意書き（NIP-36）。理由は書かれていないことがある。 */
+/** 投稿者が付けた閲覧注意（NIP-36）。理由は書かれていないことがある。 */
 export type ContentWarning = { reason?: string };
 
 /**
  * `content-warning` タグを読む。NIP-32 のラベル（`L content-warning`）だけの
- * ものは注意書きとみなさない —— NIP-36 でラベルはタグに添える補足で、
+ * ものは閲覧注意とみなさない —— NIP-36 でラベルはタグに添える補足で、
  * 読み手に確かめさせる印はタグのほう。
  */
 export const contentWarning = (

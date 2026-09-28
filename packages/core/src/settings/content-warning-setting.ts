@@ -2,7 +2,7 @@ import { contentWarning } from "../nostr/content-warning";
 import type { NostrEvent } from "../nostr/event";
 
 /**
- * 注意書きの付いた投稿の扱い。
+ * 閲覧注意の投稿の扱い。
  * - `hide`：中身を隠し、押すと出す
  * - `show`：隠さない
  * - `exclude`：一覧に並べない

@@ -19,11 +19,11 @@ export const hiddenUnderWarning = (event: NostrEvent): boolean =>
 /** 中身の代わりに出す 1 行。 */
 export const warningLabel = (event: NostrEvent): string => {
   const reason = contentWarning(event)?.reason;
-  return reason ? `注意書き：${reason}` : "注意書きが付いています";
+  return reason ? `閲覧注意：${reason}` : "閲覧注意";
 };
 
 /**
- * 注意書き（NIP-36）の付いた投稿の中身を、押すまで描かない。ぼかさずに描かない
+ * 閲覧注意（NIP-36）の付いた投稿の中身を、押すまで描かない。ぼかさずに描かない
  * のは、隠している間に画像を読みにいかせないため。
  */
 const ContentWarningGate: ParentComponent<{

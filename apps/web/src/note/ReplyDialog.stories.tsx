@@ -27,7 +27,7 @@ const viewer = createStoryAuthor(55, {
   picture: avatarUrl,
 });
 const plainTarget = parent.note("返信元のノートの本文。");
-const warnedTarget = parent.note("注意書きの奥にある返信元の本文。", [
+const warnedTarget = parent.note("閲覧注意の奥にある返信元の本文。", [
   ["content-warning", "ネタバレ"],
 ]);
 
@@ -44,7 +44,7 @@ type Props = {
   servers: string[];
   /** 指定すると、その状態で止めて描く（送信中などを見るため）。無ければ実際に書いて送れる。 */
   state?: ComposeState;
-  /** 返信元に注意書きが付いている。 */
+  /** 返信元に閲覧注意が付いている。 */
   warned?: boolean;
 };
 
@@ -168,5 +168,5 @@ export const 長い本文: Story = {
     },
   },
 };
-/** 注意書きで隠している投稿へ返信するときは、返信元の本文の代わりに注意書きを出す。 */
-export const 注意書き付きの投稿への返信: Story = { args: { warned: true } };
+/** 閲覧注意で隠している投稿へ返信するときは、返信元の本文の代わりに閲覧注意を出す。 */
+export const 閲覧注意の投稿への返信: Story = { args: { warned: true } };

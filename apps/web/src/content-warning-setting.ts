@@ -21,7 +21,7 @@ const read = (): ContentWarningMode => {
 
 const [contentWarningMode, setMode] = createSignal(read());
 
-/** 注意書きの付いた投稿の扱い（この端末の設定）。 */
+/** 閲覧注意の投稿の扱い（この端末の設定）。 */
 export { contentWarningMode };
 
 export const setContentWarningMode = (mode: ContentWarningMode) => {

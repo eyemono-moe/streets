@@ -20,7 +20,7 @@ const note = (tags: string[][], pubkey = "b".repeat(64)): NostrEvent => ({
 const warned = note([["content-warning", "nsfw"]]);
 const plain = note([]);
 
-describe("注意書きの設定", () => {
+describe("閲覧注意の設定", () => {
   it("未保存と読めない値は隠す", () => {
     expect(loadContentWarningMode(null)).toBe("hide");
     expect(loadContentWarningMode("???")).toBe("hide");
@@ -30,14 +30,14 @@ describe("注意書きの設定", () => {
     );
   });
 
-  it("隠すのは show 以外で注意書きがあるときだけ", () => {
+  it("隠すのは show 以外で閲覧注意があるときだけ", () => {
     expect(hidesUnderWarning("hide", warned)).toBe(true);
     expect(hidesUnderWarning("exclude", warned)).toBe(true);
     expect(hidesUnderWarning("show", warned)).toBe(false);
     expect(hidesUnderWarning("hide", plain)).toBe(false);
   });
 
-  it("exclude は注意書きのある他人の投稿を一覧から除く", () => {
+  it("exclude は閲覧注意の他人の投稿を一覧から除く", () => {
     expect(listsUnderWarning("exclude", warned, VIEWER)).toBe(false);
     expect(listsUnderWarning("exclude", plain, VIEWER)).toBe(true);
     expect(listsUnderWarning("hide", warned, VIEWER)).toBe(true);

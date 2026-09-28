@@ -172,19 +172,19 @@ const reactionToMissing = bob.event(
 const warnedWithImage = alice.note(`ネタバレを含みます。\n${primalImageUrl}`, [
   ["content-warning", "映画のネタバレ"],
 ]);
-const warnedWithoutReason = bob.note("理由の書かれていない注意書き。", [
+const warnedWithoutReason = bob.note("理由の書かれていない閲覧注意。", [
   ["content-warning"],
 ]);
-const warnedLongReason = carol.note("長い理由の注意書き。", [
+const warnedLongReason = carol.note("理由の長い閲覧注意。", [
   [
     "content-warning",
-    "とても長い理由を書いた注意書きで、狭いカラムでも折り返して最後まで読めることを確かめるための文です",
+    "とても長い理由を書いた閲覧注意で、狭いカラムでも折り返して最後まで読めることを確かめるための文です",
   ],
 ]);
-const warnedQuoted = bob.note("引用された側の注意書き付きの投稿。", [
+const warnedQuoted = bob.note("引用された側の閲覧注意の投稿。", [
   ["content-warning", "閲覧注意"],
 ]);
-const quoteOfWarned = alice.quote(warnedQuoted, "注意書き付きの投稿を引用。");
+const quoteOfWarned = alice.quote(warnedQuoted, "閲覧注意の投稿を引用。");
 
 const ARTICLE = "https://example.com/articles/streets";
 const MISSING = "https://example.com/no-ogp";
@@ -214,7 +214,7 @@ type Props = {
   linkCards?: LinkCardMode;
   /** いいねボタンで送るもの。省くとハート。 */
   defaultReaction?: ReactionInput;
-  /** 注意書きの付いた投稿の扱い。省くと隠す。 */
+  /** 閲覧注意の投稿の扱い。省くと隠す。 */
   contentWarning?: ContentWarningMode;
 };
 
@@ -606,20 +606,20 @@ export const チャンネルが読めない発言: Story = {
   },
 };
 
-// 注意書き（NIP-36）。「表示する」を押すと中身を出す。
-export const 注意書き: Story = {
+// 閲覧注意（NIP-36）。「表示する」を押すと中身を出す。
+export const 閲覧注意: Story = {
   args: { event: warnedWithImage, scene: scene(warnedWithImage) },
 };
-export const 注意書きの理由なし: Story = {
+export const 閲覧注意の理由なし: Story = {
   args: { event: warnedWithoutReason, scene: scene(warnedWithoutReason) },
 };
-export const 注意書きの理由が長い: Story = {
+export const 閲覧注意の理由が長い: Story = {
   args: { event: warnedLongReason, scene: scene(warnedLongReason) },
 };
-export const 注意書き付きの投稿を引用: Story = {
+export const 閲覧注意の投稿を引用: Story = {
   args: { event: quoteOfWarned, scene: scene(quoteOfWarned, warnedQuoted) },
 };
-export const 注意書きを常に表示: Story = {
+export const 閲覧注意を常に表示: Story = {
   args: {
     event: warnedWithImage,
     scene: scene(warnedWithImage),

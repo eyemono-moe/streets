@@ -19,12 +19,12 @@ describe("contentWarning", () => {
     });
   });
 
-  it("理由が無い・空でも注意書きとみなす", () => {
+  it("理由が無い・空でも閲覧注意とみなす", () => {
     expect(contentWarning(note([["content-warning"]]))).toEqual({});
     expect(contentWarning(note([["content-warning", ""]]))).toEqual({});
   });
 
-  it("タグが無ければ注意書きではない（NIP-32 のラベルだけでも）", () => {
+  it("タグが無ければ閲覧注意ではない（NIP-32 のラベルだけでも）", () => {
     expect(contentWarning(note([["t", "nostr"]]))).toBeUndefined();
     expect(
       contentWarning(

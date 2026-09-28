@@ -77,7 +77,7 @@ const replyToLong = say(
   long,
 );
 
-// 注意書き（NIP-36）の付いた発言と、それへの返信。返信先の 1 行にも本文を出さない。
+// 閲覧注意（NIP-36）の付いた発言と、それへの返信。返信先の 1 行にも本文を出さない。
 const portraitImageUrl = new URL(portraitUrl, location.href).href;
 const warnedDraft = buildChannelMessage(
   CHANNEL,
@@ -250,12 +250,12 @@ export const 狭いカラム: Story = {
 export const 発言が多い: Story = { args: { scenario: "many" } };
 /** 上へ遡ると 50 件ずつ足す。足しても読んでいる位置は動かず、500 件を超えても遡れる。 */
 export const 遡って読む: Story = { args: { scenario: "older" } };
-/** 注意書きの付いた発言は、押すまで本文と画像を出さない。返信の 1 行にも本文を出さない。 */
-export const 注意書き付きの発言: Story = {
+/** 閲覧注意の発言は、押すまで本文と画像を出さない。返信の 1 行にも本文を出さない。 */
+export const 閲覧注意の発言: Story = {
   args: { rows: chatRows(warnedMessages, moderation, viewer.pubkey) },
 };
-/** 返信する欄には相手の名前だけを出すので、注意書き付きの発言でも本文は見えない。 */
-export const 注意書き付きの発言に返信を書いている: Story = {
+/** 返信する欄には相手の名前だけを出すので、閲覧注意の発言でも本文は見えない。 */
+export const 閲覧注意の発言に返信を書いている: Story = {
   args: {
     rows: chatRows(warnedMessages, moderation, viewer.pubkey),
     replyTo: warned,

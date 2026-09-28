@@ -32,7 +32,7 @@ const DisplaySettings: Component<{
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
   errorReport: boolean;
-  /** 注意書きの付いた投稿の扱い（この端末の設定）。 */
+  /** 閲覧注意の投稿の扱い（この端末の設定）。 */
   contentWarning: ContentWarningMode;
 }> = (props) => {
   const dispatch = useDispatch();
@@ -63,12 +63,12 @@ const DisplaySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="注意書きのある投稿"
+        title="閲覧注意の投稿"
         scope="device"
-        description="投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに注意書きを出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
+        description="投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに閲覧注意の理由を出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
       >
         <SegmentedControl
-          label="注意書きのある投稿"
+          label="閲覧注意の投稿"
           options={CONTENT_WARNING_MODES}
           value={props.contentWarning}
           onChange={(mode) =>

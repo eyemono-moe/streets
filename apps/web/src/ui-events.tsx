@@ -146,7 +146,7 @@ export type DeckEvent =
   | { type: "deck/set-write-progress"; on: boolean }
   /** 画像を表示サイズに縮めるか。この端末に保存する。 */
   | { type: "deck/set-image-downscaling"; on: boolean }
-  /** 注意書きの付いた投稿の扱い。この端末に保存する。 */
+  /** 閲覧注意の投稿の扱い。この端末に保存する。 */
   | { type: "deck/set-content-warning"; mode: ContentWarningMode }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
