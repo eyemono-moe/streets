@@ -68,22 +68,17 @@ export const ColumnHeaderActions: Component<{
 export const ColumnHeader: Component<{
   column: ColumnDef;
   open: boolean;
-  draggable?: boolean;
+  /** 掴んで並べ替えられる。掴んだ後の動きは、並べている側（デッキ）が受け持つ。 */
+  grip?: boolean;
   temporary?: boolean;
   onTitle: () => void;
 }> = (props) => {
-  const dispatch = useDispatch();
   const meta = () => columnView(props.column.source).meta(props.column.source);
   return (
     <header
       class="flex h-11.25 shrink-0 items-center gap-2.5 border-primary border-b-1 bg-primary px-3"
-      classList={{ "cursor-grab": props.draggable === true }}
-      draggable={props.draggable === true}
-      onDragStart={(event) => {
-        event.dataTransfer?.setData("text/plain", props.column.id);
-        dispatch({ type: "deck/drag-start", id: props.column.id });
-      }}
-      onDragEnd={() => dispatch({ type: "deck/drag-end" })}
+      classList={{ "cursor-grab": props.grip === true }}
+      data-column-grip={props.grip === true ? "" : undefined}
     >
       <ColumnIcon
         column={props.column}
@@ -103,11 +98,14 @@ export const ColumnHeader: Component<{
           {meta().subtitle}
         </p>
       </button>
-      <ColumnHeaderActions
-        column={props.column}
-        open={props.open}
-        temporary={props.temporary}
-      />
+      {/* 操作のボタンからは掴まない。押したつもりが、少し動いただけで並べ替えになる。 */}
+      <div data-no-grip class="contents">
+        <ColumnHeaderActions
+          column={props.column}
+          open={props.open}
+          temporary={props.temporary}
+        />
+      </div>
     </header>
   );
 };

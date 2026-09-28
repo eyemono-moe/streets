@@ -119,10 +119,14 @@ export type DeckEvent =
   /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
   | { type: "deck/focus-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
-  | { type: "deck/drag-start"; id: string }
+  | { type: "deck/drag-start"; id: string; index: number }
+  | { type: "deck/drag-move"; to: number }
+  /** やめた（Esc・ポインタを奪われた）。並びは変えない。 */
   | { type: "deck/drag-end" }
-  /** 掴んでいたカラムを、このカラムの位置へ差し込む。 */
-  | { type: "deck/drop"; targetId: string }
+  /** 離した。掴んでいたカラムを、動かした先の位置で確定する。 */
+  | { type: "deck/drop" }
+  /** 1 つ前（-1）か後ろ（1）へずらす。キーボードでの並べ替え。 */
+  | { type: "deck/move-column"; id: string; direction: -1 | 1 }
   /** 足す。id は裁定する段が振り直す（重ねた段の id は中身から作ってあり衝突する）。 */
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }

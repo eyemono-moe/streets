@@ -32,7 +32,8 @@ export type ColumnProps = {
   bookmarks: () => readonly string[];
   searchRelays: () => readonly RelayUrl[];
   settingsOpen: boolean;
-  draggable?: boolean;
+  /** 見出しを掴んで並べ替えられる。 */
+  grip?: boolean;
   temporary?: boolean;
   chrome?: boolean;
   stacked?: StackedColumn;
@@ -116,7 +117,7 @@ const Column: Component<ColumnProps> = (props) => {
               <ColumnHeader
                 column={props.column}
                 open={props.settingsOpen}
-                draggable={props.draggable}
+                grip={props.grip}
                 temporary={props.temporary}
                 onTitle={onHeader}
               />
@@ -190,7 +191,7 @@ const Column: Component<ColumnProps> = (props) => {
                         {...props}
                         column={layer.column}
                         settingsOpen={false}
-                        draggable={false}
+                        grip={false}
                         temporary={false}
                         stacked={{
                           backTo:

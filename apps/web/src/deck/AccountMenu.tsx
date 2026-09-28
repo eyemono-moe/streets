@@ -11,6 +11,8 @@ const AccountMenu: Component<{
   onLogout: () => void;
   /** フィードバックも並べる（狭い画面で、下のバーに置き場所が無いため）。 */
   onFeedback?: () => void;
+  /** 「カラムを整理」も並べる（狭い画面で、サイドバーの代わりに）。 */
+  arrange?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
@@ -21,6 +23,8 @@ const AccountMenu: Component<{
         if (details.value === "settings")
           dispatch({ type: "deck/open-settings" });
         if (details.value === "about") dispatch({ type: "deck/open-about" });
+        if (details.value === "arrange")
+          dispatch({ type: "deck/open-panel", panel: "arrange" });
         if (details.value === "feedback") props.onFeedback?.();
         if (details.value === "logout") props.onLogout();
       }}
@@ -55,6 +59,18 @@ const AccountMenu: Component<{
               />
               Streets について
             </Menu.Item>
+            <Show when={props.arrange}>
+              <Menu.Item
+                value="arrange"
+                class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+              >
+                <span
+                  class="i-material-symbols:reorder-rounded c-secondary size-4.5"
+                  aria-hidden="true"
+                />
+                カラムを整理
+              </Menu.Item>
+            </Show>
             <Show when={props.onFeedback}>
               <Menu.Item
                 value="feedback"

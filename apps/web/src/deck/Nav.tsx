@@ -6,6 +6,7 @@ import {
   Show,
   createEffect,
   createSignal,
+  onCleanup,
 } from "solid-js";
 import { ColumnHeaderActions } from "../columns/ColumnHeader";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
@@ -74,9 +75,9 @@ export const Sidebar: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・フィードバック・設定・
+    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・整理・フィードバック・設定・
     // アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <IconButton
         {...tourTarget("compose")}
         variant="primary"
@@ -132,6 +133,16 @@ export const Sidebar: Component<{
           />
         </div>
       </div>
+      <IconButton
+        variant={props.panel === "arrange" ? "filled" : "ghost"}
+        size="lg"
+        icon="i-material-symbols:reorder-rounded"
+        label="カラムを整理"
+        aria-expanded={props.panel === "arrange"}
+        onClick={() =>
+          dispatch({ type: "deck/toggle-panel", panel: "arrange" })
+        }
+      />
       <FeedbackLink template={props.feedbackUrl} />
       <IconButton
         size="lg"
@@ -189,6 +200,7 @@ export const MobileTopBar: Component<{
         pubkey={props.pubkey}
         onLogout={props.onLogout}
         onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
+        arrange
       />
       <Show when={href()}>
         {(url) => (
@@ -224,9 +236,12 @@ export const MobileTopBar: Component<{
   );
 };
 
+const LONG_PRESS_MS = 500;
+
 /**
  * 狭い画面の下のバー。広い画面のサイドバーと同じく「探す｜カラム｜足す」の順に
- * 並べ、カラムの帯だけを横に送れるようにする。
+ * 並べ、カラムの帯だけを横に送れるようにする。タブを長押しすると、カラムを
+ * 並べ替えるパネルを開く。
  */
 export const MobileTabBar: Component<{
   columns: readonly ColumnDef[];
@@ -246,6 +261,16 @@ export const MobileTabBar: Component<{
       ?.querySelector(`[data-tab="${CSS.escape(id)}"]`)
       ?.scrollIntoView({ inline: "nearest", block: "nearest" });
   });
+  // タブを長押ししたら、並べ替えるためのパネルを開く。押し続けた後の click は捨てる。
+  let pressTimer: ReturnType<typeof setTimeout> | undefined;
+  let pressedAt: { x: number; y: number } | undefined;
+  let longPressed = false;
+  const releasePress = () => {
+    clearTimeout(pressTimer);
+    pressTimer = undefined;
+    pressedAt = undefined;
+  };
+  onCleanup(releasePress);
   const tab = (column: ColumnDef, id: string) => {
     const title = useColumnTitle(() => column);
     const selected = () => props.active === id;
@@ -255,12 +280,46 @@ export const MobileTabBar: Component<{
         data-tab={id}
         aria-label={title()}
         aria-current={selected() ? "page" : undefined}
-        class="relative grid size-11 shrink-0 cursor-pointer place-items-center bg-transparent"
+        class="relative grid size-11 shrink-0 cursor-pointer select-none place-items-center bg-transparent [-webkit-touch-callout:none]"
         classList={{
           "c-accent-5": selected(),
           "c-secondary": !selected(),
         }}
-        onClick={() => dispatch({ type: "deck/focus-column", id })}
+        onPointerDown={(event) => {
+          if (!event.isPrimary || id === "temp") return;
+          longPressed = false;
+          pressedAt = { x: event.clientX, y: event.clientY };
+          clearTimeout(pressTimer);
+          pressTimer = setTimeout(() => {
+            longPressed = true;
+            releasePress();
+            dispatch({ type: "deck/open-panel", panel: "arrange" });
+          }, LONG_PRESS_MS);
+        }}
+        onPointerMove={(event) => {
+          // 帯を横に送り始めたら、長押しではない。
+          if (
+            pressedAt &&
+            Math.hypot(
+              event.clientX - pressedAt.x,
+              event.clientY - pressedAt.y,
+            ) > 8
+          ) {
+            releasePress();
+          }
+        }}
+        onPointerUp={releasePress}
+        onPointerCancel={releasePress}
+        onPointerLeave={releasePress}
+        // 長押しで出る端末のメニュー（リンクを開く、など）を出さない。
+        onContextMenu={(event) => event.preventDefault()}
+        onClick={() => {
+          if (longPressed) {
+            longPressed = false;
+            return;
+          }
+          dispatch({ type: "deck/focus-column", id });
+        }}
       >
         <ColumnIcon
           column={column}

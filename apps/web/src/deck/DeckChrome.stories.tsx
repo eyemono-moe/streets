@@ -66,12 +66,7 @@ export const カラムヘッダー: Story = {
     <EventSceneProvider scene={{ events: [viewer.profile()] }}>
       <Mediates handle={() => true}>
         <div class="w-[360px] border-primary border-x">
-          <ColumnHeader
-            column={home}
-            open={false}
-            draggable
-            onTitle={() => {}}
-          />
+          <ColumnHeader column={home} open={false} grip onTitle={() => {}} />
         </div>
       </Mediates>
     </EventSceneProvider>
@@ -96,12 +91,7 @@ export const 一時カラムのヘッダー: Story = {
           </div>
           <div class="w-[360px] border-primary border-r">
             <ColumnAccentBar />
-            <ColumnHeader
-              column={home}
-              open={false}
-              draggable
-              onTitle={() => {}}
-            />
+            <ColumnHeader column={home} open={false} grip onTitle={() => {}} />
           </div>
         </div>
       </Mediates>

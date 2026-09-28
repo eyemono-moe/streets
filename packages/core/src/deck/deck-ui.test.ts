@@ -73,12 +73,26 @@ describe("deckUiTransition", () => {
     ).toBe("b");
   });
 
-  it("掴んで離すと、掴んでいた状態を忘れる", () => {
-    expect(run({ type: "deck/drag-start", id: "a" }).dragging).toBe("a");
+  it("掴んだ位置から始まり、動かした先を覚え、離すと忘れる", () => {
     expect(
-      run({ type: "deck/drag-start", id: "a" }, { type: "deck/drag-end" })
-        .dragging,
+      run({ type: "deck/drag-start", id: "a", index: 2 }).dragging,
+    ).toEqual({ id: "a", to: 2 });
+    expect(
+      run(
+        { type: "deck/drag-start", id: "a", index: 2 },
+        { type: "deck/drag-move", to: 0 },
+      ).dragging,
+    ).toEqual({ id: "a", to: 0 });
+    expect(
+      run(
+        { type: "deck/drag-start", id: "a", index: 2 },
+        { type: "deck/drag-end" },
+      ).dragging,
     ).toBeUndefined();
+  });
+
+  it("掴んでいないときに動かしても何も起きない", () => {
+    expect(run({ type: "deck/drag-move", to: 1 }).dragging).toBeUndefined();
   });
 
   it("カラムを足したら、足したカラムを選んでパネルを閉じる", () => {
@@ -92,10 +106,13 @@ describe("deckUiTransition", () => {
   it("消したカラムの設定と掴みだけを外す", () => {
     const state = run(
       { type: "deck/toggle-settings", id: "a" },
-      { type: "deck/drag-start", id: "b" },
+      { type: "deck/drag-start", id: "b", index: 1 },
       { type: "deck/column-removed", id: "a" },
     );
-    expect(state).toMatchObject({ settingsFor: undefined, dragging: "b" });
+    expect(state).toMatchObject({
+      settingsFor: undefined,
+      dragging: { id: "b", to: 1 },
+    });
   });
 
   it("消したのが別のカラムなら、設定は開いたまま", () => {
