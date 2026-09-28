@@ -67,7 +67,7 @@ const Action: Component<{
     classList={{
       "h-6 min-w-6 justify-center rounded-full px-0.75 transition-colors":
         props.filled,
-      "bg-accent-5/15": props.filled && props.active,
+      "bg-accent-5/50": props.filled && props.active,
       "bg-transparent": !(props.filled && props.active),
       "c-secondary enabled:hover:c-primary": !props.active,
       "c-accent-5": props.active,

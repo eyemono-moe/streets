@@ -25,7 +25,7 @@ const ReactionButtonMark: Component<{
     >
       <Match when={text()}>
         {(text) => (
-          <span class="text-[17px] leading-[18px]" aria-hidden="true">
+          <span class="text-[16px] leading-[18px]" aria-hidden="true">
             {text().content}
           </span>
         )}
