@@ -32,6 +32,8 @@ vp exec wrangler versions deploy <版の ID>@100%
 
 PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番号>` の URL に版を上げ、PR にコメントで知らせる。本番には出さない。fork からの PR では動かない（secrets を読めない）。
 
+プレビューの版には Storybook も入れ、同じ URL の `/storybook/` で開ける。タグのリリースでは入れないので、本番の `streets.eyemono.moe/storybook/` には無い。
+
 ## 初めに一度だけ用意するもの
 
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
