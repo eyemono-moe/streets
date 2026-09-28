@@ -25,7 +25,10 @@ import {
   loadLoginMethod,
   saveLoginMethod,
 } from "@streets/core/signer/session-storage";
-import { SignerUnavailableError } from "@streets/core/signer/signer";
+import {
+  type Signer,
+  SignerUnavailableError,
+} from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
 import { createSignerWait, observeSigner } from "./signer-wait";
 
@@ -57,6 +60,11 @@ export const createSession = (
   const [restoreFailed, setRestoreFailed] = createSignal(false);
   const signerWait = createSignerWait();
   const signer = observeSigner(createActiveSigner(), signerWait);
+  // リレーは認証した鍵を接続が切れるまで覚えているので、署名器を替えたら張り直す。
+  const setSigner = (next: Signer | undefined) => {
+    signer.set(next);
+    pool.resetAuthentication();
+  };
   let nip46: Nip46Session | undefined;
   onCleanup(() => nip46?.client.close());
 
@@ -86,7 +94,7 @@ export const createSession = (
   const activateNip46 = (session: Nip46Session) => {
     nip46?.client.close();
     nip46 = session;
-    signer.set(session.signer);
+    setSigner(session.signer);
     setAuthUrl(undefined);
     setPubkey(session.userPubkey);
     setState("signed-in");
@@ -110,7 +118,7 @@ export const createSession = (
             LOGIN_METHOD_STORAGE_KEY,
             saveLoginMethod("nip07"),
           );
-          signer.set(extension);
+          setSigner(extension);
           setPubkey(pk);
           setState("signed-in");
         } catch (e) {
@@ -179,7 +187,7 @@ export const createSession = (
         try {
           const extension = createNip07Signer();
           const pk = await extension.getPublicKey();
-          signer.set(extension);
+          setSigner(extension);
           setPubkey(pk);
           setState("signed-in");
         } catch (e) {
@@ -224,7 +232,7 @@ export const createSession = (
   const logout = () => {
     const session = nip46;
     nip46 = undefined;
-    signer.set(undefined);
+    setSigner(undefined);
     setPubkey(undefined);
     setState("signed-out");
     setAuthUrl(undefined);

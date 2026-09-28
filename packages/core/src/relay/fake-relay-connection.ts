@@ -26,6 +26,8 @@ export class FakeRelayConnection implements RelayConnection {
   readonly #closeListeners = new Set<() => void>();
   #opened: boolean;
   closed = false;
+  /** 認証を試みたことにする（`ConnectionPool.resetAuthentication` の確認用）。 */
+  authAttempted = false;
 
   constructor(
     readonly url: RelayUrl,

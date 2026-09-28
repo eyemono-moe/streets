@@ -537,6 +537,31 @@ export class ConnectionPool {
   }
 
   /**
+   * 認証を試みた接続を張り直す。リレーは認証した鍵をソケットが閉じるまで覚えて
+   * いるので、アカウントを替えたのに同じソケットを使い続けると、前のアカウント
+   * として読み書きできてしまう。購読は新しい接続へそのまま移す。
+   */
+  resetAuthentication(): void {
+    for (const [url, pooled] of this.#pool) {
+      const connection = pooled.connection;
+      if (!connection?.authAttempted) continue;
+      // 先に購読を閉じておく。閉じずに捨てると、古いソケットの死が
+      // 新しい接続へ移した購読に onClosed を配ってしまう。
+      for (const entry of pooled.entries) {
+        entry.subscription?.close();
+        entry.subscription = null;
+      }
+      pooled.offClose?.();
+      pooled.offClose = null;
+      pooled.offOpen?.();
+      pooled.offOpen = null;
+      pooled.connection = null;
+      connection.close();
+      this.#reconnect(url);
+    }
+  }
+
+  /**
    * `#drop` は `#failures` に触らないが、dispose() 後に放置すると最大 5 分の
    * `setTimeout` が dispose 済みプールを掴み続けるので、ここで明示的に消す。
    */

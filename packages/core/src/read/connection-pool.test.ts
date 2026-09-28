@@ -585,6 +585,29 @@ describe("ConnectionPool", () => {
     expect(connectCalls).toHaveLength(4);
   });
 
+  it("resetAuthentication() moves subscriptions onto a fresh socket only for relays that were authenticated", () => {
+    const { pool, connections, connectCalls } = createPool();
+    const authed = vi.fn();
+    pool.subscribe("wss://one/", [{ kinds: [4] }], {
+      ...noopHandlers(),
+      onClosed: authed,
+    });
+    pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers());
+    const before = connections.get("wss://one/");
+    if (!before) throw new Error("no connection");
+    before.authAttempted = true;
+
+    pool.resetAuthentication();
+
+    expect(before.closed).toBe(true);
+    expect(connectCalls).toEqual(["wss://one/", "wss://two/", "wss://one/"]);
+    expect(connections.get("wss://one/")?.subscriptions[0]?.filters).toEqual([
+      { kinds: [4] },
+    ]);
+    // 古いソケットの死は、張り直した購読へ届かない。
+    expect(authed).not.toHaveBeenCalled();
+  });
+
   it("stops reconnecting once the last subscription closed", () => {
     const { pool, connections, connectCalls, clock } = createPool({
       random: () => 0.5,
