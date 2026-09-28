@@ -477,7 +477,7 @@ const ContentWarningInput: Component<{
         ref={input}
         type="text"
         aria-label="注意書きの理由"
-        placeholder="注意書きの理由（書かなくてもよい）"
+        placeholder="注意書きの理由（任意）"
         class={`${textInputClass} min-w-0 flex-1`}
         disabled={props.disabled}
         value={props.reason}
