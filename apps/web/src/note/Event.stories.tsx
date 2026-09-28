@@ -647,3 +647,12 @@ export const 閲覧注意を常に表示: Story = {
     contentWarning: "show",
   },
 };
+
+/** いいねボタンの絵文字にホバーしても、本文のリンクやメンションの色が変わらないか。 */
+export const いいねボタンの絵文字と本文のリンク: Story = {
+  args: {
+    event: tokens,
+    scene: scene(tokens),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
