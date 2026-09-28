@@ -173,6 +173,10 @@ const Column: Component<ColumnProps> = (props) => {
                   trapFocus={false}
                   preventScroll={false}
                   closeOnInteractOutside={false}
+                  // Ark UI は先に開いていた層（名刺のホバーカードなど）が閉じると、
+                  // 後から開いた層も一緒に閉じる。名刺を出したままアイコンを押すと、
+                  // 開いたばかりの段が名刺と一緒に閉じてしまう。段の開閉は stack が持つ。
+                  onRequestDismiss={(event) => event.preventDefault()}
                   swipeDirection="down"
                 >
                   <Drawer.Positioner class="absolute inset-0 isolate">
