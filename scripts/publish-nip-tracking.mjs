@@ -10,6 +10,15 @@ const hasAgent = process.env.NIP_AGENT_RESULT === "yes";
 const decision = hasAgent
   ? JSON.parse(await readFile(`${directory}/decision.json`, "utf8"))
   : undefined;
+const agent = hasAgent
+  ? JSON.parse(await readFile(`${directory}/agent.json`, "utf8"))
+  : undefined;
+const confidence =
+  agent?.provider === "manual"
+    ? "判断の確信度: 未判定"
+    : decision
+      ? `判断の確信度（生成モデルの自己評価・未校正）: ${decision.confidence}`
+      : "判断の確信度: 未判定";
 const verification = hasAgent
   ? (await readFile(`${directory}/verification.txt`, "utf8")).trim()
   : "実装対象なし";
@@ -74,7 +83,8 @@ if (decision?.impact === "code" && !prLimitReached && !existingPr) {
       "",
       decision.summary,
       "",
-      `判断の確信度（生成モデルの自己評価・未校正）: ${decision.confidence}`,
+      `agent: ${agent.provider}（model: ${agent.model}）`,
+      confidence,
       `検証: ${verification}`,
       "",
       "NIP 本文は第三者が編集できるため、仕様データとして扱っています。",
@@ -123,9 +133,10 @@ if (needsReview) {
         : (decision?.summary ??
           "対応表にない NIP です。Streets への影響を確認してください。"),
       "",
-      decision
-        ? `判断の確信度（生成モデルの自己評価・未校正）: ${decision.confidence}`
-        : "判断の確信度: 未判定",
+      agent
+        ? `agent: ${agent.provider}（model: ${agent.model}）`
+        : "agent: 実行なし",
+      confidence,
       "",
     ].join("\n"),
   );

@@ -23,6 +23,7 @@
     "ja:apply": "node scripts/ja-text-apply.mjs",
     "nips:generate": "node scripts/generate-nips.mjs",
     "nips:scan": "node scripts/scan-nips.mjs",
+    "nips:agent": "node scripts/run-nip-agent.mjs",
     "prepare": "vp config"
   },
   "devDependencies": {

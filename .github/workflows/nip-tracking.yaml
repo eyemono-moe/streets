@@ -66,16 +66,12 @@ jobs:
         with:
           name: nip-scan
           path: .nip-tracking
-      - name: Copilot CLI を入れる
-        run: npm install -g @github/copilot
       - name: 仕様差分の影響を判断して対応する
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          copilot -p "$(cat .github/nip-tracking-prompt.md)" \
-            --no-ask-user --no-auto-update \
-            --excluded-tools='web_fetch,web_search' \
-            --allow-tool='write,shell(vp:*)'
+          NIP_AGENT_DRIVER: ${{ vars.NIP_AGENT_DRIVER || 'manual' }}
+          NIP_AGENT_MODEL: ${{ vars.NIP_AGENT_MODEL || 'auto' }}
+        run: vp run nips:agent
       - name: 判断と変更を検査する
         run: node scripts/prepare-nip-result.mjs
       - name: 変更を検証する
@@ -101,6 +97,7 @@ jobs:
           name: nip-agent
           path: |
             .nip-tracking/decision.json
+            .nip-tracking/agent.json
             .nip-tracking/changes.patch
             .nip-tracking/verification.txt
             .nip-tracking/verify.log
