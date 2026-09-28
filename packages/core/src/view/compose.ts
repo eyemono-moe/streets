@@ -36,6 +36,8 @@ export type ComposeState = {
   sending: boolean;
   /** 添えたファイル。並び順がそのまま本文に並ぶ順になる。 */
   attachments: Attachment[];
+  /** 閲覧注意の理由。`undefined` は付けない、空文字は理由なしで付ける。 */
+  contentWarning?: string;
 };
 
 export type ComposeEvent =
@@ -60,7 +62,10 @@ export type ComposeEvent =
   | { type: "compose/attach-crop"; id: string; crop: CropRect | undefined }
   | { type: "compose/attach-uploading"; id: string }
   | { type: "compose/attach-done"; id: string; blob: BlobDescriptor }
-  | { type: "compose/attach-failed"; id: string; error: string };
+  | { type: "compose/attach-failed"; id: string; error: string }
+  /** 閲覧注意にする・外す。外すと書いた理由も消える。 */
+  | { type: "compose/warning-toggle" }
+  | { type: "compose/warning-input"; reason: string };
 
 /** 呼ぶたびに新しく作る。受け取った側が書き換えても他へ漏れないようにする。 */
 export const emptyCompose = (): ComposeState => ({
@@ -84,6 +89,10 @@ export const composeMedia = (state: ComposeState): BlobDescriptor[] =>
 /** 送れる本文。ファイルだけを投稿することもあるので、空でも返す。 */
 export const sendableText = (state: ComposeState): string =>
   state.content.trim();
+
+/** 送る閲覧注意の理由。付けていなければ `undefined`。 */
+export const sendableWarning = (state: ComposeState): string | undefined =>
+  state.contentWarning?.trim();
 
 /** 送れるか。本文もファイルも無いときと、送っている途中は送らない。 */
 export const canSend = (state: ComposeState): boolean =>
@@ -189,5 +198,15 @@ export const composeTransition = (
         uploading: false,
         error: event.error,
       }));
+    case "compose/warning-toggle":
+      if (state.sending) return state;
+      return {
+        ...state,
+        contentWarning: state.contentWarning === undefined ? "" : undefined,
+      };
+    case "compose/warning-input":
+      return state.sending || state.contentWarning === undefined
+        ? state
+        : { ...state, contentWarning: event.reason };
   }
 };

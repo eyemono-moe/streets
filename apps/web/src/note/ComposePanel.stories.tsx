@@ -210,3 +210,14 @@ export const 長い本文: Story = {
     },
   },
 };
+
+/** 閲覧注意にした。本文の上に理由の欄が出て、プレビューにも閲覧注意が付く。 */
+export const 閲覧注意にした: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "結末に触れる感想。",
+      contentWarning: "映画のネタバレ",
+    },
+  },
+};

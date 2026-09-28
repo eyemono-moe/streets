@@ -16,6 +16,7 @@ import Avatar from "./Avatar";
 import {
   ComposeAttachments,
   ComposeTools,
+  ContentWarningField,
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
@@ -50,6 +51,10 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               dispatch({ type: "compose/submit" });
             }}
           >
+            <ContentWarningField
+              reason={props.state.contentWarning}
+              disabled={props.state.sending}
+            />
             <div class="flex items-start gap-3 px-4">
               <Show when={actions}>
                 {(actions) => (
@@ -106,6 +111,7 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               count={`${countCharacters(props.state.content)}`}
               label="引用"
               sending={props.state.sending}
+              contentWarning={props.state.contentWarning}
               disabled={!canSend(props.state)}
               onEmojiSelect={emojiInsertion.insert}
               emojiField={emojiInsertion.field}

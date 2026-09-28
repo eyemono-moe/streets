@@ -104,7 +104,9 @@ export type ComposeViewEvent =
         type:
           | "compose/attach-remove"
           | "compose/attach-move"
-          | "compose/attach-crop";
+          | "compose/attach-crop"
+          | "compose/warning-toggle"
+          | "compose/warning-input";
       }
     >;
 

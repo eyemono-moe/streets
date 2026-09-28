@@ -1,6 +1,7 @@
 import type { AppScenario } from "../scenario";
 import { allInScenario } from "./all-in";
 import channelsAndLists from "./channels-and-lists";
+import contentWarning from "./content-warning";
 import home from "./home";
 import manyColumns from "./many-columns";
 import media from "./media";
@@ -17,6 +18,7 @@ const individualScenarios = {
   "many-columns": manyColumns,
   media,
   "channels-and-lists": channelsAndLists,
+  "content-warning": contentWarning,
 } satisfies Record<string, AppScenario>;
 
 export const scenarios = {
