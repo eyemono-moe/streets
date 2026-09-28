@@ -11,6 +11,7 @@ import { Mediates } from "../ui-events";
 import {
   ComposeAttachments,
   ComposeTools,
+  ContentWarningField,
   countCharacters,
 } from "./compose-parts";
 
@@ -35,10 +36,13 @@ type Args = {
   /** アップロード先。空にすると、画像を添えるボタンが使えない見た目になる。 */
   servers: string[];
   sending: boolean;
+  /** 注意書きの理由。`undefined` は付けていない。 */
+  contentWarning?: string;
 };
 
 const Parts = (props: Args) => {
   const [attachments, setAttachments] = createSignal(props.attachments);
+  const [warning, setWarning] = createSignal(props.contentWarning);
   return (
     <UploaderProvider
       value={{
@@ -48,6 +52,14 @@ const Parts = (props: Args) => {
     >
       <Mediates
         handle={(event) => {
+          if (event.type === "compose/warning-toggle") {
+            setWarning((current) => (current === undefined ? "" : undefined));
+            return true;
+          }
+          if (event.type === "compose/warning-input") {
+            setWarning(event.reason);
+            return true;
+          }
           if (event.type === "compose/attach-remove") {
             setAttachments((current) =>
               current.filter((a) => a.id !== event.id),
@@ -72,7 +84,10 @@ const Parts = (props: Args) => {
         }}
       >
         <div class="w-100 overflow-hidden rounded-3 border border-primary bg-primary">
-          <div class="px-4 pt-4 pb-2">
+          <div class="pt-4">
+            <ContentWarningField reason={warning()} disabled={props.sending} />
+          </div>
+          <div class="px-4 pb-2">
             <div class="c-primary min-h-20 whitespace-pre-wrap rounded-2 border border-primary bg-secondary p-2.5 text-body">
               {props.content}
             </div>
@@ -88,6 +103,7 @@ const Parts = (props: Args) => {
             disabled={
               props.content.trim().length === 0 && attachments().length === 0
             }
+            contentWarning={warning()}
             onEmojiSelect={() => {}}
             emojiField={() => undefined}
           />
@@ -205,3 +221,10 @@ export const 動画を添えた: Story = {
 export const アップロード先が無い: Story = { args: { servers: [] } };
 
 export const 送信中: Story = { args: { sending: true } };
+
+/** 注意書きを付けた。本文の上に理由の欄が出て、ボタンは入っている見た目になる。 */
+export const 注意書きを付けた: Story = {
+  args: { contentWarning: "映画のネタバレ" },
+};
+
+export const 注意書きの理由なし: Story = { args: { contentWarning: "" } };

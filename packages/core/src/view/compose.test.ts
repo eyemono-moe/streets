@@ -8,6 +8,7 @@ import {
   emptyCompose,
   pendingAttachments,
   sendableText,
+  sendableWarning,
 } from "./compose";
 
 const run = (...events: ComposeEvent[]): ComposeState =>
@@ -231,5 +232,38 @@ describe("ファイルを添える", () => {
       { type: "compose/sent" },
     );
     expect(state).toEqual(emptyCompose());
+  });
+});
+
+describe("注意書き", () => {
+  it("付けると理由なしで付き、外すと理由ごと消える", () => {
+    const on = run({ type: "compose/warning-toggle" });
+    expect(sendableWarning(on)).toBe("");
+    const typed = composeTransition(on, {
+      type: "compose/warning-input",
+      reason: " ネタバレ ",
+    });
+    expect(sendableWarning(typed)).toBe("ネタバレ");
+    const off = composeTransition(typed, { type: "compose/warning-toggle" });
+    expect(sendableWarning(off)).toBeUndefined();
+  });
+
+  it("付けていない間は理由を受け取らない", () => {
+    const state = run({ type: "compose/warning-input", reason: "ネタバレ" });
+    expect(sendableWarning(state)).toBeUndefined();
+  });
+
+  it("送っている間は変えられず、送れたら消える", () => {
+    const sending = run(
+      { type: "compose/warning-toggle" },
+      { type: "compose/warning-input", reason: "閲覧注意" },
+      { type: "compose/input", content: "本文" },
+      { type: "compose/submit" },
+      { type: "compose/warning-toggle" },
+      { type: "compose/warning-input", reason: "書き換え" },
+    );
+    expect(sendableWarning(sending)).toBe("閲覧注意");
+    const sent = composeTransition(sending, { type: "compose/sent" });
+    expect(sendableWarning(sent)).toBeUndefined();
   });
 });

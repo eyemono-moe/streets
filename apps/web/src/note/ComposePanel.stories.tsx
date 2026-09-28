@@ -210,3 +210,14 @@ export const 長い本文: Story = {
     },
   },
 };
+
+/** 注意書きを付けた。本文の上に理由の欄が出て、プレビューにも注意書きが付く。 */
+export const 注意書きを付けた: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: "結末に触れる感想。",
+      contentWarning: "映画のネタバレ",
+    },
+  },
+};

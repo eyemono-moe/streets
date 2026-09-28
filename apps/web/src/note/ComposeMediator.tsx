@@ -9,6 +9,7 @@ import {
   emptyCompose,
   pendingAttachments,
   sendableText,
+  sendableWarning,
 } from "@streets/core/view/compose";
 import type { Component, JSX } from "solid-js";
 import { onCleanup } from "solid-js";
@@ -28,10 +29,12 @@ import { uploadErrorMessage } from "../write-errors";
  * やめたときに、出さなかった画像がアップロード先に残らない。
  */
 export const ComposeMediator: Component<{
+  /** `contentWarning` は注意書きの理由。付けていなければ `undefined`。 */
   send: (
     text: string,
     media: readonly BlobDescriptor[],
     emoji: EmojiLookup,
+    contentWarning: string | undefined,
   ) => Promise<void>;
   /** 失敗したときのトーストの見出し。 */
   failure: string;
@@ -106,7 +109,12 @@ export const ComposeMediator: Component<{
   const submit = async () => {
     await uploadPending();
     const current = unwrap(state);
-    await props.send(sendableText(current), composeMedia(current), emoji);
+    await props.send(
+      sendableText(current),
+      composeMedia(current),
+      emoji,
+      sendableWarning(current),
+    );
   };
 
   const handle = (event: UiEvent): boolean => {
@@ -142,6 +150,8 @@ export const ComposeMediator: Component<{
         apply(event);
         return true;
       case "compose/attach-crop":
+      case "compose/warning-toggle":
+      case "compose/warning-input":
         apply(event);
         return true;
       case "compose/close":
