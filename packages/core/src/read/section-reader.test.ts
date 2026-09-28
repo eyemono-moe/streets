@@ -131,7 +131,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
           unroutableAuthors: 0,
           uncoveredAuthors: 0,
         },
-        fetchOlder: async () => 0,
+        fetchOlder: async () => ({ relays: [] }),
         close: () => {},
       };
     },
@@ -1012,7 +1012,7 @@ describe("SectionReader with Outbox routing", () => {
 });
 
 describe("古い投稿の取り足し（pageSize）", () => {
-  const setupPaged = (pageSize: number) => {
+  const setupPaged = (pageSize: number, urls: RelayUrl[] = ["wss://a/"]) => {
     const clock = createFakeClock();
     const relays = new Map<string, FakeRelayConnection>();
     const store = new PassThroughStore();
@@ -1027,11 +1027,7 @@ describe("古い投稿の取り足し（pageSize）", () => {
       fallbackRelays: ["wss://fallback/"],
     });
     const reader = new SectionReader({
-      source: {
-        type: "nostr",
-        filters: [{ kinds: [1] }],
-        relays: ["wss://a/"],
-      },
+      source: { type: "nostr", filters: [{ kinds: [1] }], relays: urls },
       order: "created-at-desc",
       store,
       manager,
@@ -1039,7 +1035,8 @@ describe("古い投稿の取り足し（pageSize）", () => {
       pageSize,
     });
     reader.start();
-    const relay = () => relays.get("wss://a/") as FakeRelayConnection;
+    const relay = (url: RelayUrl = "wss://a/") =>
+      relays.get(url) as FakeRelayConnection;
     // loadOlder の Promise が片付くのを待つ（マイクロタスクを回す）。
     const settle = async () => {
       for (let i = 0; i < 5; i++) await Promise.resolve();
@@ -1171,6 +1168,85 @@ describe("古い投稿の取り足し（pageSize）", () => {
     // もう取りに行かない。
     reader.loadOlder();
     expect(relay().subscriptions).toHaveLength(2);
+  });
+
+  it("返事をしないリレーがあれば、もう無いとせず、呼び直すと同じところを取り直す", async () => {
+    // 捕まえる変異: 取れなかったページを exhausted にする（接続が切れただけで「これより前の投稿はありません」と出る）
+    const { reader, relay, settle, clock } = setupPaged(2);
+    relay().emitEvent(0, event("only", 300));
+    relay().emitEose(0);
+    clock.advance(16);
+
+    reader.loadOlder();
+    relay().emitClosed(1, "rate-limited: slow down");
+    await settle();
+    expect(reader.paging).toBe("failed");
+
+    reader.loadOlder();
+    expect(reader.paging).toBe("loading");
+    expect(relay().subscriptions[2]?.filters).toEqual([
+      { kinds: [1], limit: 2, until: 300 },
+    ]);
+  });
+
+  it("同じ秒の投稿だけで 1 ページ埋まっても、もう無いとせず次の秒から取る", async () => {
+    // 捕まえる変異: 増えなければ exhausted にする（同じ秒に 1 ページを超える投稿があると先へ進めない）
+    const { reader, relay, settle, clock } = setupPaged(2);
+    relay().emitEvent(0, event("a", 300));
+    relay().emitEvent(0, event("b", 300));
+    relay().emitEose(0);
+    clock.advance(16);
+
+    reader.loadOlder();
+    relay().emitEvent(1, event("a", 300));
+    relay().emitEvent(1, event("b", 300));
+    relay().emitEose(1);
+    await settle();
+    expect(reader.paging).toBe("idle");
+
+    reader.loadOlder();
+    expect(relay().subscriptions[2]?.filters).toEqual([
+      { kinds: [1], limit: 2, until: 299 },
+    ]);
+  });
+
+  it("少なく返したリレーの区間を、ほかのリレーの古い 1 件で飛び越えない", async () => {
+    // 捕まえる変異: 一覧の最古を until にする（dense の 199〜11 を取らずに 10 より前へ進む）
+    const { reader, relay, settle, clock } = setupPaged(3, [
+      "wss://dense/",
+      "wss://sparse/",
+    ]);
+    relay("wss://dense/").emitEvent(0, event("d300", 300));
+    relay("wss://dense/").emitEvent(0, event("d200", 200));
+    relay("wss://dense/").emitEose(0);
+    relay("wss://sparse/").emitEvent(0, event("s10", 10));
+    relay("wss://sparse/").emitEose(0);
+    clock.advance(16);
+    expect(reader.items.map((e) => e.id)).toEqual(["d300", "d200", "s10"]);
+
+    reader.loadOlder();
+    expect(relay("wss://dense/").subscriptions[1]?.filters).toEqual([
+      { kinds: [1], limit: 3, until: 200 },
+    ]);
+    relay("wss://dense/").emitEvent(1, event("d200", 200));
+    relay("wss://dense/").emitEvent(1, event("d100", 100));
+    relay("wss://dense/").emitEvent(1, event("d50", 50));
+    relay("wss://dense/").emitEose(1);
+    relay("wss://sparse/").emitEose(1);
+    await settle();
+    expect(reader.items.map((e) => e.id)).toEqual([
+      "d300",
+      "d200",
+      "d100",
+      "d50",
+      "s10",
+    ]);
+    expect(reader.paging).toBe("idle");
+
+    reader.loadOlder();
+    expect(relay("wss://dense/").subscriptions[2]?.filters).toEqual([
+      { kinds: [1], limit: 3, until: 50 },
+    ]);
   });
 
   it("initialSize を指定すると、最初からその件数まで取る", () => {

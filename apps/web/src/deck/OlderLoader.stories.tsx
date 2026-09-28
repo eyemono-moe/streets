@@ -21,7 +21,13 @@ export const ほかのリレーを待っている: Story = { args: { paging: "wa
 export const 取り足せる: Story = {};
 export const 読み込み中: Story = { args: { paging: "loading" } };
 export const もう無い: Story = { args: { paging: "exhausted" } };
+/** 返事をしないリレーがあって、もう無いのか分からない。 */
+export const 読み込めなかった: Story = { args: { paging: "failed" } };
 export const 狭いカラム: Story = {
   args: { paging: "waiting" },
+  parameters: { viewport: { defaultViewport: "column320" } },
+};
+export const 狭いカラムで読み込めなかった: Story = {
+  args: { paging: "failed" },
   parameters: { viewport: { defaultViewport: "column320" } },
 };

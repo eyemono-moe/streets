@@ -2,6 +2,7 @@ import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore, EventStoreChange } from "./event-store";
+import { nextOlder } from "./older-page";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
   type NostrSource,
@@ -73,6 +74,13 @@ export class SectionReader {
    */
   #ready = false;
   #firstPageTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
+  /**
+   * 最初のページで、リレーごとに受け取ったいちばん古い `created_at`。次に取る `until` を
+   * 決めるのに使う（`nextOlder`）。
+   */
+  readonly #firstPageOldest = new Map<RelayUrl, number>();
+  /** 次に取る `until`。まだ一度も取り足していなければ無く、最初のページから決める。 */
+  #until: number | undefined;
   /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
   readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
@@ -113,35 +121,53 @@ export class SectionReader {
 
   /**
    * 今いちばん古い投稿より前を、1 ページぶん取り足す。取っている間・もう無いとき・
-   * まだ 1 件も無いときは何もしない。
+   * まだ 1 件も無いときは何もしない。取れなかった（`failed`）後に呼ぶと、同じところを取り直す。
    */
   loadOlder(): void {
     const pageSize = this.#options.pageSize;
     const handle = this.#handle;
     const oldest = this.#events.last;
-    if (!pageSize || !handle || !oldest || this.#paging !== "idle") return;
+    if (!pageSize || !handle || !oldest) return;
+    if (this.#paging !== "idle" && this.#paging !== "failed") return;
     // 最初のページが揃うまでは取り足さない。揃う前は一覧が短く、下端がすぐ見えるので、
     // 届きかけの途中から古い方を取り始めてしまう。
     if (!this.#isReady()) return;
     // 取り足す分だけ窓を広げる。窓は「新しい方から何件」で、リレーごとに違う期間の
     // 最初のページを新しい方から切りそろえ、次の `until` がどのリレーにも正しく効くようにしている。
-    this.#events.grow(this.#events.capacity + pageSize);
+    if (this.#paging === "idle") {
+      this.#events.grow(this.#events.capacity + pageSize);
+    }
+    // until は含む（同じ秒の投稿を取りこぼさない）。重なった分は id で弾かれる。
+    const request = {
+      until: this.#until ?? this.#firstPageUntil(oldest.created_at),
+      limit: pageSize,
+    };
     this.#paging = "loading";
     this.#notify();
-    const before = this.#events.size;
-    // until は含む（同じ秒の投稿を取りこぼさない）。重なった分は id で弾かれる。
-    void handle
-      .fetchOlder({ until: oldest.created_at, limit: pageSize })
-      .then(
-        () => this.#events.size > before,
-        () => false,
-      )
-      .then((grew) => {
+    void handle.fetchOlder(request).then(
+      (page) => {
         // 取っている間に止めた・作り直した（別の handle になった）なら何もしない。
         if (this.#handle !== handle) return;
-        this.#paging = grew ? "idle" : "exhausted";
+        const next = nextOlder(
+          page,
+          request,
+          this.#events.last?.created_at ?? request.until,
+        );
+        this.#paging = next.paging;
+        if (next.paging === "idle") this.#until = next.until;
         this.#notify();
-      });
+      },
+      () => {
+        if (this.#handle !== handle) return;
+        this.#paging = "failed";
+        this.#notify();
+      },
+    );
+  }
+
+  /** 最初のページについて `nextOlder` と同じ考えで、取りこぼしの無い `until` を決める。 */
+  #firstPageUntil(keptOldest: number): number {
+    return Math.max(keptOldest, ...this.#firstPageOldest.values());
   }
 
   get items(): NostrEvent[] {
@@ -279,6 +305,8 @@ export class SectionReader {
     this.#started = false;
     this.#paging = "idle";
     this.#ready = false;
+    this.#firstPageOldest.clear();
+    this.#until = undefined;
     if (this.#firstPageTimer !== null) {
       this.#scheduler.clearTimeout(this.#firstPageTimer);
       this.#firstPageTimer = null;
@@ -296,7 +324,10 @@ export class SectionReader {
     return () => this.#listeners.delete(listener);
   }
 
-  #onEvent(id: string, _relay: RelayUrl): void {
+  #onEvent(id: string, relay: RelayUrl): void {
+    if (this.#options.pageSize !== undefined && !this.#ready) {
+      this.#noteFirstPage(id, relay);
+    }
     if (this.#events.has(id) || this.#hiddenMembers.has(id)) return;
     if (this.#options.store.isHidden(id)) {
       this.#hiddenMembers.add(id);
@@ -326,6 +357,16 @@ export class SectionReader {
     if (!this.#events.add(stored)) return;
 
     this.#notify();
+  }
+
+  /** ほかのリレーから届いて一覧にすでにあるものも数える。そのリレーがどこまで返したかを知りたいので。 */
+  #noteFirstPage(id: string, relay: RelayUrl): void {
+    const event = this.#options.store.get(id);
+    if (!event) return;
+    const known = this.#firstPageOldest.get(relay);
+    if (known === undefined || event.created_at < known) {
+      this.#firstPageOldest.set(relay, event.created_at);
+    }
   }
 
   #onStoreChange(change: EventStoreChange): void {

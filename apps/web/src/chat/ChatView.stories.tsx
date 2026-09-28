@@ -206,6 +206,8 @@ type Story = StoryObj<typeof meta>;
 export const 通常: Story = {};
 export const 返信を書いている: Story = { args: { replyTo: usual } };
 export const 古い発言を読み込み中: Story = { args: { paging: "loading" } };
+/** 返事をしないリレーがあって、もう無いのか分からない。 */
+export const 古い発言を読み込めなかった: Story = { args: { paging: "failed" } };
 /** 一部のリレーから届いたが、ほかのリレーを待っている。揃うまでは古い発言を取り足さない。 */
 export const ほかのリレーを待っている: Story = {
   args: {

@@ -30,9 +30,10 @@ export const PAGE_SIZE = 50;
 
 /**
  * 古い投稿の取り足し：`waiting` は最初のページを待っている、`idle` は取れる、`loading` は
- * 取っている、`exhausted` はもう無い（1 ページ取り足しても増えなかった）。
+ * 取っている、`exhausted` はもう無い（どのリレーも、これより前は無いと返した）、`failed` は
+ * 返事をしないリレーがあって、もう無いのか分からない（もう一度取れる）。
  */
-export type Paging = "waiting" | "idle" | "loading" | "exhausted";
+export type Paging = "waiting" | "idle" | "loading" | "exhausted" | "failed";
 
 /**
  * 同じものを読む source か。カラムの題名や幅を変えただけで source を作り直すと、
