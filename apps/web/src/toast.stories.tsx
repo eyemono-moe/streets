@@ -61,7 +61,7 @@ const writing: Item = {
 };
 
 const meta = {
-  title: "トースト",
+  title: "トースト/知らせ",
   component: Story,
   args: { wide: true, items: [failed] },
   argTypes: { items: { control: false } },

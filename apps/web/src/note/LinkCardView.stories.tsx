@@ -15,7 +15,7 @@ const card = {
 };
 
 const meta = {
-  title: "イベント/リンクのカード",
+  title: "イベント/投稿/リンクのカード単体",
   component: (props: LinkCardViewProps & { width: number }) => (
     <div class="bg-primary p-3" style={{ width: `${props.width}px` }}>
       <LinkCardView {...props} />

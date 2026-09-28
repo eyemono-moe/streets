@@ -1,0 +1,139 @@
+import { addBookmark } from "@streets/core/nostr/build/bookmark";
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import emojiUrl from "../../storybook/emoji-fixture.svg";
+import {
+  EventStory,
+  alice,
+  bob,
+  carol,
+  eventStoryMeta,
+  plain,
+  profiles,
+  react,
+  scene,
+  tokens,
+  viewer,
+} from "./event-story";
+
+const engaged = [
+  bob.reply(plain, "わかる"),
+  carol.reply(plain, "たしかに"),
+  react(bob, { type: "like" }),
+  react(carol, { type: "like" }),
+  react(alice, { type: "text", content: "🥰" }),
+  react(bob, { type: "text", content: "🥰" }),
+  react(carol, { type: "text", content: "🎉" }),
+  react(bob, { type: "emoji", shortcode: "party", url: emojiUrl }),
+  react(carol, { type: "text", content: "とても長いテキストのリアクション" }),
+  react(alice, { type: "emoji", shortcode: "broken", url: "/missing.png" }),
+];
+const viewerEngaged = [
+  react(viewer, { type: "like" }),
+  react(viewer, { type: "text", content: "🥰" }),
+  viewer.repost(plain),
+  viewer.event(addBookmark({ type: "note", value: plain.id })(undefined)),
+];
+
+const meta = {
+  ...eventStoryMeta,
+  title: "イベント/投稿/操作のボタン",
+} satisfies Meta<typeof EventStory>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const 反応の件数: Story = {
+  args: { event: plain, scene: scene(plain, ...engaged) },
+};
+
+export const 自分が反応済み: Story = {
+  args: { event: plain, scene: scene(plain, ...engaged, ...viewerEngaged) },
+};
+
+export const いいねボタンがUnicodeの絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
+
+/** 🥰 を送った後。いいねボタンは既定の 🥰 で「済み」になる。 */
+export const いいねボタンの絵文字で送った後: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged, ...viewerEngaged),
+    defaultReaction: { type: "text", content: "🥰" },
+  },
+};
+
+/** 元から白黒の絵文字。押す前と押した後を、背景だけで見分けられるか。 */
+export const いいねボタンが白黒の絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: { type: "text", content: "🖤" },
+  },
+};
+
+export const いいねボタンが白黒の絵文字_送った後: Story = {
+  args: {
+    event: plain,
+    scene: scene(
+      plain,
+      ...engaged,
+      react(viewer, { type: "text", content: "🖤" }),
+    ),
+    defaultReaction: { type: "text", content: "🖤" },
+  },
+};
+
+/** 前にハートを送っていても、既定を変えた後は新しい絵文字で押せる。 */
+export const 既定を変える前に送ったハート: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, react(viewer, { type: "like" })),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
+
+export const いいねボタンがカスタム絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: {
+      type: "emoji",
+      shortcode: "party",
+      url: new URL(emojiUrl, location.href).href,
+    },
+  },
+};
+
+export const いいねボタンのカスタム絵文字が読めない: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: {
+      type: "emoji",
+      shortcode: "broken",
+      url: "https://example.invalid/broken.png",
+    },
+  },
+};
+
+/** いいねボタンの絵文字にホバーしても、本文のリンクやメンションの色が変わらないか。 */
+export const いいねボタンの絵文字と本文のリンク: Story = {
+  args: {
+    event: tokens,
+    scene: scene(tokens),
+    defaultReaction: { type: "text", content: "🎉" },
+  },
+};
+
+export const 書き込みに失敗する: Story = {
+  args: { event: plain, scene: { ...scene(plain), failWrites: true } },
+};
+
+export const ログインしていない: Story = {
+  args: { event: plain, scene: { events: [...profiles, plain] } },
+};

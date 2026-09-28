@@ -9,7 +9,7 @@ const Story = (props: { message: string; authUrl?: URL }) => (
 );
 
 const meta = {
-  title: "署名器/操作待ち",
+  title: "操作/署名器の操作待ち",
   component: Story,
   args: { message: "投稿の署名を待っています" },
 } satisfies Meta<{ message: string; authUrl?: URL }>;

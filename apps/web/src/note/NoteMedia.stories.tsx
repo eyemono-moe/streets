@@ -17,7 +17,7 @@ const Placeholder: Component<{ hash: string; ratio: number }> = (props) => (
 );
 
 const meta = {
-  title: "イベント/メディアの読み込み中",
+  title: "イベント/投稿/画像の読み込み中",
   component: Placeholder,
   args: { hash: SAMPLE, ratio: 16 / 9 },
 } satisfies Meta<typeof Placeholder>;
