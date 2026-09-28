@@ -211,8 +211,8 @@ export const 長い本文: Story = {
   },
 };
 
-/** 注意書きを付けた。本文の上に理由の欄が出て、プレビューにも注意書きが付く。 */
-export const 注意書きを付けた: Story = {
+/** 閲覧注意にした。本文の上に理由の欄が出て、プレビューにも閲覧注意が付く。 */
+export const 閲覧注意にした: Story = {
   args: {
     state: {
       ...emptyCompose(),

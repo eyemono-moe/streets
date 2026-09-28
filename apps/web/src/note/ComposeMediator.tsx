@@ -29,7 +29,7 @@ import { uploadErrorMessage } from "../write-errors";
  * やめたときに、出さなかった画像がアップロード先に残らない。
  */
 export const ComposeMediator: Component<{
-  /** `contentWarning` は注意書きの理由。付けていなければ `undefined`。 */
+  /** `contentWarning` は閲覧注意の理由。付けていなければ `undefined`。 */
   send: (
     text: string,
     media: readonly BlobDescriptor[],

@@ -36,7 +36,7 @@ type Args = {
   /** アップロード先。空にすると、画像を添えるボタンが使えない見た目になる。 */
   servers: string[];
   sending: boolean;
-  /** 注意書きの理由。`undefined` は付けていない。 */
+  /** 閲覧注意の理由。`undefined` は付けていない。 */
   contentWarning?: string;
 };
 
@@ -222,9 +222,9 @@ export const アップロード先が無い: Story = { args: { servers: [] } };
 
 export const 送信中: Story = { args: { sending: true } };
 
-/** 注意書きを付けた。本文の上に理由の欄が出て、ボタンは入っている見た目になる。 */
-export const 注意書きを付けた: Story = {
+/** 閲覧注意にした。本文の上に理由の欄が出て、ボタンは入っている見た目になる。 */
+export const 閲覧注意にした: Story = {
   args: { contentWarning: "映画のネタバレ" },
 };
 
-export const 注意書きの理由なし: Story = { args: { contentWarning: "" } };
+export const 閲覧注意の理由なし: Story = { args: { contentWarning: "" } };

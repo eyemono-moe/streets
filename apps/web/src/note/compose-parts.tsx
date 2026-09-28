@@ -422,7 +422,7 @@ export const ImageButton: Component = () => {
 };
 
 /** 投稿・返信・引用で同じ足まわり。 */
-/** 注意書きを付ける・外す。付けている間は、本文の上に理由の欄が出る。 */
+/** 閲覧注意にする・外す。付けている間は、本文の上に理由の欄が出る。 */
 const ContentWarningButton: Component<{
   on: boolean;
   disabled: boolean;
@@ -432,7 +432,7 @@ const ContentWarningButton: Component<{
     <IconButton
       size="md"
       icon="i-material-symbols:warning-outline-rounded"
-      label={props.on ? "注意書きを外す" : "注意書きを付ける"}
+      label={props.on ? "閲覧注意を外す" : "閲覧注意にする"}
       active={props.on}
       disabled={props.disabled}
       onClick={() => dispatch({ type: "compose/warning-toggle" })}
@@ -440,7 +440,7 @@ const ContentWarningButton: Component<{
   );
 };
 
-/** 注意書きの理由を書く欄。付けている間だけ出す。 */
+/** 閲覧注意の理由を書く欄。付けている間だけ出す。 */
 export const ContentWarningField: Component<{
   reason: string | undefined;
   disabled: boolean;
@@ -476,8 +476,8 @@ const ContentWarningInput: Component<{
       <input
         ref={input}
         type="text"
-        aria-label="注意書きの理由"
-        placeholder="注意書きの理由（任意）"
+        aria-label="閲覧注意の理由"
+        placeholder="閲覧注意の理由（任意）"
         class={`${textInputClass} min-w-0 flex-1`}
         disabled={props.disabled}
         value={props.reason}
@@ -492,7 +492,7 @@ export const ComposeTools: Component<{
   label: string;
   sending: boolean;
   disabled: boolean;
-  /** 注意書きの理由。付けていなければ `undefined`。 */
+  /** 閲覧注意の理由。付けていなければ `undefined`。 */
   contentWarning: string | undefined;
   onEmojiSelect: (emoji: PickerEmoji) => void;
   emojiField: () => HTMLTextAreaElement | undefined;

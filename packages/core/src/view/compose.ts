@@ -36,7 +36,7 @@ export type ComposeState = {
   sending: boolean;
   /** 添えたファイル。並び順がそのまま本文に並ぶ順になる。 */
   attachments: Attachment[];
-  /** 注意書きの理由。`undefined` は付けない、空文字は理由なしで付ける。 */
+  /** 閲覧注意の理由。`undefined` は付けない、空文字は理由なしで付ける。 */
   contentWarning?: string;
 };
 
@@ -63,7 +63,7 @@ export type ComposeEvent =
   | { type: "compose/attach-uploading"; id: string }
   | { type: "compose/attach-done"; id: string; blob: BlobDescriptor }
   | { type: "compose/attach-failed"; id: string; error: string }
-  /** 注意書きを付ける・外す。外すと書いた理由も消える。 */
+  /** 閲覧注意にする・外す。外すと書いた理由も消える。 */
   | { type: "compose/warning-toggle" }
   | { type: "compose/warning-input"; reason: string };
 
@@ -90,7 +90,7 @@ export const composeMedia = (state: ComposeState): BlobDescriptor[] =>
 export const sendableText = (state: ComposeState): string =>
   state.content.trim();
 
-/** 送る注意書きの理由。付けていなければ `undefined`。 */
+/** 送る閲覧注意の理由。付けていなければ `undefined`。 */
 export const sendableWarning = (state: ComposeState): string | undefined =>
   state.contentWarning?.trim();
 

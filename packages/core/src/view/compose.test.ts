@@ -235,7 +235,7 @@ describe("ファイルを添える", () => {
   });
 });
 
-describe("注意書き", () => {
+describe("閲覧注意", () => {
   it("付けると理由なしで付き、外すと理由ごと消える", () => {
     const on = run({ type: "compose/warning-toggle" });
     expect(sendableWarning(on)).toBe("");

@@ -70,7 +70,7 @@ export type EventActions = {
   bookmarkIds(): readonly string[];
   /**
    * `emoji` は、本文の `:shortcode:` に `emoji` タグを付けるために引く先。
-   * `contentWarning` は注意書きの理由（`undefined` は付けない、空文字は理由なし）。
+   * `contentWarning` は閲覧注意の理由（`undefined` は付けない、空文字は理由なし）。
    */
   post(
     content: string,
