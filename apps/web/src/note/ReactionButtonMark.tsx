@@ -17,7 +17,7 @@ const ReactionButtonMark: Component<{
   const tone = () =>
     props.active
       ? ""
-      : "grayscale-50 transition-[filter] group-enabled:group-hover:grayscale-0 group-focus-visible:grayscale-0";
+      : "grayscale-50 group-enabled:group-hover:grayscale-0 group-focus-visible:grayscale-0";
 
   return (
     <Switch
