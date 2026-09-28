@@ -668,11 +668,11 @@ describe("SectionReader", () => {
     expect(readerB.items.map((e) => e.id)).toEqual([shared.id]);
   });
 
-  // EventStore.put returns "duplicate" via id lookup *before* verifyEvent, so a
-  // malicious relay can resend a forged object under a genuine id, spoofing
-  // content and feeding a non-number created_at into the sort comparator used
-  // for the ordering (and the `maxItems` eviction), corrupting it for everyone.
-  it("lists the store's verified copy, not a forged object a second relay resends under a genuine event's id", () => {
+  // A malicious relay can resend a forged object under a genuine id. If it
+  // reached the section, it would spoof content and feed a non-number
+  // created_at into the sort comparator used for the ordering (and the
+  // `maxItems` eviction), corrupting it for everyone.
+  it("never lists a forged object a second relay resends under a genuine event's id", () => {
     const sharedStore = new EventStore();
     const relays = new Map<string, FakeRelayConnection>();
     const manager = new SubscriptionManager({
@@ -713,7 +713,7 @@ describe("SectionReader", () => {
     relays.get("wss://a/")?.emitEvent(0, genuine);
 
     // relayB reuses genuine's id with a different pubkey/content/string created_at
-    // and a bogus sig; EventStore.put finds the id present and returns "duplicate" without calling verifyEvent.
+    // and a bogus sig; EventStore.put finds the id present and rejects it.
     const forged = {
       ...genuine,
       pubkey: "ff".repeat(32),
@@ -724,10 +724,11 @@ describe("SectionReader", () => {
     };
     relays.get("wss://b/")?.emitEvent(0, forged);
 
-    expect(readerB.items).toHaveLength(1);
-    expect(readerB.items[0]?.content).toBe("GENUINE");
-    expect(readerB.items[0]?.pubkey).toBe(genuine.pubkey);
-    expect(typeof readerB.items[0]?.created_at).toBe("number");
+    // relayB never sent the genuine event, so readerB shows neither.
+    expect(readerB.items).toHaveLength(0);
+    expect(readerA.items[0]?.content).toBe("GENUINE");
+    expect(readerA.items[0]?.pubkey).toBe(genuine.pubkey);
+    expect(typeof readerA.items[0]?.created_at).toBe("number");
   });
 
   // An explicit `relays: []` bypasses Outbox routing entirely (see NostrSource's
