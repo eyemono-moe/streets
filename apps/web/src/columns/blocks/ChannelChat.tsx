@@ -31,6 +31,7 @@ import { useEventActions } from "../../actions";
 import ChatComposer from "../../chat/ChatComposer";
 import ChatMuteDialog from "../../chat/ChatMuteDialog";
 import ChatView from "../../chat/ChatView";
+import { useListsUnderWarning } from "../../content-warning-setting";
 import { onceTrue } from "../../lazy-part";
 import { ComposeMediator } from "../../note/ComposeMediator";
 import { useReadLayer } from "../../read-layer";
@@ -55,6 +56,7 @@ const ChannelChat: Component<{
   const { store } = useReadLayer();
   const actions = useEventActions();
   const mutes = useMutes();
+  const listsUnderWarning = useListsUnderWarning();
 
   // チャンネルの情報を探すリレーは、まだ情報が無いのでヒントか自分のリレー。
   const lookupRelays = () =>
@@ -105,7 +107,7 @@ const ChannelChat: Component<{
   // 1 件届くたびに <For> が全行を作り直し、画像が読み込み直されてちらつく。
   const [view, setView] = createStore<{ rows: ChatRow[] }>({ rows: [] });
   createComputed(() => {
-    const received = messages.items();
+    const received = messages.items().filter(listsUnderWarning);
     const visible = mutes
       ? received.filter((event) => !mutes.hides(event))
       : received;

@@ -1,3 +1,4 @@
+import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type Attachment,
   type ComposeState,
@@ -25,7 +26,10 @@ const viewer = createStoryAuthor(55, {
   displayName: "わたし",
   picture: avatarUrl,
 });
-const target = parent.note("返信元のノートの本文。");
+const plainTarget = parent.note("返信元のノートの本文。");
+const warnedTarget = parent.note("閲覧注意の奥にある返信元の本文。", [
+  ["content-warning", "ネタバレ"],
+]);
 
 const shot = (
   id: string,
@@ -40,48 +44,53 @@ type Props = {
   servers: string[];
   /** 指定すると、その状態で止めて描く（送信中などを見るため）。無ければ実際に書いて送れる。 */
   state?: ComposeState;
+  /** 返信元に閲覧注意が付いている。 */
+  warned?: boolean;
 };
 
-const Interactive = () => {
+const Interactive = (props: { target: NostrEvent }) => {
   const actions = useEventActions();
   return (
     <ComposeMediator
-      send={(text) => actions?.reply(target, text) ?? Promise.resolve()}
+      send={(text) => actions?.reply(props.target, text) ?? Promise.resolve()}
       failure="返信できませんでした"
       onSent={() => {}}
     >
-      {(state) => <ReplyDialog target={target} state={state} />}
+      {(state) => <ReplyDialog target={props.target} state={state} />}
     </ComposeMediator>
   );
 };
 
 const meta = {
   title: "操作/返信ダイアログ",
-  component: (props: Props) => (
-    <EventSceneProvider
-      scene={{
-        events: [parent.profile(), viewer.profile(), target],
-        viewer,
-        failWrites: props.failWrites,
-      }}
-    >
-      <StaticCustomEmojis emojis={[{ shortcode: "neko", url: emojiUrl }]}>
-        <UploaderProvider
-          value={{
-            servers: () => props.servers,
-            upload: () =>
-              Promise.reject(new Error("story ではアップロードしない")),
-          }}
-        >
-          {props.state ? (
-            <ReplyDialog target={target} state={props.state} />
-          ) : (
-            <Interactive />
-          )}
-        </UploaderProvider>
-      </StaticCustomEmojis>
-    </EventSceneProvider>
-  ),
+  component: (props: Props) => {
+    const target = () => (props.warned ? warnedTarget : plainTarget);
+    return (
+      <EventSceneProvider
+        scene={{
+          events: [parent.profile(), viewer.profile(), target()],
+          viewer,
+          failWrites: props.failWrites,
+        }}
+      >
+        <StaticCustomEmojis emojis={[{ shortcode: "neko", url: emojiUrl }]}>
+          <UploaderProvider
+            value={{
+              servers: () => props.servers,
+              upload: () =>
+                Promise.reject(new Error("story ではアップロードしない")),
+            }}
+          >
+            {props.state ? (
+              <ReplyDialog target={target()} state={props.state} />
+            ) : (
+              <Interactive target={target()} />
+            )}
+          </UploaderProvider>
+        </StaticCustomEmojis>
+      </EventSceneProvider>
+    );
+  },
   args: { failWrites: false, servers: ["https://blossom.example"] },
 } satisfies Meta<Props>;
 
@@ -159,3 +168,5 @@ export const 長い本文: Story = {
     },
   },
 };
+/** 閲覧注意で隠している投稿へ返信するときは、返信元の本文の代わりに閲覧注意を出す。 */
+export const 閲覧注意の投稿への返信: Story = { args: { warned: true } };

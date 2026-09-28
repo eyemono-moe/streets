@@ -13,6 +13,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ComposeMediator } from "../note/ComposeMediator";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
+import portraitUrl from "../storybook/media-portrait.svg?no-inline";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import ChatComposer from "./ChatComposer";
 import ChatView from "./ChatView";
@@ -76,6 +77,18 @@ const replyToLong = say(
   long,
 );
 
+// 閲覧注意（NIP-36）の付いた発言と、それへの返信。返信先の 1 行にも本文を出さない。
+const portraitImageUrl = new URL(portraitUrl, location.href).href;
+const warnedDraft = buildChannelMessage(
+  CHANNEL,
+  `今日のまかない、見た目は閲覧注意です\n${portraitImageUrl}`,
+);
+const warned = at(aimono, 15, {
+  ...warnedDraft,
+  tags: [...warnedDraft.tags, ["content-warning", "食べ物の写真"]],
+});
+const replyToWarned = say(mama, 16, "おいしそうだった！", warned);
+
 const messages = [
   hello,
   usual,
@@ -87,6 +100,7 @@ const messages = [
   mine,
   replyToLong,
 ];
+const warnedMessages = [...messages, warned, replyToWarned];
 const moderation = chatModeration([
   at(mama, 4, buildHideMessage(spam.id, "宣伝")),
   at(viewer, 10, buildMuteUser(troll.pubkey)),
@@ -153,6 +167,8 @@ const meta = {
           spammer.profile(),
           longName.profile(),
           ...messages,
+          warned,
+          replyToWarned,
         ],
         viewer,
       }}
@@ -234,3 +250,14 @@ export const 狭いカラム: Story = {
 export const 発言が多い: Story = { args: { scenario: "many" } };
 /** 上へ遡ると 50 件ずつ足す。足しても読んでいる位置は動かず、500 件を超えても遡れる。 */
 export const 遡って読む: Story = { args: { scenario: "older" } };
+/** 閲覧注意の発言は、押すまで本文と画像を出さない。返信の 1 行にも本文を出さない。 */
+export const 閲覧注意の発言: Story = {
+  args: { rows: chatRows(warnedMessages, moderation, viewer.pubkey) },
+};
+/** 返信する欄には相手の名前だけを出すので、閲覧注意の発言でも本文は見えない。 */
+export const 閲覧注意の発言に返信を書いている: Story = {
+  args: {
+    rows: chatRows(warnedMessages, moderation, viewer.pubkey),
+    replyTo: warned,
+  },
+};

@@ -11,15 +11,17 @@ import {
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
+import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import { type Component, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { setContentWarningMode } from "../content-warning-setting";
 import { setDefaultReaction } from "../default-reaction-setting";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
-import portraitUrl from "../storybook/media-portrait.svg";
+import portraitUrl from "../storybook/media-portrait.svg?no-inline";
 import toneUrl from "../storybook/media-tone.mp3";
 import { type StoryAuthor, createStoryAuthor } from "../storybook/story-events";
 import SegmentedControl from "../ui/SegmentedControl";
@@ -167,6 +169,23 @@ const reactionToMissing = bob.event(
   buildReaction(missingTarget, { type: "like" }),
 );
 
+const warnedWithImage = alice.note(`ネタバレを含みます。\n${primalImageUrl}`, [
+  ["content-warning", "映画のネタバレ"],
+]);
+const warnedWithoutReason = bob.note("理由の書かれていない閲覧注意。", [
+  ["content-warning"],
+]);
+const warnedLongReason = carol.note("理由の長い閲覧注意。", [
+  [
+    "content-warning",
+    "とても長い理由を書いた閲覧注意で、狭いカラムでも折り返して最後まで読めることを確かめるための文です",
+  ],
+]);
+const warnedQuoted = bob.note("引用された側の閲覧注意の投稿。", [
+  ["content-warning", "閲覧注意"],
+]);
+const quoteOfWarned = alice.quote(warnedQuoted, "閲覧注意の投稿を引用。");
+
 const ARTICLE = "https://example.com/articles/streets";
 const MISSING = "https://example.com/no-ogp";
 const withLinks = alice.note(
@@ -195,11 +214,14 @@ type Props = {
   linkCards?: LinkCardMode;
   /** いいねボタンで送るもの。省くとハート。 */
   defaultReaction?: ReactionInput;
+  /** 閲覧注意の投稿の扱い。省くと隠す。 */
+  contentWarning?: ContentWarningMode;
 };
 
 const EventStory: Component<Props> = (props) => {
   // 端末の設定をそのまま差し替える。どのストーリーも必ず当てるので、前の値は残らない。
   setDefaultReaction(props.defaultReaction ?? { type: "like" });
+  setContentWarningMode(props.contentWarning ?? "hide");
   return (
     <EventSceneProvider scene={props.scene}>
       {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
@@ -581,5 +603,26 @@ export const チャンネルが読めない発言: Story = {
   args: {
     event: channelMessage,
     scene: { ...scene(channelMessage), missingIds: [channelCreate.id] },
+  },
+};
+
+// 閲覧注意（NIP-36）。「表示する」を押すと中身を出す。
+export const 閲覧注意: Story = {
+  args: { event: warnedWithImage, scene: scene(warnedWithImage) },
+};
+export const 閲覧注意の理由なし: Story = {
+  args: { event: warnedWithoutReason, scene: scene(warnedWithoutReason) },
+};
+export const 閲覧注意の理由が長い: Story = {
+  args: { event: warnedLongReason, scene: scene(warnedLongReason) },
+};
+export const 閲覧注意の投稿を引用: Story = {
+  args: { event: quoteOfWarned, scene: scene(quoteOfWarned, warnedQuoted) },
+};
+export const 閲覧注意を常に表示: Story = {
+  args: {
+    event: warnedWithImage,
+    scene: scene(warnedWithImage),
+    contentWarning: "show",
   },
 };

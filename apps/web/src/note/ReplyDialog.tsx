@@ -21,6 +21,7 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import { hiddenUnderWarning, warningLabel } from "./ContentWarningGate";
 import NoteText from "./NoteText";
 import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
@@ -60,7 +61,20 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
             </div>
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <AuthorNames pubkey={props.target.pubkey} size="normal" />
-              <NoteText tokens={targetTokens()} class="c-secondary text-body" />
+              {/* 閲覧注意で隠している投稿は、返信先としても本文を出さない。 */}
+              <Show
+                when={!hiddenUnderWarning(props.target)}
+                fallback={
+                  <p class="c-secondary text-body">
+                    {warningLabel(props.target)}
+                  </p>
+                }
+              >
+                <NoteText
+                  tokens={targetTokens()}
+                  class="c-secondary text-body"
+                />
+              </Show>
             </div>
           </div>
 

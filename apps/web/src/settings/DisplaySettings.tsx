@@ -2,6 +2,7 @@ import { Collapsible } from "@ark-ui/solid/collapsible";
 import { RadioGroup } from "@ark-ui/solid/radio-group";
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import { type Component, For } from "solid-js";
 import { PALETTES, type PaletteName, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
@@ -10,6 +11,12 @@ import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
 import DisplayPreview from "./DisplayPreview";
 import SettingsSection from "./SettingsSection";
+
+const CONTENT_WARNING_MODES: { value: ContentWarningMode; label: string }[] = [
+  { value: "hide", label: "隠す" },
+  { value: "show", label: "常に表示" },
+  { value: "exclude", label: "一覧に出さない" },
+];
 
 const SCHEMES: { value: ColorScheme; label: string }[] = [
   { value: "system", label: "OS に合わせる" },
@@ -25,6 +32,8 @@ const DisplaySettings: Component<{
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
   errorReport: boolean;
+  /** 閲覧注意の投稿の扱い（この端末の設定）。 */
+  contentWarning: ContentWarningMode;
 }> = (props) => {
   const dispatch = useDispatch();
   const current = () => paletteOf(props.appearance);
@@ -50,6 +59,21 @@ const DisplaySettings: Component<{
           label="ローディングの進行状況を表示する"
           checked={props.writeProgress}
           onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="閲覧注意の投稿"
+        scope="device"
+        description="投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに閲覧注意の理由を出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
+      >
+        <SegmentedControl
+          label="閲覧注意の投稿"
+          options={CONTENT_WARNING_MODES}
+          value={props.contentWarning}
+          onChange={(mode) =>
+            dispatch({ type: "deck/set-content-warning", mode })
+          }
         />
       </SettingsSection>
 
