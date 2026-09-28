@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Nip05View } from "./Nip05Badge";
 
 const meta = {
-  title: "ユーザー/Nip05View",
+  title: "ユーザー/ドメインの確認",
   component: Nip05View,
   args: { label: "alice@example.com", status: "verified" },
   argTypes: {

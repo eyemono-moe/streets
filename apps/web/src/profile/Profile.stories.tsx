@@ -116,7 +116,7 @@ const HeaderStory: Component<HeaderProps> = (props) => (
 );
 
 const meta = {
-  title: "ユーザー/ProfileHeaderView",
+  title: "ユーザー/プロフィールの見出し",
   component: HeaderStory,
   args: { followeeCount: 128, followerCount: 64, scene: scene(linkedNote) },
   argTypes: { scene: { control: false }, pubkey: { control: false } },
