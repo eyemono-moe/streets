@@ -19,6 +19,7 @@ import {
   buildChannelCreate,
   buildChannelMessage,
 } from "@streets/core/nostr/build/channel";
+import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import type { EventDraft } from "@streets/core/nostr/build/draft";
 import { addFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
@@ -238,10 +239,13 @@ export const generate = (
       }
       const event = sign(
         message.author,
-        buildChannelMessage(created.id, expandMentions(message.content), {
-          relayHint: options.relayUrl,
-          ...(replyTo ? { replyTo } : {}),
-        }),
+        withContentWarning(
+          buildChannelMessage(created.id, expandMentions(message.content), {
+            relayHint: options.relayUrl,
+            ...(replyTo ? { replyTo } : {}),
+          }),
+          message.contentWarning,
+        ),
         at,
       );
       events.push(event);
@@ -327,6 +331,7 @@ export const generate = (
         : buildNote(content);
     draft = withReferences(draft, {});
     draft = withMedia(draft, (post.images ?? []).map(options.asset));
+    draft = withContentWarning(draft, post.contentWarning);
     const event = sign(post.author, draft, at);
     events.push(event);
     if (post.id) {

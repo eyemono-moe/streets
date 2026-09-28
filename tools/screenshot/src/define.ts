@@ -37,6 +37,8 @@ export type Post<U extends string> = When & {
   replyTo?: string;
   /** 引用する投稿の `id`。 */
   quote?: string;
+  /** 閲覧注意（NIP-36）の理由。空文字は理由なしの閲覧注意。 */
+  contentWarning?: string;
 };
 
 /** リアクション（kind:7）。`emoji` を省くといいね（`+`）。 */
@@ -71,6 +73,8 @@ export type Channel<U extends string> = When & {
     author: U;
     content: string;
     replyTo?: string;
+    /** 閲覧注意（NIP-36）の理由。空文字は理由なしの閲覧注意。 */
+    contentWarning?: string;
   })[];
 };
 

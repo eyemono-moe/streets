@@ -114,6 +114,26 @@ describe("チャンネルとユーザーリストの撮影データ", () => {
   });
 });
 
+describe("content-warning の撮影データ", () => {
+  const events = generate(scenarios["content-warning"], options);
+  const warnings = events.flatMap((event) =>
+    event.tags.filter((tag) => tag[0] === "content-warning"),
+  );
+
+  it("投稿とチャンネルの発言に閲覧注意を付け、理由の無いものは値を持たない", () => {
+    expect(warnings).toContainEqual(["content-warning", "映画のネタバレ"]);
+    expect(warnings).toContainEqual(["content-warning", "結末のネタバレ"]);
+    expect(warnings).toContainEqual(["content-warning"]);
+    expect(
+      events.some(
+        (event) =>
+          event.kind === 42 &&
+          event.tags.some((tag) => tag[0] === "content-warning"),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("all-in の撮影データ", () => {
   it("個別シナリオのイベントを重複なくすべて含む", () => {
     const combined = generate(scenarios["all-in"], options);
