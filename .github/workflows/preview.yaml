@@ -1,5 +1,7 @@
 # PR ごとのプレビュー。本番には出さず、PR ごとの URL（pr-123-streets.…workers.dev）に版を上げ、
 # PR にコメントで知らせる。fork からの PR は secrets を読めないので動かない。
+# 見た目をアプリを触らずに確かめられるよう、Storybook も同じ版の /storybook/ に入れる。
+# 本番（release.yaml）には入れない。
 name: Preview
 
 on:
@@ -28,6 +30,11 @@ jobs:
           VITE_SENTRY_ENV: preview
           # フィードバックの Google フォーム。公開してよい値なので secrets ではなく vars に置く。
           VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
+      # アプリのビルドは dist を空にしてから書くので、Storybook はその後に入れる。
+      - name: Storybook をビルドして /storybook/ に入れる
+        run: |
+          vp run @streets/web#storybook:build
+          cp -r apps/web/storybook-static apps/web/dist/storybook
       - name: 版を上げる（本番には出さない）
         id: upload
         env:
@@ -41,7 +48,9 @@ jobs:
             --preview-alias "pr-$PR" \
             --message "PR #$PR ($SHA)"
           result=$(jq -cs 'map(select(.type == "version-upload")) | last' "$WRANGLER_OUTPUT_FILE_PATH")
-          echo "alias-url=$(jq -r .preview_alias_url <<<"$result")" >> "$GITHUB_OUTPUT"
+          alias_url=$(jq -r .preview_alias_url <<<"$result")
+          echo "alias-url=$alias_url" >> "$GITHUB_OUTPUT"
+          echo "storybook-url=${alias_url%/}/storybook/" >> "$GITHUB_OUTPUT"
           echo "version-url=$(jq -r .preview_url <<<"$result")" >> "$GITHUB_OUTPUT"
       - name: PR に知らせる
         env:
@@ -58,7 +67,8 @@ jobs:
           | | |
           |---|---|
           | この PR の最新 | [${{ steps.upload.outputs.alias-url }}](${{ steps.upload.outputs.alias-url }}) |
-          | この版だけ（\`${SHA:0:7}\`） | [${{ steps.upload.outputs.version-url }}](${{ steps.upload.outputs.version-url }}) |"
+          | この版だけ（\`${SHA:0:7}\`） | [${{ steps.upload.outputs.version-url }}](${{ steps.upload.outputs.version-url }}) |
+          | Storybook | [${{ steps.upload.outputs.storybook-url }}](${{ steps.upload.outputs.storybook-url }}) |"
           existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
             --jq "map(select(.body | startswith(\"$marker\"))) | first | .id // empty")
           if [ -n "$existing" ]; then
