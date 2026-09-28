@@ -286,6 +286,27 @@ export const いいねボタンの絵文字で送った後: Story = {
   },
 };
 
+/** 元から白黒の絵文字。押す前と押した後を、背景だけで見分けられるか。 */
+export const いいねボタンが白黒の絵文字: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    defaultReaction: { type: "text", content: "🖤" },
+  },
+};
+
+export const いいねボタンが白黒の絵文字_送った後: Story = {
+  args: {
+    event: plain,
+    scene: scene(
+      plain,
+      ...engaged,
+      react(viewer, { type: "text", content: "🖤" }),
+    ),
+    defaultReaction: { type: "text", content: "🖤" },
+  },
+};
+
 /** 前にハートを送っていても、既定を変えた後は新しい絵文字で押せる。 */
 export const 既定を変える前に送ったハート: Story = {
   args: {

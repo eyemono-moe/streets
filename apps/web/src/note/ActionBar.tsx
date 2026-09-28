@@ -50,6 +50,11 @@ const Action: Component<{
   icon?: string;
   mark?: JSX.Element;
   active?: boolean;
+  /**
+   * 押した後に背景を敷く。絵文字には色を付けられず、元から白黒の絵文字だと押す前と
+   * 見分けがつかないため。押す前も同じ箱にして、押しても並びがずれないようにする。
+   */
+  filled?: boolean;
   count?: number;
   disabled?: boolean;
   onClick?: () => void;
@@ -58,8 +63,12 @@ const Action: Component<{
     type="button"
     aria-label={props.label}
     aria-pressed={props.active}
-    class="group flex items-center gap-1 bg-transparent text-caption enabled:cursor-pointer disabled:cursor-default"
+    class="flex items-center gap-1 text-caption enabled:cursor-pointer disabled:cursor-default"
     classList={{
+      "h-6 min-w-6 justify-center rounded-full px-0.75 transition-colors":
+        props.filled,
+      "bg-accent-5/50": props.filled && props.active,
+      "bg-transparent": !(props.filled && props.active),
       "c-secondary enabled:hover:c-primary": !props.active,
       "c-accent-5": props.active,
       "opacity-50": props.disabled && !props.active,
@@ -181,7 +190,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                   />
                 }
                 active={engagement().viewerReacted}
-                count={engagement().reactions}
+                filled={defaultReaction().type !== "like"}
                 disabled={liking() || engagement().viewerReacted}
                 onClick={() => dispatch(like())}
               />

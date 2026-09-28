@@ -70,11 +70,9 @@ describe("eventEngagements", () => {
     };
 
     const result = eventEngagements(store, TARGET, VIEWER);
-    // 捕まえる変異: `+` だけを数える（ボタンの数字が絵文字のリアクションを落とす）。
     expect(result).toEqual({
       replies: 0,
       reposts: 2,
-      reactions: 3,
       viewerReposted: true,
       viewerReacted: true,
     });
@@ -125,7 +123,7 @@ describe("eventEngagements", () => {
     const ancestor = event(
       "9".repeat(64),
       7,
-      OTHER,
+      VIEWER,
       [
         ["e", TARGET],
         ["e", PARENT],
@@ -134,6 +132,6 @@ describe("eventEngagements", () => {
     );
     const store = { eventsByTag: () => [ancestor] };
 
-    expect(eventEngagements(store, TARGET, VIEWER).reactions).toBe(0);
+    expect(eventEngagements(store, TARGET, VIEWER).viewerReacted).toBe(false);
   });
 });
