@@ -44,6 +44,13 @@ const reactionLabel = (input: ReactionInput): string =>
     ? "いいね"
     : `${input.type === "text" ? input.content : `:${input.shortcode}:`} でリアクション`;
 
+// 押した後は背景を敷く。いいねの絵文字には色を付けられず、元から白黒の絵文字だと
+// 押す前と見分けがつかないため。押す前も同じ箱にして、押しても並びがずれないようにする。
+const ACTION_BOX =
+  "flex h-6 min-w-6 items-center justify-center gap-1 rounded-full px-1.5 text-caption transition-colors";
+const ACTION_IDLE = "bg-transparent c-secondary enabled:hover:c-primary";
+const ACTION_ACTIVE = "bg-accent-5/15 c-accent-5";
+
 const Action: Component<{
   label: string;
   /** アイコンの class。`mark` を渡したときは使わない。 */
@@ -58,10 +65,10 @@ const Action: Component<{
     type="button"
     aria-label={props.label}
     aria-pressed={props.active}
-    class="group flex items-center gap-1 bg-transparent text-caption enabled:cursor-pointer disabled:cursor-default"
+    class={`${ACTION_BOX} enabled:cursor-pointer disabled:cursor-default`}
     classList={{
-      "c-secondary enabled:hover:c-primary": !props.active,
-      "c-accent-5": props.active,
+      [ACTION_IDLE]: !props.active,
+      [ACTION_ACTIVE]: props.active,
       "opacity-50": props.disabled && !props.active,
     }}
     disabled={props.disabled}
@@ -126,10 +133,10 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                     engagement().viewerReposted ? "リポスト済み" : "リポスト"
                   }
                   aria-pressed={engagement().viewerReposted}
-                  class="flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                  class={`${ACTION_BOX} cursor-pointer`}
                   classList={{
-                    "c-secondary hover:c-primary": !engagement().viewerReposted,
-                    "c-accent-5": engagement().viewerReposted,
+                    [ACTION_IDLE]: !engagement().viewerReposted,
+                    [ACTION_ACTIVE]: engagement().viewerReposted,
                   }}
                 >
                   <span
@@ -181,7 +188,6 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                   />
                 }
                 active={engagement().viewerReacted}
-                count={engagement().reactions}
                 disabled={liking() || engagement().viewerReacted}
                 onClick={() => dispatch(like())}
               />
@@ -192,7 +198,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                     {...triggerProps()}
                     type="button"
                     aria-label="リアクション"
-                    class="c-secondary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                    class={`${ACTION_BOX} ${ACTION_IDLE} cursor-pointer`}
                   >
                     <span
                       class="i-material-symbols:add-reaction-outline-rounded size-4.5"

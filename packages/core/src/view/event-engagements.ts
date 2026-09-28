@@ -6,8 +6,6 @@ import { reactionKey } from "./reaction-groups";
 export type EventEngagements = {
   replies: number;
   reposts: number;
-  /** 中身を問わない kind:7 の総数。`-` も含める。 */
-  reactions: number;
   viewerReposted: boolean;
   /** 自分が `viewerReaction` と同じ中身のリアクションを送っているか。 */
   viewerReacted: boolean;
@@ -28,7 +26,6 @@ export const eventEngagements = (
 ): EventEngagements => {
   let replies = 0;
   let reposts = 0;
-  let reactions = 0;
   let viewerReposted = false;
   let viewerReacted = false;
   const key = reactionKey(viewerReaction);
@@ -47,10 +44,9 @@ export const eventEngagements = (
 
     const reaction = parseReaction(event);
     if (reaction?.targetId !== targetId) continue;
-    reactions += 1;
     if (event.pubkey === viewerPubkey && reactionKey(reaction.content) === key)
       viewerReacted = true;
   }
 
-  return { replies, reposts, reactions, viewerReposted, viewerReacted };
+  return { replies, reposts, viewerReposted, viewerReacted };
 };
