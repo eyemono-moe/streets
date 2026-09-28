@@ -41,6 +41,7 @@ import { ActionsMediator } from "../actions-mediator";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { columnView } from "../columns/column-views";
+import { setContentWarningMode } from "../content-warning-setting";
 import {
   defaultReaction,
   setDefaultReaction,
@@ -476,6 +477,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-image-downscaling":
         setImageDownscaling(event.on);
+        return true;
+      case "deck/set-content-warning":
+        setContentWarningMode(event.mode);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);

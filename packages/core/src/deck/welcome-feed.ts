@@ -1,3 +1,4 @@
+import { contentWarning } from "../nostr/content-warning";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
@@ -45,4 +46,4 @@ export const welcomeColumn = (relays: readonly RelayUrl[]): ColumnDef => ({
  * 出さない。
  */
 export const showsOnWelcome = (event: NostrEvent): boolean =>
-  !event.tags.some((tag) => tag[0] === "content-warning");
+  contentWarning(event) === undefined;
