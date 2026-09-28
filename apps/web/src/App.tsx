@@ -26,7 +26,8 @@ const WelcomeScreen = lazyPart(() => import("./welcome/WelcomeScreen"));
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
   const readLayer = createReadLayer({
-    connect: connectRelay,
+    // session は pool を使うので後から作る。署名器は認証のときに読むので、それまでに決まっていればよい。
+    connect: (url) => connectRelay(url, { signer: () => session.signer }),
     persistence: createIndexedDbPersistence(),
     fallbackRelays: relayOverride,
   });

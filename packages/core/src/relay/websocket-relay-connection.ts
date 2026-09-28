@@ -1,4 +1,6 @@
+import { buildRelayAuth, isAuthRequired } from "../nostr/build/relay-auth";
 import type { NostrEvent } from "../nostr/event";
+import type { Signer } from "../signer/signer";
 import type {
   RelayConnection,
   RelayFilter,
@@ -25,13 +27,47 @@ type PendingPublish = {
   reject: (error: Error) => void;
 };
 
+type OpenSubscription = {
+  filters: RelayFilter[];
+  handlers: RelaySubscriptionHandlers;
+  /** 認証して送り直したか。送り直しても断られたら、それ以上は試さない。 */
+  retried: boolean;
+};
+
+type InFlightPublish = {
+  event: NostrEvent;
+  waiters: PendingPublish[];
+  retried: boolean;
+};
+
+export type RelayAuthOptions = {
+  /**
+   * NIP-42 の認証に使う署名器。関数で受けるのは、接続を作る時点では
+   * ログインがまだ済んでいない（署名器が決まっていない）ことがあるため。
+   */
+  signer?: () => Pick<Signer, "getPublicKey" | "signEvent"> | undefined;
+  /** 秒。テストが `created_at` を決めるために注入する。 */
+  now?: () => number;
+};
+
 /**
  * NIP-01 を話す 1 リレー専用の接続。Nostr ライブラリには依存しない。
  */
 export class WebSocketRelayConnection implements RelayConnection {
   readonly #socket: WebSocketLike;
-  readonly #handlers = new Map<string, RelaySubscriptionHandlers>();
-  readonly #publishes = new Map<string, PendingPublish[]>();
+  readonly #subscriptions = new Map<string, OpenSubscription>();
+  readonly #publishes = new Map<string, InFlightPublish>();
+  /** 送った認証イベントの id → その `OK` を待つ先。 */
+  readonly #authOks = new Map<string, (ok: boolean) => void>();
+  readonly #auth: RelayAuthOptions;
+  /** リレーから最後に届いた challenge。次の challenge が届くまで有効 (NIP-42)。 */
+  #challenge: string | undefined;
+  /**
+   * いまの challenge での認証の結果。同じ challenge で何度も署名を頼まない
+   * よう、失敗も含めて覚える。新しい challenge が届いたら捨てる。
+   */
+  #authResult: Promise<boolean> | undefined;
+  #authAttempted = false;
   readonly #outbox: string[] = [];
   readonly #openListeners = new Set<() => void>();
   readonly #closeListeners = new Set<() => void>();
@@ -42,8 +78,10 @@ export class WebSocketRelayConnection implements RelayConnection {
   constructor(
     readonly url: RelayUrl,
     socket: WebSocketLike,
+    auth: RelayAuthOptions = {},
   ) {
     this.#socket = socket;
+    this.#auth = auth;
 
     socket.onopen = () => {
       if (this.#opened) return;
@@ -59,12 +97,14 @@ export class WebSocketRelayConnection implements RelayConnection {
     const fail = () => {
       if (this.#closed) return;
       this.#closed = true;
-      for (const handlers of this.#handlers.values())
+      for (const { handlers } of this.#subscriptions.values())
         handlers.onClosed("socket closed");
-      this.#handlers.clear();
-      for (const pending of this.#publishes.values())
-        for (const { reject } of pending) reject(new Error("socket closed"));
+      this.#subscriptions.clear();
+      for (const { waiters } of this.#publishes.values())
+        for (const { reject } of waiters) reject(new Error("socket closed"));
       this.#publishes.clear();
+      for (const settle of this.#authOks.values()) settle(false);
+      this.#authOks.clear();
       this.#outbox.length = 0;
       this.#openListeners.clear();
       for (const listener of this.#closeListeners) listener();
@@ -85,12 +125,12 @@ export class WebSocketRelayConnection implements RelayConnection {
     }
 
     const subId = `s${this.#nextSubId++}`;
-    this.#handlers.set(subId, handlers);
+    this.#subscriptions.set(subId, { filters, handlers, retried: false });
     this.#send(JSON.stringify(["REQ", subId, ...filters]));
 
     return {
       close: () => {
-        if (!this.#handlers.delete(subId)) return;
+        if (!this.#subscriptions.delete(subId)) return;
         this.#send(JSON.stringify(["CLOSE", subId]));
       },
     };
@@ -105,9 +145,13 @@ export class WebSocketRelayConnection implements RelayConnection {
       const pending = this.#publishes.get(event.id);
       if (pending) {
         // 同じ id のイベントが同時に publish されても先の Promise を上書きして迷子にしないよう、配列で保持する。
-        pending.push({ resolve, reject });
+        pending.waiters.push({ resolve, reject });
       } else {
-        this.#publishes.set(event.id, [{ resolve, reject }]);
+        this.#publishes.set(event.id, {
+          event,
+          waiters: [{ resolve, reject }],
+          retried: false,
+        });
       }
       this.#send(JSON.stringify(["EVENT", event]));
     });
@@ -115,6 +159,10 @@ export class WebSocketRelayConnection implements RelayConnection {
 
   close(): void {
     this.#socket.close();
+  }
+
+  get authAttempted(): boolean {
+    return this.#authAttempted;
   }
 
   onOpen(listener: () => void): () => void {
@@ -154,6 +202,40 @@ export class WebSocketRelayConnection implements RelayConnection {
     return this.#closed || this.#socket.readyState >= CLOSING;
   }
 
+  /**
+   * 断られてから認証する（NIP-42 はいつ認証するかを決めていない）。先に
+   * 認証すると、認証の要らないリレーにまで誰が読んでいるかを明かすため。
+   * 署名器が無い・署名を断られた・リレーが受け付けなかったは、どれも false。
+   */
+  #authenticate(): Promise<boolean> {
+    const challenge = this.#challenge;
+    const signer = this.#auth.signer?.();
+    if (challenge === undefined || !signer) return Promise.resolve(false);
+    if (this.#authResult) return this.#authResult;
+
+    this.#authAttempted = true;
+    const now = this.#auth.now ?? (() => Math.floor(Date.now() / 1000));
+    const result = (async () => {
+      try {
+        const pubkey = await signer.getPublicKey();
+        const signed = await signer.signEvent({
+          ...buildRelayAuth(this.url, challenge),
+          pubkey,
+          created_at: now(),
+        });
+        if (this.#isClosed()) return false;
+        return await new Promise<boolean>((resolve) => {
+          this.#authOks.set(signed.id, resolve);
+          this.#send(JSON.stringify(["AUTH", signed]));
+        });
+      } catch {
+        return false;
+      }
+    })();
+    this.#authResult = result;
+    return result;
+  }
+
   #onMessage(raw: string): void {
     let message: unknown;
     try {
@@ -172,45 +254,95 @@ export class WebSocketRelayConnection implements RelayConnection {
           event === null
         )
           return;
-        this.#handlers.get(subId)?.onEvent(event as NostrEvent);
+        this.#subscriptions.get(subId)?.handlers.onEvent(event as NostrEvent);
         return;
       }
       case "EOSE": {
         const [, subId] = message;
         if (typeof subId !== "string") return;
-        this.#handlers.get(subId)?.onEose();
+        this.#subscriptions.get(subId)?.handlers.onEose();
         return;
       }
       case "CLOSED": {
         const [, subId, reason] = message;
         if (typeof subId !== "string") return;
-        const handlers = this.#handlers.get(subId);
-        this.#handlers.delete(subId);
-        handlers?.onClosed(typeof reason === "string" ? reason : "closed");
+        const subscription = this.#subscriptions.get(subId);
+        if (!subscription) return;
+        const text = typeof reason === "string" ? reason : "closed";
+        if (isAuthRequired(text) && !subscription.retried) {
+          subscription.retried = true;
+          void this.#authenticate().then((ok) => {
+            // 待つ間に呼び出し元が閉じたなら、張り直さない。
+            if (this.#subscriptions.get(subId) !== subscription) return;
+            if (ok) {
+              this.#send(
+                JSON.stringify(["REQ", subId, ...subscription.filters]),
+              );
+            } else {
+              this.#subscriptions.delete(subId);
+              subscription.handlers.onClosed(text);
+            }
+          });
+          return;
+        }
+        this.#subscriptions.delete(subId);
+        subscription.handlers.onClosed(text);
         return;
       }
       case "OK": {
         const [, eventId, ok, reason] = message;
         if (typeof eventId !== "string") return;
+        const settleAuth = this.#authOks.get(eventId);
+        if (settleAuth) {
+          this.#authOks.delete(eventId);
+          settleAuth(ok === true);
+          return;
+        }
         const pending = this.#publishes.get(eventId);
         if (!pending) return;
+        const text = typeof reason === "string" ? reason : "rejected";
+        if (ok !== true && isAuthRequired(text) && !pending.retried) {
+          pending.retried = true;
+          void this.#authenticate().then((authed) => {
+            // ソケットが閉じていれば、待っていた分は fail が reject 済み。
+            if (this.#publishes.get(eventId) !== pending) return;
+            if (authed) {
+              this.#send(JSON.stringify(["EVENT", pending.event]));
+            } else {
+              this.#publishes.delete(eventId);
+              for (const { reject } of pending.waiters) reject(new Error(text));
+            }
+          });
+          return;
+        }
         this.#publishes.delete(eventId);
-        for (const { resolve, reject } of pending) {
+        for (const { resolve, reject } of pending.waiters) {
           // ok は仕様上 boolean。真偽値以外 (壊れたリレー応答) は成功として扱わない。
           if (ok === true) {
             resolve();
           } else {
-            reject(new Error(typeof reason === "string" ? reason : "rejected"));
+            reject(new Error(text));
           }
         }
         return;
       }
+      case "AUTH": {
+        const [, challenge] = message;
+        if (typeof challenge !== "string" || challenge === this.#challenge)
+          return;
+        this.#challenge = challenge;
+        this.#authResult = undefined;
+        return;
+      }
       default:
-        // NOTICE / AUTH は扱わない
+        // NOTICE は扱わない
         return;
     }
   }
 }
 
-export const connectRelay = (url: RelayUrl): RelayConnection =>
-  new WebSocketRelayConnection(url, new WebSocket(url) as WebSocketLike);
+export const connectRelay = (
+  url: RelayUrl,
+  auth?: RelayAuthOptions,
+): RelayConnection =>
+  new WebSocketRelayConnection(url, new WebSocket(url) as WebSocketLike, auth);
