@@ -11,6 +11,7 @@ import {
   profiles,
   react,
   scene,
+  tokens,
   viewer,
 } from "./event-story";
 
@@ -117,6 +118,15 @@ export const いいねボタンのカスタム絵文字が読めない: Story = 
       shortcode: "broken",
       url: "https://example.invalid/broken.png",
     },
+  },
+};
+
+/** いいねボタンの絵文字にホバーしても、本文のリンクやメンションの色が変わらないか。 */
+export const いいねボタンの絵文字と本文のリンク: Story = {
+  args: {
+    event: tokens,
+    scene: scene(tokens),
+    defaultReaction: { type: "text", content: "🎉" },
   },
 };
 

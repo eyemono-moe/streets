@@ -1,24 +1,15 @@
-import { encodeBech32 } from "@streets/core/nostr/nip19";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import emojiUrl from "../../storybook/emoji-fixture.svg";
 import { createStoryAuthor } from "../../storybook/story-events";
 import {
   EventStory,
   alice,
   bob,
-  carol,
   eventStoryMeta,
   plain,
   scene,
+  tokens,
 } from "./event-story";
 
-const tokens = bob.note(
-  `リンク https://example.com/#nostr 、ハッシュタグ #Nostr と #東京 、NIP-21メンション nostr:${encodeBech32("npub", alice.pubkey)} 、裸のNIP-19メンション ${encodeBech32("npub", carol.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
-  [
-    ["t", "nostr"],
-    ["emoji", "party", emojiUrl],
-  ],
-);
 const longUrls = alice.note(
   [
     "長いリンク https://example.com/articles/2026/09/streets-multi-column-client?utm_source=nostr&utm_medium=social#comments を含む本文。",

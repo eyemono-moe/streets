@@ -4,11 +4,13 @@ import {
   buildReaction,
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { Component } from "solid-js";
 import { setContentWarningMode } from "../../content-warning-setting";
 import { setDefaultReaction } from "../../default-reaction-setting";
 import avatarUrl from "../../storybook/avatar-fixture.svg";
+import emojiUrl from "../../storybook/emoji-fixture.svg";
 import {
   type EventScene,
   EventSceneProvider,
@@ -43,6 +45,13 @@ export const profiles = [
 
 export const plain = alice.note(
   "マルチカラムのクライアントは、1 列に入る情報量が体験を決める。余白は削るところと残すところを分ける。",
+);
+export const tokens = bob.note(
+  `リンク https://example.com/#nostr 、ハッシュタグ #Nostr と #東京 、NIP-21メンション nostr:${encodeBech32("npub", alice.pubkey)} 、裸のNIP-19メンション ${encodeBech32("npub", carol.pubkey)} 、カスタム絵文字 :party: を含む本文。`,
+  [
+    ["t", "nostr"],
+    ["emoji", "party", emojiUrl],
+  ],
 );
 export const react = (author: StoryAuthor, input: ReactionInput) =>
   author.event(buildReaction(plain, input));

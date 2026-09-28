@@ -53,6 +53,7 @@ const Action: Component<{
   /**
    * 押した後に背景を敷く。絵文字には色を付けられず、元から白黒の絵文字だと押す前と
    * 見分けがつかないため。押す前も同じ箱にして、押しても並びがずれないようにする。
+   * 箱は上下へはみ出させ、ハートのときと行の高さを揃える。
    */
   filled?: boolean;
   count?: number;
@@ -63,9 +64,9 @@ const Action: Component<{
     type="button"
     aria-label={props.label}
     aria-pressed={props.active}
-    class="flex items-center gap-1 text-caption enabled:cursor-pointer disabled:cursor-default"
+    class="group flex items-center gap-1 text-caption enabled:cursor-pointer disabled:cursor-default"
     classList={{
-      "h-6 min-w-6 justify-center rounded-full px-0.75 transition-colors":
+      "-my-0.75 h-6 min-w-6 justify-center rounded-full px-0.75 transition-colors":
         props.filled,
       "bg-accent-5/50": props.filled && props.active,
       "bg-transparent": !(props.filled && props.active),
