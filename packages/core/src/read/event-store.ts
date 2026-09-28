@@ -223,35 +223,24 @@ export class EventStore {
     const visible = this.#events.get(event.id);
     const existing = visible ?? this.#hiddenEvents.get(event.id);
     if (existing) {
-      // 重複 id を主張するだけの偽装ペイロードにリレーの功績を与えない。
-      // schnorr 検証はしない (Outbox で同一イベントが複数リレーから届き、
-      // 重複のたびに払うにはコストが高すぎる)。id の再計算だけで足りる。
-      const { id, sig, ...unsigned } = event;
-      if (isNostrEvent(event) && computeEventId(unsigned) === id) {
-        // 同一イベントの再配送は「まだ現在のままだ」という確認そのもの。
-        // これで restamp しないと、著者が長期間更新しない置換可能イベント
-        // (kind:10002 など) は初回取得時刻に固定され続け、staleMs を過ぎる
-        // たびに再取得され、しかも二度と鮮度が回復しない。
-        existing.fetchedAt = this.#scheduler.now();
-        if (!existing.seenRelays.includes(relay)) {
-          existing.seenRelays.push(relay);
-        }
-        // 著者が変えていない置換可能イベント (kind:10002 など) は毎回
-        // "duplicate" で戻ってくる。ここで転送しないと、永続層の fetchedAt
-        // が初回取得時刻のまま固定され、次回起動のたびに (実際には新鮮な
-        // ものまで) stale と誤判定されて取り直しが永久に止まらない。
-        this.#persist(existing);
+      if (!this.#isSameEvent(existing.event, event)) return "rejected";
+      // 同一イベントの再配送は「まだ現在のままだ」という確認そのもの。
+      // これで restamp しないと、著者が長期間更新しない置換可能イベント
+      // (kind:10002 など) は初回取得時刻に固定され続け、staleMs を過ぎる
+      // たびに再取得され、しかも二度と鮮度が回復しない。
+      existing.fetchedAt = this.#scheduler.now();
+      if (!existing.seenRelays.includes(relay)) {
+        existing.seenRelays.push(relay);
       }
+      // 著者が変えていない置換可能イベント (kind:10002 など) は毎回
+      // "duplicate" で戻ってくる。ここで転送しないと、永続層の fetchedAt
+      // が初回取得時刻のまま固定され、次回起動のたびに (実際には新鮮な
+      // ものまで) stale と誤判定されて取り直しが永久に止まらない。
+      this.#persist(existing);
       return visible ? "duplicate" : "hidden";
     }
 
-    // リレーは信用できない。全件検証する。
-    const startedAt = performance.now();
-    const verified = verifyEvent(event);
-    this.#verifyMs += performance.now() - startedAt;
-    this.#verifyCount += 1;
-    if (!verified) return "rejected";
-
+    if (!this.#verify(event)) return "rejected";
     const fetchedAt = this.#scheduler.now();
     if (event.kind !== DELETION_KIND && this.#isHiddenByDeletion(event)) {
       const stored = { event, seenRelays: [relay], fetchedAt };
@@ -264,6 +253,29 @@ export class EventStore {
     if (stored) this.#persist(stored);
     if (event.kind === DELETION_KIND) this.#addDeletionRequest(event, true);
     return "inserted";
+  }
+
+  /**
+   * 既知の id を名乗る再配送が、保存済みと同じイベントかを確かめる。
+   * Outbox で同じイベントが複数リレーから届くので、署名まで保存済みと
+   * 一致するふつうの再配送では schnorr 検証を払わない。id は署名を
+   * 含まないため、署名だけ壊した複製は id の再計算では見分けられない。
+   * 署名が違えば検証し、妥当なら同じ著者による別の署名として受け入れる
+   * (BIP-340 の署名は同じ内容でも一意ではない)。保存済みの署名は変えない。
+   */
+  #isSameEvent(stored: NostrEvent, event: NostrEvent): boolean {
+    const { id, sig, ...unsigned } = event;
+    if (!isNostrEvent(event) || computeEventId(unsigned) !== id) return false;
+    return sig === stored.sig || this.#verify(event);
+  }
+
+  /** リレーは信用できないので、受け入れる前に検証する。 */
+  #verify(event: NostrEvent): boolean {
+    const startedAt = performance.now();
+    const verified = verifyEvent(event);
+    this.#verifyMs += performance.now() - startedAt;
+    this.#verifyCount += 1;
+    return verified;
   }
 
   /** `retention`（`none`/`latest-per-author`/`capped`）の適用は永続層の責務 —— ここは無条件に転送するだけでよい。 */
