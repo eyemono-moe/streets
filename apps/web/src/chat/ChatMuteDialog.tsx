@@ -3,6 +3,7 @@ import type { ChatMuteState } from "@streets/core/view/chat-mute";
 import { type Component, Show } from "solid-js";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
+import { hiddenUnderWarning, warningLabel } from "../note/ContentWarningGate";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -62,7 +63,9 @@ const ChatMuteDialog: Component<{
                     <Show when={state().kind === "message" && props.target}>
                       {(target) => (
                         <p class="c-secondary line-clamp-2 break-anywhere text-caption">
-                          {target().content}
+                          {hiddenUnderWarning(target())
+                            ? warningLabel(target())
+                            : target().content}
                         </p>
                       )}
                     </Show>

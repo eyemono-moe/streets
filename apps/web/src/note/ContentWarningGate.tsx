@@ -12,6 +12,16 @@ import type { EventSize } from "./Event";
  */
 const [revealed, setRevealed] = createSignal<ReadonlySet<string>>(new Set());
 
+/** 今の設定で中身を隠しているか。押して出したものは隠さない。 */
+export const hiddenUnderWarning = (event: NostrEvent): boolean =>
+  hidesUnderWarning(contentWarningMode(), event) && !revealed().has(event.id);
+
+/** 中身の代わりに出す 1 行。 */
+export const warningLabel = (event: NostrEvent): string => {
+  const reason = contentWarning(event)?.reason;
+  return reason ? `注意書き：${reason}` : "注意書きが付いています";
+};
+
 /**
  * 注意書き（NIP-36）の付いた投稿の中身を、押すまで描かない。ぼかさずに描かない
  * のは、隠している間に画像を読みにいかせないため。
@@ -20,12 +30,8 @@ const ContentWarningGate: ParentComponent<{
   event: NostrEvent;
   size: EventSize;
 }> = (props) => {
-  const hidden = () =>
-    hidesUnderWarning(contentWarningMode(), props.event) &&
-    !revealed().has(props.event.id);
-
   return (
-    <Show when={hidden()} fallback={props.children}>
+    <Show when={hiddenUnderWarning(props.event)} fallback={props.children}>
       <div
         class="flex items-center gap-2 rounded-2 bg-secondary"
         classList={{
@@ -38,12 +44,7 @@ const ContentWarningGate: ParentComponent<{
           aria-hidden="true"
         />
         <p class="c-secondary min-w-0 flex-1 break-words text-caption">
-          <Show
-            when={contentWarning(props.event)?.reason}
-            fallback="注意書きが付いています"
-          >
-            {(reason) => `注意書き：${reason()}`}
-          </Show>
+          {warningLabel(props.event)}
         </p>
         <Button
           size="sm"
