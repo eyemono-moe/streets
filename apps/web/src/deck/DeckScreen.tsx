@@ -37,6 +37,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { setActionLayout } from "../action-layout-setting";
 import { EventActionsProvider, createWriteStack } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
@@ -529,6 +530,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-default-reaction":
         setDefaultReaction(event.input);
+        return true;
+      case "deck/set-action-layout":
+        setActionLayout(event.layout);
         return true;
       case "deck/set-error-report":
         setErrorReport(event.on);

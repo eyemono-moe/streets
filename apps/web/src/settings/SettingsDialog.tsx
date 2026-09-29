@@ -4,6 +4,7 @@ import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
 import { type Component, createEffect, createSignal, on } from "solid-js";
+import { actionLayout } from "../action-layout-setting";
 import { contentWarningMode } from "../content-warning-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
@@ -126,6 +127,7 @@ const SettingsDialog: Component<{
           errorReport={props.errorReport}
           contentWarning={contentWarningMode()}
           deckLayout={props.deckLayout}
+          actionLayout={actionLayout()}
         />
       ),
     },

@@ -10,6 +10,10 @@ import type {
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type {
+  ActionArrangeEvent,
+  ActionLayout,
+} from "@streets/core/settings/action-layout";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
@@ -50,7 +54,9 @@ export type UiEvent =
   | ZapFlowEvent
   | ChatViewEvent
   | ChannelFormViewEvent
-  | ChatMuteViewEvent;
+  | ChatMuteViewEvent
+  /** 設定の画面で、アクション欄の並びを動かしている。表示の設定の段が裁定する。 */
+  | ActionArrangeEvent;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -172,6 +178,8 @@ export type DeckEvent =
   | { type: "deck/set-column-digits"; on: boolean }
   /** いいねボタンで送るリアクション。この端末に保存する。 */
   | { type: "deck/set-default-reaction"; input: ReactionInput }
+  /** アクション欄に出す操作とメニューに入れる操作。この端末に保存する。 */
+  | { type: "deck/set-action-layout"; layout: ActionLayout }
   /** 自分の絵文字（kind:10030）に 1 つ足す。同じ名前があれば差し替える。 */
   | { type: "emoji/add"; shortcode: string; url: string }
   | { type: "emoji/remove"; shortcode: string }

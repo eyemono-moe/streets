@@ -1,6 +1,10 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { RadioGroup } from "@ark-ui/solid/radio-group";
 import type { DeckAppearance } from "@streets/core/deck/deck";
+import {
+  ACTION_BAR_MAX,
+  type ActionLayout,
+} from "@streets/core/settings/action-layout";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
@@ -10,6 +14,7 @@ import { useDispatch } from "../ui-events";
 import ColorField from "../ui/ColorField";
 import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
+import ActionLayoutField from "./ActionLayoutField";
 import DisplayPreview from "./DisplayPreview";
 import SettingsSection from "./SettingsSection";
 
@@ -43,6 +48,8 @@ const DisplaySettings: Component<{
   contentWarning: ContentWarningMode;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  /** アクション欄に出す操作（この端末の設定）。 */
+  actionLayout: ActionLayout;
 }> = (props) => {
   const dispatch = useDispatch();
   const current = () => paletteOf(props.appearance);
@@ -99,6 +106,14 @@ const DisplaySettings: Component<{
             dispatch({ type: "deck/set-content-warning", mode })
           }
         />
+      </SettingsSection>
+
+      <SettingsSection
+        title="アクション欄"
+        scope="device"
+        description={`投稿の下に並べる操作を選びます。並べられるのは ${ACTION_BAR_MAX} 個までで、残りは投稿の右上の「︙」のメニューに入ります。行を掴んで動かすか、右端のつまみを選んで ↑↓ キーで並べ替えます。`}
+      >
+        <ActionLayoutField layout={props.actionLayout} />
       </SettingsSection>
 
       <SettingsSection

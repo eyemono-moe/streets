@@ -1,7 +1,7 @@
 import { Popover } from "@ark-ui/solid/popover";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { Component, JSX } from "solid-js";
+import { type Component, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
 import PopoverTrigger from "../ui/PopoverTrigger";
@@ -30,7 +30,10 @@ export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>
  */
 const ReactionPicker: Component<{
   target: NostrEvent;
-  trigger: (props: PickerTrigger) => JSX.Element;
+  /** 押して開く要素。渡さないときは `anchor` の位置に、`open` で開く。 */
+  trigger?: (props: PickerTrigger) => JSX.Element;
+  /** トリガーを置かずに開くときの、出す位置と閉じた後にフォーカスを戻す先。 */
+  anchor?: () => HTMLElement | undefined;
   /** 外から開くとき（メニューの「リアクションする」など）。渡さなければトリガーで開閉する。 */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -42,11 +45,17 @@ const ReactionPicker: Component<{
     <Popover.Root
       lazyMount
       unmountOnExit
-      positioning={{ placement: "bottom-start" }}
+      positioning={{
+        placement: "bottom-start",
+        getAnchorElement: props.anchor && (() => props.anchor?.() ?? null),
+      }}
+      finalFocusEl={props.anchor && (() => props.anchor?.() ?? null)}
       open={props.open}
       onOpenChange={(details) => props.onOpenChange?.(details.open)}
     >
-      <PopoverTrigger asChild={props.trigger} />
+      <Show when={props.trigger}>
+        {(trigger) => <PopoverTrigger asChild={trigger()} />}
+      </Show>
       <Portal>
         <Popover.Positioner>
           <Popover.Content class="motion-pop outline-none">

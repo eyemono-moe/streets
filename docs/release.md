@@ -37,7 +37,7 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
 ## 初めに一度だけ用意するもの
 
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
-- **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`
+- **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`（Sentry の `streets` 組織の `streets` プロジェクト）と `SENTRY_AUTH_TOKEN`（ソースマップを送る Organization Token。Sentry の Settings → Developer Settings → Organization Tokens で作る）
 - **GitHub の variables**：リポジトリに `VITE_FEEDBACK_URL`（フィードバックの Google フォーム。値は `apps/web/.env.example`）。無いとフィードバックの導線が押せない
 - **Nostr へのお知らせ**：secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿するアカウントの鍵）。投稿先は 2 つに分ける（どちらも 1 行に 1 つ）
   - variables の `NOSTR_RELAYS`：Actions（アメリカ）から直に送るリレー

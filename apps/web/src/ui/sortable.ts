@@ -11,6 +11,11 @@ type SortableOptions = {
   container: () => HTMLElement | undefined;
   /** 端へ寄せたら送る箱。`container` と同じでもよい。 */
   scroller: () => HTMLElement | undefined;
+  /**
+   * 掴んだものを `container` の中で止める。並べ替えの箱が画面の一部しか占めない
+   * とき（設定の中の一覧など）、箱の外まで持ち出せると、どこへ入るのか分からなくなる。
+   */
+  contain?: boolean;
   element: (id: string) => HTMLElement | undefined;
   /** いま見せている並び。掴んだものは、離したら入る位置にある。 */
   order: () => readonly string[];
@@ -116,7 +121,14 @@ export const createSortable = (options: SortableOptions) => {
   const place = (current: Session) => {
     const el = options.element(current.id);
     if (!el) return;
-    const offset = pointerAt(current.client) - current.grab - slotStart(el);
+    const container = options.contain ? options.container() : undefined;
+    const at = pointerAt(current.client) - current.grab;
+    const size = x ? el.offsetWidth : el.offsetHeight;
+    const end = container
+      ? (x ? container.clientWidth : container.clientHeight) - size
+      : undefined;
+    const offset =
+      (end === undefined ? at : Math.max(0, Math.min(end, at))) - slotStart(el);
     el.style.transform = translate(offset);
   };
 

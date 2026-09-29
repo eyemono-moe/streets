@@ -47,6 +47,10 @@ jobs:
           VITE_APP_VERSION: ${{ github.ref_name }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_SENTRY_ENV: production
+          # ソースマップを Sentry へ送る。送ったマップは dist から消すので配らない。
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: streets
+          SENTRY_PROJECT: streets
           # フィードバックの Google フォーム。公開してよい値なので secrets ではなく vars に置く。
           VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
       - name: 版を上げる（本番には出さない）
