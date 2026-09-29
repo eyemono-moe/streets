@@ -1,4 +1,4 @@
-import { type NostrEvent, verifyEvent } from "../nostr/event";
+import type { NostrEvent } from "../nostr/event";
 import type {
   RelayConnection,
   RelayFilter,
@@ -159,10 +159,10 @@ type SectionEntry = {
    */
   explicitRelays: readonly RelayUrl[] | undefined;
   delivery: SectionDelivery;
-  /** `subscribeUnstored` で登録したときだけある。`seen` は署名を確かめ終えた id。 */
+  /** `subscribeUnstored` で登録したときだけある。`delivered` は渡し終えた id。 */
   unstored?: {
     onEvent: UnstoredDelivery["onEvent"];
-    seen: Set<string>;
+    delivered: Set<string>;
   };
   /** 直近の replan() で開いている購読。filters も保持する —— 同じリレーでも
    * 担当著者が変われば張り直しが要るため。 */
@@ -375,7 +375,7 @@ export class SubscriptionManager {
       filters,
       relays,
       { ...delivery, onEvent: () => {} },
-      { onEvent: delivery.onEvent, seen: new Set() },
+      { onEvent: delivery.onEvent, delivered: new Set() },
     );
     return { initialPlan, close: () => this.#close(entry) };
   }
@@ -928,12 +928,11 @@ export class SubscriptionManager {
           return;
         }
         if (entry.unstored) {
-          // store を通らないので、store.put() がしている署名の確認をここでする。
-          // 確かめ終えた id だけを覚える —— 先に覚えると、同じ id を名乗る偽物が
-          // 先に届いたとき、本物まで落としてしまう。
-          const { seen, onEvent } = entry.unstored;
-          if (seen.has(event.id) || !verifyEvent(event)) return;
-          seen.add(event.id);
+          // store を通らないので、store.put() と同じ関所をここで通す。
+          const { delivered, onEvent } = entry.unstored;
+          if (delivered.has(event.id)) return;
+          if (!this.#options.store.gate.accept(event)) return;
+          delivered.add(event.id);
           onEvent(event, url);
           return;
         }
