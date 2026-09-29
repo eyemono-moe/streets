@@ -2,7 +2,12 @@ import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import { buildNote } from "@streets/core/nostr/build/note";
 import { withReferences } from "@streets/core/nostr/build/references";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type ComposeState, canSend } from "@streets/core/view/compose";
+import {
+  type ComposeState,
+  canKeepDraft,
+  canSend,
+} from "@streets/core/view/compose";
+import type { ComposeDraft } from "@streets/core/view/compose-drafts";
 import {
   type Component,
   Show,
@@ -25,6 +30,7 @@ import {
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
+import ComposeDrafts from "./ComposeDrafts";
 import Event from "./Event";
 import { useComposeEmojiInsertion } from "./use-compose-emoji-insertion";
 
@@ -43,7 +49,11 @@ const useDebounced = (value: () => string, ms: number) => {
  * 新しいノートを書く。デッキを閉じずに書けるよう、ダイアログではなく
  * サイドバーのパネルに置く。返信は文脈が要るのでダイアログのまま。
  */
-const ComposePanel: Component<{ state: ComposeState }> = (props) => {
+const ComposePanel: Component<{
+  state: ComposeState;
+  /** 下書き。渡すと、下書きへ移すボタンと一覧を出す。 */
+  drafts?: readonly ComposeDraft[];
+}> = (props) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
   const preview = useDebounced(() => props.state.content, 400);
@@ -142,9 +152,12 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         disabled={!canSend(props.state)}
         onEmojiSelect={emojiInsertion.insert}
         emojiField={emojiInsertion.field}
+        canKeepDraft={props.drafts && canKeepDraft(props.state)}
       />
 
-      <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">
+      {/* 中身は縮めず、プレビューと下書きをまとめてスクロールさせる。角を丸めて切り抜く箱は、
+          縮めると高さが 0 まで潰れる。 */}
+      <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4 *:shrink-0">
         <Show when={previewEvent()}>
           {(event) => (
             <>
@@ -163,6 +176,22 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
                 />
               </div>
             </>
+          )}
+        </Show>
+        <Show when={props.drafts}>
+          {(drafts) => (
+            <div class="mt-3">
+              <ComposeDrafts
+                // 開いている下書きは、いま欄に出ているので並べない。
+                drafts={drafts().filter(
+                  (draft) => draft.id !== props.state.draft?.id,
+                )}
+                disabled={
+                  props.state.sending || props.state.attachments.length > 0
+                }
+                attached={props.state.attachments.length > 0}
+              />
+            </div>
           )}
         </Show>
       </div>
