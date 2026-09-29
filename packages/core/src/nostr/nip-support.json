@@ -1,0 +1,368 @@
+[
+  {
+    "nip": "01",
+    "status": "一部",
+    "summary": "イベントの検証、フィルタ、リレーとの送受信",
+    "kinds": [],
+    "tags": [],
+    "paths": [
+      "packages/core/src/nostr/event.ts",
+      "packages/core/src/read/filter-match.ts",
+      "packages/core/src/relay/websocket-relay-connection.ts"
+    ],
+    "gap": "すべてのリレーメッセージや拡張フィルタには対応していない"
+  },
+  {
+    "nip": "02",
+    "status": "対応",
+    "summary": "フォローリストの読み書き",
+    "kinds": [3],
+    "tags": ["p"],
+    "paths": [
+      "packages/core/src/nostr/follow-list.ts",
+      "packages/core/src/nostr/build/follow.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "04",
+    "status": "一部",
+    "summary": "旧形式で暗号化された非公開リストの読み取り",
+    "kinds": [],
+    "tags": [],
+    "paths": ["packages/core/src/nostr/private-tags.ts"],
+    "gap": "旧形式の新規暗号化や DM は扱わない"
+  },
+  {
+    "nip": "05",
+    "status": "対応",
+    "summary": "プロフィールのドメイン認証",
+    "kinds": [0],
+    "tags": [],
+    "paths": [
+      "packages/core/src/nostr/nip05.ts",
+      "apps/web/src/profile/Nip05Badge.tsx"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "07",
+    "status": "対応",
+    "summary": "ブラウザ拡張機能による署名",
+    "kinds": [],
+    "tags": [],
+    "paths": ["packages/core/src/signer/nip07-signer.ts"],
+    "gap": ""
+  },
+  {
+    "nip": "09",
+    "status": "対応",
+    "summary": "イベントの削除依頼と非表示",
+    "kinds": [5],
+    "tags": ["e", "a", "k"],
+    "paths": [
+      "packages/core/src/nostr/build/deletion.ts",
+      "packages/core/src/read/event-store.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "10",
+    "status": "対応",
+    "summary": "返信とスレッドの参照",
+    "kinds": [1],
+    "tags": ["e", "p"],
+    "paths": [
+      "packages/core/src/nostr/event-refs.ts",
+      "packages/core/src/nostr/build/references.ts",
+      "packages/core/src/view/thread-spine.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "11",
+    "status": "一部",
+    "summary": "リレーの情報を取得して表示",
+    "kinds": [],
+    "tags": [],
+    "paths": [
+      "packages/core/src/relay/relay-info.ts",
+      "apps/web/src/settings/RelayRecommendations.tsx"
+    ],
+    "gap": "画面に必要な項目だけを読む"
+  },
+  {
+    "nip": "18",
+    "status": "一部",
+    "summary": "リポストの表示と通常の投稿のリポスト",
+    "kinds": [6, 16],
+    "tags": ["e", "p", "k"],
+    "paths": [
+      "packages/core/src/nostr/build/repost.ts",
+      "packages/core/src/view/repost-target.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": "kind:16 の投稿操作はない"
+  },
+  {
+    "nip": "19",
+    "status": "対応",
+    "summary": "npub・note・nevent などの読み書き",
+    "kinds": [],
+    "tags": [],
+    "paths": ["packages/core/src/nostr/nip19.ts"],
+    "gap": ""
+  },
+  {
+    "nip": "21",
+    "status": "対応",
+    "summary": "nostr: リンクを開く",
+    "kinds": [],
+    "tags": [],
+    "paths": [
+      "packages/core/src/nostr/content.ts",
+      "apps/web/src/note/UserLink.tsx"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "23",
+    "status": "未対応",
+    "summary": "長文記事",
+    "kinds": [30023],
+    "tags": [],
+    "paths": [],
+    "gap": "長文記事の専用表示・投稿はない"
+  },
+  {
+    "nip": "24",
+    "status": "一部",
+    "summary": "プロフィールの追加項目と小文字のハッシュタグ",
+    "kinds": [0, 1],
+    "tags": ["t"],
+    "paths": [
+      "packages/core/src/nostr/profile.ts",
+      "packages/core/src/nostr/content.ts",
+      "packages/core/src/nostr/build/note.ts"
+    ],
+    "gap": "bot・birthday などの追加項目は扱わない"
+  },
+  {
+    "nip": "25",
+    "status": "対応",
+    "summary": "リアクションの読み書き",
+    "kinds": [7],
+    "tags": ["e", "p", "k"],
+    "paths": [
+      "packages/core/src/nostr/reaction.ts",
+      "packages/core/src/nostr/build/reaction.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "27",
+    "status": "対応",
+    "summary": "本文中の Nostr 参照",
+    "kinds": [1],
+    "tags": [],
+    "paths": [
+      "packages/core/src/nostr/content.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "28",
+    "status": "対応",
+    "summary": "公開チャンネルとチャット",
+    "kinds": [40, 41, 42, 43, 44],
+    "tags": ["e", "p"],
+    "paths": [
+      "packages/core/src/nostr/channel.ts",
+      "packages/core/src/nostr/build/channel.ts",
+      "apps/web/src/columns/blocks/ChannelChat.tsx"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "30",
+    "status": "対応",
+    "summary": "投稿とプロフィールのカスタム絵文字",
+    "kinds": [30030],
+    "tags": ["emoji"],
+    "paths": [
+      "packages/core/src/nostr/content.ts",
+      "packages/core/src/settings/emoji-set.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "33",
+    "status": "対応",
+    "summary": "名前付きの置換可能イベント",
+    "kinds": [],
+    "tags": ["d", "a"],
+    "paths": [
+      "packages/core/src/read/event-store.ts",
+      "packages/core/src/nostr/nip19.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "36",
+    "status": "対応",
+    "summary": "閲覧注意タグの読み書き、本文の表示制御、ウェルカム欄からの除外",
+    "kinds": [1, 42],
+    "tags": ["content-warning"],
+    "paths": [
+      "packages/core/src/nostr/content-warning.ts",
+      "packages/core/src/nostr/build/content-warning.ts",
+      "packages/core/src/deck/welcome-feed.ts",
+      "apps/web/src/note/ContentWarningGate.tsx",
+      "apps/web/src/note/ComposePanel.tsx"
+    ],
+    "gap": "NIP-32 の補助ラベルは付けない"
+  },
+  {
+    "nip": "42",
+    "status": "対応",
+    "summary": "認証を求めるリレーへ署名して、購読と書き込みを再試行",
+    "kinds": [22242],
+    "tags": ["relay", "challenge"],
+    "paths": [
+      "packages/core/src/nostr/build/relay-auth.ts",
+      "packages/core/src/relay/websocket-relay-connection.ts",
+      "packages/core/src/read/connection-pool.ts"
+    ],
+    "gap": "NIP-46 の署名器が使うリレー自体に認証が必要な場合は署名がタイムアウトする"
+  },
+  {
+    "nip": "44",
+    "status": "一部",
+    "summary": "非公開リストとリモート署名の暗号化",
+    "kinds": [],
+    "tags": [],
+    "paths": [
+      "packages/core/src/nostr/private-tags.ts",
+      "packages/core/src/signer/nip46/nip44.ts"
+    ],
+    "gap": "一般の暗号化メッセージ機能はない"
+  },
+  {
+    "nip": "46",
+    "status": "対応",
+    "summary": "リモート署名器への接続",
+    "kinds": [24133],
+    "tags": ["p"],
+    "paths": [
+      "packages/core/src/signer/nip46/client.ts",
+      "packages/core/src/signer/nip46/nip46-signer.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "50",
+    "status": "一部",
+    "summary": "検索対応リレーへ検索を送る",
+    "kinds": [],
+    "tags": [],
+    "paths": [
+      "packages/core/src/search/query.ts",
+      "packages/core/src/settings/search-relay-list.ts"
+    ],
+    "gap": "検索演算子をすべて扱うわけではない"
+  },
+  {
+    "nip": "51",
+    "status": "一部",
+    "summary": "ミュート・ブックマーク・フォローセットなどのリスト",
+    "kinds": [10000, 10003, 10005, 10007, 10030, 30000],
+    "tags": ["d", "e", "p", "a", "t", "relay"],
+    "paths": [
+      "packages/core/src/nostr/private-tags.ts",
+      "packages/core/src/moderation/mute-list.ts",
+      "packages/core/src/lists/follow-set.ts"
+    ],
+    "gap": "NIP-51 のリストをすべて扱うわけではない"
+  },
+  {
+    "nip": "57",
+    "status": "一部",
+    "summary": "Zap の送信と受領の表示",
+    "kinds": [9734, 9735],
+    "tags": [
+      "e",
+      "p",
+      "k",
+      "relays",
+      "amount",
+      "lnurl",
+      "bolt11",
+      "description"
+    ],
+    "paths": [
+      "packages/core/src/zap/zap-request.ts",
+      "packages/core/src/zap/zap-receipt.ts"
+    ],
+    "gap": "Zap のすべてのオプションや受領形式には対応していない"
+  },
+  {
+    "nip": "65",
+    "status": "対応",
+    "summary": "人ごとの読み書きリレーの選択",
+    "kinds": [10002],
+    "tags": ["r"],
+    "paths": [
+      "packages/core/src/read/relay-list.ts",
+      "packages/core/src/read/relay-selector.ts",
+      "packages/core/src/nostr/build/relay-list.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "66",
+    "status": "一部",
+    "summary": "リレーの計測情報から候補を選ぶ",
+    "kinds": [30166],
+    "tags": ["d"],
+    "paths": [
+      "packages/core/src/settings/relay-recommendation.ts",
+      "apps/web/src/settings/RelayRecommendations.tsx"
+    ],
+    "gap": "計測イベントの発行はしない"
+  },
+  {
+    "nip": "78",
+    "status": "対応",
+    "summary": "デッキ設定をアカウントに保存",
+    "kinds": [30078],
+    "tags": ["d"],
+    "paths": [
+      "packages/core/src/deck/deck.ts",
+      "packages/core/src/solid/create-nip78-document.ts"
+    ],
+    "gap": ""
+  },
+  {
+    "nip": "92",
+    "status": "一部",
+    "summary": "添付画像・動画の情報を投稿に添える",
+    "kinds": [1],
+    "tags": ["imeta"],
+    "paths": [
+      "packages/core/src/nostr/imeta.ts",
+      "packages/core/src/nostr/build/media.ts"
+    ],
+    "gap": "扱うメディア情報は画面に必要な項目に限る"
+  },
+  {
+    "nip": "B7",
+    "status": "一部",
+    "summary": "Blossom サーバーの一覧とファイルのアップロード",
+    "kinds": [10063, 24242],
+    "tags": ["server", "t", "x", "expiration"],
+    "paths": ["packages/core/src/media/blossom.ts"],
+    "gap": "BUD の全操作やダウンロード管理は扱わない"
+  }
+]

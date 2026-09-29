@@ -6,22 +6,15 @@ import {
   formatEventTime,
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
-import { layoutNote } from "@streets/core/view/note-layout";
 import { resolveRepostTarget } from "@streets/core/view/repost-target";
-import { observeHeight } from "@streets/core/view/shared-resize-observer";
 import {
   type Component,
   ErrorBoundary,
-  For,
   type JSX,
   Match,
   type ParentComponent,
   Show,
   Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
 } from "solid-js";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
@@ -32,12 +25,9 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
-import ContentWarningGate from "./ContentWarningGate";
+import { Frame, Notice } from "./EventFrame";
 import EventMenu from "./EventMenu";
-import LinkCards from "./LinkCards";
-import MediaViewer from "./MediaViewer";
-import NoteMediaView, { NoteAudio } from "./NoteMedia";
-import NoteText from "./NoteText";
+import { NoteContent } from "./NoteContent";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
 import UserLink from "./UserLink";
@@ -47,16 +37,12 @@ import UserLink from "./UserLink";
  * 引用は compact で出すので、入れ子は 1 段で止まり、1 件の投稿が取得を連鎖させない。
  */
 export type EventSize = "normal" | "compact";
+export { NoteContent } from "./NoteContent";
 
 /**
  * 本文を畳み始める高さ。compact は引用や高密度のカラムで並ぶので、
  * 1 件がカラムを占めないよう normal より低くする。
  */
-const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
-  normal: 400,
-  compact: 240,
-};
-
 type ContentProps = {
   event: NostrEvent;
   size: EventSize;
@@ -78,10 +64,6 @@ type ContentProps = {
    */
   replyContext?: boolean;
 };
-
-const Notice: Component<{ children: JSX.Element }> = (props) => (
-  <p class="c-secondary text-caption">{props.children}</p>
-);
 
 const Head: Component<ContentProps> = (props) => {
   const date = () => new Date(props.event.created_at * 1000);
@@ -196,192 +178,6 @@ const Lookup: Component<{
   );
 };
 
-const Frame: ParentComponent<{
-  size: EventSize;
-  onOpen?: (event: MouseEvent) => void;
-  onDown?: (event: MouseEvent) => void;
-}> = (props) => (
-  // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- キーボードでスレッドを開く経路はまだ無い（押せるのはポインタだけ）
-  <article
-    class="flex flex-col bg-primary"
-    classList={{
-      "cursor-pointer": props.onOpen !== undefined,
-    }}
-    onMouseDown={(event) => props.onDown?.(event)}
-    onClick={(event) => {
-      // 押された場所に一番近い投稿が自分のときだけ開く。引用の中を押したら
-      // 引用元が起点になる。Solid は click を委譲するので stopPropagation では止まらない。
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest("article") !== event.currentTarget
-      ) {
-        return;
-      }
-      props.onOpen?.(event);
-    }}
-  >
-    {/*
-      画面の外を飛ばすのは中身だけ。`article` そのものに当てると、下線が端数の
-      位置で丸められて消えることがある（区切りが 2、3 本に 1 本抜ける）。
-    */}
-    <div
-      class="offscreen-skip flex flex-col"
-      classList={{
-        "gap-2 p-3": props.size === "normal",
-        "gap-1.5 p-2": props.size === "compact",
-      }}
-    >
-      {props.children}
-    </div>
-  </article>
-);
-
-const Quote: Component<{ quote: EventRef }> = (props) => (
-  <div class="w-full overflow-hidden rounded-2 border border-primary">
-    <Show
-      when={props.quote.form === "id" && props.quote}
-      fallback={
-        <Frame size="compact">
-          <Notice>未対応の参照です</Notice>
-        </Frame>
-      }
-    >
-      {(ref) => <EventRefView target={ref()} size="compact" />}
-    </Show>
-  </div>
-);
-
-/** 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。 */
-const CollapsibleBody: ParentComponent<{ size: EventSize }> = (props) => {
-  const [body, setBody] = createSignal<HTMLDivElement>();
-  const [height, setHeight] = createSignal(0);
-  const [expanded, setExpanded] = createSignal(false);
-  const maxHeight = () => MAX_CONTENT_HEIGHT[props.size];
-  const overflows = () => height() >= maxHeight();
-
-  createEffect(() => {
-    const element = body();
-    if (element) onCleanup(observeHeight(element, setHeight));
-  });
-
-  return (
-    <div class="relative">
-      <div
-        ref={setBody}
-        class="overflow-hidden"
-        style={{
-          "max-height": expanded() ? "none" : `${maxHeight()}px`,
-        }}
-      >
-        {props.children}
-      </div>
-      <Show when={overflows() && !expanded()}>
-        <button
-          type="button"
-          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
-          onClick={() => setExpanded(true)}
-        >
-          <span class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
-            <span
-              class="i-material-symbols:expand-more-rounded h-1.25lh w-auto"
-              aria-hidden="true"
-            />
-            <span>さらに表示</span>
-          </span>
-        </button>
-      </Show>
-    </div>
-  );
-};
-
-/**
- * 本文・画像・音声・リンクのカード・引用。投稿の枠（アイコン・名前・操作）とは
- * 分けてあり、チャンネルの発言も同じ本文の見せ方を使う。
- */
-export const NoteContent: Component<{
-  event: NostrEvent;
-  size: EventSize;
-  expandMedia?: boolean;
-  /** 本文の下に足すもの。 */
-  media?: JSX.Element;
-}> = (props) => {
-  const layout = createMemo(() =>
-    layoutNote(props.event, { quotes: props.size === "normal" }),
-  );
-  const [viewing, setViewing] = createSignal<number>();
-  return (
-    <ContentWarningGate event={props.event} size={props.size}>
-      <Show when={layout().text.length > 0}>
-        <CollapsibleBody size={props.size}>
-          <NoteText
-            tokens={layout().text}
-            class="c-primary"
-            classList={{
-              "text-body": props.size === "normal",
-              "text-[14px]": props.size === "compact",
-            }}
-          />
-        </CollapsibleBody>
-      </Show>
-      <For each={layout().media}>
-        {(item, index) => (
-          <Show
-            when={props.expandMedia !== false}
-            fallback={
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="break-all text-caption text-link"
-              >
-                {item.url}
-              </a>
-            }
-          >
-            <NoteMediaView
-              media={item}
-              size={props.size}
-              onOpen={() => setViewing(index())}
-            />
-          </Show>
-        )}
-      </For>
-      <For each={layout().audio}>
-        {(url) => (
-          <Show
-            when={props.expandMedia !== false}
-            fallback={
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="break-all text-caption text-link"
-              >
-                {url}
-              </a>
-            }
-          >
-            <NoteAudio url={url} />
-          </Show>
-        )}
-      </For>
-      {/* 添付の無い投稿にまでダイアログの状態を持たせない。 */}
-      <Show when={props.expandMedia !== false && layout().media.length > 0}>
-        <MediaViewer
-          media={layout().media}
-          index={viewing()}
-          onIndexChange={setViewing}
-          onClose={() => setViewing(undefined)}
-        />
-      </Show>
-      {props.media}
-      <LinkCards urls={layout().links} size={props.size} />
-      <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
-    </ContentWarningGate>
-  );
-};
-
 const Note: Component<ContentProps> = (props) => {
   const replyTo = () => replyTarget(props.event);
 
@@ -488,82 +284,89 @@ const EventBody: Component<ContentProps> = (props) => {
     return ref?.form === "id" ? ref : undefined;
   };
 
-  // プロフィールは人そのものなので、フォロー一覧と同じ行で描く。押すとその人のカラムを開く。
-  if (props.event.kind === 0) {
-    return <ProfileRow pubkey={props.event.pubkey} />;
-  }
-
-  // チャンネル（NIP-28）は、チャンネルとして見せて開けるようにする。
-  if (props.event.kind === 40 || props.event.kind === 41) {
-    return <ChannelCard event={props.event} size={props.size} />;
-  }
-  if (props.event.kind === 42) {
-    return (
-      <ChannelMessageCard
-        event={props.event}
-        size={props.size}
-        expandMedia={props.expandMedia}
-      />
-    );
-  }
-
-  // リアクションは「誰が何をしたか」が主役なので、通知と同じ形で描く。
-  if (props.event.kind === 7) {
-    return (
-      <ActionNotice
-        events={[props.event]}
-        size={props.size}
-        expandMedia={props.expandMedia}
-      />
-    );
-  }
-
   return (
-    <>
-      {/* 返信先は線でつないで上に置く。スレッドのカラムと同じ並べ方。 */}
-      <Show when={parent()}>
-        {(ref) => (
-          <EventRefView
-            target={ref()}
-            size="compact"
-            expandMedia={props.expandMedia}
-            threadLine="below"
-          />
-        )}
-      </Show>
-      <Frame
-        size={props.size}
-        // 引用（compact）も押して開ける。引用元をその場で読めないと、引用の意味が追えない。
-        onOpen={(event) => {
-          if (isInteractive(event.target)) return;
-          // 文字を選び終えた click では、移動量が小さくてもスレッドを開かない。
-          if (document.getSelection()?.isCollapsed === false) return;
-          const moved =
-            downAt !== undefined &&
-            (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
-              Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
-          if (moved) return;
-          dispatch({
-            type: "stack/open",
-            column: buildThreadColumn(props.event.id),
-          });
-        }}
-        onDown={(event) => {
-          downAt = { x: event.clientX, y: event.clientY };
-        }}
-      >
-        <EventContent
+    <Switch
+      fallback={
+        <StandardEvent
+          {...props}
+          parent={parent}
+          onDown={(event) => {
+            downAt = { x: event.clientX, y: event.clientY };
+          }}
+          onOpen={(event) => {
+            if (isInteractive(event.target)) return;
+            if (document.getSelection()?.isCollapsed === false) return;
+            const moved =
+              downAt !== undefined &&
+              (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||
+                Math.abs(event.clientY - downAt.y) > DRAG_SLOP);
+            if (moved) return;
+            dispatch({
+              type: "stack/open",
+              column: buildThreadColumn(props.event.id),
+            });
+          }}
+        />
+      }
+    >
+      {/* プロフィールは人そのものなので、フォロー一覧と同じ行で描く。 */}
+      <Match when={props.event.kind === 0}>
+        <ProfileRow pubkey={props.event.pubkey} />
+      </Match>
+      {/* チャンネル（NIP-28）は、チャンネルとして見せて開けるようにする。 */}
+      <Match when={props.event.kind === 40 || props.event.kind === 41}>
+        <ChannelCard event={props.event} size={props.size} />
+      </Match>
+      <Match when={props.event.kind === 42}>
+        <ChannelMessageCard
           event={props.event}
           size={props.size}
           expandMedia={props.expandMedia}
-          threadLine={parent() ? "above" : props.threadLine}
-          stickyAvatar={props.stickyAvatar}
-          media={props.media}
         />
-      </Frame>
-    </>
+      </Match>
+      {/* リアクションは通知と同じ形で描く。 */}
+      <Match when={props.event.kind === 7}>
+        <ActionNotice
+          events={[props.event]}
+          size={props.size}
+          expandMedia={props.expandMedia}
+        />
+      </Match>
+    </Switch>
   );
 };
+
+const StandardEvent: Component<
+  ContentProps & {
+    parent: () => Extract<EventRef, { form: "id" }> | undefined;
+    onDown: (event: MouseEvent) => void;
+    onOpen: (event: MouseEvent) => void;
+  }
+> = (props) => (
+  <>
+    {/* 返信先は線でつないで上に置く。スレッドのカラムと同じ並べ方。 */}
+    <Show when={props.parent()}>
+      {(ref) => (
+        <EventRefView
+          target={ref()}
+          size="compact"
+          expandMedia={props.expandMedia}
+          threadLine="below"
+        />
+      )}
+    </Show>
+    <Frame size={props.size} onOpen={props.onOpen} onDown={props.onDown}>
+      <EventContent
+        event={props.event}
+        size={props.size}
+        expandMedia={props.expandMedia}
+        threadLine={props.parent() ? "above" : props.threadLine}
+        stickyAvatar={props.stickyAvatar}
+        media={props.media}
+      />
+    </Frame>
+  </>
+);
 
 /** id しか分からないイベントを取りにいって描く。 */
 export const EventRefView: Component<{
