@@ -88,6 +88,13 @@ export type FollowSetViewEvent =
   | { type: "follow-sets/create"; title: string; member: FollowSetMember }
   | { type: "follow-sets/add"; identifier: string; member: FollowSetMember }
   | { type: "follow-sets/remove"; identifier: string; member: FollowSetMember }
+  /** 入っている人の公開範囲を変える。外して入れ直すのを、1 回の書き込みで行う。 */
+  | {
+      type: "follow-sets/move";
+      identifier: string;
+      from: FollowSetMember;
+      to: FollowSetMember;
+    }
   | { type: "follow-sets/delete"; identifier: string }
   /** リストを作る・直すフォーム。送れた・失敗したは裁定する段が当てる。 */
   | Exclude<

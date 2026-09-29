@@ -70,8 +70,11 @@ test("リストを作り、投稿のメニューから人を入れて、その�
     .click();
   await page.getByRole("menuitem", { name: "リストに追加" }).click();
   const dialog = page.getByRole("dialog", { name: "リストに追加" });
-  // 何も選ばなければ非公開で入れる。
-  await dialog.getByText("友だち", { exact: true }).click();
+  await dialog
+    .getByRole("listitem")
+    .filter({ hasText: "友だち" })
+    .getByText("非公開", { exact: true })
+    .click();
   const key = conversationKey(me.secretKey, me.pubkey);
   const added = await waitForEvent(
     { kinds: [30000], authors: [me.pubkey], "#d": [identifier ?? ""] },

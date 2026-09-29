@@ -20,10 +20,14 @@ import {
   DialogTitle,
 } from "../ui/Dialog";
 import SegmentedControl from "../ui/SegmentedControl";
-import Switch from "../ui/Switch";
 import CreateFollowSetForm from "./CreateFollowSetForm";
 import { useFollowSets } from "./FollowSetMediator";
-import { MEMBER_VISIBILITY_HINT, visibilityOptions } from "./visibility";
+import {
+  MEMBERSHIP_HINT,
+  type Membership,
+  membershipOptions,
+  visibilityOptions,
+} from "./visibility";
 
 export const AddToListDialogView: Component<{
   pubkey: string;
@@ -40,9 +44,25 @@ export const AddToListDialogView: Component<{
   const [chosen, setChosen] = createSignal<ItemVisibility>("private");
   const visibility = (): ItemVisibility =>
     props.privateReady ? chosen() : "public";
-  const [creating, setCreating] = createSignal(props.initialCreating ?? false);
   const memberOf = (set: FollowSet) =>
     set.members.find((member) => member.pubkey === props.pubkey);
+  const choose = (set: FollowSet, next: Membership) => {
+    const current = memberOf(set);
+    if ((current?.visibility ?? "none") === next) return;
+    const identifier = set.identifier;
+    if (next === "none") {
+      if (current)
+        dispatch({ type: "follow-sets/remove", identifier, member: current });
+      return;
+    }
+    const member = { pubkey: props.pubkey, visibility: next };
+    dispatch(
+      current
+        ? { type: "follow-sets/move", identifier, from: current, to: member }
+        : { type: "follow-sets/add", identifier, member },
+    );
+  };
+  const [creating, setCreating] = createSignal(props.initialCreating ?? false);
 
   return (
     <DialogRoot open onClose={props.onClose}>
@@ -65,61 +85,27 @@ export const AddToListDialogView: Component<{
                 />
               </span>
             </div>
-            <div class="flex flex-col gap-1.5">
-              <SegmentedControl
-                label="入れるときの公開範囲"
-                variant="secondary"
-                value={visibility()}
-                options={visibilityOptions(props.privateReady)}
-                onChange={setChosen}
-              />
-              <p class="c-secondary text-caption">
-                {MEMBER_VISIBILITY_HINT[visibility()]}
-              </p>
-            </div>
+            <p class="c-secondary text-caption">{MEMBERSHIP_HINT}</p>
             <Branch>
               <Match when={props.sets.length > 0}>
-                <div class="flex flex-col">
+                <ul class="flex flex-col">
                   <For each={props.sets}>
                     {(set) => (
-                      <Switch
-                        label={followSetName(set)}
-                        checked={memberOf(set) !== undefined}
-                        aside={
-                          <Show when={memberOf(set)}>
-                            {(member) => (
-                              <span class="c-secondary shrink-0 rounded-full bg-secondary px-2 text-caption">
-                                {member().visibility === "private"
-                                  ? "非公開"
-                                  : "公開"}
-                              </span>
-                            )}
-                          </Show>
-                        }
-                        onChange={(on) => {
-                          const current = memberOf(set);
-                          if (on && !current) {
-                            dispatch({
-                              type: "follow-sets/add",
-                              identifier: set.identifier,
-                              member: {
-                                pubkey: props.pubkey,
-                                visibility: visibility(),
-                              },
-                            });
-                          }
-                          if (!on && current) {
-                            dispatch({
-                              type: "follow-sets/remove",
-                              identifier: set.identifier,
-                              member: current,
-                            });
-                          }
-                        }}
-                      />
+                      <li class="flex min-h-11 items-center gap-3 py-1">
+                        <span class="min-w-0 flex-1 break-words text-body">
+                          {followSetName(set)}
+                        </span>
+                        <SegmentedControl
+                          label={`「${followSetName(set)}」に入れるか`}
+                          variant="secondary"
+                          value={memberOf(set)?.visibility ?? "none"}
+                          options={membershipOptions(props.privateReady)}
+                          onChange={(next) => choose(set, next)}
+                        />
+                      </li>
                     )}
                   </For>
-                </div>
+                </ul>
               </Match>
               <Match when={props.loading}>
                 <p class="c-secondary text-caption">読み込み中…</p>
@@ -144,7 +130,19 @@ export const AddToListDialogView: Component<{
                 </button>
               }
             >
-              <div class="motion-fade animate-in rounded-2 border border-primary p-3">
+              <div class="motion-fade flex animate-in flex-col gap-3 rounded-2 border border-primary p-3">
+                <div class="flex items-center gap-3">
+                  <span class="min-w-0 flex-1 text-body">
+                    入れるときの公開範囲
+                  </span>
+                  <SegmentedControl
+                    label="新しいリストに入れるときの公開範囲"
+                    variant="secondary"
+                    value={visibility()}
+                    options={visibilityOptions(props.privateReady)}
+                    onChange={setChosen}
+                  />
+                </div>
                 <CreateFollowSetForm
                   submitLabel="作って入れる"
                   onSubmit={(title) => {

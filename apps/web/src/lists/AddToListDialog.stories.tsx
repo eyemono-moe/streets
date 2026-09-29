@@ -35,6 +35,12 @@ const Story = (props: Args) => {
                 { type: "remove", member: event.member },
               ]);
               return true;
+            case "follow-sets/move":
+              change(event.identifier, [
+                { type: "remove", member: event.from },
+                { type: "add", member: event.to },
+              ]);
+              return true;
             case "follow-sets/create":
               setSets((current) => [
                 ...current,

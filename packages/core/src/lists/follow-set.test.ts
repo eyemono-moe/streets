@@ -278,6 +278,29 @@ describe("changeFollowSet", () => {
     expect(draft.content).toBe(privateContent([]));
   });
 
+  it("外して入れ直すと、公開から非公開へ 1 つの版で移る", async () => {
+    // 捕まえる変異: 公開の部分だけを書き、非公開へ入れた分を落とす
+    const draft = await changeFollowSet(signer(), VIEWER, [
+      { type: "remove", member: { pubkey: ALICE, visibility: "public" } },
+      { type: "add", member: { pubkey: ALICE, visibility: "private" } },
+    ])(
+      listEvent({
+        tags: [
+          ["d", "friends"],
+          ["p", ALICE],
+        ],
+        content: privateContent([["p", BOB]]),
+      }),
+    );
+    expect(draft.tags).toEqual([["d", "friends"]]);
+    expect(draft.content).toBe(
+      privateContent([
+        ["p", BOB],
+        ["p", ALICE],
+      ]),
+    );
+  });
+
   it("非公開を読めないときは、書かずに投げる", async () => {
     // 捕まえる変異: 読めないまま空で暗号化し、既存の非公開のメンバーを消す
     await expect(
@@ -340,5 +363,22 @@ describe("applyFollowSetChanges", () => {
       { pubkey: ALICE, visibility: "public" },
       { pubkey: BOB, visibility: "private" },
     ]);
+  });
+
+  it("外して入れ直すと、公開範囲だけが変わる", () => {
+    // 捕まえる変異: 足す側を先に当て、すでに入っているとみなして足さない
+    const set = readFollowSet(
+      listEvent({
+        tags: [
+          ["d", "friends"],
+          ["p", ALICE],
+        ],
+      }),
+    );
+    const moved = applyFollowSetChanges(set, [
+      { type: "remove", member: { pubkey: ALICE, visibility: "public" } },
+      { type: "add", member: { pubkey: ALICE, visibility: "private" } },
+    ]);
+    expect(moved.members).toEqual([{ pubkey: ALICE, visibility: "private" }]);
   });
 });
