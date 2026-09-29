@@ -46,3 +46,11 @@ export const savedActiveDeckId = (pubkey: string): string | undefined => {
     return undefined;
   }
 };
+
+export const saveActiveDeckId = (pubkey: string, id: string): void => {
+  try {
+    localStorage.setItem(activeDeckStorageKey(pubkey), id);
+  } catch {
+    // 覚えられなくても、次に開いたときに先頭のデッキが開くだけ。
+  }
+};

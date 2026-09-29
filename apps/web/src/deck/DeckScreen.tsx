@@ -1,6 +1,11 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
-import type { ColumnDef, Deck, DeckAppearance } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  type Deck,
+  type DeckAppearance,
+  defaultColumns,
+} from "@streets/core/deck/deck";
 import {
   addColumnTo,
   moveColumnIn,
@@ -8,7 +13,15 @@ import {
   removeColumnFrom,
   updateColumnIn,
 } from "@streets/core/deck/deck-mutations";
-import { activeDeck, updateDeckIn } from "@streets/core/deck/deck-set";
+import {
+  activeDeck,
+  addDeck,
+  moveDeckTo,
+  nextDeckName,
+  removeDeck,
+  renameDeck,
+  updateDeckIn,
+} from "@streets/core/deck/deck-set";
 import {
   type DeckUiEvent,
   type DeckUiState,
@@ -93,6 +106,7 @@ import { notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
+import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 import { trackReplaces } from "../write-progress";
 import {
   setShowWriteProgress,
@@ -106,8 +120,13 @@ import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnArrangePanel from "./ColumnArrangePanel";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
-import { createDeckStore, savedActiveDeckId } from "./deck-store";
+import {
+  createDeckStore,
+  saveActiveDeckId,
+  savedActiveDeckId,
+} from "./deck-store";
 import DeckEndSpace from "./DeckEndSpace";
+import DecksPanel from "./DecksPanel";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import { relayListState } from "./relay-list";
@@ -221,14 +240,29 @@ const DeckScreen: Component<{
     storage: localStorage,
   });
   // どのデッキを開いているかは端末ごとに覚える。アカウントには保存しない。
+  // この画面で選び直したもの。アカウントを切り替えたら、その人が端末に覚えたものへ戻る。
+  const [chosenDeck, setChosenDeck] = createSignal<{
+    pubkey: string;
+    id: string;
+  }>();
   const activeDeckId = () => {
     const pubkey = props.session.pubkey();
-    return pubkey ? savedActiveDeckId(pubkey) : undefined;
+    if (!pubkey) return undefined;
+    const chosen = chosenDeck();
+    return chosen?.pubkey === pubkey ? chosen.id : savedActiveDeckId(pubkey);
+  };
+  const switchDeck = (id: string) => {
+    const pubkey = props.session.pubkey();
+    if (!pubkey) return;
+    setChosenDeck({ pubkey, id });
+    saveActiveDeckId(pubkey, id);
   };
   const currentDeck = (): Deck | undefined => {
     const set = deckStore.value();
     return set && activeDeck(set, activeDeckId());
   };
+  const deckList = () =>
+    deckStore.value()?.decks.map(({ id, name }) => ({ id, name })) ?? [];
   // カラムの操作は、開いているデッキにだけ当てる。
   const updateDeck = (update: (deck: Deck) => Deck) =>
     deckStore.update((set) =>
@@ -482,6 +516,37 @@ const DeckScreen: Component<{
         updateDeck((deck) => removeColumnFrom(deck, event.id));
         applyUi({ type: "deck/column-removed", id: event.id });
         return true;
+      case "deck/switch-deck":
+        switchDeck(event.id);
+        applyUi({ type: "deck/close-panel" });
+        return true;
+      case "deck/add-deck": {
+        const id = crypto.randomUUID();
+        deckStore.update((set) =>
+          addDeck(set, {
+            id,
+            name: event.name,
+            columns:
+              event.from === "copy"
+                ? activeDeck(set, activeDeckId()).columns
+                : defaultColumns(WELCOME_RELAYS),
+          }),
+        );
+        if (deckStore.value()?.decks.some((deck) => deck.id === id)) {
+          switchDeck(id);
+          applyUi({ type: "deck/close-panel" });
+        }
+        return true;
+      }
+      case "deck/rename-deck":
+        deckStore.update((set) => renameDeck(set, event.id, event.name));
+        return true;
+      case "deck/move-deck":
+        deckStore.update((set) => moveDeckTo(set, event.id, event.to));
+        return true;
+      case "deck/remove-deck":
+        deckStore.update((set) => removeDeck(set, event.id));
+        return true;
       case "deck/keep-temp": {
         const column = temp();
         navigate("/");
@@ -620,6 +685,25 @@ const DeckScreen: Component<{
           <ColumnArrangePanel columns={columns()} dragging={ui.dragging} />
         </SidePanel>
       </Match>
+      <Match when={shownPanel() === "decks" && deckStore.value()}>
+        {(set) => (
+          <SidePanel
+            title="デッキを編集する"
+            icon="i-material-symbols:dashboard-outline-rounded"
+            full={full}
+          >
+            <DecksPanel
+              decks={set().decks.map((deck) => ({
+                id: deck.id,
+                name: deck.name,
+                columns: deck.columns.length,
+              }))}
+              activeId={activeDeck(set(), activeDeckId()).id}
+              nextName={nextDeckName(set())}
+            />
+          </SidePanel>
+        )}
+      </Match>
     </Switch>
   );
 
@@ -736,6 +820,8 @@ const DeckScreen: Component<{
                                   <div class="flex h-dvh">
                                     <Sidebar
                                       pubkey={viewer}
+                                      decks={deckList()}
+                                      activeDeckId={currentDeck()?.id ?? ""}
                                       columns={order.shown()}
                                       panel={ui.panel}
                                       numbers={columnDigits()}
@@ -879,6 +965,8 @@ const DeckScreen: Component<{
                                     />
                                     <MobileTopBar
                                       pubkey={viewer}
+                                      decks={deckList()}
+                                      activeDeckId={currentDeck()?.id ?? ""}
                                       column={
                                         ui.panel === undefined
                                           ? activeColumn()
