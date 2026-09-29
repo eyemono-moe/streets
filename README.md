@@ -80,7 +80,7 @@ VITE_SENTRY_DSN=https://xxxx@o0.ingest.sentry.io/0 VITE_SENTRY_ENV=preview vp ru
 ソースマップを送ると、本番のスタックトレースが元のコードで読めます。次の 3 つが揃ったビルドでだけ送ります（`VITE_` を付けないこと。付けると画面側へ混ざります）。
 
 ```bash
-SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=streets vp run build
+SENTRY_AUTH_TOKEN=... SENTRY_ORG=streets SENTRY_PROJECT=streets vp run build
 ```
 
 送ったマップは配らずに消すので、公開されるものは変わりません。送れなかったときは警告を出して、ビルドは続けます。
