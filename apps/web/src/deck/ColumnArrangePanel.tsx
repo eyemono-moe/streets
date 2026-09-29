@@ -9,6 +9,9 @@ import { createColumnOrder } from "./column-order";
 import ColumnIcon from "./ColumnIcon";
 import ColumnTitle, { useColumnTitle } from "./ColumnTitle";
 
+/** タッチで行を掴むまでの長押し。 */
+const HOLD_MS = 300;
+
 const Row: Component<{
   column: ColumnDef;
   position: number;
@@ -24,7 +27,7 @@ const Row: Component<{
   return (
     <li
       data-arrange-id={props.column.id}
-      class="flex cursor-grab items-center gap-2.5 rounded-2 border border-primary bg-primary py-2 pr-1.5 pl-3 data-[dragging]:z-1 data-[dragging]:shadow-lg"
+      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] data-[dragging]:z-1 data-[dragging]:shadow-lg"
       style={{ order: props.position }}
       onPointerDown={(event) => props.onGrab(event, false)}
     >
@@ -33,7 +36,7 @@ const Row: Component<{
         class="c-secondary size-4.5 shrink-0"
         avatarClass="size-5 shrink-0 rounded-1.5"
       />
-      <span class="flex min-w-0 flex-1 flex-col">
+      <span class="flex min-w-0 flex-1 flex-col py-2">
         <span class="truncate font-600 text-body">
           <ColumnTitle column={props.column} />
         </span>
@@ -43,28 +46,34 @@ const Row: Component<{
           )}
         </Show>
       </span>
-      {/* タッチでは、ここを掴んだときだけ並べ替える。ほかの場所では一覧を送る。 */}
-      <IconButton
-        icon="i-material-symbols:drag-indicator"
-        label={`「${title()}」を動かす（${props.position + 1} / ${props.count} 番目）`}
-        title="掴んで上下に動かすか、↑↓ キーで動かす"
-        aria-keyshortcuts="ArrowUp ArrowDown"
-        class="touch-none"
+      {/*
+        右端は、行の高さいっぱいを掴む場所にする。タッチでもここは押してすぐ掴める
+        （ほかの場所は長押しで掴み、押してすぐ動かすと一覧を送る）。
+      */}
+      <div
+        class="grid touch-none place-items-center self-stretch px-2.5"
         onPointerDown={(event) => {
           event.stopPropagation();
           props.onGrab(event, true);
         }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowUp") {
-            event.preventDefault();
-            move(-1);
-          }
-          if (event.key === "ArrowDown") {
-            event.preventDefault();
-            move(1);
-          }
-        }}
-      />
+      >
+        <IconButton
+          icon="i-material-symbols:drag-indicator"
+          label={`「${title()}」を動かす（${props.position + 1} / ${props.count} 番目）`}
+          title="掴んで上下に動かすか、↑↓ キーで動かす"
+          aria-keyshortcuts="ArrowUp ArrowDown"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp") {
+              event.preventDefault();
+              move(-1);
+            }
+            if (event.key === "ArrowDown") {
+              event.preventDefault();
+              move(1);
+            }
+          }}
+        />
+      </div>
     </li>
   );
 };
@@ -109,7 +118,7 @@ const ColumnArrangePanel: Component<{
         }
       >
         <p class="c-secondary mb-3 text-caption">
-          掴んで上下に動かすと、カラムの並びが変わります。
+          行を掴んで上下に動かすと、カラムの並びが変わります。タッチでは、行を長押しするか右端のつまみを掴みます。
         </p>
         {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
         <ol class="relative m-0 flex list-none flex-col gap-1.5 p-0" ref={list}>
@@ -119,11 +128,16 @@ const ColumnArrangePanel: Component<{
                 column={column}
                 position={order.indexOf(column.id)}
                 count={props.columns.length}
-                onGrab={(event, handle) => {
-                  // タッチで行を掴ませると、一覧を送れなくなる。
-                  if (event.pointerType === "touch" && !handle) return;
-                  sort.onPointerDown(column.id, event);
-                }}
+                onGrab={(event, handle) =>
+                  // タッチで行を押してすぐ掴むと、一覧を送れなくなる。行は長押しで掴む。
+                  sort.onPointerDown(
+                    column.id,
+                    event,
+                    event.pointerType === "touch" && !handle
+                      ? { hold: HOLD_MS }
+                      : undefined,
+                  )
+                }
               />
             )}
           </For>

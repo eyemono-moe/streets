@@ -38,6 +38,8 @@ type Session = {
   /** 掴んだものの頭から、掴んだ位置まで。 */
   grab: number;
   frame: number;
+  /** 長押しで掴むときの、掴むまでの timer。 */
+  hold: ReturnType<typeof setTimeout> | undefined;
 };
 
 /**
@@ -200,6 +202,11 @@ export const createSortable = (options: SortableOptions) => {
         current.client.y - current.down.y,
       );
       if (moved <= SLOP) return;
+      // 長押しで掴むものは、押している間に動いたら一覧を送るつもり。ブラウザに任せる。
+      if (current.hold !== undefined) {
+        finish();
+        return;
+      }
       activate(current);
       if (!current.active) return;
     }
@@ -241,11 +248,23 @@ export const createSortable = (options: SortableOptions) => {
     event.stopPropagation();
     abort();
   };
+  // 長押しで掴んだ後は、指を動かしてもページを送らせない。touch-action は押した
+  // 時点で決まるので、掴んでから止めるには touchmove を止めるしかない。
+  const onTouchMove = (event: TouchEvent) => {
+    if (session?.active) event.preventDefault();
+  };
+  // 長押しで出る端末のメニュー（コピーなど）を出さない。
+  const onContextMenu = (event: Event) => {
+    if (session) event.preventDefault();
+  };
   // 掴んだ中の画像やリンクを、ブラウザがドラッグし始めると pointer が奪われる。
   const onNativeDrag = (event: DragEvent) => event.preventDefault();
 
   const finish = () => {
-    if (session) cancelAnimationFrame(session.frame);
+    if (session) {
+      cancelAnimationFrame(session.frame);
+      clearTimeout(session.hold);
+    }
     session = undefined;
     restoreBody?.();
     restoreBody = undefined;
@@ -254,15 +273,24 @@ export const createSortable = (options: SortableOptions) => {
     window.removeEventListener("pointercancel", onCancel);
     window.removeEventListener("keydown", onKey, { capture: true });
     window.removeEventListener("dragstart", onNativeDrag, { capture: true });
+    window.removeEventListener("touchmove", onTouchMove);
+    window.removeEventListener("contextmenu", onContextMenu, { capture: true });
   };
   onCleanup(abort);
 
   return {
-    /** 掴める場所で押された。動かし始めるまでは何もしない。 */
-    onPointerDown: (id: string, event: PointerEvent) => {
+    /**
+     * 掴める場所で押された。動かし始めるまでは何もしない。`hold` を渡すと、その間
+     * 動かさずに押し続けたら掴む（タッチで、押した場所を送る操作にも使うとき）。
+     */
+    onPointerDown: (
+      id: string,
+      event: PointerEvent,
+      options?: { hold?: number },
+    ) => {
       if (session || !event.isPrimary || event.button !== 0) return;
       const client = { x: event.clientX, y: event.clientY };
-      session = {
+      const current: Session = {
         id,
         pointerId: event.pointerId,
         down: client,
@@ -270,7 +298,20 @@ export const createSortable = (options: SortableOptions) => {
         active: false,
         grab: 0,
         frame: 0,
+        hold: undefined,
       };
+      session = current;
+      if (options?.hold !== undefined) {
+        current.hold = setTimeout(() => {
+          current.hold = undefined;
+          if (session !== current) return;
+          activate(current);
+          // 掴んだことを、指の下で分かるようにする（対応する端末だけ）。
+          if ("vibrate" in navigator) navigator.vibrate(10);
+        }, options.hold);
+      }
+      window.addEventListener("touchmove", onTouchMove, { passive: false });
+      window.addEventListener("contextmenu", onContextMenu, { capture: true });
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onCancel);
