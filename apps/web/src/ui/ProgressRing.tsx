@@ -45,7 +45,7 @@ const ArcCircle: Component<{ arc: Arc; class: string }> = (props) => (
       "stroke-dashoffset": `${props.arc.offset}`,
       opacity: props.arc.visible ? 1 : 0,
     }}
-    class={`transition-[stroke-dasharray,stroke-dashoffset,opacity] duration-[180ms] ease-out ${props.class}`}
+    class={`[transition-property:stroke-dasharray,stroke-dashoffset,opacity] duration-[180ms] ease-out ${props.class}`}
   />
 );
 
