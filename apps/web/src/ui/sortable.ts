@@ -40,6 +40,8 @@ type Session = {
   frame: number;
   /** 長押しで掴むときの、掴むまでの timer。 */
   hold: ReturnType<typeof setTimeout> | undefined;
+  /** 押した時点で、掴んだ見た目にしている。 */
+  lifted: boolean;
 };
 
 /**
@@ -264,6 +266,11 @@ export const createSortable = (options: SortableOptions) => {
     if (session) {
       cancelAnimationFrame(session.frame);
       clearTimeout(session.hold);
+      // 押しただけで離した。掴んだ見た目を戻す（掴んだ後なら settle が戻す）。
+      if (session.lifted && !session.active) {
+        const el = options.element(session.id);
+        if (el) delete el.dataset.dragging;
+      }
     }
     session = undefined;
     restoreBody?.();
@@ -282,11 +289,13 @@ export const createSortable = (options: SortableOptions) => {
     /**
      * 掴める場所で押された。動かし始めるまでは何もしない。`hold` を渡すと、その間
      * 動かさずに押し続けたら掴む（タッチで、押した場所を送る操作にも使うとき）。
+     * `lift` を渡すと、押した時点で掴んだ見た目にする（押しても掴む以外のことが
+     * 起きない場所で、動かせることを先に見せる）。
      */
     onPointerDown: (
       id: string,
       event: PointerEvent,
-      options?: { hold?: number },
+      grabOptions?: { hold?: number; lift?: boolean },
     ) => {
       if (session || !event.isPrimary || event.button !== 0) return;
       const client = { x: event.clientX, y: event.clientY };
@@ -299,16 +308,24 @@ export const createSortable = (options: SortableOptions) => {
         grab: 0,
         frame: 0,
         hold: undefined,
+        lifted: false,
       };
       session = current;
-      if (options?.hold !== undefined) {
+      if (grabOptions?.lift && grabOptions.hold === undefined) {
+        const el = options.element(id);
+        if (el) {
+          el.dataset.dragging = "";
+          current.lifted = true;
+        }
+      }
+      if (grabOptions?.hold !== undefined) {
         current.hold = setTimeout(() => {
           current.hold = undefined;
           if (session !== current) return;
           activate(current);
           // 掴んだことを、指の下で分かるようにする（対応する端末だけ）。
           if ("vibrate" in navigator) navigator.vibrate(10);
-        }, options.hold);
+        }, grabOptions.hold);
       }
       window.addEventListener("touchmove", onTouchMove, { passive: false });
       window.addEventListener("contextmenu", onContextMenu, { capture: true });

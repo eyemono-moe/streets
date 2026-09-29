@@ -135,7 +135,7 @@ const ColumnArrangePanel: Component<{
                     event,
                     event.pointerType === "touch" && !handle
                       ? { hold: HOLD_MS }
-                      : undefined,
+                      : { lift: true },
                   )
                 }
               />
