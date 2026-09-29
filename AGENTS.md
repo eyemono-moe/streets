@@ -143,6 +143,10 @@ publish 用の別経路を作らず、`ConnectionPool` 一本に集約します�
 
 **重ね順は z-index の数字で決めない。** Ark UI の Positioner は `z-index: var(--z-index)` を inline で当てるので、クラスで `z-80` などを付けても効きません。`#root` を `isolation: isolate` にしてあり、アプリの中の重ね順はアプリの中に閉じます。ポップアップやダイアログは body の末尾へ出るので、DOM の順だけでアプリより上に乗ります。アプリの中で重ねるもの（カラムの重なりなど）も、後ろに置いたものが上に来る DOM の順で決め、中の重ね順が漏れないように `isolate` で区切ります。
 
+### transition の対象を `transition-[a,b]` で並べない
+
+UnoCSS は `transition-[scale,opacity]` のようにカンマで並べた指定を CSS にせず、`duration-*` だけが効いて対象が `all` になります。並べるときは `[transition-property:scale,opacity]` と書きます。`all` のままだと、JS で当てる `transform` や、並びを決める `order` まで遅れて動きます（カラム整理パネルで、掴んだ行が遅れ、行が重なって見えました）。
+
 ### 画面の外を飛ばす箱と、線を引く箱を分ける
 
 一覧に並ぶもの（投稿・通知・ユーザーの行）は、中身を包む箱に `offscreen-skip`（`content-visibility: auto`）を当てて、画面の外にある分の描画を飛ばします。カラムを並べた画面では要素が数万になり、テーマ色を変えたときのように木全体のスタイル計算が走ると、当てない場合の 3〜4 倍かかります。
