@@ -26,10 +26,11 @@ const Row: Component<{
     dispatch({ type: "deck/move-column", id: props.column.id, direction });
   return (
     // 掴んだら少し大きくして浮かせる。scale は transform と別の指定なので、掴んだ行を
-    // 動かす transform と打ち消し合わない。
+    // 動かす transform と打ち消し合わない。transition は transform と order に掛けない
+    // （掛けると、掴んだ行がポインタに遅れ、並びの入れ替わりも遅れて行が重なる）。
     <li
       data-arrange-id={props.column.id}
-      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] transition-[scale,box-shadow,border-color] duration-120 data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:shadow-xl data-[dragging]:[scale:1.02]"
+      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] [transition-property:scale,box-shadow,border-color] duration-120 data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:shadow-xl data-[dragging]:[scale:1.02]"
       style={{ order: props.position }}
       onPointerDown={(event) => props.onGrab(event, false)}
     >
