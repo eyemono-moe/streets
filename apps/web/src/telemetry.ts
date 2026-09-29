@@ -20,6 +20,13 @@ const TRACES_SAMPLE_RATE: Record<string, number> = {
   preview: 1,
 };
 
+/**
+ * 読み込み 1 回につき 1 つしか出ない区間は、本番でも全部送る。10 回に 1 回では
+ * 版ごとの LCP が数件にしかならず、比べられない。LCP・CLS の区間は画面の
+ * 読み込みの区間の子なので、親と一緒に送られる。
+ */
+const ONCE_PER_LOAD_OPS = new Set(["pageload", "ui.load"]);
+
 export const startTelemetry = async () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn || import.meta.env.DEV) return;
@@ -36,10 +43,17 @@ export const startTelemetry = async () => {
   Sentry.init({
     dsn,
     environment,
-    release: import.meta.env.VITE_COMMIT_SHA,
+    release: import.meta.env.VITE_SENTRY_RELEASE,
     // IP アドレス・Cookie・ヘッダーを送らせない。
     dataCollection: { userInfo: false, cookies: false, httpHeaders: false },
-    tracesSampleRate: TRACES_SAMPLE_RATE[environment] ?? 0,
+    tracesSampler: ({ attributes, inheritOrSampleWith }) => {
+      const rate = TRACES_SAMPLE_RATE[environment] ?? 0;
+      const op = attributes?.["sentry.op"];
+      if (rate > 0 && typeof op === "string" && ONCE_PER_LOAD_OPS.has(op)) {
+        return 1;
+      }
+      return inheritOrSampleWith(rate);
+    },
     // 計測の印を、こちらの Worker を含めてどこへの通信にも付けない。
     tracePropagationTargets: [],
     // 入力された文字や本文が混ざらないよう、操作とコンソールの記録は取らない。

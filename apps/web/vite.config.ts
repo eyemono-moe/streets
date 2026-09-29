@@ -65,11 +65,21 @@ const analyze = (mode: string) =>
       ]
     : [];
 
-const release = commitSha();
+const commit = commitSha();
+
+/**
+ * Sentry の release の名前。タグのビルドは版の名前（`v1.5.1`）にし、Sentry の
+ * 画面で版ごとの数字を読めるようにする。それ以外はコミットで区別する。
+ */
+const release =
+  process.env.GITHUB_REF_TYPE === "tag" && process.env.GITHUB_REF_NAME
+    ? process.env.GITHUB_REF_NAME
+    : commit;
 
 export default defineConfig(({ mode }) => ({
   define: {
-    "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(release),
+    "import.meta.env.VITE_COMMIT_SHA": JSON.stringify(commit),
+    "import.meta.env.VITE_SENTRY_RELEASE": JSON.stringify(release),
     // Sentry から、使っていない機能（デバッグ出力）を落とす。
     __SENTRY_DEBUG__: "false",
   },
