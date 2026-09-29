@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "@solidjs/router";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import {
   addColumnTo,
+  moveColumnIn,
   moveColumnToIn,
   removeColumnFrom,
   updateColumnIn,
@@ -41,6 +42,7 @@ import { ActionsMediator } from "../actions-mediator";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { columnView } from "../columns/column-views";
+import { setContentWarningMode } from "../content-warning-setting";
 import {
   defaultReaction,
   setDefaultReaction,
@@ -82,6 +84,7 @@ import {
 import { notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
+import { createSortable } from "../ui/sortable";
 import { trackReplaces } from "../write-progress";
 import {
   setShowWriteProgress,
@@ -90,7 +93,9 @@ import {
 import { ZapMediator } from "../zap/ZapMediator";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
+import { createColumnOrder } from "./column-order";
 import ColumnAccentBar from "./ColumnAccentBar";
+import ColumnArrangePanel from "./ColumnArrangePanel";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import { createDeckStore } from "./deck-store";
@@ -223,6 +228,7 @@ const DeckScreen: Component<{
     );
   });
   const columns = () => deckView.columns;
+  const order = createColumnOrder(columns, () => ui.dragging);
 
   // URL の 1 区画から開く一時カラム。デッキへは保存せず、左端に出す（ADR-0032）。
   const params = useParams<{ entity?: string }>();
@@ -281,12 +287,26 @@ const DeckScreen: Component<{
       });
   };
 
+  // 広い画面で、カラムの見出しを掴んで並べ替える。
+  const deckSort = createSortable({
+    axis: "x",
+    container: () => columnsEl,
+    scroller: () => columnsEl,
+    element: (id) =>
+      columnsEl?.querySelector<HTMLElement>(
+        `[data-column-id="${CSS.escape(id)}"]`,
+      ) ?? undefined,
+    order: order.ids,
+    start: (id, index) => handle({ type: "deck/drag-start", id, index }),
+    move: (to) => handle({ type: "deck/drag-move", to }),
+    drop: () => handle({ type: "deck/drop" }),
+    cancel: () => handle({ type: "deck/drag-end" }),
+  });
+
   // 狭い画面のカラムの帯。払って止まった位置と、選んでいるカラムを行き来させる。
   let stripEl: HTMLDivElement | undefined;
-  const stripIds = () => [
-    ...(temp() ? [TEMP_COLUMN_ID] : []),
-    ...columns().map((column) => column.id),
-  ];
+  // 見た目の並び。並べ替えている間は、帯のカラムも CSS の order で入れ替わって見える。
+  const stripIds = () => [...(temp() ? [TEMP_COLUMN_ID] : []), ...order.ids()];
   const activeColumn = (): ColumnDef | undefined =>
     ui.active === TEMP_COLUMN_ID
       ? temp()
@@ -298,6 +318,9 @@ const DeckScreen: Component<{
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       if (!stripEl || stripEl.clientWidth === 0) return;
+      // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
+      // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
+      if (ui.panel !== undefined) return;
       const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
       const id = stripIds()[index];
       if (id !== undefined && id !== ui.active) {
@@ -386,6 +409,7 @@ const DeckScreen: Component<{
       case "deck/close-panel":
       case "deck/select-column":
       case "deck/drag-start":
+      case "deck/drag-move":
       case "deck/drag-end":
         applyUi(event);
         return true;
@@ -413,15 +437,20 @@ const DeckScreen: Component<{
         return true;
       }
       case "deck/drop": {
-        const id = ui.dragging;
-        applyUi({ type: "deck/drag-end" });
-        if (!id || id === event.targetId) return true;
-        const to = columns().findIndex(
-          (column) => column.id === event.targetId,
+        const dragging = ui.dragging;
+        if (!dragging) return true;
+        // 見せている並びを変えずに確定する。先に掴みを外すと、保存が返るまでの間だけ元の並びに戻って見える。
+        deckStore.update((deck) =>
+          moveColumnToIn(deck, dragging.id, dragging.to),
         );
-        if (to >= 0) deckStore.update((deck) => moveColumnToIn(deck, id, to));
+        applyUi({ type: "deck/drag-end" });
         return true;
       }
+      case "deck/move-column":
+        deckStore.update((deck) =>
+          moveColumnIn(deck, event.id, event.direction),
+        );
+        return true;
       case "deck/add-column":
         addColumn(event.column);
         return true;
@@ -477,6 +506,9 @@ const DeckScreen: Component<{
       case "deck/set-image-downscaling":
         setImageDownscaling(event.on);
         return true;
+      case "deck/set-content-warning":
+        setContentWarningMode(event.mode);
+        return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);
         return true;
@@ -508,55 +540,56 @@ const DeckScreen: Component<{
   const shownPanel = createMemo<typeof ui.panel>((last) => ui.panel ?? last);
 
   const panelView = (full: boolean) => (
-    <Show when={shownPanel()}>
-      {(current) => (
-        <Show
-          when={current() === "compose"}
-          fallback={
-            <Show
-              when={current() === "search"}
-              fallback={
-                <SidePanel
-                  title="カラムを追加する"
-                  icon="i-material-symbols:add-rounded"
-                  full={full}
-                >
-                  <AddColumnPanel
-                    relayList={relayList()}
-                    readLayer={props.readLayer}
-                    searchRelays={shared.searchRelays}
-                  />
-                </SidePanel>
-              }
-            >
-              <SidePanel
-                title="検索する"
-                icon="i-material-symbols:search-rounded"
-                full={full}
-              >
-                <SearchPanel />
-              </SidePanel>
-            </Show>
-          }
+    <Switch>
+      <Match when={shownPanel() === "compose"}>
+        <SidePanel
+          title="投稿する"
+          icon="i-material-symbols:edit-square-outline-rounded"
+          full={full}
         >
-          <SidePanel
-            title="投稿する"
-            icon="i-material-symbols:edit-square-outline-rounded"
-            full={full}
+          <ComposeMediator
+            send={(text, media, emoji, contentWarning) =>
+              write.actions.post(text, media, emoji, contentWarning)
+            }
+            failure="投稿できませんでした"
+            onSent={() => handle({ type: "deck/close-panel" })}
           >
-            <ComposeMediator
-              send={(text, media, emoji) =>
-                write.actions.post(text, media, emoji)
-              }
-              failure="投稿できませんでした"
-              onSent={() => handle({ type: "deck/close-panel" })}
-            >
-              {(state) => <ComposePanel state={state} />}
-            </ComposeMediator>
-          </SidePanel>
-        </Show>
-      )}
-    </Show>
+            {(state) => <ComposePanel state={state} />}
+          </ComposeMediator>
+        </SidePanel>
+      </Match>
+      <Match when={shownPanel() === "search"}>
+        <SidePanel
+          title="検索する"
+          icon="i-material-symbols:search-rounded"
+          full={full}
+        >
+          <SearchPanel />
+        </SidePanel>
+      </Match>
+      <Match when={shownPanel() === "add-column"}>
+        <SidePanel
+          title="カラムを追加する"
+          icon="i-material-symbols:add-rounded"
+          full={full}
+        >
+          <AddColumnPanel
+            relayList={relayList()}
+            readLayer={props.readLayer}
+            searchRelays={shared.searchRelays}
+          />
+        </SidePanel>
+      </Match>
+      <Match when={shownPanel() === "arrange"}>
+        <SidePanel
+          title="カラムを整理する"
+          icon="i-material-symbols:reorder-rounded"
+          full={full}
+        >
+          <ColumnArrangePanel columns={columns()} dragging={ui.dragging} />
+        </SidePanel>
+      </Match>
+    </Switch>
   );
 
   // カラムごとに、見えているカラムが自分の入力欄を持つか。重ねた段はカラムの中に
@@ -666,7 +699,7 @@ const DeckScreen: Component<{
                                   <div class="flex h-dvh">
                                     <Sidebar
                                       pubkey={viewer}
-                                      columns={columns()}
+                                      columns={order.shown()}
                                       panel={ui.panel}
                                       numbers={columnDigits()}
                                       onLogout={props.session.logout}
@@ -679,13 +712,36 @@ const DeckScreen: Component<{
                                     <div class="flex min-w-0 flex-1 flex-col">
                                       <DeckSyncNotice store={deckStore} />
                                       {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+                                      {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
                                       <div
                                         ref={columnsEl}
-                                        class="flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
+                                        class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
+                                        onPointerDown={(event) => {
+                                          const target = event.target;
+                                          if (!(target instanceof Element)) {
+                                            return;
+                                          }
+                                          const grip =
+                                            target.closest(
+                                              "[data-column-grip]",
+                                            );
+                                          if (
+                                            !grip ||
+                                            target.closest("[data-no-grip]")
+                                          ) {
+                                            return;
+                                          }
+                                          const id =
+                                            grip.closest<HTMLElement>(
+                                              "[data-column-id]",
+                                            )?.dataset.columnId;
+                                          if (id)
+                                            deckSort.onPointerDown(id, event);
+                                        }}
                                       >
                                         <Show when={temp()}>
                                           {(column) => (
-                                            <div class="h-full w-95 shrink-0 border-primary border-r">
+                                            <div class="order-first h-full w-95 shrink-0 border-primary border-r">
                                               <Column
                                                 column={column()}
                                                 settingsOpen={false}
@@ -696,7 +752,7 @@ const DeckScreen: Component<{
                                           )}
                                         </Show>
                                         <Show when={params.entity && !temp()}>
-                                          <div class="h-full w-95 shrink-0 bg-primary p-4">
+                                          <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
                                             <p
                                               role="alert"
                                               class="c-secondary text-caption"
@@ -706,35 +762,29 @@ const DeckScreen: Component<{
                                             </p>
                                           </div>
                                         </Show>
-                                        <For each={columns()}>
-                                          {(column, index) => (
+                                        <For each={order.mounted()}>
+                                          {(column) => (
                                             <>
+                                              {/* 掴んだカラムは隣の上を通るので、帯の中でだけ上に重ねる。 */}
                                               <div
                                                 data-column-id={column.id}
                                                 data-tour={
-                                                  index() === 0
+                                                  order.ids()[0] === column.id
                                                     ? "columns"
                                                     : undefined
                                                 }
-                                                class="h-full shrink-0 border-primary border-r"
+                                                class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
                                                 classList={{
                                                   "w-80": column.width === "s",
                                                   "w-95":
                                                     column.width !== "s" &&
                                                     column.width !== "l",
                                                   "w-110": column.width === "l",
-                                                  "opacity-50":
-                                                    ui.dragging === column.id,
                                                 }}
-                                                onDragOver={(event) =>
-                                                  event.preventDefault()
-                                                }
-                                                onDrop={(event) => {
-                                                  event.preventDefault();
-                                                  handle({
-                                                    type: "deck/drop",
-                                                    targetId: column.id,
-                                                  });
+                                                style={{
+                                                  order:
+                                                    order.indexOf(column.id) *
+                                                    2,
                                                 }}
                                               >
                                                 <Column
@@ -742,7 +792,7 @@ const DeckScreen: Component<{
                                                   settingsOpen={
                                                     ui.settingsFor === column.id
                                                   }
-                                                  draggable
+                                                  grip
                                                   {...shared}
                                                 />
                                               </div>
@@ -753,6 +803,12 @@ const DeckScreen: Component<{
                                                   ui.settingsFor === column.id
                                                 }
                                                 class="bg-secondary"
+                                                style={{
+                                                  order:
+                                                    order.indexOf(column.id) *
+                                                      2 +
+                                                    1,
+                                                }}
                                               >
                                                 <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
                                                   <div
@@ -812,7 +868,7 @@ const DeckScreen: Component<{
                                       >
                                         <Show when={temp()}>
                                           {(column) => (
-                                            <div class="isolate h-full w-full shrink-0 snap-start snap-always">
+                                            <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
                                               <Column
                                                 column={column()}
                                                 settingsOpen={false}
@@ -823,9 +879,14 @@ const DeckScreen: Component<{
                                             </div>
                                           )}
                                         </Show>
-                                        <For each={columns()}>
+                                        <For each={order.mounted()}>
                                           {(column) => (
-                                            <div class="isolate h-full w-full shrink-0 snap-start snap-always">
+                                            <div
+                                              class="isolate h-full w-full shrink-0 snap-start snap-always"
+                                              style={{
+                                                order: order.indexOf(column.id),
+                                              }}
+                                            >
                                               <div
                                                 class="h-full"
                                                 classList={{
@@ -876,7 +937,7 @@ const DeckScreen: Component<{
                                       </Show>
                                     </div>
                                     <MobileTabBar
-                                      columns={columns()}
+                                      columns={order.shown()}
                                       temp={temp()}
                                       active={
                                         ui.panel === undefined

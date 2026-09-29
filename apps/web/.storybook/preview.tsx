@@ -26,6 +26,8 @@ const columnViewport = (width: number) => ({
 });
 
 const preview: Preview = {
+  // 部品ごとに、ストーリーを 1 ページに並べた Docs を作る。
+  tags: ["autodocs"],
   globalTypes: {
     palette: {
       description: "テーマ色",
@@ -57,6 +59,42 @@ const preview: Preview = {
   },
   parameters: {
     layout: "fullscreen",
+    docs: {
+      // ストーリーは端末の設定（いいねの絵文字・閲覧注意の扱いなど）を描くときに書き換える。
+      // 1 ページに直に並べると互いに上書きするので、1 本ずつ iframe に分ける。
+      story: { inline: false, iframeHeight: 480 },
+    },
+    // 既定はファイルを読んだ順で、投稿の本文が操作のボタンより後ろに来る。
+    // イベントの中だけ、ふつうの投稿から端のものへ読む順に並べる。
+    options: {
+      storySort: {
+        order: [
+          "イベント",
+          [
+            "投稿",
+            [
+              "本文",
+              "返信・引用",
+              "操作のボタン",
+              "メディア",
+              "画像の並び",
+              "画像の読み込み中",
+              "メディアの拡大表示",
+              "リンクのカード",
+              "リンクのカード単体",
+              "埋め込み",
+              "閲覧注意",
+            ],
+            "リポスト",
+            "リアクション",
+            "通知のリアクション・リポスト",
+            "プロフィール",
+            "チャンネル",
+            "描けないもの",
+          ],
+        ],
+      },
+    },
     viewport: {
       options: {
         column320: columnViewport(320),

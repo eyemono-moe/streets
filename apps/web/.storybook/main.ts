@@ -20,6 +20,7 @@ const config = {
   stories: ["../src/**/*.stories.tsx"],
   // ロゴなど、アプリが /favicon.svg のように直に指すもの。
   staticDirs: ["../public"],
+  addons: ["@storybook/addon-docs", "@storybook/addon-a11y"],
   framework: {
     name: "storybook-solidjs-vite",
     options: {},

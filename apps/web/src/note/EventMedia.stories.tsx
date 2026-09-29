@@ -78,7 +78,7 @@ const MediaStory: Component<Props> = (props) => {
 };
 
 const meta = {
-  title: "イベント/メディア",
+  title: "イベント/投稿/画像の並び",
   component: MediaStory,
   args: { size: "normal", aspects: ["16:9"] },
   argTypes: {

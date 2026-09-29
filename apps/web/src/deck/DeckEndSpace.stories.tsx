@@ -74,7 +74,7 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
                         open={
                           props.settingsOpen === true && column.id === "friend"
                         }
-                        draggable
+                        grip
                         onTitle={() => {}}
                       />
                       <p class="p-4 text-body">{column.title}の内容</p>

@@ -14,6 +14,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { lazyPart } from "../lazy-part";
+import ContentWarningGate from "./ContentWarningGate";
 import { EventRefView, type EventSize } from "./Event";
 import { Frame, Notice } from "./EventFrame";
 import LinkCards from "./LinkCards";
@@ -101,7 +102,7 @@ export const NoteContent: Component<{
   );
   const [viewing, setViewing] = createSignal<number>();
   return (
-    <>
+    <ContentWarningGate event={props.event} size={props.size}>
       <Show when={layout().text.length > 0}>
         <CollapsibleBody size={props.size}>
           <NoteText
@@ -168,6 +169,6 @@ export const NoteContent: Component<{
       {props.media}
       <LinkCards urls={layout().links} size={props.size} />
       <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
-    </>
+    </ContentWarningGate>
   );
 };

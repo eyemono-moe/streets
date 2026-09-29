@@ -11,6 +11,7 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
@@ -103,7 +104,9 @@ export type ComposeViewEvent =
         type:
           | "compose/attach-remove"
           | "compose/attach-move"
-          | "compose/attach-crop";
+          | "compose/attach-crop"
+          | "compose/warning-toggle"
+          | "compose/warning-input";
       }
     >;
 
@@ -116,10 +119,14 @@ export type DeckEvent =
   /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
   | { type: "deck/focus-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
-  | { type: "deck/drag-start"; id: string }
+  | { type: "deck/drag-start"; id: string; index: number }
+  | { type: "deck/drag-move"; to: number }
+  /** やめた（Esc・ポインタを奪われた）。並びは変えない。 */
   | { type: "deck/drag-end" }
-  /** 掴んでいたカラムを、このカラムの位置へ差し込む。 */
-  | { type: "deck/drop"; targetId: string }
+  /** 離した。掴んでいたカラムを、動かした先の位置で確定する。 */
+  | { type: "deck/drop" }
+  /** 1 つ前（-1）か後ろ（1）へずらす。キーボードでの並べ替え。 */
+  | { type: "deck/move-column"; id: string; direction: -1 | 1 }
   /** 足す。id は裁定する段が振り直す（重ねた段の id は中身から作ってあり衝突する）。 */
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
@@ -145,6 +152,8 @@ export type DeckEvent =
   | { type: "deck/set-write-progress"; on: boolean }
   /** 画像を表示サイズに縮めるか。この端末に保存する。 */
   | { type: "deck/set-image-downscaling"; on: boolean }
+  /** 閲覧注意の投稿の扱い。この端末に保存する。 */
+  | { type: "deck/set-content-warning"; mode: ContentWarningMode }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */

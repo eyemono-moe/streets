@@ -30,6 +30,8 @@
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
     "@sentry/vite-plugin": "^5.4.0",
+    "@storybook/addon-a11y": "10.6.0",
+    "@storybook/addon-docs": "10.6.0",
     "@tanstack/devtools-vite": "^0.8.5",
     "@tanstack/solid-devtools": "^0.8.13",
     "@unocss/preset-mini": "66.10.5",

@@ -7,6 +7,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import { type Component, Match, Switch } from "solid-js";
+import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import Event from "../../note/Event";
 import { useMutes } from "../../settings/MuteMediator";
@@ -31,13 +32,16 @@ const EventList: Component<{
     name: props.name,
   });
   const mutes = useMutes();
+  const listsUnderWarning = useListsUnderWarning();
   const column = () => scope.column();
   const size = () =>
     column().density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => column().expandMedia !== false;
   const items = () => {
     const filter = props.filter;
-    const received = filter ? section.items().filter(filter) : section.items();
+    const received = (
+      filter ? section.items().filter(filter) : section.items()
+    ).filter(listsUnderWarning);
     const visible =
       mutes && columnHidesMuted(column())
         ? received.filter((event) => !mutes.hides(event))

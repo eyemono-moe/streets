@@ -1,3 +1,4 @@
+import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import { buildNote } from "@streets/core/nostr/build/note";
 import { withReferences } from "@streets/core/nostr/build/references";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -20,6 +21,7 @@ import {
   ComposeAttachments,
   ComposePreviewMedia,
   ComposeTools,
+  ContentWarningField,
   countCharacters,
   useDropAndPaste,
 } from "./compose-parts";
@@ -57,7 +59,10 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
     if (!actions || empty) return undefined;
     return {
       // 送るときと同じく、自分の絵文字の :shortcode: を絵文字で見せる。
-      ...withReferences(buildNote(text), { emoji }),
+      ...withContentWarning(
+        withReferences(buildNote(text), { emoji }),
+        props.state.contentWarning?.trim(),
+      ),
       id: "",
       sig: "",
       pubkey: actions.viewer,
@@ -83,6 +88,10 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
       }}
     >
       {/* 上から 本文 → 操作 → プレビュー。操作を一番下に置くと、書いた後に遠くなる。 */}
+      <ContentWarningField
+        reason={props.state.contentWarning}
+        disabled={props.state.sending}
+      />
       <div class="flex shrink-0 items-start gap-2 px-4">
         <Show when={actions}>
           {(actions) => <Avatar pubkey={actions().viewer} size="compact" />}
@@ -129,6 +138,7 @@ const ComposePanel: Component<{ state: ComposeState }> = (props) => {
         count={`${countCharacters(props.state.content)} 文字`}
         label="投稿"
         sending={props.state.sending}
+        contentWarning={props.state.contentWarning}
         disabled={!canSend(props.state)}
         onEmojiSelect={emojiInsertion.insert}
         emojiField={emojiInsertion.field}

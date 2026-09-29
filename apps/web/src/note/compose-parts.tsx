@@ -1,5 +1,5 @@
 import type { Attachment } from "@streets/core/view/compose";
-import { type Component, For, Show, createSignal } from "solid-js";
+import { type Component, For, Show, createSignal, onMount } from "solid-js";
 import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
 import type { PickerEmoji } from "../emoji/emoji-data";
 import { lazyPart } from "../lazy-part";
@@ -8,6 +8,7 @@ import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import { textInputClass } from "../ui/TextField";
 
 const CropDialog = lazyPart(() => import("../media/CropDialog"));
 
@@ -421,11 +422,78 @@ export const ImageButton: Component = () => {
 };
 
 /** 投稿・返信・引用で同じ足まわり。 */
+/** 閲覧注意にする・外す。付けている間は、本文の上に理由の欄が出る。 */
+const ContentWarningButton: Component<{
+  on: boolean;
+  disabled: boolean;
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <IconButton
+      size="md"
+      icon="i-material-symbols:warning-outline-rounded"
+      label={props.on ? "閲覧注意を外す" : "閲覧注意にする"}
+      active={props.on}
+      disabled={props.disabled}
+      onClick={() => dispatch({ type: "compose/warning-toggle" })}
+    />
+  );
+};
+
+/** 閲覧注意の理由を書く欄。付けている間だけ出す。 */
+export const ContentWarningField: Component<{
+  reason: string | undefined;
+  disabled: boolean;
+}> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <Show when={props.reason !== undefined}>
+      <ContentWarningInput
+        reason={props.reason ?? ""}
+        disabled={props.disabled}
+        onInput={(reason) =>
+          dispatch({ type: "compose/warning-input", reason })
+        }
+      />
+    </Show>
+  );
+};
+
+const ContentWarningInput: Component<{
+  reason: string;
+  disabled: boolean;
+  onInput: (reason: string) => void;
+}> = (props) => {
+  let input: HTMLInputElement | undefined;
+  // 付けたらそのまま理由を打てるようにする。
+  onMount(() => input?.focus());
+  return (
+    <div class="flex items-center gap-2 px-4 pb-2">
+      <span
+        class="i-material-symbols:warning-outline-rounded c-secondary size-5 shrink-0"
+        aria-hidden="true"
+      />
+      <input
+        ref={input}
+        type="text"
+        aria-label="閲覧注意の理由"
+        placeholder="閲覧注意の理由（任意）"
+        class={`${textInputClass} min-w-0 flex-1`}
+        disabled={props.disabled}
+        value={props.reason}
+        onInput={(event) => props.onInput(event.currentTarget.value)}
+      />
+    </div>
+  );
+};
+
 export const ComposeTools: Component<{
   count: string;
   label: string;
   sending: boolean;
   disabled: boolean;
+  /** 閲覧注意の理由。付けていなければ `undefined`。 */
+  contentWarning: string | undefined;
   onEmojiSelect: (emoji: PickerEmoji) => void;
   emojiField: () => HTMLTextAreaElement | undefined;
 }> = (props) => (
@@ -435,6 +503,10 @@ export const ComposeTools: Component<{
       disabled={props.sending}
       onSelect={props.onEmojiSelect}
       field={props.emojiField}
+    />
+    <ContentWarningButton
+      on={props.contentWarning !== undefined}
+      disabled={props.sending}
     />
     <span class="flex-1" />
     <span class="c-secondary text-caption">{props.count}</span>

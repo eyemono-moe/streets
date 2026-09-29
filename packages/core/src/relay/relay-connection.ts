@@ -34,6 +34,11 @@ export interface RelayConnection {
   publish(event: NostrEvent): Promise<void>;
   close(): void;
   /**
+   * このリレーへ認証を試みたか（成否を問わない）。認証はソケットが閉じるまで
+   * 残るので、アカウントを替えたら張り直すための印。認証しない接続は持たなくてよい。
+   */
+  readonly authAttempted?: boolean;
+  /**
    * ソケットが実際に開いたことを通知する（`onClose` と対称、既に開いていれば
    * その場で呼ぶ）。接続生成は未接続のまま返るので、無いと到達不能リレーの再接続バックオフが伸びない。
    */

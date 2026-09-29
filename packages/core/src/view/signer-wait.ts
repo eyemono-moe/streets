@@ -20,6 +20,8 @@ export const signingWaitMessage = (kind: number): string => {
         return "リレーの設定";
       case 10_003:
         return "ブックマーク";
+      case 22_242:
+        return "リレーへのログイン";
       case 30_078:
         return "設定";
       default:

@@ -29,7 +29,7 @@ const sending = (label: string, ...relays: RelayProgress[]): Args => ({
 });
 
 const meta = {
-  title: "書き込み/進み具合のトースト",
+  title: "トースト/書き込みの進み具合",
   component: Story,
   args: { meta: { label: "リレーの設定", progress: { phase: "checking" } } },
   argTypes: { meta: { control: false } },

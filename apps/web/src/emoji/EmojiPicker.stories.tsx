@@ -30,7 +30,7 @@ const Story = (props: Args) => {
 };
 
 const meta = {
-  title: "絵文字/ピッカー",
+  title: "操作/絵文字のピッカー",
   render: (args) => <Story {...args} />,
   args: {
     customGroups: [

@@ -2,6 +2,7 @@ import type { NostrEvent } from "../nostr/event";
 import type { ConnectionPool } from "../read/connection-pool";
 import type { RoutingTable } from "../read/routing-table";
 import type { RelayUrl } from "../relay/relay-connection";
+import { recipientRelays } from "./recipient-relays";
 import {
   type RelayProgress,
   pendingRelays,
@@ -48,6 +49,9 @@ export type Publisher = {
  *
  * 送信先は `event.pubkey` の write リレー。1 本も分からなければ
  * `fallbackRelays` へ送る (空配列へ黙って何もしない劣化は許さない)。
+ * 返信・リアクションなどは、`p` タグの相手の read リレーにも送る (NIP-65)。
+ * 相手の通知はそこで待ち受けているので、自分の write リレーと交わらないと
+ * 届かない。
  *
  * ソケットを開く・予算を強制するのは `ConnectionPool.publish()` に一本化し、
  * ここは送信先だけを決める。各リレーへの publish は独立に試みる
@@ -69,8 +73,16 @@ export const createPublisher = ({
       const writeRelays = routing.writeRelaysFor(event.pubkey);
       const currentTargets =
         writeRelays.length > 0 ? writeRelays : fallbackRelays;
-      const publishTargets = [
+      const ownTargets = [
         ...new Set([...currentTargets, ...(options?.additionalRelays ?? [])]),
+      ];
+      const publishTargets = [
+        ...ownTargets,
+        ...recipientRelays(
+          event,
+          (pubkey) => routing.readRelaysFor(pubkey),
+          ownTargets,
+        ),
       ];
 
       let progress = pendingRelays(publishTargets);

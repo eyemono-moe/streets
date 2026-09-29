@@ -649,7 +649,7 @@ describe("SubscriptionManager", () => {
 
   // A duplicate delivery must still reach every section, and a forged event
   // reusing a known id must never overwrite the verified body in EventStore.
-  it("still delivers the id on a duplicate, and never lets a forged duplicate overwrite the stored body", () => {
+  it("still delivers the id on a duplicate, and drops a forged duplicate without overwriting the stored body", () => {
     const { relays, store, manager, delivery } = setup();
     const dA = delivery();
     const dB = delivery();
@@ -666,14 +666,13 @@ describe("SubscriptionManager", () => {
     expect(dA.onEvent).toHaveBeenCalledWith(note.id, "wss://one/");
     expect(dB.onEvent).toHaveBeenCalledWith(note.id, "wss://two/");
 
-    // A forged payload reuses the already-stored id but changes content.
-    // EventStore.put still returns "duplicate" (id collision), never
-    // "rejected", and never touches the stored body.
-    const forged = { ...note, content: "forged" };
+    // A forged payload reuses the already-stored id. EventStore.put rejects
+    // it, so the relay is not credited and the stored body stays intact.
     dB.onEvent.mockClear();
-    relays.get("wss://two/")?.emitEvent(0, forged);
+    relays.get("wss://two/")?.emitEvent(0, { ...note, content: "forged" });
+    relays.get("wss://two/")?.emitEvent(0, { ...note, sig: "0".repeat(128) });
 
-    expect(dB.onEvent).toHaveBeenCalledWith(note.id, "wss://two/");
+    expect(dB.onEvent).not.toHaveBeenCalled();
     expect(store.get(note.id)).toEqual(note);
   });
 

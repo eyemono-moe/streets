@@ -19,6 +19,7 @@ import {
   createEffect,
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent } from "../../note/Event";
@@ -42,6 +43,7 @@ const NotificationList: Component<{
     pageSize: PAGE_SIZE,
   });
   const mutes = useMutes();
+  const listsUnderWarning = useListsUnderWarning();
   const zapKey = useOwnZapKey(() => props.viewer);
   const column = () => scope.column();
   const size = () =>
@@ -56,9 +58,9 @@ const NotificationList: Component<{
       nostrPubkey: zapKey(),
     }) !== undefined;
   const items = () => {
-    const received = excludeOwnActions(section.items(), props.viewer).filter(
-      genuine,
-    );
+    const received = excludeOwnActions(section.items(), props.viewer)
+      .filter(genuine)
+      .filter(listsUnderWarning);
     const visible = mutes
       ? received.filter((event) => !mutes.hides(event))
       : received;

@@ -419,4 +419,224 @@ describe("WebSocketRelayConnection", () => {
       expect(calls).toEqual(["a", "b"]);
     });
   });
+
+  describe("NIP-42 auth", () => {
+    const signer = (sign = vi.fn()) => ({
+      getPublicKey: async () => "alice",
+      signEvent: sign.mockImplementation(async (template) => ({
+        ...template,
+        id: `auth-${template.tags[1][1]}`,
+        sig: "sig",
+      })),
+    });
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const lastSent = (sent: string[]) => JSON.parse(sent[sent.length - 1]);
+
+    it("authenticates after auth-required and re-sends the REQ", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const sign = vi.fn();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(sign),
+        now: () => 500,
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      const subId = JSON.parse(sent[0])[1];
+
+      receive(["AUTH", "ch1"]);
+      expect(sign).not.toHaveBeenCalled();
+      receive(["CLOSED", subId, "auth-required: dm"]);
+      await flush();
+
+      expect(lastSent(sent)).toEqual([
+        "AUTH",
+        {
+          kind: 22_242,
+          tags: [
+            ["relay", "wss://a/"],
+            ["challenge", "ch1"],
+          ],
+          content: "",
+          pubkey: "alice",
+          created_at: 500,
+          id: "auth-ch1",
+          sig: "sig",
+        },
+      ]);
+      expect(connection.authAttempted).toBe(true);
+
+      receive(["OK", "auth-ch1", true, ""]);
+      await flush();
+
+      expect(lastSent(sent)).toEqual(["REQ", subId, { kinds: [4] }]);
+      expect(handlers.onClosed).not.toHaveBeenCalled();
+      receive(["EOSE", subId]);
+      expect(handlers.onEose).toHaveBeenCalledTimes(1);
+    });
+
+    it("signs once for subscriptions refused at the same time", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const sign = vi.fn();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(sign),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      connection.subscribe([{ kinds: [1059] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: a"]);
+      receive(["CLOSED", JSON.parse(sent[1])[1], "auth-required: b"]);
+      await flush();
+      receive(["OK", "auth-ch1", true, ""]);
+      await flush();
+
+      expect(sign).toHaveBeenCalledTimes(1);
+      expect(sent.filter((m) => JSON.parse(m)[0] === "REQ")).toHaveLength(4);
+    });
+
+    it("gives up with the relay's reason when refused again after auth", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      const subId = JSON.parse(sent[0])[1];
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", subId, "auth-required: dm"]);
+      await flush();
+      receive(["OK", "auth-ch1", true, ""]);
+      await flush();
+      receive(["CLOSED", subId, "auth-required: still no"]);
+
+      expect(handlers.onClosed).toHaveBeenCalledWith("auth-required: still no");
+    });
+
+    it("reports the original refusal when there is no signer", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => undefined,
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+      await flush();
+
+      expect(handlers.onClosed).toHaveBeenCalledWith("auth-required: dm");
+      expect(connection.authAttempted).toBe(false);
+    });
+
+    it("reports the original refusal when the signer declines", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => ({
+          getPublicKey: async () => "alice",
+          signEvent: async () => {
+            throw new Error("user rejected");
+          },
+        }),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+      await flush();
+
+      expect(handlers.onClosed).toHaveBeenCalledWith("auth-required: dm");
+    });
+
+    it("reports the original refusal when the relay rejects the auth", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+      await flush();
+      receive(["OK", "auth-ch1", false, "restricted: not a member"]);
+      await flush();
+
+      expect(handlers.onClosed).toHaveBeenCalledWith("auth-required: dm");
+    });
+
+    it("does not re-send a subscription closed while authenticating", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      const subscription = connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+      subscription.close();
+      await flush();
+      receive(["OK", "auth-ch1", true, ""]);
+      await flush();
+
+      expect(sent.filter((m) => JSON.parse(m)[0] === "REQ")).toHaveLength(1);
+      expect(handlers.onClosed).not.toHaveBeenCalled();
+    });
+
+    it("authenticates after an auth-required OK and re-sends the EVENT", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(),
+      });
+      open();
+      receive(["AUTH", "ch1"]);
+      const published = connection.publish(event("note-1"));
+      receive(["OK", "note-1", false, "auth-required: members only"]);
+      await flush();
+      receive(["OK", "auth-ch1", true, ""]);
+      await flush();
+
+      expect(lastSent(sent)).toEqual(["EVENT", event("note-1")]);
+      receive(["OK", "note-1", true, ""]);
+      await expect(published).resolves.toBeUndefined();
+    });
+
+    it("rejects a publish with the relay's reason when auth is impossible", async () => {
+      const { socket, open, receive } = fakeSocket();
+      const connection = new WebSocketRelayConnection("wss://a/", socket);
+      open();
+      receive(["AUTH", "ch1"]);
+      const published = connection.publish(event("note-1"));
+      receive(["OK", "note-1", false, "auth-required: members only"]);
+
+      await expect(published).rejects.toThrow("auth-required: members only");
+    });
+
+    it("tries again with a new challenge after a failed attempt", async () => {
+      const { socket, sent, open, receive } = fakeSocket();
+      const sign = vi.fn();
+      const connection = new WebSocketRelayConnection("wss://a/", socket, {
+        signer: () => signer(sign),
+      });
+      const handlers = { onEvent: vi.fn(), onEose: vi.fn(), onClosed: vi.fn() };
+      connection.subscribe([{ kinds: [4] }], handlers);
+      connection.subscribe([{ kinds: [4] }], handlers);
+      open();
+      receive(["AUTH", "ch1"]);
+      receive(["CLOSED", JSON.parse(sent[0])[1], "auth-required: dm"]);
+      await flush();
+      receive(["OK", "auth-ch1", false, "restricted: no"]);
+      await flush();
+      receive(["AUTH", "ch2"]);
+      receive(["CLOSED", JSON.parse(sent[1])[1], "auth-required: dm"]);
+      await flush();
+
+      expect(sign).toHaveBeenCalledTimes(2);
+      expect(lastSent(sent)[1].id).toBe("auth-ch2");
+    });
+  });
 });

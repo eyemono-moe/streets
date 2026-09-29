@@ -4,7 +4,7 @@ import { XEmbed, YouTubeEmbed } from "./EmbedView";
 
 /** 押すまで何も読み込まないので、押したときだけ YouTube・X へ繋がる。 */
 const meta = {
-  title: "イベント/埋め込み",
+  title: "イベント/投稿/埋め込み",
   component: (props: {
     width: number;
     kind: "youtube" | "x" | "x-loading" | "x-missing";

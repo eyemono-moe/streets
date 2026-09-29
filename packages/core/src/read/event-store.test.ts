@@ -142,7 +142,7 @@ describe("EventStore", () => {
 
     const forged = { ...validEvent, content: "forged" };
 
-    expect(store.put(forged, "wss://attacker.com")).toBe("duplicate");
+    expect(store.put(forged, "wss://attacker.com")).toBe("rejected");
     expect(store.seenRelays(validEvent.id)).toEqual(["wss://a"]);
   });
 
@@ -200,7 +200,7 @@ describe("EventStore", () => {
     expect(store.fetchedAt(event.id)).toBe(8_000);
   });
 
-  it("id 再検証に失敗する偽装済み重複配送は取得時刻を更新しない", () => {
+  it("id 再検証に失敗する偽装済み重複配送は拒み、取得時刻を更新しない", () => {
     // 捕まえる変異: id 再計算のガード外で restamp する。既知の id を騙るだけの
     // 偽装ペイロードが、内容未検証のまま鮮度だけ更新できてしまう。
     const clock = createFakeClock();
@@ -210,8 +210,92 @@ describe("EventStore", () => {
 
     clock.advance(8_000);
     const forged = { ...event, content: "forged" };
-    expect(store.put(forged, "wss://attacker.com")).toBe("duplicate");
+    expect(store.put(forged, "wss://attacker.com")).toBe("rejected");
     expect(store.fetchedAt(event.id)).toBe(0);
+  });
+
+  it("署名だけを壊した重複配送は取得時刻も配送元も更新しない", () => {
+    // 捕まえる変異: 重複経路で id の再計算だけを確かめる。id は署名を含まない
+    // ので、本文と id が正しく署名だけ壊れた複製が鮮度と配送元を書き換える。
+    const clock = createFakeClock();
+    const saved: PersistedEvent[] = [];
+    const store = new EventStore({
+      scheduler: clock,
+      persistence: {
+        load: async () => ({ events: [], deletionRequests: [] }),
+        save: (entries) => saved.push(...entries),
+        saveDeletionRequest: () => {},
+        delete: () => {},
+        deleteDeletionRequest: () => {},
+        dispose: () => {},
+      },
+    });
+    const event = sign("x");
+    store.put(event, "wss://a/");
+    saved.length = 0;
+
+    clock.advance(8_000);
+    const forged = { ...event, sig: "0".repeat(128) };
+    expect(store.put(forged, "wss://attacker.com")).toBe("rejected");
+    expect(store.fetchedAt(event.id)).toBe(0);
+    expect(store.seenRelays(event.id)).toEqual(["wss://a/"]);
+    expect(saved).toEqual([]);
+    expect(store.get(event.id)).toEqual(event);
+  });
+
+  it("隠れているイベントへの、署名だけを壊した重複配送も受け入れない", () => {
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const target = sign("target");
+    store.put(
+      sign("delete", { kind: 5, tags: [["e", target.id]] }),
+      "wss://a/",
+    );
+    expect(store.put(target, "wss://a/")).toBe("hidden");
+
+    clock.advance(8_000);
+    const forged = { ...target, sig: "0".repeat(128) };
+    expect(store.put(forged, "wss://attacker.com")).toBe("rejected");
+  });
+
+  it("保存済みと同じ署名の重複配送は検証し直さない", () => {
+    // 捕まえる変異: 重複のたびに schnorr 検証する。Outbox で同じイベントが
+    // 何本ものリレーから届くので、ふつうの再配送の費用が跳ね上がる。
+    const store = new EventStore();
+    const event = sign("x");
+    store.put(event, "wss://a/");
+    expect(store.verifyCount).toBe(1);
+
+    expect(store.put({ ...event }, "wss://b/")).toBe("duplicate");
+    expect(store.verifyCount).toBe(1);
+  });
+
+  it("同じ著者の別の妥当な署名による重複配送は、検証してから受け入れる", () => {
+    // BIP-340 の署名は補助乱数で変わり、同じイベントに妥当な署名が複数ありうる。
+    // 捕まえる変異: 保存済みと違う署名を一律に拒む (正当な配送元を落とす)。
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    const event = sign("x");
+    store.put(event, "wss://a/");
+
+    clock.advance(8_000);
+    const resigned = {
+      ...event,
+      sig: bytesToHex(
+        schnorr.sign(
+          hexToBytes(event.id),
+          secretKey,
+          new Uint8Array(32).fill(7),
+        ),
+      ),
+    };
+    expect(resigned.sig).not.toBe(event.sig);
+    expect(store.put(resigned, "wss://b/")).toBe("duplicate");
+    expect(store.verifyCount).toBe(2);
+    expect(store.fetchedAt(event.id)).toBe(8_000);
+    expect(store.seenRelays(event.id)).toEqual(["wss://a/", "wss://b/"]);
+    // 保存済みのイベントは差し替えない
+    expect(store.get(event.id)).toEqual(event);
   });
 });
 

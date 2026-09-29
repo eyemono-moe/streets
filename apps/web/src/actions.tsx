@@ -13,6 +13,7 @@ import {
   buildMuteUser,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
+import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
 import {
@@ -67,23 +68,29 @@ export type EventActions = {
   viewer: string;
   /** ブックマークしたノートの id。ブックマークのカラムが購読に使う。 */
   bookmarkIds(): readonly string[];
-  /** `emoji` は、本文の `:shortcode:` に `emoji` タグを付けるために引く先。 */
+  /**
+   * `emoji` は、本文の `:shortcode:` に `emoji` タグを付けるために引く先。
+   * `contentWarning` は閲覧注意の理由（`undefined` は付けない、空文字は理由なし）。
+   */
   post(
     content: string,
     media?: readonly BlobDescriptor[],
     emoji?: EmojiLookup,
+    contentWarning?: string,
   ): Promise<void>;
   reply(
     target: NostrEvent,
     content: string,
     media?: readonly BlobDescriptor[],
     emoji?: EmojiLookup,
+    contentWarning?: string,
   ): Promise<void>;
   quote(
     target: NostrEvent,
     content: string,
     media?: readonly BlobDescriptor[],
     emoji?: EmojiLookup,
+    contentWarning?: string,
   ): Promise<void>;
   /**
    * チャンネルで発言する。`relays` はそのチャンネルを読むリレーで、自分の write
@@ -229,30 +236,39 @@ export const createWriteStack = (options: {
   const actions: EventActions = {
     viewer: options.viewer,
     bookmarkIds,
-    async post(content, media, emoji) {
+    async post(content, media, emoji, contentWarning) {
       await tracked("投稿").publish(
-        withMedia(withReferences(buildNote(content), { emoji }), media ?? []),
-      );
-    },
-    async reply(event, content, media, emoji) {
-      await tracked("返信").publish(
-        withMedia(
-          withReferences(
-            buildReply(event, content, { relayHint: relayHintFor(event.id) }),
-            { emoji },
-          ),
-          media ?? [],
+        withContentWarning(
+          withMedia(withReferences(buildNote(content), { emoji }), media ?? []),
+          contentWarning,
         ),
       );
     },
-    async quote(event, content, media, emoji) {
-      await tracked("引用").publish(
-        withMedia(
-          withReferences(
-            buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
-            { emoji },
+    async reply(event, content, media, emoji, contentWarning) {
+      await tracked("返信").publish(
+        withContentWarning(
+          withMedia(
+            withReferences(
+              buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+              { emoji },
+            ),
+            media ?? [],
           ),
-          media ?? [],
+          contentWarning,
+        ),
+      );
+    },
+    async quote(event, content, media, emoji, contentWarning) {
+      await tracked("引用").publish(
+        withContentWarning(
+          withMedia(
+            withReferences(
+              buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
+              { emoji },
+            ),
+            media ?? [],
+          ),
+          contentWarning,
         ),
       );
     },

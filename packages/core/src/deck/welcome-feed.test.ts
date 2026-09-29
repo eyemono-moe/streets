@@ -58,7 +58,7 @@ describe("welcomeColumn", () => {
 });
 
 describe("showsOnWelcome", () => {
-  it("注意書きの付いた投稿を出さない", () => {
+  it("閲覧注意の投稿を出さない", () => {
     expect(showsOnWelcome(note([["content-warning", "nsfw"]]))).toBe(false);
     expect(showsOnWelcome(note([["content-warning"]]))).toBe(false);
     expect(showsOnWelcome(note([["t", "nostr"]]))).toBe(true);

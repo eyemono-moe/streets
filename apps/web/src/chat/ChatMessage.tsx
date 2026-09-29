@@ -17,6 +17,7 @@ import ReactionPicker from "../emoji/ReactionPicker";
 import { lazyPart } from "../lazy-part";
 import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
+import { hiddenUnderWarning, warningLabel } from "../note/ContentWarningGate";
 import { NoteContent } from "../note/Event";
 import ReactionList from "../note/ReactionList";
 import { useEvent } from "../note/use-event";
@@ -59,8 +60,11 @@ const ReplyContext: Component<{
           <Show when={parent()}>
             {(event) => (
               // 1 行だけ出す。本文の改行や画像をそのまま描くと、返信の行が崩れる。
+              // 閲覧注意で隠している発言は、ここにも本文を出さない。
               <span class="min-w-0 truncate">
-                {event().content.replace(/\s+/g, " ").trim()}
+                {hiddenUnderWarning(event())
+                  ? warningLabel(event())
+                  : event().content.replace(/\s+/g, " ").trim()}
               </span>
             )}
           </Show>

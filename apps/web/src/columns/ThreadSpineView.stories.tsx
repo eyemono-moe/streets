@@ -77,7 +77,7 @@ const ThreadStory: Component<Props> = (props) => {
 };
 
 const meta = {
-  title: "デッキ/ThreadSpineView",
+  title: "カラム/スレッド",
   component: ThreadStory,
   args: { settled: true, expandMedia: true },
   argTypes: { events: { control: false }, focusId: { control: false } },

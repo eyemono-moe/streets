@@ -28,7 +28,7 @@ const Feed = (): JSX.Element => (
 type Props = Parameters<typeof WelcomeView>[0];
 
 const meta = {
-  title: "入口/入口の画面",
+  title: "入口の画面",
   component: (props: Props) => {
     const [about, setAbout] = createSignal(false);
     return (

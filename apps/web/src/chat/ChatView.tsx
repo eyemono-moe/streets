@@ -197,6 +197,14 @@ const ChatView: Component<{
                 >
                   これより前の発言はありません
                 </Match>
+                <Match when={props.paging === "failed"}>
+                  <div class="flex flex-col items-center gap-2">
+                    <p>古い発言を読み込めませんでした</p>
+                    <Button size="sm" onClick={() => props.onLoadOlder()}>
+                      もう一度読み込む
+                    </Button>
+                  </div>
+                </Match>
               </Switch>
             </div>
             <Switch>

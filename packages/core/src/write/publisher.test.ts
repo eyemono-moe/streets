@@ -142,6 +142,45 @@ describe("createPublisher", () => {
     expect(connections.get("wss://shared/")?.published).toHaveLength(1);
   });
 
+  it("p タグの相手の read リレーにも送り、明示の送信先とも重ねない", async () => {
+    // 捕まえる変異: 送信先を自分の write リレーだけで決め、相手の通知が
+    // 待ち受ける read リレーへ届けない。
+    const store = new EventStore();
+    store.put(
+      relayListEvent(10, [["r", "wss://mine/", "write"]]),
+      "wss://indexer/",
+    );
+    const recipient = relayListEvent(11, [
+      ["r", "wss://their-inbox/", "read"],
+      ["r", "wss://their-outbox/", "write"],
+      ["r", "wss://channel/", "read"],
+    ]);
+    store.put(recipient, "wss://indexer/");
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const publisher = createPublisher({
+      pool: poolWithFakes(connections),
+      routing: new RoutingTable(store),
+      fallbackRelays: [],
+    });
+
+    const note = sign(10, {
+      ...base,
+      kind: 1,
+      tags: [["p", recipient.pubkey]],
+      content: "reply",
+    });
+    const result = await publisher.publish(note, {
+      additionalRelays: ["wss://channel/"],
+    });
+
+    expect(result.accepted).toEqual([
+      "wss://mine/",
+      "wss://channel/",
+      "wss://their-inbox/",
+    ]);
+    expect(connections.has("wss://their-outbox/")).toBe(false);
+  });
+
   it("targets は現在の解決結果をコピーして返す", () => {
     // 捕まえる変異: write リレーが無いとき空配列を返す。Writer.replace が
     // 楽観挿入前の fallback を保持できなくなる。または、write

@@ -21,6 +21,7 @@ import {
 } from "./default-relays";
 import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
+import type { OlderPage, OlderPageRelay } from "./older-page";
 import { planQuery } from "./query-plan";
 import {
   EMPTY_READ_PLAN,
@@ -83,9 +84,9 @@ export type SectionHandle = {
   /**
    * 今開いているリレーそれぞれへ、今の filters に `until`・`limit` を付けて
    * 一度だけ取りに行き、取れたものをこのセクションへ配る（古い投稿の取り足し）。
-   * 配った件数を返す。全リレーが片付くかタイムアウトで解決する。
+   * リレーごとの返事を返す。全リレーが片付くかタイムアウトで解決する。
    */
-  fetchOlder(page: { until: number; limit: number }): Promise<number>;
+  fetchOlder(page: { until: number; limit: number }): Promise<OlderPage>;
   close(): void;
 };
 
@@ -869,12 +870,12 @@ export class SubscriptionManager {
   async #fetchOlder(
     entry: SectionEntry,
     page: { until: number; limit: number },
-  ): Promise<number> {
-    if (entry.closed) return 0;
-    let delivered = 0;
-    await Promise.all(
-      [...entry.opened].map(([url, open]) =>
-        collect(
+  ): Promise<OlderPage> {
+    if (entry.closed) return { relays: [] };
+    const relays = await Promise.all(
+      [...entry.opened].map(async ([url, open]) => {
+        const result: OlderPageRelay = { url, reason: "timeout", received: 0 };
+        await collect(
           this.#pool,
           [url],
           open.filters.map((filter) => ({
@@ -887,16 +888,24 @@ export class SubscriptionManager {
           new Map(),
           {
             onUnrequested: (relay) => this.#recordUnrequested(relay),
+            onRelaySettled: (settle) => {
+              result.reason = settle.reason;
+            },
             onStored: (event, relay) => {
+              result.received += 1;
+              result.oldest = Math.min(
+                result.oldest ?? event.created_at,
+                event.created_at,
+              );
               if (entry.closed) return;
-              delivered += 1;
               entry.delivery.onEvent(event.id, relay);
             },
           },
-        ),
-      ),
+        );
+        return result;
+      }),
     );
-    return delivered;
+    return { relays };
   }
 
   /**

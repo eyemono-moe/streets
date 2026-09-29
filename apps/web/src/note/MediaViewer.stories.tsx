@@ -33,7 +33,7 @@ const Story: Component<Props> = (props) => {
 };
 
 const meta = {
-  title: "投稿/メディアの拡大表示",
+  title: "イベント/投稿/メディアの拡大表示",
   component: Story,
   args: {
     media: [

@@ -61,6 +61,13 @@ pnpm workspace の 2 パッケージ。
 - Ark UI の開閉・フォーカス・ホバーの遅延は Ark UI に任せる。アプリの動作が開閉に依存するもの（重ねたカラムの段など）だけ `open` を制御する
 - 開くまで要らない重い部品（設定・案内・切り抜き・Zap などのダイアログ）は、`src/lazy-part.tsx` の `lazyPart` で別のファイルに分ける。開閉の動きがあるものは `onceTrue` で一度開いたら残し、開くまで待たせたくないものは `whenIdle` で先読みする。Solid の `lazy` は読めなかった結果を覚えるので使わない
 
+### NIP・kind の対応を変える
+
+- Streets の機能追加・削除で対応範囲が変わったら、実装とともに `packages/core/src/nostr/nip-support.json` の対応度・説明・kind・タグ・主な実装ファイル・残る差を直す。該当する kind は `kind-support.json` の状態と説明も直す。新しい NIP・kind は行を足し、扱わなくなったものは実態に合わせて「未対応」へ変える。単にコードから参照が消えただけで、NIP 自体の行を消さない
+- kind の「表示対応」は `apps/web/src/note/Event.tsx` に渡すと専用表示がある場合だけ宣言する。分岐とストーリーを用意し、`scripts/nip-support.test.mjs` の照合を通す。読み書きだけなら「内部利用」にする。NIP の「対応」と kind の「表示対応」は別に判断する
+- NIPs 側の仕様が変わったら、変更箇所を既存の実装・`nip-support.json` の記載と照らす。Streets の動作に影響するなら実装とテストを直し、両一覧の対応度・kind・タグ・実装ファイル・残る差を更新する。未実装の仕様なら差を記録し、対応が必要なら Issue にする。仕様変更だけを理由に対応済みとは宣言しない
+- 一覧を直したら `vp run nips:generate` で `docs/nips.md` を再生成し、`vp run verify` を通す。「Streets について」は同じ JSON を読むので別に転記しない
+
 ### カラムを足す
 
 - カラムの種類の知識は 2 つの表にだけ書く。core の `deck/column-kinds.ts`（保存の形・題名・流れる kind・ミュート・警告）と、web の `columns/column-views.tsx`（アイコン・副題・中身・その種類だけの設定）。表は種類をキーにした対応表なので、種類を足すと書き忘れが型検査で落ちる。`source.kind` で分岐する場所をほかに作らない
