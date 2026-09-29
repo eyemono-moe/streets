@@ -25,9 +25,11 @@ const Row: Component<{
   const move = (direction: -1 | 1) =>
     dispatch({ type: "deck/move-column", id: props.column.id, direction });
   return (
+    // 掴んだら少し大きくして浮かせる。scale は transform と別の指定なので、掴んだ行を
+    // 動かす transform と打ち消し合わない。
     <li
       data-arrange-id={props.column.id}
-      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:bg-accent-50 data-[dragging]:shadow-lg data-[dragging]:ring-1 data-[dragging]:ring-accent-5 dark:data-[dragging]:bg-accent-950"
+      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] transition-[scale,box-shadow,border-color] duration-120 data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:shadow-xl data-[dragging]:[scale:1.02]"
       style={{ order: props.position }}
       onPointerDown={(event) => props.onGrab(event, false)}
     >
