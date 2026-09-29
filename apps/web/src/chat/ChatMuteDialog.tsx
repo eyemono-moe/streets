@@ -44,7 +44,7 @@ const ChatMuteDialog: Component<{
           <Show when={open()}>
             {(state) => (
               <form
-                class="flex flex-col gap-4 p-5"
+                class="flex min-h-0 flex-col gap-4 overflow-y-auto p-5"
                 onSubmit={(event) => {
                   event.preventDefault();
                   dispatch({ type: "chat-mute/submit" });

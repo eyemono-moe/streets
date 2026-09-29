@@ -30,6 +30,9 @@ const plainTarget = parent.note("返信元のノートの本文。");
 const warnedTarget = parent.note("閲覧注意の奥にある返信元の本文。", [
   ["content-warning", "ネタバレ"],
 ]);
+const longTarget = parent.note(
+  "長い返信元の本文。返信を書く欄が画面の外へ押し出されないか。".repeat(20),
+);
 
 const shot = (
   id: string,
@@ -46,6 +49,8 @@ type Props = {
   state?: ComposeState;
   /** 返信元に閲覧注意が付いている。 */
   warned?: boolean;
+  /** 返信元の本文が長い。 */
+  longTarget?: boolean;
 };
 
 const Interactive = (props: { target: NostrEvent }) => {
@@ -64,7 +69,8 @@ const Interactive = (props: { target: NostrEvent }) => {
 const meta = {
   title: "操作/返信ダイアログ",
   component: (props: Props) => {
-    const target = () => (props.warned ? warnedTarget : plainTarget);
+    const target = () =>
+      props.warned ? warnedTarget : props.longTarget ? longTarget : plainTarget;
     return (
       <EventSceneProvider
         scene={{
@@ -170,3 +176,22 @@ export const 長い本文: Story = {
 };
 /** 閲覧注意で隠している投稿へ返信するときは、返信元の本文の代わりに閲覧注意を出す。 */
 export const 閲覧注意の投稿への返信: Story = { args: { warned: true } };
+
+/** 画面に収まらないときは本文だけが流れ、見出しと送信の行は残る。 */
+export const 画面に収まらない: Story = {
+  args: {
+    longTarget: true,
+    state: {
+      ...emptyCompose(),
+      content: Array.from(
+        { length: 30 },
+        (_, index) => `${index + 1} 行目。とても長い返信。`,
+      ).join("\n"),
+      attachments: [
+        shot("1", "1.png", landscapeUrl),
+        shot("2", "2.png", squareUrl),
+        shot("3", "3.png", landscapeUrl),
+      ],
+    },
+  },
+};

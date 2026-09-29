@@ -13,6 +13,7 @@ import { ProfileName } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
 import { useDispatch } from "../ui-events";
 import {
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogPortal,
@@ -67,14 +68,14 @@ export const AddToListDialogView: Component<{
   return (
     <DialogRoot open onClose={props.onClose}>
       <DialogPortal>
-        <DialogContent class="flex max-h-[80vh] w-full max-w-105 flex-col rounded-3 border border-primary">
-          <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
+        <DialogContent class="w-full max-w-105 rounded-3 border border-primary">
+          <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="min-w-0 flex-1 font-600 text-body">
               リストに追加
             </DialogTitle>
             <DialogClose />
           </div>
-          <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+          <DialogBody class="flex flex-col gap-4 px-4 pb-4">
             <div class="flex min-w-0 items-center gap-2">
               <Avatar pubkey={props.pubkey} size="compact" static />
               <span class="truncate font-600 text-body">
@@ -160,7 +161,7 @@ export const AddToListDialogView: Component<{
                 />
               </div>
             </Show>
-          </div>
+          </DialogBody>
         </DialogContent>
       </DialogPortal>
     </DialogRoot>

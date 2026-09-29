@@ -53,7 +53,7 @@ const ChannelFormDialog: Component<{
       onClose={() => dispatch({ type: "channel-form/close" })}
     >
       <DialogPortal>
-        <DialogContent class="flex max-h-[calc(100dvh-2rem)] w-full max-w-120 flex-col rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-120 rounded-3 border border-primary">
           <Show when={editing()}>
             {(form) => (
               <>

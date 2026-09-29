@@ -3,6 +3,7 @@ import { type Component, For, Show } from "solid-js";
 import { useReadLayer } from "../read-layer";
 import { notifyError, notifySuccess } from "../toast";
 import {
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogPortal,
@@ -23,13 +24,13 @@ const EventDetailsDialog: Component<{
   return (
     <DialogRoot open onClose={props.onClose}>
       <DialogPortal>
-        <DialogContent class="flex max-h-[80vh] w-full max-w-130 flex-col rounded-3 border border-primary">
-          <div class="flex h-12 items-center gap-2 pr-3 pl-4">
+        <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
+          <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">詳細</DialogTitle>
             <DialogClose />
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+          <DialogBody class="px-4 pb-4">
             <h3 class="c-secondary font-600 text-caption">受け取ったリレー</h3>
             <Show
               when={relays().length > 0}
@@ -50,9 +51,9 @@ const EventDetailsDialog: Component<{
             <pre class="overflow-x-auto rounded-2 bg-secondary p-3 text-caption">
               {json()}
             </pre>
-          </div>
+          </DialogBody>
 
-          <div class="flex h-13 items-center gap-2 py-2.5 pr-3 pl-4">
+          <div class="flex h-13 shrink-0 items-center gap-2 py-2.5 pr-3 pl-4">
             <span class="flex-1" />
             <button
               type="button"
