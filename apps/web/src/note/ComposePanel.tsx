@@ -155,7 +155,9 @@ const ComposePanel: Component<{
         canKeepDraft={props.drafts && canKeepDraft(props.state)}
       />
 
-      <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4">
+      {/* 中身は縮めず、プレビューと下書きをまとめてスクロールさせる。角を丸めて切り抜く箱は、
+          縮めると高さが 0 まで潰れる。 */}
+      <div class="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-4 pb-4 *:shrink-0">
         <Show when={previewEvent()}>
           {(event) => (
             <>

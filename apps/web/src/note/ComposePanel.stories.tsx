@@ -287,3 +287,19 @@ export const 画像を添えていて下書きを開けない: Story = {
 
 /** 実際に書いて、下書きへ移す・開く・消すを試せる。下書きはこのブラウザに残る。 */
 export const 下書きを試す: Story = { args: { interactive: true } };
+
+/** 下書きが多くても、プレビューは潰れず、下書きと一緒にスクロールする。 */
+export const 書きかけと多くの下書き: Story = {
+  args: {
+    drafts: Array.from({ length: 12 }, (_, index) => ({
+      id: `many${index}`,
+      content: `${index + 1} 件目の下書き。`,
+      savedAt: minutes(index * 7),
+      kept: index % 3 === 0,
+    })),
+    state: {
+      ...emptyCompose(),
+      content: "プレビューは潰れない。\n2 行目も見える。",
+    },
+  },
+};
