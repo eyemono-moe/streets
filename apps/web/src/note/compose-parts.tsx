@@ -513,7 +513,7 @@ export const ComposeTools: Component<{
   /** 下書きへ移すボタンを出す。値は押せるか。 */
   canKeepDraft?: boolean;
 }> = (props) => (
-  <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
+  <div class="flex h-13 shrink-0 items-center gap-1.5 py-2.5 pr-3 pl-4">
     <ImageButton />
     <ComposeEmojiPicker
       disabled={props.sending}

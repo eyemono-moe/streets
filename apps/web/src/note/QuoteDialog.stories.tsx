@@ -171,3 +171,20 @@ export const 狭い幅: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },
 };
 import type { NostrEvent } from "@streets/core/nostr/event";
+
+/** 画面に収まらないときは本文だけが流れ、見出しと送信の行は残る。 */
+export const 画面に収まらない: Story = {
+  args: {
+    state: {
+      ...emptyCompose(),
+      content: Array.from(
+        { length: 30 },
+        (_, index) => `${index + 1} 行目。とても長い引用のコメント。`,
+      ).join("\n"),
+      attachments: [
+        shot("1", "1.png", landscapeUrl),
+        shot("2", "2.png", landscapeUrl),
+      ],
+    },
+  },
+};

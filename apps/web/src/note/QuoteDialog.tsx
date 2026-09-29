@@ -6,6 +6,7 @@ import { useNoteSources } from "../completion/sources";
 import { Mediates, useDispatch } from "../ui-events";
 import Completion from "../ui/Completion";
 import {
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogPortal,
@@ -36,7 +37,7 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   return (
     <DialogRoot open onClose={() => dispatch({ type: "compose/close" })}>
       <DialogPortal>
-        <DialogContent class="flex max-h-[80vh] w-full max-w-130 flex-col rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">
               引用する
@@ -45,67 +46,69 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
           </div>
 
           <form
-            class="min-h-0 overflow-y-auto"
+            class="flex min-h-0 flex-col"
             onSubmit={(event) => {
               event.preventDefault();
               dispatch({ type: "compose/submit" });
             }}
           >
-            <ContentWarningField
-              reason={props.state.contentWarning}
-              disabled={props.state.sending}
-            />
-            <div class="flex items-start gap-3 px-4">
-              <Show when={actions}>
-                {(actions) => (
-                  <Avatar pubkey={actions().viewer} size="normal" />
-                )}
-              </Show>
-              <Completion sources={sources} label="入れる候補">
-                {(attach) => (
-                  <textarea
-                    ref={(element) => {
-                      attach(element);
-                      emojiInsertion.ref(element);
-                    }}
-                    autofocus
-                    aria-label="引用の本文"
-                    class="c-primary placeholder:c-secondary min-h-20 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
-                    disabled={props.state.sending}
-                    placeholder="コメントを追加"
-                    value={props.state.content}
-                    onInput={(event) =>
-                      dispatch({
-                        type: "compose/input",
-                        content: event.currentTarget.value,
-                      })
-                    }
-                    {...dropAndPaste}
-                    onKeyDown={(event) => {
-                      if (
-                        event.key === "Enter" &&
-                        (event.metaKey || event.ctrlKey)
-                      ) {
-                        event.preventDefault();
-                        dispatch({ type: "compose/submit" });
+            <DialogBody>
+              <ContentWarningField
+                reason={props.state.contentWarning}
+                disabled={props.state.sending}
+              />
+              <div class="flex items-start gap-3 px-4">
+                <Show when={actions}>
+                  {(actions) => (
+                    <Avatar pubkey={actions().viewer} size="normal" />
+                  )}
+                </Show>
+                <Completion sources={sources} label="入れる候補">
+                  {(attach) => (
+                    <textarea
+                      ref={(element) => {
+                        attach(element);
+                        emojiInsertion.ref(element);
+                      }}
+                      autofocus
+                      aria-label="引用の本文"
+                      class="c-primary placeholder:c-secondary min-h-20 flex-1 resize-none bg-transparent text-h3 outline-none [field-sizing:content]"
+                      disabled={props.state.sending}
+                      placeholder="コメントを追加"
+                      value={props.state.content}
+                      onInput={(event) =>
+                        dispatch({
+                          type: "compose/input",
+                          content: event.currentTarget.value,
+                        })
                       }
-                    }}
-                  />
-                )}
-              </Completion>
-            </div>
+                      {...dropAndPaste}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter" &&
+                          (event.metaKey || event.ctrlKey)
+                        ) {
+                          event.preventDefault();
+                          dispatch({ type: "compose/submit" });
+                        }
+                      }}
+                    />
+                  )}
+                </Completion>
+              </div>
 
-            <div class="mx-4 max-h-48 overflow-y-auto rounded-2 border border-primary">
-              {/* 引用対象は確認用。ホバーカードは出すが、元のカラムは動かさない。 */}
-              <Mediates handle={(event) => event.type === "stack/open"}>
-                <Event event={props.target} size="compact" />
-              </Mediates>
-            </div>
+              <div class="mx-4 max-h-48 overflow-y-auto rounded-2 border border-primary">
+                {/* 引用対象は確認用。ホバーカードは出すが、元のカラムは動かさない。 */}
+                <Mediates handle={(event) => event.type === "stack/open"}>
+                  <Event event={props.target} size="compact" />
+                </Mediates>
+              </div>
 
-            <ComposeAttachments
-              attachments={props.state.attachments}
-              disabled={props.state.sending}
-            />
+              <ComposeAttachments
+                attachments={props.state.attachments}
+                disabled={props.state.sending}
+              />
+            </DialogBody>
 
             <ComposeTools
               count={`${countCharacters(props.state.content)}`}

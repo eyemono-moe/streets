@@ -10,6 +10,7 @@ import { notifyError, notifySuccess } from "../toast";
 import { Mediates, useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import {
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogPortal,
@@ -177,7 +178,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
       onClose={() => dispatch({ type: "zap/close" })}
     >
       <DialogPortal>
-        <DialogContent class="flex max-h-[85vh] w-full max-w-110 flex-col rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-110 rounded-3 border border-primary">
           <Show when={props.state.phase !== "closed" && props.state}>
             {(state) => (
               <>
@@ -187,7 +188,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
                   </DialogTitle>
                   <DialogClose />
                 </div>
-                <div class="min-h-0 overflow-y-auto">
+                <DialogBody>
                   <div class="mx-4 mb-4 max-h-32 overflow-y-auto rounded-2 border border-primary">
                     {/* 送る先の確認用。ここから重ねたり操作したりはさせない。 */}
                     <Mediates handle={() => true}>
@@ -200,7 +201,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
                   >
                     {(paying) => <Payment state={paying()} />}
                   </Show>
-                </div>
+                </DialogBody>
               </>
             )}
           </Show>

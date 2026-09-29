@@ -29,6 +29,7 @@ import { notifyError, notifySuccess } from "../toast";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogPortal,
@@ -109,7 +110,7 @@ const AddRelayDialog: Component<{
   return (
     <DialogRoot open onClose={props.onClose}>
       <DialogPortal>
-        <DialogContent class="flex w-full max-w-105 flex-col gap-4 rounded-3 border border-primary p-4">
+        <DialogContent class="w-full max-w-105 gap-4 rounded-3 border border-primary p-4">
           <DialogTitle class="font-600 text-body">
             このリレーを自分も使いますか？
           </DialogTitle>
@@ -155,14 +156,14 @@ export const AuthorRelaysDialogView: Component<{
     <>
       <DialogRoot open onClose={props.onClose}>
         <DialogPortal>
-          <DialogContent class="flex max-h-[80vh] w-full max-w-130 flex-col rounded-3 border border-primary">
-            <div class="flex min-h-12 items-start gap-2 py-3 pr-3 pl-4">
+          <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
+            <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
               <DialogTitle class="break-anywhere min-w-0 flex-1 font-600 text-body">
                 {props.title ?? "このユーザーが使っているリレー"}
               </DialogTitle>
               <DialogClose />
             </div>
-            <div class="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
+            <DialogBody class="px-4 pb-4">
               <Switch>
                 <Match when={props.state.phase === "loading"}>
                   <p class="c-secondary text-caption">読み込み中…</p>
@@ -264,7 +265,7 @@ export const AuthorRelaysDialogView: Component<{
                   }}
                 </Match>
               </Switch>
-            </div>
+            </DialogBody>
           </DialogContent>
         </DialogPortal>
       </DialogRoot>

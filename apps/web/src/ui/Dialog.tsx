@@ -33,7 +33,7 @@ export const DialogPortal: ParentComponent<{
       class={`motion-fade fixed inset-0 ${props.backdropClass ?? "bg-ui-950/40"}`}
     />
     <ArkDialog.Positioner
-      class={`fixed inset-0 grid place-items-center ${props.class ?? "p-4"}`}
+      class={`fixed inset-0 flex items-center justify-center ${props.class ?? "p-4"}`}
       classList={props.classList}
     >
       {props.children}
@@ -41,17 +41,34 @@ export const DialogPortal: ParentComponent<{
   </Portal>
 );
 
+/**
+ * 高さは画面の余白の内側までに収める。流すのは `DialogBody` の中だけで、見出しや送信の行は残る。
+ */
 export const DialogContent: ParentComponent<
   JSX.HTMLAttributes<HTMLDivElement>
 > = (props) => {
   const [own, rest] = splitProps(props, ["class", "children"]);
   return (
     <ArkDialog.Content
-      class={`motion-pop c-primary overflow-hidden bg-primary outline-none ${own.class ?? ""}`}
+      class={`motion-pop c-primary flex max-h-full flex-col overflow-hidden bg-primary outline-none ${own.class ?? ""}`}
       {...rest}
     >
       {own.children}
     </ArkDialog.Content>
+  );
+};
+
+/**
+ * ダイアログの中で、収まらないときに縦に流す部分。前後に置いた見出しや送信の行は縮まず残る。
+ */
+export const DialogBody: ParentComponent<JSX.HTMLAttributes<HTMLDivElement>> = (
+  props,
+) => {
+  const [own, rest] = splitProps(props, ["class", "children"]);
+  return (
+    <div class={`min-h-0 overflow-y-auto ${own.class ?? ""}`} {...rest}>
+      {own.children}
+    </div>
   );
 };
 
