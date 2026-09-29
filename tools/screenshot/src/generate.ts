@@ -11,7 +11,9 @@ import {
 import {
   type ColumnDef,
   DECK_EVENT_IDENTIFIER,
-  saveDeck,
+  FIRST_DECK_ID,
+  FIRST_DECK_NAME,
+  saveDeckSet,
 } from "@streets/core/deck/deck";
 import { FOLLOW_SET_KIND } from "@streets/core/lists/follow-set";
 import type { BlobDescriptor } from "@streets/core/media/blossom";
@@ -413,7 +415,10 @@ export const generate = (
     const viewer = scenario.viewer;
     // デッキは自分宛ての NIP-44 で暗号化して置く（Streets の同期と同じ形）。nonce も固定する。
     const content = encryptNip44(
-      saveDeck({ version: 2, columns }),
+      saveDeckSet({
+        version: 3,
+        decks: [{ id: FIRST_DECK_ID, name: FIRST_DECK_NAME, columns }],
+      }),
       conversationKey(secretKeyFor(viewer), pubkeyFor(viewer)),
       sha256(utf8ToBytes(`streets-screenshot/deck/${viewer}`)),
     );

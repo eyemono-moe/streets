@@ -10,7 +10,8 @@ import {
 } from "./deck-mutations";
 
 const deckOf = (...columns: Partial<ColumnDef>[]): Deck => ({
-  version: 2,
+  id: "d",
+  name: "d",
   columns: columns.map((over) => ({
     id: "x",
     title: "x",
@@ -26,7 +27,8 @@ const column = (id: string, title = id): ColumnDef => ({
 });
 
 const deck = (...ids: string[]): Deck => ({
-  version: 2,
+  id: "d",
+  name: "d",
   columns: ids.map((id) => column(id)),
 });
 

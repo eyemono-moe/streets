@@ -82,14 +82,25 @@ export const columnShow = (column: ColumnDef): ColumnShow => ({
   ...column.show,
 });
 
-/**
- * `version` は NIP-78 移行のために残す (無いと壊れているのか形が違う
- * だけか区別できない)。version 1 は開発者の手元にしか無いため移行コードは書かない。
- */
+/** 1 つのデッキ。名前を付けて、アカウントにいくつも持てる。 */
 export type Deck = {
-  version: 2;
+  id: string;
+  name: string;
   columns: ColumnDef[];
-  /** 見た目のうち、アカウントに保存するもの（どの端末でも同じ色にする）。無ければ既定の色。 */
+};
+
+/**
+ * アカウントに保存する、デッキすべてと見た目。どのデッキを開いているかは端末ごとに
+ * 違ってよいので、ここには持たない（`activeDeckStorageKey`）。
+ *
+ * `version` は形の違いを見分けるために持つ。version 2 は 1 つのデッキだけを持つ形で、
+ * 読むときに version 3 へ移す。
+ */
+export type DeckSet = {
+  version: 3;
+  /** 少なくとも 1 つ。並びがそのまま切り替えの一覧の順になる。 */
+  decks: Deck[];
+  /** 見た目のうち、アカウントに保存するもの（どのデッキ・どの端末でも同じ色にする）。無ければ既定の色。 */
   appearance?: DeckAppearance;
 };
 
@@ -110,29 +121,45 @@ export const deckStorageKey = (pubkey: string): string =>
   `${DECK_STORAGE_KEY_PREFIX}.${pubkey}`;
 
 /**
- * 初回起動時の既定デッキ (モバイル初回訪問者はデスクトップでデッキを
- * 組んでいないため必須)。新規ユーザーは誰もフォローしておらずホームが空なので、
- * 入口で見ていたリレーの流れを間に置く。
+ * 既定デッキのカラム (モバイル初回訪問者はデスクトップでデッキを組んでいないため
+ * 必須)。新規ユーザーは誰もフォローしておらずホームが空なので、入口で見ていた
+ * リレーの流れを間に置く。
  */
-export const defaultDeck = (relays: readonly RelayUrl[]): Deck => {
+export const defaultColumns = (relays: readonly RelayUrl[]): ColumnDef[] => {
   const relayColumn = buildRelayColumn(relays);
-  return {
-    version: 2,
-    columns: [
-      // `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
-      buildColumn("home", "")!,
-      // リレーが 0 本だと列を作れない。そのときはホームと通知だけにする。
-      ...(relayColumn ? [relayColumn] : []),
-      // 同上。
-      buildColumn("notifications", "")!,
-    ],
-  };
+  return [
+    // `buildColumn` は不正入力で `undefined` を返すが、既定デッキは不正入力が無いので `!` で良い。
+    buildColumn("home", "")!,
+    // リレーが 0 本だと列を作れない。そのときはホームと通知だけにする。
+    ...(relayColumn ? [relayColumn] : []),
+    // 同上。
+    buildColumn("notifications", "")!,
+  ];
 };
+
+/**
+ * 最初のデッキの id。既定デッキと version 2 から移したデッキに使う。2 つの端末が
+ * それぞれ移しても同じ id になり、端末に覚えた「開いているデッキ」がずれない。
+ */
+export const FIRST_DECK_ID = "main";
+
+export const FIRST_DECK_NAME = "メイン";
+
+export const defaultDeckSet = (relays: readonly RelayUrl[]): DeckSet => ({
+  version: 3,
+  decks: [
+    {
+      id: FIRST_DECK_ID,
+      name: FIRST_DECK_NAME,
+      columns: defaultColumns(relays),
+    },
+  ],
+});
 
 /** デッキを保存する kind:30078 の `d` タグ。 */
 export const DECK_EVENT_IDENTIFIER = "moe.eyemono.streets/deck";
 
-export const saveDeck = (deck: Deck): string => JSON.stringify(deck);
+export const saveDeckSet = (set: DeckSet): string => JSON.stringify(set);
 
 const columnDefSchema = v.object({
   id: v.pipe(v.string(), v.minLength(1)),
@@ -179,15 +206,61 @@ const columnListSchema = v.pipe(
   ),
 );
 
+// 色が壊れていても、デッキ（カラムの並び）ごと捨てない。色だけ既定に戻す。
+const appearanceSchema = v.fallback(
+  v.optional(v.object({ accent: hexColorSchema, ui: hexColorSchema })),
+  undefined,
+);
+
 const deckSchema = v.object({
-  version: v.literal(2),
+  id: v.pipe(v.string(), v.minLength(1)),
+  name: v.pipe(v.string(), v.minLength(1)),
   columns: columnListSchema,
-  // 色が壊れていても、デッキ（カラムの並び）ごと捨てない。色だけ既定に戻す。
-  appearance: v.fallback(
-    v.optional(v.object({ accent: hexColorSchema, ui: hexColorSchema })),
-    undefined,
-  ),
 });
+
+/**
+ * 読めないデッキは、そのデッキだけ捨てる（カラムと同じ理由）。同じ id が重なって
+ * いたら後のものを捨てる。切り替えも編集も id で指すので、重なると片方に届かない。
+ */
+const deckListSchema = v.pipe(
+  v.array(v.unknown()),
+  v.transform((decks) => {
+    const seen = new Set<string>();
+    return decks.flatMap((deck) => {
+      const parsed = v.safeParse(deckSchema, deck);
+      if (!parsed.success) {
+        console.warn("読めないデッキを飛ばしました", deck);
+        return [];
+      }
+      if (seen.has(parsed.output.id)) return [];
+      seen.add(parsed.output.id);
+      return [parsed.output];
+    });
+  }),
+  // 1 つも残らなければ、デッキの集まりとしては読めない。空の集まりを正として
+  // 保存し直すと、手元にもリレーにも何も残らなくなる。
+  v.minLength(1),
+);
+
+const deckSetSchema = v.object({
+  version: v.literal(3),
+  decks: deckListSchema,
+  appearance: appearanceSchema,
+});
+
+/** 1 つのデッキだけを持っていた形。読むときに、そのデッキを最初のデッキとして移す。 */
+const deckSetV2Schema = v.pipe(
+  v.object({
+    version: v.literal(2),
+    columns: columnListSchema,
+    appearance: appearanceSchema,
+  }),
+  v.transform(({ columns, appearance }): DeckSet => ({
+    version: 3,
+    decks: [{ id: FIRST_DECK_ID, name: FIRST_DECK_NAME, columns }],
+    ...(appearance ? { appearance } : {}),
+  })),
+);
 
 const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
   if (
@@ -219,7 +292,7 @@ const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
  * `raw` は外部入力 (手書き改変や旧バージョンの形もあり得る) なので、
  * `isNostrEvent` と同じ理由で検証し、壊れていれば `undefined` を返す。
  */
-export const loadDeck = (raw: string | null): Deck | undefined => {
+export const loadDeckSet = (raw: string | null): DeckSet | undefined => {
   // JSON.parse(null) は例外を投げず null を返すため、valibot 任せにせず「raw が無い」意図を明示する。
   if (raw === null) return undefined;
 
@@ -230,11 +303,20 @@ export const loadDeck = (raw: string | null): Deck | undefined => {
     return undefined;
   }
 
-  const result = v.safeParse(deckSchema, parsed);
-  return result.success
-    ? {
-        ...result.output,
-        columns: result.output.columns.map(migrateLegacyUserColumn),
-      }
-    : undefined;
+  const result = v.safeParse(v.union([deckSetSchema, deckSetV2Schema]), parsed);
+  if (!result.success) return undefined;
+  return {
+    ...result.output,
+    decks: result.output.decks.map((deck) => ({
+      ...deck,
+      columns: deck.columns.map(migrateLegacyUserColumn),
+    })),
+  };
 };
+
+/**
+ * どのデッキを開いているかを覚える localStorage のキー。デッキの集まりと同じく
+ * pubkey ごとに分ける。値はデッキの id。
+ */
+export const activeDeckStorageKey = (pubkey: string): string =>
+  `streets.v1.active-deck.${pubkey}`;
