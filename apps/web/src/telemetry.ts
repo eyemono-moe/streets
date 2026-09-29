@@ -72,21 +72,12 @@ export const startTelemetry = async () => {
       // 入力された文字や本文が混ざらないよう、操作の記録は取らない。コンソールの
       // 記録（Console）も同じ理由で入れない。
       Sentry.breadcrumbsIntegration({ dom: false }),
-      Sentry.browserTracingIntegration({
-        // 画像やスクリプトの 1 つ 1 つ、通信の 1 本 1 本は送らない。アイコンの
-        // 数だけ区間が増えて枠を食い、URL から誰の画像かも分かってしまう。
-        ignoreResourceSpans: [
-          "resource.img",
-          "resource.script",
-          "resource.css",
-          "resource.link",
-          "resource.fetch",
-          "resource.other",
-        ],
-        traceFetch: false,
-        traceXHR: false,
-      }),
+      Sentry.browserTracingIntegration({ traceFetch: false, traceXHR: false }),
     ],
+    // 画像や動画、スクリプトの 1 つ 1 つ、通信の 1 本 1 本は送らない。アイコンの
+    // 数だけ区間が増えて枠を食い、URL から誰の画像かも分かってしまう。種類を
+    // 並べると漏れる（動画が送られていた）ので、resource.* をまとめて落とす。
+    ignoreSpans: [{ op: /^resource\./ }],
     beforeSend: (event) => {
       if (event.request?.url) {
         event.request.url = scrubUrl(event.request.url);
