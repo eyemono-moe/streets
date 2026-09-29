@@ -4,6 +4,7 @@ import { createActiveSigner } from "@streets/core/signer/active-signer";
 import {
   createNip07Signer,
   waitForNip07,
+  watchForNip07,
 } from "@streets/core/signer/nip07-signer";
 import { parseBunkerUri } from "@streets/core/signer/nip46/bunker-uri";
 import {
@@ -47,6 +48,9 @@ export type ConnectAttempt = {
 
 export class ConnectCancelledError extends Error {}
 
+// モバイルの Safari では、アプリを開き直した直後などに拡張機能が立ち上がり直すため、注入が 1 秒を超えて遅れる。
+const NIP07_RESTORE_WAIT_MS = 5_000;
+
 export const createSession = (
   pool: ConnectionPool,
   options: { nostrConnectRelays?: readonly RelayUrl[] } = {},
@@ -67,6 +71,13 @@ export const createSession = (
   };
   let nip46: Nip46Session | undefined;
   onCleanup(() => nip46?.client.close());
+  // 復元を諦めた後に拡張機能が現れたら、ユーザーに押させずにそのまま復元する。
+  let stopWatchingNip07: (() => void) | undefined;
+  const stopNip07Watch = () => {
+    stopWatchingNip07?.();
+    stopWatchingNip07 = undefined;
+  };
+  onCleanup(stopNip07Watch);
 
   const hooks = { onAuthUrl: (url: URL | undefined) => setAuthUrl(url) };
 
@@ -76,6 +87,7 @@ export const createSession = (
     immediate = false,
   ) => {
     if (pending()) return;
+    stopNip07Watch();
     setPending(true);
     setError(undefined);
     setAuthUrl(undefined);
@@ -92,6 +104,7 @@ export const createSession = (
   };
 
   const activateNip46 = (session: Nip46Session) => {
+    stopNip07Watch();
     nip46?.client.close();
     nip46 = session;
     setSigner(session.signer);
@@ -178,10 +191,14 @@ export const createSession = (
     }
     if (method === "nip07") {
       void run(async () => {
-        if (!(await waitForNip07())) {
+        if (!(await waitForNip07(NIP07_RESTORE_WAIT_MS))) {
           setState("signed-out");
-          setError("NIP-07 対応の拡張機能が見つかりません。");
+          // まだ立ち上がっていないだけのこともあるので、無いとは言い切らない。
+          setError(
+            "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。",
+          );
           setRestoreFailed(true);
+          stopWatchingNip07 = watchForNip07(restore);
           return;
         }
         try {
@@ -230,6 +247,7 @@ export const createSession = (
   };
 
   const logout = () => {
+    stopNip07Watch();
     const session = nip46;
     nip46 = undefined;
     setSigner(undefined);

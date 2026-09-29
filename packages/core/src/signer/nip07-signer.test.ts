@@ -3,6 +3,7 @@ import {
   createNip07Signer,
   isNip07Available,
   waitForNip07,
+  watchForNip07,
 } from "./nip07-signer";
 import { SignerUnavailableError } from "./signer";
 
@@ -88,6 +89,39 @@ describe("createNip07Signer", () => {
     expect(setTimeoutSpy.mock.calls.map(([, delay]) => delay)).toEqual([
       25, 50, 100, 25,
     ]);
+  });
+
+  it("期限を過ぎてから注入された拡張機能にも気づき、一度だけ知らせる", async () => {
+    // 捕まえる変異: 見つけた後も確かめ続けて何度も知らせる（復元が繰り返し走る）
+    vi.useFakeTimers();
+    setNostr(undefined);
+    const onAvailable = vi.fn();
+    watchForNip07(onAvailable, 1_000);
+
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(onAvailable).not.toHaveBeenCalled();
+
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+    });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(onAvailable).toHaveBeenCalledTimes(1);
+  });
+
+  it("止めた後は拡張機能が現れても知らせない", async () => {
+    vi.useFakeTimers();
+    setNostr(undefined);
+    const onAvailable = vi.fn();
+    const stop = watchForNip07(onAvailable, 1_000);
+
+    stop();
+    setNostr({
+      getPublicKey: async () => "a".repeat(64),
+      signEvent: async (e: unknown) => e,
+    });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(onAvailable).not.toHaveBeenCalled();
   });
 
   it("getPublicKey が返した値をそのまま通す", async () => {

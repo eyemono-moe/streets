@@ -126,6 +126,17 @@ export const ログインを戻せなかった: Story = {
   },
 };
 
+export const 拡張機能からの応答を待ちきれなかった: Story = {
+  args: {
+    login: {
+      pending: false,
+      error:
+        "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。",
+      restoreFailed: true,
+    },
+  },
+};
+
 export const 秘密鍵を貼り付けた: Story = {
   args: {
     initialStep: "existing",
