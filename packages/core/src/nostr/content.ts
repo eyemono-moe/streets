@@ -44,6 +44,9 @@ const TRAILING_PUNCTUATION = new Set([
 /**
  * 末尾の `)` は URL 内で開き括弧と対になっている場合がある
  * （例: `.../Example_(disambiguation)`）。対になっていない分だけを剥がす。
+ *
+ * 2 つ以上続く `.` は文末ではなく URL の一部とみなす。ページ名が `.........` で
+ * 終わる URL がある一方、日本語の本文は三点リーダーに `…` を使うことが多い。
  */
 const trimTrailingPunctuation = (raw: string): string => {
   let end = raw.length;
@@ -57,6 +60,7 @@ const trimTrailingPunctuation = (raw: string): string => {
       end -= 1;
       continue;
     }
+    if (ch === "." && raw[end - 2] === ".") break;
     if (ch !== undefined && TRAILING_PUNCTUATION.has(ch)) {
       end -= 1;
       continue;

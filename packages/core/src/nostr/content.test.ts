@@ -206,6 +206,31 @@ describe("parseContent: URL", () => {
     ] satisfies ContentToken[]);
   });
 
+  it("末尾の '.' が 1 つなら URL に含めない", () => {
+    // 捕まえる変異: 末尾の '.' を常に URL に含める（英語の文末の '.' がリンクに入る）
+    const content = "see https://example.com/doc. thanks";
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "text", text: "see " },
+      { type: "url", url: "https://example.com/doc" },
+      { type: "text", text: ". thanks" },
+    ] satisfies ContentToken[]);
+  });
+
+  it("末尾に 2 つ以上続く '.' は URL に含める", () => {
+    // 捕まえる変異: '.' を 1 つずつ剥がす（ページ名が '...' で終わる URL の飛び先が変わる）
+    const url =
+      "https://dic.nicovideo.jp/t/a/%E3%81%BE...%E3%81%AA%E3%82%89.........";
+    const content = `${url} 」 ${url}。`;
+    const event = noteWith(content);
+    expect(parseContent(event.content, event.tags)).toEqual([
+      { type: "url", url },
+      { type: "text", text: " 」 " },
+      { type: "url", url },
+      { type: "text", text: "。" },
+    ] satisfies ContentToken[]);
+  });
+
   it("外側の丸括弧に対応しない ')' を URL に含めない", () => {
     // 捕まえる変異: 貪欲に取る（末尾の約物を剥がさない）
     const content = "見て (https://example.com/foo) です";
