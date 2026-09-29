@@ -1,7 +1,7 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
-import { WIDE_QUERY } from "./is-wide";
+import { isMultiColumn } from "./deck-layout-setting";
 import IconButton from "./ui/IconButton";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
@@ -15,8 +15,7 @@ export const TROUBLE_DURATION_MS = 8000;
 type AppToaster = ReturnType<typeof createToaster>;
 
 /**
- * 狭い画面では主な操作を下のバーに寄せているので、上の中央に出して重ねない。
- * 置き場所は作るときにしか決められないので、起動したときの幅で選ぶ。
+ * 1 列の表示では主な操作を下のバーに寄せているので、上の中央に出して重ねない。
  */
 export const createAppToaster = (wide: boolean): AppToaster =>
   createToaster({
@@ -26,11 +25,28 @@ export const createAppToaster = (wide: boolean): AppToaster =>
     gap: 8,
   });
 
+// 置き場所は作るときにしか決められないので、並べ方ごとに 1 つずつ持ち、
+// 新しい知らせをいまの並べ方の方へ出す。
+const multiToaster = createAppToaster(true);
+const singleToaster = createAppToaster(false);
+const currentToaster = () => (isMultiColumn() ? multiToaster : singleToaster);
+// 並べ方を変える前に出したものは、出した方で書き換え・片付ける。
+const holding = (id: string) =>
+  [multiToaster, singleToaster].find((t) => t.isVisible(id)) ??
+  currentToaster();
+
 /**
  * 失敗の知らせは 1 か所に集める。ボタンごとに文言を置くと、押した場所ごとに
  * 出方が変わり、狭いカラムでは行が押し出されて本文が動く。
  */
-export const toaster = createAppToaster(matchMedia(WIDE_QUERY).matches);
+export const toaster: Pick<AppToaster, "create" | "update" | "remove"> = {
+  create: (options) => currentToaster().create(options),
+  update: (id, options) => holding(id).update(id, options),
+  remove: (id) => {
+    multiToaster.remove(id);
+    return singleToaster.remove(id);
+  },
+};
 
 /** 済んだことを短く知らせる（保存など、すぐ消えてよいもの）。 */
 export const notifySaved = (title: string): void => {
@@ -132,6 +148,7 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
  */
 export const ErrorToaster: Component = () => (
   <Portal>
-    <ToastStack toaster={toaster} />
+    <ToastStack toaster={multiToaster} />
+    <ToastStack toaster={singleToaster} />
   </Portal>
 );

@@ -7,6 +7,7 @@ import {
 } from "@streets/core/settings/action-layout";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
+import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { type Component, For } from "solid-js";
 import { PALETTES, type PaletteName, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
@@ -21,6 +22,12 @@ const CONTENT_WARNING_MODES: { value: ContentWarningMode; label: string }[] = [
   { value: "hide", label: "隠す" },
   { value: "show", label: "常に表示" },
   { value: "exclude", label: "一覧に出さない" },
+];
+
+const LAYOUTS: { value: DeckLayout; label: string }[] = [
+  { value: "auto", label: "画面幅に合わせる" },
+  { value: "single", label: "1 列" },
+  { value: "multi", label: "複数列" },
 ];
 
 const SCHEMES: { value: ColorScheme; label: string }[] = [
@@ -39,6 +46,8 @@ const DisplaySettings: Component<{
   errorReport: boolean;
   /** 閲覧注意の投稿の扱い（この端末の設定）。 */
   contentWarning: ContentWarningMode;
+  /** カラムの並べ方（この端末の設定）。 */
+  deckLayout: DeckLayout;
   /** アクション欄に出す操作（この端末の設定）。 */
   actionLayout: ActionLayout;
 }> = (props) => {
@@ -57,6 +66,21 @@ const DisplaySettings: Component<{
 
   return (
     <div class="flex flex-col gap-7">
+      <SettingsSection
+        title="カラムの並べ方"
+        scope="device"
+        description="カラムを横に並べるか、1 列ずつ切り替えて見せるかを選びます。「画面幅に合わせる」では、スマホのような狭い画面で 1 列、それより広い画面で横に並べます。「複数列」で幅が足りないときは、横にスクロールして見ます。"
+      >
+        <SegmentedControl
+          label="カラムの並べ方"
+          options={LAYOUTS}
+          value={props.deckLayout}
+          onChange={(layout) =>
+            dispatch({ type: "deck/set-deck-layout", layout })
+          }
+        />
+      </SettingsSection>
+
       <SettingsSection
         title="ローディング表示"
         scope="device"
