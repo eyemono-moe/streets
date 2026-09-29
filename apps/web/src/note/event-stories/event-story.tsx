@@ -5,8 +5,13 @@ import {
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
+import {
+  type ActionLayout,
+  defaultActionLayout,
+} from "@streets/core/settings/action-layout";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { Component } from "solid-js";
+import { setActionLayout } from "../../action-layout-setting";
 import { setContentWarningMode } from "../../content-warning-setting";
 import { setDefaultReaction } from "../../default-reaction-setting";
 import avatarUrl from "../../storybook/avatar-fixture.svg";
@@ -68,12 +73,15 @@ type Props = {
   defaultReaction?: ReactionInput;
   /** 閲覧注意の投稿の扱い。省くと隠す。 */
   contentWarning?: ContentWarningMode;
+  /** アクション欄に出す操作。省くと既定の 6 個。 */
+  actionLayout?: ActionLayout;
 };
 
 export const EventStory: Component<Props> = (props) => {
   // 端末の設定をそのまま差し替える。どのストーリーも必ず当てるので、前の値は残らない。
   setDefaultReaction(props.defaultReaction ?? { type: "like" });
   setContentWarningMode(props.contentWarning ?? "hide");
+  setActionLayout(props.actionLayout ?? defaultActionLayout());
   return (
     <EventSceneProvider scene={props.scene}>
       {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
@@ -105,5 +113,6 @@ export const eventStoryMeta = {
     event: { control: false },
     scene: { control: false },
     defaultReaction: { control: false },
+    actionLayout: { control: false },
   },
 } as const;

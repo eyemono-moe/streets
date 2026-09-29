@@ -65,7 +65,10 @@ type ContentProps = {
   replyContext?: boolean;
 };
 
-const Head: Component<ContentProps> = (props) => {
+/** アクション欄を出す投稿か。出さない投稿のメニューには、欄に入る操作を入れない。 */
+type ActionsProps = { withActions?: boolean };
+
+const Head: Component<ContentProps & ActionsProps> = (props) => {
   const date = () => new Date(props.event.created_at * 1000);
 
   return (
@@ -80,7 +83,7 @@ const Head: Component<ContentProps> = (props) => {
       </time>
       {/* 引用の中（compact）には出さない。開いた先で操作する。 */}
       <Show when={props.size === "normal"}>
-        <EventMenu event={props.event} />
+        <EventMenu event={props.event} withActions={props.withActions} />
       </Show>
     </div>
   );
@@ -97,7 +100,7 @@ const lineX = (size: EventSize) => ({
 });
 
 /** アイコン列と本文列。どの kind も同じ骨格に載せる。 */
-const Row: ParentComponent<ContentProps> = (props) => (
+const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
   <div
     class="flex items-start"
     classList={{
@@ -139,7 +142,11 @@ const Row: ParentComponent<ContentProps> = (props) => (
         "gap-1.5": props.size === "compact",
       }}
     >
-      <Head event={props.event} size={props.size} />
+      <Head
+        event={props.event}
+        size={props.size}
+        withActions={props.withActions}
+      />
       {props.children}
     </div>
   </div>
@@ -182,7 +189,12 @@ const Note: Component<ContentProps> = (props) => {
   const replyTo = () => replyTarget(props.event);
 
   return (
-    <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+    <Row
+      event={props.event}
+      size={props.size}
+      threadLine={props.threadLine}
+      withActions
+    >
       <Show when={replyTo()?.pubkey}>
         {(pubkey) => (
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
