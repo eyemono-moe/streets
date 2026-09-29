@@ -121,6 +121,7 @@ export const ActionLayoutView: Component<{
     axis: "y",
     container: () => list,
     scroller: () => scrollerOf(list),
+    contain: true,
     element: (id) =>
       list?.querySelector<HTMLElement>(
         `[data-action-slot="${CSS.escape(id)}"]`,
