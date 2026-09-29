@@ -236,6 +236,18 @@ export const FollowSetMediator: ParentComponent<{
           ),
         );
         return true;
+      case "follow-sets/move":
+        quietly(
+          write(
+            event.identifier,
+            [
+              { type: "remove", member: event.from },
+              { type: "add", member: event.to },
+            ],
+            "リストの公開範囲を変えられませんでした",
+          ),
+        );
+        return true;
       case "follow-sets/delete":
         remove(event.identifier);
         return true;

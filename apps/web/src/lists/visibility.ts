@@ -21,3 +21,15 @@ export const visibilityOptions = (privateReady: boolean) => [
   },
   { value: "public" as const, label: VISIBILITY_LABEL.public },
 ];
+
+/** 1 つのリストにこの人を入れるかと、入れるときの公開範囲。 */
+export type Membership = ItemVisibility | "none";
+
+/** 「リストに追加」で、リストごとに選ぶ欄の選択肢。 */
+export const membershipOptions = (privateReady: boolean) => [
+  { value: "none" as const, label: "入れない" },
+  ...visibilityOptions(privateReady),
+];
+
+export const MEMBERSHIP_HINT =
+  "非公開で入れると暗号化して保存するので、入れたことはほかの人には分かりません。公開で入れたことは、ほかの人も見られます。";
