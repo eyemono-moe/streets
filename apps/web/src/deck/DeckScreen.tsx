@@ -305,10 +305,8 @@ const DeckScreen: Component<{
 
   // 狭い画面のカラムの帯。払って止まった位置と、選んでいるカラムを行き来させる。
   let stripEl: HTMLDivElement | undefined;
-  const stripIds = () => [
-    ...(temp() ? [TEMP_COLUMN_ID] : []),
-    ...columns().map((column) => column.id),
-  ];
+  // 見た目の並び。並べ替えている間は、帯のカラムも CSS の order で入れ替わって見える。
+  const stripIds = () => [...(temp() ? [TEMP_COLUMN_ID] : []), ...order.ids()];
   const activeColumn = (): ColumnDef | undefined =>
     ui.active === TEMP_COLUMN_ID
       ? temp()
@@ -320,6 +318,9 @@ const DeckScreen: Component<{
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
       if (!stripEl || stripEl.clientWidth === 0) return;
+      // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
+      // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
+      if (ui.panel !== undefined) return;
       const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
       const id = stripIds()[index];
       if (id !== undefined && id !== ui.active) {
