@@ -96,6 +96,11 @@ export type RelayViewEvent = Extract<RelayEditEvent, { type: "relays/edit" }>;
 export type ComposeViewEvent =
   | Extract<ComposeEvent, { type: "compose/input" | "compose/submit" }>
   | { type: "compose/close" }
+  /** 下書きを開く。いまの書きかけは、入れ替えに下書きへ残る。 */
+  | { type: "compose/draft-open"; id: string }
+  /** いまの書きかけを下書きへ移し、欄を空にする。 */
+  | { type: "compose/draft-keep" }
+  | { type: "compose/draft-remove"; id: string }
   /** 選んだ・貼り付けた・落としたファイルを添える（アップロードするのは送るとき）。 */
   | { type: "compose/attach"; files: readonly File[] }
   | Extract<

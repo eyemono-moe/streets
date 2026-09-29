@@ -3,6 +3,7 @@ import {
   type ComposeState,
   emptyCompose,
 } from "@streets/core/view/compose";
+import type { ComposeDraft } from "@streets/core/view/compose-drafts";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SidePanel from "../deck/SidePanel";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
@@ -14,6 +15,7 @@ import clipUrl from "../storybook/media-clip.mp4";
 import landscapeUrl from "../storybook/media-landscape.svg";
 import squareUrl from "../storybook/media-square.svg";
 import { createStoryAuthor } from "../storybook/story-events";
+import { composeDrafts } from "./compose-drafts";
 import { ComposeMediator } from "./ComposeMediator";
 import ComposePanel from "./ComposePanel";
 
@@ -42,6 +44,7 @@ type Props = {
   interactive?: boolean;
   /** 画像のアップロード先。空にすると、画像のボタンが使えない見た目になる。 */
   servers: string[];
+  drafts?: ComposeDraft[];
 };
 
 const Interactive = () => (
@@ -49,8 +52,9 @@ const Interactive = () => (
     send={() => Promise.resolve()}
     failure="投稿できませんでした"
     onSent={() => {}}
+    drafts
   >
-    {(state) => <ComposePanel state={state} />}
+    {(state) => <ComposePanel state={state} drafts={composeDrafts()} />}
   </ComposeMediator>
 );
 
@@ -80,7 +84,7 @@ const meta = {
               {props.interactive ? (
                 <Interactive />
               ) : (
-                <ComposePanel state={props.state} />
+                <ComposePanel state={props.state} drafts={props.drafts} />
               )}
             </SidePanel>
           </div>
@@ -221,3 +225,65 @@ export const 閲覧注意にした: Story = {
     },
   },
 };
+
+const now = Date.now();
+const minutes = (n: number) => now - n * 60_000;
+
+const drafts: ComposeDraft[] = [
+  {
+    id: "d1",
+    content: "あとで書き足す。",
+    savedAt: minutes(3),
+    kept: false,
+  },
+  {
+    id: "d2",
+    content:
+      "長い下書きは 2 行で切る。".repeat(12) +
+      "\n\n改行のあとは見えなくてよい。",
+    savedAt: minutes(60 * 30),
+    kept: true,
+  },
+  {
+    id: "d3",
+    content: "最終回の感想。",
+    contentWarning: "ネタバレ",
+    savedAt: minutes(60 * 24 * 400),
+    kept: true,
+  },
+  {
+    id: "d4",
+    content: "理由を書かずに閲覧注意を付けた下書き。",
+    contentWarning: "",
+    savedAt: minutes(10),
+    kept: false,
+  },
+];
+
+/**
+ * 閉じると書きかけは自動で下書きに残る（新しいものから 5 件）。道具の列の下書きボタンで
+ * 移したものは件数で消えない。押すと、いまの書きかけと入れ替えて開く。
+ */
+export const 下書きがある: Story = { args: { drafts } };
+
+export const 書きかけと下書き: Story = {
+  args: {
+    drafts,
+    state: { ...emptyCompose(), content: "下書きボタンで下書きへ移せる。" },
+  },
+};
+
+/** 画像は下書きに残せないので、添えている間は下書きへ移せず、開けもしない。 */
+export const 画像を添えていて下書きを開けない: Story = {
+  args: {
+    drafts,
+    state: {
+      ...emptyCompose(),
+      content: "ねこの写真",
+      attachments: [shot("1", "ねこ.png", landscapeUrl)],
+    },
+  },
+};
+
+/** 実際に書いて、下書きへ移す・開く・消すを試せる。下書きはこのブラウザに残る。 */
+export const 下書きを試す: Story = { args: { interactive: true } };

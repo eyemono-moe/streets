@@ -3,6 +3,7 @@ import type { EmojiLookup } from "@streets/core/nostr/build/references";
 import {
   type ComposeEvent,
   type ComposeState,
+  canKeepDraft,
   canSend,
   composeMedia,
   composeTransition,
@@ -11,8 +12,9 @@ import {
   sendableText,
   sendableWarning,
 } from "@streets/core/view/compose";
+import { isBlankDraft } from "@streets/core/view/compose-drafts";
 import type { Component, JSX } from "solid-js";
-import { onCleanup } from "solid-js";
+import { onCleanup, onMount } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEmojiLookup } from "../emoji/custom-emojis";
 import { prepareForUpload } from "../media/prepare";
@@ -20,6 +22,11 @@ import { useUploader } from "../media/uploader";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import { uploadErrorMessage } from "../write-errors";
+import {
+  composeDrafts,
+  putComposeDraft,
+  removeComposeDraft,
+} from "./compose-drafts";
 
 /**
  * 投稿・返信の書きかけを持ち、送る段。何を送るか（投稿か返信か）と、送れたあと
@@ -41,6 +48,11 @@ export const ComposeMediator: Component<{
   onSent: () => void;
   /** 閉じる操作。送っている途中は閉じない。 */
   onClose?: () => void;
+  /**
+   * 書きかけを下書きに残す。閉じたとき・ページを離れるときに自動で残し、
+   * 下書きの一覧から開けるようにする。返信は宛先ごとの書きかけなので残さない。
+   */
+  drafts?: boolean;
   children: (state: ComposeState) => JSX.Element;
 }> = (props) => {
   const [state, setState] = createStore<ComposeState>(emptyCompose());
@@ -67,6 +79,52 @@ export const ComposeMediator: Component<{
   };
   onCleanup(() => {
     for (const preview of previews.values()) URL.revokeObjectURL(preview);
+  });
+  const forgetAll = () => {
+    for (const id of [...previews.keys()]) forget(id);
+  };
+
+  /**
+   * いまの書きかけを下書きに残す（添えたファイルは残せない）。本文を消しきったなら、
+   * 開いていた下書きも消す。書きかけが下書きと同じなら、残した時刻を動かさない。
+   */
+  const stash = (kept?: boolean) => {
+    const current = unwrap(state);
+    if (current.sending) return;
+    const bound = current.draft;
+    if (isBlankDraft(current.content)) {
+      if (bound) removeComposeDraft(bound.id);
+      return;
+    }
+    const id = bound?.id ?? crypto.randomUUID();
+    const keep = kept ?? bound?.kept ?? false;
+    const stored = composeDrafts().find((draft) => draft.id === id);
+    const unchanged =
+      stored?.content === current.content &&
+      stored.contentWarning === current.contentWarning &&
+      stored.kept === keep;
+    if (!unchanged) {
+      putComposeDraft({
+        id,
+        content: current.content,
+        contentWarning: current.contentWarning,
+        savedAt: Date.now(),
+        kept: keep,
+      });
+    }
+    if (bound?.id !== id || bound.kept !== keep) {
+      apply({ type: "compose/draft-bound", id, kept: keep });
+    }
+  };
+  onMount(() => {
+    if (!props.drafts) return;
+    // 閉じずに再読み込み・タブを閉じたときも残す。
+    const onPageHide = () => stash();
+    window.addEventListener("pagehide", onPageHide);
+    onCleanup(() => {
+      window.removeEventListener("pagehide", onPageHide);
+      stash();
+    });
   });
 
   const attach = (chosen: readonly File[]) => {
@@ -127,7 +185,10 @@ export const ComposeMediator: Component<{
         apply(event);
         submit().then(
           () => {
-            for (const id of [...previews.keys()]) forget(id);
+            forgetAll();
+            // 送った下書きは要らない。閉じるときに残し直さないよう、空にする前に消す。
+            const bound = unwrap(state).draft;
+            if (bound) removeComposeDraft(bound.id);
             apply({ type: "compose/sent" });
             props.onSent();
           },
@@ -156,6 +217,24 @@ export const ComposeMediator: Component<{
         return true;
       case "compose/close":
         if (!state.sending) props.onClose?.();
+        return true;
+      case "compose/draft-open": {
+        if (!props.drafts || state.sending) return true;
+        const draft = composeDrafts().find((other) => other.id === event.id);
+        if (!draft) return true;
+        // いまの書きかけは、開く下書きと入れ替えに下書きへ残す。
+        stash();
+        forgetAll();
+        apply({ type: "compose/load", draft });
+        return true;
+      }
+      case "compose/draft-keep":
+        if (!props.drafts || !canKeepDraft(unwrap(state))) return true;
+        stash(true);
+        apply({ type: "compose/reset" });
+        return true;
+      case "compose/draft-remove":
+        if (props.drafts) removeComposeDraft(event.id);
         return true;
       default:
         return false;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   type ComposeEvent,
   type ComposeState,
+  canKeepDraft,
   canSend,
   composeMedia,
   composeTransition,
@@ -265,5 +266,67 @@ describe("閲覧注意", () => {
     expect(sendableWarning(sending)).toBe("閲覧注意");
     const sent = composeTransition(sending, { type: "compose/sent" });
     expect(sendableWarning(sent)).toBeUndefined();
+  });
+});
+
+describe("下書き", () => {
+  const saved = {
+    id: "d1",
+    content: "下書きの本文",
+    contentWarning: "ネタバレ",
+    savedAt: 1,
+    kept: true,
+  };
+
+  it("開くと本文と閲覧注意を戻し、どの下書きかを覚える", () => {
+    const state = run(
+      { type: "compose/input", content: "いまの書きかけ" },
+      { type: "compose/attach-add", id: "1", name: "1.png", preview: "blob:1" },
+      { type: "compose/load", draft: saved },
+    );
+    expect(state).toEqual({
+      ...emptyCompose(),
+      content: "下書きの本文",
+      contentWarning: "ネタバレ",
+      draft: { id: "d1", kept: true },
+    });
+  });
+
+  it("送れたら、どの下書きだったかも忘れる", () => {
+    const state = run(
+      { type: "compose/load", draft: saved },
+      { type: "compose/submit" },
+      { type: "compose/sent" },
+    );
+    expect(state).toEqual(emptyCompose());
+  });
+
+  it("送っている途中は開かない・空にしない", () => {
+    const sending = run(
+      { type: "compose/input", content: "送る" },
+      { type: "compose/submit" },
+    );
+    expect(
+      composeTransition(sending, { type: "compose/load", draft: saved }),
+    ).toBe(sending);
+    expect(composeTransition(sending, { type: "compose/reset" })).toBe(sending);
+  });
+
+  it("ファイルを添えている間は、下書きへ移せない", () => {
+    const text = run({ type: "compose/input", content: "本文" });
+    expect(canKeepDraft(text)).toBe(true);
+    expect(
+      canKeepDraft(
+        composeTransition(text, {
+          type: "compose/attach-add",
+          id: "1",
+          name: "1.png",
+          preview: "blob:1",
+        }),
+      ),
+    ).toBe(false);
+    expect(canKeepDraft(run({ type: "compose/input", content: " " }))).toBe(
+      false,
+    );
   });
 });

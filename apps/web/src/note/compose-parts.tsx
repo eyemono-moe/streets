@@ -440,6 +440,20 @@ const ContentWarningButton: Component<{
   );
 };
 
+/** 書きかけを下書きへ移す。添えたファイルは残せないので、添えている間は押せない。 */
+const KeepDraftButton: Component<{ disabled: boolean }> = (props) => {
+  const dispatch = useDispatch();
+  return (
+    <IconButton
+      size="md"
+      icon="i-material-symbols:draft-outline-rounded"
+      label="下書きに入れる"
+      disabled={props.disabled}
+      onClick={() => dispatch({ type: "compose/draft-keep" })}
+    />
+  );
+};
+
 /** 閲覧注意の理由を書く欄。付けている間だけ出す。 */
 export const ContentWarningField: Component<{
   reason: string | undefined;
@@ -496,6 +510,8 @@ export const ComposeTools: Component<{
   contentWarning: string | undefined;
   onEmojiSelect: (emoji: PickerEmoji) => void;
   emojiField: () => HTMLTextAreaElement | undefined;
+  /** 下書きへ移すボタンを出す。値は押せるか。 */
+  canKeepDraft?: boolean;
 }> = (props) => (
   <div class="flex h-13 items-center gap-1.5 py-2.5 pr-3 pl-4">
     <ImageButton />
@@ -508,6 +524,9 @@ export const ComposeTools: Component<{
       on={props.contentWarning !== undefined}
       disabled={props.sending}
     />
+    <Show when={props.canKeepDraft !== undefined}>
+      <KeepDraftButton disabled={!props.canKeepDraft} />
+    </Show>
     <span class="flex-1" />
     <span class="c-secondary text-caption">{props.count}</span>
     <Button

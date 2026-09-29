@@ -1,4 +1,5 @@
 import type { BlobDescriptor } from "../media/blossom";
+import type { ComposeDraft } from "./compose-drafts";
 
 /**
  * 書きかけに添えたファイル。中身（File）はアプリ側が持ち、ここには見せ方と
@@ -38,6 +39,11 @@ export type ComposeState = {
   attachments: Attachment[];
   /** 閲覧注意の理由。`undefined` は付けない、空文字は理由なしで付ける。 */
   contentWarning?: string;
+  /**
+   * 書きかけを残す下書き。開いた下書きか、一度残した書きかけ。閉じたときに同じ下書きを
+   * 書き換え、送れたら消す。
+   */
+  draft?: { id: string; kept: boolean };
 };
 
 export type ComposeEvent =
@@ -65,7 +71,13 @@ export type ComposeEvent =
   | { type: "compose/attach-failed"; id: string; error: string }
   /** 閲覧注意にする・外す。外すと書いた理由も消える。 */
   | { type: "compose/warning-toggle" }
-  | { type: "compose/warning-input"; reason: string };
+  | { type: "compose/warning-input"; reason: string }
+  /** 下書きを開く。いまの書きかけと添えたファイルは捨てる（残すのは裁定する段）。 */
+  | { type: "compose/load"; draft: ComposeDraft }
+  /** 書きかけを下書きとして残した。以後は同じ下書きを書き換える。 */
+  | { type: "compose/draft-bound"; id: string; kept: boolean }
+  /** 下書きへ移したので、空に戻す。 */
+  | { type: "compose/reset" };
 
 /** 呼ぶたびに新しく作る。受け取った側が書き換えても他へ漏れないようにする。 */
 export const emptyCompose = (): ComposeState => ({
@@ -73,6 +85,15 @@ export const emptyCompose = (): ComposeState => ({
   sending: false,
   attachments: [],
 });
+
+/**
+ * 下書きへ移せるか。添えたファイルは下書きに残せないので、添えている間は移さない
+ * （移すと黙ってファイルを捨てることになる）。
+ */
+export const canKeepDraft = (state: ComposeState): boolean =>
+  !state.sending &&
+  state.attachments.length === 0 &&
+  state.content.trim().length > 0;
 
 /** まだアップロードしていないファイル。送るときに、この順でアップロードする。 */
 export const pendingAttachments = (state: ComposeState): Attachment[] =>
@@ -208,5 +229,17 @@ export const composeTransition = (
       return state.sending || state.contentWarning === undefined
         ? state
         : { ...state, contentWarning: event.reason };
+    case "compose/load":
+      if (state.sending) return state;
+      return {
+        ...emptyCompose(),
+        content: event.draft.content,
+        contentWarning: event.draft.contentWarning,
+        draft: { id: event.draft.id, kept: event.draft.kept },
+      };
+    case "compose/draft-bound":
+      return { ...state, draft: { id: event.id, kept: event.kept } };
+    case "compose/reset":
+      return state.sending ? state : emptyCompose();
   }
 };

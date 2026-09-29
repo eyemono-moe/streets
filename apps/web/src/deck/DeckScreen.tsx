@@ -57,6 +57,7 @@ import { keymap, setShortcut } from "../keymap";
 import { lazyPart, onceTrue, whenIdle } from "../lazy-part";
 import { FollowSetMediator } from "../lists/FollowSetMediator";
 import { UploaderProvider, createUploader } from "../media/uploader";
+import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
@@ -553,8 +554,9 @@ const DeckScreen: Component<{
             }
             failure="投稿できませんでした"
             onSent={() => handle({ type: "deck/close-panel" })}
+            drafts
           >
-            {(state) => <ComposePanel state={state} />}
+            {(state) => <ComposePanel state={state} drafts={composeDrafts()} />}
           </ComposeMediator>
         </SidePanel>
       </Match>
