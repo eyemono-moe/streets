@@ -2504,6 +2504,20 @@ describe("subscribeUnstored", () => {
     expect(delivery.onEvent).toHaveBeenCalledWith(followList, "wss://b/");
   });
 
+  it("store に入る経路と同じ関所を通り、検証済みのものは検証し直さない", () => {
+    // 捕まえる変異: store を通らない経路が自前で検証する（経路をまたぐ再配送で
+    // 同じ署名を 2 度検証し、検証の回数にも出ない）。
+    const { a, store, delivery } = setupUnstored();
+    const followList = signed(1, { kind: 3 });
+
+    a.emitEvent(0, followList);
+    expect(delivery.onEvent).toHaveBeenCalledTimes(1);
+    expect(store.gate.stats.count).toBe(1);
+
+    expect(store.put(followList, "wss://c/")).toBe("inserted");
+    expect(store.gate.stats).toMatchObject({ count: 1, skipped: 1 });
+  });
+
   it("要求していないイベントは渡さない", () => {
     const { a, delivery } = setupUnstored();
 

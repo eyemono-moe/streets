@@ -1,12 +1,8 @@
-import {
-  type NostrEvent,
-  computeEventId,
-  isNostrEvent,
-  verifyEvent,
-} from "../nostr/event";
+import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
+import { SignatureGate } from "./signature-gate";
 
 /** NIP-09 の削除依頼イベント。対象は `e` / `a` タグで運ばれる。 */
 const DELETION_KIND = 5;
@@ -175,8 +171,8 @@ export class EventStore {
   >();
   readonly #changeListeners = new Set<(change: EventStoreChange) => void>();
 
-  #verifyMs = 0;
-  #verifyCount = 0;
+  /** リレーから届いたイベントの関所。store を通らない経路もこれを使う。 */
+  readonly gate = new SignatureGate();
 
   constructor(options: EventStoreOptions = {}) {
     this.#scheduler = options.scheduler ?? defaultScheduler;
@@ -185,18 +181,6 @@ export class EventStore {
 
   get size(): number {
     return this.#events.size + this.#hiddenEvents.size;
-  }
-
-  /**
-   * `verifyEvent` の累計 ms と回数。「初回表示 2 秒」予算の検証コスト内訳
-   * 用。表示専用で分岐に影響しないため `performance.now()` を直に呼ぶ。
-   */
-  get verifyMs(): number {
-    return this.#verifyMs;
-  }
-
-  get verifyCount(): number {
-    return this.#verifyCount;
   }
 
   /**
@@ -223,7 +207,10 @@ export class EventStore {
     const visible = this.#events.get(event.id);
     const existing = visible ?? this.#hiddenEvents.get(event.id);
     if (existing) {
-      if (!this.#isSameEvent(existing.event, event)) return "rejected";
+      // Outbox で同じイベントが複数リレーから届くので、署名まで保存済みと
+      // 一致するふつうの再配送では schnorr 検証を払わない。署名が違えば
+      // 検証し、妥当なら同じ著者による別の署名として受け入れる。保存済みの署名は変えない。
+      if (!this.gate.accept(event, existing.event.sig)) return "rejected";
       // 同一イベントの再配送は「まだ現在のままだ」という確認そのもの。
       // これで restamp しないと、著者が長期間更新しない置換可能イベント
       // (kind:10002 など) は初回取得時刻に固定され続け、staleMs を過ぎる
@@ -240,7 +227,7 @@ export class EventStore {
       return visible ? "duplicate" : "hidden";
     }
 
-    if (!this.#verify(event)) return "rejected";
+    if (!this.gate.accept(event)) return "rejected";
     const fetchedAt = this.#scheduler.now();
     if (event.kind !== DELETION_KIND && this.#isHiddenByDeletion(event)) {
       const stored = { event, seenRelays: [relay], fetchedAt };
@@ -253,29 +240,6 @@ export class EventStore {
     if (stored) this.#persist(stored);
     if (event.kind === DELETION_KIND) this.#addDeletionRequest(event, true);
     return "inserted";
-  }
-
-  /**
-   * 既知の id を名乗る再配送が、保存済みと同じイベントかを確かめる。
-   * Outbox で同じイベントが複数リレーから届くので、署名まで保存済みと
-   * 一致するふつうの再配送では schnorr 検証を払わない。id は署名を
-   * 含まないため、署名だけ壊した複製は id の再計算では見分けられない。
-   * 署名が違えば検証し、妥当なら同じ著者による別の署名として受け入れる
-   * (BIP-340 の署名は同じ内容でも一意ではない)。保存済みの署名は変えない。
-   */
-  #isSameEvent(stored: NostrEvent, event: NostrEvent): boolean {
-    const { id, sig, ...unsigned } = event;
-    if (!isNostrEvent(event) || computeEventId(unsigned) !== id) return false;
-    return sig === stored.sig || this.#verify(event);
-  }
-
-  /** リレーは信用できないので、受け入れる前に検証する。 */
-  #verify(event: NostrEvent): boolean {
-    const startedAt = performance.now();
-    const verified = verifyEvent(event);
-    this.#verifyMs += performance.now() - startedAt;
-    this.#verifyCount += 1;
-    return verified;
   }
 
   /** `retention`（`none`/`latest-per-author`/`capped`）の適用は永続層の責務 —— ここは無条件に転送するだけでよい。 */

@@ -80,22 +80,22 @@ describe("EventStore", () => {
   });
 
   it("検証にかかった時間と件数を積む", () => {
-    // 捕まえる変異: verifyCount を verified 時だけ増やす。拒否イベントも
+    // 捕まえる変異: 検証の回数を verified 時だけ増やす。拒否イベントも
     // schnorr のコストは払うため、数えないと検証時間が過小に出る。
     const store = new EventStore();
     const event = sign("verified");
     const forged = { ...sign("forged"), sig: "0".repeat(128) };
 
-    expect(store.verifyCount).toBe(0);
+    expect(store.gate.stats.count).toBe(0);
     expect(store.put(event, "wss://relay/")).toBe("inserted");
     expect(store.put(forged, "wss://relay/")).toBe("rejected");
-    expect(store.verifyCount).toBe(2);
+    expect(store.gate.stats.count).toBe(2);
 
     // 捕まえる変異: 重複経路でも計上する (未検証なのに検証時間が水増しされる)。
     expect(store.put(event, "wss://other/")).toBe("duplicate");
-    expect(store.verifyCount).toBe(2);
+    expect(store.gate.stats.count).toBe(2);
 
-    expect(store.verifyMs).toBeGreaterThan(0);
+    expect(store.gate.stats.ms).toBeGreaterThan(0);
   });
 
   it("stores a valid event once and tracks every relay that saw it", () => {
@@ -264,10 +264,10 @@ describe("EventStore", () => {
     const store = new EventStore();
     const event = sign("x");
     store.put(event, "wss://a/");
-    expect(store.verifyCount).toBe(1);
+    expect(store.gate.stats.count).toBe(1);
 
     expect(store.put({ ...event }, "wss://b/")).toBe("duplicate");
-    expect(store.verifyCount).toBe(1);
+    expect(store.gate.stats.count).toBe(1);
   });
 
   it("同じ著者の別の妥当な署名による重複配送は、検証してから受け入れる", () => {
@@ -291,7 +291,7 @@ describe("EventStore", () => {
     };
     expect(resigned.sig).not.toBe(event.sig);
     expect(store.put(resigned, "wss://b/")).toBe("duplicate");
-    expect(store.verifyCount).toBe(2);
+    expect(store.gate.stats.count).toBe(2);
     expect(store.fetchedAt(event.id)).toBe(8_000);
     expect(store.seenRelays(event.id)).toEqual(["wss://a/", "wss://b/"]);
     // 保存済みのイベントは差し替えない
@@ -472,12 +472,12 @@ describe("EventStore.hydrate", () => {
     expect(store.get(forged.id)).toEqual(forged);
   });
 
-  it("verifyCount を増やさない", () => {
-    // 捕まえる変異: hydrate 内で verifyEvent を呼ぶ (verifyMs/verifyCount が水和で不当に膨らまないことの確認)。
+  it("検証の回数を増やさない", () => {
+    // 捕まえる変異: hydrate 内で verifyEvent を呼ぶ (検証の回数と時間が水和で不当に膨らまないことの確認)。
     const store = new EventStore();
     store.hydrate([{ event: validEvent, seenRelays: [], fetchedAt: 1 }]);
 
-    expect(store.verifyCount).toBe(0);
+    expect(store.gate.stats.count).toBe(0);
   });
 
   it("fetchedAt は引数の値になる (現在時刻ではない)", () => {

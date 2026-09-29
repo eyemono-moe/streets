@@ -90,8 +90,8 @@ export const warmUpRouting = async ({
       if (anchor) anchors.set(url, anchor);
     }
 
-    // ① フォローリスト。表示専用の内訳計測なので、event-store.ts の
-    // verifyMs と同じ理由で performance.now() を直に呼ぶ (`Scheduler` は
+    // ① フォローリスト。表示専用の内訳計測なので、signature-gate.ts の
+    // 検証時間と同じ理由で performance.now() を直に呼ぶ (`Scheduler` は
     // 分岐を決定的に進めるためのもので、時刻取得一般は禁じていない)。
     const phase1Relays: RelaySettle[] = [];
     const phase2Relays: RelaySettle[] = [];
