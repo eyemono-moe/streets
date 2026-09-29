@@ -41,6 +41,22 @@ export const waitForNip07 = async (
 };
 
 /**
+ * `waitForNip07` の期限を過ぎてから現れた拡張機能に気づくため、見つかるまで確かめ続ける。
+ * 返した関数で止める。見つかったときは自分で止まる。
+ */
+export const watchForNip07 = (
+  onAvailable: () => void,
+  intervalMs = 1_000,
+): (() => void) => {
+  const timer = setInterval(() => {
+    if (!isNip07Available()) return;
+    clearInterval(timer);
+    onAvailable();
+  }, intervalMs);
+  return () => clearInterval(timer);
+};
+
+/**
  * NIP-07 拡張を `Signer` に合わせる。生成時に `window.nostr` を掴まない
  * のは、後から注入された拡張を永久に見失わないため（呼び出しのたびに読み直す）。
  */
