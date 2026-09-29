@@ -20,36 +20,39 @@ const ThreadSpineView: Component<{
         このスレッドの上の方は取得できませんでした。
       </p>
     </Show>
-    <For each={props.spine.ancestors}>
-      {(event: NostrEvent, index) => (
-        <Event
-          event={event}
-          size="compact"
-          expandMedia={props.expandMedia}
-          stickyAvatar
-          // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
-          threadLine={
-            index() === 0 && props.spine.reachedRoot ? "below" : "both"
-          }
-        />
-      )}
-    </For>
-    <Show
-      when={props.spine.focus}
-      fallback={
-        <p class="c-secondary bg-primary p-4 text-caption">読み込み中…</p>
-      }
-    >
-      {(focus) => (
-        <Event
-          event={focus()}
-          size="normal"
-          expandMedia={props.expandMedia}
-          stickyAvatar
-          threadLine={props.spine.ancestors.length > 0 ? "above" : undefined}
-        />
-      )}
-    </Show>
+    {/* 祖先から焦点までは線でつながる 1 本なので、間に区切りを引かない。タイムラインで返信先を上に置くときと同じ見え方にする。 */}
+    <div class="flex flex-col">
+      <For each={props.spine.ancestors}>
+        {(event: NostrEvent, index) => (
+          <Event
+            event={event}
+            size="compact"
+            expandMedia={props.expandMedia}
+            stickyAvatar
+            // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
+            threadLine={
+              index() === 0 && props.spine.reachedRoot ? "below" : "both"
+            }
+          />
+        )}
+      </For>
+      <Show
+        when={props.spine.focus}
+        fallback={
+          <p class="c-secondary bg-primary p-4 text-caption">読み込み中…</p>
+        }
+      >
+        {(focus) => (
+          <Event
+            event={focus()}
+            size="normal"
+            expandMedia={props.expandMedia}
+            stickyAvatar
+            threadLine={props.spine.ancestors.length > 0 ? "above" : undefined}
+          />
+        )}
+      </Show>
+    </div>
     <For each={props.spine.replies}>
       {(event) => (
         <Event event={event} size="compact" expandMedia={props.expandMedia} />
