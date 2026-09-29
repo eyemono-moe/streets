@@ -1,5 +1,5 @@
 /** サイドバーから開くパネル。 */
-export type DeckPanel = "compose" | "add-column" | "search";
+export type DeckPanel = "compose" | "add-column" | "search" | "arrange";
 
 /**
  * デッキの画面の状態のうち、保存しないもの。カラムの並びや設定はデッキ（NIP-78）に
@@ -11,8 +11,8 @@ export type DeckUiState = {
   settingsFor: string | undefined;
   /** 狭い画面で選んでいるタブ。一時カラムは `TEMP_COLUMN_ID`。 */
   active: string | undefined;
-  /** 並べ替えのために掴んでいるカラム。 */
-  dragging: string | undefined;
+  /** 並べ替えのために掴んでいるカラムと、いま離したら入る位置。 */
+  dragging: { id: string; to: number } | undefined;
   /** 設定のダイアログを開いているか。 */
   settingsOpen: boolean;
   /** 「Streets について」のダイアログを開いているか。 */
@@ -30,8 +30,11 @@ export type DeckUiEvent =
   | { type: "deck/close-about" }
   | { type: "deck/select-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
-  | { type: "deck/drag-start"; id: string }
-  /** 離した（どこかへ落とした・外で離した）。 */
+  /** 掴んだ。`index` は掴んだカラムの今の位置。 */
+  | { type: "deck/drag-start"; id: string; index: number }
+  /** 動かしていて、離したら入る位置が変わった。 */
+  | { type: "deck/drag-move"; to: number }
+  /** 離した・やめた。並びを確定するのは、この遷移の外（デッキの保存）。 */
   | { type: "deck/drag-end" }
   | { type: "deck/column-added"; id: string }
   | { type: "deck/column-removed"; id: string }
@@ -94,7 +97,11 @@ export const deckUiTransition = (
         settingsFor: state.settingsFor === event.id ? undefined : event.id,
       };
     case "deck/drag-start":
-      return { ...state, dragging: event.id };
+      return { ...state, dragging: { id: event.id, to: event.index } };
+    case "deck/drag-move":
+      return state.dragging === undefined || state.dragging.to === event.to
+        ? state
+        : { ...state, dragging: { ...state.dragging, to: event.to } };
     case "deck/drag-end":
       return state.dragging === undefined
         ? state
@@ -107,7 +114,7 @@ export const deckUiTransition = (
         ...state,
         settingsFor:
           state.settingsFor === event.id ? undefined : state.settingsFor,
-        dragging: state.dragging === event.id ? undefined : state.dragging,
+        dragging: state.dragging?.id === event.id ? undefined : state.dragging,
       };
     case "deck/columns-changed": {
       // URL から開いたら、それを選ぶ。消えたカラムを選んだままにしない。
