@@ -1,0 +1,66 @@
+# PR ごとに、main とこの PR の両方をビルドして JS・CSS の大きさを比べ、PR にコメントで知らせる。
+# 合否は付けない。起動時に読む量が増えたら、レビューで理由を確かめる。
+# 比べ方は scripts/bundle-size.mjs。
+name: Bundle size
+
+on:
+  pull_request:
+
+concurrency:
+  group: bundle-size-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # DSN が無いと Sentry の SDK を読み込む処理ごとビルドから消え、本番と中身が変わる。
+  # 送り先としては使わない（ビルドだけで、動かさない）。
+  VITE_SENTRY_DSN: https://public@example.invalid/0
+  VITE_SENTRY_ENV: production
+
+jobs:
+  compare:
+    name: Compare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup
+      - name: この PR をビルドして測る
+        run: |
+          vp run build
+          node scripts/bundle-size.mjs measure apps/web/dist > "$RUNNER_TEMP/head.json"
+      # 測る処理はこの PR の版を使う。main の版がまだ無くても比べられるように。
+      - name: main をビルドして測る
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add "$RUNNER_TEMP/base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/base"
+          vp install
+          vp run build
+          node "$GITHUB_WORKSPACE/scripts/bundle-size.mjs" measure apps/web/dist > "$RUNNER_TEMP/base.json"
+      - name: 比べる
+        run: |
+          node scripts/bundle-size.mjs compare "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/head.json" \
+            "<!-- streets-bundle-size -->" > "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/comment.md" >> "$GITHUB_STEP_SUMMARY"
+      # fork からの PR はコメントを書けないので、ジョブの要約だけに出す。
+      - name: PR に知らせる
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          marker="<!-- streets-bundle-size -->"
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq "map(select(.body | startswith(\"$marker\"))) | first | .id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" \
+              -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          else
+            gh pr comment "$PR" --body-file "$RUNNER_TEMP/comment.md"
+          fi
