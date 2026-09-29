@@ -27,7 +27,7 @@ const Row: Component<{
   return (
     <li
       data-arrange-id={props.column.id}
-      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] data-[dragging]:z-1 data-[dragging]:shadow-lg"
+      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:bg-accent-50 data-[dragging]:shadow-lg data-[dragging]:ring-1 data-[dragging]:ring-accent-5 dark:data-[dragging]:bg-accent-950"
       style={{ order: props.position }}
       onPointerDown={(event) => props.onGrab(event, false)}
     >
@@ -118,7 +118,7 @@ const ColumnArrangePanel: Component<{
         }
       >
         <p class="c-secondary mb-3 text-caption">
-          行を掴んで上下に動かすと、カラムの並びが変わります。タッチでは、行を長押しするか右端のつまみを掴みます。
+          行を掴んで上下に動かすと、カラムの並びが変わります。
         </p>
         {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
         <ol class="relative m-0 flex list-none flex-col gap-1.5 p-0" ref={list}>

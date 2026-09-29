@@ -166,7 +166,7 @@ const WideStrip = (props: {
         {(column) => (
           <div
             data-column-id={column.id}
-            class="h-full w-80 shrink-0 border-primary border-r bg-primary data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
+            class="h-full w-80 shrink-0 border-primary border-r bg-primary data-[dragging]:z-1 data-[dragging]:outline data-[dragging]:outline-2 data-[dragging]:outline-accent-5 data-[dragging]:-outline-offset-2 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)]"
             style={{ order: order.indexOf(column.id) }}
           >
             <ColumnHeader
