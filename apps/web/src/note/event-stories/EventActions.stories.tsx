@@ -137,3 +137,62 @@ export const 書き込みに失敗する: Story = {
 export const ログインしていない: Story = {
   args: { event: plain, scene: { events: [...profiles, plain] } },
 };
+
+/**
+ * メニューにしかなかった操作も欄に出せる。ミュートの一覧を読む段が無いので、
+ * ここではミュートは押せない見た目になる。
+ */
+export const 欄にメニューの操作を出す: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    actionLayout: {
+      bar: ["reply", "like", "activity", "copy-link", "details", "mute-event"],
+      menu: ["repost", "react", "zap", "bookmark"],
+    },
+  },
+};
+
+/** 欄の数が少ないとき。欄から外した操作は右上のメニューに入る。 */
+export const 欄の操作が少ない: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    actionLayout: {
+      bar: ["reply", "like"],
+      menu: [
+        "repost",
+        "react",
+        "zap",
+        "bookmark",
+        "activity",
+        "copy-link",
+        "details",
+        "mute-event",
+      ],
+    },
+  },
+};
+
+/** 欄に何も出さない。本文の下に空の行を残さない。 */
+export const 欄に何も出さない: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    actionLayout: {
+      bar: [],
+      menu: [
+        "reply",
+        "repost",
+        "like",
+        "react",
+        "zap",
+        "bookmark",
+        "activity",
+        "copy-link",
+        "details",
+        "mute-event",
+      ],
+    },
+  },
+};

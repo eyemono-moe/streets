@@ -1,21 +1,33 @@
 import { Menu } from "@ark-ui/solid/menu";
-import { buildActivityColumn } from "@streets/core/deck/column-presets";
-import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type EventActionId,
+  menuActionsOf,
+} from "@streets/core/settings/action-layout";
+import { zapEndpointOf } from "@streets/core/zap/lnurl";
+import { type Component, For, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useEventActions } from "../actions";
+import { actionLayout } from "../action-layout-setting";
+import { type EventActions, useEventActions } from "../actions";
+import { useSending } from "../actions-mediator";
+import { defaultReaction } from "../default-reaction-setting";
+import ReactionPicker from "../emoji/ReactionPicker";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
+import {
+  EVENT_ACTION_META,
+  createEventDialogs,
+  muteEventLook,
+  reactionLabel,
+  useEngagements,
+  useEventLevelOps,
+} from "./event-ops";
 import { ProfileName, ProfileText } from "./Name";
 import { useProfileDetails } from "./use-profile";
-
-const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
 
 const AuthorRelaysDialog = lazyPart(
   () => import("../profile/AuthorRelaysDialog"),
@@ -31,24 +43,6 @@ type MenuItem = {
   /** まだ作っていない操作。押せる見た目にすると壊れて見えるので出さない。 */
   todo?: boolean;
 };
-
-const EVENT_ITEMS: MenuItem[] = [
-  {
-    value: "activity",
-    label: "アクティビティを見る",
-    icon: "i-material-symbols:monitoring-rounded",
-  },
-  {
-    value: "copy-link",
-    label: "リンクをコピー",
-    icon: "i-material-symbols:link-rounded",
-  },
-  {
-    value: "details",
-    label: "詳細（JSON・リレー）",
-    icon: "i-material-symbols:code-rounded",
-  },
-];
 
 const AUTHOR_ITEMS: MenuItem[] = [
   {
@@ -95,48 +89,141 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
 );
 
 /**
- * 投稿の右上のメニュー。kind によらず出せる操作を置く。
+ * 「このイベント」の項目。アクション欄に出していない操作を、設定の順に並べる。
+ * 数や済みの状態を読むので、メニューを開いている間だけ作る。
+ */
+const EventItems: Component<{
+  event: NostrEvent;
+  ids: readonly EventActionId[];
+  actions: EventActions | undefined;
+  muted: boolean;
+  canMute: boolean;
+}> = (props) => {
+  const engagement = props.actions
+    ? useEngagements(() => props.event, props.actions.viewer)
+    : undefined;
+  const reposting = useSending(() => ({
+    type: "note/repost",
+    target: props.event,
+  }));
+  const liking = useSending(() => ({
+    type: "note/react",
+    target: props.event,
+    input: defaultReaction(),
+  }));
+  const bookmarked = () => props.actions?.bookmarked(props.event.id) ?? false;
+  const bookmarking = useSending(() => ({
+    type: "note/bookmark",
+    target: props.event,
+    on: !bookmarked(),
+  }));
+  const author = useProfileDetails(() => props.event.pubkey);
+  const itemsOf = (id: EventActionId): MenuItem[] => {
+    const meta = EVENT_ACTION_META[id];
+    switch (id) {
+      case "reply":
+      case "react":
+      case "activity":
+      case "copy-link":
+      case "details":
+        return [{ value: id, ...meta }];
+      case "repost": {
+        const reposted = engagement?.().viewerReposted ?? false;
+        return [
+          {
+            value: "repost",
+            label: reposted ? "リポスト済み" : "リポスト",
+            icon: meta.icon,
+            todo: reposted || reposting(),
+          },
+          {
+            value: "quote",
+            label: "引用",
+            icon: "i-material-symbols:format-quote-rounded",
+          },
+        ];
+      }
+      case "like": {
+        const reacted = engagement?.().viewerReacted ?? false;
+        return [
+          {
+            value: id,
+            label: `${reactionLabel(defaultReaction())}${reacted ? "（済み）" : ""}`,
+            icon: meta.icon,
+            todo: reacted || liking(),
+          },
+        ];
+      }
+      case "zap": {
+        // 送り先（lud16 / lud06）を書いている人にだけ送れる。
+        const zappable = zapEndpointOf(author()?.content) !== undefined;
+        return [
+          {
+            value: id,
+            label: zappable ? "Zap する" : "この人は Zap を受け取れません",
+            icon: meta.icon,
+            todo: !zappable,
+          },
+        ];
+      }
+      case "bookmark":
+        return [
+          {
+            value: id,
+            label: bookmarked() ? "ブックマークを外す" : "ブックマーク",
+            icon: bookmarked()
+              ? "i-material-symbols:bookmark-rounded"
+              : meta.icon,
+            todo: bookmarking(),
+          },
+        ];
+      case "mute-event":
+        return [
+          { value: id, ...muteEventLook(props.muted), todo: !props.canMute },
+        ];
+    }
+  };
+  return <Items items={props.ids.flatMap(itemsOf)} />;
+};
+
+/**
+ * 投稿の右上のメニュー。kind によらず出せる操作と、アクション欄に出していない操作を置く。
  * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
  */
-const EventMenu: Component<{ event: NostrEvent }> = (props) => {
+const EventMenu: Component<{
+  event: NostrEvent;
+  /** この投稿にアクション欄があるか。無ければ、欄に入る操作はメニューにも出さない。 */
+  withActions?: boolean;
+}> = (props) => {
   const profileDetails = useProfileDetails(() => props.event.pubkey);
   const profile = () => profileDetails()?.profile;
   const dispatch = useDispatch();
   const mutes = useMutes();
   const lists = useFollowSets();
-  const viewer = useEventActions()?.viewer;
+  const actions = useEventActions();
+  const viewer = actions?.viewer;
   const mine = () => props.event.pubkey === viewer;
-  // ミュートは今の状態で出し分ける。スレッドやその人のページでは、ミュートした
-  // 投稿も出ているので、そこから解除できるようにする。
-  const mutedEntry = (target: MuteTarget) =>
-    mutes
-      ?.entries()
-      .find(
-        (entry) =>
-          entry.target.type === target.type &&
-          entry.target.value === target.value,
-      );
-  const threadTarget = () => threadMuteTarget(props.event);
+  const ops = useEventLevelOps(() => props.event);
+  const dialogs = createEventDialogs(() => props.event);
+  const [picking, setPicking] = createSignal(false);
+  let trigger: HTMLElement | undefined;
+  const eventIds = () =>
+    menuActionsOf(
+      actionLayout(),
+      props.withActions === true && actions !== undefined,
+    );
   const authorTarget = (): MuteTarget => ({
     type: "pubkey",
     value: props.event.pubkey,
   });
-  const eventItems = (): MenuItem[] => {
-    const muted = mutedEntry(threadTarget()) !== undefined;
-    return [
-      ...EVENT_ITEMS,
-      {
-        value: "mute-event",
-        label: muted
-          ? "このイベントのミュートを解除"
-          : "このイベントをミュート",
-        icon: muted
-          ? "i-material-symbols:volume-up-outline-rounded"
-          : "i-material-symbols:volume-off-outline-rounded",
-        todo: mutes === undefined,
-      },
-    ];
-  };
+  const authorMuteEntry = () =>
+    mutes
+      ?.entries()
+      .find(
+        (entry) =>
+          entry.target.type === "pubkey" &&
+          entry.target.value === props.event.pubkey,
+      );
   const authorItems = (): MenuItem[] => {
     const [follow, ...rest] = AUTHOR_ITEMS;
     // 自分もリストに入れられる（自分の投稿もそのリストのカラムに流したいことがある）。
@@ -148,7 +235,7 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
     };
     // 自分をミュートしても、自分の投稿は隠さない。押せても意味が無いので出さない。
     if (mine()) return [...(follow ? [follow] : []), addToList, ...rest];
-    const muted = mutedEntry(authorTarget()) !== undefined;
+    const muted = authorMuteEntry() !== undefined;
     return [
       ...(follow ? [follow] : []),
       addToList,
@@ -163,36 +250,16 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
       ...rest,
     ];
   };
-  const toggleMute = (target: MuteTarget) => {
-    const entry = mutedEntry(target);
+  const toggleAuthorMute = () => {
+    const entry = authorMuteEntry();
     dispatch(
-      entry ? { type: "mutes/remove", entry } : { type: "mutes/add", target },
+      entry
+        ? { type: "mutes/remove", entry }
+        : { type: "mutes/add", target: authorTarget() },
     );
   };
-  const [details, setDetails] = createSignal(false);
   const [authorRelays, setAuthorRelays] = createSignal(false);
   const [addingToList, setAddingToList] = createSignal(false);
-  const [notice, setNotice] = createSignal<string>();
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(timer));
-
-  const flash = (message: string) => {
-    setNotice(message);
-    clearTimeout(timer);
-    timer = setTimeout(() => setNotice(undefined), 3000);
-  };
-
-  const copyLink = async () => {
-    // TLV を持つ `nevent` の符号化器がまだ無いので、id だけの `note` で参照する。
-    const uri = `nostr:${encodeBech32("note", props.event.id)}`;
-    try {
-      await navigator.clipboard.writeText(uri);
-      flash("リンクをコピーしました");
-    } catch {
-      // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。
-      flash("コピーできませんでした");
-    }
-  };
 
   return (
     <span class="relative shrink-0">
@@ -204,24 +271,63 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
         lazyMount
         unmountOnExit
         onSelect={(details) => {
-          if (details.value === "activity") {
-            dispatch({
-              type: "stack/open",
-              column: buildActivityColumn(props.event.id),
-            });
+          switch (details.value) {
+            case "reply":
+            case "quote":
+            case "details":
+              dialogs.open(details.value);
+              break;
+            case "repost":
+              dispatch({ type: "note/repost", target: props.event });
+              break;
+            case "like":
+              dispatch({
+                type: "note/react",
+                target: props.event,
+                input: defaultReaction(),
+              });
+              break;
+            case "react":
+              setPicking(true);
+              break;
+            case "zap":
+              dispatch({ type: "zap/open", target: props.event });
+              break;
+            case "bookmark":
+              dispatch({
+                type: "note/bookmark",
+                target: props.event,
+                on: !(actions?.bookmarked(props.event.id) ?? false),
+              });
+              break;
+            case "activity":
+              ops.activity();
+              break;
+            case "copy-link":
+              void ops.copyLink();
+              break;
+            case "mute-event":
+              ops.toggleMute();
+              break;
+            case "author-relays":
+              setAuthorRelays(true);
+              break;
+            case "add-to-list":
+              setAddingToList(true);
+              break;
+            case "mute-author":
+              toggleAuthorMute();
+              break;
           }
-          if (details.value === "copy-link") void copyLink();
-          if (details.value === "details") setDetails(true);
-          if (details.value === "author-relays") setAuthorRelays(true);
-          if (details.value === "add-to-list") setAddingToList(true);
-          if (details.value === "mute-event") toggleMute(threadTarget());
-          if (details.value === "mute-author") toggleMute(authorTarget());
         }}
       >
         <Menu.Trigger
-          asChild={(trigger) => (
+          asChild={(triggerProps) => (
             <IconButton
-              {...trigger()}
+              {...triggerProps()}
+              ref={(el: HTMLElement) => {
+                trigger = el;
+              }}
               icon="i-material-symbols:more-vert"
               label="この投稿の操作"
             />
@@ -234,7 +340,13 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
                 <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">
                   このイベント
                 </Menu.ItemGroupLabel>
-                <Items items={eventItems()} />
+                <EventItems
+                  event={props.event}
+                  ids={eventIds()}
+                  actions={actions}
+                  muted={ops.muted()}
+                  canMute={ops.canMute}
+                />
               </Menu.ItemGroup>
               <Menu.Separator class="border-primary border-t" />
               <Menu.ItemGroup>
@@ -262,19 +374,16 @@ const EventMenu: Component<{ event: NostrEvent }> = (props) => {
           </Menu.Positioner>
         </Portal>
       </Menu.Root>
-      <Show when={notice()}>
-        {(message) => (
-          <output class="c-secondary absolute top-full right-0 z-10 whitespace-nowrap rounded-1.5 border border-primary bg-primary px-2 py-0.5 text-caption">
-            {message()}
-          </output>
-        )}
-      </Show>
-      <Show when={details()}>
-        <EventDetailsDialog
-          event={props.event}
-          onClose={() => setDetails(false)}
+      {/* アクション欄に絵文字の開き口を出していないときは、このメニューの位置に開く。 */}
+      <Show when={picking()}>
+        <ReactionPicker
+          target={props.event}
+          anchor={() => trigger}
+          open={picking()}
+          onOpenChange={setPicking}
         />
       </Show>
+      {dialogs.view}
       <Show when={authorRelays()}>
         <AuthorRelaysDialog
           pubkey={props.event.pubkey}

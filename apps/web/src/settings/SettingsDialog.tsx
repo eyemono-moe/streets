@@ -3,6 +3,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { Keymap } from "@streets/core/settings/keymap";
 import { type Component, createEffect, createSignal, on } from "solid-js";
+import { actionLayout } from "../action-layout-setting";
 import { contentWarningMode } from "../content-warning-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
@@ -122,6 +123,7 @@ const SettingsDialog: Component<{
           writeProgress={props.writeProgress}
           errorReport={props.errorReport}
           contentWarning={contentWarningMode()}
+          actionLayout={actionLayout()}
         />
       ),
     },

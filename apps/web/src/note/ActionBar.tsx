@@ -1,48 +1,25 @@
 import { Menu } from "@ark-ui/solid/menu";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { reactionContentOf } from "@streets/core/settings/default-reaction";
-import { eventEngagements } from "@streets/core/view/event-engagements";
+import type { EventActionId } from "@streets/core/settings/action-layout";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
-import {
-  type Component,
-  type JSX,
-  Show,
-  createMemo,
-  createSignal,
-} from "solid-js";
+import { type Component, For, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
+import { actionLayout } from "../action-layout-setting";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
-import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
-import { ComposeMediator } from "./ComposeMediator";
-import QuoteDialog from "./QuoteDialog";
+import {
+  EVENT_ACTION_META,
+  createEventDialogs,
+  muteEventLook,
+  reactionLabel,
+  useEngagements,
+  useEventLevelOps,
+} from "./event-ops";
 import ReactionButtonMark from "./ReactionButtonMark";
-import ReplyDialog from "./ReplyDialog";
-import { useEngagementChanges } from "./use-engagement-changes";
 import { useProfileDetails } from "./use-profile";
-
-const useEngagements = (event: () => NostrEvent, viewer: string) => {
-  const { store } = useReadLayer();
-  const changed = useEngagementChanges(() => event().id);
-  return createMemo(() => {
-    changed();
-    return eventEngagements(
-      store,
-      event().id,
-      viewer,
-      reactionContentOf(defaultReaction()),
-    );
-  });
-};
-
-const reactionLabel = (input: ReactionInput): string =>
-  input.type === "like"
-    ? "いいね"
-    : `${input.type === "text" ? input.content : `:${input.shortcode}:`} でリアクション`;
 
 const Action: Component<{
   label: string;
@@ -82,15 +59,16 @@ const Action: Component<{
   </button>
 );
 
+/** 投稿の下の操作。並べるものと順は、表示の設定で選ぶ（残りは右上のメニューに入る）。 */
 const ActionBar: Component<{ event: NostrEvent }> = (props) => {
   const actions = useEventActions();
 
   return (
-    <Show when={actions}>
+    <Show when={actions && actionLayout().bar.length > 0 && actions}>
       {(actions) => {
         const engagement = useEngagements(() => props.event, actions().viewer);
-        const [replyOpen, setReplyOpen] = createSignal(false);
-        const [quoteOpen, setQuoteOpen] = createSignal(false);
+        const dialogs = createEventDialogs(() => props.event);
+        const ops = useEventLevelOps(() => props.event);
         const dispatch = useDispatch();
         const bookmarked = () => actions().bookmarked(props.event.id);
         const repost = () =>
@@ -114,161 +92,170 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
         const author = useProfileDetails(() => props.event.pubkey);
         const zappable = () => zapEndpointOf(author()?.content) !== undefined;
 
+        const views: Record<EventActionId, () => JSX.Element> = {
+          reply: () => (
+            <Action
+              label="返信"
+              icon={EVENT_ACTION_META.reply.icon}
+              count={engagement().replies}
+              onClick={() => dialogs.open("reply")}
+            />
+          ),
+          repost: () => (
+            <Menu.Root
+              lazyMount
+              unmountOnExit
+              onSelect={(details) => {
+                if (details.value === "repost") dispatch(repost());
+                if (details.value === "quote") dialogs.open("quote");
+              }}
+            >
+              <Menu.Trigger
+                aria-label={
+                  engagement().viewerReposted ? "リポスト済み" : "リポスト"
+                }
+                aria-pressed={engagement().viewerReposted}
+                class="flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                classList={{
+                  "c-secondary hover:c-primary": !engagement().viewerReposted,
+                  "c-accent-5": engagement().viewerReposted,
+                }}
+              >
+                <span
+                  class="i-material-symbols:repeat-rounded size-4.5"
+                  aria-hidden="true"
+                />
+                <Show when={engagement().reposts}>
+                  {(count) => <span>{count()}</span>}
+                </Show>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+                    <Menu.Item
+                      value="repost"
+                      disabled={reposting() || engagement().viewerReposted}
+                      class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+                    >
+                      <span
+                        class="i-material-symbols:repeat-rounded size-4.5"
+                        aria-hidden="true"
+                      />
+                      <span>
+                        {engagement().viewerReposted
+                          ? "リポスト済み"
+                          : "リポスト"}
+                      </span>
+                    </Menu.Item>
+                    <Menu.Item
+                      value="quote"
+                      class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+                    >
+                      <span
+                        class="i-material-symbols:format-quote-rounded size-4.5"
+                        aria-hidden="true"
+                      />
+                      <span>引用</span>
+                    </Menu.Item>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
+          ),
+          like: () => (
+            <Action
+              label={`${reactionLabel(defaultReaction())}${engagement().viewerReacted ? "（済み）" : ""}`}
+              mark={
+                <ReactionButtonMark
+                  input={defaultReaction()}
+                  active={engagement().viewerReacted}
+                />
+              }
+              active={engagement().viewerReacted}
+              filled={defaultReaction().type !== "like"}
+              disabled={liking() || engagement().viewerReacted}
+              onClick={() => dispatch(like())}
+            />
+          ),
+          react: () => (
+            <ReactionPicker
+              target={props.event}
+              trigger={(triggerProps) => (
+                <button
+                  {...triggerProps()}
+                  type="button"
+                  aria-label="リアクション"
+                  class="c-secondary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
+                >
+                  <span
+                    class={`${EVENT_ACTION_META.react.icon} size-4.5`}
+                    aria-hidden="true"
+                  />
+                </button>
+              )}
+            />
+          ),
+          zap: () => (
+            <Action
+              label={zappable() ? "Zap する" : "この人は Zap を受け取れません"}
+              icon={EVENT_ACTION_META.zap.icon}
+              disabled={!zappable()}
+              onClick={() =>
+                dispatch({ type: "zap/open", target: props.event })
+              }
+            />
+          ),
+          bookmark: () => (
+            <Action
+              label={bookmarked() ? "ブックマークを外す" : "ブックマーク"}
+              icon={
+                bookmarked()
+                  ? "i-material-symbols:bookmark-rounded"
+                  : EVENT_ACTION_META.bookmark.icon
+              }
+              active={bookmarked()}
+              disabled={bookmarking()}
+              onClick={() => dispatch(bookmark())}
+            />
+          ),
+          activity: () => (
+            <Action
+              label={EVENT_ACTION_META.activity.label}
+              icon={EVENT_ACTION_META.activity.icon}
+              onClick={ops.activity}
+            />
+          ),
+          "copy-link": () => (
+            <Action
+              label={EVENT_ACTION_META["copy-link"].label}
+              icon={EVENT_ACTION_META["copy-link"].icon}
+              onClick={() => void ops.copyLink()}
+            />
+          ),
+          details: () => (
+            <Action
+              label={EVENT_ACTION_META.details.label}
+              icon={EVENT_ACTION_META.details.icon}
+              onClick={() => dialogs.open("details")}
+            />
+          ),
+          "mute-event": () => (
+            <Action
+              label={muteEventLook(ops.muted()).label}
+              icon={muteEventLook(ops.muted()).icon}
+              active={ops.muted()}
+              disabled={!ops.canMute}
+              onClick={ops.toggleMute}
+            />
+          ),
+        };
+
         return (
           <>
             <div class="flex items-center justify-between">
-              <Action
-                label="返信"
-                icon="i-material-symbols:mode-comment-outline-rounded"
-                count={engagement().replies}
-                onClick={() => setReplyOpen(true)}
-              />
-              <Menu.Root
-                lazyMount
-                unmountOnExit
-                onSelect={(details) => {
-                  if (details.value === "repost") dispatch(repost());
-                  if (details.value === "quote") setQuoteOpen(true);
-                }}
-              >
-                <Menu.Trigger
-                  aria-label={
-                    engagement().viewerReposted ? "リポスト済み" : "リポスト"
-                  }
-                  aria-pressed={engagement().viewerReposted}
-                  class="flex cursor-pointer items-center gap-1 bg-transparent text-caption"
-                  classList={{
-                    "c-secondary hover:c-primary": !engagement().viewerReposted,
-                    "c-accent-5": engagement().viewerReposted,
-                  }}
-                >
-                  <span
-                    class="i-material-symbols:repeat-rounded size-4.5"
-                    aria-hidden="true"
-                  />
-                  <Show when={engagement().reposts}>
-                    {(count) => <span>{count()}</span>}
-                  </Show>
-                </Menu.Trigger>
-                <Portal>
-                  <Menu.Positioner>
-                    <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
-                      <Menu.Item
-                        value="repost"
-                        disabled={reposting() || engagement().viewerReposted}
-                        class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
-                      >
-                        <span
-                          class="i-material-symbols:repeat-rounded size-4.5"
-                          aria-hidden="true"
-                        />
-                        <span>
-                          {engagement().viewerReposted
-                            ? "リポスト済み"
-                            : "リポスト"}
-                        </span>
-                      </Menu.Item>
-                      <Menu.Item
-                        value="quote"
-                        class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
-                      >
-                        <span
-                          class="i-material-symbols:format-quote-rounded size-4.5"
-                          aria-hidden="true"
-                        />
-                        <span>引用</span>
-                      </Menu.Item>
-                    </Menu.Content>
-                  </Menu.Positioner>
-                </Portal>
-              </Menu.Root>
-              <Action
-                label={`${reactionLabel(defaultReaction())}${engagement().viewerReacted ? "（済み）" : ""}`}
-                mark={
-                  <ReactionButtonMark
-                    input={defaultReaction()}
-                    active={engagement().viewerReacted}
-                  />
-                }
-                active={engagement().viewerReacted}
-                filled={defaultReaction().type !== "like"}
-                disabled={liking() || engagement().viewerReacted}
-                onClick={() => dispatch(like())}
-              />
-              <ReactionPicker
-                target={props.event}
-                trigger={(triggerProps) => (
-                  <button
-                    {...triggerProps()}
-                    type="button"
-                    aria-label="リアクション"
-                    class="c-secondary hover:c-primary flex cursor-pointer items-center gap-1 bg-transparent text-caption"
-                  >
-                    <span
-                      class="i-material-symbols:add-reaction-outline-rounded size-4.5"
-                      aria-hidden="true"
-                    />
-                  </button>
-                )}
-              />
-              <Action
-                label={
-                  zappable() ? "Zap する" : "この人は Zap を受け取れません"
-                }
-                icon="i-material-symbols:bolt-outline-rounded"
-                disabled={!zappable()}
-                onClick={() =>
-                  dispatch({ type: "zap/open", target: props.event })
-                }
-              />
-              <Action
-                label={bookmarked() ? "ブックマークを外す" : "ブックマーク"}
-                icon={
-                  bookmarked()
-                    ? "i-material-symbols:bookmark-rounded"
-                    : "i-material-symbols:bookmark-outline-rounded"
-                }
-                active={bookmarked()}
-                disabled={bookmarking()}
-                onClick={() => dispatch(bookmark())}
-              />
+              <For each={actionLayout().bar}>{(id) => views[id]()}</For>
             </div>
-            <Show when={replyOpen()}>
-              <ComposeMediator
-                send={(text, media, emoji, contentWarning) =>
-                  actions().reply(
-                    props.event,
-                    text,
-                    media,
-                    emoji,
-                    contentWarning,
-                  )
-                }
-                failure="返信できませんでした"
-                onSent={() => setReplyOpen(false)}
-                onClose={() => setReplyOpen(false)}
-              >
-                {(state) => <ReplyDialog target={props.event} state={state} />}
-              </ComposeMediator>
-            </Show>
-            <Show when={quoteOpen()}>
-              <ComposeMediator
-                send={(text, media, emoji, contentWarning) =>
-                  actions().quote(
-                    props.event,
-                    text,
-                    media,
-                    emoji,
-                    contentWarning,
-                  )
-                }
-                failure="引用できませんでした"
-                onSent={() => setQuoteOpen(false)}
-                onClose={() => setQuoteOpen(false)}
-              >
-                {(state) => <QuoteDialog target={props.event} state={state} />}
-              </ComposeMediator>
-            </Show>
+            {dialogs.view}
           </>
         );
       }}

@@ -1,0 +1,191 @@
+import { buildActivityColumn } from "@streets/core/deck/column-presets";
+import { threadMuteTarget } from "@streets/core/moderation/mute-list";
+import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { NostrEvent } from "@streets/core/nostr/event";
+import { encodeBech32 } from "@streets/core/nostr/nip19";
+import type { EventActionId } from "@streets/core/settings/action-layout";
+import { reactionContentOf } from "@streets/core/settings/default-reaction";
+import { eventEngagements } from "@streets/core/view/event-engagements";
+import { type JSX, Match, Switch, createMemo, createSignal } from "solid-js";
+import { useEventActions } from "../actions";
+import { defaultReaction } from "../default-reaction-setting";
+import { lazyPart } from "../lazy-part";
+import { useReadLayer } from "../read-layer";
+import { useMutes } from "../settings/MuteMediator";
+import { notifyError, notifySuccess } from "../toast";
+import { useDispatch } from "../ui-events";
+import { ComposeMediator } from "./ComposeMediator";
+import QuoteDialog from "./QuoteDialog";
+import ReplyDialog from "./ReplyDialog";
+import { useEngagementChanges } from "./use-engagement-changes";
+
+const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
+
+/** 設定の画面で、操作を見分けるための名前とアイコン。 */
+export const EVENT_ACTION_META: Record<
+  EventActionId,
+  { label: string; icon: string }
+> = {
+  reply: {
+    label: "返信",
+    icon: "i-material-symbols:mode-comment-outline-rounded",
+  },
+  repost: {
+    label: "リポスト・引用",
+    icon: "i-material-symbols:repeat-rounded",
+  },
+  like: {
+    label: "いいね",
+    icon: "i-material-symbols:favorite-outline-rounded",
+  },
+  react: {
+    label: "絵文字でリアクション",
+    icon: "i-material-symbols:add-reaction-outline-rounded",
+  },
+  zap: { label: "Zap", icon: "i-material-symbols:bolt-outline-rounded" },
+  bookmark: {
+    label: "ブックマーク",
+    icon: "i-material-symbols:bookmark-outline-rounded",
+  },
+  activity: {
+    label: "アクティビティを見る",
+    icon: "i-material-symbols:monitoring-rounded",
+  },
+  "copy-link": {
+    label: "リンクをコピー",
+    icon: "i-material-symbols:link-rounded",
+  },
+  details: {
+    label: "詳細（JSON・リレー）",
+    icon: "i-material-symbols:code-rounded",
+  },
+  "mute-event": {
+    label: "このイベントをミュート",
+    icon: "i-material-symbols:volume-off-outline-rounded",
+  },
+};
+
+/** 反応の数と、自分が済ませたか。反応が届くたびに数え直す。 */
+export const useEngagements = (event: () => NostrEvent, viewer: string) => {
+  const { store } = useReadLayer();
+  const changed = useEngagementChanges(() => event().id);
+  return createMemo(() => {
+    changed();
+    return eventEngagements(
+      store,
+      event().id,
+      viewer,
+      reactionContentOf(defaultReaction()),
+    );
+  });
+};
+
+export const reactionLabel = (input: ReactionInput): string =>
+  input.type === "like"
+    ? "いいね"
+    : `${input.type === "text" ? input.content : `:${input.shortcode}:`} でリアクション`;
+
+/**
+ * 投稿の中身によらない操作。アクション欄にもメニューにも置けるので、ここにまとめる。
+ * 呼んだ時点では何も読まない（投稿の数だけ呼ばれる）。
+ */
+export const useEventLevelOps = (event: () => NostrEvent) => {
+  const dispatch = useDispatch();
+  const mutes = useMutes();
+  const target = () => threadMuteTarget(event());
+  // スレッドやその人のページでは、ミュートした投稿も出ているので、そこから解除できる。
+  const muteEntry = () =>
+    mutes
+      ?.entries()
+      .find(
+        (entry) =>
+          entry.target.type === target().type &&
+          entry.target.value === target().value,
+      );
+  return {
+    /** ミュートの一覧を読めていない間は、押せない見た目にする。 */
+    canMute: mutes !== undefined,
+    muted: () => muteEntry() !== undefined,
+    toggleMute: () => {
+      const entry = muteEntry();
+      dispatch(
+        entry
+          ? { type: "mutes/remove", entry }
+          : { type: "mutes/add", target: target() },
+      );
+    },
+    activity: () =>
+      dispatch({
+        type: "stack/open",
+        column: buildActivityColumn(event().id),
+      }),
+    copyLink: async () => {
+      // TLV を持つ `nevent` の符号化器がまだ無いので、id だけの `note` で参照する。
+      const uri = `nostr:${encodeBech32("note", event().id)}`;
+      try {
+        await navigator.clipboard.writeText(uri);
+        notifySuccess("リンクをコピーしました");
+      } catch (cause) {
+        // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。
+        notifyError(cause, "リンクをコピーできませんでした");
+      }
+    },
+  };
+};
+
+/** ミュートの状態で変わる、ミュートの操作の名前とアイコン。 */
+export const muteEventLook = (muted: boolean) =>
+  muted
+    ? {
+        label: "このイベントのミュートを解除",
+        icon: "i-material-symbols:volume-up-outline-rounded",
+      }
+    : EVENT_ACTION_META["mute-event"];
+
+type EventDialog = "reply" | "quote" | "details";
+
+/**
+ * 操作から開くダイアログ。アクション欄とメニューのどちらからも開くので、
+ * 置き場所ごとに持つ。`view` は置いた場所に描く（中身は body の末尾へ出る）。
+ */
+export const createEventDialogs = (event: () => NostrEvent) => {
+  const actions = useEventActions();
+  const [open, setOpen] = createSignal<EventDialog>();
+  const close = () => setOpen(undefined);
+  const view: JSX.Element = (
+    <Switch>
+      <Match when={open() === "reply" && actions}>
+        {(actions) => (
+          <ComposeMediator
+            send={(text, media, emoji, contentWarning) =>
+              actions().reply(event(), text, media, emoji, contentWarning)
+            }
+            failure="返信できませんでした"
+            onSent={close}
+            onClose={close}
+          >
+            {(state) => <ReplyDialog target={event()} state={state} />}
+          </ComposeMediator>
+        )}
+      </Match>
+      <Match when={open() === "quote" && actions}>
+        {(actions) => (
+          <ComposeMediator
+            send={(text, media, emoji, contentWarning) =>
+              actions().quote(event(), text, media, emoji, contentWarning)
+            }
+            failure="引用できませんでした"
+            onSent={close}
+            onClose={close}
+          >
+            {(state) => <QuoteDialog target={event()} state={state} />}
+          </ComposeMediator>
+        )}
+      </Match>
+      <Match when={open() === "details"}>
+        <EventDetailsDialog event={event()} onClose={close} />
+      </Match>
+    </Switch>
+  );
+  return { open: setOpen, view };
+};
