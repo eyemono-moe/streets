@@ -24,8 +24,8 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) | 対応 | 公開チャンネルとチャット | 40, 41, 42, 43, 44 | `e`, `p` | [`channel.ts`](../packages/core/src/nostr/channel.ts)<br>[`channel.ts`](../packages/core/src/nostr/build/channel.ts)<br>[`ChannelChat.tsx`](../apps/web/src/columns/blocks/ChannelChat.tsx) | — |
 | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) | 対応 | 投稿とプロフィールのカスタム絵文字 | 30030 | `emoji` | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`emoji-set.ts`](../packages/core/src/settings/emoji-set.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | — |
 | [NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md) | 対応 | 名前付きの置換可能イベント | — | `d`, `a` | [`event-store.ts`](../packages/core/src/read/event-store.ts)<br>[`nip19.ts`](../packages/core/src/nostr/nip19.ts) | — |
-| [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) | 一部 | ウェルカム欄で閲覧注意の投稿を除外 | 1 | `content-warning` | [`welcome-feed.ts`](../packages/core/src/deck/welcome-feed.ts) | 閲覧注意の表示や投稿時に付ける操作はない |
-| [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) | 未対応 | リレーの認証要求 | 22242 | — | — | AUTH を要求するリレーには認証しない |
+| [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) | 対応 | 閲覧注意タグの読み書き、本文の表示制御、ウェルカム欄からの除外 | 1, 42 | `content-warning` | [`content-warning.ts`](../packages/core/src/nostr/content-warning.ts)<br>[`content-warning.ts`](../packages/core/src/nostr/build/content-warning.ts)<br>[`welcome-feed.ts`](../packages/core/src/deck/welcome-feed.ts)<br>[`ContentWarningGate.tsx`](../apps/web/src/note/ContentWarningGate.tsx)<br>[`ComposePanel.tsx`](../apps/web/src/note/ComposePanel.tsx) | NIP-32 の補助ラベルは付けない |
+| [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) | 対応 | 認証を求めるリレーへ署名して、購読と書き込みを再試行 | 22242 | `relay`, `challenge` | [`relay-auth.ts`](../packages/core/src/nostr/build/relay-auth.ts)<br>[`websocket-relay-connection.ts`](../packages/core/src/relay/websocket-relay-connection.ts)<br>[`connection-pool.ts`](../packages/core/src/read/connection-pool.ts) | NIP-46 の署名器が使うリレー自体に認証が必要な場合は署名がタイムアウトする |
 | [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) | 一部 | 非公開リストとリモート署名の暗号化 | — | — | [`private-tags.ts`](../packages/core/src/nostr/private-tags.ts)<br>[`nip44.ts`](../packages/core/src/signer/nip46/nip44.ts) | 一般の暗号化メッセージ機能はない |
 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) | 対応 | リモート署名器への接続 | 24133 | `p` | [`client.ts`](../packages/core/src/signer/nip46/client.ts)<br>[`nip46-signer.ts`](../packages/core/src/signer/nip46/nip46-signer.ts) | — |
 | [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) | 一部 | 検索対応リレーへ検索を送る | — | — | [`query.ts`](../packages/core/src/search/query.ts)<br>[`search-relay-list.ts`](../packages/core/src/settings/search-relay-list.ts) | 検索演算子をすべて扱うわけではない |
@@ -52,7 +52,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 16 | 表示対応 | 汎用リポスト | [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) |
 | 40 | 表示対応 | チャンネルの作成 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
 | 41 | 表示対応 | チャンネル情報の更新 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
-| 42 | 表示対応 | チャンネルの発言 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 42 | 表示対応 | チャンネルの発言 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md), [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) |
 | 43 | 内部利用 | チャンネルの発言の非表示 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
 | 44 | 内部利用 | チャンネルのミュート | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
 | 9734 | 内部利用 | Zap の依頼 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
@@ -64,7 +64,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 10007 | 内部利用 | 検索リレーのリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 10030 | 内部利用 | 絵文字リスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 10063 | 内部利用 | Blossom サーバーのリスト | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
-| 22242 | 未対応 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
+| 22242 | 内部利用 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
 | 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
 | 30000 | 内部利用 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |

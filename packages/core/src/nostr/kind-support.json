@@ -24,7 +24,7 @@
     "status": "内部利用",
     "summary": "Blossom サーバーのリスト"
   },
-  { "kind": 22242, "status": "未対応", "summary": "リレーの認証" },
+  { "kind": 22242, "status": "内部利用", "summary": "リレーの認証" },
   { "kind": 24133, "status": "内部利用", "summary": "リモート署名の通信" },
   { "kind": 24242, "status": "内部利用", "summary": "Blossom の認証" },
   { "kind": 30000, "status": "内部利用", "summary": "フォローセット" },

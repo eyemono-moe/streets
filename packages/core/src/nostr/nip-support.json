@@ -211,21 +211,31 @@
   },
   {
     "nip": "36",
-    "status": "一部",
-    "summary": "ウェルカム欄で閲覧注意の投稿を除外",
-    "kinds": [1],
+    "status": "対応",
+    "summary": "閲覧注意タグの読み書き、本文の表示制御、ウェルカム欄からの除外",
+    "kinds": [1, 42],
     "tags": ["content-warning"],
-    "paths": ["packages/core/src/deck/welcome-feed.ts"],
-    "gap": "閲覧注意の表示や投稿時に付ける操作はない"
+    "paths": [
+      "packages/core/src/nostr/content-warning.ts",
+      "packages/core/src/nostr/build/content-warning.ts",
+      "packages/core/src/deck/welcome-feed.ts",
+      "apps/web/src/note/ContentWarningGate.tsx",
+      "apps/web/src/note/ComposePanel.tsx"
+    ],
+    "gap": "NIP-32 の補助ラベルは付けない"
   },
   {
     "nip": "42",
-    "status": "未対応",
-    "summary": "リレーの認証要求",
+    "status": "対応",
+    "summary": "認証を求めるリレーへ署名して、購読と書き込みを再試行",
     "kinds": [22242],
-    "tags": [],
-    "paths": [],
-    "gap": "AUTH を要求するリレーには認証しない"
+    "tags": ["relay", "challenge"],
+    "paths": [
+      "packages/core/src/nostr/build/relay-auth.ts",
+      "packages/core/src/relay/websocket-relay-connection.ts",
+      "packages/core/src/read/connection-pool.ts"
+    ],
+    "gap": "NIP-46 の署名器が使うリレー自体に認証が必要な場合は署名がタイムアウトする"
   },
   {
     "nip": "44",
