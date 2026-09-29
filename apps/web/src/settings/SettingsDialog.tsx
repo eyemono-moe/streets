@@ -1,6 +1,7 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
 import { type Component, createEffect, createSignal, on } from "solid-js";
 import { contentWarningMode } from "../content-warning-setting";
@@ -32,6 +33,8 @@ const SettingsDialog: Component<{
   keymap: Keymap;
   /** 数字キーでカラムを見せるか（この端末の設定）。 */
   columnDigits: boolean;
+  /** カラムの並べ方（この端末の設定）。 */
+  deckLayout: DeckLayout;
   /** いいねボタンで送るリアクション（この端末の設定）。 */
   defaultReaction: ReactionInput;
   /** 開いたときに出すページ。 */
@@ -122,6 +125,7 @@ const SettingsDialog: Component<{
           writeProgress={props.writeProgress}
           errorReport={props.errorReport}
           contentWarning={contentWarningMode()}
+          deckLayout={props.deckLayout}
         />
       ),
     },

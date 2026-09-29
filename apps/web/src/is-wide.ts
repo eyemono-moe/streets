@@ -1,9 +1,12 @@
 import { createSignal, onCleanup } from "solid-js";
 
-/** カラムを横に並べられる幅。狭い端末では 1 列ずつ見せる。 */
-export const WIDE_QUERY = "(min-width: 768px)";
+/**
+ * ダイアログのページ一覧を横に置ける幅（一覧 220px と本文）。カラムを横に並べるかは
+ * これとは別に、`deck-layout-setting` の設定と幅で決める。
+ */
+const WIDE_QUERY = "(min-width: 768px)";
 
-/** カラムを横に並べられる幅かどうか。 */
+/** ダイアログや最初の画面を、横に広げて組める幅かどうか。 */
 export const useIsWide = () => {
   const query = matchMedia(WIDE_QUERY);
   const [wide, setWide] = createSignal(query.matches);

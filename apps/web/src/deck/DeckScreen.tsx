@@ -44,6 +44,11 @@ import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { columnView } from "../columns/column-views";
 import { setContentWarningMode } from "../content-warning-setting";
 import {
+  deckLayout,
+  isMultiColumn,
+  setDeckLayout,
+} from "../deck-layout-setting";
+import {
   defaultReaction,
   setDefaultReaction,
 } from "../default-reaction-setting";
@@ -273,7 +278,7 @@ const DeckScreen: Component<{
 
   // カラムを見せる。広い画面では横に送って画面に収め、狭い画面ではそのタブを選ぶ。
   const focusColumn = (id: string) => {
-    if (!isWide()) {
+    if (!isMultiColumn()) {
       applyUi({ type: "deck/select-column", id });
       return;
     }
@@ -334,7 +339,7 @@ const DeckScreen: Component<{
   createEffect(() => {
     const id = ui.active;
     const index = id === undefined ? -1 : stripIds().indexOf(id);
-    if (isWide() || !stripEl || index < 0) return;
+    if (isMultiColumn() || !stripEl || index < 0) return;
     const left = index * stripEl.clientWidth;
     if (Math.abs(stripEl.scrollLeft - left) < 2) return;
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -509,6 +514,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-content-warning":
         setContentWarningMode(event.mode);
+        return true;
+      case "deck/set-deck-layout":
+        setDeckLayout(event.layout);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);
@@ -697,7 +705,7 @@ const DeckScreen: Component<{
                                     デッキを読み込み中…
                                   </p>
                                 </Match>
-                                <Match when={isWide()}>
+                                <Match when={isMultiColumn()}>
                                   <div class="flex h-dvh">
                                     <Sidebar
                                       pubkey={viewer}
@@ -966,7 +974,7 @@ const DeckScreen: Component<{
                             <Show when={tourRequests() > 0}>
                               <DeckTour
                                 requests={tourRequests()}
-                                wide={isWide()}
+                                wide={isMultiColumn()}
                               />
                             </Show>
                             <Show when={settingsMounted()}>
@@ -979,6 +987,7 @@ const DeckScreen: Component<{
                                 errorReport={errorReport()}
                                 keymap={keymap()}
                                 columnDigits={columnDigits()}
+                                deckLayout={deckLayout()}
                                 defaultReaction={defaultReaction()}
                               />
                             </Show>

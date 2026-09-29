@@ -12,6 +12,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
+import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
@@ -159,6 +160,8 @@ export type DeckEvent =
   | { type: "deck/set-image-downscaling"; on: boolean }
   /** 閲覧注意の投稿の扱い。この端末に保存する。 */
   | { type: "deck/set-content-warning"; mode: ContentWarningMode }
+  /** カラムを横に並べるか。この端末に保存する。 */
+  | { type: "deck/set-deck-layout"; layout: DeckLayout }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */

@@ -3,6 +3,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
+import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -64,6 +65,7 @@ const Story = (props: Props) => {
   const [errorReport, setErrorReport] = createSignal(true);
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
+  const [deckLayout, setDeckLayout] = createSignal<DeckLayout>("auto");
   const [defaultReaction, setDefaultReaction] = createSignal<ReactionInput>({
     type: "like",
   });
@@ -176,6 +178,9 @@ const Story = (props: Props) => {
                     case "deck/set-column-digits":
                       setColumnDigits(event.on);
                       return true;
+                    case "deck/set-deck-layout":
+                      setDeckLayout(event.layout);
+                      return true;
                     case "deck/set-default-reaction":
                       setDefaultReaction(event.input);
                       return true;
@@ -203,6 +208,7 @@ const Story = (props: Props) => {
                   errorReport={errorReport()}
                   keymap={keymap()}
                   columnDigits={columnDigits()}
+                  deckLayout={deckLayout()}
                   defaultReaction={defaultReaction()}
                   initialPage={props.page}
                 />
