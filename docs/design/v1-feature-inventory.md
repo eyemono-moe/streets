@@ -19,9 +19,7 @@
 
 ## 1. 書き込み
 
-イベントを組み立てる層（1.1）と署名〜publish を束ねる層（1.2）、NIP-46 remote signer（1.3）が実装されている。残る穴は次の 1 つ（判断理由は [followups の「書き込みの土台（2026-08-22）」節](./read-layer-followups.md)）:
-
-- 削除（kind:5）の自動同期（[#333](https://github.com/eyemono-moe/streets/issues/333)）— 到着後の表示反映は動くが、通常カラムが対象 id / 座標に関係する kind:5 を追加取得する購読は未実装
+イベントを組み立てる層（1.1）と署名〜publish を束ねる層（1.2）、NIP-46 remote signer（1.3）が実装されている。削除（kind:5）は、描いた投稿の id・座標と著者で絞った kind:5 を、その投稿を取ったリレーから取りにいく（`read/deletion-requests.ts`、[#326](https://github.com/eyemono-moe/streets/issues/326)）。
 
 ### 1.1 イベントビルダ — `src/core/nostr/build/*`
 
@@ -35,7 +33,7 @@ kind ごとのタグ規則は仕様が分かれていて、間違えても publi
 | 1（引用） | NIP-18 / NIP-27 | `q` タグと本文の `nostr:` の両方 | ✅ `note.ts` | 読みは `quoteTargets` が有る |
 | 6（リポスト） | NIP-18 | `e`（リレーヒント必須）/ `p`、`content` に対象の JSON | ✅ `repost.ts` | 読みは `repostTarget` が有る |
 | 7（リアクション） | NIP-25 | `e` / `p` / `k`、`content` は `+` / 絵文字 / `:shortcode:` + `emoji` タグ | ✅ `reaction.ts` | 読みは `parseReaction` が有る |
-| 5（削除依頼） | NIP-09 | `e` / `a` / `k` | ✅ `deletion.ts`（送信は `e`） | ✅ 到着順・著者・`a` の時刻を検証して現在表示へ反映。通常カラムの自動同期は未実装 |
+| 5（削除依頼） | NIP-09 | `e` / `a` / `k` | ✅ `deletion.ts`（送信は `e`） | ✅ 到着順・著者・`a` の時刻を検証して現在表示へ反映。描いた投稿の kind:5 は `deletion-requests.ts` が取りにいく |
 | 3（フォロー） | NIP-02 | **全置換**。既存リストを読んでから差分適用 | ✅ `follow.ts` | 読みは `bootstrap` が有る |
 | 0（プロフィール） | NIP-01 | 既存の全フィールドを保ってから差分適用 | ✅ `profile.ts` | 読みは `profile-data.ts` が有る |
 | 10000（ミュート） | NIP-51 | 公開 `p`/`e`/`t`/`word` + 暗号化 `content`（NIP-44） | ✅ `mute.ts` + `mute-list.tsx` | ✅ 公開・非公開を復元し、表示時に適用 |

@@ -62,9 +62,10 @@
     "tags": ["e", "a", "k"],
     "paths": [
       "packages/core/src/nostr/build/deletion.ts",
-      "packages/core/src/read/event-store.ts"
+      "packages/core/src/read/event-store.ts",
+      "packages/core/src/read/deletion-requests.ts"
     ],
-    "gap": ""
+    "gap": "削除依頼は投稿を取ったリレーにだけ聞くので、ほかのリレーにだけ送られた依頼は届かない。引用や返信先として id で取って描いた投稿は、描いた後に届いた削除依頼では消えない"
   },
   {
     "nip": "10",
