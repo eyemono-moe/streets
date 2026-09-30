@@ -211,9 +211,9 @@ importers:
       '@ark-ui/solid':
         specifier: 5.39.2
         version: 5.39.2(solid-js@1.9.15)
-      '@sentry/solid':
+      '@sentry/browser':
         specifier: ^11.0.0
-        version: 11.0.0(@solidjs/router@1.0.0(solid-js@1.9.15))(solid-js@1.9.15)
+        version: 11.0.0
       '@solidjs/router':
         specifier: ^1.0.0
         version: 1.0.0(solid-js@1.9.15)
@@ -2327,19 +2327,6 @@ packages:
   '@sentry/replay@11.0.0':
     resolution: {integrity: sha512-4/36Iw288SaWEwLjhpLRjCjL2UmSNEyU0TvLrAlzRAoYdksneEe7iQTSe7WD257buSgop0m+lauGRHQf7fD9qg==}
     engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
-
-  '@sentry/solid@11.0.0':
-    resolution: {integrity: sha512-lkxk2+QI1/Wvcxn87YJyp+sjfmClXSUQt2pF3bhZWoK5dJMzedW3q1o+ZCc4IMRoeuUaXa2WKZydqSXp88sFHw==}
-    engines: {node: '>=20.19.0 <22.0.0 || >=22.12.0 <23.0.0 || >=23.2.0'}
-    peerDependencies:
-      '@solidjs/router': '>=0.13.4 <2.0.0-0'
-      '@tanstack/solid-router': ^1.132.27
-      solid-js: ^1.8.4
-    peerDependenciesMeta:
-      '@solidjs/router':
-        optional: true
-      '@tanstack/solid-router':
-        optional: true
 
   '@sentry/vite-plugin@5.4.0':
     resolution: {integrity: sha512-fFJgCxs5hDyAm9BbZJ+LbA+LK2tjX5OoD0v0ARU4StR6KQmGUduoPs69yJ9AfqZ0om3Rlp5JDliiwFcNkasORA==}
@@ -5887,15 +5874,6 @@ snapshots:
     dependencies:
       '@sentry/browser-utils': 11.0.0
       '@sentry/core': 11.0.0
-
-  '@sentry/solid@11.0.0(@solidjs/router@1.0.0(solid-js@1.9.15))(solid-js@1.9.15)':
-    dependencies:
-      '@sentry/browser': 11.0.0
-      '@sentry/conventions': 0.23.0
-      '@sentry/core': 11.0.0
-      solid-js: 1.9.15
-    optionalDependencies:
-      '@solidjs/router': 1.0.0(solid-js@1.9.15)
 
   '@sentry/vite-plugin@5.4.0(supports-color@10.2.2)':
     dependencies:

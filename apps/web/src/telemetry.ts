@@ -7,9 +7,9 @@ import { errorReport } from "./error-report-setting";
  * 落としてから送る。
  *
  * `VITE_SENTRY_DSN` が無ければ何もしない。開発中（vite dev）も送らない。
- * SDK は必要になってから読み込む —— 送らない人に 20KB を配らないため。
+ * SDK は必要になってから読み込む —— 送らない人に配らないため。
  */
-let sentry: typeof import("@sentry/solid") | undefined;
+let sentry: typeof import("./sentry-sdk").sentrySdk | undefined;
 
 /**
  * 重さを送る割合。プレビューは手元で試した分を必ず見られるよう全部送り、
@@ -38,7 +38,7 @@ export const startTelemetry = async () => {
   }
   if (sentry) return;
 
-  const Sentry = await import("@sentry/solid");
+  const { sentrySdk: Sentry } = await import("./sentry-sdk");
   const environment = import.meta.env.VITE_SENTRY_ENV ?? "production";
   Sentry.init({
     dsn,
@@ -56,25 +56,28 @@ export const startTelemetry = async () => {
     },
     // 計測の印を、こちらの Worker を含めてどこへの通信にも付けない。
     tracePropagationTargets: [],
-    // 入力された文字や本文が混ざらないよう、操作とコンソールの記録は取らない。
-    integrations: (defaults) => [
-      ...defaults.filter((integration) => integration.name !== "Console"),
+    // 既定の組み合わせは使わず、使うものだけを並べる。既定に任せると、使わない
+    // 部品まで読み込む。
+    defaultIntegrations: false,
+    integrations: [
+      Sentry.eventFiltersIntegration(),
+      Sentry.functionToStringIntegration(),
+      Sentry.browserApiErrorsIntegration(),
+      Sentry.globalHandlersIntegration(),
+      Sentry.linkedErrorsIntegration(),
+      Sentry.dedupeIntegration(),
+      Sentry.httpContextIntegration(),
+      Sentry.cultureContextIntegration(),
+      Sentry.browserSessionIntegration(),
+      // 入力された文字や本文が混ざらないよう、操作の記録は取らない。コンソールの
+      // 記録（Console）も同じ理由で入れない。
       Sentry.breadcrumbsIntegration({ dom: false }),
-      Sentry.browserTracingIntegration({
-        // 画像やスクリプトの 1 つ 1 つ、通信の 1 本 1 本は送らない。アイコンの
-        // 数だけ区間が増えて枠を食い、URL から誰の画像かも分かってしまう。
-        ignoreResourceSpans: [
-          "resource.img",
-          "resource.script",
-          "resource.css",
-          "resource.link",
-          "resource.fetch",
-          "resource.other",
-        ],
-        traceFetch: false,
-        traceXHR: false,
-      }),
+      Sentry.browserTracingIntegration({ traceFetch: false, traceXHR: false }),
     ],
+    // 画像や動画、スクリプトの 1 つ 1 つ、通信の 1 本 1 本は送らない。アイコンの
+    // 数だけ区間が増えて枠を食い、URL から誰の画像かも分かってしまう。種類を
+    // 並べると漏れる（動画が送られていた）ので、resource.* をまとめて落とす。
+    ignoreSpans: [{ op: /^resource\./ }],
     beforeSend: (event) => {
       if (event.request?.url) {
         event.request.url = scrubUrl(event.request.url);

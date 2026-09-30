@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ark-ui/solid": "5.39.2",
-    "@sentry/solid": "^11.0.0",
+    "@sentry/browser": "^11.0.0",
     "@solidjs/router": "^1.0.0",
     "@streets/core": "workspace:*",
     "@streets/sign": "workspace:*",
