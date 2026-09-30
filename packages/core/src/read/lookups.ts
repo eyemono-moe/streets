@@ -1,11 +1,13 @@
 import type { EventAddress } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
+import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { AddressRequests } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
+import type { PollRequests } from "./poll-requests";
 import type { ProfileRequests } from "./profile-requests";
 
 export type EventLookup =
@@ -61,6 +63,14 @@ export type ReadLookups = {
    * 数え方は読む側が store から引き直す。
    */
   watchEngagements(targetId: string, onChange: () => void): () => void;
+  /**
+   * 投票への回答を取りにいき、手元の回答が変わるたびに知らせる。`settled` は
+   * 一度取り終えたか（まだなら「集計中」、取り終えて 0 件なら「まだ誰も投票していない」）。
+   */
+  watchPollResponses(
+    poll: { id: string; relays: readonly RelayUrl[] },
+    onChange: (responses: NostrEvent[], settled: boolean) => void,
+  ): () => void;
 };
 
 export type CreateReadLookupsOptions = {
@@ -69,6 +79,7 @@ export type CreateReadLookupsOptions = {
   addresses: AddressRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
+  polls: PollRequests;
 };
 
 export const createReadLookups = ({
@@ -77,6 +88,7 @@ export const createReadLookups = ({
   addresses,
   profiles,
   engagements,
+  polls,
 }: CreateReadLookupsOptions): ReadLookups => ({
   watchEvent(id, relayHint, onChange) {
     // 指す先が無い（タグが壊れている）ものは取りにいかない。空の id を要求しない。
@@ -185,6 +197,31 @@ export const createReadLookups = ({
         onChange();
       }
     });
+    return () => {
+      offBatch();
+      offStore();
+    };
+  },
+
+  watchPollResponses(poll, onChange) {
+    const load = () =>
+      onChange(
+        store
+          .eventsByTag("e", poll.id)
+          .filter((event) => event.kind === POLL_RESPONSE_KIND),
+        polls.isSettled(poll.id),
+      );
+    polls.request(poll.id, poll.relays);
+    const offBatch = polls.subscribe(load);
+    const offStore = store.subscribe((change) => {
+      if (
+        change.event.kind === POLL_RESPONSE_KIND &&
+        change.event.tags.some((tag) => tag[0] === "e" && tag[1] === poll.id)
+      ) {
+        load();
+      }
+    });
+    load();
     return () => {
       offBatch();
       offStore();

@@ -13,6 +13,7 @@ import {
   type ReadLookups,
   createReadLookups,
 } from "./lookups";
+import type { PollRequests } from "./poll-requests";
 import type { ProfileRequests } from "./profile-requests";
 
 const RELAY = "wss://relay.example/" as RelayUrl;
@@ -88,10 +89,35 @@ const fakeAddressRequests = () => {
   };
 };
 
+/** 投票への回答の要求を記録し、取り終えた知らせをテストから出せる要求器。 */
+const fakePollRequests = () => {
+  const requested: { id: string; relays: readonly RelayUrl[] }[] = [];
+  const listeners = new Set<() => void>();
+  const settled = new Set<string>();
+  const requests: PollRequests = {
+    request: (id, relays) => void requested.push({ id, relays }),
+    isSettled: (id) => settled.has(id),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {},
+  };
+  return {
+    requests,
+    requested,
+    settle: (id: string) => {
+      settled.add(id);
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
 const setup = () => {
   const store = new EventStore();
   const events = fakeRequests();
   const addresses = fakeAddressRequests();
+  const polls = fakePollRequests();
   const profiles = fakeRequests();
   const engagements = fakeRequests();
   const lookups: ReadLookups = createReadLookups({
@@ -100,8 +126,9 @@ const setup = () => {
     addresses: addresses.requests,
     profiles: profiles.requests,
     engagements: engagements.requests,
+    polls: polls.requests,
   });
-  return { store, events, addresses, profiles, engagements, lookups };
+  return { store, events, addresses, polls, profiles, engagements, lookups };
 };
 
 describe("watchEvent", () => {
@@ -241,6 +268,43 @@ describe("watchAddress", () => {
     addresses.settle();
     expect(seen).toEqual([{ phase: "loading" }]);
     expect(addresses.listenerCount()).toBe(0);
+  });
+});
+
+describe("watchPollResponses", () => {
+  const POLL = "d".repeat(64);
+  const response = (created_at: number) =>
+    signed({
+      kind: 1018,
+      tags: [
+        ["e", POLL],
+        ["response", "yes"],
+      ],
+      created_at,
+    });
+
+  it("投票が指すリレーへ取りにいき、取り終えるまでは settled にしない", () => {
+    const { polls, lookups } = setup();
+    const seen: [number, boolean][] = [];
+    lookups.watchPollResponses({ id: POLL, relays: [RELAY] }, (list, done) =>
+      seen.push([list.length, done]),
+    );
+    expect(polls.requested).toEqual([{ id: POLL, relays: [RELAY] }]);
+    expect(seen).toEqual([[0, false]]);
+    polls.settle(POLL);
+    expect(seen.at(-1)).toEqual([0, true]);
+  });
+
+  it("回答が届くたびに知らせ直す", () => {
+    // 捕まえる変異: 取り終えたときだけ読み、自分の投票が集計に出ない
+    const { store, lookups } = setup();
+    const seen: number[] = [];
+    lookups.watchPollResponses({ id: POLL, relays: [] }, (list) =>
+      seen.push(list.length),
+    );
+    store.put(response(1), RELAY);
+    store.put(signed({ kind: 1, tags: [["e", POLL]] }), RELAY);
+    expect(seen).toEqual([0, 1]);
   });
 });
 

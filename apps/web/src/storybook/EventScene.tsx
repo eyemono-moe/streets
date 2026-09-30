@@ -27,11 +27,13 @@ import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
+import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import type { AddressRequests } from "@streets/core/read/address-requests";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
 import { createReadLookups } from "@streets/core/read/lookups";
+import type { PollRequests } from "@streets/core/read/poll-requests";
 import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { WriteFailedError } from "@streets/core/write/writer";
@@ -114,6 +116,12 @@ const storyActions = (
       }),
     react: (target, input) =>
       send(() => viewer.event(buildReaction(target, input))),
+    vote: (target, choices) =>
+      send(() => {
+        const poll = parsePoll(target);
+        if (!poll) throw new Error("この投稿には投票できません");
+        return viewer.event(buildPollResponse(poll, choices));
+      }),
     createChannel: async (input) => {
       const event = viewer.event(buildChannelCreate(input));
       await send(() => event);
@@ -221,6 +229,28 @@ const addressRequestsFor = (store: EventStore): AddressRequests => {
   };
 };
 
+/** 投票への回答は、並べたものだけを取り終えたことにする。 */
+const settledPolls = (): PollRequests => {
+  const listeners = new Set<() => void>();
+  const settled = new Set<string>();
+  return {
+    request(id) {
+      queueMicrotask(() => {
+        settled.add(id);
+        for (const listener of listeners) listener();
+      });
+    },
+    isSettled: (id) => settled.has(id),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {
+      listeners.clear();
+    },
+  };
+};
+
 /** ストーリーが並べたイベントだけを持つ読み取り層を渡す。リレーには繋がない。 */
 export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   props,
@@ -250,6 +280,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     addresses,
     profiles: inertRequests(),
     engagements: inertRequests(),
+    polls: settledPolls(),
   });
 
   return (

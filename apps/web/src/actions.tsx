@@ -38,6 +38,7 @@ import {
 } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
+import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -107,6 +108,8 @@ export type EventActions = {
     },
   ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
+  /** 投票（kind:1068）に答える。回答は、自分の write リレーと投票が指すリレーへ送る。 */
+  vote(target: NostrEvent, choices: readonly string[]): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
@@ -305,6 +308,15 @@ export const createWriteStack = (options: {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
       await tracked("リポスト").publish(draft);
+    },
+    async vote(event, choices) {
+      const poll = parsePoll(event);
+      if (!poll) throw new Error("この投稿には投票できません");
+      await tracked("投票").publish(
+        buildPollResponse(poll, choices),
+        undefined,
+        poll.relays.length > 0 ? { relays: poll.relays } : undefined,
+      );
     },
     async react(event, input) {
       await tracked("リアクション").publish(

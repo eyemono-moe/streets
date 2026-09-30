@@ -232,6 +232,8 @@ export type ChatViewEvent = Extract<
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
+  /** 投票に答える。`choices` は選んだ選択肢の id。 */
+  | { type: "note/vote"; target: NostrEvent; choices: readonly string[] }
   /** `on` は押した後に付いているべき状態。 */
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
   | { type: "user/follow"; pubkey: string; on: boolean }

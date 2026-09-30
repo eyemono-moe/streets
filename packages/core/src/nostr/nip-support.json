@@ -347,6 +347,19 @@
     "gap": ""
   },
   {
+    "nip": "88",
+    "status": "一部",
+    "summary": "投票の表示・投票・集計",
+    "kinds": [1018, 1068],
+    "tags": ["option", "relay", "polltype", "endsAt", "e", "response"],
+    "paths": [
+      "packages/core/src/nostr/poll.ts",
+      "packages/core/src/read/poll-requests.ts",
+      "apps/web/src/poll/PollView.tsx"
+    ],
+    "gap": "投票を作れない。投票が指すリレーは先頭の 3 件だけを使う。回答を特定の人に絞る集計（フォローセットや Web of Trust）はしない"
+  },
+  {
     "nip": "89",
     "status": "一部",
     "summary": "投稿に client タグを付ける（選んだ人だけ）。Streets を説明する kind:31990 をリリースのたびに出す。他の人の投稿の client タグから、そのアプリの説明と開き方を見せる",

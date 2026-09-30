@@ -34,6 +34,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) | 対応 | 人ごとの読み書きリレーの選択 | 10002 | `r` | [`relay-list.ts`](../packages/core/src/read/relay-list.ts)<br>[`relay-selector.ts`](../packages/core/src/read/relay-selector.ts)<br>[`relay-list.ts`](../packages/core/src/nostr/build/relay-list.ts) | — |
 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) | 一部 | リレーの計測情報から候補を選ぶ | 30166 | `d` | [`relay-recommendation.ts`](../packages/core/src/settings/relay-recommendation.ts)<br>[`RelayRecommendations.tsx`](../apps/web/src/settings/RelayRecommendations.tsx) | 計測イベントの発行はしない |
 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) | 対応 | デッキ設定をアカウントに保存 | 30078 | `d` | [`deck.ts`](../packages/core/src/deck/deck.ts)<br>[`create-nip78-document.ts`](../packages/core/src/solid/create-nip78-document.ts) | — |
+| [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) | 一部 | 投票の表示・投票・集計 | 1018, 1068 | `option`, `relay`, `polltype`, `endsAt`, `e`, `response` | [`poll.ts`](../packages/core/src/nostr/poll.ts)<br>[`poll-requests.ts`](../packages/core/src/read/poll-requests.ts)<br>[`PollView.tsx`](../apps/web/src/poll/PollView.tsx) | 投票を作れない。投票が指すリレーは先頭の 3 件だけを使う。回答を特定の人に絞る集計（フォローセットや Web of Trust）はしない |
 | [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) | 一部 | 投稿に client タグを付ける（選んだ人だけ）。Streets を説明する kind:31990 をリリースのたびに出す。他の人の投稿の client タグから、そのアプリの説明と開き方を見せる | 31990 | `client` | [`client-tag.ts`](../packages/core/src/nostr/build/client-tag.ts)<br>[`streets-handler.json`](../packages/core/src/nostr/streets-handler.json)<br>[`app-handler.mjs`](../scripts/app-handler.mjs)<br>[`app-handler.ts`](../packages/core/src/nostr/app-handler.ts)<br>[`ClientDialog.tsx`](../apps/web/src/note/ClientDialog.tsx) | アプリのおすすめ（kind:31989）と、知らない kind を開けるアプリを探す使い方には対応しない |
 | [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) | 一部 | 添付画像・動画の情報を投稿に添える | 1 | `imeta` | [`imeta.ts`](../packages/core/src/nostr/imeta.ts)<br>[`media.ts`](../packages/core/src/nostr/build/media.ts) | 扱うメディア情報は画面に必要な項目に限る |
 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) | 一部 | Blossom サーバーの一覧とファイルのアップロード | 10063, 24242 | `server`, `t`, `x`, `expiration` | [`blossom.ts`](../packages/core/src/media/blossom.ts) | BUD の全操作やダウンロード管理は扱わない |
@@ -56,6 +57,8 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 42 | 表示対応 | チャンネルの発言 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md), [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) |
 | 43 | 内部利用 | チャンネルの発言の非表示 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
 | 44 | 内部利用 | チャンネルのミュート | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
+| 1018 | 内部利用 | 投票への回答 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
+| 1068 | 表示対応 | 投票 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
 | 9734 | 内部利用 | Zap の依頼 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 9735 | 内部利用 | Zap の受領 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 10000 | 内部利用 | ミュートリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |

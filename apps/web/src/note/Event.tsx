@@ -17,6 +17,7 @@ import {
 } from "solid-js";
 import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
+import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
 import { reportError } from "../telemetry";
@@ -280,6 +281,20 @@ const EventContent: Component<ContentProps> = (props) => (
     <Match when={props.event.kind === 30030}>
       <Row event={props.event} size={props.size} threadLine={props.threadLine}>
         <EmojiSetCard event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    {/* 投票（NIP-88）。問いは本文と同じ描き方にする（絵文字やリンクが入りうる）。 */}
+    <Match when={props.event.kind === 1068}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <NoteContent
+          event={props.event}
+          size={props.size}
+          expandMedia={props.expandMedia}
+        />
+        <PollBlock event={props.event} size={props.size} />
+        <Show when={props.size === "normal"}>
+          <ReactionList event={props.event} />
+        </Show>
       </Row>
     </Match>
   </Switch>
