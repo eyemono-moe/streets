@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/solid-query";
 import { type Preview, createDecorator } from "storybook-solidjs-vite";
 import { action } from "storybook/actions";
 import { MINIMAL_VIEWPORTS } from "storybook/viewport";
+import { swallowTapsThatDismissPopups } from "../src/dismiss-tap";
 import { createAppQueryClient } from "../src/query-client";
 import {
   type ColorScheme,
@@ -17,6 +18,8 @@ import { Mediates } from "../src/ui-events";
 
 let stopColorScheme = () => {};
 const queryClient = createAppQueryClient();
+// アプリと同じく、ポップアップを開いている間の外のタップは閉じるだけにする。
+swallowTapsThatDismissPopups();
 
 // カラム幅は可変にする予定なので、デザインの 380px の前後を並べる。高さは見本の置き場なので広めに取る。
 const columnViewport = (width: number) => ({
