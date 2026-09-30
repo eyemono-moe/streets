@@ -31,7 +31,7 @@ const useChannel = (
   id: () => string | undefined,
   update?: () => NostrEvent | undefined,
 ) => {
-  const lookup = useEvent(() => ({ id: id() ?? "" }));
+  const lookup = useEvent(() => ({ form: "id", id: id() ?? "" }));
   return (): Channel | undefined => {
     const current = lookup();
     if (

@@ -1,3 +1,4 @@
+import { addressOfNaddr, formatEventAddress } from "../nostr/address";
 import {
   type ContentToken,
   isProbablyAudioUrl,
@@ -70,6 +71,7 @@ export const layoutNote = (
   const links: string[] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
+  const quotedAddresses = new Set<string>();
   const metadata = inlineMediaMetadata(event.tags);
 
   for (const token of parseContent(event.content, event.tags)) {
@@ -126,6 +128,26 @@ export const layoutNote = (
         );
       }
       continue;
+    }
+    if (
+      options.quotes &&
+      token.type === "mention" &&
+      token.ref.kind === "naddr"
+    ) {
+      const address = addressOfNaddr(token.ref);
+      if (address) {
+        const key = formatEventAddress(address);
+        if (!quotedAddresses.has(key)) {
+          quotedAddresses.add(key);
+          const relay = relayOf(token.ref.relays[0]);
+          quotes.push(
+            relay
+              ? { form: "address", address: key, relay }
+              : { form: "address", address: key },
+          );
+        }
+        continue;
+      }
     }
     const last = text[text.length - 1];
     if (token.type === "text" && last?.type === "text") {

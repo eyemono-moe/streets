@@ -38,7 +38,11 @@ const ReplyContext: Component<{
   relay?: RelayUrl;
   pubkey?: string;
 }> = (props) => {
-  const lookup = useEvent(() => ({ id: props.id, relay: props.relay }));
+  const lookup = useEvent(() => ({
+    form: "id",
+    id: props.id,
+    relay: props.relay,
+  }));
   const parent = () => {
     const current = lookup();
     return current.phase === "found" ? current.event : undefined;

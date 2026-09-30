@@ -1,4 +1,5 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
+import { createAddressRequests } from "./address-requests";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import {
   type CreateEngagementRequestsOptions,
@@ -75,6 +76,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const profiles = createProfileRequests(profileRequestsOptions);
   const events = createEventRequests({ store, manager, scheduler });
+  const addresses = createAddressRequests({ store, manager, scheduler });
   const engagementRequestsOptions: CreateEngagementRequestsOptions = {
     manager,
     scheduler,
@@ -112,7 +114,13 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     events,
     profiles,
     engagements,
-    lookups: createReadLookups({ store, events, profiles, engagements }),
+    lookups: createReadLookups({
+      store,
+      events,
+      addresses,
+      profiles,
+      engagements,
+    }),
     store,
     dispose(): void {
       offReplaceableChanged();
@@ -122,6 +130,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       }
       profiles.dispose();
       events.dispose();
+      addresses.dispose();
       engagements.dispose();
       manager.dispose();
       options.persistence.dispose();

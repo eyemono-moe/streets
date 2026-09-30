@@ -1,7 +1,6 @@
-import { buildThreadColumn } from "@streets/core/deck/column-presets";
+import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -154,7 +153,7 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
 
 /** 取得中と見つからなかったを別の文言で出す。 */
 const Lookup: Component<{
-  target: { id: string; relay?: RelayUrl };
+  target: EventRef;
   missing: string;
   /** 取得中・不在の 1 行に付ける余白。枠の中に置くときに要る。 */
   noticeClass?: string;
@@ -315,7 +314,7 @@ const EventBody: Component<ContentProps> = (props) => {
             if (moved) return;
             dispatch({
               type: "stack/open",
-              column: buildThreadColumn(props.event.id),
+              column: columnForEvent(props.event),
             });
           }}
         />
@@ -380,9 +379,9 @@ const StandardEvent: Component<
   </>
 );
 
-/** id しか分からないイベントを取りにいって描く。 */
+/** id か住所しか分からないイベントを取りにいって描く。 */
 export const EventRefView: Component<{
-  target: { id: string; relay?: RelayUrl };
+  target: EventRef;
   size: EventSize;
   expandMedia?: boolean;
   threadLine?: "above" | "below" | "both";

@@ -1,4 +1,8 @@
 import {
+  type EventAddress,
+  formatEventAddress,
+} from "@streets/core/nostr/address";
+import {
   addBookmark,
   removeBookmark,
 } from "@streets/core/nostr/build/bookmark";
@@ -23,6 +27,7 @@ import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
+import type { AddressRequests } from "@streets/core/read/address-requests";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
@@ -191,6 +196,31 @@ const eventRequestsFor = (missing: ReadonlySet<string>): EventRequests => {
   };
 };
 
+/** 並べていない住所は、要求の後で見つからなかったことにする。 */
+const addressRequestsFor = (store: EventStore): AddressRequests => {
+  const listeners = new Set<() => void>();
+  const requested = new Set<string>();
+  const stored = (address: EventAddress) =>
+    store.latestReplaceable(address.kind, address.pubkey, address.identifier);
+  return {
+    request(address) {
+      requested.add(formatEventAddress(address));
+      queueMicrotask(() => {
+        for (const listener of listeners) listener();
+      });
+    },
+    isUnresolved: (address) =>
+      requested.has(formatEventAddress(address)) && !stored(address),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {
+      listeners.clear();
+    },
+  };
+};
+
 /** ストーリーが並べたイベントだけを持つ読み取り層を渡す。リレーには繋がない。 */
 export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   props,
@@ -209,10 +239,15 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   }
   useStoryNip05(props.scene.nip05 ?? {});
   const events = eventRequestsFor(new Set(props.scene.missingIds));
-  onCleanup(() => events.dispose());
+  const addresses = addressRequestsFor(store);
+  onCleanup(() => {
+    events.dispose();
+    addresses.dispose();
+  });
   const lookups = createReadLookups({
     store,
     events,
+    addresses,
     profiles: inertRequests(),
     engagements: inertRequests(),
   });

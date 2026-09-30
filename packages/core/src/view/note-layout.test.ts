@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { encodeBech32 } from "../nostr/nip19";
+import { encodeBech32, encodeNaddr } from "../nostr/nip19";
 import { MAX_LINK_CARDS, layoutNote } from "./note-layout";
 
 const ID_A = "a".repeat(64);
@@ -200,5 +200,26 @@ describe("layoutNote", () => {
       });
       expect(layout.links).toEqual([]);
     });
+  });
+
+  it("本文の naddr を住所の引用として抜き、同じ住所は 1 つにする", () => {
+    // 捕まえる変異: naddr を本文の文字に残し、引用カードにならない
+    const naddr = encodeNaddr({
+      identifier: "post",
+      pubkey: ID_A,
+      eventKind: 30_023,
+      relays: ["wss://relay.example/"],
+    });
+    const layout = layoutNote(note(`nostr:${naddr} nostr:${naddr}`), {
+      quotes: true,
+    });
+    expect(layout.text).toEqual([]);
+    expect(layout.quotes).toEqual([
+      {
+        form: "address",
+        address: `30023:${ID_A}:post`,
+        relay: "wss://relay.example/",
+      },
+    ]);
   });
 });

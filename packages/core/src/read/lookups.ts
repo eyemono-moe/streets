@@ -1,6 +1,8 @@
+import type { EventAddress } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
+import type { AddressRequests } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
@@ -33,6 +35,14 @@ export type ReadLookups = {
     onChange: (lookup: EventLookup) => void,
   ): () => void;
   /**
+   * 住所で指されたイベントの最新版を探す。取得中と見つからなかったを分けて知らせ、
+   * 新しい版が入るたびに知らせ直す。
+   */
+  watchAddress(
+    address: EventAddress,
+    onChange: (lookup: EventLookup) => void,
+  ): () => void;
+  /**
    * プロフィール（kind:0）を読む。store にあればリレーへ要求しない。取得中と無いを分けず、
    * どちらも undefined を知らせる（名前の代わりに鍵を出すので描き分けが要らない）。
    * 新しい版が入るたびに知らせる。
@@ -56,6 +66,7 @@ export type ReadLookups = {
 export type CreateReadLookupsOptions = {
   store: EventStore;
   events: EventRequests;
+  addresses: AddressRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
 };
@@ -63,6 +74,7 @@ export type CreateReadLookupsOptions = {
 export const createReadLookups = ({
   store,
   events,
+  addresses,
   profiles,
   engagements,
 }: CreateReadLookupsOptions): ReadLookups => ({
@@ -90,6 +102,43 @@ export const createReadLookups = ({
       if (events.isUnresolved(id)) onChange({ phase: "missing" });
     });
     return unsubscribe;
+  },
+
+  watchAddress(address, onChange) {
+    const found = () => {
+      const event = store.latestReplaceable(
+        address.kind,
+        address.pubkey,
+        address.identifier,
+      );
+      if (event) onChange({ phase: "found", event });
+      return event !== undefined;
+    };
+
+    const offChanged = store.onReplaceableChanged((change) => {
+      if (
+        change.kind === address.kind &&
+        change.pubkey === address.pubkey &&
+        change.identifier === address.identifier
+      ) {
+        found();
+      }
+    });
+    if (found()) return offChanged;
+
+    onChange({ phase: "loading" });
+    addresses.request(address);
+    const offBatch = addresses.subscribe(() => {
+      if (found()) {
+        offBatch();
+        return;
+      }
+      if (addresses.isUnresolved(address)) onChange({ phase: "missing" });
+    });
+    return () => {
+      offChanged();
+      offBatch();
+    };
   },
 
   watchProfile(pubkey, onChange) {

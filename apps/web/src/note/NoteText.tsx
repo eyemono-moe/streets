@@ -2,6 +2,7 @@ import {
   buildHashtagColumn,
   buildThreadColumn,
 } from "@streets/core/deck/column-presets";
+import { columnForNaddr } from "@streets/core/deck/open-event";
 import type { ContentToken } from "@streets/core/nostr/content";
 import { shortenUrl } from "@streets/core/view/short-url";
 import {
@@ -111,6 +112,24 @@ const Token: Component<{
                   dispatch({
                     type: "stack/open",
                     column: buildThreadColumn(ref.id),
+                  })
+                }
+              >
+                {shortRef(token().raw)}
+              </button>
+            );
+          }
+          const column = ref.kind === "naddr" ? columnForNaddr(ref) : undefined;
+          if (column) {
+            return (
+              <button
+                type="button"
+                class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
+                title={token().raw}
+                onClick={() =>
+                  dispatch({
+                    type: "stack/open",
+                    column,
                   })
                 }
               >

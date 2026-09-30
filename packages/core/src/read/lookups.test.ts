@@ -1,8 +1,10 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vite-plus/test";
+import { type EventAddress, formatEventAddress } from "../nostr/address";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import type { AddressRequests } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
@@ -61,18 +63,45 @@ const fakeRequests = () => {
   };
 };
 
+/** 住所の要求を記録し、バッチが片付いた知らせをテストから出せる要求器。 */
+const fakeAddressRequests = () => {
+  const requested: string[] = [];
+  const listeners = new Set<() => void>();
+  const unresolved = new Set<string>();
+  const requests: AddressRequests = {
+    request: (address) => void requested.push(formatEventAddress(address)),
+    isUnresolved: (address) => unresolved.has(formatEventAddress(address)),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {},
+  };
+  return {
+    requests,
+    requested,
+    unresolved,
+    listenerCount: () => listeners.size,
+    settle: () => {
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
 const setup = () => {
   const store = new EventStore();
   const events = fakeRequests();
+  const addresses = fakeAddressRequests();
   const profiles = fakeRequests();
   const engagements = fakeRequests();
   const lookups: ReadLookups = createReadLookups({
     store,
     events: events.requests,
+    addresses: addresses.requests,
     profiles: profiles.requests,
     engagements: engagements.requests,
   });
-  return { store, events, profiles, engagements, lookups };
+  return { store, events, addresses, profiles, engagements, lookups };
 };
 
 describe("watchEvent", () => {
@@ -146,6 +175,72 @@ describe("watchEvent", () => {
     events.unresolved.add(id);
     events.settle();
     expect(seen).toEqual([{ phase: "loading" }]);
+  });
+});
+
+describe("watchAddress", () => {
+  const article = (identifier: string, created_at: number) =>
+    signed({ kind: 30_023, tags: [["d", identifier]], created_at });
+  const addressOf = (identifier: string): EventAddress => ({
+    kind: 30_023,
+    pubkey: PUBKEY,
+    identifier,
+  });
+
+  it("store にある最新版をすぐ知らせ、要求しない", () => {
+    const { store, addresses, lookups } = setup();
+    const latest = article("post", 2);
+    store.put(article("post", 1), RELAY);
+    store.put(latest, RELAY);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(seen).toEqual([{ phase: "found", event: latest }]);
+    expect(addresses.requested).toEqual([]);
+  });
+
+  it("新しい版が入ったら知らせ直す", () => {
+    // 捕まえる変異: 見つけた時点で購読をやめ、記事の更新が画面に届かない
+    const { store, lookups } = setup();
+    store.put(article("post", 1), RELAY);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    const next = article("post", 2);
+    store.put(next, RELAY);
+    expect(seen.at(-1)).toEqual({ phase: "found", event: next });
+  });
+
+  it("別の住所の版では知らせない", () => {
+    const { store, lookups } = setup();
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    store.put(article("other", 1), RELAY);
+    expect(seen).toEqual([{ phase: "loading" }]);
+  });
+
+  it("無ければ要求し、片付いても無ければ missing にする", () => {
+    const { addresses, lookups } = setup();
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(addresses.requested).toEqual([`30023:${PUBKEY}:post`]);
+    addresses.settle();
+    expect(seen).toEqual([{ phase: "loading" }]);
+
+    addresses.unresolved.add(`30023:${PUBKEY}:post`);
+    addresses.settle();
+    expect(seen.at(-1)).toEqual({ phase: "missing" });
+  });
+
+  it("止めた後は知らせない", () => {
+    const { store, addresses, lookups } = setup();
+    const seen: EventLookup[] = [];
+    const stop = lookups.watchAddress(addressOf("post"), (lookup) =>
+      seen.push(lookup),
+    );
+    stop();
+    store.put(article("post", 1), RELAY);
+    addresses.settle();
+    expect(seen).toEqual([{ phase: "loading" }]);
+    expect(addresses.listenerCount()).toBe(0);
   });
 });
 
