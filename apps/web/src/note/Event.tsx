@@ -1,6 +1,7 @@
 import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
+import { mediaPostTitle } from "@streets/core/nostr/media-post";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -206,6 +207,20 @@ const Note: Component<ContentProps> = (props) => {
           </p>
         )}
       </Show>
+      {/* 画像・動画の投稿は題名を持てる。本文は説明なので、題名を上に置く。 */}
+      <Show when={mediaPostTitle(props.event)}>
+        {(title) => (
+          <p
+            class="c-primary break-words font-bold"
+            classList={{
+              "text-body": props.size === "normal",
+              "text-[14px]": props.size === "compact",
+            }}
+          >
+            {title()}
+          </p>
+        )}
+      </Show>
       <NoteContent
         event={props.event}
         size={props.size}
@@ -260,7 +275,15 @@ const Unsupported: Component<ContentProps> = (props) => (
 
 const EventContent: Component<ContentProps> = (props) => (
   <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
-    <Match when={props.event.kind === 1}>
+    {/* 画像・動画の投稿（NIP-68・NIP-71）は、imeta の画像を添えた投稿と同じ形で描く。 */}
+    <Match
+      when={
+        props.event.kind === 1 ||
+        props.event.kind === 20 ||
+        props.event.kind === 21 ||
+        props.event.kind === 22
+      }
+    >
       <Note
         event={props.event}
         size={props.size}

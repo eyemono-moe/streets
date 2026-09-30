@@ -222,4 +222,56 @@ describe("layoutNote", () => {
       },
     ]);
   });
+
+  it("画像の投稿（kind:20）は imeta の画像を並べる", () => {
+    // 捕まえる変異: 本文の URL だけを見て、imeta にしか無い画像を落とす
+    const layout = layoutNote(
+      {
+        ...note("海に行った", [
+          ["imeta", "url https://example.com/a", "m image/jpeg", "dim 800x600"],
+          ["imeta", "url https://example.com/b", "blurhash LKO2?U%2Tw=w"],
+        ]),
+        kind: 20,
+      },
+      { quotes: true },
+    );
+    expect(layout.text).toEqual([{ type: "text", text: "海に行った" }]);
+    expect(layout.media).toEqual([
+      {
+        type: "image",
+        url: "https://example.com/a",
+        dimensions: { width: 800, height: 600 },
+      },
+      {
+        type: "image",
+        url: "https://example.com/b",
+        blurhash: "LKO2?U%2Tw=w",
+      },
+    ]);
+  });
+
+  it("動画の投稿（kind:21）は、種類の分からない imeta も動画にし、本文と同じ URL は 1 回にする", () => {
+    const layout = layoutNote(
+      {
+        ...note("https://example.com/clip.mp4", [
+          ["imeta", "url https://example.com/clip.mp4", "m video/mp4"],
+          ["imeta", "url https://example.com/clip"],
+        ]),
+        kind: 21,
+      },
+      { quotes: true },
+    );
+    expect(layout.media.map((item) => [item.type, item.url])).toEqual([
+      ["video", "https://example.com/clip.mp4"],
+      ["video", "https://example.com/clip"],
+    ]);
+  });
+
+  it("ふつうの投稿では、本文に無い imeta を並べない", () => {
+    const layout = layoutNote(
+      note("本文", [["imeta", "url https://example.com/a.png"]]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([]);
+  });
 });

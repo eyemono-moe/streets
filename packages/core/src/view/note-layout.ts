@@ -13,6 +13,7 @@ import {
   tagOnlyQuoteTargets,
 } from "../nostr/event-refs";
 import { type MediaDimensions, inlineMediaMetadata } from "../nostr/imeta";
+import { PICTURE_KIND, isMediaPostKind } from "../nostr/media-post";
 
 export type NoteMedia = {
   type: "image" | "video";
@@ -158,6 +159,26 @@ export const layoutNote = (
     }
   }
 
+  // 画像・動画の投稿は、見せるものを本文ではなく `imeta` にだけ書く。
+  if (isMediaPostKind(event.kind)) {
+    for (const [url, details] of metadata) {
+      if (media.some((item) => item.url === url)) continue;
+      const mime = details.mime?.toLowerCase();
+      const type = mime?.startsWith("video/")
+        ? "video"
+        : mime?.startsWith("image/")
+          ? "image"
+          : event.kind === PICTURE_KIND
+            ? "image"
+            : "video";
+      media.push({
+        type,
+        url,
+        ...(details.dimensions ? { dimensions: details.dimensions } : {}),
+        ...(details.blurhash ? { blurhash: details.blurhash } : {}),
+      });
+    }
+  }
   if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
   return { text: trimEdges(text), media, audio, links, quotes };
 };

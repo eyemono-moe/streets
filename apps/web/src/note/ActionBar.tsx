@@ -1,4 +1,6 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { canReplyWithNote } from "@streets/core/nostr/build/note";
+import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventActionId } from "@streets/core/settings/action-layout";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
@@ -95,9 +97,14 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
         const views: Record<EventActionId, () => JSX.Element> = {
           reply: () => (
             <Action
-              label="返信"
+              label={
+                canReplyWithNote(props.event)
+                  ? "返信"
+                  : "この投稿にはまだ返信できません"
+              }
               icon={EVENT_ACTION_META.reply.icon}
               count={engagement().replies}
+              disabled={!canReplyWithNote(props.event)}
               onClick={() => dialogs.open("reply")}
             />
           ),
@@ -134,7 +141,11 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                   <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
                     <Menu.Item
                       value="repost"
-                      disabled={reposting() || engagement().viewerReposted}
+                      disabled={
+                        reposting() ||
+                        engagement().viewerReposted ||
+                        !buildRepost(props.event)
+                      }
                       class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
                     >
                       <span

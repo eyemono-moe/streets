@@ -351,6 +351,32 @@
     "gap": "計測イベントの発行はしない"
   },
   {
+    "nip": "68",
+    "status": "一部",
+    "summary": "画像の投稿を、添付画像つきの投稿と同じ形で表示",
+    "kinds": [20],
+    "tags": ["title", "imeta"],
+    "paths": [
+      "packages/core/src/nostr/media-post.ts",
+      "packages/core/src/view/note-layout.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": "表示だけで、画像の投稿は作れない。返信（kind:1111）とリポスト（kind:16）もまだできない"
+  },
+  {
+    "nip": "71",
+    "status": "一部",
+    "summary": "動画・短い動画の投稿を表示",
+    "kinds": [21, 22],
+    "tags": ["title", "imeta"],
+    "paths": [
+      "packages/core/src/nostr/media-post.ts",
+      "packages/core/src/view/note-layout.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": "表示だけで、動画の投稿は作れない。住所で指す版（kind:34235・34236）、サムネイル・字幕・長さは使わない。返信とリポストもまだできない"
+  },
+  {
     "nip": "78",
     "status": "対応",
     "summary": "デッキ設定をアカウントに保存",
