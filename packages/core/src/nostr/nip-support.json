@@ -345,6 +345,19 @@
     "gap": ""
   },
   {
+    "nip": "89",
+    "status": "一部",
+    "summary": "投稿に client タグを付ける（選んだ人だけ）。Streets を説明する kind:31990 をリリースのたびに出す",
+    "kinds": [31990],
+    "tags": ["client"],
+    "paths": [
+      "packages/core/src/nostr/build/client-tag.ts",
+      "packages/core/src/nostr/streets-handler.json",
+      "scripts/app-handler.mjs"
+    ],
+    "gap": "他のアプリの client タグと kind:31990 は読まない。アプリのおすすめ（kind:31989）には対応しない"
+  },
+  {
     "nip": "92",
     "status": "一部",
     "summary": "添付画像・動画の情報を投稿に添える",

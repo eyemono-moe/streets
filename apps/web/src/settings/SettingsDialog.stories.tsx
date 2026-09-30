@@ -63,6 +63,7 @@ const Story = (props: Props) => {
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
+  const [clientTag, setClientTag] = createSignal(false);
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
   const [deckLayout, setDeckLayout] = createSignal<DeckLayout>("auto");
@@ -175,6 +176,9 @@ const Story = (props: Props) => {
                     case "deck/set-error-report":
                       setErrorReport(event.on);
                       return true;
+                    case "deck/set-client-tag":
+                      setClientTag(event.on);
+                      return true;
                     case "deck/set-column-digits":
                       setColumnDigits(event.on);
                       return true;
@@ -206,6 +210,7 @@ const Story = (props: Props) => {
                   appearance={appearance()}
                   writeProgress={writeProgress()}
                   errorReport={errorReport()}
+                  clientTag={clientTag()}
                   keymap={keymap()}
                   columnDigits={columnDigits()}
                   deckLayout={deckLayout()}
@@ -251,6 +256,12 @@ export const 表示_シアン: S = {
     page: "display",
     appearance: { accent: PALETTES.cyan.accent, ui: PALETTES.cyan.ui },
   },
+};
+
+export const プライバシー_広い画面: S = { args: { page: "privacy" } };
+
+export const プライバシー_狭い画面: S = {
+  args: { page: "privacy", wide: false },
 };
 
 export const 絵文字_広い画面: S = { args: { page: "emoji" } };

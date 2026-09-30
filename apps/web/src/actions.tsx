@@ -13,6 +13,7 @@ import {
   buildMuteUser,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
+import { withClientTag } from "@streets/core/nostr/build/client-tag";
 import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
@@ -167,6 +168,8 @@ export const createWriteStack = (options: {
   viewer: string;
   /** 行き先が分からないときに送る先。開発時の `?relays=` で差し替える。 */
   fallbackRelays?: readonly RelayUrl[];
+  /** 投稿に client タグを付けるか。送るたびに読む。 */
+  clientTag?: () => boolean;
 }): WriteStack => {
   const { store, routing, manager } = options.readLayer;
   const target = {
@@ -175,7 +178,7 @@ export const createWriteStack = (options: {
     store,
     fallbackRelays: options.fallbackRelays ?? FALLBACK_RELAYS,
   };
-  const writer = createWriter({
+  const base = createWriter({
     signer: options.signer,
     store,
     publisher: createPublisher(target),
@@ -183,6 +186,16 @@ export const createWriteStack = (options: {
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   });
+  // 付けるかは送る直前に決める。付ける kind は withClientTag が選ぶ。
+  const writer: Writer = {
+    ...base,
+    publish: (draft, hooks, publishOptions) =>
+      base.publish(
+        options.clientTag?.() ? withClientTag(draft) : draft,
+        hooks,
+        publishOptions,
+      ),
+  };
 
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);

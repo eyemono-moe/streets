@@ -14,6 +14,7 @@ import EmojiSettings from "./EmojiSettings";
 import KeyboardSettings from "./KeyboardSettings";
 import MediaSettings from "./MediaSettings";
 import MuteSettings from "./MuteSettings";
+import PrivacySettings from "./PrivacySettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
 import SearchSettings from "./SearchSettings";
@@ -30,6 +31,8 @@ const SettingsDialog: Component<{
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
   errorReport: boolean;
+  /** 投稿に client タグを付けるか（アカウントの設定）。 */
+  clientTag: boolean;
   /** ショートカットキーの割り当て（この端末の設定）。 */
   keymap: Keymap;
   /** 数字キーでカラムを見せるか（この端末の設定）。 */
@@ -124,10 +127,22 @@ const SettingsDialog: Component<{
           scheme={props.scheme}
           appearance={props.appearance}
           writeProgress={props.writeProgress}
-          errorReport={props.errorReport}
           contentWarning={contentWarningMode()}
           deckLayout={props.deckLayout}
           actionLayout={actionLayout()}
+        />
+      ),
+    },
+    {
+      value: "privacy",
+      label: "プライバシー",
+      icon: "i-material-symbols:lock-person-outline-rounded",
+      title: "プライバシー",
+      description: "投稿や報告で、Streets の外へ何を出すかを設定します",
+      content: () => (
+        <PrivacySettings
+          clientTag={props.clientTag}
+          errorReport={props.errorReport}
         />
       ),
     },

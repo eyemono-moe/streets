@@ -42,8 +42,6 @@ const DisplaySettings: Component<{
   appearance: DeckAppearance;
   /** 保存の進み具合を出すか（この端末の設定）。 */
   writeProgress: boolean;
-  /** 不具合の報告を送るか（この端末の設定）。 */
-  errorReport: boolean;
   /** 閲覧注意の投稿の扱い（この端末の設定）。 */
   contentWarning: ContentWarningMode;
   /** カラムの並べ方（この端末の設定）。 */
@@ -114,18 +112,6 @@ const DisplaySettings: Component<{
         description={`投稿の下に並べる操作を選びます。並べられるのは ${ACTION_BAR_MAX} 個までで、残りは投稿の右上の「︙」のメニューに入ります。行を掴んで動かすか、右端のつまみを選んで ↑↓ キーで並べ替えます。`}
       >
         <ActionLayoutField layout={props.actionLayout} />
-      </SettingsSection>
-
-      <SettingsSection
-        title="不具合と動作の速さの報告"
-        scope="device"
-        description="不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
-      >
-        <Switch
-          label="不具合と動作の速さの報告を送信する"
-          checked={props.errorReport}
-          onChange={(on) => dispatch({ type: "deck/set-error-report", on })}
-        />
       </SettingsSection>
 
       <SettingsSection

@@ -169,3 +169,45 @@ jobs:
             "$RUNNER_TEMP/proxy-result.json"
           jq -r '.results[] | select(.accepted | not) | "::warning::\(.relay) に届かなかった: \(.message)"' \
             "$RUNNER_TEMP/proxy-result.json"
+      - name: Streets の説明（kind:31990）を作る
+        id: app-handler
+        # 投稿の client タグが指すイベント（NIP-89）。表示できる kind が増えても追いつくよう、
+        # リリースのたびに出し直す。置換可能なので、古い版は新しい版に置き換わる。
+        run: |
+          node scripts/app-handler.mjs > "$RUNNER_TEMP/app-handler.json"
+          {
+            echo "content=$(jq -c -r .content "$RUNNER_TEMP/app-handler.json")"
+            echo "tags=$(jq -c .tags "$RUNNER_TEMP/app-handler.json")"
+          } >> "$GITHUB_OUTPUT"
+      - name: Streets の説明を配る
+        id: app-handler-event
+        # 届かなくても本番とお知らせはもう出ているので、ジョブは落とさない。
+        continue-on-error: true
+        uses: snow-actions/nostr@v2.0.0
+        with:
+          relays: ${{ vars.NOSTR_RELAYS }}
+          private-key: ${{ secrets.NOSTR_PRIVATE_KEY }}
+          kind: 31990
+          content: ${{ steps.app-handler.outputs.content }}
+          tags: ${{ steps.app-handler.outputs.tags }}
+      - name: Streets の説明を日本のリレーへ東京から届ける
+        if: steps.app-handler-event.outcome == 'success'
+        continue-on-error: true
+        env:
+          EVENT: ${{ steps.app-handler-event.outputs.event }}
+          RELAYS: ${{ vars.NOSTR_PROXY_RELAYS }}
+          PROXY_URL: ${{ vars.NOSTR_PROXY_URL }}
+          PROXY_TOKEN: ${{ secrets.NOSTR_PROXY_TOKEN }}
+        run: |
+          jq -n --argjson event "$EVENT" --arg relays "$RELAYS" \
+            '{ event: $event, relays: ($relays | split("\n") | map(gsub("\\s"; "")) | map(select(length > 0))) }' \
+            > "$RUNNER_TEMP/proxy.json"
+          curl -sS --fail-with-body --max-time 30 -X POST \
+            -H "authorization: Bearer $PROXY_TOKEN" \
+            -H "content-type: application/json" \
+            --data @"$RUNNER_TEMP/proxy.json" \
+            "$PROXY_URL" > "$RUNNER_TEMP/proxy-result.json"
+          jq -r '.results[] | "\(if .accepted then "届いた" else "届かない" end) \(.relay) \(.message)"' \
+            "$RUNNER_TEMP/proxy-result.json"
+          jq -r '.results[] | select(.accepted | not) | "::warning::\(.relay) に届かなかった: \(.message)"' \
+            "$RUNNER_TEMP/proxy-result.json"

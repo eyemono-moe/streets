@@ -8,7 +8,7 @@
 2. **タグを打つ**：main のそのコミットに `v1.2.3` のタグを打って push する
 3. **プレビュー**（`.github/workflows/release.yaml` の Preview）：ビルドして Worker の版を上げる。本番には出さない。版のプレビュー URL がジョブの要約に出る
 4. **承認**：プレビューで確かめ、Production のジョブを承認する（`production` 環境の必須レビュアー）
-5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。ノートの中身と Streets・その Release へのリンクを Nostr に投稿して知らせる
+5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。ノートの中身と Streets・その Release へのリンクを Nostr に投稿して知らせる。あわせて、投稿の `client` タグが指す Streets の説明（kind:31990。中身は `scripts/app-handler.mjs` が `streets-handler.json` と `kind-support.json` から作る）を同じ鍵で出し直す
 
 タグが main に入っていないコミットを指しているとき、ノートのファイルが無いときは、3 で止まる。
 

@@ -203,7 +203,8 @@ const TOOLS: Tool[] = [
     tool: "Sentry",
     terms: "https://sentry.io/terms/",
     privacy: "https://sentry.io/privacy/",
-    optOut: "設定 →「表示」→「不具合と動作の速さの報告」から停止できます",
+    optOut:
+      "設定 →「プライバシー」→「不具合と動作の速さの報告」から停止できます",
     sends:
       "エラーの内容と発生箇所、画面の読み込みや操作にかかった時間、端末とブラウザの情報、アプリのバージョン",
     purpose: "不具合と動作の重さの把握と改善のため",

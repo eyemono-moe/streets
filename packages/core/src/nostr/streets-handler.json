@@ -1,0 +1,15 @@
+{
+  "pubkey": "dbe6fc932b40d3f322f3ce716b30b4e58737a5a1110908609565fb146f55f44a",
+  "identifier": "streets",
+  "relay": "wss://relay.damus.io/",
+  "origin": "https://streets.eyemono.moe",
+  "entities": ["nevent", "note", "nprofile", "npub"],
+  "metadata": {
+    "name": "Streets",
+    "display_name": "Streets",
+    "about": "Column based Nostr client for web",
+    "picture": "https://streets.eyemono.moe/favicon.svg",
+    "banner": "https://streets.eyemono.moe/ogp.webp",
+    "website": "https://streets.eyemono.moe"
+  }
+}
