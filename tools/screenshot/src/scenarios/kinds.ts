@@ -31,7 +31,15 @@ ISO 200 / f8 / 1/250
 
 ![川の写真]({asset:photo-river.svg})
 
-一緒に歩いている人たちのリスト {naddr:haru/walk-club}
+![帰り道]({asset:photo-street.svg})
+
+前に書いた投稿（参照だけの段落は、引用のカードになる）
+
+{nevent:haru-light}
+
+一緒に歩いている人たちのリスト（文の途中の参照はリンクのまま） {naddr:haru/walk-club}
+
+{naddr:kai-notes}
 
 <b>HTML は文字のまま出る</b>`;
 
