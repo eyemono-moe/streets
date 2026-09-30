@@ -685,7 +685,7 @@ const DeckScreen: Component<{
       <Match when={shownPanel() === "arrange"}>
         <SidePanel
           title="デッキを編集する"
-          icon="i-material-symbols:dashboard-outline-rounded"
+          icon="i-material-symbols:view-column-outline-rounded"
           full={full}
         >
           <ColumnArrangePanel
@@ -704,7 +704,7 @@ const DeckScreen: Component<{
         {(set) => (
           <SidePanel
             title="新しいデッキ"
-            icon="i-material-symbols:dashboard-outline-rounded"
+            icon="i-material-symbols:view-column-outline-rounded"
             full={full}
             onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
           >

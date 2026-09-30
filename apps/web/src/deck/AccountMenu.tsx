@@ -65,7 +65,7 @@ const AccountMenu: Component<{
                 class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
               >
                 <span
-                  class="i-material-symbols:dashboard-outline-rounded c-secondary size-4.5"
+                  class="i-material-symbols:view-column-outline-rounded c-secondary size-4.5"
                   aria-hidden="true"
                 />
                 デッキを編集

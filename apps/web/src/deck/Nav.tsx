@@ -140,7 +140,7 @@ export const Sidebar: Component<{
             : "ghost"
         }
         size="lg"
-        icon="i-material-symbols:dashboard-outline-rounded"
+        icon="i-material-symbols:view-column-outline-rounded"
         label="デッキを編集"
         aria-expanded={props.panel === "arrange"}
         onClick={() =>

@@ -275,7 +275,7 @@ const meta = {
         <div class="flex h-[560px]" style={{ width: `${props.width}px` }}>
           <SidePanel
             title="デッキを編集する"
-            icon="i-material-symbols:dashboard-outline-rounded"
+            icon="i-material-symbols:view-column-outline-rounded"
             full
           >
             <ColumnArrangePanel
@@ -335,7 +335,7 @@ export const 新しいデッキ: S = {
       <div class="flex h-[560px] w-[360px]">
         <SidePanel
           title="新しいデッキ"
-          icon="i-material-symbols:dashboard-outline-rounded"
+          icon="i-material-symbols:view-column-outline-rounded"
           full
           onBack={() => {}}
         >

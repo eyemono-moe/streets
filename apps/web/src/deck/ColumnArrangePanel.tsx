@@ -112,6 +112,7 @@ const ColumnArrangePanel: Component<{
     axis: "y",
     container: () => list,
     scroller: () => scroller,
+    contain: true,
     element: (id) =>
       list?.querySelector<HTMLElement>(
         `[data-arrange-id="${CSS.escape(id)}"]`,

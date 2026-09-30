@@ -78,7 +78,7 @@ const DeckPicker: Component<{
         class="flex h-13 min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-2 bg-secondary pr-2 pl-3 text-left hover:bg-tertiary data-[state=open]:ring-2 data-[state=open]:ring-accent-5"
       >
         <span
-          class="i-material-symbols:dashboard-outline-rounded c-secondary size-5 shrink-0"
+          class="i-material-symbols:view-column-outline-rounded c-secondary size-5 shrink-0"
           aria-hidden="true"
         />
         <span class="flex min-w-0 flex-1 flex-col">
