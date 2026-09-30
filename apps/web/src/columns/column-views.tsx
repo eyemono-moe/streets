@@ -55,6 +55,7 @@ import {
   FollowSetTimeline,
 } from "./blocks/FollowSets";
 import NotificationList from "./blocks/NotificationList";
+import PinnedNotes from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
 
@@ -393,14 +394,17 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                 value: "posts",
                 label: "投稿",
                 content: () => (
-                  <EventList
-                    name="posts"
-                    source={() =>
-                      userPostsSource(props.source.pubkey, {
-                        chats: columnShow(scope.column()).chats,
-                      })
-                    }
-                  />
+                  <>
+                    <PinnedNotes pubkey={props.source.pubkey} />
+                    <EventList
+                      name="posts"
+                      source={() =>
+                        userPostsSource(props.source.pubkey, {
+                          chats: columnShow(scope.column()).chats,
+                        })
+                      }
+                    />
+                  </>
                 ),
               },
               {
