@@ -137,6 +137,8 @@ export type DeckEvent =
   | { type: "deck/select-column"; id: string }
   /** そのカラムを見せる（広い画面では画面に収まるよう送り、狭い画面ではタブを選ぶ）。 */
   | { type: "deck/focus-column"; id: string }
+  /** 見ているカラムのタブをもう一度押した。見出しを押したのと同じく、先頭へ戻す。 */
+  | { type: "deck/press-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
   | { type: "deck/drag-start"; id: string; index: number }
   | { type: "deck/drag-move"; to: number }

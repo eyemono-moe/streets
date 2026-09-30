@@ -277,6 +277,9 @@ const DeckScreen: Component<{
     servers: () => effectiveBlossomServers(write.blossomServers()),
   });
 
+  // カラムの見出しを押したときの動き。狭い画面では見出しの代わりにタブから呼ぶ。
+  const columnHeaders = new Map<string, () => void>();
+
   // カラムを見せる。広い画面では横に送って画面に収め、狭い画面ではそのタブを選ぶ。
   const focusColumn = (id: string) => {
     if (!isMultiColumn()) {
@@ -483,6 +486,9 @@ const DeckScreen: Component<{
       case "deck/focus-column":
         focusColumn(event.id);
         return true;
+      case "deck/press-column":
+        columnHeaders.get(event.id)?.();
+        return true;
       case "deck/open-settings":
       case "deck/close-settings":
       case "deck/open-about":
@@ -616,6 +622,12 @@ const DeckScreen: Component<{
     ui.settingsFor !== ui.active &&
     ownComposer[ui.active] === true;
   const shared = {
+    registerHeader: (id: string, press: () => void) => {
+      columnHeaders.set(id, press);
+      return () => {
+        if (columnHeaders.get(id) === press) columnHeaders.delete(id);
+      };
+    },
     onShown: (id: string, shown: ColumnDef) =>
       setOwnComposer(id, columnView(shown.source).ownComposer === true),
     get readLayer() {
