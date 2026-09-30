@@ -1,6 +1,11 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
-import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  type Deck,
+  type DeckAppearance,
+  defaultColumns,
+} from "@streets/core/deck/deck";
 import {
   addColumnTo,
   moveColumnIn,
@@ -8,6 +13,15 @@ import {
   removeColumnFrom,
   updateColumnIn,
 } from "@streets/core/deck/deck-mutations";
+import {
+  activeDeck,
+  addDeck,
+  moveDeckTo,
+  nextDeckName,
+  removeDeck,
+  renameDeck,
+  updateDeckIn,
+} from "@streets/core/deck/deck-set";
 import {
   type DeckUiEvent,
   type DeckUiState,
@@ -92,6 +106,7 @@ import { notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
+import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 import { trackReplaces } from "../write-progress";
 import {
   setShowWriteProgress,
@@ -105,10 +120,16 @@ import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnArrangePanel from "./ColumnArrangePanel";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
-import { createDeckStore } from "./deck-store";
+import {
+  createDeckStore,
+  saveActiveDeckId,
+  savedActiveDeckId,
+} from "./deck-store";
+import DeckEditHeader from "./DeckEditHeader";
 import DeckEndSpace from "./DeckEndSpace";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
+import NewDeckPanel from "./NewDeckPanel";
 import { relayListState } from "./relay-list";
 import SearchPanel from "./SearchPanel";
 import SidePanel, { SidePanelMotion } from "./SidePanel";
@@ -219,6 +240,39 @@ const DeckScreen: Component<{
     fetchLatest: write.fetchLatest,
     storage: localStorage,
   });
+  // どのデッキを開いているかは端末ごとに覚える。アカウントには保存しない。
+  // この画面で選び直したもの。アカウントを切り替えたら、その人が端末に覚えたものへ戻る。
+  const [chosenDeck, setChosenDeck] = createSignal<{
+    pubkey: string;
+    id: string;
+  }>();
+  const activeDeckId = () => {
+    const pubkey = props.session.pubkey();
+    if (!pubkey) return undefined;
+    const chosen = chosenDeck();
+    return chosen?.pubkey === pubkey ? chosen.id : savedActiveDeckId(pubkey);
+  };
+  const switchDeck = (id: string) => {
+    const pubkey = props.session.pubkey();
+    if (!pubkey) return;
+    setChosenDeck({ pubkey, id });
+    saveActiveDeckId(pubkey, id);
+  };
+  const currentDeck = (): Deck | undefined => {
+    const set = deckStore.value();
+    return set && activeDeck(set, activeDeckId());
+  };
+  const deckSummaries = () =>
+    deckStore.value()?.decks.map((deck) => ({
+      id: deck.id,
+      name: deck.name,
+      columns: deck.columns.length,
+    })) ?? [];
+  // カラムの操作は、開いているデッキにだけ当てる。
+  const updateDeck = (update: (deck: Deck) => Deck) =>
+    deckStore.update((set) =>
+      updateDeckIn(set, activeDeck(set, activeDeckId()).id, update),
+    );
   // カラムは id で突き合わせて store に当てる。デッキは読み込み・同期・保存のたびに
   // 丸ごと新しい値になるので、そのまま <For> に渡すと全カラムが作り直され、購読・
   // スクロール位置・重ねた段がすべて消える。当てるのは複製 —— reconcile は store の
@@ -227,7 +281,7 @@ const DeckScreen: Component<{
     columns: [],
   });
   createEffect(() => {
-    const next = deckStore.value()?.columns ?? [];
+    const next = currentDeck()?.columns ?? [];
     // nextにproxyが含まれておりそのままだとstructuredCloneでDataCloneErrorが発生するためunwrapする
     setDeckView(
       "columns",
@@ -257,7 +311,7 @@ const DeckScreen: Component<{
     const added = { ...column, id: crypto.randomUUID() };
     const endOpen = startMeasure("column.open", "ui.column");
     whenColumnShows(added.id, () => endOpen({ kind: added.source.kind }));
-    deckStore.update((deck) => addColumnTo(deck, added));
+    updateDeck((deck) => addColumnTo(deck, added));
     applyUi({ type: "deck/column-added", id: added.id });
     scrollToEnd();
   };
@@ -396,7 +450,7 @@ const DeckScreen: Component<{
     clearTimeout(appearanceTimer);
     appearanceTimer = setTimeout(() => {
       savingAppearance = true;
-      deckStore.update((deck) => ({ ...deck, appearance: next }));
+      deckStore.update((set) => ({ ...set, appearance: next }));
     }, APPEARANCE_SAVE_DELAY_MS);
   };
   // 保存はデッキの同期に任せているので、同期が終わった合図で知らせる。
@@ -450,26 +504,53 @@ const DeckScreen: Component<{
         const dragging = ui.dragging;
         if (!dragging) return true;
         // 見せている並びを変えずに確定する。先に掴みを外すと、保存が返るまでの間だけ元の並びに戻って見える。
-        deckStore.update((deck) =>
-          moveColumnToIn(deck, dragging.id, dragging.to),
-        );
+        updateDeck((deck) => moveColumnToIn(deck, dragging.id, dragging.to));
         applyUi({ type: "deck/drag-end" });
         return true;
       }
       case "deck/move-column":
-        deckStore.update((deck) =>
-          moveColumnIn(deck, event.id, event.direction),
-        );
+        updateDeck((deck) => moveColumnIn(deck, event.id, event.direction));
         return true;
       case "deck/add-column":
         addColumn(event.column);
         return true;
       case "deck/patch-column":
-        deckStore.update((deck) => updateColumnIn(deck, event.id, event.patch));
+        updateDeck((deck) => updateColumnIn(deck, event.id, event.patch));
         return true;
       case "deck/remove-column":
-        deckStore.update((deck) => removeColumnFrom(deck, event.id));
+        updateDeck((deck) => removeColumnFrom(deck, event.id));
         applyUi({ type: "deck/column-removed", id: event.id });
+        return true;
+      case "deck/switch-deck":
+        // パネルは閉じない。選び直したデッキのカラムを、そのまま続けて並べ替えられる。
+        switchDeck(event.id);
+        return true;
+      case "deck/add-deck": {
+        const id = crypto.randomUUID();
+        deckStore.update((set) =>
+          addDeck(set, {
+            id,
+            name: event.name,
+            columns:
+              event.from === "copy"
+                ? activeDeck(set, activeDeckId()).columns
+                : defaultColumns(WELCOME_RELAYS),
+          }),
+        );
+        if (deckStore.value()?.decks.some((deck) => deck.id === id)) {
+          switchDeck(id);
+          applyUi({ type: "deck/open-panel", panel: "arrange" });
+        }
+        return true;
+      }
+      case "deck/rename-deck":
+        deckStore.update((set) => renameDeck(set, event.id, event.name));
+        return true;
+      case "deck/move-deck":
+        deckStore.update((set) => moveDeckTo(set, event.id, event.to));
+        return true;
+      case "deck/remove-deck":
+        deckStore.update((set) => removeDeck(set, event.id));
         return true;
       case "deck/keep-temp": {
         const column = temp();
@@ -589,9 +670,10 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "add-column"}>
         <SidePanel
-          title="カラムを追加する"
+          title={`「${currentDeck()?.name ?? ""}」にカラムを追加`}
           icon="i-material-symbols:add-rounded"
           full={full}
+          onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
         >
           <AddColumnPanel
             relayList={relayList()}
@@ -602,12 +684,36 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "arrange"}>
         <SidePanel
-          title="カラムを整理する"
-          icon="i-material-symbols:reorder-rounded"
+          title="デッキを編集する"
+          icon="i-material-symbols:view-column-outline-rounded"
           full={full}
         >
-          <ColumnArrangePanel columns={columns()} dragging={ui.dragging} />
+          <ColumnArrangePanel
+            columns={columns()}
+            dragging={ui.dragging}
+            header={
+              <DeckEditHeader
+                decks={deckSummaries()}
+                activeId={currentDeck()?.id ?? ""}
+              />
+            }
+          />
         </SidePanel>
+      </Match>
+      <Match when={shownPanel() === "new-deck" && deckStore.value()}>
+        {(set) => (
+          <SidePanel
+            title="新しいデッキ"
+            icon="i-material-symbols:view-column-outline-rounded"
+            full={full}
+            onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
+          >
+            <NewDeckPanel
+              placeholder={nextDeckName(set())}
+              current={currentDeck()?.name ?? ""}
+            />
+          </SidePanel>
+        )}
       </Match>
     </Switch>
   );

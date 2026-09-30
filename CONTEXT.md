@@ -7,7 +7,7 @@
 ### 画面の構成
 
 **デッキ**:
-ユーザーが並べたカラムの集合と、その並び順・幅などの設定全体。アクティブなアカウントごとに1つ存在する。
+ユーザーが並べたカラムの集合と、その並び順・幅などの設定全体。名前を持ち、アカウントごとにいくつも持てる（スマホ用・PC 用など）。どれを開いているかは端末ごとに覚える。
 _Avoid_: ワークスペース、ボード、レイアウト
 
 **カラム**:
@@ -89,7 +89,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0006](./docs/adr/0006-no-dm-in-v1.md) | v1 では DM (NIP-17) を実装しない |
 | [0007](./docs/adr/0007-nip-tracking-pipeline-draft-pr-only.md) | NIP 追従パイプラインは draft PR までとし自動マージしない |
 | [0008](./docs/adr/0008-signer-only-key-handling.md) | 秘密鍵をアプリに渡さない（NIP-07 / NIP-46 のみ） |
-| [0009](./docs/adr/0009-mobile-single-column-view-only-editing.md) | モバイルは1カラム表示、デッキ編集はデスクトップ専用 |
+| [0009](./docs/adr/0009-mobile-single-column-view-only-editing.md) | モバイルは1カラム表示、デッキ編集はデスクトップ専用（編集の制限は廃止） |
 | [0010](./docs/adr/0010-single-active-account.md) | 同時にアクティブなアカウントは常に1つ |
 | [0011](./docs/adr/0011-performance-budget.md) | 性能予算を数値で固定し E2E で測定可能にする |
 | [0012](./docs/adr/0012-external-images-loaded-directly-by-default.md) | 外部画像は既定で直接読み込む |
@@ -118,6 +118,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0030](./docs/adr/0030-single-verification-entrypoint.md) | ローカルと CI の検証入口を `verify` に揃える |
 | [0031](./docs/adr/0031-nip46-session-key-boundary.md) | NIP-46 transport の通信専用 client key と本人鍵の境界を固定する |
 | [0032](./docs/adr/0032-url-opens-a-temporary-column.md) | URL はデッキを置き換えず、一時カラムを開く |
+| [0033](./docs/adr/0033-deck-set-in-one-nip78-event.md) | 複数のデッキを 1 つの kind:30078 にまとめて保存する |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 

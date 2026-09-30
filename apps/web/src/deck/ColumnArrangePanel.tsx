@@ -1,8 +1,9 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckUiState } from "@streets/core/deck/deck-ui";
-import { type Component, For, Show } from "solid-js";
+import { type Component, For, type JSX, Show } from "solid-js";
 import { columnView } from "../columns/column-views";
 import { useDispatch } from "../ui-events";
+import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
 import { createSortable } from "../ui/sortable";
 import { createColumnOrder } from "./column-order";
@@ -49,6 +50,15 @@ const Row: Component<{
           )}
         </Show>
       </span>
+      <IconButton
+        icon="i-material-symbols:delete-outline-rounded"
+        label={`「${title()}」を削除`}
+        // 行を押すと掴むので、ここで押したときは掴まない。
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() =>
+          dispatch({ type: "deck/remove-column", id: props.column.id })
+        }
+      />
       {/*
         右端は、行の高さいっぱいを掴む場所にする。タッチでもここは押してすぐ掴める
         （ほかの場所は長押しで掴み、押してすぐ動かすと一覧を送る）。
@@ -82,12 +92,14 @@ const Row: Component<{
 };
 
 /**
- * カラムを上下に並べて、掴んで並べ替える。狭い画面ではカラムを横に並べて見られない
- * ので、ここで並びを変える。広い画面でも、カラムが多いと横に送るより早い。
+ * 開いているデッキのカラムを上下に並べて、掴んで並べ替える・消す・足す。狭い画面では
+ * カラムを横に並べて見られないので、ここで並びを変える。広い画面でも、カラムが多いと
+ * 横に送るより早い。上（`header`）には、どのデッキかを置く。
  */
 const ColumnArrangePanel: Component<{
   columns: readonly ColumnDef[];
   dragging: DeckUiState["dragging"];
+  header?: JSX.Element;
 }> = (props) => {
   const dispatch = useDispatch();
   const order = createColumnOrder(
@@ -100,6 +112,7 @@ const ColumnArrangePanel: Component<{
     axis: "y",
     container: () => list,
     scroller: () => scroller,
+    contain: true,
     element: (id) =>
       list?.querySelector<HTMLElement>(
         `[data-arrange-id="${CSS.escape(id)}"]`,
@@ -111,16 +124,20 @@ const ColumnArrangePanel: Component<{
     cancel: () => dispatch({ type: "deck/drag-end" }),
   });
   return (
-    <div ref={scroller} class="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+    <div
+      ref={scroller}
+      class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-4"
+    >
+      {props.header}
       <Show
         when={props.columns.length > 0}
         fallback={
           <p class="c-secondary text-caption">
-            カラムがありません。「カラムを追加」から足せます。
+            このデッキにはカラムがありません。
           </p>
         }
       >
-        <p class="c-secondary mb-3 text-caption">
+        <p class="c-secondary text-caption">
           行を掴んで上下に動かすと、カラムの並びが変わります。
         </p>
         {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
@@ -146,6 +163,17 @@ const ColumnArrangePanel: Component<{
           </For>
         </ol>
       </Show>
+      <Button
+        variant="secondary"
+        shape="rounded"
+        block
+        icon="i-material-symbols:add-rounded"
+        onClick={() =>
+          dispatch({ type: "deck/open-panel", panel: "add-column" })
+        }
+      >
+        カラムを追加
+      </Button>
     </div>
   );
 };

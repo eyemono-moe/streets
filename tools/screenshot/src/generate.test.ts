@@ -1,4 +1,4 @@
-import { loadDeck } from "@streets/core/deck/deck";
+import { loadDeckSet } from "@streets/core/deck/deck";
 import { FOLLOW_SET_KIND, readFollowSet } from "@streets/core/lists/follow-set";
 import { verifyEvent } from "@streets/core/nostr/event";
 import {
@@ -56,8 +56,8 @@ describe.each(Object.entries(scenarios))("シナリオ %s", (_, scenario) => {
       secretKeyFor(scenario.viewer),
       pubkeyFor(scenario.viewer),
     );
-    const loaded = loadDeck(decryptNip44(deck?.content ?? "", key));
-    expect(loaded?.columns).toHaveLength(scenario.deck.length);
+    const loaded = loadDeckSet(decryptNip44(deck?.content ?? "", key));
+    expect(loaded?.decks[0]?.columns).toHaveLength(scenario.deck.length);
   });
 });
 

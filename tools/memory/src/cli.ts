@@ -11,9 +11,11 @@ import { type CDPSession, type Page, chromium } from "@playwright/test";
 import { buildColumn } from "@streets/core/deck/column-presets";
 import {
   type ColumnDef,
-  type Deck,
+  type DeckSet,
+  FIRST_DECK_ID,
+  FIRST_DECK_NAME,
   deckStorageKey,
-  saveDeck,
+  saveDeckSet,
 } from "@streets/core/deck/deck";
 import { decodeUserInput } from "@streets/core/nostr/nip19";
 import {
@@ -88,27 +90,36 @@ const column = (
   return built;
 };
 
-const deck: Deck = {
-  version: 2,
-  columns: [
-    column("home"),
-    column("notifications"),
-    column("user", pubkey),
+const deck: DeckSet = {
+  version: 3,
+  decks: [
     {
-      id: crypto.randomUUID(),
-      title: "自分のリアクション",
-      source: { kind: "literal", filters: [{ kinds: [7], authors: [pubkey] }] },
+      id: FIRST_DECK_ID,
+      name: FIRST_DECK_NAME,
+      columns: [
+        column("home"),
+        column("notifications"),
+        column("user", pubkey),
+        {
+          id: crypto.randomUUID(),
+          title: "自分のリアクション",
+          source: {
+            kind: "literal",
+            filters: [{ kinds: [7], authors: [pubkey] }],
+          },
+        },
+        column("user", users[0]),
+        column("user", users[1]),
+        ...(values.columns === "10"
+          ? [
+              column("hashtag", "nostr"),
+              column("hashtag", "bitcoin"),
+              column("hashtag", "art"),
+              column("hashtag", "photography"),
+            ]
+          : []),
+      ],
     },
-    column("user", users[0]),
-    column("user", users[1]),
-    ...(values.columns === "10"
-      ? [
-          column("hashtag", "nostr"),
-          column("hashtag", "bitcoin"),
-          column("hashtag", "art"),
-          column("hashtag", "photography"),
-        ]
-      : []),
   ],
 };
 
@@ -153,7 +164,7 @@ const storage = {
   [TOUR_STORAGE_KEY]: saveTourSeen(),
   [deckStorageKey(pubkey)]: JSON.stringify({
     cacheVersion: 1,
-    serialized: saveDeck(deck),
+    serialized: saveDeckSet(deck),
     dirty: false,
   }),
 };
@@ -321,7 +332,7 @@ const report = [
   `# メモリの計測（${new Date().toISOString()}）`,
   "",
   `- アプリ: ${values["app-url"]}`,
-  `- カラム: ${deck.columns.map((c) => c.title).join("・")}`,
+  `- カラム: ${deck.decks.flatMap((d) => d.columns.map((c) => c.title)).join("・")}`,
   "",
   "## 推移",
   "",

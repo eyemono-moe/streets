@@ -1,5 +1,5 @@
 import { Collapsible, Presence } from "@ark-ui/solid";
-import { type Component, type JSX, Show } from "solid-js";
+import { type Component, type JSX, Show, children } from "solid-js";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 
@@ -13,8 +13,13 @@ const SidePanel: Component<{
   icon: string;
   children: JSX.Element;
   full?: boolean;
+  /** 一段戻る先があるパネル（デッキの編集から進んだもの）。アイコンの代わりに ← を出す。 */
+  onBack?: () => void;
 }> = (props) => {
   const dispatch = useDispatch();
+  // 中身は一度だけ作る。`props.children` を 2 回読むと、読むたびに作り直され、
+  // 捨てた側のメニューなどが Portal に残る。
+  const content = children(() => props.children);
   return (
     <section
       class="flex h-full min-h-0 flex-col border-primary bg-primary"
@@ -23,11 +28,28 @@ const SidePanel: Component<{
         "w-90 shrink-0 border-r": !props.full,
       }}
     >
-      <header class="flex h-12 shrink-0 items-center gap-2.5 pr-3 pl-4">
-        <span
-          class={`c-secondary size-4.5 shrink-0 ${props.icon}`}
-          aria-hidden="true"
-        />
+      <header
+        class="flex h-12 shrink-0 items-center gap-2.5 pr-3"
+        classList={{ "pl-4": !props.onBack, "pl-2": !!props.onBack }}
+      >
+        <Show
+          when={props.onBack}
+          fallback={
+            <span
+              class={`c-secondary size-4.5 shrink-0 ${props.icon}`}
+              aria-hidden="true"
+            />
+          }
+        >
+          {(back) => (
+            <IconButton
+              size="md"
+              icon="i-material-symbols:arrow-back-rounded"
+              label="戻る"
+              onClick={() => back()()}
+            />
+          )}
+        </Show>
         <h2 class="min-w-0 flex-1 truncate font-600 text-body">
           {props.title}
         </h2>
@@ -39,7 +61,7 @@ const SidePanel: Component<{
           onClick={() => dispatch({ type: "deck/close-panel" })}
         />
       </header>
-      <Show when={props.children}>{props.children}</Show>
+      <Show when={content()}>{content()}</Show>
     </section>
   );
 };

@@ -34,6 +34,7 @@ import {
   useContext,
 } from "solid-js";
 import type { ColumnPatch } from "./deck/ColumnSettings";
+import type { NewDeckSource } from "./deck/NewDeckPanel";
 
 /**
  * View が上へ渡すイベント。View は「何が起きたか」だけを言い、どう裁定するかは
@@ -152,6 +153,14 @@ export type DeckEvent =
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
   | { type: "deck/remove-column"; id: string }
+  /** 開くデッキを変える。どれを開いているかは端末に覚える。 */
+  | { type: "deck/switch-deck"; id: string }
+  /** デッキを足して開く。`from` は最初のカラム（いまのデッキを複製するか、はじめの構成か）。 */
+  | { type: "deck/add-deck"; name: string; from: NewDeckSource }
+  | { type: "deck/rename-deck"; id: string; name: string }
+  /** `to` は動かした後に入ってほしい位置。 */
+  | { type: "deck/move-deck"; id: string; to: number }
+  | { type: "deck/remove-deck"; id: string }
   /** URL から開いた一時カラムを、デッキのカラムとして残す。 */
   | { type: "deck/keep-temp" }
   /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。デッキにはまだ足さない。 */

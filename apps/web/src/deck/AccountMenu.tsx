@@ -11,7 +11,7 @@ const AccountMenu: Component<{
   onLogout: () => void;
   /** フィードバックも並べる（狭い画面で、下のバーに置き場所が無いため）。 */
   onFeedback?: () => void;
-  /** 「カラムを整理」も並べる（狭い画面で、サイドバーの代わりに）。 */
+  /** 「デッキを編集」も並べる（狭い画面で、サイドバーの代わりに）。 */
   arrange?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
@@ -65,10 +65,10 @@ const AccountMenu: Component<{
                 class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
               >
                 <span
-                  class="i-material-symbols:reorder-rounded c-secondary size-4.5"
+                  class="i-material-symbols:view-column-outline-rounded c-secondary size-4.5"
                   aria-hidden="true"
                 />
-                カラムを整理
+                デッキを編集
               </Menu.Item>
             </Show>
             <Show when={props.onFeedback}>

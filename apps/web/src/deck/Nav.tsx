@@ -75,8 +75,8 @@ export const Sidebar: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・整理・フィードバック・設定・
-    // アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
+    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・フィードバック・
+    // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <IconButton
         {...tourTarget("compose")}
@@ -106,7 +106,7 @@ export const Sidebar: Component<{
         横のはみ出しでスクロールバーが出る）。上下の余白は、フォントの違いで
         中身が数 px はみ出しても送れる状態にしないため。
       */}
-      <div class="flex min-h-0 w-full flex-col items-center gap-1 self-start overflow-y-auto overflow-x-hidden py-1">
+      <div class="flex max-h-full min-h-0 w-full flex-col items-center gap-1 self-start overflow-y-auto overflow-x-hidden py-1">
         <For each={props.columns}>
           {(column, index) => (
             <ColumnButton
@@ -134,10 +134,14 @@ export const Sidebar: Component<{
         </div>
       </div>
       <IconButton
-        variant={props.panel === "arrange" ? "filled" : "ghost"}
+        variant={
+          props.panel === "arrange" || props.panel === "new-deck"
+            ? "filled"
+            : "ghost"
+        }
         size="lg"
-        icon="i-material-symbols:reorder-rounded"
-        label="カラムを整理"
+        icon="i-material-symbols:view-column-outline-rounded"
+        label="デッキを編集"
         aria-expanded={props.panel === "arrange"}
         onClick={() =>
           dispatch({ type: "deck/toggle-panel", panel: "arrange" })

@@ -1,10 +1,11 @@
 import {
   DECK_EVENT_IDENTIFIER,
-  type Deck,
+  type DeckSet,
+  activeDeckStorageKey,
   deckStorageKey,
-  defaultDeck,
-  loadDeck,
-  saveDeck,
+  defaultDeckSet,
+  loadDeckSet,
+  saveDeckSet,
 } from "@streets/core/deck/deck";
 import {
   type CreateNip78DocumentOptions,
@@ -23,16 +24,33 @@ export { DECK_EVENT_IDENTIFIER };
 const deckDocumentDefinition = {
   identifier: DECK_EVENT_IDENTIFIER,
   cacheKey: deckStorageKey,
-  initial: (_) => defaultDeck(WELCOME_RELAYS),
-  serialize: saveDeck,
-  parse: (raw) => loadDeck(raw),
-  equals: (left, right) => saveDeck(left) === saveDeck(right),
-  migrateLegacy: (raw) => loadDeck(raw),
-} satisfies Nip78DocumentDefinition<Deck>;
+  initial: (_) => defaultDeckSet(WELCOME_RELAYS),
+  serialize: saveDeckSet,
+  parse: (raw) => loadDeckSet(raw),
+  equals: (left, right) => saveDeckSet(left) === saveDeckSet(right),
+  migrateLegacy: (raw) => loadDeckSet(raw),
+} satisfies Nip78DocumentDefinition<DeckSet>;
 
-export type DeckStore = Nip78Document<Deck>;
+export type DeckStore = Nip78Document<DeckSet>;
 
 export const createDeckStore = (
-  options: Omit<CreateNip78DocumentOptions<Deck>, "definition">,
+  options: Omit<CreateNip78DocumentOptions<DeckSet>, "definition">,
 ): DeckStore =>
   createNip78Document({ ...options, definition: deckDocumentDefinition });
+
+/** この端末で開いていたデッキの id。覚えていなければ undefined（先頭のデッキを開く）。 */
+export const savedActiveDeckId = (pubkey: string): string | undefined => {
+  try {
+    return localStorage.getItem(activeDeckStorageKey(pubkey)) ?? undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const saveActiveDeckId = (pubkey: string, id: string): void => {
+  try {
+    localStorage.setItem(activeDeckStorageKey(pubkey), id);
+  } catch {
+    // 覚えられなくても、次に開いたときに先頭のデッキが開くだけ。
+  }
+};

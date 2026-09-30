@@ -19,7 +19,7 @@ const addBookmarksColumn = async (page: Page) => {
   const addColumnButton = { name: "カラムを追加", exact: true } as const;
   await page.getByRole("button", addColumnButton).click();
   await page
-    .getByRole("heading", { name: "カラムを追加する" })
+    .getByRole("heading", { name: /にカラムを追加$/ })
     .waitFor({ state: "visible" });
   await page.getByRole("button", { name: /^ブックマーク/ }).click();
   await page.getByRole("button", addColumnButton).click();
@@ -110,5 +110,44 @@ test("カラムの変更がアカウントに保存され、別の端末でも�
     deckStorageKey(me.pubkey),
   );
   await page.reload();
+  await expect(column(page, "ブックマーク").getByRole("heading")).toBeVisible();
+});
+
+test("デッキを作って切り替えられ、アカウントに保存される", async ({
+  page,
+  me,
+  openApp,
+  signIn,
+}) => {
+  await openApp();
+  await signIn();
+  await addBookmarksColumn(page);
+  await expect(column(page, "ブックマーク").getByRole("heading")).toBeVisible();
+
+  // はじめの構成で新しいデッキを作ると、そのデッキが開き、足したブックマークは出ない。
+  await page.getByRole("button", { name: "デッキを編集", exact: true }).click();
+  await page.getByRole("button", { name: /^デッキを切り替える/ }).click();
+  await page.getByRole("menuitem", { name: "新しいデッキ…" }).click();
+  await page.getByLabel("名前").fill("スマホ");
+  await page
+    .getByRole("radio", { name: "はじめの構成" })
+    .check({ force: true });
+  await page.getByRole("button", { name: "作って開く" }).click();
+  await expect(
+    page.getByRole("button", {
+      name: "デッキを切り替える（いまは「スマホ」）",
+    }),
+  ).toBeVisible();
+  await expect(column(page, "ブックマーク")).toHaveCount(0);
+
+  const key = conversationKey(me.secretKey, me.pubkey);
+  await waitForEvent(
+    { kinds: [30078], authors: [me.pubkey], "#d": [DECK_EVENT_IDENTIFIER] },
+    (event) => decryptNip44(event.content, key).includes('"スマホ"'),
+  );
+
+  // 元のデッキへ戻すと、足したカラムがまた出る。
+  await page.getByRole("button", { name: /^デッキを切り替える/ }).click();
+  await page.getByRole("menuitem", { name: /^メイン/ }).click();
   await expect(column(page, "ブックマーク").getByRole("heading")).toBeVisible();
 });
