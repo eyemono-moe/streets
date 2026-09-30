@@ -187,13 +187,14 @@
   {
     "nip": "30",
     "status": "対応",
-    "summary": "投稿とプロフィールのカスタム絵文字",
+    "summary": "投稿とプロフィールのカスタム絵文字、流れてきた絵文字セットの取り込み",
     "kinds": [30030],
     "tags": ["emoji"],
     "paths": [
       "packages/core/src/nostr/content.ts",
       "packages/core/src/settings/emoji-set.ts",
-      "apps/web/src/note/Event.tsx"
+      "apps/web/src/note/Event.tsx",
+      "apps/web/src/emoji/EmojiSetCard.tsx"
     ],
     "gap": ""
   },

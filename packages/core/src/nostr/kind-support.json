@@ -29,7 +29,7 @@
   { "kind": 24242, "status": "内部利用", "summary": "Blossom の認証" },
   { "kind": 30000, "status": "表示対応", "summary": "フォローセット" },
   { "kind": 30023, "status": "未対応", "summary": "長文記事" },
-  { "kind": 30030, "status": "内部利用", "summary": "絵文字セット" },
+  { "kind": 30030, "status": "表示対応", "summary": "絵文字セット" },
   { "kind": 30078, "status": "内部利用", "summary": "アプリの設定" },
   { "kind": 30166, "status": "内部利用", "summary": "リレーの計測情報" },
   { "kind": 31990, "status": "内部利用", "summary": "アプリの説明" }

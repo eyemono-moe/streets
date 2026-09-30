@@ -22,7 +22,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) | 対応 | リアクションの読み書き | 7 | `e`, `p`, `k` | [`reaction.ts`](../packages/core/src/nostr/reaction.ts)<br>[`reaction.ts`](../packages/core/src/nostr/build/reaction.ts) | — |
 | [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) | 対応 | 本文中の Nostr 参照 | 1 | — | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | — |
 | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) | 対応 | 公開チャンネルとチャット | 40, 41, 42, 43, 44 | `e`, `p` | [`channel.ts`](../packages/core/src/nostr/channel.ts)<br>[`channel.ts`](../packages/core/src/nostr/build/channel.ts)<br>[`ChannelChat.tsx`](../apps/web/src/columns/blocks/ChannelChat.tsx) | — |
-| [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) | 対応 | 投稿とプロフィールのカスタム絵文字 | 30030 | `emoji` | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`emoji-set.ts`](../packages/core/src/settings/emoji-set.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | — |
+| [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) | 対応 | 投稿とプロフィールのカスタム絵文字、流れてきた絵文字セットの取り込み | 30030 | `emoji` | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`emoji-set.ts`](../packages/core/src/settings/emoji-set.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx)<br>[`EmojiSetCard.tsx`](../apps/web/src/emoji/EmojiSetCard.tsx) | — |
 | [NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md) | 対応 | 名前付きの置換可能イベント | — | `d`, `a` | [`event-store.ts`](../packages/core/src/read/event-store.ts)<br>[`nip19.ts`](../packages/core/src/nostr/nip19.ts) | — |
 | [NIP-36](https://github.com/nostr-protocol/nips/blob/master/36.md) | 対応 | 閲覧注意タグの読み書き、本文の表示制御、ウェルカム欄からの除外 | 1, 42 | `content-warning` | [`content-warning.ts`](../packages/core/src/nostr/content-warning.ts)<br>[`content-warning.ts`](../packages/core/src/nostr/build/content-warning.ts)<br>[`welcome-feed.ts`](../packages/core/src/deck/welcome-feed.ts)<br>[`ContentWarningGate.tsx`](../apps/web/src/note/ContentWarningGate.tsx)<br>[`ComposePanel.tsx`](../apps/web/src/note/ComposePanel.tsx) | NIP-32 の補助ラベルは付けない |
 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) | 対応 | 認証を求めるリレーへ署名して、購読と書き込みを再試行 | 22242 | `relay`, `challenge` | [`relay-auth.ts`](../packages/core/src/nostr/build/relay-auth.ts)<br>[`websocket-relay-connection.ts`](../packages/core/src/relay/websocket-relay-connection.ts)<br>[`connection-pool.ts`](../packages/core/src/read/connection-pool.ts) | NIP-46 の署名器が使うリレー自体に認証が必要な場合は署名がタイムアウトする |
@@ -70,7 +70,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
 | 30000 | 表示対応 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 30023 | 未対応 | 長文記事 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) |
-| 30030 | 内部利用 | 絵文字セット | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) |
+| 30030 | 表示対応 | 絵文字セット | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) |
 | 30078 | 内部利用 | アプリの設定 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) |
 | 30166 | 内部利用 | リレーの計測情報 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) |
 | 31990 | 内部利用 | アプリの説明 | [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) |

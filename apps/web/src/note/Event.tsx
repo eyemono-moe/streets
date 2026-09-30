@@ -15,6 +15,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
@@ -274,6 +275,11 @@ const EventContent: Component<ContentProps> = (props) => (
     <Match when={props.event.kind === 30000}>
       <Row event={props.event} size={props.size} threadLine={props.threadLine}>
         <FollowSetCard event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    <Match when={props.event.kind === 30030}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <EmojiSetCard event={props.event} size={props.size} />
       </Row>
     </Match>
   </Switch>
