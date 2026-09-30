@@ -54,8 +54,6 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
         <div class="flex h-dvh w-dvw">
           <Sidebar
             pubkey={viewer.pubkey}
-            decks={decks}
-            activeDeckId="pc"
             columns={columns}
             panel={undefined}
             numbers
@@ -108,13 +106,6 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
     </EventSceneProvider>
   );
 };
-
-/** 切り替えのメニューに並べるデッキ。 */
-const decks = [
-  { id: "pc", name: "PC" },
-  { id: "phone", name: "スマホ" },
-  { id: "search", name: "調べもの用のとても長い名前のデッキ" },
-];
 
 const meta = {
   title: "デッキ/右端の余白",

@@ -6,7 +6,7 @@ import {
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
 import { moveId } from "@streets/core/deck/sortable";
-import { For, type JSX } from "solid-js";
+import { For, type JSX, createSignal } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ColumnHeader } from "../columns/ColumnHeader";
@@ -16,6 +16,8 @@ import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import { createSortable } from "../ui/sortable";
 import { createColumnOrder } from "./column-order";
 import ColumnArrangePanel from "./ColumnArrangePanel";
+import DeckEditHeader, { type DeckSummary } from "./DeckEditHeader";
+import NewDeckPanel from "./NewDeckPanel";
 import SidePanel from "./SidePanel";
 
 const friend = createStoryAuthor(91, {
@@ -113,6 +115,12 @@ const DeckStub = (props: {
         if (to >= 0 && to < ids.length) reorder(moveId(ids, event.id, to));
         return true;
       }
+      case "deck/remove-column":
+        setDeck(
+          "columns",
+          deck.columns.filter((c) => c.id !== event.id),
+        );
+        return true;
       default:
         return true;
     }
@@ -182,24 +190,99 @@ const WideStrip = (props: {
   );
 };
 
+const DECKS: DeckSummary[] = [
+  { id: "pc", name: "PC", columns: 5 },
+  { id: "phone", name: "スマホ", columns: 2 },
+  { id: "search", name: "調べもの", columns: 0 },
+];
+
+/** 名前が長く、数も多い。 */
+const MANY_DECKS: DeckSummary[] = [
+  {
+    id: "pc",
+    name: "とても長い名前のデッキで、パネルの幅に収まらないもの（イベントの実況用）",
+    columns: 13,
+  },
+  ...Array.from({ length: 8 }, (_, index) => ({
+    id: `d${index}`,
+    name: `デッキ ${index + 2}`,
+    columns: index,
+  })),
+];
+
 type Props = {
   width: number;
   initial: readonly ColumnDef[];
   dragging?: DeckUiState["dragging"];
+  decks?: DeckSummary[];
+  initialRenaming?: boolean;
+  initialConfirming?: boolean;
+  initialPickerOpen?: boolean;
+};
+
+/** デッキの選び直し・名前・並び・削除だけを当てる。カラムの中身は変えない。 */
+const DeckHeaderStub = (props: Props) => {
+  const [decks, setDecks] = createSignal(props.decks ?? DECKS);
+  const [activeId, setActiveId] = createSignal("pc");
+  return (
+    <Mediates
+      handle={(event) => {
+        switch (event.type) {
+          case "deck/switch-deck":
+            setActiveId(event.id);
+            return true;
+          case "deck/rename-deck":
+            setDecks((list) =>
+              list.map((deck) =>
+                deck.id === event.id ? { ...deck, name: event.name } : deck,
+              ),
+            );
+            return true;
+          case "deck/move-deck":
+            setDecks((list) => {
+              const ids = moveId(
+                list.map((deck) => deck.id),
+                event.id,
+                event.to,
+              );
+              return ids.flatMap((id) => list.find((d) => d.id === id) ?? []);
+            });
+            return true;
+          case "deck/remove-deck":
+            setDecks((list) => list.filter((deck) => deck.id !== event.id));
+            return true;
+          default:
+            return false;
+        }
+      }}
+    >
+      <DeckEditHeader
+        decks={decks()}
+        activeId={activeId()}
+        initialRenaming={props.initialRenaming}
+        initialConfirming={props.initialConfirming}
+        initialPickerOpen={props.initialPickerOpen}
+      />
+    </Mediates>
+  );
 };
 
 const meta = {
-  title: "デッキ/カラムを整理する",
+  title: "デッキ/デッキを編集する",
   component: (props: Props) => (
     <DeckStub initial={props.initial} dragging={props.dragging}>
       {(current, ui) => (
         <div class="flex h-[560px]" style={{ width: `${props.width}px` }}>
           <SidePanel
-            title="カラムを整理する"
-            icon="i-material-symbols:reorder-rounded"
+            title="デッキを編集する"
+            icon="i-material-symbols:dashboard-outline-rounded"
             full
           >
-            <ColumnArrangePanel columns={current()} dragging={ui.dragging} />
+            <ColumnArrangePanel
+              columns={current()}
+              dragging={ui.dragging}
+              header={<DeckHeaderStub {...props} />}
+            />
           </SidePanel>
         </div>
       )}
@@ -225,6 +308,43 @@ export const 動かしている途中: S = {
 };
 
 export const カラムが無い: S = { args: { initial: [] } };
+
+/** 上のデッキを押すと、別のデッキを選び直せる。最後の項目から新しいデッキを作る。 */
+export const デッキを選ぶメニュー: S = {
+  args: { initialPickerOpen: true, width: 400 },
+};
+
+export const 名前を変えている: S = { args: { initialRenaming: true } };
+
+export const デッキの削除を確かめている: S = {
+  args: { initialConfirming: true },
+};
+
+export const デッキの名前が長く数が多い: S = {
+  args: { decks: MANY_DECKS, initialPickerOpen: true, width: 400 },
+};
+
+export const デッキが一つだけ: S = {
+  args: { decks: [{ id: "pc", name: "メイン", columns: 5 }] },
+};
+
+/** 「新しいデッキ…」から一段進んだところ。← で「デッキを編集する」へ戻る。 */
+export const 新しいデッキ: S = {
+  render: () => (
+    <Mediates handle={() => true}>
+      <div class="flex h-[560px] w-[360px]">
+        <SidePanel
+          title="新しいデッキ"
+          icon="i-material-symbols:dashboard-outline-rounded"
+          full
+          onBack={() => {}}
+        >
+          <NewDeckPanel placeholder="デッキ 4" current="PC" />
+        </SidePanel>
+      </div>
+    </Mediates>
+  ),
+};
 
 /**
  * 広い画面のデッキ。カラムの見出しを掴んで左右に動かすと、ほかのカラムが滑って空き、

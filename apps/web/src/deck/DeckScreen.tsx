@@ -125,10 +125,11 @@ import {
   saveActiveDeckId,
   savedActiveDeckId,
 } from "./deck-store";
+import DeckEditHeader from "./DeckEditHeader";
 import DeckEndSpace from "./DeckEndSpace";
-import DecksPanel from "./DecksPanel";
 import DeckSyncNotice from "./DeckSyncNotice";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
+import NewDeckPanel from "./NewDeckPanel";
 import { relayListState } from "./relay-list";
 import SearchPanel from "./SearchPanel";
 import SidePanel, { SidePanelMotion } from "./SidePanel";
@@ -261,8 +262,12 @@ const DeckScreen: Component<{
     const set = deckStore.value();
     return set && activeDeck(set, activeDeckId());
   };
-  const deckList = () =>
-    deckStore.value()?.decks.map(({ id, name }) => ({ id, name })) ?? [];
+  const deckSummaries = () =>
+    deckStore.value()?.decks.map((deck) => ({
+      id: deck.id,
+      name: deck.name,
+      columns: deck.columns.length,
+    })) ?? [];
   // カラムの操作は、開いているデッキにだけ当てる。
   const updateDeck = (update: (deck: Deck) => Deck) =>
     deckStore.update((set) =>
@@ -517,8 +522,8 @@ const DeckScreen: Component<{
         applyUi({ type: "deck/column-removed", id: event.id });
         return true;
       case "deck/switch-deck":
+        // パネルは閉じない。選び直したデッキのカラムを、そのまま続けて並べ替えられる。
         switchDeck(event.id);
-        applyUi({ type: "deck/close-panel" });
         return true;
       case "deck/add-deck": {
         const id = crypto.randomUUID();
@@ -534,7 +539,7 @@ const DeckScreen: Component<{
         );
         if (deckStore.value()?.decks.some((deck) => deck.id === id)) {
           switchDeck(id);
-          applyUi({ type: "deck/close-panel" });
+          applyUi({ type: "deck/open-panel", panel: "arrange" });
         }
         return true;
       }
@@ -665,9 +670,10 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "add-column"}>
         <SidePanel
-          title="カラムを追加する"
+          title={`「${currentDeck()?.name ?? ""}」にカラムを追加`}
           icon="i-material-symbols:add-rounded"
           full={full}
+          onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
         >
           <AddColumnPanel
             relayList={relayList()}
@@ -678,28 +684,33 @@ const DeckScreen: Component<{
       </Match>
       <Match when={shownPanel() === "arrange"}>
         <SidePanel
-          title="カラムを整理する"
-          icon="i-material-symbols:reorder-rounded"
+          title="デッキを編集する"
+          icon="i-material-symbols:dashboard-outline-rounded"
           full={full}
         >
-          <ColumnArrangePanel columns={columns()} dragging={ui.dragging} />
+          <ColumnArrangePanel
+            columns={columns()}
+            dragging={ui.dragging}
+            header={
+              <DeckEditHeader
+                decks={deckSummaries()}
+                activeId={currentDeck()?.id ?? ""}
+              />
+            }
+          />
         </SidePanel>
       </Match>
-      <Match when={shownPanel() === "decks" && deckStore.value()}>
+      <Match when={shownPanel() === "new-deck" && deckStore.value()}>
         {(set) => (
           <SidePanel
-            title="デッキを編集する"
+            title="新しいデッキ"
             icon="i-material-symbols:dashboard-outline-rounded"
             full={full}
+            onBack={() => handle({ type: "deck/open-panel", panel: "arrange" })}
           >
-            <DecksPanel
-              decks={set().decks.map((deck) => ({
-                id: deck.id,
-                name: deck.name,
-                columns: deck.columns.length,
-              }))}
-              activeId={activeDeck(set(), activeDeckId()).id}
-              nextName={nextDeckName(set())}
+            <NewDeckPanel
+              placeholder={nextDeckName(set())}
+              current={currentDeck()?.name ?? ""}
             />
           </SidePanel>
         )}
@@ -820,8 +831,6 @@ const DeckScreen: Component<{
                                   <div class="flex h-dvh">
                                     <Sidebar
                                       pubkey={viewer}
-                                      decks={deckList()}
-                                      activeDeckId={currentDeck()?.id ?? ""}
                                       columns={order.shown()}
                                       panel={ui.panel}
                                       numbers={columnDigits()}
@@ -965,8 +974,6 @@ const DeckScreen: Component<{
                                     />
                                     <MobileTopBar
                                       pubkey={viewer}
-                                      decks={deckList()}
-                                      activeDeckId={currentDeck()?.id ?? ""}
                                       column={
                                         ui.panel === undefined
                                           ? activeColumn()

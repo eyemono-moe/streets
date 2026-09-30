@@ -1,4 +1,4 @@
-import type { ColumnDef, Deck } from "@streets/core/deck/deck";
+import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import {
   type Component,
@@ -17,7 +17,6 @@ import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
 import ColumnTitle from "./ColumnTitle";
-import DeckMenu from "./DeckMenu";
 import FeedbackLink, { FeedbackDialog, feedbackHref } from "./FeedbackLink";
 
 /**
@@ -66,8 +65,6 @@ const ColumnButton: Component<{
 
 export const Sidebar: Component<{
   pubkey: string;
-  decks: readonly Pick<Deck, "id" | "name">[];
-  activeDeckId: string;
   columns: readonly ColumnDef[];
   /** いま開いているパネル。押したボタンが開いているかを出すために使う。 */
   panel: DeckPanel | undefined;
@@ -78,15 +75,9 @@ export const Sidebar: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   return (
-    // 行：デッキ・投稿・探す／カラムの一覧（＋追加）／（空き）・整理・フィードバック・
+    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・フィードバック・
     // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
-      <DeckMenu
-        decks={props.decks}
-        activeId={props.activeDeckId}
-        size="lg"
-        variant={props.panel === "decks" ? "filled" : "ghost"}
-      />
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
       <IconButton
         {...tourTarget("compose")}
         variant="primary"
@@ -143,10 +134,14 @@ export const Sidebar: Component<{
         </div>
       </div>
       <IconButton
-        variant={props.panel === "arrange" ? "filled" : "ghost"}
+        variant={
+          props.panel === "arrange" || props.panel === "new-deck"
+            ? "filled"
+            : "ghost"
+        }
         size="lg"
-        icon="i-material-symbols:reorder-rounded"
-        label="カラムを整理"
+        icon="i-material-symbols:dashboard-outline-rounded"
+        label="デッキを編集"
         aria-expanded={props.panel === "arrange"}
         onClick={() =>
           dispatch({ type: "deck/toggle-panel", panel: "arrange" })
@@ -193,8 +188,6 @@ export const ComposeFab: Component = () => {
  */
 export const MobileTopBar: Component<{
   pubkey: string;
-  decks: readonly Pick<Deck, "id" | "name">[];
-  activeDeckId: string;
   /** 今見ているカラム。パネルを開いている間は undefined。 */
   column: ColumnDef | undefined;
   /** 一時カラム（URL で開いたもの）を見ている。設定の代わりに「カラムに残す」と閉じるを出す。 */
@@ -212,12 +205,6 @@ export const MobileTopBar: Component<{
         onLogout={props.onLogout}
         onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
         arrange
-      />
-      <DeckMenu
-        decks={props.decks}
-        activeId={props.activeDeckId}
-        size="md"
-        variant="ghost"
       />
       <Show when={href()}>
         {(url) => (

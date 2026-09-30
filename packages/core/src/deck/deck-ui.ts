@@ -4,7 +4,7 @@ export type DeckPanel =
   | "add-column"
   | "search"
   | "arrange"
-  | "decks";
+  | "new-deck";
 
 /**
  * デッキの画面の状態のうち、保存しないもの。カラムの並びや設定はデッキ（NIP-78）に

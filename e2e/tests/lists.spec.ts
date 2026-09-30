@@ -14,7 +14,7 @@ import { createUser } from "../src/users";
 const openListPicker = async (page: Page) => {
   await page.getByRole("button", { name: "カラムを追加", exact: true }).click();
   await page
-    .getByRole("heading", { name: "カラムを追加する" })
+    .getByRole("heading", { name: /にカラムを追加$/ })
     .waitFor({ state: "visible" });
   await page.getByRole("button", { name: /^リスト/ }).click();
   await expect(

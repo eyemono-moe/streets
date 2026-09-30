@@ -54,13 +54,6 @@ const many: ColumnDef[] = [
   })),
 ];
 
-/** 切り替えのメニューに並べるデッキ。 */
-const decks = [
-  { id: "pc", name: "PC" },
-  { id: "phone", name: "スマホ" },
-  { id: "search", name: "調べもの用のとても長い名前のデッキ" },
-];
-
 const meta = {
   title: "デッキ/ヘッダーとサイドバー",
 } satisfies Meta;
@@ -113,8 +106,6 @@ export const サイドバー: Story = {
         <div class="flex h-[480px] bg-secondary">
           <Sidebar
             pubkey={viewer.pubkey}
-            decks={decks}
-            activeDeckId="pc"
             columns={columns}
             panel={undefined}
             numbers
@@ -134,8 +125,6 @@ export const パネルを開いているサイドバー: Story = {
         <div class="flex h-[480px] bg-secondary">
           <Sidebar
             pubkey={viewer.pubkey}
-            decks={decks}
-            activeDeckId="pc"
             columns={columns}
             panel="search"
             numbers
@@ -155,8 +144,6 @@ export const フィードバック未設定: Story = {
         <div class="flex h-[480px] bg-secondary">
           <Sidebar
             pubkey={viewer.pubkey}
-            decks={decks}
-            activeDeckId="pc"
             columns={columns}
             panel={undefined}
             numbers
@@ -197,8 +184,6 @@ const MobileBars = (props: {
         <ColumnAccentBar temporary={props.temp !== undefined} />
         <MobileTopBar
           pubkey={viewer.pubkey}
-          decks={decks}
-          activeDeckId="pc"
           column={
             props.temp ??
             props.columns.find((column) => column.id === props.active)

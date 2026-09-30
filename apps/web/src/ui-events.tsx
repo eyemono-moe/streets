@@ -34,7 +34,7 @@ import {
   useContext,
 } from "solid-js";
 import type { ColumnPatch } from "./deck/ColumnSettings";
-import type { NewDeckSource } from "./deck/DecksPanel";
+import type { NewDeckSource } from "./deck/NewDeckPanel";
 
 /**
  * View が上へ渡すイベント。View は「何が起きたか」だけを言い、どう裁定するかは
