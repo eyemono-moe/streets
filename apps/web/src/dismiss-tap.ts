@@ -20,19 +20,19 @@ const isOutsideOpenPopups = (target: EventTarget | null): boolean => {
 };
 
 /**
- * ポップアップを開いている間の外のタップは、閉じるだけにする。
+ * ポップアップを開いている間の外の押下（タップ・クリック）は、閉じるだけにする。
  *
- * Ark UI（Zag）はタッチのとき、外の押下で閉じるのを click まで待つ。その click は
- * 下にある投稿にも届き、スレッドや画像が開いてしまう。マウスでは押した時点で
- * 閉じるので、ここでは扱わない。
+ * Ark UI（Zag）は外の押下で閉じても、続く click は下にある投稿に届き、スレッドや
+ * 画像が開いてしまう。閉じたかどうかは押した時点でしか分からない（マウスでは
+ * 押した時点で閉じる）ので、押下で決めて click で止める。
  */
-export const swallowTapsThatDismissPopups = () => {
+export const swallowPressesThatDismissPopups = () => {
   let swallow = false;
   window.addEventListener(
     "pointerdown",
     (event) => {
-      swallow =
-        event.pointerType !== "mouse" && isOutsideOpenPopups(event.target);
+      // 右クリックなどは click を生まず、印だけが残る。
+      swallow = event.button === 0 && isOutsideOpenPopups(event.target);
     },
     true,
   );
@@ -41,7 +41,8 @@ export const swallowTapsThatDismissPopups = () => {
   window.addEventListener(
     "click",
     (event) => {
-      if (!swallow) return;
+      // キーボードで押した click（detail が 0）は押下と組にならないので止めない。
+      if (!swallow || event.detail === 0) return;
       swallow = false;
       event.preventDefault();
       event.stopPropagation();

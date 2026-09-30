@@ -3,7 +3,7 @@ import { Route, Router } from "@solidjs/router";
 import { QueryClientProvider } from "@tanstack/solid-query";
 import { render } from "solid-js/web";
 import App from "./App";
-import { swallowTapsThatDismissPopups } from "./dismiss-tap";
+import { swallowPressesThatDismissPopups } from "./dismiss-tap";
 import { createAppQueryClient } from "./query-client";
 import { startTelemetry } from "./telemetry";
 import { savedColorScheme, setColorScheme } from "./theme";
@@ -15,7 +15,7 @@ void startTelemetry();
 
 // 描画前に付けないと、ダークの環境で一瞬ライトで描かれる。
 setColorScheme(savedColorScheme(), false);
-swallowTapsThatDismissPopups();
+swallowPressesThatDismissPopups();
 const queryClient = createAppQueryClient();
 
 render(
