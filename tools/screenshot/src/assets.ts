@@ -16,6 +16,7 @@ const TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
+  ".mp4": "video/mp4",
 };
 
 /** SVG は width / height から、それ以外は読まない（imeta の寸法は無くてもよい）。 */

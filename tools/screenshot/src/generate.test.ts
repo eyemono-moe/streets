@@ -148,3 +148,36 @@ describe("all-in の撮影データ", () => {
     }
   });
 });
+
+describe("追加した kind（kinds シナリオ）", () => {
+  const events = generate(scenarios.kinds, options);
+  const byKind = (kind: number) =>
+    events.filter((event) => event.kind === kind);
+
+  it("投票への回答は、投票を指して選択肢の id を書く", () => {
+    const polls = byKind(1068);
+    const ids = new Set(polls.map((poll) => poll.id));
+    for (const vote of byKind(1018)) {
+      expect(ids.has(vote.tags.find((tag) => tag[0] === "e")?.[1] ?? "")).toBe(
+        true,
+      );
+      expect(vote.tags.some((tag) => tag[0] === "response")).toBe(true);
+    }
+  });
+
+  it("記事の本文の参照と画像は、Nostr の参照と URL に置き換わる", () => {
+    const [article] = byKind(30023);
+    expect(article?.content).not.toMatch(/\{(naddr|nevent|asset|@)[^}]*\}/);
+    expect(article?.content).toContain("nostr:naddr1");
+    expect(article?.content).toContain(
+      "http://localhost:10548/photo-river.svg",
+    );
+  });
+
+  it("画像・動画の投稿は、本文ではなく imeta に置く", () => {
+    for (const post of [...byKind(20), ...byKind(21), ...byKind(22)]) {
+      expect(post.content).not.toContain("http");
+      expect(post.tags.some((tag) => tag[0] === "imeta")).toBe(true);
+    }
+  });
+});

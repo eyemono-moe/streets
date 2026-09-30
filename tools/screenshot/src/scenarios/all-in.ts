@@ -6,6 +6,22 @@ const unique = <T>(items: readonly T[]): T[] => [
   ...new Map(items.map((item) => [JSON.stringify(item), item])).values(),
 ];
 
+/** 人ごとの id の並び（ピン留め・絵文字リスト）を、重複を除いてつなぐ。 */
+const mergeLists = (
+  lists: readonly (Partial<Record<UserId, readonly string[]>> | undefined)[],
+): Partial<Record<UserId, string[]>> => {
+  const merged: Partial<Record<UserId, string[]>> = {};
+  for (const list of lists) {
+    for (const [person, ids] of Object.entries(list ?? {}) as [
+      UserId,
+      readonly string[],
+    ][]) {
+      merged[person] = [...new Set([...(merged[person] ?? []), ...ids])];
+    }
+  }
+  return merged;
+};
+
 /** 個別シナリオのデータをすべて使える撮影環境。カラムも重複を除いて並べる。 */
 export const allInScenario = (
   scenarios: readonly AppScenario[],
@@ -29,7 +45,7 @@ export const allInScenario = (
 
   return {
     description:
-      "全シナリオの投稿・通知・画像・チャンネル・リストをまとめて使う",
+      "全シナリオの投稿・通知・画像・チャンネル・リスト・追加した kind をまとめて使う",
     viewer,
     follows,
     posts: unique(scenarios.flatMap((scenario) => scenario.posts)),
@@ -45,6 +61,17 @@ export const allInScenario = (
     followSets: unique(
       scenarios.flatMap((scenario) => scenario.followSets ?? []),
     ),
+    mediaPosts: unique(
+      scenarios.flatMap((scenario) => scenario.mediaPosts ?? []),
+    ),
+    polls: unique(scenarios.flatMap((scenario) => scenario.polls ?? [])),
+    articles: unique(scenarios.flatMap((scenario) => scenario.articles ?? [])),
+    emojiSets: unique(
+      scenarios.flatMap((scenario) => scenario.emojiSets ?? []),
+    ),
+    emojiLists: mergeLists(scenarios.map((scenario) => scenario.emojiLists)),
+    statuses: unique(scenarios.flatMap((scenario) => scenario.statuses ?? [])),
+    pinned: mergeLists(scenarios.map((scenario) => scenario.pinned)),
     deck: unique(scenarios.flatMap((scenario) => scenario.deck ?? [])),
   };
 };
