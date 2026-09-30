@@ -145,6 +145,16 @@ const storyActions = (
         setFollows(next);
         return next;
       }),
+    broadcastTargets: () => ({
+      mine: [STORY_RELAY],
+      inbox: [STORY_RELAY],
+    }),
+    broadcast: async () => {
+      await new Promise((resolve) => setTimeout(resolve, SEND_DELAY_MS));
+      if (failWrites) {
+        throw new WriteFailedError([{ relay: STORY_RELAY, reason: "blocked" }]);
+      }
+    },
     bookmarked: (id) => bookmarkIds().includes(id),
     setBookmark: (target, on) =>
       send(() => {
