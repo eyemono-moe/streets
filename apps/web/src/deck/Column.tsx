@@ -10,7 +10,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import { type Component, For, Show, createEffect } from "solid-js";
+import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import ColumnContent from "../columns/ColumnContent";
 import {
@@ -39,6 +39,11 @@ export type ColumnProps = {
   stacked?: StackedColumn;
   /** 見えているカラム（重ねた一番上の段、無ければこのカラム）が変わった。 */
   onShown?: (id: string, shown: ColumnDef) => void;
+  /**
+   * 見出しを押したときの動き（重ねた段を戻す。無ければ先頭へ送る）を外へ渡す。
+   * 狭い画面には見出しが無いので、選んでいるタブを押したときに代わりに呼ぶ。
+   */
+  registerHeader?: (id: string, press: () => void) => () => void;
 };
 
 /** 共通の枠とスタックを持ち、カラム固有の本文は `ColumnContent` に委ねる。 */
@@ -79,6 +84,9 @@ const Column: Component<ColumnProps> = (props) => {
     });
   const onHeader = () =>
     opened() ? handle({ type: "stack/back" }) : scrollToTop();
+  if (!props.stacked && props.registerHeader) {
+    onCleanup(props.registerHeader(props.column.id, onHeader));
+  }
 
   const body = () => (
     <ColumnContent

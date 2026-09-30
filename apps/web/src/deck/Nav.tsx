@@ -240,8 +240,8 @@ const LONG_PRESS_MS = 500;
 
 /**
  * 狭い画面の下のバー。広い画面のサイドバーと同じく「探す｜カラム｜足す」の順に
- * 並べ、カラムの帯だけを横に送れるようにする。タブを長押しすると、カラムを
- * 並べ替えるパネルを開く。
+ * 並べ、カラムの帯だけを横に送れるようにする。見ているカラムのタブをもう一度
+ * 押すと、そのカラムの先頭へ戻る。タブを長押しすると、カラムを並べ替えるパネルを開く。
  */
 export const MobileTabBar: Component<{
   columns: readonly ColumnDef[];
@@ -318,7 +318,11 @@ export const MobileTabBar: Component<{
             longPressed = false;
             return;
           }
-          dispatch({ type: "deck/focus-column", id });
+          dispatch(
+            selected()
+              ? { type: "deck/press-column", id }
+              : { type: "deck/focus-column", id },
+          );
         }}
       >
         <ColumnIcon
