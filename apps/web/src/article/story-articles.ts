@@ -2,6 +2,7 @@ import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { alice, bob } from "../note/event-stories/event-story";
 import emojiUrl from "../storybook/emoji-fixture.svg";
 import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
+import portraitUrl from "../storybook/media-portrait.svg?no-inline";
 
 const absolute = (url: string) => new URL(url, location.href).href;
 const note = bob.note("記事の中から参照された投稿。");
@@ -35,7 +36,15 @@ lookups.watchAddress(address, onChange);
 | 30023 | 記事 |
 | 30000 | リスト |
 
+参照だけの段落は、引用と同じカードで埋め込む。
+
+nostr:${encodeBech32("note", note.id)}
+
+画像は押すと拡大表示で開き、記事の中の画像を順に送って見られる。
+
 ![図](${absolute(landscapeUrl)})
+
+![もう 1 枚](${absolute(portraitUrl)})
 
 <script>alert("HTML は文字のまま出る")</script>
 

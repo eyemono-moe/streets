@@ -30,7 +30,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 見出し・リスト・コード・表・画像・nostr: の参照・HTML（文字のまま）を並べた記事。 */
+/**
+ * 見出し・リスト・コード・表・画像・nostr: の参照・HTML（文字のまま）を並べた記事。
+ * 参照だけの段落は引用のカードになり、画像は押すと拡大表示で開く。
+ */
 export const いろいろな書式: Story = { args: { event: fullArticle } };
 
 export const 題名も画像も無い: Story = { args: { event: bareArticle } };
