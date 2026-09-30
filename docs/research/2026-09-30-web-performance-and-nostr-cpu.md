@@ -26,6 +26,8 @@ Streets の予算は、キャッシュありの初回イベント表示 2 秒、
 
 ローカルの Node/tsx で、有効な kind:1 イベント 500 件を生成し、同一プロセスで 5 回ずつ測って中央値を取った。新規検証は 0.78 ms/件、うち Schnorr 単体は 0.77 ms/件、イベント ID の SHA-256 は 0.0022 ms/件だった。検証済みの再配送は 0.0033 ms/件だった。署名だけを別の妥当な形式の署名に差し替えた無効イベントは、初回 0.78 ms/件、同じ無効イベントの再配送をキャッシュで弾く案では 0.0035 ms/件になった。これはこの計算機での局所値であり、実際の無効署名の再配送率や電力量の改善を示さない。
 
+`build:analyze` で初回チャンクを調べ、「カラム追加パネル」だけを `lazyPart` に移す案も試した。`scripts/bundle-size.mjs` の brotli 比較では起動時 269.7 KB → 286.0 KB（+16.4 KB）、全体 414.3 KB → 433.4 KB（+19.1 KB）となった。共有部品が別チャンクへ移り、`index.html` の preload に入ったため、この分割案は破棄した。チャンク単体の縮小を起動時転送量の改善と取り違えない例である。
+
 | 順 | 仮説と調べる箇所 | 測る値・試す変更 | 判定と注意 |
 | --- | --- | --- | --- |
 | 1 | 初回表示が通信・署名・描画のどこで止まるか。`telemetry.ts` の `ui.load`、カラムの表示印、Chrome Performance。 | キャッシュ有無、1/10/20 列、低速 CPU とネットワークを分け、初回イベント表示、LCP の TTFB・取得開始待ち・転送・描画待ち、INP の入力待ち・処理・表示待ちを記録する。Chrome は Performance の Bottom-up と Insights、Sentry はリリース別の実利用分布を見る。 | ボトルネック別に次を選ぶ。INP の良好値は 200 ms 以下だが、Streets の操作反映予算 100 ms を置き換えない（[web.dev INP](https://web.dev/articles/optimize-inp)、[Chrome Performance](https://developer.chrome.com/docs/devtools/performance/reference)）。 |
