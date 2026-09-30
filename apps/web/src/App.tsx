@@ -12,6 +12,7 @@ import {
 } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
+import { showDevtools } from "./devtools/show-devtools";
 import { lazyPart } from "./lazy-part";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
@@ -61,7 +62,7 @@ const App: Component = () => {
         message={session.signerWait()}
         authUrl={session.authUrl()}
       />
-      <Show when={import.meta.env.DEV && !screenshotMode()}>
+      <Show when={showDevtools() && !screenshotMode()}>
         <AppDevtools readLayer={readLayer} />
       </Show>
     </>
