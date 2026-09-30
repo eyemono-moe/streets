@@ -303,9 +303,12 @@ const EventContent: Component<ContentProps> = (props) => (
 /** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
 const DRAG_SLOP = 4;
 
+// label を含めるのは、投票の選択肢の文字を押したときに投稿まで開かないため。
 const isInteractive = (target: EventTarget | null) =>
   target instanceof Element &&
-  target.closest("a, button, input, textarea, [role='button']") !== null;
+  target.closest(
+    "a, button, input, textarea, label, select, [role='button']",
+  ) !== null;
 
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const EventBody: Component<ContentProps> = (props) => {
