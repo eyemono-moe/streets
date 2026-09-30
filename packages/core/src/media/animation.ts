@@ -5,6 +5,10 @@
  */
 import { ascii, eachPngChunk, eachRiffChunk, isPng, isRiffWebp } from "./bytes";
 
+/** 先頭だけで、全体を読む必要がある形式かを見分ける。JPEG などは動かない。 */
+export const mayBeAnimatedImage = (header: Uint8Array): boolean =>
+  ascii(header, 0, 3) === "GIF" || isPng(header) || isRiffWebp(header);
+
 /** APNG は `acTL` を持つ。`IDAT` より前に置くと決まっているので、そこで打ち切る。 */
 const isAnimatedPng = (bytes: Uint8Array): boolean => {
   let animated = false;
