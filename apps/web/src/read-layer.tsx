@@ -1,11 +1,11 @@
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { type ParentComponent, createContext, useContext } from "solid-js";
 
-/** 画面が読み取り層から使う分だけ。Storybook が固定のイベントで差し替えられる幅に留める。 */
-export type ReadAccess = Pick<
-  ReadLayer,
-  "store" | "events" | "profiles" | "engagements"
-> &
+/**
+ * 画面が読み取り層から使う分だけ。Storybook が固定のイベントで差し替えられる幅に留める。
+ * 1 件ずつ取りにいくものは `lookups` を通し、要求器（events など）は渡さない。
+ */
+export type ReadAccess = Pick<ReadLayer, "store" | "lookups"> &
   // routing は、本文で人を指すときに添えるリレーを引くのに使う。無ければ添えない。
   Partial<Pick<ReadLayer, "manager" | "routing">>;
 

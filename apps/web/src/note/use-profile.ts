@@ -1,4 +1,5 @@
-import { type Profile, parseProfile } from "@streets/core/nostr/profile";
+import type { Profile } from "@streets/core/nostr/profile";
+import type { ProfileDetails } from "@streets/core/read/lookups";
 import {
   type Accessor,
   createEffect,
@@ -8,18 +9,11 @@ import {
 } from "solid-js";
 import { useReadLayer } from "../read-layer";
 
-export type ProfileDetails = {
-  profile: Profile | undefined;
-  tags: readonly string[][];
-  /** kind:0 の content そのもの。読む側が扱う項目（Zap の送り先など）を取り出すため。 */
-  content: string;
-};
-
-/** kind:0 を一度だけ読み、解析したプロフィールと NIP-30 の emoji タグを返す。 */
+/** kind:0 を読み、解析したプロフィールと NIP-30 の emoji タグを返す。 */
 export const useProfileDetails = (
   pubkey: Accessor<string | undefined>,
 ): Accessor<ProfileDetails | undefined> => {
-  const { store, profiles } = useReadLayer();
+  const { lookups } = useReadLayer();
   const [details, setDetails] = createSignal<ProfileDetails>();
 
   createEffect(() => {
@@ -29,32 +23,7 @@ export const useProfileDetails = (
       setDetails(undefined);
       return;
     }
-    const load = () => {
-      const latest = store.latestReplaceable(0, key);
-      setDetails(
-        latest
-          ? {
-              profile: parseProfile(latest.content),
-              tags: latest.tags,
-              content: latest.content,
-            }
-          : undefined,
-      );
-      return latest !== undefined;
-    };
-
-    onCleanup(
-      store.onReplaceableChanged((change) => {
-        if (change.kind === 0 && change.pubkey === key) load();
-      }),
-    );
-    if (load()) return;
-
-    profiles.request(key);
-    const unsubscribe = profiles.subscribe(() => {
-      if (load()) unsubscribe();
-    });
-    onCleanup(unsubscribe);
+    onCleanup(lookups.watchProfile(key, setDetails));
   });
 
   return details;

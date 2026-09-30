@@ -8,6 +8,7 @@ import {
 import type { EventPersistence } from "./event-persistence";
 import { type EventRequests, createEventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
+import { type ReadLookups, createReadLookups } from "./lookups";
 import {
   type CreateProfileRequestsOptions,
   type ProfileRequests,
@@ -39,6 +40,8 @@ export type ReadLayer = {
   events: EventRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
+  /** 画面が 1 件ずつ読む口。要求器（events など）を画面から直に呼ばないためのもの。 */
+  lookups: ReadLookups;
   /** 同期読み取りと診断のためだけ。書き込み口をアプリ側から呼ばない。 */
   readonly store: EventStore;
   dispose(): void;
@@ -109,6 +112,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     events,
     profiles,
     engagements,
+    lookups: createReadLookups({ store, events, profiles, engagements }),
     store,
     dispose(): void {
       offReplaceableChanged();

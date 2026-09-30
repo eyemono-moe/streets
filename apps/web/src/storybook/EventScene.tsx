@@ -26,6 +26,7 @@ import type { Nip05Lookup } from "@streets/core/nostr/nip05";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
+import { createReadLookups } from "@streets/core/read/lookups";
 import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { WriteFailedError } from "@streets/core/write/writer";
@@ -208,19 +209,16 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   }
   useStoryNip05(props.scene.nip05 ?? {});
   const events = eventRequestsFor(new Set(props.scene.missingIds));
-  const profiles = inertRequests();
-  const engagements = inertRequests();
   onCleanup(() => events.dispose());
+  const lookups = createReadLookups({
+    store,
+    events,
+    profiles: inertRequests(),
+    engagements: inertRequests(),
+  });
 
   return (
-    <ReadLayerProvider
-      value={{
-        store,
-        events,
-        profiles,
-        engagements,
-      }}
-    >
+    <ReadLayerProvider value={{ store, lookups }}>
       <Show when={props.scene.viewer} fallback={props.children}>
         {(viewer) => {
           const actions = storyActions(
