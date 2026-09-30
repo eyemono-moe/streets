@@ -1,11 +1,15 @@
 import { type EventAddress, formatEventAddress } from "../nostr/address";
 import type { RelayFilter } from "../relay/relay-connection";
+import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
 
 export type AddressRequests = {
-  /** この住所の最新版を要求する（取得済みなら何もしない）。 */
+  /**
+   * この住所の最新版を要求する。取ってから古くなっていなければ何もしない
+   * （古さは kind ごとの方針で決める。既定では一度取れば取り直さない）。
+   */
   request(address: EventAddress): void;
   /** 要求済みでバッチも片付いたのに store に無い、を表す（未要求なら `false`）。 */
   isUnresolved(address: EventAddress): boolean;
@@ -85,8 +89,21 @@ export const createAddressRequests = (
   return {
     request(address) {
       if (disposed) return;
-      if (stored(address)) return;
       const key = formatEventAddress(address);
+      // 取ってから古くなっていなければ取り直さない。無かったものも、取った時刻を
+      // 残してあるので、画面に出し直すたびに問い合わせることはない。
+      const fetchedAt = options.store.replaceableFetchedAt(
+        address.kind,
+        address.pubkey,
+        address.identifier,
+      );
+      if (
+        fetchedAt !== undefined &&
+        !isStale(policyFor(address.kind), fetchedAt, scheduler.now())
+      ) {
+        settled.add(key);
+        return;
+      }
       settled.delete(key);
       pending.set(key, address);
       if (timer === null) {

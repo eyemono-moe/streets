@@ -37,7 +37,7 @@ const stubManager = () => {
 const setup = () => {
   const manager = stubManager();
   const clock = createFakeClock();
-  const store = new EventStore();
+  const store = new EventStore({ scheduler: clock });
   const requests = createAddressRequests({ store, manager, scheduler: clock });
   return { manager, clock, store, requests };
 };
@@ -91,5 +91,34 @@ describe("createAddressRequests", () => {
 
     store.put(article("a"), RELAY);
     expect(requests.isUnresolved(address)).toBe(false);
+  });
+
+  it("取ってから古くなっていなければ、無かった住所も問い合わせ直さない", async () => {
+    // 捕まえる変異: 画面に出し直すたびに、ステータスの無い人へ問い合わせる
+    const { manager, clock, requests } = setup();
+    manager.fetchOnce.mockImplementation(() => Promise.resolve());
+    const address = { kind: 30_023, pubkey: PUBKEY, identifier: "gone" };
+    requests.request(address);
+    clock.advance(200);
+    await Promise.resolve();
+    await Promise.resolve();
+    requests.request(address);
+    clock.advance(200);
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
+    expect(requests.isUnresolved(address)).toBe(true);
+  });
+
+  it("古くなる kind は、時間が経てば手元にあっても取り直す", async () => {
+    const { manager, clock, requests } = setup();
+    manager.fetchOnce.mockImplementation(() => Promise.resolve());
+    const status = { kind: 30_315, pubkey: PUBKEY, identifier: "music" };
+    requests.request(status);
+    clock.advance(200);
+    await Promise.resolve();
+    await Promise.resolve();
+    clock.advance(11 * 60 * 1000);
+    requests.request(status);
+    clock.advance(200);
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(2);
   });
 });

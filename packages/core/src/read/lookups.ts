@@ -136,10 +136,16 @@ export const createReadLookups = ({
         found();
       }
     });
-    if (found()) return offChanged;
-
-    onChange({ phase: "loading" });
+    const hit = found();
+    // 手元にあっても、古くなっていれば取り直す（新しい版は offChanged で届く）。
     addresses.request(address);
+    if (hit) return offChanged;
+
+    onChange(
+      addresses.isUnresolved(address)
+        ? { phase: "missing" }
+        : { phase: "loading" },
+    );
     const offBatch = addresses.subscribe(() => {
       if (found()) {
         offBatch();

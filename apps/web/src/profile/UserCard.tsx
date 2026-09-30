@@ -4,6 +4,7 @@ import { type Component, Show, createSignal } from "solid-js";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
+import { ProfileStatus } from "../status/UserStatus";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import { useFollowsYou } from "./follows-you";
@@ -77,6 +78,7 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
             )}
           </Show>
         </div>
+        <ProfileStatus pubkey={props.pubkey} />
         <Show when={profile()?.about}>
           {(about) => (
             <NoteText

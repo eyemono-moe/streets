@@ -34,5 +34,6 @@
   { "kind": 30030, "status": "表示対応", "summary": "絵文字セット" },
   { "kind": 30078, "status": "内部利用", "summary": "アプリの設定" },
   { "kind": 30166, "status": "内部利用", "summary": "リレーの計測情報" },
+  { "kind": 30315, "status": "内部利用", "summary": "ユーザーのステータス" },
   { "kind": 31990, "status": "内部利用", "summary": "アプリの説明" }
 ]

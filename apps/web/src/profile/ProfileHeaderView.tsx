@@ -6,6 +6,7 @@ import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
+import { ProfileStatus } from "../status/UserStatus";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
@@ -55,6 +56,8 @@ export const ProfileHeaderCard: Component<{
    * 見本は、打つたびにドメインへ聞きに行かない）ので、外から渡す。
    */
   nip05?: JSX.Element;
+  /** 名前の下に置く、今のステータス（NIP-38）。 */
+  status?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -111,6 +114,7 @@ export const ProfileHeaderCard: Component<{
           </div>
           {props.nip05}
         </div>
+        {props.status}
         <Show when={props.profile?.about}>
           {(about) => (
             <NoteText
@@ -151,6 +155,7 @@ const ProfileHeaderView: Component<{
           )}
         </Show>
       }
+      status={<ProfileStatus pubkey={props.pubkey} />}
       badge={
         <Show when={props.followsYou}>
           <FollowsYouBadge />

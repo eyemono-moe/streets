@@ -230,6 +230,18 @@
     "gap": "NIP-32 の補助ラベルは付けない"
   },
   {
+    "nip": "38",
+    "status": "一部",
+    "summary": "ステータスをプロフィール・名刺と投稿の名前の下に出す",
+    "kinds": [30315],
+    "tags": ["d", "expiration", "r", "e", "p", "a", "emoji"],
+    "paths": [
+      "packages/core/src/nostr/user-status.ts",
+      "apps/web/src/status/UserStatusView.tsx"
+    ],
+    "gap": "自分のステータスを設定できない。general と music 以外の種類は出さない（アプリが自分のために置く機械向けの値が多いため）。r は http(s) だけを開く"
+  },
+  {
     "nip": "42",
     "status": "対応",
     "summary": "認証を求めるリレーへ署名して、購読と書き込みを再試行",

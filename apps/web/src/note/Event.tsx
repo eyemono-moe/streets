@@ -21,6 +21,7 @@ import FollowSetCard from "../lists/FollowSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
+import { AuthorStatusLine } from "../status/UserStatus";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -150,6 +151,10 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
         size={props.size}
         withActions={props.withActions}
       />
+      {/* 高密度（compact）では出さない。1 件の高さを揃えて詰めるための表示なので。 */}
+      <Show when={props.size === "normal"}>
+        <AuthorStatusLine pubkey={props.event.pubkey} />
+      </Show>
       {props.children}
     </div>
   </div>

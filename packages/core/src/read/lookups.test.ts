@@ -214,7 +214,8 @@ describe("watchAddress", () => {
     identifier,
   });
 
-  it("store にある最新版をすぐ知らせ、要求しない", () => {
+  it("store にある最新版をすぐ知らせ、取り直すかは要求器に任せる", () => {
+    // 捕まえる変異: 手元にあると要求しない（古くなったステータスを取り直せない）
     const { store, addresses, lookups } = setup();
     const latest = article("post", 2);
     store.put(article("post", 1), RELAY);
@@ -222,7 +223,15 @@ describe("watchAddress", () => {
     const seen: EventLookup[] = [];
     lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
     expect(seen).toEqual([{ phase: "found", event: latest }]);
-    expect(addresses.requested).toEqual([]);
+    expect(addresses.requested).toEqual([`30023:${PUBKEY}:post`]);
+  });
+
+  it("取り終えて無いと分かっている住所は、すぐ missing にする", () => {
+    const { addresses, lookups } = setup();
+    addresses.unresolved.add(`30023:${PUBKEY}:post`);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(seen).toEqual([{ phase: "missing" }]);
   });
 
   it("新しい版が入ったら知らせ直す", () => {
