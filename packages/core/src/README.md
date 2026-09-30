@@ -16,7 +16,7 @@ graph TD
     SUB["subscription/<br/>SubscriptionManager<br/>ルーティング、分割<br/>配達、完了"]
     POOL["ConnectionPool<br/>接続の唯一の開設点<br/>30 接続予算"]
     ES["EventStore<br/>本体、検証、索引<br/>NIP-09"]
-    REQ["コアレッサ<br/>profile / event / engagement"]
+    REQ["コアレッサ<br/>profile / event / engagement / deletion"]
   end
 
   W["write/<br/>Writer / Publisher"]

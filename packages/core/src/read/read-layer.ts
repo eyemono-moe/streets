@@ -1,6 +1,10 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import {
+  type DeletionRequests,
+  createDeletionRequests,
+} from "./deletion-requests";
+import {
   type CreateEngagementRequestsOptions,
   type EngagementRequests,
   createEngagementRequests,
@@ -39,6 +43,7 @@ export type ReadLayer = {
   events: EventRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
+  deletions: DeletionRequests;
   /** 同期読み取りと診断のためだけ。書き込み口をアプリ側から呼ばない。 */
   readonly store: EventStore;
   dispose(): void;
@@ -77,6 +82,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     scheduler,
   };
   const engagements = createEngagementRequests(engagementRequestsOptions);
+  const deletions = createDeletionRequests({ store, manager, scheduler });
 
   let routingReplanTimer: ReturnType<typeof setTimeout> | undefined;
   const offReplaceableChanged = store.onReplaceableChanged((change) => {
@@ -109,6 +115,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     events,
     profiles,
     engagements,
+    deletions,
     store,
     dispose(): void {
       offReplaceableChanged();
@@ -119,6 +126,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       profiles.dispose();
       events.dispose();
       engagements.dispose();
+      deletions.dispose();
       manager.dispose();
       options.persistence.dispose();
     },

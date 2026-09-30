@@ -210,6 +210,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   const events = eventRequestsFor(new Set(props.scene.missingIds));
   const profiles = inertRequests();
   const engagements = inertRequests();
+  const deletions = { request() {}, dispose() {} };
   onCleanup(() => events.dispose());
 
   return (
@@ -219,6 +220,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
         events,
         profiles,
         engagements,
+        deletions,
       }}
     >
       <Show when={props.scene.viewer} fallback={props.children}>

@@ -15,6 +15,7 @@ import {
   type ParentComponent,
   Show,
   Switch,
+  createEffect,
 } from "solid-js";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
@@ -255,23 +256,36 @@ const Unsupported: Component<ContentProps> = (props) => (
   </Row>
 );
 
-const EventContent: Component<ContentProps> = (props) => (
-  <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
-    <Match when={props.event.kind === 1}>
-      <Note
-        event={props.event}
-        size={props.size}
-        expandMedia={props.expandMedia}
-        threadLine={props.threadLine}
-        stickyAvatar={props.stickyAvatar}
-        media={props.media}
-      />
-    </Match>
-    <Match when={props.event.kind === 6 || props.event.kind === 16}>
-      <Repost event={props.event} size={props.size} />
-    </Match>
-  </Switch>
-);
+/**
+ * 描いた投稿に向けた削除依頼を取りにいく。届けば store が投稿を隠し、カラムから外れる。
+ * ふつうのカラムは削除依頼を購読していないので、描いたものだけをここで確かめる。
+ */
+const useDeletionSync = (event: () => NostrEvent) => {
+  const { deletions } = useReadLayer();
+  createEffect(() => deletions.request(event()));
+};
+
+const EventContent: Component<ContentProps> = (props) => {
+  // リポスト元は `Event` を通らずここへ来るので、`EventBody` とは別に確かめる。
+  useDeletionSync(() => props.event);
+  return (
+    <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
+      <Match when={props.event.kind === 1}>
+        <Note
+          event={props.event}
+          size={props.size}
+          expandMedia={props.expandMedia}
+          threadLine={props.threadLine}
+          stickyAvatar={props.stickyAvatar}
+          media={props.media}
+        />
+      </Match>
+      <Match when={props.event.kind === 6 || props.event.kind === 16}>
+        <Repost event={props.event} size={props.size} />
+      </Match>
+    </Switch>
+  );
+};
 
 /** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
 const DRAG_SLOP = 4;
@@ -283,6 +297,7 @@ const isInteractive = (target: EventTarget | null) =>
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const EventBody: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
+  useDeletionSync(() => props.event);
   let downAt: { x: number; y: number } | undefined;
 
   /**

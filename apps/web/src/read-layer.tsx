@@ -4,7 +4,7 @@ import { type ParentComponent, createContext, useContext } from "solid-js";
 /** 画面が読み取り層から使う分だけ。Storybook が固定のイベントで差し替えられる幅に留める。 */
 export type ReadAccess = Pick<
   ReadLayer,
-  "store" | "events" | "profiles" | "engagements"
+  "store" | "events" | "profiles" | "engagements" | "deletions"
 > &
   // routing は、本文で人を指すときに添えるリレーを引くのに使う。無ければ添えない。
   Partial<Pick<ReadLayer, "manager" | "routing">>;
