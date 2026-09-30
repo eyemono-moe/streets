@@ -1,4 +1,7 @@
-import { isAnimatedImage } from "@streets/core/media/animation";
+import {
+  isAnimatedImage,
+  mayBeAnimatedImage,
+} from "@streets/core/media/animation";
 import { displaySize } from "@streets/core/media/display-size";
 
 export type DownscaleRequest = { id: number; url: string; maxEdge: number };
@@ -18,7 +21,14 @@ const downscale = async (
   if (!response.ok) return null;
   const blob = await response.blob();
   // 描き直すと 1 枚の絵になり、動きが失われる。
-  if (isAnimatedImage(new Uint8Array(await blob.arrayBuffer()))) return null;
+  // JPEG などは先頭の 12 バイトで除外できる。大きな写真を判定のためだけに
+  // 丸ごと ArrayBuffer へ複製すると、表示前のメモリと待ち時間が増える。
+  const header = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+  if (
+    mayBeAnimatedImage(header) &&
+    isAnimatedImage(new Uint8Array(await blob.arrayBuffer()))
+  )
+    return null;
 
   // デコードの間だけ原寸の画素を持つ。表示する側（<img>）には縮めた分しか残らない。
   const bitmap = await createImageBitmap(blob);

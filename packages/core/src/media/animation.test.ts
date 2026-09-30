@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { isAnimatedImage } from "./animation";
+import { isAnimatedImage, mayBeAnimatedImage } from "./animation";
 
 const bytes = (...values: (number | string)[]): Uint8Array => {
   const out: number[] = [];
@@ -16,6 +16,12 @@ const gifHeader = ["GIF89a", 1, 0, 1, 0, 0x00, 0, 0] as const;
 const gifFrame = [0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0x00, 0x02, 0x00] as const;
 
 describe("isAnimatedImage", () => {
+  it("先頭だけで JPEG を除外し、アニメーション可能な形式は全体確認へ回す", () => {
+    expect(mayBeAnimatedImage(bytes(0xff, 0xd8, 0xff, 0xe0))).toBe(false);
+    expect(mayBeAnimatedImage(bytes("GIF89a"))).toBe(true);
+    expect(mayBeAnimatedImage(bytes(137, "PNG", 13, 10, 26, 10))).toBe(true);
+    expect(mayBeAnimatedImage(bytes("RIFF", 0, 0, 0, 0, "WEBP"))).toBe(true);
+  });
   it("1 枚だけの GIF は動かない", () => {
     expect(isAnimatedImage(bytes(...gifHeader, ...gifFrame, 0x3b))).toBe(false);
   });
