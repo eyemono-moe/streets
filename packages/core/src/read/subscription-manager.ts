@@ -52,7 +52,8 @@ export type SectionPlan = {
 
 /** 配信されるのは id —— 本体は EventStore にあり、セクションは store.get(id) で引く。 */
 export type SectionDelivery = {
-  onEvent: (id: string, relay: RelayUrl) => void;
+  /** `catchup` は休止中の差分取得。SectionReader が保持枠を広げる判断に使う。 */
+  onEvent: (id: string, relay: RelayUrl, catchup?: boolean) => void;
   onRelayComplete: (relay: RelayUrl) => void;
   onRelayUnreachable: (relay: RelayUrl) => void;
   /** 張り直しでリレー集合が変わった */
@@ -181,6 +182,10 @@ type SectionEntry = {
    * 再拒否・再通知が続き、`replan()` を呼び返す呼び出し側では無限ループになる。
    */
   refused: Set<RelayUrl>;
+  /** 休止前からある購読だけを、復帰時に件数制限なしで取り直す。 */
+  resumeSince?: number;
+  /** 復帰後の差分取得で EOSE を受けたリレー。 */
+  caughtUp: Set<RelayUrl>;
 };
 
 const EMPTY_PLAN: SectionPlan = {
@@ -276,6 +281,9 @@ export class SubscriptionManager {
   #readRouting: ReadRouting = OUTBOX_ROUTING;
   #readPlan: ReadPlan = EMPTY_READ_PLAN;
   readonly #readPlanListeners = new Set<(plan: ReadPlan) => void>();
+  #pausedAt: number | undefined;
+  #pauseCount = 0;
+  #catchupReceived = 0;
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
@@ -294,6 +302,52 @@ export class SubscriptionManager {
 
   get connectionCount(): number {
     return this.#pool.size;
+  }
+
+  get paused(): boolean {
+    return this.#pausedAt !== undefined;
+  }
+
+  get pauseCount(): number {
+    return this.#pauseCount;
+  }
+
+  get catchupReceived(): number {
+    return this.#catchupReceived;
+  }
+
+  get catchupSubscriptions(): number {
+    let count = 0;
+    for (const entry of this.#entries.values()) {
+      if (entry.resumeSince === undefined) continue;
+      for (const url of entry.opened.keys()) {
+        if (!entry.caughtUp.has(url)) count += 1;
+      }
+    }
+    return count;
+  }
+
+  /** 登録済みセクションの REQ を閉じる。ほかの経路の接続は pool に任せる。 */
+  pause(): void {
+    if (this.paused) return;
+    const since = Math.floor(this.#scheduler.now() / 1000) - 1;
+    this.#pausedAt = since;
+    this.#pauseCount += 1;
+    this.#cancelRequestedReplan();
+    for (const entry of this.#entries.values()) {
+      if (entry.opened.size === 0) continue;
+      entry.resumeSince = Math.min(entry.resumeSince ?? since, since);
+      entry.caughtUp.clear();
+      for (const open of entry.opened.values()) open.subscription.close();
+      entry.opened.clear();
+    }
+  }
+
+  /** 差分区間を件数制限なしで取り、各リレーの EOSE 後に通常の REQ に戻す。 */
+  resume(): void {
+    if (!this.paused) return;
+    this.#pausedAt = undefined;
+    this.replan();
   }
 
   /**
@@ -402,6 +456,7 @@ export class SubscriptionManager {
       pendingInitialDelivery: true,
       closed: false,
       refused: new Set(),
+      caughtUp: new Set(),
     };
     this.#entries.set(entry.id, entry);
 
@@ -790,6 +845,7 @@ export class SubscriptionManager {
     entry: SectionEntry,
     perRelay: Map<RelayUrl, RelayFilter[]>,
   ): void {
+    if (this.paused) return;
     for (const [url, open] of [...entry.opened]) {
       if (perRelay.has(url)) continue;
       open.subscription.close();
@@ -802,8 +858,19 @@ export class SubscriptionManager {
     }
 
     for (const [url, relayFilters] of perRelay) {
+      const resumeSince = entry.resumeSince;
+      const catchup = resumeSince !== undefined && !entry.caughtUp.has(url);
+      const filters = catchup
+        ? relayFilters.map(({ limit: _limit, ...filter }) => ({
+            ...filter,
+            since: Math.max(
+              filter.since ?? Number.NEGATIVE_INFINITY,
+              resumeSince,
+            ),
+          }))
+        : relayFilters;
       const open = entry.opened.get(url);
-      if (open && filtersEqual(open.filters, relayFilters)) continue; // 変化なし = 触らない
+      if (open && filtersEqual(open.filters, filters)) continue; // 変化なし = 触らない
 
       if (open) {
         // filters (担当著者) が変わった —— URL だけで判定すると古い REQ の
@@ -813,11 +880,11 @@ export class SubscriptionManager {
         this.#deliver(() => entry.delivery.onRelayRestarted(url));
         const pooled = this.#pool.subscribe(
           url,
-          relayFilters,
-          this.#handlersFor(entry, url, relayFilters),
+          filters,
+          this.#handlersFor(entry, url, filters, catchup),
         );
         open.subscription.close();
-        if (entry.closed) {
+        if (entry.closed || this.paused) {
           // onRelayRestarted が同期的にこのセクションを閉じ、entry.opened
           // は既に空 —— ここで書き込むと孤立ソケットになる。
           pooled?.close();
@@ -826,7 +893,7 @@ export class SubscriptionManager {
         if (pooled) {
           entry.opened.set(url, {
             subscription: pooled,
-            filters: relayFilters,
+            filters,
           });
           entry.refused.delete(url);
         } else {
@@ -838,19 +905,23 @@ export class SubscriptionManager {
         continue;
       }
 
+      if (catchup) {
+        this.#deliver(() => entry.delivery.onRelayRestarted(url));
+        if (entry.closed || this.paused) return;
+      }
       const pooled = this.#pool.subscribe(
         url,
-        relayFilters,
-        this.#handlersFor(entry, url, relayFilters),
+        filters,
+        this.#handlersFor(entry, url, filters, catchup),
       );
-      if (entry.closed) {
+      if (entry.closed || this.paused) {
         // onClosed -> onRelayUnreachable がこのセクションを同期的に閉じた
         // (restart 分岐と同じ理由で、entry.opened へ書き込んではいけない)。
         pooled?.close();
         return;
       }
       if (pooled) {
-        entry.opened.set(url, { subscription: pooled, filters: relayFilters });
+        entry.opened.set(url, { subscription: pooled, filters });
         entry.refused.delete(url);
       } else {
         // budget 切れで丸ごと拒否 (接続を試みていないので onClosed は発火
@@ -917,10 +988,11 @@ export class SubscriptionManager {
     entry: SectionEntry,
     url: RelayUrl,
     filters: RelayFilter[],
+    catchup = false,
   ): RelaySubscriptionHandlers {
     return {
       onEvent: (event) => {
-        if (entry.closed) return;
+        if (entry.closed || this.paused) return;
         // 信頼境界。署名検証は*偽造*を止めるが*混入*は止めないので、
         // store.put() より前に置き、洪水対策を文字列比較で済ませる。
         if (!matchesAnyFilter(event, filters)) {
@@ -933,6 +1005,7 @@ export class SubscriptionManager {
           if (delivered.has(event.id)) return;
           if (!this.#options.store.gate.accept(event)) return;
           delivered.add(event.id);
+          if (catchup) this.#catchupReceived += 1;
           onEvent(event, url);
           return;
         }
@@ -940,13 +1013,28 @@ export class SubscriptionManager {
         // "rejected" は配信しないが "hidden" は配信する —— 削除の取り消し時に
         // SectionReader が同じ場所へ戻せるよう id を必要とするため。
         if (result === "rejected") return;
-        entry.delivery.onEvent(event.id, url);
+        if (catchup) this.#catchupReceived += 1;
+        if (catchup) entry.delivery.onEvent(event.id, url, true);
+        else entry.delivery.onEvent(event.id, url);
       },
       onEose: () => {
-        if (!entry.closed) entry.delivery.onRelayComplete(url);
+        if (entry.closed || this.paused) return;
+        if (catchup) {
+          // subscribe() の中で同期的に EOSE が来ても、opened を書き終えて
+          // から通常の REQ に張り直す。
+          queueMicrotask(() => {
+            if (entry.closed || this.paused) return;
+            if (entry.opened.get(url)?.filters !== filters) return;
+            entry.caughtUp.add(url);
+            this.replan();
+          });
+          return;
+        }
+        entry.delivery.onRelayComplete(url);
       },
       onClosed: () => {
-        if (!entry.closed) entry.delivery.onRelayUnreachable(url);
+        if (!entry.closed && !this.paused)
+          entry.delivery.onRelayUnreachable(url);
       },
     };
   }

@@ -39,6 +39,10 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
   // 接続数・ストアの件数・検証の回数は変更通知を出さないので、定期的に読む。
   const read = () => ({
     connections: props.readLayer.manager.connectionCount,
+    paused: props.readLayer.manager.paused,
+    pauseCount: props.readLayer.manager.pauseCount,
+    catchupSubscriptions: props.readLayer.manager.catchupSubscriptions,
+    catchupReceived: props.readLayer.manager.catchupReceived,
     peakConnections: props.readLayer.manager.peakConnectionCount,
     storedEvents: props.readLayer.store.size,
     verify: { ...props.readLayer.store.gate.stats },
@@ -56,6 +60,10 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
         <Rows
           rows={[
             ["connections", stats().connections],
+            ["paused", String(stats().paused)],
+            ["pauseCount", stats().pauseCount],
+            ["catchupSubscriptions", stats().catchupSubscriptions],
+            ["catchupReceived", stats().catchupReceived],
             ["peakConnections", stats().peakConnections],
             ["storedEvents", stats().storedEvents],
           ]}

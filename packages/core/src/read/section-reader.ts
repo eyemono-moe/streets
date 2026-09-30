@@ -229,7 +229,7 @@ export class SectionReader {
       }, FIRST_PAGE_WAIT_MS);
     }
     this.#handle = manager.subscribe(filters, source.relays, {
-      onEvent: (id, relay) => this.#onEvent(id, relay),
+      onEvent: (id, relay, catchup) => this.#onEvent(id, relay, catchup),
       onRelayComplete: (relay) => {
         // 再接続後の EOSE の可能性もあるので unreachable も一緒に晴らす。
         // 専用の「復帰」コールバックは無い — onRelayComplete がそれを兼ねる。
@@ -324,7 +324,7 @@ export class SectionReader {
     return () => this.#listeners.delete(listener);
   }
 
-  #onEvent(id: string, relay: RelayUrl): void {
+  #onEvent(id: string, relay: RelayUrl, catchup = false): void {
     if (this.#options.pageSize !== undefined && !this.#ready) {
       this.#noteFirstPage(id, relay);
     }
@@ -340,13 +340,16 @@ export class SectionReader {
     // メンバーではない。削除依頼カードとして表示上限を消費させない。
     if (stored.kind === DELETION_KIND) return;
 
-    // 最初のページが揃った後に届いた新しい投稿は、上限を広げて入れる。広げないと、
-    // 読んでいる一覧の古い方が新しい投稿に押し出されて消える。
+    // 最初のページが揃った後に届いた新しい投稿は、上限を広げて入れる。
+    // 復帰時の差分は新しい順で届くことがある。先頭との比較だけでは 1 件目
+    // しか広がらず、残りが古い表示行を押し出すので、末尾より新しければ広げる。
     const head = this.#events.first;
+    const oldest = this.#events.last;
     if (
       this.#options.pageSize !== undefined &&
       head &&
-      compareEvents(stored, head) < 0 &&
+      ((catchup && oldest && compareEvents(stored, oldest) < 0) ||
+        compareEvents(stored, head) < 0) &&
       this.#isReady()
     ) {
       this.#events.grow(this.#events.size + 1);

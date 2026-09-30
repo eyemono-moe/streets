@@ -116,7 +116,7 @@ const setup = (
 // Stub the manager entirely so tests can drive `delivery.onPlanChanged`
 // directly, instead of going through a real SubscriptionManager (which has no
 // way yet to produce a re-plan itself).
-const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
+const startReaderWithRelays = (relayUrls: RelayUrl[], pageSize?: number) => {
   let delivery!: SectionDelivery;
   const manager = {
     subscribe: (
@@ -145,6 +145,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[]) => {
     store,
     manager,
     scheduler: clock,
+    pageSize,
   });
 
   const statuses: SectionStatus[] = [];
@@ -1012,6 +1013,34 @@ describe("SectionReader with Outbox routing", () => {
 });
 
 describe("古い投稿の取り足し（pageSize）", () => {
+  it("復帰時に新しい順で届いた差分は、表示中の古い投稿を押し出さない", () => {
+    const { reader, delivery, store } = startReaderWithRelays(["wss://a/"], 2);
+    const original = [signedEvent("old", 100), signedEvent("older", 90)];
+    for (const item of original) {
+      store.put(item, "wss://a/");
+      delivery.onEvent(item.id, "wss://a/");
+    }
+    delivery.onRelayComplete("wss://a/");
+
+    for (const [name, at] of [
+      ["newest", 130],
+      ["newer", 120],
+      ["new", 110],
+    ] as const) {
+      const item = signedEvent(name, at);
+      store.put(item, "wss://a/");
+      delivery.onEvent(item.id, "wss://a/", true);
+    }
+
+    expect(reader.items.map((item) => item.content)).toEqual([
+      "newest",
+      "newer",
+      "new",
+      "old",
+      "older",
+    ]);
+  });
+
   const setupPaged = (pageSize: number, urls: RelayUrl[] = ["wss://a/"]) => {
     const clock = createFakeClock();
     const relays = new Map<string, FakeRelayConnection>();
