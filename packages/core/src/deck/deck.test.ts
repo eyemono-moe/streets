@@ -656,6 +656,12 @@ describe("カラムの種類ごとの保存", () => {
       pubkey: "e".repeat(64),
       identifier: "friends",
     },
+    article: {
+      kind: "article",
+      pubkey: "a".repeat(64),
+      identifier: "post",
+      relays: ["wss://relay.example/"],
+    },
   };
 
   it.each(Object.values(EXAMPLES))("$kind は保存して読み戻せる", (source) => {

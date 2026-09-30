@@ -8,9 +8,14 @@ import {
 import type { NostrEvent } from "../nostr/event";
 import { relayOf } from "../nostr/event-refs";
 import { KIND_SUPPORT } from "../nostr/kind-support";
+import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { Nip19Ref } from "../nostr/nip19";
 import type { RelayUrl } from "../relay/relay-connection";
-import { buildFollowSetColumn, buildThreadColumn } from "./column-presets";
+import {
+  buildArticleColumn,
+  buildFollowSetColumn,
+  buildThreadColumn,
+} from "./column-presets";
 import type { ColumnDef } from "./deck";
 
 /**
@@ -18,8 +23,13 @@ import type { ColumnDef } from "./deck";
  * ここに開き先を足す。無い kind はそのイベント 1 件を出すカラムで開く。
  */
 const ADDRESS_OPENERS: Partial<
-  Record<number, (address: EventAddress) => ColumnDef>
+  Record<
+    number,
+    (address: EventAddress, relays: readonly RelayUrl[]) => ColumnDef
+  >
 > = {
+  [LONG_FORM_KIND]: (address, relays) =>
+    buildArticleColumn(address.pubkey, address.identifier, relays),
   // リストはメンバーの投稿を読むためのもの。名前は届いたら題名に出る。
   [FOLLOW_SET_KIND]: (address) =>
     buildFollowSetColumn(address.pubkey, address.identifier, "リスト"),
@@ -55,7 +65,7 @@ export const columnForAddress = (
   address: EventAddress,
   relays: readonly RelayUrl[] = [],
 ): ColumnDef =>
-  ADDRESS_OPENERS[address.kind]?.(address) ??
+  ADDRESS_OPENERS[address.kind]?.(address, relays) ??
   buildAddressColumn(address, relays);
 
 /**

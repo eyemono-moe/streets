@@ -23,10 +23,18 @@ describe("columnForEvent", () => {
   });
 
   it("住所を持つものは、版の id ではなく住所で開く", () => {
-    // 捕まえる変異: id で開き、記事が更新されると古い版を指したままになる
-    const column = columnForEvent(event(30_023, [["d", "post"]]));
-    expect(column.id).toBe(`address:30023:${PUBKEY}:post`);
-    expect(column.title).toBe("長文記事");
+    // 捕まえる変異: id で開き、書き直されると古い版を指したままになる
+    const column = columnForEvent(event(30_078, [["d", "app"]]));
+    expect(column.id).toBe(`address:30078:${PUBKEY}:app`);
+    expect(column.title).toBe("アプリの設定");
+  });
+
+  it("長文記事は読むカラムで開く", () => {
+    expect(columnForEvent(event(30_023, [["d", "post"]])).source).toEqual({
+      kind: "article",
+      pubkey: PUBKEY,
+      identifier: "post",
+    });
   });
 
   it("`d` が無いものは住所で指せないので、スレッドで開く", () => {

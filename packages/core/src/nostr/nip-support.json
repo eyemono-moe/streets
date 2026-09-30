@@ -127,12 +127,16 @@
   },
   {
     "nip": "23",
-    "status": "未対応",
-    "summary": "長文記事",
+    "status": "一部",
+    "summary": "長文記事をカードで表示し、カラムで読む",
     "kinds": [30023],
-    "tags": [],
-    "paths": [],
-    "gap": "長文記事の専用表示・投稿はない"
+    "tags": ["d", "title", "summary", "image", "published_at", "t"],
+    "paths": [
+      "packages/core/src/nostr/long-form.ts",
+      "apps/web/src/article/ArticleCard.tsx",
+      "apps/web/src/article/Markdown.tsx"
+    ],
+    "gap": "読むだけで、記事を書けない。記事へのコメント（kind:1111）はまだ出ない"
   },
   {
     "nip": "24",

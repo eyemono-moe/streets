@@ -42,6 +42,7 @@ import ColumnTabs from "../ui/ColumnTabs";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
+import Article from "./blocks/Article";
 import Authors from "./blocks/Authors";
 import ChannelChat from "./blocks/ChannelChat";
 import ChannelInfo from "./blocks/ChannelInfo";
@@ -343,6 +344,19 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     }),
     Content: (props) => (
       <EventList source={() => bookmarksSource(props.inputs.bookmarks())} />
+    ),
+  },
+  article: {
+    meta: () => ({
+      icon: "i-material-symbols:article-outline-rounded",
+      subtitle: "長文記事",
+    }),
+    Content: (props) => (
+      <Article
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
+      />
     ),
   },
   thread: {

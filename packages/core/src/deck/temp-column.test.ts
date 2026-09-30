@@ -47,16 +47,16 @@ describe("tempColumnFor（naddr）", () => {
   it("住所の最新版を引くカラムになり、リレーの手がかりを使う", () => {
     // 捕まえる変異: naddr を開けないまま undefined を返す
     const naddr = encodeNaddr({
-      identifier: "post",
+      identifier: "app",
       pubkey: PUBKEY,
-      eventKind: 30_023,
+      eventKind: 30_078,
       relays: ["wss://relay.example/"],
     });
     const column = naddr ? tempColumnFor(naddr) : undefined;
     expect(column?.id).toBe(TEMP_COLUMN_ID);
     expect(column?.source).toEqual({
       kind: "literal",
-      filters: [{ kinds: [30_023], authors: [PUBKEY], "#d": ["post"] }],
+      filters: [{ kinds: [30_078], authors: [PUBKEY], "#d": ["app"] }],
       relays: ["wss://relay.example/"],
     });
   });

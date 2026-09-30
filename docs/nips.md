@@ -17,7 +17,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) | 一部 | リポストの表示と通常の投稿のリポスト | 6, 16 | `e`, `p`, `k` | [`repost.ts`](../packages/core/src/nostr/build/repost.ts)<br>[`repost-target.ts`](../packages/core/src/view/repost-target.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | kind:16 の投稿操作はない |
 | [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) | 対応 | npub・note・nevent などの読み書き | — | — | [`nip19.ts`](../packages/core/src/nostr/nip19.ts) | — |
 | [NIP-21](https://github.com/nostr-protocol/nips/blob/master/21.md) | 対応 | nostr: リンクを開く | — | — | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`UserLink.tsx`](../apps/web/src/note/UserLink.tsx) | — |
-| [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) | 未対応 | 長文記事 | 30023 | — | — | 長文記事の専用表示・投稿はない |
+| [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) | 一部 | 長文記事をカードで表示し、カラムで読む | 30023 | `d`, `title`, `summary`, `image`, `published_at`, `t` | [`long-form.ts`](../packages/core/src/nostr/long-form.ts)<br>[`ArticleCard.tsx`](../apps/web/src/article/ArticleCard.tsx)<br>[`Markdown.tsx`](../apps/web/src/article/Markdown.tsx) | 読むだけで、記事を書けない。記事へのコメント（kind:1111）はまだ出ない |
 | [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) | 一部 | プロフィールの追加項目と小文字のハッシュタグ | 0, 1 | `t` | [`profile.ts`](../packages/core/src/nostr/profile.ts)<br>[`content.ts`](../packages/core/src/nostr/content.ts)<br>[`note.ts`](../packages/core/src/nostr/build/note.ts) | bot・birthday などの追加項目は扱わない |
 | [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) | 対応 | リアクションの読み書き | 7 | `e`, `p`, `k` | [`reaction.ts`](../packages/core/src/nostr/reaction.ts)<br>[`reaction.ts`](../packages/core/src/nostr/build/reaction.ts) | — |
 | [NIP-27](https://github.com/nostr-protocol/nips/blob/master/27.md) | 対応 | 本文中の Nostr 参照 | 1 | — | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | — |
@@ -72,7 +72,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
 | 30000 | 表示対応 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
-| 30023 | 未対応 | 長文記事 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) |
+| 30023 | 表示対応 | 長文記事 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) |
 | 30030 | 表示対応 | 絵文字セット | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) |
 | 30078 | 内部利用 | アプリの設定 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) |
 | 30166 | 内部利用 | リレーの計測情報 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) |

@@ -15,6 +15,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
 import PollBlock from "../poll/PollBlock";
@@ -292,6 +293,11 @@ const EventContent: Component<ContentProps> = (props) => (
           expandMedia={props.expandMedia}
         />
         <PollBlock event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    <Match when={props.event.kind === 30023}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <ArticleCard event={props.event} size={props.size} />
         <Show when={props.size === "normal"}>
           <ReactionList event={props.event} />
         </Show>
