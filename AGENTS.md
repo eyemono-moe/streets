@@ -22,6 +22,7 @@ pnpm workspace の 2 パッケージ。
 - デバッグ用の画面やルートは作らず、診断値は TanStack Devtools のパネル（`apps/web/src/devtools/`）へ出す
 - **作業は `main` から切り、`main` へ PR を出す。** `main` に入れただけでは本番は変わらず、本番はタグで決まる（[docs/release.md](./docs/release.md)）
 - PR の `Closes #N` は `main` へのマージで Issue を閉じる
+- **別の PR の変更に乗る PR は、`gh stack`（GitHub の stacked PR）で重ねる。** 宛先を手で前のブランチに向けた PR を作らない。作るのは `gh stack init` / `gh stack add`、出すのは `gh stack submit --auto`、マージは `gh stack merge <PR> --yes`。`gh pr merge` で下の PR のブランチを消すと、上の PR が閉じられる。互いに乗らない作業は、別の stack か、`main` 宛ての普通の PR にする
 
 ## デザイン
 
