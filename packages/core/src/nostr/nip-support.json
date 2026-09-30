@@ -282,7 +282,8 @@
     "paths": [
       "packages/core/src/nostr/private-tags.ts",
       "packages/core/src/moderation/mute-list.ts",
-      "packages/core/src/lists/follow-set.ts"
+      "packages/core/src/lists/follow-set.ts",
+      "apps/web/src/lists/FollowSetSummary.tsx"
     ],
     "gap": "NIP-51 のリストをすべて扱うわけではない"
   },

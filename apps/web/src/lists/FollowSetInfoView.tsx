@@ -17,9 +17,9 @@ import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
-import { LegacyMuteNotice, memberCountLabel } from "./FollowSetListView";
 import { privatePartNotice } from "./FollowSetMediator";
 import FollowSetPicture from "./FollowSetPicture";
+import { LegacyMuteNotice, memberCountLabel } from "./FollowSetSummary";
 import {
   MEMBER_VISIBILITY_HINT,
   VISIBILITY_LABEL,

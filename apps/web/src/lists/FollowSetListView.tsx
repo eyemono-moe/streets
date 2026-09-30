@@ -1,44 +1,8 @@
-import {
-  type FollowSet,
-  followSetName,
-  mayBeLegacyMuteSet,
-} from "@streets/core/lists/follow-set";
+import type { FollowSet } from "@streets/core/lists/follow-set";
 import { type Component, For, Match, Show, Switch } from "solid-js";
-import Avatar from "../note/Avatar";
-import Name from "../note/Name";
 import Button from "../ui/Button";
 import ColumnTabs, { type ColumnTab } from "../ui/ColumnTabs";
-import FollowSetPicture from "./FollowSetPicture";
-
-/** 「12 人・非公開 3 人」。非公開がいなければ人数だけ。 */
-export const memberCountLabel = (set: FollowSet): string => {
-  const hidden = set.members.filter(
-    (member) => member.visibility === "private",
-  ).length;
-  const total = `${set.members.length} 人`;
-  return hidden > 0 ? `${total}・非公開 ${hidden} 人` : total;
-};
-
-/** 作った人。アイコンと名前を 1 行に並べる。 */
-export const FollowSetAuthor: Component<{ pubkey: string }> = (props) => (
-  <span class="flex min-w-0 items-center gap-1">
-    <Avatar pubkey={props.pubkey} size="tiny" static />
-    <span class="min-w-0 truncate">
-      <Name pubkey={props.pubkey} />
-    </span>
-  </span>
-);
-
-/** `d` が `mute` のリストに添える一文。 */
-export const LegacyMuteNotice: Component = () => (
-  <span class="c-status-warn flex items-start gap-1 text-caption">
-    <span
-      class="i-material-symbols:warning-outline-rounded mt-0.5 size-3.5 shrink-0"
-      aria-hidden="true"
-    />
-    一部のクライアントでは、このリストがミュートする人の指定として扱われている可能性があります
-  </span>
-);
+import FollowSetSummary from "./FollowSetSummary";
 
 const FollowSetRow: Component<{
   set: FollowSet;
@@ -47,29 +11,10 @@ const FollowSetRow: Component<{
   <li class="bg-primary">
     <button
       type="button"
-      class="flex w-full min-w-0 cursor-pointer items-start gap-2.5 bg-transparent px-3 py-2.5 text-left outline-none hover:bg-alpha-hover focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset"
+      class="flex w-full min-w-0 cursor-pointer bg-transparent px-3 py-2.5 text-left outline-none hover:bg-alpha-hover focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset"
       onClick={() => props.onOpen(props.set)}
     >
-      <FollowSetPicture url={props.set.image} class="size-10 rounded-2" />
-      <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span class="c-primary truncate font-600 text-body">
-          {followSetName(props.set)}
-        </span>
-        <span class="c-secondary flex min-w-0 items-center gap-1 text-caption">
-          <FollowSetAuthor pubkey={props.set.pubkey} />
-          <span class="shrink-0">・{memberCountLabel(props.set)}</span>
-        </span>
-        <Show when={props.set.description}>
-          {(description) => (
-            <span class="c-secondary truncate text-caption">
-              {description()}
-            </span>
-          )}
-        </Show>
-        <Show when={mayBeLegacyMuteSet(props.set)}>
-          <LegacyMuteNotice />
-        </Show>
-      </span>
+      <FollowSetSummary set={props.set} />
     </button>
   </li>
 );

@@ -29,7 +29,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-44](https://github.com/nostr-protocol/nips/blob/master/44.md) | 一部 | 非公開リストとリモート署名の暗号化 | — | — | [`private-tags.ts`](../packages/core/src/nostr/private-tags.ts)<br>[`nip44.ts`](../packages/core/src/signer/nip46/nip44.ts) | 一般の暗号化メッセージ機能はない |
 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) | 対応 | リモート署名器への接続 | 24133 | `p` | [`client.ts`](../packages/core/src/signer/nip46/client.ts)<br>[`nip46-signer.ts`](../packages/core/src/signer/nip46/nip46-signer.ts) | — |
 | [NIP-50](https://github.com/nostr-protocol/nips/blob/master/50.md) | 一部 | 検索対応リレーへ検索を送る | — | — | [`query.ts`](../packages/core/src/search/query.ts)<br>[`search-relay-list.ts`](../packages/core/src/settings/search-relay-list.ts) | 検索演算子をすべて扱うわけではない |
-| [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) | 一部 | ミュート・ブックマーク・フォローセットなどのリスト | 10000, 10003, 10005, 10007, 10030, 30000 | `d`, `e`, `p`, `a`, `t`, `relay` | [`private-tags.ts`](../packages/core/src/nostr/private-tags.ts)<br>[`mute-list.ts`](../packages/core/src/moderation/mute-list.ts)<br>[`follow-set.ts`](../packages/core/src/lists/follow-set.ts) | NIP-51 のリストをすべて扱うわけではない |
+| [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) | 一部 | ミュート・ブックマーク・フォローセットなどのリスト | 10000, 10003, 10005, 10007, 10030, 30000 | `d`, `e`, `p`, `a`, `t`, `relay` | [`private-tags.ts`](../packages/core/src/nostr/private-tags.ts)<br>[`mute-list.ts`](../packages/core/src/moderation/mute-list.ts)<br>[`follow-set.ts`](../packages/core/src/lists/follow-set.ts)<br>[`FollowSetSummary.tsx`](../apps/web/src/lists/FollowSetSummary.tsx) | NIP-51 のリストをすべて扱うわけではない |
 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) | 一部 | Zap の送信と受領の表示 | 9734, 9735 | `e`, `p`, `k`, `relays`, `amount`, `lnurl`, `bolt11`, `description` | [`zap-request.ts`](../packages/core/src/zap/zap-request.ts)<br>[`zap-receipt.ts`](../packages/core/src/zap/zap-receipt.ts) | Zap のすべてのオプションや受領形式には対応していない |
 | [NIP-65](https://github.com/nostr-protocol/nips/blob/master/65.md) | 対応 | 人ごとの読み書きリレーの選択 | 10002 | `r` | [`relay-list.ts`](../packages/core/src/read/relay-list.ts)<br>[`relay-selector.ts`](../packages/core/src/read/relay-selector.ts)<br>[`relay-list.ts`](../packages/core/src/nostr/build/relay-list.ts) | — |
 | [NIP-66](https://github.com/nostr-protocol/nips/blob/master/66.md) | 一部 | リレーの計測情報から候補を選ぶ | 30166 | `d` | [`relay-recommendation.ts`](../packages/core/src/settings/relay-recommendation.ts)<br>[`RelayRecommendations.tsx`](../apps/web/src/settings/RelayRecommendations.tsx) | 計測イベントの発行はしない |
@@ -68,7 +68,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 22242 | 内部利用 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
 | 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
-| 30000 | 内部利用 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
+| 30000 | 表示対応 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 30023 | 未対応 | 長文記事 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) |
 | 30030 | 内部利用 | 絵文字セット | [NIP-30](https://github.com/nostr-protocol/nips/blob/master/30.md) |
 | 30078 | 内部利用 | アプリの設定 | [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) |
