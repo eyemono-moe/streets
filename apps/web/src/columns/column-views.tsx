@@ -219,7 +219,8 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
           subtitle: "ハッシュタグ",
         };
       }
-      return source.relays
+      // リレーを指していても、住所（naddr）で開いたカラムはリレーの全体ではない。
+      return relayColumnSource(source)
         ? { icon: "i-material-symbols:globe", subtitle: "指定したリレーの全体" }
         : {
             icon: "i-material-symbols:pin-drop-outline-rounded",
