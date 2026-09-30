@@ -63,6 +63,21 @@ export const 外部リンク: Story = {
   ),
 };
 
+/** 押した先が画面の外にあることを、文字の後ろのアイコンで示す。 */
+export const 後ろにアイコン: Story = {
+  render: () => (
+    <ButtonLink
+      variant="primary"
+      trailingIcon="i-material-symbols:open-in-new-rounded"
+      href="https://example.com"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      外部ページを開く
+    </ButtonLink>
+  ),
+};
+
 /** 種類 × 大きさ × 押せない状態を並べる。 */
 export const 一覧: Story = {
   render: () => (

@@ -36,27 +36,28 @@ export type ClientInfoState =
       openUrl?: string;
     };
 
-/** 押す前に行き先を見せる。誰でも書ける URL なので、名前だけで信用させない。 */
-const hostOf = (url: string) => new URL(url).host;
-
+/**
+ * 押す前に行き先のドメインをボタンの横に見せる。誰でも書ける URL なので、ボタンの
+ * 文字だけで信用させない。
+ */
 const Destination: Component<{
   url: string;
   label: string;
   primary?: boolean;
 }> = (props) => (
-  <div class="flex flex-col items-start gap-1">
+  <div class="flex min-w-0 items-center justify-end gap-2">
+    <span class="c-secondary min-w-0 break-all text-right text-caption">
+      {new URL(props.url).host}
+    </span>
     <ButtonLink
       href={props.url}
       target="_blank"
       rel="noopener noreferrer"
       variant={props.primary ? "primary" : "secondary"}
-      icon="i-material-symbols:open-in-new-rounded"
+      trailingIcon="i-material-symbols:open-in-new-rounded"
     >
       {props.label}
     </ButtonLink>
-    <span class="c-secondary break-all text-caption">
-      開く先: {hostOf(props.url)}
-    </span>
   </div>
 );
 
@@ -83,11 +84,14 @@ export const ClientDialogView: Component<{
           </div>
           <DialogBody class="flex flex-col gap-4 px-4 pb-4">
             <div class="flex items-center gap-3">
-              <Avatar
-                pubkey={props.seed}
-                picture={profile()?.picture}
-                class="size-12 rounded-2"
-              />
+              {/* 説明が取れたアプリだけ。名前しか無いものに標識を出すと、アイコンに見える。 */}
+              <Show when={ready()}>
+                <Avatar
+                  pubkey={props.seed}
+                  picture={profile()?.picture}
+                  class="size-12 rounded-2"
+                />
+              </Show>
               <p class="break-anywhere min-w-0 font-600 text-body">{title()}</p>
             </div>
             <Switch>
@@ -114,39 +118,34 @@ export const ClientDialogView: Component<{
                         </p>
                       )}
                     </Show>
-                    <Show
-                      when={state().openUrl || state().website}
-                      fallback={
-                        <p class="c-secondary text-caption">
-                          このアプリの開き方は書かれていません。
-                        </p>
-                      }
-                    >
-                      <div class="flex flex-col gap-3">
-                        <Show when={state().openUrl}>
-                          {(url) => (
-                            <Destination
-                              url={url()}
-                              label="このアプリで投稿を開く"
-                              primary
-                            />
-                          )}
-                        </Show>
-                        <Show when={state().website}>
-                          {(url) => (
-                            <Destination
-                              url={url()}
-                              label="ウェブサイトを開く"
-                            />
-                          )}
-                        </Show>
-                      </div>
+                    <Show when={!state().openUrl && !state().website}>
+                      <p class="c-secondary text-caption">
+                        このアプリの開き方は書かれていません。
+                      </p>
                     </Show>
                   </>
                 )}
               </Match>
             </Switch>
           </DialogBody>
+          <Show when={ready()?.openUrl || ready()?.website}>
+            <div class="flex shrink-0 flex-col gap-2 px-4 pb-4">
+              <Show when={ready()?.website}>
+                {(url) => (
+                  <Destination url={url()} label="ウェブサイトを開く" />
+                )}
+              </Show>
+              <Show when={ready()?.openUrl}>
+                {(url) => (
+                  <Destination
+                    url={url()}
+                    label="このアプリで投稿を開く"
+                    primary
+                  />
+                )}
+              </Show>
+            </div>
+          </Show>
         </DialogContent>
       </DialogPortal>
     </DialogRoot>
