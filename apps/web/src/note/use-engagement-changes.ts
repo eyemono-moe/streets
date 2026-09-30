@@ -8,22 +8,14 @@ import { useReadLayer } from "../read-layer";
 export const useEngagementChanges = (
   id: Accessor<string>,
 ): Accessor<number> => {
-  const { store, engagements } = useReadLayer();
+  const { lookups } = useReadLayer();
   const [version, setVersion] = createSignal(0);
-  const bump = () => setVersion((current) => current + 1);
 
   createEffect(() => {
-    const target = id();
-    engagements.request(target);
-    onCleanup(engagements.subscribe(bump));
     onCleanup(
-      store.subscribe((change) => {
-        if (
-          change.event.tags.some((tag) => tag[0] === "e" && tag[1] === target)
-        ) {
-          bump();
-        }
-      }),
+      lookups.watchEngagements(id(), () =>
+        setVersion((current) => current + 1),
+      ),
     );
   });
 

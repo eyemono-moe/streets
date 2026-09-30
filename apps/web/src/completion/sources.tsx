@@ -160,7 +160,7 @@ export const useUserCandidates = (
   const actions = useEventActions();
   const npubOf = (pubkey: string) => encodeBech32("npub", pubkey);
   if (!readLayer) return { find: () => [], nprofile: npubOf };
-  const { store, profiles, routing } = readLayer;
+  const { store, lookups, routing } = readLayer;
 
   // プロフィールが届くたびに候補を作り直す。
   const [version, setVersion] = createSignal(0);
@@ -202,7 +202,7 @@ export const useUserCandidates = (
       timers.push(
         setTimeout(
           () => {
-            for (const pubkey of chunk) profiles.request(pubkey);
+            for (const pubkey of chunk) lookups.requestProfile(pubkey);
           },
           (i / PROFILE_CHUNK) * PROFILE_CHUNK_MS,
         ),
