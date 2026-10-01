@@ -12,6 +12,7 @@ import { useSending } from "../actions-mediator";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useDispatch } from "../ui-events";
+import { menuContentClass, menuItemClass } from "../ui/menu";
 import {
   EVENT_ACTION_META,
   createEventDialogs,
@@ -144,7 +145,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               </Menu.Trigger>
               <Portal>
                 <Menu.Positioner>
-                  <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+                  <Menu.Content class={`${menuContentClass} w-40`}>
                     <Menu.Item
                       value="repost"
                       disabled={
@@ -152,10 +153,10 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                         engagement().viewerReposted ||
                         !buildRepost(props.event)
                       }
-                      class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+                      class={menuItemClass}
                     >
                       <span
-                        class="i-material-symbols:repeat-rounded size-4.5"
+                        class="i-material-symbols:repeat-rounded size-4 shrink-0"
                         aria-hidden="true"
                       />
                       <span>
@@ -164,12 +165,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                           : "リポスト"}
                       </span>
                     </Menu.Item>
-                    <Menu.Item
-                      value="quote"
-                      class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
-                    >
+                    <Menu.Item value="quote" class={menuItemClass}>
                       <span
-                        class="i-material-symbols:format-quote-rounded size-4.5"
+                        class="i-material-symbols:format-quote-rounded size-4 shrink-0"
                         aria-hidden="true"
                       />
                       <span>引用</span>

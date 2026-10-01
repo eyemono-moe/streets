@@ -8,6 +8,7 @@ import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
+import { menuContentClass, menuIconClass, menuItemClass } from "../ui/menu";
 
 const AuthorRelaysDialog = lazyPart(() => import("./AuthorRelaysDialog"));
 
@@ -49,13 +50,10 @@ export const ProfileMenuView: Component<{
       />
       <Portal>
         <Menu.Positioner>
-          <Menu.Content class="motion-pop c-primary w-60 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
-            <Menu.Item
-              value="relays"
-              class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
-            >
+          <Menu.Content class={`${menuContentClass} w-56`}>
+            <Menu.Item value="relays" class={menuItemClass}>
               <span
-                class="i-material-symbols:hub-outline size-4.5"
+                class={`i-material-symbols:hub-outline ${menuIconClass}`}
                 aria-hidden="true"
               />
               リレー設定
@@ -63,10 +61,10 @@ export const ProfileMenuView: Component<{
             <Menu.Item
               value="add-to-list"
               disabled={!props.listAvailable}
-              class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+              class={menuItemClass}
             >
               <span
-                class="i-material-symbols:playlist-add-rounded size-4.5"
+                class={`i-material-symbols:playlist-add-rounded ${menuIconClass}`}
                 aria-hidden="true"
               />
               リストに追加
@@ -75,42 +73,19 @@ export const ProfileMenuView: Component<{
               <Menu.Item
                 value="mute"
                 disabled={!props.muteAvailable}
-                class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+                class={menuItemClass}
               >
                 <span
-                  class={
+                  class={`${menuIconClass} ${
                     props.muted
                       ? "i-material-symbols:person-outline-rounded"
                       : "i-material-symbols:person-off-outline-rounded"
-                  }
-                  classList={{ "size-4.5": true }}
+                  }`}
                   aria-hidden="true"
                 />
                 {props.muted ? "ミュートを解除" : "ミュート"}
               </Menu.Item>
             </Show>
-            <Menu.Item
-              value="block"
-              disabled
-              class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[disabled]:opacity-50"
-            >
-              <span
-                class="i-material-symbols:block size-4.5"
-                aria-hidden="true"
-              />
-              ブロック
-            </Menu.Item>
-            <Menu.Item
-              value="report"
-              disabled
-              class="c-danger flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[disabled]:opacity-50"
-            >
-              <span
-                class="i-material-symbols:flag-outline-rounded size-4.5"
-                aria-hidden="true"
-              />
-              通報
-            </Menu.Item>
           </Menu.Content>
         </Menu.Positioner>
       </Portal>

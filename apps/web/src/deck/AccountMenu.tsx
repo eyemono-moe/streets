@@ -5,6 +5,11 @@ import Avatar from "../note/Avatar";
 import { useUserStatuses } from "../status/use-user-statuses";
 import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
+import {
+  menuContentClass,
+  menuItemClass,
+  menuSeparatorClass,
+} from "../ui/menu";
 
 /** 自分のアイコン。設定・Streets について・ログアウトを持つ。 */
 const AccountMenu: Component<{
@@ -42,13 +47,10 @@ const AccountMenu: Component<{
       </Menu.Trigger>
       <Portal>
         <Menu.Positioner>
-          <Menu.Content class="motion-pop c-primary w-max min-w-40 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
-            <Menu.Item
-              value="status"
-              class="flex min-h-8.5 max-w-72 items-center gap-2.5 rounded-1.5 px-2.5 py-1 text-body data-[highlighted]:bg-secondary"
-            >
+          <Menu.Content class={`${menuContentClass} w-max min-w-40`}>
+            <Menu.Item value="status" class={`${menuItemClass} max-w-72`}>
               <span
-                class="i-material-symbols:add-reaction-outline-rounded c-secondary size-4.5 shrink-0"
+                class="i-material-symbols:add-reaction-outline-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
               <span class="flex min-w-0 flex-col">
@@ -63,23 +65,23 @@ const AccountMenu: Component<{
                 </Show>
               </span>
             </Menu.Item>
-            <hr class="my-1 border-primary border-t" />
+            <hr class={menuSeparatorClass} />
             <Menu.Item
               value="settings"
-              class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+              class={`${menuItemClass} whitespace-nowrap`}
             >
               <span
-                class="i-material-symbols:settings-outline-rounded c-secondary size-4.5"
+                class="i-material-symbols:settings-outline-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
               設定
             </Menu.Item>
             <Menu.Item
               value="about"
-              class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+              class={`${menuItemClass} whitespace-nowrap`}
             >
               <span
-                class="i-material-symbols:info-outline-rounded c-secondary size-4.5"
+                class="i-material-symbols:info-outline-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
               Streets について
@@ -87,10 +89,10 @@ const AccountMenu: Component<{
             <Show when={props.arrange}>
               <Menu.Item
                 value="arrange"
-                class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+                class={`${menuItemClass} whitespace-nowrap`}
               >
                 <span
-                  class="i-material-symbols:view-column-outline-rounded c-secondary size-4.5"
+                  class="i-material-symbols:view-column-outline-rounded c-secondary size-4 shrink-0"
                   aria-hidden="true"
                 />
                 デッキを編集
@@ -99,10 +101,10 @@ const AccountMenu: Component<{
             <Show when={props.onFeedback}>
               <Menu.Item
                 value="feedback"
-                class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+                class={`${menuItemClass} whitespace-nowrap`}
               >
                 <span
-                  class="i-material-symbols:feedback-outline-rounded c-secondary size-4.5"
+                  class="i-material-symbols:feedback-outline-rounded c-secondary size-4 shrink-0"
                   aria-hidden="true"
                 />
                 フィードバックを送る
@@ -110,10 +112,10 @@ const AccountMenu: Component<{
             </Show>
             <Menu.Item
               value="logout"
-              class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
+              class={`${menuItemClass} whitespace-nowrap`}
             >
               <span
-                class="i-material-symbols:logout-rounded c-secondary size-4.5"
+                class="i-material-symbols:logout-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
               ログアウト
