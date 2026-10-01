@@ -6,6 +6,8 @@ import {
   CHANNEL_METADATA_KIND,
   CHANNEL_MUTE_USER_KIND,
 } from "../nostr/channel";
+import { LONG_FORM_KIND } from "../nostr/long-form";
+import { PINNED_NOTES_KIND } from "../nostr/pinned-notes";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -141,6 +143,23 @@ export const userReactionsSource = (pubkey: string): NostrSource => ({
 export const followListSource = (pubkey: string): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [3], authors: [pubkey], limit: 1 }],
+});
+
+/** 長文記事 1 本。書き直された版も届くので、読む側で最新のものを使う。 */
+export const articleSource = (
+  pubkey: string,
+  identifier: string,
+  relays?: readonly string[],
+): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
+  ...(relays && relays.length > 0 ? { relays: relays as RelayUrl[] } : {}),
+});
+
+/** その人がプロフィールの上にピン留めした投稿の一覧（最新の版だけ）。 */
+export const pinnedNotesSource = (pubkey: string): NostrSource => ({
+  type: "nostr",
+  filters: [{ kinds: [PINNED_NOTES_KIND], authors: [pubkey], limit: 1 }],
 });
 
 /** その人のリストすべて。古い版も届くので、読む側で `latestFollowSets` を通す。 */

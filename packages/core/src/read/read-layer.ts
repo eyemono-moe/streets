@@ -1,4 +1,5 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
+import { createAddressRequests } from "./address-requests";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import {
   type CreateEngagementRequestsOptions,
@@ -9,6 +10,7 @@ import type { EventPersistence } from "./event-persistence";
 import { type EventRequests, createEventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
 import { type ReadLookups, createReadLookups } from "./lookups";
+import { createPollRequests } from "./poll-requests";
 import {
   type CreateProfileRequestsOptions,
   type ProfileRequests,
@@ -75,6 +77,8 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const profiles = createProfileRequests(profileRequestsOptions);
   const events = createEventRequests({ store, manager, scheduler });
+  const addresses = createAddressRequests({ store, manager, scheduler });
+  const polls = createPollRequests({ manager });
   const engagementRequestsOptions: CreateEngagementRequestsOptions = {
     manager,
     scheduler,
@@ -112,7 +116,14 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     events,
     profiles,
     engagements,
-    lookups: createReadLookups({ store, events, profiles, engagements }),
+    lookups: createReadLookups({
+      store,
+      events,
+      addresses,
+      profiles,
+      engagements,
+      polls,
+    }),
     store,
     dispose(): void {
       offReplaceableChanged();
@@ -122,6 +133,8 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       }
       profiles.dispose();
       events.dispose();
+      addresses.dispose();
+      polls.dispose();
       engagements.dispose();
       manager.dispose();
       options.persistence.dispose();

@@ -1,3 +1,4 @@
+import { addressOfNaddr, formatEventAddress } from "../nostr/address";
 import {
   type ContentToken,
   isProbablyAudioUrl,
@@ -12,6 +13,7 @@ import {
   tagOnlyQuoteTargets,
 } from "../nostr/event-refs";
 import { type MediaDimensions, inlineMediaMetadata } from "../nostr/imeta";
+import { PICTURE_KIND, isMediaPostKind } from "../nostr/media-post";
 
 export type NoteMedia = {
   type: "image" | "video";
@@ -70,6 +72,7 @@ export const layoutNote = (
   const links: string[] = [];
   const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
+  const quotedAddresses = new Set<string>();
   const metadata = inlineMediaMetadata(event.tags);
 
   for (const token of parseContent(event.content, event.tags)) {
@@ -127,6 +130,26 @@ export const layoutNote = (
       }
       continue;
     }
+    if (
+      options.quotes &&
+      token.type === "mention" &&
+      token.ref.kind === "naddr"
+    ) {
+      const address = addressOfNaddr(token.ref);
+      if (address) {
+        const key = formatEventAddress(address);
+        if (!quotedAddresses.has(key)) {
+          quotedAddresses.add(key);
+          const relay = relayOf(token.ref.relays[0]);
+          quotes.push(
+            relay
+              ? { form: "address", address: key, relay }
+              : { form: "address", address: key },
+          );
+        }
+        continue;
+      }
+    }
     const last = text[text.length - 1];
     if (token.type === "text" && last?.type === "text") {
       // 抜いた位置の前後を 1 つにしないと、末尾の空白を落とせない。
@@ -136,6 +159,26 @@ export const layoutNote = (
     }
   }
 
+  // 画像・動画の投稿は、見せるものを本文ではなく `imeta` にだけ書く。
+  if (isMediaPostKind(event.kind)) {
+    for (const [url, details] of metadata) {
+      if (media.some((item) => item.url === url)) continue;
+      const mime = details.mime?.toLowerCase();
+      const type = mime?.startsWith("video/")
+        ? "video"
+        : mime?.startsWith("image/")
+          ? "image"
+          : event.kind === PICTURE_KIND
+            ? "image"
+            : "video";
+      media.push({
+        type,
+        url,
+        ...(details.dimensions ? { dimensions: details.dimensions } : {}),
+        ...(details.blurhash ? { blurhash: details.blurhash } : {}),
+      });
+    }
+  }
   if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
   return { text: trimEdges(text), media, audio, links, quotes };
 };

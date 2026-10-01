@@ -3,6 +3,7 @@ import { relayOf } from "../nostr/event-refs";
 import { decodeNip19 } from "../nostr/nip19";
 import { buildChannelColumn, buildUserColumn } from "./column-presets";
 import type { ColumnDef } from "./deck";
+import { columnForNaddr } from "./open-event";
 
 /** URL の 1 区画（`nevent1…` など）から開くカラム。デッキへは保存しない。 */
 export const TEMP_COLUMN_ID = "temp";
@@ -45,6 +46,10 @@ export const tempColumnFor = (entity: string): ColumnDef | undefined => {
     };
   }
 
-  // naddr（置換可能イベントの座標）はまだ引けない。
+  if (ref.kind === "naddr") {
+    const column = columnForNaddr(ref);
+    return column ? { ...column, id: TEMP_COLUMN_ID } : undefined;
+  }
+
   return undefined;
 };

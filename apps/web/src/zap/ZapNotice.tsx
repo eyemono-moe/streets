@@ -127,7 +127,7 @@ const ZapNotice: Component<{
                 {(targetId) => (
                   <div class="overflow-hidden rounded-2 border border-primary">
                     <EventRefView
-                      target={{ id: targetId() }}
+                      target={{ form: "id", id: targetId() }}
                       size="compact"
                       expandMedia={props.expandMedia}
                     />

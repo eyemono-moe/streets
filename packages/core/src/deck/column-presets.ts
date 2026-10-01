@@ -79,6 +79,25 @@ export const buildThreadColumn = (focus: string): ColumnDef => ({
   source: { kind: "thread", focus },
 });
 
+/**
+ * 長文記事を読むカラム。id を住所から決めるので、同じ記事を 2 回開いても重ならない。
+ * `relays` は naddr が運ぶリレーの手がかり。
+ */
+export const buildArticleColumn = (
+  pubkey: string,
+  identifier: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
+  id: `article:${pubkey}:${identifier}`,
+  title: "長文記事",
+  source: {
+    kind: "article",
+    pubkey,
+    identifier,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
+});
+
 export const buildActivityColumn = (target: string): ColumnDef => ({
   id: `activity:${target}`,
   title: "アクティビティ",

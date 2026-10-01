@@ -3,6 +3,7 @@ import { allInScenario } from "./all-in";
 import channelsAndLists from "./channels-and-lists";
 import contentWarning from "./content-warning";
 import home from "./home";
+import kinds from "./kinds";
 import manyColumns from "./many-columns";
 import media from "./media";
 import notifications from "./notifications";
@@ -19,6 +20,7 @@ const individualScenarios = {
   media,
   "channels-and-lists": channelsAndLists,
   "content-warning": contentWarning,
+  kinds,
 } satisfies Record<string, AppScenario>;
 
 export const scenarios = {

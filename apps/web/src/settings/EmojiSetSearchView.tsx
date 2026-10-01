@@ -1,11 +1,13 @@
 import type { EmojiSet } from "@streets/core/settings/emoji-set";
 import { type Component, For, Show, createSignal } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
-import UserLink from "../note/UserLink";
-import { useDispatch } from "../ui-events";
+import {
+  EmojiGrid,
+  EmojiSetAddButton,
+  EmojiSetHeading,
+} from "../emoji/EmojiSetParts";
 import Button from "../ui/Button";
 import SearchInput from "../ui/SearchInput";
-import { EmojiPreview } from "./EmojiSettingsView";
 
 export type EmojiSetResult = {
   set: EmojiSet;
@@ -100,51 +102,22 @@ const EmojiSetSearchView: Component<EmojiSetSearchViewProps> = (props) => {
 
 const ResultRow: Component<{ result: EmojiSetResult; disabled: boolean }> = (
   props,
-) => {
-  const dispatch = useDispatch();
-  const set = () => props.result.set;
-  return (
-    <li class="flex flex-col gap-2 bg-primary px-3 py-2.5">
-      <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span class="c-primary min-w-32 flex-1 break-all font-600 text-body">
-          {set().title}
-        </span>
-        <UserLink pubkey={set().pubkey} class="c-secondary text-caption" />
-        <Show
-          when={!props.result.added}
-          fallback={<span class="c-secondary text-caption">入っています</span>}
-        >
-          <Button
-            variant="secondary"
-            size="sm"
-            icon="i-material-symbols:add-rounded"
-            disabled={props.disabled}
-            onClick={() =>
-              dispatch({
-                type: "emoji-set/add",
-                ref: { pubkey: set().pubkey, identifier: set().identifier },
-              })
-            }
-          >
-            入れる
-          </Button>
-        </Show>
-      </div>
-      <div class="flex flex-wrap items-center gap-1.5">
-        <For each={set().emojis.slice(0, 12)}>
-          {(emoji) => <EmojiPreview emoji={emoji} />}
-        </For>
-        <Show when={set().emojis.length > 12}>
-          <span class="c-secondary text-caption">
-            ほか {set().emojis.length - 12}
-          </span>
-        </Show>
-        <Show when={set().emojis.length === 0}>
-          <span class="c-secondary text-caption">絵文字が入っていません</span>
-        </Show>
-      </div>
-    </li>
-  );
-};
+) => (
+  <li class="flex flex-col gap-2 bg-primary px-3 py-2.5">
+    <EmojiSetHeading
+      title={props.result.set.title}
+      pubkey={props.result.set.pubkey}
+      count={props.result.set.emojis.length}
+    />
+    <EmojiGrid emojis={props.result.set.emojis} />
+    <div class="flex">
+      <EmojiSetAddButton
+        set={props.result.set}
+        added={props.result.added}
+        disabled={props.disabled}
+      />
+    </div>
+  </li>
+);
 
 export default EmojiSetSearchView;

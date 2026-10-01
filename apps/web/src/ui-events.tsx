@@ -26,6 +26,7 @@ import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
 import type { ComposeEvent } from "@streets/core/view/compose";
+import type { StatusFormEvent } from "@streets/core/view/status-form";
 import type { ZapFlowEvent } from "@streets/core/zap/zap-flow";
 import {
   type JSX,
@@ -57,7 +58,10 @@ export type UiEvent =
   | ChannelFormViewEvent
   | ChatMuteViewEvent
   /** 設定の画面で、アクション欄の並びを動かしている。表示の設定の段が裁定する。 */
-  | ActionArrangeEvent;
+  | ActionArrangeEvent
+  /** 自分のステータスを設定するダイアログを開く。今のステータスは段が入れる。 */
+  | { type: "status/edit" }
+  | Exclude<StatusFormEvent, { type: "status-form/open" }>;
 
 /** 検索を投げるリレーの足し外し。 */
 export type SearchRelayViewEvent =
@@ -232,6 +236,8 @@ export type ChatViewEvent = Extract<
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
+  /** 投票に答える。`choices` は選んだ選択肢の id。 */
+  | { type: "note/vote"; target: NostrEvent; choices: readonly string[] }
   /** `on` は押した後に付いているべき状態。 */
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
   | { type: "user/follow"; pubkey: string; on: boolean }

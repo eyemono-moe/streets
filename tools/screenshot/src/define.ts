@@ -23,8 +23,9 @@ export type UserProfile = {
   website?: string;
 };
 
-/** `assets/` に置いた画像のファイル名。 */
-export type AssetName = `${string}.${"svg" | "png" | "jpg" | "jpeg" | "webp"}`;
+/** `assets/` に置いた画像・動画のファイル名。 */
+export type AssetName =
+  `${string}.${"svg" | "png" | "jpg" | "jpeg" | "webp" | "mp4"}`;
 
 /** 投稿（kind:1）。`id` を付けると、返信・引用・リポスト・リアクションから指せる。 */
 export type Post<U extends string> = When & {
@@ -88,6 +89,72 @@ export type FollowSet<U extends string> = {
   privateMembers?: readonly U[];
 };
 
+/**
+ * 画像・動画だけの投稿。kind:20 は画像（NIP-68）、kind:21 は動画、kind:22 は
+ * 縦長の短い動画（NIP-71）。本文ではなく imeta にだけ画像・動画を置く。
+ */
+export type MediaPost<U extends string> = When & {
+  id?: string;
+  author: U;
+  kind: 20 | 21 | 22;
+  title?: string;
+  content: string;
+  media: readonly AssetName[];
+};
+
+/** 投票（NIP-88）と、それへの回答。`endsAt` は `{ offset: 秒 }` で先の時刻も書ける。 */
+export type Poll<U extends string> = When & {
+  id: string;
+  author: U;
+  question: string;
+  options: readonly string[];
+  /** いくつでも選べる。省くと 1 つ選ぶ。 */
+  multiple?: boolean;
+  endsAt?: When;
+  /** 回答。`choices` は選んだ選択肢の番号（0 から）。 */
+  votes?: readonly (When & { author: U; choices: readonly number[] })[];
+};
+
+/**
+ * 長文記事（NIP-23）。本文は Markdown で、`{@kai}`・`{naddr:<id>}`・`{nevent:<id>}`
+ * が使える。`image` は `assets/` のファイル名。
+ */
+export type Article<U extends string> = When & {
+  id: string;
+  author: U;
+  identifier: string;
+  title?: string;
+  summary?: string;
+  image?: AssetName;
+  /** 最初に出した時刻。省くと記事の時刻と同じ。 */
+  publishedAt?: When;
+  hashtags?: readonly string[];
+  content: string;
+};
+
+/** 絵文字セット（kind:30030）。`image` は `assets/` のファイル名。 */
+export type EmojiSet<U extends string> = {
+  id: string;
+  owner: U;
+  identifier: string;
+  title: string;
+  emojis: readonly { shortcode: string; image: AssetName }[];
+};
+
+/**
+ * ユーザーのステータス（NIP-38）。`type` は `d` にそのまま入る（`general`・
+ * `music` のほか、表示されない種類も試せる）。`expiresAt` は先の時刻なら
+ * `{ offset: 秒 }`、過ぎたものは `{ ago }` で書く。
+ */
+export type Status<U extends string> = When & {
+  author: U;
+  type: string;
+  content: string;
+  /** `r` に入れる URL。 */
+  link?: string;
+  expiresAt?: When;
+};
+
 /** 見る人のデッキに並べるカラム。 */
 export type DeckColumn<U extends string> = (
   | { kind: "home" }
@@ -100,6 +167,8 @@ export type DeckColumn<U extends string> = (
   | { kind: "follow-set-info"; owner: U; identifier: string; title: string }
   /** 検索カラム。`"#coffee"` のようにハッシュタグでも、言葉でも書ける。 */
   | { kind: "search"; query: string }
+  /** 指定した kind のイベントをそのまま流すカラム（ホームに流れない kind を見る）。 */
+  | { kind: "kinds"; title: string; kinds: readonly number[] }
 ) & { width?: "s" | "m" | "l" };
 
 /** 1 枚のスクリーンショットのための状態。 */
@@ -117,6 +186,15 @@ export type Scenario<U extends string> = {
   channels?: readonly Channel<U>[];
   favoriteChannels?: readonly string[];
   followSets?: readonly FollowSet<U>[];
+  mediaPosts?: readonly MediaPost<U>[];
+  polls?: readonly Poll<U>[];
+  articles?: readonly Article<U>[];
+  emojiSets?: readonly EmojiSet<U>[];
+  /** 自分の絵文字リスト（kind:10030）に入れている絵文字セットの `id`。 */
+  emojiLists?: Partial<Record<U, readonly string[]>>;
+  statuses?: readonly Status<U>[];
+  /** ピン留めした投稿（kind:10001）。投稿の `id` を、ピン留めした順に書く。 */
+  pinned?: Partial<Record<U, readonly string[]>>;
   /** 見る人のデッキ（kind:30078）。省くと Streets の既定（ホームと通知）のまま。 */
   deck?: readonly DeckColumn<U>[];
 };

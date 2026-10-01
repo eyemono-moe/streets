@@ -17,8 +17,12 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import {
+  EmojiGrid,
+  EmojiPreview,
+  EmojiSetHeading,
+} from "../emoji/EmojiSetParts";
 import { NoUploadServerError, useUploader } from "../media/uploader";
-import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -41,45 +45,6 @@ export type EmojiSettingsViewProps = {
   saving: boolean;
   /** いいねボタンで送るリアクション（この端末の設定）。 */
   defaultReaction: ReactionInput;
-};
-
-/**
- * 絵文字 1 つ。読めない URL でも、何が入っているかが消えないようにする。
- * 名前を隣に出している場所（`named`）では、代わりに読めない印だけを出す。
- */
-export const EmojiPreview: Component<{
-  emoji: CustomEmoji;
-  named?: boolean;
-}> = (props) => {
-  const [broken, setBroken] = createSignal(false);
-  return (
-    <Show
-      when={!broken()}
-      fallback={
-        <Show
-          when={props.named}
-          fallback={
-            <span class="c-secondary text-caption">{`:${props.emoji.shortcode}:`}</span>
-          }
-        >
-          <span
-            class="i-material-symbols:broken-image-outline-rounded c-secondary size-5"
-            title="画像を読み込めませんでした"
-          />
-        </Show>
-      }
-    >
-      <img
-        src={props.emoji.url}
-        alt={`:${props.emoji.shortcode}:`}
-        title={`:${props.emoji.shortcode}:`}
-        loading="lazy"
-        decoding="async"
-        class="size-6 object-contain"
-        onError={() => setBroken(true)}
-      />
-    </Show>
-  );
 };
 
 /**
@@ -170,18 +135,23 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
   return (
     <li class="bg-primary px-3 py-2.5">
       <Collapsible.Root>
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Collapsible.Trigger class="c-primary group flex min-w-32 flex-1 cursor-pointer items-center gap-1 bg-transparent text-left font-600 text-body">
+        <div class="flex items-start gap-2">
+          <Collapsible.Trigger
+            class="group flex shrink-0 cursor-pointer bg-transparent p-0"
+            aria-label={`${name()} の中身を開く`}
+          >
             <span
-              class="i-material-symbols:arrow-drop-down-rounded c-secondary group-data-[state=closed]:-rotate-90 size-5 shrink-0 transition-transform"
+              class="i-material-symbols:arrow-drop-down-rounded c-secondary group-data-[state=closed]:-rotate-90 mt-0.5 size-5 shrink-0 transition-transform"
               aria-hidden="true"
             />
-            <span class="min-w-0 break-all">{name()}</span>
           </Collapsible.Trigger>
-          <UserLink
-            pubkey={props.row.ref.pubkey}
-            class="c-secondary text-caption"
-          />
+          <span class="min-w-0 flex-1">
+            <EmojiSetHeading
+              title={name()}
+              pubkey={props.row.ref.pubkey}
+              count={props.row.set?.emojis.length}
+            />
+          </span>
           <IconButton
             icon="i-material-symbols:do-not-disturb-on-outline-rounded"
             label={`${name()} を自分の絵文字から外す`}
@@ -200,15 +170,8 @@ const SetRow: Component<{ row: EmojiSetRow; disabled: boolean }> = (props) => {
           <Collapsible.Context>
             {(api) => (
               <Show when={!api().open}>
-                <div class="flex flex-wrap items-center gap-1.5">
-                  <For each={emojis().slice(0, 12)}>
-                    {(emoji) => <EmojiPreview emoji={emoji} />}
-                  </For>
-                  <Show when={emojis().length > 12}>
-                    <span class="c-secondary text-caption">
-                      ほか {emojis().length - 12}
-                    </span>
-                  </Show>
+                <div class="pt-2 pl-7">
+                  <EmojiGrid emojis={emojis()} />
                 </div>
               </Show>
             )}

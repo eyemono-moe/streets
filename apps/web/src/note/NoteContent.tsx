@@ -16,7 +16,6 @@ import {
 import { lazyPart } from "../lazy-part";
 import ContentWarningGate from "./ContentWarningGate";
 import { EventRefView, type EventSize } from "./Event";
-import { Frame, Notice } from "./EventFrame";
 import LinkCards from "./LinkCards";
 import NoteMediaView, { NoteAudio } from "./NoteMedia";
 import NoteText from "./NoteText";
@@ -30,16 +29,7 @@ const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
 
 const Quote: Component<{ quote: EventRef }> = (props) => (
   <div class="w-full overflow-hidden rounded-2 border border-primary">
-    <Show
-      when={props.quote.form === "id" && props.quote}
-      fallback={
-        <Frame size="compact">
-          <Notice>未対応の参照です</Notice>
-        </Frame>
-      }
-    >
-      {(ref) => <EventRefView target={ref()} size="compact" />}
-    </Show>
+    <EventRefView target={props.quote} size="compact" />
   </div>
 );
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { encodeBech32 } from "../nostr/nip19";
+import { encodeBech32, encodeNaddr } from "../nostr/nip19";
 import { MAX_LINK_CARDS, layoutNote } from "./note-layout";
 
 const ID_A = "a".repeat(64);
@@ -200,5 +200,78 @@ describe("layoutNote", () => {
       });
       expect(layout.links).toEqual([]);
     });
+  });
+
+  it("本文の naddr を住所の引用として抜き、同じ住所は 1 つにする", () => {
+    // 捕まえる変異: naddr を本文の文字に残し、引用カードにならない
+    const naddr = encodeNaddr({
+      identifier: "post",
+      pubkey: ID_A,
+      eventKind: 30_023,
+      relays: ["wss://relay.example/"],
+    });
+    const layout = layoutNote(note(`nostr:${naddr} nostr:${naddr}`), {
+      quotes: true,
+    });
+    expect(layout.text).toEqual([]);
+    expect(layout.quotes).toEqual([
+      {
+        form: "address",
+        address: `30023:${ID_A}:post`,
+        relay: "wss://relay.example/",
+      },
+    ]);
+  });
+
+  it("画像の投稿（kind:20）は imeta の画像を並べる", () => {
+    // 捕まえる変異: 本文の URL だけを見て、imeta にしか無い画像を落とす
+    const layout = layoutNote(
+      {
+        ...note("海に行った", [
+          ["imeta", "url https://example.com/a", "m image/jpeg", "dim 800x600"],
+          ["imeta", "url https://example.com/b", "blurhash LKO2?U%2Tw=w"],
+        ]),
+        kind: 20,
+      },
+      { quotes: true },
+    );
+    expect(layout.text).toEqual([{ type: "text", text: "海に行った" }]);
+    expect(layout.media).toEqual([
+      {
+        type: "image",
+        url: "https://example.com/a",
+        dimensions: { width: 800, height: 600 },
+      },
+      {
+        type: "image",
+        url: "https://example.com/b",
+        blurhash: "LKO2?U%2Tw=w",
+      },
+    ]);
+  });
+
+  it("動画の投稿（kind:21）は、種類の分からない imeta も動画にし、本文と同じ URL は 1 回にする", () => {
+    const layout = layoutNote(
+      {
+        ...note("https://example.com/clip.mp4", [
+          ["imeta", "url https://example.com/clip.mp4", "m video/mp4"],
+          ["imeta", "url https://example.com/clip"],
+        ]),
+        kind: 21,
+      },
+      { quotes: true },
+    );
+    expect(layout.media.map((item) => [item.type, item.url])).toEqual([
+      ["video", "https://example.com/clip.mp4"],
+      ["video", "https://example.com/clip"],
+    ]);
+  });
+
+  it("ふつうの投稿では、本文に無い imeta を並べない", () => {
+    const layout = layoutNote(
+      note("本文", [["imeta", "url https://example.com/a.png"]]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([]);
   });
 });
