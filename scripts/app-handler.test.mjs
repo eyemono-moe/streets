@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAppHandler, readHandler } from "./app-handler.mjs";
+import { generateSecretKey, getPublicKey, nip19 } from "nostr-tools";
+import { buildAppHandler, readHandler, signsFor } from "./app-handler.mjs";
 import { readKindInventory } from "./nip-support.mjs";
 
 test("表示できる kind と、開ける URL の形を並べる", async () => {
@@ -18,4 +19,15 @@ test("表示できる kind と、開ける URL の形を並べる", async () => 
     "nevent",
   ]);
   assert.equal(JSON.parse(event.content).name, "Streets");
+});
+
+test("説明の pubkey の鍵だけを、署名する鍵として認める", () => {
+  const key = generateSecretKey();
+  const handler = { pubkey: getPublicKey(key) };
+
+  assert.ok(signsFor(handler, Buffer.from(key).toString("hex")));
+  assert.ok(signsFor(handler, `${nip19.nsecEncode(key)}\n`));
+  assert.ok(
+    !signsFor(handler, Buffer.from(generateSecretKey()).toString("hex")),
+  );
 });
