@@ -621,6 +621,21 @@ describe("linkCards", () => {
   });
 });
 
+describe("ピン留めの開閉", () => {
+  it("閉じたことを保存して読み戻せる", () => {
+    // 捕まえる変異: 保存の形の検証に書き忘れ、読み直すと開いた状態に戻る
+    const deck = setOf([
+      {
+        id: "x",
+        title: "x",
+        source: { kind: "user", pubkey: "c".repeat(64) },
+        pinnedCollapsed: true,
+      },
+    ]);
+    expect(loadDeckSet(saveDeckSet(deck))).toEqual(deck);
+  });
+});
+
 describe("カラムの種類ごとの保存", () => {
   // 種類をキーにした表なので、種類を足すとここにも例を書くまで型検査が落ちる。
   const EXAMPLES: { [K in ColumnKind]: ColumnSourceOf<K> } = {
