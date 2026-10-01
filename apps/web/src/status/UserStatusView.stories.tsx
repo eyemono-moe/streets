@@ -2,11 +2,7 @@ import type { UserStatus } from "@streets/core/nostr/user-status";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import emojiUrl from "../storybook/emoji-fixture.svg";
-import {
-  UserNowPlaying,
-  UserStatusBadge,
-  UserStatusBubble,
-} from "./UserStatusView";
+import { UserNowPlaying, UserStatusBubble } from "./UserStatusView";
 
 const general: UserStatus = {
   type: "general",
@@ -39,14 +35,12 @@ const Both: Component<{ statuses: UserStatus[] }> = (props) => (
       <h3 class="c-secondary text-caption">プロフィール・名刺</h3>
       {/* アイコンの代わりの枠。吹き出しの三角がその真下に来る。 */}
       <div class="size-20 rounded-3 bg-tertiary" />
-      <UserStatusBubble statuses={props.statuses} arrowLeft={34} />
+      <UserStatusBubble
+        statuses={props.statuses}
+        arrowLeft={34}
+        class="-mt-2"
+      />
       <UserNowPlaying statuses={props.statuses} />
-    </section>
-    <section class="flex flex-col gap-1">
-      <h3 class="c-secondary text-caption">投稿のアイコンの印</h3>
-      <div class="relative size-10 rounded-2 bg-tertiary">
-        <UserStatusBadge statuses={props.statuses} />
-      </div>
     </section>
   </div>
 );

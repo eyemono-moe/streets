@@ -161,7 +161,10 @@ const ProfileHeaderView: Component<{
         </Show>
       }
       // アイコン（80px、左端から 12px）の真下に三角を合わせる。
-      status={<UserStatusBubble statuses={statuses()} arrowLeft={34} />}
+      // 行間（12px）を打ち消し、三角だけをアイコンに重ねる。本体まで重ねると、長い文のときにフォローのボタンに触れる。
+      status={
+        <UserStatusBubble statuses={statuses()} arrowLeft={34} class="-mt-3" />
+      }
       nowPlaying={<UserNowPlaying statuses={statuses()} />}
       badge={
         <Show when={props.followsYou}>

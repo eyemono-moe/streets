@@ -91,13 +91,18 @@ const StatusLink: Component<{ status: UserStatus }> = (props) => {
 export const UserStatusBubble: Component<{
   statuses: readonly UserStatus[];
   arrowLeft: number;
+  /**
+   * 上の余白。アイコンの下端に少し重ねて、アイコンから出ている形にする。
+   * 並べる側の行間に合わせて、置き場所ごとに渡す。
+   */
+  class: string;
 }> = (props) => (
   <Show when={props.statuses.find((status) => status.type === "general")}>
     {(status) => (
       // 中身に合わせた幅にし、長い文だけ幅いっぱいまで広げて折り返す。
       // 三角がはみ出さないよう、三角の位置より狭くはしない。
       <div
-        class="relative mt-1.5 w-fit max-w-full rounded-3 bg-secondary px-3 py-2 text-caption"
+        class={`relative w-fit max-w-full rounded-3 bg-secondary px-3 py-2 text-caption ${props.class}`}
         style={{ "min-width": `${props.arrowLeft + 24}px` }}
       >
         <span
@@ -134,26 +139,6 @@ export const UserNowPlaying: Component<{ statuses: readonly UserStatus[] }> = (
         </span>
         <StatusLink status={status()} />
       </p>
-    )}
-  </Show>
-);
-
-/**
- * 投稿のアイコンの右下に付ける小さな点。ステータスがあることだけを知らせ、
- * 中身はアイコンに触れたときの名刺で読む —— 本文の上に 1 行足すと、
- * ステータスのある人の投稿だけ高くなって煩わしい。
- */
-export const UserStatusBadge: Component<{ statuses: readonly UserStatus[] }> = (
-  props,
-) => (
-  <Show when={props.statuses[0]}>
-    {(status) => (
-      // 触れたときはアイコンの名刺が開くよう、点そのものは触れられないようにする。
-      <span
-        class="-right-0.5 -bottom-0.5 pointer-events-none absolute block size-2 rounded-full bg-accent-5 ring-2 ring-white dark:ring-ui-950"
-        role="img"
-        aria-label={`${ICON[status().type].label}：${status().content}`}
-      />
     )}
   </Show>
 );

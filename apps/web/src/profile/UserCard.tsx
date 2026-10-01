@@ -53,7 +53,8 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
           <FollowButton pubkey={props.pubkey} size="small" />
         </div>
         {/* アイコン（56px）の真下に三角を合わせる。 */}
-        <UserStatusBubble statuses={statuses()} arrowLeft={22} />
+        {/* 行間（8px）を打ち消し、三角だけをアイコンに重ねる。 */}
+        <UserStatusBubble statuses={statuses()} arrowLeft={22} class="-mt-2" />
         <div class="flex min-w-0 flex-col">
           <span class="c-primary truncate font-600 text-body">
             <ProfileName
