@@ -4,7 +4,8 @@ import { type Component, Show, createSignal } from "solid-js";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
-import { ProfileStatus } from "../status/UserStatus";
+import { useUserStatuses } from "../status/use-user-statuses";
+import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import { useFollowsYou } from "./follows-you";
@@ -19,6 +20,7 @@ import Nip05Badge from "./Nip05Badge";
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey);
   const followsYou = useFollowsYou(() => props.pubkey);
   const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);
@@ -50,6 +52,8 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
           />
           <FollowButton pubkey={props.pubkey} size="small" />
         </div>
+        {/* アイコン（56px）の真下に三角を合わせる。 */}
+        <UserStatusBubble statuses={statuses()} arrowLeft={22} />
         <div class="flex min-w-0 flex-col">
           <span class="c-primary truncate font-600 text-body">
             <ProfileName
@@ -78,7 +82,7 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
             )}
           </Show>
         </div>
-        <ProfileStatus pubkey={props.pubkey} />
+        <UserNowPlaying statuses={statuses()} />
         <Show when={profile()?.about}>
           {(about) => (
             <NoteText

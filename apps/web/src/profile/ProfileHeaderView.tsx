@@ -6,7 +6,8 @@ import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
-import { ProfileStatus } from "../status/UserStatus";
+import { useUserStatuses } from "../status/use-user-statuses";
+import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
@@ -56,8 +57,10 @@ export const ProfileHeaderCard: Component<{
    * 見本は、打つたびにドメインへ聞きに行かない）ので、外から渡す。
    */
   nip05?: JSX.Element;
-  /** 名前の下に置く、今のステータス（NIP-38）。 */
+  /** アイコンの下に置く、いまの状態（NIP-38 の general）の吹き出し。 */
   status?: JSX.Element;
+  /** 名前の下に置く、聴いている曲（NIP-38 の music）。 */
+  nowPlaying?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -94,6 +97,7 @@ export const ProfileHeaderCard: Component<{
           />
           {props.action}
         </div>
+        {props.status}
         <div class="flex flex-col">
           <h3 class="c-primary break-anywhere font-600 text-h3">
             <ProfileName
@@ -114,7 +118,7 @@ export const ProfileHeaderCard: Component<{
           </div>
           {props.nip05}
         </div>
-        {props.status}
+        {props.nowPlaying}
         <Show when={props.profile?.about}>
           {(about) => (
             <NoteText
@@ -141,6 +145,7 @@ const ProfileHeaderView: Component<{
   onOpenFollowers?: () => void;
 }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey);
   return (
     <ProfileHeaderCard
       pubkey={props.pubkey}
@@ -155,7 +160,9 @@ const ProfileHeaderView: Component<{
           )}
         </Show>
       }
-      status={<ProfileStatus pubkey={props.pubkey} />}
+      // アイコン（80px、左端から 12px）の真下に三角を合わせる。
+      status={<UserStatusBubble statuses={statuses()} arrowLeft={34} />}
+      nowPlaying={<UserNowPlaying statuses={statuses()} />}
       badge={
         <Show when={props.followsYou}>
           <FollowsYouBadge />

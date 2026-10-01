@@ -2,7 +2,11 @@ import type { UserStatus } from "@streets/core/nostr/user-status";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import emojiUrl from "../storybook/emoji-fixture.svg";
-import { UserStatusBadge, UserStatusPills } from "./UserStatusView";
+import {
+  UserNowPlaying,
+  UserStatusBadge,
+  UserStatusBubble,
+} from "./UserStatusView";
 
 const general: UserStatus = {
   type: "general",
@@ -21,7 +25,7 @@ const music: UserStatus = {
 const long: UserStatus = {
   type: "general",
   content:
-    "とても長いステータスで、名刺やプロフィールでは折り返して全部読める。".repeat(
+    "とても長いステータスで、プロフィールと名刺の吹き出しでは、幅いっぱいで折り返して全部読める。".repeat(
       3,
     ),
   link: { type: "event", id: "a".repeat(64) },
@@ -33,7 +37,10 @@ const Both: Component<{ statuses: UserStatus[] }> = (props) => (
   <div class="flex w-[344px] flex-col gap-4">
     <section class="flex flex-col gap-1">
       <h3 class="c-secondary text-caption">プロフィール・名刺</h3>
-      <UserStatusPills statuses={props.statuses} />
+      {/* アイコンの代わりの枠。吹き出しの三角がその真下に来る。 */}
+      <div class="size-20 rounded-3 bg-tertiary" />
+      <UserStatusBubble statuses={props.statuses} arrowLeft={34} />
+      <UserNowPlaying statuses={props.statuses} />
     </section>
     <section class="flex flex-col gap-1">
       <h3 class="c-secondary text-caption">投稿のアイコンの印</h3>

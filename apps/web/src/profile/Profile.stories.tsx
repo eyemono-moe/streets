@@ -263,3 +263,36 @@ export const 名刺_自己紹介が長い: StoryObj<typeof CardStory> = {
   render: (props) => <CardStory {...props} />,
   args: { pubkey: wordy.pubkey, scene: scene() },
 };
+
+const shortStatus = alice.event({
+  kind: 30_315,
+  content: "作業中",
+  tags: [["d", "general"]],
+});
+const longStatus = alice.event({
+  kind: 30_315,
+  content:
+    "締め切り前で作業中。返信は夜になります。急ぎの連絡は DM でお願いします 🙏",
+  tags: [
+    ["d", "general"],
+    ["r", "https://example.com/schedule"],
+  ],
+});
+const music = alice.event({
+  kind: 30_315,
+  content: "夜に駆ける / YOASOBI",
+  tags: [
+    ["d", "music"],
+    ["r", "https://example.com/song"],
+  ],
+});
+
+/** いまの状態はアイコンから出る吹き出し、聴いている曲は名前の下に 1 行。 */
+export const ステータス: Story = {
+  args: { pubkey: alice.pubkey, scene: scene(shortStatus, music) },
+};
+
+/** 長い状態は、吹き出しの中で幅いっぱいに折り返す。 */
+export const 長いステータス: Story = {
+  args: { pubkey: alice.pubkey, scene: scene(longStatus) },
+};

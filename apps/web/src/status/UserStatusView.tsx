@@ -6,7 +6,7 @@ import { columnForAddress } from "@streets/core/deck/open-event";
 import { parseEventAddress } from "@streets/core/nostr/address";
 import { parseContent } from "@streets/core/nostr/content";
 import type { UserStatus } from "@streets/core/nostr/user-status";
-import { type Component, For, Match, Show, Switch } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { ContentTokens } from "../note/NoteText";
 import { useDispatch } from "../ui-events";
 
@@ -83,28 +83,53 @@ const StatusLink: Component<{ status: UserStatus }> = (props) => {
   );
 };
 
-/** プロフィールと名刺に出す。1 つずつ、折り返して全部読めるように。 */
-export const UserStatusPills: Component<{ statuses: readonly UserStatus[] }> = (
+/**
+ * いまの状態（general）を、アイコンから出る吹き出しにする。アイコンの下の段に
+ * 幅いっぱいで置くので、長い文でも折り返して全部読める。`arrowLeft` は、
+ * 三角をアイコンの真下に合わせるための、吹き出しの左端からの距離（px）。
+ */
+export const UserStatusBubble: Component<{
+  statuses: readonly UserStatus[];
+  arrowLeft: number;
+}> = (props) => (
+  <Show when={props.statuses.find((status) => status.type === "general")}>
+    {(status) => (
+      <div class="relative mt-1.5 rounded-3 bg-secondary px-3 py-2 text-caption">
+        <span
+          class="-top-1.5 absolute size-3 rotate-45 rounded-0.5 bg-secondary"
+          style={{ left: `${props.arrowLeft}px` }}
+          aria-hidden="true"
+        />
+        <p class="c-primary relative flex items-start gap-1.5 break-words">
+          <span class="sr-only">{ICON.general.label}：</span>
+          <span class="min-w-0 flex-1">
+            <StatusText status={status()} />
+          </span>
+          <StatusLink status={status()} />
+        </p>
+      </div>
+    )}
+  </Show>
+);
+
+/** 聴いている曲（music）。名前の下に 1 行で添える。 */
+export const UserNowPlaying: Component<{ statuses: readonly UserStatus[] }> = (
   props,
 ) => (
-  <Show when={props.statuses.length > 0}>
-    <div class="flex flex-col items-start gap-1">
-      <For each={props.statuses}>
-        {(status) => (
-          <div class="flex min-w-0 max-w-full items-start gap-1.5 rounded-3.5 bg-secondary py-1 pr-2.5 pl-2 text-caption">
-            <span
-              class={`${ICON[status.type].icon} c-accent-5 mt-0.5 size-4 shrink-0`}
-              role="img"
-              aria-label={ICON[status.type].label}
-            />
-            <span class="c-primary min-w-0 break-words">
-              <StatusText status={status} />
-            </span>
-            <StatusLink status={status} />
-          </div>
-        )}
-      </For>
-    </div>
+  <Show when={props.statuses.find((status) => status.type === "music")}>
+    {(status) => (
+      <p class="c-secondary flex min-w-0 items-start gap-1.5 text-caption">
+        <span
+          class={`${ICON.music.icon} c-accent-5 mt-0.5 size-4 shrink-0`}
+          role="img"
+          aria-label={ICON.music.label}
+        />
+        <span class="min-w-0 break-words">
+          <StatusText status={status()} />
+        </span>
+        <StatusLink status={status()} />
+      </p>
+    )}
   </Show>
 );
 
