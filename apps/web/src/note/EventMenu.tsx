@@ -1,5 +1,8 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
+import { canReplyWithNote } from "@streets/core/nostr/build/note";
+import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type EventActionId,
@@ -35,6 +38,8 @@ const AuthorRelaysDialog = lazyPart(
 );
 
 const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
+
+const ClientDialog = lazyPart(() => import("./ClientDialog"));
 
 const BroadcastDialog = lazyPart(() => import("./BroadcastDialog"));
 
@@ -125,6 +130,7 @@ const EventItems: Component<{
     const meta = EVENT_ACTION_META[id];
     switch (id) {
       case "reply":
+        return [{ value: id, ...meta, todo: !canReplyWithNote(props.event) }];
       case "react":
       case "activity":
       case "copy-link":
@@ -137,7 +143,7 @@ const EventItems: Component<{
             value: "repost",
             label: reposted ? "リポスト済み" : "リポスト",
             icon: meta.icon,
-            todo: reposted || reposting(),
+            todo: reposted || reposting() || !buildRepost(props.event),
           },
           {
             value: "quote",
@@ -262,6 +268,8 @@ const EventMenu: Component<{
     );
   };
   const [authorRelays, setAuthorRelays] = createSignal(false);
+  const client = () => clientOf(props.event);
+  const [showingClient, setShowingClient] = createSignal(false);
   const [broadcasting, setBroadcasting] = createSignal(false);
   const broadcasts = useSending(() => ({
     type: "note/broadcast",
@@ -321,6 +329,9 @@ const EventMenu: Component<{
             case "author-relays":
               setAuthorRelays(true);
               break;
+            case "client":
+              setShowingClient(true);
+              break;
             case "broadcast":
               setBroadcasting(true);
               break;
@@ -359,6 +370,19 @@ const EventMenu: Component<{
                   muted={ops.muted()}
                   canMute={ops.canMute}
                 />
+                <Show when={client()}>
+                  {(ref) => (
+                    <Items
+                      items={[
+                        {
+                          value: "client",
+                          label: `${ref().name} から投稿`,
+                          icon: "i-material-symbols:apps-rounded",
+                        },
+                      ]}
+                    />
+                  )}
+                </Show>
                 {/* 送るのはログインしている間だけ。暗号化されたものは送り直さない。 */}
                 <Show when={actions && canBroadcast(props.event)}>
                   <Items
@@ -414,6 +438,15 @@ const EventMenu: Component<{
           pubkey={props.event.pubkey}
           onClose={() => setAuthorRelays(false)}
         />
+      </Show>
+      <Show when={showingClient() && client()}>
+        {(ref) => (
+          <ClientDialog
+            event={props.event}
+            client={ref()}
+            onClose={() => setShowingClient(false)}
+          />
+        )}
       </Show>
       <Show when={broadcasting()}>
         <BroadcastDialog

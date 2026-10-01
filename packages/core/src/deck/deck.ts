@@ -102,6 +102,11 @@ export type DeckSet = {
   decks: Deck[];
   /** 見た目のうち、アカウントに保存するもの（どのデッキ・どの端末でも同じ色にする）。無ければ既定の色。 */
   appearance?: DeckAppearance;
+  /**
+   * 投稿に、Streets から投稿したことを示す `client` タグを付けるか。どのアプリを
+   * 使っているかが公開されるので、`true` を選んだ人だけに付ける。
+   */
+  clientTag?: boolean;
 };
 
 /** テーマ色の元になる 2 色。50〜950 の段は画面側がこの 2 色から作る。`#rrggbb`。 */
@@ -246,6 +251,8 @@ const deckSetSchema = v.object({
   version: v.literal(3),
   decks: deckListSchema,
   appearance: appearanceSchema,
+  // 壊れた値は付けない（既定）に落とす。デッキごと捨てない。
+  clientTag: v.fallback(v.optional(v.boolean()), undefined),
 });
 
 /** 1 つのデッキだけを持っていた形。読むときに、そのデッキを最初のデッキとして移す。 */

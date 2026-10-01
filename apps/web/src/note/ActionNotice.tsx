@@ -215,7 +215,7 @@ const ActionNotice: Component<{
       {(current) => (
         <div class="overflow-hidden rounded-2 border border-primary">
           <EventRefView
-            target={{ id: current().targetId }}
+            target={{ form: "id", id: current().targetId }}
             size="compact"
             expandMedia={props.expandMedia}
           />

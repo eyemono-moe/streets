@@ -45,6 +45,36 @@ describe("SignatureGate", () => {
     expect(gate.stats).toMatchObject({ count: 2, skipped: 0 });
   });
 
+  it("同じ無効署名の再配送は検証し直さず、別の署名は検証する", () => {
+    const gate = new SignatureGate();
+    const event = sign("x");
+    const forged = { ...event, sig: sign("別の内容").sig };
+
+    expect(gate.accept(forged)).toBe(false);
+    expect(gate.accept({ ...forged })).toBe(false);
+    expect(gate.accept(event)).toBe(true);
+    expect(gate.stats).toMatchObject({
+      count: 2,
+      rejected: 2,
+      rejectedSkipped: 1,
+    });
+  });
+
+  it("無効署名と同じ id・署名でも、改ざんされた内容は毎回 id を確認する", () => {
+    const gate = new SignatureGate();
+    const event = sign("x");
+    const forged = { ...event, sig: sign("別の内容").sig };
+
+    expect(gate.accept(forged)).toBe(false);
+    expect(gate.accept({ ...forged, content: "tampered" })).toBe(false);
+    expect(gate.accept({ ...forged, pubkey: "0".repeat(64) })).toBe(false);
+    expect(gate.stats).toMatchObject({
+      count: 2,
+      rejected: 3,
+      rejectedSkipped: 0,
+    });
+  });
+
   it("検証済みの署名を付けても、本文を書き換えたものは通さない", () => {
     // 捕まえる変異: 覚えた組に当たったら id を計算し直さずに通す。
     const gate = new SignatureGate();

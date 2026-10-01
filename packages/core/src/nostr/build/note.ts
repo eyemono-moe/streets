@@ -32,6 +32,13 @@ const rootTagOf = (parent: NostrEvent): string[] | undefined =>
   parent.tags.find((tag) => tag[0] === "e" && tag[3] === "root");
 
 /**
+ * kind:1 で返信してよい相手か。NIP-10 の返信は kind:1 どうしの決まりで、ほかの kind
+ * への返信は NIP-22 のコメント（kind:1111）で書く。
+ */
+export const canReplyWithNote = (parent: NostrEvent): boolean =>
+  parent.kind === 1;
+
+/**
  * NIP-10 の返信。マーカー付き `e` タグ `["e", id, relay-url, marker, pubkey]`
  * を使う（positional 形式は NIP-10 で deprecated）。relay-url が無くても空文字
  * で埋める —— 省略すると marker が relay-url 位置にずれ "root" へ接続される。

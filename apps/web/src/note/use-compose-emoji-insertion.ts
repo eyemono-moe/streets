@@ -7,9 +7,9 @@ import { insertText } from "../ui/insert-text";
  * `:shortcode:` で入れる（送るときに本文から emoji タグを作る）。
  */
 export const useComposeEmojiInsertion = () => {
-  let field: HTMLTextAreaElement | undefined;
+  let field: HTMLInputElement | HTMLTextAreaElement | undefined;
   return {
-    ref: (element: HTMLTextAreaElement) => {
+    ref: (element: HTMLInputElement | HTMLTextAreaElement) => {
       field = element;
     },
     field: () => field,

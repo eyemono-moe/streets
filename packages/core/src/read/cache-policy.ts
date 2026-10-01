@@ -61,6 +61,17 @@ const POLICIES: ReadonlyMap<number, CachePolicy> = new Map([
     },
   ],
   [
+    // ユーザーのステータス（NIP-38）。聴いている曲のように数分で変わるので短く置き、
+    // 端末には残さない。
+    30315,
+    {
+      staleMs: 10 * 60 * 1000,
+      serveWhileRevalidating: true,
+      retention: { type: "none" },
+      scope: "public",
+    },
+  ],
+  [
     0,
     {
       staleMs: DAY_MS,

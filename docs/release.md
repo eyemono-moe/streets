@@ -8,7 +8,7 @@
 2. **タグを打つ**：main のそのコミットに `v1.2.3` のタグを打って push する
 3. **プレビュー**（`.github/workflows/release.yaml` の Preview）：ビルドして Worker の版を上げる。本番には出さない。版のプレビュー URL がジョブの要約に出る
 4. **承認**：プレビューで確かめ、Production のジョブを承認する（`production` 環境の必須レビュアー）
-5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。ノートの中身と Streets・その Release へのリンクを Nostr に投稿して知らせる
+5. **本番**：プレビューで確かめたのと同じ版を出し（ビルドし直さない）、同じノートで GitHub の Release を作る。ノートの中身と Streets・その Release へのリンクを Nostr に投稿して知らせる。あわせて、投稿の `client` タグが指す Streets の説明（kind:31990。中身は `scripts/app-handler.mjs` が `streets-handler.json` と `kind-support.json` から作る）を Streets のアカウントの鍵で出し直す
 
 タグが main に入っていないコミットを指しているとき、ノートのファイルが無いときは、3 で止まる。
 
@@ -39,7 +39,7 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
 - **Cloudflare の API トークン**（`streets-github-actions`）：テンプレート「Edit Cloudflare Workers」で作る。Account Resources はこのアカウント、Zone Resources は `eyemono.moe`
 - **GitHub の secrets**：`preview` と `production` の両方の環境に `CLOUDFLARE_API_TOKEN`・`CLOUDFLARE_ACCOUNT_ID`。リポジトリに `VITE_SENTRY_DSN`（Sentry の `streets` 組織の `streets` プロジェクト）と `SENTRY_AUTH_TOKEN`（ソースマップを送る Organization Token。Sentry の Settings → Developer Settings → Organization Tokens で作る）
 - **GitHub の variables**：リポジトリに `VITE_FEEDBACK_URL`（フィードバックの Google フォーム。値は `apps/web/.env.example`）。無いとフィードバックの導線が押せない
-- **Nostr へのお知らせ**：secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿するアカウントの鍵）。投稿先は 2 つに分ける（どちらも 1 行に 1 つ）
+- **Nostr へのお知らせ**：secrets の `NOSTR_PRIVATE_KEY`（お知らせを投稿する個人のアカウントの鍵）。Streets の説明（kind:31990）は、secrets の `STREETS_APP_PRIVATE_KEY`（Streets のアカウントの鍵）で出す。この鍵の公開鍵は `streets-handler.json` の `pubkey` と同じにする。合わないと説明を出さずに警告する。`pubkey` は投稿の `client` タグに書き込まれて後から直せないので、鍵を替えない。投稿先は 2 つに分ける（どちらも 1 行に 1 つ）
   - variables の `NOSTR_RELAYS`：Actions（アメリカ）から直に送るリレー
   - variables の `NOSTR_PROXY_RELAYS`：日本の外からの書き込みを断る日本のリレー。東京で動かす Worker（`workers/relay-proxy`）を経由して送る。Worker の URL を variables の `NOSTR_PROXY_URL` に、呼ぶためのトークンを secrets の `NOSTR_PROXY_TOKEN` に置く
   - Worker は手で出す。トークンは Worker とワークフローで同じ値にする

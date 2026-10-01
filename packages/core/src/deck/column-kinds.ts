@@ -1,5 +1,6 @@
 import * as v from "valibot";
 import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
+import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { SectionStatus } from "../read/source";
 import type { RelayFilter } from "../relay/relay-connection";
 import { parseSearchQuery } from "../search/query";
@@ -107,6 +108,13 @@ export const columnSourceSchema = v.variant("kind", [
   v.object({
     kind: v.literal("channel-info"),
     id: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
+  /** 長文記事（NIP-23）を 1 本読む。住所で指すので、書き直されたら最新の版が出る。 */
+  v.object({
+    kind: v.literal("article"),
+    pubkey: hexId,
+    identifier: v.string(),
     relays: v.optional(v.array(v.string())),
   }),
   /** チャンネルの一覧（お気に入り・最近アクティブ・すべてから探す）。 */
@@ -296,6 +304,11 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     title: () => ({ text: "ブックマーク" }),
     // id で引くので kind は決まらない。何を保存したかは人による。
     kinds: () => undefined,
+    hidesMuted: false,
+  },
+  article: {
+    title: () => ({ text: "長文記事" }),
+    kinds: () => [LONG_FORM_KIND],
     hidesMuted: false,
   },
   thread: {

@@ -2,11 +2,16 @@ import { BANNER_MAX_EDGE } from "@streets/core/media/display-size";
 import { parseContent } from "@streets/core/nostr/content";
 import { type Profile, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
+import { useEventActions } from "../actions";
 import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
+import { useUserStatuses } from "../status/use-user-statuses";
+import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
+import { useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
+import Button from "../ui/Button";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
 import Nip05Badge from "./Nip05Badge";
@@ -55,6 +60,10 @@ export const ProfileHeaderCard: Component<{
    * 見本は、打つたびにドメインへ聞きに行かない）ので、外から渡す。
    */
   nip05?: JSX.Element;
+  /** アイコンの下に置く、いまの状態（NIP-38 の general）の吹き出し。 */
+  status?: JSX.Element;
+  /** 名前の下に置く、聴いている曲（NIP-38 の music）。 */
+  nowPlaying?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -91,6 +100,7 @@ export const ProfileHeaderCard: Component<{
           />
           {props.action}
         </div>
+        {props.status}
         <div class="flex flex-col">
           <h3 class="c-primary break-anywhere font-600 text-h3">
             <ProfileName
@@ -111,6 +121,7 @@ export const ProfileHeaderCard: Component<{
           </div>
           {props.nip05}
         </div>
+        {props.nowPlaying}
         <Show when={props.profile?.about}>
           {(about) => (
             <NoteText
@@ -137,6 +148,12 @@ const ProfileHeaderView: Component<{
   onOpenFollowers?: () => void;
 }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey);
+  const actions = useEventActions();
+  const dispatch = useDispatch();
+  // 自分のプロフィールでは、ステータスを設定・直す入口を出す。
+  const own = () => actions?.viewer === props.pubkey;
+  const edit = () => dispatch({ type: "status/edit" });
   return (
     <ProfileHeaderCard
       pubkey={props.pubkey}
@@ -151,6 +168,34 @@ const ProfileHeaderView: Component<{
           )}
         </Show>
       }
+      status={
+        <Show
+          when={
+            own() && !statuses().some((status) => status.type === "general")
+          }
+          fallback={
+            // アイコン（80px、左端から 12px）の真下に三角を合わせる。本体はボタンの
+            // 下端から 4px 離し（重なると読めない）、長い三角の先だけをアイコンに入れる。
+            <UserStatusBubble
+              statuses={statuses()}
+              arrowLeft={34}
+              class="-mt-2"
+              onEdit={own() ? edit : undefined}
+            />
+          }
+        >
+          <div class="flex">
+            <Button
+              size="sm"
+              icon="i-material-symbols:add-reaction-outline-rounded"
+              onClick={edit}
+            >
+              ステータスを設定
+            </Button>
+          </div>
+        </Show>
+      }
+      nowPlaying={<UserNowPlaying statuses={statuses()} />}
       badge={
         <Show when={props.followsYou}>
           <FollowsYouBadge />

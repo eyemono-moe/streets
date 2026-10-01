@@ -42,6 +42,7 @@ import ColumnTabs from "../ui/ColumnTabs";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import Activity from "./blocks/Activity";
+import Article from "./blocks/Article";
 import Authors from "./blocks/Authors";
 import ChannelChat from "./blocks/ChannelChat";
 import ChannelInfo from "./blocks/ChannelInfo";
@@ -54,6 +55,7 @@ import {
   FollowSetTimeline,
 } from "./blocks/FollowSets";
 import NotificationList from "./blocks/NotificationList";
+import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
 
@@ -219,7 +221,8 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
           subtitle: "ハッシュタグ",
         };
       }
-      return source.relays
+      // リレーを指していても、住所（naddr）で開いたカラムはリレーの全体ではない。
+      return relayColumnSource(source)
         ? { icon: "i-material-symbols:globe", subtitle: "指定したリレーの全体" }
         : {
             icon: "i-material-symbols:pin-drop-outline-rounded",
@@ -344,6 +347,19 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       <EventList source={() => bookmarksSource(props.inputs.bookmarks())} />
     ),
   },
+  article: {
+    meta: () => ({
+      icon: "i-material-symbols:article-outline-rounded",
+      subtitle: "長文記事",
+    }),
+    Content: (props) => (
+      <Article
+        pubkey={props.source.pubkey}
+        identifier={props.source.identifier}
+        relays={props.source.relays}
+      />
+    ),
+  },
   thread: {
     meta: () => ({
       icon: "i-material-symbols:mode-comment-outline-rounded",
@@ -364,6 +380,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     avatar: (source) => source.pubkey,
     Content: (props) => {
       const scope = useColumnScope();
+      const pinned = createPinnedNotes(() => props.source.pubkey);
       return (
         <>
           <ProfileHeader
@@ -387,6 +404,17 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                     }
                   />
                 ),
+              },
+              {
+                value: "pinned",
+                label: "ピン留め",
+                // 件数は、ピン留めがあるときだけ出す。
+                get count() {
+                  return pinned.ids().length > 0
+                    ? pinned.ids().length
+                    : undefined;
+                },
+                content: () => <PinnedNotesTab pinned={pinned} />,
               },
               {
                 value: "reactions",

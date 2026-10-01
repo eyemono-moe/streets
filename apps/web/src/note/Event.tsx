@@ -1,7 +1,7 @@
-import { buildThreadColumn } from "@streets/core/deck/column-presets";
+import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import { mediaPostTitle } from "@streets/core/nostr/media-post";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -16,6 +16,10 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import ArticleCard from "../article/ArticleCard";
+import EmojiSetCard from "../emoji/EmojiSetCard";
+import FollowSetCard from "../lists/FollowSetCard";
+import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
 import { reportError } from "../telemetry";
@@ -154,7 +158,7 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
 
 /** 取得中と見つからなかったを別の文言で出す。 */
 const Lookup: Component<{
-  target: { id: string; relay?: RelayUrl };
+  target: EventRef;
   missing: string;
   /** 取得中・不在の 1 行に付ける余白。枠の中に置くときに要る。 */
   noticeClass?: string;
@@ -200,6 +204,20 @@ const Note: Component<ContentProps> = (props) => {
           <p class="c-secondary flex min-w-0 gap-1 text-caption">
             <span class="shrink-0">返信先</span>
             <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
+          </p>
+        )}
+      </Show>
+      {/* 画像・動画の投稿は題名を持てる。本文は説明なので、題名を上に置く。 */}
+      <Show when={mediaPostTitle(props.event)}>
+        {(title) => (
+          <p
+            class="c-primary break-words font-bold"
+            classList={{
+              "text-body": props.size === "normal",
+              "text-[14px]": props.size === "compact",
+            }}
+          >
+            {title()}
           </p>
         )}
       </Show>
@@ -257,7 +275,15 @@ const Unsupported: Component<ContentProps> = (props) => (
 
 const EventContent: Component<ContentProps> = (props) => (
   <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
-    <Match when={props.event.kind === 1}>
+    {/* 画像・動画の投稿（NIP-68・NIP-71）は、imeta の画像を添えた投稿と同じ形で描く。 */}
+    <Match
+      when={
+        props.event.kind === 1 ||
+        props.event.kind === 20 ||
+        props.event.kind === 21 ||
+        props.event.kind === 22
+      }
+    >
       <Note
         event={props.event}
         size={props.size}
@@ -270,15 +296,48 @@ const EventContent: Component<ContentProps> = (props) => (
     <Match when={props.event.kind === 6 || props.event.kind === 16}>
       <Repost event={props.event} size={props.size} />
     </Match>
+    {/* リストは押すとメンバーのタイムラインを開く（開き先は columnForEvent）。 */}
+    <Match when={props.event.kind === 30000}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <FollowSetCard event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    <Match when={props.event.kind === 30030}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <EmojiSetCard event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    {/* 投票（NIP-88）。問いは本文と同じ描き方にする（絵文字やリンクが入りうる）。 */}
+    <Match when={props.event.kind === 1068}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <NoteContent
+          event={props.event}
+          size={props.size}
+          expandMedia={props.expandMedia}
+        />
+        <PollBlock event={props.event} size={props.size} />
+      </Row>
+    </Match>
+    <Match when={props.event.kind === 30023}>
+      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+        <ArticleCard event={props.event} size={props.size} />
+        <Show when={props.size === "normal"}>
+          <ReactionList event={props.event} />
+        </Show>
+      </Row>
+    </Match>
   </Switch>
 );
 
 /** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
 const DRAG_SLOP = 4;
 
+// label を含めるのは、投票の選択肢の文字を押したときに投稿まで開かないため。
 const isInteractive = (target: EventTarget | null) =>
   target instanceof Element &&
-  target.closest("a, button, input, textarea, [role='button']") !== null;
+  target.closest(
+    "a, button, input, textarea, label, select, [role='button']",
+  ) !== null;
 
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const EventBody: Component<ContentProps> = (props) => {
@@ -315,7 +374,7 @@ const EventBody: Component<ContentProps> = (props) => {
             if (moved) return;
             dispatch({
               type: "stack/open",
-              column: buildThreadColumn(props.event.id),
+              column: columnForEvent(props.event),
             });
           }}
         />
@@ -380,9 +439,9 @@ const StandardEvent: Component<
   </>
 );
 
-/** id しか分からないイベントを取りにいって描く。 */
+/** id か住所しか分からないイベントを取りにいって描く。 */
 export const EventRefView: Component<{
-  target: { id: string; relay?: RelayUrl };
+  target: EventRef;
   size: EventSize;
   expandMedia?: boolean;
   threadLine?: "above" | "below" | "both";

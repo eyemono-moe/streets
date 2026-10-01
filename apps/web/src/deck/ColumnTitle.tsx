@@ -60,7 +60,7 @@ const useChannelName = (
   id: Accessor<string | undefined>,
 ): Accessor<string | undefined> => {
   if (!useOptionalReadLayer()) return () => undefined;
-  const lookup = useEvent(() => ({ id: id() ?? "" }));
+  const lookup = useEvent(() => ({ form: "id", id: id() ?? "" }));
   return () => {
     const current = lookup();
     return current.phase === "found" &&

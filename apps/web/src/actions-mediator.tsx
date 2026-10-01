@@ -20,6 +20,8 @@ const pendingKey = (event: ActionEvent): string => {
       return `repost:${event.target.id}`;
     case "note/react":
       return `react:${event.target.id}`;
+    case "note/vote":
+      return `vote:${event.target.id}`;
     case "note/bookmark":
       return `bookmark:${event.target.id}`;
     case "user/follow":
@@ -64,6 +66,11 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
       case "note/react":
         run(event, "リアクションを送れませんでした", () =>
           actions.react(event.target, event.input),
+        );
+        return true;
+      case "note/vote":
+        run(event, "投票できませんでした", () =>
+          actions.vote(event.target, event.choices),
         );
         return true;
       case "note/bookmark":

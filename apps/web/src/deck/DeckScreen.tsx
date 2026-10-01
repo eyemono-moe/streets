@@ -88,6 +88,7 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
+import { StatusFormMediator } from "../status/StatusFormMediator";
 import {
   ANY_COLUMN,
   measureUntilPaint,
@@ -154,6 +155,8 @@ const DeckScreen: Component<{
     viewer,
     // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
     fallbackRelays: props.bootstrapIndexers,
+    // 送るときに読む。デッキはこの後で作るが、送るのはその後になる。
+    clientTag: () => clientTag(),
   });
   const isWide = useIsWide();
   // 増えるたびに案内を始める。0 のうちは案内の部品を読み込まない。
@@ -444,22 +447,26 @@ const DeckScreen: Component<{
   });
   createEffect(() => applyColors(appearance()));
 
+  // 投稿に client タグを付けるか。色と同じくデッキと一緒にアカウントへ保存する。
+  const clientTag = () => deckStore.value()?.clientTag === true;
+
   let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
-  let savingAppearance = false;
+  // 保存し終えたら出す知らせ。保存はデッキの同期に任せている。
+  let savedNotice: string | undefined;
   const saveAppearance = (next: DeckAppearance) => {
     clearTimeout(appearanceTimer);
     appearanceTimer = setTimeout(() => {
-      savingAppearance = true;
+      savedNotice = "表示の設定を保存しました";
       deckStore.update((set) => ({ ...set, appearance: next }));
     }, APPEARANCE_SAVE_DELAY_MS);
   };
-  // 保存はデッキの同期に任せているので、同期が終わった合図で知らせる。
+  // 同期が終わった合図で知らせる。
   createEffect(() => {
     const current = deckStore.state();
-    if (!savingAppearance) return;
+    if (!savedNotice) return;
     if (current.phase !== "ready" || current.sync !== "synced") return;
-    savingAppearance = false;
-    notifySaved("表示の設定を保存しました");
+    notifySaved(savedNotice);
+    savedNotice = undefined;
   });
   onCleanup(() => clearTimeout(appearanceTimer));
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
@@ -625,6 +632,10 @@ const DeckScreen: Component<{
         setErrorReport(event.on);
         // 止めたらその場で送るのをやめ、戻したらもう一度用意する。
         void startTelemetry();
+        return true;
+      case "deck/set-client-tag":
+        savedNotice = "プライバシーの設定を保存しました";
+        deckStore.update((set) => ({ ...set, clientTag: event.on }));
         return true;
       case "deck/set-appearance":
         measureUntilPaint("appearance.apply", "ui.theme");
@@ -813,274 +824,282 @@ const DeckScreen: Component<{
                                   : [];
                               }}
                             >
-                              <Switch>
-                                <Match when={warmUp.error}>
-                                  <p
-                                    role="alert"
-                                    class="c-danger p-4 text-caption"
-                                  >
-                                    フォローリストを取得できませんでした。
-                                  </p>
-                                </Match>
-                                <Match when={deckStore.value() === undefined}>
-                                  <p class="c-secondary p-4 text-caption">
-                                    デッキを読み込み中…
-                                  </p>
-                                </Match>
-                                <Match when={isMultiColumn()}>
-                                  <div class="flex h-dvh">
-                                    <Sidebar
-                                      pubkey={viewer}
-                                      columns={order.shown()}
-                                      panel={ui.panel}
-                                      numbers={columnDigits()}
-                                      onLogout={props.session.logout}
-                                    />
-                                    <SidePanelMotion
-                                      open={ui.panel !== undefined}
+                              <StatusFormMediator actions={write.actions}>
+                                <Switch>
+                                  <Match when={warmUp.error}>
+                                    <p
+                                      role="alert"
+                                      class="c-danger p-4 text-caption"
                                     >
-                                      {panelView(false)}
-                                    </SidePanelMotion>
-                                    <div class="flex min-w-0 flex-1 flex-col">
-                                      <DeckSyncNotice store={deckStore} />
-                                      {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-                                      {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
-                                      <div
-                                        ref={columnsEl}
-                                        class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
-                                        onPointerDown={(event) => {
-                                          const target = event.target;
-                                          if (!(target instanceof Element)) {
-                                            return;
-                                          }
-                                          const grip =
-                                            target.closest(
-                                              "[data-column-grip]",
-                                            );
-                                          if (
-                                            !grip ||
-                                            target.closest("[data-no-grip]")
-                                          ) {
-                                            return;
-                                          }
-                                          const id =
-                                            grip.closest<HTMLElement>(
-                                              "[data-column-id]",
-                                            )?.dataset.columnId;
-                                          if (id)
-                                            deckSort.onPointerDown(id, event);
-                                        }}
+                                      フォローリストを取得できませんでした。
+                                    </p>
+                                  </Match>
+                                  <Match when={deckStore.value() === undefined}>
+                                    <p class="c-secondary p-4 text-caption">
+                                      デッキを読み込み中…
+                                    </p>
+                                  </Match>
+                                  <Match when={isMultiColumn()}>
+                                    <div class="flex h-dvh">
+                                      <Sidebar
+                                        pubkey={viewer}
+                                        columns={order.shown()}
+                                        panel={ui.panel}
+                                        numbers={columnDigits()}
+                                        onLogout={props.session.logout}
+                                      />
+                                      <SidePanelMotion
+                                        open={ui.panel !== undefined}
                                       >
-                                        <Show when={temp()}>
-                                          {(column) => (
-                                            <div class="order-first h-full w-95 shrink-0 border-primary border-r">
-                                              <Column
-                                                column={column()}
-                                                settingsOpen={false}
-                                                temporary
-                                                {...shared}
-                                              />
-                                            </div>
-                                          )}
-                                        </Show>
-                                        <Show when={params.entity && !temp()}>
-                                          <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
-                                            <p
-                                              role="alert"
-                                              class="c-secondary text-caption"
-                                            >
-                                              このリンクは読めませんでした：
-                                              {params.entity}
-                                            </p>
-                                          </div>
-                                        </Show>
-                                        <For each={order.mounted()}>
-                                          {(column) => (
-                                            <>
-                                              {/* 掴んだカラムは隣の上を通るので、帯の中でだけ上に重ねる。 */}
-                                              <div
-                                                data-column-id={column.id}
-                                                data-tour={
-                                                  order.ids()[0] === column.id
-                                                    ? "columns"
-                                                    : undefined
-                                                }
-                                                class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
-                                                classList={{
-                                                  "w-80": column.width === "s",
-                                                  "w-95":
-                                                    column.width !== "s" &&
-                                                    column.width !== "l",
-                                                  "w-110": column.width === "l",
-                                                }}
-                                                style={{
-                                                  order:
-                                                    order.indexOf(column.id) *
-                                                    2,
-                                                }}
-                                              >
+                                        {panelView(false)}
+                                      </SidePanelMotion>
+                                      <div class="flex min-w-0 flex-1 flex-col">
+                                        <DeckSyncNotice store={deckStore} />
+                                        {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+                                        {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
+                                        <div
+                                          ref={columnsEl}
+                                          class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
+                                          onPointerDown={(event) => {
+                                            const target = event.target;
+                                            if (!(target instanceof Element)) {
+                                              return;
+                                            }
+                                            const grip =
+                                              target.closest(
+                                                "[data-column-grip]",
+                                              );
+                                            if (
+                                              !grip ||
+                                              target.closest("[data-no-grip]")
+                                            ) {
+                                              return;
+                                            }
+                                            const id =
+                                              grip.closest<HTMLElement>(
+                                                "[data-column-id]",
+                                              )?.dataset.columnId;
+                                            if (id)
+                                              deckSort.onPointerDown(id, event);
+                                          }}
+                                        >
+                                          <Show when={temp()}>
+                                            {(column) => (
+                                              <div class="order-first h-full w-95 shrink-0 border-primary border-r">
                                                 <Column
-                                                  column={column}
-                                                  settingsOpen={
-                                                    ui.settingsFor === column.id
-                                                  }
-                                                  grip
+                                                  column={column()}
+                                                  settingsOpen={false}
+                                                  temporary
                                                   {...shared}
                                                 />
                                               </div>
-                                              <Collapsible.Root
-                                                lazyMount
-                                                unmountOnExit
-                                                open={
-                                                  ui.settingsFor === column.id
-                                                }
-                                                class="bg-secondary"
-                                                style={{
-                                                  order:
-                                                    order.indexOf(column.id) *
-                                                      2 +
-                                                    1,
-                                                }}
+                                            )}
+                                          </Show>
+                                          <Show when={params.entity && !temp()}>
+                                            <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
+                                              <p
+                                                role="alert"
+                                                class="c-secondary text-caption"
                                               >
-                                                <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
-                                                  <div
-                                                    data-settings-for={
+                                                このリンクは読めませんでした：
+                                                {params.entity}
+                                              </p>
+                                            </div>
+                                          </Show>
+                                          <For each={order.mounted()}>
+                                            {(column) => (
+                                              <>
+                                                {/* 掴んだカラムは隣の上を通るので、帯の中でだけ上に重ねる。 */}
+                                                <div
+                                                  data-column-id={column.id}
+                                                  data-tour={
+                                                    order.ids()[0] === column.id
+                                                      ? "columns"
+                                                      : undefined
+                                                  }
+                                                  class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+                                                  classList={{
+                                                    "w-80":
+                                                      column.width === "s",
+                                                    "w-95":
+                                                      column.width !== "s" &&
+                                                      column.width !== "l",
+                                                    "w-110":
+                                                      column.width === "l",
+                                                  }}
+                                                  style={{
+                                                    order:
+                                                      order.indexOf(column.id) *
+                                                      2,
+                                                  }}
+                                                >
+                                                  <Column
+                                                    column={column}
+                                                    settingsOpen={
+                                                      ui.settingsFor ===
                                                       column.id
                                                     }
-                                                    class="h-full w-95 shrink-0 border-primary border-r"
-                                                  >
+                                                    grip
+                                                    {...shared}
+                                                  />
+                                                </div>
+                                                <Collapsible.Root
+                                                  lazyMount
+                                                  unmountOnExit
+                                                  open={
+                                                    ui.settingsFor === column.id
+                                                  }
+                                                  class="bg-secondary"
+                                                  style={{
+                                                    order:
+                                                      order.indexOf(column.id) *
+                                                        2 +
+                                                      1,
+                                                  }}
+                                                >
+                                                  <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
+                                                    <div
+                                                      data-settings-for={
+                                                        column.id
+                                                      }
+                                                      class="h-full w-95 shrink-0 border-primary border-r"
+                                                    >
+                                                      <ColumnSettingsPanel
+                                                        column={column}
+                                                        relayList={relayList()}
+                                                      />
+                                                    </div>
+                                                  </Collapsible.Content>
+                                                </Collapsible.Root>
+                                              </>
+                                            )}
+                                          </For>
+                                          <DeckEndSpace />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </Match>
+                                  <Match when={true}>
+                                    <div class="relative flex h-dvh flex-col">
+                                      <ColumnAccentBar
+                                        temporary={
+                                          ui.panel === undefined &&
+                                          ui.active === TEMP_COLUMN_ID
+                                        }
+                                      />
+                                      <MobileTopBar
+                                        pubkey={viewer}
+                                        column={
+                                          ui.panel === undefined
+                                            ? activeColumn()
+                                            : undefined
+                                        }
+                                        temporary={ui.active === TEMP_COLUMN_ID}
+                                        settingsOpen={
+                                          ui.active !== undefined &&
+                                          ui.settingsFor === ui.active
+                                        }
+                                        onLogout={props.session.logout}
+                                      />
+                                      <DeckSyncNotice store={deckStore} />
+                                      <div class="relative min-h-0 flex-1">
+                                        {/*
+                                    カラムを横に並べ、1 枚ずつ止まるように送る（左右に払って切り替える）。
+                                    隠れたカラムも描いたままにする —— 取り外すと購読ごと消え、戻るたびに
+                                    取得し直しになり、スクロール位置も失われる。
+                                  */}
+                                        <div
+                                          ref={stripEl}
+                                          class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+                                          onScroll={onStripScroll}
+                                        >
+                                          <Show when={temp()}>
+                                            {(column) => (
+                                              <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
+                                                <Column
+                                                  column={column()}
+                                                  settingsOpen={false}
+                                                  temporary
+                                                  chrome={false}
+                                                  {...shared}
+                                                />
+                                              </div>
+                                            )}
+                                          </Show>
+                                          <For each={order.mounted()}>
+                                            {(column) => (
+                                              <div
+                                                class="isolate h-full w-full shrink-0 snap-start snap-always"
+                                                style={{
+                                                  order: order.indexOf(
+                                                    column.id,
+                                                  ),
+                                                }}
+                                              >
+                                                <div
+                                                  class="h-full"
+                                                  classList={{
+                                                    hidden:
+                                                      ui.settingsFor ===
+                                                      column.id,
+                                                  }}
+                                                >
+                                                  <Column
+                                                    column={column}
+                                                    settingsOpen={
+                                                      ui.settingsFor ===
+                                                      column.id
+                                                    }
+                                                    chrome={false}
+                                                    {...shared}
+                                                  />
+                                                </div>
+                                                <Show
+                                                  when={
+                                                    ui.settingsFor === column.id
+                                                  }
+                                                >
+                                                  <div class="h-full">
                                                     <ColumnSettingsPanel
                                                       column={column}
                                                       relayList={relayList()}
                                                     />
                                                   </div>
-                                                </Collapsible.Content>
-                                              </Collapsible.Root>
-                                            </>
-                                          )}
-                                        </For>
-                                        <DeckEndSpace />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </Match>
-                                <Match when={true}>
-                                  <div class="relative flex h-dvh flex-col">
-                                    <ColumnAccentBar
-                                      temporary={
-                                        ui.panel === undefined &&
-                                        ui.active === TEMP_COLUMN_ID
-                                      }
-                                    />
-                                    <MobileTopBar
-                                      pubkey={viewer}
-                                      column={
-                                        ui.panel === undefined
-                                          ? activeColumn()
-                                          : undefined
-                                      }
-                                      temporary={ui.active === TEMP_COLUMN_ID}
-                                      settingsOpen={
-                                        ui.active !== undefined &&
-                                        ui.settingsFor === ui.active
-                                      }
-                                      onLogout={props.session.logout}
-                                    />
-                                    <DeckSyncNotice store={deckStore} />
-                                    <div class="relative min-h-0 flex-1">
-                                      {/*
-                                    カラムを横に並べ、1 枚ずつ止まるように送る（左右に払って切り替える）。
-                                    隠れたカラムも描いたままにする —— 取り外すと購読ごと消え、戻るたびに
-                                    取得し直しになり、スクロール位置も失われる。
-                                  */}
-                                      <div
-                                        ref={stripEl}
-                                        class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
-                                        onScroll={onStripScroll}
-                                      >
-                                        <Show when={temp()}>
-                                          {(column) => (
-                                            <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
-                                              <Column
-                                                column={column()}
-                                                settingsOpen={false}
-                                                temporary
-                                                chrome={false}
-                                                {...shared}
-                                              />
-                                            </div>
-                                          )}
-                                        </Show>
-                                        <For each={order.mounted()}>
-                                          {(column) => (
-                                            <div
-                                              class="isolate h-full w-full shrink-0 snap-start snap-always"
-                                              style={{
-                                                order: order.indexOf(column.id),
-                                              }}
-                                            >
-                                              <div
-                                                class="h-full"
-                                                classList={{
-                                                  hidden:
-                                                    ui.settingsFor ===
-                                                    column.id,
-                                                }}
-                                              >
-                                                <Column
-                                                  column={column}
-                                                  settingsOpen={
-                                                    ui.settingsFor === column.id
-                                                  }
-                                                  chrome={false}
-                                                  {...shared}
-                                                />
+                                                </Show>
                                               </div>
-                                              <Show
-                                                when={
-                                                  ui.settingsFor === column.id
-                                                }
-                                              >
-                                                <div class="h-full">
-                                                  <ColumnSettingsPanel
-                                                    column={column}
-                                                    relayList={relayList()}
-                                                  />
-                                                </div>
-                                              </Show>
-                                            </div>
-                                          )}
-                                        </For>
+                                            )}
+                                          </For>
+                                        </div>
+                                        <SidePanelMotion
+                                          open={ui.panel !== undefined}
+                                          full
+                                        >
+                                          {panelView(true)}
+                                        </SidePanelMotion>
+                                        {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。 */}
+                                        <Show
+                                          when={
+                                            ui.panel === undefined &&
+                                            !activeHasComposer()
+                                          }
+                                        >
+                                          <ComposeFab />
+                                        </Show>
                                       </div>
-                                      <SidePanelMotion
-                                        open={ui.panel !== undefined}
-                                        full
-                                      >
-                                        {panelView(true)}
-                                      </SidePanelMotion>
-                                      {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。 */}
-                                      <Show
-                                        when={
-                                          ui.panel === undefined &&
-                                          !activeHasComposer()
+                                      <MobileTabBar
+                                        columns={order.shown()}
+                                        temp={temp()}
+                                        active={
+                                          ui.panel === undefined
+                                            ? ui.active
+                                            : undefined
                                         }
-                                      >
-                                        <ComposeFab />
-                                      </Show>
+                                        panel={ui.panel}
+                                      />
                                     </div>
-                                    <MobileTabBar
-                                      columns={order.shown()}
-                                      temp={temp()}
-                                      active={
-                                        ui.panel === undefined
-                                          ? ui.active
-                                          : undefined
-                                      }
-                                      panel={ui.panel}
-                                    />
-                                  </div>
-                                </Match>
-                              </Switch>
+                                  </Match>
+                                </Switch>
+                              </StatusFormMediator>
                             </ChannelFormMediator>
                             <Show when={aboutMounted()}>
                               <AboutDialog
@@ -1107,6 +1126,7 @@ const DeckScreen: Component<{
                                 appearance={appearance()}
                                 writeProgress={showWriteProgress()}
                                 errorReport={errorReport()}
+                                clientTag={clientTag()}
                                 keymap={keymap()}
                                 columnDigits={columnDigits()}
                                 deckLayout={deckLayout()}

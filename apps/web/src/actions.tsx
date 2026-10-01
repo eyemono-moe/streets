@@ -13,6 +13,7 @@ import {
   buildMuteUser,
   removeFavoriteChannel,
 } from "@streets/core/nostr/build/channel";
+import { withClientTag } from "@streets/core/nostr/build/client-tag";
 import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import { withMedia } from "@streets/core/nostr/build/media";
@@ -31,12 +32,17 @@ import {
 } from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import {
+  type UserStatusInput,
+  buildUserStatus,
+} from "@streets/core/nostr/build/user-status";
+import {
   CHANNEL_MESSAGE_KIND,
   PUBLIC_CHATS_KIND,
   favoriteChannels,
 } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
+import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -107,6 +113,10 @@ export type EventActions = {
     },
   ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
+  /** 自分のいまの状態（NIP-38 の general）を置き換える。本文を空にすると消える。 */
+  setStatus(input: UserStatusInput): Promise<void>;
+  /** 投票（kind:1068）に答える。回答は、自分の write リレーと投票が指すリレーへ送る。 */
+  vote(target: NostrEvent, choices: readonly string[]): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
@@ -178,6 +188,8 @@ export const createWriteStack = (options: {
   viewer: string;
   /** 行き先が分からないときに送る先。開発時の `?relays=` で差し替える。 */
   fallbackRelays?: readonly RelayUrl[];
+  /** 投稿に client タグを付けるか。送るたびに読む。 */
+  clientTag?: () => boolean;
 }): WriteStack => {
   const { store, routing, manager } = options.readLayer;
   const target = {
@@ -186,7 +198,7 @@ export const createWriteStack = (options: {
     store,
     fallbackRelays: options.fallbackRelays ?? FALLBACK_RELAYS,
   };
-  const writer = createWriter({
+  const base = createWriter({
     signer: options.signer,
     store,
     publisher: createPublisher(target),
@@ -194,6 +206,16 @@ export const createWriteStack = (options: {
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),
   });
+  // 付けるかは送る直前に決める。付ける kind は withClientTag が選ぶ。
+  const writer: Writer = {
+    ...base,
+    publish: (draft, hooks, publishOptions) =>
+      base.publish(
+        options.clientTag?.() ? withClientTag(draft) : draft,
+        hooks,
+        publishOptions,
+      ),
+  };
 
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
@@ -299,10 +321,22 @@ export const createWriteStack = (options: {
         { relays: channel.relays },
       );
     },
+    async setStatus(input) {
+      await tracked("ステータス").publish(buildUserStatus(input));
+    },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
       await tracked("リポスト").publish(draft);
+    },
+    async vote(event, choices) {
+      const poll = parsePoll(event);
+      if (!poll) throw new Error("この投稿には投票できません");
+      await tracked("投票").publish(
+        buildPollResponse(poll, choices),
+        undefined,
+        poll.relays.length > 0 ? { relays: poll.relays } : undefined,
+      );
     },
     async react(event, input) {
       await tracked("リアクション").publish(

@@ -1,8 +1,10 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vite-plus/test";
+import { type EventAddress, formatEventAddress } from "../nostr/address";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import type { AddressRequests } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
@@ -11,6 +13,7 @@ import {
   type ReadLookups,
   createReadLookups,
 } from "./lookups";
+import type { PollRequests } from "./poll-requests";
 import type { ProfileRequests } from "./profile-requests";
 
 const RELAY = "wss://relay.example/" as RelayUrl;
@@ -61,18 +64,71 @@ const fakeRequests = () => {
   };
 };
 
+/** 住所の要求を記録し、バッチが片付いた知らせをテストから出せる要求器。 */
+const fakeAddressRequests = () => {
+  const requested: string[] = [];
+  const listeners = new Set<() => void>();
+  const unresolved = new Set<string>();
+  const requests: AddressRequests = {
+    request: (address) => void requested.push(formatEventAddress(address)),
+    isUnresolved: (address) => unresolved.has(formatEventAddress(address)),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {},
+  };
+  return {
+    requests,
+    requested,
+    unresolved,
+    listenerCount: () => listeners.size,
+    settle: () => {
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
+/** 投票への回答の要求を記録し、取り終えた知らせをテストから出せる要求器。 */
+const fakePollRequests = () => {
+  const requested: { id: string; relays: readonly RelayUrl[] }[] = [];
+  const listeners = new Set<() => void>();
+  const settled = new Set<string>();
+  const requests: PollRequests = {
+    request: (id, relays) => void requested.push({ id, relays }),
+    isSettled: (id) => settled.has(id),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    dispose() {},
+  };
+  return {
+    requests,
+    requested,
+    settle: (id: string) => {
+      settled.add(id);
+      for (const listener of [...listeners]) listener();
+    },
+  };
+};
+
 const setup = () => {
   const store = new EventStore();
   const events = fakeRequests();
+  const addresses = fakeAddressRequests();
+  const polls = fakePollRequests();
   const profiles = fakeRequests();
   const engagements = fakeRequests();
   const lookups: ReadLookups = createReadLookups({
     store,
     events: events.requests,
+    addresses: addresses.requests,
     profiles: profiles.requests,
     engagements: engagements.requests,
+    polls: polls.requests,
   });
-  return { store, events, profiles, engagements, lookups };
+  return { store, events, addresses, polls, profiles, engagements, lookups };
 };
 
 describe("watchEvent", () => {
@@ -146,6 +202,118 @@ describe("watchEvent", () => {
     events.unresolved.add(id);
     events.settle();
     expect(seen).toEqual([{ phase: "loading" }]);
+  });
+});
+
+describe("watchAddress", () => {
+  const article = (identifier: string, created_at: number) =>
+    signed({ kind: 30_023, tags: [["d", identifier]], created_at });
+  const addressOf = (identifier: string): EventAddress => ({
+    kind: 30_023,
+    pubkey: PUBKEY,
+    identifier,
+  });
+
+  it("store にある最新版をすぐ知らせ、取り直すかは要求器に任せる", () => {
+    // 捕まえる変異: 手元にあると要求しない（古くなったステータスを取り直せない）
+    const { store, addresses, lookups } = setup();
+    const latest = article("post", 2);
+    store.put(article("post", 1), RELAY);
+    store.put(latest, RELAY);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(seen).toEqual([{ phase: "found", event: latest }]);
+    expect(addresses.requested).toEqual([`30023:${PUBKEY}:post`]);
+  });
+
+  it("取り終えて無いと分かっている住所は、すぐ missing にする", () => {
+    const { addresses, lookups } = setup();
+    addresses.unresolved.add(`30023:${PUBKEY}:post`);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(seen).toEqual([{ phase: "missing" }]);
+  });
+
+  it("新しい版が入ったら知らせ直す", () => {
+    // 捕まえる変異: 見つけた時点で購読をやめ、記事の更新が画面に届かない
+    const { store, lookups } = setup();
+    store.put(article("post", 1), RELAY);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    const next = article("post", 2);
+    store.put(next, RELAY);
+    expect(seen.at(-1)).toEqual({ phase: "found", event: next });
+  });
+
+  it("別の住所の版では知らせない", () => {
+    const { store, lookups } = setup();
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    store.put(article("other", 1), RELAY);
+    expect(seen).toEqual([{ phase: "loading" }]);
+  });
+
+  it("無ければ要求し、片付いても無ければ missing にする", () => {
+    const { addresses, lookups } = setup();
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
+    expect(addresses.requested).toEqual([`30023:${PUBKEY}:post`]);
+    addresses.settle();
+    expect(seen).toEqual([{ phase: "loading" }]);
+
+    addresses.unresolved.add(`30023:${PUBKEY}:post`);
+    addresses.settle();
+    expect(seen.at(-1)).toEqual({ phase: "missing" });
+  });
+
+  it("止めた後は知らせない", () => {
+    const { store, addresses, lookups } = setup();
+    const seen: EventLookup[] = [];
+    const stop = lookups.watchAddress(addressOf("post"), (lookup) =>
+      seen.push(lookup),
+    );
+    stop();
+    store.put(article("post", 1), RELAY);
+    addresses.settle();
+    expect(seen).toEqual([{ phase: "loading" }]);
+    expect(addresses.listenerCount()).toBe(0);
+  });
+});
+
+describe("watchPollResponses", () => {
+  const POLL = "d".repeat(64);
+  const response = (created_at: number) =>
+    signed({
+      kind: 1018,
+      tags: [
+        ["e", POLL],
+        ["response", "yes"],
+      ],
+      created_at,
+    });
+
+  it("投票が指すリレーへ取りにいき、取り終えるまでは settled にしない", () => {
+    const { polls, lookups } = setup();
+    const seen: [number, boolean][] = [];
+    lookups.watchPollResponses({ id: POLL, relays: [RELAY] }, (list, done) =>
+      seen.push([list.length, done]),
+    );
+    expect(polls.requested).toEqual([{ id: POLL, relays: [RELAY] }]);
+    expect(seen).toEqual([[0, false]]);
+    polls.settle(POLL);
+    expect(seen.at(-1)).toEqual([0, true]);
+  });
+
+  it("回答が届くたびに知らせ直す", () => {
+    // 捕まえる変異: 取り終えたときだけ読み、自分の投票が集計に出ない
+    const { store, lookups } = setup();
+    const seen: number[] = [];
+    lookups.watchPollResponses({ id: POLL, relays: [] }, (list) =>
+      seen.push(list.length),
+    );
+    store.put(response(1), RELAY);
+    store.put(signed({ kind: 1, tags: [["e", POLL]] }), RELAY);
+    expect(seen).toEqual([0, 1]);
   });
 });
 

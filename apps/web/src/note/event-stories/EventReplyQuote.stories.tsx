@@ -1,3 +1,4 @@
+import { encodeNaddr } from "@streets/core/nostr/nip19";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import {
   EventStory,
@@ -15,6 +16,23 @@ const quote = alice.quote(quoted, "引用つきのノート。");
 const quoteOfQuote = carol.quote(
   quote,
   "引用の引用。中の引用は取りにいかない。",
+);
+
+const naddrOf = (identifier: string) =>
+  encodeNaddr({ identifier, pubkey: bob.pubkey, eventKind: 30_023 });
+const article = bob.event({
+  kind: 30_023,
+  tags: [
+    ["d", "streets"],
+    ["title", "住所で指された記事"],
+  ],
+  content: "置換可能イベントは、版ではなく住所で引用される。",
+});
+const addressQuote = alice.note(
+  `住所で引用したノート。\nnostr:${naddrOf("streets")}`,
+);
+const missingAddressQuote = alice.note(
+  `住所で引用したノート。\nnostr:${naddrOf("gone")}`,
 );
 
 const meta = {
@@ -53,4 +71,13 @@ export const 引用元が見つからない: Story = {
     event: quote,
     scene: { ...scene(quote), missingIds: [quoted.id] },
   },
+};
+
+/** naddr の引用は、その住所の最新版を取りにいく。 */
+export const 住所の引用: Story = {
+  args: { event: addressQuote, scene: scene(addressQuote, article) },
+};
+
+export const 住所の引用が見つからない: Story = {
+  args: { event: missingAddressQuote, scene: scene(missingAddressQuote) },
 };

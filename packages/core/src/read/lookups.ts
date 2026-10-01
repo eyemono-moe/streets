@@ -1,9 +1,13 @@
+import type { EventAddress } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
+import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
+import type { AddressRequests } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
+import type { PollRequests } from "./poll-requests";
 import type { ProfileRequests } from "./profile-requests";
 
 export type EventLookup =
@@ -33,6 +37,14 @@ export type ReadLookups = {
     onChange: (lookup: EventLookup) => void,
   ): () => void;
   /**
+   * 住所で指されたイベントの最新版を探す。取得中と見つからなかったを分けて知らせ、
+   * 新しい版が入るたびに知らせ直す。
+   */
+  watchAddress(
+    address: EventAddress,
+    onChange: (lookup: EventLookup) => void,
+  ): () => void;
+  /**
    * プロフィール（kind:0）を読む。store にあればリレーへ要求しない。取得中と無いを分けず、
    * どちらも undefined を知らせる（名前の代わりに鍵を出すので描き分けが要らない）。
    * 新しい版が入るたびに知らせる。
@@ -51,20 +63,32 @@ export type ReadLookups = {
    * 数え方は読む側が store から引き直す。
    */
   watchEngagements(targetId: string, onChange: () => void): () => void;
+  /**
+   * 投票への回答を取りにいき、手元の回答が変わるたびに知らせる。`settled` は
+   * 一度取り終えたか（まだなら「集計中」、取り終えて 0 件なら「まだ誰も投票していない」）。
+   */
+  watchPollResponses(
+    poll: { id: string; relays: readonly RelayUrl[] },
+    onChange: (responses: NostrEvent[], settled: boolean) => void,
+  ): () => void;
 };
 
 export type CreateReadLookupsOptions = {
   store: EventStore;
   events: EventRequests;
+  addresses: AddressRequests;
   profiles: ProfileRequests;
   engagements: EngagementRequests;
+  polls: PollRequests;
 };
 
 export const createReadLookups = ({
   store,
   events,
+  addresses,
   profiles,
   engagements,
+  polls,
 }: CreateReadLookupsOptions): ReadLookups => ({
   watchEvent(id, relayHint, onChange) {
     // 指す先が無い（タグが壊れている）ものは取りにいかない。空の id を要求しない。
@@ -90,6 +114,49 @@ export const createReadLookups = ({
       if (events.isUnresolved(id)) onChange({ phase: "missing" });
     });
     return unsubscribe;
+  },
+
+  watchAddress(address, onChange) {
+    const found = () => {
+      const event = store.latestReplaceable(
+        address.kind,
+        address.pubkey,
+        address.identifier,
+      );
+      if (event) onChange({ phase: "found", event });
+      return event !== undefined;
+    };
+
+    const offChanged = store.onReplaceableChanged((change) => {
+      if (
+        change.kind === address.kind &&
+        change.pubkey === address.pubkey &&
+        change.identifier === address.identifier
+      ) {
+        found();
+      }
+    });
+    const hit = found();
+    // 手元にあっても、古くなっていれば取り直す（新しい版は offChanged で届く）。
+    addresses.request(address);
+    if (hit) return offChanged;
+
+    onChange(
+      addresses.isUnresolved(address)
+        ? { phase: "missing" }
+        : { phase: "loading" },
+    );
+    const offBatch = addresses.subscribe(() => {
+      if (found()) {
+        offBatch();
+        return;
+      }
+      if (addresses.isUnresolved(address)) onChange({ phase: "missing" });
+    });
+    return () => {
+      offChanged();
+      offBatch();
+    };
   },
 
   watchProfile(pubkey, onChange) {
@@ -136,6 +203,31 @@ export const createReadLookups = ({
         onChange();
       }
     });
+    return () => {
+      offBatch();
+      offStore();
+    };
+  },
+
+  watchPollResponses(poll, onChange) {
+    const load = () =>
+      onChange(
+        store
+          .eventsByTag("e", poll.id)
+          .filter((event) => event.kind === POLL_RESPONSE_KIND),
+        polls.isSettled(poll.id),
+      );
+    polls.request(poll.id, poll.relays);
+    const offBatch = polls.subscribe(load);
+    const offStore = store.subscribe((change) => {
+      if (
+        change.event.kind === POLL_RESPONSE_KIND &&
+        change.event.tags.some((tag) => tag[0] === "e" && tag[1] === poll.id)
+      ) {
+        load();
+      }
+    });
+    load();
     return () => {
       offBatch();
       offStore();

@@ -8,11 +8,11 @@ import { type PickerEmoji, loadUnicodeEmojis } from "./emoji-data";
 import { EmojiPicker } from "./lazy-emoji-picker";
 import { rememberEmoji } from "./recent-emoji";
 
-/** 投稿・返信・引用の本文に入れる絵文字を選ぶ。 */
+/** 投稿・返信・引用の本文やステータスに入れる絵文字を選ぶ。 */
 const ComposeEmojiPicker: Component<{
   disabled: boolean;
   onSelect: (emoji: PickerEmoji) => void;
-  field: () => HTMLTextAreaElement | undefined;
+  field: () => HTMLInputElement | HTMLTextAreaElement | undefined;
 }> = (props) => {
   const customGroups = useEmojiGroups();
   // 投稿パネルや返信・引用のダイアログは開いたときに描かれる。ピッカーを開いてから

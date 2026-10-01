@@ -22,6 +22,9 @@
     "@unocss/reset": "66.10.5",
     "blurhash": "2.0.5",
     "emojibase-data": "^17.0.0",
+    "mdast-util-from-markdown": "^2.0.3",
+    "mdast-util-gfm": "^3.1.0",
+    "micromark-extension-gfm": "^3.0.0",
     "solid-js": "1.9.15",
     "valibot": "1.5.0"
   },
@@ -34,6 +37,7 @@
     "@storybook/addon-docs": "10.6.0",
     "@tanstack/devtools-vite": "^0.8.5",
     "@tanstack/solid-devtools": "^0.8.13",
+    "@types/mdast": "^4.0.4",
     "@unocss/preset-mini": "66.10.5",
     "marked": "18.0.14",
     "rollup-plugin-visualizer": "^7.1.1",

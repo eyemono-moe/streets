@@ -8,7 +8,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { createAssetReader, serveAssets } from "./assets";
-import { generate } from "./generate";
+import { addressLinks, generate } from "./generate";
 import { pubkeyFor, secretKeyFor } from "./keys";
 import { type ScenarioName, scenarios } from "./scenarios";
 import { parseBaseTime } from "./time";
@@ -197,4 +197,15 @@ if (command === "seed") {
                ${bunkerUrl}
 
 Ctrl+C でまとめて止めます。`);
+  const links = addressLinks(scenario, relayUrl);
+  if (links.length > 0) {
+    console.log(
+      `\nURL から開く（naddr）\n${links
+        .map(
+          ({ label, naddr }) =>
+            `  ${label}\n    ${values["app-url"]}/${naddr}?relays=${relayUrl}&screenshot`,
+        )
+        .join("\n")}`,
+    );
+  }
 }

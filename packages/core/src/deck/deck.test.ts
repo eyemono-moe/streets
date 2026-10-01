@@ -553,6 +553,19 @@ describe("デッキの見た目（appearance）", () => {
   });
 });
 
+describe("client タグを付けるか（clientTag）", () => {
+  it("選んだ値を保存して読み戻せる", () => {
+    const on: DeckSet = { ...deck, clientTag: true };
+    expect(loadDeckSet(saveDeckSet(on))?.clientTag).toBe(true);
+  });
+
+  it("壊れた値は付けない側に落とし、デッキは読む", () => {
+    const loaded = loadDeckSet(JSON.stringify({ ...deck, clientTag: "yes" }));
+    expect(loaded?.decks).toEqual(deck.decks);
+    expect(loaded?.clientTag).toBeUndefined();
+  });
+});
+
 describe("知らない種類のカラムが混ざったとき", () => {
   const home = {
     id: "home",
@@ -642,6 +655,12 @@ describe("カラムの種類ごとの保存", () => {
       kind: "follow-set-info",
       pubkey: "e".repeat(64),
       identifier: "friends",
+    },
+    article: {
+      kind: "article",
+      pubkey: "a".repeat(64),
+      identifier: "post",
+      relays: ["wss://relay.example/"],
     },
   };
 

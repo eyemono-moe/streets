@@ -34,6 +34,10 @@ const TextField: Component<{
   onBlur?: () => void;
   /** 説明や誤りの下に出す、入力を確かめた結果（ドメインに聞いた答えなど）。 */
   status?: JSX.Element;
+  /** 入力欄の右に並べる道具（絵文字ピッカーなど）。 */
+  trailing?: JSX.Element;
+  /** 入力欄そのもの。道具から文字を入れるときに使う。 */
+  fieldRef?: (field: HTMLInputElement | HTMLTextAreaElement) => void;
 }> = (props) => {
   const id = createUniqueId();
   const noteId = `${id}-note`;
@@ -44,42 +48,57 @@ const TextField: Component<{
       <label for={id} class="c-secondary font-600 text-caption">
         {props.label}
       </label>
-      <Completion sources={props.completion ?? []} label="入れる候補">
-        {(attach) => (
-          <Show
-            when={props.multiline}
-            fallback={
-              <input
-                ref={attach}
-                id={id}
-                type={props.type ?? "text"}
-                class={`${inputBase} ${border()} h-9 w-full`}
-                placeholder={props.placeholder}
-                value={props.value}
-                aria-invalid={props.error !== undefined}
-                aria-describedby={
-                  props.error || props.hint ? noteId : undefined
+      <div class="flex items-center gap-1">
+        <div class="min-w-0 flex-1">
+          <Completion sources={props.completion ?? []} label="入れる候補">
+            {(attach) => (
+              <Show
+                when={props.multiline}
+                fallback={
+                  <input
+                    ref={(field) => {
+                      attach(field);
+                      props.fieldRef?.(field);
+                    }}
+                    id={id}
+                    type={props.type ?? "text"}
+                    class={`${inputBase} ${border()} h-9 w-full`}
+                    placeholder={props.placeholder}
+                    value={props.value}
+                    aria-invalid={props.error !== undefined}
+                    aria-describedby={
+                      props.error || props.hint ? noteId : undefined
+                    }
+                    onInput={(event) =>
+                      props.onInput(event.currentTarget.value)
+                    }
+                    onBlur={() => props.onBlur?.()}
+                  />
                 }
-                onInput={(event) => props.onInput(event.currentTarget.value)}
-                onBlur={() => props.onBlur?.()}
-              />
-            }
-          >
-            <textarea
-              ref={attach}
-              id={id}
-              rows={3}
-              class={`${inputBase} ${border()} w-full resize-y py-2`}
-              placeholder={props.placeholder}
-              value={props.value}
-              aria-invalid={props.error !== undefined}
-              aria-describedby={props.error || props.hint ? noteId : undefined}
-              onInput={(event) => props.onInput(event.currentTarget.value)}
-              onBlur={() => props.onBlur?.()}
-            />
-          </Show>
-        )}
-      </Completion>
+              >
+                <textarea
+                  ref={(field) => {
+                    attach(field);
+                    props.fieldRef?.(field);
+                  }}
+                  id={id}
+                  rows={3}
+                  class={`${inputBase} ${border()} w-full resize-y py-2`}
+                  placeholder={props.placeholder}
+                  value={props.value}
+                  aria-invalid={props.error !== undefined}
+                  aria-describedby={
+                    props.error || props.hint ? noteId : undefined
+                  }
+                  onInput={(event) => props.onInput(event.currentTarget.value)}
+                  onBlur={() => props.onBlur?.()}
+                />
+              </Show>
+            )}
+          </Completion>
+        </div>
+        {props.trailing}
+      </div>
       <Show
         when={props.error}
         fallback={
