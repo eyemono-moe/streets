@@ -12,6 +12,9 @@ import {
   createSignal,
   on,
 } from "solid-js";
+import { useEmojiSource } from "../completion/sources";
+import ComposeEmojiPicker from "../emoji/ComposeEmojiPicker";
+import { useComposeEmojiInsertion } from "../note/use-compose-emoji-insertion";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -42,6 +45,8 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
   const dispatch = useDispatch();
   const editing = () =>
     props.form.phase === "closed" ? undefined : props.form;
+  const emojiSources = [useEmojiSource()];
+  const emojiInsertion = useComposeEmojiInsertion();
   const [shaking, setShaking] = createSignal(false);
   let actions: HTMLDivElement | undefined;
   createEffect(
@@ -89,6 +94,15 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                         })
                       }
                       placeholder="例：作業中"
+                      completion={emojiSources}
+                      fieldRef={emojiInsertion.ref}
+                      trailing={
+                        <ComposeEmojiPicker
+                          disabled={form().phase === "saving"}
+                          onSelect={emojiInsertion.insert}
+                          field={emojiInsertion.field}
+                        />
+                      }
                     />
                     <div class="flex flex-wrap gap-1.5">
                       <For each={PRESETS}>

@@ -127,4 +127,15 @@ describe("buildUserStatus", () => {
       buildUserStatus({ content: "", link: "https://x", expiresAt: 1 }).tags,
     ).toEqual([["d", "general"]]);
   });
+
+  it("自分の絵文字にある :shortcode: にだけ emoji タグを付ける", () => {
+    const emoji = (shortcode: string) =>
+      shortcode === "party" ? "https://example.com/party.png" : undefined;
+    expect(
+      buildUserStatus({ content: ":party: :party: :unknown:", emoji }).tags,
+    ).toEqual([
+      ["d", "general"],
+      ["emoji", "party", "https://example.com/party.png"],
+    ]);
+  });
 });

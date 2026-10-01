@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import IconButton from "./IconButton";
 import TextField from "./TextField";
 
 type Args = {
@@ -9,6 +10,7 @@ type Args = {
   hint?: string;
   error?: string;
   multiline?: boolean;
+  trailing?: boolean;
 };
 
 const Story = (props: Args) => {
@@ -23,6 +25,15 @@ const Story = (props: Args) => {
         hint={props.hint}
         error={props.error}
         multiline={props.multiline}
+        trailing={
+          props.trailing ? (
+            <IconButton
+              size="md"
+              icon="i-material-symbols:add-reaction-outline-rounded"
+              label="絵文字を挿入"
+            />
+          ) : undefined
+        }
       />
     </div>
   );
@@ -62,4 +73,7 @@ export const 複数行: S = {
     initial: "Nostr のクライアントを作っています。\n2 行目",
     multiline: true,
   },
+};
+export const 後ろに道具: S = {
+  args: { label: "いまの状態", initial: "☕ 休憩中", trailing: true },
 };
