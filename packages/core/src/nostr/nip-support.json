@@ -232,14 +232,16 @@
   {
     "nip": "38",
     "status": "一部",
-    "summary": "ステータスをプロフィール・名刺と投稿の名前の下に出す",
+    "summary": "ステータスをプロフィール・名刺・投稿のアイコンに出し、自分のいまの状態を設定する",
     "kinds": [30315],
     "tags": ["d", "expiration", "r", "e", "p", "a", "emoji"],
     "paths": [
       "packages/core/src/nostr/user-status.ts",
-      "apps/web/src/status/UserStatusView.tsx"
+      "packages/core/src/nostr/build/user-status.ts",
+      "apps/web/src/status/UserStatusView.tsx",
+      "apps/web/src/status/StatusFormDialog.tsx"
     ],
-    "gap": "自分のステータスを設定できない。general と music 以外の種類は出さない（アプリが自分のために置く機械向けの値が多いため）。r は http(s) だけを開く"
+    "gap": "自分で設定できるのはいまの状態（general）だけで、聴いている曲（music）は書かない。general と music 以外の種類は出さない（アプリが自分のために置く機械向けの値が多いため）。r は http(s) だけを開く"
   },
   {
     "nip": "42",

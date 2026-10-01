@@ -9,6 +9,7 @@ import type { UserStatus } from "@streets/core/nostr/user-status";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { ContentTokens } from "../note/NoteText";
 import { useDispatch } from "../ui-events";
+import IconButton from "../ui/IconButton";
 
 const ICON: Record<UserStatus["type"], { icon: string; label: string }> = {
   general: {
@@ -96,6 +97,8 @@ export const UserStatusBubble: Component<{
    * 並べる側の行間に合わせて、置き場所ごとに渡す。
    */
   class: string;
+  /** 自分のプロフィールで、直す操作を出す。 */
+  onEdit?: () => void;
 }> = (props) => (
   <Show when={props.statuses.find((status) => status.type === "general")}>
     {(status) => (
@@ -114,12 +117,22 @@ export const UserStatusBubble: Component<{
           }}
           aria-hidden="true"
         />
-        <p class="c-primary relative flex items-start gap-1.5 break-words">
+        <p class="c-primary relative flex items-center gap-1.5 break-words">
           <span class="sr-only">{ICON.general.label}：</span>
           <span class="min-w-0 flex-1">
             <StatusText status={status()} />
           </span>
           <StatusLink status={status()} />
+          <Show when={props.onEdit}>
+            {(edit) => (
+              <IconButton
+                icon="i-material-symbols:edit-outline-rounded"
+                label="ステータスを直す"
+                size="sm"
+                onClick={() => edit()()}
+              />
+            )}
+          </Show>
         </p>
       </div>
     )}

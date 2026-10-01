@@ -2,6 +2,7 @@ import { Menu } from "@ark-ui/solid/menu";
 import { type Component, Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
+import { useUserStatuses } from "../status/use-user-statuses";
 import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 
@@ -15,11 +16,14 @@ const AccountMenu: Component<{
   arrange?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const statuses = useUserStatuses(() => props.pubkey);
+  const current = () => statuses().find((status) => status.type === "general");
   return (
     <Menu.Root
       lazyMount
       unmountOnExit
       onSelect={(details) => {
+        if (details.value === "status") dispatch({ type: "status/edit" });
         if (details.value === "settings")
           dispatch({ type: "deck/open-settings" });
         if (details.value === "about") dispatch({ type: "deck/open-about" });
@@ -39,6 +43,27 @@ const AccountMenu: Component<{
       <Portal>
         <Menu.Positioner>
           <Menu.Content class="motion-pop c-primary w-max min-w-40 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+            <Menu.Item
+              value="status"
+              class="flex min-h-8.5 max-w-72 items-center gap-2.5 rounded-1.5 px-2.5 py-1 text-body data-[highlighted]:bg-secondary"
+            >
+              <span
+                class="i-material-symbols:add-reaction-outline-rounded c-secondary size-4.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span class="flex min-w-0 flex-col">
+                <span class="whitespace-nowrap">ステータスを設定</span>
+                {/* 今の状態を添える。切れても、何を出しているかは分かる。 */}
+                <Show when={current()}>
+                  {(status) => (
+                    <span class="c-secondary truncate text-caption">
+                      {status().content}
+                    </span>
+                  )}
+                </Show>
+              </span>
+            </Menu.Item>
+            <hr class="my-1 border-primary border-t" />
             <Menu.Item
               value="settings"
               class="flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"

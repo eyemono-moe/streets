@@ -32,6 +32,10 @@ import {
 } from "@streets/core/nostr/build/references";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import {
+  type UserStatusInput,
+  buildUserStatus,
+} from "@streets/core/nostr/build/user-status";
+import {
   CHANNEL_MESSAGE_KIND,
   PUBLIC_CHATS_KIND,
   favoriteChannels,
@@ -108,6 +112,8 @@ export type EventActions = {
     },
   ): Promise<void>;
   repost(target: NostrEvent): Promise<void>;
+  /** 自分のいまの状態（NIP-38 の general）を置き換える。本文を空にすると消える。 */
+  setStatus(input: UserStatusInput): Promise<void>;
   /** 投票（kind:1068）に答える。回答は、自分の write リレーと投票が指すリレーへ送る。 */
   vote(target: NostrEvent, choices: readonly string[]): Promise<void>;
   react(target: NostrEvent, input: ReactionInput): Promise<void>;
@@ -303,6 +309,9 @@ export const createWriteStack = (options: {
         undefined,
         { relays: channel.relays },
       );
+    },
+    async setStatus(input) {
+      await tracked("ステータス").publish(buildUserStatus(input));
     },
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });

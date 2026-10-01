@@ -2,13 +2,16 @@ import { BANNER_MAX_EDGE } from "@streets/core/media/display-size";
 import { parseContent } from "@streets/core/nostr/content";
 import { type Profile, shortNpub } from "@streets/core/nostr/profile";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
+import { useEventActions } from "../actions";
 import { createDisplayImage } from "../media/display-image";
 import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import { useUserStatuses } from "../status/use-user-statuses";
 import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
+import { useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
+import Button from "../ui/Button";
 import FollowButton from "./FollowButton";
 import FollowsYouBadge from "./FollowsYouBadge";
 import Nip05Badge from "./Nip05Badge";
@@ -146,6 +149,11 @@ const ProfileHeaderView: Component<{
 }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
   const statuses = useUserStatuses(() => props.pubkey);
+  const actions = useEventActions();
+  const dispatch = useDispatch();
+  // 自分のプロフィールでは、ステータスを設定・直す入口を出す。
+  const own = () => actions?.viewer === props.pubkey;
+  const edit = () => dispatch({ type: "status/edit" });
   return (
     <ProfileHeaderCard
       pubkey={props.pubkey}
@@ -160,10 +168,32 @@ const ProfileHeaderView: Component<{
           )}
         </Show>
       }
-      // アイコン（80px、左端から 12px）の真下に三角を合わせる。
-      // 本体はボタンの下端から 4px 離し（重なると読めない）、長い三角の先だけをアイコンに 6px 入れる。
       status={
-        <UserStatusBubble statuses={statuses()} arrowLeft={34} class="-mt-2" />
+        <Show
+          when={
+            own() && !statuses().some((status) => status.type === "general")
+          }
+          fallback={
+            // アイコン（80px、左端から 12px）の真下に三角を合わせる。本体はボタンの
+            // 下端から 4px 離し（重なると読めない）、長い三角の先だけをアイコンに入れる。
+            <UserStatusBubble
+              statuses={statuses()}
+              arrowLeft={34}
+              class="-mt-2"
+              onEdit={own() ? edit : undefined}
+            />
+          }
+        >
+          <div class="flex">
+            <Button
+              size="sm"
+              icon="i-material-symbols:add-reaction-outline-rounded"
+              onClick={edit}
+            >
+              ステータスを設定
+            </Button>
+          </div>
+        </Show>
       }
       nowPlaying={<UserNowPlaying statuses={statuses()} />}
       badge={

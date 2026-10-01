@@ -296,3 +296,19 @@ export const ステータス: Story = {
 export const 長いステータス: Story = {
   args: { pubkey: alice.pubkey, scene: scene(longStatus) },
 };
+
+const ownStatus = viewer.event({
+  kind: 30_315,
+  content: "💻 作業中",
+  tags: [["d", "general"]],
+});
+
+/** 自分のプロフィールで、ステータスが無いとき。設定する入口を出す。 */
+export const 自分_ステータスなし: Story = {
+  args: { pubkey: viewer.pubkey, scene: scene() },
+};
+
+/** 自分のプロフィールで、ステータスがあるとき。吹き出しに直す操作を出す。 */
+export const 自分_ステータスあり: Story = {
+  args: { pubkey: viewer.pubkey, scene: scene(ownStatus) },
+};

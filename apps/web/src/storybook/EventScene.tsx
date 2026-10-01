@@ -23,6 +23,7 @@ import {
 } from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
+import { buildUserStatus } from "@streets/core/nostr/build/user-status";
 import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
@@ -108,6 +109,7 @@ const storyActions = (
           }),
         ),
       ),
+    setStatus: (input) => send(() => viewer.event(buildUserStatus(input))),
     repost: (target) =>
       send(() => {
         const draft = buildRepost(target);
