@@ -10,7 +10,7 @@ const ARTICLE_BODY = `雨上がりの朝、川沿いを歩きながら撮った�
 - 橋の上から、上流を向いて撮る
 - 露出は *少し暗め* にする
   - 白飛びすると霧の形が消える
-- [地図](https://example.com/map) と、前に書いた投稿 {nevent:haru-light}
+- [地図](https://example.com/map) と、前に書いた投稿 {nevent:haru-walk}
 
 1. 三脚は要らない
 2. 手ぶれ補正を入れる
@@ -35,7 +35,7 @@ ISO 200 / f8 / 1/250
 
 前に書いた投稿（参照だけの段落は、引用のカードになる）
 
-{nevent:haru-light}
+{nevent:haru-walk}
 
 一緒に歩いている人たちのリスト（文の途中の参照はリンクのまま） {naddr:haru/walk-club}
 
@@ -94,6 +94,55 @@ export default defineScenario({
       ago: "15m",
       content: `題名の無い記事も読めるか確かめる。\n{naddr:kai-notes}`,
     },
+    // 新しい kind は、それ自体より引用（nevent）で流れてくることが多い。kind ごとに 1 つずつ。
+    {
+      author: "nana",
+      ago: "48m",
+      content: `音が出るので注意。\n{nevent:kai-video}`,
+    },
+    {
+      author: "kai",
+      ago: "38m",
+      content: `縦の動画もいいね。\n{nevent:lina-short}`,
+    },
+    {
+      author: "lina",
+      ago: "36m",
+      content: "海と街に入れました。みんなはどこ？",
+      quote: "kai-places",
+    },
+    {
+      author: "ren",
+      ago: "34m",
+      content: "締め切った投票の結果、半々だった。",
+      quote: "theo-tabs",
+    },
+    {
+      author: "sora",
+      ago: "28m",
+      content: `記事は nevent でも引用できる。\n{nevent:haru-river}`,
+    },
+    {
+      author: "theo",
+      ago: "27m",
+      content: `このリスト、nevent で貼ってみる。\n{nevent:haru/walk-club}`,
+    },
+    {
+      author: "haru",
+      ago: "26m",
+      content: `sora さんの絵文字セット、かわいい。\n{nevent:sora-emoji}`,
+    },
+    {
+      author: "nana",
+      ago: "24m",
+      content: "猫の絵、好き。",
+      quote: "sora-picture",
+    },
+    {
+      author: "mio",
+      ago: "22m",
+      content: `自分のリスト。非公開の人数も出るか確かめる。\n{nevent:mio/close-friends}`,
+    },
   ],
   mediaPosts: [
     {
@@ -106,6 +155,7 @@ export default defineScenario({
       media: ["photo-river.svg", "photo-street.svg"],
     },
     {
+      id: "sora-picture",
       author: "sora",
       kind: 20,
       ago: "1h5m",
@@ -113,6 +163,7 @@ export default defineScenario({
       media: ["illust-cat.svg"],
     },
     {
+      id: "kai-video",
       author: "kai",
       kind: 21,
       ago: "55m",
@@ -121,6 +172,7 @@ export default defineScenario({
       media: ["clip-testcard.mp4"],
     },
     {
+      id: "lina-short",
       author: "lina",
       kind: 22,
       ago: "45m",
@@ -201,6 +253,15 @@ export default defineScenario({
     },
   ],
   followSets: [
+    // 見る人（mio）のリスト。非公開のメンバーは mio にだけ読めるので、引用のカードにも人数が出る。
+    {
+      owner: "mio",
+      identifier: "close-friends",
+      title: "近しい人たち",
+      description: "非公開のメンバーもいるリスト。",
+      publicMembers: ["haru", "nana"],
+      privateMembers: ["ren", "theo"],
+    },
     {
       owner: "haru",
       identifier: "walk-club",

@@ -245,6 +245,13 @@ export const generate = (
     return event;
   };
 
+  /** 引用や `{nevent:…}` から指せるようにする。リストは `<持ち主>/<identifier>` で指す。 */
+  const register = (id: string | undefined, event: NostrEvent) => {
+    if (!id) return;
+    if (posts.has(id)) throw new Error(`投稿の id が重なっています: ${id}`);
+    posts.set(id, event);
+  };
+
   for (const [id, profile] of Object.entries(users) as [
     UserId,
     UserProfile,
@@ -394,6 +401,7 @@ export const generate = (
         setupAt + 2,
       ),
     );
+    register(`${set.owner}/${set.identifier}`, events.at(-1) as NostrEvent);
   }
 
   for (const set of scenario.emojiSets ?? []) {
@@ -416,6 +424,7 @@ export const generate = (
         setupAt + 3,
       ),
     );
+    register(set.id, events.at(-1) as NostrEvent);
   }
 
   for (const [owner, ids] of Object.entries(scenario.emojiLists ?? {}) as [
@@ -467,12 +476,6 @@ export const generate = (
       ),
     );
   }
-
-  const register = (id: string | undefined, event: NostrEvent) => {
-    if (!id) return;
-    if (posts.has(id)) throw new Error(`投稿の id が重なっています: ${id}`);
-    posts.set(id, event);
-  };
 
   for (const post of scenario.mediaPosts ?? []) {
     const event = sign(
@@ -532,36 +535,24 @@ export const generate = (
     }
   }
 
-  // 返信や引用は相手の id を含むので、古いものから組み立てる。
-  const ordered = [...scenario.posts]
-    .map((post, index) => ({
-      post,
+  // 返信や引用は相手の id を含むので、投稿と記事を合わせて古いものから組み立てる。
+  // 記事は本文で投稿を指せ（`{nevent:<id>}`）、投稿は記事を引用できる。
+  const ordered = [
+    ...scenario.posts.map((post) => ({ post, article: undefined })),
+    ...(scenario.articles ?? []).map((article) => ({
+      post: undefined,
+      article,
+    })),
+  ]
+    .map((item, index) => ({
+      ...item,
       index,
-      at: resolveTime(options.base, post),
+      at: resolveTime(options.base, item.post ?? item.article),
     }))
     .sort((a, b) => a.at - b.at || a.index - b.index);
-  for (const { post, at } of ordered) {
-    const label = post.id ?? post.content.slice(0, 12);
-    const content = expand(post.content, label);
-    const hint = { relayHint: options.relayUrl };
-    let draft = post.replyTo
-      ? buildReply(need(post.replyTo, label), content, hint)
-      : post.quote
-        ? buildQuote(need(post.quote, label), content, hint)
-        : buildNote(content);
-    draft = withReferences(draft, {});
-    draft = withMedia(draft, (post.images ?? []).map(options.asset));
-    draft = withContentWarning(draft, post.contentWarning);
-    const event = sign(post.author, draft, at);
-    events.push(event);
-    register(post.id, event);
-  }
-
-  // 記事は本文で投稿を指せる（`{nevent:<id>}`）ので、投稿の後に組み立てる。
-  for (const article of scenario.articles ?? []) {
-    const at = resolveTime(options.base, article);
-    events.push(
-      sign(
+  for (const { post, article, at } of ordered) {
+    if (article) {
+      const event = sign(
         article.author,
         {
           kind: LONG_FORM_KIND,
@@ -585,8 +576,26 @@ export const generate = (
           content: expand(article.content, article.id),
         },
         at,
-      ),
-    );
+      );
+      events.push(event);
+      register(article.id, event);
+      continue;
+    }
+    if (!post) continue;
+    const label = post.id ?? post.content.slice(0, 12);
+    const content = expand(post.content, label);
+    const hint = { relayHint: options.relayUrl };
+    let draft = post.replyTo
+      ? buildReply(need(post.replyTo, label), content, hint)
+      : post.quote
+        ? buildQuote(need(post.quote, label), content, hint)
+        : buildNote(content);
+    draft = withReferences(draft, {});
+    draft = withMedia(draft, (post.images ?? []).map(options.asset));
+    draft = withContentWarning(draft, post.contentWarning);
+    const event = sign(post.author, draft, at);
+    events.push(event);
+    register(post.id, event);
   }
 
   for (const [owner, ids] of Object.entries(scenario.pinned ?? {}) as [
