@@ -1,9 +1,11 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, Match, Switch, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
+import RelayColumnEditor from "../deck/RelayColumnEditor";
+import { useRelayEdit } from "../settings/RelayMediator";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import {
@@ -15,46 +17,44 @@ import {
   DialogTitle,
 } from "../ui/Dialog";
 import SegmentedControl from "../ui/SegmentedControl";
-import TextField from "../ui/TextField";
 
 export type BroadcastTarget = "mine" | "author" | "custom";
 
 const TARGETS: { value: BroadcastTarget; label: string }[] = [
   { value: "mine", label: "自分" },
   { value: "author", label: "投稿した人" },
-  { value: "custom", label: "URL を指定" },
+  { value: "custom", label: "選ぶ" },
 ];
 
 const DESCRIPTIONS: Record<BroadcastTarget, string> = {
   mine: "自分が書き込みに使っているリレーへ送ります。",
   author:
     "投稿した人が書き込みに使っているリレーと、返信先など投稿の中で名前を挙げた人に届くリレーへ送ります。ほかの人がこの投稿を探しに行くところです。",
-  custom: "URL を入れたリレーへ送ります。",
+  custom: "候補から選ぶか、URL を入れたリレーへ送ります。",
 };
 
 /** 送り先を選んで、見かけたイベントを送り直す。 */
 export const BroadcastDialogView: Component<{
   candidates: Record<"mine" | "author", readonly RelayUrl[]>;
   initialTarget?: BroadcastTarget;
-  initialCustom?: string;
+  /** 「選ぶ」の候補にする、自分のアカウントで使っているリレー。 */
+  account: readonly RelayListEntry[];
+  /** 「選ぶ」の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
+  followeeWriteRelays?: readonly (readonly RelayUrl[])[];
+  initialCustom?: readonly RelayUrl[];
   onSend: (relays: readonly RelayUrl[]) => void;
   onClose: () => void;
 }> = (props) => {
   const [target, setTarget] = createSignal<BroadcastTarget>(
     props.initialTarget ?? "mine",
   );
-  const [custom, setCustom] = createSignal(props.initialCustom ?? "");
-  const customRelay = () => normalizeRelayUrl(custom().trim());
+  const [custom, setCustom] = createSignal<readonly RelayUrl[]>(
+    props.initialCustom ?? [],
+  );
   const relays = (): readonly RelayUrl[] => {
     const current = target();
-    if (current !== "custom") return props.candidates[current];
-    const relay = customRelay();
-    return relay ? [relay] : [];
+    return current === "custom" ? custom() : props.candidates[current];
   };
-  const customError = () =>
-    custom().trim() && !customRelay()
-      ? "wss:// で始まる URL を入れてください"
-      : undefined;
 
   return (
     <DialogRoot open onClose={props.onClose}>
@@ -80,13 +80,12 @@ export const BroadcastDialogView: Component<{
             <p class="c-secondary text-caption">{DESCRIPTIONS[target()]}</p>
             <Switch>
               <Match when={target() === "custom"}>
-                <TextField
-                  label="リレーの URL"
-                  type="url"
-                  placeholder="wss://"
-                  value={custom()}
-                  onInput={setCustom}
-                  error={customError()}
+                <RelayColumnEditor
+                  candidates={props.account}
+                  followeeWriteRelays={props.followeeWriteRelays}
+                  selected={custom()}
+                  onChange={setCustom}
+                  listLabel="送り先"
                 />
               </Match>
               <Match when={relays().length === 0}>
@@ -133,11 +132,13 @@ const BroadcastDialog: Component<{ event: NostrEvent; onClose: () => void }> = (
 ) => {
   const actions = useEventActions();
   const dispatch = useDispatch();
+  const relayEdit = useRelayEdit();
   const candidates = () =>
     actions?.broadcastTargets(props.event) ?? { mine: [], author: [] };
   return (
     <BroadcastDialogView
       candidates={candidates()}
+      account={relayEdit?.entries() ?? []}
       onSend={(relays) =>
         dispatch({ type: "note/broadcast", target: props.event, relays })
       }
