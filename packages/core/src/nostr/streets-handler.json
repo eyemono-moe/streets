@@ -8,7 +8,7 @@
     "name": "Streets",
     "display_name": "Streets",
     "about": "Column based Nostr client for web",
-    "picture": "https://streets.eyemono.moe/favicon.svg",
+    "picture": "https://streets.eyemono.moe/icon-512.png",
     "banner": "https://streets.eyemono.moe/ogp.webp",
     "website": "https://streets.eyemono.moe"
   }
