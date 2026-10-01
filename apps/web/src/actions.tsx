@@ -42,6 +42,12 @@ import {
 } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
+import {
+  PINNED_NOTES_KIND,
+  pinNote,
+  pinnedNoteIds,
+  unpinNote,
+} from "@streets/core/nostr/pinned-notes";
 import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -121,6 +127,9 @@ export type EventActions = {
   /** 自分のブックマーク（kind:10003）に入っているか。一覧が届くと変わる。 */
   bookmarked(id: string): boolean;
   setBookmark(target: NostrEvent, on: boolean): Promise<void>;
+  /** 自分のピン留め（kind:10001）に入っているか。 */
+  pinned(id: string): boolean;
+  setPinned(target: NostrEvent, on: boolean): Promise<void>;
   /** 自分がフォローしている人（kind:3）。カラムの購読にも使う。 */
   /**
    * チャンネルを作る（kind:40）。チャンネルのリレーへも送る。作ったチャンネルの
@@ -251,6 +260,7 @@ export const createWriteStack = (options: {
   };
 
   const bookmarks = mine(BOOKMARK_KIND).event;
+  const pins = mine(PINNED_NOTES_KIND).event;
   const publicChats = mine(PUBLIC_CHATS_KIND).event;
   const follows = mine(FOLLOW_KIND).event;
   const relayList = mine(RELAY_LIST_KIND);
@@ -356,6 +366,14 @@ export const createWriteStack = (options: {
         value: event.id,
       });
       await tracked("ブックマーク").replace(BOOKMARK_KIND, undefined, mutation);
+    },
+    pinned: (id) => pinnedNoteIds(pins()).includes(id),
+    async setPinned(event, on) {
+      await tracked("ピン留め").replace(
+        PINNED_NOTES_KIND,
+        undefined,
+        (on ? pinNote : unpinNote)(event.id),
+      );
     },
     async createChannel(input) {
       const result = await tracked("チャンネルを作る").publish(

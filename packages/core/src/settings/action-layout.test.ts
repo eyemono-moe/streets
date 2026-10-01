@@ -31,7 +31,7 @@ describe("アクション欄の並びの保存", () => {
     const loaded = loadActionLayout(saveActionLayout(layout));
     expect(loaded.bar).toEqual(layout.bar);
     // 保存に無い操作は、メニューの最後に入る。
-    expect(loaded.menu).toEqual([...layout.menu, "mute-event"]);
+    expect(loaded.menu).toEqual([...layout.menu, "pin", "mute-event"]);
   });
 
   it("知らない操作・重なり・7 個目以降を直す", () => {
@@ -62,6 +62,7 @@ describe("アクション欄の並びの保存", () => {
     expect(loaded.menu).toEqual([
       "details",
       "activity",
+      "pin",
       "copy-link",
       "mute-event",
     ]);
@@ -76,6 +77,7 @@ describe("アクション欄の並びの保存", () => {
 describe("投稿のメニューに入れる操作", () => {
   it("アクション欄を出す投稿では、欄に無いものを入れる", () => {
     expect(menuActionsOf(defaultActionLayout(), true)).toEqual([
+      "pin",
       "activity",
       "copy-link",
       "details",
@@ -136,7 +138,7 @@ describe("アクション欄の並べ替え", () => {
   it("欄を境目の後ろへ動かすと、メニューに入る", () => {
     const state = run([
       { type: "action-layout/drag-start", id: "zap", index: 4 },
-      { type: "action-layout/drag-move", to: 7 },
+      { type: "action-layout/drag-move", to: 8 },
       { type: "action-layout/drop" },
     ]);
     expect(state.layout.bar).toEqual([
@@ -147,6 +149,7 @@ describe("アクション欄の並べ替え", () => {
       "bookmark",
     ]);
     expect(state.layout.menu).toEqual([
+      "pin",
       "activity",
       "zap",
       "copy-link",
@@ -157,7 +160,7 @@ describe("アクション欄の並べ替え", () => {
 
   it("欄がいっぱいのところへ入れると、掴んでいないものの最後がメニューへ押し出される", () => {
     const dragging = run([
-      { type: "action-layout/drag-start", id: "copy-link", index: 8 },
+      { type: "action-layout/drag-start", id: "copy-link", index: 9 },
       { type: "action-layout/drag-move", to: 1 },
     ]);
     const shown = arrangedLayout(dragging);
@@ -179,7 +182,7 @@ describe("アクション欄の並べ替え", () => {
 
   it("欄の最後へ入れても、入れたものは押し出さない", () => {
     const state = run([
-      { type: "action-layout/drag-start", id: "details", index: 9 },
+      { type: "action-layout/drag-start", id: "details", index: 10 },
       { type: "action-layout/drag-move", to: 6 },
       { type: "action-layout/drop" },
     ]);
@@ -196,10 +199,8 @@ describe("アクション欄の並べ替え", () => {
     expect(down.layout.menu[0]).toBe("bookmark");
 
     // いっぱいの欄へ上げると、欄の最後と入れ替わる。
-    const up = run([
-      { type: "action-layout/move", id: "activity", direction: -1 },
-    ]);
-    expect(up.layout.bar.at(-1)).toBe("activity");
+    const up = run([{ type: "action-layout/move", id: "pin", direction: -1 }]);
+    expect(up.layout.bar.at(-1)).toBe("pin");
     expect(up.layout.menu[0]).toBe("bookmark");
   });
 
@@ -228,6 +229,6 @@ describe("アクション欄の並べ替え", () => {
       "bookmark",
       "details",
     ]);
-    expect(slotsOf(toBar.layout)).toHaveLength(11);
+    expect(slotsOf(toBar.layout)).toHaveLength(12);
   });
 });

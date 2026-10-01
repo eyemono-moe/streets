@@ -1,4 +1,5 @@
 import { addBookmark } from "@streets/core/nostr/build/bookmark";
+import { pinNote } from "@streets/core/nostr/pinned-notes";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import emojiUrl from "../../storybook/emoji-fixture.svg";
 import {
@@ -148,7 +149,7 @@ export const 欄にメニューの操作を出す: Story = {
     scene: scene(plain, ...engaged),
     actionLayout: {
       bar: ["reply", "like", "activity", "copy-link", "details", "mute-event"],
-      menu: ["repost", "react", "zap", "bookmark"],
+      menu: ["repost", "react", "zap", "bookmark", "pin"],
     },
   },
 };
@@ -165,6 +166,7 @@ export const 欄の操作が少ない: Story = {
         "react",
         "zap",
         "bookmark",
+        "pin",
         "activity",
         "copy-link",
         "details",
@@ -188,11 +190,49 @@ export const 欄に何も出さない: Story = {
         "react",
         "zap",
         "bookmark",
+        "pin",
         "activity",
         "copy-link",
         "details",
         "mute-event",
       ],
     },
+  },
+};
+
+const pinBar = {
+  bar: ["reply", "repost", "like", "zap", "bookmark", "pin"],
+  menu: ["react", "activity", "copy-link", "details", "mute-event"],
+} as const;
+
+/** ピン留めを欄に出す。誰の投稿でもピン留めできる。 */
+export const ピン留めを欄に出す: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    actionLayout: { bar: [...pinBar.bar], menu: [...pinBar.menu] },
+  },
+};
+
+export const ピン留め済み: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged, viewer.event(pinNote(plain.id)(undefined))),
+    actionLayout: { bar: [...pinBar.bar], menu: [...pinBar.menu] },
+  },
+};
+
+// NIP-51 のピン留めは kind:1 の投稿を入れるリスト。画像の投稿（kind:20）は入れない。
+const picture = alice.event({
+  kind: 20,
+  content: "夕方の海。",
+  tags: [],
+});
+
+export const ピン留めできない投稿: Story = {
+  args: {
+    event: picture,
+    scene: scene(picture),
+    actionLayout: { bar: [...pinBar.bar], menu: [...pinBar.menu] },
   },
 };

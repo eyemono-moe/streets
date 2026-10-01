@@ -25,7 +25,9 @@ import IconButton from "../ui/IconButton";
 import {
   EVENT_ACTION_META,
   createEventDialogs,
+  canPin,
   muteEventLook,
+  pinLook,
   reactionLabel,
   useEngagements,
   useEventLevelOps,
@@ -125,6 +127,12 @@ const EventItems: Component<{
     target: props.event,
     on: !bookmarked(),
   }));
+  const pinned = () => props.actions?.pinned(props.event.id) ?? false;
+  const pinning = useSending(() => ({
+    type: "note/pin",
+    target: props.event,
+    on: !pinned(),
+  }));
   const author = useProfileDetails(() => props.event.pubkey);
   const itemsOf = (id: EventActionId): MenuItem[] => {
     const meta = EVENT_ACTION_META[id];
@@ -184,6 +192,14 @@ const EventItems: Component<{
               ? "i-material-symbols:bookmark-rounded"
               : meta.icon,
             todo: bookmarking(),
+          },
+        ];
+      case "pin":
+        return [
+          {
+            value: id,
+            ...pinLook(props.event, pinned()),
+            todo: pinning() || (!pinned() && !canPin(props.event)),
           },
         ];
       case "mute-event":
@@ -315,6 +331,13 @@ const EventMenu: Component<{
                 type: "note/bookmark",
                 target: props.event,
                 on: !(actions?.bookmarked(props.event.id) ?? false),
+              });
+              break;
+            case "pin":
+              dispatch({
+                type: "note/pin",
+                target: props.event,
+                on: !(actions?.pinned(props.event.id) ?? false),
               });
               break;
             case "activity":

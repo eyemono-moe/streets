@@ -15,7 +15,9 @@ import { useDispatch } from "../ui-events";
 import {
   EVENT_ACTION_META,
   createEventDialogs,
+  canPin,
   muteEventLook,
+  pinLook,
   reactionLabel,
   useEngagements,
   useEventLevelOps,
@@ -87,6 +89,10 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
             target: props.event,
             on: !bookmarked(),
           }) as const;
+        const pinned = () => actions().pinned(props.event.id);
+        const pin = () =>
+          ({ type: "note/pin", target: props.event, on: !pinned() }) as const;
+        const pinning = useSending(pin);
         const reposting = useSending(repost);
         const liking = useSending(like);
         const bookmarking = useSending(bookmark);
@@ -227,6 +233,16 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               active={bookmarked()}
               disabled={bookmarking()}
               onClick={() => dispatch(bookmark())}
+            />
+          ),
+          pin: () => (
+            <Action
+              label={pinLook(props.event, pinned()).label}
+              icon={pinLook(props.event, pinned()).icon}
+              active={pinned()}
+              // 外すことは kind によらずできる。入ってしまったものを残さないため。
+              disabled={pinning() || (!pinned() && !canPin(props.event))}
+              onClick={() => dispatch(pin())}
             />
           ),
           activity: () => (

@@ -241,6 +241,8 @@ export type ActionEvent =
   | { type: "note/vote"; target: NostrEvent; choices: readonly string[] }
   /** `on` は押した後に付いているべき状態。 */
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
+  /** プロフィールにピン留めする・外す。`on` は押した後に付いているべき状態。 */
+  | { type: "note/pin"; target: NostrEvent; on: boolean }
   | { type: "user/follow"; pubkey: string; on: boolean }
   /** チャンネルをお気に入りに入れる・外す。`on` は押した後に入っているべき状態。 */
   | { type: "channel/favorite"; id: string; on: boolean }

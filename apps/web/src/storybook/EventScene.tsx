@@ -28,6 +28,12 @@ import { favoriteChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { followeesFrom } from "@streets/core/nostr/follow-list";
 import type { Nip05Lookup } from "@streets/core/nostr/nip05";
+import {
+  PINNED_NOTES_KIND,
+  pinNote,
+  pinnedNoteIds,
+  unpinNote,
+} from "@streets/core/nostr/pinned-notes";
 import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import type { AddressRequests } from "@streets/core/read/address-requests";
 import type { EngagementRequests } from "@streets/core/read/engagement-requests";
@@ -82,6 +88,9 @@ const storyActions = (
   };
   const [bookmarks, setBookmarks] = createSignal(
     store.latestReplaceable(10003, viewer.pubkey),
+  );
+  const [pins, setPins] = createSignal(
+    store.latestReplaceable(PINNED_NOTES_KIND, viewer.pubkey),
   );
   const [follows, setFollows] = createSignal(
     store.latestReplaceable(3, viewer.pubkey),
@@ -178,6 +187,15 @@ const storyActions = (
           mutation({ type: "note", value: target.id })(bookmarks()),
         );
         setBookmarks(next);
+        return next;
+      }),
+    pinned: (id) => pinnedNoteIds(pins()).includes(id),
+    setPinned: (target, on) =>
+      send(() => {
+        const next = viewer.event(
+          (on ? pinNote : unpinNote)(target.id)(pins()),
+        );
+        setPins(next);
         return next;
       }),
   };
