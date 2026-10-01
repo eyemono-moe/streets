@@ -48,6 +48,7 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import type { Signer } from "@streets/core/signer/signer";
+import { authorRelays, broadcast } from "@streets/core/write/broadcast";
 import { fetchLatest } from "@streets/core/write/fetch-latest";
 import { createPublisher } from "@streets/core/write/publisher";
 import { type Writer, createWriter } from "@streets/core/write/writer";
@@ -59,7 +60,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
-import { trackWrites } from "./write-progress";
+import { trackSends, trackWrites } from "./write-progress";
 
 const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
@@ -144,6 +145,16 @@ export type EventActions = {
   followeeIds(): readonly string[];
   following(pubkey: string): boolean;
   setFollow(pubkey: string, on: boolean): Promise<void>;
+  /**
+   * 見かけたイベントの送り直し先の候補。`mine` は自分の書き込みリレー、`author` は
+   * 投稿した人の書き込みリレーと、返信先などの読み込みリレー。
+   */
+  broadcastTargets(target: NostrEvent): {
+    mine: readonly RelayUrl[];
+    author: readonly RelayUrl[];
+  };
+  /** 署名済みのイベントを、そのまま `relays` へ送り直す。 */
+  broadcast(target: NostrEvent, relays: readonly RelayUrl[]): Promise<void>;
 };
 
 export type WriteStack = {
@@ -376,6 +387,15 @@ export const createWriteStack = (options: {
         PUBLIC_CHATS_KIND,
         undefined,
         on ? addFavoriteChannel(id) : removeFavoriteChannel(id),
+      );
+    },
+    broadcastTargets: (event) => ({
+      mine: routing.writeRelaysFor(options.viewer),
+      author: authorRelays(event, routing),
+    }),
+    async broadcast(event, relays) {
+      await trackSends("ブロードキャスト", (onProgress) =>
+        broadcast(manager.pool, event, relays, onProgress),
       );
     },
     followeeIds,

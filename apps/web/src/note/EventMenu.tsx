@@ -8,6 +8,7 @@ import {
   type EventActionId,
   menuActionsOf,
 } from "@streets/core/settings/action-layout";
+import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, For, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -39,6 +40,8 @@ const AuthorRelaysDialog = lazyPart(
 const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 const ClientDialog = lazyPart(() => import("./ClientDialog"));
+
+const BroadcastDialog = lazyPart(() => import("./BroadcastDialog"));
 
 type MenuItem = {
   value: string;
@@ -267,6 +270,12 @@ const EventMenu: Component<{
   const [authorRelays, setAuthorRelays] = createSignal(false);
   const client = () => clientOf(props.event);
   const [showingClient, setShowingClient] = createSignal(false);
+  const [broadcasting, setBroadcasting] = createSignal(false);
+  const broadcasts = useSending(() => ({
+    type: "note/broadcast",
+    target: props.event,
+    relays: [],
+  }));
   const [addingToList, setAddingToList] = createSignal(false);
 
   return (
@@ -323,6 +332,9 @@ const EventMenu: Component<{
             case "client":
               setShowingClient(true);
               break;
+            case "broadcast":
+              setBroadcasting(true);
+              break;
             case "add-to-list":
               setAddingToList(true);
               break;
@@ -370,6 +382,19 @@ const EventMenu: Component<{
                       ]}
                     />
                   )}
+                </Show>
+                {/* 送るのはログインしている間だけ。暗号化されたものは送り直さない。 */}
+                <Show when={actions && canBroadcast(props.event)}>
+                  <Items
+                    items={[
+                      {
+                        value: "broadcast",
+                        label: "ほかのリレーにも送る",
+                        icon: "i-material-symbols:cell-tower-rounded",
+                        todo: broadcasts(),
+                      },
+                    ]}
+                  />
                 </Show>
               </Menu.ItemGroup>
               <Menu.Separator class="border-primary border-t" />
@@ -422,6 +447,12 @@ const EventMenu: Component<{
             onClose={() => setShowingClient(false)}
           />
         )}
+      </Show>
+      <Show when={broadcasting()}>
+        <BroadcastDialog
+          event={props.event}
+          onClose={() => setBroadcasting(false)}
+        />
       </Show>
       <Show when={addingToList()}>
         <AddToListDialog

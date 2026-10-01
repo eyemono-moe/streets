@@ -10,6 +10,7 @@ import type {
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type {
   ActionArrangeEvent,
   ActionLayout,
@@ -242,7 +243,9 @@ export type ActionEvent =
   | { type: "note/bookmark"; target: NostrEvent; on: boolean }
   | { type: "user/follow"; pubkey: string; on: boolean }
   /** チャンネルをお気に入りに入れる・外す。`on` は押した後に入っているべき状態。 */
-  | { type: "channel/favorite"; id: string; on: boolean };
+  | { type: "channel/favorite"; id: string; on: boolean }
+  /** 見かけたイベントを、署名済みのまま `relays` へ送り直す。 */
+  | { type: "note/broadcast"; target: NostrEvent; relays: readonly RelayUrl[] };
 
 type Dispatch = (event: UiEvent) => void;
 

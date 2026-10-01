@@ -1,4 +1,7 @@
-import type { WriteProgress } from "@streets/core/write/write-progress";
+import type {
+  RelayProgress,
+  WriteProgress,
+} from "@streets/core/write/write-progress";
 import { summarizeRelays } from "@streets/core/write/write-progress";
 import type { WriteHooks, Writer } from "@streets/core/write/writer";
 import { SAVED_DURATION_MS, TROUBLE_DURATION_MS, toaster } from "./toast";
@@ -110,6 +113,22 @@ export const trackWrites = (writer: Tracked, label: string): Tracked => ({
     ),
   replace: trackedReplace(writer, label),
 });
+
+/**
+ * 署名せずに送るもの（見かけたイベントの送り直し）の進み具合を、書き込みと同じ
+ * トーストに出す。
+ */
+export const trackSends = <T>(
+  label: string,
+  run: (onProgress?: (relays: RelayProgress[]) => void) => Promise<T>,
+): Promise<T> =>
+  track(label, (onProgress) =>
+    run(
+      onProgress
+        ? (relays) => onProgress({ phase: "sending", relays })
+        : undefined,
+    ),
+  );
 
 /** 置換だけを使う書き手（デッキ・リレーの設定）向け。 */
 export const trackReplaces = (

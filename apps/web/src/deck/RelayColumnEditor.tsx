@@ -6,7 +6,7 @@ import RelaySummary from "../settings/RelaySummary";
 import IconButton from "../ui/IconButton";
 import RelayInput from "./RelayInput";
 
-/** リレーカラムの追加と設定で共用する、購読先の選択欄。 */
+/** 選んだリレーの一覧と、補完付きでリレーを足す欄。リレーカラム・チャンネル・送り直しで共用する。 */
 const RelayColumnEditor: Component<{
   candidates: readonly RelayListEntry[];
   selected: readonly RelayUrl[];
@@ -14,7 +14,10 @@ const RelayColumnEditor: Component<{
   minimum?: number;
   /** フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
+  /** 選んだリレーの一覧の見出し。 */
+  listLabel?: string;
 }> = (props) => {
+  const listLabel = () => props.listLabel ?? "追加するリレー";
   const selected = (url: RelayUrl) => props.selected.includes(url);
   const add = (url: RelayUrl) => {
     if (!selected(url)) props.onChange([...props.selected, url]);
@@ -26,10 +29,10 @@ const RelayColumnEditor: Component<{
     <div class="flex flex-col gap-3">
       <Show when={props.selected.length > 0}>
         <section>
-          <h4 class="c-secondary mb-1 font-600 text-caption">追加するリレー</h4>
+          <h4 class="c-secondary mb-1 font-600 text-caption">{listLabel()}</h4>
           <ul
             class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary"
-            aria-label="追加するリレー"
+            aria-label={listLabel()}
           >
             <For each={props.selected}>
               {(url) => (
@@ -39,7 +42,7 @@ const RelayColumnEditor: Component<{
                     actions={
                       <IconButton
                         icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                        label={`${relayLabel(url)}を追加対象から外す`}
+                        label={`${relayLabel(url)}を${listLabel()}から外す`}
                         disabled={props.selected.length <= (props.minimum ?? 0)}
                         title={
                           props.selected.length <= (props.minimum ?? 0)

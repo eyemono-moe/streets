@@ -32,6 +32,7 @@ pnpm workspace の 2 パッケージ。
 - ボタン・アイコンだけのボタン・排他の選択（トグルグループ）・スイッチ・色を選ぶ欄・保存先のヒントは、`src/ui/` の primitive を使い、画面ごとに書かない。`class` で大きさや色を上書きして、その場だけの形を作ることもしない。足りない形は primitive に足して、`UI/*` のストーリーで単体で見られるようにする
 - アイコンだけのボタンは `src/ui/IconButton.tsx`。`Button` は文字が必須で、アイコンだけの形を持たない。大きさは置く場所で決める（カラムの見出し・投稿やチャットの操作・一覧の行は `sm`、投稿欄の道具・ダイアログの「閉じる」は `md`、サイドバーは `lg`）。入っている状態（お気に入りに入れた、など）は `active`、開いているパネルのボタンは `variant="filled"` で表す。Ark UI の開き口は `asChild` で `IconButton` を描かせる
 - 文字を打つ欄は `src/ui/TextField.tsx` の `textInputClass` を使う。角は `rounded-2`、焦点は `focus-visible:ring-2 focus-visible:ring-accent-5`、高さは `h-9`。角を丸めきる（`rounded-full`）のは**検索窓だけ**で、検索窓は `src/ui/SearchInput.tsx` を使う（虫眼鏡を付け、`clearable` で入力を消す × を出す）。設定で値を足す・変える欄は、1 行で横に並べるものも含めてすべて四角にする
+- リレーの URL を入れる欄は、`TextField` で書かず `src/deck/RelayInput.tsx` を使う。自分のリレーとフォローしている人のリレーを候補に出し、打った URL の検証もそこで行う。選んだリレーを一覧で見せて外せるようにするなら `src/deck/RelayColumnEditor.tsx` を使う
 - フォームの項目名（スイッチの名前・入力欄の名前など）は `truncate` で切らず、折り返す。切れると何を変えるのか分からなくなる。切ってよいのは、切れても中身が分かるもの（投稿の本文・人の名前・URL の続きなど）だけ
 - 意味を持つ色は、色の値や `red-500` のような色の名前で書かない。`uno.config.ts` の意味の名前（`danger`・`danger-subtle`・`status-ok`・`status-warn`・`status-off`）で書く（`c-danger`・`border-danger`・`bg-status-ok`・`stroke-status-ok` など）。値はライト／ダークを preflight の変数に置いてある。新しい意味が要るときは、`uno.config.ts` に名前を足す
 - ボタンは「押すと何かが起きる」ものだけに使う。入り切りは `Switch`、いくつかから 1 つを選ぶのは `SegmentedControl` にし、ボタンの色で状態を表さない。組み合わせに選べないもの（読み込みも書き込みもしない、など）があるなら、入り切りを並べず、選べる組だけを選択肢にする
