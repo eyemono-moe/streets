@@ -21,7 +21,7 @@ import FollowSetCard from "../lists/FollowSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
-import { AuthorStatusLine } from "../status/UserStatus";
+import { AuthorStatusBadge } from "../status/UserStatus";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -135,8 +135,12 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
         長い投稿でも、読んでいる間アイコンが見えているようにする。
         縦線より後ろに置くので、z-index 無しで線の上に乗る。
       */}
-      <div classList={{ "sticky top-2": props.stickyAvatar }}>
+      <div class="relative" classList={{ "sticky top-2": props.stickyAvatar }}>
         <Avatar pubkey={props.event.pubkey} size={props.size} />
+        {/* 高密度（compact）では出さない。1 件を詰めて並べるための表示なので。 */}
+        <Show when={props.size === "normal"}>
+          <AuthorStatusBadge pubkey={props.event.pubkey} />
+        </Show>
       </div>
     </div>
     <div
@@ -151,10 +155,6 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
         size={props.size}
         withActions={props.withActions}
       />
-      {/* 高密度（compact）では出さない。1 件の高さを揃えて詰めるための表示なので。 */}
-      <Show when={props.size === "normal"}>
-        <AuthorStatusLine pubkey={props.event.pubkey} />
-      </Show>
       {props.children}
     </div>
   </div>

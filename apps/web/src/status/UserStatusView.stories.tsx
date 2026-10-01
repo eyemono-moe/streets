@@ -2,7 +2,7 @@ import type { UserStatus } from "@streets/core/nostr/user-status";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import emojiUrl from "../storybook/emoji-fixture.svg";
-import { UserStatusLine, UserStatusPills } from "./UserStatusView";
+import { UserStatusBadge, UserStatusPills } from "./UserStatusView";
 
 const general: UserStatus = {
   type: "general",
@@ -21,7 +21,7 @@ const music: UserStatus = {
 const long: UserStatus = {
   type: "general",
   content:
-    "とても長いステータスで、名刺やプロフィールでは折り返し、投稿の下では 1 行で切れる。".repeat(
+    "とても長いステータスで、名刺やプロフィールでは折り返して全部読める。".repeat(
       3,
     ),
   link: { type: "event", id: "a".repeat(64) },
@@ -36,9 +36,9 @@ const Both: Component<{ statuses: UserStatus[] }> = (props) => (
       <UserStatusPills statuses={props.statuses} />
     </section>
     <section class="flex flex-col gap-1">
-      <h3 class="c-secondary text-caption">投稿の名前の下</h3>
-      <div class="pt-1">
-        <UserStatusLine statuses={props.statuses} />
+      <h3 class="c-secondary text-caption">投稿のアイコンの印</h3>
+      <div class="relative size-10 rounded-2 bg-tertiary">
+        <UserStatusBadge statuses={props.statuses} />
       </div>
     </section>
   </div>
@@ -57,7 +57,7 @@ export const いまの状態: Story = { args: { statuses: [general] } };
 /** 聴いている曲。リンクがあれば新しいタブで開ける。 */
 export const 聴いている曲: Story = { args: { statuses: [music] } };
 
-/** 両方あるとき、投稿の下では 1 行に並べる。 */
+/** 両方あるとき、印は曲を優先する。 */
 export const 両方: Story = { args: { statuses: [general, music] } };
 
 export const 長いステータス: Story = { args: { statuses: [long, music] } };

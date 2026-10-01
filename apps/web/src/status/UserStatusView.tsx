@@ -109,34 +109,31 @@ export const UserStatusPills: Component<{ statuses: readonly UserStatus[] }> = (
 );
 
 /**
- * 投稿の名前の下に出す 1 行。高さを増やしすぎないよう、切れても分かる本文だけを
- * 1 行に収める。押せるものは置かない（投稿を押したときの動きとぶつかる）。
+ * 投稿のアイコンの右下に付ける印。中身はアイコンに触れたときの名刺で読む ——
+ * 本文の上に 1 行足すと、ステータスのある人の投稿だけ高くなって煩わしい。
+ * 曲と状態の両方があるときは、いま流れている曲を優先する。
  */
-export const UserStatusLine: Component<{ statuses: readonly UserStatus[] }> = (
+export const UserStatusBadge: Component<{ statuses: readonly UserStatus[] }> = (
   props,
-) => (
-  <Show when={props.statuses.length > 0}>
-    {/* 名前の下に添えるだけなので、読める範囲でいちばん小さくして本文の場所を空ける。 */}
-    <p class="c-secondary -mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-[1.3]">
-      <For each={props.statuses}>
-        {(status, index) => (
+) => {
+  const shown = () =>
+    props.statuses.find((status) => status.type === "music") ??
+    props.statuses[0];
+  return (
+    <Show when={shown()}>
+      {(status) => (
+        // 触れたときはアイコンの名刺が開くよう、印そのものは触れられないようにする。
+        <span
+          class="-right-1 -bottom-1 pointer-events-none absolute grid size-4.5 place-items-center rounded-full bg-accent-5 ring-2 ring-white dark:ring-ui-950"
+          role="img"
+          aria-label={`${ICON[status().type].label}：${status().content}`}
+        >
           <span
-            class="flex min-w-0 items-center gap-0.5"
-            classList={{
-              "shrink-0 max-w-1/2": index() === 0 && props.statuses.length > 1,
-            }}
-          >
-            <span
-              class={`${ICON[status.type].icon} size-3 shrink-0`}
-              role="img"
-              aria-label={ICON[status.type].label}
-            />
-            <span class="min-w-0 truncate">
-              <StatusText status={status} interactive={false} />
-            </span>
-          </span>
-        )}
-      </For>
-    </p>
-  </Show>
-);
+            class={`${ICON[status().type].icon} c-white size-3`}
+            aria-hidden="true"
+          />
+        </span>
+      )}
+    </Show>
+  );
+};

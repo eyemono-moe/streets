@@ -28,7 +28,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 書いた人のステータスを、名前の下に 1 行で出す。 */
+/** 書いた人にステータスがあれば、アイコンの右下に印を付ける（中身はアイコンに触れたときの名刺で読む）。 */
 export const ステータスがある人: Story = {
   args: { event: plain, scene: scene(plain, general, music) },
 };

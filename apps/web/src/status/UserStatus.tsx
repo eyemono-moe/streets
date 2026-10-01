@@ -1,11 +1,11 @@
 import type { Component } from "solid-js";
 import { useUserStatuses } from "./use-user-statuses";
-import { UserStatusLine, UserStatusPills } from "./UserStatusView";
+import { UserStatusBadge, UserStatusPills } from "./UserStatusView";
 
-/** 投稿の名前の下の 1 行。 */
-export const AuthorStatusLine: Component<{ pubkey: string }> = (props) => {
+/** 投稿のアイコンの右下の印。 */
+export const AuthorStatusBadge: Component<{ pubkey: string }> = (props) => {
   const statuses = useUserStatuses(() => props.pubkey);
-  return <UserStatusLine statuses={statuses()} />;
+  return <UserStatusBadge statuses={statuses()} />;
 };
 
 /** プロフィールと名刺。 */
