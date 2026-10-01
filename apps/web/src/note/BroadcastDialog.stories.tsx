@@ -4,7 +4,7 @@ import { BroadcastDialogView, type BroadcastTarget } from "./BroadcastDialog";
 
 type Args = {
   mine: readonly RelayUrl[];
-  inbox: readonly RelayUrl[];
+  author: readonly RelayUrl[];
   target?: BroadcastTarget;
   custom?: string;
 };
@@ -13,7 +13,7 @@ const relays = (...urls: string[]) => urls as RelayUrl[];
 
 const Story = (props: Args) => (
   <BroadcastDialogView
-    candidates={{ mine: props.mine, inbox: props.inbox }}
+    candidates={{ mine: props.mine, author: props.author }}
     initialTarget={props.target}
     initialCustom={props.custom}
     onSend={() => {}}
@@ -26,7 +26,7 @@ const meta = {
   component: Story,
   args: {
     mine: relays("wss://relay.damus.io/", "wss://nos.lol/", "wss://yabu.me/"),
-    inbox: relays("wss://relay.nostr.band/"),
+    author: relays("wss://relay.nostr.band/", "wss://relay.primal.net/"),
   },
 } satisfies Meta<Args>;
 
@@ -35,10 +35,10 @@ type S = StoryObj<typeof meta>;
 
 export const 自分のリレー: S = {};
 
-export const 投稿した人のリレー: S = { args: { target: "inbox" } };
+export const 投稿した人のリレー: S = { args: { target: "author" } };
 
 /** その人のリレーの一覧がまだ無い・公開されていない。送れない。 */
-export const 送り先が分からない: S = { args: { target: "inbox", inbox: [] } };
+export const 送り先が分からない: S = { args: { target: "author", author: [] } };
 
 export const 指定する: S = {
   args: { target: "custom", custom: "wss://relay.example/" },

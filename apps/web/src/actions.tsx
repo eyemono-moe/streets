@@ -48,7 +48,7 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import type { Signer } from "@streets/core/signer/signer";
-import { broadcast } from "@streets/core/write/broadcast";
+import { authorRelays, broadcast } from "@streets/core/write/broadcast";
 import { fetchLatest } from "@streets/core/write/fetch-latest";
 import { createPublisher } from "@streets/core/write/publisher";
 import { type Writer, createWriter } from "@streets/core/write/writer";
@@ -146,12 +146,12 @@ export type EventActions = {
   following(pubkey: string): boolean;
   setFollow(pubkey: string, on: boolean): Promise<void>;
   /**
-   * 見かけたイベントの送り直し先の候補。`mine` は自分の書き込みリレー、`inbox` は
-   * 投稿した人の読み込みリレー（その人に届くところ）。
+   * 見かけたイベントの送り直し先の候補。`mine` は自分の書き込みリレー、`author` は
+   * 投稿した人の書き込みリレーと、返信先などの読み込みリレー。
    */
   broadcastTargets(target: NostrEvent): {
     mine: readonly RelayUrl[];
-    inbox: readonly RelayUrl[];
+    author: readonly RelayUrl[];
   };
   /** 署名済みのイベントを、そのまま `relays` へ送り直す。 */
   broadcast(target: NostrEvent, relays: readonly RelayUrl[]): Promise<void>;
@@ -391,7 +391,7 @@ export const createWriteStack = (options: {
     },
     broadcastTargets: (event) => ({
       mine: routing.writeRelaysFor(options.viewer),
-      inbox: routing.readRelaysFor(event.pubkey),
+      author: authorRelays(event, routing),
     }),
     async broadcast(event, relays) {
       await trackSends("ブロードキャスト", (onProgress) =>

@@ -2,6 +2,7 @@ import { type NostrEvent, verifyEvent } from "../nostr/event";
 import type { ConnectionPool } from "../read/connection-pool";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { PublishResult } from "./publisher";
+import { recipientRelays } from "./recipient-relays";
 import {
   type RelayProgress,
   pendingRelays,
@@ -15,6 +16,27 @@ const PRIVATE_KINDS = new Set([4, 13, 14, 15, 1059]);
 /** 画面で見かけたイベントを、別のリレーへ送り直してよいか。 */
 export const canBroadcast = (event: NostrEvent): boolean =>
   !PRIVATE_KINDS.has(event.kind);
+
+/**
+ * 投稿した人の分の送り先。ほかの人はその人の投稿を書き込みリレーへ探しに来るので
+ * そこへ置き、返信先などの `p` の相手には、通知を待つ読み込みリレーへ届ける。
+ * 投稿した人自身が投稿するときと同じ集合（NIP-65）になる。
+ */
+export const authorRelays = (
+  event: Pick<NostrEvent, "kind" | "pubkey" | "tags">,
+  routing: {
+    writeRelaysFor(pubkey: string): readonly RelayUrl[];
+    readRelaysFor(pubkey: string): readonly RelayUrl[];
+  },
+): RelayUrl[] => {
+  const write = routing.writeRelaysFor(event.pubkey);
+  // 書き込み先が分からないまま返信先だけへ送ると、本人の投稿としては見つからない。
+  if (write.length === 0) return [];
+  return [
+    ...write,
+    ...recipientRelays(event, (pubkey) => routing.readRelaysFor(pubkey), write),
+  ];
+};
 
 /**
  * 一度に開く接続の数。同時に開ける WebSocket は 30 本までで、読み込みにも使って

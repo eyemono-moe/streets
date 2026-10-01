@@ -17,24 +17,24 @@ import {
 import SegmentedControl from "../ui/SegmentedControl";
 import TextField from "../ui/TextField";
 
-export type BroadcastTarget = "mine" | "inbox" | "custom";
+export type BroadcastTarget = "mine" | "author" | "custom";
 
 const TARGETS: { value: BroadcastTarget; label: string }[] = [
   { value: "mine", label: "自分" },
-  { value: "inbox", label: "投稿した人" },
+  { value: "author", label: "投稿した人" },
   { value: "custom", label: "URL を指定" },
 ];
 
 const DESCRIPTIONS: Record<BroadcastTarget, string> = {
   mine: "自分が書き込みに使っているリレーへ送ります。",
-  inbox:
-    "投稿した人が読み込みに使っているリレーへ送ります。その人の画面に届きやすくなります。",
+  author:
+    "投稿した人が書き込みに使っているリレーと、返信先など投稿の中で名前を挙げた人に届くリレーへ送ります。ほかの人がこの投稿を探しに行くところです。",
   custom: "URL を入れたリレーへ送ります。",
 };
 
 /** 送り先を選んで、見かけたイベントを送り直す。 */
 export const BroadcastDialogView: Component<{
-  candidates: Record<"mine" | "inbox", readonly RelayUrl[]>;
+  candidates: Record<"mine" | "author", readonly RelayUrl[]>;
   initialTarget?: BroadcastTarget;
   initialCustom?: string;
   onSend: (relays: readonly RelayUrl[]) => void;
@@ -134,7 +134,7 @@ const BroadcastDialog: Component<{ event: NostrEvent; onClose: () => void }> = (
   const actions = useEventActions();
   const dispatch = useDispatch();
   const candidates = () =>
-    actions?.broadcastTargets(props.event) ?? { mine: [], inbox: [] };
+    actions?.broadcastTargets(props.event) ?? { mine: [], author: [] };
   return (
     <BroadcastDialogView
       candidates={candidates()}

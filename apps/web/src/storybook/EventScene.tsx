@@ -162,7 +162,7 @@ const storyActions = (
       }),
     broadcastTargets: () => ({
       mine: [STORY_RELAY],
-      inbox: [STORY_RELAY],
+      author: [STORY_RELAY],
     }),
     broadcast: async () => {
       await new Promise((resolve) => setTimeout(resolve, SEND_DELAY_MS));

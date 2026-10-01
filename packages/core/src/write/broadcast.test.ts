@@ -3,7 +3,7 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
-import { broadcast, canBroadcast } from "./broadcast";
+import { authorRelays, broadcast, canBroadcast } from "./broadcast";
 import type { RelayProgress } from "./write-progress";
 import { WriteFailedError } from "./writer";
 
@@ -94,5 +94,33 @@ describe("broadcast", () => {
     expect(canBroadcast(sign(1059))).toBe(false);
     expect(canBroadcast(sign(1))).toBe(true);
     await expect(broadcast(fakePool(), sign(4), [A])).rejects.toThrow();
+  });
+});
+
+describe("authorRelays", () => {
+  const AUTHOR = "a".repeat(64);
+  const REPLIED = "b".repeat(64);
+  const C = "wss://c.example/" as RelayUrl;
+  const routing = (
+    write: Record<string, RelayUrl[]>,
+    read: Record<string, RelayUrl[]>,
+  ) => ({
+    writeRelaysFor: (pubkey: string) => write[pubkey] ?? [],
+    readRelaysFor: (pubkey: string) => read[pubkey] ?? [],
+  });
+
+  it("投稿した人の書き込みリレーと、返信先の読み込みリレーを返す", () => {
+    const event = { kind: 1, pubkey: AUTHOR, tags: [["p", REPLIED]] };
+    expect(
+      authorRelays(
+        event,
+        routing({ [AUTHOR]: [A] }, { [AUTHOR]: [B], [REPLIED]: [A, C] }),
+      ),
+    ).toEqual([A, C]);
+  });
+
+  it("投稿した人の書き込み先が分からなければ空にする", () => {
+    const event = { kind: 1, pubkey: AUTHOR, tags: [["p", REPLIED]] };
+    expect(authorRelays(event, routing({}, { [REPLIED]: [C] }))).toEqual([]);
   });
 });
