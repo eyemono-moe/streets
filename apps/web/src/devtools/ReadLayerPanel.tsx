@@ -75,6 +75,8 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
             ],
             ["max", preciseMs(stats().verify.maxMs)],
             ["skipped (duplicate)", stats().verify.skipped],
+            ["rejected", stats().verify.rejected],
+            ["skipped (rejected duplicate)", stats().verify.rejectedSkipped],
           ]}
         />
       </Section>

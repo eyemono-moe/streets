@@ -11,6 +11,8 @@ import {
  * だけ。溢れたら古いものから忘れる（忘れても検証し直すだけで、誤りはしない）。
  */
 const REMEMBERED_LIMIT = 20_000;
+/** 無効な署名を無制限に送られても、覚える量を増やし続けない。 */
+const REJECTED_LIMIT = 2_000;
 
 export type VerifyStats = {
   /** schnorr 検証（id の再計算を含む）にかかった時間の累計。 */
@@ -21,6 +23,10 @@ export type VerifyStats = {
   maxMs: number;
   /** 検証済みと同じ id と署名だったので、schnorr 検証を省いた回数。 */
   skipped: number;
+  /** 署名が無効だった回数。形式やイベント ID の不一致も含む。 */
+  rejected: number;
+  /** 同じ無効署名の再配送で、schnorr 検証を省いた回数。 */
+  rejectedSkipped: number;
 };
 
 /**
@@ -31,7 +37,16 @@ export class SignatureGate {
   /** 検証を終えた id → 署名。確かめ終えたものだけを入れる —— 先に入れると、
    * 同じ id を名乗る偽物が先に届いたとき、本物まで落としてしまう。 */
   readonly #verified = new Map<string, string>();
-  readonly #stats: VerifyStats = { ms: 0, count: 0, maxMs: 0, skipped: 0 };
+  /** id と公開鍵の組 → 無効と確かめた署名。異なる署名は再検証する。 */
+  readonly #rejected = new Map<string, string>();
+  readonly #stats: VerifyStats = {
+    ms: 0,
+    count: 0,
+    maxMs: 0,
+    skipped: 0,
+    rejected: 0,
+    rejectedSkipped: 0,
+  };
 
   get stats(): Readonly<VerifyStats> {
     return this.#stats;
@@ -43,9 +58,22 @@ export class SignatureGate {
    * BIP-340 の署名は同じ内容でも一意ではないので、署名が違えば検証する。
    */
   accept(event: NostrEvent, knownSig?: string): boolean {
-    if (event.sig === knownSig || this.#verified.get(event.id) === event.sig) {
+    const rejectedKey = `${event.id}:${event.pubkey}`;
+    if (
+      event.sig === knownSig ||
+      this.#verified.get(event.id) === event.sig ||
+      this.#rejected.get(rejectedKey) === event.sig
+    ) {
       const { id, sig: _sig, ...unsigned } = event;
-      if (!isNostrEvent(event) || computeEventId(unsigned) !== id) return false;
+      if (!isNostrEvent(event) || computeEventId(unsigned) !== id) {
+        this.#stats.rejected += 1;
+        return false;
+      }
+      if (this.#rejected.get(rejectedKey) === event.sig) {
+        this.#stats.rejected += 1;
+        this.#stats.rejectedSkipped += 1;
+        return false;
+      }
       this.#stats.skipped += 1;
       return true;
     }
@@ -56,8 +84,27 @@ export class SignatureGate {
     this.#stats.ms += elapsed;
     this.#stats.count += 1;
     this.#stats.maxMs = Math.max(this.#stats.maxMs, elapsed);
-    if (verified) this.#remember(event);
+    if (verified) {
+      this.#remember(event);
+    } else {
+      this.#stats.rejected += 1;
+      // 形式や id が違う場合は覚えない。後から届く同じ id と署名の
+      // 正しい内容まで拒否しないため、ここでも内容と id の結び付きを確かめる。
+      const { id, sig: _sig, ...unsigned } = event;
+      if (isNostrEvent(event) && computeEventId(unsigned) === id) {
+        this.#rememberRejected(rejectedKey, event.sig);
+      }
+    }
     return verified;
+  }
+
+  #rememberRejected(key: string, sig: string): void {
+    this.#rejected.delete(key);
+    this.#rejected.set(key, sig);
+    if (this.#rejected.size > REJECTED_LIMIT) {
+      const oldest = this.#rejected.keys().next().value;
+      if (oldest !== undefined) this.#rejected.delete(oldest);
+    }
   }
 
   #remember(event: NostrEvent): void {
