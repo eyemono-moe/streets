@@ -116,17 +116,18 @@ export const UserStatusLine: Component<{ statuses: readonly UserStatus[] }> = (
   props,
 ) => (
   <Show when={props.statuses.length > 0}>
-    <p class="c-secondary -mt-1 flex min-w-0 items-center gap-1.5 text-caption">
+    {/* 名前の下に添えるだけなので、読める範囲でいちばん小さくして本文の場所を空ける。 */}
+    <p class="c-secondary -mt-1.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-[1.3]">
       <For each={props.statuses}>
         {(status, index) => (
           <span
-            class="flex min-w-0 items-center gap-1"
+            class="flex min-w-0 items-center gap-0.5"
             classList={{
               "shrink-0 max-w-1/2": index() === 0 && props.statuses.length > 1,
             }}
           >
             <span
-              class={`${ICON[status.type].icon} size-3.5 shrink-0`}
+              class={`${ICON[status.type].icon} size-3 shrink-0`}
               role="img"
               aria-label={ICON[status.type].label}
             />
