@@ -94,7 +94,12 @@ export const UserStatusBubble: Component<{
 }> = (props) => (
   <Show when={props.statuses.find((status) => status.type === "general")}>
     {(status) => (
-      <div class="relative mt-1.5 rounded-3 bg-secondary px-3 py-2 text-caption">
+      // 中身に合わせた幅にし、長い文だけ幅いっぱいまで広げて折り返す。
+      // 三角がはみ出さないよう、三角の位置より狭くはしない。
+      <div
+        class="relative mt-1.5 w-fit max-w-full rounded-3 bg-secondary px-3 py-2 text-caption"
+        style={{ "min-width": `${props.arrowLeft + 24}px` }}
+      >
         <span
           class="-top-1.5 absolute size-3 rotate-45 rounded-0.5 bg-secondary"
           style={{ left: `${props.arrowLeft}px` }}
@@ -134,31 +139,21 @@ export const UserNowPlaying: Component<{ statuses: readonly UserStatus[] }> = (
 );
 
 /**
- * 投稿のアイコンの右下に付ける印。中身はアイコンに触れたときの名刺で読む ——
- * 本文の上に 1 行足すと、ステータスのある人の投稿だけ高くなって煩わしい。
- * 曲と状態の両方があるときは、いま流れている曲を優先する。
+ * 投稿のアイコンの右下に付ける小さな点。ステータスがあることだけを知らせ、
+ * 中身はアイコンに触れたときの名刺で読む —— 本文の上に 1 行足すと、
+ * ステータスのある人の投稿だけ高くなって煩わしい。
  */
 export const UserStatusBadge: Component<{ statuses: readonly UserStatus[] }> = (
   props,
-) => {
-  const shown = () =>
-    props.statuses.find((status) => status.type === "music") ??
-    props.statuses[0];
-  return (
-    <Show when={shown()}>
-      {(status) => (
-        // 触れたときはアイコンの名刺が開くよう、印そのものは触れられないようにする。
-        <span
-          class="-right-1 -bottom-1 pointer-events-none absolute grid size-4.5 place-items-center rounded-full bg-accent-5 ring-2 ring-white dark:ring-ui-950"
-          role="img"
-          aria-label={`${ICON[status().type].label}：${status().content}`}
-        >
-          <span
-            class={`${ICON[status().type].icon} c-white size-3`}
-            aria-hidden="true"
-          />
-        </span>
-      )}
-    </Show>
-  );
-};
+) => (
+  <Show when={props.statuses[0]}>
+    {(status) => (
+      // 触れたときはアイコンの名刺が開くよう、点そのものは触れられないようにする。
+      <span
+        class="-right-0.5 -bottom-0.5 pointer-events-none absolute block size-2 rounded-full bg-accent-5 ring-2 ring-white dark:ring-ui-950"
+        role="img"
+        aria-label={`${ICON[status().type].label}：${status().content}`}
+      />
+    )}
+  </Show>
+);

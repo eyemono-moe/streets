@@ -64,7 +64,7 @@ export const いまの状態: Story = { args: { statuses: [general] } };
 /** 聴いている曲。リンクがあれば新しいタブで開ける。 */
 export const 聴いている曲: Story = { args: { statuses: [music] } };
 
-/** 両方あるとき、印は曲を優先する。 */
+/** 両方あるとき。 */
 export const 両方: Story = { args: { statuses: [general, music] } };
 
 export const 長いステータス: Story = { args: { statuses: [long, music] } };
