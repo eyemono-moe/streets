@@ -55,7 +55,7 @@ import {
   FollowSetTimeline,
 } from "./blocks/FollowSets";
 import NotificationList from "./blocks/NotificationList";
-import PinnedNotes from "./blocks/PinnedNotes";
+import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
 
@@ -380,6 +380,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     avatar: (source) => source.pubkey,
     Content: (props) => {
       const scope = useColumnScope();
+      const pinned = createPinnedNotes(() => props.source.pubkey);
       return (
         <>
           <ProfileHeader
@@ -394,18 +395,26 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                 value: "posts",
                 label: "投稿",
                 content: () => (
-                  <>
-                    <PinnedNotes pubkey={props.source.pubkey} />
-                    <EventList
-                      name="posts"
-                      source={() =>
-                        userPostsSource(props.source.pubkey, {
-                          chats: columnShow(scope.column()).chats,
-                        })
-                      }
-                    />
-                  </>
+                  <EventList
+                    name="posts"
+                    source={() =>
+                      userPostsSource(props.source.pubkey, {
+                        chats: columnShow(scope.column()).chats,
+                      })
+                    }
+                  />
                 ),
+              },
+              {
+                value: "pinned",
+                label: "ピン留め",
+                // 件数は、ピン留めがあるときだけ出す。
+                get count() {
+                  return pinned.ids().length > 0
+                    ? pinned.ids().length
+                    : undefined;
+                },
+                content: () => <PinnedNotesTab pinned={pinned} />,
               },
               {
                 value: "reactions",

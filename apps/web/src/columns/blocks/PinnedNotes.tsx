@@ -1,38 +1,41 @@
 import { pinnedNotesSource } from "@streets/core/deck/column-sources";
 import { pinnedNoteIds } from "@streets/core/nostr/pinned-notes";
-import { type Component, createSignal } from "solid-js";
+import type { Component } from "solid-js";
 import PinnedNotesView from "../../profile/PinnedNotesView";
-import { useDispatch } from "../../ui-events";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
-/** その人がピン留めした投稿。無ければ何も出さない（取得中も場所を取らない）。 */
-const PinnedNotes: Component<{ pubkey: string }> = (props) => {
-  const scope = useColumnScope();
-  const dispatch = useDispatch();
+export type PinnedNotes = {
+  ids: () => readonly string[];
+  settled: () => boolean;
+};
+
+/**
+ * その人がピン留めした投稿の一覧（kind:10001）を読む。タブの件数に使うので、
+ * タブを開く前から読む（最新の 1 件だけなので軽い）。
+ */
+export const createPinnedNotes = (pubkey: () => string): PinnedNotes => {
   const section = createBlockSection({
-    source: () => pinnedNotesSource(props.pubkey),
+    source: () => pinnedNotesSource(pubkey()),
     name: "pinned",
   });
+  return {
+    ids: () => pinnedNoteIds(section.items()[0]),
+    settled: () => section.status().phase === "settled",
+  };
+};
+
+/** 「ピン留め」タブの中身。 */
+const PinnedNotesTab: Component<{ pinned: PinnedNotes }> = (props) => {
+  const scope = useColumnScope();
   const column = () => scope.column();
-  // 開閉はその場ですぐ変える。デッキに置いたカラムなら設定として残り、
-  // 重ねて開いた一時のカラムでは読み直すまでの間だけ覚える。
-  const [open, setOpen] = createSignal(column().pinnedCollapsed !== true);
   return (
     <PinnedNotesView
-      ids={pinnedNoteIds(section.items()[0])}
+      ids={props.pinned.ids()}
+      settled={props.pinned.settled()}
       size={column().density === "compact" ? "compact" : "normal"}
       expandMedia={column().expandMedia !== false}
-      open={open()}
-      onOpenChange={(next) => {
-        setOpen(next);
-        dispatch({
-          type: "deck/patch-column",
-          id: column().id,
-          patch: { pinnedCollapsed: !next },
-        });
-      }}
     />
   );
 };
 
-export default PinnedNotes;
+export default PinnedNotesTab;
