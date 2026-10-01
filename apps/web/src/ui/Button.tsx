@@ -50,12 +50,20 @@ export type ButtonProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   block?: boolean;
   /** 先頭に置くアイコンの class（`i-material-symbols:…`）。 */
   icon?: string;
+  /** 文字の後ろに置くアイコンの class。押した先が画面の外にあること（外部リンク）などを示す。 */
+  trailingIcon?: string;
 };
 
 export type ButtonLinkProps = JSX.AnchorHTMLAttributes<HTMLAnchorElement> &
   Pick<
     ButtonProps,
-    "variant" | "size" | "shape" | "block" | "icon" | "children"
+    | "variant"
+    | "size"
+    | "shape"
+    | "block"
+    | "icon"
+    | "trailingIcon"
+    | "children"
   >;
 
 type VisualProps = Pick<
@@ -79,17 +87,24 @@ const buttonClassName = (props: VisualProps, link = false): string => {
     .join(" ");
 };
 
-const ButtonContents: ParentComponent<Pick<ButtonProps, "icon" | "size">> = (
+const ButtonIcon: Component<Pick<ButtonProps, "size"> & { icon: string }> = (
   props,
 ) => (
+  <span
+    class={`${props.icon} shrink-0 ${props.size === "sm" ? "size-3.5" : "size-4"}`}
+    aria-hidden="true"
+  />
+);
+
+const ButtonContents: ParentComponent<
+  Pick<ButtonProps, "icon" | "trailingIcon" | "size">
+> = (props) => (
   <>
-    {props.icon ? (
-      <span
-        class={`${props.icon} shrink-0 ${props.size === "sm" ? "size-3.5" : "size-4"}`}
-        aria-hidden="true"
-      />
-    ) : null}
+    {props.icon ? <ButtonIcon icon={props.icon} size={props.size} /> : null}
     <span class="min-w-0 truncate">{props.children}</span>
+    {props.trailingIcon ? (
+      <ButtonIcon icon={props.trailingIcon} size={props.size} />
+    ) : null}
   </>
 );
 
@@ -104,13 +119,18 @@ const Button: Component<ButtonProps> = (props) => {
     "shape",
     "block",
     "icon",
+    "trailingIcon",
     "class",
     "children",
     "type",
   ]);
   return (
     <button type={own.type ?? "button"} class={buttonClassName(own)} {...rest}>
-      <ButtonContents icon={own.icon} size={own.size}>
+      <ButtonContents
+        icon={own.icon}
+        trailingIcon={own.trailingIcon}
+        size={own.size}
+      >
         {own.children}
       </ButtonContents>
     </button>
@@ -125,12 +145,17 @@ export const ButtonLink: Component<ButtonLinkProps> = (props) => {
     "shape",
     "block",
     "icon",
+    "trailingIcon",
     "class",
     "children",
   ]);
   return (
     <a class={buttonClassName(own, true)} {...rest}>
-      <ButtonContents icon={own.icon} size={own.size}>
+      <ButtonContents
+        icon={own.icon}
+        trailingIcon={own.trailingIcon}
+        size={own.size}
+      >
         {own.children}
       </ButtonContents>
     </a>

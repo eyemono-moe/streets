@@ -1,4 +1,5 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
@@ -34,6 +35,8 @@ const AuthorRelaysDialog = lazyPart(
 );
 
 const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
+
+const ClientDialog = lazyPart(() => import("./ClientDialog"));
 
 type MenuItem = {
   value: string;
@@ -259,6 +262,8 @@ const EventMenu: Component<{
     );
   };
   const [authorRelays, setAuthorRelays] = createSignal(false);
+  const client = () => clientOf(props.event);
+  const [showingClient, setShowingClient] = createSignal(false);
   const [addingToList, setAddingToList] = createSignal(false);
 
   return (
@@ -312,6 +317,9 @@ const EventMenu: Component<{
             case "author-relays":
               setAuthorRelays(true);
               break;
+            case "client":
+              setShowingClient(true);
+              break;
             case "add-to-list":
               setAddingToList(true);
               break;
@@ -347,6 +355,19 @@ const EventMenu: Component<{
                   muted={ops.muted()}
                   canMute={ops.canMute}
                 />
+                <Show when={client()}>
+                  {(ref) => (
+                    <Items
+                      items={[
+                        {
+                          value: "client",
+                          label: `${ref().name} から投稿`,
+                          icon: "i-material-symbols:apps-rounded",
+                        },
+                      ]}
+                    />
+                  )}
+                </Show>
               </Menu.ItemGroup>
               <Menu.Separator class="border-primary border-t" />
               <Menu.ItemGroup>
@@ -389,6 +410,15 @@ const EventMenu: Component<{
           pubkey={props.event.pubkey}
           onClose={() => setAuthorRelays(false)}
         />
+      </Show>
+      <Show when={showingClient() && client()}>
+        {(ref) => (
+          <ClientDialog
+            event={props.event}
+            client={ref()}
+            onClose={() => setShowingClient(false)}
+          />
+        )}
       </Show>
       <Show when={addingToList()}>
         <AddToListDialog

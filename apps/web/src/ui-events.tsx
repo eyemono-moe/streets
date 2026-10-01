@@ -190,6 +190,8 @@ export type DeckEvent =
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }
+  /** 投稿に client タグを付けるか。デッキと一緒にアカウントへ保存する。 */
+  | { type: "deck/set-client-tag"; on: boolean }
   /** ショートカットキーの割り当てを変える。この端末に保存する。 */
   | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
   /** 数字キーでカラムを見せるか。この端末に保存する。 */

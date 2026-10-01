@@ -154,6 +154,8 @@ const DeckScreen: Component<{
     viewer,
     // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
     fallbackRelays: props.bootstrapIndexers,
+    // 送るときに読む。デッキはこの後で作るが、送るのはその後になる。
+    clientTag: () => clientTag(),
   });
   const isWide = useIsWide();
   // 増えるたびに案内を始める。0 のうちは案内の部品を読み込まない。
@@ -444,22 +446,26 @@ const DeckScreen: Component<{
   });
   createEffect(() => applyColors(appearance()));
 
+  // 投稿に client タグを付けるか。色と同じくデッキと一緒にアカウントへ保存する。
+  const clientTag = () => deckStore.value()?.clientTag === true;
+
   let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
-  let savingAppearance = false;
+  // 保存し終えたら出す知らせ。保存はデッキの同期に任せている。
+  let savedNotice: string | undefined;
   const saveAppearance = (next: DeckAppearance) => {
     clearTimeout(appearanceTimer);
     appearanceTimer = setTimeout(() => {
-      savingAppearance = true;
+      savedNotice = "表示の設定を保存しました";
       deckStore.update((set) => ({ ...set, appearance: next }));
     }, APPEARANCE_SAVE_DELAY_MS);
   };
-  // 保存はデッキの同期に任せているので、同期が終わった合図で知らせる。
+  // 同期が終わった合図で知らせる。
   createEffect(() => {
     const current = deckStore.state();
-    if (!savingAppearance) return;
+    if (!savedNotice) return;
     if (current.phase !== "ready" || current.sync !== "synced") return;
-    savingAppearance = false;
-    notifySaved("表示の設定を保存しました");
+    notifySaved(savedNotice);
+    savedNotice = undefined;
   });
   onCleanup(() => clearTimeout(appearanceTimer));
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
@@ -625,6 +631,10 @@ const DeckScreen: Component<{
         setErrorReport(event.on);
         // 止めたらその場で送るのをやめ、戻したらもう一度用意する。
         void startTelemetry();
+        return true;
+      case "deck/set-client-tag":
+        savedNotice = "プライバシーの設定を保存しました";
+        deckStore.update((set) => ({ ...set, clientTag: event.on }));
         return true;
       case "deck/set-appearance":
         measureUntilPaint("appearance.apply", "ui.theme");
@@ -1107,6 +1117,7 @@ const DeckScreen: Component<{
                                 appearance={appearance()}
                                 writeProgress={showWriteProgress()}
                                 errorReport={errorReport()}
+                                clientTag={clientTag()}
                                 keymap={keymap()}
                                 columnDigits={columnDigits()}
                                 deckLayout={deckLayout()}
