@@ -138,7 +138,6 @@ const SettingsDialog: Component<{
       label: "プライバシー",
       icon: "i-material-symbols:lock-person-outline-rounded",
       title: "プライバシー",
-      description: "投稿や報告で、Streets の外へ何を出すかを設定します",
       content: () => (
         <PrivacySettings
           clientTag={props.clientTag}

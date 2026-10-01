@@ -14,9 +14,9 @@ const PrivacySettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="投稿したアプリの表示"
+        title="使用しているアプリの表示"
         scope="account"
-        description="投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとで外せません。"
+        description="投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとから外せません。"
       >
         <Switch
           label="投稿に Streets から投稿したことを示す"
