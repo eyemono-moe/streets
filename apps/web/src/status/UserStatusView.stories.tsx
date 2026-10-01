@@ -38,7 +38,7 @@ const Both: Component<{ statuses: UserStatus[] }> = (props) => (
       <UserStatusBubble
         statuses={props.statuses}
         arrowLeft={34}
-        class="-mt-2"
+        class="-mt-1"
       />
       <UserNowPlaying statuses={props.statuses} />
     </section>

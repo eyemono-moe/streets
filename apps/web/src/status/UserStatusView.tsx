@@ -102,12 +102,16 @@ export const UserStatusBubble: Component<{
       // 中身に合わせた幅にし、長い文だけ幅いっぱいまで広げて折り返す。
       // 三角がはみ出さないよう、三角の位置より狭くはしない。
       <div
-        class={`relative w-fit max-w-full rounded-3 bg-secondary px-3 py-2 text-caption ${props.class}`}
+        class={`relative w-fit max-w-full rounded-2.5 bg-secondary px-2.5 py-1 text-[12px] leading-normal ${props.class}`}
         style={{ "min-width": `${props.arrowLeft + 24}px` }}
       >
         <span
-          class="-top-1.5 absolute size-3 rotate-45 rounded-0.5 bg-secondary"
-          style={{ left: `${props.arrowLeft}px` }}
+          // 長めの三角にして、本体をボタンから離したまま先をアイコンに届かせる。
+          class="-top-2.5 absolute h-2.5 w-3 bg-secondary"
+          style={{
+            left: `${props.arrowLeft}px`,
+            "clip-path": "polygon(50% 0, 100% 100%, 0 100%)",
+          }}
           aria-hidden="true"
         />
         <p class="c-primary relative flex items-start gap-1.5 break-words">
