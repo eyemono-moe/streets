@@ -1,5 +1,4 @@
 import { columnForEvent } from "@streets/core/deck/open-event";
-import { readFollowSet } from "@streets/core/lists/follow-set";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
 import {
@@ -16,7 +15,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import FollowSetSummary from "../lists/FollowSetSummary";
+import FollowSetCard from "../lists/FollowSetCard";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
 import { reportError } from "../telemetry";
@@ -274,15 +273,7 @@ const EventContent: Component<ContentProps> = (props) => (
     {/* リストは押すとメンバーのタイムラインを開く（開き先は columnForEvent）。 */}
     <Match when={props.event.kind === 30000}>
       <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-        {/* 引用の中（compact）は外側に枠があるので、枠を重ねない。 */}
-        <div
-          classList={{
-            "rounded-2 border border-primary px-3 py-2.5":
-              props.size === "normal",
-          }}
-        >
-          <FollowSetSummary set={readFollowSet(props.event)} author={false} />
-        </div>
+        <FollowSetCard event={props.event} size={props.size} />
       </Row>
     </Match>
   </Switch>

@@ -45,11 +45,7 @@ const MEMBER_FACES = 6;
  * リストの中身を 1 行で見せる。一覧の行と、流れてきたリストのカード（kind:30000）で
  * 同じ形にする。押したときの動きは外側が決める。
  */
-const FollowSetSummary: Component<{
-  set: FollowSet;
-  /** 作った人を出す。投稿として流れてきたときは、見出しに作った人が出ているので省く。 */
-  author?: boolean;
-}> = (props) => (
+const FollowSetSummary: Component<{ set: FollowSet }> = (props) => (
   <span class="flex w-full min-w-0 items-start gap-2.5">
     <FollowSetPicture url={props.set.image} class="size-10 rounded-2" />
     <span class="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -57,13 +53,8 @@ const FollowSetSummary: Component<{
         {followSetName(props.set)}
       </span>
       <span class="c-secondary flex min-w-0 items-center gap-1 text-caption">
-        <Show
-          when={props.author !== false}
-          fallback={<span>{memberCountLabel(props.set)}</span>}
-        >
-          <FollowSetAuthor pubkey={props.set.pubkey} />
-          <span class="shrink-0">・{memberCountLabel(props.set)}</span>
-        </Show>
+        <FollowSetAuthor pubkey={props.set.pubkey} />
+        <span class="shrink-0">・{memberCountLabel(props.set)}</span>
       </span>
       <Show when={props.set.description}>
         {(description) => (
