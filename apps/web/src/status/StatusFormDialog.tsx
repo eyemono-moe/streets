@@ -155,9 +155,6 @@ const StatusFormDialog: Component<{ form: StatusFormState }> = (props) => {
                       )}
                     </Show>
                   </section>
-                  <p class="c-secondary text-caption">
-                    名前の横やプロフィールに出ます。聴いている曲は、再生するアプリが自動で設定するので、ここでは扱いません。
-                  </p>
                   <div
                     ref={actions}
                     class="flex scroll-m-4 flex-col items-stretch gap-2"
