@@ -9,6 +9,7 @@ import {
 import { type ParentComponent, Show, createEffect, onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import type { EventActions } from "../actions";
+import { useEmojiLookup } from "../emoji/custom-emojis";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -24,6 +25,7 @@ export const StatusFormMediator: ParentComponent<{ actions: EventActions }> = (
   props,
 ) => {
   const own = useUserStatuses(() => props.actions.viewer);
+  const emoji = useEmojiLookup();
   const [state, setState] = createStore<{ form: StatusFormState }>({
     form: closedStatusForm(),
   });
@@ -34,18 +36,20 @@ export const StatusFormMediator: ParentComponent<{ actions: EventActions }> = (
   };
 
   const send = (form: Exclude<StatusFormState, { phase: "closed" }>) => {
-    props.actions.setStatus(statusFormInput(form, new Date())).then(
-      () => apply({ type: "status-form/saved" }),
-      (cause) => {
-        apply({ type: "status-form/failed" });
-        notifyError(
-          cause,
-          form.clearing
-            ? "ステータスを消せませんでした"
-            : "ステータスを保存できませんでした",
-        );
-      },
-    );
+    props.actions
+      .setStatus({ ...statusFormInput(form, new Date()), emoji })
+      .then(
+        () => apply({ type: "status-form/saved" }),
+        (cause) => {
+          apply({ type: "status-form/failed" });
+          notifyError(
+            cause,
+            form.clearing
+              ? "ステータスを消せませんでした"
+              : "ステータスを保存できませんでした",
+          );
+        },
+      );
   };
 
   const handle = (event: UiEvent): boolean => {

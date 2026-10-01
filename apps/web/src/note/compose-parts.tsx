@@ -509,7 +509,7 @@ export const ComposeTools: Component<{
   /** 閲覧注意の理由。付けていなければ `undefined`。 */
   contentWarning: string | undefined;
   onEmojiSelect: (emoji: PickerEmoji) => void;
-  emojiField: () => HTMLTextAreaElement | undefined;
+  emojiField: () => HTMLInputElement | HTMLTextAreaElement | undefined;
   /** 下書きへ移すボタンを出す。値は押せるか。 */
   canKeepDraft?: boolean;
 }> = (props) => (
