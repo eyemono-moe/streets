@@ -9,8 +9,16 @@
     "directory": "./apps/web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    // Worker を通すのは API だけ。画面の配信は今までどおり静的ファイルから直接返す。
-    "run_worker_first": ["/api/*"],
+    // Worker を通すのは API と、投稿や人を指す URL だけ。後者はリンクのカードを作りに来た
+    // ボットにだけ中身を足す（workers/app/src/entity-page.ts）。ほかの画面は静的ファイルから直接返す。
+    "run_worker_first": [
+      "/api/*",
+      "/npub1*",
+      "/nprofile1*",
+      "/note1*",
+      "/nevent1*",
+      "/naddr1*",
+    ],
   },
   "ratelimits": [
     {
