@@ -5,15 +5,18 @@ import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import {
+  menuContentClass,
+  menuItemClass,
+  menuSeparatorClass,
+} from "../ui/menu";
 import { textInputClass } from "../ui/TextField";
 
 export type DeckSummary = Pick<Deck, "id" | "name"> & { columns: number };
 
-const MENU_CONTENT =
-  "motion-pop c-primary w-max min-w-40 max-w-80 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none";
+const MENU_CONTENT = `${menuContentClass} w-max min-w-40 max-w-80`;
 
-const MENU_ITEM =
-  "flex h-8.5 items-center gap-2.5 whitespace-nowrap rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary data-[disabled]:opacity-40";
+const MENU_ITEM = `${menuItemClass} whitespace-nowrap`;
 
 /** 項目の値。デッキの id とほかの項目がぶつからないよう、デッキには接頭辞を付ける。 */
 const deckValue = (id: string) => `deck:${id}`;
@@ -105,7 +108,7 @@ const DeckPicker: Component<{
                   }
                 >
                   <span
-                    class="i-material-symbols:check-rounded size-4.5 shrink-0"
+                    class="i-material-symbols:check-rounded size-4 shrink-0"
                     classList={{
                       "c-accent-5": deck.id === props.active.id,
                       invisible: deck.id !== props.active.id,
@@ -119,10 +122,10 @@ const DeckPicker: Component<{
                 </Menu.Item>
               )}
             </For>
-            <Menu.Separator class="my-1 border-primary border-t" />
+            <Menu.Separator class={menuSeparatorClass} />
             <Menu.Item value="new" class={MENU_ITEM}>
               <span
-                class="i-material-symbols:add-rounded c-secondary size-4.5 shrink-0"
+                class="i-material-symbols:add-rounded c-secondary size-4 shrink-0"
                 aria-hidden="true"
               />
               新しいデッキ…
@@ -212,7 +215,7 @@ const DeckEditHeader: Component<{
               <Menu.Content class={MENU_CONTENT}>
                 <Menu.Item value="rename" class={MENU_ITEM}>
                   <span
-                    class="i-material-symbols:edit-outline-rounded c-secondary size-4.5"
+                    class="i-material-symbols:edit-outline-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
                   名前を変える
@@ -223,7 +226,7 @@ const DeckEditHeader: Component<{
                   disabled={position() <= 0}
                 >
                   <span
-                    class="i-material-symbols:arrow-upward-rounded c-secondary size-4.5"
+                    class="i-material-symbols:arrow-upward-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
                   一覧で上へ動かす
@@ -234,12 +237,12 @@ const DeckEditHeader: Component<{
                   disabled={position() >= props.decks.length - 1}
                 >
                   <span
-                    class="i-material-symbols:arrow-downward-rounded c-secondary size-4.5"
+                    class="i-material-symbols:arrow-downward-rounded c-secondary size-4 shrink-0"
                     aria-hidden="true"
                   />
                   一覧で下へ動かす
                 </Menu.Item>
-                <Menu.Separator class="my-1 border-primary border-t" />
+                <Menu.Separator class={menuSeparatorClass} />
                 <Menu.Item
                   value="remove"
                   class={`${MENU_ITEM} c-danger`}
@@ -247,7 +250,7 @@ const DeckEditHeader: Component<{
                   disabled={props.decks.length <= 1}
                 >
                   <span
-                    class="i-material-symbols:delete-outline-rounded size-4.5"
+                    class="i-material-symbols:delete-outline-rounded size-4 shrink-0"
                     aria-hidden="true"
                   />
                   このデッキを削除

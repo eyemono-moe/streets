@@ -23,9 +23,18 @@ import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import {
+  menuContentClass,
+  menuGroupLabelClass,
+  menuIconClass,
+  menuItemClass,
+  menuSeparatorClass,
+} from "../ui/menu";
+import {
   EVENT_ACTION_META,
   createEventDialogs,
+  canPin,
   muteEventLook,
+  pinLook,
   reactionLabel,
   useEngagements,
   useEventLevelOps,
@@ -41,8 +50,6 @@ const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 const ClientDialog = lazyPart(() => import("./ClientDialog"));
 
-const BroadcastDialog = lazyPart(() => import("./BroadcastDialog"));
-
 type MenuItem = {
   value: string;
   label: string;
@@ -52,33 +59,11 @@ type MenuItem = {
   todo?: boolean;
 };
 
-const AUTHOR_ITEMS: MenuItem[] = [
-  {
-    value: "follow",
-    label: "フォロー",
-    icon: "i-material-symbols:person-add-outline-rounded",
-    todo: true,
-  },
-  {
-    value: "author-relays",
-    label: "リレー設定",
-    icon: "i-material-symbols:hub-outline",
-  },
-  {
-    value: "block",
-    label: "ブロック",
-    icon: "i-material-symbols:block",
-    danger: true,
-    todo: true,
-  },
-  {
-    value: "report",
-    label: "通報",
-    icon: "i-material-symbols:flag-outline-rounded",
-    danger: true,
-    todo: true,
-  },
-];
+const AUTHOR_RELAYS: MenuItem = {
+  value: "author-relays",
+  label: "リレー設定",
+  icon: "i-material-symbols:hub-outline",
+};
 
 const Items: Component<{ items: MenuItem[] }> = (props) => (
   <For each={props.items}>
@@ -86,10 +71,10 @@ const Items: Component<{ items: MenuItem[] }> = (props) => (
       <Menu.Item
         value={item.value}
         disabled={item.todo}
-        class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+        class={menuItemClass}
         classList={{ "c-danger": item.danger }}
       >
-        <span class={`${item.icon} size-4.5 shrink-0`} aria-hidden="true" />
+        <span class={`${item.icon} ${menuIconClass}`} aria-hidden="true" />
         <span class="truncate">{item.label}</span>
       </Menu.Item>
     )}
@@ -124,6 +109,17 @@ const EventItems: Component<{
     type: "note/bookmark",
     target: props.event,
     on: !bookmarked(),
+  }));
+  const pinned = () => props.actions?.pinned(props.event.id) ?? false;
+  const pinning = useSending(() => ({
+    type: "note/pin",
+    target: props.event,
+    on: !pinned(),
+  }));
+  const broadcasts = useSending(() => ({
+    type: "note/broadcast",
+    target: props.event,
+    relays: [],
   }));
   const author = useProfileDetails(() => props.event.pubkey);
   const itemsOf = (id: EventActionId): MenuItem[] => {
@@ -186,10 +182,23 @@ const EventItems: Component<{
             todo: bookmarking(),
           },
         ];
+      case "pin":
+        return [
+          {
+            value: id,
+            ...pinLook(props.event, pinned()),
+            todo: pinning() || (!pinned() && !canPin(props.event)),
+          },
+        ];
       case "mute-event":
         return [
           { value: id, ...muteEventLook(props.muted), todo: !props.canMute },
         ];
+      case "broadcast":
+        // 送るのはログインしている間だけ。暗号化されたものは送り直さない。
+        return props.actions && canBroadcast(props.event)
+          ? [{ value: id, ...meta, todo: broadcasts() }]
+          : [];
     }
   };
   return <Items items={props.ids.flatMap(itemsOf)} />;
@@ -203,6 +212,8 @@ const EventMenu: Component<{
   event: NostrEvent;
   /** この投稿にアクション欄があるか。無ければ、欄に入る操作はメニューにも出さない。 */
   withActions?: boolean;
+  /** 開いた状態で描く。Storybook で中身を並べるため。 */
+  defaultOpen?: boolean;
 }> = (props) => {
   const profileDetails = useProfileDetails(() => props.event.pubkey);
   const profile = () => profileDetails()?.profile;
@@ -233,8 +244,13 @@ const EventMenu: Component<{
           entry.target.type === "pubkey" &&
           entry.target.value === props.event.pubkey,
       );
+  const following = () => actions?.following(props.event.pubkey) === true;
+  const followSending = useSending(() => ({
+    type: "user/follow",
+    pubkey: props.event.pubkey,
+    on: !following(),
+  }));
   const authorItems = (): MenuItem[] => {
-    const [follow, ...rest] = AUTHOR_ITEMS;
     // 自分もリストに入れられる（自分の投稿もそのリストのカラムに流したいことがある）。
     const addToList: MenuItem = {
       value: "add-to-list",
@@ -242,11 +258,19 @@ const EventMenu: Component<{
       icon: "i-material-symbols:playlist-add-rounded",
       todo: lists === undefined,
     };
-    // 自分をミュートしても、自分の投稿は隠さない。押せても意味が無いので出さない。
-    if (mine()) return [...(follow ? [follow] : []), addToList, ...rest];
+    // 自分はフォローできず、ミュートしても自分の投稿は隠さない。押せても意味が無いので出さない。
+    if (mine()) return [addToList, AUTHOR_RELAYS];
     const muted = authorMuteEntry() !== undefined;
     return [
-      ...(follow ? [follow] : []),
+      {
+        value: "follow",
+        label: following() ? "フォローを解除" : "フォロー",
+        icon: following()
+          ? "i-material-symbols:person-remove-outline-rounded"
+          : "i-material-symbols:person-add-outline-rounded",
+        // ログインしていないと、フォローの一覧を書けない。
+        todo: actions === undefined || followSending(),
+      },
       addToList,
       {
         value: "mute-author",
@@ -256,7 +280,7 @@ const EventMenu: Component<{
           : "i-material-symbols:person-off-outline-rounded",
         todo: mutes === undefined,
       },
-      ...rest,
+      AUTHOR_RELAYS,
     ];
   };
   const toggleAuthorMute = () => {
@@ -270,12 +294,6 @@ const EventMenu: Component<{
   const [authorRelays, setAuthorRelays] = createSignal(false);
   const client = () => clientOf(props.event);
   const [showingClient, setShowingClient] = createSignal(false);
-  const [broadcasting, setBroadcasting] = createSignal(false);
-  const broadcasts = useSending(() => ({
-    type: "note/broadcast",
-    target: props.event,
-    relays: [],
-  }));
   const [addingToList, setAddingToList] = createSignal(false);
 
   return (
@@ -287,11 +305,13 @@ const EventMenu: Component<{
       <Menu.Root
         lazyMount
         unmountOnExit
+        defaultOpen={props.defaultOpen}
         onSelect={(details) => {
           switch (details.value) {
             case "reply":
             case "quote":
             case "details":
+            case "broadcast":
               dialogs.open(details.value);
               break;
             case "repost":
@@ -317,6 +337,13 @@ const EventMenu: Component<{
                 on: !(actions?.bookmarked(props.event.id) ?? false),
               });
               break;
+            case "pin":
+              dispatch({
+                type: "note/pin",
+                target: props.event,
+                on: !(actions?.pinned(props.event.id) ?? false),
+              });
+              break;
             case "activity":
               ops.activity();
               break;
@@ -326,14 +353,18 @@ const EventMenu: Component<{
             case "mute-event":
               ops.toggleMute();
               break;
+            case "follow":
+              dispatch({
+                type: "user/follow",
+                pubkey: props.event.pubkey,
+                on: !following(),
+              });
+              break;
             case "author-relays":
               setAuthorRelays(true);
               break;
             case "client":
               setShowingClient(true);
-              break;
-            case "broadcast":
-              setBroadcasting(true);
               break;
             case "add-to-list":
               setAddingToList(true);
@@ -358,9 +389,9 @@ const EventMenu: Component<{
         />
         <Portal>
           <Menu.Positioner>
-            <Menu.Content class="motion-pop c-primary w-70 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+            <Menu.Content class={`${menuContentClass} w-64`}>
               <Menu.ItemGroup>
-                <Menu.ItemGroupLabel class="c-secondary block px-2.5 py-0.5 font-600 text-caption">
+                <Menu.ItemGroupLabel class={menuGroupLabelClass}>
                   このイベント
                 </Menu.ItemGroupLabel>
                 <EventItems
@@ -383,23 +414,10 @@ const EventMenu: Component<{
                     />
                   )}
                 </Show>
-                {/* 送るのはログインしている間だけ。暗号化されたものは送り直さない。 */}
-                <Show when={actions && canBroadcast(props.event)}>
-                  <Items
-                    items={[
-                      {
-                        value: "broadcast",
-                        label: "ほかのリレーにも送る",
-                        icon: "i-material-symbols:cell-tower-rounded",
-                        todo: broadcasts(),
-                      },
-                    ]}
-                  />
-                </Show>
               </Menu.ItemGroup>
-              <Menu.Separator class="border-primary border-t" />
+              <Menu.Separator class={menuSeparatorClass} />
               <Menu.ItemGroup>
-                <Menu.ItemGroupLabel class="c-secondary block truncate px-2.5 py-0.5 font-600 text-caption">
+                <Menu.ItemGroupLabel class={`${menuGroupLabelClass} truncate`}>
                   <ProfileName
                     pubkey={props.event.pubkey}
                     profile={profile()}
@@ -447,12 +465,6 @@ const EventMenu: Component<{
             onClose={() => setShowingClient(false)}
           />
         )}
-      </Show>
-      <Show when={broadcasting()}>
-        <BroadcastDialog
-          event={props.event}
-          onClose={() => setBroadcasting(false)}
-        />
       </Show>
       <Show when={addingToList()}>
         <AddToListDialog

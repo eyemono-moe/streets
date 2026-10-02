@@ -25,6 +25,12 @@ import { useProfile } from "../note/use-profile";
 import { notifyError } from "../toast";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
+import {
+  menuContentClass,
+  menuIconClass,
+  menuItemClass,
+  menuSeparatorClass,
+} from "../ui/menu";
 
 /** 日付は区切りの行が出すので、発言には時刻だけを出す。 */
 const chatTime = (date: Date): string =>
@@ -219,7 +225,7 @@ export const ChatMessage: Component<{
           />
           <Portal>
             <Menu.Positioner>
-              <Menu.Content class="motion-pop c-primary w-70 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+              <Menu.Content class={`${menuContentClass} w-64`}>
                 <MenuItem
                   value="reply"
                   icon="i-material-symbols:reply-rounded"
@@ -242,7 +248,7 @@ export const ChatMessage: Component<{
                 />
                 {/* 自分の発言はミュートしても自分には畳まれないので、出さない。 */}
                 <Show when={!mine()}>
-                  <Menu.Separator class="my-1 border-primary border-t" />
+                  <Menu.Separator class={menuSeparatorClass} />
                   <MenuItem
                     value="mute-message"
                     icon="i-material-symbols:visibility-off-outline-rounded"
@@ -272,12 +278,9 @@ export const ChatMessage: Component<{
 const MenuItem: Component<{ value: string; icon: string; label: string }> = (
   props,
 ) => (
-  <Menu.Item
-    value={props.value}
-    class="flex cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 py-1.5 text-body data-[highlighted]:bg-secondary"
-  >
+  <Menu.Item value={props.value} class={menuItemClass}>
     <span
-      class={`c-secondary size-4.5 shrink-0 ${props.icon}`}
+      class={`c-secondary ${menuIconClass} ${props.icon}`}
       aria-hidden="true"
     />
     {props.label}

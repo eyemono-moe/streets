@@ -1,3 +1,4 @@
+import { type Mutation, addTagValue, removeTagValue } from "./build/draft";
 import type { NostrEvent } from "./event";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
@@ -21,3 +22,10 @@ export const pinnedNoteIds = (event: NostrEvent | undefined): string[] => {
   }
   return ids.reverse();
 };
+
+/** NIP-51 に従い、足したものはタグの末尾に積む。 */
+export const pinNote = (id: string): Mutation =>
+  addTagValue(PINNED_NOTES_KIND, "e", id);
+
+export const unpinNote = (id: string): Mutation =>
+  removeTagValue(PINNED_NOTES_KIND, "e", id);

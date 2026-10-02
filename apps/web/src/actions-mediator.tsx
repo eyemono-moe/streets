@@ -24,6 +24,8 @@ const pendingKey = (event: ActionEvent): string => {
       return `vote:${event.target.id}`;
     case "note/bookmark":
       return `bookmark:${event.target.id}`;
+    case "note/pin":
+      return `pin:${event.target.id}`;
     case "user/follow":
       return `follow:${event.pubkey}`;
     case "channel/favorite":
@@ -76,6 +78,11 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
       case "note/bookmark":
         run(event, "ブックマークを保存できませんでした", () =>
           actions.setBookmark(event.target, event.on),
+        );
+        return true;
+      case "note/pin":
+        run(event, "ピン留めを保存できませんでした", () =>
+          actions.setPinned(event.target, event.on),
         );
         return true;
       case "user/follow":

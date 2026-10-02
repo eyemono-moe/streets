@@ -21,6 +21,8 @@ import { useEngagementChanges } from "./use-engagement-changes";
 
 const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
 
+const BroadcastDialog = lazyPart(() => import("./BroadcastDialog"));
+
 /** 設定の画面で、操作を見分けるための名前とアイコン。 */
 export const EVENT_ACTION_META: Record<
   EventActionId,
@@ -47,6 +49,10 @@ export const EVENT_ACTION_META: Record<
     label: "ブックマーク",
     icon: "i-material-symbols:bookmark-outline-rounded",
   },
+  pin: {
+    label: "プロフィールにピン留め",
+    icon: "i-material-symbols:keep-outline-rounded",
+  },
   activity: {
     label: "アクティビティを見る",
     icon: "i-material-symbols:monitoring-rounded",
@@ -62,6 +68,10 @@ export const EVENT_ACTION_META: Record<
   "mute-event": {
     label: "このイベントをミュート",
     icon: "i-material-symbols:volume-off-outline-rounded",
+  },
+  broadcast: {
+    label: "ほかのリレーにも送る",
+    icon: "i-material-symbols:cell-tower-rounded",
   },
 };
 
@@ -142,7 +152,20 @@ export const muteEventLook = (muted: boolean) =>
       }
     : EVENT_ACTION_META["mute-event"];
 
-type EventDialog = "reply" | "quote" | "details";
+/** NIP-51 のピン留めは kind:1 の投稿を入れるリスト。ほかの kind は入れない。 */
+export const canPin = (event: NostrEvent): boolean => event.kind === 1;
+
+export const pinLook = (event: NostrEvent, pinned: boolean) =>
+  pinned
+    ? { label: "ピン留めを外す", icon: "i-material-symbols:keep-rounded" }
+    : canPin(event)
+      ? EVENT_ACTION_META.pin
+      : {
+          label: "この投稿はピン留めできません",
+          icon: EVENT_ACTION_META.pin.icon,
+        };
+
+type EventDialog = "reply" | "quote" | "details" | "broadcast";
 
 /**
  * 操作から開くダイアログ。アクション欄とメニューのどちらからも開くので、
@@ -184,6 +207,9 @@ export const createEventDialogs = (event: () => NostrEvent) => {
       </Match>
       <Match when={open() === "details"}>
         <EventDetailsDialog event={event()} onClose={close} />
+      </Match>
+      <Match when={open() === "broadcast"}>
+        <BroadcastDialog event={event()} onClose={close} />
       </Match>
     </Switch>
   );

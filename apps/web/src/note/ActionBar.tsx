@@ -3,6 +3,7 @@ import { canReplyWithNote } from "@streets/core/nostr/build/note";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventActionId } from "@streets/core/settings/action-layout";
+import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, For, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -12,10 +13,13 @@ import { useSending } from "../actions-mediator";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useDispatch } from "../ui-events";
+import { menuContentClass, menuItemClass } from "../ui/menu";
 import {
   EVENT_ACTION_META,
   createEventDialogs,
+  canPin,
   muteEventLook,
+  pinLook,
   reactionLabel,
   useEngagements,
   useEventLevelOps,
@@ -87,6 +91,15 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
             target: props.event,
             on: !bookmarked(),
           }) as const;
+        const pinned = () => actions().pinned(props.event.id);
+        const pin = () =>
+          ({ type: "note/pin", target: props.event, on: !pinned() }) as const;
+        const pinning = useSending(pin);
+        const broadcasting = useSending(() => ({
+          type: "note/broadcast",
+          target: props.event,
+          relays: [],
+        }));
         const reposting = useSending(repost);
         const liking = useSending(like);
         const bookmarking = useSending(bookmark);
@@ -138,7 +151,7 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               </Menu.Trigger>
               <Portal>
                 <Menu.Positioner>
-                  <Menu.Content class="motion-pop c-primary w-44 space-y-1 rounded-2.5 border border-primary bg-primary p-1.5 shadow-lg outline-none">
+                  <Menu.Content class={`${menuContentClass} w-40`}>
                     <Menu.Item
                       value="repost"
                       disabled={
@@ -146,10 +159,10 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                         engagement().viewerReposted ||
                         !buildRepost(props.event)
                       }
-                      class="flex h-8.5 items-center gap-2.5 rounded-1.5 px-2.5 text-body enabled:cursor-pointer data-[highlighted]:bg-secondary data-[disabled]:opacity-50"
+                      class={menuItemClass}
                     >
                       <span
-                        class="i-material-symbols:repeat-rounded size-4.5"
+                        class="i-material-symbols:repeat-rounded size-4 shrink-0"
                         aria-hidden="true"
                       />
                       <span>
@@ -158,12 +171,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
                           : "リポスト"}
                       </span>
                     </Menu.Item>
-                    <Menu.Item
-                      value="quote"
-                      class="flex h-8.5 cursor-pointer items-center gap-2.5 rounded-1.5 px-2.5 text-body data-[highlighted]:bg-secondary"
-                    >
+                    <Menu.Item value="quote" class={menuItemClass}>
                       <span
-                        class="i-material-symbols:format-quote-rounded size-4.5"
+                        class="i-material-symbols:format-quote-rounded size-4 shrink-0"
                         aria-hidden="true"
                       />
                       <span>引用</span>
@@ -229,6 +239,16 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               onClick={() => dispatch(bookmark())}
             />
           ),
+          pin: () => (
+            <Action
+              label={pinLook(props.event, pinned()).label}
+              icon={pinLook(props.event, pinned()).icon}
+              active={pinned()}
+              // 外すことは kind によらずできる。入ってしまったものを残さないため。
+              disabled={pinning() || (!pinned() && !canPin(props.event))}
+              onClick={() => dispatch(pin())}
+            />
+          ),
           activity: () => (
             <Action
               label={EVENT_ACTION_META.activity.label}
@@ -248,6 +268,14 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               label={EVENT_ACTION_META.details.label}
               icon={EVENT_ACTION_META.details.icon}
               onClick={() => dialogs.open("details")}
+            />
+          ),
+          broadcast: () => (
+            <Action
+              label={EVENT_ACTION_META.broadcast.label}
+              icon={EVENT_ACTION_META.broadcast.icon}
+              disabled={broadcasting() || !canBroadcast(props.event)}
+              onClick={() => dialogs.open("broadcast")}
             />
           ),
           "mute-event": () => (
