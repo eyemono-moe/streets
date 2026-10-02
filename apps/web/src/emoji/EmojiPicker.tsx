@@ -58,6 +58,7 @@ const Cell: Component<{
           <img
             src={custom().url}
             data-no-touch-menu
+            draggable={false}
             alt=""
             loading="lazy"
             decoding="async"
@@ -90,6 +91,7 @@ const TabFace: Component<{ group: PickerGroup }> = (props) => {
           <img
             src={emoji().url}
             data-no-touch-menu
+            draggable={false}
             alt=""
             loading="lazy"
             decoding="async"

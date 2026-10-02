@@ -26,6 +26,7 @@ const Emoji: Component<{ shortcode: string; url: string; class?: string }> = (
       <img
         src={props.url}
         data-no-touch-menu
+        draggable={false}
         alt={`:${props.shortcode}:`}
         title={`:${props.shortcode}:`}
         loading="lazy"

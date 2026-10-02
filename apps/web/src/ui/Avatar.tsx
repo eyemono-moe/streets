@@ -36,6 +36,7 @@ const Avatar: Component<{
         {(url) => (
           <img
             src={source(url())}
+            draggable={false}
             alt=""
             loading={props.loading ?? "lazy"}
             decoding="async"

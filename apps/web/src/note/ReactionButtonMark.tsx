@@ -51,6 +51,7 @@ const ReactionButtonMark: Component<{
               <img
                 src={emoji().url}
                 data-no-touch-menu
+                draggable={false}
                 alt=""
                 loading="lazy"
                 class={`h-4.5 w-auto max-w-12 object-contain ${tone()}`}

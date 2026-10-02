@@ -5,6 +5,9 @@
  * iOS Safari は長押しで `contextmenu` を出さないので preflight の CSS
  * （`-webkit-touch-callout: none`）で止め、Android はここで `contextmenu` を止める。
  * マウスの右クリックは止めない。
+ *
+ * メニューを止めると長押しが画像のドラッグに変わり、離した場所によっては画像の URL が
+ * 開く。印を付けた画像には `draggable={false}` も付ける。
  */
 export const blockTouchMenusOnMarkedImages = () => {
   // contextmenu が PointerEvent かどうかはブラウザで揃わないので、直前の押下で決める。
