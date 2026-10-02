@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { NostrSource, SectionStatus } from "@streets/core/read/source";
 import {
@@ -27,6 +28,8 @@ export type ColumnScopeValue = {
    * 呼んだブロックが消えると取り下げる。
    */
   report?: (status: Accessor<SectionStatus>) => void;
+  /** このカラムに出してよいか。ミュートを持たない入口で、閲覧注意を落とすのに使う。 */
+  shows?: (event: NostrEvent) => boolean;
 };
 
 const ColumnScopeContext = createContext<ColumnScopeValue>();

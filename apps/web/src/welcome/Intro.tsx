@@ -1,6 +1,26 @@
-import type { Component } from "solid-js";
+import { type Component, For } from "solid-js";
 import { useDispatch } from "../ui-events";
 import { GUIDE } from "./guide";
+
+/** 入口の右に並べたカラムだけでは伝わらないことを、短く並べる。 */
+const FEATURES = [
+  {
+    icon: "i-material-symbols:view-column-outline-rounded",
+    label: "カラムを好きなだけ並べる",
+  },
+  {
+    icon: "i-material-symbols:stacks-outline-rounded",
+    label: "スレッドや人をカラムに重ねて開く",
+  },
+  {
+    icon: "i-material-symbols:notifications-outline-rounded",
+    label: "通知・検索・リスト・チャンネル",
+  },
+  {
+    icon: "i-material-symbols:key-outline-rounded",
+    label: "秘密鍵を預けずにログイン",
+  },
+];
 
 /** 最初の段に出す Streets の紹介。ここにだけ「Streets について」への入口を置く。 */
 const Intro: Component = () => {
@@ -12,6 +32,19 @@ const Intro: Component = () => {
         Streets はブラウザで使える Nostr
         のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
       </p>
+      <ul class="flex flex-col gap-1.5 py-1 text-caption">
+        <For each={FEATURES}>
+          {(feature) => (
+            <li class="flex items-start gap-1.5">
+              <span
+                class={`${feature.icon} mt-0.5 size-4 shrink-0 c-accent-5`}
+                aria-hidden="true"
+              />
+              {feature.label}
+            </li>
+          )}
+        </For>
+      </ul>
       <p class="flex flex-wrap gap-x-4 gap-y-1 text-caption">
         <a
           href={GUIDE}

@@ -1,3 +1,5 @@
+import type { ColumnDef } from "@streets/core/deck/deck";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import { For, type JSX, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import AboutDialog from "../about/AboutDialog";
@@ -5,11 +7,16 @@ import Event from "../note/Event";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
-import WelcomeView from "./WelcomeView";
+import WelcomeView, { type WelcomeColumn } from "./WelcomeView";
 
 const alice = createStoryAuthor(11, { name: "alice", displayName: "ありす" });
 const bob = createStoryAuthor(22, { name: "bob" });
-const notes = [
+const streets = createStoryAuthor(33, {
+  name: "streets",
+  displayName: "Streets",
+  about: "Column-based nostr client for web",
+});
+const relayNotes = [
   alice.note("おはようございます。今日は晴れていて気持ちがいいですね。"),
   bob.note(
     "Nostr ではじめて投稿してみました。どこに何が流れているのか、まだよく分かっていません。".repeat(
@@ -18,12 +25,65 @@ const notes = [
   ),
   alice.note("#nostr のタグを付けると、同じ話題の投稿と並びます。"),
 ];
+const hashtagNotes = [
+  bob.note("お昼はカレーにしました #foodstr", [["t", "foodstr"]]),
+  alice.note("焼きたてのりんごパイ #foodstr", [["t", "foodstr"]]),
+];
+const streetsNotes = [
+  streets.note(
+    "新しい版を出しました。変わったところは「Streets について」から読めます。",
+  ),
+];
 
-const Feed = (): JSX.Element => (
+const List = (props: { notes: NostrEvent[] }): JSX.Element => (
   <div class="[&>*]:border-primary [&>*]:border-b">
-    <For each={notes}>{(note) => <Event event={note} size="normal" />}</For>
+    <For each={props.notes}>
+      {(note) => <Event event={note} size="normal" />}
+    </For>
   </div>
 );
+
+const relayColumn: ColumnDef = {
+  id: "relay",
+  title: "wss://yabu.me",
+  source: {
+    kind: "literal",
+    filters: [{ kinds: [1] }],
+    relays: ["wss://yabu.me/"],
+  },
+};
+const hashtagColumn: ColumnDef = {
+  id: "hashtag",
+  title: "#foodstr",
+  source: { kind: "literal", filters: [{ kinds: [1], "#t": ["foodstr"] }] },
+};
+const streetsColumn: ColumnDef = {
+  id: "streets",
+  title: "Streets",
+  source: { kind: "user", pubkey: streets.pubkey },
+};
+
+type Contents = {
+  relay?: () => JSX.Element;
+  hashtag?: () => JSX.Element;
+  streets?: () => JSX.Element;
+};
+
+// 中身は描くときに作る。先に作ると、ストーリーの読み取り層の外で描かれる。
+const columns = (contents: Contents): WelcomeColumn[] => [
+  {
+    column: relayColumn,
+    content: contents.relay ?? (() => <List notes={relayNotes} />),
+  },
+  {
+    column: hashtagColumn,
+    content: contents.hashtag ?? (() => <List notes={hashtagNotes} />),
+  },
+  {
+    column: streetsColumn,
+    content: contents.streets ?? (() => <List notes={streetsNotes} />),
+  },
+];
 
 type Props = Parameters<typeof WelcomeView>[0];
 
@@ -33,7 +93,16 @@ const meta = {
     const [about, setAbout] = createSignal(false);
     return (
       <EventSceneProvider
-        scene={{ events: [alice.profile(), bob.profile(), ...notes] }}
+        scene={{
+          events: [
+            alice.profile(),
+            bob.profile(),
+            streets.profile(),
+            ...relayNotes,
+            ...hashtagNotes,
+            ...streetsNotes,
+          ],
+        }}
       >
         <Mediates
           handle={(event) => {
@@ -62,8 +131,7 @@ const meta = {
       cancel: () => {},
     }),
     narrow: false,
-    feedTitle: "wss://yabu.me",
-    feed: <Feed />,
+    columns: columns({}),
   },
 } satisfies Meta<Props>;
 
@@ -158,8 +226,26 @@ export const 署名器と繋がらなかった: Story = {
 
 export const 投稿の取得中: Story = {
   args: {
-    feed: <p class="c-secondary p-4 text-caption">読み込み中…</p>,
+    columns: columns({
+      relay: () => <p class="c-secondary p-4 text-caption">読み込み中…</p>,
+      hashtag: () => <p class="c-secondary p-4 text-caption">読み込み中…</p>,
+      streets: () => <p class="c-secondary p-4 text-caption">読み込み中…</p>,
+    }),
   },
+};
+
+export const 公式アカウントの投稿が無い: Story = {
+  args: {
+    columns: columns({
+      streets: () => (
+        <p class="c-secondary p-4 text-caption">まだ投稿がありません。</p>
+      ),
+    }),
+  },
+};
+
+export const 少し狭い画面: Story = {
+  globals: { viewport: { value: "tablet", isRotated: true } },
 };
 
 export const 幅の狭い画面: Story = {

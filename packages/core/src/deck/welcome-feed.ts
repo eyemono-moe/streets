@@ -2,6 +2,7 @@ import { contentWarning } from "../nostr/content-warning";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
+import { buildUserColumn } from "./column-presets";
 import type { ColumnDef } from "./deck";
 
 /** 日本語の投稿が見えて、流れが速すぎないところ。 */
@@ -40,6 +41,31 @@ export const welcomeColumn = (relays: readonly RelayUrl[]): ColumnDef => ({
     relays: [...relays],
   },
 });
+
+/** 入口のハッシュタグ。写真の投稿が多く、日本語の投稿も流れる。 */
+const WELCOME_HASHTAG = "foodstr";
+
+/** Streets の公式アカウント（`_@streets.eyemono.moe`）。 */
+export const STREETS_PUBKEY =
+  "82c79cae097b3ec63524910352be0a8e9c3f8a40cf2a2176429ec4a19eac86ad";
+
+/**
+ * 入口に並べるカラム。リレー・ハッシュタグ・人と、種類の違うカラムを並べて、
+ * 組み合わせられることを見せる。
+ */
+export const welcomeColumns = (relays: readonly RelayUrl[]): ColumnDef[] => [
+  welcomeColumn(relays),
+  {
+    id: "welcome-hashtag",
+    title: `#${WELCOME_HASHTAG}`,
+    // 著者を指定しないので、既定のリレーへ問い合わせる。
+    source: {
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": [WELCOME_HASHTAG] }],
+    },
+  },
+  { ...buildUserColumn(STREETS_PUBKEY), id: "welcome-streets" },
+];
 
 /**
  * 入口ではミュートを持たない人が見る。投稿者が閲覧注意（NIP-36）にしたものは

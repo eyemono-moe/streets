@@ -3,7 +3,6 @@ import {
   columnHidesMuted,
 } from "@streets/core/deck/column-kinds";
 import { columnShow } from "@streets/core/deck/deck";
-import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import { type Component, Match, Switch } from "solid-js";
@@ -16,13 +15,11 @@ import { createBlockSection, useColumnScope } from "../column-scope";
 
 /**
  * 取ったイベントを 1 件ずつ `Event` に渡して並べ、古いページを取り足す。
- * 1 件ずつ見て落とす（ミュート・「表示するもの」・`filter`）ことはあっても、
+ * 1 件ずつ見て落とす（ミュート・「表示するもの」・カラムの `shows`）ことはあっても、
  * まとめたり並べ替えたりはしない。
  */
 const EventList: Component<{
   source: () => NostrSource | undefined;
-  /** 1 件ずつ見て、出さないものを落とす。 */
-  filter?: (event: NostrEvent) => boolean;
   name?: string;
 }> = (props) => {
   const scope = useColumnScope();
@@ -38,9 +35,9 @@ const EventList: Component<{
     column().density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => column().expandMedia !== false;
   const items = () => {
-    const filter = props.filter;
+    const shows = scope.shows;
     const received = (
-      filter ? section.items().filter(filter) : section.items()
+      shows ? section.items().filter(shows) : section.items()
     ).filter(listsUnderWarning);
     const visible =
       mutes && columnHidesMuted(column())

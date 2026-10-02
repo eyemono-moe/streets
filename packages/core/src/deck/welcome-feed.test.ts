@@ -3,7 +3,9 @@ import type { NostrEvent } from "../nostr/event";
 import {
   DEFAULT_WELCOME_RELAYS,
   showsOnWelcome,
+  STREETS_PUBKEY,
   welcomeColumn,
+  welcomeColumns,
   welcomeRelays,
 } from "./welcome-feed";
 
@@ -54,6 +56,35 @@ describe("welcomeColumn", () => {
       filters: [{ kinds: [1] }],
       relays: ["wss://a.example/"],
     });
+  });
+});
+
+describe("welcomeColumns", () => {
+  it("リレー・ハッシュタグ・公式アカウントを並べる", () => {
+    const columns = welcomeColumns(["wss://a.example/"]);
+    expect(columns.map((column) => column.source.kind)).toEqual([
+      "literal",
+      "literal",
+      "user",
+    ]);
+    expect(columns[2]?.source).toEqual({
+      kind: "user",
+      pubkey: STREETS_PUBKEY,
+    });
+  });
+
+  it("ハッシュタグのカラムはリレーを明示しない", () => {
+    // 捕まえる変異: `relays: []` を付ける（0 本の明示指定になり、何も流れない）
+    const hashtag = welcomeColumns(["wss://a.example/"])[1]?.source;
+    expect(hashtag).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1], "#t": ["foodstr"] }],
+    });
+  });
+
+  it("カラムの id は重ならない", () => {
+    const ids = welcomeColumns(["wss://a.example/"]).map((column) => column.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 
