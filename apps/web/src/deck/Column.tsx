@@ -27,6 +27,7 @@ export type ColumnProps = {
   column: ColumnDef;
   readLayer: ReadLayer;
   viewer: string;
+  signedIn: boolean;
   followees: () => readonly string[];
   relayList: () => RelayListState;
   bookmarks: () => readonly string[];
@@ -93,6 +94,7 @@ const Column: Component<ColumnProps> = (props) => {
       column={props.column}
       readLayer={props.readLayer}
       viewer={props.viewer}
+      signedIn={props.signedIn}
       followees={props.followees}
       relayList={props.relayList}
       bookmarks={props.bookmarks}

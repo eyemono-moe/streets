@@ -10,6 +10,7 @@ import { type JSX, Match, Switch, createMemo, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
 import { defaultReaction } from "../default-reaction-setting";
 import { lazyPart } from "../lazy-part";
+import { useLoginGate } from "../login-gate";
 import { useReadLayer } from "../read-layer";
 import { useMutes } from "../settings/MuteMediator";
 import { notifyError, notifySuccess } from "../toast";
@@ -173,7 +174,19 @@ type EventDialog = "reply" | "quote" | "details" | "broadcast";
  */
 export const createEventDialogs = (event: () => NostrEvent) => {
   const actions = useEventActions();
+  const gate = useLoginGate();
   const [open, setOpen] = createSignal<EventDialog>();
+  // 書く操作は、書き始める前にログインを確かめる。詳細を見るだけなら要らない。
+  const NEEDS_ACCOUNT: Partial<Record<EventDialog, string>> = {
+    reply: "返信",
+    quote: "引用",
+    broadcast: "ほかのリレーへの送り直し",
+  };
+  const openDialog = (dialog: EventDialog | undefined) => {
+    const what = dialog && NEEDS_ACCOUNT[dialog];
+    if (what && !gate(what)) return;
+    setOpen(dialog);
+  };
   const close = () => setOpen(undefined);
   const view: JSX.Element = (
     <Switch>
@@ -213,5 +226,5 @@ export const createEventDialogs = (event: () => NostrEvent) => {
       </Match>
     </Switch>
   );
-  return { open: setOpen, view };
+  return { open: openDialog, view };
 };

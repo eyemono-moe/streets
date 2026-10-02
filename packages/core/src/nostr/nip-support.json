@@ -217,13 +217,12 @@
   {
     "nip": "36",
     "status": "対応",
-    "summary": "閲覧注意タグの読み書き、本文の表示制御、ウェルカム欄からの除外",
+    "summary": "閲覧注意タグの読み書きと、本文の表示制御",
     "kinds": [1, 42],
     "tags": ["content-warning"],
     "paths": [
       "packages/core/src/nostr/content-warning.ts",
       "packages/core/src/nostr/build/content-warning.ts",
-      "packages/core/src/deck/welcome-feed.ts",
       "apps/web/src/note/ContentWarningGate.tsx",
       "apps/web/src/note/ComposePanel.tsx"
     ],

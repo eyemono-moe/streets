@@ -1,10 +1,15 @@
-import { columnAlerts, columnStatus } from "@streets/core/deck/column-kinds";
+import {
+  columnAlerts,
+  columnNeedsAccount,
+  columnStatus,
+} from "@streets/core/deck/column-kinds";
 import { type ColumnDef, columnLinkCards } from "@streets/core/deck/deck";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { SectionStatus } from "@streets/core/read/source";
 import {
   type Accessor,
   type Component,
+  Show,
   createSignal,
   onCleanup,
 } from "solid-js";
@@ -14,6 +19,7 @@ import { readRoutingMode } from "../read-routing-setting";
 import { ColumnScope } from "./column-scope";
 import { type ColumnInputs, columnView } from "./column-views";
 import ColumnBody from "./ColumnBody";
+import NeedsAccount from "./NeedsAccount";
 
 export type ColumnContentProps = ColumnInputs & {
   column: ColumnDef;
@@ -54,11 +60,16 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
           scrollsInternally={view().scrollsInternally}
           scrollerRef={props.scrollerRef}
         >
-          <Dynamic
-            component={view().Content}
-            source={props.column.source}
-            inputs={props}
-          />
+          <Show
+            when={props.signedIn || !columnNeedsAccount(props.column)}
+            fallback={<NeedsAccount column={props.column} />}
+          >
+            <Dynamic
+              component={view().Content}
+              source={props.column.source}
+              inputs={props}
+            />
+          </Show>
         </ColumnBody>
       </LinkCardModeProvider>
     </ColumnScope>

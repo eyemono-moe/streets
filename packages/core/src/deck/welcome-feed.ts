@@ -1,8 +1,5 @@
-import { contentWarning } from "../nostr/content-warning";
-import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import { normalizeRelayUrl } from "../relay/relay-url";
-import type { ColumnDef } from "./deck";
 
 /** 日本語の投稿が見えて、流れが速すぎないところ。 */
 export const DEFAULT_WELCOME_RELAYS: readonly RelayUrl[] = ["wss://yabu.me/"];
@@ -29,21 +26,3 @@ export const welcomeRelays = (raw: string | undefined): RelayUrl[] => {
   ].slice(0, MAX_WELCOME_RELAYS);
   return relays.length > 0 ? relays : [...DEFAULT_WELCOME_RELAYS];
 };
-
-/** 入口に流すカラム。デッキには入らないので id は固定でよい。 */
-export const welcomeColumn = (relays: readonly RelayUrl[]): ColumnDef => ({
-  id: "welcome",
-  title: relays.map((relay) => relay.replace(/\/$/, "")).join("、"),
-  source: {
-    kind: "literal",
-    filters: [{ kinds: [1] }],
-    relays: [...relays],
-  },
-});
-
-/**
- * 入口ではミュートを持たない人が見る。投稿者が閲覧注意（NIP-36）にしたものは
- * 出さない。
- */
-export const showsOnWelcome = (event: NostrEvent): boolean =>
-  contentWarning(event) === undefined;

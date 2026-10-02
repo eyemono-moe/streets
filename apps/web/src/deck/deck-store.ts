@@ -8,11 +8,16 @@ import {
   saveDeckSet,
 } from "@streets/core/deck/deck";
 import {
+  GUEST_DECK_STORAGE_KEY,
+  guestDeckSet,
+} from "@streets/core/deck/guest-deck";
+import {
   type CreateNip78DocumentOptions,
   type Nip78Document,
   type Nip78DocumentDefinition,
   createNip78Document,
 } from "@streets/core/solid/create-nip78-document";
+import { createSignal } from "solid-js";
 import { WELCOME_RELAYS } from "../welcome/welcome-relays";
 
 export { DECK_EVENT_IDENTIFIER };
@@ -32,6 +37,40 @@ const deckDocumentDefinition = {
 } satisfies Nip78DocumentDefinition<DeckSet>;
 
 export type DeckStore = Nip78Document<DeckSet>;
+
+/**
+ * ログインしていない人のデッキ。署名できないのでアカウントへは保存せず、この端末に
+ * だけ置く。ログインしたらその人のデッキを開き、これは引き継がない。
+ */
+export const createGuestDeckStore = (storage: Storage): DeckStore => {
+  const load = (): DeckSet => {
+    try {
+      const raw = storage.getItem(GUEST_DECK_STORAGE_KEY);
+      const parsed = raw === null ? undefined : loadDeckSet(raw);
+      if (parsed) return parsed;
+    } catch {
+      // 読めなくても既定のデッキで始める。
+    }
+    return guestDeckSet(WELCOME_RELAYS);
+  };
+  const [value, setValue] = createSignal(load());
+  return {
+    value,
+    state: () => ({ phase: "ready", sync: "synced" }),
+    update: (change) => {
+      const next = change(value());
+      setValue(next);
+      try {
+        storage.setItem(GUEST_DECK_STORAGE_KEY, saveDeckSet(next));
+      } catch {
+        // 覚えられなくても、今の画面には当てる。
+      }
+    },
+    refresh: async () => {},
+    keepLocal: async () => {},
+    useRemote: () => {},
+  };
+};
 
 export const createDeckStore = (
   options: Omit<CreateNip78DocumentOptions<DeckSet>, "definition">,

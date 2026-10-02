@@ -37,7 +37,8 @@ import { ComposeMediator } from "../../note/ComposeMediator";
 import { useReadLayer } from "../../read-layer";
 import { useMutes } from "../../settings/MuteMediator";
 import { notifyError } from "../../toast";
-import { Mediates, type UiEvent } from "../../ui-events";
+import { Mediates, type UiEvent, useDispatch } from "../../ui-events";
+import Button from "../../ui/Button";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
 /**
@@ -55,6 +56,7 @@ const ChannelChat: Component<{
   const scope = useColumnScope();
   const { store } = useReadLayer();
   const actions = useEventActions();
+  const dispatch = useDispatch();
   const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
 
@@ -200,11 +202,29 @@ const ChannelChat: Component<{
             settled={messages.status().phase === "settled"}
             onLoadOlder={messages.loadMore}
             composer={
-              <ChatComposer
-                state={state}
-                channelName={name()}
-                replyTo={replyTarget()}
-              />
+              // ログインしていなければ書く欄の代わりにログインを勧める（書いてから送れないと分かるのを避ける）。
+              actions?.viewer ? (
+                <ChatComposer
+                  state={state}
+                  channelName={name()}
+                  replyTo={replyTarget()}
+                />
+              ) : (
+                <div class="shrink-0 border-primary border-t p-3">
+                  <Button
+                    size="sm"
+                    icon="i-material-symbols:login-rounded"
+                    onClick={() =>
+                      dispatch({
+                        type: "deck/login",
+                        what: "チャンネルへの書き込み",
+                      })
+                    }
+                  >
+                    ログインして書き込む
+                  </Button>
+                </div>
+              )
             }
           />
         )}

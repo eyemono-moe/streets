@@ -41,6 +41,7 @@ import { useDispatch } from "../ui-events";
 import ColumnTabs from "../ui/ColumnTabs";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
+import WelcomeColumn from "../welcome/WelcomeColumn";
 import Activity from "./blocks/Activity";
 import Article from "./blocks/Article";
 import Authors from "./blocks/Authors";
@@ -65,6 +66,8 @@ import { useColumnScope } from "./column-scope";
  * 購読が張り直される。
  */
 export type ColumnInputs = {
+  /** ログインしているか。していなければ、自分に紐づくカラムは中身を作らない。 */
+  signedIn: boolean;
   viewer: string;
   followees: () => readonly string[];
   relayList: () => RelayListState;
@@ -199,11 +202,12 @@ const FavoriteChannelButton: Component<{ id: string }> = (props) => {
 const PERSON_ICON = "i-material-symbols:person-outline-rounded";
 
 /**
- * 自分の読み込みリレー。取得中は空（まだ探さない）。設定が無いか読み込みリレーが
+ * 自分の読み込みリレー。取得中は空（まだ探さない）。ログインしていないか、設定が無いか読み込みリレーが
  * 無ければ既定のリレーで探す —— 空のままだと、チャンネルを永久に見つけられない。
  */
 export const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
-  if (state.phase === "loading" || state.phase === "signed-out") return [];
+  // ログインしていなければ自分のリレーは無いので、既定のリレーで探す。
+  if (state.phase === "loading") return [];
   const read =
     state.phase === "ready"
       ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
@@ -536,6 +540,13 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         identifier={props.source.identifier}
       />
     ),
+  },
+  welcome: {
+    meta: () => ({
+      icon: "i-material-symbols:waving-hand-outline-rounded",
+      subtitle: "紹介とログイン",
+    }),
+    Content: () => <WelcomeColumn />,
   },
 };
 

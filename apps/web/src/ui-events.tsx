@@ -213,7 +213,12 @@ export type DeckEvent =
   /** 参照している絵文字セットを外す（セットそのものは消さない）。 */
   | { type: "emoji-set/remove"; ref: EmojiSetRef }
   /** この端末からログアウトする。 */
-  | { type: "deck/logout" };
+  | { type: "deck/logout" }
+  /**
+   * ログインしていない人が、ログインの要る操作をした。紹介とログインのカラムを
+   * 見せる。`what` は「リアクション」など、ログインすればできること。
+   */
+  | { type: "deck/login"; what?: string };
 
 /** 状態を持たない単発の操作。裁定する段は `actions` を呼ぶだけ。 */
 /** チャット内のミュートの確認。チャンネルのカラムの段が裁定する。 */

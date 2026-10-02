@@ -119,6 +119,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0031](./docs/adr/0031-nip46-session-key-boundary.md) | NIP-46 transport の通信専用 client key と本人鍵の境界を固定する |
 | [0032](./docs/adr/0032-url-opens-a-temporary-column.md) | URL はデッキを置き換えず、一時カラムを開く |
 | [0033](./docs/adr/0033-deck-set-in-one-nip78-event.md) | 複数のデッキを 1 つの kind:30078 にまとめて保存する |
+| [0034](./docs/adr/0034-guest-opens-the-deck.md) | ログインしていなくても、同じデッキを開く |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 

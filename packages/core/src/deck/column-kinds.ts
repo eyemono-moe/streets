@@ -124,6 +124,11 @@ export const columnSourceSchema = v.variant("kind", [
     id: hexId,
     relays: v.optional(v.array(v.string())),
   }),
+  /**
+   * Streets の紹介とログイン。ログインしていない人のデッキにだけ置く。中身は画面側が
+   * 持つので、デッキには種類だけを残す。
+   */
+  v.object({ kind: v.literal("welcome") }),
 ]);
 
 export type ColumnSource = v.InferOutput<typeof columnSourceSchema>;
@@ -187,6 +192,11 @@ type ColumnKindDef<S> = {
   togglesChats?: boolean;
   /** ユーザーが行動できる異常だけを返す（診断値は含めない）。 */
   alerts?: (source: S, input: ColumnAlertInput) => ColumnAlert[];
+  /**
+   * ログインしている人がいないと中身を作れないか（自分のフォロー・自分宛・自分の
+   * ブックマークなど）。ログインしていない間は、中身の代わりにログインを勧める。
+   */
+  needsAccount?: boolean;
 };
 
 /** 読み込みリレーだけを読んでいるなら、そこが落ちると何も出ない。 */
@@ -262,11 +272,13 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     hidesMuted: true,
     togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
+    needsAccount: true,
   },
   notifications: {
     title: () => ({ text: "通知" }),
     kinds: () => NOTIFICATION_KINDS,
     hidesMuted: true,
+    needsAccount: true,
     addressedToViewer: true,
     togglesChats: true,
     alerts: (_, input) => {
@@ -305,6 +317,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     // id で引くので kind は決まらない。何を保存したかは人による。
     kinds: () => undefined,
     hidesMuted: false,
+    needsAccount: true,
   },
   article: {
     title: () => ({ text: "長文記事" }),
@@ -367,6 +380,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     title: () => ({ text: "リスト" }),
     kinds: () => [],
     hidesMuted: false,
+    needsAccount: true,
   },
   "follow-set": {
     title: (source, column) => ({
@@ -404,6 +418,11 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: () => [CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
   },
+  welcome: {
+    title: () => ({ text: "Streets へようこそ" }),
+    kinds: () => [],
+    hidesMuted: false,
+  },
 };
 
 // 種類と中身の型の対応は union の分配では表せないので、引く場所をここ 1 つに閉じる。
@@ -438,6 +457,9 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
 
 export const columnHidesMuted = (column: ColumnDef): boolean =>
   kindOf(column.source).hidesMuted;
+
+export const columnNeedsAccount = (column: ColumnDef): boolean =>
+  kindOf(column.source).needsAccount === true;
 
 /**
  * カラムに起きたことのうち、ユーザーが行動できるものだけを返す (診断値
