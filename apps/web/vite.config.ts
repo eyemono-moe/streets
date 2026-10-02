@@ -84,7 +84,9 @@ export default defineConfig(({ mode }) => ({
     __SENTRY_DEBUG__: "false",
   },
   plugins: lazyPlugins(() => [
-    ...devtools(),
+    // プレビューの版でも devtools を出すので、ビルドで取り除かない。出すかは画面側が
+    // URL で決め、本番では読み込まない（別のチャンクにしてある）。
+    ...devtools({ removeDevtoolsOnBuild: false }),
     UnoCSS(),
     solid(),
     releaseNotes(),
