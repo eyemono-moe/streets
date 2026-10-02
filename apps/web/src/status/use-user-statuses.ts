@@ -5,6 +5,7 @@ import {
   type UserStatus,
   parseUserStatus,
 } from "@streets/core/nostr/user-status";
+import { createSection } from "@streets/core/solid/create-section";
 import {
   type Accessor,
   createEffect,
@@ -24,11 +25,37 @@ const nowSeconds = createRoot(() => {
   return now;
 });
 
+/**
+ * どこまで新しさを求めるか。
+ * - `cached`: 手元の値を使い回し、古くなったら取り直す（アイコンの印のように、多くの人を並べるところ）
+ * - `refresh`: 出すたびに取り直す（名刺を開いたとき）
+ * - `live`: 出している間は購読し、変わったらすぐ出す（ユーザー詳細のカラム）
+ */
+export type StatusFreshness = "cached" | "refresh" | "live";
+
 /** その人の今のステータス（general・music の順）。無ければ空。 */
 export const useUserStatuses = (
   pubkey: Accessor<string>,
+  freshness: StatusFreshness = "cached",
 ): Accessor<UserStatus[]> => {
-  const { lookups } = useReadLayer();
+  const { lookups, manager } = useReadLayer();
+  // 届いた版は store に入り、下の watchAddress が新しい版として知らせ直す。
+  // Storybook など購読できないところでは、手元にある分だけを出す。
+  if (freshness === "live" && manager) {
+    createSection({
+      manager,
+      source: () => ({
+        type: "nostr",
+        filters: [
+          {
+            kinds: [USER_STATUS_KIND],
+            authors: [pubkey()],
+            "#d": [...USER_STATUS_TYPES],
+          },
+        ],
+      }),
+    });
+  }
   const [events, setEvents] = createSignal<(NostrEvent | undefined)[]>([]);
   createEffect(() => {
     const author = pubkey();
@@ -43,6 +70,7 @@ export const useUserStatuses = (
               next[index] = lookup.phase === "found" ? lookup.event : undefined;
               return next;
             }),
+          { refresh: freshness === "refresh" },
         ),
       );
     });

@@ -20,7 +20,7 @@ import Nip05Badge from "./Nip05Badge";
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
-  const statuses = useUserStatuses(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey, "refresh");
   const followsYou = useFollowsYou(() => props.pubkey);
   const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);

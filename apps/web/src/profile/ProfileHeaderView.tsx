@@ -148,7 +148,7 @@ const ProfileHeaderView: Component<{
   onOpenFollowers?: () => void;
 }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
-  const statuses = useUserStatuses(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey, "live");
   const actions = useEventActions();
   const dispatch = useDispatch();
   // 自分のプロフィールでは、ステータスを設定・直す入口を出す。

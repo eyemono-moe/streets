@@ -9,14 +9,17 @@ export type AddressRequests = {
   /**
    * この住所の最新版を要求する。取ってから古くなっていなければ何もしない
    * （古さは kind ごとの方針で決める。既定では一度取れば取り直さない）。
+   * `refresh` なら古さに関係なく取り直す。
    */
-  request(address: EventAddress): void;
+  request(address: EventAddress, options?: RequestOptions): void;
   /** 要求済みでバッチも片付いたのに store に無い、を表す（未要求なら `false`）。 */
   isUnresolved(address: EventAddress): boolean;
   /** バッチが片付くたびに呼ぶ。どの住所かは知らせないので、読む側が store から引き直す。 */
   subscribe(listener: () => void): () => void;
   dispose(): void;
 };
+
+export type RequestOptions = { refresh?: boolean };
 
 export type CreateAddressRequestsOptions = {
   store: EventStore;
@@ -87,7 +90,7 @@ export const createAddressRequests = (
   };
 
   return {
-    request(address) {
+    request(address, requestOptions) {
       if (disposed) return;
       const key = formatEventAddress(address);
       // 取ってから古くなっていなければ取り直さない。無かったものも、取った時刻を
@@ -98,6 +101,7 @@ export const createAddressRequests = (
         address.identifier,
       );
       if (
+        !requestOptions?.refresh &&
         fetchedAt !== undefined &&
         !isStale(policyFor(address.kind), fetchedAt, scheduler.now())
       ) {
