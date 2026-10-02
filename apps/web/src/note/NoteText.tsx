@@ -25,6 +25,7 @@ const Emoji: Component<{ shortcode: string; url: string; class?: string }> = (
     <Show when={!broken()} fallback={`:${props.shortcode}:`}>
       <img
         src={props.url}
+        data-no-touch-menu
         alt={`:${props.shortcode}:`}
         title={`:${props.shortcode}:`}
         loading="lazy"

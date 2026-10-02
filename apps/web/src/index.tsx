@@ -7,6 +7,7 @@ import { swallowPressesThatDismissPopups } from "./dismiss-tap";
 import { createAppQueryClient } from "./query-client";
 import { startTelemetry } from "./telemetry";
 import { savedColorScheme, setColorScheme } from "./theme";
+import { blockTouchMenusOnMarkedImages } from "./touch-menu";
 import "@unocss/reset/tailwind-compat.css";
 import "virtual:uno.css";
 
@@ -16,6 +17,7 @@ void startTelemetry();
 // 描画前に付けないと、ダークの環境で一瞬ライトで描かれる。
 setColorScheme(savedColorScheme(), false);
 swallowPressesThatDismissPopups();
+blockTouchMenusOnMarkedImages();
 const queryClient = createAppQueryClient();
 
 render(

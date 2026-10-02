@@ -21,6 +21,7 @@ const Avatar: Component<{
   return (
     <span
       class={`block shrink-0 overflow-hidden bg-secondary ${props.class ?? ""}`}
+      data-no-touch-menu
     >
       <Show
         when={picture()}
