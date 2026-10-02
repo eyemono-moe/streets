@@ -149,7 +149,7 @@ export const 欄にメニューの操作を出す: Story = {
     scene: scene(plain, ...engaged),
     actionLayout: {
       bar: ["reply", "like", "activity", "copy-link", "details", "mute-event"],
-      menu: ["repost", "react", "zap", "bookmark", "pin"],
+      menu: ["repost", "react", "zap", "bookmark", "pin", "broadcast"],
     },
   },
 };
@@ -171,6 +171,7 @@ export const 欄の操作が少ない: Story = {
         "copy-link",
         "details",
         "mute-event",
+        "broadcast",
       ],
     },
   },
@@ -195,6 +196,7 @@ export const 欄に何も出さない: Story = {
         "copy-link",
         "details",
         "mute-event",
+        "broadcast",
       ],
     },
   },
@@ -202,7 +204,14 @@ export const 欄に何も出さない: Story = {
 
 const pinBar = {
   bar: ["reply", "repost", "like", "zap", "bookmark", "pin"],
-  menu: ["react", "activity", "copy-link", "details", "mute-event"],
+  menu: [
+    "react",
+    "activity",
+    "copy-link",
+    "details",
+    "mute-event",
+    "broadcast",
+  ],
 } as const;
 
 /** ピン留めを欄に出す。誰の投稿でもピン留めできる。 */
@@ -234,5 +243,17 @@ export const ピン留めできない投稿: Story = {
     event: picture,
     scene: scene(picture),
     actionLayout: { bar: [...pinBar.bar], menu: [...pinBar.menu] },
+  },
+};
+
+/** 「ほかのリレーにも送る」を欄に出す。押すと送り先を選ぶダイアログが開く。 */
+export const ブロードキャストを欄に出す: Story = {
+  args: {
+    event: plain,
+    scene: scene(plain, ...engaged),
+    actionLayout: {
+      bar: ["reply", "repost", "like", "zap", "bookmark", "broadcast"],
+      menu: ["react", "pin", "activity", "copy-link", "details", "mute-event"],
+    },
   },
 };

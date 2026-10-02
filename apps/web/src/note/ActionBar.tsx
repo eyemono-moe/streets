@@ -3,6 +3,7 @@ import { canReplyWithNote } from "@streets/core/nostr/build/note";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventActionId } from "@streets/core/settings/action-layout";
+import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, For, type JSX, Show } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -94,6 +95,11 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
         const pin = () =>
           ({ type: "note/pin", target: props.event, on: !pinned() }) as const;
         const pinning = useSending(pin);
+        const broadcasting = useSending(() => ({
+          type: "note/broadcast",
+          target: props.event,
+          relays: [],
+        }));
         const reposting = useSending(repost);
         const liking = useSending(like);
         const bookmarking = useSending(bookmark);
@@ -262,6 +268,14 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               label={EVENT_ACTION_META.details.label}
               icon={EVENT_ACTION_META.details.icon}
               onClick={() => dialogs.open("details")}
+            />
+          ),
+          broadcast: () => (
+            <Action
+              label={EVENT_ACTION_META.broadcast.label}
+              icon={EVENT_ACTION_META.broadcast.icon}
+              disabled={broadcasting() || !canBroadcast(props.event)}
+              onClick={() => dialogs.open("broadcast")}
             />
           ),
           "mute-event": () => (

@@ -14,6 +14,7 @@ export const EVENT_ACTIONS = [
   "copy-link",
   "details",
   "mute-event",
+  "broadcast",
 ] as const;
 
 export type EventActionId = (typeof EVENT_ACTIONS)[number];
@@ -27,6 +28,7 @@ const EVENT_LEVEL: ReadonlySet<EventActionId> = new Set([
   "copy-link",
   "details",
   "mute-event",
+  "broadcast",
 ]);
 
 /** アクション欄に並べられる数。狭いカラムでも 1 行に収まる数。 */
@@ -41,7 +43,7 @@ export type ActionLayout = {
 /** 呼ぶたびに新しく作る。 */
 export const defaultActionLayout = (): ActionLayout => ({
   bar: ["reply", "repost", "like", "react", "zap", "bookmark"],
-  menu: ["pin", "activity", "copy-link", "details", "mute-event"],
+  menu: ["pin", "activity", "copy-link", "details", "mute-event", "broadcast"],
 });
 
 /** 端末ごとの設定。スマホと PC で使う操作が違うことがある。 */

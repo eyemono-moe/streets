@@ -31,7 +31,12 @@ describe("アクション欄の並びの保存", () => {
     const loaded = loadActionLayout(saveActionLayout(layout));
     expect(loaded.bar).toEqual(layout.bar);
     // 保存に無い操作は、メニューの最後に入る。
-    expect(loaded.menu).toEqual([...layout.menu, "pin", "mute-event"]);
+    expect(loaded.menu).toEqual([
+      ...layout.menu,
+      "pin",
+      "mute-event",
+      "broadcast",
+    ]);
   });
 
   it("知らない操作・重なり・7 個目以降を直す", () => {
@@ -65,6 +70,7 @@ describe("アクション欄の並びの保存", () => {
       "pin",
       "copy-link",
       "mute-event",
+      "broadcast",
     ]);
   });
 
@@ -82,6 +88,7 @@ describe("投稿のメニューに入れる操作", () => {
       "copy-link",
       "details",
       "mute-event",
+      "broadcast",
     ]);
   });
 
@@ -155,6 +162,7 @@ describe("アクション欄の並べ替え", () => {
       "copy-link",
       "details",
       "mute-event",
+      "broadcast",
     ]);
   });
 
@@ -207,7 +215,7 @@ describe("アクション欄の並べ替え", () => {
   it("端から外へはずらさない", () => {
     const state = run([
       { type: "action-layout/move", id: "reply", direction: -1 },
-      { type: "action-layout/move", id: "mute-event", direction: 1 },
+      { type: "action-layout/move", id: "broadcast", direction: 1 },
     ]);
     expect(state.layout).toEqual(defaultActionLayout());
   });
@@ -229,6 +237,6 @@ describe("アクション欄の並べ替え", () => {
       "bookmark",
       "details",
     ]);
-    expect(slotsOf(toBar.layout)).toHaveLength(12);
+    expect(slotsOf(toBar.layout)).toHaveLength(13);
   });
 });

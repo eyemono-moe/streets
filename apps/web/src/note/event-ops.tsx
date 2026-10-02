@@ -21,6 +21,8 @@ import { useEngagementChanges } from "./use-engagement-changes";
 
 const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
 
+const BroadcastDialog = lazyPart(() => import("./BroadcastDialog"));
+
 /** 設定の画面で、操作を見分けるための名前とアイコン。 */
 export const EVENT_ACTION_META: Record<
   EventActionId,
@@ -66,6 +68,10 @@ export const EVENT_ACTION_META: Record<
   "mute-event": {
     label: "このイベントをミュート",
     icon: "i-material-symbols:volume-off-outline-rounded",
+  },
+  broadcast: {
+    label: "ほかのリレーにも送る",
+    icon: "i-material-symbols:cell-tower-rounded",
   },
 };
 
@@ -159,7 +165,7 @@ export const pinLook = (event: NostrEvent, pinned: boolean) =>
           icon: EVENT_ACTION_META.pin.icon,
         };
 
-type EventDialog = "reply" | "quote" | "details";
+type EventDialog = "reply" | "quote" | "details" | "broadcast";
 
 /**
  * 操作から開くダイアログ。アクション欄とメニューのどちらからも開くので、
@@ -201,6 +207,9 @@ export const createEventDialogs = (event: () => NostrEvent) => {
       </Match>
       <Match when={open() === "details"}>
         <EventDetailsDialog event={event()} onClose={close} />
+      </Match>
+      <Match when={open() === "broadcast"}>
+        <BroadcastDialog event={event()} onClose={close} />
       </Match>
     </Switch>
   );
