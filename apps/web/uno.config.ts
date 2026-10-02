@@ -135,6 +135,10 @@ export default defineConfig({
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
           "{0%,50%,100%{transform:none}25%{transform:translateY(-3px)}}",
+        // 1 行に収まらない文を流す。同じ文を 2 つ並べ、ちょうど 1 つ分ずらして継ぎ目を消す。
+        marquee: "{from{transform:none}to{transform:translateX(-50%)}}",
+        // 聴いている曲の印の棒。棒ごとに始まりをずらして、波に見せる。
+        "status-wave": "{0%,100%{transform:none}50%{transform:scaleY(0.4)}}",
         shake:
           "{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}",
       },
@@ -154,6 +158,8 @@ export default defineConfig({
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
+        // marquee の長さは文の幅で決まるので、置く側が inline で当てる。
+        "status-wave": "1200ms",
       },
       timingFns: {
         "fade-in": "ease-out",
@@ -171,9 +177,13 @@ export default defineConfig({
         "sheet-down": "ease-in both",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
+        marquee: "linear",
+        "status-wave": "ease-in-out",
       },
       counts: {
         "nudge-up": "infinite",
+        marquee: "infinite",
+        "status-wave": "infinite",
       },
     },
   },

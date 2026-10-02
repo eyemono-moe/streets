@@ -22,6 +22,7 @@ import FollowSetCard from "../lists/FollowSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
+import { UserStatusBadge } from "../status/UserStatusView";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
 import ActionBar from "./ActionBar";
@@ -135,8 +136,17 @@ const Row: ParentComponent<ContentProps & ActionsProps> = (props) => (
         長い投稿でも、読んでいる間アイコンが見えているようにする。
         縦線より後ろに置くので、z-index 無しで線の上に乗る。
       */}
-      <div classList={{ "sticky top-2": props.stickyAvatar }}>
+      <div
+        classList={{
+          "sticky top-2": props.stickyAvatar,
+          relative: !props.stickyAvatar,
+        }}
+      >
         <Avatar pubkey={props.event.pubkey} size={props.size} />
+        {/* 高密度では、アイコンが小さく行も詰まるので印を出さない。 */}
+        <Show when={props.size === "normal"}>
+          <UserStatusBadge pubkey={props.event.pubkey} />
+        </Show>
       </div>
     </div>
     <div

@@ -8,7 +8,7 @@ import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import { useUserStatuses } from "../status/use-user-statuses";
-import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
+import { UserStatusBubble } from "../status/UserStatusView";
 import { useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
@@ -60,10 +60,8 @@ export const ProfileHeaderCard: Component<{
    * 見本は、打つたびにドメインへ聞きに行かない）ので、外から渡す。
    */
   nip05?: JSX.Element;
-  /** アイコンの下に置く、いまの状態（NIP-38 の general）の吹き出し。 */
+  /** アイコンの下に置く、いまの状態と聴いている曲（NIP-38）の吹き出し。 */
   status?: JSX.Element;
-  /** 名前の下に置く、聴いている曲（NIP-38 の music）。 */
-  nowPlaying?: JSX.Element;
 }> = (props) => {
   // 壊れた URL を覚えておく。URL が変わったら（設定で書き換えたら）もう一度試す。
   const [bannerBroken, setBannerBroken] = createSignal<string>();
@@ -121,7 +119,6 @@ export const ProfileHeaderCard: Component<{
           </div>
           {props.nip05}
         </div>
-        {props.nowPlaying}
         <Show when={props.profile?.about}>
           {(about) => (
             <NoteText
@@ -169,33 +166,33 @@ const ProfileHeaderView: Component<{
         </Show>
       }
       status={
-        <Show
-          when={
-            own() && !statuses().some((status) => status.type === "general")
-          }
-          fallback={
-            // アイコン（80px、左端から 12px）の真下に三角を合わせる。本体はボタンの
-            // 下端から 4px 離し（重なると読めない）、長い三角の先だけをアイコンに入れる。
-            <UserStatusBubble
-              statuses={statuses()}
-              arrowLeft={34}
-              class="-mt-2"
-              onEdit={own() ? edit : undefined}
-            />
-          }
-        >
-          <div class="flex">
-            <Button
-              size="sm"
-              icon="i-material-symbols:add-reaction-outline-rounded"
-              onClick={edit}
-            >
-              ステータスを設定
-            </Button>
-          </div>
-        </Show>
+        <>
+          {/* アイコン（80px、左端から 12px）の真下に三角を合わせる。本体はボタンの */}
+          {/* 下端から 4px 離し（重なると読めない）、長い三角の先だけをアイコンに入れる。 */}
+          <UserStatusBubble
+            statuses={statuses()}
+            arrowLeft={34}
+            class="-mt-2"
+            onEdit={own() ? edit : undefined}
+          />
+          {/* 自分にいまの状態が無ければ、設定する入口を出す（曲だけのときも）。 */}
+          <Show
+            when={
+              own() && !statuses().some((status) => status.type === "general")
+            }
+          >
+            <div class="flex">
+              <Button
+                size="sm"
+                icon="i-material-symbols:add-reaction-outline-rounded"
+                onClick={edit}
+              >
+                ステータスを設定
+              </Button>
+            </div>
+          </Show>
+        </>
       }
-      nowPlaying={<UserNowPlaying statuses={statuses()} />}
       badge={
         <Show when={props.followsYou}>
           <FollowsYouBadge />
