@@ -61,6 +61,8 @@ export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
         {(emoji) => (
           <img
             src={emoji().url}
+            data-no-touch-menu
+            draggable={false}
             alt={`:${emoji().name}:`}
             loading="lazy"
             decoding="async"

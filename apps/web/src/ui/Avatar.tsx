@@ -21,6 +21,7 @@ const Avatar: Component<{
   return (
     <span
       class={`block shrink-0 overflow-hidden bg-secondary ${props.class ?? ""}`}
+      data-no-touch-menu
     >
       <Show
         when={picture()}
@@ -35,6 +36,7 @@ const Avatar: Component<{
         {(url) => (
           <img
             src={source(url())}
+            draggable={false}
             alt=""
             loading={props.loading ?? "lazy"}
             decoding="async"

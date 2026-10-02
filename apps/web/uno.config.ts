@@ -310,6 +310,18 @@ export default defineConfig({
           display: none !important;
         }
         /*
+          長押しで画像の保存メニューを出さない（iOS Safari の分。Android は
+          src/touch-menu.ts が止める）。メニューを止めると長押しが画像のドラッグに
+          なるので、ドラッグも止める。長押しで周りの文字が選ばれるのも止める。
+        */
+        [data-no-touch-menu],
+        [data-no-touch-menu] img {
+          -webkit-touch-callout: none;
+          -webkit-user-drag: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+        /*
           仮想スクロールの行は画面から離れると DOM ごと捨てられ、戻ると作り直される。
           作り直した要素は content-visibility: auto の「一度描いた高さ」を持たないので、
           先読みの位置で 160px と測られ、画面に入ると本当の高さに戻る。上へ戻る
