@@ -22,6 +22,8 @@ import { ErrorToaster } from "./toast";
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
 // ログインしている人（ほとんどの起動）には要らない。
 const WelcomeScreen = lazyPart(() => import("./welcome/WelcomeScreen"));
+/** 短いタブの切り替えでは接続を揺らさない。 */
+const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
@@ -32,6 +34,28 @@ const App: Component = () => {
     fallbackRelays: relayOverride,
   });
   onCleanup(() => readLayer.dispose());
+
+  onMount(() => {
+    let pauseTimer: ReturnType<typeof setTimeout> | undefined;
+    const onVisibilityChange = () => {
+      if (pauseTimer !== undefined) clearTimeout(pauseTimer);
+      pauseTimer = undefined;
+      if (document.hidden) {
+        pauseTimer = setTimeout(() => {
+          pauseTimer = undefined;
+          if (document.hidden) readLayer.manager.pause();
+        }, BACKGROUND_PAUSE_MS);
+      } else {
+        readLayer.manager.resume();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    onVisibilityChange();
+    onCleanup(() => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (pauseTimer !== undefined) clearTimeout(pauseTimer);
+    });
+  });
 
   const session = createSession(readLayer.manager.pool, {
     nostrConnectRelays: relayOverride,

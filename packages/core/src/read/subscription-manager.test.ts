@@ -69,6 +69,102 @@ const setup = () => {
   return { relays, store, manager, delivery };
 };
 
+describe("background pause", () => {
+  it("復帰時に件数制限を外して差分を取り、EOSE 後に通常の購読へ戻す", async () => {
+    const clock = createFakeClock();
+    clock.advance(1_700_000_000_000);
+    const connections: FakeRelayConnection[] = [];
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const connection = new FakeRelayConnection(url);
+        connections.push(connection);
+        return connection;
+      },
+      scheduler: clock,
+    });
+    const delivery = {
+      ...noopDelivery(),
+      onEvent: vi.fn(),
+      onRelayRestarted: vi.fn(),
+    };
+    const handle = manager.subscribe(
+      [{ kinds: [1], limit: 2 }],
+      ["wss://a/"],
+      delivery,
+    );
+
+    expect(connections[0].subscriptions[0].filters).toEqual([
+      { kinds: [1], limit: 2 },
+    ]);
+    manager.pause();
+    expect(manager.paused).toBe(true);
+    expect(manager.pauseCount).toBe(1);
+    expect(connections[0].closed).toBe(true);
+    expect(manager.connectionCount).toBe(0);
+
+    clock.advance(60_000);
+    manager.resume();
+    expect(manager.paused).toBe(false);
+    expect(connections[1].subscriptions[0].filters).toEqual([
+      { kinds: [1], since: 1_699_999_999 },
+    ]);
+    expect(manager.catchupSubscriptions).toBe(1);
+    for (let i = 0; i < 3; i++) {
+      connections[1].emitEvent(
+        0,
+        signed(i + 1, { created_at: 1_700_000_010 + i }),
+      );
+    }
+    expect(delivery.onEvent).toHaveBeenCalledTimes(3);
+    expect(manager.catchupReceived).toBe(3);
+
+    connections[1].emitEose(0);
+    await Promise.resolve();
+    expect(connections[1].subscriptions[0].closed).toBe(true);
+    expect(manager.catchupSubscriptions).toBe(0);
+    expect(connections[1].subscriptions[1].filters).toEqual([
+      { kinds: [1], limit: 2 },
+    ]);
+    expect(delivery.onRelayRestarted).toHaveBeenCalledWith("wss://a/");
+    handle.close();
+    manager.dispose();
+  });
+
+  it("休止中に追加した購読は、復帰時に通常の初回範囲から取得する", () => {
+    const clock = createFakeClock();
+    clock.advance(1_700_000_000_000);
+    const connections: FakeRelayConnection[] = [];
+    const store = new EventStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const connection = new FakeRelayConnection(url);
+        connections.push(connection);
+        return connection;
+      },
+      scheduler: clock,
+    });
+
+    manager.pause();
+    const handle = manager.subscribe(
+      [{ kinds: [1], limit: 2 }],
+      ["wss://a/"],
+      noopDelivery(),
+    );
+    expect(connections).toHaveLength(0);
+    manager.resume();
+    expect(connections[0].subscriptions[0].filters).toEqual([
+      { kinds: [1], limit: 2 },
+    ]);
+    handle.close();
+    manager.dispose();
+  });
+});
+
 // replan() pools demand across every registered section, so these tests need
 // to mint many distinct authors (each with its own kind:10002) and inspect a
 // manager's global connection set rather than a single relay's subscriptions.
