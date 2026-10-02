@@ -39,14 +39,14 @@ type WelcomeColumnViewProps = WelcomeLogin & {
 /** 紹介とログインのカラムの中身。頭にロゴの道を敷き、その下で始め方を選ぶ。 */
 export const WelcomeColumnView: Component<WelcomeColumnViewProps> = (props) => (
   <div class="flex flex-col">
-    <div class="relative h-30 shrink-0 overflow-hidden">
+    <div class="relative h-36 shrink-0 overflow-hidden">
       <JunctionArt class="absolute inset-0 size-full" />
       <div class="absolute inset-x-4 bottom-3 flex items-center gap-3 c-white">
         {/* ロゴの紫は夜の色に沈むので、白い台に載せる。 */}
-        <span class="grid size-11 place-items-center rounded-2.5 bg-white">
-          <img src="/favicon.svg" alt="" class="size-8" />
+        <span class="grid size-14 place-items-center rounded-3 bg-white">
+          <img src="/favicon.svg" alt="" class="size-10" />
         </span>
-        <p class="font-700 text-[26px] leading-none">Streets</p>
+        <p class="font-700 text-[36px] leading-none">Streets</p>
       </div>
     </div>
     <div class="p-4">

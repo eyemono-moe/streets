@@ -9,6 +9,7 @@ import {
   createSignal,
   on,
 } from "solid-js";
+import { isMultiColumn } from "../deck-layout-setting";
 import type { ConnectAttempt } from "../session";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
@@ -106,13 +107,16 @@ const LoginPanel: Component<{
             trailing="next"
             onClick={() => setStep("existing")}
           />
-          <ChoiceButton
-            icon="i-material-symbols:visibility-outline-rounded"
-            title="ログインせずに見てみる"
-            description="いま流れている投稿を読みます"
-            trailing="next"
-            onClick={() => dispatch({ type: "deck/browse" })}
-          />
+          {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
+          <Show when={!isMultiColumn()}>
+            <ChoiceButton
+              icon="i-material-symbols:visibility-outline-rounded"
+              title="ログインせずに見てみる"
+              description="いま流れている投稿を読みます"
+              trailing="next"
+              onClick={() => dispatch({ type: "deck/browse" })}
+            />
+          </Show>
         </section>
       </Match>
 
