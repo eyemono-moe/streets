@@ -67,10 +67,14 @@ const fakeRequests = () => {
 /** 住所の要求を記録し、バッチが片付いた知らせをテストから出せる要求器。 */
 const fakeAddressRequests = () => {
   const requested: string[] = [];
+  const refreshed: string[] = [];
   const listeners = new Set<() => void>();
   const unresolved = new Set<string>();
   const requests: AddressRequests = {
-    request: (address) => void requested.push(formatEventAddress(address)),
+    request(address, options) {
+      requested.push(formatEventAddress(address));
+      if (options?.refresh) refreshed.push(formatEventAddress(address));
+    },
     isUnresolved: (address) => unresolved.has(formatEventAddress(address)),
     subscribe(listener) {
       listeners.add(listener);
@@ -81,6 +85,7 @@ const fakeAddressRequests = () => {
   return {
     requests,
     requested,
+    refreshed,
     unresolved,
     listenerCount: () => listeners.size,
     settle: () => {
@@ -224,6 +229,18 @@ describe("watchAddress", () => {
     lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup));
     expect(seen).toEqual([{ phase: "found", event: latest }]);
     expect(addresses.requested).toEqual([`30023:${PUBKEY}:post`]);
+  });
+
+  it("refresh を要求器へ渡し、取り直す間も手元の版を出したままにする", () => {
+    const { store, addresses, lookups } = setup();
+    const latest = article("post", 1);
+    store.put(latest, RELAY);
+    const seen: EventLookup[] = [];
+    lookups.watchAddress(addressOf("post"), (lookup) => seen.push(lookup), {
+      refresh: true,
+    });
+    expect(addresses.refreshed).toEqual([`30023:${PUBKEY}:post`]);
+    expect(seen).toEqual([{ phase: "found", event: latest }]);
   });
 
   it("取り終えて無いと分かっている住所は、すぐ missing にする", () => {

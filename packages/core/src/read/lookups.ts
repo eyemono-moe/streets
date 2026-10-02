@@ -3,7 +3,7 @@ import type { NostrEvent } from "../nostr/event";
 import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
-import type { AddressRequests } from "./address-requests";
+import type { AddressRequests, RequestOptions } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
@@ -38,11 +38,13 @@ export type ReadLookups = {
   ): () => void;
   /**
    * 住所で指されたイベントの最新版を探す。取得中と見つからなかったを分けて知らせ、
-   * 新しい版が入るたびに知らせ直す。
+   * 新しい版が入るたびに知らせ直す。`refresh` なら、手元にあっても古さに関係なく
+   * 取り直す（取り直している間は手元の版を知らせたまま）。
    */
   watchAddress(
     address: EventAddress,
     onChange: (lookup: EventLookup) => void,
+    options?: RequestOptions,
   ): () => void;
   /**
    * プロフィール（kind:0）を読む。store にあればリレーへ要求しない。取得中と無いを分けず、
@@ -116,7 +118,7 @@ export const createReadLookups = ({
     return unsubscribe;
   },
 
-  watchAddress(address, onChange) {
+  watchAddress(address, onChange, options) {
     const found = () => {
       const event = store.latestReplaceable(
         address.kind,
@@ -138,7 +140,7 @@ export const createReadLookups = ({
     });
     const hit = found();
     // 手元にあっても、古くなっていれば取り直す（新しい版は offChanged で届く）。
-    addresses.request(address);
+    addresses.request(address, options);
     if (hit) return offChanged;
 
     onChange(

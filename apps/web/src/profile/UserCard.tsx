@@ -5,7 +5,7 @@ import { ProfileName, ProfileText } from "../note/Name";
 import NoteText from "../note/NoteText";
 import { useProfileDetails } from "../note/use-profile";
 import { useUserStatuses } from "../status/use-user-statuses";
-import { UserNowPlaying, UserStatusBubble } from "../status/UserStatusView";
+import { UserStatusBubble } from "../status/UserStatusView";
 import Avatar from "../ui/Avatar";
 import FollowButton from "./FollowButton";
 import { useFollowsYou } from "./follows-you";
@@ -20,7 +20,7 @@ import Nip05Badge from "./Nip05Badge";
  */
 const UserCard: Component<{ pubkey: string }> = (props) => {
   const details = useProfileDetails(() => props.pubkey);
-  const statuses = useUserStatuses(() => props.pubkey);
+  const statuses = useUserStatuses(() => props.pubkey, "refresh");
   const followsYou = useFollowsYou(() => props.pubkey);
   const profile = () => details()?.profile;
   const [bannerBroken, setBannerBroken] = createSignal(false);
@@ -83,7 +83,6 @@ const UserCard: Component<{ pubkey: string }> = (props) => {
             )}
           </Show>
         </div>
-        <UserNowPlaying statuses={statuses()} />
         <Show when={profile()?.about}>
           {(about) => (
             <NoteText

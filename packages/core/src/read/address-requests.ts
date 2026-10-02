@@ -9,14 +9,17 @@ export type AddressRequests = {
   /**
    * この住所の最新版を要求する。取ってから古くなっていなければ何もしない
    * （古さは kind ごとの方針で決める。既定では一度取れば取り直さない）。
+   * `refresh` なら古さに関係なく取り直す。
    */
-  request(address: EventAddress): void;
+  request(address: EventAddress, options?: RequestOptions): void;
   /** 要求済みでバッチも片付いたのに store に無い、を表す（未要求なら `false`）。 */
   isUnresolved(address: EventAddress): boolean;
   /** バッチが片付くたびに呼ぶ。どの住所かは知らせないので、読む側が store から引き直す。 */
   subscribe(listener: () => void): () => void;
   dispose(): void;
 };
+
+export type RequestOptions = { refresh?: boolean };
 
 export type CreateAddressRequestsOptions = {
   store: EventStore;
@@ -40,6 +43,9 @@ export const createAddressRequests = (
   let disposed = false;
   const listeners = new Set<() => void>();
   const settled = new Set<string>();
+  // 取りにいっている最中の住所。返事を待つ間に同じ人の投稿が続けて描かれても、
+  // 取った時刻はまだ残っていないので、ここで重ねて要求しないようにする。
+  const inflight = new Set<string>();
 
   const stored = (address: EventAddress) =>
     options.store.latestReplaceable(
@@ -53,6 +59,8 @@ export const createAddressRequests = (
     const addresses = [...pending.values()];
     pending = new Map();
     if (addresses.length === 0) return;
+    const keys = addresses.map(formatEventAddress);
+    for (const key of keys) inflight.add(key);
 
     // kind ごとに 1 つのフィルタへまとめる。著者と `d` の組み合わせで余分に
     // 届くものがあっても、store が住所ごとに最新版だけを残す。
@@ -72,7 +80,11 @@ export const createAddressRequests = (
       "#d": [...group.d],
     }));
 
+    const done = () => {
+      for (const key of keys) inflight.delete(key);
+    };
     void options.manager.fetchOnce(filters).then(() => {
+      done();
       if (disposed) return;
       for (const address of addresses) {
         options.store.markReplaceableFetched(
@@ -83,11 +95,11 @@ export const createAddressRequests = (
         settled.add(formatEventAddress(address));
       }
       for (const listener of listeners) listener();
-    });
+    }, done);
   };
 
   return {
-    request(address) {
+    request(address, requestOptions) {
       if (disposed) return;
       const key = formatEventAddress(address);
       // 取ってから古くなっていなければ取り直さない。無かったものも、取った時刻を
@@ -98,12 +110,14 @@ export const createAddressRequests = (
         address.identifier,
       );
       if (
+        !requestOptions?.refresh &&
         fetchedAt !== undefined &&
         !isStale(policyFor(address.kind), fetchedAt, scheduler.now())
       ) {
         settled.add(key);
         return;
       }
+      if (inflight.has(key)) return;
       settled.delete(key);
       pending.set(key, address);
       if (timer === null) {
