@@ -80,6 +80,18 @@ describe("createAddressRequests", () => {
     expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
   });
 
+  it("取りにいっている最中の住所は、重ねて要求しない", () => {
+    // 捕まえる変異: 返事を待つ間に同じ人の投稿が描かれるたび、同じ住所を取りにいく
+    const { manager, clock, requests } = setup();
+    const address = { kind: 30_023, pubkey: PUBKEY, identifier: "a" };
+    requests.request(address);
+    clock.advance(200);
+    requests.request(address);
+    requests.request(address, { refresh: true });
+    clock.advance(200);
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
+  });
+
   it("片付いても store に無ければ見つからなかったとし、届けば取り消す", async () => {
     const { manager, clock, store, requests } = setup();
     let resolve = () => {};

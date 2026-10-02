@@ -43,6 +43,9 @@ export const createAddressRequests = (
   let disposed = false;
   const listeners = new Set<() => void>();
   const settled = new Set<string>();
+  // 取りにいっている最中の住所。返事を待つ間に同じ人の投稿が続けて描かれても、
+  // 取った時刻はまだ残っていないので、ここで重ねて要求しないようにする。
+  const inflight = new Set<string>();
 
   const stored = (address: EventAddress) =>
     options.store.latestReplaceable(
@@ -56,6 +59,8 @@ export const createAddressRequests = (
     const addresses = [...pending.values()];
     pending = new Map();
     if (addresses.length === 0) return;
+    const keys = addresses.map(formatEventAddress);
+    for (const key of keys) inflight.add(key);
 
     // kind ごとに 1 つのフィルタへまとめる。著者と `d` の組み合わせで余分に
     // 届くものがあっても、store が住所ごとに最新版だけを残す。
@@ -75,7 +80,11 @@ export const createAddressRequests = (
       "#d": [...group.d],
     }));
 
+    const done = () => {
+      for (const key of keys) inflight.delete(key);
+    };
     void options.manager.fetchOnce(filters).then(() => {
+      done();
       if (disposed) return;
       for (const address of addresses) {
         options.store.markReplaceableFetched(
@@ -86,7 +95,7 @@ export const createAddressRequests = (
         settled.add(formatEventAddress(address));
       }
       for (const listener of listeners) listener();
-    });
+    }, done);
   };
 
   return {
@@ -108,6 +117,7 @@ export const createAddressRequests = (
         settled.add(key);
         return;
       }
+      if (inflight.has(key)) return;
       settled.delete(key);
       pending.set(key, address);
       if (timer === null) {
