@@ -184,7 +184,7 @@ export const UserStatusBubble: Component<{
                 role="img"
                 aria-label={LABEL.music}
               >
-                <WaveBars x={0} y={0} />
+                <WaveBars x={0} y={0} animate />
               </svg>
               <Marquee class="flex-1">
                 <StatusText status={status()} />
