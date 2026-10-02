@@ -19,6 +19,9 @@ setColorScheme(savedColorScheme(), false);
 swallowPressesThatDismissPopups();
 blockTouchMenusOnMarkedImages();
 const queryClient = createAppQueryClient();
+const root = document.getElementById("root")!;
+// index.html の紹介は JS を動かさない読み手のためのもの。render は中身を足すだけなので先に消す。
+root.replaceChildren();
 
 render(
   () => (
@@ -30,6 +33,5 @@ render(
       </Router>
     </QueryClientProvider>
   ),
-  // div#root in index.html
-  document.getElementById("root")!,
+  root,
 );
