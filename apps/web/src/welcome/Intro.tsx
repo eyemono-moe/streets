@@ -6,19 +6,15 @@ import { GUIDE } from "./guide";
 const FEATURES = [
   {
     icon: "i-material-symbols:view-column-outline-rounded",
-    label: "カラムを好きなだけ足し、並べ替える",
+    label: "カラムはいくつでも足して、並べ替えられます。",
   },
   {
-    icon: "i-material-symbols:stacks-outline-rounded",
-    label: "投稿や人を押すと、カラムの上に重ねて開く",
-  },
-  {
-    icon: "i-material-symbols:notifications-outline-rounded",
-    label: "通知・検索・リスト・チャンネルもカラムに",
+    icon: "i-material-symbols:forum-outline-rounded",
+    label: "投稿を押すと、そのカラムの中でスレッドが開きます。",
   },
   {
     icon: "i-material-symbols:key-outline-rounded",
-    label: "秘密鍵を預けずにログイン",
+    label: "秘密鍵を Streets に渡さずにログインできます。",
   },
 ];
 
@@ -29,11 +25,8 @@ const Intro: Component = () => {
     <div class="flex flex-col gap-2.5">
       <p class="font-700 text-[24px] leading-snug">See it your way.</p>
       <p class="text-body">
-        Streets はブラウザで使える Nostr
-        のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
-      </p>
-      <p class="text-body">
-        ほかのカラムは、ログインしなくても読めます。カラムを足したり並べ替えたりもできます。
+        Streets はブラウザで使う Nostr
+        クライアントです。タイムラインや通知、検索結果をカラムにして並べられます。
       </p>
       <ul class="flex flex-col gap-1.5 py-1 text-caption">
         <For each={FEATURES}>

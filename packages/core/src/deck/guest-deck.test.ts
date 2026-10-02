@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import { columnNeedsAccount } from "./column-kinds";
 import { loadDeckSet, saveDeckSet } from "./deck";
-import { STREETS_PUBKEY, guestDeckSet } from "./guest-deck";
+import { STREETS_PUBKEY, browseTargetIn, guestDeckSet } from "./guest-deck";
 
 describe("guestDeckSet", () => {
   const set = guestDeckSet(["wss://a.example/"]);
@@ -57,5 +57,36 @@ describe("columnNeedsAccount", () => {
     expect(of({ kind: "follow-sets" })).toBe(true);
     expect(of({ kind: "user", pubkey: "a".repeat(64) })).toBe(false);
     expect(of({ kind: "search", query: "ねこ" })).toBe(false);
+  });
+});
+
+describe("browseTargetIn", () => {
+  const col = (
+    id: string,
+    source: Parameters<typeof columnNeedsAccount>[0]["source"],
+  ) => ({ id, title: id, source });
+
+  it("紹介とログインの要るカラムを飛ばし、読めるカラムへ移る", () => {
+    expect(
+      browseTargetIn([
+        col("welcome", { kind: "welcome" }),
+        col("home", { kind: "followees", kinds: [1] }),
+        col("relay", {
+          kind: "literal",
+          filters: [{ kinds: [1] }],
+          relays: ["wss://a.example/"],
+        }),
+      ]),
+    ).toBe("relay");
+  });
+
+  it("読めるカラムが無ければ undefined", () => {
+    // 捕まえる変異: 紹介のカラム自身を返す（押しても何も変わらない）
+    expect(
+      browseTargetIn([
+        col("welcome", { kind: "welcome" }),
+        col("notifications", { kind: "notifications" }),
+      ]),
+    ).toBeUndefined();
   });
 });

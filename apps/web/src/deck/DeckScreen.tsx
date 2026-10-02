@@ -1,5 +1,6 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
+import { buildRelayColumn } from "@streets/core/deck/column-presets";
 import {
   type ColumnDef,
   type Deck,
@@ -28,7 +29,7 @@ import {
   deckUiTransition,
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
-import { welcomeColumn } from "@streets/core/deck/guest-deck";
+import { browseTargetIn, welcomeColumn } from "@streets/core/deck/guest-deck";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
@@ -669,6 +670,24 @@ const DeckScreen: Component<{
       case "deck/login":
         showLogin(event.what);
         return true;
+      case "deck/browse": {
+        let id = browseTargetIn(columns());
+        if (id === undefined) {
+          // 読めるカラムを全部外していたら、入口のリレーを紹介のすぐ右に足し直す。
+          const column = buildRelayColumn(WELCOME_RELAYS);
+          if (!column) return true;
+          id = column.id;
+          const welcomeAt = columns().findIndex(
+            (item) => item.source.kind === "welcome",
+          );
+          updateDeck((deck) =>
+            moveColumnToIn(addColumnTo(deck, column), column.id, welcomeAt + 1),
+          );
+        }
+        const target = id;
+        requestAnimationFrame(() => focusColumn(target));
+        return true;
+      }
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
         return true;

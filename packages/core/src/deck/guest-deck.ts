@@ -1,4 +1,5 @@
 import type { RelayUrl } from "../relay/relay-connection";
+import { columnNeedsAccount } from "./column-kinds";
 import { buildRelayColumn, buildUserColumn } from "./column-presets";
 import {
   type ColumnDef,
@@ -57,3 +58,14 @@ export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
     ],
   };
 };
+
+/**
+ * 「ログインせずに見てみる」で移る先。紹介の後ろにある、ログインせずに読める最初の
+ * カラム。1 本も無ければ undefined で、呼ぶ側がリレーのカラムを足す。
+ */
+export const browseTargetIn = (
+  columns: readonly ColumnDef[],
+): string | undefined =>
+  columns.find(
+    (column) => column.source.kind !== "welcome" && !columnNeedsAccount(column),
+  )?.id;
