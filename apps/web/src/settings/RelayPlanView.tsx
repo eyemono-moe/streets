@@ -156,7 +156,7 @@ const PlanNotes: Component<{ plan: ReadPlan; routingSettled: boolean }> = (
           class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-4 shrink-0"
           aria-hidden="true"
         />
-        {`${props.plan.uncoveredAuthors} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないため、どこからも読めていません。`}
+        {`${props.plan.uncoveredAuthors} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないか、その人のリレーをすべて繋がないリレーにしているため、どこからも読めていません。`}
       </p>
     </Show>
   </>

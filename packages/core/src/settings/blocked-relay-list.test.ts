@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { parseBlockedRelays, setBlockedRelays } from "./blocked-relay-list";
+import {
+  loadBlockedRelaysCache,
+  parseBlockedRelays,
+  saveBlockedRelaysCache,
+  setBlockedRelays,
+} from "./blocked-relay-list";
 
 const event = (tags: string[][], content = ""): NostrEvent => ({
   id: "0".repeat(64),
@@ -47,5 +52,23 @@ describe("繋がないリレー（kind:10006）", () => {
       ["client", "other"],
     ]);
     expect(draft.content).toBe("encrypted");
+  });
+});
+
+describe("端末に控える繋がないリレー", () => {
+  it("控えた一覧をそのまま読み戻す", () => {
+    const relays = ["wss://a.example/", "wss://b.example/"];
+    expect(loadBlockedRelaysCache(saveBlockedRelaysCache(relays))).toEqual(
+      relays,
+    );
+  });
+
+  it("控えが無い・壊れているなら何も止めない", () => {
+    expect(loadBlockedRelaysCache(null)).toEqual([]);
+    expect(loadBlockedRelaysCache("{")).toEqual([]);
+    expect(loadBlockedRelaysCache('{"a":1}')).toEqual([]);
+    expect(loadBlockedRelaysCache('[1, "wss://ok.example"]')).toEqual([
+      "wss://ok.example/",
+    ]);
   });
 });

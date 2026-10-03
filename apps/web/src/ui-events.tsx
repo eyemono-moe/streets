@@ -53,6 +53,7 @@ export type UiEvent =
   | ProfileViewEvent
   | MediaViewEvent
   | SearchRelayViewEvent
+  | BlockedRelayViewEvent
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
   | ZapFlowEvent
   | ChatViewEvent
@@ -68,6 +69,11 @@ export type UiEvent =
 export type SearchRelayViewEvent =
   | { type: "search-relays/add"; url: string }
   | { type: "search-relays/remove"; url: string };
+
+/** 繋がないリレー（kind:10006）の足し外し。 */
+export type BlockedRelayViewEvent =
+  | { type: "blocked-relays/add"; url: string }
+  | { type: "blocked-relays/remove"; url: string };
 
 /** 画像のアップロード先（Blossom のサーバー）の足し外し。 */
 export type MediaViewEvent =

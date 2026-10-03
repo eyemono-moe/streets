@@ -2,7 +2,7 @@ import * as v from "valibot";
 import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import type { SectionStatus } from "../read/source";
-import type { RelayFilter } from "../relay/relay-connection";
+import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import { parseSearchQuery } from "../search/query";
 import type { ReadRoutingMode } from "../settings/read-routing-setting";
 import {
@@ -169,6 +169,8 @@ export type ColumnAlertInput = {
   status: SectionStatus;
   relayList: RelayListState;
   readMode: ReadRoutingMode;
+  /** ユーザーが繋がないと決めたリレー（kind:10006）。 */
+  blockedRelays: readonly RelayUrl[];
 };
 
 type ColumnKindDef<S> = {
@@ -245,15 +247,28 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     hidesMuted: true,
     alerts: (source, input) => {
       const unreachable = input.status.incomplete?.unreachableRelays ?? 0;
+      const blocked =
+        source.relays?.filter((url) => input.blockedRelays.includes(url)) ?? [];
       // ユーザーが指定した URL だけが対象 —— Outbox が選んだリレーはユーザーには変えられない。
-      return source.relays !== undefined && unreachable > 0
-        ? [
-            {
-              message: `指定したリレーに接続できません (${unreachable} 本)`,
-              action: "カラムの設定でリレーの URL を確認してください",
-            },
-          ]
-        : [];
+      return [
+        ...(blocked.length > 0
+          ? [
+              {
+                message: `指定したリレーのうち ${blocked.length} 本は、繋がないリレーにしているため読みません`,
+                action:
+                  "設定の「リレー」で繋がないリレーから外すか、カラムの設定でそのリレーを外してください",
+              },
+            ]
+          : []),
+        ...(source.relays !== undefined && unreachable > 0
+          ? [
+              {
+                message: `指定したリレーに接続できません (${unreachable} 本)`,
+                action: "カラムの設定でリレーの URL を確認してください",
+              },
+            ]
+          : []),
+      ];
     },
   },
   search: {
@@ -470,11 +485,13 @@ export const columnAlerts = (
   status: SectionStatus,
   relayList: RelayListState,
   readMode: ReadRoutingMode = "outbox",
+  blockedRelays: readonly RelayUrl[] = [],
 ): ColumnAlert[] =>
   kindOf(column.source).alerts?.(column.source, {
     status,
     relayList,
     readMode,
+    blockedRelays,
   }) ?? [];
 
 /**

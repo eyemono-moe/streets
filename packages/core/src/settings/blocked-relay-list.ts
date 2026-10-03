@@ -37,3 +37,31 @@ export const setBlockedRelays =
     replaceTags(current, BLOCKED_RELAY_LIST_KIND, "relay", () =>
       relays.map((relay) => ["relay", relay]),
     );
+
+/**
+ * 端末に控える前回の一覧の置き場。kind:10006 はインデクサから取るので、
+ * 届くまでの間に繋いでしまわないよう、起動したらまずこれを当てる。
+ */
+export const blockedRelaysStorageKey = (pubkey: string): string =>
+  `streets.v1.blockedRelays.${pubkey}`;
+
+/** 控えが無い・読めないなら、何も止めない。 */
+export const loadBlockedRelaysCache = (raw: string | null): RelayUrl[] => {
+  if (raw === null) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  const relays: RelayUrl[] = [];
+  for (const item of parsed) {
+    const url = typeof item === "string" ? normalizeRelayUrl(item) : undefined;
+    if (url && !relays.includes(url)) relays.push(url);
+  }
+  return relays;
+};
+
+export const saveBlockedRelaysCache = (relays: readonly RelayUrl[]): string =>
+  JSON.stringify(relays);
