@@ -10,11 +10,13 @@ import type {
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ItemVisibility } from "@streets/core/nostr/private-tags";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type {
   ActionArrangeEvent,
   ActionLayout,
 } from "@streets/core/settings/action-layout";
+import type { BlockedRelayEntry } from "@streets/core/settings/blocked-relay-list";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
@@ -72,8 +74,8 @@ export type SearchRelayViewEvent =
 
 /** 繋がないリレー（kind:10006）の足し外し。 */
 export type BlockedRelayViewEvent =
-  | { type: "blocked-relays/add"; url: string }
-  | { type: "blocked-relays/remove"; url: string };
+  | { type: "blocked-relays/add"; url: RelayUrl; visibility: ItemVisibility }
+  | { type: "blocked-relays/remove"; entry: BlockedRelayEntry };
 
 /** 画像のアップロード先（Blossom のサーバー）の足し外し。 */
 export type MediaViewEvent =

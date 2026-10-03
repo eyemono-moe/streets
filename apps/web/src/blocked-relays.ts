@@ -2,9 +2,10 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { SubscriptionManager } from "@streets/core/read/subscription-manager";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
+  type DecodedBlockedRelayList,
   blockedRelaysStorageKey,
+  blockedRelaysToApply,
   loadBlockedRelaysCache,
-  parseBlockedRelays,
   saveBlockedRelaysCache,
 } from "@streets/core/settings/blocked-relay-list";
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
@@ -16,12 +17,15 @@ export { blockedRelays };
 
 /**
  * ログインしている間、自分の繋がないリレー（kind:10006）を読み取り層へ当てる。
- * 呼んだその場で前回の控えを当てる —— カラムが購読を張るより先に効かせるため。
+ * 非公開の項目も止める。呼んだその場で前回の控えを当てる —— カラムが購読を
+ * 張るより先に効かせるため。
  */
 export const applyBlockedRelays = (
   manager: SubscriptionManager,
   pubkey: string,
-  list: Accessor<NostrEvent | undefined>,
+  list: Accessor<
+    (DecodedBlockedRelayList & { from: NostrEvent | undefined }) | undefined
+  >,
 ) => {
   const key = blockedRelaysStorageKey(pubkey);
   const apply = (relays: readonly RelayUrl[]) => {
@@ -38,13 +42,15 @@ export const applyBlockedRelays = (
   apply(cached);
 
   createEffect(() => {
-    const event = list();
+    const decoded = list();
     // まだ届いていない間は控えのまま。空にすると、控えで止めていたリレーへ繋ぐ。
-    if (event === undefined) return;
-    const relays = parseBlockedRelays(event);
-    apply(relays);
+    if (decoded?.from === undefined) return;
+    const next = blockedRelaysToApply(decoded, cached);
+    apply(next.relays);
+    if (next.cache === undefined) return;
+    cached = next.cache;
     try {
-      localStorage.setItem(key, saveBlockedRelaysCache(relays));
+      localStorage.setItem(key, saveBlockedRelaysCache(next.cache));
     } catch {
       // 控えられなくても、今の画面には当たっている。
     }

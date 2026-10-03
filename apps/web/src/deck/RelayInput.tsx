@@ -6,7 +6,14 @@ import {
   type RelaySuggestion,
   relaySuggestions,
 } from "@streets/core/settings/relay-suggestions";
-import { type Component, For, Show, createMemo, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  Show,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import Button from "../ui/Button";
 import { textInputClass } from "../ui/TextField";
@@ -32,6 +39,8 @@ const RelayInput: Component<{
   selected: readonly RelayUrl[];
   onAdd: (url: RelayUrl) => void;
   disabled?: boolean;
+  /** 見出しと入力欄の間に置く、足し方の選択（公開範囲など）。 */
+  options?: JSX.Element;
 }> = (props) => {
   const followeeRelays = useFolloweeWriteRelays();
   const [query, setQuery] = createSignal("");
@@ -98,6 +107,7 @@ const RelayInput: Component<{
       <Combobox.Label class="c-secondary font-600 text-caption">
         リレーを足す
       </Combobox.Label>
+      {props.options}
       <Combobox.Control class="flex items-center gap-2">
         <Combobox.Input
           class={`${textInputClass} min-w-0 flex-1`}

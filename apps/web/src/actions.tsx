@@ -53,7 +53,11 @@ import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { BLOCKED_RELAY_LIST_KIND } from "@streets/core/settings/blocked-relay-list";
+import {
+  BLOCKED_RELAY_LIST_KIND,
+  type DecodedBlockedRelayList,
+  decodeBlockedRelayList,
+} from "@streets/core/settings/blocked-relay-list";
 import type { Signer } from "@streets/core/signer/signer";
 import { authorRelays, broadcast } from "@streets/core/write/broadcast";
 import { fetchLatest } from "@streets/core/write/fetch-latest";
@@ -63,6 +67,7 @@ import {
   type Accessor,
   type ParentComponent,
   createContext,
+  createResource,
   createSignal,
   onCleanup,
   useContext,
@@ -183,8 +188,14 @@ export type WriteStack = {
   /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
   searchRelays: Accessor<NostrEvent | undefined>;
-  /** 自分の繋がないリレー（kind:10006）。 */
-  blockedRelays: Accessor<NostrEvent | undefined>;
+  /**
+   * 自分の繋がないリレー（kind:10006）を、非公開の項目まで復号したもの。
+   * `from` は読んだ版で、一覧がまだ届いていなければ undefined。復号を 1 か所に
+   * まとめるのは、拡張機能の署名器が復号のたびに確認を出すことがあるため。
+   */
+  blockedRelays: Accessor<
+    (DecodedBlockedRelayList & { from: NostrEvent | undefined }) | undefined
+  >;
   /** 自分の絵文字の一覧（kind:10030）。ピッカーに出すもの。 */
   emojiList: Accessor<NostrEvent | undefined>;
   fetchLatest(
@@ -263,7 +274,15 @@ export const createWriteStack = (options: {
   const profile = mine(PROFILE_KIND);
   const blossomServers = mine(BLOSSOM_SERVERS_KIND);
   const searchRelays = mine(SEARCH_RELAY_LIST_KIND);
-  const blockedRelays = mine(BLOCKED_RELAY_LIST_KIND);
+  const blockedRelayList = mine(BLOCKED_RELAY_LIST_KIND);
+  // source を包むのは、一覧がまだ無い（undefined）ときも「無い」として読むため。
+  const [blockedRelays] = createResource(
+    () => ({ event: blockedRelayList.event() }),
+    async ({ event }) => ({
+      ...(await decodeBlockedRelayList(event, options.signer, options.viewer)),
+      from: event,
+    }),
+  );
   const emojiList = mine(EMOJI_LIST_KIND);
 
   const bookmarkIds = () =>
@@ -437,7 +456,7 @@ export const createWriteStack = (options: {
     profile: profile.event,
     blossomServers: blossomServers.event,
     searchRelays: searchRelays.event,
-    blockedRelays: blockedRelays.event,
+    blockedRelays: () => blockedRelays.latest,
     emojiList: emojiList.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),

@@ -1,16 +1,21 @@
-import type { NostrEvent } from "@streets/core/nostr/event";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type {
+  ItemVisibility,
+  PrivatePartStatus,
+} from "@streets/core/nostr/private-tags";
 import {
   BLOCKED_RELAY_LIST_KIND,
-  parseBlockedRelays,
-  setBlockedRelays,
+  type BlockedRelayChange,
+  type BlockedRelayEntry,
+  type DecodedBlockedRelayList,
+  applyBlockedRelayChange,
+  changeBlockedRelays,
 } from "@streets/core/settings/blocked-relay-list";
+import type { Signer } from "@streets/core/signer/signer";
 import type { Writer } from "@streets/core/write/writer";
 import {
   type Accessor,
   type ParentComponent,
   createContext,
-  createMemo,
   createSignal,
   useContext,
 } from "solid-js";
@@ -18,7 +23,9 @@ import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 
 export type BlockedRelays = {
-  relays: Accessor<readonly RelayUrl[]>;
+  entries: Accessor<readonly BlockedRelayEntry[]>;
+  /** 非公開の項目を読み書きできるか。復号が済むまでは undefined。 */
+  privatePart: Accessor<PrivatePartStatus | undefined>;
   /** 保存している途中。続けて押させない。 */
   saving: Accessor<boolean>;
 };
@@ -32,20 +39,26 @@ const BlockedRelaysContext = createContext<BlockedRelays>();
  */
 export const BlockedRelayMediator: ParentComponent<{
   writer: Pick<Writer, "replace">;
-  list: Accessor<NostrEvent | undefined>;
+  signer: Signer;
+  viewer: string;
+  list: Accessor<DecodedBlockedRelayList | undefined>;
 }> = (props) => {
   const [saving, setSaving] = createSignal(false);
-  const saved = createMemo(() => parseBlockedRelays(props.list()));
   // 保存が届くまでの間も、足した・外した結果を見せる。
-  const [pending, setPending] = createSignal<readonly RelayUrl[]>();
-  const relays = () => pending() ?? saved();
+  const [pending, setPending] = createSignal<readonly BlockedRelayEntry[]>();
+  const entries = () => pending() ?? props.list()?.entries ?? [];
+  const privatePart = () => props.list()?.privatePart;
 
-  const save = (next: readonly RelayUrl[]) => {
+  const save = (change: BlockedRelayChange) => {
     if (saving()) return;
     setSaving(true);
-    setPending(next);
+    setPending(applyBlockedRelayChange(entries(), change));
     props.writer
-      .replace(BLOCKED_RELAY_LIST_KIND, undefined, setBlockedRelays(next))
+      .replace(
+        BLOCKED_RELAY_LIST_KIND,
+        undefined,
+        changeBlockedRelays(props.signer, props.viewer, change),
+      )
       .then(
         () => notifySaved("繋がないリレーを保存しました"),
         (cause) => notifyError(cause, "繋がないリレーを保存できませんでした"),
@@ -58,12 +71,16 @@ export const BlockedRelayMediator: ParentComponent<{
 
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
-      case "blocked-relays/add":
-        if (relays().includes(event.url)) return true;
-        save([...relays(), event.url]);
+      case "blocked-relays/add": {
+        if (entries().some((entry) => entry.url === event.url)) return true;
+        // 非公開を扱えないなら、選んでいても公開として足す。
+        const visibility: ItemVisibility =
+          privatePart() === "ready" ? event.visibility : "public";
+        save({ type: "add", entry: { url: event.url, visibility } });
         return true;
+      }
       case "blocked-relays/remove":
-        save(relays().filter((relay) => relay !== event.url));
+        save({ type: "remove", entry: event.entry });
         return true;
       default:
         return false;
@@ -71,7 +88,7 @@ export const BlockedRelayMediator: ParentComponent<{
   };
 
   return (
-    <BlockedRelaysContext.Provider value={{ relays, saving }}>
+    <BlockedRelaysContext.Provider value={{ entries, privatePart, saving }}>
       <Mediates handle={handle}>{props.children}</Mediates>
     </BlockedRelaysContext.Provider>
   );
