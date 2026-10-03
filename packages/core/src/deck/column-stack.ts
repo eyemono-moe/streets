@@ -43,15 +43,27 @@ export const shownColumn = (
   base: ColumnDef,
 ): ColumnDef => openLayers(state).at(-1)?.column ?? base;
 
+/**
+ * 同じものを見せるカラムか。デッキに置いたカラムは id が開き方によらないので、
+ * 何を見せるか（source）でも比べる。
+ */
+const showsSame = (left: ColumnDef, right: ColumnDef): boolean =>
+  left.id === right.id ||
+  JSON.stringify(left.source) === JSON.stringify(right.source);
+
+/** `base` は段を重ねる下のカラム。それと同じものも重ねない。 */
 export const columnStackTransition = (
   state: ColumnStackState,
   event: ColumnStackEvent,
+  base?: ColumnDef,
 ): ColumnStackState => {
   switch (event.type) {
     case "stack/open": {
-      // 同じものを 2 回押しても重ねない。閉じている途中の段は数えない ——
+      // いま見えているものと同じなら重ねない（スレッドの中で、その投稿の画像から
+      // 「投稿を開く」を押したときなど）。閉じている途中の段は数えない ——
       // 閉じた直後に同じ投稿を押したら、もう一度開いてほしい。
-      if (openLayers(state).at(-1)?.column.id === event.column.id) return state;
+      const shown = openLayers(state).at(-1)?.column ?? base;
+      if (shown && showsSame(shown, event.column)) return state;
       return {
         layers: [
           ...state.layers,

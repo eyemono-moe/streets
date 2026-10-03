@@ -15,6 +15,7 @@ import {
   literalSource,
   notificationsSource,
   searchSource,
+  userMediaSource,
   userPostsSource,
   userReactionsSource,
 } from "@streets/core/deck/column-sources";
@@ -55,6 +56,7 @@ import {
   FollowSetList,
   FollowSetTimeline,
 } from "./blocks/FollowSets";
+import MediaGrid from "./blocks/MediaGrid";
 import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
@@ -403,6 +405,20 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
                     name="posts"
                     source={() =>
                       userPostsSource(props.source.pubkey, {
+                        chats: columnShow(scope.column()).chats,
+                      })
+                    }
+                  />
+                ),
+              },
+              {
+                value: "media",
+                label: "メディア",
+                content: () => (
+                  <MediaGrid
+                    name="media"
+                    source={() =>
+                      userMediaSource(props.source.pubkey, {
                         chats: columnShow(scope.column()).chats,
                       })
                     }

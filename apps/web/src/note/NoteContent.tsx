@@ -1,3 +1,4 @@
+import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventRef } from "@streets/core/nostr/event-refs";
 import { layoutNote } from "@streets/core/view/note-layout";
@@ -154,6 +155,12 @@ export const NoteContent: Component<{
           index={viewing()}
           onIndexChange={setViewing}
           onClose={() => setViewing(undefined)}
+          origin={
+            // チャンネルの発言はチャンネルの中で読むもので、1 件だけを開く先が無い。
+            props.event.kind === CHANNEL_MESSAGE_KIND
+              ? undefined
+              : () => props.event
+          }
         />
       </Show>
       {props.media}
