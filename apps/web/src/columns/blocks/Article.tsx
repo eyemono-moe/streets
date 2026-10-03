@@ -2,15 +2,20 @@ import {
   articleCommentsSource,
   articleSource,
 } from "@streets/core/deck/column-sources";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import { commentTree } from "@streets/core/view/comment-tree";
 import { type Component, Match, Switch } from "solid-js";
 import ArticleCommentsView from "../../article/ArticleCommentsView";
 import ArticleView from "../../article/ArticleView";
+import { createEventDialogs } from "../../note/event-ops";
 import { useMutes } from "../../settings/MuteMediator";
+import Button from "../../ui/Button";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
 /** 住所で指した長文記事へのコメント。 */
 const ArticleComments: Component<{
+  /** いま読んでいる版。コメントを書くときの親にする。 */
+  article: NostrEvent;
   pubkey: string;
   identifier: string;
   relays?: readonly string[];
@@ -28,8 +33,22 @@ const ArticleComments: Component<{
         ? section.items().filter((event) => !mutes.hides(event))
         : section.items(),
     );
+  const dialogs = createEventDialogs(() => props.article);
   return (
     <ArticleCommentsView
+      trailing={
+        <>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="i-material-symbols:add-comment-outline-rounded"
+            onClick={() => dialogs.open("reply")}
+          >
+            コメントする
+          </Button>
+          {dialogs.view}
+        </>
+      }
       rows={rows()}
       settled={section.status().phase === "settled"}
       size={scope.column().density === "compact" ? "compact" : "normal"}
@@ -57,6 +76,7 @@ const Article: Component<{
           <>
             <ArticleView event={event()} />
             <ArticleComments
+              article={event()}
               pubkey={props.pubkey}
               identifier={props.identifier}
               relays={props.relays}

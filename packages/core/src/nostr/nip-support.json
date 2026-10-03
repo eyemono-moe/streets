@@ -127,19 +127,20 @@
   },
   {
     "nip": "22",
-    "status": "一部",
-    "summary": "コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッド・記事のカラムでも取る",
+    "status": "対応",
+    "summary": "コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッド・記事のカラムでも取る。投稿以外への返信はコメントで書く",
     "kinds": [1111],
     "tags": ["E", "A", "I", "K", "P", "e", "a", "i", "k", "p"],
     "paths": [
       "packages/core/src/nostr/event-refs.ts",
+      "packages/core/src/nostr/build/note.ts",
       "packages/core/src/view/comment-scope.ts",
       "packages/core/src/view/comment-tree.ts",
       "packages/core/src/solid/create-thread-source.ts",
       "apps/web/src/note/Event.tsx",
       "apps/web/src/article/ArticleCommentsView.tsx"
     ],
-    "gap": "コメントを書けない"
+    "gap": "投稿（kind:1）への返信はコメントでなく kind:1 で書く（コメントを表示できないクライアントがまだ多いため）。コメントのリポストは汎用リポスト（kind:16）を作れず、できない"
   },
   {
     "nip": "23",
@@ -382,7 +383,7 @@
       "apps/web/src/note/Event.tsx",
       "apps/web/src/columns/blocks/MediaGrid.tsx"
     ],
-    "gap": "表示だけで、画像の投稿は作れない。返信（kind:1111）とリポスト（kind:16）もまだできない"
+    "gap": "表示だけで、画像の投稿は作れない。リポスト（kind:16）もまだできない"
   },
   {
     "nip": "71",

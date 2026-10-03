@@ -1,7 +1,6 @@
 import { Menu } from "@ark-ui/solid/menu";
 import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
-import { canReplyWithNote } from "@streets/core/nostr/build/note";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
@@ -126,7 +125,6 @@ const EventItems: Component<{
     const meta = EVENT_ACTION_META[id];
     switch (id) {
       case "reply":
-        return [{ value: id, ...meta, todo: !canReplyWithNote(props.event) }];
       case "react":
       case "activity":
       case "copy-link":

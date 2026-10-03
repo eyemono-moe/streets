@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../event";
+import { commentRefs, replyTarget, threadRoot } from "../event-refs";
 import { encodeBech32 } from "../nip19";
-import { buildNote, buildQuote, buildReply } from "./note";
+import {
+  buildComment,
+  buildNote,
+  buildQuote,
+  buildReply,
+  buildReplyTo,
+} from "./note";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({
@@ -224,5 +231,97 @@ describe("buildNote", () => {
       tags: [],
       content: "ただの本文",
     });
+  });
+});
+
+describe("buildComment", () => {
+  const ROOT_PK = "9".repeat(64);
+  const article = evt({
+    id: "1".repeat(64),
+    pubkey: ROOT_PK,
+    kind: 30023,
+    tags: [["d", "post"]],
+  });
+  const address = `30023:${ROOT_PK}:post`;
+
+  it("記事へのコメントは、根を住所で、親を住所と版の id で指す", () => {
+    // 捕まえる変異: 根や親を id だけで指す（記事を書き直すと、コメントが記事から外れる）
+    const draft = buildComment(article, "よかった", {
+      relayHint: "wss://a.example",
+    });
+    expect(draft.kind).toBe(1111);
+    expect(draft.tags).toEqual([
+      ["A", address, "wss://a.example"],
+      ["K", "30023"],
+      ["P", ROOT_PK],
+      ["a", address, "wss://a.example"],
+      ["e", "1".repeat(64), "wss://a.example", ROOT_PK],
+      ["k", "30023"],
+      ["p", ROOT_PK],
+    ]);
+  });
+
+  it("コメントへの返信は、親の根をそのまま引き継ぐ", () => {
+    // 捕まえる変異: 親のコメントを根にする（スレッドが記事から切れ、記事のカラムに並ばない）
+    const first = evt({
+      id: "2".repeat(64),
+      pubkey: "8".repeat(64),
+      kind: 1111,
+      tags: buildComment(article, "よかった").tags,
+    });
+    const reply = evt({
+      id: "3".repeat(64),
+      kind: 1111,
+      tags: buildComment(first, "ありがとう").tags,
+    });
+    expect(commentRefs(reply)).toEqual({
+      root: { form: "address", address, kind: 30023 },
+      parent: {
+        form: "id",
+        id: "2".repeat(64),
+        pubkey: "8".repeat(64),
+        kind: 1111,
+      },
+    });
+  });
+
+  it("投稿に付いたコメントへの返信は、投稿を根とするスレッドに残る", () => {
+    // 捕まえる変異: 根を引き継がない（Amethyst から始まったスレッドから外れる）
+    const note = evt({ id: "4".repeat(64), pubkey: ROOT_PK });
+    const amethyst = evt({
+      id: "5".repeat(64),
+      kind: 1111,
+      tags: [
+        ["E", note.id, "", ROOT_PK],
+        ["K", "1"],
+        ["P", ROOT_PK],
+        ["e", note.id, "", ROOT_PK],
+        ["k", "1"],
+        ["p", ROOT_PK],
+      ],
+    });
+    const reply = evt({
+      id: "6".repeat(64),
+      kind: 1111,
+      tags: buildComment(amethyst, "返信").tags,
+    });
+    expect(threadRoot(reply)?.id).toBe(note.id);
+    expect(replyTarget(reply)?.id).toBe(amethyst.id);
+  });
+
+  it("ハッシュタグを t タグにする", () => {
+    expect(
+      buildComment(article, "#Nostr").tags.filter((t) => t[0] === "t"),
+    ).toEqual([["t", "nostr"]]);
+  });
+});
+
+describe("buildReplyTo", () => {
+  it("投稿には kind:1、それ以外にはコメントで返す", () => {
+    // 捕まえる変異: 投稿にもコメントで返す（コメントを表示できないクライアントから返信が見えなくなる）/
+    // コメントに kind:1 で返す（NIP-10 は kind:1 以外への kind:1 の返信を禁じている）
+    expect(buildReplyTo(evt({ kind: 1 }), "hi").kind).toBe(1);
+    expect(buildReplyTo(evt({ kind: 1111 }), "hi").kind).toBe(1111);
+    expect(buildReplyTo(evt({ kind: 20 }), "hi").kind).toBe(1111);
   });
 });

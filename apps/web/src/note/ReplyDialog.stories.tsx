@@ -30,6 +30,14 @@ const plainTarget = parent.note("返信元のノートの本文。");
 const warnedTarget = parent.note("閲覧注意の奥にある返信元の本文。", [
   ["content-warning", "ネタバレ"],
 ]);
+const articleTarget = parent.event({
+  kind: 30_023,
+  tags: [
+    ["d", "reply-dialog"],
+    ["title", "コメントを付けられる記事"],
+  ],
+  content: "記事の本文。返信先には題名だけを出し、本文は出さない。".repeat(40),
+});
 const longTarget = parent.note(
   "長い返信元の本文。返信を書く欄が画面の外へ押し出されないか。".repeat(20),
 );
@@ -51,6 +59,8 @@ type Props = {
   warned?: boolean;
   /** 返信元の本文が長い。 */
   longTarget?: boolean;
+  /** 返信元が長文記事（コメントになる）。 */
+  article?: boolean;
 };
 
 const Interactive = (props: { target: NostrEvent }) => {
@@ -70,7 +80,13 @@ const meta = {
   title: "操作/返信ダイアログ",
   component: (props: Props) => {
     const target = () =>
-      props.warned ? warnedTarget : props.longTarget ? longTarget : plainTarget;
+      props.article
+        ? articleTarget
+        : props.warned
+          ? warnedTarget
+          : props.longTarget
+            ? longTarget
+            : plainTarget;
     return (
       <EventSceneProvider
         scene={{
@@ -195,3 +211,6 @@ export const 画面に収まらない: Story = {
     },
   },
 };
+
+/** 記事へのコメント。本文は長いので、返信先には題名だけを出す。 */
+export const 記事へのコメント: Story = { args: { article: true } };

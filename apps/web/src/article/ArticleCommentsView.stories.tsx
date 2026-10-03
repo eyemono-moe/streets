@@ -10,6 +10,7 @@ import {
   viewer,
 } from "../note/event-stories/event-story";
 import { EventSceneProvider } from "../storybook/EventScene";
+import Button from "../ui/Button";
 import ArticleCommentsView from "./ArticleCommentsView";
 import { fullArticle } from "./story-articles";
 
@@ -48,6 +49,15 @@ const Comments: Component<{
         settled={props.settled}
         size="normal"
         expandMedia
+        trailing={
+          <Button
+            size="sm"
+            variant="secondary"
+            icon="i-material-symbols:add-comment-outline-rounded"
+          >
+            コメントする
+          </Button>
+        }
       />
     </div>
   </EventSceneProvider>
