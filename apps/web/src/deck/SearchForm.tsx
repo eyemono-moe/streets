@@ -5,6 +5,8 @@ import {
 import { type Component, Show } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
 import Completion from "../ui/Completion";
+import ExperimentalBadge from "../ui/ExperimentalBadge";
+import Switch from "../ui/Switch";
 import { textInputClass } from "../ui/TextField";
 
 /** 秒 → `yyyy-mm-dd`（日付の入力欄の形）。 */
@@ -175,6 +177,13 @@ const SearchForm: Component<{
           }
         />
       </Field>
+      {/* 名乗っている人しか除けないので、効きにくいことを印で示す。 */}
+      <Switch
+        label="bot と名乗る人を除く"
+        checked={props.query.excludeBots}
+        onChange={(checked) => patch({ excludeBots: checked })}
+        aside={<ExperimentalBadge />}
+      />
       <Show when={props.query.from || props.query.to}>
         <p class="c-secondary text-caption">
           人の指定は、入力欄では 16 進の公開鍵として書き戻されます（指すものは
