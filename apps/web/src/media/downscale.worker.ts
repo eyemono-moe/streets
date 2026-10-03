@@ -19,6 +19,10 @@ const downscale = async (
   // Cookie は送らない。画像のホストに、誰が見ているかを渡さない。
   const response = await fetch(url, { mode: "cors", credentials: "omit" });
   if (!response.ok) return null;
+  // 拡張子だけで画像と判定した URL が動画を返すことがある。
+  // 画像デコーダへ渡す前に除外し、元の URL で表示を試す。
+  if (!response.headers.get("content-type")?.toLowerCase().startsWith("image/"))
+    return null;
   const blob = await response.blob();
   // 描き直すと 1 枚の絵になり、動きが失われる。
   // JPEG などは先頭の 12 バイトで除外できる。大きな写真を判定のためだけに
