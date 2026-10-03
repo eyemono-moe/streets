@@ -17,5 +17,10 @@ export const columnWidthStyle = (
   stretch: boolean,
 ): JSX.CSSProperties => {
   const px = COLUMN_WIDTH_PX[width ?? "m"];
-  return { flex: `${stretch ? px : 0} 0 ${px}px` };
+  return {
+    flex: `${stretch ? px : 0} 0 ${px}px`,
+    // 幅を flex-basis だけで決めると、flex の項目の最小幅が中身の幅になり、
+    // 長い題名でカラムが押し広げられる。
+    "min-width": 0,
+  };
 };
