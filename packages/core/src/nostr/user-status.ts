@@ -11,7 +11,10 @@ export const USER_STATUS_KIND = 30_315;
 export const USER_STATUS_TYPES = ["general", "music"] as const;
 export type UserStatusType = (typeof USER_STATUS_TYPES)[number];
 
-/** ステータスから開ける先。`r` は http(s) だけを使う（`spotify:` などは開けない）。 */
+/**
+ * ステータスから開ける先。`r` は http(s) と、Web の URL に置き換えられる
+ * `spotify:` だけを使う。
+ */
 export type UserStatusLink =
   | { type: "url"; url: string }
   | { type: "event"; id: string }
@@ -45,8 +48,33 @@ const httpUrl = (value: string | undefined): string | undefined => {
   }
 };
 
+const SPOTIFY_ID_PATH = /^[A-Za-z0-9]+(?::[A-Za-z0-9._-]+)+$/;
+
+/**
+ * NIP-38 の例どおり `spotify:search:…` を `r` に入れて流すクライアントがある。
+ * `spotify:` のままではアプリの無い端末で何も起きないので、open.spotify.com に
+ * 置き換える（アプリがあればそちらへ渡る）。
+ */
+const spotifyUrl = (value: string | undefined): string | undefined => {
+  if (!value?.startsWith("spotify:")) return undefined;
+  const rest = value.slice("spotify:".length);
+  // 検索語には `:` が入りうるので区切らない。`AC/DC` のような、URL の区切りに
+  // なる文字だけを符号化して、検索語の外へはみ出させない。
+  if (rest.startsWith("search:")) {
+    const query = rest
+      .slice("search:".length)
+      .replace(/[/?#]/g, (char) => encodeURIComponent(char));
+    return query === ""
+      ? undefined
+      : httpUrl(`https://open.spotify.com/search/${query}`);
+  }
+  if (!SPOTIFY_ID_PATH.test(rest)) return undefined;
+  return httpUrl(`https://open.spotify.com/${rest.replaceAll(":", "/")}`);
+};
+
 const linkOf = (event: NostrEvent): UserStatusLink | undefined => {
-  const url = httpUrl(tagValue(event, "r"));
+  const r = tagValue(event, "r");
+  const url = httpUrl(r) ?? spotifyUrl(r);
   if (url) return { type: "url", url };
   const id = tagValue(event, "e");
   if (id && HEX_64.test(id)) return { type: "event", id };

@@ -60,16 +60,48 @@ describe("parseUserStatus", () => {
     ).toBeUndefined();
   });
 
-  it("http(s) でない r は開ける先にしない", () => {
-    expect(
+  it("spotify: の r は open.spotify.com に置き換えて開ける先にする", () => {
+    const link = (r: string) =>
       parseUserStatus(
         status("曲", [
           ["d", "music"],
-          ["r", "spotify:search:Intergalatic"],
+          ["r", r],
         ]),
         200,
-      )?.link,
-    ).toBeUndefined();
+      )?.link;
+    expect(link("spotify:search:Gin%20and%20Juice%20-%20Snoop%20Dogg")).toEqual(
+      {
+        type: "url",
+        url: "https://open.spotify.com/search/Gin%20and%20Juice%20-%20Snoop%20Dogg",
+      },
+    );
+    expect(link("spotify:track:7BY2uOpNy5DyST14WrLS5b")).toEqual({
+      type: "url",
+      url: "https://open.spotify.com/track/7BY2uOpNy5DyST14WrLS5b",
+    });
+    // 捕まえる変異: 検索語の `:` まで区切って、別の場所を開く
+    expect(link("spotify:search:Re:Zero")).toEqual({
+      type: "url",
+      url: "https://open.spotify.com/search/Re:Zero",
+    });
+    expect(link("spotify:search:AC/DC")).toEqual({
+      type: "url",
+      url: "https://open.spotify.com/search/AC%2FDC",
+    });
+  });
+
+  it("http(s) にも spotify: の形にもならない r は開ける先にしない", () => {
+    const link = (r: string) =>
+      parseUserStatus(
+        status("曲", [
+          ["d", "music"],
+          ["r", r],
+        ]),
+        200,
+      )?.link;
+    expect(link("javascript:alert(1)")).toBeUndefined();
+    expect(link("spotify:search:")).toBeUndefined();
+    expect(link("spotify:track:../../evil")).toBeUndefined();
   });
 
   it("投稿を指す e を開ける先にする", () => {
