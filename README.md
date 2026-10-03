@@ -1,8 +1,8 @@
 <div align="center">
   <a href="https://streets.eyemono.moe" target="_blank" rel="noopener noreferrer">
     <picture>
-      <source srcset="src/assets/streets_logo_full_dark.min.svg" media="(prefers-color-scheme: dark)" />
-      <img src="src/assets/streets_logo_full_light.min.svg" alt="streets logo" height="100" />
+      <source srcset=".github/assets/streets_logo_full_dark.min.svg" media="(prefers-color-scheme: dark)" />
+      <img src=".github/assets/streets_logo_full_light.min.svg" alt="streets logo" height="100" />
     </picture>
   </a>
   <p align="center">
