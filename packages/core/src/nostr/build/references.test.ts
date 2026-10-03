@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { encodeBech32, encodeNprofile } from "../nip19";
+import {
+  encodeBech32,
+  encodeNaddr,
+  encodeNevent,
+  encodeNprofile,
+} from "../nip19";
 import { profileEmojiTags, shortcodesIn, withReferences } from "./references";
 
 const alice = "a".repeat(64);
@@ -57,6 +62,54 @@ describe("withReferences", () => {
     expect(draft.tags).toEqual([
       ["p", alice],
       ["p", bob],
+    ]);
+  });
+
+  const id = "1".repeat(64);
+
+  it("本文で引用した note に q を付ける", () => {
+    const draft = withReferences(
+      note(`見て nostr:${encodeBech32("note", id)}`),
+      {},
+    );
+    expect(draft.tags).toEqual([["q", id, ""]]);
+  });
+
+  it("nevent のリレーと作者を q に添える", () => {
+    const ref = encodeNevent({
+      id,
+      relays: ["wss://r.example"],
+      author: alice,
+    });
+    const draft = withReferences(note(`nostr:${ref}`), {});
+    expect(draft.tags).toEqual([["q", id, "wss://r.example", alice]]);
+  });
+
+  it("naddr は住所で q を付け、pubkey は添えない", () => {
+    const ref = encodeNaddr({
+      identifier: "slug",
+      pubkey: alice,
+      eventKind: 30023,
+      relays: ["wss://r.example"],
+    });
+    const draft = withReferences(note(`nostr:${ref}`), {});
+    expect(draft.tags).toEqual([
+      ["q", `30023:${alice}:slug`, "wss://r.example"],
+    ]);
+  });
+
+  it("同じイベントを何度引用しても q は 1 本で、既にある q（引用先）は足さない", () => {
+    const uri = `nostr:${encodeBech32("note", id)}`;
+    const other = "2".repeat(64);
+    const draft = withReferences(
+      note(`${uri} ${uri} nostr:${encodeBech32("note", other)}`, [
+        ["q", id, "wss://a.example", bob],
+      ]),
+      {},
+    );
+    expect(draft.tags).toEqual([
+      ["q", id, "wss://a.example", bob],
+      ["q", other, ""],
     ]);
   });
 
