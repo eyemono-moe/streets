@@ -3,7 +3,10 @@ import type {
   ConnectionPool,
   PooledSubscription,
 } from "@streets/core/read/connection-pool";
+import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { EventStore } from "@streets/core/read/event-store";
+import type { RoutingTable } from "@streets/core/read/routing-table";
+import type { SubscriptionManager } from "@streets/core/read/subscription-manager";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { Signer } from "@streets/core/signer/signer";
 import { bolt11AmountMsat } from "@streets/core/zap/bolt11";
@@ -20,8 +23,9 @@ import {
   buildZapRequest,
   parseInvoiceResponse,
   zapInvoiceUrl,
+  zapReceiptRelays,
 } from "@streets/core/zap/zap-request";
-import { type Accessor, type ParentComponent, Show, onCleanup } from "solid-js";
+import { type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError, notifySuccess } from "../toast";
@@ -51,6 +55,8 @@ const getJson = async (url: string, signal: AbortSignal): Promise<unknown> => {
 
 /** 受領を待つ上限。これを過ぎても、払えていれば送れている。 */
 const RECEIPT_WAIT_MS = 5 * 60_000;
+/** Zap 相手のリレー一覧が無いときだけ問い合わせる。請求書の取得を長く止めない。 */
+const RELAY_LIST_WAIT_MS = 2_000;
 
 const isZapEvent = (event: UiEvent): event is ZapFlowEvent =>
   event.type.startsWith("zap/");
@@ -64,8 +70,9 @@ export const ZapMediator: ParentComponent<{
   viewer: string;
   store: EventStore;
   pool: Pick<ConnectionPool, "subscribe">;
-  /** 受領を流してもらい、待ち受けるリレー（自分が読むリレー）。 */
-  relays: Accessor<readonly RelayUrl[]>;
+  manager: Pick<SubscriptionManager, "fetchOnce">;
+  routing: Pick<RoutingTable, "readRelaysFor">;
+  indexers: readonly RelayUrl[];
 }> = (props) => {
   const [state, setState] = createStore({ flow: closedZapFlow() });
   let abort: AbortController | undefined;
@@ -142,7 +149,24 @@ export const ZapMediator: ParentComponent<{
       const max = Math.floor(info.maxSendable / 1000);
       throw new ZapError(`この送り先に送れるのは ${min}〜${max} sats です`);
     }
-    const relays = props.relays();
+    // フォロー先以外は kind:10002 をまだ持っていないことがある。取得を試し、
+    // 応答が無くても既定リレーと送信者の read リレーで Zap を続ける。
+    if (!props.store.latestReplaceable(10002, draft.target.pubkey)) {
+      try {
+        await props.manager.fetchOnce(
+          [{ kinds: [10002], authors: [draft.target.pubkey], limit: 1 }],
+          { relays: [...props.indexers], timeoutMs: RELAY_LIST_WAIT_MS },
+        );
+      } catch {
+        // 索引リレーが使えなくても、受領を置く先はフォールバックできる。
+      }
+    }
+    signal.throwIfAborted();
+    const relays = zapReceiptRelays({
+      recipientRead: props.routing.readRelaysFor(draft.target.pubkey),
+      senderRead: props.routing.readRelaysFor(props.viewer),
+      fallback: FALLBACK_RELAYS,
+    });
     const zapRequest = await props.signer.signEvent({
       ...buildZapRequest({
         target: draft.target,

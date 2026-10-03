@@ -5,6 +5,7 @@ import {
   buildZapRequest,
   parseInvoiceResponse,
   zapInvoiceUrl,
+  zapReceiptRelays,
 } from "./zap-request";
 
 const target = {
@@ -20,6 +21,54 @@ const endpoint = {
   url: "https://wallet.example/.well-known/lnurlp/me",
   lnurl: "lnurl1dp68gurn8ghj7",
 };
+
+describe("zapReceiptRelays", () => {
+  it("受取人を優先し、重複を除いて送信者の read リレーを足す", () => {
+    expect(
+      zapReceiptRelays({
+        recipientRead: ["wss://recipient/", "wss://shared/"],
+        senderRead: ["wss://shared/", "wss://sender/"],
+        fallback: ["wss://fallback/"],
+      }),
+    ).toEqual(["wss://recipient/", "wss://shared/", "wss://sender/"]);
+  });
+
+  it("5 本の枠は受取人の read リレーから使う", () => {
+    expect(
+      zapReceiptRelays({
+        recipientRead: ["wss://r1/", "wss://r2/", "wss://r3/", "wss://r4/"],
+        senderRead: ["wss://s1/", "wss://s2/"],
+        fallback: ["wss://fallback/"],
+      }),
+    ).toEqual([
+      "wss://r1/",
+      "wss://r2/",
+      "wss://r3/",
+      "wss://r4/",
+      "wss://s1/",
+    ]);
+  });
+
+  it("双方の read リレーが無いときは既定リレーへ送る", () => {
+    expect(
+      zapReceiptRelays({
+        recipientRead: [],
+        senderRead: [],
+        fallback: ["wss://fallback/"],
+      }),
+    ).toEqual(["wss://fallback/"]);
+  });
+
+  it("受取人の read リレーが無いときは既定リレーを送信者より優先する", () => {
+    expect(
+      zapReceiptRelays({
+        recipientRead: [],
+        senderRead: ["wss://sender/"],
+        fallback: ["wss://fallback/"],
+      }),
+    ).toEqual(["wss://fallback/", "wss://sender/"]);
+  });
+});
 
 describe("buildZapRequest", () => {
   it("NIP-57 の kind:9734 を組み立てる", () => {
