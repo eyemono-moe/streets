@@ -369,6 +369,18 @@ export default defineConfig({
         body {
           overscroll-behavior-y: none;
         }
+        /*
+          iOS は 16px 未満の欄に焦点が移ると画面を拡大し、打ち終えても戻さない。
+          指で触る端末でだけ欄の文字を 16px にする。欄ごとの text-body などより
+          勝たせるため !important にする。
+        */
+        @media (pointer: coarse) {
+          input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+          textarea,
+          select {
+            font-size: 16px !important;
+          }
+        }
         /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
         :root {
           --color-danger: #C5221F;
