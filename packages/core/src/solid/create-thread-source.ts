@@ -9,6 +9,7 @@ import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";
+import { normalizeRelayUrl } from "../relay/relay-url";
 
 export type CreateThreadSourceOptions = {
   /** いま画面に出ているスレッドの焦点。閉じていれば `undefined`。 */
@@ -24,7 +25,7 @@ export type CreateThreadSourceOptions = {
 export type ThreadSource = {
   /** スレッドの根の id。祖先も返信もここへの購読で届く (NIP-10 の root、NIP-22 の `E`)。 */
   rootId: Accessor<string | undefined>;
-  /** 根が確定した時点の focus イベントが運ぶ `e` タグのリレーヒント。 */
+  /** 根が確定した時点の focus イベントが運ぶ `e` タグのリレーヒントと、focus を受け取ったリレー。 */
   relayHints: Accessor<readonly RelayUrl[]>;
   source: Accessor<NostrSource>;
 };
@@ -59,7 +60,14 @@ export const createThreadSource = (
     const id = untrack(options.focusId);
     if (!id) return [];
     const focus = options.store.get(id);
-    return focus ? eventRelayHints(focus) : [];
+    if (!focus) return [];
+    // 検索リレーのように、普段は読まないリレーで見つけた投稿は、根も返信も
+    // そこにしか無いことが多い。受け取ったリレーにも聞く。
+    const seen = options.store
+      .seenRelays(id)
+      .map(normalizeRelayUrl)
+      .filter((relay) => relay !== undefined);
+    return [...new Set([...eventRelayHints(focus), ...seen])];
   });
 
   // 記事などへのコメントは根を id で持たない（`E` が無い）。同じ住所へのコメントを集める。
