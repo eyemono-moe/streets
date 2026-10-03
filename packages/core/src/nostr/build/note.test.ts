@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../event";
+import { encodeEventPointer } from "../event-pointer";
 import { commentRefs, replyTarget, threadRoot } from "../event-refs";
 import { encodeBech32 } from "../nip19";
 import {
@@ -179,21 +180,47 @@ describe("buildQuote", () => {
     ]);
   });
 
-  it("本文に nostr: が無ければ末尾に note1 を足す", () => {
+  it("本文に引用先が無ければ末尾に nevent を足す", () => {
     // 捕まえる変異: 本文をそのまま使う —— q タグだけでは NIP-27 対応クライアントが本文中に引用を描けない
     const target = evt({ id: "1".repeat(64) });
-    const draft = buildQuote(target, "これ面白い");
+    const draft = buildQuote(target, "これ面白い", {
+      relayHint: "wss://a.example",
+    });
     expect(draft.content).toBe(
-      `これ面白い\n\nnostr:${encodeBech32("note", "1".repeat(64))}`,
+      `これ面白い\n\nnostr:${encodeEventPointer(target, ["wss://a.example"])}`,
     );
   });
 
-  it("本文に既に nostr: があればそのまま使う", () => {
-    // 捕まえる変異: 無条件に末尾へ足す。同じ引用が 2 回描かれる。
+  it("本文が既に引用先を指していればそのまま使う（リレーの違う nevent や note でも）", () => {
+    // 捕まえる変異: 文字列の一致で比べる。貼ったリンクとリレーが違うと、同じ引用が 2 回描かれる。
     const target = evt({ id: "1".repeat(64) });
-    const uri = `nostr:${encodeBech32("note", "1".repeat(64))}`;
-    const draft = buildQuote(target, `${uri} これ面白い`);
-    expect(draft.content).toBe(`${uri} これ面白い`);
+    for (const uri of [
+      `nostr:${encodeBech32("note", target.id)}`,
+      `nostr:${encodeEventPointer(target, ["wss://b.example"])}`,
+    ]) {
+      const draft = buildQuote(target, `${uri} これ面白い`, {
+        relayHint: "wss://a.example",
+      });
+      expect(draft.content).toBe(`${uri} これ面白い`);
+    }
+  });
+
+  it("住所を持つ先は q も本文も住所で指す", () => {
+    // 捕まえる変異: q を id のままにする —— 本文の naddr と食い違い、読む側で同じ引用が 2 つ描かれる
+    const target = evt({
+      kind: 30023,
+      pubkey: "9".repeat(64),
+      tags: [["d", "slug"]],
+    });
+    const draft = buildQuote(target, "これ面白い", {
+      relayHint: "wss://a.example",
+    });
+    expect(draft.tags.filter((t) => t[0] === "q")).toEqual([
+      ["q", `30023:${"9".repeat(64)}:slug`, "wss://a.example"],
+    ]);
+    expect(draft.content).toBe(
+      `これ面白い\n\nnostr:${encodeEventPointer(target, ["wss://a.example"])}`,
+    );
   });
 
   it("引用本文のハッシュタグを重複なく t タグにし、引用先の t タグは引き継がない", () => {

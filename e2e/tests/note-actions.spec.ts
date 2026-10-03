@@ -1,3 +1,5 @@
+import { pointsTo } from "@streets/core/nostr/event-pointer";
+import { decodeNip19 } from "@streets/core/nostr/nip19";
 import { column } from "../src/deck";
 import { expect, test } from "../src/fixtures";
 import { waitForEvent } from "../src/relay";
@@ -127,7 +129,10 @@ test("引用できる", async ({ page, me, openApp, signIn }) => {
     (event) => event.tags.some((tag) => tag[0] === "q" && tag[1] === note.id),
   );
   expect(quote.content).toContain(comment);
-  expect(quote.content).toContain("nostr:note1");
+  // nevent に入るリレーは環境で変わるので、文字列ではなく指す先で比べる。
+  const link = /nostr:(nevent1[0-9a-z]+)/.exec(quote.content)?.[1];
+  const ref = link === undefined ? undefined : decodeNip19(link);
+  expect(ref !== undefined && pointsTo(ref, note)).toBe(true);
   expect(
     quote.tags.some((tag) => tag[0] === "p" && tag[1] === alice.pubkey),
   ).toBe(true);
