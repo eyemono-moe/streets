@@ -7,12 +7,15 @@ import {
   type Paging,
 } from "@streets/core/read/source";
 import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
+import type { NoteMedia } from "@streets/core/view/note-layout";
 import {
+  type Accessor,
   type Component,
   For,
   Match,
   Show,
   Switch,
+  createEffect,
   createMemo,
   createSignal,
 } from "solid-js";
@@ -23,6 +26,7 @@ import {
   createDisplayImage,
   createNearViewport,
 } from "../../media/display-image";
+import { createVideoPoster } from "../../media/video-poster";
 import {
   hiddenUnderWarning,
   revealWarning,
@@ -64,17 +68,94 @@ const WarningTile: Component<{ event: NostrEvent }> = (props) => (
   </button>
 );
 
+const BrokenMark: Component = () => (
+  <span
+    class="i-material-symbols:broken-image-outline-rounded c-secondary absolute inset-0 m-auto size-6"
+    aria-hidden="true"
+  />
+);
+
+const TileImage: Component<{
+  media: NoteMedia;
+  near: Accessor<boolean>;
+  onLoad: () => void;
+}> = (props) => {
+  const [loaded, setLoaded] = createSignal(false);
+  const [broken, setBroken] = createSignal(false);
+  const src = createDisplayImage(
+    () => props.media.url,
+    MEDIA_TILE_MAX_EDGE,
+    props.near,
+  );
+  return (
+    <Show when={!broken()} fallback={<BrokenMark />}>
+      <Show when={src()}>
+        {(url) => (
+          <img
+            src={url()}
+            alt=""
+            decoding="async"
+            draggable={false}
+            class="absolute inset-0 size-full object-cover transition-opacity duration-100"
+            classList={{ "opacity-0": !loaded() }}
+            onLoad={() => {
+              setLoaded(true);
+              props.onLoad();
+            }}
+            onError={() => setBroken(true)}
+          />
+        )}
+      </Show>
+    </Show>
+  );
+};
+
+/** 動画は最初の絵だけを出す。再生は押して開いた拡大表示で行う。 */
+const TileVideo: Component<{
+  media: NoteMedia;
+  near: Accessor<boolean>;
+  onLoad: () => void;
+}> = (props) => {
+  const poster = createVideoPoster(
+    () => props.media.url,
+    MEDIA_TILE_MAX_EDGE,
+    props.near,
+  );
+  createEffect(() => {
+    if (poster().state === "ready") props.onLoad();
+  });
+  return (
+    <>
+      <Show
+        when={(() => {
+          const current = poster();
+          return current.state === "ready" ? current.canvas : undefined;
+        })()}
+      >
+        {(canvas) => {
+          const element = canvas();
+          element.setAttribute("aria-hidden", "true");
+          element.className =
+            "pointer-events-none absolute inset-0 size-full object-cover";
+          return element;
+        }}
+      </Show>
+      {/* 絵を取れなくても、拡大表示では再生できることがある。印だけ残す。 */}
+      <span class="absolute inset-0 m-auto flex size-8 items-center justify-center rounded-full bg-ui-950/60">
+        <span
+          class="i-material-symbols:play-arrow-rounded c-white size-5"
+          aria-hidden="true"
+        />
+      </span>
+    </>
+  );
+};
+
 const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
   const [element, setElement] = createSignal<HTMLButtonElement>();
   const near = createNearViewport(element);
   const [loaded, setLoaded] = createSignal(false);
-  const [broken, setBroken] = createSignal(false);
   const media = () => props.tile.media;
-  const src = createDisplayImage(
-    () => (media().type === "image" ? media().url : undefined),
-    MEDIA_TILE_MAX_EDGE,
-    near,
-  );
   const ratio = () => {
     const dimensions = media().dimensions;
     return dimensions ? dimensions.width / dimensions.height : 1;
@@ -91,55 +172,16 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
         {(hash) => <BlurhashCanvas hash={hash()} ratio={ratio()} />}
       </Show>
       <Show
-        when={!broken()}
+        when={media().type === "image"}
         fallback={
-          <span
-            class="i-material-symbols:broken-image-outline-rounded c-secondary absolute inset-0 m-auto size-6"
-            aria-hidden="true"
+          <TileVideo
+            media={media()}
+            near={near}
+            onLoad={() => setLoaded(true)}
           />
         }
       >
-        <Switch>
-          <Match when={media().type === "image" && src()}>
-            {(url) => (
-              <img
-                src={url()}
-                alt=""
-                decoding="async"
-                draggable={false}
-                class="absolute inset-0 size-full object-cover transition-opacity duration-100"
-                classList={{ "opacity-0": !loaded() }}
-                onLoad={() => setLoaded(true)}
-                onError={() => setBroken(true)}
-              />
-            )}
-          </Match>
-          {/* 動画は最初の絵だけを出す。再生は押して開いた拡大表示で行う。 */}
-          <Match when={media().type === "video" && near()}>
-            <video
-              src={
-                media().url.includes("#") ? media().url : `${media().url}#t=0.1`
-              }
-              preload="metadata"
-              muted
-              playsinline
-              tabIndex={-1}
-              aria-hidden="true"
-              class="pointer-events-none absolute inset-0 size-full object-cover"
-              classList={{ "opacity-0": !loaded() }}
-              onLoadedData={() => setLoaded(true)}
-              onError={() => setBroken(true)}
-            />
-          </Match>
-        </Switch>
-      </Show>
-      <Show when={media().type === "video"}>
-        <span class="absolute inset-0 m-auto flex size-8 items-center justify-center rounded-full bg-ui-950/60">
-          <span
-            class="i-material-symbols:play-arrow-rounded c-white size-5"
-            aria-hidden="true"
-          />
-        </span>
+        <TileImage media={media()} near={near} onLoad={() => setLoaded(true)} />
       </Show>
     </button>
   );
