@@ -3,8 +3,18 @@ import { normalizeRelayUrl } from "../../relay/relay-url";
 import { MAX_NIP46_RELAYS } from "./bunker-uri";
 
 export const NIP46_SESSION_STORAGE_KEY = "streets.v1.nip46-session";
-export const NIP46_REQUIRED_PERMISSIONS =
-  "sign_event:1,sign_event:6,sign_event:7,sign_event:10000,sign_event:30078,nip44_encrypt,nip44_decrypt,nip04_decrypt";
+// Streets が署名器に依頼するイベント。リレーへの投稿以外に、Zap・認証も含む。
+const SIGN_EVENT_KINDS = [
+  0, 1, 3, 5, 6, 7, 40, 41, 42, 43, 44, 1018, 1111, 9734, 10000, 10001, 10002,
+  10003, 10005, 10006, 10007, 10030, 10063, 22242, 24242, 30078, 30315,
+] as const;
+
+export const NIP46_REQUIRED_PERMISSIONS = [
+  ...SIGN_EVENT_KINDS.map((kind) => `sign_event:${kind}`),
+  "nip44_encrypt",
+  "nip44_decrypt",
+  "nip04_decrypt",
+].join(",");
 
 const hex64 = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/));
 const sessionSchema = v.strictObject({
