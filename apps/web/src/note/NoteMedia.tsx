@@ -10,6 +10,7 @@ import {
   onMount,
 } from "solid-js";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
+import IconButton from "../ui/IconButton";
 import type { EventSize } from "./Event";
 
 type Dimensions = { width: number; height: number };
@@ -88,7 +89,10 @@ const MediaFrame: Component<{
 type MediaViewProps = {
   media: NoteMedia;
   size: EventSize;
-  /** 画像を押したとき。無ければ、画像の URL を新しいタブで開く。 */
+  /**
+   * 拡大表示を開く。画像はそれ自体を押したとき、動画は角の拡大のボタンを押したとき。
+   * 無ければ、画像は URL を新しいタブで開き、動画には拡大のボタンを出さない。
+   */
   onOpen?: () => void;
 };
 
@@ -169,9 +173,8 @@ const MediaImage: Component<MediaViewProps> = (props) => {
   );
 };
 
-const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
-  props,
-) => {
+const MediaVideo: Component<MediaViewProps> = (props) => {
+  let video: HTMLVideoElement | undefined;
   const [broken, setBroken] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [actual, setActual] = createSignal<Dimensions>();
@@ -191,6 +194,7 @@ const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
       >
         {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
         <video
+          ref={video}
           src={source()}
           controls
           playsinline
@@ -210,6 +214,27 @@ const MediaVideo: Component<{ media: NoteMedia; size: EventSize }> = (
           }}
           onError={() => setBroken(true)}
         />
+        {/*
+          ブラウザの再生バー（全画面のボタンを含む）は下の端に出るので、上の角に置く。
+          押す場所で動きを分けないよう、動画そのものを押したときはその場で再生する。
+        */}
+        <Show when={props.onOpen}>
+          {(open) => (
+            <IconButton
+              variant="overlay"
+              size="sm"
+              circle
+              icon="i-material-symbols:open-in-full-rounded"
+              label="拡大して見る"
+              class="absolute top-2 right-2"
+              onClick={() => {
+                // 拡大表示でも再生するので、音が重ならないよう止める。
+                video?.pause();
+                open()();
+              }}
+            />
+          )}
+        </Show>
       </MediaFrame>
     </Show>
   );
@@ -235,7 +260,9 @@ export const NoteAudio: Component<{ url: string }> = (props) => {
 const NoteMediaView: Component<MediaViewProps> = (props) => (
   <Show
     when={props.media.type === "image"}
-    fallback={<MediaVideo media={props.media} size={props.size} />}
+    fallback={
+      <MediaVideo media={props.media} size={props.size} onOpen={props.onOpen} />
+    }
   >
     <MediaImage media={props.media} size={props.size} onOpen={props.onOpen} />
   </Show>
