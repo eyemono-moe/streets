@@ -428,46 +428,73 @@ const DeckScreen: Component<{
   // 見た目の並び。並べ替えている間は、帯のカラムも CSS の order で入れ替わって見える。
   const stripIds = () => [...(temp() ? [TEMP_COLUMN_ID] : []), ...order.ids()];
   // 端から反対の端へ払えるよう、帯は stripAnchor を真ん中に置いて回した順に並べる。
-  // 払って止まるたびに選んだカラムへ置き直す。
+  // 止まったところが端なら、選んだカラムへ置き直す。
   const [stripAnchor, setStripAnchor] = createSignal<string>();
   const loopedIds = createMemo(() => loopStrip(stripIds(), stripAnchor()));
   const stripOrder = (id: string) => loopedIds().indexOf(id);
-  // 選んでいるカラムを真ん中へ置き直す。並びを回すのと同じフレームで帯を同じ幅だけ
-  // 送り、見えている位置を変えない（指が止まっている途中でも、ずれて見えない）。
+  // 選んでいるカラムが端に着いていたら、真ん中へ置き直す。並びを回すのと同じフレームで
+  // 帯もそこへ送り、見えているカラムを変えない。両隣があるうちは触らない ——
+  // 帯を送るたびに、吸着の途中で次に払おうとした指とぶつかる機会が増える。
   const recenterStrip = () => {
     const id = ui.active;
     const stripEl = strip();
     if (!stripEl || id === undefined) return;
-    const before = loopedIds().indexOf(id);
+    const ids = loopedIds();
+    const before = ids.indexOf(id);
+    if (before > 0 && before < ids.length - 1) return;
     setStripAnchor(id);
-    const after = loopedIds().indexOf(id);
-    if (before >= 0 && after !== before) {
-      stripEl.scrollLeft += (after - before) * stripEl.clientWidth;
-    }
+    // 並びが変わるとブラウザが見ていたカラムへ吸着し直すことがあるので、送る量ではなく
+    // 行き先の位置で置く。
+    stripEl.scrollLeft = loopedIds().indexOf(id) * stripEl.clientWidth;
   };
   const activeColumn = (): ColumnDef | undefined =>
     ui.active === TEMP_COLUMN_ID
       ? temp()
       : columns().find((column) => column.id === ui.active);
+  // 指が触れている間は、止まって見えても払っている途中。並びを回すと指の下で帯が跳ぶ。
+  let touching = false;
+  const settleStrip = () => {
+    const stripEl = strip();
+    if (touching || !stripEl || stripEl.clientWidth === 0) return;
+    // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
+    // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
+    if (ui.panel === undefined) {
+      const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
+      const id = loopedIds()[index];
+      if (id !== undefined && id !== ui.active) {
+        applyUi({ type: "deck/select-column", id });
+      }
+    }
+    recenterStrip();
+  };
   let settleTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(settleTimer));
-  // scrollend を持たないブラウザ（Safari）もあるので、止まってしばらく経ったら拾う。
+  // scrollend を持たないブラウザもあるので、止まってしばらく経ったら拾う。
   const onStripScroll = () => {
     clearTimeout(settleTimer);
-    settleTimer = setTimeout(() => {
-      const stripEl = strip();
-      if (!stripEl || stripEl.clientWidth === 0) return;
-      // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
-      // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
-      if (ui.panel === undefined) {
-        const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
-        const id = loopedIds()[index];
-        if (id !== undefined && id !== ui.active) {
-          applyUi({ type: "deck/select-column", id });
-        }
-      }
-      recenterStrip();
-    }, 120);
+    settleTimer = setTimeout(settleStrip, 120);
+  };
+  const mountStrip = (el: HTMLDivElement) => {
+    placed = false;
+    setStrip(el);
+    el.addEventListener(
+      "touchstart",
+      () => {
+        touching = true;
+      },
+      { passive: true },
+    );
+    const release = () => {
+      touching = false;
+      onStripScroll();
+    };
+    el.addEventListener("touchend", release, { passive: true });
+    el.addEventListener("touchcancel", release, { passive: true });
+    // 持っているブラウザでは、吸着まで終わった時点で待たずに拾う。
+    el.addEventListener("scrollend", () => {
+      clearTimeout(settleTimer);
+      settleStrip();
+    });
   };
   // タブや数字キーで選んだら、そのカラムまで送る。払って選んだときは既にそこにいる。
   // 真ん中へ置き直すのは止まってから —— 送っている途中で並びを回すと、行き先がずれる。
@@ -1050,10 +1077,7 @@ const DeckScreen: Component<{
                                     取得し直しになり、スクロール位置も失われる。
                                   */}
               <div
-                ref={(el) => {
-                  placed = false;
-                  setStrip(el);
-                }}
+                ref={mountStrip}
                 class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
                 onScroll={onStripScroll}
               >
