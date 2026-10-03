@@ -6,12 +6,14 @@ import {
   channelOf,
 } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import {
   formatEventTime,
   formatEventTimeFull,
 } from "@streets/core/view/format-time";
 import { type Component, Show } from "solid-js";
 import ChannelPicture from "../chat/ChannelPicture";
+import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import AuthorNames from "./AuthorNames";
@@ -45,16 +47,19 @@ const useChannel = (
   };
 };
 
+/** `from` は押したイベント。それを受け取ったリレーも足すので、チャンネルの情報にリレーが無くても読める。 */
 const useOpenChannel = () => {
   const dispatch = useDispatch();
-  return (channel: Channel) =>
+  const { store } = useReadLayer();
+  return (channel: Channel, from: NostrEvent) =>
     dispatch({
       type: "stack/open",
-      column: buildChannelColumn(
-        channel.id,
-        channel.metadata.name,
-        channel.metadata.relays,
-      ),
+      column: buildChannelColumn(channel.id, channel.metadata.name, [
+        ...new Set([
+          ...channel.metadata.relays,
+          ...relaysSeenOn(store, from.id),
+        ]),
+      ]),
     });
 };
 
@@ -117,7 +122,7 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
             <Button
               size="sm"
               icon="i-material-symbols:forum-outline-rounded"
-              onClick={() => open(current())}
+              onClick={() => open(current(), props.event)}
             >
               開く
             </Button>
@@ -159,7 +164,7 @@ export const ChannelMessageCard: Component<{
           <button
             type="button"
             class="c-secondary flex min-w-0 cursor-pointer items-center gap-1.5 bg-transparent p-0 text-left text-caption hover:underline"
-            onClick={() => open(current())}
+            onClick={() => open(current(), props.event)}
           >
             <span
               class="i-material-symbols:forum-outline-rounded size-3.5 shrink-0"

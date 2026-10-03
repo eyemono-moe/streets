@@ -4,6 +4,7 @@ import {
   activitySource,
   allChannelsSource,
   articleCommentsSource,
+  articleSource,
   bookmarksSource,
   channelMessagesSource,
   channelSource,
@@ -175,6 +176,15 @@ describe("人と投稿", () => {
         { kinds: [1], "#q": [target] },
       ],
     });
+  });
+
+  it("記事を受け取ったリレーは、書いた人のリレーに足す", () => {
+    const source = articleSource("a".repeat(64), "post", [
+      "wss://search.example/",
+    ]);
+    // 捕まえる変異: `relays` で書いた人のリレーを置き換える（書き直した版を逃す）
+    expect(source.relays).toBeUndefined();
+    expect(source.extraRelays).toEqual(["wss://search.example/"]);
   });
 });
 
@@ -353,8 +363,8 @@ describe("articleCommentsSource", () => {
 
   it("記事のリレーは既定のリレーに足し、それだけに絞らない", () => {
     // 捕まえる変異: 記事のリレーだけを明示する（ほかのリレーに書かれたコメントが見えない）
-    const relays = articleCommentsSource(PK, "post", ["wss://article/"]).relays;
-    expect(relays).toContain("wss://article/");
-    expect(relays?.length).toBeGreaterThan(1);
+    const source = articleCommentsSource(PK, "post", ["wss://article/"]);
+    expect(source.relays).toBeUndefined();
+    expect(source.extraRelays).toEqual(["wss://article/"]);
   });
 });

@@ -1,8 +1,8 @@
+import { buildUserColumn } from "@streets/core/deck/column-presets";
 import {
-  buildThreadColumn,
-  buildUserColumn,
-} from "@streets/core/deck/column-presets";
-import { columnForNaddr } from "@streets/core/deck/open-event";
+  columnForNaddr,
+  columnForNoteRef,
+} from "@streets/core/deck/open-event";
 import { parseContent } from "@streets/core/nostr/content";
 import { decodeNip19 } from "@streets/core/nostr/nip19";
 import { articleEmbedOf } from "@streets/core/view/article-embed";
@@ -91,7 +91,7 @@ const Link: Component<{
         return buildUserColumn(ref.pubkey);
       case "note":
       case "nevent":
-        return buildThreadColumn(ref.id);
+        return columnForNoteRef(ref);
       case "naddr":
         return columnForNaddr(ref);
       default:

@@ -5,7 +5,6 @@ import {
   eventRelayHints,
   threadRoot,
 } from "../nostr/event-refs";
-import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -14,11 +13,6 @@ export type CreateThreadSourceOptions = {
   /** いま画面に出ているスレッドの焦点。閉じていれば `undefined`。 */
   focusId: Accessor<string | undefined>;
   store: EventStore;
-  /** カラム自身が解決した source の `relays` (Outbox 中は `undefined`、
-   * `RELAYS_OVERRIDE` 適用後の値)。上書きの有無自体はこのモジュールの関心事ではない。 */
-  columnRelays: Accessor<readonly RelayUrl[] | undefined>;
-  /** `?relays=` の e2e 上書き。カラム側と同じ非対称 (既に明示リレーがあるときだけ上書き) を保つ。 */
-  relaysOverride: RelayUrl[] | undefined;
 };
 
 export type ThreadSource = {
@@ -79,21 +73,10 @@ export const createThreadSource = (
     // や `{}` 単体、resolve-source.ts の followees の罠とは別物）。
     if (!root) return { type: "nostr", filters: [] };
 
-    // カラムの明示リレーとヒントは**足す**もので**置き換えない**——`relays`は
-    // Outbox/fallback を使わない唯一の宛先になる。無ければ FALLBACK_RELAYS
-    // にヒントを足し（ヒントだけだと 3 本の fallback 同報が narrow される）、
-    // どちらも無ければ `relays` ごと省略する（空配列は fallback より悪化）。
-    const columnRelays = options.columnRelays() ?? [];
+    // 根や返信は著者を指定しない問い合わせなので、行き先は読み取り層の既定に
+    // 任せ、ヒントはそこへ足す。
     const hints = relayHints();
-    const additiveBase =
-      columnRelays.length > 0
-        ? columnRelays
-        : hints.length > 0
-          ? FALLBACK_RELAYS
-          : [];
-    const relays = [...new Set([...additiveBase, ...hints])];
-
-    const base: NostrSource = {
+    return {
       type: "nostr",
       filters: [
         { ids: [root] },
@@ -102,15 +85,8 @@ export const createThreadSource = (
         { kinds: [COMMENT_KIND], "#E": [root] },
         ...(address ? [{ kinds: [COMMENT_KIND], "#A": [address] }] : []),
       ],
-      ...(relays.length > 0 ? { relays } : {}),
+      ...(hints.length > 0 ? { extraRelays: [...hints] } : {}),
     };
-    // `?relays=` 上書きはカラムと同じ非対称を保ち、既に明示リレーがある
-    // ときだけ上書きする。無条件だと、Outbox 前提のカラムで開いたとき
-    // 「fallback へ同報されるはずが上書きでローカルリレーに固定される」
-    // という特別扱いがスレッドにだけ生まれる。
-    return options.relaysOverride && base.relays
-      ? { ...base, relays: options.relaysOverride }
-      : base;
   });
 
   return { rootId, relayHints, source };

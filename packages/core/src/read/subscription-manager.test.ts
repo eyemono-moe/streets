@@ -388,6 +388,40 @@ describe("SubscriptionManager", () => {
     );
   });
 
+  it("足したリレーへは、Outbox の行き先に加えてフィルタをそのまま送る", () => {
+    const { relays, store, manager, delivery } = setup();
+    const author = signed(1, {
+      kind: 10002,
+      tags: [["r", "wss://author-write/", "write"]],
+      content: "",
+    });
+    store.put(author, "wss://indexer/");
+    const filters = [{ kinds: [30_023], authors: [author.pubkey] }];
+
+    const handle = manager.subscribe(filters, undefined, delivery(), [
+      "wss://search",
+    ]);
+
+    // 捕まえる変異: 足したリレーで Outbox を置き換える（著者のリレーにある新しい版を取らない）
+    expect([...handle.initialPlan.relays].sort()).toEqual([
+      "wss://author-write/",
+      "wss://search/",
+    ]);
+    // 捕まえる変異: 足したリレーへ送らない（そこにしか無いものが取れない）
+    expect(relays.get("wss://search/")?.subscriptions[0].filters).toEqual(
+      filters,
+    );
+  });
+
+  it("明示したリレーがあるときは、足したリレーを使わない", () => {
+    const { relays, manager, delivery } = setup();
+    manager.subscribe([{ kinds: [1] }], ["wss://given/"], delivery(), [
+      "wss://extra/",
+    ]);
+    // 捕まえる変異: 明示リレーの「そこだけ」を破って、足したリレーにも送る
+    expect(relays.has("wss://extra/")).toBe(false);
+  });
+
   it("falls back and reports authors it cannot route", () => {
     const { relays, manager, delivery } = setup();
     const handle = manager.subscribe(

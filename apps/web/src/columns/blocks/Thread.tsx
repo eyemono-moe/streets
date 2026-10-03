@@ -12,8 +12,6 @@ const Thread: Component<{ focus: string }> = (props) => {
   const thread = createThreadSource({
     focusId: () => props.focus,
     store,
-    columnRelays: () => undefined,
-    relaysOverride: undefined,
   });
   const section = createBlockSection({ source: thread.source });
 

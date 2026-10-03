@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { columnForEvent } from "./open-event";
+import { columnForEvent, columnForNoteRef } from "./open-event";
 
 const PUBKEY = "a".repeat(64);
 
@@ -39,5 +39,19 @@ describe("columnForEvent", () => {
 
   it("`d` が無いものは住所で指せないので、スレッドで開く", () => {
     expect(columnForEvent(event(30_023)).source.kind).toBe("thread");
+  });
+});
+
+describe("columnForNoteRef", () => {
+  it("nevent が運ぶリレーを、スレッドに持っていく", () => {
+    const ref = {
+      kind: "nevent" as const,
+      id: "b".repeat(64),
+      relays: ["wss://hint.example"],
+    };
+    // 捕まえる変異: id だけで開く（ヒントのリレーにしか無い投稿が取れない）
+    const column = columnForNoteRef(ref);
+    expect(column.source).toEqual({ kind: "thread", focus: "b".repeat(64) });
+    expect(column.knownRelays).toEqual(["wss://hint.example/"]);
   });
 });

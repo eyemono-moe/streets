@@ -1,8 +1,8 @@
+import { buildHashtagColumn } from "@streets/core/deck/column-presets";
 import {
-  buildHashtagColumn,
-  buildThreadColumn,
-} from "@streets/core/deck/column-presets";
-import { columnForNaddr } from "@streets/core/deck/open-event";
+  columnForNaddr,
+  columnForNoteRef,
+} from "@streets/core/deck/open-event";
 import type { ContentToken } from "@streets/core/nostr/content";
 import { shortenUrl } from "@streets/core/view/short-url";
 import {
@@ -113,7 +113,7 @@ const Token: Component<{
                 onClick={() =>
                   dispatch({
                     type: "stack/open",
-                    column: buildThreadColumn(ref.id),
+                    column: columnForNoteRef(ref),
                   })
                 }
               >

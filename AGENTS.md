@@ -78,6 +78,7 @@ pnpm workspace の 2 パッケージ。
 - カラムの種類の知識は 2 つの表にだけ書く。core の `deck/column-kinds.ts`（保存の形・題名・流れる kind・ミュート・警告）と、web の `columns/column-views.tsx`（アイコン・副題・中身・その種類だけの設定）。表は種類をキーにした対応表なので、種類を足すと書き忘れが型検査で落ちる。`source.kind` で分岐する場所をほかに作らない
 - 中身は `columns/blocks/` のブロックを組み合わせて書く。取るものは `deck/column-sources.ts` の関数で作り、`() => NostrSource | undefined` で渡す。`undefined`（まだ分からない）の間は購読を張らない
 - ブロックはカラムの種類を見ない。見せ方の設定は `useColumnScope()` から読み、セクションは `createBlockSection` で作る（診断値と、警告のための状態がカラムへ届く）
+- 投稿を押して重ねて開くときは、`stack/open` に `from`（押した投稿の id）を添える。その投稿を受け取ったリレーをカラムが覚え（`ColumnDef.knownRelays`）、`createBlockSection` がどの取得にも行き先として足す。種類やブロックごとにリレーを持ち回らない。`relays` で行き先を決めた取得（チャンネルなど）には足さない
 - イベントを 1 件ずつ `Event` に渡せるものは `EventList` を使う。まとめる・集計する・取り出す・木にするときだけ専用のブロックを足す
 
 ## テスト

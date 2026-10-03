@@ -17,6 +17,7 @@ import {
   buildThreadColumn,
 } from "./column-presets";
 import type { ColumnDef } from "./deck";
+import { withKnownRelays } from "./known-relays";
 
 /**
  * 住所で指すイベントを押したときに開くカラム。kind の表示を足すときは、
@@ -83,6 +84,15 @@ export const columnForNaddr = (
   });
   return columnForAddress(address, relays);
 };
+
+/** note / nevent から開くスレッド。nevent が運ぶリレーの手がかりも持っていく。 */
+export const columnForNoteRef = (
+  ref: Extract<Nip19Ref, { kind: "note" | "nevent" }>,
+): ColumnDef =>
+  withKnownRelays(
+    buildThreadColumn(ref.id),
+    ref.kind === "nevent" ? ref.relays : [],
+  );
 
 /** 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。 */
 export const columnForEvent = (event: NostrEvent): ColumnDef => {

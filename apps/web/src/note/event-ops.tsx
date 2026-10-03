@@ -129,6 +129,7 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
       dispatch({
         type: "stack/open",
         column: buildActivityColumn(event().id),
+        from: event().id,
       }),
     copyLink: async () => {
       // TLV を持つ `nevent` の符号化器がまだ無いので、id だけの `note` で参照する。

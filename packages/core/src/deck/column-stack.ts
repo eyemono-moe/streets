@@ -17,8 +17,11 @@ export type ColumnStackState = {
 };
 
 export type ColumnStackEvent =
-  /** 一番上へ積む。 */
-  | { type: "stack/open"; column: ColumnDef }
+  /**
+   * 一番上へ積む。`from` は押した投稿の id。開いた先でも、それを受け取ったリレーに
+   * 聞く（`ColumnDef.knownRelays`）。
+   */
+  | { type: "stack/open"; column: ColumnDef; from?: string }
   /** 開いている一番上の段を閉じる。 */
   | { type: "stack/back" }
   /** その段の閉じる動きが終わった。 */

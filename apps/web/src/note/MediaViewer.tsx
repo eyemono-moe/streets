@@ -112,7 +112,11 @@ const ViewerOrigin: Component<{ event: NostrEvent; onOpen: () => void }> = (
         class="shrink-0"
         onClick={() => {
           props.onOpen();
-          dispatch({ type: "stack/open", column: columnForEvent(props.event) });
+          dispatch({
+            type: "stack/open",
+            column: columnForEvent(props.event),
+            from: props.event.id,
+          });
         }}
       >
         投稿を開く

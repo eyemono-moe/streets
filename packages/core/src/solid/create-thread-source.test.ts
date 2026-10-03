@@ -23,9 +23,10 @@ const comment: NostrEvent = {
   sig: "",
 };
 
-const storeOf = (...events: NostrEvent[]) =>
+const storeOf = (events: NostrEvent[], seen: Record<string, string[]> = {}) =>
   ({
     get: (id: string) => events.find((event) => event.id === id),
+    seenRelays: (id: string) => seen[id] ?? [],
   }) as unknown as EventStore;
 
 describe("createThreadSource", () => {
@@ -33,9 +34,7 @@ describe("createThreadSource", () => {
     createRoot((dispose) => {
       const thread = createThreadSource({
         focusId: () => FOCUS,
-        store: storeOf(comment),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
+        store: storeOf([comment]),
       });
       // 捕まえる変異: 根を小文字の e から取る（親のコメントを根とみなし、上が欠ける）
       expect(thread.rootId()).toBe(ROOT);
@@ -64,15 +63,26 @@ describe("createThreadSource", () => {
     createRoot((dispose) => {
       const thread = createThreadSource({
         focusId: () => FOCUS,
-        store: storeOf(onArticle),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
+        store: storeOf([onArticle]),
       });
       // 捕まえる変異: 住所で集めない（記事へのコメントの祖先が取れず、上が欠ける）
       expect(thread.source().filters).toContainEqual({
         kinds: [1111],
         "#A": [address],
       });
+      dispose();
+    });
+  });
+
+  it("リレーヒントは既定の行き先に足し、そこだけに絞らない", () => {
+    createRoot((dispose) => {
+      const thread = createThreadSource({
+        focusId: () => FOCUS,
+        store: storeOf([comment]),
+      });
+      // 捕まえる変異: ヒントを `relays` に入れる（既定の行き先や「読み込みリレーだけ」の設定を無視する）
+      expect(thread.source().relays).toBeUndefined();
+      expect(thread.source().extraRelays).toContain("wss://root.example/");
       dispose();
     });
   });

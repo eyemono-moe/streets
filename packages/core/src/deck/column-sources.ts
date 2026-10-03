@@ -182,7 +182,10 @@ export const followListSource = (pubkey: string): NostrSource => ({
   filters: [{ kinds: [3], authors: [pubkey], limit: 1 }],
 });
 
-/** 長文記事 1 本。書き直された版も届くので、読む側で最新のものを使う。 */
+/**
+ * 長文記事 1 本。書き直された版も届くので、読む側で最新のものを使う。
+ * `relays` は書いた人のリレーに**足す**。そこだけに絞ると、書き直した版を逃す。
+ */
 export const articleSource = (
   pubkey: string,
   identifier: string,
@@ -190,7 +193,7 @@ export const articleSource = (
 ): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
-  ...(relays && relays.length > 0 ? { relays: relays as RelayUrl[] } : {}),
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 /**
@@ -210,9 +213,7 @@ export const articleCommentsSource = (
       "#A": [`${LONG_FORM_KIND}:${pubkey}:${identifier}`],
     },
   ],
-  ...(relays && relays.length > 0
-    ? { relays: [...new Set([...FALLBACK_RELAYS, ...(relays as RelayUrl[])])] }
-    : {}),
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 /** その人がプロフィールの上にピン留めした投稿の一覧（最新の版だけ）。 */

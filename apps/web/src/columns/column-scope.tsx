@@ -1,4 +1,5 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
+import { addKnownRelays } from "@streets/core/deck/known-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { NostrSource, SectionStatus } from "@streets/core/read/source";
 import {
@@ -61,7 +62,7 @@ export const createBlockSection = (options: {
     manager: scope.readLayer.manager,
     pageSize: options.pageSize,
     maxItems: options.maxItems,
-    source: options.source,
+    source: () => addKnownRelays(options.source(), scope.column()),
   });
   const key = () =>
     options.name ? `${scope.column().id}/${options.name}` : scope.column().id;

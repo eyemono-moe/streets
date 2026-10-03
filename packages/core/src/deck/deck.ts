@@ -57,6 +57,12 @@ export type ColumnDef = {
    * 保存された値が無いときはまとめる（`groupsNotifications`）。
    */
   groupNotifications?: boolean;
+  /**
+   * 開いたときに、見せるものがあると分かっていたリレー（押した投稿を受け取った
+   * リレーや nevent のヒント）。カラムのどの取得にも、行き先に足して聞く。
+   * 検索リレーのように普段は読まないリレーで見つけたものは、そこにしか無いことがある。
+   */
+  knownRelays?: string[];
 };
 
 export const columnLinkCards = (column: ColumnDef): LinkCardMode =>
@@ -179,6 +185,7 @@ const columnDefSchema = v.object({
     undefined,
   ),
   groupNotifications: v.optional(v.boolean()),
+  knownRelays: v.optional(v.array(v.string())),
   show: v.optional(
     v.object({
       replies: v.optional(v.boolean()),

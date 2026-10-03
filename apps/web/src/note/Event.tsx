@@ -448,6 +448,7 @@ const EventBody: Component<ContentProps> = (props) => {
             dispatch({
               type: "stack/open",
               column: columnForEvent(props.event),
+              from: props.event.id,
             });
           }}
         />
