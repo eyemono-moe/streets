@@ -2,10 +2,11 @@ import type { DeckAppearance } from "@streets/core/deck/deck";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import { decodeBlockedRelayList } from "@streets/core/settings/blocked-relay-list";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
-import { createSignal } from "solid-js";
+import { createResource, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { EventSceneProvider } from "../storybook/EventScene";
@@ -61,9 +62,10 @@ const muteListEvent = (tags: string[][], content: string): NostrEvent => ({
   content,
 });
 
-const blockedRelayList = (tags: string[][]): NostrEvent => ({
+const blockedRelayList = (tags: string[][], content = ""): NostrEvent => ({
   ...relayList(tags),
   kind: 10006,
+  content,
 });
 
 const Story = (props: Props) => {
@@ -80,7 +82,14 @@ const Story = (props: Props) => {
     type: "like",
   });
   const [blocked, setBlocked] = createSignal<NostrEvent | undefined>(
-    blockedRelayList([["relay", "wss://spam.example/"]]),
+    blockedRelayList(
+      [["relay", "wss://spam.example/"]],
+      JSON.stringify([["relay", "wss://hidden.example/"]]),
+    ),
+  );
+  const [blockedDecoded] = createResource(
+    () => ({ event: blocked() }),
+    ({ event }) => decodeBlockedRelayList(event, storySigner, STORY_VIEWER),
   );
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
@@ -177,12 +186,14 @@ const Story = (props: Props) => {
                 writer={{
                   replace: async (_kind, _identifier, mutation) => {
                     const draft = await mutation(blocked());
-                    const next = blockedRelayList(draft.tags);
+                    const next = blockedRelayList(draft.tags, draft.content);
                     setBlocked(next);
                     return { event: next } as never;
                   },
                 }}
-                list={blocked}
+                signer={storySigner}
+                viewer={STORY_VIEWER}
+                list={() => blockedDecoded.latest}
               >
                 <Mediates
                   handle={(event) => {

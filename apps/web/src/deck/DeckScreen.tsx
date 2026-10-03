@@ -1139,6 +1139,8 @@ const DeckScreen: Component<{
                   >
                     <BlockedRelayMediator
                       writer={trackReplaces(write().writer, "繋がないリレー")}
+                      signer={props.session.signer}
+                      viewer={viewer}
                       list={write().blockedRelays}
                     >
                       <CustomEmojisMediator

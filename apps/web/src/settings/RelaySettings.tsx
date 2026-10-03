@@ -42,7 +42,8 @@ const RelaySettings: Component = () => {
           <Show when={blocked}>
             {(blocked) => (
               <BlockedRelaysView
-                relays={blocked().relays()}
+                entries={blocked().entries()}
+                privatePart={blocked().privatePart()}
                 saving={blocked().saving()}
                 account={edit().entries()}
               />
