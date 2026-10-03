@@ -5,6 +5,7 @@ import {
   type Component,
   type JSX,
   Show,
+  createEffect,
   createSignal,
   onCleanup,
   onMount,
@@ -89,6 +90,7 @@ const MediaFrame: Component<{
 type MediaViewProps = {
   media: NoteMedia;
   size: EventSize;
+  onBroken?: () => void;
   /**
    * 拡大表示を開く。画像はそれ自体を押したとき、動画は角の拡大のボタンを押したとき。
    * 無ければ、画像は URL を新しいタブで開き、動画には拡大のボタンを出さない。
@@ -163,7 +165,10 @@ const MediaImage: Component<MediaViewProps> = (props) => {
                     140,
                   );
                 }}
-                onError={() => setBroken(true)}
+                onError={() => {
+                  if (props.onBroken) props.onBroken();
+                  else setBroken(true);
+                }}
               />
             )}
           </Show>
@@ -212,7 +217,10 @@ const MediaVideo: Component<MediaViewProps> = (props) => {
             clearTimeout(fallbackTimer);
             setLoaded(true);
           }}
-          onError={() => setBroken(true)}
+          onError={() => {
+            if (props.onBroken) props.onBroken();
+            else setBroken(true);
+          }}
         />
         {/*
           ブラウザの再生バー（全画面のボタンを含む）は下の端に出るので、上の角に置く。
@@ -257,15 +265,46 @@ export const NoteAudio: Component<{ url: string }> = (props) => {
   );
 };
 
-const NoteMediaView: Component<MediaViewProps> = (props) => (
-  <Show
-    when={props.media.type === "image"}
-    fallback={
-      <MediaVideo media={props.media} size={props.size} onOpen={props.onOpen} />
+const NoteMediaView: Component<MediaViewProps> = (props) => {
+  const [kind, setKind] = createSignal(props.media.type);
+  const [triedOther, setTriedOther] = createSignal(false);
+  const [broken, setBroken] = createSignal(false);
+  createEffect(() => {
+    const media = props.media;
+    setKind(media.type);
+    setTriedOther(false);
+    setBroken(false);
+  });
+  const tryOther = () => {
+    if (triedOther()) {
+      setBroken(true);
+      return;
     }
-  >
-    <MediaImage media={props.media} size={props.size} onOpen={props.onOpen} />
-  </Show>
-);
+    setTriedOther(true);
+    setKind(kind() === "image" ? "video" : "image");
+  };
+  return (
+    <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
+      <Show
+        when={kind() === "image"}
+        fallback={
+          <MediaVideo
+            media={props.media}
+            size={props.size}
+            onOpen={props.onOpen}
+            onBroken={tryOther}
+          />
+        }
+      >
+        <MediaImage
+          media={props.media}
+          size={props.size}
+          onOpen={props.onOpen}
+          onBroken={tryOther}
+        />
+      </Show>
+    </Show>
+  );
+};
 
 export default NoteMediaView;
