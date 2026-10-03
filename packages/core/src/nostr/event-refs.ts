@@ -113,14 +113,69 @@ const commentIdOf = (target: CommentTarget | undefined): IdRef | undefined => {
 };
 
 /**
- * 返信先（親）の id を返す。marker は "reply"/"root" のみ（旧位置形式は NIP-10 で
- * deprecated）。`reply` が無ければ `root`（root タグは 1 本だけの決まり）。
- * コメントなら小文字の `e`。親が記事などの住所や外部の識別子なら `undefined` に
- * なるので、返信かどうかは `isReply` で見る。
+ * NIP-10 で位置形式の `e` タグを読む kind。kind:6（リポスト）や kind:7（リアクション）も
+ * 印の無い `e` タグを持つので、位置で読むとそれらが返信になってしまう。
+ * kind:42（NIP-28 の発言）は NIP-10 の書き方に従う。
+ */
+const POSITIONAL_KINDS = new Set([1, 42]);
+
+/**
+ * 本文で指している投稿の id と、`#[n]`（NIP-08 の古い言及）で指すタグの位置（`#n`）。
+ * 位置形式の返信先を決めるときだけ使う。
+ */
+const mentionedInContent = (event: NostrEvent): Set<string> => {
+  const mentioned = new Set<string>();
+  for (const match of event.content.matchAll(/#\[(\d+)\]/g)) {
+    mentioned.add(`#${match[1]}`);
+  }
+  if (!event.content.includes("nostr:")) return mentioned;
+  for (const token of parseContent(event.content, event.tags)) {
+    if (token.type !== "mention") continue;
+    if (token.ref.kind === "note" || token.ref.kind === "nevent") {
+      mentioned.add(token.ref.id);
+    }
+  }
+  return mentioned;
+};
+
+/**
+ * 印（`root` / `reply`）の付いた `e` タグが 1 本も無いときだけ、印の無い `e` タグを
+ * 位置で読む（NIP-10 の古い書き方。互換のために残すとされている）。先頭が根、
+ * 末尾が返信先。印付きが 1 本でもあれば `undefined`（印だけで決める）。
+ * `mention` の印が付いたものは返信ではないので数えない。
+ */
+const positionalRefs = (event: NostrEvent): IdRef[] | undefined => {
+  if (!POSITIONAL_KINDS.has(event.kind)) return undefined;
+  const refs: IdRef[] = [];
+  let mentioned: Set<string> | undefined;
+  for (const [index, tag] of event.tags.entries()) {
+    if (tag[0] !== "e") continue;
+    const marker = tag[3];
+    if (marker === "root" || marker === "reply") return undefined;
+    if (marker === "mention") continue;
+    // 古い書き方では、本文で引用した投稿にも印の無い `e` タグを付けていた。
+    // 本文で指しているものは言及であって返信先ではない。
+    mentioned ??= mentionedInContent(event);
+    if (mentioned.has(tag[1] ?? "") || mentioned.has(`#${index}`)) continue;
+    // 4 番目と 5 番目を取り違えたもの（`["e", id, relay, pubkey, "root"]`）もあるので、
+    // 4 番目が pubkey ならそれを使う。
+    const ref = idRef(tag[1] ?? "", tag[2], pubkeyOf(marker) ? marker : tag[4]);
+    if (ref) refs.push(ref);
+  }
+  return refs;
+};
+
+/**
+ * 返信先（親）の id を返す。`reply` の印があればそれ、無ければ `root`（root タグは
+ * 1 本だけの決まり）。NIP-10 ではどちらの印も省けるので、印付きが 1 本も無ければ
+ * 位置で読む（`positionalRefs`）。コメントなら小文字の `e`。親が記事などの住所や
+ * 外部の識別子なら `undefined` になるので、返信かどうかは `isReply` で見る。
  */
 export const replyTarget = (event: NostrEvent): IdRef | undefined => {
   if (event.kind === COMMENT_KIND)
     return commentIdOf(commentRefs(event)?.parent);
+  const positional = positionalRefs(event);
+  if (positional) return positional.at(-1);
   let root: IdRef | undefined;
   for (const tag of event.tags) {
     if (tag[0] !== "e") continue;
@@ -135,12 +190,16 @@ export const replyTarget = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
- * スレッドの根の id を返す（`root` タグのみ）。`replyTarget` は `reply` 優先で深い
- * 返信では根を取れないため別経路が要る。`undefined` 時も自分の id は返さない。
+ * スレッドの根の id を返す。`root` の印のもの、印付きが無ければ位置で読んだ先頭。
+ * `replyTarget` は `reply` 優先で深い返信では根を取れないため別経路が要る。
+ * `root` の印が無く `reply` だけの返信では根が分からず `undefined`（呼ぶ側が親を
+ * たどる）。`undefined` 時も自分の id は返さない。
  * コメントなら大文字の `E` —— 返信への返信になったコメントは、根を `E` でしか指さない。
  */
 export const threadRoot = (event: NostrEvent): IdRef | undefined => {
   if (event.kind === COMMENT_KIND) return commentIdOf(commentRefs(event)?.root);
+  const positional = positionalRefs(event);
+  if (positional) return positional[0];
   for (const tag of event.tags) {
     if (tag[0] !== "e" || tag[3] !== "root") continue;
     const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
