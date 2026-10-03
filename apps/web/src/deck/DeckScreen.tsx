@@ -1,5 +1,6 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
+import { chosenRelays } from "@streets/core/deck/chosen-relays";
 import { buildRelayColumn } from "@streets/core/deck/column-presets";
 import {
   type ColumnDef,
@@ -40,7 +41,10 @@ import { OUTBOX_ROUTING } from "@streets/core/read/read-routing";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { readRoutingFor } from "@streets/core/settings/read-routing-setting";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import { effectiveSearchRelays } from "@streets/core/settings/search-relay-list";
+import {
+  effectiveSearchRelays,
+  parseSearchRelays,
+} from "@streets/core/settings/search-relay-list";
 import {
   type Component,
   For,
@@ -280,6 +284,22 @@ const DeckScreen: Component<{
         storage: localStorage,
       })
     : createGuestDeckStore(localStorage);
+  // 自分で選んだリレーは、手元のもの（localhost など）でも繋ぐ。新しい組を許してから
+  // 前の組を下ろす —— 先に下ろすと、変わらないリレーまで一度閉じてしまう。
+  let releaseChosenRelays: (() => void) | undefined;
+  createEffect(() => {
+    write?.relayList();
+    const release = props.readLayer.manager.allowLocalRelays(
+      chosenRelays({
+        relayList: relayList(),
+        searchRelays: parseSearchRelays(write?.searchRelays()),
+        decks: deckStore.value(),
+      }),
+    );
+    releaseChosenRelays?.();
+    releaseChosenRelays = release;
+  });
+  onCleanup(() => releaseChosenRelays?.());
   // どのデッキを開いているかは端末ごとに覚える。アカウントには保存しない。
   // この画面で選び直したもの。アカウントを切り替えたら、その人が端末に覚えたものへ戻る。
   const [chosenDeck, setChosenDeck] = createSignal<{

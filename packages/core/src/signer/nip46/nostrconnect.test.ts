@@ -57,6 +57,7 @@ const setup = (options: { budget?: boolean } = {}) => {
     publish: vi.fn(async (_url: string, event: NostrEvent) => {
       sent.push(event);
     }),
+    allowLocalRelays: vi.fn(() => () => {}),
   };
   let fire: (() => void) | undefined;
   const attempt = startNostrConnect({

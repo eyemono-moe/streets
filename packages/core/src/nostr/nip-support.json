@@ -356,7 +356,7 @@
       "packages/core/src/read/relay-selector.ts",
       "packages/core/src/nostr/build/relay-list.ts"
     ],
-    "gap": ""
+    "gap": "他人の一覧にある localhost やプライベート IP のリレーには、読みも書きも繋がない"
   },
   {
     "nip": "66",

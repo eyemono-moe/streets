@@ -64,7 +64,7 @@ export type NostrConnectAttempt = {
   cancel(): void;
 };
 
-type Pool = Pick<ConnectionPool, "publish" | "subscribe">;
+type Pool = Pick<ConnectionPool, "publish" | "subscribe" | "allowLocalRelays">;
 
 /**
  * 署名器の側から接続を受ける（`nostrconnect://`）。bunker の URI と違い、

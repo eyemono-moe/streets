@@ -2736,3 +2736,56 @@ describe("SubscriptionManager の繋がないリレー", () => {
     expect(plans.at(-1)?.relays).toEqual(["wss://only/"]);
   });
 });
+
+describe("SubscriptionManager のローカルネットワークのリレー", () => {
+  const LOCAL = "ws://localhost:7777/";
+
+  it("他人の localhost は数えず、それしか無い人は行き先の分からない人として fallback で読む", () => {
+    const { manager, store, connectCalls } = createManager({
+      fallbackRelays: ["wss://fallback.example/"],
+    });
+    const author = pubkeyFor(50_101);
+    store.put(relayListFor(author, [LOCAL]), "wss://indexer/");
+
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+
+    expect(plans.at(-1)).toEqual({
+      relays: ["wss://fallback.example/"],
+      unroutableAuthors: 1,
+      uncoveredAuthors: 0,
+    });
+    expect(connectCalls).not.toContain(LOCAL);
+  });
+
+  it("自分で指定した localhost は読み、取り下げたら外す", () => {
+    const { manager, store } = createManager({
+      fallbackRelays: [],
+      redundancy: 1,
+    });
+    const author = pubkeyFor(50_102);
+    store.put(relayListFor(author, [LOCAL]), "wss://indexer/");
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    expect(plans.at(-1)?.relays).toEqual([]);
+
+    const release = manager.allowLocalRelays([LOCAL]);
+    expect(plans.at(-1)?.relays).toEqual([LOCAL]);
+
+    release();
+    expect(plans.at(-1)?.relays).toEqual([]);
+  });
+
+  it("明示したリレーでも、許していない localhost は待たない", () => {
+    const { manager, connectCalls } = createManager();
+    const { plans } = subscribeWithPlans(
+      manager,
+      [{ kinds: [1] }],
+      ["wss://open.example/", LOCAL],
+    );
+    expect(plans.at(-1)?.relays).toEqual(["wss://open.example/"]);
+    expect(connectCalls).not.toContain(LOCAL);
+  });
+});

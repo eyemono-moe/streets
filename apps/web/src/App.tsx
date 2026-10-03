@@ -13,6 +13,7 @@ import { ErrorToaster } from "./toast";
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
 /** ログインしていない人のデッキを作り直す鍵。pubkey とは重ならない。 */
 const GUEST = "guest";
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 /** 短いタブの切り替えでは接続を揺らさない。 */
 const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
@@ -23,6 +24,9 @@ const App: Component = () => {
     connect: (url) => connectRelay(url, { signer: () => session.signer }),
     persistence: createIndexedDbPersistence(),
     fallbackRelays: relayOverride,
+    // 手元で開いたページからなら、ブラウザは手元のリレーへの接続に許可を求めない。
+    allowLocalNetwork:
+      import.meta.env.DEV || LOOPBACK_HOSTS.has(window.location.hostname),
   });
   onCleanup(() => readLayer.dispose());
 

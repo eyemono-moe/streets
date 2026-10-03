@@ -104,6 +104,8 @@ export type SubscriptionManagerOptions = {
   scheduler?: ConnectionPoolOptions["scheduler"];
   /** ConnectionPool へそのまま渡すジッタの注入口 (テスト用)。 */
   random?: ConnectionPoolOptions["random"];
+  /** ConnectionPool へそのまま渡す。 */
+  allowLocalNetwork?: ConnectionPoolOptions["allowLocalNetwork"];
   /**
    * セクションの出入りによる張り直しをまとめる窓（ms）。0（既定）はまとめず、
    * 出入りのたびにすぐ張り直す。アプリでは `REPLAN_BATCH_MS` を渡す。
@@ -295,6 +297,7 @@ export class SubscriptionManager {
       maxConnections: options.maxConnections,
       scheduler: this.#scheduler,
       random: options.random,
+      allowLocalNetwork: options.allowLocalNetwork,
     });
     // degraded 集合の出入りは replan() の正当な契機 (#scheduleDegradedReplan 参照)。
     this.#offDegraded = this.#pool.onDegradedChanged(() => {
@@ -522,15 +525,26 @@ export class SubscriptionManager {
    * プールで、ここは閉じたリレーの代わりを選び直す。
    */
   setBlockedRelays(urls: readonly RelayUrl[]): void {
-    const current = this.#pool.blockedRelays;
-    if (
-      current.length === urls.length &&
-      urls.every((url) => this.#pool.isBlocked(url))
-    ) {
+    const current = new Set(this.#pool.blockedRelays);
+    if (current.size === urls.length && urls.every((url) => current.has(url))) {
       return;
     }
     this.#pool.setBlockedRelays(urls);
     this.replan();
+  }
+
+  /**
+   * 自分で指定したローカルネットワークのリレーを繋げるようにし、張り直す。
+   * 返した関数で取り下げる。
+   */
+  allowLocalRelays(urls: readonly RelayUrl[]): () => void {
+    const fresh = urls.filter((url) => this.#pool.isLocalRefused(url));
+    const release = this.#pool.allowLocalRelays(urls);
+    if (fresh.length > 0) this.replan();
+    return () => {
+      release();
+      if (urls.some((url) => this.#pool.isLocalRefused(url))) this.replan();
+    };
   }
 
   /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけを読む。 */
@@ -760,7 +774,10 @@ export class SubscriptionManager {
         for (const author of filter.authors ?? []) {
           if (seenAuthors.has(author)) continue;
           seenAuthors.add(author);
-          const declared = this.#options.routing.writeRelaysFor(author);
+          // 他人の localhost は数えない。それしか無い著者は、行き先の分からない著者として扱う。
+          const declared = this.#options.routing
+            .writeRelaysFor(author)
+            .filter((url) => !this.#pool.isLocalRefused(url));
           if (declared.length > 0) demand.set(author, declared);
         }
       }
@@ -792,7 +809,10 @@ export class SubscriptionManager {
       budget,
       redundancy,
       degraded: this.#pool.degradedRelays,
-      blocked: this.#pool.blockedRelays,
+      blocked: [
+        ...this.#pool.blockedRelays,
+        ...pinned.filter((url) => this.#pool.isLocalRefused(url)),
+      ],
     });
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
