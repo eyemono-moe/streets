@@ -43,6 +43,18 @@ export type NoteLayout = {
 /** 1 件の投稿に並べるカードの上限。URL を並べただけの投稿で縦に伸びすぎない。 */
 export const MAX_LINK_CARDS = 3;
 
+/** nostr.build の GIF URL は /mp4/ 以下では MP4 を返す。末尾の .gif より経路を優先する。 */
+const isNostrBuildMp4 = (value: string): boolean => {
+  try {
+    const url = new URL(value);
+    return (
+      url.hostname === "gifs.nostr.build" && url.pathname.startsWith("/mp4/")
+    );
+  } catch {
+    return false;
+  }
+};
+
 const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
   const result = [...tokens];
   const first = result[0];
@@ -87,13 +99,15 @@ export const layoutNote = (
             : mime.startsWith("audio/")
               ? "audio"
               : undefined
-        : isProbablyImageUrl(token.url)
-          ? "image"
-          : isProbablyVideoUrl(token.url)
-            ? "video"
-            : isProbablyAudioUrl(token.url)
-              ? "audio"
-              : undefined;
+        : isNostrBuildMp4(token.url)
+          ? "video"
+          : isProbablyImageUrl(token.url)
+            ? "image"
+            : isProbablyVideoUrl(token.url)
+              ? "video"
+              : isProbablyAudioUrl(token.url)
+                ? "audio"
+                : undefined;
       if (type === "audio") {
         audio.push(token.url);
         continue;

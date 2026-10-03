@@ -53,6 +53,21 @@ describe("layoutNote", () => {
     expect(layout.text).toEqual([]);
   });
 
+  it("nostr.build の /mp4/ にある GIF URL は動画にする", () => {
+    const url =
+      "https://gifs.nostr.build/mp4/orig/82cc31b3042503850deee14d4c5459d6804b794a6a653b6b55b59659e73f4442.gif";
+    const layout = layoutNote(note(`おはよう ${url}`), { quotes: true });
+    expect(layout.media).toEqual([{ type: "video", url }]);
+    expect(layout.text).toEqual([{ type: "text", text: "おはよう" }]);
+    expect(
+      layoutNote(note("https://gifs.nostr.build/orig/clip.gif"), {
+        quotes: true,
+      }).media,
+    ).toEqual([
+      { type: "image", url: "https://gifs.nostr.build/orig/clip.gif" },
+    ]);
+  });
+
   it("音声は画像・動画と分けて抜き、拡張子が無いものも imeta から判定する", () => {
     const layout = layoutNote(
       note(

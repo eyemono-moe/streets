@@ -34,6 +34,14 @@ export const 動画つき: Story = {
   args: { event: withVideo, scene: scene(withVideo) },
 };
 
+/** nostr.build は .gif の URL でも /mp4/ 以下では動画を返す。 */
+const mp4GifUrl =
+  "https://gifs.nostr.build/mp4/orig/82cc31b3042503850deee14d4c5459d6804b794a6a653b6b55b59659e73f4442.gif";
+const mp4Gif = alice.note(`おはよう！\n${mp4GifUrl}`);
+export const Gif拡張子の動画: Story = {
+  args: { event: mp4Gif, scene: scene(mp4Gif) },
+};
+
 export const 動画_コンパクト: Story = {
   args: { event: withVideo, scene: scene(withVideo), size: "compact" },
 };
