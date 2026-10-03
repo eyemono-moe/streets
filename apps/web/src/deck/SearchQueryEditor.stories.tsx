@@ -2,11 +2,11 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SearchQueryEditor from "./SearchQueryEditor";
 
-type Args = { debounceMs: number };
+type Args = { debounceMs: number; initial: string };
 
 /** 上へ渡った回数を出す。打つたびに渡していないかを、ここで見る。 */
 const Story = (props: Args) => {
-  const [text, setText] = createSignal("ねこ #nostr");
+  const [text, setText] = createSignal(props.initial);
   const [sent, setSent] = createSignal(0);
   return (
     <div class="flex w-100 flex-col gap-3 bg-secondary p-4">
@@ -28,7 +28,7 @@ const Story = (props: Args) => {
 const meta = {
   title: "デッキ/検索の条件",
   component: Story,
-  args: { debounceMs: 600 },
+  args: { debounceMs: 600, initial: "ねこ #nostr" },
 } satisfies Meta<Args>;
 
 export default meta;
@@ -39,3 +39,16 @@ export const 待ってから渡す: S = {};
 
 /** 「探す」パネルと同じ。渡した先が購読し直さないので、すぐ渡す。 */
 export const すぐ渡す: S = { args: { debounceMs: 0 } };
+
+/** 何も書いていない。欄の placeholder で、- で除けることを示す。 */
+export const 空: S = { args: { initial: "" } };
+
+/**
+ * 除く指定。言葉とハッシュタグはフォームの欄にも - 付きで出る。人と bot は
+ * 文字列でだけ書け、フォームの欄には出ない。
+ */
+export const 除く指定: S = {
+  args: {
+    initial: `あいもの -芋 #nostr -#bot -from:${"a".repeat(64)} -is:bot`,
+  },
+};

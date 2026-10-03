@@ -54,6 +54,22 @@ const SearchForm: Component<{
   ];
   const words = (text: string) =>
     text.split(/\s+/).filter((word) => word.length > 0);
+  // `-` を付けたものは除く。手元でふるうだけなので、欄を分けて勧めはしない。
+  const signed = (text: string) => {
+    const include: string[] = [];
+    const exclude: string[] = [];
+    for (const word of words(text)) {
+      if (word.startsWith("-") && word.length > 1 && word[1] !== "-") {
+        exclude.push(word.slice(1));
+      } else {
+        include.push(word);
+      }
+    }
+    return { include, exclude };
+  };
+  const shownSigned = (include: string[], exclude: string[]) =>
+    [...include, ...exclude.map((word) => `-${word}`)].join(" ");
+  const toTag = (tag: string) => tag.replace(/^#/, "").toLowerCase();
 
   return (
     <div class="flex flex-col gap-2.5">
@@ -61,26 +77,27 @@ const SearchForm: Component<{
         <input
           id="search-words"
           class={inputClass}
-          placeholder="ねこ"
-          value={props.query.words.join(" ")}
-          onChange={(event) =>
-            patch({ words: words(event.currentTarget.value) })
-          }
+          placeholder="ねこ -いぬ"
+          value={shownSigned(props.query.words, props.query.excludeWords)}
+          onChange={(event) => {
+            const { include, exclude } = signed(event.currentTarget.value);
+            patch({ words: include, excludeWords: exclude });
+          }}
         />
       </Field>
       <Field id="search-hashtags" label="ハッシュタグ">
         <input
           id="search-hashtags"
           class={inputClass}
-          placeholder="nostr"
-          value={props.query.hashtags.join(" ")}
-          onChange={(event) =>
+          placeholder="nostr -bot"
+          value={shownSigned(props.query.hashtags, props.query.excludeHashtags)}
+          onChange={(event) => {
+            const { include, exclude } = signed(event.currentTarget.value);
             patch({
-              hashtags: words(event.currentTarget.value).map((tag) =>
-                tag.replace(/^#/, "").toLowerCase(),
-              ),
-            })
-          }
+              hashtags: include.map(toTag),
+              excludeHashtags: exclude.map(toTag),
+            });
+          }}
         />
       </Field>
       <Field id="search-from" label="書いた人">

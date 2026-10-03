@@ -1,12 +1,16 @@
+import type { NostrEvent } from "../nostr/event";
 import { decodeNip19 } from "../nostr/nip19";
 
 /**
  * 検索の条件。文字列（人が打つ形）と、この形を行き来できるようにしてある
  * —— 画面のフォームで触っても、文字列を直接書いても、同じものを指す。
  *
- * v0 と同じ書き方に、`kind:` を足した:
+ * v0 と同じ書き方に、`kind:` と `-` で除く指定を足した:
  *
- *   ねこ from:npub1… since:2026-09-01 #nostr kind:1
+ *   ねこ -いぬ from:npub1… -from:npub1… since:2026-09-01 #nostr -#bot kind:1 -is:bot
+ *
+ * 除く指定は NIP-50 に決まりが無く、既定の検索リレーも解釈しない（`-いぬ` を
+ * その文字列として探してしまう）。リレーへは送らず、届いた結果を手元でふるう。
  */
 export type SearchQuery = {
   /** 本文に含む言葉。空白で区切った並び。 */
@@ -20,12 +24,23 @@ export type SearchQuery = {
   since?: number;
   until?: number;
   kinds: number[];
+  /** 本文に含んでいたら除く言葉。 */
+  excludeWords: string[];
+  excludeHashtags: string[];
+  /** 除く書いた人（16 進の公開鍵）。 */
+  excludeFrom: string[];
+  /** プロフィールで bot と名乗っている人（NIP-24 の `bot`）を除く。 */
+  excludeBots: boolean;
 };
 
 export const emptySearchQuery = (): SearchQuery => ({
   words: [],
   hashtags: [],
   kinds: [],
+  excludeWords: [],
+  excludeHashtags: [],
+  excludeFrom: [],
+  excludeBots: false,
 });
 
 /** 公開鍵の指定。npub・nprofile・16 進のどれでも受ける。 */
@@ -69,6 +84,29 @@ const PREFIXES: { keys: string[]; field: keyof SearchQuery }[] = [
   { keys: ["hashtag:", "#"], field: "hashtags" },
 ];
 
+/** `-` の後ろを読む。読み取れない指定は、除く言葉として扱う。 */
+const excludeToken = (query: SearchQuery, token: string): void => {
+  const lower = token.toLowerCase();
+  if (lower === "is:bot") {
+    query.excludeBots = true;
+    return;
+  }
+  const from = ["from:", "by:"].find((key) => lower.startsWith(key));
+  if (from !== undefined) {
+    const pubkey = toPubkey(token.slice(from.length));
+    if (pubkey) {
+      if (!query.excludeFrom.includes(pubkey)) query.excludeFrom.push(pubkey);
+      return;
+    }
+  }
+  const hashtag = ["hashtag:", "#"].find((key) => lower.startsWith(key));
+  if (hashtag !== undefined && lower.length > hashtag.length) {
+    query.excludeHashtags.push(lower.slice(hashtag.length));
+    return;
+  }
+  query.excludeWords.push(token);
+};
+
 /**
  * 打った文字列を条件に直す。読み取れない指定（`from:` に壊れた鍵など）は、
  * ふつうの言葉として扱う —— 打っている途中に消えてしまわないように。
@@ -77,6 +115,11 @@ export const parseSearchQuery = (text: string): SearchQuery => {
   const query = emptySearchQuery();
   for (const token of text.trim().split(/\s+/)) {
     if (token === "") continue;
+    // `-` だけ（や `--`）は除く指定にしない。打ち始めで消えないように。
+    if (token.startsWith("-") && token.length > 1 && token[1] !== "-") {
+      excludeToken(query, token.slice(1));
+      continue;
+    }
     const matched = PREFIXES.find(({ keys }) =>
       keys.some((key) => token.toLowerCase().startsWith(key)),
     );
@@ -123,15 +166,22 @@ export const parseSearchQuery = (text: string): SearchQuery => {
 export const formatSearchQuery = (query: SearchQuery): string =>
   [
     ...query.words,
+    ...query.excludeWords.map((word) => `-${word}`),
     ...query.hashtags.map((tag) => `#${tag}`),
+    ...query.excludeHashtags.map((tag) => `-#${tag}`),
     ...(query.from ? [`from:${query.from}`] : []),
+    ...query.excludeFrom.map((pubkey) => `-from:${pubkey}`),
     ...(query.to ? [`to:${query.to}`] : []),
     ...(query.since !== undefined ? [`since:${fromSeconds(query.since)}`] : []),
     ...(query.until !== undefined ? [`until:${fromSeconds(query.until)}`] : []),
     ...query.kinds.map((kind) => `kind:${kind}`),
+    ...(query.excludeBots ? ["-is:bot"] : []),
   ].join(" ");
 
-/** 何も指定していないか。空のまま検索しても意味が無いので、送る前に見る。 */
+/**
+ * 何も指定していないか。空のまま検索しても意味が無いので、送る前に見る。
+ * 除く指定だけでは探すものが決まらないので、空とみなす。
+ */
 export const isEmptySearchQuery = (query: SearchQuery): boolean =>
   query.words.length === 0 &&
   query.hashtags.length === 0 &&
@@ -151,3 +201,44 @@ export const searchFilter = (query: SearchQuery) => ({
   ...(query.since !== undefined ? { since: query.since } : {}),
   ...(query.until !== undefined ? { until: query.until } : {}),
 });
+
+/** 除く指定があるか。無ければ、届いた結果をふるう手間を省ける。 */
+export const hasSearchExclusions = (query: SearchQuery): boolean =>
+  query.excludeWords.length > 0 ||
+  query.excludeHashtags.length > 0 ||
+  query.excludeFrom.length > 0 ||
+  query.excludeBots;
+
+/** 全角・半角や大文字・小文字の違いで取りこぼさないよう、比べる前にそろえる。 */
+const normalize = (text: string): string =>
+  text.normalize("NFKC").toLowerCase();
+
+/**
+ * 届いた結果を、除く指定で残すか決める。`isBot` はその人が bot と名乗って
+ * いるか（まだ分からなければ undefined）。分かるまでは残さない —— 出した後で
+ * 消すと、読んでいる位置がずれる。
+ */
+export const passesSearchExclusions = (
+  query: SearchQuery,
+  event: NostrEvent,
+  isBot: (pubkey: string) => boolean | undefined,
+): boolean => {
+  if (query.excludeFrom.includes(event.pubkey)) return false;
+  if (query.excludeHashtags.length > 0) {
+    const tagged = event.tags.some(
+      (tag) =>
+        tag[0] === "t" &&
+        tag[1] !== undefined &&
+        query.excludeHashtags.includes(tag[1].toLowerCase()),
+    );
+    if (tagged) return false;
+  }
+  if (query.excludeWords.length > 0) {
+    const content = normalize(event.content);
+    if (query.excludeWords.some((word) => content.includes(normalize(word)))) {
+      return false;
+    }
+  }
+  if (query.excludeBots && isBot(event.pubkey) !== false) return false;
+  return true;
+};

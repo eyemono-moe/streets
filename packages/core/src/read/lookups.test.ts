@@ -385,6 +385,40 @@ describe("watchProfile", () => {
   });
 });
 
+describe("watchBot", () => {
+  const profileEvent = (content: object) =>
+    signed({ kind: 0, content: JSON.stringify(content), created_at: 1 });
+
+  it("取り終えるまでは undefined、名乗っていれば true", () => {
+    const { store, profiles, lookups } = setup();
+    const seen: (boolean | undefined)[] = [];
+    lookups.watchBot(PUBKEY, (bot) => seen.push(bot));
+    expect(seen).toEqual([undefined]);
+    expect(profiles.requested).toEqual([PUBKEY]);
+
+    store.put(profileEvent({ name: "bot", bot: true }), RELAY);
+    expect(seen.at(-1)).toBe(true);
+  });
+
+  it("名乗っていない人は false", () => {
+    const { store, lookups } = setup();
+    store.put(profileEvent({ name: "alice" }), RELAY);
+    const seen: (boolean | undefined)[] = [];
+    lookups.watchBot(PUBKEY, (bot) => seen.push(bot));
+    expect(seen).toEqual([false]);
+  });
+
+  it("取り終えてプロフィールが無ければ false", () => {
+    const { store, profiles, lookups } = setup();
+    const seen: (boolean | undefined)[] = [];
+    lookups.watchBot(PUBKEY, (bot) => seen.push(bot));
+    store.markReplaceableFetched(0, PUBKEY);
+    profiles.settle();
+    expect(seen).toEqual([undefined, false]);
+    expect(profiles.listenerCount()).toBe(0);
+  });
+});
+
 describe("requestProfile", () => {
   it("要求だけを出す", () => {
     const { profiles, lookups } = setup();

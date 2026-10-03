@@ -37,6 +37,11 @@ describe("parseProfile", () => {
     });
   });
 
+  it("bot は真偽値のときだけ読む", () => {
+    expect(parseProfile(JSON.stringify({ bot: true }))?.bot).toBe(true);
+    expect(parseProfile(JSON.stringify({ bot: "true" }))?.bot).toBeUndefined();
+  });
+
   it("空白だけの値は無いものとして扱う", () => {
     expect(
       parseProfile(JSON.stringify({ name: "alice", display_name: "  " })),

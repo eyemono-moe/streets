@@ -3,8 +3,10 @@ import { encodeBech32 } from "../nostr/nip19";
 import {
   emptySearchQuery,
   formatSearchQuery,
+  hasSearchExclusions,
   isEmptySearchQuery,
   parseSearchQuery,
+  passesSearchExclusions,
   searchFilter,
 } from "./query";
 
@@ -57,12 +59,103 @@ describe("parseSearchQuery", () => {
   });
 });
 
+describe("除く指定", () => {
+  it("- を付けた言葉・ハッシュタグ・人・bot を除く指定として読む", () => {
+    expect(
+      parseSearchQuery(
+        `あいもの -いも -#Bot -hashtag:spam -from:${npub} -is:bot`,
+      ),
+    ).toEqual({
+      ...emptySearchQuery(),
+      words: ["あいもの"],
+      excludeWords: ["いも"],
+      excludeHashtags: ["bot", "spam"],
+      excludeFrom: [pubkey],
+      excludeBots: true,
+    });
+  });
+
+  it("- だけや、読み取れない人の指定は除く指定にしない／言葉として除く", () => {
+    const query = parseSearchQuery("- -- -from:こわれた");
+    expect(query.words).toEqual(["-", "--"]);
+    expect(query.excludeWords).toEqual(["from:こわれた"]);
+    expect(query.excludeFrom).toEqual([]);
+  });
+
+  it("除く指定だけでは、何も探していない", () => {
+    const query = parseSearchQuery("-いも -is:bot");
+    expect(isEmptySearchQuery(query)).toBe(true);
+    expect(hasSearchExclusions(query)).toBe(true);
+    expect(hasSearchExclusions(parseSearchQuery("いも"))).toBe(false);
+  });
+
+  it("除く指定はリレーへ送らない", () => {
+    expect(
+      searchFilter(parseSearchQuery(`あいもの -いも -#bot -from:${pubkey}`)),
+    ).toEqual({ kinds: [1], search: "あいもの" });
+  });
+});
+
+describe("passesSearchExclusions", () => {
+  const other = "b".repeat(64);
+  const event = (content: string, tags: string[][] = [], author = other) => ({
+    id: "0".repeat(64),
+    pubkey: author,
+    created_at: 0,
+    kind: 1,
+    tags,
+    content,
+    sig: "",
+  });
+  const human = () => false;
+
+  it("除く言葉を本文に含むものを落とす。全角・大文字の違いはそろえる", () => {
+    const query = parseSearchQuery("あいもの -芋 -abc");
+    expect(passesSearchExclusions(query, event("あいもの"), human)).toBe(true);
+    expect(passesSearchExclusions(query, event("あいものと芋"), human)).toBe(
+      false,
+    );
+    expect(passesSearchExclusions(query, event("ＡＢＣ"), human)).toBe(false);
+  });
+
+  it("除くハッシュタグと人を落とす", () => {
+    const query = parseSearchQuery(`ねこ -#bot -from:${pubkey}`);
+    expect(
+      passesSearchExclusions(query, event("ねこ", [["t", "Bot"]]), human),
+    ).toBe(false);
+    expect(
+      passesSearchExclusions(query, event("ねこ", [], pubkey), human),
+    ).toBe(false);
+    expect(passesSearchExclusions(query, event("ねこ"), human)).toBe(true);
+  });
+
+  it("bot と名乗る人と、まだ分からない人を落とす", () => {
+    const query = parseSearchQuery("ねこ -is:bot");
+    expect(passesSearchExclusions(query, event("ねこ"), () => true)).toBe(
+      false,
+    );
+    expect(passesSearchExclusions(query, event("ねこ"), () => undefined)).toBe(
+      false,
+    );
+    expect(passesSearchExclusions(query, event("ねこ"), human)).toBe(true);
+    // bot を除かないなら、分からなくても残す。
+    expect(
+      passesSearchExclusions(
+        parseSearchQuery("ねこ"),
+        event("ねこ"),
+        () => undefined,
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("文字列と条件を行き来できる", () => {
   const cases = [
     "ねこ",
     "ねこ 写真 #nostr",
     `ねこ from:${pubkey} since:2026-09-01 kind:1`,
     `to:${pubkey} until:2026-12-31`,
+    `あいもの -いも #nostr -#bot -from:${pubkey} -is:bot`,
   ];
   for (const text of cases) {
     it(`往復しても変わらない: ${text}`, () => {

@@ -11,6 +11,7 @@ const profileSchema = v.looseObject({
   about: optionalText,
   banner: optionalText,
   nip05: optionalText,
+  bot: v.fallback(v.optional(v.boolean()), undefined),
 });
 
 export type Profile = {
@@ -23,6 +24,8 @@ export type Profile = {
   banner?: string;
   /** ドメインでの本人確認（NIP-05）。書いてあるだけで、確かめてはいない。 */
   nip05?: string;
+  /** 自動で書いている（NIP-24）。名乗っているだけで、確かめてはいない。 */
+  bot?: boolean;
 };
 
 const nonBlank = (value: string | undefined): string | undefined =>
@@ -45,6 +48,7 @@ export const parseProfile = (content: string): Profile | undefined => {
     about: nonBlank(result.output.about),
     banner: nonBlank(result.output.banner),
     nip05: nonBlank(result.output.nip05),
+    bot: result.output.bot,
   };
 };
 
