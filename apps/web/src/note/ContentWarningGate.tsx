@@ -12,6 +12,10 @@ import type { EventSize } from "./Event";
  */
 const [revealed, setRevealed] = createSignal<ReadonlySet<string>>(new Set());
 
+/** 押して中身を出す。一覧に戻っても、同じ投稿は出したままにする。 */
+export const revealWarning = (id: string) =>
+  setRevealed((ids) => new Set(ids).add(id));
+
 /** 今の設定で中身を隠しているか。押して出したものは隠さない。 */
 export const hiddenUnderWarning = (event: NostrEvent): boolean =>
   hidesUnderWarning(contentWarningMode(), event) && !revealed().has(event.id);
@@ -50,7 +54,7 @@ const ContentWarningGate: ParentComponent<{
           size="sm"
           variant="secondary"
           class="shrink-0"
-          onClick={() => setRevealed((ids) => new Set(ids).add(props.event.id))}
+          onClick={() => revealWarning(props.event.id)}
         >
           表示する
         </Button>

@@ -17,6 +17,7 @@ import {
   literalSource,
   notificationsSource,
   searchSource,
+  userMediaSource,
   userPostsSource,
   userReactionsSource,
 } from "./column-sources";
@@ -121,6 +122,18 @@ describe("人と投稿", () => {
     expect(
       userPostsSource("a".repeat(64), { chats: true }).filters[0].kinds,
     ).toEqual([1, 6, 42]);
+  });
+
+  it("ユーザーのメディアは、リポストを除いた投稿と画像・動画の投稿を取る", () => {
+    // 捕まえる変異: kind:20/21/22 を取らない（画像を見せる専用の投稿が出ない）/
+    // リポストを取る（他人の添付が並ぶ）
+    expect(userMediaSource("a".repeat(64))).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1, 20, 21, 22], authors: ["a".repeat(64)] }],
+    });
+    expect(
+      userMediaSource("a".repeat(64), { chats: true }).filters[0].kinds,
+    ).toEqual([1, 20, 21, 22, 42]);
   });
 
   it("ユーザーのリアクションは対象ユーザーの kind:7 を集める", () => {

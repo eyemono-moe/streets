@@ -7,6 +7,11 @@ import {
   CHANNEL_MUTE_USER_KIND,
 } from "../nostr/channel";
 import { LONG_FORM_KIND } from "../nostr/long-form";
+import {
+  PICTURE_KIND,
+  SHORT_VIDEO_KIND,
+  VIDEO_KIND,
+} from "../nostr/media-post";
 import { PINNED_NOTES_KIND } from "../nostr/pinned-notes";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { NostrSource } from "../read/source";
@@ -127,6 +132,29 @@ export const userPostsSource = (
     {
       kinds: [
         ...TIMELINE_KINDS,
+        ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
+      ],
+      authors: [pubkey],
+    },
+  ],
+});
+
+/**
+ * その人の、画像・動画を添えられる投稿。リレーは「添付があるもの」で絞れないので、
+ * 投稿をまとめて取り、読む側で添付の無いものを落とす。リポストは他人の添付なので取らない。
+ */
+export const userMediaSource = (
+  pubkey: string,
+  options: { chats?: boolean } = {},
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    {
+      kinds: [
+        1,
+        PICTURE_KIND,
+        VIDEO_KIND,
+        SHORT_VIDEO_KIND,
         ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
       ],
       authors: [pubkey],

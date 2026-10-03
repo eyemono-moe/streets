@@ -8,6 +8,12 @@ type Size = { width: number; height: number };
 /** 投稿の添付画像の長辺。枠は高さ 320px までなので、画素の細かい画面（3 倍）でも粗くならない。 */
 export const MEDIA_MAX_EDGE = 960;
 
+/**
+ * メディアの格子の 1 マスの長辺。マスは正方形に切り抜くので、短辺がマスの幅（3 列で
+ * 140px ほど、3 倍の画面で 420px）を下回らないよう、縦横比 3:4 の写真でも足りる長さにする。
+ */
+export const MEDIA_TILE_MAX_EDGE = 640;
+
 /** プロフィールのバナーの長辺。カラムの幅いっぱいに横長で敷く。 */
 export const BANNER_MAX_EDGE = 1200;
 
