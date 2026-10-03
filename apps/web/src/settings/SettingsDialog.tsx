@@ -41,6 +41,7 @@ const SettingsDialog: Component<{
   columnDigits: boolean;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  columnStretch: boolean;
   /** いいねボタンで送るリアクション（この端末の設定）。 */
   defaultReaction: ReactionInput;
   /** 開いたときに出すページ。 */
@@ -133,6 +134,7 @@ const SettingsDialog: Component<{
           writeProgress={props.writeProgress}
           contentWarning={contentWarningMode()}
           deckLayout={props.deckLayout}
+          columnStretch={props.columnStretch}
           actionLayout={actionLayout()}
         />
       ),

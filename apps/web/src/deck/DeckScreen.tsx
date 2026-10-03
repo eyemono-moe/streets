@@ -64,6 +64,7 @@ import { ActionsMediator } from "../actions-mediator";
 import { applyBlockedRelays } from "../blocked-relays";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
+import { columnStretch, setColumnStretch } from "../column-stretch-setting";
 import { columnView } from "../columns/column-views";
 import { setContentWarningMode } from "../content-warning-setting";
 import {
@@ -135,6 +136,7 @@ import { ZapMediator } from "../zap/ZapMediator";
 import AddColumnPanel from "./AddColumnPanel";
 import Column from "./Column";
 import { createColumnOrder } from "./column-order";
+import { columnWidthStyle } from "./column-width";
 import ColumnAccentBar from "./ColumnAccentBar";
 import ColumnArrangePanel from "./ColumnArrangePanel";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
@@ -718,6 +720,9 @@ const DeckScreen: Component<{
       case "deck/set-column-digits":
         setColumnDigits(event.on);
         return true;
+      case "deck/set-column-stretch":
+        setColumnStretch(event.on);
+        return true;
       case "deck/set-default-reaction":
         setDefaultReaction(event.input);
         return true;
@@ -930,13 +935,9 @@ const DeckScreen: Component<{
                         data-tour={
                           order.ids()[0] === column.id ? "columns" : undefined
                         }
-                        class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
-                        classList={{
-                          "w-80": column.width === "s",
-                          "w-95": column.width !== "s" && column.width !== "l",
-                          "w-110": column.width === "l",
-                        }}
+                        class="h-full border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
                         style={{
+                          ...columnWidthStyle(column.width, columnStretch()),
                           order: order.indexOf(column.id) * 2,
                         }}
                       >
@@ -964,6 +965,7 @@ const DeckScreen: Component<{
                             <ColumnSettingsPanel
                               column={column}
                               relayList={relayList()}
+                              stretch={columnStretch()}
                             />
                           </div>
                         </Collapsible.Content>
@@ -971,7 +973,10 @@ const DeckScreen: Component<{
                     </>
                   )}
                 </For>
-                <DeckEndSpace />
+                {/* 広げるときは右端まで埋めたいので、トーストの場所は空けない。 */}
+                <Show when={!columnStretch()}>
+                  <DeckEndSpace />
+                </Show>
               </div>
             </div>
           </div>
@@ -1098,6 +1103,7 @@ const DeckScreen: Component<{
           keymap={keymap()}
           columnDigits={columnDigits()}
           deckLayout={deckLayout()}
+          columnStretch={columnStretch()}
           defaultReaction={defaultReaction()}
         />
       </Show>

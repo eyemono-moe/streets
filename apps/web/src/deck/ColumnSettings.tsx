@@ -18,15 +18,23 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
+import { COLUMN_WIDTH_PX } from "./column-width";
 import Field from "./SettingField";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id">>;
 
-const WIDTHS: { value: ColumnWidth; label: string }[] = [
-  { value: "s", label: "S 320" },
-  { value: "m", label: "M 380" },
-  { value: "l", label: "L 440" },
+const WIDTH_NAMES: { value: ColumnWidth; name: string }[] = [
+  { value: "s", name: "S" },
+  { value: "m", name: "M" },
+  { value: "l", name: "L" },
 ];
+
+// 広げているときの px は、いちばん狭いときの幅なので「〜」を付ける。
+const widthsOf = (stretch: boolean): { value: ColumnWidth; label: string }[] =>
+  WIDTH_NAMES.map(({ value, name }) => ({
+    value,
+    label: `${name} ${COLUMN_WIDTH_PX[value]}${stretch ? "〜" : ""}`,
+  }));
 
 const LINK_CARDS: { value: LinkCardMode; label: string }[] = [
   { value: "off", label: "出さない" },
@@ -55,6 +63,8 @@ const ColumnSettings: Component<{
   /** そのカラムで意味のある項目だけ。切っても何も起きない項目は出さない。 */
   facets: readonly ColumnFacet[];
   relayList?: RelayListState;
+  /** カラムを画面の幅いっぱいに広げているか（この端末の設定）。 */
+  stretch?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const show = () => columnShow(props.column);
@@ -66,7 +76,7 @@ const ColumnSettings: Component<{
       <Field label="幅">
         <SegmentedControl
           label="幅"
-          options={WIDTHS}
+          options={widthsOf(props.stretch === true)}
           value={props.column.width ?? "m"}
           onChange={(width) => patch({ width })}
           block
