@@ -36,3 +36,37 @@ export const useProfile = (
   const details = useProfileDetails(pubkey);
   return createMemo(() => details()?.profile);
 };
+
+/**
+ * 多くの人について、bot と名乗っているかを引く（まだ分からなければ
+ * undefined）。並びをふるう関数の中から呼べるよう、初めて引いた人をその場で
+ * 見張り始め、呼んだ部品が消えるまで見張り続ける。
+ */
+export const useBotLookup = (): ((pubkey: string) => boolean | undefined) => {
+  const { lookups } = useReadLayer();
+  const known = new Map<string, boolean | undefined>();
+  const stops: (() => void)[] = [];
+  const [version, bump] = createSignal(0);
+  onCleanup(() => {
+    for (const stop of stops) stop();
+  });
+
+  return (pubkey) => {
+    version();
+    if (!known.has(pubkey)) {
+      known.set(pubkey, undefined);
+      // 見張り始めた瞬間の知らせは、いま読んでいる計算の中で返す。ここで
+      // bump すると、読んでいる計算を自分で作り直させてしまう。
+      let starting = true;
+      stops.push(
+        lookups.watchBot(pubkey, (bot) => {
+          if (known.get(pubkey) === bot) return;
+          known.set(pubkey, bot);
+          if (!starting) bump((count) => count + 1);
+        }),
+      );
+      starting = false;
+    }
+    return known.get(pubkey);
+  };
+};

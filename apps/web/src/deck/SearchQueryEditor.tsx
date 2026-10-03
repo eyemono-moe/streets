@@ -69,7 +69,8 @@ const SearchQueryEditor: Component<{
    * ずれているので、スクロールさせない（させると、外側の箱ごと動く）。
    */
   let input: HTMLInputElement | undefined;
-  // from: / to: の後ろ、または @ で人を選べる。@ は「その人が書いたもの」として入れる。
+  // from: / to: の後ろ、または @ で人を選べる。@ は人の参照だけに置き換え、
+  // from: を足さない —— `to:@` から選ぶと `to:from:…` になってしまう。
   const people = useUserCandidates();
   const sources = [
     userSource(people, {
@@ -82,7 +83,7 @@ const SearchQueryEditor: Component<{
       space: true,
     }),
     userSource(people, {
-      format: (nprofile) => `from:${nprofile}`,
+      format: (nprofile) => nprofile,
       space: true,
     }),
   ];

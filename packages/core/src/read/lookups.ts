@@ -56,6 +56,14 @@ export type ReadLookups = {
     onChange: (details: ProfileDetails | undefined) => void,
   ): () => void;
   /**
+   * その人がプロフィールで bot と名乗っているかを知らせる。取り終えるまでは
+   * undefined。取り終えてプロフィールが無ければ、名乗っていないので false。
+   */
+  watchBot(
+    pubkey: string,
+    onChange: (bot: boolean | undefined) => void,
+  ): () => void;
+  /**
    * プロフィールを取りにいくだけで、知らせない。候補の一覧のように、多くの人を
    * まとめて並べ、届いたかを store の変化から引き直す側が使う。
    */
@@ -174,6 +182,36 @@ export const createReadLookups = ({
           : undefined,
       );
       return latest !== undefined;
+    };
+
+    const offChanged = store.onReplaceableChanged((change) => {
+      if (change.kind === 0 && change.pubkey === pubkey) load();
+    });
+    if (load()) return offChanged;
+
+    profiles.request(pubkey);
+    const offBatch = profiles.subscribe(() => {
+      if (load()) offBatch();
+    });
+    return () => {
+      offChanged();
+      offBatch();
+    };
+  },
+
+  watchBot(pubkey, onChange) {
+    const load = () => {
+      const latest = store.latestReplaceable(0, pubkey);
+      if (latest) {
+        onChange(parseProfile(latest.content)?.bot === true);
+        return true;
+      }
+      if (store.replaceableFetchedAt(0, pubkey) !== undefined) {
+        onChange(false);
+        return true;
+      }
+      onChange(undefined);
+      return false;
     };
 
     const offChanged = store.onReplaceableChanged((change) => {

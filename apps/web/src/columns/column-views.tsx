@@ -27,9 +27,14 @@ import {
 import { followSetName } from "@streets/core/lists/follow-set";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import {
+  hasSearchExclusions,
+  parseSearchQuery,
+  passesSearchExclusions,
+} from "@streets/core/search/query";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import { type Component, Show } from "solid-js";
+import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import type { ColumnPatch } from "../deck/ColumnSettings";
@@ -37,6 +42,7 @@ import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
 import { useFollowSets } from "../lists/FollowSetMediator";
+import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
 import ColumnTabs from "../ui/ColumnTabs";
@@ -273,13 +279,22 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:search-rounded",
       subtitle: "検索",
     }),
-    Content: (props) => (
-      <EventList
-        source={() =>
-          searchSource(props.source.query, props.inputs.searchRelays())
-        }
-      />
-    ),
+    Content: (props) => {
+      const query = createMemo(() => parseSearchQuery(props.source.query));
+      const isBot = useBotLookup();
+      return (
+        <EventList
+          source={() =>
+            searchSource(props.source.query, props.inputs.searchRelays())
+          }
+          filter={
+            hasSearchExclusions(query())
+              ? (event) => passesSearchExclusions(query(), event, isBot)
+              : undefined
+          }
+        />
+      );
+    },
     Settings: (props) => {
       const patch = usePatch(() => props.column);
       return (

@@ -5,6 +5,8 @@ import {
 import { type Component, Show } from "solid-js";
 import { useUserCandidates, userSource } from "../completion/sources";
 import Completion from "../ui/Completion";
+import ExperimentalBadge from "../ui/ExperimentalBadge";
+import Switch from "../ui/Switch";
 import { textInputClass } from "../ui/TextField";
 
 /** 秒 → `yyyy-mm-dd`（日付の入力欄の形）。 */
@@ -45,15 +47,32 @@ const SearchForm: Component<{
 }> = (props) => {
   const patch = (change: Partial<SearchQuery>) =>
     props.onChange(formatSearchQuery({ ...props.query, ...change }));
-  // 「書いた人」「宛先」は、欄全体で人を探す。
-  const whole = [
+  // 「書いた人」「宛先」は、除く人も - を付けて並べるので、カーソルのある言葉で人を探す。
+  const people = [
     userSource(useUserCandidates(), {
-      trigger: { kind: "user", prefixes: [] },
+      trigger: { kind: "user", prefixes: [], words: true },
       format: (nprofile) => nprofile,
+      space: true,
     }),
   ];
   const words = (text: string) =>
     text.split(/\s+/).filter((word) => word.length > 0);
+  // `-` を付けたものは除く。手元でふるうだけなので、欄を分けて勧めはしない。
+  const signed = (text: string) => {
+    const include: string[] = [];
+    const exclude: string[] = [];
+    for (const word of words(text)) {
+      if (word.startsWith("-") && word.length > 1 && word[1] !== "-") {
+        exclude.push(word.slice(1));
+      } else {
+        include.push(word);
+      }
+    }
+    return { include, exclude };
+  };
+  const shownSigned = (include: string[], exclude: string[]) =>
+    [...include, ...exclude.map((word) => `-${word}`)].join(" ");
+  const toTag = (tag: string) => tag.replace(/^#/, "").toLowerCase();
 
   return (
     <div class="flex flex-col gap-2.5">
@@ -61,56 +80,67 @@ const SearchForm: Component<{
         <input
           id="search-words"
           class={inputClass}
-          placeholder="ねこ"
-          value={props.query.words.join(" ")}
-          onChange={(event) =>
-            patch({ words: words(event.currentTarget.value) })
-          }
+          placeholder="ねこ -いぬ"
+          value={shownSigned(props.query.words, props.query.excludeWords)}
+          onChange={(event) => {
+            const { include, exclude } = signed(event.currentTarget.value);
+            patch({ words: include, excludeWords: exclude });
+          }}
         />
       </Field>
       <Field id="search-hashtags" label="ハッシュタグ">
         <input
           id="search-hashtags"
           class={inputClass}
-          placeholder="nostr"
-          value={props.query.hashtags.join(" ")}
-          onChange={(event) =>
+          placeholder="nostr -bot"
+          value={shownSigned(props.query.hashtags, props.query.excludeHashtags)}
+          onChange={(event) => {
+            const { include, exclude } = signed(event.currentTarget.value);
             patch({
-              hashtags: words(event.currentTarget.value).map((tag) =>
-                tag.replace(/^#/, "").toLowerCase(),
-              ),
-            })
-          }
+              hashtags: include.map(toTag),
+              excludeHashtags: exclude.map(toTag),
+            });
+          }}
         />
       </Field>
       <Field id="search-from" label="書いた人">
-        <Completion sources={whole} label="人の候補">
+        <Completion sources={people} label="人の候補">
           {(attach) => (
             <input
               ref={attach}
               id="search-from"
               class={inputClass}
               placeholder="npub1… / nprofile1…"
-              value={props.query.from ?? ""}
-              onChange={(event) =>
-                patch({ from: event.currentTarget.value.trim() || undefined })
-              }
+              value={shownSigned(
+                props.query.from ? [props.query.from] : [],
+                props.query.excludeFrom,
+              )}
+              onChange={(event) => {
+                const { include, exclude } = signed(event.currentTarget.value);
+                // 絞る人は 1 人だけ。文字列で何人も書いたときと同じく、後ろを使う。
+                patch({ from: include.at(-1), excludeFrom: exclude });
+              }}
             />
           )}
         </Completion>
       </Field>
       <Field id="search-to" label="宛先">
-        <Completion sources={whole} label="人の候補">
+        <Completion sources={people} label="人の候補">
           {(attach) => (
             <input
               ref={attach}
               id="search-to"
               class={inputClass}
               placeholder="npub1… / nprofile1…"
-              value={props.query.to ?? ""}
-              onChange={(event) =>
-                patch({ to: event.currentTarget.value.trim() || undefined })
-              }
+              value={shownSigned(
+                props.query.to ? [props.query.to] : [],
+                props.query.excludeTo,
+              )}
+              onChange={(event) => {
+                const { include, exclude } = signed(event.currentTarget.value);
+                // 絞る人は 1 人だけ。文字列で何人も書いたときと同じく、後ろを使う。
+                patch({ to: include.at(-1), excludeTo: exclude });
+              }}
             />
           )}
         </Completion>
@@ -158,7 +188,21 @@ const SearchForm: Component<{
           }
         />
       </Field>
-      <Show when={props.query.from || props.query.to}>
+      {/* プロフィールで名乗っている人しか除けず効きにくいので、印で示す。 */}
+      <Switch
+        label="botを除く"
+        checked={props.query.excludeBots}
+        onChange={(checked) => patch({ excludeBots: checked })}
+        aside={<ExperimentalBadge />}
+      />
+      <Show
+        when={
+          props.query.from ||
+          props.query.to ||
+          props.query.excludeFrom.length > 0 ||
+          props.query.excludeTo.length > 0
+        }
+      >
         <p class="c-secondary text-caption">
           人の指定は、入力欄では 16 進の公開鍵として書き戻されます（指すものは
           同じです）。

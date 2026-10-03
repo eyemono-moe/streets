@@ -166,7 +166,7 @@
       "packages/core/src/nostr/content.ts",
       "packages/core/src/nostr/build/note.ts"
     ],
-    "gap": "bot・birthday などの追加項目は扱わない"
+    "gap": "bot は検索で除くのに使うだけで、表示しない。birthday などの追加項目は扱わない"
   },
   {
     "nip": "25",
@@ -306,7 +306,7 @@
       "packages/core/src/search/query.ts",
       "packages/core/src/settings/search-relay-list.ts"
     ],
-    "gap": "検索演算子をすべて扱うわけではない"
+    "gap": "検索演算子をすべて扱うわけではない。除く指定（-語・-#タグ・-from:・-to:・-is:bot）はリレーへ送らず手元でふるうので、除いた分だけ並ぶ件数が減る"
   },
   {
     "nip": "51",
