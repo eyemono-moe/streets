@@ -31,6 +31,7 @@ import {
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
 import { browseTargetIn, welcomeColumn } from "@streets/core/deck/guest-deck";
+import { loopStrip } from "@streets/core/deck/strip-loop";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
@@ -59,6 +60,7 @@ import {
   createResource,
   createSignal,
   onCleanup,
+  untrack,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setActionLayout } from "../action-layout-setting";
@@ -421,45 +423,104 @@ const DeckScreen: Component<{
   });
 
   // 狭い画面のカラムの帯。払って止まった位置と、選んでいるカラムを行き来させる。
-  let stripEl: HTMLDivElement | undefined;
+  // 帯が出てから置きたいので、要素も追えるようにしておく。
+  const [strip, setStrip] = createSignal<HTMLDivElement>();
   // 見た目の並び。並べ替えている間は、帯のカラムも CSS の order で入れ替わって見える。
   const stripIds = () => [...(temp() ? [TEMP_COLUMN_ID] : []), ...order.ids()];
+  // 端から反対の端へ払えるよう、帯は stripAnchor を真ん中に置いて回した順に並べる。
+  // 止まったところが端なら、選んだカラムへ置き直す。
+  const [stripAnchor, setStripAnchor] = createSignal<string>();
+  const loopedIds = createMemo(() => loopStrip(stripIds(), stripAnchor()));
+  const stripOrder = (id: string) => loopedIds().indexOf(id);
+  // 選んでいるカラムが端に着いていたら、真ん中へ置き直す。並びを回すのと同じフレームで
+  // 帯もそこへ送り、見えているカラムを変えない。両隣があるうちは触らない ——
+  // 帯を送るたびに、吸着の途中で次に払おうとした指とぶつかる機会が増える。
+  const recenterStrip = () => {
+    const id = ui.active;
+    const stripEl = strip();
+    if (!stripEl || id === undefined) return;
+    const ids = loopedIds();
+    const before = ids.indexOf(id);
+    if (before > 0 && before < ids.length - 1) return;
+    setStripAnchor(id);
+    // 並びが変わるとブラウザが見ていたカラムへ吸着し直すことがあるので、送る量ではなく
+    // 行き先の位置で置く。
+    stripEl.scrollLeft = loopedIds().indexOf(id) * stripEl.clientWidth;
+  };
   const activeColumn = (): ColumnDef | undefined =>
     ui.active === TEMP_COLUMN_ID
       ? temp()
       : columns().find((column) => column.id === ui.active);
-  let settleTimer: ReturnType<typeof setTimeout> | undefined;
-  onCleanup(() => clearTimeout(settleTimer));
-  // scrollend を持たないブラウザ（Safari）もあるので、止まってしばらく経ったら拾う。
-  const onStripScroll = () => {
-    clearTimeout(settleTimer);
-    settleTimer = setTimeout(() => {
-      if (!stripEl || stripEl.clientWidth === 0) return;
-      // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
-      // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
-      if (ui.panel !== undefined) return;
+  // 指が触れている間は、止まって見えても払っている途中。並びを回すと指の下で帯が跳ぶ。
+  let touching = false;
+  const settleStrip = () => {
+    const stripEl = strip();
+    if (touching || !stripEl || stripEl.clientWidth === 0) return;
+    // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
+    // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
+    if (ui.panel === undefined) {
       const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
-      const id = stripIds()[index];
+      const id = loopedIds()[index];
       if (id !== undefined && id !== ui.active) {
         applyUi({ type: "deck/select-column", id });
       }
-    }, 120);
+    }
+    recenterStrip();
+  };
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  onCleanup(() => clearTimeout(settleTimer));
+  // scrollend を持たないブラウザもあるので、止まってしばらく経ったら拾う。
+  const onStripScroll = () => {
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(settleStrip, 120);
+  };
+  const mountStrip = (el: HTMLDivElement) => {
+    placed = false;
+    setStrip(el);
+    el.addEventListener(
+      "touchstart",
+      () => {
+        touching = true;
+      },
+      { passive: true },
+    );
+    const release = () => {
+      touching = false;
+      onStripScroll();
+    };
+    el.addEventListener("touchend", release, { passive: true });
+    el.addEventListener("touchcancel", release, { passive: true });
+    // 持っているブラウザでは、吸着まで終わった時点で待たずに拾う。
+    el.addEventListener("scrollend", () => {
+      clearTimeout(settleTimer);
+      settleStrip();
+    });
   };
   // タブや数字キーで選んだら、そのカラムまで送る。払って選んだときは既にそこにいる。
+  // 真ん中へ置き直すのは止まってから —— 送っている途中で並びを回すと、行き先がずれる。
   let placed = false;
   createEffect(() => {
     const id = ui.active;
-    const index = id === undefined ? -1 : stripIds().indexOf(id);
-    if (isMultiColumn() || !stripEl || index < 0) return;
-    const left = index * stripEl.clientWidth;
-    if (Math.abs(stripEl.scrollLeft - left) < 2) return;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // 開いた直後は動かさずにその場へ置く。
-    stripEl.scrollTo({
-      left,
-      behavior: placed && !reduced ? "smooth" : "auto",
+    const ids = stripIds();
+    const stripEl = strip();
+    if (isMultiColumn() || !stripEl || id === undefined) return;
+    // 開いた直後と、真ん中にあったカラムが消えたときは、選んでいるカラムを真ん中にする。
+    const anchor = untrack(stripAnchor);
+    if (anchor === undefined || !ids.includes(anchor)) setStripAnchor(id);
+    // 回した並びが CSS の order に当たってから送る。
+    queueMicrotask(() => {
+      const index = loopedIds().indexOf(id);
+      if (index < 0) return;
+      const left = index * stripEl.clientWidth;
+      if (Math.abs(stripEl.scrollLeft - left) < 2) return;
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // 開いた直後は動かさずにその場へ置く。
+      stripEl.scrollTo({
+        left,
+        behavior: placed && !reduced ? "smooth" : "auto",
+      });
+      placed = true;
     });
-    placed = true;
   });
 
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
@@ -1016,13 +1077,16 @@ const DeckScreen: Component<{
                                     取得し直しになり、スクロール位置も失われる。
                                   */}
               <div
-                ref={stripEl}
+                ref={mountStrip}
                 class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
                 onScroll={onStripScroll}
               >
                 <Show when={temp()}>
                   {(column) => (
-                    <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
+                    <div
+                      class="isolate h-full w-full shrink-0 snap-start snap-always"
+                      style={{ order: stripOrder(TEMP_COLUMN_ID) }}
+                    >
                       <Column
                         column={column()}
                         settingsOpen={false}
@@ -1038,7 +1102,7 @@ const DeckScreen: Component<{
                     <div
                       class="isolate h-full w-full shrink-0 snap-start snap-always"
                       style={{
-                        order: order.indexOf(column.id),
+                        order: stripOrder(column.id),
                       }}
                     >
                       <div
