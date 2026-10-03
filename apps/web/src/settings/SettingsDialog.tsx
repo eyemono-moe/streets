@@ -189,6 +189,8 @@ const SettingsDialog: Component<{
         page={page()}
         onPageChange={setPage}
         onClose={() => dispatch({ type: "deck/close-settings" })}
+        // 表示を変えている間は、後ろのデッキに色や並びがどう当たるかを暗くせずに見せる。
+        backdropClass={page() === "display" ? "bg-transparent" : undefined}
       />
     </Mediates>
   );

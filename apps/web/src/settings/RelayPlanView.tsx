@@ -36,7 +36,7 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
   return (
     <SettingsSection
       title="いま使っているリレー"
-      description="投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、上の一覧に無いリレーもここに並びます。"
+      description="投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、「使うリレー」に無いリレーもここに並びます。"
     >
       <h4 class="c-secondary font-600 text-caption">読み込み</h4>
       <Show

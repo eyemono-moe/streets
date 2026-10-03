@@ -3,17 +3,13 @@ import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
 import {
-  type ReadRoutingMode,
-  readRoutingFor,
-} from "@streets/core/settings/read-routing-setting";
-import {
   type RelayOp,
   type RelayUsage,
   relayLabel,
   usageOf,
   usageOp,
 } from "@streets/core/settings/relay-edit";
-import { type Component, For, Match, Show, Switch } from "solid-js";
+import { type Component, For, Match, Switch } from "solid-js";
 import RelayInput from "../deck/RelayInput";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
@@ -32,8 +28,6 @@ export type RelaySettingsViewProps = {
   fallback: readonly RelayUrl[];
   /** リレーが自分について答えた内容。取れていなければ undefined。 */
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
-  /** 投稿を読むリレーの決め方（この端末の設定）。 */
-  readMode: ReadRoutingMode;
   /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
 };
@@ -44,60 +38,50 @@ const RelaySettingsView: Component<RelaySettingsViewProps> = (props) => {
   const edit = (op: RelayOp) => dispatch({ type: "relays/edit", op });
 
   return (
-    <div class="flex flex-col gap-7">
-      <SettingsSection
-        title="使うリレー"
-        scope="account"
-        description="リレーは、投稿やリアクションをアップロードして保存しておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
-      >
-        <Switch>
-          <Match when={props.loading}>
-            <p class="c-secondary text-caption">読み込み中…</p>
-          </Match>
-          <Match when={props.entries.length === 0}>
-            <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
-              {"まだリレーを選んでいません。いまは次のリレーを使っています。"}
-              <For each={props.fallback}>
-                {(url) => (
-                  <span class="c-primary block break-all">
-                    {relayLabel(url)}
-                  </span>
-                )}
-              </For>
-            </p>
-          </Match>
-          <Match when={true}>
-            <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
-              <For each={props.entries}>
-                {(entry) => (
-                  <RelayRow
-                    entry={entry}
-                    status={props.statusOf(entry.url)}
-                    info={props.infoOf?.(entry.url)}
-                    loadInfo={props.infoOf === undefined}
-                    allows={props.allows}
-                    onEdit={edit}
-                  />
-                )}
-              </For>
-            </ul>
-          </Match>
-        </Switch>
-        {/* 自分のリレーはすぐ上に並んでいるので、候補にはフォローしている人のものだけを出す。 */}
-        <RelayInput
-          account={[]}
-          followeeWriteRelays={props.followeeWriteRelays}
-          selected={props.entries.map((entry) => entry.url)}
-          onAdd={(url) => edit({ type: "add", url })}
-        />
-      </SettingsSection>
-      <ReadRoutingSection
-        mode={props.readMode}
-        entries={props.entries}
-        loading={props.loading}
-        fallback={props.fallback}
+    <SettingsSection
+      title="使うリレー"
+      scope="account"
+      description="リレーは、投稿やリアクションをアップロードして保存しておくサーバーです。「書き込み」にしたリレーに自分の投稿が保存され、ほかの人はそこからあなたの投稿を読みます。「読み込み」にしたリレーからは、フォローしている人の投稿や通知を取ってきます。「両方」にすると、どちらにも使います。"
+    >
+      <Switch>
+        <Match when={props.loading}>
+          <p class="c-secondary text-caption">読み込み中…</p>
+        </Match>
+        <Match when={props.entries.length === 0}>
+          <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
+            {"まだリレーを選んでいません。いまは次のリレーを使っています。"}
+            <For each={props.fallback}>
+              {(url) => (
+                <span class="c-primary block break-all">{relayLabel(url)}</span>
+              )}
+            </For>
+          </p>
+        </Match>
+        <Match when={true}>
+          <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
+            <For each={props.entries}>
+              {(entry) => (
+                <RelayRow
+                  entry={entry}
+                  status={props.statusOf(entry.url)}
+                  info={props.infoOf?.(entry.url)}
+                  loadInfo={props.infoOf === undefined}
+                  allows={props.allows}
+                  onEdit={edit}
+                />
+              )}
+            </For>
+          </ul>
+        </Match>
+      </Switch>
+      {/* 自分のリレーはすぐ上に並んでいるので、候補にはフォローしている人のものだけを出す。 */}
+      <RelayInput
+        account={[]}
+        followeeWriteRelays={props.followeeWriteRelays}
+        selected={props.entries.map((entry) => entry.url)}
+        onAdd={(url) => edit({ type: "add", url })}
       />
-    </div>
+    </SettingsSection>
   );
 };
 
@@ -169,71 +153,6 @@ const RelayRow: Component<{
         }
       />
     </li>
-  );
-};
-
-const READ_MODES: { value: ReadRoutingMode; label: string }[] = [
-  { value: "outbox", label: "人ごとに選ぶ" },
-  { value: "direct", label: "読み込みリレーだけ" },
-];
-
-const ReadRoutingSection: Component<{
-  mode: ReadRoutingMode;
-  entries: readonly RelayListEntry[];
-  loading: boolean;
-  fallback: readonly RelayUrl[];
-}> = (props) => {
-  const dispatch = useDispatch();
-  const routing = () =>
-    readRoutingFor(
-      props.mode,
-      props.loading
-        ? { phase: "loading" }
-        : props.entries.length > 0
-          ? { phase: "ready", entries: props.entries }
-          : { phase: "missing" },
-      props.fallback,
-    );
-  const directRelays = () => {
-    const current = routing();
-    return current.mode === "direct" ? current.relays : [];
-  };
-  const usesFallback = () =>
-    !props.loading && !props.entries.some((entry) => entry.read);
-
-  return (
-    <SettingsSection
-      title="投稿を読むリレー"
-      scope="device"
-      description="ふつうは、フォローしている人ごとに、その人が書き込みに使っているリレーを探して投稿を読みます。その人のリレーの設定が見つからないと、決まったリレーから読むので、手元で動かしているリレーや、限られた人だけのリレーにある投稿は出ないことがあります。「読み込みリレーだけ」にすると、誰の投稿も、上で「読み込み」にしたリレーから読みます。"
-    >
-      <SegmentedControl
-        label="投稿を読むリレー"
-        variant="secondary"
-        value={props.mode}
-        options={READ_MODES}
-        onChange={(mode) => dispatch({ type: "deck/set-read-routing", mode })}
-      />
-      <Show when={props.mode === "direct"}>
-        <div class="c-secondary rounded-2 border border-primary p-3 text-caption">
-          <Switch>
-            <Match when={props.loading}>読み込み中…</Match>
-            <Match when={true}>
-              {usesFallback()
-                ? "読み込みにしたリレーが無いので、いまは次のリレーから読んでいます。"
-                : "いまは次のリレーから読んでいます。"}
-              <For each={directRelays()}>
-                {(url) => (
-                  <span class="c-primary block break-all">
-                    {relayLabel(url)}
-                  </span>
-                )}
-              </For>
-            </Match>
-          </Switch>
-        </div>
-      </Show>
-    </SettingsSection>
   );
 };
 

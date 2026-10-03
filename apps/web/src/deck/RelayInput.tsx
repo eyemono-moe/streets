@@ -20,7 +20,7 @@ const GROUP_LABEL: Record<RelaySuggestion["group"], string> = {
 /**
  * リレーを 1 つ足す欄。焦点を当てると、自分のリレーとフォローしている人が使って
  * いるリレーを候補に出し、打った文字で絞る。候補に無い URL もそのまま足せる
- * （Enter か「追加する」）。
+ * （Enter か「追加」）。
  */
 const RelayInput: Component<{
   account: readonly RelayListEntry[];
@@ -98,7 +98,7 @@ const RelayInput: Component<{
       <Combobox.Label class="c-secondary font-600 text-caption">
         リレーを足す
       </Combobox.Label>
-      <Combobox.Control class="flex gap-2">
+      <Combobox.Control class="flex items-center gap-2">
         <Combobox.Input
           class={`${textInputClass} min-w-0 flex-1`}
           placeholder="URL を入れるか、候補から選ぶ"
@@ -115,13 +115,12 @@ const RelayInput: Component<{
           }}
         />
         <Button
-          size="sm"
-          shape="rounded"
           variant="primary"
+          icon="i-material-symbols:add-rounded"
           disabled={props.disabled}
           onClick={addTyped}
         >
-          追加する
+          追加
         </Button>
       </Combobox.Control>
       <Show when={error()}>

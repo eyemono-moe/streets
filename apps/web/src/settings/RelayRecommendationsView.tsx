@@ -36,60 +36,91 @@ export type RelayRecommendationsViewProps = {
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
 };
 
+/**
+ * はじめに見せるおすすめの数。候補は 30 件まで集めるが、全部並べると下の
+ * 設定が画面の外へ押し出される。
+ */
+const FIRST_RECOMMENDATIONS = 5;
+
 /** おすすめのリレー。足すときはイベントを上へ渡す（`relays/edit`）。 */
 const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
   props,
-) => (
-  <SettingsSection
-    title="おすすめのリレー"
-    description="フォローしている人がよく使っているリレーの一覧です。"
-  >
-    <Switch>
-      <Match when={props.state.phase === "loading"}>
-        <p class="c-secondary text-caption">
-          フォローしている人のリレーを集めています…
-        </p>
-      </Match>
-      <Match when={props.state.phase === "no-followees"}>
-        <Notice>フォローしている人がいないので、おすすめを出せません。</Notice>
-      </Match>
-      <Match when={props.state.phase === "empty"}>
-        <Notice>
-          フォローしている人のリレーの設定が見つからなかったので、おすすめを出せません。
-        </Notice>
-      </Match>
-      <Match when={props.state.phase === "ready" && props.state}>
-        {(state) => (
-          <>
-            <Switch>
-              <Match when={state().discovery === "loading"}>
-                <p class="c-secondary text-caption">
-                  応答の速さと対応している機能を調べています…
-                </p>
-              </Match>
-              <Match when={state().discovery === "missing"}>
-                <p class="c-secondary text-caption">
-                  応答の速さと対応している機能は分からなかったので、使っている人の数だけで並べています。
-                </p>
-              </Match>
-            </Switch>
-            <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
-              <For each={state().items}>
-                {(item) => (
-                  <RecommendationRow
-                    item={item}
-                    info={props.infoOf?.(item.url)}
-                    loadInfo={props.infoOf === undefined}
-                  />
-                )}
-              </For>
-            </ul>
-          </>
-        )}
-      </Match>
-    </Switch>
-  </SettingsSection>
-);
+) => {
+  const [showAll, setShowAll] = createSignal(false);
+  return (
+    <SettingsSection
+      title="おすすめのリレー"
+      description="フォローしている人がよく使っているリレーの一覧です。"
+    >
+      <Switch>
+        <Match when={props.state.phase === "loading"}>
+          <p class="c-secondary text-caption">
+            フォローしている人のリレーを集めています…
+          </p>
+        </Match>
+        <Match when={props.state.phase === "no-followees"}>
+          <Notice>
+            フォローしている人がいないので、おすすめを出せません。
+          </Notice>
+        </Match>
+        <Match when={props.state.phase === "empty"}>
+          <Notice>
+            フォローしている人のリレーの設定が見つからなかったので、おすすめを出せません。
+          </Notice>
+        </Match>
+        <Match when={props.state.phase === "ready" && props.state}>
+          {(state) => (
+            <>
+              <Switch>
+                <Match when={state().discovery === "loading"}>
+                  <p class="c-secondary text-caption">
+                    応答の速さと対応している機能を調べています…
+                  </p>
+                </Match>
+                <Match when={state().discovery === "missing"}>
+                  <p class="c-secondary text-caption">
+                    応答の速さと対応している機能は分からなかったので、使っている人の数だけで並べています。
+                  </p>
+                </Match>
+              </Switch>
+              <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
+                <For
+                  each={
+                    showAll()
+                      ? state().items
+                      : state().items.slice(0, FIRST_RECOMMENDATIONS)
+                  }
+                >
+                  {(item) => (
+                    <RecommendationRow
+                      item={item}
+                      info={props.infoOf?.(item.url)}
+                      loadInfo={props.infoOf === undefined}
+                    />
+                  )}
+                </For>
+              </ul>
+              <Show
+                when={
+                  !showAll() && state().items.length > FIRST_RECOMMENDATIONS
+                }
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon="i-material-symbols:expand-more-rounded"
+                  onClick={() => setShowAll(true)}
+                >
+                  {`残り ${state().items.length - FIRST_RECOMMENDATIONS} 件を見る`}
+                </Button>
+              </Show>
+            </>
+          )}
+        </Match>
+      </Switch>
+    </SettingsSection>
+  );
+};
 
 const Notice: Component<{ children: string }> = (props) => (
   <p class="c-secondary rounded-2 border border-primary p-3 text-caption">
