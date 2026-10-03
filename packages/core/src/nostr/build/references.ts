@@ -1,4 +1,6 @@
+import { addressOfNaddr, formatEventAddress } from "../address";
 import { parseContent } from "../content";
+import type { Nip19Ref } from "../nip19";
 import type { EventDraft } from "./draft";
 
 /** 自分の絵文字から、ショートコードの画像を引く。無ければ `undefined`。 */
@@ -39,10 +41,46 @@ const mentionedPeople = (
 };
 
 /**
- * 本文から `p` と `emoji` のタグを足す。補完で選んだかどうかによらず本文から
+ * 本文で引用しているイベント（`nostr:note` / `nevent` / `naddr`）の `q` タグ
+ * （NIP-18）。nevent・naddr に添えたリレーをヒントにし、作者が分かれば添える。
+ * 住所で指すもの（naddr）には pubkey を添えない —— 住所に含まれているため。
+ */
+const quoteTagOf = (ref: Nip19Ref): string[] | undefined => {
+  switch (ref.kind) {
+    case "note":
+      return ["q", ref.id, ""];
+    case "nevent":
+      return [
+        "q",
+        ref.id,
+        ref.relays[0] ?? "",
+        ...(ref.author ? [ref.author] : []),
+      ];
+    case "naddr": {
+      const address = addressOfNaddr(ref);
+      return address && ["q", formatEventAddress(address), ref.relays[0] ?? ""];
+    }
+    default:
+      return undefined;
+  }
+};
+
+const quotedEvents = (content: string): string[][] => {
+  const quotes = new Map<string, string[]>();
+  for (const token of parseContent(content, [])) {
+    if (token.type !== "mention") continue;
+    const tag = quoteTagOf(token.ref);
+    if (tag?.[1] !== undefined && !quotes.has(tag[1])) quotes.set(tag[1], tag);
+  }
+  return [...quotes.values()];
+};
+
+/**
+ * 本文から `p`・`q`・`emoji` のタグを足す。補完で選んだかどうかによらず本文から
  * 作る —— 貼り付けたものや手で打ったものにも付き、隠れた状態を持たずに済む。
  *
  * - 本文で指した人に `p`（NIP-27）。既に `p` があれば足さない（返信先など）
+ * - 本文で引用したイベントに `q`（NIP-18）。既に `q` があれば足さない（引用先）
  * - 自分の絵文字にある `:shortcode:` に `emoji`（NIP-30）。無いものは付けない
  *   —— 付けないと、読む側では `:shortcode:` の文字のまま見える
  */
@@ -59,6 +97,10 @@ export const withReferences = (
     tags.push(
       person.relay ? ["p", person.pubkey, person.relay] : ["p", person.pubkey],
     );
+  }
+  for (const quote of quotedEvents(draft.content)) {
+    if (tagged("q", quote[1] as string)) continue;
+    tags.push(quote);
   }
   if (options.emoji) {
     for (const shortcode of shortcodesIn([draft.content])) {

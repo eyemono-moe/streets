@@ -94,11 +94,13 @@
   {
     "nip": "18",
     "status": "一部",
-    "summary": "リポストの表示と通常の投稿のリポスト",
+    "summary": "リポストの表示と通常の投稿のリポスト、引用（本文で引用したイベントにも q タグを付ける）",
     "kinds": [6, 16],
-    "tags": ["e", "p", "k"],
+    "tags": ["e", "p", "k", "q"],
     "paths": [
       "packages/core/src/nostr/build/repost.ts",
+      "packages/core/src/nostr/build/note.ts",
+      "packages/core/src/nostr/build/references.ts",
       "packages/core/src/view/repost-target.ts",
       "apps/web/src/note/Event.tsx"
     ],
