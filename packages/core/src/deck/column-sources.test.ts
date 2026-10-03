@@ -62,7 +62,7 @@ describe("followeesSource", () => {
     // 捕まえる変異: authors を空にする (ホーム列が永久に空になる)
     expect(followeesSource([1], ["a", "b"], VIEWER)).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1], authors: ["a", "b", VIEWER] }],
+      filters: [{ kinds: [1, 1111], authors: ["a", "b", VIEWER] }],
     });
   });
 
@@ -80,7 +80,7 @@ describe("followeesSource", () => {
     // 新規ユーザーのホーム列が、本物のリレーへの無制限購読になる)
     expect(followeesSource([1], [], VIEWER)).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1], authors: [VIEWER] }],
+      filters: [{ kinds: [1, 1111], authors: [VIEWER] }],
     });
   });
 
@@ -88,14 +88,20 @@ describe("followeesSource", () => {
     // 捕まえる変異: 切っていても kind:42 を取る（使わない発言を流し続ける）/
     // 既に入っている kind を重ねる
     expect(followeesSource([1, 6], ["a"], VIEWER).filters[0].kinds).toEqual([
-      1, 6,
+      1, 6, 1111,
     ]);
     expect(
       followeesSource([1, 6], ["a"], VIEWER, { chats: true }).filters[0].kinds,
-    ).toEqual([1, 6, 42]);
+    ).toEqual([1, 6, 1111, 42]);
     expect(
       followeesSource([1, 42], ["a"], VIEWER, { chats: true }).filters[0].kinds,
-    ).toEqual([1, 42]);
+    ).toEqual([1, 42, 1111]);
+  });
+
+  it("投稿を取るならコメントも取り、投稿を取らないなら取らない", () => {
+    // 捕まえる変異: コメントを足さない（Amethyst などの返信がホームから抜ける）/
+    // 投稿を取らないカラムにまで足す
+    expect(followeesSource([6], ["a"], VIEWER).filters[0].kinds).toEqual([6]);
   });
 
   it("渡したフォローリストを共有しない", () => {
@@ -113,7 +119,7 @@ describe("人と投稿", () => {
     // 捕まえる変異: kind:6 または対象 pubkey を落とし、表示範囲を狭める。
     expect(userPostsSource("a".repeat(64))).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6], authors: ["a".repeat(64)] }],
+      filters: [{ kinds: [1, 6, 1111], authors: ["a".repeat(64)] }],
     });
   });
 
@@ -121,7 +127,7 @@ describe("人と投稿", () => {
     // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
     expect(
       userPostsSource("a".repeat(64), { chats: true }).filters[0].kinds,
-    ).toEqual([1, 6, 42]);
+    ).toEqual([1, 6, 1111, 42]);
   });
 
   it("ユーザーのメディアは、リポストを除いた投稿と画像・動画の投稿を取る", () => {
@@ -183,7 +189,7 @@ describe("notificationsSource", () => {
       }),
     ).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42, 1111], "#p": [VIEWER] }],
       relays: ["wss://inbox/"],
     });
   });
@@ -194,7 +200,7 @@ describe("notificationsSource", () => {
     // カラムが黙って出来上がる (`authors: []` と同じ罠)。
     expect(notificationsSource(VIEWER, { phase: "missing" })).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6, 7, 9735, 42], "#p": [VIEWER] }],
+      filters: [{ kinds: [1, 6, 7, 9735, 42, 1111], "#p": [VIEWER] }],
       relays: [...FALLBACK_RELAYS],
     });
   });
@@ -306,16 +312,16 @@ describe("followSetPostsSource", () => {
     expect(followSetPostsSource(undefined)).toBeUndefined();
     expect(followSetPostsSource([])).toEqual({
       type: "nostr",
-      filters: [{ kinds: [1, 6], authors: [] }],
+      filters: [{ kinds: [1, 6, 1111], authors: [] }],
     });
   });
 
   it("チャンネルでの発言は、入れているときだけ取る", () => {
     // 捕まえる変異: 切っていても kind:42 を取る / 入れても取らない
-    expect(followSetPostsSource(["a"])?.filters[0].kinds).toEqual([1, 6]);
+    expect(followSetPostsSource(["a"])?.filters[0].kinds).toEqual([1, 6, 1111]);
     expect(
       followSetPostsSource(["a"], { chats: true })?.filters[0].kinds,
-    ).toEqual([1, 6, 42]);
+    ).toEqual([1, 6, 1111, 42]);
   });
 });
 

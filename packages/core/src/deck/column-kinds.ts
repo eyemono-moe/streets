@@ -21,8 +21,9 @@ export const TIMELINE_KINDS: readonly number[] = [1, 6];
  * 通知カラムが集める kind。kind:16 は表示不能だからではなく (対応済み)、
  * v1 がまだ長文を作れず e2e で確かめられないため外す (別の判断)。
  * kind:42 はチャンネル（NIP-28）での自分への返信・メンション。
+ * kind:1111 は、kind:1 への返信をコメントで書くクライアントからの返信。
  */
-export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42];
+export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42, 1111];
 
 /**
  * NIP-01 フィルタの検証。ワイヤ形式でなく保存デッキ用なので valibot 可。

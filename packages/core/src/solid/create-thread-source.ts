@@ -1,5 +1,5 @@
 import { type Accessor, createMemo, untrack } from "solid-js";
-import { eventRelayHints, threadRoot } from "../nostr/event-refs";
+import { COMMENT_KIND, eventRelayHints, threadRoot } from "../nostr/event-refs";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
 import type { NostrSource } from "../read/source";
@@ -17,7 +17,7 @@ export type CreateThreadSourceOptions = {
 };
 
 export type ThreadSource = {
-  /** スレッドの根の id。祖先も返信もここへの購読 1 本で届く (NIP-10)。 */
+  /** スレッドの根の id。祖先も返信もここへの購読で届く (NIP-10 の root、NIP-22 の `E`)。 */
   rootId: Accessor<string | undefined>;
   /** 根が確定した時点の focus イベントが運ぶ `e` タグのリレーヒント。 */
   relayHints: Accessor<readonly RelayUrl[]>;
@@ -80,7 +80,12 @@ export const createThreadSource = (
 
     const base: NostrSource = {
       type: "nostr",
-      filters: [{ ids: [root] }, { kinds: [1], "#e": [root] }],
+      filters: [
+        { ids: [root] },
+        { kinds: [1], "#e": [root] },
+        // 返信への返信になったコメントは、根を大文字の `E` でしか指さない。
+        { kinds: [COMMENT_KIND], "#E": [root] },
+      ],
       ...(relays.length > 0 ? { relays } : {}),
     };
     // `?relays=` 上書きはカラムと同じ非対称を保ち、既に明示リレーがある

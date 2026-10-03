@@ -128,11 +128,16 @@
   {
     "nip": "22",
     "status": "一部",
-    "summary": "コメント（kind:1111）の根と親を読む",
+    "summary": "コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッドでも取る",
     "kinds": [1111],
     "tags": ["E", "A", "I", "K", "P", "e", "a", "i", "k", "p"],
-    "paths": ["packages/core/src/nostr/event-refs.ts"],
-    "gap": "コメントを取りに行かず、表示もしない。コメントを書けない"
+    "paths": [
+      "packages/core/src/nostr/event-refs.ts",
+      "packages/core/src/view/comment-scope.ts",
+      "packages/core/src/solid/create-thread-source.ts",
+      "apps/web/src/note/Event.tsx"
+    ],
+    "gap": "コメントを書けない。記事を読むカラムにコメントが並ばない"
   },
   {
     "nip": "23",

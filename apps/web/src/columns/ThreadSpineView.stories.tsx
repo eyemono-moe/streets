@@ -50,6 +50,21 @@ const longReplies = [
   bob.reply(longFocus, "短い返信。"),
 ];
 
+// Amethyst などは、kind:1 の起点への返信をコメント（kind:1111）で書く。
+const commentOnRoot = bob.comment(
+  root,
+  "起点への返信を、コメントで書いたもの。",
+);
+const commentFocus = carol.comment(
+  commentOnRoot,
+  "コメントへの返信。根は大文字の E にだけある。",
+  root,
+);
+const mixedReplies = [
+  alice.comment(commentFocus, "コメントでの返信。", root),
+  bob.comment(commentFocus, "もう 1 件のコメント。", root),
+];
+
 type Props = {
   events: NostrEvent[];
   focusId: string;
@@ -114,4 +129,12 @@ export const 長い投稿が混ざる: Story = {
 
 export const 返信がない: Story = {
   args: { events: [root, middle, focus], focusId: focus.id },
+};
+
+/** 投稿とコメントが混ざったスレッド。返信と同じ線でつなぐ。 */
+export const コメントが混ざる: Story = {
+  args: {
+    events: [root, commentOnRoot, commentFocus, middle, ...mixedReplies],
+    focusId: commentFocus.id,
+  },
 };

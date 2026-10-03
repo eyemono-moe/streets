@@ -1,7 +1,13 @@
 import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type EventRef, replyTarget } from "@streets/core/nostr/event-refs";
+import { COMMENT_KIND, type EventRef } from "@streets/core/nostr/event-refs";
 import { mediaPostTitle } from "@streets/core/nostr/media-post";
+import {
+  type CommentScope,
+  commentScope,
+  replyParentRef,
+  replyPubkey,
+} from "@streets/core/view/comment-scope";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -199,8 +205,48 @@ const Lookup: Component<{
   );
 };
 
+/**
+ * 投稿のスレッドの外（記事・Web ページなど）へのコメントが、何について書かれたか。
+ * 外部の識別子は長い URL になりやすいので、名前の後ろに並べず次の行に出す。
+ */
+const CommentScopeLines: Component<{ scope: CommentScope }> = (props) => (
+  <>
+    <p class="c-secondary flex min-w-0 items-center gap-1 text-caption">
+      <span
+        class="i-material-symbols:mode-comment-outline-rounded size-3.5 shrink-0"
+        aria-hidden="true"
+      />
+      <span>{props.scope.label}</span>
+    </p>
+    <Show when={props.scope.type === "external" && props.scope} keyed>
+      {(scope) => (
+        <Show
+          when={scope.url}
+          fallback={
+            <p class="c-secondary min-w-0 truncate text-caption">
+              {scope.value}
+            </p>
+          }
+        >
+          {(url) => (
+            <a
+              href={url()}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="c-secondary min-w-0 truncate text-caption underline"
+            >
+              {scope.value}
+            </a>
+          )}
+        </Show>
+      )}
+    </Show>
+  </>
+);
+
 const Note: Component<ContentProps> = (props) => {
-  const replyTo = () => replyTarget(props.event);
+  const scope = () => commentScope(props.event);
+  const replyTo = () => replyPubkey(props.event);
 
   return (
     <Row
@@ -209,13 +255,21 @@ const Note: Component<ContentProps> = (props) => {
       threadLine={props.threadLine}
       withActions
     >
-      <Show when={replyTo()?.pubkey}>
-        {(pubkey) => (
-          <p class="c-secondary flex min-w-0 gap-1 text-caption">
-            <span class="shrink-0">返信先</span>
-            <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
-          </p>
-        )}
+      {/* 何へのコメントかと返信先は、本文の上の 1 つの塊にする。 */}
+      <Show when={scope() || replyTo()}>
+        <div class="flex min-w-0 flex-col gap-0.5">
+          <Show when={scope()}>
+            {(current) => <CommentScopeLines scope={current()} />}
+          </Show>
+          <Show when={replyTo()}>
+            {(pubkey) => (
+              <p class="c-secondary flex min-w-0 gap-1 text-caption">
+                <span class="shrink-0">返信先</span>
+                <UserLink pubkey={pubkey()} class="min-w-0 truncate" />
+              </p>
+            )}
+          </Show>
+        </div>
       </Show>
       {/* 画像・動画の投稿は題名を持てる。本文は説明なので、題名を上に置く。 */}
       <Show when={mediaPostTitle(props.event)}>
@@ -289,6 +343,7 @@ const EventContent: Component<ContentProps> = (props) => (
     <Match
       when={
         props.event.kind === 1 ||
+        props.event.kind === 1111 ||
         props.event.kind === 20 ||
         props.event.kind === 21 ||
         props.event.kind === 22
@@ -360,9 +415,10 @@ const EventBody: Component<ContentProps> = (props) => {
    */
   const parent = () => {
     if (!props.replyContext || props.size !== "normal") return undefined;
-    if (props.event.kind !== 1) return undefined;
-    const ref = replyTarget(props.event);
-    return ref?.form === "id" ? ref : undefined;
+    if (props.event.kind !== 1 && props.event.kind !== COMMENT_KIND) {
+      return undefined;
+    }
+    return replyParentRef(props.event);
   };
 
   return (
@@ -419,7 +475,7 @@ const EventBody: Component<ContentProps> = (props) => {
 
 const StandardEvent: Component<
   ContentProps & {
-    parent: () => Extract<EventRef, { form: "id" }> | undefined;
+    parent: () => EventRef | undefined;
     onDown: (event: MouseEvent) => void;
     onOpen: (event: MouseEvent) => void;
   }

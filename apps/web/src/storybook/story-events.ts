@@ -14,6 +14,17 @@ export type StoryProfile = {
   nip05?: string;
 };
 
+/** NIP-22 の参照 1 組。根なら大文字、親なら小文字のタグ名で返す。 */
+const commentRefTags = (target: NostrEvent, upper: boolean): string[][] => {
+  const name = (lower: string) => (upper ? lower.toUpperCase() : lower);
+  const d = target.tags.find((tag) => tag[0] === "d")?.[1];
+  const ref =
+    d === undefined
+      ? [name("e"), target.id, "", target.pubkey]
+      : [name("a"), `${target.kind}:${target.pubkey}:${d}`, ""];
+  return [ref, [name("k"), String(target.kind)], [name("p"), target.pubkey]];
+};
+
 const keyFor = (seed: number): Uint8Array =>
   Uint8Array.from(
     Array.from({ length: 32 }, (_, index) => ((seed + index * 7) % 255) + 1),
@@ -68,6 +79,13 @@ export const createStoryAuthor = (seed: number, profile: StoryProfile = {}) => {
       event({ kind: 1, tags, content }),
     reply: (parent: NostrEvent, content: string) =>
       event(buildReply(parent, content)),
+    /** NIP-22 のコメント（Amethyst と同じ形）。`root` を省くと親を根にする。 */
+    comment: (parent: NostrEvent, content: string, root: NostrEvent = parent) =>
+      event({
+        kind: 1111,
+        tags: [...commentRefTags(root, true), ...commentRefTags(parent, false)],
+        content,
+      }),
     quote: (target: NostrEvent, content: string) =>
       event(buildQuote(target, content)),
     repost: (target: NostrEvent) => {

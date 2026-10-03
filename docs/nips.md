@@ -17,7 +17,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-18](https://github.com/nostr-protocol/nips/blob/master/18.md) | 一部 | リポストの表示と通常の投稿のリポスト | 6, 16 | `e`, `p`, `k` | [`repost.ts`](../packages/core/src/nostr/build/repost.ts)<br>[`repost-target.ts`](../packages/core/src/view/repost-target.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | kind:16 の投稿操作はない |
 | [NIP-19](https://github.com/nostr-protocol/nips/blob/master/19.md) | 対応 | npub・note・nevent などの読み書き | — | — | [`nip19.ts`](../packages/core/src/nostr/nip19.ts) | — |
 | [NIP-21](https://github.com/nostr-protocol/nips/blob/master/21.md) | 対応 | nostr: リンクを開く | — | — | [`content.ts`](../packages/core/src/nostr/content.ts)<br>[`UserLink.tsx`](../apps/web/src/note/UserLink.tsx) | — |
-| [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) | 一部 | コメント（kind:1111）の根と親を読む | 1111 | `E`, `A`, `I`, `K`, `P`, `e`, `a`, `i`, `k`, `p` | [`event-refs.ts`](../packages/core/src/nostr/event-refs.ts) | コメントを取りに行かず、表示もしない。コメントを書けない |
+| [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) | 一部 | コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッドでも取る | 1111 | `E`, `A`, `I`, `K`, `P`, `e`, `a`, `i`, `k`, `p` | [`event-refs.ts`](../packages/core/src/nostr/event-refs.ts)<br>[`comment-scope.ts`](../packages/core/src/view/comment-scope.ts)<br>[`create-thread-source.ts`](../packages/core/src/solid/create-thread-source.ts)<br>[`Event.tsx`](../apps/web/src/note/Event.tsx) | コメントを書けない。記事を読むカラムにコメントが並ばない |
 | [NIP-23](https://github.com/nostr-protocol/nips/blob/master/23.md) | 一部 | 長文記事をカードで表示し、カラムで読む | 30023 | `d`, `title`, `summary`, `image`, `published_at`, `t` | [`long-form.ts`](../packages/core/src/nostr/long-form.ts)<br>[`ArticleCard.tsx`](../apps/web/src/article/ArticleCard.tsx)<br>[`Markdown.tsx`](../apps/web/src/article/Markdown.tsx) | 読むだけで、記事を書けない。記事へのコメント（kind:1111）はまだ出ない |
 | [NIP-24](https://github.com/nostr-protocol/nips/blob/master/24.md) | 一部 | プロフィールの追加項目と小文字のハッシュタグ | 0, 1 | `t` | [`profile.ts`](../packages/core/src/nostr/profile.ts)<br>[`content.ts`](../packages/core/src/nostr/content.ts)<br>[`note.ts`](../packages/core/src/nostr/build/note.ts) | bot・birthday などの追加項目は扱わない |
 | [NIP-25](https://github.com/nostr-protocol/nips/blob/master/25.md) | 対応 | リアクションの読み書き | 7 | `e`, `p`, `k` | [`reaction.ts`](../packages/core/src/nostr/reaction.ts)<br>[`reaction.ts`](../packages/core/src/nostr/build/reaction.ts) | — |
@@ -66,7 +66,7 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 44 | 内部利用 | チャンネルのミュート | [NIP-28](https://github.com/nostr-protocol/nips/blob/master/28.md) |
 | 1018 | 内部利用 | 投票への回答 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
 | 1068 | 表示対応 | 投票 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) |
-| 1111 | 内部利用 | コメント | [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) |
+| 1111 | 表示対応 | コメント | [NIP-22](https://github.com/nostr-protocol/nips/blob/master/22.md) |
 | 9734 | 内部利用 | Zap の依頼 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 9735 | 内部利用 | Zap の受領 | [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) |
 | 10000 | 内部利用 | ミュートリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
