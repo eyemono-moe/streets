@@ -1,5 +1,6 @@
 import { Collapsible } from "@ark-ui/solid";
 import { useNavigate, useParams } from "@solidjs/router";
+import { buildRelayColumn } from "@streets/core/deck/column-presets";
 import {
   type ColumnDef,
   type Deck,
@@ -28,6 +29,7 @@ import {
   deckUiTransition,
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
+import { browseTargetIn, welcomeColumn } from "@streets/core/deck/guest-deck";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
@@ -37,6 +39,7 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import { OUTBOX_ROUTING } from "@streets/core/read/read-routing";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { readRoutingFor } from "@streets/core/settings/read-routing-setting";
+import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { effectiveSearchRelays } from "@streets/core/settings/search-relay-list";
 import {
   type Component,
@@ -52,7 +55,11 @@ import {
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setActionLayout } from "../action-layout-setting";
-import { EventActionsProvider, createWriteStack } from "../actions";
+import {
+  EventActionsProvider,
+  type WriteStack,
+  createWriteStack,
+} from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
@@ -76,6 +83,11 @@ import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
 import { lazyPart, onceTrue, whenIdle } from "../lazy-part";
 import { FollowSetMediator } from "../lists/FollowSetMediator";
+import {
+  type LoginGate,
+  LoginGateProvider,
+  createGuestActions,
+} from "../login-gate";
 import { UploaderProvider, createUploader } from "../media/uploader";
 import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
@@ -103,11 +115,15 @@ import {
   savedColorScheme,
   setColorScheme,
 } from "../theme";
-import { notifySaved } from "../toast";
+import { notifyInfo, notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
 import { WELCOME_RELAYS } from "../welcome/welcome-relays";
+import {
+  type WelcomeLogin,
+  WelcomeLoginProvider,
+} from "../welcome/WelcomeColumn";
 import { trackReplaces } from "../write-progress";
 import {
   setShowWriteProgress,
@@ -123,12 +139,14 @@ import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import { createDeckHotkeys } from "./deck-hotkeys";
 import {
   createDeckStore,
+  createGuestDeckStore,
   saveActiveDeckId,
   savedActiveDeckId,
 } from "./deck-store";
 import DeckEditHeader from "./DeckEditHeader";
 import DeckEndSpace from "./DeckEndSpace";
 import DeckSyncNotice from "./DeckSyncNotice";
+import GuestMediator from "./GuestMediator";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import NewDeckPanel from "./NewDeckPanel";
 import { relayListState } from "./relay-list";
@@ -147,17 +165,21 @@ const DeckScreen: Component<{
   bootstrapIndexers?: RelayUrl[];
 }> = (props) => {
   // App が pubkey ごとに作り直すので、この画面の間 viewer は変わらない。
-  // ログイン中にしか描かれない
-  const viewer = props.session.pubkey()!;
-  const write = createWriteStack({
-    readLayer: props.readLayer,
-    signer: props.session.signer,
-    viewer,
-    // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
-    fallbackRelays: props.bootstrapIndexers,
-    // 送るときに読む。デッキはこの後で作るが、送るのはその後になる。
-    clientTag: () => clientTag(),
-  });
+  // ログインしていなければ undefined で、書き込みの仕組みを作らない。
+  const account = props.session.pubkey();
+  const viewer = account ?? "";
+  const write: WriteStack | undefined = account
+    ? createWriteStack({
+        readLayer: props.readLayer,
+        signer: props.session.signer,
+        viewer: account,
+        // 開発時の ?relays= では、書き込みも外のリレーへ流さない。
+        fallbackRelays: props.bootstrapIndexers,
+        // 送るときに読む。デッキはこの後で作るが、送るのはその後になる。
+        clientTag: () => clientTag(),
+      })
+    : undefined;
+  const actions = write?.actions ?? createGuestActions();
   const isWide = useIsWide();
   // 増えるたびに案内を始める。0 のうちは案内の部品を読み込まない。
   const [tourRequests, setTourRequests] = createSignal(0);
@@ -201,11 +223,13 @@ const DeckScreen: Component<{
   // フォローした結果をその場でタイムラインへ反映する。kind:3 がまだ無い間は、
   // ウォームアップが読んだ値で待つ（0 人で購読し直さない）。
   const followees = () => {
-    const live = write.actions.followeeIds();
+    const live = actions.followeeIds();
     return live.length > 0 ? live : (warmUp()?.followees ?? []);
   };
-  const relayList = () =>
-    relayListState(props.readLayer.store, viewer, settled());
+  const relayList = (): RelayListState =>
+    account
+      ? relayListState(props.readLayer.store, account, settled())
+      : { phase: "signed-out" };
   // Zap の受領を流してもらうリレー。自分が読むリレーに届けば、通知で拾える。
   const zapReceiptRelays = () => {
     const state = relayList();
@@ -218,7 +242,7 @@ const DeckScreen: Component<{
 
   // 読み込みリレーだけを読む設定なら、自分の一覧が変わるたびに読み先を当て直す。
   createEffect(() => {
-    write.relayList();
+    write?.relayList();
     props.readLayer.manager.setReadRouting(
       readRoutingFor(
         readRoutingMode(),
@@ -234,32 +258,34 @@ const DeckScreen: Component<{
   );
   onCleanup(props.readLayer.manager.onReadPlanChanged(setReadPlan));
 
-  const deckStore = createDeckStore({
-    pubkey: props.session.pubkey,
-    // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
-    routingSettled: settled,
-    signer: props.session.signer,
-    writer: trackReplaces(write.writer, "デッキの設定"),
-    fetchLatest: write.fetchLatest,
-    storage: localStorage,
-  });
+  const deckStore = write
+    ? createDeckStore({
+        pubkey: props.session.pubkey,
+        // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
+        routingSettled: settled,
+        signer: props.session.signer,
+        writer: trackReplaces(write.writer, "デッキの設定"),
+        fetchLatest: write.fetchLatest,
+        storage: localStorage,
+      })
+    : createGuestDeckStore(localStorage);
   // どのデッキを開いているかは端末ごとに覚える。アカウントには保存しない。
   // この画面で選び直したもの。アカウントを切り替えたら、その人が端末に覚えたものへ戻る。
   const [chosenDeck, setChosenDeck] = createSignal<{
     pubkey: string;
     id: string;
   }>();
+  // ログインしていない人は「guest」として覚える（アカウントの pubkey とは重ならない）。
+  const deckOwner = account ?? "guest";
   const activeDeckId = () => {
-    const pubkey = props.session.pubkey();
-    if (!pubkey) return undefined;
     const chosen = chosenDeck();
-    return chosen?.pubkey === pubkey ? chosen.id : savedActiveDeckId(pubkey);
+    return chosen?.pubkey === deckOwner
+      ? chosen.id
+      : savedActiveDeckId(deckOwner);
   };
   const switchDeck = (id: string) => {
-    const pubkey = props.session.pubkey();
-    if (!pubkey) return;
-    setChosenDeck({ pubkey, id });
-    saveActiveDeckId(pubkey, id);
+    setChosenDeck({ pubkey: deckOwner, id });
+    saveActiveDeckId(deckOwner, id);
   };
   const currentDeck = (): Deck | undefined => {
     const set = deckStore.value();
@@ -331,7 +357,7 @@ const DeckScreen: Component<{
   const uploader = createUploader({
     signer: props.session.signer,
     viewer,
-    servers: () => effectiveBlossomServers(write.blossomServers()),
+    servers: () => effectiveBlossomServers(write?.blossomServers()),
   });
 
   // カラムの見出しを押したときの動き。狭い画面では見出しの代わりにタブから呼ぶ。
@@ -415,7 +441,8 @@ const DeckScreen: Component<{
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
   // ダイアログが開いている間は待つ（閉じたら出す）。
   // スクリーンショットを撮るとき（?screenshot）は、案内を写さない。
-  let tourOffered = tourSeen() || screenshotMode();
+  // ログインしていない人には紹介のカラムがあるので、ログインしてから案内する。
+  let tourOffered = tourSeen() || screenshotMode() || account === undefined;
   createEffect(() => {
     if (tourOffered) return;
     if (deckStore.value() === undefined || columns().length === 0) return;
@@ -431,7 +458,11 @@ const DeckScreen: Component<{
     enabled: () => !ui.settingsOpen && !ui.aboutOpen,
     panelOpen: () => ui.panel !== undefined,
     columnDigits,
-    togglePanel: (panel) => handle({ type: "deck/toggle-panel", panel }),
+    togglePanel: (panel) => {
+      // ショートカットは段を通らずに呼ぶので、投稿のパネルはここで止める。
+      if (panel === "compose" && !gate("投稿")) return;
+      handle({ type: "deck/toggle-panel", panel });
+    },
     focusColumn,
   });
 
@@ -448,7 +479,7 @@ const DeckScreen: Component<{
   createEffect(() => applyColors(appearance()));
 
   // 投稿に client タグを付けるか。色と同じくデッキと一緒にアカウントへ保存する。
-  const clientTag = () => deckStore.value()?.clientTag === true;
+  const clientTag = (): boolean => deckStore.value()?.clientTag === true;
 
   let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
   // 保存し終えたら出す知らせ。保存はデッキの同期に任せている。
@@ -471,6 +502,41 @@ const DeckScreen: Component<{
   onCleanup(() => clearTimeout(appearanceTimer));
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
   onCleanup(() => applyColors(DEFAULT_APPEARANCE));
+
+  // ログインしていない人に、紹介とログインのカラムを見せる。外していたら先頭に戻す。
+  const showLogin = (what?: string) => {
+    if (what) notifyInfo(`ログインすると、${what}ができます`);
+    applyUi({ type: "deck/close-panel" });
+    applyUi({ type: "deck/close-settings" });
+    let id = columns().find((column) => column.source.kind === "welcome")?.id;
+    if (id === undefined) {
+      const column = welcomeColumn();
+      id = column.id;
+      updateDeck((deck) =>
+        moveColumnToIn(addColumnTo(deck, column), column.id, 0),
+      );
+    }
+    const target = id;
+    requestAnimationFrame(() => focusColumn(target));
+  };
+  // 紹介のカラムからのログイン。ログインしたら App がこの画面ごと作り直す。
+  const welcomeLogin: WelcomeLogin = {
+    state: () => ({
+      pending: props.session.pending(),
+      error: props.session.error(),
+      authUrl: props.session.authUrl(),
+      restoreFailed: props.session.restoreFailed(),
+    }),
+    onExtension: () => void props.session.loginWithExtension(),
+    onBunker: (uri) => void props.session.loginWithBunker(uri),
+    onNostrConnect: props.session.loginWithNostrConnect,
+    onRetryRestore: props.session.restore,
+  };
+  const gate: LoginGate = (what) => {
+    if (account) return true;
+    showLogin(what);
+    return false;
+  };
 
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
   const handle = (event: UiEvent): boolean => {
@@ -601,6 +667,27 @@ const DeckScreen: Component<{
       case "deck/logout":
         props.session.logout();
         return true;
+      case "deck/login":
+        showLogin(event.what);
+        return true;
+      case "deck/browse": {
+        let id = browseTargetIn(columns());
+        if (id === undefined) {
+          // 読めるカラムを全部外していたら、入口のリレーを紹介のすぐ右に足し直す。
+          const column = buildRelayColumn(WELCOME_RELAYS);
+          if (!column) return true;
+          id = column.id;
+          const welcomeAt = columns().findIndex(
+            (item) => item.source.kind === "welcome",
+          );
+          updateDeck((deck) =>
+            moveColumnToIn(addColumnTo(deck, column), column.id, welcomeAt + 1),
+          );
+        }
+        const target = id;
+        requestAnimationFrame(() => focusColumn(target));
+        return true;
+      }
       case "deck/set-write-progress":
         setShowWriteProgress(event.on);
         return true;
@@ -660,7 +747,7 @@ const DeckScreen: Component<{
         >
           <ComposeMediator
             send={(text, media, emoji, contentWarning) =>
-              write.actions.post(text, media, emoji, contentWarning)
+              actions.post(text, media, emoji, contentWarning)
             }
             failure="投稿できませんでした"
             onSent={() => handle({ type: "deck/close-panel" })}
@@ -751,399 +838,365 @@ const DeckScreen: Component<{
       return props.readLayer;
     },
     viewer,
+    signedIn: account !== undefined,
     followees,
     relayList,
-    bookmarks: write.actions.bookmarkIds,
+    bookmarks: actions.bookmarkIds,
     // 検索の問い合わせ先。設定（kind:10007）を変えたら、次の購読から効く。
     // 開発時の ?relays= では、検索も差し替えた先へ聞く（外の既定の検索リレーへ行かない）。
     searchRelays: () =>
-      props.bootstrapIndexers ?? effectiveSearchRelays(write.searchRelays()),
+      props.bootstrapIndexers ?? effectiveSearchRelays(write?.searchRelays()),
   };
 
-  return (
-    <EventActionsProvider value={write.actions}>
-      {/* デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。 */}
-      <ActionsMediator actions={write.actions}>
-        <Mediates handle={handle}>
-          <MediaMediator
-            writer={trackReplaces(write.writer, "画像のアップロード先")}
-            serverList={write.blossomServers}
-          >
-            <SearchRelayMediator
-              writer={trackReplaces(write.writer, "検索するリレー")}
-              relayList={write.searchRelays}
-            >
-              <CustomEmojisMediator
-                writer={trackReplaces(write.writer, "自分の絵文字")}
-                list={write.emojiList}
-                fetchLatest={write.fetchLatest}
+  const body = () => (
+    <>
+      <Switch>
+        <Match when={warmUp.error}>
+          <p role="alert" class="c-danger p-4 text-caption">
+            フォローリストを取得できませんでした。
+          </p>
+        </Match>
+        <Match when={deckStore.value() === undefined}>
+          <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
+        </Match>
+        <Match when={isMultiColumn()}>
+          <div class="flex h-dvh">
+            <Sidebar
+              pubkey={account}
+              columns={order.shown()}
+              panel={ui.panel}
+              numbers={columnDigits()}
+              onLogout={props.session.logout}
+            />
+            <SidePanelMotion open={ui.panel !== undefined}>
+              {panelView(false)}
+            </SidePanelMotion>
+            <div class="flex min-w-0 flex-1 flex-col">
+              <DeckSyncNotice store={deckStore} />
+              {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
+              {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
+              <div
+                ref={columnsEl}
+                class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
+                onPointerDown={(event) => {
+                  const target = event.target;
+                  if (!(target instanceof Element)) {
+                    return;
+                  }
+                  const grip = target.closest("[data-column-grip]");
+                  if (!grip || target.closest("[data-no-grip]")) {
+                    return;
+                  }
+                  const id =
+                    grip.closest<HTMLElement>("[data-column-id]")?.dataset
+                      .columnId;
+                  if (id) deckSort.onPointerDown(id, event);
+                }}
               >
-                <UploaderProvider value={uploader}>
-                  <ProfileMediator
-                    writer={trackReplaces(write.writer, "プロフィール")}
-                    pubkey={viewer}
-                    profile={write.profile}
-                  >
-                    <RelayMediator
-                      writer={trackReplaces(write.writer, "リレーの設定")}
-                      relayList={write.relayList}
-                      settled={write.relayListSettled}
-                      statusOf={(url) =>
-                        props.readLayer.manager.pool.statusOf(url)
-                      }
-                      readPlan={readPlan}
-                      routingSettled={settled}
-                      followees={followees}
-                    >
-                      <MuteMediator
-                        writer={trackReplaces(write.writer, "ミュート")}
-                        signer={props.session.signer}
-                        viewer={viewer}
-                        muteList={write.muteList}
-                        settled={write.muteListSettled}
+                <Show when={temp()}>
+                  {(column) => (
+                    <div class="order-first h-full w-95 shrink-0 border-primary border-r">
+                      <Column
+                        column={column()}
+                        settingsOpen={false}
+                        temporary
+                        {...shared}
+                      />
+                    </div>
+                  )}
+                </Show>
+                <Show when={params.entity && !temp()}>
+                  <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
+                    <p role="alert" class="c-secondary text-caption">
+                      このリンクは読めませんでした：
+                      {params.entity}
+                    </p>
+                  </div>
+                </Show>
+                <For each={order.mounted()}>
+                  {(column) => (
+                    <>
+                      {/* 掴んだカラムは隣の上を通るので、帯の中でだけ上に重ねる。 */}
+                      <div
+                        data-column-id={column.id}
+                        data-tour={
+                          order.ids()[0] === column.id ? "columns" : undefined
+                        }
+                        class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
+                        classList={{
+                          "w-80": column.width === "s",
+                          "w-95": column.width !== "s" && column.width !== "l",
+                          "w-110": column.width === "l",
+                        }}
+                        style={{
+                          order: order.indexOf(column.id) * 2,
+                        }}
                       >
-                        <FollowSetMediator
-                          writer={write.writer}
-                          signer={props.session.signer}
-                          viewer={viewer}
-                          manager={props.readLayer.manager}
-                        >
-                          <ZapMediator
-                            signer={props.session.signer}
-                            viewer={viewer}
-                            store={props.readLayer.store}
-                            pool={props.readLayer.manager.pool}
-                            relays={zapReceiptRelays}
+                        <Column
+                          column={column}
+                          settingsOpen={ui.settingsFor === column.id}
+                          grip
+                          {...shared}
+                        />
+                      </div>
+                      <Collapsible.Root
+                        lazyMount
+                        unmountOnExit
+                        open={ui.settingsFor === column.id}
+                        class="bg-secondary"
+                        style={{
+                          order: order.indexOf(column.id) * 2 + 1,
+                        }}
+                      >
+                        <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
+                          <div
+                            data-settings-for={column.id}
+                            class="h-full w-95 shrink-0 border-primary border-r"
                           >
-                            <ChannelFormMediator
-                              actions={write.actions}
-                              account={() => {
-                                const state = relayList();
-                                return state.phase === "ready"
-                                  ? state.entries
-                                  : [];
-                              }}
-                            >
-                              <StatusFormMediator actions={write.actions}>
-                                <Switch>
-                                  <Match when={warmUp.error}>
-                                    <p
-                                      role="alert"
-                                      class="c-danger p-4 text-caption"
-                                    >
-                                      フォローリストを取得できませんでした。
-                                    </p>
-                                  </Match>
-                                  <Match when={deckStore.value() === undefined}>
-                                    <p class="c-secondary p-4 text-caption">
-                                      デッキを読み込み中…
-                                    </p>
-                                  </Match>
-                                  <Match when={isMultiColumn()}>
-                                    <div class="flex h-dvh">
-                                      <Sidebar
-                                        pubkey={viewer}
-                                        columns={order.shown()}
-                                        panel={ui.panel}
-                                        numbers={columnDigits()}
-                                        onLogout={props.session.logout}
-                                      />
-                                      <SidePanelMotion
-                                        open={ui.panel !== undefined}
-                                      >
-                                        {panelView(false)}
-                                      </SidePanelMotion>
-                                      <div class="flex min-w-0 flex-1 flex-col">
-                                        <DeckSyncNotice store={deckStore} />
-                                        {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-                                        {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
-                                        <div
-                                          ref={columnsEl}
-                                          class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
-                                          onPointerDown={(event) => {
-                                            const target = event.target;
-                                            if (!(target instanceof Element)) {
-                                              return;
-                                            }
-                                            const grip =
-                                              target.closest(
-                                                "[data-column-grip]",
-                                              );
-                                            if (
-                                              !grip ||
-                                              target.closest("[data-no-grip]")
-                                            ) {
-                                              return;
-                                            }
-                                            const id =
-                                              grip.closest<HTMLElement>(
-                                                "[data-column-id]",
-                                              )?.dataset.columnId;
-                                            if (id)
-                                              deckSort.onPointerDown(id, event);
-                                          }}
-                                        >
-                                          <Show when={temp()}>
-                                            {(column) => (
-                                              <div class="order-first h-full w-95 shrink-0 border-primary border-r">
-                                                <Column
-                                                  column={column()}
-                                                  settingsOpen={false}
-                                                  temporary
-                                                  {...shared}
-                                                />
-                                              </div>
-                                            )}
-                                          </Show>
-                                          <Show when={params.entity && !temp()}>
-                                            <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
-                                              <p
-                                                role="alert"
-                                                class="c-secondary text-caption"
-                                              >
-                                                このリンクは読めませんでした：
-                                                {params.entity}
-                                              </p>
-                                            </div>
-                                          </Show>
-                                          <For each={order.mounted()}>
-                                            {(column) => (
-                                              <>
-                                                {/* 掴んだカラムは隣の上を通るので、帯の中でだけ上に重ねる。 */}
-                                                <div
-                                                  data-column-id={column.id}
-                                                  data-tour={
-                                                    order.ids()[0] === column.id
-                                                      ? "columns"
-                                                      : undefined
-                                                  }
-                                                  class="h-full shrink-0 border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
-                                                  classList={{
-                                                    "w-80":
-                                                      column.width === "s",
-                                                    "w-95":
-                                                      column.width !== "s" &&
-                                                      column.width !== "l",
-                                                    "w-110":
-                                                      column.width === "l",
-                                                  }}
-                                                  style={{
-                                                    order:
-                                                      order.indexOf(column.id) *
-                                                      2,
-                                                  }}
-                                                >
-                                                  <Column
-                                                    column={column}
-                                                    settingsOpen={
-                                                      ui.settingsFor ===
-                                                      column.id
-                                                    }
-                                                    grip
-                                                    {...shared}
-                                                  />
-                                                </div>
-                                                <Collapsible.Root
-                                                  lazyMount
-                                                  unmountOnExit
-                                                  open={
-                                                    ui.settingsFor === column.id
-                                                  }
-                                                  class="bg-secondary"
-                                                  style={{
-                                                    order:
-                                                      order.indexOf(column.id) *
-                                                        2 +
-                                                      1,
-                                                  }}
-                                                >
-                                                  <Collapsible.Content class="motion-collapse-right h-full overflow-hidden">
-                                                    <div
-                                                      data-settings-for={
-                                                        column.id
-                                                      }
-                                                      class="h-full w-95 shrink-0 border-primary border-r"
-                                                    >
-                                                      <ColumnSettingsPanel
-                                                        column={column}
-                                                        relayList={relayList()}
-                                                      />
-                                                    </div>
-                                                  </Collapsible.Content>
-                                                </Collapsible.Root>
-                                              </>
-                                            )}
-                                          </For>
-                                          <DeckEndSpace />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </Match>
-                                  <Match when={true}>
-                                    <div class="relative flex h-dvh flex-col">
-                                      <ColumnAccentBar
-                                        temporary={
-                                          ui.panel === undefined &&
-                                          ui.active === TEMP_COLUMN_ID
-                                        }
-                                      />
-                                      <MobileTopBar
-                                        pubkey={viewer}
-                                        column={
-                                          ui.panel === undefined
-                                            ? activeColumn()
-                                            : undefined
-                                        }
-                                        temporary={ui.active === TEMP_COLUMN_ID}
-                                        settingsOpen={
-                                          ui.active !== undefined &&
-                                          ui.settingsFor === ui.active
-                                        }
-                                        onLogout={props.session.logout}
-                                      />
-                                      <DeckSyncNotice store={deckStore} />
-                                      <div class="relative min-h-0 flex-1">
-                                        {/*
+                            <ColumnSettingsPanel
+                              column={column}
+                              relayList={relayList()}
+                            />
+                          </div>
+                        </Collapsible.Content>
+                      </Collapsible.Root>
+                    </>
+                  )}
+                </For>
+                <DeckEndSpace />
+              </div>
+            </div>
+          </div>
+        </Match>
+        <Match when={true}>
+          <div class="relative flex h-dvh flex-col">
+            <ColumnAccentBar
+              temporary={ui.panel === undefined && ui.active === TEMP_COLUMN_ID}
+            />
+            <MobileTopBar
+              pubkey={account}
+              column={ui.panel === undefined ? activeColumn() : undefined}
+              temporary={ui.active === TEMP_COLUMN_ID}
+              settingsOpen={
+                ui.active !== undefined && ui.settingsFor === ui.active
+              }
+              onLogout={props.session.logout}
+            />
+            <DeckSyncNotice store={deckStore} />
+            <div class="relative min-h-0 flex-1">
+              {/*
                                     カラムを横に並べ、1 枚ずつ止まるように送る（左右に払って切り替える）。
                                     隠れたカラムも描いたままにする —— 取り外すと購読ごと消え、戻るたびに
                                     取得し直しになり、スクロール位置も失われる。
                                   */}
-                                        <div
-                                          ref={stripEl}
-                                          class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
-                                          onScroll={onStripScroll}
-                                        >
-                                          <Show when={temp()}>
-                                            {(column) => (
-                                              <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
-                                                <Column
-                                                  column={column()}
-                                                  settingsOpen={false}
-                                                  temporary
-                                                  chrome={false}
-                                                  {...shared}
-                                                />
-                                              </div>
-                                            )}
-                                          </Show>
-                                          <For each={order.mounted()}>
-                                            {(column) => (
-                                              <div
-                                                class="isolate h-full w-full shrink-0 snap-start snap-always"
-                                                style={{
-                                                  order: order.indexOf(
-                                                    column.id,
-                                                  ),
-                                                }}
-                                              >
-                                                <div
-                                                  class="h-full"
-                                                  classList={{
-                                                    hidden:
-                                                      ui.settingsFor ===
-                                                      column.id,
-                                                  }}
-                                                >
-                                                  <Column
-                                                    column={column}
-                                                    settingsOpen={
-                                                      ui.settingsFor ===
-                                                      column.id
-                                                    }
-                                                    chrome={false}
-                                                    {...shared}
-                                                  />
-                                                </div>
-                                                <Show
-                                                  when={
-                                                    ui.settingsFor === column.id
-                                                  }
-                                                >
-                                                  <div class="h-full">
-                                                    <ColumnSettingsPanel
-                                                      column={column}
-                                                      relayList={relayList()}
-                                                    />
-                                                  </div>
-                                                </Show>
-                                              </div>
-                                            )}
-                                          </For>
-                                        </div>
-                                        <SidePanelMotion
-                                          open={ui.panel !== undefined}
-                                          full
-                                        >
-                                          {panelView(true)}
-                                        </SidePanelMotion>
-                                        {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。 */}
-                                        <Show
-                                          when={
-                                            ui.panel === undefined &&
-                                            !activeHasComposer()
-                                          }
-                                        >
-                                          <ComposeFab />
-                                        </Show>
-                                      </div>
-                                      <MobileTabBar
-                                        columns={order.shown()}
-                                        temp={temp()}
-                                        active={
-                                          ui.panel === undefined
-                                            ? ui.active
-                                            : undefined
-                                        }
-                                        panel={ui.panel}
-                                      />
-                                    </div>
-                                  </Match>
-                                </Switch>
-                              </StatusFormMediator>
-                            </ChannelFormMediator>
-                            <Show when={aboutMounted()}>
-                              <AboutDialog
-                                open={ui.aboutOpen}
-                                wide={isWide()}
-                                tour
-                                onOpenUser={(pubkey) => {
-                                  handle({ type: "deck/close-about" });
-                                  navigate(`/${encodeBech32("npub", pubkey)}`);
-                                }}
-                              />
-                            </Show>
-                            <Show when={tourRequests() > 0}>
-                              <DeckTour
-                                requests={tourRequests()}
-                                wide={isMultiColumn()}
-                              />
-                            </Show>
-                            <Show when={settingsMounted()}>
-                              <SettingsDialog
-                                open={ui.settingsOpen}
-                                wide={isWide()}
-                                scheme={scheme()}
-                                appearance={appearance()}
-                                writeProgress={showWriteProgress()}
-                                errorReport={errorReport()}
-                                clientTag={clientTag()}
-                                keymap={keymap()}
-                                columnDigits={columnDigits()}
-                                deckLayout={deckLayout()}
-                                defaultReaction={defaultReaction()}
-                              />
-                            </Show>
-                          </ZapMediator>
-                        </FollowSetMediator>
-                      </MuteMediator>
-                    </RelayMediator>
-                  </ProfileMediator>
-                </UploaderProvider>
-              </CustomEmojisMediator>
-            </SearchRelayMediator>
-          </MediaMediator>
-        </Mediates>
-      </ActionsMediator>
+              <div
+                ref={stripEl}
+                class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+                onScroll={onStripScroll}
+              >
+                <Show when={temp()}>
+                  {(column) => (
+                    <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
+                      <Column
+                        column={column()}
+                        settingsOpen={false}
+                        temporary
+                        chrome={false}
+                        {...shared}
+                      />
+                    </div>
+                  )}
+                </Show>
+                <For each={order.mounted()}>
+                  {(column) => (
+                    <div
+                      class="isolate h-full w-full shrink-0 snap-start snap-always"
+                      style={{
+                        order: order.indexOf(column.id),
+                      }}
+                    >
+                      <div
+                        class="h-full"
+                        classList={{
+                          hidden: ui.settingsFor === column.id,
+                        }}
+                      >
+                        <Column
+                          column={column}
+                          settingsOpen={ui.settingsFor === column.id}
+                          chrome={false}
+                          {...shared}
+                        />
+                      </div>
+                      <Show when={ui.settingsFor === column.id}>
+                        <div class="h-full">
+                          <ColumnSettingsPanel
+                            column={column}
+                            relayList={relayList()}
+                          />
+                        </div>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
+              <SidePanelMotion open={ui.panel !== undefined} full>
+                {panelView(true)}
+              </SidePanelMotion>
+              {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。紹介のカラムでも、ログインのボタンと重なるので出さない。 */}
+              <Show
+                when={
+                  ui.panel === undefined &&
+                  !activeHasComposer() &&
+                  activeColumn()?.source.kind !== "welcome"
+                }
+              >
+                <ComposeFab />
+              </Show>
+            </div>
+            <MobileTabBar
+              columns={order.shown()}
+              temp={temp()}
+              active={ui.panel === undefined ? ui.active : undefined}
+              panel={ui.panel}
+            />
+          </div>
+        </Match>
+      </Switch>
+      <Show when={aboutMounted()}>
+        <AboutDialog
+          open={ui.aboutOpen}
+          wide={isWide()}
+          tour
+          onOpenUser={(pubkey) => {
+            handle({ type: "deck/close-about" });
+            navigate(`/${encodeBech32("npub", pubkey)}`);
+          }}
+        />
+      </Show>
+      <Show when={tourRequests() > 0}>
+        <DeckTour requests={tourRequests()} wide={isMultiColumn()} />
+      </Show>
+      <Show when={settingsMounted()}>
+        <SettingsDialog
+          open={ui.settingsOpen}
+          signedIn={account !== undefined}
+          wide={isWide()}
+          scheme={scheme()}
+          appearance={appearance()}
+          writeProgress={showWriteProgress()}
+          errorReport={errorReport()}
+          clientTag={clientTag()}
+          keymap={keymap()}
+          columnDigits={columnDigits()}
+          deckLayout={deckLayout()}
+          defaultReaction={defaultReaction()}
+        />
+      </Show>
+    </>
+  );
+
+  return (
+    <EventActionsProvider value={actions}>
+      <LoginGateProvider value={gate}>
+        <Show
+          when={write}
+          fallback={
+            <Mediates handle={handle}>
+              <GuestMediator>
+                <WelcomeLoginProvider value={welcomeLogin}>
+                  {body()}
+                </WelcomeLoginProvider>
+              </GuestMediator>
+            </Mediates>
+          }
+        >
+          {(write) => (
+            // デッキが裁定しなかった単発の操作（いいね・フォローなど）は、その外側が受ける。
+            <ActionsMediator actions={write().actions}>
+              <Mediates handle={handle}>
+                <MediaMediator
+                  writer={trackReplaces(write().writer, "画像のアップロード先")}
+                  serverList={write().blossomServers}
+                >
+                  <SearchRelayMediator
+                    writer={trackReplaces(write().writer, "検索するリレー")}
+                    relayList={write().searchRelays}
+                  >
+                    <CustomEmojisMediator
+                      writer={trackReplaces(write().writer, "自分の絵文字")}
+                      list={write().emojiList}
+                      fetchLatest={write().fetchLatest}
+                    >
+                      <UploaderProvider value={uploader}>
+                        <ProfileMediator
+                          writer={trackReplaces(write().writer, "プロフィール")}
+                          pubkey={viewer}
+                          profile={write().profile}
+                        >
+                          <RelayMediator
+                            writer={trackReplaces(
+                              write().writer,
+                              "リレーの設定",
+                            )}
+                            relayList={write().relayList}
+                            settled={write().relayListSettled}
+                            statusOf={(url) =>
+                              props.readLayer.manager.pool.statusOf(url)
+                            }
+                            readPlan={readPlan}
+                            routingSettled={settled}
+                            followees={followees}
+                          >
+                            <MuteMediator
+                              writer={trackReplaces(write().writer, "ミュート")}
+                              signer={props.session.signer}
+                              viewer={viewer}
+                              muteList={write().muteList}
+                              settled={write().muteListSettled}
+                            >
+                              <FollowSetMediator
+                                writer={write().writer}
+                                signer={props.session.signer}
+                                viewer={viewer}
+                                manager={props.readLayer.manager}
+                              >
+                                <ZapMediator
+                                  signer={props.session.signer}
+                                  viewer={viewer}
+                                  store={props.readLayer.store}
+                                  pool={props.readLayer.manager.pool}
+                                  relays={zapReceiptRelays}
+                                >
+                                  <ChannelFormMediator
+                                    actions={write().actions}
+                                    account={() => {
+                                      const state = relayList();
+                                      return state.phase === "ready"
+                                        ? state.entries
+                                        : [];
+                                    }}
+                                  >
+                                    <StatusFormMediator
+                                      actions={write().actions}
+                                    >
+                                      {body()}
+                                    </StatusFormMediator>
+                                  </ChannelFormMediator>
+                                </ZapMediator>
+                              </FollowSetMediator>
+                            </MuteMediator>
+                          </RelayMediator>
+                        </ProfileMediator>
+                      </UploaderProvider>
+                    </CustomEmojisMediator>
+                  </SearchRelayMediator>
+                </MediaMediator>
+              </Mediates>
+            </ActionsMediator>
+          )}
+        </Show>
+      </LoginGateProvider>
     </EventActionsProvider>
   );
 };

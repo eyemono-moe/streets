@@ -44,6 +44,19 @@ const columns: ColumnDef[] = [
   },
 ];
 
+const guestColumns: ColumnDef[] = [
+  { id: "welcome", title: "Streets へようこそ", source: { kind: "welcome" } },
+  {
+    id: "relay",
+    title: "wss://yabu.me",
+    source: {
+      kind: "literal",
+      filters: [{ kinds: [1] }],
+      relays: ["wss://yabu.me/"],
+    },
+  },
+];
+
 /** 狭い画面で、帯を横に送らないと入りきらない数。 */
 const many: ColumnDef[] = [
   ...columns,
@@ -118,6 +131,30 @@ export const サイドバー: Story = {
   ),
 };
 
+/** ログインしていない。自分のアイコンの代わりに、ログインとメニューの口を置く。 */
+export const ログインしていないサイドバー: Story = {
+  render: () => (
+    <Mediates handle={() => true}>
+      <div class="flex h-[480px] bg-secondary">
+        <Sidebar
+          pubkey={undefined}
+          columns={guestColumns}
+          panel={undefined}
+          numbers
+          onLogout={() => {}}
+          feedbackUrl={null}
+        />
+      </div>
+    </Mediates>
+  ),
+};
+
+export const 狭い画面_ログインしていない: Story = {
+  render: () => (
+    <MobileBars guest columns={guestColumns} active="welcome" fab={false} />
+  ),
+};
+
 export const パネルを開いているサイドバー: Story = {
   render: () => (
     <EventSceneProvider scene={{ events: [viewer.profile()] }}>
@@ -168,6 +205,8 @@ export const フィードバック案内: Story = {
 };
 
 const MobileBars = (props: {
+  /** ログインしていない人の見た目にする。 */
+  guest?: boolean;
   columns: ColumnDef[];
   active: string | undefined;
   panel?: "search" | "add-column";
@@ -183,7 +222,7 @@ const MobileBars = (props: {
       <div class="flex h-[640px] w-[390px] flex-col bg-secondary">
         <ColumnAccentBar temporary={props.temp !== undefined} />
         <MobileTopBar
-          pubkey={viewer.pubkey}
+          pubkey={props.guest ? undefined : viewer.pubkey}
           column={
             props.temp ??
             props.columns.find((column) => column.id === props.active)

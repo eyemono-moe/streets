@@ -1,18 +1,9 @@
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
-import {
-  type Component,
-  Match,
-  Show,
-  Switch,
-  lazy,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
-import { lazyPart } from "./lazy-part";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
@@ -20,8 +11,8 @@ import SignerWaitOverlay from "./SignerWaitOverlay";
 import { ErrorToaster } from "./toast";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
-// ログインしている人（ほとんどの起動）には要らない。
-const WelcomeScreen = lazyPart(() => import("./welcome/WelcomeScreen"));
+/** ログインしていない人のデッキを作り直す鍵。pubkey とは重ならない。 */
+const GUEST = "guest";
 /** 短いタブの切り替えでは接続を揺らさない。 */
 const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
@@ -64,22 +55,21 @@ const App: Component = () => {
 
   return (
     <>
-      <Switch>
-        <Match when={session.state() === "signed-out"}>
-          <WelcomeScreen session={session} readLayer={readLayer} />
-        </Match>
-        <Match when={session.state() === "signed-in"}>
-          <Show when={session.pubkey()} keyed>
-            <ReadLayerProvider value={readLayer}>
-              <DeckScreen
-                readLayer={readLayer}
-                session={session}
-                bootstrapIndexers={relayOverride}
-              />
-            </ReadLayerProvider>
-          </Show>
-        </Match>
-      </Switch>
+      {/*
+        ログインしていなくても同じデッキを開く（紹介とログインのカラムを先頭に置く）。
+        ログインしたらその人のデッキで作り直す。
+      */}
+      <Show when={session.state() !== "loading"}>
+        <Show when={session.pubkey() ?? GUEST} keyed>
+          <ReadLayerProvider value={readLayer}>
+            <DeckScreen
+              readLayer={readLayer}
+              session={session}
+              bootstrapIndexers={relayOverride}
+            />
+          </ReadLayerProvider>
+        </Show>
+      </Show>
       <ErrorToaster />
       <SignerWaitOverlay
         message={session.signerWait()}

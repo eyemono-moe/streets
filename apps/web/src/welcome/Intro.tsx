@@ -9,8 +9,8 @@ const Intro: Component = () => {
     <div class="flex flex-col gap-2.5">
       <p class="font-700 text-[24px] leading-snug">See it your way.</p>
       <p class="text-body">
-        Streets はブラウザで使える Nostr
-        のクライアントです。タイムライン、通知、検索結果などのカラムを組み合わせて、自分だけの画面を組み立てられます。
+        Streets はブラウザで利用できる Nostr
+        クライアントです。タイムラインや通知、検索結果などをカラムにして並べられます。
       </p>
       <p class="flex flex-wrap gap-x-4 gap-y-1 text-caption">
         <a

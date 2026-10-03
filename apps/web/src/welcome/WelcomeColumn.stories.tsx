@@ -1,56 +1,41 @@
-import { For, type JSX, createSignal } from "solid-js";
+import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import AboutDialog from "../about/AboutDialog";
-import Event from "../note/Event";
-import { EventSceneProvider } from "../storybook/EventScene";
-import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
-import WelcomeView from "./WelcomeView";
+import type { LoginState } from "./LoginPanel";
+import { WelcomeColumnView } from "./WelcomeColumn";
 
-const alice = createStoryAuthor(11, { name: "alice", displayName: "ありす" });
-const bob = createStoryAuthor(22, { name: "bob" });
-const notes = [
-  alice.note("おはようございます。今日は晴れていて気持ちがいいですね。"),
-  bob.note(
-    "Nostr ではじめて投稿してみました。どこに何が流れているのか、まだよく分かっていません。".repeat(
-      3,
-    ),
-  ),
-  alice.note("#nostr のタグを付けると、同じ話題の投稿と並びます。"),
-];
-
-const Feed = (): JSX.Element => (
-  <div class="[&>*]:border-primary [&>*]:border-b">
-    <For each={notes}>{(note) => <Event event={note} size="normal" />}</For>
-  </div>
-);
-
-type Props = Parameters<typeof WelcomeView>[0];
+type Props = Omit<Parameters<typeof WelcomeColumnView>[0], "state"> & {
+  login: LoginState;
+  /** カラムの幅。狭い画面では画面いっぱいになる。 */
+  width: string;
+};
 
 const meta = {
-  title: "入口の画面",
+  title: "カラム/紹介とログイン",
   component: (props: Props) => {
     const [about, setAbout] = createSignal(false);
     return (
-      <EventSceneProvider
-        scene={{ events: [alice.profile(), bob.profile(), ...notes] }}
+      <Mediates
+        handle={(event) => {
+          if (event.type === "deck/open-about") setAbout(true);
+          else if (event.type === "deck/close-about") setAbout(false);
+          else return false;
+          return true;
+        }}
       >
-        <Mediates
-          handle={(event) => {
-            if (event.type === "deck/open-about") setAbout(true);
-            else if (event.type === "deck/close-about") setAbout(false);
-            else return false;
-            return true;
-          }}
+        <div
+          class="h-dvh overflow-y-auto border-primary border-r bg-primary"
+          style={{ width: props.width }}
         >
-          <WelcomeView {...props} />
-          <AboutDialog open={about()} wide={!props.narrow} />
-        </Mediates>
-      </EventSceneProvider>
+          <WelcomeColumnView {...props} state={() => props.login} />
+        </div>
+        <AboutDialog open={about()} wide />
+      </Mediates>
     );
   },
-  globals: { viewport: { value: "responsive", isRotated: false } },
   args: {
+    width: "380px",
     login: { pending: false },
     onExtension: () => {},
     onBunker: () => {},
@@ -61,9 +46,6 @@ const meta = {
       done: new Promise<void>(() => {}),
       cancel: () => {},
     }),
-    narrow: false,
-    feedTitle: "wss://yabu.me",
-    feed: <Feed />,
   },
 } satisfies Meta<Props>;
 
@@ -71,6 +53,13 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 最初の二択: Story = {};
+
+export const 幅の狭いカラム: Story = { args: { width: "320px" } };
+
+export const 狭い画面: Story = {
+  args: { width: "100%" },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
 
 export const はじめての方_Android: Story = {
   args: { initialStep: "new", initialDevice: "android" },
@@ -126,17 +115,6 @@ export const ログインを戻せなかった: Story = {
   },
 };
 
-export const 拡張機能からの応答を待ちきれなかった: Story = {
-  args: {
-    login: {
-      pending: false,
-      error:
-        "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。",
-      restoreFailed: true,
-    },
-  },
-};
-
 export const 秘密鍵を貼り付けた: Story = {
   args: {
     initialStep: "existing",
@@ -154,20 +132,4 @@ export const 署名器と繋がらなかった: Story = {
       cancel: () => {},
     }),
   },
-};
-
-export const 投稿の取得中: Story = {
-  args: {
-    feed: <p class="c-secondary p-4 text-caption">読み込み中…</p>,
-  },
-};
-
-export const 幅の狭い画面: Story = {
-  args: { narrow: true },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-};
-
-export const 幅の狭い画面_引き上げた: Story = {
-  args: { narrow: true, initialExpanded: true },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
 };

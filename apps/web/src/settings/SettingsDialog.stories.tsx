@@ -22,6 +22,8 @@ type Props = {
   appearance: DeckAppearance;
   /** 省略すると、ダイアログが決める既定のページ（アカウント）で開く。 */
   page?: string;
+  /** false で、ログインしていない人の設定（アカウントのページが無い）にする。 */
+  signedIn?: boolean;
 };
 
 const relayList = (tags: string[][]): NostrEvent => ({
@@ -205,6 +207,7 @@ const Story = (props: Props) => {
               >
                 <SettingsDialog
                   open
+                  signedIn={props.signedIn !== false}
                   wide={props.wide}
                   scheme={scheme()}
                   appearance={appearance()}
@@ -284,4 +287,10 @@ export const アカウント_広い画面: S = { args: { page: "account" } };
 
 export const アカウント_狭い画面: S = {
   args: { page: "account", wide: false },
+};
+
+export const ログインしていない_広い画面: S = { args: { signedIn: false } };
+
+export const ログインしていない_狭い画面: S = {
+  args: { signedIn: false, wide: false },
 };

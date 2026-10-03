@@ -5,7 +5,7 @@ import { ToastStack, createAppToaster } from "./toast";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Item = {
-  type: "success" | "error" | "loading";
+  type: "success" | "error" | "loading" | "info";
   title: string;
   description?: string;
   meta?: WriteToastMeta;
@@ -43,6 +43,11 @@ const failed: Item = {
 
 const saved: Item = { type: "success", title: "コピーしました" };
 
+const loginNeeded: Item = {
+  type: "info",
+  title: "ログインすると、リアクションができます",
+};
+
 const writing: Item = {
   type: "loading",
   title: "投稿",
@@ -73,6 +78,9 @@ type S = StoryObj<typeof meta>;
 export const 失敗: S = {};
 
 export const 成功: S = { args: { items: [saved] } };
+
+/** ログインしていない人が、ログインの要る操作を押した。 */
+export const 案内: S = { args: { items: [loginNeeded] } };
 
 /** 奥の 2 枚は枠だけが覗く。ポインタを乗せると広がって全部読める。 */
 export const 重なり: S = { args: { items: [failed, writing, saved] } };

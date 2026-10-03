@@ -9,7 +9,9 @@ import {
   createSignal,
   on,
 } from "solid-js";
+import { isMultiColumn } from "../deck-layout-setting";
 import type { ConnectAttempt } from "../session";
+import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
 import Intro from "./Intro";
@@ -61,6 +63,7 @@ const LoginPanel: Component<{
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
 }> = (props) => {
+  const dispatch = useDispatch();
   // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
   const [remoteOpen, setRemoteOpen] = createSignal(
     props.initialRemoteOpen === true || props.initialBunkerUri !== undefined,
@@ -104,6 +107,16 @@ const LoginPanel: Component<{
             trailing="next"
             onClick={() => setStep("existing")}
           />
+          {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
+          <Show when={!isMultiColumn()}>
+            <ChoiceButton
+              icon="i-material-symbols:visibility-outline-rounded"
+              title="ログインせずに見てみる"
+              description="いま流れている投稿を読みます"
+              trailing="next"
+              onClick={() => dispatch({ type: "deck/browse" })}
+            />
+          </Show>
         </section>
       </Match>
 

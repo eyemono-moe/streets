@@ -60,6 +60,16 @@ export const notifySuccess = (title: string): void => {
   toaster.create({ type: "success", title, duration: SAVED_DURATION_MS });
 };
 
+/** 失敗でも成功でもない案内（ログインすればできる、など）。 */
+export const notifyInfo = (title: string, description?: string): void => {
+  toaster.create({
+    type: "info",
+    title,
+    description,
+    duration: SAVED_DURATION_MS,
+  });
+};
+
 /** 操作が失敗したことを知らせる。理由の文言は `actionErrorMessage` に揃える。 */
 export const notifyError = (cause: unknown, what?: string): void => {
   // 書き込みの進み具合のトーストが、もう同じ失敗を出している。
@@ -110,9 +120,11 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
                 class="size-4.5 shrink-0"
                 classList={{
                   "i-material-symbols:error-outline-rounded c-danger":
-                    toast().type !== "success",
+                    toast().type !== "success" && toast().type !== "info",
                   "i-material-symbols:check-circle-outline-rounded c-accent-5":
                     toast().type === "success",
+                  "i-material-symbols:info-outline-rounded c-accent-5":
+                    toast().type === "info",
                 }}
                 aria-hidden="true"
               />

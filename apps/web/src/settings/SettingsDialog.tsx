@@ -24,6 +24,8 @@ import SearchSettings from "./SearchSettings";
  */
 const SettingsDialog: Component<{
   open: boolean;
+  /** ログインしているか。していなければ、アカウントに保存するページを出さない。 */
+  signedIn: boolean;
   /** 狭い画面では、ページの一覧を横に並べて全面に出す。 */
   wide: boolean;
   scheme: ColorScheme;
@@ -46,7 +48,9 @@ const SettingsDialog: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   // 一覧の先頭（アカウント）から開く。どこから開いても同じ場所で始まる。
-  const [page, setPage] = createSignal(props.initialPage ?? "account");
+  const [page, setPage] = createSignal(
+    props.initialPage ?? (props.signedIn ? "account" : "display"),
+  );
   // プロフィールを書きかけのまま閉じようとしたら、そのページを見せる。
   const profileEdit = useProfileEdit();
   createEffect(
@@ -59,7 +63,7 @@ const SettingsDialog: Component<{
     ),
   );
 
-  const pages: DialogPage[] = [
+  const allPages: DialogPage[] = [
     {
       value: "account",
       label: "アカウント",
@@ -147,6 +151,20 @@ const SettingsDialog: Component<{
     },
   ];
 
+  // アカウントに保存するページ。ログインしていなければ読む先も書く先も無い。
+  const ACCOUNT_PAGES = [
+    "account",
+    "relays",
+    "media",
+    "search",
+    "emoji",
+    "mute",
+  ];
+  const pages = () =>
+    props.signedIn
+      ? allPages
+      : allPages.filter((page) => !ACCOUNT_PAGES.includes(page.value));
+
   // 設定はカラムではないので、重ねる先が無い。人やノートを開く操作は、デッキに
   // カラムとして足してからダイアログを閉じ、足したカラムを見せる。
   const handle = (event: UiEvent): boolean => {
@@ -162,8 +180,12 @@ const SettingsDialog: Component<{
         open={props.open}
         wide={props.wide}
         title="設定"
-        description="アカウントと、この端末の表示を設定します。"
-        pages={pages}
+        description={
+          props.signedIn
+            ? "アカウントと、この端末の表示を設定します。"
+            : "この端末の表示を設定します。アカウントの設定は、ログインすると使えます。"
+        }
+        pages={pages()}
         page={page()}
         onPageChange={setPage}
         onClose={() => dispatch({ type: "deck/close-settings" })}

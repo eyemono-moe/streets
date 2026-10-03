@@ -662,6 +662,7 @@ describe("カラムの種類ごとの保存", () => {
       identifier: "post",
       relays: ["wss://relay.example/"],
     },
+    welcome: { kind: "welcome" },
   };
 
   it.each(Object.values(EXAMPLES))("$kind は保存して読み戻せる", (source) => {

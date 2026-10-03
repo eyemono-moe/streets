@@ -64,7 +64,8 @@ const ColumnButton: Component<{
 };
 
 export const Sidebar: Component<{
-  pubkey: string;
+  /** ログインしていなければ undefined。 */
+  pubkey: string | undefined;
   columns: readonly ColumnDef[];
   /** いま開いているパネル。押したボタンが開いているかを出すために使う。 */
   panel: DeckPanel | undefined;
@@ -187,7 +188,8 @@ export const ComposeFab: Component = () => {
  * このバーが今のカラムの見出しを兼ねる。
  */
 export const MobileTopBar: Component<{
-  pubkey: string;
+  /** ログインしていなければ undefined。 */
+  pubkey: string | undefined;
   /** 今見ているカラム。パネルを開いている間は undefined。 */
   column: ColumnDef | undefined;
   /** 一時カラム（URL で開いたもの）を見ている。設定の代わりに「カラムに残す」と閉じるを出す。 */

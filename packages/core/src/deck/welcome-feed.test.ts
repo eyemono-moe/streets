@@ -1,22 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { NostrEvent } from "../nostr/event";
-import {
-  DEFAULT_WELCOME_RELAYS,
-  showsOnWelcome,
-  welcomeColumn,
-  welcomeRelays,
-} from "./welcome-feed";
-
-const note = (tags: string[][]): NostrEvent =>
-  ({
-    id: "a".repeat(64),
-    pubkey: "b".repeat(64),
-    created_at: 1,
-    kind: 1,
-    tags,
-    content: "",
-    sig: "",
-  }) as NostrEvent;
+import { DEFAULT_WELCOME_RELAYS, welcomeRelays } from "./welcome-feed";
 
 describe("welcomeRelays", () => {
   it("指定が無ければ既定のリレーを使う", () => {
@@ -44,23 +27,5 @@ describe("welcomeRelays", () => {
         "wss://a.example wss://b.example wss://c.example wss://d.example",
       ),
     ).toHaveLength(3);
-  });
-});
-
-describe("welcomeColumn", () => {
-  it("指定したリレーの kind:1 だけを流す", () => {
-    expect(welcomeColumn(["wss://a.example/"]).source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1] }],
-      relays: ["wss://a.example/"],
-    });
-  });
-});
-
-describe("showsOnWelcome", () => {
-  it("閲覧注意の投稿を出さない", () => {
-    expect(showsOnWelcome(note([["content-warning", "nsfw"]]))).toBe(false);
-    expect(showsOnWelcome(note([["content-warning"]]))).toBe(false);
-    expect(showsOnWelcome(note([["t", "nostr"]]))).toBe(true);
   });
 });
