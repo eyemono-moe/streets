@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  sameActionLayout,
   type ActionArrangeEvent,
   type ActionArrangeState,
   type ActionLayout,
@@ -238,5 +239,24 @@ describe("アクション欄の並べ替え", () => {
       "details",
     ]);
     expect(slotsOf(toBar.layout)).toHaveLength(13);
+  });
+});
+
+describe("アクション欄の並びが同じか", () => {
+  it("欄とメニューの並びがどちらも同じときだけ同じ", () => {
+    const initial = defaultActionLayout();
+    expect(sameActionLayout(initial, defaultActionLayout())).toBe(true);
+    expect(
+      sameActionLayout(initial, {
+        bar: [...initial.bar].reverse(),
+        menu: initial.menu,
+      }),
+    ).toBe(false);
+    expect(
+      sameActionLayout(initial, {
+        bar: initial.bar.slice(1),
+        menu: [initial.bar[0]!, ...initial.menu],
+      }),
+    ).toBe(false);
   });
 });

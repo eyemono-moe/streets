@@ -3,6 +3,7 @@ import {
   DEFAULT_BLOSSOM_SERVERS,
   parseServerInput,
 } from "@streets/core/media/blossom";
+import { loadImageDownscaling } from "@streets/core/settings/image-downscaling-setting";
 import {
   type Component,
   For,
@@ -34,6 +35,13 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
       <SettingsSection
         title="画像の表示"
         scope="device"
+        changed={props.imageDownscaling !== loadImageDownscaling(null)}
+        onReset={() =>
+          dispatch({
+            type: "deck/set-image-downscaling",
+            on: loadImageDownscaling(null),
+          })
+        }
         description="オンにすると、画像を画面に合う大きさに縮めてから表示します。使うメモリが減り、動作が軽くなる可能性がありますが、最初の表示は遅くなります。オフにすると、元の画像をそのまま読むため、最初の表示は早くなりますが、メモリを多く使う場合があります。"
       >
         <ToggleSwitch
