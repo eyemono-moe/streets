@@ -35,7 +35,10 @@ import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
+import {
+  BOOTSTRAP_INDEXERS,
+  FALLBACK_RELAYS,
+} from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { OUTBOX_ROUTING } from "@streets/core/read/read-routing";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -245,16 +248,6 @@ const DeckScreen: Component<{
     account
       ? relayListState(props.readLayer.store, account, settled())
       : { phase: "signed-out" };
-  // Zap の受領を流してもらうリレー。自分が読むリレーに届けば、通知で拾える。
-  const zapReceiptRelays = () => {
-    const state = relayList();
-    const read =
-      state.phase === "ready"
-        ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
-        : [];
-    return (read.length > 0 ? read : [...FALLBACK_RELAYS]).slice(0, 5);
-  };
-
   // 読み込みリレーだけを読む設定なら、自分の一覧が変わるたびに読み先を当て直す。
   createEffect(() => {
     write?.relayList();
@@ -1212,7 +1205,12 @@ const DeckScreen: Component<{
                                     viewer={viewer}
                                     store={props.readLayer.store}
                                     pool={props.readLayer.manager.pool}
-                                    relays={zapReceiptRelays}
+                                    manager={props.readLayer.manager}
+                                    routing={props.readLayer.routing}
+                                    indexers={
+                                      props.bootstrapIndexers ??
+                                      BOOTSTRAP_INDEXERS
+                                    }
                                   >
                                     <ChannelFormMediator
                                       actions={write().actions}

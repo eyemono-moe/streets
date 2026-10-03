@@ -3,6 +3,17 @@ import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { ZapEndpoint, ZapPayInfo } from "./lnurl";
 
+/** ウォレットに Zap 受領を公開してもらうリレー。受取人の通知先を優先する。 */
+export const zapReceiptRelays = (options: {
+  recipientRead: readonly RelayUrl[];
+  senderRead: readonly RelayUrl[];
+  fallback: readonly RelayUrl[];
+}): RelayUrl[] => {
+  const recipient =
+    options.recipientRead.length > 0 ? options.recipientRead : options.fallback;
+  return [...new Set([...recipient, ...options.senderRead])].slice(0, 5);
+};
+
 /**
  * Zap の依頼（NIP-57 の kind:9734）。リレーには送らず、署名して LNURL の
  * callback へ渡す。受け取った側のサーバーは、これを受領（kind:9735）に入れて
@@ -12,7 +23,7 @@ export const buildZapRequest = (options: {
   target: NostrEvent;
   endpoint: ZapEndpoint;
   amountMsat: number;
-  /** 受領を流してほしいリレー。自分が読むリレーを入れる（通知で拾えるように）。 */
+  /** ウォレットが受領を公開する先。受取人の read リレーを優先する。 */
   relays: readonly RelayUrl[];
   message: string;
 }): EventDraft => ({
