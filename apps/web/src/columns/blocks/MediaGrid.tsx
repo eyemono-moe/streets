@@ -18,6 +18,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
 } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
@@ -79,33 +80,31 @@ const TileImage: Component<{
   media: NoteMedia;
   near: Accessor<boolean>;
   onLoad: () => void;
+  onBroken: () => void;
 }> = (props) => {
   const [loaded, setLoaded] = createSignal(false);
-  const [broken, setBroken] = createSignal(false);
   const src = createDisplayImage(
     () => props.media.url,
     MEDIA_TILE_MAX_EDGE,
     props.near,
   );
   return (
-    <Show when={!broken()} fallback={<BrokenMark />}>
-      <Show when={src()}>
-        {(url) => (
-          <img
-            src={url()}
-            alt=""
-            decoding="async"
-            draggable={false}
-            class="absolute inset-0 size-full object-cover transition-opacity duration-100"
-            classList={{ "opacity-0": !loaded() }}
-            onLoad={() => {
-              setLoaded(true);
-              props.onLoad();
-            }}
-            onError={() => setBroken(true)}
-          />
-        )}
-      </Show>
+    <Show when={src()}>
+      {(url) => (
+        <img
+          src={url()}
+          alt=""
+          decoding="async"
+          draggable={false}
+          class="absolute inset-0 size-full object-cover transition-opacity duration-100"
+          classList={{ "opacity-0": !loaded() }}
+          onLoad={() => {
+            setLoaded(true);
+            props.onLoad();
+          }}
+          onError={props.onBroken}
+        />
+      )}
     </Show>
   );
 };
@@ -115,15 +114,19 @@ const TileVideo: Component<{
   media: NoteMedia;
   near: Accessor<boolean>;
   onLoad: () => void;
+  onBroken: () => void;
 }> = (props) => {
   const poster = createVideoPoster(
     () => props.media.url,
     MEDIA_TILE_MAX_EDGE,
     props.near,
   );
-  createEffect(() => {
-    if (poster().state === "ready") props.onLoad();
-  });
+  createEffect(
+    on(poster, (current) => {
+      if (current.state === "ready") props.onLoad();
+      if (current.state === "failed") props.onBroken();
+    }),
+  );
   return (
     <>
       <Show
@@ -156,6 +159,23 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
   const near = createNearViewport(element);
   const [loaded, setLoaded] = createSignal(false);
   const media = () => props.tile.media;
+  const [kind, setKind] = createSignal(media().type);
+  const [triedOther, setTriedOther] = createSignal(false);
+  const [broken, setBroken] = createSignal(false);
+  createEffect(() => {
+    const current = media();
+    setKind(current.type);
+    setTriedOther(false);
+    setBroken(false);
+  });
+  const tryOther = () => {
+    if (triedOther()) {
+      setBroken(true);
+      return;
+    }
+    setTriedOther(true);
+    setKind(kind() === "image" ? "video" : "image");
+  };
   const ratio = () => {
     const dimensions = media().dimensions;
     return dimensions ? dimensions.width / dimensions.height : 1;
@@ -165,23 +185,31 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
       ref={setElement}
       type="button"
       class={TILE_CLASS}
-      aria-label={media().type === "image" ? "画像を開く" : "動画を開く"}
+      aria-label={kind() === "image" ? "画像を開く" : "動画を開く"}
       onClick={() => props.onOpen()}
     >
       <Show when={!loaded() && media().blurhash}>
         {(hash) => <BlurhashCanvas hash={hash()} ratio={ratio()} />}
       </Show>
-      <Show
-        when={media().type === "image"}
-        fallback={
-          <TileVideo
+      <Show when={!broken()} fallback={<BrokenMark />}>
+        <Show
+          when={kind() === "image"}
+          fallback={
+            <TileVideo
+              media={media()}
+              near={near}
+              onLoad={() => setLoaded(true)}
+              onBroken={tryOther}
+            />
+          }
+        >
+          <TileImage
             media={media()}
             near={near}
             onLoad={() => setLoaded(true)}
+            onBroken={tryOther}
           />
-        }
-      >
-        <TileImage media={media()} near={near} onLoad={() => setLoaded(true)} />
+        </Show>
       </Show>
     </button>
   );

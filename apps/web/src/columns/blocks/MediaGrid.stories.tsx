@@ -86,4 +86,15 @@ export const 読み込めない画像: Story = {
   },
 };
 
+/** 調査時に .gif の URL から MP4 が返った投稿。 */
+export const Gif拡張子の動画: Story = {
+  args: {
+    tiles: mediaTilesOf(
+      alice.note(
+        "https://gifs.nostr.build/mp4/orig/82cc31b3042503850deee14d4c5459d6804b794a6a653b6b55b59659e73f4442.gif",
+      ),
+    ),
+  },
+};
+
 export const 狭いカラム: Story = { args: { width: 240 } };

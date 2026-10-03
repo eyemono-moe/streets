@@ -27,7 +27,23 @@ const ViewerSlide: Component<{
   footer: boolean;
 }> = (props) => {
   const [broken, setBroken] = createSignal(false);
+  const [kind, setKind] = createSignal(props.media.type);
+  const [triedOther, setTriedOther] = createSignal(false);
   let video: HTMLVideoElement | undefined;
+  createEffect(() => {
+    const media = props.media;
+    setKind(media.type);
+    setTriedOther(false);
+    setBroken(false);
+  });
+  const tryOther = () => {
+    if (triedOther()) {
+      setBroken(true);
+      return;
+    }
+    setTriedOther(true);
+    setKind(kind() === "image" ? "video" : "image");
+  };
   // 送った先で前の動画の音が鳴り続けないようにする。
   createEffect(() => {
     if (!props.active) video?.pause();
@@ -49,13 +65,13 @@ const ViewerSlide: Component<{
         when={!broken()}
         fallback={
           <p class="c-white text-body">
-            {props.media.type === "image" ? "画像" : "動画"}
+            {kind() === "image" ? "画像" : "動画"}
             を読み込めませんでした
           </p>
         }
       >
         <Show
-          when={props.media.type === "image"}
+          when={kind() === "image"}
           fallback={
             // oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。
             <video
@@ -65,7 +81,7 @@ const ViewerSlide: Component<{
               playsinline
               preload="metadata"
               class="max-h-full max-w-full"
-              onError={() => setBroken(true)}
+              onError={tryOther}
             />
           }
         >
@@ -74,7 +90,7 @@ const ViewerSlide: Component<{
             alt=""
             class="max-h-full max-w-full select-none object-contain"
             draggable={false}
-            onError={() => setBroken(true)}
+            onError={tryOther}
           />
         </Show>
       </Show>
