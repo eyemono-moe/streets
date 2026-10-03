@@ -146,6 +146,29 @@ export const 上の方を取得中: Story = {
   },
 };
 
+// 祖先が画面に収まらないほど続くスレッド。開くと焦点まで送られ、上に返信先の端が見える。
+const deepChain = Array.from({ length: 6 }).reduce<NostrEvent[]>(
+  (chain, _, index) => {
+    const author = [alice, bob, carol][index % 3] ?? alice;
+    const parent = chain.at(-1);
+    const text = `${index + 1} 段目の投稿。上へ読み進められるか確かめる。`;
+    return [...chain, parent ? author.reply(parent, text) : author.note(text)];
+  },
+  [],
+);
+const deepFocus = viewer.reply(
+  deepChain.at(-1) ?? root,
+  "いま開いている、深いところの投稿。",
+);
+
+/** 開いた投稿が下に隠れないよう、そこまで送って始める。 */
+export const 深いスレッド: Story = {
+  args: {
+    events: [...deepChain, deepFocus, alice.reply(deepFocus, "返信。")],
+    focusId: deepFocus.id,
+  },
+};
+
 export const 長い投稿が混ざる: Story = {
   args: {
     events: [root, longMiddle, longFocus, ...longReplies],
