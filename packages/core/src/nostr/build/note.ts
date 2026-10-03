@@ -2,8 +2,8 @@ import type { RelayUrl } from "../../relay/relay-connection";
 import { addressOfEvent, formatEventAddress } from "../address";
 import { parseContent } from "../content";
 import type { NostrEvent } from "../event";
+import { encodeEventPointer, pointsTo } from "../event-pointer";
 import { COMMENT_KIND } from "../event-refs";
-import { encodeBech32 } from "../nip19";
 import type { EventDraft } from "./draft";
 
 /**
@@ -140,22 +140,27 @@ export const buildReplyTo = (
 
 /**
  * NIP-18 の引用。`e` タグは立てない（NIP-18: "quote reposts will not be shown
- * in the feed as replies"）。`nevent` は使わない（`nip19.ts` は復号専用で TLV
- * 符号化器が無い）—— `note` で参照し、リレーヒントは `q` タグの 3 番目に持たせる。
+ * in the feed as replies"）。住所を持つ先は `q` も住所で指す —— 本文の `naddr`
+ * と揃えないと、読む側で同じ引用が 2 つ描かれる。
  */
 export const buildQuote = (
   target: NostrEvent,
   content: string,
   options?: { relayHint?: RelayUrl },
 ): EventDraft => {
-  const uri = `nostr:${encodeBech32("note", target.id)}`;
+  const hint = options?.relayHint ?? "";
+  const address = addressOfEvent(target);
+  const q = address
+    ? ["q", formatEventAddress(address), hint]
+    : ["q", target.id, hint, target.pubkey];
+  // 貼り付けたリンクはリレーの違いで文字列が変わるので、指している先で比べる。
+  const quoted = parseContent(content, []).some(
+    (token) => token.type === "mention" && pointsTo(token.ref, target),
+  );
+  const uri = `nostr:${encodeEventPointer(target, hint ? [hint] : [])}`;
   return {
     kind: 1,
-    tags: [
-      ["q", target.id, options?.relayHint ?? "", target.pubkey],
-      ["p", target.pubkey],
-      ...hashtagTags(content),
-    ],
-    content: content.includes(uri) ? content : `${content}\n\n${uri}`,
+    tags: [q, ["p", target.pubkey], ...hashtagTags(content)],
+    content: quoted ? content : `${content}\n\n${uri}`,
   };
 };
