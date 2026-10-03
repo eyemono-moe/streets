@@ -118,6 +118,15 @@ describe("passesSearchExclusions", () => {
     expect(passesSearchExclusions(query, event("ＡＢＣ"), human)).toBe(false);
   });
 
+  it("除く宛先を指す投稿を落とす", () => {
+    const query = parseSearchQuery(`ねこ -to:${npub}`);
+    expect(query.excludeTo).toEqual([pubkey]);
+    expect(
+      passesSearchExclusions(query, event("ねこ", [["p", pubkey]]), human),
+    ).toBe(false);
+    expect(passesSearchExclusions(query, event("ねこ"), human)).toBe(true);
+  });
+
   it("除くハッシュタグと人を落とす", () => {
     const query = parseSearchQuery(`ねこ -#bot -from:${pubkey}`);
     expect(
@@ -155,7 +164,7 @@ describe("文字列と条件を行き来できる", () => {
     "ねこ 写真 #nostr",
     `ねこ from:${pubkey} since:2026-09-01 kind:1`,
     `to:${pubkey} until:2026-12-31`,
-    `あいもの -いも #nostr -#bot -from:${pubkey} -is:bot`,
+    `あいもの -いも #nostr -#bot -from:${pubkey} -to:${pubkey} -is:bot`,
   ];
   for (const text of cases) {
     it(`往復しても変わらない: ${text}`, () => {

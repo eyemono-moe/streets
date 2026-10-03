@@ -113,6 +113,21 @@ describe("findCompletion", () => {
       end: 5,
     });
   });
+
+  it("words なら、カーソルのある言葉だけを問い合わせにし、頭の - は残す", () => {
+    const words = { kind: "user" as const, prefixes: [], words: true };
+    expect(findCompletion("npub1a -eye", 11, [words])).toEqual({
+      kind: "user",
+      prefix: "",
+      query: "eye",
+      start: 8,
+      end: 11,
+    });
+    expect(findCompletion("npub1a ", 7, [words])).toMatchObject({
+      query: "",
+      start: 7,
+    });
+  });
 });
 
 describe("applyCompletion", () => {

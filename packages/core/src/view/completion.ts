@@ -17,6 +17,11 @@ export type CompletionTrigger = {
   prefixes: readonly string[];
   /** 選んだときに印を残すか。`from:` は残し、`@` は選んだものに置き換える。 */
   keepPrefix?: boolean;
+  /**
+   * 印の無い形で、欄全体ではなくカーソルのある言葉（空白で区切る）だけを
+   * 問い合わせにする。頭の `-`（除く印）は言葉に含めず残す。何人も並べる欄で使う。
+   */
+  words?: boolean;
 };
 
 export const USER_TRIGGER: CompletionTrigger = {
@@ -84,6 +89,18 @@ export const findCompletion = (
   triggers: readonly CompletionTrigger[],
 ): CompletionMatch | undefined => {
   const whole = triggers.find((trigger) => trigger.prefixes.length === 0);
+  if (whole?.words) {
+    const before = text.slice(0, caret);
+    const wordStart = before.search(/\S*$/);
+    const start = before[wordStart] === "-" ? wordStart + 1 : wordStart;
+    return {
+      kind: whole.kind,
+      prefix: "",
+      query: before.slice(start),
+      start,
+      end: caret,
+    };
+  }
   if (whole) {
     return {
       kind: whole.kind,

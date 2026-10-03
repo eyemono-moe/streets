@@ -7,7 +7,7 @@ import { decodeNip19 } from "../nostr/nip19";
  *
  * v0 と同じ書き方に、`kind:` と `-` で除く指定を足した:
  *
- *   ねこ -いぬ from:npub1… -from:npub1… since:2026-09-01 #nostr -#bot kind:1 -is:bot
+ *   ねこ -いぬ from:npub1… -from:npub1… -to:npub1… #nostr -#bot kind:1 -is:bot
  *
  * 除く指定は NIP-50 に決まりが無く、既定の検索リレーも解釈しない（`-いぬ` を
  * その文字列として探してしまう）。リレーへは送らず、届いた結果を手元でふるう。
@@ -29,6 +29,8 @@ export type SearchQuery = {
   excludeHashtags: string[];
   /** 除く書いた人（16 進の公開鍵）。 */
   excludeFrom: string[];
+  /** 除く宛先（`p` タグ。16 進の公開鍵）。 */
+  excludeTo: string[];
   /** プロフィールで bot と名乗っている人（NIP-24 の `bot`）を除く。 */
   excludeBots: boolean;
 };
@@ -40,6 +42,7 @@ export const emptySearchQuery = (): SearchQuery => ({
   excludeWords: [],
   excludeHashtags: [],
   excludeFrom: [],
+  excludeTo: [],
   excludeBots: false,
 });
 
@@ -91,13 +94,17 @@ const excludeToken = (query: SearchQuery, token: string): void => {
     query.excludeBots = true;
     return;
   }
-  const from = ["from:", "by:"].find((key) => lower.startsWith(key));
-  if (from !== undefined) {
-    const pubkey = toPubkey(token.slice(from.length));
-    if (pubkey) {
-      if (!query.excludeFrom.includes(pubkey)) query.excludeFrom.push(pubkey);
-      return;
-    }
+  const people = [
+    { keys: ["from:", "by:"], list: query.excludeFrom },
+    { keys: ["to:"], list: query.excludeTo },
+  ];
+  for (const { keys, list } of people) {
+    const key = keys.find((candidate) => lower.startsWith(candidate));
+    if (key === undefined) continue;
+    const pubkey = toPubkey(token.slice(key.length));
+    if (!pubkey) break;
+    if (!list.includes(pubkey)) list.push(pubkey);
+    return;
   }
   const hashtag = ["hashtag:", "#"].find((key) => lower.startsWith(key));
   if (hashtag !== undefined && lower.length > hashtag.length) {
@@ -172,6 +179,7 @@ export const formatSearchQuery = (query: SearchQuery): string =>
     ...(query.from ? [`from:${query.from}`] : []),
     ...query.excludeFrom.map((pubkey) => `-from:${pubkey}`),
     ...(query.to ? [`to:${query.to}`] : []),
+    ...query.excludeTo.map((pubkey) => `-to:${pubkey}`),
     ...(query.since !== undefined ? [`since:${fromSeconds(query.since)}`] : []),
     ...(query.until !== undefined ? [`until:${fromSeconds(query.until)}`] : []),
     ...query.kinds.map((kind) => `kind:${kind}`),
@@ -207,6 +215,7 @@ export const hasSearchExclusions = (query: SearchQuery): boolean =>
   query.excludeWords.length > 0 ||
   query.excludeHashtags.length > 0 ||
   query.excludeFrom.length > 0 ||
+  query.excludeTo.length > 0 ||
   query.excludeBots;
 
 /** 全角・半角や大文字・小文字の違いで取りこぼさないよう、比べる前にそろえる。 */
@@ -224,6 +233,17 @@ export const passesSearchExclusions = (
   isBot: (pubkey: string) => boolean | undefined,
 ): boolean => {
   if (query.excludeFrom.includes(event.pubkey)) return false;
+  if (
+    query.excludeTo.length > 0 &&
+    event.tags.some(
+      (tag) =>
+        tag[0] === "p" &&
+        tag[1] !== undefined &&
+        query.excludeTo.includes(tag[1].toLowerCase()),
+    )
+  ) {
+    return false;
+  }
   if (query.excludeHashtags.length > 0) {
     const tagged = event.tags.some(
       (tag) =>

@@ -306,7 +306,7 @@
       "packages/core/src/search/query.ts",
       "packages/core/src/settings/search-relay-list.ts"
     ],
-    "gap": "検索演算子をすべて扱うわけではない。除く指定（-語・-#タグ・-from:・-is:bot）はリレーへ送らず手元でふるうので、除いた分だけ並ぶ件数が減る"
+    "gap": "検索演算子をすべて扱うわけではない。除く指定（-語・-#タグ・-from:・-to:・-is:bot）はリレーへ送らず手元でふるうので、除いた分だけ並ぶ件数が減る"
   },
   {
     "nip": "51",

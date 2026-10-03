@@ -44,11 +44,11 @@ export const すぐ渡す: S = { args: { debounceMs: 0 } };
 export const 空: S = { args: { initial: "" } };
 
 /**
- * 除く指定。言葉とハッシュタグはフォームの欄にも - 付きで出る。bot はスイッチ
- * に出る。人は文字列でだけ書け、フォームの欄には出ない。
+ * 除く指定。言葉・ハッシュタグ・人はそれぞれの欄にも - 付きで出る。bot は
+ * スイッチに出る。
  */
 export const 除く指定: S = {
   args: {
-    initial: `あいもの -芋 #nostr -#bot -from:${"a".repeat(64)} -is:bot`,
+    initial: `あいもの -芋 #nostr -#bot from:${"a".repeat(64)} -from:${"b".repeat(64)} -to:${"c".repeat(64)} -is:bot`,
   },
 };
