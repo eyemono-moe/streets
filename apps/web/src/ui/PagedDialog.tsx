@@ -34,14 +34,20 @@ const PagedDialog: Component<{
   page: string;
   onPageChange: (value: string) => void;
   onClose: () => void;
+  /** 背景の色。後ろの画面を暗くせずに見せたいページで変える。 */
+  backdropClass?: string;
 }> = (props) => {
   const closeLabel = () => `${props.title}を閉じる`;
   return (
     <DialogRoot open={props.open} onClose={props.onClose}>
-      <DialogPortal class="" classList={{ "p-6": props.wide }}>
+      <DialogPortal
+        class=""
+        classList={{ "p-6": props.wide }}
+        backdropClass={props.backdropClass}
+      >
         <DialogContent
           classList={{
-            "h-[min(640px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
+            "h-[min(800px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
               props.wide,
             "h-dvh w-screen": !props.wide,
           }}

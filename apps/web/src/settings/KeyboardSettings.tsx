@@ -1,3 +1,4 @@
+import { loadColumnDigits } from "@streets/core/settings/column-digits-setting";
 import {
   DEFAULT_KEYMAP,
   type Keymap,
@@ -143,6 +144,13 @@ const KeyboardSettings: Component<{
       <SettingsSection
         title="数字キーでのカラム移動"
         scope="device"
+        changed={props.columnDigits !== loadColumnDigits(null)}
+        onReset={() =>
+          dispatch({
+            type: "deck/set-column-digits",
+            on: loadColumnDigits(null),
+          })
+        }
         description="オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動します。オフにすると、数字キーは効かなくなります。"
       >
         <Switch

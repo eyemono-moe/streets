@@ -119,6 +119,13 @@ export const loadActionLayout = (raw: string | null): ActionLayout => {
 export const saveActionLayout = (layout: ActionLayout): string =>
   JSON.stringify(layout);
 
+/** 欄とメニューの並びがどちらも同じか。設定で「既定から変えたか」を見るのに使う。 */
+export const sameActionLayout = (a: ActionLayout, b: ActionLayout): boolean =>
+  a.bar.length === b.bar.length &&
+  a.menu.length === b.menu.length &&
+  a.bar.every((id, index) => id === b.bar[index]) &&
+  a.menu.every((id, index) => id === b.menu[index]);
+
 /**
  * この投稿のメニューに並べる操作。アクション欄を出す投稿では、欄に出していない
  * ものを入れる。出さない投稿では、中身によらない操作だけを、欄に選んだものも含めて入れる。

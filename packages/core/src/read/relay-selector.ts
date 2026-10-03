@@ -4,8 +4,8 @@ export type Selection = {
   /** 開くべきリレー。pinned を含む。長さ <= budget */
   readonly picks: readonly RelayUrl[];
   /**
-   * 著者 → 購読するリレー。demand の全著者が入る。**空配列になる理由は 2 つ** —
-   * 接続予算で落ちた場合と、宣言リレーが全部 `degraded` だった場合。
+   * 著者 → 購読するリレー。demand の全著者が入る。**空配列になる理由は 3 つ** —
+   * 接続予算で落ちた場合と、宣言リレーが全部 `degraded` か `blocked` だった場合。
    */
   readonly assignment: ReadonlyMap<string, readonly RelayUrl[]>;
   /** 1 本も確保できなかった著者 */
@@ -26,6 +26,11 @@ export type SelectRelaysOptions = {
    * 枠だけ埋まる)。`pinned` には適用しない —— 黙って落とすと経路が壊れる。
    */
   degraded?: readonly RelayUrl[];
+  /**
+   * ユーザーが繋がないと決めたリレー（kind:10006）。`degraded` と違い
+   * `pinned` からも外す —— 明示指定より、繋がないという決定を優先する。
+   */
+  blocked?: readonly RelayUrl[];
 };
 
 /**
@@ -41,15 +46,17 @@ export const selectRelays = ({
   budget,
   redundancy,
   degraded,
+  blocked,
 }: SelectRelaysOptions): Selection => {
-  const degradedSet = new Set(degraded ?? []);
+  const blockedSet = new Set(blocked ?? []);
+  const excluded = new Set([...(degraded ?? []), ...blockedSet]);
 
-  // リレー → そのリレーを宣言している著者。degraded な URL はここに入れない
-  // — pinned はこのマップを経由しないので影響を受けない。
+  // リレー → そのリレーを宣言している著者。degraded・blocked な URL はここに
+  // 入れない — pinned はこのマップを経由しないので、blocked は下で別に外す。
   const relayToAuthors = new Map<RelayUrl, Set<string>>();
   for (const [pubkey, urls] of demand) {
     for (const url of urls) {
-      if (degradedSet.has(url)) continue;
+      if (excluded.has(url)) continue;
       const authors = relayToAuthors.get(url);
       if (authors) authors.add(pubkey);
       else relayToAuthors.set(url, new Set([pubkey]));
@@ -76,7 +83,7 @@ export const selectRelays = ({
 
   // pinned が先。予算を食うが決して落とさない
   for (const url of pinned) {
-    if (picked.has(url)) continue;
+    if (picked.has(url) || blockedSet.has(url)) continue;
     if (picks.length >= budget) break;
     take(url);
   }

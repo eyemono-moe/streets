@@ -14,6 +14,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { blockedRelays } from "../blocked-relays";
 import { LinkCardModeProvider } from "../note/link-card";
 import { readRoutingMode } from "../read-routing-setting";
 import { ColumnScope } from "./column-scope";
@@ -43,6 +44,7 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
       columnStatus(statuses().map((status) => status())),
       props.relayList(),
       readRoutingMode(),
+      blockedRelays(),
     );
 
   return (

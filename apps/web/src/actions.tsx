@@ -53,6 +53,7 @@ import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
+import { BLOCKED_RELAY_LIST_KIND } from "@streets/core/settings/blocked-relay-list";
 import type { Signer } from "@streets/core/signer/signer";
 import { authorRelays, broadcast } from "@streets/core/write/broadcast";
 import { fetchLatest } from "@streets/core/write/fetch-latest";
@@ -182,6 +183,8 @@ export type WriteStack = {
   /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
   searchRelays: Accessor<NostrEvent | undefined>;
+  /** 自分の繋がないリレー（kind:10006）。 */
+  blockedRelays: Accessor<NostrEvent | undefined>;
   /** 自分の絵文字の一覧（kind:10030）。ピッカーに出すもの。 */
   emojiList: Accessor<NostrEvent | undefined>;
   fetchLatest(
@@ -268,6 +271,7 @@ export const createWriteStack = (options: {
   const profile = mine(PROFILE_KIND);
   const blossomServers = mine(BLOSSOM_SERVERS_KIND);
   const searchRelays = mine(SEARCH_RELAY_LIST_KIND);
+  const blockedRelays = mine(BLOCKED_RELAY_LIST_KIND);
   const emojiList = mine(EMOJI_LIST_KIND);
 
   const bookmarkIds = () =>
@@ -439,6 +443,7 @@ export const createWriteStack = (options: {
     profile: profile.event,
     blossomServers: blossomServers.event,
     searchRelays: searchRelays.event,
+    blockedRelays: blockedRelays.event,
     emojiList: emojiList.event,
     fetchLatest: (kind, identifier, pubkey) =>
       fetchLatest(target, kind, identifier, pubkey),

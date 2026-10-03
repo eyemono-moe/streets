@@ -229,4 +229,40 @@ describe("selectRelays", () => {
       expect(withOmittedDegraded).toEqual(withEmptyDegraded);
     });
   });
+
+  describe("blocked relays", () => {
+    it("picks another declared relay instead of a blocked one", () => {
+      const selection = selectRelays({
+        ...base,
+        demand: new Map([[A, ["wss://a-blocked/", "wss://z-open/"]]]),
+        blocked: ["wss://a-blocked/"],
+      });
+
+      expect(selection.picks).toEqual(["wss://z-open/"]);
+      expect(selection.assignment.get(A)).toEqual(["wss://z-open/"]);
+    });
+
+    it("leaves an author uncovered when every declared relay is blocked", () => {
+      const selection = selectRelays({
+        ...base,
+        demand: new Map([[B, ["wss://blocked/"]]]),
+        blocked: ["wss://blocked/"],
+      });
+
+      expect(selection.picks).toEqual([]);
+      expect(selection.uncovered).toEqual([B]);
+    });
+
+    // degraded と違い、明示指定も外す。繋がないと決めたリレーへは繋がない。
+    it("drops a pinned relay that is blocked", () => {
+      const selection = selectRelays({
+        ...base,
+        demand: new Map(),
+        pinned: ["wss://pinned/", "wss://blocked/"],
+        blocked: ["wss://blocked/"],
+      });
+
+      expect(selection.picks).toEqual(["wss://pinned/"]);
+    });
+  });
 });

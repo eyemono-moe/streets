@@ -222,6 +222,21 @@ describe("columnAlerts", () => {
     ).toEqual([]);
   });
 
+  it("指定したリレーが繋がないリレーなら、その本数を知らせる", () => {
+    const alerts = columnAlerts(explicit, status(), hasRelays, "outbox", [
+      "wss://a/",
+      "wss://other/",
+    ]);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.message).toContain("1 本");
+  });
+
+  it("Outbox が選ぶカラムでは、繋がないリレーを知らせない", () => {
+    expect(
+      columnAlerts(routed, status(), hasRelays, "outbox", ["wss://a/"]),
+    ).toEqual([]);
+  });
+
   it("incomplete が無ければ 0 件", () => {
     // 捕まえる変異: incomplete を undefined のまま数値として読む
     expect(columnAlerts(explicit, status(), hasRelays)).toEqual([]);

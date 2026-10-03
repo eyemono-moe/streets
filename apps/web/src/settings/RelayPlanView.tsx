@@ -36,7 +36,7 @@ const RelayPlanView: Component<RelayPlanViewProps> = (props) => {
   return (
     <SettingsSection
       title="いま使っているリレー"
-      description="投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、上の一覧に無いリレーもここに並びます。"
+      description="投稿を読むために、いまつないでいるリレーと、その理由です。フォローしている人ごとにリレーを選んでいるときは、「使うリレー」に無いリレーもここに並びます。"
     >
       <h4 class="c-secondary font-600 text-caption">読み込み</h4>
       <Show
@@ -156,7 +156,7 @@ const PlanNotes: Component<{ plan: ReadPlan; routingSettled: boolean }> = (
           class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-4 shrink-0"
           aria-hidden="true"
         />
-        {`${props.plan.uncoveredAuthors} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないため、どこからも読めていません。`}
+        {`${props.plan.uncoveredAuthors} 人は、同時につなげるリレーの数に収まらないか、その人のリレーにつながらないか、その人のリレーをすべて繋がないリレーにしているため、どこからも読めていません。`}
       </p>
     </Show>
   </>

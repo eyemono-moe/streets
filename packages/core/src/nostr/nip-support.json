@@ -295,16 +295,17 @@
     "nip": "51",
     "status": "一部",
     "summary": "ミュート・ブックマーク・ピン留め・フォローセットなどのリスト",
-    "kinds": [10000, 10001, 10003, 10005, 10007, 10030, 30000],
+    "kinds": [10000, 10001, 10003, 10005, 10006, 10007, 10030, 30000],
     "tags": ["d", "e", "p", "a", "t", "relay"],
     "paths": [
       "packages/core/src/nostr/private-tags.ts",
       "packages/core/src/moderation/mute-list.ts",
       "packages/core/src/nostr/pinned-notes.ts",
+      "packages/core/src/settings/blocked-relay-list.ts",
       "packages/core/src/lists/follow-set.ts",
       "apps/web/src/lists/FollowSetSummary.tsx"
     ],
-    "gap": "NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない"
+    "gap": "NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない。繋がないリレー（kind:10006）は公開の項目だけを読み、非公開の項目は読まない"
   },
   {
     "nip": "57",

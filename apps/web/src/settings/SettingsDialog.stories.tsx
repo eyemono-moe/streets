@@ -12,6 +12,7 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import { useStoryNip05 } from "../storybook/nip05";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
+import { BlockedRelayMediator } from "./BlockedRelayMediator";
 import { MuteMediator } from "./MuteMediator";
 import { ProfileMediator } from "./ProfileMediator";
 import { RelayMediator } from "./RelayMediator";
@@ -60,6 +61,11 @@ const muteListEvent = (tags: string[][], content: string): NostrEvent => ({
   content,
 });
 
+const blockedRelayList = (tags: string[][]): NostrEvent => ({
+  ...relayList(tags),
+  kind: 10006,
+});
+
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
   const [appearance, setAppearance] = createSignal(props.appearance);
@@ -72,6 +78,9 @@ const Story = (props: Props) => {
   const [defaultReaction, setDefaultReaction] = createSignal<ReactionInput>({
     type: "like",
   });
+  const [blocked, setBlocked] = createSignal<NostrEvent | undefined>(
+    blockedRelayList([["relay", "wss://spam.example/"]]),
+  );
   // リレーの一覧は、保存したらそのまま手元の版を差し替える（署名もリレーも無い）。
   const [relays, setRelays] = createSignal<NostrEvent | undefined>(
     relayList([
@@ -163,64 +172,76 @@ const Story = (props: Props) => {
                   : undefined
               }
             >
-              <Mediates
-                handle={(event) => {
-                  switch (event.type) {
-                    case "deck/set-color-scheme":
-                      setScheme(event.scheme);
-                      return false;
-                    case "deck/preview-appearance":
-                      applyColors(event.appearance);
-                      return true;
-                    case "deck/set-write-progress":
-                      setWriteProgress(event.on);
-                      return true;
-                    case "deck/set-error-report":
-                      setErrorReport(event.on);
-                      return true;
-                    case "deck/set-client-tag":
-                      setClientTag(event.on);
-                      return true;
-                    case "deck/set-column-digits":
-                      setColumnDigits(event.on);
-                      return true;
-                    case "deck/set-deck-layout":
-                      setDeckLayout(event.layout);
-                      return true;
-                    case "deck/set-default-reaction":
-                      setDefaultReaction(event.input);
-                      return true;
-                    case "deck/set-shortcut":
-                      setKeymap((current) => ({
-                        ...current,
-                        [event.action]: event.hotkey,
-                      }));
-                      return true;
-                    case "deck/set-appearance":
-                      applyColors(event.appearance);
-                      setAppearance(event.appearance);
-                      return true;
-                    default:
-                      return false;
-                  }
+              <BlockedRelayMediator
+                writer={{
+                  replace: async (_kind, _identifier, mutation) => {
+                    const draft = await mutation(blocked());
+                    const next = blockedRelayList(draft.tags);
+                    setBlocked(next);
+                    return { event: next } as never;
+                  },
                 }}
+                list={blocked}
               >
-                <SettingsDialog
-                  open
-                  signedIn={props.signedIn !== false}
-                  wide={props.wide}
-                  scheme={scheme()}
-                  appearance={appearance()}
-                  writeProgress={writeProgress()}
-                  errorReport={errorReport()}
-                  clientTag={clientTag()}
-                  keymap={keymap()}
-                  columnDigits={columnDigits()}
-                  deckLayout={deckLayout()}
-                  defaultReaction={defaultReaction()}
-                  initialPage={props.page}
-                />
-              </Mediates>
+                <Mediates
+                  handle={(event) => {
+                    switch (event.type) {
+                      case "deck/set-color-scheme":
+                        setScheme(event.scheme);
+                        return false;
+                      case "deck/preview-appearance":
+                        applyColors(event.appearance);
+                        return true;
+                      case "deck/set-write-progress":
+                        setWriteProgress(event.on);
+                        return true;
+                      case "deck/set-error-report":
+                        setErrorReport(event.on);
+                        return true;
+                      case "deck/set-client-tag":
+                        setClientTag(event.on);
+                        return true;
+                      case "deck/set-column-digits":
+                        setColumnDigits(event.on);
+                        return true;
+                      case "deck/set-deck-layout":
+                        setDeckLayout(event.layout);
+                        return true;
+                      case "deck/set-default-reaction":
+                        setDefaultReaction(event.input);
+                        return true;
+                      case "deck/set-shortcut":
+                        setKeymap((current) => ({
+                          ...current,
+                          [event.action]: event.hotkey,
+                        }));
+                        return true;
+                      case "deck/set-appearance":
+                        applyColors(event.appearance);
+                        setAppearance(event.appearance);
+                        return true;
+                      default:
+                        return false;
+                    }
+                  }}
+                >
+                  <SettingsDialog
+                    open
+                    signedIn={props.signedIn !== false}
+                    wide={props.wide}
+                    scheme={scheme()}
+                    appearance={appearance()}
+                    writeProgress={writeProgress()}
+                    errorReport={errorReport()}
+                    clientTag={clientTag()}
+                    keymap={keymap()}
+                    columnDigits={columnDigits()}
+                    deckLayout={deckLayout()}
+                    defaultReaction={defaultReaction()}
+                    initialPage={props.page}
+                  />
+                </Mediates>
+              </BlockedRelayMediator>
             </RelayMediator>
           </MuteMediator>
         </ProfileMediator>

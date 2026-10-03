@@ -30,7 +30,7 @@ export const DialogPortal: ParentComponent<{
 }> = (props) => (
   <Portal>
     <ArkDialog.Backdrop
-      class={`motion-fade fixed inset-0 ${props.backdropClass ?? "bg-ui-950/40"}`}
+      class={`motion-fade fixed inset-0 transition-colors duration-150 ${props.backdropClass ?? "bg-ui-950/40"}`}
     />
     <ArkDialog.Positioner
       class={`fixed inset-0 flex items-center justify-center ${props.class ?? "p-4"}`}

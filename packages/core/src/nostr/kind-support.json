@@ -23,6 +23,7 @@
   { "kind": 10002, "status": "内部利用", "summary": "リレーリスト" },
   { "kind": 10003, "status": "内部利用", "summary": "ブックマークリスト" },
   { "kind": 10005, "status": "内部利用", "summary": "公開鍵のリスト" },
+  { "kind": 10006, "status": "内部利用", "summary": "繋がないリレーのリスト" },
   { "kind": 10007, "status": "内部利用", "summary": "検索リレーのリスト" },
   { "kind": 10030, "status": "内部利用", "summary": "絵文字リスト" },
   {
