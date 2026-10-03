@@ -8,7 +8,7 @@ const Story = () => (
       <ExperimentalBadge />
     </div>
     <Switch
-      label="bot と名乗る人を除く"
+      label="botを除く"
       checked={false}
       onChange={() => {}}
       aside={<ExperimentalBadge />}

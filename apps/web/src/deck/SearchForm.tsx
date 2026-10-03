@@ -177,9 +177,9 @@ const SearchForm: Component<{
           }
         />
       </Field>
-      {/* 名乗っている人しか除けないので、効きにくいことを印で示す。 */}
+      {/* プロフィールで名乗っている人しか除けず効きにくいので、印で示す。 */}
       <Switch
-        label="bot と名乗る人を除く"
+        label="botを除く"
         checked={props.query.excludeBots}
         onChange={(checked) => patch({ excludeBots: checked })}
         aside={<ExperimentalBadge />}
