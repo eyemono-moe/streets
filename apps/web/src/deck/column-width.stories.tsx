@@ -28,6 +28,21 @@ const few: ColumnDef[] = [
   },
 ];
 
+// 題名は中身から決まるので、保存した title ではなく、検索の語で長くする。
+const longTitle: ColumnDef[] = [
+  {
+    id: "search",
+    title: "検索",
+    width: "s",
+    source: {
+      kind: "search",
+      query:
+        "とても長い検索の語を入れたカラムでも、設定した幅を超えて広がらないことを確かめる",
+    },
+  },
+  ...few.slice(1),
+];
+
 const many: ColumnDef[] = Array.from({ length: 8 }, (_, i) => ({
   ...few[i % few.length],
   id: `c${i}`,
@@ -81,4 +96,11 @@ export const 画面いっぱいに広げる: Story = {
 /** 入りきらないときは、最小の幅のまま横にスクロールする。 */
 export const 広げても入りきらない: Story = {
   args: { columns: many, stretch: true },
+};
+
+/** 題名が長くても、設定した幅を守る。 */
+export const 長い題名: Story = { args: { columns: longTitle, stretch: false } };
+
+export const 長い題名を広げる: Story = {
+  args: { columns: longTitle, stretch: true },
 };
