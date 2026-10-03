@@ -152,6 +152,7 @@ import NewDeckPanel from "./NewDeckPanel";
 import { relayListState } from "./relay-list";
 import SearchPanel from "./SearchPanel";
 import SidePanel, { SidePanelMotion } from "./SidePanel";
+import UnreadableLink from "./UnreadableLink";
 
 // 開くまで要らないものは別のファイルに分け、起動が落ち着いてから読む。
 const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
@@ -905,13 +906,12 @@ const DeckScreen: Component<{
                     </div>
                   )}
                 </Show>
-                <Show when={params.entity && !temp()}>
-                  <div class="order-first h-full w-95 shrink-0 bg-primary p-4">
-                    <p role="alert" class="c-secondary text-caption">
-                      このリンクは読めませんでした：
-                      {params.entity}
-                    </p>
-                  </div>
+                <Show when={!temp() && params.entity}>
+                  {(entity) => (
+                    <div class="order-first h-full w-95 shrink-0 border-primary border-r bg-primary">
+                      <UnreadableLink entity={entity()} />
+                    </div>
+                  )}
                 </Show>
                 <For each={order.mounted()}>
                   {(column) => (
