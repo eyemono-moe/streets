@@ -75,6 +75,7 @@ const Story = (props: Props) => {
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
   const [deckLayout, setDeckLayout] = createSignal<DeckLayout>("auto");
+  const [columnStretch, setColumnStretch] = createSignal(false);
   const [defaultReaction, setDefaultReaction] = createSignal<ReactionInput>({
     type: "like",
   });
@@ -204,6 +205,9 @@ const Story = (props: Props) => {
                       case "deck/set-column-digits":
                         setColumnDigits(event.on);
                         return true;
+                      case "deck/set-column-stretch":
+                        setColumnStretch(event.on);
+                        return true;
                       case "deck/set-deck-layout":
                         setDeckLayout(event.layout);
                         return true;
@@ -237,6 +241,7 @@ const Story = (props: Props) => {
                     keymap={keymap()}
                     columnDigits={columnDigits()}
                     deckLayout={deckLayout()}
+                    columnStretch={columnStretch()}
                     defaultReaction={defaultReaction()}
                     initialPage={props.page}
                   />

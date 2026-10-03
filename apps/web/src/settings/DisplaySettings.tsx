@@ -11,6 +11,7 @@ import {
   type ColorScheme,
   loadColorScheme,
 } from "@streets/core/settings/color-scheme";
+import { loadColumnStretch } from "@streets/core/settings/column-stretch-setting";
 import {
   type ContentWarningMode,
   loadContentWarningMode,
@@ -64,6 +65,8 @@ const DisplaySettings: Component<{
   contentWarning: ContentWarningMode;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  /** カラムを画面の幅いっぱいに広げるか（この端末の設定）。 */
+  columnStretch: boolean;
   /** アクション欄に出す操作（この端末の設定）。 */
   actionLayout: ActionLayout;
 }> = (props) => {
@@ -216,6 +219,25 @@ const DisplaySettings: Component<{
           onChange={(layout) =>
             dispatch({ type: "deck/set-deck-layout", layout })
           }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="カラムの幅"
+        scope="device"
+        changed={props.columnStretch !== loadColumnStretch(null)}
+        onReset={() =>
+          dispatch({
+            type: "deck/set-column-stretch",
+            on: loadColumnStretch(null),
+          })
+        }
+        description="オンにすると、横に並べたカラムを画面の右端まで広げます。カラムごとの幅（S・M・L）の比はそのままで、それぞれの幅はいちばん狭いときの大きさになります。カラムが多くて入りきらないときは、今までどおり横にスクロールして見ます。"
+      >
+        <Switch
+          label="カラムを画面の幅いっぱいに広げる"
+          checked={props.columnStretch}
+          onChange={(on) => dispatch({ type: "deck/set-column-stretch", on })}
         />
       </SettingsSection>
 

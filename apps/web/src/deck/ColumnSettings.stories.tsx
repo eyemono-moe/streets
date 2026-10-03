@@ -13,7 +13,7 @@ const base: ColumnDef = {
 
 const meta = {
   title: "デッキ/カラム設定",
-  component: (props: { initial: ColumnDef }) => {
+  component: (props: { initial: ColumnDef; stretch?: boolean }) => {
     const [column, setColumn] = createSignal(props.initial);
     return (
       // 変更はデッキの段が保存する。ストーリーでは手元の値に当てて、切り替えた結果を見せる。
@@ -29,18 +29,22 @@ const meta = {
           column={column()}
           facets={columnFacets(column())}
           relayList={{ phase: "missing" }}
+          stretch={props.stretch}
         />
       </Mediates>
     );
   },
   args: { initial: base },
   argTypes: { initial: { control: false } },
-} satisfies Meta<{ initial: ColumnDef }>;
+} satisfies Meta<{ initial: ColumnDef; stretch?: boolean }>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 既定: Story = {};
+
+/** 画面の幅いっぱいに広げているとき、幅の px は最小の幅として読ませる。 */
+export const 幅を広げているとき: Story = { args: { stretch: true } };
 
 export const 通知: Story = {
   args: {

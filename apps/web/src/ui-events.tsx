@@ -207,6 +207,7 @@ export type DeckEvent =
   | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
   /** 数字キーでカラムを見せるか。この端末に保存する。 */
   | { type: "deck/set-column-digits"; on: boolean }
+  | { type: "deck/set-column-stretch"; on: boolean }
   /** いいねボタンで送るリアクション。この端末に保存する。 */
   | { type: "deck/set-default-reaction"; input: ReactionInput }
   /** アクション欄に出す操作とメニューに入れる操作。この端末に保存する。 */

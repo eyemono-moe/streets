@@ -11,6 +11,7 @@ import ColumnTitle from "./ColumnTitle";
 const ColumnSettingsPanel: Component<{
   column: ColumnDef;
   relayList: RelayListState;
+  stretch?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
@@ -37,6 +38,7 @@ const ColumnSettingsPanel: Component<{
           column={props.column}
           facets={columnFacets(props.column)}
           relayList={props.relayList}
+          stretch={props.stretch}
         />
       </div>
     </aside>
