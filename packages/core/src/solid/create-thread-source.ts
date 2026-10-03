@@ -1,6 +1,7 @@
 import { type Accessor, createMemo, untrack } from "solid-js";
 import {
   COMMENT_KIND,
+  type EventRef,
   commentRefs,
   eventRelayHints,
   threadRoot,
@@ -13,6 +14,15 @@ export type CreateThreadSourceOptions = {
   /** いま画面に出ているスレッドの焦点。閉じていれば `undefined`。 */
   focusId: Accessor<string | undefined>;
   store: EventStore;
+  /**
+   * 上へたどって欠けていた返信先。根の購読では届かないことがある（`root` の印が
+   * 無い返信では、根が分からないまま焦点を根として購読している）ので、id で取る。
+   */
+  ancestors?: Accessor<readonly Extract<EventRef, { form: "id" }>[]>;
+  /**
+   * 上へたどり着いた一番上。`root` の印が無い返信では、これを根として返信を集める。
+   */
+  reachedTop?: Accessor<string | undefined>;
 };
 
 export type ThreadSource = {
@@ -44,7 +54,7 @@ export const createThreadSource = (
     // 深いリンクや未取得 mention から焦点を変える経路を足すと崩れる。
     const focus = options.store.get(id);
     if (!focus) return id;
-    return threadRoot(focus)?.id ?? id;
+    return threadRoot(focus)?.id ?? options.reachedTop?.() ?? id;
   });
 
   const relayHints = createMemo<readonly RelayUrl[]>(() => {
@@ -73,19 +83,35 @@ export const createThreadSource = (
     // や `{}` 単体、resolve-source.ts の followees の罠とは別物）。
     if (!root) return { type: "nostr", filters: [] };
 
+    // 焦点への返信は、焦点の id でも集める。`reply` の印だけで書かれた返信は根を指さない。
+    const focus = untrack(options.focusId);
+    const replyTo = focus && focus !== root ? [root, focus] : [root];
+    const ancestors = options.ancestors?.() ?? [];
     // 根や返信は著者を指定しない問い合わせなので、行き先は読み取り層の既定に
     // 任せ、ヒントはそこへ足す。
-    const hints = relayHints();
+    const hints = [
+      ...new Set([
+        ...relayHints(),
+        ...ancestors.flatMap((ref) => (ref.relay ? [ref.relay] : [])),
+      ]),
+    ];
     return {
       type: "nostr",
       filters: [
-        { ids: [root] },
-        { kinds: [1], "#e": [root] },
+        { ids: [root, ...ancestors.map((ref) => ref.id)] },
+        // 書いた人が分かっている返信先は、その人のリレーにも聞く。
+        ...ancestors.flatMap((ref) =>
+          ref.pubkey ? [{ ids: [ref.id], authors: [ref.pubkey] }] : [],
+        ),
+        { kinds: [1], "#e": replyTo },
         // 返信への返信になったコメントは、根を大文字の `E` でしか指さない。
         { kinds: [COMMENT_KIND], "#E": [root] },
+        ...(focus && focus !== root
+          ? [{ kinds: [COMMENT_KIND], "#e": [focus] }]
+          : []),
         ...(address ? [{ kinds: [COMMENT_KIND], "#A": [address] }] : []),
       ],
-      ...(hints.length > 0 ? { extraRelays: [...hints] } : {}),
+      ...(hints.length > 0 ? { extraRelays: hints } : {}),
     };
   });
 

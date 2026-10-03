@@ -49,6 +49,25 @@ describe("threadSpine", () => {
     expect(spine.reachedRoot).toBe(false);
   });
 
+  it("events に無い祖先は lookup から引き、欠けたところでその返信先を返す", () => {
+    // 捕まえる変異: lookup を見ない（タイムラインで取れた返信先がスレッドで出ない）
+    // 捕まえる変異: 欠けた返信先を返さない（取りに行く先が分からない）
+    const mid = note("2", { reply: "1" });
+    const focus = note("3", { reply: "2" });
+    const spine = threadSpine([focus], id("3"), (key) =>
+      key === mid.id ? mid : undefined,
+    );
+    expect(spine.ancestors.map((e) => e.content)).toEqual(["2"]);
+    expect(spine.reachedRoot).toBe(false);
+    expect(spine.missingParent?.id).toBe(id("1"));
+  });
+
+  it("循環で止まったときは、取りに行く先を返さない", () => {
+    // 捕まえる変異: 循環でも missingParent を返す（同じものを取りに行き続ける）
+    const focus = note("3", { reply: "3" });
+    expect(threadSpine([focus], id("3")).missingParent).toBeUndefined();
+  });
+
   it("replies は focus を直接の親とするものだけ", () => {
     // 捕まえる変異: 根を指す全イベントを replies に入れる（孫や別の枝が混ざり「背骨だけ」が壊れる）。
     const root = note("1");

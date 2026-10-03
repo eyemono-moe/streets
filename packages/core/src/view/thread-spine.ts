@@ -1,5 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
 import { type EventRef, replyTarget } from "../nostr/event-refs";
+
+type IdRef = Extract<EventRef, { form: "id" }>;
 import { compareEvents } from "../read/sorted-events";
 import { replyParentRef } from "./comment-scope";
 
@@ -11,6 +13,8 @@ export type ThreadSpine = {
   replies: NostrEvent[];
   /** 祖先の連鎖が根まで到達したか。**`false` を黙らせないこと**——途中が欠けると「根から始まる」ように見え読み違える。 */
   reachedRoot: boolean;
+  /** 祖先が手元に無くて止まったとき、その欠けた返信先。取りに行く先。循環で止まったときは無い。 */
+  missingParent?: IdRef;
   /**
    * 一番上のコメントが記事などの住所に付いているとき、その住所。id で辿れないので
    * `ancestors` には入らず、別に引いて上に添える。
@@ -18,13 +22,19 @@ export type ThreadSpine = {
   scopeRoot?: EventRef;
 };
 
-/** 表示する 1 本の背骨を計算する。木ではない —— 兄弟の枝も返信の返信も出さない。ネットワーク/store は触らない。 */
+/**
+ * 表示する 1 本の背骨を計算する。木ではない —— 兄弟の枝も返信の返信も出さない。
+ * `lookup` は `events` に無いものを探す先（手元の store など）。タイムラインで取れた
+ * 返信先は、スレッドの購読から届かなくても出す。
+ */
 export const threadSpine = (
   events: readonly NostrEvent[],
   focusId: string,
+  lookup: (id: string) => NostrEvent | undefined = () => undefined,
 ): ThreadSpine => {
   const byId = new Map(events.map((event) => [event.id, event]));
-  const focus = byId.get(focusId);
+  const find = (id: string) => byId.get(id) ?? lookup(id);
+  const focus = find(focusId);
   if (!focus) {
     return {
       ancestors: [],
@@ -39,6 +49,7 @@ export const threadSpine = (
   const seen = new Set<string>([focus.id]);
   let cursor = focus;
   let reachedRoot = true;
+  let missingParent: IdRef | undefined;
   for (;;) {
     const parentRef = replyTarget(cursor);
     if (!parentRef) break;
@@ -46,9 +57,10 @@ export const threadSpine = (
       reachedRoot = false;
       break;
     }
-    const parent = byId.get(parentRef.id);
+    const parent = find(parentRef.id);
     if (!parent) {
       reachedRoot = false;
+      missingParent = parentRef;
       break;
     }
     seen.add(parent.id);
@@ -68,6 +80,7 @@ export const threadSpine = (
     focus,
     replies,
     reachedRoot,
+    ...(missingParent ? { missingParent } : {}),
     ...(scope?.form === "address" ? { scopeRoot: scope } : {}),
   };
 };

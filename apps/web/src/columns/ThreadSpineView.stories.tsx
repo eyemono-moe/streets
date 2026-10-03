@@ -121,6 +121,31 @@ export const 取得中: Story = {
   args: { events: [middle, focus], focusId: focus.id, settled: false },
 };
 
+// `root` の印を付けず、返信先を `reply` の印だけで指すクライアントがある。
+const bareRoot = bob.note("印を付けないクライアントの投稿。");
+const bareMiddle = alice.note("返信先を reply の印だけで指す返信。", [
+  ["e", bareRoot.id, "", "reply"],
+  ["p", bob.pubkey],
+]);
+const bareFocus = bob.note("その返信への、また reply の印だけの返信。", [
+  ["e", bareMiddle.id, "", "reply"],
+  ["p", alice.pubkey],
+]);
+
+/** `root` の印が無い返信でも、返信先をたどって根まで並べる。 */
+export const root_の印が無い: Story = {
+  args: { events: [bareRoot, bareMiddle, bareFocus], focusId: bareFocus.id },
+};
+
+/** 欠けた返信先を取りに行っている間。取り終えるまで「取得できませんでした」と言わない。 */
+export const 上の方を取得中: Story = {
+  args: {
+    events: [bareMiddle, bareFocus],
+    focusId: bareFocus.id,
+    settled: false,
+  },
+};
+
 export const 長い投稿が混ざる: Story = {
   args: {
     events: [root, longMiddle, longFocus, ...longReplies],

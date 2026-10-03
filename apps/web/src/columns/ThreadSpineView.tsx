@@ -9,15 +9,17 @@ import Event, { EventRefView } from "../note/Event";
  */
 const ThreadSpineView: Component<{
   spine: ThreadSpine;
-  /** 根まで辿れないことを黙らせるか。取得が続いている間は出さない。 */
+  /** 上の方を取り終えたか。取り終えるまでは、欠けていても「読み込み中」と出す。 */
   settled: boolean;
   expandMedia: boolean;
 }> = (props) => (
   <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
     {/* 途中が欠けると「根から始まる」ように見えるので、そのときは断っておく。 */}
-    <Show when={!props.spine.reachedRoot && props.settled}>
+    <Show when={!props.spine.reachedRoot && props.spine.focus}>
       <p class="c-secondary bg-primary px-3 py-2 text-caption">
-        このスレッドの上の方は取得できませんでした。
+        {props.settled
+          ? "このスレッドの上の方は取得できませんでした。"
+          : "このスレッドの上の方を読み込み中…"}
       </p>
     </Show>
     {/* 祖先から焦点までは線でつながる 1 本なので、間に区切りを引かない。タイムラインで返信先を上に置くときと同じ見え方にする。 */}
