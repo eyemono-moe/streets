@@ -2631,3 +2631,74 @@ describe("subscribeUnstored", () => {
     expect(delivery.onEvent).not.toHaveBeenCalled();
   });
 });
+
+describe("SubscriptionManager の繋がないリレー", () => {
+  it("ブロックしたリレーの代わりに、その人のほかのリレーを選び直す", () => {
+    const { manager, store, connections } = createManager({ redundancy: 1 });
+    const author = pubkeyFor(50_001);
+    store.put(
+      relayListFor(author, ["wss://a-blocked/", "wss://z-open/"]),
+      "wss://indexer/",
+    );
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    expect(plans.at(-1)?.relays).toEqual(["wss://a-blocked/"]);
+
+    manager.setBlockedRelays(["wss://a-blocked/"]);
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://z-open/"]);
+    expect(connections.get("wss://a-blocked/")?.closed).toBe(true);
+  });
+
+  it("ブロックしたリレーしか持たない人は、読めない人として数える", () => {
+    const { manager, store } = createManager({ fallbackRelays: [] });
+    const author = pubkeyFor(50_002);
+    store.put(relayListFor(author, ["wss://blocked/"]), "wss://indexer/");
+    manager.setBlockedRelays(["wss://blocked/"]);
+
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+
+    expect(plans.at(-1)).toEqual({
+      relays: [],
+      unroutableAuthors: 0,
+      uncoveredAuthors: 1,
+    });
+  });
+
+  it("明示したリレーと fallback でも、ブロックしたものは待たない", () => {
+    const { manager, connectCalls } = createManager({
+      fallbackRelays: ["wss://fallback/", "wss://blocked-fallback/"],
+    });
+    manager.setBlockedRelays(["wss://blocked/", "wss://blocked-fallback/"]);
+
+    const explicit = subscribeWithPlans(
+      manager,
+      [{ kinds: [1] }],
+      ["wss://open/", "wss://blocked/"],
+    );
+    const viaFallback = subscribeWithPlans(manager, [{ kinds: [1] }]);
+
+    expect(explicit.plans.at(-1)?.relays).toEqual(["wss://open/"]);
+    expect(viaFallback.plans.at(-1)?.relays).toEqual(["wss://fallback/"]);
+    expect(connectCalls).not.toContain("wss://blocked/");
+    expect(connectCalls).not.toContain("wss://blocked-fallback/");
+  });
+
+  it("ブロックを解けば、そのリレーへ戻る", () => {
+    const { manager, store } = createManager({ redundancy: 1 });
+    const author = pubkeyFor(50_003);
+    store.put(relayListFor(author, ["wss://only/"]), "wss://indexer/");
+    manager.setBlockedRelays(["wss://only/"]);
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    expect(plans.at(-1)?.relays).toEqual([]);
+
+    manager.setBlockedRelays([]);
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://only/"]);
+  });
+});

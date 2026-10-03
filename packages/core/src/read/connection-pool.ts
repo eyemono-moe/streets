@@ -165,6 +165,12 @@ export class ConnectionPool {
    */
   readonly #degradedListeners = new Set<(url: RelayUrl) => void>();
 
+  /**
+   * ユーザーが繋がないと決めたリレー（kind:10006）。返信相手のリレーや投稿に
+   * 付いたヒントなど、選定を通らない経路もあるので、ソケットを作るここで止める。
+   */
+  readonly #blocked = new Set<RelayUrl>();
+
   constructor(options: ConnectionPoolOptions) {
     this.#options = options;
     this.#maxConnections = options.maxConnections ?? MAX_CONNECTIONS;
@@ -217,6 +223,45 @@ export class ConnectionPool {
   statusOf(url: RelayUrl): RelayStatus {
     if (this.#failures.has(url)) return "failing";
     return this.#pool.get(url)?.connection ? "in-use" : "idle";
+  }
+
+  get blockedRelays(): readonly RelayUrl[] {
+    return [...this.#blocked];
+  }
+
+  isBlocked(url: RelayUrl): boolean {
+    return this.#blocked.has(url);
+  }
+
+  /**
+   * 繋がないリレーを差し替える。新しく入った URL の接続はその場で閉じ、
+   * 待っていた購読には `onClosed` を配る —— 配らないと一度きりの取得が
+   * タイムアウトまで待ち続ける。外れた URL は次に要求されたときに開く。
+   */
+  setBlockedRelays(urls: readonly RelayUrl[]): void {
+    this.#blocked.clear();
+    for (const url of urls) this.#blocked.add(url);
+    for (const [url, pooled] of [...this.#pool]) {
+      if (!this.#blocked.has(url)) continue;
+      const entries = [...pooled.entries];
+      // ソケットの死より先に購読を外す。外さないと、閉じたソケットからも
+      // 遅れて onClosed が届き、二重に数えられる。
+      for (const entry of entries) {
+        entry.subscription?.close();
+        entry.subscription = null;
+      }
+      this.#drop(url);
+      for (const entry of entries) {
+        try {
+          entry.handlers.onClosed("blocked");
+        } catch (error) {
+          console.error(
+            "ConnectionPool: an onClosed handler threw while closing a blocked relay; isolating it so the remaining entries are still notified.",
+            error,
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -308,6 +353,7 @@ export class ConnectionPool {
     url: RelayUrl,
     options?: SubscribeOptions,
   ): Pooled | undefined {
+    if (this.#blocked.has(url)) return undefined;
     let pooled = this.#pool.get(url);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
@@ -445,6 +491,9 @@ export class ConnectionPool {
    * 予算を返さない決着の仕方を作らない。
    */
   publish(url: RelayUrl, event: NostrEvent): Promise<void> {
+    if (this.#blocked.has(url)) {
+      return Promise.reject(new Error(`blocked relay: ${url}`));
+    }
     const pooled = this.#ensureConnection(url);
     if (!pooled) {
       return Promise.reject(

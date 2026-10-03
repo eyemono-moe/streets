@@ -327,4 +327,72 @@ describe("publish の途中経過", () => {
     expect(seen).toHaveLength(3);
     expect(seen.at(-1)).toBe("wss://good/=accepted wss://bad/=rejected");
   });
+
+  it("繋がないリレーへは送らず、相手の read リレーは代わりの 1 本を選ぶ", async () => {
+    const store = new EventStore();
+    store.put(
+      relayListEvent(20, [
+        ["r", "wss://mine/", "write"],
+        ["r", "wss://mine-blocked/", "write"],
+      ]),
+      "wss://indexer/",
+    );
+    const recipient = relayListEvent(21, [
+      ["r", "wss://their-blocked/", "read"],
+      ["r", "wss://their-inbox/", "read"],
+      ["r", "wss://their-second/", "read"],
+    ]);
+    store.put(recipient, "wss://indexer/");
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(connections);
+    pool.setBlockedRelays(["wss://mine-blocked/", "wss://their-blocked/"]);
+    const publisher = createPublisher({
+      pool,
+      routing: new RoutingTable(store),
+      fallbackRelays: [],
+    });
+
+    const note = sign(20, {
+      ...base,
+      kind: 1,
+      tags: [["p", recipient.pubkey]],
+      content: "reply",
+    });
+    const result = await publisher.publish(note);
+
+    expect(result).toEqual({
+      accepted: ["wss://mine/", "wss://their-inbox/", "wss://their-second/"],
+      rejected: [],
+    });
+    expect(publisher.targets(note.pubkey)).toEqual(["wss://mine/"]);
+  });
+
+  it("自分の送信先が全部繋がないリレーなら、送れなかったと返す", async () => {
+    const store = new EventStore();
+    store.put(
+      relayListEvent(22, [["r", "wss://mine-blocked/", "write"]]),
+      "wss://indexer/",
+    );
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const pool = poolWithFakes(connections);
+    pool.setBlockedRelays(["wss://mine-blocked/"]);
+    const publisher = createPublisher({
+      pool,
+      routing: new RoutingTable(store),
+      fallbackRelays: ["wss://fallback/"],
+    });
+
+    const result = await publisher.publish(
+      sign(22, { ...base, kind: 1, content: "hello" }),
+    );
+
+    expect(result.accepted).toEqual([]);
+    expect(result.rejected).toEqual([
+      {
+        relay: "wss://mine-blocked/",
+        reason: "blocked relay: wss://mine-blocked/",
+      },
+    ]);
+    expect(connections.size).toBe(0);
+  });
 });

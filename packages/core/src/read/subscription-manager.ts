@@ -503,6 +503,22 @@ export class SubscriptionManager {
     this.replan();
   }
 
+  /**
+   * 繋がないリレー（kind:10006）を差し替え、張り直す。接続を閉じるのは
+   * プールで、ここは閉じたリレーの代わりを選び直す。
+   */
+  setBlockedRelays(urls: readonly RelayUrl[]): void {
+    const current = this.#pool.blockedRelays;
+    if (
+      current.length === urls.length &&
+      urls.every((url) => this.#pool.isBlocked(url))
+    ) {
+      return;
+    }
+    this.#pool.setBlockedRelays(urls);
+    this.replan();
+  }
+
   /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけを読む。 */
   #defaultRelays(): readonly RelayUrl[] {
     if (this.#readRouting.mode === "direct") return this.#readRouting.relays;
@@ -710,7 +726,10 @@ export class SubscriptionManager {
    */
   #replanOnce(): void {
     const direct = this.#readRouting.mode === "direct";
-    const fallbackRelays = this.#defaultRelays();
+    // 待つリレーの母集合からも外す。開けないリレーを待つと、完了しないまま残る。
+    const fallbackRelays = this.#defaultRelays().filter(
+      (url) => !this.#pool.isBlocked(url),
+    );
     const budget = this.#options.maxConnections ?? MAX_CONNECTIONS;
     const redundancy = this.#options.redundancy ?? RELAY_REDUNDANCY;
 
@@ -758,6 +777,7 @@ export class SubscriptionManager {
       budget,
       redundancy,
       degraded: this.#pool.degradedRelays,
+      blocked: this.#pool.blockedRelays,
     });
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
@@ -775,6 +795,7 @@ export class SubscriptionManager {
         // 予算都合で落とさないため。
         perRelay = new Map();
         for (const url of entry.explicitRelays) {
+          if (this.#pool.isBlocked(url)) continue;
           // 配列を共有すると一方への変更が他方に漏れるので、リレーごとに分ける。
           perRelay.set(url, [...entry.filters]);
         }

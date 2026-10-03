@@ -1700,3 +1700,66 @@ describe("statusOf", () => {
     expect(pool.statusOf("wss://one/")).toBe("in-use");
   });
 });
+
+describe("ConnectionPool の繋がないリレー", () => {
+  it("ブロックしたリレーへは購読も hold も publish もソケットを作らない", async () => {
+    const { pool, connectCalls } = createPool();
+    pool.setBlockedRelays(["wss://blocked/"]);
+
+    expect(
+      pool.subscribe("wss://blocked/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeUndefined();
+    expect(pool.hold("wss://blocked/")).toBeUndefined();
+    await expect(
+      pool.publish("wss://blocked/", fakeEvent("e1")),
+    ).rejects.toThrow("blocked relay");
+    // 予算を迂回する経路でも止める。
+    expect(
+      pool.subscribe("wss://blocked/", [{ kinds: [1] }], noopHandlers(), {
+        reserved: true,
+      }),
+    ).toBeUndefined();
+    expect(connectCalls).toEqual([]);
+  });
+
+  it("開いている接続をブロックしたら閉じ、待っていた購読に 1 回だけ知らせる", () => {
+    const { pool, connections } = createPool();
+    const onClosed = vi.fn();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], {
+      ...noopHandlers(),
+      onClosed,
+    });
+    pool.subscribe("wss://other/", [{ kinds: [1] }], noopHandlers());
+
+    pool.setBlockedRelays(["wss://one/"]);
+
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+    expect(onClosed).toHaveBeenCalledTimes(1);
+    expect(onClosed).toHaveBeenCalledWith("blocked");
+    expect(pool.size).toBe(1);
+    expect(pool.blockedRelays).toEqual(["wss://one/"]);
+  });
+
+  it("ブロックを解けば、次の要求で繋ぐ", () => {
+    const { pool, connectCalls } = createPool();
+    pool.setBlockedRelays(["wss://one/"]);
+    pool.setBlockedRelays([]);
+
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.isBlocked("wss://one/")).toBe(false);
+  });
+
+  it("ブロックで閉じたリレーへ再接続しない", () => {
+    const { pool, connectCalls, clock } = createPool({
+      failing: ["wss://one/"],
+    });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    pool.setBlockedRelays(["wss://one/"]);
+
+    clock.advance(120_000);
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+  });
+});

@@ -53,6 +53,10 @@ export type Publisher = {
  * 相手の通知はそこで待ち受けているので、自分の write リレーと交わらないと
  * 届かない。
  *
+ * ユーザーが繋がないと決めたリレー（kind:10006）へは送らない。相手の read
+ * リレーなら黙って飛ばす。自分の送信先が全部それなら、そのまま送ってプールに
+ * 断らせ、送れなかったことを結果に残す。
+ *
  * ソケットを開く・予算を強制するのは `ConnectionPool.publish()` に一本化し、
  * ここは送信先だけを決める。各リレーへの publish は独立に試みる
  * (`Promise.allSettled`) ので、1 本の失敗が他の成功を握り潰さない。
@@ -62,9 +66,10 @@ export const createPublisher = ({
   routing,
   fallbackRelays,
 }: CreatePublisherOptions): Publisher => {
+  const open = (url: RelayUrl) => !pool.isBlocked(url);
   const targets = (pubkey: string): RelayUrl[] => {
     const writeRelays = routing.writeRelaysFor(pubkey);
-    return [...(writeRelays.length > 0 ? writeRelays : fallbackRelays)];
+    return (writeRelays.length > 0 ? writeRelays : fallbackRelays).filter(open);
   };
 
   return {
@@ -73,14 +78,16 @@ export const createPublisher = ({
       const writeRelays = routing.writeRelaysFor(event.pubkey);
       const currentTargets =
         writeRelays.length > 0 ? writeRelays : fallbackRelays;
-      const ownTargets = [
+      const ownCandidates = [
         ...new Set([...currentTargets, ...(options?.additionalRelays ?? [])]),
       ];
+      const ownOpen = ownCandidates.filter(open);
+      const ownTargets = ownOpen.length > 0 ? ownOpen : ownCandidates;
       const publishTargets = [
         ...ownTargets,
         ...recipientRelays(
           event,
-          (pubkey) => routing.readRelaysFor(pubkey),
+          (pubkey) => routing.readRelaysFor(pubkey).filter(open),
           ownTargets,
         ),
       ];
