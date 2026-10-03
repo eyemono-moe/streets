@@ -65,6 +65,12 @@ const analyze = (mode: string) =>
       ]
     : [];
 
+/**
+ * 配る JS の頭に、ライセンスの在りかを書く。縮めた後に足すので消えない。
+ * 先読みの一覧（`__vite__mapDeps`）を持つチャンクでは、Vite がその前に差し込むので 2 行目になる。
+ */
+const LICENSE_BANNER = "/*! Licenses of bundled dependencies: /license.md */";
+
 const commit = commitSha();
 
 /**
@@ -92,6 +98,8 @@ export default defineConfig(({ mode }) => ({
     ...sentryUpload(release),
     ...analyze(mode),
   ]),
+  // Worker は別にまとめられ、`build.rolldownOptions` が届かない。
+  worker: { rolldownOptions: { output: { postBanner: LICENSE_BANNER } } },
   build: {
     // Vite 7 以降の既定（Baseline Widely Available）と同じ。Vite 6 の既定では
     // core のクラスの private フィールド（`#events` など）が WeakMap の呼び出しに
@@ -99,6 +107,9 @@ export default defineConfig(({ mode }) => ({
     target: ["chrome107", "edge107", "firefox104", "safari16"],
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
+    // 同梱した依存のライセンスを、ほかの静的ファイルと並べて `/license.md` で配る。
+    license: { fileName: "license.md" },
+    rolldownOptions: { output: { postBanner: LICENSE_BANNER } },
   },
   server: {
     port: 5173,
