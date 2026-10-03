@@ -114,6 +114,7 @@ const Column: Component<ColumnProps> = (props) => {
       relayList={props.relayList}
       bookmarks={props.bookmarks}
       searchRelays={props.searchRelays}
+      remembersTabs={!props.stacked && !props.temporary}
       scrollerRef={(element) => {
         scroller = element;
       }}

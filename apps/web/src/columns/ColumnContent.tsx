@@ -15,8 +15,10 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { blockedRelays } from "../blocked-relays";
+import { columnTabMemory } from "../column-tab-memory";
 import { LinkCardModeProvider } from "../note/link-card";
 import { readRoutingMode } from "../read-routing-setting";
+import { TabMemoryProvider } from "../ui/ColumnTabs";
 import { ColumnScope } from "./column-scope";
 import { type ColumnInputs, columnView } from "./column-views";
 import ColumnBody from "./ColumnBody";
@@ -26,6 +28,11 @@ export type ColumnContentProps = ColumnInputs & {
   column: ColumnDef;
   readLayer: ReadLayer;
   scrollerRef: (element: HTMLDivElement) => void;
+  /**
+   * 開いていたタブを、次に開いたときのために覚える。リロードしても残るデッキの
+   * カラムだけが覚える（一時カラムや重ねた段は、開き直すと別のものになる）。
+   */
+  remembersTabs?: boolean;
 };
 
 /** カラムの中身の枠。種類ごとの中身は `column-views` の表から選ぶ。 */
@@ -47,6 +54,14 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
       blockedRelays(),
     );
 
+  const content = () => (
+    <Dynamic
+      component={view().Content}
+      source={props.column.source}
+      inputs={props}
+    />
+  );
+
   return (
     <ColumnScope
       value={{
@@ -66,11 +81,11 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
             when={props.signedIn || !columnNeedsAccount(props.column)}
             fallback={<NeedsAccount column={props.column} />}
           >
-            <Dynamic
-              component={view().Content}
-              source={props.column.source}
-              inputs={props}
-            />
+            <Show when={props.remembersTabs} fallback={content()}>
+              <TabMemoryProvider value={columnTabMemory(props.column.id)}>
+                {content()}
+              </TabMemoryProvider>
+            </Show>
           </Show>
         </ColumnBody>
       </LinkCardModeProvider>

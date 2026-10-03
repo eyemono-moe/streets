@@ -1,5 +1,14 @@
 import { Tabs } from "@ark-ui/solid/tabs";
-import { type Component, For, type JSX, Show } from "solid-js";
+import {
+  type Component,
+  For,
+  type JSX,
+  type ParentComponent,
+  Show,
+  createContext,
+  untrack,
+  useContext,
+} from "solid-js";
 
 export type ColumnTab = {
   value: string;
@@ -7,6 +16,26 @@ export type ColumnTab = {
   count?: number;
   content: () => JSX.Element;
 };
+
+/** 開いていたタブを覚えておく先。タブの並びは `label` で見分ける。 */
+export type TabMemory = {
+  recall: (tabs: string) => string | undefined;
+  remember: (tabs: string, value: string) => void;
+};
+
+const TabMemoryContext = createContext<TabMemory>();
+
+/**
+ * 中のタブが、開いていたタブを覚えて次もそこから開く。渡さなければ、
+ * いつも `defaultValue` から開く（その場限りのカラムなど）。
+ */
+export const TabMemoryProvider: ParentComponent<{ value: TabMemory }> = (
+  props,
+) => (
+  <TabMemoryContext.Provider value={props.value}>
+    {props.children}
+  </TabMemoryContext.Provider>
+);
 
 /**
  * カラム内の表示を、横幅を増やさず切り替えるタブ。開いていないタブの中身は
@@ -22,65 +51,84 @@ const ColumnTabs: Component<{
    * タブの並びは上端に留める。
    */
   scroll?: "inner" | "column";
-  /** タブが切り替わったとき（開いたときに初めて取りにいくものがある場合など）。 */
+  /**
+   * タブが切り替わったとき（開いたときに初めて取りにいくものがある場合など）。
+   * 覚えていたタブで開いたときも、そのタブで呼ぶ。
+   */
   onValueChange?: (value: string) => void;
-}> = (props) => (
-  <Tabs.Root
-    defaultValue={props.defaultValue ?? props.tabs[0]?.value}
-    onValueChange={(details) => props.onValueChange?.(details.value)}
-    lazyMount
-    unmountOnExit
-    class="isolate flex flex-col"
-    classList={{
-      "h-full min-h-0 flex-1": props.scroll !== "column",
-      // 切り替えた直後は中身が短い（読み込み中）。カラムの高さぶんを保たないと、
-      // 縮んだ分だけブラウザが位置を詰め、タブの並びがプロフィールの下まで戻る。
-      "min-h-full": props.scroll === "column",
-    }}
-  >
-    <Tabs.List
-      aria-label={props.label}
-      // 後に並ぶ中身（仮想スクロールの行は transform で重なりを作る）より上に出す。
-      // Root を isolate で区切っているので、この重なりは外へ漏れない。
-      class="flex min-w-0 overflow-x-auto border-primary border-b bg-primary px-2"
-      // sticky も位置を持つので、下線の Indicator はどちらでも List に合わせて置ける。
+}> = (props) => {
+  const memory = useContext(TabMemoryContext);
+  const initial = untrack(() => {
+    const fallback = props.defaultValue ?? props.tabs[0]?.value;
+    const recalled = memory?.recall(props.label);
+    // 覚えていたタブが無くなっていたら、既定のタブで開く。
+    if (!recalled || !props.tabs.some((tab) => tab.value === recalled)) {
+      return fallback;
+    }
+    if (recalled !== fallback) props.onValueChange?.(recalled);
+    return recalled;
+  });
+  return (
+    <Tabs.Root
+      defaultValue={initial}
+      onValueChange={(details) => {
+        memory?.remember(props.label, details.value);
+        props.onValueChange?.(details.value);
+      }}
+      lazyMount
+      unmountOnExit
+      class="isolate flex flex-col"
       classList={{
-        relative: props.scroll !== "column",
-        "sticky top-0 z-1": props.scroll === "column",
+        "h-full min-h-0 flex-1": props.scroll !== "column",
+        // 切り替えた直後は中身が短い（読み込み中）。カラムの高さぶんを保たないと、
+        // 縮んだ分だけブラウザが位置を詰め、タブの並びがプロフィールの下まで戻る。
+        "min-h-full": props.scroll === "column",
       }}
     >
+      <Tabs.List
+        aria-label={props.label}
+        // 後に並ぶ中身（仮想スクロールの行は transform で重なりを作る）より上に出す。
+        // Root を isolate で区切っているので、この重なりは外へ漏れない。
+        class="flex min-w-0 overflow-x-auto border-primary border-b bg-primary px-2"
+        // sticky も位置を持つので、下線の Indicator はどちらでも List に合わせて置ける。
+        classList={{
+          relative: props.scroll !== "column",
+          "sticky top-0 z-1": props.scroll === "column",
+        }}
+      >
+        <For each={props.tabs}>
+          {(tab) => (
+            <Tabs.Trigger
+              value={tab.value}
+              class="c-secondary hover:c-primary data-[selected]:c-accent-5 flex h-10 min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-1 whitespace-nowrap bg-transparent px-2 font-600 text-caption outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
+            >
+              <span>{tab.label}</span>
+              <Show when={tab.count !== undefined}>
+                <span class="tabular-nums">{tab.count}</span>
+              </Show>
+            </Tabs.Trigger>
+          )}
+        </For>
+        <Tabs.Indicator class="absolute bottom-0 flex h-0.5 w-[var(--width)] items-center justify-center">
+          <span class="h-0.5 w-6 rounded-full bg-accent-primary" />
+        </Tabs.Indicator>
+      </Tabs.List>
       <For each={props.tabs}>
         {(tab) => (
-          <Tabs.Trigger
+          <Tabs.Content
             value={tab.value}
-            class="c-secondary hover:c-primary data-[selected]:c-accent-5 flex h-10 min-w-0 flex-1 shrink-0 cursor-pointer items-center justify-center gap-1 whitespace-nowrap bg-transparent px-2 font-600 text-caption outline-none focus-visible:ring-2 focus-visible:ring-accent-5"
+            class="outline-none"
+            classList={{
+              "min-h-0 flex-1 overflow-y-auto overscroll-y-contain":
+                props.scroll !== "column",
+            }}
           >
-            <span>{tab.label}</span>
-            <Show when={tab.count !== undefined}>
-              <span class="tabular-nums">{tab.count}</span>
-            </Show>
-          </Tabs.Trigger>
+            {tab.content()}
+          </Tabs.Content>
         )}
       </For>
-      <Tabs.Indicator class="absolute bottom-0 flex h-0.5 w-[var(--width)] items-center justify-center">
-        <span class="h-0.5 w-6 rounded-full bg-accent-primary" />
-      </Tabs.Indicator>
-    </Tabs.List>
-    <For each={props.tabs}>
-      {(tab) => (
-        <Tabs.Content
-          value={tab.value}
-          class="outline-none"
-          classList={{
-            "min-h-0 flex-1 overflow-y-auto overscroll-y-contain":
-              props.scroll !== "column",
-          }}
-        >
-          {tab.content()}
-        </Tabs.Content>
-      )}
-    </For>
-  </Tabs.Root>
-);
+    </Tabs.Root>
+  );
+};
 
 export default ColumnTabs;
