@@ -5,6 +5,8 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/*.mjs", "scripts/research/*.mjs"],
+      // NIP 更新の agent が選ばれたとき、runner が外部 CLI を入れる。
+      "ignoreBinaries": ["copilot"],
       "ignoreDependencies": [
         // Workers のデプロイは CI が `vp exec wrangler` でルートから呼ぶ。
         "wrangler",
