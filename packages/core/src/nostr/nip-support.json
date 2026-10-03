@@ -126,6 +126,15 @@
     "gap": ""
   },
   {
+    "nip": "22",
+    "status": "一部",
+    "summary": "コメント（kind:1111）の根と親を読む",
+    "kinds": [1111],
+    "tags": ["E", "A", "I", "K", "P", "e", "a", "i", "k", "p"],
+    "paths": ["packages/core/src/nostr/event-refs.ts"],
+    "gap": "コメントを取りに行かず、表示もしない。コメントを書けない"
+  },
+  {
     "nip": "23",
     "status": "一部",
     "summary": "長文記事をカードで表示し、カラムで読む",

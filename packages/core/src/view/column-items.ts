@@ -1,7 +1,7 @@
 import type { ColumnFacet } from "../deck/column-kinds";
 import type { ColumnShow } from "../deck/deck";
 import type { NostrEvent } from "../nostr/event";
-import { quoteTargets, replyTarget } from "../nostr/event-refs";
+import { COMMENT_KIND, isReply, quoteTargets } from "../nostr/event-refs";
 
 /**
  * カラム設定の「表示するもの」で流れを間引く。購読は変えない ——
@@ -22,9 +22,9 @@ export const visibleColumnItems = (
     if (off("reactions") && event.kind === 7) return false;
     if (off("zaps") && event.kind === 9735) return false;
     if (off("chats") && event.kind === 42) return false;
-    if (event.kind !== 1) return true;
+    if (event.kind !== 1 && event.kind !== COMMENT_KIND) return true;
     // 返信と引用は別物。返信でもある引用は返信として扱い、片方だけを切っても消えない。
-    if (replyTarget(event)) return !off("replies");
+    if (isReply(event)) return !off("replies");
     if (quoteTargets(event).length > 0) return !off("quotes");
     return !off("mentions");
   });

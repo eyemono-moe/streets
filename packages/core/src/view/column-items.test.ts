@@ -65,6 +65,23 @@ describe("visibleColumnItems", () => {
     ).toEqual([note, quote]);
   });
 
+  it("コメント（kind:1111）は、親が id でなくても返信として間引く", () => {
+    // 捕まえる変異: kind:1 以外を素通しする、または replyTarget で返信を判定する（記事へのコメントは小文字の e を持たない）
+    const comment = event(1111, [
+      ["A", `30023:${"b".repeat(64)}:x`],
+      ["K", "30023"],
+      ["a", `30023:${"b".repeat(64)}:x`],
+      ["k", "30023"],
+    ]);
+    expect(
+      visibleColumnItems(
+        [note, comment],
+        { ...DEFAULT_COLUMN_SHOW, replies: false },
+        ALL_FACETS,
+      ),
+    ).toEqual([note]);
+  });
+
   it("返信でもある引用は、返信の設定で決まる", () => {
     // 捕まえる変異: q タグを先に見る（返信を切っても会話が残り続ける）
     expect(
