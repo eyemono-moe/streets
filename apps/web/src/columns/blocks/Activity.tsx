@@ -139,9 +139,12 @@ export const ActivityView: Component<{
 };
 
 /** 1 件の投稿へのリポスト・引用・リアクションを、1 本の購読から種類ごとのタブに分ける。 */
-const Activity: Component<{ target: string }> = (props) => {
+const Activity: Component<{
+  target: string;
+  relays?: readonly string[];
+}> = (props) => {
   const section = createBlockSection({
-    source: () => activitySource(props.target),
+    source: () => activitySource(props.target, props.relays),
   });
   return (
     <ActivityView

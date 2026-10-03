@@ -2,6 +2,7 @@ import { Carousel } from "@ark-ui/solid/carousel";
 import { Dialog as ArkDialog } from "@ark-ui/solid/dialog";
 import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import { type NoteMedia, layoutNote } from "@streets/core/view/note-layout";
 import {
   type Component,
@@ -11,6 +12,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import { DialogPortal, DialogRoot } from "../ui/Dialog";
@@ -90,6 +92,7 @@ const ViewerOrigin: Component<{ event: NostrEvent; onOpen: () => void }> = (
   props,
 ) => {
   const dispatch = useDispatch();
+  const { store } = useReadLayer();
   const text = createMemo(
     () => layoutNote(props.event, { quotes: false }).text,
   );
@@ -112,7 +115,13 @@ const ViewerOrigin: Component<{ event: NostrEvent; onOpen: () => void }> = (
         class="shrink-0"
         onClick={() => {
           props.onOpen();
-          dispatch({ type: "stack/open", column: columnForEvent(props.event) });
+          dispatch({
+            type: "stack/open",
+            column: columnForEvent(
+              props.event,
+              relaysSeenOn(store, props.event.id),
+            ),
+          });
         }}
       >
         投稿を開く

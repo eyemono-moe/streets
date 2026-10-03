@@ -159,6 +159,8 @@ type SectionEntry = {
    * バイパスする。空配列は、正規化に失敗した URL を除いた後の「結果ゼロ本」。
    */
   explicitRelays: readonly RelayUrl[] | undefined;
+  /** Outbox の行き先に加えて、すべてのフィルタを送るリレー。明示指定のときは使わない。 */
+  extraRelays: readonly RelayUrl[];
   delivery: SectionDelivery;
   /** `subscribeUnstored` で登録したときだけある。`delivered` は渡し終えた id。 */
   unstored?: {
@@ -407,8 +409,15 @@ export class SubscriptionManager {
     filters: RelayFilter[],
     relays: RelayUrl[] | undefined,
     delivery: SectionDelivery,
+    extraRelays: readonly RelayUrl[] = [],
   ): SectionHandle {
-    const { entry, initialPlan } = this.#register(filters, relays, delivery);
+    const { entry, initialPlan } = this.#register(
+      filters,
+      relays,
+      delivery,
+      undefined,
+      extraRelays,
+    );
     return {
       initialPlan,
       fetchOlder: (page) => this.#fetchOlder(entry, page),
@@ -439,6 +448,7 @@ export class SubscriptionManager {
     relays: RelayUrl[] | undefined,
     delivery: SectionDelivery,
     unstored?: SectionEntry["unstored"],
+    extraRelays: readonly RelayUrl[] = [],
   ): { entry: SectionEntry; initialPlan: SectionPlan } {
     const explicitRelays =
       relays === undefined
@@ -449,6 +459,10 @@ export class SubscriptionManager {
       id: this.#nextEntryId++,
       filters,
       explicitRelays,
+      extraRelays:
+        explicitRelays === undefined
+          ? [...new Set(this.#normalizeExplicit(extraRelays, delivery))]
+          : [],
       delivery,
       unstored,
       opened: new Map(),
@@ -756,8 +770,9 @@ export class SubscriptionManager {
     // 小さいとき fallback が明示指定を押し出さないため。
     const pinnedSet = new Set<RelayUrl>();
     for (const entry of entries) {
-      if (entry.explicitRelays === undefined) continue;
-      for (const url of entry.explicitRelays) pinnedSet.add(url);
+      for (const url of entry.explicitRelays ?? entry.extraRelays) {
+        pinnedSet.add(url);
+      }
     }
     for (const url of fallbackRelays) pinnedSet.add(url);
     const pinned = [...pinnedSet];
@@ -816,6 +831,12 @@ export class SubscriptionManager {
           fallbackRelays,
         });
         perRelay = plan.perRelay;
+        // 足したリレーには、著者で分けずにフィルタをそのまま送る。そこにあると
+        // 分かっているものを、Outbox の割り当てに関係なく取るため。
+        for (const url of entry.extraRelays) {
+          if (this.#pool.isBlocked(url)) continue;
+          perRelay.set(url, [...entry.filters]);
+        }
         // direct では fallback 行きが本来の行き先なので、欠落として数えない。
         unroutable = direct ? [] : plan.unroutableAuthors;
         uncovered = plan.uncoveredAuthors;

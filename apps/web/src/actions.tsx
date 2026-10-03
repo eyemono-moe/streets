@@ -51,8 +51,8 @@ import {
 import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import { BLOCKED_RELAY_LIST_KIND } from "@streets/core/settings/blocked-relay-list";
 import type { Signer } from "@streets/core/signer/signer";
 import { authorRelays, broadcast } from "@streets/core/write/broadcast";
@@ -232,16 +232,8 @@ export const createWriteStack = (options: {
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
 
-  const seenRelays = (id: string) =>
-    store
-      .seenRelays(id)
-      .map(normalizeRelayUrl)
-      .filter((relay) => relay !== undefined);
-  const relayHintFor = (id: string) =>
-    store
-      .seenRelays(id)
-      .map(normalizeRelayUrl)
-      .find((relay) => relay !== undefined);
+  const seenRelays = (id: string) => relaysSeenOn(store, id);
+  const relayHintFor = (id: string) => seenRelays(id)[0];
 
   /** 自分の置換可能イベントを追う。届くたびに画面へ反映し、押す前から状態を出す。 */
   const mine = (kind: number) => {

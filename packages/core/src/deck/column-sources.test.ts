@@ -4,6 +4,7 @@ import {
   activitySource,
   allChannelsSource,
   articleCommentsSource,
+  articleSource,
   bookmarksSource,
   channelMessagesSource,
   channelSource,
@@ -175,6 +176,25 @@ describe("人と投稿", () => {
         { kinds: [1], "#q": [target] },
       ],
     });
+  });
+
+  it("投稿があると分かっているリレーは、反応を探す先に足す", () => {
+    // 捕まえる変異: `relays` で行き先を置き換える（自分の読むリレーにある反応を取らない）
+    expect(activitySource("b".repeat(64), ["wss://search.example/"])).toEqual(
+      expect.objectContaining({ extraRelays: ["wss://search.example/"] }),
+    );
+    expect(
+      activitySource("b".repeat(64), ["wss://search.example/"]).relays,
+    ).toBeUndefined();
+  });
+
+  it("記事を受け取ったリレーは、書いた人のリレーに足す", () => {
+    const source = articleSource("a".repeat(64), "post", [
+      "wss://search.example/",
+    ]);
+    // 捕まえる変異: `relays` で書いた人のリレーを置き換える（書き直した版を逃す）
+    expect(source.relays).toBeUndefined();
+    expect(source.extraRelays).toEqual(["wss://search.example/"]);
   });
 });
 

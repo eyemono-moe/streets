@@ -5,6 +5,12 @@ export type NostrSource = {
   filters: RelayFilter[];
   /** 指定した場合は Outbox ルーティングをバイパスする */
   relays?: RelayUrl[];
+  /**
+   * Outbox の行き先はそのままに、すべてのフィルタを**加えて**送るリレー。
+   * 投稿を受け取ったリレーなど、そこにあると分かっている先を足すのに使う。
+   * `relays` があるときは使わない。
+   */
+  extraRelays?: RelayUrl[];
 };
 
 export type Order = "created-at-desc" | "created-at-asc";

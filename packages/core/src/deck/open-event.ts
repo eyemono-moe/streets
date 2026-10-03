@@ -84,8 +84,31 @@ export const columnForNaddr = (
   return columnForAddress(address, relays);
 };
 
-/** 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。 */
-export const columnForEvent = (event: NostrEvent): ColumnDef => {
+/** note / nevent から開くスレッド。nevent が運ぶリレーの手がかりも持っていく。 */
+export const columnForNoteRef = (
+  ref: Extract<Nip19Ref, { kind: "note" | "nevent" }>,
+): ColumnDef =>
+  buildThreadColumn(
+    ref.id,
+    ref.kind === "nevent"
+      ? ref.relays.flatMap((relay) => {
+          const url = relayOf(relay);
+          return url ? [url] : [];
+        })
+      : [],
+  );
+
+/**
+ * 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。
+ * `relays` はその投稿を受け取ったリレー。検索リレーのように普段は読まない
+ * リレーで見つけたものは、そこにしか無いことがあるので、開いた先でも聞く。
+ */
+export const columnForEvent = (
+  event: NostrEvent,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => {
   const address = addressOfEvent(event);
-  return address ? columnForAddress(address) : buildThreadColumn(event.id);
+  return address
+    ? columnForAddress(address, relays)
+    : buildThreadColumn(event.id, relays);
 };

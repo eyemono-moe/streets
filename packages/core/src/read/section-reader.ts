@@ -228,29 +228,34 @@ export class SectionReader {
         this.#notify();
       }, FIRST_PAGE_WAIT_MS);
     }
-    this.#handle = manager.subscribe(filters, source.relays, {
-      onEvent: (id, relay, catchup) => this.#onEvent(id, relay, catchup),
-      onRelayComplete: (relay) => {
-        // 再接続後の EOSE の可能性もあるので unreachable も一緒に晴らす。
-        // 専用の「復帰」コールバックは無い — onRelayComplete がそれを兼ねる。
-        const state = this.#relayState(relay);
-        state.complete = true;
-        state.unreachable = false;
-        this.#notify();
+    this.#handle = manager.subscribe(
+      filters,
+      source.relays,
+      {
+        onEvent: (id, relay, catchup) => this.#onEvent(id, relay, catchup),
+        onRelayComplete: (relay) => {
+          // 再接続後の EOSE の可能性もあるので unreachable も一緒に晴らす。
+          // 専用の「復帰」コールバックは無い — onRelayComplete がそれを兼ねる。
+          const state = this.#relayState(relay);
+          state.complete = true;
+          state.unreachable = false;
+          this.#notify();
+        },
+        onRelayUnreachable: (relay) => {
+          this.#relayState(relay).unreachable = true;
+          this.#notify();
+        },
+        onPlanChanged: (plan) => this.#applyPlan(plan),
+        onRelayRestarted: (relay) => {
+          // REQ だけ張り直されたので complete/unreachable を両方まっさらに
+          // 戻す。onRelayUnreachable は代用しない —— あちらは接続失敗を意味し
+          // incomplete を押し上げてしまう。
+          this.#relays.set(relay, { complete: false, unreachable: false });
+          this.#notify();
+        },
       },
-      onRelayUnreachable: (relay) => {
-        this.#relayState(relay).unreachable = true;
-        this.#notify();
-      },
-      onPlanChanged: (plan) => this.#applyPlan(plan),
-      onRelayRestarted: (relay) => {
-        // REQ だけ張り直されたので complete/unreachable を両方まっさらに
-        // 戻す。onRelayUnreachable は代用しない —— あちらは接続失敗を意味し
-        // incomplete を押し上げてしまう。
-        this.#relays.set(relay, { complete: false, unreachable: false });
-        this.#notify();
-      },
-    });
+      source.extraRelays,
+    );
 
     // #applyPlan は使わない: 初期適用は「不足分を足す」マージで、張り直しの
     // 「丸ごと置き換え」とは違う。subscribe() が正規化失敗 URL を

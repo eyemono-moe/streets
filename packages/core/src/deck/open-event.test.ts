@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { columnForEvent } from "./open-event";
+import { columnForEvent, columnForNoteRef } from "./open-event";
 
 const PUBKEY = "a".repeat(64);
 
@@ -39,5 +39,39 @@ describe("columnForEvent", () => {
 
   it("`d` が無いものは住所で指せないので、スレッドで開く", () => {
     expect(columnForEvent(event(30_023)).source.kind).toBe("thread");
+  });
+
+  it("受け取ったリレーを、開いたカラムに持っていく", () => {
+    const relays = ["wss://search.example/" as const];
+    // 捕まえる変異: 受け取ったリレーを捨てる（検索リレーにしか無いものが開いた先で取れない）
+    expect(columnForEvent(event(1), relays).source).toEqual({
+      kind: "thread",
+      focus: "b".repeat(64),
+      relays,
+    });
+    expect(
+      columnForEvent(event(30_023, [["d", "post"]]), relays).source,
+    ).toEqual({
+      kind: "article",
+      pubkey: PUBKEY,
+      identifier: "post",
+      relays,
+    });
+  });
+});
+
+describe("columnForNoteRef", () => {
+  it("nevent が運ぶリレーを、スレッドに持っていく", () => {
+    const ref = {
+      kind: "nevent" as const,
+      id: "b".repeat(64),
+      relays: ["wss://hint.example"],
+    };
+    // 捕まえる変異: id だけで開く（ヒントのリレーにしか無い投稿が取れない）
+    expect(columnForNoteRef(ref).source).toEqual({
+      kind: "thread",
+      focus: "b".repeat(64),
+      relays: ["wss://hint.example"],
+    });
   });
 });

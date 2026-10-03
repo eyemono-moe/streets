@@ -71,17 +71,25 @@ export const buildFollowSetInfoColumn = (
 
 /**
  * スレッドのカラム。id を `focus` から決めるので、同じスレッドを 2 回開いても
- * 重ならない（スタックの重複判定は id で行う）。
+ * 重ならない（スタックの重複判定は id で行う）。`relays` はその投稿があると
+ * 分かっているリレー。
  */
-export const buildThreadColumn = (focus: string): ColumnDef => ({
+export const buildThreadColumn = (
+  focus: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
   id: `thread:${focus}`,
   title: "スレッド",
-  source: { kind: "thread", focus },
+  source: {
+    kind: "thread",
+    focus,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
 });
 
 /**
  * 長文記事を読むカラム。id を住所から決めるので、同じ記事を 2 回開いても重ならない。
- * `relays` は naddr が運ぶリレーの手がかり。
+ * `relays` は naddr が運ぶリレーの手がかりや、記事を受け取ったリレー。
  */
 export const buildArticleColumn = (
   pubkey: string,
@@ -98,10 +106,17 @@ export const buildArticleColumn = (
   },
 });
 
-export const buildActivityColumn = (target: string): ColumnDef => ({
+export const buildActivityColumn = (
+  target: string,
+  relays: readonly RelayUrl[] = [],
+): ColumnDef => ({
   id: `activity:${target}`,
   title: "アクティビティ",
-  source: { kind: "activity", target },
+  source: {
+    kind: "activity",
+    target,
+    ...(relays.length > 0 ? { relays: [...relays] } : {}),
+  },
 });
 
 /**

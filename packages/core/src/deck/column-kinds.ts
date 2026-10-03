@@ -77,10 +77,21 @@ export const columnSourceSchema = v.variant("kind", [
   v.object({ kind: v.literal("followees"), kinds: v.array(v.number()) }),
   v.object({ kind: v.literal("notifications") }),
   v.object({ kind: v.literal("bookmarks") }),
-  /** 1 本のスレッド。`focus` を中心に、その祖先と返信を見せる。 */
-  v.object({ kind: v.literal("thread"), focus: hexId }),
-  /** 1件の投稿に対するリポスト・引用・リアクション。 */
-  v.object({ kind: v.literal("activity"), target: hexId }),
+  /**
+   * 1 本のスレッド。`focus` を中心に、その祖先と返信を見せる。`relays` は開いたときに
+   * 分かっていた、その投稿があるリレー（受け取ったリレーや nevent のヒント）。
+   */
+  v.object({
+    kind: v.literal("thread"),
+    focus: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
+  /** 1件の投稿に対するリポスト・引用・リアクション。`relays` はスレッドと同じ。 */
+  v.object({
+    kind: v.literal("activity"),
+    target: hexId,
+    relays: v.optional(v.array(v.string())),
+  }),
   v.object({ kind: v.literal("user"), pubkey: hexId }),
   v.object({ kind: v.literal("followees-list"), pubkey: hexId }),
   v.object({ kind: v.literal("followers-list"), pubkey: hexId }),

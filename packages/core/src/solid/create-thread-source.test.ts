@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
+import type { RelayUrl } from "../relay/relay-connection";
 import { createThreadSource } from "./create-thread-source";
 
 const ROOT = "1".repeat(64);
@@ -75,6 +76,21 @@ describe("createThreadSource", () => {
         kinds: [1111],
         "#A": [address],
       });
+      dispose();
+    });
+  });
+
+  it("カラムに保存してあるリレーにも、焦点が store から消えた後で聞きに行く", () => {
+    createRoot((dispose) => {
+      const thread = createThreadSource({
+        focusId: () => FOCUS,
+        store: storeOf([]),
+        columnRelays: () => undefined,
+        relaysOverride: undefined,
+        knownRelays: ["wss://search.example/" as RelayUrl],
+      });
+      // 捕まえる変異: 焦点が store に無いと、保存したリレーも捨てる（再読み込みの後に取れない）
+      expect(thread.source().relays).toContain("wss://search.example/");
       dispose();
     });
   });

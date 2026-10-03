@@ -123,12 +123,17 @@ export const bookmarksSource = (ids: readonly string[]): NostrSource => ({
   filters: [{ ids: [...ids] }],
 });
 
-export const activitySource = (target: string): NostrSource => ({
+/** `relays` は投稿があると分かっているリレー。反応もそこに集まりやすいので足して聞く。 */
+export const activitySource = (
+  target: string,
+  relays?: readonly string[],
+): NostrSource => ({
   type: "nostr",
   filters: [
     { kinds: [6, 7, 16], "#e": [target] },
     { kinds: [1], "#q": [target] },
   ],
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 export const userPostsSource = (
@@ -182,7 +187,10 @@ export const followListSource = (pubkey: string): NostrSource => ({
   filters: [{ kinds: [3], authors: [pubkey], limit: 1 }],
 });
 
-/** 長文記事 1 本。書き直された版も届くので、読む側で最新のものを使う。 */
+/**
+ * 長文記事 1 本。書き直された版も届くので、読む側で最新のものを使う。
+ * `relays` は書いた人のリレーに**足す**。そこだけに絞ると、書き直した版を逃す。
+ */
 export const articleSource = (
   pubkey: string,
   identifier: string,
@@ -190,7 +198,7 @@ export const articleSource = (
 ): NostrSource => ({
   type: "nostr",
   filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
-  ...(relays && relays.length > 0 ? { relays: relays as RelayUrl[] } : {}),
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 /**
