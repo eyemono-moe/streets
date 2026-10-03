@@ -53,6 +53,25 @@ describe("eventEngagements", () => {
     expect(eventEngagements(store, TARGET, VIEWER).replies).toBe(1);
   });
 
+  it("コメント（kind:1111）は小文字の e が指す親にだけ数える", () => {
+    const direct = event("1".repeat(64), 1111, OTHER, [
+      ["E", TARGET, "", VIEWER],
+      ["K", "1"],
+      ["e", TARGET, "", VIEWER],
+      ["k", "1"],
+    ]);
+    const nested = event("2".repeat(64), 1111, OTHER, [
+      ["E", TARGET, "", VIEWER],
+      ["K", "1"],
+      ["e", PARENT, "", OTHER],
+      ["k", "1111"],
+    ]);
+    const store = { eventsByTag: () => [direct, nested] };
+
+    // 捕まえる変異: kind:1 だけを返信として数える（Amethyst などの返信が 0 件に見える）。
+    expect(eventEngagements(store, TARGET, VIEWER).replies).toBe(1);
+  });
+
   it("リポストと、中身を問わないリアクションの総数を数え、viewer自身の状態も返す", () => {
     const viewerRepost = event("3".repeat(64), 6, VIEWER, [
       ["e", TARGET],

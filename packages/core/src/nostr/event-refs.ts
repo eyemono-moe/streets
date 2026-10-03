@@ -39,11 +39,88 @@ const idRef = (
   return ref;
 };
 
+/** NIP-22 のコメント。kind:1 以外への返信と、一部のクライアントでは kind:1 への返信にも使われる。 */
+export const COMMENT_KIND = 1111;
+
 /**
- * 返信先（親）を返す。marker は "reply"/"root" のみ（旧位置形式は NIP-10 で
+ * コメントが指す先。`kind` は `K`/`k` タグの値で、イベントなら数、外部の
+ * 識別子（NIP-73）なら `web` や `#` などの文字列。
+ */
+export type CommentTarget =
+  | (IdRef & { kind?: number })
+  | (Extract<EventRef, { form: "address" }> & { kind?: number })
+  | { form: "external"; value: string; hint?: string; kind?: string };
+
+export type CommentRefs = {
+  root: CommentTarget | undefined;
+  parent: CommentTarget | undefined;
+};
+
+const eventKindOf = (value: string | undefined): number | undefined =>
+  value && /^\d+$/.test(value) ? Number(value) : undefined;
+
+/**
+ * NIP-22 の参照を 1 組（根なら `E`/`A`/`I`/`K`、親なら小文字）読む。
+ * 記事のように `A` と `E` を両方持つ先は `A` を採る —— 書き直しても同じ先を指し続けるため。
+ */
+const commentTarget = (
+  event: NostrEvent,
+  names: { e: string; a: string; i: string; k: string },
+): CommentTarget | undefined => {
+  const find = (name: string) => event.tags.find((tag) => tag[0] === name);
+  const kindValue = find(names.k)?.[1];
+  const kind = eventKindOf(kindValue);
+
+  const a = find(names.a);
+  if (a?.[1]?.includes(":")) {
+    const ref: CommentTarget = { form: "address", address: a[1] };
+    const relay = relayOf(a[2]);
+    if (relay) ref.relay = relay;
+    if (kind !== undefined) ref.kind = kind;
+    return ref;
+  }
+  const e = find(names.e);
+  // NIP-22 の `e` は `["e", id, relay, pubkey]`。NIP-10 と違い 4 番目は marker ではない。
+  const ref = e ? idRef(e[1] ?? "", e[2], e[3]) : undefined;
+  if (ref) return kind === undefined ? ref : { ...ref, kind };
+  const i = find(names.i);
+  if (i?.[1]) {
+    const external: CommentTarget = { form: "external", value: i[1] };
+    if (i[2]) external.hint = i[2];
+    if (kindValue) external.kind = kindValue;
+    return external;
+  }
+  return undefined;
+};
+
+/** コメント（kind:1111）の根と親。コメントでなければ `undefined`。 */
+export const commentRefs = (event: NostrEvent): CommentRefs | undefined =>
+  event.kind === COMMENT_KIND
+    ? {
+        root: commentTarget(event, { e: "E", a: "A", i: "I", k: "K" }),
+        parent: commentTarget(event, { e: "e", a: "a", i: "i", k: "k" }),
+      }
+    : undefined;
+
+/**
+ * コメントの参照先が id ならその id。記事のように住所を持つ先は、`e` で版の id も
+ * 添えられるが、指しているのは住所の方なので id としては返さない。
+ */
+const commentIdOf = (target: CommentTarget | undefined): IdRef | undefined => {
+  if (target?.form !== "id") return undefined;
+  const { kind: _, ...ref } = target;
+  return ref;
+};
+
+/**
+ * 返信先（親）の id を返す。marker は "reply"/"root" のみ（旧位置形式は NIP-10 で
  * deprecated）。`reply` が無ければ `root`（root タグは 1 本だけの決まり）。
+ * コメントなら小文字の `e`。親が記事などの住所や外部の識別子なら `undefined` に
+ * なるので、返信かどうかは `isReply` で見る。
  */
 export const replyTarget = (event: NostrEvent): IdRef | undefined => {
+  if (event.kind === COMMENT_KIND)
+    return commentIdOf(commentRefs(event)?.parent);
   let root: IdRef | undefined;
   for (const tag of event.tags) {
     if (tag[0] !== "e") continue;
@@ -58,10 +135,12 @@ export const replyTarget = (event: NostrEvent): IdRef | undefined => {
 };
 
 /**
- * スレッドの根を返す（`root` タグのみ）。`replyTarget` は `reply` 優先で深い
+ * スレッドの根の id を返す（`root` タグのみ）。`replyTarget` は `reply` 優先で深い
  * 返信では根を取れないため別経路が要る。`undefined` 時も自分の id は返さない。
+ * コメントなら大文字の `E` —— 返信への返信になったコメントは、根を `E` でしか指さない。
  */
 export const threadRoot = (event: NostrEvent): IdRef | undefined => {
+  if (event.kind === COMMENT_KIND) return commentIdOf(commentRefs(event)?.root);
   for (const tag of event.tags) {
     if (tag[0] !== "e" || tag[3] !== "root") continue;
     const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
@@ -70,6 +149,10 @@ export const threadRoot = (event: NostrEvent): IdRef | undefined => {
   return undefined;
 };
 
+/** 何かへの返信か。コメントは必ず何かへの返信。 */
+export const isReply = (event: NostrEvent): boolean =>
+  event.kind === COMMENT_KIND || replyTarget(event) !== undefined;
+
 /**
  * `e` タグが運ぶリレーヒントを重複無しで返す（`#e` 購読は返信者が事前に分から
  * ず著者の write relay も引けないため）。marker は問わず引用専用タグも拾う。
@@ -77,7 +160,8 @@ export const threadRoot = (event: NostrEvent): IdRef | undefined => {
 export const eventRelayHints = (event: NostrEvent): RelayUrl[] => {
   const hints = new Set<RelayUrl>();
   for (const tag of event.tags) {
-    if (tag[0] !== "e") continue;
+    // コメント（NIP-22）の根は大文字の `E` にしかない。
+    if (tag[0] !== "e" && tag[0] !== "E") continue;
     const hint = relayOf(tag[2]);
     if (hint) hints.add(hint);
   }

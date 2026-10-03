@@ -1,7 +1,7 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ThreadSpine } from "@streets/core/view/thread-spine";
 import { type Component, For, Show } from "solid-js";
-import Event from "../note/Event";
+import Event, { EventRefView } from "../note/Event";
 
 /**
  * 1 本の背骨の見た目だけを持つ。祖先と返信は compact、焦点だけ normal ——
@@ -22,6 +22,17 @@ const ThreadSpineView: Component<{
     </Show>
     {/* 祖先から焦点までは線でつながる 1 本なので、間に区切りを引かない。タイムラインで返信先を上に置くときと同じ見え方にする。 */}
     <div class="flex flex-col">
+      {/* 記事などへのコメントのスレッドは、そのコメントが付いた先を一番上に置く。 */}
+      <Show when={props.spine.scopeRoot}>
+        {(target) => (
+          <EventRefView
+            target={target()}
+            size="compact"
+            expandMedia={props.expandMedia}
+            threadLine="below"
+          />
+        )}
+      </Show>
       <For each={props.spine.ancestors}>
         {(event: NostrEvent, index) => (
           <Event
@@ -29,9 +40,12 @@ const ThreadSpineView: Component<{
             size="compact"
             expandMedia={props.expandMedia}
             stickyAvatar
+            withinScope={props.spine.scopeRoot !== undefined}
             // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
             threadLine={
-              index() === 0 && props.spine.reachedRoot ? "below" : "both"
+              index() === 0 && props.spine.reachedRoot && !props.spine.scopeRoot
+                ? "below"
+                : "both"
             }
           />
         )}
@@ -48,14 +62,24 @@ const ThreadSpineView: Component<{
             size="normal"
             expandMedia={props.expandMedia}
             stickyAvatar
-            threadLine={props.spine.ancestors.length > 0 ? "above" : undefined}
+            withinScope={props.spine.scopeRoot !== undefined}
+            threadLine={
+              props.spine.ancestors.length > 0 || props.spine.scopeRoot
+                ? "above"
+                : undefined
+            }
           />
         )}
       </Show>
     </div>
     <For each={props.spine.replies}>
       {(event) => (
-        <Event event={event} size="compact" expandMedia={props.expandMedia} />
+        <Event
+          event={event}
+          size="compact"
+          expandMedia={props.expandMedia}
+          withinScope={props.spine.scopeRoot !== undefined}
+        />
       )}
     </For>
   </div>

@@ -1,5 +1,10 @@
 import { type Accessor, createMemo, untrack } from "solid-js";
-import { eventRelayHints, threadRoot } from "../nostr/event-refs";
+import {
+  COMMENT_KIND,
+  commentRefs,
+  eventRelayHints,
+  threadRoot,
+} from "../nostr/event-refs";
 import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
 import type { NostrSource } from "../read/source";
@@ -17,7 +22,7 @@ export type CreateThreadSourceOptions = {
 };
 
 export type ThreadSource = {
-  /** スレッドの根の id。祖先も返信もここへの購読 1 本で届く (NIP-10)。 */
+  /** スレッドの根の id。祖先も返信もここへの購読で届く (NIP-10 の root、NIP-22 の `E`)。 */
   rootId: Accessor<string | undefined>;
   /** 根が確定した時点の focus イベントが運ぶ `e` タグのリレーヒント。 */
   relayHints: Accessor<readonly RelayUrl[]>;
@@ -57,8 +62,18 @@ export const createThreadSource = (
     return focus ? eventRelayHints(focus) : [];
   });
 
+  // 記事などへのコメントは根を id で持たない（`E` が無い）。同じ住所へのコメントを集める。
+  const rootAddress = createMemo(() => {
+    const root = rootId();
+    if (!root) return undefined;
+    const event = options.store.get(root);
+    const scope = event ? commentRefs(event)?.root : undefined;
+    return scope?.form === "address" ? scope.address : undefined;
+  });
+
   const source = createMemo<NostrSource>(() => {
     const root = rootId();
+    const address = rootAddress();
     // 根が無ければフィルタ 0 本 —— `planQuery` はフィルタを 1 本ずつ見て
     // リレーを割り当てるので 0 本なら「何も購読しない」で安全（`authors: []`
     // や `{}` 単体、resolve-source.ts の followees の罠とは別物）。
@@ -80,7 +95,13 @@ export const createThreadSource = (
 
     const base: NostrSource = {
       type: "nostr",
-      filters: [{ ids: [root] }, { kinds: [1], "#e": [root] }],
+      filters: [
+        { ids: [root] },
+        { kinds: [1], "#e": [root] },
+        // 返信への返信になったコメントは、根を大文字の `E` でしか指さない。
+        { kinds: [COMMENT_KIND], "#E": [root] },
+        ...(address ? [{ kinds: [COMMENT_KIND], "#A": [address] }] : []),
+      ],
       ...(relays.length > 0 ? { relays } : {}),
     };
     // `?relays=` 上書きはカラムと同じ非対称を保ち、既に明示リレーがある

@@ -1,6 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
-import { replyTarget } from "../nostr/event-refs";
+import { type EventRef, replyTarget } from "../nostr/event-refs";
 import { compareEvents } from "../read/sorted-events";
+import { replyParentRef } from "./comment-scope";
 
 export type ThreadSpine = {
   /** 根に近い順。`focus` は含まない。 */
@@ -10,6 +11,11 @@ export type ThreadSpine = {
   replies: NostrEvent[];
   /** 祖先の連鎖が根まで到達したか。**`false` を黙らせないこと**——途中が欠けると「根から始まる」ように見え読み違える。 */
   reachedRoot: boolean;
+  /**
+   * 一番上のコメントが記事などの住所に付いているとき、その住所。id で辿れないので
+   * `ancestors` には入らず、別に引いて上に添える。
+   */
+  scopeRoot?: EventRef;
 };
 
 /** 表示する 1 本の背骨を計算する。木ではない —— 兄弟の枝も返信の返信も出さない。ネットワーク/store は触らない。 */
@@ -55,5 +61,13 @@ export const threadSpine = (
     .filter((event) => replyTarget(event)?.id === focusId)
     .sort((a, b) => a.created_at - b.created_at || compareEvents(a, b));
 
-  return { ancestors, focus, replies, reachedRoot };
+  const top = ancestors[0] ?? focus;
+  const scope = reachedRoot ? replyParentRef(top) : undefined;
+  return {
+    ancestors,
+    focus,
+    replies,
+    reachedRoot,
+    ...(scope?.form === "address" ? { scopeRoot: scope } : {}),
+  };
 };

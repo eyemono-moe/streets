@@ -6,6 +6,7 @@ import {
   CHANNEL_METADATA_KIND,
   CHANNEL_MUTE_USER_KIND,
 } from "../nostr/channel";
+import { COMMENT_KIND } from "../nostr/event-refs";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import {
   PICTURE_KIND,
@@ -40,6 +41,14 @@ export const literalSource = (
     ? { type: "nostr", filters: source.filters, relays: source.relays }
     : { type: "nostr", filters: source.filters };
 
+/**
+ * 投稿（kind:1）を取るなら、コメント（kind:1111）も取る。Amethyst などは kind:1 への
+ * 返信をコメントで書くので、取らないとその人たちの返信だけが流れから抜ける。
+ * 保存したデッキの kinds には書き足さず、読むときに足す。
+ */
+const withComments = (kinds: readonly number[]): number[] =>
+  kinds.includes(1) ? [...new Set([...kinds, COMMENT_KIND])] : [...kinds];
+
 // フォロー 0 人でも `authors` を落とさない —— `{ kinds: [1] }` は
 // NIP-01 では「誰の投稿でもよい」であり、本物のリレーへの無制限購読に
 // なる。空配列は「該当者なし」であって「無制限」ではない。
@@ -60,7 +69,7 @@ export const followeesSource = (
     {
       kinds: [
         ...new Set([
-          ...kinds,
+          ...withComments(kinds),
           ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
         ]),
       ],
@@ -131,7 +140,7 @@ export const userPostsSource = (
   filters: [
     {
       kinds: [
-        ...TIMELINE_KINDS,
+        ...withComments(TIMELINE_KINDS),
         ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
       ],
       authors: [pubkey],
@@ -182,6 +191,28 @@ export const articleSource = (
   type: "nostr",
   filters: [{ kinds: [LONG_FORM_KIND], authors: [pubkey], "#d": [identifier] }],
   ...(relays && relays.length > 0 ? { relays: relays as RelayUrl[] } : {}),
+});
+
+/**
+ * 長文記事へのコメント。著者を指定しない問い合わせなので Outbox で行き先を決められない。
+ * 記事のリレーは**足す**もので、それだけに絞らない —— コメントは書いた人のリレーにあり、
+ * 記事のリレーにあるとは限らない。
+ */
+export const articleCommentsSource = (
+  pubkey: string,
+  identifier: string,
+  relays?: readonly string[],
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    {
+      kinds: [COMMENT_KIND],
+      "#A": [`${LONG_FORM_KIND}:${pubkey}:${identifier}`],
+    },
+  ],
+  ...(relays && relays.length > 0
+    ? { relays: [...new Set([...FALLBACK_RELAYS, ...(relays as RelayUrl[])])] }
+    : {}),
 });
 
 /** その人がプロフィールの上にピン留めした投稿の一覧（最新の版だけ）。 */
@@ -239,7 +270,7 @@ export const followSetPostsSource = (
         filters: [
           {
             kinds: [
-              ...TIMELINE_KINDS,
+              ...withComments(TIMELINE_KINDS),
               ...(options.chats ? [CHANNEL_MESSAGE_KIND] : []),
             ],
             authors: [...new Set(members)],

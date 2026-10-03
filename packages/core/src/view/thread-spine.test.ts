@@ -108,3 +108,41 @@ describe("threadSpine", () => {
     expect(spine.replies).toEqual([]);
   });
 });
+
+describe("threadSpine と記事へのコメント", () => {
+  const ARTICLE = `30023:${"8".repeat(64)}:post`;
+  const comment = (key: string, parent?: string): NostrEvent => ({
+    id: key.repeat(64),
+    pubkey: "b".repeat(64),
+    created_at: 1_700_000_000,
+    kind: 1111,
+    tags: [
+      ["A", ARTICLE, "wss://r.example/"],
+      ["K", "30023"],
+      parent ? ["e", parent.repeat(64), "", "c".repeat(64)] : ["a", ARTICLE],
+      ["k", parent ? "1111" : "30023"],
+    ],
+    content: key,
+    sig: "c".repeat(128),
+  });
+
+  it("一番上のコメントが付いた記事を、上に添える住所として返す", () => {
+    const top = comment("1");
+    const focus = comment("2", "1");
+    const spine = threadSpine([top, focus], focus.id);
+    // 捕まえる変異: 住所を返さない（記事へのコメントのスレッドで、何への話か分からない）
+    expect(spine.ancestors).toEqual([top]);
+    expect(spine.scopeRoot).toEqual({ form: "address", address: ARTICLE });
+  });
+
+  it("途中が欠けているときは、記事を添えない", () => {
+    // 捕まえる変異: 欠けた祖先を飛ばして記事を直に繋ぐ（間に何かあるのに無いように見える）
+    const focus = comment("2", "1");
+    expect(threadSpine([focus], focus.id).scopeRoot).toBeUndefined();
+  });
+
+  it("投稿のスレッドには添えない", () => {
+    const root = note("1");
+    expect(threadSpine([root], root.id)).not.toHaveProperty("scopeRoot");
+  });
+});

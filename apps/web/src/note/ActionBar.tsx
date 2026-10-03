@@ -1,5 +1,4 @@
 import { Menu } from "@ark-ui/solid/menu";
-import { canReplyWithNote } from "@streets/core/nostr/build/note";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventActionId } from "@streets/core/settings/action-layout";
@@ -110,14 +109,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
         const views: Record<EventActionId, () => JSX.Element> = {
           reply: () => (
             <Action
-              label={
-                canReplyWithNote(props.event)
-                  ? "返信"
-                  : "この投稿にはまだ返信できません"
-              }
+              label="返信"
               icon={EVENT_ACTION_META.reply.icon}
               count={engagement().replies}
-              disabled={!canReplyWithNote(props.event)}
               onClick={() => dialogs.open("reply")}
             />
           ),

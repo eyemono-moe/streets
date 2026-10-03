@@ -75,6 +75,8 @@ type Props = {
   contentWarning?: ContentWarningMode;
   /** アクション欄に出す操作。省くと既定の 6 個。 */
   actionLayout?: ActionLayout;
+  /** カラムの幅。省くと 360px。 */
+  width?: number;
 };
 
 export const EventStory: Component<Props> = (props) => {
@@ -85,7 +87,7 @@ export const EventStory: Component<Props> = (props) => {
   return (
     <EventSceneProvider scene={props.scene}>
       {/* 実際のカラム幅で、名前・時刻・リアクションチップの収まりを見る。 */}
-      <div class="w-[360px]">
+      <div style={{ width: `${props.width ?? 360}px` }}>
         <LinkCardModeProvider value={() => props.linkCards ?? "compact"}>
           <Event
             event={props.event}

@@ -1,5 +1,6 @@
 import { parseContent } from "@streets/core/nostr/content";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { parseArticle } from "@streets/core/nostr/long-form";
 import { type ComposeState, canSend } from "@streets/core/view/compose";
 import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
@@ -41,6 +42,8 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
       .filter((tag) => tag[0] === "p" && tag[1])
       .map((tag) => tag[1] as string),
   ]);
+  // 記事は本文が長いので、返信先には題名だけを出す。
+  const article = createMemo(() => parseArticle(props.target));
   const targetTokens = createMemo(() =>
     parseContent(props.target.content.trim(), props.target.tags),
   );
@@ -51,7 +54,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
         <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">
-              返信する
+              {article() ? "記事にコメントする" : "返信する"}
             </DialogTitle>
             <DialogClose disabled={props.state.sending} />
           </div>
@@ -80,10 +83,21 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
                       </p>
                     }
                   >
-                    <NoteText
-                      tokens={targetTokens()}
-                      class="c-secondary text-body"
-                    />
+                    <Show
+                      when={article()}
+                      fallback={
+                        <NoteText
+                          tokens={targetTokens()}
+                          class="c-secondary text-body"
+                        />
+                      }
+                    >
+                      {(current) => (
+                        <p class="c-secondary break-words font-600 text-body">
+                          {current().title ?? "題名の無い記事"}
+                        </p>
+                      )}
+                    </Show>
                   </Show>
                 </div>
               </div>

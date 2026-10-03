@@ -16,6 +16,7 @@
   { "kind": 44, "status": "内部利用", "summary": "チャンネルのミュート" },
   { "kind": 1018, "status": "内部利用", "summary": "投票への回答" },
   { "kind": 1068, "status": "表示対応", "summary": "投票" },
+  { "kind": 1111, "status": "表示対応", "summary": "コメント" },
   { "kind": 9734, "status": "内部利用", "summary": "Zap の依頼" },
   { "kind": 9735, "status": "内部利用", "summary": "Zap の受領" },
   { "kind": 10000, "status": "内部利用", "summary": "ミュートリスト" },

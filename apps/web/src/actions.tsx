@@ -20,7 +20,7 @@ import { withMedia } from "@streets/core/nostr/build/media";
 import {
   buildNote,
   buildQuote,
-  buildReply,
+  buildReplyTo,
 } from "@streets/core/nostr/build/note";
 import {
   type ReactionInput,
@@ -296,7 +296,9 @@ export const createWriteStack = (options: {
         withContentWarning(
           withMedia(
             withReferences(
-              buildReply(event, content, { relayHint: relayHintFor(event.id) }),
+              buildReplyTo(event, content, {
+                relayHint: relayHintFor(event.id),
+              }),
               { emoji },
             ),
             media ?? [],

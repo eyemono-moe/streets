@@ -19,7 +19,7 @@ import { addFollow, removeFollow } from "@streets/core/nostr/build/follow";
 import {
   buildNote,
   buildQuote,
-  buildReply,
+  buildReplyTo,
 } from "@streets/core/nostr/build/note";
 import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { buildRepost } from "@streets/core/nostr/build/repost";
@@ -107,7 +107,7 @@ const storyActions = (
     bookmarkIds,
     post: (content) => send(() => viewer.event(buildNote(content))),
     reply: (target, content) =>
-      send(() => viewer.event(buildReply(target, content))),
+      send(() => viewer.event(buildReplyTo(target, content))),
     quote: (target, content) =>
       send(() => viewer.event(buildQuote(target, content))),
     channelMessage: (channel, content, options) =>

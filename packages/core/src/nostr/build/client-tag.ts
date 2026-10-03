@@ -16,7 +16,7 @@ export const STREETS_CLIENT_TAG: readonly string[] = [
 ];
 
 /** 付けるのは人が書いた公開の投稿だけ。リアクションやリストには付けない。 */
-const TAGGED_KINDS = new Set([1, 42]);
+const TAGGED_KINDS = new Set([1, 42, 1111]);
 
 /** どのアプリから投稿したかを示す `client` タグ（NIP-89）を付ける。 */
 export const withClientTag = (draft: EventDraft): EventDraft => {

@@ -1,4 +1,4 @@
-import { replyTarget, repostTarget } from "../nostr/event-refs";
+import { COMMENT_KIND, replyTarget, repostTarget } from "../nostr/event-refs";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
 import type { EventStore } from "../read/event-store";
 import { reactionKey } from "./reaction-groups";
@@ -31,7 +31,10 @@ export const eventEngagements = (
   const key = reactionKey(viewerReaction);
 
   for (const event of store.eventsByTag("e", targetId)) {
-    if (event.kind === 1 && replyTarget(event)?.id === targetId) {
+    if (
+      (event.kind === 1 || event.kind === COMMENT_KIND) &&
+      replyTarget(event)?.id === targetId
+    ) {
       replies += 1;
       continue;
     }

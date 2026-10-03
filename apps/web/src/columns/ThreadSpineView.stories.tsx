@@ -2,6 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { threadSpine } from "@streets/core/view/thread-spine";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { fullArticle } from "../article/story-articles";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -48,6 +49,21 @@ const replies = [
 const longReplies = [
   alice.reply(longFocus, long("長い焦点への、長い返信。")),
   bob.reply(longFocus, "短い返信。"),
+];
+
+// Amethyst などは、kind:1 の起点への返信をコメント（kind:1111）で書く。
+const commentOnRoot = bob.comment(
+  root,
+  "起点への返信を、コメントで書いたもの。",
+);
+const commentFocus = carol.comment(
+  commentOnRoot,
+  "コメントへの返信。根は大文字の E にだけある。",
+  root,
+);
+const mixedReplies = [
+  alice.comment(commentFocus, "コメントでの返信。", root),
+  bob.comment(commentFocus, "もう 1 件のコメント。", root),
 ];
 
 type Props = {
@@ -114,4 +130,31 @@ export const 長い投稿が混ざる: Story = {
 
 export const 返信がない: Story = {
   args: { events: [root, middle, focus], focusId: focus.id },
+};
+
+/** 投稿とコメントが混ざったスレッド。返信と同じ線でつなぐ。 */
+export const コメントが混ざる: Story = {
+  args: {
+    events: [root, commentOnRoot, commentFocus, middle, ...mixedReplies],
+    focusId: commentFocus.id,
+  },
+};
+
+const articleComment = bob.comment(fullArticle, "記事へのコメント。");
+const articleReply = carol.comment(
+  articleComment,
+  "記事へのコメントへの返信。",
+  fullArticle,
+);
+
+/** 記事へのコメントのスレッドは、コメントが付いた記事を一番上に添える。 */
+export const 記事へのコメント: Story = {
+  args: {
+    events: [fullArticle, articleComment, articleReply],
+    focusId: articleReply.id,
+  },
+};
+
+export const 記事を取得中: Story = {
+  args: { events: [articleComment, articleReply], focusId: articleReply.id },
 };

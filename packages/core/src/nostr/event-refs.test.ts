@@ -3,7 +3,9 @@ import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "./event";
 import {
   embeddedRepostEvent,
+  commentRefs,
   eventRelayHints,
+  isReply,
   quoteTargets,
   replyTarget,
   repostTarget,
@@ -355,5 +357,136 @@ describe("embeddedRepostEvent", () => {
         noteWith([], { kind: 6, content: JSON.stringify({ hello: 1 }) }),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("NIP-22 のコメント", () => {
+  const ROOT = "1".repeat(64);
+  const PARENT = "2".repeat(64);
+  const ROOT_PK = "8".repeat(64);
+  const PARENT_PK = "9".repeat(64);
+  const comment = (tags: string[][]) => noteWith(tags, { kind: 1111 });
+  // Amethyst が kind:1 の起点に付いたコメントへ返信するときの形
+  const nested = comment([
+    ["E", ROOT, "wss://root.example/", ROOT_PK],
+    ["K", "1"],
+    ["P", ROOT_PK],
+    ["e", PARENT, "wss://parent.example/", PARENT_PK],
+    ["k", "1111"],
+    ["p", PARENT_PK],
+  ]);
+
+  it("親は小文字の e、根は大文字の E から取る", () => {
+    // 捕まえる変異: コメントにも NIP-10 の marker を求める（コメントの 4 番目は pubkey なので何も取れない）
+    expect(replyTarget(nested)).toEqual({
+      form: "id",
+      id: PARENT,
+      relay: "wss://parent.example/",
+      pubkey: PARENT_PK,
+    });
+    // 捕まえる変異: 根も小文字の e から取る（返信への返信のスレッドで根を見失う）
+    expect(threadRoot(nested)?.id).toBe(ROOT);
+  });
+
+  it("kind:1 の大文字の E を根と読まない", () => {
+    // 捕まえる変異: kind を見ずに E を読む —— NIP-10 の返信にとって E は意味を持たない
+    expect(threadRoot(noteWith([["E", ROOT, "", ROOT_PK]]))).toBeUndefined();
+  });
+
+  it("根と親を、指す先の kind と一緒に返す", () => {
+    expect(commentRefs(nested)).toEqual({
+      root: {
+        form: "id",
+        id: ROOT,
+        relay: "wss://root.example/",
+        pubkey: ROOT_PK,
+        kind: 1,
+      },
+      parent: {
+        form: "id",
+        id: PARENT,
+        relay: "wss://parent.example/",
+        pubkey: PARENT_PK,
+        kind: 1111,
+      },
+    });
+  });
+
+  it("記事のように A と E を両方持つ先はアドレスを採る", () => {
+    // 捕まえる変異: E を先に見る —— 記事を書き直すと別の id になり、コメントが記事から外れる
+    const address = `30023:${ROOT_PK}:post`;
+    const refs = commentRefs(
+      comment([
+        ["A", address, "wss://a.example/"],
+        ["E", ROOT, "", ROOT_PK],
+        ["K", "30023"],
+        ["a", address],
+        ["e", ROOT, "", ROOT_PK],
+        ["k", "30023"],
+      ]),
+    );
+    expect(refs?.root).toEqual({
+      form: "address",
+      address,
+      relay: "wss://a.example/",
+      kind: 30023,
+    });
+  });
+
+  it("住所を持つ親は、版の id を添えていても id として返さない", () => {
+    // 捕まえる変異: 小文字の e を先に見る —— NIP-22 の例どおりの記事へのコメントで、
+    // 記事の古い版の id を親とみなし、スレッドの上が欠けて見える
+    const address = `30023:${ROOT_PK}:post`;
+    const onArticle = comment([
+      ["A", address],
+      ["K", "30023"],
+      ["a", address],
+      ["e", ROOT],
+      ["k", "30023"],
+    ]);
+    expect(replyTarget(onArticle)).toBeUndefined();
+    expect(threadRoot(onArticle)).toBeUndefined();
+    expect(isReply(onArticle)).toBe(true);
+  });
+
+  it("外部の識別子（NIP-73）を文字列の kind と一緒に返す", () => {
+    const refs = commentRefs(
+      comment([
+        ["I", "https://example.com/a", "https://example.com/a"],
+        ["K", "web"],
+        ["i", "https://example.com/a"],
+        ["k", "web"],
+      ]),
+    );
+    expect(refs?.root).toEqual({
+      form: "external",
+      value: "https://example.com/a",
+      hint: "https://example.com/a",
+      kind: "web",
+    });
+    expect(refs?.parent).toEqual({
+      form: "external",
+      value: "https://example.com/a",
+      kind: "web",
+    });
+  });
+
+  it("コメントでなければ commentRefs は undefined", () => {
+    expect(commentRefs(noteWith([["E", ROOT]]))).toBeUndefined();
+  });
+
+  it("コメントは親が id でなくても返信", () => {
+    // 捕まえる変異: isReply を replyTarget の有無だけで決める（記事へのコメントが返信に数えられない）
+    expect(isReply(comment([["a", `30023:${ROOT_PK}:post`]]))).toBe(true);
+    expect(isReply(noteWith([]))).toBe(false);
+    expect(isReply(noteWith([["e", ROOT, "", "root"]]))).toBe(true);
+  });
+
+  it("リレーヒントに大文字の E のものも含める", () => {
+    // 捕まえる変異: e だけを見る（返信への返信のコメントから根のリレーを引けない）
+    expect(eventRelayHints(nested)).toEqual([
+      "wss://root.example/",
+      "wss://parent.example/",
+    ]);
   });
 });

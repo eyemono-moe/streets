@@ -1,6 +1,8 @@
 import type { RelayUrl } from "../../relay/relay-connection";
+import { addressOfEvent, formatEventAddress } from "../address";
 import { parseContent } from "../content";
 import type { NostrEvent } from "../event";
+import { COMMENT_KIND } from "../event-refs";
 import { encodeBech32 } from "../nip19";
 import type { EventDraft } from "./draft";
 
@@ -30,13 +32,6 @@ export const buildNote = (content: string): EventDraft => ({
 /** 親が持つ `root` マーカー付きの `e` タグ。無ければ親自身が根。 */
 const rootTagOf = (parent: NostrEvent): string[] | undefined =>
   parent.tags.find((tag) => tag[0] === "e" && tag[3] === "root");
-
-/**
- * kind:1 で返信してよい相手か。NIP-10 の返信は kind:1 どうしの決まりで、ほかの kind
- * への返信は NIP-22 のコメント（kind:1111）で書く。
- */
-export const canReplyWithNote = (parent: NostrEvent): boolean =>
-  parent.kind === 1;
 
 /**
  * NIP-10 の返信。マーカー付き `e` タグ `["e", id, relay-url, marker, pubkey]`
@@ -73,6 +68,75 @@ export const buildReply = (
     content,
   };
 };
+
+/** コメントの根として引き継ぐタグ（NIP-22 の大文字）。 */
+const COMMENT_ROOT_TAGS = new Set(["E", "A", "I", "K", "P"]);
+
+/**
+ * 1 つのイベントを指す NIP-22 の参照。住所を持つ先は住所で指し、親としては
+ * 版の id も `e` で添える（NIP-22 の例どおり）。
+ */
+const commentRefTags = (
+  target: NostrEvent,
+  hint: string,
+  as: "root" | "parent",
+): string[][] => {
+  const name = (lower: string) => (as === "root" ? lower.toUpperCase() : lower);
+  const address = addressOfEvent(target);
+  const e = [name("e"), target.id, hint, target.pubkey];
+  const refs = address
+    ? [
+        [name("a"), formatEventAddress(address), hint],
+        ...(as === "parent" ? [e] : []),
+      ]
+    : [e];
+  return [
+    ...refs,
+    [name("k"), String(target.kind)],
+    [name("p"), target.pubkey],
+  ];
+};
+
+/**
+ * NIP-22 のコメント。親がコメントなら親の根（大文字のタグ）をそのまま引き継ぎ、
+ * そうでなければ親そのものを根にする。
+ */
+export const buildComment = (
+  parent: NostrEvent,
+  content: string,
+  options?: { relayHint?: RelayUrl },
+): EventDraft => {
+  const hint = options?.relayHint ?? "";
+  const root =
+    parent.kind === COMMENT_KIND
+      ? parent.tags
+          .filter((tag) => COMMENT_ROOT_TAGS.has(tag[0] ?? ""))
+          .map((tag) => [...tag])
+      : commentRefTags(parent, hint, "root");
+  return {
+    kind: COMMENT_KIND,
+    tags: [
+      ...root,
+      ...commentRefTags(parent, hint, "parent"),
+      ...hashtagTags(content),
+    ],
+    content,
+  };
+};
+
+/**
+ * 返信を、親に合わせた形で書く。投稿（kind:1）には NIP-10 の返信、それ以外には
+ * コメント。投稿にもコメントで返すクライアントはあるが、コメントを表示できない
+ * クライアントがまだ多く、そこから返信が見えなくなるので投稿どうしは kind:1 で返す。
+ */
+export const buildReplyTo = (
+  parent: NostrEvent,
+  content: string,
+  options?: { relayHint?: RelayUrl },
+): EventDraft =>
+  parent.kind === 1
+    ? buildReply(parent, content, options)
+    : buildComment(parent, content, options);
 
 /**
  * NIP-18 の引用。`e` タグは立てない（NIP-18: "quote reposts will not be shown
