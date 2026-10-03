@@ -1,9 +1,7 @@
 import { createRoot } from "solid-js";
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { FALLBACK_RELAYS } from "../read/default-relays";
 import type { EventStore } from "../read/event-store";
-import type { RelayUrl } from "../relay/relay-connection";
 import { createThreadSource } from "./create-thread-source";
 
 const ROOT = "1".repeat(64);
@@ -37,8 +35,6 @@ describe("createThreadSource", () => {
       const thread = createThreadSource({
         focusId: () => FOCUS,
         store: storeOf([comment]),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
       });
       // 捕まえる変異: 根を小文字の e から取る（親のコメントを根とみなし、上が欠ける）
       expect(thread.rootId()).toBe(ROOT);
@@ -68,8 +64,6 @@ describe("createThreadSource", () => {
       const thread = createThreadSource({
         focusId: () => FOCUS,
         store: storeOf([onArticle]),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
       });
       // 捕まえる変異: 住所で集めない（記事へのコメントの祖先が取れず、上が欠ける）
       expect(thread.source().filters).toContainEqual({
@@ -80,39 +74,15 @@ describe("createThreadSource", () => {
     });
   });
 
-  it("カラムに保存してあるリレーにも、焦点が store から消えた後で聞きに行く", () => {
+  it("リレーヒントは既定の行き先に足し、そこだけに絞らない", () => {
     createRoot((dispose) => {
       const thread = createThreadSource({
         focusId: () => FOCUS,
-        store: storeOf([]),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
-        knownRelays: ["wss://search.example/" as RelayUrl],
+        store: storeOf([comment]),
       });
-      // 捕まえる変異: 焦点が store に無いと、保存したリレーも捨てる（再読み込みの後に取れない）
-      expect(thread.source().relays).toContain("wss://search.example/");
-      dispose();
-    });
-  });
-
-  it("焦点を受け取ったリレーにも、根と返信を聞きに行く", () => {
-    const note: NostrEvent = { ...comment, kind: 1, tags: [] };
-    createRoot((dispose) => {
-      const thread = createThreadSource({
-        focusId: () => FOCUS,
-        // 書いたばかりの投稿などは、リレーでない印で入っている。
-        store: storeOf([note], {
-          [FOCUS]: ["wss://search.example", "local"],
-        }),
-        columnRelays: () => undefined,
-        relaysOverride: undefined,
-      });
-      // 捕まえる変異: 受け取ったリレーを見ない（検索リレーにしか無い投稿の根が取れない）
-      // 捕まえる変異: 既定の fallback を落とす（受け取ったリレーだけに絞られる）
-      expect(thread.source().relays).toEqual([
-        ...FALLBACK_RELAYS,
-        "wss://search.example/",
-      ]);
+      // 捕まえる変異: ヒントを `relays` に入れる（既定の行き先や「読み込みリレーだけ」の設定を無視する）
+      expect(thread.source().relays).toBeUndefined();
+      expect(thread.source().extraRelays).toContain("wss://root.example/");
       dispose();
     });
   });

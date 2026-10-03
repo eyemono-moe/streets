@@ -41,6 +41,19 @@ describe("loadDeckSet / saveDeckSet", () => {
     expect(loadDeckSet(saveDeckSet(deck))).toEqual(deck);
   });
 
+  it("開いたときに分かっていたリレーも読み戻せる", () => {
+    const opened = setOf([
+      {
+        id: "thread:x",
+        title: "スレッド",
+        source: { kind: "thread", focus: "a".repeat(64) },
+        knownRelays: ["wss://search.example/"],
+      },
+    ]);
+    // 捕まえる変異: 読み込みで捨てる（再読み込みの後、検索リレーにしか無い投稿が読めない）
+    expect(loadDeckSet(saveDeckSet(opened))).toEqual(opened);
+  });
+
   it("notifications 列を読み戻せる", () => {
     // 捕まえる変異: notifications の variant を足さない (variant は 1 つでも外れると全体が失敗し、カラムを全部失う)。
     const withNotifications = setOf([

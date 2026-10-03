@@ -1,5 +1,4 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import { createThreadSource } from "@streets/core/solid/create-thread-source";
 import { threadSpine } from "@streets/core/view/thread-spine";
 import { type Component, createMemo } from "solid-js";
@@ -7,20 +6,12 @@ import { createBlockSection, useColumnScope } from "../column-scope";
 import ThreadSpineView from "../ThreadSpineView";
 
 /** 焦点のイベントを起点に、根までの祖先とその返信を集めて木にする。 */
-const Thread: Component<{ focus: string; relays?: readonly string[] }> = (
-  props,
-) => {
+const Thread: Component<{ focus: string }> = (props) => {
   const scope = useColumnScope();
   const store = scope.readLayer.store;
   const thread = createThreadSource({
     focusId: () => props.focus,
     store,
-    columnRelays: () => undefined,
-    relaysOverride: undefined,
-    knownRelays: (props.relays ?? []).flatMap((relay) => {
-      const url = normalizeRelayUrl(relay);
-      return url ? [url] : [];
-    }),
   });
   const section = createBlockSection({ source: thread.source });
 

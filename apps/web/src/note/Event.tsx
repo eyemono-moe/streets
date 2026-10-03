@@ -2,7 +2,6 @@ import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { COMMENT_KIND, type EventRef } from "@streets/core/nostr/event-refs";
 import { mediaPostTitle } from "@streets/core/nostr/media-post";
-import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import {
   type CommentScope,
   commentScope,
@@ -415,7 +414,6 @@ const isInteractive = (target: EventTarget | null) =>
 /** 手元にあるイベントを 1 件描く。押すと、そのスレッドを開くよう上へ伝える。 */
 const EventBody: Component<ContentProps> = (props) => {
   const dispatch = useDispatch();
-  const { store } = useReadLayer();
   let downAt: { x: number; y: number } | undefined;
 
   /**
@@ -449,10 +447,8 @@ const EventBody: Component<ContentProps> = (props) => {
             if (moved) return;
             dispatch({
               type: "stack/open",
-              column: columnForEvent(
-                props.event,
-                relaysSeenOn(store, props.event.id),
-              ),
+              column: columnForEvent(props.event),
+              from: props.event.id,
             });
           }}
         />

@@ -371,9 +371,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       icon: "i-material-symbols:mode-comment-outline-rounded",
       subtitle: "スレッド",
     }),
-    Content: (props) => (
-      <Thread focus={props.source.focus} relays={props.source.relays} />
-    ),
+    Content: (props) => <Thread focus={props.source.focus} />,
   },
   activity: {
     meta: () => ({
@@ -381,9 +379,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       subtitle: "リポスト・引用・リアクション",
     }),
     scrollsInternally: true,
-    Content: (props) => (
-      <Activity target={props.source.target} relays={props.source.relays} />
-    ),
+    Content: (props) => <Activity target={props.source.target} />,
   },
   user: {
     meta: () => ({ icon: PERSON_ICON, subtitle: "ノートと返信" }),

@@ -3,7 +3,6 @@ import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
-import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { EventActionId } from "@streets/core/settings/action-layout";
 import { reactionContentOf } from "@streets/core/settings/default-reaction";
 import { eventEngagements } from "@streets/core/view/event-engagements";
@@ -103,7 +102,6 @@ export const reactionLabel = (input: ReactionInput): string =>
  */
 export const useEventLevelOps = (event: () => NostrEvent) => {
   const dispatch = useDispatch();
-  const { store } = useReadLayer();
   const mutes = useMutes();
   const target = () => threadMuteTarget(event());
   // スレッドやその人のページでは、ミュートした投稿も出ているので、そこから解除できる。
@@ -130,10 +128,8 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
     activity: () =>
       dispatch({
         type: "stack/open",
-        column: buildActivityColumn(
-          event().id,
-          relaysSeenOn(store, event().id),
-        ),
+        column: buildActivityColumn(event().id),
+        from: event().id,
       }),
     copyLink: async () => {
       // TLV を持つ `nevent` の符号化器がまだ無いので、id だけの `note` で参照する。

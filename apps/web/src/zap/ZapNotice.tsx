@@ -55,6 +55,7 @@ const ZapNotice: Component<{
             dispatch({
               type: "stack/open",
               column: buildThreadColumn(targetId),
+              from: targetId,
             });
           }}
         >

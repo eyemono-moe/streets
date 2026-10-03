@@ -123,17 +123,12 @@ export const bookmarksSource = (ids: readonly string[]): NostrSource => ({
   filters: [{ ids: [...ids] }],
 });
 
-/** `relays` は投稿があると分かっているリレー。反応もそこに集まりやすいので足して聞く。 */
-export const activitySource = (
-  target: string,
-  relays?: readonly string[],
-): NostrSource => ({
+export const activitySource = (target: string): NostrSource => ({
   type: "nostr",
   filters: [
     { kinds: [6, 7, 16], "#e": [target] },
     { kinds: [1], "#q": [target] },
   ],
-  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 export const userPostsSource = (
@@ -218,9 +213,7 @@ export const articleCommentsSource = (
       "#A": [`${LONG_FORM_KIND}:${pubkey}:${identifier}`],
     },
   ],
-  ...(relays && relays.length > 0
-    ? { relays: [...new Set([...FALLBACK_RELAYS, ...(relays as RelayUrl[])])] }
-    : {}),
+  ...(relays && relays.length > 0 ? { extraRelays: relays as RelayUrl[] } : {}),
 });
 
 /** その人がプロフィールの上にピン留めした投稿の一覧（最新の版だけ）。 */

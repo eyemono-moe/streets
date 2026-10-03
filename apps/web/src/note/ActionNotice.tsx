@@ -244,6 +244,7 @@ const ActionNotice: Component<{
         dispatch({
           type: "stack/open",
           column: buildThreadColumn(current.targetId),
+          from: current.targetId,
         });
       }}
     >

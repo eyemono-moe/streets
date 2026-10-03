@@ -7,7 +7,9 @@ import {
   shownColumn,
 } from "@streets/core/deck/column-stack";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import { withKnownRelays } from "@streets/core/deck/known-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
@@ -59,9 +61,22 @@ const Column: Component<ColumnProps> = (props) => {
           measureUntilPaint("column.stack", "ui.column");
         }
         setStack(
-          reconcile(columnStackTransition(unwrap(stack), event, props.column), {
-            key: "key",
-          }),
+          reconcile(
+            columnStackTransition(
+              unwrap(stack),
+              event.type === "stack/open" && event.from
+                ? {
+                    ...event,
+                    column: withKnownRelays(
+                      event.column,
+                      relaysSeenOn(props.readLayer.store, event.from),
+                    ),
+                  }
+                : event,
+              props.column,
+            ),
+            { key: "key" },
+          ),
         );
         return true;
       default:

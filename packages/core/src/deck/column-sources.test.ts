@@ -178,16 +178,6 @@ describe("人と投稿", () => {
     });
   });
 
-  it("投稿があると分かっているリレーは、反応を探す先に足す", () => {
-    // 捕まえる変異: `relays` で行き先を置き換える（自分の読むリレーにある反応を取らない）
-    expect(activitySource("b".repeat(64), ["wss://search.example/"])).toEqual(
-      expect.objectContaining({ extraRelays: ["wss://search.example/"] }),
-    );
-    expect(
-      activitySource("b".repeat(64), ["wss://search.example/"]).relays,
-    ).toBeUndefined();
-  });
-
   it("記事を受け取ったリレーは、書いた人のリレーに足す", () => {
     const source = articleSource("a".repeat(64), "post", [
       "wss://search.example/",
@@ -373,8 +363,8 @@ describe("articleCommentsSource", () => {
 
   it("記事のリレーは既定のリレーに足し、それだけに絞らない", () => {
     // 捕まえる変異: 記事のリレーだけを明示する（ほかのリレーに書かれたコメントが見えない）
-    const relays = articleCommentsSource(PK, "post", ["wss://article/"]).relays;
-    expect(relays).toContain("wss://article/");
-    expect(relays?.length).toBeGreaterThan(1);
+    const source = articleCommentsSource(PK, "post", ["wss://article/"]);
+    expect(source.relays).toBeUndefined();
+    expect(source.extraRelays).toEqual(["wss://article/"]);
   });
 });

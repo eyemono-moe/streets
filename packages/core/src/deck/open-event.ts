@@ -17,6 +17,7 @@ import {
   buildThreadColumn,
 } from "./column-presets";
 import type { ColumnDef } from "./deck";
+import { withKnownRelays } from "./known-relays";
 
 /**
  * 住所で指すイベントを押したときに開くカラム。kind の表示を足すときは、
@@ -88,27 +89,13 @@ export const columnForNaddr = (
 export const columnForNoteRef = (
   ref: Extract<Nip19Ref, { kind: "note" | "nevent" }>,
 ): ColumnDef =>
-  buildThreadColumn(
-    ref.id,
-    ref.kind === "nevent"
-      ? ref.relays.flatMap((relay) => {
-          const url = relayOf(relay);
-          return url ? [url] : [];
-        })
-      : [],
+  withKnownRelays(
+    buildThreadColumn(ref.id),
+    ref.kind === "nevent" ? ref.relays : [],
   );
 
-/**
- * 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。
- * `relays` はその投稿を受け取ったリレー。検索リレーのように普段は読まない
- * リレーで見つけたものは、そこにしか無いことがあるので、開いた先でも聞く。
- */
-export const columnForEvent = (
-  event: NostrEvent,
-  relays: readonly RelayUrl[] = [],
-): ColumnDef => {
+/** 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。 */
+export const columnForEvent = (event: NostrEvent): ColumnDef => {
   const address = addressOfEvent(event);
-  return address
-    ? columnForAddress(address, relays)
-    : buildThreadColumn(event.id, relays);
+  return address ? columnForAddress(address) : buildThreadColumn(event.id);
 };
