@@ -6,7 +6,7 @@ export const NIP46_SESSION_STORAGE_KEY = "streets.v1.nip46-session";
 // Streets が署名器に依頼するイベント。リレーへの投稿以外に、Zap・認証も含む。
 const SIGN_EVENT_KINDS = [
   0, 1, 3, 5, 6, 7, 40, 41, 42, 43, 44, 1018, 1111, 9734, 10000, 10001, 10002,
-  10003, 10005, 10006, 10007, 10030, 10063, 22242, 24242, 30078, 30315,
+  10003, 10005, 10006, 10007, 10030, 10063, 22242, 24242, 30000, 30078, 30315,
 ] as const;
 
 export const NIP46_REQUIRED_PERMISSIONS = [

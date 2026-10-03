@@ -4,6 +4,7 @@ import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
 } from "../nostr/private-tags";
+import { assertNip46SignPermission } from "../signer/nip46/session-storage";
 import type { Signer } from "../signer/signer";
 import {
   applyFollowSetChanges,
@@ -225,6 +226,7 @@ describe("changeFollowSet", () => {
     const draft = await changeFollowSet(signer(), VIEWER, [
       { type: "describe", title: " 友だち ", description: "", image: "" },
     ])(undefined);
+    assertNip46SignPermission(draft.kind);
     expect(draft).toEqual({
       kind: 30000,
       tags: [["title", "友だち"]],
