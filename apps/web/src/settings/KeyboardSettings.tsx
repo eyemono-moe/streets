@@ -1,4 +1,8 @@
 import {
+  defaultKeyboardSettings,
+  isDefaultKeyboard,
+} from "@streets/core/settings/device-defaults";
+import {
   DEFAULT_KEYMAP,
   type Keymap,
   SHORTCUT_ACTIONS,
@@ -20,6 +24,7 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
+import ResetToDefaults from "./ResetToDefaults";
 import SettingsSection from "./SettingsSection";
 
 /**
@@ -151,6 +156,28 @@ const KeyboardSettings: Component<{
           onChange={(on) => dispatch({ type: "deck/set-column-digits", on })}
         />
       </SettingsSection>
+
+      <ResetToDefaults
+        description="ショートカットキーと数字キーでのカラム移動を、はじめの状態に戻します。"
+        isDefault={isDefaultKeyboard({
+          keymap: props.keymap,
+          columnDigits: props.columnDigits,
+        })}
+        onReset={() => {
+          const initial = defaultKeyboardSettings();
+          for (const action of SHORTCUT_ACTIONS) {
+            dispatch({
+              type: "deck/set-shortcut",
+              action,
+              hotkey: initial.keymap[action],
+            });
+          }
+          dispatch({
+            type: "deck/set-column-digits",
+            on: initial.columnDigits,
+          });
+        }}
+      />
     </div>
   );
 };

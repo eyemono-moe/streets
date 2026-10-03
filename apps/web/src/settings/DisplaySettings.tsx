@@ -8,6 +8,10 @@ import {
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
+import {
+  defaultDisplaySettings,
+  isDefaultDisplay,
+} from "@streets/core/settings/device-defaults";
 import { type Component, For } from "solid-js";
 import { PALETTES, type PaletteName, paletteOf } from "../theme";
 import { useDispatch } from "../ui-events";
@@ -16,6 +20,8 @@ import SegmentedControl from "../ui/SegmentedControl";
 import Switch from "../ui/Switch";
 import ActionLayoutField from "./ActionLayoutField";
 import DisplayPreview from "./DisplayPreview";
+import ResetToDefaults from "./ResetToDefaults";
+import SettingsDetails from "./SettingsDetails";
 import SettingsSection from "./SettingsSection";
 
 const CONTENT_WARNING_MODES: { value: ContentWarningMode; label: string }[] = [
@@ -62,58 +68,27 @@ const DisplaySettings: Component<{
       appearance: { ...props.appearance, ...patch },
     });
 
+  const currentDevice = () => ({
+    deckLayout: props.deckLayout,
+    writeProgress: props.writeProgress,
+    contentWarning: props.contentWarning,
+    actionLayout: props.actionLayout,
+    colorScheme: props.scheme,
+  });
+  const reset = () => {
+    const initial = defaultDisplaySettings();
+    dispatch({ type: "deck/set-color-scheme", scheme: initial.colorScheme });
+    dispatch({ type: "deck/set-deck-layout", layout: initial.deckLayout });
+    dispatch({
+      type: "deck/set-content-warning",
+      mode: initial.contentWarning,
+    });
+    dispatch({ type: "deck/set-write-progress", on: initial.writeProgress });
+    dispatch({ type: "deck/set-action-layout", layout: initial.actionLayout });
+  };
+
   return (
     <div class="flex flex-col gap-7">
-      <SettingsSection
-        title="カラムの並べ方"
-        scope="device"
-        description="カラムを横に並べるか、1 列ずつ切り替えて見せるかを選びます。「画面幅に合わせる」では、スマホのような狭い画面で 1 列、それより広い画面で横に並べます。「複数列」で幅が足りないときは、横にスクロールして見ます。"
-      >
-        <SegmentedControl
-          label="カラムの並べ方"
-          options={LAYOUTS}
-          value={props.deckLayout}
-          onChange={(layout) =>
-            dispatch({ type: "deck/set-deck-layout", layout })
-          }
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title="ローディング表示"
-        scope="device"
-        description="投稿やいいね、設定を保存するとき、アップロード先のそれぞれのリレーに届いたかを画面の右下に出します。オフにすると、設定を保存 または 保存に失敗したときだけ表示します。"
-      >
-        <Switch
-          label="ローディングの進行状況を表示する"
-          checked={props.writeProgress}
-          onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title="閲覧注意の投稿"
-        scope="device"
-        description="投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに閲覧注意の理由を出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
-      >
-        <SegmentedControl
-          label="閲覧注意の投稿"
-          options={CONTENT_WARNING_MODES}
-          value={props.contentWarning}
-          onChange={(mode) =>
-            dispatch({ type: "deck/set-content-warning", mode })
-          }
-        />
-      </SettingsSection>
-
-      <SettingsSection
-        title="アクション欄"
-        scope="device"
-        description={`投稿の下に並べる操作を選びます。並べられるのは ${ACTION_BAR_MAX} 個までで、残りは投稿の右上の「︙」のメニューに入ります。行を掴んで動かすか、右端のつまみを選んで ↑↓ キーで並べ替えます。`}
-      >
-        <ActionLayoutField layout={props.actionLayout} />
-      </SettingsSection>
-
       <SettingsSection
         title="カラーテーマ"
         scope="device"
@@ -211,6 +186,67 @@ const DisplaySettings: Component<{
       <SettingsSection title="プレビュー">
         <DisplayPreview />
       </SettingsSection>
+
+      <SettingsSection
+        title="カラムの並べ方"
+        scope="device"
+        description="カラムを横に並べるか、1 列ずつ切り替えて見せるかを選びます。「画面幅に合わせる」では、スマホのような狭い画面で 1 列、それより広い画面で横に並べます。「複数列」で幅が足りないときは、横にスクロールして見ます。"
+      >
+        <SegmentedControl
+          label="カラムの並べ方"
+          options={LAYOUTS}
+          value={props.deckLayout}
+          onChange={(layout) =>
+            dispatch({ type: "deck/set-deck-layout", layout })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        title="閲覧注意の投稿"
+        scope="device"
+        description="投稿した人が「見る前に確かめてほしい」と印を付けた投稿の扱いを選びます。「隠す」では本文や画像の代わりに閲覧注意の理由を出し、「表示する」を押すと中身を出します。「一覧に出さない」ではタイムラインや通知に並べません（自分の投稿は並べます）。"
+      >
+        <SegmentedControl
+          label="閲覧注意の投稿"
+          options={CONTENT_WARNING_MODES}
+          value={props.contentWarning}
+          onChange={(mode) =>
+            dispatch({ type: "deck/set-content-warning", mode })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsDetails
+        page="display"
+        summary="ローディング表示、アクション欄の並べ替え、既定に戻す"
+      >
+        <SettingsSection
+          title="ローディング表示"
+          scope="device"
+          description="投稿やいいね、設定を保存するとき、アップロード先のそれぞれのリレーに届いたかを画面の右下に出します。オフにすると、設定を保存 または 保存に失敗したときだけ表示します。"
+        >
+          <Switch
+            label="ローディングの進行状況を表示する"
+            checked={props.writeProgress}
+            onChange={(on) => dispatch({ type: "deck/set-write-progress", on })}
+          />
+        </SettingsSection>
+
+        <SettingsSection
+          title="アクション欄"
+          scope="device"
+          description={`投稿の下に並べる操作を選びます。並べられるのは ${ACTION_BAR_MAX} 個までで、残りは投稿の右上の「︙」のメニューに入ります。行を掴んで動かすか、右端のつまみを選んで ↑↓ キーで並べ替えます。`}
+        >
+          <ActionLayoutField layout={props.actionLayout} />
+        </SettingsSection>
+
+        <ResetToDefaults
+          description="この端末に保存した表示の設定（カラーテーマ・カラムの並べ方・閲覧注意の投稿・ローディング表示・アクション欄）を、はじめの状態に戻します。アカウントに保存したアクセントカラーは戻しません。"
+          isDefault={isDefaultDisplay(currentDevice())}
+          onReset={reset}
+        />
+      </SettingsDetails>
     </div>
   );
 };
