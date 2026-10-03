@@ -6,6 +6,7 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
+import { isLocalNetworkRelay } from "../relay/relay-url";
 import { MAX_CONNECTIONS } from "./default-relays";
 
 export type PooledSubscription = { close(): void };
@@ -92,6 +93,11 @@ export type ConnectionPoolOptions = {
   scheduler?: Scheduler;
   /** ジッタの注入口 (テスト用)。既定は Math.random。 */
   random?: () => number;
+  /**
+   * ローカルネットワークのリレーへ、`allowLocalRelays()` で許したもの以外も繋ぐか。
+   * ページ自体が手元で開かれていればブラウザは許可を求めないので、そのときだけ真にする。
+   */
+  allowLocalNetwork?: boolean;
 };
 
 export type RelayStatus = "in-use" | "failing" | "idle";
@@ -171,6 +177,12 @@ export class ConnectionPool {
    */
   readonly #blocked = new Set<RelayUrl>();
 
+  /**
+   * 繋いでよいローカルネットワークのリレーと、許している呼び出し元の数。他人の
+   * relay list にある localhost はその人の手元を指すので、自分で指定したものだけを許す。
+   */
+  readonly #localAllowed = new Map<RelayUrl, number>();
+
   constructor(options: ConnectionPoolOptions) {
     this.#options = options;
     this.#maxConnections = options.maxConnections ?? MAX_CONNECTIONS;
@@ -229,8 +241,40 @@ export class ConnectionPool {
     return [...this.#blocked];
   }
 
+  /** 繋がないリレーか。ユーザーが止めたものと、許していないローカルネットワークのもの。 */
   isBlocked(url: RelayUrl): boolean {
-    return this.#blocked.has(url);
+    return this.#blocked.has(url) || this.isLocalRefused(url);
+  }
+
+  /** 自分で指定していないローカルネットワークのリレーか。 */
+  isLocalRefused(url: RelayUrl): boolean {
+    return (
+      !this.#options.allowLocalNetwork &&
+      !this.#localAllowed.has(url) &&
+      isLocalNetworkRelay(url)
+    );
+  }
+
+  /**
+   * 自分で指定したリレーを、ローカルネットワークのものでも繋げるようにする。
+   * 返した関数で取り下げ、どこからも許されていなければその場で閉じる。
+   */
+  allowLocalRelays(urls: readonly RelayUrl[]): () => void {
+    const added = [...new Set(urls)];
+    for (const url of added) {
+      this.#localAllowed.set(url, (this.#localAllowed.get(url) ?? 0) + 1);
+    }
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      for (const url of added) {
+        const count = (this.#localAllowed.get(url) ?? 0) - 1;
+        if (count > 0) this.#localAllowed.set(url, count);
+        else this.#localAllowed.delete(url);
+      }
+      this.#closeBlocked();
+    };
   }
 
   /**
@@ -241,8 +285,12 @@ export class ConnectionPool {
   setBlockedRelays(urls: readonly RelayUrl[]): void {
     this.#blocked.clear();
     for (const url of urls) this.#blocked.add(url);
+    this.#closeBlocked();
+  }
+
+  #closeBlocked(): void {
     for (const [url, pooled] of [...this.#pool]) {
-      if (!this.#blocked.has(url)) continue;
+      if (!this.isBlocked(url)) continue;
       const entries = [...pooled.entries];
       // ソケットの死より先に購読を外す。外さないと、閉じたソケットからも
       // 遅れて onClosed が届き、二重に数えられる。
@@ -353,7 +401,7 @@ export class ConnectionPool {
     url: RelayUrl,
     options?: SubscribeOptions,
   ): Pooled | undefined {
-    if (this.#blocked.has(url)) return undefined;
+    if (this.isBlocked(url)) return undefined;
     let pooled = this.#pool.get(url);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
@@ -491,7 +539,7 @@ export class ConnectionPool {
    * 予算を返さない決着の仕方を作らない。
    */
   publish(url: RelayUrl, event: NostrEvent): Promise<void> {
-    if (this.#blocked.has(url)) {
+    if (this.isBlocked(url)) {
       return Promise.reject(new Error(`blocked relay: ${url}`));
     }
     const pooled = this.#ensureConnection(url);

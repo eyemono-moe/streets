@@ -45,6 +45,7 @@ const setup = (hooks?: Parameters<typeof createNip46Client>[0]["hooks"]) => {
     publish: vi.fn(async (_url: string, event: NostrEvent) => {
       sent = event;
     }),
+    allowLocalRelays: vi.fn((_urls: readonly string[]) => vi.fn()),
   };
   const client = createNip46Client({
     pool,
@@ -124,6 +125,25 @@ describe("Nip46Client", () => {
     expect(base.client.switchRelays(["wss://next.example/"])).toBe(true);
     expect(base.pool.subscribe).toHaveBeenCalledTimes(2);
     expect(oldHandle.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("署名器のリレーは手元のものでも繋げるようにし、切り替えや終了で取り下げる", () => {
+    const base = setup();
+    const releaseOf = (call: number) =>
+      base.pool.allowLocalRelays.mock.results[call]?.value as () => void;
+    expect(base.pool.allowLocalRelays).toHaveBeenLastCalledWith([
+      "wss://relay.example/",
+    ]);
+
+    base.client.switchRelays(["ws://localhost:7777/"]);
+    expect(base.pool.allowLocalRelays).toHaveBeenLastCalledWith([
+      "ws://localhost:7777/",
+    ]);
+    expect(releaseOf(0)).toHaveBeenCalledTimes(1);
+    expect(releaseOf(1)).not.toHaveBeenCalled();
+
+    base.client.close();
+    expect(releaseOf(1)).toHaveBeenCalledTimes(1);
   });
 
   it("auth_urlを通知した後も同じidの終端応答を待つ", async () => {

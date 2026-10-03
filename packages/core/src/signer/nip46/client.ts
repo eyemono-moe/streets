@@ -40,7 +40,7 @@ export type Nip46ClientHooks = {
   onAuthUrl?: (url: URL | undefined, requestId: string) => void;
 };
 
-type Pool = Pick<ConnectionPool, "publish" | "subscribe">;
+type Pool = Pick<ConnectionPool, "publish" | "subscribe" | "allowLocalRelays">;
 type Timer = ReturnType<typeof setTimeout>;
 type Pending = {
   resolve: (result: string) => void;
@@ -135,6 +135,8 @@ export const createNip46Client = (options: {
   const pending = new Map<string, Pending>();
   let currentRelays = [...options.relays];
   let subscriptions: PooledSubscription[] = [];
+  // 署名器のリレーはユーザーが指定したものなので、手元の署名器へも繋ぐ。
+  let releaseLocal = options.pool.allowLocalRelays(currentRelays);
   let closed = false;
 
   const settleTimeout = (id: string, timeoutMs: number): Timer =>
@@ -224,6 +226,7 @@ export const createNip46Client = (options: {
 
   subscriptions = subscribe(currentRelays);
   if (subscriptions.length === 0) {
+    releaseLocal();
     throw new Nip46RpcError("connection budget exhausted for remote signer");
   }
 
@@ -266,12 +269,18 @@ export const createNip46Client = (options: {
     },
     switchRelays(relays) {
       if (closed) return false;
+      const releaseNext = options.pool.allowLocalRelays(relays);
       const next = subscribe(relays);
-      if (next.length === 0) return false;
+      if (next.length === 0) {
+        releaseNext();
+        return false;
+      }
       const previous = subscriptions;
       subscriptions = next;
       currentRelays = [...relays];
       for (const handle of previous) handle.close();
+      releaseLocal();
+      releaseLocal = releaseNext;
       return true;
     },
     close() {
@@ -279,6 +288,7 @@ export const createNip46Client = (options: {
       closed = true;
       for (const handle of subscriptions) handle.close();
       subscriptions = [];
+      releaseLocal();
       for (const [id, request] of pending) {
         clearTimer(request.timer);
         request.reject(new Nip46RpcError("NIP-46 client was closed"));

@@ -200,6 +200,11 @@ type ColumnKindDef<S> = {
    * ブックマークなど）。ログインしていない間は、中身の代わりにログインを勧める。
    */
   needsAccount?: boolean;
+  /**
+   * ユーザーが自分で選んだリレー。手元のリレー（localhost など）でも繋ぐ。
+   * 開いたときのヒントのように、他人が書いたリレーは含めない。
+   */
+  chosenRelays?: (source: S) => readonly string[];
 };
 
 /** 読み込みリレーだけを読んでいるなら、そこが落ちると何も出ない。 */
@@ -246,6 +251,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
         ? source.filters.flatMap((filter) => filter.kinds ?? [])
         : undefined,
     hidesMuted: true,
+    chosenRelays: (source) => source.relays ?? [],
     alerts: (source, input) => {
       const unreachable = input.status.incomplete?.unreachableRelays ?? 0;
       const blocked =
@@ -476,6 +482,10 @@ export const columnHidesMuted = (column: ColumnDef): boolean =>
 
 export const columnNeedsAccount = (column: ColumnDef): boolean =>
   kindOf(column.source).needsAccount === true;
+
+/** カラムでユーザーが自分で選んだリレー。 */
+export const columnChosenRelays = (column: ColumnDef): readonly string[] =>
+  kindOf(column.source).chosenRelays?.(column.source) ?? [];
 
 /**
  * カラムに起きたことのうち、ユーザーが行動できるものだけを返す (診断値

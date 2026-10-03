@@ -118,6 +118,7 @@ type CreatePoolOptions = {
    * 再現する。`.open()` を明示的に呼べば「実際に開いた」ことにできる。
    */
   neverOpens?: RelayUrl[];
+  allowLocalNetwork?: boolean;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -171,6 +172,7 @@ const createPool = (options: CreatePoolOptions = {}) => {
     maxConnections: options.maxConnections,
     scheduler: clock,
     random: options.random,
+    allowLocalNetwork: options.allowLocalNetwork,
   });
 
   return { pool, connections, connectCalls, clock };
@@ -1761,5 +1763,48 @@ describe("ConnectionPool の繋がないリレー", () => {
     clock.advance(120_000);
 
     expect(connectCalls).toEqual(["wss://one/"]);
+  });
+});
+
+describe("ConnectionPool のローカルネットワークのリレー", () => {
+  const LOCAL = "ws://localhost:7777/";
+
+  it("許していないローカルネットワークのリレーへはソケットを作らない", async () => {
+    const { pool, connectCalls } = createPool();
+
+    expect(
+      pool.subscribe(LOCAL, [{ kinds: [1] }], noopHandlers()),
+    ).toBeUndefined();
+    expect(pool.hold(LOCAL)).toBeUndefined();
+    await expect(pool.publish(LOCAL, fakeEvent("e1"))).rejects.toThrow(
+      "blocked relay",
+    );
+    expect(pool.isBlocked(LOCAL)).toBe(true);
+    // ユーザーが止めた一覧とは別に持つ。
+    expect(pool.blockedRelays).toEqual([]);
+    expect(connectCalls).toEqual([]);
+  });
+
+  it("自分で指定したものは繋ぎ、どこからも許されなくなったら閉じる", () => {
+    const { pool, connections, connectCalls } = createPool();
+    const releaseA = pool.allowLocalRelays([LOCAL]);
+    const releaseB = pool.allowLocalRelays([LOCAL]);
+    const onClosed = vi.fn();
+    pool.subscribe(LOCAL, [{ kinds: [1] }], { ...noopHandlers(), onClosed });
+    expect(connectCalls).toEqual([LOCAL]);
+
+    releaseA();
+    releaseA();
+    expect(connections.get(LOCAL)?.closed).toBe(false);
+
+    releaseB();
+    expect(connections.get(LOCAL)?.closed).toBe(true);
+    expect(onClosed).toHaveBeenCalledWith("blocked");
+  });
+
+  it("allowLocalNetwork なら許していなくても繋ぐ", () => {
+    const { pool, connectCalls } = createPool({ allowLocalNetwork: true });
+    pool.subscribe(LOCAL, [{ kinds: [1] }], noopHandlers());
+    expect(connectCalls).toEqual([LOCAL]);
   });
 });

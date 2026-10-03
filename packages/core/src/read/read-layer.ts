@@ -32,6 +32,8 @@ export type ReadLayerOptions = {
   random?: () => number;
   /** 張り直しをまとめる窓。既定は `REPLAN_BATCH_MS`。テストは 0 にして同期実行できる。 */
   replanBatchMs?: number;
+  /** ローカルネットワークのリレーへ、許したもの以外も繋ぐか（`ConnectionPoolOptions` 参照）。 */
+  allowLocalNetwork?: boolean;
 };
 
 export type ReadLayer = {
@@ -69,6 +71,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     scheduler,
     random: options.random,
     replanBatchMs: options.replanBatchMs ?? REPLAN_BATCH_MS,
+    allowLocalNetwork: options.allowLocalNetwork,
   });
   const profileRequestsOptions: CreateProfileRequestsOptions = {
     store,
