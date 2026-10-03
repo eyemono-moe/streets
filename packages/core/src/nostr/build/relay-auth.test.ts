@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
+import { assertNip46SignPermission } from "../../signer/nip46/session-storage";
 import { buildRelayAuth, isAuthRequired } from "./relay-auth";
 
 describe("buildRelayAuth", () => {
   it("tags the relay URL and the challenge", () => {
-    expect(buildRelayAuth("wss://a/", "abc")).toEqual({
+    const draft = buildRelayAuth("wss://a/", "abc");
+    assertNip46SignPermission(draft.kind);
+    expect(draft).toEqual({
       kind: 22_242,
       tags: [
         ["relay", "wss://a/"],

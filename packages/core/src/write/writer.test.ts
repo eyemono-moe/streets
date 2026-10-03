@@ -1,11 +1,13 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vite-plus/test";
+import { buildReplyTo } from "../nostr/build/note";
 import { computeEventId } from "../nostr/event";
 import type { NostrEvent } from "../nostr/event";
 import { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
-import { createFakeSigner } from "../signer/fake-signer";
+import { createFakeSigner as createRawFakeSigner } from "../signer/fake-signer";
+import { assertNip46SignPermission } from "../signer/nip46/session-storage";
 import { type Signer, SignerUnavailableError } from "../signer/signer";
 import { RefetchFailedError } from "./fetch-latest";
 import type { PublishResult, Publisher } from "./publisher";
@@ -14,6 +16,18 @@ import { WriteFailedError, createWriter } from "./writer";
 const SK = Uint8Array.from(Array.from({ length: 32 }, (_, i) => i + 1));
 const PUBKEY = bytesToHex(schnorr.getPublicKey(SK));
 const OTHER_PUBKEY = "b".repeat(64);
+
+// 書き込み経路のテストは、NIP-46 で要求した kind だけ署名できる条件で動かす。
+const createFakeSigner = (secretKey: Uint8Array): Signer => {
+  const signer = createRawFakeSigner(secretKey);
+  return {
+    ...signer,
+    async signEvent(template) {
+      assertNip46SignPermission(template.kind);
+      return signer.signEvent(template);
+    },
+  };
+};
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -98,6 +112,27 @@ const stubPublisher = (
 });
 
 describe("publish", () => {
+  it("記事への返信を NIP-46 の権限で署名できる", async () => {
+    const article = sign(1, {
+      kind: 30023,
+      created_at: 1_699_999_900,
+      tags: [["d", "article"]],
+      content: "# article",
+    });
+    const { writer } = setup(ok);
+    const result = await writer.publish(buildReplyTo(article, "コメント"));
+    expect(result.event.kind).toBe(1111);
+  });
+
+  it("要求権限のない kind は署名せずに失敗する", async () => {
+    const { writer, store, calls } = setup(ok);
+    await expect(
+      writer.publish({ kind: 99999, tags: [], content: "hi" }),
+    ).rejects.toThrow("missing NIP-46 permission: sign_event:99999");
+    expect(store.size).toBe(0);
+    expect(calls).toEqual(["sign"]);
+  });
+
   it("署名 → 楽観挿入 → publish の順に進む", async () => {
     // 捕まえる変異: put を publish の後に動かす (楽観挿入がリレー応答を待つことになり 100ms 予算が崩れる)。
     const { writer, calls } = setup(ok);
