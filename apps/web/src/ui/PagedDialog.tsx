@@ -49,7 +49,7 @@ const PagedDialog: Component<{
           classList={{
             "h-[min(800px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
               props.wide,
-            "h-dvh w-screen": !props.wide,
+            "safe-pad h-dvh w-screen": !props.wide,
           }}
         >
           <DialogDescription class="sr-only">

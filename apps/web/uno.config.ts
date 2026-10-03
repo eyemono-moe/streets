@@ -250,6 +250,15 @@ export default defineConfig({
       "text-body": "text-[15px]",
       "text-caption": "text-[13px]",
 
+      // ホーム画面から開いたときや横向きで、ノッチやホームバーに隠れる分を空ける。
+      // index.html の viewport に viewport-fit=cover があるときだけ 0 でなくなる。
+      "safe-pad-x":
+        "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
+      "safe-pad":
+        "safe-pad-x pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+      "safe-margin-x":
+        "ml-[env(safe-area-inset-left)] mr-[env(safe-area-inset-right)]",
+
       // text color
       "c-primary": "c-ui-9 dark:c-ui-1",
       "c-secondary": "c-ui-6 dark:c-ui-4",
