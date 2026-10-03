@@ -6,6 +6,7 @@ import UnoCSS from "unocss/vite";
 import solid from "vite-plugin-solid";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import { unicodeEmojis } from "./emoji-data-plugin";
+import { LICENSE_FILE, licenseBanner } from "./license-plugin";
 import { releaseNotes } from "./release-notes-plugin";
 
 const commitSha = (): string => {
@@ -91,7 +92,10 @@ export default defineConfig(({ mode }) => ({
     unicodeEmojis(),
     ...sentryUpload(release),
     ...analyze(mode),
+    licenseBanner(),
   ]),
+  // Worker は別にまとめられるので、目印もそちらへ別に足す。
+  worker: { plugins: () => [licenseBanner()] },
   build: {
     // Vite 7 以降の既定（Baseline Widely Available）と同じ。Vite 6 の既定では
     // core のクラスの private フィールド（`#events` など）が WeakMap の呼び出しに
@@ -99,6 +103,7 @@ export default defineConfig(({ mode }) => ({
     target: ["chrome107", "edge107", "firefox104", "safari16"],
     // 送るときだけ作る。配らずに消すので、公開されるものは変わらない。
     sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN),
+    license: { fileName: LICENSE_FILE },
   },
   server: {
     port: 5173,
