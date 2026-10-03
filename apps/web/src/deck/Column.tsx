@@ -59,7 +59,7 @@ const Column: Component<ColumnProps> = (props) => {
           measureUntilPaint("column.stack", "ui.column");
         }
         setStack(
-          reconcile(columnStackTransition(unwrap(stack), event), {
+          reconcile(columnStackTransition(unwrap(stack), event, props.column), {
             key: "key",
           }),
         );

@@ -10,7 +10,10 @@ import {
 } from "./column-stack";
 
 const run = (...events: ColumnStackEvent[]): ColumnStackState =>
-  events.reduce(columnStackTransition, emptyColumnStack());
+  events.reduce(
+    (state, event) => columnStackTransition(state, event),
+    emptyColumnStack(),
+  );
 
 const thread = buildThreadColumn("a".repeat(64));
 const user = buildUserColumn("b".repeat(64));
@@ -33,6 +36,35 @@ describe("columnStackTransition", () => {
       { type: "stack/open", column: thread },
     );
     expect(state.layers).toHaveLength(1);
+  });
+
+  it("下のカラムと同じものは重ねない", () => {
+    // 捕まえる変異: 重ねた段だけを見て、デッキに置いたスレッドのカラムに同じスレッドを重ねる
+    const base = { ...thread, id: "deck-column" };
+    const state = columnStackTransition(
+      emptyColumnStack(),
+      { type: "stack/open", column: thread },
+      base,
+    );
+    expect(state.layers).toHaveLength(0);
+  });
+
+  it("段を重ねていれば、下のカラムと同じものでも重ねる", () => {
+    // 戻る先が下のカラムでも、見えているのは上の段なので、押したものを見せる
+    const opened = columnStackTransition(
+      emptyColumnStack(),
+      { type: "stack/open", column: user },
+      thread,
+    );
+    const state = columnStackTransition(
+      opened,
+      { type: "stack/open", column: thread },
+      thread,
+    );
+    expect(openLayers(state).map((layer) => layer.column.id)).toEqual([
+      user.id,
+      thread.id,
+    ]);
   });
 
   it("一番上でなければ、同じカラムでも重ねる", () => {
