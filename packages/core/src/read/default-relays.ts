@@ -33,11 +33,10 @@ export const RELAY_REDUNDANCY = 2;
 /**
  * NIP-50 の検索に答えるリレー。検索は Outbox で行き先を決められない
  * （著者を指定しないフィルタなので）ため、対応しているリレーを明示する。
+ * 入れるリレーは、EOSE の後に流れてくる投稿にも search を効かせるかを確かめる。
+ * wss://relay.ditto.pub/ は EOSE の後は絞らずに全件を流してくるので入れない。
  */
-export const SEARCH_RELAYS: readonly RelayUrl[] = [
-  "wss://search.nos.today/",
-  "wss://relay.ditto.pub/",
-];
+export const SEARCH_RELAYS: readonly RelayUrl[] = ["wss://search.nos.today/"];
 
 /**
  * 絵文字セット（kind:30030）を探しに行く既定のリレー。著者を指定しない
