@@ -193,6 +193,28 @@ export const articleSource = (
   ...(relays && relays.length > 0 ? { relays: relays as RelayUrl[] } : {}),
 });
 
+/**
+ * 長文記事へのコメント。著者を指定しない問い合わせなので Outbox で行き先を決められない。
+ * 記事のリレーは**足す**もので、それだけに絞らない —— コメントは書いた人のリレーにあり、
+ * 記事のリレーにあるとは限らない。
+ */
+export const articleCommentsSource = (
+  pubkey: string,
+  identifier: string,
+  relays?: readonly string[],
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    {
+      kinds: [COMMENT_KIND],
+      "#A": [`${LONG_FORM_KIND}:${pubkey}:${identifier}`],
+    },
+  ],
+  ...(relays && relays.length > 0
+    ? { relays: [...new Set([...FALLBACK_RELAYS, ...(relays as RelayUrl[])])] }
+    : {}),
+});
+
 /** その人がプロフィールの上にピン留めした投稿の一覧（最新の版だけ）。 */
 export const pinnedNotesSource = (pubkey: string): NostrSource => ({
   type: "nostr",

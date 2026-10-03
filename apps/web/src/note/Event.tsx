@@ -74,6 +74,11 @@ type ContentProps = {
    * タイムラインのカラムで使う。スレッドのカラムは自分で祖先を並べるので要らない。
    */
   replyContext?: boolean;
+  /**
+   * コメントが付いた先（記事など）の中で並べているか。そのときは、何へのコメントかを
+   * 書かない —— 全部の行に同じことが出るだけになる。
+   */
+  withinScope?: boolean;
 };
 
 /** アクション欄を出す投稿か。出さない投稿のメニューには、欄に入る操作を入れない。 */
@@ -245,7 +250,8 @@ const CommentScopeLines: Component<{ scope: CommentScope }> = (props) => (
 );
 
 const Note: Component<ContentProps> = (props) => {
-  const scope = () => commentScope(props.event);
+  const scope = () =>
+    props.withinScope ? undefined : commentScope(props.event);
   const replyTo = () => replyPubkey(props.event);
 
   return (
@@ -355,6 +361,7 @@ const EventContent: Component<ContentProps> = (props) => (
         expandMedia={props.expandMedia}
         threadLine={props.threadLine}
         stickyAvatar={props.stickyAvatar}
+        withinScope={props.withinScope}
         media={props.media}
       />
     </Match>
@@ -499,6 +506,7 @@ const StandardEvent: Component<
         expandMedia={props.expandMedia}
         threadLine={props.parent() ? "above" : props.threadLine}
         stickyAvatar={props.stickyAvatar}
+        withinScope={props.withinScope}
         media={props.media}
       />
     </Frame>

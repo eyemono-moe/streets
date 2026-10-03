@@ -3,19 +3,20 @@ import { FALLBACK_RELAYS } from "../read/default-relays";
 import {
   activitySource,
   allChannelsSource,
-  recentChannelMessagesSource,
+  articleCommentsSource,
+  bookmarksSource,
   channelMessagesSource,
   channelSource,
   channelsSource,
   chatModerationSource,
-  bookmarksSource,
+  followeesSource,
+  followersSource,
   followListSource,
   followSetPostsSource,
   followSetsIncludingSource,
-  followeesSource,
-  followersSource,
   literalSource,
   notificationsSource,
+  recentChannelMessagesSource,
   searchSource,
   userMediaSource,
   userPostsSource,
@@ -336,5 +337,24 @@ describe("followSetsIncludingSource", () => {
         relays: ["wss://relay.example/"],
       },
     );
+  });
+});
+
+describe("articleCommentsSource", () => {
+  const PK = "a".repeat(64);
+
+  it("記事の住所を大文字の A で指すコメントを取る", () => {
+    // 捕まえる変異: 小文字の a で引く（記事への直接のコメントしか取れず、返信が抜ける）
+    expect(articleCommentsSource(PK, "post")).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1111], "#A": [`30023:${PK}:post`] }],
+    });
+  });
+
+  it("記事のリレーは既定のリレーに足し、それだけに絞らない", () => {
+    // 捕まえる変異: 記事のリレーだけを明示する（ほかのリレーに書かれたコメントが見えない）
+    const relays = articleCommentsSource(PK, "post", ["wss://article/"]).relays;
+    expect(relays).toContain("wss://article/");
+    expect(relays?.length).toBeGreaterThan(1);
   });
 });

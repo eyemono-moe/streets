@@ -49,4 +49,31 @@ describe("createThreadSource", () => {
       dispose();
     });
   });
+
+  it("記事へのコメントを開くと、同じ記事へのコメントを住所で集める", () => {
+    const address = `30023:${"8".repeat(64)}:post`;
+    const onArticle: NostrEvent = {
+      ...comment,
+      tags: [
+        ["A", address],
+        ["K", "30023"],
+        ["e", PARENT, "", "d".repeat(64)],
+        ["k", "1111"],
+      ],
+    };
+    createRoot((dispose) => {
+      const thread = createThreadSource({
+        focusId: () => FOCUS,
+        store: storeOf(onArticle),
+        columnRelays: () => undefined,
+        relaysOverride: undefined,
+      });
+      // 捕まえる変異: 住所で集めない（記事へのコメントの祖先が取れず、上が欠ける）
+      expect(thread.source().filters).toContainEqual({
+        kinds: [1111],
+        "#A": [address],
+      });
+      dispose();
+    });
+  });
 });

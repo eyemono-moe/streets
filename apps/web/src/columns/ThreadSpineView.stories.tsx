@@ -2,6 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { threadSpine } from "@streets/core/view/thread-spine";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { fullArticle } from "../article/story-articles";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { type EventScene, EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
@@ -137,4 +138,23 @@ export const コメントが混ざる: Story = {
     events: [root, commentOnRoot, commentFocus, middle, ...mixedReplies],
     focusId: commentFocus.id,
   },
+};
+
+const articleComment = bob.comment(fullArticle, "記事へのコメント。");
+const articleReply = carol.comment(
+  articleComment,
+  "記事へのコメントへの返信。",
+  fullArticle,
+);
+
+/** 記事へのコメントのスレッドは、コメントが付いた記事を一番上に添える。 */
+export const 記事へのコメント: Story = {
+  args: {
+    events: [fullArticle, articleComment, articleReply],
+    focusId: articleReply.id,
+  },
+};
+
+export const 記事を取得中: Story = {
+  args: { events: [articleComment, articleReply], focusId: articleReply.id },
 };

@@ -128,16 +128,18 @@
   {
     "nip": "22",
     "status": "一部",
-    "summary": "コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッドでも取る",
+    "summary": "コメント（kind:1111）を投稿の返信と同じ形で表示し、何へのコメントかを示す。ホーム・通知・スレッド・記事のカラムでも取る",
     "kinds": [1111],
     "tags": ["E", "A", "I", "K", "P", "e", "a", "i", "k", "p"],
     "paths": [
       "packages/core/src/nostr/event-refs.ts",
       "packages/core/src/view/comment-scope.ts",
+      "packages/core/src/view/comment-tree.ts",
       "packages/core/src/solid/create-thread-source.ts",
-      "apps/web/src/note/Event.tsx"
+      "apps/web/src/note/Event.tsx",
+      "apps/web/src/article/ArticleCommentsView.tsx"
     ],
-    "gap": "コメントを書けない。記事を読むカラムにコメントが並ばない"
+    "gap": "コメントを書けない"
   },
   {
     "nip": "23",
@@ -150,7 +152,7 @@
       "apps/web/src/article/ArticleCard.tsx",
       "apps/web/src/article/Markdown.tsx"
     ],
-    "gap": "読むだけで、記事を書けない。記事へのコメント（kind:1111）はまだ出ない"
+    "gap": "読むだけで、記事を書けない"
   },
   {
     "nip": "24",
