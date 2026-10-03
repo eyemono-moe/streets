@@ -96,9 +96,85 @@ describe("replyTarget", () => {
     });
   });
 
-  it("marker の無い e タグは無視する", () => {
-    // 捕まえる変異: 位置ベースの旧形式を解釈する —— NIP-10 自身が deprecated かつ「曖昧で解決不能」としている
-    expect(replyTarget(noteWith([["e", ID_B, "wss://b/"]]))).toBeUndefined();
+  it("印の無い e タグが 1 本なら、それが返信先", () => {
+    // 捕まえる変異: 位置形式を読まない（古い書き方の返信が返信として扱われない）
+    expect(replyTarget(noteWith([["e", ID_B, "wss://b/"]]))).toEqual({
+      form: "id",
+      id: ID_B,
+      relay: "wss://b/",
+    });
+  });
+
+  it("印の無い e タグが 2 本以上なら、末尾が返信先", () => {
+    // 捕まえる変異: 先頭を返す（根への返信に見え、誰への返信かが変わる）
+    const ID_C = "3".repeat(64);
+    expect(
+      replyTarget(
+        noteWith([
+          ["e", ID_A],
+          ["e", ID_C],
+          ["e", ID_B],
+        ]),
+      )?.id,
+    ).toBe(ID_B);
+  });
+
+  it("印付きが 1 本でもあれば、印の無いものは位置で読まない", () => {
+    // 捕まえる変異: 印の無いもの（言及など）を返信先に混ぜる
+    expect(
+      replyTarget(
+        noteWith([
+          ["e", ID_A, "", "root"],
+          ["e", ID_B],
+        ]),
+      )?.id,
+    ).toBe(ID_A);
+  });
+
+  it("4 番目と 5 番目を取り違えたタグも、位置で読んで返信にする", () => {
+    // #787 のイベント。捕まえる変異: 4 番目を印として読み、返信先が無くなる
+    expect(
+      replyTarget(
+        noteWith([
+          ["e", ID_A, "", PK, "root"],
+          ["e", ID_A, "", PK, "reply"],
+          ["p", PK],
+        ]),
+      ),
+    ).toEqual({ form: "id", id: ID_A, pubkey: PK });
+  });
+
+  it("mention の印のものは返信先にしない", () => {
+    // 捕まえる変異: mention も位置に数える（言及しただけの投稿が返信になる）
+    expect(replyTarget(noteWith([["e", ID_B, "", "mention"]]))).toBeUndefined();
+  });
+
+  it("本文で引用している投稿は、位置で読んでも返信先にしない", () => {
+    // 捕まえる変異: 本文の言及を外さない（引用しただけの投稿が返信になる）
+    expect(
+      replyTarget(
+        noteWith([["e", ID_B]], {
+          content: `見て nostr:${encodeBech32("note", ID_B)}`,
+        }),
+      ),
+    ).toBeUndefined();
+    expect(
+      replyTarget(
+        noteWith(
+          [
+            ["e", ID_A],
+            ["e", ID_B],
+          ],
+          { content: "見て #[1]" },
+        ),
+      )?.id,
+    ).toBe(ID_A);
+  });
+
+  it("リポストやリアクションの e タグは位置で読まない", () => {
+    // 捕まえる変異: kind を見ずに位置で読む（リポストが返信になり「返信を隠す」で消える）
+    expect(replyTarget(noteWith([["e", ID_B]], { kind: 6 }))).toBeUndefined();
+    expect(replyTarget(noteWith([["e", ID_B]], { kind: 7 }))).toBeUndefined();
   });
 
   it("空文字のリレー URL は relay を持たせない", () => {
@@ -269,9 +345,28 @@ describe("threadRoot", () => {
     ).toBeUndefined();
   });
 
-  it("マーカー無しの e タグを根と誤認しない", () => {
-    // 捕まえる変異: tag[3] を見ずに e タグを拾う —— NIP-10 の位置ベース旧形式は deprecated で「曖昧で解決不能」とされている
-    expect(threadRoot(withTags([["e", "1".repeat(64)]]))).toBeUndefined();
+  it("印付きが無ければ、印の無い e タグの先頭を根とする", () => {
+    // 捕まえる変異: 位置形式を読まない / 末尾を根にする（親から下しか取れない）
+    expect(
+      threadRoot(
+        withTags([
+          ["e", "1".repeat(64)],
+          ["e", "2".repeat(64)],
+        ]),
+      )?.id,
+    ).toBe("1".repeat(64));
+  });
+
+  it("印付きがあれば、印の無い e タグを根と誤認しない", () => {
+    // 捕まえる変異: 印付きがあっても位置で読む（言及した投稿を根とみなす）
+    expect(
+      threadRoot(
+        withTags([
+          ["e", "1".repeat(64)],
+          ["e", "2".repeat(64), "", "reply"],
+        ]),
+      ),
+    ).toBeUndefined();
   });
 
   it("root マーカーが無ければ undefined（自分が根）", () => {

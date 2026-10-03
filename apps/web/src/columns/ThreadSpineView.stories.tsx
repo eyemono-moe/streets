@@ -121,6 +121,54 @@ export const 取得中: Story = {
   args: { events: [middle, focus], focusId: focus.id, settled: false },
 };
 
+// `root` の印を付けず、返信先を `reply` の印だけで指すクライアントがある。
+const bareRoot = bob.note("印を付けないクライアントの投稿。");
+const bareMiddle = alice.note("返信先を reply の印だけで指す返信。", [
+  ["e", bareRoot.id, "", "reply"],
+  ["p", bob.pubkey],
+]);
+const bareFocus = bob.note("その返信への、また reply の印だけの返信。", [
+  ["e", bareMiddle.id, "", "reply"],
+  ["p", alice.pubkey],
+]);
+
+/** `root` の印が無い返信でも、返信先をたどって根まで並べる。 */
+export const root_の印が無い: Story = {
+  args: { events: [bareRoot, bareMiddle, bareFocus], focusId: bareFocus.id },
+};
+
+/** 欠けた返信先を取りに行っている間。取り終えるまで「取得できませんでした」と言わない。 */
+export const 上の方を取得中: Story = {
+  args: {
+    events: [bareMiddle, bareFocus],
+    focusId: bareFocus.id,
+    settled: false,
+  },
+};
+
+// 祖先が画面に収まらないほど続くスレッド。開くと焦点まで送られ、上に返信先の端が見える。
+const deepChain = Array.from({ length: 6 }).reduce<NostrEvent[]>(
+  (chain, _, index) => {
+    const author = [alice, bob, carol][index % 3] ?? alice;
+    const parent = chain.at(-1);
+    const text = `${index + 1} 段目の投稿。上へ読み進められるか確かめる。`;
+    return [...chain, parent ? author.reply(parent, text) : author.note(text)];
+  },
+  [],
+);
+const deepFocus = viewer.reply(
+  deepChain.at(-1) ?? root,
+  "いま開いている、深いところの投稿。",
+);
+
+/** 開いた投稿が下に隠れないよう、そこまで送って始める。 */
+export const 深いスレッド: Story = {
+  args: {
+    events: [...deepChain, deepFocus, alice.reply(deepFocus, "返信。")],
+    focusId: deepFocus.id,
+  },
+};
+
 export const 長い投稿が混ざる: Story = {
   args: {
     events: [root, longMiddle, longFocus, ...longReplies],
