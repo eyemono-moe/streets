@@ -31,6 +31,7 @@ import {
   emptyDeckUi,
 } from "@streets/core/deck/deck-ui";
 import { browseTargetIn, welcomeColumn } from "@streets/core/deck/guest-deck";
+import { loopStrip } from "@streets/core/deck/strip-loop";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
@@ -59,6 +60,7 @@ import {
   createResource,
   createSignal,
   onCleanup,
+  untrack,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { setActionLayout } from "../action-layout-setting";
@@ -421,9 +423,28 @@ const DeckScreen: Component<{
   });
 
   // 狭い画面のカラムの帯。払って止まった位置と、選んでいるカラムを行き来させる。
-  let stripEl: HTMLDivElement | undefined;
+  // 帯が出てから置きたいので、要素も追えるようにしておく。
+  const [strip, setStrip] = createSignal<HTMLDivElement>();
   // 見た目の並び。並べ替えている間は、帯のカラムも CSS の order で入れ替わって見える。
   const stripIds = () => [...(temp() ? [TEMP_COLUMN_ID] : []), ...order.ids()];
+  // 端から反対の端へ払えるよう、帯は stripAnchor を真ん中に置いて回した順に並べる。
+  // 払って止まるたびに選んだカラムへ置き直す。
+  const [stripAnchor, setStripAnchor] = createSignal<string>();
+  const loopedIds = createMemo(() => loopStrip(stripIds(), stripAnchor()));
+  const stripOrder = (id: string) => loopedIds().indexOf(id);
+  // 選んでいるカラムを真ん中へ置き直す。並びを回すのと同じフレームで帯を同じ幅だけ
+  // 送り、見えている位置を変えない（指が止まっている途中でも、ずれて見えない）。
+  const recenterStrip = () => {
+    const id = ui.active;
+    const stripEl = strip();
+    if (!stripEl || id === undefined) return;
+    const before = loopedIds().indexOf(id);
+    setStripAnchor(id);
+    const after = loopedIds().indexOf(id);
+    if (before >= 0 && after !== before) {
+      stripEl.scrollLeft += (after - before) * stripEl.clientWidth;
+    }
+  };
   const activeColumn = (): ColumnDef | undefined =>
     ui.active === TEMP_COLUMN_ID
       ? temp()
@@ -434,32 +455,45 @@ const DeckScreen: Component<{
   const onStripScroll = () => {
     clearTimeout(settleTimer);
     settleTimer = setTimeout(() => {
+      const stripEl = strip();
       if (!stripEl || stripEl.clientWidth === 0) return;
       // パネルが帯を覆っている間は、人が払ったのではない。並べ替えで order が変わると、
       // ブラウザは見ていたカラムへ吸着し直して帯を送る。ここで選ぶとパネルが閉じる。
-      if (ui.panel !== undefined) return;
-      const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
-      const id = stripIds()[index];
-      if (id !== undefined && id !== ui.active) {
-        applyUi({ type: "deck/select-column", id });
+      if (ui.panel === undefined) {
+        const index = Math.round(stripEl.scrollLeft / stripEl.clientWidth);
+        const id = loopedIds()[index];
+        if (id !== undefined && id !== ui.active) {
+          applyUi({ type: "deck/select-column", id });
+        }
       }
+      recenterStrip();
     }, 120);
   };
   // タブや数字キーで選んだら、そのカラムまで送る。払って選んだときは既にそこにいる。
+  // 真ん中へ置き直すのは止まってから —— 送っている途中で並びを回すと、行き先がずれる。
   let placed = false;
   createEffect(() => {
     const id = ui.active;
-    const index = id === undefined ? -1 : stripIds().indexOf(id);
-    if (isMultiColumn() || !stripEl || index < 0) return;
-    const left = index * stripEl.clientWidth;
-    if (Math.abs(stripEl.scrollLeft - left) < 2) return;
-    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // 開いた直後は動かさずにその場へ置く。
-    stripEl.scrollTo({
-      left,
-      behavior: placed && !reduced ? "smooth" : "auto",
+    const ids = stripIds();
+    const stripEl = strip();
+    if (isMultiColumn() || !stripEl || id === undefined) return;
+    // 開いた直後と、真ん中にあったカラムが消えたときは、選んでいるカラムを真ん中にする。
+    const anchor = untrack(stripAnchor);
+    if (anchor === undefined || !ids.includes(anchor)) setStripAnchor(id);
+    // 回した並びが CSS の order に当たってから送る。
+    queueMicrotask(() => {
+      const index = loopedIds().indexOf(id);
+      if (index < 0) return;
+      const left = index * stripEl.clientWidth;
+      if (Math.abs(stripEl.scrollLeft - left) < 2) return;
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // 開いた直後は動かさずにその場へ置く。
+      stripEl.scrollTo({
+        left,
+        behavior: placed && !reduced ? "smooth" : "auto",
+      });
+      placed = true;
     });
-    placed = true;
   });
 
   // この端末で一度も見ていなければ、カラムが出てから使い方を案内する。
@@ -1016,13 +1050,19 @@ const DeckScreen: Component<{
                                     取得し直しになり、スクロール位置も失われる。
                                   */}
               <div
-                ref={stripEl}
+                ref={(el) => {
+                  placed = false;
+                  setStrip(el);
+                }}
                 class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
                 onScroll={onStripScroll}
               >
                 <Show when={temp()}>
                   {(column) => (
-                    <div class="isolate order-first h-full w-full shrink-0 snap-start snap-always">
+                    <div
+                      class="isolate h-full w-full shrink-0 snap-start snap-always"
+                      style={{ order: stripOrder(TEMP_COLUMN_ID) }}
+                    >
                       <Column
                         column={column()}
                         settingsOpen={false}
@@ -1038,7 +1078,7 @@ const DeckScreen: Component<{
                     <div
                       class="isolate h-full w-full shrink-0 snap-start snap-always"
                       style={{
-                        order: order.indexOf(column.id),
+                        order: stripOrder(column.id),
                       }}
                     >
                       <div
