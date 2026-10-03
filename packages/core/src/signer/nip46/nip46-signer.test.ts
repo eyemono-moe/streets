@@ -24,6 +24,15 @@ const signed = (overrides: Partial<UnsignedEvent> = {}) => {
 };
 
 describe("Nip46Signer", () => {
+  it("要求権限のない kind はリモート署名器へ送らない", async () => {
+    const request = vi.fn();
+    const signer = createNip46Signer({ request }, pubkey);
+    await expect(
+      signer.signEvent({ ...template, kind: 99999 }),
+    ).rejects.toThrow("missing NIP-46 permission: sign_event:99999");
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("pubkeyを除いたtemplateを送り、同じ内容の署名済みeventを返す", async () => {
     const expected = signed();
     const request = vi.fn().mockResolvedValue(JSON.stringify(expected));

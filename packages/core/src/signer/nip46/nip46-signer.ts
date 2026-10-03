@@ -6,6 +6,7 @@ import {
 } from "../../nostr/event";
 import type { Signer } from "../signer";
 import type { Nip46Client } from "./client";
+import { assertNip46SignPermission } from "./session-storage";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -31,6 +32,7 @@ export const createNip46Signer = (
       return userPubkey;
     },
     async signEvent(template: UnsignedEvent): Promise<NostrEvent> {
+      assertNip46SignPermission(template.kind);
       const { pubkey: _pubkey, ...withoutPubkey } = template;
       const result = await client.request("sign_event", [
         JSON.stringify(withoutPubkey),
