@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
+import { assertNip46SignPermission } from "../signer/nip46/session-storage";
 import {
   DEFAULT_BLOSSOM_SERVERS,
   UploadFailedError,
@@ -114,6 +115,7 @@ describe("buildUploadAuth", () => {
       nowSeconds: 1000,
       ttlSeconds: 60,
     });
+    assertNip46SignPermission(draft.kind);
     expect(draft.kind).toBe(24_242);
     expect(draft.tags).toEqual([
       ["t", "upload"],

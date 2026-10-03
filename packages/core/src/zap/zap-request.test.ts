@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
+import { assertNip46SignPermission } from "../signer/nip46/session-storage";
 import {
   buildZapRequest,
   parseInvoiceResponse,
@@ -22,15 +23,15 @@ const endpoint = {
 
 describe("buildZapRequest", () => {
   it("NIP-57 の kind:9734 を組み立てる", () => {
-    expect(
-      buildZapRequest({
-        target,
-        endpoint,
-        amountMsat: 100_000,
-        relays: ["wss://a.example/", "wss://b.example/"],
-        message: " ありがとう ",
-      }),
-    ).toEqual({
+    const draft = buildZapRequest({
+      target,
+      endpoint,
+      amountMsat: 100_000,
+      relays: ["wss://a.example/", "wss://b.example/"],
+      message: " ありがとう ",
+    });
+    assertNip46SignPermission(draft.kind);
+    expect(draft).toEqual({
       kind: 9734,
       content: "ありがとう",
       tags: [
