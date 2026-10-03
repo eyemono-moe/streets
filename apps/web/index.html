@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Streets | カラム型の Nostr クライアント</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- iOS はホーム画面のアイコンに SVG を使わず、無ければ頭文字を描く。透明な所は黒く塗られるので白で埋めてある -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!--
+      iOS はホーム画面のアイコンに SVG を使わず、無ければ頭文字を描く。透明な所は黒く塗られるので白で埋めてある。
+      iOS が角を丸めるので、マークは 8 割の大きさにして周りを空ける（Android の maskable の切り抜きに収まる大きさと同じ）
+    -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- 無いと、ホーム画面に置くときの名前の候補が title の全文になる -->
     <meta name="apple-mobile-web-app-title" content="Streets" />
