@@ -39,10 +39,16 @@ import SearchQueryEditor from "./SearchQueryEditor";
 const SearchPanel: Component<{
   readLayer: ReadLayer;
   searchRelays: Accessor<readonly RelayUrl[]>;
+  request?: { query: string; sequence: number };
 }> = (props) => {
   const dispatch = useDispatch();
   const [text, setText] = createSignal("");
   const [searched, setSearched] = createSignal("");
+  createEffect(() => {
+    const request = props.request;
+    // reconcile は同じオブジェクトを更新するので、連続した要求も拾う。
+    if (request?.sequence !== undefined) setText(request.query);
+  });
   const query = createMemo(() => parseSearchQuery(searched()));
   const empty = () => isEmptySearchQuery(parseSearchQuery(text()));
 

@@ -194,6 +194,22 @@ describe("設定のダイアログ", () => {
 });
 
 describe("コマンドパレット", () => {
+  it("検索パネルを開くたびに入力を渡す", () => {
+    const first = run({ type: "deck/open-search", query: "ねこ" });
+    expect(first).toMatchObject({
+      panel: "search",
+      searchRequest: { query: "ねこ", sequence: 1 },
+    });
+    const next = deckUiTransition(first, {
+      type: "deck/open-search",
+      query: "ねこ",
+    });
+    expect(next.searchRequest?.sequence).toBe(2);
+    expect(
+      deckUiTransition(next, { type: "deck/open-panel", panel: "search" })
+        .searchRequest,
+    ).toBeUndefined();
+  });
   it("開いて設定を選ぶと、パレットを閉じて項目を渡す", () => {
     const state = run(
       { type: "deck/open-palette" },

@@ -146,6 +146,7 @@ export type ComposeViewEvent =
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
+  | { type: "deck/open-search"; query: string }
   | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }

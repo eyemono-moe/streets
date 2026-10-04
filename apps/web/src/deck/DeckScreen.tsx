@@ -641,6 +641,7 @@ const DeckScreen: Component<{
         return true;
       }
       case "deck/open-panel":
+      case "deck/open-search":
       case "deck/toggle-panel":
       case "deck/close-panel":
       case "deck/select-column":
@@ -870,6 +871,7 @@ const DeckScreen: Component<{
           <SearchPanel
             readLayer={props.readLayer}
             searchRelays={shared.searchRelays}
+            request={ui.searchRequest}
           />
         </SidePanel>
       </Match>
@@ -1221,6 +1223,7 @@ const DeckScreen: Component<{
         <CommandPalette
           open={ui.paletteOpen}
           signedIn={account !== undefined}
+          searchRelays={shared.searchRelays}
         />
       </Show>
     </>
