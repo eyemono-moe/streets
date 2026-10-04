@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
-import { GUIDES, guideById, guideByPath } from "./guides";
+import {
+  GUIDE_CATEGORIES,
+  GUIDES,
+  guideById,
+  guideByPath,
+  guideCategoryByPath,
+  guidesInCategory,
+} from "./guides";
 
 describe("Signal Guide", () => {
   it("ID と公開 URL が一意で、双方から同じ Guide を引ける", () => {
@@ -16,5 +23,20 @@ describe("Signal Guide", () => {
     expect(guideByPath("/help/login/unknown")).toBeUndefined();
     expect(guideByPath("/help/login/remote-signer/extra")).toBeUndefined();
     expect(guideById("login.unknown")).toBeUndefined();
+  });
+
+  it("すべての Guide を手動でカテゴリから辿れる", () => {
+    expect(
+      new Set(GUIDE_CATEGORIES.map((category) => category.path)).size,
+    ).toBe(GUIDE_CATEGORIES.length);
+    for (const category of GUIDE_CATEGORIES) {
+      expect(guideCategoryByPath(category.path)).toBe(category);
+      expect(guidesInCategory(category.id).length).toBeGreaterThan(0);
+      for (const guide of guidesInCategory(category.id)) {
+        expect(guide.id.startsWith(`${category.id}.`)).toBe(true);
+        expect(guide.path.startsWith(`${category.path}/`)).toBe(true);
+      }
+    }
+    expect(guideCategoryByPath("/help/missing")).toBeUndefined();
   });
 });

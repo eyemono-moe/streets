@@ -7,6 +7,7 @@ import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
+import AccountMenu from "./AccountMenu";
 import ColumnAccentBar from "./ColumnAccentBar";
 import FeedbackLink from "./FeedbackLink";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
@@ -73,6 +74,18 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const 使い方への入口: Story = {
+  render: () => (
+    <EventSceneProvider scene={{ events: [] }}>
+      <Mediates handle={() => true}>
+        <div class="flex h-48 items-start p-4">
+          <AccountMenu pubkey={undefined} onLogout={() => {}} />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
 
 export const カラムヘッダー: Story = {
   render: () => (
