@@ -28,6 +28,10 @@ export const GUIDE_CATEGORIES = [
 
 type GuideCategoryId = (typeof GUIDE_CATEGORIES)[number]["id"];
 
+/** Guide が実行を頼める、読み書きを伴わない画面操作だけ。 */
+export type GuideAction = "open-settings" | "open-add-column" | "open-compose";
+export type GuidePart = string | { action: GuideAction; label: string };
+
 /** Signal の公開 URL と分類対象。ID と path は外部から参照されるため変更しない。 */
 export type Guide = {
   id: string;
@@ -35,7 +39,7 @@ export type Guide = {
   path: `/help/${string}`;
   title: string;
   description: string;
-  content: readonly string[];
+  content: readonly (readonly GuidePart[])[];
 };
 
 export const GUIDES = [
@@ -46,8 +50,12 @@ export const GUIDES = [
     title: "拡張機能でログインする",
     description: "パソコンのブラウザ拡張機能を使って Streets にログインする",
     content: [
-      "ブラウザに Nostr の署名に対応した拡張機能を入れ、拡張機能の中でアカウントを用意します。",
-      "Streets の紹介とログインのカラムで「拡張機能でログイン」を選び、拡張機能に表示される確認を承認してください。Streets に秘密鍵を貼り付ける必要はありません。",
+      [
+        "ブラウザに Nostr の署名に対応した拡張機能を入れ、拡張機能の中でアカウントを用意します。",
+      ],
+      [
+        "Streets の紹介とログインのカラムで「拡張機能でログイン」を選び、拡張機能に表示される確認を承認してください。Streets に秘密鍵を貼り付ける必要はありません。",
+      ],
     ],
   },
   {
@@ -57,8 +65,12 @@ export const GUIDES = [
     title: "リモート署名器でログインする",
     description: "Amber や Primal などの署名器を使って Streets にログインする",
     content: [
-      "鍵を預かるアプリでアカウントを用意します。Streets の紹介とログインのカラムで「リモート署名器でログイン」を選んでください。",
-      "署名器が同じ端末にある場合は「この端末の署名器で開く」を使い、別の端末にある場合は表示された QR コードを読み取ります。署名器に表示される確認を承認してください。",
+      [
+        "鍵を預かるアプリでアカウントを用意します。Streets の紹介とログインのカラムで「リモート署名器でログイン」を選んでください。",
+      ],
+      [
+        "署名器が同じ端末にある場合は「この端末の署名器で開く」を使い、別の端末にある場合は表示された QR コードを読み取ります。署名器に表示される確認を承認してください。",
+      ],
     ],
   },
   {
@@ -68,8 +80,11 @@ export const GUIDES = [
     title: "カラムを追加する",
     description: "デッキに新しいカラムを追加して見る内容を選ぶ",
     content: [
-      "サイドバーの「カラムを追加」を開き、見たい内容を選んでください。追加したカラムはデッキの右端に表示されます。",
-      "スマートフォンでは、画面下部の追加ボタンから同じ操作ができます。",
+      [
+        { action: "open-add-column", label: "カラム追加パネル" },
+        "を開き、見たい内容を選んでください。追加したカラムはデッキの右端に表示されます。",
+      ],
+      ["スマートフォンでは、画面下部の追加ボタンから同じ操作ができます。"],
     ],
   },
   {
@@ -79,8 +94,13 @@ export const GUIDES = [
     title: "投稿する",
     description: "新しい投稿を書いて送る",
     content: [
-      "投稿ボタンを押すと入力欄が開きます。本文を書き、送信してください。",
-      "送信にはログインが必要です。送れなかった場合は画面に表示されるお知らせを確認してください。",
+      [
+        { action: "open-compose", label: "投稿パネル" },
+        "を開いて本文を書き、送信してください。",
+      ],
+      [
+        "送信にはログインが必要です。送れなかった場合は画面に表示されるお知らせを確認してください。",
+      ],
     ],
   },
   {
@@ -90,8 +110,14 @@ export const GUIDES = [
     title: "投稿が表示されないとき",
     description: "投稿が流れてこないときにリレーの接続を確認する",
     content: [
-      "通信状態を確認し、少し待ってからカラムを開き直してください。取得中の投稿はまだ表示されません。",
-      "改善しない場合は、設定の「リレー」で接続先と状態を確認してください。",
+      [
+        "通信状態を確認し、少し待ってからカラムを開き直してください。取得中の投稿はまだ表示されません。",
+      ],
+      [
+        "改善しない場合は、",
+        { action: "open-settings", label: "設定" },
+        "の「リレー」で接続先と状態を確認してください。",
+      ],
     ],
   },
 ] as const satisfies readonly Guide[];

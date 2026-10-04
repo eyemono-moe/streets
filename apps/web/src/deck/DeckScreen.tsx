@@ -1,5 +1,5 @@
-import { Collapsible } from "@ark-ui/solid";
-import { useNavigate, useParams } from "@solidjs/router";
+import { Collapsible, Presence } from "@ark-ui/solid";
+import { useLocation, useNavigate, useParams } from "@solidjs/router";
 import { chosenRelays } from "@streets/core/deck/chosen-relays";
 import { buildRelayColumn } from "@streets/core/deck/column-presets";
 import {
@@ -114,6 +114,7 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
+import GuidePanel from "../signal/GuidePanel";
 import { StatusFormMediator } from "../status/StatusFormMediator";
 import {
   ANY_COLUMN,
@@ -350,6 +351,9 @@ const DeckScreen: Component<{
 
   // URL の 1 区画から開く一時カラム。デッキへは保存せず、左端に出す（ADR-0032）。
   const params = useParams<{ entity?: string }>();
+  const location = useLocation();
+  const guideOpen = () =>
+    location.pathname === "/help" || location.pathname.startsWith("/help/");
   const navigate = useNavigate();
   const temp = () => (params.entity ? tempColumnFor(params.entity) : undefined);
 
@@ -744,6 +748,23 @@ const DeckScreen: Component<{
       case "deck/close-about":
         applyUi(event);
         return true;
+      case "signal/activate-action":
+        switch (event.action) {
+          case "open-settings":
+            applyUi({ type: "deck/open-settings" });
+            break;
+          case "open-add-column":
+          case "open-compose":
+            applyUi({
+              type: "deck/open-panel",
+              panel: event.action === "open-compose" ? "compose" : "add-column",
+            });
+            break;
+        }
+        return true;
+      case "signal/close-guide":
+        navigate("/");
+        return true;
       case "deck/start-tour":
         // 「Streets について」から始めたときは、ダイアログを閉じてから指す。
         applyUi({ type: "deck/close-about" });
@@ -958,7 +979,7 @@ const DeckScreen: Component<{
           <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
         </Match>
         <Match when={isMultiColumn()}>
-          <div class="safe-pad-x flex h-dvh">
+          <div class="safe-pad-x relative flex h-dvh">
             <Sidebar
               pubkey={account}
               columns={order.shown()}
@@ -1063,6 +1084,14 @@ const DeckScreen: Component<{
                 </Show>
               </div>
             </div>
+            <Presence
+              lazyMount
+              unmountOnExit
+              present={guideOpen()}
+              class="motion-sheet absolute top-0 right-0 h-full w-[min(360px,70vw)] border-primary border-l bg-primary shadow-xl"
+            >
+              <GuidePanel />
+            </Presence>
           </div>
         </Match>
         <Match when={true}>
@@ -1143,6 +1172,14 @@ const DeckScreen: Component<{
               <SidePanelMotion open={ui.panel !== undefined} full>
                 {panelView(true)}
               </SidePanelMotion>
+              <Presence
+                lazyMount
+                unmountOnExit
+                present={guideOpen() && ui.panel === undefined}
+                class="motion-sheet absolute inset-x-0 bottom-0 h-[70%] border-primary border-t bg-primary shadow-xl"
+              >
+                <GuidePanel />
+              </Presence>
               {/* パネルや自分の入力欄を持つカラムを開いている間は、送信ボタンと重なるので出さない。紹介のカラムでも、ログインのボタンと重なるので出さない。 */}
               <Show
                 when={

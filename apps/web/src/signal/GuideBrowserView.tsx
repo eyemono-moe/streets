@@ -8,15 +8,12 @@ type GuideCategory = (typeof GUIDE_CATEGORIES)[number];
 
 /** 分類 API が無くても辿れる案内の一覧。 */
 const GuideBrowserView: Component<{ category?: GuideCategory }> = (props) => (
-  <main class="h-dvh overflow-y-auto bg-primary px-5 py-8 text-body">
+  <main class="h-full overflow-y-auto bg-primary px-4 py-5 text-body">
     <div class="mx-auto flex max-w-2xl flex-col gap-6">
       <nav
         class="flex flex-wrap gap-x-3 gap-y-1 text-caption"
         aria-label="案内"
       >
-        <a href="/" class="c-accent-5 hover:underline">
-          Streets に戻る
-        </a>
         <Show when={props.category}>
           <a href="/help" class="c-accent-5 hover:underline">
             使い方を探す
