@@ -3,11 +3,21 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
-import { type Component, createEffect, createSignal, on } from "solid-js";
+import { searchEntries } from "@streets/core/signal/search";
+import {
+  type Component,
+  For,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+} from "solid-js";
 import { actionLayout } from "../action-layout-setting";
 import { contentWarningMode } from "../content-warning-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
+import SearchInput from "../ui/SearchInput";
 import AccountSettings from "./AccountSettings";
 import DisplaySettings from "./DisplaySettings";
 import EmojiSettings from "./EmojiSettings";
@@ -18,6 +28,8 @@ import PrivacySettings from "./PrivacySettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
 import SearchSettings from "./SearchSettings";
+import { availableSettings } from "./setting-registry";
+import { SettingFilter } from "./SettingFilter";
 
 /**
  * 設定。デッキの上に開くダイアログで、左（狭い画面では上）にページの一覧を置く。
@@ -46,11 +58,17 @@ const SettingsDialog: Component<{
   defaultReaction: ReactionInput;
   /** 開いたときに出すページ。 */
   initialPage?: string;
+  /** パレットなどから検索結果を直接開くときの語。 */
+  initialQuery?: string;
 }> = (props) => {
   const dispatch = useDispatch();
   // 一覧の先頭（アカウント）から開く。どこから開いても同じ場所で始まる。
   const [page, setPage] = createSignal(
     props.initialPage ?? (props.signedIn ? "account" : "display"),
+  );
+  const [query, setQuery] = createSignal(props.initialQuery ?? "");
+  const hits = createMemo(() =>
+    searchEntries(availableSettings(props.signedIn), query()),
   );
   // プロフィールを書きかけのまま閉じようとしたら、そのページを見せる。
   const profileEdit = useProfileEdit();
@@ -58,7 +76,10 @@ const SettingsDialog: Component<{
     on(
       () => profileEdit?.attention() ?? 0,
       (count) => {
-        if (count > 0) setPage("account");
+        if (count > 0) {
+          setQuery("");
+          setPage("account");
+        }
       },
       { defer: true },
     ),
@@ -167,6 +188,39 @@ const SettingsDialog: Component<{
       ? allPages
       : allPages.filter((page) => !ACCOUNT_PAGES.includes(page.value));
 
+  const searchPage: DialogPage = {
+    value: "settings-results",
+    label: "検索結果",
+    icon: "i-material-symbols:search-rounded",
+    title: "設定の検索結果",
+    content: () => (
+      <Show
+        when={hits().length > 0}
+        fallback={
+          <p class="c-secondary text-body">該当する設定はありません。</p>
+        }
+      >
+        <div class="flex flex-col gap-7">
+          <For each={hits()}>
+            {({ entry }) => {
+              const foundPage = allPages.find(
+                (item) => item.value === entry.page,
+              );
+              return (
+                <div class="flex flex-col gap-2 border-b border-primary pb-6 last:border-b-0 last:pb-0">
+                  <span class="c-secondary text-caption">{entry.section}</span>
+                  <SettingFilter id={entry.key}>
+                    {foundPage?.content?.()}
+                  </SettingFilter>
+                </div>
+              );
+            }}
+          </For>
+        </div>
+      </Show>
+    ),
+  };
+
   // 設定はカラムではないので、重ねる先が無い。人やノートを開く操作は、デッキに
   // カラムとして足してからダイアログを閉じ、足したカラムを見せる。
   const handle = (event: UiEvent): boolean => {
@@ -188,11 +242,27 @@ const SettingsDialog: Component<{
             : "この端末の表示を設定します。アカウントの設定は、ログインすると使えます。"
         }
         pages={pages()}
-        page={page()}
-        onPageChange={setPage}
+        navigationBefore={
+          <SearchInput
+            label="設定を検索"
+            placeholder="設定を検索"
+            value={query()}
+            onValueChange={setQuery}
+            clearable
+            class="w-full"
+          />
+        }
+        extraPage={searchPage}
+        page={query().trim() ? searchPage.value : page()}
+        onPageChange={(value) => {
+          setQuery("");
+          setPage(value);
+        }}
         onClose={() => dispatch({ type: "deck/close-settings" })}
         // 表示を変えている間は、後ろのデッキに色や並びがどう当たるかを暗くせずに見せる。
-        backdropClass={page() === "display" ? "bg-transparent" : undefined}
+        backdropClass={
+          !query().trim() && page() === "display" ? "bg-transparent" : undefined
+        }
       />
     </Mediates>
   );

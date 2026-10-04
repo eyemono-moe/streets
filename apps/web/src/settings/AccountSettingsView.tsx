@@ -40,6 +40,8 @@ import { Mediates, useDispatch } from "../ui-events";
 import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import TextField from "../ui/TextField";
+import { settings, type SettingId } from "./setting-registry";
+import { useSettingFilter } from "./SettingFilter";
 import SettingsSection from "./SettingsSection";
 
 export type AccountSettingsViewProps = {
@@ -52,6 +54,9 @@ export type AccountSettingsViewProps = {
 /** アカウントの設定。プロフィールの書きかけを受け取って描き、変えたらイベントを上へ渡す。 */
 const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   const dispatch = useDispatch();
+  const filter = useSettingFilter();
+  const visible = (id: SettingId) =>
+    !filter || filter() === "profile" || filter() === id;
   const errors = () => profileErrors(props.state.draft);
   const dirty = () => isProfileDirty(props.state);
   // 画像を上げている間は保存させない。上げ終わる前に保存すると、画像の無いプロフィールになる。
@@ -101,11 +106,13 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
         scope="account"
         description="ほかの人に見える名前やアイコンです。ほかのアプリでも同じプロフィールが表示されます。"
       >
-        <ProfilePreview
-          pubkey={props.pubkey}
-          state={props.state}
-          nip05={nip05}
-        />
+        <Show when={!filter}>
+          <ProfilePreview
+            pubkey={props.pubkey}
+            state={props.state}
+            nip05={nip05}
+          />
+        </Show>
         <form
           class="flex flex-col gap-3"
           onSubmit={(event) => {
@@ -114,90 +121,106 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
           }}
         >
           <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
-            <ProfileInput
-              field="display_name"
-              state={props.state}
-              emoji
-              label="表示名"
-              placeholder="例：わたし"
-            />
-            <ProfileInput
-              field="name"
-              state={props.state}
-              emoji
-              label="ユーザー名"
-              placeholder="例：me"
-              hint="表示名の下に @ を付けて出ます。"
-            />
-          </div>
-          <ProfileInput
-            field="about"
-            state={props.state}
-            emoji
-            mention
-            label="自己紹介"
-            multiline
-          />
-          {/* 見本とボタンが並ぶので、2 列に割らず 1 行を使う。 */}
-          <ProfileImageInput
-            field="picture"
-            state={props.state}
-            label="アイコン画像"
-            aspectRatio={1}
-            onUploading={countUpload}
-            preview={(url) => (
-              <Avatar
-                pubkey={props.pubkey}
-                picture={url}
-                class="size-9 rounded-2"
+            <Show when={visible("profileDisplayName")}>
+              <ProfileInput
+                field="display_name"
+                state={props.state}
+                emoji
+                label={settings.profileDisplayName.title}
+                placeholder="例：わたし"
               />
-            )}
-          />
-          <ProfileImageInput
-            field="banner"
-            state={props.state}
-            label="ヘッダー画像"
-            onUploading={countUpload}
-            preview={(url) => <BannerThumb url={url} />}
-          />
+            </Show>
+            <Show when={visible("profileName")}>
+              <ProfileInput
+                field="name"
+                state={props.state}
+                emoji
+                label={settings.profileName.title}
+                placeholder="例：me"
+                hint="表示名の下に @ を付けて出ます。"
+              />
+            </Show>
+          </div>
+          <Show when={visible("profileAbout")}>
+            <ProfileInput
+              field="about"
+              state={props.state}
+              emoji
+              mention
+              label={settings.profileAbout.title}
+              multiline
+            />
+          </Show>
+          {/* 見本とボタンが並ぶので、2 列に割らず 1 行を使う。 */}
+          <Show when={visible("profilePicture")}>
+            <ProfileImageInput
+              field="picture"
+              state={props.state}
+              label={settings.profilePicture.title}
+              aspectRatio={1}
+              onUploading={countUpload}
+              preview={(url) => (
+                <Avatar
+                  pubkey={props.pubkey}
+                  picture={url}
+                  class="size-9 rounded-2"
+                />
+              )}
+            />
+          </Show>
+          <Show when={visible("profileBanner")}>
+            <ProfileImageInput
+              field="banner"
+              state={props.state}
+              label={settings.profileBanner.title}
+              onUploading={countUpload}
+              preview={(url) => <BannerThumb url={url} />}
+            />
+          </Show>
           <div class="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3">
-            <ProfileInput
-              field="nip05"
-              state={props.state}
-              onBlur={nip05.check}
-              status={<Nip05CheckResult check={nip05} />}
-              label="ドメインでの本人確認（NIP-05）"
-              type="email"
-              placeholder="name@example.com"
-              hint={
-                <>
-                  持っているドメインで、このアカウントが自分のものだと示せます。
-                  <a
-                    class="text-link"
-                    href="https://welcome.nostr-jp.org/tutorial/nip-05.html"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    NIP-05 とは？
-                  </a>
-                </>
-              }
-            />
-            <ProfileInput
-              field="website"
-              state={props.state}
-              label="Web サイト"
-              type="url"
-              placeholder="https://"
-            />
-            <ProfileInput
-              field="lud16"
-              state={props.state}
-              label="Zap の受け取り先（ライトニングアドレス）"
-              type="email"
-              placeholder="name@wallet.example"
-              hint="Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。"
-            />
+            <Show when={visible("profileNip05")}>
+              <ProfileInput
+                field="nip05"
+                state={props.state}
+                onBlur={nip05.check}
+                status={<Nip05CheckResult check={nip05} />}
+                label={settings.profileNip05.title}
+                type="email"
+                placeholder="name@example.com"
+                hint={
+                  <>
+                    持っているドメインで、このアカウントが自分のものだと示せます。
+                    <a
+                      class="text-link"
+                      href="https://welcome.nostr-jp.org/tutorial/nip-05.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      NIP-05 とは？
+                    </a>
+                  </>
+                }
+              />
+            </Show>
+            <Show when={visible("profileWebsite")}>
+              <ProfileInput
+                field="website"
+                state={props.state}
+                label={settings.profileWebsite.title}
+                type="url"
+                placeholder="https://"
+              />
+            </Show>
+            <Show when={visible("profileLud16")}>
+              <ProfileInput
+                field="lud16"
+                state={props.state}
+                label={settings.profileLud16.title}
+                type="email"
+                placeholder="name@wallet.example"
+                hint="Zap（ビットコインでの投げ銭）を受け取るウォレットのアドレスです。ウォレットのアプリに表示されています。空欄なら、あなたの投稿に Zap は送れません。"
+              />
+            </Show>
           </div>
           {/* 案内の文は 1 行を使い、ボタンはその下に右寄せで並べる。横に並べると、
               ボタンの幅に押されて文が中途半端な位置で折り返す。 */}
@@ -251,18 +274,20 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
         <AccountId pubkey={props.pubkey} />
       </SettingsSection>
 
-      <section class="flex flex-col items-start gap-2 border-primary border-t pt-5">
-        <Button
-          variant="danger"
-          icon="i-material-symbols:logout-rounded"
-          onClick={() => dispatch({ type: "deck/logout" })}
-        >
-          この端末からログアウト
-        </Button>
-        <p class="c-secondary text-caption">
-          プロフィールやデッキは消えません。もう一度ログインすれば、元のとおりに使えます。
-        </p>
-      </section>
+      <Show when={!filter}>
+        <section class="flex flex-col items-start gap-2 border-primary border-t pt-5">
+          <Button
+            variant="danger"
+            icon="i-material-symbols:logout-rounded"
+            onClick={() => dispatch({ type: "deck/logout" })}
+          >
+            この端末からログアウト
+          </Button>
+          <p class="c-secondary text-caption">
+            プロフィールやデッキは消えません。もう一度ログインすれば、元のとおりに使えます。
+          </p>
+        </section>
+      </Show>
     </div>
   );
 };

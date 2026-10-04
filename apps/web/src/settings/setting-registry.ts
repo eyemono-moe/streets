@@ -60,16 +60,45 @@ export const pageNames: Record<SettingPage, string> = {
 
 /** 設定画面の各項目が参照する検索情報。表示名もここを正とする。 */
 export const settings = {
-  profile: account("profile", "プロフィール", "account", [
-    "表示名",
-    "ユーザー名",
-    "自己紹介",
-    "アイコン画像",
-    "ヘッダー画像",
-    "NIP-05",
-    "Web サイト",
-    "Zap 受け取り先",
+  profile: {
+    ...account("profile", "プロフィール", "account"),
+    searchable: false,
+  },
+  profileDisplayName: account("profile.display-name", "表示名", "account", [
+    "プロフィール名",
+    "名前",
   ]),
+  profileName: account("profile.name", "ユーザー名", "account", ["ハンドル"]),
+  profileAbout: account("profile.about", "自己紹介", "account", [
+    "プロフィール文",
+    "bio",
+  ]),
+  profilePicture: {
+    ...account("profile.picture", "アイコン画像", "account", [
+      "プロフィール画像",
+      "アバター",
+    ]),
+    description: "プロフィールに表示する画像",
+  },
+  profileBanner: account("profile.banner", "ヘッダー画像", "account", [
+    "バナー画像",
+  ]),
+  profileNip05: account(
+    "profile.nip05",
+    "ドメインでの本人確認（NIP-05）",
+    "account",
+    ["認証", "ドメイン"],
+  ),
+  profileWebsite: account("profile.website", "Web サイト", "account", [
+    "URL",
+    "ホームページ",
+  ]),
+  profileLud16: account(
+    "profile.lud16",
+    "Zap の受け取り先（ライトニングアドレス）",
+    "account",
+    ["投げ銭", "ウォレット"],
+  ),
   accountId: {
     ...account("account.id", "あなたの ID", "account", ["公開鍵", "npub"]),
     searchable: false,
@@ -185,3 +214,15 @@ export const settings = {
 } as const;
 
 export type SettingId = keyof typeof settings;
+
+export type RegisteredSetting = SettingEntry & { key: SettingId };
+
+const entries: RegisteredSetting[] = Object.entries(settings).map(
+  ([key, setting]) => ({ ...setting, key: key as SettingId }),
+);
+
+export const availableSettings = (signedIn: boolean): RegisteredSetting[] =>
+  entries.filter(
+    (entry) =>
+      entry.searchable !== false && (signedIn || !entry.requiresSignIn),
+  );
