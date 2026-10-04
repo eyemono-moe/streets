@@ -3,6 +3,13 @@ import { signingWaitMessage } from "@streets/core/view/signer-wait";
 import { createSignal, onCleanup } from "solid-js";
 
 const WAIT_DELAY_MS = 2500;
+/**
+ * 押していない裏の依頼（リレーへのログイン・非公開の項目の読み取り）。署名器の返事が
+ * 遅いだけのことが多いので、すぐには知らせない。ずっと返らないときだけ、読み込まれない
+ * 理由が分かるように出す。
+ */
+const BACKGROUND_WAIT_DELAY_MS = 8000;
+const RELAY_AUTH_KIND = 22_242;
 
 type PendingWait = {
   message: string;
@@ -12,11 +19,18 @@ type PendingWait = {
 
 /** 同時に複数の承認が走っても、表示中のものを消してしまわない。 */
 export const createSignerWait = () => {
-  const [message, setMessage] = createSignal<string>();
+  // 待たせている依頼の名前。同じ名前は 1 つにまとめる。
+  const [messages, setMessages] = createSignal<readonly string[]>([]);
   const pending = new Map<number, PendingWait>();
   let nextId = 0;
   const refresh = () => {
-    setMessage([...pending.values()].find((entry) => entry.shown)?.message);
+    setMessages([
+      ...new Set(
+        [...pending.values()]
+          .filter((entry) => entry.shown)
+          .map((entry) => entry.message),
+      ),
+    ]);
   };
 
   const track = async <T>(
@@ -48,7 +62,7 @@ export const createSignerWait = () => {
     pending.clear();
   });
 
-  return { message, track };
+  return { messages, track };
 };
 
 /** 実際に外部の署名器へ依頼する期間だけを監視する。能力の有無は元の署名器に従う。 */
@@ -59,8 +73,10 @@ export const observeSigner = (
   set: (next) => signer.set(next),
   getPublicKey: () => signer.getPublicKey(),
   signEvent: (template) =>
-    wait.track(signingWaitMessage(template.kind), () =>
-      signer.signEvent(template),
+    wait.track(
+      signingWaitMessage(template.kind),
+      () => signer.signEvent(template),
+      template.kind === RELAY_AUTH_KIND ? BACKGROUND_WAIT_DELAY_MS : undefined,
     ),
   get nip44() {
     const nip44 = signer.nip44;
@@ -71,8 +87,10 @@ export const observeSigner = (
               nip44.encrypt(peerPubkey, plaintext),
             ),
           decrypt: (peerPubkey: string, ciphertext: string) =>
-            wait.track("非公開の情報の読み取りを待っています", () =>
-              nip44.decrypt(peerPubkey, ciphertext),
+            wait.track(
+              "非公開の情報の読み取りを待っています",
+              () => nip44.decrypt(peerPubkey, ciphertext),
+              BACKGROUND_WAIT_DELAY_MS,
             ),
         }
       : undefined;
@@ -82,8 +100,10 @@ export const observeSigner = (
     return nip04
       ? {
           decrypt: (peerPubkey: string, ciphertext: string) =>
-            wait.track("非公開の情報の読み取りを待っています", () =>
-              nip04.decrypt(peerPubkey, ciphertext),
+            wait.track(
+              "非公開の情報の読み取りを待っています",
+              () => nip04.decrypt(peerPubkey, ciphertext),
+              BACKGROUND_WAIT_DELAY_MS,
             ),
         }
       : undefined;

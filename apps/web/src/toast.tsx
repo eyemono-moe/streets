@@ -1,7 +1,8 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
-import { type Component, type JSX, Show } from "solid-js";
+import { type Component, type JSX, Match, Show, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 import { isMultiColumn } from "./deck-layout-setting";
+import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
 import IconButton from "./ui/IconButton";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
@@ -112,8 +113,7 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
   <Toaster toaster={props.toaster}>
     {(toast) => (
       <ToastCard>
-        <Show
-          when={(toast().meta as Partial<WriteToastMeta> | undefined)?.write}
+        <Switch
           fallback={
             <>
               <span
@@ -141,12 +141,28 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
             </>
           }
         >
-          {(write) => (
-            <div class="min-w-0 flex-1">
-              <WriteProgressToast meta={write()} />
-            </div>
-          )}
-        </Show>
+          <Match
+            when={(toast().meta as Partial<WriteToastMeta> | undefined)?.write}
+          >
+            {(write) => (
+              <div class="min-w-0 flex-1">
+                <WriteProgressToast meta={write()} />
+              </div>
+            )}
+          </Match>
+          <Match
+            when={
+              (toast().meta as Partial<SignerWaitToastMeta> | undefined)
+                ?.signerWait
+            }
+          >
+            {(wait) => (
+              <div class="min-w-0 flex-1">
+                <SignerWaitToast meta={wait()} />
+              </div>
+            )}
+          </Match>
+        </Switch>
         <CloseButton />
       </ToastCard>
     )}
