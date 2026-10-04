@@ -297,6 +297,14 @@ type S = StoryObj<typeof meta>;
 /** 行を掴んで上下に動かすと、ほかの行が滑って空く。右端のつまみは ↑↓ キーでも動かせる。 */
 export const ふつう: S = {};
 
+export const デッキ切替にフォーカス: S = {
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>('[aria-label^="デッキを切り替える"]')
+      ?.focus();
+  },
+};
+
 /** 下の端へ寄せると、一覧が送られる。 */
 export const カラムが多い: S = { args: { initial: many } };
 
