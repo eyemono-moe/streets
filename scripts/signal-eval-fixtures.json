@@ -145,14 +145,20 @@
   },
   {
     "id": "ambiguous-1",
-    "group": "複数意図",
+    "group": "順序のある相談",
     "query": "カラムを追加してから投稿したい。まず何をすればいい？",
-    "expected": null
+    "expected": "column.add"
   },
   {
     "id": "ambiguous-2",
     "group": "複数意図",
     "query": "ログインもリレーの接続もできません",
+    "expected": null
+  },
+  {
+    "id": "ambiguous-3",
+    "group": "複数意図",
+    "query": "カラムを追加する方法と、リモート署名器でログインする方法をそれぞれ教えて",
     "expected": null
   },
   {
