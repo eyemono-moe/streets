@@ -7,7 +7,7 @@ import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
-import SignerWaitOverlay from "./SignerWaitOverlay";
+import SignerWaitNotice from "./SignerWaitNotice";
 import { ErrorToaster } from "./toast";
 
 const AppDevtools = lazy(() => import("./devtools/AppDevtools"));
@@ -75,8 +75,8 @@ const App: Component = () => {
         </Show>
       </Show>
       <ErrorToaster />
-      <SignerWaitOverlay
-        message={session.signerWait()}
+      <SignerWaitNotice
+        messages={session.signerWaits()}
         authUrl={session.authUrl()}
       />
       <Show when={import.meta.env.DEV && !screenshotMode()}>

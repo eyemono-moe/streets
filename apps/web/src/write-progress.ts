@@ -49,7 +49,7 @@ const track = async <T>(
     const result = await run((next) => {
       progress = next;
       if (next.phase === "signing") {
-        // 署名器の確認中は中央の待機表示に譲り、同じ待機をトーストに重ねない。
+        // 署名器の確認中は承認待ちのトーストに譲り、同じ待ちを 2 枚に重ねない。
         if (id) toaster.remove(id);
         id = undefined;
       } else {

@@ -273,7 +273,7 @@ export const createSession = (
     error,
     authUrl,
     signer,
-    signerWait: signerWait.message,
+    signerWaits: signerWait.messages,
     loginWithExtension,
     loginWithBunker,
     loginWithNostrConnect,
