@@ -187,18 +187,16 @@ export const useUserCandidates = (
     return ranked;
   };
 
-  // 候補を初めて出したときに、プロフィールの無い人を少しずつ取りに行く。
+  // 候補を初めて出したときに、プロフィールの無い人・古くなった人を少しずつ取りに行く。
+  // 新しいかどうかは requestProfile が見る。
   const asked = new Set<string>();
   const timers: ReturnType<typeof setTimeout>[] = [];
   onCleanup(() => timers.forEach(clearTimeout));
-  const requestMissing = (pubkeys: readonly string[]) => {
-    const missing = pubkeys.filter(
-      (pubkey) =>
-        !asked.has(pubkey) && store.latestReplaceable(0, pubkey) === undefined,
-    );
-    for (const pubkey of missing) asked.add(pubkey);
-    for (let i = 0; i < missing.length; i += PROFILE_CHUNK) {
-      const chunk = missing.slice(i, i + PROFILE_CHUNK);
+  const requestProfiles = (pubkeys: readonly string[]) => {
+    const unasked = pubkeys.filter((pubkey) => !asked.has(pubkey));
+    for (const pubkey of unasked) asked.add(pubkey);
+    for (let i = 0; i < unasked.length; i += PROFILE_CHUNK) {
+      const chunk = unasked.slice(i, i + PROFILE_CHUNK);
       timers.push(
         setTimeout(
           () => {
@@ -234,7 +232,7 @@ export const useUserCandidates = (
   return {
     find: (query) => {
       const all = entries();
-      requestMissing(all.map((entry) => entry.pubkey));
+      requestProfiles(all.map((entry) => entry.pubkey));
       const ranked = rankUsers(all, query).slice(0, LIMIT);
       const shown = new Set(ranked.map((entry) => entry.pubkey));
       const more = (found?.() ?? [])

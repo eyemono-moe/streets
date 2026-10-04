@@ -4,7 +4,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { type EventAddress, formatEventAddress } from "../nostr/address";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
-import type { AddressRequests } from "./address-requests";
+import type { AddressRequests, RequestOptions } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
@@ -40,10 +40,16 @@ const signed = (draft: {
 /** 要求を記録し、バッチが片付いた知らせをテストから出せる要求器。 */
 const fakeRequests = () => {
   const requested: string[] = [];
+  const refreshed: string[] = [];
   const listeners = new Set<() => void>();
   const unresolved = new Set<string>();
   const requests: EventRequests & ProfileRequests & EngagementRequests = {
-    request: (id: string) => void requested.push(id),
+    request: (id: string, hintOrOptions?: RelayUrl | RequestOptions) => {
+      requested.push(id);
+      if (typeof hintOrOptions === "object" && hintOrOptions.refresh) {
+        refreshed.push(id);
+      }
+    },
     isUnresolved: (id) => unresolved.has(id),
     subscribe(listener) {
       listeners.add(listener);
@@ -56,6 +62,7 @@ const fakeRequests = () => {
   return {
     requests,
     requested,
+    refreshed,
     unresolved,
     listenerCount: () => listeners.size,
     settle: () => {
@@ -358,7 +365,7 @@ describe("watchProfile", () => {
     expect(profiles.listenerCount()).toBe(0);
   });
 
-  it("store にあれば要求せず、新しい版が入るたびに知らせる", () => {
+  it("store にあればすぐ知らせ、取り直すかは要求器に任せ、新しい版が入るたびに知らせる", () => {
     const { store, profiles, lookups } = setup();
     const first = profileEvent("alice", 1_700_000_000);
     store.put(first, RELAY);
@@ -367,7 +374,9 @@ describe("watchProfile", () => {
       seen.push({ name: details?.profile?.name, tags: details?.tags }),
     );
     expect(seen).toEqual([{ name: "alice", tags: first.tags }]);
-    expect(profiles.requested).toEqual([]);
+    // 手元にあっても要求する。古くなっていなければ要求器が何もしない。
+    expect(profiles.requested).toEqual([PUBKEY]);
+    expect(profiles.listenerCount()).toBe(0);
 
     store.put(profileEvent("alice2", 1_700_000_100), RELAY);
     expect(seen.at(-1)?.name).toBe("alice2");
@@ -400,12 +409,13 @@ describe("watchBot", () => {
     expect(seen.at(-1)).toBe(true);
   });
 
-  it("名乗っていない人は false", () => {
-    const { store, lookups } = setup();
+  it("名乗っていない人は false。手元にあっても取り直すかは要求器に任せる", () => {
+    const { store, profiles, lookups } = setup();
     store.put(profileEvent({ name: "alice" }), RELAY);
     const seen: (boolean | undefined)[] = [];
     lookups.watchBot(PUBKEY, (bot) => seen.push(bot));
     expect(seen).toEqual([false]);
+    expect(profiles.requested).toEqual([PUBKEY]);
   });
 
   it("取り終えてプロフィールが無ければ false", () => {
@@ -424,6 +434,16 @@ describe("requestProfile", () => {
     const { profiles, lookups } = setup();
     lookups.requestProfile(PUBKEY);
     expect(profiles.requested).toEqual([PUBKEY]);
+    expect(profiles.refreshed).toEqual([]);
+    expect(profiles.listenerCount()).toBe(0);
+  });
+});
+
+describe("refreshProfile", () => {
+  it("古さに関係なく取り直すよう要求器へ渡す", () => {
+    const { profiles, lookups } = setup();
+    lookups.refreshProfile(PUBKEY);
+    expect(profiles.refreshed).toEqual([PUBKEY]);
     expect(profiles.listenerCount()).toBe(0);
   });
 });

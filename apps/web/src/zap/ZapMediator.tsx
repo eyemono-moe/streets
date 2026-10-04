@@ -1,4 +1,5 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { isStale, policyFor } from "@streets/core/read/cache-policy";
 import type {
   ConnectionPool,
   PooledSubscription,
@@ -149,9 +150,16 @@ export const ZapMediator: ParentComponent<{
       const max = Math.floor(info.maxSendable / 1000);
       throw new ZapError(`この送り先に送れるのは ${min}〜${max} sats です`);
     }
-    // フォロー先以外は kind:10002 をまだ持っていないことがある。取得を試し、
+    // フォロー先以外は kind:10002 をまだ持っていないか、古いままのことがある。取得を試し、
     // 応答が無くても既定リレーと送信者の read リレーで Zap を続ける。
-    if (!props.store.latestReplaceable(10002, draft.target.pubkey)) {
+    const relayListFetchedAt = props.store.replaceableFetchedAt(
+      10002,
+      draft.target.pubkey,
+    );
+    if (
+      relayListFetchedAt === undefined ||
+      isStale(policyFor(10002), relayListFetchedAt, Date.now())
+    ) {
       try {
         await props.manager.fetchOnce(
           [{ kinds: [10002], authors: [draft.target.pubkey], limit: 1 }],

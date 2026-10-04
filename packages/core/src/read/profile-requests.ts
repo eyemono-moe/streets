@@ -1,4 +1,5 @@
 import type { RelayFilter } from "../relay/relay-connection";
+import type { RequestOptions } from "./address-requests";
 import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
@@ -7,8 +8,11 @@ import type { SubscriptionManager } from "./subscription-manager";
 const PROFILE_KIND = 0;
 
 export type ProfileRequests = {
-  /** この pubkey のプロフィールを要求する。既に取得済みなら何もしない。 */
-  request(pubkey: string): void;
+  /**
+   * この pubkey のプロフィールを要求する。取ってから古くなっていなければ何もしない。
+   * `refresh` なら古さに関係なく取り直す。
+   */
+  request(pubkey: string, options?: RequestOptions): void;
   /**
    * バッチが 1 本片付く (= `fetchOnce` が解決する) たびに呼ばれる。どの
    * pubkey が解決したかは通知しない —— `<Profile>` は自分の pubkey を
@@ -57,6 +61,9 @@ export const createProfileRequests = (
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   let disposed = false;
   const listeners = new Set<() => void>();
+  // 取りにいっている最中の pubkey。返事を待つ間に同じ人のアバターが続けて描かれても、
+  // 取った時刻はまだ更新されていないので、ここで重ねて要求しないようにする。
+  const inflight = new Set<string>();
 
   /**
    * `pending` を新しい Set に差し替えるのは、`fetchOnce` 解決前に来た新しい
@@ -73,8 +80,14 @@ export const createProfileRequests = (
     lastBatchSize = authors.length;
     if (authors.length > maxBatchSize) maxBatchSize = authors.length;
 
+    for (const author of authors) inflight.add(author);
+
     const filters: RelayFilter[] = [{ kinds: [0], authors }];
+    const done = () => {
+      for (const author of authors) inflight.delete(author);
+    };
     void options.manager.fetchOnce(filters).then(() => {
+      done();
       // dispose() 後に解決したバッチは誰にも通知しない —— リスナー自体を
       // dispose() で空にしているので実害は無いが、意図を明示しておく。
       if (disposed) return;
@@ -82,11 +95,11 @@ export const createProfileRequests = (
         options.store.markReplaceableFetched(PROFILE_KIND, author);
       }
       for (const listener of listeners) listener();
-    });
+    }, done);
   };
 
   return {
-    request(pubkey) {
+    request(pubkey, requestOptions) {
       if (disposed) return;
       // 既に新鮮なら要求しない。`fetchedAt` が無い (未取得) なら isStale を呼ぶまでもなく要求する。
       const fetchedAt = options.store.replaceableFetchedAt(
@@ -94,11 +107,13 @@ export const createProfileRequests = (
         pubkey,
       );
       if (
+        !requestOptions?.refresh &&
         fetchedAt !== undefined &&
         !isStale(policyFor(PROFILE_KIND), fetchedAt, scheduler.now())
       ) {
         return;
       }
+      if (inflight.has(pubkey)) return;
       pending.add(pubkey);
       if (timer === null) {
         timer = scheduler.setTimeout(flush, PROFILE_BATCH_MS);

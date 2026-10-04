@@ -252,6 +252,55 @@ describe("createProfileRequests", () => {
     expect(filters[0].authors).toEqual([cached.pubkey]);
   });
 
+  it("refresh なら staleMs 以内でも取り直す", () => {
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const store = new EventStore({ scheduler: clock });
+    clock.advance(1);
+    const cached = profileEvent(1);
+    store.put(cached, "wss://relay/");
+
+    const requests = createProfileRequests({
+      store,
+      manager,
+      scheduler: clock,
+    });
+
+    requests.request(cached.pubkey, { refresh: true });
+    clock.advance(200);
+
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
+  });
+
+  it("取りにいっている最中の pubkey は、返事が来るまで重ねて要求しない", async () => {
+    // 捕まえる変異: 古い版を持つ人のアバターが返事待ちの間に描かれるたび、同じ人を要求し直す。
+    const manager = stubManager();
+    let resolve = () => {};
+    manager.fetchOnce.mockImplementationOnce(
+      () => new Promise<void>((r) => (resolve = r)),
+    );
+    manager.fetchOnce.mockImplementation(() => Promise.resolve());
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore({ scheduler: clock }),
+      manager,
+      scheduler: clock,
+    });
+    const pubkey = pubkeyFor(1);
+
+    requests.request(pubkey);
+    clock.advance(200);
+    requests.request(pubkey);
+    clock.advance(200);
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
+
+    resolve();
+    await Promise.resolve();
+    requests.request(pubkey, { refresh: true });
+    clock.advance(200);
+    expect(manager.fetchOnce).toHaveBeenCalledTimes(2);
+  });
+
   it("dispose() 後は fetchOnce を呼ばない", () => {
     const manager = stubManager();
     const clock = createFakeClock();
