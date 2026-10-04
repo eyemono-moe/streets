@@ -73,6 +73,9 @@ export const ComposeMediator: Component<{
   );
   const apply = (event: ComposeEvent) =>
     setState(reconcile(composeTransition(unwrap(state), event)));
+  // 閉じたときの保存は、開いた側が状態を片付けた後に走る。そのときに読み直すと宛先が
+  // 変わっていることがあるので、作ったときの宛先を持ち続ける。
+  const target = props.target;
   const uploader = useUploader();
   const emoji = useEmojiLookup();
 
@@ -125,7 +128,7 @@ export const ComposeMediator: Component<{
         contentWarning: current.contentWarning,
         savedAt: Date.now(),
         kept: keep,
-        target: props.target,
+        target,
       });
     }
     if (bound?.id !== id || bound.kept !== keep) {
@@ -251,7 +254,7 @@ export const ComposeMediator: Component<{
         stash(true);
         apply({ type: "compose/reset" });
         // 宛先のある書きかけは、空にしても続けて書くものが無いので閉じる。
-        if (props.target) props.onClose?.();
+        if (target) props.onClose?.();
         return true;
       case "compose/draft-remove":
         if (props.drafts) removeComposeDraft(event.id);

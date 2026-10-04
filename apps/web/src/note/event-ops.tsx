@@ -191,12 +191,15 @@ export const createEventDialogs = (event: () => NostrEvent) => {
   const close = () => setOpen(undefined);
   const view: JSX.Element = (
     <Switch>
-      <Match when={open() === "reply" || open() === "quote"}>
+      <Match when={open() === "reply"}>
         <TargetComposeDialog
-          target={{
-            type: open() === "quote" ? "quote" : "reply",
-            event: event(),
-          }}
+          target={{ type: "reply", event: event() }}
+          onClose={close}
+        />
+      </Match>
+      <Match when={open() === "quote"}>
+        <TargetComposeDialog
+          target={{ type: "quote", event: event() }}
           onClose={close}
         />
       </Match>
