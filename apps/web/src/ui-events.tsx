@@ -50,6 +50,7 @@ export type UiEvent =
   | ActionEvent
   | DeckEvent
   | { type: "signal/activate-action"; action: GuideAction }
+  | { type: "signal/close-guide" }
   | ComposeViewEvent
   | RelayViewEvent
   | MuteViewEvent
