@@ -45,6 +45,12 @@ import type { NewDeckSource } from "./deck/NewDeckPanel";
  * 受け取った段の Mediator が決める。
  */
 export type UiEvent =
+  | {
+      type: "column-part/set-open";
+      column: string;
+      part: string;
+      open: boolean;
+    }
   | ColumnStackEvent
   | ActionEvent
   | DeckEvent

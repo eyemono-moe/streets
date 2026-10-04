@@ -15,6 +15,7 @@ import {
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { blockedRelays } from "../blocked-relays";
+import { columnPartOpen } from "../column-part-memory";
 import { columnTabMemory } from "../column-tab-memory";
 import { LinkCardModeProvider } from "../note/link-card";
 import { readRoutingMode } from "../read-routing-setting";
@@ -33,6 +34,7 @@ export type ColumnContentProps = ColumnInputs & {
    * カラムだけが覚える（一時カラムや重ねた段は、開き直すと別のものになる）。
    */
   remembersTabs?: boolean;
+  remembersParts?: boolean;
 };
 
 /** カラムの中身の枠。種類ごとの中身は `column-views` の表から選ぶ。 */
@@ -68,6 +70,10 @@ const ColumnContent: Component<ColumnContentProps> = (props) => {
         column: () => props.column,
         readLayer: props.readLayer,
         report,
+        partOpen: (part) =>
+          props.remembersParts !== false
+            ? columnPartOpen(props.column.id, part)
+            : true,
       }}
     >
       <LinkCardModeProvider value={() => columnLinkCards(props.column)}>
