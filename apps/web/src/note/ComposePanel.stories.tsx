@@ -24,6 +24,11 @@ const viewer = createStoryAuthor(55, {
   displayName: "わたし",
   picture: avatarUrl,
 });
+const other = createStoryAuthor(66, {
+  name: "other",
+  displayName: "とても長い表示名を付けているほかのひと",
+});
+const otherNote = other.note("返信・引用の下書きが向いている投稿。");
 
 const shot = (
   id: string,
@@ -61,7 +66,9 @@ const Interactive = () => (
 const meta = {
   title: "操作/投稿パネル",
   component: (props: Props) => (
-    <EventSceneProvider scene={{ events: [viewer.profile()], viewer }}>
+    <EventSceneProvider
+      scene={{ events: [viewer.profile(), other.profile()], viewer }}
+    >
       <StaticCustomEmojis
         emojis={[
           { shortcode: "neko", url: emojiUrl },
@@ -258,6 +265,21 @@ const drafts: ComposeDraft[] = [
     savedAt: minutes(10),
     kept: false,
   },
+  {
+    id: "d5",
+    content: "返信の書きかけ。押すと返信のダイアログで開く。",
+    savedAt: minutes(5),
+    kept: false,
+    target: { type: "reply", event: otherNote },
+  },
+  {
+    id: "d6",
+    content: "引用の書きかけ。",
+    contentWarning: "ネタバレ",
+    savedAt: minutes(120),
+    kept: true,
+    target: { type: "quote", event: otherNote },
+  },
 ];
 
 /**
@@ -273,7 +295,10 @@ export const 書きかけと下書き: Story = {
   },
 };
 
-/** 画像は下書きに残せないので、添えている間は下書きへ移せず、開けもしない。 */
+/**
+ * 画像は下書きに残せないので、添えている間は下書きへ移せず、開けもしない。返信・引用の
+ * 下書きはダイアログで開き、いまの書きかけと入れ替えないので押せる。
+ */
 export const 画像を添えていて下書きを開けない: Story = {
   args: {
     drafts,

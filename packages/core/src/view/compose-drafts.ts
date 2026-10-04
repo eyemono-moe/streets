@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import { type NostrEvent, isNostrEvent } from "../nostr/event";
 
 /**
  * 投稿の下書き。端末の中にだけ置く —— 書きかけをリレーへ出さないため。
@@ -10,6 +11,18 @@ export const COMPOSE_DRAFTS_STORAGE_KEY = "streets.v1.composeDrafts";
 /** 閉じたときに自動で残す下書きは、新しいものからこの件数まで。 */
 export const AUTO_DRAFT_LIMIT = 5;
 
+const targetSchema = v.object({
+  type: v.picklist(["reply", "quote"]),
+  /**
+   * 宛先の投稿そのもの。開き直すときにリレーから取り直さずに済み、取れなくなった投稿へも
+   * 送り直せる。
+   */
+  event: v.custom<NostrEvent>(isNostrEvent),
+});
+
+/** 返信・引用の下書きが向いている投稿。新しい投稿の下書きには無い。 */
+export type ComposeTarget = v.InferOutput<typeof targetSchema>;
+
 const draftSchema = v.object({
   id: v.string(),
   content: v.string(),
@@ -18,6 +31,7 @@ const draftSchema = v.object({
   savedAt: v.number(),
   /** 自分で「下書きに入れる」を押したもの。自動のものと違い、件数で消さない。 */
   kept: v.boolean(),
+  target: v.optional(targetSchema),
 });
 
 export type ComposeDraft = v.InferOutput<typeof draftSchema>;
@@ -40,6 +54,23 @@ export const putDraft = (
   let auto = 0;
   return sorted.filter((other) => other.kept || ++auto <= AUTO_DRAFT_LIMIT);
 };
+
+/** 同じ投稿へ同じ形（返信・引用）で書いた下書きのうち、いちばん新しいもの。 */
+export const draftFor = (
+  drafts: readonly ComposeDraft[],
+  target: ComposeTarget,
+): ComposeDraft | undefined =>
+  drafts
+    .filter(
+      (draft) =>
+        draft.target?.type === target.type &&
+        draft.target.event.id === target.event.id,
+    )
+    .reduce<ComposeDraft | undefined>(
+      (newest, draft) =>
+        newest === undefined || draft.savedAt > newest.savedAt ? draft : newest,
+      undefined,
+    );
 
 export const removeDraft = (
   drafts: readonly ComposeDraft[],

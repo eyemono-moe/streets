@@ -58,6 +58,8 @@ const Interactive = (props: { target: NostrEvent }) => {
       send={(text) => actions?.quote(props.target, text) ?? Promise.resolve()}
       failure="引用できませんでした"
       onSent={() => {}}
+      drafts
+      target={{ type: "quote", event: props.target }}
     >
       {(state) => <QuoteDialog target={props.target} state={state} />}
     </ComposeMediator>
@@ -109,6 +111,10 @@ type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = {};
 export const 送信に失敗する: Story = { args: { failWrites: true } };
+/** 書いている間は、下書きに入れて閉じられる。閉じても書きかけは下書きに残る。 */
+export const 書きかけ: Story = {
+  args: { state: { ...emptyCompose(), content: "あとで続きを書く引用。" } },
+};
 export const 送信中: Story = {
   args: {
     state: {

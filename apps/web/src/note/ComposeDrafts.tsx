@@ -6,6 +6,7 @@ import {
 import { type Component, For, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
+import Name from "./Name";
 
 const DraftRow: Component<{
   draft: ComposeDraft;
@@ -20,11 +21,33 @@ const DraftRow: Component<{
       <button
         type="button"
         class="flex w-full min-w-0 cursor-pointer flex-col gap-0.5 bg-transparent py-2.5 pr-12 pl-3 text-left outline-none enabled:hover:bg-alpha-hover focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset disabled:cursor-default disabled:opacity-50"
-        disabled={props.disabled}
+        // 返信・引用はダイアログで開くので、いまの書きかけとは入れ替えない。
+        disabled={props.disabled && !props.draft.target}
         onClick={() =>
           dispatch({ type: "compose/draft-open", id: props.draft.id })
         }
       >
+        <Show when={props.draft.target}>
+          {(target) => (
+            <span class="c-secondary flex min-w-0 items-center gap-1 text-caption">
+              <span
+                class={`${
+                  target().type === "reply"
+                    ? "i-material-symbols:mode-comment-outline-rounded"
+                    : "i-material-symbols:format-quote-rounded"
+                } size-3.5 shrink-0`}
+                aria-hidden="true"
+              />
+              {/* 名前が長くても、返信か引用かは切らずに見せる。 */}
+              <span class="truncate">
+                <Name pubkey={target().event.pubkey} />
+              </span>
+              <span class="shrink-0">
+                {target().type === "reply" ? "への返信" : "の投稿を引用"}
+              </span>
+            </span>
+          )}
+        </Show>
         <Show when={props.draft.contentWarning !== undefined}>
           <span class="c-secondary flex min-w-0 items-center gap-1 text-caption">
             <span
@@ -82,7 +105,7 @@ const ComposeDrafts: Component<{
       <h3 class="c-secondary font-600 text-caption">下書き</h3>
       <Show when={props.attached}>
         <p class="c-secondary text-caption">
-          画像や動画は下書きに残せないため、添えている間は下書きを開けません
+          画像や動画は下書きに残せないため、添えている間は投稿の下書きを開けません
         </p>
       </Show>
       <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">

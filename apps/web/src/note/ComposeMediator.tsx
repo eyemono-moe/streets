@@ -12,7 +12,11 @@ import {
   sendableText,
   sendableWarning,
 } from "@streets/core/view/compose";
-import { isBlankDraft } from "@streets/core/view/compose-drafts";
+import {
+  type ComposeDraft,
+  type ComposeTarget,
+  isBlankDraft,
+} from "@streets/core/view/compose-drafts";
 import type { Component, JSX } from "solid-js";
 import { onCleanup, onMount } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
@@ -50,12 +54,23 @@ export const ComposeMediator: Component<{
   onClose?: () => void;
   /**
    * 書きかけを下書きに残す。閉じたとき・ページを離れるときに自動で残し、
-   * 下書きの一覧から開けるようにする。返信は宛先ごとの書きかけなので残さない。
+   * 下書きの一覧から開けるようにする。
    */
   drafts?: boolean;
+  /** 返信・引用の宛先。下書きに添えて、一覧から開いたときに同じダイアログへ戻す。 */
+  target?: ComposeTarget;
+  /** 書き始めから開いておく下書き。 */
+  initial?: ComposeDraft;
   children: (state: ComposeState) => JSX.Element;
 }> = (props) => {
-  const [state, setState] = createStore<ComposeState>(emptyCompose());
+  const [state, setState] = createStore<ComposeState>(
+    props.initial
+      ? composeTransition(emptyCompose(), {
+          type: "compose/load",
+          draft: props.initial,
+        })
+      : emptyCompose(),
+  );
   const apply = (event: ComposeEvent) =>
     setState(reconcile(composeTransition(unwrap(state), event)));
   const uploader = useUploader();
@@ -110,6 +125,7 @@ export const ComposeMediator: Component<{
         contentWarning: current.contentWarning,
         savedAt: Date.now(),
         kept: keep,
+        target: props.target,
       });
     }
     if (bound?.id !== id || bound.kept !== keep) {
@@ -222,6 +238,8 @@ export const ComposeMediator: Component<{
         if (!props.drafts || state.sending) return true;
         const draft = composeDrafts().find((other) => other.id === event.id);
         if (!draft) return true;
+        // 返信・引用の下書きは宛先を見せるダイアログで開く。開くのは上の段。
+        if (draft.target) return false;
         // いまの書きかけは、開く下書きと入れ替えに下書きへ残す。
         stash();
         forgetAll();
@@ -232,6 +250,8 @@ export const ComposeMediator: Component<{
         if (!props.drafts || !canKeepDraft(unwrap(state))) return true;
         stash(true);
         apply({ type: "compose/reset" });
+        // 宛先のある書きかけは、空にしても続けて書くものが無いので閉じる。
+        if (props.target) props.onClose?.();
         return true;
       case "compose/draft-remove":
         if (props.drafts) removeComposeDraft(event.id);
