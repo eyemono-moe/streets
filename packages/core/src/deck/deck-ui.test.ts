@@ -194,6 +194,25 @@ describe("設定のダイアログ", () => {
 });
 
 describe("コマンドパレット", () => {
+  it("カラムの対象選択画面を直接開き、通常の入口では一覧へ戻す", () => {
+    const first = run({
+      type: "deck/open-column-picker",
+      picker: "follow-sets",
+    });
+    expect(first).toMatchObject({
+      panel: "add-column",
+      columnPickerRequest: { picker: "follow-sets", sequence: 1 },
+    });
+    const next = deckUiTransition(first, {
+      type: "deck/open-column-picker",
+      picker: "follow-sets",
+    });
+    expect(next.columnPickerRequest?.sequence).toBe(2);
+    expect(
+      deckUiTransition(next, { type: "deck/open-panel", panel: "add-column" })
+        .columnPickerRequest,
+    ).toBeUndefined();
+  });
   it("検索パネルを開くたびに入力を渡す", () => {
     const first = run({ type: "deck/open-search", query: "ねこ" });
     expect(first).toMatchObject({

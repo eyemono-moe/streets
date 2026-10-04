@@ -6,6 +6,9 @@ export type DeckPanel =
   | "arrange"
   | "new-deck";
 
+/** カラムの追加で、対象を選んでから作る種類。 */
+export type ColumnPicker = "relay" | "channels" | "follow-sets" | "user";
+
 /**
  * デッキの画面の状態のうち、保存しないもの。カラムの並びや設定はデッキ（NIP-78）に
  * 保存するので、ここには持たない。
@@ -14,6 +17,8 @@ export type DeckUiState = {
   panel: DeckPanel | undefined;
   /** パレットから検索パネルへ渡す入力。連続して開くたびに更新する。 */
   searchRequest: { query: string; sequence: number } | undefined;
+  /** パレットから追加パネルの選択画面を直接開く。 */
+  columnPickerRequest: { picker: ColumnPicker; sequence: number } | undefined;
   /** 設定を開いているカラム。同時に開くのは 1 本だけ。 */
   settingsFor: string | undefined;
   /** 狭い画面で選んでいるタブ。一時カラムは `TEMP_COLUMN_ID`。 */
@@ -33,6 +38,7 @@ export type DeckUiState = {
 export type DeckUiEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
   | { type: "deck/open-search"; query: string }
+  | { type: "deck/open-column-picker"; picker: ColumnPicker }
   /** ボタンを押した。同じパネルが開いていれば閉じ、違えばそちらへ移る。 */
   | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
@@ -62,6 +68,7 @@ export type DeckUiEvent =
 export const emptyDeckUi = (): DeckUiState => ({
   panel: undefined,
   searchRequest: undefined,
+  columnPickerRequest: undefined,
   settingsFor: undefined,
   active: undefined,
   dragging: undefined,
@@ -82,6 +89,8 @@ export const deckUiTransition = (
         panel: event.panel,
         searchRequest:
           event.panel === "search" ? undefined : state.searchRequest,
+        columnPickerRequest:
+          event.panel === "add-column" ? undefined : state.columnPickerRequest,
       };
     case "deck/open-search":
       return {
@@ -92,12 +101,23 @@ export const deckUiTransition = (
           sequence: (state.searchRequest?.sequence ?? 0) + 1,
         },
       };
+    case "deck/open-column-picker":
+      return {
+        ...state,
+        panel: "add-column",
+        columnPickerRequest: {
+          picker: event.picker,
+          sequence: (state.columnPickerRequest?.sequence ?? 0) + 1,
+        },
+      };
     case "deck/toggle-panel":
       return {
         ...state,
         panel: state.panel === event.panel ? undefined : event.panel,
         searchRequest:
           event.panel === "search" ? undefined : state.searchRequest,
+        columnPickerRequest:
+          event.panel === "add-column" ? undefined : state.columnPickerRequest,
       };
     case "deck/close-panel":
       return state.panel === undefined ? state : { ...state, panel: undefined };

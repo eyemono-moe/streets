@@ -16,6 +16,10 @@ const Demo = (props: {
         open
         signedIn={props.signedIn}
         initialQuery={props.query}
+        decks={[
+          { id: "main", name: "メイン", columns: 3 },
+          { id: "work", name: "作業用", columns: 2 },
+        ]}
       />
     </Mediates>
   );
@@ -59,3 +63,5 @@ export const ユーザーIDを入力: S = {
 export const ユーザーを補完: S = {
   args: { query: "@", signedIn: true, withPeople: true },
 };
+export const デッキを検索: S = { args: { query: "作業用" } };
+export const リストの追加: S = { args: { query: "リストカラム" } };

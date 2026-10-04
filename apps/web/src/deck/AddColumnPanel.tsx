@@ -5,6 +5,7 @@ import {
   buildRelayColumn,
 } from "@streets/core/deck/column-presets";
 import type { ColumnDef } from "@streets/core/deck/deck";
+import type { ColumnPicker } from "@streets/core/deck/deck-ui";
 import { CHANNEL_CREATE_KIND } from "@streets/core/nostr/channel";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -17,6 +18,7 @@ import {
   Show,
   Switch,
   createSignal,
+  createEffect,
 } from "solid-js";
 import ChannelList from "../columns/blocks/ChannelList";
 import { FollowSetList } from "../columns/blocks/FollowSets";
@@ -35,7 +37,7 @@ import { textInputClass } from "../ui/TextField";
 import RelayColumnEditor from "./RelayColumnEditor";
 
 /** 押すと種類の一覧から切り替わる、選ぶための画面。 */
-type Picker = "relay" | "channels" | "follow-sets" | "user";
+type Picker = ColumnPicker;
 
 const PICKERS: ReadonlySet<string> = new Set<Picker>([
   "relay",
@@ -384,6 +386,7 @@ const AddColumnPanel: Component<{
   relayList: RelayListState;
   /** Storybook で選ぶ画面を開いた状態から始めるため。 */
   initialPicker?: Picker;
+  request?: { picker: Picker; sequence: number };
   /** チャンネルやリストを選ぶ一覧が読む。Storybook では渡さない（一覧の見た目は別のストーリーで見る）。 */
   readLayer?: ReadLayer;
   /** 人を名前で探すときの問い合わせ先。 */
@@ -393,6 +396,13 @@ const AddColumnPanel: Component<{
   const [picker, setPicker] = createSignal<Picker | undefined>(
     props.initialPicker,
   );
+  createEffect(() => {
+    // reconcile は同じオブジェクトを更新するため、連続した要求も番号で拾う。
+    const request = props.request;
+    setPicker(
+      request?.sequence === undefined ? props.initialPicker : request.picker,
+    );
+  });
   const [selectedRelays, setSelectedRelays] = createSignal<RelayUrl[]>([]);
   const back = () => setPicker(undefined);
 

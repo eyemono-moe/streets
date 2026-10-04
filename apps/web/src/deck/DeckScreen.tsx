@@ -642,6 +642,7 @@ const DeckScreen: Component<{
       }
       case "deck/open-panel":
       case "deck/open-search":
+      case "deck/open-column-picker":
       case "deck/toggle-panel":
       case "deck/close-panel":
       case "deck/select-column":
@@ -886,6 +887,7 @@ const DeckScreen: Component<{
             relayList={relayList()}
             readLayer={props.readLayer}
             searchRelays={shared.searchRelays}
+            request={ui.columnPickerRequest}
           />
         </SidePanel>
       </Match>
@@ -1224,6 +1226,7 @@ const DeckScreen: Component<{
           open={ui.paletteOpen}
           signedIn={account !== undefined}
           searchRelays={shared.searchRelays}
+          decks={deckSummaries()}
         />
       </Show>
     </>

@@ -1,6 +1,6 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
-import type { DeckPanel } from "@streets/core/deck/deck-ui";
+import type { ColumnPicker, DeckPanel } from "@streets/core/deck/deck-ui";
 import type { FollowSetMember } from "@streets/core/lists/follow-set";
 import type { FollowSetFormEvent } from "@streets/core/lists/follow-set-form";
 import type {
@@ -147,6 +147,7 @@ export type ComposeViewEvent =
 export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
   | { type: "deck/open-search"; query: string }
+  | { type: "deck/open-column-picker"; picker: ColumnPicker }
   | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }

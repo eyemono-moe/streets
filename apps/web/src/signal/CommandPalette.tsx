@@ -44,9 +44,11 @@ const CommandPalette: Component<{
   /** ストーリーなどで最初の結果を見せるための語。 */
   initialQuery?: string;
   searchRelays?: () => readonly RelayUrl[];
+  decks?: readonly { id: string; name: string; columns: number }[];
 }> = (props) => {
   const dispatch = useDispatch();
   let input: HTMLInputElement | undefined;
+  let resultsBody: HTMLDivElement | undefined;
   const [query, setQuery] = createSignal(props.initialQuery ?? "");
   const [selected, setSelected] = createSignal(0);
   let pending: UiEvent | undefined;
@@ -81,8 +83,20 @@ const CommandPalette: Component<{
     return pubkey ? profileLabel(profile(), pubkey) : "";
   };
   const actions = createMemo(() => availableActions(props.signedIn));
+  const decks = createMemo<PaletteAction[]>(() =>
+    (props.decks ?? []).map((deck) => ({
+      kind: "action",
+      id: `deck:${deck.id}`,
+      title: `デッキ「${deck.name}」に切り替える`,
+      section: "デッキ",
+      keywords: [deck.name, "デッキを切り替える"],
+      description: `カラム ${deck.columns} 本`,
+      event: { type: "deck/switch-deck", id: deck.id },
+    })),
+  );
   const candidates = createMemo<Command[]>(() => [
     ...actions(),
+    ...decks(),
     ...availableSettings(props.signedIn).map((setting): SettingCommand => ({
       ...setting,
       kind: "setting",
@@ -131,6 +145,19 @@ const CommandPalette: Component<{
       : actions();
   });
   createEffect(on(query, () => setSelected(0)));
+  createEffect(() => {
+    const index = selected();
+    if (index >= results().length) return;
+    const option = resultsBody?.querySelector<HTMLElement>(
+      `#signal-command-${index}`,
+    );
+    if (!option || !resultsBody) return;
+    const body = resultsBody.getBoundingClientRect();
+    const row = option.getBoundingClientRect();
+    if (row.top < body.top) resultsBody.scrollTop += row.top - body.top;
+    else if (row.bottom > body.bottom)
+      resultsBody.scrollTop += row.bottom - body.bottom;
+  });
   createEffect(
     on(
       () => props.open,
@@ -154,7 +181,9 @@ const CommandPalette: Component<{
     pending =
       command.kind === "setting"
         ? { type: "deck/open-settings", setting: command.id }
-        : command.event;
+        : typeof command.event === "function"
+          ? command.event()
+          : command.event;
     dispatch({ type: "deck/close-palette" });
   };
   const search = () => {
@@ -223,7 +252,10 @@ const CommandPalette: Component<{
             aria-label="検索結果"
             class="flex min-h-0 flex-1 flex-col"
           >
-            <DialogBody class="min-h-0 flex-1 p-2">
+            <DialogBody
+              ref={(element) => (resultsBody = element)}
+              class="min-h-0 flex-1 p-2"
+            >
               <div>
                 <Show
                   when={results().length > 0}
@@ -240,7 +272,7 @@ const CommandPalette: Component<{
                         title={command.title}
                         category={
                           command.kind === "action"
-                            ? "操作"
+                            ? (command.section ?? "操作")
                             : command.kind === "user"
                               ? `${encodeBech32("npub", command.pubkey).slice(0, 12)}…`
                               : "設定"
