@@ -87,7 +87,7 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="ミュートを足す"
+        id="muteAdd"
         scope="account"
         description="見たくない人・イベント・ハッシュタグ・単語を、ホームや通知、検索から隠します。人のページやスレッドを自分で開いたときは隠しません。"
       >
@@ -105,6 +105,7 @@ const MuteSettingsView: Component<MuteSettingsViewProps> = (props) => {
       </SettingsSection>
 
       <SettingsSection
+        id="muteList"
         title={`ミュートしているもの（${props.entries.length}）`}
       >
         <Switch>

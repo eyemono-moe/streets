@@ -95,7 +95,7 @@ const KeyboardSettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="ショートカットキー"
+        id="shortcuts"
         scope="device"
         description="使用するキーを変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
       >
@@ -142,7 +142,7 @@ const KeyboardSettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="数字キーでのカラム移動"
+        id="columnDigits"
         scope="device"
         changed={props.columnDigits !== loadColumnDigits(null)}
         onReset={() =>

@@ -55,7 +55,7 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
       .filter((url) => urls().includes(url));
   return (
     <SettingsSection
-      title="繋がないリレー"
+      id="blockedRelays"
       scope="account"
       description="フォローしている人の投稿を読むときや、返信を相手に届けるときは、その人が使っているリレーへ自動でつなぎます。ここに入れたリレーには、どの場面でもつなぎません。"
     >

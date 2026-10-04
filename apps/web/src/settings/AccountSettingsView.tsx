@@ -97,7 +97,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="プロフィール"
+        id="profile"
         scope="account"
         description="ほかの人に見える名前やアイコンです。ほかのアプリでも同じプロフィールが表示されます。"
       >
@@ -245,7 +245,7 @@ const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
       </SettingsSection>
 
       <SettingsSection
-        title="あなたの ID"
+        id="accountId"
         description="ほかの人にあなたを教えるときや、ほかのアプリで同じアカウントを使うときの目印です。"
       >
         <AccountId pubkey={props.pubkey} />

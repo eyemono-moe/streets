@@ -92,7 +92,7 @@ const DisplaySettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="カラーテーマ"
+        id="theme"
         scope="device"
         changed={props.scheme !== initialScheme}
         onReset={() =>
@@ -111,7 +111,7 @@ const DisplaySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="アクセントカラー"
+        id="accent"
         scope="account"
         changed={
           props.appearance.accent !== DEFAULT_APPEARANCE.accent ||
@@ -199,12 +199,12 @@ const DisplaySettings: Component<{
         </Collapsible.Root>
       </SettingsSection>
 
-      <SettingsSection title="プレビュー">
+      <SettingsSection id="preview">
         <DisplayPreview />
       </SettingsSection>
 
       <SettingsSection
-        title="カラムの並べ方"
+        id="deckLayout"
         scope="device"
         changed={props.deckLayout !== initialLayout}
         onReset={() =>
@@ -223,7 +223,7 @@ const DisplaySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="カラムの幅"
+        id="columnWidth"
         scope="device"
         changed={props.columnStretch !== loadColumnStretch(null)}
         onReset={() =>
@@ -242,7 +242,7 @@ const DisplaySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="閲覧注意の投稿"
+        id="contentWarning"
         scope="device"
         changed={props.contentWarning !== initialContentWarning}
         onReset={() =>
@@ -268,7 +268,7 @@ const DisplaySettings: Component<{
         summary="ローディング表示と、アクション欄の並べ替え"
       >
         <SettingsSection
-          title="ローディング表示"
+          id="writeProgress"
           scope="device"
           changed={props.writeProgress !== initialWriteProgress}
           onReset={() =>
@@ -287,7 +287,7 @@ const DisplaySettings: Component<{
         </SettingsSection>
 
         <SettingsSection
-          title="アクション欄"
+          id="actionLayout"
           scope="device"
           changed={!sameActionLayout(props.actionLayout, defaultActionLayout())}
           onReset={() =>
