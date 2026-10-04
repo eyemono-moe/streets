@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import ColumnTabs from "./ColumnTabs";
+import ColumnTabs, { TabMemoryProvider } from "./ColumnTabs";
 
 const meta = {
   title: "UI/ColumnTabs",
@@ -33,6 +33,18 @@ export const 狭いカラム: Story = {
       <div class="w-72">
         <Story />
       </div>
+    ),
+  ],
+};
+export const 覚えていたタブで開く: Story = {
+  decorators: [
+    // デッキのカラムは、前に開いていたタブをこの端末に覚えている。
+    (Story) => (
+      <TabMemoryProvider
+        value={{ recall: () => "reactions", remember: () => {} }}
+      >
+        <Story />
+      </TabMemoryProvider>
     ),
   ],
 };
