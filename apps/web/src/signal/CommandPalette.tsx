@@ -39,6 +39,7 @@ const CommandPalette: Component<{
   const dispatch = useDispatch();
   const [query, setQuery] = createSignal(props.initialQuery ?? "");
   const [selected, setSelected] = createSignal(0);
+  let pending: Command | undefined;
   const actions = createMemo(() => availableActions(props.signedIn));
   const candidates = createMemo<Command[]>(() => [
     ...actions(),
@@ -58,6 +59,7 @@ const CommandPalette: Component<{
       () => props.open,
       (open) => {
         if (open) {
+          pending = undefined;
           setQuery(props.initialQuery ?? "");
           setSelected(0);
         }
@@ -67,24 +69,17 @@ const CommandPalette: Component<{
   );
 
   const choose = (command: Command) => {
+    pending = command;
     dispatch({ type: "deck/close-palette" });
-    const open = () => {
-      if (command.kind === "setting") {
-        dispatch({ type: "deck/open-settings", setting: command.id });
-      } else {
-        dispatch(command.event);
-      }
-    };
-    // Ark の閉じる動きが終わる前に別のダイアログを開くと、古いダイアログの
-    // focus/outside 処理で新しい方が閉じる。ダイアログを開く操作だけ待つ。
-    if (
-      command.kind === "setting" ||
-      command.event.type === "deck/open-settings" ||
-      command.event.type === "deck/open-about"
-    ) {
-      setTimeout(open, 180);
+  };
+  const afterClose = () => {
+    const command = pending;
+    pending = undefined;
+    if (!command) return;
+    if (command.kind === "setting") {
+      dispatch({ type: "deck/open-settings", setting: command.id });
     } else {
-      requestAnimationFrame(open);
+      dispatch(command.event);
     }
   };
 
@@ -92,6 +87,7 @@ const CommandPalette: Component<{
     <DialogRoot
       open={props.open}
       onClose={() => dispatch({ type: "deck/close-palette" })}
+      onExitComplete={afterClose}
     >
       <DialogPortal>
         <DialogContent class="w-[min(640px,calc(100vw-32px))] rounded-3 border border-primary shadow-xl">

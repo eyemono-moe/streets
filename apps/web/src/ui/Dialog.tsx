@@ -11,10 +11,13 @@ import IconButton from "./IconButton";
 export const DialogRoot: ParentComponent<{
   open: boolean;
   onClose: () => void;
+  /** 閉じる動きが終わり、Portal が外れた後に呼ぶ。 */
+  onExitComplete?: () => void;
 }> = (props) => (
   <ArkDialog.Root
     open={props.open}
     onOpenChange={(details) => !details.open && props.onClose()}
+    onExitComplete={props.onExitComplete}
     lazyMount
     unmountOnExit
   >
