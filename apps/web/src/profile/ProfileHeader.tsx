@@ -6,7 +6,7 @@ import { followeesFrom, followsPubkey } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { createAuthorCount } from "@streets/core/solid/create-author-count";
 import { createSection } from "@streets/core/solid/create-section";
-import { type Component, createMemo } from "solid-js";
+import { type Component, createEffect, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
 import { useDispatch } from "../ui-events";
 import ProfileHeaderView from "./ProfileHeaderView";
@@ -21,6 +21,8 @@ const ProfileHeader: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const viewer = useEventActions()?.viewer;
+  // その人を見に来たので、手元のプロフィールが新しくても取り直す。
+  createEffect(() => props.readLayer.lookups.refreshProfile(props.pubkey));
   const followees = createSection({
     manager: props.readLayer.manager,
     source: () => ({

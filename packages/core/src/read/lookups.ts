@@ -47,7 +47,7 @@ export type ReadLookups = {
     options?: RequestOptions,
   ): () => void;
   /**
-   * プロフィール（kind:0）を読む。store にあればリレーへ要求しない。取得中と無いを分けず、
+   * プロフィール（kind:0）を読む。手元にあればそれをすぐ知らせ、古くなっていれば裏で取り直す。取得中と無いを分けず、
    * どちらも undefined を知らせる（名前の代わりに鍵を出すので描き分けが要らない）。
    * 新しい版が入るたびに知らせる。
    */
@@ -68,6 +68,11 @@ export type ReadLookups = {
    * まとめて並べ、届いたかを store の変化から引き直す側が使う。
    */
   requestProfile(pubkey: string): void;
+  /**
+   * 手元にあっても古さに関係なくプロフィールを取り直す。取り直している間は手元の版のまま。
+   * その人を見に来た画面（ユーザーのカラム）で、最新の名前やアイコンを出すために使う。
+   */
+  refreshProfile(pubkey: string): void;
   /**
    * その投稿への返信・リポスト・リアクションを要求し、store に関係するものが入るたびに知らせる。
    * 数え方は読む側が store から引き直す。
@@ -187,9 +192,11 @@ export const createReadLookups = ({
     const offChanged = store.onReplaceableChanged((change) => {
       if (change.kind === 0 && change.pubkey === pubkey) load();
     });
-    if (load()) return offChanged;
-
+    const hit = load();
+    // 手元にあっても、古くなっていれば取り直す（新しい版は offChanged で届く）。
     profiles.request(pubkey);
+    if (hit) return offChanged;
+
     const offBatch = profiles.subscribe(() => {
       if (load()) offBatch();
     });
@@ -217,9 +224,11 @@ export const createReadLookups = ({
     const offChanged = store.onReplaceableChanged((change) => {
       if (change.kind === 0 && change.pubkey === pubkey) load();
     });
-    if (load()) return offChanged;
-
+    const hit = load();
+    // 手元にあっても、古くなっていれば取り直す（新しい版は offChanged で届く）。
     profiles.request(pubkey);
+    if (hit) return offChanged;
+
     const offBatch = profiles.subscribe(() => {
       if (load()) offBatch();
     });
@@ -231,6 +240,10 @@ export const createReadLookups = ({
 
   requestProfile(pubkey) {
     profiles.request(pubkey);
+  },
+
+  refreshProfile(pubkey) {
+    profiles.request(pubkey, { refresh: true });
   },
 
   watchEngagements(targetId, onChange) {
