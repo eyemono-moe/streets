@@ -23,6 +23,7 @@ import { columnShowed } from "../telemetry";
 export type ColumnScopeValue = {
   column: Accessor<ColumnDef>;
   readLayer: ReadLayer;
+  partOpen?: (part: string) => boolean;
   /**
    * ブロックが持つセクションの状態を知らせる。カラムは警告をまとめて出す。
    * 呼んだブロックが消えると取り下げる。

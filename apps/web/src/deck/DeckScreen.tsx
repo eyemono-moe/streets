@@ -74,6 +74,7 @@ import { ActionsMediator } from "../actions-mediator";
 import { applyBlockedRelays } from "../blocked-relays";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
+import { setColumnPartOpen } from "../column-part-memory";
 import { columnStretch, setColumnStretch } from "../column-stretch-setting";
 import { columnView } from "../columns/column-views";
 import { setContentWarningMode } from "../content-warning-setting";
@@ -635,6 +636,9 @@ const DeckScreen: Component<{
 
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
+      case "column-part/set-open":
+        setColumnPartOpen(event.column, event.part, event.open);
+        return true;
       case "compose/draft-open": {
         const draft = composeDrafts().find((other) => other.id === event.id);
         if (draft?.target) setDraftDialog(draft);

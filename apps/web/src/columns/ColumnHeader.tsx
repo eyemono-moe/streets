@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { columnPartOpen } from "../column-part-memory";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
@@ -26,6 +27,30 @@ export const ColumnHeaderActions: Component<{
   const dispatch = useDispatch();
   return (
     <>
+      <Show when={props.column.source.kind === "user" && !props.temporary}>
+        <IconButton
+          icon={
+            columnPartOpen(props.column.id, "profile")
+              ? "i-material-symbols:expand-less-rounded"
+              : "i-material-symbols:expand-more-rounded"
+          }
+          label={
+            columnPartOpen(props.column.id, "profile")
+              ? "ユーザー詳細を隠す"
+              : "ユーザー詳細を表示"
+          }
+          aria-expanded={columnPartOpen(props.column.id, "profile")}
+          aria-controls={`column-profile-${props.column.id}`}
+          onClick={() =>
+            dispatch({
+              type: "column-part/set-open",
+              column: props.column.id,
+              part: "profile",
+              open: !columnPartOpen(props.column.id, "profile"),
+            })
+          }
+        />
+      </Show>
       <Show when={columnView(props.column.source).HeaderActions}>
         {(actions) => (
           <Dynamic component={actions()} source={props.column.source} />

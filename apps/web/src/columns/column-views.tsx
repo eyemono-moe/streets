@@ -67,6 +67,7 @@ import NotificationList from "./blocks/NotificationList";
 import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
+import ColumnProfile from "./ColumnProfile";
 
 /**
  * カラムの中身が読む、ログイン中の人に紐づく値。変わる値は遅延アクセサで渡し、
@@ -410,10 +411,15 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       const pinned = createPinnedNotes(() => props.source.pubkey);
       return (
         <>
-          <ProfileHeader
-            pubkey={props.source.pubkey}
-            readLayer={scope.readLayer}
-          />
+          <ColumnProfile
+            id={scope.column().id}
+            open={scope.partOpen?.("profile") ?? true}
+          >
+            <ProfileHeader
+              pubkey={props.source.pubkey}
+              readLayer={scope.readLayer}
+            />
+          </ColumnProfile>
           <ColumnTabs
             label="この人の表示"
             scroll="column"
