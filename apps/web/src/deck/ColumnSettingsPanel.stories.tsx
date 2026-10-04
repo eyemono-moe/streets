@@ -24,6 +24,7 @@ const meta = {
       <div class="h-150 w-95">
         <ColumnSettingsPanel
           column={relayColumn}
+          signedIn
           relayList={{
             phase: "ready",
             entries: [

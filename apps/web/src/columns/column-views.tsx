@@ -105,6 +105,7 @@ type ColumnView<S> = {
   Settings?: Component<{
     column: ColumnDef;
     source: S;
+    signedIn: boolean;
     relayList?: RelayListState;
   }>;
 };
@@ -306,6 +307,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
           {/* 探したときと同じ触り方で、後から条件を変えられるようにする。 */}
           <SearchQueryEditor
             text={props.source.query}
+            signedIn={props.signedIn}
             // 打つたびに購読し直すと、やり取りが増えて画面もちらつく。
             debounceMs={600}
             onChange={(text) => {
