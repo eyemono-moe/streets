@@ -92,9 +92,13 @@ test("署名器が応答しないと、待っていることを知らせる", as
   await page.getByRole("button", { name: "投稿パネルを開く" }).click();
   await page.getByRole("textbox", { name: "ノートの本文" }).fill("待たされる");
   await page.getByRole("button", { name: "投稿", exact: true }).click();
+  // 待っている間も画面は止めず、トーストで知らせる。
   await expect(
-    page.getByRole("dialog", { name: "投稿の署名を待っています" }),
+    page.getByRole("status").filter({ hasText: "投稿の署名を待っています" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: /署名を待っています/ }),
+  ).toHaveCount(0);
 });
 
 test("署名器が止まると、送れなかったことを知らせる", async ({
