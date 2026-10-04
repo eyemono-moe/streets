@@ -239,6 +239,20 @@ export const summarize = (fixtures, results, threshold = 0) => {
   };
 };
 
+/** 詳細表示にも問い合わせ本文や API 応答全文を含めない。 */
+export const diagnostics = (fixtures, results) =>
+  fixtures.map((fixture) => {
+    const result = results.get(fixture.id);
+    if (!result) throw new Error(`評価結果がありません: ${fixture.id}`);
+    return {
+      id: fixture.id,
+      group: fixture.group,
+      expected: fixture.expected,
+      predicted: result.guide,
+      confidence: result.confidence,
+    };
+  });
+
 const main = async () => {
   const fixtures = validateFixtures(
     JSON.parse(await readFile(fixturePath, "utf8")),
@@ -295,6 +309,14 @@ const main = async () => {
         hierarchical: [0, 0.5, 0.7, 0.85].map((threshold) =>
           summarize(fixtures, results[1], threshold),
         ),
+        ...(process.argv.includes("--details")
+          ? {
+              diagnostics: {
+                oneShot: diagnostics(fixtures, results[0]),
+                hierarchical: diagnostics(fixtures, results[1]),
+              },
+            }
+          : {}),
       },
       null,
       2,

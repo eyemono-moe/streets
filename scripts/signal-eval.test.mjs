@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   categoryQuestion,
+  diagnostics,
   leafQuestion,
   oneShotQuestion,
   parseChoiceResponse,
@@ -103,4 +104,20 @@ test("対象外の誤案内と正答への棄権を分けて数える", () => {
   assert.equal(report.wrongGuide, 1);
   assert.equal(report.calls, 2);
   assert.deepEqual(report.mismatches, ["a", "b"]);
+  assert.deepEqual(diagnostics(fixtures, results), [
+    {
+      id: "a",
+      group: "基本",
+      expected: "post.create",
+      predicted: "post.create",
+      confidence: 0.4,
+    },
+    {
+      id: "b",
+      group: "対象外",
+      expected: null,
+      predicted: "post.create",
+      confidence: 0.9,
+    },
+  ]);
 });
