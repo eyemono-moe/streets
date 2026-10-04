@@ -103,20 +103,39 @@ const SearchForm: Component<{
           }}
         />
       </Field>
-      <Field id="search-from" label="書いた人">
+      <Switch
+        label="フォローしている人に限定"
+        checked={props.query.from === "follows"}
+        onChange={(checked) => patch({ from: checked ? "follows" : undefined })}
+      />
+      <Field
+        id="search-from"
+        label={props.query.from === "follows" ? "除く人" : "書いた人"}
+      >
         <Completion sources={people} label="人の候補">
           {(attach) => (
             <input
               ref={attach}
               id="search-from"
               class={inputClass}
-              placeholder="npub1… / nprofile1…"
+              placeholder={
+                props.query.from === "follows"
+                  ? "-npub1…"
+                  : "npub1… / nprofile1…"
+              }
               value={shownSigned(
-                props.query.from ? [props.query.from] : [],
+                props.query.from && props.query.from !== "follows"
+                  ? [props.query.from]
+                  : [],
                 props.query.excludeFrom,
               )}
               onChange={(event) => {
                 const { include, exclude } = signed(event.currentTarget.value);
+                // フォロー中に限定したまま、特定の人だけは除ける。
+                if (props.query.from === "follows") {
+                  patch({ excludeFrom: [...include, ...exclude] });
+                  return;
+                }
                 // 絞る人は 1 人だけ。文字列で何人も書いたときと同じく、後ろを使う。
                 patch({ from: include.at(-1), excludeFrom: exclude });
               }}
@@ -197,7 +216,7 @@ const SearchForm: Component<{
       />
       <Show
         when={
-          props.query.from ||
+          (props.query.from && props.query.from !== "follows") ||
           props.query.to ||
           props.query.excludeFrom.length > 0 ||
           props.query.excludeTo.length > 0

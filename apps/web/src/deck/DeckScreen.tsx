@@ -872,6 +872,7 @@ const DeckScreen: Component<{
           <SearchPanel
             readLayer={props.readLayer}
             searchRelays={shared.searchRelays}
+            followees={followees}
             request={ui.searchRequest}
           />
         </SidePanel>

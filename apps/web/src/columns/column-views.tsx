@@ -285,7 +285,11 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       return (
         <EventList
           source={() =>
-            searchSource(props.source.query, props.inputs.searchRelays())
+            searchSource(
+              props.source.query,
+              props.inputs.searchRelays(),
+              query().from === "follows" ? props.inputs.followees() : [],
+            )
           }
           filter={
             hasSearchExclusions(query())

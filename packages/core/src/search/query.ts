@@ -16,7 +16,7 @@ export type SearchQuery = {
   /** 本文に含む言葉。空白で区切った並び。 */
   words: string[];
   hashtags: string[];
-  /** 書いた人（16 進の公開鍵）。 */
+  /** 書いた人（16 進の公開鍵、またはフォロー中を指す `follows`）。 */
   from?: string;
   /** 宛先（`p` タグ。16 進の公開鍵）。 */
   to?: string;
@@ -137,9 +137,19 @@ export const parseSearchQuery = (text: string): SearchQuery => {
     switch (matched?.field) {
       case "from":
       case "to": {
+        if (matched.field === "from" && value.toLowerCase() === "follows") {
+          query.from = "follows";
+          break;
+        }
         const pubkey = toPubkey(value);
-        if (pubkey) query[matched.field] = pubkey;
-        else query.words.push(token);
+        if (!pubkey) {
+          query.words.push(token);
+          break;
+        }
+        // follows と個人が混在しても、書いた順に結果が変わらないようにする。
+        if (!(matched.field === "from" && query.from === "follows")) {
+          query[matched.field] = pubkey;
+        }
         break;
       }
       case "since":
@@ -200,11 +210,19 @@ export const isEmptySearchQuery = (query: SearchQuery): boolean =>
   query.until === undefined;
 
 /** リレーへ送る形（NIP-50 の `search` と、ふつうの絞り込み）。 */
-export const searchFilter = (query: SearchQuery) => ({
+export const searchFilter = (
+  query: SearchQuery,
+  followees: readonly string[] = [],
+) => ({
   kinds: query.kinds.length > 0 ? query.kinds : [1],
   ...(query.words.length > 0 ? { search: query.words.join(" ") } : {}),
   ...(query.hashtags.length > 0 ? { "#t": query.hashtags } : {}),
-  ...(query.from ? { authors: [query.from] } : {}),
+  ...(query.from
+    ? {
+        authors:
+          query.from === "follows" ? [...new Set(followees)] : [query.from],
+      }
+    : {}),
   ...(query.to ? { "#p": [query.to] } : {}),
   ...(query.since !== undefined ? { since: query.since } : {}),
   ...(query.until !== undefined ? { until: query.until } : {}),

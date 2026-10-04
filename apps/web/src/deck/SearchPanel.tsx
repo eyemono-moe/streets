@@ -39,6 +39,7 @@ import SearchQueryEditor from "./SearchQueryEditor";
 const SearchPanel: Component<{
   readLayer: ReadLayer;
   searchRelays: Accessor<readonly RelayUrl[]>;
+  followees: Accessor<readonly string[]>;
   request?: { query: string; sequence: number };
 }> = (props) => {
   const dispatch = useDispatch();
@@ -69,7 +70,11 @@ const SearchPanel: Component<{
     source: () =>
       isEmptySearchQuery(query())
         ? undefined
-        : searchSource(searched(), props.searchRelays()),
+        : searchSource(
+            searched(),
+            props.searchRelays(),
+            query().from === "follows" ? props.followees() : [],
+          ),
   });
   const isBot = useBotLookup();
   const mutes = useMutes();

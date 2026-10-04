@@ -52,3 +52,14 @@ export const 除く指定: S = {
     initial: `あいもの -芋 #nostr -#bot from:${"a".repeat(64)} -from:${"b".repeat(64)} -to:${"c".repeat(64)} -is:bot`,
   },
 };
+
+export const フォロー中に限定: S = {
+  args: { initial: "ねこ from:follows" },
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>(
+        '[data-scope="collapsible"][data-part="trigger"]',
+      )
+      ?.click();
+  },
+};

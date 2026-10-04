@@ -83,9 +83,10 @@ export const followeesSource = (
 export const searchSource = (
   query: string,
   relays: readonly RelayUrl[],
+  followees: readonly string[] = [],
 ): NostrSource => ({
   type: "nostr",
-  filters: [searchFilter(parseSearchQuery(query))],
+  filters: [searchFilter(parseSearchQuery(query), followees)],
   relays: [...relays],
 });
 
