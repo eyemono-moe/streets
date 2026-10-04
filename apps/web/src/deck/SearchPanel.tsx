@@ -112,7 +112,7 @@ export const SearchPanelView: Component<{
 }> = (props) => (
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="min-h-0 flex-1 overflow-y-auto" data-scroll-container>
-      <div class="px-3 pb-3">
+      <div class="px-3 pt-1 pb-3">
         <SearchQueryEditor
           text={props.text}
           onChange={props.onChange}
