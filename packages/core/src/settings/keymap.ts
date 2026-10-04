@@ -10,7 +10,12 @@
 /** 端末ごとの設定。キーボードの配列は、その端末に付いているものだから。 */
 export const KEYMAP_STORAGE_KEY = "streets.v1.keymap";
 
-export const SHORTCUT_ACTIONS = ["compose", "search", "add-column"] as const;
+export const SHORTCUT_ACTIONS = [
+  "compose",
+  "search",
+  "add-column",
+  "palette",
+] as const;
 
 export type ShortcutAction = (typeof SHORTCUT_ACTIONS)[number];
 
@@ -21,12 +26,14 @@ export const SHORTCUT_LABELS: Record<ShortcutAction, string> = {
   compose: "投稿パネルを開く",
   search: "検索パネルを開く",
   "add-column": "カラム追加パネルを開く",
+  palette: "コマンドパレットを開く",
 };
 
 export const DEFAULT_KEYMAP: Keymap = {
   compose: "[KeyN]",
   search: "[KeyS]",
   "add-column": "[KeyC]",
+  palette: "Mod+[KeyK]",
 };
 
 const isAction = (value: string): value is ShortcutAction =>

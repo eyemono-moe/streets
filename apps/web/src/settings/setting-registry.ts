@@ -69,10 +69,13 @@ export const settings = {
     "名前",
   ]),
   profileName: account("profile.name", "ユーザー名", "account", ["ハンドル"]),
-  profileAbout: account("profile.about", "自己紹介", "account", [
-    "プロフィール文",
-    "bio",
-  ]),
+  profileAbout: {
+    ...account("profile.about", "自己紹介", "account", [
+      "プロフィール文",
+      "bio",
+    ]),
+    description: "ほかの人に見えるプロフィールの文章",
+  },
   profilePicture: {
     ...account("profile.picture", "アイコン画像", "account", [
       "プロフィール画像",
@@ -124,14 +127,20 @@ export const settings = {
     ...account("relays.plan", "いま使っているリレー", "relays"),
     searchable: false,
   },
-  imageDisplay: account("media.display", "画像の表示", "media", [
-    "画像を縮める",
-    "メモリ",
-  ]),
-  imageUpload: account("media.upload", "画像のアップロード先", "media", [
-    "Blossom",
-    "サーバー",
-  ]),
+  imageDisplay: {
+    ...account("media.display", "画像の表示", "media", [
+      "画像を縮める",
+      "メモリ",
+    ]),
+    description: "画像を画面に合う大きさに縮め、メモリの使用を減らす",
+  },
+  imageUpload: {
+    ...account("media.upload", "画像のアップロード先", "media", [
+      "Blossom",
+      "サーバー",
+    ]),
+    description: "投稿に付ける画像を置くサーバー",
+  },
   searchRelays: account("search.relays", "検索するリレー", "search", [
     "検索先",
   ]),
@@ -161,10 +170,13 @@ export const settings = {
     "keyboard",
     ["カラム切替"],
   ),
-  theme: device("display.theme", "カラーテーマ", "display", [
-    "ダークモード",
-    "ライトモード",
-  ]),
+  theme: {
+    ...device("display.theme", "カラーテーマ", "display", [
+      "ダークモード",
+      "ライトモード",
+    ]),
+    description: "画面を明るい色にするか暗い色にするか選ぶ",
+  },
   accent: device("display.accent", "アクセントカラー", "display", [
     "色",
     "テーマ",
@@ -173,16 +185,22 @@ export const settings = {
     ...device("display.preview", "プレビュー", "display"),
     searchable: false,
   },
-  deckLayout: device("display.deck-layout", "カラムの並べ方", "display", [
-    "レイアウト",
-    "1列",
-    "複数列",
-  ]),
-  columnWidth: device("display.column-width", "カラムの幅", "display", [
-    "column width",
-    "横幅",
-    "広げる",
-  ]),
+  deckLayout: {
+    ...device("display.deck-layout", "カラムの並べ方", "display", [
+      "レイアウト",
+      "1列",
+      "複数列",
+    ]),
+    description: "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
+  },
+  columnWidth: {
+    ...device("display.column-width", "カラムの幅", "display", [
+      "column width",
+      "横幅",
+      "広げる",
+    ]),
+    description: "横に並べたカラムを画面の幅いっぱいに広げる",
+  },
   contentWarning: device(
     "display.content-warning",
     "閲覧注意の投稿",

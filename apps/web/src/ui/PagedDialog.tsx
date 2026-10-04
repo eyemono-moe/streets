@@ -42,11 +42,8 @@ const PagedDialog: Component<{
   backdropClass?: string;
 }> = (props) => {
   const closeLabel = () => `${props.title}を閉じる`;
-  const pageContent = (page: DialogPage) => (
-    <Tabs.Content
-      value={page.value}
-      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
-    >
+  const pageBody = (page: DialogPage) => (
+    <>
       <div
         class="flex items-start gap-3"
         classList={{
@@ -73,6 +70,14 @@ const PagedDialog: Component<{
       >
         <Show when={page.content}>{(content) => content()()}</Show>
       </div>
+    </>
+  );
+  const pageContent = (page: DialogPage) => (
+    <Tabs.Content
+      value={page.value}
+      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+    >
+      {pageBody(page)}
     </Tabs.Content>
   );
   return (
@@ -150,14 +155,29 @@ const PagedDialog: Component<{
                     </Tabs.Trigger>
                   )}
                 </For>
+                <Show when={props.extraPage}>
+                  {(page) => (
+                    <Tabs.Trigger value={page().value} hidden>
+                      {page().label}
+                    </Tabs.Trigger>
+                  )}
+                </Show>
               </Tabs.List>
               <Show when={!props.wide}>
                 <DialogClose label={closeLabel()} />
               </Show>
             </div>
 
-            <For each={props.pages}>{pageContent}</For>
-            <Show when={props.extraPage}>{(page) => pageContent(page())}</Show>
+            <Show
+              when={props.page === props.extraPage?.value && props.extraPage}
+              fallback={<For each={props.pages}>{pageContent}</For>}
+            >
+              {(page) => (
+                <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+                  {pageBody(page())}
+                </div>
+              )}
+            </Show>
           </Tabs.Root>
         </DialogContent>
       </DialogPortal>

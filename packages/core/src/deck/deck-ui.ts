@@ -20,6 +20,10 @@ export type DeckUiState = {
   dragging: { id: string; to: number } | undefined;
   /** 設定のダイアログを開いているか。 */
   settingsOpen: boolean;
+  /** パレットで選んだ設定項目。通常の入口では未指定。 */
+  settingsTarget: string | undefined;
+  /** コマンドパレットを開いているか。 */
+  paletteOpen: boolean;
   /** 「Streets について」のダイアログを開いているか。 */
   aboutOpen: boolean;
 };
@@ -29,8 +33,10 @@ export type DeckUiEvent =
   /** ボタンを押した。同じパネルが開いていれば閉じ、違えばそちらへ移る。 */
   | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
-  | { type: "deck/open-settings" }
+  | { type: "deck/open-settings"; setting?: string }
   | { type: "deck/close-settings" }
+  | { type: "deck/open-palette" }
+  | { type: "deck/close-palette" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
   | { type: "deck/select-column"; id: string }
@@ -56,6 +62,8 @@ export const emptyDeckUi = (): DeckUiState => ({
   active: undefined,
   dragging: undefined,
   settingsOpen: false,
+  settingsTarget: undefined,
+  paletteOpen: false,
   aboutOpen: false,
 });
 
@@ -78,17 +86,27 @@ export const deckUiTransition = (
       return {
         ...state,
         settingsOpen: true,
+        settingsTarget: event.setting,
+        paletteOpen: false,
         aboutOpen: false,
         panel: undefined,
       };
     case "deck/close-settings":
-      return state.settingsOpen ? { ...state, settingsOpen: false } : state;
+      return state.settingsOpen
+        ? { ...state, settingsOpen: false, settingsTarget: undefined }
+        : state;
+    case "deck/open-palette":
+      return state.paletteOpen ? state : { ...state, paletteOpen: true };
+    case "deck/close-palette":
+      return state.paletteOpen ? { ...state, paletteOpen: false } : state;
     case "deck/open-about":
       // 設定と同じく、デッキの上に開く。2 つ同時には開かない。
       return {
         ...state,
         aboutOpen: true,
         settingsOpen: false,
+        settingsTarget: undefined,
+        paletteOpen: false,
         panel: undefined,
       };
     case "deck/close-about":

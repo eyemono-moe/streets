@@ -28,7 +28,7 @@ import PrivacySettings from "./PrivacySettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
 import SearchSettings from "./SearchSettings";
-import { availableSettings } from "./setting-registry";
+import { availableSettings, type RegisteredSetting } from "./setting-registry";
 import { SettingFilter } from "./SettingFilter";
 
 /**
@@ -60,6 +60,8 @@ const SettingsDialog: Component<{
   initialPage?: string;
   /** パレットなどから検索結果を直接開くときの語。 */
   initialQuery?: string;
+  /** パレットで選んだ項目。開いたとき、その編集欄だけを出す。 */
+  requestedSetting?: string;
 }> = (props) => {
   const dispatch = useDispatch();
   // 一覧の先頭（アカウント）から開く。どこから開いても同じ場所で始まる。
@@ -67,8 +69,26 @@ const SettingsDialog: Component<{
     props.initialPage ?? (props.signedIn ? "account" : "display"),
   );
   const [query, setQuery] = createSignal(props.initialQuery ?? "");
-  const hits = createMemo(() =>
-    searchEntries(availableSettings(props.signedIn), query()),
+  const [target, setTarget] = createSignal<RegisteredSetting>();
+  const hits = createMemo(() => {
+    const chosen = target();
+    return chosen
+      ? [{ entry: chosen, score: 0 }]
+      : searchEntries(availableSettings(props.signedIn), query());
+  });
+  createEffect(
+    on(
+      () => [props.open, props.requestedSetting] as const,
+      ([open, id]) => {
+        if (!open) return;
+        const setting = availableSettings(props.signedIn).find(
+          (entry) => entry.id === id,
+        );
+        setTarget(setting);
+        setQuery(setting?.title ?? props.initialQuery ?? "");
+        if (setting) setPage(setting.page);
+      },
+    ),
   );
   // プロフィールを書きかけのまま閉じようとしたら、そのページを見せる。
   const profileEdit = useProfileEdit();
@@ -77,6 +97,7 @@ const SettingsDialog: Component<{
       () => profileEdit?.attention() ?? 0,
       (count) => {
         if (count > 0) {
+          setTarget(undefined);
           setQuery("");
           setPage("account");
         }
@@ -247,7 +268,10 @@ const SettingsDialog: Component<{
             label="設定を検索"
             placeholder="設定を検索"
             value={query()}
-            onValueChange={setQuery}
+            onValueChange={(value) => {
+              setTarget(undefined);
+              setQuery(value);
+            }}
             clearable
             class="w-full"
           />
@@ -255,6 +279,7 @@ const SettingsDialog: Component<{
         extraPage={searchPage}
         page={query().trim() ? searchPage.value : page()}
         onPageChange={(value) => {
+          setTarget(undefined);
           setQuery("");
           setPage(value);
         }}

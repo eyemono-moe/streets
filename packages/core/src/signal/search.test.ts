@@ -36,6 +36,10 @@ describe("searchEntries", () => {
     expect(searchEntries(entries, "add-column")[0]?.entry.id).toBe("add");
   });
 
+  it("説明文にしかない語からも見つける", () => {
+    expect(searchEntries(entries, "写真を縮めます")[0]?.entry.id).toBe("media");
+  });
+
   it("複数語はすべて一致し、同点は登録順を保つ", () => {
     expect(searchEntries(entries, "カラム 画像")).toEqual([]);
     const tied = [

@@ -171,6 +171,7 @@ import UnreadableLink from "./UnreadableLink";
 
 // 開くまで要らないものは別のファイルに分け、起動が落ち着いてから読む。
 const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
+const CommandPalette = lazyPart(() => import("../signal/CommandPalette"));
 const AboutDialog = lazyPart(() => import("../about/AboutDialog"));
 const DeckTour = lazyPart(() => import("../tour/DeckTour"));
 
@@ -212,9 +213,11 @@ const DeckScreen: Component<{
     setUi(reconcile(deckUiTransition(unwrap(ui), event)));
   // 閉じる動きを見せるため、一度開いたら残す。
   const settingsMounted = onceTrue(() => ui.settingsOpen);
+  const paletteMounted = onceTrue(() => ui.paletteOpen);
   const aboutMounted = onceTrue(() => ui.aboutOpen);
   whenIdle(() => {
     SettingsDialog.preload();
+    CommandPalette.preload();
     AboutDialog.preload();
     EmojiPicker.preload();
   });
@@ -542,7 +545,7 @@ const DeckScreen: Component<{
   createDeckHotkeys({
     keymap,
     columns,
-    enabled: () => !ui.settingsOpen && !ui.aboutOpen,
+    enabled: () => !ui.settingsOpen && !ui.aboutOpen && !ui.paletteOpen,
     panelOpen: () => ui.panel !== undefined,
     columnDigits,
     togglePanel: (panel) => {
@@ -550,6 +553,7 @@ const DeckScreen: Component<{
       if (panel === "compose" && !gate("投稿")) return;
       handle({ type: "deck/toggle-panel", panel });
     },
+    openPalette: () => handle({ type: "deck/open-palette" }),
     focusColumn,
   });
 
@@ -740,6 +744,8 @@ const DeckScreen: Component<{
         return true;
       case "deck/open-settings":
       case "deck/close-settings":
+      case "deck/open-palette":
+      case "deck/close-palette":
       case "deck/open-about":
       case "deck/close-about":
         applyUi(event);
@@ -1208,6 +1214,13 @@ const DeckScreen: Component<{
           deckLayout={deckLayout()}
           columnStretch={columnStretch()}
           defaultReaction={defaultReaction()}
+          requestedSetting={ui.settingsTarget}
+        />
+      </Show>
+      <Show when={paletteMounted()}>
+        <CommandPalette
+          open={ui.paletteOpen}
+          signedIn={account !== undefined}
         />
       </Show>
     </>

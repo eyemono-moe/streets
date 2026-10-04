@@ -179,8 +179,10 @@ export type DeckEvent =
   /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。デッキにはまだ足さない。 */
   | { type: "deck/open-temp"; entity: string }
   | { type: "deck/close-temp" }
-  | { type: "deck/open-settings" }
+  | { type: "deck/open-settings"; setting?: string }
   | { type: "deck/close-settings" }
+  | { type: "deck/open-palette" }
+  | { type: "deck/close-palette" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
   /** 使い方の案内を、もう一度始める。 */

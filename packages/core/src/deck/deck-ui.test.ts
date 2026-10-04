@@ -180,6 +180,36 @@ describe("設定のダイアログ", () => {
       state,
     );
   });
+
+  it("パレットで選んだ項目を渡し、閉じると忘れる", () => {
+    const opened = run({
+      type: "deck/open-settings",
+      setting: "display.theme",
+    });
+    expect(opened.settingsTarget).toBe("display.theme");
+    expect(
+      deckUiTransition(opened, { type: "deck/close-settings" }).settingsTarget,
+    ).toBeUndefined();
+  });
+});
+
+describe("コマンドパレット", () => {
+  it("開いて設定を選ぶと、パレットを閉じて項目を渡す", () => {
+    const state = run(
+      { type: "deck/open-palette" },
+      { type: "deck/open-settings", setting: "display.theme" },
+    );
+    expect(state).toMatchObject({
+      paletteOpen: false,
+      settingsOpen: true,
+      settingsTarget: "display.theme",
+    });
+  });
+
+  it("閉じた状態で閉じても同じ状態を返す", () => {
+    const state = emptyDeckUi();
+    expect(deckUiTransition(state, { type: "deck/close-palette" })).toBe(state);
+  });
 });
 
 describe("Streets について", () => {

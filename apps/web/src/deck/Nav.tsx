@@ -78,7 +78,7 @@ export const Sidebar: Component<{
   return (
     // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・フィードバック・
     // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
       <IconButton
         {...tourTarget("compose")}
         variant="primary"
@@ -101,6 +101,14 @@ export const Sidebar: Component<{
         aria-keyshortcuts={ariaKeyShortcuts("search")}
         aria-expanded={props.panel === "search"}
         onClick={() => dispatch({ type: "deck/toggle-panel", panel: "search" })}
+      />
+      <IconButton
+        size="lg"
+        icon="i-material-symbols:bolt-rounded"
+        label="コマンドパレットを開く"
+        title={shortcutTitle("palette")}
+        aria-keyshortcuts={ariaKeyShortcuts("palette")}
+        onClick={() => dispatch({ type: "deck/open-palette" })}
       />
       {/*
         カラムの一覧と「追加」を 1 つの送れる帯にする。横は隠す（auto のままだと
@@ -198,6 +206,7 @@ export const MobileTopBar: Component<{
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
+  const dispatch = useDispatch();
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);
   const href = () => feedbackHref(props.feedbackUrl);
   return (
@@ -207,6 +216,14 @@ export const MobileTopBar: Component<{
         onLogout={props.onLogout}
         onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
         arrange
+      />
+      <IconButton
+        size="sm"
+        icon="i-material-symbols:bolt-rounded"
+        label="コマンドパレットを開く"
+        title={shortcutTitle("palette")}
+        aria-keyshortcuts={ariaKeyShortcuts("palette")}
+        onClick={() => dispatch({ type: "deck/open-palette" })}
       />
       <Show when={href()}>
         {(url) => (

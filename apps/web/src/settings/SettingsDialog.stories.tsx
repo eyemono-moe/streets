@@ -28,6 +28,7 @@ type Props = {
   /** false で、ログインしていない人の設定（アカウントのページが無い）にする。 */
   signedIn?: boolean;
   query?: string;
+  requestedSetting?: string;
 };
 
 const relayList = (tags: string[][]): NostrEvent => ({
@@ -264,6 +265,7 @@ const Story = (props: Props) => {
                       defaultReaction={defaultReaction()}
                       initialPage={props.page}
                       initialQuery={props.query}
+                      requestedSetting={props.requestedSetting}
                     />
                   </Mediates>
                 </MediaMediator>
@@ -356,6 +358,10 @@ export const 設定検索_詳しくの項目: S = {
 
 export const 設定検索_プロフィール画像: S = {
   args: { query: "プロフィール画像" },
+};
+
+export const パレットからカラム幅を開く: S = {
+  args: { requestedSetting: "display.column-width" },
 };
 
 export const 設定検索_長い項目名_狭い画面: S = {
