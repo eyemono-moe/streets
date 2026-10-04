@@ -56,8 +56,8 @@ const getJson = async (url: string, signal: AbortSignal): Promise<unknown> => {
 
 /** 受領を待つ上限。これを過ぎても、払えていれば送れている。 */
 const RECEIPT_WAIT_MS = 5 * 60_000;
-/** Zap 相手のリレー一覧が無いときだけ問い合わせる。請求書の取得を長く止めない。 */
-const RELAY_LIST_WAIT_MS = 2_000;
+/** 受け手のプロフィールとリレー一覧を取り直す上限。請求書の取得を長く止めない。 */
+const RECIPIENT_WAIT_MS = 2_000;
 
 const isZapEvent = (event: UiEvent): event is ZapFlowEvent =>
   event.type.startsWith("zap/");
@@ -72,7 +72,7 @@ export const ZapMediator: ParentComponent<{
   store: EventStore;
   pool: Pick<ConnectionPool, "subscribe">;
   manager: Pick<SubscriptionManager, "fetchOnce">;
-  routing: Pick<RoutingTable, "readRelaysFor">;
+  routing: Pick<RoutingTable, "readRelaysFor" | "writeRelaysFor">;
   indexers: readonly RelayUrl[];
 }> = (props) => {
   const [state, setState] = createStore({ flow: closedZapFlow() });
@@ -137,8 +137,38 @@ export const ZapMediator: ParentComponent<{
     const sats = zapAmountSats(draft);
     if (sats === undefined) throw new ZapError("金額を読めませんでした");
     const amountMsat = sats * 1000;
+    const target = draft.target.pubkey;
+    // 送り先は送る直前の kind:0 から決める。手元の版が新しく見えても、その間に
+    // 受け取り先を変えていれば古い先へ送ってしまう。応答が無ければ手元の版で続ける。
+    const fetchProfile = props.manager
+      .fetchOnce([{ kinds: [0], authors: [target], limit: 1 }], {
+        relays: [
+          ...new Set([
+            ...props.indexers,
+            ...props.routing.writeRelaysFor(target),
+          ]),
+        ],
+        timeoutMs: RECIPIENT_WAIT_MS,
+      })
+      .catch(() => {});
+    // フォロー先以外は kind:10002 をまだ持っていないか、古いままのことがある。取得を試し、
+    // 応答が無くても既定リレーと送信者の read リレーで Zap を続ける。
+    const relayListFetchedAt = props.store.replaceableFetchedAt(10002, target);
+    const fetchRelayList =
+      relayListFetchedAt === undefined ||
+      isStale(policyFor(10002), relayListFetchedAt, Date.now())
+        ? props.manager
+            .fetchOnce([{ kinds: [10002], authors: [target], limit: 1 }], {
+              relays: [...props.indexers],
+              timeoutMs: RECIPIENT_WAIT_MS,
+            })
+            .catch(() => {})
+        : undefined;
+    await Promise.all([fetchProfile, fetchRelayList]);
+    signal.throwIfAborted();
+
     const endpoint = zapEndpointOf(
-      props.store.latestReplaceable(0, draft.target.pubkey)?.content,
+      props.store.latestReplaceable(0, target)?.content,
     );
     if (!endpoint) {
       throw new ZapError("この人は Zap の受け取り先を設定していません");
@@ -149,25 +179,6 @@ export const ZapMediator: ParentComponent<{
       const min = Math.ceil(info.minSendable / 1000);
       const max = Math.floor(info.maxSendable / 1000);
       throw new ZapError(`この送り先に送れるのは ${min}〜${max} sats です`);
-    }
-    // フォロー先以外は kind:10002 をまだ持っていないか、古いままのことがある。取得を試し、
-    // 応答が無くても既定リレーと送信者の read リレーで Zap を続ける。
-    const relayListFetchedAt = props.store.replaceableFetchedAt(
-      10002,
-      draft.target.pubkey,
-    );
-    if (
-      relayListFetchedAt === undefined ||
-      isStale(policyFor(10002), relayListFetchedAt, Date.now())
-    ) {
-      try {
-        await props.manager.fetchOnce(
-          [{ kinds: [10002], authors: [draft.target.pubkey], limit: 1 }],
-          { relays: [...props.indexers], timeoutMs: RELAY_LIST_WAIT_MS },
-        );
-      } catch {
-        // 索引リレーが使えなくても、受領を置く先はフォールバックできる。
-      }
     }
     signal.throwIfAborted();
     const relays = zapReceiptRelays({
