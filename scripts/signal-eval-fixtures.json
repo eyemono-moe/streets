@@ -20,7 +20,7 @@
   {
     "id": "extension-4",
     "group": "言い換え",
-    "query": "PC の署名用アドオンはどこから使えばいい？",
+    "query": "Streets で PC の署名用アドオンを使ってログインするにはどこを押せばいい？",
     "expected": "login.browser-extension"
   },
   {
@@ -141,6 +141,12 @@
     "id": "outside-4",
     "group": "対象外",
     "query": "東京の明日の天気を教えて",
+    "expected": null
+  },
+  {
+    "id": "outside-5",
+    "group": "対象外",
+    "query": "Nostr の署名用アドオンはどこで入手できますか？",
     "expected": null
   },
   {
