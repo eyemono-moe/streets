@@ -16,12 +16,17 @@ const notes = [
   author.note("今日は散歩中にねこに会いました。"),
 ];
 const longNote = author.note("ねこの話を探しています。".repeat(24));
+const manyNotes = Array.from({ length: 12 }, (_, index) =>
+  author.note(`ねこの話を探しています（${index + 1}件目）。`),
+);
 
 type Props = {
   width: number;
+  height: number;
   initial: string;
   results: boolean;
   longResult: boolean;
+  manyResults: boolean;
   pending: boolean;
   status: SectionStatus;
 };
@@ -31,16 +36,25 @@ const Story = (props: Props) => {
   const [opened, setOpened] = createSignal(0);
   return (
     <EventSceneProvider
-      scene={{ events: [author.profile(), ...notes, longNote] }}
+      scene={{ events: [author.profile(), ...notes, longNote, ...manyNotes] }}
     >
       <Mediates handle={(event) => event.type === "deck/add-column"}>
-        <div class="flex h-[560px]" style={{ width: `${props.width}px` }}>
+        <div
+          class="flex"
+          style={{ width: `${props.width}px`, height: `${props.height}px` }}
+        >
           <SidePanel title="検索する" icon="i-material-symbols:search-rounded">
             <SearchPanelView
               text={text()}
               onChange={setText}
               results={
-                props.results ? (props.longResult ? [longNote] : notes) : []
+                props.results
+                  ? props.manyResults
+                    ? manyNotes
+                    : props.longResult
+                      ? [longNote]
+                      : notes
+                  : []
               }
               status={props.status}
               paging="exhausted"
@@ -62,9 +76,11 @@ const meta = {
   component: Story,
   args: {
     width: 360,
+    height: 560,
     initial: "ねこ",
     results: true,
     longResult: false,
+    manyResults: false,
     pending: false,
     status: { phase: "settled" },
   },
@@ -93,4 +109,6 @@ export const 一部取得失敗: S = {
   },
 };
 export const 長い本文: S = { args: { longResult: true } };
+export const 結果をスクロール: S = { args: { manyResults: true } };
 export const 狭い幅: S = { args: { width: 300 } };
+export const 低い画面: S = { args: { height: 320, manyResults: true } };

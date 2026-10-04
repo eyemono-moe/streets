@@ -111,14 +111,18 @@ export const SearchPanelView: Component<{
   onOpen: () => void;
 }> = (props) => (
   <div class="flex min-h-0 flex-1 flex-col">
+    {/* 低い画面では条件だけをスクロールさせ、結果の表示領域を残す。 */}
+    <div
+      class="min-h-0 shrink-0 overflow-y-auto px-3 pt-1 pb-3"
+      style={{ "max-height": "min(70%, max(5rem, calc(100% - 10rem)))" }}
+    >
+      <SearchQueryEditor
+        text={props.text}
+        onChange={props.onChange}
+        autofocus
+      />
+    </div>
     <div class="min-h-0 flex-1 overflow-y-auto" data-scroll-container>
-      <div class="px-3 pt-1 pb-3">
-        <SearchQueryEditor
-          text={props.text}
-          onChange={props.onChange}
-          autofocus
-        />
-      </div>
       <Switch>
         <Match when={props.empty}>
           <p class="c-secondary px-3 py-4 text-caption">
