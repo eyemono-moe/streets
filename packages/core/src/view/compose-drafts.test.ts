@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
+import type { NostrEvent } from "../nostr/event";
 import {
   AUTO_DRAFT_LIMIT,
   type ComposeDraft,
+  draftFor,
   loadComposeDrafts,
   putDraft,
   removeDraft,
@@ -13,6 +15,16 @@ const draft = (
   savedAt: number,
   extra: Partial<ComposeDraft> = {},
 ): ComposeDraft => ({ id, content: id, savedAt, kept: false, ...extra });
+
+const note = (seed: string): NostrEvent => ({
+  id: seed.repeat(64),
+  pubkey: "b".repeat(64),
+  created_at: 1,
+  kind: 1,
+  tags: [],
+  content: "宛先",
+  sig: "c".repeat(128),
+});
 
 describe("putDraft", () => {
   it("新しい順に並べる", () => {
@@ -64,6 +76,24 @@ describe("removeDraft", () => {
   });
 });
 
+describe("draftFor", () => {
+  it("同じ投稿へ同じ形で書いた、いちばん新しい下書きを返す", () => {
+    const drafts = [
+      draft("old", 1, { target: { type: "reply", event: note("a") } }),
+      draft("new", 3, { target: { type: "reply", event: note("a") } }),
+      draft("quote", 4, { target: { type: "quote", event: note("a") } }),
+      draft("other", 5, { target: { type: "reply", event: note("d") } }),
+      draft("plain", 6),
+    ];
+    expect(draftFor(drafts, { type: "reply", event: note("a") })?.id).toBe(
+      "new",
+    );
+    expect(draftFor(drafts, { type: "quote", event: note("d") })).toBe(
+      undefined,
+    );
+  });
+});
+
 describe("loadComposeDrafts", () => {
   it("未保存・読めない値は空", () => {
     expect(loadComposeDrafts(null)).toEqual([]);
@@ -75,6 +105,9 @@ describe("loadComposeDrafts", () => {
     const raw = JSON.stringify([
       draft("a", 1),
       { id: "broken" },
+      draft("bad-target", 3, {
+        target: { type: "reply", event: { ...note("a"), id: "x" } },
+      }),
       draft("b", 2, { contentWarning: "ネタバレ" }),
     ]);
     expect(loadComposeDrafts(raw)).toEqual([
@@ -84,7 +117,10 @@ describe("loadComposeDrafts", () => {
   });
 
   it("保存したものをそのまま読める", () => {
-    const drafts = [draft("b", 2, { kept: true }), draft("a", 1)];
+    const drafts = [
+      draft("b", 2, { kept: true }),
+      draft("a", 1, { target: { type: "quote", event: note("a") } }),
+    ];
     expect(loadComposeDrafts(saveComposeDrafts(drafts))).toEqual(drafts);
   });
 });

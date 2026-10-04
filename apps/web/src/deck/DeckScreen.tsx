@@ -49,6 +49,7 @@ import {
   effectiveSearchRelays,
   parseSearchRelays,
 } from "@streets/core/settings/search-relay-list";
+import type { ComposeDraft } from "@streets/core/view/compose-drafts";
 import {
   type Component,
   For,
@@ -103,6 +104,7 @@ import { UploaderProvider, createUploader } from "../media/uploader";
 import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
+import TargetComposeDialog from "../note/TargetComposeDialog";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
 import { screenshotMode } from "../screenshot-mode";
 import type { Session } from "../session";
@@ -624,8 +626,16 @@ const DeckScreen: Component<{
   };
 
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
+  // 下書きの一覧から開いた返信・引用。パネルを閉じても残るよう、デッキが持つ。
+  const [draftDialog, setDraftDialog] = createSignal<ComposeDraft>();
+
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
+      case "compose/draft-open": {
+        const draft = composeDrafts().find((other) => other.id === event.id);
+        if (draft?.target) setDraftDialog(draft);
+        return true;
+      }
       case "deck/open-panel":
       case "deck/toggle-panel":
       case "deck/close-panel":
@@ -1153,6 +1163,19 @@ const DeckScreen: Component<{
           </div>
         </Match>
       </Switch>
+      <Show when={draftDialog()} keyed>
+        {(draft) => (
+          <Show when={draft.target}>
+            {(target) => (
+              <TargetComposeDialog
+                target={target()}
+                initial={draft}
+                onClose={() => setDraftDialog(undefined)}
+              />
+            )}
+          </Show>
+        )}
+      </Show>
       <Show when={aboutMounted()}>
         <AboutDialog
           open={ui.aboutOpen}

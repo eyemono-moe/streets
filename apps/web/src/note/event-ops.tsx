@@ -8,7 +8,6 @@ import type { EventActionId } from "@streets/core/settings/action-layout";
 import { reactionContentOf } from "@streets/core/settings/default-reaction";
 import { eventEngagements } from "@streets/core/view/event-engagements";
 import { type JSX, Match, Switch, createMemo, createSignal } from "solid-js";
-import { useEventActions } from "../actions";
 import { defaultReaction } from "../default-reaction-setting";
 import { lazyPart } from "../lazy-part";
 import { useLoginGate } from "../login-gate";
@@ -16,9 +15,7 @@ import { useReadLayer } from "../read-layer";
 import { useMutes } from "../settings/MuteMediator";
 import { notifyError, notifySuccess } from "../toast";
 import { useDispatch } from "../ui-events";
-import { ComposeMediator } from "./ComposeMediator";
-import QuoteDialog from "./QuoteDialog";
-import ReplyDialog from "./ReplyDialog";
+import TargetComposeDialog from "./TargetComposeDialog";
 import { useEngagementChanges } from "./use-engagement-changes";
 
 const EventDetailsDialog = lazyPart(() => import("./EventDetailsDialog"));
@@ -178,7 +175,6 @@ type EventDialog = "reply" | "quote" | "details" | "broadcast";
  * 置き場所ごとに持つ。`view` は置いた場所に描く（中身は body の末尾へ出る）。
  */
 export const createEventDialogs = (event: () => NostrEvent) => {
-  const actions = useEventActions();
   const gate = useLoginGate();
   const [open, setOpen] = createSignal<EventDialog>();
   // 書く操作は、書き始める前にログインを確かめる。詳細を見るだけなら要らない。
@@ -195,33 +191,17 @@ export const createEventDialogs = (event: () => NostrEvent) => {
   const close = () => setOpen(undefined);
   const view: JSX.Element = (
     <Switch>
-      <Match when={open() === "reply" && actions}>
-        {(actions) => (
-          <ComposeMediator
-            send={(text, media, emoji, contentWarning) =>
-              actions().reply(event(), text, media, emoji, contentWarning)
-            }
-            failure="返信できませんでした"
-            onSent={close}
-            onClose={close}
-          >
-            {(state) => <ReplyDialog target={event()} state={state} />}
-          </ComposeMediator>
-        )}
+      <Match when={open() === "reply"}>
+        <TargetComposeDialog
+          target={{ type: "reply", event: event() }}
+          onClose={close}
+        />
       </Match>
-      <Match when={open() === "quote" && actions}>
-        {(actions) => (
-          <ComposeMediator
-            send={(text, media, emoji, contentWarning) =>
-              actions().quote(event(), text, media, emoji, contentWarning)
-            }
-            failure="引用できませんでした"
-            onSent={close}
-            onClose={close}
-          >
-            {(state) => <QuoteDialog target={event()} state={state} />}
-          </ComposeMediator>
-        )}
+      <Match when={open() === "quote"}>
+        <TargetComposeDialog
+          target={{ type: "quote", event: event() }}
+          onClose={close}
+        />
       </Match>
       <Match when={open() === "details"}>
         <EventDetailsDialog event={event()} onClose={close} />

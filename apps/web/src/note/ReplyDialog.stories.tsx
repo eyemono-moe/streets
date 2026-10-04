@@ -70,6 +70,8 @@ const Interactive = (props: { target: NostrEvent }) => {
       send={(text) => actions?.reply(props.target, text) ?? Promise.resolve()}
       failure="返信できませんでした"
       onSent={() => {}}
+      drafts
+      target={{ type: "reply", event: props.target }}
     >
       {(state) => <ReplyDialog target={props.target} state={state} />}
     </ComposeMediator>
@@ -121,6 +123,10 @@ type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = {};
 export const 送信に失敗する: Story = { args: { failWrites: true } };
+/** 書いている間は、下書きに入れて閉じられる。閉じても書きかけは下書きに残る。 */
+export const 書きかけ: Story = {
+  args: { state: { ...emptyCompose(), content: "あとで続きを書く返信。" } },
+};
 export const 送信中: Story = {
   args: {
     state: {

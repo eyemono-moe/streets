@@ -1,5 +1,9 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type ComposeState, canSend } from "@streets/core/view/compose";
+import {
+  type ComposeState,
+  canKeepDraft,
+  canSend,
+} from "@streets/core/view/compose";
 import { type Component, Show } from "solid-js";
 import { useEventActions } from "../actions";
 import { useNoteSources } from "../completion/sources";
@@ -118,6 +122,7 @@ const QuoteDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
               disabled={!canSend(props.state)}
               onEmojiSelect={emojiInsertion.insert}
               emojiField={emojiInsertion.field}
+              canKeepDraft={canKeepDraft(props.state)}
             />
           </form>
         </DialogContent>
