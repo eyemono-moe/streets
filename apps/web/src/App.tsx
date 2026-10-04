@@ -1,12 +1,15 @@
+import { useLocation } from "@solidjs/router";
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
+import { guideByPath } from "@streets/core/signal/guides";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
+import GuidePageView from "./signal/GuidePageView";
 import SignerWaitNotice from "./SignerWaitNotice";
 import { ErrorToaster } from "./toast";
 
@@ -18,6 +21,9 @@ const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
 const App: Component = () => {
+  const location = useLocation();
+  const guideOpen = () =>
+    location.pathname === "/help" || location.pathname.startsWith("/help/");
   const relayOverride = devRelayOverride(window.location.search);
   const readLayer = createReadLayer({
     // session は pool を使うので後から作る。署名器は認証のときに読むので、それまでに決まっていればよい。
@@ -66,11 +72,16 @@ const App: Component = () => {
       <Show when={session.state() !== "loading"}>
         <Show when={session.pubkey() ?? GUEST} keyed>
           <ReadLayerProvider value={readLayer}>
-            <DeckScreen
-              readLayer={readLayer}
-              session={session}
-              bootstrapIndexers={relayOverride}
-            />
+            <div hidden={guideOpen()}>
+              <DeckScreen
+                readLayer={readLayer}
+                session={session}
+                bootstrapIndexers={relayOverride}
+              />
+            </div>
+            <Show when={guideOpen()}>
+              <GuidePageView guide={guideByPath(location.pathname)} />
+            </Show>
           </ReadLayerProvider>
         </Show>
       </Show>
