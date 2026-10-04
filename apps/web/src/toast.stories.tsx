@@ -9,6 +9,7 @@ type Item = {
   title: string;
   description?: string;
   meta?: WriteToastMeta;
+  action?: { label: string; onClick: () => void };
 };
 
 type Args = { wide: boolean; items: Item[] };
@@ -81,6 +82,21 @@ export const 成功: S = { args: { items: [saved] } };
 
 /** ログインしていない人が、ログインの要る操作を押した。 */
 export const 案内: S = { args: { items: [loginNeeded] } };
+
+/** 押すと直せる失敗には、トーストの中にボタンを置く。 */
+export const 操作付き: S = {
+  args: {
+    items: [
+      {
+        type: "error",
+        title: "画面の一部を読み込めませんでした",
+        description:
+          "新しい版が公開された直後や、通信が切れているときに起きます。再読み込みすると直ります。",
+        action: { label: "再読み込み", onClick: () => {} },
+      },
+    ],
+  },
+};
 
 /** 奥の 2 枚は枠だけが覗く。ポインタを乗せると広がって全部読める。 */
 export const 重なり: S = { args: { items: [failed, writing, saved] } };

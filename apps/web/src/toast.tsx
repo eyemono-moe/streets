@@ -3,6 +3,7 @@ import { type Component, type JSX, Match, Show, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 import { isMultiColumn } from "./deck-layout-setting";
 import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
+import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
@@ -136,6 +137,21 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
                   <Toast.Description class="c-secondary break-anywhere text-caption">
                     {toast().description}
                   </Toast.Description>
+                </Show>
+                <Show when={toast().action}>
+                  {(action) => (
+                    <Toast.ActionTrigger
+                      asChild={(trigger) => (
+                        <Button
+                          {...trigger()}
+                          size="sm"
+                          class="mt-1 self-start"
+                        >
+                          {action().label}
+                        </Button>
+                      )}
+                    />
+                  )}
                 </Show>
               </div>
             </>

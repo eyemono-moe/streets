@@ -65,13 +65,21 @@ export const lazyPart = <P extends Record<string, unknown>>(
   return Part;
 };
 
+const LOAD_FAILURE_TOAST_ID = "lazy-part-load-failure";
+
 const notifyLoadFailure = (cause: unknown) => {
   console.error(cause);
   toaster.create({
+    // 部品ごとに失敗しても、再読み込みを頼むのは 1 枚で足りる。
+    id: LOAD_FAILURE_TOAST_ID,
     type: "error",
     title: "画面の一部を読み込めませんでした",
     description:
-      "ページを再読み込みしてください。新しい版が公開された直後や、通信が切れているときに起きます。",
+      "新しい版が公開された直後や、通信が切れているときに起きます。再読み込みすると直ります。",
+    // ホーム画面に追加したアプリには再読み込みのボタンが無いので、ここで押せるようにする。
+    // 読み直すまで同じ部品は開けないままなので、消さずに残す。
+    duration: Number.POSITIVE_INFINITY,
+    action: { label: "再読み込み", onClick: () => location.reload() },
   });
 };
 
