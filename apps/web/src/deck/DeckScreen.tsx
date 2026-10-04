@@ -1,5 +1,5 @@
 import { Collapsible } from "@ark-ui/solid";
-import { useNavigate, useParams } from "@solidjs/router";
+import { useLocation, useNavigate, useParams } from "@solidjs/router";
 import { chosenRelays } from "@streets/core/deck/chosen-relays";
 import { buildRelayColumn } from "@streets/core/deck/column-presets";
 import {
@@ -49,6 +49,7 @@ import {
   effectiveSearchRelays,
   parseSearchRelays,
 } from "@streets/core/settings/search-relay-list";
+import { guideByPath, guideCategoryByPath } from "@streets/core/signal/guides";
 import type { ComposeDraft } from "@streets/core/view/compose-drafts";
 import {
   type Component,
@@ -114,6 +115,8 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
+import GuideBrowserView from "../signal/GuideBrowserView";
+import GuidePageView from "../signal/GuidePageView";
 import { StatusFormMediator } from "../status/StatusFormMediator";
 import {
   ANY_COLUMN,
@@ -350,6 +353,9 @@ const DeckScreen: Component<{
 
   // URL の 1 区画から開く一時カラム。デッキへは保存せず、左端に出す（ADR-0032）。
   const params = useParams<{ entity?: string }>();
+  const location = useLocation();
+  const guideOpen = () =>
+    location.pathname === "/help" || location.pathname.startsWith("/help/");
   const navigate = useNavigate();
   const temp = () => (params.entity ? tempColumnFor(params.entity) : undefined);
 
@@ -744,6 +750,21 @@ const DeckScreen: Component<{
       case "deck/close-about":
         applyUi(event);
         return true;
+      case "signal/activate-action":
+        switch (event.action) {
+          case "open-settings":
+            applyUi({ type: "deck/open-settings" });
+            break;
+          case "open-add-column":
+          case "open-compose":
+            navigate("/");
+            applyUi({
+              type: "deck/open-panel",
+              panel: event.action === "open-compose" ? "compose" : "add-column",
+            });
+            break;
+        }
+        return true;
       case "deck/start-tour":
         // 「Streets について」から始めたときは、ダイアログを閉じてから指す。
         applyUi({ type: "deck/close-about" });
@@ -950,15 +971,21 @@ const DeckScreen: Component<{
     <>
       <Switch>
         <Match when={warmUp.error}>
-          <p role="alert" class="c-danger p-4 text-caption">
+          <p
+            hidden={guideOpen()}
+            role="alert"
+            class="c-danger p-4 text-caption"
+          >
             フォローリストを取得できませんでした。
           </p>
         </Match>
         <Match when={deckStore.value() === undefined}>
-          <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
+          <p hidden={guideOpen()} class="c-secondary p-4 text-caption">
+            デッキを読み込み中…
+          </p>
         </Match>
         <Match when={isMultiColumn()}>
-          <div class="safe-pad-x flex h-dvh">
+          <div hidden={guideOpen()} class="safe-pad-x flex h-dvh">
             <Sidebar
               pubkey={account}
               columns={order.shown()}
@@ -1066,7 +1093,10 @@ const DeckScreen: Component<{
           </div>
         </Match>
         <Match when={true}>
-          <div class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]">
+          <div
+            hidden={guideOpen()}
+            class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]"
+          >
             <ColumnAccentBar
               temporary={ui.panel === undefined && ui.active === TEMP_COLUMN_ID}
             />
@@ -1163,6 +1193,19 @@ const DeckScreen: Component<{
           </div>
         </Match>
       </Switch>
+      <Show when={guideOpen()}>
+        <Switch fallback={<GuidePageView />}>
+          <Match when={location.pathname === "/help"}>
+            <GuideBrowserView />
+          </Match>
+          <Match when={guideCategoryByPath(location.pathname)}>
+            {(category) => <GuideBrowserView category={category()} />}
+          </Match>
+          <Match when={guideByPath(location.pathname)}>
+            {(guide) => <GuidePageView guide={guide()} />}
+          </Match>
+        </Switch>
+      </Show>
       <Show when={draftDialog()} keyed>
         {(draft) => (
           <Show when={draft.target}>

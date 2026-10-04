@@ -16,6 +16,9 @@ describe("Signal Guide", () => {
       expect(guideById(guide.id)).toBe(guide);
       expect(guideByPath(guide.path)).toBe(guide);
       expect(guide.content.length).toBeGreaterThan(0);
+      expect(guide.content.every((paragraph) => paragraph.length > 0)).toBe(
+        true,
+      );
     }
   });
 
