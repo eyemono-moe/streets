@@ -79,6 +79,16 @@ export const validateFixtures = (fixtures) => {
   return fixtures;
 };
 
+export const selectFixtures = (fixtures, only) => {
+  if (only === undefined) return fixtures;
+  const ids = only.split(",");
+  const known = new Set(fixtures.map((fixture) => fixture.id));
+  if (ids.some((id) => !known.has(id)) || new Set(ids).size !== ids.length) {
+    throw new Error("--only に未知または重複した fixture ID があります");
+  }
+  return fixtures.filter((fixture) => ids.includes(fixture.id));
+};
+
 /** サーバーの結果を候補に閉じ、未知の ID や壊れた使用量を集計へ流さない。 */
 export const parseChoiceResponse = (response, question) => {
   const answer = response?.answers?.route;
@@ -254,8 +264,9 @@ export const diagnostics = (fixtures, results) =>
   });
 
 const main = async () => {
-  const fixtures = validateFixtures(
-    JSON.parse(await readFile(fixturePath, "utf8")),
+  const fixtures = selectFixtures(
+    validateFixtures(JSON.parse(await readFile(fixturePath, "utf8"))),
+    process.argv.find((argument) => argument.startsWith("--only="))?.slice(7),
   );
   if (process.argv.includes("--dry-run")) {
     console.log(

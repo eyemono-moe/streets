@@ -7,6 +7,7 @@ import {
   oneShotQuestion,
   parseChoiceResponse,
   routeHierarchical,
+  selectFixtures,
   summarize,
   validateFixtures,
 } from "./signal-eval.mjs";
@@ -120,4 +121,14 @@ test("対象外の誤案内と正答への棄権を分けて数える", () => {
       confidence: 0.9,
     },
   ]);
+});
+
+test("指定した fixture だけを評価し、未知の ID を拒否する", () => {
+  const fixtures = validateFixtures([
+    { id: "a", group: "基本", query: "投稿する", expected: "post.create" },
+    { id: "b", group: "対象外", query: "天気", expected: null },
+  ]);
+  assert.deepEqual(selectFixtures(fixtures, "b"), [fixtures[1]]);
+  assert.throws(() => selectFixtures(fixtures, "unknown"), /fixture ID/);
+  assert.throws(() => selectFixtures(fixtures, "b,b"), /fixture ID/);
 });
