@@ -19,7 +19,7 @@ const AccountMenu: Component<{
   /** ログインしていなければ undefined。 */
   pubkey: string | undefined;
   onLogout: () => void;
-  /** フィードバックも並べる（狭い画面で、下のバーに置き場所が無いため）。 */
+  /** 送信先が設定されているとき、フィードバックの導線を並べる。 */
   onFeedback?: () => void;
   /** 「デッキを編集」も並べる（狭い画面で、サイドバーの代わりに）。 */
   arrange?: boolean;
