@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import SearchQueryEditor from "./SearchQueryEditor";
 
-type Args = { debounceMs: number; initial: string };
+type Args = { debounceMs: number; initial: string; signedIn: boolean };
 
 /** 上へ渡った回数を出す。打つたびに渡していないかを、ここで見る。 */
 const Story = (props: Args) => {
@@ -12,6 +12,7 @@ const Story = (props: Args) => {
     <div class="flex w-100 flex-col gap-3 bg-secondary p-4">
       <SearchQueryEditor
         text={text()}
+        signedIn={props.signedIn}
         debounceMs={props.debounceMs}
         onChange={(next) => {
           setText(next);
@@ -28,7 +29,7 @@ const Story = (props: Args) => {
 const meta = {
   title: "デッキ/検索の条件",
   component: Story,
-  args: { debounceMs: 600, initial: "ねこ #nostr" },
+  args: { debounceMs: 600, initial: "ねこ #nostr", signedIn: true },
 } satisfies Meta<Args>;
 
 export default meta;
@@ -50,5 +51,27 @@ export const 空: S = { args: { initial: "" } };
 export const 除く指定: S = {
   args: {
     initial: `あいもの -芋 #nostr -#bot from:${"a".repeat(64)} -from:${"b".repeat(64)} -to:${"c".repeat(64)} -is:bot`,
+  },
+};
+
+export const フォロー中に限定: S = {
+  args: { initial: "ねこ from:follows" },
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>(
+        '[data-scope="collapsible"][data-part="trigger"]',
+      )
+      ?.click();
+  },
+};
+
+export const 未ログイン: S = {
+  args: { signedIn: false },
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>(
+        '[data-scope="collapsible"][data-part="trigger"]',
+      )
+      ?.click();
   },
 };

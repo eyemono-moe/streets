@@ -871,7 +871,9 @@ const DeckScreen: Component<{
         >
           <SearchPanel
             readLayer={props.readLayer}
+            signedIn={account !== undefined}
             searchRelays={shared.searchRelays}
+            followees={followees}
             request={ui.searchRequest}
           />
         </SidePanel>
@@ -1061,6 +1063,7 @@ const DeckScreen: Component<{
                           >
                             <ColumnSettingsPanel
                               column={column}
+                              signedIn={account !== undefined}
                               relayList={relayList()}
                               stretch={columnStretch()}
                             />
@@ -1145,6 +1148,7 @@ const DeckScreen: Component<{
                         <div class="h-full">
                           <ColumnSettingsPanel
                             column={column}
+                            signedIn={account !== undefined}
                             relayList={relayList()}
                           />
                         </div>

@@ -26,6 +26,20 @@ describe("parseSearchQuery", () => {
     expect(parseSearchQuery(`by:${pubkey.toUpperCase()}`).from).toBe(pubkey);
   });
 
+  it("from:follows と個人が混在したら順序によらずフォロー中を優先する", () => {
+    for (const text of [
+      `from:follows from:${npub}`,
+      `from:${npub} from:follows`,
+      `by:FOLLOWS from:${pubkey}`,
+    ]) {
+      const query = parseSearchQuery(text);
+      expect(query.from).toBe("follows");
+      expect(query.words).toEqual([]);
+      expect(formatSearchQuery(query)).toBe("from:follows");
+      expect(isEmptySearchQuery(query)).toBe(false);
+    }
+  });
+
   it("日付は、その日の始まりとして読む", () => {
     const query = parseSearchQuery("since:2026-09-01");
     expect(query.since).toBe(
@@ -162,6 +176,7 @@ describe("文字列と条件を行き来できる", () => {
   const cases = [
     "ねこ",
     "ねこ 写真 #nostr",
+    "ねこ from:follows",
     `ねこ from:${pubkey} since:2026-09-01 kind:1`,
     `to:${pubkey} until:2026-12-31`,
     `あいもの -いも #nostr -#bot -from:${pubkey} -to:${pubkey} -is:bot`,
@@ -212,6 +227,20 @@ describe("searchFilter", () => {
     expect(searchFilter(parseSearchQuery("#東京Nostr散歩2026"))).toEqual({
       kinds: [1],
       "#t": ["東京nostr散歩2026"],
+    });
+  });
+
+  it("フォロー中の人を著者にし、0 人でも全件検索に広げない", () => {
+    const query = parseSearchQuery("ねこ from:follows");
+    expect(searchFilter(query, [pubkey, pubkey, "b".repeat(64)])).toEqual({
+      kinds: [1],
+      search: "ねこ",
+      authors: [pubkey, "b".repeat(64)],
+    });
+    expect(searchFilter(query, [])).toEqual({
+      kinds: [1],
+      search: "ねこ",
+      authors: [],
     });
   });
 });

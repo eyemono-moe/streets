@@ -38,7 +38,9 @@ import SearchQueryEditor from "./SearchQueryEditor";
 /** 結果を確認してから、明示的な操作で検索カラムを追加する。 */
 const SearchPanel: Component<{
   readLayer: ReadLayer;
+  signedIn: boolean;
   searchRelays: Accessor<readonly RelayUrl[]>;
+  followees: Accessor<readonly string[]>;
   request?: { query: string; sequence: number };
 }> = (props) => {
   const dispatch = useDispatch();
@@ -69,7 +71,11 @@ const SearchPanel: Component<{
     source: () =>
       isEmptySearchQuery(query())
         ? undefined
-        : searchSource(searched(), props.searchRelays()),
+        : searchSource(
+            searched(),
+            props.searchRelays(),
+            query().from === "follows" ? props.followees() : [],
+          ),
   });
   const isBot = useBotLookup();
   const mutes = useMutes();
@@ -89,6 +95,7 @@ const SearchPanel: Component<{
   return (
     <SearchPanelView
       text={text()}
+      signedIn={props.signedIn}
       onChange={setText}
       results={results()}
       status={section.status()}
@@ -107,6 +114,7 @@ const SearchPanel: Component<{
 /** 読み取り層を使わずに、入力中・取得中・結果・空を並べて確認するための View。 */
 export const SearchPanelView: Component<{
   text: string;
+  signedIn: boolean;
   onChange: (text: string) => void;
   results: readonly NostrEvent[];
   status: SectionStatus;
@@ -124,6 +132,7 @@ export const SearchPanelView: Component<{
     >
       <SearchQueryEditor
         text={props.text}
+        signedIn={props.signedIn}
         onChange={props.onChange}
         autofocus
       />

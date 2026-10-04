@@ -43,8 +43,11 @@ const inputClass = `${textInputClass} w-full`;
  */
 const SearchForm: Component<{
   query: SearchQuery;
+  signedIn: boolean;
   onChange: (text: string) => void;
 }> = (props) => {
+  const followsSelected = () =>
+    props.signedIn && props.query.from === "follows";
   const patch = (change: Partial<SearchQuery>) =>
     props.onChange(formatSearchQuery({ ...props.query, ...change }));
   // 「書いた人」「宛先」は、除く人も - を付けて並べるので、カーソルのある言葉で人を探す。
@@ -103,20 +106,43 @@ const SearchForm: Component<{
           }}
         />
       </Field>
-      <Field id="search-from" label="書いた人">
+      <Show when={props.signedIn}>
+        <Switch
+          label="フォローしている人に限定"
+          checked={props.query.from === "follows"}
+          onChange={(checked) =>
+            patch({ from: checked ? "follows" : undefined })
+          }
+        />
+      </Show>
+      <Show when={!props.signedIn && props.query.from === "follows"}>
+        <p class="c-secondary text-caption">
+          フォロー中の人を検索するにはログインしてください。
+        </p>
+      </Show>
+      <Field id="search-from" label={followsSelected() ? "除く人" : "書いた人"}>
         <Completion sources={people} label="人の候補">
           {(attach) => (
             <input
               ref={attach}
               id="search-from"
               class={inputClass}
-              placeholder="npub1… / nprofile1…"
+              placeholder={
+                followsSelected() ? "-npub1…" : "npub1… / nprofile1…"
+              }
               value={shownSigned(
-                props.query.from ? [props.query.from] : [],
+                props.query.from && props.query.from !== "follows"
+                  ? [props.query.from]
+                  : [],
                 props.query.excludeFrom,
               )}
               onChange={(event) => {
                 const { include, exclude } = signed(event.currentTarget.value);
+                // フォロー中に限定したまま、特定の人だけは除ける。
+                if (followsSelected()) {
+                  patch({ excludeFrom: [...include, ...exclude] });
+                  return;
+                }
                 // 絞る人は 1 人だけ。文字列で何人も書いたときと同じく、後ろを使う。
                 patch({ from: include.at(-1), excludeFrom: exclude });
               }}
@@ -197,7 +223,7 @@ const SearchForm: Component<{
       />
       <Show
         when={
-          props.query.from ||
+          (props.query.from && props.query.from !== "follows") ||
           props.query.to ||
           props.query.excludeFrom.length > 0 ||
           props.query.excludeTo.length > 0

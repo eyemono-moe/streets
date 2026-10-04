@@ -27,6 +27,7 @@ const meta = {
       >
         <ColumnSettings
           column={column()}
+          signedIn
           facets={columnFacets(column())}
           relayList={{ phase: "missing" }}
           stretch={props.stretch}

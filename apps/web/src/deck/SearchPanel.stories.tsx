@@ -21,6 +21,7 @@ const manyNotes = Array.from({ length: 12 }, (_, index) =>
 );
 
 type Props = {
+  signedIn: boolean;
   width: number;
   height: number;
   initial: string;
@@ -46,6 +47,7 @@ const Story = (props: Props) => {
           <SidePanel title="検索する" icon="i-material-symbols:search-rounded">
             <SearchPanelView
               text={text()}
+              signedIn={props.signedIn}
               onChange={setText}
               results={
                 props.results
@@ -75,6 +77,7 @@ const meta = {
   title: "デッキ/探す",
   component: Story,
   args: {
+    signedIn: true,
     width: 360,
     height: 560,
     initial: "ねこ",
@@ -90,6 +93,7 @@ export default meta;
 type S = StoryObj<typeof meta>;
 
 export const 結果がある: S = {};
+export const 未ログイン: S = { args: { signedIn: false } };
 export const 空: S = { args: { initial: "", results: false } };
 export const 検索中: S = {
   args: { results: false, pending: true, status: { phase: "initial" } },

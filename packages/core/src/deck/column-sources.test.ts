@@ -266,6 +266,16 @@ describe("searchSource", () => {
       relays: ["wss://search.example/"],
     });
   });
+
+  it("from:follows は指定したフォロー中の著者で絞る", () => {
+    expect(
+      searchSource("from:follows", ["wss://search.example/"], ["a".repeat(64)]),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1], authors: ["a".repeat(64)] }],
+      relays: ["wss://search.example/"],
+    });
+  });
 });
 
 describe("チャンネル", () => {

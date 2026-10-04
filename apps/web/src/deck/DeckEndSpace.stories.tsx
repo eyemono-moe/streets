@@ -89,6 +89,7 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
                         <div class="h-full w-95 shrink-0 border-primary border-r">
                           <ColumnSettingsPanel
                             column={column}
+                            signedIn
                             relayList={{ phase: "ready", entries: [] }}
                           />
                         </div>

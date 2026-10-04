@@ -60,6 +60,7 @@ const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
 /** ヘッダーの直下に開く設定。変更はその場で保存する（保存ボタンは無い）。 */
 const ColumnSettings: Component<{
   column: ColumnDef;
+  signedIn: boolean;
   /** そのカラムで意味のある項目だけ。切っても何も起きない項目は出さない。 */
   facets: readonly ColumnFacet[];
   relayList?: RelayListState;
@@ -133,6 +134,7 @@ const ColumnSettings: Component<{
             component={settings()}
             column={props.column}
             source={props.column.source}
+            signedIn={props.signedIn}
             relayList={props.relayList}
           />
         )}

@@ -20,6 +20,7 @@ import SearchForm from "./SearchForm";
  */
 const SearchQueryEditor: Component<{
   text: string;
+  signedIn: boolean;
   onChange: (text: string) => void;
   /** 入力欄に自動で焦点を当てる（開いてすぐ打ち始める場所で使う）。 */
   autofocus?: boolean;
@@ -135,7 +136,11 @@ const SearchQueryEditor: Component<{
         </Collapsible.Trigger>
         <Collapsible.Content class="motion-collapse">
           <div class="pt-2">
-            <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
+            <SearchForm
+              query={parseSearchQuery(shown())}
+              signedIn={props.signedIn}
+              onChange={chosen}
+            />
           </div>
         </Collapsible.Content>
       </Collapsible.Root>

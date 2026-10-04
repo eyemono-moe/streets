@@ -10,6 +10,7 @@ import ColumnTitle from "./ColumnTitle";
 /** 本文を押し下げず、通常のカラムと横に並ぶ設定専用カラム。 */
 const ColumnSettingsPanel: Component<{
   column: ColumnDef;
+  signedIn: boolean;
   relayList: RelayListState;
   stretch?: boolean;
 }> = (props) => {
@@ -36,6 +37,7 @@ const ColumnSettingsPanel: Component<{
       <div class="min-h-0 flex-1 overflow-y-auto">
         <ColumnSettings
           column={props.column}
+          signedIn={props.signedIn}
           facets={columnFacets(props.column)}
           relayList={props.relayList}
           stretch={props.stretch}
