@@ -124,9 +124,10 @@ const ColumnArrangePanel: Component<{
     cancel: () => dispatch({ type: "deck/drag-end" }),
   });
   return (
+    // 先頭のデッキ切替ボタンの枠が、スクロール領域の上端で切れないようにする。
     <div
       ref={scroller}
-      class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-4"
+      class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pt-1 pb-4"
     >
       {props.header}
       <Show
