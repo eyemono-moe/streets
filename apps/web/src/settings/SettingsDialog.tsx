@@ -28,7 +28,13 @@ import PrivacySettings from "./PrivacySettings";
 import { useProfileEdit } from "./ProfileMediator";
 import RelaySettings from "./RelaySettings";
 import SearchSettings from "./SearchSettings";
-import { availableSettings, type RegisteredSetting } from "./setting-registry";
+import {
+  ACCOUNT_PAGES,
+  availableSettings,
+  pageNames,
+  type SettingEntry,
+  type SettingPage,
+} from "./setting-registry";
 import { SettingFilter } from "./SettingFilter";
 
 /**
@@ -69,7 +75,7 @@ const SettingsDialog: Component<{
     props.initialPage ?? (props.signedIn ? "account" : "display"),
   );
   const [query, setQuery] = createSignal(props.initialQuery ?? "");
-  const [target, setTarget] = createSignal<RegisteredSetting>();
+  const [target, setTarget] = createSignal<SettingEntry>();
   const hits = createMemo(() => {
     const chosen = target();
     return chosen
@@ -106,57 +112,57 @@ const SettingsDialog: Component<{
     ),
   );
 
-  const allPages: DialogPage[] = [
+  const allPages: (DialogPage & { value: SettingPage })[] = [
     {
       value: "account",
-      label: "アカウント",
+      label: pageNames.account,
       icon: "i-material-symbols:person-outline-rounded",
-      title: "アカウント",
+      title: pageNames.account,
       content: () => <AccountSettings />,
     },
     {
       value: "relays",
-      label: "リレー",
+      label: pageNames.relays,
       icon: "i-material-symbols:globe",
-      title: "リレー",
+      title: pageNames.relays,
       content: () => <RelaySettings />,
     },
 
     {
       value: "media",
-      label: "画像",
+      label: pageNames.media,
       icon: "i-material-symbols:image-outline-rounded",
-      title: "画像",
+      title: pageNames.media,
       content: () => <MediaSettings />,
     },
     {
       value: "search",
-      label: "検索",
+      label: pageNames.search,
       icon: "i-material-symbols:search-rounded",
-      title: "検索",
+      title: pageNames.search,
       content: () => <SearchSettings />,
     },
     {
       value: "emoji",
-      label: "絵文字",
+      label: pageNames.emoji,
       icon: "i-material-symbols:add-reaction-outline-rounded",
-      title: "絵文字",
+      title: pageNames.emoji,
       description:
         "いいねボタンで送る絵文字と、リアクションのピッカーに出る絵文字を設定します",
       content: () => <EmojiSettings defaultReaction={props.defaultReaction} />,
     },
     {
       value: "mute",
-      label: "ミュート",
+      label: pageNames.mute,
       icon: "i-material-symbols:volume-off-outline-rounded",
-      title: "ミュート",
+      title: pageNames.mute,
       content: () => <MuteSettings />,
     },
     {
       value: "keyboard",
-      label: "キーボード",
+      label: pageNames.keyboard,
       icon: "i-material-symbols:keyboard-outline-rounded",
-      title: "キーボード",
+      title: pageNames.keyboard,
       content: () => (
         <KeyboardSettings
           keymap={props.keymap}
@@ -166,9 +172,9 @@ const SettingsDialog: Component<{
     },
     {
       value: "display",
-      label: "表示",
+      label: pageNames.display,
       icon: "i-material-symbols:visibility-outline-rounded",
-      title: "表示",
+      title: pageNames.display,
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
@@ -183,9 +189,9 @@ const SettingsDialog: Component<{
     },
     {
       value: "privacy",
-      label: "プライバシー",
+      label: pageNames.privacy,
       icon: "i-material-symbols:lock-person-outline-rounded",
-      title: "プライバシー",
+      title: pageNames.privacy,
       content: () => (
         <PrivacySettings
           clientTag={props.clientTag}
@@ -195,19 +201,10 @@ const SettingsDialog: Component<{
     },
   ];
 
-  // アカウントに保存するページ。ログインしていなければ読む先も書く先も無い。
-  const ACCOUNT_PAGES = [
-    "account",
-    "relays",
-    "media",
-    "search",
-    "emoji",
-    "mute",
-  ];
   const pages = () =>
     props.signedIn
       ? allPages
-      : allPages.filter((page) => !ACCOUNT_PAGES.includes(page.value));
+      : allPages.filter((page) => !ACCOUNT_PAGES.has(page.value));
 
   const searchPage: DialogPage = {
     value: "settings-results",
@@ -230,7 +227,7 @@ const SettingsDialog: Component<{
               return (
                 <div class="flex flex-col gap-2 border-b border-primary pb-6 last:border-b-0 last:pb-0">
                   <span class="c-secondary text-caption">{entry.section}</span>
-                  <SettingFilter id={entry.key}>
+                  <SettingFilter id={entry.id}>
                     {foundPage?.content?.()}
                   </SettingFilter>
                 </div>

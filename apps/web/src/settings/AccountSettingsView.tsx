@@ -55,8 +55,7 @@ export type AccountSettingsViewProps = {
 const AccountSettingsView: Component<AccountSettingsViewProps> = (props) => {
   const dispatch = useDispatch();
   const filter = useSettingFilter();
-  const visible = (id: SettingId) =>
-    !filter || filter() === "profile" || filter() === id;
+  const visible = (id: SettingId) => !filter || filter() === id;
   const errors = () => profileErrors(props.state.draft);
   const dirty = () => isProfileDirty(props.state);
   // 画像を上げている間は保存させない。上げ終わる前に保存すると、画像の無いプロフィールになる。

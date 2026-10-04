@@ -7,7 +7,16 @@ export type DeckPanel =
   | "new-deck";
 
 /** カラムの追加で、対象を選んでから作る種類。 */
-export type ColumnPicker = "relay" | "channels" | "follow-sets" | "user";
+export const COLUMN_PICKERS = [
+  "relay",
+  "channels",
+  "follow-sets",
+  "user",
+] as const;
+export type ColumnPicker = (typeof COLUMN_PICKERS)[number];
+
+export const isColumnPicker = (kind: string): kind is ColumnPicker =>
+  (COLUMN_PICKERS as readonly string[]).includes(kind);
 
 /**
  * デッキの画面の状態のうち、保存しないもの。カラムの並びや設定はデッキ（NIP-78）に

@@ -17,7 +17,7 @@ import { useUserCandidates, useUserSearch } from "../completion/sources";
 import { useOptionalReadLayer } from "../read-layer";
 import {
   availableSettings,
-  type RegisteredSetting,
+  type SettingEntry,
 } from "../settings/setting-registry";
 import { type UiEvent, useDispatch } from "../ui-events";
 import CommandOption from "../ui/CommandOption";
@@ -33,7 +33,7 @@ import {
 import SearchInput from "../ui/SearchInput";
 import { availableActions, type PaletteAction } from "./action-registry";
 
-type SettingCommand = RegisteredSetting & { kind: "setting" };
+type SettingCommand = SettingEntry & { kind: "setting" };
 type UserCommand = { kind: "user"; id: string; title: string; pubkey: string };
 type Command = PaletteAction | SettingCommand | UserCommand;
 
