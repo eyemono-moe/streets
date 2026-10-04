@@ -131,6 +131,10 @@ vp run seed:dev                                   # スレッドの各形をロ�
 
 カラムの `source` を作る memo がウォームアップの結果を読むと、ウォームアップが片付くたびに全カラムの購読が破棄・再作成されます。`followees` / `readRelays` は遅延アクセサで渡し、必要な分岐の中でだけ呼びます。
 
+### Solid: `onCleanup` で props を読まない
+
+閉じたときの片付けは、開いた側が状態を戻した後に走ります。`target={{ type: open() === "quote" ? "quote" : "reply" }}` のように signal から計算した props を片付けで読むと、閉じた後の値（ここでは `"reply"`）になります。引用の書きかけが返信として下書きに残りました。片付けで使う値は、作ったときに変数へ受け取っておきます。渡す側も、開いているものごとに `<Match>` を分け、値を固定して渡します。
+
 ### Nostr の実装にライブラリを使わない
 
 暗号プリミティブ（noble）以外は自前です（[ADR-0020](./docs/adr/0020-no-nostr-library-noble-primitives-only.md)）。射程は Nostr だけで、それ以外（検証は valibot など）はライブラリを使って構いません。開発用スクリプトの `nostr-tools` は射程外です。
