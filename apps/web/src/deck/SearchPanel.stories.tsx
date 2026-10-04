@@ -112,3 +112,13 @@ export const 長い本文: S = { args: { longResult: true } };
 export const 結果をスクロール: S = { args: { manyResults: true } };
 export const 狭い幅: S = { args: { width: 300 } };
 export const 低い画面: S = { args: { height: 320, manyResults: true } };
+export const 低い画面で詳細を開く: S = {
+  args: { height: 320, manyResults: true },
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>(
+        '[data-scope="collapsible"][data-part="trigger"]',
+      )
+      ?.click();
+  },
+};

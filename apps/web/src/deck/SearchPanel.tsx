@@ -113,7 +113,7 @@ export const SearchPanelView: Component<{
   <div class="flex min-h-0 flex-1 flex-col">
     {/* 低い画面では条件だけをスクロールさせ、結果の表示領域を残す。 */}
     <div
-      class="min-h-0 shrink-0 overflow-y-auto px-3 pt-1 pb-3"
+      class="min-h-0 shrink-0 overflow-y-auto border-primary border-b px-3 pt-1 pb-3"
       style={{ "max-height": "min(70%, max(5rem, calc(100% - 10rem)))" }}
     >
       <SearchQueryEditor
@@ -133,7 +133,7 @@ export const SearchPanelView: Component<{
           <p class="c-secondary px-3 py-4 text-caption">検索中…</p>
         </Match>
         <Match when={props.results.length > 0}>
-          <div class="border-primary border-t">
+          <div>
             <VirtualList
               items={props.results}
               itemKey={(event) => event.id}
