@@ -861,7 +861,10 @@ const DeckScreen: Component<{
           icon="i-material-symbols:search-rounded"
           full={full}
         >
-          <SearchPanel />
+          <SearchPanel
+            readLayer={props.readLayer}
+            searchRelays={shared.searchRelays}
+          />
         </SidePanel>
       </Match>
       <Match when={shownPanel() === "add-column"}>

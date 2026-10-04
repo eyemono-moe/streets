@@ -1,3 +1,4 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
 import { parseSearchQuery } from "@streets/core/search/query";
 import {
   type Component,
@@ -11,8 +12,8 @@ import SearchInput from "../ui/SearchInput";
 import SearchForm from "./SearchForm";
 
 /**
- * 検索の条件を触るところ。打つ人のための入力欄と、項目ごとのフォームを重ねて
- * 出す。どちらも同じ条件を指していて、片方を変えるともう片方に反映される。
+ * 検索の条件を触るところ。項目ごとのフォームは必要なときだけ開く。
+ * どちらも同じ条件を指していて、片方を変えるともう片方に反映される。
  *
  * 「探す」パネルと、検索カラムの設定で同じものを使う —— 後から条件を変える
  * ときに、探したときと同じ触り方でいられるように。
@@ -124,7 +125,20 @@ const SearchQueryEditor: Component<{
           }
         }}
       />
-      <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
+      <Collapsible.Root lazyMount unmountOnExit>
+        <Collapsible.Trigger class="group c-secondary flex w-full cursor-pointer items-center gap-1 rounded-2 bg-transparent py-1 text-left text-caption outline-none focus-visible:ring-2 focus-visible:ring-accent-5">
+          <span
+            class="i-material-symbols:expand-more-rounded size-5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
+            aria-hidden="true"
+          />
+          詳細な条件
+        </Collapsible.Trigger>
+        <Collapsible.Content class="motion-collapse">
+          <div class="pt-2">
+            <SearchForm query={parseSearchQuery(shown())} onChange={chosen} />
+          </div>
+        </Collapsible.Content>
+      </Collapsible.Root>
     </div>
   );
 };
