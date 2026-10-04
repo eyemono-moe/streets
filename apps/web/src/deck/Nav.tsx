@@ -1,13 +1,6 @@
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { DeckPanel } from "@streets/core/deck/deck-ui";
-import {
-  type Component,
-  For,
-  Show,
-  createEffect,
-  createSignal,
-  onCleanup,
-} from "solid-js";
+import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
 import { ColumnHeaderActions } from "../columns/ColumnHeader";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
 import { tourTarget } from "../tour/tour-target";
@@ -17,7 +10,6 @@ import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
 import ColumnTitle from "./ColumnTitle";
-import { FeedbackDialog, feedbackHref } from "./FeedbackLink";
 
 /**
  * デッキのカラムを 1 つずつ並べるボタン。押すと、そのカラムが画面に収まるよう
@@ -75,8 +67,6 @@ export const Sidebar: Component<{
   feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [feedbackOpen, setFeedbackOpen] = createSignal(false);
-  const href = () => feedbackHref(props.feedbackUrl);
   return (
     // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・コマンドパレット・
     // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
@@ -167,17 +157,8 @@ export const Sidebar: Component<{
       <AccountMenu
         pubkey={props.pubkey}
         onLogout={props.onLogout}
-        onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
+        feedbackUrl={props.feedbackUrl}
       />
-      <Show when={href()}>
-        {(url) => (
-          <FeedbackDialog
-            href={url()}
-            open={feedbackOpen()}
-            onClose={() => setFeedbackOpen(false)}
-          />
-        )}
-      </Show>
     </nav>
   );
 };
@@ -221,14 +202,12 @@ export const MobileTopBar: Component<{
   feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
-  const [feedbackOpen, setFeedbackOpen] = createSignal(false);
-  const href = () => feedbackHref(props.feedbackUrl);
   return (
     <header class="flex h-12 shrink-0 items-center gap-2.5 border-primary border-b bg-primary px-3">
       <AccountMenu
         pubkey={props.pubkey}
         onLogout={props.onLogout}
-        onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
+        feedbackUrl={props.feedbackUrl}
         arrange
       />
       <IconButton
@@ -239,15 +218,6 @@ export const MobileTopBar: Component<{
         aria-keyshortcuts={ariaKeyShortcuts("palette")}
         onClick={() => dispatch({ type: "deck/open-palette" })}
       />
-      <Show when={href()}>
-        {(url) => (
-          <FeedbackDialog
-            href={url()}
-            open={feedbackOpen()}
-            onClose={() => setFeedbackOpen(false)}
-          />
-        )}
-      </Show>
       <Show when={props.column}>
         {(column) => (
           <>

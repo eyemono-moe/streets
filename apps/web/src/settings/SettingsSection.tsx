@@ -24,21 +24,19 @@ const SettingsSection: ParentComponent<{
   changed?: boolean;
 }> = (props) => {
   const filter = useSettingFilter();
-  const selected = () => filter?.();
-  const profileField = () => {
-    const id = selected();
-    return (
-      props.id === "profile" && !!id && settings[id].id.startsWith("profile.")
-    );
+  // プロフィールの欄を探したときは、プロフィールの項目を欄の名前で出す。
+  const field = () => {
+    const id = filter?.();
+    return id && props.id && settings[id].within === props.id ? id : undefined;
   };
   const title = () => {
-    const id = selected();
-    return profileField() && id
+    const id = field();
+    return id
       ? settings[id].title
       : (props.title ?? (props.id ? settings[props.id].title : ""));
   };
   return (
-    <Show when={!filter || filter() === props.id || profileField()}>
+    <Show when={!filter || filter() === props.id || field()}>
       <section class="flex flex-col gap-2">
         <div class="flex items-center gap-1.5">
           <h3 class="c-primary font-600 text-body">{title()}</h3>

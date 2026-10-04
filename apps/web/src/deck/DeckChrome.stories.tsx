@@ -8,7 +8,7 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
 import ColumnAccentBar from "./ColumnAccentBar";
-import { FeedbackDialog } from "./FeedbackLink";
+import { FeedbackDialog } from "./FeedbackDialog";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {

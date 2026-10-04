@@ -1,11 +1,10 @@
 import {
-  type ColumnPresetKind,
   buildColumn,
   buildFollowSetsColumn,
   buildRelayColumn,
 } from "@streets/core/deck/column-presets";
 import type { ColumnDef } from "@streets/core/deck/deck";
-import type { ColumnPicker } from "@streets/core/deck/deck-ui";
+import { type ColumnPicker, isColumnPicker } from "@streets/core/deck/deck-ui";
 import { CHANNEL_CREATE_KIND } from "@streets/core/nostr/channel";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import type { ReadLayer } from "@streets/core/read/read-layer";
@@ -34,71 +33,8 @@ import Button from "../ui/Button";
 import Completion from "../ui/Completion";
 import IconButton from "../ui/IconButton";
 import { textInputClass } from "../ui/TextField";
+import { COLUMN_ADD_PRESETS } from "./column-add-presets";
 import RelayColumnEditor from "./RelayColumnEditor";
-
-/** 押すと種類の一覧から切り替わる、選ぶための画面。 */
-type Picker = ColumnPicker;
-
-const PICKERS: ReadonlySet<string> = new Set<Picker>([
-  "relay",
-  "channels",
-  "follow-sets",
-  "user",
-]);
-
-const isPicker = (kind: string): kind is Picker => PICKERS.has(kind);
-
-type Preset = {
-  kind: ColumnPresetKind | Picker;
-  label: string;
-  description: string;
-  icon: string;
-};
-
-const PRESETS: Preset[] = [
-  {
-    kind: "home",
-    label: "ホーム",
-    description: "フォロー中のノートとリポスト",
-    icon: "i-material-symbols:home-outline-rounded",
-  },
-  {
-    kind: "notifications",
-    label: "通知",
-    description: "自分宛の返信・リアクション・リポスト",
-    icon: "i-material-symbols:notifications-outline-rounded",
-  },
-  {
-    kind: "relay",
-    label: "リレー",
-    description: "選んだリレーの公開ノート",
-    icon: "i-material-symbols:globe",
-  },
-  {
-    kind: "channels",
-    label: "チャンネル",
-    description: "みんなで会話できるチャットチャンネル",
-    icon: "i-material-symbols:forum-outline-rounded",
-  },
-  {
-    kind: "bookmarks",
-    label: "ブックマーク",
-    description: "保存したノート",
-    icon: "i-material-symbols:bookmark-outline-rounded",
-  },
-  {
-    kind: "user",
-    label: "ユーザー",
-    description: "選んだ人の投稿",
-    icon: "i-material-symbols:person-outline-rounded",
-  },
-  {
-    kind: "follow-sets",
-    label: "リスト",
-    description: "選んだ人たちの投稿",
-    icon: "i-material-symbols:format-list-bulleted-rounded",
-  },
-];
 
 const Row: Component<{
   icon: string;
@@ -385,15 +321,15 @@ const PICKER_COLUMN: ColumnDef = {
 const AddColumnPanel: Component<{
   relayList: RelayListState;
   /** Storybook で選ぶ画面を開いた状態から始めるため。 */
-  initialPicker?: Picker;
-  request?: { picker: Picker; sequence: number };
+  initialPicker?: ColumnPicker;
+  request?: { picker: ColumnPicker; sequence: number };
   /** チャンネルやリストを選ぶ一覧が読む。Storybook では渡さない（一覧の見た目は別のストーリーで見る）。 */
   readLayer?: ReadLayer;
   /** 人を名前で探すときの問い合わせ先。 */
   searchRelays: () => readonly RelayUrl[];
 }> = (props) => {
   const dispatch = useDispatch();
-  const [picker, setPicker] = createSignal<Picker | undefined>(
+  const [picker, setPicker] = createSignal<ColumnPicker | undefined>(
     props.initialPicker,
   );
   createEffect(() => {
@@ -412,7 +348,7 @@ const AddColumnPanel: Component<{
         fallback={
           <div class="motion-fade animate-in">
             <div class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-              <For each={PRESETS}>
+              <For each={COLUMN_ADD_PRESETS}>
                 {(preset) => (
                   <Row
                     icon={preset.icon}
@@ -420,7 +356,7 @@ const AddColumnPanel: Component<{
                     description={preset.description}
                     onClick={() => {
                       const kind = preset.kind;
-                      if (isPicker(kind)) {
+                      if (isColumnPicker(kind)) {
                         setPicker(kind);
                         return;
                       }

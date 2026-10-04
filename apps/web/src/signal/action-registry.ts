@@ -1,5 +1,8 @@
+import { buildColumn } from "@streets/core/deck/column-presets";
+import { isColumnPicker } from "@streets/core/deck/deck-ui";
 import { SHORTCUT_LABELS } from "@streets/core/settings/keymap";
 import type { SearchEntry } from "@streets/core/signal/search";
+import { COLUMN_ADD_PRESETS } from "../deck/column-add-presets";
 import type { UiEvent } from "../ui-events";
 
 export type PaletteAction = SearchEntry & {
@@ -8,16 +11,33 @@ export type PaletteAction = SearchEntry & {
   requiresSignIn?: boolean;
 };
 
-const addColumn = (kind: "home" | "notifications" | "bookmarks"): UiEvent => {
-  const column = buildColumn(kind, "");
-  if (!column) throw new Error(`${kind} のカラムを作れません`);
-  return { type: "deck/add-column", column };
-};
-
-const openPicker = (picker: ColumnPicker): UiEvent => ({
-  type: "deck/open-column-picker",
-  picker,
-});
+const columnActions = COLUMN_ADD_PRESETS.map(
+  ({ kind, label, keywords }): PaletteAction => {
+    const base = {
+      id: `column.${kind}`,
+      kind: "action",
+      section: "カラム",
+    } as const;
+    if (isColumnPicker(kind)) {
+      return {
+        ...base,
+        title: `${label}を選んでカラムを追加する`,
+        keywords: [`${label}カラム`, ...keywords],
+        event: { type: "deck/open-column-picker", picker: kind },
+      };
+    }
+    return {
+      ...base,
+      title: `${label}カラムを追加する`,
+      keywords: [label, ...keywords],
+      event: () => {
+        const column = buildColumn(kind, "");
+        if (!column) throw new Error(`${kind} のカラムを作れません`);
+        return { type: "deck/add-column", column };
+      },
+    };
+  },
+);
 
 /** 対象を指定せずに実行できる操作と、対象を選ぶ画面への入口。 */
 const actions: readonly PaletteAction[] = [
@@ -49,62 +69,7 @@ const actions: readonly PaletteAction[] = [
     shortcodes: ["add-column"],
     event: { type: "deck/open-panel", panel: "add-column" },
   },
-  {
-    id: "column.home",
-    kind: "action",
-    title: "ホームカラムを追加する",
-    section: "カラム",
-    keywords: ["ホーム", "タイムライン", "フォロー中"],
-    event: () => addColumn("home"),
-  },
-  {
-    id: "column.notifications",
-    kind: "action",
-    title: "通知カラムを追加する",
-    section: "カラム",
-    keywords: ["通知", "返信", "リアクション"],
-    event: () => addColumn("notifications"),
-  },
-  {
-    id: "column.bookmarks",
-    kind: "action",
-    title: "ブックマークカラムを追加する",
-    section: "カラム",
-    keywords: ["ブックマーク", "保存"],
-    event: () => addColumn("bookmarks"),
-  },
-  {
-    id: "column.relay",
-    kind: "action",
-    title: "リレーを選んでカラムを追加する",
-    section: "カラム",
-    keywords: ["リレーカラム", "接続先"],
-    event: openPicker("relay"),
-  },
-  {
-    id: "column.channels",
-    kind: "action",
-    title: "チャンネルを選んでカラムを追加する",
-    section: "カラム",
-    keywords: ["チャンネルカラム", "チャット"],
-    event: openPicker("channels"),
-  },
-  {
-    id: "column.user",
-    kind: "action",
-    title: "ユーザーを選んでカラムを追加する",
-    section: "カラム",
-    keywords: ["ユーザーカラム", "人"],
-    event: openPicker("user"),
-  },
-  {
-    id: "column.follow-sets",
-    kind: "action",
-    title: "リストを選んでカラムを追加する",
-    section: "カラム",
-    keywords: ["リストカラム", "フォローセット"],
-    event: openPicker("follow-sets"),
-  },
+  ...columnActions,
   {
     id: "arrange",
     kind: "action",
@@ -136,5 +101,3 @@ const actions: readonly PaletteAction[] = [
 
 export const availableActions = (signedIn: boolean): PaletteAction[] =>
   actions.filter((action) => signedIn || !action.requiresSignIn);
-import { buildColumn } from "@streets/core/deck/column-presets";
-import type { ColumnPicker } from "@streets/core/deck/deck-ui";

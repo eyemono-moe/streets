@@ -11,41 +11,6 @@ export type SettingPage =
   | "display"
   | "privacy";
 
-export type SettingEntry = SearchEntry & {
-  page: SettingPage;
-  /** 画面に結果を出すときにログインが必要か。保存先とは別の条件。 */
-  requiresSignIn: boolean;
-  /** 編集欄のない説明・案内は検索結果へ出さない。 */
-  searchable?: boolean;
-};
-
-const account = (
-  id: string,
-  title: string,
-  page: SettingPage,
-  keywords: string[] = [],
-): SettingEntry => ({
-  id,
-  title,
-  page,
-  section: pageNames[page],
-  keywords,
-  requiresSignIn: true,
-});
-const device = (
-  id: string,
-  title: string,
-  page: SettingPage,
-  keywords: string[] = [],
-): SettingEntry => ({
-  id,
-  title,
-  page,
-  section: pageNames[page],
-  keywords,
-  requiresSignIn: false,
-});
-
 export const pageNames: Record<SettingPage, string> = {
   account: "アカウント",
   relays: "リレー",
@@ -58,189 +23,150 @@ export const pageNames: Record<SettingPage, string> = {
   privacy: "プライバシー",
 };
 
+/** アカウントに保存するページ。ログインしていなければ読む先も書く先も無い。 */
+export const ACCOUNT_PAGES: ReadonlySet<SettingPage> = new Set([
+  "account",
+  "relays",
+  "media",
+  "search",
+  "emoji",
+  "mute",
+]);
+
+type SettingInfo = Omit<SearchEntry, "id"> & {
+  page: SettingPage;
+  /** 編集欄のない説明・案内は検索結果へ出さない。 */
+  searchable?: boolean;
+  /** プロフィールの欄。検索ではプロフィールの項目からその欄だけを、欄の名前を見出しにして出す。 */
+  within?: "profile";
+};
+
+const setting = (
+  title: string,
+  page: SettingPage,
+  keywords: string[] = [],
+): SettingInfo => ({ title, page, section: pageNames[page], keywords });
+
+const profileField = (title: string, keywords: string[]): SettingInfo => ({
+  ...setting(title, "account", keywords),
+  within: "profile",
+});
+
 /** 設定画面の各項目が参照する検索情報。表示名もここを正とする。 */
 export const settings = {
   profile: {
-    ...account("profile", "プロフィール", "account"),
+    ...setting("プロフィール", "account"),
     searchable: false,
   },
-  profileDisplayName: account("profile.display-name", "表示名", "account", [
-    "プロフィール名",
-    "名前",
-  ]),
-  profileName: account("profile.name", "ユーザー名", "account", ["ハンドル"]),
+  profileDisplayName: profileField("表示名", ["プロフィール名", "名前"]),
+  profileName: profileField("ユーザー名", ["ハンドル"]),
   profileAbout: {
-    ...account("profile.about", "自己紹介", "account", [
-      "プロフィール文",
-      "bio",
-    ]),
+    ...profileField("自己紹介", ["プロフィール文", "bio"]),
     description: "ほかの人に見えるプロフィールの文章",
   },
   profilePicture: {
-    ...account("profile.picture", "アイコン画像", "account", [
-      "プロフィール画像",
-      "アバター",
-    ]),
+    ...profileField("アイコン画像", ["プロフィール画像", "アバター"]),
     description: "プロフィールに表示する画像",
   },
-  profileBanner: account("profile.banner", "ヘッダー画像", "account", [
-    "バナー画像",
+  profileBanner: profileField("ヘッダー画像", ["バナー画像"]),
+  profileNip05: profileField("ドメインでの本人確認（NIP-05）", [
+    "認証",
+    "ドメイン",
   ]),
-  profileNip05: account(
-    "profile.nip05",
-    "ドメインでの本人確認（NIP-05）",
-    "account",
-    ["認証", "ドメイン"],
-  ),
-  profileWebsite: account("profile.website", "Web サイト", "account", [
-    "URL",
-    "ホームページ",
+  profileWebsite: profileField("Web サイト", ["URL", "ホームページ"]),
+  profileLud16: profileField("Zap の受け取り先（ライトニングアドレス）", [
+    "投げ銭",
+    "ウォレット",
   ]),
-  profileLud16: account(
-    "profile.lud16",
-    "Zap の受け取り先（ライトニングアドレス）",
-    "account",
-    ["投げ銭", "ウォレット"],
-  ),
   accountId: {
-    ...account("account.id", "あなたの ID", "account", ["公開鍵", "npub"]),
+    ...setting("あなたの ID", "account", ["公開鍵", "npub"]),
     searchable: false,
   },
-  relays: account("relays", "使うリレー", "relays", [
-    "接続先",
-    "投稿先",
-    "読むリレー",
-  ]),
-  blockedRelays: account("relays.blocked", "繋がないリレー", "relays", [
-    "ブロック",
-    "接続拒否",
-  ]),
+  relays: setting("使うリレー", "relays", ["接続先", "投稿先", "読むリレー"]),
+  blockedRelays: setting("繋がないリレー", "relays", ["ブロック", "接続拒否"]),
   relayRecommendations: {
-    ...account("relays.recommendations", "おすすめのリレー", "relays"),
+    ...setting("おすすめのリレー", "relays"),
     searchable: false,
   },
-  readRouting: account("relays.read-routing", "投稿を読むリレー", "relays", [
+  readRouting: setting("投稿を読むリレー", "relays", [
     "読み取り",
     "ルーティング",
   ]),
   relayPlan: {
-    ...account("relays.plan", "いま使っているリレー", "relays"),
+    ...setting("いま使っているリレー", "relays"),
     searchable: false,
   },
   imageDisplay: {
-    ...account("media.display", "画像の表示", "media", [
-      "画像を縮める",
-      "メモリ",
-    ]),
+    ...setting("画像の表示", "media", ["画像を縮める", "メモリ"]),
     description: "画像を画面に合う大きさに縮め、メモリの使用を減らす",
   },
   imageUpload: {
-    ...account("media.upload", "画像のアップロード先", "media", [
-      "Blossom",
-      "サーバー",
-    ]),
+    ...setting("画像のアップロード先", "media", ["Blossom", "サーバー"]),
     description: "投稿に付ける画像を置くサーバー",
   },
-  searchRelays: account("search.relays", "検索するリレー", "search", [
-    "検索先",
-  ]),
-  reactionEmoji: account("emoji.reaction", "いいねボタンの絵文字", "emoji", [
-    "リアクション",
-  ]),
-  emojiList: account("emoji.list", "自分の絵文字リスト", "emoji"),
+  searchRelays: setting("検索するリレー", "search", ["検索先"]),
+  reactionEmoji: setting("いいねボタンの絵文字", "emoji", ["リアクション"]),
+  emojiList: setting("自分の絵文字リスト", "emoji"),
   emojiFind: {
-    ...account("emoji.find", "絵文字セットを探す", "emoji"),
+    ...setting("絵文字セットを探す", "emoji"),
     searchable: false,
   },
   emojiManage: {
-    ...account("emoji.manage", "もっと絵文字を管理する", "emoji"),
+    ...setting("もっと絵文字を管理する", "emoji"),
     searchable: false,
   },
-  muteAdd: account("mute.add", "ミュートを足す", "mute", ["非表示"]),
-  muteList: account("mute.list", "ミュートしているもの", "mute", [
-    "非表示",
-    "解除",
-  ]),
-  shortcuts: device("keyboard.shortcuts", "ショートカットキー", "keyboard", [
-    "キー割り当て",
-  ]),
-  columnDigits: device(
-    "keyboard.column-digits",
-    "数字キーでのカラム移動",
-    "keyboard",
-    ["カラム切替"],
-  ),
+  muteAdd: setting("ミュートを足す", "mute", ["非表示"]),
+  muteList: setting("ミュートしているもの", "mute", ["非表示", "解除"]),
+  shortcuts: setting("ショートカットキー", "keyboard", ["キー割り当て"]),
+  columnDigits: setting("数字キーでのカラム移動", "keyboard", ["カラム切替"]),
   theme: {
-    ...device("display.theme", "カラーテーマ", "display", [
-      "ダークモード",
-      "ライトモード",
-    ]),
+    ...setting("カラーテーマ", "display", ["ダークモード", "ライトモード"]),
     description: "画面を明るい色にするか暗い色にするか選ぶ",
   },
-  accent: device("display.accent", "アクセントカラー", "display", [
-    "色",
-    "テーマ",
-  ]),
+  accent: setting("アクセントカラー", "display", ["色", "テーマ"]),
   preview: {
-    ...device("display.preview", "プレビュー", "display"),
+    ...setting("プレビュー", "display"),
     searchable: false,
   },
   deckLayout: {
-    ...device("display.deck-layout", "カラムの並べ方", "display", [
-      "レイアウト",
-      "1列",
-      "複数列",
-    ]),
+    ...setting("カラムの並べ方", "display", ["レイアウト", "1列", "複数列"]),
     description: "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
   },
   columnWidth: {
-    ...device("display.column-width", "カラムの幅", "display", [
-      "column width",
-      "横幅",
-      "広げる",
-    ]),
+    ...setting("カラムの幅", "display", ["column width", "横幅", "広げる"]),
     description: "横に並べたカラムを画面の幅いっぱいに広げる",
   },
-  contentWarning: device(
-    "display.content-warning",
-    "閲覧注意の投稿",
-    "display",
-    ["センシティブ", "警告"],
-  ),
-  writeProgress: device(
-    "display.write-progress",
-    "ローディング表示",
-    "display",
-    ["保存の進み具合", "アップロード"],
-  ),
-  actionLayout: device("display.action-layout", "アクション欄", "display", [
-    "投稿の操作",
-    "並べ替え",
+  contentWarning: setting("閲覧注意の投稿", "display", [
+    "センシティブ",
+    "警告",
   ]),
-  clientTag: device(
-    "privacy.client-tag",
-    "使用しているアプリの表示",
-    "privacy",
-    ["client tag", "クライアント"],
-  ),
-  errorReport: device(
-    "privacy.error-report",
-    "不具合と動作の速さの報告",
-    "privacy",
-    ["エラー報告", "計測"],
-  ),
+  writeProgress: setting("ローディング表示", "display", [
+    "保存の進み具合",
+    "アップロード",
+  ]),
+  actionLayout: setting("アクション欄", "display", ["投稿の操作", "並べ替え"]),
+  clientTag: setting("使用しているアプリの表示", "privacy", [
+    "client tag",
+    "クライアント",
+  ]),
+  errorReport: setting("不具合と動作の速さの報告", "privacy", [
+    "エラー報告",
+    "計測",
+  ]),
 } as const;
 
 export type SettingId = keyof typeof settings;
 
-export type RegisteredSetting = SettingEntry & { key: SettingId };
+export type SettingEntry = SettingInfo & { id: SettingId };
 
-const entries: RegisteredSetting[] = Object.entries(settings).map(
-  ([key, setting]) => ({ ...setting, key: key as SettingId }),
-);
+const entries: SettingEntry[] = Object.entries(settings).map(([id, info]) => ({
+  ...info,
+  id: id as SettingId,
+}));
 
-export const availableSettings = (signedIn: boolean): RegisteredSetting[] =>
+export const availableSettings = (signedIn: boolean): SettingEntry[] =>
   entries.filter(
     (entry) =>
-      entry.searchable !== false && (signedIn || !entry.requiresSignIn),
+      entry.searchable !== false &&
+      (signedIn || !ACCOUNT_PAGES.has(entry.page)),
   );
