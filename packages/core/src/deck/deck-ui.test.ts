@@ -180,6 +180,71 @@ describe("設定のダイアログ", () => {
       state,
     );
   });
+
+  it("パレットで選んだ項目を渡し、閉じると忘れる", () => {
+    const opened = run({
+      type: "deck/open-settings",
+      setting: "display.theme",
+    });
+    expect(opened.settingsTarget).toBe("display.theme");
+    expect(
+      deckUiTransition(opened, { type: "deck/close-settings" }).settingsTarget,
+    ).toBeUndefined();
+  });
+});
+
+describe("コマンドパレット", () => {
+  it("カラムの対象選択画面を直接開き、通常の入口では一覧へ戻す", () => {
+    const first = run({
+      type: "deck/open-column-picker",
+      picker: "follow-sets",
+    });
+    expect(first).toMatchObject({
+      panel: "add-column",
+      columnPickerRequest: { picker: "follow-sets", sequence: 1 },
+    });
+    const next = deckUiTransition(first, {
+      type: "deck/open-column-picker",
+      picker: "follow-sets",
+    });
+    expect(next.columnPickerRequest?.sequence).toBe(2);
+    expect(
+      deckUiTransition(next, { type: "deck/open-panel", panel: "add-column" })
+        .columnPickerRequest,
+    ).toBeUndefined();
+  });
+  it("検索パネルを開くたびに入力を渡す", () => {
+    const first = run({ type: "deck/open-search", query: "ねこ" });
+    expect(first).toMatchObject({
+      panel: "search",
+      searchRequest: { query: "ねこ", sequence: 1 },
+    });
+    const next = deckUiTransition(first, {
+      type: "deck/open-search",
+      query: "ねこ",
+    });
+    expect(next.searchRequest?.sequence).toBe(2);
+    expect(
+      deckUiTransition(next, { type: "deck/open-panel", panel: "search" })
+        .searchRequest,
+    ).toBeUndefined();
+  });
+  it("開いて設定を選ぶと、パレットを閉じて項目を渡す", () => {
+    const state = run(
+      { type: "deck/open-palette" },
+      { type: "deck/open-settings", setting: "display.theme" },
+    );
+    expect(state).toMatchObject({
+      paletteOpen: false,
+      settingsOpen: true,
+      settingsTarget: "display.theme",
+    });
+  });
+
+  it("閉じた状態で閉じても同じ状態を返す", () => {
+    const state = emptyDeckUi();
+    expect(deckUiTransition(state, { type: "deck/close-palette" })).toBe(state);
+  });
 });
 
 describe("Streets について", () => {

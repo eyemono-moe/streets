@@ -1,6 +1,6 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
-import type { DeckPanel } from "@streets/core/deck/deck-ui";
+import type { ColumnPicker, DeckPanel } from "@streets/core/deck/deck-ui";
 import type { FollowSetMember } from "@streets/core/lists/follow-set";
 import type { FollowSetFormEvent } from "@streets/core/lists/follow-set-form";
 import type {
@@ -146,6 +146,8 @@ export type ComposeViewEvent =
 /** デッキの段が裁定する。カラムの並びの変更は保存し、画面の状態は遷移関数で当てる。 */
 export type DeckEvent =
   | { type: "deck/open-panel"; panel: DeckPanel }
+  | { type: "deck/open-search"; query: string }
+  | { type: "deck/open-column-picker"; picker: ColumnPicker }
   | { type: "deck/toggle-panel"; panel: DeckPanel }
   | { type: "deck/close-panel" }
   | { type: "deck/select-column"; id: string }
@@ -179,8 +181,10 @@ export type DeckEvent =
   /** URL の 1 区画（`nevent1…` など）を一時カラムで開く。デッキにはまだ足さない。 */
   | { type: "deck/open-temp"; entity: string }
   | { type: "deck/close-temp" }
-  | { type: "deck/open-settings" }
+  | { type: "deck/open-settings"; setting?: string }
   | { type: "deck/close-settings" }
+  | { type: "deck/open-palette" }
+  | { type: "deck/close-palette" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
   /** 使い方の案内を、もう一度始める。 */

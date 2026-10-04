@@ -8,7 +8,7 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
 import { Mediates } from "../ui-events";
 import ColumnAccentBar from "./ColumnAccentBar";
-import FeedbackLink from "./FeedbackLink";
+import { FeedbackDialog } from "./FeedbackLink";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 
 const viewer = createStoryAuthor(55, {
@@ -112,23 +112,34 @@ export const 一時カラムのヘッダー: Story = {
   ),
 };
 
+const SidebarWithFeedback = () => (
+  <EventSceneProvider scene={{ events: [viewer.profile()] }}>
+    <Mediates handle={() => true}>
+      <div class="flex h-[480px] bg-secondary">
+        <Sidebar
+          pubkey={viewer.pubkey}
+          columns={columns}
+          panel={undefined}
+          numbers
+          onLogout={() => {}}
+          feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+        />
+      </div>
+    </Mediates>
+  </EventSceneProvider>
+);
+
 export const サイドバー: Story = {
-  render: () => (
-    <EventSceneProvider scene={{ events: [viewer.profile()] }}>
-      <Mediates handle={() => true}>
-        <div class="flex h-[480px] bg-secondary">
-          <Sidebar
-            pubkey={viewer.pubkey}
-            columns={columns}
-            panel={undefined}
-            numbers
-            onLogout={() => {}}
-            feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
-          />
-        </div>
-      </Mediates>
-    </EventSceneProvider>
-  ),
+  render: () => <SidebarWithFeedback />,
+};
+
+export const サイドバーのフィードバック: Story = {
+  render: () => <SidebarWithFeedback />,
+  play: ({ canvasElement }) => {
+    canvasElement
+      .querySelector<HTMLButtonElement>('[aria-label="アカウント"]')
+      ?.click();
+  },
 };
 
 /** ログインしていない。自分のアイコンの代わりに、ログインとメニューの口を置く。 */
@@ -196,9 +207,10 @@ export const フィードバック未設定: Story = {
 export const フィードバック案内: Story = {
   render: () => (
     <div class="grid min-h-120 place-items-center bg-secondary p-4">
-      <FeedbackLink
-        initialOpen
-        template="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
+      <FeedbackDialog
+        open
+        onClose={() => {}}
+        href="https://docs.google.com/forms/d/e/example/viewform"
       />
     </div>
   ),

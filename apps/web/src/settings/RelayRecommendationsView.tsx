@@ -49,7 +49,7 @@ const RelayRecommendationsView: Component<RelayRecommendationsViewProps> = (
   const [showAll, setShowAll] = createSignal(false);
   return (
     <SettingsSection
-      title="おすすめのリレー"
+      id="relayRecommendations"
       description="フォローしている人がよく使っているリレーの一覧です。"
     >
       <Switch>

@@ -14,7 +14,7 @@ const PrivacySettings: Component<{
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="使用しているアプリの表示"
+        id="clientTag"
         scope="account"
         description="投稿に、Streets から投稿したことを示す印を付けます。ほかのアプリでは「Streets から投稿」のように表示され、どのアプリを使っているかを誰でも見られるようになります。一度送った投稿からは、あとから外せません。"
       >
@@ -26,7 +26,7 @@ const PrivacySettings: Component<{
       </SettingsSection>
 
       <SettingsSection
-        title="不具合と動作の速さの報告"
+        id="errorReport"
         scope="device"
         description="不具合が起きたときのエラーの内容と、画面の読み込みや操作にかかった時間を、端末・ブラウザの情報とあわせて開発元へ送信します。秘密鍵・公開鍵・イベント ID・投稿の本文は送信しません。"
       >

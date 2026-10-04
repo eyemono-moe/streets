@@ -31,6 +31,10 @@ const PagedDialog: Component<{
   /** 読み上げ用の説明。画面には出ない。 */
   description: string;
   pages: DialogPage[];
+  /** ページ一覧の前に置く欄。設定の検索入力など。 */
+  navigationBefore?: JSX.Element;
+  /** 一覧へ並べずに本文としてだけ出すページ。 */
+  extraPage?: DialogPage;
   page: string;
   onPageChange: (value: string) => void;
   onClose: () => void;
@@ -38,6 +42,44 @@ const PagedDialog: Component<{
   backdropClass?: string;
 }> = (props) => {
   const closeLabel = () => `${props.title}を閉じる`;
+  const pageBody = (page: DialogPage) => (
+    <>
+      <div
+        class="flex items-start gap-3"
+        classList={{
+          "px-6 pt-6 pb-4": props.wide,
+          "px-4 pt-4 pb-3": !props.wide,
+        }}
+      >
+        <div class="flex min-w-0 flex-1 flex-col gap-1">
+          <h2 class="font-600 text-h3">{page.title}</h2>
+          <Show when={page.description}>
+            <p class="c-secondary text-caption">{page.description}</p>
+          </Show>
+        </div>
+        <Show when={props.wide}>
+          <DialogClose label={closeLabel()} />
+        </Show>
+      </div>
+      <div
+        class="overflow-y-auto"
+        classList={{
+          "px-6 pb-6": props.wide,
+          "px-4 pb-4": !props.wide,
+        }}
+      >
+        <Show when={page.content}>{(content) => content()()}</Show>
+      </div>
+    </>
+  );
+  const pageContent = (page: DialogPage) => (
+    <Tabs.Content
+      value={page.value}
+      class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
+    >
+      {pageBody(page)}
+    </Tabs.Content>
+  );
   return (
     <DialogRoot open={props.open} onClose={props.onClose}>
       <DialogPortal
@@ -71,6 +113,7 @@ const PagedDialog: Component<{
                 "flex-col gap-1 px-2 py-3": props.wide,
                 // 横へ流すのはページの一覧だけ。閉じるボタンまで流すと、見えなくなる。
                 "items-center gap-1 px-2 py-2": !props.wide,
+                "flex-wrap": !props.wide && !!props.navigationBefore,
               }}
             >
               <DialogTitle
@@ -82,6 +125,11 @@ const PagedDialog: Component<{
               >
                 {props.title}
               </DialogTitle>
+              <Show when={props.navigationBefore}>
+                <div classList={{ "w-full": !props.wide }}>
+                  {props.navigationBefore}
+                </div>
+              </Show>
               <Tabs.List
                 class="flex gap-1"
                 classList={{
@@ -107,50 +155,29 @@ const PagedDialog: Component<{
                     </Tabs.Trigger>
                   )}
                 </For>
+                <Show when={props.extraPage}>
+                  {(page) => (
+                    <Tabs.Trigger value={page().value} hidden>
+                      {page().label}
+                    </Tabs.Trigger>
+                  )}
+                </Show>
               </Tabs.List>
               <Show when={!props.wide}>
                 <DialogClose label={closeLabel()} />
               </Show>
             </div>
 
-            <For each={props.pages}>
+            <Show
+              when={props.page === props.extraPage?.value && props.extraPage}
+              fallback={<For each={props.pages}>{pageContent}</For>}
+            >
               {(page) => (
-                <Tabs.Content
-                  value={page.value}
-                  class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]"
-                >
-                  {/* 閉じるボタンは見出しの行にあるので、流すのは本文だけにする。 */}
-                  <div
-                    class="flex items-start gap-3"
-                    classList={{
-                      "px-6 pt-6 pb-4": props.wide,
-                      "px-4 pt-4 pb-3": !props.wide,
-                    }}
-                  >
-                    <div class="flex min-w-0 flex-1 flex-col gap-1">
-                      <h2 class="font-600 text-h3">{page.title}</h2>
-                      <Show when={page.description}>
-                        <p class="c-secondary text-caption">
-                          {page.description}
-                        </p>
-                      </Show>
-                    </div>
-                    <Show when={props.wide}>
-                      <DialogClose label={closeLabel()} />
-                    </Show>
-                  </div>
-                  <div
-                    class="overflow-y-auto"
-                    classList={{
-                      "px-6 pb-6": props.wide,
-                      "px-4 pb-4": !props.wide,
-                    }}
-                  >
-                    <Show when={page.content}>{(content) => content()()}</Show>
-                  </div>
-                </Tabs.Content>
+                <div class="grid min-h-0 grid-rows-[auto_minmax(0,1fr)]">
+                  {pageBody(page())}
+                </div>
               )}
-            </For>
+            </Show>
           </Tabs.Root>
         </DialogContent>
       </DialogPortal>

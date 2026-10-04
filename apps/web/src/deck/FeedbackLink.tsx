@@ -1,4 +1,4 @@
-import { type Component, Show, createSignal } from "solid-js";
+import type { Component } from "solid-js";
 import Button, { ButtonLink } from "../ui/Button";
 import {
   DialogClose,
@@ -8,7 +8,6 @@ import {
   DialogRoot,
   DialogTitle,
 } from "../ui/Dialog";
-import IconButton from "../ui/IconButton";
 
 const context = (): string =>
   [
@@ -85,46 +84,3 @@ export const feedbackHref = (template?: string | null): string | undefined =>
       ? undefined
       : (template ?? import.meta.env.VITE_FEEDBACK_URL),
   );
-
-const FeedbackLink: Component<{
-  /** Storybookでは実際のフォームを開かないURLを注入する。nullなら未設定状態。 */
-  template?: string | null;
-  /** ダイアログのStory用。 */
-  initialOpen?: boolean;
-}> = (props) => {
-  const [open, setOpen] = createSignal(props.initialOpen ?? false);
-  const href = () => feedbackHref(props.template);
-
-  return (
-    <Show
-      when={href()}
-      fallback={
-        <IconButton
-          size="lg"
-          icon="i-material-symbols:feedback-outline-rounded"
-          label="フィードバック（送信先が未設定）"
-          title="フィードバック送信先が未設定です"
-          disabled
-        />
-      }
-    >
-      {(url) => (
-        <>
-          <IconButton
-            size="lg"
-            icon="i-material-symbols:feedback-outline-rounded"
-            label="フィードバックを送る"
-            onClick={() => setOpen(true)}
-          />
-          <FeedbackDialog
-            href={url()}
-            open={open()}
-            onClose={() => setOpen(false)}
-          />
-        </>
-      )}
-    </Show>
-  );
-};
-
-export default FeedbackLink;

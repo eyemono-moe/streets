@@ -17,7 +17,7 @@ import AccountMenu from "./AccountMenu";
 import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
 import ColumnTitle from "./ColumnTitle";
-import FeedbackLink, { FeedbackDialog, feedbackHref } from "./FeedbackLink";
+import { FeedbackDialog, feedbackHref } from "./FeedbackLink";
 
 /**
  * デッキのカラムを 1 つずつ並べるボタン。押すと、そのカラムが画面に収まるよう
@@ -75,8 +75,10 @@ export const Sidebar: Component<{
   feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
+  const [feedbackOpen, setFeedbackOpen] = createSignal(false);
+  const href = () => feedbackHref(props.feedbackUrl);
   return (
-    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・フィードバック・
+    // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・コマンドパレット・
     // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
     <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
       <IconButton
@@ -148,14 +150,34 @@ export const Sidebar: Component<{
           dispatch({ type: "deck/toggle-panel", panel: "arrange" })
         }
       />
-      <FeedbackLink template={props.feedbackUrl} />
+      <IconButton
+        size="lg"
+        icon="i-material-symbols:manage-search-rounded"
+        label="コマンドパレットを開く"
+        title={shortcutTitle("palette")}
+        aria-keyshortcuts={ariaKeyShortcuts("palette")}
+        onClick={() => dispatch({ type: "deck/open-palette" })}
+      />
       <IconButton
         size="lg"
         icon="i-material-symbols:settings-outline-rounded"
         label="設定"
         onClick={() => dispatch({ type: "deck/open-settings" })}
       />
-      <AccountMenu pubkey={props.pubkey} onLogout={props.onLogout} />
+      <AccountMenu
+        pubkey={props.pubkey}
+        onLogout={props.onLogout}
+        onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
+      />
+      <Show when={href()}>
+        {(url) => (
+          <FeedbackDialog
+            href={url()}
+            open={feedbackOpen()}
+            onClose={() => setFeedbackOpen(false)}
+          />
+        )}
+      </Show>
     </nav>
   );
 };
@@ -198,6 +220,7 @@ export const MobileTopBar: Component<{
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
+  const dispatch = useDispatch();
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);
   const href = () => feedbackHref(props.feedbackUrl);
   return (
@@ -207,6 +230,14 @@ export const MobileTopBar: Component<{
         onLogout={props.onLogout}
         onFeedback={href() ? () => setFeedbackOpen(true) : undefined}
         arrange
+      />
+      <IconButton
+        size="sm"
+        icon="i-material-symbols:manage-search-rounded"
+        label="コマンドパレットを開く"
+        title={shortcutTitle("palette")}
+        aria-keyshortcuts={ariaKeyShortcuts("palette")}
+        onClick={() => dispatch({ type: "deck/open-palette" })}
       />
       <Show when={href()}>
         {(url) => (

@@ -72,7 +72,12 @@ const SearchInput: Component<SearchInputProps> = (props) => {
             onKeyDown={(event) => {
               if (typeof own.onKeyDown === "function") own.onKeyDown(event);
               if (event.defaultPrevented) return;
-              if (event.key === "Escape" && clearing()) {
+              if (
+                event.key === "Escape" &&
+                !event.isComposing &&
+                event.keyCode !== 229 &&
+                clearing()
+              ) {
                 event.preventDefault();
                 clear();
               }

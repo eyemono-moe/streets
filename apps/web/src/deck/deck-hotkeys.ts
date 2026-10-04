@@ -8,7 +8,7 @@ import {
 } from "@streets/core/settings/keymap";
 import { type Hotkey, createHotkeys } from "@tanstack/solid-hotkeys";
 
-const PANEL_OF: Record<ShortcutAction, DeckPanel> = {
+const PANEL_OF: Record<Exclude<ShortcutAction, "palette">, DeckPanel> = {
   compose: "compose",
   search: "search",
   "add-column": "add-column",
@@ -41,6 +41,7 @@ export const createDeckHotkeys = (options: {
   /** 数字キーでカラムを見せるか（設定で切れる）。 */
   columnDigits: () => boolean;
   togglePanel: (panel: DeckPanel) => void;
+  openPalette: () => void;
   focusColumn: (id: string) => void;
 }) => {
   createHotkeys(() => [
@@ -50,7 +51,8 @@ export const createDeckHotkeys = (options: {
         hotkey: options.keymap()[action] as Hotkey,
         callback: () => {
           if (inDialog()) return;
-          options.togglePanel(PANEL_OF[action]);
+          if (action === "palette") options.openPalette();
+          else options.togglePanel(PANEL_OF[action]);
         },
         options: {
           enabled: options.enabled(),

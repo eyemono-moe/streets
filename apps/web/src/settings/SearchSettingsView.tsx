@@ -23,7 +23,7 @@ export type SearchSettingsViewProps = {
 const SearchSettingsView: Component<SearchSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="検索するリレー"
+      id="searchRelays"
       scope="account"
       description="言葉での検索は、検索に対応したリレー（NIP-50）へ問い合わせます。投稿を読むリレーとは別に指定できます。上から順に、すべてへ問い合わせます。"
     >

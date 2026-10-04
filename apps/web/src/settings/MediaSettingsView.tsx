@@ -33,7 +33,7 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
   return (
     <div class="flex flex-col gap-7">
       <SettingsSection
-        title="画像の表示"
+        id="imageDisplay"
         scope="device"
         changed={props.imageDownscaling !== loadImageDownscaling(null)}
         onReset={() =>
@@ -53,7 +53,7 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
         />
       </SettingsSection>
       <SettingsSection
-        title="画像のアップロード先"
+        id="imageUpload"
         scope="account"
         description="投稿に付ける画像を置いておくサーバーです。Nostr のリレーは画像そのものを持たないので、別の場所へアップロードして、その場所の URL を投稿に書きます。上から順に試し、最初に受け取ってくれたところへアップロードします。"
       >

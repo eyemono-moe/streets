@@ -14,6 +14,7 @@ import { useStoryNip05 } from "../storybook/nip05";
 import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
 import { Mediates } from "../ui-events";
 import { BlockedRelayMediator } from "./BlockedRelayMediator";
+import { MediaMediator } from "./MediaMediator";
 import { MuteMediator } from "./MuteMediator";
 import { ProfileMediator } from "./ProfileMediator";
 import { RelayMediator } from "./RelayMediator";
@@ -26,6 +27,8 @@ type Props = {
   page?: string;
   /** false で、ログインしていない人の設定（アカウントのページが無い）にする。 */
   signedIn?: boolean;
+  query?: string;
+  requestedSetting?: string;
 };
 
 const relayList = (tags: string[][]): NostrEvent => ({
@@ -195,68 +198,77 @@ const Story = (props: Props) => {
                 viewer={STORY_VIEWER}
                 list={() => blockedDecoded.latest}
               >
-                <Mediates
-                  handle={(event) => {
-                    switch (event.type) {
-                      case "deck/set-color-scheme":
-                        setScheme(event.scheme);
-                        return false;
-                      case "deck/preview-appearance":
-                        applyColors(event.appearance);
-                        return true;
-                      case "deck/set-write-progress":
-                        setWriteProgress(event.on);
-                        return true;
-                      case "deck/set-error-report":
-                        setErrorReport(event.on);
-                        return true;
-                      case "deck/set-client-tag":
-                        setClientTag(event.on);
-                        return true;
-                      case "deck/set-column-digits":
-                        setColumnDigits(event.on);
-                        return true;
-                      case "deck/set-column-stretch":
-                        setColumnStretch(event.on);
-                        return true;
-                      case "deck/set-deck-layout":
-                        setDeckLayout(event.layout);
-                        return true;
-                      case "deck/set-default-reaction":
-                        setDefaultReaction(event.input);
-                        return true;
-                      case "deck/set-shortcut":
-                        setKeymap((current) => ({
-                          ...current,
-                          [event.action]: event.hotkey,
-                        }));
-                        return true;
-                      case "deck/set-appearance":
-                        applyColors(event.appearance);
-                        setAppearance(event.appearance);
-                        return true;
-                      default:
-                        return false;
-                    }
+                <MediaMediator
+                  writer={{
+                    replace: async () => ({ event: relayList([]) }) as never,
                   }}
+                  serverList={() => undefined}
                 >
-                  <SettingsDialog
-                    open
-                    signedIn={props.signedIn !== false}
-                    wide={props.wide}
-                    scheme={scheme()}
-                    appearance={appearance()}
-                    writeProgress={writeProgress()}
-                    errorReport={errorReport()}
-                    clientTag={clientTag()}
-                    keymap={keymap()}
-                    columnDigits={columnDigits()}
-                    deckLayout={deckLayout()}
-                    columnStretch={columnStretch()}
-                    defaultReaction={defaultReaction()}
-                    initialPage={props.page}
-                  />
-                </Mediates>
+                  <Mediates
+                    handle={(event) => {
+                      switch (event.type) {
+                        case "deck/set-color-scheme":
+                          setScheme(event.scheme);
+                          return false;
+                        case "deck/preview-appearance":
+                          applyColors(event.appearance);
+                          return true;
+                        case "deck/set-write-progress":
+                          setWriteProgress(event.on);
+                          return true;
+                        case "deck/set-error-report":
+                          setErrorReport(event.on);
+                          return true;
+                        case "deck/set-client-tag":
+                          setClientTag(event.on);
+                          return true;
+                        case "deck/set-column-digits":
+                          setColumnDigits(event.on);
+                          return true;
+                        case "deck/set-column-stretch":
+                          setColumnStretch(event.on);
+                          return true;
+                        case "deck/set-deck-layout":
+                          setDeckLayout(event.layout);
+                          return true;
+                        case "deck/set-default-reaction":
+                          setDefaultReaction(event.input);
+                          return true;
+                        case "deck/set-shortcut":
+                          setKeymap((current) => ({
+                            ...current,
+                            [event.action]: event.hotkey,
+                          }));
+                          return true;
+                        case "deck/set-appearance":
+                          applyColors(event.appearance);
+                          setAppearance(event.appearance);
+                          return true;
+                        default:
+                          return false;
+                      }
+                    }}
+                  >
+                    <SettingsDialog
+                      open
+                      signedIn={props.signedIn !== false}
+                      wide={props.wide}
+                      scheme={scheme()}
+                      appearance={appearance()}
+                      writeProgress={writeProgress()}
+                      errorReport={errorReport()}
+                      clientTag={clientTag()}
+                      keymap={keymap()}
+                      columnDigits={columnDigits()}
+                      deckLayout={deckLayout()}
+                      columnStretch={columnStretch()}
+                      defaultReaction={defaultReaction()}
+                      initialPage={props.page}
+                      initialQuery={props.query}
+                      requestedSetting={props.requestedSetting}
+                    />
+                  </Mediates>
+                </MediaMediator>
               </BlockedRelayMediator>
             </RelayMediator>
           </MuteMediator>
@@ -330,4 +342,36 @@ export const ログインしていない_広い画面: S = { args: { signedIn: f
 
 export const ログインしていない_狭い画面: S = {
   args: { signedIn: false, wide: false },
+};
+
+export const 設定検索_広い画面: S = {
+  args: { query: "カラム" },
+};
+
+export const 設定検索_狭い画面: S = {
+  args: { query: "画像", wide: false },
+};
+
+export const 設定検索_詳しくの項目: S = {
+  args: { query: "ローディング" },
+};
+
+export const 設定検索_プロフィール画像: S = {
+  args: { query: "プロフィール画像" },
+};
+
+export const パレットからカラム幅を開く: S = {
+  args: { requestedSetting: "display.column-width" },
+};
+
+export const 設定検索_長い項目名_狭い画面: S = {
+  args: { query: "Zap", wide: false },
+};
+
+export const 設定検索_該当なし: S = {
+  args: { query: "存在しない設定" },
+};
+
+export const 設定検索_ログインしていない: S = {
+  args: { query: "リレー", signedIn: false },
 };

@@ -54,7 +54,7 @@ export type EmojiSettingsViewProps = {
 const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
     <SettingsSection
-      title="いいねボタンの絵文字"
+      id="reactionEmoji"
       scope="device"
       description="投稿の下のいいねボタンを押したときに送る絵文字です。選ばなければハートを送ります。"
     >
@@ -62,7 +62,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
     </SettingsSection>
 
     <SettingsSection
-      title="自分の絵文字リスト"
+      id="emojiList"
       scope="account"
       description="リアクションのピッカーに出る絵文字の一覧です。誰かが作った絵文字セットを入れることも、絵文字を自分で 1 つずつ足すこともできます。"
     >
@@ -100,7 +100,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
     <Show when={props.search}>
       {(search) => (
         <SettingsSection
-          title="絵文字セットを探す"
+          id="emojiFind"
           description="誰かが作った絵文字セットを見つけて、自分の絵文字リストに加えられます。"
         >
           {search() as never}
@@ -109,7 +109,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
     </Show>
 
     <SettingsSection
-      title="もっと絵文字を管理する"
+      id="emojiManage"
       description="絵文字セットの作成・整理は、専用のクライアントからも可能です。外部クライアントで設定した絵文字はStreetsにも反映されます。"
     >
       <div class="flex">
