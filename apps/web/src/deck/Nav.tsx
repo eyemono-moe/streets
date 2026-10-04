@@ -78,7 +78,7 @@ export const Sidebar: Component<{
   return (
     // 行：投稿・探す／カラムの一覧（＋追加）／（空き）・デッキの編集・フィードバック・
     // 設定・アカウント。一覧の行だけが縮んで送れるようになり、ほかの行は縮まない。
-    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 py-2.5">
+    <nav class="b-r-1 grid w-14 shrink-0 grid-rows-[auto_auto_minmax(0,1fr)_auto_auto_auto_auto] justify-items-center gap-1 border-primary bg-primary px-2 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
       <IconButton
         {...tourTarget("compose")}
         variant="primary"

@@ -2,10 +2,18 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- cover にしないと env(safe-area-inset-*) がいつも 0 になり、ホームバーや横向きのノッチに部品が隠れる -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>Streets | カラム型の Nostr クライアント</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- iOS はホーム画面のアイコンに SVG を使わず、無ければ頭文字を描く。透明な所は黒く塗られるので白で埋めてある -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!--
+      iOS はホーム画面のアイコンに SVG を使わず、無ければ頭文字を描く。透明な所は黒く塗られるので白で埋めてある。
+      iOS が角を丸めるので、マークは 8 割の大きさにして周りを空ける（Android の maskable の切り抜きに収まる大きさと同じ）
+    -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- 無いと、ホーム画面に置くときの名前の候補が title の全文になる -->
     <meta name="apple-mobile-web-app-title" content="Streets" />
@@ -14,7 +22,7 @@
       name="description"
       content="Streets はブラウザで利用できる Nostr クライアントです。タイムラインや通知、検索結果などをカラムにして並べられます。"
     />
-    <!-- bg-primary（白と、ダークでは既定の紫の ui-950）。ほかの色を選んだ人にはわずかにずれる -->
+    <!-- bg-primary（白と、ダークでは既定の紫の ui-950）。JS が動いたら、選んだテーマの色に置き換える（src/theme.ts） -->
     <meta
       name="theme-color"
       content="#ffffff"

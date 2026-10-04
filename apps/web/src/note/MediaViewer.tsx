@@ -212,7 +212,7 @@ const MediaViewer: Component<{
                     circle
                     icon="i-material-symbols:chevron-left-rounded"
                     label="前へ"
-                    class="-translate-y-1/2 absolute top-1/2 left-3 disabled:invisible"
+                    class="-translate-y-1/2 absolute top-1/2 left-3 ml-[env(safe-area-inset-left)] disabled:invisible"
                   />
                 )}
               />
@@ -225,13 +225,13 @@ const MediaViewer: Component<{
                     circle
                     icon="i-material-symbols:chevron-right-rounded"
                     label="次へ"
-                    class="-translate-y-1/2 absolute top-1/2 right-3 disabled:invisible"
+                    class="-translate-y-1/2 absolute top-1/2 right-3 mr-[env(safe-area-inset-right)] disabled:invisible"
                   />
                 )}
               />
             </Show>
           </Carousel.Root>
-          <div class="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-2 p-3">
+          <div class="pointer-events-none safe-margin-x absolute inset-x-0 top-0 mt-[env(safe-area-inset-top)] flex items-center justify-between gap-2 p-3">
             <ArkDialog.CloseTrigger
               asChild={(closeProps) => (
                 <IconButton
@@ -263,7 +263,7 @@ const MediaViewer: Component<{
           </div>
           <Show when={props.origin?.(page())}>
             {(event) => (
-              <div class="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center p-3">
+              <div class="pointer-events-none safe-margin-x absolute inset-x-0 bottom-0 mb-[env(safe-area-inset-bottom)] flex justify-center p-3">
                 <ViewerOrigin event={event()} onOpen={props.onClose} />
               </div>
             )}

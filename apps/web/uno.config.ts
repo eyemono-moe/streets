@@ -250,6 +250,15 @@ export default defineConfig({
       "text-body": "text-[15px]",
       "text-caption": "text-[13px]",
 
+      // ホーム画面から開いたときや横向きで、ノッチやホームバーに隠れる分を空ける。
+      // index.html の viewport に viewport-fit=cover があるときだけ 0 でなくなる。
+      "safe-pad-x":
+        "pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]",
+      "safe-pad":
+        "safe-pad-x pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]",
+      "safe-margin-x":
+        "ml-[env(safe-area-inset-left)] mr-[env(safe-area-inset-right)]",
+
       // text color
       "c-primary": "c-ui-9 dark:c-ui-1",
       "c-secondary": "c-ui-6 dark:c-ui-4",
@@ -359,6 +368,18 @@ export default defineConfig({
         html,
         body {
           overscroll-behavior-y: none;
+        }
+        /*
+          iOS は 16px 未満の欄に焦点が移ると画面を拡大し、打ち終えても戻さない。
+          指で触る端末でだけ欄の文字を 16px にする。欄ごとの text-body などより
+          勝たせるため !important にする。
+        */
+        @media (pointer: coarse) {
+          input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]),
+          textarea,
+          select {
+            font-size: 16px !important;
+          }
         }
         /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
         :root {

@@ -948,7 +948,7 @@ const DeckScreen: Component<{
           <p class="c-secondary p-4 text-caption">デッキを読み込み中…</p>
         </Match>
         <Match when={isMultiColumn()}>
-          <div class="flex h-dvh">
+          <div class="safe-pad-x flex h-dvh">
             <Sidebar
               pubkey={account}
               columns={order.shown()}
@@ -1056,7 +1056,7 @@ const DeckScreen: Component<{
           </div>
         </Match>
         <Match when={true}>
-          <div class="relative flex h-dvh flex-col">
+          <div class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]">
             <ColumnAccentBar
               temporary={ui.panel === undefined && ui.active === TEMP_COLUMN_ID}
             />
