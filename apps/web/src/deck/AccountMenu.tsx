@@ -109,6 +109,22 @@ const AccountMenu: Component<{
               設定
             </Menu.Item>
             <Menu.Item
+              value="help"
+              asChild={(item) => (
+                <a
+                  {...item()}
+                  href="/help"
+                  class={`${menuItemClass} whitespace-nowrap`}
+                >
+                  <span
+                    class="i-material-symbols:help-outline-rounded c-secondary size-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  使い方を探す
+                </a>
+              )}
+            />
+            <Menu.Item
               value="about"
               class={`${menuItemClass} whitespace-nowrap`}
             >

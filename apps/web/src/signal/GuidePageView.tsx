@@ -5,9 +5,27 @@ import { type Component, For, Show } from "solid-js";
 const GuidePageView: Component<{ guide?: Guide }> = (props) => (
   <main class="h-dvh overflow-y-auto bg-primary px-5 py-8 text-body">
     <div class="mx-auto flex max-w-2xl flex-col gap-6">
-      <a href="/" class="c-accent-5 w-fit text-caption hover:underline">
-        ← Streets に戻る
-      </a>
+      <nav
+        class="flex flex-wrap gap-x-3 gap-y-1 text-caption"
+        aria-label="案内"
+      >
+        <a href="/" class="c-accent-5 hover:underline">
+          Streets に戻る
+        </a>
+        <a href="/help" class="c-accent-5 hover:underline">
+          使い方を探す
+        </a>
+        <Show when={props.guide}>
+          {(guide) => (
+            <a
+              href={`/help/${guide().category}`}
+              class="c-accent-5 hover:underline"
+            >
+              このカテゴリに戻る
+            </a>
+          )}
+        </Show>
+      </nav>
       <Show
         when={props.guide}
         fallback={

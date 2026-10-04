@@ -1,6 +1,37 @@
+/** 公開 URL を持つ Guide の枝。並び順は手動で辿る画面の順番。 */
+export const GUIDE_CATEGORIES = [
+  {
+    id: "login",
+    path: "/help/login",
+    title: "ログイン",
+    description: "アカウントを使い始める",
+  },
+  {
+    id: "column",
+    path: "/help/column",
+    title: "カラム",
+    description: "見る内容を増やす",
+  },
+  {
+    id: "post",
+    path: "/help/post",
+    title: "投稿",
+    description: "文章を送る",
+  },
+  {
+    id: "relay",
+    path: "/help/relay",
+    title: "読み込みとリレー",
+    description: "投稿が表示されないとき",
+  },
+] as const;
+
+type GuideCategoryId = (typeof GUIDE_CATEGORIES)[number]["id"];
+
 /** Signal の公開 URL と分類対象。ID と path は外部から参照されるため変更しない。 */
 export type Guide = {
   id: string;
+  category: GuideCategoryId;
   path: `/help/${string}`;
   title: string;
   description: string;
@@ -10,6 +41,7 @@ export type Guide = {
 export const GUIDES = [
   {
     id: "login.browser-extension",
+    category: "login",
     path: "/help/login/browser-extension",
     title: "拡張機能でログインする",
     description: "パソコンのブラウザ拡張機能を使って Streets にログインする",
@@ -20,6 +52,7 @@ export const GUIDES = [
   },
   {
     id: "login.remote-signer",
+    category: "login",
     path: "/help/login/remote-signer",
     title: "リモート署名器でログインする",
     description: "Amber や Primal などの署名器を使って Streets にログインする",
@@ -30,6 +63,7 @@ export const GUIDES = [
   },
   {
     id: "column.add",
+    category: "column",
     path: "/help/column/add",
     title: "カラムを追加する",
     description: "デッキに新しいカラムを追加して見る内容を選ぶ",
@@ -40,6 +74,7 @@ export const GUIDES = [
   },
   {
     id: "post.create",
+    category: "post",
     path: "/help/post/create",
     title: "投稿する",
     description: "新しい投稿を書いて送る",
@@ -50,6 +85,7 @@ export const GUIDES = [
   },
   {
     id: "relay.troubleshooting",
+    category: "relay",
     path: "/help/relay/troubleshooting",
     title: "投稿が表示されないとき",
     description: "投稿が流れてこないときにリレーの接続を確認する",
@@ -65,3 +101,9 @@ export const guideByPath = (path: string): Guide | undefined =>
 
 export const guideById = (id: string): Guide | undefined =>
   GUIDES.find((guide) => guide.id === id);
+
+export const guideCategoryByPath = (path: string) =>
+  GUIDE_CATEGORIES.find((category) => category.path === path);
+
+export const guidesInCategory = (category: GuideCategoryId): Guide[] =>
+  GUIDES.filter((guide) => guide.category === category);
