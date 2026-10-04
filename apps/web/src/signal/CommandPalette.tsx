@@ -118,7 +118,10 @@ const CommandPalette: Component<{
                   : undefined
               }
               onKeyDown={(event) => {
-                if (event.isComposing || event.keyCode === 229) return;
+                if (event.isComposing || event.keyCode === 229) {
+                  if (event.key === "Escape") event.stopPropagation();
+                  return;
+                }
                 if (event.key === "ArrowDown") {
                   event.preventDefault();
                   setSelected((current) =>
