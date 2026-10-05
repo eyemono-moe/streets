@@ -6,8 +6,9 @@ import { columnShow } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
-import { type Component, Match, Switch } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
+import NewerLoader from "../../deck/NewerLoader";
 import OlderLoader from "../../deck/OlderLoader";
 import Event from "../../note/Event";
 import { useMutes } from "../../settings/MuteMediator";
@@ -24,11 +25,14 @@ const EventList: Component<{
   /** 1 件ずつ見て、出さないものを落とす。 */
   filter?: (event: NostrEvent) => boolean;
   name?: string;
+  /** source の `until` より新しい方へも取り足す。 */
+  pagesNewer?: boolean;
 }> = (props) => {
   const scope = useColumnScope();
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
+    pagesNewer: props.pagesNewer,
     name: props.name,
   });
   const mutes = useMutes();
@@ -56,10 +60,16 @@ const EventList: Component<{
   return (
     <Switch>
       <Match when={items().length > 0}>
+        <Show when={section.newerPaging()}>
+          {(paging) => (
+            <NewerLoader paging={paging()} onReach={section.loadNewer} />
+          )}
+        </Show>
         <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
           <VirtualList
             items={items()}
             itemKey={(event) => event.id}
+            followsStart={!props.pagesNewer}
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(event) => (

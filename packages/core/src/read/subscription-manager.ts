@@ -83,11 +83,15 @@ export type SectionHandle = {
    */
   readonly initialPlan: SectionPlan;
   /**
-   * 今開いているリレーそれぞれへ、今の filters に `until`・`limit` を付けて
-   * 一度だけ取りに行き、取れたものをこのセクションへ配る（古い投稿の取り足し）。
+   * 今開いているリレーそれぞれへ、今の filters に `since`・`until`・`limit` を付けて
+   * 一度だけ取りに行き、取れたものをこのセクションへ配る（古い・新しい投稿の取り足し）。
    * リレーごとの返事を返す。全リレーが片付くかタイムアウトで解決する。
    */
-  fetchOlder(page: { until: number; limit: number }): Promise<OlderPage>;
+  fetchPage(page: {
+    since?: number;
+    until: number;
+    limit: number;
+  }): Promise<OlderPage>;
   close(): void;
 };
 
@@ -423,20 +427,20 @@ export class SubscriptionManager {
     );
     return {
       initialPlan,
-      fetchOlder: (page) => this.#fetchOlder(entry, page),
+      fetchPage: (page) => this.#fetchPage(entry, page),
       close: () => this.#close(entry),
     };
   }
 
   /**
    * `subscribe` と同じように張るが、届いたイベントを EventStore に入れず、
-   * 署名を確かめた本体をそのまま渡す。古いものの取り足し（`fetchOlder`）は無い。
+   * 署名を確かめた本体をそのまま渡す。古いものの取り足し（`fetchPage`）は無い。
    */
   subscribeUnstored(
     filters: RelayFilter[],
     relays: RelayUrl[] | undefined,
     delivery: UnstoredDelivery,
-  ): Omit<SectionHandle, "fetchOlder"> {
+  ): Omit<SectionHandle, "fetchPage"> {
     const { entry, initialPlan } = this.#register(
       filters,
       relays,
@@ -1000,9 +1004,9 @@ export class SubscriptionManager {
    * リレーごとに違う filters（担当著者）をそのまま使う。全リレーへ同じ filters を
    * 投げると、ルーティングで分けた著者を全リレーへ問い合わせることになる。
    */
-  async #fetchOlder(
+  async #fetchPage(
     entry: SectionEntry,
-    page: { until: number; limit: number },
+    page: { since?: number; until: number; limit: number },
   ): Promise<OlderPage> {
     if (entry.closed) return { relays: [] };
     const relays = await Promise.all(
@@ -1013,6 +1017,7 @@ export class SubscriptionManager {
           [url],
           open.filters.map((filter) => ({
             ...filter,
+            ...(page.since === undefined ? {} : { since: page.since }),
             until: page.until,
             limit: page.limit,
           })),

@@ -56,7 +56,11 @@ const StatefulRow = (props: { text: string }) => {
   );
 };
 
-const RealtimeExample = (props: { profile?: boolean; stateful?: boolean }) => {
+const RealtimeExample = (props: {
+  profile?: boolean;
+  stateful?: boolean;
+  followsStart?: boolean;
+}) => {
   const [liveItems, setLiveItems] = createSignal(items.slice(0, 30));
   let next = 30;
   return (
@@ -89,7 +93,11 @@ const RealtimeExample = (props: { profile?: boolean; stateful?: boolean }) => {
             </span>
           </div>
         </Show>
-        <VirtualList items={liveItems()} itemKey={(item) => item.id}>
+        <VirtualList
+          items={liveItems()}
+          itemKey={(item) => item.id}
+          followsStart={props.followsStart}
+        >
           {(item) => (
             <Show
               when={props.stateful}
@@ -106,6 +114,15 @@ const RealtimeExample = (props: { profile?: boolean; stateful?: boolean }) => {
 
 export const リアルタイム追加: Story = {
   render: () => <RealtimeExample profile={false} />,
+  decorators: [],
+};
+
+/**
+ * 過去から新しい方へ読み進める一覧（タイムスリップ）。一番上にいても、先頭に足された
+ * 束へ飛ばず、読んでいた行に留まる。
+ */
+export const 先頭に足しても読んでいる行に留まる: Story = {
+  render: () => <RealtimeExample followsStart={false} />,
   decorators: [],
 };
 

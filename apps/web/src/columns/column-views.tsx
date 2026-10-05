@@ -377,6 +377,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
               },
             )
           }
+          pagesNewer
         />
       );
     },
