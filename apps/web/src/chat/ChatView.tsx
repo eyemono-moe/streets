@@ -1,3 +1,4 @@
+import { Presence } from "@ark-ui/solid/presence";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
 import type { Paging } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -9,6 +10,7 @@ import {
   Show,
   Switch,
   createEffect,
+  createMemo,
   createSignal,
   on,
   onCleanup,
@@ -131,6 +133,10 @@ const ChatView: Component<{
 
   /** 一番下へ送っている途中。途中で発言が届いても、位置を保たずに下まで送り切る。 */
   let returning = false;
+  const lastUnseen = createMemo<number>(
+    (previous) => (unseen() > 0 ? unseen() : previous),
+    0,
+  );
   const toBottom = () => {
     returning = true;
     scroller?.scrollTo({ top: 0, behavior: "smooth" });
@@ -275,18 +281,22 @@ const ChatView: Component<{
             </Switch>
           </div>
         </div>
-        <Show when={unseen() > 0}>
-          <div class="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
-            <Button
-              variant="primary"
-              size="sm"
-              class="motion-pop pointer-events-auto shadow-sm"
-              onClick={toBottom}
-            >
-              新しい発言 {unseen()} 件
-            </Button>
-          </div>
-        </Show>
+        <Presence
+          lazyMount
+          unmountOnExit
+          present={unseen() > 0}
+          class="motion-pop pointer-events-none absolute inset-x-0 bottom-2 flex justify-center"
+        >
+          <Button
+            variant="primary"
+            size="sm"
+            class="pointer-events-auto shadow-sm"
+            onClick={toBottom}
+          >
+            {/* 消えていく間に 0 件と出さない。 */}
+            新しい発言 {lastUnseen()} 件
+          </Button>
+        </Presence>
       </div>
       {props.composer}
     </div>

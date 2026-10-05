@@ -3,7 +3,6 @@ import {
   ErrorBoundary,
   For,
   type ParentComponent,
-  Show,
   createMemo,
   createSignal,
 } from "solid-js";
@@ -111,18 +110,7 @@ const ColumnBody: ParentComponent<{
             </NewerItemsProvider>
           </ScrollContainerProvider>
         </div>
-        <Show when={newer()}>
-          {(notice) => (
-            <div class="pointer-events-none absolute inset-x-0 top-2 flex justify-center px-3">
-              <NewerNotice
-                count={notice().count}
-                noun={notice().noun}
-                authors={notice().authors}
-                onClick={scrollToTop}
-              />
-            </div>
-          )}
-        </Show>
+        <NewerNotice newer={newer()} onClick={scrollToTop} />
       </div>
     </>
   );

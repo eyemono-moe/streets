@@ -202,16 +202,14 @@ const HoldExample = () => {
           </VirtualList>
         </NewerItemsProvider>
       </div>
-      <Show when={newer() > 0}>
-        <div class="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
-          <NewerNotice
-            count={newer()}
-            noun="投稿"
-            authors={[]}
-            onClick={() => scroller?.scrollTo({ top: 0 })}
-          />
-        </div>
-      </Show>
+      <NewerNotice
+        newer={
+          newer() > 0
+            ? { count: newer(), noun: "投稿", authors: [] }
+            : undefined
+        }
+        onClick={() => scroller?.scrollTo({ top: 0 })}
+      />
     </div>
   );
 };

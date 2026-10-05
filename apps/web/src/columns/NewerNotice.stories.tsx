@@ -1,4 +1,4 @@
-import type { Component } from "solid-js";
+import { type Component, createSignal, onCleanup } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
@@ -20,25 +20,26 @@ type Props = {
   authors: string[];
   /** カラムの幅（px）。 */
   width: number;
+  /** 溜まっているか。切り替えると、札が出入りする動きを見られる。 */
+  shown: boolean;
 };
 
 const NoticeStory: Component<Props> = (props) => (
   <EventSceneProvider
     scene={{ events: authors.map((author) => author.profile()) }}
   >
-    {/* カラムの見出しのすぐ下に浮かべたときと同じ置き方。 */}
     <div
       class="relative h-40 border border-primary bg-primary"
       style={{ width: `${props.width}px` }}
     >
-      <div class="pointer-events-none absolute inset-x-0 top-2 flex justify-center px-3">
-        <NewerNotice
-          count={props.count}
-          noun={props.noun}
-          authors={props.authors}
-          onClick={() => {}}
-        />
-      </div>
+      <NewerNotice
+        newer={
+          props.shown
+            ? { count: props.count, noun: props.noun, authors: props.authors }
+            : undefined
+        }
+        onClick={() => {}}
+      />
     </div>
   </EventSceneProvider>
 );
@@ -51,6 +52,7 @@ const meta = {
     noun: "投稿",
     authors: authors.map((author) => author.pubkey),
     width: 360,
+    shown: true,
   },
   argTypes: { authors: { control: false } },
 } satisfies Meta<typeof NoticeStory>;
@@ -88,3 +90,21 @@ export const 通知: Story = {
 export const 狭いカラム: Story = {
   args: { count: 340, width: 280 },
 };
+
+/** 2 秒ごとに出たり消えたりする。 */
+const Toggling: Component = () => {
+  const [shown, setShown] = createSignal(true);
+  const timer = setInterval(() => setShown((value) => !value), 2000);
+  onCleanup(() => clearInterval(timer));
+  return (
+    <NoticeStory
+      count={5}
+      noun="投稿"
+      authors={authors.map((author) => author.pubkey)}
+      width={360}
+      shown={shown()}
+    />
+  );
+};
+
+export const 出入りの動き: Story = { render: () => <Toggling /> };
