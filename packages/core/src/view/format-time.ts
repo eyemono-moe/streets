@@ -48,3 +48,21 @@ export const formatEventTimeFull = (date: Date): string =>
     hour: "2-digit",
     minute: "2-digit",
   });
+
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+/** 秒を `<input type="datetime-local">` の値（端末の時刻、分まで）にする。 */
+export const toDateTimeLocal = (seconds: number): string => {
+  const date = new Date(seconds * 1000);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+/**
+ * `<input type="datetime-local">` の値を秒にする。分までしか選べないので、その分の
+ * 終わり（59 秒）にする —— 12:34 を選んだ人は 12:34 台の投稿も見たい。読めなければ無い。
+ */
+export const fromDateTimeLocal = (value: string): number | undefined => {
+  const time = new Date(value).getTime();
+  if (value === "" || Number.isNaN(time)) return undefined;
+  return Math.floor(time / 60_000) * 60 + 59;
+};

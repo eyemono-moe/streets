@@ -55,6 +55,9 @@ export const リレー設定なし: Story = {
   args: { relayList: { phase: "missing" } },
 };
 
+/** タイムスリップは、足す前にさかのぼり始める日時を選ぶ。最初は 1 日前。 */
+export const 日時を選ぶ: Story = { args: { initialPicker: "timeslip" } };
+
 /**
  * チャンネルを選ぶところ。一覧は読み取り層に繋がるのでここには出さない。
  * 一覧の見た目は「チャット/チャンネルの一覧」で見る。

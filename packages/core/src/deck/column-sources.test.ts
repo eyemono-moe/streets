@@ -69,6 +69,17 @@ describe("followeesSource", () => {
     });
   });
 
+  it("until を渡したときだけ、その時点より前に絞る", () => {
+    // 捕まえる変異: `until: undefined` のキーを生やす / until を落とす
+    expect(
+      Object.keys(followeesSource([1], ["a"], VIEWER).filters[0]),
+    ).not.toContain("until");
+    expect(
+      followeesSource([1], ["a"], VIEWER, { until: 1_700_000_000 }).filters[0]
+        .until,
+    ).toBe(1_700_000_000);
+  });
+
   it("自分をフォローしていなくても自分を含め、重ねない", () => {
     // 捕まえる変異: フォロー一覧だけを authors にする (自分の投稿がホームに
     // 出ない) / 自己フォローのとき自分を 2 回入れる

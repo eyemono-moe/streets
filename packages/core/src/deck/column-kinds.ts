@@ -78,6 +78,12 @@ export const columnSourceSchema = v.variant("kind", [
     query: v.pipe(v.string(), v.minLength(1)),
   }),
   v.object({ kind: v.literal("followees"), kinds: v.array(v.number()) }),
+  /** ホームを、ある時点（`until`、秒）から過去へさかのぼって読む。 */
+  v.object({
+    kind: v.literal("timeslip"),
+    kinds: v.array(v.number()),
+    until: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  }),
   /** フォロー中の人のリアクション・リポスト（TweetDeck のアクティビティ）。 */
   v.object({ kind: v.literal("followees-activity") }),
   v.object({ kind: v.literal("notifications") }),
@@ -295,6 +301,14 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   followees: {
     title: () => ({ text: "ホーム" }),
     // チャンネルでの発言は保存した kinds に無く、「表示するもの」で入れたときに取る。
+    kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
+    hidesMuted: true,
+    togglesChats: true,
+    alerts: (_, input) => directReadUnreachable(input),
+    needsAccount: true,
+  },
+  timeslip: {
+    title: () => ({ text: "タイムスリップ" }),
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
     togglesChats: true,

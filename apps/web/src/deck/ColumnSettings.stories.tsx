@@ -84,6 +84,21 @@ export const 検索カラム: Story = {
   },
 };
 
+/** タイムスリップは、さかのぼり始める日時を後から変えられる。 */
+export const タイムスリップ: Story = {
+  args: {
+    initial: {
+      id: "t",
+      title: "タイムスリップ",
+      source: {
+        kind: "timeslip",
+        kinds: [1, 6],
+        until: Math.floor(new Date(2026, 9, 1, 12, 34, 59).getTime() / 1000),
+      },
+    },
+  },
+};
+
 export const リレーカラム: Story = {
   args: {
     initial: {

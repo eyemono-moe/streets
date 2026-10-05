@@ -99,6 +99,13 @@ export const buildArticleColumn = (
   },
 });
 
+/** ホームを `until`（秒）の時点からさかのぼって読むカラム。 */
+export const buildTimeslipColumn = (until: number): ColumnDef => ({
+  id: crypto.randomUUID(),
+  title: "タイムスリップ",
+  source: { kind: "timeslip", kinds: [...TIMELINE_KINDS], until },
+});
+
 export const buildActivityColumn = (target: string): ColumnDef => ({
   id: `activity:${target}`,
   title: "アクティビティ",

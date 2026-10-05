@@ -1,4 +1,5 @@
 import { Menu } from "@ark-ui/solid/menu";
+import { buildTimeslipColumn } from "@streets/core/deck/column-presets";
 import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { buildRepost } from "@streets/core/nostr/build/repost";
@@ -62,6 +63,13 @@ const AUTHOR_RELAYS: MenuItem = {
   value: "author-relays",
   label: "リレー設定",
   icon: "i-material-symbols:hub-outline",
+};
+
+/** フォロー中の人の投稿をさかのぼるので、ログインしている間だけ出す。 */
+const TIMESLIP: MenuItem = {
+  value: "timeslip",
+  label: "この時点へタイムスリップ",
+  icon: "i-material-symbols:history-rounded",
 };
 
 const Items: Component<{ items: MenuItem[] }> = (props) => (
@@ -370,6 +378,12 @@ const EventMenu: Component<{
             case "mute-author":
               toggleAuthorMute();
               break;
+            case "timeslip":
+              dispatch({
+                type: "deck/add-column",
+                column: buildTimeslipColumn(props.event.created_at),
+              });
+              break;
           }
         }}
       >
@@ -411,6 +425,9 @@ const EventMenu: Component<{
                       ]}
                     />
                   )}
+                </Show>
+                <Show when={actions}>
+                  <Items items={[TIMESLIP]} />
                 </Show>
               </Menu.ItemGroup>
               <Menu.Separator class={menuSeparatorClass} />

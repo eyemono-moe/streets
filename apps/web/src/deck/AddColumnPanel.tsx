@@ -2,6 +2,7 @@ import {
   buildColumn,
   buildFollowSetsColumn,
   buildRelayColumn,
+  buildTimeslipColumn,
 } from "@streets/core/deck/column-presets";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { type ColumnPicker, isColumnPicker } from "@streets/core/deck/deck-ui";
@@ -31,6 +32,7 @@ import {
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import Completion from "../ui/Completion";
+import DateTimeInput from "../ui/DateTimeInput";
 import IconButton from "../ui/IconButton";
 import { textInputClass } from "../ui/TextField";
 import { COLUMN_ADD_PRESETS } from "./column-add-presets";
@@ -305,6 +307,53 @@ const UserPicker: Component<{
   );
 };
 
+const DAY_SECONDS = 24 * 60 * 60;
+
+/** さかのぼる日時を選ぶ。最初は 1 日前にしておく。 */
+const TimeslipPicker: Component<{ onBack: () => void }> = (props) => {
+  const dispatch = useDispatch();
+  const now = Math.floor(Date.now() / 1000);
+  const [until, setUntil] = createSignal(now - DAY_SECONDS);
+  return (
+    <section class="motion-fade flex animate-in flex-col gap-3">
+      <div class="flex items-center gap-1">
+        <IconButton
+          icon="i-material-symbols:arrow-back-rounded"
+          label="カラムの種類へ戻る"
+          onClick={() => props.onBack()}
+        />
+        <div>
+          <h3 class="c-primary font-600 text-body">日時を選ぶ</h3>
+          <p class="c-secondary mt-0.5 text-caption">
+            フォロー中の人の投稿を、選んだ日時から過去へさかのぼって表示します。
+          </p>
+        </div>
+      </div>
+      <form
+        class="flex flex-col gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          dispatch({
+            type: "deck/add-column",
+            column: buildTimeslipColumn(until()),
+          });
+        }}
+      >
+        <DateTimeInput
+          label="さかのぼり始める日時"
+          value={until()}
+          max={now}
+          autofocus
+          onChange={setUntil}
+        />
+        <Button type="submit" variant="primary" shape="rounded" block>
+          タイムスリップカラムを追加
+        </Button>
+      </form>
+    </section>
+  );
+};
+
 const FOLLOW_SET_PICKER_COLUMN: ColumnDef = {
   id: "add-column/follow-sets",
   title: "リスト",
@@ -390,6 +439,9 @@ const AddColumnPanel: Component<{
         </Match>
         <Match when={picker() === "user"}>
           <UserPicker searchRelays={props.searchRelays} onBack={back} />
+        </Match>
+        <Match when={picker() === "timeslip"}>
+          <TimeslipPicker onBack={back} />
         </Match>
         <Match when={picker() === "relay"}>
           <section class="motion-fade flex animate-in flex-col gap-3">

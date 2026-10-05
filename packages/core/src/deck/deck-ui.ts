@@ -12,6 +12,7 @@ export const COLUMN_PICKERS = [
   "channels",
   "follow-sets",
   "user",
+  "timeslip",
 ] as const;
 export type ColumnPicker = (typeof COLUMN_PICKERS)[number];
 

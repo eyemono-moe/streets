@@ -35,6 +35,7 @@ import {
 } from "@streets/core/search/query";
 import { relayLabel } from "@streets/core/settings/relay-edit";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
+import { formatEventTimeFull } from "@streets/core/view/format-time";
 import { type Component, Show, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
@@ -47,6 +48,7 @@ import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
 import { useDispatch } from "../ui-events";
 import ColumnTabs from "../ui/ColumnTabs";
+import DateTimeInput from "../ui/DateTimeInput";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import WelcomeColumn from "../welcome/WelcomeColumn";
@@ -352,6 +354,43 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
             )
           }
         />
+      );
+    },
+  },
+  timeslip: {
+    meta: (source) => ({
+      icon: "i-material-symbols:history-rounded",
+      subtitle: `${formatEventTimeFull(new Date(source.until * 1000))} から過去へ`,
+    }),
+    Content: (props) => {
+      const scope = useColumnScope();
+      return (
+        <EventList
+          source={() =>
+            followeesSource(
+              props.source.kinds,
+              props.inputs.followees(),
+              props.inputs.viewer,
+              {
+                chats: columnShow(scope.column()).chats,
+                until: props.source.until,
+              },
+            )
+          }
+        />
+      );
+    },
+    Settings: (props) => {
+      const patch = usePatch(() => props.column);
+      return (
+        <SettingField label="この日時から過去へさかのぼる">
+          <DateTimeInput
+            label="さかのぼり始める日時"
+            value={props.source.until}
+            max={Math.floor(Date.now() / 1000)}
+            onChange={(until) => patch({ source: { ...props.source, until } })}
+          />
+        </SettingField>
       );
     },
   },

@@ -63,7 +63,7 @@ export const followeesSource = (
    * チャンネルでの発言（kind:42）も取る。ほかの「表示するもの」と違い、切っている
    * ときは取らない —— 発言の多い人がいると、描かない発言でページが埋まる。
    */
-  options: { chats?: boolean } = {},
+  options: { chats?: boolean; until?: number } = {},
 ): NostrSource => ({
   type: "nostr",
   filters: [
@@ -75,6 +75,7 @@ export const followeesSource = (
         ]),
       ],
       authors: [...new Set([...followees, viewer])],
+      ...(options.until === undefined ? {} : { until: options.until }),
     },
   ],
 });

@@ -34,6 +34,13 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     keywords: ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"],
   },
   {
+    kind: "timeslip",
+    label: "タイムスリップ",
+    description: "選んだ日時からさかのぼるホーム",
+    icon: "i-material-symbols:history-rounded",
+    keywords: ["過去", "さかのぼる", "日時", "until"],
+  },
+  {
     kind: "relay",
     label: "リレー",
     description: "選んだリレーの公開ノート",
