@@ -8,7 +8,8 @@ import { chatModeration } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Paging } from "@streets/core/read/source";
 import { chatRows } from "@streets/core/view/chat";
-import { createSignal } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ComposeMediator } from "../note/ComposeMediator";
 import avatarUrl from "../storybook/avatar-fixture.svg";
@@ -125,10 +126,11 @@ type Props = {
   replyTo?: NostrEvent;
   channelName?: string;
   /**
-   * `many` は 600 件を並べる。`older` は上へ遡るたびに古い発言を足す。どちらも
-   * rows・paging を使わない。署名に時間がかかるので、そのストーリーを開いたときだけ作る。
+   * `many` は 600 件を並べる。`older` は上へ遡るたびに古い発言を足す。`live` は
+   * 2 秒ごとに新しい発言が届く。どれも rows・paging を使わない。署名に時間が
+   * かかるので、そのストーリーを開いたときだけ作る。
    */
-  scenario?: "many" | "older";
+  scenario?: "many" | "older" | "live";
 };
 
 /** 取り足しを模す。上端が見えたら少し待ってから、1 ページぶん古い発言を足す。 */
@@ -151,6 +153,23 @@ const createOlderFeed = () => {
     }, 400);
   };
   return { rows, paging, loadOlder };
+};
+
+/**
+ * 2 秒ごとに 1 件ずつ、新しい発言が届く。カラムと同じく行を key で突き合わせて
+ * 当てる。作り直すと、開いたメニューが届くたびに消える。
+ */
+const createLiveFeed = () => {
+  const all = chatter(0, 120);
+  let shown = 20;
+  const rows = () => chatRows(all.slice(0, shown), moderation, viewer.pubkey);
+  const [state, setState] = createStore({ rows: rows() });
+  const timer = setInterval(() => {
+    shown = Math.min(all.length, shown + 1);
+    setState("rows", reconcile(rows(), { key: "key" }));
+  }, 2000);
+  onCleanup(() => clearInterval(timer));
+  return () => state.rows;
 };
 
 const meta = {
@@ -182,13 +201,15 @@ const meta = {
           {(state) => {
             const feed =
               props.scenario === "older" ? createOlderFeed() : undefined;
+            const live =
+              props.scenario === "live" ? createLiveFeed() : undefined;
             const many =
               props.scenario === "many"
                 ? chatRows(chatter(0, 600), moderation, viewer.pubkey)
                 : undefined;
             return (
               <ChatView
-                rows={feed ? feed.rows() : (many ?? props.rows)}
+                rows={feed ? feed.rows() : live ? live() : (many ?? props.rows)}
                 relays={["wss://relay.example/"]}
                 expandMedia
                 paging={feed ? feed.paging() : props.paging}
@@ -250,6 +271,12 @@ export const 狭いカラム: Story = {
 export const 発言が多い: Story = { args: { scenario: "many" } };
 /** 上へ遡ると 50 件ずつ足す。足しても読んでいる位置は動かず、500 件を超えても遡れる。 */
 export const 遡って読む: Story = { args: { scenario: "older" } };
+
+/**
+ * 一番下で発言のメニューを開いたまま待つ。メニューの発言は動かず、
+ * 「新しい発言 N 件」が出る。
+ */
+export const 発言が届き続ける: Story = { args: { scenario: "live" } };
 /** 閲覧注意の発言は、押すまで本文と画像を出さない。返信の 1 行にも本文を出さない。 */
 export const 閲覧注意の発言: Story = {
   args: { rows: chatRows(warnedMessages, moderation, viewer.pubkey) },

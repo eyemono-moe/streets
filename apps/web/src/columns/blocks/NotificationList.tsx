@@ -8,6 +8,7 @@ import {
   type NotificationRow,
   actionTarget,
   notificationRows,
+  rowAuthor,
 } from "@streets/core/view/notification-rows";
 import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
 import {
@@ -90,6 +91,7 @@ const NotificationList: Component<{
           <VirtualList
             items={rows.list}
             itemKey={(row) => row.key}
+            newer={{ noun: "通知", authorOf: rowAuthor }}
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(row) => (

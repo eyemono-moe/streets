@@ -5,6 +5,7 @@ import {
   groupActors,
   groupReactionContents,
   notificationRows,
+  rowAuthor,
 } from "./notification-rows";
 
 const hex = (seed: string) => seed.repeat(64).slice(0, 64);
@@ -197,5 +198,27 @@ describe("groupReactionContents", () => {
       { type: "text", content: "🥰" },
       { type: "like" },
     ]);
+  });
+});
+
+describe("rowAuthor", () => {
+  it("まとまりは、いちばん新しい操作をした人", () => {
+    const rows = notificationRows(
+      [reaction("2", noteA), reaction("1", noteA)],
+      true,
+    );
+    expect(rows.map(rowAuthor)).toEqual([hex("2")]);
+  });
+
+  // 送った人の読み取りは zapSender のテストで確かめる。ここでは、読めないときに
+  // レシートの作者（ウォレットのサーバー）へ落ちないことを見る。
+  it("Zap は、レシートを出したサーバーを人として出さない", () => {
+    const receipt = event(9735, "9", [
+      ["p", hex("f")],
+      ["description", "{}"],
+    ]);
+    expect(
+      rowAuthor({ type: "event", key: receipt.id, event: receipt }),
+    ).toBeUndefined();
   });
 });

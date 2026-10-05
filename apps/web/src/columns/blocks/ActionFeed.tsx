@@ -7,6 +7,7 @@ import {
   type NotificationRow,
   actionRowsByTarget,
   actionTarget,
+  rowAuthor,
 } from "@streets/core/view/notification-rows";
 import {
   type Component,
@@ -105,6 +106,7 @@ export const ActionFeedView: Component<{
         <VirtualList
           items={props.rows}
           itemKey={(row) => row.key}
+          newer={{ noun: "反応", authorOf: rowAuthor }}
           class="[&>*]:border-primary [&>*]:border-b"
         >
           {(row) => (
