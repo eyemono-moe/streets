@@ -2,8 +2,8 @@ import type { OlderPage } from "./older-page";
 
 /**
  * 新しい投稿の取り足し：`waiting` は最初のページを待っている、`idle` は取れる、
- * `loading` は取っている、`caught-up` は今に追いついた、`failed` は返事をしないリレーが
- * あって、その区間を取り切れたか分からない（もう一度取れる）。
+ * `loading` は取っている、`caught-up` は今に追いついた、`failed` はどのリレーも返事を
+ * しなかった（もう一度取れる）。
  */
 export type NewerPaging =
   | "waiting"
@@ -49,16 +49,18 @@ export const estimateWindow = (
  *
  * リレーは窓の中を新しい順に `limit` 件まで返すので、`limit` いっぱいに返したリレーは
  * 窓の古い側を返していないかもしれない。そこを飛ばして新しい側を入れると、読み進める
- * ちょうどその場所に穴が開く。どのリレーも `limit` 未満で EOSE を返したときだけ窓を
- * 取り切ったとみなし、そうでなければ上限は動かさず、窓を狭めて取り直す。
+ * ちょうどその場所に穴が開く。`limit` いっぱいに返したリレーが無いときだけ窓を
+ * 取り切ったとみなし、あれば上限は動かさず、窓を狭めて取り直す。返事をしない
+ * （時間切れ・CLOSED の）リレーは飛ばすが、1 本も EOSE を返さなければ失敗にする。
  */
 export const nextNewer = (
   page: OlderPage,
   request: NewerRequest,
 ): NextNewer => {
   const { relays } = page;
-  if (relays.length === 0) return { paging: "failed" };
-  if (relays.some((relay) => relay.reason !== "eose")) {
+  // 返事をしないリレーは飛ばして進む（古い方への取り足しと同じ扱い）。Outbox で
+  // 何本にも送ると 1 本くらいは返事をせず、待つと進めなくなる。
+  if (!relays.some((relay) => relay.reason === "eose")) {
     return { paging: "failed" };
   }
   const width = request.until - request.since;

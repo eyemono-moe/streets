@@ -20,7 +20,7 @@ type Story = StoryObj<typeof meta>;
 export const 取り足せる: Story = {};
 export const 読み込み中: Story = { args: { paging: "loading" } };
 export const 追いついた: Story = { args: { paging: "caught-up" } };
-/** 返事をしないリレーがあって、その区間を取り切れたか分からない。 */
+/** どのリレーも返事をしなかった。 */
 export const 読み込めなかった: Story = { args: { paging: "failed" } };
 export const 狭いカラムで読み込めなかった: Story = {
   args: { paging: "failed" },

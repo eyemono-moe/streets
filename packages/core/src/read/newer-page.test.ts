@@ -63,10 +63,27 @@ describe("nextNewer", () => {
     ).toMatchObject({ paging: "idle", ceiling: 1000 });
   });
 
-  it("返事をしないリレーがあれば失敗にする", () => {
-    // 捕まえる変異: 時間切れを取り切ったとみなす（そのリレーの区間を飛ばす）
+  it("返事をしないリレーは飛ばして進む", () => {
+    // 捕まえる変異: 1 本でも時間切れなら失敗にする（Outbox で何本にも送るホームが進めない）
     const page = {
-      relays: [relay("wss://a/", "eose", 0), relay("wss://b/", "timeout", 0)],
+      relays: [relay("wss://a/", "eose", 2), relay("wss://b/", "timeout", 0)],
+    };
+    expect(nextNewer(page, request)).toMatchObject({
+      paging: "idle",
+      ceiling: 1400,
+    });
+  });
+
+  it("返事をしなかったリレーでも、limit いっぱいに届いていれば窓を狭める", () => {
+    const page = {
+      relays: [relay("wss://a/", "eose", 0), relay("wss://b/", "timeout", 3)],
+    };
+    expect(nextNewer(page, request)).toMatchObject({ ceiling: 1000 });
+  });
+
+  it("どのリレーも返事をしなければ失敗にする", () => {
+    const page = {
+      relays: [relay("wss://a/", "timeout", 0), relay("wss://b/", "closed", 0)],
     };
     expect(nextNewer(page, request)).toEqual({ paging: "failed" });
   });
