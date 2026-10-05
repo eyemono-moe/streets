@@ -3,7 +3,10 @@ import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
 } from "@streets/core/nostr/private-tags";
-import { SignerUnavailableError } from "@streets/core/signer/signer";
+import {
+  SignerDisconnectedError,
+  SignerUnavailableError,
+} from "@streets/core/signer/signer";
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { NoUploadServerError } from "./media/uploader";
@@ -20,6 +23,9 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof InvalidPrivateItemsError) {
     return "非公開の項目を読み取れなかったため、保存しませんでした";
+  }
+  if (error instanceof SignerDisconnectedError) {
+    return "署名器と繋がっていません。署名器のアプリが動いているか確かめて、繋ぎ直してください";
   }
   if (error instanceof SignerUnavailableError) {
     return "署名器を利用できません。ログインし直してください";

@@ -1,6 +1,7 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { onMount } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { disconnectedToast } from "./SignerDisconnectedNotice";
 import { ToastStack, createAppToaster } from "./toast";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
@@ -96,6 +97,22 @@ export const 操作付き: S = {
       },
     ],
   },
+};
+
+/** 再読み込みの後、保存したログインの署名器が応えなかった。画面は読み取りだけで出ている。 */
+export const 署名器と繋がっていない: S = {
+  args: {
+    wide: false,
+    items: [
+      {
+        ...disconnectedToast(
+          "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
+        ),
+        action: { label: "繋ぎ直す", onClick: () => {} },
+      },
+    ],
+  },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
 /** 奥の 2 枚は枠だけが覗く。ポインタを乗せると広がって全部読める。 */

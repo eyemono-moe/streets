@@ -30,6 +30,14 @@ export class SignerUnavailableError extends Error {
   }
 }
 
+/** 保存したログインの署名器と繋がっていない。繋ぎ直せば使える。 */
+export class SignerDisconnectedError extends SignerUnavailableError {
+  constructor(message = "signer is not connected") {
+    super(message);
+    this.name = "SignerDisconnectedError";
+  }
+}
+
 /**
  * 署名器が NIP-44 を実装していない。**これを握り潰して公開項目として
  * 書いてはならない**——非公開のつもりのミュート対象が公開されるのは巻き戻せない。
