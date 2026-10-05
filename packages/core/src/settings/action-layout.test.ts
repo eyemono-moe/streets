@@ -35,6 +35,7 @@ describe("アクション欄の並びの保存", () => {
     expect(loaded.menu).toEqual([
       ...layout.menu,
       "pin",
+      "timeslip",
       "mute-event",
       "broadcast",
     ]);
@@ -69,6 +70,7 @@ describe("アクション欄の並びの保存", () => {
       "details",
       "activity",
       "pin",
+      "timeslip",
       "copy-link",
       "mute-event",
       "broadcast",
@@ -86,6 +88,7 @@ describe("投稿のメニューに入れる操作", () => {
     expect(menuActionsOf(defaultActionLayout(), true)).toEqual([
       "pin",
       "activity",
+      "timeslip",
       "copy-link",
       "details",
       "mute-event",
@@ -160,6 +163,7 @@ describe("アクション欄の並べ替え", () => {
       "pin",
       "activity",
       "zap",
+      "timeslip",
       "copy-link",
       "details",
       "mute-event",
@@ -238,7 +242,7 @@ describe("アクション欄の並べ替え", () => {
       "bookmark",
       "details",
     ]);
-    expect(slotsOf(toBar.layout)).toHaveLength(13);
+    expect(slotsOf(toBar.layout)).toHaveLength(14);
   });
 });
 

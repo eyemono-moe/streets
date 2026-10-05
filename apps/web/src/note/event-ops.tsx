@@ -1,4 +1,7 @@
-import { buildActivityColumn } from "@streets/core/deck/column-presets";
+import {
+  buildActivityColumn,
+  buildTimeslipColumn,
+} from "@streets/core/deck/column-presets";
 import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
@@ -55,6 +58,10 @@ export const EVENT_ACTION_META: Record<
   activity: {
     label: "アクティビティを見る",
     icon: "i-material-symbols:monitoring-rounded",
+  },
+  timeslip: {
+    label: "この時点へタイムスリップ",
+    icon: "i-material-symbols:history-rounded",
   },
   "copy-link": {
     label: "リンクをコピー",
@@ -129,6 +136,12 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
         type: "stack/open",
         column: buildActivityColumn(event().id),
         from: event().id,
+      }),
+    /** この投稿の日時から、フォロー中の人の投稿をさかのぼるカラムをデッキに足す。 */
+    timeslip: () =>
+      dispatch({
+        type: "deck/add-column",
+        column: buildTimeslipColumn(event().created_at),
       }),
     copyLink: async () => {
       const uri = `nostr:${encodeEventPointer(
