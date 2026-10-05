@@ -281,6 +281,7 @@ const DeckScreen: Component<{
         // ルーティングが決まる前に置換すると、自分の write リレーが分からないまま送ることになる。
         routingSettled: settled,
         signer: props.session.signer,
+        canSign: () => props.session.signerStatus() === "ready",
         writer: trackReplaces(write.writer, "デッキの設定"),
         fetchLatest: write.fetchLatest,
         storage: localStorage,

@@ -65,12 +65,18 @@ export const createSignerWait = () => {
   return { messages, track };
 };
 
-/** 実際に外部の署名器へ依頼する期間だけを監視する。能力の有無は元の署名器に従う。 */
+/**
+ * 実際に外部の署名器へ依頼する期間だけを監視する。能力の有無は元の署名器に従う。
+ * 裏の読み取りは署名器と繋がるまで黙って待つ。繋がっていないことは別に知らせている。
+ */
 export const observeSigner = (
   signer: ActiveSigner,
   wait: ReturnType<typeof createSignerWait>,
 ): ActiveSigner => ({
   set: (next) => signer.set(next),
+  expect: () => signer.expect(),
+  disconnect: () => signer.disconnect(),
+  connected: () => signer.connected(),
   getPublicKey: () => signer.getPublicKey(),
   signEvent: (template) =>
     wait.track(
@@ -86,12 +92,14 @@ export const observeSigner = (
             wait.track("非公開の情報の暗号化を待っています", () =>
               nip44.encrypt(peerPubkey, plaintext),
             ),
-          decrypt: (peerPubkey: string, ciphertext: string) =>
-            wait.track(
+          decrypt: async (peerPubkey: string, ciphertext: string) => {
+            await signer.connected();
+            return wait.track(
               "非公開の情報の読み取りを待っています",
               () => nip44.decrypt(peerPubkey, ciphertext),
               BACKGROUND_WAIT_DELAY_MS,
-            ),
+            );
+          },
         }
       : undefined;
   },
@@ -99,12 +107,14 @@ export const observeSigner = (
     const nip04 = signer.nip04;
     return nip04
       ? {
-          decrypt: (peerPubkey: string, ciphertext: string) =>
-            wait.track(
+          decrypt: async (peerPubkey: string, ciphertext: string) => {
+            await signer.connected();
+            return wait.track(
               "非公開の情報の読み取りを待っています",
               () => nip04.decrypt(peerPubkey, ciphertext),
               BACKGROUND_WAIT_DELAY_MS,
-            ),
+            );
+          },
         }
       : undefined;
   },

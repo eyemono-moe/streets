@@ -1,4 +1,10 @@
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
+import {
+  type Accessor,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+} from "solid-js";
 import * as v from "valibot";
 import type { NostrEvent } from "../nostr/event";
 import type { Scheduler } from "../read/connection-pool";
@@ -47,6 +53,11 @@ export type CreateNip78DocumentOptions<T> = {
   pubkey: Accessor<string | undefined>;
   routingSettled: Accessor<boolean>;
   signer: Signer;
+  /**
+   * いま署名できるか。保存したログインを戻している間や戻せなかった間は、保存を
+   * 試して失敗にせず、書きかけのまま待って署名できるようになってから送る。
+   */
+  canSign?: Accessor<boolean>;
   writer: Pick<Writer, "replace">;
   fetchLatest(
     kind: number,
@@ -107,6 +118,7 @@ export const createNip78Document = <T>(
 ): Nip78Document<T> => {
   const scheduler = options.scheduler ?? defaultScheduler;
   const debounceMs = options.debounceMs ?? NIP78_SAVE_DEBOUNCE_MS;
+  const canSign = options.canSign ?? (() => true);
   const [value, setValue] = createSignal<T>();
   const [state, setState] = createSignal<Nip78DocumentState>({
     phase: "signed-out",
@@ -251,7 +263,8 @@ export const createNip78Document = <T>(
     if (
       !validRun(expectedGeneration, expectedAuthor) ||
       !local ||
-      !local.dirty
+      !local.dirty ||
+      !canSign()
     ) {
       return;
     }
@@ -543,6 +556,16 @@ export const createNip78Document = <T>(
     loadedGeneration = generation;
     void reconcile(generation, nextAuthor);
   });
+
+  createEffect(
+    on(
+      canSign,
+      (ready) => {
+        if (ready && local?.dirty && state().phase === "ready") scheduleSave();
+      },
+      { defer: true },
+    ),
+  );
 
   onCleanup(() => {
     disposed = true;

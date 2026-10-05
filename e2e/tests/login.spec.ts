@@ -121,3 +121,27 @@ test("署名器が止まると、送れなかったことを知らせる", async
     "届かない",
   );
 });
+
+test("再読み込みのとき署名器が応えなくても、自分の画面を出す", async ({
+  page,
+  openApp,
+  signIn,
+  signer,
+  loginMethod,
+}) => {
+  test.skip(loginMethod === "nip07", "拡張機能は止められない");
+  await openApp();
+  await signIn();
+  signer.stop();
+
+  await page.reload();
+  // 署名器の返事（最大 10 秒）を待たずに出す。
+  await expect(page.getByRole("button", accountButton)).toBeVisible({
+    timeout: 3_000,
+  });
+  await expect(page.getByRole("button", welcome)).toBeHidden();
+  await expect(page.getByText("署名器と繋がっていません")).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("button", accountButton)).toBeVisible();
+});
