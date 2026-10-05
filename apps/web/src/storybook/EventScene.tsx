@@ -1,4 +1,8 @@
 import {
+  type MuteEntry,
+  matchingMutes,
+} from "@streets/core/moderation/mute-list";
+import {
   type EventAddress,
   formatEventAddress,
 } from "@streets/core/nostr/address";
@@ -45,11 +49,18 @@ import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { useQueryClient } from "@tanstack/solid-query";
-import { type ParentComponent, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type JSX,
+  type ParentComponent,
+  Show,
+  createSignal,
+  onCleanup,
+} from "solid-js";
 import { type EventActions, EventActionsProvider } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { type LinkCard, linkCardQueryKey } from "../note/link-card";
 import { ReadLayerProvider } from "../read-layer";
+import { MuteContext } from "../settings/MuteMediator";
 import { useStoryNip05 } from "./nip05";
 import type { StoryAuthor } from "./story-events";
 
@@ -68,6 +79,8 @@ export type EventScene = {
   linkCards?: Record<string, LinkCard | null>;
   /** NIP-05 の答え。ここに無い宛先は、Storybook からドメインへ聞きに行ってしまう。 */
   nip05?: Record<string, Nip05Lookup>;
+  /** ミュートの一覧。省くとミュートの段を置かず、何も隠さない。 */
+  mutes?: readonly MuteEntry[];
 };
 
 const STORY_RELAY = "wss://storybook.invalid/" as RelayUrl;
@@ -313,9 +326,32 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     polls: settledPolls(),
   });
 
+  // 中身は Provider の中で読む。外で読むと、ミュートの段が見えないまま作られる。
+  const withMutes = (children: () => JSX.Element) => (
+    <Show when={props.scene.mutes} fallback={children()}>
+      {(entries) => (
+        <MuteContext.Provider
+          value={{
+            entries: () => [...entries()],
+            loading: () => false,
+            privatePart: () => "ready",
+            hides: (event) =>
+              event.pubkey !== props.scene.viewer?.pubkey &&
+              matchingMutes(entries(), event).length > 0,
+          }}
+        >
+          {children()}
+        </MuteContext.Provider>
+      )}
+    </Show>
+  );
+
   return (
     <ReadLayerProvider value={{ store, lookups }}>
-      <Show when={props.scene.viewer} fallback={props.children}>
+      <Show
+        when={props.scene.viewer}
+        fallback={withMutes(() => props.children)}
+      >
         {(viewer) => {
           const actions = storyActions(
             store,
@@ -325,7 +361,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
           return (
             <EventActionsProvider value={actions}>
               <ActionsMediator actions={actions}>
-                {props.children}
+                {withMutes(() => props.children)}
               </ActionsMediator>
             </EventActionsProvider>
           );

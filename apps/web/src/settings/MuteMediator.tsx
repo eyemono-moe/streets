@@ -43,7 +43,8 @@ export type Mutes = {
   hides: (event: NostrEvent) => boolean;
 };
 
-const MuteContext = createContext<Mutes>();
+/** Storybook で、決まった一覧を当てるときにも使う。 */
+export const MuteContext = createContext<Mutes>();
 
 /**
  * ミュートを裁定する段。一覧を読み（非公開の項目は復号する）、書きかけを持ち、
