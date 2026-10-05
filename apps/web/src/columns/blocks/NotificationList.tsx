@@ -1,5 +1,5 @@
 import { columnFacets } from "@streets/core/deck/column-kinds";
-import { columnShow, groupsNotifications } from "@streets/core/deck/deck";
+import { columnShow, groupsActions } from "@streets/core/deck/deck";
 import { excludeOwnActions } from "@streets/core/deck/notification-filter";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
@@ -77,7 +77,7 @@ const NotificationList: Component<{
   createEffect(() => {
     setRows(
       "list",
-      reconcile(notificationRows(items(), groupsNotifications(column())), {
+      reconcile(notificationRows(items(), groupsActions(column())), {
         key: "key",
       }),
     );

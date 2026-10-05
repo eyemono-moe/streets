@@ -53,8 +53,8 @@ export type ColumnDef = {
   /** 保存された値が無いときは `compact`（`columnLinkCards`）。 */
   linkCards?: LinkCardMode;
   /**
-   * 通知カラムで、同じノートへの連続したリアクション・リポストを 1 行にまとめるか。
-   * 保存された値が無いときはまとめる（`groupsNotifications`）。
+   * 通知・みんなのアクティビティで、同じノートへのリアクション・リポストを 1 行に
+   * まとめるか。保存された値が無いときはまとめる（`groupsActions`）。
    */
   groupNotifications?: boolean;
   /**
@@ -68,9 +68,11 @@ export type ColumnDef = {
 export const columnLinkCards = (column: ColumnDef): LinkCardMode =>
   column.linkCards ?? "compact";
 
-/** 通知をまとめるか。通知カラムだけが意味を持つ。 */
-export const groupsNotifications = (column: ColumnDef): boolean =>
-  column.source.kind === "notifications" && column.groupNotifications !== false;
+/** リアクション・リポストをまとめるか。通知とみんなのアクティビティだけが意味を持つ。 */
+export const groupsActions = (column: ColumnDef): boolean =>
+  (column.source.kind === "notifications" ||
+    column.source.kind === "followees-activity") &&
+  column.groupNotifications !== false;
 
 export const DEFAULT_COLUMN_SHOW: ColumnShow = {
   replies: true,

@@ -10,6 +10,7 @@ import {
 import {
   bookmarksSource,
   followListSource,
+  followeesActivitySource,
   followeesSource,
   followersSource,
   literalSource,
@@ -22,7 +23,7 @@ import {
 import {
   type ColumnDef,
   columnShow,
-  groupsNotifications,
+  groupsActions,
 } from "@streets/core/deck/deck";
 import { followSetName } from "@streets/core/lists/follow-set";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
@@ -49,6 +50,7 @@ import ColumnTabs from "../ui/ColumnTabs";
 import IconButton from "../ui/IconButton";
 import Switch from "../ui/Switch";
 import WelcomeColumn from "../welcome/WelcomeColumn";
+import ActionFeed from "./blocks/ActionFeed";
 import Activity from "./blocks/Activity";
 import Article from "./blocks/Article";
 import Authors from "./blocks/Authors";
@@ -115,6 +117,17 @@ const usePatch = (column: () => ColumnDef) => {
   const dispatch = useDispatch();
   return (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: column().id, patch });
+};
+
+const GroupActionsSwitch: Component<{ column: ColumnDef }> = (props) => {
+  const patch = usePatch(() => props.column);
+  return (
+    <Switch
+      label="同じノートへのリアクション・リポストをまとめる"
+      checked={groupsActions(props.column)}
+      onChange={(groupNotifications) => patch({ groupNotifications })}
+    />
+  );
 };
 
 /** 選んだリレーの公開ノートだけを読むカラムか（リレーを後から選び直せる）。 */
@@ -342,6 +355,20 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       );
     },
   },
+  "followees-activity": {
+    meta: () => ({
+      icon: "i-material-symbols:vital-signs-rounded",
+      subtitle: "フォロー中の人のリアクション・リポスト",
+    }),
+    Content: (props) => (
+      <ActionFeed
+        source={() =>
+          followeesActivitySource(props.inputs.followees(), props.inputs.viewer)
+        }
+      />
+    ),
+    Settings: (props) => <GroupActionsSwitch column={props.column} />,
+  },
   notifications: {
     meta: () => ({
       icon: "i-material-symbols:notifications-outline-rounded",
@@ -355,16 +382,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
         }
       />
     ),
-    Settings: (props) => {
-      const patch = usePatch(() => props.column);
-      return (
-        <Switch
-          label="同じノートへのリアクション・リポストをまとめる"
-          checked={groupsNotifications(props.column)}
-          onChange={(groupNotifications) => patch({ groupNotifications })}
-        />
-      );
-    },
+    Settings: (props) => <GroupActionsSwitch column={props.column} />,
   },
   bookmarks: {
     meta: () => ({

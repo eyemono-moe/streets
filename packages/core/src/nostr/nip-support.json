@@ -173,12 +173,13 @@
   {
     "nip": "25",
     "status": "対応",
-    "summary": "リアクションの読み書き",
+    "summary": "リアクションの読み書き。フォロー中の人のリアクションを流すカラム（みんなのアクティビティ）",
     "kinds": [7],
     "tags": ["e", "p", "k"],
     "paths": [
       "packages/core/src/nostr/reaction.ts",
-      "packages/core/src/nostr/build/reaction.ts"
+      "packages/core/src/nostr/build/reaction.ts",
+      "apps/web/src/columns/blocks/ActionFeed.tsx"
     ],
     "gap": ""
   },

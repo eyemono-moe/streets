@@ -25,6 +25,9 @@ export const TIMELINE_KINDS: readonly number[] = [1, 6];
  */
 export const NOTIFICATION_KINDS: readonly number[] = [1, 6, 7, 9735, 42, 1111];
 
+/** 「みんなのアクティビティ」が集める kind。リアクションとリポスト。 */
+export const FOLLOWEES_ACTIVITY_KINDS: readonly number[] = [7, 6, 16];
+
 /**
  * NIP-01 フィルタの検証。ワイヤ形式でなく保存デッキ用なので valibot 可。
  * `looseObject` でなく `objectWithRest` を使うのは余剰キー型の不一致のため。
@@ -75,6 +78,8 @@ export const columnSourceSchema = v.variant("kind", [
     query: v.pipe(v.string(), v.minLength(1)),
   }),
   v.object({ kind: v.literal("followees"), kinds: v.array(v.number()) }),
+  /** フォロー中の人のリアクション・リポスト（TweetDeck のアクティビティ）。 */
+  v.object({ kind: v.literal("followees-activity") }),
   v.object({ kind: v.literal("notifications") }),
   v.object({ kind: v.literal("bookmarks") }),
   /** 1 本のスレッド。`focus` を中心に、その祖先と返信を見せる。 */
@@ -293,6 +298,13 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
     hidesMuted: true,
     togglesChats: true,
+    alerts: (_, input) => directReadUnreachable(input),
+    needsAccount: true,
+  },
+  "followees-activity": {
+    title: () => ({ text: "みんなのアクティビティ" }),
+    kinds: () => FOLLOWEES_ACTIVITY_KINDS,
+    hidesMuted: true,
     alerts: (_, input) => directReadUnreachable(input),
     needsAccount: true,
   },
