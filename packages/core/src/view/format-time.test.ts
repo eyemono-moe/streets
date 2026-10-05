@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
-import { formatEventTime, formatEventTimeFull } from "./format-time";
+import {
+  formatEventTime,
+  formatEventTimeFull,
+  fromDateTimeLocal,
+  timeCircuitParts,
+  toDateTimeLocal,
+} from "./format-time";
 
 describe("formatEventTime", () => {
   it("同日なら HH:mm だけを返す", () => {
@@ -50,5 +56,39 @@ describe("formatEventTimeFull", () => {
     // 捕まえる変異: 年を落とす、または hour12 を true にする（"2024/06/15 09:05" の厳密な形から外れる）。
     const date = new Date(2024, 5, 15, 9, 5);
     expect(formatEventTimeFull(date)).toBe("2024/06/15 09:05");
+  });
+});
+
+describe("toDateTimeLocal / fromDateTimeLocal", () => {
+  it("分までの値に直し、戻すとその分の終わりになる", () => {
+    const seconds = new Date(2026, 9, 1, 12, 34, 56).getTime() / 1000;
+    const value = toDateTimeLocal(seconds);
+    expect(value).toBe("2026-10-01T12:34");
+    expect(fromDateTimeLocal(value)).toBe(
+      new Date(2026, 9, 1, 12, 34, 59).getTime() / 1000,
+    );
+  });
+
+  it("空や読めない値は無い", () => {
+    expect(fromDateTimeLocal("")).toBeUndefined();
+    expect(fromDateTimeLocal("きのう")).toBeUndefined();
+  });
+});
+
+describe("timeCircuitParts", () => {
+  it("英語の月と 12 時間制に分ける", () => {
+    const at = (h: number, m: number) =>
+      new Date(1985, 9, 26, h, m).getTime() / 1000;
+    expect(timeCircuitParts(at(1, 21))).toEqual({
+      month: "OCT",
+      day: "26",
+      year: "1985",
+      pm: false,
+      hour: "01",
+      minute: "21",
+    });
+    // 捕まえる変異: 0 時・12 時を 00 と出す
+    expect(timeCircuitParts(at(0, 0))).toMatchObject({ pm: false, hour: "12" });
+    expect(timeCircuitParts(at(12, 0))).toMatchObject({ pm: true, hour: "12" });
   });
 });

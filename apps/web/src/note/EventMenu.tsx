@@ -127,6 +127,7 @@ const EventItems: Component<{
       case "reply":
       case "react":
       case "activity":
+      case "timeslip":
       case "copy-link":
       case "details":
         return [{ value: id, ...meta }];
@@ -369,6 +370,9 @@ const EventMenu: Component<{
               break;
             case "mute-author":
               toggleAuthorMute();
+              break;
+            case "timeslip":
+              ops.timeslip();
               break;
           }
         }}

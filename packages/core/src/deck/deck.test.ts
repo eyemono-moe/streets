@@ -654,6 +654,7 @@ describe("カラムの種類ごとの保存", () => {
     },
     search: { kind: "search", query: "ねこ kind:1" },
     followees: { kind: "followees", kinds: [1, 6] },
+    timeslip: { kind: "timeslip", kinds: [1, 6], until: 1_700_000_000 },
     "followees-activity": { kind: "followees-activity" },
     notifications: { kind: "notifications" },
     bookmarks: { kind: "bookmarks" },

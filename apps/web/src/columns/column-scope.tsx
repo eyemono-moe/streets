@@ -56,6 +56,7 @@ export const createBlockSection = (options: {
   source: Accessor<NostrSource | undefined>;
   pageSize?: number;
   maxItems?: number;
+  pagesNewer?: boolean;
   name?: string;
 }): Section => {
   const scope = useColumnScope();
@@ -63,6 +64,7 @@ export const createBlockSection = (options: {
     manager: scope.readLayer.manager,
     pageSize: options.pageSize,
     maxItems: options.maxItems,
+    pagesNewer: options.pagesNewer,
     source: () => addKnownRelays(options.source(), scope.column()),
   });
   const key = () =>

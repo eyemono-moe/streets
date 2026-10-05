@@ -11,6 +11,7 @@ export const EVENT_ACTIONS = [
   "bookmark",
   "pin",
   "activity",
+  "timeslip",
   "copy-link",
   "details",
   "mute-event",
@@ -43,7 +44,15 @@ export type ActionLayout = {
 /** 呼ぶたびに新しく作る。 */
 export const defaultActionLayout = (): ActionLayout => ({
   bar: ["reply", "repost", "like", "react", "zap", "bookmark"],
-  menu: ["pin", "activity", "copy-link", "details", "mute-event", "broadcast"],
+  menu: [
+    "pin",
+    "activity",
+    "timeslip",
+    "copy-link",
+    "details",
+    "mute-event",
+    "broadcast",
+  ],
 });
 
 /** 端末ごとの設定。スマホと PC で使う操作が違うことがある。 */

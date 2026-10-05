@@ -6,6 +6,7 @@ import {
   onCleanup,
 } from "solid-js";
 import type { NostrEvent } from "../nostr/event";
+import type { NewerPaging } from "../read/newer-page";
 import { SectionReader } from "../read/section-reader";
 import {
   type NostrSource,
@@ -26,6 +27,8 @@ export type CreateSectionOptions = {
   pageSize?: number;
   /** ページ送りしないときの件数の上限（`SectionReaderOptions.maxItems`）。 */
   maxItems?: number;
+  /** 新しい方へも取り足す（`SectionReaderOptions.pagesNewer`）。 */
+  pagesNewer?: boolean;
 };
 
 export type Section = {
@@ -34,6 +37,10 @@ export type Section = {
   /** 古い投稿を 1 ページぶん取り足す。 */
   loadMore: () => void;
   paging: Accessor<Paging>;
+  /** 新しい投稿を窓 1 つぶん取り足す。 */
+  loadNewer: () => void;
+  /** 新しい方への取り足し。取り足せないセクションでは無い。 */
+  newerPaging: Accessor<NewerPaging | undefined>;
 };
 
 /** 読み取り層の呼び出し側インターフェース。購読の開始・破棄・source 変更時の張り直しは内側で行う。 */
@@ -43,6 +50,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
     phase: "initial",
   });
   const [paging, setPaging] = createSignal<Paging>("idle");
+  const [newerPaging, setNewerPaging] = createSignal<NewerPaging>();
   let current: SectionReader | undefined;
   // 取る中身が変わって作り直すとき、それまで伸ばした件数から始める。
   let carried: number | undefined;
@@ -60,6 +68,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       setItems([]);
       setStatus({ phase: "initial" });
       setPaging("waiting");
+      setNewerPaging(undefined);
       return;
     }
     const reader = new SectionReader({
@@ -71,6 +80,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       pageSize: options.pageSize,
       maxItems: options.maxItems,
       initialSize: carried,
+      pagesNewer: options.pagesNewer,
     });
     current = reader;
 
@@ -78,6 +88,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       setItems(reader.items);
       setStatus(reader.status);
       setPaging(reader.paging);
+      setNewerPaging(reader.newerPaging);
     };
 
     // subscribe を start() より先に登録する（逆順だと start() が同期発火する onEvent/onEose を取りこぼす）。
@@ -98,5 +109,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
     status,
     loadMore: () => current?.loadOlder(),
     paging,
+    loadNewer: () => current?.loadNewer(),
+    newerPaging,
   };
 };

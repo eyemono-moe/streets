@@ -151,6 +151,12 @@ const ColumnSettings: Component<{
       >
         このカラムを削除
       </Button>
+
+      <Show when={columnView(props.column.source).SettingsFooter}>
+        {(footer) => (
+          <Dynamic component={footer()} source={props.column.source} />
+        )}
+      </Show>
     </div>
   );
 };

@@ -59,6 +59,14 @@ const colors: Colors = {
     warn: "var(--color-status-warn)",
     off: "var(--color-status-off)",
   },
+  // タイムスリップのカラムの設定に置く、時刻の表示板。機械の表示なので、テーマに
+  // よらず暗い板に光る数字で描く。
+  "time-circuit": {
+    panel: "var(--color-time-circuit-panel)",
+    destination: "var(--color-time-circuit-destination)",
+    present: "var(--color-time-circuit-present)",
+    departed: "var(--color-time-circuit-departed)",
+  },
 };
 
 // assign default color and add color shortcuts
@@ -388,6 +396,10 @@ export default defineConfig({
           --color-status-ok: #188038;
           --color-status-warn: #E37400;
           --color-status-off: oklch(from var(--theme-ui-color) 0.4455 calc(0.0374 * c / 0.37) h);
+          --color-time-circuit-panel: #2A2724;
+          --color-time-circuit-destination: #FF4D3D;
+          --color-time-circuit-present: #4DFF7A;
+          --color-time-circuit-departed: #FFB52E;
         }
         .dark {
           --color-danger: #F28B82;

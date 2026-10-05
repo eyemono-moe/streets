@@ -131,7 +131,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[], pageSize?: number) => {
           unroutableAuthors: 0,
           uncoveredAuthors: 0,
         },
-        fetchOlder: async () => ({ relays: [] }),
+        fetchPage: async () => ({ relays: [] }),
         close: () => {},
       };
     },
@@ -1325,5 +1325,140 @@ describe("古い投稿の取り足し（pageSize）", () => {
     reader.start();
     expect(relay()?.subscriptions[0]?.filters).toEqual([{ kinds: [1] }]);
     expect(reader.paging).toBe("exhausted");
+  });
+});
+
+describe("新しい投稿の取り足し（pagesNewer）", () => {
+  /** 今は 10000 秒。until 1000 の時点からさかのぼって読む。 */
+  const setupNewer = (pageSize = 2) => {
+    const clock = createFakeClock();
+    clock.advance(10_000_000);
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1], until: 1000 }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      scheduler: clock,
+      pageSize,
+      pagesNewer: true,
+    });
+    reader.start();
+    const relay = () => relays.get("wss://a/") as FakeRelayConnection;
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      clock.advance(16);
+    };
+    // 最初のページ: 1000 と 900。密度から窓は 100 秒になる。
+    relay().emitEvent(0, event("at-1000", 1000));
+    relay().emitEvent(0, event("at-900", 900));
+    relay().emitEose(0);
+    clock.advance(16);
+    return { reader, relay, settle, clock };
+  };
+
+  it("上限から、一覧の密度で見積もった窓を since・until で取る", () => {
+    const { reader, relay } = setupNewer();
+    expect(reader.newerPaging).toBe("idle");
+    reader.loadNewer();
+    expect(reader.newerPaging).toBe("loading");
+    expect(relay().subscriptions[1]?.filters).toEqual([
+      { kinds: [1], until: 1100, limit: 2, since: 1000 },
+    ]);
+  });
+
+  it("窓を取り切ったら、その分を一覧に入れて上限を上げる", async () => {
+    const { reader, relay, settle } = setupNewer();
+    reader.loadNewer();
+    relay().emitEvent(1, event("at-1050", 1050));
+    relay().emitEose(1);
+    await settle();
+    expect(reader.items.map((e) => e.id)).toEqual([
+      "at-1050",
+      "at-1000",
+      "at-900",
+    ]);
+    expect(reader.newerPaging).toBe("idle");
+
+    // 次は上げた上限から、同じ幅で。
+    reader.loadNewer();
+    expect(relay().subscriptions[2]?.filters[0]).toMatchObject({
+      since: 1100,
+      until: 1200,
+    });
+  });
+
+  it("limit いっぱいに返ったら入れずに窓を狭めて取り直す", async () => {
+    // 捕まえる変異: 溢れた窓の新しい側を入れる（読み進める場所に穴が開く）
+    const { reader, relay, settle } = setupNewer();
+    reader.loadNewer();
+    relay().emitEvent(1, event("at-1090", 1090));
+    relay().emitEvent(1, event("at-1080", 1080));
+    relay().emitEose(1);
+    await settle();
+    expect(reader.items.map((e) => e.id)).toEqual(["at-1000", "at-900"]);
+    expect(reader.newerPaging).toBe("idle");
+
+    reader.loadNewer();
+    expect(relay().subscriptions[2]?.filters[0]).toMatchObject({
+      since: 1000,
+      until: 1025,
+    });
+  });
+
+  it("今まで取り切ったら追いつき、もう取りに行かない", async () => {
+    const { reader, relay, settle } = setupNewer();
+    // 窓が今を越えるところまで進める。
+    reader.loadNewer();
+    relay().emitEose(1);
+    await settle();
+    for (let subscription = 2; reader.newerPaging === "idle"; subscription++) {
+      reader.loadNewer();
+      relay().emitEose(subscription);
+      await settle();
+    }
+    expect(reader.newerPaging).toBe("caught-up");
+    const count = relay().subscriptions.length;
+    reader.loadNewer();
+    expect(relay().subscriptions).toHaveLength(count);
+  });
+
+  it("filters が until を持たなければ、新しい方へは取り足さない", () => {
+    const clock = createFakeClock();
+    const store = new PassThroughStore();
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager: new SubscriptionManager({
+        store,
+        routing: new RoutingTable(store),
+        connect: (url) => new FakeRelayConnection(url),
+      }),
+      scheduler: clock,
+      pageSize: 2,
+      pagesNewer: true,
+    });
+    reader.start();
+    expect(reader.newerPaging).toBeUndefined();
   });
 });

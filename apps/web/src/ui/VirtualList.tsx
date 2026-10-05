@@ -38,6 +38,11 @@ export type VirtualListProps<T> = {
    * 任せ、TanStack にはふつうの向きの位置に直して渡す。
    */
   reversed?: boolean;
+  /**
+   * 一番上にいるときに先頭へ足されたら、足されたものへ上がる。既定は上がる。過去から
+   * 新しい方へ読み進める一覧では、足された束の一番上へ飛ばずに、読んでいる行に留まる。
+   */
+  followsStart?: boolean;
   class?: string;
 };
 
@@ -175,7 +180,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   });
 
   createEffect(() => {
-    if (props.reversed) return;
+    if (props.reversed || props.followsStart === false) return;
     const first = props.items[0];
     const nextKey = first === undefined ? undefined : props.itemKey(first);
     const shouldFollow =

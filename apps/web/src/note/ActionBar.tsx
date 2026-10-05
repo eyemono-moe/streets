@@ -250,6 +250,13 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               onClick={ops.activity}
             />
           ),
+          timeslip: () => (
+            <Action
+              label={EVENT_ACTION_META.timeslip.label}
+              icon={EVENT_ACTION_META.timeslip.icon}
+              onClick={ops.timeslip}
+            />
+          ),
           "copy-link": () => (
             <Action
               label={EVENT_ACTION_META["copy-link"].label}
