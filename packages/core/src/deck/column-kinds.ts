@@ -78,11 +78,15 @@ export const columnSourceSchema = v.variant("kind", [
     query: v.pipe(v.string(), v.minLength(1)),
   }),
   v.object({ kind: v.literal("followees"), kinds: v.array(v.number()) }),
-  /** ホームを、ある時点（`until`、秒）から過去へさかのぼって読む。 */
+  /**
+   * ホームを、ある時点（`until`、秒）から過去へさかのぼって読む。`departed` は
+   * 出発した時刻（足したときの今か、日時を変える前の `until`）で、読み方には効かない。
+   */
   v.object({
     kind: v.literal("timeslip"),
     kinds: v.array(v.number()),
     until: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    departed: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
   }),
   /** フォロー中の人のリアクション・リポスト（TweetDeck のアクティビティ）。 */
   v.object({ kind: v.literal("followees-activity") }),

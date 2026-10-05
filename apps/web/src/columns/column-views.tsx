@@ -72,6 +72,7 @@ import PinnedNotesTab, { createPinnedNotes } from "./blocks/PinnedNotes";
 import Thread from "./blocks/Thread";
 import { useColumnScope } from "./column-scope";
 import ColumnProfile from "./ColumnProfile";
+import TimeCircuits from "./TimeCircuits";
 
 /**
  * カラムの中身が読む、ログイン中の人に紐づく値。変わる値は遅延アクセサで渡し、
@@ -384,14 +385,29 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     Settings: (props) => {
       const patch = usePatch(() => props.column);
       return (
-        <SettingField label="この日時から過去へさかのぼる">
-          <DateTimeInput
-            label="さかのぼり始める日時"
-            value={props.source.until}
-            max={Math.floor(Date.now() / 1000)}
-            onChange={(until) => patch({ source: { ...props.source, until } })}
+        <>
+          <SettingField label="この日時から過去へさかのぼる">
+            <DateTimeInput
+              label="さかのぼり始める日時"
+              value={props.source.until}
+              max={Math.floor(Date.now() / 1000)}
+              // 日時を変えたら、それまでいた時点から出発したことにする。
+              onChange={(until) =>
+                patch({
+                  source: {
+                    ...props.source,
+                    until,
+                    departed: props.source.until,
+                  },
+                })
+              }
+            />
+          </SettingField>
+          <TimeCircuits
+            destination={props.source.until}
+            departed={props.source.departed}
           />
-        </SettingField>
+        </>
       );
     },
   },

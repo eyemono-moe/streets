@@ -66,3 +66,41 @@ export const fromDateTimeLocal = (value: string): number | undefined => {
   if (value === "" || Number.isNaN(time)) return undefined;
   return Math.floor(time / 60_000) * 60 + 59;
 };
+
+const MONTHS = [
+  "JAN",
+  "FEB",
+  "MAR",
+  "APR",
+  "MAY",
+  "JUN",
+  "JUL",
+  "AUG",
+  "SEP",
+  "OCT",
+  "NOV",
+  "DEC",
+] as const;
+
+export type TimeCircuitParts = {
+  month: string;
+  day: string;
+  year: string;
+  pm: boolean;
+  hour: string;
+  minute: string;
+};
+
+/** 秒を、時刻の表示板の欄（英語の月・日・年・午前午後・12 時間制の時・分）に分ける。 */
+export const timeCircuitParts = (seconds: number): TimeCircuitParts => {
+  const date = new Date(seconds * 1000);
+  const hours = date.getHours();
+  return {
+    month: MONTHS[date.getMonth()] ?? "",
+    day: pad(date.getDate()),
+    year: String(date.getFullYear()).padStart(4, "0"),
+    pm: hours >= 12,
+    hour: pad(hours % 12 === 0 ? 12 : hours % 12),
+    minute: pad(date.getMinutes()),
+  };
+};

@@ -103,7 +103,12 @@ export const buildArticleColumn = (
 export const buildTimeslipColumn = (until: number): ColumnDef => ({
   id: crypto.randomUUID(),
   title: "タイムスリップ",
-  source: { kind: "timeslip", kinds: [...TIMELINE_KINDS], until },
+  source: {
+    kind: "timeslip",
+    kinds: [...TIMELINE_KINDS],
+    until,
+    departed: Math.floor(Date.now() / 1000),
+  },
 });
 
 export const buildActivityColumn = (target: string): ColumnDef => ({

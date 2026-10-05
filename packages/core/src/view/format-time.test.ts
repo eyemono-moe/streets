@@ -3,6 +3,7 @@ import {
   formatEventTime,
   formatEventTimeFull,
   fromDateTimeLocal,
+  timeCircuitParts,
   toDateTimeLocal,
 } from "./format-time";
 
@@ -71,5 +72,23 @@ describe("toDateTimeLocal / fromDateTimeLocal", () => {
   it("空や読めない値は無い", () => {
     expect(fromDateTimeLocal("")).toBeUndefined();
     expect(fromDateTimeLocal("きのう")).toBeUndefined();
+  });
+});
+
+describe("timeCircuitParts", () => {
+  it("英語の月と 12 時間制に分ける", () => {
+    const at = (h: number, m: number) =>
+      new Date(1985, 9, 26, h, m).getTime() / 1000;
+    expect(timeCircuitParts(at(1, 21))).toEqual({
+      month: "OCT",
+      day: "26",
+      year: "1985",
+      pm: false,
+      hour: "01",
+      minute: "21",
+    });
+    // 捕まえる変異: 0 時・12 時を 00 と出す
+    expect(timeCircuitParts(at(0, 0))).toMatchObject({ pm: false, hour: "12" });
+    expect(timeCircuitParts(at(12, 0))).toMatchObject({ pm: true, hour: "12" });
   });
 });
