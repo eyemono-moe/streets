@@ -63,8 +63,6 @@ const colors: Colors = {
   // よらず暗い板に光る数字で描く。
   "time-circuit": {
     panel: "var(--color-time-circuit-panel)",
-    digits: "var(--color-time-circuit-digits)",
-    label: "var(--color-time-circuit-label)",
     destination: "var(--color-time-circuit-destination)",
     present: "var(--color-time-circuit-present)",
     departed: "var(--color-time-circuit-departed)",
@@ -399,8 +397,6 @@ export default defineConfig({
           --color-status-warn: #E37400;
           --color-status-off: oklch(from var(--theme-ui-color) 0.4455 calc(0.0374 * c / 0.37) h);
           --color-time-circuit-panel: #2A2724;
-          --color-time-circuit-digits: #0B0A09;
-          --color-time-circuit-label: #B9B4AC;
           --color-time-circuit-destination: #FF4D3D;
           --color-time-circuit-present: #4DFF7A;
           --color-time-circuit-departed: #FFB52E;

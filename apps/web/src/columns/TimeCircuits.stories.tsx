@@ -21,14 +21,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** 普段は薄い。指を乗せると灯る。 */
 export const ふつう: Story = {};
 
-/** 前に出発した時刻を持たない（この表示より前に足したカラム）。欄は消えたまま。 */
-export const 出発した時刻が無い: Story = { args: { departed: undefined } };
+export const 灯った: Story = { args: { lit: true } };
 
-/** 午前 0 時台は 12 時・AM と出す。 */
+/** 前に出発した時刻を持たない（この表示より前に足したカラム）。欄は消えたまま。 */
+export const 出発した時刻が無い: Story = {
+  args: { departed: undefined, lit: true },
+};
+
+/** 午前 0 時台は 12 時・AM と出す。月の文字は 14 セグで、NOV の V も描ける。 */
 export const 真夜中: Story = {
   args: {
+    lit: true,
     destination: at(1985, 9, 26, 0, 21),
     departed: at(1955, 10, 5, 6, 15),
   },
