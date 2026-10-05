@@ -30,7 +30,7 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     kind: "followees-activity",
     label: "みんなのアクティビティ",
     description: "フォロー中の人のリアクション・リポスト",
-    icon: "i-material-symbols:groups-outline-rounded",
+    icon: "i-material-symbols:vital-signs-rounded",
     keywords: ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"],
   },
   {

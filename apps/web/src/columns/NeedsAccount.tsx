@@ -12,7 +12,7 @@ const NeedsAccount: Component<{ column: ColumnDef }> = (props) => {
     <div class="flex flex-col items-start gap-3 p-4">
       <p class="c-secondary text-caption">
         「{title()}
-        」は、ログインしている人の分を集めるカラムです。ログインすると見られます。
+        」は、ログインしている人の投稿を表示するカラムです。ログインすると見られます。
       </p>
       <Button
         size="sm"

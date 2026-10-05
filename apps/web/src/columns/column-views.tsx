@@ -357,7 +357,7 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   },
   "followees-activity": {
     meta: () => ({
-      icon: "i-material-symbols:groups-outline-rounded",
+      icon: "i-material-symbols:vital-signs-rounded",
       subtitle: "フォロー中の人のリアクション・リポスト",
     }),
     Content: (props) => (

@@ -1,3 +1,4 @@
+import type { MuteEntry } from "@streets/core/moderation/mute-list";
 import {
   type ReactionInput,
   buildReaction,
@@ -30,7 +31,7 @@ const crowd: StoryAuthor[] = Array.from({ length: 12 }, (_, index) =>
   }),
 );
 
-const popular = alice.note("みんなが反応している投稿です。");
+const popular = alice.note("みんなが反応している人気の投稿です。");
 const long = bob.note(
   "マルチカラムのクライアントは、1 列に入る情報量が体験を決める。".repeat(8),
 );
@@ -68,6 +69,7 @@ type Props = {
   group: boolean;
   settled: boolean;
   compact: boolean;
+  mutes?: MuteEntry[];
 };
 
 const meta = {
@@ -78,6 +80,7 @@ const meta = {
         events: [...profiles, popular, long, mine, ...props.events],
         viewer,
         missingIds: [missing.id],
+        mutes: props.mutes,
       }}
     >
       <div class="h-160 w-full overflow-y-auto bg-primary">
@@ -91,7 +94,7 @@ const meta = {
     </EventSceneProvider>
   ),
   args: { events, group: true, settled: true, compact: false },
-  argTypes: { events: { control: false } },
+  argTypes: { events: { control: false }, mutes: { control: false } },
 } satisfies Meta<Props>;
 
 export default meta;
@@ -102,6 +105,12 @@ export const まとめない: Story = { args: { group: false } };
 export const 高密度: Story = { args: { compact: true } };
 export const 取得中: Story = { args: { events: [], settled: false } };
 export const 空: Story = { args: { events: [] } };
+/** 語のミュートは相手のノートが届くまで分からないので、行は残して中身だけを畳む。 */
+export const 相手の投稿がミュートの対象: Story = {
+  args: {
+    mutes: [{ target: { type: "word", value: "人気" }, visibility: "public" }],
+  },
+};
 export const 狭いカラム: Story = {
   parameters: { viewport: { defaultViewport: "column320" } },
 };

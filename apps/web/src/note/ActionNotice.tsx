@@ -160,6 +160,11 @@ const ActionNotice: Component<{
   events: readonly NostrEvent[];
   size: EventSize;
   expandMedia?: boolean;
+  /**
+   * 対象のノートがミュートの対象に当たるなら畳む。他人の投稿への反応を流すところで使う。
+   * 通知の対象は自分の投稿なので要らない。
+   */
+  gateMuted?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const target = () => {
@@ -218,6 +223,7 @@ const ActionNotice: Component<{
             target={{ form: "id", id: current().targetId }}
             size="compact"
             expandMedia={props.expandMedia}
+            gateMuted={props.gateMuted}
           />
         </div>
       )}

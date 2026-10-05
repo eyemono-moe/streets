@@ -29,6 +29,10 @@ import { createBlockSection, useColumnScope } from "../column-scope";
 /**
  * 誰かのリアクション・リポストを並べる。同じノートへの同じ操作は、届いた順が
  * 離れていても 1 行にまとめる（カラムの設定で切れる）。
+ *
+ * 相手の著者・スレッドがミュートに当たる行は、タグで分かるので出さない。語や
+ * ハッシュタグは相手のノートが届くまで分からないので、行は残して中身だけを畳む ——
+ * 届いてから行ごと消すと、読んでいる一覧が動く。
  */
 const ActionFeed: Component<{
   source: () => NostrSource | undefined;
@@ -129,6 +133,7 @@ export const ActionFeedView: Component<{
                           events={[event()]}
                           size={props.size}
                           expandMedia={props.expandMedia}
+                          gateMuted
                         />
                       </Show>
                     )}
@@ -140,6 +145,7 @@ export const ActionFeedView: Component<{
                     events={events()}
                     size={props.size}
                     expandMedia={props.expandMedia}
+                    gateMuted
                   />
                 )}
               </Show>
