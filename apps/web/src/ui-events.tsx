@@ -215,6 +215,8 @@ export type DeckEvent =
   | { type: "deck/set-error-report"; on: boolean }
   /** 投稿に client タグを付けるか。デッキと一緒にアカウントへ保存する。 */
   | { type: "deck/set-client-tag"; on: boolean }
+  /** 引用した先の作者に知らせる（`p` を付ける）か。デッキと一緒にアカウントへ保存する。 */
+  | { type: "deck/set-notify-quoted"; on: boolean }
   /** ショートカットキーの割り当てを変える。この端末に保存する。 */
   | { type: "deck/set-shortcut"; action: ShortcutAction; hotkey: string }
   /** 数字キーでカラムを見せるか。この端末に保存する。 */

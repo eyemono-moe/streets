@@ -213,6 +213,8 @@ export const createWriteStack = (options: {
   fallbackRelays?: readonly RelayUrl[];
   /** 投稿に client タグを付けるか。送るたびに読む。 */
   clientTag?: () => boolean;
+  /** 引用した先の作者に `p` を付けて知らせるか。送るたびに読む。無ければ知らせる。 */
+  notifyQuoted?: () => boolean;
 }): WriteStack => {
   const { store, routing, manager } = options.readLayer;
   const target = {
@@ -242,6 +244,12 @@ export const createWriteStack = (options: {
 
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
+
+  // 本文から足すタグの決め方。設定は送るたびに読む。
+  const references = (emoji: EmojiLookup | undefined) => ({
+    emoji,
+    notifyQuoted: options.notifyQuoted?.() ?? true,
+  });
 
   const seenRelays = (id: string) => relaysSeenOn(store, id);
   const relayHintFor = (id: string) => seenRelays(id)[0];
@@ -297,7 +305,10 @@ export const createWriteStack = (options: {
     async post(content, media, emoji, contentWarning) {
       await tracked("投稿").publish(
         withContentWarning(
-          withMedia(withReferences(buildNote(content), { emoji }), media ?? []),
+          withMedia(
+            withReferences(buildNote(content), references(emoji)),
+            media ?? [],
+          ),
           contentWarning,
         ),
       );
@@ -310,7 +321,7 @@ export const createWriteStack = (options: {
               buildReplyTo(event, content, {
                 relayHint: relayHintFor(event.id),
               }),
-              { emoji },
+              references(emoji),
             ),
             media ?? [],
           ),
@@ -324,7 +335,7 @@ export const createWriteStack = (options: {
           withMedia(
             withReferences(
               buildQuote(event, content, { relayHint: relayHintFor(event.id) }),
-              { emoji },
+              references(emoji),
             ),
             media ?? [],
           ),
@@ -340,7 +351,7 @@ export const createWriteStack = (options: {
               relayHint: channel.relays[0],
               replyTo: options?.replyTo,
             }),
-            { emoji: options?.emoji },
+            references(options?.emoji),
           ),
           options?.media ?? [],
         ),

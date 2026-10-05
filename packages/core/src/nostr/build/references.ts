@@ -1,4 +1,8 @@
-import { addressOfNaddr, formatEventAddress } from "../address";
+import {
+  addressOfNaddr,
+  formatEventAddress,
+  parseEventAddress,
+} from "../address";
 import { parseContent } from "../content";
 import type { Nip19Ref } from "../nip19";
 import type { EventDraft } from "./draft";
@@ -76,17 +80,30 @@ const quotedEvents = (content: string): string[][] => {
 };
 
 /**
+ * `q` タグから分かる、引用したイベントの作者。id で指すものは 4 番目の要素、
+ * 住所で指すものは住所の中の pubkey。`note` だけで書かれたものは作者が分からない。
+ */
+const quotedAuthorOf = (tag: readonly string[]): string | undefined => {
+  if (tag[0] !== "q" || tag[1] === undefined) return undefined;
+  const address = parseEventAddress(tag[1]);
+  return address ? address.pubkey : tag[3] || undefined;
+};
+
+/**
  * 本文から `p`・`q`・`emoji` のタグを足す。補完で選んだかどうかによらず本文から
  * 作る —— 貼り付けたものや手で打ったものにも付き、隠れた状態を持たずに済む。
  *
  * - 本文で指した人に `p`（NIP-27）。既に `p` があれば足さない（返信先など）
  * - 本文で引用したイベントに `q`（NIP-18）。既に `q` があれば足さない（引用先）
+ * - `notifyQuoted` なら、`q` で引用した先の作者にも `p`。通知はほとんどのクライアントが
+ *   `p` で取るので、付けないと引用されたことに相手が気づけない。本文で `npub` /
+ *   `nprofile` を直に書いた相手は、切っていても上の規則で付く
  * - 自分の絵文字にある `:shortcode:` に `emoji`（NIP-30）。無いものは付けない
  *   —— 付けないと、読む側では `:shortcode:` の文字のまま見える
  */
 export const withReferences = (
   draft: EventDraft,
-  options: { emoji?: EmojiLookup },
+  options: { emoji?: EmojiLookup; notifyQuoted?: boolean },
 ): EventDraft => {
   const tags = [...draft.tags];
   const tagged = (name: string, value: string) =>
@@ -101,6 +118,12 @@ export const withReferences = (
   for (const quote of quotedEvents(draft.content)) {
     if (tagged("q", quote[1] as string)) continue;
     tags.push(quote);
+  }
+  if (options.notifyQuoted ?? true) {
+    for (const author of tags.map(quotedAuthorOf)) {
+      if (author === undefined || tagged("p", author)) continue;
+      tags.push(["p", author]);
+    }
   }
   if (options.emoji) {
     for (const shortcode of shortcodesIn([draft.content])) {

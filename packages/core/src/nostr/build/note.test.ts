@@ -10,6 +10,7 @@ import {
   buildReply,
   buildReplyTo,
 } from "./note";
+import { withReferences } from "./references";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({
@@ -171,13 +172,29 @@ describe("buildQuote", () => {
     ]);
   });
 
-  it("引用先の著者に p タグを立てる", () => {
-    // 捕まえる変異: p を落とす。引用されたことが相手に通知されない。
+  it("引用先の作者には、設定に従って withReferences が p を立てる", () => {
+    // 捕まえる変異: buildQuote が p を立てる —— 通知しない設定にしても相手に p が付く
     const target = evt({ pubkey: "9".repeat(64) });
     const draft = buildQuote(target, "これ面白い");
-    expect(draft.tags.filter((t) => t[0] === "p")).toEqual([
-      ["p", "9".repeat(64)],
-    ]);
+    expect(draft.tags.filter((t) => t[0] === "p")).toEqual([]);
+    const pTags = (notifyQuoted: boolean) =>
+      withReferences(draft, { notifyQuoted }).tags.filter((t) => t[0] === "p");
+    expect(pTags(true)).toEqual([["p", "9".repeat(64)]]);
+    expect(pTags(false)).toEqual([]);
+  });
+
+  it("引用ボタンで note を貼った本文でも、q の作者に p を立てる", () => {
+    // 捕まえる変異: 本文の bech32 から作者を取る —— note には作者が無く、p が落ちる
+    const target = evt({ id: "1".repeat(64), pubkey: "9".repeat(64) });
+    const draft = buildQuote(
+      target,
+      `nostr:${encodeBech32("note", target.id)} これ面白い`,
+    );
+    expect(
+      withReferences(draft, { notifyQuoted: true }).tags.filter(
+        (t) => t[0] === "p",
+      ),
+    ).toEqual([["p", "9".repeat(64)]]);
   });
 
   it("本文に引用先が無ければ末尾に nevent を足す", () => {

@@ -149,6 +149,12 @@ export const settings = {
     "client tag",
     "クライアント",
   ]),
+  notifyQuoted: setting("引用した相手への通知", "privacy", [
+    "引用",
+    "quote",
+    "メンション",
+    "p tag",
+  ]),
   errorReport: setting("不具合と動作の速さの報告", "privacy", [
     "エラー報告",
     "計測",

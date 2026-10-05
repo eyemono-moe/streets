@@ -115,6 +115,11 @@ export type DeckSet = {
    * 使っているかが公開されるので、`true` を選んだ人だけに付ける。
    */
   clientTag?: boolean;
+  /**
+   * 引用したとき、引用した先の作者に `p` を付けて知らせるか。無ければ付ける
+   * （多くのクライアントと同じ）。`false` を選んだ人だけ付けない。
+   */
+  notifyQuoted?: boolean;
 };
 
 /** テーマ色の元になる 2 色。50〜950 の段は画面側がこの 2 色から作る。`#rrggbb`。 */
@@ -262,6 +267,7 @@ const deckSetSchema = v.object({
   appearance: appearanceSchema,
   // 壊れた値は付けない（既定）に落とす。デッキごと捨てない。
   clientTag: v.fallback(v.optional(v.boolean()), undefined),
+  notifyQuoted: v.fallback(v.optional(v.boolean()), undefined),
 });
 
 /** 1 つのデッキだけを持っていた形。読むときに、そのデッキを最初のデッキとして移す。 */
