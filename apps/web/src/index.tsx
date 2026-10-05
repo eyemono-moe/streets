@@ -29,7 +29,8 @@ render(
     // ルートを分けると行き来のたびに App ごと作り直され、読み取り層も張り直される。
     <QueryClientProvider client={queryClient}>
       <Router>
-        <Route path="/:entity?" component={App} />
+        {/* 同じ Route のまま URL を切り替え、App と読み取り層を作り直さない。 */}
+        <Route path={["/:entity?", "/help/*guide"]} component={App} />
       </Router>
     </QueryClientProvider>
   ),
