@@ -5,6 +5,7 @@ import type { ColumnDef } from "./deck";
 
 export type ColumnPresetKind =
   | "home"
+  | "followees-activity"
   | "notifications"
   | "user"
   | "hashtag"
@@ -174,6 +175,13 @@ export const buildColumn = (
         id,
         title: "ホーム",
         source: { kind: "followees", kinds: [...TIMELINE_KINDS] },
+      };
+
+    case "followees-activity":
+      return {
+        id,
+        title: "みんなのアクティビティ",
+        source: { kind: "followees-activity" },
       };
 
     case "user": {

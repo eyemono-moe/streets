@@ -21,6 +21,7 @@ import { parseSearchQuery, searchFilter } from "../search/query";
 import type { RelayListState } from "../settings/relay-list-state";
 import {
   type ColumnSourceOf,
+  FOLLOWEES_ACTIVITY_KINDS,
   NOTIFICATION_KINDS,
   TIMELINE_KINDS,
 } from "./column-kinds";
@@ -74,6 +75,23 @@ export const followeesSource = (
         ]),
       ],
       authors: [...new Set([...followees, viewer])],
+    },
+  ],
+});
+
+/**
+ * フォロー中の人のリアクション・リポスト。自分は入れない —— 自分が何に反応したかは
+ * 流れに出しても意味が無い。0 人のときは `authors: []`（該当者なし）のまま。
+ */
+export const followeesActivitySource = (
+  followees: readonly string[],
+  viewer: string,
+): NostrSource => ({
+  type: "nostr",
+  filters: [
+    {
+      kinds: [...FOLLOWEES_ACTIVITY_KINDS],
+      authors: [...new Set(followees)].filter((pubkey) => pubkey !== viewer),
     },
   ],
 });

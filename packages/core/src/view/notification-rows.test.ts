@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import {
+  actionRowsByTarget,
   groupActors,
   groupReactionContents,
   notificationRows,
@@ -118,6 +119,55 @@ describe("notificationRows", () => {
     const broken = event(7, "1", [], "+");
     const events = [broken, reaction("2", noteA)];
     expect(notificationRows(events, true).map((row) => row.type)).toEqual([
+      "event",
+      "event",
+    ]);
+  });
+});
+
+describe("actionRowsByTarget", () => {
+  it("隣り合っていなくても、同じノートへの同じ操作を一番新しい位置に 1 行でまとめる", () => {
+    const newest = reaction("1", noteA);
+    const other = reaction("2", noteB);
+    const older = reaction("3", noteA);
+    const rows = actionRowsByTarget([newest, other, older], true);
+    expect(rows.map((row) => row.key)).toEqual([`reaction:${noteA}`, other.id]);
+    const [row] = rows;
+    expect(row?.type === "group" && row.events).toEqual([newest, older]);
+  });
+
+  it("リアクションとリポストは混ぜない", () => {
+    const rows = actionRowsByTarget(
+      [
+        reaction("1", noteA),
+        repost("2", noteA),
+        reaction("3", noteA),
+        repost("4", noteA),
+      ],
+      true,
+    );
+    expect(rows.map((row) => row.key)).toEqual([
+      `reaction:${noteA}`,
+      `repost:${noteA}`,
+    ]);
+  });
+
+  it("新しい反応が届いても、まとまりの鍵は変わらない", () => {
+    const first = [reaction("1", noteA), reaction("2", noteA)];
+    const later = [reaction("3", noteA), reaction("4", noteB), ...first];
+    expect(actionRowsByTarget(first, true)[0]?.key).toBe(
+      actionRowsByTarget(later, true)[0]?.key,
+    );
+  });
+
+  it("まとめないときは、1 件ずつの行にする", () => {
+    const events = [
+      reaction("1", noteA),
+      reaction("2", noteB),
+      reaction("3", noteA),
+    ];
+    expect(actionRowsByTarget(events, false).map((row) => row.type)).toEqual([
+      "event",
       "event",
       "event",
     ]);

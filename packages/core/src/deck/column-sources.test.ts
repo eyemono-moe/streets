@@ -10,6 +10,7 @@ import {
   channelSource,
   channelsSource,
   chatModerationSource,
+  followeesActivitySource,
   followeesSource,
   followersSource,
   followListSource,
@@ -113,6 +114,19 @@ describe("followeesSource", () => {
     const resolved = followeesSource([1], followees, VIEWER);
     followees.push("b");
     expect(resolved.filters[0].authors).toEqual(["a", VIEWER]);
+  });
+});
+
+describe("followeesActivitySource", () => {
+  it("フォロー中の人のリアクションとリポストを取り、自分は入れない", () => {
+    expect(followeesActivitySource(["a", VIEWER, "a"], VIEWER)).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [7, 6, 16], authors: ["a"] }],
+    });
+  });
+
+  it("フォローが 0 人なら authors を落とさず空にする", () => {
+    expect(followeesActivitySource([], VIEWER).filters[0].authors).toEqual([]);
   });
 });
 

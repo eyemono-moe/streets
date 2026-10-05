@@ -91,6 +91,64 @@ export const notificationRows = (
   return rows;
 };
 
+/**
+ * みんなのアクティビティの行。`notificationRows` と違い、隣り合っていなくても
+ * 同じノートへの同じ操作は 1 行にまとめ、その行は一番新しい操作の位置に置く。
+ * 人気のノートへの反応は、ほかの反応と交互に届くので、隣り合うものだけでは
+ * まとまらない。新しく反応が届けば、その行が上へ移る。
+ *
+ * `events` は新しい順に並んでいる前提。
+ */
+export const actionRowsByTarget = (
+  events: readonly NostrEvent[],
+  group: boolean,
+): NotificationRow[] => {
+  type Slot =
+    | { type: "event"; event: NostrEvent }
+    | {
+        type: "run";
+        action: NotificationAction;
+        targetId: string;
+        events: NostrEvent[];
+      };
+  const slots: Slot[] = [];
+  const runs = new Map<string, Extract<Slot, { type: "run" }>>();
+  for (const event of events) {
+    const action = group ? actionTarget(event) : undefined;
+    if (!action) {
+      slots.push({ type: "event", event });
+      continue;
+    }
+    const key = `${action.action}:${action.targetId}`;
+    const run = runs.get(key);
+    if (run) {
+      run.events.push(event);
+      continue;
+    }
+    const created = { type: "run" as const, ...action, events: [event] };
+    runs.set(key, created);
+    slots.push(created);
+  }
+  return slots.map((slot): NotificationRow => {
+    if (slot.type === "event") {
+      return { type: "event", key: slot.event.id, event: slot.event };
+    }
+    const [only] = slot.events;
+    if (slot.events.length === 1 && only) {
+      return { type: "event", key: only.id, event: only };
+    }
+    // 同じノートへの同じ操作は 1 行しか無いので、鍵はノートと操作だけで決まる。
+    // 行が上へ移っても、反応が増えても変わらない。
+    return {
+      type: "group",
+      key: `${slot.action}:${slot.targetId}`,
+      action: slot.action,
+      targetId: slot.targetId,
+      events: slot.events,
+    };
+  });
+};
+
 /** まとまりに付いたリアクションの種類。同じ絵文字は 1 つにまとめる。新しい順。 */
 export const groupReactionContents = (
   events: readonly NostrEvent[],

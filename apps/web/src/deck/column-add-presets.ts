@@ -27,6 +27,13 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     keywords: ["返信", "リアクション"],
   },
   {
+    kind: "followees-activity",
+    label: "みんなのアクティビティ",
+    description: "フォロー中の人のリアクション・リポスト",
+    icon: "i-material-symbols:groups-outline-rounded",
+    keywords: ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"],
+  },
+  {
     kind: "relay",
     label: "リレー",
     description: "選んだリレーの公開ノート",

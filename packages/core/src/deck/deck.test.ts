@@ -9,7 +9,7 @@ import {
   columnLinkCards,
   deckStorageKey,
   defaultDeckSet,
-  groupsNotifications,
+  groupsActions,
   loadDeckSet,
   saveDeckSet,
 } from "./deck";
@@ -513,10 +513,10 @@ describe("deckStorageKey", () => {
   });
 });
 
-describe("groupsNotifications", () => {
+describe("groupsActions", () => {
   it("通知カラムは、指定が無ければまとめる", () => {
     expect(
-      groupsNotifications({
+      groupsActions({
         id: "n",
         title: "通知",
         source: { kind: "notifications" },
@@ -526,7 +526,7 @@ describe("groupsNotifications", () => {
 
   it("通知カラムでも、切っていればまとめない", () => {
     expect(
-      groupsNotifications({
+      groupsActions({
         id: "n",
         title: "通知",
         source: { kind: "notifications" },
@@ -535,9 +535,19 @@ describe("groupsNotifications", () => {
     ).toBe(false);
   });
 
-  it("通知以外のカラムはまとめない", () => {
+  it("みんなのアクティビティも、指定が無ければまとめる", () => {
     expect(
-      groupsNotifications({
+      groupsActions({
+        id: "a",
+        title: "みんなのアクティビティ",
+        source: { kind: "followees-activity" },
+      }),
+    ).toBe(true);
+  });
+
+  it("通知とみんなのアクティビティ以外はまとめない", () => {
+    expect(
+      groupsActions({
         id: "h",
         title: "ホーム",
         source: { kind: "followees", kinds: [1, 6] },
@@ -644,6 +654,7 @@ describe("カラムの種類ごとの保存", () => {
     },
     search: { kind: "search", query: "ねこ kind:1" },
     followees: { kind: "followees", kinds: [1, 6] },
+    "followees-activity": { kind: "followees-activity" },
     notifications: { kind: "notifications" },
     bookmarks: { kind: "bookmarks" },
     thread: { kind: "thread", focus: "a".repeat(64) },
