@@ -114,6 +114,8 @@ type ColumnView<S> = {
     signedIn: boolean;
     relayList?: RelayListState;
   }>;
+  /** 設定の一番下（削除の下）に置く飾り。設定の項目ではないもの。 */
+  SettingsFooter?: Component<{ source: S }>;
 };
 
 const usePatch = (column: () => ColumnDef) => {
@@ -385,31 +387,31 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
     Settings: (props) => {
       const patch = usePatch(() => props.column);
       return (
-        <>
-          <SettingField label="この日時から過去へさかのぼる">
-            <DateTimeInput
-              label="さかのぼり始める日時"
-              value={props.source.until}
-              max={Math.floor(Date.now() / 1000)}
-              // 日時を変えたら、それまでいた時点から出発したことにする。
-              onChange={(until) =>
-                patch({
-                  source: {
-                    ...props.source,
-                    until,
-                    departed: props.source.until,
-                  },
-                })
-              }
-            />
-          </SettingField>
-          <TimeCircuits
-            destination={props.source.until}
-            departed={props.source.departed}
+        <SettingField label="この日時から過去へさかのぼる">
+          <DateTimeInput
+            label="さかのぼり始める日時"
+            value={props.source.until}
+            max={Math.floor(Date.now() / 1000)}
+            // 日時を変えたら、それまでいた時点から出発したことにする。
+            onChange={(until) =>
+              patch({
+                source: {
+                  ...props.source,
+                  until,
+                  departed: props.source.until,
+                },
+              })
+            }
           />
-        </>
+        </SettingField>
       );
     },
+    SettingsFooter: (props) => (
+      <TimeCircuits
+        destination={props.source.until}
+        departed={props.source.departed}
+      />
+    ),
   },
   "followees-activity": {
     meta: () => ({
