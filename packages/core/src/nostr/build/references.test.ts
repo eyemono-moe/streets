@@ -82,7 +82,9 @@ describe("withReferences", () => {
       author: alice,
     });
     const draft = withReferences(note(`nostr:${ref}`), {});
-    expect(draft.tags).toEqual([["q", id, "wss://r.example", alice]]);
+    expect(draft.tags.filter((tag) => tag[0] === "q")).toEqual([
+      ["q", id, "wss://r.example", alice],
+    ]);
   });
 
   it("naddr は住所で q を付け、pubkey は添えない", () => {
@@ -93,7 +95,7 @@ describe("withReferences", () => {
       relays: ["wss://r.example"],
     });
     const draft = withReferences(note(`nostr:${ref}`), {});
-    expect(draft.tags).toEqual([
+    expect(draft.tags.filter((tag) => tag[0] === "q")).toEqual([
       ["q", `30023:${alice}:slug`, "wss://r.example"],
     ]);
   });
@@ -107,10 +109,52 @@ describe("withReferences", () => {
       ]),
       {},
     );
-    expect(draft.tags).toEqual([
+    expect(draft.tags.filter((tag) => tag[0] === "q")).toEqual([
       ["q", id, "wss://a.example", bob],
       ["q", other, ""],
     ]);
+  });
+
+  describe("引用した先の作者への p（notifyQuoted）", () => {
+    const nevent = (author: string) =>
+      `nostr:${encodeNevent({ id, relays: [], author })}`;
+    const naddr = `nostr:${encodeNaddr({
+      identifier: "slug",
+      pubkey: alice,
+      eventKind: 30023,
+      relays: [],
+    })}`;
+    const pTags = (content: string, notifyQuoted?: boolean) =>
+      withReferences(note(content), { notifyQuoted }).tags.filter(
+        (tag) => tag[0] === "p",
+      );
+
+    it("既定では nevent の作者と naddr の pubkey に p を付ける", () => {
+      // 捕まえる変異: 本文の引用には p を付けない —— 引用ボタンを使ったときだけ相手に届く
+      expect(pTags(`${nevent(bob)} ${naddr}`)).toEqual([
+        ["p", bob],
+        ["p", alice],
+      ]);
+    });
+
+    it("切ると引用した先の作者に p を付けない", () => {
+      expect(pTags(`${nevent(bob)} ${naddr}`, false)).toEqual([]);
+    });
+
+    it("切っていても、npub で直に書いた相手には p を付ける", () => {
+      // 捕まえる変異: 切ったら引用先の作者の p をまとめて消す —— 名指しした相手にも届かなくなる
+      expect(pTags(`nostr:${npub(bob)} ${nevent(bob)}`, false)).toEqual([
+        ["p", bob],
+      ]);
+    });
+
+    it("作者の分からない note には p を付けず、同じ人に p を重ねない", () => {
+      expect(
+        pTags(
+          `nostr:${encodeBech32("note", id)} nostr:${npub(bob)} ${nevent(bob)}`,
+        ),
+      ).toEqual([["p", bob]]);
+    });
   });
 
   it("自分の絵文字にあるショートコードに emoji を付ける", () => {

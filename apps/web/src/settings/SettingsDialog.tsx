@@ -53,6 +53,8 @@ const SettingsDialog: Component<{
   errorReport: boolean;
   /** 投稿に client タグを付けるか（アカウントの設定）。 */
   clientTag: boolean;
+  /** 引用した先の作者に知らせるか（アカウントの設定）。 */
+  notifyQuoted: boolean;
   /** ショートカットキーの割り当て（この端末の設定）。 */
   keymap: Keymap;
   /** 数字キーでカラムを見せるか（この端末の設定）。 */
@@ -195,6 +197,7 @@ const SettingsDialog: Component<{
       content: () => (
         <PrivacySettings
           clientTag={props.clientTag}
+          notifyQuoted={props.notifyQuoted}
           errorReport={props.errorReport}
         />
       ),

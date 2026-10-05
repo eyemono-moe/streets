@@ -31,6 +31,7 @@ const NEEDS_ACCOUNT: Partial<Record<UiEvent["type"], string>> = {
   "emoji-set/add": "絵文字の登録",
   "emoji-set/remove": "絵文字の登録",
   "deck/set-client-tag": "アカウントの設定",
+  "deck/set-notify-quoted": "アカウントの設定",
 };
 
 /** ログインしていない画面で、ログインの要るイベントを受けてログインを案内する段。 */

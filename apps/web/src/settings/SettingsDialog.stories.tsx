@@ -77,6 +77,7 @@ const Story = (props: Props) => {
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
   const [clientTag, setClientTag] = createSignal(false);
+  const [notifyQuoted, setNotifyQuoted] = createSignal(true);
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
   const [deckLayout, setDeckLayout] = createSignal<DeckLayout>("auto");
@@ -222,6 +223,9 @@ const Story = (props: Props) => {
                         case "deck/set-client-tag":
                           setClientTag(event.on);
                           return true;
+                        case "deck/set-notify-quoted":
+                          setNotifyQuoted(event.on);
+                          return true;
                         case "deck/set-column-digits":
                           setColumnDigits(event.on);
                           return true;
@@ -258,6 +262,7 @@ const Story = (props: Props) => {
                       writeProgress={writeProgress()}
                       errorReport={errorReport()}
                       clientTag={clientTag()}
+                      notifyQuoted={notifyQuoted()}
                       keymap={keymap()}
                       columnDigits={columnDigits()}
                       deckLayout={deckLayout()}

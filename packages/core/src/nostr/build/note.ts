@@ -142,6 +142,9 @@ export const buildReplyTo = (
  * NIP-18 の引用。`e` タグは立てない（NIP-18: "quote reposts will not be shown
  * in the feed as replies"）。住所を持つ先は `q` も住所で指す —— 本文の `naddr`
  * と揃えないと、読む側で同じ引用が 2 つ描かれる。
+ *
+ * 引用先の作者への `p` はここでは付けない。本文で引用したものと同じく、
+ * `withReferences` が設定に従って `q` から付ける。
  */
 export const buildQuote = (
   target: NostrEvent,
@@ -160,7 +163,7 @@ export const buildQuote = (
   const uri = `nostr:${encodeEventPointer(target, hint ? [hint] : [])}`;
   return {
     kind: 1,
-    tags: [q, ["p", target.pubkey], ...hashtagTags(content)],
+    tags: [q, ...hashtagTags(content)],
     content: quoted ? content : `${content}\n\n${uri}`,
   };
 };

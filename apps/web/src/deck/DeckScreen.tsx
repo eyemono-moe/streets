@@ -201,6 +201,7 @@ const DeckScreen: Component<{
         fallbackRelays: props.bootstrapIndexers,
         // 送るときに読む。デッキはこの後で作るが、送るのはその後になる。
         clientTag: () => clientTag(),
+        notifyQuoted: () => notifyQuoted(),
       })
     : undefined;
   const actions = write?.actions ?? createGuestActions();
@@ -572,6 +573,8 @@ const DeckScreen: Component<{
 
   // 投稿に client タグを付けるか。色と同じくデッキと一緒にアカウントへ保存する。
   const clientTag = (): boolean => deckStore.value()?.clientTag === true;
+  // 引用した先の作者に知らせるか。無ければ知らせる。
+  const notifyQuoted = (): boolean => deckStore.value()?.notifyQuoted !== false;
 
   let appearanceTimer: ReturnType<typeof setTimeout> | undefined;
   // 保存し終えたら出す知らせ。保存はデッキの同期に任せている。
@@ -833,6 +836,10 @@ const DeckScreen: Component<{
       case "deck/set-client-tag":
         savedNotice = "プライバシーの設定を保存しました";
         deckStore.update((set) => ({ ...set, clientTag: event.on }));
+        return true;
+      case "deck/set-notify-quoted":
+        savedNotice = "プライバシーの設定を保存しました";
+        deckStore.update((set) => ({ ...set, notifyQuoted: event.on }));
         return true;
       case "deck/set-appearance":
         measureUntilPaint("appearance.apply", "ui.theme");
@@ -1221,6 +1228,7 @@ const DeckScreen: Component<{
           writeProgress={showWriteProgress()}
           errorReport={errorReport()}
           clientTag={clientTag()}
+          notifyQuoted={notifyQuoted()}
           keymap={keymap()}
           columnDigits={columnDigits()}
           deckLayout={deckLayout()}

@@ -589,6 +589,19 @@ describe("client タグを付けるか（clientTag）", () => {
   });
 });
 
+describe("引用した相手に知らせるか（notifyQuoted）", () => {
+  it("切った値を保存して読み戻せる", () => {
+    const off: DeckSet = { ...deck, notifyQuoted: false };
+    expect(loadDeckSet(saveDeckSet(off))?.notifyQuoted).toBe(false);
+  });
+
+  it("壊れた値は既定（知らせる）に落とし、デッキは読む", () => {
+    const loaded = loadDeckSet(JSON.stringify({ ...deck, notifyQuoted: 0 }));
+    expect(loaded?.decks).toEqual(deck.decks);
+    expect(loaded?.notifyQuoted).toBeUndefined();
+  });
+});
+
 describe("知らない種類のカラムが混ざったとき", () => {
   const home = {
     id: "home",
