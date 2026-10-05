@@ -3,14 +3,14 @@ import { type ParentComponent, Show, createSignal } from "solid-js";
 import { useMutes } from "../settings/MuteMediator";
 import Button from "../ui/Button";
 
-/** 押して出した返信先の id。行の外に持つのは `ContentWarningGate` と同じ理由。 */
+/** 押して出した投稿の id。行の外に持つのは `ContentWarningGate` と同じ理由。 */
 const [revealed, setRevealed] = createSignal<ReadonlySet<string>>(new Set());
 
 /**
- * 返信の上に出す返信先が、ミュートの対象に当たるときは押すまで 1 行に畳む。
- * 返信そのものは隠さないので、何への返信だったかは残し、中身だけを伏せる。
+ * 返信先や引用として出す投稿が、ミュートの対象に当たるときは押すまで 1 行に畳む。
+ * 外側の投稿は隠さないので、何かを指していたことは残し、中身だけを伏せる。
  */
-const MutedParentGate: ParentComponent<{ event: NostrEvent }> = (props) => {
+const MutedGate: ParentComponent<{ event: NostrEvent }> = (props) => {
   const mutes = useMutes();
   const hidden = () =>
     mutes?.hides(props.event) === true && !revealed().has(props.event.id);
@@ -38,4 +38,4 @@ const MutedParentGate: ParentComponent<{ event: NostrEvent }> = (props) => {
   );
 };
 
-export default MutedParentGate;
+export default MutedGate;

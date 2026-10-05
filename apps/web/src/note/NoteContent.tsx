@@ -30,7 +30,7 @@ const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
 
 const Quote: Component<{ quote: EventRef }> = (props) => (
   <div class="w-full overflow-hidden rounded-2 border border-primary">
-    <EventRefView target={props.quote} size="compact" />
+    <EventRefView target={props.quote} size="compact" gateMuted />
   </div>
 );
 

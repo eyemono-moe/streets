@@ -1,3 +1,4 @@
+import type { MuteEntry } from "@streets/core/moderation/mute-list";
 import { encodeNaddr } from "@streets/core/nostr/nip19";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import {
@@ -12,6 +13,10 @@ import {
 
 const reply = alice.reply(plain, "返信の本文。");
 const muteReply = bob.reply(plain, "ミュートしている人への返信。");
+const muteQuote = bob.quote(plain, "ミュートしている人の投稿を引用。");
+const muteAlice: MuteEntry[] = [
+  { target: { type: "pubkey", value: alice.pubkey }, visibility: "private" },
+];
 const quoted = bob.note("引用されたノートの本文。");
 const quote = alice.quote(quoted, "引用つきのノート。");
 const quoteOfQuote = carol.quote(
@@ -62,14 +67,17 @@ export const 返信先がミュートの対象: Story = {
     event: muteReply,
     scene: {
       ...scene(muteReply, plain),
-      mutes: [
-        {
-          target: { type: "pubkey", value: alice.pubkey },
-          visibility: "private",
-        },
-      ],
+      mutes: muteAlice,
     },
     replyContext: true,
+  },
+};
+
+/** 引用した投稿がミュートの対象のとき。引用カードの中を押すまで 1 行に畳む。 */
+export const 引用元がミュートの対象: Story = {
+  args: {
+    event: muteQuote,
+    scene: { ...scene(muteQuote, plain), mutes: muteAlice },
   },
 };
 

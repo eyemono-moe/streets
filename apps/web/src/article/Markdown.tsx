@@ -223,7 +223,7 @@ const MarkdownNode: Component<{ node: Nodes }> = (props) => {
       if (embed) {
         return (
           <div class="overflow-hidden rounded-2 border border-primary">
-            <EventRefView target={embed} size="compact" />
+            <EventRefView target={embed} size="compact" gateMuted />
           </div>
         );
       }

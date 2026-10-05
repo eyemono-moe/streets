@@ -38,7 +38,7 @@ import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
 import { Frame, Notice } from "./EventFrame";
 import EventMenu from "./EventMenu";
-import MutedParentGate from "./MutedParentGate";
+import MutedGate from "./MutedGate";
 import { NoteContent } from "./NoteContent";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
@@ -493,22 +493,13 @@ const StandardEvent: Component<
     {/* 返信先は線でつないで上に置く。スレッドのカラムと同じ並べ方。 */}
     <Show when={props.parent()}>
       {(ref) => (
-        <Lookup
+        <EventRefView
           target={ref()}
-          missing="読み込めませんでした"
-          noticeClass="p-2.5"
-        >
-          {(event) => (
-            <MutedParentGate event={event}>
-              <Event
-                event={event}
-                size="compact"
-                expandMedia={props.expandMedia}
-                threadLine="below"
-              />
-            </MutedParentGate>
-          )}
-        </Lookup>
+          size="compact"
+          expandMedia={props.expandMedia}
+          threadLine="below"
+          gateMuted
+        />
       )}
     </Show>
     <Frame size={props.size} onOpen={props.onOpen} onDown={props.onDown}>
@@ -531,6 +522,11 @@ export const EventRefView: Component<{
   size: EventSize;
   expandMedia?: boolean;
   threadLine?: "above" | "below" | "both";
+  /**
+   * ミュートの対象なら押すまで 1 行に畳む。返信先や引用のように、別の投稿に
+   * 添えて出すときに使う。通知やスレッドのように、その投稿自体を見にきた所では畳まない。
+   */
+  gateMuted?: boolean;
 }> = (props) => (
   <Lookup
     target={props.target}
@@ -538,14 +534,21 @@ export const EventRefView: Component<{
     noticeClass="p-2.5"
   >
     {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
-    {(event) => (
-      <Event
-        event={event}
-        size={props.size}
-        expandMedia={props.expandMedia}
-        threadLine={props.threadLine}
-      />
-    )}
+    {(event) => {
+      const body = () => (
+        <Event
+          event={event}
+          size={props.size}
+          expandMedia={props.expandMedia}
+          threadLine={props.threadLine}
+        />
+      );
+      return (
+        <Show when={props.gateMuted} fallback={body()}>
+          <MutedGate event={event}>{body()}</MutedGate>
+        </Show>
+      );
+    }}
   </Lookup>
 );
 
