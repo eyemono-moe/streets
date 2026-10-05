@@ -1,3 +1,4 @@
+import { Presence } from "@ark-ui/solid/presence";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
 import type { Paging } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -9,12 +10,14 @@ import {
   Show,
   Switch,
   createEffect,
+  createMemo,
   createSignal,
   on,
   onCleanup,
   onMount,
 } from "solid-js";
 import Button from "../ui/Button";
+import { holdsScroll } from "../ui/scroll-hold";
 import VirtualList from "../ui/VirtualList";
 import { ChatMessage, HiddenChatMessage } from "./ChatMessage";
 
@@ -121,11 +124,21 @@ const ChatView: Component<{
       if (key === undefined || previous === undefined || key === previous) {
         return;
       }
-      if (!atBottom()) setUnseen((count) => count + 1);
+      // 操作していて動かさなかったときも、一番下にいたまま見えない所へ入る。
+      if (!atBottom() || (scroller && holdsScroll(scroller))) {
+        setUnseen((count) => count + 1);
+      }
     }),
   );
 
+  /** 一番下へ送っている途中。途中で発言が届いても、位置を保たずに下まで送り切る。 */
+  let returning = false;
+  const lastUnseen = createMemo<number>(
+    (previous) => (unseen() > 0 ? unseen() : previous),
+    0,
+  );
   const toBottom = () => {
+    returning = true;
     scroller?.scrollTo({ top: 0, behavior: "smooth" });
     setUnseen(0);
   };
@@ -137,10 +150,41 @@ const ChatView: Component<{
     const update = () => {
       const bottom = element.scrollTop >= -BOTTOM_SLOP;
       setAtBottom(bottom);
-      if (bottom) setUnseen(0);
+      if (bottom) {
+        setUnseen(0);
+        returning = false;
+      }
     };
     element.addEventListener("scroll", update, { passive: true });
     onCleanup(() => element.removeEventListener("scroll", update));
+
+    // column-reverse は下を基準に位置を保つので、発言が増えると見ている発言が上へ
+    // 押し上げられる。一番下で追っているとき以外（遡って読んでいる、操作している）は
+    // 上からの距離を保ち、見ている発言を動かさない。上に古い発言を足したときは、
+    // 下の基準のままで動かないので戻さない。
+    // ResizeObserver は描く前に呼ばれるので、動いて戻る様子は見えない。
+    const fromTop = () =>
+      element.scrollHeight - element.clientHeight + element.scrollTop;
+    let kept = fromTop();
+    let keptKey = lastKey();
+    const keep = () => {
+      const key = lastKey();
+      const reading = !atBottom() && !returning;
+      if (key !== keptKey && (reading || holdsScroll(element))) {
+        element.scrollTop =
+          kept - (element.scrollHeight - element.clientHeight);
+      }
+      keptKey = key;
+      kept = fromTop();
+    };
+    const remember = () => {
+      kept = fromTop();
+    };
+    element.addEventListener("scroll", remember, { passive: true });
+    onCleanup(() => element.removeEventListener("scroll", remember));
+    const content = new ResizeObserver(keep);
+    if (element.firstElementChild) content.observe(element.firstElementChild);
+    onCleanup(() => content.disconnect());
 
     // 一番上が見えたら、古い発言を取り足す。
     const observer = new IntersectionObserver(
@@ -237,18 +281,22 @@ const ChatView: Component<{
             </Switch>
           </div>
         </div>
-        <Show when={unseen() > 0}>
-          <div class="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
-            <Button
-              variant="primary"
-              size="sm"
-              class="motion-pop pointer-events-auto shadow-sm"
-              onClick={toBottom}
-            >
-              新しい発言 {unseen()} 件
-            </Button>
-          </div>
-        </Show>
+        <Presence
+          lazyMount
+          unmountOnExit
+          present={unseen() > 0}
+          class="motion-pop pointer-events-none absolute inset-x-0 bottom-2 flex justify-center"
+        >
+          <Button
+            variant="primary"
+            size="sm"
+            class="pointer-events-auto shadow-sm"
+            onClick={toBottom}
+          >
+            {/* 消えていく間に 0 件と出さない。 */}
+            新しい発言 {lastUnseen()} 件
+          </Button>
+        </Presence>
       </div>
       {props.composer}
     </div>

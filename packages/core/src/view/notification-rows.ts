@@ -1,6 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
 import { repostTarget } from "../nostr/event-refs";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
+import { zapSender } from "../zap/zap-receipt";
 
 /** まとめられる操作。リアクションとリポストは別々にまとめる（混ぜると何をされたか読めない）。 */
 export type NotificationAction = "reaction" | "repost";
@@ -175,3 +176,10 @@ export const groupReactionContents = (
 export const groupActors = (events: readonly NostrEvent[]): string[] => [
   ...new Set(events.map((event) => event.pubkey)),
 ];
+
+/** その行を起こした人。Zap はレシートを出したサーバーではなく、送った人。 */
+export const rowAuthor = (row: NotificationRow): string | undefined => {
+  const event = row.type === "event" ? row.event : row.events[0];
+  if (!event) return undefined;
+  return event.kind === 9735 ? zapSender(event) : event.pubkey;
+};

@@ -1,6 +1,10 @@
-import { Show, createSignal } from "solid-js";
+import { Menu } from "@ark-ui/solid/menu";
+import { Show, createSignal, onCleanup } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import VirtualList from "./VirtualList";
+import NewerNotice from "../columns/NewerNotice";
+import IconButton from "./IconButton";
+import { menuContentClass, menuItemClass } from "./menu";
+import VirtualList, { NewerItemsProvider } from "./VirtualList";
 
 const items = Array.from({ length: 200 }, (_, index) => ({
   id: `${index}`,
@@ -137,5 +141,84 @@ export const プロフィールの下でリアルタイム追加: Story = {
  */
 export const 開いた行は新着で閉じない: Story = {
   render: () => <RealtimeExample stateful />,
+  decorators: [],
+};
+
+/** 行の中のメニュー。開いている間は、新着が届いても先頭へ戻らない。 */
+const MenuRow = (props: { text: string }) => (
+  <div class="flex items-start gap-2 border-primary border-b p-3">
+    <p class="min-w-0 flex-1">{props.text}</p>
+    <Menu.Root lazyMount unmountOnExit>
+      <Menu.Trigger
+        asChild={(triggerProps) => (
+          <IconButton
+            {...triggerProps()}
+            size="sm"
+            icon="i-material-symbols:more-horiz"
+            label="メニュー"
+          />
+        )}
+      />
+      <Menu.Positioner>
+        <Menu.Content class={`${menuContentClass} w-40`}>
+          <Menu.Item value="copy" class={menuItemClass}>
+            リンクをコピー
+          </Menu.Item>
+        </Menu.Content>
+      </Menu.Positioner>
+    </Menu.Root>
+  </div>
+);
+
+const HoldExample = () => {
+  const [liveItems, setLiveItems] = createSignal(items.slice(0, 30));
+  const [newer, setNewer] = createSignal(0);
+  let next = 30;
+  const timer = setInterval(() => {
+    const index = next++;
+    setLiveItems((current) => [
+      { id: `new-${index}`, text: `2 秒ごとに届いた行 ${index}` },
+      ...current,
+    ]);
+  }, 2000);
+  onCleanup(() => clearInterval(timer));
+  let scroller: HTMLDivElement | undefined;
+  return (
+    <div class="relative flex h-96 w-88 flex-col border border-primary">
+      <div
+        ref={scroller}
+        data-scroll-container
+        class="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none]"
+      >
+        <NewerItemsProvider
+          value={(_, report) => setNewer(report?.items.length ?? 0)}
+        >
+          <VirtualList
+            items={liveItems()}
+            itemKey={(item) => item.id}
+            newer={{ noun: "投稿", authorOf: () => undefined }}
+          >
+            {(item) => <MenuRow text={item.text} />}
+          </VirtualList>
+        </NewerItemsProvider>
+      </div>
+      <NewerNotice
+        newer={
+          newer() > 0
+            ? { count: newer(), noun: "投稿", authors: [] }
+            : undefined
+        }
+        onClick={() => scroller?.scrollTo({ top: 0 })}
+      />
+    </div>
+  );
+};
+
+/**
+ * 一番上で行のメニューを開いたまま待つ。メニューの行は動かず、上に溜まった数が
+ * 札に出る。札を押すか、一番上まで戻ると消える。
+ */
+export const メニューを開いている間は先頭へ戻らない: Story = {
+  render: () => <HoldExample />,
   decorators: [],
 };

@@ -14,8 +14,10 @@ import {
   createSignal,
   onCleanup,
   onMount,
+  untrack,
   useContext,
 } from "solid-js";
+import { holdsScroll } from "./scroll-hold";
 
 const ScrollContainerContext =
   createContext<Accessor<HTMLElement | undefined>>();
@@ -25,6 +27,22 @@ const ScrollContainerContext =
  * 今の位置を読むが、その時点では自分の要素がまだ無く、領域を辿れない。
  */
 export const ScrollContainerProvider = ScrollContainerContext.Provider;
+
+/** 先頭へ戻らなかったために、見ている位置より上に足されたもの。 */
+export type NewerItem = { key: string; author?: string };
+
+/**
+ * 一覧が、上に溜まったものを知らせる先。一覧がいくつあっても（タブなど）、
+ * 知らせる側がまとめて 1 つの札にする。
+ */
+export type NewerItemsReport = (
+  owner: symbol,
+  newer: { noun: string; items: readonly NewerItem[] } | undefined,
+) => void;
+
+const NewerItemsContext = createContext<NewerItemsReport>();
+
+export const NewerItemsProvider = NewerItemsContext.Provider;
 
 export type VirtualListProps<T> = {
   items: readonly T[];
@@ -43,6 +61,11 @@ export type VirtualListProps<T> = {
    * 新しい方へ読み進める一覧では、足された束の一番上へ飛ばずに、読んでいる行に留まる。
    */
   followsStart?: boolean;
+  /**
+   * 先頭へ戻らなかったときに上へ足されたものを、`NewerItemsProvider` へ知らせる。
+   * `noun` は札で数えるときの呼び名（「投稿」など）、`authorOf` は札に並べる人。
+   */
+  newer?: { noun: string; authorOf: (item: T) => string | undefined };
   class?: string;
 };
 
@@ -86,6 +109,9 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   let followsStart = true;
   let firstKey: string | undefined;
   const container = useContext(ScrollContainerContext);
+  const reportNewer = useContext(NewerItemsContext);
+  /** 見ている位置より上に足され、まだ見えていないものの key。新しい順。 */
+  const [unseen, setUnseen] = createSignal<readonly string[]>([]);
   /**
    * 置かれるまで行を 0 件と見せる。置かれる前は一覧の位置（scrollMargin）を
    * 測れず 0 になり、その値で並べた行の高さの補正が、スクロール位置を
@@ -171,28 +197,92 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     const resize = new ResizeObserver(measureMargin);
     for (const child of scroller.children) resize.observe(child);
     onCleanup(() => resize.disconnect());
-    const updateFollowsStart = () => {
+    let frame: number | undefined;
+    const onScroll = () => {
       followsStart = scroller.scrollTop <= 1;
+      if (frame !== undefined || untrack(unseen).length === 0) return;
+      frame = requestAnimationFrame(() => {
+        frame = undefined;
+        dropSeen(scroller);
+      });
     };
-    updateFollowsStart();
-    scroller.addEventListener("scroll", updateFollowsStart, { passive: true });
-    onCleanup(() => scroller.removeEventListener("scroll", updateFollowsStart));
+    onScroll();
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    onCleanup(() => {
+      scroller.removeEventListener("scroll", onScroll);
+      if (frame !== undefined) cancelAnimationFrame(frame);
+    });
   });
+
+  /** 上端が見えるところまで戻ってきたものを、まだ見ていないものから外す。 */
+  const dropSeen = (scroller: HTMLElement) => {
+    if (scroller.scrollTop <= 1) {
+      setUnseen([]);
+      return;
+    }
+    const indexes = new Map(
+      props.items.map((item, index) => [props.itemKey(item), index]),
+    );
+    setUnseen((keys) =>
+      keys.filter((key) => {
+        const index = indexes.get(key);
+        if (index === undefined) return false;
+        const start = virtualizer.measurementsCache[index]?.start;
+        return start !== undefined && start < scroller.scrollTop;
+      }),
+    );
+  };
 
   createEffect(() => {
     if (props.reversed || props.followsStart === false) return;
-    const first = props.items[0];
+    const items = props.items;
+    const first = items[0];
     const nextKey = first === undefined ? undefined : props.itemKey(first);
-    const shouldFollow =
-      firstKey !== undefined && nextKey !== firstKey && followsStart;
+    const previousKey = firstKey;
     firstKey = nextKey;
-    if (shouldFollow) {
+    if (previousKey === undefined || nextKey === previousKey) return;
+    const scroller = scrollElement();
+    if (followsStart && scroller && !holdsScroll(scroller)) {
       // anchorTo は既存行を安定させるため常に有効にし、一覧先頭にいた場合だけ
       // その補正後にカラム全体の先頭へ追従する。virtualizer の offset 0 は
       // scrollMargin の後ろなので、一覧より上に内容があるとそこまで隠してしまう。
-      queueMicrotask(() => scrollElement()?.scrollTo({ top: 0 }));
+      queueMicrotask(() => scroller.scrollTo({ top: 0 }));
+      return;
     }
+    // 戻らなければ anchorTo が見ている行を保つので、足されたものは見ている位置より上に入る。
+    const until = items.findIndex(
+      (item) => props.itemKey(item) === previousKey,
+    );
+    if (until <= 0) return;
+    const added = items.slice(0, until).map((item) => props.itemKey(item));
+    const fresh = new Set(added);
+    setUnseen((keys) => [...added, ...keys.filter((key) => !fresh.has(key))]);
   });
+
+  if (reportNewer) {
+    const owner = Symbol();
+    createEffect(() => {
+      const newer = props.newer;
+      if (!newer) return;
+      const keys = unseen();
+      // 何も溜まっていない間は、届くたびに一覧全体を引き直さない。
+      if (keys.length === 0) {
+        reportNewer(owner, { noun: newer.noun, items: [] });
+        return;
+      }
+      const byKey = new Map(
+        props.items.map((item) => [props.itemKey(item), item]),
+      );
+      const items = keys.flatMap((key) => {
+        const item = byKey.get(key);
+        return item === undefined
+          ? []
+          : [{ key, author: newer.authorOf(item) }];
+      });
+      reportNewer(owner, { noun: newer.noun, items });
+    });
+    onCleanup(() => reportNewer(owner, undefined));
+  }
 
   /**
    * 表示する中身と、その置き場所。TanStack は「何番目か」で行を返すが、行を

@@ -70,6 +70,7 @@ const EventList: Component<{
             items={items()}
             itemKey={(event) => event.id}
             followsStart={!props.pagesNewer}
+            newer={{ noun: "投稿", authorOf: (event) => event.pubkey }}
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(event) => (
