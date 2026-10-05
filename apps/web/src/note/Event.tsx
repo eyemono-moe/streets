@@ -38,6 +38,7 @@ import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
 import { Frame, Notice } from "./EventFrame";
 import EventMenu from "./EventMenu";
+import MutedParentGate from "./MutedParentGate";
 import { NoteContent } from "./NoteContent";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
@@ -492,12 +493,22 @@ const StandardEvent: Component<
     {/* 返信先は線でつないで上に置く。スレッドのカラムと同じ並べ方。 */}
     <Show when={props.parent()}>
       {(ref) => (
-        <EventRefView
+        <Lookup
           target={ref()}
-          size="compact"
-          expandMedia={props.expandMedia}
-          threadLine="below"
-        />
+          missing="読み込めませんでした"
+          noticeClass="p-2.5"
+        >
+          {(event) => (
+            <MutedParentGate event={event}>
+              <Event
+                event={event}
+                size="compact"
+                expandMedia={props.expandMedia}
+                threadLine="below"
+              />
+            </MutedParentGate>
+          )}
+        </Lookup>
       )}
     </Show>
     <Frame size={props.size} onOpen={props.onOpen} onDown={props.onDown}>
