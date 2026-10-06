@@ -46,3 +46,25 @@ export const glyphsFor = async (spec: EmojiSpec): Promise<GlyphLookup> => {
   await Promise.all(shardsFor(spec).map(({ font, name }) => load(font, name)));
   return lookup;
 };
+
+/** ひらがなとカタカナ（U+3040〜U+30FF）。打つ言葉の多くは、これで描ける。 */
+const KANA_FIRST = 0x3040;
+const KANA_LAST = 0x30ff;
+const FONTS: readonly FontId[] = ["gothic", "rounded", "serif"];
+
+/**
+ * かなの輪郭を先に読んでおく。ピッカーを開いた時点で呼び、打ったらすぐ候補が出るようにする。
+ * 起動時には読まない（3 書体で約 270KB あり、作る機能を使わない人にも読ませることになる）。
+ */
+export const prefetchKana = () => {
+  const names = new Set<string>();
+  for (let cp = KANA_FIRST; cp <= KANA_LAST; cp += 64) names.add(shardName(cp));
+  names.add(shardName(KANA_LAST));
+  for (const font of FONTS) {
+    for (const name of names) {
+      load(font, name).catch(() => {
+        // 読めなくても、描くときにもう一度取りに行く。
+      });
+    }
+  }
+};

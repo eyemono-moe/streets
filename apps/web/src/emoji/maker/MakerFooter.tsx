@@ -13,6 +13,7 @@ import {
 } from "@streets/core/emoji-maker/text";
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
 import Button from "../../ui/Button";
+import { prefetchKana } from "./glyphs";
 import { createPreview } from "./preview";
 
 export type MakerCandidate = { label: string; style: Style; presetId?: string };
@@ -87,6 +88,7 @@ const MakerFooter: Component<{
   onSend: (spec: EmojiSpec, style: Style) => void;
   onAdjust: (text: string, candidate: MakerCandidate) => void;
 }> = (props) => {
+  prefetchKana();
   const text = () => props.query.trim();
   const candidates = createMemo(() => pickerCandidates(props.lastStyle));
   const first = () => candidates()[0] as MakerCandidate;

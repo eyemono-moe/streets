@@ -6,19 +6,15 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Component, type JSX, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useSending } from "../actions-mediator";
-import { lazyPart, onceTrue } from "../lazy-part";
+import { onceTrue } from "../lazy-part";
 import { useDispatch } from "../ui-events";
 import PopoverTrigger from "../ui/PopoverTrigger";
 import { useCustomEmojis, useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
-import { EmojiPicker } from "./lazy-emoji-picker";
+import { EmojiPicker, MakerDialog, MakerFooter } from "./lazy-emoji-picker";
 import { lastStyle, rememberLastStyle } from "./maker/last-style";
 import type { MakerCandidate } from "./maker/MakerFooter";
 import { rememberEmoji } from "./recent-emoji";
-
-// 描く処理と輪郭の読み込みは、ピッカーの下端を出すまで要らない。
-const MakerFooter = lazyPart(() => import("./maker/MakerFooter"));
-const MakerDialog = lazyPart(() => import("./maker/MakerDialog"));
 
 /**
  * 押せる要素をそのままトリガーにするための、Ark UI から渡ってくる props。

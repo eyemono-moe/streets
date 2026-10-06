@@ -89,7 +89,7 @@ import {
 } from "../default-reaction-setting";
 import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
-import { EmojiPicker } from "../emoji/lazy-emoji-picker";
+import { preloadEmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
 import { setImageDownscaling } from "../image-downscaling-setting";
 import { useIsWide } from "../is-wide";
@@ -221,7 +221,7 @@ const DeckScreen: Component<{
     SettingsDialog.preload();
     CommandPalette.preload();
     AboutDialog.preload();
-    EmojiPicker.preload();
+    preloadEmojiPicker();
   });
   let columnsEl: HTMLDivElement | undefined;
   // 足したカラムは右端に生える。そのままだと気づけないので端まで送る。
