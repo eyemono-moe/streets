@@ -294,11 +294,29 @@ describe("searchSource", () => {
 
   it("from:follows は指定したフォロー中の著者で絞る", () => {
     expect(
+      searchSource(
+        "ねこ from:follows",
+        ["wss://search.example/"],
+        ["a".repeat(64)],
+      ),
+    ).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1], search: "ねこ", authors: ["a".repeat(64)] }],
+      relays: ["wss://search.example/"],
+    });
+  });
+
+  it("言葉が無い条件は検索リレーへ送らず、ふつうの行き先で読む", () => {
+    // 捕まえる変異: search の無い REQ を検索リレーへ送る（search filter is required で断られる）
+    expect(
       searchSource("from:follows", ["wss://search.example/"], ["a".repeat(64)]),
     ).toEqual({
       type: "nostr",
       filters: [{ kinds: [1], authors: ["a".repeat(64)] }],
-      relays: ["wss://search.example/"],
+    });
+    expect(searchSource("#nostr", ["wss://search.example/"])).toEqual({
+      type: "nostr",
+      filters: [{ kinds: [1], "#t": ["nostr"] }],
     });
   });
 });

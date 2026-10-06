@@ -69,15 +69,16 @@ const Results: Component<{
 
   /**
    * 著者を指定しない問い合わせ（新着・言葉での検索）の行き先。Outbox で
-   * 決められないので、自分が読んでいるリレーと、検索リレーと、絵文字セットの
-   * ある既定のリレーへまとめて送る —— どれか 1 つでは薄い。
+   * 決められないので、自分が読んでいるリレーと、絵文字セットのある既定の
+   * リレーへまとめて送る —— どれか 1 つでは薄い。検索リレーは言葉での検索の
+   * ときだけ足す。多くは `search` の無い REQ を断る。
    */
-  const openRelays = () => [
+  const openRelays = (words: boolean) => [
     ...new Set([
       ...(relays?.entries() ?? [])
         .filter((entry) => entry.read)
         .map((entry) => entry.url),
-      ...(searchRelays?.relays() ?? []),
+      ...(words ? (searchRelays?.relays() ?? []) : []),
       ...EMOJI_SET_RELAYS,
     ]),
   ];
@@ -91,7 +92,7 @@ const Results: Component<{
           filters: emojiSetFilters(props.query),
           relays:
             props.query.kind === "recent" || props.query.kind === "words"
-              ? openRelays()
+              ? openRelays(props.query.kind === "words")
               : undefined,
         }),
       })
