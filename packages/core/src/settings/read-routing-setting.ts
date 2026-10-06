@@ -1,4 +1,4 @@
-import type { ReadRouting } from "../read/read-routing";
+import { OUTBOX_ROUTING, type ReadRouting } from "../read/read-routing";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { RelayListState } from "./relay-list-state";
 
@@ -17,7 +17,9 @@ export const loadReadRoutingMode = (raw: string | null): ReadRoutingMode =>
 export const saveReadRoutingMode = (mode: ReadRoutingMode): string => mode;
 
 /**
- * `direct` で読むリレー。自分の読み込みリレーが無ければ fallback を読む。
+ * 自分の読み込みリレーから、読み取りの行き先を決める。Outbox では、著者の
+ * 書き込みリレーのうち自分の読み込みリレーを先に選ぶ。`direct` では自分の
+ * 読み込みリレーだけを読み、無ければ fallback を読む。`direct` で
  * 一覧を取りに行っている間は 0 本で待つ —— fallback へ一瞬繋いでから
  * 張り直すことになるため。
  */
@@ -26,15 +28,19 @@ export const readRoutingFor = (
   relayList: RelayListState,
   fallback: readonly RelayUrl[],
 ): ReadRouting => {
-  if (mode === "outbox") return { mode: "outbox" };
-  if (relayList.phase === "signed-out" || relayList.phase === "loading") {
-    return { mode: "direct", relays: [] };
-  }
   const read =
     relayList.phase === "ready"
       ? relayList.entries
           .filter((entry) => entry.read)
           .map((entry) => entry.url)
       : [];
+  if (mode === "outbox") {
+    return read.length > 0
+      ? { mode: "outbox", preferred: read }
+      : OUTBOX_ROUTING;
+  }
+  if (relayList.phase === "signed-out" || relayList.phase === "loading") {
+    return { mode: "direct", relays: [] };
+  }
   return { mode: "direct", relays: read.length > 0 ? read : [...fallback] };
 };

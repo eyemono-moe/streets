@@ -2485,6 +2485,57 @@ describe("SubscriptionManager の読み取り先の切り替え", () => {
     });
   });
 
+  it("Outbox では、著者の書き込みリレーのうち自分の読み込みリレーを先に読む", () => {
+    const { relays, store, manager, delivery } = setup();
+    const listed = signed(1, {
+      kind: 10002,
+      tags: [
+        ["r", "wss://w1/", "write"],
+        ["r", "wss://w2/", "write"],
+        ["r", "wss://mine/", "write"],
+      ],
+      content: "",
+    });
+    const onlyMine = signed(2, {
+      kind: 10002,
+      tags: [["r", "wss://mine/", "write"]],
+      content: "",
+    });
+    // w1・w2 は多くの人が使うので、mine より先に開くことになる。
+    const popular = [3, 4, 5].map((seed) =>
+      signed(seed, {
+        kind: 10002,
+        tags: [
+          ["r", "wss://w1/", "write"],
+          ["r", "wss://w2/", "write"],
+        ],
+        content: "",
+      }),
+    );
+    for (const event of [listed, onlyMine, ...popular]) {
+      store.put(event, "wss://indexer/");
+    }
+    const filters = () =>
+      relays
+        .get("wss://mine/")
+        ?.subscriptions.filter((s) => !s.closed)
+        .flatMap((s) => s.filters.flatMap((f) => f.authors ?? []));
+    manager.subscribe(
+      [
+        {
+          kinds: [1],
+          authors: [listed, onlyMine, ...popular].map((event) => event.pubkey),
+        },
+      ],
+      undefined,
+      delivery(),
+    );
+    expect(filters()).not.toContain(listed.pubkey);
+
+    manager.setReadRouting({ mode: "outbox", preferred: ["wss://mine/"] });
+    expect(filters()).toContain(listed.pubkey);
+  });
+
   it("同じ値を入れ直しても張り直さない", () => {
     const { manager, delivery } = setup();
     manager.setReadRouting({ mode: "direct", relays: ["wss://mine/"] });

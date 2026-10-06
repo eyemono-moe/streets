@@ -101,6 +101,43 @@ describe("selectRelays", () => {
     expect(selection.assignment.get(A)).toEqual(["wss://x/", "wss://y/"]);
   });
 
+  it("picks the assigned relays by priority, not by the order the author listed them", () => {
+    // 古い一覧を何本も並べた人。実際に書いている wss://main/ は一覧の最後にある。
+    const selection = selectRelays({
+      demand: new Map([
+        [A, ["wss://stale-1/", "wss://stale-2/", "wss://mine/", "wss://main/"]],
+        [B, ["wss://stale-1/"]],
+        [C, ["wss://stale-2/"]],
+        [D, ["wss://mine/"]],
+      ]),
+      pinned: ["wss://main/"],
+      current: [],
+      budget: 10,
+      redundancy: 2,
+      preferred: ["wss://mine/"],
+    });
+
+    expect(selection.picks).toContain("wss://stale-1/");
+    expect(selection.picks).toContain("wss://stale-2/");
+    expect(selection.assignment.get(A)).toEqual(["wss://mine/", "wss://main/"]);
+  });
+
+  it("prefers pinned relays over greedy picks when nothing is preferred", () => {
+    const selection = selectRelays({
+      demand: new Map([
+        [A, ["wss://stale/", "wss://other/", "wss://main/"]],
+        [B, ["wss://stale/"]],
+        [C, ["wss://other/"]],
+      ]),
+      pinned: ["wss://main/"],
+      current: [],
+      budget: 10,
+      redundancy: 2,
+    });
+
+    expect(selection.assignment.get(A)?.[0]).toBe("wss://main/");
+  });
+
   it("breaks ties toward relays that are already open", () => {
     const demand = new Map([
       [A, ["wss://new/", "wss://open/"]],
