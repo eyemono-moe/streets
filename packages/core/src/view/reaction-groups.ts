@@ -56,13 +56,16 @@ export const groupReactions = (
 /**
  * 投稿に付いたリアクションを並べる。`targetId` を確かめ直すのは、返信の祖先として
  * `e` タグに載っているだけの kind:7 を、この投稿への反応として数えないため。
+ * `skips` に当たる人（ミュートしている人）のリアクションは、数にも一覧にも入れない。
  */
 export const eventReactionGroups = (
   store: Pick<EventStore, "eventsByTag">,
   targetId: string,
+  skips?: (pubkey: string) => boolean,
 ): ReactionGroup[] =>
   groupReactions(
     store.eventsByTag("e", targetId).flatMap((event) => {
+      if (skips?.(event.pubkey)) return [];
       const parsed = parseReaction(event);
       return parsed?.targetId === targetId
         ? [{ pubkey: event.pubkey, parsed }]

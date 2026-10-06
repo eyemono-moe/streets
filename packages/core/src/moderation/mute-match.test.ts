@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { MuteTarget } from "../nostr/build/mute";
 import type { NostrEvent } from "../nostr/event";
-import { createMuteMatcher } from "./mute-match";
+import { createMuteMatcher, mutedPeople } from "./mute-match";
 
 const MUTED = "a".repeat(64);
 const OTHER = "f".repeat(64);
@@ -151,5 +151,19 @@ describe("createMuteMatcher", () => {
 
   it("ミュートが無いときは何も当てない", () => {
     expect(createMuteMatcher([], VIEWER)(event({ pubkey: MUTED }))).toBe(false);
+  });
+});
+
+describe("mutedPeople", () => {
+  it("人のミュートだけを集め、自分は入れない", () => {
+    const people = mutedPeople(
+      [
+        { target: { type: "pubkey", value: MUTED }, visibility: "public" },
+        { target: { type: "pubkey", value: VIEWER }, visibility: "public" },
+        { target: { type: "word", value: "tags" }, visibility: "public" },
+      ],
+      VIEWER,
+    );
+    expect([...people]).toEqual([MUTED]);
   });
 });

@@ -20,6 +20,7 @@ import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useReadLayer } from "../read-layer";
+import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import { useEngagementChanges } from "./use-engagement-changes";
 import UserLink from "./UserLink";
@@ -125,10 +126,11 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
   const { store } = useReadLayer();
   const actions = useEventActions();
   const changed = useEngagementChanges(() => props.event.id);
+  const mutes = useMutes();
   const groups = createMemo(
     (): ReactionGroup[] => {
       changed();
-      return eventReactionGroups(store, props.event.id);
+      return eventReactionGroups(store, props.event.id, mutes?.mutesPerson);
     },
     [],
     { equals: sameReactionGroups },

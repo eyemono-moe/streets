@@ -475,7 +475,7 @@ describe("columnMutedDisplay", () => {
     expect(columnMutedDisplay(home)).toBe("hide");
     expect(columnMutedDisplay({ ...home, muted: "fold" })).toBe("fold");
     expect(columnMutedDisplay(buildUserColumn(PUBKEY))).toBe("show");
-    expect(columnMutedDisplay(buildThreadColumn("b".repeat(64)))).toBe("show");
+    expect(columnMutedDisplay(buildThreadColumn("b".repeat(64)))).toBe("fold");
   });
 
   it("投稿が流れないカラムでは扱わない", () => {

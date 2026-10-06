@@ -146,3 +146,20 @@ export const createMuteMatcher = (
     return result;
   };
 };
+
+/**
+ * ミュートしている人。リアクションを付けた人のように、人だけで決まるものに使う。
+ * 自分は入れない。
+ */
+export const mutedPeople = (
+  entries: readonly MuteEntry[],
+  viewer?: string,
+): ReadonlySet<string> => {
+  const people = new Set(
+    entries.flatMap(({ target }) =>
+      target.type === "pubkey" ? [target.value] : [],
+    ),
+  );
+  if (viewer !== undefined) people.delete(viewer);
+  return people;
+};

@@ -1,3 +1,4 @@
+import { columnMutedDisplay } from "@streets/core/deck/column-kinds";
 import type { EventRef } from "@streets/core/nostr/event-refs";
 import { createThreadSource } from "@streets/core/solid/create-thread-source";
 import { threadSpine } from "@streets/core/view/thread-spine";
@@ -7,6 +8,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { useMutes } from "../../settings/MuteMediator";
 import { createBlockSection, useColumnScope } from "../column-scope";
 import ThreadSpineView from "../ThreadSpineView";
 
@@ -26,7 +28,14 @@ const Thread: Component<{ focus: string }> = (props) => {
     ancestors,
     reachedTop,
   });
-  const section = createBlockSection({ source: thread.source });
+  // ミュートはセクションでは当てない。祖先を落とすと背骨が切れ、欠けた返信先として
+  // 取りに行き直してしまう。見せ方は下で、背骨を組んだ後に当てる。
+  const section = createBlockSection({
+    source: thread.source,
+    ignoresMutes: true,
+  });
+  const mutes = useMutes();
+  const muted = () => (mutes ? columnMutedDisplay(scope.column()) : undefined);
 
   // 焦点と、タイムラインなどで取れている祖先は store から引く。購読の応答を待つと、
   // 押しても何も出ない間ができ、購読から届かない返信先は出ないままになる。
@@ -52,9 +61,20 @@ const Thread: Component<{ focus: string }> = (props) => {
     return !missing || ancestors().some((ref) => ref.id === missing.id);
   };
 
+  // 「隠す」でも落とすのは返信だけ。祖先は背骨の途中なので畳む。開いた投稿は出す。
+  const shown = createMemo(() => {
+    const current = spine();
+    if (!mutes || muted() !== "hide") return current;
+    return {
+      ...current,
+      replies: current.replies.filter((event) => !mutes.hides(event)),
+    };
+  });
+
   return (
     <ThreadSpineView
-      spine={spine()}
+      spine={shown()}
+      foldsMuted={muted() === "fold" || muted() === "hide"}
       settled={settled()}
       expandMedia={scope.column().expandMedia !== false}
     />

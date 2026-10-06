@@ -11,7 +11,10 @@ import {
   changeMuteListMany,
   decodeMuteList,
 } from "@streets/core/moderation/mute-list";
-import { createMuteMatcher } from "@streets/core/moderation/mute-match";
+import {
+  createMuteMatcher,
+  mutedPeople,
+} from "@streets/core/moderation/mute-match";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Signer } from "@streets/core/signer/signer";
 import type { Writer } from "@streets/core/write/writer";
@@ -44,6 +47,8 @@ export type Mutes = {
    * 描き直すたびに呼んでよい。
    */
   hides: (event: NostrEvent) => boolean;
+  /** その人をミュートしているか。自分は当てない。 */
+  mutesPerson: (pubkey: string) => boolean;
 };
 
 /** Storybook で、決まった一覧を当てるときにも使う。 */
@@ -74,6 +79,7 @@ export const MuteMediator: ParentComponent<{
   const saved = () => decoded.latest?.entries ?? [];
   const entries = createMemo(() => displayedMutes(saved(), state));
   const matcher = createMemo(() => createMuteMatcher(entries(), props.viewer));
+  const people = createMemo(() => mutedPeople(entries(), props.viewer));
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const schedule = () => {
@@ -146,6 +152,7 @@ export const MuteMediator: ParentComponent<{
       (!props.settled() && props.muteList() === undefined),
     privatePart,
     hides: (event) => matcher()(event),
+    mutesPerson: (pubkey) => people().has(pubkey),
   };
 
   return (
