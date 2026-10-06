@@ -97,17 +97,22 @@ export const followeesActivitySource = (
   ],
 });
 
-// 著者を指定しない問い合わせなので Outbox で行き先を決められない。
-// 検索に答えるリレー（設定か既定）へ明示的に送る。
+/**
+ * 言葉での検索は Outbox で行き先を決められないので、検索に答えるリレー（設定か
+ * 既定）へ明示的に送る。言葉が無い条件（`#nostr` や `from:` だけ）は検索では
+ * ないので送らない。検索リレーの多くは `search` の無い REQ を断る。そのときは
+ * 行き先を決めず、著者がいればその人の書き込み先、いなければ既定のリレーから読む。
+ */
 export const searchSource = (
   query: string,
   relays: readonly RelayUrl[],
   followees: readonly string[] = [],
-): NostrSource => ({
-  type: "nostr",
-  filters: [searchFilter(parseSearchQuery(query), followees)],
-  relays: [...relays],
-});
+): NostrSource => {
+  const filter = searchFilter(parseSearchQuery(query), followees);
+  return filter.search === undefined
+    ? { type: "nostr", filters: [filter] }
+    : { type: "nostr", filters: [filter], relays: [...relays] };
+};
 
 /**
  * `#p` フィルタには `authors` が無いので Outbox でルーティングできない
