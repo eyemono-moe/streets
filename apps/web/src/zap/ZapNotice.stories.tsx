@@ -93,3 +93,10 @@ export const 長い一言: S = {
   },
 };
 export const 幅の狭いカラム: S = { args: { width: 300 } };
+export const 表示密度コンパクトで幅の狭いカラム: S = {
+  args: {
+    size: "compact",
+    width: 300,
+    receipt: receipt({ sats: 1_000_000, message: "大きな Zap", target: mine }),
+  },
+};
