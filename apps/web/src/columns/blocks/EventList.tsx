@@ -1,7 +1,4 @@
-import {
-  columnFacets,
-  columnHidesMuted,
-} from "@streets/core/deck/column-kinds";
+import { columnFacets } from "@streets/core/deck/column-kinds";
 import { columnShow } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
@@ -11,13 +8,13 @@ import { useListsUnderWarning } from "../../content-warning-setting";
 import NewerLoader from "../../deck/NewerLoader";
 import OlderLoader from "../../deck/OlderLoader";
 import Event from "../../note/Event";
-import { useMutes } from "../../settings/MuteMediator";
+import MutedGate from "../../note/MutedGate";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
 /**
  * 取ったイベントを 1 件ずつ `Event` に渡して並べ、古いページを取り足す。
- * 1 件ずつ見て落とす（ミュート・「表示するもの」・`filter`）ことはあっても、
+ * 1 件ずつ見て落とす（「表示するもの」・`filter`。ミュートはセクションが当てる）ことはあっても、
  * まとめたり並べ替えたりはしない。
  */
 const EventList: Component<{
@@ -34,8 +31,8 @@ const EventList: Component<{
     pageSize: PAGE_SIZE,
     pagesNewer: props.pagesNewer,
     name: props.name,
+    canFold: () => true,
   });
-  const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
   const column = () => scope.column();
   const size = () =>
@@ -46,12 +43,8 @@ const EventList: Component<{
     const received = (
       filter ? section.items().filter(filter) : section.items()
     ).filter(listsUnderWarning);
-    const visible =
-      mutes && columnHidesMuted(column())
-        ? received.filter((event) => !mutes.hides(event))
-        : received;
     return visibleColumnItems(
-      visible,
+      received,
       columnShow(column()),
       columnFacets(column()),
     );
@@ -74,12 +67,18 @@ const EventList: Component<{
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(event) => (
-              <Event
+              <MutedGate
                 event={event}
+                active={section.foldsMuted()}
                 size={size()}
-                expandMedia={expandMedia()}
-                replyContext
-              />
+              >
+                <Event
+                  event={event}
+                  size={size()}
+                  expandMedia={expandMedia()}
+                  replyContext
+                />
+              </MutedGate>
             )}
           </VirtualList>
         </div>

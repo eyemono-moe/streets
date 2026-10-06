@@ -47,6 +47,22 @@ export const 既定: Story = {};
 /** 画面の幅いっぱいに広げているとき、幅の px は最小の幅として読ませる。 */
 export const 幅を広げているとき: Story = { args: { stretch: true } };
 
+/** ミュートしている投稿の見せ方を既定から変えると、名前の横に「既定に戻す」が出る。 */
+export const ミュートを畳む: Story = {
+  args: { initial: { ...base, muted: "fold" } },
+};
+
+/** 発言を 1 件ずつの投稿として並べないカラムでは、畳むを選ばせない。 */
+export const チャンネル: Story = {
+  args: {
+    initial: {
+      id: "c",
+      title: "チャンネル",
+      source: { kind: "channel", id: "b".repeat(64) },
+    },
+  },
+};
+
 export const 通知: Story = {
   args: {
     initial: { id: "n", title: "通知", source: { kind: "notifications" } },

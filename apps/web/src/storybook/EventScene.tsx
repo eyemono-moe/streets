@@ -1,7 +1,5 @@
-import {
-  type MuteEntry,
-  matchingMutes,
-} from "@streets/core/moderation/mute-list";
+import type { MuteEntry } from "@streets/core/moderation/mute-list";
+import { createMuteMatcher } from "@streets/core/moderation/mute-match";
 import {
   type EventAddress,
   formatEventAddress,
@@ -329,20 +327,21 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   // 中身は Provider の中で読む。外で読むと、ミュートの段が見えないまま作られる。
   const withMutes = (children: () => JSX.Element) => (
     <Show when={props.scene.mutes} fallback={children()}>
-      {(entries) => (
-        <MuteContext.Provider
-          value={{
-            entries: () => [...entries()],
-            loading: () => false,
-            privatePart: () => "ready",
-            hides: (event) =>
-              event.pubkey !== props.scene.viewer?.pubkey &&
-              matchingMutes(entries(), event).length > 0,
-          }}
-        >
-          {children()}
-        </MuteContext.Provider>
-      )}
+      {(entries) => {
+        const hides = createMuteMatcher(entries(), props.scene.viewer?.pubkey);
+        return (
+          <MuteContext.Provider
+            value={{
+              entries: () => [...entries()],
+              loading: () => false,
+              privatePart: () => "ready",
+              hides,
+            }}
+          >
+            {children()}
+          </MuteContext.Provider>
+        );
+      }}
     </Show>
   );
 

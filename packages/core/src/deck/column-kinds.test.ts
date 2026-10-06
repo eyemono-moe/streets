@@ -5,13 +5,16 @@ import {
   type ColumnSource,
   columnAlerts,
   columnFacets,
+  columnMutedDisplay,
   columnStatus,
   columnTitle,
 } from "./column-kinds";
 import {
+  buildChannelColumn,
   buildColumn,
   buildFolloweesColumn,
   buildRelayColumn,
+  buildThreadColumn,
   buildUserColumn,
 } from "./column-presets";
 import { type ColumnDef, defaultColumns } from "./deck";
@@ -463,5 +466,25 @@ describe("columnTitle（チャンネル）", () => {
       suffix: "の情報",
       fallback: "チャンネルの情報",
     });
+  });
+});
+
+describe("columnMutedDisplay", () => {
+  it("既定はカラムの種類で決まり、カラムに保存した見せ方で変えられる", () => {
+    const home = must(defaultColumns([])[0]);
+    expect(columnMutedDisplay(home)).toBe("hide");
+    expect(columnMutedDisplay({ ...home, muted: "fold" })).toBe("fold");
+    expect(columnMutedDisplay(buildUserColumn(PUBKEY))).toBe("show");
+    expect(columnMutedDisplay(buildThreadColumn("b".repeat(64)))).toBe("show");
+  });
+
+  it("投稿が流れないカラムでは扱わない", () => {
+    expect(columnMutedDisplay(buildFolloweesColumn(PUBKEY))).toBeUndefined();
+  });
+
+  it("畳めないカラムに「畳む」が保存されていたら隠す", () => {
+    // 捕まえる変異: 畳めないブロックに「畳む」を渡し、ミュートした投稿がそのまま出る。
+    const channel = buildChannelColumn("b".repeat(64), undefined);
+    expect(columnMutedDisplay({ ...channel, muted: "fold" })).toBe("hide");
   });
 });

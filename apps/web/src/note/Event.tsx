@@ -534,21 +534,16 @@ export const EventRefView: Component<{
     noticeClass="p-2.5"
   >
     {/* 中身は `Event` に渡す。引用カードを押したときに、外側ではなく引用元が起点になる。 */}
-    {(event) => {
-      const body = () => (
+    {(event) => (
+      <MutedGate event={event} active={props.gateMuted === true}>
         <Event
           event={event}
           size={props.size}
           expandMedia={props.expandMedia}
           threadLine={props.threadLine}
         />
-      );
-      return (
-        <Show when={props.gateMuted} fallback={body()}>
-          <MutedGate event={event}>{body()}</MutedGate>
-        </Show>
-      );
-    }}
+      </MutedGate>
+    )}
   </Lookup>
 );
 
