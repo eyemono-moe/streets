@@ -66,8 +66,8 @@ const ZapNotice: Component<{
               "p-2": props.size === "compact",
             }}
           >
-            {/* 1 行目は誰から（投稿の見出しと同じ形）、2 行目に金額。1 行に詰めると狭い
-                カラムで名前か金額のどちらかが切れる。 */}
+            {/* ゆったりは 1 行目に誰から（投稿の見出しと同じ形）、2 行目に金額を大きく出す。
+                高密度は金額を同じ行に詰め、入り切らないときは名前から縮める。 */}
             <div class="flex min-w-0 items-center gap-2">
               <span
                 class="i-material-symbols:bolt-rounded c-accent-5 shrink-0"
@@ -81,18 +81,24 @@ const ZapNotice: Component<{
                 <Avatar pubkey={current().sender} size="compact" />
               </Show>
               <p
-                class="c-secondary flex min-w-0 flex-1 items-center gap-1 overflow-hidden whitespace-nowrap"
+                class="c-secondary flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap"
                 classList={{
-                  "text-body": props.size === "normal",
+                  "flex-1 text-body": props.size === "normal",
                   "text-[14px]": props.size === "compact",
                 }}
               >
                 <UserLink
                   pubkey={current().sender}
-                  class="c-primary min-w-0 truncate font-600"
+                  class="c-primary min-w-6 truncate font-600"
                 />
                 <span class="shrink-0">から</span>
               </p>
+              {/* 金額は切らない。桁が欠けると別の額に読めてしまう。 */}
+              <Show when={props.size === "compact"}>
+                <span class="c-accent-5 -ml-1 flex-1 shrink-0 whitespace-nowrap text-[14px] font-700">
+                  {formatSats(current().amountMsat)}
+                </span>
+              </Show>
               <time
                 class="c-secondary shrink-0 text-caption"
                 datetime={at().toISOString()}
@@ -101,15 +107,11 @@ const ZapNotice: Component<{
                 {formatEventTime(at(), new Date())}
               </time>
             </div>
-            <p
-              class="c-accent-5 font-700"
-              classList={{
-                "text-h3": props.size === "normal",
-                "text-body": props.size === "compact",
-              }}
-            >
-              {formatSats(current().amountMsat)}
-            </p>
+            <Show when={props.size === "normal"}>
+              <p class="c-accent-5 text-h3 font-700">
+                {formatSats(current().amountMsat)}
+              </p>
+            </Show>
             <Show when={current().message}>
               {(message) => (
                 <p
