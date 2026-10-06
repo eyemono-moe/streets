@@ -316,23 +316,21 @@ const Repost: Component<ContentProps> = (props) => {
         <UserLink pubkey={props.event.pubkey} class="min-w-0 truncate" />
         <span class="shrink-0">がリポスト</span>
       </p>
-      <Show when={props.size === "normal"}>
-        <Show
-          when={resolveRepostTarget(props.event, store)}
-          fallback={<Notice>リポスト元が指定されていません</Notice>}
-        >
-          {(ref) => (
-            <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
-              {(event) => (
-                <EventContent
-                  event={event}
-                  size={props.size}
-                  expandMedia={props.expandMedia}
-                />
-              )}
-            </Lookup>
-          )}
-        </Show>
+      <Show
+        when={resolveRepostTarget(props.event, store)}
+        fallback={<Notice>リポスト元が指定されていません</Notice>}
+      >
+        {(ref) => (
+          <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
+            {(event) => (
+              <EventContent
+                event={event}
+                size={props.size}
+                expandMedia={props.expandMedia}
+              />
+            )}
+          </Lookup>
+        )}
       </Show>
     </>
   );

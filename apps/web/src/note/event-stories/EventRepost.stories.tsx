@@ -36,3 +36,7 @@ export const リポスト元が見つからない: Story = {
     scene: { ...scene(repostOfMissing), missingIds: [missingTarget.id] },
   },
 };
+
+export const 高密度: Story = {
+  args: { event: repost, scene: scene(repost, plain), size: "compact" },
+};
