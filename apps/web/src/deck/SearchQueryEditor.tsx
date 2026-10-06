@@ -24,6 +24,8 @@ const SearchQueryEditor: Component<{
   onChange: (text: string) => void;
   /** 入力欄に自動で焦点を当てる（開いてすぐ打ち始める場所で使う）。 */
   autofocus?: boolean;
+  /** 入力欄で Enter を押した（候補を選ぶ Enter と変換を確定する Enter は除く）。 */
+  onSubmit?: () => void;
   /**
    * 打つたびに上へ渡さず、この時間だけ待つ（ミリ秒）。カラムの設定のように、
    * 渡した瞬間に購読し直す場所で使う。0 ならすぐ渡す。
@@ -110,6 +112,22 @@ const SearchQueryEditor: Component<{
         completion={sources}
         value={shown()}
         onValueChange={typed}
+        enterkeyhint={props.onSubmit ? "search" : undefined}
+        onKeyDown={(event) => {
+          if (
+            event.key !== "Enter" ||
+            event.defaultPrevented ||
+            event.isComposing ||
+            event.keyCode === 229 ||
+            !props.onSubmit
+          )
+            return;
+          event.preventDefault();
+          // 待っている途中の文字も渡してから探す。
+          clearTimeout(timer);
+          send(event.currentTarget.value);
+          props.onSubmit();
+        }}
         onCompositionStart={() => {
           composing = true;
           clearTimeout(timer);

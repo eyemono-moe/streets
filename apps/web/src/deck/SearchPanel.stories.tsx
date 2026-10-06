@@ -28,12 +28,16 @@ type Props = {
   results: boolean;
   longResult: boolean;
   manyResults: boolean;
-  pending: boolean;
+  searched: boolean;
   status: SectionStatus;
 };
 
 const Story = (props: Props) => {
   const [text, setText] = createSignal(props.initial);
+  // 探した条件。打ち変えると「検索」が押せるようになる。
+  const [searched, setSearched] = createSignal(
+    props.searched ? props.initial : "",
+  );
   const [opened, setOpened] = createSignal(0);
   return (
     <EventSceneProvider
@@ -49,6 +53,8 @@ const Story = (props: Props) => {
               text={text()}
               signedIn={props.signedIn}
               onChange={setText}
+              onSearch={() => setSearched(text().trim())}
+              searched={searched() !== ""}
               results={
                 props.results
                   ? props.manyResults
@@ -61,7 +67,7 @@ const Story = (props: Props) => {
               status={props.status}
               paging="exhausted"
               onMore={() => {}}
-              pending={props.pending}
+              changed={text().trim() !== searched()}
               empty={text().trim() === ""}
               onOpen={() => setOpened((count) => count + 1)}
             />
@@ -84,7 +90,7 @@ const meta = {
     results: true,
     longResult: false,
     manyResults: false,
-    pending: false,
+    searched: true,
     status: { phase: "settled" },
   },
 } satisfies Meta<Props>;
@@ -95,8 +101,12 @@ type S = StoryObj<typeof meta>;
 export const 結果がある: S = {};
 export const 未ログイン: S = { args: { signedIn: false } };
 export const 空: S = { args: { initial: "", results: false } };
+/** 打っただけでは探さない。Enter か「検索」を押すまで待つ。 */
+export const まだ探していない: S = {
+  args: { results: false, searched: false, status: { phase: "initial" } },
+};
 export const 検索中: S = {
-  args: { results: false, pending: true, status: { phase: "initial" } },
+  args: { results: false, status: { phase: "initial" } },
 };
 export const 見つからない: S = { args: { results: false } };
 export const 一部取得失敗: S = {
