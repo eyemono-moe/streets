@@ -77,7 +77,7 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
       case "note/react-made":
         run(event, "カスタム絵文字を送れませんでした", async () => {
           const url = await requestEmoji(event.spec);
-          const shortcode = defaultShortcode(event.spec);
+          const shortcode = event.shortcode ?? defaultShortcode(event.spec);
           await actions.react(event.target, { type: "emoji", shortcode, url });
           rememberEmoji({ kind: "custom", shortcode, url });
         });

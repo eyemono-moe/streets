@@ -4,7 +4,12 @@ import MakerDialog, { MakerEditor } from "./MakerDialog";
 
 const neon = PRESETS.find((preset) => preset.id === "neon") ?? PRESETS[0]!;
 
-type Args = { initialText: string; width: number };
+type Args = {
+  initialText: string;
+  width: number;
+  initialShortcode?: string;
+  initialRegister?: boolean;
+};
 
 /** ダイアログの中身。幅を変えて、見本の貼り付き方を見る。 */
 const Editor = (props: Args) => (
@@ -16,7 +21,11 @@ const Editor = (props: Args) => (
       initialText={props.initialText}
       initialStyle={styleOfPreset(neon)}
       presetId={neon.id}
+      existingShortcodes={["neko1", "kome"]}
+      initialShortcode={props.initialShortcode}
+      initialRegister={props.initialRegister}
       onSend={() => {}}
+      onRegister={() => {}}
       onBack={() => {}}
     />
   </div>
@@ -43,6 +52,17 @@ export const 描けない文字がある: S = { args: { initialText: "🍣うま
 
 export const 字数が多すぎる: S = { args: { initialText: "あ".repeat(13) } };
 
+/** 自分の絵文字に登録する。送るボタンが「登録して送る」になり、「登録だけする」が並ぶ。 */
+export const 自分の絵文字に登録する: S = {
+  args: { initialRegister: true, initialShortcode: "eeyan" },
+};
+
+export const もうある名前: S = {
+  args: { initialRegister: true, initialShortcode: "neko1" },
+};
+
+export const 使えない名前: S = { args: { initialShortcode: "ええやん" } };
+
 /** スマホの幅。見本は上に貼り付き、流しても残る。 */
 export const 狭い画面: S = { args: { width: 360 } };
 
@@ -53,7 +73,9 @@ export const ダイアログ: S = {
       initialText={args.initialText}
       initialStyle={styleOfPreset(neon)}
       presetId={neon.id}
+      existingShortcodes={[]}
       onSend={() => {}}
+      onRegister={() => {}}
       onClose={() => {}}
     />
   ),

@@ -9,7 +9,7 @@ import { useSending } from "../actions-mediator";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { useDispatch } from "../ui-events";
 import PopoverTrigger from "../ui/PopoverTrigger";
-import { useEmojiGroups } from "./custom-emojis";
+import { useCustomEmojis, useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
 import { EmojiPicker } from "./lazy-emoji-picker";
 import { lastStyle, rememberLastStyle } from "./maker/last-style";
@@ -68,9 +68,17 @@ const ReactionPicker: Component<{
   // 初めて作るときは、その場で重なりに入るので必ず起きる）。
   let openAfterClose = false;
   const dialogMounted = onceTrue(adjusting);
-  const sendMade = (spec: EmojiSpec, style: Style) => {
+  const customEmojis = useCustomEmojis();
+  const existingShortcodes = () =>
+    customEmojis?.list().emojis.map((emoji) => emoji.shortcode) ?? [];
+  const sendMade = (spec: EmojiSpec, style: Style, shortcode?: string) => {
     rememberLastStyle(style);
-    dispatch({ type: "note/react-made", target: props.target, spec });
+    dispatch({
+      type: "note/react-made",
+      target: props.target,
+      spec,
+      shortcode,
+    });
   };
   return (
     <>
@@ -141,8 +149,20 @@ const ReactionPicker: Component<{
             initialStyle={value().candidate.style}
             presetId={value().candidate.presetId}
             sending={sending()}
-            onSend={(spec, style) => {
-              sendMade(spec, style);
+            existingShortcodes={existingShortcodes()}
+            onSend={(spec, style, submit) => {
+              sendMade(spec, style, submit.shortcode);
+              if (submit.register) {
+                dispatch({
+                  type: "emoji/add-made",
+                  spec,
+                  shortcode: submit.shortcode,
+                });
+              }
+              setAdjusting(false);
+            }}
+            onRegister={(spec, shortcode) => {
+              dispatch({ type: "emoji/add-made", spec, shortcode });
               setAdjusting(false);
             }}
             onClose={() => setAdjusting(false)}

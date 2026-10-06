@@ -19,6 +19,8 @@ import {
   layoutOf,
   textProblem,
 } from "@streets/core/emoji-maker/text";
+import { defaultShortcode } from "@streets/core/emoji-maker/url";
+import { isValidShortcode } from "@streets/core/nostr/content";
 import { type Component, For, Show, createMemo, createSignal } from "solid-js";
 import Button from "../../ui/Button";
 import ColorField from "../../ui/ColorField";
@@ -103,12 +105,22 @@ const Field: Component<{ label: string; children: unknown }> = (props) => (
  * フォント・並べ方を変える。見本は流しても見えるように貼り付ける（狭い画面では上、
  * 広い画面では左の列）。送る行は流す部分の外に置く。
  */
+/** 送る・登録するときの名前と、自分の絵文字に足すか。 */
+export type MakerSubmit = { shortcode: string; register: boolean };
+
 export const MakerEditor: Component<{
   initialText: string;
   initialStyle: Style;
   presetId?: string;
   sending?: boolean;
-  onSend: (spec: EmojiSpec, style: Style) => void;
+  /** 自分の絵文字に、もうある名前。 */
+  existingShortcodes: readonly string[];
+  /** 初めの名前と、登録するか。ストーリーで各状態を見せるため。 */
+  initialShortcode?: string;
+  initialRegister?: boolean;
+  onSend: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  /** 送らずに、自分の絵文字に足すだけ。 */
+  onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onBack: () => void;
 }> = (props) => {
   const first = props.initialStyle;
@@ -134,6 +146,8 @@ export const MakerEditor: Component<{
   const [shape, setShape] = createSignal<Shape>();
   const [fit, setFit] = createSignal<Fit>();
   const [align, setAlign] = createSignal<Align>();
+  const [shortcode, setShortcode] = createSignal(props.initialShortcode ?? "");
+  const [register, setRegister] = createSignal(props.initialRegister ?? false);
 
   const style = createMemo<Style>(() => ({
     color: color(),
@@ -177,7 +191,18 @@ export const MakerEditor: Component<{
     const value = preview.latest;
     return value?.type === "missing" ? value.chars : undefined;
   };
+  const autoShortcode = () => defaultShortcode(spec());
+  const finalShortcode = () => shortcode().trim() || autoShortcode();
+  const shortcodeError = () => {
+    const value = shortcode().trim();
+    return value !== "" && !isValidShortcode(value)
+      ? "半角の英数字・「_」・「-」だけが使えます"
+      : undefined;
+  };
+  const replacing = () =>
+    register() && props.existingShortcodes.includes(finalShortcode());
   const blocked = () =>
+    shortcodeError() !== undefined ||
     problem() !== undefined ||
     missing() !== undefined ||
     !image() ||
@@ -379,6 +404,25 @@ export const MakerEditor: Component<{
                 />
               </Field>
             </Show>
+            <div class="b-t-1 flex flex-col gap-3 border-primary pt-3">
+              <TextField
+                label="ショートコード（任意）"
+                value={shortcode()}
+                placeholder={autoShortcode()}
+                onInput={setShortcode}
+                hint={
+                  replacing()
+                    ? `「${finalShortcode()}」はもう自分の絵文字にあります。登録すると、この絵文字に置き換わります。`
+                    : "「:名前:」で呼び出すときの名前です。カスタム絵文字を表示できないアプリでは、この名前が文字で出ます。空なら自動で付けます。"
+                }
+                error={shortcodeError()}
+              />
+              <Switch
+                label="自分の絵文字に登録する"
+                checked={register()}
+                onChange={setRegister}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -386,13 +430,28 @@ export const MakerEditor: Component<{
         <Button variant="ghost" size="sm" onClick={() => props.onBack()}>
           戻る
         </Button>
+        <Show when={register()}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={blocked() || text().trim() === ""}
+            onClick={() => props.onRegister(spec(), finalShortcode())}
+          >
+            登録だけする
+          </Button>
+        </Show>
         <Button
           variant="primary"
           size="sm"
           disabled={blocked() || text().trim() === ""}
-          onClick={() => props.onSend(spec(), style())}
+          onClick={() =>
+            props.onSend(spec(), style(), {
+              shortcode: finalShortcode(),
+              register: register(),
+            })
+          }
         >
-          これで送る
+          {register() ? "登録して送る" : "これで送る"}
         </Button>
       </div>
     </div>
@@ -444,7 +503,9 @@ const MakerDialog: Component<{
   initialStyle: Style;
   presetId?: string;
   sending?: boolean;
-  onSend: (spec: EmojiSpec, style: Style) => void;
+  existingShortcodes: readonly string[];
+  onSend: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onClose: () => void;
 }> = (props) => (
   <DialogRoot open={props.open} onClose={() => props.onClose()}>
@@ -461,7 +522,9 @@ const MakerDialog: Component<{
           initialStyle={props.initialStyle}
           presetId={props.presetId}
           sending={props.sending}
+          existingShortcodes={props.existingShortcodes}
           onSend={props.onSend}
+          onRegister={props.onRegister}
           onBack={() => props.onClose()}
         />
       </DialogContent>

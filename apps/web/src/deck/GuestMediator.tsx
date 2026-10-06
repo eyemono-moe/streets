@@ -28,6 +28,7 @@ const NEEDS_ACCOUNT: Partial<Record<UiEvent["type"], string>> = {
   "follow-sets/move": "リストの編集",
   "follow-sets/delete": "リストの編集",
   "emoji/add": "絵文字の登録",
+  "emoji/add-made": "絵文字の登録",
   "emoji/remove": "絵文字の登録",
   "emoji-set/add": "絵文字の登録",
   "emoji-set/remove": "絵文字の登録",

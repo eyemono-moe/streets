@@ -1,7 +1,7 @@
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vite-plus/test";
 import type { ContentToken } from "./content";
-import { isProbablyImageUrl, parseContent } from "./content";
+import { isProbablyImageUrl, isValidShortcode, parseContent } from "./content";
 import type { NostrEvent } from "./event";
 import { encodeBech32 } from "./nip19";
 
@@ -461,5 +461,15 @@ describe("isProbablyImageUrl", () => {
   it("画像でない拡張子は false", () => {
     // 捕まえる変異: 拡張子を確認せず常に true を返す
     expect(isProbablyImageUrl("https://example.com/doc.pdf")).toBe(false);
+  });
+});
+
+describe("isValidShortcode", () => {
+  it("英数字・_・- だけの名前を受ける", () => {
+    expect(isValidShortcode("streets_3ee0f0")).toBe(true);
+    expect(isValidShortcode("neko-1")).toBe(true);
+    expect(isValidShortcode("ええやん")).toBe(false);
+    expect(isValidShortcode("a b")).toBe(false);
+    expect(isValidShortcode("")).toBe(false);
   });
 });

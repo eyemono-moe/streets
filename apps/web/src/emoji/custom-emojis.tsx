@@ -32,6 +32,7 @@ import {
 import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import type { PickerGroup } from "./emoji-data";
+import { requestEmoji } from "./maker/api";
 
 export type CustomEmojis = {
   /** ピッカーに出すかたまり。見出しは「自分の絵文字」とセットの名前。 */
@@ -112,27 +113,32 @@ export const CustomEmojisMediator: ParentComponent<{
     setSaving(false);
   };
 
+  const addOne = (emoji: CustomEmoji) =>
+    save(
+      {
+        ...list(),
+        emojis: [
+          ...list().emojis.filter(
+            (other) => other.shortcode !== emoji.shortcode,
+          ),
+          emoji,
+        ],
+      },
+      addEmoji(emoji),
+    );
+
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
-      case "emoji/add": {
-        const emoji: CustomEmoji = {
-          shortcode: event.shortcode,
-          url: event.url,
-        };
-        save(
-          {
-            ...list(),
-            emojis: [
-              ...list().emojis.filter(
-                (other) => other.shortcode !== emoji.shortcode,
-              ),
-              emoji,
-            ],
-          },
-          addEmoji(emoji),
+      case "emoji/add":
+        addOne({ shortcode: event.shortcode, url: event.url });
+        return true;
+      case "emoji/add-made":
+        requestEmoji(event.spec).then(
+          (url) => addOne({ shortcode: event.shortcode, url }),
+          (cause: unknown) =>
+            notifyError(cause, "自分の絵文字に登録できませんでした"),
         );
         return true;
-      }
       case "emoji/remove":
         save(
           {
