@@ -139,11 +139,3 @@ export const parseEmojiKey = (key: string): EmojiSpec | undefined => {
   if (!isValidSpec(spec) || emojiKey(spec) !== key) return undefined;
   return spec;
 };
-
-/** 作った絵文字の URL なら、指定を読み戻す（「これを元に作る」で使う）。 */
-export const parseEmojiUrl = (url: string): EmojiSpec | undefined => {
-  const prefix = `${EMOJI_ORIGIN}/`;
-  return url.startsWith(prefix)
-    ? parseEmojiKey(url.slice(prefix.length))
-    : undefined;
-};

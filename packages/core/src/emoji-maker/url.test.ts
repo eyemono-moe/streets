@@ -7,7 +7,6 @@ import {
   emojiUrl,
   isValidSpec,
   parseEmojiKey,
-  parseEmojiUrl,
 } from "./url";
 
 const spec: EmojiSpec = {
@@ -29,9 +28,8 @@ describe("URL", () => {
     expect(emojiUrl(spec)).toBe(`${EMOJI_ORIGIN}/${emojiKey(spec)}`);
   });
 
-  it("読み戻せる", () => {
+  it("名前だけから指定を読み戻せる（R2 から消えても描き直せる）", () => {
     expect(parseEmojiKey(emojiKey(spec))).toEqual(spec);
-    expect(parseEmojiUrl(emojiUrl(spec))).toEqual(spec);
     const keep: EmojiSpec = {
       ...spec,
       lines: ["えら", "い"],
@@ -60,7 +58,6 @@ describe("URL", () => {
     expect(parseEmojiKey(key.replace("3ee0f0", "3EE0F0"))).toBeUndefined();
     expect(parseEmojiKey(key.replace("v1/", "v2/"))).toBeUndefined();
     expect(parseEmojiKey(`${key}x`)).toBeUndefined();
-    expect(parseEmojiUrl(`https://example.com/${key}`)).toBeUndefined();
   });
 });
 
