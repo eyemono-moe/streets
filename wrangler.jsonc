@@ -28,11 +28,25 @@
       "simple": { "limit": 60, "period": 60 },
     },
     {
+      // カスタム絵文字を新しく描く回数（IP ごと）。もう置いてある絵文字は数えない。
+      "name": "EMOJI_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 30, "period": 60 },
+    },
+    {
       // アイコンを縮小しに行く回数（IP ごと）。キャッシュに当たった分は数えない。
       // 超えたら元の画像へ飛ばすだけなので、画面は壊れない。
       "name": "IMAGE_LIMITER",
       "namespace_id": "1002",
       "simple": { "limit": 300, "period": 60 },
+    },
+  ],
+  "r2_buckets": [
+    {
+      // 作ったカスタム絵文字。バケットに emoji.streets.eyemono.moe を付けて公開し、
+      // 画像はそこから CDN が配る（表示のたびに Worker を動かさない）。Worker は置くだけ。
+      "binding": "EMOJI_BUCKET",
+      "bucket_name": "streets-emoji",
     },
   ],
 }
