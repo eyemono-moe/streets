@@ -13,9 +13,25 @@ export type RelayInfo = {
   pubkey?: string;
   contact?: string;
   icon?: string;
+  /** リレーが示す制限。書いていない項目は無い。 */
+  limitation?: RelayLimitation;
+};
+
+export type RelayLimitation = {
+  /** 1 本の接続で同時に開ける購読の数。 */
+  maxSubscriptions?: number;
+  /** フィルタの `limit` の上限。 */
+  maxLimit?: number;
+  /** 受け付けるメッセージの大きさの上限（バイト）。 */
+  maxMessageLength?: number;
 };
 
 const text = v.fallback(v.optional(v.pipe(v.string(), v.trim())), undefined);
+
+const count = v.fallback(
+  v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  undefined,
+);
 
 const schema = v.object({
   name: text,
@@ -29,16 +45,34 @@ const schema = v.object({
     v.optional(v.pipe(v.string(), v.url(), v.startsWith("https://"))),
     undefined,
   ),
+  limitation: v.fallback(
+    v.optional(
+      v.object({
+        max_subscriptions: count,
+        max_limit: count,
+        max_message_length: count,
+      }),
+    ),
+    undefined,
+  ),
 });
 
 export const parseRelayInfo = (json: unknown): RelayInfo | undefined => {
   const parsed = v.safeParse(schema, json);
   if (!parsed.success) return undefined;
   // 空の文字列は「書いていない」と同じに扱う。
+  const { limitation, ...texts } = parsed.output;
   const info: RelayInfo = {};
-  for (const [key, value] of Object.entries(parsed.output)) {
-    if (value) info[key as keyof RelayInfo] = value;
+  for (const [key, value] of Object.entries(texts)) {
+    if (value) info[key as keyof typeof texts] = value;
   }
+  const limits: RelayLimitation = {};
+  if (limitation?.max_subscriptions)
+    limits.maxSubscriptions = limitation.max_subscriptions;
+  if (limitation?.max_limit) limits.maxLimit = limitation.max_limit;
+  if (limitation?.max_message_length)
+    limits.maxMessageLength = limitation.max_message_length;
+  if (Object.keys(limits).length > 0) info.limitation = limits;
   return info;
 };
 

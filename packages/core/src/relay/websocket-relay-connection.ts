@@ -8,6 +8,7 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "./relay-connection";
+import { type RelayTrafficRecorder, utf8Length } from "./relay-traffic";
 
 export type WebSocketLike = {
   readyState: number;
@@ -40,7 +41,7 @@ type InFlightPublish = {
   retried: boolean;
 };
 
-export type RelayAuthOptions = {
+export type RelayConnectionOptions = {
   /**
    * NIP-42 の認証に使う署名器。関数で受けるのは、接続を作る時点では
    * ログインがまだ済んでいない（署名器が決まっていない）ことがあるため。
@@ -48,6 +49,8 @@ export type RelayAuthOptions = {
   signer?: () => Pick<Signer, "getPublicKey" | "signEvent"> | undefined;
   /** 秒。テストが `created_at` を決めるために注入する。 */
   now?: () => number;
+  /** やりとりを数える先。Devtools で測るときだけ渡す。 */
+  traffic?: RelayTrafficRecorder;
 };
 
 /**
@@ -59,7 +62,7 @@ export class WebSocketRelayConnection implements RelayConnection {
   readonly #publishes = new Map<string, InFlightPublish>();
   /** 送った認証イベントの id → その `OK` を待つ先。 */
   readonly #authOks = new Map<string, (ok: boolean) => void>();
-  readonly #auth: RelayAuthOptions;
+  readonly #auth: RelayConnectionOptions;
   /** リレーから最後に届いた challenge。次の challenge が届くまで有効 (NIP-42)。 */
   #challenge: string | undefined;
   /**
@@ -78,10 +81,11 @@ export class WebSocketRelayConnection implements RelayConnection {
   constructor(
     readonly url: RelayUrl,
     socket: WebSocketLike,
-    auth: RelayAuthOptions = {},
+    auth: RelayConnectionOptions = {},
   ) {
     this.#socket = socket;
     this.#auth = auth;
+    auth.traffic?.attempted(url);
 
     socket.onopen = () => {
       if (this.#opened) return;
@@ -89,6 +93,7 @@ export class WebSocketRelayConnection implements RelayConnection {
       for (const message of queued) socket.send(message);
       // publish されたメッセージが既に取り出し済みのキューの後ろに紛れないよう、流し終えてから通知する。
       this.#opened = true;
+      this.#auth.traffic?.opened(url);
       for (const listener of [...this.#openListeners]) listener();
     };
 
@@ -97,6 +102,7 @@ export class WebSocketRelayConnection implements RelayConnection {
     const fail = () => {
       if (this.#closed) return;
       this.#closed = true;
+      this.#auth.traffic?.socketClosed(url);
       for (const { handlers } of this.#subscriptions.values())
         handlers.onClosed("socket closed");
       this.#subscriptions.clear();
@@ -126,12 +132,14 @@ export class WebSocketRelayConnection implements RelayConnection {
 
     const subId = `s${this.#nextSubId++}`;
     this.#subscriptions.set(subId, { filters, handlers, retried: false });
-    this.#send(JSON.stringify(["REQ", subId, ...filters]));
+    this.#countSubscriptions();
+    this.#send("REQ", JSON.stringify(["REQ", subId, ...filters]));
 
     return {
       close: () => {
         if (!this.#subscriptions.delete(subId)) return;
-        this.#send(JSON.stringify(["CLOSE", subId]));
+        this.#countSubscriptions();
+        this.#send("CLOSE", JSON.stringify(["CLOSE", subId]));
       },
     };
   }
@@ -153,7 +161,7 @@ export class WebSocketRelayConnection implements RelayConnection {
           retried: false,
         });
       }
-      this.#send(JSON.stringify(["EVENT", event]));
+      this.#send("EVENT", JSON.stringify(["EVENT", event]));
     });
   }
 
@@ -188,7 +196,8 @@ export class WebSocketRelayConnection implements RelayConnection {
     };
   }
 
-  #send(message: string): void {
+  #send(type: string, message: string): void {
+    this.#auth.traffic?.sent(this.url, type, utf8Length(message));
     if (this.#socket.readyState === OPEN) this.#socket.send(message);
     else this.#outbox.push(message);
   }
@@ -226,7 +235,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         if (this.#isClosed()) return false;
         return await new Promise<boolean>((resolve) => {
           this.#authOks.set(signed.id, resolve);
-          this.#send(JSON.stringify(["AUTH", signed]));
+          this.#send("AUTH", JSON.stringify(["AUTH", signed]));
         });
       } catch {
         return false;
@@ -236,14 +245,25 @@ export class WebSocketRelayConnection implements RelayConnection {
     return result;
   }
 
+  #countSubscriptions(): void {
+    this.#auth.traffic?.subscriptions(this.url, this.#subscriptions.size);
+  }
+
   #onMessage(raw: string): void {
+    const traffic = this.#auth.traffic;
+    const bytes = traffic ? utf8Length(raw) : 0;
     let message: unknown;
     try {
       message = JSON.parse(raw);
     } catch {
+      traffic?.received(this.url, "invalid", bytes);
       return;
     }
-    if (!Array.isArray(message) || typeof message[0] !== "string") return;
+    if (!Array.isArray(message) || typeof message[0] !== "string") {
+      traffic?.received(this.url, "invalid", bytes);
+      return;
+    }
+    traffic?.received(this.url, message[0], bytes);
 
     switch (message[0]) {
       case "EVENT": {
@@ -254,6 +274,9 @@ export class WebSocketRelayConnection implements RelayConnection {
           event === null
         )
           return;
+        const { id, kind } = event as Partial<NostrEvent>;
+        if (typeof id === "string" && typeof kind === "number")
+          traffic?.event(this.url, id, kind, bytes);
         this.#subscriptions.get(subId)?.handlers.onEvent(event as NostrEvent);
         return;
       }
@@ -269,6 +292,7 @@ export class WebSocketRelayConnection implements RelayConnection {
         const subscription = this.#subscriptions.get(subId);
         if (!subscription) return;
         const text = typeof reason === "string" ? reason : "closed";
+        traffic?.closed(this.url, text);
         if (isAuthRequired(text) && !subscription.retried) {
           subscription.retried = true;
           void this.#authenticate().then((ok) => {
@@ -276,16 +300,19 @@ export class WebSocketRelayConnection implements RelayConnection {
             if (this.#subscriptions.get(subId) !== subscription) return;
             if (ok) {
               this.#send(
+                "REQ",
                 JSON.stringify(["REQ", subId, ...subscription.filters]),
               );
             } else {
               this.#subscriptions.delete(subId);
+              this.#countSubscriptions();
               subscription.handlers.onClosed(text);
             }
           });
           return;
         }
         this.#subscriptions.delete(subId);
+        this.#countSubscriptions();
         subscription.handlers.onClosed(text);
         return;
       }
@@ -307,7 +334,7 @@ export class WebSocketRelayConnection implements RelayConnection {
             // ソケットが閉じていれば、待っていた分は fail が reject 済み。
             if (this.#publishes.get(eventId) !== pending) return;
             if (authed) {
-              this.#send(JSON.stringify(["EVENT", pending.event]));
+              this.#send("EVENT", JSON.stringify(["EVENT", pending.event]));
             } else {
               this.#publishes.delete(eventId);
               for (const { reject } of pending.waiters) reject(new Error(text));
@@ -334,8 +361,12 @@ export class WebSocketRelayConnection implements RelayConnection {
         this.#authResult = undefined;
         return;
       }
+      case "NOTICE": {
+        const [, text] = message;
+        if (typeof text === "string") traffic?.notice(this.url, text);
+        return;
+      }
       default:
-        // NOTICE は扱わない
         return;
     }
   }
@@ -343,6 +374,10 @@ export class WebSocketRelayConnection implements RelayConnection {
 
 export const connectRelay = (
   url: RelayUrl,
-  auth?: RelayAuthOptions,
+  options?: RelayConnectionOptions,
 ): RelayConnection =>
-  new WebSocketRelayConnection(url, new WebSocket(url) as WebSocketLike, auth);
+  new WebSocketRelayConnection(
+    url,
+    new WebSocket(url) as WebSocketLike,
+    options,
+  );

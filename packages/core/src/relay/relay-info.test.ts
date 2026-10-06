@@ -24,6 +24,28 @@ describe("parseRelayInfo", () => {
     });
   });
 
+  it("制限のうち数で書かれたものを読む", () => {
+    expect(
+      parseRelayInfo({
+        limitation: {
+          max_subscriptions: 20,
+          max_limit: "500",
+          max_message_length: 131072,
+          auth_required: false,
+        },
+      }),
+    ).toEqual({
+      limitation: { maxSubscriptions: 20, maxMessageLength: 131072 },
+    });
+  });
+
+  it("制限が崩れていても、ほかの項目は読む", () => {
+    expect(parseRelayInfo({ name: "ok", limitation: 1 })).toEqual({
+      name: "ok",
+    });
+    expect(parseRelayInfo({ limitation: { max_limit: 0 } })).toEqual({});
+  });
+
   it("型が崩れた項目だけを捨てる", () => {
     expect(
       parseRelayInfo({ name: "ok", pubkey: "npub1xyz", icon: 42 }),
