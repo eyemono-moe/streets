@@ -482,7 +482,9 @@ export class SubscriptionManager {
     if (sameReadRouting(this.#readRouting, routing)) return;
     this.#readRouting =
       routing.mode === "outbox"
-        ? OUTBOX_ROUTING
+        ? routing.preferred
+          ? { mode: "outbox", preferred: [...routing.preferred] }
+          : OUTBOX_ROUTING
         : { mode: "direct", relays: [...routing.relays] };
     this.replan();
   }
@@ -776,6 +778,10 @@ export class SubscriptionManager {
       budget,
       redundancy,
       degraded: this.#pool.degradedRelays,
+      preferred:
+        this.#readRouting.mode === "outbox"
+          ? this.#readRouting.preferred
+          : undefined,
       blocked: [
         ...this.#pool.blockedRelays,
         ...pinned.filter((url) => this.#pool.isLocalRefused(url)),

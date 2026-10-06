@@ -14,10 +14,23 @@ describe("読み取り先の設定", () => {
     expect(loadReadRoutingMode(saveReadRoutingMode("direct"))).toBe("direct");
   });
 
-  it("Outbox なら一覧を見ない", () => {
+  it("Outbox は自分の読み込みリレーを優先先として持つ", () => {
     expect(readRoutingFor("outbox", { phase: "loading" }, fallback)).toEqual({
       mode: "outbox",
     });
+    expect(
+      readRoutingFor(
+        "outbox",
+        {
+          phase: "ready",
+          entries: [
+            { url: "wss://read/", read: true, write: false },
+            { url: "wss://write/", read: false, write: true },
+          ],
+        },
+        fallback,
+      ),
+    ).toEqual({ mode: "outbox", preferred: ["wss://read/"] });
   });
 
   it("direct は自分の読み込みリレーだけを読む", () => {

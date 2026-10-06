@@ -31,6 +31,11 @@ export type SelectRelaysOptions = {
    * `pinned` からも外す —— 明示指定より、繋がないという決定を優先する。
    */
   blocked?: readonly RelayUrl[];
+  /**
+   * 開くと決めたリレーの中から著者ごとに `redundancy` 本を選ぶとき、先に取る
+   * リレー（自分の読み込み先）。開く集合の選び方には効かない。
+   */
+  preferred?: readonly RelayUrl[];
 };
 
 /**
@@ -47,6 +52,7 @@ export const selectRelays = ({
   redundancy,
   degraded,
   blocked,
+  preferred,
 }: SelectRelaysOptions): Selection => {
   const blockedSet = new Set(blocked ?? []);
   const excluded = new Set([...(degraded ?? []), ...blockedSet]);
@@ -127,10 +133,24 @@ export const selectRelays = ({
     candidates.delete(best);
   }
 
+  // kind:10002 に書かれた順は、その人がいま使っているかと関係がない。古い一覧を
+  // 何本も並べている人は、実際に書いているリレーが後ろにあって切り捨てられる。
+  // 自分の読み込み先、pinned、多くの人をまかなうリレーの順に取る。
+  const preferredSet = new Set(preferred ?? []);
+  const rank = new Map<RelayUrl, number>();
+  for (const [index, url] of picks.entries()) {
+    rank.set(url, preferredSet.has(url) ? index - picks.length : index);
+  }
+  const byRank = (a: RelayUrl, b: RelayUrl) =>
+    (rank.get(a) ?? 0) - (rank.get(b) ?? 0);
+
   const assignment = new Map<string, readonly RelayUrl[]>();
   const uncovered: string[] = [];
   for (const [pubkey, urls] of demand) {
-    const assigned = urls.filter((url) => picked.has(url)).slice(0, redundancy);
+    const assigned = urls
+      .filter((url) => picked.has(url))
+      .sort(byRank)
+      .slice(0, redundancy);
     assignment.set(pubkey, assigned);
     if (assigned.length === 0) uncovered.push(pubkey);
   }
