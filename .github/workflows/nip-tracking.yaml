@@ -1,0 +1,131 @@
+name: NIP の変更を確認
+
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: nip-tracking
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      actionable: ${{ steps.scan.outputs.actionable }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: NIPs と前回の確認地点を取得
+        id: revisions
+        run: |
+          git clone --quiet https://github.com/nostr-protocol/nips.git "$RUNNER_TEMP/nips"
+          head=$(git -C "$RUNNER_TEMP/nips" rev-parse HEAD)
+          if git fetch --quiet origin refs/heads/nip-tracking-state; then
+            base=$(git show FETCH_HEAD:nips-sha.txt)
+          else
+            base=$(cat scripts/nips-upstream-baseline.txt)
+          fi
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+      - name: 変更された NIP と実装候補を調べる
+        id: scan
+        run: |
+          vp run nips:scan "$RUNNER_TEMP/nips" \
+            "${{ steps.revisions.outputs.base }}" \
+            "${{ steps.revisions.outputs.head }}" .nip-tracking
+          node --input-type=module <<'JS' >> "$GITHUB_OUTPUT"
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync('.nip-tracking/report.json'));
+          const actionable = report.changed.some(item =>
+            item.status !== '未対応' && item.status !== '未記載');
+          console.log(`actionable=${actionable ? 'yes' : 'no'}`);
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nip-scan
+          path: .nip-tracking
+          retention-days: 7
+
+  agent:
+    needs: detect
+    if: needs.detect.outputs.actionable == 'yes'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      copilot-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@v4
+        with:
+          name: nip-scan
+          path: .nip-tracking
+      - name: 仕様差分の影響を判断して対応する
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          NIP_AGENT_DRIVER: ${{ vars.NIP_AGENT_DRIVER || 'manual' }}
+          NIP_AGENT_MODEL: ${{ vars.NIP_AGENT_MODEL || 'auto' }}
+        run: vp run nips:agent
+      - name: 判断と変更を検査する
+        run: node scripts/prepare-nip-result.mjs
+      - name: 変更を検証する
+        run: |
+          impact=$(node -p "JSON.parse(require('fs').readFileSync('.nip-tracking/decision.json')).impact")
+          if [ "$impact" != code ]; then
+            echo '変更なし・人による確認待ち' > .nip-tracking/verification.txt
+          elif vp run verify > .nip-tracking/verify.log 2>&1; then
+            echo 'vp run verify: 成功' > .nip-tracking/verification.txt
+          else
+            echo 'vp run verify: 失敗。ワークフローの検証ログを確認してください。' > .nip-tracking/verification.txt
+            node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const file = '.nip-tracking/decision.json';
+          const decision = JSON.parse(readFileSync(file));
+          decision.impact = 'review';
+          decision.summary += '（vp run verify が失敗したため、人による確認が必要）';
+          writeFileSync(file, JSON.stringify(decision, null, 2) + '\n');
+          JS
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nip-agent
+          path: |
+            .nip-tracking/decision.json
+            .nip-tracking/agent.json
+            .nip-tracking/changes.patch
+            .nip-tracking/verification.txt
+            .nip-tracking/verify.log
+          retention-days: 7
+
+  publish:
+    needs: [detect, agent]
+    if: always() && needs.detect.result == 'success' && (needs.agent.result == 'success' || needs.agent.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: nip-scan
+          path: .nip-tracking
+      - uses: actions/download-artifact@v4
+        if: needs.agent.result == 'success'
+        with:
+          name: nip-agent
+          path: .nip-tracking
+      - name: draft PR または確認用 Issue を作る
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NIP_AGENT_RESULT: ${{ needs.detect.outputs.actionable }}
+        run: node scripts/publish-nip-tracking.mjs
