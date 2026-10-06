@@ -9,6 +9,7 @@ import {
 } from "@streets/core/signer/signer";
 import { RefetchFailedError } from "@streets/core/write/fetch-latest";
 import { WriteFailedError } from "@streets/core/write/writer";
+import { EmojiCreateFailedError } from "./emoji/maker/api";
 import { NoUploadServerError } from "./media/uploader";
 
 export const actionErrorMessage = (error: unknown): string => {
@@ -32,6 +33,18 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof NoUploadServerError) {
     return "画像のアップロード先がありません。設定の「画像」で追加してください";
+  }
+  if (error instanceof EmojiCreateFailedError) {
+    switch (error.reason) {
+      case "missing-chars":
+        return `描けない文字があります（${error.chars.join(" ")}）`;
+      case "denied":
+        return "この絵文字は作れません";
+      case "rate-limited":
+        return "絵文字を作る回数が多すぎます。少し待ってから送ってください";
+      case "server":
+        return "絵文字を作れませんでした。時間をおいて送ってください";
+    }
   }
   return `送信に失敗しました: ${error instanceof Error ? error.message : String(error)}`;
 };

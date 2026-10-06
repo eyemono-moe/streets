@@ -5,8 +5,10 @@ import {
   searchEmojis,
 } from "@streets/core/view/emoji-search";
 import {
+  type Accessor,
   type Component,
   For,
+  type JSX,
   Match,
   Show,
   Switch,
@@ -280,6 +282,8 @@ const EmojiPicker: Component<{
   /** 自分の絵文字（kind:10030 から作ったかたまり）。 */
   customGroups: readonly PickerGroup[];
   onSelect: (emoji: PickerEmoji) => void;
+  /** 下端に足すもの（打った言葉からカスタム絵文字を作る、など）。打った言葉を受け取る。 */
+  footer?: (query: Accessor<string>) => JSX.Element;
 }> = (props) => {
   const [query, setQuery] = createSignal("");
   const [unicode] = createResource(loadUnicodeEmojis);
@@ -355,6 +359,7 @@ const EmojiPicker: Component<{
           )}
         </For>
       </Show>
+      {props.footer?.(query)}
     </div>
   );
 };

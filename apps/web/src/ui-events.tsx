@@ -1,6 +1,7 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import type { ColumnPicker, DeckPanel } from "@streets/core/deck/deck-ui";
+import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { FollowSetMember } from "@streets/core/lists/follow-set";
 import type { FollowSetFormEvent } from "@streets/core/lists/follow-set-form";
 import type {
@@ -265,6 +266,8 @@ export type ChatViewEvent = Extract<
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
+  /** その場で作ったカスタム絵文字でリアクションする。サーバーに描かせてから送る。 */
+  | { type: "note/react-made"; target: NostrEvent; spec: EmojiSpec }
   /** 投票に答える。`choices` は選んだ選択肢の id。 */
   | { type: "note/vote"; target: NostrEvent; choices: readonly string[] }
   /** `on` は押した後に付いているべき状態。 */

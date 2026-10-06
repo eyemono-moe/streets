@@ -9,6 +9,7 @@ import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 const NEEDS_ACCOUNT: Partial<Record<UiEvent["type"], string>> = {
   "note/repost": "リポスト",
   "note/react": "リアクション",
+  "note/react-made": "リアクション",
   "note/vote": "投票",
   "note/bookmark": "ブックマーク",
   "note/pin": "ピン留め",

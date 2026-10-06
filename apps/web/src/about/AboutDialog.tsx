@@ -65,6 +65,15 @@ const Overview: Component<{ tour?: boolean }> = (props) => (
       <dd>
         <Link href={`${REPOSITORY}/blob/main/LICENCE`}>MIT</Link>
       </dd>
+      <dt>フォント</dt>
+      <dd>
+        カスタム絵文字の文字は Noto Sans JP・M PLUS Rounded 1c・Noto Serif JP
+        から作っています（
+        <Link href="/emoji-glyphs/v1/NOTICE.txt">
+          SIL Open Font License 1.1
+        </Link>
+        ）
+      </dd>
     </dl>
     <Show when={props.tour}>
       <TourButton />
@@ -310,6 +319,16 @@ const Privacy: Component = () => (
         のサーバーからのアクセスとして届き、利用者の IP
         アドレスは伝わりません。Streets
         のサーバーは、どの画像やリンクを取得したかを記録していません。
+      </p>
+    </SettingsSection>
+
+    <SettingsSection
+      title="カスタム絵文字の作成"
+      description="絵文字ピッカーの「カスタム絵文字を作る」で作った絵文字は、送信したときに、入力した文字と見た目の指定を Streets のサーバー（Cloudflare Workers）へ送り、画像にして保存します。"
+    >
+      <p class="c-primary text-body">
+        保存した画像は、URL を知っていれば誰でも見られます。URL
+        には入力した文字が含まれます。誰が作ったかは記録しません。見本は端末の中で描くので、送信しなかった文字はサーバーに届きません。
       </p>
     </SettingsSection>
 

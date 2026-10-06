@@ -1,3 +1,5 @@
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { base64urlnopad } from "@scure/base";
 import type { FontId } from "./glyph-shard";
 import type { EmojiSpec } from "./spec";
@@ -139,3 +141,10 @@ export const parseEmojiKey = (key: string): EmojiSpec | undefined => {
   if (!isValidSpec(spec) || emojiKey(spec) !== key) return undefined;
   return spec;
 };
+
+/**
+ * 名前を付けずに送るときのショートコード。見た目が同じなら同じ名前になる。NIP-30 の
+ * ショートコードに使える文字（英数字と `_`）だけでできている。
+ */
+export const defaultShortcode = (spec: EmojiSpec): string =>
+  `streets_${bytesToHex(sha256(new TextEncoder().encode(emojiKey(spec)))).slice(0, 6)}`;

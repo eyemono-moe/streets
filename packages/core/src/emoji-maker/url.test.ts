@@ -3,6 +3,7 @@ import type { EmojiSpec } from "./spec";
 import {
   EMOJI_ORIGIN,
   canonicalSpec,
+  defaultShortcode,
   emojiKey,
   emojiUrl,
   isValidSpec,
@@ -87,4 +88,11 @@ it("canonicalSpec", () => {
     outlineWidth: 0,
     align: "center",
   });
+});
+
+it("defaultShortcode は見た目ごとに決まり、英数字と _ だけ", () => {
+  const code = defaultShortcode(spec);
+  expect(code).toMatch(/^streets_[0-9a-f]{6}$/);
+  expect(defaultShortcode({ ...spec, align: "left" })).toBe(code);
+  expect(defaultShortcode({ ...spec, color: "#ffffff" })).not.toBe(code);
 });

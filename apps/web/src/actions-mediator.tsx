@@ -1,3 +1,4 @@
+import { defaultShortcode } from "@streets/core/emoji-maker/url";
 import {
   type Accessor,
   type ParentComponent,
@@ -6,6 +7,8 @@ import {
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import type { EventActions } from "./actions";
+import { requestEmoji } from "./emoji/maker/api";
+import { rememberEmoji } from "./emoji/recent-emoji";
 import { notifyError } from "./toast";
 import { type ActionEvent, Mediates, type UiEvent } from "./ui-events";
 
@@ -19,6 +22,7 @@ const pendingKey = (event: ActionEvent): string => {
     case "note/repost":
       return `repost:${event.target.id}`;
     case "note/react":
+    case "note/react-made":
       return `react:${event.target.id}`;
     case "note/vote":
       return `vote:${event.target.id}`;
@@ -69,6 +73,14 @@ export const ActionsMediator: ParentComponent<{ actions: EventActions }> = (
         run(event, "リアクションを送れませんでした", () =>
           actions.react(event.target, event.input),
         );
+        return true;
+      case "note/react-made":
+        run(event, "カスタム絵文字を送れませんでした", async () => {
+          const url = await requestEmoji(event.spec);
+          const shortcode = defaultShortcode(event.spec);
+          await actions.react(event.target, { type: "emoji", shortcode, url });
+          rememberEmoji({ kind: "custom", shortcode, url });
+        });
         return true;
       case "note/vote":
         run(event, "投票できませんでした", () =>
