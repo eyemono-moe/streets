@@ -259,8 +259,9 @@ const Completion = (props: {
             class="motion-pop c-primary w-72 overflow-hidden rounded-2.5 border border-primary bg-primary shadow-lg outline-none"
             // 外を押したときに閉じるかは欄が決めるので、外のタップを飲み込ませない。
             data-outside-taps="pass"
-            // 押しても欄からフォーカスを外さない（外すと一覧が閉じる）。
-            onPointerDown={(event) => event.preventDefault()}
+            // 押しても欄からフォーカスを外さない（外すと一覧が閉じる）。pointerdown で
+            // 止めると、iOS の Safari はタップの click を起こさず、候補が入らない。
+            onMouseDown={(event) => event.preventDefault()}
           >
             {/* フォーカスは欄に残し、欄の aria-activedescendant で候補を指す（combobox の形）。
                 一覧と候補はフォーカスを受け取らず、キーボードでは欄から操作する。 */}
