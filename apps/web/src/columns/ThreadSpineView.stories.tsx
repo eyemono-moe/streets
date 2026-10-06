@@ -71,12 +71,22 @@ type Props = {
   focusId: string;
   settled: boolean;
   expandMedia: boolean;
+  /** ミュートしている人。指定すると、その人の投稿を畳む。 */
+  muted?: string;
 };
 
 const ThreadStory: Component<Props> = (props) => {
   const scene = (): EventScene => ({
     events: [...profiles, ...props.events],
     viewer,
+    mutes: props.muted
+      ? [
+          {
+            target: { type: "pubkey", value: props.muted },
+            visibility: "private",
+          },
+        ]
+      : undefined,
   });
   return (
     <EventSceneProvider scene={scene()}>
@@ -86,6 +96,7 @@ const ThreadStory: Component<Props> = (props) => {
           spine={threadSpine(props.events, props.focusId)}
           settled={props.settled}
           expandMedia={props.expandMedia}
+          foldsMuted={props.muted !== undefined}
         />
       </div>
     </EventSceneProvider>
@@ -106,6 +117,18 @@ export const 通常: Story = {
   args: {
     events: [root, middle, focus, ...replies],
     focusId: focus.id,
+  },
+};
+
+/**
+ * ミュートしている人（ほかのひと）の投稿が、祖先と返信に挟まるとき。開いた投稿の
+ * 前後だけを畳み、線のつながりは保つ。
+ */
+export const ミュートに当たる投稿を畳む: Story = {
+  args: {
+    events: [root, middle, focus, ...replies],
+    focusId: focus.id,
+    muted: bob.pubkey,
   },
 };
 

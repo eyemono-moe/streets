@@ -2,6 +2,7 @@ import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ThreadSpine } from "@streets/core/view/thread-spine";
 import { type Component, For, Show } from "solid-js";
 import Event, { EventRefView } from "../note/Event";
+import MutedGate from "../note/MutedGate";
 import { keepInView } from "./keep-in-view";
 
 /**
@@ -13,6 +14,8 @@ const ThreadSpineView: Component<{
   /** 上の方を取り終えたか。取り終えるまでは、欠けていても「読み込み中」と出す。 */
   settled: boolean;
   expandMedia: boolean;
+  /** 開いた投稿の前後で、ミュートに当たる投稿を畳む。開いた投稿そのものは畳まない。 */
+  foldsMuted?: boolean;
 }> = (props) => {
   // 上に投稿が届く、読み込み中の行が消えるなど、焦点より上の高さが変わったら置き直す。
   let thread: HTMLDivElement | undefined;
@@ -41,21 +44,23 @@ const ThreadSpineView: Component<{
         </Show>
         <For each={props.spine.ancestors}>
           {(event: NostrEvent, index) => (
-            <Event
-              event={event}
-              size="compact"
-              expandMedia={props.expandMedia}
-              stickyAvatar
-              withinScope={props.spine.scopeRoot !== undefined}
-              // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
-              threadLine={
-                index() === 0 &&
-                props.spine.reachedRoot &&
-                !props.spine.scopeRoot
-                  ? "below"
-                  : "both"
-              }
-            />
+            <MutedGate event={event} active={props.foldsMuted === true}>
+              <Event
+                event={event}
+                size="compact"
+                expandMedia={props.expandMedia}
+                stickyAvatar
+                withinScope={props.spine.scopeRoot !== undefined}
+                // 上にも下にも投稿があるなら線は通り抜ける。根（か、根が取れていない先頭）だけ下向き。
+                threadLine={
+                  index() === 0 &&
+                  props.spine.reachedRoot &&
+                  !props.spine.scopeRoot
+                    ? "below"
+                    : "both"
+                }
+              />
+            </MutedGate>
           )}
         </For>
         <Show
@@ -85,12 +90,14 @@ const ThreadSpineView: Component<{
       </div>
       <For each={props.spine.replies}>
         {(event) => (
-          <Event
-            event={event}
-            size="compact"
-            expandMedia={props.expandMedia}
-            withinScope={props.spine.scopeRoot !== undefined}
-          />
+          <MutedGate event={event} active={props.foldsMuted === true}>
+            <Event
+              event={event}
+              size="compact"
+              expandMedia={props.expandMedia}
+              withinScope={props.spine.scopeRoot !== undefined}
+            />
+          </MutedGate>
         )}
       </For>
     </div>

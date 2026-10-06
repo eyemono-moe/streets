@@ -389,7 +389,8 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   thread: {
     title: () => ({ text: "スレッド" }),
     kinds: () => [1],
-    muted: "show",
+    // 開いた投稿は出したまま、前後のミュートに当たる投稿を畳む。
+    muted: "fold",
   },
   activity: {
     title: () => ({ text: "アクティビティ" }),
