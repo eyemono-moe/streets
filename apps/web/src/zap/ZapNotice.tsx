@@ -60,82 +60,80 @@ const ZapNotice: Component<{
           }}
         >
           <div
-            class="offscreen-skip flex"
+            class="offscreen-skip flex flex-col gap-2"
             classList={{
-              "gap-3 p-3": props.size === "normal",
-              "gap-2 p-2": props.size === "compact",
+              "p-3": props.size === "normal",
+              "p-2": props.size === "compact",
             }}
           >
-            <span
-              class="i-material-symbols:bolt-rounded c-accent-5 shrink-0"
+            {/* 1 行目は誰から（投稿の見出しと同じ形）、2 行目に金額。1 行に詰めると狭い
+                カラムで名前か金額のどちらかが切れる。 */}
+            <div class="flex min-w-0 items-center gap-2">
+              <span
+                class="i-material-symbols:bolt-rounded c-accent-5 shrink-0"
+                classList={{
+                  "size-5": props.size === "normal",
+                  "size-3.5": props.size === "compact",
+                }}
+                aria-hidden="true"
+              />
+              <Show when={props.size === "normal"}>
+                <Avatar pubkey={current().sender} size="compact" />
+              </Show>
+              <p
+                class="c-secondary flex min-w-0 flex-1 items-center gap-1 overflow-hidden whitespace-nowrap"
+                classList={{
+                  "text-body": props.size === "normal",
+                  "text-[14px]": props.size === "compact",
+                }}
+              >
+                <UserLink
+                  pubkey={current().sender}
+                  class="c-primary min-w-0 truncate font-600"
+                />
+                <span class="shrink-0">から</span>
+              </p>
+              <time
+                class="c-secondary shrink-0 text-caption"
+                datetime={at().toISOString()}
+                title={formatEventTimeFull(at())}
+              >
+                {formatEventTime(at(), new Date())}
+              </time>
+            </div>
+            <p
+              class="c-accent-5 font-700"
               classList={{
-                "mt-1.5 size-5": props.size === "normal",
-                "mt-0.5 size-3.5": props.size === "compact",
+                "text-h3": props.size === "normal",
+                "text-body": props.size === "compact",
               }}
-              aria-hidden="true"
-            />
-            <div class="flex min-w-0 flex-1 flex-col gap-2">
-              {/* 1 行目は誰から（投稿の見出しと同じ形）、2 行目に金額。1 行に詰めると狭い
-                  カラムで名前か金額のどちらかが切れる。 */}
-              <div class="flex min-w-0 items-center gap-2">
-                <Show when={props.size === "normal"}>
-                  <Avatar pubkey={current().sender} size="compact" />
-                </Show>
+            >
+              {formatSats(current().amountMsat)}
+            </p>
+            <Show when={current().message}>
+              {(message) => (
                 <p
-                  class="c-secondary flex min-w-0 flex-1 items-center gap-1 overflow-hidden whitespace-nowrap"
+                  class="c-primary break-anywhere whitespace-pre-wrap"
                   classList={{
                     "text-body": props.size === "normal",
                     "text-[14px]": props.size === "compact",
                   }}
                 >
-                  <UserLink
-                    pubkey={current().sender}
-                    class="c-primary min-w-0 truncate font-600"
-                  />
-                  <span class="shrink-0">から</span>
+                  {message()}
                 </p>
-                <time
-                  class="c-secondary shrink-0 text-caption"
-                  datetime={at().toISOString()}
-                  title={formatEventTimeFull(at())}
-                >
-                  {formatEventTime(at(), new Date())}
-                </time>
-              </div>
-              <p
-                class="c-accent-5 font-700"
-                classList={{
-                  "text-h3": props.size === "normal",
-                  "text-body": props.size === "compact",
-                }}
-              >
-                {formatSats(current().amountMsat)}
-              </p>
-              <Show when={current().message}>
-                {(message) => (
-                  <p
-                    class="c-primary break-anywhere whitespace-pre-wrap"
-                    classList={{
-                      "text-body": props.size === "normal",
-                      "text-[14px]": props.size === "compact",
-                    }}
-                  >
-                    {message()}
-                  </p>
-                )}
-              </Show>
-              <Show when={current().targetId}>
-                {(targetId) => (
-                  <div class="overflow-hidden rounded-2 border border-primary">
-                    <EventRefView
-                      target={{ form: "id", id: targetId() }}
-                      size="compact"
-                      expandMedia={props.expandMedia}
-                    />
-                  </div>
-                )}
-              </Show>
-            </div>
+              )}
+            </Show>
+            <Show when={current().targetId}>
+              {(targetId) => (
+                <div class="overflow-hidden rounded-2 border border-primary">
+                  <EventRefView
+                    target={{ form: "id", id: targetId() }}
+                    size="compact"
+                    expandMedia={props.expandMedia}
+                  />
+                </div>
+              )}
+            </Show>
           </div>
         </article>
       )}
