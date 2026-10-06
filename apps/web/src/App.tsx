@@ -1,5 +1,6 @@
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
+import { createRelayTraffic } from "@streets/core/relay/relay-traffic";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
@@ -20,9 +21,15 @@ const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
+  // メッセージごとに大きさを数えるので、Devtools を出す開発時だけ測る。
+  const relayTraffic = import.meta.env.DEV ? createRelayTraffic() : undefined;
   const readLayer = createReadLayer({
     // session は pool を使うので後から作る。署名器は認証のときに読むので、それまでに決まっていればよい。
-    connect: (url) => connectRelay(url, { signer: () => session.signer }),
+    connect: (url) =>
+      connectRelay(url, {
+        signer: () => session.signer,
+        traffic: relayTraffic?.recorder,
+      }),
     persistence: createIndexedDbPersistence(),
     fallbackRelays: relayOverride,
     // 手元で開いたページからなら、ブラウザは手元のリレーへの接続に許可を求めない。
@@ -88,7 +95,7 @@ const App: Component = () => {
         onRetry={session.restore}
       />
       <Show when={import.meta.env.DEV && !screenshotMode()}>
-        <AppDevtools readLayer={readLayer} />
+        <AppDevtools readLayer={readLayer} relayTraffic={relayTraffic} />
       </Show>
     </>
   );
