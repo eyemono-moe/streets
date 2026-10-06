@@ -69,8 +69,7 @@ const ReactionPicker: Component<{
   };
   return (
     <>
-      // 閉じている間は中身を作らない（絵文字は 1900 件あり、投稿ごとに 2
-      か所ある）。
+      {/* 閉じている間は中身を作らない（絵文字は 1900 件あり、投稿ごとに 2 か所ある）。 */}
       <Popover.Root
         lazyMount
         unmountOnExit
