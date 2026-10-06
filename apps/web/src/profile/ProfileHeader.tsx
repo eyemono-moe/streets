@@ -4,7 +4,6 @@ import {
 } from "@streets/core/deck/column-presets";
 import { followeesFrom, followsPubkey } from "@streets/core/nostr/follow-list";
 import type { ReadLayer } from "@streets/core/read/read-layer";
-import { createAuthorCount } from "@streets/core/solid/create-author-count";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, createEffect, createMemo } from "solid-js";
 import { useEventActions } from "../actions";
@@ -12,7 +11,7 @@ import { useDispatch } from "../ui-events";
 import ProfileHeaderView from "./ProfileHeaderView";
 
 /**
- * ユーザーのカラムの先頭。フォロー数・フォロワー数を押すと、その一覧を
+ * ユーザーのカラムの先頭。フォロー数・フォロワーを押すと、その一覧を
  * このカラムの上に重ねる。
  */
 const ProfileHeader: Component<{
@@ -30,14 +29,9 @@ const ProfileHeader: Component<{
       filters: [{ kinds: [3], authors: [props.pubkey], limit: 1 }],
     }),
   });
-  // フォロワーの kind:3 は 1 件で数千のタグを持つ。数えるだけなので、本体は持たない。
-  const followerCount = createAuthorCount({
-    manager: props.readLayer.manager,
-    source: () => ({
-      type: "nostr",
-      filters: [{ kinds: [3], "#p": [props.pubkey] }],
-    }),
-  });
+  // フォロワーは見出しでは数えない。数えるにはフォロワー全員の kind:3（1 件で
+  // 数千のタグを持つ）を取るしかなく、人気のある人では数十 MB になる。人数は
+  // 押して開くフォロワーの一覧で出す。
 
   const followeeCount = createMemo(
     () => followeesFrom(followees.items()[0]).length,
@@ -52,7 +46,6 @@ const ProfileHeader: Component<{
     <ProfileHeaderView
       pubkey={props.pubkey}
       followeeCount={followeeCount()}
-      followerCount={followerCount()}
       followsYou={followsYou()}
       onOpenFollowees={() =>
         dispatch({

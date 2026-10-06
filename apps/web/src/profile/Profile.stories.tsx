@@ -95,7 +95,6 @@ type HeaderProps = {
   pubkey: string;
   followsYou?: boolean;
   followeeCount: number;
-  followerCount: number;
   scene: EventScene;
 };
 
@@ -106,7 +105,6 @@ const HeaderStory: Component<HeaderProps> = (props) => (
       <ProfileHeaderView
         pubkey={props.pubkey}
         followeeCount={props.followeeCount}
-        followerCount={props.followerCount}
         followsYou={props.followsYou}
         onOpenFollowees={() => {}}
         onOpenFollowers={() => {}}
@@ -118,7 +116,7 @@ const HeaderStory: Component<HeaderProps> = (props) => (
 const meta = {
   title: "ユーザー/プロフィールの見出し",
   component: HeaderStory,
-  args: { followeeCount: 128, followerCount: 64, scene: scene(linkedNote) },
+  args: { followeeCount: 128, scene: scene(linkedNote) },
   argTypes: { scene: { control: false }, pubkey: { control: false } },
 } satisfies Meta<typeof HeaderStory>;
 
@@ -153,7 +151,7 @@ export const 自分: Story = {
 };
 
 export const 画像も自己紹介もない: Story = {
-  args: { pubkey: carol.pubkey, followeeCount: 0, followerCount: 0 },
+  args: { pubkey: carol.pubkey, followeeCount: 0 },
 };
 
 export const 自己紹介が長い: Story = {
@@ -203,6 +201,16 @@ export const 一覧: StoryObj<typeof ListStory> = {
       longName.pubkey,
     ],
     settled: true,
+    scene: scene(),
+  },
+};
+
+/** 取り終えるまでは、それまでに数えた人数を出す。 */
+export const 一覧を取得中_途中まで: StoryObj<typeof ListStory> = {
+  render: (props) => <ListStory {...props} />,
+  args: {
+    people: [alice.pubkey, bob.pubkey, carol.pubkey],
+    settled: false,
     scene: scene(),
   },
 };

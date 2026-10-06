@@ -58,11 +58,7 @@ const ProfileStory = (props: {
             id={column.id}
             open={columnPartOpen(column.id, "profile")}
           >
-            <ProfileHeaderView
-              pubkey={person.pubkey}
-              followeeCount={128}
-              followerCount={64}
-            />
+            <ProfileHeaderView pubkey={person.pubkey} followeeCount={128} />
           </ColumnProfile>
           <div class="border-primary border-t p-3 text-caption">投稿のタブ</div>
           <p class="p-3 text-body">カラムの本文</p>
