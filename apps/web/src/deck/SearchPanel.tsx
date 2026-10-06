@@ -19,11 +19,11 @@ import {
   type Accessor,
   type Component,
   Match,
+  Show,
   Switch,
   createEffect,
   createMemo,
   createSignal,
-  onCleanup,
 } from "solid-js";
 import { useListsUnderWarning } from "../content-warning-setting";
 import Event from "../note/Event";
@@ -46,24 +46,19 @@ const SearchPanel: Component<{
   const dispatch = useDispatch();
   const [text, setText] = createSignal("");
   const [searched, setSearched] = createSignal("");
+  // 投稿の検索は結果が大きく、打っている途中の語で探しても役に立たないので、
+  // Enter か「検索」で確かめたときにだけ問い合わせる。外から条件を渡されたとき
+  // （ハッシュタグを押したなど）は、すぐ探す。
+  const search = () => setSearched(text().trim());
   createEffect(() => {
     const request = props.request;
     // reconcile は同じオブジェクトを更新するので、連続した要求も拾う。
-    if (request?.sequence !== undefined) setText(request.query);
+    if (request?.sequence === undefined) return;
+    setText(request.query);
+    setSearched(request.query.trim());
   });
   const query = createMemo(() => parseSearchQuery(searched()));
   const empty = () => isEmptySearchQuery(parseSearchQuery(text()));
-
-  // 入力のたびにリレーへ購読を張り直さない。変換中は editor が上へ渡さない。
-  createEffect(() => {
-    const next = text().trim();
-    if (next === "" || next === searched()) {
-      setSearched(next);
-      return;
-    }
-    const timer = setTimeout(() => setSearched(next), 500);
-    onCleanup(() => clearTimeout(timer));
-  });
 
   const section = createSection({
     manager: props.readLayer.manager,
@@ -97,11 +92,13 @@ const SearchPanel: Component<{
       text={text()}
       signedIn={props.signedIn}
       onChange={setText}
+      onSearch={search}
+      searched={searched() !== ""}
       results={results()}
       status={section.status()}
       paging={section.paging()}
       onMore={section.loadMore}
-      pending={text().trim() !== searched()}
+      changed={text().trim() !== searched()}
       empty={empty()}
       onOpen={() => {
         const column = buildColumn("search", text().trim());
@@ -116,11 +113,16 @@ export const SearchPanelView: Component<{
   text: string;
   signedIn: boolean;
   onChange: (text: string) => void;
+  /** いまの条件で問い合わせる。 */
+  onSearch: () => void;
+  /** 一度でも問い合わせたか。まだなら、結果の代わりに探し方を出す。 */
+  searched: boolean;
   results: readonly NostrEvent[];
   status: SectionStatus;
   paging: Paging;
   onMore: () => void;
-  pending: boolean;
+  /** 条件を、最後に探したときから変えた。 */
+  changed: boolean;
   empty: boolean;
   onOpen: () => void;
 }> = (props) => (
@@ -134,6 +136,7 @@ export const SearchPanelView: Component<{
         text={props.text}
         signedIn={props.signedIn}
         onChange={props.onChange}
+        onSubmit={props.onSearch}
         autofocus
       />
     </div>
@@ -144,8 +147,10 @@ export const SearchPanelView: Component<{
             キーワードを入力すると、ここに結果が表示されます。
           </p>
         </Match>
-        <Match when={props.pending}>
-          <p class="c-secondary px-3 py-4 text-caption">検索中…</p>
+        <Match when={!props.searched}>
+          <p class="c-secondary px-3 py-4 text-caption">
+            Enter か「検索」で探します。
+          </p>
         </Match>
         <Match when={props.results.length > 0}>
           <div>
@@ -177,15 +182,32 @@ export const SearchPanelView: Component<{
       </Switch>
     </div>
     <div class="shrink-0 border-primary border-t bg-primary px-3 py-3">
-      <Button
-        variant="primary"
-        shape="rounded"
-        block
-        disabled={props.empty}
-        onClick={props.onOpen}
+      {/* 結果を見てからカラムにする。条件を変えたら、まず探し直す。 */}
+      <Show
+        when={!props.changed}
+        fallback={
+          <Button
+            variant="primary"
+            shape="rounded"
+            block
+            icon="i-material-symbols:search-rounded"
+            disabled={props.empty}
+            onClick={props.onSearch}
+          >
+            検索
+          </Button>
+        }
       >
-        この条件でカラムを開く
-      </Button>
+        <Button
+          variant="primary"
+          shape="rounded"
+          block
+          disabled={props.empty}
+          onClick={props.onOpen}
+        >
+          この条件でカラムを開く
+        </Button>
+      </Show>
     </div>
   </div>
 );

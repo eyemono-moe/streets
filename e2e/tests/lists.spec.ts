@@ -27,6 +27,8 @@ const openPostsOf = async (page: Page, target: User) => {
   const npub = encodeBech32("npub", target.pubkey);
   await page.getByRole("button", { name: "検索パネルを開く" }).click();
   await page.getByRole("textbox", { name: "検索クエリ" }).fill(`from:${npub}`);
+  // 欄の Enter は、開いている人の候補を選ぶのに使われることがある。
+  await page.getByRole("button", { name: "検索", exact: true }).click();
   await page.getByRole("button", { name: "この条件でカラムを開く" }).click();
   await page.getByRole("button", { name: "検索パネルを開く" }).click();
   return column(page, `from:${npub}`);
