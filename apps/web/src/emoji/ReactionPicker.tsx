@@ -62,9 +62,10 @@ const ReactionPicker: Component<{
     candidate: MakerCandidate;
   }>();
   const [adjusting, setAdjusting] = createSignal(false);
-  // 「調整する」を押したら、ピッカーが閉じきってからダイアログを開く。閉じる途中に開くと、
-  // ピッカーが開き口へフォーカスを戻したのを「ダイアログの外へ出た」と受け取って閉じてしまう
-  // （ダイアログを初めて作るときだけ起きる）。
+  // 「調整する」を押したら、ピッカーが閉じきってからダイアログを開く。Ark UI（zag）は、
+  // 開いている順にポップアップやダイアログを重ねて覚え、下の層が閉じると上の層もまとめて閉じる。
+  // ピッカーが閉じる前にダイアログが重なりに入ると、ピッカーと一緒に閉じてしまう（ダイアログを
+  // 初めて作るときは、その場で重なりに入るので必ず起きる）。
   let openAfterClose = false;
   const dialogMounted = onceTrue(adjusting);
   const sendMade = (spec: EmojiSpec, style: Style) => {
