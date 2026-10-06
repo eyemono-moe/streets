@@ -47,6 +47,25 @@ export const 反応の件数: Story = {
   args: { event: plain, scene: scene(plain, ...engaged) },
 };
 
+/**
+ * ミュートしている人（ほかのひと）のリアクションを除いたとき。その人だけが付けた
+ * 絵文字（:party:）はチップごと出さない。
+ */
+export const ミュートしている人のリアクション: Story = {
+  args: {
+    event: plain,
+    scene: {
+      ...scene(plain, ...engaged),
+      mutes: [
+        {
+          target: { type: "pubkey", value: bob.pubkey },
+          visibility: "private",
+        },
+      ],
+    },
+  },
+};
+
 export const 自分が反応済み: Story = {
   args: { event: plain, scene: scene(plain, ...engaged, ...viewerEngaged) },
 };

@@ -1,5 +1,8 @@
 import type { MuteEntry } from "@streets/core/moderation/mute-list";
-import { createMuteMatcher } from "@streets/core/moderation/mute-match";
+import {
+  createMuteMatcher,
+  mutedPeople,
+} from "@streets/core/moderation/mute-match";
 import {
   type EventAddress,
   formatEventAddress,
@@ -329,6 +332,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     <Show when={props.scene.mutes} fallback={children()}>
       {(entries) => {
         const hides = createMuteMatcher(entries(), props.scene.viewer?.pubkey);
+        const people = mutedPeople(entries(), props.scene.viewer?.pubkey);
         return (
           <MuteContext.Provider
             value={{
@@ -336,6 +340,7 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
               loading: () => false,
               privatePart: () => "ready",
               hides,
+              mutesPerson: (pubkey) => people.has(pubkey),
             }}
           >
             {children()}

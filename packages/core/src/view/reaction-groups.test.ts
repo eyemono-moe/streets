@@ -106,6 +106,26 @@ describe("eventReactionGroups", () => {
   });
 });
 
+describe("eventReactionGroups（ミュート）", () => {
+  it("ミュートしている人のリアクションは数にも一覧にも入れない", () => {
+    const events = [
+      reactionEvent("u1", "🎉", [["e", TARGET]]),
+      reactionEvent("muted", "🎉", [["e", TARGET]]),
+      reactionEvent("muted", "👀", [["e", TARGET]]),
+    ];
+    const groups = eventReactionGroups(
+      { eventsByTag: () => events },
+      TARGET,
+      (pubkey) => pubkey === "muted",
+    );
+    // 捕まえる変異: 数だけ減らし、ミュートした人だけが付けた絵文字のチップを残す。
+    expect(groups.map((group) => [group.key, group.count])).toEqual([
+      ["text:🎉", 1],
+    ]);
+    expect([...(groups[0]?.users.keys() ?? [])]).toEqual(["u1"]);
+  });
+});
+
 describe("sameReactionGroups", () => {
   it("押した人の回数まで同じなら同じとみなす", () => {
     const build = () =>
