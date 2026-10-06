@@ -41,6 +41,12 @@ export type ColumnShow = {
  */
 export type LinkCardMode = "off" | "compact" | "large";
 
+/**
+ * ミュートに当たる投稿の見せ方。`hide` は出さない、`fold` は押すまで 1 行に畳む、
+ * `show` はそのまま出す。
+ */
+export type MutedDisplay = "hide" | "fold" | "show";
+
 export type ColumnDef = {
   id: string;
   title: string;
@@ -57,6 +63,8 @@ export type ColumnDef = {
    * まとめるか。保存された値が無いときはまとめる（`groupsActions`）。
    */
   groupNotifications?: boolean;
+  /** 保存された値が無いときは、カラムの種類の既定（`columnMutedDisplay`）。 */
+  muted?: MutedDisplay;
   /**
    * 開いたときに、見せるものがあると分かっていたリレー（押した投稿を受け取った
    * リレーや nevent のヒント）。カラムのどの取得にも、行き先に足して聞く。
@@ -192,6 +200,10 @@ const columnDefSchema = v.object({
     undefined,
   ),
   groupNotifications: v.optional(v.boolean()),
+  muted: v.fallback(
+    v.optional(v.picklist(["hide", "fold", "show"])),
+    undefined,
+  ),
   knownRelays: v.optional(v.array(v.string())),
   show: v.optional(
     v.object({

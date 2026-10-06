@@ -7,8 +7,6 @@ import {
   changeMuteList,
   changeMuteListMany,
   decodeMuteList,
-  matchingMutes,
-  mutesActionTarget,
   parseMuteTarget,
   threadMuteTarget,
 } from "./mute-list";
@@ -280,68 +278,7 @@ describe("applyMuteChanges", () => {
   });
 });
 
-describe("matchingMutes", () => {
-  it("著者・根スレッド・ハッシュタグ・単語をまとめて返す", () => {
-    // 捕まえる変異: root 参照を比較せず、返信をスレッドミュートから漏らす。
-    const found = matchingMutes(
-      [
-        { target: { type: "pubkey", value: PUBKEY }, visibility: "public" },
-        { target: { type: "thread", value: ROOT_ID }, visibility: "private" },
-        {
-          target: { type: "hashtag", value: "nostr" },
-          visibility: "private",
-        },
-        { target: { type: "word", value: "nostr" }, visibility: "private" },
-      ],
-      event({
-        tags: [
-          ["e", ROOT_ID, "", "root"],
-          ["e", "e".repeat(64), "", "reply"],
-          ["t", "nostr"],
-        ],
-      }),
-    );
-    expect(found).toHaveLength(4);
-  });
-
-  it("リアクション・リポストの相手の著者やノートがミュートに当たれば隠す", () => {
-    const other = "f".repeat(64);
-    const byPubkey = [
-      { target: { type: "pubkey", value: PUBKEY }, visibility: "public" },
-    ] as const;
-    const byThread = [
-      { target: { type: "thread", value: ROOT_ID }, visibility: "public" },
-    ] as const;
-    const reaction = event({
-      pubkey: other,
-      kind: 7,
-      content: "+",
-      tags: [
-        ["e", ROOT_ID],
-        ["p", PUBKEY],
-      ],
-    });
-    const repost = event({
-      pubkey: other,
-      kind: 6,
-      content: "",
-      tags: [
-        ["e", ROOT_ID],
-        ["p", PUBKEY],
-      ],
-    });
-    expect(mutesActionTarget(byPubkey, reaction)).toBe(true);
-    expect(mutesActionTarget(byThread, reaction)).toBe(true);
-    expect(mutesActionTarget(byPubkey, repost)).toBe(true);
-    expect(mutesActionTarget(byThread, repost)).toBe(true);
-    expect(
-      mutesActionTarget(
-        byPubkey,
-        event({ ...reaction, tags: [["e", ROOT_ID]] }),
-      ),
-    ).toBe(false);
-  });
-
+describe("threadMuteTarget", () => {
   it("メニューのスレッド対象は root があれば root を使う", () => {
     expect(
       threadMuteTarget(event({ tags: [["e", ROOT_ID, "", "root"]] })),

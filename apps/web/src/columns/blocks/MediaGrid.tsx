@@ -1,4 +1,3 @@
-import { columnHidesMuted } from "@streets/core/deck/column-kinds";
 import { MEDIA_TILE_MAX_EDGE } from "@streets/core/media/display-size";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
@@ -34,8 +33,7 @@ import {
   warningLabel,
 } from "../../note/ContentWarningGate";
 import { BlurhashCanvas } from "../../note/NoteMedia";
-import { useMutes } from "../../settings/MuteMediator";
-import { createBlockSection, useColumnScope } from "../column-scope";
+import { createBlockSection } from "../column-scope";
 
 const MediaViewer = lazyPart(() => import("../../note/MediaViewer"));
 
@@ -289,22 +287,15 @@ const MediaGrid: Component<{
   source: () => NostrSource | undefined;
   name?: string;
 }> = (props) => {
-  const scope = useColumnScope();
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
     name: props.name,
   });
-  const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
-  const tiles = createMemo(() => {
-    const received = section.items().filter(listsUnderWarning);
-    const visible =
-      mutes && columnHidesMuted(scope.column())
-        ? received.filter((event) => !mutes.hides(event))
-        : received;
-    return visible.flatMap(tilesOf);
-  });
+  const tiles = createMemo(() =>
+    section.items().filter(listsUnderWarning).flatMap(tilesOf),
+  );
   return (
     <MediaGridView
       tiles={tiles()}

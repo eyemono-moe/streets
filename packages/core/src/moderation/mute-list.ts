@@ -1,6 +1,6 @@
 import type { MuteTarget } from "../nostr/build/mute";
 import type { NostrEvent } from "../nostr/event";
-import { replyTarget, repostTarget, threadRoot } from "../nostr/event-refs";
+import { threadRoot } from "../nostr/event-refs";
 import { decodeNip19, decodeNpub } from "../nostr/nip19";
 import {
   type ItemVisibility,
@@ -8,7 +8,6 @@ import {
   decryptPrivateTags,
   rewritePrivateTags,
 } from "../nostr/private-tags";
-import { parseReaction } from "../nostr/reaction";
 import type { Signer } from "../signer/signer";
 import type { Replacement } from "../write/writer";
 
@@ -251,64 +250,6 @@ export const applyMuteChanges = (
     }
   }
   return current;
-};
-
-export const matchingMutes = (
-  entries: readonly MuteEntry[],
-  event: NostrEvent,
-): MuteEntry[] => {
-  const roots = new Set([
-    event.id,
-    threadRoot(event)?.id,
-    replyTarget(event)?.id,
-  ]);
-  const hashtags = new Set(
-    event.tags.filter((tag) => tag[0] === "t").map((tag) => tag[1]),
-  );
-  const content = event.content.toLowerCase();
-  return entries.filter(({ target }) => {
-    switch (target.type) {
-      case "pubkey":
-        return event.pubkey === target.value;
-      case "thread":
-        return roots.has(target.value);
-      case "hashtag":
-        return hashtags.has(target.value);
-      case "word":
-        return content.includes(target.value.toLowerCase());
-    }
-  });
-};
-
-/**
- * リアクション・リポストの相手（反応されたノートと、その著者）がミュートに当たるか。
- * 反応した人がミュートしていない人でも、ミュートした人の投稿は流さない。
- * ノートの中身はまだ届いていないことがあるので、タグで分かる著者とノートだけを見る。
- */
-export const mutesActionTarget = (
-  entries: readonly MuteEntry[],
-  event: NostrEvent,
-): boolean => {
-  const target =
-    event.kind === 7
-      ? (() => {
-          const reaction = parseReaction(event);
-          return reaction
-            ? { id: reaction.targetId, pubkey: reaction.targetPubkey }
-            : undefined;
-        })()
-      : event.kind === 6 || event.kind === 16
-        ? {
-            id: repostTarget(event)?.id,
-            pubkey: event.tags.find((tag) => tag[0] === "p")?.[1],
-          }
-        : undefined;
-  if (!target) return false;
-  return entries.some(
-    ({ target: muted }) =>
-      (muted.type === "pubkey" && muted.value === target.pubkey) ||
-      (muted.type === "thread" && muted.value === target.id),
-  );
 };
 
 export const threadMuteTarget = (event: NostrEvent): MuteTarget => ({

@@ -8,7 +8,6 @@ import { type Component, Match, Switch } from "solid-js";
 import ArticleCommentsView from "../../article/ArticleCommentsView";
 import ArticleView from "../../article/ArticleView";
 import { createEventDialogs } from "../../note/event-ops";
-import { useMutes } from "../../settings/MuteMediator";
 import Button from "../../ui/Button";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
@@ -21,18 +20,12 @@ const ArticleComments: Component<{
   relays?: readonly string[];
 }> = (props) => {
   const scope = useColumnScope();
-  const mutes = useMutes();
   const section = createBlockSection({
     source: () =>
       articleCommentsSource(props.pubkey, props.identifier, props.relays),
     name: "comments",
   });
-  const rows = () =>
-    commentTree(
-      mutes
-        ? section.items().filter((event) => !mutes.hides(event))
-        : section.items(),
-    );
+  const rows = () => commentTree(section.items());
   const dialogs = createEventDialogs(() => props.article);
   return (
     <ArticleCommentsView
@@ -66,6 +59,8 @@ const Article: Component<{
   const section = createBlockSection({
     source: () => articleSource(props.pubkey, props.identifier, props.relays),
     name: "article",
+    // 開いた記事そのものは、書いた人をミュートしていても出す。
+    ignoresMutes: true,
   });
   const latest = () =>
     [...section.items()].sort((a, b) => b.created_at - a.created_at)[0];

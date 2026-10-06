@@ -24,7 +24,7 @@ import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent } from "../../note/Event";
-import { useMutes } from "../../settings/MuteMediator";
+import MutedGate from "../../note/MutedGate";
 import VirtualList from "../../ui/VirtualList";
 import { useOwnZapKey } from "../../zap/own-zap-key";
 import ZapNotice from "../../zap/ZapNotice";
@@ -42,8 +42,10 @@ const NotificationList: Component<{
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
+    // まとめるリアクション・リポストと Zap は 1 行の投稿ではないので畳まない。
+    canFold: (event) =>
+      event.kind !== 9735 && actionTarget(event) === undefined,
   });
-  const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
   const zapKey = useOwnZapKey(() => props.viewer);
   const column = () => scope.column();
@@ -62,11 +64,8 @@ const NotificationList: Component<{
     const received = excludeOwnActions(section.items(), props.viewer)
       .filter(genuine)
       .filter(listsUnderWarning);
-    const visible = mutes
-      ? received.filter((event) => !mutes.hides(event))
-      : received;
     return visibleColumnItems(
-      visible,
+      received,
       columnShow(column()),
       columnFacets(column()),
     );
@@ -119,11 +118,17 @@ const NotificationList: Component<{
                           <Show
                             when={actionTarget(single().event)}
                             fallback={
-                              <Event
+                              <MutedGate
                                 event={single().event}
+                                active={section.foldsMuted()}
                                 size={size()}
-                                expandMedia={expandMedia()}
-                              />
+                              >
+                                <Event
+                                  event={single().event}
+                                  size={size()}
+                                  expandMedia={expandMedia()}
+                                />
+                              </MutedGate>
                             }
                           >
                             <ActionNotice

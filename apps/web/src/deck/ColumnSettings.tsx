@@ -1,9 +1,15 @@
-import type { ColumnFacet } from "@streets/core/deck/column-kinds";
+import {
+  type ColumnFacet,
+  columnMutedDisplay,
+  defaultMutedDisplay,
+  mutedDisplayChoices,
+} from "@streets/core/deck/column-kinds";
 import type {
   ColumnDef,
   ColumnDensity,
   ColumnShow,
   ColumnWidth,
+  MutedDisplay,
 } from "@streets/core/deck/deck";
 import {
   type LinkCardMode,
@@ -46,6 +52,12 @@ const DENSITIES: { value: ColumnDensity; label: string }[] = [
   { value: "comfortable", label: "ゆったり" },
   { value: "compact", label: "高密度" },
 ];
+
+const MUTED_LABELS: Record<MutedDisplay, string> = {
+  hide: "隠す",
+  fold: "畳む",
+  show: "そのまま",
+};
 
 const TOGGLE_LABELS: Record<keyof ColumnShow, string> = {
   replies: "リプライ",
@@ -109,6 +121,27 @@ const ColumnSettings: Component<{
           block
         />
       </Field>
+
+      <Show when={columnMutedDisplay(props.column)}>
+        {(muted) => (
+          <Field
+            label="ミュートしている投稿"
+            changed={muted() !== defaultMutedDisplay(props.column)}
+            onReset={() => patch({ muted: undefined })}
+          >
+            <SegmentedControl
+              label="ミュートしている投稿"
+              options={mutedDisplayChoices(props.column).map((value) => ({
+                value,
+                label: MUTED_LABELS[value],
+              }))}
+              value={muted()}
+              onChange={(value) => patch({ muted: value })}
+              block
+            />
+          </Field>
+        )}
+      </Show>
 
       <Show when={props.facets.length > 0}>
         <Field label="表示するもの">

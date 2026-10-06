@@ -10,8 +10,8 @@ import {
   type MuteEntry,
   changeMuteListMany,
   decodeMuteList,
-  matchingMutes,
 } from "@streets/core/moderation/mute-list";
+import { createMuteMatcher } from "@streets/core/moderation/mute-match";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Signer } from "@streets/core/signer/signer";
 import type { Writer } from "@streets/core/write/writer";
@@ -39,7 +39,10 @@ export type Mutes = {
   loading: Accessor<boolean>;
   /** 非公開の項目を読み書きできるか。署名の方法によってはできない。 */
   privatePart: Accessor<DecodedMuteList["privatePart"] | undefined>;
-  /** タイムラインや通知で隠すか。自分の投稿は隠さない。 */
+  /**
+   * ミュートに当たるか。自分の投稿は当てない。一覧が変わるまで結果を覚えているので、
+   * 描き直すたびに呼んでよい。
+   */
   hides: (event: NostrEvent) => boolean;
 };
 
@@ -70,6 +73,7 @@ export const MuteMediator: ParentComponent<{
   );
   const saved = () => decoded.latest?.entries ?? [];
   const entries = createMemo(() => displayedMutes(saved(), state));
+  const matcher = createMemo(() => createMuteMatcher(entries(), props.viewer));
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const schedule = () => {
@@ -141,9 +145,7 @@ export const MuteMediator: ParentComponent<{
       decoded.latest === undefined ||
       (!props.settled() && props.muteList() === undefined),
     privatePart,
-    hides: (event) =>
-      event.pubkey !== props.viewer &&
-      matchingMutes(entries(), event).length > 0,
+    hides: (event) => matcher()(event),
   };
 
   return (

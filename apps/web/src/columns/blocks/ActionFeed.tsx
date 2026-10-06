@@ -1,6 +1,5 @@
 import { columnFacets } from "@streets/core/deck/column-kinds";
 import { columnShow, groupsActions } from "@streets/core/deck/deck";
-import { mutesActionTarget } from "@streets/core/moderation/mute-list";
 import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
@@ -23,7 +22,6 @@ import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
-import { useMutes } from "../../settings/MuteMediator";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
 
@@ -43,7 +41,6 @@ const ActionFeed: Component<{
     source: () => props.source(),
     pageSize: PAGE_SIZE,
   });
-  const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
   const column = () => scope.column();
   const size = () =>
@@ -51,15 +48,8 @@ const ActionFeed: Component<{
   const expandMedia = () => column().expandMedia !== false;
 
   const items = () => {
-    const received = section.items().filter(listsUnderWarning);
-    const visible = mutes
-      ? received.filter(
-          (event) =>
-            !mutes.hides(event) && !mutesActionTarget(mutes.entries(), event),
-        )
-      : received;
     return visibleColumnItems(
-      visible,
+      section.items().filter(listsUnderWarning),
       columnShow(column()),
       columnFacets(column()),
     );

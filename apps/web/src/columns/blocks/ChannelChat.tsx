@@ -35,7 +35,6 @@ import { useListsUnderWarning } from "../../content-warning-setting";
 import { onceTrue } from "../../lazy-part";
 import { ComposeMediator } from "../../note/ComposeMediator";
 import { useReadLayer } from "../../read-layer";
-import { useMutes } from "../../settings/MuteMediator";
 import { notifyError } from "../../toast";
 import { Mediates, type UiEvent, useDispatch } from "../../ui-events";
 import Button from "../../ui/Button";
@@ -57,7 +56,6 @@ const ChannelChat: Component<{
   const { store } = useReadLayer();
   const actions = useEventActions();
   const dispatch = useDispatch();
-  const mutes = useMutes();
   const listsUnderWarning = useListsUnderWarning();
 
   // チャンネルの情報を探すリレーは、まだ情報が無いのでヒントか自分のリレー。
@@ -70,6 +68,7 @@ const ChannelChat: Component<{
   const info = createBlockSection({
     source: () => channelSource(props.channelId, lookupRelays()),
     name: "info",
+    ignoresMutes: true,
   });
   const channel = createMemo(() => {
     const items = info.items();
@@ -103,16 +102,14 @@ const ChannelChat: Component<{
   const moderation = createBlockSection({
     source: () => chatModerationSource(relays()),
     name: "moderation",
+    ignoresMutes: true,
   });
 
   // 行は key で突き合わせて当てる。作り直した配列をそのまま渡すと、発言やミュートが
   // 1 件届くたびに <For> が全行を作り直し、画像が読み込み直されてちらつく。
   const [view, setView] = createStore<{ rows: ChatRow[] }>({ rows: [] });
   createComputed(() => {
-    const received = messages.items().filter(listsUnderWarning);
-    const visible = mutes
-      ? received.filter((event) => !mutes.hides(event))
-      : received;
+    const visible = messages.items().filter(listsUnderWarning);
     setView(
       "rows",
       reconcile(

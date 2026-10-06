@@ -657,6 +657,23 @@ describe("linkCards", () => {
   });
 });
 
+describe("ミュートの見せ方（muted）", () => {
+  const column = deck.decks[0]?.columns[0];
+  if (!column) throw new Error("fixture");
+
+  it("保存して読み戻せる", () => {
+    const saved = setOf([{ ...column, muted: "fold" }]);
+    expect(columnsOf(saveDeckSet(saved))?.[0]?.muted).toBe("fold");
+  });
+
+  it("知らない値ならカラムを残して既定に戻す", () => {
+    // 捕まえる変異: 知らない値でカラムごと捨てる（新しい版の設定を古い版で開くと消える）
+    const loaded = columnsOf(rawOf([{ ...column, muted: "blur" }]))?.[0];
+    expect(loaded?.id).toBe(column.id);
+    expect(loaded?.muted).toBeUndefined();
+  });
+});
+
 describe("カラムの種類ごとの保存", () => {
   // 種類をキーにした表なので、種類を足すとここにも例を書くまで型検査が落ちる。
   const EXAMPLES: { [K in ColumnKind]: ColumnSourceOf<K> } = {

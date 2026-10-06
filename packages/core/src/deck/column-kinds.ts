@@ -9,7 +9,7 @@ import {
   type RelayListState,
   readRelayCount,
 } from "../settings/relay-list-state";
-import type { ColumnDef, ColumnShow } from "./deck";
+import type { ColumnDef, ColumnShow, MutedDisplay } from "./deck";
 
 /**
  * 「誰かの投稿を時系列で並べる」列が集める kind。kind:6 はタイムラインへ
@@ -196,8 +196,16 @@ type ColumnKindDef<S> = {
    * `undefined` は「決められない」で、全項目を出す。
    */
   kinds: (source: S) => readonly number[] | undefined;
-  /** ミュートした人を出さないか。 */
-  hidesMuted: boolean;
+  /**
+   * ミュートに当たる投稿の既定の見せ方。カラムの設定で変えられる。人や一覧を
+   * 並べるカラムのように、投稿が流れないものには置かない（設定も出さない）。
+   */
+  muted?: MutedDisplay;
+  /**
+   * 1 行に畳めるか。リアクションをまとめた行やチャットの発言のように、投稿 1 件の
+   * 形で並ばないものは畳めないので、選ばせずに隠す。
+   */
+  foldsMuted?: false;
   /**
    * 自分宛を集めるカラムか。「メンション」（自分宛だが返信でも引用でもない投稿）は
    * ここでしか意味を持たず、ほかで切ると普通の投稿まで消える。
@@ -265,7 +273,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       source.filters.every((filter) => filter.kinds !== undefined)
         ? source.filters.flatMap((filter) => filter.kinds ?? [])
         : undefined,
-    hidesMuted: true,
+    muted: "hide",
     chosenRelays: (source) => source.relays ?? [],
     alerts: (source, input) => {
       const unreachable = input.status.incomplete?.unreachableRelays ?? 0;
@@ -300,13 +308,13 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       const kinds = parseSearchQuery(source.query).kinds;
       return kinds.length > 0 ? kinds : [1];
     },
-    hidesMuted: false,
+    muted: "hide",
   },
   followees: {
     title: () => ({ text: "ホーム" }),
     // チャンネルでの発言は保存した kinds に無く、「表示するもの」で入れたときに取る。
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
-    hidesMuted: true,
+    muted: "hide",
     togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
     needsAccount: true,
@@ -314,7 +322,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   timeslip: {
     title: () => ({ text: "タイムスリップ" }),
     kinds: (source) => [...source.kinds, CHANNEL_MESSAGE_KIND],
-    hidesMuted: true,
+    muted: "hide",
     togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
     needsAccount: true,
@@ -322,14 +330,15 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   "followees-activity": {
     title: () => ({ text: "みんなのアクティビティ" }),
     kinds: () => FOLLOWEES_ACTIVITY_KINDS,
-    hidesMuted: true,
+    muted: "hide",
+    foldsMuted: false,
     alerts: (_, input) => directReadUnreachable(input),
     needsAccount: true,
   },
   notifications: {
     title: () => ({ text: "通知" }),
     kinds: () => NOTIFICATION_KINDS,
-    hidesMuted: true,
+    muted: "hide",
     needsAccount: true,
     addressedToViewer: true,
     togglesChats: true,
@@ -368,28 +377,29 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     title: () => ({ text: "ブックマーク" }),
     // id で引くので kind は決まらない。何を保存したかは人による。
     kinds: () => undefined,
-    hidesMuted: false,
+    muted: "show",
     needsAccount: true,
   },
   article: {
     title: () => ({ text: "長文記事" }),
     kinds: () => [LONG_FORM_KIND],
-    hidesMuted: false,
+    muted: "hide",
+    foldsMuted: false,
   },
   thread: {
     title: () => ({ text: "スレッド" }),
     kinds: () => [1],
-    hidesMuted: false,
+    muted: "show",
   },
   activity: {
     title: () => ({ text: "アクティビティ" }),
     kinds: () => [],
-    hidesMuted: false,
+    muted: "show",
   },
   user: {
     title: (source) => ({ person: source.pubkey, suffix: "" }),
     kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
-    hidesMuted: false,
+    muted: "show",
     togglesChats: true,
     alerts: (_, input) => [
       ...directReadUnreachable(input),
@@ -412,12 +422,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
   "followees-list": {
     title: (source) => ({ person: source.pubkey, suffix: " のフォロー" }),
     kinds: () => [3],
-    hidesMuted: false,
   },
   "followers-list": {
     title: (source) => ({ person: source.pubkey, suffix: " のフォロワー" }),
     kinds: () => [3],
-    hidesMuted: false,
   },
   "channel-info": {
     title: (source, column) => ({
@@ -426,12 +434,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       fallback: column.title,
     }),
     kinds: () => [],
-    hidesMuted: false,
   },
   "follow-sets": {
     title: () => ({ text: "リスト" }),
     kinds: () => [],
-    hidesMuted: false,
     needsAccount: true,
   },
   "follow-set": {
@@ -442,7 +448,7 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
     }),
     kinds: () => [...TIMELINE_KINDS, CHANNEL_MESSAGE_KIND],
     // ホームと同じく、選んで集めた人の流れなのでミュートを効かせる。
-    hidesMuted: true,
+    muted: "hide",
     togglesChats: true,
     alerts: (_, input) => directReadUnreachable(input),
   },
@@ -453,12 +459,10 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       fallback: column.title,
     }),
     kinds: () => [],
-    hidesMuted: false,
   },
   "channel-list": {
     title: () => ({ text: "チャンネル" }),
     kinds: () => [],
-    hidesMuted: false,
   },
   channel: {
     // URL などから開いたカラムは、足したときに名前を知らない。情報が届いたら名前で呼ぶ。
@@ -468,12 +472,12 @@ const COLUMN_KINDS: { [K in ColumnKind]: ColumnKindDef<ColumnSourceOf<K>> } = {
       fallback: column.title,
     }),
     kinds: () => [CHANNEL_MESSAGE_KIND],
-    hidesMuted: true,
+    muted: "hide",
+    foldsMuted: false,
   },
   welcome: {
     title: () => ({ text: "Streets へようこそ" }),
     kinds: () => [],
-    hidesMuted: false,
   },
 };
 
@@ -507,8 +511,35 @@ export const columnFacets = (column: ColumnDef): ColumnFacet[] => {
   return facets;
 };
 
-export const columnHidesMuted = (column: ColumnDef): boolean =>
-  kindOf(column.source).hidesMuted;
+/** そのカラムで選べる見せ方。投稿が流れないカラムでは空。 */
+export const mutedDisplayChoices = (
+  column: ColumnDef,
+): readonly MutedDisplay[] => {
+  const kind = kindOf(column.source);
+  if (kind.muted === undefined) return [];
+  return kind.foldsMuted === false
+    ? ["hide", "show"]
+    : ["hide", "fold", "show"];
+};
+
+/** カラムの種類が決める既定の見せ方。設定の「既定に戻す」に使う。 */
+export const defaultMutedDisplay = (
+  column: ColumnDef,
+): MutedDisplay | undefined => kindOf(column.source).muted;
+
+/**
+ * ミュートに当たる投稿をどう見せるか。`undefined` は、そのカラムに投稿が流れない
+ * ので扱わない。選べない見せ方が保存されていたら（畳めないカラムの「畳む」）隠す。
+ */
+export const columnMutedDisplay = (
+  column: ColumnDef,
+): MutedDisplay | undefined => {
+  const choices = mutedDisplayChoices(column);
+  const fallback = defaultMutedDisplay(column);
+  if (fallback === undefined) return undefined;
+  const chosen = column.muted ?? fallback;
+  return choices.includes(chosen) ? chosen : "hide";
+};
 
 export const columnNeedsAccount = (column: ColumnDef): boolean =>
   kindOf(column.source).needsAccount === true;
