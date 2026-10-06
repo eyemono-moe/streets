@@ -62,6 +62,10 @@ const ReactionPicker: Component<{
     candidate: MakerCandidate;
   }>();
   const [adjusting, setAdjusting] = createSignal(false);
+  // 「調整する」を押したら、ピッカーが閉じきってからダイアログを開く。閉じる途中に開くと、
+  // ピッカーが開き口へフォーカスを戻したのを「ダイアログの外へ出た」と受け取って閉じてしまう
+  // （ダイアログを初めて作るときだけ起きる）。
+  let openAfterClose = false;
   const dialogMounted = onceTrue(adjusting);
   const sendMade = (spec: EmojiSpec, style: Style) => {
     rememberLastStyle(style);
@@ -80,6 +84,11 @@ const ReactionPicker: Component<{
         finalFocusEl={props.anchor && (() => props.anchor?.() ?? null)}
         open={props.open}
         onOpenChange={(details) => props.onOpenChange?.(details.open)}
+        onExitComplete={() => {
+          if (!openAfterClose) return;
+          openAfterClose = false;
+          setAdjusting(true);
+        }}
       >
         <Show when={props.trigger}>
           {(trigger) => <PopoverTrigger asChild={trigger()} />}
@@ -110,9 +119,9 @@ const ReactionPicker: Component<{
                           api().setOpen(false);
                         }}
                         onAdjust={(text, candidate) => {
-                          api().setOpen(false);
                           setAdjust({ text, candidate });
-                          setAdjusting(true);
+                          openAfterClose = true;
+                          api().setOpen(false);
                         }}
                       />
                     )}
