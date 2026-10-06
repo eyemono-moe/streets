@@ -186,11 +186,12 @@ const ActionNotice: Component<{
   // 時刻の幅も測る。今日なら「12:34」、古ければ日付まで出るので、決め打ちにできない。
   const measureTime = (time: HTMLTimeElement) =>
     onCleanup(observeWidth(time, setTimeWidth));
-  // アイコンを並べてよい幅。ゆったりは時刻を除いた残り全部、高密度は同じ行の文にも半分以上を残す。
+  // アイコンを並べてよい幅。行の頭の操作のアイコンと時刻を除き、ゆったりは残り全部、
+  // 高密度は同じ行の文にも半分以上を残す。
   const budget = () => {
     const rest = rowWidth() - timeWidth() - 8;
     return props.size === "normal"
-      ? Math.max(0, rest)
+      ? Math.max(0, rest - 20 - 8)
       : Math.max(0, (rest - 14 - 16) * 0.45);
   };
 
@@ -259,65 +260,62 @@ const ActionNotice: Component<{
         位置で丸められて消えることがある。
       */}
       <div
-        class="offscreen-skip flex"
+        class="offscreen-skip flex flex-col"
         classList={{
-          "gap-3 p-3": props.size === "normal",
-          "flex-col gap-1.5 p-2": props.size === "compact",
+          "gap-2 p-3": props.size === "normal",
+          "gap-1.5 p-2": props.size === "compact",
         }}
       >
-        <Show
-          when={props.size === "normal"}
-          fallback={
-            <>
-              <div ref={measure} class="flex min-w-0 items-center gap-2">
-                <span
-                  class={`${icon()} size-3.5 shrink-0`}
-                  aria-hidden="true"
-                />
+        <div ref={measure} class="flex min-w-0 items-center gap-2">
+          <span
+            class={`${icon()} shrink-0`}
+            classList={{
+              "size-5": props.size === "normal",
+              "size-3.5": props.size === "compact",
+            }}
+            aria-hidden="true"
+          />
+          <Show
+            when={props.size === "normal"}
+            fallback={
+              <>
                 <AvatarRow pubkeys={actors()} size="tiny" budget={budget()} />
                 <Summary
                   events={props.events}
                   action={action()}
                   size="compact"
                 />
-                {time()}
-              </div>
-              <div class="pl-5.5">{targetCard()}</div>
-            </>
-          }
-        >
-          <span class={`${icon()} mt-1.5 size-5 shrink-0`} aria-hidden="true" />
-          <div class="flex min-w-0 flex-1 flex-col gap-2">
-            <div ref={measure} class="flex min-w-0 items-center gap-2">
-              <Show
-                when={grouped()}
-                fallback={
-                  <>
-                    <Avatar pubkey={actors()[0] ?? ""} size="compact" />
-                    <Summary
-                      events={props.events}
-                      action={action()}
-                      size="normal"
-                    />
-                  </>
-                }
-              >
-                <div class="min-w-0 flex-1">
-                  <AvatarRow
-                    pubkeys={actors()}
-                    size="compact"
-                    budget={budget()}
+              </>
+            }
+          >
+            <Show
+              when={grouped()}
+              fallback={
+                <>
+                  <Avatar pubkey={actors()[0] ?? ""} size="compact" />
+                  <Summary
+                    events={props.events}
+                    action={action()}
+                    size="normal"
                   />
-                </div>
-              </Show>
-              {time()}
-            </div>
-            <Show when={grouped()}>
-              <Summary events={props.events} action={action()} size="normal" />
+                </>
+              }
+            >
+              <div class="min-w-0 flex-1">
+                <AvatarRow
+                  pubkeys={actors()}
+                  size="compact"
+                  budget={budget()}
+                />
+              </div>
             </Show>
-            {targetCard()}
-          </div>
+          </Show>
+          {time()}
+        </div>
+        <Show when={props.size === "normal" && grouped()}>
+          <Summary events={props.events} action={action()} size="normal" />
         </Show>
+        {targetCard()}
       </div>
     </article>
   );
