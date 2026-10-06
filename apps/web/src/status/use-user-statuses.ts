@@ -33,9 +33,12 @@ const nowSeconds = createRoot(() => {
  */
 export type StatusFreshness = "cached" | "refresh" | "live";
 
-/** その人の今のステータス（general・music の順）。無ければ空。 */
+/**
+ * その人の今のステータス（general・music の順）。無ければ空。`pubkey` が
+ * undefined（ログインしていないなど）の間は何も取らない。
+ */
 export const useUserStatuses = (
-  pubkey: Accessor<string>,
+  pubkey: Accessor<string | undefined>,
   freshness: StatusFreshness = "cached",
 ): Accessor<UserStatus[]> => {
   const { lookups, manager } = useReadLayer();
@@ -44,22 +47,27 @@ export const useUserStatuses = (
   if (freshness === "live" && manager) {
     createSection({
       manager,
-      source: () => ({
-        type: "nostr",
-        filters: [
-          {
-            kinds: [USER_STATUS_KIND],
-            authors: [pubkey()],
-            "#d": [...USER_STATUS_TYPES],
-          },
-        ],
-      }),
+      source: () => {
+        const author = pubkey();
+        if (author === undefined) return undefined;
+        return {
+          type: "nostr",
+          filters: [
+            {
+              kinds: [USER_STATUS_KIND],
+              authors: [author],
+              "#d": [...USER_STATUS_TYPES],
+            },
+          ],
+        };
+      },
     });
   }
   const [events, setEvents] = createSignal<(NostrEvent | undefined)[]>([]);
   createEffect(() => {
     const author = pubkey();
     setEvents([]);
+    if (author === undefined) return;
     USER_STATUS_TYPES.forEach((type, index) => {
       onCleanup(
         lookups.watchAddress(

@@ -26,7 +26,7 @@ const AccountMenu: Component<{
   arrange?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
-  const statuses = useUserStatuses(() => props.pubkey ?? "");
+  const statuses = useUserStatuses(() => props.pubkey);
   const current = () => statuses().find((status) => status.type === "general");
   const feedback = () => feedbackHref(props.feedbackUrl);
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);

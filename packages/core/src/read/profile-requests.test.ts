@@ -116,6 +116,25 @@ describe("createProfileRequests", () => {
     expect(manager.fetchOnce).toHaveBeenCalledTimes(1);
   });
 
+  it("公開鍵でない値は束に入れない", () => {
+    // 捕まえる変異: 空文字が束に混ざり、リレーが同じ束のほかの人の分ごと断る
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+    });
+
+    requests.request("");
+    requests.request("npub1abc");
+    requests.request(pubkeyFor(1));
+    clock.advance(200);
+
+    const [filters] = manager.fetchOnce.mock.calls[0] as [RelayFilter[]];
+    expect(filters).toEqual([{ kinds: [0], authors: [pubkeyFor(1)] }]);
+  });
+
   it("フィルタが { kinds: [0], authors: [要求された全員] } になる", () => {
     const manager = stubManager();
     const clock = createFakeClock();

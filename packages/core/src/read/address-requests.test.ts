@@ -60,6 +60,21 @@ describe("createAddressRequests", () => {
     ]);
   });
 
+  it("公開鍵でない著者は束に入れず、無かったことにする", () => {
+    // 捕まえる変異: 空文字が束に混ざり、リレーが同じ束のほかの住所ごと断る
+    const { manager, clock, requests } = setup();
+    const empty = { kind: 30_315, pubkey: "", identifier: "general" };
+    requests.request(empty);
+    requests.request({ kind: 30_315, pubkey: PUBKEY, identifier: "general" });
+    expect(requests.isUnresolved(empty)).toBe(true);
+
+    clock.advance(200);
+    const [filters] = manager.fetchOnce.mock.calls[0] as [RelayFilter[]];
+    expect(filters).toEqual([
+      { kinds: [30_315], authors: [PUBKEY], "#d": ["general"] },
+    ]);
+  });
+
   it("store にある住所は要求しない", () => {
     const { manager, clock, store, requests } = setup();
     store.put(article("a"), RELAY);
