@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { createRelayTraffic, utf8Length } from "./relay-traffic";
+import { createRelayTraffic, filterShape, utf8Length } from "./relay-traffic";
 import {
   type WebSocketLike,
   WebSocketRelayConnection,
@@ -56,6 +56,17 @@ describe("utf8Length", () => {
   });
 });
 
+describe("filterShape", () => {
+  it("値を捨て、kind と使ったキーと件数の多少だけを残す", () => {
+    expect(
+      filterShape([
+        { "#p": ["a"], kinds: [3, 0] },
+        { authors: ["a", "b"], kinds: [1], limit: 20, since: 1 },
+      ]),
+    ).toBe("kinds:0,3 #p(1) | kinds:1 authors(n) limit since");
+  });
+});
+
 describe("createRelayTraffic", () => {
   it("リレーごとにメッセージ・kind・重複・購読を数える", () => {
     const traffic = createRelayTraffic(() => 0);
@@ -95,6 +106,13 @@ describe("createRelayTraffic", () => {
     expect(statsA.notices).toEqual(["slow down"]);
     expect(statsA.duplicates.count).toBe(0);
     expect(statsB.duplicates).toEqual({ count: 1, bytes: eventBytes });
+    expect(statsA.shapes["kinds:1"]).toEqual({
+      reqs: 1,
+      events: { count: 2, bytes: eventBytes * 2 },
+      duplicates: { count: 0, bytes: 0 },
+    });
+    expect(statsA.shapes["kinds:0"].reqs).toBe(1);
+    expect(statsB.shapes["kinds:1"].duplicates.count).toBe(1);
   });
 
   it("CLOSED の理由を数え、閉じた購読を外す", () => {

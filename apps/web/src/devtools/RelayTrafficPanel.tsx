@@ -5,6 +5,7 @@ import {
 import type {
   RelayTraffic,
   RelayTrafficStats,
+  ShapeTraffic,
   TrafficCount,
 } from "@streets/core/relay/relay-traffic";
 import {
@@ -69,6 +70,53 @@ const Counts: Component<{
     </dl>
   </div>
 );
+
+/** 受け取った量の多い順。どの取得が重いか、何度送り直しているかを見る。 */
+const Shapes: Component<{ shapes: Record<string, ShapeTraffic> }> = (props) => (
+  <div class="grid grid-cols-[repeat(4,max-content)_minmax(0,1fr)] gap-x-4">
+    <span class="opacity-70 text-right">reqs</span>
+    <span class="opacity-70 text-right">events</span>
+    <span class="opacity-70 text-right">received</span>
+    <span class="opacity-70 text-right">dup</span>
+    <span class="opacity-70">filter shape</span>
+    <For
+      each={Object.entries(props.shapes).sort(
+        ([, a], [, b]) => b.events.bytes - a.events.bytes,
+      )}
+    >
+      {([shape, traffic]) => (
+        <>
+          <span class="text-right">{traffic.reqs}</span>
+          <span class="text-right">{traffic.events.count}</span>
+          <span class="text-right">{kb(traffic.events.bytes)}</span>
+          <span class="text-right">
+            {percent(traffic.duplicates.bytes, traffic.events.bytes)}
+          </span>
+          <span class="break-all">{shape}</span>
+        </>
+      )}
+    </For>
+  </div>
+);
+
+const mergeShapes = (relays: readonly RelayTrafficStats[]) => {
+  const merged: Record<string, ShapeTraffic> = {};
+  for (const stats of relays) {
+    for (const [shape, traffic] of Object.entries(stats.shapes)) {
+      const target = (merged[shape] ??= {
+        reqs: 0,
+        events: { count: 0, bytes: 0 },
+        duplicates: { count: 0, bytes: 0 },
+      });
+      target.reqs += traffic.reqs;
+      target.events.count += traffic.events.count;
+      target.events.bytes += traffic.events.bytes;
+      target.duplicates.count += traffic.duplicates.count;
+      target.duplicates.bytes += traffic.duplicates.bytes;
+    }
+  }
+  return merged;
+};
 
 /** リレーごとのやりとり。いつ見ても同じ物差しで比べられるよう、数え直しの口を持つ。 */
 const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
@@ -193,6 +241,13 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
         </button>
       </div>
 
+      <details>
+        <summary class="cursor-pointer">by filter shape (all relays)</summary>
+        <div class="py-2 pl-4">
+          <Shapes shapes={mergeShapes(relays())} />
+        </div>
+      </details>
+
       <div class="flex min-w-max flex-col">
         <div class={`${COLUMNS} border-b border-current pb-1 pl-4 opacity-70`}>
           <span>relay</span>
@@ -247,6 +302,10 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
                   <Counts title="sent" counts={stats.sent} />
                   <Counts title="received" counts={stats.received} />
                   <Counts title="kinds" counts={stats.kinds} />
+                  <div class="flex basis-full flex-col gap-1">
+                    <h3 class="opacity-70">filter shapes</h3>
+                    <Shapes shapes={stats.shapes} />
+                  </div>
                   <Show when={Object.keys(stats.closedReasons).length > 0}>
                     <div class="flex flex-col gap-1">
                       <h3 class="opacity-70">closed reasons</h3>

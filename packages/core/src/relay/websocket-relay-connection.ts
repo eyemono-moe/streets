@@ -8,7 +8,11 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "./relay-connection";
-import { type RelayTrafficRecorder, utf8Length } from "./relay-traffic";
+import {
+  type RelayTrafficRecorder,
+  filterShape,
+  utf8Length,
+} from "./relay-traffic";
 
 export type WebSocketLike = {
   readyState: number;
@@ -33,6 +37,8 @@ type OpenSubscription = {
   handlers: RelaySubscriptionHandlers;
   /** 認証して送り直したか。送り直しても断られたら、それ以上は試さない。 */
   retried: boolean;
+  /** やりとりを数えるときだけ作る、フィルタの形。 */
+  shape: string | undefined;
 };
 
 type InFlightPublish = {
@@ -131,8 +137,15 @@ export class WebSocketRelayConnection implements RelayConnection {
     }
 
     const subId = `s${this.#nextSubId++}`;
-    this.#subscriptions.set(subId, { filters, handlers, retried: false });
+    const shape = this.#auth.traffic ? filterShape(filters) : undefined;
+    this.#subscriptions.set(subId, {
+      filters,
+      handlers,
+      retried: false,
+      shape,
+    });
     this.#countSubscriptions();
+    if (shape !== undefined) this.#auth.traffic?.requested(this.url, shape);
     this.#send("REQ", JSON.stringify(["REQ", subId, ...filters]));
 
     return {
@@ -274,10 +287,11 @@ export class WebSocketRelayConnection implements RelayConnection {
           event === null
         )
           return;
+        const subscription = this.#subscriptions.get(subId);
         const { id, kind } = event as Partial<NostrEvent>;
         if (typeof id === "string" && typeof kind === "number")
-          traffic?.event(this.url, id, kind, bytes);
-        this.#subscriptions.get(subId)?.handlers.onEvent(event as NostrEvent);
+          traffic?.event(this.url, subscription?.shape, id, kind, bytes);
+        subscription?.handlers.onEvent(event as NostrEvent);
         return;
       }
       case "EOSE": {

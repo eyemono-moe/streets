@@ -1,6 +1,13 @@
-import type { RelayUrl } from "./relay-connection";
+import type { RelayFilter, RelayUrl } from "./relay-connection";
 
 export type TrafficCount = { count: number; bytes: number };
+
+/** 同じ形のフィルタで送った REQ と、それで受け取ったイベント。 */
+export type ShapeTraffic = {
+  reqs: number;
+  events: TrafficCount;
+  duplicates: TrafficCount;
+};
 
 /** 1 つのリレーとのやりとりの累計。繋ぎ直しても同じ URL なら足し続ける。 */
 export type RelayTrafficStats = {
@@ -20,6 +27,8 @@ export type RelayTrafficStats = {
   kinds: Record<number, TrafficCount>;
   /** どこかのリレーから前に受け取ったのと同じ id のイベント。 */
   duplicates: TrafficCount;
+  /** フィルタの形（`filterShape`）ごとの内訳。どの取得が重いかを見るため。 */
+  shapes: Record<string, ShapeTraffic>;
   /** いま開いている購読と、その最大。 */
   subscriptions: number;
   peakSubscriptions: number;
@@ -35,8 +44,16 @@ export type RelayTrafficRecorder = {
   opened(url: RelayUrl): void;
   socketClosed(url: RelayUrl): void;
   sent(url: RelayUrl, type: string, bytes: number): void;
+  /** REQ を送った。`shape` は `filterShape` で作る。 */
+  requested(url: RelayUrl, shape: string): void;
   received(url: RelayUrl, type: string, bytes: number): void;
-  event(url: RelayUrl, id: string, kind: number, bytes: number): void;
+  event(
+    url: RelayUrl,
+    shape: string | undefined,
+    id: string,
+    kind: number,
+    bytes: number,
+  ): void;
   subscriptions(url: RelayUrl, open: number): void;
   closed(url: RelayUrl, reason: string): void;
   notice(url: RelayUrl, message: string): void;
@@ -52,6 +69,35 @@ export type RelayTraffic = {
 };
 
 const NOTICE_LIMIT = 5;
+
+/**
+ * フィルタの形。値は捨て、kind と使ったキー、配列なら 1 件か複数かだけを残す
+ * （`kinds:3 #p(1)` など）。値まで残すと、人ごとに別の形になって束ねられない。
+ */
+export const filterShape = (filters: readonly RelayFilter[]): string =>
+  filters
+    .map((filter) =>
+      Object.entries(filter)
+        .filter(([, value]) => value !== undefined)
+        .map(([key, value]) => {
+          if (key === "kinds" && filter.kinds)
+            return `kinds:${[...filter.kinds].sort((a, b) => a - b).join(",")}`;
+          if (Array.isArray(value))
+            return `${key}(${value.length === 1 ? "1" : "n"})`;
+          return key;
+        })
+        .sort((a, b) =>
+          a.startsWith("kinds:")
+            ? -1
+            : b.startsWith("kinds:")
+              ? 1
+              : a < b
+                ? -1
+                : 1,
+        )
+        .join(" "),
+    )
+    .join(" | ");
 
 /**
  * WebSocket が展開した後の文字列の UTF-8 での大きさ。圧縮
@@ -105,6 +151,7 @@ export const createRelayTraffic = (
     received: {},
     kinds: {},
     duplicates: { count: 0, bytes: 0 },
+    shapes: {},
     subscriptions: 0,
     peakSubscriptions: 0,
     closedReasons: {},
@@ -116,6 +163,18 @@ export const createRelayTraffic = (
     if (existing) return existing;
     const created = fresh(url);
     entries.set(url, created);
+    return created;
+  };
+
+  const shapeOf = (target: Entry, shape: string): ShapeTraffic => {
+    const existing = target.shapes[shape];
+    if (existing) return existing;
+    const created: ShapeTraffic = {
+      reqs: 0,
+      events: { count: 0, bytes: 0 },
+      duplicates: { count: 0, bytes: 0 },
+    };
+    target.shapes[shape] = created;
     return created;
   };
 
@@ -139,15 +198,23 @@ export const createRelayTraffic = (
     sent(url, type, bytes) {
       add(entry(url).sent, type, bytes);
     },
+    requested(url, shape) {
+      shapeOf(entry(url), shape).reqs += 1;
+    },
     received(url, type, bytes) {
       add(entry(url).received, type, bytes);
     },
-    event(url, id, kind, bytes) {
+    event(url, shape, id, kind, bytes) {
       const target = entry(url);
       add(target.kinds, kind, bytes);
+      const byShape = shapeOf(target, shape ?? "(unknown)");
+      byShape.events.count += 1;
+      byShape.events.bytes += bytes;
       if (seenIds.has(id)) {
         target.duplicates.count += 1;
         target.duplicates.bytes += bytes;
+        byShape.duplicates.count += 1;
+        byShape.duplicates.bytes += bytes;
       } else seenIds.add(id);
     },
     subscriptions(url, open) {
