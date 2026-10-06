@@ -6,6 +6,7 @@ import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
 
 const PROFILE_KIND = 0;
+const HEX_64 = /^[0-9a-f]{64}$/;
 
 export type ProfileRequests = {
   /**
@@ -101,6 +102,8 @@ export const createProfileRequests = (
   return {
     request(pubkey, requestOptions) {
       if (disposed) return;
+      // 公開鍵でない値を著者に入れると、リレーは束ねたほかの人の分ごと断る。
+      if (!HEX_64.test(pubkey)) return;
       // 既に新鮮なら要求しない。`fetchedAt` が無い (未取得) なら isStale を呼ぶまでもなく要求する。
       const fetchedAt = options.store.replaceableFetchedAt(
         PROFILE_KIND,

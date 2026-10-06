@@ -21,6 +21,8 @@ export type AddressRequests = {
 
 export type RequestOptions = { refresh?: boolean };
 
+const HEX_64 = /^[0-9a-f]{64}$/;
+
 export type CreateAddressRequestsOptions = {
   store: EventStore;
   manager: SubscriptionManager;
@@ -102,6 +104,12 @@ export const createAddressRequests = (
     request(address, requestOptions) {
       if (disposed) return;
       const key = formatEventAddress(address);
+      // 公開鍵でない値を著者に入れると、リレーは同じ束の REQ ごと断る。
+      // 束ねたほかの住所まで取れなくなるので、問い合わせずに無かったことにする。
+      if (!HEX_64.test(address.pubkey)) {
+        settled.add(key);
+        return;
+      }
       // 取ってから古くなっていなければ取り直さない。無かったものも、取った時刻を
       // 残してあるので、画面に出し直すたびに問い合わせることはない。
       const fetchedAt = options.store.replaceableFetchedAt(
