@@ -18,24 +18,20 @@ import Nip05Badge from "./Nip05Badge";
 import ProfileMenu from "./ProfileMenu";
 
 const Count: Component<{
-  count: number;
+  /** 数えないものは無し。名前だけを出す。 */
+  count?: number;
   label: string;
-  /** 取得できたぶんしか数えられないとき、数の後ろに付ける。 */
-  suffix?: string;
-  title?: string;
   onOpen?: () => void;
 }> = (props) => (
   <button
     type="button"
     class="flex items-baseline gap-1 bg-transparent text-caption enabled:cursor-pointer enabled:hover:underline"
-    title={props.title}
     disabled={props.onOpen === undefined}
     onClick={() => props.onOpen?.()}
   >
-    <span class="c-primary font-600">
-      {props.count}
-      {props.suffix}
-    </span>
+    <Show when={props.count !== undefined}>
+      <span class="c-primary font-600">{props.count}</span>
+    </Show>
     <span class="c-secondary">{props.label}</span>
   </button>
 );
@@ -138,7 +134,6 @@ export const ProfileHeaderCard: Component<{
 const ProfileHeaderView: Component<{
   pubkey: string;
   followeeCount: number;
-  followerCount: number;
   /** 相手が自分をフォローしている。 */
   followsYou?: boolean;
   onOpenFollowees?: () => void;
@@ -211,13 +206,7 @@ const ProfileHeaderView: Component<{
             label="フォロー"
             onOpen={props.onOpenFollowees}
           />
-          <Count
-            count={props.followerCount}
-            label="フォロワー"
-            suffix="+"
-            title="対応リレーから取得できた人数"
-            onOpen={props.onOpenFollowers}
-          />
+          <Count label="フォロワーを見る" onOpen={props.onOpenFollowers} />
         </div>
       }
     />

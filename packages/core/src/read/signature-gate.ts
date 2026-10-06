@@ -29,10 +29,7 @@ export type VerifyStats = {
   rejectedSkipped: number;
 };
 
-/**
- * リレーから届いたイベントを受け入れてよいかを決める関所。store に入る経路も、
- * 入らない経路（`subscribeUnstored`）もここを通す。
- */
+/** リレーから届いたイベントを受け入れてよいかを決める関所。 */
 export class SignatureGate {
   /** 検証を終えた id → 署名。確かめ終えたものだけを入れる —— 先に入れると、
    * 同じ id を名乗る偽物が先に届いたとき、本物まで落としてしまう。 */
