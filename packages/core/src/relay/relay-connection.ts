@@ -48,4 +48,9 @@ export interface RelayConnection {
    * いれば即座に呼ぶ）。無いと「個別 CLOSED」と「ソケットの死」を区別できず死んだ接続を掴み続ける。
    */
   onClose(listener: () => void): () => void;
+  /**
+   * リレーからの NOTICE を通知する。リレーは購読の上限を CLOSED ではなく NOTICE で
+   * 断ることがあり、プールが上限を学ぶにはこの本文が要る。持たない接続は通知しなくてよい。
+   */
+  onNotice?(listener: (message: string) => void): () => void;
 }

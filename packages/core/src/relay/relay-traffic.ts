@@ -32,6 +32,8 @@ export type RelayTrafficStats = {
   /** いま開いている購読と、その最大。 */
   subscriptions: number;
   peakSubscriptions: number;
+  /** 同時購読の上限に空きが無くて、待ち行列に積んだ REQ の数。 */
+  queuedReqs: number;
   /** CLOSED の理由ごとの件数。 */
   closedReasons: Record<string, number>;
   /** 最近の NOTICE。 */
@@ -56,6 +58,8 @@ export type RelayTrafficRecorder = {
   ): void;
   subscriptions(url: RelayUrl, open: number): void;
   closed(url: RelayUrl, reason: string): void;
+  /** 上限に空きが無くて、REQ を送らず待ち行列に積んだ。 */
+  queued(url: RelayUrl): void;
   notice(url: RelayUrl, message: string): void;
 };
 
@@ -154,6 +158,7 @@ export const createRelayTraffic = (
     shapes: {},
     subscriptions: 0,
     peakSubscriptions: 0,
+    queuedReqs: 0,
     closedReasons: {},
     notices: [],
   });
@@ -225,6 +230,9 @@ export const createRelayTraffic = (
     closed(url, reason) {
       const reasons = entry(url).closedReasons;
       reasons[reason] = (reasons[reason] ?? 0) + 1;
+    },
+    queued(url) {
+      entry(url).queuedReqs += 1;
     },
     notice(url, message) {
       const notices = entry(url).notices;

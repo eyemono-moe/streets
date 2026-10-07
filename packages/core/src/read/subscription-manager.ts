@@ -99,6 +99,10 @@ export type SubscriptionManagerOptions = {
   random?: ConnectionPoolOptions["random"];
   /** ConnectionPool へそのまま渡す。 */
   allowLocalNetwork?: ConnectionPoolOptions["allowLocalNetwork"];
+  /** ConnectionPool へそのまま渡す、リレーごとの同時購読の枠。 */
+  maxSubscriptions?: ConnectionPoolOptions["maxSubscriptions"];
+  /** ConnectionPool へそのまま渡す。 */
+  onQueued?: ConnectionPoolOptions["onQueued"];
   /**
    * セクションの出入りによる張り直しをまとめる窓（ms）。0（既定）はまとめず、
    * 出入りのたびにすぐ張り直す。アプリでは `REPLAN_BATCH_MS` を渡す。
@@ -286,6 +290,8 @@ export class SubscriptionManager {
       scheduler: this.#scheduler,
       random: options.random,
       allowLocalNetwork: options.allowLocalNetwork,
+      maxSubscriptions: options.maxSubscriptions,
+      onQueued: options.onQueued,
     });
     // degraded 集合の出入りは replan() の正当な契機 (#scheduleDegradedReplan 参照)。
     this.#offDegraded = this.#pool.onDegradedChanged(() => {

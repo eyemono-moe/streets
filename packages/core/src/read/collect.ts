@@ -143,7 +143,7 @@ export const collect = (
           onEose: () => settleOnce(url, "eose"),
           onClosed: () => settleOnce(url, "closed"),
         },
-        { reserved: options?.reserved ?? false },
+        { reserved: options?.reserved ?? false, once: true },
       );
 
       if (!subscription) {

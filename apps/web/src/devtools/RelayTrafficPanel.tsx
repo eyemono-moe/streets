@@ -164,6 +164,7 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
         duplicateBytes: acc.duplicateBytes + stats.duplicates.bytes,
         open: acc.open + (stats.open ? 1 : 0),
         subscriptions: acc.subscriptions + stats.subscriptions,
+        queued: acc.queued + stats.queuedReqs,
       }),
       {
         sent: 0,
@@ -173,6 +174,7 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
         duplicateBytes: 0,
         open: 0,
         subscriptions: 0,
+        queued: 0,
       },
     ),
   );
@@ -201,6 +203,9 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
           open {sum().open} / {relays().length} relays
         </span>
         <span>subs {sum().subscriptions}</span>
+        <span title="同時購読の上限で、REQ を送らず待たせた回数">
+          queued {sum().queued}
+        </span>
         <span>sent {kb(sum().sent)}</span>
         <span>received {kb(sum().received)}</span>
         <span>events {sum().events}</span>
@@ -306,6 +311,12 @@ const RelayTrafficPanel: Component<{ traffic: RelayTraffic }> = (props) => {
                     <h3 class="opacity-70">filter shapes</h3>
                     <Shapes shapes={stats.shapes} />
                   </div>
+                  <Show when={stats.queuedReqs > 0}>
+                    <div class="flex flex-col gap-1">
+                      <h3 class="opacity-70">queued REQs</h3>
+                      <span>{stats.queuedReqs}</span>
+                    </div>
+                  </Show>
                   <Show when={Object.keys(stats.closedReasons).length > 0}>
                     <div class="flex flex-col gap-1">
                       <h3 class="opacity-70">closed reasons</h3>

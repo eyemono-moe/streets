@@ -24,6 +24,7 @@ export class FakeRelayConnection implements RelayConnection {
   readonly published: NostrEvent[] = [];
   readonly #openListeners = new Set<() => void>();
   readonly #closeListeners = new Set<() => void>();
+  readonly #noticeListeners = new Set<(message: string) => void>();
   #opened: boolean;
   closed = false;
   /** 認証を試みたことにする（`ConnectionPool.resetAuthentication` の確認用）。 */
@@ -123,6 +124,17 @@ export class FakeRelayConnection implements RelayConnection {
     return () => {
       this.#closeListeners.delete(listener);
     };
+  }
+
+  onNotice(listener: (message: string) => void): () => void {
+    this.#noticeListeners.add(listener);
+    return () => {
+      this.#noticeListeners.delete(listener);
+    };
+  }
+
+  emitNotice(message: string): void {
+    for (const listener of [...this.#noticeListeners]) listener(message);
   }
 
   die(): void {
