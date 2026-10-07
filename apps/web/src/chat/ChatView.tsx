@@ -1,7 +1,6 @@
 import { Presence } from "@ark-ui/solid/presence";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
 import type { Paging } from "@streets/core/read/source";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ChatRow } from "@streets/core/view/chat";
 import {
@@ -67,7 +66,6 @@ const DaySeparator: Component<{ at: number }> = (props) => (
 /** 日付の区切りか、1 件の発言。 */
 const ChatRowView: Component<{
   row: ChatRow;
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
   size?: EventSize;
 }> = (props) => (
@@ -87,7 +85,6 @@ const ChatRowView: Component<{
               <ChatMessage
                 event={message().event}
                 continued={message().continued}
-                relays={props.relays}
                 expandMedia={props.expandMedia}
                 size={props.size}
               />
@@ -97,7 +94,6 @@ const ChatRowView: Component<{
               <HiddenChatMessage
                 event={message().event}
                 visibility={visibility()}
-                relays={props.relays}
                 expandMedia={props.expandMedia}
                 size={props.size}
               />
@@ -111,7 +107,6 @@ const ChatRowView: Component<{
 
 type RowsProps = {
   rows: readonly ChatRow[];
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
   /** 表示密度。`compact` で発言の文字と余白を詰める。 */
   size?: EventSize;
@@ -309,7 +304,6 @@ const NewestLastRows: Component<RowsProps> = (props) => {
               {(row) => (
                 <ChatRowView
                   row={row}
-                  relays={props.relays}
                   expandMedia={props.expandMedia}
                   size={props.size}
                 />
@@ -399,7 +393,6 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
               {(row) => (
                 <ChatRowView
                   row={row}
-                  relays={props.relays}
                   expandMedia={props.expandMedia}
                   size={props.size}
                 />

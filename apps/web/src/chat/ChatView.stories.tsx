@@ -234,7 +234,6 @@ const meta = {
               <ChatView
                 rows={feed ? feed.rows() : live ? live() : (many ?? rows())}
                 order={props.order}
-                relays={["wss://relay.example/"]}
                 expandMedia
                 size={props.size}
                 paging={feed ? feed.paging() : props.paging}

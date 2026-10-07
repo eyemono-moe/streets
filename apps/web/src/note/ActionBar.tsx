@@ -121,7 +121,9 @@ const ActionBar: Component<{
               label="返信"
               icon={EVENT_ACTION_META.reply.icon}
               count={engagement().replies}
-              onClick={() => (props.onReply ?? (() => dialogs.open("reply")))()}
+              onClick={() =>
+                props.onReply ? props.onReply() : dialogs.open("reply")
+              }
             />
           ),
           repost: () => (

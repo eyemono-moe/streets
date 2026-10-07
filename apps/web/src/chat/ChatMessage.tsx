@@ -77,7 +77,6 @@ const ReplyContext: Component<{
 export const ChatMessage: Component<{
   event: NostrEvent;
   continued: boolean;
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
   size?: EventSize;
 }> = (props) => {
@@ -222,7 +221,6 @@ const HIDDEN_LABEL: Record<Exclude<MessageVisibility, "visible">, string> = {
 export const HiddenChatMessage: Component<{
   event: NostrEvent;
   visibility: Exclude<MessageVisibility, "visible">;
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
   size?: EventSize;
 }> = (props) => {
@@ -253,7 +251,6 @@ export const HiddenChatMessage: Component<{
         <ChatMessage
           event={props.event}
           continued={false}
-          relays={props.relays}
           expandMedia={props.expandMedia}
           size={props.size}
         />
