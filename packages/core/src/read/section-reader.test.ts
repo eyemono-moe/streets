@@ -5,6 +5,7 @@ import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import type { Scheduler } from "./connection-pool";
+import { IDLE_LINGER_MS } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
@@ -86,6 +87,7 @@ const setup = (
 ) => {
   const relays = new Map<string, FakeRelayConnection>();
   const store = new PassThroughStore();
+  const managerClock = createFakeClock();
   const manager = new SubscriptionManager({
     store,
     routing: new RoutingTable(store),
@@ -95,6 +97,7 @@ const setup = (
       return relay;
     },
     fallbackRelays: ["wss://fallback/"],
+    scheduler: managerClock,
   });
   const reader = new SectionReader({
     source: { type: "nostr", filters: [{ kinds: [1] }], relays: relayUrls },
@@ -108,6 +111,7 @@ const setup = (
     relays,
     store,
     manager,
+    managerClock,
     reader,
     relay: () => relays.get(relayUrls[0]),
   };
@@ -313,7 +317,8 @@ describe("SectionReader", () => {
     expect(reader.items).toEqual([]);
 
     // 同じ id "a" を再配信しても、前回分の残留に握りつぶされず採用される。
-    relay()?.emitEvent(0, event("a", 300));
+    // 接続は猶予の間に使い回されるので、新しい購読は 2 本目。
+    relay()?.emitEvent(1, event("a", 300));
     expect(reader.items.map((e) => e.id)).toEqual(["a"]);
   });
 
@@ -598,11 +603,12 @@ describe("SectionReader", () => {
   // relay url to decide whether the connection actually closes. With only one
   // section on this relay, releasing its handle drops the last reference.
   it("closes the connection via the manager once the last section releases it on stop", () => {
-    const { manager, reader } = setup();
+    const { manager, managerClock, reader } = setup();
     reader.start();
     expect(manager.connectionCount).toBe(1);
 
     reader.stop();
+    managerClock.advance(IDLE_LINGER_MS);
     expect(manager.connectionCount).toBe(0);
   });
 

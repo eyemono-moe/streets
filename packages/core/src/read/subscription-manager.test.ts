@@ -10,8 +10,9 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
+import { IDLE_LINGER_MS } from "./connection-pool";
 import { EventStore } from "./event-store";
-import { createFakeClock } from "./fake-clock";
+import { type FakeClock, createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 import {
   DEGRADED_REPLAN_BATCH_MS,
@@ -44,7 +45,8 @@ const signed = (
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), sk)) };
 };
 
-const setup = () => {
+// 実タイマーで足りないテスト（猶予が切れるまで進めたい）だけ、偽の時計を渡す。
+const setup = (clock?: FakeClock) => {
   const relays = new Map<RelayUrl, FakeRelayConnection>();
   const store = new EventStore();
   const manager = new SubscriptionManager({
@@ -58,6 +60,7 @@ const setup = () => {
       return relay;
     },
     fallbackRelays: ["wss://fallback/"],
+    scheduler: clock,
   });
   const delivery = () => ({
     onEvent: vi.fn(),
@@ -102,6 +105,7 @@ describe("background pause", () => {
     manager.pause();
     expect(manager.paused).toBe(true);
     expect(manager.pauseCount).toBe(1);
+    clock.advance(IDLE_LINGER_MS);
     expect(connections[0].closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
 
@@ -501,7 +505,8 @@ describe("SubscriptionManager", () => {
   });
 
   it("closes the connection only when the last section using it goes away", () => {
-    const { relays, manager, delivery } = setup();
+    const clock = createFakeClock();
+    const { relays, manager, delivery } = setup(clock);
     const first = manager.subscribe(
       [{ kinds: [1] }],
       ["wss://shared/"],
@@ -518,6 +523,7 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(1);
 
     second.close();
+    clock.advance(IDLE_LINGER_MS);
     expect(relays.get("wss://shared/")?.closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
   });
@@ -807,7 +813,8 @@ describe("SubscriptionManager", () => {
   });
 
   it("calling close() twice on a handle only releases the shared connection once", () => {
-    const { relays, manager, delivery } = setup();
+    const clock = createFakeClock();
+    const { relays, manager, delivery } = setup(clock);
     const first = manager.subscribe(
       [{ kinds: [1] }],
       ["wss://shared/"],
@@ -826,6 +833,7 @@ describe("SubscriptionManager", () => {
     expect(manager.connectionCount).toBe(1);
 
     second.close();
+    clock.advance(IDLE_LINGER_MS);
     expect(relays.get("wss://shared/")?.closed).toBe(true);
     expect(manager.connectionCount).toBe(0);
   });
@@ -1315,6 +1323,7 @@ describe("SubscriptionManager", () => {
     const store = new EventStore();
     const A = pubkeyFor(46_003);
     let closeCalls = 0;
+    const clock = createFakeClock();
     const manager = new SubscriptionManager({
       store,
       routing: new RoutingTable(store),
@@ -1337,6 +1346,7 @@ describe("SubscriptionManager", () => {
         };
       },
       fallbackRelays: ["wss://fallback/"],
+      scheduler: clock,
     });
 
     // subscribe() must return a handle before the failing relay enters the
@@ -1364,6 +1374,7 @@ describe("SubscriptionManager", () => {
 
     // Without the entry.closed guard this would repopulate entry.opened
     // after #close() cleared it, leaking a connection nothing ever closes.
+    clock.advance(IDLE_LINGER_MS);
     expect(manager.connectionCount).toBe(0);
     expect(closeCalls).toBeGreaterThan(0);
   });
@@ -1378,11 +1389,13 @@ describe("SubscriptionManager", () => {
     const B = pubkeyFor(46_002);
     store.put(relayListFor(A, ["wss://x/"]), "wss://indexer/");
 
+    const clock = createFakeClock();
     const manager = new SubscriptionManager({
       store,
       routing: new RoutingTable(store),
       connect: (url) => new FakeRelayConnection(url),
       fallbackRelays: ["wss://fallback/"],
+      scheduler: clock,
     });
 
     let restarted = false;
@@ -1410,6 +1423,7 @@ describe("SubscriptionManager", () => {
 
     expect(restarted).toBe(true);
     // Nothing should still be holding wss://x/ open on the section's behalf.
+    clock.advance(IDLE_LINGER_MS);
     expect(manager.connectionCount).toBe(0);
   });
 
@@ -1432,6 +1446,7 @@ describe("SubscriptionManager", () => {
     let xSubscribeCalls = 0;
     let xConnectCalls = 0;
     let xConnectionCloseCalls = 0;
+    const clock = createFakeClock();
     const manager = new SubscriptionManager({
       store,
       routing: new RoutingTable(store),
@@ -1457,6 +1472,7 @@ describe("SubscriptionManager", () => {
         };
       },
       fallbackRelays: [],
+      scheduler: clock,
     });
 
     const unreachable: RelayUrl[] = [];
@@ -1499,6 +1515,7 @@ describe("SubscriptionManager", () => {
 
     // close() must still be total and tear the connection down exactly once.
     expect(() => handle.close()).not.toThrow();
+    clock.advance(IDLE_LINGER_MS);
     expect(xConnectionCloseCalls).toBe(1);
     expect(manager.connectionCount).toBe(0);
   });

@@ -47,6 +47,13 @@ export const defaultScheduler: Scheduler = {
   now: () => Date.now(),
 };
 
+/**
+ * 最後の購読が閉じた接続を、閉じずに残しておく時間。一度きりの取得（プロフィール、
+ * 反応の数など）のたびに開閉すると TLS と NIP-42 認証をやり直すことになる。
+ * リレーは購読 1 本で 4 分置いても切らないので、短い猶予で十分に繋ぎ直しを減らせる。
+ */
+export const IDLE_LINGER_MS = 30_000;
+
 const RECONNECT_BASE_MS = 1_000;
 /** 指数バックオフの上限。ここで頭打ちにしても諦めずに回し続ける。 */
 const RECONNECT_MAX_MS = 60_000;
@@ -138,6 +145,11 @@ type Pooled = {
    * `entries` が 0 になっても `holds` が残っていれば接続は落とさない。
    */
   holds: number;
+  /**
+   * entries も holds も 0 になって、猶予の間だけ開いている間は非 null。
+   * `since` は枠が足りないときに古い順で閉じるための記録。
+   */
+  linger: { timer: ReturnType<Scheduler["setTimeout"]>; since: number } | null;
 };
 
 /**
@@ -229,12 +241,13 @@ export class ConnectionPool {
 
   /**
    * 設定の画面に出す、その URL の今の様子。接続は必要になったときだけ開くので、
-   * `idle` は「壊れている」ではなく「今は使っていない」。`failing` は開けずに
+   * `idle` は「壊れている」ではなく「今は使っていない」（猶予中の接続も含む）。`failing` は開けずに
    * 失敗が残っている間（開けたか冷却が明けると消える）。
    */
   statusOf(url: RelayUrl): RelayStatus {
     if (this.#failures.has(url)) return "failing";
-    return this.#pool.get(url)?.connection ? "in-use" : "idle";
+    const pooled = this.#pool.get(url);
+    return pooled?.connection && !pooled.linger ? "in-use" : "idle";
   }
 
   get blockedRelays(): readonly RelayUrl[] {
@@ -403,10 +416,11 @@ export class ConnectionPool {
   ): Pooled | undefined {
     if (this.isBlocked(url)) return undefined;
     let pooled = this.#pool.get(url);
+    if (pooled) this.#cancelLinger(pooled);
     // `pooled` が無い場合だけでなく、エントリは残っているが接続が
     // 自然死している場合も新しいソケットが要る = 予算を消費する。
     if (!pooled || !pooled.connection) {
-      if (!options?.reserved && this.size >= this.#maxConnections) {
+      if (!options?.reserved && !this.#makeRoom()) {
         return undefined;
       }
 
@@ -419,6 +433,7 @@ export class ConnectionPool {
           timer: null,
           reserved: false,
           holds: 0,
+          linger: null,
         };
         this.#pool.set(url, pooled);
       }
@@ -488,9 +503,7 @@ export class ConnectionPool {
         // hold() だけが残っていれば接続は落とさない — ブートストラップが
         // フェーズ間で握り続けている接続を、フェーズ①の購読が閉じただけで
         // 落としてはいけない。
-        if (current.entries.size === 0 && current.holds === 0) {
-          this.#drop(url);
-        }
+        this.#releaseIfIdle(url, current);
       },
     };
   }
@@ -527,9 +540,7 @@ export class ConnectionPool {
         // hold の枠を奪い、まだ握っている呼び出し元の接続を落としてしまう。
         if (!current || current !== pooled) return;
         current.holds -= 1;
-        if (current.holds === 0 && current.entries.size === 0) {
-          this.#drop(url);
-        }
+        this.#releaseIfIdle(url, current);
       },
     };
   }
@@ -572,9 +583,7 @@ export class ConnectionPool {
       current.entries.delete(entry);
       // hold() だけが残っていれば接続は落とさない (subscribe() の close()
       // と同じ理由)。
-      if (current.entries.size === 0 && current.holds === 0) {
-        this.#drop(url);
-      }
+      this.#releaseIfIdle(url, current);
     };
 
     return new Promise<void>((resolve, reject) => {
@@ -642,6 +651,11 @@ export class ConnectionPool {
     for (const [url, pooled] of this.#pool) {
       const connection = pooled.connection;
       if (!connection?.authAttempted) continue;
+      // 猶予中なら張り直す相手が居ない。閉じて、次に使うときに新しく開く。
+      if (pooled.linger) {
+        this.#drop(url);
+        continue;
+      }
       // 先に購読を閉じておく。閉じずに捨てると、古いソケットの死が
       // 新しい接続へ移した購読に onClosed を配ってしまう。
       for (const entry of pooled.entries) {
@@ -681,6 +695,7 @@ export class ConnectionPool {
     // タイマーが残ったまま消すと、閉じたはずのリレーへ永遠に再接続し続ける
     // ゾンビタイマーになる。
     if (pooled.timer !== null) this.#scheduler.clearTimeout(pooled.timer);
+    this.#cancelLinger(pooled);
     pooled.offClose?.();
     pooled.offOpen?.();
     pooled.connection?.close();
@@ -700,7 +715,56 @@ export class ConnectionPool {
     pooled.offOpen = null;
     pooled.connection = null;
     for (const entry of pooled.entries) entry.subscription = null;
+    // 猶予中の接続が死んだなら、誰も待っていないので再接続しない。残すと、
+    // 接続の無い記録が枠を食い続ける。
+    if (pooled.linger) {
+      this.#drop(url);
+      return;
+    }
     this.#scheduleReconnect(url);
+  }
+
+  /**
+   * 使う人が居なくなった接続を、すぐ閉じずに `IDLE_LINGER_MS` だけ残す。
+   * 接続が無い記録は残す理由が無いのでその場で片付ける。
+   */
+  #releaseIfIdle(url: RelayUrl, pooled: Pooled): void {
+    if (pooled.entries.size > 0 || pooled.holds > 0) return;
+    if (!pooled.connection) {
+      this.#drop(url);
+      return;
+    }
+    if (pooled.linger) return;
+    pooled.linger = {
+      since: this.#scheduler.now(),
+      timer: this.#scheduler.setTimeout(() => this.#drop(url), IDLE_LINGER_MS),
+    };
+  }
+
+  #cancelLinger(pooled: Pooled): void {
+    if (!pooled.linger) return;
+    this.#scheduler.clearTimeout(pooled.linger.timer);
+    pooled.linger = null;
+  }
+
+  /**
+   * 新しい接続を 1 本開ける枠を作る。猶予中の接続だけを、空になったのが古い順に
+   * 閉じる（使っている接続からは奪わない）。作れなければ false。
+   */
+  #makeRoom(): boolean {
+    if (this.size < this.#maxConnections) return true;
+    const lingering: { url: RelayUrl; since: number }[] = [];
+    for (const [url, pooled] of this.#pool) {
+      if (pooled.linger && pooled.connection) {
+        lingering.push({ url, since: pooled.linger.since });
+      }
+    }
+    lingering.sort((a, b) => a.since - b.since);
+    for (const { url } of lingering) {
+      this.#drop(url);
+      if (this.size < this.#maxConnections) return true;
+    }
+    return false;
   }
 
   /**
@@ -790,7 +854,7 @@ export class ConnectionPool {
     // 枠が無ければ諦めず後で再試行する (生きている接続から奪わない)。
     // `{ reserved: true }` はここでは特別扱いしない —— 予約は最初の
     // `subscribe()` 呼び出し限りで、待てなければ `collect()` のタイムアウトが縮退させる。
-    if (this.size >= this.#maxConnections) {
+    if (!this.#makeRoom()) {
       // 予算超過はこのリレー自身の健全性とは無関係 (`ReconnectReason` 参照)。
       this.#scheduleReconnect(url, "budget");
       return;
