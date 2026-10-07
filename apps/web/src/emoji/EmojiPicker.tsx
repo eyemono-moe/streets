@@ -5,8 +5,10 @@ import {
   searchEmojis,
 } from "@streets/core/view/emoji-search";
 import {
+  type Accessor,
   type Component,
   For,
+  type JSX,
   Match,
   Show,
   Switch,
@@ -15,6 +17,8 @@ import {
   createResource,
   createSignal,
   createUniqueId,
+  onCleanup,
+  onMount,
 } from "solid-js";
 import SearchInput from "../ui/SearchInput";
 import {
@@ -140,6 +144,21 @@ const PickerList: Component<{
   let scrollEl: HTMLDivElement | undefined;
   let strip: HTMLDivElement | undefined;
 
+  // 絵文字のボタンは 2,000 近くあり、一度に作ると開くまで待たせる。見出しと枠は先に
+  // 全部出し（目次と帯がすぐ使えるように）、ボタンは上のかたまりから 1 フレームに
+  // 1 つずつ詰める。
+  const [filled, setFilled] = createSignal(1);
+  onMount(() => {
+    let frame = 0;
+    const step = () => {
+      if (filled() >= props.groups.length) return;
+      setFilled((count) => count + 1);
+      frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    onCleanup(() => cancelAnimationFrame(frame));
+  });
+
   const toc = useToc({
     items: props.groups.map((group) => ({
       value: headingId(group.id),
@@ -236,7 +255,7 @@ const PickerList: Component<{
       </Show>
       <div ref={scrollEl} class="h-64 overflow-y-auto">
         <For each={props.groups}>
-          {(group) => (
+          {(group, index) => (
             <section>
               {/* 見出しは下の箱の外に置く。中に入れると、描画を省いている間は
                   位置を持たず、いま見ている見出しが分からなくなる。 */}
@@ -253,11 +272,17 @@ const PickerList: Component<{
                 style={{
                   "content-visibility": "auto",
                   "contain-intrinsic-size": `auto ${Math.ceil(group.emojis.length / COLUMNS) * CELL}px`,
+                  // 詰める前から同じ高さにして、詰めたときに下が動かないようにする。
+                  "min-height": `${Math.ceil(group.emojis.length / COLUMNS) * CELL}px`,
                 }}
               >
-                <For each={group.emojis}>
-                  {(emoji) => <Cell emoji={emoji} onSelect={props.onSelect} />}
-                </For>
+                <Show when={index() < filled()}>
+                  <For each={group.emojis}>
+                    {(emoji) => (
+                      <Cell emoji={emoji} onSelect={props.onSelect} />
+                    )}
+                  </For>
+                </Show>
               </div>
             </section>
           )}
@@ -280,6 +305,8 @@ const EmojiPicker: Component<{
   /** 自分の絵文字（kind:10030 から作ったかたまり）。 */
   customGroups: readonly PickerGroup[];
   onSelect: (emoji: PickerEmoji) => void;
+  /** 下端に足すもの（打った言葉からカスタム絵文字を作る、など）。打った言葉を受け取る。 */
+  footer?: (query: Accessor<string>) => JSX.Element;
 }> = (props) => {
   const [query, setQuery] = createSignal("");
   const [unicode] = createResource(loadUnicodeEmojis);
@@ -355,6 +382,7 @@ const EmojiPicker: Component<{
           )}
         </For>
       </Show>
+      {props.footer?.(query)}
     </div>
   );
 };

@@ -9,6 +9,7 @@ import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 const NEEDS_ACCOUNT: Partial<Record<UiEvent["type"], string>> = {
   "note/repost": "リポスト",
   "note/react": "リアクション",
+  "note/react-made": "リアクション",
   "note/vote": "投票",
   "note/bookmark": "ブックマーク",
   "note/pin": "ピン留め",
@@ -27,6 +28,7 @@ const NEEDS_ACCOUNT: Partial<Record<UiEvent["type"], string>> = {
   "follow-sets/move": "リストの編集",
   "follow-sets/delete": "リストの編集",
   "emoji/add": "絵文字の登録",
+  "emoji/add-made": "絵文字の登録",
   "emoji/remove": "絵文字の登録",
   "emoji-set/add": "絵文字の登録",
   "emoji-set/remove": "絵文字の登録",

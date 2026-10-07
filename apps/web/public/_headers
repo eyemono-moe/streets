@@ -9,3 +9,7 @@
 # 確かめに行かせず、次に開いたときもそのまま使わせる。
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 絵文字を作るときの文字の輪郭。`v1` の中身は変えない（変えるときは v2 を足す）。
+/emoji-glyphs/v1/*
+  Cache-Control: public, max-age=31536000, immutable

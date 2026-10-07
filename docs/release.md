@@ -50,6 +50,7 @@ PR を開く・更新すると、`.github/workflows/preview.yaml` が `pr-<番�
     ```
 
   - Cloudflare の保護の下にあるリレー（r.kojira.io・nostr.compile-error.net など）は、Worker を経由しても断られる。足す前に、Actions から Worker を呼んで届くか確かめる
+- **カスタム絵文字の置き場所**：R2 のバケット `streets-emoji` と、そこに付けるドメイン `emoji.streets.eyemono.moe`。手順は [emoji-maker.md](./emoji-maker.md)。バケットが無いと Worker を出せない
 - **`production` 環境**：必須レビュアーと、出してよい参照を `v*` のタグだけにする
 - **タグの保護**：`v*` のタグを作れる・消せるのを管理者だけにするルールセット
 - **Workers Builds**：Cloudflare の画面の GitHub 連携は止める（二重に出さない）

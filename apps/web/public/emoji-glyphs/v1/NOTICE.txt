@@ -1,0 +1,18 @@
+このフォルダの文字の輪郭は、次のフォントから取り出し、曲線を折れ線に直して形を変えたもの（Modified Version）です。
+元のフォントと同じ SIL Open Font License 1.1 で配ります。フォントとして使える形ではなく、元のフォントの名前（Reserved Font Name を含む）では呼びません。
+
+The glyph outlines in this folder are a Modified Version of the fonts below (curves converted to polylines),
+distributed under the SIL Open Font License, Version 1.1. They do not use the original names or any Reserved Font Name.
+
+gothic/: Noto Sans JP Black
+  (c) 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+  元のフォント: https://fonts.gstatic.com/s/notosansjp/v57/-F6jfjtqLzI2JPCgQBnw7HFyzSD-AsregP8VFLgk75s.ttf
+  ライセンス: SIL Open Font License 1.1（全文は gothic/OFL.txt）
+rounded/: M PLUS Rounded 1c ExtraBold
+  Copyright 2016 The Rounded M+ Project Authors.
+  元のフォント: https://fonts.gstatic.com/s/mplusrounded1c/v22/VdGBAYIAV6gnpUpoWwNkYvrugw9RuM0m4psK.ttf
+  ライセンス: SIL Open Font License 1.1（全文は rounded/OFL.txt）
+serif/: Noto Serif JP Black
+  (c) 2017-2024 Adobe (http://www.adobe.com/).
+  元のフォント: https://fonts.gstatic.com/s/notoserifjp/v34/xn71YHs72GKoTvER4Gn3b5eMRtWGkp6o7MjQ2byYPebA.ttf
+  ライセンス: SIL Open Font License 1.1（全文は serif/OFL.txt）

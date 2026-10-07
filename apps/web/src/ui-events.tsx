@@ -1,6 +1,7 @@
 import type { ColumnStackEvent } from "@streets/core/deck/column-stack";
 import type { ColumnDef, DeckAppearance } from "@streets/core/deck/deck";
 import type { ColumnPicker, DeckPanel } from "@streets/core/deck/deck-ui";
+import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { FollowSetMember } from "@streets/core/lists/follow-set";
 import type { FollowSetFormEvent } from "@streets/core/lists/follow-set-form";
 import type {
@@ -228,6 +229,8 @@ export type DeckEvent =
   | { type: "deck/set-action-layout"; layout: ActionLayout }
   /** 自分の絵文字（kind:10030）に 1 つ足す。同じ名前があれば差し替える。 */
   | { type: "emoji/add"; shortcode: string; url: string }
+  /** その場で作ったカスタム絵文字を、サーバーに描かせてから自分の絵文字に足す。 */
+  | { type: "emoji/add-made"; spec: EmojiSpec; shortcode: string }
   | { type: "emoji/remove"; shortcode: string }
   /** 絵文字セットを自分の絵文字に入れる（参照を足すだけ）。 */
   | { type: "emoji-set/add"; ref: EmojiSetRef }
@@ -265,6 +268,16 @@ export type ChatViewEvent = Extract<
 export type ActionEvent =
   | { type: "note/repost"; target: NostrEvent }
   | { type: "note/react"; target: NostrEvent; input: ReactionInput }
+  /**
+   * その場で作ったカスタム絵文字でリアクションする。サーバーに描かせてから送る。
+   * `shortcode` を省くと、見た目から決まる名前を付ける。
+   */
+  | {
+      type: "note/react-made";
+      target: NostrEvent;
+      spec: EmojiSpec;
+      shortcode?: string;
+    }
   /** 投票に答える。`choices` は選んだ選択肢の id。 */
   | { type: "note/vote"; target: NostrEvent; choices: readonly string[] }
   /** `on` は押した後に付いているべき状態。 */

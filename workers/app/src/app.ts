@@ -1,7 +1,10 @@
 import { vValidator } from "@hono/valibot-validator";
+import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
+import { isValidSpec } from "@streets/core/emoji-maker/url";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { cache } from "hono/cache";
 import * as v from "valibot";
+import { type EmojiResult, createEmoji } from "./emoji";
 import { fetchLinkCard } from "./fetch-card";
 import {
   IMAGE_PRESETS,
@@ -102,6 +105,29 @@ const fallbackTo = (c: Context, source: URL): Response => {
   c.header("cache-control", `private, max-age=${FALLBACK_MAX_AGE}`);
   return c.redirect(source.toString(), 302);
 };
+
+const hexColor = v.pipe(v.string(), v.regex(/^#[0-9a-fA-F]{6}$/));
+
+/** 作る絵文字の指定。形を確かめたあと、中身（字数・太さなど）は `isValidSpec` で見る。 */
+const emojiBody = v.pipe(
+  v.object({
+    lines: v.pipe(v.array(v.pipe(v.string(), v.maxLength(64))), v.maxLength(3)),
+    shape: v.picklist(["square", "wide"]),
+    fit: v.picklist(["stretch", "keep"]),
+    align: v.picklist(["left", "center", "right"]),
+    color: hexColor,
+    outline: v.nullable(hexColor),
+    outlineWidth: v.number(),
+    font: v.picklist(["gothic", "rounded", "serif"]),
+  }),
+  v.check((spec) => isValidSpec(spec as EmojiSpec)),
+);
+
+/** 画面へ返す形。 */
+export type EmojiResponse =
+  | { url: string }
+  | { error: "spec" | "denied" | "rate-limited" }
+  | { error: "missing-chars"; chars: string[] };
 
 const linkCardQuery = v.object({
   url: v.pipe(
@@ -230,6 +256,54 @@ export const createApp = (options: AppOptions = {}) => {
           "content-security-policy": "default-src 'none'",
         },
       });
+    },
+  );
+
+  if (!options.skipSiteCheck) app.use("/emoji", sameSiteOnly);
+
+  app.post(
+    "/emoji",
+    vValidator("json", emojiBody, (result, c) => {
+      if (!result.success) return c.json<EmojiResponse>({ error: "spec" }, 400);
+    }),
+    async (c) => {
+      const env = c.env;
+      const result: EmojiResult = await createEmoji(
+        c.req.valid("json") as EmojiSpec,
+        {
+          bucket: env.EMOJI_BUCKET,
+          readShard: async (font, name) => {
+            const res = await env.ASSETS.fetch(
+              new URL(`/emoji-glyphs/v1/${font}/${name}.bin`, c.req.url),
+            );
+            // 無いファイルは、一枚の画面の index.html が 200 で返る。
+            const type = res.headers.get("content-type") ?? "";
+            if (!res.ok || type.includes("html")) {
+              void res.body?.cancel().catch(() => {});
+              return undefined;
+            }
+            return res.arrayBuffer();
+          },
+          allowRender: async () => {
+            const key = c.req.header("cf-connecting-ip") ?? "unknown";
+            return (await env.EMOJI_LIMITER.limit({ key })).success;
+          },
+        },
+      );
+      c.header("cache-control", "no-store");
+      switch (result.type) {
+        case "ok":
+          return c.json<EmojiResponse>({ url: result.url });
+        case "denied":
+          return c.json<EmojiResponse>({ error: "denied" }, 403);
+        case "rate-limited":
+          return c.json<EmojiResponse>({ error: "rate-limited" }, 429);
+        case "missing-chars":
+          return c.json<EmojiResponse>(
+            { error: "missing-chars", chars: result.chars },
+            400,
+          );
+      }
     },
   );
 

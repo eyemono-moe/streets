@@ -115,6 +115,10 @@ const matchBareMention = (content: string, i: number): Match | undefined => {
 /** NIP-30 が MUST として定める形。この形に合わないタグは索引に入れない。 */
 const SHORTCODE_RE = /^[A-Za-z0-9_-]+$/;
 
+/** NIP-30 のショートコードとして書ける名前か。 */
+export const isValidShortcode = (shortcode: string): boolean =>
+  SHORTCODE_RE.test(shortcode);
+
 /**
  * 本文側の候補切り出しは `SHORTCODE_RE` と同じ文字集合を強制しない（強制すると
  * 「不正な形のタグを無視した」ことが観測不能になる）。妥当性は索引の存在だけで判定する。
