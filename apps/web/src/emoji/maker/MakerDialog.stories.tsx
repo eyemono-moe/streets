@@ -63,6 +63,27 @@ export const もうある名前: S = {
 
 export const 使えない名前: S = { args: { initialShortcode: "ええやん" } };
 
+/** 投稿欄のピッカーから開いたとき。作ったものを本文に入れる。 */
+export const 本文に入れる: S = {
+  render: (args) => (
+    <div
+      class="flex h-150 flex-col rounded-3 border border-primary bg-primary pt-4"
+      style={{ width: `${args.width}px` }}
+    >
+      <MakerEditor
+        initialText={args.initialText}
+        initialStyle={styleOfPreset(neon)}
+        presetId={neon.id}
+        existingShortcodes={[]}
+        verb="insert"
+        onSend={() => {}}
+        onRegister={() => {}}
+        onBack={() => {}}
+      />
+    </div>
+  ),
+};
+
 /** 設定の「文字から作る」から開いたとき。送る先が無いので、登録だけをする。 */
 export const 登録専用: S = {
   render: (args) => (

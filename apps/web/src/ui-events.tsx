@@ -231,6 +231,11 @@ export type DeckEvent =
   | { type: "emoji/add"; shortcode: string; url: string }
   /** その場で作ったカスタム絵文字を、サーバーに描かせてから自分の絵文字に足す。 */
   | { type: "emoji/add-made"; spec: EmojiSpec; shortcode: string }
+  /**
+   * 本文に入れたカスタム絵文字を、サーバーに描かせる。できたら名前と画像の対応を覚え、
+   * 投稿するときに自分の絵文字リストに無くても emoji タグを付けられるようにする。
+   */
+  | { type: "emoji/prepare-made"; spec: EmojiSpec; shortcode: string }
   | { type: "emoji/remove"; shortcode: string }
   /** 絵文字セットを自分の絵文字に入れる（参照を足すだけ）。 */
   | { type: "emoji-set/add"; ref: EmojiSetRef }
