@@ -133,7 +133,8 @@ export const ProfileHeaderCard: Component<{
 /** ユーザーのカラムの先頭。プロフィールとフォローの操作を置く。 */
 const ProfileHeaderView: Component<{
   pubkey: string;
-  followeeCount: number;
+  /** 取得中・一覧が無いときは undefined（0 人と見せない）。 */
+  followeeCount?: number;
   /** 相手が自分をフォローしている。 */
   followsYou?: boolean;
   onOpenFollowees?: () => void;

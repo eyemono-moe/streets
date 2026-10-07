@@ -1,5 +1,6 @@
 import type { EventAddress } from "../nostr/address";
 import type { NostrEvent } from "../nostr/event";
+import { followsPubkey } from "../nostr/follow-list";
 import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -7,6 +8,7 @@ import type { AddressRequests, RequestOptions } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
+import type { FollowListRequests } from "./follow-list-requests";
 import type { PollRequests } from "./poll-requests";
 import type { ProfileRequests } from "./profile-requests";
 
@@ -74,6 +76,24 @@ export type ReadLookups = {
    */
   refreshProfile(pubkey: string): void;
   /**
+   * その人のフォロー一覧（kind:3）を読む。手元の版をすぐ知らせ（無ければ undefined。取得中と
+   * 公開していないは分けない）、新しい版が入るたびに知らせる。流し続けず、取り直しは
+   * 間隔を空けて一度きりで行う。
+   */
+  watchFollowList(
+    pubkey: string,
+    onChange: (event: NostrEvent | undefined) => void,
+  ): () => void;
+  /**
+   * その人が `viewer` をフォローしているかを知らせる。取り終えるまでは false（出さない側に倒す）。
+   * 手元にその人の一覧があればそれで答え、無いときだけ `viewer` を指す一覧に絞って取りにいく。
+   */
+  watchFollowsYou(
+    pubkey: string,
+    viewer: string,
+    onChange: (follows: boolean) => void,
+  ): () => void;
+  /**
    * その投稿への返信・リポスト・リアクションを要求し、store に関係するものが入るたびに知らせる。
    * 数え方は読む側が store から引き直す。
    */
@@ -95,6 +115,7 @@ export type CreateReadLookupsOptions = {
   profiles: ProfileRequests;
   engagements: EngagementRequests;
   polls: PollRequests;
+  followLists: FollowListRequests;
 };
 
 export const createReadLookups = ({
@@ -104,6 +125,7 @@ export const createReadLookups = ({
   profiles,
   engagements,
   polls,
+  followLists,
 }: CreateReadLookupsOptions): ReadLookups => ({
   watchEvent(id, relayHint, onChange) {
     // 指す先が無い（タグが壊れている）ものは取りにいかない。空の id を要求しない。
@@ -244,6 +266,33 @@ export const createReadLookups = ({
 
   refreshProfile(pubkey) {
     profiles.request(pubkey, { refresh: true });
+  },
+
+  watchFollowList(pubkey, onChange) {
+    const load = () => onChange(store.latestReplaceable(3, pubkey));
+    const offChanged = store.onReplaceableChanged((change) => {
+      if (change.kind === 3 && change.pubkey === pubkey) load();
+    });
+    load();
+    followLists.request(pubkey, { type: "list" });
+    return offChanged;
+  },
+
+  watchFollowsYou(pubkey, viewer, onChange) {
+    if (pubkey === viewer) {
+      onChange(false);
+      return () => {};
+    }
+    const load = () =>
+      onChange(
+        followsPubkey(store.latestReplaceable(3, pubkey), viewer) === true,
+      );
+    const offChanged = store.onReplaceableChanged((change) => {
+      if (change.kind === 3 && change.pubkey === pubkey) load();
+    });
+    load();
+    followLists.request(pubkey, { type: "follows-you", viewer });
+    return offChanged;
   },
 
   watchEngagements(targetId, onChange) {

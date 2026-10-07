@@ -325,6 +325,8 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
     profiles: inertRequests(),
     engagements: inertRequests(),
     polls: settledPolls(),
+    // 手元の一覧だけで答える。取りにいかない。
+    followLists: { request() {}, dispose() {} },
   });
 
   // 中身は Provider の中で読む。外で読むと、ミュートの段が見えないまま作られる。

@@ -9,6 +9,7 @@ import {
 import type { EventPersistence } from "./event-persistence";
 import { type EventRequests, createEventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
+import { createFollowListRequests } from "./follow-list-requests";
 import { type ReadLookups, createReadLookups } from "./lookups";
 import { createPollRequests } from "./poll-requests";
 import {
@@ -82,6 +83,12 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   const events = createEventRequests({ store, manager, scheduler });
   const addresses = createAddressRequests({ store, manager, scheduler });
   const polls = createPollRequests({ manager });
+  const followLists = createFollowListRequests({
+    store,
+    manager,
+    routing,
+    scheduler,
+  });
   const engagementRequestsOptions: CreateEngagementRequestsOptions = {
     manager,
     scheduler,
@@ -126,6 +133,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       profiles,
       engagements,
       polls,
+      followLists,
     }),
     store,
     dispose(): void {
@@ -138,6 +146,7 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
       events.dispose();
       addresses.dispose();
       polls.dispose();
+      followLists.dispose();
       engagements.dispose();
       manager.dispose();
       options.persistence.dispose();
