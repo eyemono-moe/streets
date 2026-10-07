@@ -9,10 +9,8 @@ import {
   FOLLOW_LIST_RECHECK_MS,
   createFollowListRequests,
   followListFilter,
-  followListRelays,
   isFollowListDue,
 } from "./follow-list-requests";
-import { RoutingTable } from "./routing-table";
 import type { SubscriptionManager } from "./subscription-manager";
 
 const VIEWER = "b".repeat(64);
@@ -52,27 +50,6 @@ describe("isFollowListDue", () => {
   });
 });
 
-describe("followListRelays", () => {
-  it("リレーが無ければ undefined（空配列にしない）、あれば先頭の数本", () => {
-    expect(followListRelays([])).toBeUndefined();
-    const urls = ["wss://1/", "wss://2/", "wss://3/"] as RelayUrl[];
-    expect(followListRelays(urls)).toEqual(["wss://1/", "wss://2/"]);
-  });
-});
-
-const setup = () => {
-  const store = new EventStore();
-  const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(async () => {});
-  const clock = createFakeClock();
-  const requests = createFollowListRequests({
-    store,
-    manager: { fetchOnce } as unknown as SubscriptionManager,
-    routing: new RoutingTable(store),
-    scheduler: clock,
-  });
-  return { store, fetchOnce, clock, requests };
-};
-
 const SK = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const AUTHOR = bytesToHex(schnorr.getPublicKey(SK));
 
@@ -86,6 +63,19 @@ const list = (createdAt: number): NostrEvent => {
   };
   const id = computeEventId(unsigned);
   return { ...unsigned, id, sig: bytesToHex(schnorr.sign(hexToBytes(id), SK)) };
+};
+
+const setup = () => {
+  const store = new EventStore();
+  const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(async () => {});
+  const relaysForAuthor = vi.fn(() => undefined);
+  const clock = createFakeClock();
+  const requests = createFollowListRequests({
+    store,
+    manager: { fetchOnce, relaysForAuthor } as unknown as SubscriptionManager,
+    scheduler: clock,
+  });
+  return { store, fetchOnce, clock, requests };
 };
 
 describe("createFollowListRequests", () => {

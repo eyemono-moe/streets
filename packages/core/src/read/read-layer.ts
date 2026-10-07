@@ -86,7 +86,6 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   const followLists = createFollowListRequests({
     store,
     manager,
-    routing,
     scheduler,
   });
   const engagementRequestsOptions: CreateEngagementRequestsOptions = {

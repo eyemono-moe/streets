@@ -1,7 +1,6 @@
-import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
+import type { RelayFilter } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
-import type { RoutingTable } from "./routing-table";
 import type { SubscriptionManager } from "./subscription-manager";
 
 const FOLLOW_KIND = 3;
@@ -15,8 +14,8 @@ const HEX_64 = /^[0-9a-f]{64}$/;
  */
 export const FOLLOW_LIST_RECHECK_MS = 10 * 60 * 1000;
 
-/** 行き先に足す、その人の書き込みリレーの数。一度きりの取得で開く接続を増やしすぎない。 */
-const MAX_AUTHOR_RELAYS = 2;
+/** 一度きりの取得の行き先の数。 */
+const AUTHOR_RELAYS = 2;
 
 export type FollowListRequestKind =
   /** 一覧そのもの。見出しのフォロー数に使う。 */
@@ -54,15 +53,6 @@ export const followListFilter = (
     : { kinds: [FOLLOW_KIND], authors: [pubkey], limit: 1 };
 };
 
-/**
- * 一度きりの取得の行き先。その人の書き込みリレーが分かれば先頭の数本、分からなければ
- * `undefined`（いつものリレー）。空配列は「リレー 0 本」になってしまうので返さない。
- */
-export const followListRelays = (
-  writeRelays: readonly RelayUrl[],
-): RelayUrl[] | undefined =>
-  writeRelays.length > 0 ? writeRelays.slice(0, MAX_AUTHOR_RELAYS) : undefined;
-
 export type FollowListRequests = {
   /**
    * その人のフォロー一覧を、必要なら一度だけ取りにいく。取ってから間隔が過ぎていなければ、
@@ -75,7 +65,6 @@ export type FollowListRequests = {
 export type CreateFollowListRequestsOptions = {
   store: EventStore;
   manager: SubscriptionManager;
-  routing: RoutingTable;
   scheduler?: Scheduler;
 };
 
@@ -106,7 +95,7 @@ export const createFollowListRequests = (
 
       checkedAt.set(key, now);
       const filter = followListFilter(pubkey, stored, kind);
-      const relays = followListRelays(options.routing.writeRelaysFor(pubkey));
+      const relays = options.manager.relaysForAuthor(pubkey, AUTHOR_RELAYS);
       void options.manager
         .fetchOnce([filter], relays === undefined ? undefined : { relays })
         .catch(() => {

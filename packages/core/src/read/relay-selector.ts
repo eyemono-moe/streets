@@ -157,3 +157,38 @@ export const selectRelays = ({
 
   return { picks, assignment, uncovered };
 };
+
+export type OrderAuthorRelaysOptions = {
+  /** 直近の選択でその著者に割り当てたリレー（優先順）。 */
+  assigned: readonly RelayUrl[];
+  /** 自分の読み込みリレー。 */
+  preferred: readonly RelayUrl[];
+  /** いま接続が開いているリレー。 */
+  open: readonly RelayUrl[];
+  /** その著者が kind:10002 に書いた write リレー（書かれた順）。 */
+  declared: readonly RelayUrl[];
+  /** 繋がないリレー・開けないリレー。 */
+  excluded: (url: RelayUrl) => boolean;
+  count: number;
+};
+
+/**
+ * 著者を 1 人だけ一度きりで取るときの行き先の順。kind:10002 に書かれた順は、その人が
+ * いま使っているかと関係がなく、古い一覧を並べている人は実際のリレーが後ろにある。
+ * だから、すでに選んで割り当てたもの、自分の読み込み先、開いている接続（新しい接続を
+ * 増やさない）の順に取り、最後に書かれた順で埋める。
+ */
+export const orderAuthorRelays = ({
+  assigned,
+  preferred,
+  open,
+  declared,
+  excluded,
+  count,
+}: OrderAuthorRelaysOptions): RelayUrl[] => {
+  const ordered = new Set<RelayUrl>();
+  for (const url of [...assigned, ...preferred, ...open, ...declared]) {
+    if (!excluded(url)) ordered.add(url);
+  }
+  return [...ordered].slice(0, count);
+};
