@@ -202,9 +202,13 @@ const ProfileHeaderView: Component<{
       }
       footer={
         <div class="flex flex-wrap items-center gap-4">
+          {/* 数が分かるまでは「フォロー」と出さない。数の無い「フォロー」は、フォローする
+              ボタンと同じ名前になる。 */}
           <Count
             count={props.followeeCount}
-            label="フォロー"
+            label={
+              props.followeeCount === undefined ? "フォローを見る" : "フォロー"
+            }
             onOpen={props.onOpenFollowees}
           />
           <Count label="フォロワーを見る" onOpen={props.onOpenFollowers} />
