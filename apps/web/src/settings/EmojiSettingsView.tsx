@@ -295,7 +295,7 @@ const AddEmojiSection: Component<{
         options={[
           {
             value: "image",
-            label: "画像から",
+            label: "画像から作る",
             icon: "i-material-symbols:image-outline-rounded",
           },
           {
