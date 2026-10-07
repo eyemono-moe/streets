@@ -18,6 +18,7 @@ import {
   onMount,
 } from "solid-js";
 import NewerNotice from "../columns/NewerNotice";
+import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 import { holdsScroll } from "../ui/scroll-hold";
 import VirtualList, {
@@ -68,6 +69,7 @@ const ChatRowView: Component<{
   row: ChatRow;
   relays: readonly RelayUrl[];
   expandMedia: boolean;
+  size?: EventSize;
 }> = (props) => (
   <Switch>
     <Match when={props.row.type === "day" && props.row}>
@@ -87,6 +89,7 @@ const ChatRowView: Component<{
                 continued={message().continued}
                 relays={props.relays}
                 expandMedia={props.expandMedia}
+                size={props.size}
               />
             }
           >
@@ -96,6 +99,7 @@ const ChatRowView: Component<{
                 visibility={visibility()}
                 relays={props.relays}
                 expandMedia={props.expandMedia}
+                size={props.size}
               />
             )}
           </Show>
@@ -109,6 +113,8 @@ type RowsProps = {
   rows: readonly ChatRow[];
   relays: readonly RelayUrl[];
   expandMedia: boolean;
+  /** 表示密度。`compact` で発言の文字と余白を詰める。 */
+  size?: EventSize;
   paging: Paging;
   settled: boolean;
   onLoadOlder: () => void;
@@ -305,6 +311,7 @@ const NewestLastRows: Component<RowsProps> = (props) => {
                   row={row}
                   relays={props.relays}
                   expandMedia={props.expandMedia}
+                  size={props.size}
                 />
               )}
             </VirtualList>
@@ -394,6 +401,7 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
                   row={row}
                   relays={props.relays}
                   expandMedia={props.expandMedia}
+                  size={props.size}
                 />
               )}
             </VirtualList>

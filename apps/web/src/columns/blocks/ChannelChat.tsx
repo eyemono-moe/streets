@@ -202,6 +202,7 @@ const ChannelChat: Component<{
             order={chatOrder()}
             relays={relays()}
             expandMedia={scope.column().expandMedia !== false}
+            size={scope.column().density === "compact" ? "compact" : "normal"}
             paging={messages.paging()}
             settled={messages.status().phase === "settled"}
             onLoadOlder={messages.loadMore}

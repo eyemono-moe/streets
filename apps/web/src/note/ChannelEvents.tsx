@@ -16,9 +16,11 @@ import ChannelPicture from "../chat/ChannelPicture";
 import { useReadLayer } from "../read-layer";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
+import ActionBar from "./ActionBar";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import { type EventSize, NoteContent } from "./Event";
+import EventMenu from "./EventMenu";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
 
@@ -135,8 +137,8 @@ export const ChannelCard: Component<{ event: NostrEvent; size: EventSize }> = (
 
 /**
  * チャンネルでの発言（kind:42）。どのチャンネルの発言かを上に出し、押すとその
- * チャンネルを開く。投稿の返信の操作は出さない —— 返信は kind:1 ではなく、
- * チャンネルの中で書くもの。
+ * チャンネルを開く。返信は kind:1 ではなくチャンネルの中で書くものなので、ここでは
+ * 出さない（メニューにもアクション欄にも `onReply` を渡さない）。
  */
 export const ChannelMessageCard: Component<{
   event: NostrEvent;
@@ -182,17 +184,19 @@ export const ChannelMessageCard: Component<{
           size={props.size === "compact" ? "compact" : "normal"}
         />
         <div class="flex min-w-0 flex-1 flex-col gap-1.5">
-          <div class="flex min-w-0 items-baseline gap-1.5">
-            <div class="min-w-0 shrink">
-              <AuthorNames pubkey={props.event.pubkey} size={props.size} />
-            </div>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
+            <AuthorNames pubkey={props.event.pubkey} size={props.size} />
             <time
-              class="c-secondary shrink-0 text-caption"
+              class="c-secondary text-caption"
               datetime={date().toISOString()}
               title={formatEventTimeFull(date())}
             >
               {formatEventTime(date(), new Date())}
             </time>
+            {/* 引用の中（compact）には出さない。開いた先で操作する。 */}
+            <Show when={props.size === "normal"}>
+              <EventMenu event={props.event} withActions />
+            </Show>
           </div>
           <NoteContent
             event={props.event}
@@ -201,6 +205,7 @@ export const ChannelMessageCard: Component<{
           />
           <Show when={props.size === "normal"}>
             <ReactionList event={props.event} />
+            <ActionBar event={props.event} />
           </Show>
         </div>
       </div>

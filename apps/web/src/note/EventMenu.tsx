@@ -4,7 +4,13 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
+  canBookmark,
+  canPin,
+  canReply,
+} from "@streets/core/nostr/event-actions";
+import {
   type EventActionId,
+  allActionsOf,
   menuActionsOf,
 } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
@@ -30,8 +36,8 @@ import {
 } from "../ui/menu";
 import {
   EVENT_ACTION_META,
+  bookmarkLook,
   createEventDialogs,
-  canPin,
   muteEventLook,
   pinLook,
   reactionLabel,
@@ -48,6 +54,14 @@ const AuthorRelaysDialog = lazyPart(
 const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 const ClientDialog = lazyPart(() => import("./ClientDialog"));
+
+/** 呼んだ側が足す項目。メニューは中身を知らず、選ばれたら `onSelect` を呼ぶだけ。 */
+export type ExtraMenuItem = {
+  value: string;
+  label: string;
+  icon: string;
+  onSelect: () => void;
+};
 
 type MenuItem = {
   value: string;
@@ -90,6 +104,8 @@ const EventItems: Component<{
   actions: EventActions | undefined;
   muted: boolean;
   canMute: boolean;
+  /** 返信を呼んだ側が書くか。kind:42 の返信は、そのときだけ出す。 */
+  customReply: boolean;
 }> = (props) => {
   const engagement = props.actions
     ? useEngagements(() => props.event, props.actions.viewer)
@@ -125,6 +141,9 @@ const EventItems: Component<{
     const meta = EVENT_ACTION_META[id];
     switch (id) {
       case "reply":
+        return canReply(props.event, { custom: props.customReply })
+          ? [{ value: id, ...meta }]
+          : [];
       case "react":
       case "activity":
       case "timeslip":
@@ -174,11 +193,8 @@ const EventItems: Component<{
         return [
           {
             value: id,
-            label: bookmarked() ? "ブックマークを外す" : "ブックマーク",
-            icon: bookmarked()
-              ? "i-material-symbols:bookmark-rounded"
-              : meta.icon,
-            todo: bookmarking(),
+            ...bookmarkLook(props.event, bookmarked()),
+            todo: bookmarking() || (!bookmarked() && !canBookmark(props.event)),
           },
         ];
       case "pin":
@@ -211,6 +227,15 @@ const EventMenu: Component<{
   event: NostrEvent;
   /** この投稿にアクション欄があるか。無ければ、欄に入る操作はメニューにも出さない。 */
   withActions?: boolean;
+  /**
+   * アクション欄の代わりにホバーで出す道具列を持つ画面（チャット）で、欄の操作も
+   * メニューに並べる。触る端末ではホバーできない。
+   */
+  listAll?: boolean;
+  /** 返信を呼んだ側が書くとき、その開き方。渡さなければ kind:1 の返信ダイアログを開く。 */
+  onReply?: () => void;
+  /** 「このイベント」の項目の後ろに足す項目。 */
+  extraItems?: readonly ExtraMenuItem[];
   /** 開いた状態で描く。Storybook で中身を並べるため。 */
   defaultOpen?: boolean;
 }> = (props) => {
@@ -227,10 +252,12 @@ const EventMenu: Component<{
   const [picking, setPicking] = createSignal(false);
   let trigger: HTMLElement | undefined;
   const eventIds = () =>
-    menuActionsOf(
-      actionLayout(),
-      props.withActions === true && actions !== undefined,
-    );
+    props.listAll && actions !== undefined
+      ? allActionsOf(actionLayout())
+      : menuActionsOf(
+          actionLayout(),
+          props.withActions === true && actions !== undefined,
+        );
   const authorTarget = (): MuteTarget => ({
     type: "pubkey",
     value: props.event.pubkey,
@@ -308,6 +335,9 @@ const EventMenu: Component<{
         onSelect={(details) => {
           switch (details.value) {
             case "reply":
+              if (props.onReply) props.onReply();
+              else dialogs.open("reply");
+              break;
             case "quote":
             case "details":
             case "broadcast":
@@ -374,6 +404,10 @@ const EventMenu: Component<{
             case "timeslip":
               ops.timeslip();
               break;
+            default:
+              props.extraItems
+                ?.find((item) => item.value === details.value)
+                ?.onSelect();
           }
         }}
       >
@@ -402,6 +436,7 @@ const EventMenu: Component<{
                   actions={actions}
                   muted={ops.muted()}
                   canMute={ops.canMute}
+                  customReply={props.onReply !== undefined}
                 />
                 <Show when={client()}>
                   {(ref) => (
@@ -417,6 +452,12 @@ const EventMenu: Component<{
                   )}
                 </Show>
               </Menu.ItemGroup>
+              <Show when={props.extraItems?.length}>
+                <Menu.Separator class={menuSeparatorClass} />
+                <Menu.ItemGroup>
+                  <Items items={[...(props.extraItems ?? [])]} />
+                </Menu.ItemGroup>
+              </Show>
               <Menu.Separator class={menuSeparatorClass} />
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class={`${menuGroupLabelClass} truncate`}>
