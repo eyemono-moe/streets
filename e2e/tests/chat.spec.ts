@@ -199,7 +199,7 @@ test("チャンネルの発言をミュートできる", async ({
 
   const message = page.getByRole("article").filter({ hasText: spam.content });
   await message.hover();
-  await message.getByRole("button", { name: "そのほかの操作" }).click();
+  await message.getByRole("button", { name: "この投稿の操作" }).click();
   await page
     .getByRole("menuitem", { name: "このメッセージをミュートする" })
     .click();
