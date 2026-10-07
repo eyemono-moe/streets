@@ -80,6 +80,7 @@ export class WebSocketRelayConnection implements RelayConnection {
   readonly #outbox: string[] = [];
   readonly #openListeners = new Set<() => void>();
   readonly #closeListeners = new Set<() => void>();
+  readonly #noticeListeners = new Set<(message: string) => void>();
   #nextSubId = 0;
   #opened = false;
   #closed = false;
@@ -121,6 +122,7 @@ export class WebSocketRelayConnection implements RelayConnection {
       this.#openListeners.clear();
       for (const listener of this.#closeListeners) listener();
       this.#closeListeners.clear();
+      this.#noticeListeners.clear();
     };
     socket.onclose = fail;
     socket.onerror = fail;
@@ -206,6 +208,13 @@ export class WebSocketRelayConnection implements RelayConnection {
     this.#closeListeners.add(listener);
     return () => {
       this.#closeListeners.delete(listener);
+    };
+  }
+
+  onNotice(listener: (message: string) => void): () => void {
+    this.#noticeListeners.add(listener);
+    return () => {
+      this.#noticeListeners.delete(listener);
     };
   }
 
@@ -377,7 +386,9 @@ export class WebSocketRelayConnection implements RelayConnection {
       }
       case "NOTICE": {
         const [, text] = message;
-        if (typeof text === "string") traffic?.notice(this.url, text);
+        if (typeof text !== "string") return;
+        traffic?.notice(this.url, text);
+        for (const listener of [...this.#noticeListeners]) listener(text);
         return;
       }
       default:

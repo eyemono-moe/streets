@@ -137,6 +137,14 @@ describe("createRelayTraffic", () => {
     expect(stats.peakSubscriptions).toBe(1);
   });
 
+  it("待ち行列に積んだ REQ の数を足す", () => {
+    const traffic = createRelayTraffic(() => 0);
+    traffic.recorder.queued("wss://a");
+    traffic.recorder.queued("wss://a");
+
+    expect(traffic.snapshot()[0].queuedReqs).toBe(2);
+  });
+
   it("繋ぎ直しをまたいで、いま開いている分も含めて接続時間を足す", () => {
     let now = 0;
     const traffic = createRelayTraffic(() => now);

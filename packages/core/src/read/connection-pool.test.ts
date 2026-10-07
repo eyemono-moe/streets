@@ -120,6 +120,8 @@ type CreatePoolOptions = {
    */
   neverOpens?: RelayUrl[];
   allowLocalNetwork?: boolean;
+  /** NIP-11 の `max_subscriptions` にあたる、URL ごとの同時購読の枠。 */
+  maxSubscriptions?: Record<RelayUrl, number>;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -130,6 +132,7 @@ const createPool = (options: CreatePoolOptions = {}) => {
   const neverOpens = new Set(options.neverOpens ?? []);
   const clock = createFakeClock();
   const callIndexByUrl = new Map<RelayUrl, number>();
+  const queued: RelayUrl[] = [];
 
   const connect: ConnectionPoolOptions["connect"] = (url) => {
     const callIndex = callIndexByUrl.get(url) ?? 0;
@@ -174,9 +177,11 @@ const createPool = (options: CreatePoolOptions = {}) => {
     scheduler: clock,
     random: options.random,
     allowLocalNetwork: options.allowLocalNetwork,
+    maxSubscriptions: (url) => options.maxSubscriptions?.[url],
+    onQueued: (url) => queued.push(url),
   });
 
-  return { pool, connections, connectCalls, clock };
+  return { pool, connections, connectCalls, clock, queued };
 };
 
 describe("ConnectionPool", () => {
@@ -1935,5 +1940,198 @@ describe("ConnectionPool: idle linger", () => {
 
     expect(connections.get("wss://one/")?.closed).toBe(true);
     expect(pool.size).toBe(0);
+  });
+});
+
+describe("ConnectionPool の同時購読の枠", () => {
+  const URL = "wss://one/";
+  const sent = (connections: Map<RelayUrl, FakeRelayConnection>) =>
+    connections.get(URL)?.subscriptions.filter((sub) => !sub.closed) ?? [];
+
+  it("枠が埋まっていると REQ を送らず、1 本閉じると送る", () => {
+    const { pool, connections, queued } = createPool({
+      maxSubscriptions: { [URL]: 2 },
+    });
+    const a = pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+    pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+    pool.subscribe(URL, [{ kinds: [3] }], noopHandlers());
+
+    expect(connections.get(URL)?.subscriptions).toHaveLength(2);
+    expect(queued).toEqual([URL]);
+
+    a?.close();
+
+    expect(connections.get(URL)?.subscriptions).toHaveLength(3);
+    expect(connections.get(URL)?.subscriptions[2].filters).toEqual([
+      { kinds: [3] },
+    ]);
+  });
+
+  it("流し続ける購読が、先に待っていた一度きりの取得より先に通る", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: 1 },
+    });
+    const first = pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+    pool.subscribe(URL, [{ kinds: [7] }], noopHandlers(), { once: true });
+    pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+
+    first?.close();
+
+    const subscriptions = connections.get(URL)?.subscriptions ?? [];
+    expect(subscriptions).toHaveLength(2);
+    expect(subscriptions[1].filters).toEqual([{ kinds: [2] }]);
+  });
+
+  it("一度きりの取得は EOSE で REQ を閉じ、枠を待っている購読へ渡す", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: 1 },
+    });
+    const onEose = vi.fn();
+    pool.subscribe(
+      URL,
+      [{ kinds: [7] }],
+      { ...noopHandlers(), onEose },
+      {
+        once: true,
+      },
+    );
+    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+
+    connections.get(URL)?.emitEose(0);
+
+    expect(onEose).toHaveBeenCalledOnce();
+    expect(connections.get(URL)?.subscriptions[0].closed).toBe(true);
+    expect(connections.get(URL)?.subscriptions).toHaveLength(2);
+  });
+
+  it("待っている購読を close すると、送らずに待ち行列から消える", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: 1 },
+    });
+    const first = pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+    const waiting = pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+
+    waiting?.close();
+    first?.close();
+
+    expect(connections.get(URL)?.subscriptions).toHaveLength(1);
+  });
+
+  it("待っている間に接続が死んでも、繋ぎ直したあとで枠の範囲で送る", () => {
+    const { pool, connections, clock } = createPool({
+      maxSubscriptions: { [URL]: 1 },
+      random: () => 0.5,
+    });
+    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+    pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+
+    connections.get(URL)?.die();
+    clock.advance(2_000);
+
+    expect(sent(connections)).toHaveLength(1);
+    expect(sent(connections)[0].filters).toEqual([{ kinds: [1] }]);
+  });
+
+  it("too many concurrent REQs の NOTICE で枠が下がり、最後の REQ がもう一度送られる", () => {
+    const { pool, connections, queued } = createPool();
+    const subs = [1, 2, 3].map((kind) =>
+      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers()),
+    );
+
+    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+
+    // 3 本のうち最後の 1 本が断られたものとして外れ、枠は 2 になる。
+    expect(sent(connections).map((sub) => sub.filters)).toEqual([
+      [{ kinds: [1] }],
+      [{ kinds: [2] }],
+    ]);
+    expect(queued).toEqual([URL]);
+
+    // 枠が空くと、断られた REQ が先頭から送り直される。
+    subs[0]?.close();
+    expect(sent(connections).map((sub) => sub.filters)).toEqual([
+      [{ kinds: [2] }],
+      [{ kinds: [3] }],
+    ]);
+  });
+
+  it("断られた REQ は、枠が空くと送り直され、呼び出し元には CLOSED を伝えない", () => {
+    const { pool, connections } = createPool();
+    const onClosed = vi.fn();
+    const subs = [1, 2, 3].map((kind) =>
+      pool.subscribe(URL, [{ kinds: [kind] }], { ...noopHandlers(), onClosed }),
+    );
+    connections.get(URL)?.emitNotice("error: Too Many Concurrent REQs");
+
+    subs[0]?.close();
+
+    expect(onClosed).not.toHaveBeenCalled();
+    expect(sent(connections).map((sub) => sub.filters)).toEqual([
+      [{ kinds: [2] }],
+      [{ kinds: [3] }],
+    ]);
+  });
+
+  it("CLOSED の理由が上限でも、同じように枠を下げて待たせる", () => {
+    const { pool, connections } = createPool();
+    const onClosed = vi.fn();
+    for (const kind of [1, 2, 3]) {
+      pool.subscribe(URL, [{ kinds: [kind] }], { ...noopHandlers(), onClosed });
+    }
+
+    connections
+      .get(URL)
+      ?.emitClosed(2, "rate-limited: too many concurrent REQs");
+
+    expect(onClosed).not.toHaveBeenCalled();
+    expect(sent(connections)).toHaveLength(2);
+    pool.subscribe(URL, [{ kinds: [4] }], noopHandlers());
+    expect(sent(connections)).toHaveLength(2);
+  });
+
+  it("開いているのが 1 本だけなら、上限の NOTICE でも戻さない", () => {
+    const { pool, connections } = createPool();
+    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+
+    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+
+    expect(sent(connections)).toHaveLength(1);
+    expect(connections.get(URL)?.subscriptions).toHaveLength(1);
+  });
+
+  it("上限と関係のない NOTICE では何も変えない", () => {
+    const { pool, connections } = createPool();
+    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
+    pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+
+    connections.get(URL)?.emitNotice("rate limited");
+    pool.subscribe(URL, [{ kinds: [3] }], noopHandlers());
+
+    expect(sent(connections)).toHaveLength(3);
+  });
+
+  it("上限の分からないリレーは枠なしで、すべて送る", () => {
+    const { pool, connections, queued } = createPool({
+      maxSubscriptions: { "wss://other/": 1 },
+    });
+    for (let kind = 1; kind <= 50; kind++) {
+      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers());
+    }
+
+    expect(connections.get(URL)?.subscriptions).toHaveLength(50);
+    expect(queued).toEqual([]);
+  });
+
+  it("断られて学んだ枠は、繋ぎ直しても覚えている", () => {
+    const { pool, connections, clock } = createPool({ random: () => 0.5 });
+    for (const kind of [1, 2, 3]) {
+      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers());
+    }
+    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+
+    connections.get(URL)?.die();
+    clock.advance(2_000);
+
+    expect(sent(connections)).toHaveLength(2);
   });
 });

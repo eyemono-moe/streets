@@ -121,6 +121,21 @@ describe("WebSocketRelayConnection", () => {
     expect(JSON.parse(sent[1])).toEqual(["CLOSE", subId]);
   });
 
+  it("passes NOTICE text to listeners until they unsubscribe", () => {
+    const { socket, open, receive } = fakeSocket();
+    const connection = new WebSocketRelayConnection("wss://a", socket);
+    const listener = vi.fn();
+    const off = connection.onNotice(listener);
+    open();
+
+    receive(["NOTICE", "ERROR: too many concurrent REQs"]);
+    off();
+    receive(["NOTICE", "again"]);
+
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledWith("ERROR: too many concurrent REQs");
+  });
+
   it("ignores malformed messages instead of throwing", () => {
     const { socket, open } = fakeSocket();
     const connection = new WebSocketRelayConnection("wss://a", socket);

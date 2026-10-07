@@ -1,6 +1,7 @@
 import { createIndexedDbPersistence } from "@streets/core/read/indexeddb-persistence";
 import { createReadLayer } from "@streets/core/read/read-layer";
 import { createRelayTraffic } from "@streets/core/relay/relay-traffic";
+import { createSubscriptionLimits } from "@streets/core/relay/subscription-limits";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
@@ -31,6 +32,9 @@ const App: Component = () => {
         traffic: relayTraffic?.recorder,
       }),
     persistence: createIndexedDbPersistence(),
+    // 上限を超える REQ を、リレーは黙って捨てる。NIP-11 の値を超えないよう順番待ちにする。
+    maxSubscriptions: createSubscriptionLimits(),
+    onQueued: relayTraffic?.recorder.queued,
     fallbackRelays: relayOverride,
     // 手元で開いたページからなら、ブラウザは手元のリレーへの接続に許可を求めない。
     allowLocalNetwork:
