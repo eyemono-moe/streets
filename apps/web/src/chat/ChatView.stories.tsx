@@ -7,6 +7,7 @@ import type { EventDraft } from "@streets/core/nostr/build/draft";
 import { chatModeration } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Paging } from "@streets/core/read/source";
+import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import { chatRows } from "@streets/core/view/chat";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
@@ -120,13 +121,15 @@ const OLDER_PAGE = 50;
 const olderPages = 20;
 
 type Props = {
-  rows: ReturnType<typeof chatRows>;
+  /** 渡した `messages` を、`order` の並びで行にする。 */
+  messages: readonly NostrEvent[];
+  order: ChatOrder;
   paging: Paging;
   settled: boolean;
   replyTo?: NostrEvent;
   channelName?: string;
   /**
-   * `many` は 600 件を並べる。`older` は上へ遡るたびに古い発言を足す。`live` は
+   * `many` は 600 件を並べる。`older` は遡るたびに古い発言を足す。`live` は
    * 2 秒ごとに新しい発言が届く。どれも rows・paging を使わない。署名に時間が
    * かかるので、そのストーリーを開いたときだけ作る。
    */
@@ -134,7 +137,7 @@ type Props = {
 };
 
 /** 取り足しを模す。上端が見えたら少し待ってから、1 ページぶん古い発言を足す。 */
-const createOlderFeed = () => {
+const createOlderFeed = (order: ChatOrder) => {
   const allOlder = chatter(
     -OLDER_PAGE * olderPages,
     OLDER_PAGE * (olderPages + 1),
@@ -142,7 +145,12 @@ const createOlderFeed = () => {
   const [loaded, setLoaded] = createSignal(1);
   const [paging, setPaging] = createSignal<Paging>("idle");
   const rows = () =>
-    chatRows(allOlder.slice(-OLDER_PAGE * loaded()), moderation, viewer.pubkey);
+    chatRows(
+      allOlder.slice(-OLDER_PAGE * loaded()),
+      moderation,
+      viewer.pubkey,
+      order,
+    );
   const loadOlder = () => {
     if (paging() !== "idle") return;
     setPaging("loading");
@@ -159,10 +167,11 @@ const createOlderFeed = () => {
  * 2 秒ごとに 1 件ずつ、新しい発言が届く。カラムと同じく行を key で突き合わせて
  * 当てる。作り直すと、開いたメニューが届くたびに消える。
  */
-const createLiveFeed = () => {
+const createLiveFeed = (order: ChatOrder) => {
   const all = chatter(0, 120);
   let shown = 20;
-  const rows = () => chatRows(all.slice(0, shown), moderation, viewer.pubkey);
+  const rows = () =>
+    chatRows(all.slice(0, shown), moderation, viewer.pubkey, order);
   const [state, setState] = createStore({ rows: rows() });
   const timer = setInterval(() => {
     shown = Math.min(all.length, shown + 1);
@@ -200,16 +209,28 @@ const meta = {
         >
           {(state) => {
             const feed =
-              props.scenario === "older" ? createOlderFeed() : undefined;
+              props.scenario === "older"
+                ? createOlderFeed(props.order)
+                : undefined;
             const live =
-              props.scenario === "live" ? createLiveFeed() : undefined;
+              props.scenario === "live"
+                ? createLiveFeed(props.order)
+                : undefined;
             const many =
               props.scenario === "many"
-                ? chatRows(chatter(0, 600), moderation, viewer.pubkey)
+                ? chatRows(
+                    chatter(0, 600),
+                    moderation,
+                    viewer.pubkey,
+                    props.order,
+                  )
                 : undefined;
+            const rows = () =>
+              chatRows(props.messages, moderation, viewer.pubkey, props.order);
             return (
               <ChatView
-                rows={feed ? feed.rows() : live ? live() : (many ?? props.rows)}
+                rows={feed ? feed.rows() : live ? live() : (many ?? rows())}
+                order={props.order}
                 relays={["wss://relay.example/"]}
                 expandMedia
                 paging={feed ? feed.paging() : props.paging}
@@ -230,11 +251,19 @@ const meta = {
     </EventSceneProvider>
   ),
   args: {
-    rows: chatRows(messages, moderation, viewer.pubkey),
+    messages,
+    order: "newest-last",
     paging: "exhausted",
     settled: true,
   },
-  argTypes: { rows: { control: false }, replyTo: { control: false } },
+  argTypes: {
+    messages: { control: false },
+    order: {
+      control: "inline-radio",
+      options: ["newest-last", "newest-first"],
+    },
+    replyTo: { control: false },
+  },
 } satisfies Meta<Props>;
 
 export default meta;
@@ -248,14 +277,14 @@ export const 古い発言を読み込めなかった: Story = { args: { paging: 
 /** 一部のリレーから届いたが、ほかのリレーを待っている。揃うまでは古い発言を取り足さない。 */
 export const ほかのリレーを待っている: Story = {
   args: {
-    rows: chatRows(messages.slice(0, 2), moderation, viewer.pubkey),
+    messages: messages.slice(0, 2),
     settled: false,
     paging: "waiting",
   },
 };
-export const まだ発言が無い: Story = { args: { rows: [] } };
+export const まだ発言が無い: Story = { args: { messages: [] } };
 export const 取得中: Story = {
-  args: { rows: [], settled: false, paging: "waiting" },
+  args: { messages: [], settled: false, paging: "waiting" },
 };
 /** 名前が長くても、書く欄は 1 行のまま始まる。 */
 export const 長いチャンネル名: Story = {
@@ -279,12 +308,36 @@ export const 遡って読む: Story = { args: { scenario: "older" } };
 export const 発言が届き続ける: Story = { args: { scenario: "live" } };
 /** 閲覧注意の発言は、押すまで本文と画像を出さない。返信の 1 行にも本文を出さない。 */
 export const 閲覧注意の発言: Story = {
-  args: { rows: chatRows(warnedMessages, moderation, viewer.pubkey) },
+  args: { messages: warnedMessages },
 };
 /** 返信する欄には相手の名前だけを出すので、閲覧注意の発言でも本文は見えない。 */
 export const 閲覧注意の発言に返信を書いている: Story = {
   args: {
-    rows: chatRows(warnedMessages, moderation, viewer.pubkey),
+    messages: warnedMessages,
     replyTo: warned,
   },
+};
+
+/** 新しい発言を上に足す並び。書く欄も上に置き、日付の区切りはその日の一番上の発言の上に出す。 */
+export const 新しい発言を上に: Story = { args: { order: "newest-first" } };
+export const 新しい発言を上に_返信を書いている: Story = {
+  args: { order: "newest-first", replyTo: usual },
+};
+export const 新しい発言を上に_まだ発言が無い: Story = {
+  args: { order: "newest-first", messages: [] },
+};
+export const 新しい発言を上に_狭いカラム: Story = {
+  args: { order: "newest-first" },
+  parameters: { viewport: { defaultViewport: "column320" } },
+};
+/** 下へ遡ると 50 件ずつ足す。足しても読んでいる位置は動かない。 */
+export const 新しい発言を上に_遡って読む: Story = {
+  args: { order: "newest-first", scenario: "older" },
+};
+/**
+ * 一番上にいれば届いた発言へ上がる。下を読んでいる間は位置を保ち、
+ * 「新しい N 件の発言」を出す。
+ */
+export const 新しい発言を上に_発言が届き続ける: Story = {
+  args: { order: "newest-first", scenario: "live" },
 };

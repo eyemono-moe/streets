@@ -14,6 +14,7 @@ import {
   on,
 } from "solid-js";
 import { actionLayout } from "../action-layout-setting";
+import { chatOrder } from "../chat-order-setting";
 import { contentWarningMode } from "../content-warning-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
@@ -183,6 +184,7 @@ const SettingsDialog: Component<{
           appearance={props.appearance}
           writeProgress={props.writeProgress}
           contentWarning={contentWarningMode()}
+          chatOrder={chatOrder()}
           deckLayout={props.deckLayout}
           columnStretch={props.columnStretch}
           actionLayout={actionLayout()}

@@ -8,6 +8,10 @@ import {
   sameActionLayout,
 } from "@streets/core/settings/action-layout";
 import {
+  type ChatOrder,
+  loadChatOrder,
+} from "@streets/core/settings/chat-order-setting";
+import {
   type ColorScheme,
   loadColorScheme,
 } from "@streets/core/settings/color-scheme";
@@ -49,6 +53,11 @@ const LAYOUTS: { value: DeckLayout; label: string }[] = [
   { value: "multi", label: "複数列" },
 ];
 
+const CHAT_ORDERS: { value: ChatOrder; label: string }[] = [
+  { value: "newest-last", label: "新しい発言を下に" },
+  { value: "newest-first", label: "新しい発言を上に" },
+];
+
 const SCHEMES: { value: ColorScheme; label: string }[] = [
   { value: "system", label: "OS に合わせる" },
   { value: "light", label: "ライト" },
@@ -65,6 +74,8 @@ const DisplaySettings: Component<{
   contentWarning: ContentWarningMode;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  /** チャットの発言の並び順（この端末の設定）。 */
+  chatOrder: ChatOrder;
   /** カラムを画面の幅いっぱいに広げるか（この端末の設定）。 */
   columnStretch: boolean;
   /** アクション欄に出す操作（この端末の設定）。 */
@@ -88,6 +99,7 @@ const DisplaySettings: Component<{
   const initialLayout = loadDeckLayout(null);
   const initialContentWarning = loadContentWarningMode(null);
   const initialWriteProgress = loadWriteProgress(null);
+  const initialChatOrder = loadChatOrder(null);
 
   return (
     <div class="flex flex-col gap-7">
@@ -265,8 +277,27 @@ const DisplaySettings: Component<{
 
       <SettingsDetails
         page="display"
-        summary="ローディング表示と、アクション欄の並べ替え"
+        summary="チャットの並び順、ローディング表示、アクション欄の並べ替え"
       >
+        <SettingsSection
+          id="chatOrder"
+          scope="device"
+          changed={props.chatOrder !== initialChatOrder}
+          onReset={() =>
+            dispatch({ type: "deck/set-chat-order", order: initialChatOrder })
+          }
+          description="パブリックチャットのカラムで、新しい発言を一番下に足していくか、一番上に足していくかを選びます。「新しい発言を上に」では、書き込む欄もカラムの上に置きます。"
+        >
+          <SegmentedControl
+            label="チャットの並び順"
+            options={CHAT_ORDERS}
+            value={props.chatOrder}
+            onChange={(order) =>
+              dispatch({ type: "deck/set-chat-order", order })
+            }
+          />
+        </SettingsSection>
+
         <SettingsSection
           id="writeProgress"
           scope="device"

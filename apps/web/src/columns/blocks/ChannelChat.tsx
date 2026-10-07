@@ -28,6 +28,7 @@ import {
 import { type Component, Show, createComputed, createMemo } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEventActions } from "../../actions";
+import { chatOrder } from "../../chat-order-setting";
 import ChatComposer from "../../chat/ChatComposer";
 import ChatMuteDialog from "../../chat/ChatMuteDialog";
 import ChatView from "../../chat/ChatView";
@@ -113,7 +114,12 @@ const ChannelChat: Component<{
     setView(
       "rows",
       reconcile(
-        chatRows(visible, chatModeration(moderation.items()), props.viewer),
+        chatRows(
+          visible,
+          chatModeration(moderation.items()),
+          props.viewer,
+          chatOrder(),
+        ),
         { key: "key" },
       ),
     );
@@ -193,6 +199,7 @@ const ChannelChat: Component<{
         {(state) => (
           <ChatView
             rows={view.rows}
+            order={chatOrder()}
             relays={relays()}
             expandMedia={scope.column().expandMedia !== false}
             paging={messages.paging()}
@@ -207,7 +214,7 @@ const ChannelChat: Component<{
                   replyTo={replyTarget()}
                 />
               ) : (
-                <div class="shrink-0 border-primary border-t p-3">
+                <div class="shrink-0 p-3">
                   <Button
                     size="sm"
                     icon="i-material-symbols:login-rounded"

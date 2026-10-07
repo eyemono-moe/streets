@@ -8,6 +8,7 @@ import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
 import { createResource, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { setChatOrder } from "../chat-order-setting";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { useStoryNip05 } from "../storybook/nip05";
@@ -234,6 +235,9 @@ const Story = (props: Props) => {
                           return true;
                         case "deck/set-deck-layout":
                           setDeckLayout(event.layout);
+                          return true;
+                        case "deck/set-chat-order":
+                          setChatOrder(event.order);
                           return true;
                         case "deck/set-default-reaction":
                           setDefaultReaction(event.input);

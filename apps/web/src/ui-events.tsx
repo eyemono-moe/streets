@@ -18,6 +18,7 @@ import type {
   ActionLayout,
 } from "@streets/core/settings/action-layout";
 import type { BlockedRelayEntry } from "@streets/core/settings/blocked-relay-list";
+import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { ContentWarningMode } from "@streets/core/settings/content-warning-setting";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
@@ -210,6 +211,7 @@ export type DeckEvent =
   | { type: "deck/set-content-warning"; mode: ContentWarningMode }
   /** カラムを横に並べるか。この端末に保存する。 */
   | { type: "deck/set-deck-layout"; layout: DeckLayout }
+  | { type: "deck/set-chat-order"; order: ChatOrder }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */
