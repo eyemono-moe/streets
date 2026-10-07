@@ -8,6 +8,7 @@ import {
   arrangedLayout,
   defaultActionLayout,
   loadActionLayout,
+  allActionsOf,
   menuActionsOf,
   saveActionLayout,
   slotsOf,
@@ -262,5 +263,12 @@ describe("アクション欄の並びが同じか", () => {
         menu: [initial.bar[0]!, ...initial.menu],
       }),
     ).toBe(false);
+  });
+});
+
+describe("allActionsOf", () => {
+  it("アクション欄の操作のあとにメニューの操作を並べる", () => {
+    const layout = defaultActionLayout();
+    expect(allActionsOf(layout)).toEqual([...layout.bar, ...layout.menu]);
   });
 });
