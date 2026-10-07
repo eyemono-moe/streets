@@ -63,6 +63,25 @@ export const もうある名前: S = {
 
 export const 使えない名前: S = { args: { initialShortcode: "ええやん" } };
 
+/** 設定の「文字から作る」から開いたとき。送る先が無いので、登録だけをする。 */
+export const 登録専用: S = {
+  render: (args) => (
+    <div
+      class="flex h-150 flex-col rounded-3 border border-primary bg-primary pt-4"
+      style={{ width: `${args.width}px` }}
+    >
+      <MakerEditor
+        initialText={args.initialText}
+        initialStyle={styleOfPreset(neon)}
+        presetId={neon.id}
+        existingShortcodes={["neko1", "kome"]}
+        onRegister={() => {}}
+        onBack={() => {}}
+      />
+    </div>
+  ),
+};
+
 /** スマホの幅。見本は上に貼り付き、流しても残る。 */
 export const 狭い画面: S = { args: { width: 360 } };
 

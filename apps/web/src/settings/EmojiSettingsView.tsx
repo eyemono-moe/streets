@@ -1,4 +1,5 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
+import { PRESETS, styleOfPreset } from "@streets/core/emoji-maker/style";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import { encodeNaddr } from "@streets/core/nostr/nip19";
 import {
@@ -22,10 +23,13 @@ import {
   EmojiPreview,
   EmojiSetHeading,
 } from "../emoji/EmojiSetParts";
+import { MakerDialog } from "../emoji/lazy-emoji-picker";
+import { onceTrue } from "../lazy-part";
 import { NoUploadServerError, useUploader } from "../media/uploader";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import DefaultReactionField from "./DefaultReactionField";
 import SettingsSection from "./SettingsSection";
@@ -94,7 +98,7 @@ const EmojiSettingsView: Component<EmojiSettingsViewProps> = (props) => (
           </Show>
         </ul>
       </Show>
-      <AddEmoji emojis={props.emojis} disabled={props.saving} />
+      <AddEmojiSection emojis={props.emojis} disabled={props.saving} />
     </SettingsSection>
 
     <Show when={props.search}>
@@ -272,6 +276,89 @@ const EmojiRow: Component<{ emoji: CustomEmoji; disabled: boolean }> = (
   );
 };
 
+/**
+ * 絵文字を 1 つ足す。画像を用意して足すか、文字から作って足すかを選ぶ。
+ */
+const AddEmojiSection: Component<{
+  emojis: readonly CustomEmoji[];
+  disabled: boolean;
+}> = (props) => {
+  const [source, setSource] = createSignal<"image" | "text">("image");
+  return (
+    <div class="flex flex-col gap-1.5">
+      <span class="c-secondary font-600 text-caption">絵文字を 1 つ足す</span>
+      <SegmentedControl
+        label="絵文字の作り方"
+        variant="secondary"
+        value={source()}
+        onChange={setSource}
+        options={[
+          {
+            value: "image",
+            label: "画像から",
+            icon: "i-material-symbols:image-outline-rounded",
+          },
+          {
+            value: "text",
+            label: "文字から作る",
+            icon: "i-material-symbols:text-fields-rounded",
+          },
+        ]}
+      />
+      <Show
+        when={source() === "text"}
+        fallback={<AddEmoji emojis={props.emojis} disabled={props.disabled} />}
+      >
+        <MakeEmoji emojis={props.emojis} disabled={props.disabled} />
+      </Show>
+    </div>
+  );
+};
+
+/** 文字から作って足す。作る画面は、リアクションのピッカーと同じダイアログを登録専用で開く。 */
+const MakeEmoji: Component<{
+  emojis: readonly CustomEmoji[];
+  disabled: boolean;
+}> = (props) => {
+  const dispatch = useDispatch();
+  const [open, setOpen] = createSignal(false);
+  const mounted = onceTrue(open);
+  const neon = PRESETS.find((preset) => preset.id === "neon") ?? PRESETS[0];
+  return (
+    <div class="flex flex-col gap-1.5">
+      <div>
+        <Button
+          variant="secondary"
+          icon="i-material-symbols:add-rounded"
+          disabled={props.disabled}
+          onClick={() => setOpen(true)}
+        >
+          カスタム絵文字を作る
+        </Button>
+      </div>
+      <p class="c-secondary text-caption">
+        打った言葉から、色やフォントを選んで絵文字の画像を作り、自分の絵文字に足します。
+      </p>
+      <Show when={mounted() && neon}>
+        {(preset) => (
+          <MakerDialog
+            open={open()}
+            initialText=""
+            initialStyle={styleOfPreset(preset())}
+            presetId={preset().id}
+            existingShortcodes={props.emojis.map((emoji) => emoji.shortcode)}
+            onRegister={(spec, shortcode) => {
+              dispatch({ type: "emoji/add-made", spec, shortcode });
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+          />
+        )}
+      </Show>
+    </div>
+  );
+};
+
 const AddEmoji: Component<{
   emojis: readonly CustomEmoji[];
   disabled: boolean;
@@ -337,7 +424,6 @@ const AddEmoji: Component<{
         submit();
       }}
     >
-      <span class="c-secondary font-600 text-caption">絵文字を 1 つ足す</span>
       <div class="flex flex-wrap items-center gap-2">
         <input
           class={`${textInputClass} w-32`}

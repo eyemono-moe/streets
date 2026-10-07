@@ -118,7 +118,11 @@ export const MakerEditor: Component<{
   /** 初めの名前と、登録するか。ストーリーで各状態を見せるため。 */
   initialShortcode?: string;
   initialRegister?: boolean;
-  onSend: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  /**
+   * 送る。省くと（設定の画面から開いたときなど、送る先の投稿が無いとき）登録専用の形にし、
+   * 送るボタンと「自分の絵文字に登録する」を出さない。
+   */
+  onSend?: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
   /** 送らずに、自分の絵文字に足すだけ。 */
   onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onBack: () => void;
@@ -147,6 +151,7 @@ export const MakerEditor: Component<{
   const [fit, setFit] = createSignal<Fit>();
   const [align, setAlign] = createSignal<Align>();
   const [shortcode, setShortcode] = createSignal(props.initialShortcode ?? "");
+  const registerOnly = () => props.onSend === undefined;
   const [register, setRegister] = createSignal(props.initialRegister ?? false);
 
   const style = createMemo<Style>(() => ({
@@ -200,7 +205,8 @@ export const MakerEditor: Component<{
       : undefined;
   };
   const replacing = () =>
-    register() && props.existingShortcodes.includes(finalShortcode());
+    (register() || registerOnly()) &&
+    props.existingShortcodes.includes(finalShortcode());
   const blocked = () =>
     shortcodeError() !== undefined ||
     problem() !== undefined ||
@@ -417,11 +423,13 @@ export const MakerEditor: Component<{
                 }
                 error={shortcodeError()}
               />
-              <Switch
-                label="自分の絵文字に登録する"
-                checked={register()}
-                onChange={setRegister}
-              />
+              <Show when={!registerOnly()}>
+                <Switch
+                  label="自分の絵文字に登録する"
+                  checked={register()}
+                  onChange={setRegister}
+                />
+              </Show>
             </div>
           </div>
         </div>
@@ -430,29 +438,47 @@ export const MakerEditor: Component<{
         <Button variant="ghost" size="sm" onClick={() => props.onBack()}>
           戻る
         </Button>
-        <Show when={register()}>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={blocked() || text().trim() === ""}
-            onClick={() => props.onRegister(spec(), finalShortcode())}
-          >
-            登録だけする
-          </Button>
-        </Show>
-        <Button
-          variant="primary"
-          size="sm"
-          disabled={blocked() || text().trim() === ""}
-          onClick={() =>
-            props.onSend(spec(), style(), {
-              shortcode: finalShortcode(),
-              register: register(),
-            })
+        <Show
+          when={props.onSend}
+          fallback={
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={blocked() || text().trim() === ""}
+              onClick={() => props.onRegister(spec(), finalShortcode())}
+            >
+              登録する
+            </Button>
           }
         >
-          {register() ? "登録して送る" : "これで送る"}
-        </Button>
+          {(send) => (
+            <>
+              <Show when={register()}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={blocked() || text().trim() === ""}
+                  onClick={() => props.onRegister(spec(), finalShortcode())}
+                >
+                  登録だけする
+                </Button>
+              </Show>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={blocked() || text().trim() === ""}
+                onClick={() =>
+                  send()(spec(), style(), {
+                    shortcode: finalShortcode(),
+                    register: register(),
+                  })
+                }
+              >
+                {register() ? "登録して送る" : "これで送る"}
+              </Button>
+            </>
+          )}
+        </Show>
       </div>
     </div>
   );
@@ -496,7 +522,7 @@ const PresetButton: Component<{
   );
 };
 
-/** 「調整する」で開くダイアログ。 */
+/** 「調整する」で開くダイアログ。設定の画面からは、`onSend` を省いて登録専用で開く。 */
 const MakerDialog: Component<{
   open: boolean;
   initialText: string;
@@ -504,7 +530,7 @@ const MakerDialog: Component<{
   presetId?: string;
   sending?: boolean;
   existingShortcodes: readonly string[];
-  onSend: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  onSend?: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
   onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onClose: () => void;
 }> = (props) => (
