@@ -8,6 +8,7 @@ import type {
 import {
   ConnectionPool,
   type ConnectionPoolOptions,
+  DEFAULT_MAX_SUBSCRIPTIONS,
   DEGRADED_COOLDOWN_MS,
   IDLE_LINGER_MS,
 } from "./connection-pool";
@@ -120,8 +121,12 @@ type CreatePoolOptions = {
    */
   neverOpens?: RelayUrl[];
   allowLocalNetwork?: boolean;
-  /** NIP-11 の `max_subscriptions` にあたる、URL ごとの同時購読の枠。 */
-  maxSubscriptions?: Record<RelayUrl, number>;
+  /**
+   * NIP-11 の `max_subscriptions` にあたる、URL ごとの同時購読の枠。`null` は上限が
+   * 書いていないと分かったリレー、キーが無いリレーはまだ分からない。渡さなければ
+   * プールは枠を持たない。
+   */
+  maxSubscriptions?: Record<RelayUrl, number | null>;
 };
 
 const createPool = (options: CreatePoolOptions = {}) => {
@@ -177,7 +182,9 @@ const createPool = (options: CreatePoolOptions = {}) => {
     scheduler: clock,
     random: options.random,
     allowLocalNetwork: options.allowLocalNetwork,
-    maxSubscriptions: (url) => options.maxSubscriptions?.[url],
+    maxSubscriptions: options.maxSubscriptions
+      ? (url) => options.maxSubscriptions?.[url]
+      : undefined,
     onQueued: (url) => queued.push(url),
   });
 
@@ -2032,44 +2039,113 @@ describe("ConnectionPool の同時購読の枠", () => {
     expect(sent(connections)[0].filters).toEqual([{ kinds: [1] }]);
   });
 
-  it("too many concurrent REQs の NOTICE で枠が下がり、最後の REQ がもう一度送られる", () => {
-    const { pool, connections, queued } = createPool();
-    const subs = [1, 2, 3].map((kind) =>
-      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers()),
+  /** `count` 本の流し続ける購読を出す。kind は 1 から。 */
+  const openMany = (
+    pool: ConnectionPool,
+    count: number,
+    handlers = noopHandlers,
+  ) =>
+    Array.from({ length: count }, (_, index) =>
+      pool.subscribe(URL, [{ kinds: [index + 1] }], handlers()),
     );
 
-    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+  it("NIP-11 に上限が無いリレーでは、NOTICE の対象は直前に EOSE を受けた購読で、枠は数えた値から学ぶ", () => {
+    const { pool, connections, queued } = createPool({
+      maxSubscriptions: { [URL]: null },
+    });
+    const subs = openMany(pool, 30);
+    const connection = connections.get(URL);
 
-    // 3 本のうち最後の 1 本が断られたものとして外れ、枠は 2 になる。
-    expect(sent(connections).map((sub) => sub.filters)).toEqual([
-      [{ kinds: [1] }],
-      [{ kinds: [2] }],
-    ]);
+    // 実際の順: 断られた REQ にも EVENT と EOSE が返り、そのあとに NOTICE が来る。
+    connection?.emitEose(29);
+    connection?.emitNotice("ERROR: too many concurrent REQs");
+
+    // EOSE がまだの 29 本目 (index 28) は閉じず、30 本目だけが待ち行列に戻る。
+    expect(sent(connections)).toHaveLength(29);
+    expect(
+      sent(connections).some((sub) => sub.filters[0].kinds?.[0] === 29),
+    ).toBe(true);
     expect(queued).toEqual([URL]);
 
-    // 枠が空くと、断られた REQ が先頭から送り直される。
+    // 枠は「sent の数 − 1」の 29 本。1 本閉じると戻された REQ が送られる。
     subs[0]?.close();
-    expect(sent(connections).map((sub) => sub.filters)).toEqual([
-      [{ kinds: [2] }],
-      [{ kinds: [3] }],
+    expect(sent(connections)).toHaveLength(29);
+    expect(connections.get(URL)?.subscriptions.at(-1)?.filters).toEqual([
+      { kinds: [30] },
     ]);
   });
 
-  it("断られた REQ は、枠が空くと送り直され、呼び出し元には CLOSED を伝えない", () => {
-    const { pool, connections } = createPool();
+  it("学ぶ枠は既定値より小さくしない", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: null },
+    });
+    openMany(pool, 5);
+
+    connections.get(URL)?.emitEose(4);
+    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+    openMany(pool, 25);
+
+    // 5 本のうち 1 本が戻り、枠は max(4, 20) = 20。
+    expect(sent(connections)).toHaveLength(20);
+  });
+
+  it("対象が一度きりの取得なら、もう取れているので何もしない", () => {
+    const { pool, connections, queued } = createPool({
+      maxSubscriptions: { [URL]: null },
+    });
+    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers(), { once: true });
+    openMany(pool, 29);
+    const connection = connections.get(URL);
+
+    connection?.emitEose(0);
+    connection?.emitNotice("ERROR: too many concurrent REQs");
+
+    expect(connection?.subscriptions).toHaveLength(30);
+    expect(sent(connections)).toHaveLength(29);
+    // 枠も学ばない。
+    openMany(pool, 50);
+    expect(sent(connections)).toHaveLength(79);
+    expect(queued).toEqual([]);
+  });
+
+  it("NIP-11 に上限があるリレーでは、戻すだけで枠は学ばない", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: 3 },
+    });
+    openMany(pool, 4);
+    const connection = connections.get(URL);
+
+    connection?.emitEose(1);
+    connection?.emitNotice("ERROR: too many concurrent REQs");
+
+    // 戻された kind 2 は、枠が 3 のまま (学んで下がらない) すぐ送り直される。
+    expect(sent(connections)).toHaveLength(3);
+    expect(connection?.subscriptions.at(-1)?.filters).toEqual([{ kinds: [2] }]);
+  });
+
+  it("EOSE を受けていないのに NOTICE が来ても、何も戻さない", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: null },
+    });
+    openMany(pool, 3);
+
+    connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
+
+    expect(sent(connections)).toHaveLength(3);
+  });
+
+  it("断られた REQ は、戻されても呼び出し元に CLOSED を伝えない", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: null },
+    });
     const onClosed = vi.fn();
-    const subs = [1, 2, 3].map((kind) =>
-      pool.subscribe(URL, [{ kinds: [kind] }], { ...noopHandlers(), onClosed }),
-    );
+    openMany(pool, 25, () => ({ ...noopHandlers(), onClosed }));
+
+    connections.get(URL)?.emitEose(24);
     connections.get(URL)?.emitNotice("error: Too Many Concurrent REQs");
 
-    subs[0]?.close();
-
     expect(onClosed).not.toHaveBeenCalled();
-    expect(sent(connections).map((sub) => sub.filters)).toEqual([
-      [{ kinds: [2] }],
-      [{ kinds: [3] }],
-    ]);
+    expect(sent(connections)).toHaveLength(24);
   });
 
   it("CLOSED の理由が上限でも、同じように枠を下げて待たせる", () => {
@@ -2093,6 +2169,7 @@ describe("ConnectionPool の同時購読の枠", () => {
     const { pool, connections } = createPool();
     pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
 
+    connections.get(URL)?.emitEose(0);
     connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
 
     expect(sent(connections)).toHaveLength(1);
@@ -2101,37 +2178,53 @@ describe("ConnectionPool の同時購読の枠", () => {
 
   it("上限と関係のない NOTICE では何も変えない", () => {
     const { pool, connections } = createPool();
-    pool.subscribe(URL, [{ kinds: [1] }], noopHandlers());
-    pool.subscribe(URL, [{ kinds: [2] }], noopHandlers());
+    openMany(pool, 2);
 
+    connections.get(URL)?.emitEose(1);
     connections.get(URL)?.emitNotice("rate limited");
     pool.subscribe(URL, [{ kinds: [3] }], noopHandlers());
 
     expect(sent(connections)).toHaveLength(3);
   });
 
-  it("上限の分からないリレーは枠なしで、すべて送る", () => {
+  it("NIP-11 が取れるまで、取れなかったリレーは既定の枠 (20) で抑える", () => {
+    const { pool, connections, queued } = createPool({ maxSubscriptions: {} });
+    openMany(pool, 25);
+
+    expect(sent(connections)).toHaveLength(DEFAULT_MAX_SUBSCRIPTIONS);
+    expect(DEFAULT_MAX_SUBSCRIPTIONS).toBe(20);
+    expect(queued).toHaveLength(5);
+  });
+
+  it("NIP-11 に上限が書いていないと分かったリレーは枠なしで、すべて送る", () => {
     const { pool, connections, queued } = createPool({
-      maxSubscriptions: { "wss://other/": 1 },
+      maxSubscriptions: { [URL]: null },
     });
-    for (let kind = 1; kind <= 50; kind++) {
-      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers());
-    }
+    openMany(pool, 50);
 
     expect(connections.get(URL)?.subscriptions).toHaveLength(50);
     expect(queued).toEqual([]);
   });
 
+  it("上限の分かる枠を渡さないプールは枠を持たない", () => {
+    const { pool, connections } = createPool();
+    openMany(pool, 50);
+
+    expect(connections.get(URL)?.subscriptions).toHaveLength(50);
+  });
+
   it("断られて学んだ枠は、繋ぎ直しても覚えている", () => {
-    const { pool, connections, clock } = createPool({ random: () => 0.5 });
-    for (const kind of [1, 2, 3]) {
-      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers());
-    }
+    const { pool, connections, clock } = createPool({
+      maxSubscriptions: { [URL]: null },
+      random: () => 0.5,
+    });
+    openMany(pool, 30);
+    connections.get(URL)?.emitEose(29);
     connections.get(URL)?.emitNotice("ERROR: too many concurrent REQs");
 
     connections.get(URL)?.die();
     clock.advance(2_000);
 
-    expect(sent(connections)).toHaveLength(2);
+    expect(sent(connections)).toHaveLength(29);
   });
 });

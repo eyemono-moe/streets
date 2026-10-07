@@ -15,7 +15,7 @@ describe("createSubscriptionLimits", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("書いていないリレーと答えないリレーは枠なしのまま", async () => {
+  it("上限が書いていなければ null（枠なし）、取れなかったリレーは undefined のまま", async () => {
     const limitOf = createSubscriptionLimits(async (url) =>
       url === "wss://silent/" ? undefined : { name: "no limits" },
     );
@@ -25,6 +25,6 @@ describe("createSubscriptionLimits", () => {
     await Promise.resolve();
 
     expect(limitOf("wss://silent/")).toBeUndefined();
-    expect(limitOf("wss://plain/")).toBeUndefined();
+    expect(limitOf("wss://plain/")).toBeNull();
   });
 });

@@ -35,7 +35,7 @@ export type ReadLayerOptions = {
   /** ローカルネットワークのリレーへ、許したもの以外も繋ぐか（`ConnectionPoolOptions` 参照）。 */
   allowLocalNetwork?: boolean;
   /** リレーごとの同時購読の枠（`ConnectionPoolOptions` 参照）。 */
-  maxSubscriptions?: (url: RelayUrl) => number | undefined;
+  maxSubscriptions?: (url: RelayUrl) => number | null | undefined;
   /** 枠が埋まって REQ を待たせたときの通知（Devtools で数える）。 */
   onQueued?: (url: RelayUrl) => void;
 };

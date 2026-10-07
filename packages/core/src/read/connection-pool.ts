@@ -30,6 +30,12 @@ export type SubscribeOptions = { reserved?: boolean; once?: boolean };
 /** コールバックで書き換わりうる状態を、型の絞り込みを通さずに読む。 */
 const isDone = (entry: { state: string }): boolean => entry.state === "done";
 
+/**
+ * NIP-11 で上限が分からないリレーの同時購読の枠。他のクライアントの既定でもあり、
+ * strfry の既定 (20) とも合う。NIP-11 を取って上限が書いていないと分かったリレーだけが枠なしになる。
+ */
+export const DEFAULT_MAX_SUBSCRIPTIONS = 20;
+
 /** 接続が死んだときに全購読へ配る理由。枠の学習の対象にはしない。 */
 const SOCKET_CLOSED = "socket closed";
 
@@ -120,11 +126,12 @@ export type ConnectionPoolOptions = {
    */
   allowLocalNetwork?: boolean;
   /**
-   * そのリレーが同時に受け付ける購読の数（NIP-11 の `max_subscriptions`）。分からない
-   * 間と書いていないリレーは `undefined` を返し、枠なしで送る。呼ぶたびに引くので、
-   * 取得済みの値を返す軽いものにする。
+   * そのリレーが同時に受け付ける購読の数（NIP-11 の `max_subscriptions`）。数は書いて
+   * ある上限、`null` は NIP-11 を取って上限が書いていないと分かった（枠なし）、
+   * `undefined` はまだ取れていないか取れなかった（`DEFAULT_MAX_SUBSCRIPTIONS`）。
+   * 呼ぶたびに引くので、取得済みの値を返す軽いものにする。この関数を渡さないプールは枠を持たない。
    */
-  maxSubscriptions?: (url: RelayUrl) => number | undefined;
+  maxSubscriptions?: (url: RelayUrl) => number | null | undefined;
   /** 同時購読の枠が埋まっていて、REQ を送らず待たせた。Devtools で数えるため。 */
   onQueued?: (url: RelayUrl) => void;
 };
@@ -148,8 +155,6 @@ type Entry = {
   sentSeq: number;
   /** 待たせたことを数え済みか。 */
   waited: boolean;
-  /** EOSE を受けたか。 */
-  eosed: boolean;
 };
 
 /**
@@ -185,6 +190,11 @@ type Pooled = {
    * entries も holds も 0 になって、猶予の間だけ開いている間は非 null。
    * `since` は枠が足りないときに古い順で閉じるための記録。
    */
+  /**
+   * この接続で最後に EOSE を受けた購読。strfry は上限を超えた REQ にも保存済みの
+   * イベントと EOSE を返したあとで NOTICE を返すので、NOTICE の対象はこれ。
+   */
+  lastEosed: Entry | null;
   linger: { timer: ReturnType<Scheduler["setTimeout"]>; since: number } | null;
 };
 
@@ -477,6 +487,7 @@ export class ConnectionPool {
           reserved: false,
           holds: 0,
           linger: null,
+          lastEosed: null,
         };
         this.#pool.set(url, pooled);
       }
@@ -523,7 +534,6 @@ export class ConnectionPool {
       state: "queued",
       sentSeq: 0,
       waited: false,
-      eosed: false,
     };
     pooled.entries.add(entry);
 
@@ -627,7 +637,6 @@ export class ConnectionPool {
       state: "done",
       sentSeq: 0,
       waited: false,
-      eosed: false,
     };
     pooled.entries.add(entry);
 
@@ -878,21 +887,30 @@ export class ConnectionPool {
 
   /** 接続が替わる・死ぬと、リレー側の購読は無くなる。全部を送り直す順番待ちに戻す。 */
   #requeueAll(pooled: Pooled): void {
+    pooled.lastEosed = null;
     for (const entry of pooled.entries) {
       entry.subscription = null;
       entry.waited = false;
-      entry.eosed = false;
       if (entry.state !== "done") entry.state = "queued";
     }
   }
 
-  /** そのリレーの同時購読の枠。NIP-11 の値と、断られて学んだ値の厳しい方。 */
+  /** NIP-11 に書いてある上限。`null` は取って書いていない、`undefined` は分からない。 */
+  #declaredLimit(url: RelayUrl): number | null | undefined {
+    return this.#options.maxSubscriptions?.(url);
+  }
+
+  /**
+   * そのリレーの同時購読の枠。NIP-11 の値（分からなければ既定値）と、断られて学んだ値の
+   * 厳しい方。NIP-11 で枠なしと分かったリレーは、学んだ値だけが枠になる。
+   */
   #limitOf(url: RelayUrl): number | undefined {
-    const declared = this.#options.maxSubscriptions?.(url);
+    if (!this.#options.maxSubscriptions) return this.#learnedLimits.get(url);
+    const declared = this.#declaredLimit(url);
     const learned = this.#learnedLimits.get(url);
-    if (declared === undefined) return learned;
-    if (learned === undefined) return declared;
-    return Math.min(declared, learned);
+    if (declared === null) return learned;
+    const base = declared ?? DEFAULT_MAX_SUBSCRIPTIONS;
+    return learned === undefined ? base : Math.min(base, learned);
   }
 
   /**
@@ -943,7 +961,6 @@ export class ConnectionPool {
     entry: Entry,
   ): void {
     entry.state = "sent";
-    entry.eosed = false;
     entry.sentSeq = ++this.#sendSeq;
     const { handlers } = entry;
     try {
@@ -975,7 +992,7 @@ export class ConnectionPool {
 
   #onEose(url: RelayUrl, pooled: Pooled, entry: Entry): void {
     if (entry.state === "sent") {
-      entry.eosed = true;
+      pooled.lastEosed = entry;
       if (entry.once) {
         // 一度きりの取得は EOSE で用が済む。呼び出し元が閉じるのを待たずに枠を返す。
         entry.state = "done";
@@ -1020,38 +1037,55 @@ export class ConnectionPool {
   }
 
   /**
-   * strfry は上限を超えた REQ に CLOSED を返さず NOTICE だけを返して捨てる。
-   * REQ は順に処理され NOTICE もすぐ返るので、まだ EOSE も CLOSED も来ていない
-   * 最後の REQ が断られたものとみなす。
+   * strfry は上限を超えた REQ にも、保存済みのイベントと EOSE は返す。そのあとで
+   * NOTICE を返し、断るのは流し続ける部分（新しいイベント）だけ。なので断られたのは
+   * 直前に EOSE を受けた購読。一度きりの取得ならもう取れているので何もせず、流し続ける
+   * 購読なら新しいイベントが届かないので、閉じて順番待ちに戻す。
+   *
+   * 枠を学ぶのは NIP-11 に上限が無い（取れない）リレーだけ。バーストの最中はこちらの
+   * `sent` の数がリレー側より多いので、数えた値から学ぶと低く覚えすぎる。下げすぎない
+   * よう、既定値を下限にする。
    */
   #onNotice(url: RelayUrl, pooled: Pooled, message: string): void {
     if (!isSubscriptionLimitMessage(message)) return;
     if (this.#pool.get(url) !== pooled) return;
-    let last: Entry | undefined;
-    for (const entry of pooled.entries) {
-      if (entry.state !== "sent" || entry.eosed) continue;
-      if (!last || entry.sentSeq > last.sentSeq) last = entry;
+    const target = pooled.lastEosed;
+    pooled.lastEosed = null;
+    if (!target || target.state !== "sent") return;
+    const open = this.#openCount(pooled);
+    if (open < 2) return;
+    if (typeof this.#declaredLimit(url) !== "number") {
+      this.#learn(url, Math.max(open - 1, DEFAULT_MAX_SUBSCRIPTIONS));
     }
-    if (last && this.#refuse(url, pooled, last)) this.#pump(url, pooled);
+    this.#requeue(target);
+    this.#pump(url, pooled);
   }
 
   /**
-   * 上限で断られた `entry` を順番待ちに戻し、枠を「いま開いている数 − 1」へ下げて
-   * 覚える。開いているのが 1 本だけなら上限のせいとは言えず、戻しても同じ断られ方を
+   * CLOSED で上限を理由に断られた `entry` を順番待ちに戻し、枠を「いま開いている数 − 1」へ
+   * 下げて覚える。開いているのが 1 本だけなら上限のせいとは言えず、戻しても同じ断られ方を
    * 繰り返すので、何もせず false を返す（戻すたびに枠は 1 つ減るので、繰り返しは
    * 枠が 1 になるまでで止まる）。
    */
   #refuse(url: RelayUrl, pooled: Pooled, entry: Entry): boolean {
     const open = this.#openCount(pooled);
     if (open < 2) return false;
+    this.#learn(url, open - 1);
+    this.#requeue(entry);
+    return true;
+  }
+
+  #learn(url: RelayUrl, limit: number): void {
     const learned = this.#learnedLimits.get(url) ?? Number.POSITIVE_INFINITY;
-    this.#learnedLimits.set(url, Math.min(learned, open - 1));
+    this.#learnedLimits.set(url, Math.min(learned, limit));
+  }
+
+  #requeue(entry: Entry): void {
     // 閉じておく。残すと、あとで届く古い REQ への応答がこの記録を動かす。
     entry.subscription?.close();
     entry.subscription = null;
     entry.state = "queued";
     entry.waited = false;
-    return true;
   }
 
   /**
