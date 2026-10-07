@@ -8,6 +8,7 @@ import type { AddressRequests, RequestOptions } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
 import type { EventRequests } from "./event-requests";
 import { EventStore } from "./event-store";
+import type { FollowListRequests } from "./follow-list-requests";
 import {
   type EventLookup,
   type ReadLookups,
@@ -125,6 +126,16 @@ const fakePollRequests = () => {
   };
 };
 
+/** フォロー一覧の要求を記録する要求器。 */
+const fakeFollowLists = () => {
+  const requested: { pubkey: string; type: string }[] = [];
+  const requests: FollowListRequests = {
+    request: (pubkey, kind) => requested.push({ pubkey, type: kind.type }),
+    dispose() {},
+  };
+  return { requests, requested };
+};
+
 const setup = () => {
   const store = new EventStore();
   const events = fakeRequests();
@@ -132,6 +143,7 @@ const setup = () => {
   const polls = fakePollRequests();
   const profiles = fakeRequests();
   const engagements = fakeRequests();
+  const followLists = fakeFollowLists();
   const lookups: ReadLookups = createReadLookups({
     store,
     events: events.requests,
@@ -139,8 +151,18 @@ const setup = () => {
     profiles: profiles.requests,
     engagements: engagements.requests,
     polls: polls.requests,
+    followLists: followLists.requests,
   });
-  return { store, events, addresses, polls, profiles, engagements, lookups };
+  return {
+    store,
+    events,
+    addresses,
+    polls,
+    profiles,
+    engagements,
+    followLists,
+    lookups,
+  };
 };
 
 describe("watchEvent", () => {
@@ -445,6 +467,61 @@ describe("refreshProfile", () => {
     lookups.refreshProfile(PUBKEY);
     expect(profiles.refreshed).toEqual([PUBKEY]);
     expect(profiles.listenerCount()).toBe(0);
+  });
+});
+
+describe("watchFollowList", () => {
+  it("手元の版をすぐ知らせ、一度きりの取得を頼み、新しい版が入ったら知らせ直す", () => {
+    const { store, followLists, lookups } = setup();
+    const seen: (NostrEvent | undefined)[] = [];
+    lookups.watchFollowList(PUBKEY, (event) => seen.push(event));
+    expect(seen).toEqual([undefined]);
+    expect(followLists.requested).toEqual([{ pubkey: PUBKEY, type: "list" }]);
+
+    const list = signed({ kind: 3, tags: [["p", "a".repeat(64)]] });
+    store.put(list, RELAY);
+    expect(seen.at(-1)).toEqual(list);
+  });
+
+  it("止めた後は知らせない", () => {
+    const { store, lookups } = setup();
+    const seen: unknown[] = [];
+    const stop = lookups.watchFollowList(PUBKEY, (event) => seen.push(event));
+    stop();
+    store.put(signed({ kind: 3 }), RELAY);
+    expect(seen).toEqual([undefined]);
+  });
+});
+
+describe("watchFollowsYou", () => {
+  const VIEWER = "b".repeat(64);
+
+  it("手元に一覧が無い間は false、届いて自分を指していれば true にする", () => {
+    const { store, followLists, lookups } = setup();
+    const seen: boolean[] = [];
+    lookups.watchFollowsYou(PUBKEY, VIEWER, (follows) => seen.push(follows));
+    expect(seen).toEqual([false]);
+    expect(followLists.requested).toEqual([
+      { pubkey: PUBKEY, type: "follows-you" },
+    ]);
+    store.put(signed({ kind: 3, tags: [["p", VIEWER]] }), RELAY);
+    expect(seen.at(-1)).toBe(true);
+  });
+
+  it("手元の一覧が自分を指していなければ false", () => {
+    const { store, lookups } = setup();
+    store.put(signed({ kind: 3, tags: [["p", "c".repeat(64)]] }), RELAY);
+    const seen: boolean[] = [];
+    lookups.watchFollowsYou(PUBKEY, VIEWER, (follows) => seen.push(follows));
+    expect(seen).toEqual([false]);
+  });
+
+  it("自分自身は聞かない", () => {
+    const { followLists, lookups } = setup();
+    const seen: boolean[] = [];
+    lookups.watchFollowsYou(PUBKEY, PUBKEY, (follows) => seen.push(follows));
+    expect(seen).toEqual([false]);
+    expect(followLists.requested).toEqual([]);
   });
 });
 

@@ -34,7 +34,7 @@ import {
   type ReadRouting,
   sameReadRouting,
 } from "./read-routing";
-import { selectRelays } from "./relay-selector";
+import { orderAuthorRelays, selectRelays } from "./relay-selector";
 import type { RoutingTable } from "./routing-table";
 
 /** セクションが今どのリレーを待っているかのスナップショット。張り直し後も同じ形で運ばれる。 */
@@ -275,6 +275,8 @@ export class SubscriptionManager {
   #replanGeneration = 0;
   #lastReplanAt = Number.NEGATIVE_INFINITY;
   #readRouting: ReadRouting = OUTBOX_ROUTING;
+  // 直近の選択で著者ごとに割り当てたリレー。`relaysForAuthor` が使う。
+  #lastAssignment: ReadonlyMap<string, readonly RelayUrl[]> = new Map();
   #readPlan: ReadPlan = EMPTY_READ_PLAN;
   readonly #readPlanListeners = new Set<(plan: ReadPlan) => void>();
   #pausedAt: number | undefined;
@@ -526,6 +528,30 @@ export class SubscriptionManager {
   #defaultRelays(): readonly RelayUrl[] {
     if (this.#readRouting.mode === "direct") return this.#readRouting.relays;
     return this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+  }
+
+  /**
+   * 著者を 1 人だけ一度きりで取るときの行き先を `count` 本まで返す。新しい接続を増やさない
+   * ように、割り当て済みのもの・自分の読み込み先・開いている接続を先に使う（順は
+   * `orderAuthorRelays`）。`direct` や、使えるリレーが 1 本も無いときは `undefined`
+   * （いつものリレー。`relays: []` にしない）。
+   */
+  relaysForAuthor(pubkey: string, count: number): RelayUrl[] | undefined {
+    if (this.#readRouting.mode === "direct") return undefined;
+    const open = new Set<RelayUrl>();
+    for (const entry of this.#entries.values()) {
+      for (const url of entry.opened.keys()) open.add(url);
+    }
+    const degraded = new Set(this.#pool.degradedRelays);
+    const relays = orderAuthorRelays({
+      assigned: this.#lastAssignment.get(pubkey) ?? [],
+      preferred: this.#readRouting.preferred ?? [],
+      open: [...open],
+      declared: this.#options.routing.writeRelaysFor(pubkey),
+      excluded: (url) => this.#pool.isBlocked(url) || degraded.has(url),
+      count,
+    });
+    return relays.length > 0 ? relays : undefined;
   }
 
   /**
@@ -793,6 +819,8 @@ export class SubscriptionManager {
         ...pinned.filter((url) => this.#pool.isLocalRefused(url)),
       ],
     });
+
+    this.#lastAssignment = selection.assignment;
 
     // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
     const planInputs: SectionPlanInput[] = [];

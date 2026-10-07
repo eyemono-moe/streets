@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
-import { selectRelays } from "./relay-selector";
+import type { RelayUrl } from "../relay/relay-connection";
+import { orderAuthorRelays, selectRelays } from "./relay-selector";
 
 const A = "a".repeat(64);
 const B = "b".repeat(64);
@@ -301,5 +302,79 @@ describe("selectRelays", () => {
 
       expect(selection.picks).toEqual(["wss://pinned/"]);
     });
+  });
+});
+
+describe("orderAuthorRelays", () => {
+  const u = (name: string) => `wss://${name}/` as RelayUrl;
+  const base = {
+    assigned: [],
+    preferred: [],
+    open: [],
+    declared: [],
+    excluded: () => false,
+    count: 2,
+  };
+
+  it("kind:10002 の先頭ではなく、割り当て済み・自分の読み込み先・開いている接続を先に取る", () => {
+    // 古い一覧を並べた人。実際に全件あるのは一覧の最後の main だけ。
+    const declared = [u("old1"), u("old2"), u("old3"), u("main")];
+    expect(
+      orderAuthorRelays({ ...base, declared, assigned: [u("main")] }),
+    ).toEqual([u("main"), u("old1")]);
+    expect(
+      orderAuthorRelays({ ...base, declared, preferred: [u("main")] }),
+    ).toEqual([u("main"), u("old1")]);
+    expect(orderAuthorRelays({ ...base, declared, open: [u("main")] })).toEqual(
+      [u("main"), u("old1")],
+    );
+  });
+
+  it("その著者が挙げていない読み込みリレー・開いている接続は選ばない", () => {
+    expect(
+      orderAuthorRelays({
+        ...base,
+        declared: [u("a"), u("b")],
+        preferred: [u("mine")],
+        open: [u("elsewhere")],
+      }),
+    ).toEqual([u("a"), u("b")]);
+    expect(
+      orderAuthorRelays({
+        ...base,
+        declared: [],
+        preferred: [u("mine")],
+        open: [u("elsewhere")],
+      }),
+    ).toEqual([]);
+  });
+
+  it("挙げたものの中では、読み込みリレー、開いている接続、書かれた順に取る", () => {
+    expect(
+      orderAuthorRelays({
+        ...base,
+        count: 3,
+        declared: [u("a"), u("b"), u("c"), u("d")],
+        preferred: [u("c")],
+        open: [u("d")],
+      }),
+    ).toEqual([u("c"), u("d"), u("a")]);
+  });
+
+  it("重ならず、除くリレーは取らず、書かれた順で埋める", () => {
+    expect(
+      orderAuthorRelays({
+        ...base,
+        count: 3,
+        assigned: [u("a")],
+        preferred: [u("a"), u("blocked")],
+        declared: [u("a"), u("blocked"), u("b"), u("c")],
+        excluded: (url) => url === u("blocked"),
+      }),
+    ).toEqual([u("a"), u("b"), u("c")]);
+  });
+
+  it("使えるものが無ければ空", () => {
+    expect(orderAuthorRelays(base)).toEqual([]);
   });
 });

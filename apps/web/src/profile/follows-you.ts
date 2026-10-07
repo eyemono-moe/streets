@@ -1,51 +1,27 @@
-import { followsPubkey } from "@streets/core/nostr/follow-list";
-import { createSection } from "@streets/core/solid/create-section";
-import type { Accessor } from "solid-js";
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { useEventActions } from "../actions";
 import { useReadLayer } from "../read-layer";
-
-const FOLLOW_KIND = 3;
 
 /**
  * その人が自分をフォローしているか。自分自身・ログインしていない・まだ分からない
  * ときは false（何も出さない）。
  *
- * 相手の kind:3 のうち、自分を指しているものだけを聞く。kind:3 は置換可能なので、
- * リレーは最新の 1 件しか持たない —— 返ってこなければ、最新の版では自分を
- * フォローしていない（古い版が残って「されている」と出ることはない）。
+ * 手元にその人のフォロー一覧があればそれで答える。無いときだけ、相手の kind:3 のうち
+ * 自分を指しているものを一度だけ聞く。kind:3 は置換可能なので、リレーは最新の 1 件しか
+ * 持たない —— 返ってこなければ、最新の版では自分をフォローしていない。
  * 全部を引くと数千人分のタグが届くので、フォローされていない人の分は運ばない。
+ * 取り直しの間隔と同じ人の取得のまとめは読み取り層（`watchFollowsYou`）が持つ。
  */
 export const useFollowsYou = (pubkey: Accessor<string>): Accessor<boolean> => {
   const actions = useEventActions();
-  const { manager, store } = useReadLayer();
+  const { lookups } = useReadLayer();
   const viewer = actions?.viewer;
   if (viewer === undefined) return () => false;
 
-  // Storybook など読み取り層が無いときは、手元にある分だけで答える。
-  if (manager === undefined) {
-    return () =>
-      pubkey() !== viewer &&
-      followsPubkey(store.latestReplaceable(FOLLOW_KIND, pubkey()), viewer) ===
-        true;
-  }
-
-  const section = createSection({
-    manager,
-    source: () => ({
-      type: "nostr",
-      filters:
-        pubkey() === viewer
-          ? []
-          : [
-              {
-                kinds: [FOLLOW_KIND],
-                authors: [pubkey()],
-                "#p": [viewer],
-                limit: 1,
-              },
-            ],
-    }),
+  const [follows, setFollows] = createSignal(false);
+  createEffect(() => {
+    setFollows(false);
+    onCleanup(lookups.watchFollowsYou(pubkey(), viewer, setFollows));
   });
-  return () =>
-    pubkey() !== viewer && followsPubkey(section.items()[0], viewer) === true;
+  return follows;
 };

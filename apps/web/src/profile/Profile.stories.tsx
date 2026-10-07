@@ -94,7 +94,7 @@ const scene = (...events: NostrEvent[]): EventScene => ({
 type HeaderProps = {
   pubkey: string;
   followsYou?: boolean;
-  followeeCount: number;
+  followeeCount?: number;
   scene: EventScene;
 };
 
@@ -152,6 +152,11 @@ export const 自分: Story = {
 
 export const 画像も自己紹介もない: Story = {
   args: { pubkey: carol.pubkey, followeeCount: 0 },
+};
+
+/** フォロー一覧を取っている途中・公開していない人。数を出さない。 */
+export const フォロー数が分からない: Story = {
+  args: { pubkey: bob.pubkey, followeeCount: undefined },
 };
 
 export const 自己紹介が長い: Story = {
