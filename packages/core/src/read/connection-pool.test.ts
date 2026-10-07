@@ -10,6 +10,7 @@ import {
   type ConnectionPoolOptions,
   DEFAULT_MAX_SUBSCRIPTIONS,
   DEGRADED_COOLDOWN_MS,
+  MAX_NOTICE_REFUSALS,
   IDLE_LINGER_MS,
 } from "./connection-pool";
 
@@ -2108,19 +2109,72 @@ describe("ConnectionPool の同時購読の枠", () => {
     expect(queued).toEqual([]);
   });
 
-  it("NIP-11 に上限があるリレーでは、戻すだけで枠は学ばない", () => {
+  it("NIP-11 に上限があるリレーでは、戻すだけで枠は学ばず、他の購読が閉じるまで送り直さない", () => {
     const { pool, connections } = createPool({
       maxSubscriptions: { [URL]: 3 },
     });
-    openMany(pool, 4);
+    const subs = openMany(pool, 4);
     const connection = connections.get(URL);
 
     connection?.emitEose(1);
     connection?.emitNotice("ERROR: too many concurrent REQs");
 
-    // 戻された kind 2 は、枠が 3 のまま (学んで下がらない) すぐ送り直される。
-    expect(sent(connections)).toHaveLength(3);
+    // 戻された kind 2 は送り直されない。枠が空いた分は、待っていた kind 4 が使う。
+    expect(sent(connections).map((sub) => sub.filters[0].kinds?.[0])).toEqual([
+      1, 3, 4,
+    ]);
+    const before = connection?.subscriptions.length;
+    connection?.emitEose(2);
+    expect(connection?.subscriptions).toHaveLength(before ?? -1);
+
+    // 枠が実際に空くと、枠は 3 のまま送り直される。
+    subs[0]?.close();
     expect(connection?.subscriptions.at(-1)?.filters).toEqual([{ kinds: [2] }]);
+    expect(sent(connections)).toHaveLength(3);
+  });
+
+  it("同じ購読が NOTICE で戻された回数が上限を超えたら、送り直さず欠けとして伝える", () => {
+    const { pool, connections } = createPool({
+      maxSubscriptions: { [URL]: 4 },
+    });
+    const onClosed = vi.fn();
+    const target = pool.subscribe(URL, [{ kinds: [1] }], {
+      ...noopHandlers(),
+      onClosed,
+    });
+    const others = [2, 3, 4, 5].map((kind) =>
+      pool.subscribe(URL, [{ kinds: [kind] }], noopHandlers()),
+    );
+    const connection = connections.get(URL);
+    const refuse = () => {
+      const subscriptions = connection?.subscriptions ?? [];
+      let index = -1;
+      subscriptions.forEach((sub, i) => {
+        if (sub.filters[0].kinds?.[0] === 1) index = i;
+      });
+      connection?.emitEose(index);
+      connection?.emitNotice("ERROR: too many concurrent REQs");
+    };
+    const sentTargets = () =>
+      connection?.subscriptions.filter((sub) => sub.filters[0].kinds?.[0] === 1)
+        .length;
+
+    for (let round = 0; round < MAX_NOTICE_REFUSALS; round++) {
+      refuse();
+      expect(onClosed).not.toHaveBeenCalled();
+      others[round]?.close();
+      expect(sentTargets()).toBe(round + 2);
+    }
+
+    refuse();
+    others[MAX_NOTICE_REFUSALS]?.close();
+
+    expect(onClosed).toHaveBeenCalledOnce();
+    expect(sentTargets()).toBe(MAX_NOTICE_REFUSALS + 1);
+    expect(
+      sent(connections).map((sub) => sub.filters[0].kinds?.[0]),
+    ).not.toContain(1);
+    target?.close();
   });
 
   it("EOSE を受けていないのに NOTICE が来ても、何も戻さない", () => {

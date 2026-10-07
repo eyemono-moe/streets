@@ -36,6 +36,13 @@ const isDone = (entry: { state: string }): boolean => entry.state === "done";
  */
 export const DEFAULT_MAX_SUBSCRIPTIONS = 20;
 
+/**
+ * 同じ購読が NOTICE で戻された回数の上限。超えたら送り直さず、欠けとして伝える。
+ * 枠が空くまで待たせるので通常は届かないが、リレーの数え方が食い違い続けたときに、
+ * 保存済みのイベントを往復ごとに受け直さないための歯止め。
+ */
+export const MAX_NOTICE_REFUSALS = 3;
+
 /** 接続が死んだときに全購読へ配る理由。枠の学習の対象にはしない。 */
 const SOCKET_CLOSED = "socket closed";
 
@@ -155,6 +162,13 @@ type Entry = {
   sentSeq: number;
   /** 待たせたことを数え済みか。 */
   waited: boolean;
+  /**
+   * NOTICE で戻されて、枠が実際に空くまで送らない印。すぐ送り直すと、リレーの数え方と
+   * 食い違うとき保存済みのイベントを往復ごとに受け直すことになる。
+   */
+  parked: boolean;
+  /** NOTICE で戻された回数。 */
+  refusals: number;
 };
 
 /**
@@ -534,6 +548,8 @@ export class ConnectionPool {
       state: "queued",
       sentSeq: 0,
       waited: false,
+      parked: false,
+      refusals: 0,
     };
     pooled.entries.add(entry);
 
@@ -558,6 +574,7 @@ export class ConnectionPool {
         current.entries.delete(entry);
         entry.subscription?.close();
         // 空いた枠で、待っている購読を送る。
+        this.#unpark(current);
         this.#pump(url, current);
         // hold() だけが残っていれば接続は落とさない — ブートストラップが
         // フェーズ間で握り続けている接続を、フェーズ①の購読が閉じただけで
@@ -637,6 +654,8 @@ export class ConnectionPool {
       state: "done",
       sentSeq: 0,
       waited: false,
+      parked: false,
+      refusals: 0,
     };
     pooled.entries.add(entry);
 
@@ -891,6 +910,7 @@ export class ConnectionPool {
     for (const entry of pooled.entries) {
       entry.subscription = null;
       entry.waited = false;
+      entry.parked = false;
       if (entry.state !== "done") entry.state = "queued";
     }
   }
@@ -924,7 +944,7 @@ export class ConnectionPool {
       if (!connection) return;
       let next: Entry | undefined;
       for (const entry of pooled.entries) {
-        if (entry.state !== "queued") continue;
+        if (entry.state !== "queued" || entry.parked) continue;
         if (!entry.once) {
           next = entry;
           break;
@@ -998,6 +1018,7 @@ export class ConnectionPool {
         entry.state = "done";
         entry.subscription?.close();
         entry.subscription = null;
+        this.#unpark(pooled);
       }
     }
     try {
@@ -1029,6 +1050,7 @@ export class ConnectionPool {
       return;
     }
     if (entry.state === "sent") entry.state = "closed";
+    this.#unpark(pooled);
     try {
       entry.handlers.onClosed(reason);
     } finally {
@@ -1058,7 +1080,31 @@ export class ConnectionPool {
       this.#learn(url, Math.max(open - 1, DEFAULT_MAX_SUBSCRIPTIONS));
     }
     this.#requeue(target);
+    target.refusals += 1;
+    if (target.refusals > MAX_NOTICE_REFUSALS) {
+      // 何度戻しても断られる。送り直さず、流れない購読として呼び出し元に伝える。
+      target.state = "closed";
+      try {
+        target.handlers.onClosed(
+          "too many concurrent REQs: gave up after repeated refusals",
+        );
+      } catch (error) {
+        console.error(
+          "ConnectionPool: an onClosed handler threw while giving up a refused REQ.",
+          error,
+        );
+      }
+    } else {
+      target.parked = true;
+      target.waited = true;
+      this.#options.onQueued?.(url);
+    }
     this.#pump(url, pooled);
+  }
+
+  /** 枠が実際に空いた出来事のあとで、NOTICE で戻した購読を送れるようにする。 */
+  #unpark(pooled: Pooled): void {
+    for (const entry of pooled.entries) entry.parked = false;
   }
 
   /**
