@@ -1,5 +1,5 @@
 import { type EventAddress, formatEventAddress } from "../nostr/address";
-import type { RelayFilter } from "../relay/relay-connection";
+import { createBatchedLookup } from "./batched-lookup";
 import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
@@ -40,54 +40,37 @@ export const createAddressRequests = (
   options: CreateAddressRequestsOptions,
 ): AddressRequests => {
   const scheduler = options.scheduler ?? defaultScheduler;
-  let pending = new Map<string, EventAddress>();
-  let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
-  let disposed = false;
-  const listeners = new Set<() => void>();
   const settled = new Set<string>();
-  // 取りにいっている最中の住所。返事を待つ間に同じ人の投稿が続けて描かれても、
-  // 取った時刻はまだ残っていないので、ここで重ねて要求しないようにする。
-  const inflight = new Set<string>();
-
-  const stored = (address: EventAddress) =>
-    options.store.latestReplaceable(
-      address.kind,
-      address.pubkey,
-      address.identifier,
-    );
-
-  const flush = (): void => {
-    timer = null;
-    const addresses = [...pending.values()];
-    pending = new Map();
-    if (addresses.length === 0) return;
-    const keys = addresses.map(formatEventAddress);
-    for (const key of keys) inflight.add(key);
-
-    // kind ごとに 1 つのフィルタへまとめる。著者と `d` の組み合わせで余分に
-    // 届くものがあっても、store が住所ごとに最新版だけを残す。
-    const byKind = new Map<number, { authors: Set<string>; d: Set<string> }>();
-    for (const address of addresses) {
-      const group = byKind.get(address.kind) ?? {
-        authors: new Set(),
-        d: new Set(),
+  const lookup = createBatchedLookup<EventAddress>({
+    manager: options.manager,
+    scheduler,
+    windowMs: ADDRESS_BATCH_MS,
+    keyOf: formatEventAddress,
+    plan: (addresses) => {
+      // kind ごとに 1 つのフィルタへまとめる。著者と `d` の組み合わせで余分に
+      // 届くものがあっても、store が住所ごとに最新版だけを残す。
+      const byKind = new Map<
+        number,
+        { authors: Set<string>; d: Set<string> }
+      >();
+      for (const address of addresses) {
+        const group = byKind.get(address.kind) ?? {
+          authors: new Set(),
+          d: new Set(),
+        };
+        group.authors.add(address.pubkey);
+        group.d.add(address.identifier);
+        byKind.set(address.kind, group);
+      }
+      return {
+        filters: [...byKind].map(([kind, group]) => ({
+          kinds: [kind],
+          authors: [...group.authors],
+          "#d": [...group.d],
+        })),
       };
-      group.authors.add(address.pubkey);
-      group.d.add(address.identifier);
-      byKind.set(address.kind, group);
-    }
-    const filters: RelayFilter[] = [...byKind].map(([kind, group]) => ({
-      kinds: [kind],
-      authors: [...group.authors],
-      "#d": [...group.d],
-    }));
-
-    const done = () => {
-      for (const key of keys) inflight.delete(key);
-    };
-    void options.manager.fetchOnce(filters).then(() => {
-      done();
-      if (disposed) return;
+    },
+    onFetched: (addresses) => {
       for (const address of addresses) {
         options.store.markReplaceableFetched(
           address.kind,
@@ -96,13 +79,19 @@ export const createAddressRequests = (
         );
         settled.add(formatEventAddress(address));
       }
-      for (const listener of listeners) listener();
-    }, done);
-  };
+    },
+  });
+
+  const stored = (address: EventAddress) =>
+    options.store.latestReplaceable(
+      address.kind,
+      address.pubkey,
+      address.identifier,
+    );
 
   return {
     request(address, requestOptions) {
-      if (disposed) return;
+      if (lookup.disposed) return;
       const key = formatEventAddress(address);
       // 公開鍵でない値を著者に入れると、リレーは同じ束の REQ ごと断る。
       // 束ねたほかの住所まで取れなくなるので、問い合わせずに無かったことにする。
@@ -125,31 +114,17 @@ export const createAddressRequests = (
         settled.add(key);
         return;
       }
-      if (inflight.has(key)) return;
+      // 取りにいっている最中なら重ねない。
+      if (lookup.isInflight(key)) return;
       settled.delete(key);
-      pending.set(key, address);
-      if (timer === null) {
-        timer = scheduler.setTimeout(flush, ADDRESS_BATCH_MS);
-      }
+      lookup.enqueue(address);
     },
 
     isUnresolved(address) {
       return settled.has(formatEventAddress(address)) && !stored(address);
     },
 
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-
-    dispose() {
-      disposed = true;
-      if (timer !== null) {
-        scheduler.clearTimeout(timer);
-        timer = null;
-      }
-      pending = new Map();
-      listeners.clear();
-    },
+    subscribe: lookup.subscribe,
+    dispose: lookup.dispose,
   };
 };
