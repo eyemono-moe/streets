@@ -323,11 +323,42 @@ describe("orderAuthorRelays", () => {
       orderAuthorRelays({ ...base, declared, assigned: [u("main")] }),
     ).toEqual([u("main"), u("old1")]);
     expect(
-      orderAuthorRelays({ ...base, declared, preferred: [u("mine")] }),
-    ).toEqual([u("mine"), u("old1")]);
+      orderAuthorRelays({ ...base, declared, preferred: [u("main")] }),
+    ).toEqual([u("main"), u("old1")]);
     expect(orderAuthorRelays({ ...base, declared, open: [u("main")] })).toEqual(
       [u("main"), u("old1")],
     );
+  });
+
+  it("その著者が挙げていない読み込みリレー・開いている接続は選ばない", () => {
+    expect(
+      orderAuthorRelays({
+        ...base,
+        declared: [u("a"), u("b")],
+        preferred: [u("mine")],
+        open: [u("elsewhere")],
+      }),
+    ).toEqual([u("a"), u("b")]);
+    expect(
+      orderAuthorRelays({
+        ...base,
+        declared: [],
+        preferred: [u("mine")],
+        open: [u("elsewhere")],
+      }),
+    ).toEqual([]);
+  });
+
+  it("挙げたものの中では、読み込みリレー、開いている接続、書かれた順に取る", () => {
+    expect(
+      orderAuthorRelays({
+        ...base,
+        count: 3,
+        declared: [u("a"), u("b"), u("c"), u("d")],
+        preferred: [u("c")],
+        open: [u("d")],
+      }),
+    ).toEqual([u("c"), u("d"), u("a")]);
   });
 
   it("重ならず、除くリレーは取らず、書かれた順で埋める", () => {
@@ -337,7 +368,7 @@ describe("orderAuthorRelays", () => {
         count: 3,
         assigned: [u("a")],
         preferred: [u("a"), u("blocked")],
-        declared: [u("blocked"), u("b"), u("c")],
+        declared: [u("a"), u("blocked"), u("b"), u("c")],
         excluded: (url) => url === u("blocked"),
       }),
     ).toEqual([u("a"), u("b"), u("c")]);
