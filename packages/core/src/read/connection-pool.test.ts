@@ -9,6 +9,7 @@ import {
   ConnectionPool,
   type ConnectionPoolOptions,
   DEGRADED_COOLDOWN_MS,
+  IDLE_LINGER_MS,
 } from "./connection-pool";
 
 /**
@@ -189,13 +190,15 @@ describe("ConnectionPool", () => {
   });
 
   it("closes the connection when the last subscription closes", () => {
-    const { pool, connections } = createPool();
+    const { pool, connections, clock } = createPool();
     const a = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
     const b = pool.subscribe("wss://one/", [{ kinds: [7] }], noopHandlers());
 
     a?.close();
     expect(connections.get("wss://one/")?.closed).toBe(false);
     b?.close();
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+    clock.advance(IDLE_LINGER_MS);
     expect(connections.get("wss://one/")?.closed).toBe(true);
     expect(pool.size).toBe(0);
   });
@@ -441,7 +444,7 @@ describe("ConnectionPool", () => {
   // record の生存は `size` だけでは見えない (どちらも 0) ので、再
   // subscribe() が古いエントリを道連れにせず生き残ることで初めて観測できる。
   it("does not drop the pooled record until every entry, including ones added after death, has closed", () => {
-    const { pool, connections, connectCalls } = createPool();
+    const { pool, connections, connectCalls, clock } = createPool();
     const stale = pool.subscribe(
       "wss://one/",
       [{ kinds: [1] }],
@@ -465,6 +468,7 @@ describe("ConnectionPool", () => {
     // Closing the last remaining (stale) entry finally empties the
     // registry and drops the connection.
     expect(() => stale?.close()).not.toThrow();
+    clock.advance(IDLE_LINGER_MS);
     expect(reconnected?.closed).toBe(true);
   });
 
@@ -718,10 +722,11 @@ describe("ConnectionPool.hold()", () => {
 
   // 変異: release() で #drop を呼ばないと落ちる。
   it("closes the connection when the last hold is released and no entries remain", () => {
-    const { pool, connections } = createPool();
+    const { pool, connections, clock } = createPool();
     const held = pool.hold("wss://one/");
 
     held?.release();
+    clock.advance(IDLE_LINGER_MS);
 
     expect(connections.get("wss://one/")?.closed).toBe(true);
     expect(pool.size).toBe(0);
@@ -730,7 +735,7 @@ describe("ConnectionPool.hold()", () => {
   // 変異: release() を冪等にしないとカウントが負になり、後の hold が
   // 効かなくなる。
   it("is idempotent on repeated release()", () => {
-    const { pool, connections } = createPool();
+    const { pool, connections, clock } = createPool();
     const first = pool.hold("wss://one/");
     const second = pool.hold("wss://one/");
 
@@ -744,6 +749,7 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.size).toBe(1);
 
     second?.release();
+    clock.advance(IDLE_LINGER_MS);
     expect(connections.get("wss://one/")?.closed).toBe(true);
   });
 
@@ -774,7 +780,7 @@ describe("ConnectionPool.hold()", () => {
   // dispose() を挟んで同じ URL が開き直されると、古い release() が新しい
   // hold の枠を奪い、まだ握っている接続を落としてしまう。
   it("release() from a disposed pool entry does not drop a newer hold", () => {
-    const { pool } = createPool();
+    const { pool, clock } = createPool();
     const stale = pool.hold("wss://one/");
     pool.dispose();
 
@@ -787,6 +793,7 @@ describe("ConnectionPool.hold()", () => {
     expect(pool.size).toBe(1);
 
     fresh?.release();
+    clock.advance(IDLE_LINGER_MS);
     expect(pool.size).toBe(0);
   });
 
@@ -935,25 +942,28 @@ describe("ConnectionPool.publish()", () => {
   });
 
   it("releases the socket it opened for publish once settled, if nobody else needs it", async () => {
-    const { pool } = createPool();
+    const { pool, clock } = createPool();
 
     await pool.publish("wss://one/", fakeEvent("a"));
 
     // Nothing was subscribed to "one" -- the connection publish() opened for
-    // itself must not linger afterwards occupying a budget slot forever.
+    // itself must not stay afterwards occupying a budget slot forever.
+    clock.advance(IDLE_LINGER_MS);
     expect(pool.size).toBe(0);
   });
 
   it("keeps the socket open after publish when a live subscription still needs it", async () => {
-    const { pool } = createPool();
+    const { pool, clock } = createPool();
     const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
 
     await pool.publish("wss://one/", fakeEvent("a"));
 
     // The subscription is still open, so publish() releasing its own
-    // temporary reference must not tear the shared connection down.
+    // temporary reference must not start the idle countdown.
+    clock.advance(IDLE_LINGER_MS);
     expect(pool.size).toBe(1);
     sub?.close();
+    clock.advance(IDLE_LINGER_MS);
     expect(pool.size).toBe(0);
   });
 
@@ -971,11 +981,12 @@ describe("ConnectionPool.publish()", () => {
   });
 
   it("releases the socket it opened even when the relay rejects the publish", async () => {
-    const { pool } = createPool({
+    const { pool, clock } = createPool({
       publishFailing: { "wss://one/": "blocked: spam" },
     });
 
     await expect(pool.publish("wss://one/", fakeEvent("a"))).rejects.toThrow();
+    clock.advance(IDLE_LINGER_MS);
 
     expect(pool.size).toBe(0);
   });
@@ -1026,7 +1037,7 @@ describe("ConnectionPool.publish()", () => {
     // The slot released -- this is what actually matters: a pinned slot
     // with a settled promise is just as much of a deadlock as a promise
     // that never settles, because the next subscribe() still gets refused.
-    expect(pool.size).toBe(0);
+    expect(pool.statusOf("wss://one/")).toBe("idle");
 
     // 予算が埋まった状態で別のリレーへの subscribe() が拒否される再現。
     // 枠が実際に解放された後は拒否されてはならない。
@@ -1806,5 +1817,123 @@ describe("ConnectionPool のローカルネットワークのリレー", () => {
     const { pool, connectCalls } = createPool({ allowLocalNetwork: true });
     pool.subscribe(LOCAL, [{ kinds: [1] }], noopHandlers());
     expect(connectCalls).toEqual([LOCAL]);
+  });
+});
+
+// 一度きりの取得のたびに開閉すると、TLS と認証をやり直すことになる。
+describe("ConnectionPool: idle linger", () => {
+  it("keeps the connection open after the last subscription closes and reuses it", () => {
+    const { pool, connections, connectCalls, clock } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+    clock.advance(IDLE_LINGER_MS - 1);
+
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+    const next = pool.subscribe("wss://one/", [{ kinds: [7] }], noopHandlers());
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+    // 猶予のタイマーは取り消されているので、元の期限が来ても閉じない。
+    clock.advance(10);
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+    next?.close();
+    clock.advance(IDLE_LINGER_MS);
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+  });
+
+  it("reuses a lingering connection for publish and hold", async () => {
+    const { pool, connectCalls, clock } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+
+    await pool.publish("wss://one/", fakeEvent("a"));
+    clock.advance(IDLE_LINGER_MS - 1);
+    const held = pool.hold("wss://one/");
+    clock.advance(IDLE_LINGER_MS);
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.size).toBe(1);
+    held?.release();
+  });
+
+  it("reports a lingering connection as idle", () => {
+    const { pool } = createPool();
+    const sub = pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(pool.statusOf("wss://one/")).toBe("in-use");
+
+    sub?.close();
+
+    expect(pool.statusOf("wss://one/")).toBe("idle");
+  });
+
+  it("closes the oldest lingering connections to make room for a new relay", () => {
+    const { pool, connections, clock } = createPool({ maxConnections: 2 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+    clock.advance(1_000);
+    pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers())?.close();
+    expect(pool.size).toBe(2);
+
+    const three = pool.subscribe(
+      "wss://three/",
+      [{ kinds: [1] }],
+      noopHandlers(),
+    );
+
+    expect(three).toBeDefined();
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+    expect(connections.get("wss://two/")?.closed).toBe(false);
+    expect(pool.size).toBe(2);
+  });
+
+  it("does not close a connection that is still in use to make room", () => {
+    const { pool, connections } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+
+    expect(
+      pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeUndefined();
+    expect(connections.get("wss://one/")?.closed).toBe(false);
+  });
+
+  it("does not reconnect a lingering connection that the relay closed", () => {
+    const { pool, connections, connectCalls, clock } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+
+    connections.get("wss://one/")?.die();
+    clock.advance(IDLE_LINGER_MS);
+
+    expect(connectCalls).toEqual(["wss://one/"]);
+    expect(pool.size).toBe(0);
+    expect(pool.statusOf("wss://one/")).toBe("idle");
+  });
+
+  it("frees the slot of a lingering connection that died", () => {
+    const { pool, connections } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+    connections.get("wss://one/")?.die();
+
+    expect(
+      pool.subscribe("wss://two/", [{ kinds: [1] }], noopHandlers()),
+    ).toBeDefined();
+  });
+
+  it("leaves no timer behind after dispose()", () => {
+    const { pool, connections, clock } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+
+    pool.dispose();
+
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+    const cleared = clock.clearTimeoutCallCount;
+    clock.advance(IDLE_LINGER_MS);
+    expect(clock.clearTimeoutCallCount).toBe(cleared);
+    expect(pool.size).toBe(0);
+  });
+
+  it("closes a lingering connection when its relay becomes blocked", () => {
+    const { pool, connections } = createPool();
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers())?.close();
+
+    pool.setBlockedRelays(["wss://one/"]);
+
+    expect(connections.get("wss://one/")?.closed).toBe(true);
+    expect(pool.size).toBe(0);
   });
 });

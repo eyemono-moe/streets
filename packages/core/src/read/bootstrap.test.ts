@@ -1,6 +1,6 @@
 import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type {
@@ -11,9 +11,9 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { warmUpRouting } from "./bootstrap";
-import { ConnectionPool } from "./connection-pool";
+import { ConnectionPool, IDLE_LINGER_MS } from "./connection-pool";
 import { EventStore } from "./event-store";
-import { createFakeClock } from "./fake-clock";
+import { type FakeClock, createFakeClock } from "./fake-clock";
 import { RoutingTable } from "./routing-table";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -92,6 +92,13 @@ const base = { created_at: 1_700_000_000, tags: [], content: "" };
  * most one connection exists per indexer url. Subscriptions index 0 is phase
  * ①, index 1 is phase ② (if any).
  */
+// 使い終えた接続は IDLE_LINGER_MS だけ開いたまま残るので、閉じるところまで見る
+// テストはこの時計を進める。
+let poolClock: FakeClock;
+beforeEach(() => {
+  poolClock = createFakeClock();
+});
+
 const poolWithFakes = (
   connections: Map<RelayUrl, FakeRelayConnection>,
   options?: { maxConnections?: number; failFor?: Set<RelayUrl> },
@@ -106,6 +113,7 @@ const poolWithFakes = (
       return relay;
     },
     maxConnections: options?.maxConnections,
+    scheduler: poolClock,
   });
 
 describe("warmUpRouting", () => {
@@ -522,6 +530,8 @@ describe("warmUpRouting", () => {
     // Exactly one FakeRelayConnection was ever created for this url -- no reconnect between phase ① and ②.
     expect(relays.size).toBe(1);
     // Only now, at the very end of warmUpRouting, does the anchor's hold release and the connection go down.
+    expect(indexer()?.closed).toBe(false);
+    poolClock.advance(IDLE_LINGER_MS);
     expect(indexer()?.closed).toBe(true);
   });
 
@@ -659,6 +669,7 @@ describe("warmUpRouting", () => {
     for (const relay of relays.values()) relay.emitEose(1);
     await pending;
 
+    poolClock.advance(IDLE_LINGER_MS);
     for (const relay of relays.values()) expect(relay.closed).toBe(true);
     // ウォームアップが持っていた分の予算はもう誰も握っていない。
     expect(pool.size).toBe(0);
@@ -693,6 +704,7 @@ describe("warmUpRouting", () => {
       phase1Relays: expect.any(Array),
       phase2Relays: expect.any(Array),
     });
+    poolClock.advance(IDLE_LINGER_MS);
     expect(up()?.closed).toBe(true);
   });
 
@@ -776,6 +788,7 @@ describe("warmUpRouting", () => {
       phase1Relays: expect.any(Array),
       phase2Relays: expect.any(Array),
     });
+    poolClock.advance(IDLE_LINGER_MS);
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
   });
@@ -883,6 +896,7 @@ describe("warmUpRouting", () => {
     await pending;
 
     // 両インデクサのフェーズ②も片付いた後 (外側の finally)、アンカーの hold が release され接続も落ちる。
+    poolClock.advance(IDLE_LINGER_MS);
     expect(relays.get("wss://one/")?.closed).toBe(true);
     expect(relays.get("wss://two/")?.closed).toBe(true);
   });
@@ -926,6 +940,7 @@ describe("warmUpRouting", () => {
         phase1Relays: expect.any(Array),
         phase2Relays: expect.any(Array),
       });
+      poolClock.advance(IDLE_LINGER_MS);
       expect(relays.get("wss://silent/")?.closed).toBe(true);
     } finally {
       vi.useRealTimers();
@@ -979,6 +994,7 @@ describe("warmUpRouting", () => {
     indexer()?.emitEose(1);
 
     await promise;
+    poolClock.advance(IDLE_LINGER_MS);
     expect(pool.size).toBe(0);
   });
 
