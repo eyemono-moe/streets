@@ -13,7 +13,7 @@ import AuthorNames from "../note/AuthorNames";
 import Avatar from "../note/Avatar";
 import { hiddenUnderWarning, warningLabel } from "../note/ContentWarningGate";
 import { type EventSize, NoteContent } from "../note/Event";
-import EventMenu, { type ExtraMenuItem } from "../note/EventMenu";
+import EventMenu from "../note/EventMenu";
 import ReactionList from "../note/ReactionList";
 import { useEvent } from "../note/use-event";
 import { useProfile } from "../note/use-profile";
@@ -92,31 +92,12 @@ export const ChatMessage: Component<{
   const replyTo = () => channelReplyTarget(props.event);
   const date = () => new Date(props.event.created_at * 1000);
   const reply = () => dispatch({ type: "chat/reply", target: props.event.id });
-  const muteIn = (kind: "message" | "user") => () =>
+  const openMute = () =>
     dispatch({
       type: "chat-mute/open",
-      kind,
       messageId: props.event.id,
       pubkey: props.event.pubkey,
     });
-  // 自分の発言はミュートしても自分には畳まれないので、出さない。
-  const muteItems = (): ExtraMenuItem[] =>
-    mine()
-      ? []
-      : [
-          {
-            value: "mute-message",
-            icon: "i-material-symbols:visibility-off-outline-rounded",
-            label: "このメッセージをミュートする",
-            onSelect: muteIn("message"),
-          },
-          {
-            value: "mute-user",
-            icon: "i-material-symbols:person-off-outline-rounded",
-            label: "このユーザーをミュートする",
-            onSelect: muteIn("user"),
-          },
-        ];
 
   return (
     <article
@@ -208,7 +189,8 @@ export const ChatMessage: Component<{
           event={props.event}
           toolbar={TOOLBAR_ACTIONS}
           onReply={reply}
-          extraItems={muteItems()}
+          // 自分の発言はミュートしても自分には畳まれないので、出さない。
+          onMute={mine() ? undefined : openMute}
         />
       </div>
     </article>

@@ -56,14 +56,6 @@ const AddToListDialog = lazyPart(() => import("../lists/AddToListDialog"));
 
 const ClientDialog = lazyPart(() => import("./ClientDialog"));
 
-/** 呼んだ側が足す項目。メニューは中身を知らず、選ばれたら `onSelect` を呼ぶだけ。 */
-export type ExtraMenuItem = {
-  value: string;
-  label: string;
-  icon: string;
-  onSelect: () => void;
-};
-
 type MenuItem = {
   value: string;
   label: string;
@@ -107,6 +99,8 @@ const EventItems: Component<{
   canMute: boolean;
   /** 返信を呼んだ側が書くか。kind:42 の返信は、そのときだけ出す。 */
   customReply: boolean;
+  /** ミュートを呼んだ側の「ミュート…」に任せるか。ミュート済みの解除は残す。 */
+  customMute: boolean;
 }> = (props) => {
   const engagement = props.actions
     ? useEngagements(() => props.event, props.actions.viewer)
@@ -211,9 +205,15 @@ const EventItems: Component<{
           ? [{ value: id, ...pinLook(props.event, pinned()), todo: pinning() }]
           : [];
       case "mute-event":
-        return [
-          { value: id, ...muteEventLook(props.muted), todo: !props.canMute },
-        ];
+        return props.customMute && !props.muted
+          ? []
+          : [
+              {
+                value: id,
+                ...muteEventLook(props.muted),
+                todo: !props.canMute,
+              },
+            ];
       case "broadcast":
         // 送るのはログインしている間だけ。暗号化されたものは送り直さない。
         return props.actions && canBroadcast(props.event)
@@ -239,8 +239,11 @@ const EventMenu: Component<{
   toolbar?: readonly EventActionId[];
   /** 返信を呼んだ側が書くとき、その開き方。渡さなければ kind:1 の返信ダイアログを開く。 */
   onReply?: () => void;
-  /** 「このイベント」の項目の後ろに足す項目。 */
-  extraItems?: readonly ExtraMenuItem[];
+  /**
+   * 呼んだ側がミュートの選び方を持つとき、その開き方。渡すと「このイベントをミュート」と
+   * 投稿者の「ミュート」の代わりに「ミュート…」を 1 つ出す。ミュート済みの解除はそのまま残る。
+   */
+  onMute?: () => void;
   /** 開いた状態で描く。Storybook で中身を並べるため。 */
   defaultOpen?: boolean;
 }> = (props) => {
@@ -292,6 +295,19 @@ const EventMenu: Component<{
     // 自分はフォローできず、ミュートしても自分の投稿は隠さない。押せても意味が無いので出さない。
     if (mine()) return [addToList, AUTHOR_RELAYS];
     const muted = authorMuteEntry() !== undefined;
+    const muteAuthor: MenuItem[] =
+      props.onMute && !muted
+        ? []
+        : [
+            {
+              value: "mute-author",
+              label: muted ? "ミュートを解除" : "ミュート",
+              icon: muted
+                ? "i-material-symbols:person-outline-rounded"
+                : "i-material-symbols:person-off-outline-rounded",
+              todo: mutes === undefined,
+            },
+          ];
     return [
       {
         value: "follow",
@@ -303,14 +319,7 @@ const EventMenu: Component<{
         todo: actions === undefined || followSending(),
       },
       addToList,
-      {
-        value: "mute-author",
-        label: muted ? "ミュートを解除" : "ミュート",
-        icon: muted
-          ? "i-material-symbols:person-outline-rounded"
-          : "i-material-symbols:person-off-outline-rounded",
-        todo: mutes === undefined,
-      },
+      ...muteAuthor,
       AUTHOR_RELAYS,
     ];
   };
@@ -409,10 +418,9 @@ const EventMenu: Component<{
             case "timeslip":
               ops.timeslip();
               break;
-            default:
-              props.extraItems
-                ?.find((item) => item.value === details.value)
-                ?.onSelect();
+            case "mute":
+              props.onMute?.();
+              break;
           }
         }}
       >
@@ -442,7 +450,19 @@ const EventMenu: Component<{
                   muted={ops.muted()}
                   canMute={ops.canMute}
                   customReply={props.onReply !== undefined}
+                  customMute={props.onMute !== undefined}
                 />
+                <Show when={props.onMute}>
+                  <Items
+                    items={[
+                      {
+                        value: "mute",
+                        label: "ミュート…",
+                        icon: "i-material-symbols:visibility-off-outline-rounded",
+                      },
+                    ]}
+                  />
+                </Show>
                 <Show when={client()}>
                   {(ref) => (
                     <Items
@@ -457,12 +477,6 @@ const EventMenu: Component<{
                   )}
                 </Show>
               </Menu.ItemGroup>
-              <Show when={props.extraItems?.length}>
-                <Menu.Separator class={menuSeparatorClass} />
-                <Menu.ItemGroup>
-                  <Items items={[...(props.extraItems ?? [])]} />
-                </Menu.ItemGroup>
-              </Show>
               <Menu.Separator class={menuSeparatorClass} />
               <Menu.ItemGroup>
                 <Menu.ItemGroupLabel class={`${menuGroupLabelClass} truncate`}>

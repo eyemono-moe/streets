@@ -1,5 +1,7 @@
 import { buildChannelMessage } from "@streets/core/nostr/build/channel";
 import {
+  type ChatMuteKind,
+  type ChatMuteScope,
   type ChatMuteState,
   chatMuteTransition,
   closedChatMute,
@@ -20,13 +22,18 @@ const message = other.event(
     "宣伝です。ここを見てください https://spam.example",
   ),
 );
-const open = (kind: "message" | "user") =>
-  chatMuteTransition(closedChatMute(), {
-    type: "chat-mute/open",
-    kind,
-    messageId: message.id,
-    pubkey: other.pubkey,
-  });
+const open = (kind: ChatMuteKind, scope: ChatMuteScope) =>
+  chatMuteTransition(
+    chatMuteTransition(
+      chatMuteTransition(closedChatMute(), {
+        type: "chat-mute/open",
+        messageId: message.id,
+        pubkey: other.pubkey,
+      }),
+      { type: "chat-mute/kind", value: kind },
+    ),
+    { type: "chat-mute/scope", value: scope },
+  );
 
 type Props = { state: ChatMuteState };
 
@@ -39,19 +46,27 @@ const meta = {
       </Mediates>
     </EventSceneProvider>
   ),
-  args: { state: open("message") },
+  args: { state: open("message", "channel") },
   argTypes: { state: { control: false } },
 } satisfies Meta<Props>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const メッセージ: Story = {};
-export const ユーザー: Story = { args: { state: open("user") } };
+export const 発言をこのチャンネルだけ: Story = {};
+export const 人をこのチャンネルだけ: Story = {
+  args: { state: open("user", "channel") },
+};
+export const 発言をどこでも: Story = {
+  args: { state: open("message", "everywhere") },
+};
+export const 人をどこでも: Story = {
+  args: { state: open("user", "everywhere") },
+};
 export const 送っている: Story = {
   args: {
     state: chatMuteTransition(
-      chatMuteTransition(open("message"), {
+      chatMuteTransition(open("message", "channel"), {
         type: "chat-mute/reason",
         value: "宣伝",
       }),

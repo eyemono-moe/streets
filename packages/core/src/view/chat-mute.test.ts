@@ -1,14 +1,50 @@
 import { describe, expect, it } from "vite-plus/test";
 import { chatMuteTransition, closedChatMute } from "./chat-mute";
 
-const open = chatMuteTransition(closedChatMute(), {
+const opened = chatMuteTransition(closedChatMute(), {
   type: "chat-mute/open",
-  kind: "user",
   messageId: "m",
   pubkey: "p",
 });
+const open = chatMuteTransition(opened, {
+  type: "chat-mute/kind",
+  value: "user",
+});
 
 describe("chatMuteTransition", () => {
+  it("開いた直後は、この発言を、このチャンネルだけ", () => {
+    expect(opened).toMatchObject({
+      phase: "confirming",
+      kind: "message",
+      scope: "channel",
+    });
+  });
+
+  it("何をと、どこでを選べる", () => {
+    const chosen = chatMuteTransition(open, {
+      type: "chat-mute/scope",
+      value: "everywhere",
+    });
+    expect(chosen).toMatchObject({ kind: "user", scope: "everywhere" });
+    expect(
+      chatMuteTransition(chosen, { type: "chat-mute/submit" }),
+    ).toMatchObject({ phase: "sending", kind: "user", scope: "everywhere" });
+  });
+
+  it("送っている間は何を・どこでを変えられない", () => {
+    // 捕まえる変異: 送っている途中で選びが変わり、送った内容と画面がずれる
+    const sending = chatMuteTransition(open, { type: "chat-mute/submit" });
+    expect(
+      chatMuteTransition(sending, {
+        type: "chat-mute/scope",
+        value: "everywhere",
+      }),
+    ).toBe(sending);
+    expect(
+      chatMuteTransition(sending, { type: "chat-mute/kind", value: "message" }),
+    ).toBe(sending);
+  });
+
   it("開いて理由を書き、送ったら閉じる", () => {
     const reasoned = chatMuteTransition(open, {
       type: "chat-mute/reason",
