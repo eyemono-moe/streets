@@ -287,4 +287,12 @@ describe("threadMuteTarget", () => {
       value: ROOT_ID,
     });
   });
+
+  it("チャンネルの発言は、root のチャンネルではなく発言そのものを対象にする", () => {
+    const message = event({ kind: 42, tags: [["e", ROOT_ID, "", "root"]] });
+    expect(threadMuteTarget(message)).toEqual({
+      type: "thread",
+      value: message.id,
+    });
+  });
 });

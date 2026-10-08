@@ -1,4 +1,5 @@
 import type { MuteTarget } from "../nostr/build/mute";
+import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import type { NostrEvent } from "../nostr/event";
 import { threadRoot } from "../nostr/event-refs";
 import { decodeNip19, decodeNpub } from "../nostr/nip19";
@@ -254,5 +255,10 @@ export const applyMuteChanges = (
 
 export const threadMuteTarget = (event: NostrEvent): MuteTarget => ({
   type: "thread",
-  value: threadRoot(event)?.id ?? event.id,
+  // チャンネルの発言の root はチャンネル（kind:40）を指す。root を使うと、その発言では
+  // なくチャンネルの発言をすべてミュートしてしまう。
+  value:
+    event.kind === CHANNEL_MESSAGE_KIND
+      ? event.id
+      : (threadRoot(event)?.id ?? event.id),
 });
