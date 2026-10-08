@@ -3,6 +3,7 @@ import type { MessageVisibility } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { profileLabel } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { EventActionId } from "@streets/core/settings/action-layout";
 import { formatEventTimeFull } from "@streets/core/view/format-time";
 import { type Component, Show, createSignal } from "solid-js";
 import { useEventActions } from "../actions";
@@ -18,6 +19,9 @@ import { useEvent } from "../note/use-event";
 import { useProfile } from "../note/use-profile";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
+
+/** ホバーで出す道具列に置く操作。 */
+const TOOLBAR_ACTIONS: readonly EventActionId[] = ["reply", "like", "react"];
 
 /** 日付は区切りの行が出すので、発言には時刻だけを出す。 */
 const chatTime = (date: Date): string =>
@@ -71,8 +75,8 @@ const ReplyContext: Component<{
 
 /**
  * チャンネルでの 1 つの発言。カーソルを当てると右上に操作を出す（返信・いいね・
- * リアクション・⋯）。⋯ のメニューは通常の投稿と同じで、道具列の操作も入れる ——
- * 触って操作する画面ではカーソルを当てられない。
+ * リアクション・⋯）。⋯ のメニューは通常の投稿と同じ。道具列の操作は、カーソルを
+ * 当てられない触る端末のときだけメニューにも入れる。
  */
 export const ChatMessage: Component<{
   event: NostrEvent;
@@ -202,7 +206,7 @@ export const ChatMessage: Component<{
         />
         <EventMenu
           event={props.event}
-          listAll
+          toolbar={TOOLBAR_ACTIONS}
           onReply={reply}
           extraItems={muteItems()}
         />

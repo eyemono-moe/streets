@@ -269,6 +269,14 @@ describe("アクション欄の並びが同じか", () => {
 describe("allActionsOf", () => {
   it("アクション欄の操作のあとにメニューの操作を並べる", () => {
     const layout = defaultActionLayout();
-    expect(allActionsOf(layout)).toEqual([...layout.bar, ...layout.menu]);
+    expect(allActionsOf(layout, [])).toEqual([...layout.bar, ...layout.menu]);
+  });
+
+  it("道具列にある操作は外す", () => {
+    const ids = allActionsOf(defaultActionLayout(), ["reply", "like", "react"]);
+    expect(ids).not.toContain("reply");
+    expect(ids).not.toContain("like");
+    expect(ids).not.toContain("react");
+    expect(ids).toContain("zap");
   });
 });

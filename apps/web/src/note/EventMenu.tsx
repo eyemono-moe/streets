@@ -20,6 +20,7 @@ import { Portal } from "solid-js/web";
 import { actionLayout } from "../action-layout-setting";
 import { type EventActions, useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import { canHover } from "../can-hover";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { lazyPart } from "../lazy-part";
@@ -232,10 +233,10 @@ const EventMenu: Component<{
   /** この投稿にアクション欄があるか。無ければ、欄に入る操作はメニューにも出さない。 */
   withActions?: boolean;
   /**
-   * アクション欄の代わりにホバーで出す道具列を持つ画面（チャット）で、欄の操作も
-   * メニューに並べる。触る端末ではホバーできない。
+   * アクション欄の代わりにホバーで出す道具列を持つ画面（チャット）で、道具列にある操作。
+   * 渡すと欄の操作もメニューに並べ、カーソルを当てられる端末では道具列の分を外す。
    */
-  listAll?: boolean;
+  toolbar?: readonly EventActionId[];
   /** 返信を呼んだ側が書くとき、その開き方。渡さなければ kind:1 の返信ダイアログを開く。 */
   onReply?: () => void;
   /** 「このイベント」の項目の後ろに足す項目。 */
@@ -256,8 +257,8 @@ const EventMenu: Component<{
   const [picking, setPicking] = createSignal(false);
   let trigger: HTMLElement | undefined;
   const eventIds = () =>
-    props.listAll && actions !== undefined
-      ? allActionsOf(actionLayout())
+    props.toolbar && actions !== undefined
+      ? allActionsOf(actionLayout(), canHover() ? props.toolbar : [])
       : menuActionsOf(
           actionLayout(),
           props.withActions === true && actions !== undefined,

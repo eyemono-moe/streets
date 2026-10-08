@@ -148,12 +148,15 @@ export const menuActionsOf = (
     : [...layout.bar, ...layout.menu].filter((id) => EVENT_LEVEL.has(id));
 
 /**
- * 操作をすべてメニューに並べる。欄の操作もメニューに入れる。カーソルを当てられない
- * 端末で、欄の代わりに出す道具列がホバーでしか出ない画面に使う。
+ * アクション欄を持たず、ホバーで出す道具列を持つ画面（チャット）のメニュー。欄の操作も
+ * 設定の順に入れ、道具列にある操作（`toolbar`）だけを外す。道具列が出ない触る端末では、
+ * `toolbar` を空にして全部を入れる。
  */
 export const allActionsOf = (
   layout: ActionLayout,
-): readonly EventActionId[] => [...layout.bar, ...layout.menu];
+  toolbar: readonly EventActionId[],
+): readonly EventActionId[] =>
+  [...layout.bar, ...layout.menu].filter((id) => !toolbar.includes(id));
 
 /** 設定の画面で並べ替えている途中の状態。並び自体は `layout` に持つ。 */
 export type ActionArrangeState = {
