@@ -2,51 +2,42 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { SubscriptionManager } from "./subscription-manager";
 
-/** `fetchOnce` へ渡す 1 回ぶん。`relays` を省くと既定の行き先へ問い合わせる。 */
+/** 行き先が決まらないときは `relays` を省く。`[]` は「リレー 0 本」になり、どこへも送られない。 */
 export type FetchPlan = { filters: RelayFilter[]; relays?: RelayUrl[] };
 
 export type BatchedLookupConfig<Item> = {
   manager: SubscriptionManager;
   scheduler?: Scheduler;
-  /**
-   * 窓の長さ (ms)。`"immediate"` は窓を開かず、`enqueue` のたびに 1 件だけで
-   * 取りにいく (行き先やフィルタがキーごとに違い、束ねられないもの用)。
-   */
+  /** 行き先やフィルタがキーごとに違うもの（投票・フォロー一覧）は束ねられないので、窓を待たずに `"immediate"` で 1 件ずつ取る。 */
   windowMs: number | "immediate";
-  /** 重複排除と `isInflight` に使うキー。 */
   keyOf(item: Item): string;
-  /** 窓の中にたまったものを `fetchOnce` へ渡す形にする。キーの束ね方はここが決める。 */
   plan(items: Item[]): FetchPlan;
-  /** 取り終えて、listener を呼ぶ前に呼ぶ。`dispose()` 後は呼ばれない。 */
+  /** listener より先に呼ぶ。listener が読む「取った」印（`markReplaceableFetched` など）をここで付けるため。 */
   onFetched?(items: Item[]): void;
-  /** `fetchOnce` が失敗したとき。 */
   onFailed?(items: Item[]): void;
 };
 
 export type BatchedLookup<Item> = {
-  /** 窓へ足す。`dispose()` 後は何もせず `false`。 */
   enqueue(item: Item): boolean;
-  /** 取りにいっている最中のキーか。返事を待つ間の重ね要求を弾くのに使う。 */
   isInflight(key: string): boolean;
   readonly disposed: boolean;
-  /** 1 本片付くたびに listener を呼ぶ。どのキーかは知らせない。 */
+  /** どのキーが片付いたかは渡さない。読む側はどうせ store から引き直す。 */
   subscribe(listener: () => void): () => void;
-  /** 直近の 1 回の件数と観測史上の最大。NIP-11 の `max_message_length` に迫っていないか見る。 */
+  /** 1 回に束ねる件数が NIP-11 の `max_message_length` に迫っていないかを、Devtools で見るため。 */
   readonly lastBatchSize: number;
   readonly maxBatchSize: number;
   dispose(): void;
 };
 
 /**
- * 一度きりの取得のまとめ役の共通部分。キーをためる → 窓が閉じたらまとめて
- * `fetchOnce` → 取れたことを覚えて listener へ知らせる。キーの形・フィルタ・
- * 手元にあるかの判定・取り直しの方針は、呼ぶ側が持つ。
+ * 手元にあるかの判定と取り直しの間隔は、ここでは持たない。種類ごとに条件が違い
+ * （プロフィールは鮮度、反応の数は一度取ったら終わり、など）、ここへ寄せると
+ * 種類ごとの分岐が戻ってくる。
  */
 export const createBatchedLookup = <Item>(
   config: BatchedLookupConfig<Item>,
 ): BatchedLookup<Item> => {
   const scheduler = config.scheduler ?? defaultScheduler;
-  // 解決前に来た要求を今回の束へ混ぜず次の束へ回すため、flush のたびに作り直す。
   let pending = new Map<string, Item>();
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
   let disposed = false;
@@ -75,7 +66,6 @@ export const createBatchedLookup = <Item>(
       .then(
         () => {
           release();
-          // dispose() 後に解決した束は誰にも知らせない。
           if (disposed) return;
           config.onFetched?.(items);
           for (const listener of listeners) listener();

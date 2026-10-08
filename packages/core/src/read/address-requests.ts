@@ -114,7 +114,7 @@ export const createAddressRequests = (
         settled.add(key);
         return;
       }
-      // 取りにいっている最中なら重ねない。
+      // 返事を待つ間は `settled` にまだ入っていないので、ここで弾かないと同じ住所を何度も取りにいく。
       if (lookup.isInflight(key)) return;
       settled.delete(key);
       lookup.enqueue(address);
