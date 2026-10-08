@@ -108,6 +108,14 @@ const Field: Component<{ label: string; children: unknown }> = (props) => (
 /** 送る・登録するときの名前と、自分の絵文字に足すか。 */
 export type MakerSubmit = { shortcode: string; register: boolean };
 
+/** 作ったものをどうするか。リアクションとして送るか、本文に入れるか。 */
+export type MakerVerb = "send" | "insert";
+
+const SUBMIT_LABEL: Record<MakerVerb, { plain: string; register: string }> = {
+  send: { plain: "これで送る", register: "登録して送る" },
+  insert: { plain: "これで入れる", register: "登録して入れる" },
+};
+
 export const MakerEditor: Component<{
   initialText: string;
   initialStyle: Style;
@@ -123,6 +131,8 @@ export const MakerEditor: Component<{
    * 送るボタンと「自分の絵文字に登録する」を出さない。
    */
   onSend?: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  /** 送るボタンの言葉。既定は送る（リアクション）。 */
+  verb?: MakerVerb;
   /** 送らずに、自分の絵文字に足すだけ。 */
   onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onBack: () => void;
@@ -474,7 +484,9 @@ export const MakerEditor: Component<{
                   })
                 }
               >
-                {register() ? "登録して送る" : "これで送る"}
+                {register()
+                  ? SUBMIT_LABEL[props.verb ?? "send"].register
+                  : SUBMIT_LABEL[props.verb ?? "send"].plain}
               </Button>
             </>
           )}
@@ -531,6 +543,7 @@ const MakerDialog: Component<{
   sending?: boolean;
   existingShortcodes: readonly string[];
   onSend?: (spec: EmojiSpec, style: Style, submit: MakerSubmit) => void;
+  verb?: MakerVerb;
   onRegister: (spec: EmojiSpec, shortcode: string) => void;
   onClose: () => void;
 }> = (props) => (
@@ -550,6 +563,7 @@ const MakerDialog: Component<{
           sending={props.sending}
           existingShortcodes={props.existingShortcodes}
           onSend={props.onSend}
+          verb={props.verb}
           onRegister={props.onRegister}
           onBack={() => props.onClose()}
         />

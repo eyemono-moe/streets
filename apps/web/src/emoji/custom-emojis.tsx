@@ -33,6 +33,7 @@ import { notifyError, notifySaved } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import type { PickerGroup } from "./emoji-data";
 import { requestEmoji } from "./maker/api";
+import { recentEmojis, rememberEmoji } from "./recent-emoji";
 
 export type CustomEmojis = {
   /** ピッカーに出すかたまり。見出しは「自分の絵文字」とセットの名前。 */
@@ -99,6 +100,9 @@ export const CustomEmojisMediator: ParentComponent<{
     }
   };
 
+  /** 本文に入れるために作った絵文字。名前から画像の URL を引く。 */
+  const [made, setMade] = createSignal<Record<string, string>>({});
+
   const save = (next: EmojiList, mutation: Mutation) => {
     if (saving()) return;
     setSaving(true);
@@ -131,6 +135,16 @@ export const CustomEmojisMediator: ParentComponent<{
     switch (event.type) {
       case "emoji/add":
         addOne({ shortcode: event.shortcode, url: event.url });
+        return true;
+      case "emoji/prepare-made":
+        requestEmoji(event.spec).then(
+          (url) => {
+            setMade((current) => ({ ...current, [event.shortcode]: url }));
+            rememberEmoji({ kind: "custom", shortcode: event.shortcode, url });
+          },
+          (cause: unknown) =>
+            notifyError(cause, "カスタム絵文字を作れませんでした"),
+        );
         return true;
       case "emoji/add-made":
         requestEmoji(event.spec).then(
@@ -178,8 +192,19 @@ export const CustomEmojisMediator: ParentComponent<{
   };
 
   const catalog = createMemo(() => customEmojiGroups(list(), sets()));
+  /**
+   * 自分の絵文字リストやセットに無い名前は、その場で作った絵文字（この画面で作ったもの、
+   * よく使うに残っているもの）から引く。本文に入れて投稿したときに、画像の URL を付けるため。
+   * リストやセットの同じ名前を先に使う。
+   */
   const lookup: EmojiLookup = (shortcode) =>
-    findCustomEmoji(catalog(), shortcode)?.url;
+    findCustomEmoji(catalog(), shortcode)?.url ??
+    made()[shortcode] ??
+    recentEmojis().flatMap((emoji) =>
+      emoji.kind === "custom" && emoji.shortcode === shortcode
+        ? [emoji.url]
+        : [],
+    )[0];
 
   const groups = createMemo<PickerGroup[]>(() =>
     catalog().map((group) => ({

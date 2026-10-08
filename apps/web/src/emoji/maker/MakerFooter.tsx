@@ -35,6 +35,8 @@ export const pickerCandidates = (last: Style | undefined): MakerCandidate[] => {
 /** 候補 1 つ。投稿の下に並ぶのと同じ大きさ（高さ 18px・幅 48px まで）で見せる。 */
 const Candidate: Component<{
   text: string;
+  /** 押したときにすること。読み上げの言葉に使う。 */
+  action: string;
   candidate: MakerCandidate;
   disabled: boolean;
   onSend: (spec: EmojiSpec, style: Style) => void;
@@ -51,7 +53,7 @@ const Candidate: Component<{
     <button
       type="button"
       title={props.candidate.label}
-      aria-label={`${props.candidate.label}で「${props.text}」を送る`}
+      aria-label={`${props.candidate.label}で「${props.text}」を${props.action}`}
       disabled={props.disabled || !image()}
       class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-primary bg-primary px-1.5 enabled:hover:bg-secondary disabled:cursor-default"
       onClick={() => props.onSend(spec(), props.candidate.style)}
@@ -83,6 +85,8 @@ const MakerFooter: Component<{
   query: string;
   /** 送っている途中。続けて押させない。 */
   sending: boolean;
+  /** 押したときにすること。リアクションは「送る」、本文は「入れる」。既定は送る。 */
+  verb?: "send" | "insert";
   /** 最後に送った見た目。 */
   lastStyle: Style | undefined;
   onSend: (spec: EmojiSpec, style: Style) => void;
@@ -135,6 +139,7 @@ const MakerFooter: Component<{
                 <Candidate
                   text={text()}
                   candidate={candidate}
+                  action={props.verb === "insert" ? "入れる" : "送る"}
                   disabled={props.sending}
                   onSend={props.onSend}
                 />
