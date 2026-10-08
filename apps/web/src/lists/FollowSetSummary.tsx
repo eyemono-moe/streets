@@ -6,7 +6,7 @@ import {
 import { type Component, For, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import Name from "../note/Name";
-import FollowSetPicture from "./FollowSetPicture";
+import ListPicture from "./ListPicture";
 
 /** 「12 人・非公開 3 人」。非公開がいなければ人数だけ。 */
 export const memberCountLabel = (set: FollowSet): string => {
@@ -39,7 +39,7 @@ export const LegacyMuteNotice: Component = () => (
 );
 
 /** メンバーの顔を並べる数。どんな人の集まりかが分かれば足りる。 */
-const MEMBER_FACES = 6;
+export const MEMBER_FACES = 6;
 
 /**
  * リストの中身を 1 行で見せる。一覧の行と、流れてきたリストのカード（kind:30000）で
@@ -47,7 +47,7 @@ const MEMBER_FACES = 6;
  */
 const FollowSetSummary: Component<{ set: FollowSet }> = (props) => (
   <span class="flex w-full min-w-0 items-start gap-2.5">
-    <FollowSetPicture url={props.set.image} class="size-10 rounded-2" />
+    <ListPicture url={props.set.image} class="size-10 rounded-2" />
     <span class="flex min-w-0 flex-1 flex-col gap-0.5">
       <span class="c-primary truncate font-600 text-body">
         {followSetName(props.set)}

@@ -1,14 +1,24 @@
-import { readFollowSet } from "@streets/core/lists/follow-set";
+import {
+  followSetName,
+  mayBeLegacyMuteSet,
+  readFollowSet,
+} from "@streets/core/lists/follow-set";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { Component } from "solid-js";
+import { type Component, For, Show } from "solid-js";
+import Avatar from "../note/Avatar";
 import type { EventSize } from "../note/Event";
 import { useFollowSets } from "./FollowSetMediator";
-import FollowSetSummary from "./FollowSetSummary";
+import {
+  LegacyMuteNotice,
+  MEMBER_FACES,
+  memberCountLabel,
+} from "./FollowSetSummary";
+import ListRow from "./ListRow";
 
 /**
- * 流れてきたリスト（kind:30000）。リストの一覧の行と同じ形で出す。自分のリストは、
- * 一覧と同じく復号したものを使う —— 非公開のメンバーは持ち主にしか読めないので、
- * 流れてきたイベントのままでは非公開の人数が出ない。
+ * 流れてきたリスト（kind:30000）。自分のリストは、一覧と同じく復号したものを
+ * 使う —— 非公開のメンバーは持ち主にしか読めないので、流れてきたイベントの
+ * ままでは非公開の人数が出ない。
  */
 const FollowSetCard: Component<{ event: NostrEvent; size: EventSize }> = (
   props,
@@ -23,14 +33,26 @@ const FollowSetCard: Component<{ event: NostrEvent; size: EventSize }> = (
     return decoded ?? readFollowSet(props.event);
   };
   return (
-    // 引用の中（compact）は外側に枠があるので、枠を重ねない。
-    <div
-      classList={{
-        "rounded-2 border border-primary px-3 py-2.5": props.size === "normal",
-      }}
+    <ListRow
+      event={props.event}
+      size={props.size}
+      title={followSetName(set())}
+      image={set().image}
+      count={memberCountLabel(set())}
+      description={set().description}
     >
-      <FollowSetSummary set={set()} />
-    </div>
+      {/* 引用の中（compact）は読むためのもので、顔までは並べない。 */}
+      <Show when={props.size === "normal" && set().members.length > 0}>
+        <span class="flex items-center gap-1" aria-hidden="true">
+          <For each={set().members.slice(0, MEMBER_FACES)}>
+            {(member) => <Avatar pubkey={member.pubkey} size="tiny" static />}
+          </For>
+        </span>
+      </Show>
+      <Show when={mayBeLegacyMuteSet(set())}>
+        <LegacyMuteNotice />
+      </Show>
+    </ListRow>
   );
 };
 

@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "../ui/Dialog";
 import TextField from "../ui/TextField";
-import FollowSetPicture from "./FollowSetPicture";
+import ListPicture from "./ListPicture";
 
 /**
  * リストを作る・直すダイアログ。状態は裁定する段（FollowSetMediator）が持つ。
@@ -86,7 +86,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
                     label="画像"
                     aspectRatio={1}
                     preview={(url) => (
-                      <FollowSetPicture url={url} class="size-9 rounded-2" />
+                      <ListPicture url={url} class="size-9 rounded-2" />
                     )}
                     value={form().draft.image}
                     disabled={form().phase === "saving"}
