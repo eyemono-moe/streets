@@ -8,7 +8,6 @@ import {
 import type { ReadRouting } from "./read-routing";
 import { selectRelays } from "./relay-selector";
 
-/** 1 セクション分の読み取り要求。 */
 export type ReadRequest = {
   readonly id: number;
   readonly filters: readonly RelayFilter[];
@@ -18,24 +17,19 @@ export type ReadRequest = {
   readonly extraRelays: readonly RelayUrl[];
 };
 
-/** 行き先決めが読む、その時点の外の状態。 */
 export type ReadEnvironment = {
   routing: ReadRouting;
   /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけ。 */
   defaultRelays: readonly RelayUrl[];
   writeRelaysFor: (author: string) => readonly RelayUrl[];
-  /** 同時に開く接続の上限。 */
   budget: number;
-  /** 1 著者あたり何本のリレーから取るか。 */
   redundancy: number;
   /** いま開いているリレー。同点のときに優先して張り直しを減らす。 */
   openRelays: readonly RelayUrl[];
   degraded: readonly RelayUrl[];
-  /** ユーザーが繋がないと決めたリレー。 */
   blocked: readonly RelayUrl[];
-  /** `blocked` に加えて、許していないローカルネットワークのリレーも真。 */
+  /** `blocked` の配列では足りない。許していないローカルネットワークのリレーは、配列に入らない。 */
   isBlocked: (url: RelayUrl) => boolean;
-  /** 他人のローカルネットワークのリレー。 */
   isLocalRefused: (url: RelayUrl) => boolean;
 };
 
