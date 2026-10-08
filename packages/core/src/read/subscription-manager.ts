@@ -21,20 +21,14 @@ import {
 import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
 import type { OlderPage, OlderPageRelay } from "./older-page";
-import { planQuery } from "./query-plan";
-import {
-  EMPTY_READ_PLAN,
-  type ReadPlan,
-  type SectionPlanInput,
-  readPlanEqual,
-  summarizeReadPlan,
-} from "./read-plan";
+import { EMPTY_READ_PLAN, type ReadPlan, readPlanEqual } from "./read-plan";
+import { planReads } from "./read-planner";
 import {
   OUTBOX_ROUTING,
   type ReadRouting,
   sameReadRouting,
 } from "./read-routing";
-import { orderAuthorRelays, selectRelays } from "./relay-selector";
+import { orderAuthorRelays } from "./relay-selector";
 import type { RoutingTable } from "./routing-table";
 
 /** セクションが今どのリレーを待っているかのスナップショット。張り直し後も同じ形で運ばれる。 */
@@ -747,154 +741,53 @@ export class SubscriptionManager {
   }
 
   /**
-   * 登録済み全エントリの需要を 1 つにプールし、選択・割り当て・張り直しを
-   * 1 回だけ行う (手順は各ステップのコメント参照)。`#entries` のスナップ
-   * ショットを先頭で 1 回だけ取る —— ライブな Map を反復すると、差分適用
+   * 行き先は `planReads` に任せ、ここでは差分適用と通知だけを行う。`#entries` の
+   * スナップショットを先頭で 1 回だけ取る —— ライブな Map を反復すると、差分適用
    * が引き起こす同期コールバックで新規登録されたエントリまで、この巡の
-   * stale な selection で処理してしまう。
+   * stale な計画で処理してしまう。
    */
   #replanOnce(): void {
-    const direct = this.#readRouting.mode === "direct";
-    // 待つリレーの母集合からも外す。開けないリレーを待つと、完了しないまま残る。
-    const fallbackRelays = this.#defaultRelays().filter(
-      (url) => !this.#pool.isBlocked(url),
-    );
-    const budget = this.#options.maxConnections ?? MAX_CONNECTIONS;
-    const redundancy = this.#options.redundancy ?? RELAY_REDUNDANCY;
-
     const entries = [...this.#entries.values()];
-
-    // 1. 大域の需要。複数のフィルタに同じ著者がいても 1 回だけ引く。
-    // direct では需要を作らない —— 全著者が `fallbackRelays`（= direct のリレー）へ行く。
-    const demand = new Map<string, readonly RelayUrl[]>();
-    const seenAuthors = new Set<string>();
+    // 差分適用で状態が変わるので、開いているリレーは計画の前に読む。
+    const openRelays = new Set<RelayUrl>();
     for (const entry of entries) {
-      if (direct) break;
-      if (entry.explicitRelays !== undefined) continue; // バイパス経路は需要に入らない
-      for (const filter of entry.filters) {
-        for (const author of filter.authors ?? []) {
-          if (seenAuthors.has(author)) continue;
-          seenAuthors.add(author);
-          // 他人の localhost は数えない。それしか無い著者は、行き先の分からない著者として扱う。
-          const declared = this.#options.routing
-            .writeRelaysFor(author)
-            .filter((url) => !this.#pool.isLocalRefused(url));
-          if (declared.length > 0) demand.set(author, declared);
-        }
-      }
+      for (const url of entry.opened.keys()) openRelays.add(url);
     }
 
-    // 2. pinned。明示指定を先に確保してから fallback を足す —— budget が
-    // 小さいとき fallback が明示指定を押し出さないため。
-    const pinnedSet = new Set<RelayUrl>();
-    for (const entry of entries) {
-      for (const url of entry.explicitRelays ?? entry.extraRelays) {
-        pinnedSet.add(url);
-      }
-    }
-    for (const url of fallbackRelays) pinnedSet.add(url);
-    const pinned = [...pinnedSet];
-
-    // 粘着性のため選び直し前に集める —— 差分適用で状態が変わるので選択前に読む。
-    const currentSet = new Set<RelayUrl>();
-    for (const entry of entries) {
-      for (const url of entry.opened.keys()) currentSet.add(url);
-    }
-    const current = [...currentSet];
-
-    // 3. 大域で 1 回だけ選ぶ。degraded は pool から直接読む (専用の seam は足さない)。
-    const selection = selectRelays({
-      demand,
-      pinned,
-      current,
-      budget,
-      redundancy,
+    const { routes, assignment, readPlan } = planReads(entries, {
+      routing: this.#readRouting,
+      defaultRelays: this.#defaultRelays(),
+      writeRelaysFor: (author) => this.#options.routing.writeRelaysFor(author),
+      budget: this.#options.maxConnections ?? MAX_CONNECTIONS,
+      redundancy: this.#options.redundancy ?? RELAY_REDUNDANCY,
+      openRelays: [...openRelays],
       degraded: this.#pool.degradedRelays,
-      preferred:
-        this.#readRouting.mode === "outbox"
-          ? this.#readRouting.preferred
-          : undefined,
-      blocked: [
-        ...this.#pool.blockedRelays,
-        ...pinned.filter((url) => this.#pool.isLocalRefused(url)),
-      ],
+      blocked: this.#pool.blockedRelays,
+      isBlocked: (url) => this.#pool.isBlocked(url),
+      isLocalRefused: (url) => this.#pool.isLocalRefused(url),
     });
+    this.#lastAssignment = assignment;
 
-    this.#lastAssignment = selection.assignment;
-
-    // 4-6. エントリごとに割り当て、差分適用し、変わったものだけ通知する
-    const planInputs: SectionPlanInput[] = [];
-    for (const entry of entries) {
+    entries.forEach((entry, index) => {
       // スナップショット後に close() されたエントリは触らない (#close() 済み)。
-      if (entry.closed) continue;
-
-      let perRelay: Map<RelayUrl, RelayFilter[]>;
-      let unroutable: readonly string[] = [];
-      let uncovered: readonly string[] = [];
-
-      if (entry.explicitRelays !== undefined) {
-        // 明示リレーは選択を経由しない —— ユーザーが名指ししたリレーを
-        // 予算都合で落とさないため。
-        perRelay = new Map();
-        for (const url of entry.explicitRelays) {
-          if (this.#pool.isBlocked(url)) continue;
-          // 配列を共有すると一方への変更が他方に漏れるので、リレーごとに分ける。
-          perRelay.set(url, [...entry.filters]);
-        }
-      } else {
-        const assignment = new Map<string, readonly RelayUrl[]>();
-        for (const filter of entry.filters) {
-          for (const author of filter.authors ?? []) {
-            if (assignment.has(author)) continue;
-            const assigned = selection.assignment.get(author);
-            // demand に無い著者は selection.assignment にも無く、
-            // planQuery 側で unroutableAuthors に回る。
-            if (assigned !== undefined) assignment.set(author, assigned);
-          }
-        }
-        const plan = planQuery({
-          filters: entry.filters,
-          assignment,
-          fallbackRelays,
-        });
-        perRelay = plan.perRelay;
-        // 足したリレーには、著者で分けずにフィルタをそのまま送る。そこにあると
-        // 分かっているものを、Outbox の割り当てに関係なく取るため。
-        for (const url of entry.extraRelays) {
-          if (this.#pool.isBlocked(url)) continue;
-          perRelay.set(url, [...entry.filters]);
-        }
-        // direct では fallback 行きが本来の行き先なので、欠落として数えない。
-        unroutable = direct ? [] : plan.unroutableAuthors;
-        uncovered = plan.uncoveredAuthors;
-      }
-      planInputs.push({
-        explicit: entry.explicitRelays !== undefined,
-        perRelay,
-        unroutableAuthors: unroutable,
-        uncoveredAuthors: uncovered,
-      });
+      if (entry.closed) return;
+      const { perRelay, unroutableAuthors, uncoveredAuthors } = routes[index];
 
       const suppressCallback = entry.pendingInitialDelivery;
       this.#applyEntryDiff(entry, perRelay);
 
       const newPlan: SectionPlan = {
         relays: [...perRelay.keys()],
-        unroutableAuthors: unroutable.length,
-        uncoveredAuthors: uncovered.length,
+        unroutableAuthors: unroutableAuthors.length,
+        uncoveredAuthors: uncoveredAuthors.length,
       };
       const changed = !suppressCallback && !planEqual(entry.plan, newPlan);
       entry.plan = newPlan;
       // suppressCallback は handle 未返却の間だけ真 —— 再入で遅延された
       // 巡はもう返却済みなので、ここで正しく通知される。
       if (changed) this.#deliver(() => entry.delivery.onPlanChanged(newPlan));
-    }
-
-    const readPlan = summarizeReadPlan({
-      mode: this.#readRouting.mode,
-      fallbackRelays,
-      sections: planInputs,
     });
+
     if (!readPlanEqual(this.#readPlan, readPlan)) {
       this.#readPlan = readPlan;
       for (const listener of this.#readPlanListeners) {

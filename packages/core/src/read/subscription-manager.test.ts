@@ -330,24 +330,6 @@ describe("SubscriptionManager", () => {
     ]);
   });
 
-  // The explicit-relays branch handed the very same `filters` array instance
-  // to every relay via perRelay.set(url, filters). The routed path
-  // (query-plan.ts) shallow-copies per relay specifically to prevent this
-  // kind of cross-relay aliasing; the bypass path had reintroduced the
-  // hazard fixed one layer down.
-  it("gives each explicitly named relay its own filters array, not a shared reference", () => {
-    const { relays, manager, delivery } = setup();
-    const filters = [{ kinds: [1] }];
-
-    manager.subscribe(filters, ["wss://one/", "wss://two/"], delivery());
-
-    const filtersOne = relays.get("wss://one/")?.subscriptions[0].filters;
-    const filtersTwo = relays.get("wss://two/")?.subscriptions[0].filters;
-    expect(filtersOne).toEqual(filters);
-    expect(filtersTwo).toEqual(filters);
-    expect(filtersOne).not.toBe(filtersTwo);
-  });
-
   it("normalizes explicitly given relay urls", () => {
     const { relays, manager, delivery } = setup();
     manager.subscribe([{ kinds: [1] }], ["wss://given"], delivery());
@@ -415,15 +397,6 @@ describe("SubscriptionManager", () => {
     expect(relays.get("wss://search/")?.subscriptions[0].filters).toEqual(
       filters,
     );
-  });
-
-  it("明示したリレーがあるときは、足したリレーを使わない", () => {
-    const { relays, manager, delivery } = setup();
-    manager.subscribe([{ kinds: [1] }], ["wss://given/"], delivery(), [
-      "wss://extra/",
-    ]);
-    // 捕まえる変異: 明示リレーの「そこだけ」を破って、足したリレーにも送る
-    expect(relays.has("wss://extra/")).toBe(false);
   });
 
   it("falls back and reports authors it cannot route", () => {
@@ -886,15 +859,6 @@ describe("SubscriptionManager", () => {
     manager.replan();
 
     expect(connectCalls.length).toBe(before);
-  });
-
-  it("reports authors dropped by the budget as uncovered", () => {
-    const { manager, store } = createManager({ maxConnections: 1 });
-    const authors = authorsWithRelays(store, 100, 105);
-
-    const { plans } = subscribeWithPlans(manager, [{ kinds: [1], authors }]);
-
-    expect(plans.at(-1)?.uncoveredAuthors).toBeGreaterThan(0);
   });
 
   // Explicit relays bypass author routing, but not the connection budget --
