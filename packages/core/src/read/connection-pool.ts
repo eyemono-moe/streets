@@ -10,13 +10,10 @@ import { MAX_CONNECTIONS } from "./default-relays";
 import {
   type ReconnectReason,
   RelaySession,
-  type Scheduler,
   type SessionHold,
   type SessionSubscription,
-  defaultScheduler,
 } from "./relay-session";
-
-export { type Scheduler, defaultScheduler };
+import { type Scheduler, defaultScheduler } from "./scheduler";
 
 export type PooledSubscription = SessionSubscription;
 

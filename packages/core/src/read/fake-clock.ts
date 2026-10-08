@@ -1,4 +1,4 @@
-import type { Scheduler } from "./connection-pool";
+import type { Scheduler } from "./scheduler";
 
 export type FakeClock = Scheduler & {
   advance(ms: number): void;

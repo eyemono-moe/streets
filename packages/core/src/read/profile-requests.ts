@@ -1,8 +1,8 @@
 import type { RequestOptions } from "./address-requests";
 import { createBatchedFetch } from "./batched-fetch";
 import { isStale, policyFor } from "./cache-policy";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import type { SubscriptionManager } from "./subscription-manager";
 
 const PROFILE_KIND = 0;

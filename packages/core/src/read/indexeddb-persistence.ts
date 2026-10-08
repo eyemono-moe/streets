@@ -1,7 +1,7 @@
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import { type CachePolicy, persistableScope, policyFor } from "./cache-policy";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import { compareEvents } from "./sorted-events";
 
 const DB_NAME = "streets.v1";

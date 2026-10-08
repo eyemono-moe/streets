@@ -13,9 +13,13 @@ export default defineConfig({
   },
   lint: {
     plugins: ["eslint", "typescript", "unicorn", "oxc", "import", "jsx-a11y"],
-    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    jsPlugins: [
+      { name: "vite-plus", specifier: "vite-plus/oxlint-plugin" },
+      { name: "streets", specifier: "./scripts/read-layers.mjs" },
+    ],
     rules: {
       "vite-plus/prefer-vite-plus-imports": "error",
+      "streets/read-layers": "error",
       // Solid の `ref={el}` は代入の形に見えない。
       "no-unassigned-vars": "off",
       // 回しながら元を書き換える（購読を外す・消す）ので、先に写し取っている。

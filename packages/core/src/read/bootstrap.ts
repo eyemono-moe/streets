@@ -5,11 +5,10 @@ import {
   type ConnectionPool,
   type PooledHold,
   type PooledSubscription,
-  type Scheduler,
-  defaultScheduler,
 } from "./connection-pool";
 import { BOOTSTRAP_INDEXERS } from "./default-relays";
 import type { EventStore } from "./event-store";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 
 const FOLLOW_LIST_KIND = 3;
 const RELAY_LIST_KIND = 10002;

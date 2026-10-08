@@ -10,8 +10,6 @@ import {
   ConnectionPool,
   type ConnectionPoolOptions,
   type PooledSubscription,
-  type Scheduler,
-  defaultScheduler,
 } from "./connection-pool";
 import {
   FALLBACK_RELAYS,
@@ -30,6 +28,7 @@ import {
 } from "./read-routing";
 import { orderAuthorRelays } from "./relay-selector";
 import type { RoutingTable } from "./routing-table";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 
 /** セクションが今どのリレーを待っているかのスナップショット。張り直し後も同じ形で運ばれる。 */
 export type SectionPlan = {

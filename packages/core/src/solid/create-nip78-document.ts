@@ -7,8 +7,8 @@ import {
 } from "solid-js";
 import * as v from "valibot";
 import type { NostrEvent } from "../nostr/event";
-import type { Scheduler } from "../read/connection-pool";
-import { defaultScheduler } from "../read/connection-pool";
+import type { Scheduler } from "../read/scheduler";
+import { defaultScheduler } from "../read/scheduler";
 import { Nip44UnavailableError, type Signer } from "../signer/signer";
 import type { WriteResult, Writer } from "../write/writer";
 import { isRemoteChange } from "./nip78-conflict";
