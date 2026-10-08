@@ -286,7 +286,7 @@ const DisplaySettings: Component<{
           onReset={() =>
             dispatch({ type: "deck/set-chat-order", order: initialChatOrder })
           }
-          description="パブリックチャットのカラムで、新しい発言を一番下に足していくか、一番上に足していくかを選びます。「新しい発言を上に」では、書き込む欄もカラムの上に置きます。"
+          description="パブリックチャットのカラムで、新しい発言を一番下に表示するか、一番上に表示するかを選びます。「新しい発言を上に」では、メッセージ送信欄も上に表示します。"
         >
           <SegmentedControl
             label="チャットの並び順"
