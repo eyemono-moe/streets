@@ -315,8 +315,11 @@
   {
     "nip": "51",
     "status": "一部",
-    "summary": "ミュート・ブックマーク・ピン留め・フォローセットなどのリスト",
-    "kinds": [10000, 10001, 10003, 10005, 10006, 10007, 10030, 30000],
+    "summary": "ミュート・ブックマーク・ピン留め・フォローセットなどのリスト。流れてきたリレーセット・ブックマークセット・まとめ・好きな話題・スターターパックを表示し、リレーセットのリレーを自分のリレーに足せる",
+    "kinds": [
+      10000, 10001, 10003, 10005, 10006, 10007, 10030, 30000, 30002, 30003,
+      30004, 30005, 30006, 30015, 39089, 39092
+    ],
     "tags": ["d", "e", "p", "a", "t", "relay"],
     "paths": [
       "packages/core/src/nostr/private-tags.ts",
@@ -324,9 +327,11 @@
       "packages/core/src/nostr/pinned-notes.ts",
       "packages/core/src/settings/blocked-relay-list.ts",
       "packages/core/src/lists/follow-set.ts",
-      "apps/web/src/lists/FollowSetSummary.tsx"
+      "apps/web/src/lists/FollowSetSummary.tsx",
+      "packages/core/src/lists/list-set.ts",
+      "apps/web/src/lists/ListSetCard.tsx"
     ],
-    "gap": "NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない"
+    "gap": "NIP-51 のリストをすべて扱うわけではない。ピン留めは並べ替えられない。流れてきたリスト（リレーセット・ブックマークセットなど）は表示だけで、Streets では作れない。公開の中身だけを数える"
   },
   {
     "nip": "57",

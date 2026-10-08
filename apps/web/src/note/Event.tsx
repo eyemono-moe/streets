@@ -22,6 +22,7 @@ import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
+import ListSetCard from "../lists/ListSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
@@ -394,6 +395,14 @@ const EVENT_VIEWS: { [K in RenderedKind]: EventView } = {
   30000: { layout: "framed", View: FollowSetCard },
   30023: { layout: "framed", View: Article },
   30030: { layout: "framed", View: EmojiSetCard },
+  30002: { layout: "framed", View: ListSetCard },
+  30003: { layout: "framed", View: ListSetCard },
+  30004: { layout: "framed", View: ListSetCard },
+  30005: { layout: "framed", View: ListSetCard },
+  30006: { layout: "framed", View: ListSetCard },
+  30015: { layout: "framed", View: ListSetCard },
+  39089: { layout: "framed", View: ListSetCard },
+  39092: { layout: "framed", View: ListSetCard },
 };
 
 const viewFor = (kind: number, layout: EventView["layout"]) => {
