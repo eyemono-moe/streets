@@ -11,9 +11,10 @@ import type {
   RelayUrl,
 } from "../relay/relay-connection";
 import { warmUpRouting } from "./bootstrap";
-import { ConnectionPool, IDLE_LINGER_MS } from "./connection-pool";
+import { ConnectionPool } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { type FakeClock, createFakeClock } from "./fake-clock";
+import { IDLE_LINGER_MS } from "./relay-session";
 import { RoutingTable } from "./routing-table";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;

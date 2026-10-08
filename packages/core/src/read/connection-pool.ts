@@ -2,135 +2,45 @@ import type { NostrEvent } from "../nostr/event";
 import type {
   RelayConnection,
   RelayFilter,
-  RelaySubscription,
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
 import { isLocalNetworkRelay } from "../relay/relay-url";
 import { MAX_CONNECTIONS } from "./default-relays";
+import {
+  type ReconnectReason,
+  RelaySession,
+  type Scheduler,
+  type SessionHold,
+  type SessionSubscription,
+  defaultScheduler,
+} from "./relay-session";
 
-export type PooledSubscription = { close(): void };
+export { type Scheduler, defaultScheduler };
+
+export type PooledSubscription = SessionSubscription;
+
+export type PooledHold = SessionHold;
 
 /**
- * `hold()` が返すハンドル。`PooledSubscription` と違い `subscription` を
- * 一切持たない — hold は REQ を出さない (`hold()` のコメント参照)。
- */
-export type PooledHold = { release(): void };
-
-/**
- * `reserved: true` は接続数の予算チェックを丸ごと迂回する唯一の脱出口。ブートストラップ
- * 専用 —— 迂回できないとルーティング表構築自体が循環するため。
- *
- * `once: true` は EOSE で終わる一度きりの取得。リレーごとの同時購読の枠が埋まって
- * いるとき、流し続ける購読より後ろに並び、EOSE を受けるとプールが REQ を閉じて枠を返す。
- * `reserved`（接続数の迂回）とは無関係で、購読の枠は `reserved` でも迂回できない。
+ * `reserved` はブートストラップ専用の予算の迂回。迂回できないとルーティング表構築自体が
+ * 循環する。購読の枠（`once` の順番待ち）は `reserved` でも迂回できない。
  */
 export type SubscribeOptions = { reserved?: boolean; once?: boolean };
 
-/** コールバックで書き換わりうる状態を、型の絞り込みを通さずに読む。 */
-const isDone = (entry: { state: string }): boolean => entry.state === "done";
-
-/**
- * NIP-11 で上限が分からないリレーの同時購読の枠。他のクライアントの既定でもあり、
- * strfry の既定 (20) とも合う。NIP-11 を取って上限が書いていないと分かったリレーだけが枠なしになる。
- */
-export const DEFAULT_MAX_SUBSCRIPTIONS = 20;
-
-/**
- * 同じ購読が NOTICE で戻された回数の上限。超えたら送り直さず、欠けとして伝える。
- * 枠が空くまで待たせるので通常は届かないが、リレーの数え方が食い違い続けたときに、
- * 保存済みのイベントを往復ごとに受け直さないための歯止め。
- */
-export const MAX_NOTICE_REFUSALS = 3;
-
-/** 接続が死んだときに全購読へ配る理由。枠の学習の対象にはしない。 */
-const SOCKET_CLOSED = "socket closed";
-
-/** リレーが同時購読の上限で REQ を断るときの文面（strfry は NOTICE、CLOSED で返すものもある）。 */
-const isSubscriptionLimitMessage = (message: string): boolean =>
-  message.toLowerCase().includes("too many concurrent");
-
-/**
- * 再接続タイマーの注入口。ハンドル型を `typeof setTimeout` の戻り値にして
- * いるのは、DOM lib (`number`) でも Node lib (`NodeJS.Timeout`) でも通すため。
- */
-export type Scheduler = {
-  setTimeout: (
-    callback: () => void,
-    delayMs: number,
-  ) => ReturnType<typeof setTimeout>;
-  clearTimeout: (handle: ReturnType<typeof setTimeout>) => void;
-  /**
-   * 現在時刻 (ミリ秒エポック)。鮮度判定は分岐に使うので、タイマーと同じく
-   * 注入できなければテストが時間を決められない。
-   */
-  now: () => number;
-};
-
-/** 「注入されなければ実タイマー」という規約の既定値。 */
-export const defaultScheduler: Scheduler = {
-  setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
-  clearTimeout: (handle) => clearTimeout(handle),
-  now: () => Date.now(),
-};
-
-/**
- * 最後の購読が閉じた接続を、閉じずに残しておく時間。一度きりの取得（プロフィール、
- * 反応の数など）のたびに開閉すると TLS と NIP-42 認証をやり直すことになる。
- * リレーは購読 1 本で 4 分置いても切らないので、短い猶予で十分に繋ぎ直しを減らせる。
- */
-export const IDLE_LINGER_MS = 30_000;
-
-const RECONNECT_BASE_MS = 1_000;
-/** 指数バックオフの上限。ここで頭打ちにしても諦めずに回し続ける。 */
-const RECONNECT_MAX_MS = 60_000;
-
-/**
- * この回数だけ連続で開けなかった URL を degraded とみなす。指数バックオフ
- * の下で 4 回はおよそ 15 秒ぶんの試行にあたる。
- */
+/** 指数バックオフの下で 4 回はおよそ 15 秒ぶんの試行にあたる。 */
 export const DEGRADED_AFTER_FAILURES = 4;
 
-/**
- * 最後の失敗からこれだけ経てば失敗履歴を捨て、候補に戻す。degraded な URL
- * は購読者が居ないと再接続も止まるため、この経路が無いと永久に除外される。
- */
+/** degraded な URL は購読者が居ないと再接続も止まるため、この経路が無いと永久に除外される。 */
 export const DEGRADED_COOLDOWN_MS = 300_000;
-
-/**
- * `count` はどちらの理由でも増えるが、`hard` (degraded 判定) は `"relay"`
- * のときだけ増える。予算超過のバウンスを混ぜると健全なリレーまで degraded 判定される。
- */
-type ReconnectReason = "relay" | "budget";
-
-/**
- * NIP-01 は OK 送信を義務づけるが、レート制限時に黙って捨てる relay が
- * 実在し、`publish()` は OK かソケット死亡でしか settle しないため必要。
- */
-export const PUBLISH_TIMEOUT_MS = 10_000;
-
-/**
- * `publish()` が予算の参照カウントに相乗りするための一時 `Entry` 用ハンドラ。
- * REQ を送らないので呼ばれず、`#reconnect()` の引き直しの失敗も黙って吸収する。
- */
-const PUBLISH_ONLY_HANDLERS: RelaySubscriptionHandlers = {
-  onEvent: () => {},
-  onEose: () => {},
-  onClosed: () => {},
-};
 
 export type ConnectionPoolOptions = {
   connect: (url: RelayUrl) => RelayConnection;
-  /** アプリ全体で同時に開く接続の上限。既定は MAX_CONNECTIONS */
   maxConnections?: number;
-  /** 再接続タイマーの注入口 (テスト用)。既定は実タイマー。 */
+  /** テスト用。 */
   scheduler?: Scheduler;
-  /** ジッタの注入口 (テスト用)。既定は Math.random。 */
   random?: () => number;
-  /**
-   * ローカルネットワークのリレーへ、`allowLocalRelays()` で許したもの以外も繋ぐか。
-   * ページ自体が手元で開かれていればブラウザは許可を求めないので、そのときだけ真にする。
-   */
+  /** ページ自体が手元で開かれていればブラウザは許可を求めないので、そのときだけ真にする。 */
   allowLocalNetwork?: boolean;
   /**
    * そのリレーが同時に受け付ける購読の数（NIP-11 の `max_subscriptions`）。数は書いて
@@ -139,127 +49,37 @@ export type ConnectionPoolOptions = {
    * 呼ぶたびに引くので、取得済みの値を返す軽いものにする。この関数を渡さないプールは枠を持たない。
    */
   maxSubscriptions?: (url: RelayUrl) => number | null | undefined;
-  /** 同時購読の枠が埋まっていて、REQ を送らず待たせた。Devtools で数えるため。 */
   onQueued?: (url: RelayUrl) => void;
 };
 
 export type RelayStatus = "in-use" | "failing" | "idle";
 
-/** 1 本の `subscribe()` 呼び出しに対応する登録。 */
-type Entry = {
-  filters: RelayFilter[];
-  handlers: RelaySubscriptionHandlers;
-  subscription: RelaySubscription | null;
-  /** EOSE で終わる一度きりの取得か。 */
-  once: boolean;
-  /**
-   * `queued` は REQ を送る順番待ち（枠が無い・接続が無い）、`sent` は送って枠を
-   * 使っている、`closed` はリレーが CLOSED を返した、`done` は一度きりの取得が
-   * EOSE で終わった（publish 用の仮の記録も `done`）。数えるのは `sent` だけ。
-   */
-  state: "queued" | "sent" | "closed" | "done";
-  /** 送った順。NOTICE で断られた REQ を、最後に送ったものとして探すため。 */
-  sentSeq: number;
-  /** 待たせたことを数え済みか。 */
-  waited: boolean;
-  /**
-   * NOTICE で戻されて、枠が実際に空くまで送らない印。すぐ送り直すと、リレーの数え方と
-   * 食い違うとき保存済みのイベントを往復ごとに受け直すことになる。
-   */
-  parked: boolean;
-  /** NOTICE で戻された回数。 */
-  refusals: number;
-};
-
-/**
- * 1 つの URL に対するプールの状態。`connection` が `null` でもエントリは
- * この URL を諦めていないので `#pool` からは消さず、再接続の対象として残す。
- */
-type Pooled = {
-  connection: RelayConnection | null;
-  entries: Set<Entry>;
-  /** 接続の死亡通知の購読解除。`connection` が非 null の間だけ非 null。 */
-  offClose: (() => void) | null;
-  /**
-   * ソケットが実際に開いた通知の購読解除 (`offClose` と同じ規約)。`connect()`
-   * が返っただけでは証拠にならないので、`#failures` を消すのはこの発火時だけ。
-   */
-  offOpen: (() => void) | null;
-  /**
-   * 保留中の再接続タイマー。接続済み、または待つエントリが無い間は必ず
-   * `null` — 残ったままだと誰も待っていないリレーへ再接続し続ける。
-   */
-  timer: ReturnType<Scheduler["setTimeout"]> | null;
-  /**
-   * この URL が `{ reserved: true }` で少なくとも 1 回要求されたか。`selectRelays`
-   * の `pinned` とは別物 —— こちらは予算チェックそのものを迂回する側。
-   */
-  reserved: boolean;
-  /**
-   * `hold()` が保持している数。`entries` とは独立したカウンタで、
-   * `entries` が 0 になっても `holds` が残っていれば接続は落とさない。
-   */
-  holds: number;
-  /**
-   * entries も holds も 0 になって、猶予の間だけ開いている間は非 null。
-   * `since` は枠が足りないときに古い順で閉じるための記録。
-   */
-  /**
-   * この接続で最後に EOSE を受けた購読。strfry は上限を超えた REQ にも保存済みの
-   * イベントと EOSE を返したあとで NOTICE を返すので、NOTICE の対象はこれ。
-   */
-  lastEosed: Entry | null;
-  linger: { timer: ReturnType<Scheduler["setTimeout"]>; since: number } | null;
-};
-
-/**
- * すべてのリレー接続を所有し、接続予算を実際に強制する唯一の場所。どの
- * 経路であっても、ここを通ることで初めて予算が効く。
- */
+/** どの経路も窓口の確保をここで通さないと、予算を迂回する経路が残る。 */
 export class ConnectionPool {
   readonly #options: ConnectionPoolOptions;
-  readonly #pool = new Map<RelayUrl, Pooled>();
+  readonly #pool = new Map<RelayUrl, RelaySession>();
   readonly #maxConnections: number;
   readonly #scheduler: Scheduler;
   readonly #random: () => number;
-  /**
-   * `size` は生きている接続しか数えず、予算超過の接続が死んだ後に読むと
-   * 予算内に見えてしまうので、ソケットを作った瞬間の値を単調増加で記録する。
-   */
+  /** `size` は死んだ接続を数えず、予算超過が後から見えなくなるので、作った瞬間の最大値を記録する。 */
   #peakSize = 0;
-  #sendSeq = 0;
 
-  /**
-   * NOTICE / CLOSED で上限に断られて学んだ、リレーごとの同時購読の数。NIP-11 の値
-   * より厳しいときだけ効き、繋ぎ直しても忘れない。
-   */
+  /** 窓口は猶予が切れると消えるが、学んだ枠は繋ぎ直しても忘れないよう窓口の外で持つ。 */
   readonly #learnedLimits = new Map<RelayUrl, number>();
 
-  /**
-   * URL → 失敗の記録と冷却タイマー。プールが持つのは `#drop` でエントリが
-   * 消えても失われないため (`count`/`hard` の意味は `ReconnectReason` 参照)。
-   */
+  /** 窓口が消えても失敗の記録は残したいので、プールが持つ。 */
   readonly #failures = new Map<
     RelayUrl,
     { count: number; hard: number; timer: ReturnType<Scheduler["setTimeout"]> }
   >();
 
-  /**
-   * `replan()` を呼ぶのは `subscribe()` と `handle.close()` だけなので、
-   * これが無いと接続が死んで degraded が積み上がっても再選択が起きない。
-   */
+  /** `replan()` を呼ぶのは `subscribe()` と `handle.close()` だけなので、無いと degraded が積み上がっても再選択が起きない。 */
   readonly #degradedListeners = new Set<(url: RelayUrl) => void>();
 
-  /**
-   * ユーザーが繋がないと決めたリレー（kind:10006）。返信相手のリレーや投稿に
-   * 付いたヒントなど、選定を通らない経路もあるので、ソケットを作るここで止める。
-   */
+  /** 返信相手のリレーや投稿のヒントなど選定を通らない経路があるので、ソケットを作るここで止める。 */
   readonly #blocked = new Set<RelayUrl>();
 
-  /**
-   * 繋いでよいローカルネットワークのリレーと、許している呼び出し元の数。他人の
-   * relay list にある localhost はその人の手元を指すので、自分で指定したものだけを許す。
-   */
+  /** 他人の relay list にある localhost はその人の手元を指すので、自分で指定したものだけを許す。 */
   readonly #localAllowed = new Map<RelayUrl, number>();
 
   constructor(options: ConnectionPoolOptions) {
@@ -271,33 +91,26 @@ export class ConnectionPool {
 
   get size(): number {
     let open = 0;
-    for (const pooled of this.#pool.values()) {
-      if (pooled.connection) open += 1;
+    for (const session of this.#pool.values()) {
+      if (session.hasConnection) open += 1;
     }
     return open;
   }
 
-  /** `size` の観測史上の最大値。予算を測るのはこちら。 */
+  /** 予算を測るのは `size` ではなくこちら。 */
   get peakSize(): number {
     return this.#peakSize;
   }
 
-  /**
-   * `{ reserved: true }` 経由で要求された URL のうち生きている接続の本数。
-   * `pinned` (選択器内の優先確保) とは別物で、両者の食い違いを観測できる。
-   */
+  /** `pinned` (選択器内の優先確保) とは別物で、両者の食い違いを観測するための値。 */
   get reservedSize(): number {
     let count = 0;
-    for (const pooled of this.#pool.values()) {
-      if (pooled.connection && pooled.reserved) count += 1;
+    for (const session of this.#pool.values()) {
+      if (session.hasConnection && session.reserved) count += 1;
     }
     return count;
   }
 
-  /**
-   * リレー起因の連続失敗が `DEGRADED_AFTER_FAILURES` 以上の URL。予算超過の
-   * バウンスは `hard` には入らないので影響しない。
-   */
   get degradedRelays(): readonly RelayUrl[] {
     const urls: RelayUrl[] = [];
     for (const [url, { hard }] of this.#failures) {
@@ -306,27 +119,20 @@ export class ConnectionPool {
     return urls;
   }
 
-  /**
-   * 設定の画面に出す、その URL の今の様子。接続は必要になったときだけ開くので、
-   * `idle` は「壊れている」ではなく「今は使っていない」（猶予中の接続も含む）。`failing` は開けずに
-   * 失敗が残っている間（開けたか冷却が明けると消える）。
-   */
+  /** `idle` は「壊れている」ではなく「今は使っていない」（猶予中も含む）。 */
   statusOf(url: RelayUrl): RelayStatus {
     if (this.#failures.has(url)) return "failing";
-    const pooled = this.#pool.get(url);
-    return pooled?.connection && !pooled.linger ? "in-use" : "idle";
+    return this.#pool.get(url)?.inUse ? "in-use" : "idle";
   }
 
   get blockedRelays(): readonly RelayUrl[] {
     return [...this.#blocked];
   }
 
-  /** 繋がないリレーか。ユーザーが止めたものと、許していないローカルネットワークのもの。 */
   isBlocked(url: RelayUrl): boolean {
     return this.#blocked.has(url) || this.isLocalRefused(url);
   }
 
-  /** 自分で指定していないローカルネットワークのリレーか。 */
   isLocalRefused(url: RelayUrl): boolean {
     return (
       !this.#options.allowLocalNetwork &&
@@ -335,10 +141,6 @@ export class ConnectionPool {
     );
   }
 
-  /**
-   * 自分で指定したリレーを、ローカルネットワークのものでも繋げるようにする。
-   * 返した関数で取り下げ、どこからも許されていなければその場で閉じる。
-   */
   allowLocalRelays(urls: readonly RelayUrl[]): () => void {
     const added = [...new Set(urls)];
     for (const url of added) {
@@ -357,11 +159,6 @@ export class ConnectionPool {
     };
   }
 
-  /**
-   * 繋がないリレーを差し替える。新しく入った URL の接続はその場で閉じ、
-   * 待っていた購読には `onClosed` を配る —— 配らないと一度きりの取得が
-   * タイムアウトまで待ち続ける。外れた URL は次に要求されたときに開く。
-   */
   setBlockedRelays(urls: readonly RelayUrl[]): void {
     this.#blocked.clear();
     for (const url of urls) this.#blocked.add(url);
@@ -369,41 +166,16 @@ export class ConnectionPool {
   }
 
   #closeBlocked(): void {
-    for (const [url, pooled] of [...this.#pool]) {
-      if (!this.isBlocked(url)) continue;
-      const entries = [...pooled.entries];
-      // ソケットの死より先に購読を外す。外さないと、閉じたソケットからも
-      // 遅れて onClosed が届き、二重に数えられる。
-      for (const entry of entries) {
-        entry.subscription?.close();
-        entry.subscription = null;
-      }
-      this.#drop(url);
-      for (const entry of entries) {
-        try {
-          entry.handlers.onClosed("blocked");
-        } catch (error) {
-          console.error(
-            "ConnectionPool: an onClosed handler threw while closing a blocked relay; isolating it so the remaining entries are still notified.",
-            error,
-          );
-        }
-      }
+    for (const [url, session] of [...this.#pool]) {
+      if (this.isBlocked(url)) session.close("blocked");
     }
   }
 
-  /**
-   * `onDegradedChanged()` の登録数。`SubscriptionManager.dispose()` が
-   * 購読解除を忘れていないかを、`#degradedListeners` を晒さず確認する手段。
-   */
+  /** `SubscriptionManager.dispose()` の購読解除忘れを、`#degradedListeners` を晒さず確認するため。 */
   get degradedListenerCount(): number {
     return this.#degradedListeners.size;
   }
 
-  /**
-   * `degradedRelays` の membership が変わる瞬間だけ、入/出それぞれ 1 回
-   * 発火する。頻度の保証ではなく、単発の失敗では発火しないことだけを保証する。
-   */
   onDegradedChanged(listener: (url: RelayUrl) => void): () => void {
     this.#degradedListeners.add(listener);
     return () => {
@@ -411,10 +183,7 @@ export class ConnectionPool {
     };
   }
 
-  /**
-   * `#noteFailure`/`#clearFailures` の両方から呼ぶ —— 出る側が無いと、
-   * 冷却明けのリレーが `replan()` まで除外されたままになる。
-   */
+  /** 出る側も通知しないと、冷却明けのリレーが `replan()` まで除外されたままになる。 */
   #notifyDegradedChanged(url: RelayUrl): void {
     for (const listener of [...this.#degradedListeners]) {
       try {
@@ -428,16 +197,12 @@ export class ConnectionPool {
     }
   }
 
-  /** ソケットを実際に作った直後に呼ぶ。size の一時的なピークを取り逃さない。 */
   #recordPeak(): void {
     const current = this.size;
     if (current > this.#peakSize) this.#peakSize = current;
   }
 
-  /**
-   * `url` の失敗を 1 記録し、冷却タイマーを張り直す —— 前回の期限で
-   * degraded が解除されないようにするため。
-   */
+  /** 冷却タイマーを張り直さないと、前回の期限で degraded が解除されてしまう。 */
   #noteFailure(url: RelayUrl, reason: ReconnectReason): void {
     const existing = this.#failures.get(url);
     if (existing) this.#scheduler.clearTimeout(existing.timer);
@@ -459,10 +224,7 @@ export class ConnectionPool {
     }
   }
 
-  /**
-   * `url` の失敗履歴を消す。消す前に degraded だったなら通知する —— しないと、
-   * 復帰したリレーは無関係な `replan()` が走るまで候補に戻らない。
-   */
+  /** degraded だったなら通知しないと、復帰したリレーは無関係な `replan()` まで候補に戻らない。 */
   #clearFailures(url: RelayUrl): void {
     const existing = this.#failures.get(url);
     if (!existing) return;
@@ -473,250 +235,83 @@ export class ConnectionPool {
     }
   }
 
-  /**
-   * `subscribe()` と `publish()` の両方が使う接続確保の共通部分。予算チェック
-   * とソケット生成を一本化しないと、片方だけ直されて迂回する経路が残る。
-   */
-  #ensureConnection(
-    url: RelayUrl,
-    options?: SubscribeOptions,
-  ): Pooled | undefined {
-    if (this.isBlocked(url)) return undefined;
-    let pooled = this.#pool.get(url);
-    if (pooled) this.#cancelLinger(pooled);
-    // `pooled` が無い場合だけでなく、エントリは残っているが接続が
-    // 自然死している場合も新しいソケットが要る = 予算を消費する。
-    if (!pooled || !pooled.connection) {
-      if (!options?.reserved && !this.#makeRoom()) {
-        return undefined;
-      }
-
-      if (!pooled) {
-        pooled = {
-          connection: null,
-          entries: new Set(),
-          offClose: null,
-          offOpen: null,
-          timer: null,
-          reserved: false,
-          holds: 0,
-          linger: null,
-          lastEosed: null,
-        };
-        this.#pool.set(url, pooled);
-      }
-
-      try {
-        const connection = this.#options.connect(url);
-        // `subscribe()`/`#reconnect()` のどちらが呼んでも「接続が繋がった
-        // 直後」の後始末を同じにする — 詳細は `#attachConnection` 参照。
-        this.#attachConnection(url, pooled, connection);
-      } catch {
-        // connection は null のまま。#pool からは消さない (再接続対象として
-        // 残す)。`#noteFailure` はここでは呼ばない —— `subscribe()` が直後に
-        // 必ず `#scheduleReconnect` を呼ぶので、二重計上になる。
-      }
-    }
-
-    // 一度でも `{ reserved: true }` で要求されたら、この `Pooled` が生きて
-    // いる間は reserved として数える。`reserved` は `Pooled` のフィールドで、
-    // `#drop` でレコードごと消えれば次に作られる `Pooled` は `reserved: false`
-    // に戻る —— 同じ URL でも drop を挟めば `reservedSize` の対象から外れる。
-    if (options?.reserved) pooled.reserved = true;
-
-    return pooled;
+  #createSession(url: RelayUrl): RelaySession {
+    const { maxSubscriptions, onQueued, connect } = this.#options;
+    const session: RelaySession = new RelaySession({
+      url,
+      scheduler: this.#scheduler,
+      random: this.#random,
+      connect: () => connect(url),
+      makeRoom: () => this.#makeRoom(),
+      failureCount: () => this.#failures.get(url)?.count ?? 0,
+      noteFailure: (reason) => this.#noteFailure(url, reason),
+      clearFailures: () => this.#clearFailures(url),
+      onConnected: () => this.#recordPeak(),
+      ...(maxSubscriptions && { declaredLimit: () => maxSubscriptions(url) }),
+      learnedLimit: () => this.#learnedLimits.get(url),
+      learn: (limit) => {
+        const learned =
+          this.#learnedLimits.get(url) ?? Number.POSITIVE_INFINITY;
+        this.#learnedLimits.set(url, Math.min(learned, limit));
+      },
+      onQueued: () => onQueued?.(url),
+      onClosed: () => {
+        if (this.#pool.get(url) === session) this.#pool.delete(url);
+      },
+    });
+    return session;
   }
 
-  /**
-   * 購読 (REQ) の経路。接続や購読の確立に失敗しても例外は外に投げず、
-   * `handlers.onClosed(...)` に変換して伝える (呼び出し元を壊さないため)。
-   */
+  #acquire(
+    url: RelayUrl,
+    options?: SubscribeOptions,
+  ): RelaySession | undefined {
+    if (this.isBlocked(url)) return undefined;
+    let session = this.#pool.get(url);
+    const created = !session;
+    if (!session) {
+      // 接続を開く前に表へ載せる。接続数の最大値 (`#recordPeak`) が、この窓口を数えるため。
+      session = this.#createSession(url);
+      this.#pool.set(url, session);
+    }
+    if (!session.ensureConnected(options?.reserved ?? false)) {
+      if (created) this.#pool.delete(url);
+      return undefined;
+    }
+    return session;
+  }
+
   subscribe(
     url: RelayUrl,
     filters: RelayFilter[],
     handlers: RelaySubscriptionHandlers,
     options?: SubscribeOptions,
   ): PooledSubscription | undefined {
-    const pooled = this.#ensureConnection(url, options);
-    if (!pooled) return undefined;
-
-    const entry: Entry = {
-      filters,
-      handlers,
-      subscription: null,
-      once: options?.once ?? false,
-      state: "queued",
-      sentSeq: 0,
-      waited: false,
-      parked: false,
-      refusals: 0,
-    };
-    pooled.entries.add(entry);
-
-    if (pooled.connection) {
-      // 枠が空いていればすぐ送り、埋まっていれば順番待ちに残る。待っている間も
-      // 呼び出し元から見れば開いている購読で、close() は待ち行列から外すだけ。
-      this.#pump(url, pooled);
-    } else {
-      // connect() が失敗した場合。呼ばないと、一度も繋がったことのない
-      // relay は #onConnectionDied を経由しないので再試行が一切積まれない。
-      this.#scheduleReconnect(url);
-      handlers.onClosed("relay unavailable");
-    }
-
-    return {
-      close: () => {
-        const current = this.#pool.get(url);
-        // dispose() 済み、二重 close、あるいは dispose を挟んで同じ URL が
-        // 開き直された場合 — いずれもこの entry は今の集合に居ないので
-        // 何もしない。
-        if (!current || !current.entries.has(entry)) return;
-        current.entries.delete(entry);
-        entry.subscription?.close();
-        // 空いた枠で、待っている購読を送る。
-        this.#unpark(current);
-        this.#pump(url, current);
-        // hold() だけが残っていれば接続は落とさない — ブートストラップが
-        // フェーズ間で握り続けている接続を、フェーズ①の購読が閉じただけで
-        // 落としてはいけない。
-        this.#releaseIfIdle(url, current);
-      },
-    };
+    return this.#acquire(url, options)?.subscribe(filters, handlers, {
+      once: options?.once,
+    });
   }
 
-  /**
-   * REQ を出さずに接続だけを確保する。**購読ではない。** 一部のリレーは
-   * 絶対にマッチしないフィルタの REQ を `blocked` で CLOSE するため必要。
-   */
   hold(url: RelayUrl, options?: SubscribeOptions): PooledHold | undefined {
-    const pooled = this.#ensureConnection(url, options);
-    if (!pooled) return undefined;
-
-    pooled.holds += 1;
-
-    if (!pooled.connection) {
-      // subscribe() の対応する分岐と同じ理由: この hold のために
-      // #ensureConnection が試みた connect() が失敗した場合、ここで
-      // #scheduleReconnect を呼ばないと、この URL に subscribe() 由来の
-      // エントリが 1 つも無い限り再接続が一度もスケジュールされない。
-      this.#scheduleReconnect(url);
-    }
-
-    let released = false;
-    return {
-      release: () => {
-        // 冪等 — 二重に呼ばれても holds を負にしない。二重 release() は
-        // 呼び出し元のバグでも起こりうる (bootstrap.ts の finally など)。
-        if (released) return;
-        released = true;
-        const current = this.#pool.get(url);
-        // `close()` の対応する分岐と同じ理由 — dispose() を挟んで同じ URL が
-        // 開き直された場合、今ここに居るのは別のレコードである。同一性を
-        // 確かめずに減らすと、この release() が後から作られた無関係な
-        // hold の枠を奪い、まだ握っている呼び出し元の接続を落としてしまう。
-        if (!current || current !== pooled) return;
-        current.holds -= 1;
-        this.#releaseIfIdle(url, current);
-      },
-    };
+    return this.#acquire(url, options)?.hold();
   }
 
-  /**
-   * publish 経路。タイムアウトは reject と同時に必ず `release()` も行う ——
-   * 予算を返さない決着の仕方を作らない。
-   */
   publish(url: RelayUrl, event: NostrEvent): Promise<void> {
     if (this.isBlocked(url)) {
       return Promise.reject(new Error(`blocked relay: ${url}`));
     }
-    const pooled = this.#ensureConnection(url);
-    if (!pooled) {
+    const session = this.#acquire(url);
+    if (!session) {
       return Promise.reject(
         new Error(`connection budget exhausted for ${url}`),
       );
     }
-    if (!pooled.connection) {
-      // connect() が失敗を吸収した後。publish は entry を足さないので、
-      // 誰も待っていなければここでレコードを片付ける (hold() が生きていれば
-      // 自身のタイマーが `#reconnect` を見つけられなくなるので消さない)。
-      if (pooled.entries.size === 0 && pooled.holds === 0) {
-        this.#drop(url);
-      }
-      return Promise.reject(new Error(`relay unavailable: ${url}`));
-    }
-    const connection = pooled.connection;
-
-    const entry: Entry = {
-      filters: [],
-      handlers: PUBLISH_ONLY_HANDLERS,
-      subscription: null,
-      once: false,
-      state: "done",
-      sentSeq: 0,
-      waited: false,
-      parked: false,
-      refusals: 0,
-    };
-    pooled.entries.add(entry);
-
-    const release = (): void => {
-      const current = this.#pool.get(url);
-      if (!current || !current.entries.has(entry)) return;
-      current.entries.delete(entry);
-      // hold() だけが残っていれば接続は落とさない (subscribe() の close()
-      // と同じ理由)。
-      this.#releaseIfIdle(url, current);
-    };
-
-    return new Promise<void>((resolve, reject) => {
-      // OK も死亡通知も来ないまま両方が発火することがある
-      // (タイムアウト後にソケットが死ぬ、等) —— 二重に settle させない。
-      let settled = false;
-
-      const timer = this.#scheduler.setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        release();
-        reject(
-          new Error(
-            `publish timed out for ${url} after ${PUBLISH_TIMEOUT_MS}ms`,
-          ),
-        );
-      }, PUBLISH_TIMEOUT_MS);
-
-      connection.publish(event).then(
-        () => {
-          if (settled) return;
-          settled = true;
-          this.#scheduler.clearTimeout(timer);
-          release();
-          resolve();
-        },
-        (error: unknown) => {
-          if (settled) return;
-          settled = true;
-          this.#scheduler.clearTimeout(timer);
-          release();
-          reject(error);
-        },
-      );
-    });
+    return session.publish(event);
   }
 
-  /**
-   * 手動再試行。バックオフを破棄し即座に `#reconnect()` を試みる。degraded で
-   * 購読ゼロになった URL の `#failures` は生き残るので、ループ後に丸ごと消す。
-   */
+  /** degraded で購読ゼロになった URL の `#failures` は窓口を通らず残るので、ループ後に消す。 */
   retryNow(): void {
-    for (const [url, pooled] of this.#pool) {
-      if (pooled.connection) continue;
-      if (pooled.timer !== null) {
-        this.#scheduler.clearTimeout(pooled.timer);
-        pooled.timer = null;
-      }
-      this.#clearFailures(url);
-      this.#reconnect(url);
-    }
+    for (const session of [...this.#pool.values()]) session.retryNow();
     // `#failures.clear()` を直に呼ばない —— degraded だった URL は今ここで
     // 集合から出るので、購読者に知らせないと手動再試行が「バックオフだけ
     // 消して選択には反映されない」半端な操作になる。キーはスナップショット
@@ -724,40 +319,15 @@ export class ConnectionPool {
     for (const url of [...this.#failures.keys()]) this.#clearFailures(url);
   }
 
-  /**
-   * 認証を試みた接続を張り直す。リレーは認証した鍵をソケットが閉じるまで覚えて
-   * いるので、アカウントを替えたのに同じソケットを使い続けると、前のアカウント
-   * として読み書きできてしまう。購読は新しい接続へそのまま移す。
-   */
   resetAuthentication(): void {
-    for (const [url, pooled] of this.#pool) {
-      const connection = pooled.connection;
-      if (!connection?.authAttempted) continue;
-      // 猶予中なら張り直す相手が居ない。閉じて、次に使うときに新しく開く。
-      if (pooled.linger) {
-        this.#drop(url);
-        continue;
-      }
-      // 先に購読を閉じておく。閉じずに捨てると、古いソケットの死が
-      // 新しい接続へ移した購読に onClosed を配ってしまう。
-      for (const entry of pooled.entries) entry.subscription?.close();
-      this.#requeueAll(pooled);
-      pooled.offClose?.();
-      pooled.offClose = null;
-      pooled.offOpen?.();
-      pooled.offOpen = null;
-      pooled.connection = null;
-      connection.close();
-      this.#reconnect(url);
+    for (const session of [...this.#pool.values()]) {
+      session.resetAuthentication();
     }
   }
 
-  /**
-   * `#drop` は `#failures` に触らないが、dispose() 後に放置すると最大 5 分の
-   * `setTimeout` が dispose 済みプールを掴み続けるので、ここで明示的に消す。
-   */
+  /** 放置すると最大 5 分の冷却タイマーが dispose 済みプールを掴み続けるので、ここで消す。 */
   dispose(): void {
-    for (const url of [...this.#pool.keys()]) this.#drop(url);
+    for (const session of [...this.#pool.values()]) session.close();
     this.#pool.clear();
     // dispose() は復帰ではない。ここを `#clearFailures` に寄せると、
     // 自分より長生きした listener にだけ届く通知を作ることになる
@@ -769,407 +339,19 @@ export class ConnectionPool {
     this.#failures.clear();
   }
 
-  #drop(url: RelayUrl): void {
-    const pooled = this.#pool.get(url);
-    if (!pooled) return;
-    // タイマーが残ったまま消すと、閉じたはずのリレーへ永遠に再接続し続ける
-    // ゾンビタイマーになる。
-    if (pooled.timer !== null) this.#scheduler.clearTimeout(pooled.timer);
-    this.#cancelLinger(pooled);
-    pooled.offClose?.();
-    pooled.offOpen?.();
-    pooled.connection?.close();
-    this.#pool.delete(url);
-  }
-
-  /**
-   * ソケットが自らの意思とは無関係に死んだときの通知先。`onClosed` はここでは
-   * 呼ばない —— 接続側が既に配り終えているので、二重に呼ぶと二重計上される。
-   */
-  #onConnectionDied(url: RelayUrl): void {
-    const pooled = this.#pool.get(url);
-    if (!pooled) return;
-    pooled.offClose?.();
-    pooled.offClose = null;
-    pooled.offOpen?.();
-    pooled.offOpen = null;
-    pooled.connection = null;
-    this.#requeueAll(pooled);
-    // 猶予中の接続が死んだなら、誰も待っていないので再接続しない。残すと、
-    // 接続の無い記録が枠を食い続ける。
-    if (pooled.linger) {
-      this.#drop(url);
-      return;
-    }
-    this.#scheduleReconnect(url);
-  }
-
-  /**
-   * 使う人が居なくなった接続を、すぐ閉じずに `IDLE_LINGER_MS` だけ残す。
-   * 接続が無い記録は残す理由が無いのでその場で片付ける。
-   */
-  #releaseIfIdle(url: RelayUrl, pooled: Pooled): void {
-    if (pooled.entries.size > 0 || pooled.holds > 0) return;
-    if (!pooled.connection) {
-      this.#drop(url);
-      return;
-    }
-    if (pooled.linger) return;
-    pooled.linger = {
-      since: this.#scheduler.now(),
-      timer: this.#scheduler.setTimeout(() => this.#drop(url), IDLE_LINGER_MS),
-    };
-  }
-
-  #cancelLinger(pooled: Pooled): void {
-    if (!pooled.linger) return;
-    this.#scheduler.clearTimeout(pooled.linger.timer);
-    pooled.linger = null;
-  }
-
-  /**
-   * 新しい接続を 1 本開ける枠を作る。猶予中の接続だけを、空になったのが古い順に
-   * 閉じる（使っている接続からは奪わない）。作れなければ false。
-   */
+  /** 使っている接続からは奪わず、猶予中のものだけを古い順に閉じる。 */
   #makeRoom(): boolean {
     if (this.size < this.#maxConnections) return true;
-    const lingering: { url: RelayUrl; since: number }[] = [];
-    for (const [url, pooled] of this.#pool) {
-      if (pooled.linger && pooled.connection) {
-        lingering.push({ url, since: pooled.linger.since });
-      }
+    const lingering: { session: RelaySession; since: number }[] = [];
+    for (const session of this.#pool.values()) {
+      const since = session.lingeringSince;
+      if (since !== null) lingering.push({ session, since });
     }
     lingering.sort((a, b) => a.since - b.since);
-    for (const { url } of lingering) {
-      this.#drop(url);
+    for (const { session } of lingering) {
+      session.close();
       if (this.size < this.#maxConnections) return true;
     }
     return false;
-  }
-
-  /**
-   * 指数バックオフ + ジッタで再接続タイマーを積む。ジッタが無いと、同時に
-   * 死んだ複数リレーの再接続が同期し復帰の瞬間にバーストを作ってしまう。
-   */
-  #scheduleReconnect(url: RelayUrl, reason: ReconnectReason = "relay"): void {
-    const pooled = this.#pool.get(url);
-    if (!pooled || pooled.connection || pooled.timer !== null) return;
-    // hold だけの URL も再接続の対象 — 「誰も待っていない」の「誰か」には
-    // hold も含める。
-    if (pooled.entries.size === 0 && pooled.holds === 0) return;
-
-    // 指数は「今までの」失敗回数から計算し、その後で今回の失敗を記録する
-    // (`#noteFailure` を呼ぶ) — 順序を逆にすると 1 回目の遅延から既に
-    // 2 倍されてしまう。
-    const count = this.#failures.get(url)?.count ?? 0;
-    const base = Math.min(RECONNECT_BASE_MS * 2 ** count, RECONNECT_MAX_MS);
-    const delay = base * (0.5 + this.#random());
-    this.#noteFailure(url, reason);
-    pooled.timer = this.#scheduler.setTimeout(() => {
-      pooled.timer = null;
-      this.#reconnect(url);
-    }, delay);
-  }
-
-  /**
-   * `#ensureConnection` と `#reconnect()` の両方がここを通る —— 怠ると
-   * 蘇らせても REQ が張り直されず、ソケットは生きたままカラムが沈黙する。
-   */
-  #attachConnection(
-    url: RelayUrl,
-    pooled: Pooled,
-    connection: RelayConnection,
-  ): void {
-    if (pooled.timer !== null) {
-      this.#scheduler.clearTimeout(pooled.timer);
-      pooled.timer = null;
-    }
-    // 古い offOpen が残っていれば (通常は #onConnectionDied 経由で既に
-    // null になっているはずだが、offClose と同じ扱いで念のため) 先に
-    // 解除してから張り直す。
-    pooled.offOpen?.();
-    pooled.connection = connection;
-    const offClose = connection.onClose(() => this.#onConnectionDied(url));
-    const offNotice = connection.onNotice?.((message) =>
-      this.#onNotice(url, pooled, message),
-    );
-    // 呼び出し側は `offClose` を呼ぶだけで両方を外せる。
-    pooled.offClose = () => {
-      offClose();
-      offNotice?.();
-    };
-    pooled.offOpen = connection.onOpen(() => this.#clearFailures(url));
-    this.#recordPeak();
-
-    this.#pump(url, pooled);
-  }
-
-  /** 接続が替わる・死ぬと、リレー側の購読は無くなる。全部を送り直す順番待ちに戻す。 */
-  #requeueAll(pooled: Pooled): void {
-    pooled.lastEosed = null;
-    for (const entry of pooled.entries) {
-      entry.subscription = null;
-      entry.waited = false;
-      entry.parked = false;
-      if (entry.state !== "done") entry.state = "queued";
-    }
-  }
-
-  /** NIP-11 に書いてある上限。`null` は取って書いていない、`undefined` は分からない。 */
-  #declaredLimit(url: RelayUrl): number | null | undefined {
-    return this.#options.maxSubscriptions?.(url);
-  }
-
-  /**
-   * そのリレーの同時購読の枠。NIP-11 の値（分からなければ既定値）と、断られて学んだ値の
-   * 厳しい方。NIP-11 で枠なしと分かったリレーは、学んだ値だけが枠になる。
-   */
-  #limitOf(url: RelayUrl): number | undefined {
-    if (!this.#options.maxSubscriptions) return this.#learnedLimits.get(url);
-    const declared = this.#declaredLimit(url);
-    const learned = this.#learnedLimits.get(url);
-    if (declared === null) return learned;
-    const base = declared ?? DEFAULT_MAX_SUBSCRIPTIONS;
-    return learned === undefined ? base : Math.min(base, learned);
-  }
-
-  /**
-   * 枠が空いている間、待っている購読を送る。流し続ける購読を、一度きりの取得より
-   * 先に通す（カラムが欠けるより、反応の数が少し遅れる方がよい）。
-   */
-  #pump(url: RelayUrl, pooled: Pooled): void {
-    if (this.#pool.get(url) !== pooled) return;
-    for (;;) {
-      const connection = pooled.connection;
-      if (!connection) return;
-      let next: Entry | undefined;
-      for (const entry of pooled.entries) {
-        if (entry.state !== "queued" || entry.parked) continue;
-        if (!entry.once) {
-          next = entry;
-          break;
-        }
-        next ??= entry;
-      }
-      if (!next) return;
-
-      const limit = this.#limitOf(url);
-      if (limit !== undefined && this.#openCount(pooled) >= limit) {
-        for (const entry of pooled.entries) {
-          if (entry.state !== "queued" || entry.waited) continue;
-          entry.waited = true;
-          this.#options.onQueued?.(url);
-        }
-        return;
-      }
-      this.#send(url, pooled, connection, next);
-    }
-  }
-
-  #openCount(pooled: Pooled): number {
-    let open = 0;
-    for (const entry of pooled.entries) {
-      if (entry.state === "sent") open += 1;
-    }
-    return open;
-  }
-
-  #send(
-    url: RelayUrl,
-    pooled: Pooled,
-    connection: RelayConnection,
-    entry: Entry,
-  ): void {
-    entry.state = "sent";
-    entry.sentSeq = ++this.#sendSeq;
-    const { handlers } = entry;
-    try {
-      entry.subscription = connection.subscribe(entry.filters, {
-        onEvent: (event) => handlers.onEvent(event),
-        onEose: () => this.#onEose(url, pooled, entry),
-        onClosed: (reason) => this.#onEntryClosed(url, pooled, entry, reason),
-      });
-      // 同期的に EOSE が届いた一度きりの取得は、ここで初めて閉じられる。
-      if (isDone(entry)) {
-        entry.subscription.close();
-        entry.subscription = null;
-      }
-    } catch {
-      entry.subscription = null;
-      entry.state = "closed";
-      // 複数エントリを 1 つのループで処理しているので、無防備に呼ぶと
-      // 1 つが投げただけで残りが REQ 無しのまま取り残される。隔離が主目的。
-      try {
-        handlers.onClosed("relay unavailable");
-      } catch (error) {
-        console.error(
-          "ConnectionPool: an onClosed handler threw while sending a REQ; isolating it so the remaining entries keep their subscriptions.",
-          error,
-        );
-      }
-    }
-  }
-
-  #onEose(url: RelayUrl, pooled: Pooled, entry: Entry): void {
-    if (entry.state === "sent") {
-      pooled.lastEosed = entry;
-      if (entry.once) {
-        // 一度きりの取得は EOSE で用が済む。呼び出し元が閉じるのを待たずに枠を返す。
-        entry.state = "done";
-        entry.subscription?.close();
-        entry.subscription = null;
-        this.#unpark(pooled);
-      }
-    }
-    try {
-      entry.handlers.onEose();
-    } finally {
-      this.#pump(url, pooled);
-    }
-  }
-
-  #onEntryClosed(
-    url: RelayUrl,
-    pooled: Pooled,
-    entry: Entry,
-    reason: string,
-  ): void {
-    // ソケットの死は `#onConnectionDied` が全購読を順番待ちに戻す。ここで
-    // 枠を空けると、死んだ接続へ待っている購読を送ってしまう。
-    if (reason === SOCKET_CLOSED) {
-      entry.handlers.onClosed(reason);
-      return;
-    }
-    if (
-      entry.state === "sent" &&
-      isSubscriptionLimitMessage(reason) &&
-      this.#refuse(url, pooled, entry)
-    ) {
-      // 上限で断られただけなので呼び出し元には伝えず、枠が空くまで待たせる。
-      this.#pump(url, pooled);
-      return;
-    }
-    if (entry.state === "sent") entry.state = "closed";
-    this.#unpark(pooled);
-    try {
-      entry.handlers.onClosed(reason);
-    } finally {
-      this.#pump(url, pooled);
-    }
-  }
-
-  /**
-   * strfry は上限を超えた REQ にも、保存済みのイベントと EOSE は返す。そのあとで
-   * NOTICE を返し、断るのは流し続ける部分（新しいイベント）だけ。なので断られたのは
-   * 直前に EOSE を受けた購読。一度きりの取得ならもう取れているので何もせず、流し続ける
-   * 購読なら新しいイベントが届かないので、閉じて順番待ちに戻す。
-   *
-   * 枠を学ぶのは NIP-11 に上限が無い（取れない）リレーだけ。バーストの最中はこちらの
-   * `sent` の数がリレー側より多いので、数えた値から学ぶと低く覚えすぎる。下げすぎない
-   * よう、既定値を下限にする。
-   */
-  #onNotice(url: RelayUrl, pooled: Pooled, message: string): void {
-    if (!isSubscriptionLimitMessage(message)) return;
-    if (this.#pool.get(url) !== pooled) return;
-    const target = pooled.lastEosed;
-    pooled.lastEosed = null;
-    if (!target || target.state !== "sent") return;
-    const open = this.#openCount(pooled);
-    if (open < 2) return;
-    if (typeof this.#declaredLimit(url) !== "number") {
-      this.#learn(url, Math.max(open - 1, DEFAULT_MAX_SUBSCRIPTIONS));
-    }
-    this.#requeue(target);
-    target.refusals += 1;
-    if (target.refusals > MAX_NOTICE_REFUSALS) {
-      // 何度戻しても断られる。送り直さず、流れない購読として呼び出し元に伝える。
-      target.state = "closed";
-      try {
-        target.handlers.onClosed(
-          "too many concurrent REQs: gave up after repeated refusals",
-        );
-      } catch (error) {
-        console.error(
-          "ConnectionPool: an onClosed handler threw while giving up a refused REQ.",
-          error,
-        );
-      }
-    } else {
-      target.parked = true;
-      target.waited = true;
-      this.#options.onQueued?.(url);
-    }
-    this.#pump(url, pooled);
-  }
-
-  /** 枠が実際に空いた出来事のあとで、NOTICE で戻した購読を送れるようにする。 */
-  #unpark(pooled: Pooled): void {
-    for (const entry of pooled.entries) entry.parked = false;
-  }
-
-  /**
-   * CLOSED で上限を理由に断られた `entry` を順番待ちに戻し、枠を「いま開いている数 − 1」へ
-   * 下げて覚える。開いているのが 1 本だけなら上限のせいとは言えず、戻しても同じ断られ方を
-   * 繰り返すので、何もせず false を返す（戻すたびに枠は 1 つ減るので、繰り返しは
-   * 枠が 1 になるまでで止まる）。
-   */
-  #refuse(url: RelayUrl, pooled: Pooled, entry: Entry): boolean {
-    const open = this.#openCount(pooled);
-    if (open < 2) return false;
-    this.#learn(url, open - 1);
-    this.#requeue(entry);
-    return true;
-  }
-
-  #learn(url: RelayUrl, limit: number): void {
-    const learned = this.#learnedLimits.get(url) ?? Number.POSITIVE_INFINITY;
-    this.#learnedLimits.set(url, Math.min(learned, limit));
-  }
-
-  #requeue(entry: Entry): void {
-    // 閉じておく。残すと、あとで届く古い REQ への応答がこの記録を動かす。
-    entry.subscription?.close();
-    entry.subscription = null;
-    entry.state = "queued";
-    entry.waited = false;
-  }
-
-  /**
-   * 実際の再接続の試行。失敗は外へ投げず吸収してバックオフを積み直す。
-   * `since` で埋めず元のフィルタを張り直すのは、500 件上限を食いつぶさないため。
-   */
-  #reconnect(url: RelayUrl): void {
-    const pooled = this.#pool.get(url);
-    // hold だけの URL も再接続の対象 (#scheduleReconnect のガードと同じ
-    // 理由)。
-    if (
-      !pooled ||
-      pooled.connection ||
-      (pooled.entries.size === 0 && pooled.holds === 0)
-    ) {
-      return;
-    }
-
-    // 枠が無ければ諦めず後で再試行する (生きている接続から奪わない)。
-    // `{ reserved: true }` はここでは特別扱いしない —— 予約は最初の
-    // `subscribe()` 呼び出し限りで、待てなければ `collect()` のタイムアウトが縮退させる。
-    if (!this.#makeRoom()) {
-      // 予算超過はこのリレー自身の健全性とは無関係 (`ReconnectReason` 参照)。
-      this.#scheduleReconnect(url, "budget");
-      return;
-    }
-
-    let connection: RelayConnection;
-    try {
-      connection = this.#options.connect(url);
-    } catch {
-      // `#noteFailure` はここでは呼ばない — 直後の `#scheduleReconnect` が
-      // 必ず呼ぶので、ここでも呼ぶと同じ 1 回の失敗を二重に計上してしまう
-      // (`#ensureConnection` の catch 節と同じ理由)。
-      this.#scheduleReconnect(url);
-      return;
-    }
-
-    this.#attachConnection(url, pooled, connection);
   }
 }

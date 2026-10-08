@@ -1,11 +1,11 @@
 import type { NostrEvent } from "../nostr/event";
 import { collect } from "../read/collect";
-import {
-  type ConnectionPool,
-  PUBLISH_TIMEOUT_MS,
-  type PooledSubscription,
+import type {
+  ConnectionPool,
+  PooledSubscription,
 } from "../read/connection-pool";
 import type { EventStore } from "../read/event-store";
+import { PUBLISH_TIMEOUT_MS } from "../read/relay-session";
 import type { RoutingTable } from "../read/routing-table";
 import type { RelayUrl } from "../relay/relay-connection";
 

@@ -10,9 +10,9 @@ import type {
   RelaySubscriptionHandlers,
   RelayUrl,
 } from "../relay/relay-connection";
-import { IDLE_LINGER_MS } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { type FakeClock, createFakeClock } from "./fake-clock";
+import { IDLE_LINGER_MS } from "./relay-session";
 import { RoutingTable } from "./routing-table";
 import {
   DEGRADED_REPLAN_BATCH_MS,
