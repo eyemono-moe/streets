@@ -22,6 +22,7 @@ import {
   Show,
   Switch,
 } from "solid-js";
+import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
@@ -36,6 +37,7 @@ import ActionNotice from "./ActionNotice";
 import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
+import { isRenderedKind, type RenderedKind } from "./event-kinds";
 import { Frame, Notice } from "./EventFrame";
 import EventMenu from "./EventMenu";
 import MutedGate from "./MutedGate";
@@ -342,62 +344,97 @@ const Unsupported: Component<ContentProps> = (props) => (
   </Row>
 );
 
+const FollowSet: Component<ContentProps> = (props) => (
+  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+    <FollowSetCard event={props.event} size={props.size} />
+  </Row>
+);
+
+const EmojiSet: Component<ContentProps> = (props) => (
+  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+    <EmojiSetCard event={props.event} size={props.size} />
+  </Row>
+);
+
+/** 問いは本文と同じ描き方にする（絵文字やリンクが入りうる）。 */
+const Poll: Component<ContentProps> = (props) => (
+  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+    <NoteContent
+      event={props.event}
+      size={props.size}
+      expandMedia={props.expandMedia}
+    />
+    <PollBlock event={props.event} size={props.size} />
+  </Row>
+);
+
+const Article: Component<ContentProps> = (props) => (
+  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
+    <ArticleCard event={props.event} size={props.size} />
+    <Show when={props.size === "normal"}>
+      <ReactionList event={props.event} />
+    </Show>
+  </Row>
+);
+
+/** プロフィールは人そのものなので、フォロー一覧と同じ行で描く。 */
+const Profile: Component<ContentProps> = (props) => (
+  <ProfileRow pubkey={props.event.pubkey} />
+);
+
+/** リアクションは通知と同じ形で描く。 */
+const Reaction: Component<ContentProps> = (props) => (
+  <ActionNotice
+    events={[props.event]}
+    size={props.size}
+    expandMedia={props.expandMedia}
+  />
+);
+
+/**
+ * `framed` は枠（押すとスレッドを開く・返信先を上に出す）の中で、`Row` に載せて描く。
+ * リポストの中身もこちらで描く。`standalone` は枠ごと自分で描く。
+ */
+type EventView = {
+  layout: "framed" | "standalone";
+  View: Component<ContentProps>;
+};
+
+const EVENT_VIEWS: { [K in RenderedKind]: EventView } = {
+  0: { layout: "standalone", View: Profile },
+  // 画像・動画の投稿（NIP-68・NIP-71）は、imeta の画像を添えた投稿と同じ形で描く。
+  1: { layout: "framed", View: Note },
+  20: { layout: "framed", View: Note },
+  21: { layout: "framed", View: Note },
+  22: { layout: "framed", View: Note },
+  1111: { layout: "framed", View: Note },
+  6: { layout: "framed", View: Repost },
+  16: { layout: "framed", View: Repost },
+  7: { layout: "standalone", View: Reaction },
+  // チャンネル（NIP-28）は、チャンネルとして見せて開けるようにする。
+  40: { layout: "standalone", View: ChannelCard },
+  41: { layout: "standalone", View: ChannelCard },
+  42: { layout: "standalone", View: ChannelMessageCard },
+  1068: { layout: "framed", View: Poll },
+  // リストは押すとメンバーのタイムラインを開く（開き先は columnForEvent）。
+  30000: { layout: "framed", View: FollowSet },
+  30023: { layout: "framed", View: Article },
+  30030: { layout: "framed", View: EmojiSet },
+};
+
+const viewFor = (kind: number, layout: EventView["layout"]) => {
+  if (!isRenderedKind(kind)) return undefined;
+  const view = EVENT_VIEWS[kind];
+  return view.layout === layout ? view.View : undefined;
+};
+
 const EventContent: Component<ContentProps> = (props) => (
-  <Switch fallback={<Unsupported event={props.event} size={props.size} />}>
-    {/* 画像・動画の投稿（NIP-68・NIP-71）は、imeta の画像を添えた投稿と同じ形で描く。 */}
-    <Match
-      when={
-        props.event.kind === 1 ||
-        props.event.kind === 1111 ||
-        props.event.kind === 20 ||
-        props.event.kind === 21 ||
-        props.event.kind === 22
-      }
-    >
-      <Note
-        event={props.event}
-        size={props.size}
-        expandMedia={props.expandMedia}
-        threadLine={props.threadLine}
-        stickyAvatar={props.stickyAvatar}
-        withinScope={props.withinScope}
-        media={props.media}
-      />
-    </Match>
-    <Match when={props.event.kind === 6 || props.event.kind === 16}>
-      <Repost event={props.event} size={props.size} />
-    </Match>
-    {/* リストは押すとメンバーのタイムラインを開く（開き先は columnForEvent）。 */}
-    <Match when={props.event.kind === 30000}>
-      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-        <FollowSetCard event={props.event} size={props.size} />
-      </Row>
-    </Match>
-    <Match when={props.event.kind === 30030}>
-      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-        <EmojiSetCard event={props.event} size={props.size} />
-      </Row>
-    </Match>
-    {/* 投票（NIP-88）。問いは本文と同じ描き方にする（絵文字やリンクが入りうる）。 */}
-    <Match when={props.event.kind === 1068}>
-      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-        <NoteContent
-          event={props.event}
-          size={props.size}
-          expandMedia={props.expandMedia}
-        />
-        <PollBlock event={props.event} size={props.size} />
-      </Row>
-    </Match>
-    <Match when={props.event.kind === 30023}>
-      <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-        <ArticleCard event={props.event} size={props.size} />
-        <Show when={props.size === "normal"}>
-          <ReactionList event={props.event} />
-        </Show>
-      </Row>
-    </Match>
-  </Switch>
+  <Show
+    when={viewFor(props.event.kind, "framed")}
+    fallback={<Unsupported {...props} />}
+  >
+    {(View) => <Dynamic component={View()} {...props} />}
+  </Show>
 );
 
 /** これ以上動いたら「押した」ではなく「文字を選んだ」とみなす。 */
@@ -428,7 +465,8 @@ const EventBody: Component<ContentProps> = (props) => {
   };
 
   return (
-    <Switch
+    <Show
+      when={viewFor(props.event.kind, "standalone")}
       fallback={
         <StandardEvent
           {...props}
@@ -453,30 +491,8 @@ const EventBody: Component<ContentProps> = (props) => {
         />
       }
     >
-      {/* プロフィールは人そのものなので、フォロー一覧と同じ行で描く。 */}
-      <Match when={props.event.kind === 0}>
-        <ProfileRow pubkey={props.event.pubkey} />
-      </Match>
-      {/* チャンネル（NIP-28）は、チャンネルとして見せて開けるようにする。 */}
-      <Match when={props.event.kind === 40 || props.event.kind === 41}>
-        <ChannelCard event={props.event} size={props.size} />
-      </Match>
-      <Match when={props.event.kind === 42}>
-        <ChannelMessageCard
-          event={props.event}
-          size={props.size}
-          expandMedia={props.expandMedia}
-        />
-      </Match>
-      {/* リアクションは通知と同じ形で描く。 */}
-      <Match when={props.event.kind === 7}>
-        <ActionNotice
-          events={[props.event]}
-          size={props.size}
-          expandMedia={props.expandMedia}
-        />
-      </Match>
-    </Switch>
+      {(View) => <Dynamic component={View()} {...props} />}
+    </Show>
   );
 };
 

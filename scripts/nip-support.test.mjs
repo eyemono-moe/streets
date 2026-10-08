@@ -23,25 +23,12 @@ test("対応 NIP の一覧とドキュメントが一致する", async () => {
   );
 });
 
-test("表示対応の kind は Event の分岐で専用表示される", async () => {
+test("表示対応の kind は Event の表で専用表示される", async () => {
   const kinds = await readKindInventory();
-  const source = await readFile(
-    path.join(root, "apps/web/src/note/Event.tsx"),
-    "utf8",
+  const { RENDERED_KINDS } = await import(
+    path.join(root, "apps/web/src/note/event-kinds.ts")
   );
-  const dispatch = source.slice(
-    source.indexOf("const EventContent:"),
-    source.indexOf("const StandardEvent:"),
-  );
-  assert.ok(dispatch.startsWith("const EventContent:"));
-  assert.ok(dispatch.includes("const EventBody:"));
-  const rendered = new Set(
-    [...dispatch.matchAll(/<Match\s+when=\{([^}]+)\}/g)].flatMap((match) =>
-      [...match[1].matchAll(/props\.event\.kind === (\d+)/g)].map((kind) =>
-        Number(kind[1]),
-      ),
-    ),
-  );
+  const rendered = new Set(RENDERED_KINDS);
   const declared = new Set(
     kinds
       .filter((entry) => entry.status === "表示対応")
