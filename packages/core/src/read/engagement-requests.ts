@@ -1,5 +1,5 @@
-import type { RelayFilter } from "../relay/relay-connection";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
+import { createBatchedFetch } from "./batched-fetch";
+import type { Scheduler } from "./connection-pool";
 import type { SubscriptionManager } from "./subscription-manager";
 
 export type EngagementRequests = {
@@ -40,70 +40,37 @@ const ENGAGEMENT_BATCH_MS = 200;
 export const createEngagementRequests = (
   options: CreateEngagementRequestsOptions,
 ): EngagementRequests => {
-  const scheduler = options.scheduler ?? defaultScheduler;
-
-  /** 今の窓でまだ `fetchOnce` していないイベント id。 */
-  let pending = new Set<string>();
   /**
    * これまで要求した全 id (二度要求しない、刈り込まない)。engagement 0 件
    * は `EventStore` に残らず探索済みと言い当てられないため。
    */
-  let requested = new Set<string>();
-  let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
-  let disposed = false;
-  const listeners = new Set<() => void>();
-
-  let lastBatchSize = 0;
-  let maxBatchSize = 0;
-
-  const flush = (): void => {
-    timer = null;
-    if (pending.size === 0) return;
-    const targetIds = [...pending];
-    pending = new Set();
-    lastBatchSize = targetIds.length;
-    if (targetIds.length > maxBatchSize) maxBatchSize = targetIds.length;
-
-    const filters: RelayFilter[] = [{ kinds: [1, 6, 7], "#e": targetIds }];
-    void options.manager.fetchOnce(filters).then(() => {
-      if (disposed) return;
-      for (const listener of listeners) listener();
-    });
-  };
+  const requested = new Set<string>();
+  const batch = createBatchedFetch<string>({
+    manager: options.manager,
+    scheduler: options.scheduler,
+    batchWindowMs: ENGAGEMENT_BATCH_MS,
+    keyOf: (targetId) => targetId,
+    toRequest: (targetIds) => ({
+      filters: [{ kinds: [1, 6, 7], "#e": targetIds }],
+    }),
+  });
 
   return {
     request(targetId) {
-      if (disposed) return;
-      if (requested.has(targetId)) return;
+      if (batch.disposed || requested.has(targetId)) return;
       requested.add(targetId);
-      pending.add(targetId);
-      if (timer === null) {
-        timer = scheduler.setTimeout(flush, ENGAGEMENT_BATCH_MS);
-      }
+      batch.enqueue(targetId);
     },
-
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lastBatchSize;
+      return batch.lastBatchSize;
     },
-
     get maxBatchSize() {
-      return maxBatchSize;
+      return batch.maxBatchSize;
     },
-
     dispose() {
-      disposed = true;
-      if (timer !== null) {
-        scheduler.clearTimeout(timer);
-        timer = null;
-      }
-      pending = new Set();
-      requested = new Set();
-      listeners.clear();
+      requested.clear();
+      batch.dispose();
     },
   };
 };

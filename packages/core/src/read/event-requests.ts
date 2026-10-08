@@ -1,5 +1,6 @@
-import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
+import type { RelayUrl } from "../relay/relay-connection";
+import { createBatchedFetch } from "./batched-fetch";
+import type { Scheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
 
@@ -51,62 +52,31 @@ export const EVENT_BATCH_MS = 200;
 export const createEventRequests = (
   options: CreateEventRequestsOptions,
 ): EventRequests => {
-  const scheduler = options.scheduler ?? defaultScheduler;
-
-  /** 今の窓でまだ `fetchOnce` していない id (重複排除は Set 自身が担う)。 */
-  let pending = new Set<string>();
-  let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
-  let disposed = false;
-  const listeners = new Set<() => void>();
-
   /**
    * 要求済みでバッチが片付いた id。ここにあって store に無ければ
-   * 「見つからなかった」と言い切れる。追加専用ではなく、`request()` は
-   * 再要求時にここから削除する —— スクロールアウト後の再マウントで同じ id
-   * が再要求されたとき、落とさないと前回の「見つからなかった」を返し続ける。
+   * 「見つからなかった」と言い切れる。`request()` は再要求時にここから
+   * 削除する —— スクロールアウト後の再マウントで同じ id が再要求されたとき、
+   * 落とさないと前回の「見つからなかった」を返し続ける。
    */
   const settled = new Set<string>();
-
-  /**
-   * 窓を閉じて `fetchOnce` を 1 本投げる。`pending` を新しい Set に差し替え、
-   * 解決前に来た `request()` は次のバッチへ回す。
-   */
-  let lastBatchSize = 0;
-  let maxBatchSize = 0;
-
-  const flush = (): void => {
-    timer = null;
-    // タイマーは `request()` が `pending` へ足した直後にしか張らないので、
-    // ここへ空で来ることは無い。守りとして残すが、これに依存した経路は無い。
-    if (pending.size === 0) return;
-    const ids = [...pending];
-    pending = new Set();
-    lastBatchSize = ids.length;
-    if (ids.length > maxBatchSize) maxBatchSize = ids.length;
-
-    const filters: RelayFilter[] = [{ ids }];
-    void options.manager.fetchOnce(filters).then(() => {
-      // dispose() 後に解決したバッチは誰にも通知しない —— リスナー自体を
-      // dispose() で空にしているので実害は無いが、意図を明示しておく。
-      if (disposed) return;
+  const batch = createBatchedFetch<string>({
+    manager: options.manager,
+    scheduler: options.scheduler,
+    batchWindowMs: EVENT_BATCH_MS,
+    keyOf: (id) => id,
+    toRequest: (ids) => ({ filters: [{ ids }] }),
+    markFetched: (ids) => {
       for (const id of ids) settled.add(id);
-      for (const listener of listeners) listener();
-    });
-  };
+    },
+  });
 
   return {
     request(id, _relayHint) {
-      if (disposed) return;
+      if (batch.disposed) return;
       // 既に EventStore にあるなら要求しない (無駄な REQ を作らない)。
       if (options.store.get(id)) return;
-      // 再要求は新しい探索の開始。settled は追加専用なので、ここで落とさ
-      // ないと isUnresolved が探している最中も前回の「見つからなかった」
-      // を返し続ける。
       settled.delete(id);
-      pending.add(id);
-      if (timer === null) {
-        timer = scheduler.setTimeout(flush, EVENT_BATCH_MS);
-      }
+      batch.enqueue(id);
     },
 
     isUnresolved(id) {
@@ -115,27 +85,13 @@ export const createEventRequests = (
       return settled.has(id) && !options.store.get(id);
     },
 
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lastBatchSize;
+      return batch.lastBatchSize;
     },
-
     get maxBatchSize() {
-      return maxBatchSize;
+      return batch.maxBatchSize;
     },
-
-    dispose() {
-      disposed = true;
-      if (timer !== null) {
-        scheduler.clearTimeout(timer);
-        timer = null;
-      }
-      pending = new Set();
-      listeners.clear();
-    },
+    dispose: batch.dispose,
   };
 };

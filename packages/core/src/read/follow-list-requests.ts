@@ -1,4 +1,5 @@
 import type { RelayFilter } from "../relay/relay-connection";
+import { createBatchedFetch } from "./batched-fetch";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
@@ -75,18 +76,41 @@ export const createFollowListRequests = (
   // 取りにいった時刻。取り終わりではなく始めた時刻を置くので、返事を待つ間の要求も弾ける。
   // 一覧そのものと「自分を指す一覧」は別の問いなので、キーを分ける。
   const checkedAt = new Map<string, number>();
-  let disposed = false;
+  const batch = createBatchedFetch<{
+    key: string;
+    pubkey: string;
+    kind: FollowListRequestKind;
+  }>({
+    manager: options.manager,
+    batchWindowMs: "immediate",
+    keyOf: (request) => request.key,
+    // 行き先も問い合わせも人ごとに違うので束ねず、1 本ずつ取る。
+    toRequest: ([{ pubkey, kind }]) => ({
+      filters: [
+        followListFilter(
+          pubkey,
+          options.store.latestReplaceable(FOLLOW_KIND, pubkey),
+          kind,
+        ),
+      ],
+      relays: options.manager.relaysForAuthor(pubkey, AUTHOR_RELAYS),
+    }),
+    // 取れなかったときは、次に開いたときに取り直せるようにしておく。
+    onFailed: (requests) => {
+      for (const { key } of requests) checkedAt.delete(key);
+    },
+  });
 
   return {
     request(pubkey, kind) {
       // 公開鍵でない値を著者に入れると、リレーは要求ごと断る。
-      if (disposed || !HEX_64.test(pubkey)) return;
+      if (batch.disposed || !HEX_64.test(pubkey)) return;
       const now = scheduler.now();
-      const stored = options.store.latestReplaceable(FOLLOW_KIND, pubkey);
 
       if (kind.type === "follows-you") {
         // 手元の一覧で答えられる。取り直しは見出し側（list）に任せる。
-        if (stored !== undefined) return;
+        if (options.store.latestReplaceable(FOLLOW_KIND, pubkey) !== undefined)
+          return;
         // 一覧を取ったばかりなら、公開していないことまで含めて答えが出ている。
         if (!isFollowListDue(checkedAt.get(pubkey), now)) return;
       }
@@ -94,17 +118,10 @@ export const createFollowListRequests = (
       if (!isFollowListDue(checkedAt.get(key), now)) return;
 
       checkedAt.set(key, now);
-      const filter = followListFilter(pubkey, stored, kind);
-      const relays = options.manager.relaysForAuthor(pubkey, AUTHOR_RELAYS);
-      void options.manager
-        .fetchOnce([filter], relays === undefined ? undefined : { relays })
-        .catch(() => {
-          // 取れなかったときは、次に開いたときに取り直せるようにしておく。
-          checkedAt.delete(key);
-        });
+      batch.enqueue({ key, pubkey, kind });
     },
     dispose() {
-      disposed = true;
+      batch.dispose();
       checkedAt.clear();
     },
   };

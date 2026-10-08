@@ -1,5 +1,5 @@
-import type { RelayFilter } from "../relay/relay-connection";
 import type { RequestOptions } from "./address-requests";
+import { createBatchedFetch } from "./batched-fetch";
 import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
@@ -56,52 +56,21 @@ export const createProfileRequests = (
   options: CreateProfileRequestsOptions,
 ): ProfileRequests => {
   const scheduler = options.scheduler ?? defaultScheduler;
-
-  /** 今の窓でまだ `fetchOnce` していない pubkey (重複排除は Set 自身が担う)。 */
-  let pending = new Set<string>();
-  let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
-  let disposed = false;
-  const listeners = new Set<() => void>();
-  // 取りにいっている最中の pubkey。返事を待つ間に同じ人のアバターが続けて描かれても、
-  // 取った時刻はまだ更新されていないので、ここで重ねて要求しないようにする。
-  const inflight = new Set<string>();
-
-  /**
-   * `pending` を新しい Set に差し替えるのは、`fetchOnce` 解決前に来た新しい
-   * `request()` を今回のバッチへ混ぜず次のバッチへ回すため。
-   */
-  let lastBatchSize = 0;
-  let maxBatchSize = 0;
-
-  const flush = (): void => {
-    timer = null;
-    if (pending.size === 0) return;
-    const authors = [...pending];
-    pending = new Set();
-    lastBatchSize = authors.length;
-    if (authors.length > maxBatchSize) maxBatchSize = authors.length;
-
-    for (const author of authors) inflight.add(author);
-
-    const filters: RelayFilter[] = [{ kinds: [0], authors }];
-    const done = () => {
-      for (const author of authors) inflight.delete(author);
-    };
-    void options.manager.fetchOnce(filters).then(() => {
-      done();
-      // dispose() 後に解決したバッチは誰にも通知しない —— リスナー自体を
-      // dispose() で空にしているので実害は無いが、意図を明示しておく。
-      if (disposed) return;
+  const batch = createBatchedFetch<string>({
+    manager: options.manager,
+    scheduler,
+    batchWindowMs: PROFILE_BATCH_MS,
+    keyOf: (pubkey) => pubkey,
+    toRequest: (authors) => ({ filters: [{ kinds: [PROFILE_KIND], authors }] }),
+    markFetched: (authors) => {
       for (const author of authors) {
         options.store.markReplaceableFetched(PROFILE_KIND, author);
       }
-      for (const listener of listeners) listener();
-    }, done);
-  };
+    },
+  });
 
   return {
     request(pubkey, requestOptions) {
-      if (disposed) return;
       // 公開鍵でない値を著者に入れると、リレーは束ねたほかの人の分ごと断る。
       if (!HEX_64.test(pubkey)) return;
       // 既に新鮮なら要求しない。`fetchedAt` が無い (未取得) なら isStale を呼ぶまでもなく要求する。
@@ -116,34 +85,17 @@ export const createProfileRequests = (
       ) {
         return;
       }
-      if (inflight.has(pubkey)) return;
-      pending.add(pubkey);
-      if (timer === null) {
-        timer = scheduler.setTimeout(flush, PROFILE_BATCH_MS);
-      }
+      // 取りにいっている最中なら重ねない。返事を待つ間は取った時刻がまだ更新されない。
+      if (batch.isInflight(pubkey)) return;
+      batch.enqueue(pubkey);
     },
-
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lastBatchSize;
+      return batch.lastBatchSize;
     },
-
     get maxBatchSize() {
-      return maxBatchSize;
+      return batch.maxBatchSize;
     },
-
-    dispose() {
-      disposed = true;
-      if (timer !== null) {
-        scheduler.clearTimeout(timer);
-        timer = null;
-      }
-      pending = new Set();
-      listeners.clear();
-    },
+    dispose: batch.dispose,
   };
 };
