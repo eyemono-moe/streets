@@ -1,4 +1,4 @@
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import type { Scheduler } from "./connection-pool";
 import type { SubscriptionManager } from "./subscription-manager";
 
@@ -45,32 +45,32 @@ export const createEngagementRequests = (
    * は `EventStore` に残らず探索済みと言い当てられないため。
    */
   const requested = new Set<string>();
-  const lookup = createBatchedLookup<string>({
+  const batch = createBatchedFetch<string>({
     manager: options.manager,
     scheduler: options.scheduler,
-    windowMs: ENGAGEMENT_BATCH_MS,
+    batchWindowMs: ENGAGEMENT_BATCH_MS,
     keyOf: (targetId) => targetId,
-    plan: (targetIds) => ({
+    toRequest: (targetIds) => ({
       filters: [{ kinds: [1, 6, 7], "#e": targetIds }],
     }),
   });
 
   return {
     request(targetId) {
-      if (lookup.disposed || requested.has(targetId)) return;
+      if (batch.disposed || requested.has(targetId)) return;
       requested.add(targetId);
-      lookup.enqueue(targetId);
+      batch.enqueue(targetId);
     },
-    subscribe: lookup.subscribe,
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lookup.lastBatchSize;
+      return batch.lastBatchSize;
     },
     get maxBatchSize() {
-      return lookup.maxBatchSize;
+      return batch.maxBatchSize;
     },
     dispose() {
       requested.clear();
-      lookup.dispose();
+      batch.dispose();
     },
   };
 };

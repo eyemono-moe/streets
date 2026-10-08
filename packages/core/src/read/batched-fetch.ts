@@ -3,21 +3,21 @@ import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { SubscriptionManager } from "./subscription-manager";
 
 /** 行き先が決まらないときは `relays` を省く。`[]` は「リレー 0 本」になり、どこへも送られない。 */
-export type FetchPlan = { filters: RelayFilter[]; relays?: RelayUrl[] };
+export type FetchRequest = { filters: RelayFilter[]; relays?: RelayUrl[] };
 
-export type BatchedLookupConfig<Item> = {
+export type BatchedFetchConfig<Item> = {
   manager: SubscriptionManager;
   scheduler?: Scheduler;
   /** 行き先やフィルタがキーごとに違うもの（投票・フォロー一覧）は束ねられないので、窓を待たずに `"immediate"` で 1 件ずつ取る。 */
-  windowMs: number | "immediate";
+  batchWindowMs: number | "immediate";
   keyOf(item: Item): string;
-  plan(items: Item[]): FetchPlan;
+  toRequest(items: Item[]): FetchRequest;
   /** listener より先に呼ぶ。listener が読む「取った」印（`markReplaceableFetched` など）をここで付けるため。 */
-  onFetched?(items: Item[]): void;
+  markFetched?(items: Item[]): void;
   onFailed?(items: Item[]): void;
 };
 
-export type BatchedLookup<Item> = {
+export type BatchedFetch<Item> = {
   enqueue(item: Item): boolean;
   isInflight(key: string): boolean;
   readonly disposed: boolean;
@@ -34,9 +34,9 @@ export type BatchedLookup<Item> = {
  * （プロフィールは鮮度、反応の数は一度取ったら終わり、など）、ここへ寄せると
  * 種類ごとの分岐が戻ってくる。
  */
-export const createBatchedLookup = <Item>(
-  config: BatchedLookupConfig<Item>,
-): BatchedLookup<Item> => {
+export const createBatchedFetch = <Item>(
+  config: BatchedFetchConfig<Item>,
+): BatchedFetch<Item> => {
   const scheduler = config.scheduler ?? defaultScheduler;
   let pending = new Map<string, Item>();
   let timer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -57,7 +57,7 @@ export const createBatchedLookup = <Item>(
     if (items.length > maxBatchSize) maxBatchSize = items.length;
     for (const key of keys) inflight.add(key);
 
-    const { filters, relays } = config.plan(items);
+    const { filters, relays } = config.toRequest(items);
     const release = () => {
       for (const key of keys) inflight.delete(key);
     };
@@ -67,7 +67,7 @@ export const createBatchedLookup = <Item>(
         () => {
           release();
           if (disposed) return;
-          config.onFetched?.(items);
+          config.markFetched?.(items);
           for (const listener of listeners) listener();
         },
         () => {
@@ -81,10 +81,10 @@ export const createBatchedLookup = <Item>(
     enqueue(item) {
       if (disposed) return false;
       pending.set(config.keyOf(item), item);
-      if (config.windowMs === "immediate") {
+      if (config.batchWindowMs === "immediate") {
         flush();
       } else if (timer === null) {
-        timer = scheduler.setTimeout(flush, config.windowMs);
+        timer = scheduler.setTimeout(flush, config.batchWindowMs);
       }
       return true;
     },

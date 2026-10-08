@@ -1,5 +1,5 @@
 import type { RelayFilter } from "../relay/relay-connection";
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
@@ -76,16 +76,16 @@ export const createFollowListRequests = (
   // 取りにいった時刻。取り終わりではなく始めた時刻を置くので、返事を待つ間の要求も弾ける。
   // 一覧そのものと「自分を指す一覧」は別の問いなので、キーを分ける。
   const checkedAt = new Map<string, number>();
-  const lookup = createBatchedLookup<{
+  const batch = createBatchedFetch<{
     key: string;
     pubkey: string;
     kind: FollowListRequestKind;
   }>({
     manager: options.manager,
-    windowMs: "immediate",
+    batchWindowMs: "immediate",
     keyOf: (request) => request.key,
     // 行き先も問い合わせも人ごとに違うので束ねず、1 本ずつ取る。
-    plan: ([{ pubkey, kind }]) => ({
+    toRequest: ([{ pubkey, kind }]) => ({
       filters: [
         followListFilter(
           pubkey,
@@ -104,7 +104,7 @@ export const createFollowListRequests = (
   return {
     request(pubkey, kind) {
       // 公開鍵でない値を著者に入れると、リレーは要求ごと断る。
-      if (lookup.disposed || !HEX_64.test(pubkey)) return;
+      if (batch.disposed || !HEX_64.test(pubkey)) return;
       const now = scheduler.now();
 
       if (kind.type === "follows-you") {
@@ -118,10 +118,10 @@ export const createFollowListRequests = (
       if (!isFollowListDue(checkedAt.get(key), now)) return;
 
       checkedAt.set(key, now);
-      lookup.enqueue({ key, pubkey, kind });
+      batch.enqueue({ key, pubkey, kind });
     },
     dispose() {
-      lookup.dispose();
+      batch.dispose();
       checkedAt.clear();
     },
   };

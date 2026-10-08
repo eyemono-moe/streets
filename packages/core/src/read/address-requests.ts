@@ -1,5 +1,5 @@
 import { type EventAddress, formatEventAddress } from "../nostr/address";
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
@@ -41,12 +41,12 @@ export const createAddressRequests = (
 ): AddressRequests => {
   const scheduler = options.scheduler ?? defaultScheduler;
   const settled = new Set<string>();
-  const lookup = createBatchedLookup<EventAddress>({
+  const batch = createBatchedFetch<EventAddress>({
     manager: options.manager,
     scheduler,
-    windowMs: ADDRESS_BATCH_MS,
+    batchWindowMs: ADDRESS_BATCH_MS,
     keyOf: formatEventAddress,
-    plan: (addresses) => {
+    toRequest: (addresses) => {
       // kind ごとに 1 つのフィルタへまとめる。著者と `d` の組み合わせで余分に
       // 届くものがあっても、store が住所ごとに最新版だけを残す。
       const byKind = new Map<
@@ -70,7 +70,7 @@ export const createAddressRequests = (
         })),
       };
     },
-    onFetched: (addresses) => {
+    markFetched: (addresses) => {
       for (const address of addresses) {
         options.store.markReplaceableFetched(
           address.kind,
@@ -91,7 +91,7 @@ export const createAddressRequests = (
 
   return {
     request(address, requestOptions) {
-      if (lookup.disposed) return;
+      if (batch.disposed) return;
       const key = formatEventAddress(address);
       // 公開鍵でない値を著者に入れると、リレーは同じ束の REQ ごと断る。
       // 束ねたほかの住所まで取れなくなるので、問い合わせずに無かったことにする。
@@ -115,16 +115,16 @@ export const createAddressRequests = (
         return;
       }
       // 返事を待つ間は `settled` にまだ入っていないので、ここで弾かないと同じ住所を何度も取りにいく。
-      if (lookup.isInflight(key)) return;
+      if (batch.isInflight(key)) return;
       settled.delete(key);
-      lookup.enqueue(address);
+      batch.enqueue(address);
     },
 
     isUnresolved(address) {
       return settled.has(formatEventAddress(address)) && !stored(address);
     },
 
-    subscribe: lookup.subscribe,
-    dispose: lookup.dispose,
+    subscribe: batch.subscribe,
+    dispose: batch.dispose,
   };
 };

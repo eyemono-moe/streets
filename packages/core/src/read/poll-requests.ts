@@ -1,6 +1,6 @@
 import { POLL_RESPONSE_KIND } from "../nostr/poll";
 import type { RelayUrl } from "../relay/relay-connection";
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import type { SubscriptionManager } from "./subscription-manager";
 
 export type PollRequests = {
@@ -23,30 +23,30 @@ export const createPollRequests = (options: {
   manager: SubscriptionManager;
 }): PollRequests => {
   const settled = new Set<string>();
-  const lookup = createBatchedLookup<{
+  const batch = createBatchedFetch<{
     pollId: string;
     relays: readonly RelayUrl[];
   }>({
     manager: options.manager,
-    windowMs: "immediate",
+    batchWindowMs: "immediate",
     keyOf: (poll) => poll.pollId,
     // 行き先が投票ごとに違うので束ねず、1 本ずつ取る。
-    plan: ([poll]) => ({
+    toRequest: ([poll]) => ({
       filters: [{ kinds: [POLL_RESPONSE_KIND], "#e": [poll.pollId] }],
       relays: poll.relays.length > 0 ? [...poll.relays] : undefined,
     }),
-    onFetched: (polls) => {
+    markFetched: (polls) => {
       for (const poll of polls) settled.add(poll.pollId);
     },
   });
 
   return {
     request(pollId, relays) {
-      if (lookup.isInflight(pollId)) return;
-      lookup.enqueue({ pollId, relays });
+      if (batch.isInflight(pollId)) return;
+      batch.enqueue({ pollId, relays });
     },
     isSettled: (pollId) => settled.has(pollId),
-    subscribe: lookup.subscribe,
-    dispose: lookup.dispose,
+    subscribe: batch.subscribe,
+    dispose: batch.dispose,
   };
 };

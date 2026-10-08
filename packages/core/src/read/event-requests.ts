@@ -1,5 +1,5 @@
 import type { RelayUrl } from "../relay/relay-connection";
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import type { Scheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import type { SubscriptionManager } from "./subscription-manager";
@@ -59,24 +59,24 @@ export const createEventRequests = (
    * 落とさないと前回の「見つからなかった」を返し続ける。
    */
   const settled = new Set<string>();
-  const lookup = createBatchedLookup<string>({
+  const batch = createBatchedFetch<string>({
     manager: options.manager,
     scheduler: options.scheduler,
-    windowMs: EVENT_BATCH_MS,
+    batchWindowMs: EVENT_BATCH_MS,
     keyOf: (id) => id,
-    plan: (ids) => ({ filters: [{ ids }] }),
-    onFetched: (ids) => {
+    toRequest: (ids) => ({ filters: [{ ids }] }),
+    markFetched: (ids) => {
       for (const id of ids) settled.add(id);
     },
   });
 
   return {
     request(id, _relayHint) {
-      if (lookup.disposed) return;
+      if (batch.disposed) return;
       // 既に EventStore にあるなら要求しない (無駄な REQ を作らない)。
       if (options.store.get(id)) return;
       settled.delete(id);
-      lookup.enqueue(id);
+      batch.enqueue(id);
     },
 
     isUnresolved(id) {
@@ -85,13 +85,13 @@ export const createEventRequests = (
       return settled.has(id) && !options.store.get(id);
     },
 
-    subscribe: lookup.subscribe,
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lookup.lastBatchSize;
+      return batch.lastBatchSize;
     },
     get maxBatchSize() {
-      return lookup.maxBatchSize;
+      return batch.maxBatchSize;
     },
-    dispose: lookup.dispose,
+    dispose: batch.dispose,
   };
 };

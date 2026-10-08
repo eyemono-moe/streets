@@ -1,5 +1,5 @@
 import type { RequestOptions } from "./address-requests";
-import { createBatchedLookup } from "./batched-lookup";
+import { createBatchedFetch } from "./batched-fetch";
 import { isStale, policyFor } from "./cache-policy";
 import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
@@ -56,13 +56,13 @@ export const createProfileRequests = (
   options: CreateProfileRequestsOptions,
 ): ProfileRequests => {
   const scheduler = options.scheduler ?? defaultScheduler;
-  const lookup = createBatchedLookup<string>({
+  const batch = createBatchedFetch<string>({
     manager: options.manager,
     scheduler,
-    windowMs: PROFILE_BATCH_MS,
+    batchWindowMs: PROFILE_BATCH_MS,
     keyOf: (pubkey) => pubkey,
-    plan: (authors) => ({ filters: [{ kinds: [PROFILE_KIND], authors }] }),
-    onFetched: (authors) => {
+    toRequest: (authors) => ({ filters: [{ kinds: [PROFILE_KIND], authors }] }),
+    markFetched: (authors) => {
       for (const author of authors) {
         options.store.markReplaceableFetched(PROFILE_KIND, author);
       }
@@ -86,16 +86,16 @@ export const createProfileRequests = (
         return;
       }
       // 取りにいっている最中なら重ねない。返事を待つ間は取った時刻がまだ更新されない。
-      if (lookup.isInflight(pubkey)) return;
-      lookup.enqueue(pubkey);
+      if (batch.isInflight(pubkey)) return;
+      batch.enqueue(pubkey);
     },
-    subscribe: lookup.subscribe,
+    subscribe: batch.subscribe,
     get lastBatchSize() {
-      return lookup.lastBatchSize;
+      return batch.lastBatchSize;
     },
     get maxBatchSize() {
-      return lookup.maxBatchSize;
+      return batch.maxBatchSize;
     },
-    dispose: lookup.dispose,
+    dispose: batch.dispose,
   };
 };
