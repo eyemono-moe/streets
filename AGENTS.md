@@ -82,7 +82,7 @@ pnpm workspace の 2 パッケージ。
 ### NIP・kind の対応を変える
 
 - Streets の機能追加・削除で対応範囲が変わったら、実装とともに `packages/core/src/nostr/nip-support.json` の対応度・説明・kind・タグ・主な実装ファイル・残る差を直す。該当する kind は `kind-support.json` の状態と説明も直す。新しい NIP・kind は行を足し、扱わなくなったものは実態に合わせて「未対応」へ変える。単にコードから参照が消えただけで、NIP 自体の行を消さない
-- kind の「表示対応」は `apps/web/src/note/Event.tsx` に渡すと専用表示がある場合だけ宣言する。分岐とストーリーを用意し、`scripts/nip-support.test.mjs` の照合を通す。読み書きだけなら「内部利用」にする。NIP の「対応」と kind の「表示対応」は別に判断する
+- kind の「表示対応」は `apps/web/src/note/Event.tsx` に渡すと専用表示がある場合だけ宣言する。kind を `note/event-kinds.ts` の `RENDERED_KINDS` に足し、型検査が求めるとおり `Event.tsx` の `EVENT_VIEWS` に描き方を書く。描き分けのために kind で分岐する場所をほかに作らない。ストーリーを用意し、`scripts/nip-support.test.mjs` の照合を通す。読み書きだけなら「内部利用」にする。NIP の「対応」と kind の「表示対応」は別に判断する
 - NIPs 側の仕様が変わったら、変更箇所を既存の実装・`nip-support.json` の記載と照らす。Streets の動作に影響するなら実装とテストを直し、両一覧の対応度・kind・タグ・実装ファイル・残る差を更新する。未実装の仕様なら差を記録し、対応が必要なら Issue にする。仕様変更だけを理由に対応済みとは宣言しない
 - 一覧を直したら `vp run nips:generate` で `docs/nips.md` を再生成し、`vp run verify` を通す。「Streets について」は同じ JSON を読むので別に転記しない
 
