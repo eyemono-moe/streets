@@ -4,7 +4,13 @@ import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
+  canBookmark,
+  canPin,
+  canReply,
+} from "@streets/core/nostr/event-actions";
+import {
   type EventActionId,
+  allActionsOf,
   menuActionsOf,
 } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
@@ -14,6 +20,7 @@ import { Portal } from "solid-js/web";
 import { actionLayout } from "../action-layout-setting";
 import { type EventActions, useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
+import { canHover } from "../can-hover";
 import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { lazyPart } from "../lazy-part";
@@ -30,8 +37,8 @@ import {
 } from "../ui/menu";
 import {
   EVENT_ACTION_META,
+  bookmarkLook,
   createEventDialogs,
-  canPin,
   muteEventLook,
   pinLook,
   reactionLabel,
@@ -54,7 +61,7 @@ type MenuItem = {
   label: string;
   icon: string;
   danger?: boolean;
-  /** まだ作っていない操作。押せる見た目にすると壊れて見えるので出さない。 */
+  /** いまは押せない（送っている途中・ログインしていない・相手が受け取れない）。押せる見た目にしない。 */
   todo?: boolean;
 };
 
@@ -90,6 +97,10 @@ const EventItems: Component<{
   actions: EventActions | undefined;
   muted: boolean;
   canMute: boolean;
+  /** 返信を呼んだ側が書くか。kind:42 の返信は、そのときだけ出す。 */
+  customReply: boolean;
+  /** ミュートを呼んだ側の「ミュート…」に任せるか。ミュート済みの解除は残す。 */
+  customMute: boolean;
 }> = (props) => {
   const engagement = props.actions
     ? useEngagements(() => props.event, props.actions.viewer)
@@ -125,6 +136,9 @@ const EventItems: Component<{
     const meta = EVENT_ACTION_META[id];
     switch (id) {
       case "reply":
+        return canReply(props.event, { custom: props.customReply })
+          ? [{ value: id, ...meta }]
+          : [];
       case "react":
       case "activity":
       case "timeslip":
@@ -133,13 +147,18 @@ const EventItems: Component<{
         return [{ value: id, ...meta }];
       case "repost": {
         const reposted = engagement?.().viewerReposted ?? false;
+        const repost: MenuItem[] = buildRepost(props.event)
+          ? [
+              {
+                value: "repost",
+                label: reposted ? "リポスト済み" : "リポスト",
+                icon: meta.icon,
+                todo: reposted || reposting(),
+              },
+            ]
+          : [];
         return [
-          {
-            value: "repost",
-            label: reposted ? "リポスト済み" : "リポスト",
-            icon: meta.icon,
-            todo: reposted || reposting() || !buildRepost(props.event),
-          },
+          ...repost,
           {
             value: "quote",
             label: "引用",
@@ -170,29 +189,31 @@ const EventItems: Component<{
           },
         ];
       }
+      // その kind では入れられないものは並べない。入っているものは外せるよう残す。
       case "bookmark":
-        return [
-          {
-            value: id,
-            label: bookmarked() ? "ブックマークを外す" : "ブックマーク",
-            icon: bookmarked()
-              ? "i-material-symbols:bookmark-rounded"
-              : meta.icon,
-            todo: bookmarking(),
-          },
-        ];
+        return bookmarked() || canBookmark(props.event)
+          ? [
+              {
+                value: id,
+                ...bookmarkLook(props.event, bookmarked()),
+                todo: bookmarking(),
+              },
+            ]
+          : [];
       case "pin":
-        return [
-          {
-            value: id,
-            ...pinLook(props.event, pinned()),
-            todo: pinning() || (!pinned() && !canPin(props.event)),
-          },
-        ];
+        return pinned() || canPin(props.event)
+          ? [{ value: id, ...pinLook(props.event, pinned()), todo: pinning() }]
+          : [];
       case "mute-event":
-        return [
-          { value: id, ...muteEventLook(props.muted), todo: !props.canMute },
-        ];
+        return props.customMute && !props.muted
+          ? []
+          : [
+              {
+                value: id,
+                ...muteEventLook(props.muted),
+                todo: !props.canMute,
+              },
+            ];
       case "broadcast":
         // 送るのはログインしている間だけ。暗号化されたものは送り直さない。
         return props.actions && canBroadcast(props.event)
@@ -205,12 +226,24 @@ const EventItems: Component<{
 
 /**
  * 投稿の右上のメニュー。kind によらず出せる操作と、アクション欄に出していない操作を置く。
- * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
+ * その kind では使えない操作は並べず、いまだけ押せない操作は押せない状態で並べる。
  */
 const EventMenu: Component<{
   event: NostrEvent;
   /** この投稿にアクション欄があるか。無ければ、欄に入る操作はメニューにも出さない。 */
   withActions?: boolean;
+  /**
+   * アクション欄の代わりにホバーで出す道具列を持つ画面（チャット）で、道具列にある操作。
+   * 渡すと欄の操作もメニューに並べ、カーソルを当てられる端末では道具列の分を外す。
+   */
+  toolbar?: readonly EventActionId[];
+  /** 返信を呼んだ側が書くとき、その開き方。渡さなければ kind:1 の返信ダイアログを開く。 */
+  onReply?: () => void;
+  /**
+   * 呼んだ側がミュートの選び方を持つとき、その開き方。渡すと「このイベントをミュート」と
+   * 投稿者の「ミュート」の代わりに「ミュート…」を 1 つ出す。ミュート済みの解除はそのまま残る。
+   */
+  onMute?: () => void;
   /** 開いた状態で描く。Storybook で中身を並べるため。 */
   defaultOpen?: boolean;
 }> = (props) => {
@@ -227,10 +260,12 @@ const EventMenu: Component<{
   const [picking, setPicking] = createSignal(false);
   let trigger: HTMLElement | undefined;
   const eventIds = () =>
-    menuActionsOf(
-      actionLayout(),
-      props.withActions === true && actions !== undefined,
-    );
+    props.toolbar && actions !== undefined
+      ? allActionsOf(actionLayout(), canHover() ? props.toolbar : [])
+      : menuActionsOf(
+          actionLayout(),
+          props.withActions === true && actions !== undefined,
+        );
   const authorTarget = (): MuteTarget => ({
     type: "pubkey",
     value: props.event.pubkey,
@@ -260,6 +295,19 @@ const EventMenu: Component<{
     // 自分はフォローできず、ミュートしても自分の投稿は隠さない。押せても意味が無いので出さない。
     if (mine()) return [addToList, AUTHOR_RELAYS];
     const muted = authorMuteEntry() !== undefined;
+    const muteAuthor: MenuItem[] =
+      props.onMute && !muted
+        ? []
+        : [
+            {
+              value: "mute-author",
+              label: muted ? "ミュートを解除" : "ミュート",
+              icon: muted
+                ? "i-material-symbols:person-outline-rounded"
+                : "i-material-symbols:person-off-outline-rounded",
+              todo: mutes === undefined,
+            },
+          ];
     return [
       {
         value: "follow",
@@ -271,14 +319,7 @@ const EventMenu: Component<{
         todo: actions === undefined || followSending(),
       },
       addToList,
-      {
-        value: "mute-author",
-        label: muted ? "ミュートを解除" : "ミュート",
-        icon: muted
-          ? "i-material-symbols:person-outline-rounded"
-          : "i-material-symbols:person-off-outline-rounded",
-        todo: mutes === undefined,
-      },
+      ...muteAuthor,
       AUTHOR_RELAYS,
     ];
   };
@@ -308,6 +349,9 @@ const EventMenu: Component<{
         onSelect={(details) => {
           switch (details.value) {
             case "reply":
+              if (props.onReply) props.onReply();
+              else dialogs.open("reply");
+              break;
             case "quote":
             case "details":
             case "broadcast":
@@ -374,6 +418,9 @@ const EventMenu: Component<{
             case "timeslip":
               ops.timeslip();
               break;
+            case "mute":
+              props.onMute?.();
+              break;
           }
         }}
       >
@@ -402,7 +449,20 @@ const EventMenu: Component<{
                   actions={actions}
                   muted={ops.muted()}
                   canMute={ops.canMute}
+                  customReply={props.onReply !== undefined}
+                  customMute={props.onMute !== undefined}
                 />
+                <Show when={props.onMute}>
+                  <Items
+                    items={[
+                      {
+                        value: "mute",
+                        label: "ミュート…",
+                        icon: "i-material-symbols:visibility-off-outline-rounded",
+                      },
+                    ]}
+                  />
+                </Show>
                 <Show when={client()}>
                   {(ref) => (
                     <Items

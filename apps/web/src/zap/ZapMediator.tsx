@@ -1,3 +1,4 @@
+import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { isStale, policyFor } from "@streets/core/read/cache-policy";
 import type {
@@ -7,6 +8,7 @@ import type {
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { EventStore } from "@streets/core/read/event-store";
 import type { RoutingTable } from "@streets/core/read/routing-table";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { SubscriptionManager } from "@streets/core/read/subscription-manager";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { Signer } from "@streets/core/signer/signer";
@@ -185,6 +187,11 @@ export const ZapMediator: ParentComponent<{
       recipientRead: props.routing.readRelaysFor(draft.target.pubkey),
       senderRead: props.routing.readRelaysFor(props.viewer),
       fallback: FALLBACK_RELAYS,
+      // チャンネルの発言は、そのチャンネルの画面にも受領が出るようにする。
+      channel:
+        draft.target.kind === CHANNEL_MESSAGE_KIND
+          ? relaysSeenOn(props.store, draft.target.id)
+          : undefined,
     });
     const zapRequest = await props.signer.signEvent({
       ...buildZapRequest({

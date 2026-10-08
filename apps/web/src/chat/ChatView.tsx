@@ -1,7 +1,6 @@
 import { Presence } from "@ark-ui/solid/presence";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
 import type { Paging } from "@streets/core/read/source";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ChatRow } from "@streets/core/view/chat";
 import {
@@ -18,6 +17,7 @@ import {
   onMount,
 } from "solid-js";
 import NewerNotice from "../columns/NewerNotice";
+import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 import { holdsScroll } from "../ui/scroll-hold";
 import VirtualList, {
@@ -66,8 +66,8 @@ const DaySeparator: Component<{ at: number }> = (props) => (
 /** 日付の区切りか、1 件の発言。 */
 const ChatRowView: Component<{
   row: ChatRow;
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
+  size?: EventSize;
 }> = (props) => (
   <Switch>
     <Match when={props.row.type === "day" && props.row}>
@@ -85,8 +85,8 @@ const ChatRowView: Component<{
               <ChatMessage
                 event={message().event}
                 continued={message().continued}
-                relays={props.relays}
                 expandMedia={props.expandMedia}
+                size={props.size}
               />
             }
           >
@@ -94,8 +94,8 @@ const ChatRowView: Component<{
               <HiddenChatMessage
                 event={message().event}
                 visibility={visibility()}
-                relays={props.relays}
                 expandMedia={props.expandMedia}
+                size={props.size}
               />
             )}
           </Show>
@@ -107,8 +107,9 @@ const ChatRowView: Component<{
 
 type RowsProps = {
   rows: readonly ChatRow[];
-  relays: readonly RelayUrl[];
   expandMedia: boolean;
+  /** 表示密度。`compact` で発言の文字と余白を詰める。 */
+  size?: EventSize;
   paging: Paging;
   settled: boolean;
   onLoadOlder: () => void;
@@ -303,8 +304,8 @@ const NewestLastRows: Component<RowsProps> = (props) => {
               {(row) => (
                 <ChatRowView
                   row={row}
-                  relays={props.relays}
                   expandMedia={props.expandMedia}
+                  size={props.size}
                 />
               )}
             </VirtualList>
@@ -392,8 +393,8 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
               {(row) => (
                 <ChatRowView
                   row={row}
-                  relays={props.relays}
                   expandMedia={props.expandMedia}
+                  size={props.size}
                 />
               )}
             </VirtualList>

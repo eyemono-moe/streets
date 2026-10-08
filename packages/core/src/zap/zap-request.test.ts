@@ -33,6 +33,38 @@ describe("zapReceiptRelays", () => {
     ).toEqual(["wss://recipient/", "wss://shared/", "wss://sender/"]);
   });
 
+  it("チャンネルのリレーを先頭に入れ、重複は除く", () => {
+    expect(
+      zapReceiptRelays({
+        recipientRead: ["wss://recipient/", "wss://chan1/"],
+        senderRead: ["wss://sender/"],
+        fallback: [],
+        channel: ["wss://chan1/", "wss://chan2/"],
+      }),
+    ).toEqual([
+      "wss://chan1/",
+      "wss://chan2/",
+      "wss://recipient/",
+      "wss://sender/",
+    ]);
+  });
+
+  it("チャンネルのリレーは 2 本までで、5 本の上限も守る", () => {
+    const relays = zapReceiptRelays({
+      recipientRead: ["wss://r1/", "wss://r2/", "wss://r3/", "wss://r4/"],
+      senderRead: ["wss://s1/"],
+      fallback: [],
+      channel: ["wss://c1/", "wss://c2/", "wss://c3/"],
+    });
+    expect(relays).toEqual([
+      "wss://c1/",
+      "wss://c2/",
+      "wss://r1/",
+      "wss://r2/",
+      "wss://r3/",
+    ]);
+  });
+
   it("5 本の枠は受取人の read リレーから使う", () => {
     expect(
       zapReceiptRelays({

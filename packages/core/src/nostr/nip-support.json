@@ -198,12 +198,13 @@
   {
     "nip": "28",
     "status": "対応",
-    "summary": "公開チャンネルとチャット",
+    "summary": "公開チャンネルとチャット。発言には通常の投稿と同じメニューと操作（Zap・引用など）を出し、返信はチャンネルの中で書く",
     "kinds": [40, 41, 42, 43, 44],
     "tags": ["e", "p"],
     "paths": [
       "packages/core/src/nostr/channel.ts",
       "packages/core/src/nostr/build/channel.ts",
+      "packages/core/src/nostr/event-actions.ts",
       "apps/web/src/columns/blocks/ChannelChat.tsx"
     ],
     "gap": ""

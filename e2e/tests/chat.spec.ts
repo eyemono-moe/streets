@@ -199,13 +199,10 @@ test("チャンネルの発言をミュートできる", async ({
 
   const message = page.getByRole("article").filter({ hasText: spam.content });
   await message.hover();
-  await message.getByRole("button", { name: "そのほかの操作" }).click();
-  await page
-    .getByRole("menuitem", { name: "このメッセージをミュートする" })
-    .click();
-  const dialog = page.getByRole("dialog", {
-    name: "このメッセージをミュートする",
-  });
+  await message.getByRole("button", { name: "この投稿の操作" }).click();
+  await page.getByRole("menuitem", { name: "ミュート…" }).click();
+  // 既定は「この発言」を「このチャンネルだけ」。
+  const dialog = page.getByRole("dialog", { name: "ミュート" });
   await dialog.getByRole("textbox", { name: "理由（任意）" }).fill("宣伝");
   await dialog.getByRole("button", { name: "ミュートする" }).click();
 

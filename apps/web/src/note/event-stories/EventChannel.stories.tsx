@@ -34,6 +34,10 @@ const channelMessage = alice.event(
 const channelQuote = bob.quote(channelCreate, "ここのチャンネルおすすめです");
 const channelMessageQuote = carol.quote(channelMessage, "この発言が好き");
 
+const bobMessage = bob.event(
+  buildChannelMessage(channelCreate.id, "ここは居心地がいいですね"),
+);
+
 const meta = {
   ...eventStoryMeta,
   title: "イベント/チャンネル",
@@ -51,6 +55,21 @@ export const 情報の書き換え: Story = {
 };
 export const チャンネルでの発言: Story = {
   args: { event: channelMessage, scene: scene(channelCreate, channelMessage) },
+};
+/** タイムラインのカラムと同じ幅で、compact は操作を出さない（引用の中と同じ）。 */
+export const チャンネルでの発言_高密度: Story = {
+  args: {
+    event: channelMessage,
+    scene: scene(channelCreate, channelMessage),
+    size: "compact",
+  },
+};
+/** 自分のいいね・リポスト済みなど、アクション欄が普通の投稿と同じ並びで出る。 */
+export const ほかの人のチャンネルでの発言: Story = {
+  args: {
+    event: bobMessage,
+    scene: scene(channelCreate, bobMessage),
+  },
 };
 export const チャンネルを埋め込んだ投稿: Story = {
   args: {

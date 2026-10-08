@@ -1,6 +1,11 @@
 import { Menu } from "@ark-ui/solid/menu";
 import { buildRepost } from "@streets/core/nostr/build/repost";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import {
+  canBookmark,
+  canPin,
+  canReply,
+} from "@streets/core/nostr/event-actions";
 import type { EventActionId } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
@@ -15,8 +20,8 @@ import { useDispatch } from "../ui-events";
 import { menuContentClass, menuItemClass } from "../ui/menu";
 import {
   EVENT_ACTION_META,
+  bookmarkLook,
   createEventDialogs,
-  canPin,
   muteEventLook,
   pinLook,
   reactionLabel,
@@ -65,7 +70,11 @@ const Action: Component<{
 );
 
 /** 投稿の下の操作。並べるものと順は、表示の設定で選ぶ（残りは右上のメニューに入る）。 */
-const ActionBar: Component<{ event: NostrEvent }> = (props) => {
+const ActionBar: Component<{
+  event: NostrEvent;
+  /** 返信を呼んだ側が書くときの開き方。kind:42 の返信は、渡したときだけ出す。 */
+  onReply?: () => void;
+}> = (props) => {
   const actions = useEventActions();
 
   return (
@@ -112,7 +121,9 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
               label="返信"
               icon={EVENT_ACTION_META.reply.icon}
               count={engagement().replies}
-              onClick={() => dialogs.open("reply")}
+              onClick={() =>
+                props.onReply ? props.onReply() : dialogs.open("reply")
+              }
             />
           ),
           repost: () => (
@@ -222,14 +233,13 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
           ),
           bookmark: () => (
             <Action
-              label={bookmarked() ? "ブックマークを外す" : "ブックマーク"}
-              icon={
-                bookmarked()
-                  ? "i-material-symbols:bookmark-rounded"
-                  : EVENT_ACTION_META.bookmark.icon
-              }
+              label={bookmarkLook(props.event, bookmarked()).label}
+              icon={bookmarkLook(props.event, bookmarked()).icon}
               active={bookmarked()}
-              disabled={bookmarking()}
+              // 外すことは kind によらずできる。入ってしまったものを残さないため。
+              disabled={
+                bookmarking() || (!bookmarked() && !canBookmark(props.event))
+              }
               onClick={() => dispatch(bookmark())}
             />
           ),
@@ -290,10 +300,17 @@ const ActionBar: Component<{ event: NostrEvent }> = (props) => {
           ),
         };
 
+        const shownIds = () =>
+          actionLayout().bar.filter(
+            (id) =>
+              id !== "reply" ||
+              canReply(props.event, { custom: props.onReply !== undefined }),
+          );
+
         return (
           <>
             <div class="flex items-center justify-between">
-              <For each={actionLayout().bar}>{(id) => views[id]()}</For>
+              <For each={shownIds()}>{(id) => views[id]()}</For>
             </div>
             {dialogs.view}
           </>

@@ -1,3 +1,4 @@
+import { buildChannelMessage } from "@streets/core/nostr/build/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { pinNote } from "@streets/core/nostr/pinned-notes";
 import { defaultActionLayout } from "@streets/core/settings/action-layout";
@@ -53,6 +54,18 @@ export const フォロー中でピン留め済み: Story = {
       viewer.event(pinNote(plain.id)(undefined)),
     ),
   },
+};
+
+const channelMessage = alice.event(
+  buildChannelMessage("1".repeat(64), "チャンネルでの発言"),
+);
+
+/**
+ * kind:42 は、ブックマークとピン留めが押せず、返信は出ない（返信はチャンネルの中で書く）。
+ * Zap・引用・ミュートなどは通常の投稿と同じ。
+ */
+export const チャンネルでの発言: Story = {
+  args: { event: channelMessage, scene: scene(channelMessage) },
 };
 
 const mine = viewer.note("自分の投稿");

@@ -5,6 +5,7 @@ import {
 import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { canBookmark, canPin } from "@streets/core/nostr/event-actions";
 import { encodeEventPointer } from "@streets/core/nostr/event-pointer";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { EventActionId } from "@streets/core/settings/action-layout";
@@ -168,8 +169,19 @@ export const muteEventLook = (muted: boolean) =>
       }
     : EVENT_ACTION_META["mute-event"];
 
-/** NIP-51 のピン留めは kind:1 の投稿を入れるリスト。ほかの kind は入れない。 */
-export const canPin = (event: NostrEvent): boolean => event.kind === 1;
+/** ブックマークの操作の名前とアイコン。kind:42 のように入れられない発言は、入っていなければ押せない。 */
+export const bookmarkLook = (event: NostrEvent, bookmarked: boolean) =>
+  bookmarked
+    ? {
+        label: "ブックマークを外す",
+        icon: "i-material-symbols:bookmark-rounded",
+      }
+    : canBookmark(event)
+      ? { label: "ブックマーク", icon: EVENT_ACTION_META.bookmark.icon }
+      : {
+          label: "この発言はブックマークできません",
+          icon: EVENT_ACTION_META.bookmark.icon,
+        };
 
 export const pinLook = (event: NostrEvent, pinned: boolean) =>
   pinned

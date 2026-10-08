@@ -3,6 +3,7 @@ import {
   channelSource,
   chatModerationSource,
 } from "@streets/core/deck/column-sources";
+import { threadMuteTarget } from "@streets/core/moderation/mute-list";
 import {
   CHANNEL_CREATE_KIND,
   CHANNEL_METADATA_KIND,
@@ -156,6 +157,29 @@ const ChannelChat: Component<{
       );
   };
 
+  // アカウントのミュート一覧への追加は MuteMediator が書く。ここでは渡すだけで、渡したら閉じる。
+  const muteEverywhere = (
+    state: Exclude<ChatMuteState, { phase: "closed" }>,
+  ) => {
+    const target = store.get(state.messageId);
+    if (state.kind === "message" && !target) {
+      applyMute({ type: "chat-mute/failed" });
+      notifyError(
+        new Error("発言を読み込めていません"),
+        "ミュートできませんでした",
+      );
+      return;
+    }
+    dispatch({
+      type: "mutes/add",
+      target:
+        state.kind === "message" && target
+          ? threadMuteTarget(target)
+          : { type: "pubkey", value: state.pubkey },
+    });
+    applyMute({ type: "chat-mute/sent" });
+  };
+
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
       case "chat/reply":
@@ -164,10 +188,14 @@ const ChannelChat: Component<{
         return true;
       case "chat-mute/submit": {
         const next = applyMute(event);
-        if (next.phase === "sending") sendMute(next);
+        if (next.phase !== "sending") return true;
+        if (next.scope === "channel") sendMute(next);
+        else muteEverywhere(next);
         return true;
       }
       case "chat-mute/open":
+      case "chat-mute/kind":
+      case "chat-mute/scope":
       case "chat-mute/reason":
       case "chat-mute/close":
         applyMute(event);
@@ -200,8 +228,8 @@ const ChannelChat: Component<{
           <ChatView
             rows={view.rows}
             order={chatOrder()}
-            relays={relays()}
             expandMedia={scope.column().expandMedia !== false}
+            size={scope.column().density === "compact" ? "compact" : "normal"}
             paging={messages.paging()}
             settled={messages.status().phase === "settled"}
             onLoadOlder={messages.loadMore}

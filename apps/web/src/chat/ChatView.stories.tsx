@@ -13,6 +13,7 @@ import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ComposeMediator } from "../note/ComposeMediator";
+import type { EventSize } from "../note/Event";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import portraitUrl from "../storybook/media-portrait.svg?no-inline";
@@ -126,6 +127,8 @@ type Props = {
   order: ChatOrder;
   paging: Paging;
   settled: boolean;
+  /** 表示密度。カラム設定の「表示密度」に合わせる。 */
+  size?: EventSize;
   replyTo?: NostrEvent;
   channelName?: string;
   /**
@@ -231,8 +234,8 @@ const meta = {
               <ChatView
                 rows={feed ? feed.rows() : live ? live() : (many ?? rows())}
                 order={props.order}
-                relays={["wss://relay.example/"]}
                 expandMedia
+                size={props.size}
                 paging={feed ? feed.paging() : props.paging}
                 settled={props.settled}
                 onLoadOlder={() => feed?.loadOlder()}
@@ -263,6 +266,7 @@ const meta = {
       options: ["newest-last", "newest-first"],
     },
     replyTo: { control: false },
+    size: { control: "inline-radio", options: ["normal", "compact"] },
   },
 } satisfies Meta<Props>;
 
@@ -270,6 +274,8 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const 通常: Story = {};
+/** カラム設定の「表示密度」が高いとき。文字と余白を詰める。 */
+export const 密度が高い: Story = { args: { size: "compact" } };
 export const 返信を書いている: Story = { args: { replyTo: usual } };
 export const 古い発言を読み込み中: Story = { args: { paging: "loading" } };
 /** 返事をしないリレーがあって、もう無いのか分からない。 */

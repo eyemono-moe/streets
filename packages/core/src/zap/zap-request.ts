@@ -3,15 +3,27 @@ import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { ZapEndpoint, ZapPayInfo } from "./lnurl";
 
-/** ウォレットに Zap 受領を公開してもらうリレー。受取人の通知先を優先する。 */
+/** チャンネルのリレーに割く枠。残りは受取人の通知先に使う。 */
+const CHANNEL_RELAY_SLOTS = 2;
+
+/**
+ * ウォレットに Zap 受領を公開してもらうリレー。受取人の通知先を優先する。
+ * チャンネルの発言（`channel`）は、そのチャンネルの画面にも受領が出るよう、
+ * 発言を受け取ったリレーを先頭の 2 本まで先に入れる。
+ */
 export const zapReceiptRelays = (options: {
   recipientRead: readonly RelayUrl[];
   senderRead: readonly RelayUrl[];
   fallback: readonly RelayUrl[];
+  channel?: readonly RelayUrl[];
 }): RelayUrl[] => {
   const recipient =
     options.recipientRead.length > 0 ? options.recipientRead : options.fallback;
-  return [...new Set([...recipient, ...options.senderRead])].slice(0, 5);
+  const channel = (options.channel ?? []).slice(0, CHANNEL_RELAY_SLOTS);
+  return [...new Set([...channel, ...recipient, ...options.senderRead])].slice(
+    0,
+    5,
+  );
 };
 
 /**
