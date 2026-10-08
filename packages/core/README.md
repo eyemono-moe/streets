@@ -37,7 +37,7 @@ flowchart TD
 
 `createReadLayer`（`read/read-layer.ts`）が全部を組み立てる。`EventStore` を作るのはここだけで、アプリは `ReadLayer` を 1 つ持つ。
 
-段の間の import の向きは、図のとおりに上から下へだけ許す。`read/layers.test.ts` が全ファイルの import を読んで確かめる。新しいファイルは、このテストの表に段を書き足さないと落ちる。
+段の間の import の向きは、図のとおりに上から下へだけ許す。lint の規則 `streets/read-layers`（`scripts/read-layers.mjs`）が、import を書いたその場で確かめる。`read/` と `relay/` に新しいファイルを足したら、この表に段を書き足さないと落ちる。
 
 ## 段ごとの約束
 
