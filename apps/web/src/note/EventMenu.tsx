@@ -68,7 +68,7 @@ type MenuItem = {
   label: string;
   icon: string;
   danger?: boolean;
-  /** まだ作っていない操作。押せる見た目にすると壊れて見えるので出さない。 */
+  /** いまは押せない（送っている途中・ログインしていない・相手が受け取れない）。押せる見た目にしない。 */
   todo?: boolean;
 };
 
@@ -152,13 +152,18 @@ const EventItems: Component<{
         return [{ value: id, ...meta }];
       case "repost": {
         const reposted = engagement?.().viewerReposted ?? false;
+        const repost: MenuItem[] = buildRepost(props.event)
+          ? [
+              {
+                value: "repost",
+                label: reposted ? "リポスト済み" : "リポスト",
+                icon: meta.icon,
+                todo: reposted || reposting(),
+              },
+            ]
+          : [];
         return [
-          {
-            value: "repost",
-            label: reposted ? "リポスト済み" : "リポスト",
-            icon: meta.icon,
-            todo: reposted || reposting() || !buildRepost(props.event),
-          },
+          ...repost,
           {
             value: "quote",
             label: "引用",
@@ -189,22 +194,21 @@ const EventItems: Component<{
           },
         ];
       }
+      // その kind では入れられないものは並べない。入っているものは外せるよう残す。
       case "bookmark":
-        return [
-          {
-            value: id,
-            ...bookmarkLook(props.event, bookmarked()),
-            todo: bookmarking() || (!bookmarked() && !canBookmark(props.event)),
-          },
-        ];
+        return bookmarked() || canBookmark(props.event)
+          ? [
+              {
+                value: id,
+                ...bookmarkLook(props.event, bookmarked()),
+                todo: bookmarking(),
+              },
+            ]
+          : [];
       case "pin":
-        return [
-          {
-            value: id,
-            ...pinLook(props.event, pinned()),
-            todo: pinning() || (!pinned() && !canPin(props.event)),
-          },
-        ];
+        return pinned() || canPin(props.event)
+          ? [{ value: id, ...pinLook(props.event, pinned()), todo: pinning() }]
+          : [];
       case "mute-event":
         return [
           { value: id, ...muteEventLook(props.muted), todo: !props.canMute },
@@ -221,7 +225,7 @@ const EventItems: Component<{
 
 /**
  * 投稿の右上のメニュー。kind によらず出せる操作と、アクション欄に出していない操作を置く。
- * まだ作っていない操作は押せない状態で並べ、どこに来るかだけ分かるようにする。
+ * その kind では使えない操作は並べず、いまだけ押せない操作は押せない状態で並べる。
  */
 const EventMenu: Component<{
   event: NostrEvent;
