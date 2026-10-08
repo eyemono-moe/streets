@@ -140,8 +140,6 @@ export type RelayRecommendation = {
   /** 計測があれば。 */
   discovery?: RelayDiscovery;
   reasons: RecommendationReason[];
-  /** 自分の一覧に既にある。 */
-  added: boolean;
 };
 
 /**
@@ -208,9 +206,7 @@ export const recommendRelays = (input: {
   users: ReadonlyMap<RelayUrl, number>;
   followees: number;
   discoveries: ReadonlyMap<RelayUrl, RelayDiscovery>;
-  own: readonly RelayListEntry[];
 }): RelayRecommendation[] => {
-  const ownUrls = new Set(input.own.map((entry) => entry.url));
   const items = input.candidates.map((url) => {
     const discovery = input.discoveries.get(url);
     const users = input.users.get(url) ?? 0;
@@ -225,7 +221,6 @@ export const recommendRelays = (input: {
       users,
       ...(discovery ? { discovery } : {}),
       reasons,
-      added: ownUrls.has(url),
     };
   });
   return items.sort(

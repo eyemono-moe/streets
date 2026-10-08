@@ -2,12 +2,11 @@ import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
 import type { RelayUsage } from "@streets/core/settings/relay-edit";
-import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { RelayMediator } from "../settings/RelayMediator";
 import avatar from "../storybook/avatar-fixture.svg";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { createStoryAuthor } from "../storybook/story-events";
+import { StoryRelayEdit } from "../storybook/StoryRelayEdit";
 import {
   AuthorRelaysDialogView,
   type AuthorRelaysState,
@@ -28,23 +27,16 @@ const admin = createStoryAuthor(94, {
 type Args = { state: AuthorRelaysState; info: Record<string, RelayInfo> };
 
 const Story = (props: Args) => {
-  const [relayList] = createSignal(undefined);
   return (
     <EventSceneProvider scene={{ events: [admin.profile()] }}>
-      <RelayMediator
-        writer={{ replace: async () => ({ event: undefined }) as never }}
-        relayList={relayList}
-        settled={() => true}
-        statusOf={() => "idle"}
-        infoOf={() => undefined}
-      >
+      <StoryRelayEdit own={[relay("wss://write.example/", "read")]}>
         <AuthorRelaysDialogView
           state={props.state}
           title="リレー利用者さんが使っているリレー"
           infoOf={(url) => props.info[url]}
           onClose={() => {}}
         />
-      </RelayMediator>
+      </StoryRelayEdit>
     </EventSceneProvider>
   );
 };

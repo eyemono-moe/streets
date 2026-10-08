@@ -1,6 +1,5 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
-import { type RelayUsage, relayLabel } from "@streets/core/settings/relay-edit";
 import type {
   RecommendationReason,
   RelayRecommendation,
@@ -13,10 +12,9 @@ import {
   Switch,
   createSignal,
 } from "solid-js";
-import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
-import SegmentedControl from "../ui/SegmentedControl";
 import RelaySummary from "./RelaySummary";
+import RelayUseButton from "./RelayUseButton";
 import SettingsSection from "./SettingsSection";
 
 /** 候補の集まり具合。取得中と、候補が無いことを分ける。 */
@@ -128,33 +126,11 @@ const Notice: Component<{ children: string }> = (props) => (
   </p>
 );
 
-const USAGES: { value: RelayUsage; label: string; icon: string }[] = [
-  {
-    value: "both",
-    label: "両方",
-    icon: "i-material-symbols:swap-vert-rounded",
-  },
-  {
-    value: "read",
-    label: "読み込み",
-    icon: "i-material-symbols:download-rounded",
-  },
-  {
-    value: "write",
-    label: "書き込み",
-    icon: "i-material-symbols:upload-rounded",
-  },
-];
-
 const RecommendationRow: Component<{
   item: RelayRecommendation;
   info: RelayInfo | undefined;
   loadInfo: boolean;
 }> = (props) => {
-  const dispatch = useDispatch();
-  const [usage, setUsage] = createSignal<RelayUsage>("both");
-  const label = () => relayLabel(props.item.url);
-
   return (
     <li class="bg-primary">
       <RelaySummary
@@ -176,40 +152,7 @@ const RecommendationRow: Component<{
         }
         actions={
           <div class="ml-auto flex items-center gap-1">
-            <Show
-              when={!props.item.added}
-              fallback={
-                <span class="c-secondary flex items-center gap-1 text-caption">
-                  <span
-                    class="i-material-symbols:check-rounded size-4"
-                    aria-hidden="true"
-                  />
-                  使っています
-                </span>
-              }
-            >
-              <SegmentedControl
-                label={`${label()} の使い方`}
-                variant="secondary"
-                value={usage()}
-                options={USAGES}
-                onChange={setUsage}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                icon="i-material-symbols:add-rounded"
-                aria-label={`${label()} を使うリレーに足す`}
-                onClick={() =>
-                  dispatch({
-                    type: "relays/edit",
-                    op: { type: "add", url: props.item.url, usage: usage() },
-                  })
-                }
-              >
-                追加
-              </Button>
-            </Show>
+            <RelayUseButton url={props.item.url} />
           </div>
         }
       />
