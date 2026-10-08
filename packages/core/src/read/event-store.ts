@@ -1,7 +1,7 @@
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import { SignatureGate } from "./signature-gate";
 
 /** NIP-09 の削除依頼イベント。対象は `e` / `a` タグで運ばれる。 */

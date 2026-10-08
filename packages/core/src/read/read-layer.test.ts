@@ -3,10 +3,10 @@ import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
-import type { Scheduler } from "./connection-pool";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { createFakeClock } from "./fake-clock";
 import { createReadLayer } from "./read-layer";
+import type { Scheduler } from "./scheduler";
 
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
 const pubkey = bytesToHex(schnorr.getPublicKey(secretKey));

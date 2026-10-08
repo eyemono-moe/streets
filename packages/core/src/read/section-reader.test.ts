@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
 import { FakeRelayConnection } from "../relay/fake-relay-connection";
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
-import type { Scheduler } from "./connection-pool";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
 import { IDLE_LINGER_MS } from "./relay-session";
 import { RoutingTable } from "./routing-table";
+import type { Scheduler } from "./scheduler";
 import { FIRST_PAGE_WAIT_MS, SectionReader } from "./section-reader";
 import type { SectionStatus } from "./source";
 import {

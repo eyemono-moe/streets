@@ -1,9 +1,9 @@
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
 import type { EventStore, EventStoreChange } from "./event-store";
 import { type NewerPaging, estimateWindow, nextNewer } from "./newer-page";
 import { nextOlder } from "./older-page";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import { SortedEvents, compareEvents } from "./sorted-events";
 import {
   type NostrSource,

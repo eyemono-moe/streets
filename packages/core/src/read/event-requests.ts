@@ -1,7 +1,7 @@
 import type { RelayUrl } from "../relay/relay-connection";
 import { createBatchedFetch } from "./batched-fetch";
-import type { Scheduler } from "./connection-pool";
 import type { EventStore } from "./event-store";
+import type { Scheduler } from "./scheduler";
 import type { SubscriptionManager } from "./subscription-manager";
 
 export type EventRequests = {

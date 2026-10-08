@@ -1,5 +1,5 @@
 import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import type { SubscriptionManager } from "./subscription-manager";
 
 /** 行き先が決まらないときは `relays` を省く。`[]` は「リレー 0 本」になり、どこへも送られない。 */

@@ -1,5 +1,5 @@
 import { createBatchedFetch } from "./batched-fetch";
-import type { Scheduler } from "./connection-pool";
+import type { Scheduler } from "./scheduler";
 import type { SubscriptionManager } from "./subscription-manager";
 
 export type EngagementRequests = {
@@ -22,7 +22,7 @@ export type CreateEngagementRequestsOptions = {
   manager: SubscriptionManager;
   /**
    * バッチ窓のタイマー注入口 (テスト用)。既定は実タイマー
-   * (`connection-pool.ts` の `defaultScheduler` と同じ規約)。
+   * (`scheduler.ts` の `defaultScheduler` と同じ規約)。
    */
   scheduler?: Scheduler;
 };

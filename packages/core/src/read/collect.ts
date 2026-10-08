@@ -3,11 +3,10 @@ import type { RelayFilter, RelayUrl } from "../relay/relay-connection";
 import {
   type ConnectionPool,
   type PooledSubscription,
-  type Scheduler,
-  defaultScheduler,
 } from "./connection-pool";
 import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 
 export type CollectOptions = {
   /** 実応答が途切れてから、残りのリレーを待つ時間。省略時はハード期限だけを使う。 */

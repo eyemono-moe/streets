@@ -1,6 +1,5 @@
 import type { RelayConnection, RelayUrl } from "../relay/relay-connection";
 import { createAddressRequests } from "./address-requests";
-import { type Scheduler, defaultScheduler } from "./connection-pool";
 import {
   type CreateEngagementRequestsOptions,
   type EngagementRequests,
@@ -18,6 +17,7 @@ import {
   createProfileRequests,
 } from "./profile-requests";
 import { RoutingTable } from "./routing-table";
+import { type Scheduler, defaultScheduler } from "./scheduler";
 import { REPLAN_BATCH_MS, SubscriptionManager } from "./subscription-manager";
 
 export type ReadLayerOptions = {
