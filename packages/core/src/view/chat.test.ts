@@ -29,9 +29,11 @@ const message = (pubkey: string, created_at: number): NostrEvent =>
   }) as NostrEvent;
 
 const kinds = (rows: ReturnType<typeof chatRows>) =>
-  rows.map((row) =>
-    row.type === "day" ? "day" : row.continued ? "cont" : "msg",
-  );
+  rows.flatMap((row) => {
+    if (row.type === "day") return ["day"];
+    const kind = row.continued ? "cont" : "msg";
+    return row.dayAbove === undefined ? [kind] : ["day", kind];
+  });
 
 describe("chatRows", () => {
   it("古い順に並べ、日付が変わるところに区切りを入れる", () => {
@@ -75,6 +77,38 @@ describe("chatRows", () => {
     // 捕まえる変異: 畳んだ行をまたいで続きにする（誰の発言か分からなくなる）
     expect(kinds(rows)).toEqual(["day", "msg", "msg", "msg"]);
     expect(rows[2]).toMatchObject({ visibility: "muted-by-others" });
+  });
+
+  it("新しいものを上にすると、新しい順に並べ、区切りをその日の一番上の発言に持たせる", () => {
+    const earlier = message(ALICE, at(1, 23));
+    const later = message(ALICE, at(2, 9));
+    const rows = chatRows(
+      [earlier, later],
+      chatModeration([]),
+      VIEWER,
+      "newest-first",
+    );
+    // 捕まえる変異: 古い順の行を裏返す（区切りがその日の発言の下に来る）
+    expect(kinds(rows)).toEqual(["day", "msg", "day", "msg"]);
+    // 捕まえる変異: 区切りを行として先頭に置く（新しい発言が来ても先頭の行が変わらない）
+    expect(rows.map((row) => row.type)).toEqual(["message", "message"]);
+    expect(rows[0]).toMatchObject({ event: later });
+    expect(rows[1]).toMatchObject({ event: earlier });
+  });
+
+  it("新しいものを上にすると、続きは上の行（新しい方）に続ける", () => {
+    const rows = chatRows(
+      [
+        message(ALICE, at(1, 10, 0)),
+        message(ALICE, at(1, 10, 4)),
+        message(ALICE, at(1, 10, 20)),
+      ],
+      chatModeration([]),
+      VIEWER,
+      "newest-first",
+    );
+    // 捕まえる変異: 時刻の差を符号付きで比べる（新しい順では負になり、離れていても続きになる）
+    expect(kinds(rows)).toEqual(["day", "msg", "msg", "cont"]);
   });
 });
 

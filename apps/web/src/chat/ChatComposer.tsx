@@ -33,7 +33,7 @@ const ChatComposer: Component<{
 
   return (
     <form
-      class="flex shrink-0 flex-col gap-2 border-primary border-t bg-primary p-3"
+      class="flex shrink-0 flex-col gap-2 bg-primary p-3"
       onSubmit={(event) => {
         event.preventDefault();
         dispatch({ type: "compose/submit" });

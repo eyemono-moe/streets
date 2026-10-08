@@ -5,6 +5,7 @@ import {
 } from "../nostr/channel";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import type { ChatOrder } from "../settings/chat-order-setting";
 
 /** 同じ人が続けて書いたとみなす間隔（秒）。これより空いたら、名前とアイコンを出し直す。 */
 const CONTINUE_WITHIN = 5 * 60;
@@ -15,8 +16,14 @@ export type ChatRow =
       type: "message";
       key: string;
       event: NostrEvent;
-      /** 直前と同じ人の続き。名前とアイコンを省く。 */
+      /** 1 つ上の行と同じ人の続き。名前とアイコンを省く。 */
       continued: boolean;
+      /**
+       * この発言の上に出す日付の区切り（その日の時刻）。新しいものを上に並べるときは、
+       * 区切りを行にせずここに持つ —— 先頭が区切りの行だと、新しい発言が来ても
+       * 先頭の行が変わらず、上に足されたと分からない。
+       */
+      dayAbove?: number;
       visibility: MessageVisibility;
     };
 
@@ -27,24 +34,30 @@ const dayOf = (at: number): string => {
 };
 
 /**
- * チャットに並べる行。古い順に並べ、日付が変わるところに区切りを入れる。
- * 畳む発言は、続きとしてつなげない（畳んだ行の後ろに名前の無い発言が来ると、
- * 誰の発言か分からない）。
+ * チャットに並べる行を、上から順に返す。日付が変わるところで、その日の発言の上に
+ * 区切りを入れる。畳む発言は、続きとしてつなげない（畳んだ行の下に名前の
+ * 無い発言が来ると、誰の発言か分からない）。
  */
 export const chatRows = (
   messages: readonly NostrEvent[],
   moderation: ChatModeration,
   viewer: string | undefined,
+  order: ChatOrder = "newest-last",
 ): ChatRow[] => {
+  const direction = order === "newest-first" ? -1 : 1;
   const sorted = [...messages].sort(
-    (a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id),
+    (a, b) =>
+      direction * (a.created_at - b.created_at || a.id.localeCompare(b.id)),
   );
   const rows: ChatRow[] = [];
   let previous: { event: NostrEvent; visible: boolean } | undefined;
   for (const event of sorted) {
     const day = dayOf(event.created_at);
-    if (!previous || dayOf(previous.event.created_at) !== day) {
-      rows.push({ type: "day", key: `day:${day}`, at: event.created_at });
+    const newDay = !previous || dayOf(previous.event.created_at) !== day;
+    if (newDay) {
+      if (direction === 1) {
+        rows.push({ type: "day", key: `day:${day}`, at: event.created_at });
+      }
       previous = undefined;
     }
     const visibility = messageVisibility(event, moderation, viewer);
@@ -54,8 +67,15 @@ export const chatRows = (
       previous !== undefined &&
       previous.visible &&
       previous.event.pubkey === event.pubkey &&
-      event.created_at - previous.event.created_at <= CONTINUE_WITHIN;
-    rows.push({ type: "message", key: event.id, event, continued, visibility });
+      Math.abs(event.created_at - previous.event.created_at) <= CONTINUE_WITHIN;
+    rows.push({
+      type: "message",
+      key: event.id,
+      event,
+      continued,
+      visibility,
+      ...(newDay && direction === -1 ? { dayAbove: event.created_at } : {}),
+    });
     previous = { event, visible };
   }
   return rows;

@@ -72,6 +72,7 @@ import {
 } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
 import { applyBlockedRelays } from "../blocked-relays";
+import { setChatOrder } from "../chat-order-setting";
 import { ChannelFormMediator } from "../chat/ChannelFormMediator";
 import { columnDigits, setColumnDigits } from "../column-digits-setting";
 import { setColumnPartOpen } from "../column-part-memory";
@@ -810,6 +811,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-deck-layout":
         setDeckLayout(event.layout);
+        return true;
+      case "deck/set-chat-order":
+        setChatOrder(event.order);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);

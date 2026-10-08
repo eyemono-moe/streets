@@ -140,6 +140,16 @@ export const settings = {
     "センシティブ",
     "警告",
   ]),
+  chatOrder: {
+    ...setting("チャットの並び順", "display", [
+      "パブリックチャット",
+      "チャンネル",
+      "新しい発言",
+      "上から",
+      "下から",
+    ]),
+    description: "チャットで新しい発言を下に足すか上に足すかを選ぶ",
+  },
   writeProgress: setting("ローディング表示", "display", [
     "保存の進み具合",
     "アップロード",
