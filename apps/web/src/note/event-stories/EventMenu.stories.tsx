@@ -30,7 +30,7 @@ const MenuStory: Component<{
     <EventSceneProvider scene={props.scene}>
       {/* 右端のボタンから開くので、メニューが左へ広がる分を空けておく。 */}
       <div
-        class="flex w-[360px] justify-end"
+        class="flex w-full max-w-[360px] justify-end"
         classList={{ "h-[calc(100dvh-2rem)] items-end": props.crowded }}
       >
         <EventMenu
@@ -86,4 +86,11 @@ export const ログインしていない: Story = {
 export const 画面の下端で項目が多い: Story = {
   args: { crowded: true },
   parameters: { layout: "fullscreen" },
+};
+
+/** スマホの画面では横にも収まらず、メニューの中を流す。ホイールや指で送って確かめる。 */
+export const スマホで項目が多い: Story = {
+  args: { crowded: true },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
