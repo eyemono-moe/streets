@@ -120,9 +120,16 @@ export const startTelemetry = async () => {
   sentry = Sentry;
 };
 
-/** 画面を描けなかったときなど、こちらで掴んだ失敗を送る。送り先が無ければ何もしない。 */
-export const reportError = (error: unknown, context: string) => {
-  sentry?.captureException(error, { tags: { context } });
+/**
+ * 画面を描けなかったときなど、こちらで掴んだ失敗を送る。送り先が無ければ何もしない。
+ * `tags` は Sentry の画面で絞り込みたい値（ログインの方法など）。
+ */
+export const reportError = (
+  error: unknown,
+  context: string,
+  tags: Record<string, string> = {},
+) => {
+  sentry?.captureException(error, { tags: { ...tags, context } });
 };
 
 const nowSeconds = () => (performance.timeOrigin + performance.now()) / 1000;

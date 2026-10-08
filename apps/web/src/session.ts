@@ -6,7 +6,10 @@ import {
   waitForNip07,
   watchForNip07,
 } from "@streets/core/signer/nip07-signer";
-import { parseBunkerUri } from "@streets/core/signer/nip46/bunker-uri";
+import {
+  type BunkerConnection,
+  parseBunkerUri,
+} from "@streets/core/signer/nip46/bunker-uri";
 import {
   NostrConnectCancelledError,
   startNostrConnect,
@@ -33,6 +36,12 @@ import {
   SignerUnavailableError,
 } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
+import {
+  nip07Tags,
+  nip46Tags,
+  reportSignerError,
+  reportSignerFailures,
+} from "./signer-report";
 import { createSignerWait, observeSigner } from "./signer-wait";
 
 const errorText = (error: unknown) =>
@@ -135,7 +144,10 @@ export const createSession = (
     restoreAttempt++;
     nip46?.client.close();
     nip46 = session;
-    setSigner(session.signer, session.userPubkey);
+    setSigner(
+      reportSignerFailures(session.signer, nip46Tags(session.stored.relays)),
+      session.userPubkey,
+    );
     setAuthUrl(undefined);
     setPubkey(session.userPubkey);
     localStorage.removeItem(LOGIN_PUBKEY_STORAGE_KEY);
@@ -151,7 +163,7 @@ export const createSession = (
     restoreAttempt++;
     nip46?.client.close();
     nip46 = undefined;
-    setSigner(extension, pk);
+    setSigner(reportSignerFailures(extension, nip07Tags()), pk);
     setPubkey(pk);
     setError(undefined);
     setRestoreFailed(false);
@@ -184,6 +196,7 @@ export const createSession = (
           const extension = createNip07Signer();
           activateExtension(extension, await extension.getPublicKey());
         } catch (e) {
+          reportSignerError(e, "login", nip07Tags());
           setError(
             e instanceof SignerUnavailableError
               ? "NIP-07 対応の拡張機能が見つかりません。"
@@ -198,16 +211,24 @@ export const createSession = (
   const loginWithBunker = (uri: string) =>
     run(
       async () => {
+        let bunker: BunkerConnection;
+        try {
+          bunker = parseBunkerUri(uri);
+        } catch (e) {
+          setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
+          return;
+        }
         try {
           activateNip46(
             await connectNip46({
               pool,
-              bunker: parseBunkerUri(uri),
+              bunker,
               hooks,
               metadataUrl: location.origin,
             }),
           );
         } catch (e) {
+          reportSignerError(e, "login:bunker", nip46Tags(bunker.relays));
           setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
         }
       },
@@ -223,9 +244,15 @@ export const createSession = (
       hooks,
     });
     const done = attempt.session.then(activateNip46, (e) => {
-      throw e instanceof NostrConnectCancelledError
-        ? new ConnectCancelledError()
-        : e;
+      if (e instanceof NostrConnectCancelledError) {
+        throw new ConnectCancelledError();
+      }
+      reportSignerError(
+        e,
+        "login:nostrconnect",
+        nip46Tags(options.nostrConnectRelays ?? []),
+      );
+      throw e;
     });
     return { uri: attempt.uri, done, cancel: attempt.cancel };
   };
@@ -267,6 +294,7 @@ export const createSession = (
           );
         } catch (e) {
           if (!(e instanceof TimeoutError)) {
+            reportSignerError(e, "restore", nip07Tags());
             restoreFailedWith(`ログインの復元に失敗しました: ${errorText(e)}`);
             return;
           }
@@ -300,7 +328,8 @@ export const createSession = (
     void run(async () => {
       try {
         activateNip46(await restoreNip46({ pool, stored, hooks }));
-      } catch {
+      } catch (e) {
+        reportSignerError(e, "restore", nip46Tags(stored.relays));
         restoreFailedWith(
           "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
         );
