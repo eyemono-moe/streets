@@ -1,10 +1,23 @@
+import type { MenuRootProps } from "@ark-ui/solid/menu";
+
 /**
  * Ark UI の Menu の見た目。投稿の操作のように項目が 10 前後並ぶメニューもあるので、
  * 本文より一回り小さい文字と詰めた行にして、縦に伸びすぎないようにする。
+ * 高さは、位置決めが入れる `--available-height`（開いた側に残っている高さ）までにする。
  * 幅はメニューごとに中身で決まるので、ここでは持たない。
  */
 export const menuContentClass =
-  "motion-pop c-primary rounded-2.5 border border-primary bg-primary p-1 shadow-lg outline-none";
+  "motion-pop c-primary max-h-[var(--available-height)] overflow-y-auto overscroll-contain rounded-2.5 border border-primary bg-primary p-1 shadow-lg outline-none";
+
+/**
+ * 1 件ごとの ⋯ から開くメニューの置き方。上下どちらにも収まらないときは、ボタンの横へ
+ * 開く。横なら上端を画面に合わせて縦をほぼ全部使える（`slide` が縦にずらす）。
+ * それでも収まらない分は、`menuContentClass` が開いた側の高さで止めて中を流す。
+ */
+export const itemMenuPositioning: MenuRootProps["positioning"] = {
+  placement: "bottom-end",
+  flip: ["top-end", "left-start", "right-start"],
+};
 
 /**
  * 項目。2 行になる項目（今の状態を添えるものなど）もあるので、高さは下限で決める。

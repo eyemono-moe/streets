@@ -29,6 +29,7 @@ import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import {
+  itemMenuPositioning,
   menuContentClass,
   menuGroupLabelClass,
   menuIconClass,
@@ -346,6 +347,7 @@ const EventMenu: Component<{
         lazyMount
         unmountOnExit
         defaultOpen={props.defaultOpen}
+        positioning={itemMenuPositioning}
         onSelect={(details) => {
           switch (details.value) {
             case "reply":
