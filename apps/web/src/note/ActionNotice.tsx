@@ -1,5 +1,6 @@
 import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { parseReaction } from "@streets/core/nostr/reaction";
 import {
   formatEventTime,
   formatEventTimeFull,
@@ -195,10 +196,12 @@ const ActionNotice: Component<{
       : Math.max(0, (rest - 14 - 16) * 0.45);
   };
 
-  const icon = () =>
-    action() === "reaction"
-      ? "i-material-symbols:favorite-rounded c-accent-5"
-      : "i-material-symbols:repeat-rounded c-secondary";
+  // まとめた行に違うリアクションが混ざっても、行頭は最も新しい 1 件だけにする。
+  // 全部並べると、後ろの文の絵文字と重なって幅を食う。
+  const newestReaction = () => {
+    const first = props.events[0];
+    return first ? parseReaction(first)?.content : undefined;
+  };
 
   const time = () => (
     <time
@@ -267,14 +270,27 @@ const ActionNotice: Component<{
         }}
       >
         <div ref={measure} class="flex min-w-0 items-center gap-2">
-          <span
-            class={`${icon()} shrink-0`}
-            classList={{
-              "size-5": props.size === "normal",
-              "size-3.5": props.size === "compact",
-            }}
-            aria-hidden="true"
-          />
+          <Show
+            when={action() === "reaction"}
+            fallback={
+              <span
+                class="i-material-symbols:repeat-rounded c-secondary shrink-0"
+                classList={{
+                  "size-5": props.size === "normal",
+                  "size-3.5": props.size === "compact",
+                }}
+                aria-hidden="true"
+              />
+            }
+          >
+            <span class="flex shrink-0 items-center" aria-hidden="true">
+              <Mark
+                content={newestReaction() ?? { type: "like" }}
+                mine={false}
+                size={props.size}
+              />
+            </span>
+          </Show>
           <Show
             when={props.size === "normal"}
             fallback={

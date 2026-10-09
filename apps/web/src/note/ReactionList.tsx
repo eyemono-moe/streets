@@ -37,22 +37,42 @@ const titleOf = (content: ReactionContent): string =>
       ? content.content
       : "+";
 
+// チップ以外（通知の行頭のアイコン）では、置き場のアイコンと同じ高さに揃える。
+const MARK_SIZE = {
+  chip: { icon: "size-4.5", img: "h-4.5", text: "max-w-30" },
+  normal: {
+    icon: "size-5",
+    img: "h-5",
+    text: "max-w-16 text-[16px] leading-5",
+  },
+  compact: {
+    icon: "size-3.5",
+    img: "h-3.5",
+    text: "max-w-12 text-[11px] leading-3.5",
+  },
+} as const;
+
 /** リアクションの中身。いいねはハート、カスタム絵文字は画像、それ以外は文字で出す。 */
-export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
-  props,
-) => {
+export const Mark: Component<{
+  content: ReactionContent;
+  mine: boolean;
+  size?: keyof typeof MARK_SIZE;
+}> = (props) => {
+  const size = () => MARK_SIZE[props.size ?? "chip"];
   const [broken, setBroken] = createSignal(false);
   const emoji = () =>
     props.content.type === "emoji" ? props.content : undefined;
 
   return (
     <Switch
-      fallback={<span class="max-w-30 truncate">{titleOf(props.content)}</span>}
+      fallback={
+        <span class={`${size().text} truncate`}>{titleOf(props.content)}</span>
+      }
     >
       {/* いいね（`+`）はハートで出す。文字の「+」では何の反応か読めない。 */}
       <Match when={props.content.type === "like"}>
         <span
-          class="i-material-symbols:favorite-rounded size-4.5"
+          class={`i-material-symbols:favorite-rounded ${size().icon}`}
           classList={{ "c-white": props.mine, "c-accent-5": !props.mine }}
           aria-hidden="true"
         />
@@ -67,7 +87,7 @@ export const Mark: Component<{ content: ReactionContent; mine: boolean }> = (
             alt={`:${emoji().name}:`}
             loading="lazy"
             decoding="async"
-            class="h-4.5 w-auto max-w-12 object-contain"
+            class={`${size().img} w-auto max-w-12 object-contain`}
             onError={() => setBroken(true)}
           />
         )}

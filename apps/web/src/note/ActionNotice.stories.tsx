@@ -3,7 +3,7 @@ import {
   buildReaction,
 } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { Component } from "solid-js";
+import { type Component, For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
 import emojiUrl from "../storybook/emoji-fixture.svg";
@@ -95,6 +95,35 @@ export const カスタム絵文字: Story = {
       react(alice, { type: "emoji", shortcode: "party", url: emojiUrl }),
     ],
   },
+};
+
+// 行頭のアイコンが実際のリアクションになる。高密度は 1 段小さい。
+export const 行頭のリアクション_ゆったり: Story = {
+  args: {
+    events: [
+      react(alice, { type: "text", content: "🥰" }),
+      react(alice, { type: "emoji", shortcode: "party", url: emojiUrl }),
+      react(alice, { type: "like" }),
+    ],
+  },
+  render: (args) => (
+    <div class="flex flex-col gap-4">
+      <For each={args.events}>
+        {(event) => <NoticeStory events={[event]} size="normal" />}
+      </For>
+    </div>
+  ),
+};
+
+export const 行頭のリアクション_高密度: Story = {
+  args: { ...行頭のリアクション_ゆったり.args },
+  render: (args) => (
+    <div class="flex flex-col gap-4">
+      <For each={args.events}>
+        {(event) => <NoticeStory events={[event]} size="compact" />}
+      </For>
+    </div>
+  ),
 };
 
 export const 長い文字のリアクション: Story = {
