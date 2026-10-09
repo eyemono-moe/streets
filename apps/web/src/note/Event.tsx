@@ -67,6 +67,11 @@ type ContentProps = {
    * 貼り付けるとアイコンだけが下へずれる。既定は貼り付けない。
    */
   stickyAvatar?: boolean;
+  /**
+   * 長い本文を畳まず全文を出す。スレッドで開いた投稿は、長いから開いたのかもしれない
+   * ので、もう一度「続きを読む」を押させない。書きかけのプレビューも全文を見たい。
+   */
+  fullBody?: boolean;
   /** 本文の下に足すもの。書きかけのプレビューで、まだアップロードしていない画像を出す。 */
   media?: JSX.Element;
   /**
@@ -285,6 +290,7 @@ const Note: Component<ContentProps> = (props) => {
         event={props.event}
         size={props.size}
         expandMedia={props.expandMedia}
+        longBody={props.fullBody ? "full" : undefined}
         media={props.media}
       />
       {/* 引用やダイアログの中の compact は読むためのもので、そこから操作させない。 */}
@@ -338,6 +344,7 @@ const Poll: Component<ContentProps> = (props) => (
       event={props.event}
       size={props.size}
       expandMedia={props.expandMedia}
+      longBody={props.fullBody ? "full" : undefined}
     />
     <PollBlock event={props.event} size={props.size} />
   </Row>
@@ -507,6 +514,7 @@ const StandardEvent: Component<
         threadLine={props.parent() ? "above" : props.threadLine}
         stickyAvatar={props.stickyAvatar}
         withinScope={props.withinScope}
+        fullBody={props.fullBody}
         media={props.media}
       />
     </Frame>

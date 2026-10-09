@@ -148,6 +148,7 @@ export const ChatMessage: Component<{
           event={props.event}
           size={props.size ?? "normal"}
           expandMedia={props.expandMedia}
+          longBody="expand"
         />
         <ReactionList event={props.event} />
       </div>

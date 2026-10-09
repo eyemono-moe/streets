@@ -167,6 +167,8 @@ const ComposePanel: Component<{
                 <Event
                   event={event()}
                   size="compact"
+                  // まだ存在しない投稿は重ねて開けないので、畳まずに全文を見せる。
+                  fullBody
                   // 添えた画像は、まだアップロードしていないので URL が無い。手元の見本を渡す。
                   media={
                     <ComposePreviewMedia

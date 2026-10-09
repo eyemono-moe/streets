@@ -76,6 +76,7 @@ const ThreadSpineView: Component<{
                 event={focus()}
                 size="normal"
                 expandMedia={props.expandMedia}
+                fullBody
                 stickyAvatar
                 withinScope={props.spine.scopeRoot !== undefined}
                 threadLine={

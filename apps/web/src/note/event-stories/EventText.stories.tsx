@@ -70,6 +70,11 @@ export const 長い本文_コンパクト: Story = {
   args: { event: longBody, scene: scene(longBody), size: "compact" },
 };
 
+/** スレッドで開いた投稿。一覧で「続きを読む」を押した先なので、畳まず全文を出す。 */
+export const 長い本文_スレッドで開いた投稿: Story = {
+  args: { event: longBody, scene: scene(longBody), fullBody: true },
+};
+
 export const 長い本文の引用: Story = {
   args: { event: quoteOfLongBody, scene: scene(quoteOfLongBody, longBody) },
 };
