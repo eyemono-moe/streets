@@ -48,6 +48,8 @@ import { createReadLookups } from "@streets/core/read/lookups";
 import type { PollRequests } from "@streets/core/read/poll-requests";
 import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { RelayInfo } from "@streets/core/relay/relay-info";
+import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
 import { WriteFailedError } from "@streets/core/write/writer";
 import { useQueryClient } from "@tanstack/solid-query";
 import {
@@ -62,6 +64,7 @@ import { ActionsMediator } from "../actions-mediator";
 import { type LinkCard, linkCardQueryKey } from "../note/link-card";
 import { ReadLayerProvider } from "../read-layer";
 import { MuteContext } from "../settings/MuteMediator";
+import { relayInfoQueryKey } from "../settings/relay-info-cache";
 import { useStoryNip05 } from "./nip05";
 import type { StoryAuthor } from "./story-events";
 
@@ -82,6 +85,11 @@ export type EventScene = {
   nip05?: Record<string, Nip05Lookup>;
   /** ミュートの一覧。省くとミュートの段を置かず、何も隠さない。 */
   mutes?: readonly MuteEntry[];
+  /**
+   * リレーが自分について答える内容（NIP-11）。イベントの `relay` タグにあって
+   * ここに無いリレーは、何も答えなかった扱いにする（リレーへ聞きに行かない）。
+   */
+  relayInfo?: Record<string, RelayInfo>;
 };
 
 const STORY_RELAY = "wss://storybook.invalid/" as RelayUrl;
@@ -310,6 +318,16 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   const queryClient = useQueryClient();
   for (const [url, card] of Object.entries(props.scene.linkCards ?? {})) {
     queryClient.setQueryData(linkCardQueryKey(url), card);
+  }
+  for (const event of props.scene.events) {
+    for (const tag of event.tags) {
+      const url = tag[0] === "relay" && normalizeRelayUrl(tag[1] ?? "");
+      if (!url) continue;
+      queryClient.setQueryData(
+        relayInfoQueryKey(url),
+        props.scene.relayInfo?.[url] ?? {},
+      );
+    }
   }
   useStoryNip05(props.scene.nip05 ?? {});
   const events = eventRequestsFor(new Set(props.scene.missingIds));

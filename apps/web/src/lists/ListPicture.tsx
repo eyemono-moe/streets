@@ -1,9 +1,12 @@
 import { type Component, Show } from "solid-js";
 
-/** リストの画像。無ければ、人の集まりの印を出す。 */
-const FollowSetPicture: Component<{ url?: string; class: string }> = (
-  props,
-) => (
+/** リストの画像。無ければ、リストの種類の印を出す。 */
+const ListPicture: Component<{
+  url?: string;
+  class: string;
+  /** 画像が無いときの印。既定は人の集まり。 */
+  icon?: string;
+}> = (props) => (
   <Show
     when={props.url}
     fallback={
@@ -11,7 +14,9 @@ const FollowSetPicture: Component<{ url?: string; class: string }> = (
         class={`c-secondary grid shrink-0 place-items-center bg-secondary ${props.class}`}
         aria-hidden="true"
       >
-        <span class="i-material-symbols:group-outline-rounded size-1/2" />
+        <span
+          class={`${props.icon ?? "i-material-symbols:group-outline-rounded"} size-1/2`}
+        />
       </span>
     }
   >
@@ -27,4 +32,4 @@ const FollowSetPicture: Component<{ url?: string; class: string }> = (
   </Show>
 );
 
-export default FollowSetPicture;
+export default ListPicture;

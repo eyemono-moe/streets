@@ -83,7 +83,6 @@ const RelayRecommendations: Component<{ edit: RelayEdit }> = (props) => {
         users: users(),
         followees: followees().length,
         discoveries,
-        own: props.edit.entries(),
       }).slice(0, SHOWN),
     };
   };

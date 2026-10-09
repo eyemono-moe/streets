@@ -36,10 +36,30 @@
   { "kind": 24133, "status": "内部利用", "summary": "リモート署名の通信" },
   { "kind": 24242, "status": "内部利用", "summary": "Blossom の認証" },
   { "kind": 30000, "status": "表示対応", "summary": "フォローセット" },
+  { "kind": 30002, "status": "表示対応", "summary": "リレーセット" },
+  { "kind": 30003, "status": "表示対応", "summary": "ブックマークセット" },
+  {
+    "kind": 30004,
+    "status": "表示対応",
+    "summary": "まとめ（キュレーションセット）"
+  },
+  { "kind": 30005, "status": "表示対応", "summary": "動画のまとめ" },
+  { "kind": 30006, "status": "表示対応", "summary": "画像のまとめ" },
+  {
+    "kind": 30015,
+    "status": "表示対応",
+    "summary": "好きな話題（興味のセット）"
+  },
   { "kind": 30023, "status": "表示対応", "summary": "長文記事" },
   { "kind": 30030, "status": "表示対応", "summary": "絵文字セット" },
   { "kind": 30078, "status": "内部利用", "summary": "アプリの設定" },
   { "kind": 30166, "status": "内部利用", "summary": "リレーの計測情報" },
   { "kind": 30315, "status": "内部利用", "summary": "ユーザーのステータス" },
-  { "kind": 31990, "status": "内部利用", "summary": "アプリの説明" }
+  { "kind": 31990, "status": "内部利用", "summary": "アプリの説明" },
+  { "kind": 39089, "status": "表示対応", "summary": "スターターパック" },
+  {
+    "kind": 39092,
+    "status": "表示対応",
+    "summary": "メディアのスターターパック"
+  }
 ]

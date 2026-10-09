@@ -1,4 +1,5 @@
 import { FOLLOW_SET_KIND } from "../lists/follow-set";
+import { RELAY_SET_KIND, readListSet } from "../lists/list-set";
 import {
   type EventAddress,
   addressOfEvent,
@@ -14,6 +15,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import {
   buildArticleColumn,
   buildFollowSetColumn,
+  buildRelayColumn,
   buildThreadColumn,
 } from "./column-presets";
 import type { ColumnDef } from "./deck";
@@ -94,8 +96,25 @@ export const columnForNoteRef = (
     ref.kind === "nevent" ? ref.relays : [],
   );
 
+/**
+ * 中身から開き先が決まる kind。住所だけでは中身が分からないので、イベントが
+ * 手元にあるとき（押されたとき）だけ使う。開けなければ住所で開く。
+ */
+const EVENT_OPENERS: Partial<
+  Record<number, (event: NostrEvent) => ColumnDef | undefined>
+> = {
+  // リレーセットは、入っているリレーの投稿を読むためのもの。
+  [RELAY_SET_KIND]: (event) => {
+    const set = readListSet(event);
+    const column = buildRelayColumn(set.relays);
+    return column && set.title ? { ...column, title: set.title } : column;
+  },
+};
+
 /** 投稿を押したときに開くカラム。住所を持つものは版によらず住所で開く。 */
 export const columnForEvent = (event: NostrEvent): ColumnDef => {
+  const opened = EVENT_OPENERS[event.kind]?.(event);
+  if (opened) return opened;
   const address = addressOfEvent(event);
   return address ? columnForAddress(address) : buildThreadColumn(event.id);
 };

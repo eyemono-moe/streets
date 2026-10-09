@@ -8,10 +8,6 @@ import {
   replyParentRef,
   replyPubkey,
 } from "@streets/core/view/comment-scope";
-import {
-  formatEventTime,
-  formatEventTimeFull,
-} from "@streets/core/view/format-time";
 import { resolveRepostTarget } from "@streets/core/view/repost-target";
 import {
   type Component,
@@ -26,6 +22,7 @@ import { Dynamic } from "solid-js/web";
 import ArticleCard from "../article/ArticleCard";
 import EmojiSetCard from "../emoji/EmojiSetCard";
 import FollowSetCard from "../lists/FollowSetCard";
+import ListSetCard from "../lists/ListSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
@@ -39,7 +36,7 @@ import Avatar from "./Avatar";
 import { ChannelCard, ChannelMessageCard } from "./ChannelEvents";
 import { isRenderedKind, type RenderedKind } from "./event-kinds";
 import { Frame, Notice } from "./EventFrame";
-import EventMenu from "./EventMenu";
+import EventStamp from "./EventStamp";
 import MutedGate from "./MutedGate";
 import { NoteContent } from "./NoteContent";
 import ReactionList from "./ReactionList";
@@ -87,26 +84,16 @@ type ContentProps = {
 /** アクション欄を出す投稿か。出さない投稿のメニューには、欄に入る操作を入れない。 */
 type ActionsProps = { withActions?: boolean };
 
-const Head: Component<ContentProps & ActionsProps> = (props) => {
-  const date = () => new Date(props.event.created_at * 1000);
-
-  return (
-    <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
-      <AuthorNames pubkey={props.event.pubkey} size={props.size} />
-      <time
-        class="c-secondary text-caption"
-        datetime={date().toISOString()}
-        title={formatEventTimeFull(date())}
-      >
-        {formatEventTime(date(), new Date())}
-      </time>
-      {/* 引用の中（compact）には出さない。開いた先で操作する。 */}
-      <Show when={props.size === "normal"}>
-        <EventMenu event={props.event} withActions={props.withActions} />
-      </Show>
-    </div>
-  );
-};
+const Head: Component<ContentProps & ActionsProps> = (props) => (
+  <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
+    <AuthorNames pubkey={props.event.pubkey} size={props.size} />
+    <EventStamp
+      event={props.event}
+      size={props.size}
+      withActions={props.withActions}
+    />
+  </div>
+);
 
 /**
  * 縦線の横位置。compact のアイコン中心（枠の左から 24px）に揃える。
@@ -344,18 +331,6 @@ const Unsupported: Component<ContentProps> = (props) => (
   </Row>
 );
 
-const FollowSet: Component<ContentProps> = (props) => (
-  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-    <FollowSetCard event={props.event} size={props.size} />
-  </Row>
-);
-
-const EmojiSet: Component<ContentProps> = (props) => (
-  <Row event={props.event} size={props.size} threadLine={props.threadLine}>
-    <EmojiSetCard event={props.event} size={props.size} />
-  </Row>
-);
-
 /** 問いは本文と同じ描き方にする（絵文字やリンクが入りうる）。 */
 const Poll: Component<ContentProps> = (props) => (
   <Row event={props.event} size={props.size} threadLine={props.threadLine}>
@@ -417,9 +392,17 @@ const EVENT_VIEWS: { [K in RenderedKind]: EventView } = {
   42: { layout: "standalone", View: ChannelMessageCard },
   1068: { layout: "framed", View: Poll },
   // リストは押すとメンバーのタイムラインを開く（開き先は columnForEvent）。
-  30000: { layout: "framed", View: FollowSet },
+  30000: { layout: "framed", View: FollowSetCard },
   30023: { layout: "framed", View: Article },
-  30030: { layout: "framed", View: EmojiSet },
+  30030: { layout: "framed", View: EmojiSetCard },
+  30002: { layout: "framed", View: ListSetCard },
+  30003: { layout: "framed", View: ListSetCard },
+  30004: { layout: "framed", View: ListSetCard },
+  30005: { layout: "framed", View: ListSetCard },
+  30006: { layout: "framed", View: ListSetCard },
+  30015: { layout: "framed", View: ListSetCard },
+  39089: { layout: "framed", View: ListSetCard },
+  39092: { layout: "framed", View: ListSetCard },
 };
 
 const viewFor = (kind: number, layout: EventView["layout"]) => {

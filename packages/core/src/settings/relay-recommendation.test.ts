@@ -174,15 +174,14 @@ describe("recommendRelays", () => {
       [A, { url: A, rttRead: 100, nips: [1, 9, 11], measuredAt: 0 }],
       [C, { url: C, rttRead: 50, nips: [], measuredAt: 0 }],
     ]),
-    own: [{ url: B, read: true, write: true }],
   };
 
-  it("おすすめ度の順に並べ、自分の一覧にあるものに印を付ける", () => {
+  it("おすすめ度の順に並べる", () => {
     const items = recommendRelays(input);
-    expect(items.map((item) => [item.url, item.score, item.added])).toEqual([
-      [C, 56, false],
-      [B, 48, true],
-      [A, 42, false],
+    expect(items.map((item) => [item.url, item.score])).toEqual([
+      [C, 56],
+      [B, 48],
+      [A, 42],
     ]);
   });
 });

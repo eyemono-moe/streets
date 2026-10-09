@@ -3,10 +3,9 @@ import {
   type RelayDiscovery,
   recommendRelays,
 } from "@streets/core/settings/relay-recommendation";
-import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { EventSceneProvider } from "../storybook/EventScene";
-import { Mediates } from "../ui-events";
+import { StoryRelayEdit } from "../storybook/StoryRelayEdit";
 import RelayRecommendationsView, {
   type RecommendationState,
 } from "./RelayRecommendationsView";
@@ -69,9 +68,6 @@ const discoveries = new Map<RelayUrl, RelayDiscovery>([
 ]);
 
 const Story = (props: Args) => {
-  const [own, setOwn] = createSignal([
-    { url: url("relay.damus.io"), read: true, write: true },
-  ]);
   const state = (): RecommendationState =>
     props.phase === "ready"
       ? {
@@ -82,34 +78,19 @@ const Story = (props: Args) => {
             users,
             followees: 800,
             discoveries: props.discovery === "ready" ? discoveries : new Map(),
-            own: own(),
           }),
         }
       : { phase: props.phase };
 
   return (
     <EventSceneProvider scene={{ events: [] }}>
-      <Mediates
-        handle={(event) => {
-          if (event.type !== "relays/edit" || event.op.type !== "add") {
-            return false;
-          }
-          const op = event.op;
-          setOwn((current) => [
-            ...current,
-            {
-              url: op.url,
-              read: op.usage !== "write",
-              write: op.usage !== "read",
-            },
-          ]);
-          return true;
-        }}
+      <StoryRelayEdit
+        own={[{ url: url("relay.damus.io"), read: true, write: true }]}
       >
         <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
           <RelayRecommendationsView state={state()} infoOf={() => undefined} />
         </div>
-      </Mediates>
+      </StoryRelayEdit>
     </EventSceneProvider>
   );
 };
@@ -133,7 +114,7 @@ const meta = {
 export default meta;
 type S = StoryObj<typeof meta>;
 
-/** 計測が揃っている。支払いが要るリレーは人が多くても下がる。「追加」で「使っています」に変わる。 */
+/** 計測が揃っている。支払いが要るリレーは人が多くても下がる。「自分も使う」で足すと「使用中」に変わり、押すと使い方を変えられる。 */
 export const いつもの: S = {};
 
 export const 計測を調べている途中: S = { args: { discovery: "loading" } };

@@ -4,30 +4,15 @@ import { parseRelayList } from "@streets/core/read/relay-list";
 import type { SectionStatus } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
-import type { RelayUsage } from "@streets/core/settings/relay-edit";
-import {
-  relayLabel,
-  usageOf,
-  usageOp,
-} from "@streets/core/settings/relay-edit";
+import { usageOf } from "@streets/core/settings/relay-edit";
 import { createSection } from "@streets/core/solid/create-section";
-import {
-  type Component,
-  For,
-  type JSX,
-  Match,
-  Show,
-  Switch,
-  createSignal,
-} from "solid-js";
+import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
 import { ProfileName } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
 import { useReadLayer } from "../read-layer";
-import { useRelayEdit } from "../settings/RelayMediator";
 import RelaySummary from "../settings/RelaySummary";
+import RelayUseButton from "../settings/RelayUseButton";
 import { notifyError, notifySuccess } from "../toast";
-import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
 import {
   DialogBody,
   DialogClose,
@@ -37,31 +22,12 @@ import {
   DialogTitle,
 } from "../ui/Dialog";
 import IconButton from "../ui/IconButton";
-import SegmentedControl from "../ui/SegmentedControl";
 
 export type AuthorRelaysState =
   | { phase: "loading" }
   | { phase: "empty"; incomplete: boolean }
   | { phase: "failed" }
   | { phase: "ready"; entries: readonly RelayListEntry[]; incomplete: boolean };
-
-const USAGES: { value: RelayUsage; label: string; icon: string }[] = [
-  {
-    value: "both",
-    label: "両方",
-    icon: "i-material-symbols:swap-vert-rounded",
-  },
-  {
-    value: "read",
-    label: "読み込み",
-    icon: "i-material-symbols:download-rounded",
-  },
-  {
-    value: "write",
-    label: "書き込み",
-    icon: "i-material-symbols:upload-rounded",
-  },
-];
 
 const usageLabel = (entry: RelayListEntry) =>
   entry.read && entry.write
@@ -91,60 +57,12 @@ const stateFrom = (
     : { phase: "empty", incomplete: false };
 };
 
-const AddRelayDialog: Component<{
-  entry: RelayListEntry;
-  onClose: () => void;
-}> = (props) => {
-  const dispatch = useDispatch();
-  const [usage, setUsage] = createSignal<RelayUsage>(usageOf(props.entry));
-  const submit = () => {
-    dispatch({
-      type: "relays/edit",
-      op: { type: "add", url: props.entry.url },
-    });
-    if (usage() !== "both") {
-      dispatch({ type: "relays/edit", op: usageOp(props.entry.url, usage()) });
-    }
-    props.onClose();
-  };
-  return (
-    <DialogRoot open onClose={props.onClose}>
-      <DialogPortal>
-        <DialogContent class="w-full max-w-105 gap-4 rounded-3 border border-primary p-4">
-          <DialogTitle class="font-600 text-body">
-            このリレーを自分も使いますか？
-          </DialogTitle>
-          <p class="break-all text-caption">{relayLabel(props.entry.url)}</p>
-          <SegmentedControl
-            label="このリレーの使い方"
-            value={usage()}
-            options={USAGES}
-            onChange={setUsage}
-          />
-          <div class="flex justify-end gap-2">
-            <Button variant="secondary" onClick={props.onClose}>
-              キャンセル
-            </Button>
-            <Button variant="primary" onClick={submit}>
-              追加
-            </Button>
-          </div>
-        </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
-  );
-};
-
 export const AuthorRelaysDialogView: Component<{
   state: AuthorRelaysState;
   title?: JSX.Element;
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   onClose: () => void;
 }> = (props) => {
-  const relayEdit = useRelayEdit();
-  const [adding, setAdding] = createSignal<RelayListEntry>();
-  const ownEntry = (entry: RelayListEntry) =>
-    relayEdit?.entries().find((own) => own.url === entry.url);
   const copy = (entry: RelayListEntry) => {
     void navigator.clipboard.writeText(entry.url).then(
       () => notifySuccess("URL をコピーしました"),
@@ -212,7 +130,6 @@ export const AuthorRelaysDialogView: Component<{
                         <ul class="flex flex-col overflow-hidden rounded-2 border border-primary [&>*+*]:border-t [&>*]:border-primary">
                           <For each={ready.entries}>
                             {(entry) => {
-                              const own = () => ownEntry(entry);
                               return (
                                 <li class="bg-primary">
                                   <RelaySummary
@@ -231,27 +148,10 @@ export const AuthorRelaysDialogView: Component<{
                                           label={`${entry.url} をコピー`}
                                           onClick={() => copy(entry)}
                                         />
-                                        <Show when={relayEdit}>
-                                          <Show
-                                            when={own()}
-                                            fallback={
-                                              <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => setAdding(entry)}
-                                              >
-                                                自分も使う
-                                              </Button>
-                                            }
-                                          >
-                                            {(current) => (
-                                              <span class="c-secondary text-caption">
-                                                使用中（
-                                                {usageLabel(current())}）
-                                              </span>
-                                            )}
-                                          </Show>
-                                        </Show>
+                                        <RelayUseButton
+                                          url={entry.url}
+                                          suggested={usageOf(entry)}
+                                        />
                                       </div>
                                     }
                                   />
@@ -269,14 +169,6 @@ export const AuthorRelaysDialogView: Component<{
           </DialogContent>
         </DialogPortal>
       </DialogRoot>
-      <Show when={adding()}>
-        {(entry) => (
-          <AddRelayDialog
-            entry={entry()}
-            onClose={() => setAdding(undefined)}
-          />
-        )}
-      </Show>
     </>
   );
 };

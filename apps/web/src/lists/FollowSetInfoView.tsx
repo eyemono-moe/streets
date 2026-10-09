@@ -18,8 +18,8 @@ import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import { textInputClass } from "../ui/TextField";
 import { privatePartNotice } from "./FollowSetMediator";
-import FollowSetPicture from "./FollowSetPicture";
 import { LegacyMuteNotice, memberCountLabel } from "./FollowSetSummary";
+import ListPicture from "./ListPicture";
 import {
   MEMBER_VISIBILITY_HINT,
   VISIBILITY_LABEL,
@@ -244,7 +244,7 @@ const FollowSetInfoView: Component<{
       {(set) => (
         <div class="flex flex-col gap-5 p-4">
           <div class="flex flex-col gap-2">
-            <FollowSetPicture url={set().image} class="size-16 rounded-3" />
+            <ListPicture url={set().image} class="size-16 rounded-3" />
             <h3 class="c-primary break-anywhere font-700 text-h3">
               {followSetName(set())}
             </h3>
