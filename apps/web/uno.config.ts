@@ -12,15 +12,13 @@ interface Colors {
 
 /**
  * `ui` の段の色。明るさだけ `--ui-contrast`（設定のコントラスト。標準は 1）で動かす。
- * 背景の明るさ `--ui-pivot` からの距離を 0〜1 に直し（`--ui-span` は pivot から反対の端までの
- * 符号付きの幅。ライトは -1、ダークは 1 - pivot）、`1 / contrast` 乗する。
- * 距離に倍率をかけるだけだと、背景に近い区切り線や薄い面（ライトの ui-100〜200）は
- * 動きが 1 割にも届かず、ライトで差が見えない。べき乗なら、背景に近い段ほど大きく動き、
- * 本文の濃さは暴れず、端（白・黒）も越えない。標準（1）では元の色と変わらない。
+ * 背景の明るさ `--ui-pivot`（ライトは白、ダークは `ui-950`）を中心に、距離を倍率で広げる・狭める。
+ * 中間の 0.5 を軸にすると、ライトで `ui-50`〜`200`（区切り線や薄い面）が白に溶け、背景との差が
+ * 逆に縮む。標準（1）では pivot + (L - pivot) = L で、元の色と変わらない。
  * 段ごとに変数を持たず式を 1 か所にして、段どうしの順序が崩れないようにする。
  */
 const uiStep = (lightness: number, chroma: number, alpha = true) =>
-  `oklch(from var(--theme-ui-color) calc(var(--ui-pivot, 1) + var(--ui-span, -1) * pow(max(0, (${lightness} - var(--ui-pivot, 1)) / var(--ui-span, -1)), 1 / var(--ui-contrast, 1))) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
+  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (${lightness} - var(--ui-pivot, 1)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
 
 const colors: Colors = {
   // l: unocssのgray系を除いた色のlの平均値
@@ -370,9 +368,8 @@ export default defineConfig({
         /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
         :root {
           color-scheme: light;
-          --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.8689 calc(0.0198 * c / 0.37) h);
+          --color-scrollbar-thumb: ${uiStep(0.8689, 0.0198, false)};
           --ui-pivot: 1;
-          --ui-span: -1;
           --color-danger: #C5221F;
           --color-danger-subtle: #FCE8E6;
           --color-status-ok: #188038;
@@ -385,9 +382,8 @@ export default defineConfig({
         }
         .dark {
           color-scheme: dark;
-          --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.3716 calc(0.0391 * c / 0.37) h);
+          --color-scrollbar-thumb: ${uiStep(0.3716, 0.0391, false)};
           --ui-pivot: 0.1287;
-          --ui-span: 0.8713;
           --color-danger: #F28B82;
           --color-danger-subtle: #3C1F1D;
           --color-status-ok: #81C995;
