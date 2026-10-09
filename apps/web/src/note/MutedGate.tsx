@@ -29,7 +29,6 @@ const MutedGate: ParentComponent<{
     <Show when={hidden()} fallback={props.children}>
       <div
         class="flex items-center bg-primary"
-        data-surface
         classList={{ "gap-3 p-3": normal(), "gap-2 p-2": !normal() }}
       >
         {/* アイコン列の幅に置き、下の返信から伸びる線の位置に揃える。 */}
