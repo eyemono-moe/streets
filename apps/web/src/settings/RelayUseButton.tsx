@@ -63,7 +63,7 @@ const RelayUseDialog: Component<{
   return (
     <DialogRoot open onClose={props.onClose}>
       <DialogPortal>
-        <DialogContent class="w-full max-w-105 gap-4 rounded-3 border border-primary p-4">
+        <DialogContent class="w-full max-w-105 gap-4 rounded-3 border border-control p-4">
           <DialogTitle class="font-600 text-body">
             {props.current === undefined
               ? "このリレーを自分も使いますか？"
