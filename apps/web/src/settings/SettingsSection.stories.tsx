@@ -35,6 +35,14 @@ const Story = (props: Args) => {
   );
 };
 
+/** 変えてある項目と既定のままの項目を並べる。「既定に戻す」の有無で、名前の行の高さが変わらないことを見る。 */
+const Compare = (props: Args) => (
+  <div class="flex flex-col gap-4">
+    <Story value="auto" width={props.width} />
+    <Story value="multi" width={props.width} />
+  </div>
+);
+
 const meta = {
   title: "設定/設定の項目",
   component: Story,
@@ -50,3 +58,7 @@ type S = StoryObj<typeof meta>;
 export const 既定のまま: S = {};
 export const 変えてある: S = { args: { value: "multi" } };
 export const 狭い幅: S = { args: { value: "multi", width: 340 } };
+
+export const 有無で高さが同じ: S = {
+  render: (args) => <Compare {...args} />,
+};

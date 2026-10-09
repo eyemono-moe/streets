@@ -28,6 +28,7 @@ import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { TimeFormat } from "@streets/core/settings/time-format-setting";
+import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
@@ -200,6 +201,10 @@ export type DeckEvent =
   | { type: "deck/start-tour" }
   /** カラーテーマ。この端末に保存する。 */
   | { type: "deck/set-color-scheme"; scheme: ColorScheme }
+  /** コントラストを動かしている途中。当てるだけで保存しない。 */
+  | { type: "deck/preview-ui-contrast"; contrast: UiContrast }
+  /** 文字と背景のコントラストを確定する。この端末に保存する。 */
+  | { type: "deck/set-ui-contrast"; contrast: UiContrast }
   /** 色を動かしている途中。当てるだけで保存しない。 */
   | { type: "deck/preview-appearance"; appearance: DeckAppearance }
   /** 色を確定する。デッキと一緒にアカウントへ保存する。 */

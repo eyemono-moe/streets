@@ -3,6 +3,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
+import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import { searchEntries } from "@streets/core/signal/search";
 import {
   type Component,
@@ -49,6 +50,7 @@ const SettingsDialog: Component<{
   /** 狭い画面では、ページの一覧を横に並べて全面に出す。 */
   wide: boolean;
   scheme: ColorScheme;
+  contrast: UiContrast;
   appearance: DeckAppearance;
   writeProgress: boolean;
   /** 不具合の報告を送るか（この端末の設定）。 */
@@ -182,6 +184,7 @@ const SettingsDialog: Component<{
       content: () => (
         <DisplaySettings
           scheme={props.scheme}
+          contrast={props.contrast}
           appearance={props.appearance}
           writeProgress={props.writeProgress}
           contentWarning={contentWarningMode()}
