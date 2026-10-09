@@ -132,6 +132,20 @@ describe("channelReadRelays", () => {
     ).toEqual([url("mine")]);
   });
 
+  it("末尾の / だけが違うヒントと情報のリレーは、同じ 1 本に数える", () => {
+    // 捕まえる変異: 正規化せずに重ねを除く（情報が届いたところで読むリレーが変わり、発言を読み直して行が作り直される）
+    const hint = "wss://a" as RelayUrl;
+    expect(
+      channelReadRelays({ metadata: [], hints: [hint], viewerRead: [] }),
+    ).toEqual(
+      channelReadRelays({
+        metadata: [url("a")],
+        hints: [hint],
+        viewerRead: [],
+      }),
+    );
+  });
+
   it("本数に上限を切る", () => {
     // 捕まえる変異: 上限を切らない（明示リレーは予算から落ちず、接続を食い潰す）
     expect(

@@ -5,6 +5,7 @@ import {
 } from "../nostr/channel";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
+import { normalizeRelayUrl } from "../relay/relay-url";
 import type { ChatOrder } from "../settings/chat-order-setting";
 
 /** 同じ人が続けて書いたとみなす間隔（秒）。これより空いたら、名前とアイコンを出し直す。 */
@@ -87,6 +88,20 @@ export const chatRows = (
  * 無ければ自分の読み込みリレーで探す。明示したリレーは接続の予算から落とされない
  * ので、本数に上限を切る。
  */
+/**
+ * 正規化してから重ねを除く。nevent や URL のヒントは末尾の `/` が無いまま届き、
+ * チャンネルの情報のリレーは正規化されているので、そのまま `Set` にかけると
+ * 同じリレーが 2 本に数えられ、情報が届いたところで読むリレーが変わったことになる。
+ */
+const uniqueRelays = (urls: readonly RelayUrl[]): RelayUrl[] => [
+  ...new Set(
+    urls.flatMap((url) => {
+      const normalized = normalizeRelayUrl(url);
+      return normalized ? [normalized] : [];
+    }),
+  ),
+];
+
 export const channelReadRelays = (options: {
   metadata: readonly RelayUrl[];
   hints: readonly RelayUrl[];
@@ -94,8 +109,8 @@ export const channelReadRelays = (options: {
   max?: number;
 }): RelayUrl[] => {
   const max = options.max ?? 5;
-  const known = [...new Set([...options.metadata, ...options.hints])];
-  return (known.length > 0 ? known : [...new Set(options.viewerRead)]).slice(
+  const known = uniqueRelays([...options.metadata, ...options.hints]);
+  return (known.length > 0 ? known : uniqueRelays(options.viewerRead)).slice(
     0,
     max,
   );
@@ -110,9 +125,11 @@ export const channelReadRelays = (options: {
 export const channelLookupRelays = (options: {
   hints: readonly RelayUrl[];
   viewerRead: readonly RelayUrl[];
-}): RelayUrl[] => [
-  ...new Set([...options.hints.slice(0, 5), ...options.viewerRead.slice(0, 3)]),
-];
+}): RelayUrl[] =>
+  uniqueRelays([
+    ...options.hints.slice(0, 5),
+    ...options.viewerRead.slice(0, 3),
+  ]);
 
 /** チャットの入力欄の、返信先。本文そのものは投稿と同じ `ComposeState` が持つ。 */
 export type ChatReplyState = { replyTo?: string };
