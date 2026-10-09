@@ -91,7 +91,7 @@ export const ReactionChip: Component<{
       title={titleOf(props.content)}
       aria-label={`${titleOf(props.content)} ${props.count} 件${mine() ? "（リアクション済み）" : ""}`}
       aria-pressed={props.onClick ? mine() : undefined}
-      class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
+      class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 py-0.5 pr-2 pl-1 text-caption enabled:cursor-pointer disabled:cursor-default"
       classList={{
         "bg-accent-primary": mine(),
         "border border-primary bg-primary enabled:hover:bg-secondary": !mine(),
