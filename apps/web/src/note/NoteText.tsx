@@ -1,8 +1,5 @@
 import { buildHashtagColumn } from "@streets/core/deck/column-presets";
-import {
-  columnForNaddr,
-  columnForNoteRef,
-} from "@streets/core/deck/open-event";
+import { columnForNaddr } from "@streets/core/deck/open-event";
 import type { ContentToken } from "@streets/core/nostr/content";
 import { shortenUrl } from "@streets/core/view/short-url";
 import {
@@ -14,6 +11,7 @@ import {
   createSignal,
 } from "solid-js";
 import { useDispatch } from "../ui-events";
+import QuoteChip from "./QuoteChip";
 import UserLink from "./UserLink";
 
 // 画像が読めないときに本文からショートコードまで消えないよう、文字へ戻す。
@@ -106,19 +104,11 @@ const Token: Component<{
           }
           if (ref.kind === "note" || ref.kind === "nevent") {
             return (
-              <button
-                type="button"
-                class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
-                title={token().raw}
-                onClick={() =>
-                  dispatch({
-                    type: "stack/open",
-                    column: columnForNoteRef(ref),
-                  })
-                }
-              >
-                {shortRef(token().raw)}
-              </button>
+              <QuoteChip
+                ref={ref}
+                raw={token().raw}
+                short={shortRef(token().raw)}
+              />
             );
           }
           const column = ref.kind === "naddr" ? columnForNaddr(ref) : undefined;
