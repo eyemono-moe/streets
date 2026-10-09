@@ -202,6 +202,7 @@ export const ChannelMessageCard: Component<{
             event={props.event}
             size={props.size}
             expandMedia={props.expandMedia}
+            longBody="expand"
           />
           <Show when={props.size === "normal"}>
             <ReactionList event={props.event} />
