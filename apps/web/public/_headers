@@ -13,3 +13,7 @@
 # 絵文字を作るときの文字の輪郭。`v1` の中身は変えない（変えるときは v2 を足す）。
 /emoji-glyphs/v1/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 拡張子だけでは文字コードが決まらず、ブラウザが日本語の行を Latin-1 として読んで化ける。
+/emoji-glyphs/v1/*.txt
+  Content-Type: text/plain; charset=utf-8
