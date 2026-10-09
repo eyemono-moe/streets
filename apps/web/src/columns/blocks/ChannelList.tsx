@@ -7,6 +7,7 @@ import {
 import type { ColumnDef } from "@streets/core/deck/deck";
 import { activeChannels } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type ChannelEntry,
@@ -24,6 +25,7 @@ import {
 import { createStore, reconcile } from "solid-js/store";
 import { useEventActions } from "../../actions";
 import ChannelListView from "../../chat/ChannelListView";
+import { useReadLayer } from "../../read-layer";
 import { useDispatch } from "../../ui-events";
 import { createBlockSection } from "../column-scope";
 
@@ -45,6 +47,7 @@ const ChannelList: Component<{
 }> = (props) => {
   const dispatch = useDispatch();
   const actions = useEventActions();
+  const { store } = useReadLayer();
   const relays = createMemo(
     () =>
       channelReadRelays({
@@ -130,10 +133,14 @@ const ChannelList: Component<{
   );
   createComputed(() => setLists("results", reconcile(keyed(results()))));
 
-  const relaysOf = (entry: ChannelEntry) =>
-    entry.channel.metadata.relays.length > 0
-      ? entry.channel.metadata.relays
-      : relays();
+  // 情報に書かれたリレーだけに頼らない。落ちていても、一覧がチャンネルを受け取った
+  // リレーなら読める。
+  const relaysOf = (entry: ChannelEntry) => [
+    ...new Set([
+      ...entry.channel.metadata.relays,
+      ...relaysSeenOn(store, entry.channel.id),
+    ]),
+  ];
   const open = (entry: ChannelEntry) => {
     const column = buildChannelColumn(
       entry.channel.id,

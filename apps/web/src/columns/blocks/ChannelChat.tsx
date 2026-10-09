@@ -15,6 +15,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type ChatReplyEvent,
   type ChatRow,
+  channelLookupRelays,
   channelReadRelays,
   chatReplyTransition,
   chatRows,
@@ -60,10 +61,8 @@ const ChannelChat: Component<{
   const dispatch = useDispatch();
   const listsUnderWarning = useListsUnderWarning();
 
-  // チャンネルの情報を探すリレーは、まだ情報が無いのでヒントか自分のリレー。
   const lookupRelays = () =>
-    channelReadRelays({
-      metadata: [],
+    channelLookupRelays({
       hints: props.hints,
       viewerRead: props.viewerRead(),
     });
@@ -232,6 +231,9 @@ const ChannelChat: Component<{
             size={scope.column().density === "compact" ? "compact" : "normal"}
             paging={messages.paging()}
             settled={messages.status().phase === "settled"}
+            unreachable={
+              (messages.status().incomplete?.unreachableRelays ?? 0) > 0
+            }
             onLoadOlder={messages.loadMore}
             composer={
               // ログインしていなければ書く欄の代わりにログインを勧める（書いてから送れないと分かるのを避ける）。

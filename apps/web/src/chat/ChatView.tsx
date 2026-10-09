@@ -112,6 +112,8 @@ type RowsProps = {
   size?: EventSize;
   paging: Paging;
   settled: boolean;
+  /** 繋がらなかったリレーがあるか。発言が 0 件のとき、「まだ無い」と言い切らない。 */
+  unreachable?: boolean;
   onLoadOlder: () => void;
 };
 
@@ -143,12 +145,16 @@ const PagingStatus: Component<{
   </div>
 );
 
-/** 発言が無い・取得中のときに、行の代わりに出す。 */
-const NoRows: Component<{ settled: boolean }> = (props) => (
+/** 発言が無い・取得中・読めなかったときに、行の代わりに出す。 */
+const NoRows: Component<{ settled: boolean; unreachable?: boolean }> = (
+  props,
+) => (
   <p class="c-secondary p-4 text-center text-caption">
-    {props.settled
-      ? "まだ発言がありません。最初のひとことをどうぞ。"
-      : "読み込み中…"}
+    {!props.settled
+      ? "読み込み中…"
+      : props.unreachable
+        ? "繋がらないリレーがあり、発言を読み込めませんでした。時間をおいて開き直してください。"
+        : "まだ発言がありません。最初のひとことをどうぞ。"}
   </p>
 );
 
@@ -293,7 +299,9 @@ const NewestLastRows: Component<RowsProps> = (props) => {
           />
           <Show
             when={props.rows.length > 0}
-            fallback={<NoRows settled={props.settled} />}
+            fallback={
+              <NoRows settled={props.settled} unreachable={props.unreachable} />
+            }
           >
             <VirtualList
               items={props.rows}
@@ -377,7 +385,9 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
       >
         <Show
           when={props.rows.length > 0}
-          fallback={<NoRows settled={props.settled} />}
+          fallback={
+            <NoRows settled={props.settled} unreachable={props.unreachable} />
+          }
         >
           <NewerItemsProvider value={reportNewer}>
             <VirtualList
