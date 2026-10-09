@@ -7,10 +7,6 @@ import {
 } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
-import {
-  formatEventTime,
-  formatEventTimeFull,
-} from "@streets/core/view/format-time";
 import { type Component, Show } from "solid-js";
 import ChannelPicture from "../chat/ChannelPicture";
 import { useReadLayer } from "../read-layer";
@@ -21,6 +17,7 @@ import AuthorNames from "./AuthorNames";
 import Avatar from "./Avatar";
 import { type EventSize, NoteContent } from "./Event";
 import EventMenu from "./EventMenu";
+import EventTime from "./EventTime";
 import ReactionList from "./ReactionList";
 import { useEvent } from "./use-event";
 
@@ -186,13 +183,7 @@ export const ChannelMessageCard: Component<{
         <div class="flex min-w-0 flex-1 flex-col gap-1.5">
           <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
             <AuthorNames pubkey={props.event.pubkey} size={props.size} />
-            <time
-              class="c-secondary text-caption"
-              datetime={date().toISOString()}
-              title={formatEventTimeFull(date())}
-            >
-              {formatEventTime(date(), new Date())}
-            </time>
+            <EventTime at={date()} />
             {/* 引用の中（compact）には出さない。開いた先で操作する。 */}
             <Show when={props.size === "normal"}>
               <EventMenu event={props.event} withActions />

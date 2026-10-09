@@ -16,6 +16,7 @@ import {
 import { actionLayout } from "../action-layout-setting";
 import { chatOrder } from "../chat-order-setting";
 import { contentWarningMode } from "../content-warning-setting";
+import { timeFormat } from "../time-format-setting";
 import { Mediates, type UiEvent, useDispatch } from "../ui-events";
 import PagedDialog, { type DialogPage } from "../ui/PagedDialog";
 import SearchInput from "../ui/SearchInput";
@@ -185,6 +186,7 @@ const SettingsDialog: Component<{
           writeProgress={props.writeProgress}
           contentWarning={contentWarningMode()}
           chatOrder={chatOrder()}
+          timeFormat={timeFormat()}
           deckLayout={props.deckLayout}
           columnStretch={props.columnStretch}
           actionLayout={actionLayout()}

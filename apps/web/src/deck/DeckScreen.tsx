@@ -131,6 +131,7 @@ import {
   savedColorScheme,
   setColorScheme,
 } from "../theme";
+import { setTimeFormat } from "../time-format-setting";
 import { notifyInfo, notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -814,6 +815,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-chat-order":
         setChatOrder(event.order);
+        return true;
+      case "deck/set-time-format":
+        setTimeFormat(event.format);
         return true;
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);

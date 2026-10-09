@@ -38,6 +38,23 @@ export const formatEventTime = (date: Date, now: Date): string => {
   });
 };
 
+const MINUTE_MS = 60_000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
+
+/**
+ * いまからの経過時間。1 分未満は「いま」、1 時間未満は「N分」、1 日未満は「N時間」、
+ * それより古ければ `formatEventTime` と同じ日付。端末の時計が遅れていて未来に
+ * なった投稿も「いま」にする —— 「-3分」と出しても読み手には意味が無い。
+ */
+export const formatRelativeEventTime = (date: Date, now: Date): string => {
+  const elapsed = now.getTime() - date.getTime();
+  if (elapsed < MINUTE_MS) return "いま";
+  if (elapsed < HOUR_MS) return `${Math.floor(elapsed / MINUTE_MS)}分`;
+  if (elapsed < DAY_MS) return `${Math.floor(elapsed / HOUR_MS)}時間`;
+  return formatEventTime(date, now);
+};
+
 /** `title` 属性用の完全な日時。 */
 export const formatEventTimeFull = (date: Date): string =>
   date.toLocaleString(LOCALE, {

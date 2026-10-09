@@ -24,6 +24,10 @@ import {
   type DeckLayout,
   loadDeckLayout,
 } from "@streets/core/settings/deck-layout-setting";
+import {
+  type TimeFormat,
+  loadTimeFormat,
+} from "@streets/core/settings/time-format-setting";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
 import { type Component, For } from "solid-js";
 import {
@@ -58,6 +62,11 @@ const CHAT_ORDERS: { value: ChatOrder; label: string }[] = [
   { value: "newest-first", label: "新しい発言を上に" },
 ];
 
+const TIME_FORMATS: { value: TimeFormat; label: string }[] = [
+  { value: "absolute", label: "時刻" },
+  { value: "relative", label: "経過時間" },
+];
+
 const SCHEMES: { value: ColorScheme; label: string }[] = [
   { value: "system", label: "OS に合わせる" },
   { value: "light", label: "ライト" },
@@ -76,6 +85,8 @@ const DisplaySettings: Component<{
   deckLayout: DeckLayout;
   /** チャットの発言の並び順（この端末の設定）。 */
   chatOrder: ChatOrder;
+  /** 投稿の時刻の見せ方（この端末の設定）。 */
+  timeFormat: TimeFormat;
   /** カラムを画面の幅いっぱいに広げるか（この端末の設定）。 */
   columnStretch: boolean;
   /** アクション欄に出す操作（この端末の設定）。 */
@@ -100,6 +111,7 @@ const DisplaySettings: Component<{
   const initialContentWarning = loadContentWarningMode(null);
   const initialWriteProgress = loadWriteProgress(null);
   const initialChatOrder = loadChatOrder(null);
+  const initialTimeFormat = loadTimeFormat(null);
 
   return (
     <div class="flex flex-col gap-7">
@@ -271,6 +283,25 @@ const DisplaySettings: Component<{
           value={props.contentWarning}
           onChange={(mode) =>
             dispatch({ type: "deck/set-content-warning", mode })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        id="timeFormat"
+        scope="device"
+        changed={props.timeFormat !== initialTimeFormat}
+        onReset={() =>
+          dispatch({ type: "deck/set-time-format", format: initialTimeFormat })
+        }
+        description="投稿の時刻を「12:34」のように出すか、「5分」「3時間」のように今からの経過時間で出すかを選びます。1 日より前の投稿は、どちらでも日付で出します。"
+      >
+        <SegmentedControl
+          label="投稿の時刻"
+          options={TIME_FORMATS}
+          value={props.timeFormat}
+          onChange={(format) =>
+            dispatch({ type: "deck/set-time-format", format })
           }
         />
       </SettingsSection>
