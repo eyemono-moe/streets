@@ -37,6 +37,29 @@ describe("columnForEvent", () => {
     });
   });
 
+  it("リレーセットは、入っているリレーのカラムで開く", () => {
+    const column = columnForEvent(
+      event(30_002, [
+        ["d", "jp"],
+        ["title", "日本語のリレー"],
+        ["relay", "wss://yabu.me/"],
+        ["relay", "wss://nos.lol/"],
+      ]),
+    );
+    expect(column.title).toBe("日本語のリレー");
+    expect(column.source).toEqual({
+      kind: "literal",
+      filters: [{ kinds: [1] }],
+      relays: ["wss://yabu.me/", "wss://nos.lol/"],
+    });
+  });
+
+  it("リレーの入っていないリレーセットは、住所で開く", () => {
+    expect(columnForEvent(event(30_002, [["d", "empty"]])).id).toBe(
+      `address:30002:${PUBKEY}:empty`,
+    );
+  });
+
   it("`d` が無いものは住所で指せないので、スレッドで開く", () => {
     expect(columnForEvent(event(30_023)).source.kind).toBe("thread");
   });

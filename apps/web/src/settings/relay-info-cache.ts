@@ -4,6 +4,8 @@ import { createQuery } from "@tanstack/solid-query";
 import type { Accessor } from "solid-js";
 import { useOptionalReadLayer } from "../read-layer";
 
+export const relayInfoQueryKey = (url: RelayUrl) => ["relay-info", url];
+
 /**
  * リレーが自分について答えた内容。同じ URL の取得を共有し、24 時間は
  * 新鮮なデータとして扱う。使われなくなったデータも 7 日間はメモリに残る。
@@ -14,7 +16,7 @@ export const useRelayInfo = (
 ) => {
   const pool = useOptionalReadLayer()?.manager?.pool;
   return createQuery(() => ({
-    queryKey: ["relay-info", url()],
+    queryKey: relayInfoQueryKey(url()),
     queryFn: () => fetchRelayInfo(url()),
     // 繋がないことにしている手元のリレーは、HTTP で聞いてもブラウザが許可を求める。
     enabled: enabled() && !pool?.isLocalRefused(url()),

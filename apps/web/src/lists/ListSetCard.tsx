@@ -39,11 +39,11 @@ const RelayRow: Component<{ url: RelayUrl }> = (props) => {
         actions={
           <div class="ml-auto flex items-center gap-1">
             <IconButton
-              icon="i-material-symbols:view-column-outline-rounded"
-              label={`${relayLabel(props.url)} をカラムで開く`}
+              icon="i-material-symbols:open-in-new-rounded"
+              label={`${relayLabel(props.url)} をデッキのカラムとして足す`}
               onClick={() => {
                 const column = buildRelayColumn([props.url]);
-                if (column) dispatch({ type: "stack/open", column });
+                if (column) dispatch({ type: "deck/add-column", column });
               }}
             />
             <RelayUseButton url={props.url} />

@@ -1,5 +1,6 @@
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import avatarUrl from "../../storybook/avatar-fixture.svg";
 import mediaUrl from "../../storybook/media-landscape.svg";
 import { createStoryAuthor } from "../../storybook/story-events";
 import { StoryRelayEdit } from "../../storybook/StoryRelayEdit";
@@ -103,6 +104,26 @@ const starterPack = bob.event({
     ...others.map((other) => ["p", other.pubkey]),
   ],
 });
+/** リレーが自分について答える内容。答えないリレー（ほかの URL）は名前を URL から作る。 */
+const relayInfo = {
+  "wss://yabu.me/": {
+    name: "やぶみ",
+    description: "日本語の投稿が多いリレー。どなたでも書き込めます。",
+    icon: avatarUrl,
+    pubkey: carol.pubkey,
+    contact: "mailto:admin@example.com",
+  },
+  "wss://nostr.compile-error.net/": {
+    name: "nostr-relay",
+    description: "とても長い説明を書いたリレー。".repeat(8),
+  },
+  "wss://r.kojira.io/": { name: "kojirelay", icon: avatarUrl },
+};
+const relayScene = (...events: Parameters<typeof scene>) => ({
+  ...scene(...events),
+  relayInfo,
+});
+
 const untitled = alice.event({ kind: 30_003, content: "", tags: [["d", ""]] });
 const quote = bob.quote(relaySet, "このリレー、どれも速い。");
 
@@ -123,31 +144,34 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** 先頭の 3 個だけ出す。「自分も使う」で足し、「使用中」で使い方を変える。 */
+/**
+ * 先頭の 3 個だけ出す。「自分も使う」で足し、「使用中」で使い方を変える。
+ * 押すと、入っているリレーのカラムを開く。
+ */
 export const リレーセット: Story = {
-  args: { event: relaySet, scene: scene(relaySet) },
+  args: { event: relaySet, scene: relayScene(relaySet) },
   decorators: [withRelayEdit],
 };
 
 export const リレーセット_狭いカラム: Story = {
-  args: { event: relaySet, scene: scene(relaySet), width: 280 },
+  args: { event: relaySet, scene: relayScene(relaySet), width: 280 },
   decorators: [withRelayEdit],
 };
 
 export const リレーセット_題名なし: Story = {
-  args: { event: fewRelays, scene: scene(fewRelays) },
+  args: { event: fewRelays, scene: relayScene(fewRelays) },
   decorators: [withRelayEdit],
 };
 
 /** 引用の中では、リレーの名前だけを並べる。 */
 export const 引用されたリレーセット: Story = {
-  args: { event: quote, scene: scene(quote, relaySet) },
+  args: { event: quote, scene: relayScene(quote, relaySet) },
   decorators: [withRelayEdit],
 };
 
 /** ログインしていないと「自分も使う」は出ない。 */
 export const リレーセット_ログインなし: Story = {
-  args: { event: relaySet, scene: scene(relaySet) },
+  args: { event: relaySet, scene: relayScene(relaySet) },
 };
 
 export const ブックマークセット: Story = {
