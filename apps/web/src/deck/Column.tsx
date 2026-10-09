@@ -24,6 +24,7 @@ import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
 import ColumnAccentBar from "./ColumnAccentBar";
 import { useColumnTitle } from "./ColumnTitle";
+import StackGrabber from "./StackGrabber";
 
 export type ColumnProps = {
   column: ColumnDef;
@@ -214,6 +215,7 @@ const Column: Component<ColumnProps> = (props) => {
                       class="motion-stack absolute inset-x-0 bottom-0 flex flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none transition-transform duration-180 ease-out dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]"
                       style={{ top: `${Math.min(index() + 1, 3) * 8}px` }}
                     >
+                      <StackGrabber />
                       <Column
                         {...props}
                         column={layer.column}
