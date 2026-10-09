@@ -97,33 +97,61 @@ export const カスタム絵文字: Story = {
   },
 };
 
-// 行頭のアイコンが実際のリアクションになる。高密度は 1 段小さい。
-export const 行頭のリアクション_ゆったり: Story = {
-  args: {
-    events: [
-      react(alice, { type: "text", content: "🥰" }),
-      react(alice, { type: "emoji", shortcode: "party", url: emojiUrl }),
-      react(alice, { type: "like" }),
-    ],
-  },
-  render: (args) => (
-    <div class="flex flex-col gap-4">
-      <For each={args.events}>
-        {(event) => <NoticeStory events={[event]} size="normal" />}
-      </For>
-    </div>
+// 行頭の欄は、種類の数やリポストでも幅が変わらない。縦のそろいはここで見る。
+const party = { type: "emoji", shortcode: "party", url: emojiUrl } as const;
+const lead = {
+  一種類: [react(alice, { type: "text", content: "🥰" })],
+  二種類: [
+    react(alice, { type: "text", content: "🥰" }),
+    react(short, { type: "text", content: "🎉" }),
+  ],
+  三種類: [
+    react(alice, { type: "text", content: "🥰" }),
+    react(short, { type: "text", content: "🎉" }),
+    react(longName, party),
+  ],
+  五種類: ["🥰", "🎉", "👀", "🙏", "🔥"].map((content, index) =>
+    react(crowd[index] ?? alice, { type: "text", content }),
   ),
+  いいねだけ: [
+    react(alice, { type: "like" }),
+    react(short, { type: "like" }),
+    react(longName, { type: "text", content: "" }),
+  ],
+  カスタム絵文字が混ざる: [
+    react(alice, party),
+    react(short, { type: "like" }),
+    react(longName, { type: "text", content: "🥰" }),
+  ],
+  長い文字: [
+    react(alice, {
+      type: "text",
+      content: "とても長いテキストのリアクションで一行に収まらないもの",
+    }),
+    react(short, { type: "text", content: "🎉" }),
+  ],
+  リポスト: [alice.repost(mine)],
 };
 
-export const 行頭のリアクション_高密度: Story = {
-  args: { ...行頭のリアクション_ゆったり.args },
-  render: (args) => (
-    <div class="flex flex-col gap-4">
-      <For each={args.events}>
-        {(event) => <NoticeStory events={[event]} size="compact" />}
-      </For>
-    </div>
-  ),
+const LeadGallery: Component<{ size: EventSize }> = (props) => (
+  <div class="flex flex-col divide-y divide-solid divide-[var(--color-border-primary,#ccc)]">
+    <For each={Object.values(lead)}>
+      {(events) => <NoticeStory events={events} size={props.size} />}
+    </For>
+  </div>
+);
+
+export const 行頭の並び_ゆったり: Story = {
+  render: () => <LeadGallery size="normal" />,
+};
+
+export const 行頭の並び_高密度: Story = {
+  render: () => <LeadGallery size="compact" />,
+};
+
+export const 行頭_5種類: Story = { args: { events: lead.五種類 } };
+export const 行頭_カスタム絵文字が混ざる: Story = {
+  args: { events: lead.カスタム絵文字が混ざる },
 };
 
 export const 長い文字のリアクション: Story = {

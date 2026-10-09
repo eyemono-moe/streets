@@ -2,8 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import {
   actionRowsByTarget,
+  distinctReactions,
   groupActors,
-  groupReactionContents,
   notificationRows,
   rowAuthor,
 } from "./notification-rows";
@@ -186,7 +186,7 @@ describe("groupActors", () => {
   });
 });
 
-describe("groupReactionContents", () => {
+describe("distinctReactions", () => {
   it("同じ絵文字は 1 つにまとめ、新しい順に並べる", () => {
     const events = [
       reaction("1", noteA, "🥰"),
@@ -194,10 +194,43 @@ describe("groupReactionContents", () => {
       reaction("3", noteA, "🥰"),
       reaction("4", noteA, ""),
     ];
-    expect(groupReactionContents(events)).toEqual([
-      { type: "text", content: "🥰" },
-      { type: "like" },
+    expect(distinctReactions(events, 3)).toEqual({
+      shown: [{ type: "text", content: "🥰" }, { type: "like" }],
+      rest: 0,
+    });
+  });
+
+  it("先頭の max 種類だけ返し、残りの数を数える", () => {
+    const events = ["a", "b", "c", "d", "e"].map((c, i) =>
+      reaction(String(i), noteA, c),
+    );
+    const { shown, rest } = distinctReactions(events, 3);
+    expect(shown.map((c) => (c.type === "text" ? c.content : ""))).toEqual([
+      "a",
+      "b",
+      "c",
     ]);
+    expect(rest).toBe(2);
+  });
+
+  it("カスタム絵文字は URL かショートコードが同じなら 1 つにする", () => {
+    const custom = (pubkey: string, name: string, url: string) =>
+      event(
+        7,
+        pubkey,
+        [
+          ["e", noteA],
+          ["emoji", name, url],
+        ],
+        `:${name}:`,
+      );
+    const events = [
+      custom("1", "party", "https://a.example/p.png"),
+      custom("2", "party", "https://b.example/p.png"),
+      custom("3", "other", "https://a.example/p.png"),
+      custom("4", "other", "https://a.example/o.png"),
+    ];
+    expect(distinctReactions(events, 3).shown).toHaveLength(2);
   });
 });
 

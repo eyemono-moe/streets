@@ -150,26 +150,34 @@ export const actionRowsByTarget = (
   });
 };
 
-/** まとまりに付いたリアクションの種類。同じ絵文字は 1 つにまとめる。新しい順。 */
-export const groupReactionContents = (
+/**
+ * まとまりに付いたリアクションの種類を新しい順に並べ、先頭の `max` 種類と残りの数を返す。
+ * 同じ絵文字は 1 つにまとめる。カスタム絵文字は URL かショートコードのどちらかが
+ * 同じなら同じとみなす（リレーや発行元が違っても同じ絵文字を使う人がいる）。
+ */
+export const distinctReactions = (
   events: readonly NostrEvent[],
-): ReactionContent[] => {
+  max: number,
+): { shown: ReactionContent[]; rest: number } => {
   const seen = new Set<string>();
   const contents: ReactionContent[] = [];
   for (const event of events) {
     const content = parseReaction(event)?.content;
     if (!content) continue;
-    const key =
+    const keys =
       content.type === "like"
-        ? "like"
+        ? ["like"]
         : content.type === "emoji"
-          ? `emoji:${content.url}`
-          : `text:${content.content}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+          ? [`url:${content.url}`, `name:${content.name}`]
+          : [`text:${content.content}`];
+    if (keys.some((key) => seen.has(key))) continue;
+    for (const key of keys) seen.add(key);
     contents.push(content);
   }
-  return contents;
+  return {
+    shown: contents.slice(0, max),
+    rest: Math.max(0, contents.length - max),
+  };
 };
 
 /** まとまりに加わった人。同じ人が絵文字を変えて 2 回リアクションしても 1 人と数える。新しい順。 */
