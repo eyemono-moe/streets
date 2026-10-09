@@ -153,11 +153,12 @@ export const settings = {
   timeFormat: {
     ...setting("投稿の時刻", "display", [
       "相対時間",
+      "絶対時間",
       "経過時間",
       "何分前",
       "日時",
     ]),
-    description: "投稿の時刻を時刻で出すか経過時間で出すかを選ぶ",
+    description: "投稿の時刻を絶対時間で出すか相対時間で出すかを選ぶ",
   },
   writeProgress: setting("ローディング表示", "display", [
     "保存の進み具合",

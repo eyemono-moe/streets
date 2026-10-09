@@ -10,8 +10,8 @@ const [now, setNow] = createSignal(new Date());
 let ticking = false;
 
 /**
- * 経過時間を進める時計。画面全体で 1 つだけ持つ —— 投稿ごとにタイマーを作ると、
- * カラムを並べた画面では数千本になる。経過時間を選んだ人の画面でだけ動かす。
+ * 相対時間を進める時計。画面全体で 1 つだけ持つ —— 投稿ごとにタイマーを作ると、
+ * カラムを並べた画面では数千本になる。相対時間を選んだ人の画面でだけ動かす。
  */
 const minuteClock = () => {
   if (!ticking) {
@@ -22,7 +22,7 @@ const minuteClock = () => {
   return now();
 };
 
-/** 投稿などを出した時刻。設定に従って、時刻か経過時間で見せる。 */
+/** 投稿などを出した時刻。設定に従って、絶対時間か相対時間で見せる。 */
 const EventTime: Component<{
   at: Date;
   class?: string;

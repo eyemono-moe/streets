@@ -42,6 +42,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const 時刻: Story = { args: { format: "absolute" } };
+export const 絶対時間: Story = { args: { format: "absolute" } };
 
-export const 経過時間: Story = { args: { format: "relative" } };
+export const 相対時間: Story = { args: { format: "relative" } };

@@ -6,7 +6,7 @@ describe("投稿の時刻の見せ方の設定", () => {
     expect(loadTimeFormat(null)).toBe("absolute");
   });
 
-  it("経過時間を選んだときだけ経過時間にする", () => {
+  it("相対時間を選んだときだけ相対時間にする", () => {
     expect(loadTimeFormat("relative")).toBe("relative");
     expect(loadTimeFormat("absolute")).toBe("absolute");
   });

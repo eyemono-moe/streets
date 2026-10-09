@@ -213,7 +213,7 @@ export type DeckEvent =
   /** カラムを横に並べるか。この端末に保存する。 */
   | { type: "deck/set-deck-layout"; layout: DeckLayout }
   | { type: "deck/set-chat-order"; order: ChatOrder }
-  /** 投稿の時刻を、時刻か経過時間で見せるか。この端末に保存する。 */
+  /** 投稿の時刻を、絶対時間か相対時間で見せるか。この端末に保存する。 */
   | { type: "deck/set-time-format"; format: TimeFormat }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }

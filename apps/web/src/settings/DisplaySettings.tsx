@@ -63,8 +63,8 @@ const CHAT_ORDERS: { value: ChatOrder; label: string }[] = [
 ];
 
 const TIME_FORMATS: { value: TimeFormat; label: string }[] = [
-  { value: "absolute", label: "時刻" },
-  { value: "relative", label: "経過時間" },
+  { value: "absolute", label: "絶対時間" },
+  { value: "relative", label: "相対時間" },
 ];
 
 const SCHEMES: { value: ColorScheme; label: string }[] = [
@@ -294,7 +294,7 @@ const DisplaySettings: Component<{
         onReset={() =>
           dispatch({ type: "deck/set-time-format", format: initialTimeFormat })
         }
-        description="投稿の時刻を「12:34」のように出すか、「5分」「3時間」のように今からの経過時間で出すかを選びます。1 日より前の投稿は、どちらでも日付で出します。"
+        description="投稿の時刻を「12:34」のような絶対時間で出すか、「5分」「3時間」のような今からの相対時間で出すかを選びます。1 日より前の投稿は、どちらでも日付で出します。"
       >
         <SegmentedControl
           label="投稿の時刻"
