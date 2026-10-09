@@ -101,6 +101,19 @@ export const channelReadRelays = (options: {
   );
 };
 
+/**
+ * チャンネルそのもの（kind:40・41）を探すリレー。開いたときに分かっていたリレーに、
+ * 自分の読み込みリレーを足す。ヒントのリレーが落ちていると、情報に書かれた
+ * リレーへ辿り着けず、発言も読めなくなるため。発言を読むリレーは、見つかった
+ * 情報に書かれたリレーで決める（`channelReadRelays`）。
+ */
+export const channelLookupRelays = (options: {
+  hints: readonly RelayUrl[];
+  viewerRead: readonly RelayUrl[];
+}): RelayUrl[] => [
+  ...new Set([...options.hints.slice(0, 5), ...options.viewerRead.slice(0, 3)]),
+];
+
 /** チャットの入力欄の、返信先。本文そのものは投稿と同じ `ComposeState` が持つ。 */
 export type ChatReplyState = { replyTo?: string };
 
