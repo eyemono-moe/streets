@@ -256,7 +256,7 @@ const Completion = (props: {
       <Portal>
         <Popover.Positioner>
           <Popover.Content
-            class="motion-pop c-primary w-72 overflow-hidden rounded-2.5 border border-primary bg-primary shadow-lg outline-none"
+            class="motion-pop c-primary w-72 overflow-hidden rounded-2.5 border border-control bg-primary shadow-lg outline-none"
             // 外を押したときに閉じるかは欄が決めるので、外のタップを飲み込ませない。
             data-outside-taps="pass"
             // 押しても欄からフォーカスを外さない（外すと一覧が閉じる）。pointerdown で
@@ -291,7 +291,7 @@ const Completion = (props: {
                 )}
               </For>
             </div>
-            <p class="c-secondary b-t-1 border-primary px-2.5 py-1 text-caption">
+            <p class="c-secondary b-t-1 border-control px-2.5 py-1 text-caption">
               ↑↓ で選ぶ · Enter で入れる · Esc で閉じる
             </p>
           </Popover.Content>

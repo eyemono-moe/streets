@@ -29,7 +29,7 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
   return (
     <div class="flex flex-wrap items-center gap-2">
       <span
-        class="c-accent-5 grid h-9 min-w-9 place-items-center rounded-2 border border-primary bg-primary px-2 text-caption"
+        class="c-accent-5 grid h-9 min-w-9 place-items-center rounded-2 border border-control bg-primary px-2 text-caption"
         title={nameOf(props.value)}
       >
         <ReactionButtonMark input={props.value} active />

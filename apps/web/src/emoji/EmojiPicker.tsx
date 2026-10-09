@@ -206,7 +206,7 @@ const PickerList: Component<{
         {/* 横に送れる帯。スクロールバーは触っている間だけ出す。 */}
         <ScrollArea.Root
           ref={strip}
-          class="b-b-1 relative shrink-0 border-primary"
+          class="b-b-1 relative shrink-0 border-control"
         >
           <ScrollArea.Viewport class="scrollbar-none overflow-x-auto">
             <ScrollArea.Content
@@ -354,7 +354,7 @@ const EmojiPicker: Component<{
       .join("|");
 
   return (
-    <div class="flex w-88 flex-col gap-2 rounded-2 border border-primary bg-primary p-2 shadow-lg">
+    <div class="flex w-88 flex-col gap-2 rounded-2 border border-control bg-primary p-2 shadow-lg">
       <SearchInput
         class="w-full"
         label="絵文字を探す"

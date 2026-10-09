@@ -5,6 +5,7 @@ import { type Component, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import { EventRefView, type EventSize } from "../note/Event";
 import EventTime from "../note/EventTime";
+import QuoteBox from "../note/QuoteBox";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 
@@ -118,13 +119,13 @@ const ZapNotice: Component<{
             </Show>
             <Show when={current().targetId}>
               {(targetId) => (
-                <div class="overflow-hidden rounded-2 border border-primary">
+                <QuoteBox>
                   <EventRefView
                     target={{ form: "id", id: targetId() }}
                     size="compact"
                     expandMedia={props.expandMedia}
                   />
-                </div>
+                </QuoteBox>
               )}
             </Show>
           </div>

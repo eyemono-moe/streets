@@ -94,7 +94,7 @@ export const ReactionChip: Component<{
       class="flex h-6 w-fit shrink-0 items-center gap-1 rounded-1.5 px-1 py-0.5 text-caption enabled:cursor-pointer disabled:cursor-default"
       classList={{
         "bg-accent-primary": mine(),
-        "border border-primary bg-primary enabled:hover:bg-secondary": !mine(),
+        "border border-control bg-primary enabled:hover:bg-secondary": !mine(),
       }}
       disabled={props.onClick === undefined || props.disabled}
       onClick={props.onClick}
@@ -200,7 +200,7 @@ const ReactionList: Component<{ event: NostrEvent }> = (props) => {
                   {...triggerProps()}
                   type="button"
                   aria-label="リアクションを選ぶ"
-                  class="c-secondary flex h-6 w-fit cursor-pointer items-center rounded-1.5 border border-primary bg-primary px-1 hover:bg-secondary"
+                  class="c-secondary flex h-6 w-fit cursor-pointer items-center rounded-1.5 border border-control bg-primary px-1 hover:bg-secondary"
                 >
                   <span
                     class="i-material-symbols:add-rounded size-3.5"

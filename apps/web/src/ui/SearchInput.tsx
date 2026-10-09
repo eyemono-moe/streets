@@ -45,7 +45,7 @@ const SearchInput: Component<SearchInputProps> = (props) => {
   };
   return (
     <div
-      class={`flex h-9 items-center gap-2 rounded-full border border-primary bg-primary pl-3.5 focus-within:ring-2 focus-within:ring-accent-5 ${own.class ?? ""}`}
+      class={`flex h-9 items-center gap-2 rounded-full border border-control bg-primary pl-3.5 focus-within:ring-2 focus-within:ring-accent-5 ${own.class ?? ""}`}
       classList={{ "pr-1.5": clearing(), "pr-3.5": !clearing() }}
     >
       <span

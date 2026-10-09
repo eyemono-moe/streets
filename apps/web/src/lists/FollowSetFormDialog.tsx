@@ -50,7 +50,7 @@ const FollowSetFormDialog: Component<{ form: FollowSetFormState }> = (
       onClose={() => dispatch({ type: "follow-set-form/close" })}
     >
       <DialogPortal>
-        <DialogContent class="w-full max-w-120 rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-120 rounded-3 border border-control">
           <Show when={editing()}>
             {(form) => (
               <>

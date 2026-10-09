@@ -251,7 +251,11 @@ export default defineConfig({
       "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
 
       // border color
-      "border-primary": "b-ui-2 dark:b-ui-7",
+      // 区切り線と入れ物の枠。背景に溶け込む程度まで抑える。
+      "border-primary": "b-ui-1 dark:b-ui-8",
+      // 操作する部品（入力欄・ボタン）と浮かぶ面（メニュー・ダイアログ）の枠。
+      // 区切りと同じ薄さにすると、入力欄の範囲や浮かぶ面の縁が背景に埋もれる。
+      "border-control": "b-ui-2 dark:b-ui-7",
 
       // motion
       // 開閉する部品の出入り。Ark UI が付ける data-state に合わせる。

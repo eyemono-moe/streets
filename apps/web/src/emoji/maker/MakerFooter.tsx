@@ -55,7 +55,7 @@ const Candidate: Component<{
       title={props.candidate.label}
       aria-label={`${props.candidate.label}で「${props.text}」を${props.action}`}
       disabled={props.disabled || !image()}
-      class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-primary bg-primary px-1.5 enabled:hover:bg-secondary disabled:cursor-default"
+      class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-control bg-primary px-1.5 enabled:hover:bg-secondary disabled:cursor-default"
       onClick={() => props.onSend(spec(), props.candidate.style)}
     >
       <Show
@@ -108,7 +108,7 @@ const MakerFooter: Component<{
   };
 
   return (
-    <div class="b-t-1 flex h-9 shrink-0 items-center gap-1 border-primary pt-1.5">
+    <div class="b-t-1 flex h-9 shrink-0 items-center gap-1 border-control pt-1.5">
       <Switch>
         <Match when={text() === ""}>
           <Button

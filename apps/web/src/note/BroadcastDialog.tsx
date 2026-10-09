@@ -59,7 +59,7 @@ export const BroadcastDialogView: Component<{
   return (
     <DialogRoot open onClose={props.onClose}>
       <DialogPortal>
-        <DialogContent class="w-full max-w-110 rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-110 rounded-3 border border-control">
           <div class="flex min-h-12 shrink-0 items-start gap-2 py-3 pr-3 pl-4">
             <DialogTitle class="break-anywhere min-w-0 flex-1 font-600 text-body">
               ほかのリレーにも送る

@@ -12,6 +12,7 @@ import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import { EventRefView, type EventSize } from "./Event";
 import EventTime from "./EventTime";
+import QuoteBox from "./QuoteBox";
 import { Mark } from "./ReactionList";
 import UserLink from "./UserLink";
 
@@ -209,14 +210,14 @@ const ActionNotice: Component<{
       }
     >
       {(current) => (
-        <div class="overflow-hidden rounded-2 border border-primary">
+        <QuoteBox>
           <EventRefView
             target={{ form: "id", id: current().targetId }}
             size="compact"
             expandMedia={props.expandMedia}
             gateMuted={props.gateMuted}
           />
-        </div>
+        </QuoteBox>
       )}
     </Show>
   );
