@@ -1,21 +1,11 @@
 import { columnForNoteRef } from "@streets/core/deck/open-event";
 import type { EventRef } from "@streets/core/nostr/event-refs";
 import type { Nip19Ref } from "@streets/core/nostr/nip19";
+import { quotePreview } from "@streets/core/view/quote-preview";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Name from "./Name";
 import { useEvent } from "./use-event";
-
-// 本文が文章ではない kind（プロフィールや設定の JSON など）を、そのまま 1 行に出さないため。
-const TEXT_KINDS = new Set([1, 11, 42, 1111]);
-
-const previewOf = (kind: number, content: string) =>
-  TEXT_KINDS.has(kind)
-    ? content
-        .replace(/nostr:\S+/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-    : "";
 
 const buttonClass =
   "bg-transparent p-0 text-left enabled:cursor-pointer enabled:hover:underline";
@@ -64,7 +54,7 @@ const QuoteChip: Component<{
             <span class="min-w-0 shrink truncate font-600">
               <Name pubkey={event().pubkey} />
             </span>
-            <Show when={previewOf(event().kind, event().content)}>
+            <Show when={quotePreview(event())}>
               {(text) => (
                 <span class="min-w-0 flex-1 truncate c-secondary">
                   {text()}
