@@ -1,10 +1,6 @@
 import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import {
-  formatEventTime,
-  formatEventTimeFull,
-} from "@streets/core/view/format-time";
-import {
   type NotificationAction,
   actionTarget,
   groupActors,
@@ -15,6 +11,7 @@ import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
 import { useDispatch } from "../ui-events";
 import Avatar from "./Avatar";
 import { EventRefView, type EventSize } from "./Event";
+import EventTime from "./EventTime";
 import { Mark } from "./ReactionList";
 import UserLink from "./UserLink";
 
@@ -201,14 +198,7 @@ const ActionNotice: Component<{
       : "i-material-symbols:repeat-rounded c-secondary";
 
   const time = () => (
-    <time
-      ref={measureTime}
-      class="c-secondary shrink-0 text-caption"
-      datetime={newest().toISOString()}
-      title={formatEventTimeFull(newest())}
-    >
-      {formatEventTime(newest(), new Date())}
-    </time>
+    <EventTime ref={measureTime} class="shrink-0" at={newest()} />
   );
 
   const targetCard = () => (

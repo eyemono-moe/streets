@@ -150,6 +150,16 @@ export const settings = {
     ]),
     description: "チャットで新しい発言を下に足すか上に足すかを選ぶ",
   },
+  timeFormat: {
+    ...setting("投稿の時刻", "display", [
+      "相対時間",
+      "絶対時間",
+      "経過時間",
+      "何分前",
+      "日時",
+    ]),
+    description: "投稿の時刻を絶対時間で出すか相対時間で出すかを選ぶ",
+  },
   writeProgress: setting("ローディング表示", "display", [
     "保存の進み具合",
     "アップロード",

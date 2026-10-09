@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   formatEventTime,
   formatEventTimeFull,
+  formatRelativeEventTime,
   fromDateTimeLocal,
   timeCircuitParts,
   toDateTimeLocal,
@@ -90,5 +91,37 @@ describe("timeCircuitParts", () => {
     // 捕まえる変異: 0 時・12 時を 00 と出す
     expect(timeCircuitParts(at(0, 0))).toMatchObject({ pm: false, hour: "12" });
     expect(timeCircuitParts(at(12, 0))).toMatchObject({ pm: true, hour: "12" });
+  });
+});
+
+describe("formatRelativeEventTime", () => {
+  const now = new Date(2026, 9, 9, 12, 0, 0);
+  const ago = (ms: number) => new Date(now.getTime() - ms);
+
+  it("1 分未満は「いま」", () => {
+    expect(formatRelativeEventTime(ago(59_000), now)).toBe("いま");
+  });
+
+  it("未来の時刻も「いま」", () => {
+    expect(formatRelativeEventTime(ago(-120_000), now)).toBe("いま");
+  });
+
+  it("1 時間未満は切り捨てた分", () => {
+    expect(formatRelativeEventTime(ago(60_000), now)).toBe("1分");
+    expect(formatRelativeEventTime(ago(59 * 60_000 + 59_000), now)).toBe(
+      "59分",
+    );
+  });
+
+  it("1 日未満は切り捨てた時間", () => {
+    expect(formatRelativeEventTime(ago(60 * 60_000), now)).toBe("1時間");
+    expect(
+      formatRelativeEventTime(ago(23 * 3_600_000 + 59 * 60_000), now),
+    ).toBe("23時間");
+  });
+
+  it("1 日以上前は日付の表示にする", () => {
+    const old = ago(24 * 3_600_000);
+    expect(formatRelativeEventTime(old, now)).toBe(formatEventTime(old, now));
   });
 });
