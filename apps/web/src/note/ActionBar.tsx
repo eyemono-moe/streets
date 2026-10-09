@@ -309,7 +309,12 @@ const ActionBar: Component<{
 
         return (
           <>
-            <div class="flex items-center justify-between">
+            {/*
+              右端を投稿の枠いっぱいまで使うと、最後の操作がカラムのスクロールバーに
+              寄りすぎる。左のアイコン列（約 52px）と同じだけ空けると詰まって見えるので、
+              その半分ほど（枠の余白と合わせて 24px）にとどめる。
+            */}
+            <div class="flex items-center justify-between pr-3">
               <For each={shownIds()}>{(id) => views[id]()}</For>
             </div>
             {dialogs.view}

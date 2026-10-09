@@ -38,7 +38,6 @@
     "@tanstack/devtools-vite": "^0.8.5",
     "@tanstack/solid-devtools": "^0.8.13",
     "@types/mdast": "^4.0.4",
-    "@unocss/preset-mini": "66.10.5",
     "marked": "18.0.14",
     "rollup-plugin-visualizer": "^7.1.1",
     "storybook": "10.6.0",
