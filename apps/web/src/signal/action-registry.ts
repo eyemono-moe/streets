@@ -18,6 +18,14 @@ const columnActions = COLUMN_ADD_PRESETS.map(
       kind: "action",
       section: "カラム",
     } as const;
+    if (kind === "search") {
+      return {
+        ...base,
+        title: "検索してカラムを追加する",
+        keywords: [`${label}カラム`, ...keywords],
+        event: { type: "deck/open-panel", panel: "search" },
+      };
+    }
     if (isColumnPicker(kind)) {
       return {
         ...base,

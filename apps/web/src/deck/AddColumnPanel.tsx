@@ -405,6 +405,10 @@ const AddColumnPanel: Component<{
                     description={preset.description}
                     onClick={() => {
                       const kind = preset.kind;
+                      if (kind === "search") {
+                        dispatch({ type: "deck/open-panel", panel: "search" });
+                        return;
+                      }
                       if (isColumnPicker(kind)) {
                         setPicker(kind);
                         return;
