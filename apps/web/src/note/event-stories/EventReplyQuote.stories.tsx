@@ -1,7 +1,6 @@
 import type { MuteEntry } from "@streets/core/moderation/mute-list";
 import { encodeNaddr } from "@streets/core/nostr/nip19";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { createStoryAuthor } from "../../storybook/story-events";
 import {
   EventStory,
   alice,
@@ -10,7 +9,6 @@ import {
   eventStoryMeta,
   plain,
   scene,
-  viewer,
 } from "./event-story";
 
 const reply = alice.reply(plain, "返信の本文。");
@@ -24,19 +22,6 @@ const quote = alice.quote(quoted, "引用つきのノート。");
 const quoteOfQuote = carol.quote(
   quote,
   "引用の引用。中の引用は取りにいかない。",
-);
-
-const longQuoted = bob.note(
-  "引用される側の本文がとても長いとき。1 行に収まらない分は、本文の先頭だけを残して切る。マルチカラムのクライアントは、1 列に入る情報量が体験を決める。",
-);
-const compactQuote = alice.quote(quoted, "高密度で引用したノート。");
-const compactLongQuote = alice.quote(longQuoted, "長い本文を引用。");
-const noProfileQuoted = createStoryAuthor(77, {}).note(
-  "プロフィールが無い人の投稿。",
-);
-const compactNoProfileQuote = alice.quote(
-  noProfileQuoted,
-  "プロフィール無しを引用。",
 );
 
 const naddrOf = (identifier: string) =>
@@ -121,53 +106,4 @@ export const 住所の引用: Story = {
 
 export const 住所の引用が見つからない: Story = {
   args: { event: missingAddressQuote, scene: scene(missingAddressQuote) },
-};
-
-/** 高密度では、引用を作者名と本文の先頭を並べた 1 行にする。 */
-export const 高密度の引用: Story = {
-  args: {
-    event: compactQuote,
-    scene: scene(compactQuote, quoted),
-    size: "compact",
-  },
-};
-
-export const 高密度の引用が取得中: Story = {
-  args: { event: compactQuote, scene: scene(compactQuote), size: "compact" },
-};
-
-export const 高密度の引用が見つからない: Story = {
-  args: {
-    event: compactQuote,
-    scene: { ...scene(compactQuote), missingIds: [quoted.id] },
-    size: "compact",
-  },
-};
-
-export const 高密度の引用の本文が長い: Story = {
-  args: {
-    event: compactLongQuote,
-    scene: scene(compactLongQuote, longQuoted),
-    size: "compact",
-  },
-};
-
-export const 高密度の引用の作者のプロフィールが無い: Story = {
-  args: {
-    event: compactNoProfileQuote,
-    scene: {
-      events: [compactNoProfileQuote, noProfileQuoted],
-      viewer,
-    },
-    size: "compact",
-  },
-};
-
-export const 高密度の引用の幅が狭い: Story = {
-  args: {
-    event: compactLongQuote,
-    scene: scene(compactLongQuote, longQuoted),
-    size: "compact",
-    width: 240,
-  },
 };

@@ -1,5 +1,4 @@
 import { buildHashtagColumn } from "@streets/core/deck/column-presets";
-import { columnForNaddr } from "@streets/core/deck/open-event";
 import type { ContentToken } from "@streets/core/nostr/content";
 import { shortenUrl } from "@streets/core/view/short-url";
 import {
@@ -102,31 +101,17 @@ const Token: Component<{
           if (ref.kind === "npub" || ref.kind === "nprofile") {
             return <UserLink pubkey={ref.pubkey} mention class="text-link" />;
           }
-          if (ref.kind === "note" || ref.kind === "nevent") {
+          if (
+            ref.kind === "note" ||
+            ref.kind === "nevent" ||
+            ref.kind === "naddr"
+          ) {
             return (
               <QuoteChip
                 ref={ref}
                 raw={token().raw}
                 short={shortRef(token().raw)}
               />
-            );
-          }
-          const column = ref.kind === "naddr" ? columnForNaddr(ref) : undefined;
-          if (column) {
-            return (
-              <button
-                type="button"
-                class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
-                title={token().raw}
-                onClick={() =>
-                  dispatch({
-                    type: "stack/open",
-                    column,
-                  })
-                }
-              >
-                {shortRef(token().raw)}
-              </button>
             );
           }
           return (
