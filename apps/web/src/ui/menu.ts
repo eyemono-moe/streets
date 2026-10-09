@@ -32,3 +32,13 @@ export const menuGroupLabelClass =
   "c-secondary block px-2 pt-1.5 pb-0.5 font-600 text-caption";
 
 export const menuSeparatorClass = "my-1 border-control border-t";
+
+/**
+ * 入れ子のメニュー。親の項目の横に開く。横に収まらなければ反対側へ返し、上端は項目に合わせる
+ * （`slide` が縦にずらす）。
+ */
+export const nestedMenuPositioning: MenuRootProps["positioning"] = {
+  placement: "right-start",
+  flip: ["left-start"],
+  gutter: 2,
+};

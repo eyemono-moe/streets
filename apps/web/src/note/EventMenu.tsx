@@ -27,8 +27,10 @@ import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
+import Avatar from "../ui/Avatar";
 import IconButton from "../ui/IconButton";
 import {
+  nestedMenuPositioning,
   itemMenuPositioning,
   menuContentClass,
   menuGroupLabelClass,
@@ -247,6 +249,8 @@ const EventMenu: Component<{
   onMute?: () => void;
   /** 開いた状態で描く。Storybook で中身を並べるため。 */
   defaultOpen?: boolean;
+  /** 作者の入れ子のメニューも開いた状態で描く。Storybook 用。 */
+  defaultAuthorOpen?: boolean;
 }> = (props) => {
   const profileDetails = useProfileDetails(() => props.event.pubkey);
   const profile = () => profileDetails()?.profile;
@@ -324,6 +328,42 @@ const EventMenu: Component<{
       AUTHOR_RELAYS,
     ];
   };
+  const authorLabel = () => (
+    <>
+      <ProfileName
+        pubkey={props.event.pubkey}
+        profile={profile()}
+        tags={profileDetails()?.tags}
+      />
+      <Show when={profile()?.name}>
+        {(name) => (
+          <>
+            {" @"}
+            <ProfileText text={name()} tags={profileDetails()?.tags} />
+          </>
+        )}
+      </Show>
+    </>
+  );
+  // 入れ子の開き口では、表示名と @名前 を並べず、@名前（無ければ表示名）だけを出す。
+  const authorHandle = () => (
+    <Show
+      when={profile()?.name}
+      fallback={
+        <ProfileName
+          pubkey={props.event.pubkey}
+          profile={profile()}
+          tags={profileDetails()?.tags}
+        />
+      }
+    >
+      {(name) => (
+        <>
+          @<ProfileText text={name()} tags={profileDetails()?.tags} />
+        </>
+      )}
+    </Show>
+  );
   const toggleAuthorMute = () => {
     const entry = authorMuteEntry();
     dispatch(
@@ -332,6 +372,85 @@ const EventMenu: Component<{
         : { type: "mutes/add", target: authorTarget() },
     );
   };
+  // 入れ子のメニューの onSelect は親とは別に呼ばれるので、処理は両方からこの関数へ集める。
+  const select = (value: string) => {
+    switch (value) {
+      case "reply":
+        if (props.onReply) props.onReply();
+        else dialogs.open("reply");
+        break;
+      case "quote":
+      case "details":
+      case "broadcast":
+        dialogs.open(value);
+        break;
+      case "repost":
+        dispatch({ type: "note/repost", target: props.event });
+        break;
+      case "like":
+        dispatch({
+          type: "note/react",
+          target: props.event,
+          input: defaultReaction(),
+        });
+        break;
+      case "react":
+        setPicking(true);
+        break;
+      case "zap":
+        dispatch({ type: "zap/open", target: props.event });
+        break;
+      case "bookmark":
+        dispatch({
+          type: "note/bookmark",
+          target: props.event,
+          on: !(actions?.bookmarked(props.event.id) ?? false),
+        });
+        break;
+      case "pin":
+        dispatch({
+          type: "note/pin",
+          target: props.event,
+          on: !(actions?.pinned(props.event.id) ?? false),
+        });
+        break;
+      case "activity":
+        ops.activity();
+        break;
+      case "copy-link":
+        void ops.copyLink();
+        break;
+      case "mute-event":
+        ops.toggleMute();
+        break;
+      case "follow":
+        dispatch({
+          type: "user/follow",
+          pubkey: props.event.pubkey,
+          on: !following(),
+        });
+        break;
+      case "author-relays":
+        setAuthorRelays(true);
+        break;
+      case "client":
+        setShowingClient(true);
+        break;
+      case "add-to-list":
+        setAddingToList(true);
+        break;
+      case "mute-author":
+        toggleAuthorMute();
+        break;
+      case "timeslip":
+        ops.timeslip();
+        break;
+      case "mute":
+        props.onMute?.();
+        break;
+    }
+  };
+
   const [authorRelays, setAuthorRelays] = createSignal(false);
   const client = () => clientOf(props.event);
   const [showingClient, setShowingClient] = createSignal(false);
@@ -348,83 +467,7 @@ const EventMenu: Component<{
         unmountOnExit
         defaultOpen={props.defaultOpen}
         positioning={itemMenuPositioning}
-        onSelect={(details) => {
-          switch (details.value) {
-            case "reply":
-              if (props.onReply) props.onReply();
-              else dialogs.open("reply");
-              break;
-            case "quote":
-            case "details":
-            case "broadcast":
-              dialogs.open(details.value);
-              break;
-            case "repost":
-              dispatch({ type: "note/repost", target: props.event });
-              break;
-            case "like":
-              dispatch({
-                type: "note/react",
-                target: props.event,
-                input: defaultReaction(),
-              });
-              break;
-            case "react":
-              setPicking(true);
-              break;
-            case "zap":
-              dispatch({ type: "zap/open", target: props.event });
-              break;
-            case "bookmark":
-              dispatch({
-                type: "note/bookmark",
-                target: props.event,
-                on: !(actions?.bookmarked(props.event.id) ?? false),
-              });
-              break;
-            case "pin":
-              dispatch({
-                type: "note/pin",
-                target: props.event,
-                on: !(actions?.pinned(props.event.id) ?? false),
-              });
-              break;
-            case "activity":
-              ops.activity();
-              break;
-            case "copy-link":
-              void ops.copyLink();
-              break;
-            case "mute-event":
-              ops.toggleMute();
-              break;
-            case "follow":
-              dispatch({
-                type: "user/follow",
-                pubkey: props.event.pubkey,
-                on: !following(),
-              });
-              break;
-            case "author-relays":
-              setAuthorRelays(true);
-              break;
-            case "client":
-              setShowingClient(true);
-              break;
-            case "add-to-list":
-              setAddingToList(true);
-              break;
-            case "mute-author":
-              toggleAuthorMute();
-              break;
-            case "timeslip":
-              ops.timeslip();
-              break;
-            case "mute":
-              props.onMute?.();
-              break;
-          }
-        }}
+        onSelect={(details) => select(details.value)}
       >
         <Menu.Trigger
           asChild={(triggerProps) => (
@@ -480,27 +523,57 @@ const EventMenu: Component<{
                 </Show>
               </Menu.ItemGroup>
               <Menu.Separator class={menuSeparatorClass} />
-              <Menu.ItemGroup>
-                <Menu.ItemGroupLabel class={`${menuGroupLabelClass} truncate`}>
-                  <ProfileName
-                    pubkey={props.event.pubkey}
-                    profile={profile()}
-                    tags={profileDetails()?.tags}
-                  />
-                  <Show when={profile()?.name}>
-                    {(name) => (
-                      <>
-                        {" @"}
-                        <ProfileText
-                          text={name()}
-                          tags={profileDetails()?.tags}
-                        />
-                      </>
-                    )}
-                  </Show>
-                </Menu.ItemGroupLabel>
-                <Items items={authorItems()} />
-              </Menu.ItemGroup>
+              <Show
+                when={canHover()}
+                fallback={
+                  <Menu.ItemGroup>
+                    <Menu.ItemGroupLabel
+                      class={`${menuGroupLabelClass} truncate`}
+                    >
+                      {authorLabel()}
+                    </Menu.ItemGroupLabel>
+                    <Items items={authorItems()} />
+                  </Menu.ItemGroup>
+                }
+              >
+                {/* 触る端末にはホバーが無く、入れ子のメニューを開けないので 1 枚に並べる。 */}
+                <Menu.Root
+                  lazyMount
+                  unmountOnExit
+                  defaultOpen={props.defaultAuthorOpen}
+                  positioning={nestedMenuPositioning}
+                  onSelect={(details) => select(details.value)}
+                >
+                  <Menu.TriggerItem class={menuItemClass}>
+                    <Avatar
+                      pubkey={props.event.pubkey}
+                      picture={profile()?.picture}
+                      class="size-4 rounded-full"
+                    />
+                    <span class="min-w-0 flex-1 truncate">
+                      {authorHandle()}
+                    </span>
+                    <span
+                      class="i-material-symbols:chevron-right-rounded size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                  </Menu.TriggerItem>
+                  <Portal>
+                    <Menu.Positioner>
+                      <Menu.Content class={`${menuContentClass} w-64`}>
+                        <Menu.ItemGroup>
+                          <Menu.ItemGroupLabel
+                            class={`${menuGroupLabelClass} truncate`}
+                          >
+                            {authorLabel()}
+                          </Menu.ItemGroupLabel>
+                          <Items items={authorItems()} />
+                        </Menu.ItemGroup>
+                      </Menu.Content>
+                    </Menu.Positioner>
+                  </Portal>
+                </Menu.Root>
+              </Show>
             </Menu.Content>
           </Menu.Positioner>
         </Portal>
