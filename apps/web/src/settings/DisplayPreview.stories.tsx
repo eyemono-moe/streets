@@ -1,4 +1,8 @@
-import { UI_CONTRAST_FACTORS } from "@streets/core/settings/ui-contrast";
+import {
+  formatUiContrast,
+  UI_CONTRAST_MAX,
+  UI_CONTRAST_MIN,
+} from "@streets/core/settings/ui-contrast";
 import { For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import DisplayPreview from "./DisplayPreview";
@@ -10,24 +14,22 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const LABELS = { low: "低い", normal: "標準", high: "高い" } as const;
+const CONTRASTS = [UI_CONTRAST_MIN, 1, UI_CONTRAST_MAX];
 
 /**
- * コントラストの 3 段を並べる。`--ui-contrast` は要素ごとに効くので、同じ画面で見比べられる。
+ * コントラストの両端と標準を並べる。`--ui-contrast` は要素ごとに効くので、同じ画面で見比べられる。
  * ライト・ダークはツールバーの「カラーモード」で切り替える。
  */
 export const Contrast: Story = {
   render: () => (
     <div class="grid gap-4 bg-primary p-4 md:grid-cols-3">
-      <For each={Object.entries(UI_CONTRAST_FACTORS)}>
-        {([name, factor]) => (
+      <For each={CONTRASTS}>
+        {(factor) => (
           <div
             class="c-primary flex flex-col gap-2 bg-primary"
             style={{ "--ui-contrast": factor }}
           >
-            <p class="text-body font-bold">
-              {LABELS[name as keyof typeof LABELS]}
-            </p>
+            <p class="text-body font-bold">{formatUiContrast(factor)}</p>
             <DisplayPreview />
             {/* 投稿の外の段。薄い面と区切り線が、背景と見分けられるかを見る。 */}
             <div class="flex flex-col gap-1 rounded-2 border border-primary p-2">

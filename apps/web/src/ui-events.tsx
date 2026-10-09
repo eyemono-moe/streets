@@ -201,7 +201,9 @@ export type DeckEvent =
   | { type: "deck/start-tour" }
   /** カラーテーマ。この端末に保存する。 */
   | { type: "deck/set-color-scheme"; scheme: ColorScheme }
-  /** 文字と背景のコントラスト。この端末に保存する。 */
+  /** コントラストを動かしている途中。当てるだけで保存しない。 */
+  | { type: "deck/preview-ui-contrast"; contrast: UiContrast }
+  /** 文字と背景のコントラストを確定する。この端末に保存する。 */
   | { type: "deck/set-ui-contrast"; contrast: UiContrast }
   /** 色を動かしている途中。当てるだけで保存しない。 */
   | { type: "deck/preview-appearance"; appearance: DeckAppearance }

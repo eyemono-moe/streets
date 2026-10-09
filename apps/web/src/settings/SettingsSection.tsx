@@ -38,7 +38,8 @@ const SettingsSection: ParentComponent<{
   return (
     <Show when={!filter || filter() === props.id || field()}>
       <section class="flex flex-col gap-2">
-        <div class="flex items-center gap-1.5">
+        {/* 既定に戻すボタン（size-6）が出入りしても行の高さが変わらないよう、最小の高さをボタンに合わせる。 */}
+        <div class="flex min-h-6 items-center gap-1.5">
           <h3 class="c-primary font-600 text-body">{title()}</h3>
           <Show when={props.scope}>
             {(scope) => <StorageHint scope={scope()} />}

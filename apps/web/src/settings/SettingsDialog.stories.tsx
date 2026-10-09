@@ -80,7 +80,7 @@ const blockedRelayList = (tags: string[][], content = ""): NostrEvent => ({
 
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
-  const [contrast, setContrast] = createSignal<UiContrast>("normal");
+  const [contrast, setContrast] = createSignal<UiContrast>(1);
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
@@ -219,6 +219,7 @@ const Story = (props: Props) => {
                         case "deck/set-color-scheme":
                           setScheme(event.scheme);
                           return false;
+                        case "deck/preview-ui-contrast":
                         case "deck/set-ui-contrast":
                           setContrast(event.contrast);
                           setUiContrast(event.contrast, false);

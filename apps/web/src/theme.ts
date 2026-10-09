@@ -6,7 +6,7 @@ import {
 } from "@streets/core/settings/color-scheme";
 import {
   loadUiContrast,
-  UI_CONTRAST_FACTORS,
+  UI_CONTRAST_DEFAULT,
   UI_CONTRAST_STORAGE_KEY,
   type UiContrast,
 } from "@streets/core/settings/ui-contrast";
@@ -129,17 +129,17 @@ export const savedUiContrast = (): UiContrast => {
   try {
     return loadUiContrast(localStorage.getItem(UI_CONTRAST_STORAGE_KEY));
   } catch {
-    return "normal";
+    return UI_CONTRAST_DEFAULT;
   }
 };
 
-/** コントラストを当てる。背景色が変わるので theme-color も合わせ直す。 */
-export const applyUiContrast = (contrast: UiContrast) => {
-  document.documentElement.style.setProperty(
-    "--ui-contrast",
-    String(UI_CONTRAST_FACTORS[contrast]),
-  );
-  syncThemeColor();
+/**
+ * コントラストを当てる。theme-color は canvas への塗りを伴うので、
+ * つまみを動かしている間（`sync: false`）は省き、離したときに合わせる。
+ */
+export const applyUiContrast = (contrast: UiContrast, sync = true) => {
+  document.documentElement.style.setProperty("--ui-contrast", String(contrast));
+  if (sync) syncThemeColor();
 };
 
 /** コントラストを当てて、この端末に保存する。 */
@@ -147,7 +147,7 @@ export const setUiContrast = (contrast: UiContrast, save = true) => {
   applyUiContrast(contrast);
   if (!save) return;
   try {
-    localStorage.setItem(UI_CONTRAST_STORAGE_KEY, contrast);
+    localStorage.setItem(UI_CONTRAST_STORAGE_KEY, String(contrast));
   } catch {
     // 保存できなくても、今の画面には当たっている。
   }

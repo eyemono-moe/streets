@@ -128,6 +128,7 @@ import {
   APPEARANCE_SAVE_DELAY_MS,
   DEFAULT_APPEARANCE,
   applyColors,
+  applyUiContrast,
   savedColorScheme,
   savedUiContrast,
   setColorScheme,
@@ -774,6 +775,11 @@ const DeckScreen: Component<{
         measureUntilPaint("appearance.apply", "ui.theme");
         setScheme(event.scheme);
         setColorScheme(event.scheme);
+        return true;
+      case "deck/preview-ui-contrast":
+        // theme-color の同期は離したときだけ。
+        setContrast(event.contrast);
+        applyUiContrast(event.contrast, false);
         return true;
       case "deck/set-ui-contrast":
         measureUntilPaint("appearance.apply", "ui.theme");
