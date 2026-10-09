@@ -123,6 +123,10 @@ export const settings = {
     ...setting("カラーテーマ", "display", ["ダークモード", "ライトモード"]),
     description: "画面を明るい色にするか暗い色にするか選ぶ",
   },
+  contrast: {
+    ...setting("コントラスト", "display", ["文字", "背景", "見やすさ", "濃さ"]),
+    description: "文字と背景の明るさの差を選ぶ",
+  },
   accent: setting("アクセントカラー", "display", ["色", "テーマ"]),
   preview: {
     ...setting("プレビュー", "display"),

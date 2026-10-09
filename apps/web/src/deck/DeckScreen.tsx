@@ -129,7 +129,9 @@ import {
   DEFAULT_APPEARANCE,
   applyColors,
   savedColorScheme,
+  savedUiContrast,
   setColorScheme,
+  setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
 import { notifyInfo, notifySaved } from "../toast";
@@ -564,6 +566,7 @@ const DeckScreen: Component<{
 
   // カラーテーマはこの端末に、色はデッキと一緒にアカウントに保存している。
   const [scheme, setScheme] = createSignal(savedColorScheme());
+  const [uiContrast, setContrast] = createSignal(savedUiContrast());
   // 選んだ色はまず画面に当て、保存は少し待ってからまとめて送る —— 色を選ぶたびに
   // 署名とリレーへの書き込みをすると、つまみを動かすだけで待たされる。
   const [appearance, setAppearance] =
@@ -771,6 +774,11 @@ const DeckScreen: Component<{
         measureUntilPaint("appearance.apply", "ui.theme");
         setScheme(event.scheme);
         setColorScheme(event.scheme);
+        return true;
+      case "deck/set-ui-contrast":
+        measureUntilPaint("appearance.apply", "ui.theme");
+        setContrast(event.contrast);
+        setUiContrast(event.contrast);
         return true;
       case "deck/preview-appearance":
         // 動かしている最中。画面にだけ当てる。
@@ -1233,6 +1241,7 @@ const DeckScreen: Component<{
           signedIn={account !== undefined}
           wide={isWide()}
           scheme={scheme()}
+          contrast={uiContrast()}
           appearance={appearance()}
           writeProgress={showWriteProgress()}
           errorReport={errorReport()}

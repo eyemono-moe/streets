@@ -28,6 +28,9 @@ import {
   type TimeFormat,
   loadTimeFormat,
 } from "@streets/core/settings/time-format-setting";
+  loadUiContrast,
+  type UiContrast,
+} from "@streets/core/settings/ui-contrast";
 import { loadWriteProgress } from "@streets/core/settings/write-progress-setting";
 import { type Component, For } from "solid-js";
 import {
@@ -73,9 +76,17 @@ const SCHEMES: { value: ColorScheme; label: string }[] = [
   { value: "dark", label: "ダーク" },
 ];
 
+const CONTRASTS: { value: UiContrast; label: string }[] = [
+  { value: "low", label: "低い" },
+  { value: "normal", label: "標準" },
+  { value: "high", label: "高い" },
+];
+
 /** 表示の設定。今の値を受け取って描き、変えたらイベントを上へ渡す。 */
 const DisplaySettings: Component<{
   scheme: ColorScheme;
+  /** 文字と背景のコントラスト（この端末の設定）。 */
+  contrast: UiContrast;
   appearance: DeckAppearance;
   /** 保存の進み具合を出すか（この端末の設定）。 */
   writeProgress: boolean;
@@ -107,6 +118,7 @@ const DisplaySettings: Component<{
 
   // 既定は、何も保存していないときに読み込む値。
   const initialScheme = loadColorScheme(null);
+  const initialContrast = loadUiContrast(null);
   const initialLayout = loadDeckLayout(null);
   const initialContentWarning = loadContentWarningMode(null);
   const initialWriteProgress = loadWriteProgress(null);
@@ -130,6 +142,25 @@ const DisplaySettings: Component<{
           value={props.scheme}
           onChange={(scheme) =>
             dispatch({ type: "deck/set-color-scheme", scheme })
+          }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        id="contrast"
+        scope="device"
+        changed={props.contrast !== initialContrast}
+        onReset={() =>
+          dispatch({ type: "deck/set-ui-contrast", contrast: initialContrast })
+        }
+        description="文字と背景の明るさの差を選びます。「高い」にすると文字がくっきりし、「低い」にすると画面がやわらかくなります。ライトでもダークでも効きます。"
+      >
+        <SegmentedControl
+          label="コントラスト"
+          options={CONTRASTS}
+          value={props.contrast}
+          onChange={(contrast) =>
+            dispatch({ type: "deck/set-ui-contrast", contrast })
           }
         />
       </SettingsSection>

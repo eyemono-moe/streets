@@ -10,6 +10,16 @@ interface Colors {
   [key: string]: (Colors & { DEFAULT?: string }) | string;
 }
 
+/**
+ * `ui` の段の色。明るさだけ `--ui-contrast`（設定のコントラスト。標準は 1）で、背景の明るさ
+ * `--ui-pivot`（ライトは白、ダークは `ui-950`）からの距離を広げる・狭める。中間の 0.5 を軸にすると、
+ * ライトで `ui-50`〜`200`（区切り線や薄い面）が白に溶け、背景との差が逆に縮む。
+ * 段ごとに変数を持たず式を 1 か所にして、段どうしの順序が崩れないようにする。
+ * 標準のときは pivot + (L - pivot) = L で、元の色と変わらない。
+ */
+const uiStep = (lightness: number, chroma: number, alpha = true) =>
+  `oklch(from var(--theme-ui-color) clamp(0, calc(var(--ui-pivot, 1) + (${lightness} - var(--ui-pivot, 1)) * var(--ui-contrast, 1)), 1) calc(${chroma} * c / 0.37) h${alpha ? " / <alpha-value>" : ""})`;
+
 const colors: Colors = {
   // l: unocssのgray系を除いた色のlの平均値
   // c: unocssのgray系を除いた色のcの平均値を大きめに調整した値
@@ -32,17 +42,17 @@ const colors: Colors = {
   // l: unocssのslateのLと同じ値
   // c: unocssのslateのcと同じ値 * --theme-ui-colorのcの値(cの最大値は約0.37)
   ui: {
-    50: "oklch(from var(--theme-ui-color) 0.9841 calc(0.0033 * c / 0.37) h / <alpha-value>)",
-    100: "oklch(from var(--theme-ui-color) 0.9682 calc(0.0068 * c / 0.37) h / <alpha-value>)",
-    200: "oklch(from var(--theme-ui-color) 0.9287 calc(0.0125 * c / 0.37) h / <alpha-value>)",
-    300: "oklch(from var(--theme-ui-color) 0.8689 calc(0.0198 * c / 0.37) h / <alpha-value>)",
-    400: "oklch(from var(--theme-ui-color) 0.7106 calc(0.0350 * c / 0.37) h / <alpha-value>)",
-    500: "oklch(from var(--theme-ui-color) 0.5543 calc(0.0406 * c / 0.37) h / <alpha-value>)",
-    600: "oklch(from var(--theme-ui-color) 0.4455 calc(0.0374 * c / 0.37) h / <alpha-value>)",
-    700: "oklch(from var(--theme-ui-color) 0.3716 calc(0.0391 * c / 0.37) h / <alpha-value>)",
-    800: "oklch(from var(--theme-ui-color) 0.2794 calc(0.0368 * c / 0.37) h / <alpha-value>)",
-    900: "oklch(from var(--theme-ui-color) 0.2076 calc(0.0398 * c / 0.37) h / <alpha-value>)",
-    950: "oklch(from var(--theme-ui-color) 0.1287 calc(0.0405 * c / 0.37) h / <alpha-value>)",
+    50: uiStep(0.9841, 0.0033),
+    100: uiStep(0.9682, 0.0068),
+    200: uiStep(0.9287, 0.0125),
+    300: uiStep(0.8689, 0.0198),
+    400: uiStep(0.7106, 0.035),
+    500: uiStep(0.5543, 0.0406),
+    600: uiStep(0.4455, 0.0374),
+    700: uiStep(0.3716, 0.0391),
+    800: uiStep(0.2794, 0.0368),
+    900: uiStep(0.2076, 0.0398),
+    950: uiStep(0.1287, 0.0405),
   },
   uiOriginal: "var(--theme-ui-color)",
 
@@ -359,11 +369,12 @@ export default defineConfig({
         :root {
           color-scheme: light;
           --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.8689 calc(0.0198 * c / 0.37) h);
+          --ui-pivot: 1;
           --color-danger: #C5221F;
           --color-danger-subtle: #FCE8E6;
           --color-status-ok: #188038;
           --color-status-warn: #E37400;
-          --color-status-off: oklch(from var(--theme-ui-color) 0.4455 calc(0.0374 * c / 0.37) h);
+          --color-status-off: ${uiStep(0.4455, 0.0374, false)};
           --color-time-circuit-panel: #2A2724;
           --color-time-circuit-destination: #FF4D3D;
           --color-time-circuit-present: #4DFF7A;
@@ -372,11 +383,12 @@ export default defineConfig({
         .dark {
           color-scheme: dark;
           --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.3716 calc(0.0391 * c / 0.37) h);
+          --ui-pivot: 0.1287;
           --color-danger: #F28B82;
           --color-danger-subtle: #3C1F1D;
           --color-status-ok: #81C995;
           --color-status-warn: #FDD663;
-          --color-status-off: oklch(from var(--theme-ui-color) 0.7106 calc(0.0350 * c / 0.37) h);
+          --color-status-off: ${uiStep(0.7106, 0.035, false)};
         }
         @media (prefers-reduced-motion) {
           * {

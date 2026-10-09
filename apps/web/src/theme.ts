@@ -4,8 +4,14 @@ import {
   type ColorScheme,
   loadColorScheme,
 } from "@streets/core/settings/color-scheme";
+import {
+  loadUiContrast,
+  UI_CONTRAST_FACTORS,
+  UI_CONTRAST_STORAGE_KEY,
+  type UiContrast,
+} from "@streets/core/settings/ui-contrast";
 
-export type { ColorScheme };
+export type { ColorScheme, UiContrast };
 
 /**
  * テーマ色の元になる 2 色。Penpot の `Primitives/*` の `accent.original` と `ui.original`。
@@ -113,6 +119,35 @@ export const setColorScheme = (scheme: ColorScheme, save = true) => {
   if (!save) return;
   try {
     localStorage.setItem(COLOR_SCHEME_STORAGE_KEY, scheme);
+  } catch {
+    // 保存できなくても、今の画面には当たっている。
+  }
+};
+
+/** 端末に保存したコントラスト。 */
+export const savedUiContrast = (): UiContrast => {
+  try {
+    return loadUiContrast(localStorage.getItem(UI_CONTRAST_STORAGE_KEY));
+  } catch {
+    return "normal";
+  }
+};
+
+/** コントラストを当てる。背景色が変わるので theme-color も合わせ直す。 */
+export const applyUiContrast = (contrast: UiContrast) => {
+  document.documentElement.style.setProperty(
+    "--ui-contrast",
+    String(UI_CONTRAST_FACTORS[contrast]),
+  );
+  syncThemeColor();
+};
+
+/** コントラストを当てて、この端末に保存する。 */
+export const setUiContrast = (contrast: UiContrast, save = true) => {
+  applyUiContrast(contrast);
+  if (!save) return;
+  try {
+    localStorage.setItem(UI_CONTRAST_STORAGE_KEY, contrast);
   } catch {
     // 保存できなくても、今の画面には当たっている。
   }

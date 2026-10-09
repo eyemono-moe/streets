@@ -6,13 +6,19 @@ import { decodeBlockedRelayList } from "@streets/core/settings/blocked-relay-lis
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
+import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import { createResource, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { setChatOrder } from "../chat-order-setting";
 import { StaticCustomEmojis } from "../emoji/custom-emojis";
 import { EventSceneProvider } from "../storybook/EventScene";
 import { useStoryNip05 } from "../storybook/nip05";
-import { DEFAULT_APPEARANCE, PALETTES, applyColors } from "../theme";
+import {
+  DEFAULT_APPEARANCE,
+  PALETTES,
+  applyColors,
+  setUiContrast,
+} from "../theme";
 import { Mediates } from "../ui-events";
 import { BlockedRelayMediator } from "./BlockedRelayMediator";
 import { MediaMediator } from "./MediaMediator";
@@ -74,6 +80,7 @@ const blockedRelayList = (tags: string[][], content = ""): NostrEvent => ({
 
 const Story = (props: Props) => {
   const [scheme, setScheme] = createSignal<ColorScheme>("system");
+  const [contrast, setContrast] = createSignal<UiContrast>("normal");
   const [appearance, setAppearance] = createSignal(props.appearance);
   const [writeProgress, setWriteProgress] = createSignal(true);
   const [errorReport, setErrorReport] = createSignal(true);
@@ -212,6 +219,10 @@ const Story = (props: Props) => {
                         case "deck/set-color-scheme":
                           setScheme(event.scheme);
                           return false;
+                        case "deck/set-ui-contrast":
+                          setContrast(event.contrast);
+                          setUiContrast(event.contrast, false);
+                          return true;
                         case "deck/preview-appearance":
                           applyColors(event.appearance);
                           return true;
@@ -262,6 +273,7 @@ const Story = (props: Props) => {
                       signedIn={props.signedIn !== false}
                       wide={props.wide}
                       scheme={scheme()}
+                      contrast={contrast()}
                       appearance={appearance()}
                       writeProgress={writeProgress()}
                       errorReport={errorReport()}
