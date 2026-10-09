@@ -148,6 +148,11 @@ export default defineConfig({
         // 狭い画面で下のバーから開くパネル。下から上がり、閉じるときは下へ下がる。
         "sheet-up": "{from{transform:translateY(100%)}to{transform:none}}",
         "sheet-down": "{from{transform:none}to{transform:translateY(100%)}}",
+        // Ark UI の Drawer で開くシートの閉じる動き。スワイプで閉じたとき、Drawer は引き下げた
+        // 位置を --drawer-translate-y に置く。from を transform:none にすると、離した瞬間に元の
+        // 高さへ戻ってから下がる。引き下げた位置から下へ抜ける。
+        "drawer-down":
+          "{from{transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{transform:translateY(100%)}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
@@ -172,6 +177,7 @@ export default defineConfig({
         "stack-out": "140ms",
         "sheet-up": "180ms",
         "sheet-down": "140ms",
+        "drawer-down": "140ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
@@ -192,6 +198,7 @@ export default defineConfig({
         "stack-out": "ease-in both",
         "sheet-up": "cubic-bezier(0.16, 1, 0.3, 1)",
         "sheet-down": "ease-in both",
+        "drawer-down": "ease-in both",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
         marquee: "linear",
@@ -283,6 +290,9 @@ export default defineConfig({
         "overflow-hidden data-[state=open]:animate-collapse-right data-[state=closed]:animate-collapse-left",
       "motion-sheet":
         "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down",
+      // Ark UI の Drawer の Content に当てる。閉じる動きを、スワイプで引き下げた位置から始める。
+      "motion-drawer":
+        "data-[state=open]:animate-sheet-up data-[state=closed]:animate-drawer-down",
     },
   ],
   transformers: [transformerVariantGroup()],

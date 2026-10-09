@@ -48,7 +48,7 @@ export const nestedMenuPositioning: MenuRootProps["positioning"] = {
  * 高さは画面の 8 割まで。中の流す部分は呼ぶ側が `overflow-y-auto` で包む。
  */
 export const sheetContentClass =
-  "motion-sheet c-primary absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]";
+  "motion-drawer c-primary absolute inset-x-0 bottom-0 flex max-h-[85dvh] flex-col overflow-hidden rounded-t-3 border-primary border-t bg-primary shadow-[0_-10px_30px_rgba(0,0,0,0.28)] outline-none dark:shadow-[0_-10px_30px_rgba(0,0,0,0.7)]";
 
 /**
  * 指で押す項目。折り返さず、押しやすい 44px の高さにする。button はブラウザ既定の背景・枠・文字色
