@@ -5,7 +5,7 @@ import type { RelayUrl } from "../relay/relay-connection";
 import { type Signer, SignerUnavailableError } from "../signer/signer";
 import type { Publisher } from "./publisher";
 import { verifyOptimisticInsert } from "./verify-optimistic-insert";
-import type { WriteProgress } from "./write-progress";
+import type { RelayProgress, WriteProgress } from "./write-progress";
 
 export type WriteResult = {
   event: NostrEvent;
@@ -51,15 +51,26 @@ export class WriteFailedError extends Error {
   }
 }
 
-export type Writer = {
+export type PublishOptions = {
   /**
-   * `relays` は自分の write リレーに加えて送る先。著者で行き先が決まらない
+   * 自分の write リレーに加えて送る先。著者で行き先が決まらない
    * イベント（チャンネルでの発言は、チャンネルのリレーで読まれる）に使う。
    */
+  relays?: readonly RelayUrl[];
+  /**
+   * いつ終えたことにするか。`all`（既定）は全部のリレーの結果を待つ。
+   * `first-accept` は 1 本が受け取った時点で終え、残りのリレーへは送り続ける。
+   * 残りの結果は `onProgress` に届く。結果の `accepted` / `rejected` は、
+   * 終えた時点までのもの。
+   */
+  settle?: "all" | "first-accept";
+};
+
+export type Writer = {
   publish(
     draft: EventDraft,
     hooks?: WriteHooks,
-    options?: { relays?: readonly RelayUrl[] },
+    options?: PublishOptions,
   ): Promise<WriteResult>;
   /**
    * `mutate` には store が持つ生きたイベントをそのまま渡す (`fetchLatest`
@@ -159,6 +170,7 @@ export const createWriter = ({
     hooks: WriteHooks | undefined,
     replaced: NostrEvent | undefined,
     additionalRelays: readonly RelayUrl[] = [],
+    settle: PublishOptions["settle"] = "all",
   ): Promise<WriteResult> => {
     // 署名の例外はそのまま伝播させる。ここで包み直すと、呼び出し側が
     // 「拡張機能が無い」と「リレーが全部落ちている」を別の文言で
@@ -178,18 +190,47 @@ export const createWriter = ({
     );
     hooks?.onOptimisticInsert?.(signed, optimisticStartedAt, putResult);
 
-    const result = await publisher.publish(signed, {
-      additionalRelays,
-      onProgress: (relays) => hooks?.onProgress?.({ phase: "sending", relays }),
+    let firstAccepted: (relays: RelayProgress[]) => void = () => {};
+    const accepted = new Promise<RelayProgress[]>((resolve) => {
+      firstAccepted = resolve;
     });
-    if (result.accepted.length === 0) {
-      // 全滅時、新規挿入 ("inserted") のときだけ store から取り除く —— "duplicate" を無条件 remove すると、先に成功していた既存イベントまで消えてしまう。
-      if (putResult === "inserted") {
-        store.remove(signed.id);
-      }
-      throw new WriteFailedError(result.rejected);
-    }
-    return { event: signed, ...result, replaced };
+    const all = publisher
+      .publish(signed, {
+        additionalRelays,
+        onProgress: (relays) => {
+          hooks?.onProgress?.({ phase: "sending", relays });
+          if (relays.some((entry) => entry.state === "accepted"))
+            firstAccepted(relays);
+        },
+      })
+      .then((result) => {
+        if (result.accepted.length === 0) {
+          // 全滅時、新規挿入 ("inserted") のときだけ store から取り除く —— "duplicate" を無条件 remove すると、先に成功していた既存イベントまで消えてしまう。
+          if (putResult === "inserted") {
+            store.remove(signed.id);
+          }
+          throw new WriteFailedError(result.rejected);
+        }
+        return { event: signed, ...result, replaced };
+      });
+    if (settle === "all") return all;
+    // 1 本でも受け取っていれば `all` は投げない（全滅のときだけ投げる）ので、
+    // 先に終えた後で `all` が拒否されたまま放置されることはない。
+    return Promise.race([
+      all,
+      accepted.then((relays) => ({
+        event: signed,
+        accepted: relays
+          .filter((entry) => entry.state === "accepted")
+          .map((entry) => entry.relay),
+        rejected: relays.flatMap((entry) =>
+          entry.state === "rejected"
+            ? [{ relay: entry.relay, reason: entry.reason ?? "" }]
+            : [],
+        ),
+        replaced,
+      })),
+    ]);
   };
 
   return {
@@ -199,6 +240,7 @@ export const createWriter = ({
         hooks,
         undefined,
         options?.relays,
+        options?.settle,
       ),
 
     // `identifier` は NIP-33 addressable event の `d`。mutation が返した

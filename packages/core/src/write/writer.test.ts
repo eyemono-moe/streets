@@ -291,6 +291,112 @@ describe("publish", () => {
     expect(result.rejected).toHaveLength(1);
   });
 
+  describe("settle", () => {
+    const A = "wss://a.example" as RelayUrl;
+    const B = "wss://b.example" as RelayUrl;
+
+    /** A が先に受け取り、B の返事は `finishB` を呼ぶまで来ない Publisher。 */
+    const slowSecond = (bOutcome: "accepted" | "rejected") => {
+      const b = deferred<void>();
+      let finished = false;
+      const publisher = stubPublisher(async (_event, options) => {
+        options?.onProgress?.([
+          { relay: A, state: "pending" },
+          { relay: B, state: "pending" },
+        ]);
+        options?.onProgress?.([
+          { relay: A, state: "accepted" },
+          { relay: B, state: "pending" },
+        ]);
+        await b.promise;
+        options?.onProgress?.([
+          { relay: A, state: "accepted" },
+          bOutcome === "accepted"
+            ? { relay: B, state: "accepted" }
+            : { relay: B, state: "rejected", reason: "refused" },
+        ]);
+        finished = true;
+        return bOutcome === "accepted"
+          ? { accepted: [A, B], rejected: [] }
+          : { accepted: [A], rejected: [{ relay: B, reason: "refused" }] };
+      });
+      return {
+        publisher,
+        finishB: () => b.resolve(),
+        finished: () => finished,
+      };
+    };
+
+    const writerWith = (publisher: Publisher, store = new EventStore()) =>
+      createWriter({
+        signer: createFakeSigner(SK),
+        store,
+        publisher,
+        pubkey: () => PUBKEY,
+        now: () => 1_700_000_000,
+        fetchLatest: async () => undefined,
+      });
+
+    it("first-accept は 1 本が受け取った時点で終える", async () => {
+      // 捕まえる変異: settle を無視して全部の返事を待つ（投稿欄が遅いリレーを待って閉じない）
+      const { publisher, finishB, finished } = slowSecond("accepted");
+      const result = await writerWith(publisher).publish(
+        { kind: 1, tags: [], content: "hi" },
+        undefined,
+        { settle: "first-accept" },
+      );
+      expect(finished()).toBe(false);
+      expect(result.accepted).toEqual([A]);
+      finishB();
+    });
+
+    it("first-accept で終えた後も、残りのリレーの結果は onProgress に届く", async () => {
+      // 捕まえる変異: 終えた後に進み具合を止める（拒否したリレーを知らせられない）
+      const { publisher, finishB } = slowSecond("rejected");
+      const seen: string[] = [];
+      await writerWith(publisher).publish(
+        { kind: 1, tags: [], content: "hi" },
+        {
+          onProgress: (progress) => {
+            if (progress.phase === "sending")
+              seen.push(progress.relays.map((entry) => entry.state).join(","));
+          },
+        },
+        { settle: "first-accept" },
+      );
+      finishB();
+      await vi.waitFor(() => expect(seen.at(-1)).toBe("accepted,rejected"));
+    });
+
+    it("first-accept でも、全部断られたら巻き戻して WriteFailedError を投げる", async () => {
+      // 捕まえる変異: 受け取ったリレーを待つだけで、全滅のときに終わらない
+      const store = new EventStore();
+      await expect(
+        writerWith(
+          stubPublisher(async () => allFailed),
+          store,
+        ).publish({ kind: 1, tags: [], content: "hi" }, undefined, {
+          settle: "first-accept",
+        }),
+      ).rejects.toBeInstanceOf(WriteFailedError);
+      expect(store.size).toBe(0);
+    });
+
+    it("既定は全部のリレーの返事を待つ", async () => {
+      // 捕まえる変異: 既定を first-accept にする（設定の保存が途中で終わったことになる）
+      const { publisher, finishB, finished } = slowSecond("accepted");
+      const pending = writerWith(publisher).publish({
+        kind: 1,
+        tags: [],
+        content: "hi",
+      });
+      finishB();
+      const result = await pending;
+      expect(finished()).toBe(true);
+      expect(result.accepted).toEqual([A, B]);
+    });
+  });
+
   it("onOptimisticInsert は put の直後・publish の前に同期的に呼ばれる", async () => {
     // 捕まえる変異: await の後に呼ぶ (signEvent を含めない計測が本質なので、publish 後では対象が変わる)。
     const { writer, calls } = setup(ok);
