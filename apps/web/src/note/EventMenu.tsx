@@ -48,6 +48,7 @@ import {
   menuSeparatorClass,
   sheetContentClass,
   sheetGroupLabelClass,
+  sheetIconClass,
   sheetItemClass,
 } from "../ui/menu";
 import {
@@ -102,10 +103,10 @@ const Items: Component<{ items: MenuItem[] }> = (props) => {
             type="button"
             disabled={item.todo}
             class={sheetItemClass}
-            classList={{ "c-danger": item.danger }}
+            classList={{ "c-danger": item.danger, "c-primary": !item.danger }}
             onClick={() => pick(item.value)}
           >
-            <span class={`${item.icon} ${menuIconClass}`} aria-hidden="true" />
+            <span class={`${item.icon} ${sheetIconClass}`} aria-hidden="true" />
             <span class="truncate">{item.label}</span>
           </button>
         ) : (
