@@ -24,6 +24,8 @@ const MenuStory: Component<{
   crowded?: boolean;
   /** 作者の入れ子のメニューも開く。横に開く分、幅を広げる。 */
   nested?: boolean;
+  /** 触る端末の形（ボトムシート）で開く。 */
+  sheet?: boolean;
 }> = (props) => {
   setActionLayout(
     props.crowded
@@ -46,6 +48,7 @@ const MenuStory: Component<{
           withActions={props.withActions}
           defaultOpen
           defaultAuthorOpen={props.nested}
+          sheet={props.sheet}
         />
       </div>
     </EventSceneProvider>
@@ -144,4 +147,46 @@ export const スマホで項目が多い: Story = {
   args: { crowded: true },
   parameters: { layout: "fullscreen" },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+const mobile = { viewport: { value: "mobile1", isRotated: false } };
+
+/** 触る端末では、ポップアップではなく画面の下から出るパネルに並べる。作者の項目も同じ一覧に続く。 */
+export const スマホのボトムシート: Story = {
+  args: { sheet: true },
+  parameters: { layout: "fullscreen" },
+  globals: mobile,
+};
+
+/** 項目が多いとき、パネルの高さは画面の 8 割までで、中だけ流す。 */
+export const スマホのボトムシートで項目が多い: Story = {
+  args: { sheet: true, crowded: true },
+  parameters: { layout: "fullscreen" },
+  globals: mobile,
+};
+
+export const スマホのボトムシートで作者の名前が長い: Story = {
+  args: {
+    sheet: true,
+    event: longNameNote,
+    scene: { events: [...profiles, longName.profile(), longNameNote] },
+  },
+  parameters: { layout: "fullscreen" },
+  globals: mobile,
+};
+
+export const スマホのボトムシートでプロフィールが無い: Story = {
+  args: {
+    sheet: true,
+    event: noProfileNote,
+    scene: { events: [...profiles, noProfileNote] },
+  },
+  parameters: { layout: "fullscreen" },
+  globals: mobile,
+};
+
+export const スマホのボトムシートで自分の投稿: Story = {
+  args: { sheet: true, event: mine, scene: scene(mine) },
+  parameters: { layout: "fullscreen" },
+  globals: mobile,
 };
