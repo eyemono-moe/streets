@@ -1,3 +1,4 @@
+import { Drawer } from "@ark-ui/solid/drawer";
 import { Menu } from "@ark-ui/solid/menu";
 import { clientOf } from "@streets/core/nostr/app-handler";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
@@ -15,7 +16,15 @@ import {
 } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
-import { type Component, For, Show, createSignal } from "solid-js";
+import {
+  type Component,
+  For,
+  Show,
+  createContext,
+  createSignal,
+  createUniqueId,
+  useContext,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { actionLayout } from "../action-layout-setting";
 import { type EventActions, useEventActions } from "../actions";
@@ -27,14 +36,20 @@ import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
+import Avatar from "../ui/Avatar";
 import IconButton from "../ui/IconButton";
 import {
+  nestedMenuPositioning,
   itemMenuPositioning,
   menuContentClass,
   menuGroupLabelClass,
   menuIconClass,
   menuItemClass,
   menuSeparatorClass,
+  sheetContentClass,
+  sheetGroupLabelClass,
+  sheetIconClass,
+  sheetItemClass,
 } from "../ui/menu";
 import {
   EVENT_ACTION_META,
@@ -72,21 +87,43 @@ const AUTHOR_RELAYS: MenuItem = {
   icon: "i-material-symbols:hub-outline",
 };
 
-const Items: Component<{ items: MenuItem[] }> = (props) => (
-  <For each={props.items}>
-    {(item) => (
-      <Menu.Item
-        value={item.value}
-        disabled={item.todo}
-        class={menuItemClass}
-        classList={{ "c-danger": item.danger }}
-      >
-        <span class={`${item.icon} ${menuIconClass}`} aria-hidden="true" />
-        <span class="truncate">{item.label}</span>
-      </Menu.Item>
-    )}
-  </For>
-);
+/**
+ * ボトムシートの中では、項目を Menu.Item ではなく button で描く。Ark UI の Menu はポップアップしか
+ * 持たず、Menu.Item は Menu の外に置けない。項目の並びは `Items` が 1 か所で持つ。
+ */
+const SheetPick = createContext<(value: string) => void>();
+
+const Items: Component<{ items: MenuItem[] }> = (props) => {
+  const pick = useContext(SheetPick);
+  return (
+    <For each={props.items}>
+      {(item) =>
+        pick ? (
+          <button
+            type="button"
+            disabled={item.todo}
+            class={sheetItemClass}
+            classList={{ "c-danger": item.danger, "c-primary": !item.danger }}
+            onClick={() => pick(item.value)}
+          >
+            <span class={`${item.icon} ${sheetIconClass}`} aria-hidden="true" />
+            <span class="truncate">{item.label}</span>
+          </button>
+        ) : (
+          <Menu.Item
+            value={item.value}
+            disabled={item.todo}
+            class={menuItemClass}
+            classList={{ "c-danger": item.danger }}
+          >
+            <span class={`${item.icon} ${menuIconClass}`} aria-hidden="true" />
+            <span class="truncate">{item.label}</span>
+          </Menu.Item>
+        )
+      }
+    </For>
+  );
+};
 
 /**
  * 「このイベント」の項目。アクション欄に出していない操作を、設定の順に並べる。
@@ -247,6 +284,10 @@ const EventMenu: Component<{
   onMute?: () => void;
   /** 開いた状態で描く。Storybook で中身を並べるため。 */
   defaultOpen?: boolean;
+  /** 作者の入れ子のメニューも開いた状態で描く。Storybook 用。 */
+  defaultAuthorOpen?: boolean;
+  /** ボトムシートで出すか。既定は、ホバーできない端末。Storybook で触る端末の形を出すため。 */
+  sheet?: boolean;
 }> = (props) => {
   const profileDetails = useProfileDetails(() => props.event.pubkey);
   const profile = () => profileDetails()?.profile;
@@ -324,6 +365,42 @@ const EventMenu: Component<{
       AUTHOR_RELAYS,
     ];
   };
+  const authorLabel = () => (
+    <>
+      <ProfileName
+        pubkey={props.event.pubkey}
+        profile={profile()}
+        tags={profileDetails()?.tags}
+      />
+      <Show when={profile()?.name}>
+        {(name) => (
+          <>
+            {" @"}
+            <ProfileText text={name()} tags={profileDetails()?.tags} />
+          </>
+        )}
+      </Show>
+    </>
+  );
+  // 入れ子の開き口では、表示名と @名前 を並べず、@名前（無ければ表示名）だけを出す。
+  const authorHandle = () => (
+    <Show
+      when={profile()?.name}
+      fallback={
+        <ProfileName
+          pubkey={props.event.pubkey}
+          profile={profile()}
+          tags={profileDetails()?.tags}
+        />
+      }
+    >
+      {(name) => (
+        <>
+          @<ProfileText text={name()} tags={profileDetails()?.tags} />
+        </>
+      )}
+    </Show>
+  );
   const toggleAuthorMute = () => {
     const entry = authorMuteEntry();
     dispatch(
@@ -332,10 +409,137 @@ const EventMenu: Component<{
         : { type: "mutes/add", target: authorTarget() },
     );
   };
+  // 入れ子のメニューの onSelect は親とは別に呼ばれるので、処理は両方からこの関数へ集める。
+  const select = (value: string) => {
+    switch (value) {
+      case "reply":
+        if (props.onReply) props.onReply();
+        else dialogs.open("reply");
+        break;
+      case "quote":
+      case "details":
+      case "broadcast":
+        dialogs.open(value);
+        break;
+      case "repost":
+        dispatch({ type: "note/repost", target: props.event });
+        break;
+      case "like":
+        dispatch({
+          type: "note/react",
+          target: props.event,
+          input: defaultReaction(),
+        });
+        break;
+      case "react":
+        setPicking(true);
+        break;
+      case "zap":
+        dispatch({ type: "zap/open", target: props.event });
+        break;
+      case "bookmark":
+        dispatch({
+          type: "note/bookmark",
+          target: props.event,
+          on: !(actions?.bookmarked(props.event.id) ?? false),
+        });
+        break;
+      case "pin":
+        dispatch({
+          type: "note/pin",
+          target: props.event,
+          on: !(actions?.pinned(props.event.id) ?? false),
+        });
+        break;
+      case "activity":
+        ops.activity();
+        break;
+      case "copy-link":
+        void ops.copyLink();
+        break;
+      case "mute-event":
+        ops.toggleMute();
+        break;
+      case "follow":
+        dispatch({
+          type: "user/follow",
+          pubkey: props.event.pubkey,
+          on: !following(),
+        });
+        break;
+      case "author-relays":
+        setAuthorRelays(true);
+        break;
+      case "client":
+        setShowingClient(true);
+        break;
+      case "add-to-list":
+        setAddingToList(true);
+        break;
+      case "mute-author":
+        toggleAuthorMute();
+        break;
+      case "timeslip":
+        ops.timeslip();
+        break;
+      case "mute":
+        props.onMute?.();
+        break;
+    }
+  };
+
   const [authorRelays, setAuthorRelays] = createSignal(false);
   const client = () => clientOf(props.event);
   const [showingClient, setShowingClient] = createSignal(false);
   const [addingToList, setAddingToList] = createSignal(false);
+
+  // ポップアップとボトムシートで同じ中身を使い、出し方だけを変える。
+  const eventSection = () => (
+    <>
+      <EventItems
+        event={props.event}
+        ids={eventIds()}
+        actions={actions}
+        muted={ops.muted()}
+        canMute={ops.canMute}
+        customReply={props.onReply !== undefined}
+        customMute={props.onMute !== undefined}
+      />
+      <Show when={props.onMute}>
+        <Items
+          items={[
+            {
+              value: "mute",
+              label: "ミュート…",
+              icon: "i-material-symbols:visibility-off-outline-rounded",
+            },
+          ]}
+        />
+      </Show>
+      <Show when={client()}>
+        {(ref) => (
+          <Items
+            items={[
+              {
+                value: "client",
+                label: `${ref().name} から投稿`,
+                icon: "i-material-symbols:apps-rounded",
+              },
+            ]}
+          />
+        )}
+      </Show>
+    </>
+  );
+  const labelId = createUniqueId();
+  const [sheetOpen, setSheetOpen] = createSignal(props.defaultOpen === true);
+  const sheet = () => props.sheet ?? !canHover();
+  // 先に閉じてから処理する。項目から開くダイアログが、閉じかけのシートのフォーカストラップに
+  // 奪われないようにするため。
+  const pickInSheet = (value: string) => {
+    setSheetOpen(false);
+    select(value);
+  };
 
   return (
     <span class="relative shrink-0">
@@ -343,168 +547,151 @@ const EventMenu: Component<{
         閉じている間は中身を作らない。投稿 1 件ごとにメニューがあるので、
         作り続けるとカラム 1 本で DOM が 200 要素単位で増える。
       */}
-      <Menu.Root
-        lazyMount
-        unmountOnExit
-        defaultOpen={props.defaultOpen}
-        positioning={itemMenuPositioning}
-        onSelect={(details) => {
-          switch (details.value) {
-            case "reply":
-              if (props.onReply) props.onReply();
-              else dialogs.open("reply");
-              break;
-            case "quote":
-            case "details":
-            case "broadcast":
-              dialogs.open(details.value);
-              break;
-            case "repost":
-              dispatch({ type: "note/repost", target: props.event });
-              break;
-            case "like":
-              dispatch({
-                type: "note/react",
-                target: props.event,
-                input: defaultReaction(),
-              });
-              break;
-            case "react":
-              setPicking(true);
-              break;
-            case "zap":
-              dispatch({ type: "zap/open", target: props.event });
-              break;
-            case "bookmark":
-              dispatch({
-                type: "note/bookmark",
-                target: props.event,
-                on: !(actions?.bookmarked(props.event.id) ?? false),
-              });
-              break;
-            case "pin":
-              dispatch({
-                type: "note/pin",
-                target: props.event,
-                on: !(actions?.pinned(props.event.id) ?? false),
-              });
-              break;
-            case "activity":
-              ops.activity();
-              break;
-            case "copy-link":
-              void ops.copyLink();
-              break;
-            case "mute-event":
-              ops.toggleMute();
-              break;
-            case "follow":
-              dispatch({
-                type: "user/follow",
-                pubkey: props.event.pubkey,
-                on: !following(),
-              });
-              break;
-            case "author-relays":
-              setAuthorRelays(true);
-              break;
-            case "client":
-              setShowingClient(true);
-              break;
-            case "add-to-list":
-              setAddingToList(true);
-              break;
-            case "mute-author":
-              toggleAuthorMute();
-              break;
-            case "timeslip":
-              ops.timeslip();
-              break;
-            case "mute":
-              props.onMute?.();
-              break;
-          }
-        }}
-      >
-        <Menu.Trigger
-          asChild={(triggerProps) => (
-            <IconButton
-              {...triggerProps()}
-              ref={(el: HTMLElement) => {
-                trigger = el;
-              }}
-              icon="i-material-symbols:more-vert"
-              label="この投稿の操作"
-            />
-          )}
-        />
-        <Portal>
-          <Menu.Positioner>
-            <Menu.Content class={`${menuContentClass} w-64`}>
-              <Menu.ItemGroup>
-                <Menu.ItemGroupLabel class={menuGroupLabelClass}>
-                  このイベント
-                </Menu.ItemGroupLabel>
-                <EventItems
-                  event={props.event}
-                  ids={eventIds()}
-                  actions={actions}
-                  muted={ops.muted()}
-                  canMute={ops.canMute}
-                  customReply={props.onReply !== undefined}
-                  customMute={props.onMute !== undefined}
+      <Show
+        when={sheet()}
+        fallback={
+          <Menu.Root
+            lazyMount
+            unmountOnExit
+            defaultOpen={props.defaultOpen}
+            positioning={itemMenuPositioning}
+            onSelect={(details) => select(details.value)}
+          >
+            <Menu.Trigger
+              asChild={(triggerProps) => (
+                <IconButton
+                  {...triggerProps()}
+                  ref={(el: HTMLElement) => {
+                    trigger = el;
+                  }}
+                  icon="i-material-symbols:more-vert"
+                  label="この投稿の操作"
                 />
-                <Show when={props.onMute}>
-                  <Items
-                    items={[
-                      {
-                        value: "mute",
-                        label: "ミュート…",
-                        icon: "i-material-symbols:visibility-off-outline-rounded",
-                      },
-                    ]}
-                  />
-                </Show>
-                <Show when={client()}>
-                  {(ref) => (
-                    <Items
-                      items={[
-                        {
-                          value: "client",
-                          label: `${ref().name} から投稿`,
-                          icon: "i-material-symbols:apps-rounded",
-                        },
-                      ]}
-                    />
-                  )}
-                </Show>
-              </Menu.ItemGroup>
-              <Menu.Separator class={menuSeparatorClass} />
-              <Menu.ItemGroup>
-                <Menu.ItemGroupLabel class={`${menuGroupLabelClass} truncate`}>
-                  <ProfileName
-                    pubkey={props.event.pubkey}
-                    profile={profile()}
-                    tags={profileDetails()?.tags}
-                  />
-                  <Show when={profile()?.name}>
-                    {(name) => (
-                      <>
-                        {" @"}
-                        <ProfileText
-                          text={name()}
-                          tags={profileDetails()?.tags}
+              )}
+            />
+            <Portal>
+              <Menu.Positioner>
+                <Menu.Content class={`${menuContentClass} w-64`}>
+                  <Menu.ItemGroup>
+                    <Menu.ItemGroupLabel class={menuGroupLabelClass}>
+                      このイベント
+                    </Menu.ItemGroupLabel>
+                    {eventSection()}
+                  </Menu.ItemGroup>
+                  <Menu.Separator class={menuSeparatorClass} />
+                  <Show
+                    when={canHover()}
+                    fallback={
+                      <Menu.ItemGroup>
+                        <Menu.ItemGroupLabel
+                          class={`${menuGroupLabelClass} truncate`}
+                        >
+                          {authorLabel()}
+                        </Menu.ItemGroupLabel>
+                        <Items items={authorItems()} />
+                      </Menu.ItemGroup>
+                    }
+                  >
+                    {/* 触る端末にはホバーが無く、入れ子のメニューを開けないので 1 枚に並べる。 */}
+                    <Menu.Root
+                      lazyMount
+                      unmountOnExit
+                      defaultOpen={props.defaultAuthorOpen}
+                      positioning={nestedMenuPositioning}
+                      onSelect={(details) => select(details.value)}
+                    >
+                      <Menu.TriggerItem class={menuItemClass}>
+                        <Avatar
+                          pubkey={props.event.pubkey}
+                          picture={profile()?.picture}
+                          class="size-4 rounded-full"
                         />
-                      </>
-                    )}
+                        <span class="min-w-0 flex-1 truncate">
+                          {authorHandle()}
+                        </span>
+                        <span
+                          class="i-material-symbols:chevron-right-rounded size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                      </Menu.TriggerItem>
+                      <Portal>
+                        <Menu.Positioner>
+                          <Menu.Content class={`${menuContentClass} w-64`}>
+                            <Menu.ItemGroup>
+                              <Menu.ItemGroupLabel
+                                class={`${menuGroupLabelClass} truncate`}
+                              >
+                                {authorLabel()}
+                              </Menu.ItemGroupLabel>
+                              <Items items={authorItems()} />
+                            </Menu.ItemGroup>
+                          </Menu.Content>
+                        </Menu.Positioner>
+                      </Portal>
+                    </Menu.Root>
                   </Show>
-                </Menu.ItemGroupLabel>
-                <Items items={authorItems()} />
-              </Menu.ItemGroup>
-            </Menu.Content>
-          </Menu.Positioner>
-        </Portal>
-      </Menu.Root>
+                </Menu.Content>
+              </Menu.Positioner>
+            </Portal>
+          </Menu.Root>
+        }
+      >
+        <SheetPick.Provider value={pickInSheet}>
+          <Drawer.Root
+            lazyMount
+            unmountOnExit
+            open={sheetOpen()}
+            onOpenChange={(details) => setSheetOpen(details.open)}
+            swipeDirection="down"
+          >
+            <Drawer.Trigger
+              asChild={(triggerProps) => (
+                <IconButton
+                  {...triggerProps()}
+                  ref={(el: HTMLElement) => {
+                    trigger = el;
+                  }}
+                  icon="i-material-symbols:more-vert"
+                  label="この投稿の操作"
+                />
+              )}
+            />
+            <Portal>
+              <Drawer.Backdrop class="motion-fade fixed inset-0 bg-ui-950/40" />
+              <Drawer.Positioner class="fixed inset-0">
+                <Drawer.Content class={sheetContentClass}>
+                  <Drawer.Grabber class="flex shrink-0 justify-center py-2">
+                    <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-ui-4" />
+                  </Drawer.Grabber>
+                  <Drawer.Title class="sr-only">この投稿の操作</Drawer.Title>
+                  {/* 項目が多いときは、シートの中だけ流す。ホームバーを避けて下に余白を取る。 */}
+                  <div class="min-h-0 overflow-y-auto overscroll-contain px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                    <div role="group" aria-labelledby={`${labelId}-event`}>
+                      <span
+                        id={`${labelId}-event`}
+                        class={sheetGroupLabelClass}
+                      >
+                        このイベント
+                      </span>
+                      {eventSection()}
+                    </div>
+                    <hr class={`${menuSeparatorClass} border-0 border-t`} />
+                    <div role="group" aria-labelledby={`${labelId}-author`}>
+                      <span
+                        id={`${labelId}-author`}
+                        class={`${sheetGroupLabelClass} truncate`}
+                      >
+                        {authorLabel()}
+                      </span>
+                      <Items items={authorItems()} />
+                    </div>
+                  </div>
+                </Drawer.Content>
+              </Drawer.Positioner>
+            </Portal>
+          </Drawer.Root>
+        </SheetPick.Provider>
+      </Show>
       {/* アクション欄に絵文字の開き口を出していないときは、このメニューの位置に開く。 */}
       <Show when={picking()}>
         <ReactionPicker

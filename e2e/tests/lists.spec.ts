@@ -70,6 +70,11 @@ test("リストを作り、投稿のメニューから人を入れて、その�
     .filter({ hasText: content })
     .getByRole("button", { name: "この投稿の操作" })
     .click();
+  // 作者の項目の入れ子の開き口は、作者の名前で出るので名前では引かない。
+  await page
+    .getByRole("menuitem")
+    .and(page.locator('[aria-haspopup="menu"]'))
+    .click();
   await page.getByRole("menuitem", { name: "リストに追加" }).click();
   const dialog = page.getByRole("dialog", { name: "リストに追加" });
   await dialog
