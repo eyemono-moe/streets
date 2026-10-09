@@ -243,6 +243,9 @@ export default defineConfig({
       "bg-primary": "bg-white dark:bg-ui-950",
       "bg-secondary": "bg-ui-1 dark:bg-ui-8",
       "bg-tertiary": "bg-ui-2 dark:bg-ui-7",
+      // 本文の途中に置く引用。本文の面（bg-primary）からごくわずかに浮かせる。
+      "bg-quote": "bg-ui-1 dark:bg-ui-9",
+      "bg-quote-hover": "bg-ui-2 dark:bg-ui-8",
 
       "bg-alpha-hover": "bg-ui-2/20 dark:bg-ui-7/20",
       "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
