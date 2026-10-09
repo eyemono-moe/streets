@@ -178,7 +178,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
       onClose={() => dispatch({ type: "zap/close" })}
     >
       <DialogPortal>
-        <DialogContent class="w-full max-w-110 rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-110 rounded-3 border border-control">
           <Show when={props.state.phase !== "closed" && props.state}>
             {(state) => (
               <>

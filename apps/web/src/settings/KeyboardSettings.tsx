@@ -99,7 +99,7 @@ const KeyboardSettings: Component<{
         scope="device"
         description="使用するキーを変更できます。「変更」を押してから、割り当てたいキーを押してください。変更を取り消すときは Esc、そのショートカットを使用しないようにするときは Backspace を押してください。"
       >
-        <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
+        <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-control bg-tertiary">
           <For each={SHORTCUT_ACTIONS}>
             {(action) => (
               <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
@@ -169,7 +169,7 @@ const Key: Component<{ hotkey: string }> = (props) => (
     when={props.hotkey !== ""}
     fallback={<span class="c-secondary text-caption">使わない</span>}
   >
-    <kbd class="c-primary rounded-1.5 border border-primary bg-secondary px-2 py-0.5 font-600 text-caption">
+    <kbd class="c-primary rounded-1.5 border border-control bg-secondary px-2 py-0.5 font-600 text-caption">
       {displayHotkey(props.hotkey)}
     </kbd>
   </Show>

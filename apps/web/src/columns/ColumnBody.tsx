@@ -96,7 +96,7 @@ const ColumnBody: ParentComponent<{
                       <p>このカラムを表示できませんでした。</p>
                       <button
                         type="button"
-                        class="c-primary cursor-pointer rounded-full border border-primary bg-primary px-3 py-1 font-600 hover:bg-secondary"
+                        class="c-primary cursor-pointer rounded-full border border-control bg-primary px-3 py-1 font-600 hover:bg-secondary"
                         onClick={reset}
                       >
                         もう一度表示する

@@ -102,7 +102,7 @@ const CloseButton: Component = () => (
  * 外枠ははみ出しを切らない。Ark UI が置く、トーストの間の隙間を埋める箱が外へ出ている。
  */
 const ToastCard: Component<{ children: JSX.Element }> = (props) => (
-  <Toast.Root class="w-80 max-w-[calc(100vw-2rem)] rounded-2 border border-primary bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.18)] [transition-property:translate,scale,opacity,height] duration-180 ease-out [scale:var(--scale)] [translate:var(--x)_var(--y)] h-[var(--height)] opacity-[var(--opacity)] z-[var(--z-index)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
+  <Toast.Root class="w-80 max-w-[calc(100vw-2rem)] rounded-2 border border-control bg-primary shadow-[0_8px_24px_rgba(0,0,0,0.18)] [transition-property:translate,scale,opacity,height] duration-180 ease-out [scale:var(--scale)] [translate:var(--x)_var(--y)] h-[var(--height)] opacity-[var(--opacity)] z-[var(--z-index)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]">
     <div class="flex h-full items-start gap-2 overflow-hidden p-3 transition-opacity duration-150 [[data-overlap][data-sibling]>&]:opacity-0">
       {props.children}
     </div>

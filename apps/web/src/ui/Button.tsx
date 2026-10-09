@@ -26,9 +26,9 @@ export type ButtonSize = "sm" | "md";
 export const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   primary: "bg-accent-primary c-white enabled:hover:bg-accent-hover",
   secondary:
-    "border border-primary bg-primary c-primary enabled:hover:bg-secondary",
+    "border border-control bg-primary c-primary enabled:hover:bg-secondary",
   danger:
-    "border border-primary bg-primary c-danger enabled:hover:bg-secondary",
+    "border border-control bg-primary c-danger enabled:hover:bg-secondary",
   muted: "bg-secondary c-secondary",
   ghost: "bg-transparent c-secondary enabled:hover:bg-secondary",
   overlay: "bg-ui-950/60 c-white enabled:hover:bg-ui-950/80",

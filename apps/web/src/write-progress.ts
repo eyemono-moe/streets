@@ -85,6 +85,58 @@ const track = async <T>(
   }
 };
 
+/**
+ * 成功を知らせない書き込み。書いたものは画面に出るので、うまくいったときは何も出さない。
+ * 終えた後に届いた残りのリレーの結果も見て、断ったリレーがあればそのときだけ出す。
+ */
+const trackQuietly = async <T>(
+  label: string,
+  run: (onProgress?: (progress: WriteProgress) => void) => Promise<T>,
+): Promise<T> => {
+  if (!showWriteProgress()) return run();
+  let progress: WriteProgress | undefined;
+  let settled = false;
+  let reported = false;
+  const reportTrouble = () => {
+    if (reported || progress?.phase !== "sending") return;
+    const summary = summarizeRelays(progress.relays);
+    if (!summary.finished || summary.rejected === 0) return;
+    reported = true;
+    toaster.create({
+      type: "success",
+      title: label,
+      duration: TROUBLE_DURATION_MS,
+      meta: {
+        write: { label, progress, outcome: { kind: "done" } },
+      } satisfies WriteToastMeta,
+    });
+  };
+  try {
+    const result = await run((next) => {
+      progress = next;
+      if (settled) reportTrouble();
+    });
+    settled = true;
+    reportTrouble();
+    return result;
+  } catch (cause) {
+    markReported(cause);
+    toaster.create({
+      type: "error",
+      title: label,
+      duration: TROUBLE_DURATION_MS,
+      meta: {
+        write: {
+          label,
+          progress,
+          outcome: { kind: "failed", message: actionErrorMessage(cause) },
+        },
+      } satisfies WriteToastMeta,
+    });
+    throw cause;
+  }
+};
+
 const trackedReplace =
   (writer: Pick<Writer, "replace">, label: string): Writer["replace"] =>
   (kind, identifier, mutate, hooks) =>
@@ -112,6 +164,25 @@ export const trackWrites = (writer: Tracked, label: string): Tracked => ({
       ),
     ),
   replace: trackedReplace(writer, label),
+});
+
+/**
+ * 投稿・リアクションのように、書いたものがすぐ画面に出る書き込み。1 本のリレーが
+ * 受け取った時点で終え、うまくいったときはトーストを出さない。断ったリレーがある・
+ * 全部失敗したときだけ、`trackWrites` と同じトーストで知らせる。
+ */
+export const trackQuickWrites = (
+  writer: Pick<Writer, "publish">,
+  label: string,
+): Pick<Writer, "publish"> => ({
+  publish: (draft, hooks, options) =>
+    trackQuietly(label, (onProgress) =>
+      writer.publish(
+        draft,
+        onProgress ? withProgress(hooks, onProgress) : hooks,
+        { ...options, settle: "first-accept" },
+      ),
+    ),
 });
 
 /**

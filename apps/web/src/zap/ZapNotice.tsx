@@ -1,13 +1,11 @@
 import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import {
-  formatEventTime,
-  formatEventTimeFull,
-} from "@streets/core/view/format-time";
 import { parseZapReceipt } from "@streets/core/zap/zap-receipt";
 import { type Component, Show } from "solid-js";
 import Avatar from "../note/Avatar";
 import { EventRefView, type EventSize } from "../note/Event";
+import EventTime from "../note/EventTime";
+import QuoteBox from "../note/QuoteBox";
 import UserLink from "../note/UserLink";
 import { useDispatch } from "../ui-events";
 
@@ -99,13 +97,7 @@ const ZapNotice: Component<{
                   {formatSats(current().amountMsat)}
                 </span>
               </Show>
-              <time
-                class="c-secondary shrink-0 text-caption"
-                datetime={at().toISOString()}
-                title={formatEventTimeFull(at())}
-              >
-                {formatEventTime(at(), new Date())}
-              </time>
+              <EventTime class="shrink-0" at={at()} />
             </div>
             <Show when={props.size === "normal"}>
               <p class="c-accent-5 text-h3 font-700">
@@ -127,13 +119,13 @@ const ZapNotice: Component<{
             </Show>
             <Show when={current().targetId}>
               {(targetId) => (
-                <div class="overflow-hidden rounded-2 border border-primary">
+                <QuoteBox>
                   <EventRefView
                     target={{ form: "id", id: targetId() }}
                     size="compact"
                     expandMedia={props.expandMedia}
                   />
-                </div>
+                </QuoteBox>
               )}
             </Show>
           </div>

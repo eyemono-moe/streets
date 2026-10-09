@@ -114,9 +114,11 @@ const ChannelPicker: Component<{
                 // 押したら一時カラムで開く。デッキに残すかは、開いた先の「カラムに残す」で決める。
                 onOpen={(column) => {
                   if (column.source.kind !== "channel") return;
+                  // URL が長くなってもリレーを切らない。先頭のリレーが落ちていると、
+                  // 開いた先でチャンネルの情報にも発言にも辿り着けない。
                   const nevent = encodeNevent({
                     id: column.source.id,
-                    relays: (column.source.relays ?? []).slice(0, 2),
+                    relays: column.source.relays ?? [],
                     eventKind: CHANNEL_CREATE_KIND,
                   });
                   if (nevent)
@@ -405,6 +407,10 @@ const AddColumnPanel: Component<{
                     description={preset.description}
                     onClick={() => {
                       const kind = preset.kind;
+                      if (kind === "search") {
+                        dispatch({ type: "deck/open-panel", panel: "search" });
+                        return;
+                      }
                       if (isColumnPicker(kind)) {
                         setPicker(kind);
                         return;

@@ -34,7 +34,7 @@ const SegmentedControl = <T extends string>(props: {
       classList={{
         "w-full": props.block,
         "w-fit": !props.block,
-        "border border-primary bg-primary": primary(),
+        "border border-control bg-primary": primary(),
         "bg-secondary": !primary(),
       }}
       value={props.value}

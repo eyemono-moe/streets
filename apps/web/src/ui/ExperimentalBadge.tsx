@@ -5,7 +5,7 @@ import type { Component } from "solid-js";
  * あると、触る前に分かるようにする。
  */
 const ExperimentalBadge: Component = () => (
-  <span class="c-secondary shrink-0 whitespace-nowrap rounded-full border border-primary px-2 py-0.5 text-caption">
+  <span class="c-secondary shrink-0 whitespace-nowrap rounded-full border border-control px-2 py-0.5 text-caption">
     実験的
   </span>
 );

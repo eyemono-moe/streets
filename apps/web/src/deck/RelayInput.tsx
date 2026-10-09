@@ -138,7 +138,7 @@ const RelayInput: Component<{
       </Show>
       <Portal>
         <Combobox.Positioner>
-          <Combobox.Content class="motion-pop max-h-80 overflow-y-auto rounded-2 border border-primary bg-primary p-1.5 shadow-lg outline-none empty:hidden">
+          <Combobox.Content class="motion-pop max-h-80 overflow-y-auto rounded-2 border border-control bg-primary p-1.5 shadow-lg outline-none empty:hidden">
             <For each={collection().group()}>
               {([group, groupItems]) => (
                 <Combobox.ItemGroup>

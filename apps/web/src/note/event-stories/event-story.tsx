@@ -68,6 +68,8 @@ type Props = {
   /** 返信のとき、返信先を上に 1 件出す（タイムラインのカラムと同じ）。 */
   replyContext?: boolean;
   expandMedia?: boolean;
+  /** スレッドで開いた投稿のように、長い本文も畳まず全文を出す。 */
+  fullBody?: boolean;
   linkCards?: LinkCardMode;
   /** いいねボタンで送るもの。省くとハート。 */
   defaultReaction?: ReactionInput;
@@ -94,6 +96,7 @@ export const EventStory: Component<Props> = (props) => {
             size={props.size}
             replyContext={props.replyContext}
             expandMedia={props.expandMedia}
+            fullBody={props.fullBody}
           />
         </LinkCardModeProvider>
       </div>

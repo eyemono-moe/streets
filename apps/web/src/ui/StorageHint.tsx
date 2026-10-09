@@ -53,7 +53,7 @@ const StorageHint: Component<{ scope: StorageScope }> = (props) => {
       </Tooltip.Trigger>
       <Portal>
         <Tooltip.Positioner>
-          <Tooltip.Content class="motion-pop c-primary max-w-64 rounded-2 border border-primary bg-primary px-3 py-2 text-caption shadow-lg">
+          <Tooltip.Content class="motion-pop c-primary max-w-64 rounded-2 border border-control bg-primary px-3 py-2 text-caption shadow-lg">
             {hint().text}
           </Tooltip.Content>
         </Tooltip.Positioner>

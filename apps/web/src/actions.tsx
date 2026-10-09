@@ -72,7 +72,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
-import { trackSends, trackWrites } from "./write-progress";
+import { trackQuickWrites, trackSends, trackWrites } from "./write-progress";
 
 const BOOKMARK_KIND = 10003;
 const FOLLOW_KIND = 3;
@@ -244,6 +244,8 @@ export const createWriteStack = (options: {
 
   // 何を書いたかを添えて、進み具合をトーストに出す（設定で切れる）。
   const tracked = (label: string) => trackWrites(writer, label);
+  // 書いたものがすぐ画面に出る書き込みは、1 本目のリレーで終え、成功は知らせない。
+  const quick = (label: string) => trackQuickWrites(writer, label);
 
   // 本文から足すタグの決め方。設定は送るたびに読む。
   const references = (emoji: EmojiLookup | undefined) => ({
@@ -303,7 +305,7 @@ export const createWriteStack = (options: {
     viewer: options.viewer,
     bookmarkIds,
     async post(content, media, emoji, contentWarning) {
-      await tracked("投稿").publish(
+      await quick("投稿").publish(
         withContentWarning(
           withMedia(
             withReferences(buildNote(content), references(emoji)),
@@ -314,7 +316,7 @@ export const createWriteStack = (options: {
       );
     },
     async reply(event, content, media, emoji, contentWarning) {
-      await tracked("返信").publish(
+      await quick("返信").publish(
         withContentWarning(
           withMedia(
             withReferences(
@@ -330,7 +332,7 @@ export const createWriteStack = (options: {
       );
     },
     async quote(event, content, media, emoji, contentWarning) {
-      await tracked("引用").publish(
+      await quick("引用").publish(
         withContentWarning(
           withMedia(
             withReferences(
@@ -344,7 +346,7 @@ export const createWriteStack = (options: {
       );
     },
     async channelMessage(channel, content, options) {
-      await tracked("チャンネルでの発言").publish(
+      await quick("チャンネルでの発言").publish(
         withMedia(
           withReferences(
             buildChannelMessage(channel.id, content, {
@@ -365,7 +367,7 @@ export const createWriteStack = (options: {
     async repost(event) {
       const draft = buildRepost(event, { relayHint: relayHintFor(event.id) });
       if (!draft) throw new Error("この投稿はリポストできません");
-      await tracked("リポスト").publish(draft);
+      await quick("リポスト").publish(draft);
     },
     async vote(event, choices) {
       const poll = parsePoll(event);
@@ -377,7 +379,7 @@ export const createWriteStack = (options: {
       );
     },
     async react(event, input) {
-      await tracked("リアクション").publish(
+      await quick("リアクション").publish(
         buildReaction(event, input, { relayHint: relayHintFor(event.id) }),
         undefined,
         // チャンネルの発言は、書き手ではなくチャンネルのリレーで読まれる。

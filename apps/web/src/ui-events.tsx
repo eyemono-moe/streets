@@ -27,6 +27,7 @@ import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
+import type { TimeFormat } from "@streets/core/settings/time-format-setting";
 import type { ChannelFormEvent } from "@streets/core/view/channel-form";
 import type { ChatReplyEvent } from "@streets/core/view/chat";
 import type { ChatMuteEvent } from "@streets/core/view/chat-mute";
@@ -212,6 +213,8 @@ export type DeckEvent =
   /** カラムを横に並べるか。この端末に保存する。 */
   | { type: "deck/set-deck-layout"; layout: DeckLayout }
   | { type: "deck/set-chat-order"; order: ChatOrder }
+  /** 投稿の時刻を、絶対時間か相対時間で見せるか。この端末に保存する。 */
+  | { type: "deck/set-time-format"; format: TimeFormat }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** 不具合の報告を送るか（この端末の設定）。 */

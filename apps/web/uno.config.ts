@@ -1,4 +1,3 @@
-import { colorResolver } from "@unocss/preset-mini/utils";
 import {
   defineConfig,
   presetIcons,
@@ -210,43 +209,6 @@ export default defineConfig({
         "contain-intrinsic-size": "auto 160px",
       },
     ],
-    [
-      /^scroll(?:bar)?-(track|thumb)-(.+)$/,
-      ([s, section, colorMatch], context) => {
-        const varName = `scroll${section}-bg`;
-        const opacityVarName = `--un-${varName}-opacity`;
-        const colorVarName = `--un-${varName}`;
-        const res = colorResolver("color", varName)([s, colorMatch], context);
-
-        if (!res) {
-          return;
-        }
-
-        // @ts-ignore
-        const color = res.color;
-        // @ts-ignore
-        const opacity = res[opacityVarName];
-
-        if (!color) {
-          return;
-        }
-
-        if (opacity) {
-          return {
-            [opacityVarName]: opacity,
-            [colorVarName]: color,
-            "scrollbar-color":
-              "var(--un-scrollthumb-bg) var(--un-scrolltrack-bg)",
-          };
-        }
-
-        return {
-          [colorVarName]: color,
-          "scrollbar-color":
-            "var(--un-scrollthumb-bg) var(--un-scrolltrack-bg)",
-        };
-      },
-    ],
   ],
   shortcuts: [
     {
@@ -281,12 +243,19 @@ export default defineConfig({
       "bg-primary": "bg-white dark:bg-ui-950",
       "bg-secondary": "bg-ui-1 dark:bg-ui-8",
       "bg-tertiary": "bg-ui-2 dark:bg-ui-7",
+      // 本文の途中に置く引用。本文の面（bg-primary）からごくわずかに浮かせる。
+      "bg-quote": "bg-ui-1 dark:bg-ui-9",
+      "bg-quote-hover": "bg-ui-2 dark:bg-ui-8",
 
       "bg-alpha-hover": "bg-ui-2/20 dark:bg-ui-7/20",
       "bg-alpha-active": "bg-ui-2/40 dark:bg-ui-7/40",
 
       // border color
-      "border-primary": "b-ui-2 dark:b-ui-7",
+      // 区切り線と入れ物の枠。背景に溶け込む程度まで抑える。
+      "border-primary": "b-ui-1 dark:b-ui-8",
+      // 操作する部品（入力欄・ボタン）と浮かぶ面（メニュー・ダイアログ）の枠。
+      // 区切りと同じ薄さにすると、入力欄の範囲や浮かぶ面の縁が背景に埋もれる。
+      "border-control": "b-ui-2 dark:b-ui-7",
 
       // motion
       // 開閉する部品の出入り。Ark UI が付ける data-state に合わせる。
@@ -304,10 +273,6 @@ export default defineConfig({
         "overflow-hidden data-[state=open]:animate-collapse-right data-[state=closed]:animate-collapse-left",
       "motion-sheet":
         "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down",
-
-      // scrollbar
-      "scrollbar-color-theme":
-        "scrollbar-track-ui-1 scrollbar-thumb-ui-4 dark:scrollbar-track-ui-9 dark:scrollbar-thumb-ui-6",
     },
   ],
   transformers: [transformerVariantGroup()],
@@ -316,6 +281,7 @@ export default defineConfig({
       getCSS: () => `
         * {
           scrollbar-width: thin;
+          scrollbar-color: var(--color-scrollbar-thumb) transparent;
           border-color: inherit;
         }
         /*
@@ -391,6 +357,8 @@ export default defineConfig({
         }
         /* 意味を持つ色（theme.colors の danger・status）の値。Penpot の Color Mode。 */
         :root {
+          color-scheme: light;
+          --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.8689 calc(0.0198 * c / 0.37) h);
           --color-danger: #C5221F;
           --color-danger-subtle: #FCE8E6;
           --color-status-ok: #188038;
@@ -402,6 +370,8 @@ export default defineConfig({
           --color-time-circuit-departed: #FFB52E;
         }
         .dark {
+          color-scheme: dark;
+          --color-scrollbar-thumb: oklch(from var(--theme-ui-color) 0.3716 calc(0.0391 * c / 0.37) h);
           --color-danger: #F28B82;
           --color-danger-subtle: #3C1F1D;
           --color-status-ok: #81C995;

@@ -3,6 +3,7 @@ import { chatModeration } from "../nostr/channel";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import {
+  channelLookupRelays,
   channelReadRelays,
   chatReplyTransition,
   chatRows,
@@ -131,6 +132,20 @@ describe("channelReadRelays", () => {
     ).toEqual([url("mine")]);
   });
 
+  it("末尾の / だけが違うヒントと情報のリレーは、同じ 1 本に数える", () => {
+    // 捕まえる変異: 正規化せずに重ねを除く（情報が届いたところで読むリレーが変わり、発言を読み直して行が作り直される）
+    const hint = "wss://a" as RelayUrl;
+    expect(
+      channelReadRelays({ metadata: [], hints: [hint], viewerRead: [] }),
+    ).toEqual(
+      channelReadRelays({
+        metadata: [url("a")],
+        hints: [hint],
+        viewerRead: [],
+      }),
+    );
+  });
+
   it("本数に上限を切る", () => {
     // 捕まえる変異: 上限を切らない（明示リレーは予算から落ちず、接続を食い潰す）
     expect(
@@ -140,6 +155,30 @@ describe("channelReadRelays", () => {
         viewerRead: [],
       }),
     ).toHaveLength(5);
+  });
+});
+
+describe("channelLookupRelays", () => {
+  const url = (host: string) => `wss://${host}/` as RelayUrl;
+
+  it("ヒントがあっても自分の読み込みリレーでも探す", () => {
+    // 捕まえる変異: ヒントがあればヒントだけで探す（ヒントのリレーが落ちていると、チャンネルが見つからない）
+    expect(
+      channelLookupRelays({
+        hints: [url("dead"), url("mine")],
+        viewerRead: [url("mine"), url("other")],
+      }),
+    ).toEqual([url("dead"), url("mine"), url("other")]);
+  });
+
+  it("ヒントは 5 本、自分のリレーは 3 本までにする", () => {
+    // 捕まえる変異: 上限を切らない（明示リレーは予算から落ちず、接続を食い潰す）
+    expect(
+      channelLookupRelays({
+        hints: ["a", "b", "c", "d", "e", "f"].map(url),
+        viewerRead: ["m1", "m2", "m3", "m4"].map(url),
+      }),
+    ).toHaveLength(8);
   });
 });
 

@@ -44,7 +44,7 @@ const ColorField: Component<{
       <ColorPicker.Label class="c-primary min-w-0 flex-1 text-body">
         {props.label}
       </ColorPicker.Label>
-      <ColorPicker.Control class="flex h-9 shrink-0 items-center gap-2 rounded-2 border border-primary bg-primary pr-2.5 pl-1">
+      <ColorPicker.Control class="flex h-9 shrink-0 items-center gap-2 rounded-2 border border-control bg-primary pr-2.5 pl-1">
         <ColorPicker.Trigger
           aria-label={`${props.label}を選ぶ`}
           class="grid size-7 cursor-pointer place-items-center rounded-1.5 bg-transparent p-0"
@@ -58,7 +58,7 @@ const ColorField: Component<{
       </ColorPicker.Control>
       <Portal>
         <ColorPicker.Positioner>
-          <ColorPicker.Content class="motion-pop flex w-60 flex-col gap-3 rounded-3 border border-primary bg-primary p-3 shadow-lg outline-none">
+          <ColorPicker.Content class="motion-pop flex w-60 flex-col gap-3 rounded-3 border border-control bg-primary p-3 shadow-lg outline-none">
             {/* つまみは位置だけが当てられるので、中心へ寄せるのと基準の位置はこちらで持つ。 */}
             <ColorPicker.Area class="relative h-36 overflow-hidden rounded-2">
               <ColorPicker.AreaBackground class="size-full" />

@@ -21,7 +21,7 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
           </span>
           <button
             type="button"
-            class="c-primary shrink-0 cursor-pointer rounded-full border border-primary bg-primary px-3 py-1"
+            class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
             onClick={() => void props.store.refresh()}
           >
             再試行
@@ -39,14 +39,14 @@ const DeckSyncNotice: Component<{ store: DeckStore }> = (props) => (
         </span>
         <button
           type="button"
-          class="c-primary shrink-0 cursor-pointer rounded-full border border-primary bg-primary px-3 py-1"
+          class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
           onClick={() => void props.store.keepLocal()}
         >
           この端末を残す
         </button>
         <button
           type="button"
-          class="c-primary shrink-0 cursor-pointer rounded-full border border-primary bg-primary px-3 py-1"
+          class="c-primary shrink-0 cursor-pointer rounded-full border border-control bg-primary px-3 py-1"
           onClick={() => props.store.useRemote()}
         >
           別の端末に合わせる

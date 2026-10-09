@@ -279,7 +279,7 @@ const CommandPalette: Component<{
                         }
                         icon={
                           command.kind === "action"
-                            ? "i-material-symbols:play-arrow-rounded"
+                            ? "i-material-symbols:terminal-rounded"
                             : command.kind === "user"
                               ? "i-material-symbols:person-outline-rounded"
                               : "i-material-symbols:settings-outline-rounded"

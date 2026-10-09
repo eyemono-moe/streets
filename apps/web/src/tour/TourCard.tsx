@@ -13,7 +13,7 @@ const TourCard: Component<{
   /** 最初の 1 枚だけ、上に Streets の標識を置く。 */
   welcome?: boolean;
 }> = (props) => (
-  <div class="c-primary flex w-80 max-w-[calc(100vw-32px)] flex-col gap-3 rounded-3 border border-primary bg-primary p-4 shadow-lg">
+  <div class="c-primary flex w-80 max-w-[calc(100vw-32px)] flex-col gap-3 rounded-3 border border-control bg-primary p-4 shadow-lg">
     <Show when={props.welcome}>
       <span class="i-streets:logo size-10" aria-hidden="true" />
     </Show>

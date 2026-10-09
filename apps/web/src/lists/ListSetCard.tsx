@@ -17,6 +17,7 @@ import { relayLabel } from "@streets/core/settings/relay-edit";
 import { type Component, For, type JSX, Show, createSignal } from "solid-js";
 import Avatar from "../note/Avatar";
 import { type EventSize, EventRefView } from "../note/Event";
+import QuoteBox from "../note/QuoteBox";
 import RelaySummary from "../settings/RelaySummary";
 import RelayUseButton from "../settings/RelayUseButton";
 import { useDispatch } from "../ui-events";
@@ -102,9 +103,9 @@ const FirstEvent: Component<{ set: ListSet }> = (props) => (
   <Show when={props.set.events[0]}>
     {(first) => (
       <div class="flex flex-col gap-1">
-        <div class="overflow-hidden rounded-2 border border-primary">
+        <QuoteBox>
           <EventRefView target={first()} size="compact" gateMuted />
-        </div>
+        </QuoteBox>
         <Show when={props.set.events.length > 1}>
           <span class="c-secondary text-caption">
             ほか {props.set.events.length - 1} 件

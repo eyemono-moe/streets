@@ -35,6 +35,7 @@ import { Dynamic } from "solid-js/web";
 import { lazyPart } from "../lazy-part";
 import { EventRefView } from "../note/Event";
 import { ContentTokens } from "../note/NoteText";
+import QuoteBox from "../note/QuoteBox";
 import { useDispatch } from "../ui-events";
 
 const MediaViewer = lazyPart(() => import("../note/MediaViewer"));
@@ -222,9 +223,9 @@ const MarkdownNode: Component<{ node: Nodes }> = (props) => {
       const embed = embedOf(node);
       if (embed) {
         return (
-          <div class="overflow-hidden rounded-2 border border-primary">
+          <QuoteBox>
             <EventRefView target={embed} size="compact" gateMuted />
-          </div>
+          </QuoteBox>
         );
       }
       return (

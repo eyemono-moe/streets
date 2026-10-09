@@ -117,7 +117,7 @@ const ComposePanel: Component<{
               }}
               aria-label="ノートの本文"
               rows={5}
-              class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-primary bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
+              class="c-primary placeholder:c-secondary max-h-80 min-h-30 flex-1 resize-none rounded-2 border border-control bg-secondary p-2.5 text-body outline-none [field-sizing:content] focus-visible:ring-2 focus-visible:ring-accent-5"
               disabled={props.state.sending}
               placeholder="いま何してる？"
               value={props.state.content}
@@ -167,6 +167,8 @@ const ComposePanel: Component<{
                 <Event
                   event={event()}
                   size="compact"
+                  // まだ存在しない投稿は重ねて開けないので、畳まずに全文を見せる。
+                  fullBody
                   // 添えた画像は、まだアップロードしていないので URL が無い。手元の見本を渡す。
                   media={
                     <ComposePreviewMedia

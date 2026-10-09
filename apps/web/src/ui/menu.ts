@@ -7,7 +7,7 @@ import type { MenuRootProps } from "@ark-ui/solid/menu";
  * 幅はメニューごとに中身で決まるので、ここでは持たない。
  */
 export const menuContentClass =
-  "motion-pop c-primary max-h-[var(--available-height)] overflow-y-auto overscroll-contain rounded-2.5 border border-primary bg-primary p-1 shadow-lg outline-none";
+  "motion-pop c-primary max-h-[var(--available-height)] overflow-y-auto overscroll-contain rounded-2.5 border border-control bg-primary p-1 shadow-lg outline-none";
 
 /**
  * 1 件ごとの ⋯ から開くメニューの置き方。上下どちらにも収まらないときは、ボタンの横へ
@@ -31,4 +31,4 @@ export const menuIconClass = "size-4 shrink-0";
 export const menuGroupLabelClass =
   "c-secondary block px-2 pt-1.5 pb-0.5 font-600 text-caption";
 
-export const menuSeparatorClass = "my-1 border-primary border-t";
+export const menuSeparatorClass = "my-1 border-control border-t";

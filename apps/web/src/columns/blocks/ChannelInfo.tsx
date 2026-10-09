@@ -5,7 +5,7 @@ import {
   channelFrom,
 } from "@streets/core/nostr/channel";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
-import { channelReadRelays } from "@streets/core/view/chat";
+import { channelLookupRelays } from "@streets/core/view/chat";
 import { type Component, createMemo } from "solid-js";
 import { useEventActions } from "../../actions";
 import ChannelInfoView from "../../chat/ChannelInfoView";
@@ -22,8 +22,7 @@ const ChannelInfo: Component<{
     source: () =>
       channelSource(
         props.channelId,
-        channelReadRelays({
-          metadata: [],
+        channelLookupRelays({
           hints: props.hints,
           viewerRead: props.viewerRead(),
         }),

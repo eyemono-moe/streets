@@ -45,7 +45,7 @@ const Row: Component<{
     // 掴んだ行の見た目は、カラム整理パネルの行と揃える。
     <li
       data-action-slot={props.id}
-      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-primary bg-primary pl-3 [-webkit-touch-callout:none] [transition-property:scale,box-shadow,border-color] duration-120 data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:shadow-xl data-[dragging]:[scale:1.02]"
+      class="flex cursor-grab select-none items-center gap-2.5 rounded-2 border border-control bg-primary pl-3 [-webkit-touch-callout:none] [transition-property:scale,box-shadow,border-color] duration-120 data-[dragging]:z-1 data-[dragging]:border-accent-5 data-[dragging]:shadow-xl data-[dragging]:[scale:1.02]"
       style={{ order: props.position }}
       onPointerDown={(event) => props.onGrab(event, false)}
     >

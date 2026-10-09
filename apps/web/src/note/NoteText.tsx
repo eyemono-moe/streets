@@ -1,8 +1,4 @@
 import { buildHashtagColumn } from "@streets/core/deck/column-presets";
-import {
-  columnForNaddr,
-  columnForNoteRef,
-} from "@streets/core/deck/open-event";
 import type { ContentToken } from "@streets/core/nostr/content";
 import { shortenUrl } from "@streets/core/view/short-url";
 import {
@@ -14,6 +10,7 @@ import {
   createSignal,
 } from "solid-js";
 import { useDispatch } from "../ui-events";
+import QuoteChip from "./QuoteChip";
 import UserLink from "./UserLink";
 
 // 画像が読めないときに本文からショートコードまで消えないよう、文字へ戻す。
@@ -104,39 +101,17 @@ const Token: Component<{
           if (ref.kind === "npub" || ref.kind === "nprofile") {
             return <UserLink pubkey={ref.pubkey} mention class="text-link" />;
           }
-          if (ref.kind === "note" || ref.kind === "nevent") {
+          if (
+            ref.kind === "note" ||
+            ref.kind === "nevent" ||
+            ref.kind === "naddr"
+          ) {
             return (
-              <button
-                type="button"
-                class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
-                title={token().raw}
-                onClick={() =>
-                  dispatch({
-                    type: "stack/open",
-                    column: columnForNoteRef(ref),
-                  })
-                }
-              >
-                {shortRef(token().raw)}
-              </button>
-            );
-          }
-          const column = ref.kind === "naddr" ? columnForNaddr(ref) : undefined;
-          if (column) {
-            return (
-              <button
-                type="button"
-                class="bg-transparent p-0 text-left text-link enabled:cursor-pointer enabled:hover:underline"
-                title={token().raw}
-                onClick={() =>
-                  dispatch({
-                    type: "stack/open",
-                    column,
-                  })
-                }
-              >
-                {shortRef(token().raw)}
-              </button>
+              <QuoteChip
+                ref={ref}
+                raw={token().raw}
+                short={shortRef(token().raw)}
+              />
             );
           }
           return (

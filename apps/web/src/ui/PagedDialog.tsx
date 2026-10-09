@@ -89,7 +89,7 @@ const PagedDialog: Component<{
       >
         <DialogContent
           classList={{
-            "h-[min(800px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-primary shadow-xl":
+            "h-[min(800px,calc(100dvh-48px))] w-[min(880px,calc(100vw-48px))] rounded-3 border border-control shadow-xl":
               props.wide,
             "safe-pad h-dvh w-screen": !props.wide,
           }}

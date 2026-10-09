@@ -55,7 +55,7 @@ const ReplyDialog: Component<{ target: NostrEvent; state: ComposeState }> = (
   return (
     <DialogRoot open onClose={() => dispatch({ type: "compose/close" })}>
       <DialogPortal>
-        <DialogContent class="w-full max-w-130 rounded-3 border border-primary">
+        <DialogContent class="w-full max-w-130 rounded-3 border border-control">
           <div class="flex h-12 shrink-0 items-center gap-2 pr-3 pl-4">
             <DialogTitle class="flex-1 font-600 text-body">
               {article() ? "記事にコメントする" : "返信する"}

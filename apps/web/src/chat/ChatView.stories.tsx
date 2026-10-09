@@ -127,6 +127,7 @@ type Props = {
   order: ChatOrder;
   paging: Paging;
   settled: boolean;
+  unreachable?: boolean;
   /** 表示密度。カラム設定の「表示密度」に合わせる。 */
   size?: EventSize;
   replyTo?: NostrEvent;
@@ -238,6 +239,7 @@ const meta = {
                 size={props.size}
                 paging={feed ? feed.paging() : props.paging}
                 settled={props.settled}
+                unreachable={props.unreachable}
                 onLoadOlder={() => feed?.loadOlder()}
                 composer={
                   <ChatComposer
@@ -289,6 +291,10 @@ export const ほかのリレーを待っている: Story = {
   },
 };
 export const まだ発言が無い: Story = { args: { messages: [] } };
+/** チャンネルのリレーに繋がらなかった。発言が無いとは言い切らない。 */
+export const リレーに繋がらなかった: Story = {
+  args: { messages: [], unreachable: true },
+};
 export const 取得中: Story = {
   args: { messages: [], settled: false, paging: "waiting" },
 };

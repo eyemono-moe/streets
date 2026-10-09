@@ -1,3 +1,4 @@
+import { columnForEvent } from "@streets/core/deck/open-event";
 import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { EventRef } from "@streets/core/nostr/event-refs";
@@ -15,11 +16,13 @@ import {
   onCleanup,
 } from "solid-js";
 import { lazyPart } from "../lazy-part";
+import { useDispatch } from "../ui-events";
 import ContentWarningGate from "./ContentWarningGate";
 import { EventRefView, type EventSize } from "./Event";
 import LinkCards from "./LinkCards";
 import NoteMediaView, { NoteAudio } from "./NoteMedia";
 import NoteText from "./NoteText";
+import QuoteBox from "./QuoteBox";
 
 const MediaViewer = lazyPart(() => import("./MediaViewer"));
 
@@ -29,18 +32,29 @@ const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
 };
 
 const Quote: Component<{ quote: EventRef }> = (props) => (
-  <div class="w-full overflow-hidden rounded-2 border border-primary">
+  <QuoteBox>
     <EventRefView target={props.quote} size="compact" gateMuted />
-  </div>
+  </QuoteBox>
 );
 
+/**
+ * 長い本文の扱い。`open` は押すと投稿を重ねたカラムで開く（一覧の既定）、`expand` は
+ * その場で広げる、`full` は畳まない。
+ */
+export type LongBody = "open" | "expand" | "full";
+
 /** 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。 */
-const CollapsibleBody: ParentComponent<{ size: EventSize }> = (props) => {
+const CollapsibleBody: ParentComponent<{
+  size: EventSize;
+  longBody: LongBody;
+  onOpen: () => void;
+}> = (props) => {
   const [body, setBody] = createSignal<HTMLDivElement>();
   const [height, setHeight] = createSignal(0);
   const [expanded, setExpanded] = createSignal(false);
   const maxHeight = () => MAX_CONTENT_HEIGHT[props.size];
   const overflows = () => height() >= maxHeight();
+  const folded = () => props.longBody !== "full" && !expanded();
 
   createEffect(() => {
     const element = body();
@@ -53,23 +67,35 @@ const CollapsibleBody: ParentComponent<{ size: EventSize }> = (props) => {
         ref={setBody}
         class="overflow-hidden"
         style={{
-          "max-height": expanded() ? "none" : `${maxHeight()}px`,
+          "max-height": folded() ? `${maxHeight()}px` : "none",
         }}
       >
         {props.children}
       </div>
-      <Show when={overflows() && !expanded()}>
+      <Show when={overflows() && folded()}>
         <button
           type="button"
-          class="absolute bottom-0 flex w-full cursor-s-resize appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
-          onClick={() => setExpanded(true)}
+          class="absolute bottom-0 flex w-full appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
+          classList={{
+            "cursor-pointer": props.longBody === "open",
+            "cursor-s-resize": props.longBody === "expand",
+          }}
+          onClick={() =>
+            props.longBody === "open" ? props.onOpen() : setExpanded(true)
+          }
         >
           <span class="flex items-center gap-1 rounded bg-tertiary px-2 py-0.5">
             <span
-              class="i-material-symbols:expand-more-rounded h-1.25lh w-auto"
+              class={
+                props.longBody === "open"
+                  ? "i-material-symbols:open-in-new-rounded h-1.25lh w-auto"
+                  : "i-material-symbols:expand-more-rounded h-1.25lh w-auto"
+              }
               aria-hidden="true"
             />
-            <span>さらに表示</span>
+            <span>
+              {props.longBody === "open" ? "続きを読む" : "さらに表示"}
+            </span>
           </span>
         </button>
       </Show>
@@ -85,6 +111,11 @@ export const NoteContent: Component<{
   event: NostrEvent;
   size: EventSize;
   expandMedia?: boolean;
+  /**
+   * 長い本文の扱い。既定は重ねたカラムで開く。チャンネルの発言はスレッドを持たず、
+   * 開き先が無いので、呼ぶ側が `expand` を選ぶ。
+   */
+  longBody?: LongBody;
   /** 本文の下に足すもの。 */
   media?: JSX.Element;
 }> = (props) => {
@@ -92,10 +123,21 @@ export const NoteContent: Component<{
     layoutNote(props.event, { quotes: props.size === "normal" }),
   );
   const [viewing, setViewing] = createSignal<number>();
+  const dispatch = useDispatch();
   return (
     <ContentWarningGate event={props.event} size={props.size}>
       <Show when={layout().text.length > 0}>
-        <CollapsibleBody size={props.size}>
+        <CollapsibleBody
+          size={props.size}
+          longBody={props.longBody ?? "open"}
+          onOpen={() =>
+            dispatch({
+              type: "stack/open",
+              column: columnForEvent(props.event),
+              from: props.event.id,
+            })
+          }
+        >
           <NoteText
             tokens={layout().text}
             class="c-primary"

@@ -9,7 +9,7 @@ import Completion, { type CompletionSource } from "./Completion";
 const inputBase =
   "c-primary placeholder:c-secondary rounded-2 border bg-primary px-2.5 text-body outline-none focus-visible:ring-2 focus-visible:ring-accent-5";
 
-export const textInputClass = `${inputBase} h-9 border-primary`;
+export const textInputClass = `${inputBase} h-9 border-control`;
 
 /** 誤りがあるときの `textInputClass`。枠の色だけを変える。 */
 export const invalidTextInputClass = `${inputBase} h-9 border-danger`;
@@ -42,7 +42,7 @@ const TextField: Component<{
   const id = createUniqueId();
   const noteId = `${id}-note`;
   // 枠の色は、誤りがあるときだけ変える。
-  const border = () => (props.error ? "border-danger" : "border-primary");
+  const border = () => (props.error ? "border-danger" : "border-control");
   return (
     <div class="flex min-w-0 flex-col gap-1">
       <label for={id} class="c-secondary font-600 text-caption">
