@@ -2,7 +2,8 @@ import type { ColumnPresetKind } from "@streets/core/deck/column-presets";
 import type { ColumnPicker } from "@streets/core/deck/deck-ui";
 
 type ColumnAddPreset = {
-  kind: ColumnPresetKind | ColumnPicker;
+  /** `search` は検索パネルへ移り、結果を見てからカラムにする。 */
+  kind: ColumnPresetKind | ColumnPicker | "search";
   label: string;
   description: string;
   icon: string;
@@ -27,18 +28,11 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     keywords: ["返信", "リアクション"],
   },
   {
-    kind: "followees-activity",
-    label: "みんなのアクティビティ",
-    description: "フォロー中の人のリアクション・リポスト",
-    icon: "i-material-symbols:vital-signs-rounded",
-    keywords: ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"],
-  },
-  {
-    kind: "timeslip",
-    label: "タイムスリップ",
-    description: "選んだ日時からさかのぼるホーム",
-    icon: "i-material-symbols:history-rounded",
-    keywords: ["過去", "さかのぼる", "日時", "until"],
+    kind: "search",
+    label: "検索",
+    description: "言葉やハッシュタグで探した投稿",
+    icon: "i-material-symbols:search-rounded",
+    keywords: ["探す", "ハッシュタグ"],
   },
   {
     kind: "relay",
@@ -46,6 +40,13 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     description: "選んだリレーの公開ノート",
     icon: "i-material-symbols:globe",
     keywords: ["接続先"],
+  },
+  {
+    kind: "user",
+    label: "ユーザー",
+    description: "選んだ人の投稿",
+    icon: "i-material-symbols:person-outline-rounded",
+    keywords: ["人"],
   },
   {
     kind: "channels",
@@ -62,17 +63,24 @@ export const COLUMN_ADD_PRESETS: readonly ColumnAddPreset[] = [
     keywords: ["保存"],
   },
   {
-    kind: "user",
-    label: "ユーザー",
-    description: "選んだ人の投稿",
-    icon: "i-material-symbols:person-outline-rounded",
-    keywords: ["人"],
-  },
-  {
     kind: "follow-sets",
     label: "リスト",
     description: "選んだ人たちの投稿",
     icon: "i-material-symbols:format-list-bulleted-rounded",
     keywords: ["フォローセット"],
+  },
+  {
+    kind: "followees-activity",
+    label: "みんなのアクティビティ",
+    description: "フォロー中の人のリアクション・リポスト",
+    icon: "i-material-symbols:vital-signs-rounded",
+    keywords: ["アクティビティ", "TweetDeck", "いいね", "ふぁぼ"],
+  },
+  {
+    kind: "timeslip",
+    label: "タイムスリップ",
+    description: "選んだ日時からさかのぼるホーム",
+    icon: "i-material-symbols:history-rounded",
+    keywords: ["過去", "さかのぼる", "日時", "until"],
   },
 ];
