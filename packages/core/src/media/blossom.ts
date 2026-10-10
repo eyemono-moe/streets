@@ -1,5 +1,5 @@
 import { sha256 } from "@noble/hashes/sha2.js";
-import { bytesToHex } from "@noble/hashes/utils.js";
+import { bytesToHex, randomBytes } from "@noble/hashes/utils.js";
 import {
   type EventDraft,
   type Mutation,
@@ -108,6 +108,77 @@ export const parseServerInput = (
     return { ok: false, message: "このアップロード先はもう入っています" };
   }
   return { ok: true, url };
+};
+
+/**
+ * アップロード先として足してよいか。`unknown` は応答を読めなかったもの（落ちている・
+ * ブラウザからの読み取りを許していない）で、使えないとは言い切れない。
+ */
+export type ServerCheck = "blossom" | "nip96" | "not-blossom" | "unknown";
+
+/** 確かめるのを待つ長さ。足す操作が止まって見えないうちに諦める。 */
+const CHECK_TIMEOUT_MS = 8000;
+
+/**
+ * 足そうとしているサーバーが Blossom として応答するかを確かめる。Blossom には「自分は
+ * Blossom だ」と名乗る窓口が無いので、BUD-01 で必須の `HEAD /<sha256>` を、どこにも
+ * 無いハッシュで聞く。`PUT /upload` を空で送れば受け取りの可否まで分かるが、認可なしで
+ * 受け取るサーバーに 0 バイトのファイルを置いてしまう。BUD-06 の `HEAD /upload` は
+ * 実装が任意で、既定のサーバーにも答えないものがある。
+ */
+export const checkBlossomServer = async (options: {
+  server: BlossomServer;
+  fetcher?: typeof fetch;
+}): Promise<ServerCheck> => {
+  const fetcher = options.fetcher ?? fetch;
+  let response: Response;
+  try {
+    response = await fetcher(
+      `${options.server}/${bytesToHex(randomBytes(32))}`,
+      { method: "HEAD", signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) },
+    );
+  } catch {
+    return "unknown";
+  }
+  const html = (response.headers.get("content-type") ?? "").includes(
+    "text/html",
+  );
+  // 認可が要るサーバー（BUD-11）は、無いハッシュにも 401 などを返す。
+  if (!html && [401, 402, 403, 404].includes(response.status)) return "blossom";
+  if (response.status === 429 || response.status >= 500) return "unknown";
+  return (await offersNip96(options.server, fetcher)) ? "nip96" : "not-blossom";
+};
+
+/** Blossom として応答しなかったので、アップロード先に足さなかった。 */
+export class NotBlossomServerError extends Error {
+  readonly server: BlossomServer;
+  readonly nip96: boolean;
+  constructor(server: BlossomServer, nip96: boolean) {
+    super(`${server} は Blossom のサーバーではありません`);
+    this.name = "NotBlossomServerError";
+    this.server = server;
+    this.nip96 = nip96;
+  }
+}
+
+const offersNip96 = async (
+  server: BlossomServer,
+  fetcher: typeof fetch,
+): Promise<boolean> => {
+  try {
+    const response = await fetcher(`${server}/.well-known/nostr/nip96.json`, {
+      signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
+    });
+    if (!response.ok) return false;
+    const json: unknown = await response.json();
+    return (
+      typeof json === "object" &&
+      json !== null &&
+      typeof (json as Record<string, unknown>).api_url === "string"
+    );
+  } catch {
+    return false;
+  }
 };
 
 /** アップロードしたファイル（BUD-02 の blob descriptor）。 */

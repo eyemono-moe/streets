@@ -6,7 +6,7 @@ import { ToastStack, createAppToaster } from "./toast";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Item = {
-  type: "success" | "error" | "loading" | "info";
+  type: "success" | "error" | "loading" | "info" | "warning";
   title: string;
   description?: string;
   meta?: WriteToastMeta;
@@ -83,6 +83,34 @@ export const 成功: S = { args: { items: [saved] } };
 
 /** ログインしていない人が、ログインの要る操作を押した。 */
 export const 案内: S = { args: { items: [loginNeeded] } };
+
+/** できたが、うまく働かないかもしれない。 */
+export const 注意: S = {
+  args: {
+    items: [
+      {
+        type: "warning",
+        title: "アップロード先を確かめられませんでした",
+        description:
+          "media.example から応答を読み取れませんでした。一覧には足しましたが、画像をアップロードできない場合があります",
+      },
+    ],
+  },
+};
+
+/** NIP-96 だけのサーバーを、画像のアップロード先に足そうとした。 */
+export const アップロード先ではない: S = {
+  args: {
+    items: [
+      {
+        type: "error",
+        title: "アップロード先に足しませんでした",
+        description:
+          "nostr.build は古い方式（NIP-96）のアップロード先で、Streets からは使えません。Blossom に対応したアップロード先を選んでください",
+      },
+    ],
+  },
+};
 
 /** 押すと直せる失敗には、トーストの中にボタンを置く。 */
 export const 操作付き: S = {
