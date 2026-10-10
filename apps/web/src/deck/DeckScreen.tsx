@@ -656,6 +656,7 @@ const DeckScreen: Component<{
       restoreFailed: props.session.restoreFailed(),
     }),
     onExtension: () => void props.session.loginWithExtension(),
+    onNosskey: () => void props.session.loginWithNosskey(),
     onBunker: (uri) => void props.session.loginWithBunker(uri),
     onNostrConnect: props.session.loginWithNostrConnect,
     onRetryRestore: props.session.restore,

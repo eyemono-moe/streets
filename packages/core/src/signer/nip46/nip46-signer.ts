@@ -1,9 +1,5 @@
-import {
-  type NostrEvent,
-  type UnsignedEvent,
-  isNostrEvent,
-  verifyEvent,
-} from "../../nostr/event";
+import type { NostrEvent, UnsignedEvent } from "../../nostr/event";
+import { checkSignedEvent } from "../signed-event";
 import type { Signer } from "../signer";
 import { type Nip46Client, Nip46SignerRefusedError } from "./client";
 import { assertNip46SignPermission, grantsSignEvent } from "./session-storage";
@@ -27,9 +23,6 @@ export class Nip46PermissionMissingError extends Error {
     this.name = "Nip46PermissionMissingError";
   }
 }
-
-const sameTags = (left: string[][], right: string[][]): boolean =>
-  JSON.stringify(left) === JSON.stringify(right);
 
 export const createNip46Signer = (
   client: Pick<Nip46Client, "request">,
@@ -68,23 +61,15 @@ export const createNip46Signer = (
           "remote signer returned invalid JSON",
         );
       }
-      if (!isNostrEvent(value) || !verifyEvent(value)) {
+      const checked = checkSignedEvent(value, template, userPubkey);
+      if (!checked.ok) {
         throw new InvalidNip46SignatureError(
-          "remote signer returned an invalid event",
+          checked.reason === "invalid"
+            ? "remote signer returned an invalid event"
+            : "remote signer changed the event being signed",
         );
       }
-      if (
-        value.pubkey !== userPubkey ||
-        value.created_at !== template.created_at ||
-        value.kind !== template.kind ||
-        value.content !== template.content ||
-        !sameTags(value.tags, template.tags)
-      ) {
-        throw new InvalidNip46SignatureError(
-          "remote signer changed the event being signed",
-        );
-      }
-      return value;
+      return checked.event;
     },
     nip44: {
       encrypt: (peerPubkey, plaintext) =>

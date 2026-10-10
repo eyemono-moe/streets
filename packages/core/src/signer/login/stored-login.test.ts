@@ -30,6 +30,7 @@ describe("loadStoredLogin", () => {
     { version: 1, method: "nip07", pubkey: PUBKEY },
     { version: 1, method: "nip07" },
     { version: 1, method: "nip46", session },
+    { version: 1, method: "nosskey", pubkey: PUBKEY },
   ])("保存した形を読み戻す（$method）", (login) => {
     expect(
       loadStoredLogin(storage({ [LOGIN_STORAGE_KEY]: saveStoredLogin(login) })),

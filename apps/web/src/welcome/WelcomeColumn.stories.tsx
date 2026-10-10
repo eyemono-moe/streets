@@ -38,6 +38,7 @@ const meta = {
     width: "380px",
     login: { pending: false },
     onExtension: () => {},
+    onNosskey: () => {},
     onBunker: () => {},
     onRetryRestore: () => {},
     onNostrConnect: () => ({
@@ -133,5 +134,16 @@ export const 署名器と繋がらなかった: Story = {
       done: Promise.reject(new Error("remote signer did not connect in time")),
       cancel: () => {},
     }),
+  },
+};
+
+export const Nosskeyにアカウントが無かった: Story = {
+  args: {
+    initialStep: "existing",
+    login: {
+      pending: false,
+      error:
+        "Nosskey にアカウントがありません。nosskey.app を開いてパスキーを作るか、いまの鍵を取り込んでから、もう一度試してください。",
+    },
   },
 };

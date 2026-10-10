@@ -14,6 +14,7 @@ import LoginPanel, { type LoginState, type LoginStep } from "./LoginPanel";
 export type WelcomeLogin = {
   state: () => LoginState;
   onExtension: () => void;
+  onNosskey: () => void;
   onBunker: (uri: string) => void;
   onNostrConnect: () => ConnectAttempt;
   onRetryRestore: () => void;
@@ -53,6 +54,7 @@ export const WelcomeColumnView: Component<WelcomeColumnViewProps> = (props) => (
       <LoginPanel
         state={props.state()}
         onExtension={props.onExtension}
+        onNosskey={props.onNosskey}
         onBunker={props.onBunker}
         onNostrConnect={props.onNostrConnect}
         onRetryRestore={props.onRetryRestore}
