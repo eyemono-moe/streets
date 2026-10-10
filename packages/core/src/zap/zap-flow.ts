@@ -1,4 +1,4 @@
-import type { NostrEvent } from "../nostr/event";
+import type { ZapTarget } from "./zap-request";
 
 /** 選べる金額（sat）。ほかは自由に入れる。 */
 export const ZAP_AMOUNTS = [50, 100, 500, 1000] as const;
@@ -7,7 +7,7 @@ export const ZAP_AMOUNTS = [50, 100, 500, 1000] as const;
 export const MAX_ZAP_SATS = 1_000_000;
 
 export type ZapDraft = {
-  target: NostrEvent;
+  target: ZapTarget;
   /** 選んだ金額。`custom` なら `customAmount` を使う。 */
   amount: number | "custom";
   customAmount: string;
@@ -32,7 +32,7 @@ export type ZapFlowState =
     };
 
 export type ZapFlowEvent =
-  | { type: "zap/open"; target: NostrEvent }
+  | { type: "zap/open"; target: ZapTarget }
   | { type: "zap/amount"; amount: number | "custom" }
   | { type: "zap/custom-amount"; value: string }
   | { type: "zap/message"; value: string }

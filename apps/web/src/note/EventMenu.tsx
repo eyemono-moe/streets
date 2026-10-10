@@ -435,7 +435,10 @@ const EventMenu: Component<{
         setPicking(true);
         break;
       case "zap":
-        dispatch({ type: "zap/open", target: props.event });
+        dispatch({
+          type: "zap/open",
+          target: { type: "event", event: props.event },
+        });
         break;
       case "bookmark":
         dispatch({

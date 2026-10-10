@@ -40,7 +40,15 @@ const Story = (props: Args) => {
   );
 };
 
-const open: ZapFlowEvent = { type: "zap/open", target: note };
+const open: ZapFlowEvent = {
+  type: "zap/open",
+  target: { type: "event", event: note },
+};
+const openProfile: ZapFlowEvent = {
+  type: "zap/open",
+  target: { type: "profile", pubkey: alice.pubkey },
+};
+const nameless = createStoryAuthor(12, {});
 
 const meta = {
   title: "Zap/Zap する",
@@ -92,5 +100,22 @@ export const QRで払う: S = {
 };
 export const 幅の狭い画面: S = {
   args: { events: [open] },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+export const 人に送る: S = {
+  args: { events: [openProfile] },
+};
+export const 人に送る_プロフィールが無い: S = {
+  args: {
+    events: [
+      {
+        type: "zap/open",
+        target: { type: "profile", pubkey: nameless.pubkey },
+      },
+    ],
+  },
+};
+export const 人に送る_幅の狭い画面: S = {
+  args: { events: [openProfile] },
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };

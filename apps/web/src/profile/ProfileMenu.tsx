@@ -1,10 +1,12 @@
 import { Menu } from "@ark-ui/solid/menu";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
+import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, Show, createSignal } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
+import { useProfileDetails } from "../note/use-profile";
 import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
@@ -21,6 +23,9 @@ export const ProfileMenuView: Component<{
   muteAvailable: boolean;
   /** ログインしていれば、リストに入れられる。 */
   listAvailable: boolean;
+  /** Zap の受け取り先を書いている人にだけ、Zap を出す。 */
+  zappable: boolean;
+  onZap: () => void;
   onMute: () => void;
   onOpenRelays: () => void;
   onAddToList: () => void;
@@ -31,6 +36,7 @@ export const ProfileMenuView: Component<{
       lazyMount
       unmountOnExit
       onSelect={(details) => {
+        if (details.value === "zap") props.onZap();
         if (details.value === "relays") props.onOpenRelays();
         if (details.value === "mute") props.onMute();
         if (details.value === "add-to-list") props.onAddToList();
@@ -51,6 +57,15 @@ export const ProfileMenuView: Component<{
       <Portal>
         <Menu.Positioner>
           <Menu.Content class={`${menuContentClass} w-56`}>
+            <Show when={props.zappable && !props.mine}>
+              <Menu.Item value="zap" class={menuItemClass}>
+                <span
+                  class={`i-material-symbols:bolt-outline-rounded ${menuIconClass}`}
+                  aria-hidden="true"
+                />
+                Zap する
+              </Menu.Item>
+            </Show>
             <Menu.Item value="relays" class={menuItemClass}>
               <span
                 class={`i-material-symbols:hub-outline ${menuIconClass}`}
@@ -99,6 +114,7 @@ const ProfileMenu: Component<{ pubkey: string }> = (props) => {
   const mutes = useMutes();
   const viewer = useEventActions()?.viewer;
   const lists = useFollowSets();
+  const details = useProfileDetails(() => props.pubkey);
   const [relaysOpen, setRelaysOpen] = createSignal(false);
   const [addingToList, setAddingToList] = createSignal(false);
   const target = (): MuteTarget => ({ type: "pubkey", value: props.pubkey });
@@ -125,6 +141,13 @@ const ProfileMenu: Component<{ pubkey: string }> = (props) => {
         muted={mutedEntry() !== undefined}
         muteAvailable={mutes !== undefined}
         listAvailable={lists !== undefined}
+        zappable={zapEndpointOf(details()?.content) !== undefined}
+        onZap={() =>
+          dispatch({
+            type: "zap/open",
+            target: { type: "profile", pubkey: props.pubkey },
+          })
+        }
         onMute={toggleMute}
         onOpenRelays={() => setRelaysOpen(true)}
         onAddToList={() => setAddingToList(true)}

@@ -12,7 +12,10 @@ import {
 const target = { id: "e".repeat(64), pubkey: "p".repeat(64) } as NostrEvent;
 const run = (...events: ZapFlowEvent[]): ZapFlowState =>
   events.reduce(zapFlowTransition, closedZapFlow());
-const open: ZapFlowEvent = { type: "zap/open", target };
+const open: ZapFlowEvent = {
+  type: "zap/open",
+  target: { type: "event", event: target },
+};
 
 describe("zapFlowTransition", () => {
   it("開くと 100 sat を選んだ入力になる", () => {
@@ -99,7 +102,7 @@ describe("zapFlowTransition", () => {
 
 describe("zapAmountSats", () => {
   const draft = (customAmount: string) => ({
-    target,
+    target: { type: "event" as const, event: target },
     amount: "custom" as const,
     customAmount,
     message: "",

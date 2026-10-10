@@ -4,8 +4,12 @@ import {
   type ZapFlowState,
   zapAmountSats,
 } from "@streets/core/zap/zap-flow";
+import type { ZapTarget } from "@streets/core/zap/zap-request";
 import { type Component, Match, Show, Switch } from "solid-js";
+import Avatar from "../note/Avatar";
 import Event from "../note/Event";
+import { ProfileName, ProfileText } from "../note/Name";
+import { useProfileDetails } from "../note/use-profile";
 import { notifyError, notifySuccess } from "../toast";
 import { Mediates, useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
@@ -27,6 +31,49 @@ type PayingZap = Extract<ZapFlowState, { phase: "paying" }>;
 
 const payingOf = (state: OpenZap): PayingZap | undefined =>
   state.phase === "paying" ? state : undefined;
+
+const Recipient: Component<{ pubkey: string }> = (props) => {
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
+  return (
+    <div class="flex items-center gap-3 px-3 py-2.5">
+      <Avatar pubkey={props.pubkey} size="normal" />
+      <div class="flex min-w-0 flex-1 flex-col">
+        <span class="c-primary truncate font-600 text-body">
+          <ProfileName
+            pubkey={props.pubkey}
+            profile={profile()}
+            tags={details()?.tags}
+          />
+        </span>
+        <Show when={profile()?.displayName && profile()?.name}>
+          {(name) => (
+            <span class="c-secondary truncate text-caption">
+              @
+              <ProfileText text={name()} tags={details()?.tags} />
+            </span>
+          )}
+        </Show>
+      </div>
+    </div>
+  );
+};
+
+const Target: Component<{ target: ZapTarget }> = (props) => (
+  <Switch>
+    <Match when={props.target.type === "event" && props.target.event}>
+      {(event) => (
+        // 送る先の確認用。ここから重ねたり操作したりはさせない。
+        <Mediates handle={() => true}>
+          <Event event={event()} size="compact" />
+        </Mediates>
+      )}
+    </Match>
+    <Match when={props.target.type === "profile" && props.target.pubkey}>
+      {(pubkey) => <Recipient pubkey={pubkey()} />}
+    </Match>
+  </Switch>
+);
 
 const AmountForm: Component<{ state: OpenZap }> = (props) => {
   const dispatch = useDispatch();
@@ -169,7 +216,7 @@ const Payment: Component<{ state: PayingZap }> = (props) => {
   );
 };
 
-/** 投稿に Zap を送る。状態は裁定する段（ZapMediator）が持つ。 */
+/** 投稿か人に Zap を送る。状態は裁定する段（ZapMediator）が持つ。 */
 const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
   const dispatch = useDispatch();
   return (
@@ -190,10 +237,7 @@ const ZapDialog: Component<{ state: ZapFlowState }> = (props) => {
                 </div>
                 <DialogBody>
                   <div class="mx-4 mb-4 max-h-32 overflow-y-auto rounded-2 border border-primary">
-                    {/* 送る先の確認用。ここから重ねたり操作したりはさせない。 */}
-                    <Mediates handle={() => true}>
-                      <Event event={state().draft.target} size="compact" />
-                    </Mediates>
+                    <Target target={state().draft.target} />
                   </div>
                   <Show
                     when={payingOf(state())}

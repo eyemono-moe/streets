@@ -227,7 +227,10 @@ const ActionBar: Component<{
               icon={EVENT_ACTION_META.zap.icon}
               disabled={!zappable()}
               onClick={() =>
-                dispatch({ type: "zap/open", target: props.event })
+                dispatch({
+                  type: "zap/open",
+                  target: { type: "event", event: props.event },
+                })
               }
             />
           ),

@@ -1,5 +1,4 @@
 import { CHANNEL_MESSAGE_KIND } from "@streets/core/nostr/channel";
-import type { NostrEvent } from "@streets/core/nostr/event";
 import { isStale, policyFor } from "@streets/core/read/cache-policy";
 import type {
   ConnectionPool,
@@ -10,7 +9,10 @@ import type { EventStore } from "@streets/core/read/event-store";
 import type { RoutingTable } from "@streets/core/read/routing-table";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { SubscriptionManager } from "@streets/core/read/subscription-manager";
-import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type {
+  RelayFilter,
+  RelayUrl,
+} from "@streets/core/relay/relay-connection";
 import type { Signer } from "@streets/core/signer/signer";
 import { bolt11AmountMsat } from "@streets/core/zap/bolt11";
 import { parseZapPayInfo, zapEndpointOf } from "@streets/core/zap/lnurl";
@@ -23,10 +25,12 @@ import {
   zapFlowTransition,
 } from "@streets/core/zap/zap-flow";
 import {
+  type ZapTarget,
   buildZapRequest,
   parseInvoiceResponse,
   zapInvoiceUrl,
   zapReceiptRelays,
+  zapRecipient,
 } from "@streets/core/zap/zap-request";
 import { type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
@@ -109,24 +113,24 @@ export const ZapMediator: ParentComponent<{
   };
 
   const waitForReceipt = (
-    target: NostrEvent,
+    target: ZapTarget,
     invoice: string,
     relays: readonly RelayUrl[],
   ) => {
     const since = Math.floor(Date.now() / 1000) - 60;
+    const filter: RelayFilter =
+      target.type === "event"
+        ? { kinds: [9735], "#e": [target.event.id], since }
+        : { kinds: [9735], "#p": [target.pubkey], since };
     for (const relay of relays) {
-      const handle = props.pool.subscribe(
-        relay,
-        [{ kinds: [9735], "#e": [target.id], since }],
-        {
-          onEvent: (receipt) => {
-            const bolt11 = receipt.tags.find((tag) => tag[0] === "bolt11")?.[1];
-            if (bolt11?.toLowerCase() === invoice.toLowerCase()) paid();
-          },
-          onEose: () => {},
-          onClosed: () => {},
+      const handle = props.pool.subscribe(relay, [filter], {
+        onEvent: (receipt) => {
+          const bolt11 = receipt.tags.find((tag) => tag[0] === "bolt11")?.[1];
+          if (bolt11?.toLowerCase() === invoice.toLowerCase()) paid();
         },
-      );
+        onEose: () => {},
+        onClosed: () => {},
+      });
       if (handle) receipts.push(handle);
     }
     receiptTimer = setTimeout(() => {
@@ -139,7 +143,7 @@ export const ZapMediator: ParentComponent<{
     const sats = zapAmountSats(draft);
     if (sats === undefined) throw new ZapError("金額を読めませんでした");
     const amountMsat = sats * 1000;
-    const target = draft.target.pubkey;
+    const target = zapRecipient(draft.target);
     // 送り先は送る直前の kind:0 から決める。手元の版が新しく見えても、その間に
     // 受け取り先を変えていれば古い先へ送ってしまう。応答が無ければ手元の版で続ける。
     const fetchProfile = props.manager
@@ -184,13 +188,14 @@ export const ZapMediator: ParentComponent<{
     }
     signal.throwIfAborted();
     const relays = zapReceiptRelays({
-      recipientRead: props.routing.readRelaysFor(draft.target.pubkey),
+      recipientRead: props.routing.readRelaysFor(target),
       senderRead: props.routing.readRelaysFor(props.viewer),
       fallback: FALLBACK_RELAYS,
       // チャンネルの発言は、そのチャンネルの画面にも受領が出るようにする。
       channel:
-        draft.target.kind === CHANNEL_MESSAGE_KIND
-          ? relaysSeenOn(props.store, draft.target.id)
+        draft.target.type === "event" &&
+        draft.target.event.kind === CHANNEL_MESSAGE_KIND
+          ? relaysSeenOn(props.store, draft.target.event.id)
           : undefined,
     });
     const zapRequest = await props.signer.signEvent({
