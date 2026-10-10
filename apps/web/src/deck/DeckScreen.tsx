@@ -138,7 +138,7 @@ import {
   setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
-import { notifyError, notifyInfo, notifySaved } from "../toast";
+import { notifyError, notifyInfo, notifySaved, notifyWarning } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
@@ -184,6 +184,9 @@ const SettingsDialog = lazyPart(() => import("../settings/SettingsDialog"));
 const CommandPalette = lazyPart(() => import("../signal/CommandPalette"));
 const AboutDialog = lazyPart(() => import("../about/AboutDialog"));
 const DeckTour = lazyPart(() => import("../tour/DeckTour"));
+
+// 開くたびに 1 度だけ知らせる。アカウントを切り替えて画面が作り直されても繰り返さない。
+let localOnlyWarned = false;
 
 const DeckScreen: Component<{
   readLayer: ReadLayer;
@@ -601,13 +604,28 @@ const DeckScreen: Component<{
       deckStore.update((set) => ({ ...set, appearance: next }));
     }, APPEARANCE_SAVE_DELAY_MS);
   };
-  // 同期が終わった合図で知らせる。
+  // 同期が終わった合図で知らせる。同期できない署名器では、この端末に保存した時点で知らせる。
   createEffect(() => {
     const current = deckStore.state();
     if (!savedNotice) return;
-    if (current.phase !== "ready" || current.sync !== "synced") return;
+    if (
+      current.phase !== "ready" ||
+      (current.sync !== "synced" && current.sync !== "local-only")
+    ) {
+      return;
+    }
     notifySaved(savedNotice);
     savedNotice = undefined;
+  });
+  createEffect(() => {
+    const current = deckStore.state();
+    if (current.phase !== "ready" || current.sync !== "local-only") return;
+    if (localOnlyWarned) return;
+    localOnlyWarned = true;
+    notifyWarning(
+      "このログインの方法では、デッキをほかの端末と同期できません",
+      "デッキの変更はこの端末にだけ保存します。同期するには、暗号化に対応した拡張機能か、署名アプリでログインしてください。",
+    );
   });
   onCleanup(() => clearTimeout(appearanceTimer));
   // ログアウトしたら既定の色に戻す（次にログインする人に前の人の色を残さない）。
