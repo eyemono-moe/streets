@@ -35,7 +35,10 @@ import {
   startNostrConnect,
 } from "@streets/core/signer/nip46/nostrconnect";
 import { connectNip46, restoreNip46 } from "@streets/core/signer/nip46/session";
-import { SignerUnavailableError } from "@streets/core/signer/signer";
+import {
+  Nip44UnavailableError,
+  SignerUnavailableError,
+} from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import {
@@ -153,6 +156,11 @@ export const createSession = (
     connection = next;
     const resetAuth = needsAuthReset(state, next.pubkey);
     signer.set(reportSignerFailures(next.signer, tagsFor(next.stored)));
+    // 暗号化を持たない拡張機能では、デッキなどを同期できない。どの拡張機能かを
+    // 後から特定できるよう、拡張機能の形を添えて送る（読み込み 1 回につき 1 度）。
+    if (next.stored.method === "nip07" && !next.signer.nip44) {
+      reportSignerError(new Nip44UnavailableError(), "capability", nip07Tags());
+    }
     if (resetAuth) pool.resetAuthentication();
     setAuthUrl(undefined);
     dispatch({ type: "connected", pubkey: next.pubkey });

@@ -24,6 +24,11 @@ export type Nip78DocumentState =
       sync: "synced" | "pending" | "saving";
       remoteCreatedAt?: number;
     }
+  /**
+   * 署名器が暗号化（NIP-44）を持たず、同期できない。この端末にだけ保存する。
+   * 同期を試して失敗にすると、再試行しても直らない失敗が出続ける。
+   */
+  | { phase: "ready"; sync: "local-only" }
   | { phase: "error"; message: string; retryable: boolean }
   | { phase: "conflict"; remoteCreatedAt: number };
 
@@ -213,6 +218,9 @@ export const createNip78Document = <T>(
         };
   };
 
+  const canSync = () => options.signer.nip44 !== undefined;
+  const localOnly = () => transition({ phase: "ready", sync: "local-only" });
+
   const requireNip44 = () => {
     if (!options.signer.nip44) throw new Nip44UnavailableError();
     return options.signer.nip44;
@@ -240,7 +248,7 @@ export const createNip78Document = <T>(
 
   const errorMessage = (cause: unknown, operation: "load" | "save") => {
     if (cause instanceof Nip44UnavailableError) {
-      return "同期には NIP-44 対応と署名器の権限が必要です";
+      return "このログインの方法では、デッキを暗号化して同期できません";
     }
     if (cause instanceof InvalidNip78DocumentError) {
       return "リレー上の同期データを読み取れませんでした";
@@ -266,6 +274,10 @@ export const createNip78Document = <T>(
       !local.dirty ||
       !canSign()
     ) {
+      return;
+    }
+    if (!canSync()) {
+      localOnly();
       return;
     }
     const snapshot = local;
@@ -346,6 +358,10 @@ export const createNip78Document = <T>(
         }
         return;
       }
+      if (!canSync()) {
+        localOnly();
+        return;
+      }
       transition({
         phase: "error",
         message: errorMessage(cause, "save"),
@@ -414,6 +430,23 @@ export const createNip78Document = <T>(
     expectedAuthor: string,
   ): Promise<void> => {
     const expectedRefresh = ++refreshRevision;
+    const keepLocalOnly = () => {
+      if (!local) {
+        const fallback = options.definition.initial(expectedAuthor);
+        setLocal({
+          value: fallback,
+          serialized: options.definition.serialize(fallback),
+          dirty: true,
+        });
+      }
+      conflict = undefined;
+      localOnly();
+    };
+    // 読めない暗号文を取りにいかない。
+    if (!canSync()) {
+      keepLocalOnly();
+      return;
+    }
     transition({ phase: "loading", cached: local !== undefined });
     try {
       const event = await options.fetchLatest(
@@ -502,6 +535,11 @@ export const createNip78Document = <T>(
         !validRun(expectedGeneration, expectedAuthor) ||
         refreshRevision !== expectedRefresh
       ) {
+        return;
+      }
+      // 戻している間は暗号化できるか分からず、戻ってから持たないと分かることがある。
+      if (!canSync()) {
+        keepLocalOnly();
         return;
       }
       if (!local) {
@@ -596,6 +634,10 @@ export const createNip78Document = <T>(
           phase: "conflict",
           remoteCreatedAt: conflict.event.created_at,
         });
+        return;
+      }
+      if (!canSync()) {
+        localOnly();
         return;
       }
       transition({
