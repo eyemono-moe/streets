@@ -79,8 +79,8 @@ export const MediaMediator: ParentComponent<{
     }
     if (check === "unknown") {
       notifyWarning(
-        "アップロード先を確かめられませんでした",
-        `${url.replace(/^https:\/\//, "")} から応答を読み取れませんでした。一覧には足しましたが、画像をアップロードできない場合があります`,
+        "アップロード先に追加しました",
+        `${url.replace(/^https:\/\//, "")} から応答を読み取れませんでした。画像のアップロードに失敗する可能性があります`,
       );
     }
     save([...servers(), url]);
