@@ -32,9 +32,15 @@
     "status": "内部利用",
     "summary": "Blossom サーバーのリスト"
   },
+  {
+    "kind": 10096,
+    "status": "内部利用",
+    "summary": "NIP-96 のアップロード先のリスト"
+  },
   { "kind": 22242, "status": "内部利用", "summary": "リレーの認証" },
   { "kind": 24133, "status": "内部利用", "summary": "リモート署名の通信" },
   { "kind": 24242, "status": "内部利用", "summary": "Blossom の認証" },
+  { "kind": 27235, "status": "内部利用", "summary": "HTTP の認証" },
   { "kind": 30000, "status": "表示対応", "summary": "フォローセット" },
   { "kind": 30002, "status": "表示対応", "summary": "リレーセット" },
   { "kind": 30003, "status": "表示対応", "summary": "ブックマークセット" },

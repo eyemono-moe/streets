@@ -34,6 +34,8 @@ import { browseTargetIn, welcomeColumn } from "@streets/core/deck/guest-deck";
 import { loopStrip } from "@streets/core/deck/strip-loop";
 import { TEMP_COLUMN_ID, tempColumnFor } from "@streets/core/deck/temp-column";
 import { effectiveBlossomServers } from "@streets/core/media/blossom";
+import { parseNip96Servers } from "@streets/core/media/nip96";
+import { uploadServers } from "@streets/core/media/upload-servers";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
 import {
@@ -394,11 +396,15 @@ const DeckScreen: Component<{
     ),
   );
 
-  // 画像のアップロード先は、設定（kind:10063）の並び順にそのまま使う。
+  // 画像のアップロード先は、設定（kind:10063・kind:10096）の並び順にそのまま使う。
   const uploader = createUploader({
     signer: props.session.signer,
     viewer,
-    servers: () => effectiveBlossomServers(write?.blossomServers()),
+    servers: () =>
+      uploadServers(
+        effectiveBlossomServers(write?.blossomServers()),
+        parseNip96Servers(write?.nip96Servers()),
+      ),
   });
 
   // カラムの見出しを押したときの動き。狭い画面では見出しの代わりにタブから呼ぶ。
@@ -1345,7 +1351,8 @@ const DeckScreen: Component<{
               <Mediates handle={handle}>
                 <MediaMediator
                   writer={trackReplaces(write().writer, "画像のアップロード先")}
-                  serverList={write().blossomServers}
+                  blossomList={write().blossomServers}
+                  nip96List={write().nip96Servers}
                 >
                   <SearchRelayMediator
                     writer={trackReplaces(write().writer, "検索するリレー")}

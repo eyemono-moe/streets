@@ -6,7 +6,7 @@ import { ToastStack, createAppToaster } from "./toast";
 import type { WriteToastMeta } from "./WriteProgressToast";
 
 type Item = {
-  type: "success" | "error" | "loading" | "info";
+  type: "success" | "error" | "loading" | "info" | "warning";
   title: string;
   description?: string;
   meta?: WriteToastMeta;
@@ -83,6 +83,48 @@ export const 成功: S = { args: { items: [saved] } };
 
 /** ログインしていない人が、ログインの要る操作を押した。 */
 export const 案内: S = { args: { items: [loginNeeded] } };
+
+/** できたが、うまく働かないかもしれない。 */
+export const 注意: S = {
+  args: {
+    items: [
+      {
+        type: "warning",
+        title: "アップロード先に追加しました",
+        description:
+          "media.example から応答を読み取れませんでした。画像のアップロードに失敗する可能性があります",
+      },
+    ],
+  },
+};
+
+/** 画像を受け取らないサーバーを、アップロード先に足そうとした。 */
+export const アップロード先ではない: S = {
+  args: {
+    items: [
+      {
+        type: "error",
+        title: "アップロード先に足しませんでした",
+        description:
+          "example.com は画像のアップロード先として応答しませんでした。URL を確かめてください",
+      },
+    ],
+  },
+};
+
+/** 古い方式（NIP-96）のアップロード先を足した。 */
+export const 古い方式のアップロード先: S = {
+  args: {
+    items: [
+      {
+        type: "warning",
+        title: "アップロード先に追加しました",
+        description:
+          "nostr.build は古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります",
+      },
+    ],
+  },
+};
 
 /** 押すと直せる失敗には、トーストの中にボタンを置く。 */
 export const 操作付き: S = {

@@ -83,7 +83,11 @@ const meta = {
       <StaticCustomEmojis emojis={[{ shortcode: "neko", url: emojiUrl }]}>
         <UploaderProvider
           value={{
-            servers: () => props.servers,
+            servers: () =>
+              props.servers.map((url) => ({
+                protocol: "blossom" as const,
+                url,
+              })),
             upload: () =>
               Promise.reject(new Error("story ではアップロードしない")),
           }}

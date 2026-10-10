@@ -1,8 +1,8 @@
 import {
-  type BlossomServer,
   DEFAULT_BLOSSOM_SERVERS,
   parseServerInput,
 } from "@streets/core/media/blossom";
+import type { UploadServer } from "@streets/core/media/upload-servers";
 import { loadImageDownscaling } from "@streets/core/settings/image-downscaling-setting";
 import {
   type Component,
@@ -20,7 +20,7 @@ import { textInputClass } from "../ui/TextField";
 import SettingsSection from "./SettingsSection";
 
 export type MediaSettingsViewProps = {
-  servers: readonly BlossomServer[];
+  servers: readonly UploadServer[];
   saving: boolean;
   /** 自分で選んだ一覧か。false なら既定をそのまま使っている。 */
   chosen: boolean;
@@ -91,16 +91,25 @@ const MediaSettingsView: Component<MediaSettingsViewProps> = (props) => {
 };
 
 const ServerRow: Component<{
-  server: BlossomServer;
+  server: UploadServer;
   primary: boolean;
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
     <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
-      <span class="c-primary min-w-48 flex-1 break-all text-body">
-        {props.server}
-      </span>
+      <div class="flex min-w-48 flex-1 flex-col gap-0.5">
+        <span class="c-primary break-all text-body">{props.server.url}</span>
+        <Show when={props.server.protocol === "nip96"}>
+          <span class="c-secondary flex items-start gap-1 text-caption">
+            <span
+              class="i-material-symbols:warning-outline-rounded c-status-warn mt-0.5 size-3.5 shrink-0"
+              aria-hidden="true"
+            />
+            古い方式（NIP-96）のアップロード先です。将来的にこのアップロード先は使用できなくなる可能性があります
+          </span>
+        </Show>
+      </div>
       <div class="ml-auto flex items-center gap-2">
         <Show when={props.primary}>
           <span class="c-secondary text-caption">いちばん先に試す</span>
@@ -108,11 +117,11 @@ const ServerRow: Component<{
         {/* 一覧から外すだけで、アップロードしたファイルは消えない（remove）。 */}
         <IconButton
           icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-          label={`${props.server} を一覧から外す`}
+          label={`${props.server.url} を一覧から外す`}
           title="一覧から外す"
           disabled={props.disabled}
           onClick={() =>
-            dispatch({ type: "media/remove-server", url: props.server })
+            dispatch({ type: "media/remove-server", url: props.server.url })
           }
         />
       </div>
@@ -122,12 +131,14 @@ const ServerRow: Component<{
 
 /** よく使われているアップロード先。押すとその 1 つを足す。 */
 const Recommended: Component<{
-  servers: readonly BlossomServer[];
+  servers: readonly UploadServer[];
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const rest = () =>
-    DEFAULT_BLOSSOM_SERVERS.filter((server) => !props.servers.includes(server));
+    DEFAULT_BLOSSOM_SERVERS.filter(
+      (url) => !props.servers.some((server) => server.url === url),
+    );
   return (
     <Show when={rest().length > 0}>
       <div class="flex flex-col gap-1.5">
@@ -155,7 +166,7 @@ const Recommended: Component<{
 };
 
 const AddServer: Component<{
-  servers: readonly BlossomServer[];
+  servers: readonly UploadServer[];
   disabled: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
@@ -163,7 +174,10 @@ const AddServer: Component<{
   const [error, setError] = createSignal<string>();
 
   const submit = () => {
-    const result = parseServerInput(text(), props.servers);
+    const result = parseServerInput(
+      text(),
+      props.servers.map((server) => server.url),
+    );
     if (!result.ok) {
       setError(result.message);
       return;

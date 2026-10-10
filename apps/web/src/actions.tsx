@@ -80,6 +80,7 @@ const RELAY_LIST_KIND = 10002;
 const MUTE_KIND = 10000;
 const PROFILE_KIND = 0;
 const BLOSSOM_SERVERS_KIND = 10063;
+const NIP96_SERVERS_KIND = 10096;
 const SEARCH_RELAY_LIST_KIND = 10007;
 const EMOJI_LIST_KIND = 10030;
 
@@ -187,6 +188,8 @@ export type WriteStack = {
   profile: Accessor<NostrEvent | undefined>;
   /** 自分の画像のアップロード先（kind:10063。Blossom）。 */
   blossomServers: Accessor<NostrEvent | undefined>;
+  /** 自分の画像のアップロード先のうち、NIP-96 のもの（kind:10096）。 */
+  nip96Servers: Accessor<NostrEvent | undefined>;
   searchRelays: Accessor<NostrEvent | undefined>;
   /**
    * 自分の繋がないリレー（kind:10006）を、非公開の項目まで復号したもの。
@@ -283,6 +286,7 @@ export const createWriteStack = (options: {
   const muteList = mine(MUTE_KIND);
   const profile = mine(PROFILE_KIND);
   const blossomServers = mine(BLOSSOM_SERVERS_KIND);
+  const nip96Servers = mine(NIP96_SERVERS_KIND);
   const searchRelays = mine(SEARCH_RELAY_LIST_KIND);
   const blockedRelayList = mine(BLOCKED_RELAY_LIST_KIND);
   // source を包むのは、一覧がまだ無い（undefined）ときも「無い」として読むため。
@@ -468,6 +472,7 @@ export const createWriteStack = (options: {
     muteListSettled: muteList.settled,
     profile: profile.event,
     blossomServers: blossomServers.event,
+    nip96Servers: nip96Servers.event,
     searchRelays: searchRelays.event,
     blockedRelays: () => blockedRelays.latest,
     emojiList: emojiList.event,

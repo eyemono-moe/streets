@@ -100,6 +100,16 @@ export const notifyInfo = (title: string, description?: string): void => {
   });
 };
 
+/** できたが、うまく働かないかもしれないことを知らせる。読めるだけ長く出す。 */
+export const notifyWarning = (title: string, description?: string): void => {
+  toaster.create({
+    type: "warning",
+    title,
+    description,
+    duration: TROUBLE_DURATION_MS,
+  });
+};
+
 /** 操作が失敗したことを知らせる。理由の文言は `actionErrorMessage` に揃える。 */
 export const notifyError = (cause: unknown, what?: string): void => {
   // 書き込みの進み具合のトーストが、もう同じ失敗を出している。
@@ -149,7 +159,11 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
                 class="size-4.5 shrink-0"
                 classList={{
                   "i-material-symbols:error-outline-rounded c-danger":
-                    toast().type !== "success" && toast().type !== "info",
+                    toast().type !== "success" &&
+                    toast().type !== "info" &&
+                    toast().type !== "warning",
+                  "i-material-symbols:warning-outline-rounded c-status-warn":
+                    toast().type === "warning",
                   "i-material-symbols:check-circle-outline-rounded c-accent-5":
                     toast().type === "success",
                   "i-material-symbols:info-outline-rounded c-accent-5":

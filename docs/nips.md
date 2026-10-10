@@ -41,6 +41,8 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | [NIP-88](https://github.com/nostr-protocol/nips/blob/master/88.md) | 一部 | 投票の表示・投票・集計 | 1018, 1068 | `option`, `relay`, `polltype`, `endsAt`, `e`, `response` | [`poll.ts`](../packages/core/src/nostr/poll.ts)<br>[`poll-requests.ts`](../packages/core/src/read/poll-requests.ts)<br>[`PollView.tsx`](../apps/web/src/poll/PollView.tsx) | 投票を作れない。投票が指すリレーは先頭の 3 件だけを使う。回答を特定の人に絞る集計（フォローセットや Web of Trust）はしない |
 | [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) | 一部 | 投稿に client タグを付ける（選んだ人だけ）。Streets を説明する kind:31990 をリリースのたびに出す。他の人の投稿の client タグから、そのアプリの説明と開き方を見せる | 31990 | `client` | [`client-tag.ts`](../packages/core/src/nostr/build/client-tag.ts)<br>[`streets-handler.json`](../packages/core/src/nostr/streets-handler.json)<br>[`app-handler.mjs`](../scripts/app-handler.mjs)<br>[`app-handler.ts`](../packages/core/src/nostr/app-handler.ts)<br>[`ClientDialog.tsx`](../apps/web/src/note/ClientDialog.tsx) | アプリのおすすめ（kind:31989）と、知らない kind を開けるアプリを探す使い方には対応しない |
 | [NIP-92](https://github.com/nostr-protocol/nips/blob/master/92.md) | 一部 | 添付画像・動画の情報を投稿に添える | 1 | `imeta` | [`imeta.ts`](../packages/core/src/nostr/imeta.ts)<br>[`media.ts`](../packages/core/src/nostr/build/media.ts) | 扱うメディア情報は画面に必要な項目に限る |
+| [NIP-96](https://github.com/nostr-protocol/nips/blob/master/96.md) | 一部 | NIP-96 のサーバーへのファイルのアップロード（非推奨の方式） | 10096 | `server` | [`nip96.ts`](../packages/core/src/media/nip96.ts)<br>[`upload-servers.ts`](../packages/core/src/media/upload-servers.ts) | アップロードだけ。削除・一覧・delegated_to_url・有料プランは扱わない。Blossom のサーバーより後に試す |
+| [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) | 一部 | HTTP の認可 | 27235 | `u`, `method`, `payload` | [`nip96.ts`](../packages/core/src/media/nip96.ts) | NIP-96 のアップロードにだけ使う |
 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) | 一部 | Blossom サーバーの一覧とファイルのアップロード | 10063, 24242 | `server`, `t`, `x`, `expiration` | [`blossom.ts`](../packages/core/src/media/blossom.ts) | BUD の全操作やダウンロード管理は扱わない |
 
 ## kind ごとの対応
@@ -78,9 +80,11 @@ NIP の仕様変更時は、対応の程度、実装箇所、kind・タグ、残
 | 10007 | 内部利用 | 検索リレーのリスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 10030 | 内部利用 | 絵文字リスト | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 10063 | 内部利用 | Blossom サーバーのリスト | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
+| 10096 | 内部利用 | NIP-96 のアップロード先のリスト | [NIP-96](https://github.com/nostr-protocol/nips/blob/master/96.md) |
 | 22242 | 内部利用 | リレーの認証 | [NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md) |
 | 24133 | 内部利用 | リモート署名の通信 | [NIP-46](https://github.com/nostr-protocol/nips/blob/master/46.md) |
 | 24242 | 内部利用 | Blossom の認証 | [NIP-B7](https://github.com/nostr-protocol/nips/blob/master/B7.md) |
+| 27235 | 内部利用 | HTTP の認証 | [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) |
 | 30000 | 表示対応 | フォローセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 30002 | 表示対応 | リレーセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
 | 30003 | 表示対応 | ブックマークセット | [NIP-51](https://github.com/nostr-protocol/nips/blob/master/51.md) |
