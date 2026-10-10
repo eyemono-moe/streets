@@ -127,6 +127,10 @@ export class RelaySession {
     this.#options = options;
   }
 
+  get url(): RelayUrl {
+    return this.#options.url;
+  }
+
   get hasConnection(): boolean {
     return this.#connection !== null;
   }

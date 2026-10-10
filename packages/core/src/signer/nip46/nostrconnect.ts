@@ -145,6 +145,7 @@ export const startNostrConnect = (options: {
       relay,
       [{ kinds: [NIP46_KIND], "#p": [clientPubkey] }],
       { onEvent, onEose: () => {}, onClosed: () => {} },
+      { lane: "signer" },
     );
     if (handle) waiting.push(handle);
   }

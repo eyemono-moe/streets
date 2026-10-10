@@ -11,6 +11,7 @@ import {
   parseBunkerUri,
 } from "@streets/core/signer/nip46/bunker-uri";
 import {
+  NOSTRCONNECT_RELAYS,
   NostrConnectCancelledError,
   startNostrConnect,
 } from "@streets/core/signer/nip46/nostrconnect";
@@ -250,7 +251,7 @@ export const createSession = (
       reportSignerError(
         e,
         "login:nostrconnect",
-        nip46Tags(options.nostrConnectRelays ?? []),
+        nip46Tags(options.nostrConnectRelays ?? NOSTRCONNECT_RELAYS),
       );
       throw e;
     });
@@ -338,8 +339,11 @@ export const createSession = (
   };
 
   // 署名器のアプリへ切り替えて戻ってきたら、押させずに繋ぎ直す。
+  // 裏にいる間に切れたソケットは再接続を最大 60 秒遅らせるので、待たずに張り直す。
   const retryOnReturn = () => {
-    if (!document.hidden && signerStatus() === "disconnected") restore();
+    if (document.hidden) return;
+    if (nip46 || signerStatus() === "disconnected") pool.retryNow();
+    if (signerStatus() === "disconnected") restore();
   };
   document.addEventListener("visibilitychange", retryOnReturn);
   onCleanup(() =>

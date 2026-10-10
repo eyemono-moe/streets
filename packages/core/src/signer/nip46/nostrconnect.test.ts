@@ -46,6 +46,7 @@ const setup = (options: { budget?: boolean } = {}) => {
       (_url: string, _filters: unknown, next: RelaySubscriptionHandlers) => {
         if (options.budget === false) return undefined;
         listeners.add(next);
+        next.onEose();
         return {
           close: () => {
             listeners.delete(next);

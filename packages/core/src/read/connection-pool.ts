@@ -22,8 +22,25 @@ export type PooledHold = SessionHold;
 /**
  * `reserved` はブートストラップ専用の予算の迂回。迂回できないとルーティング表構築自体が
  * 循環する。購読の枠（`once` の順番待ち）は `reserved` でも迂回できない。
+ *
+ * `lane: "signer"` は NIP-46 の署名器とのやりとりを、読み取りと別のソケットに通す。
+ * 同じソケットに載せると、リレーの同時購読の枠をカラムの購読が埋めている間、
+ * 返事を受ける購読が送られないまま依頼だけが届き、保存されない返事を取りこぼす。
+ * 署名器のリレーは明示リレーなので、予算でも落とさない。
  */
-export type SubscribeOptions = { reserved?: boolean; once?: boolean };
+export type SubscribeOptions = {
+  reserved?: boolean;
+  once?: boolean;
+  lane?: ConnectionLane;
+};
+
+export type ConnectionLane = "signer";
+
+export type PublishOptions = { lane?: ConnectionLane };
+
+/** 既定の経路は URL そのものをキーにし、`statusOf` などが URL で引けるようにする。 */
+const sessionKey = (url: RelayUrl, lane: ConnectionLane | undefined): string =>
+  lane ? `${lane} ${url}` : url;
 
 /** 指数バックオフの下で 4 回はおよそ 15 秒ぶんの試行にあたる。 */
 export const DEGRADED_AFTER_FAILURES = 4;
@@ -54,7 +71,7 @@ export type RelayStatus = "in-use" | "failing" | "idle";
 /** どの経路も窓口の確保をここで通さないと、予算を迂回する経路が残る。 */
 export class ConnectionPool {
   readonly #options: ConnectionPoolOptions;
-  readonly #pool = new Map<RelayUrl, RelaySession>();
+  readonly #pool = new Map<string, RelaySession>();
   readonly #maxConnections: number;
   readonly #scheduler: Scheduler;
   readonly #random: () => number;
@@ -163,8 +180,8 @@ export class ConnectionPool {
   }
 
   #closeBlocked(): void {
-    for (const [url, session] of [...this.#pool]) {
-      if (this.isBlocked(url)) session.close("blocked");
+    for (const session of [...this.#pool.values()]) {
+      if (this.isBlocked(session.url)) session.close("blocked");
     }
   }
 
@@ -232,7 +249,7 @@ export class ConnectionPool {
     }
   }
 
-  #createSession(url: RelayUrl): RelaySession {
+  #createSession(url: RelayUrl, key: string): RelaySession {
     const { maxSubscriptions, onQueued, connect } = this.#options;
     const session: RelaySession = new RelaySession({
       url,
@@ -253,7 +270,7 @@ export class ConnectionPool {
       },
       onQueued: () => onQueued?.(url),
       onClosed: () => {
-        if (this.#pool.get(url) === session) this.#pool.delete(url);
+        if (this.#pool.get(key) === session) this.#pool.delete(key);
       },
     });
     return session;
@@ -264,15 +281,17 @@ export class ConnectionPool {
     options?: SubscribeOptions,
   ): RelaySession | undefined {
     if (this.isBlocked(url)) return undefined;
-    let session = this.#pool.get(url);
+    const key = sessionKey(url, options?.lane);
+    let session = this.#pool.get(key);
     const created = !session;
     if (!session) {
       // 接続を開く前に表へ載せる。接続数の最大値 (`#recordPeak`) が、この窓口を数えるため。
-      session = this.#createSession(url);
-      this.#pool.set(url, session);
+      session = this.#createSession(url, key);
+      this.#pool.set(key, session);
     }
-    if (!session.ensureConnected(options?.reserved ?? false)) {
-      if (created) this.#pool.delete(url);
+    const reserved = (options?.reserved ?? false) || options?.lane === "signer";
+    if (!session.ensureConnected(reserved)) {
+      if (created) this.#pool.delete(key);
       return undefined;
     }
     return session;
@@ -293,11 +312,15 @@ export class ConnectionPool {
     return this.#acquire(url, options)?.hold();
   }
 
-  publish(url: RelayUrl, event: NostrEvent): Promise<void> {
+  publish(
+    url: RelayUrl,
+    event: NostrEvent,
+    options?: PublishOptions,
+  ): Promise<void> {
     if (this.isBlocked(url)) {
       return Promise.reject(new Error(`blocked relay: ${url}`));
     }
-    const session = this.#acquire(url);
+    const session = this.#acquire(url, options);
     if (!session) {
       return Promise.reject(
         new Error(`connection budget exhausted for ${url}`),
