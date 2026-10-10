@@ -48,7 +48,9 @@ const meta = {
     >
       <UploaderProvider
         value={{
-          servers: () => ["https://blossom.example"],
+          servers: () => [
+            { protocol: "blossom", url: "https://blossom.example/" },
+          ],
           upload: () =>
             Promise.reject(new Error("story ではアップロードしない")),
         }}
