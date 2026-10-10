@@ -43,6 +43,7 @@ export type Nip46ClientHooks = {
 type Pool = Pick<ConnectionPool, "publish" | "subscribe" | "allowLocalRelays">;
 type Timer = ReturnType<typeof setTimeout>;
 type Pending = {
+  method: Nip46Method;
   event: NostrEvent;
   resolve: (result: string) => void;
   reject: (error: Error) => void;
@@ -55,8 +56,27 @@ type Pending = {
 
 const SIGNER_LANE = { lane: "signer" } as const;
 
+/**
+ * 失敗したときの通り道の様子。同じ「時間切れ」でも、購読が届かなかったのか、
+ * 届いたのに返事が来なかったのかで直し方が違う。
+ */
+export type Nip46ErrorDetails = {
+  /** 止まった依頼。nostrconnect の承認待ちは `connect`。 */
+  method?: string;
+  /** 返事を受ける購読が届いていたリレーの数と、全体の数。 */
+  liveRelays: number;
+  relays: number;
+  /** 購読が届いた後でソケットが切れた回数。 */
+  reconnects: number;
+  /** 最初に購読が届くまでにかかった時間。届かなかったら無い。 */
+  firstLiveMs?: number;
+};
+
 export class Nip46RpcError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    readonly details?: Nip46ErrorDetails,
+  ) {
     super(message);
     this.name = "Nip46RpcError";
   }
@@ -64,11 +84,44 @@ export class Nip46RpcError extends Error {
 
 /** 署名器が返事をして、そのうえで断った。届かなかった・時間切れとは分ける。 */
 export class Nip46SignerRefusedError extends Nip46RpcError {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, details?: Nip46ErrorDetails) {
+    super(message, details);
     this.name = "Nip46SignerRefusedError";
   }
 }
+
+/** 購読がリレーに届いたか・切れたかを数える。 */
+export const createLiveTracker = (now: () => number) => {
+  const startedAt = now();
+  const live = new Set<RelayUrl>();
+  let firstLiveAt: number | undefined;
+  let reconnects = 0;
+  return {
+    live,
+    onLive(relay: RelayUrl) {
+      live.add(relay);
+      firstLiveAt ??= now();
+    },
+    onLost(relay: RelayUrl) {
+      if (live.delete(relay)) reconnects += 1;
+    },
+    /** 張り替えで閉じるときは、切れた回数に数えない。 */
+    forget(relay: RelayUrl) {
+      live.delete(relay);
+    },
+    details(relays: number, method?: string): Nip46ErrorDetails {
+      return {
+        ...(method === undefined ? {} : { method }),
+        liveRelays: live.size,
+        relays,
+        reconnects,
+        ...(firstLiveAt === undefined
+          ? {}
+          : { firstLiveMs: firstLiveAt - startedAt }),
+      };
+    },
+  };
+};
 
 export type Nip46Client = {
   readonly clientPubkey: string;
@@ -154,7 +207,10 @@ export const createNip46Client = (options: {
    * 返事を受ける購読がリレーに届いた（EOSE を受けた）リレー。返事は保存されない
    * イベントなので、購読が届く前に依頼を送ると返事を取りこぼす。
    */
-  const live = new Set<RelayUrl>();
+  const tracker = createLiveTracker(now);
+  const { live } = tracker;
+  const fail = (message: string, method?: Nip46Method) =>
+    new Nip46RpcError(message, tracker.details(currentRelays.length, method));
   // 署名器のリレーはユーザーが指定したものなので、手元の署名器へも繋ぐ。
   let releaseLocal = options.pool.allowLocalRelays(currentRelays);
   let closed = false;
@@ -164,7 +220,7 @@ export const createNip46Client = (options: {
       const request = pending.get(id);
       if (!request) return;
       pending.delete(id);
-      request.reject(new Nip46RpcError("remote signer response timed out"));
+      request.reject(fail("remote signer response timed out", request.method));
     }, timeoutMs);
 
   const send = (id: string, request: Pending, relay: RelayUrl) => {
@@ -176,21 +232,22 @@ export const createNip46Client = (options: {
       pending.delete(id);
       clearTimer(request.timer);
       request.reject(
-        new Nip46RpcError("request could not be sent to any relay"),
+        fail("request could not be sent to any relay", request.method),
       );
     });
   };
 
   const onLive = (relay: RelayUrl) => {
     if (closed || !currentRelays.includes(relay)) return;
-    live.add(relay);
+    tracker.onLive(relay);
     for (const [id, request] of pending) {
       if (!request.sentOn.has(relay)) send(id, request, relay);
     }
   };
 
-  const onLost = (relay: RelayUrl) => {
-    live.delete(relay);
+  const onLost = (relay: RelayUrl, replaced = false) => {
+    if (replaced) tracker.forget(relay);
+    else tracker.onLost(relay);
     for (const request of pending.values()) {
       request.sentOn.delete(relay);
       request.refusedBy.delete(relay);
@@ -225,7 +282,7 @@ export const createNip46Client = (options: {
         pending.delete(response.id);
         clearTimer(request.timer);
         request.reject(
-          new Nip46RpcError("remote signer returned an invalid auth URL"),
+          fail("remote signer returned an invalid auth URL", request.method),
         );
         return;
       }
@@ -233,7 +290,7 @@ export const createNip46Client = (options: {
         pending.delete(response.id);
         clearTimer(request.timer);
         request.reject(
-          new Nip46RpcError("remote signer returned an invalid auth URL"),
+          fail("remote signer returned an invalid auth URL", request.method),
         );
         return;
       }
@@ -247,11 +304,16 @@ export const createNip46Client = (options: {
     clearTimer(request.timer);
     options.hooks?.onAuthUrl?.(undefined, response.id);
     if (response.error) {
-      request.reject(new Nip46SignerRefusedError(response.error));
+      request.reject(
+        new Nip46SignerRefusedError(
+          response.error,
+          tracker.details(currentRelays.length, request.method),
+        ),
+      );
     } else if (response.result !== undefined) {
       request.resolve(response.result);
     } else {
-      request.reject(new Nip46RpcError("remote signer returned no result"));
+      request.reject(fail("remote signer returned no result", request.method));
     }
   };
 
@@ -290,7 +352,7 @@ export const createNip46Client = (options: {
     clientPubkey,
     request(method, params = [], requestOptions = {}) {
       if (closed) {
-        return Promise.reject(new Nip46RpcError("NIP-46 client is closed"));
+        return Promise.reject(fail("NIP-46 client is closed", method));
       }
       const id = createRequestId();
       const content = encryptNip44(JSON.stringify({ id, method, params }), key);
@@ -308,6 +370,7 @@ export const createNip46Client = (options: {
           requestOptions.timeoutMs ?? NIP46_RPC_TIMEOUT_MS,
         );
         const request: Pending = {
+          method,
           event,
           resolve,
           reject,
@@ -328,7 +391,7 @@ export const createNip46Client = (options: {
       const previousRelays = currentRelays;
       const wasLive = [...live];
       // 古い購読を閉じるので、同じリレーでも新しい購読の EOSE を待ってから送る。
-      for (const relay of previousRelays) onLost(relay);
+      for (const relay of previousRelays) onLost(relay, true);
       currentRelays = [...relays];
       const next = subscribe(relays);
       if (next.length === 0) {
@@ -352,7 +415,7 @@ export const createNip46Client = (options: {
       releaseLocal();
       for (const [id, request] of pending) {
         clearTimer(request.timer);
-        request.reject(new Nip46RpcError("NIP-46 client was closed"));
+        request.reject(fail("NIP-46 client was closed", request.method));
         pending.delete(id);
       }
     },

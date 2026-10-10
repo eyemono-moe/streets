@@ -1,3 +1,7 @@
+import {
+  type Nip46ErrorDetails,
+  Nip46RpcError,
+} from "@streets/core/signer/nip46/client";
 import { Nip46PermissionMissingError } from "@streets/core/signer/nip46/nip46-signer";
 import {
   type Signer,
@@ -34,6 +38,43 @@ export const nip46Tags = (relays: readonly string[]): SignerTags => ({
     .join(","),
 });
 
+let hiddenCount = 0;
+let watchingHidden = false;
+
+/**
+ * 始めてから失敗するまでに、ページが裏へ回ったか。同じ端末で署名アプリへ
+ * 切り替えたかの目安になる。端末やブラウザの種類は送らない。
+ */
+export const watchHidden = (): (() => SignerTags) => {
+  if (!watchingHidden) {
+    watchingHidden = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) hiddenCount += 1;
+    });
+  }
+  const start = hiddenCount;
+  const startedHidden = document.hidden;
+  return () => ({
+    "page.hidden_during": startedHidden || hiddenCount > start ? "yes" : "no",
+  });
+};
+
+// 時間は値のまま送ると種類が増えすぎて、Sentry のタグで絞り込めない。
+const firstLiveBucket = (ms: number | undefined): string => {
+  if (ms === undefined) return "never";
+  if (ms < 1_000) return "<1s";
+  if (ms < 3_000) return "<3s";
+  if (ms < 10_000) return "<10s";
+  return ">=10s";
+};
+
+const transportTags = (details: Nip46ErrorDetails): SignerTags => ({
+  "nip46.method": details.method ?? "-",
+  "nip46.live_relays": `${details.liveRelays}/${details.relays}`,
+  "nip46.reconnects": details.reconnects >= 3 ? "3+" : `${details.reconnects}`,
+  "nip46.first_live": firstLiveBucket(details.firstLiveMs),
+});
+
 // 裏の復号は非公開の項目ごとに呼ばれ、壊れた署名器では同じ失敗が何十回も出る。
 // 読み込み 1 回につき、同じ失敗は 1 回だけ送る。
 const sent = new Set<string>();
@@ -55,7 +96,11 @@ export const reportSignerError = (
   const key = `${tags["signer.method"]}\n${op}\n${message}`;
   if (sent.has(key)) return;
   sent.add(key);
-  reportError(error, "signer", { ...tags, "signer.op": op });
+  const transport =
+    error instanceof Nip46RpcError && error.details
+      ? transportTags(error.details)
+      : {};
+  reportError(error, "signer", { ...tags, ...transport, "signer.op": op });
 };
 
 const watch = async <T>(
@@ -63,10 +108,11 @@ const watch = async <T>(
   tags: SignerTags,
   run: () => Promise<T>,
 ): Promise<T> => {
+  const hidden = watchHidden();
   try {
     return await run();
   } catch (error) {
-    reportSignerError(error, op, tags);
+    reportSignerError(error, op, { ...tags, ...hidden() });
     throw error;
   }
 };

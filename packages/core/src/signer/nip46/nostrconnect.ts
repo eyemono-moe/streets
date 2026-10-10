@@ -14,6 +14,7 @@ import {
   type Nip46Client,
   type Nip46ClientHooks,
   Nip46RpcError,
+  createLiveTracker,
   createNip46Client,
   parseResponse,
 } from "./client";
@@ -165,6 +166,7 @@ export const startNostrConnect = (options: {
   });
 
   let waiting: PooledSubscription[] = [];
+  const tracker = createLiveTracker(now);
   let finishing: Nip46Client | undefined;
   let settled = false;
   let cancelled = false;
@@ -214,7 +216,11 @@ export const startNostrConnect = (options: {
     const handle = options.pool.subscribe(
       relay,
       [{ kinds: [NIP46_KIND], "#p": [clientPubkey] }],
-      { onEvent, onEose: () => {}, onClosed: () => {} },
+      {
+        onEvent,
+        onEose: () => tracker.onLive(relay),
+        onClosed: () => tracker.onLost(relay),
+      },
       { lane: "signer" },
     );
     if (handle) waiting.push(handle);
@@ -226,7 +232,12 @@ export const startNostrConnect = (options: {
     timer = setTimer(() => {
       if (settled) return;
       stopWaiting();
-      reject(new Nip46RpcError("remote signer did not connect in time"));
+      reject(
+        new Nip46RpcError(
+          "remote signer did not connect in time",
+          tracker.details(relays.length, "connect"),
+        ),
+      );
     }, timeoutMs);
   }
 
