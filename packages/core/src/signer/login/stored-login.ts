@@ -29,7 +29,8 @@ export type StoredLogin =
       /** 再読み込みの直後、拡張機能の返事を待たずにその人の画面を出すため。 */
       pubkey?: string;
     }
-  | { version: 1; method: "nip46"; session: StoredNip46SessionV3 };
+  | { version: 1; method: "nip46"; session: StoredNip46SessionV3 }
+  | { version: 1; method: "nosskey"; pubkey: string };
 
 const recordSchema = v.variant("method", [
   v.strictObject({
@@ -41,6 +42,11 @@ const recordSchema = v.variant("method", [
     version: v.literal(1),
     method: v.literal("nip46"),
     session: v.unknown(),
+  }),
+  v.strictObject({
+    version: v.literal(1),
+    method: v.literal("nosskey"),
+    pubkey: hex64,
   }),
 ]);
 
@@ -58,6 +64,7 @@ const parseRecord = (raw: string): StoredLogin | undefined => {
         ? { version: 1, method: "nip07" }
         : { version: 1, method: "nip07", pubkey: record.pubkey };
     }
+    if (record.method === "nosskey") return record;
     const session = parseNip46Session(record.session);
     return session && { version: 1, method: "nip46", session };
   } catch {
@@ -108,5 +115,12 @@ export const saveStoredLogin = (login: StoredLogin): string => {
   return record;
 };
 
-export const storedLoginPubkey = (login: StoredLogin): string | undefined =>
-  login.method === "nip07" ? login.pubkey : login.session.userPubkey;
+export const storedLoginPubkey = (login: StoredLogin): string | undefined => {
+  switch (login.method) {
+    case "nip07":
+    case "nosskey":
+      return login.pubkey;
+    case "nip46":
+      return login.session.userPubkey;
+  }
+};

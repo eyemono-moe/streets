@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0036
 ---
 
 # 秘密鍵をアプリに渡さない — NIP-07 / NIP-46 のみを許可する

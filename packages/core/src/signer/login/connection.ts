@@ -4,6 +4,8 @@ import {
   waitForNip07,
 } from "../nip07-signer";
 import type { Nip46Session } from "../nip46/session";
+import type { NosskeyClient } from "../nosskey/nosskey-client";
+import { createNosskeySigner } from "../nosskey/nosskey-signer";
 import type { Signer } from "../signer";
 import type { StoredLogin } from "./stored-login";
 
@@ -45,6 +47,25 @@ export const nip46Connection = (session: Nip46Session): LoginConnection => ({
     session.client.close();
   },
 });
+
+/** `dispose` は iframe を片付ける。nosskey.app にはログアウトを知らせる手順が無い。 */
+export const nosskeyConnection = (
+  client: NosskeyClient,
+  pubkey: string,
+  dispose: () => void,
+): LoginConnection => {
+  const close = () => {
+    client.close();
+    dispose();
+  };
+  return {
+    signer: createNosskeySigner(client, pubkey),
+    pubkey,
+    stored: { version: 1, method: "nosskey", pubkey },
+    close,
+    logout: async () => close(),
+  };
+};
 
 export const connectNip07 = async (): Promise<LoginConnection> => {
   const signer = createNip07Signer();

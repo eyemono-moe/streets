@@ -50,6 +50,7 @@ const BackButton: Component<{ onClick: () => void }> = (props) => (
 const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
+  onNosskey: () => void;
   onBunker: (uri: string) => void;
   onRetryRestore: () => void;
   /** 署名器の側から繋いでもらう。QR を出している間だけ待つ。 */
@@ -103,7 +104,7 @@ const LoginPanel: Component<{
           <ChoiceButton
             icon="i-material-symbols:login-rounded"
             title="Nostr のアカウントを持っている方"
-            description="拡張機能かリモート署名器でログインします"
+            description="拡張機能・リモート署名器・パスキーでログインします"
             trailing="next"
             onClick={() => setStep("existing")}
           />
@@ -209,6 +210,14 @@ const LoginPanel: Component<{
               </div>
             </Collapsible.Content>
           </Collapsible.Root>
+
+          <ChoiceButton
+            icon="i-material-symbols:fingerprint"
+            title="パスキーでログイン（Nosskey・試験中）"
+            description="nosskey.app に置いたパスキーで署名します。先に nosskey.app でパスキーを作るか、いまの鍵を取り込んでください。パソコンの Chrome などで使えます"
+            disabled={props.state.pending}
+            onClick={() => props.onNosskey()}
+          />
 
           <Show when={props.state.authUrl}>
             {(url) => (

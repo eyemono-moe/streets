@@ -88,7 +88,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0005](./docs/adr/0005-outbox-model-from-v1.md) | Outbox Model (NIP-65) を v1 の最初から実装する |
 | [0006](./docs/adr/0006-no-dm-in-v1.md) | v1 では DM (NIP-17) を実装しない |
 | [0007](./docs/adr/0007-nip-tracking-pipeline-draft-pr-only.md) | NIP 追従パイプラインは draft PR までとし自動マージしない |
-| [0008](./docs/adr/0008-signer-only-key-handling.md) | 秘密鍵をアプリに渡さない（NIP-07 / NIP-46 のみ） |
+| [0008](./docs/adr/0008-signer-only-key-handling.md) | 秘密鍵をアプリに渡さない（NIP-07 / NIP-46 のみ）。0036 で改めた |
 | [0009](./docs/adr/0009-mobile-single-column-view-only-editing.md) | モバイルは1カラム表示、デッキ編集はデスクトップ専用（編集の制限は廃止） |
 | [0010](./docs/adr/0010-single-active-account.md) | 同時にアクティブなアカウントは常に1つ |
 | [0011](./docs/adr/0011-performance-budget.md) | 性能予算を数値で固定し E2E で測定可能にする |
@@ -120,6 +120,7 @@ _Avoid_: カレントユーザー、ログインユーザー、me
 | [0032](./docs/adr/0032-url-opens-a-temporary-column.md) | URL はデッキを置き換えず、一時カラムを開く |
 | [0033](./docs/adr/0033-deck-set-in-one-nip78-event.md) | 複数のデッキを 1 つの kind:30078 にまとめて保存する |
 | [0034](./docs/adr/0034-guest-opens-the-deck.md) | ログインしていなくても、同じデッキを開く |
+| [0036](./docs/adr/0036-keys-live-outside-the-streets-origin.md) | 本人の秘密鍵は Streets のオリジンの外に置く（Nosskey の iframe を足す） |
 
 設計の全体像は [docs/design/architecture.md](./docs/design/architecture.md)、既定リレー選定の調査は [docs/research/](./docs/research/)、スライスの記録は [docs/design/read-layer-followups.md](./docs/design/read-layer-followups.md)、動作確認の手順は [docs/design/verifying-v1-section.md](./docs/design/verifying-v1-section.md)を参照。**残タスクは [GitHub Issues](https://github.com/eyemono-moe/streets/issues)**（ラベル: 領域 `read-layer`/`ui`/`perf`/`test`/`infra`/`nip`/`observation`、優先度 `P1`/`P2`/`P3`、着手前にデザインが要るものは `design-needed`）。
 

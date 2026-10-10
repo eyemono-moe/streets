@@ -5,6 +5,8 @@ import {
   PrivateItemsUnavailableError,
 } from "@streets/core/nostr/private-tags";
 import { Nip46PermissionMissingError } from "@streets/core/signer/nip46/nip46-signer";
+import { NosskeyError } from "@streets/core/signer/nosskey/nosskey-client";
+import { NosskeyAccountChangedError } from "@streets/core/signer/nosskey/nosskey-signer";
 import {
   SignerDisconnectedError,
   SignerUnavailableError,
@@ -26,6 +28,21 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof InvalidPrivateItemsError) {
     return "非公開の項目を読み取れなかったため、保存しませんでした";
+  }
+  if (error instanceof NosskeyAccountChangedError) {
+    return "Nosskey のアカウントが、ログインしたときと違います。ログインし直してください";
+  }
+  if (error instanceof NosskeyError) {
+    switch (error.code) {
+      case "USER_REJECTED":
+        return "Nosskey で許可されませんでした";
+      case "NO_KEY":
+        return "Nosskey で鍵を読めませんでした。nosskey.app を開いて、パスキーがあるか確かめてください";
+      case "RATE_LIMITED":
+        return "続けて断ったため、Nosskey が一時的に受け付けていません。しばらくしてから試してください";
+      case "TIMEOUT":
+        return "Nosskey から返事がありませんでした";
+    }
   }
   if (error instanceof Nip46PermissionMissingError) {
     return "署名器がこの操作を許可していません。ログアウトしてリモート署名器で繋ぎ直すと、許可を求め直せます";
