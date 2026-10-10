@@ -43,10 +43,17 @@ export type Nip46ClientHooks = {
 type Pool = Pick<ConnectionPool, "publish" | "subscribe" | "allowLocalRelays">;
 type Timer = ReturnType<typeof setTimeout>;
 type Pending = {
+  event: NostrEvent;
   resolve: (result: string) => void;
   reject: (error: Error) => void;
   timer: Timer;
+  /** いまのソケットで送ったリレー。ソケットが切れたら外し、繋ぎ直したら送り直す。 */
+  sentOn: Set<RelayUrl>;
+  /** 送ったが断られたリレー。全部に断られたら待たずに失敗させる。 */
+  refusedBy: Set<RelayUrl>;
 };
+
+const SIGNER_LANE = { lane: "signer" } as const;
 
 export class Nip46RpcError extends Error {
   constructor(message: string) {
@@ -135,6 +142,11 @@ export const createNip46Client = (options: {
   const pending = new Map<string, Pending>();
   let currentRelays = [...options.relays];
   let subscriptions: PooledSubscription[] = [];
+  /**
+   * 返事を受ける購読がリレーに届いた（EOSE を受けた）リレー。返事は保存されない
+   * イベントなので、購読が届く前に依頼を送ると返事を取りこぼす。
+   */
+  const live = new Set<RelayUrl>();
   // 署名器のリレーはユーザーが指定したものなので、手元の署名器へも繋ぐ。
   let releaseLocal = options.pool.allowLocalRelays(currentRelays);
   let closed = false;
@@ -146,6 +158,36 @@ export const createNip46Client = (options: {
       pending.delete(id);
       request.reject(new Nip46RpcError("remote signer response timed out"));
     }, timeoutMs);
+
+  const send = (id: string, request: Pending, relay: RelayUrl) => {
+    request.sentOn.add(relay);
+    options.pool.publish(relay, request.event, SIGNER_LANE).catch(() => {
+      if (pending.get(id) !== request || !request.sentOn.has(relay)) return;
+      request.refusedBy.add(relay);
+      if (!currentRelays.every((url) => request.refusedBy.has(url))) return;
+      pending.delete(id);
+      clearTimer(request.timer);
+      request.reject(
+        new Nip46RpcError("request could not be sent to any relay"),
+      );
+    });
+  };
+
+  const onLive = (relay: RelayUrl) => {
+    if (closed || !currentRelays.includes(relay)) return;
+    live.add(relay);
+    for (const [id, request] of pending) {
+      if (!request.sentOn.has(relay)) send(id, request, relay);
+    }
+  };
+
+  const onLost = (relay: RelayUrl) => {
+    live.delete(relay);
+    for (const request of pending.values()) {
+      request.sentOn.delete(relay);
+      request.refusedBy.delete(relay);
+    }
+  };
 
   const onEvent = (event: NostrEvent) => {
     // NIP-44 は外側の署名検証後にだけ復号する (NIP-44 MUST)。
@@ -217,7 +259,13 @@ export const createNip46Client = (options: {
             "#p": [clientPubkey],
           },
         ],
-        { onEvent, onEose: () => {}, onClosed: () => {} },
+        {
+          onEvent,
+          // 繋ぎ直すたびに購読が張り直され、EOSE もまた届く。
+          onEose: () => onLive(relay),
+          onClosed: () => onLost(relay),
+        },
+        SIGNER_LANE,
       );
       if (handle) handles.push(handle);
     }
@@ -251,33 +299,38 @@ export const createNip46Client = (options: {
           id,
           requestOptions.timeoutMs ?? NIP46_RPC_TIMEOUT_MS,
         );
-        pending.set(id, { resolve, reject, timer });
-        const attempts = currentRelays.map((relay) =>
-          options.pool.publish(relay, event),
-        );
-        void Promise.allSettled(attempts).then((results) => {
-          if (results.some((result) => result.status === "fulfilled")) return;
-          const request = pending.get(id);
-          if (!request) return;
-          pending.delete(id);
-          clearTimer(request.timer);
-          request.reject(
-            new Nip46RpcError("request could not be sent to any relay"),
-          );
-        });
+        const request: Pending = {
+          event,
+          resolve,
+          reject,
+          timer,
+          sentOn: new Set(),
+          refusedBy: new Set(),
+        };
+        pending.set(id, request);
+        // 購読がまだ届いていないリレーへは、届いたとき（onLive）に送る。
+        for (const relay of currentRelays) {
+          if (live.has(relay)) send(id, request, relay);
+        }
       });
     },
     switchRelays(relays) {
       if (closed) return false;
       const releaseNext = options.pool.allowLocalRelays(relays);
+      const previousRelays = currentRelays;
+      const wasLive = [...live];
+      // 古い購読を閉じるので、同じリレーでも新しい購読の EOSE を待ってから送る。
+      for (const relay of previousRelays) onLost(relay);
+      currentRelays = [...relays];
       const next = subscribe(relays);
       if (next.length === 0) {
+        currentRelays = previousRelays;
+        for (const relay of wasLive) onLive(relay);
         releaseNext();
         return false;
       }
       const previous = subscriptions;
       subscriptions = next;
-      currentRelays = [...relays];
       for (const handle of previous) handle.close();
       releaseLocal();
       releaseLocal = releaseNext;

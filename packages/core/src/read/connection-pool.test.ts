@@ -1948,3 +1948,51 @@ describe("ConnectionPool: idle linger", () => {
     expect(pool.size).toBe(0);
   });
 });
+
+describe("ConnectionPool の署名器の経路", () => {
+  it("カラムの購読がリレーの枠を埋めていても、署名器の購読はすぐ送る", () => {
+    // 捕まえる変異: 署名器の購読を読み取りと同じソケットに載せる（枠待ちの間に NIP-46 の返事を取りこぼす）
+    const url = "wss://nos.lol/" as RelayUrl;
+    const { pool, connections, connectCalls } = createPool({
+      maxSubscriptions: { [url]: 2 },
+    });
+    pool.subscribe(url, [{ kinds: [1] }], noopHandlers());
+    pool.subscribe(url, [{ kinds: [7] }], noopHandlers());
+    const reader = connections.get(url);
+
+    pool.subscribe(url, [{ kinds: [24_133] }], noopHandlers(), {
+      lane: "signer",
+    });
+
+    expect(connectCalls).toEqual([url, url]);
+    const signer = connections.get(url);
+    expect(signer).not.toBe(reader);
+    expect(signer?.subscriptions.map((sub) => sub.filters)).toEqual([
+      [{ kinds: [24_133] }],
+    ]);
+  });
+
+  it("署名器の経路は、接続の予算が埋まっていても開く", () => {
+    const { pool } = createPool({ maxConnections: 1 });
+    pool.subscribe("wss://one/", [{ kinds: [1] }], noopHandlers());
+    expect(
+      pool.subscribe("wss://two/", [{ kinds: [24_133] }], noopHandlers(), {
+        lane: "signer",
+      }),
+    ).toBeDefined();
+  });
+
+  it("署名器の経路の依頼は、署名器の経路のソケットへ送る", async () => {
+    const url = "wss://one/" as RelayUrl;
+    const { pool, connections } = createPool();
+    pool.subscribe(url, [{ kinds: [1] }], noopHandlers());
+    const reader = connections.get(url);
+    pool.subscribe(url, [{ kinds: [24_133] }], noopHandlers(), {
+      lane: "signer",
+    });
+    const signer = connections.get(url);
+    await pool.publish(url, fakeEvent("a"), { lane: "signer" });
+    expect(signer?.published.map((event) => event.id)).toEqual(["a"]);
+    expect(reader?.published).toEqual([]);
+  });
+});

@@ -32,19 +32,31 @@ const signResponse = (content: string): NostrEvent => {
   };
 };
 
-const setup = (hooks?: Parameters<typeof createNip46Client>[0]["hooks"]) => {
+const setup = (
+  hooks?: Parameters<typeof createNip46Client>[0]["hooks"],
+  options: { live?: boolean; refuse?: boolean } = {},
+) => {
   let handlers: RelaySubscriptionHandlers | undefined;
   let sent: NostrEvent | undefined;
   const pool = {
     subscribe: vi.fn(
-      (_url: string, _filters: unknown, next: RelaySubscriptionHandlers) => {
+      (
+        _url: string,
+        _filters: unknown,
+        next: RelaySubscriptionHandlers,
+        _options?: unknown,
+      ) => {
         handlers = next;
+        if (options.live !== false) next.onEose();
         return { close: vi.fn() };
       },
     ),
-    publish: vi.fn(async (_url: string, event: NostrEvent) => {
-      sent = event;
-    }),
+    publish: vi.fn(
+      async (_url: string, event: NostrEvent, _options?: unknown) => {
+        if (options.refuse) throw new Error("blocked: kind not allowed");
+        sent = event;
+      },
+    ),
     allowLocalRelays: vi.fn((_urls: readonly string[]) => vi.fn()),
   };
   const client = createNip46Client({
@@ -70,6 +82,7 @@ const setup = (hooks?: Parameters<typeof createNip46Client>[0]["hooks"]) => {
       return JSON.parse(decryptNip44(sent.content, key));
     },
     event: () => sent,
+    handlers: () => handlers,
   };
 };
 
@@ -191,5 +204,51 @@ describe("Nip46Client", () => {
     const pending = base.client.request("ping");
     base.client.close();
     await expect(pending).rejects.toThrow("closed");
+  });
+
+  it("返事を受ける購読がリレーに届くまで、依頼を送らない", async () => {
+    // 捕まえる変異: 購読の EOSE を待たずに publish する（購読がリレーの枠待ちの間に返事を取りこぼす）
+    const base = setup(undefined, { live: false });
+    const pending = base.client.request("ping");
+    expect(base.pool.publish).not.toHaveBeenCalled();
+    base.handlers()?.onEose();
+    expect(base.pool.publish).toHaveBeenCalledTimes(1);
+    base.respond({ id: base.request().id, result: "pong" });
+    await expect(pending).resolves.toBe("pong");
+  });
+
+  it("ソケットが切れて繋ぎ直したら、返事を待っている依頼を送り直す", async () => {
+    const base = setup();
+    const pending = base.client.request("ping");
+    const first = base.event();
+    base.handlers()?.onClosed("socket closed");
+    base.handlers()?.onEose();
+    expect(base.pool.publish).toHaveBeenCalledTimes(2);
+    expect(base.event()).toBe(first);
+    base.respond({ id: base.request().id, result: "pong" });
+    await expect(pending).resolves.toBe("pong");
+  });
+
+  it("繋がったままのリレーへは、同じ依頼を二度送らない", () => {
+    const base = setup();
+    void base.client.request("ping").catch(() => {});
+    base.handlers()?.onEose();
+    expect(base.pool.publish).toHaveBeenCalledTimes(1);
+    base.client.close();
+  });
+
+  it("どのリレーにも依頼を断られたら、時間切れを待たずに失敗させる", async () => {
+    const base = setup(undefined, { refuse: true });
+    await expect(base.client.request("ping")).rejects.toThrow(
+      "could not be sent to any relay",
+    );
+  });
+
+  it("依頼と購読を、読み取りと別の署名器の経路に通す", () => {
+    const base = setup();
+    void base.client.request("ping").catch(() => {});
+    expect(base.pool.subscribe.mock.calls[0]?.[3]).toEqual({ lane: "signer" });
+    expect(base.pool.publish.mock.calls[0]?.[2]).toEqual({ lane: "signer" });
+    base.client.close();
   });
 });
