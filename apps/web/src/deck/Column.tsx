@@ -22,7 +22,7 @@ import {
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
 import { measureUntilPaint } from "../telemetry";
-import { ErrorToaster } from "../toast";
+import { PipToaster } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import { Portal } from "../ui/Portal";
 import ColumnAccentBar from "./ColumnAccentBar";
@@ -267,7 +267,7 @@ const Column: Component<ColumnProps> = (props) => {
               <AppWindowProvider window={win}>
                 <div class="h-dvh">{inner()}</div>
                 {/* 書き込みの結果や署名器の承認待ちは、押した窓で見えないと分からない。 */}
-                <ErrorToaster />
+                <PipToaster />
               </AppWindowProvider>
             </Portal>
           </>

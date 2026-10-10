@@ -1,6 +1,7 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, type JSX, Match, Show, Switch } from "solid-js";
 import { isMultiColumn } from "./deck-layout-setting";
+import { pipOpen } from "./deck/pip-window";
 import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
@@ -31,7 +32,9 @@ export const createAppToaster = (wide: boolean): AppToaster =>
 // 新しい知らせをいまの並べ方の方へ出す。
 const multiToaster = createAppToaster(true);
 const singleToaster = createAppToaster(false);
-const currentToaster = () => (isMultiColumn() ? multiToaster : singleToaster);
+// ピクチャーインピクチャーはカラム 1 本の幅で、右下には投稿のボタンがある。開いている間は 1 列の画面と同じく上に出す。
+const currentToaster = () =>
+  isMultiColumn() && !pipOpen() ? multiToaster : singleToaster;
 // 並べ方を変える前に出したものは、出した方で書き換え・片付ける。
 const holding = (id: string) =>
   [multiToaster, singleToaster].find((t) => t.isVisible(id)) ??
@@ -193,6 +196,16 @@ export const ToastStack: Component<{ toaster: AppToaster }> = (props) => (
 export const ErrorToaster: Component = () => (
   <Portal>
     <ToastStack toaster={multiToaster} />
+    <ToastStack toaster={singleToaster} />
+  </Portal>
+);
+
+/**
+ * ピクチャーインピクチャーの中の置き場。ピクチャーインピクチャーを開いている間の知らせは上に出す方へ出るので、そちらだけを描く。
+ * 開く前から出ていた知らせは、元のタブにだけ残る。
+ */
+export const PipToaster: Component = () => (
+  <Portal>
     <ToastStack toaster={singleToaster} />
   </Portal>
 );
