@@ -1,7 +1,5 @@
-import {
-  NotBlossomServerError,
-  UploadFailedError,
-} from "@streets/core/media/blossom";
+import { UploadFailedError } from "@streets/core/media/blossom";
+import { NotUploadServerError } from "@streets/core/media/upload-servers";
 import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
@@ -37,11 +35,8 @@ export const actionErrorMessage = (error: unknown): string => {
   if (error instanceof NoUploadServerError) {
     return "画像のアップロード先がありません。設定の「画像」で追加してください";
   }
-  if (error instanceof NotBlossomServerError) {
-    const host = error.server.replace(/^https:\/\//, "");
-    return error.nip96
-      ? `${host} は古い方式（NIP-96）のアップロード先で、Streets からは使えません。Blossom に対応したアップロード先を選んでください`
-      : `${host} は画像のアップロード先として応答しませんでした。URL を確かめてください`;
+  if (error instanceof NotUploadServerError) {
+    return `${error.server.replace(/^https:\/\//, "")} は画像のアップロード先として応答しませんでした。URL を確かめてください`;
   }
   if (error instanceof EmojiCreateFailedError) {
     switch (error.reason) {

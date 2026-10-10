@@ -462,6 +462,27 @@
     "gap": "扱うメディア情報は画面に必要な項目に限る"
   },
   {
+    "nip": "96",
+    "status": "一部",
+    "summary": "NIP-96 のサーバーへのファイルのアップロード（非推奨の方式）",
+    "kinds": [10096],
+    "tags": ["server"],
+    "paths": [
+      "packages/core/src/media/nip96.ts",
+      "packages/core/src/media/upload-servers.ts"
+    ],
+    "gap": "アップロードだけ。削除・一覧・delegated_to_url・有料プランは扱わない。Blossom のサーバーより後に試す"
+  },
+  {
+    "nip": "98",
+    "status": "一部",
+    "summary": "HTTP の認可",
+    "kinds": [27235],
+    "tags": ["u", "method", "payload"],
+    "paths": ["packages/core/src/media/nip96.ts"],
+    "gap": "NIP-96 のアップロードにだけ使う"
+  },
+  {
     "nip": "B7",
     "status": "一部",
     "summary": "Blossom サーバーの一覧とファイルのアップロード",

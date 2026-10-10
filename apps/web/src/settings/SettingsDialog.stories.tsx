@@ -211,7 +211,8 @@ const Story = (props: Props) => {
                   writer={{
                     replace: async () => ({ event: relayList([]) }) as never,
                   }}
-                  serverList={() => undefined}
+                  blossomList={() => undefined}
+                  nip96List={() => undefined}
                 >
                   <Mediates
                     handle={(event) => {

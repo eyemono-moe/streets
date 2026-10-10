@@ -1,11 +1,13 @@
 import {
   type BlobDescriptor,
-  type BlossomServer,
   UploadFailedError,
   buildUploadAuth,
   hashBytes,
   uploadBlob,
 } from "@streets/core/media/blossom";
+import { uploadNip96 } from "@streets/core/media/nip96";
+import type { UploadServer } from "@streets/core/media/upload-servers";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Signer } from "@streets/core/signer/signer";
 import {
   type Accessor,
@@ -24,20 +26,20 @@ export class NoUploadServerError extends Error {
 
 export type Uploader = {
   /** アップロード先。1 つも無ければ、画像を添える操作を出さない。 */
-  servers: Accessor<readonly BlossomServer[]>;
+  servers: Accessor<readonly UploadServer[]>;
   upload: (file: File) => Promise<BlobDescriptor>;
 };
 
 const UploaderContext = createContext<Uploader>();
 
 /**
- * 画像などを Blossom のサーバーへアップロードする。設定の並び順に試し、最初に受け取って
- * くれたところの URL を使う（1 つのサーバーが落ちていてもアップロードできる）。
+ * 画像などを Blossom か NIP-96 のサーバーへアップロードする。設定の並び順に試し、最初に
+ * 受け取ってくれたところの URL を使う（1 つのサーバーが落ちていてもアップロードできる）。
  */
 export const createUploader = (options: {
   signer: Signer;
   viewer: string;
-  servers: Accessor<readonly BlossomServer[]>;
+  servers: Accessor<readonly UploadServer[]>;
   now?: () => number;
 }): Uploader => ({
   servers: options.servers,
@@ -47,27 +49,46 @@ export const createUploader = (options: {
     // 動画のフレーム待ちはアップロードと並行させる。
     const metadata = uploadMetadata(file);
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const nowSeconds = Math.floor((options.now?.() ?? Date.now()) / 1000);
-    // 認可はファイルの中身に結び付く（BUD-01）ので、1 回署名すればどのアップロード先にも使える。
-    const auth = await options.signer.signEvent({
-      ...buildUploadAuth({
-        sha256: hashBytes(bytes),
-        name: file.name,
-        nowSeconds,
-      }),
-      pubkey: options.viewer,
-      created_at: nowSeconds,
-    });
+    const sha256 = hashBytes(bytes);
+    const nowSeconds = () => Math.floor((options.now?.() ?? Date.now()) / 1000);
+    // 認可はファイルの中身に結び付く（BUD-01）ので、1 回署名すればどの Blossom のサーバーにも
+    // 使える。NIP-96 しか試さないなら署名させない。
+    let blossomAuth: Promise<NostrEvent> | undefined;
+    const signBlossomAuth = () => {
+      const created = nowSeconds();
+      blossomAuth ??= options.signer.signEvent({
+        ...buildUploadAuth({ sha256, name: file.name, nowSeconds: created }),
+        pubkey: options.viewer,
+        created_at: created,
+      });
+      return blossomAuth;
+    };
 
     let lastError: unknown;
     for (const server of servers) {
       try {
-        const blob = await uploadBlob({
-          server,
-          bytes,
-          type: file.type || undefined,
-          auth,
-        });
+        const blob =
+          server.protocol === "blossom"
+            ? await uploadBlob({
+                server: server.url,
+                bytes,
+                type: file.type || undefined,
+                auth: await signBlossomAuth(),
+              })
+            : // NIP-98 の認可は宛先ごとで、作った時刻から 60 秒ほどしか通らないので都度作る。
+              await uploadNip96({
+                server: server.url,
+                bytes,
+                sha256,
+                name: file.name,
+                type: file.type || undefined,
+                sign: (draft) =>
+                  options.signer.signEvent({
+                    ...draft,
+                    pubkey: options.viewer,
+                    created_at: nowSeconds(),
+                  }),
+              });
         return {
           ...blob,
           type: (blob.type ?? file.type) || undefined,
@@ -79,7 +100,7 @@ export const createUploader = (options: {
     }
     throw lastError instanceof Error
       ? lastError
-      : new UploadFailedError(servers[0] ?? "", String(lastError));
+      : new UploadFailedError(servers[0]?.url ?? "", String(lastError));
   },
 });
 

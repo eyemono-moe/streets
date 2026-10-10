@@ -1,14 +1,14 @@
-import {
-  type BlossomServer,
-  DEFAULT_BLOSSOM_SERVERS,
-} from "@streets/core/media/blossom";
+import { DEFAULT_BLOSSOM_SERVERS } from "@streets/core/media/blossom";
+import type { UploadServer } from "@streets/core/media/upload-servers";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Mediates } from "../ui-events";
 import MediaSettingsView from "./MediaSettingsView";
 
+const blossom = (url: string): UploadServer => ({ protocol: "blossom", url });
+
 type Args = {
-  servers: BlossomServer[];
+  servers: UploadServer[];
   saving: boolean;
   chosen: boolean;
   imageDownscaling: boolean;
@@ -25,11 +25,14 @@ const Story = (props: Args) => {
     <Mediates
       handle={(event) => {
         if (event.type === "media/add-server") {
-          setServers((current) => [...current, event.url]);
+          setServers((current) => [
+            ...current,
+            { protocol: "blossom", url: event.url },
+          ]);
           return true;
         }
         if (event.type === "media/remove-server") {
-          setServers((current) => current.filter((s) => s !== event.url));
+          setServers((current) => current.filter((s) => s.url !== event.url));
           return true;
         }
         if (event.type === "deck/set-image-downscaling") {
@@ -55,7 +58,10 @@ const meta = {
   title: "設定/画像",
   component: Story,
   args: {
-    servers: ["https://blossom.example", "https://backup.example"],
+    servers: [
+      blossom("https://blossom.example"),
+      blossom("https://backup.example"),
+    ],
     saving: false,
     chosen: true,
     imageDownscaling: true,
@@ -73,7 +79,7 @@ export const 縮小を切ったとき: S = {
 };
 /** まだ自分で選んでいない人。既定のアップロード先をそのまま使っている。 */
 export const 既定のまま: S = {
-  args: { chosen: false, servers: [...DEFAULT_BLOSSOM_SERVERS] },
+  args: { chosen: false, servers: DEFAULT_BLOSSOM_SERVERS.map(blossom) },
 };
 
 /** 自分で全部外した人。画像を添えられない。 */
@@ -82,8 +88,24 @@ export const 保存中: S = { args: { saving: true } };
 export const 長い_URL: S = {
   args: {
     servers: [
-      "https://very-long-subdomain-for-a-media-server.example-provider.com/blossom",
+      blossom(
+        "https://very-long-subdomain-for-a-media-server.example-provider.com/blossom",
+      ),
     ],
   },
 };
 export const 狭い幅: S = { args: { width: 360 } };
+
+/** 古い方式（NIP-96）のアップロード先を足した人。Blossom の後ろに並ぶ。 */
+export const NIP96_のアップロード先: S = {
+  args: {
+    servers: [
+      blossom("https://blossom.band"),
+      { protocol: "nip96", url: "https://nostr.build" },
+    ],
+  },
+};
+
+export const NIP96_のアップロード先_狭い幅: S = {
+  args: { ...NIP96_のアップロード先.args, width: 360 },
+};
