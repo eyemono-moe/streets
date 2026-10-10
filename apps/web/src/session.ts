@@ -11,8 +11,10 @@ import {
   parseBunkerUri,
 } from "@streets/core/signer/nip46/bunker-uri";
 import {
-  NOSTRCONNECT_RELAYS,
+  NOSTRCONNECT_ATTEMPT_STORAGE_KEY,
   NostrConnectCancelledError,
+  loadNostrConnectAttempt,
+  saveNostrConnectAttempt,
   startNostrConnect,
 } from "@streets/core/signer/nip46/nostrconnect";
 import {
@@ -57,12 +59,35 @@ export type SignerStatus = "none" | "connecting" | "ready" | "disconnected";
 /** 署名器の側から繋いでもらう 1 回分。 */
 export type ConnectAttempt = {
   uri: string;
+  /** 読み込み直す前に始めた試みを続けている。 */
+  resumed: boolean;
   /** 繋がると解決する。取り消したときは `cancelled` で拒否する。 */
   done: Promise<void>;
   cancel: () => void;
 };
 
 export class ConnectCancelledError extends Error {}
+
+// プライベートブラウズなどで sessionStorage が使えなくても、その回だけは繋げる。
+const pendingAttempt = {
+  read: (): string | null => {
+    try {
+      return sessionStorage.getItem(NOSTRCONNECT_ATTEMPT_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  },
+  write: (value: string) => {
+    try {
+      sessionStorage.setItem(NOSTRCONNECT_ATTEMPT_STORAGE_KEY, value);
+    } catch {}
+  },
+  clear: () => {
+    try {
+      sessionStorage.removeItem(NOSTRCONNECT_ATTEMPT_STORAGE_KEY);
+    } catch {}
+  },
+};
 
 // モバイルの Safari では、アプリを開き直した直後などに拡張機能が立ち上がり直すため、注入が 1 秒を超えて遅れる。
 const NIP07_RESTORE_WAIT_MS = 5_000;
@@ -238,24 +263,42 @@ export const createSession = (
     );
 
   const loginWithNostrConnect = (): ConnectAttempt => {
+    const resume = loadNostrConnectAttempt(pendingAttempt.read(), Date.now());
     const attempt = startNostrConnect({
       pool,
       relays: options.nostrConnectRelays,
+      resume,
       metadata: { name: "Streets", url: location.origin },
       hooks,
     });
-    const done = attempt.session.then(activateNip46, (e) => {
-      if (e instanceof NostrConnectCancelledError) {
-        throw new ConnectCancelledError();
-      }
-      reportSignerError(
-        e,
-        "login:nostrconnect",
-        nip46Tags(options.nostrConnectRelays ?? NOSTRCONNECT_RELAYS),
-      );
-      throw e;
-    });
-    return { uri: attempt.uri, done, cancel: attempt.cancel };
+    pendingAttempt.write(saveNostrConnectAttempt(attempt.stored));
+    const done = attempt.session.then(
+      (session) => {
+        pendingAttempt.clear();
+        activateNip46(session);
+      },
+      (e) => {
+        pendingAttempt.clear();
+        if (e instanceof NostrConnectCancelledError) {
+          throw new ConnectCancelledError();
+        }
+        reportSignerError(
+          e,
+          "login:nostrconnect",
+          nip46Tags(attempt.stored.relays),
+        );
+        throw e;
+      },
+    );
+    return {
+      uri: attempt.uri,
+      resumed: resume !== undefined,
+      done,
+      cancel: () => {
+        pendingAttempt.clear();
+        attempt.cancel();
+      },
+    };
   };
 
   // 覚えていた人の画面を先に出し、署名器が戻るまで署名を待たせる。

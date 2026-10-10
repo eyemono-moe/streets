@@ -5,8 +5,11 @@ import { type NostrEvent, computeEventId } from "../../nostr/event";
 import type { RelaySubscriptionHandlers } from "../../relay/relay-connection";
 import { conversationKey, decryptNip44, encryptNip44 } from "./nip44";
 import {
+  NOSTRCONNECT_TIMEOUT_MS,
   NostrConnectCancelledError,
   buildNostrConnectUri,
+  loadNostrConnectAttempt,
+  saveNostrConnectAttempt,
   startNostrConnect,
 } from "./nostrconnect";
 
@@ -190,5 +193,74 @@ describe("startNostrConnect", () => {
   it("購読を張れなければすぐ失敗する", async () => {
     const base = setup({ budget: false });
     await expect(base.attempt.session).rejects.toThrow(/budget/);
+  });
+});
+
+describe("nostrconnect の試みを続ける", () => {
+  const quietPool = () => ({
+    subscribe: vi.fn(() => ({ close: () => {} })),
+    publish: vi.fn(async () => {}),
+    allowLocalRelays: vi.fn(() => () => {}),
+  });
+  const start = (
+    resume?: Parameters<typeof startNostrConnect>[0]["resume"],
+    now = 0,
+  ) => {
+    const delays: number[] = [];
+    const attempt = startNostrConnect({
+      pool: quietPool(),
+      metadata: { name: "streets", url: "https://streets.example" },
+      relays: [RELAY],
+      resume,
+      now: () => now,
+      setTimer: ((_callback: () => void, delay: number) => {
+        delays.push(delay);
+        return 0;
+      }) as unknown as typeof setTimeout,
+      clearTimer: (() => {}) as typeof clearTimeout,
+    });
+    attempt.session.catch(() => {});
+    return { attempt, delays };
+  };
+
+  it("保存した試みから始めると、同じ URI で待つ", () => {
+    // 捕まえる変異: 読み込み直すたびに鍵と secret を作り直す（承認した署名器と繋がらない）
+    const first = start(undefined, 1_000);
+    const resumed = start(first.attempt.stored, 61_000);
+    expect(resumed.attempt.uri).toBe(first.attempt.uri);
+    first.attempt.cancel();
+    resumed.attempt.cancel();
+  });
+
+  it("続けた試みは、最初に始めたときから数えて時間切れにする", () => {
+    const first = start(undefined, 0);
+    const resumed = start(first.attempt.stored, 240_000);
+    expect(resumed.delays).toEqual([NOSTRCONNECT_TIMEOUT_MS - 240_000]);
+    first.attempt.cancel();
+    resumed.attempt.cancel();
+  });
+
+  it("保存した形を読み戻せる", () => {
+    const { attempt } = start(undefined, 0);
+    expect(
+      loadNostrConnectAttempt(saveNostrConnectAttempt(attempt.stored), 1_000),
+    ).toEqual(attempt.stored);
+    attempt.cancel();
+  });
+
+  it("時間切れ・壊れた保存は読まない", () => {
+    const { attempt } = start(undefined, 0);
+    const raw = saveNostrConnectAttempt(attempt.stored);
+    expect(
+      loadNostrConnectAttempt(raw, NOSTRCONNECT_TIMEOUT_MS),
+    ).toBeUndefined();
+    expect(loadNostrConnectAttempt("not json", 0)).toBeUndefined();
+    expect(
+      loadNostrConnectAttempt(
+        JSON.stringify({ ...attempt.stored, clientSecret: "x" }),
+        0,
+      ),
+    ).toBeUndefined();
+    attempt.cancel();
   });
 });
