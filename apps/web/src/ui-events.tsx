@@ -178,6 +178,10 @@ export type DeckEvent =
   | { type: "deck/add-column"; column: ColumnDef }
   | { type: "deck/patch-column"; id: string; patch: ColumnPatch }
   | { type: "deck/remove-column"; id: string }
+  /** ピクチャーインピクチャーに出す。押した操作の中で届く。 */
+  | { type: "deck/pop-out"; id: string }
+  /** ピクチャーインピクチャーに出したカラムをデッキに戻す。 */
+  | { type: "deck/pop-in" }
   /** 開くデッキを変える。どれを開いているかは端末に覚える。 */
   | { type: "deck/switch-deck"; id: string }
   /** デッキを足して開く。`from` は最初のカラム（いまのデッキを複製するか、はじめの構成か）。 */

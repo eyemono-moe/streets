@@ -60,6 +60,7 @@ import {
   createMemo,
   createResource,
   createSignal,
+  on,
   onCleanup,
   untrack,
 } from "solid-js";
@@ -135,7 +136,7 @@ import {
   setUiContrast,
 } from "../theme";
 import { setTimeFormat } from "../time-format-setting";
-import { notifyInfo, notifySaved } from "../toast";
+import { notifyError, notifyInfo, notifySaved } from "../toast";
 import { tourSeen } from "../tour-setting";
 import { Mediates, type UiEvent } from "../ui-events";
 import { createSortable } from "../ui/sortable";
@@ -170,6 +171,7 @@ import DeckSyncNotice from "./DeckSyncNotice";
 import GuestMediator from "./GuestMediator";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import NewDeckPanel from "./NewDeckPanel";
+import { openPipWindow } from "./pip-window";
 import { relayListState } from "./relay-list";
 import SearchPanel from "./SearchPanel";
 import SidePanel, { SidePanelMotion } from "./SidePanel";
@@ -643,6 +645,19 @@ const DeckScreen: Component<{
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
   // 下書きの一覧から開いた返信・引用。パネルを閉じても残るよう、デッキが持つ。
   const [draftDialog, setDraftDialog] = createSignal<ComposeDraft>();
+  // ピクチャーインピクチャーは 1 枚だけ。どのカラムを出しているかは ui.poppedOut、窓そのものはここに持つ。
+  const [pipWindow, setPipWindow] = createSignal<Window>();
+  // カラムを消した・デッキを替えたなどで、出しているカラムが無くなったらピクチャーインピクチャーを閉じる。
+  createEffect(
+    on(
+      () => ui.poppedOut,
+      (id) => {
+        if (id === undefined) untrack(pipWindow)?.close();
+      },
+      { defer: true },
+    ),
+  );
+  onCleanup(() => untrack(pipWindow)?.close());
 
   const handle = (event: UiEvent): boolean => {
     switch (event.type) {
@@ -704,6 +719,36 @@ const DeckScreen: Component<{
         return true;
       case "deck/patch-column":
         updateDeck((deck) => updateColumnIn(deck, event.id, event.patch));
+        return true;
+      case "deck/pop-out": {
+        // 押した操作の中で開かないとブラウザが断るので、待たずにすぐ呼ぶ。
+        const opening = openPipWindow("Streets");
+        const id = event.id;
+        void opening.then(
+          (win) => {
+            const previous = pipWindow();
+            // 先に覚えてから窓を渡す。逆だと、窓が替わった瞬間に前のカラムの置き場が中身を描き直す。
+            applyUi({ type: "deck/popped-out", id });
+            setPipWindow(win);
+            if (previous && previous !== win) previous.close();
+            win.addEventListener(
+              "pagehide",
+              () => {
+                // 開き直したときは、前の窓が閉じた知らせが後から届く。
+                if (pipWindow() !== win) return;
+                setPipWindow(undefined);
+                applyUi({ type: "deck/popped-in" });
+              },
+              { once: true },
+            );
+          },
+          (cause: unknown) =>
+            notifyError(cause, "ピクチャーインピクチャーを開けませんでした"),
+        );
+        return true;
+      }
+      case "deck/pop-in":
+        pipWindow()?.close();
         return true;
       case "deck/remove-column":
         updateDeck((deck) => removeColumnFrom(deck, event.id));
@@ -1077,6 +1122,9 @@ const DeckScreen: Component<{
                         <Column
                           column={column}
                           settingsOpen={ui.settingsFor === column.id}
+                          poppedOut={
+                            ui.poppedOut === column.id ? pipWindow() : undefined
+                          }
                           grip
                           {...shared}
                         />
@@ -1127,6 +1175,7 @@ const DeckScreen: Component<{
               settingsOpen={
                 ui.active !== undefined && ui.settingsFor === ui.active
               }
+              poppedOut={ui.active !== undefined && ui.poppedOut === ui.active}
               onLogout={props.session.logout}
             />
             <DeckSyncNotice store={deckStore} />
@@ -1174,6 +1223,9 @@ const DeckScreen: Component<{
                         <Column
                           column={column}
                           settingsOpen={ui.settingsFor === column.id}
+                          poppedOut={
+                            ui.poppedOut === column.id ? pipWindow() : undefined
+                          }
                           chrome={false}
                           {...shared}
                         />

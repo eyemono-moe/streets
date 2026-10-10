@@ -14,6 +14,7 @@ import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
 import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
+import { AppWindowProvider } from "../app-window";
 import ColumnContent from "../columns/ColumnContent";
 import {
   ColumnHeader,
@@ -22,8 +23,10 @@ import {
 } from "../columns/ColumnHeader";
 import { measureUntilPaint } from "../telemetry";
 import { Mediates, type UiEvent } from "../ui-events";
+import { Portal } from "../ui/Portal";
 import ColumnAccentBar from "./ColumnAccentBar";
 import { useColumnTitle } from "./ColumnTitle";
+import PoppedOutColumn from "./PoppedOutColumn";
 import StackGrabber from "./StackGrabber";
 
 export type ColumnProps = {
@@ -48,6 +51,8 @@ export type ColumnProps = {
    * 狭い画面には見出しが無いので、選んでいるタブを押したときに代わりに呼ぶ。
    */
   registerHeader?: (id: string, press: () => void) => () => void;
+  /** ピクチャーインピクチャーに出している。中身はその窓に描き、ここには置き場だけを残す。 */
+  poppedOut?: Window;
 };
 
 /** 共通の枠とスタックを持ち、カラム固有の本文は `ColumnContent` に委ねる。 */
@@ -85,6 +90,8 @@ const Column: Component<ColumnProps> = (props) => {
     }
   };
   const opened = () => openLayers(stack).length > 0;
+  const poppedOut = () =>
+    props.stacked || props.temporary ? undefined : props.poppedOut;
   createEffect(() => {
     if (!props.stacked) {
       props.onShown?.(props.column.id, shownColumn(stack, props.column));
@@ -125,13 +132,13 @@ const Column: Component<ColumnProps> = (props) => {
 
   const chrome = () => (
     <>
-      <Show when={props.chrome !== false && !props.stacked}>
+      <Show when={(props.chrome !== false || poppedOut()) && !props.stacked}>
         <ColumnAccentBar temporary={props.temporary} />
       </Show>
       <Show
         when={props.stacked}
         fallback={
-          <Show when={props.chrome !== false}>
+          <Show when={props.chrome !== false || poppedOut()}>
             {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- キーボードからは題名のボタンと「戻る」ボタンで操作する */}
             <div
               onClick={(event) => {
@@ -145,8 +152,9 @@ const Column: Component<ColumnProps> = (props) => {
               <ColumnHeader
                 column={props.column}
                 open={props.settingsOpen}
-                grip={props.grip}
+                grip={props.grip && !poppedOut()}
                 temporary={props.temporary}
+                poppedOut={poppedOut() !== undefined}
                 onTitle={onHeader}
               />
             </div>
@@ -244,7 +252,25 @@ const Column: Component<ColumnProps> = (props) => {
   return props.stacked ? (
     inner()
   ) : (
-    <Mediates handle={handle}>{inner()}</Mediates>
+    <Mediates handle={handle}>
+      {/* 開き直すと窓が替わる。Portal の出し先は作るときに決まるので、窓ごとに作り直す。 */}
+      <Show when={poppedOut()} keyed fallback={inner()}>
+        {(win) => (
+          <>
+            <PoppedOutColumn
+              column={props.column}
+              grip={props.grip}
+              header={props.chrome !== false}
+            />
+            <Portal mount={win.document.body}>
+              <AppWindowProvider window={win}>
+                <div class="h-dvh">{inner()}</div>
+              </AppWindowProvider>
+            </Portal>
+          </>
+        )}
+      </Show>
+    </Mediates>
   );
 };
 

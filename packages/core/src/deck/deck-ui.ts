@@ -43,6 +43,8 @@ export type DeckUiState = {
   paletteOpen: boolean;
   /** 「Streets について」のダイアログを開いているか。 */
   aboutOpen: boolean;
+  /** ピクチャーインピクチャーに出しているカラム。ピクチャーインピクチャーは 1 枚だけ開ける。 */
+  poppedOut: string | undefined;
 };
 
 export type DeckUiEvent =
@@ -66,6 +68,10 @@ export type DeckUiEvent =
   | { type: "deck/drag-move"; to: number }
   /** 離した・やめた。並びを確定するのは、この遷移の外（デッキの保存）。 */
   | { type: "deck/drag-end" }
+  /** カラムのピクチャーインピクチャーが開いた。前のピクチャーインピクチャーは、開いた側が閉じている。 */
+  | { type: "deck/popped-out"; id: string }
+  /** ピクチャーインピクチャーが閉じた。閉じたのが使う人でも、アプリでも届く。 */
+  | { type: "deck/popped-in" }
   | { type: "deck/column-added"; id: string }
   | { type: "deck/column-removed"; id: string }
   /**
@@ -86,6 +92,7 @@ export const emptyDeckUi = (): DeckUiState => ({
   settingsTarget: undefined,
   paletteOpen: false,
   aboutOpen: false,
+  poppedOut: undefined,
 });
 
 export const deckUiTransition = (
@@ -179,6 +186,18 @@ export const deckUiTransition = (
       return state.dragging === undefined
         ? state
         : { ...state, dragging: undefined };
+    case "deck/popped-out":
+      // カラムの設定はデッキの横に開くので、ピクチャーインピクチャーへ出したカラムの分は閉じる。
+      return {
+        ...state,
+        poppedOut: event.id,
+        settingsFor:
+          state.settingsFor === event.id ? undefined : state.settingsFor,
+      };
+    case "deck/popped-in":
+      return state.poppedOut === undefined
+        ? state
+        : { ...state, poppedOut: undefined };
     case "deck/column-added":
       // 足したら、足した先を見せる。パネルは用が済んだので閉じる。
       return { ...state, active: event.id, panel: undefined };
@@ -188,8 +207,16 @@ export const deckUiTransition = (
         settingsFor:
           state.settingsFor === event.id ? undefined : state.settingsFor,
         dragging: state.dragging?.id === event.id ? undefined : state.dragging,
+        poppedOut: state.poppedOut === event.id ? undefined : state.poppedOut,
       };
     case "deck/columns-changed": {
+      // 消えたカラム（別の端末でデッキを変えた、など）のピクチャーインピクチャーは閉じる。
+      if (
+        state.poppedOut !== undefined &&
+        !event.ids.includes(state.poppedOut)
+      ) {
+        return deckUiTransition({ ...state, poppedOut: undefined }, event);
+      }
       // URL から開いたら、それを選ぶ。消えたカラムを選んだままにしない。
       if (event.temp !== undefined) {
         return state.active === event.temp

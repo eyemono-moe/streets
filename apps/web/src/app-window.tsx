@@ -1,4 +1,6 @@
-import { createContext, useContext } from "solid-js";
+import { EnvironmentProvider } from "@ark-ui/solid/environment";
+import { type ParentComponent, createContext, useContext } from "solid-js";
+import { DelegatedEvents, delegateEvents } from "solid-js/web";
 
 const AppWindowContext = createContext<Window>();
 
@@ -10,3 +12,20 @@ const AppWindowContext = createContext<Window>();
  */
 export const useAppWindow = (): Window =>
   useContext(AppWindowContext) ?? window;
+
+/** 子を別の窓に描く。窓は作るときに決まり、差し替えない。 */
+export const AppWindowProvider: ParentComponent<{ window: Window }> = (
+  props,
+) => {
+  const win = props.window;
+  // Solid は onClick などを元の document でまとめて受ける。別の document には
+  // 受け口を足さないと、押しても何も起きない。同じ document へは二重に足されない。
+  delegateEvents([...DelegatedEvents], win.document);
+  return (
+    <AppWindowContext.Provider value={win}>
+      <EnvironmentProvider value={() => win.document}>
+        {props.children}
+      </EnvironmentProvider>
+    </AppWindowContext.Provider>
+  );
+};

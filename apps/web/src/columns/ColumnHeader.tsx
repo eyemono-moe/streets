@@ -4,6 +4,7 @@ import { Dynamic } from "solid-js/web";
 import { columnPartOpen } from "../column-part-memory";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
+import { pipSupported } from "../deck/pip-window";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -23,6 +24,8 @@ export const ColumnHeaderActions: Component<{
   /** カラムの設定を開いている。 */
   open: boolean;
   temporary?: boolean;
+  /** ピクチャーインピクチャーに出して、その中に描いている。 */
+  poppedOut?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
@@ -72,7 +75,29 @@ export const ColumnHeaderActions: Component<{
           />
         </>
       </Show>
-      <Show when={!props.temporary}>
+      <Show when={!props.temporary && pipSupported()}>
+        <Show
+          when={props.poppedOut}
+          fallback={
+            <IconButton
+              icon="i-material-symbols:picture-in-picture-alt-outline-rounded"
+              label="ピクチャーインピクチャーで開く"
+              onClick={() =>
+                dispatch({ type: "deck/pop-out", id: props.column.id })
+              }
+            />
+          }
+        >
+          <IconButton
+            icon="i-material-symbols:pip-exit-outline-rounded"
+            label="デッキに戻す"
+            active
+            onClick={() => dispatch({ type: "deck/pop-in" })}
+          />
+        </Show>
+      </Show>
+      {/* カラムの設定はデッキの横に開くので、ピクチャーインピクチャーからは開かない。 */}
+      <Show when={!props.temporary && !props.poppedOut}>
         <IconButton
           icon={
             props.open
@@ -96,6 +121,7 @@ export const ColumnHeader: Component<{
   /** 掴んで並べ替えられる。掴んだ後の動きは、並べている側（デッキ）が受け持つ。 */
   grip?: boolean;
   temporary?: boolean;
+  poppedOut?: boolean;
   onTitle: () => void;
 }> = (props) => {
   const meta = () => columnView(props.column.source).meta(props.column.source);
@@ -129,6 +155,7 @@ export const ColumnHeader: Component<{
           column={props.column}
           open={props.open}
           temporary={props.temporary}
+          poppedOut={props.poppedOut}
         />
       </div>
     </header>
