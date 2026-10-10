@@ -48,7 +48,17 @@ export const loadNip46Session = (
 ): StoredNip46SessionV3 | undefined => {
   if (raw === null) return undefined;
   try {
-    const parsed = v.parse(sessionSchema, JSON.parse(raw));
+    return parseNip46Session(JSON.parse(raw));
+  } catch {
+    return undefined;
+  }
+};
+
+export const parseNip46Session = (
+  value: unknown,
+): StoredNip46SessionV3 | undefined => {
+  try {
+    const parsed = v.parse(sessionSchema, value);
     const relays = parsed.relays.map(normalizeRelayUrl);
     if (
       relays.some((relay) => relay === undefined) ||

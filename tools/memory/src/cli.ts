@@ -23,9 +23,9 @@ import {
   saveTourSeen,
 } from "@streets/core/settings/tour-setting";
 import {
-  LOGIN_METHOD_STORAGE_KEY,
-  saveLoginMethod,
-} from "@streets/core/signer/session-storage";
+  LOGIN_STORAGE_KEY,
+  saveStoredLogin,
+} from "@streets/core/signer/login/stored-login";
 import { type Allocators, rendererAllocators } from "./allocators";
 import { type HeapSummary, summarizeHeapSnapshot } from "./heap-summary";
 import { type ProcessMemory, processMemory } from "./processes";
@@ -160,7 +160,7 @@ const context = await browser.newContext({
 // 公開鍵だけを返す NIP-07 の代わり。署名も暗号化もできないので、計測の間に
 // この人の名前で何かが書かれることはない（デッキの同期などは失敗して終わる）。
 const storage = {
-  [LOGIN_METHOD_STORAGE_KEY]: saveLoginMethod("nip07"),
+  [LOGIN_STORAGE_KEY]: saveStoredLogin({ version: 1, method: "nip07", pubkey }),
   [TOUR_STORAGE_KEY]: saveTourSeen(),
   [deckStorageKey(pubkey)]: JSON.stringify({
     cacheVersion: 1,
