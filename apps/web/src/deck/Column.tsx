@@ -22,11 +22,11 @@ import {
   StackedColumnHeader,
 } from "../columns/ColumnHeader";
 import { measureUntilPaint } from "../telemetry";
-import { PipToaster } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import { Portal } from "../ui/Portal";
 import ColumnAccentBar from "./ColumnAccentBar";
 import { useColumnTitle } from "./ColumnTitle";
+import PipFrame from "./PipFrame";
 import PoppedOutColumn from "./PoppedOutColumn";
 import StackGrabber from "./StackGrabber";
 
@@ -265,9 +265,11 @@ const Column: Component<ColumnProps> = (props) => {
             />
             <Portal mount={win.document.body}>
               <AppWindowProvider window={win}>
-                <div class="h-dvh">{inner()}</div>
-                {/* 書き込みの結果や署名器の承認待ちは、押した窓で見えないと分からない。 */}
-                <PipToaster />
+                <div class="h-dvh">
+                  <PipFrame shown={shownColumn(stack, props.column)}>
+                    {inner()}
+                  </PipFrame>
+                </div>
               </AppWindowProvider>
             </Portal>
           </>
