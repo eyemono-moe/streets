@@ -1,11 +1,12 @@
 import { columnFacets } from "@streets/core/deck/column-kinds";
 import type { ColumnDef } from "@streets/core/deck/deck";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import type { Component } from "solid-js";
+import { type Component, Show } from "solid-js";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import ColumnSettings from "./ColumnSettings";
 import ColumnTitle from "./ColumnTitle";
+import { pipSupported } from "./pip-window";
 
 /** 本文を押し下げず、通常のカラムと横に並ぶ設定専用カラム。 */
 const ColumnSettingsPanel: Component<{
@@ -26,6 +27,15 @@ const ColumnSettingsPanel: Component<{
           <ColumnTitle column={props.column} />
           の設定
         </h2>
+        <Show when={pipSupported()}>
+          <IconButton
+            icon="i-material-symbols:picture-in-picture-alt-outline-rounded"
+            label="ピクチャーインピクチャーで開く"
+            onClick={() =>
+              dispatch({ type: "deck/pop-out", id: props.column.id })
+            }
+          />
+        </Show>
         <IconButton
           icon="i-material-symbols:close-rounded"
           label="カラムの設定を閉じる"

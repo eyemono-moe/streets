@@ -4,7 +4,6 @@ import { Dynamic } from "solid-js/web";
 import { columnPartOpen } from "../column-part-memory";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
-import { pipSupported } from "../deck/pip-window";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -75,26 +74,14 @@ export const ColumnHeaderActions: Component<{
           />
         </>
       </Show>
-      <Show when={!props.temporary && pipSupported()}>
-        <Show
-          when={props.poppedOut}
-          fallback={
-            <IconButton
-              icon="i-material-symbols:picture-in-picture-alt-outline-rounded"
-              label="ピクチャーインピクチャーで開く"
-              onClick={() =>
-                dispatch({ type: "deck/pop-out", id: props.column.id })
-              }
-            />
-          }
-        >
-          <IconButton
-            icon="i-material-symbols:pip-exit-outline-rounded"
-            label="デッキに戻す"
-            active
-            onClick={() => dispatch({ type: "deck/pop-in" })}
-          />
-        </Show>
+      {/* ピクチャーインピクチャーで開く入口はカラムの設定に置く。見出しに常に置くと、掴む場所と題名が狭くなる。 */}
+      <Show when={props.poppedOut}>
+        <IconButton
+          icon="i-material-symbols:pip-exit-outline-rounded"
+          label="デッキに戻す"
+          active
+          onClick={() => dispatch({ type: "deck/pop-in" })}
+        />
       </Show>
       {/* カラムの設定はデッキの横に開くので、ピクチャーインピクチャーからは開かない。 */}
       <Show when={!props.temporary && !props.poppedOut}>
