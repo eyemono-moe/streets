@@ -180,6 +180,14 @@ describe("startNostrConnect", () => {
     expect(base.listeners.size).toBe(0);
   });
 
+  it("承認待ちの時間切れは、承認待ちで止まったと分かるようにする", async () => {
+    const base = setup();
+    base.timeout();
+    await expect(base.attempt.session).rejects.toMatchObject({
+      details: { method: "connect", liveRelays: 1, relays: 1 },
+    });
+  });
+
   it("承認された直後に取り消したら、session を作らない", async () => {
     const base = setup();
     base.reply(SIGNER_SECRET, { id: "x", result: base.secret });

@@ -44,6 +44,7 @@ import {
   nip46Tags,
   reportSignerError,
   reportSignerFailures,
+  watchHidden,
 } from "./signer-report";
 import { createSignerWait, observeSigner } from "./signer-wait";
 
@@ -244,6 +245,7 @@ export const createSession = (
           setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
           return;
         }
+        const hidden = watchHidden();
         try {
           activateNip46(
             await connectNip46({
@@ -254,7 +256,10 @@ export const createSession = (
             }),
           );
         } catch (e) {
-          reportSignerError(e, "login:bunker", nip46Tags(bunker.relays));
+          reportSignerError(e, "login:bunker", {
+            ...nip46Tags(bunker.relays),
+            ...hidden(),
+          });
           setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
         }
       },
@@ -264,6 +269,7 @@ export const createSession = (
 
   const loginWithNostrConnect = (): ConnectAttempt => {
     const resume = loadNostrConnectAttempt(pendingAttempt.read(), Date.now());
+    const hidden = watchHidden();
     const attempt = startNostrConnect({
       pool,
       relays: options.nostrConnectRelays,
@@ -282,11 +288,11 @@ export const createSession = (
         if (e instanceof NostrConnectCancelledError) {
           throw new ConnectCancelledError();
         }
-        reportSignerError(
-          e,
-          "login:nostrconnect",
-          nip46Tags(attempt.stored.relays),
-        );
+        reportSignerError(e, "login:nostrconnect", {
+          ...nip46Tags(attempt.stored.relays),
+          ...hidden(),
+          "nostrconnect.resumed": resume ? "yes" : "no",
+        });
         throw e;
       },
     );
@@ -369,10 +375,14 @@ export const createSession = (
     }
     beginRestore(stored.userPubkey);
     void run(async () => {
+      const hidden = watchHidden();
       try {
         activateNip46(await restoreNip46({ pool, stored, hooks }));
       } catch (e) {
-        reportSignerError(e, "restore", nip46Tags(stored.relays));
+        reportSignerError(e, "restore", {
+          ...nip46Tags(stored.relays),
+          ...hidden(),
+        });
         restoreFailedWith(
           "署名器と繋がりませんでした。署名器のアプリが動いているか確かめて、もう一度試してください。",
         );
