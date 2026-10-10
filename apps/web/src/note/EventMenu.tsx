@@ -534,15 +534,24 @@ const EventMenu: Component<{
   const labelId = createUniqueId();
   const [sheetOpen, setSheetOpen] = createSignal(props.defaultOpen === true);
   const sheet = () => props.sheet ?? !canHover();
-  // 先に閉じてから処理する。項目から開くダイアログが、閉じかけのシートのフォーカストラップに
-  // 奪われないようにするため。
+  // シートが閉じきってから処理する。閉じる動きの間はシートのフォーカストラップが残り、
+  // 開いた先（ダイアログ・絵文字のピッカー）からフォーカスを奪い返す。ピッカーはそれを
+  // 外を触られたとみなして、開いた途端に閉じる。
+  let picked: string | undefined;
   const pickInSheet = (value: string) => {
+    picked = value;
     setSheetOpen(false);
-    select(value);
+  };
+  const afterSheetClosed = () => {
+    const value = picked;
+    picked = undefined;
+    if (value !== undefined) select(value);
   };
 
   return (
-    <span class="relative shrink-0">
+    // 開いた絵文字のピッカーは body の末尾に出て、この中に開いた印が残らない。印を出さないと、
+    // チャットの道具列（開いているものがある間だけ出る）が隠れ、ピッカーが出る位置を失う。
+    <span class="relative shrink-0" data-state={picking() ? "open" : undefined}>
       {/*
         閉じている間は中身を作らない。投稿 1 件ごとにメニューがあるので、
         作り続けるとカラム 1 本で DOM が 200 要素単位で増える。
@@ -642,6 +651,7 @@ const EventMenu: Component<{
             unmountOnExit
             open={sheetOpen()}
             onOpenChange={(details) => setSheetOpen(details.open)}
+            onExitComplete={afterSheetClosed}
             swipeDirection="down"
           >
             <Drawer.Trigger
