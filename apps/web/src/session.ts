@@ -2,10 +2,27 @@ import type { ConnectionPool } from "@streets/core/read/connection-pool";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { createActiveSigner } from "@streets/core/signer/active-signer";
 import {
-  createNip07Signer,
-  waitForNip07,
-  watchForNip07,
-} from "@streets/core/signer/nip07-signer";
+  type LoginConnection,
+  Nip07NotReadyError,
+  connectNip07,
+  nip46Connection,
+  restoreNip07,
+} from "@streets/core/signer/login/connection";
+import {
+  type LoginEvent,
+  initialLoginState,
+  needsAuthReset,
+  reduceLogin,
+} from "@streets/core/signer/login/login-state";
+import {
+  LEGACY_LOGIN_KEYS,
+  LOGIN_STORAGE_KEY,
+  type StoredLogin,
+  loadStoredLogin,
+  saveStoredLogin,
+  storedLoginPubkey,
+} from "@streets/core/signer/login/stored-login";
+import { watchForNip07 } from "@streets/core/signer/nip07-signer";
 import {
   type BunkerConnection,
   parseBunkerUri,
@@ -17,29 +34,12 @@ import {
   saveNostrConnectAttempt,
   startNostrConnect,
 } from "@streets/core/signer/nip46/nostrconnect";
-import {
-  type Nip46Session,
-  connectNip46,
-  restoreNip46,
-} from "@streets/core/signer/nip46/session";
-import {
-  NIP46_SESSION_STORAGE_KEY,
-  loadNip46Session,
-  saveNip46Session,
-} from "@streets/core/signer/nip46/session-storage";
-import {
-  LOGIN_METHOD_STORAGE_KEY,
-  LOGIN_PUBKEY_STORAGE_KEY,
-  loadLoginMethod,
-  loadLoginPubkey,
-  saveLoginMethod,
-} from "@streets/core/signer/session-storage";
-import {
-  type Signer,
-  SignerUnavailableError,
-} from "@streets/core/signer/signer";
+import { connectNip46, restoreNip46 } from "@streets/core/signer/nip46/session";
+import { SignerUnavailableError } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import {
+  type SignerTags,
   nip07Tags,
   nip46Tags,
   reportSignerError,
@@ -50,12 +50,6 @@ import { createSignerWait, observeSigner } from "./signer-wait";
 
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
-
-/**
- * ログインしている人の署名器が使えるか。`connecting` と `disconnected` の間も
- * その人の画面を出しておき、書き込みだけを待たせる・断る。
- */
-export type SignerStatus = "none" | "connecting" | "ready" | "disconnected";
 
 /** 署名器の側から繋いでもらう 1 回分。 */
 export type ConnectAttempt = {
@@ -90,6 +84,20 @@ const pendingAttempt = {
   },
 };
 
+const storedLogin = {
+  write: (login: StoredLogin) => {
+    localStorage.setItem(LOGIN_STORAGE_KEY, saveStoredLogin(login));
+    for (const key of LEGACY_LOGIN_KEYS) localStorage.removeItem(key);
+  },
+  clear: () => {
+    localStorage.removeItem(LOGIN_STORAGE_KEY);
+    for (const key of LEGACY_LOGIN_KEYS) localStorage.removeItem(key);
+  },
+};
+
+const tagsFor = (login: StoredLogin): SignerTags =>
+  login.method === "nip07" ? nip07Tags() : nip46Tags(login.session.relays);
+
 // モバイルの Safari では、アプリを開き直した直後などに拡張機能が立ち上がり直すため、注入が 1 秒を超えて遅れる。
 const NIP07_RESTORE_WAIT_MS = 5_000;
 // 注入された後も、スマホの拡張機能は公開鍵を返さないまま止まることがある。
@@ -98,42 +106,20 @@ const NIP07_RESPONSE_WAIT_MS = 10_000;
 const NIP07_NO_RESPONSE =
   "拡張機能から応答がありません。拡張機能がこのサイトで許可されているか確かめてください。使えるようになれば、そのままログインします。";
 
-class TimeoutError extends Error {}
-
-const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
-  new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new TimeoutError()), ms);
-    promise.then(resolve, reject).finally(() => clearTimeout(timer));
-  });
-
 export const createSession = (
   pool: ConnectionPool,
   options: { nostrConnectRelays?: readonly RelayUrl[] } = {},
 ) => {
-  const [pubkey, setPubkey] = createSignal<string>();
-  const [signerStatus, setSignerStatus] = createSignal<SignerStatus>("none");
-  const [pending, setPending] = createSignal(false);
-  const [error, setError] = createSignal<string>();
+  const [state, setState] = createStore(initialLoginState());
+  const dispatch = (event: LoginEvent) =>
+    setState(reconcile(reduceLogin(state, event)));
   const [authUrl, setAuthUrl] = createSignal<URL>();
-  // 保存したログインを戻せなかったが、消してはいない。署名器が戻れば試し直せる。
-  const [restoreFailed, setRestoreFailed] = createSignal(false);
   const signerWait = createSignerWait();
   const signer = observeSigner(createActiveSigner(), signerWait);
-  // リレーは認証した鍵を接続が切れるまで覚えているので、署名器を替えたら張り直す。
-  // 戻すのを待っていた同じ人の署名器なら、認証も戻るのを待っていたので張り直さない。
-  const setSigner = (next: Signer | undefined, account?: string) => {
-    const awaited = signerStatus() === "connecting" && account === pubkey();
-    signer.set(next);
-    setSignerStatus(next ? "ready" : "none");
-    if (!awaited || reauth) pool.resetAuthentication();
-    reauth = false;
-  };
-  // 繋がっていない間は認証を断っているので、戻ったら張り直して認証させる。
-  let reauth = false;
+  let connection: LoginConnection | undefined;
+  onCleanup(() => connection?.close());
   // 復元を始め直したら、前の試みから遅れて届いた返事を当てない。
   let restoreAttempt = 0;
-  let nip46: Nip46Session | undefined;
-  onCleanup(() => nip46?.client.close());
   // 復元を諦めた後に拡張機能が現れたら、ユーザーに押させずにそのまま復元する。
   let stopWatchingNip07: (() => void) | undefined;
   const stopNip07Watch = () => {
@@ -146,89 +132,53 @@ export const createSession = (
 
   const run = async (
     task: () => Promise<void>,
-    waitMessage?: string,
+    waitMessage: string,
     immediate = false,
   ) => {
-    if (pending()) return;
+    if (state.pending) return;
     stopNip07Watch();
-    setPending(true);
-    setError(undefined);
+    dispatch({ type: "task-started" });
     setAuthUrl(undefined);
-    setRestoreFailed(false);
     try {
-      if (waitMessage) {
-        await signerWait.track(waitMessage, task, immediate ? 0 : undefined);
-      } else {
-        await task();
-      }
+      await signerWait.track(waitMessage, task, immediate ? 0 : undefined);
     } finally {
-      setPending(false);
+      dispatch({ type: "task-finished" });
     }
   };
 
-  const activateNip46 = (session: Nip46Session) => {
+  const activate = (next: LoginConnection) => {
     stopNip07Watch();
     restoreAttempt++;
-    nip46?.client.close();
-    nip46 = session;
-    setSigner(
-      reportSignerFailures(session.signer, nip46Tags(session.stored.relays)),
-      session.userPubkey,
-    );
+    if (connection !== next) connection?.close();
+    connection = next;
+    const resetAuth = needsAuthReset(state, next.pubkey);
+    signer.set(reportSignerFailures(next.signer, tagsFor(next.stored)));
+    if (resetAuth) pool.resetAuthentication();
     setAuthUrl(undefined);
-    setPubkey(session.userPubkey);
-    localStorage.removeItem(LOGIN_PUBKEY_STORAGE_KEY);
-    localStorage.setItem(
-      NIP46_SESSION_STORAGE_KEY,
-      saveNip46Session(session.stored),
-    );
-    localStorage.setItem(LOGIN_METHOD_STORAGE_KEY, saveLoginMethod("nip46"));
+    dispatch({ type: "connected", pubkey: next.pubkey });
+    storedLogin.write(next.stored);
   };
 
-  const activateExtension = (extension: Signer, pk: string) => {
-    stopNip07Watch();
-    restoreAttempt++;
-    nip46?.client.close();
-    nip46 = undefined;
-    setSigner(reportSignerFailures(extension, nip07Tags()), pk);
-    setPubkey(pk);
-    setError(undefined);
-    setRestoreFailed(false);
-    localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
-    localStorage.setItem(LOGIN_METHOD_STORAGE_KEY, saveLoginMethod("nip07"));
-    localStorage.setItem(LOGIN_PUBKEY_STORAGE_KEY, pk);
-  };
-
-  /**
-   * 戻せなかった。覚えていた人がいれば、その人の画面を読み取りだけで残す
-   * （スマホでは署名器が一時的に止まっているだけのことが多い）。
-   */
   const restoreFailedWith = (message: string) => {
-    if (pubkey()) {
-      signer.disconnect();
-      setSignerStatus("disconnected");
-      reauth = true;
-    } else {
-      signer.set(undefined);
-      setSignerStatus("none");
-    }
-    setError(message);
-    setRestoreFailed(true);
+    if (state.pubkey) signer.disconnect();
+    else signer.set(undefined);
+    dispatch({ type: "restore-failed", message });
   };
 
   const loginWithExtension = () =>
     run(
       async () => {
         try {
-          const extension = createNip07Signer();
-          activateExtension(extension, await extension.getPublicKey());
+          activate(await connectNip07());
         } catch (e) {
           reportSignerError(e, "login", nip07Tags());
-          setError(
-            e instanceof SignerUnavailableError
-              ? "NIP-07 対応の拡張機能が見つかりません。"
-              : `ログインに失敗しました: ${errorText(e)}`,
-          );
+          dispatch({
+            type: "failed",
+            message:
+              e instanceof SignerUnavailableError
+                ? "NIP-07 対応の拡張機能が見つかりません。"
+                : `ログインに失敗しました: ${errorText(e)}`,
+          });
         }
       },
       "ログインを待っています",
@@ -242,25 +192,33 @@ export const createSession = (
         try {
           bunker = parseBunkerUri(uri);
         } catch (e) {
-          setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
+          dispatch({
+            type: "failed",
+            message: `リモート署名器に接続できませんでした: ${errorText(e)}`,
+          });
           return;
         }
         const hidden = watchHidden();
         try {
-          activateNip46(
-            await connectNip46({
-              pool,
-              bunker,
-              hooks,
-              metadataUrl: location.origin,
-            }),
+          activate(
+            nip46Connection(
+              await connectNip46({
+                pool,
+                bunker,
+                hooks,
+                metadataUrl: location.origin,
+              }),
+            ),
           );
         } catch (e) {
           reportSignerError(e, "login:bunker", {
             ...nip46Tags(bunker.relays),
             ...hidden(),
           });
-          setError(`リモート署名器に接続できませんでした: ${errorText(e)}`);
+          dispatch({
+            type: "failed",
+            message: `リモート署名器に接続できませんでした: ${errorText(e)}`,
+          });
         }
       },
       "ログインを待っています",
@@ -281,7 +239,7 @@ export const createSession = (
     const done = attempt.session.then(
       (session) => {
         pendingAttempt.clear();
-        activateNip46(session);
+        activate(nip46Connection(session));
       },
       (e) => {
         pendingAttempt.clear();
@@ -307,52 +265,35 @@ export const createSession = (
     };
   };
 
-  // 覚えていた人の画面を先に出し、署名器が戻るまで署名を待たせる。
-  const beginRestore = (known: string | undefined) => {
-    if (known) setPubkey(known);
-    if (pubkey()) {
-      signer.expect();
-      setSignerStatus("connecting");
-    }
-  };
+  const restoreWith = (login: StoredLogin, attempt: number) => {
+    // 覚えていた人の画面を先に出し、署名器が戻るまで署名を待たせる。
+    dispatch({ type: "restore-started", pubkey: storedLoginPubkey(login) });
+    if (state.pubkey) signer.expect();
 
-  const restore = () => {
-    if (pending()) return;
-    const attempt = ++restoreAttempt;
-    const methodRaw = localStorage.getItem(LOGIN_METHOD_STORAGE_KEY);
-    const method = loadLoginMethod(methodRaw);
-    if (methodRaw !== null && method === undefined) {
-      localStorage.removeItem(LOGIN_METHOD_STORAGE_KEY);
-    }
-    if (method === "nip07") {
-      beginRestore(
-        loadLoginPubkey(localStorage.getItem(LOGIN_PUBKEY_STORAGE_KEY)),
-      );
+    if (login.method === "nip07") {
       void run(async () => {
-        if (!(await waitForNip07(NIP07_RESTORE_WAIT_MS))) {
-          // まだ立ち上がっていないだけのこともあるので、無いとは言い切らない。
-          restoreFailedWith(NIP07_NO_RESPONSE);
-          stopWatchingNip07 = watchForNip07(restore);
-          return;
-        }
-        const extension = createNip07Signer();
-        const answer = extension.getPublicKey();
         try {
-          activateExtension(
-            extension,
-            await withTimeout(answer, NIP07_RESPONSE_WAIT_MS),
+          activate(
+            await restoreNip07({
+              injectWaitMs: NIP07_RESTORE_WAIT_MS,
+              answerWaitMs: NIP07_RESPONSE_WAIT_MS,
+            }),
           );
         } catch (e) {
-          if (!(e instanceof TimeoutError)) {
+          if (!(e instanceof Nip07NotReadyError)) {
             reportSignerError(e, "restore", nip07Tags());
             restoreFailedWith(`ログインの復元に失敗しました: ${errorText(e)}`);
             return;
           }
+          // まだ立ち上がっていないだけのこともあるので、無いとは言い切らない。
           restoreFailedWith(NIP07_NO_RESPONSE);
+          if (e.reason === "not-injected") {
+            stopWatchingNip07 = watchForNip07(restore);
+          }
           // 待つのをやめても、拡張機能が遅れて返してくれたらそのまま使う。
-          answer.then(
-            (pk) => {
-              if (attempt === restoreAttempt) activateExtension(extension, pk);
+          e.late?.then(
+            (late) => {
+              if (attempt === restoreAttempt) activate(late);
             },
             () => {},
           );
@@ -361,26 +302,17 @@ export const createSession = (
       return;
     }
 
-    const raw = localStorage.getItem(NIP46_SESSION_STORAGE_KEY);
-    // login-method 導入前に保存された NIP-46 セッションも引き続き復元する。
-    if (method !== "nip46" && raw === null) return;
-    const stored = loadNip46Session(raw);
-    if (!stored) {
-      localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
-      localStorage.removeItem(LOGIN_METHOD_STORAGE_KEY);
-      setError(
-        "保存していたログインを読めませんでした。リモート署名器で繋ぎ直してください。",
-      );
-      return;
-    }
-    beginRestore(stored.userPubkey);
     void run(async () => {
       const hidden = watchHidden();
       try {
-        activateNip46(await restoreNip46({ pool, stored, hooks }));
+        activate(
+          nip46Connection(
+            await restoreNip46({ pool, stored: login.session, hooks }),
+          ),
+        );
       } catch (e) {
         reportSignerError(e, "restore", {
-          ...nip46Tags(stored.relays),
+          ...nip46Tags(login.session.relays),
           ...hidden(),
         });
         restoreFailedWith(
@@ -390,12 +322,36 @@ export const createSession = (
     }, "ログインの復元を待っています");
   };
 
+  const restore = () => {
+    if (state.pending) return;
+    const attempt = ++restoreAttempt;
+    const loaded = loadStoredLogin(localStorage);
+    switch (loaded.type) {
+      case "none":
+        return;
+      case "unreadable":
+        storedLogin.clear();
+        dispatch({
+          type: "failed",
+          message:
+            "保存していたログインを読めませんでした。もう一度ログインしてください。",
+        });
+        return;
+      case "login":
+        if (loaded.legacy) storedLogin.write(loaded.login);
+        restoreWith(loaded.login, attempt);
+    }
+  };
+
   // 署名器のアプリへ切り替えて戻ってきたら、押させずに繋ぎ直す。
   // 裏にいる間に切れたソケットは再接続を最大 60 秒遅らせるので、待たずに張り直す。
   const retryOnReturn = () => {
     if (document.hidden) return;
-    if (nip46 || signerStatus() === "disconnected") pool.retryNow();
-    if (signerStatus() === "disconnected") restore();
+    const disconnected = state.status === "disconnected";
+    if (connection?.stored.method === "nip46" || disconnected) {
+      pool.retryNow();
+    }
+    if (disconnected) restore();
   };
   document.addEventListener("visibilitychange", retryOnReturn);
   onCleanup(() =>
@@ -405,31 +361,22 @@ export const createSession = (
   const logout = () => {
     stopNip07Watch();
     restoreAttempt++;
-    const session = nip46;
-    nip46 = undefined;
-    setSigner(undefined);
-    setPubkey(undefined);
+    const previous = connection;
+    connection = undefined;
+    const resetAuth = needsAuthReset(state, undefined);
+    signer.set(undefined);
+    if (resetAuth) pool.resetAuthentication();
     setAuthUrl(undefined);
-    setError(undefined);
-    setRestoreFailed(false);
-    localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
-    localStorage.removeItem(LOGIN_METHOD_STORAGE_KEY);
-    localStorage.removeItem(LOGIN_PUBKEY_STORAGE_KEY);
-    if (!session) return;
-    // logout RPC は署名器への通知にすぎない。応答しない署名器でも接続を閉じられるよう上限を切る。
-    void Promise.race([
-      session.client.request("logout"),
-      new Promise((resolve) => setTimeout(resolve, 5_000)),
-    ])
-      .catch(() => {})
-      .finally(() => session.client.close());
+    dispatch({ type: "logged-out" });
+    storedLogin.clear();
+    void previous?.logout();
   };
 
   return {
-    pubkey,
-    signerStatus,
-    pending,
-    error,
+    pubkey: () => state.pubkey,
+    signerStatus: () => state.status,
+    pending: () => state.pending,
+    error: () => state.error,
     authUrl,
     signer,
     signerWaits: signerWait.messages,
@@ -437,7 +384,7 @@ export const createSession = (
     loginWithBunker,
     loginWithNostrConnect,
     restore,
-    restoreFailed,
+    restoreFailed: () => state.restoreFailed,
     logout,
   };
 };
