@@ -105,7 +105,7 @@ describe("zapReceiptRelays", () => {
 describe("buildZapRequest", () => {
   it("NIP-57 の kind:9734 を組み立てる", () => {
     const draft = buildZapRequest({
-      target,
+      target: { type: "event", event: target },
       endpoint,
       amountMsat: 100_000,
       relays: ["wss://a.example/", "wss://b.example/"],
@@ -124,6 +124,23 @@ describe("buildZapRequest", () => {
         ["k", "1"],
       ],
     });
+  });
+
+  it("人への Zap は投稿を指すタグを付けない", () => {
+    const draft = buildZapRequest({
+      target: { type: "profile", pubkey: target.pubkey },
+      endpoint,
+      amountMsat: 21_000,
+      relays: ["wss://a.example/"],
+      message: "",
+    });
+    assertNip46SignPermission(draft.kind);
+    expect(draft.tags).toEqual([
+      ["relays", "wss://a.example/"],
+      ["amount", "21000"],
+      ["lnurl", endpoint.lnurl],
+      ["p", target.pubkey],
+    ]);
   });
 });
 

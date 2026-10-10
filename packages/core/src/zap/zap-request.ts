@@ -3,6 +3,15 @@ import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { ZapEndpoint, ZapPayInfo } from "./lnurl";
 
+/** Zap を送る先。投稿に送るか、人（プロフィール）に直接送るか。 */
+export type ZapTarget =
+  | { type: "event"; event: NostrEvent }
+  | { type: "profile"; pubkey: string };
+
+/** Zap を受け取る人。 */
+export const zapRecipient = (target: ZapTarget): string =>
+  target.type === "event" ? target.event.pubkey : target.pubkey;
+
 /** チャンネルのリレーに割く枠。残りは受取人の通知先に使う。 */
 const CHANNEL_RELAY_SLOTS = 2;
 
@@ -29,10 +38,10 @@ export const zapReceiptRelays = (options: {
 /**
  * Zap の依頼（NIP-57 の kind:9734）。リレーには送らず、署名して LNURL の
  * callback へ渡す。受け取った側のサーバーは、これを受領（kind:9735）に入れて
- * `relays` へ流す。
+ * `relays` へ流す。人への Zap は `e`・`k` を付けない。
  */
 export const buildZapRequest = (options: {
-  target: NostrEvent;
+  target: ZapTarget;
   endpoint: ZapEndpoint;
   amountMsat: number;
   /** ウォレットが受領を公開する先。受取人の read リレーを優先する。 */
@@ -45,9 +54,13 @@ export const buildZapRequest = (options: {
     ["relays", ...options.relays],
     ["amount", String(options.amountMsat)],
     ["lnurl", options.endpoint.lnurl],
-    ["p", options.target.pubkey],
-    ["e", options.target.id],
-    ["k", String(options.target.kind)],
+    ["p", zapRecipient(options.target)],
+    ...(options.target.type === "event"
+      ? [
+          ["e", options.target.event.id],
+          ["k", String(options.target.event.kind)],
+        ]
+      : []),
   ],
 });
 
