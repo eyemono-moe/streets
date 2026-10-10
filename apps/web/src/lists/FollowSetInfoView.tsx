@@ -8,6 +8,7 @@ import {
 import { decodeUserInput, encodeNaddr } from "@streets/core/nostr/nip19";
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
 import { type Component, For, Show, createSignal } from "solid-js";
+import { useAppWindow } from "../app-window";
 import { useUserCandidates, userSource } from "../completion/sources";
 import ProfileRow from "../profile/ProfileRow";
 import { notifyError, notifySuccess } from "../toast";
@@ -217,6 +218,7 @@ const FollowSetInfoView: Component<{
   initialConfirmingDelete?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const appWindow = useAppWindow();
   const copyLink = async (set: FollowSet) => {
     const naddr = encodeNaddr({
       identifier: set.identifier,
@@ -224,7 +226,7 @@ const FollowSetInfoView: Component<{
       eventKind: FOLLOW_SET_KIND,
     });
     try {
-      await navigator.clipboard.writeText(`nostr:${naddr}`);
+      await appWindow.navigator.clipboard.writeText(`nostr:${naddr}`);
       notifySuccess("リンクをコピーしました");
     } catch (cause) {
       notifyError(cause, "リンクをコピーできませんでした");

@@ -18,6 +18,7 @@ import {
   createSignal,
   onCleanup,
 } from "solid-js";
+import { useAppWindow } from "../app-window";
 import {
   EmojiGrid,
   EmojiPreview,
@@ -220,9 +221,10 @@ const SetAddress: Component<{ target: EmojiSetRef }> = (props) => {
   const [copied, setCopied] = createSignal<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(timer));
+  const appWindow = useAppWindow();
   const copy = async (text: string) => {
     try {
-      await navigator.clipboard.writeText(text);
+      await appWindow.navigator.clipboard.writeText(text);
       setCopied("コピーしました");
     } catch {
       // 安全でない接続や、権限を断られたとき。黙っていると壊れて見える。

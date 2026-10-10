@@ -7,6 +7,7 @@ import type { RelayInfo } from "@streets/core/relay/relay-info";
 import { usageOf } from "@streets/core/settings/relay-edit";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, For, type JSX, Match, Show, Switch } from "solid-js";
+import { useAppWindow } from "../app-window";
 import { ProfileName } from "../note/Name";
 import { useProfileDetails } from "../note/use-profile";
 import { useReadLayer } from "../read-layer";
@@ -63,8 +64,9 @@ export const AuthorRelaysDialogView: Component<{
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   onClose: () => void;
 }> = (props) => {
+  const appWindow = useAppWindow();
   const copy = (entry: RelayListEntry) => {
-    void navigator.clipboard.writeText(entry.url).then(
+    void appWindow.navigator.clipboard.writeText(entry.url).then(
       () => notifySuccess("URL をコピーしました"),
       (cause) => notifyError(cause, "URL をコピーできませんでした"),
     );

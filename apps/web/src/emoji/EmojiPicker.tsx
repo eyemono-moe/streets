@@ -177,7 +177,9 @@ const PickerList: Component<{
    * ときにかたまりの終わりへ飛ぶ。
    */
   const jumpTo = (id: string) => {
-    const section = document.getElementById(headingId(id))?.parentElement;
+    const section = scrollEl?.ownerDocument.getElementById(
+      headingId(id),
+    )?.parentElement;
     if (!section || !scrollEl) return;
     const top =
       section.getBoundingClientRect().top -

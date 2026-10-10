@@ -1,10 +1,10 @@
 import { Toast, Toaster, createToaster } from "@ark-ui/solid/toast";
 import { type Component, type JSX, Match, Show, Switch } from "solid-js";
-import { Portal } from "solid-js/web";
 import { isMultiColumn } from "./deck-layout-setting";
 import SignerWaitToast, { type SignerWaitToastMeta } from "./SignerWaitToast";
 import Button from "./ui/Button";
 import IconButton from "./ui/IconButton";
+import { Portal } from "./ui/Portal";
 import { actionErrorMessage, wasReported } from "./write-errors";
 import { showWriteProgress } from "./write-progress-setting";
 import WriteProgressToast, { type WriteToastMeta } from "./WriteProgressToast";

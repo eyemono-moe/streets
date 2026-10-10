@@ -167,6 +167,14 @@ publish 用の別経路を作らず、`ConnectionPool` 一本に集約します�
 
 NIP-46 の署名器とのやりとりだけは、`ConnectionPool` の中で `lane: "signer"` を付けて読み取りと別のソケットに通します。同じソケットだと、リレーの同時購読の枠（nos.lol などは 20 本）をカラムが埋めている間、返事を受ける購読が送られないまま依頼だけが届き、保存されない返事を取りこぼします（ログインが時間切れになっていました）。
 
+### 文書は描いている窓から取る
+
+カラムはピクチャーインピクチャー（Document Picture-in-Picture）へ出せます。ピクチャーインピクチャーの中の部品は元のタブと同じ JS の場で動きますが、描かれる document は別です。グローバルの `document` や `navigator` を使うと、元のタブの文書を触ります。
+
+- Portal は `src/ui/Portal.tsx` を使う（`solid-js/web` の `Portal` は lint で止めてある）。出し先がいま描いている窓の body になる
+- クリップボードは `useAppWindow().navigator.clipboard`。フォーカスの無い文書のクリップボードには書けない
+- 選択範囲・フォーカス・id での検索は、要素の `ownerDocument` かイベントの `view` から取る
+
 ### UI プリミティブは Ark UI
 
 メニュー・ダイアログ・ポップオーバーは `@ark-ui/solid` を使います。

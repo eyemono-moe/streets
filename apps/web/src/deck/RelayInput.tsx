@@ -14,8 +14,8 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import Button from "../ui/Button";
+import { Portal } from "../ui/Portal";
 import { textInputClass } from "../ui/TextField";
 import { useFolloweeWriteRelays } from "./use-followee-relays";
 

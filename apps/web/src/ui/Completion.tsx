@@ -18,9 +18,9 @@ import {
   onMount,
 } from "solid-js";
 import { createStore, reconcile, unwrap } from "solid-js/store";
-import { Portal } from "solid-js/web";
 import { type CaretOffset, caretOffset, caretRect } from "./caret";
 import { insertText } from "./insert-text";
+import { Portal } from "./Portal";
 
 type Field = HTMLInputElement | HTMLTextAreaElement;
 
@@ -102,7 +102,7 @@ const Completion = (props: {
 
   const refresh = () => {
     const el = field();
-    if (!el || document.activeElement !== el) {
+    if (!el || el.ownerDocument.activeElement !== el) {
       apply({ type: "completion/input", match: undefined });
       return;
     }

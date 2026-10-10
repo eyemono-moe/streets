@@ -32,6 +32,20 @@ export default defineConfig({
       "jsx-a11y/prefer-tag-over-role": "off",
       // 文字を部品で包んで入れ子が深くなっても、名前として読む。
       "jsx-a11y/control-has-associated-label": ["error", { depth: 6 }],
+      // 出し先を描いている窓から決める `apps/web/src/ui/Portal.tsx` を使う。
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "solid-js/web",
+              importNames: ["Portal"],
+              message:
+                "ピクチャーインピクチャーの中で開いたものが元のタブに出る。apps/web/src/ui/Portal.tsx を使う。",
+            },
+          ],
+        },
+      ],
       "no-unused-vars": [
         "error",
         {
@@ -46,6 +60,10 @@ export default defineConfig({
         // テストの枠組み（node:test の test() など）が返す Promise は待たなくてよい。
         files: ["**/*.test.{ts,tsx,mjs}"],
         rules: { "typescript/no-floating-promises": "off" },
+      },
+      {
+        files: ["apps/web/src/ui/Portal.tsx"],
+        rules: { "no-restricted-imports": "off" },
       },
     ],
     ignorePatterns: ["worker-configuration.d.ts"],

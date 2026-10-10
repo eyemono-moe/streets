@@ -1,5 +1,6 @@
 import { QrCode } from "@ark-ui/solid/qr-code";
 import { type Component, Match, Switch } from "solid-js";
+import { useAppWindow } from "../app-window";
 import { notifyError, notifySuccess } from "../toast";
 import Button, { ButtonLink } from "../ui/Button";
 
@@ -18,9 +19,10 @@ const NostrConnectView: Component<{
   <Switch>
     <Match when={props.status.phase === "waiting" && props.status}>
       {(status) => {
+        const appWindow = useAppWindow();
         const copy = async () => {
           try {
-            await navigator.clipboard.writeText(status().uri);
+            await appWindow.navigator.clipboard.writeText(status().uri);
             notifySuccess("接続用の文字列をコピーしました");
           } catch (error) {
             notifyError(error, "コピーできませんでした");

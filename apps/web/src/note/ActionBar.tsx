@@ -10,7 +10,6 @@ import type { EventActionId } from "@streets/core/settings/action-layout";
 import { canBroadcast } from "@streets/core/write/broadcast";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, For, type JSX, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import { actionLayout } from "../action-layout-setting";
 import { useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
@@ -18,6 +17,7 @@ import { defaultReaction } from "../default-reaction-setting";
 import ReactionPicker from "../emoji/ReactionPicker";
 import { useDispatch } from "../ui-events";
 import { menuContentClass, menuItemClass } from "../ui/menu";
+import { Portal } from "../ui/Portal";
 import {
   EVENT_ACTION_META,
   bookmarkLook,

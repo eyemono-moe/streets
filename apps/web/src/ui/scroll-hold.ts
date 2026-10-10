@@ -21,7 +21,7 @@ const playing = (scroller: HTMLElement): boolean => {
 };
 
 const selecting = (scroller: HTMLElement): boolean => {
-  const selection = document.getSelection();
+  const selection = scroller.ownerDocument.getSelection();
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
     return false;
   }
@@ -35,6 +35,6 @@ const selecting = (scroller: HTMLElement): boolean => {
  */
 export const holdsScroll = (scroller: HTMLElement): boolean =>
   scroller.querySelector(OPEN_TRIGGER) !== null ||
-  document.querySelector(OPEN_DIALOG) !== null ||
+  scroller.ownerDocument.querySelector(OPEN_DIALOG) !== null ||
   playing(scroller) ||
   selecting(scroller);

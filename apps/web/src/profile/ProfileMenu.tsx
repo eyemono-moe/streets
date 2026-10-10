@@ -2,7 +2,6 @@ import { Menu } from "@ark-ui/solid/menu";
 import type { MuteTarget } from "@streets/core/nostr/build/mute";
 import { zapEndpointOf } from "@streets/core/zap/lnurl";
 import { type Component, Show, createSignal } from "solid-js";
-import { Portal } from "solid-js/web";
 import { useEventActions } from "../actions";
 import { lazyPart } from "../lazy-part";
 import { useFollowSets } from "../lists/FollowSetMediator";
@@ -11,6 +10,7 @@ import { useMutes } from "../settings/MuteMediator";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import { menuContentClass, menuIconClass, menuItemClass } from "../ui/menu";
+import { Portal } from "../ui/Portal";
 
 const AuthorRelaysDialog = lazyPart(() => import("./AuthorRelaysDialog"));
 

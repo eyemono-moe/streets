@@ -12,6 +12,7 @@ import type { EventActionId } from "@streets/core/settings/action-layout";
 import { reactionContentOf } from "@streets/core/settings/default-reaction";
 import { eventEngagements } from "@streets/core/view/event-engagements";
 import { type JSX, Match, Switch, createMemo, createSignal } from "solid-js";
+import { useAppWindow } from "../app-window";
 import { defaultReaction } from "../default-reaction-setting";
 import { lazyPart } from "../lazy-part";
 import { useLoginGate } from "../login-gate";
@@ -107,6 +108,7 @@ export const reactionLabel = (input: ReactionInput): string =>
  * 呼んだ時点では何も読まない（投稿の数だけ呼ばれる）。
  */
 export const useEventLevelOps = (event: () => NostrEvent) => {
+  const appWindow = useAppWindow();
   const dispatch = useDispatch();
   const { store } = useReadLayer();
   const mutes = useMutes();
@@ -150,7 +152,7 @@ export const useEventLevelOps = (event: () => NostrEvent) => {
         relaysSeenOn(store, event().id),
       )}`;
       try {
-        await navigator.clipboard.writeText(uri);
+        await appWindow.navigator.clipboard.writeText(uri);
         notifySuccess("リンクをコピーしました");
       } catch (cause) {
         // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。

@@ -1,6 +1,6 @@
 import { Tooltip } from "@ark-ui/solid/tooltip";
 import { type Component, createSignal } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "./Portal";
 
 /** その設定をどこに保存するか。 */
 export type StorageScope = "device" | "account";

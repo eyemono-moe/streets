@@ -5,8 +5,8 @@ import {
   type ParentComponent,
   splitProps,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import IconButton from "./IconButton";
+import { Portal } from "./Portal";
 
 export const DialogRoot: ParentComponent<{
   open: boolean;

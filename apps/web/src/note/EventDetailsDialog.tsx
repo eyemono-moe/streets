@@ -1,5 +1,6 @@
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type Component, For, Show } from "solid-js";
+import { useAppWindow } from "../app-window";
 import { useReadLayer } from "../read-layer";
 import { notifyError, notifySuccess } from "../toast";
 import {
@@ -16,6 +17,7 @@ const EventDetailsDialog: Component<{
   event: NostrEvent;
   onClose: () => void;
 }> = (props) => {
+  const appWindow = useAppWindow();
   const { store } = useReadLayer();
   const json = () => JSON.stringify(props.event, null, 2);
   // "local" は自分が書いて手元へ入れた印で、実在のリレーではない。
@@ -59,7 +61,7 @@ const EventDetailsDialog: Component<{
               type="button"
               class="h-8.5 cursor-pointer rounded-full bg-accent-primary px-4.5 font-600 text-caption text-white hover:bg-accent-hover"
               onClick={() => {
-                void navigator.clipboard
+                void appWindow.navigator.clipboard
                   .writeText(json())
                   .then(() => notifySuccess("JSON をコピーしました"))
                   // 非セキュアな接続や権限拒否で失敗する。黙って終わらせない。
