@@ -317,11 +317,10 @@ export const createSession = (
     if (method !== "nip46" && raw === null) return;
     const stored = loadNip46Session(raw);
     if (!stored) {
-      // 必要な権限が増えると古い保存形式は読めなくなり、再接続でしか承認し直せない。
       localStorage.removeItem(NIP46_SESSION_STORAGE_KEY);
       localStorage.removeItem(LOGIN_METHOD_STORAGE_KEY);
       setError(
-        "署名器の権限が更新されました。リモート署名器で繋ぎ直してください。",
+        "保存していたログインを読めませんでした。リモート署名器で繋ぎ直してください。",
       );
       return;
     }
