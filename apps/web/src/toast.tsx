@@ -32,9 +32,26 @@ export const createAppToaster = (wide: boolean): AppToaster =>
 // 新しい知らせをいまの並べ方の方へ出す。
 const multiToaster = createAppToaster(true);
 const singleToaster = createAppToaster(false);
-// ピクチャーインピクチャーはカラム 1 本の幅で、右下には投稿のボタンがある。開いている間は 1 列の画面と同じく上に出す。
-const currentToaster = () =>
-  isMultiColumn() && !pipOpen() ? multiToaster : singleToaster;
+const currentToaster = () => (isMultiColumn() ? multiToaster : singleToaster);
+// ピクチャーインピクチャーはカラム 1 本の幅で、右下には投稿のボタンがある。1 列の画面と同じく上に出す。
+// 元のタブの置き場所は変えたくないので、ピクチャーインピクチャーには別の置き場を持ち、同じ id で写す。
+const pipToaster = createAppToaster(false);
+// 写しの知らせは元の側が受ける。両方から呼ぶと、閉じた知らせが 2 回届く。
+const mirrored = (options: Parameters<AppToaster["create"]>[0]) => ({
+  ...options,
+  onStatusChange: undefined,
+});
+// どちらかで閉じたら（押して閉じた・時間が来た）、もう片方も同じ動きで閉じる。
+// 閉じ終えた側は見えなくなっているので、閉じた知らせが行き来し続けることはない。
+const closeTogether = (from: AppToaster, others: readonly AppToaster[]) =>
+  from.subscribe((data: { id?: string; dismiss?: boolean }) => {
+    const id = data.id;
+    if (!data.dismiss || id === undefined) return;
+    for (const other of others) if (other.isVisible(id)) other.dismiss(id);
+  });
+closeTogether(pipToaster, [multiToaster, singleToaster]);
+closeTogether(multiToaster, [pipToaster]);
+closeTogether(singleToaster, [pipToaster]);
 // 並べ方を変える前に出したものは、出した方で書き換え・片付ける。
 const holding = (id: string) =>
   [multiToaster, singleToaster].find((t) => t.isVisible(id)) ??
@@ -45,10 +62,18 @@ const holding = (id: string) =>
  * 出方が変わり、狭いカラムでは行が押し出されて本文が動く。
  */
 export const toaster: Pick<AppToaster, "create" | "update" | "remove"> = {
-  create: (options) => currentToaster().create(options),
-  update: (id, options) => holding(id).update(id, options),
+  create: (options) => {
+    const id = currentToaster().create(options);
+    if (pipOpen()) pipToaster.create({ ...mirrored(options), id });
+    return id;
+  },
+  update: (id, options) => {
+    if (pipToaster.isVisible(id)) pipToaster.update(id, mirrored(options));
+    return holding(id).update(id, options);
+  },
   remove: (id) => {
     multiToaster.remove(id);
+    pipToaster.remove(id);
     return singleToaster.remove(id);
   },
 };
@@ -201,11 +226,11 @@ export const ErrorToaster: Component = () => (
 );
 
 /**
- * ピクチャーインピクチャーの中の置き場。ピクチャーインピクチャーを開いている間の知らせは上に出す方へ出るので、そちらだけを描く。
+ * ピクチャーインピクチャーの中の置き場。ピクチャーインピクチャーを開いている間の知らせを、元のタブと同じ id で写して出す。
  * 開く前から出ていた知らせは、元のタブにだけ残る。
  */
 export const PipToaster: Component = () => (
   <Portal>
-    <ToastStack toaster={singleToaster} />
+    <ToastStack toaster={pipToaster} />
   </Portal>
 );
