@@ -155,7 +155,7 @@ vp run seed:dev                                   # スレッドの各形をロ�
 
 ### 秘密鍵をアプリが持たない
 
-署名は NIP-07 / NIP-46 の署名者へ委譲します（[ADR-0008](./docs/adr/0008-signer-only-key-handling.md)）。例外は NIP-46 の通信専用 client key だけです（[ADR-0031](./docs/adr/0031-nip46-session-key-boundary.md)）。
+署名は NIP-07 / NIP-46 / Nosskey の iframe へ委譲し、本人の秘密鍵を Streets のオリジンの JS に入れません（[ADR-0036](./docs/adr/0036-keys-live-outside-the-streets-origin.md)）。例外は NIP-46 の通信専用 client key だけです（[ADR-0031](./docs/adr/0031-nip46-session-key-boundary.md)）。
 
 ### 劣化を隠さない。ただし、取得中を失敗として見せない
 
