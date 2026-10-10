@@ -1,6 +1,6 @@
 import { ColorPicker, parseColor } from "@ark-ui/solid/color-picker";
 import { type Component, createEffect, createSignal } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "./Portal";
 
 /**
  * 色を 1 つ選ぶ欄。見本を押すと、面と色相の帯で選ぶ窓が開く。16 進数でも打てる。

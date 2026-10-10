@@ -1,7 +1,6 @@
 import { Menu } from "@ark-ui/solid/menu";
 import type { Deck } from "@streets/core/deck/deck";
 import { type Component, For, Show, createSignal } from "solid-js";
-import { Portal } from "solid-js/web";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
@@ -10,6 +9,7 @@ import {
   menuItemClass,
   menuSeparatorClass,
 } from "../ui/menu";
+import { Portal } from "../ui/Portal";
 import { textInputClass } from "../ui/TextField";
 
 export type DeckSummary = Pick<Deck, "id" | "name"> & { columns: number };

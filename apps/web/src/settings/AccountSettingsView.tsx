@@ -26,6 +26,7 @@ import {
   on,
   onCleanup,
 } from "solid-js";
+import { useAppWindow } from "../app-window";
 import {
   useEmojiSource,
   useUserCandidates,
@@ -514,9 +515,10 @@ const AccountId: Component<{ pubkey: string }> = (props) => {
   const [copied, setCopied] = createSignal<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(timer));
+  const appWindow = useAppWindow();
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(npub());
+      await appWindow.navigator.clipboard.writeText(npub());
       setCopied("コピーしました");
     } catch {
       // 非セキュアな接続や権限拒否で失敗する。黙って何も起きないと壊れて見える。

@@ -1,6 +1,6 @@
 import { HoverCard } from "@ark-ui/solid/hover-card";
 import type { Component, JSX } from "solid-js";
-import { Portal } from "solid-js/web";
+import { Portal } from "../ui/Portal";
 import UserCard from "./UserCard";
 
 /**

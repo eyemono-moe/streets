@@ -39,7 +39,7 @@ export type CaretOffset = { left: number; top: number; height: number };
  */
 export const caretOffset = (field: Field, index: number): CaretOffset => {
   const style = getComputedStyle(field);
-  const mirror = document.createElement("div");
+  const mirror = field.ownerDocument.createElement("div");
   for (const name of COPIED) {
     mirror.style.setProperty(name, style.getPropertyValue(name));
   }
@@ -52,11 +52,11 @@ export const caretOffset = (field: Field, index: number): CaretOffset => {
   mirror.style.whiteSpace = multiline ? "pre-wrap" : "pre";
   mirror.style.overflowWrap = multiline ? "break-word" : "normal";
   mirror.textContent = field.value.slice(0, index);
-  const marker = document.createElement("span");
+  const marker = field.ownerDocument.createElement("span");
   // 空の span は高さを持たないので、幅の無い文字を入れる。
   marker.textContent = "\u200b";
   mirror.append(marker);
-  document.body.append(mirror);
+  field.ownerDocument.body.append(mirror);
   const markerRect = marker.getBoundingClientRect();
   const mirrorRect = mirror.getBoundingClientRect();
   mirror.remove();

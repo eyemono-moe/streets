@@ -466,7 +466,7 @@ const EventBody: Component<ContentProps> = (props) => {
           }}
           onOpen={(event) => {
             if (isInteractive(event.target)) return;
-            if (document.getSelection()?.isCollapsed === false) return;
+            if (event.view?.getSelection()?.isCollapsed === false) return;
             const moved =
               downAt !== undefined &&
               (Math.abs(event.clientX - downAt.x) > DRAG_SLOP ||

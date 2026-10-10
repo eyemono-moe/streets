@@ -271,4 +271,72 @@ describe("Streets について", () => {
     expect(state.settingsOpen).toBe(true);
     expect(state.aboutOpen).toBe(false);
   });
+
+  describe("ピクチャーインピクチャー", () => {
+    it("開いたカラムを覚え、閉じたら忘れる", () => {
+      expect(run({ type: "deck/popped-out", id: "a" }).poppedOut).toBe("a");
+      expect(
+        run({ type: "deck/popped-out", id: "a" }, { type: "deck/popped-in" })
+          .poppedOut,
+      ).toBeUndefined();
+    });
+
+    it("別のカラムをピクチャーインピクチャーに出すと、そちらに替わる", () => {
+      expect(
+        run(
+          { type: "deck/popped-out", id: "a" },
+          { type: "deck/popped-out", id: "b" },
+        ).poppedOut,
+      ).toBe("b");
+    });
+
+    it("ピクチャーインピクチャーに出したカラムの設定は閉じ、ほかのカラムの設定は残す", () => {
+      expect(
+        run(
+          { type: "deck/toggle-settings", id: "a" },
+          { type: "deck/popped-out", id: "a" },
+        ).settingsFor,
+      ).toBeUndefined();
+      expect(
+        run(
+          { type: "deck/toggle-settings", id: "b" },
+          { type: "deck/popped-out", id: "a" },
+        ).settingsFor,
+      ).toBe("b");
+    });
+
+    it("ピクチャーインピクチャーに出したカラムを消すと、ピクチャーインピクチャーも閉じる", () => {
+      expect(
+        run(
+          { type: "deck/popped-out", id: "a" },
+          { type: "deck/column-removed", id: "a" },
+        ).poppedOut,
+      ).toBeUndefined();
+      expect(
+        run(
+          { type: "deck/popped-out", id: "a" },
+          { type: "deck/column-removed", id: "b" },
+        ).poppedOut,
+      ).toBe("a");
+    });
+
+    it("並びから消えたカラムのピクチャーインピクチャーは閉じ、選んでいるカラムも直す", () => {
+      const state = run(
+        { type: "deck/select-column", id: "a" },
+        { type: "deck/popped-out", id: "a" },
+        { type: "deck/columns-changed", ids: ["b"] },
+      );
+      expect(state.poppedOut).toBeUndefined();
+      expect(state.active).toBe("b");
+    });
+
+    it("並びに残っていれば、一時カラムを開いてもピクチャーインピクチャーはそのまま", () => {
+      expect(
+        run(
+          { type: "deck/popped-out", id: "a" },
+          { type: "deck/columns-changed", ids: ["a", "b"], temp: "temp" },
+        ).poppedOut,
+      ).toBe("a");
+    });
+  });
 });

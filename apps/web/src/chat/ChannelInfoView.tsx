@@ -1,6 +1,7 @@
 import { CHANNEL_CREATE_KIND, type Channel } from "@streets/core/nostr/channel";
 import { encodeNevent } from "@streets/core/nostr/nip19";
 import { type Component, For, Show } from "solid-js";
+import { useAppWindow } from "../app-window";
 import ProfileRow from "../profile/ProfileRow";
 import RelaySummary from "../settings/RelaySummary";
 import { notifyError } from "../toast";
@@ -21,6 +22,7 @@ const ChannelInfoView: Component<{
   editable: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
+  const appWindow = useAppWindow();
   const copyLink = async (channel: Channel) => {
     const nevent = encodeNevent({
       id: channel.id,
@@ -29,7 +31,7 @@ const ChannelInfoView: Component<{
       eventKind: CHANNEL_CREATE_KIND,
     });
     try {
-      await navigator.clipboard.writeText(`nostr:${nevent}`);
+      await appWindow.navigator.clipboard.writeText(`nostr:${nevent}`);
     } catch (cause) {
       notifyError(cause, "リンクをコピーできませんでした");
     }

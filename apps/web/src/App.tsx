@@ -5,6 +5,7 @@ import { createSubscriptionLimits } from "@streets/core/relay/subscription-limit
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
 import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
+import { pipOpen } from "./deck/pip-window";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
 import { screenshotMode } from "./screenshot-mode";
@@ -48,10 +49,17 @@ const App: Component = () => {
       if (pauseTimer !== undefined) clearTimeout(pauseTimer);
       pauseTimer = undefined;
       if (document.hidden) {
-        pauseTimer = setTimeout(() => {
+        const pauseIfHidden = () => {
           pauseTimer = undefined;
-          if (document.hidden) readLayer.manager.pause();
-        }, BACKGROUND_PAUSE_MS);
+          if (!document.hidden) return;
+          // ピクチャーインピクチャーに出したカラムは、タブが隠れていても読まれている。閉じるまで待ち直す。
+          if (pipOpen()) {
+            pauseTimer = setTimeout(pauseIfHidden, BACKGROUND_PAUSE_MS);
+            return;
+          }
+          readLayer.manager.pause();
+        };
+        pauseTimer = setTimeout(pauseIfHidden, BACKGROUND_PAUSE_MS);
       } else {
         readLayer.manager.resume();
       }

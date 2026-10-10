@@ -198,6 +198,8 @@ export const MobileTopBar: Component<{
   /** 一時カラム（URL で開いたもの）を見ている。設定の代わりに「カラムに残す」と閉じるを出す。 */
   temporary: boolean;
   settingsOpen: boolean;
+  /** 今見ているカラムをピクチャーインピクチャーに出している。 */
+  poppedOut?: boolean;
   onLogout: () => void;
   feedbackUrl?: string | null;
 }> = (props) => {
@@ -235,6 +237,7 @@ export const MobileTopBar: Component<{
               column={column()}
               open={props.settingsOpen}
               temporary={props.temporary}
+              poppedOut={props.poppedOut}
             />
           </>
         )}

@@ -1,6 +1,5 @@
 import { Menu } from "@ark-ui/solid/menu";
 import { type Component, Show, createSignal } from "solid-js";
-import { Portal } from "solid-js/web";
 import Avatar from "../note/Avatar";
 import { useUserStatuses } from "../status/use-user-statuses";
 import { tourTarget } from "../tour/tour-target";
@@ -10,6 +9,7 @@ import {
   menuItemClass,
   menuSeparatorClass,
 } from "../ui/menu";
+import { Portal } from "../ui/Portal";
 import { FeedbackDialog, feedbackHref } from "./FeedbackDialog";
 
 /**

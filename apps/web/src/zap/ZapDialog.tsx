@@ -6,6 +6,7 @@ import {
 } from "@streets/core/zap/zap-flow";
 import type { ZapTarget } from "@streets/core/zap/zap-request";
 import { type Component, Match, Show, Switch } from "solid-js";
+import { useAppWindow } from "../app-window";
 import Avatar from "../note/Avatar";
 import Event from "../note/Event";
 import { ProfileName, ProfileText } from "../note/Name";
@@ -162,9 +163,10 @@ const AmountForm: Component<{ state: OpenZap }> = (props) => {
 };
 
 const Payment: Component<{ state: PayingZap }> = (props) => {
+  const appWindow = useAppWindow();
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(props.state.invoice);
+      await appWindow.navigator.clipboard.writeText(props.state.invoice);
       notifySuccess("請求書をコピーしました");
     } catch (error) {
       notifyError(error, "コピーできませんでした");

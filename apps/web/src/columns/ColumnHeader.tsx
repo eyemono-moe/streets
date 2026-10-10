@@ -23,6 +23,8 @@ export const ColumnHeaderActions: Component<{
   /** カラムの設定を開いている。 */
   open: boolean;
   temporary?: boolean;
+  /** ピクチャーインピクチャーに出して、その中に描いている。 */
+  poppedOut?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
@@ -72,7 +74,17 @@ export const ColumnHeaderActions: Component<{
           />
         </>
       </Show>
-      <Show when={!props.temporary}>
+      {/* ピクチャーインピクチャーで開く入口はカラムの設定に置く。見出しに常に置くと、掴む場所と題名が狭くなる。 */}
+      <Show when={props.poppedOut}>
+        <IconButton
+          icon="i-material-symbols:pip-exit-outline-rounded"
+          label="デッキに戻す"
+          active
+          onClick={() => dispatch({ type: "deck/pop-in" })}
+        />
+      </Show>
+      {/* カラムの設定はデッキの横に開くので、ピクチャーインピクチャーからは開かない。 */}
+      <Show when={!props.temporary && !props.poppedOut}>
         <IconButton
           icon={
             props.open
@@ -96,6 +108,7 @@ export const ColumnHeader: Component<{
   /** 掴んで並べ替えられる。掴んだ後の動きは、並べている側（デッキ）が受け持つ。 */
   grip?: boolean;
   temporary?: boolean;
+  poppedOut?: boolean;
   onTitle: () => void;
 }> = (props) => {
   const meta = () => columnView(props.column.source).meta(props.column.source);
@@ -129,6 +142,7 @@ export const ColumnHeader: Component<{
           column={props.column}
           open={props.open}
           temporary={props.temporary}
+          poppedOut={props.poppedOut}
         />
       </div>
     </header>

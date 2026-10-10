@@ -1,7 +1,6 @@
 import { Popover } from "@ark-ui/solid/popover";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import { type Component, Show } from "solid-js";
-import { Portal } from "solid-js/web";
 import { useEmojiGroups } from "../emoji/custom-emojis";
 import EmojiPicker from "../emoji/EmojiPicker";
 import { reactionInputOf } from "../emoji/ReactionPicker";
@@ -11,6 +10,7 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
 import PopoverTrigger from "../ui/PopoverTrigger";
+import { Portal } from "../ui/Portal";
 
 const nameOf = (input: ReactionInput): string =>
   input.type === "like"

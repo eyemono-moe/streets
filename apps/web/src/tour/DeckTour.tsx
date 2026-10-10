@@ -1,8 +1,8 @@
 import { Tour, type TourStepDetails, useTour } from "@ark-ui/solid/tour";
 import { type Component, For, createEffect, on } from "solid-js";
-import { Portal } from "solid-js/web";
 import { markTourSeen } from "../tour-setting";
 import Button from "../ui/Button";
+import { Portal } from "../ui/Portal";
 import type { TourTarget } from "./tour-target";
 import TourCard from "./TourCard";
 

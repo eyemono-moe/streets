@@ -25,7 +25,6 @@ import {
   createUniqueId,
   useContext,
 } from "solid-js";
-import { Portal } from "solid-js/web";
 import { actionLayout } from "../action-layout-setting";
 import { type EventActions, useEventActions } from "../actions";
 import { useSending } from "../actions-mediator";
@@ -51,6 +50,7 @@ import {
   sheetIconClass,
   sheetItemClass,
 } from "../ui/menu";
+import { Portal } from "../ui/Portal";
 import {
   EVENT_ACTION_META,
   bookmarkLook,
