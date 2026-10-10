@@ -1,3 +1,4 @@
+import { Nip46PermissionMissingError } from "@streets/core/signer/nip46/nip46-signer";
 import {
   type Signer,
   SignerUnavailableError,
@@ -48,6 +49,8 @@ export const reportSignerError = (
 ) => {
   // 署名器が無い・繋がっていないのは、こちらが知っていて画面にも出している。
   if (error instanceof SignerUnavailableError) return;
+  // 古い権限で繋いだままの人に起きる。画面で繋ぎ直しを案内している。
+  if (error instanceof Nip46PermissionMissingError) return;
   const message = error instanceof Error ? error.message : String(error);
   const key = `${tags["signer.method"]}\n${op}\n${message}`;
   if (sent.has(key)) return;

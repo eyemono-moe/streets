@@ -62,6 +62,14 @@ export class Nip46RpcError extends Error {
   }
 }
 
+/** 署名器が返事をして、そのうえで断った。届かなかった・時間切れとは分ける。 */
+export class Nip46SignerRefusedError extends Nip46RpcError {
+  constructor(message: string) {
+    super(message);
+    this.name = "Nip46SignerRefusedError";
+  }
+}
+
 export type Nip46Client = {
   readonly clientPubkey: string;
   request(
@@ -239,7 +247,7 @@ export const createNip46Client = (options: {
     clearTimer(request.timer);
     options.hooks?.onAuthUrl?.(undefined, response.id);
     if (response.error) {
-      request.reject(new Nip46RpcError(response.error));
+      request.reject(new Nip46SignerRefusedError(response.error));
     } else if (response.result !== undefined) {
       request.resolve(response.result);
     } else {

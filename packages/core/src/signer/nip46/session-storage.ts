@@ -17,18 +17,24 @@ export const NIP46_REQUIRED_PERMISSIONS = [
   "nip04_decrypt",
 ].join(",");
 
+/** 接続したときに署名器へ求めた権限に、その kind の署名が入っていたか。 */
+export const grantsSignEvent = (permissions: string, kind: number): boolean =>
+  permissions.split(",").includes(`sign_event:${kind}`);
+
 /** 書き込み経路を足したとき、接続時の要求権限を増やし忘れたことを検出する。 */
 export const assertNip46SignPermission = (kind: number): void => {
-  if (!NIP46_REQUIRED_PERMISSIONS.split(",").includes(`sign_event:${kind}`)) {
+  if (!grantsSignEvent(NIP46_REQUIRED_PERMISSIONS, kind)) {
     throw new Error(`missing NIP-46 permission: sign_event:${kind}`);
   }
 };
 
 const hex64 = v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/));
 const sessionSchema = v.strictObject({
-  // v3 は現在必要な権限文字列そのものを保存し、version だけ上げ忘れて権限不足の session を復元する事故を literal 照合で防ぐ。
   version: v.literal(3),
-  permissions: v.literal(NIP46_REQUIRED_PERMISSIONS),
+  // 接続したときに求めた権限。いまの要求と違っても捨てない。捨てると kind を
+  // 1 つ足すたびに全員が繋ぎ直しになる。多くの署名器は求めていない種類も
+  // その場で聞くので、断られたときだけ繋ぎ直しを案内する。
+  permissions: v.string(),
   clientSecret: hex64,
   remoteSignerPubkey: hex64,
   userPubkey: hex64,

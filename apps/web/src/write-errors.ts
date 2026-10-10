@@ -4,6 +4,7 @@ import {
   InvalidPrivateItemsError,
   PrivateItemsUnavailableError,
 } from "@streets/core/nostr/private-tags";
+import { Nip46PermissionMissingError } from "@streets/core/signer/nip46/nip46-signer";
 import {
   SignerDisconnectedError,
   SignerUnavailableError,
@@ -25,6 +26,9 @@ export const actionErrorMessage = (error: unknown): string => {
   }
   if (error instanceof InvalidPrivateItemsError) {
     return "非公開の項目を読み取れなかったため、保存しませんでした";
+  }
+  if (error instanceof Nip46PermissionMissingError) {
+    return "署名器がこの操作を許可していません。ログアウトしてリモート署名器で繋ぎ直すと、許可を求め直せます";
   }
   if (error instanceof SignerDisconnectedError) {
     return "署名器と繋がっていません。署名器のアプリが動いているか確かめて、繋ぎ直してください";
