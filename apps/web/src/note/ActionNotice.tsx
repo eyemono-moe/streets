@@ -1,10 +1,11 @@
 import { buildThreadColumn } from "@streets/core/deck/column-presets";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ReactionContent } from "@streets/core/nostr/reaction";
 import {
   type NotificationAction,
   actionTarget,
+  distinctReactions,
   groupActors,
-  groupReactionContents,
 } from "@streets/core/view/notification-rows";
 import { observeWidth } from "@streets/core/view/shared-resize-observer";
 import { type Component, For, Show, createSignal, onCleanup } from "solid-js";
@@ -79,8 +80,8 @@ const AvatarRow: Component<{
 };
 
 /**
- * 「あいもの ほか 8 人が 🥰 🎉 でリアクション」。入り切らないときは、絵文字の列、
- * 後ろの文、名前の順に縮める（誰がしたかを最後まで残す）。
+ * 「あいもの ほか 8 人がリアクション」。リアクションの中身は行頭の欄に出す。
+ * 入り切らないときは、後ろの文、名前の順に縮める（誰がしたかを最後まで残す）。
  */
 const Summary: Component<{
   events: readonly NostrEvent[];
@@ -89,14 +90,6 @@ const Summary: Component<{
 }> = (props) => {
   const actors = () => groupActors(props.events);
   const others = () => actors().length - 1;
-  const contents = () =>
-    props.action === "reaction" ? groupReactionContents(props.events) : [];
-  // 1 件のいいねは「がいいね」と言い切る方が、ハートを並べるより読みやすい。
-  const plainLike = () =>
-    props.size === "normal" &&
-    contents().length === 1 &&
-    contents()[0]?.type === "like";
-
   return (
     <p
       // 入り切らないときは、はみ出させずに切る（名前から先に縮む）。
@@ -121,25 +114,7 @@ const Summary: Component<{
         when={props.action === "reaction"}
         fallback={<span class="min-w-0 shrink-[2] truncate">がリポスト</span>}
       >
-        <Show
-          when={!plainLike()}
-          fallback={<span class="min-w-0 shrink-[2] truncate">がいいね</span>}
-        >
-          <span class="shrink-0">が</span>
-          {/* 絵文字が多いときは、入る分だけ見せる。 */}
-          <span class="flex min-w-4 shrink-[4] items-center gap-0.5 overflow-hidden">
-            <For each={contents()}>
-              {(content) => (
-                <span class="flex shrink-0 items-center">
-                  <Mark content={content} mine={false} />
-                </span>
-              )}
-            </For>
-          </span>
-          <Show when={props.size === "normal"}>
-            <span class="min-w-0 shrink-[2] truncate">でリアクション</span>
-          </Show>
-        </Show>
+        <span class="min-w-0 shrink-[2] truncate">がリアクション</span>
       </Show>
     </p>
   );
@@ -148,6 +123,108 @@ const Summary: Component<{
 const isInteractive = (target: EventTarget | null) =>
   target instanceof Element &&
   target.closest("a, button, input, textarea, [role='button']") !== null;
+
+// 行頭の欄の幅（px）。絵文字 2 つ分で固定し、リアクションの行もリポストの行も
+// 同じ幅にして、アバターや名前の位置を縦にそろえる。
+const SLOT_PX = { normal: 40, compact: 28 } as const;
+const MARK_PX = { normal: 20, compact: 14 } as const;
+// 欄に並べる種類の数。これを超えた分は +N にする。
+const MAX_MARKS = 3;
+
+const markTitle = (content: ReactionContent) =>
+  content.type === "like"
+    ? "♥"
+    : content.type === "emoji"
+      ? `:${content.name}:`
+      : content.content;
+
+/**
+ * 行頭の欄。リアクションは新しい順に最大 3 種類を重ねて並べ、4 種類目からは +N を
+ * 付ける。重なり具合は欄の幅から決めるので、何個並べても幅は変わらない。
+ * 1 種類だけの行とリポストの行は左寄せ。
+ */
+const LeadSlot: Component<{
+  events: readonly NostrEvent[];
+  action: NotificationAction;
+  size: EventSize;
+}> = (props) => {
+  const slot = () => SLOT_PX[props.size];
+  const mark = () => MARK_PX[props.size];
+  const reactions = () =>
+    props.action === "reaction"
+      ? distinctReactions(props.events, MAX_MARKS)
+      : undefined;
+  // 空・解釈できないときは、今までどおりハートにする。
+  const marks = (): ReactionContent[] => {
+    const shown = reactions()?.shown ?? [];
+    return shown.length > 0 ? shown : [{ type: "like" }];
+  };
+  const count = () => marks().length + ((reactions()?.rest ?? 0) > 0 ? 1 : 0);
+  const step = () => (count() > 1 ? (slot() - mark()) / (count() - 1) : 0);
+  const title = () => {
+    const current = reactions();
+    if (!current) return undefined;
+    const text = marks().map(markTitle).join(" ");
+    return current.rest > 0 ? `${text} ほか` : text;
+  };
+
+  return (
+    <div
+      class="relative shrink-0"
+      style={{ width: `${slot()}px`, height: `${mark()}px` }}
+      title={title()}
+    >
+      <Show
+        when={props.action === "reaction"}
+        fallback={
+          <span
+            class="i-material-symbols:repeat-rounded c-secondary absolute left-0 top-0"
+            classList={{
+              "size-5": props.size === "normal",
+              "size-3.5": props.size === "compact",
+            }}
+            aria-hidden="true"
+          />
+        }
+      >
+        <For each={marks()}>
+          {(content, index) => (
+            <span
+              class="absolute top-0 flex items-center justify-center overflow-hidden"
+              // 新しいリアクションを手前に出す。
+              style={{
+                left: `${index() * step()}px`,
+                width: `${mark()}px`,
+                height: `${mark()}px`,
+                "z-index": count() - index(),
+              }}
+              aria-hidden="true"
+            >
+              <Mark content={content} mine={false} size={props.size} />
+            </span>
+          )}
+        </For>
+        <Show when={(reactions()?.rest ?? 0) > 0}>
+          <span
+            class="c-secondary absolute top-0 grid place-items-center rounded-1.5 bg-secondary font-600"
+            classList={{
+              "text-[11px]": props.size === "normal",
+              "text-[9px]": props.size === "compact",
+            }}
+            style={{
+              left: `${marks().length * step()}px`,
+              width: `${mark()}px`,
+              height: `${mark()}px`,
+            }}
+            aria-hidden="true"
+          >
+            +{reactions()?.rest}
+          </span>
+        </Show>
+      </Show>
+    </div>
+  );
+};
 
 /**
  * 通知に流れるリアクション・リポスト。主役は「誰が何をしたか」で、対象のノートは
@@ -189,14 +266,9 @@ const ActionNotice: Component<{
   const budget = () => {
     const rest = rowWidth() - timeWidth() - 8;
     return props.size === "normal"
-      ? Math.max(0, rest - 20 - 8)
-      : Math.max(0, (rest - 14 - 16) * 0.45);
+      ? Math.max(0, rest - SLOT_PX.normal - 8)
+      : Math.max(0, (rest - SLOT_PX.compact - 16) * 0.45);
   };
-
-  const icon = () =>
-    action() === "reaction"
-      ? "i-material-symbols:favorite-rounded c-accent-5"
-      : "i-material-symbols:repeat-rounded c-secondary";
 
   const time = () => (
     <EventTime ref={measureTime} class="shrink-0" at={newest()} />
@@ -258,14 +330,7 @@ const ActionNotice: Component<{
         }}
       >
         <div ref={measure} class="flex min-w-0 items-center gap-2">
-          <span
-            class={`${icon()} shrink-0`}
-            classList={{
-              "size-5": props.size === "normal",
-              "size-3.5": props.size === "compact",
-            }}
-            aria-hidden="true"
-          />
+          <LeadSlot events={props.events} action={action()} size={props.size} />
           <Show
             when={props.size === "normal"}
             fallback={
