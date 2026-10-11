@@ -10,6 +10,7 @@ import {
   restoreNip07,
 } from "@streets/core/signer/login/connection";
 import {
+  type LoginErrorLink,
   type LoginEvent,
   initialLoginState,
   needsAuthReset,
@@ -151,21 +152,38 @@ const openNosskey = async (): Promise<{
   return { client, dispose: () => frame.dispose() };
 };
 
-const nosskeyErrorText = (error: unknown): string => {
+const NOSSKEY_SETUP: LoginErrorLink = {
+  label: "Nosskey のセットアップを開く",
+  href: "https://nosskey.app/#/account",
+};
+
+const nosskeyFailure = (
+  error: unknown,
+): { message: string; link?: LoginErrorLink } => {
   if (error instanceof NosskeyError) {
     switch (error.code) {
       case "NO_KEY":
-        return "Nosskey にアカウントがありません。nosskey.app を開いてパスキーを作るか、いまの鍵を取り込んでから、もう一度試してください。";
+        return {
+          message:
+            "Nosskey に鍵が見つかりません。下のボタンからセットアップの画面を開き、パスキーで登録するかログインしてから、もう一度試してください。",
+          link: NOSSKEY_SETUP,
+        };
       case "USER_REJECTED":
-        return "Nosskey で許可されませんでした。";
+        return { message: "Nosskey で許可されませんでした。" };
       case "RATE_LIMITED":
-        return "続けて断ったため、Nosskey が一時的に受け付けていません。しばらくしてから試してください。";
+        return {
+          message:
+            "続けて断ったため、Nosskey が一時的に受け付けていません。しばらくしてから試してください。",
+        };
       case "NOT_READY":
       case "TIMEOUT":
-        return "Nosskey と繋がりませんでした。通信を確かめて、もう一度試してください。";
+        return {
+          message:
+            "Nosskey と繋がりませんでした。通信を確かめて、もう一度試してください。",
+        };
     }
   }
-  return `Nosskey でログインできませんでした: ${errorText(error)}`;
+  return { message: `Nosskey でログインできませんでした: ${errorText(error)}` };
 };
 
 // モバイルの Safari では、アプリを開き直した直後などに拡張機能が立ち上がり直すため、注入が 1 秒を超えて遅れる。
@@ -234,10 +252,10 @@ export const createSession = (
     storedLogin.write(next.stored);
   };
 
-  const restoreFailedWith = (message: string) => {
+  const restoreFailedWith = (message: string, link?: LoginErrorLink) => {
     if (state.pubkey) signer.disconnect();
     else signer.set(undefined);
-    dispatch({ type: "restore-failed", message });
+    dispatch({ type: "restore-failed", message, link });
   };
 
   const loginWithExtension = () =>
@@ -312,7 +330,7 @@ export const createSession = (
           opened?.client.close();
           opened?.dispose();
           reportSignerError(e, "login", { "signer.method": "nosskey" });
-          dispatch({ type: "failed", message: nosskeyErrorText(e) });
+          dispatch({ type: "failed", ...nosskeyFailure(e) });
         }
       },
       "Nosskey の確認を待っています",
@@ -373,7 +391,8 @@ export const createSession = (
           activate(nosskeyConnection(client, login.pubkey, dispose));
         } catch (e) {
           reportSignerError(e, "restore", { "signer.method": "nosskey" });
-          restoreFailedWith(nosskeyErrorText(e));
+          const { message, link } = nosskeyFailure(e);
+          restoreFailedWith(message, link);
         }
       }, "ログインの復元を待っています");
       return;
@@ -486,6 +505,7 @@ export const createSession = (
     signerStatus: () => state.status,
     pending: () => state.pending,
     error: () => state.error,
+    errorLink: () => state.errorLink,
     authUrl,
     signer,
     signerWaits: signerWait.messages,

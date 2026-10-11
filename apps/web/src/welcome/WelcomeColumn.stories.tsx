@@ -137,13 +137,17 @@ export const 署名器と繋がらなかった: Story = {
   },
 };
 
-export const Nosskeyにアカウントが無かった: Story = {
+export const Nosskeyに鍵が無かった: Story = {
   args: {
     initialStep: "existing",
     login: {
       pending: false,
       error:
-        "Nosskey にアカウントがありません。nosskey.app を開いてパスキーを作るか、いまの鍵を取り込んでから、もう一度試してください。",
+        "Nosskey に鍵が見つかりません。下のボタンからセットアップの画面を開き、パスキーで登録するかログインしてから、もう一度試してください。",
+      errorLink: {
+        label: "Nosskey のセットアップを開く",
+        href: "https://nosskey.app/#/account",
+      },
     },
   },
 };

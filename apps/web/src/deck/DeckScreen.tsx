@@ -652,6 +652,7 @@ const DeckScreen: Component<{
     state: () => ({
       pending: props.session.pending(),
       error: props.session.error(),
+      errorLink: props.session.errorLink(),
       authUrl: props.session.authUrl(),
       restoreFailed: props.session.restoreFailed(),
     }),
