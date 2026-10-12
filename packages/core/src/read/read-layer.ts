@@ -56,6 +56,13 @@ export type ReadLayer = {
   dispose(): void;
 };
 
+/**
+ * 使われていないイベントをメモリから捨てる間隔と、捨てずに残す新しさ。届いて
+ * すぐのものは、描いている部品が取ったばかりのこと（本文中の引用など）がある。
+ */
+export const SWEEP_INTERVAL_MS = 60_000;
+export const SWEEP_IDLE_MS = 10 * 60_000;
+
 /** kind:10002 のバーストを Outbox の再計画 1 回へ畳む窓。 */
 export const ROUTING_REPLAN_BATCH_MS = 200;
 
@@ -100,6 +107,28 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
   };
   const engagements = createEngagementRequests(engagementRequestsOptions);
 
+  const offSweep = store.onSweep((dropped) => {
+    const ids = dropped.map((event) => event.id);
+    // 捨てたものが指していた先は、反応や回答の数が欠けたかもしれない。
+    const targets = [
+      ...ids,
+      ...dropped.flatMap((event) =>
+        event.tags.flatMap((tag) => (tag[0] === "e" && tag[1] ? [tag[1]] : [])),
+      ),
+    ];
+    events.forget(ids);
+    engagements.forget(targets);
+    polls.forget(targets);
+  });
+  let sweepTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleSweep = () => {
+    sweepTimer = scheduler.setTimeout(() => {
+      store.sweep(SWEEP_IDLE_MS);
+      scheduleSweep();
+    }, SWEEP_INTERVAL_MS);
+  };
+  scheduleSweep();
+
   let routingReplanTimer: ReturnType<typeof setTimeout> | undefined;
   const offReplaceableChanged = store.onReplaceableChanged((change) => {
     if (change.kind !== 10002 || routingReplanTimer !== undefined) return;
@@ -143,6 +172,8 @@ export const createReadLayer = (options: ReadLayerOptions): ReadLayer => {
     store,
     dispose(): void {
       offReplaceableChanged();
+      offSweep();
+      if (sweepTimer !== undefined) scheduler.clearTimeout(sweepTimer);
       if (routingReplanTimer !== undefined) {
         scheduler.clearTimeout(routingReplanTimer);
         routingReplanTimer = undefined;

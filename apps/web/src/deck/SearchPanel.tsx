@@ -5,6 +5,7 @@ import type { ReadLayer } from "@streets/core/read/read-layer";
 import {
   PAGE_SIZE,
   type Paging,
+  SECTION_WINDOW,
   type SectionStatus,
 } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -18,6 +19,7 @@ import { createSection } from "@streets/core/solid/create-section";
 import {
   type Accessor,
   type Component,
+  type JSX,
   Match,
   Show,
   Switch,
@@ -25,6 +27,7 @@ import {
   createMemo,
   createSignal,
 } from "solid-js";
+import { type ListWindow, NewerEdge, listWindow } from "../columns/list-window";
 import { useListsUnderWarning } from "../content-warning-setting";
 import Event from "../note/Event";
 import { useBotLookup } from "../note/use-profile";
@@ -63,6 +66,7 @@ const SearchPanel: Component<{
   const section = createSection({
     manager: props.readLayer.manager,
     pageSize: PAGE_SIZE,
+    windowSize: SECTION_WINDOW,
     source: () =>
       isEmptySearchQuery(query())
         ? undefined
@@ -98,6 +102,8 @@ const SearchPanel: Component<{
       status={section.status()}
       paging={section.paging()}
       onMore={section.loadMore}
+      windowing={listWindow(section)}
+      newerEdge={<NewerEdge section={section} />}
       changed={text().trim() !== searched()}
       empty={empty()}
       onOpen={() => {
@@ -121,6 +127,10 @@ export const SearchPanelView: Component<{
   status: SectionStatus;
   paging: Paging;
   onMore: () => void;
+  /** 持つ件数の上限に関わる、一覧への指示。 */
+  windowing?: ListWindow;
+  /** 結果の上に置くもの（新しいページの取り直し）。 */
+  newerEdge?: JSX.Element;
   /** 条件を、最後に探したときから変えた。 */
   changed: boolean;
   empty: boolean;
@@ -154,9 +164,12 @@ export const SearchPanelView: Component<{
         </Match>
         <Match when={props.results.length > 0}>
           <div>
+            {props.newerEdge}
             <VirtualList
               items={props.results}
               itemKey={(event) => event.id}
+              followsStart={props.windowing?.followsStart}
+              onAtStart={props.windowing?.onAtStart}
               class="[&>*]:border-primary [&>*]:border-b"
             >
               {(event) => <Event event={event} size="normal" replyContext />}

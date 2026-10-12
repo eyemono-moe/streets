@@ -46,6 +46,7 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
     peakConnections: props.readLayer.manager.peakConnectionCount,
     storedEvents: props.readLayer.store.size,
     verify: { ...props.readLayer.store.gate.stats },
+    sweep: { ...props.readLayer.store.sweepStats },
     longTasks: longTaskStats(),
   });
   const [stats, setStats] = createSignal(read());
@@ -66,6 +67,17 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
             ["catchupReceived", stats().catchupReceived],
             ["peakConnections", stats().peakConnections],
             ["storedEvents", stats().storedEvents],
+          ]}
+        />
+      </Section>
+      <Section title="sweep">
+        <Rows
+          rows={[
+            ["sweeps", stats().sweep.sweeps],
+            ["dropped", stats().sweep.dropped],
+            ["lastDropped", stats().sweep.lastDropped],
+            ["lastRetained", stats().sweep.lastRetained],
+            ["lastMs", preciseMs(stats().sweep.lastMs)],
           ]}
         />
       </Section>

@@ -2,6 +2,7 @@ import { schnorr } from "@noble/curves/secp256k1.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
 import { describe, expect, it } from "vite-plus/test";
 import { type NostrEvent, computeEventId } from "../nostr/event";
+import { encodeBech32 } from "../nostr/nip19";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { EventStore } from "./event-store";
 import { createFakeClock } from "./fake-clock";
@@ -1059,5 +1060,121 @@ describe("onReplaceableChanged", () => {
     store.hydrate([{ event, seenRelays: ["wss://one/"], fetchedAt: 1 }]);
 
     expect(changes).toEqual([{ kind: 10002, pubkey }]);
+  });
+});
+
+describe("使われていないイベントをメモリから捨てる（sweep）", () => {
+  const IDLE = 1000;
+  const setup = () => {
+    const clock = createFakeClock();
+    const deleted: string[] = [];
+    const store = new EventStore({
+      scheduler: clock,
+      persistence: {
+        async load() {
+          return { events: [], deletionRequests: [] };
+        },
+        save() {},
+        saveDeletionRequest() {},
+        deleteDeletionRequest() {},
+        delete: (ids) => void deleted.push(...ids),
+        dispose() {},
+      },
+    });
+    return { clock, store, deleted };
+  };
+
+  it("しばらく使われていないものを捨て、タグの索引からも外し、永続層には残す", () => {
+    const { clock, store, deleted } = setup();
+    const target = "a".repeat(64);
+    const reaction = sign("+", { kind: 7, tags: [["e", target]] });
+    store.put(reaction, "wss://one/");
+    const swept: string[] = [];
+    store.onSweep((events) => swept.push(...events.map((e) => e.id)));
+
+    clock.advance(IDLE + 1);
+    store.sweep(IDLE);
+
+    expect(store.get(reaction.id)).toBeUndefined();
+    expect(store.eventsByTag("e", target)).toEqual([]);
+    expect(swept).toEqual([reaction.id]);
+    expect(deleted).toEqual([]);
+  });
+
+  it("届いて間もないものは捨てない", () => {
+    const { clock, store } = setup();
+    const note = sign("fresh");
+    store.put(note, "wss://one/");
+    clock.advance(IDLE - 1);
+    store.sweep(IDLE);
+    expect(store.get(note.id)).toBeDefined();
+  });
+
+  it("並べているもの・それが指すもの・それを指すものは残す", () => {
+    const { clock, store } = setup();
+    const parent = sign("parent");
+    const quoted = sign("quoted");
+    const member = sign("member", {
+      tags: [
+        ["e", parent.id],
+        ["q", quoted.id],
+      ],
+    });
+    const reaction = sign("+", { kind: 7, tags: [["e", member.id]] });
+    const unrelated = sign("unrelated");
+    for (const event of [parent, quoted, member, reaction, unrelated]) {
+      store.put(event, "wss://one/");
+    }
+    const release = store.retain(() => [member.id]);
+
+    clock.advance(IDLE + 1);
+    store.sweep(IDLE);
+    expect(
+      [parent, quoted, member, reaction].map((e) => store.get(e.id)?.id),
+    ).toEqual([parent.id, quoted.id, member.id, reaction.id]);
+    expect(store.get(unrelated.id)).toBeUndefined();
+
+    // 外したら、次からは捨てる。
+    release();
+    store.sweep(IDLE);
+    expect(store.get(member.id)).toBeUndefined();
+  });
+
+  it("並べているものの本文で言及されたものは残す", () => {
+    const { clock, store } = setup();
+    const mentioned = sign("mentioned");
+    const member = sign(`see nostr:${encodeBech32("note", mentioned.id)}`);
+    store.put(mentioned, "wss://one/");
+    store.put(member, "wss://one/");
+    store.retain(() => [member.id]);
+    clock.advance(IDLE + 1);
+    store.sweep(IDLE);
+    expect(store.get(mentioned.id)).toBeDefined();
+  });
+
+  it("置換可能イベントと削除依頼は捨てない", () => {
+    const { clock, store } = setup();
+    const profile = sign("{}", { kind: 0 });
+    const relays = sign("", { kind: 10002 });
+    const deletion = sign("", { kind: 5, tags: [["e", "b".repeat(64)]] });
+    for (const event of [profile, relays, deletion]) {
+      store.put(event, "wss://one/");
+    }
+    clock.advance(IDLE + 1);
+    store.sweep(IDLE);
+    expect(store.latestReplaceable(0, pubkey)?.id).toBe(profile.id);
+    expect(store.latestReplaceable(10002, pubkey)?.id).toBe(relays.id);
+    expect(store.get(deletion.id)).toBeDefined();
+  });
+
+  it("捨てても変化の通知は出さない", () => {
+    // 捕まえる変異: remove の通知を流用する（カラムが並べている投稿を消す）
+    const { clock, store } = setup();
+    store.put(sign("quiet"), "wss://one/");
+    const changes: string[] = [];
+    store.subscribe((change) => changes.push(change.type));
+    clock.advance(IDLE + 1);
+    store.sweep(IDLE);
+    expect(changes).toEqual([]);
   });
 });

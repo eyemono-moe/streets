@@ -1,5 +1,6 @@
 import { Presence } from "@ark-ui/solid/presence";
 import type { MessageVisibility } from "@streets/core/nostr/channel";
+import type { NewerPaging } from "@streets/core/read/newer-page";
 import type { Paging } from "@streets/core/read/source";
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import type { ChatRow } from "@streets/core/view/chat";
@@ -17,6 +18,7 @@ import {
   onMount,
 } from "solid-js";
 import NewerNotice from "../columns/NewerNotice";
+import NewerLoader from "../deck/NewerLoader";
 import type { EventSize } from "../note/Event";
 import Button from "../ui/Button";
 import { holdsScroll } from "../ui/scroll-hold";
@@ -115,7 +117,34 @@ type RowsProps = {
   /** 繋がらなかったリレーがあるか。発言が 0 件のとき、「まだ無い」と言い切らない。 */
   unreachable?: boolean;
   onLoadOlder: () => void;
+  /** 新しい方の取り直し。持つ件数の上限で新しい側を捨てた後だけある。 */
+  newerPaging?: NewerPaging;
+  onLoadNewer?: () => void;
+  /** 一覧に入れずに溜めている新着。 */
+  pending?: readonly NewerItem[];
+  /** 溜めた新着を順に取らず、いちばん新しいところから読み直す。 */
+  onLatest?: () => void;
+  /** 新しい端にいるかが変わったら知らせる。 */
+  onAtNewest?: (atNewest: boolean) => void;
 };
+
+/** 新しい側の端に置く、取り直しの様子。 */
+const NewerEdge: Component<{
+  paging: NewerPaging | undefined;
+  onReach: (() => void) | undefined;
+  edge: "top" | "bottom";
+}> = (props) => (
+  <Show when={props.paging}>
+    {(paging) => (
+      <NewerLoader
+        paging={paging()}
+        onReach={() => props.onReach?.()}
+        edge={props.edge}
+        noun="発言"
+      />
+    )}
+  </Show>
+);
 
 /** 古い側の端に置く、取り足しの様子。 */
 const PagingStatus: Component<{
@@ -202,6 +231,8 @@ const NewestLastRows: Component<RowsProps> = (props) => {
   let top: HTMLDivElement | undefined;
   const [atBottom, setAtBottom] = createSignal(true);
   const [unseen, setUnseen] = createSignal(0);
+  createEffect(() => props.onAtNewest?.(atBottom()));
+  const waiting = () => unseen() + (props.pending?.length ?? 0);
 
   const lastKey = () => {
     const last = props.rows.at(-1);
@@ -223,10 +254,11 @@ const NewestLastRows: Component<RowsProps> = (props) => {
   /** 一番下へ送っている途中。途中で発言が届いても、位置を保たずに下まで送り切る。 */
   let returning = false;
   const lastUnseen = createMemo<number>(
-    (previous) => (unseen() > 0 ? unseen() : previous),
+    (previous) => (waiting() > 0 ? waiting() : previous),
     0,
   );
   const toBottom = () => {
+    if ((props.pending?.length ?? 0) > 0) props.onLatest?.();
     returning = true;
     scroller?.scrollTo({ top: 0, behavior: "smooth" });
     setUnseen(0);
@@ -317,13 +349,18 @@ const NewestLastRows: Component<RowsProps> = (props) => {
                 />
               )}
             </VirtualList>
+            <NewerEdge
+              paging={props.newerPaging}
+              onReach={props.onLoadNewer}
+              edge="bottom"
+            />
           </Show>
         </div>
       </div>
       <Presence
         lazyMount
         unmountOnExit
-        present={unseen() > 0}
+        present={waiting() > 0}
         class="motion-pop pointer-events-none absolute inset-x-0 bottom-2 flex justify-center"
       >
         <Button
@@ -349,8 +386,11 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
   let scroller: HTMLDivElement | undefined;
   let bottom: HTMLDivElement | undefined;
   const [newer, setNewer] = createSignal<readonly NewerItem[]>([]);
-  const reportNewer: NewerItemsReport = (_, report) =>
+  let latest: (() => void) | undefined;
+  const reportNewer: NewerItemsReport = (_, report) => {
+    latest = report?.latest;
     setNewer(report?.items ?? []);
+  };
   const notice = () => {
     const items = newer();
     if (items.length === 0) return undefined;
@@ -360,13 +400,15 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
       authors: items.flatMap((item) => (item.author ? [item.author] : [])),
     };
   };
-  const toTop = () =>
+  const toTop = () => {
+    latest?.();
     scroller?.scrollTo({
       top: 0,
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
         : "smooth",
     });
+  };
 
   onMount(() => {
     if (scroller && bottom) {
@@ -389,16 +431,25 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
             <NoRows settled={props.settled} unreachable={props.unreachable} />
           }
         >
+          <NewerEdge
+            paging={props.newerPaging}
+            onReach={props.onLoadNewer}
+            edge="top"
+          />
           <NewerItemsProvider value={reportNewer}>
             <VirtualList
               items={props.rows}
               itemKey={(row) => row.key}
               estimateSize={64}
+              followsStart={props.newerPaging === undefined}
               newer={{
                 noun: "発言",
                 authorOf: (row) =>
                   row.type === "message" ? row.event.pubkey : undefined,
+                pending: props.pending,
+                latest: props.onLatest,
               }}
+              onAtStart={props.onAtNewest}
             >
               {(row) => (
                 <ChatRowView
@@ -426,7 +477,7 @@ const NewestFirstRows: Component<RowsProps> = (props) => {
 
 /**
  * チャンネルの発言と入力欄。発言は仮想リストで、見えている行とその前後だけを置く
- * （遡れる件数に上限が無いので）。入力欄は新しい発言の側に置く。
+ * （遡れる件数が多いので）。入力欄は新しい発言の側に置く。
  */
 const ChatView: Component<
   RowsProps & { order: ChatOrder; composer: JSX.Element }

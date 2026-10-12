@@ -52,6 +52,7 @@ const fakeRequests = () => {
       }
     },
     isUnresolved: (id) => unresolved.has(id),
+    forget: () => {},
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -110,6 +111,7 @@ const fakePollRequests = () => {
   const requests: PollRequests = {
     request: (id, relays) => void requested.push({ id, relays }),
     isSettled: (id) => settled.has(id),
+    forget: () => {},
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

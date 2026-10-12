@@ -1,6 +1,11 @@
 import { columnFacets } from "@streets/core/deck/column-kinds";
 import { columnShow, groupsActions } from "@streets/core/deck/deck";
-import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
+import type { NostrEvent } from "@streets/core/nostr/event";
+import {
+  type NostrSource,
+  PAGE_SIZE,
+  SECTION_WINDOW,
+} from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
   type NotificationRow,
@@ -24,6 +29,7 @@ import ActionNotice from "../../note/ActionNotice";
 import Event, { BrokenEvent, type EventSize } from "../../note/Event";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
+import { type ListWindow, NewerEdge, listWindow } from "../list-window";
 
 /**
  * 誰かのリアクション・リポストを並べる。同じノートへの同じ操作は、届いた順が
@@ -40,6 +46,7 @@ const ActionFeed: Component<{
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
+    windowSize: SECTION_WINDOW,
   });
   const listsUnderWarning = useListsUnderWarning();
   const column = () => scope.column();
@@ -47,13 +54,13 @@ const ActionFeed: Component<{
     column().density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => column().expandMedia !== false;
 
-  const items = () => {
-    return visibleColumnItems(
-      section.items().filter(listsUnderWarning),
+  const visible = (events: NostrEvent[]) =>
+    visibleColumnItems(
+      events.filter(listsUnderWarning),
       columnShow(column()),
       columnFacets(column()),
     );
-  };
+  const items = () => visible(section.items());
 
   const [rows, setRows] = createStore<{ list: NotificationRow[] }>({
     list: [],
@@ -73,6 +80,8 @@ const ActionFeed: Component<{
       settled={section.status().phase === "settled"}
       size={size()}
       expandMedia={expandMedia()}
+      windowing={listWindow(section, visible)}
+      header={<NewerEdge section={section} />}
       footer={
         <OlderLoader paging={section.paging()} onReach={section.loadMore} />
       }
@@ -87,16 +96,28 @@ export const ActionFeedView: Component<{
   settled: boolean;
   size: EventSize;
   expandMedia: boolean;
+  /** 持つ件数の上限に関わる、一覧への指示。 */
+  windowing?: ListWindow;
+  /** 一覧の上に置くもの（新しいページの取り直し）。 */
+  header?: JSX.Element;
   /** 一覧の下に置くもの（古いページの取り足し）。 */
   footer?: JSX.Element;
 }> = (props) => (
   <Switch>
     <Match when={props.rows.length > 0}>
+      {props.header}
       <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
         <VirtualList
           items={props.rows}
           itemKey={(row) => row.key}
-          newer={{ noun: "反応", authorOf: rowAuthor }}
+          followsStart={props.windowing?.followsStart}
+          newer={{
+            noun: "反応",
+            authorOf: rowAuthor,
+            pending: props.windowing?.pending,
+            latest: props.windowing?.latest,
+          }}
+          onAtStart={props.windowing?.onAtStart}
           class="[&>*]:border-primary [&>*]:border-b"
         >
           {(row) => (

@@ -62,7 +62,19 @@ export type SectionReaderOptions = {
    * filters がどれも `until` を持つときだけ効き、その時点より新しいものを窓で取る。
    */
   pagesNewer?: boolean;
+  /**
+   * `pageSize` と一緒に指定すると、持つ件数をこの数までにする。1 ページぶん超えたら、
+   * 見ている位置（`setAnchor`）から遠い側を捨てる。捨てた側は `loadOlder()`・
+   * `loadNewer()` で取り直せる。
+   */
+  windowSize?: number;
 };
+
+/**
+ * 一覧のどこを見ているか。`head` はいちばん新しい端、`away` はそれより奥。
+ * 溢れたときに捨てる側を決める。
+ */
+export type Anchor = "head" | "away";
 
 type RelayState = {
   complete: boolean;
@@ -100,6 +112,28 @@ export class SectionReader {
    * から入れる —— 先に入れると、窓の古い側が抜けたまま新しい側が並ぶ。
    */
   readonly #heldNewer = new Map<string, RelayUrl>();
+  /**
+   * 上限が source の `until` から来ているか（過去の時点から読むカラム）。新しい側を
+   * 捨てて付けた上限は、今に追いついたら外し、届いたものをまた入れる。
+   */
+  #fixedCeiling = false;
+  /** 新しい側を捨てた後に届き、上限より新しいので入れていないもの。 */
+  readonly #aboveCeiling = new Map<string, RelayUrl>();
+  /**
+   * 新しい側を捨てたとき、いちばん新しかったものの時刻。これ以前のものは捨てたものが
+   * 届き直しただけなので、新着として数えない —— 購読を張り直すとリレーは最新の
+   * 1 ページを送り直し、捨てた分がそのまま新着に見える。
+   */
+  #droppedHead: number | undefined;
+  #anchor: Anchor = "head";
+  /**
+   * 取り足しの回。捨てた側を取っている途中の返事は、捨てた後の境界と合わないので
+   * 回を進めて無視する。
+   */
+  #olderRun = 0;
+  #newerRun = 0;
+  /** 取り終えた新しい方の窓を入れている間。溢れても、入れたばかりの側は捨てない。 */
+  #fillingNewer = false;
   /** このセクションへ配信されたが、NIP-09 により現在は隠れている id。 */
   readonly #hiddenMembers = new Set<string>();
   #relays = new Map<RelayUrl, RelayState>();
@@ -108,6 +142,7 @@ export class SectionReader {
   #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
   #offStore: (() => void) | null = null;
+  #release: (() => void) | null = null;
   #started = false;
   readonly #scheduler: Scheduler;
   #notifyTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -140,6 +175,19 @@ export class SectionReader {
     return this.#newerPaging;
   }
 
+  /** 新しい側を捨てた後に届き、まだ一覧に入れていないもの。新しい順。 */
+  get pendingNewer(): NostrEvent[] {
+    const { store } = this.#options;
+    return [...this.#aboveCeiling.keys()]
+      .flatMap((id) => store.get(id) ?? [])
+      .sort(compareEvents);
+  }
+
+  /** 見ている位置を知らせる。次に溢れたときに捨てる側が変わるだけで、今は捨てない。 */
+  setAnchor(anchor: Anchor): void {
+    this.#anchor = anchor;
+  }
+
   #isReady(): boolean {
     if (!this.#ready && this.status.phase === "settled") this.#ready = true;
     return this.#ready;
@@ -170,10 +218,11 @@ export class SectionReader {
     };
     this.#paging = "loading";
     this.#notify();
+    const run = ++this.#olderRun;
     void handle.fetchPage(request).then(
       (page) => {
-        // 取っている間に止めた・作り直した（別の handle になった）なら何もしない。
-        if (this.#handle !== handle) return;
+        // 取っている間に止めた・作り直した（別の handle になった）・古い側を捨てたなら何もしない。
+        if (this.#handle !== handle || this.#olderRun !== run) return;
         const next = nextOlder(
           page,
           request,
@@ -184,7 +233,7 @@ export class SectionReader {
         this.#notify();
       },
       () => {
-        if (this.#handle !== handle) return;
+        if (this.#handle !== handle || this.#olderRun !== run) return;
         this.#paging = "failed";
         this.#notify();
       },
@@ -206,7 +255,8 @@ export class SectionReader {
     if (!this.#isReady()) return;
     const now = Math.floor(this.#scheduler.now() / 1000);
     if (ceiling >= now) {
-      this.#newerPaging = "caught-up";
+      if (this.#fixedCeiling) this.#newerPaging = "caught-up";
+      else this.#releaseCeiling();
       this.#notify();
       return;
     }
@@ -226,19 +276,31 @@ export class SectionReader {
     };
     this.#newerPaging = "loading";
     this.#notify();
+    const run = ++this.#newerRun;
     const settle = (next: ReturnType<typeof nextNewer>) => {
-      if (this.#handle !== handle) return;
-      const held = [...this.#heldNewer];
+      if (this.#handle !== handle || this.#newerRun !== run) return;
+      const held = [...this.#heldNewer, ...this.#aboveCeiling];
       this.#heldNewer.clear();
+      this.#aboveCeiling.clear();
       if (next.paging === "failed") {
         this.#newerPaging = "failed";
+        if (!this.#fixedCeiling) {
+          for (const [id, relay] of held) this.#aboveCeiling.set(id, relay);
+        }
       } else {
-        this.#ceiling = next.ceiling;
-        if (next.paging === "idle") this.#window = next.window;
-        this.#newerPaging = next.paging;
+        if (next.paging === "caught-up" && !this.#fixedCeiling) {
+          this.#ceiling = undefined;
+          this.#newerPaging = "idle";
+        } else {
+          this.#ceiling = next.ceiling;
+          if (next.paging === "idle") this.#window = next.window;
+          this.#newerPaging = next.paging;
+        }
         // 上限を上げてから入れ直す。窓を狭めて取り直すときは上限が動かないので、
         // 何も入らない（次の窓で届き直す）。
+        this.#fillingNewer = true;
         for (const [id, relay] of held) this.#onEvent(id, relay);
+        this.#fillingNewer = false;
       }
       this.#notify();
     };
@@ -246,6 +308,67 @@ export class SectionReader {
       (page) => settle(nextNewer(page, request)),
       () => settle({ paging: "failed" }),
     );
+  }
+
+  /** 捨てて付けた上限を外し、上限より新しいので入れずにいたものを入れる。 */
+  #releaseCeiling(): void {
+    this.#ceiling = undefined;
+    this.#newerPaging = "idle";
+    this.#window = undefined;
+    const pending = [...this.#aboveCeiling];
+    this.#aboveCeiling.clear();
+    this.#droppedHead = undefined;
+    this.#fillingNewer = true;
+    for (const [id, relay] of pending) this.#onEvent(id, relay);
+    this.#fillingNewer = false;
+  }
+
+  /**
+   * 1 ページぶん溢れたら、持つ件数まで削る。1 件ずつ削ると、境界で取っては捨てるを
+   * 繰り返す。
+   */
+  #trim(): void {
+    const { windowSize, pageSize } = this.#options;
+    if (windowSize === undefined || pageSize === undefined) return;
+    if (this.#events.size <= windowSize + pageSize) return;
+    if (this.#trimsNewest()) this.#dropNewest(windowSize);
+    else this.#dropOldest(windowSize);
+  }
+
+  /**
+   * 古い方を取っている間は古い側を、新しい方を取っている間は新しい側を見ている。
+   * どちらでもない（流れてきた投稿で溢れた）ときは、画面が知らせた位置で決める。
+   */
+  #trimsNewest(): boolean {
+    if (this.#paging === "loading") return true;
+    if (this.#newerPaging === "loading" || this.#fillingNewer) return false;
+    return this.#anchor === "away";
+  }
+
+  #dropOldest(windowSize: number): void {
+    this.#events.keepNewest(windowSize);
+    const tail = this.#events.last;
+    if (!tail) return;
+    // until は含むので、残したいちばん古いものと同じ秒に捨てたものも取り直せる。
+    this.#until = tail.created_at;
+    this.#olderRun++;
+    this.#paging = "idle";
+  }
+
+  #dropNewest(windowSize: number): void {
+    const dropped = this.#events.first?.created_at;
+    if (dropped !== undefined) {
+      this.#droppedHead = Math.max(this.#droppedHead ?? dropped, dropped);
+    }
+    this.#events.keepOldest(windowSize);
+    const head = this.#events.first;
+    if (!head) return;
+    // 上限は含むので、残したいちばん新しいものと同じ秒に捨てたものも取り直せる。
+    this.#ceiling = head.created_at;
+    this.#newerRun++;
+    this.#heldNewer.clear();
+    this.#newerPaging = "idle";
+    this.#window = undefined;
   }
 
   /** 最初のページについて `nextOlder` と同じ考えで、取りこぼしの無い `until` を決める。 */
@@ -298,9 +421,11 @@ export class SectionReader {
       untils.every((until): until is number => until !== undefined)
         ? Math.min(...untils)
         : undefined;
+    this.#fixedCeiling = this.#ceiling !== undefined;
     // manager.subscribe() は同期的にイベントを配送しうる。先に Store の変化を
     // 購読し、配信と削除依頼の間に hide/show を取りこぼす窓を作らない。
     this.#offStore = store.subscribe((change) => this.#onStoreChange(change));
+    this.#release = store.retain(() => this.#members());
     const pageSize = this.#firstPageSize;
     // 最初は 1 ページぶんだけ取る。limit を持つ filter（最新の 1 件だけを取る kind:3
     // など）はそのまま。
@@ -396,6 +521,8 @@ export class SectionReader {
     this.#handle = null;
     this.#offStore?.();
     this.#offStore = null;
+    this.#release?.();
+    this.#release = null;
     this.#relays = new Map();
     this.#plan = null;
     this.#started = false;
@@ -407,6 +534,9 @@ export class SectionReader {
     this.#newerPaging = "idle";
     this.#window = undefined;
     this.#heldNewer.clear();
+    this.#fixedCeiling = false;
+    this.#aboveCeiling.clear();
+    this.#droppedHead = undefined;
     if (this.#firstPageTimer !== null) {
       this.#scheduler.clearTimeout(this.#firstPageTimer);
       this.#firstPageTimer = null;
@@ -417,6 +547,14 @@ export class SectionReader {
       this.#scheduler.clearTimeout(this.#notifyTimer);
       this.#notifyTimer = null;
     }
+  }
+
+  /** 一覧に並べているものと、並べる見込みで覚えているもの。store に捨てさせない。 */
+  *#members(): Iterable<string> {
+    yield* this.#events.ids();
+    yield* this.#hiddenMembers;
+    yield* this.#heldNewer.keys();
+    yield* this.#aboveCeiling.keys();
   }
 
   subscribe(listener: () => void): () => void {
@@ -440,7 +578,16 @@ export class SectionReader {
     // メンバーではない。削除依頼カードとして表示上限を消費させない。
     if (stored.kind === DELETION_KIND) return;
     if (this.#ceiling !== undefined && stored.created_at > this.#ceiling) {
-      if (this.#newerPaging === "loading") this.#heldNewer.set(id, relay);
+      if (this.#newerPaging === "loading") {
+        this.#heldNewer.set(id, relay);
+      } else if (
+        !this.#fixedCeiling &&
+        !this.#aboveCeiling.has(id) &&
+        stored.created_at > (this.#droppedHead ?? Number.NEGATIVE_INFINITY)
+      ) {
+        this.#aboveCeiling.set(id, relay);
+        this.#notify();
+      }
       return;
     }
 
@@ -462,6 +609,7 @@ export class SectionReader {
     // 上限に達した状態で保持順の末尾より後ろに来たイベントは採用されない。
     // その場合は画面に何の変化も無いので、通知も積まない。
     if (!this.#events.add(stored)) return;
+    this.#trim();
 
     this.#notify();
   }

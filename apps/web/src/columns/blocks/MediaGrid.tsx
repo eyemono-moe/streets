@@ -1,9 +1,11 @@
 import { MEDIA_TILE_MAX_EDGE } from "@streets/core/media/display-size";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { NewerPaging } from "@streets/core/read/newer-page";
 import {
   type NostrSource,
   PAGE_SIZE,
   type Paging,
+  SECTION_WINDOW,
 } from "@streets/core/read/source";
 import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
 import type { NoteMedia } from "@streets/core/view/note-layout";
@@ -18,8 +20,10 @@ import {
   createMemo,
   createSignal,
   on,
+  onCleanup,
 } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
+import NewerLoader from "../../deck/NewerLoader";
 import OlderLoader from "../../deck/OlderLoader";
 import { lazyPart } from "../../lazy-part";
 import {
@@ -223,7 +227,79 @@ export const MediaGridView: Component<{
   settled: boolean;
   paging: Paging;
   onLoadMore: () => void;
+  /** 新しい方の取り直し。持つ件数の上限で新しい側を捨てた後だけある。 */
+  newerPaging?: NewerPaging;
+  onLoadNewer?: () => void;
+  /** いちばん上にいるかが変わったら知らせる。 */
+  onAtTop?: (atTop: boolean) => void;
 }> = (props) => {
+  // 上のマスが捨てられたり足されたりしても、読んでいるマスを同じ位置に保つ。カラムの
+  // スクロール領域はブラウザのスクロールアンカーを切っている（仮想リストと行き違うため）
+  // ので、ここで保つ。
+  const [grid, setGrid] = createSignal<HTMLDivElement>();
+  /** 読んでいるマスと、スクロール領域の上端からの距離。いちばん上にいる間は持たない。 */
+  let anchor: { key: string; offset: number } | undefined;
+  const scroller = () =>
+    grid()?.closest<HTMLElement>("[data-scroll-container]") ?? undefined;
+  /** 上端より下にかかる最初のマス。マスは上から順に並ぶので二分探索で足りる。 */
+  const firstVisible = (top: number): HTMLElement | undefined => {
+    const tiles = grid()?.children;
+    if (!tiles) return undefined;
+    let lo = 0;
+    let hi = tiles.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (tiles[mid].getBoundingClientRect().bottom <= top) lo = mid + 1;
+      else hi = mid;
+    }
+    return tiles[lo] as HTMLElement | undefined;
+  };
+  createEffect(() => {
+    const element = scroller();
+    if (!element) return;
+    let atTop: boolean | undefined;
+    const remember = () => {
+      const top = element.scrollTop <= 1;
+      if (top !== atTop) {
+        atTop = top;
+        props.onAtTop?.(top);
+      }
+      if (top) {
+        anchor = undefined;
+        return;
+      }
+      const edge = element.getBoundingClientRect().top;
+      const tile = firstVisible(edge);
+      const key = tile?.dataset.tile;
+      anchor =
+        tile && key !== undefined
+          ? { key, offset: tile.getBoundingClientRect().top - edge }
+          : undefined;
+    };
+    remember();
+    element.addEventListener("scroll", remember, { passive: true });
+    onCleanup(() => element.removeEventListener("scroll", remember));
+  });
+  createEffect(
+    on(
+      () => props.tiles,
+      () => {
+        const element = scroller();
+        const kept = anchor;
+        if (!element || !kept) return;
+        const tile = [...(grid()?.children ?? [])].find(
+          (child) => (child as HTMLElement).dataset.tile === kept.key,
+        );
+        if (!tile) return;
+        const offset =
+          tile.getBoundingClientRect().top -
+          element.getBoundingClientRect().top;
+        element.scrollTop += offset - kept.offset;
+      },
+      { defer: true },
+    ),
+  );
+
   // 位置でなく key で持つ。開いている間に新しい投稿が先頭に届いても、見ている 1 枚がずれない。
   const [viewing, setViewing] = createSignal<string>();
   const viewable = createMemo(() =>
@@ -241,15 +317,25 @@ export const MediaGridView: Component<{
     <Switch
       fallback={
         <>
-          <div class="grid grid-cols-3 gap-0.5">
+          <Show when={props.newerPaging}>
+            {(paging) => (
+              <NewerLoader
+                paging={paging()}
+                onReach={() => props.onLoadNewer?.()}
+              />
+            )}
+          </Show>
+          <div ref={setGrid} class="grid grid-cols-3 gap-0.5">
             <For each={props.tiles}>
               {(tile) => (
-                <Show
-                  when={!hiddenUnderWarning(tile.event)}
-                  fallback={<WarningTile event={tile.event} />}
-                >
-                  <Tile tile={tile} onOpen={() => setViewing(tile.key)} />
-                </Show>
+                <div data-tile={tile.key}>
+                  <Show
+                    when={!hiddenUnderWarning(tile.event)}
+                    fallback={<WarningTile event={tile.event} />}
+                  >
+                    <Tile tile={tile} onOpen={() => setViewing(tile.key)} />
+                  </Show>
+                </div>
               )}
             </For>
           </div>
@@ -290,6 +376,7 @@ const MediaGrid: Component<{
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
+    windowSize: SECTION_WINDOW,
     name: props.name,
   });
   const listsUnderWarning = useListsUnderWarning();
@@ -302,6 +389,9 @@ const MediaGrid: Component<{
       settled={section.status().phase === "settled"}
       paging={section.paging()}
       onLoadMore={section.loadMore}
+      newerPaging={section.newerPaging()}
+      onLoadNewer={section.loadNewer}
+      onAtTop={(atTop) => section.setAnchor(atTop ? "head" : "away")}
     />
   );
 };

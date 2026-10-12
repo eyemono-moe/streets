@@ -44,6 +44,10 @@ export class SortedEvents {
     return this.#items.length;
   }
 
+  ids(): Iterable<string> {
+    return this.#ids;
+  }
+
   has(id: string): boolean {
     return this.#ids.has(id);
   }
@@ -56,6 +60,26 @@ export class SortedEvents {
   clear(): void {
     this.#items = [];
     this.#ids.clear();
+  }
+
+  /** 新しい方から `count` 件だけ残して古い側を捨て、上限もその件数に戻す。 */
+  keepNewest(count: number): void {
+    for (const dropped of this.#items.splice(count)) {
+      this.#ids.delete(dropped.id);
+    }
+    this.#capacity = count;
+  }
+
+  /**
+   * 古い方から `count` 件だけ残して新しい側を捨てる。上限は変えない —— 古い方を
+   * 取り足している途中で捨てるので、縮めると続けて届く古いものが入らない。
+   */
+  keepOldest(count: number): void {
+    const excess = this.#items.length - count;
+    if (excess <= 0) return;
+    for (const dropped of this.#items.splice(0, excess)) {
+      this.#ids.delete(dropped.id);
+    }
   }
 
   /** 指定した id を保持していたら取り除き、表示が変わったことを返す。 */

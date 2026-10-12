@@ -7,7 +7,7 @@ import {
 } from "solid-js";
 import type { NostrEvent } from "../nostr/event";
 import type { NewerPaging } from "../read/newer-page";
-import { SectionReader } from "../read/section-reader";
+import { type Anchor, SectionReader } from "../read/section-reader";
 import {
   type NostrSource,
   type Order,
@@ -29,6 +29,8 @@ export type CreateSectionOptions = {
   maxItems?: number;
   /** 新しい方へも取り足す（`SectionReaderOptions.pagesNewer`）。 */
   pagesNewer?: boolean;
+  /** 持つ件数の上限（`SectionReaderOptions.windowSize`）。 */
+  windowSize?: number;
 };
 
 export type Section = {
@@ -41,6 +43,12 @@ export type Section = {
   loadNewer: () => void;
   /** 新しい方への取り足し。取り足せないセクションでは無い。 */
   newerPaging: Accessor<NewerPaging | undefined>;
+  /** 新しい側を捨てた後に届き、まだ一覧に入れていないもの。新しい順。 */
+  pendingNewer: Accessor<NostrEvent[]>;
+  /** 見ている位置を知らせる（`SectionReader.setAnchor`）。 */
+  setAnchor: (anchor: Anchor) => void;
+  /** 捨てた分を順に取り直さず、いちばん新しい 1 ページから読み直す。 */
+  jumpToLatest: () => void;
 };
 
 /** 読み取り層の呼び出し側インターフェース。購読の開始・破棄・source 変更時の張り直しは内側で行う。 */
@@ -51,7 +59,12 @@ export const createSection = (options: CreateSectionOptions): Section => {
   });
   const [paging, setPaging] = createSignal<Paging>("idle");
   const [newerPaging, setNewerPaging] = createSignal<NewerPaging>();
+  const [pendingNewer, setPendingNewer] = createSignal<NostrEvent[]>([]);
+  const [restarts, setRestarts] = createSignal(0);
   let current: SectionReader | undefined;
+  let anchor: Anchor = "head";
+  /** 次に作り直すときは、伸ばした件数を引き継がずに 1 ページから始める。 */
+  let fresh = false;
   // 取る中身が変わって作り直すとき、それまで伸ばした件数から始める。
   let carried: number | undefined;
 
@@ -64,11 +77,13 @@ export const createSection = (options: CreateSectionOptions): Section => {
 
   createEffect(() => {
     const next = source();
+    restarts();
     if (next === undefined) {
       setItems([]);
       setStatus({ phase: "initial" });
       setPaging("waiting");
       setNewerPaging(undefined);
+      setPendingNewer([]);
       return;
     }
     const reader = new SectionReader({
@@ -81,7 +96,9 @@ export const createSection = (options: CreateSectionOptions): Section => {
       maxItems: options.maxItems,
       initialSize: carried,
       pagesNewer: options.pagesNewer,
+      windowSize: options.windowSize,
     });
+    reader.setAnchor(anchor);
     current = reader;
 
     const sync = () => {
@@ -89,6 +106,7 @@ export const createSection = (options: CreateSectionOptions): Section => {
       setStatus(reader.status);
       setPaging(reader.paging);
       setNewerPaging(reader.newerPaging);
+      setPendingNewer(reader.pendingNewer);
     };
 
     // subscribe を start() より先に登録する（逆順だと start() が同期発火する onEvent/onEose を取りこぼす）。
@@ -97,7 +115,13 @@ export const createSection = (options: CreateSectionOptions): Section => {
     sync();
 
     onCleanup(() => {
-      carried = reader.items.length;
+      carried = fresh
+        ? undefined
+        : Math.min(
+            reader.items.length,
+            options.windowSize ?? Number.POSITIVE_INFINITY,
+          );
+      fresh = false;
       unsubscribe();
       reader.stop();
       if (current === reader) current = undefined;
@@ -111,5 +135,14 @@ export const createSection = (options: CreateSectionOptions): Section => {
     paging,
     loadNewer: () => current?.loadNewer(),
     newerPaging,
+    pendingNewer,
+    setAnchor: (next) => {
+      anchor = next;
+      current?.setAnchor(next);
+    },
+    jumpToLatest: () => {
+      fresh = true;
+      setRestarts((count) => count + 1);
+    },
   };
 };

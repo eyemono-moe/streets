@@ -71,6 +71,8 @@ export const createBlockSection = (options: {
   pageSize?: number;
   maxItems?: number;
   pagesNewer?: boolean;
+  /** 持つ件数の上限。超えたら見ている位置から遠い側を捨てる（`createSection`）。 */
+  windowSize?: number;
   name?: string;
   /**
    * ミュートを当てない。開いた記事やチャンネルの情報のように、見にきたもの
@@ -89,6 +91,7 @@ export const createBlockSection = (options: {
     pageSize: options.pageSize,
     maxItems: options.maxItems,
     pagesNewer: options.pagesNewer,
+    windowSize: options.windowSize,
     source: () => addKnownRelays(options.source(), scope.column()),
   });
   const mutes = useMutes();
@@ -96,15 +99,15 @@ export const createBlockSection = (options: {
     mutes && !options.ignoresMutes
       ? columnMutedDisplay(scope.column())
       : undefined;
-  const items = createMemo(() => {
-    const received = section.items();
+  const applyMutes = (received: NostrEvent[]) => {
     const mode = display();
     if (!mutes || mode === undefined || mode === "show") return received;
     const canFold = mode === "fold" ? options.canFold : undefined;
     return received.filter(
       (event) => (canFold?.(event) ?? false) || !mutes.hides(event),
     );
-  });
+  };
+  const items = createMemo(() => applyMutes(section.items()));
   const key = () =>
     options.name ? `${scope.column().id}/${options.name}` : scope.column().id;
   createEffect(() =>
@@ -125,6 +128,8 @@ export const createBlockSection = (options: {
   return {
     ...section,
     items,
+    // 一覧に入れずに溜めている新着も、隠すものは札で数えない。
+    pendingNewer: () => applyMutes(section.pendingNewer()),
     foldsMuted: () => display() === "fold" && options.canFold !== undefined,
   };
 };

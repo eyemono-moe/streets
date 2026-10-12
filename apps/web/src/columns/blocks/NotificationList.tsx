@@ -2,7 +2,11 @@ import { columnFacets } from "@streets/core/deck/column-kinds";
 import { columnShow, groupsActions } from "@streets/core/deck/deck";
 import { excludeOwnActions } from "@streets/core/deck/notification-filter";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
+import {
+  type NostrSource,
+  PAGE_SIZE,
+  SECTION_WINDOW,
+} from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import {
   type NotificationRow,
@@ -29,6 +33,7 @@ import VirtualList from "../../ui/VirtualList";
 import { useOwnZapKey } from "../../zap/own-zap-key";
 import ZapNotice from "../../zap/ZapNotice";
 import { createBlockSection, useColumnScope } from "../column-scope";
+import { NewerEdge, listWindow } from "../list-window";
 
 /**
  * 自分宛のイベントを通知の行にして並べる。同じノートへの連続した
@@ -42,6 +47,7 @@ const NotificationList: Component<{
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
+    windowSize: SECTION_WINDOW,
     // まとめるリアクション・リポストと Zap は 1 行の投稿ではないので畳まない。
     canFold: (event) =>
       event.kind !== 9735 && actionTarget(event) === undefined,
@@ -60,8 +66,8 @@ const NotificationList: Component<{
       recipient: props.viewer,
       nostrPubkey: zapKey(),
     }) !== undefined;
-  const items = () => {
-    const received = excludeOwnActions(section.items(), props.viewer)
+  const visible = (events: NostrEvent[]) => {
+    const received = excludeOwnActions(events, props.viewer)
       .filter(genuine)
       .filter(listsUnderWarning);
     return visibleColumnItems(
@@ -70,6 +76,8 @@ const NotificationList: Component<{
       columnFacets(column()),
     );
   };
+  const items = () => visible(section.items());
+  const windowed = listWindow(section, visible);
 
   const [rows, setRows] = createStore<{ list: NotificationRow[] }>({
     list: [],
@@ -86,11 +94,19 @@ const NotificationList: Component<{
   return (
     <Switch>
       <Match when={items().length > 0}>
+        <NewerEdge section={section} />
         <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
           <VirtualList
             items={rows.list}
             itemKey={(row) => row.key}
-            newer={{ noun: "通知", authorOf: rowAuthor }}
+            followsStart={windowed.followsStart}
+            newer={{
+              noun: "通知",
+              authorOf: rowAuthor,
+              pending: windowed.pending,
+              latest: windowed.latest,
+            }}
+            onAtStart={windowed.onAtStart}
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(row) => (

@@ -7,9 +7,9 @@ import {
   createSignal,
 } from "solid-js";
 import {
-  type NewerItem,
   NewerItemsProvider,
   type NewerItemsReport,
+  type NewerItemsReportValue,
   ScrollContainerProvider,
 } from "../ui/VirtualList";
 import NewerNotice from "./NewerNotice";
@@ -23,7 +23,7 @@ const ColumnBody: ParentComponent<{
 }> = (props) => {
   let scroller: HTMLDivElement | undefined;
   const [reports, setReports] = createSignal<
-    ReadonlyMap<symbol, { noun: string; items: readonly NewerItem[] }>
+    ReadonlyMap<symbol, NewerItemsReportValue>
   >(new Map());
   const reportNewer: NewerItemsReport = (owner, newer) =>
     setReports((current) => {
@@ -46,13 +46,15 @@ const ColumnBody: ParentComponent<{
       authors: items.flatMap((item) => (item.author ? [item.author] : [])),
     };
   });
-  const scrollToTop = () =>
+  const scrollToTop = () => {
+    for (const report of reports().values()) report.latest?.();
     scroller?.scrollTo({
       top: 0,
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
         : "smooth",
     });
+  };
   return (
     <>
       <For each={props.alerts}>
