@@ -329,6 +329,7 @@ const Repost: Component<ContentProps> = (props) => {
                 event={event}
                 size={props.size}
                 active={mutes?.hides(props.event) !== true}
+                flush
               >
                 <EventContent
                   event={event}
