@@ -1555,6 +1555,18 @@ describe("持つ件数の上限（windowSize）", () => {
     expect(reader.pendingNewer.map((e) => e.id)).toEqual(["at-160"]);
   });
 
+  it("捨てた新しい投稿が届き直しても、新着として数えない", () => {
+    // 捕まえる変異: 上限より新しいものを全部数える（張り直しのたびに札の数が跳ねる）
+    const { reader, relay, arrive } = setupWindow();
+    reader.setAnchor("away");
+    arrive(110, 120, 130, 140, 150);
+    // 購読を張り直したリレーが、最新の 1 ページを送り直す。
+    relay().emitEvent(0, event("at-150", 150));
+    relay().emitEvent(0, event("at-140", 140));
+    arrive(160);
+    expect(reader.pendingNewer.map((e) => e.id)).toEqual(["at-160"]);
+  });
+
   it("古い方を取っている間に溢れたら、最新を見ていても新しい側を捨てる", async () => {
     // 捕まえる変異: 位置だけで捨てる側を決める（取ったばかりのページが消える）
     const { reader, relay, settle, arrive, ids } = setupWindow();

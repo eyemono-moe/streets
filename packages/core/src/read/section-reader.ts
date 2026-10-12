@@ -119,6 +119,12 @@ export class SectionReader {
   #fixedCeiling = false;
   /** 新しい側を捨てた後に届き、上限より新しいので入れていないもの。 */
   readonly #aboveCeiling = new Map<string, RelayUrl>();
+  /**
+   * 新しい側を捨てたとき、いちばん新しかったものの時刻。これ以前のものは捨てたものが
+   * 届き直しただけなので、新着として数えない —— 購読を張り直すとリレーは最新の
+   * 1 ページを送り直し、捨てた分がそのまま新着に見える。
+   */
+  #droppedHead: number | undefined;
   #anchor: Anchor = "head";
   /**
    * 取り足しの回。捨てた側を取っている途中の返事は、捨てた後の境界と合わないので
@@ -310,6 +316,7 @@ export class SectionReader {
     this.#window = undefined;
     const pending = [...this.#aboveCeiling];
     this.#aboveCeiling.clear();
+    this.#droppedHead = undefined;
     this.#fillingNewer = true;
     for (const [id, relay] of pending) this.#onEvent(id, relay);
     this.#fillingNewer = false;
@@ -348,6 +355,10 @@ export class SectionReader {
   }
 
   #dropNewest(windowSize: number): void {
+    const dropped = this.#events.first?.created_at;
+    if (dropped !== undefined) {
+      this.#droppedHead = Math.max(this.#droppedHead ?? dropped, dropped);
+    }
     this.#events.keepOldest(windowSize);
     const head = this.#events.first;
     if (!head) return;
@@ -521,6 +532,7 @@ export class SectionReader {
     this.#heldNewer.clear();
     this.#fixedCeiling = false;
     this.#aboveCeiling.clear();
+    this.#droppedHead = undefined;
     if (this.#firstPageTimer !== null) {
       this.#scheduler.clearTimeout(this.#firstPageTimer);
       this.#firstPageTimer = null;
@@ -556,7 +568,11 @@ export class SectionReader {
     if (this.#ceiling !== undefined && stored.created_at > this.#ceiling) {
       if (this.#newerPaging === "loading") {
         this.#heldNewer.set(id, relay);
-      } else if (!this.#fixedCeiling && !this.#aboveCeiling.has(id)) {
+      } else if (
+        !this.#fixedCeiling &&
+        !this.#aboveCeiling.has(id) &&
+        stored.created_at > (this.#droppedHead ?? Number.NEGATIVE_INFINITY)
+      ) {
         this.#aboveCeiling.set(id, relay);
         this.#notify();
       }
