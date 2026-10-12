@@ -111,3 +111,23 @@ describe("needsAuthReset", () => {
     ).toBe(true);
   });
 });
+
+describe("失敗を直すためのページ", () => {
+  const link = { label: "開く", href: "https://nosskey.app/#/account" };
+
+  it("失敗といっしょに覚え、次の処理を始めたら消す", () => {
+    // 捕まえる変異: 前の失敗のページを残す（別の方式で失敗したのに Nosskey のボタンが出る）
+    const failed = run([{ type: "failed", message: "鍵が無い", link }]);
+    expect(failed.errorLink).toEqual(link);
+    expect(run([{ type: "task-started" }], failed).errorLink).toBeUndefined();
+    expect(
+      run([{ type: "failed", message: "別の失敗" }], failed).errorLink,
+    ).toBeUndefined();
+  });
+
+  it("戻せなかったときも覚える", () => {
+    expect(
+      run([{ type: "restore-failed", message: "鍵が無い", link }]).errorLink,
+    ).toEqual(link);
+  });
+});

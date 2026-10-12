@@ -4,12 +4,16 @@
  */
 export type SignerStatus = "none" | "connecting" | "ready" | "disconnected";
 
+/** 失敗を直すために開いてほしいページ（Nosskey のセットアップなど）。 */
+export type LoginErrorLink = { label: string; href: string };
+
 export type LoginState = {
   pubkey?: string;
   status: SignerStatus;
   /** ログイン・復元の処理が走っている。重ねて始めない。 */
   pending: boolean;
   error?: string;
+  errorLink?: LoginErrorLink;
   /** 保存したログインを戻せなかったが、消してはいない。署名器が戻れば試し直せる。 */
   restoreFailed: boolean;
   /**
@@ -25,8 +29,8 @@ export type LoginEvent =
   /** 覚えていた人の画面を先に出し、署名器が戻るまで署名を待たせる。 */
   | { type: "restore-started"; pubkey?: string }
   | { type: "connected"; pubkey: string }
-  | { type: "restore-failed"; message: string }
-  | { type: "failed"; message: string }
+  | { type: "restore-failed"; message: string; link?: LoginErrorLink }
+  | { type: "failed"; message: string; link?: LoginErrorLink }
   | { type: "logged-out" };
 
 export const initialLoginState = (): LoginState => ({
@@ -36,13 +40,24 @@ export const initialLoginState = (): LoginState => ({
   authStale: false,
 });
 
+const withError = (
+  state: LoginState,
+  message: string,
+  link: LoginErrorLink | undefined,
+): LoginState => {
+  const { errorLink: _link, ...rest } = state;
+  return link
+    ? { ...rest, error: message, errorLink: { ...link } }
+    : { ...rest, error: message };
+};
+
 export const reduceLogin = (
   state: LoginState,
   event: LoginEvent,
 ): LoginState => {
   switch (event.type) {
     case "task-started": {
-      const { error: _error, ...rest } = state;
+      const { error: _error, errorLink: _link, ...rest } = state;
       return { ...rest, pending: true, restoreFailed: false };
     }
     case "task-finished":
@@ -54,7 +69,7 @@ export const reduceLogin = (
         : { ...state, pubkey, status: "connecting" };
     }
     case "connected": {
-      const { error: _error, ...rest } = state;
+      const { error: _error, errorLink: _link, ...rest } = state;
       return {
         ...rest,
         pubkey: event.pubkey,
@@ -63,25 +78,21 @@ export const reduceLogin = (
         authStale: false,
       };
     }
-    case "restore-failed":
+    case "restore-failed": {
       // 覚えていた人がいれば、その人の画面を読み取りだけで残す
       // （スマホでは署名器が一時的に止まっているだけのことが多い）。
+      const failed = withError(state, event.message, event.link);
       return state.pubkey === undefined
-        ? {
-            ...state,
-            status: "none",
-            error: event.message,
-            restoreFailed: true,
-          }
+        ? { ...failed, status: "none", restoreFailed: true }
         : {
-            ...state,
+            ...failed,
             status: "disconnected",
-            error: event.message,
             restoreFailed: true,
             authStale: true,
           };
+    }
     case "failed":
-      return { ...state, error: event.message };
+      return withError(state, event.message, event.link);
     case "logged-out":
       return { ...initialLoginState(), pending: state.pending };
   }

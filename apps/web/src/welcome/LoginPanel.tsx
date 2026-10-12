@@ -12,7 +12,7 @@ import {
 import { isMultiColumn } from "../deck-layout-setting";
 import type { ConnectAttempt } from "../session";
 import { useDispatch } from "../ui-events";
-import Button from "../ui/Button";
+import Button, { ButtonLink } from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
 import Intro from "./Intro";
 import NewcomerGuide from "./NewcomerGuide";
@@ -21,6 +21,8 @@ import RemoteSignerLogin from "./RemoteSignerLogin";
 export type LoginState = {
   pending: boolean;
   error?: string;
+  /** 失敗を直すために開いてほしいページ。 */
+  errorLink?: { label: string; href: string };
   /** 署名器が承認のために開いてほしいページ。 */
   authUrl?: URL;
   /** 保存したログインを戻せなかった。署名器が戻れば試し直せる。 */
@@ -50,6 +52,7 @@ const BackButton: Component<{ onClick: () => void }> = (props) => (
 const LoginPanel: Component<{
   state: LoginState;
   onExtension: () => void;
+  onNosskey: () => void;
   onBunker: (uri: string) => void;
   onRetryRestore: () => void;
   /** 署名器の側から繋いでもらう。QR を出している間だけ待つ。 */
@@ -103,7 +106,7 @@ const LoginPanel: Component<{
           <ChoiceButton
             icon="i-material-symbols:login-rounded"
             title="Nostr のアカウントを持っている方"
-            description="拡張機能かリモート署名器でログインします"
+            description="拡張機能・リモート署名器・パスキーでログインします"
             trailing="next"
             onClick={() => setStep("existing")}
           />
@@ -159,6 +162,19 @@ const LoginPanel: Component<{
                 class="flex flex-col items-start gap-2 rounded-2 bg-danger-subtle px-3 py-2"
               >
                 <p class="c-danger text-caption">{message()}</p>
+                <Show when={props.state.errorLink}>
+                  {(link) => (
+                    <ButtonLink
+                      size="sm"
+                      trailingIcon="i-material-symbols:open-in-new-rounded"
+                      href={link().href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {link().label}
+                    </ButtonLink>
+                  )}
+                </Show>
                 <Show when={props.state.restoreFailed}>
                   <Button
                     size="sm"
@@ -209,6 +225,14 @@ const LoginPanel: Component<{
               </div>
             </Collapsible.Content>
           </Collapsible.Root>
+
+          <ChoiceButton
+            icon="i-material-symbols:fingerprint"
+            title="パスキーでログイン（Nosskey・試験中）"
+            description="nosskey.app に置いたパスキーで署名します。先に nosskey.app でパスキーを作るか、いまの鍵を取り込んでください。パソコンの Chrome などで使えます"
+            disabled={props.state.pending}
+            onClick={() => props.onNosskey()}
+          />
 
           <Show when={props.state.authUrl}>
             {(url) => (

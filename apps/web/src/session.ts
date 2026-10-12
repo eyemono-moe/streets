@@ -6,9 +6,11 @@ import {
   Nip07NotReadyError,
   connectNip07,
   nip46Connection,
+  nosskeyConnection,
   restoreNip07,
 } from "@streets/core/signer/login/connection";
 import {
+  type LoginErrorLink,
   type LoginEvent,
   initialLoginState,
   needsAuthReset,
@@ -36,11 +38,18 @@ import {
 } from "@streets/core/signer/nip46/nostrconnect";
 import { connectNip46, restoreNip46 } from "@streets/core/signer/nip46/session";
 import {
+  type NosskeyClient,
+  NosskeyError,
+  createNosskeyClient,
+} from "@streets/core/signer/nosskey/nosskey-client";
+import { askNosskeyPublicKey } from "@streets/core/signer/nosskey/nosskey-signer";
+import {
   Nip44UnavailableError,
   SignerUnavailableError,
 } from "@streets/core/signer/signer";
 import { createSignal, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { mountNosskeyFrame } from "./login/nosskey-frame";
 import {
   type SignerTags,
   nip07Tags,
@@ -98,8 +107,84 @@ const storedLogin = {
   },
 };
 
-const tagsFor = (login: StoredLogin): SignerTags =>
-  login.method === "nip07" ? nip07Tags() : nip46Tags(login.session.relays);
+const tagsFor = (login: StoredLogin): SignerTags => {
+  switch (login.method) {
+    case "nip07":
+      return nip07Tags();
+    case "nip46":
+      return nip46Tags(login.session.relays);
+    case "nosskey":
+      return { "signer.method": "nosskey" };
+  }
+};
+
+// nosskey.app の iframe が読み込まれて準備ができるまでの上限。
+const NOSSKEY_READY_WAIT_MS = 15_000;
+
+/** nosskey.app の iframe を置き、準備ができるまで待つ。失敗したら片付ける。 */
+const openNosskey = async (): Promise<{
+  client: NosskeyClient;
+  dispose: () => void;
+}> => {
+  const frame = mountNosskeyFrame();
+  const client = createNosskeyClient({ frame });
+  const dispose = () => {
+    client.close();
+    frame.dispose();
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      client.ready,
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new NosskeyError("NOT_READY", "nosskey did not load")),
+          NOSSKEY_READY_WAIT_MS,
+        );
+      }),
+    ]);
+  } catch (error) {
+    dispose();
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+  return { client, dispose: () => frame.dispose() };
+};
+
+const NOSSKEY_SETUP: LoginErrorLink = {
+  label: "Nosskey のセットアップを開く",
+  href: "https://nosskey.app/#/account",
+};
+
+const nosskeyFailure = (
+  error: unknown,
+): { message: string; link?: LoginErrorLink } => {
+  if (error instanceof NosskeyError) {
+    switch (error.code) {
+      case "NO_KEY":
+        return {
+          message:
+            "Nosskey に鍵が見つかりません。下のボタンからセットアップの画面を開き、パスキーで登録するかログインしてから、もう一度試してください。",
+          link: NOSSKEY_SETUP,
+        };
+      case "USER_REJECTED":
+        return { message: "Nosskey で許可されませんでした。" };
+      case "RATE_LIMITED":
+        return {
+          message:
+            "続けて断ったため、Nosskey が一時的に受け付けていません。しばらくしてから試してください。",
+        };
+      case "NOT_READY":
+      case "TIMEOUT":
+        return {
+          message:
+            "Nosskey と繋がりませんでした。通信を確かめて、もう一度試してください。",
+        };
+    }
+  }
+  return { message: `Nosskey でログインできませんでした: ${errorText(error)}` };
+};
 
 // モバイルの Safari では、アプリを開き直した直後などに拡張機能が立ち上がり直すため、注入が 1 秒を超えて遅れる。
 const NIP07_RESTORE_WAIT_MS = 5_000;
@@ -167,10 +252,10 @@ export const createSession = (
     storedLogin.write(next.stored);
   };
 
-  const restoreFailedWith = (message: string) => {
+  const restoreFailedWith = (message: string, link?: LoginErrorLink) => {
     if (state.pubkey) signer.disconnect();
     else signer.set(undefined);
-    dispatch({ type: "restore-failed", message });
+    dispatch({ type: "restore-failed", message, link });
   };
 
   const loginWithExtension = () =>
@@ -233,6 +318,25 @@ export const createSession = (
       true,
     );
 
+  const loginWithNosskey = () =>
+    run(
+      async () => {
+        let opened: Awaited<ReturnType<typeof openNosskey>> | undefined;
+        try {
+          opened = await openNosskey();
+          const pubkey = await askNosskeyPublicKey(opened.client);
+          activate(nosskeyConnection(opened.client, pubkey, opened.dispose));
+        } catch (e) {
+          opened?.client.close();
+          opened?.dispose();
+          reportSignerError(e, "login", { "signer.method": "nosskey" });
+          dispatch({ type: "failed", ...nosskeyFailure(e) });
+        }
+      },
+      "Nosskey の確認を待っています",
+      true,
+    );
+
   const loginWithNostrConnect = (): ConnectAttempt => {
     const resume = loadNostrConnectAttempt(pendingAttempt.read(), Date.now());
     const hidden = watchHidden();
@@ -277,6 +381,22 @@ export const createSession = (
     // 覚えていた人の画面を先に出し、署名器が戻るまで署名を待たせる。
     dispatch({ type: "restore-started", pubkey: storedLoginPubkey(login) });
     if (state.pubkey) signer.expect();
+
+    if (login.method === "nosskey") {
+      // 公開鍵は聞き直さない。閉じていない限り同意の画面が出てしまい、開くたびに
+      // 押させることになる。アカウントが替わっていれば、署名のときに分かる。
+      void run(async () => {
+        try {
+          const { client, dispose } = await openNosskey();
+          activate(nosskeyConnection(client, login.pubkey, dispose));
+        } catch (e) {
+          reportSignerError(e, "restore", { "signer.method": "nosskey" });
+          const { message, link } = nosskeyFailure(e);
+          restoreFailedWith(message, link);
+        }
+      }, "ログインの復元を待っています");
+      return;
+    }
 
     if (login.method === "nip07") {
       void run(async () => {
@@ -385,12 +505,14 @@ export const createSession = (
     signerStatus: () => state.status,
     pending: () => state.pending,
     error: () => state.error,
+    errorLink: () => state.errorLink,
     authUrl,
     signer,
     signerWaits: signerWait.messages,
     loginWithExtension,
     loginWithBunker,
     loginWithNostrConnect,
+    loginWithNosskey,
     restore,
     restoreFailed: () => state.restoreFailed,
     logout,
