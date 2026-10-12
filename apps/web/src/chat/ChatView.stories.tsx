@@ -6,6 +6,7 @@ import {
 import type { EventDraft } from "@streets/core/nostr/build/draft";
 import { chatModeration } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { NewerPaging } from "@streets/core/read/newer-page";
 import type { Paging } from "@streets/core/read/source";
 import type { ChatOrder } from "@streets/core/settings/chat-order-setting";
 import { chatRows } from "@streets/core/view/chat";
@@ -138,6 +139,10 @@ type Props = {
    * かかるので、そのストーリーを開いたときだけ作る。
    */
   scenario?: "many" | "older" | "live";
+  /** 持つ件数の上限で新しい側を捨てた後の、新しい方の取り直し。 */
+  newerPaging?: NewerPaging;
+  /** 一覧に入れずに溜めている新着の件数。 */
+  pending?: number;
 };
 
 /** 取り足しを模す。上端が見えたら少し待ってから、1 ページぶん古い発言を足す。 */
@@ -241,6 +246,11 @@ const meta = {
                 settled={props.settled}
                 unreachable={props.unreachable}
                 onLoadOlder={() => feed?.loadOlder()}
+                newerPaging={props.newerPaging}
+                pending={Array.from({ length: props.pending ?? 0 }, (_, i) => ({
+                  key: `pending-${i}`,
+                  author: [other, mama, aimono][i % 3]?.pubkey,
+                }))}
                 composer={
                   <ChatComposer
                     state={state}
@@ -352,4 +362,20 @@ export const 新しい発言を上に_遡って読む: Story = {
  */
 export const 新しい発言を上に_発言が届き続ける: Story = {
   args: { order: "newest-first", scenario: "live" },
+};
+
+export const 新しい側を捨てた後に新着が届いた: Story = {
+  args: { newerPaging: "idle", pending: 4 },
+};
+
+export const 新しい発言を読み込み中: Story = {
+  args: { newerPaging: "loading" },
+};
+
+export const 新しい発言を読み込めなかった: Story = {
+  args: { newerPaging: "failed" },
+};
+
+export const 新しい発言を上に_新しい側を捨てた後に新着が届いた: Story = {
+  args: { order: "newest-first", newerPaging: "idle", pending: 4 },
 };

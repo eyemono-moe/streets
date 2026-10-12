@@ -10,7 +10,7 @@ import {
   channelFrom,
   chatModeration,
 } from "@streets/core/nostr/channel";
-import { PAGE_SIZE } from "@streets/core/read/source";
+import { PAGE_SIZE, SECTION_WINDOW } from "@streets/core/read/source";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   type ChatReplyEvent,
@@ -98,6 +98,7 @@ const ChannelChat: Component<{
   const messages = createBlockSection({
     source: () => channelMessagesSource(props.channelId, relays()),
     pageSize: PAGE_SIZE,
+    windowSize: SECTION_WINDOW,
     name: "messages",
   });
   const moderation = createBlockSection({
@@ -124,6 +125,12 @@ const ChannelChat: Component<{
       ),
     );
   });
+
+  const pending = () =>
+    messages
+      .pendingNewer()
+      .filter(listsUnderWarning)
+      .map((event) => ({ key: event.id, author: event.pubkey }));
 
   const [reply, setReply] = createStore(emptyChatReply());
   const applyReply = (event: ChatReplyEvent) =>
@@ -235,6 +242,13 @@ const ChannelChat: Component<{
               (messages.status().incomplete?.unreachableRelays ?? 0) > 0
             }
             onLoadOlder={messages.loadMore}
+            newerPaging={messages.newerPaging()}
+            onLoadNewer={messages.loadNewer}
+            pending={pending()}
+            onLatest={messages.jumpToLatest}
+            onAtNewest={(atNewest) =>
+              messages.setAnchor(atNewest ? "head" : "away")
+            }
             composer={
               // ログインしていなければ書く欄の代わりにログインを勧める（書いてから送れないと分かるのを避ける）。
               actions?.viewer ? (
