@@ -17,6 +17,8 @@ const MutedGate: ParentComponent<{
   active?: boolean;
   /** 行の大きさ。アイコンの列を、同じ大きさの投稿のアイコンに揃える。省くと compact。 */
   size?: EventSize;
+  /** 投稿の枠の中に置くとき。余白は枠が持つので、ここでは付けない。 */
+  flush?: boolean;
 }> = (props) => {
   const mutes = useMutes();
   const hidden = () =>
@@ -29,7 +31,12 @@ const MutedGate: ParentComponent<{
     <Show when={hidden()} fallback={props.children}>
       <div
         class="flex items-center bg-primary"
-        classList={{ "gap-3 p-3": normal(), "gap-2 p-2": !normal() }}
+        classList={{
+          "gap-3": normal(),
+          "gap-2": !normal(),
+          "p-3": normal() && !props.flush,
+          "p-2": !normal() && !props.flush,
+        }}
       >
         {/* アイコン列の幅に置き、下の返信から伸びる線の位置に揃える。 */}
         <span

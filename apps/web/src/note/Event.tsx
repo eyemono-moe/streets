@@ -26,6 +26,7 @@ import ListSetCard from "../lists/ListSetCard";
 import PollBlock from "../poll/PollBlock";
 import ProfileRow from "../profile/ProfileRow";
 import { useReadLayer } from "../read-layer";
+import { useMutes } from "../settings/MuteMediator";
 import { UserStatusBadge } from "../status/UserStatusView";
 import { reportError } from "../telemetry";
 import { useDispatch } from "../ui-events";
@@ -304,6 +305,7 @@ const Note: Component<ContentProps> = (props) => {
 
 const Repost: Component<ContentProps> = (props) => {
   const { store } = useReadLayer();
+  const mutes = useMutes();
   return (
     <>
       <p class="c-secondary flex min-w-0 items-center gap-1.5 text-caption">
@@ -317,12 +319,24 @@ const Repost: Component<ContentProps> = (props) => {
       >
         {(ref) => (
           <Lookup target={ref()} missing="リポスト元を読み込めませんでした">
+            {/*
+              一覧の判定は手元のリポストだけで決めるので、埋め込みの無いリポストは
+              元投稿の本文やタグを見ずに通る。取ってきた元投稿はここで畳む。
+              リポスト自体が当たるなら、カラムの側が畳むか隠すので、二重に畳まない。
+            */}
             {(event) => (
-              <EventContent
+              <MutedGate
                 event={event}
                 size={props.size}
-                expandMedia={props.expandMedia}
-              />
+                active={mutes?.hides(props.event) !== true}
+                flush
+              >
+                <EventContent
+                  event={event}
+                  size={props.size}
+                  expandMedia={props.expandMedia}
+                />
+              </MutedGate>
             )}
           </Lookup>
         )}

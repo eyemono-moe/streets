@@ -99,10 +99,15 @@ const matches = (index: MuteIndex, event: NostrEvent): boolean => {
       if (matchesNote(index, event, { words: false })) return true;
       const pubkey = event.tags.find((tag) => tag[0] === "p")?.[1];
       if (pubkey !== undefined && index.pubkeys.has(pubkey)) return true;
-      if (inThread(index, repostTarget(event)?.id)) return true;
+      const target = repostTarget(event);
+      if (inThread(index, target?.id)) return true;
+      // `e` タグと id が違う埋め込みは、描く側（resolveRepostTarget）も使わない。
+      // 当てると、描かれない投稿の中身でリポストが隠れる。
       const original = embeddedRepostEvent(event);
       return (
-        original !== undefined && matchesNote(index, original, { words: true })
+        original !== undefined &&
+        (target === undefined || target.id === original.id) &&
+        matchesNote(index, original, { words: true })
       );
     }
     case 7: {
