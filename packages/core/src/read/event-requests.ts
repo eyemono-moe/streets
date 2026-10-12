@@ -16,6 +16,8 @@ export type EventRequests = {
    * なら `false`)。`fetchOnce` は必ず解決するので取得中と区別できる。
    */
   isUnresolved(id: string): boolean;
+  /** store が捨てたので、「見つからなかった」と言わずに取り直す。 */
+  forget(ids: Iterable<string>): void;
   /**
    * バッチが片付く (`fetchOnce` 解決) たびに呼ばれるが、どの id かは
    * 通知しない。呼び出し側は自分の id を `store`/`isUnresolved` から引き直す。
@@ -83,6 +85,10 @@ export const createEventRequests = (
       // store にあるなら解決済み。settled に入っていても、後から別経路
       // (カラムの購読など) で届いていることがある。
       return settled.has(id) && !options.store.get(id);
+    },
+
+    forget(ids) {
+      for (const id of ids) settled.delete(id);
     },
 
     subscribe: batch.subscribe,

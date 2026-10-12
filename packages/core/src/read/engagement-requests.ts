@@ -5,6 +5,8 @@ import type { SubscriptionManager } from "./subscription-manager";
 export type EngagementRequests = {
   /** このイベント id の返信・リポスト・反応を要求する。要求済みなら何もしない。 */
   request(targetId: string): void;
+  /** 対象への反応を store が捨てたので、次に要求されたら取り直す。 */
+  forget(targetIds: Iterable<string>): void;
   /**
    * バッチが 1 本片付く (= `fetchOnce` が解決する) たびに呼ばれる。
    * どのイベント id が解決したかは通知しない。
@@ -60,6 +62,9 @@ export const createEngagementRequests = (
       if (batch.disposed || requested.has(targetId)) return;
       requested.add(targetId);
       batch.enqueue(targetId);
+    },
+    forget(targetIds) {
+      for (const id of targetIds) requested.delete(id);
     },
     subscribe: batch.subscribe,
     get lastBatchSize() {

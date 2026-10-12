@@ -142,6 +142,7 @@ export class SectionReader {
   #plan: SectionPlan | null = null;
   #handle: SectionHandle | null = null;
   #offStore: (() => void) | null = null;
+  #release: (() => void) | null = null;
   #started = false;
   readonly #scheduler: Scheduler;
   #notifyTimer: ReturnType<Scheduler["setTimeout"]> | null = null;
@@ -424,6 +425,7 @@ export class SectionReader {
     // manager.subscribe() は同期的にイベントを配送しうる。先に Store の変化を
     // 購読し、配信と削除依頼の間に hide/show を取りこぼす窓を作らない。
     this.#offStore = store.subscribe((change) => this.#onStoreChange(change));
+    this.#release = store.retain(() => this.#members());
     const pageSize = this.#firstPageSize;
     // 最初は 1 ページぶんだけ取る。limit を持つ filter（最新の 1 件だけを取る kind:3
     // など）はそのまま。
@@ -519,6 +521,8 @@ export class SectionReader {
     this.#handle = null;
     this.#offStore?.();
     this.#offStore = null;
+    this.#release?.();
+    this.#release = null;
     this.#relays = new Map();
     this.#plan = null;
     this.#started = false;
@@ -543,6 +547,14 @@ export class SectionReader {
       this.#scheduler.clearTimeout(this.#notifyTimer);
       this.#notifyTimer = null;
     }
+  }
+
+  /** 一覧に並べているものと、並べる見込みで覚えているもの。store に捨てさせない。 */
+  *#members(): Iterable<string> {
+    yield* this.#events.ids();
+    yield* this.#hiddenMembers;
+    yield* this.#heldNewer.keys();
+    yield* this.#aboveCeiling.keys();
   }
 
   subscribe(listener: () => void): () => void {

@@ -225,6 +225,7 @@ const storyActions = (
 
 const inertRequests = (): ProfileRequests & EngagementRequests => ({
   request() {},
+  forget() {},
   subscribe: () => () => {},
   lastBatchSize: 0,
   maxBatchSize: 0,
@@ -244,6 +245,7 @@ const eventRequestsFor = (missing: ReadonlySet<string>): EventRequests => {
       });
     },
     isUnresolved: (id) => requested.has(id) && missing.has(id),
+    forget() {},
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -293,6 +295,7 @@ const settledPolls = (): PollRequests => {
       });
     },
     isSettled: (id) => settled.has(id),
+    forget() {},
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

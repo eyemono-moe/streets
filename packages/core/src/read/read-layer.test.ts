@@ -5,7 +5,11 @@ import { type NostrEvent, computeEventId } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
 import { createFakeClock } from "./fake-clock";
-import { createReadLayer } from "./read-layer";
+import {
+  SWEEP_IDLE_MS,
+  SWEEP_INTERVAL_MS,
+  createReadLayer,
+} from "./read-layer";
 import type { Scheduler } from "./scheduler";
 
 const secretKey = Uint8Array.from({ length: 32 }, (_, i) => i + 1);
@@ -229,5 +233,39 @@ describe("createReadLayer", () => {
     clock.advance(200);
 
     expect(replan).not.toHaveBeenCalled();
+  });
+
+  it("捨てた関連イベントを「見つからなかった」とせず、要求されたら取り直す", async () => {
+    // 捕まえる変異: 捨てたことを要求器へ伝えない（引用が「見つかりません」のまま戻らない）
+    const clock = createFakeClock();
+    const readLayer = createReadLayer({
+      connect: neverConnects,
+      persistence: {
+        async load() {
+          return { events: [], deletionRequests: [] };
+        },
+        save() {},
+        saveDeletionRequest() {},
+        deleteDeletionRequest() {},
+        delete() {},
+        dispose() {},
+      },
+      scheduler: clock,
+    });
+    await readLayer.ready;
+    const quoted = sign("quoted");
+    // 取りに行ったが見つからず、後からカラムの購読で届いた。
+    readLayer.events.request(quoted.id);
+    clock.advance(200);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(readLayer.events.isUnresolved(quoted.id)).toBe(true);
+    readLayer.store.put(quoted, "wss://one/");
+    expect(readLayer.events.isUnresolved(quoted.id)).toBe(false);
+
+    clock.advance(SWEEP_IDLE_MS + SWEEP_INTERVAL_MS);
+
+    expect(readLayer.store.get(quoted.id)).toBeUndefined();
+    expect(readLayer.events.isUnresolved(quoted.id)).toBe(false);
+    readLayer.dispose();
   });
 });

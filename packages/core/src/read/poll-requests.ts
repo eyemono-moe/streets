@@ -11,6 +11,8 @@ export type PollRequests = {
   request(pollId: string, relays: readonly RelayUrl[]): void;
   /** 一度取り終えたか。「まだ誰も投票していない」と「集計中」を分けるため。 */
   isSettled(pollId: string): boolean;
+  /** 回答を store が捨てたので、取り終えたとはもう言えない。 */
+  forget(pollIds: Iterable<string>): void;
   subscribe(listener: () => void): () => void;
   dispose(): void;
 };
@@ -46,6 +48,9 @@ export const createPollRequests = (options: {
       batch.enqueue({ pollId, relays });
     },
     isSettled: (pollId) => settled.has(pollId),
+    forget(pollIds) {
+      for (const id of pollIds) settled.delete(id);
+    },
     subscribe: batch.subscribe,
     dispose: batch.dispose,
   };

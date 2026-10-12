@@ -1,3 +1,4 @@
+import { parseContent } from "../nostr/content";
 import { type NostrEvent, isNostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { EventPersistence, PersistedEvent } from "./event-persistence";
@@ -16,6 +17,16 @@ export type StoredEvent = {
    * `created_at` は著者が書いた時刻なので、鮮度判定にはこちらの取得時刻を使う。
    */
   fetchedAt: number;
+};
+
+export type SweepStats = {
+  sweeps: number;
+  /** これまでに捨てた件数の累計。 */
+  dropped: number;
+  lastDropped: number;
+  /** 前回、並べているものとそこから辿れるものとして残した件数。 */
+  lastRetained: number;
+  lastMs: number;
 };
 
 export type PutResult = "inserted" | "duplicate" | "rejected" | "hidden";
@@ -145,6 +156,27 @@ const addressForLookup = (
 };
 
 /**
+ * 描くときに一緒に取るイベントの id（返信先・引用・リポスト元・本文中の言及）。
+ * 本文は `nostr:` を含むものだけ読む —— 毎回すべての本文を解析すると重い。
+ */
+const referencedIds = (event: NostrEvent): string[] => {
+  const ids: string[] = [];
+  for (const tag of event.tags) {
+    const value = tag[1];
+    if ((tag[0] === "e" || tag[0] === "q") && value && HEX_64.test(value)) {
+      ids.push(value);
+    }
+  }
+  if (!event.content.includes("nostr:")) return ids;
+  for (const token of parseContent(event.content, event.tags)) {
+    if (token.type !== "mention") continue;
+    const ref = token.ref;
+    if (ref.kind === "note" || ref.kind === "nevent") ids.push(ref.id);
+  }
+  return ids;
+};
+
+/**
  * 同期・メモリのイベント保管。
  * IndexedDB による永続化は「背後の水和・退避層」として足す。
  */
@@ -170,6 +202,15 @@ export class EventStore {
     (change: ReplaceableChange) => void
   >();
   readonly #changeListeners = new Set<(change: EventStoreChange) => void>();
+  readonly #retainers = new Set<() => Iterable<string>>();
+  readonly #sweepListeners = new Set<(dropped: NostrEvent[]) => void>();
+  readonly #sweepStats: SweepStats = {
+    sweeps: 0,
+    dropped: 0,
+    lastDropped: 0,
+    lastRetained: 0,
+    lastMs: 0,
+  };
 
   /** リレーから届いたイベントの関所。store を通らない経路もこれを使う。 */
   readonly gate = new SignatureGate();
@@ -201,6 +242,94 @@ export class EventStore {
   subscribe(listener: (change: EventStoreChange) => void): () => void {
     this.#changeListeners.add(listener);
     return () => this.#changeListeners.delete(listener);
+  }
+
+  /**
+   * `sweep()` で捨てさせない id を教える（カラムが並べているものなど）。
+   * 呼ぶたびに今の id を返す関数で渡し、要らなくなったら返り値で外す。
+   */
+  retain(members: () => Iterable<string>): () => void {
+    this.#retainers.add(members);
+    return () => this.#retainers.delete(members);
+  }
+
+  /** `sweep()` が捨てたイベントを知らせる。「もう取った」と覚えている側が忘れるのに使う。 */
+  onSweep(listener: (dropped: NostrEvent[]) => void): () => void {
+    this.#sweepListeners.add(listener);
+    return () => this.#sweepListeners.delete(listener);
+  }
+
+  /**
+   * 使われていないイベントをメモリから捨てる。永続層からは消さない。
+   *
+   * 残すもの：`retain()` された id、それがタグで指すもの（返信先・引用・リポスト元）、
+   * それを `e` タグで指すもの（反応・返信・Zap）、置換可能イベント（プロフィール・
+   * relay list など。著者ごとに 1 件で、ルーティングが読む）、削除依頼（後から届く
+   * 対象を隠す）、`idleMs` より最近届いたもの。
+   *
+   * 変化の通知（`subscribe`）は出さない —— 出すとカラムや描いている部品が、捨てた
+   * だけのものを「消えた」と受け取る。
+   */
+  get sweepStats(): Readonly<SweepStats> {
+    return this.#sweepStats;
+  }
+
+  sweep(idleMs: number): NostrEvent[] {
+    // 表示専用で分岐に影響しないため、`Scheduler` を通さず直に測る。
+    const startedAt = performance.now();
+    const keep = this.#retained();
+    const cutoff = this.#scheduler.now() - idleMs;
+    const dropped: NostrEvent[] = [];
+    const droppable = (stored: StoredEvent) =>
+      !keep.has(stored.event.id) &&
+      stored.fetchedAt < cutoff &&
+      stored.event.kind !== DELETION_KIND &&
+      addressForEvent(stored.event) === undefined;
+    for (const [id, stored] of this.#events) {
+      if (!droppable(stored)) continue;
+      this.#events.delete(id);
+      this.#removeVisibleIndexes(stored.event);
+      dropped.push(stored.event);
+    }
+    for (const [id, stored] of this.#hiddenEvents) {
+      if (!droppable(stored)) continue;
+      this.#hiddenEvents.delete(id);
+      dropped.push(stored.event);
+    }
+    const stats = this.#sweepStats;
+    stats.sweeps += 1;
+    stats.dropped += dropped.length;
+    stats.lastDropped = dropped.length;
+    stats.lastRetained = keep.size;
+    stats.lastMs = performance.now() - startedAt;
+    if (dropped.length === 0) return dropped;
+    for (const listener of [...this.#sweepListeners]) {
+      try {
+        listener(dropped);
+      } catch (error) {
+        console.error(
+          "EventStore: a sweep listener threw; isolating it so the remaining listeners still forget what was dropped.",
+          error,
+        );
+      }
+    }
+    return dropped;
+  }
+
+  #retained(): Set<string> {
+    const members = new Set<string>();
+    for (const retainer of this.#retainers) {
+      for (const id of retainer()) members.add(id);
+    }
+    const keep = new Set(members);
+    for (const id of members) {
+      const event = this.get(id);
+      if (event) for (const ref of referencedIds(event)) keep.add(ref);
+      for (const referrer of this.#byTag.get("e")?.get(id) ?? []) {
+        keep.add(referrer);
+      }
+    }
+    return keep;
   }
 
   put(event: NostrEvent, relay: RelayUrl): PutResult {

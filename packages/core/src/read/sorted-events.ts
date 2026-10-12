@@ -44,6 +44,10 @@ export class SortedEvents {
     return this.#items.length;
   }
 
+  ids(): Iterable<string> {
+    return this.#ids;
+  }
+
   has(id: string): boolean {
     return this.#ids.has(id);
   }

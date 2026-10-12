@@ -142,7 +142,7 @@ const startReaderWithRelays = (relayUrls: RelayUrl[], pageSize?: number) => {
   } as unknown as SubscriptionManager;
 
   const clock = createFakeClock();
-  const store = new EventStore();
+  const store = new EventStore({ scheduler: clock });
   const reader = new SectionReader({
     source: { type: "nostr", filters: [{ kinds: [1] }], relays: relayUrls },
     order: "created-at-desc",
@@ -1015,6 +1015,28 @@ describe("SectionReader with Outbox routing", () => {
 
     expect(reader.status.phase).toBe("settled");
     expect(reader.status.incomplete?.unroutableAuthors).toBe(3);
+  });
+});
+
+describe("store が使われていないものを捨てるとき", () => {
+  it("並べているものは捨てさせず、止めたら捨てさせる", () => {
+    const { reader, delivery, store, clock } = startReaderWithRelays([
+      "wss://a/",
+    ]);
+    const listed = signedEvent("listed", 100);
+    const stray = signedEvent("stray", 90);
+    store.put(listed, "wss://a/");
+    store.put(stray, "wss://a/");
+    delivery.onEvent(listed.id, "wss://a/");
+
+    clock.advance(1001);
+    store.sweep(1000);
+    expect(store.get(listed.id)).toBeDefined();
+    expect(store.get(stray.id)).toBeUndefined();
+
+    reader.stop();
+    store.sweep(1000);
+    expect(store.get(listed.id)).toBeUndefined();
   });
 });
 
