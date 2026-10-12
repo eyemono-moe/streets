@@ -42,6 +42,7 @@ const meta = {
     onRetryRestore: () => {},
     onNostrConnect: () => ({
       uri: `nostrconnect://${"a".repeat(64)}?relay=wss%3A%2F%2Fnos.lol%2F&secret=0123456789abcdef&name=Streets`,
+      resumed: false,
       // ストーリーでは承認されないまま待ち続ける。
       done: new Promise<void>(() => {}),
       cancel: () => {},
@@ -128,6 +129,7 @@ export const 署名器と繋がらなかった: Story = {
     initialRemoteOpen: true,
     onNostrConnect: () => ({
       uri: `nostrconnect://${"a".repeat(64)}`,
+      resumed: false,
       done: Promise.reject(new Error("remote signer did not connect in time")),
       cancel: () => {},
     }),

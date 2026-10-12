@@ -34,22 +34,20 @@ describe("NIP-46 session storage", () => {
     expect(loadNip46Session(saveNip46Session(session))).toEqual(session);
   });
 
+  it("求める権限が増える前に繋いだログインも、そのとき求めた権限のまま戻す", () => {
+    // 捕まえる変異: いまの要求と違う権限の保存を捨てる（kind を足すたびに全員が繋ぎ直しになる）
+    const older = {
+      ...session,
+      permissions:
+        "sign_event:1,sign_event:6,sign_event:7,nip44_encrypt,nip44_decrypt,nip04_decrypt",
+    };
+    expect(loadNip46Session(JSON.stringify(older))).toEqual(older);
+  });
+
   it.each([
     "not json",
     // 捕まえる変異: デッキ同期権限追加前の v2 セッションをそのまま復元する。
     JSON.stringify({ ...session, version: 2 }),
-    // kind:1111 などを追加する前の接続を復元しても、署名器の承認は増えない。
-    JSON.stringify({
-      ...session,
-      permissions:
-        "sign_event:1,sign_event:6,sign_event:7,sign_event:10000,sign_event:30078,nip44_encrypt,nip44_decrypt,nip04_decrypt",
-    }),
-    // 捕まえる変異: version だけを更新した権限不足の session を復元する。
-    JSON.stringify({
-      ...session,
-      permissions:
-        "sign_event:1,sign_event:10000,nip44_encrypt,nip44_decrypt,nip04_decrypt",
-    }),
     JSON.stringify({ ...session, clientSecret: "secret" }),
     JSON.stringify({ ...session, relays: [] }),
     JSON.stringify({ ...session, relays: ["https://relay.example"] }),

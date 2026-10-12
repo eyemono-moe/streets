@@ -251,4 +251,37 @@ describe("Nip46Client", () => {
     expect(base.pool.publish.mock.calls[0]?.[2]).toEqual({ lane: "signer" });
     base.client.close();
   });
+
+  it("時間切れの失敗に、止まった依頼と購読の様子を載せる", async () => {
+    // 捕まえる変異: 失敗に通り道の様子を載せない（購読が届かなかったのか、返事が来なかったのか切り分けられない）
+    vi.useFakeTimers();
+    const base = setup();
+    const pending = base.client.request("get_public_key");
+    base.handlers()?.onClosed("socket closed");
+    base.handlers()?.onEose();
+    const rejected = pending.catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
+    const error = await rejected;
+    expect(error).toBeInstanceOf(Nip46RpcError);
+    expect((error as Nip46RpcError).details).toMatchObject({
+      method: "get_public_key",
+      liveRelays: 1,
+      relays: 1,
+      reconnects: 1,
+    });
+    vi.useRealTimers();
+  });
+
+  it("購読が一度も届かずに時間切れになったら、届くまでの時間を載せない", async () => {
+    vi.useFakeTimers();
+    const base = setup(undefined, { live: false });
+    const rejected = base.client
+      .request("ping")
+      .catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(NIP46_RPC_TIMEOUT_MS);
+    const { details } = (await rejected) as Nip46RpcError;
+    expect(details?.liveRelays).toBe(0);
+    expect(details?.firstLiveMs).toBeUndefined();
+    vi.useRealTimers();
+  });
 });

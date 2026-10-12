@@ -5,8 +5,8 @@ import {
   verifyEvent,
 } from "../../nostr/event";
 import type { Signer } from "../signer";
-import type { Nip46Client } from "./client";
-import { assertNip46SignPermission } from "./session-storage";
+import { type Nip46Client, Nip46SignerRefusedError } from "./client";
+import { assertNip46SignPermission, grantsSignEvent } from "./session-storage";
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -17,12 +17,24 @@ export class InvalidNip46SignatureError extends Error {
   }
 }
 
+/**
+ * 接続したときに求めていない種類の署名を、署名器に断られた。繋ぎ直せば
+ * 求め直せる。
+ */
+export class Nip46PermissionMissingError extends Error {
+  constructor(readonly kind: number) {
+    super(`remote signer refused sign_event:${kind} not granted at connect`);
+    this.name = "Nip46PermissionMissingError";
+  }
+}
+
 const sameTags = (left: string[][], right: string[][]): boolean =>
   JSON.stringify(left) === JSON.stringify(right);
 
 export const createNip46Signer = (
   client: Pick<Nip46Client, "request">,
   userPubkey: string,
+  granted: string,
 ): Signer => {
   if (!HEX64.test(userPubkey)) {
     throw new InvalidNip46SignatureError("invalid user public key");
@@ -34,9 +46,20 @@ export const createNip46Signer = (
     async signEvent(template: UnsignedEvent): Promise<NostrEvent> {
       assertNip46SignPermission(template.kind);
       const { pubkey: _pubkey, ...withoutPubkey } = template;
-      const result = await client.request("sign_event", [
-        JSON.stringify(withoutPubkey),
-      ]);
+      let result: string;
+      try {
+        result = await client.request("sign_event", [
+          JSON.stringify(withoutPubkey),
+        ]);
+      } catch (error) {
+        if (
+          error instanceof Nip46SignerRefusedError &&
+          !grantsSignEvent(granted, template.kind)
+        ) {
+          throw new Nip46PermissionMissingError(template.kind);
+        }
+        throw error;
+      }
       let value: unknown;
       try {
         value = JSON.parse(result);

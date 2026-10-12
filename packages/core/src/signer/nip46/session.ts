@@ -75,7 +75,7 @@ export const finishSession = async (
   };
   return {
     client,
-    signer: createNip46Signer(client, userPubkey),
+    signer: createNip46Signer(client, userPubkey, stored.permissions),
     userPubkey,
     stored,
   };
@@ -138,7 +138,7 @@ export const restoreNip46 = async (options: {
     }
     return {
       client,
-      signer: createNip46Signer(client, userPubkey),
+      signer: createNip46Signer(client, userPubkey, options.stored.permissions),
       userPubkey,
       stored: options.stored,
     };

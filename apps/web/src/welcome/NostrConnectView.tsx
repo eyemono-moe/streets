@@ -1,11 +1,11 @@
 import { QrCode } from "@ark-ui/solid/qr-code";
-import { type Component, Match, Switch } from "solid-js";
+import { type Component, Match, Show, Switch } from "solid-js";
 import { useAppWindow } from "../app-window";
 import { notifyError, notifySuccess } from "../toast";
 import Button, { ButtonLink } from "../ui/Button";
 
 export type NostrConnectStatus =
-  | { phase: "waiting"; uri: string }
+  | { phase: "waiting"; uri: string; resumed?: boolean }
   | { phase: "failed" };
 
 /**
@@ -40,7 +40,12 @@ const NostrConnectView: Component<{
               </QrCode.Frame>
             </QrCode.Root>
             <p class="c-secondary text-center text-caption" aria-live="polite">
-              署名器のアプリで読み取り、承認してください。承認を待っています…
+              <Show
+                when={status().resumed}
+                fallback="署名器のアプリで読み取り、承認してください。承認を待っています…"
+              >
+                前に開いた接続の承認を待っています。署名器のアプリで承認したのに繋がらないときは、もう一度「この端末の署名器で開く」から開いてください。
+              </Show>
             </p>
             <div class="flex flex-wrap justify-center gap-2">
               <Button

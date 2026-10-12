@@ -14,7 +14,7 @@ const NostrConnectLogin: Component<{ start: () => ConnectAttempt }> = (
     current?.cancel();
     const attempt = props.start();
     current = attempt;
-    setStatus({ phase: "waiting", uri: attempt.uri });
+    setStatus({ phase: "waiting", uri: attempt.uri, resumed: attempt.resumed });
     attempt.done.catch((error: unknown) => {
       if (current !== attempt || error instanceof ConnectCancelledError) return;
       setStatus({ phase: "failed" });
