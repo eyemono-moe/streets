@@ -1468,3 +1468,141 @@ describe("新しい投稿の取り足し（pagesNewer）", () => {
     expect(reader.newerPaging).toBeUndefined();
   });
 });
+
+describe("持つ件数の上限（windowSize）", () => {
+  /** 1 ページ 2 件、4 件まで持つ。1 ページぶん溢れた（7 件目）ときに 4 件へ削る。 */
+  const setupWindow = () => {
+    const clock = createFakeClock();
+    clock.advance(10_000_000);
+    const relays = new Map<string, FakeRelayConnection>();
+    const store = new PassThroughStore();
+    const manager = new SubscriptionManager({
+      store,
+      routing: new RoutingTable(store),
+      connect: (url) => {
+        const relay = new FakeRelayConnection(url);
+        relays.set(url, relay);
+        return relay;
+      },
+      fallbackRelays: ["wss://fallback/"],
+    });
+    const reader = new SectionReader({
+      source: {
+        type: "nostr",
+        filters: [{ kinds: [1] }],
+        relays: ["wss://a/"],
+      },
+      order: "created-at-desc",
+      store,
+      manager,
+      scheduler: clock,
+      pageSize: 2,
+      windowSize: 4,
+    });
+    reader.start();
+    const relay = () => relays.get("wss://a/") as FakeRelayConnection;
+    const settle = async () => {
+      for (let i = 0; i < 5; i++) await Promise.resolve();
+      clock.advance(16);
+    };
+    const arrive = (...times: number[]) => {
+      for (const at of times) relay().emitEvent(0, event(`at-${at}`, at));
+      clock.advance(16);
+    };
+    relay().emitEvent(0, event("at-100", 100));
+    relay().emitEvent(0, event("at-90", 90));
+    relay().emitEose(0);
+    clock.advance(16);
+    const ids = () => reader.items.map((e) => e.id);
+    return { reader, relay, settle, arrive, ids };
+  };
+
+  it("最新を見ている間に溢れたら古い側を捨て、捨てた側を until で取り直せる", () => {
+    const { reader, relay, arrive, ids } = setupWindow();
+    arrive(110, 120, 130, 140);
+    // 6 件までは 1 ページぶんの余裕として持つ。
+    expect(ids()).toHaveLength(6);
+    arrive(150);
+    expect(ids()).toEqual(["at-150", "at-140", "at-130", "at-120"]);
+    expect(reader.paging).toBe("idle");
+
+    reader.loadOlder();
+    expect(relay().subscriptions[1]?.filters).toEqual([
+      { kinds: [1], limit: 2, until: 120 },
+    ]);
+  });
+
+  it("もう無いと分かった後でも、古い側を捨てたらまた取り足せる", async () => {
+    const { reader, relay, settle, arrive } = setupWindow();
+    reader.loadOlder();
+    relay().emitEose(1);
+    await settle();
+    expect(reader.paging).toBe("exhausted");
+
+    arrive(110, 120, 130, 140, 150);
+    expect(reader.paging).toBe("idle");
+  });
+
+  it("奥を見ている間に溢れたら新しい側を捨て、届いた新着は一覧に入れずに数える", () => {
+    const { reader, arrive, ids } = setupWindow();
+    reader.setAnchor("away");
+    arrive(110, 120, 130, 140, 150);
+    expect(ids()).toEqual(["at-120", "at-110", "at-100", "at-90"]);
+    expect(reader.newerPaging).toBe("idle");
+
+    arrive(160);
+    expect(ids()).toEqual(["at-120", "at-110", "at-100", "at-90"]);
+    expect(reader.pendingNewer.map((e) => e.id)).toEqual(["at-160"]);
+  });
+
+  it("古い方を取っている間に溢れたら、最新を見ていても新しい側を捨てる", async () => {
+    // 捕まえる変異: 位置だけで捨てる側を決める（取ったばかりのページが消える）
+    const { reader, relay, settle, arrive, ids } = setupWindow();
+    arrive(110, 120, 130, 140);
+    reader.loadOlder();
+    relay().emitEvent(1, event("at-80", 80));
+    relay().emitEvent(1, event("at-70", 70));
+    relay().emitEose(1);
+    await settle();
+    expect(ids()).toEqual(["at-110", "at-100", "at-90", "at-80", "at-70"]);
+    expect(reader.newerPaging).toBe("idle");
+  });
+
+  it("捨てた新しい側を loadNewer で取り直し、今に追いついたら上限を外す", async () => {
+    const { reader, relay, settle, arrive, ids } = setupWindow();
+    reader.setAnchor("away");
+    arrive(110, 120, 130, 140, 150, 160);
+    expect(reader.pendingNewer.map((e) => e.id)).toEqual(["at-160"]);
+
+    // リレーは窓の中を新しい順に limit 件まで返す。
+    const stored = [160, 150, 140, 130, 120, 110, 100, 90];
+    reader.setAnchor("head");
+    for (
+      let subscription = 1;
+      reader.newerPaging !== undefined;
+      subscription++
+    ) {
+      reader.loadNewer();
+      const filter = relay().subscriptions[subscription]?.filters[0];
+      const { since = 0, until = 0, limit = 0 } = filter ?? {};
+      for (const at of stored
+        .filter((at) => at >= since && at <= until)
+        .slice(0, limit)) {
+        relay().emitEvent(subscription, event(`at-${at}`, at));
+      }
+      relay().emitEose(subscription);
+      await settle();
+    }
+    expect(ids().slice(0, 5)).toEqual([
+      "at-160",
+      "at-150",
+      "at-140",
+      "at-130",
+      "at-120",
+    ]);
+    expect(reader.pendingNewer).toEqual([]);
+
+    arrive(170);
+    expect(ids()[0]).toBe("at-170");
+  });
+});

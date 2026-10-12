@@ -37,8 +37,15 @@ export type NewerItem = { key: string; author?: string };
  */
 export type NewerItemsReport = (
   owner: symbol,
-  newer: { noun: string; items: readonly NewerItem[] } | undefined,
+  newer: NewerItemsReportValue | undefined,
 ) => void;
+
+export type NewerItemsReportValue = {
+  noun: string;
+  items: readonly NewerItem[];
+  /** 札を押したとき、先頭へ戻る前に呼ぶ。一覧に入れていない新着があるときだけ。 */
+  latest?: () => void;
+};
 
 const NewerItemsContext = createContext<NewerItemsReport>();
 
@@ -65,7 +72,16 @@ export type VirtualListProps<T> = {
    * 先頭へ戻らなかったときに上へ足されたものを、`NewerItemsProvider` へ知らせる。
    * `noun` は札で数えるときの呼び名（「投稿」など）、`authorOf` は札に並べる人。
    */
-  newer?: { noun: string; authorOf: (item: T) => string | undefined };
+  newer?: {
+    noun: string;
+    authorOf: (item: T) => string | undefined;
+    /** 一覧にまだ入れていないが、上に届いているもの。新しい順。 */
+    pending?: readonly T[];
+    /** 札を押したとき、`pending` を順に取らずに、いちばん新しいところから読み直す。 */
+    latest?: () => void;
+  };
+  /** いちばん上にいるかが変わったら知らせる。 */
+  onAtStart?: (atStart: boolean) => void;
   class?: string;
 };
 
@@ -198,8 +214,13 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     for (const child of scroller.children) resize.observe(child);
     onCleanup(() => resize.disconnect());
     let frame: number | undefined;
+    let atStart: boolean | undefined;
     const onScroll = () => {
       followsStart = scroller.scrollTop <= 1;
+      if (followsStart !== atStart) {
+        atStart = followsStart;
+        props.onAtStart?.(atStart);
+      }
       if (frame !== undefined || untrack(unseen).length === 0) return;
       frame = requestAnimationFrame(() => {
         frame = undefined;
@@ -265,9 +286,14 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
       const newer = props.newer;
       if (!newer) return;
       const keys = unseen();
+      const pending = (newer.pending ?? []).map((item) => ({
+        key: props.itemKey(item),
+        author: newer.authorOf(item),
+      }));
+      const latest = pending.length > 0 ? newer.latest : undefined;
       // 何も溜まっていない間は、届くたびに一覧全体を引き直さない。
       if (keys.length === 0) {
-        reportNewer(owner, { noun: newer.noun, items: [] });
+        reportNewer(owner, { noun: newer.noun, items: pending, latest });
         return;
       }
       const byKey = new Map(
@@ -279,7 +305,11 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
           ? []
           : [{ key, author: newer.authorOf(item) }];
       });
-      reportNewer(owner, { noun: newer.noun, items });
+      reportNewer(owner, {
+        noun: newer.noun,
+        items: [...pending, ...items],
+        latest,
+      });
     });
     onCleanup(() => reportNewer(owner, undefined));
   }

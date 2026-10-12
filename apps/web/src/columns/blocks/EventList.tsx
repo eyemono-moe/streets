@@ -1,7 +1,11 @@
 import { columnFacets } from "@streets/core/deck/column-kinds";
 import { columnShow } from "@streets/core/deck/deck";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type NostrSource, PAGE_SIZE } from "@streets/core/read/source";
+import {
+  type NostrSource,
+  PAGE_SIZE,
+  SECTION_WINDOW,
+} from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
 import { type Component, Match, Show, Switch } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
@@ -30,6 +34,7 @@ const EventList: Component<{
     source: () => props.source(),
     pageSize: PAGE_SIZE,
     pagesNewer: props.pagesNewer,
+    windowSize: SECTION_WINDOW,
     name: props.name,
     canFold: () => true,
   });
@@ -62,8 +67,16 @@ const EventList: Component<{
           <VirtualList
             items={items()}
             itemKey={(event) => event.id}
-            followsStart={!props.pagesNewer}
-            newer={{ noun: "投稿", authorOf: (event) => event.pubkey }}
+            followsStart={section.newerPaging() === undefined}
+            newer={{
+              noun: "投稿",
+              authorOf: (event) => event.pubkey,
+              pending: section.pendingNewer(),
+              latest: section.jumpToLatest,
+            }}
+            onAtStart={(atStart) =>
+              section.setAnchor(atStart ? "head" : "away")
+            }
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(event) => (

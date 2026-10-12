@@ -71,6 +71,8 @@ export const createBlockSection = (options: {
   pageSize?: number;
   maxItems?: number;
   pagesNewer?: boolean;
+  /** 持つ件数の上限。超えたら見ている位置から遠い側を捨てる（`createSection`）。 */
+  windowSize?: number;
   name?: string;
   /**
    * ミュートを当てない。開いた記事やチャンネルの情報のように、見にきたもの
@@ -89,6 +91,7 @@ export const createBlockSection = (options: {
     pageSize: options.pageSize,
     maxItems: options.maxItems,
     pagesNewer: options.pagesNewer,
+    windowSize: options.windowSize,
     source: () => addKnownRelays(options.source(), scope.column()),
   });
   const mutes = useMutes();
