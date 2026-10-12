@@ -7,14 +7,14 @@ import {
   SECTION_WINDOW,
 } from "@streets/core/read/source";
 import { visibleColumnItems } from "@streets/core/view/column-items";
-import { type Component, Match, Show, Switch } from "solid-js";
+import { type Component, Match, Switch } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
-import NewerLoader from "../../deck/NewerLoader";
 import OlderLoader from "../../deck/OlderLoader";
 import Event from "../../note/Event";
 import MutedGate from "../../note/MutedGate";
 import VirtualList from "../../ui/VirtualList";
 import { createBlockSection, useColumnScope } from "../column-scope";
+import { NewerEdge, listWindow } from "../list-window";
 
 /**
  * 取ったイベントを 1 件ずつ `Event` に渡して並べ、古いページを取り足す。
@@ -43,40 +43,36 @@ const EventList: Component<{
   const size = () =>
     column().density === "compact" ? "compact" : ("normal" as const);
   const expandMedia = () => column().expandMedia !== false;
-  const items = () => {
+  const visible = (events: NostrEvent[]) => {
     const filter = props.filter;
-    const received = (
-      filter ? section.items().filter(filter) : section.items()
-    ).filter(listsUnderWarning);
+    const received = (filter ? events.filter(filter) : events).filter(
+      listsUnderWarning,
+    );
     return visibleColumnItems(
       received,
       columnShow(column()),
       columnFacets(column()),
     );
   };
+  const items = () => visible(section.items());
+  const windowed = listWindow(section, visible);
 
   return (
     <Switch>
       <Match when={items().length > 0}>
-        <Show when={section.newerPaging()}>
-          {(paging) => (
-            <NewerLoader paging={paging()} onReach={section.loadNewer} />
-          )}
-        </Show>
+        <NewerEdge section={section} />
         <div class="flex flex-col [&>*]:border-primary [&>*]:border-b">
           <VirtualList
             items={items()}
             itemKey={(event) => event.id}
-            followsStart={section.newerPaging() === undefined}
+            followsStart={windowed.followsStart}
             newer={{
               noun: "投稿",
               authorOf: (event) => event.pubkey,
-              pending: section.pendingNewer(),
-              latest: section.jumpToLatest,
+              pending: windowed.pending,
+              latest: windowed.latest,
             }}
-            onAtStart={(atStart) =>
-              section.setAnchor(atStart ? "head" : "away")
-            }
+            onAtStart={windowed.onAtStart}
             class="[&>*]:border-primary [&>*]:border-b"
           >
             {(event) => (

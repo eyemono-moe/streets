@@ -76,7 +76,7 @@ export type VirtualListProps<T> = {
     noun: string;
     authorOf: (item: T) => string | undefined;
     /** 一覧にまだ入れていないが、上に届いているもの。新しい順。 */
-    pending?: readonly T[];
+    pending?: readonly NewerItem[];
     /** 札を押したとき、`pending` を順に取らずに、いちばん新しいところから読み直す。 */
     latest?: () => void;
   };
@@ -286,10 +286,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
       const newer = props.newer;
       if (!newer) return;
       const keys = unseen();
-      const pending = (newer.pending ?? []).map((item) => ({
-        key: props.itemKey(item),
-        author: newer.authorOf(item),
-      }));
+      const pending = newer.pending ?? [];
       const latest = pending.length > 0 ? newer.latest : undefined;
       // 何も溜まっていない間は、届くたびに一覧全体を引き直さない。
       if (keys.length === 0) {
