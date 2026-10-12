@@ -100,6 +100,24 @@ describe("createMuteMatcher", () => {
     ).toBe(false);
   });
 
+  it("リポストの埋め込みが e タグと別の投稿なら、埋め込みには当てない", () => {
+    // 捕まえる変異: id を突き合わせず、描かれない埋め込みの中身でリポストを隠す。
+    const decoy = event({ id: "e".repeat(64), content: "tags の話" });
+    expect(
+      byWord()(
+        event({
+          kind: 6,
+          tags: [["e", ROOT_ID]],
+          content: JSON.stringify(decoy),
+        }),
+      ),
+    ).toBe(false);
+    // e タグが無ければ、描く側も埋め込みを使うので当てる。
+    expect(
+      byWord()(event({ kind: 6, tags: [], content: JSON.stringify(decoy) })),
+    ).toBe(true);
+  });
+
   it("リアクションは、した人と相手の著者・ノートで当てる", () => {
     const reaction = (tags: string[][]) =>
       event({ kind: 7, content: "+", tags });
