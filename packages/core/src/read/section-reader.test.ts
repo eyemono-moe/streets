@@ -891,6 +891,30 @@ describe("SectionReader", () => {
   // changed (not because the relay left the plan), the section must leave
   // settled and only return once the new subscription's own EOSE arrives --
   // reusing the old relay's `complete` would report settled while the fresh REQ is outstanding.
+  it("投稿が並んでいる間に読み先を張り直しても、並びを変えず、最初のページを待つ状態にも戻らない", () => {
+    // 捕まえる変異: 張り直しで items を空にする・ready を落とす（一覧が「読み込み中…」や
+    // 古い方の取り足しの停止にちらつく）。
+    const one = "wss://one/" as RelayUrl;
+    const { reader, delivery, store, clock } = startReaderWithRelays([one], 20);
+    const events = [signedEvent("a", 300), signedEvent("b", 200)];
+    for (const event of events) {
+      store.put(event, one);
+      delivery.onEvent(event.id, one);
+    }
+    delivery.onRelayComplete(one);
+    clock.advance(1_000);
+    const before = reader.items.map((event) => event.id);
+
+    delivery.onRelayRestarted(one);
+    // 張り直した REQ が同じ投稿を送り直す。
+    for (const event of events) delivery.onEvent(event.id, one);
+    clock.advance(1_000);
+
+    expect(reader.items.map((event) => event.id)).toEqual(before);
+    expect(reader.status.phase).toBe("streaming");
+    expect(reader.paging).not.toBe("waiting");
+  });
+
   it("leaves settled when a kept relay's subscription is restarted, and returns only after the new EOSE", () => {
     const { reader, delivery } = startReaderWithRelays(["wss://one/"]);
     delivery.onRelayComplete("wss://one/");
