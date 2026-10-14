@@ -159,6 +159,9 @@ export default defineConfig({
           "{from{transform:translate3d(var(--menu-from,-100%),0,0)}to{transform:none}}",
         "menu-out":
           "{from{transform:translate3d(var(--menu-x,0px),0,0)}to{transform:translate3d(-100%,0,0)}}",
+        // メニューの後ろの暗さ。指を離したときの暗さから続ける（0 や 1 から始め直すと明滅する）。
+        "menu-dim-in": "{from{opacity:var(--menu-dim-from,0)}to{opacity:1}}",
+        "menu-dim-out": "{from{opacity:var(--menu-dim-x,1)}to{opacity:0}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
@@ -186,6 +189,8 @@ export default defineConfig({
         "drawer-down": "140ms",
         "menu-in": "180ms",
         "menu-out": "140ms",
+        "menu-dim-in": "180ms",
+        "menu-dim-out": "140ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
@@ -209,6 +214,8 @@ export default defineConfig({
         "drawer-down": "ease-in both",
         "menu-in": "cubic-bezier(0.16, 1, 0.3, 1)",
         "menu-out": "ease-in both",
+        "menu-dim-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "menu-dim-out": "ease-in both",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
         marquee: "linear",
@@ -306,6 +313,8 @@ export default defineConfig({
       // 左から出るメニュー。閉じる動きを、指で押し戻した位置から始める。
       "motion-menu":
         "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out",
+      "motion-menu-dim":
+        "data-[state=open]:animate-menu-dim-in data-[state=closed]:animate-menu-dim-out",
     },
   ],
   transformers: [transformerVariantGroup()],

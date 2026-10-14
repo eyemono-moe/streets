@@ -9,7 +9,8 @@ import {
   onCleanup,
 } from "solid-js";
 import Avatar from "../note/Avatar";
-import Name from "../note/Name";
+import { ProfileName, ProfileText } from "../note/Name";
+import { useProfileDetails } from "../note/use-profile";
 import { useUserStatuses } from "../status/use-user-statuses";
 import { type UiEvent, useDispatch } from "../ui-events";
 import { Portal } from "../ui/Portal";
@@ -47,6 +48,11 @@ const MobileMenu: Component<{
   onLogout: () => void;
   /** フィードバックの送り先。省くと環境の設定、null なら送り先なし（導線を出さない）。 */
   feedbackUrl?: string | null;
+  /**
+   * メニューの出ている割合（0〜1）と、指で動かしている途中か。後ろの画面の奥行きを
+   * これに合わせる。
+   */
+  onShown?: (progress: number, dragging: boolean) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const statuses = useUserStatuses(() => props.pubkey);
@@ -55,8 +61,9 @@ const MobileMenu: Component<{
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);
   // 開いた後、左へ押し戻している途中なら、出ている割合。
   const [pushing, setPushing] = createSignal<number>();
-  // 指を離した位置。開く・閉じる動きをそこから始め、動き終えたら忘れる。
-  const [released, setReleased] = createSignal<string>();
+  // 指を離したときの出ている割合。開く・閉じる動き（位置と後ろの暗さ）をそこから始め、
+  // 動き終えたら忘れる。
+  const [released, setReleased] = createSignal<number>();
   let content: HTMLDivElement | undefined;
   const dragging = () => pushing() ?? props.pulling;
   const offset = (progress: number) => `${(progress - 1) * 100}%`;
@@ -65,19 +72,25 @@ const MobileMenu: Component<{
     on(
       () => props.pulling,
       (now, before) => {
-        if (now === undefined && before !== undefined) {
-          setReleased(offset(before));
-        }
+        if (now === undefined && before !== undefined) setReleased(before);
       },
     ),
   );
+  createEffect(() => {
+    const progress = dragging();
+    props.onShown?.(progress ?? (props.open ? 1 : 0), progress !== undefined);
+  });
 
-  // 選んだ先が開いたら、メニューは閉じる。パネルや設定を開く操作はデッキの段が閉じるので、
-  // ここで閉じるのはそれ以外（ログイン・ステータス・フィードバック・ログアウト）。
-  const choose = (event: UiEvent) => {
+  // 選んだものは、メニューが閉じきってから開く。閉じたメニューは自分のアイコンへ焦点を
+  // 戻すので、先に開いたダイアログは焦点が外へ出たとみなして閉じてしまう。Ark UI の
+  // Dialog は焦点を戻すかを開いたときに決めるので、選んだときに戻さないよう切り替えられない。
+  let afterClose: (() => void) | undefined;
+  const choose = (event: UiEvent | (() => void)) => {
+    afterClose = typeof event === "function" ? event : () => dispatch(event);
     dispatch({ type: "deck/close-menu" });
-    dispatch(event);
   };
+  const details = useProfileDetails(() => props.pubkey);
+  const profile = () => details()?.profile;
 
   const trackPush = (el: HTMLElement) => {
     const stop = trackMenuDrag(el, {
@@ -85,7 +98,7 @@ const MobileMenu: Component<{
       accepts: () => props.open,
       move: setPushing,
       end: (open, progress) => {
-        setReleased(offset(progress));
+        setReleased(progress);
         setPushing(undefined);
         if (!open) dispatch({ type: "deck/close-menu" });
       },
@@ -103,17 +116,27 @@ const MobileMenu: Component<{
         // 開いたら、行ではなくメニュー全体に焦点を置く。指で引き出している途中に、先頭の行に
         // 焦点の枠が出て押したように見えるのを避ける。
         initialFocusEl={() => content ?? null}
+        onExitComplete={() => {
+          const run = afterClose;
+          afterClose = undefined;
+          run?.();
+        }}
         lazyMount
         unmountOnExit
       >
         <Portal>
           <ArkDialog.Backdrop
-            class="motion-fade fixed inset-0 bg-ui-950/40"
+            class="motion-menu-dim fixed inset-0 bg-ui-950/40"
             style={(() => {
               const progress = dragging();
-              return progress === undefined
-                ? undefined
-                : { opacity: progress, animation: "none" };
+              const edge = released();
+              return {
+                "--menu-dim-from": String(edge ?? 0),
+                "--menu-dim-x": String(edge ?? 1),
+                ...(progress === undefined
+                  ? {}
+                  : { opacity: progress, animation: "none" }),
+              };
             })()}
           />
           <ArkDialog.Positioner
@@ -129,8 +152,8 @@ const MobileMenu: Component<{
                 const progress = dragging();
                 const edge = released();
                 return {
-                  "--menu-from": edge ?? "-100%",
-                  "--menu-x": edge ?? "0px",
+                  "--menu-from": edge === undefined ? "-100%" : offset(edge),
+                  "--menu-x": edge === undefined ? "0px" : offset(edge),
                   ...(progress === undefined
                     ? {}
                     : {
@@ -157,8 +180,26 @@ const MobileMenu: Component<{
                   {(pubkey) => (
                     <div class="flex flex-col gap-3 px-5 pt-5 pb-3">
                       <Avatar pubkey={pubkey()} size="normal" static />
-                      <span class="min-w-0 truncate font-700 text-body">
-                        <Name pubkey={pubkey()} />
+                      <span class="flex min-w-0 flex-col">
+                        <span class="min-w-0 truncate font-700 text-body">
+                          <ProfileName
+                            pubkey={pubkey()}
+                            profile={profile()}
+                            tags={details()?.tags}
+                          />
+                        </span>
+                        {/* display_name が無いと太字側が name に落ちるので、同じ文字列を 2 回並べない。 */}
+                        <Show when={profile()?.displayName && profile()?.name}>
+                          {(name) => (
+                            <span class="c-secondary min-w-0 truncate text-caption">
+                              @
+                              <ProfileText
+                                text={name()}
+                                tags={details()?.tags}
+                              />
+                            </span>
+                          )}
+                        </Show>
                       </span>
                       <button
                         type="button"
@@ -183,27 +224,27 @@ const MobileMenu: Component<{
                     icon="i-material-symbols:search-rounded"
                     label="検索"
                     onClick={() =>
-                      dispatch({ type: "deck/open-panel", panel: "search" })
+                      choose({ type: "deck/open-panel", panel: "search" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:add-rounded"
                     label="カラムを追加"
                     onClick={() =>
-                      dispatch({ type: "deck/open-panel", panel: "add-column" })
+                      choose({ type: "deck/open-panel", panel: "add-column" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:view-column-outline-rounded"
                     label="デッキを編集"
                     onClick={() =>
-                      dispatch({ type: "deck/open-panel", panel: "arrange" })
+                      choose({ type: "deck/open-panel", panel: "arrange" })
                     }
                   />
                   <Row
                     icon="i-material-symbols:manage-search-rounded"
                     label="コマンドパレット"
-                    onClick={() => dispatch({ type: "deck/open-palette" })}
+                    onClick={() => choose({ type: "deck/open-palette" })}
                   />
                 </nav>
                 <hr class="my-1 border-primary border-t" />
@@ -211,21 +252,18 @@ const MobileMenu: Component<{
                   <Row
                     icon="i-material-symbols:settings-outline-rounded"
                     label="設定"
-                    onClick={() => dispatch({ type: "deck/open-settings" })}
+                    onClick={() => choose({ type: "deck/open-settings" })}
                   />
                   <Row
                     icon="i-material-symbols:info-outline-rounded"
                     label="Streets について"
-                    onClick={() => dispatch({ type: "deck/open-about" })}
+                    onClick={() => choose({ type: "deck/open-about" })}
                   />
                   <Show when={feedback()}>
                     <Row
                       icon="i-material-symbols:feedback-outline-rounded"
                       label="フィードバックを送る"
-                      onClick={() => {
-                        dispatch({ type: "deck/close-menu" });
-                        setFeedbackOpen(true);
-                      }}
+                      onClick={() => choose(() => setFeedbackOpen(true))}
                     />
                   </Show>
                 </div>
@@ -236,10 +274,7 @@ const MobileMenu: Component<{
                     icon="i-material-symbols:logout-rounded"
                     label="ログアウト"
                     muted
-                    onClick={() => {
-                      dispatch({ type: "deck/close-menu" });
-                      props.onLogout();
-                    }}
+                    onClick={() => choose(props.onLogout)}
                   />
                 </div>
               </Show>

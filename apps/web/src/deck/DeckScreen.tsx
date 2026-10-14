@@ -506,6 +506,11 @@ const DeckScreen: Component<{
   };
   // 右へ払ってメニューを引き出している途中なら、出ている割合。
   const [menuPull, setMenuPull] = createSignal<number>();
+  // メニューの出ている割合。出ている間は後ろの画面を少し縮め、メニューが手前にあると見せる。
+  const [menuShown, setMenuShown] = createSignal({
+    progress: 0,
+    dragging: false,
+  });
   // メニューは狭い画面にしか無い。開いたまま広げると、狭く戻したときに急に出てくる。
   createEffect(() => {
     if (isMultiColumn() && untrack(() => ui.menuOpen)) {
@@ -1225,7 +1230,23 @@ const DeckScreen: Component<{
           </div>
         </Match>
         <Match when={true}>
-          <div class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]">
+          <div
+            class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]"
+            classList={{
+              // 縮めない間は scale を当てない。当てると、中の fixed の置き場がこの箱に変わる。
+              "overflow-hidden": menuShown().progress > 0,
+              "duration-180 ease-out [transition-property:scale,border-radius]":
+                !menuShown().dragging,
+            }}
+            style={
+              menuShown().progress > 0
+                ? {
+                    scale: String(1 - 0.06 * menuShown().progress),
+                    "border-radius": `${16 * menuShown().progress}px`,
+                  }
+                : undefined
+            }
+          >
             <ColumnAccentBar
               temporary={ui.panel === undefined && ui.active === TEMP_COLUMN_ID}
             />
@@ -1243,6 +1264,9 @@ const DeckScreen: Component<{
               open={ui.menuOpen}
               pulling={menuPull()}
               onLogout={props.session.logout}
+              onShown={(progress, dragging) =>
+                setMenuShown({ progress, dragging })
+              }
             />
             <DeckSyncNotice store={deckStore} />
             <div class="relative min-h-0 flex-1">
