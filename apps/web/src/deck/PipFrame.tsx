@@ -76,6 +76,7 @@ const PipFrame: ParentComponent<{
                   }
                   failure="投稿できませんでした"
                   onSent={() => apply({ type: "deck/close-panel" })}
+                  onClose={() => apply({ type: "deck/close-panel" })}
                   drafts
                 >
                   {(state) => (

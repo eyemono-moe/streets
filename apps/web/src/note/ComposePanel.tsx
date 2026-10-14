@@ -90,11 +90,23 @@ const ComposePanel: Component<{
   const sources = useNoteSources();
 
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- 本文欄・注意書き・道具のボタンのどこにフォーカスがあっても閉じられるよう、中から上がる Esc をまとめて受ける
     <form
       class="flex min-h-0 flex-1 flex-col"
       onSubmit={(event) => {
         event.preventDefault();
         dispatch({ type: "compose/submit" });
+      }}
+      onKeyDown={(event) => {
+        // 変換中の Esc は変換の取り消し（229 は変換中の Safari が返す値）。
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key !== "Escape") return;
+        // 絵文字ピッカーなどが閉じるのに使った Esc は取らない。Solid の Portal は、
+        // body の末尾に出した中身のイベントもここへ渡してくる。
+        if (event.defaultPrevented) return;
+        if (!event.currentTarget.contains(event.target as Node)) return;
+        event.preventDefault();
+        dispatch({ type: "compose/close" });
       }}
     >
       {/* 上から 本文 → 操作 → プレビュー。操作を一番下に置くと、書いた後に遠くなる。 */}

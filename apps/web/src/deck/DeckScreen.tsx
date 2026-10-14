@@ -960,6 +960,7 @@ const DeckScreen: Component<{
             }
             failure="投稿できませんでした"
             onSent={() => handle({ type: "deck/close-panel" })}
+            onClose={() => handle({ type: "deck/close-panel" })}
             drafts
           >
             {(state) => <ComposePanel state={state} drafts={composeDrafts()} />}
