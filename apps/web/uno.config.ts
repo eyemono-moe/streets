@@ -153,6 +153,12 @@ export default defineConfig({
         // 高さへ戻ってから下がる。引き下げた位置から下へ抜ける。
         "drawer-down":
           "{from{transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{transform:translateY(100%)}}",
+        // 狭い画面で左から出るアプリ全体のメニュー。指で引き出した・押し戻した途中から動くよう、
+        // 始まりの位置をメニューが inline で置く（--menu-from・--menu-x）。
+        "menu-in":
+          "{from{transform:translate3d(var(--menu-from,-100%),0,0)}to{transform:none}}",
+        "menu-out":
+          "{from{transform:translate3d(var(--menu-x,0px),0,0)}to{transform:translate3d(-100%,0,0)}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
@@ -178,6 +184,8 @@ export default defineConfig({
         "sheet-up": "180ms",
         "sheet-down": "140ms",
         "drawer-down": "140ms",
+        "menu-in": "180ms",
+        "menu-out": "140ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
@@ -199,6 +207,8 @@ export default defineConfig({
         "sheet-up": "cubic-bezier(0.16, 1, 0.3, 1)",
         "sheet-down": "ease-in both",
         "drawer-down": "ease-in both",
+        "menu-in": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "menu-out": "ease-in both",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
         marquee: "linear",
@@ -293,6 +303,9 @@ export default defineConfig({
       // Ark UI の Drawer の Content に当てる。閉じる動きを、スワイプで引き下げた位置から始める。
       "motion-drawer":
         "data-[state=open]:animate-sheet-up data-[state=closed]:animate-drawer-down",
+      // 左から出るメニュー。閉じる動きを、指で押し戻した位置から始める。
+      "motion-menu":
+        "data-[state=open]:animate-menu-in data-[state=closed]:animate-menu-out",
     },
   ],
   transformers: [transformerVariantGroup()],

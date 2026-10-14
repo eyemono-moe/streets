@@ -48,8 +48,6 @@ const ProfileStory = (props: {
               column={column}
               temporary={false}
               settingsOpen={false}
-              onLogout={() => {}}
-              feedbackUrl={null}
             />
           ) : (
             <ColumnHeader column={column} open={false} onTitle={() => {}} />

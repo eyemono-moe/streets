@@ -6,6 +6,7 @@ import { decodeBlockedRelayList } from "@streets/core/settings/blocked-relay-lis
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import { DEFAULT_KEYMAP } from "@streets/core/settings/keymap";
+import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
 import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import { createResource, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -89,6 +90,7 @@ const Story = (props: Props) => {
   const [keymap, setKeymap] = createSignal(DEFAULT_KEYMAP);
   const [columnDigits, setColumnDigits] = createSignal(true);
   const [deckLayout, setDeckLayout] = createSignal<DeckLayout>("auto");
+  const [swipeMode, setSwipeMode] = createSignal<SwipeMode>("loop");
   const [columnStretch, setColumnStretch] = createSignal(false);
   const [defaultReaction, setDefaultReaction] = createSignal<ReactionInput>({
     type: "like",
@@ -249,6 +251,9 @@ const Story = (props: Props) => {
                         case "deck/set-deck-layout":
                           setDeckLayout(event.layout);
                           return true;
+                        case "deck/set-swipe-mode":
+                          setSwipeMode(event.mode);
+                          return true;
                         case "deck/set-chat-order":
                           setChatOrder(event.order);
                           return true;
@@ -284,6 +289,7 @@ const Story = (props: Props) => {
                       keymap={keymap()}
                       columnDigits={columnDigits()}
                       deckLayout={deckLayout()}
+                      swipeMode={swipeMode()}
                       columnStretch={columnStretch()}
                       defaultReaction={defaultReaction()}
                       initialPage={props.page}

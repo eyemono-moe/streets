@@ -25,6 +25,10 @@ import {
   loadDeckLayout,
 } from "@streets/core/settings/deck-layout-setting";
 import {
+  type SwipeMode,
+  loadSwipeMode,
+} from "@streets/core/settings/swipe-mode-setting";
+import {
   type TimeFormat,
   loadTimeFormat,
 } from "@streets/core/settings/time-format-setting";
@@ -66,6 +70,12 @@ const LAYOUTS: { value: DeckLayout; label: string }[] = [
   { value: "multi", label: "複数列" },
 ];
 
+const SWIPE_MODES: { value: SwipeMode; label: string }[] = [
+  { value: "loop", label: "一周する" },
+  { value: "stop", label: "端で止まる" },
+  { value: "off", label: "切り替えない" },
+];
+
 const CHAT_ORDERS: { value: ChatOrder; label: string }[] = [
   { value: "newest-last", label: "新しい発言を下に" },
   { value: "newest-first", label: "新しい発言を上に" },
@@ -94,6 +104,8 @@ const DisplaySettings: Component<{
   contentWarning: ContentWarningMode;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  /** 1 列ずつのときに左右へ払うと何が起きるか（この端末の設定）。 */
+  swipeMode: SwipeMode;
   /** チャットの発言の並び順（この端末の設定）。 */
   chatOrder: ChatOrder;
   /** 投稿の時刻の見せ方（この端末の設定）。 */
@@ -120,6 +132,7 @@ const DisplaySettings: Component<{
   const initialScheme = loadColorScheme(null);
   const initialContrast = loadUiContrast(null);
   const initialLayout = loadDeckLayout(null);
+  const initialSwipeMode = loadSwipeMode(null);
   const initialContentWarning = loadContentWarningMode(null);
   const initialWriteProgress = loadWriteProgress(null);
   const initialChatOrder = loadChatOrder(null);
@@ -281,6 +294,23 @@ const DisplaySettings: Component<{
           onChange={(layout) =>
             dispatch({ type: "deck/set-deck-layout", layout })
           }
+        />
+      </SettingsSection>
+
+      <SettingsSection
+        id="swipeMode"
+        scope="device"
+        changed={props.swipeMode !== initialSwipeMode}
+        onReset={() =>
+          dispatch({ type: "deck/set-swipe-mode", mode: initialSwipeMode })
+        }
+        description="1 列ずつ見せるときに、画面を左右に払うと隣のカラムへ移ります。「一周する」では両端がつながります。「端で止まる」では、いちばん左のカラムからさらに右へ払うとメニューが出ます。「切り替えない」では、どこで右へ払ってもメニューが出て、カラムは下のアイコンで切り替えます。"
+      >
+        <SegmentedControl
+          label="スワイプでカラムを切り替える"
+          options={SWIPE_MODES}
+          value={props.swipeMode}
+          onChange={(mode) => dispatch({ type: "deck/set-swipe-mode", mode })}
         />
       </SettingsSection>
 

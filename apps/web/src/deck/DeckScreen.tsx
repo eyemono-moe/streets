@@ -120,6 +120,7 @@ import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
 import { StatusFormMediator } from "../status/StatusFormMediator";
+import { setSwipeMode, swipeMode } from "../swipe-mode-setting";
 import {
   ANY_COLUMN,
   measureUntilPaint,
@@ -171,6 +172,8 @@ import DeckEditHeader from "./DeckEditHeader";
 import DeckEndSpace from "./DeckEndSpace";
 import DeckSyncNotice from "./DeckSyncNotice";
 import GuestMediator from "./GuestMediator";
+import { trackMenuDrag, scrollsBackFrom } from "./menu-drag";
+import MobileMenu from "./MobileMenu";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
 import NewDeckPanel from "./NewDeckPanel";
 import { openPipWindow } from "./pip-window";
@@ -454,7 +457,10 @@ const DeckScreen: Component<{
   // 端から反対の端へ払えるよう、帯は stripAnchor を真ん中に置いて回した順に並べる。
   // 止まったところが端なら、選んだカラムへ置き直す。
   const [stripAnchor, setStripAnchor] = createSignal<string>();
-  const loopedIds = createMemo(() => loopStrip(stripIds(), stripAnchor()));
+  // 一周しない設定では回さず、デッキの並びのまま置く（端で止まる）。
+  const loopedIds = createMemo(() =>
+    swipeMode() === "loop" ? loopStrip(stripIds(), stripAnchor()) : stripIds(),
+  );
   const stripOrder = (id: string) => loopedIds().indexOf(id);
   // 選んでいるカラムが端に着いていたら、真ん中へ置き直す。並びを回すのと同じフレームで
   // 帯もそこへ送り、見えているカラムを変えない。両隣があるうちは触らない ——
@@ -498,9 +504,35 @@ const DeckScreen: Component<{
     clearTimeout(settleTimer);
     settleTimer = setTimeout(settleStrip, 120);
   };
+  // 右へ払ってメニューを引き出している途中なら、出ている割合。
+  const [menuPull, setMenuPull] = createSignal<number>();
+  // メニューは狭い画面にしか無い。開いたまま広げると、狭く戻したときに急に出てくる。
+  createEffect(() => {
+    if (isMultiColumn() && untrack(() => ui.menuOpen)) {
+      applyUi({ type: "deck/close-menu" });
+    }
+  });
   const mountStrip = (el: HTMLDivElement) => {
     placed = false;
     setStrip(el);
+    // 「端で止まる」ではいちばん左のカラムから、「切り替えない」ではどのカラムからでも、
+    // 右へ払うとメニューを引き出す。
+    onCleanup(
+      trackMenuDrag(el, {
+        toward: "right",
+        accepts: (event) => {
+          const mode = swipeMode();
+          if (mode === "loop" || ui.panel !== undefined) return false;
+          if (mode === "stop" && el.scrollLeft > 1) return false;
+          return !scrollsBackFrom(event.target, el);
+        },
+        move: setMenuPull,
+        end: (open) => {
+          setMenuPull(undefined);
+          if (open) applyUi({ type: "deck/open-menu" });
+        },
+      }),
+    );
     el.addEventListener(
       "touchstart",
       () => {
@@ -833,6 +865,8 @@ const DeckScreen: Component<{
       case "deck/close-palette":
       case "deck/open-about":
       case "deck/close-about":
+      case "deck/open-menu":
+      case "deck/close-menu":
         applyUi(event);
         return true;
       case "deck/start-tour":
@@ -895,6 +929,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-deck-layout":
         setDeckLayout(event.layout);
+        return true;
+      case "deck/set-swipe-mode":
+        setSwipeMode(event.mode);
         return true;
       case "deck/set-chat-order":
         setChatOrder(event.order);
@@ -1200,6 +1237,11 @@ const DeckScreen: Component<{
                 ui.active !== undefined && ui.settingsFor === ui.active
               }
               poppedOut={ui.active !== undefined && ui.poppedOut === ui.active}
+            />
+            <MobileMenu
+              pubkey={account}
+              open={ui.menuOpen}
+              pulling={menuPull()}
               onLogout={props.session.logout}
             />
             <DeckSyncNotice store={deckStore} />
@@ -1211,7 +1253,12 @@ const DeckScreen: Component<{
                                   */}
               <div
                 ref={mountStrip}
-                class="scrollbar-none flex h-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+                // 「切り替えない」では指で送らせない。タブで選んだときは、ここから送る。
+                class="scrollbar-none flex h-full snap-x snap-mandatory overscroll-x-contain"
+                classList={{
+                  "overflow-x-auto": swipeMode() !== "off",
+                  "overflow-x-hidden": swipeMode() === "off",
+                }}
                 onScroll={onStripScroll}
               >
                 <Show when={temp()}>
@@ -1285,7 +1332,6 @@ const DeckScreen: Component<{
               columns={order.shown()}
               temp={temp()}
               active={ui.panel === undefined ? ui.active : undefined}
-              panel={ui.panel}
             />
           </div>
         </Match>
@@ -1332,6 +1378,7 @@ const DeckScreen: Component<{
           keymap={keymap()}
           columnDigits={columnDigits()}
           deckLayout={deckLayout()}
+          swipeMode={swipeMode()}
           columnStretch={columnStretch()}
           defaultReaction={defaultReaction()}
           requestedSetting={ui.settingsTarget}

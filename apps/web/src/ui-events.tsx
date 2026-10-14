@@ -27,6 +27,7 @@ import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
+import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
 import type { TimeFormat } from "@streets/core/settings/time-format-setting";
 import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import type { ChannelFormEvent } from "@streets/core/view/channel-form";
@@ -201,6 +202,9 @@ export type DeckEvent =
   | { type: "deck/close-palette" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
+  /** 狭い画面で、左から出るアプリ全体のメニュー。 */
+  | { type: "deck/open-menu" }
+  | { type: "deck/close-menu" }
   /** 使い方の案内を、もう一度始める。 */
   | { type: "deck/start-tour" }
   /** カラーテーマ。この端末に保存する。 */
@@ -221,6 +225,8 @@ export type DeckEvent =
   | { type: "deck/set-content-warning"; mode: ContentWarningMode }
   /** カラムを横に並べるか。この端末に保存する。 */
   | { type: "deck/set-deck-layout"; layout: DeckLayout }
+  /** 1 列ずつのときに左右へ払うと何が起きるか。この端末に保存する。 */
+  | { type: "deck/set-swipe-mode"; mode: SwipeMode }
   | { type: "deck/set-chat-order"; order: ChatOrder }
   /** 投稿の時刻を、絶対時間か相対時間で見せるか。この端末に保存する。 */
   | { type: "deck/set-time-format"; format: TimeFormat }

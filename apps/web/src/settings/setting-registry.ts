@@ -136,6 +136,16 @@ export const settings = {
     ...setting("カラムの並べ方", "display", ["レイアウト", "1列", "複数列"]),
     description: "カラムを横に並べるか一列ずつ切り替えるかを選ぶ",
   },
+  swipeMode: {
+    ...setting("スワイプでカラムを切り替える", "display", [
+      "スワイプ",
+      "左右",
+      "一周",
+      "ループ",
+      "メニュー",
+    ]),
+    description: "1 列ずつのときに左右へ払うと何が起きるかを選ぶ",
+  },
   columnWidth: {
     ...setting("カラムの幅", "display", ["column width", "横幅", "広げる"]),
     description: "横に並べたカラムを画面の幅いっぱいに広げる",

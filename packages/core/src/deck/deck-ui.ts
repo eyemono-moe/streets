@@ -45,6 +45,8 @@ export type DeckUiState = {
   aboutOpen: boolean;
   /** ピクチャーインピクチャーに出しているカラム。ピクチャーインピクチャーは 1 枚だけ開ける。 */
   poppedOut: string | undefined;
+  /** 狭い画面で、左から出るアプリ全体のメニューを開いているか。 */
+  menuOpen: boolean;
 };
 
 export type DeckUiEvent =
@@ -60,6 +62,8 @@ export type DeckUiEvent =
   | { type: "deck/close-palette" }
   | { type: "deck/open-about" }
   | { type: "deck/close-about" }
+  | { type: "deck/open-menu" }
+  | { type: "deck/close-menu" }
   | { type: "deck/select-column"; id: string }
   | { type: "deck/toggle-settings"; id: string }
   /** 掴んだ。`index` は掴んだカラムの今の位置。 */
@@ -93,13 +97,35 @@ export const emptyDeckUi = (): DeckUiState => ({
   paletteOpen: false,
   aboutOpen: false,
   poppedOut: undefined,
+  menuOpen: false,
 });
+
+/** メニューから選んで開くもの。開いたら、選んだ先が見えるようにメニューを閉じる。 */
+const LEAVES_MENU: ReadonlySet<DeckUiEvent["type"]> = new Set([
+  "deck/open-panel",
+  "deck/open-search",
+  "deck/open-column-picker",
+  "deck/toggle-panel",
+  "deck/open-settings",
+  "deck/open-palette",
+  "deck/open-about",
+  "deck/select-column",
+]);
 
 export const deckUiTransition = (
   state: DeckUiState,
   event: DeckUiEvent,
-): DeckUiState => {
+): DeckUiState =>
+  state.menuOpen && LEAVES_MENU.has(event.type)
+    ? transition({ ...state, menuOpen: false }, event)
+    : transition(state, event);
+
+const transition = (state: DeckUiState, event: DeckUiEvent): DeckUiState => {
   switch (event.type) {
+    case "deck/open-menu":
+      return state.menuOpen ? state : { ...state, menuOpen: true };
+    case "deck/close-menu":
+      return state.menuOpen ? { ...state, menuOpen: false } : state;
     case "deck/open-panel":
       return {
         ...state,
@@ -215,7 +241,7 @@ export const deckUiTransition = (
         state.poppedOut !== undefined &&
         !event.ids.includes(state.poppedOut)
       ) {
-        return deckUiTransition({ ...state, poppedOut: undefined }, event);
+        return transition({ ...state, poppedOut: undefined }, event);
       }
       // URL から開いたら、それを選ぶ。消えたカラムを選んだままにしない。
       if (event.temp !== undefined) {
