@@ -12,19 +12,25 @@ import type {
   MutedDisplay,
 } from "@streets/core/deck/deck";
 import {
+  COLUMN_WIDTH_MAX,
+  COLUMN_WIDTH_MIN,
+  COLUMN_WIDTH_PX,
   type LinkCardMode,
   columnLinkCards,
   columnShow,
+  columnWidthPatch,
+  columnWidthPreset,
+  columnWidthPx,
 } from "@streets/core/deck/deck";
 import type { RelayListState } from "@streets/core/settings/relay-list-state";
-import { type Component, For, Show } from "solid-js";
+import { type Component, For, Show, createSignal } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { columnView } from "../columns/column-views";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import SegmentedControl from "../ui/SegmentedControl";
+import Slider from "../ui/Slider";
 import Switch from "../ui/Switch";
-import { COLUMN_WIDTH_PX } from "./column-width";
 import Field from "./SettingField";
 
 export type ColumnPatch = Partial<Omit<ColumnDef, "id">>;
@@ -83,6 +89,14 @@ const ColumnSettings: Component<{
   const show = () => columnShow(props.column);
   const patch = (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: props.column.id, patch });
+  // 動かしている間は保存しないので、つまみの位置は保存した幅でなくこちらを見せる。
+  const [movingWidth, setMovingWidth] = createSignal<number>();
+  const previewWidth = (px: number | undefined) =>
+    dispatch({
+      type: "deck/preview-column-width",
+      id: props.column.id,
+      px,
+    });
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
@@ -90,9 +104,32 @@ const ColumnSettings: Component<{
         <SegmentedControl
           label="幅"
           options={widthsOf(props.stretch === true)}
-          value={props.column.width ?? "m"}
-          onChange={(width) => patch({ width })}
+          value={
+            movingWidth() === undefined
+              ? columnWidthPreset(props.column)
+              : columnWidthPreset({ widthPx: movingWidth() })
+          }
+          onChange={(width) => patch({ width, widthPx: undefined })}
           block
+        />
+        <Slider
+          label="幅（px）"
+          labelHidden
+          value={movingWidth() ?? columnWidthPx(props.column)}
+          min={COLUMN_WIDTH_MIN}
+          max={COLUMN_WIDTH_MAX}
+          step={10}
+          format={(px) => `${px}px${props.stretch === true ? "〜" : ""}`}
+          onChange={(px) => {
+            setMovingWidth(px);
+            previewWidth(px);
+          }}
+          onChangeEnd={(px) => {
+            // 保存した幅を当ててから見本を外す。逆だと、離した瞬間だけ前の幅に戻って見える。
+            patch(columnWidthPatch(px));
+            previewWidth(undefined);
+            setMovingWidth(undefined);
+          }}
         />
       </Field>
 

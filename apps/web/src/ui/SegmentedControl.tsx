@@ -19,7 +19,8 @@ const SegmentedControl = <T extends string>(props: {
     /** 文字の前に置くアイコンの class（`i-material-symbols:…`）。 */
     icon?: string;
   }[];
-  value: T;
+  /** 無ければどれも選ばない（スライダーで段にない値にした、など）。 */
+  value: T | undefined;
   onChange: (value: T) => void;
   variant?: "primary" | "secondary";
   /** 横幅いっぱいに広げ、項目を等分にする。 */
@@ -37,7 +38,7 @@ const SegmentedControl = <T extends string>(props: {
         "border border-control bg-primary": primary(),
         "bg-secondary": !primary(),
       }}
-      value={props.value}
+      value={props.value ?? null}
       onValueChange={(details) => {
         if (details.value) props.onChange(details.value as T);
       }}

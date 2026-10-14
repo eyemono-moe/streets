@@ -7,6 +7,9 @@ import {
   FIRST_DECK_NAME,
   activeDeckStorageKey,
   columnLinkCards,
+  columnWidthPatch,
+  columnWidthPreset,
+  columnWidthPx,
   deckStorageKey,
   defaultDeckSet,
   groupsActions,
@@ -654,6 +657,61 @@ describe("linkCards", () => {
     const loaded = columnsOf(raw)?.[0];
     expect(loaded?.id).toBe(column.id);
     expect(loaded && columnLinkCards(loaded)).toBe("compact");
+  });
+});
+
+describe("カラムの幅", () => {
+  const column = deck.decks[0]?.columns[0];
+  if (!column) throw new Error("fixture");
+
+  it("段だけで保存したカラムは、段の幅で並べる", () => {
+    expect(columnWidthPx(column)).toBe(380);
+    expect(columnWidthPx({ width: "s" })).toBe(320);
+  });
+
+  it("段にない幅は、段より優先する", () => {
+    expect(columnWidthPx({ width: "s", widthPx: 250 })).toBe(250);
+  });
+
+  it("段にない幅を選ぶと、いちばん近い段も一緒に書く", () => {
+    // 捕まえる変異: 段を書かない（widthPx を読まない版では既定の M に戻る）
+    expect(columnWidthPatch(200)).toEqual({ width: "s", widthPx: 200 });
+    expect(columnWidthPatch(420)).toEqual({ width: "l", widthPx: 420 });
+    expect(columnWidthPatch(700)).toEqual({ width: "l", widthPx: 700 });
+  });
+
+  it("選べる幅は 200〜800 の整数に収める", () => {
+    expect(columnWidthPatch(120).widthPx).toBe(200);
+    expect(columnWidthPatch(1200).widthPx).toBe(800);
+    expect(columnWidthPatch(333.4).widthPx).toBe(333);
+  });
+
+  it("幅がちょうど段の幅のときだけ、その段を選んでいるとみなす", () => {
+    expect(columnWidthPreset({ width: "l" })).toBe("l");
+    expect(columnWidthPreset({ width: "l", widthPx: 320 })).toBe("s");
+    expect(columnWidthPreset({ width: "s", widthPx: 250 })).toBeUndefined();
+  });
+
+  it("保存して読み戻せる", () => {
+    const saved = setOf([{ ...column, ...columnWidthPatch(250) }]);
+    expect(columnsOf(saveDeckSet(saved))?.[0]).toMatchObject({
+      width: "s",
+      widthPx: 250,
+    });
+  });
+
+  it("範囲の外の幅は、読むときに範囲へ収める", () => {
+    const loaded = columnsOf(rawOf([{ ...column, widthPx: 50 }]))?.[0];
+    expect(loaded?.widthPx).toBe(200);
+  });
+
+  it("数でない幅ならカラムを残して段の幅に戻す", () => {
+    // 捕まえる変異: 読めない幅でカラムごと捨てる
+    const loaded = columnsOf(
+      rawOf([{ ...column, width: "s", widthPx: "wide" }]),
+    )?.[0];
+    expect(loaded?.id).toBe(column.id);
+    expect(loaded && columnWidthPx(loaded)).toBe(320);
   });
 });
 
