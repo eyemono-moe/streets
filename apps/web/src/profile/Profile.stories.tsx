@@ -172,7 +172,7 @@ export const 自己紹介のハッシュタグ: Story = {
 };
 
 export const ログインしていない: Story = {
-  args: { pubkey: alice.pubkey, scene: { events: profiles } },
+  args: { pubkey: alice.pubkey, scene: { events: profiles, nip05 } },
 };
 
 export const 保存に失敗する: Story = {

@@ -26,7 +26,6 @@ import {
   groupsActions,
 } from "@streets/core/deck/deck";
 import { followSetName } from "@streets/core/lists/follow-set";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import {
   hasSearchExclusions,
@@ -43,6 +42,7 @@ import type { ColumnPatch } from "../deck/ColumnSettings";
 import RelayColumnEditor from "../deck/RelayColumnEditor";
 import SearchQueryEditor from "../deck/SearchQueryEditor";
 import SettingField from "../deck/SettingField";
+import { fallbackRelays } from "../fallback-relay-setting";
 import { useFollowSets } from "../lists/FollowSetMediator";
 import { useBotLookup } from "../note/use-profile";
 import ProfileHeader from "../profile/ProfileHeader";
@@ -240,7 +240,7 @@ export const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
     state.phase === "ready"
       ? state.entries.filter((entry) => entry.read).map((entry) => entry.url)
       : [];
-  return read.length > 0 ? read : [...FALLBACK_RELAYS];
+  return read.length > 0 ? read : [...fallbackRelays()];
 };
 
 const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
@@ -436,7 +436,11 @@ const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
       <NotificationList
         viewer={props.inputs.viewer}
         source={() =>
-          notificationsSource(props.inputs.viewer, props.inputs.relayList())
+          notificationsSource(
+            props.inputs.viewer,
+            props.inputs.relayList(),
+            fallbackRelays(),
+          )
         }
       />
     ),

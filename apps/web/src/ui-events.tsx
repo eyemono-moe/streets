@@ -25,6 +25,7 @@ import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { EmojiSetRef } from "@streets/core/settings/emoji-list";
 import type { ShortcutAction } from "@streets/core/settings/keymap";
 import type { ProfileEditEvent } from "@streets/core/settings/profile-edit";
+import type { ReadRedundancy } from "@streets/core/settings/read-redundancy-setting";
 import type { ReadRoutingMode } from "@streets/core/settings/read-routing-setting";
 import type { RelayEditEvent } from "@streets/core/settings/relay-edit";
 import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
@@ -232,6 +233,12 @@ export type DeckEvent =
   | { type: "deck/set-time-format"; format: TimeFormat }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
+  /** リレーとの通信量を 0 から数え直す。 */
+  | { type: "stats/reset-traffic" }
+  /** 既定のリレー。空なら Streets が決めたリレーを使う。この端末に保存する。 */
+  | { type: "deck/set-fallback-relays"; relays: RelayUrl[] }
+  /** 投稿を探すリレーの数。この端末に保存する。 */
+  | { type: "deck/set-read-redundancy"; value: ReadRedundancy }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }
   /** 投稿に client タグを付けるか。デッキと一緒にアカウントへ保存する。 */

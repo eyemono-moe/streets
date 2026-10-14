@@ -15,9 +15,11 @@ import {
 } from "../src/theme";
 import { ErrorToaster } from "../src/toast";
 import { Mediates } from "../src/ui-events";
+import { guardOffline } from "./offline-guard";
 
 let stopColorScheme = () => {};
 const queryClient = createAppQueryClient();
+guardOffline();
 // アプリと同じく、ポップアップを開いている間の外の押下は閉じるだけにする。
 swallowPressesThatDismissPopups();
 

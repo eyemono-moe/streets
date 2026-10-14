@@ -102,6 +102,7 @@ pnpm workspace の 2 パッケージ。
 - UI コンポーネントの単体テストは原則書かない。画面の確認は手で動かして行う
 - E2E（`e2e/`、Playwright）は、ふつうの人がする主な操作の流れ（ログイン・投稿・リアクション・カラムの編集など）が通ることだけを守る。見た目や端の状態は E2E で見ず、Storybook で見る。書き方は [e2e/README.md](./e2e/README.md)
 - 部品の見た目は Storybook（`apps/web/src/**/*.stories.tsx`）で確認する。ストーリーはテストではなく、リレーに繋がずに固定のイベントを並べるカタログ。署名済みイベントの作り方と読み取り層の差し替えは `apps/web/src/storybook/` にある
+- ストーリーはリレーや外のサーバーへ繋がない。外の答えで見た目が変わると、レビューする人ごとに違うものを見る。`apps/web/.storybook/offline-guard.ts` が `fetch` と `WebSocket` を手元に限って外へは例外にし、画像と動画は `.storybook/main.ts` の CSP が手元と `data:`・`blob:` に限る。リレーの情報（NIP-11）・NIP-05・リンクのカードは `EventScene` の `relayInfo`・`nip05`・`linkCards` で答えを渡し、画像や動画は `apps/web/src/storybook/` の見本を使う。部品が外の URL を組み立てるもの（YouTube のサムネイルなど）は、差し替える props を足す。読めない URL を見せたいときは実在しない `example.invalid` を使い、実在する `example.com` を使わない
 - メディアの URL を本文に入れるストーリーでは、import した fixture のパスを `new URL(asset, location.href).href` で絶対 URL にする。本文の URL パーサーは `http(s)` で始まるものだけを拾う
 - **見た目を変えたら、同じ PR で Storybook も更新する**。ストーリーが無い部品なら追加する。レビューする側が、アプリを立ち上げずに変更を見られる状態にしておく
 - ストーリーには普通の状態だけでなく、崩れやすい端（長い本文、空、取得中、読み込めなかった、プロフィールが無い、幅の狭いカラム）も並べる。手で試した端は、その場でストーリーとして残す

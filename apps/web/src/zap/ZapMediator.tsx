@@ -4,7 +4,6 @@ import type {
   ConnectionPool,
   PooledSubscription,
 } from "@streets/core/read/connection-pool";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { EventStore } from "@streets/core/read/event-store";
 import type { RoutingTable } from "@streets/core/read/routing-table";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
@@ -34,6 +33,7 @@ import {
 } from "@streets/core/zap/zap-request";
 import { type ParentComponent, Show, onCleanup } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { fallbackRelays } from "../fallback-relay-setting";
 import { lazyPart, onceTrue } from "../lazy-part";
 import { notifyError, notifySuccess } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -190,7 +190,7 @@ export const ZapMediator: ParentComponent<{
     const relays = zapReceiptRelays({
       recipientRead: props.routing.readRelaysFor(target),
       senderRead: props.routing.readRelaysFor(props.viewer),
-      fallback: FALLBACK_RELAYS,
+      fallback: fallbackRelays(),
       // チャンネルの発言は、そのチャンネルの画面にも受領が出るようにする。
       channel:
         draft.target.type === "event" &&

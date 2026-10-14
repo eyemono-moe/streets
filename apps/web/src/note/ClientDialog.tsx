@@ -7,9 +7,9 @@ import {
 import { APP_HANDLER_KIND } from "@streets/core/nostr/build/client-tag";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { Profile } from "@streets/core/nostr/profile";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import { createSection } from "@streets/core/solid/create-section";
 import { type Component, Match, Show, Switch } from "solid-js";
+import { fallbackRelays } from "../fallback-relay-setting";
 import { useReadLayer } from "../read-layer";
 import Avatar from "../ui/Avatar";
 import { ButtonLink } from "../ui/Button";
@@ -197,7 +197,7 @@ const ClientDialog: Component<{
             relays: [
               ...new Set([
                 ...(props.client.relay ? [props.client.relay] : []),
-                ...FALLBACK_RELAYS,
+                ...fallbackRelays(),
               ]),
             ],
           }),

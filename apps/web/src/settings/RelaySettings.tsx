@@ -1,11 +1,17 @@
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
+import { MAX_CONNECTIONS } from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import {
+  customFallbackRelays,
+  fallbackRelays,
+} from "../fallback-relay-setting";
+import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
 import { useBlockedRelays } from "./BlockedRelayMediator";
 import BlockedRelaysView from "./BlockedRelaysView";
+import FallbackRelaysView from "./FallbackRelaysView";
+import ReadRedundancyView from "./ReadRedundancyView";
 import ReadRoutingView from "./ReadRoutingView";
 import { useRelayEdit } from "./RelayMediator";
-import RelayPlanView from "./RelayPlanView";
 import RelayRecommendations from "./RelayRecommendations";
 import RelaySettingsView from "./RelaySettingsView";
 import SettingsDetails from "./SettingsDetails";
@@ -36,7 +42,7 @@ const RelaySettings: Component = () => {
               tick();
               return edit().statusOf(url);
             }}
-            fallback={FALLBACK_RELAYS}
+            fallback={fallbackRelays()}
             infoOf={edit().infoOf}
           />
           <Show when={blocked}>
@@ -52,25 +58,29 @@ const RelaySettings: Component = () => {
           <RelayRecommendations edit={edit()} />
           <SettingsDetails
             page="relays"
-            summary="投稿を読むリレーの決め方と、いまつないでいるリレーの一覧"
+            summary="投稿を読むリレーの決め方・投稿を探すリレーの数・既定のリレー"
           >
             <ReadRoutingView
               mode={readRoutingMode()}
               entries={edit().entries()}
               loading={edit().loading()}
-              fallback={FALLBACK_RELAYS}
+              fallback={fallbackRelays()}
             />
-            <RelayPlanView
-              plan={edit().readPlan?.()}
-              routingSettled={edit().routingSettled?.() ?? true}
-              entries={edit().entries()}
-              loading={edit().loading()}
-              fallback={FALLBACK_RELAYS}
-              statusOf={(url) => {
-                tick();
-                return edit().statusOf(url);
-              }}
-              infoOf={edit().infoOf}
+            <Show when={readRoutingMode() === "outbox"}>
+              <ReadRedundancyView
+                value={readRedundancy()}
+                relayCount={edit().readPlan?.().relays.length}
+                preview={(redundancy) => {
+                  // 見込みは購読から数えるので、読み取り先が変わるたびに数え直す。
+                  edit().readPlan?.();
+                  return edit().previewRelayCount?.(redundancy) ?? 0;
+                }}
+                budget={MAX_CONNECTIONS}
+              />
+            </Show>
+            <FallbackRelaysView
+              relays={customFallbackRelays()}
+              candidates={edit().entries()}
             />
           </SettingsDetails>
         </div>

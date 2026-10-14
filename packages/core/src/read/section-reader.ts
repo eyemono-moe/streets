@@ -455,10 +455,14 @@ export class SectionReader {
           const state = this.#relayState(relay);
           state.complete = true;
           state.unreachable = false;
+          // 揃ったことはここで覚える。画面が `paging` を読むまで待つと、その前に
+          // 読み先の張り直しが入ったとき、最初のページを待つ状態へ戻ってしまう。
+          this.#isReady();
           this.#notify();
         },
         onRelayUnreachable: (relay) => {
           this.#relayState(relay).unreachable = true;
+          this.#isReady();
           this.#notify();
         },
         onPlanChanged: (plan) => this.#applyPlan(plan),

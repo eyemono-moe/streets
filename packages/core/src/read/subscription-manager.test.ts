@@ -2590,14 +2590,19 @@ describe("SubscriptionManager の読み取り先の計画", () => {
       relays: [
         {
           url: "wss://author-write/",
-          authors: 1,
+          authors: [author.pubkey],
           fallback: false,
           explicit: false,
         },
-        { url: "wss://fallback/", authors: 0, fallback: true, explicit: false },
+        {
+          url: "wss://fallback/",
+          authors: [],
+          fallback: true,
+          explicit: false,
+        },
       ],
-      unroutableAuthors: 1,
-      uncoveredAuthors: 0,
+      unroutableAuthors: ["f".repeat(64)],
+      uncoveredAuthors: [],
     });
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -2608,14 +2613,105 @@ describe("SubscriptionManager の読み取り先の計画", () => {
     expect(listener).toHaveBeenLastCalledWith({
       mode: "direct",
       relays: [
-        { url: "wss://mine/", authors: 2, fallback: false, explicit: false },
+        {
+          url: "wss://mine/",
+          authors: [author.pubkey, "f".repeat(64)].sort(),
+          fallback: false,
+          explicit: false,
+        },
       ],
-      unroutableAuthors: 0,
-      uncoveredAuthors: 0,
+      unroutableAuthors: [],
+      uncoveredAuthors: [],
     });
 
     handle.close();
     expect(manager.readPlan.relays).toEqual([]);
+  });
+});
+
+describe("SubscriptionManager の既定のリレー", () => {
+  it("差し替えると、リレーの設定が分からない人をそのリレーから読み直す", () => {
+    const { manager } = createManager({ fallbackRelays: ["wss://old/"] });
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [pubkeyFor(48_001)] },
+    ]);
+    expect(plans.at(-1)?.relays).toEqual(["wss://old/"]);
+
+    manager.setFallbackRelays(["wss://mine-a/", "wss://mine-b/"]);
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://mine-a/", "wss://mine-b/"]);
+  });
+
+  it("同じ並びなら張り直さない", () => {
+    const { manager } = createManager({ fallbackRelays: ["wss://same/"] });
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [pubkeyFor(48_002)] },
+    ]);
+    const before = plans.length;
+
+    manager.setFallbackRelays(["wss://same/"]);
+
+    expect(plans).toHaveLength(before);
+  });
+});
+
+describe("SubscriptionManager の 1 人あたりに読むリレーの数", () => {
+  it("本数を変えると、その人のリレーを読み直す", () => {
+    const { manager, store } = createManager({ redundancy: 1 });
+    const author = pubkeyFor(49_001);
+    store.put(
+      relayListFor(author, ["wss://a/", "wss://b/", "wss://c/"]),
+      "wss://indexer/",
+    );
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    expect(plans.at(-1)?.relays).toHaveLength(1);
+
+    manager.setRedundancy(3);
+
+    expect([...(plans.at(-1)?.relays ?? [])].sort()).toEqual([
+      "wss://a/",
+      "wss://b/",
+      "wss://c/",
+    ]);
+  });
+
+  it("見込みは、張り直さずに本数を変えたときのリレーの数を返す", () => {
+    const { manager, store } = createManager({
+      redundancy: 1,
+      fallbackRelays: [],
+    });
+    const author = pubkeyFor(49_002);
+    store.put(
+      relayListFor(author, ["wss://a/", "wss://b/", "wss://c/"]),
+      "wss://indexer/",
+    );
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [author] },
+    ]);
+    const before = plans.length;
+
+    expect(manager.previewRelayCount(2)).toBe(2);
+    expect(manager.previewRelayCount(4)).toBe(3);
+    expect(plans).toHaveLength(before);
+    expect(manager.readPlan.relays).toHaveLength(1);
+  });
+
+  it("見込みは同時につなげる数を超えない", () => {
+    const { manager, store } = createManager({
+      redundancy: 1,
+      fallbackRelays: [],
+      maxConnections: 2,
+    });
+    const author = pubkeyFor(49_003);
+    store.put(
+      relayListFor(author, ["wss://a/", "wss://b/", "wss://c/"]),
+      "wss://indexer/",
+    );
+    subscribeWithPlans(manager, [{ kinds: [1], authors: [author] }]);
+
+    expect(manager.previewRelayCount(3)).toBe(2);
   });
 });
 

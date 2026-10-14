@@ -8,6 +8,7 @@ import {
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { UploaderProvider } from "../media/uploader";
+import avatarUrl from "../storybook/avatar-fixture.svg?no-inline";
 import landscapeUrl from "../storybook/media-landscape.svg?no-inline";
 import { useStoryNip05 } from "../storybook/nip05";
 import { Mediates } from "../ui-events";
@@ -46,10 +47,9 @@ const mine = loaded({
   display_name: "わたし",
   name: "me",
   about: "Nostr のクライアントを作っています。",
-  // Storybook は画像を data: の URL に埋め込むが、フォームは http(s) だけを通す。
-  // 見本の画像は読めないので、プレビューは空の枠で出る。
-  picture: "https://example.com/me.png",
-  banner: "https://example.com/banner.png",
+  // フォームは http(s) だけを通すので、埋め込まずに置いた見本の画像を絶対 URL で渡す。
+  picture: new URL(avatarUrl, location.href).href,
+  banner: new URL(landscapeUrl, location.href).href,
   nip05: "me@example.com",
   website: "https://example.com",
   lud16: "me@wallet.example",

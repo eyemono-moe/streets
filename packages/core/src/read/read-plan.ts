@@ -6,8 +6,8 @@ type ReadRoutingMode = ReadRouting["mode"];
 /** 読み取りに使うことにしたリレー 1 本と、使う理由。 */
 export type ReadPlanRelay = {
   url: RelayUrl;
-  /** このリレーから投稿を読むことにした人の数（書き込みリレーとして選ばれた分）。 */
-  authors: number;
+  /** このリレーから投稿を読むことにした人（書き込みリレーとして選ばれた分）。 */
+  authors: readonly string[];
   /** リレーの設定が分からない人や、人を決めない読み取りのために読む既定のリレー。 */
   fallback: boolean;
   /** カラムや通知が名指ししたリレー。 */
@@ -23,9 +23,9 @@ export type ReadPlan = {
   /** 読む人の多い順。 */
   relays: ReadPlanRelay[];
   /** リレーの設定がまだ見つかっていないので、既定のリレーから読んでいる人。 */
-  unroutableAuthors: number;
+  unroutableAuthors: readonly string[];
   /** 接続の上限や、宣言したリレーに繋がらないことで、どこからも読めていない人。 */
-  uncoveredAuthors: number;
+  uncoveredAuthors: readonly string[];
 };
 
 export type SectionPlanInput = {
@@ -38,8 +38,8 @@ export type SectionPlanInput = {
 export const EMPTY_READ_PLAN: ReadPlan = {
   mode: "outbox",
   relays: [],
-  unroutableAuthors: 0,
-  uncoveredAuthors: 0,
+  unroutableAuthors: [],
+  uncoveredAuthors: [],
 };
 
 /**
@@ -98,17 +98,20 @@ export const summarizeReadPlan = (input: {
   const relays = [...rows]
     .map(([url, current]) => ({
       url,
-      authors: current.authors.size,
+      authors: [...current.authors].sort(),
       fallback: current.fallback,
       explicit: current.explicit,
     }))
-    .sort((a, b) => b.authors - a.authors || a.url.localeCompare(b.url));
+    .sort(
+      (a, b) =>
+        b.authors.length - a.authors.length || a.url.localeCompare(b.url),
+    );
 
   return {
     mode: input.mode,
     relays,
-    unroutableAuthors: unroutable.size,
-    uncoveredAuthors: uncovered.size,
+    unroutableAuthors: [...unroutable].sort(),
+    uncoveredAuthors: [...uncovered].sort(),
   };
 };
 

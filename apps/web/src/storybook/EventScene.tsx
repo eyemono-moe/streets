@@ -86,8 +86,8 @@ export type EventScene = {
   /** ミュートの一覧。省くとミュートの段を置かず、何も隠さない。 */
   mutes?: readonly MuteEntry[];
   /**
-   * リレーが自分について答える内容（NIP-11）。イベントの `relay` タグにあって
-   * ここに無いリレーは、何も答えなかった扱いにする（リレーへ聞きに行かない）。
+   * リレーが自分について答える内容（NIP-11）。ここにあるリレーはこの答えを返す。
+   * イベントの `relay` タグにあってここに無いリレーは、何も答えなかった扱いにする。
    */
   relayInfo?: Record<string, RelayInfo>;
 };
@@ -321,6 +321,9 @@ export const EventSceneProvider: ParentComponent<{ scene: EventScene }> = (
   const queryClient = useQueryClient();
   for (const [url, card] of Object.entries(props.scene.linkCards ?? {})) {
     queryClient.setQueryData(linkCardQueryKey(url), card);
+  }
+  for (const [url, info] of Object.entries(props.scene.relayInfo ?? {})) {
+    queryClient.setQueryData(relayInfoQueryKey(url), info);
   }
   for (const event of props.scene.events) {
     for (const tag of event.tags) {

@@ -4,6 +4,7 @@ import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { alice, profiles } from "../../note/event-stories/event-story";
 import { EventSceneProvider } from "../../storybook/EventScene";
+import mp4GifAsset from "../../storybook/media-clip-as-gif.gif?no-inline";
 import clipAsset from "../../storybook/media-clip.mp4";
 import landscapeAsset from "../../storybook/media-landscape.svg?no-inline";
 import panoramaAsset from "../../storybook/media-panorama.svg?no-inline";
@@ -93,11 +94,7 @@ export const 読み込めない画像: Story = {
 /** 調査時に .gif の URL から MP4 が返った投稿。 */
 export const Gif拡張子の動画: Story = {
   args: {
-    tiles: mediaTilesOf(
-      alice.note(
-        "https://gifs.nostr.build/mp4/orig/82cc31b3042503850deee14d4c5459d6804b794a6a653b6b55b59659e73f4442.gif",
-      ),
-    ),
+    tiles: mediaTilesOf(alice.note(new URL(mp4GifAsset, location.href).href)),
   },
 };
 

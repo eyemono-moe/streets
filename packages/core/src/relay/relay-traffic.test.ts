@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
-import { createRelayTraffic, filterShape, utf8Length } from "./relay-traffic";
+import {
+  SEEN_IDS_LIMIT,
+  createRelayTraffic,
+  filterShape,
+  summarizeTraffic,
+  utf8Length,
+} from "./relay-traffic";
 import {
   type WebSocketLike,
   WebSocketRelayConnection,
@@ -193,5 +199,97 @@ describe("createRelayTraffic", () => {
     // 数え直した後に最初に届いたものは重複に数えない。
     expect(stats.duplicates.count).toBe(0);
     expect(traffic.elapsedMs()).toBe(30);
+  });
+});
+
+describe("重複を見分ける id", () => {
+  it("覚える数を超えても、直前に受け取った分は重複と見分ける", () => {
+    const traffic = createRelayTraffic(() => 0);
+    const relay = "wss://a/";
+    for (let index = 0; index < SEEN_IDS_LIMIT + 10; index++) {
+      traffic.recorder.event(relay, undefined, `id-${index}`, 1, 1);
+    }
+    traffic.recorder.event(relay, undefined, `id-${SEEN_IDS_LIMIT + 5}`, 1, 1);
+    traffic.recorder.event(relay, undefined, "id-5", 1, 1);
+    expect(traffic.snapshot()[0].duplicates.count).toBe(2);
+  });
+
+  it("2 世代より古い id は忘れる", () => {
+    const traffic = createRelayTraffic(() => 0);
+    const relay = "wss://a/";
+    for (let index = 0; index < SEEN_IDS_LIMIT * 2 + 1; index++) {
+      traffic.recorder.event(relay, undefined, `id-${index}`, 1, 1);
+    }
+    traffic.recorder.event(relay, undefined, "id-0", 1, 1);
+    expect(traffic.snapshot()[0].duplicates.count).toBe(0);
+  });
+});
+
+describe("summarizeTraffic", () => {
+  it("受け取った量の多い順に並べ、合計を出す", () => {
+    let clock = 0;
+    const traffic = createRelayTraffic(() => clock);
+    const { recorder } = traffic;
+    recorder.attempted("wss://small/");
+    recorder.opened("wss://small/");
+    recorder.received("wss://small/", "EOSE", 10);
+    recorder.sent("wss://small/", "REQ", 30);
+    recorder.attempted("wss://big/");
+    recorder.opened("wss://big/");
+    recorder.socketClosed("wss://big/");
+    recorder.opened("wss://big/");
+    for (const [id, kind] of [
+      ["x", 1],
+      ["y", 7],
+      ["z", 1],
+    ] as const) {
+      recorder.received("wss://big/", "EVENT", 100);
+      recorder.event("wss://big/", undefined, id, kind, 100);
+    }
+    recorder.received("wss://small/", "EVENT", 100);
+    recorder.event("wss://small/", undefined, "x", 1, 100);
+    clock = 1_000;
+
+    const summary = summarizeTraffic(traffic.snapshot());
+
+    expect(summary.relays.map((relay) => relay.url)).toEqual([
+      "wss://big/",
+      "wss://small/",
+    ]);
+    expect(summary.relays[0]).toMatchObject({
+      received: 300,
+      receivedEvents: 300,
+      events: 3,
+      duplicates: 0,
+      reconnects: 1,
+      kinds: [
+        { kind: 1, count: 2, bytes: 200 },
+        { kind: 7, count: 1, bytes: 100 },
+      ],
+    });
+    expect(summary.relays[1]).toMatchObject({
+      received: 110,
+      sent: 30,
+      events: 1,
+      duplicates: 1,
+      reconnects: 0,
+      connectedMs: 1_000,
+    });
+    expect(summary).toMatchObject({
+      received: 410,
+      sent: 30,
+      events: 4,
+      duplicates: 1,
+    });
+  });
+
+  it("何も数えていなければ空", () => {
+    expect(summarizeTraffic([])).toEqual({
+      received: 0,
+      sent: 0,
+      events: 0,
+      duplicates: 0,
+      relays: [],
+    });
   });
 });

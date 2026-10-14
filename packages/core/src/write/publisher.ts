@@ -61,15 +61,16 @@ export type Publisher = {
  * ここは送信先だけを決める。各リレーへの publish は独立に試みる
  * (`Promise.allSettled`) ので、1 本の失敗が他の成功を握り潰さない。
  */
-export const createPublisher = ({
-  pool,
-  routing,
-  fallbackRelays,
-}: CreatePublisherOptions): Publisher => {
+export const createPublisher = (options: CreatePublisherOptions): Publisher => {
+  const { pool, routing } = options;
+  // 既定のリレーは設定で変わるので、分割代入で受け取らず送るたびに読む。
+  const fallbackRelays = () => options.fallbackRelays;
   const open = (url: RelayUrl) => !pool.isBlocked(url);
   const targets = (pubkey: string): RelayUrl[] => {
     const writeRelays = routing.writeRelaysFor(pubkey);
-    return (writeRelays.length > 0 ? writeRelays : fallbackRelays).filter(open);
+    return (writeRelays.length > 0 ? writeRelays : fallbackRelays()).filter(
+      open,
+    );
   };
 
   return {
@@ -77,7 +78,7 @@ export const createPublisher = ({
     async publish(event, options): Promise<PublishResult> {
       const writeRelays = routing.writeRelaysFor(event.pubkey);
       const currentTargets =
-        writeRelays.length > 0 ? writeRelays : fallbackRelays;
+        writeRelays.length > 0 ? writeRelays : fallbackRelays();
       const ownCandidates = [
         ...new Set([...currentTargets, ...(options?.additionalRelays ?? [])]),
       ];
