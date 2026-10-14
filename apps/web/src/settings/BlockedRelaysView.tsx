@@ -1,3 +1,4 @@
+import { Collapsible } from "@ark-ui/solid/collapsible";
 import type {
   ItemVisibility,
   PrivatePartStatus,
@@ -15,6 +16,12 @@ import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import SegmentedControl from "../ui/SegmentedControl";
 import SettingsSection from "./SettingsSection";
+
+/**
+ * 開いたまま出す件数。多い人は数十件になり、その下の足す欄やほかの設定が
+ * 画面の外へ押し出されるので、それより多ければ畳んで件数だけを見せる。
+ */
+const OPEN_UP_TO = 5;
 
 const VISIBILITY_HINT: Record<ItemVisibility, string> = {
   private:
@@ -91,31 +98,47 @@ const BlockedRelaysView: Component<BlockedRelaysViewProps> = (props) => {
           </p>
         }
       >
-        <ul class="flex flex-col gap-px overflow-hidden rounded-2 border border-primary bg-tertiary">
-          <For each={props.entries}>
-            {(entry) => (
-              <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
-                <span class="c-primary min-w-48 flex-1 break-all text-body">
-                  {entry.url}
-                </span>
-                <div class="ml-auto flex items-center gap-2">
-                  <span class="c-secondary rounded-full bg-secondary px-2.5 py-0.5 font-600 text-caption">
-                    {VISIBILITY_LABEL[entry.visibility]}
-                  </span>
-                  <IconButton
-                    icon="i-material-symbols:do-not-disturb-on-outline-rounded"
-                    label={`${entry.url} を一覧から外す`}
-                    title="一覧から外す"
-                    disabled={props.saving}
-                    onClick={() =>
-                      dispatch({ type: "blocked-relays/remove", entry })
-                    }
-                  />
-                </div>
-              </li>
-            )}
-          </For>
-        </ul>
+        <Collapsible.Root
+          lazyMount
+          unmountOnExit
+          defaultOpen={props.entries.length <= OPEN_UP_TO}
+          class="flex flex-col gap-2"
+        >
+          <Collapsible.Trigger class="group c-secondary flex w-fit items-center gap-1 bg-transparent p-0 font-600 text-caption enabled:cursor-pointer">
+            {`繋がないリレー ${props.entries.length} 件`}
+            <span
+              class="i-material-symbols:expand-more-rounded size-4.5 shrink-0 transition-transform group-data-[state=open]:rotate-180"
+              aria-hidden="true"
+            />
+          </Collapsible.Trigger>
+          <Collapsible.Content class="motion-collapse">
+            <ul class="flex max-h-80 flex-col gap-px overflow-y-auto rounded-2 border border-primary bg-tertiary">
+              <For each={props.entries}>
+                {(entry) => (
+                  <li class="flex flex-wrap items-center gap-x-3 gap-y-1.5 bg-primary px-3 py-2.5">
+                    <span class="c-primary min-w-48 flex-1 break-all text-body">
+                      {entry.url}
+                    </span>
+                    <div class="ml-auto flex items-center gap-2">
+                      <span class="c-secondary rounded-full bg-secondary px-2.5 py-0.5 font-600 text-caption">
+                        {VISIBILITY_LABEL[entry.visibility]}
+                      </span>
+                      <IconButton
+                        icon="i-material-symbols:do-not-disturb-on-outline-rounded"
+                        label={`${entry.url} を一覧から外す`}
+                        title="一覧から外す"
+                        disabled={props.saving}
+                        onClick={() =>
+                          dispatch({ type: "blocked-relays/remove", entry })
+                        }
+                      />
+                    </div>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Collapsible.Content>
+        </Collapsible.Root>
       </Show>
       <div class="flex flex-col gap-2">
         <RelayInput
