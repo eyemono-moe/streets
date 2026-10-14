@@ -10,6 +10,7 @@ import { ToastStack, createAppToaster } from "../toast";
 import { Mediates } from "../ui-events";
 import ColumnSettingsPanel from "./ColumnSettingsPanel";
 import DeckEndSpace from "./DeckEndSpace";
+import DeckStrip from "./DeckStrip";
 import { Sidebar } from "./Nav";
 
 const viewer = createStoryAuthor(74, { name: "わたし" });
@@ -61,10 +62,7 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
             feedbackUrl={null}
           />
           <div class="flex min-w-0 flex-1 flex-col">
-            <div
-              ref={strip}
-              class="flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
-            >
+            <DeckStrip ref={strip} class="min-h-0 flex-1">
               <For each={columns}>
                 {(column) => (
                   <>
@@ -99,7 +97,7 @@ const RightEnd = (props: { settingsOpen?: boolean }) => {
                 )}
               </For>
               <DeckEndSpace />
-            </div>
+            </DeckStrip>
           </div>
           <ToastStack toaster={toaster} />
         </div>

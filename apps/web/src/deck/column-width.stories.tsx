@@ -7,6 +7,7 @@ import { EventSceneProvider } from "../storybook/EventScene";
 import { Mediates } from "../ui-events";
 import { columnWidthStyle } from "./column-width";
 import DeckEndSpace from "./DeckEndSpace";
+import DeckStrip from "./DeckStrip";
 
 const few: ColumnDef[] = [
   {
@@ -52,7 +53,7 @@ const many: ColumnDef[] = Array.from({ length: 8 }, (_, i) => ({
 const Strip = (props: { columns: ColumnDef[]; stretch: boolean }) => (
   <EventSceneProvider scene={{ events: [] }}>
     <Mediates handle={() => true}>
-      <div class="flex h-dvh w-dvw overflow-x-auto bg-tertiary">
+      <DeckStrip class="h-dvh w-dvw">
         <For each={props.columns}>
           {(column) => (
             <div
@@ -72,7 +73,7 @@ const Strip = (props: { columns: ColumnDef[]; stretch: boolean }) => (
           )}
         </For>
         {!props.stretch && <DeckEndSpace />}
-      </div>
+      </DeckStrip>
     </Mediates>
   </EventSceneProvider>
 );
