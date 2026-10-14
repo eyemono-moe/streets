@@ -1,8 +1,10 @@
+import { parseProfile, profileLabel } from "@streets/core/nostr/profile";
 import {
   FALLBACK_RELAYS,
   MAX_CONNECTIONS,
 } from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import { useReadLayer } from "../read-layer";
 import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
 import { useBlockedRelays } from "./BlockedRelayMediator";
@@ -25,6 +27,14 @@ const STATUS_POLL_MS = 2000;
 const RelaySettings: Component = () => {
   const edit = useRelayEdit();
   const blocked = useBlockedRelays();
+  const readLayer = useReadLayer();
+  const nameOf = (pubkey: string) => {
+    const event = readLayer.store.latestReplaceable(0, pubkey);
+    return profileLabel(
+      event ? parseProfile(event.content) : undefined,
+      pubkey,
+    );
+  };
   const [tick, setTick] = createSignal(0);
   const interval = setInterval(() => setTick((n) => n + 1), STATUS_POLL_MS);
   onCleanup(() => clearInterval(interval));
@@ -88,6 +98,10 @@ const RelaySettings: Component = () => {
                 return edit().statusOf(url);
               }}
               infoOf={edit().infoOf}
+              declaredRelayCount={(pubkey) =>
+                readLayer.routing?.writeRelaysFor(pubkey).length ?? 0
+              }
+              nameOf={nameOf}
             />
           </SettingsDetails>
         </div>

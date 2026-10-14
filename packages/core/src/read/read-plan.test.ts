@@ -21,8 +21,13 @@ describe("summarizeReadPlan", () => {
       ],
     });
     expect(plan.relays).toEqual([
-      { url: "wss://b/", authors: 2, fallback: false, explicit: false },
-      { url: "wss://a/", authors: 1, fallback: false, explicit: false },
+      {
+        url: "wss://b/",
+        authors: ["p1", "p2"],
+        fallback: false,
+        explicit: false,
+      },
+      { url: "wss://a/", authors: ["p1"], fallback: false, explicit: false },
     ]);
   });
 
@@ -38,8 +43,8 @@ describe("summarizeReadPlan", () => {
       fallbackRelays,
       sections: [section, section],
     });
-    expect(plan.relays[0].authors).toBe(1);
-    expect(plan.uncoveredAuthors).toBe(1);
+    expect(plan.relays[0].authors).toEqual(["p1"]);
+    expect(plan.uncoveredAuthors).toEqual(["p9"]);
   });
 
   it("リレーの設定が分からない人は、既定のリレーの理由として数え、読む人には数えない", () => {
@@ -58,9 +63,9 @@ describe("summarizeReadPlan", () => {
       ],
     });
     expect(plan.relays).toEqual([
-      { url: "wss://fallback/", authors: 0, fallback: true, explicit: false },
+      { url: "wss://fallback/", authors: [], fallback: true, explicit: false },
     ]);
-    expect(plan.unroutableAuthors).toBe(1);
+    expect(plan.unroutableAuthors).toEqual(["p1"]);
   });
 
   it("人を決めない読み取りは既定のリレーとして扱う", () => {
@@ -93,7 +98,7 @@ describe("summarizeReadPlan", () => {
       ],
     });
     expect(plan.relays).toEqual([
-      { url: "wss://mine/", authors: 0, fallback: false, explicit: true },
+      { url: "wss://mine/", authors: [], fallback: false, explicit: true },
     ]);
   });
 
@@ -118,10 +123,15 @@ describe("summarizeReadPlan", () => {
     expect(plan).toEqual({
       mode: "direct",
       relays: [
-        { url: "wss://mine/", authors: 2, fallback: false, explicit: false },
+        {
+          url: "wss://mine/",
+          authors: ["p1", "p2"],
+          fallback: false,
+          explicit: false,
+        },
       ],
-      unroutableAuthors: 0,
-      uncoveredAuthors: 0,
+      unroutableAuthors: [],
+      uncoveredAuthors: [],
     });
   });
 });

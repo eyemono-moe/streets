@@ -112,6 +112,8 @@ const RelaySummary: Component<{
   status?: RelayStatus;
   subtitle?: JSX.Element;
   actions?: JSX.Element;
+  /** 開いたときに、リレーの説明の下へ足すもの。開くまで作らないよう関数で受け取る。 */
+  details?: () => JSX.Element;
 }> = (props) => {
   const query = useRelayInfo(
     () => props.url,
@@ -120,10 +122,11 @@ const RelaySummary: Component<{
   const info = () => props.info ?? query.data;
   const label = () => relayLabel(props.url);
   const name = () => info()?.name ?? label().replace(/^wss?:\/\//, "");
-  const hasDetails = () =>
+  const hasInfo = () =>
     info()?.description !== undefined ||
     info()?.pubkey !== undefined ||
     info()?.contact !== undefined;
+  const hasDetails = () => props.details !== undefined || hasInfo();
 
   return (
     <Collapsible.Root lazyMount unmountOnExit disabled={!hasDetails()}>
@@ -154,7 +157,10 @@ const RelaySummary: Component<{
         {props.actions}
       </div>
       <Collapsible.Content class="motion-collapse">
-        <RelayDetails info={info()} />
+        <Show when={hasInfo()}>
+          <RelayDetails info={info()} />
+        </Show>
+        {props.details?.()}
       </Collapsible.Content>
     </Collapsible.Root>
   );

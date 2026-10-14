@@ -2590,14 +2590,19 @@ describe("SubscriptionManager の読み取り先の計画", () => {
       relays: [
         {
           url: "wss://author-write/",
-          authors: 1,
+          authors: [author.pubkey],
           fallback: false,
           explicit: false,
         },
-        { url: "wss://fallback/", authors: 0, fallback: true, explicit: false },
+        {
+          url: "wss://fallback/",
+          authors: [],
+          fallback: true,
+          explicit: false,
+        },
       ],
-      unroutableAuthors: 1,
-      uncoveredAuthors: 0,
+      unroutableAuthors: ["f".repeat(64)],
+      uncoveredAuthors: [],
     });
     expect(listener).toHaveBeenCalledTimes(1);
 
@@ -2608,10 +2613,15 @@ describe("SubscriptionManager の読み取り先の計画", () => {
     expect(listener).toHaveBeenLastCalledWith({
       mode: "direct",
       relays: [
-        { url: "wss://mine/", authors: 2, fallback: false, explicit: false },
+        {
+          url: "wss://mine/",
+          authors: [author.pubkey, "f".repeat(64)].sort(),
+          fallback: false,
+          explicit: false,
+        },
       ],
-      unroutableAuthors: 0,
-      uncoveredAuthors: 0,
+      unroutableAuthors: [],
+      uncoveredAuthors: [],
     });
 
     handle.close();

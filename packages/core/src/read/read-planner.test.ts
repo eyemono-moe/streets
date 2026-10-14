@@ -68,7 +68,7 @@ describe("planReads", () => {
 
     expect([...routes[0].perRelay.keys()]).toEqual([FALLBACK]);
     expect(routes[0].unroutableAuthors).toEqual(["unknown"]);
-    expect(readPlan.unroutableAuthors).toBe(1);
+    expect(readPlan.unroutableAuthors).toEqual(["unknown"]);
   });
 
   it("他人の localhost しか持たない著者は、行き先の分からない著者として既定のリレーへ送る", () => {
@@ -96,7 +96,9 @@ describe("planReads", () => {
     );
 
     expect(routes[0].uncoveredAuthors.length).toBeGreaterThan(0);
-    expect(readPlan.uncoveredAuthors).toBe(routes[0].uncoveredAuthors.length);
+    expect(readPlan.uncoveredAuthors).toEqual(
+      [...routes[0].uncoveredAuthors].sort(),
+    );
   });
 
   it("宣言リレーが全部 degraded な著者は、取れない著者に数える", () => {
@@ -254,6 +256,6 @@ describe("planReads", () => {
 
     expect(routes).toEqual([]);
     expect(assignment.size).toBe(0);
-    expect(readPlan.unroutableAuthors).toBe(0);
+    expect(readPlan.unroutableAuthors).toEqual([]);
   });
 });
