@@ -98,10 +98,13 @@ const ComposePanel: Component<{
         dispatch({ type: "compose/submit" });
       }}
       onKeyDown={(event) => {
-        // 補完の候補は自分の Esc を止めるので、ここへは届かない。変換中の Esc は
-        // 変換の取り消し（229 は変換中の Safari が返す値）。
+        // 変換中の Esc は変換の取り消し（229 は変換中の Safari が返す値）。
         if (event.isComposing || event.keyCode === 229) return;
         if (event.key !== "Escape") return;
+        // 絵文字ピッカーなどが閉じるのに使った Esc は取らない。Solid の Portal は、
+        // body の末尾に出した中身のイベントもここへ渡してくる。
+        if (event.defaultPrevented) return;
+        if (!event.currentTarget.contains(event.target as Node)) return;
         event.preventDefault();
         dispatch({ type: "compose/close" });
       }}
