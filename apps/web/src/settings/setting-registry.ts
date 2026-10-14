@@ -92,6 +92,10 @@ export const settings = {
     "読み取り",
     "ルーティング",
   ]),
+  readRedundancy: setting("1 人あたりに読むリレーの数", "relays", [
+    "取りこぼし",
+    "冗長",
+  ]),
   relayPlan: {
     ...setting("いま使っているリレー", "relays"),
     searchable: false,

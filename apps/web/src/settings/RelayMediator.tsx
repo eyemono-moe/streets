@@ -45,6 +45,8 @@ export type RelayEdit = {
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   /** 全カラム分の読み取り先。 */
   readPlan?: Accessor<ReadPlan>;
+  /** 1 人あたりに読むリレーの数を変えたら、何本のリレーを読むことになるか。 */
+  previewRelayCount?: (redundancy: number) => number;
   /** フォロー中の人のリレー設定を探し終えたか。 */
   routingSettled?: Accessor<boolean>;
   /** フォロー中の人。おすすめのリレーを数えるのに使う。 */
@@ -64,6 +66,7 @@ export const RelayMediator: ParentComponent<{
   statusOf: (url: RelayUrl) => RelayStatus;
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   readPlan?: Accessor<ReadPlan>;
+  previewRelayCount?: (redundancy: number) => number;
   routingSettled?: Accessor<boolean>;
   followees?: Accessor<readonly string[]>;
 }> = (props) => {
@@ -130,6 +133,7 @@ export const RelayMediator: ParentComponent<{
     statusOf: props.statusOf,
     infoOf: props.infoOf,
     readPlan: props.readPlan,
+    previewRelayCount: props.previewRelayCount,
     routingSettled: props.routingSettled,
     followees: props.followees,
   };

@@ -1,8 +1,13 @@
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
+import {
+  FALLBACK_RELAYS,
+  MAX_CONNECTIONS,
+} from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
 import { useBlockedRelays } from "./BlockedRelayMediator";
 import BlockedRelaysView from "./BlockedRelaysView";
+import ReadRedundancyView from "./ReadRedundancyView";
 import ReadRoutingView from "./ReadRoutingView";
 import { useRelayEdit } from "./RelayMediator";
 import RelayPlanView from "./RelayPlanView";
@@ -60,6 +65,18 @@ const RelaySettings: Component = () => {
               loading={edit().loading()}
               fallback={FALLBACK_RELAYS}
             />
+            <Show when={readRoutingMode() === "outbox"}>
+              <ReadRedundancyView
+                value={readRedundancy()}
+                relayCount={edit().readPlan?.().relays.length}
+                preview={(redundancy) => {
+                  // 見込みは購読から数えるので、読み取り先が変わるたびに数え直す。
+                  edit().readPlan?.();
+                  return edit().previewRelayCount?.(redundancy) ?? 0;
+                }}
+                budget={MAX_CONNECTIONS}
+              />
+            </Show>
             <RelayPlanView
               plan={edit().readPlan?.()}
               routingSettled={edit().routingSettled?.() ?? true}

@@ -3,11 +3,19 @@ import { createReadLayer } from "@streets/core/read/read-layer";
 import { createRelayTraffic } from "@streets/core/relay/relay-traffic";
 import { createSubscriptionLimits } from "@streets/core/relay/subscription-limits";
 import { connectRelay } from "@streets/core/relay/websocket-relay-connection";
-import { type Component, Show, lazy, onCleanup, onMount } from "solid-js";
+import {
+  type Component,
+  Show,
+  createEffect,
+  lazy,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import DeckScreen from "./deck/DeckScreen";
 import { pipOpen } from "./deck/pip-window";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
+import { readRedundancy } from "./read-redundancy-setting";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
 import SignerDisconnectedNotice from "./SignerDisconnectedNotice";
@@ -42,6 +50,7 @@ const App: Component = () => {
       import.meta.env.DEV || LOOPBACK_HOSTS.has(window.location.hostname),
   });
   onCleanup(() => readLayer.dispose());
+  createEffect(() => readLayer.manager.setRedundancy(readRedundancy()));
 
   onMount(() => {
     let pauseTimer: ReturnType<typeof setTimeout> | undefined;

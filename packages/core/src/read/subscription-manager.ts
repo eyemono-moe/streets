@@ -20,7 +20,7 @@ import type { EventStore } from "./event-store";
 import { matchesAnyFilter } from "./filter-match";
 import type { OlderPage, OlderPageRelay } from "./older-page";
 import { EMPTY_READ_PLAN, type ReadPlan, readPlanEqual } from "./read-plan";
-import { planReads } from "./read-planner";
+import { type ReadEnvironment, planReads } from "./read-planner";
 import {
   OUTBOX_ROUTING,
   type ReadRouting,
@@ -268,6 +268,7 @@ export class SubscriptionManager {
   #replanGeneration = 0;
   #lastReplanAt = Number.NEGATIVE_INFINITY;
   #readRouting: ReadRouting = OUTBOX_ROUTING;
+  #redundancy: number;
   // 直近の選択で著者ごとに割り当てたリレー。`relaysForAuthor` が使う。
   #lastAssignment: ReadonlyMap<string, readonly RelayUrl[]> = new Map();
   #readPlan: ReadPlan = EMPTY_READ_PLAN;
@@ -278,6 +279,7 @@ export class SubscriptionManager {
 
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
+    this.#redundancy = options.redundancy ?? RELAY_REDUNDANCY;
     this.#scheduler = options.scheduler ?? defaultScheduler;
     this.#pool = new ConnectionPool({
       connect: options.connect,
@@ -488,6 +490,25 @@ export class SubscriptionManager {
           : OUTBOX_ROUTING
         : { mode: "direct", relays: [...routing.relays] };
     this.replan();
+  }
+
+  /** 1 人あたりに読むリレーの数を変え、全セクションを張り直す。同じ値なら何もしない。 */
+  setRedundancy(redundancy: number): void {
+    if (this.#redundancy === redundancy) return;
+    this.#redundancy = redundancy;
+    this.replan();
+  }
+
+  /**
+   * 1 人あたりの本数を `redundancy` にしたら、いまの購読で何本のリレーを読むことになるか。
+   * 張り直しはしない。
+   */
+  previewRelayCount(redundancy: number): number {
+    const entries = [...this.#entries.values()].filter(
+      (entry) => !entry.closed,
+    );
+    return planReads(entries, this.#readEnvironment(entries, redundancy))
+      .readPlan.relays.length;
   }
 
   /**
@@ -739,6 +760,28 @@ export class SubscriptionManager {
     }
   }
 
+  #readEnvironment(
+    entries: readonly SectionEntry[],
+    redundancy: number,
+  ): ReadEnvironment {
+    const openRelays = new Set<RelayUrl>();
+    for (const entry of entries) {
+      for (const url of entry.opened.keys()) openRelays.add(url);
+    }
+    return {
+      routing: this.#readRouting,
+      defaultRelays: this.#defaultRelays(),
+      writeRelaysFor: (author) => this.#options.routing.writeRelaysFor(author),
+      budget: this.#options.maxConnections ?? MAX_CONNECTIONS,
+      redundancy,
+      openRelays: [...openRelays],
+      degraded: this.#pool.degradedRelays,
+      blocked: this.#pool.blockedRelays,
+      isBlocked: (url) => this.#pool.isBlocked(url),
+      isLocalRefused: (url) => this.#pool.isLocalRefused(url),
+    };
+  }
+
   /**
    * 行き先は `planReads` に任せ、ここでは差分適用と通知だけを行う。`#entries` の
    * スナップショットを先頭で 1 回だけ取る —— ライブな Map を反復すると、差分適用
@@ -748,23 +791,10 @@ export class SubscriptionManager {
   #replanOnce(): void {
     const entries = [...this.#entries.values()];
     // 差分適用で状態が変わるので、開いているリレーは計画の前に読む。
-    const openRelays = new Set<RelayUrl>();
-    for (const entry of entries) {
-      for (const url of entry.opened.keys()) openRelays.add(url);
-    }
-
-    const { routes, assignment, readPlan } = planReads(entries, {
-      routing: this.#readRouting,
-      defaultRelays: this.#defaultRelays(),
-      writeRelaysFor: (author) => this.#options.routing.writeRelaysFor(author),
-      budget: this.#options.maxConnections ?? MAX_CONNECTIONS,
-      redundancy: this.#options.redundancy ?? RELAY_REDUNDANCY,
-      openRelays: [...openRelays],
-      degraded: this.#pool.degradedRelays,
-      blocked: this.#pool.blockedRelays,
-      isBlocked: (url) => this.#pool.isBlocked(url),
-      isLocalRefused: (url) => this.#pool.isLocalRefused(url),
-    });
+    const { routes, assignment, readPlan } = planReads(
+      entries,
+      this.#readEnvironment(entries, this.#redundancy),
+    );
     this.#lastAssignment = assignment;
 
     entries.forEach((entry, index) => {

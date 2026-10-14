@@ -111,6 +111,7 @@ import { composeDrafts } from "../note/compose-drafts";
 import { ComposeMediator } from "../note/ComposeMediator";
 import ComposePanel from "../note/ComposePanel";
 import TargetComposeDialog from "../note/TargetComposeDialog";
+import { setReadRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
 import { screenshotMode } from "../screenshot-mode";
 import type { Session } from "../session";
@@ -956,6 +957,9 @@ const DeckScreen: Component<{
       case "deck/set-read-routing":
         setReadRoutingMode(event.mode);
         return true;
+      case "deck/set-read-redundancy":
+        setReadRedundancy(event.value);
+        return true;
       case "deck/set-shortcut":
         setShortcut(event.action, event.hotkey);
         return true;
@@ -1486,6 +1490,11 @@ const DeckScreen: Component<{
                                 props.readLayer.manager.pool.statusOf(url)
                               }
                               readPlan={readPlan}
+                              previewRelayCount={(redundancy) =>
+                                props.readLayer.manager.previewRelayCount(
+                                  redundancy,
+                                )
+                              }
                               routingSettled={settled}
                               followees={followees}
                             >
