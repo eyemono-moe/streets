@@ -5,8 +5,8 @@ import {
   Show,
   createEffect,
   createSignal,
-  on,
   onCleanup,
+  untrack,
 } from "solid-js";
 import Avatar from "../note/Avatar";
 import { ProfileName, ProfileText } from "../note/Name";
@@ -16,6 +16,10 @@ import { type UiEvent, useDispatch } from "../ui-events";
 import { Portal } from "../ui/Portal";
 import { FeedbackDialog, feedbackHref } from "./FeedbackDialog";
 import { trackMenuDrag } from "./menu-drag";
+
+/** 開く・閉じる動きの長さ。閉じる動きを待ってから Dialog を閉じるのにも使う。 */
+const MENU_MOTION_MS = 180;
+const MENU_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 const Row: Component<{
   icon: string;
@@ -49,10 +53,10 @@ const MobileMenu: Component<{
   /** フィードバックの送り先。省くと環境の設定、null なら送り先なし（導線を出さない）。 */
   feedbackUrl?: string | null;
   /**
-   * メニューの出ている割合（0〜1）と、指で動かしている途中か。後ろの画面の奥行きを
-   * これに合わせる。
+   * メニューの出ている割合（0〜1）、動かさずにその割合へ置くか（指で動かしている途中など）、
+   * 出ているか（閉じる動きの途中も含む）。後ろの画面の奥行きをこれに合わせる。
    */
-  onShown?: (progress: number, dragging: boolean) => void;
+  onShown?: (progress: number, instant: boolean, present: boolean) => void;
 }> = (props) => {
   const dispatch = useDispatch();
   const statuses = useUserStatuses(() => props.pubkey);
@@ -61,25 +65,62 @@ const MobileMenu: Component<{
   const [feedbackOpen, setFeedbackOpen] = createSignal(false);
   // 開いた後、左へ押し戻している途中なら、出ている割合。
   const [pushing, setPushing] = createSignal<number>();
-  // 指を離したときの出ている割合。開く・閉じる動き（位置と後ろの暗さ）をそこから始め、
-  // 動き終えたら忘れる。
-  const [released, setReleased] = createSignal<number>();
-  let content: HTMLDivElement | undefined;
   const dragging = () => pushing() ?? props.pulling;
-  const offset = (progress: number) => `${(progress - 1) * 100}%`;
-  // 引き出していた指を離したら、その位置から開く・戻る。
-  createEffect(
-    on(
-      () => props.pulling,
-      (now, before) => {
-        if (now === undefined && before !== undefined) setReleased(before);
-      },
-    ),
-  );
-  createEffect(() => {
-    const progress = dragging();
-    props.onShown?.(progress ?? (props.open ? 1 : 0), progress !== undefined);
+  // 見えている割合と、そこへ動かすか（指で動かしている間と、出し始めの 1 枚は動かさない）。
+  const [shown, setShown] = createSignal(0);
+  const [instant, setInstant] = createSignal(true);
+  // 閉じる動きを終えるまでは、Ark UI の Dialog を開いたままにする。
+  const [present, setPresent] = createSignal(false);
+  let content: HTMLDivElement | undefined;
+  let closing: ReturnType<typeof setTimeout> | undefined;
+  let entering: number | undefined;
+  onCleanup(() => {
+    clearTimeout(closing);
+    if (entering !== undefined) cancelAnimationFrame(entering);
   });
+  // 動きはキーフレームではなく、値を書いたトランジションで付ける。iOS の WebKit は
+  // var() を含むキーフレームを合成の層だけで動かせず、メインスレッドが忙しいと指を
+  // 離した後の動きが飛ぶ。トランジションなら、指を離した位置からそのまま続く。
+  createEffect(() => {
+    const drag = dragging();
+    const open = props.open;
+    clearTimeout(closing);
+    if (entering !== undefined) cancelAnimationFrame(entering);
+    entering = undefined;
+    if (drag !== undefined) {
+      setPresent(true);
+      setInstant(true);
+      setShown(drag);
+      return;
+    }
+    if (open) {
+      if (untrack(present)) {
+        setInstant(false);
+        setShown(1);
+        return;
+      }
+      // 隠れた位置で 1 度描いてから動かす。同じフレームで変えると、動かずに現れる。
+      setPresent(true);
+      setInstant(true);
+      setShown(0);
+      entering = requestAnimationFrame(() => {
+        entering = requestAnimationFrame(() => {
+          entering = undefined;
+          setInstant(false);
+          setShown(1);
+        });
+      });
+      return;
+    }
+    if (!untrack(present)) return;
+    setInstant(false);
+    setShown(0);
+    closing = setTimeout(() => setPresent(false), MENU_MOTION_MS);
+  });
+  createEffect(() => props.onShown?.(shown(), instant(), present()));
+  const offset = (progress: number) => `${(progress - 1) * 100}%`;
+  const transition = (property: string) =>
+    instant() ? "none" : `${property} ${MENU_MOTION_MS}ms ${MENU_EASING}`;
 
   // 選んだものは、メニューが閉じきってから開く。閉じたメニューは自分のアイコンへ焦点を
   // 戻すので、先に開いたダイアログは焦点が外へ出たとみなして閉じてしまう。Ark UI の
@@ -97,8 +138,7 @@ const MobileMenu: Component<{
       toward: "left",
       accepts: () => props.open,
       move: setPushing,
-      end: (open, progress) => {
-        setReleased(progress);
+      end: (open) => {
         setPushing(undefined);
         if (!open) dispatch({ type: "deck/close-menu" });
       },
@@ -109,7 +149,7 @@ const MobileMenu: Component<{
   return (
     <>
       <ArkDialog.Root
-        open={props.open || props.pulling !== undefined}
+        open={present()}
         onOpenChange={(details) => {
           if (!details.open) dispatch({ type: "deck/close-menu" });
         }}
@@ -121,23 +161,21 @@ const MobileMenu: Component<{
           afterClose = undefined;
           run?.();
         }}
+        // 閉じても外さない。開くたびに作り直すと、払い始めた指の下で中身を組み立てることになり、
+        // 短く払ったときに動きが飛ぶ。メニューは 1 つだけなので、残しても DOM は増えない。
+        // 背後の body を止めない。iOS では止めるときに body を position: fixed にして
+        // 画面全体を組み直す。アプリの body は元から流れない。
+        preventScroll={false}
         lazyMount
-        unmountOnExit
       >
         <Portal>
           <ArkDialog.Backdrop
-            class="motion-menu-dim fixed inset-0 bg-ui-950/40"
-            style={(() => {
-              const progress = dragging();
-              const edge = released();
-              return {
-                "--menu-dim-from": String(edge ?? 0),
-                "--menu-dim-x": String(edge ?? 1),
-                ...(progress === undefined
-                  ? {}
-                  : { opacity: progress, animation: "none" }),
-              };
-            })()}
+            class="fixed inset-0 bg-ui-950/40"
+            style={{
+              opacity: shown(),
+              transition: transition("opacity"),
+              "will-change": "opacity",
+            }}
           />
           <ArkDialog.Positioner
             ref={trackPush}
@@ -147,22 +185,12 @@ const MobileMenu: Component<{
               ref={content}
               tabIndex={-1}
               aria-label="メニュー"
-              class="motion-menu c-primary flex h-full w-[min(300px,85vw)] flex-col bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-lg outline-none"
-              style={(() => {
-                const progress = dragging();
-                const edge = released();
-                return {
-                  "--menu-from": edge === undefined ? "-100%" : offset(edge),
-                  "--menu-x": edge === undefined ? "0px" : offset(edge),
-                  ...(progress === undefined
-                    ? {}
-                    : {
-                        transform: `translate3d(${offset(progress)},0,0)`,
-                        animation: "none",
-                      }),
-                };
-              })()}
-              onAnimationEnd={() => setReleased(undefined)}
+              class="c-primary flex h-full w-[min(300px,85vw)] flex-col bg-primary pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-lg outline-none"
+              style={{
+                transform: `translate3d(${offset(shown())},0,0)`,
+                transition: transition("transform"),
+                "will-change": "transform",
+              }}
             >
               <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <Show

@@ -58,6 +58,7 @@ import {
   Match,
   Show,
   Switch,
+  batch,
   createEffect,
   createMemo,
   createResource,
@@ -509,7 +510,8 @@ const DeckScreen: Component<{
   // メニューの出ている割合。出ている間は後ろの画面を少し縮め、メニューが手前にあると見せる。
   const [menuShown, setMenuShown] = createSignal({
     progress: 0,
-    dragging: false,
+    instant: true,
+    present: false,
   });
   // メニューは狭い画面にしか無い。開いたまま広げると、狭く戻したときに急に出てくる。
   createEffect(() => {
@@ -517,27 +519,33 @@ const DeckScreen: Component<{
       applyUi({ type: "deck/close-menu" });
     }
   });
-  const mountStrip = (el: HTMLDivElement) => {
-    placed = false;
-    setStrip(el);
-    // 「端で止まる」ではいちばん左のカラムから、「切り替えない」ではどのカラムからでも、
-    // 右へ払うとメニューを引き出す。
+  // 「端で止まる」ではいちばん左のカラムから、「切り替えない」ではどのカラムからでも、
+  // 右へ払うとメニューを引き出す。「一周する」では受け口ごと外す —— 止められる touchmove の
+  // 受け口があると、縦のスクロールのたびにブラウザが JS の返事を待つ。
+  createEffect(() => {
+    const el = strip();
+    const mode = swipeMode();
+    if (!el || mode === "loop") return;
     onCleanup(
       trackMenuDrag(el, {
         toward: "right",
         accepts: (event) => {
-          const mode = swipeMode();
-          if (mode === "loop" || ui.panel !== undefined) return false;
+          if (ui.panel !== undefined) return false;
           if (mode === "stop" && el.scrollLeft > 1) return false;
           return !scrollsBackFrom(event.target, el);
         },
         move: setMenuPull,
-        end: (open) => {
-          setMenuPull(undefined);
-          if (open) applyUi({ type: "deck/open-menu" });
-        },
+        end: (open) =>
+          batch(() => {
+            setMenuPull(undefined);
+            if (open) applyUi({ type: "deck/open-menu" });
+          }),
       }),
     );
+  });
+  const mountStrip = (el: HTMLDivElement) => {
+    placed = false;
+    setStrip(el);
     el.addEventListener(
       "touchstart",
       () => {
@@ -1232,17 +1240,17 @@ const DeckScreen: Component<{
         <Match when={true}>
           <div
             class="safe-pad-x relative flex h-dvh flex-col pt-[env(safe-area-inset-top)]"
-            classList={{
-              // 縮めない間は scale を当てない。当てると、中の fixed の置き場がこの箱に変わる。
-              "overflow-hidden": menuShown().progress > 0,
-              "duration-180 ease-out [transition-property:scale,border-radius]":
-                !menuShown().dragging,
-            }}
+            // 縮めるのは scale だけにする（合成の層だけで動く）。この箱の class を変えると、
+            // 中の数万の要素の見た目を数え直すことになるので、変えるのは inline の style だけ。
+            // 出ていない間は scale も層も外す。scale があると中の fixed の置き場がこの箱になる。
             style={
-              menuShown().progress > 0
+              menuShown().present
                 ? {
                     scale: String(1 - 0.06 * menuShown().progress),
-                    "border-radius": `${16 * menuShown().progress}px`,
+                    transition: menuShown().instant
+                      ? "none"
+                      : "scale 180ms cubic-bezier(0.16, 1, 0.3, 1)",
+                    "will-change": "scale",
                   }
                 : undefined
             }
@@ -1264,8 +1272,8 @@ const DeckScreen: Component<{
               open={ui.menuOpen}
               pulling={menuPull()}
               onLogout={props.session.logout}
-              onShown={(progress, dragging) =>
-                setMenuShown({ progress, dragging })
+              onShown={(progress, instant, present) =>
+                setMenuShown({ progress, instant, present })
               }
             />
             <DeckSyncNotice store={deckStore} />
