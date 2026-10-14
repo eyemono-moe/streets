@@ -6,7 +6,7 @@ import { normalizeForMatch } from "./text-match";
  * 何を入れるかは欄ごとに決める。
  */
 
-export type CompletionKind = "user" | "emoji";
+export type CompletionKind = "user" | "emoji" | "kind";
 
 export type CompletionTrigger = {
   kind: CompletionKind;

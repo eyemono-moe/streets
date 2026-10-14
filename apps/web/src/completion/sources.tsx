@@ -1,3 +1,4 @@
+import { findKinds } from "@streets/core/nostr/kind-support";
 import { encodeBech32, encodeNprofile } from "@streets/core/nostr/nip19";
 import { type Profile, parseProfile } from "@streets/core/nostr/profile";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -343,3 +344,27 @@ export const useNoteSources = (
   }),
   useEmojiSource(),
 ];
+
+/** kind の候補の 1 行。番号を先に、呼び名を横に並べる。 */
+export const KindRow = (props: { kind: number; summary: string }) => (
+  <>
+    <span class="c-secondary w-12 shrink-0 text-right text-caption tabular-nums">
+      {props.kind}
+    </span>
+    <span class="min-w-0 flex-1 truncate text-body">{props.summary}</span>
+  </>
+);
+
+/** kind の候補。番号か呼び名で引き、番号を入れる。 */
+export const kindSource = (trigger: CompletionTrigger): CompletionSource => ({
+  trigger,
+  items: (query) =>
+    findKinds(query)
+      .slice(0, LIMIT)
+      .map((entry): CompletionItem => ({
+        key: String(entry.kind),
+        insert: String(entry.kind),
+        space: true,
+        view: () => <KindRow kind={entry.kind} summary={entry.summary} />,
+      })),
+});
