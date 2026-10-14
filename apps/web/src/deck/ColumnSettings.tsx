@@ -89,14 +89,9 @@ const ColumnSettings: Component<{
   const show = () => columnShow(props.column);
   const patch = (patch: ColumnPatch) =>
     dispatch({ type: "deck/patch-column", id: props.column.id, patch });
-  // 動かしている間は保存しないので、つまみの位置は保存した幅でなくこちらを見せる。
+  // 動かしている間はカラムの幅を変えない。この欄はカラムの右に開くので、幅に合わせて
+  // 欄ごと左右へ動き、つまみがポインタから逃げる。幅は離したときに当てる。
   const [movingWidth, setMovingWidth] = createSignal<number>();
-  const previewWidth = (px: number | undefined) =>
-    dispatch({
-      type: "deck/preview-column-width",
-      id: props.column.id,
-      px,
-    });
 
   return (
     <div class="flex shrink-0 flex-col gap-4.5 bg-secondary p-4">
@@ -120,14 +115,10 @@ const ColumnSettings: Component<{
           max={COLUMN_WIDTH_MAX}
           step={10}
           format={(px) => `${px}px${props.stretch === true ? "〜" : ""}`}
-          onChange={(px) => {
-            setMovingWidth(px);
-            previewWidth(px);
-          }}
+          onChange={setMovingWidth}
           onChangeEnd={(px) => {
-            // 保存した幅を当ててから見本を外す。逆だと、離した瞬間だけ前の幅に戻って見える。
+            // 保存した幅を当ててから手元の値を外す。逆だと、離した瞬間だけつまみが前の幅に戻る。
             patch(columnWidthPatch(px));
-            previewWidth(undefined);
             setMovingWidth(undefined);
           }}
         />

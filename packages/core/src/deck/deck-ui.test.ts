@@ -73,31 +73,6 @@ describe("deckUiTransition", () => {
     ).toBe("b");
   });
 
-  it("幅のつまみを動かしている間の幅を覚え、動かし終えたら忘れる", () => {
-    const moving = run(
-      { type: "deck/preview-column-width", id: "a", px: 250 },
-      { type: "deck/preview-column-width", id: "a", px: 260 },
-    );
-    expect(moving.widthPreview).toEqual({ id: "a", px: 260 });
-    expect(
-      deckUiTransition(moving, {
-        type: "deck/preview-column-width",
-        id: "a",
-        px: undefined,
-      }).widthPreview,
-    ).toBeUndefined();
-  });
-
-  it("動かしている途中でカラムが消えたら、そのカラムの幅を忘れる", () => {
-    // 捕まえる変異: 消えたカラムの幅を持ち続ける（同じ id のカラムを足すと、その幅で出る）
-    expect(
-      run(
-        { type: "deck/preview-column-width", id: "a", px: 250 },
-        { type: "deck/column-removed", id: "a" },
-      ).widthPreview,
-    ).toBeUndefined();
-  });
-
   it("掴んだ位置から始まり、動かした先を覚え、離すと忘れる", () => {
     expect(
       run({ type: "deck/drag-start", id: "a", index: 2 }).dragging,

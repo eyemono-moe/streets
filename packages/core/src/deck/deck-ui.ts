@@ -47,11 +47,6 @@ export type DeckUiState = {
   poppedOut: string | undefined;
   /** 狭い画面で、左から出るアプリ全体のメニューを開いているか。 */
   menuOpen: boolean;
-  /**
-   * 幅のつまみを動かしている間の幅。離すまで保存しない —— 動かすたびに保存すると、
-   * デッキを丸ごとリレーへ書き込み続ける。
-   */
-  widthPreview: { id: string; px: number } | undefined;
 };
 
 export type DeckUiEvent =
@@ -77,8 +72,6 @@ export type DeckUiEvent =
   | { type: "deck/drag-move"; to: number }
   /** 離した・やめた。並びを確定するのは、この遷移の外（デッキの保存）。 */
   | { type: "deck/drag-end" }
-  /** 幅のつまみを動かしている。`px` が無ければ動かし終えた。 */
-  | { type: "deck/preview-column-width"; id: string; px: number | undefined }
   /** カラムのピクチャーインピクチャーが開いた。前のピクチャーインピクチャーは、開いた側が閉じている。 */
   | { type: "deck/popped-out"; id: string }
   /** ピクチャーインピクチャーが閉じた。閉じたのが使う人でも、アプリでも届く。 */
@@ -105,7 +98,6 @@ export const emptyDeckUi = (): DeckUiState => ({
   aboutOpen: false,
   poppedOut: undefined,
   menuOpen: false,
-  widthPreview: undefined,
 });
 
 /** メニューから選んで開くもの。開いたら、選んだ先が見えるようにメニューを閉じる。 */
@@ -220,13 +212,6 @@ const transition = (state: DeckUiState, event: DeckUiEvent): DeckUiState => {
       return state.dragging === undefined
         ? state
         : { ...state, dragging: undefined };
-    case "deck/preview-column-width":
-      if (event.px !== undefined) {
-        return { ...state, widthPreview: { id: event.id, px: event.px } };
-      }
-      return state.widthPreview?.id === event.id
-        ? { ...state, widthPreview: undefined }
-        : state;
     case "deck/popped-out":
       // カラムの設定はデッキの横に開くので、ピクチャーインピクチャーへ出したカラムの分は閉じる。
       return {
@@ -249,8 +234,6 @@ const transition = (state: DeckUiState, event: DeckUiEvent): DeckUiState => {
           state.settingsFor === event.id ? undefined : state.settingsFor,
         dragging: state.dragging?.id === event.id ? undefined : state.dragging,
         poppedOut: state.poppedOut === event.id ? undefined : state.poppedOut,
-        widthPreview:
-          state.widthPreview?.id === event.id ? undefined : state.widthPreview,
       };
     case "deck/columns-changed": {
       // 消えたカラム（別の端末でデッキを変えた、など）のピクチャーインピクチャーは閉じる。

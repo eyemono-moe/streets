@@ -172,8 +172,6 @@ export type DeckEvent =
   | { type: "deck/drag-move"; to: number }
   /** やめた（Esc・ポインタを奪われた）。並びは変えない。 */
   | { type: "deck/drag-end" }
-  /** 幅のつまみを動かしている。`px` が無ければ動かし終えた（保存は `deck/patch-column`）。 */
-  | { type: "deck/preview-column-width"; id: string; px: number | undefined }
   /** 離した。掴んでいたカラムを、動かした先の位置で確定する。 */
   | { type: "deck/drop" }
   /** 1 つ前（-1）か後ろ（1）へずらす。キーボードでの並べ替え。 */

@@ -41,9 +41,9 @@ export const WelcomeColumnView: Component<WelcomeColumnViewProps> = (props) => (
   <div class="flex flex-col">
     <div class="relative h-36 shrink-0 overflow-hidden">
       <JunctionArt class="absolute inset-0 size-full" />
-      <div class="absolute inset-x-4 bottom-3 flex items-center gap-3 c-white">
+      <div class="absolute inset-x-4 bottom-3 flex flex-wrap items-center gap-3 c-white">
         {/* ロゴの紫は夜の色に沈むので、白い台に載せる。 */}
-        <span class="grid size-14 place-items-center rounded-3 bg-white">
+        <span class="grid size-14 shrink-0 place-items-center rounded-3 bg-white">
           <img src="/favicon.svg" alt="" class="size-10" />
         </span>
         <p class="font-700 text-[36px] leading-none">Streets</p>

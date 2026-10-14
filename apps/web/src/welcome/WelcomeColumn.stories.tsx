@@ -57,6 +57,9 @@ export const 最初の二択: Story = {};
 
 export const 幅の狭いカラム: Story = { args: { width: "320px" } };
 
+/** ロゴの横に題名が入らないので、題名を次の行へ送る。 */
+export const 細いカラム: Story = { args: { width: "200px" } };
+
 export const 狭い画面: Story = {
   args: { width: "100%" },
   globals: { viewport: { value: "mobile1", isRotated: false } },
