@@ -9,7 +9,8 @@ export type SettingPage =
   | "mute"
   | "keyboard"
   | "display"
-  | "privacy";
+  | "privacy"
+  | "stats";
 
 export const pageNames: Record<SettingPage, string> = {
   account: "アカウント",
@@ -21,6 +22,7 @@ export const pageNames: Record<SettingPage, string> = {
   keyboard: "キーボード",
   display: "表示",
   privacy: "プライバシー",
+  stats: "統計",
 };
 
 /** アカウントに保存するページ。ログインしていなければ読む先も書く先も無い。 */
@@ -98,7 +100,11 @@ export const settings = {
     "冗長",
   ]),
   relayPlan: {
-    ...setting("いま使っているリレー", "relays"),
+    ...setting("いま使っているリレー", "stats"),
+    searchable: false,
+  },
+  relayTraffic: {
+    ...setting("リレーとの通信量", "stats"),
     searchable: false,
   },
   imageDisplay: {

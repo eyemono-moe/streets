@@ -75,6 +75,13 @@ export type RelayTraffic = {
 const NOTICE_LIMIT = 5;
 
 /**
+ * 重複を見分けるために覚えておく id の数。本番でもずっと数えるので、開いている間
+ * 増え続けないよう、この数ごとに古い世代を捨てる。2 世代を見るので、直前に受け取った
+ * この数の分は必ず見分けられる。
+ */
+export const SEEN_IDS_LIMIT = 50_000;
+
+/**
  * フィルタの形。値は捨て、kind と使ったキー、配列なら 1 件か複数かだけを残す
  * （`kinds:3 #p(1)` など）。値まで残すと、人ごとに別の形になって束ねられない。
  */
@@ -143,7 +150,17 @@ export const createRelayTraffic = (
 ): RelayTraffic => {
   let entries = new Map<RelayUrl, Entry>();
   let seenIds = new Set<string>();
+  let olderIds = new Set<string>();
   let startedAt = now();
+  const seen = (id: string): boolean => {
+    if (seenIds.has(id) || olderIds.has(id)) return true;
+    seenIds.add(id);
+    if (seenIds.size >= SEEN_IDS_LIMIT) {
+      olderIds = seenIds;
+      seenIds = new Set();
+    }
+    return false;
+  };
 
   const fresh = (url: RelayUrl): Entry => ({
     url,
@@ -215,12 +232,12 @@ export const createRelayTraffic = (
       const byShape = shapeOf(target, shape ?? "(unknown)");
       byShape.events.count += 1;
       byShape.events.bytes += bytes;
-      if (seenIds.has(id)) {
+      if (seen(id)) {
         target.duplicates.count += 1;
         target.duplicates.bytes += bytes;
         byShape.duplicates.count += 1;
         byShape.duplicates.bytes += bytes;
-      } else seenIds.add(id);
+      }
     },
     subscriptions(url, open) {
       const target = entry(url);
@@ -268,7 +285,89 @@ export const createRelayTraffic = (
         entries.set(old.url, kept);
       }
       seenIds = new Set();
+      olderIds = new Set();
       startedAt = at;
     },
   };
+};
+
+const sumCounts = (counts: Record<string | number, TrafficCount>) => {
+  let count = 0;
+  let bytes = 0;
+  for (const value of Object.values(counts)) {
+    count += value.count;
+    bytes += value.bytes;
+  }
+  return { count, bytes };
+};
+
+/** 統計の画面に出す、1 つのリレーとのやりとり。 */
+export type RelayTrafficSummary = {
+  url: RelayUrl;
+  open: boolean;
+  /** 受け取った量（バイト）。 */
+  received: number;
+  /** そのうちイベントの分。 */
+  receivedEvents: number;
+  sent: number;
+  /** 受け取ったイベントの数。 */
+  events: number;
+  /** 別のリレーから先に受け取っていたイベントの数。 */
+  duplicates: number;
+  connectedMs: number;
+  /** 切れてからつなぎ直した回数。 */
+  reconnects: number;
+  subscriptions: number;
+  peakSubscriptions: number;
+  queuedReqs: number;
+  /** kind ごとのイベント。多い順。 */
+  kinds: { kind: number; count: number; bytes: number }[];
+};
+
+export type TrafficSummary = {
+  received: number;
+  sent: number;
+  events: number;
+  duplicates: number;
+  /** 受け取った量の多い順。 */
+  relays: RelayTrafficSummary[];
+};
+
+/** `snapshot()` を、統計の画面に出す形へまとめる。 */
+export const summarizeTraffic = (
+  stats: readonly RelayTrafficStats[],
+): TrafficSummary => {
+  const relays = stats
+    .map((relay): RelayTrafficSummary => {
+      const events = relay.received.EVENT ?? { count: 0, bytes: 0 };
+      return {
+        url: relay.url,
+        open: relay.open,
+        received: sumCounts(relay.received).bytes,
+        receivedEvents: events.bytes,
+        sent: sumCounts(relay.sent).bytes,
+        events: events.count,
+        duplicates: relay.duplicates.count,
+        connectedMs: relay.connectedMs,
+        reconnects: Math.max(0, relay.connects - 1),
+        subscriptions: relay.subscriptions,
+        peakSubscriptions: relay.peakSubscriptions,
+        queuedReqs: relay.queuedReqs,
+        kinds: Object.entries(relay.kinds)
+          .map(([kind, count]) => ({ kind: Number(kind), ...count }))
+          .sort((a, b) => b.count - a.count || a.kind - b.kind),
+      };
+    })
+    .sort((a, b) => b.received - a.received || a.url.localeCompare(b.url));
+  let received = 0;
+  let sent = 0;
+  let events = 0;
+  let duplicates = 0;
+  for (const relay of relays) {
+    received += relay.received;
+    sent += relay.sent;
+    events += relay.events;
+    duplicates += relay.duplicates;
+  }
+  return { received, sent, events, duplicates, relays };
 };

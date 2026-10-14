@@ -16,6 +16,7 @@ import { pipOpen } from "./deck/pip-window";
 import { devRelayOverride } from "./dev-relay-override";
 import { ReadLayerProvider } from "./read-layer";
 import { readRedundancy } from "./read-redundancy-setting";
+import { RelayTrafficProvider } from "./relay-traffic";
 import { screenshotMode } from "./screenshot-mode";
 import { createSession } from "./session";
 import SignerDisconnectedNotice from "./SignerDisconnectedNotice";
@@ -31,19 +32,18 @@ const BACKGROUND_PAUSE_MS = 5 * 60_000;
 
 const App: Component = () => {
   const relayOverride = devRelayOverride(window.location.search);
-  // メッセージごとに大きさを数えるので、Devtools を出す開発時だけ測る。
-  const relayTraffic = import.meta.env.DEV ? createRelayTraffic() : undefined;
+  const relayTraffic = createRelayTraffic();
   const readLayer = createReadLayer({
     // session は pool を使うので後から作る。署名器は認証のときに読むので、それまでに決まっていればよい。
     connect: (url) =>
       connectRelay(url, {
         signer: () => session.signer,
-        traffic: relayTraffic?.recorder,
+        traffic: relayTraffic.recorder,
       }),
     persistence: createIndexedDbPersistence(),
     // 上限を超える REQ を、リレーは黙って捨てる。NIP-11 の値を超えないよう順番待ちにする。
     maxSubscriptions: createSubscriptionLimits(),
-    onQueued: relayTraffic?.recorder.queued,
+    onQueued: relayTraffic.recorder.queued,
     fallbackRelays: relayOverride,
     // 手元で開いたページからなら、ブラウザは手元のリレーへの接続に許可を求めない。
     allowLocalNetwork:
@@ -96,11 +96,13 @@ const App: Component = () => {
       */}
       <Show when={session.pubkey() ?? GUEST} keyed>
         <ReadLayerProvider value={readLayer}>
-          <DeckScreen
-            readLayer={readLayer}
-            session={session}
-            bootstrapIndexers={relayOverride}
-          />
+          <RelayTrafficProvider value={relayTraffic}>
+            <DeckScreen
+              readLayer={readLayer}
+              session={session}
+              bootstrapIndexers={relayOverride}
+            />
+          </RelayTrafficProvider>
         </ReadLayerProvider>
       </Show>
       <ErrorToaster />

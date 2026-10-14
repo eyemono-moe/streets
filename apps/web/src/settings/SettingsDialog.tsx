@@ -40,6 +40,7 @@ import {
   type SettingPage,
 } from "./setting-registry";
 import { SettingFilter } from "./SettingFilter";
+import StatsSettings from "./StatsSettings";
 
 /**
  * 設定。デッキの上に開くダイアログで、左（狭い画面では上）にページの一覧を置く。
@@ -212,6 +213,15 @@ const SettingsDialog: Component<{
           errorReport={props.errorReport}
         />
       ),
+    },
+    {
+      value: "stats",
+      label: pageNames.stats,
+      icon: "i-material-symbols:bar-chart-rounded",
+      title: pageNames.stats,
+      description:
+        "リレーとやりとりしたデータの量と、いま投稿を読んでいるリレーです。",
+      content: () => <StatsSettings />,
     },
   ];
 
