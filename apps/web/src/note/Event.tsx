@@ -90,14 +90,20 @@ type ContentProps = {
 /** アクション欄を出す投稿か。出さない投稿のメニューには、欄に入る操作を入れない。 */
 type ActionsProps = { withActions?: boolean };
 
+// 名前と時刻を 1 行の格子に並べると、細いカラムでは名前の幅が 0 まで縮んで消える。
+// 名前に最低の幅を取らせ、入らなければ時刻を次の行へ送る。
 const Head: Component<ContentProps & ActionsProps> = (props) => (
-  <div class="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-1.5">
-    <AuthorNames pubkey={props.event.pubkey} size={props.size} />
-    <EventStamp
-      event={props.event}
-      size={props.size}
-      withActions={props.withActions}
-    />
+  <div class="flex flex-wrap items-end gap-x-1.5">
+    <div class="min-w-0 flex-[1_1_5rem]">
+      <AuthorNames pubkey={props.event.pubkey} size={props.size} />
+    </div>
+    <div class="ml-auto flex min-w-0 items-end gap-1.5">
+      <EventStamp
+        event={props.event}
+        size={props.size}
+        withActions={props.withActions}
+      />
+    </div>
   </div>
 );
 

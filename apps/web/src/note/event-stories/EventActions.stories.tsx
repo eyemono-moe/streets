@@ -47,6 +47,11 @@ export const 反応の件数: Story = {
   args: { event: plain, scene: scene(plain, ...engaged) },
 };
 
+/** 名前を残して時刻を次の行へ送る。長いリアクションのチップもカラムの中で切る。 */
+export const 細いカラム: Story = {
+  args: { event: plain, scene: scene(plain, ...engaged), width: 200 },
+};
+
 /**
  * ミュートしている人（ほかのひと）のリアクションを除いたとき。その人だけが付けた
  * 絵文字（:party:）はチップごと出さない。

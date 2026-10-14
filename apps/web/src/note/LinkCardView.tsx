@@ -31,83 +31,92 @@ const LinkCardView: Component<LinkCardViewProps> = (props) => {
     props.card?.siteName ?? hostOf(props.card?.url ?? props.url);
 
   return (
-    <a
-      href={props.url}
-      target="_blank"
-      rel="noopener noreferrer nofollow"
-      aria-busy={props.card === undefined}
-      class="flex w-full min-w-0 overflow-hidden rounded-2 border border-primary bg-primary transition-colors hover:bg-secondary"
-      classList={{ "flex-col": large(), "flex-row": !large() }}
-    >
-      <Show when={image()}>
-        {(src) => (
-          <img
-            src={src()}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            referrerpolicy="no-referrer"
-            onError={() => setImageFailed(true)}
-            // 小さくのときは、文字の側が画像より高くなっても下に隙間を作らないよう、
-            // 高さをカードに合わせて伸ばす（幅は固定、最低でも正方形）。
-            class="shrink-0 bg-secondary object-cover"
-            classList={{
-              "aspect-[1.91/1] w-full border-primary border-b": large(),
-              "w-20 min-h-20 self-stretch border-primary border-r":
-                !large() && props.size === "normal",
-              "w-14 min-h-14 self-stretch border-primary border-r":
-                !large() && props.size === "compact",
-            }}
-          />
-        )}
-      </Show>
-      <div
-        class="flex min-w-0 flex-1 flex-col justify-center gap-0.5"
+    // 細いカラムでは、横に並べると文字の側が 1〜2 文字の幅しか残らない。カードの幅で
+    // 画像を上に積む。画面の幅（md: など）ではカラムの幅が分からない。
+    <div class="@container w-full min-w-0">
+      <a
+        href={props.url}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        aria-busy={props.card === undefined}
+        class="flex w-full min-w-0 overflow-hidden rounded-2 border border-primary bg-primary transition-colors hover:bg-secondary"
         classList={{
-          "px-3 py-2": props.size === "normal",
-          "px-2 py-1.5": props.size === "compact",
+          "flex-col": large(),
+          "flex-col @[12rem]:flex-row": !large(),
         }}
       >
-        <span class="c-secondary truncate text-caption">{site()}</span>
-        <Show
-          when={props.card}
-          fallback={
-            <span
-              class="h-3.5 w-3/4 rounded-1 bg-secondary"
-              aria-label="リンクの情報を読み込んでいます"
+        <Show when={image()}>
+          {(src) => (
+            <img
+              src={src()}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              referrerpolicy="no-referrer"
+              onError={() => setImageFailed(true)}
+              // 小さくのときは、文字の側が画像より高くなっても下に隙間を作らないよう、
+              // 高さをカードに合わせて伸ばす（幅は固定、最低でも正方形）。
+              class="shrink-0 bg-secondary object-cover"
+              classList={{
+                "aspect-[1.91/1] w-full border-primary border-b": large(),
+                "aspect-[1.91/1] w-full border-primary border-b @[12rem]:(aspect-auto self-stretch border-b-0 border-r)":
+                  !large(),
+                "@[12rem]:(w-20 min-h-20)": !large() && props.size === "normal",
+                "@[12rem]:(w-14 min-h-14)":
+                  !large() && props.size === "compact",
+              }}
             />
-          }
-        >
-          {(card) => (
-            <>
-              <span
-                class="c-primary break-anywhere font-600"
-                classList={{
-                  "line-clamp-2 text-body": large() && props.size === "normal",
-                  "line-clamp-2 text-caption":
-                    !large() || props.size === "compact",
-                }}
-              >
-                {card().title}
-              </span>
-              <Show when={card().description}>
-                {(description) => (
-                  <span
-                    class="c-secondary break-anywhere text-caption"
-                    classList={{
-                      "line-clamp-2": large(),
-                      "line-clamp-1": !large(),
-                    }}
-                  >
-                    {description()}
-                  </span>
-                )}
-              </Show>
-            </>
           )}
         </Show>
-      </div>
-    </a>
+        <div
+          class="flex min-w-0 flex-1 flex-col justify-center gap-0.5"
+          classList={{
+            "px-3 py-2": props.size === "normal",
+            "px-2 py-1.5": props.size === "compact",
+          }}
+        >
+          <span class="c-secondary truncate text-caption">{site()}</span>
+          <Show
+            when={props.card}
+            fallback={
+              <span
+                class="h-3.5 w-3/4 rounded-1 bg-secondary"
+                aria-label="リンクの情報を読み込んでいます"
+              />
+            }
+          >
+            {(card) => (
+              <>
+                <span
+                  class="c-primary break-anywhere font-600"
+                  classList={{
+                    "line-clamp-2 text-body":
+                      large() && props.size === "normal",
+                    "line-clamp-2 text-caption":
+                      !large() || props.size === "compact",
+                  }}
+                >
+                  {card().title}
+                </span>
+                <Show when={card().description}>
+                  {(description) => (
+                    <span
+                      class="c-secondary break-anywhere text-caption"
+                      classList={{
+                        "line-clamp-2": large(),
+                        "line-clamp-1": !large(),
+                      }}
+                    >
+                      {description()}
+                    </span>
+                  )}
+                </Show>
+              </>
+            )}
+          </Show>
+        </div>
+      </a>
+    </div>
   );
 };
 
