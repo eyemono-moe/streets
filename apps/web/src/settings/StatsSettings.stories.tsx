@@ -30,7 +30,14 @@ const Story = (props: { width: number }) => {
   onCleanup(() => clearInterval(timer));
 
   return (
-    <EventSceneProvider scene={{ events: [] }}>
+    <EventSceneProvider
+      scene={{
+        events: [],
+        relayInfo: Object.fromEntries(
+          RELAYS.map((url) => [url, { name: url.slice(6, -1) }]),
+        ),
+      }}
+    >
       <RelayTrafficProvider value={traffic}>
         <div class="bg-primary p-6" style={{ width: `${props.width}px` }}>
           <StatsSettings />

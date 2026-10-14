@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import mp4GifAsset from "../../storybook/media-clip-as-gif.gif?no-inline";
 import clipUrl from "../../storybook/media-clip.mp4";
 import portraitUrl from "../../storybook/media-portrait.svg?no-inline";
 import toneUrl from "../../storybook/media-tone.mp3";
@@ -34,9 +35,8 @@ export const 動画つき: Story = {
   args: { event: withVideo, scene: scene(withVideo) },
 };
 
-/** 調査時に .gif の URL から MP4 が返った投稿。 */
-const mp4GifUrl =
-  "https://gifs.nostr.build/mp4/orig/82cc31b3042503850deee14d4c5459d6804b794a6a653b6b55b59659e73f4442.gif";
+/** .gif の URL から MP4 が返る投稿（gifs.nostr.build で見つけた形）。 */
+const mp4GifUrl = new URL(mp4GifAsset, location.href).href;
 const mp4Gif = alice.note(`おはよう！\n${mp4GifUrl}`);
 export const Gif拡張子の動画: Story = {
   args: { event: mp4Gif, scene: scene(mp4Gif) },

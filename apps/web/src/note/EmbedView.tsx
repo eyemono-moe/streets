@@ -19,6 +19,8 @@ export const YouTubeEmbed: Component<{
   start?: number;
   /** リンクのカードから取れた題名。まだ無ければ出さない。 */
   title?: string;
+  /** サムネイルの URL。Storybook が YouTube へ繋がずに見本の画像を出すのに使う。 */
+  thumbnail?: string;
 }> = (props) => {
   const [playing, setPlaying] = createSignal(false);
   const src = () => {
@@ -40,7 +42,10 @@ export const YouTubeEmbed: Component<{
             onClick={() => setPlaying(true)}
           >
             <img
-              src={`https://i.ytimg.com/vi/${props.id}/hqdefault.jpg`}
+              src={
+                props.thumbnail ??
+                `https://i.ytimg.com/vi/${props.id}/hqdefault.jpg`
+              }
               alt=""
               loading="lazy"
               decoding="async"

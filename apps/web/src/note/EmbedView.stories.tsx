@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";
+import landscapeUrl from "../storybook/media-landscape.svg";
 import { XEmbed, YouTubeEmbed } from "./EmbedView";
 
 /** 押すまで何も読み込まないので、押したときだけ YouTube・X へ繋がる。 */
@@ -12,7 +13,11 @@ const meta = {
   }) => (
     <div class="bg-primary p-3" style={{ width: `${props.width}px` }}>
       {props.kind === "youtube" ? (
-        <YouTubeEmbed id="dQw4w9WgXcQ" title={props.title} />
+        <YouTubeEmbed
+          id="dQw4w9WgXcQ"
+          title={props.title}
+          thumbnail={landscapeUrl}
+        />
       ) : (
         <XEmbed
           id="20"

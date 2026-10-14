@@ -28,6 +28,10 @@ const config = {
   core: {
     disableTelemetry: true,
   },
+  // 画像や動画は fetch を通らないので、外の URL を指すと読みに行ってしまう。
+  // 手元と data:・blob: に限る（fetch と WebSocket は offline-guard.ts が止める）。
+  previewHead: (head) =>
+    `${head}<meta http-equiv="Content-Security-Policy" content="img-src 'self' data: blob:; media-src 'self' data: blob:">`,
   viteFinal(viteConfig) {
     viteConfig.plugins = viteConfig.plugins
       ? withoutDevtools(viteConfig.plugins)
