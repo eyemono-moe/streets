@@ -99,6 +99,10 @@ export const settings = {
     "取りこぼし",
     "冗長",
   ]),
+  fallbackRelays: setting("既定のリレー", "relays", [
+    "フォールバック",
+    "fallback",
+  ]),
   relayPlan: {
     ...setting("いま使っているリレー", "stats"),
     searchable: false,

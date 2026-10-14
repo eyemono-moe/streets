@@ -1,12 +1,14 @@
-import {
-  FALLBACK_RELAYS,
-  MAX_CONNECTIONS,
-} from "@streets/core/read/default-relays";
+import { MAX_CONNECTIONS } from "@streets/core/read/default-relays";
 import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import {
+  customFallbackRelays,
+  fallbackRelays,
+} from "../fallback-relay-setting";
 import { readRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode } from "../read-routing-setting";
 import { useBlockedRelays } from "./BlockedRelayMediator";
 import BlockedRelaysView from "./BlockedRelaysView";
+import FallbackRelaysView from "./FallbackRelaysView";
 import ReadRedundancyView from "./ReadRedundancyView";
 import ReadRoutingView from "./ReadRoutingView";
 import { useRelayEdit } from "./RelayMediator";
@@ -40,7 +42,7 @@ const RelaySettings: Component = () => {
               tick();
               return edit().statusOf(url);
             }}
-            fallback={FALLBACK_RELAYS}
+            fallback={fallbackRelays()}
             infoOf={edit().infoOf}
           />
           <Show when={blocked}>
@@ -56,13 +58,13 @@ const RelaySettings: Component = () => {
           <RelayRecommendations edit={edit()} />
           <SettingsDetails
             page="relays"
-            summary="投稿を読むリレーの決め方と、投稿を探すリレーの数"
+            summary="投稿を読むリレーの決め方・投稿を探すリレーの数・既定のリレー"
           >
             <ReadRoutingView
               mode={readRoutingMode()}
               entries={edit().entries()}
               loading={edit().loading()}
-              fallback={FALLBACK_RELAYS}
+              fallback={fallbackRelays()}
             />
             <Show when={readRoutingMode() === "outbox"}>
               <ReadRedundancyView
@@ -76,6 +78,10 @@ const RelaySettings: Component = () => {
                 budget={MAX_CONNECTIONS}
               />
             </Show>
+            <FallbackRelaysView
+              relays={customFallbackRelays()}
+              candidates={edit().entries()}
+            />
           </SettingsDetails>
         </div>
       )}

@@ -2629,6 +2629,32 @@ describe("SubscriptionManager の読み取り先の計画", () => {
   });
 });
 
+describe("SubscriptionManager の既定のリレー", () => {
+  it("差し替えると、リレーの設定が分からない人をそのリレーから読み直す", () => {
+    const { manager } = createManager({ fallbackRelays: ["wss://old/"] });
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [pubkeyFor(48_001)] },
+    ]);
+    expect(plans.at(-1)?.relays).toEqual(["wss://old/"]);
+
+    manager.setFallbackRelays(["wss://mine-a/", "wss://mine-b/"]);
+
+    expect(plans.at(-1)?.relays).toEqual(["wss://mine-a/", "wss://mine-b/"]);
+  });
+
+  it("同じ並びなら張り直さない", () => {
+    const { manager } = createManager({ fallbackRelays: ["wss://same/"] });
+    const { plans } = subscribeWithPlans(manager, [
+      { kinds: [1], authors: [pubkeyFor(48_002)] },
+    ]);
+    const before = plans.length;
+
+    manager.setFallbackRelays(["wss://same/"]);
+
+    expect(plans).toHaveLength(before);
+  });
+});
+
 describe("SubscriptionManager の 1 人あたりに読むリレーの数", () => {
   it("本数を変えると、その人のリレーを読み直す", () => {
     const { manager, store } = createManager({ redundancy: 1 });

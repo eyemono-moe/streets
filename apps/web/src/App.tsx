@@ -14,6 +14,7 @@ import {
 import DeckScreen from "./deck/DeckScreen";
 import { pipOpen } from "./deck/pip-window";
 import { devRelayOverride } from "./dev-relay-override";
+import { fallbackRelays } from "./fallback-relay-setting";
 import { ReadLayerProvider } from "./read-layer";
 import { readRedundancy } from "./read-redundancy-setting";
 import { RelayTrafficProvider } from "./relay-traffic";
@@ -51,6 +52,10 @@ const App: Component = () => {
   });
   onCleanup(() => readLayer.dispose());
   createEffect(() => readLayer.manager.setRedundancy(readRedundancy()));
+  // 開発時の `?relays=` は、設定より先に効かせる（手元のリレーだけで試すため）。
+  createEffect(() =>
+    readLayer.manager.setFallbackRelays(relayOverride ?? fallbackRelays()),
+  );
 
   onMount(() => {
     let pauseTimer: ReturnType<typeof setTimeout> | undefined;

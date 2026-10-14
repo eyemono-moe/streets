@@ -115,6 +115,24 @@ describe("createPublisher", () => {
     ).toEqual([note.id]);
   });
 
+  it("作った後に既定のリレーを変えると、次の送信から変えた先へ送る", async () => {
+    const store = new EventStore();
+    const connections = new Map<RelayUrl, FakeRelayConnection>();
+    const target = {
+      pool: poolWithFakes(connections),
+      routing: new RoutingTable(store),
+      fallbackRelays: ["wss://before/"] as RelayUrl[],
+    };
+    const publisher = createPublisher(target);
+    target.fallbackRelays = ["wss://after/"];
+
+    const note = sign(10, { ...base, kind: 1, content: "changed fallback" });
+    const result = await publisher.publish(note);
+
+    expect(result.accepted).toEqual(["wss://after/"]);
+    expect(connections.has("wss://before/")).toBe(false);
+  });
+
   it("追加の publish 先を現在の write リレーと重複なく合流する", async () => {
     // 捕まえる変異: additionalRelays を無視する。kind:10002 から削除した
     // 旧 write リレーへ新版が届かず、そこに旧版だけが残る。

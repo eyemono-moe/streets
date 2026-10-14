@@ -1,5 +1,4 @@
 import { parseProfile, profileLabel } from "@streets/core/nostr/profile";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadPlan } from "@streets/core/read/read-plan";
 import { summarizeTraffic } from "@streets/core/relay/relay-traffic";
 import {
@@ -11,6 +10,7 @@ import {
   onCleanup,
 } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
+import { fallbackRelays } from "../fallback-relay-setting";
 import { useReadLayer } from "../read-layer";
 import { useRelayTraffic } from "../relay-traffic";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -93,7 +93,7 @@ const StatsSettings: Component = () => {
               routingSettled={edit().routingSettled?.() ?? true}
               entries={edit().entries()}
               loading={edit().loading()}
-              fallback={FALLBACK_RELAYS}
+              fallback={fallbackRelays()}
               statusOf={(url) => {
                 tick();
                 return edit().statusOf(url);

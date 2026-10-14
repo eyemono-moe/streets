@@ -38,10 +38,7 @@ import { parseNip96Servers } from "@streets/core/media/nip96";
 import { uploadServers } from "@streets/core/media/upload-servers";
 import { encodeBech32 } from "@streets/core/nostr/nip19";
 import { warmUpRouting } from "@streets/core/read/bootstrap";
-import {
-  BOOTSTRAP_INDEXERS,
-  FALLBACK_RELAYS,
-} from "@streets/core/read/default-relays";
+import { BOOTSTRAP_INDEXERS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { OUTBOX_ROUTING } from "@streets/core/read/read-routing";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -96,6 +93,7 @@ import { setDiagnostics } from "../devtools/diagnostics";
 import { CustomEmojisMediator } from "../emoji/custom-emojis";
 import { preloadEmojiPicker } from "../emoji/lazy-emoji-picker";
 import { errorReport, setErrorReport } from "../error-report-setting";
+import { fallbackRelays, setFallbackRelays } from "../fallback-relay-setting";
 import { setImageDownscaling } from "../image-downscaling-setting";
 import { useIsWide } from "../is-wide";
 import { keymap, setShortcut } from "../keymap";
@@ -282,7 +280,7 @@ const DeckScreen: Component<{
       readRoutingFor(
         readRoutingMode(),
         relayList(),
-        props.bootstrapIndexers ?? FALLBACK_RELAYS,
+        props.bootstrapIndexers ?? fallbackRelays(),
       ),
     );
   });
@@ -959,6 +957,9 @@ const DeckScreen: Component<{
         return true;
       case "deck/set-read-redundancy":
         setReadRedundancy(event.value);
+        return true;
+      case "deck/set-fallback-relays":
+        setFallbackRelays(event.relays);
         return true;
       case "deck/set-shortcut":
         setShortcut(event.action, event.hotkey);

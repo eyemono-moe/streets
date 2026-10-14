@@ -49,7 +49,6 @@ import {
   unpinNote,
 } from "@streets/core/nostr/pinned-notes";
 import { buildPollResponse, parsePoll } from "@streets/core/nostr/poll";
-import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
 import type { ReadLayer } from "@streets/core/read/read-layer";
 import { relaysSeenOn } from "@streets/core/read/seen-relays";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
@@ -72,6 +71,7 @@ import {
   onCleanup,
   useContext,
 } from "solid-js";
+import { fallbackRelays } from "./fallback-relay-setting";
 import { trackQuickWrites, trackSends, trackWrites } from "./write-progress";
 
 const BOOKMARK_KIND = 10003;
@@ -224,7 +224,9 @@ export const createWriteStack = (options: {
     pool: manager.pool,
     routing,
     store,
-    fallbackRelays: options.fallbackRelays ?? FALLBACK_RELAYS,
+    get fallbackRelays() {
+      return options.fallbackRelays ?? fallbackRelays();
+    },
   };
   const base = createWriter({
     signer: options.signer,

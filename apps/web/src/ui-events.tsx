@@ -235,6 +235,8 @@ export type DeckEvent =
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
   /** リレーとの通信量を 0 から数え直す。 */
   | { type: "stats/reset-traffic" }
+  /** 既定のリレー。空なら Streets が決めたリレーを使う。この端末に保存する。 */
+  | { type: "deck/set-fallback-relays"; relays: RelayUrl[] }
   /** 投稿を探すリレーの数。この端末に保存する。 */
   | { type: "deck/set-read-redundancy"; value: ReadRedundancy }
   /** 不具合の報告を送るか（この端末の設定）。 */

@@ -12,6 +12,8 @@ const RelayColumnEditor: Component<{
   selected: readonly RelayUrl[];
   onChange: (selected: RelayUrl[]) => void;
   minimum?: number;
+  /** これ以上は足せない本数。届いたら足す欄を止める。 */
+  maximum?: number;
   /** フォローしている人ごとの、書き込みに使うリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
   /** 選んだリレーの一覧の見出し。 */
@@ -22,6 +24,8 @@ const RelayColumnEditor: Component<{
   const add = (url: RelayUrl) => {
     if (!selected(url)) props.onChange([...props.selected, url]);
   };
+  const full = () =>
+    props.maximum !== undefined && props.selected.length >= props.maximum;
   const remove = (url: RelayUrl) =>
     props.onChange(props.selected.filter((item) => item !== url));
 
@@ -64,7 +68,13 @@ const RelayColumnEditor: Component<{
         followeeWriteRelays={props.followeeWriteRelays}
         selected={props.selected}
         onAdd={add}
+        disabled={full()}
       />
+      <Show when={full()}>
+        <p class="c-secondary text-caption">
+          {`${props.maximum} 本まで指定できます。足すには、どれかを外してください。`}
+        </p>
+      </Show>
     </div>
   );
 };

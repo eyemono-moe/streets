@@ -123,6 +123,7 @@ export const searchSource = (
 export const notificationsSource = (
   viewer: string,
   relayList: RelayListState,
+  fallback: readonly RelayUrl[] = FALLBACK_RELAYS,
 ): NostrSource | undefined => {
   // 取得中は待つ。fallback へ一瞬購読してから本来の read リレーへ張り直すことを防ぐ。
   if (relayList.phase === "signed-out" || relayList.phase === "loading") {
@@ -138,7 +139,7 @@ export const notificationsSource = (
     type: "nostr",
     filters: [{ kinds: [...NOTIFICATION_KINDS], "#p": [viewer] }],
     // settle 後の空リストは永久に 0 本で待たず fallback へ落とす。
-    relays: readRelays.length > 0 ? readRelays : [...FALLBACK_RELAYS],
+    relays: readRelays.length > 0 ? readRelays : [...fallback],
   };
 };
 

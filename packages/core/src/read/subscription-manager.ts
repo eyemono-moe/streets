@@ -269,6 +269,7 @@ export class SubscriptionManager {
   #lastReplanAt = Number.NEGATIVE_INFINITY;
   #readRouting: ReadRouting = OUTBOX_ROUTING;
   #redundancy: number;
+  #fallbackRelays: readonly RelayUrl[];
   // 直近の選択で著者ごとに割り当てたリレー。`relaysForAuthor` が使う。
   #lastAssignment: ReadonlyMap<string, readonly RelayUrl[]> = new Map();
   #readPlan: ReadPlan = EMPTY_READ_PLAN;
@@ -280,6 +281,7 @@ export class SubscriptionManager {
   constructor(options: SubscriptionManagerOptions) {
     this.#options = options;
     this.#redundancy = options.redundancy ?? RELAY_REDUNDANCY;
+    this.#fallbackRelays = options.fallbackRelays ?? FALLBACK_RELAYS;
     this.#scheduler = options.scheduler ?? defaultScheduler;
     this.#pool = new ConnectionPool({
       connect: options.connect,
@@ -499,6 +501,18 @@ export class SubscriptionManager {
     this.replan();
   }
 
+  /** 既定のリレーを差し替え、全セクションを張り直す。同じ並びなら何もしない。 */
+  setFallbackRelays(relays: readonly RelayUrl[]): void {
+    if (
+      relays.length === this.#fallbackRelays.length &&
+      relays.every((url, index) => url === this.#fallbackRelays[index])
+    ) {
+      return;
+    }
+    this.#fallbackRelays = [...relays];
+    this.replan();
+  }
+
   /**
    * 1 人あたりの本数を `redundancy` にしたら、いまの購読で何本のリレーを読むことになるか。
    * 張り直しはしない。
@@ -541,7 +555,7 @@ export class SubscriptionManager {
   /** 著者で行き先を決められない読み取りの送り先。`direct` ではそのリレーだけを読む。 */
   #defaultRelays(): readonly RelayUrl[] {
     if (this.#readRouting.mode === "direct") return this.#readRouting.relays;
-    return this.#options.fallbackRelays ?? FALLBACK_RELAYS;
+    return this.#fallbackRelays;
   }
 
   /**
