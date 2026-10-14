@@ -241,8 +241,6 @@ const MobileBars = (props: {
           }
           temporary={props.temp !== undefined}
           settingsOpen={false}
-          onLogout={() => {}}
-          feedbackUrl="https://docs.google.com/forms/d/e/example/viewform?entry.1={context}"
         />
         <div class="relative flex-1">
           <Show when={props.fab ?? props.panel === undefined}>
@@ -253,7 +251,6 @@ const MobileBars = (props: {
           columns={props.columns}
           temp={props.temp}
           active={props.temp?.id ?? props.active}
-          panel={props.panel}
         />
       </div>
     </Mediates>

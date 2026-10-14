@@ -340,3 +340,45 @@ describe("Streets について", () => {
     });
   });
 });
+
+describe("全体のメニュー", () => {
+  it("開いて閉じる", () => {
+    expect(run({ type: "deck/open-menu" }).menuOpen).toBe(true);
+    expect(
+      run({ type: "deck/open-menu" }, { type: "deck/close-menu" }).menuOpen,
+    ).toBe(false);
+  });
+
+  it("メニューから選んで開いたら、メニューは閉じて選んだ先を出す", () => {
+    const opened: DeckUiEvent[] = [
+      { type: "deck/open-panel", panel: "search" },
+      { type: "deck/toggle-panel", panel: "add-column" },
+      { type: "deck/open-settings" },
+      { type: "deck/open-palette" },
+      { type: "deck/open-about" },
+      { type: "deck/select-column", id: "a" },
+    ];
+    for (const event of opened) {
+      expect(run({ type: "deck/open-menu" }, event).menuOpen).toBe(false);
+    }
+    expect(
+      run(
+        { type: "deck/open-menu" },
+        { type: "deck/open-panel", panel: "search" },
+      ).panel,
+    ).toBe("search");
+    expect(
+      run({ type: "deck/open-menu" }, { type: "deck/open-settings" })
+        .settingsOpen,
+    ).toBe(true);
+  });
+
+  it("並びが変わっただけでは、開いたメニューを閉じない", () => {
+    expect(
+      run(
+        { type: "deck/open-menu" },
+        { type: "deck/columns-changed", ids: ["a"] },
+      ).menuOpen,
+    ).toBe(true);
+  });
+});

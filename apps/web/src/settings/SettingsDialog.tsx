@@ -3,6 +3,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";
 import type { DeckLayout } from "@streets/core/settings/deck-layout-setting";
 import type { Keymap } from "@streets/core/settings/keymap";
+import type { SwipeMode } from "@streets/core/settings/swipe-mode-setting";
 import type { UiContrast } from "@streets/core/settings/ui-contrast";
 import { searchEntries } from "@streets/core/signal/search";
 import {
@@ -65,6 +66,8 @@ const SettingsDialog: Component<{
   columnDigits: boolean;
   /** カラムの並べ方（この端末の設定）。 */
   deckLayout: DeckLayout;
+  /** 1 列ずつのときに左右へ払うと何が起きるか（この端末の設定）。 */
+  swipeMode: SwipeMode;
   columnStretch: boolean;
   /** いいねボタンで送るリアクション（この端末の設定）。 */
   defaultReaction: ReactionInput;
@@ -191,6 +194,7 @@ const SettingsDialog: Component<{
           chatOrder={chatOrder()}
           timeFormat={timeFormat()}
           deckLayout={props.deckLayout}
+          swipeMode={props.swipeMode}
           columnStretch={props.columnStretch}
           actionLayout={actionLayout()}
         />

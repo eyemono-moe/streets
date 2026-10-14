@@ -3,6 +3,7 @@ import type { DeckPanel } from "@streets/core/deck/deck-ui";
 import { type Component, For, Show, createEffect, onCleanup } from "solid-js";
 import { ColumnHeaderActions } from "../columns/ColumnHeader";
 import { ariaKeyShortcuts, shortcutTitle } from "../keymap";
+import Avatar from "../note/Avatar";
 import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
@@ -185,10 +186,9 @@ export const ComposeFab: Component = () => {
 };
 
 /**
- * 狭い画面の上のバー。左の自分のアイコンから、設定・フィードバック・ログアウトを
- * 開く（下のバーはカラムの切り替えに使うので、ここへ寄せる）。真ん中に今のカラム、
- * 右は広い画面のカラムの見出しと同じ操作。狭い画面ではカラムごとの見出しを出さず、
- * このバーが今のカラムの見出しを兼ねる。
+ * 狭い画面の上のバー。左の自分のアイコンから、アプリ全体のメニュー（検索・カラムの追加・
+ * 設定など）を開く。真ん中に今のカラム、右は広い画面のカラムの見出しと同じ操作。
+ * 狭い画面ではカラムごとの見出しを出さず、このバーが今のカラムの見出しを兼ねる。
  */
 export const MobileTopBar: Component<{
   /** ログインしていなければ undefined。 */
@@ -200,26 +200,32 @@ export const MobileTopBar: Component<{
   settingsOpen: boolean;
   /** 今見ているカラムをピクチャーインピクチャーに出している。 */
   poppedOut?: boolean;
-  onLogout: () => void;
-  feedbackUrl?: string | null;
 }> = (props) => {
   const dispatch = useDispatch();
   return (
     <header class="flex h-12 shrink-0 items-center gap-2.5 border-primary border-b bg-primary px-3">
-      <AccountMenu
-        pubkey={props.pubkey}
-        onLogout={props.onLogout}
-        feedbackUrl={props.feedbackUrl}
-        arrange
-      />
-      <IconButton
-        size="sm"
-        icon="i-material-symbols:manage-search-rounded"
-        label="コマンドパレットを開く"
-        title={shortcutTitle("palette")}
-        aria-keyshortcuts={ariaKeyShortcuts("palette")}
-        onClick={() => dispatch({ type: "deck/open-palette" })}
-      />
+      <button
+        type="button"
+        {...tourTarget("account")}
+        aria-label="メニューを開く"
+        aria-haspopup="dialog"
+        class="cursor-pointer rounded-full bg-transparent"
+        onClick={() => dispatch({ type: "deck/open-menu" })}
+      >
+        <Show
+          when={props.pubkey}
+          fallback={
+            <span class="c-accent-5 grid size-8 place-items-center rounded-full bg-secondary">
+              <span
+                class="i-material-symbols:menu-rounded size-5"
+                aria-hidden="true"
+              />
+            </span>
+          }
+        >
+          {(pubkey) => <Avatar pubkey={pubkey()} size="compact" static />}
+        </Show>
+      </button>
       <Show when={props.column}>
         {(column) => (
           <>
@@ -249,8 +255,8 @@ export const MobileTopBar: Component<{
 const LONG_PRESS_MS = 500;
 
 /**
- * 狭い画面の下のバー。広い画面のサイドバーと同じく「探す｜カラム｜足す」の順に
- * 並べ、カラムの帯だけを横に送れるようにする。見ているカラムのタブをもう一度
+ * 狭い画面の下のバー。カラムのタブだけを並べる（検索やカラムの追加は左から出るメニューに
+ * ある）。カラムが少なければ幅を等分し、多ければ横に送る。見ているカラムのタブをもう一度
  * 押すと、そのカラムの先頭へ戻る。タブを長押しすると、カラムを並べ替えるパネルを開く。
  */
 export const MobileTabBar: Component<{
@@ -259,7 +265,6 @@ export const MobileTabBar: Component<{
   temp: ColumnDef | undefined;
   /** 選んでいるカラムの id。パネルを開いている間は undefined。 */
   active: string | undefined;
-  panel: DeckPanel | undefined;
 }> = (props) => {
   const dispatch = useDispatch();
   let strip: HTMLDivElement | undefined;
@@ -290,7 +295,8 @@ export const MobileTabBar: Component<{
         data-tab={id}
         aria-label={title()}
         aria-current={selected() ? "page" : undefined}
-        class="relative grid size-11 shrink-0 cursor-pointer select-none place-items-center bg-transparent [-webkit-touch-callout:none]"
+        // 押しやすさのため、1 つの幅は 56px を下回らせない。少ないときは等分して広げる。
+        class="relative grid h-14 min-w-14 flex-1 shrink-0 cursor-pointer select-none place-items-center bg-transparent [-webkit-touch-callout:none]"
         classList={{
           "c-accent-5": selected(),
           "c-secondary": !selected(),
@@ -337,11 +343,11 @@ export const MobileTabBar: Component<{
       >
         <ColumnIcon
           column={column}
-          class="size-6"
-          avatarClass="size-6.5 rounded-1.5"
+          class="size-7"
+          avatarClass="size-7.5 rounded-1.5"
         />
         <span
-          class="absolute bottom-1 h-0.75 w-4 rounded-full"
+          class="absolute bottom-1.5 h-0.75 w-5 rounded-full"
           classList={{ "bg-accent-primary": selected() }}
           aria-hidden="true"
         />
@@ -352,56 +358,17 @@ export const MobileTabBar: Component<{
     // 下から上がるパネルより上に描く（位置を持たせ、DOM の順で重ねる）。
     <nav
       aria-label="カラム"
-      class="relative flex shrink-0 items-center border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
+      class="relative shrink-0 border-primary border-t bg-primary pb-[env(safe-area-inset-bottom)]"
     >
-      <button
-        type="button"
-        aria-label="検索パネルを開く"
-        title={shortcutTitle("search")}
-        aria-keyshortcuts={ariaKeyShortcuts("search")}
-        aria-expanded={props.panel === "search"}
-        class="grid h-12 w-12 shrink-0 cursor-pointer place-items-center bg-transparent"
-        classList={{
-          "c-accent-5": props.panel === "search",
-          "c-secondary": props.panel !== "search",
-        }}
-        onClick={() => dispatch({ type: "deck/toggle-panel", panel: "search" })}
-      >
-        <span
-          class="i-material-symbols:search-rounded size-6"
-          aria-hidden="true"
-        />
-      </button>
       {/* 帯の端が切れていることで、横に送れると分かるようにする。 */}
       <div
         ref={strip}
         {...tourTarget("columns")}
-        class="scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto overscroll-x-contain border-primary border-x px-1"
+        class="scrollbar-none flex overflow-x-auto overscroll-x-contain px-1"
       >
         <Show when={props.temp}>{(column) => tab(column(), "temp")}</Show>
         <For each={props.columns}>{(column) => tab(column, column.id)}</For>
       </div>
-      <button
-        type="button"
-        {...tourTarget("add-column")}
-        aria-label="カラムを追加"
-        title={shortcutTitle("add-column")}
-        aria-keyshortcuts={ariaKeyShortcuts("add-column")}
-        aria-expanded={props.panel === "add-column"}
-        class="grid h-12 w-12 shrink-0 cursor-pointer place-items-center bg-transparent"
-        classList={{
-          "c-accent-5": props.panel === "add-column",
-          "c-secondary": props.panel !== "add-column",
-        }}
-        onClick={() =>
-          dispatch({ type: "deck/toggle-panel", panel: "add-column" })
-        }
-      >
-        <span
-          class="i-material-symbols:add-rounded size-6"
-          aria-hidden="true"
-        />
-      </button>
     </nav>
   );
 };

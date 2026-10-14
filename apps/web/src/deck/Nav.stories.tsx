@@ -16,7 +16,6 @@ const Demo = (props: { mobile: boolean }) => (
             column={undefined}
             temporary={false}
             settingsOpen={false}
-            onLogout={() => undefined}
           />
         ) : (
           <Sidebar

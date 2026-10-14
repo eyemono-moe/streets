@@ -22,8 +22,6 @@ const AccountMenu: Component<{
   onLogout: () => void;
   /** フィードバックの送り先。省くと環境の設定、null なら送り先なし（導線を出さない）。 */
   feedbackUrl?: string | null;
-  /** 「デッキを編集」も並べる（狭い画面で、サイドバーの代わりに）。 */
-  arrange?: boolean;
 }> = (props) => {
   const dispatch = useDispatch();
   const statuses = useUserStatuses(() => props.pubkey);
@@ -41,8 +39,6 @@ const AccountMenu: Component<{
           if (details.value === "settings")
             dispatch({ type: "deck/open-settings" });
           if (details.value === "about") dispatch({ type: "deck/open-about" });
-          if (details.value === "arrange")
-            dispatch({ type: "deck/open-panel", panel: "arrange" });
           if (details.value === "feedback") setFeedbackOpen(true);
           if (details.value === "logout") props.onLogout();
         }}
@@ -122,18 +118,6 @@ const AccountMenu: Component<{
                 />
                 Streets について
               </Menu.Item>
-              <Show when={props.arrange}>
-                <Menu.Item
-                  value="arrange"
-                  class={`${menuItemClass} whitespace-nowrap`}
-                >
-                  <span
-                    class="i-material-symbols:view-column-outline-rounded c-secondary size-4 shrink-0"
-                    aria-hidden="true"
-                  />
-                  デッキを編集
-                </Menu.Item>
-              </Show>
               <Show when={feedback()}>
                 <Menu.Item
                   value="feedback"

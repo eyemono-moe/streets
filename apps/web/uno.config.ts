@@ -141,10 +141,10 @@ export default defineConfig({
         "collapse-left": "{from{width:var(--width)}to{width:0}}",
         "stack-in":
           "{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}",
-        // その場で消える。to に transform を書かないので、終わりの位置は Drawer が inline で
-        // 当てている transform（スワイプで引き下げた位置）になり、そこから動かない。
-        "stack-out":
-          "{from{opacity:1;transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{opacity:0}}",
+        // その場で消える。transform を書かないので、位置は Drawer が inline で当てている
+        // transform（スワイプで引き下げた位置）のまま動かない。var() で位置を書き写さない ——
+        // iOS の WebKit は var() を含むキーフレームを合成の層だけで動かせず、指を離した後に飛ぶ。
+        "stack-out": "{from{opacity:1}to{opacity:0}}",
         // 狭い画面で下のバーから開くパネル。下から上がり、閉じるときは下へ下がる。
         "sheet-up": "{from{transform:translateY(100%)}to{transform:none}}",
         "sheet-down": "{from{transform:none}to{transform:translateY(100%)}}",
