@@ -19,7 +19,7 @@ const read = (): ReadRedundancy => {
 
 const [readRedundancy, setValue] = createSignal(read());
 
-/** 1 人あたりに読むリレーの数（この端末の設定）。 */
+/** 投稿を探すリレーの数（この端末の設定）。 */
 export { readRedundancy };
 
 export const setReadRedundancy = (value: ReadRedundancy) => {

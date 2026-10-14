@@ -40,7 +40,7 @@ const Story = (props: Args) => {
 };
 
 const meta = {
-  title: "設定/1 人あたりに読むリレーの数",
+  title: "設定/投稿を探すリレーの数",
   component: Story,
   args: { value: 2, perStep: 6, loaded: true, budget: 30, width: 660 },
   argTypes: {

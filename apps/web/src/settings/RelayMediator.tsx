@@ -45,7 +45,7 @@ export type RelayEdit = {
   infoOf?: (url: RelayUrl) => RelayInfo | undefined;
   /** 全カラム分の読み取り先。 */
   readPlan?: Accessor<ReadPlan>;
-  /** 1 人あたりに読むリレーの数を変えたら、何本のリレーを読むことになるか。 */
+  /** 投稿を探すリレーの数を変えたら、何本のリレーを読むことになるか。 */
   previewRelayCount?: (redundancy: number) => number;
   /** フォロー中の人のリレー設定を探し終えたか。 */
   routingSettled?: Accessor<boolean>;

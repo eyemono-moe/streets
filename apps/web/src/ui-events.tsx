@@ -233,7 +233,7 @@ export type DeckEvent =
   | { type: "deck/set-time-format"; format: TimeFormat }
   /** 投稿を読むリレーの決め方。この端末に保存する。 */
   | { type: "deck/set-read-routing"; mode: ReadRoutingMode }
-  /** 1 人あたりに読むリレーの数。この端末に保存する。 */
+  /** 投稿を探すリレーの数。この端末に保存する。 */
   | { type: "deck/set-read-redundancy"; value: ReadRedundancy }
   /** 不具合の報告を送るか（この端末の設定）。 */
   | { type: "deck/set-error-report"; on: boolean }

@@ -92,7 +92,8 @@ export const settings = {
     "読み取り",
     "ルーティング",
   ]),
-  readRedundancy: setting("1 人あたりに読むリレーの数", "relays", [
+  readRedundancy: setting("投稿を探すリレーの数", "relays", [
+    "1 人あたり",
     "取りこぼし",
     "冗長",
   ]),

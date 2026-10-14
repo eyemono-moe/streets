@@ -23,7 +23,7 @@ export type ReadRedundancyViewProps = {
   budget: number;
 };
 
-/** 1 人あたりに読むリレーの数。変えたらイベントを上へ渡す。 */
+/** 投稿を探すリレーの数。変えたらイベントを上へ渡す。 */
 const ReadRedundancyView: Component<ReadRedundancyViewProps> = (props) => {
   const dispatch = useDispatch();
   const set = (value: ReadRedundancy) =>
@@ -41,7 +41,7 @@ const ReadRedundancyView: Component<ReadRedundancyViewProps> = (props) => {
       description="フォローしている人ごとに、その人が書き込みに使っているリレーのうち何本から読むか設定します。増やすと、どれかのリレーに投稿が届いていなくても拾いやすくなりますが、つなぐリレーと通信量が増えます。"
     >
       <SegmentedControl
-        label="1 人あたりに読むリレーの数"
+        label="投稿を探すリレーの数"
         variant="secondary"
         block
         value={String(props.value)}
