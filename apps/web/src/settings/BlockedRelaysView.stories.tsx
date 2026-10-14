@@ -135,3 +135,15 @@ export const 狭い幅: S = {
     entries: [entry("wss://spam.example/"), entry("wss://yabu.me/", "private")],
   },
 };
+
+/** たくさん入れている。最初は畳んで件数だけを見せ、開くとその中で流す。 */
+export const たくさん: S = {
+  args: {
+    entries: Array.from({ length: 40 }, (_, index) =>
+      entry(
+        `wss://spam-${String(index + 1).padStart(2, "0")}.example/`,
+        index % 3 === 0 ? "private" : "public",
+      ),
+    ),
+  },
+};
