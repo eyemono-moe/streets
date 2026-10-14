@@ -169,6 +169,7 @@ import {
 } from "./deck-store";
 import DeckEditHeader from "./DeckEditHeader";
 import DeckEndSpace from "./DeckEndSpace";
+import DeckStrip from "./DeckStrip";
 import DeckSyncNotice from "./DeckSyncNotice";
 import GuestMediator from "./GuestMediator";
 import { ComposeFab, MobileTabBar, MobileTopBar, Sidebar } from "./Nav";
@@ -1089,11 +1090,9 @@ const DeckScreen: Component<{
             </SidePanelMotion>
             <div class="flex min-w-0 flex-1 flex-col">
               <DeckSyncNotice store={deckStore} />
-              {/* カラムの間の 1px を背景色で見せる。横に溢れたら横スクロールする。 */}
-              {/* 並べ替えで測る位置の基準にするため、位置を持たせる。 */}
-              <div
+              <DeckStrip
                 ref={columnsEl}
-                class="relative flex min-h-0 flex-1 overflow-x-auto bg-tertiary"
+                class="min-h-0 flex-1"
                 onPointerDown={(event) => {
                   const target = event.target;
                   if (!(target instanceof Element)) {
@@ -1183,7 +1182,7 @@ const DeckScreen: Component<{
                 <Show when={!columnStretch()}>
                   <DeckEndSpace />
                 </Show>
-              </div>
+              </DeckStrip>
             </div>
           </div>
         </Match>

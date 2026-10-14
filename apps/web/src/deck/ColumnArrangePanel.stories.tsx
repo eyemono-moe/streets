@@ -17,6 +17,7 @@ import { createSortable } from "../ui/sortable";
 import { createColumnOrder } from "./column-order";
 import ColumnArrangePanel from "./ColumnArrangePanel";
 import DeckEditHeader, { type DeckSummary } from "./DeckEditHeader";
+import DeckStrip from "./DeckStrip";
 import NewDeckPanel from "./NewDeckPanel";
 import SidePanel from "./SidePanel";
 
@@ -157,9 +158,9 @@ const WideStrip = (props: {
     cancel: () => dispatch({ type: "deck/drag-end" }),
   });
   return (
-    <div
+    <DeckStrip
       ref={strip}
-      class="relative flex h-[360px] w-[900px] overflow-x-auto bg-tertiary"
+      class="h-[360px] w-[900px]"
       onPointerDown={(event) => {
         const target = event.target;
         if (!(target instanceof Element)) return;
@@ -186,7 +187,7 @@ const WideStrip = (props: {
           </div>
         )}
       </For>
-    </div>
+    </DeckStrip>
   );
 };
 
