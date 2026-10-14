@@ -56,7 +56,7 @@ const RelaySettings: Component = () => {
           <RelayRecommendations edit={edit()} />
           <SettingsDetails
             page="relays"
-            summary="投稿を読むリレーの決め方と、1 人あたりに読むリレーの数"
+            summary="投稿を読むリレーの決め方と、投稿を探すリレーの数"
           >
             <ReadRoutingView
               mode={readRoutingMode()}

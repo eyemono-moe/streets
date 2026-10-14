@@ -57,7 +57,7 @@ const RelayTrafficView: Component<RelayTrafficViewProps> = (props) => {
   return (
     <SettingsSection
       id="relayTraffic"
-      description="このタブを開いてから、リレーとやりとりしたデータの量です。多いリレーから順に並べます。回線で圧縮される前の大きさで数えます。"
+      description="このタブを開いてから、リレーとやりとりしたデータの量です。回線で圧縮される前のサイズで表示しています。"
     >
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="c-secondary text-caption">
