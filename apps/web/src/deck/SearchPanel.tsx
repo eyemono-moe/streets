@@ -36,6 +36,7 @@ import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import VirtualList from "../ui/VirtualList";
 import OlderLoader from "./OlderLoader";
+import SearchHistoryList from "./SearchHistoryList";
 import SearchQueryEditor from "./SearchQueryEditor";
 
 /** 結果を確認してから、明示的な操作で検索カラムを追加する。 */
@@ -45,6 +46,8 @@ const SearchPanel: Component<{
   searchRelays: Accessor<readonly RelayUrl[]>;
   followees: Accessor<readonly string[]>;
   request?: { query: string; sequence: number };
+  /** 前に探した条件。新しいものが先頭。 */
+  history: readonly string[];
 }> = (props) => {
   const dispatch = useDispatch();
   const [text, setText] = createSignal("");
@@ -52,13 +55,20 @@ const SearchPanel: Component<{
   // 投稿の検索は結果が大きく、打っている途中の語で探しても役に立たないので、
   // Enter か「検索」で確かめたときにだけ問い合わせる。外から条件を渡されたとき
   // （ハッシュタグを押したなど）は、すぐ探す。
-  const search = () => setSearched(text().trim());
+  const searchFor = (value: string) => {
+    const query = value.trim();
+    setSearched(query);
+    if (!isEmptySearchQuery(parseSearchQuery(query))) {
+      dispatch({ type: "search/searched", query });
+    }
+  };
+  const search = () => searchFor(text());
   createEffect(() => {
     const request = props.request;
     // reconcile は同じオブジェクトを更新するので、連続した要求も拾う。
     if (request?.sequence === undefined) return;
     setText(request.query);
-    setSearched(request.query.trim());
+    searchFor(request.query);
   });
   const query = createMemo(() => parseSearchQuery(searched()));
   const empty = () => isEmptySearchQuery(parseSearchQuery(text()));
@@ -97,6 +107,11 @@ const SearchPanel: Component<{
       signedIn={props.signedIn}
       onChange={setText}
       onSearch={search}
+      history={props.history}
+      onPick={(query) => {
+        setText(query);
+        searchFor(query);
+      }}
       searched={searched() !== ""}
       results={results()}
       status={section.status()}
@@ -121,6 +136,10 @@ export const SearchPanelView: Component<{
   onChange: (text: string) => void;
   /** いまの条件で問い合わせる。 */
   onSearch: () => void;
+  /** 前に探した条件。入力欄が空の間、結果の代わりに並べる。 */
+  history: readonly string[];
+  /** 履歴の条件を入れて、すぐ探す。 */
+  onPick: (query: string) => void;
   /** 一度でも問い合わせたか。まだなら、結果の代わりに探し方を出す。 */
   searched: boolean;
   results: readonly NostrEvent[];
@@ -152,6 +171,9 @@ export const SearchPanelView: Component<{
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto" data-scroll-container>
       <Switch>
+        <Match when={props.empty && props.history.length > 0}>
+          <SearchHistoryList history={props.history} onPick={props.onPick} />
+        </Match>
         <Match when={props.empty}>
           <p class="c-secondary px-3 py-4 text-caption">
             キーワードを入力すると、ここに結果が表示されます。

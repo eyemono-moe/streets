@@ -13,6 +13,7 @@ import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import type { ItemVisibility } from "@streets/core/nostr/private-tags";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import type { SearchHistoryEvent } from "@streets/core/search/history";
 import type {
   ActionArrangeEvent,
   ActionLayout,
@@ -67,6 +68,8 @@ export type UiEvent =
   | ProfileViewEvent
   | MediaViewEvent
   | SearchRelayViewEvent
+  /** 検索履歴。この端末に、アカウントごとに残す。デッキの段が裁定する。 */
+  | SearchHistoryEvent
   | BlockedRelayViewEvent
   /** Zap を送る流れ。デッキの段の ZapMediator が裁定する。 */
   | ZapFlowEvent
@@ -222,6 +225,8 @@ export type DeckEvent =
   | { type: "deck/set-write-progress"; on: boolean }
   /** 画像を表示サイズに縮めるか。この端末に保存する。 */
   | { type: "deck/set-image-downscaling"; on: boolean }
+  /** 検索履歴を残すか。この端末に保存する。 */
+  | { type: "deck/set-search-history"; on: boolean }
   /** 閲覧注意の投稿の扱い。この端末に保存する。 */
   | { type: "deck/set-content-warning"; mode: ContentWarningMode }
   /** カラムを横に並べるか。この端末に保存する。 */

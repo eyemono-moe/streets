@@ -20,16 +20,22 @@ type Args = {
   saving: boolean;
   chosen: boolean;
   width: number;
+  searchHistory: boolean;
 };
 
 /** アプリでは SearchRelayMediator が裁定するイベントを、ここで手元の一覧に当てる。 */
 const Story = (props: Args) => {
   const [relays, setRelays] = createSignal(props.relays);
+  const [searchHistory, setSearchHistory] = createSignal(props.searchHistory);
   return (
     <Mediates
       handle={(event) => {
         if (event.type === "search-relays/add") {
           setRelays((current) => [...current, event.url]);
+          return true;
+        }
+        if (event.type === "deck/set-search-history") {
+          setSearchHistory(event.on);
           return true;
         }
         if (event.type === "search-relays/remove") {
@@ -48,6 +54,7 @@ const Story = (props: Args) => {
           chosen={props.chosen}
           account={account}
           followeeWriteRelays={followeeWriteRelays}
+          searchHistory={searchHistory()}
         />
       </div>
     </Mediates>
@@ -62,6 +69,7 @@ const meta = {
     saving: false,
     chosen: true,
     width: 660,
+    searchHistory: true,
   },
   argTypes: { relays: { control: false } },
 } satisfies Meta<Args>;
@@ -80,3 +88,6 @@ export const 既定のまま: S = {
 export const リレーが無い: S = { args: { relays: [] } };
 export const 保存中: S = { args: { saving: true } };
 export const 狭い幅: S = { args: { width: 360 } };
+
+/** 検索履歴を残さない。既定から変えてあるので「既定に戻す」が出る。 */
+export const 履歴を残さない: S = { args: { searchHistory: false } };

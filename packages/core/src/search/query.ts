@@ -46,8 +46,8 @@ export const emptySearchQuery = (): SearchQuery => ({
   excludeBots: false,
 });
 
-/** 公開鍵の指定。npub・nprofile・16 進のどれでも受ける。 */
-const toPubkey = (value: string): string | undefined => {
+/** 公開鍵の指定。npub・nprofile・16 進のどれでも受ける。読めなければ `undefined`。 */
+export const toPubkey = (value: string): string | undefined => {
   if (/^[0-9a-f]{64}$/i.test(value)) return value.toLowerCase();
   const ref = decodeNip19(value);
   if (ref?.kind === "npub" || ref?.kind === "nprofile") return ref.pubkey;
