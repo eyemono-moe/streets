@@ -1,7 +1,16 @@
 import { parseProfile, profileLabel } from "@streets/core/nostr/profile";
 import { FALLBACK_RELAYS } from "@streets/core/read/default-relays";
+import type { ReadPlan } from "@streets/core/read/read-plan";
 import { summarizeTraffic } from "@streets/core/relay/relay-traffic";
-import { type Component, Show, createSignal, onCleanup } from "solid-js";
+import {
+  type Component,
+  Show,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+} from "solid-js";
+import { createStore, reconcile } from "solid-js/store";
 import { useReadLayer } from "../read-layer";
 import { useRelayTraffic } from "../relay-traffic";
 import { Mediates, type UiEvent } from "../ui-events";
@@ -24,16 +33,29 @@ const StatsSettings: Component = () => {
   const interval = setInterval(() => setTick((n) => n + 1), POLL_MS);
   onCleanup(() => clearInterval(interval));
 
-  const snapshot = () => {
-    tick();
-    if (!traffic) return undefined;
-    const elapsedMs = traffic.elapsedMs();
+  const read = () => {
+    const elapsedMs = traffic?.elapsedMs() ?? 0;
     return {
-      summary: summarizeTraffic(traffic.snapshot()),
+      summary: summarizeTraffic(traffic?.snapshot() ?? []),
       elapsedMs,
       since: Date.now() - elapsedMs,
     };
   };
+  // 数えるたびに丸ごと差し替えると、<For> がリレーの行を作り直し、開いていた内訳が閉じる。
+  const [current, setCurrent] = createStore(read());
+  createEffect(
+    on(tick, () => setCurrent(reconcile(read(), { key: "url" })), {
+      defer: true,
+    }),
+  );
+  // 計画も同じ。読む人が変わるたびに行を作り直すと、開いていたリレーが閉じる。
+  const [plan, setPlan] = createStore<{ value: ReadPlan | undefined }>({
+    value: undefined,
+  });
+  createEffect(() => {
+    const next = edit?.readPlan?.();
+    setPlan("value", next ? reconcile(next, { key: "url" }) : undefined);
+  });
   const statusOf = (url: string) => {
     tick();
     return readLayer.manager?.pool.statusOf(url) ?? "idle";
@@ -56,20 +78,18 @@ const StatsSettings: Component = () => {
   return (
     <Mediates handle={handle}>
       <div class="flex flex-col gap-7">
-        <Show when={snapshot()}>
-          {(current) => (
-            <RelayTrafficView
-              summary={current().summary}
-              since={current().since}
-              elapsedMs={current().elapsedMs}
-              statusOf={statusOf}
-            />
-          )}
+        <Show when={traffic}>
+          <RelayTrafficView
+            summary={current.summary}
+            since={current.since}
+            elapsedMs={current.elapsedMs}
+            statusOf={statusOf}
+          />
         </Show>
         <Show when={edit}>
           {(edit) => (
             <RelayPlanView
-              plan={edit().readPlan?.()}
+              plan={plan.value}
               routingSettled={edit().routingSettled?.() ?? true}
               entries={edit().entries()}
               loading={edit().loading()}
