@@ -47,6 +47,11 @@ export const 既定: Story = {};
 /** 画面の幅いっぱいに広げているとき、幅の px は最小の幅として読ませる。 */
 export const 幅を広げているとき: Story = { args: { stretch: true } };
 
+/** スライダーで段にない幅にしたときは、S/M/L のどれも選ばない。 */
+export const 段にない幅: Story = {
+  args: { initial: { ...base, width: "s", widthPx: 250 } },
+};
+
 /** ミュートしている投稿の見せ方を既定から変えると、名前の横に「既定に戻す」が出る。 */
 export const ミュートを畳む: Story = {
   args: { initial: { ...base, muted: "fold" } },

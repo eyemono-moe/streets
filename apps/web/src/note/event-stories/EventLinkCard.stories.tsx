@@ -47,6 +47,15 @@ export const コンパクト: Story = {
   args: { event: withLinks, scene: linkScene, size: "compact" },
 };
 
+/** 細いカラムでは、横に並べると文字の側が潰れるので、画像を上に積む。 */
+export const 細いカラム: Story = {
+  args: { event: withLinks, scene: linkScene, width: 200 },
+};
+
+export const 細いカラム_コンパクト: Story = {
+  args: { event: withLinks, scene: linkScene, size: "compact", width: 200 },
+};
+
 export const 出さない: Story = {
   args: { event: withLinks, scene: linkScene, linkCards: "off" },
 };

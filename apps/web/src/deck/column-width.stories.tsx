@@ -1,5 +1,9 @@
 import { TIMELINE_KINDS } from "@streets/core/deck/column-kinds";
-import type { ColumnDef } from "@streets/core/deck/deck";
+import {
+  type ColumnDef,
+  columnWidthPatch,
+  columnWidthPx,
+} from "@streets/core/deck/deck";
 import { For } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ColumnHeader } from "../columns/ColumnHeader";
@@ -44,6 +48,13 @@ const longTitle: ColumnDef[] = [
   ...few.slice(1),
 ];
 
+// 段にない幅。広げると、200 と 380 の比のまま伸びる。
+const narrow: ColumnDef[] = [
+  { ...few[0], id: "narrow-home", ...columnWidthPatch(200) },
+  { ...few[1], id: "narrow-notifications", ...columnWidthPatch(200) },
+  ...few.slice(2),
+];
+
 const many: ColumnDef[] = Array.from({ length: 8 }, (_, i) => ({
   ...few[i % few.length],
   id: `c${i}`,
@@ -58,7 +69,7 @@ const Strip = (props: { columns: ColumnDef[]; stretch: boolean }) => (
           {(column) => (
             <div
               class="h-full border-primary border-r bg-primary"
-              style={columnWidthStyle(column.width, props.stretch)}
+              style={columnWidthStyle(columnWidthPx(column), props.stretch)}
             >
               <ColumnHeader
                 column={column}
@@ -67,7 +78,7 @@ const Strip = (props: { columns: ColumnDef[]; stretch: boolean }) => (
                 onTitle={() => {}}
               />
               <p class="p-4 text-body">
-                {column.title}（{(column.width ?? "m").toUpperCase()}）
+                {column.title}（{columnWidthPx(column)}px）
               </p>
             </div>
           )}
@@ -89,9 +100,15 @@ type Story = StoryObj<typeof meta>;
 
 export const 固定幅: Story = { args: { columns: few, stretch: false } };
 
-/** S/M/L の比のまま、右端まで広がる。 */
+/** カラムどうしの幅の比のまま、右端まで広がる。 */
 export const 画面いっぱいに広げる: Story = {
   args: { columns: few, stretch: true },
+};
+
+export const 細いカラム: Story = { args: { columns: narrow, stretch: false } };
+
+export const 細いカラムを広げる: Story = {
+  args: { columns: narrow, stretch: true },
 };
 
 /** 入りきらないときは、最小の幅のまま横にスクロールする。 */

@@ -58,7 +58,7 @@ const Slider: Component<{
             <ArkSlider.HiddenInput />
           </ArkSlider.Thumb>
         </ArkSlider.Control>
-        <ArkSlider.ValueText class="w-12 shrink-0 text-right c-primary text-caption font-600 tabular-nums">
+        <ArkSlider.ValueText class="min-w-12 shrink-0 text-right c-primary text-caption font-600 tabular-nums">
           {format(props.value)}
         </ArkSlider.ValueText>
       </div>

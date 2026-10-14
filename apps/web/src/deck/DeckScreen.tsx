@@ -6,6 +6,7 @@ import {
   type ColumnDef,
   type Deck,
   type DeckAppearance,
+  columnWidthPx,
   defaultColumns,
 } from "@streets/core/deck/deck";
 import {
@@ -1194,7 +1195,10 @@ const DeckScreen: Component<{
                         }
                         class="h-full border-primary border-r data-[dragging]:z-1 data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.28)] dark:data-[dragging]:shadow-[0_10px_30px_rgba(0,0,0,0.7)]"
                         style={{
-                          ...columnWidthStyle(column.width, columnStretch()),
+                          ...columnWidthStyle(
+                            columnWidthPx(column),
+                            columnStretch(),
+                          ),
                           order: order.indexOf(column.id) * 2,
                         }}
                       >

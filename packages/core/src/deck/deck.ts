@@ -8,8 +8,51 @@ import {
 } from "./column-kinds";
 import { buildColumn, buildRelayColumn } from "./column-presets";
 
-/** カラムの幅。数値ではなく段で持ち、実際の px は画面側が決める。 */
+/** カラムの幅の段。段にない幅は `ColumnDef.widthPx` に持つ。 */
 export type ColumnWidth = "s" | "m" | "l";
+
+export const COLUMN_WIDTH_PX: Record<ColumnWidth, number> = {
+  s: 320,
+  m: 380,
+  l: 440,
+};
+
+export const COLUMN_WIDTH_MIN = 200;
+export const COLUMN_WIDTH_MAX = 800;
+
+const clampColumnWidth = (px: number): number =>
+  Math.min(COLUMN_WIDTH_MAX, Math.max(COLUMN_WIDTH_MIN, Math.round(px)));
+
+/** カラムの幅（px）。広げて並べるときは、最小の幅と伸びる比率を兼ねる。 */
+export const columnWidthPx = (
+  column: Pick<ColumnDef, "width" | "widthPx">,
+): number => column.widthPx ?? COLUMN_WIDTH_PX[column.width ?? "m"];
+
+/** 幅がちょうど段の幅なら、その段。 */
+export const columnWidthPreset = (
+  column: Pick<ColumnDef, "width" | "widthPx">,
+): ColumnWidth | undefined => {
+  const px = columnWidthPx(column);
+  return (Object.keys(COLUMN_WIDTH_PX) as ColumnWidth[]).find(
+    (width) => COLUMN_WIDTH_PX[width] === px,
+  );
+};
+
+/**
+ * 段にない幅を選んだときの保存の形。`widthPx` を読まない版のために、いちばん近い段も
+ * `width` に書く —— 古い版はそれを読んで、カラムを落とさず近い幅で並べる。
+ */
+export const columnWidthPatch = (
+  px: number,
+): { width: ColumnWidth; widthPx: number } => {
+  const widthPx = clampColumnWidth(px);
+  const distance = (width: ColumnWidth) =>
+    Math.abs(COLUMN_WIDTH_PX[width] - widthPx);
+  const width = (Object.keys(COLUMN_WIDTH_PX) as ColumnWidth[]).reduce(
+    (nearest, width) => (distance(width) < distance(nearest) ? width : nearest),
+  );
+  return { width, widthPx };
+};
 
 /** 1 件あたりの余白と文字の大きさ。`Event` の size と同じ意味。 */
 export type ColumnDensity = "comfortable" | "compact";
@@ -52,6 +95,8 @@ export type ColumnDef = {
   title: string;
   source: ColumnSource;
   width?: ColumnWidth;
+  /** 段にない幅（px）。あれば `width` より優先する（`columnWidthPx`）。 */
+  widthPx?: number;
   density?: ColumnDensity;
   show?: Partial<ColumnShow>;
   /** 画像を展開するか。何を流すかではなく、どう見せるかなので `show` とは分ける。 */
@@ -192,6 +237,11 @@ const columnDefSchema = v.object({
   title: v.pipe(v.string(), v.minLength(1)),
   source: columnSourceSchema,
   width: v.optional(v.picklist(["s", "m", "l"])),
+  // 壊れた値でカラムごと捨てない。段の幅に戻す。
+  widthPx: v.fallback(
+    v.optional(v.pipe(v.number(), v.finite(), v.transform(clampColumnWidth))),
+    undefined,
+  ),
   density: v.optional(v.picklist(["comfortable", "compact"])),
   expandMedia: v.optional(v.boolean()),
   // 知らない値（新しい版が足した見せ方）でカラムごと捨てない。既定の見せ方に戻す。
