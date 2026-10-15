@@ -22,22 +22,28 @@ export type NoteMedia = {
   blurhash?: string;
 };
 
+/**
+ * 投稿を上から順に描く単位。画像・動画は `media` の位置で指す。拡大表示は投稿の画像・動画を
+ * 全部並べた列で送るので、ブロックに中身を写さない。
+ */
+export type NoteBlock =
+  | { type: "text"; tokens: ContentToken[] }
+  | { type: "media"; index: number }
+  /** 拡大表示で送る画像・動画の並びに混ぜると、絵の無い頁ができるので分けて持つ。 */
+  | { type: "audio"; url: string }
+  | { type: "quote"; quote: EventRef };
+
 export type NoteLayout = {
-  /** 本文として流す部分。前後の空白は落としてある。 */
+  /** 本文の文字だけを 1 続きにしたもの。前後の空白は落としてある。 */
   text: ContentToken[];
+  /** 書かれた順のブロック。各本文ブロックの前後の空白も落としてある。 */
+  blocks: NoteBlock[];
   media: NoteMedia[];
-  /**
-   * 再生する音声の URL。拡大表示で送る画像・動画の並びに混ぜると、
-   * 絵の無い頁ができるので分けて持つ。
-   */
-  audio: string[];
   /**
    * カードにするリンク（画像・動画・音声でない http(s) の URL）。本文にもリンクとして
    * 残す。同じ URL は 1 回、先頭から `MAX_LINK_CARDS` 件まで。
    */
   links: string[];
-  /** 本文中の `nostr:` 参照とタグにしか無い `q` の和。同じ id は最初の 1 回だけ。 */
-  quotes: EventRef[];
 };
 
 /** 1 件の投稿に並べるカードの上限。URL を並べただけの投稿で縦に伸びすぎない。 */
@@ -57,9 +63,21 @@ const trimEdges = (tokens: ContentToken[]): ContentToken[] => {
   return result.filter((token) => token.type !== "text" || token.text !== "");
 };
 
+const appendToken = (tokens: ContentToken[], token: ContentToken) => {
+  const last = tokens[tokens.length - 1];
+  if (token.type === "text" && last?.type === "text") {
+    // 抜いた位置の前後を 1 つにしないと、末尾の空白を落とせない。
+    tokens[tokens.length - 1] = { type: "text", text: last.text + token.text };
+  } else {
+    tokens.push(token);
+  }
+};
+
 /**
- * 画像・動画・音声と引用を本文の流れから抜き出し、本文の下にブロックとして並べる形にする。
- * 抜いた URL や参照の文字列を本文に残すと、同じものが 2 回見える。
+ * 画像・動画・音声と引用を本文の流れから抜き出し、書かれた位置のブロックにする。
+ * 抜いた URL や参照の文字列を本文に残すと、同じものが 2 回見える。引用は本文中の
+ * `nostr:` 参照とタグにしか無い `q` の和で、同じものは最初の 1 回だけ。タグにしか無い
+ * 引用と `imeta` にしか無い画像・動画は、書かれた位置が無いので末尾に置く。
  * `quotes: false` のときは引用を抜かず、参照を本文の文字として残す。
  */
 export const layoutNote = (
@@ -67,13 +85,22 @@ export const layoutNote = (
   options: { quotes: boolean },
 ): NoteLayout => {
   const text: ContentToken[] = [];
+  const blocks: NoteBlock[] = [];
+  let run: ContentToken[] = [];
   const media: NoteLayout["media"] = [];
-  const audio: string[] = [];
   const links: string[] = [];
-  const quotes: EventRef[] = [];
   const quotedIds = new Set<string>();
   const quotedAddresses = new Set<string>();
   const metadata = inlineMediaMetadata(event.tags);
+  const flushRun = () => {
+    const tokens = trimEdges(run);
+    if (tokens.length > 0) blocks.push({ type: "text", tokens });
+    run = [];
+  };
+  const place = (block: NoteBlock) => {
+    flushRun();
+    blocks.push(block);
+  };
 
   for (const token of parseContent(event.content, event.tags)) {
     if (token.type === "url") {
@@ -95,10 +122,11 @@ export const layoutNote = (
               ? "audio"
               : undefined;
       if (type === "audio") {
-        audio.push(token.url);
+        place({ type: "audio", url: token.url });
         continue;
       }
       if (type) {
+        place({ type: "media", index: media.length });
         media.push({
           type,
           url: token.url,
@@ -122,11 +150,12 @@ export const layoutNote = (
         quotedIds.add(ref.id);
         const relay =
           ref.kind === "nevent" ? relayOf(ref.relays[0]) : undefined;
-        quotes.push(
-          relay
+        place({
+          type: "quote",
+          quote: relay
             ? { form: "id", id: ref.id, relay }
             : { form: "id", id: ref.id },
-        );
+        });
       }
       continue;
     }
@@ -141,23 +170,20 @@ export const layoutNote = (
         if (!quotedAddresses.has(key)) {
           quotedAddresses.add(key);
           const relay = relayOf(token.ref.relays[0]);
-          quotes.push(
-            relay
+          place({
+            type: "quote",
+            quote: relay
               ? { form: "address", address: key, relay }
               : { form: "address", address: key },
-          );
+          });
         }
         continue;
       }
     }
-    const last = text[text.length - 1];
-    if (token.type === "text" && last?.type === "text") {
-      // 抜いた位置の前後を 1 つにしないと、末尾の空白を落とせない。
-      text[text.length - 1] = { type: "text", text: last.text + token.text };
-    } else {
-      text.push(token);
-    }
+    appendToken(text, token);
+    appendToken(run, token);
   }
+  flushRun();
 
   // 画像・動画の投稿は、見せるものを本文ではなく `imeta` にだけ書く。
   if (isMediaPostKind(event.kind)) {
@@ -171,6 +197,7 @@ export const layoutNote = (
           : event.kind === PICTURE_KIND
             ? "image"
             : "video";
+      blocks.push({ type: "media", index: media.length });
       media.push({
         type,
         url,
@@ -179,6 +206,10 @@ export const layoutNote = (
       });
     }
   }
-  if (options.quotes) quotes.push(...tagOnlyQuoteTargets(event));
-  return { text: trimEdges(text), media, audio, links, quotes };
+  if (options.quotes) {
+    for (const quote of tagOnlyQuoteTargets(event)) {
+      blocks.push({ type: "quote", quote });
+    }
+  }
+  return { text: trimEdges(text), blocks, media, links };
 };
