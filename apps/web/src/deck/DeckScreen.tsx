@@ -113,6 +113,10 @@ import TargetComposeDialog from "../note/TargetComposeDialog";
 import { setReadRedundancy } from "../read-redundancy-setting";
 import { readRoutingMode, setReadRoutingMode } from "../read-routing-setting";
 import { screenshotMode } from "../screenshot-mode";
+import {
+  createSearchHistory,
+  setSearchHistoryEnabled,
+} from "../search-history";
 import type { Session } from "../session";
 import { BlockedRelayMediator } from "../settings/BlockedRelayMediator";
 import { MediaMediator } from "../settings/MediaMediator";
@@ -203,6 +207,7 @@ const DeckScreen: Component<{
   // ログインしていなければ undefined で、書き込みの仕組みを作らない。
   const account = props.session.pubkey();
   const viewer = account ?? "";
+  const searchHistory = createSearchHistory(account);
   // 書き込みの仕組みも作るときに自分の一覧を取りに繋ぐので、それより先に当てる。
   if (account) {
     applyBlockedRelays(props.readLayer.manager, account, () =>
@@ -938,6 +943,14 @@ const DeckScreen: Component<{
       case "deck/set-image-downscaling":
         setImageDownscaling(event.on);
         return true;
+      case "deck/set-search-history":
+        setSearchHistoryEnabled(event.on);
+        return true;
+      case "search/searched":
+      case "search/history-remove":
+      case "search/history-clear":
+        searchHistory.apply(event);
+        return true;
       case "deck/set-content-warning":
         setContentWarningMode(event.mode);
         return true;
@@ -1036,6 +1049,7 @@ const DeckScreen: Component<{
             searchRelays={shared.searchRelays}
             followees={followees}
             request={ui.searchRequest}
+            history={searchHistory.history()}
           />
         </SidePanel>
       </Match>

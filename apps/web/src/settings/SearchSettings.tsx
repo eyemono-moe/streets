@@ -1,4 +1,5 @@
 import { type Component, Show } from "solid-js";
+import { searchHistoryEnabled } from "../search-history";
 import { useRelayEdit } from "./RelayMediator";
 import { useSearchRelays } from "./SearchRelayMediator";
 import SearchSettingsView from "./SearchSettingsView";
@@ -15,6 +16,7 @@ const SearchSettings: Component = () => {
           saving={search().saving()}
           chosen={search().chosen()}
           account={relayEdit?.entries() ?? []}
+          searchHistory={searchHistoryEnabled()}
         />
       )}
     </Show>

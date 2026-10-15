@@ -1,4 +1,5 @@
 import type { SectionStatus } from "@streets/core/read/source";
+import { searchHistoryTransition } from "@streets/core/search/history";
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { EventSceneProvider } from "../storybook/EventScene";
@@ -30,6 +31,7 @@ type Props = {
   manyResults: boolean;
   searched: boolean;
   status: SectionStatus;
+  history: string[];
 };
 
 const Story = (props: Props) => {
@@ -39,11 +41,26 @@ const Story = (props: Props) => {
     props.searched ? props.initial : "",
   );
   const [opened, setOpened] = createSignal(0);
+  const [history, setHistory] = createSignal<readonly string[]>(props.history);
   return (
     <EventSceneProvider
       scene={{ events: [author.profile(), ...notes, longNote, ...manyNotes] }}
     >
-      <Mediates handle={(event) => event.type === "deck/add-column"}>
+      <Mediates
+        handle={(event) => {
+          switch (event.type) {
+            case "deck/add-column":
+              return true;
+            case "search/searched":
+            case "search/history-remove":
+            case "search/history-clear":
+              setHistory((current) => searchHistoryTransition(current, event));
+              return true;
+            default:
+              return false;
+          }
+        }}
+      >
         <div
           class="flex"
           style={{ width: `${props.width}px`, height: `${props.height}px` }}
@@ -54,6 +71,11 @@ const Story = (props: Props) => {
               signedIn={props.signedIn}
               onChange={setText}
               onSearch={() => setSearched(text().trim())}
+              history={history()}
+              onPick={(query) => {
+                setText(query);
+                setSearched(query);
+              }}
               searched={searched() !== ""}
               results={
                 props.results
@@ -92,6 +114,7 @@ const meta = {
     manyResults: false,
     searched: true,
     status: { phase: "settled" },
+    history: [],
   },
 } satisfies Meta<Props>;
 
@@ -101,6 +124,21 @@ type S = StoryObj<typeof meta>;
 export const 結果がある: S = {};
 export const 未ログイン: S = { args: { signedIn: false } };
 export const 空: S = { args: { initial: "", results: false } };
+
+const history = [
+  "#nostr",
+  "ねこ -いぬ",
+  `from:${author.pubkey} 写真`,
+  `-from:${"b".repeat(64)} ラーメン`,
+  "ねこ #nostr #photography -#bot since:2026-01-01 until:2026-10-01 kind:1 kind:20 -is:bot",
+];
+/** 入力欄が空の間は、前に探した条件を並べる。人の指定は名前で見せる。 */
+export const 履歴がある: S = {
+  args: { initial: "", results: false, history },
+};
+export const 履歴を狭い幅で: S = {
+  args: { initial: "", results: false, history, width: 300 },
+};
 /** 打っただけでは探さない。Enter か「検索」を押すまで待つ。 */
 export const まだ探していない: S = {
   args: { results: false, searched: false, status: { phase: "initial" } },

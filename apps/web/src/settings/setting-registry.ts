@@ -119,6 +119,10 @@ export const settings = {
     ...setting("画像のアップロード先", "media", ["Blossom", "サーバー"]),
     description: "投稿に付ける画像を置くサーバー",
   },
+  searchHistory: {
+    ...setting("検索履歴", "search", ["履歴", "最近の検索"]),
+    description: "探した条件を、検索パネルからすぐ探し直せるように残す",
+  },
   searchRelays: setting("検索するリレー", "search", ["検索先"]),
   reactionEmoji: setting("いいねボタンの絵文字", "emoji", ["リアクション"]),
   emojiList: setting("自分の絵文字リスト", "emoji"),

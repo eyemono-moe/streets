@@ -1,11 +1,13 @@
 import type { RelayListEntry } from "@streets/core/read/relay-list";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
+import { loadSearchHistoryEnabled } from "@streets/core/search/history";
 import { DEFAULT_SEARCH_RELAYS } from "@streets/core/settings/search-relay-list";
 import { type Component, For, Match, Show, Switch } from "solid-js";
 import RelayInput from "../deck/RelayInput";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
+import ToggleSwitch from "../ui/Switch";
 import SettingsSection from "./SettingsSection";
 
 export type SearchSettingsViewProps = {
@@ -17,11 +19,14 @@ export type SearchSettingsViewProps = {
   account: readonly RelayListEntry[];
   /** 足す欄の候補にする、フォローしている人の書き込みリレー。渡さなければ読み取り層から引く。 */
   followeeWriteRelays?: readonly (readonly RelayUrl[])[];
+  /** この端末で検索履歴を残すか。 */
+  searchHistory: boolean;
 };
 
 /** 検索するリレーの設定。今の一覧を受け取って描き、変えたらイベントを上へ渡す。 */
 const SearchSettingsView: Component<SearchSettingsViewProps> = (props) => (
   <div class="flex flex-col gap-7">
+    <SearchHistorySetting on={props.searchHistory} />
     <SettingsSection
       id="searchRelays"
       scope="account"
@@ -57,6 +62,26 @@ const SearchSettingsView: Component<SearchSettingsViewProps> = (props) => (
     </SettingsSection>
   </div>
 );
+
+const SearchHistorySetting: Component<{ on: boolean }> = (props) => {
+  const dispatch = useDispatch();
+  const initial = loadSearchHistoryEnabled(null);
+  return (
+    <SettingsSection
+      id="searchHistory"
+      scope="device"
+      changed={props.on !== initial}
+      onReset={() => dispatch({ type: "deck/set-search-history", on: initial })}
+      description="探した条件を、検索パネルの入力欄が空のときに並べます。アカウントごとにこの端末だけに残し、リレーには送りません。オフにすると、それまでの履歴も消します。"
+    >
+      <ToggleSwitch
+        label="検索履歴を残す"
+        checked={props.on}
+        onChange={(on) => dispatch({ type: "deck/set-search-history", on })}
+      />
+    </SettingsSection>
+  );
+};
 
 const RelayRow: Component<{ relay: RelayUrl; disabled: boolean }> = (props) => {
   const dispatch = useDispatch();
