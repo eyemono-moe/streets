@@ -48,6 +48,7 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
     verify: { ...props.readLayer.store.gate.stats },
     sweep: { ...props.readLayer.store.sweepStats },
     longTasks: longTaskStats(),
+    demoted: props.readLayer.manager.demotedAuthorRelays,
   });
   const [stats, setStats] = createSignal(read());
   const timer = setInterval(() => setStats(read()), 1_000);
@@ -69,6 +70,20 @@ const ReadLayerPanel: Component<{ readLayer: ReadLayer }> = (props) => {
             ["storedEvents", stats().storedEvents],
           ]}
         />
+      </Section>
+      {/* 同じ人を読んだ別のリレーより取りこぼしたので、その人の候補から外した組。 */}
+      <Section title="demoted author relays">
+        <Show
+          when={stats().demoted.length > 0}
+          fallback={<p class="opacity-70">-</p>}
+        >
+          <Rows
+            rows={stats().demoted.map(({ author, relay }) => [
+              author.slice(0, 12),
+              relay,
+            ])}
+          />
+        </Show>
       </Section>
       <Section title="sweep">
         <Rows
