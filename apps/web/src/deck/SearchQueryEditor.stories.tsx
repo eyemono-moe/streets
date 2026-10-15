@@ -75,3 +75,34 @@ export const 未ログイン: S = {
       ?.click();
   },
 };
+
+const openDetails = (canvasElement: HTMLElement) =>
+  canvasElement
+    .querySelector<HTMLButtonElement>(
+      '[data-scope="collapsible"][data-part="trigger"]',
+    )
+    ?.click();
+
+/** 入れた kind の名前を欄の下に出す。一覧に無い番号は、そうと分かるように書く。 */
+export const kindの指定: S = {
+  args: { initial: "ねこ kind:1 kind:6 kind:99999" },
+  play: ({ canvasElement }) => openDetails(canvasElement),
+};
+
+/** kind の欄で呼び名を打つと、番号と呼び名の候補が出る。 */
+export const kindの候補: S = {
+  args: { initial: "" },
+  play: async ({ canvasElement }) => {
+    openDetails(canvasElement);
+    let field: HTMLInputElement | null = null;
+    for (let i = 0; i < 20 && !field; i++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      field = canvasElement.querySelector("#search-kinds");
+    }
+    if (!field) return;
+    field.focus();
+    field.value = "りぽ";
+    field.setSelectionRange(2, 2);
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+  },
+};

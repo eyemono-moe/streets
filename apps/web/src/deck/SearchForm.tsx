@@ -1,9 +1,14 @@
+import { KIND_SUPPORT } from "@streets/core/nostr/kind-support";
 import {
   type SearchQuery,
   formatSearchQuery,
 } from "@streets/core/search/query";
 import { type Component, Show } from "solid-js";
-import { useUserCandidates, userSource } from "../completion/sources";
+import {
+  kindSource,
+  useUserCandidates,
+  userSource,
+} from "../completion/sources";
 import Completion from "../ui/Completion";
 import ExperimentalBadge from "../ui/ExperimentalBadge";
 import Switch from "../ui/Switch";
@@ -22,6 +27,12 @@ const fromDateInput = (value: string): number | undefined => {
   if (value === "") return undefined;
   const time = new Date(`${value}T00:00:00`).getTime();
   return Number.isNaN(time) ? undefined : Math.floor(time / 1000);
+};
+
+/** 欄に入れた kind が何を指すか。一覧に無い番号は、打ち間違いに気づけるようにそう書く。 */
+const kindName = (kind: number): string => {
+  const entry = KIND_SUPPORT.find((known) => known.kind === kind);
+  return entry ? `${kind} ${entry.summary}` : `${kind}（知らない kind）`;
 };
 
 const Field: Component<{ id: string; label: string; children: unknown }> = (
@@ -58,6 +69,7 @@ const SearchForm: Component<{
       space: true,
     }),
   ];
+  const kinds = [kindSource({ kind: "kind", prefixes: [], words: true })];
   const words = (text: string) =>
     text.split(/\s+/).filter((word) => word.length > 0);
   // `-` を付けたものは除く。手元でふるうだけなので、欄を分けて勧めはしない。
@@ -200,19 +212,29 @@ const SearchForm: Component<{
         </div>
       </div>
       <Field id="search-kinds" label="kind">
-        <input
-          id="search-kinds"
-          class={inputClass}
-          placeholder="1（省略するとテキストノート）"
-          value={props.query.kinds.join(" ")}
-          onChange={(event) =>
-            patch({
-              kinds: words(event.currentTarget.value)
-                .map((value) => Number.parseInt(value, 10))
-                .filter((kind) => Number.isInteger(kind) && kind >= 0),
-            })
-          }
-        />
+        <Completion sources={kinds} label="kind の候補">
+          {(attach) => (
+            <input
+              ref={attach}
+              id="search-kinds"
+              class={inputClass}
+              placeholder="1（省略すると投稿）"
+              value={props.query.kinds.join(" ")}
+              onChange={(event) =>
+                patch({
+                  kinds: words(event.currentTarget.value)
+                    .map((value) => Number.parseInt(value, 10))
+                    .filter((kind) => Number.isInteger(kind) && kind >= 0),
+                })
+              }
+            />
+          )}
+        </Completion>
+        <Show when={props.query.kinds.length > 0}>
+          <p class="c-secondary text-caption">
+            {props.query.kinds.map(kindName).join("・")}
+          </p>
+        </Show>
       </Field>
       {/* プロフィールで名乗っている人しか除けず効きにくいので、印で示す。 */}
       <Switch

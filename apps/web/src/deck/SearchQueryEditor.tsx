@@ -7,7 +7,11 @@ import {
   onCleanup,
   onMount,
 } from "solid-js";
-import { useUserCandidates, userSource } from "../completion/sources";
+import {
+  kindSource,
+  useUserCandidates,
+  userSource,
+} from "../completion/sources";
 import SearchInput from "../ui/SearchInput";
 import SearchForm from "./SearchForm";
 
@@ -90,6 +94,7 @@ const SearchQueryEditor: Component<{
       format: (nprofile) => nprofile,
       space: true,
     }),
+    kindSource({ kind: "kind", prefixes: ["kind:"], keepPrefix: true }),
   ];
   onMount(() => {
     if (props.autofocus) input?.focus({ preventScroll: true });
