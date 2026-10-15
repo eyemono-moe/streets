@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import { encodeBech32, encodeNaddr } from "../nostr/nip19";
-import { MAX_LINK_CARDS, layoutNote } from "./note-layout";
+import { MAX_LINK_CARDS, type NoteLayout, layoutNote } from "./note-layout";
 
 const ID_A = "a".repeat(64);
 const ID_B = "b".repeat(64);
@@ -15,6 +15,14 @@ const note = (content: string, tags: string[][] = []): NostrEvent => ({
   content,
   sig: "0".repeat(128),
 });
+
+const quotesOf = (layout: NoteLayout) =>
+  layout.blocks.flatMap((block) =>
+    block.type === "quote" ? [block.quote] : [],
+  );
+
+const audioOf = (layout: NoteLayout) =>
+  layout.blocks.flatMap((block) => (block.type === "audio" ? [block.url] : []));
 
 describe("layoutNote", () => {
   it("画像 URL を本文から抜き、前後の空白を落とす", () => {
@@ -61,7 +69,7 @@ describe("layoutNote", () => {
       ),
       { quotes: true },
     );
-    expect(layout.audio).toEqual([
+    expect(audioOf(layout)).toEqual([
       "https://example.com/a.mp3",
       "https://example.com/voice",
     ]);
@@ -138,7 +146,7 @@ describe("layoutNote", () => {
     const layout = layoutNote(note(`これ ${ref} と ${ref}`), {
       quotes: true,
     });
-    expect(layout.quotes).toEqual([{ form: "id", id: ID_A }]);
+    expect(quotesOf(layout)).toEqual([{ form: "id", id: ID_A }]);
     expect(layout.text).toEqual([{ type: "text", text: "これ  と" }]);
   });
 
@@ -152,7 +160,7 @@ describe("layoutNote", () => {
       { quotes: true },
     );
     expect(
-      layout.quotes.map((quote) => quote.form === "id" && quote.id),
+      quotesOf(layout).map((quote) => quote.form === "id" && quote.id),
     ).toEqual([ID_A, ID_B]);
     expect(layout.text).toEqual([]);
   });
@@ -162,7 +170,7 @@ describe("layoutNote", () => {
     const layout = layoutNote(note(`これ ${ref}`, [["q", ID_B]]), {
       quotes: false,
     });
-    expect(layout.quotes).toEqual([]);
+    expect(quotesOf(layout)).toEqual([]);
     expect(layout.text.map((token) => token.type)).toEqual(["text", "mention"]);
   });
 
@@ -214,7 +222,7 @@ describe("layoutNote", () => {
       quotes: true,
     });
     expect(layout.text).toEqual([]);
-    expect(layout.quotes).toEqual([
+    expect(quotesOf(layout)).toEqual([
       {
         form: "address",
         address: `30023:${ID_A}:post`,
@@ -273,5 +281,63 @@ describe("layoutNote", () => {
       { quotes: true },
     );
     expect(layout.media).toEqual([]);
+  });
+
+  describe("書かれた順のブロック", () => {
+    it("本文の途中の画像と引用を、その位置のブロックにする", () => {
+      const ref = `nostr:${encodeBech32("note", ID_A)}`;
+      const layout = layoutNote(
+        note(`はじめ\nhttps://example.com/a.png\nなか\n${ref}\nおわり`),
+        { quotes: true },
+      );
+      expect(layout.blocks).toEqual([
+        { type: "text", tokens: [{ type: "text", text: "はじめ" }] },
+        { type: "media", index: 0 },
+        { type: "text", tokens: [{ type: "text", text: "なか" }] },
+        { type: "quote", quote: { form: "id", id: ID_A } },
+        { type: "text", tokens: [{ type: "text", text: "おわり" }] },
+      ]);
+      expect(layout.text).toEqual([
+        { type: "text", text: "はじめ\n\nなか\n\nおわり" },
+      ]);
+    });
+
+    it("続く画像の間の空白だけの本文はブロックにしない", () => {
+      const layout = layoutNote(
+        note("https://example.com/a.png\n https://example.com/b.png 見て"),
+        { quotes: true },
+      );
+      expect(layout.blocks).toEqual([
+        { type: "media", index: 0 },
+        { type: "media", index: 1 },
+        { type: "text", tokens: [{ type: "text", text: "見て" }] },
+      ]);
+    });
+
+    it("音声は書かれた位置に置き、画像・動画の番号を進めない", () => {
+      const layout = layoutNote(
+        note(
+          "https://example.com/a.mp3 https://example.com/b.png https://example.com/c.mp3",
+        ),
+        { quotes: true },
+      );
+      expect(layout.blocks).toEqual([
+        { type: "audio", url: "https://example.com/a.mp3" },
+        { type: "media", index: 0 },
+        { type: "audio", url: "https://example.com/c.mp3" },
+      ]);
+    });
+
+    it("タグにしか無い引用は、書かれた位置が無いので末尾に置く", () => {
+      const layout = layoutNote(
+        note("https://example.com/a.png 見て", [["q", ID_B]]),
+        { quotes: true },
+      );
+      expect(layout.blocks.map((block) => block.type)).toEqual([
+        "media",
+        "text",
+        "quote",
+      ]);
+    });
   });
 });

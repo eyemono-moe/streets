@@ -8,8 +8,10 @@ import {
   type Component,
   For,
   type JSX,
+  Match,
   type ParentComponent,
   Show,
+  Switch,
   createEffect,
   createMemo,
   createSignal,
@@ -26,10 +28,25 @@ import QuoteBox from "./QuoteBox";
 
 const MediaViewer = lazyPart(() => import("./MediaViewer"));
 
-const MAX_CONTENT_HEIGHT: Record<EventSize, number> = {
-  normal: 400,
-  compact: 240,
+/**
+ * 畳んだときの高さと、畳むのに要る隠れる分。画像は 1 枚で最大 320px（compact は 240px）あり、
+ * 隠れる分を見ずに畳むと、短い本文に画像が 1 枚付いただけの投稿まで畳まれる。
+ */
+const FOLD: Record<EventSize, { height: number; slack: number }> = {
+  normal: { height: 480, slack: 160 },
+  compact: { height: 280, slack: 120 },
 };
+
+const MediaUrl: Component<{ url: string }> = (props) => (
+  <a
+    href={props.url}
+    target="_blank"
+    rel="noopener noreferrer"
+    class="break-all text-caption text-link"
+  >
+    {props.url}
+  </a>
+);
 
 const Quote: Component<{ quote: EventRef }> = (props) => (
   <QuoteBox>
@@ -43,7 +60,10 @@ const Quote: Component<{ quote: EventRef }> = (props) => (
  */
 export type LongBody = "open" | "expand" | "full";
 
-/** 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。 */
+/**
+ * 実際の描画高が大きい本文だけを畳む。監視は全ノートで1つを共有する。高さを測るのは
+ * 畳む箱ではなく中身で、畳んだ箱は切った高さしか返さず、どれだけ隠れているか分からない。
+ */
 const CollapsibleBody: ParentComponent<{
   size: EventSize;
   longBody: LongBody;
@@ -52,9 +72,9 @@ const CollapsibleBody: ParentComponent<{
   const [body, setBody] = createSignal<HTMLDivElement>();
   const [height, setHeight] = createSignal(0);
   const [expanded, setExpanded] = createSignal(false);
-  const maxHeight = () => MAX_CONTENT_HEIGHT[props.size];
-  const overflows = () => height() >= maxHeight();
-  const folded = () => props.longBody !== "full" && !expanded();
+  const fold = () => FOLD[props.size];
+  const overflows = () => height() > fold().height + fold().slack;
+  const folded = () => props.longBody !== "full" && !expanded() && overflows();
 
   createEffect(() => {
     const element = body();
@@ -64,15 +84,23 @@ const CollapsibleBody: ParentComponent<{
   return (
     <div class="relative">
       <div
-        ref={setBody}
         class="overflow-hidden"
         style={{
-          "max-height": folded() ? `${maxHeight()}px` : "none",
+          "max-height": folded() ? `${fold().height}px` : "none",
         }}
       >
-        {props.children}
+        <div
+          ref={setBody}
+          class="flex flex-col"
+          classList={{
+            "gap-2": props.size === "normal",
+            "gap-1.5": props.size === "compact",
+          }}
+        >
+          {props.children}
+        </div>
       </div>
-      <Show when={overflows() && folded()}>
+      <Show when={folded()}>
         <button
           type="button"
           class="absolute bottom-0 flex w-full appearance-none justify-center bg-gradient-to-b bg-transparent from-white/0 to-white pt-4 text-caption dark:from-ui-950/0 dark:to-ui-950"
@@ -104,7 +132,7 @@ const CollapsibleBody: ParentComponent<{
 };
 
 /**
- * 本文・画像・音声・リンクのカード・引用。投稿の枠（アイコン・名前・操作）とは
+ * 本文と、その中に書かれた位置の画像・音声・引用、末尾のリンクのカード。投稿の枠（アイコン・名前・操作）とは
  * 分けてあり、チャンネルの発言も同じ本文の見せ方を使う。
  */
 export const NoteContent: Component<{
@@ -126,7 +154,7 @@ export const NoteContent: Component<{
   const dispatch = useDispatch();
   return (
     <ContentWarningGate event={props.event} size={props.size}>
-      <Show when={layout().text.length > 0}>
+      <Show when={layout().blocks.length > 0}>
         <CollapsibleBody
           size={props.size}
           longBody={props.longBody ?? "open"}
@@ -138,58 +166,55 @@ export const NoteContent: Component<{
             })
           }
         >
-          <NoteText
-            tokens={layout().text}
-            class="c-primary"
-            classList={{
-              "text-body": props.size === "normal",
-              "text-[14px]": props.size === "compact",
-            }}
-          />
+          <For each={layout().blocks}>
+            {(block) => (
+              <Switch>
+                <Match when={block.type === "text" && block}>
+                  {(text) => (
+                    <NoteText
+                      tokens={text().tokens}
+                      class="c-primary"
+                      classList={{
+                        "text-body": props.size === "normal",
+                        "text-[14px]": props.size === "compact",
+                      }}
+                    />
+                  )}
+                </Match>
+                <Match when={block.type === "media" && block}>
+                  {(item) => (
+                    <Show
+                      when={props.expandMedia !== false}
+                      fallback={
+                        <MediaUrl url={layout().media[item().index].url} />
+                      }
+                    >
+                      <NoteMediaView
+                        media={layout().media[item().index]}
+                        size={props.size}
+                        onOpen={() => setViewing(item().index)}
+                      />
+                    </Show>
+                  )}
+                </Match>
+                <Match when={block.type === "audio" && block}>
+                  {(audio) => (
+                    <Show
+                      when={props.expandMedia !== false}
+                      fallback={<MediaUrl url={audio().url} />}
+                    >
+                      <NoteAudio url={audio().url} />
+                    </Show>
+                  )}
+                </Match>
+                <Match when={block.type === "quote" && block}>
+                  {(quote) => <Quote quote={quote().quote} />}
+                </Match>
+              </Switch>
+            )}
+          </For>
         </CollapsibleBody>
       </Show>
-      <For each={layout().media}>
-        {(item, index) => (
-          <Show
-            when={props.expandMedia !== false}
-            fallback={
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="break-all text-caption text-link"
-              >
-                {item.url}
-              </a>
-            }
-          >
-            <NoteMediaView
-              media={item}
-              size={props.size}
-              onOpen={() => setViewing(index())}
-            />
-          </Show>
-        )}
-      </For>
-      <For each={layout().audio}>
-        {(url) => (
-          <Show
-            when={props.expandMedia !== false}
-            fallback={
-              <a
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="break-all text-caption text-link"
-              >
-                {url}
-              </a>
-            }
-          >
-            <NoteAudio url={url} />
-          </Show>
-        )}
-      </For>
       {/* 添付の無い投稿にまでダイアログの状態を持たせない。 */}
       <Show when={props.expandMedia !== false && viewing() !== undefined}>
         <MediaViewer
@@ -207,7 +232,6 @@ export const NoteContent: Component<{
       </Show>
       {props.media}
       <LinkCards urls={layout().links} size={props.size} />
-      <For each={layout().quotes}>{(quote) => <Quote quote={quote} />}</For>
     </ContentWarningGate>
   );
 };
