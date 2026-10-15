@@ -15,7 +15,9 @@ const createFakeManager = (options?: { fail?: boolean }) => {
 };
 
 const setup = (
-  overrides: Partial<Parameters<typeof createBatchedFetch<string>>[0]> = {},
+  overrides: Partial<
+    Omit<Parameters<typeof createBatchedFetch<string>>[0], "fetch">
+  > = {},
   managerOptions?: { fail?: boolean },
 ) => {
   const clock = createFakeClock();

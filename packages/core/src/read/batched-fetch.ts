@@ -11,11 +11,14 @@ export type BatchedFetchConfig<Item> = {
   /** 行き先やフィルタがキーごとに違うもの（投票・フォロー一覧）は束ねられないので、窓を待たずに `"immediate"` で 1 件ずつ取る。 */
   batchWindowMs: number | "immediate";
   keyOf(item: Item): string;
-  toRequest(items: Item[]): FetchRequest;
   /** listener より先に呼ぶ。listener が読む「取った」印（`markReplaceableFetched` など）をここで付けるため。 */
   markFetched?(items: Item[]): void;
   onFailed?(items: Item[]): void;
-};
+} & (
+  | { toRequest(items: Item[]): FetchRequest; fetch?: never }
+  /** 1 本の `fetchOnce` で済まないもの（行き先が人ごとに違い、聞き直しもするプロフィール）。 */
+  | { fetch(items: Item[]): Promise<void>; toRequest?: never }
+);
 
 export type BatchedFetch<Item> = {
   enqueue(item: Item): boolean;
@@ -28,6 +31,12 @@ export type BatchedFetch<Item> = {
   readonly maxBatchSize: number;
   dispose(): void;
 };
+
+export const fetchRequest = (
+  manager: SubscriptionManager,
+  { filters, relays }: FetchRequest,
+): Promise<void> =>
+  manager.fetchOnce(filters, relays === undefined ? undefined : { relays });
 
 /**
  * 手元にあるかの判定と取り直しの間隔は、ここでは持たない。種類ごとに条件が違い
@@ -57,24 +66,24 @@ export const createBatchedFetch = <Item>(
     if (items.length > maxBatchSize) maxBatchSize = items.length;
     for (const key of keys) inflight.add(key);
 
-    const { filters, relays } = config.toRequest(items);
     const release = () => {
       for (const key of keys) inflight.delete(key);
     };
-    void config.manager
-      .fetchOnce(filters, relays === undefined ? undefined : { relays })
-      .then(
-        () => {
-          release();
-          if (disposed) return;
-          config.markFetched?.(items);
-          for (const listener of listeners) listener();
-        },
-        () => {
-          release();
-          config.onFailed?.(items);
-        },
-      );
+    const fetched = config.fetch
+      ? config.fetch(items)
+      : fetchRequest(config.manager, config.toRequest(items));
+    void fetched.then(
+      () => {
+        release();
+        if (disposed) return;
+        config.markFetched?.(items);
+        for (const listener of listeners) listener();
+      },
+      () => {
+        release();
+        config.onFailed?.(items);
+      },
+    );
   };
 
   return {
