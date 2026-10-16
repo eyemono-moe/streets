@@ -1,17 +1,15 @@
-import { Popover } from "@ark-ui/solid/popover";
 import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { Style } from "@streets/core/emoji-maker/style";
 import { defaultShortcode, emojiUrl } from "@streets/core/emoji-maker/url";
 import { type Component, onMount } from "solid-js";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
-import PopoverTrigger from "../ui/PopoverTrigger";
-import { Portal } from "../ui/Portal";
 import { useEmojiGroups } from "./custom-emojis";
 import { type PickerEmoji, loadUnicodeEmojis } from "./emoji-data";
 import { EmojiPicker, MakerFooter } from "./lazy-emoji-picker";
 import { lastStyle, rememberLastStyle } from "./maker/last-style";
 import { createMakerFlow } from "./maker/maker-flow";
+import PickerSurface from "./PickerSurface";
 import { rememberEmoji } from "./recent-emoji";
 
 /** 投稿・返信・引用の本文やステータスに入れる絵文字を選ぶ。 */
@@ -41,60 +39,51 @@ const ComposeEmojiPicker: Component<{
   });
   return (
     <>
-      <Popover.Root
-        lazyMount
-        unmountOnExit
-        finalFocusEl={() => props.field() ?? null}
-        positioning={{ placement: "top-start" }}
+      <PickerSurface
+        title="絵文字を挿入"
+        trigger={(trigger) => (
+          <IconButton
+            {...trigger()}
+            disabled={props.disabled}
+            size="md"
+            icon="i-material-symbols:add-reaction-outline-rounded"
+            label="絵文字を挿入"
+          />
+        )}
+        finalFocusEl={props.field}
+        placement="top-start"
         onExitComplete={maker.onPickerExitComplete}
       >
-        <PopoverTrigger
-          disabled={props.disabled}
-          asChild={(trigger) => (
-            <IconButton
-              {...trigger()}
-              size="md"
-              icon="i-material-symbols:add-reaction-outline-rounded"
-              label="絵文字を挿入"
-            />
-          )}
-        />
-        <Portal>
-          <Popover.Positioner>
-            <Popover.Content class="motion-pop outline-none">
-              <Popover.Context>
-                {(api) => (
-                  <EmojiPicker
-                    customGroups={customGroups()}
-                    onSelect={(emoji) => {
-                      if (props.disabled) return;
-                      rememberEmoji(emoji);
-                      props.onSelect(emoji);
-                      api().setOpen(false);
-                    }}
-                    footer={(query) => (
-                      <MakerFooter
-                        query={query()}
-                        verb="insert"
-                        sending={props.disabled}
-                        lastStyle={lastStyle()}
-                        onSend={(spec, style) => {
-                          insertMade(spec, style, defaultShortcode(spec));
-                          api().setOpen(false);
-                        }}
-                        onAdjust={(text, candidate) => {
-                          maker.requestAdjust(text, candidate);
-                          api().setOpen(false);
-                        }}
-                      />
-                    )}
-                  />
-                )}
-              </Popover.Context>
-            </Popover.Content>
-          </Popover.Positioner>
-        </Portal>
-      </Popover.Root>
+        {(close, layout) => (
+          <EmojiPicker
+            layout={layout}
+            customGroups={customGroups()}
+            onSelect={(emoji) => {
+              if (props.disabled) return;
+              rememberEmoji(emoji);
+              props.onSelect(emoji);
+              close();
+            }}
+            footer={(query) => (
+              <MakerFooter
+                layout={layout}
+                query={query()}
+                verb="insert"
+                sending={props.disabled}
+                lastStyle={lastStyle()}
+                onSend={(spec, style) => {
+                  insertMade(spec, style, defaultShortcode(spec));
+                  close();
+                }}
+                onAdjust={(text, candidate) => {
+                  maker.requestAdjust(text, candidate);
+                  close();
+                }}
+              />
+            )}
+          />
+        )}
+      </PickerSurface>
       <maker.Dialog
         verb="insert"
         onSend={(spec, style, submit) => {
