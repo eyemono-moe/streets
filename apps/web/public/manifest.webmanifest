@@ -10,6 +10,17 @@
   "background_color": "#ffffff",
   "theme_color": "#ffffff",
   "categories": ["social"],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [{ "name": "media", "accept": ["image/*", "video/*"] }]
+    }
+  },
   "icons": [
     {
       "src": "/icon-192.png",

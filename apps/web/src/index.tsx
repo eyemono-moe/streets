@@ -5,6 +5,7 @@ import { render } from "solid-js/web";
 import App from "./App";
 import { swallowPressesThatDismissPopups } from "./dismiss-tap";
 import { createAppQueryClient } from "./query-client";
+import { receiveShare, registerShareWorker } from "./share/share-inbox";
 import { startTelemetry } from "./telemetry";
 import {
   savedColorScheme,
@@ -24,6 +25,9 @@ setColorScheme(savedColorScheme(), false);
 setUiContrast(savedUiContrast(), false);
 swallowPressesThatDismissPopups();
 blockTouchMenusOnMarkedImages();
+// ルーターより先に、URL から共有の引数を消す。
+receiveShare();
+registerShareWorker();
 const queryClient = createAppQueryClient();
 const root = document.getElementById("root")!;
 // index.html の紹介は JS を動かさない読み手のためのもの。render は中身を足すだけなので先に消す。

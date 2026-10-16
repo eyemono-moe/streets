@@ -4,6 +4,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { visualizer } from "rollup-plugin-visualizer";
 import UnoCSS from "unocss/vite";
 import solid from "vite-plugin-solid";
+import type { Plugin } from "vite-plus";
 import { defineConfig, lazyPlugins } from "vite-plus";
 import { unicodeEmojis } from "./emoji-data-plugin";
 import { releaseNotes } from "./release-notes-plugin";
@@ -71,6 +72,23 @@ const analyze = (mode: string) =>
  */
 const LICENSE_BANNER = "/*! Licenses of bundled dependencies: /license.md */";
 
+/**
+ * 共有の受け口（Service Worker）を `/sw.js` に出す。Service Worker が受け持てるのは
+ * 置いた場所より下だけなので、ほかのチャンクのように `assets/` へ置けず、名前に
+ * ハッシュも付けられない（登録する側が名前を知っている必要がある）。
+ */
+const shareWorker = (): Plugin => ({
+  name: "streets:share-worker",
+  apply: "build",
+  buildStart() {
+    this.emitFile({
+      type: "chunk",
+      id: "/src/share/sw.ts",
+      fileName: "sw.js",
+    });
+  },
+});
+
 const commit = commitSha();
 
 /**
@@ -95,6 +113,7 @@ export default defineConfig(({ mode }) => ({
     solid(),
     releaseNotes(),
     unicodeEmojis(),
+    shareWorker(),
     ...sentryUpload(release),
     ...analyze(mode),
   ]),

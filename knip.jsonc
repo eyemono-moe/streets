@@ -13,7 +13,12 @@
       ],
     },
     "apps/web": {
-      "entry": ["src/**/*.stories.tsx", ".storybook/*.{ts,tsx}"],
+      "entry": [
+        "src/**/*.stories.tsx",
+        ".storybook/*.{ts,tsx}",
+        // vite.config.ts のプラグインが、名前で `/sw.js` に出す。
+        "src/share/sw.ts",
+      ],
       "ignoreDependencies": [
         // ビルド時に emoji-data-plugin.ts がファイルとして読む。
         "emojibase-data",
