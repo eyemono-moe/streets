@@ -86,6 +86,34 @@ export const カラムヘッダー: Story = {
   ),
 };
 
+/** 数字キーで選べるカラムは、アイコンの右下に番号が出る。人のカラムはアイコンが写真になる。 */
+export const 数字キーの番号つきヘッダー: Story = {
+  render: () => (
+    <EventSceneProvider
+      scene={{ events: [viewer.profile(), friend.profile()] }}
+    >
+      <Mediates handle={() => true}>
+        <div class="flex flex-col border-primary border-x w-[360px]">
+          <ColumnHeader
+            column={home}
+            open={false}
+            grip
+            digit={1}
+            onTitle={() => {}}
+          />
+          <ColumnHeader
+            column={columns[3]!}
+            open={false}
+            grip
+            digit={4}
+            onTitle={() => {}}
+          />
+        </div>
+      </Mediates>
+    </EventSceneProvider>
+  ),
+};
+
 /** 上端の帯が破線なら一時カラム（デッキに保存していない）、実線なら保存したカラム。 */
 export const 一時カラムのヘッダー: Story = {
   render: () => (

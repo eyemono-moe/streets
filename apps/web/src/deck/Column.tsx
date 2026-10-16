@@ -40,6 +40,8 @@ export type ColumnProps = {
   bookmarks: () => readonly string[];
   searchRelays: () => readonly RelayUrl[];
   settingsOpen: boolean;
+  /** 数字キーで選べるカラムの番号。見出しのアイコンに添える。 */
+  digit?: number;
   /** 見出しを掴んで並べ替えられる。 */
   grip?: boolean;
   temporary?: boolean;
@@ -171,6 +173,8 @@ const Column: Component<ColumnProps> = (props) => {
                 grip={props.grip && !poppedOut()}
                 temporary={props.temporary}
                 poppedOut={poppedOut() !== undefined}
+                // ピクチャーインピクチャーの窓では、数字キーは元のタブにしか届かない。
+                digit={poppedOut() ? undefined : props.digit}
                 onTitle={onHeader}
               />
             </div>

@@ -449,6 +449,13 @@ const DeckScreen: Component<{
     scroller?.focus({ preventScroll: true });
   };
 
+  /** 数字キーで選べるカラムなら、その番号。並び順は数字キーと同じ `columns` で数える。 */
+  const columnDigit = (id: string) => {
+    if (!columnDigits()) return undefined;
+    const index = columns().findIndex((column) => column.id === id);
+    return index >= 0 && index < 9 ? index + 1 : undefined;
+  };
+
   // キーで送っているカラムから、←/→ で隣のカラムへ移る。そのままだと横に並べた
   // 帯ごと送られるだけで、フォーカスは元のカラムに残る。
   const stepColumn = (event: KeyboardEvent) => {
@@ -1257,6 +1264,7 @@ const DeckScreen: Component<{
                             ui.poppedOut === column.id ? pipWindow() : undefined
                           }
                           grip
+                          digit={columnDigit(column.id)}
                           {...shared}
                         />
                       </div>
