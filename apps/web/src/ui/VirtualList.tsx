@@ -383,7 +383,10 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
               data-virtual-row
               data-index={placement()?.index}
               data-key={props.itemKey(item)}
-              tabIndex={-1}
+              // 行も Tab の順番に入れる。ボタンから Shift+Tab で行へ戻れ、最後のボタンの
+              // 次が次の行になる。順番に入るのは DOM に置いた前後の行だけで、全件ではない。
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- 行は一覧の中の 1 件として、キーで止まる先にする
+              tabIndex={0}
               class="absolute top-0 left-0 w-full outline-none focus-visible:outline-2 focus-visible:outline-accent-5 focus-visible:outline-solid focus-visible:-outline-offset-2"
               style={{
                 transform: `translateY(${(placement()?.start ?? 0) - virtualizer.options.scrollMargin}px)`,
