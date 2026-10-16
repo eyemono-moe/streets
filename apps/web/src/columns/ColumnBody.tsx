@@ -75,7 +75,10 @@ const ColumnBody: ParentComponent<{
             props.scrollerRef(element);
           }}
           data-scroll-container
-          class="min-h-0 flex-1"
+          // キーで送るために入る口は、投稿に「押しても開かない場所」を作らずここに置く。
+          // 投稿を押して開ける範囲を狭めると、広く押して開く操作が損なわれる。
+          tabIndex={props.scrollsInternally === true ? undefined : 0}
+          class="peer min-h-0 flex-1 outline-none"
           classList={{
             "flex flex-col overflow-hidden": props.scrollsInternally === true,
             // 表示中の行を保つのは VirtualList（TanStack の anchorTo）が受け持つ。
@@ -112,6 +115,8 @@ const ColumnBody: ParentComponent<{
             </NewerItemsProvider>
           </ScrollContainerProvider>
         </div>
+        {/* 線はスクロール領域の上に重ねて引く。領域そのものの inset の影は投稿の背景に隠れる。 */}
+        <div class="pointer-events-none absolute inset-0 hidden ring-2 ring-accent-5 ring-inset peer-focus-visible:block" />
         <NewerNotice newer={newer()} onClick={scrollToTop} />
       </div>
     </>
