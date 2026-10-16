@@ -52,7 +52,7 @@ const tilesOf = (event: NostrEvent): MediaTile[] => {
 };
 
 const TILE_CLASS =
-  "relative block aspect-square cursor-pointer overflow-hidden bg-secondary p-0 outline-none focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset";
+  "relative block aspect-square w-full cursor-pointer overflow-hidden bg-secondary p-0 outline-none focus-visible:ring-2 focus-visible:ring-accent-5 focus-visible:ring-inset";
 
 /** 閲覧注意の付いた投稿のマス。押すまで画像を読みにいかない。 */
 const WarningTile: Component<{ event: NostrEvent }> = (props) => (
