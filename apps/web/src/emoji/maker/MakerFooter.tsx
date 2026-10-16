@@ -47,11 +47,11 @@ const SIZES = {
     button: "sm",
   },
   sheet: {
-    row: "h-14 gap-2 pt-2",
-    candidates: "gap-1.5",
-    candidate: "h-10 px-2.5",
-    image: "h-6 max-w-16",
-    placeholder: "size-6",
+    row: "h-11 gap-1.5 pt-1.5",
+    candidates: "gap-1",
+    candidate: "h-9 px-2",
+    image: "h-5.5 max-w-14",
+    placeholder: "size-5.5",
     button: "md",
   },
 } as const satisfies Record<PickerLayout, unknown>;

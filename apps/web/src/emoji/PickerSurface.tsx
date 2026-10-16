@@ -7,6 +7,7 @@ import {
   createEffect,
   createSignal,
   onCleanup,
+  onMount,
 } from "solid-js";
 import { useAppWindow } from "../app-window";
 import { canHover } from "../can-hover";
@@ -33,12 +34,15 @@ export type PickerLayout = "popup" | "sheet";
 // 開いた直後は下の投稿が見える高さで止め、引き上げると Content の高さ（画面の 85%）まで広がる。
 const SNAP_POINTS = [0.6, 1];
 
+const FULL = SNAP_POINTS[SNAP_POINTS.length - 1];
+
 /**
  * キーボードが出ている間、見えている部分を親へ知らせ、シートを引き上げた高さにする。
  * 低い位置で止めたままだと、キーボードの上に残る一覧が数行になる。
  * シートが開いている間だけ見張るため、シートの中に置く。
  */
 const FollowKeyboard: Component<{
+  sheet: () => HTMLElement | undefined;
   onChange: (viewport: VisibleViewport | undefined) => void;
 }> = (props) => {
   const drawer = useDrawerContext();
@@ -46,7 +50,22 @@ const FollowKeyboard: Component<{
   createEffect(() => {
     const value = viewport();
     props.onChange(value);
-    if (value) drawer().setSnapPoint(SNAP_POINTS[SNAP_POINTS.length - 1]);
+    if (value) drawer().setSnapPoint(FULL);
+  });
+  // キーボードが出てから引き上げるのでは遅い。低い位置の検索欄はキーボードに隠れる場所にあり、
+  // ブラウザは欄を見せようと画面ごと上へ送る。送られた画面はシートを置き直しても戻らず、
+  // シートの上端がはみ出す。焦点が移った時点（キーボードが出る前）に引き上げておく。
+  // 触れた時点（pointerdown）で引き上げると、Drawer はその指の動きを引き下げとみなして閉じる。
+  const expandOnFocus = (event: FocusEvent) => {
+    if ((event.target as Element | null)?.tagName === "INPUT") {
+      drawer().setSnapPoint(FULL);
+    }
+  };
+  onMount(() => {
+    const sheet = props.sheet();
+    if (!sheet) return;
+    sheet.addEventListener("focusin", expandOnFocus);
+    onCleanup(() => sheet.removeEventListener("focusin", expandOnFocus));
   });
   onCleanup(() => props.onChange(undefined));
   return null;
@@ -151,7 +170,7 @@ const PickerSurface: Component<{
                   : undefined
               }
             >
-              <FollowKeyboard onChange={setKeyboard} />
+              <FollowKeyboard sheet={() => sheet} onChange={setKeyboard} />
               <Drawer.Grabber class="flex shrink-0 justify-center py-2">
                 <Drawer.GrabberIndicator class="h-1 w-10 rounded-full bg-ui-4" />
               </Drawer.Grabber>
@@ -162,7 +181,7 @@ const PickerSurface: Component<{
               <div
                 class="flex min-h-0 flex-1 flex-col"
                 style={{
-                  "padding-bottom": `calc(var(--drawer-snap-point-offset-y, 0px) + ${keyboard() ? "0.5rem" : "max(0.5rem, env(safe-area-inset-bottom))"})`,
+                  "padding-bottom": `calc(var(--drawer-snap-point-offset-y, 0px) + ${keyboard() ? "0.25rem" : "max(0.25rem, env(safe-area-inset-bottom))"})`,
                 }}
               >
                 <Drawer.Context>
