@@ -1,11 +1,9 @@
 import { MEDIA_TILE_MAX_EDGE } from "@streets/core/media/display-size";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import type { NewerPaging } from "@streets/core/read/newer-page";
 import {
   type NostrSource,
   PAGE_SIZE,
   type Paging,
-  SECTION_WINDOW,
 } from "@streets/core/read/source";
 import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
 import {
@@ -22,7 +20,6 @@ import {
   onCleanup,
 } from "solid-js";
 import { useListsUnderWarning } from "../../content-warning-setting";
-import NewerLoader from "../../deck/NewerLoader";
 import OlderLoader from "../../deck/OlderLoader";
 import { lazyPart } from "../../lazy-part";
 import {
@@ -210,13 +207,8 @@ export const MediaGridView: Component<{
   settled: boolean;
   paging: Paging;
   onLoadMore: () => void;
-  /** 新しい方の取り直し。持つ件数の上限で新しい側を捨てた後だけある。 */
-  newerPaging?: NewerPaging;
-  onLoadNewer?: () => void;
-  /** いちばん上にいるかが変わったら知らせる。 */
-  onAtTop?: (atTop: boolean) => void;
 }> = (props) => {
-  // 上のマスが捨てられたり足されたりしても、読んでいるマスを同じ位置に保つ。カラムの
+  // 新しい投稿のマスが上に足されても、読んでいるマスを同じ位置に保つ。カラムの
   // スクロール領域はブラウザのスクロールアンカーを切っている（仮想リストと行き違うため）
   // ので、ここで保つ。
   const [grid, setGrid] = createSignal<HTMLDivElement>();
@@ -240,14 +232,8 @@ export const MediaGridView: Component<{
   createEffect(() => {
     const element = scroller();
     if (!element) return;
-    let atTop: boolean | undefined;
     const remember = () => {
-      const top = element.scrollTop <= 1;
-      if (top !== atTop) {
-        atTop = top;
-        props.onAtTop?.(top);
-      }
-      if (top) {
+      if (element.scrollTop <= 1) {
         anchor = undefined;
         return;
       }
@@ -300,14 +286,6 @@ export const MediaGridView: Component<{
     <Switch
       fallback={
         <>
-          <Show when={props.newerPaging}>
-            {(paging) => (
-              <NewerLoader
-                paging={paging()}
-                onReach={() => props.onLoadNewer?.()}
-              />
-            )}
-          </Show>
           <div ref={setGrid} class="grid grid-cols-3 gap-0.5">
             <For each={props.tiles}>
               {(tile) => (
@@ -356,10 +334,12 @@ const MediaGrid: Component<{
   source: () => NostrSource | undefined;
   name?: string;
 }> = (props) => {
+  // ほかの一覧と違って持つ件数の上限（`SECTION_WINDOW`）を当てない。上限は取った投稿で
+  // 数えるが、格子に並ぶのは添付のある 1 割ほどなので、上限いっぱいでも 3 画面ほどにしか
+  // ならない。上下の端で同時に取り足しが走り、取った側を捨て合って止まる。
   const section = createBlockSection({
     source: () => props.source(),
     pageSize: PAGE_SIZE,
-    windowSize: SECTION_WINDOW,
     name: props.name,
   });
   const listsUnderWarning = useListsUnderWarning();
@@ -372,9 +352,6 @@ const MediaGrid: Component<{
       settled={section.status().phase === "settled"}
       paging={section.paging()}
       onLoadMore={section.loadMore}
-      newerPaging={section.newerPaging()}
-      onLoadNewer={section.loadNewer}
-      onAtTop={(atTop) => section.setAnchor(atTop ? "head" : "away")}
     />
   );
 };
