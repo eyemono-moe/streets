@@ -81,3 +81,24 @@ export const ピッカーの中: S = {
     />
   ),
 };
+
+/** 触る端末のドロワーの下端。指で押すので、候補とボタンが大きい。幅は 360px の画面。 */
+export const ドロワーの下端: S = {
+  render: (args) => (
+    <div class="w-90 bg-primary px-2 pb-2">
+      <MakerFooter
+        layout="sheet"
+        query={args.query}
+        lastStyle={args.lastStyle}
+        sending={args.sending}
+        onSend={() => {}}
+        onAdjust={() => {}}
+      />
+    </div>
+  ),
+};
+
+export const ドロワーの下端_何も打っていない: S = {
+  ...ドロワーの下端,
+  args: { query: "" },
+};

@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import Button from "../ui/Button";
 import type { PickerEmoji, PickerGroup } from "./emoji-data";
 import EmojiPicker from "./EmojiPicker";
+import MakerFooter from "./maker/MakerFooter";
 import PickerSurface, { type PickerLayout } from "./PickerSurface";
 import { emojiKey } from "./recent-emoji";
 
@@ -35,6 +36,16 @@ const Story = (props: Args) => {
             layout="sheet"
             customGroups={props.customGroups}
             onSelect={setPicked}
+            footer={(query) => (
+              <MakerFooter
+                layout="sheet"
+                query={query()}
+                lastStyle={undefined}
+                sending={false}
+                onSend={() => {}}
+                onAdjust={() => {}}
+              />
+            )}
           />
         </div>
       </Show>
@@ -88,6 +99,16 @@ export const 開き口から開く: S = {
                 setPicked(emoji);
                 close();
               }}
+              footer={(query) => (
+                <MakerFooter
+                  layout={layout}
+                  query={query()}
+                  lastStyle={undefined}
+                  sending={false}
+                  onSend={close}
+                  onAdjust={close}
+                />
+              )}
             />
           )}
         </PickerSurface>

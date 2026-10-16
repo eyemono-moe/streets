@@ -66,6 +66,7 @@ const ComposeEmojiPicker: Component<{
             }}
             footer={(query) => (
               <MakerFooter
+                layout={layout}
                 query={query()}
                 verb="insert"
                 sending={props.disabled}

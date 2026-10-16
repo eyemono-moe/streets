@@ -13,6 +13,7 @@ import {
 } from "@streets/core/emoji-maker/text";
 import { type Component, For, Match, Show, Switch, createMemo } from "solid-js";
 import Button from "../../ui/Button";
+import type { PickerLayout } from "../PickerSurface";
 import { prefetchKana } from "./glyphs";
 import { createPreview } from "./preview";
 
@@ -33,12 +34,36 @@ export const pickerCandidates = (last: Style | undefined): MakerCandidate[] => {
 };
 
 /** 候補 1 つ。投稿の下に並ぶのと同じ大きさ（高さ 18px・幅 48px まで）で見せる。 */
+/**
+ * 出す形ごとの大きさ。ドロワーでは指で押す分、候補とボタンを大きくし、上の一覧との間も空ける。
+ */
+const SIZES = {
+  popup: {
+    row: "h-9 gap-1 pt-1.5",
+    candidates: "gap-0.5",
+    candidate: "h-7 px-1.5",
+    image: "h-4.5 max-w-12",
+    placeholder: "size-4.5",
+    button: "sm",
+  },
+  sheet: {
+    row: "h-14 gap-2 pt-2",
+    candidates: "gap-1.5",
+    candidate: "h-10 px-2.5",
+    image: "h-6 max-w-16",
+    placeholder: "size-6",
+    button: "md",
+  },
+} as const satisfies Record<PickerLayout, unknown>;
+type Sizes = (typeof SIZES)[PickerLayout];
+
 const Candidate: Component<{
   text: string;
   /** 押したときにすること。読み上げの言葉に使う。 */
   action: string;
   candidate: MakerCandidate;
   disabled: boolean;
+  sizes: Sizes;
   onSend: (spec: EmojiSpec, style: Style) => void;
 }> = (props) => {
   const spec = createMemo(() =>
@@ -55,12 +80,14 @@ const Candidate: Component<{
       title={props.candidate.label}
       aria-label={`${props.candidate.label}で「${props.text}」を${props.action}`}
       disabled={props.disabled || !image()}
-      class="inline-flex h-7 shrink-0 cursor-pointer items-center rounded-full border border-control bg-primary px-1.5 enabled:hover:bg-secondary disabled:cursor-default"
+      class={`inline-flex shrink-0 cursor-pointer items-center rounded-full border border-control bg-primary enabled:hover:bg-secondary disabled:cursor-default ${props.sizes.candidate}`}
       onClick={() => props.onSend(spec(), props.candidate.style)}
     >
       <Show
         when={image()}
-        fallback={<span class="size-4.5 rounded-1 bg-secondary" />}
+        fallback={
+          <span class={`rounded-1 bg-secondary ${props.sizes.placeholder}`} />
+        }
       >
         {(value) => (
           <img
@@ -68,7 +95,7 @@ const Candidate: Component<{
             alt=""
             draggable={false}
             data-no-touch-menu
-            class="h-4.5 w-auto max-w-12 object-contain"
+            class={`w-auto object-contain ${props.sizes.image}`}
           />
         )}
       </Show>
@@ -91,7 +118,10 @@ const MakerFooter: Component<{
   lastStyle: Style | undefined;
   onSend: (spec: EmojiSpec, style: Style) => void;
   onAdjust: (text: string, candidate: MakerCandidate) => void;
+  /** 既定はポップアップの大きさ。 */
+  layout?: PickerLayout;
 }> = (props) => {
+  const sizes = () => SIZES[props.layout ?? "popup"];
   prefetchKana();
   const text = () => props.query.trim();
   const candidates = createMemo(() => pickerCandidates(props.lastStyle));
@@ -108,12 +138,14 @@ const MakerFooter: Component<{
   };
 
   return (
-    <div class="b-t-1 flex h-9 shrink-0 items-center gap-1 border-control pt-1.5">
+    <div
+      class={`b-t-1 flex shrink-0 items-center border-control ${sizes().row}`}
+    >
       <Switch>
         <Match when={text() === ""}>
           <Button
             variant="ghost"
-            size="sm"
+            size={sizes().button}
             icon="i-material-symbols:add-rounded"
             onClick={() => props.onAdjust("", first())}
           >
@@ -133,7 +165,9 @@ const MakerFooter: Component<{
           )}
         </Match>
         <Match when={true}>
-          <div class="scrollbar-none flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
+          <div
+            class={`scrollbar-none flex min-w-0 flex-1 overflow-x-auto ${sizes().candidates}`}
+          >
             <For each={candidates()}>
               {(candidate) => (
                 <Candidate
@@ -141,6 +175,7 @@ const MakerFooter: Component<{
                   candidate={candidate}
                   action={props.verb === "insert" ? "入れる" : "送る"}
                   disabled={props.sending}
+                  sizes={sizes()}
                   onSend={props.onSend}
                 />
               )}
@@ -151,7 +186,7 @@ const MakerFooter: Component<{
       <Show when={text() !== ""}>
         <Button
           variant="ghost"
-          size="sm"
+          size={sizes().button}
           onClick={() => props.onAdjust(text(), first())}
         >
           調整する

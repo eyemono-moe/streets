@@ -77,6 +77,7 @@ const ReactionPicker: Component<{
             }}
             footer={(query) => (
               <MakerFooter
+                layout={layout}
                 query={query()}
                 sending={sending()}
                 lastStyle={lastStyle()}
