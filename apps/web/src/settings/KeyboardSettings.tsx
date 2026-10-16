@@ -151,7 +151,7 @@ const KeyboardSettings: Component<{
             on: loadColumnDigits(null),
           })
         }
-        description="オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動します。オフにすると、数字キーは効かなくなります。"
+        description="オンにすると、1〜9 の数字キーを押したときに、その番号のカラムに移動し、↑↓ でそのカラムを送れるようになります。オフにすると、数字キーは効かなくなります。"
       >
         <Switch
           label="数字キーでカラムへ移動する"
