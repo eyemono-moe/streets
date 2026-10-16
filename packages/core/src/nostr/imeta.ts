@@ -5,6 +5,8 @@ export type InlineMediaMetadata = {
   mime?: string;
   dimensions?: MediaDimensions;
   blurhash?: string;
+  /** 縮めた版。元を読めないブラウザ（HEIC など）でも、これは読めることがある。 */
+  thumb?: string;
 };
 
 const parseDimensions = (value: string): MediaDimensions | undefined => {
@@ -29,6 +31,9 @@ const parseDimensions = (value: string): MediaDimensions | undefined => {
  * `type/subtype` の形をしていない `m`（`jpeg` など）は捨てる。残すと拡張子より
  * 優先されて、画像の URL がリンクに落ちる。
  */
+const parseHttpUrl = (value: string | undefined): string | undefined =>
+  value && /^https?:\/\//i.test(value) ? value : undefined;
+
 const parseMime = (value: string | undefined): string | undefined =>
   value && /^[^\s/]+\/[^\s/]+$/.test(value) ? value : undefined;
 
@@ -52,6 +57,7 @@ export const inlineMediaMetadata = (
       mime: parseMime(fields.get("m")),
       dimensions: parseDimensions(fields.get("dim") ?? ""),
       blurhash: fields.get("blurhash") || undefined,
+      thumb: parseHttpUrl(fields.get("thumb")),
     });
   }
   return result;

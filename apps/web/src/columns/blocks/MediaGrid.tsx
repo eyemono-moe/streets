@@ -8,7 +8,6 @@ import {
   SECTION_WINDOW,
 } from "@streets/core/read/source";
 import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
-import type { NoteMedia } from "@streets/core/view/note-layout";
 import {
   type Accessor,
   type Component,
@@ -30,6 +29,7 @@ import {
   createDisplayImage,
   createNearViewport,
 } from "../../media/display-image";
+import { createMediaAttempts } from "../../media/media-attempts";
 import { createVideoPoster } from "../../media/video-poster";
 import {
   hiddenUnderWarning,
@@ -79,14 +79,14 @@ const BrokenMark: Component = () => (
 );
 
 const TileImage: Component<{
-  media: NoteMedia;
+  src: string;
   near: Accessor<boolean>;
   onLoad: () => void;
   onBroken: () => void;
 }> = (props) => {
   const [loaded, setLoaded] = createSignal(false);
   const src = createDisplayImage(
-    () => props.media.url,
+    () => props.src,
     MEDIA_TILE_MAX_EDGE,
     props.near,
   );
@@ -113,13 +113,13 @@ const TileImage: Component<{
 
 /** 動画は最初の絵だけを出す。再生は押して開いた拡大表示で行う。 */
 const TileVideo: Component<{
-  media: NoteMedia;
+  src: string;
   near: Accessor<boolean>;
   onLoad: () => void;
   onBroken: () => void;
 }> = (props) => {
   const poster = createVideoPoster(
-    () => props.media.url,
+    () => props.src,
     MEDIA_TILE_MAX_EDGE,
     props.near,
   );
@@ -161,23 +161,7 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
   const near = createNearViewport(element);
   const [loaded, setLoaded] = createSignal(false);
   const media = () => props.tile.media;
-  const [kind, setKind] = createSignal(media().type);
-  const [triedOther, setTriedOther] = createSignal(false);
-  const [broken, setBroken] = createSignal(false);
-  createEffect(() => {
-    const current = media();
-    setKind(current.type);
-    setTriedOther(false);
-    setBroken(false);
-  });
-  const tryOther = () => {
-    if (triedOther()) {
-      setBroken(true);
-      return;
-    }
-    setTriedOther(true);
-    setKind(kind() === "image" ? "video" : "image");
-  };
+  const attempts = createMediaAttempts(media);
   const ratio = () => {
     const dimensions = media().dimensions;
     return dimensions ? dimensions.width / dimensions.height : 1;
@@ -187,31 +171,30 @@ const Tile: Component<{ tile: MediaTile; onOpen: () => void }> = (props) => {
       ref={setElement}
       type="button"
       class={TILE_CLASS}
-      aria-label={kind() === "image" ? "画像を開く" : "動画を開く"}
+      aria-label={media().type === "image" ? "画像を開く" : "動画を開く"}
       onClick={() => props.onOpen()}
     >
       <Show when={!loaded() && media().blurhash}>
         {(hash) => <BlurhashCanvas hash={hash()} ratio={ratio()} />}
       </Show>
-      <Show when={!broken()} fallback={<BrokenMark />}>
-        <Show
-          when={kind() === "image"}
-          fallback={
-            <TileVideo
-              media={media()}
+      <Show when={attempts.current()} keyed fallback={<BrokenMark />}>
+        {(attempt) =>
+          attempt.type === "image" ? (
+            <TileImage
+              src={attempt.url}
               near={near}
               onLoad={() => setLoaded(true)}
-              onBroken={tryOther}
+              onBroken={() => attempts.next(attempt)}
             />
-          }
-        >
-          <TileImage
-            media={media()}
-            near={near}
-            onLoad={() => setLoaded(true)}
-            onBroken={tryOther}
-          />
-        </Show>
+          ) : (
+            <TileVideo
+              src={attempt.url}
+              near={near}
+              onLoad={() => setLoaded(true)}
+              onBroken={() => attempts.next(attempt)}
+            />
+          )
+        }
       </Show>
     </button>
   );

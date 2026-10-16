@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import mp4GifAsset from "../../storybook/media-clip-as-gif.gif?no-inline";
 import clipUrl from "../../storybook/media-clip.mp4";
+import landscapeUrl from "../../storybook/media-landscape.svg?no-inline";
 import portraitUrl from "../../storybook/media-portrait.svg?no-inline";
 import toneUrl from "../../storybook/media-tone.mp3";
 import { EventStory, alice, eventStoryMeta, scene } from "./event-story";
@@ -22,6 +23,24 @@ const withLooseImeta = alice.note(`写真です。\n${primalImageUrl}`, [
   ["imeta", `url ${primalImageUrl}`, "m jpeg", "dim 900.0x1600.0"],
   ["client", "Primal iOS"],
 ]);
+// HEIC は Safari 以外の `<img>` で読めない。nostr.build は `thumb` を JPEG で返す。
+const heicThumbUrl = new URL(landscapeUrl, location.href).href;
+const withHeic = alice.note(
+  "スマホで撮りました。\nhttps://example.invalid/photo.heic",
+  [
+    [
+      "imeta",
+      "url https://example.invalid/photo.heic",
+      "m image/heic",
+      "dim 426x205",
+      `thumb ${heicThumbUrl}`,
+    ],
+  ],
+);
+const withHeicNoThumb = alice.note(
+  "スマホで撮りました。\nhttps://example.invalid/photo.heic",
+  [["imeta", "url https://example.invalid/photo.heic", "m image/heic"]],
+);
 
 const meta = {
   ...eventStoryMeta,
@@ -69,4 +88,14 @@ export const 音声_読み込めない: Story = {
 
 export const 画像_imetaのMIMEが崩れている: Story = {
   args: { event: withLooseImeta, scene: scene(withLooseImeta) },
+};
+
+/** 元の画像を読めないときは、動画として読み直さず `thumb` を出す。 */
+export const 画像_読めずthumbを出す: Story = {
+  args: { event: withHeic, scene: scene(withHeic) },
+};
+
+/** `thumb` も無ければ、動画の枠ではなくリンクを出す。 */
+export const 画像_読めずthumbも無い: Story = {
+  args: { event: withHeicNoThumb, scene: scene(withHeicNoThumb) },
 };
