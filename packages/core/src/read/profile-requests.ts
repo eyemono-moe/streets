@@ -15,12 +15,17 @@ const PROFILE_KIND = 0;
 const RELAY_LIST_KIND = 10002;
 /** 1 人あたり、書き込みリレーのうち何本へ聞くか。 */
 const AUTHOR_RELAYS = 2;
+/**
+ * 取り直しで聞く書き込みリレーの本数。全部にしないのは、書き込みリレーを十数本
+ * 並べる人がいて、明示したリレーは接続の枠に関係なく開かれるため。
+ */
+const REFRESH_AUTHOR_RELAYS = 5;
 const HEX_64 = /^[0-9a-f]{64}$/;
 
 export type ProfileRequests = {
   /**
    * この pubkey のプロフィールを要求する。取ってから古くなっていなければ何もしない。
-   * `refresh` なら古さに関係なく取り直す。
+   * `refresh` なら古さに関係なく、1 回目より広い行き先へ取り直す。
    */
   request(pubkey: string, options?: RequestOptions): void;
   /**
@@ -140,6 +145,34 @@ export const planProfileRetry = (
 };
 
 /**
+ * 取り直しの行き先。手元の版より新しいものを探すので、1 回目のように 2 本で
+ * 止めず、書き込みリレーを広く聞き、インデクサにも聞く —— 他のクライアントが
+ * 一部のリレーにしか書かなかった版や、手元の kind:10002 が古くて載っていない
+ * リレーにある版を拾うため。kind:10002 も一緒に取り直す。
+ */
+export const planProfileRefresh = (
+  authors: readonly string[],
+  { relaysFor, indexers }: PlanProfileRoundOptions,
+): FetchRequest[] => {
+  const byRelayUrl = new Map<RelayUrl, string[]>();
+  for (const author of authors) {
+    for (const relay of relaysFor(author) ?? [DEFAULT_RELAYS]) {
+      addTo(byRelayUrl, relay, author);
+    }
+  }
+  const requests = toRequests(byRelayUrl);
+  if (indexers.length > 0) {
+    requests.push({
+      filters: [
+        { kinds: [PROFILE_KIND, RELAY_LIST_KIND], authors: [...authors] },
+      ],
+      relays: [...indexers],
+    });
+  }
+  return requests;
+};
+
+/**
  * まとめる窓の長さ。`NOTIFY_BATCH_MS` (16ms) とは目的が違うので揃えない ——
  * 短すぎると窓の開閉がイベント数に逆戻りし、長すぎると体感が遅れるため
  * 200ms でバランスを取る。
@@ -161,15 +194,17 @@ export const createProfileRequests = (
     manager.relaysForAuthor(pubkey, AUTHOR_RELAYS);
   const fetchAll = (requests: FetchRequest[]) =>
     Promise.all(requests.map((request) => fetchRequest(manager, request)));
+  // direct は「繋いだリレーだけを読む」設定なので、インデクサにも書き込みリレーにも聞かない。
+  const fetchDirect = (authors: string[]) =>
+    fetchRequest(manager, { filters: [{ kinds: [PROFILE_KIND], authors }] });
+  const markFetched = (authors: string[]) => {
+    for (const author of authors) {
+      store.markReplaceableFetched(PROFILE_KIND, author);
+    }
+  };
 
   const fetchProfiles = async (authors: string[]): Promise<void> => {
-    // direct は「繋いだリレーだけを読む」設定なので、インデクサにも書き込みリレーにも聞かない。
-    if (manager.readRouting.mode === "direct") {
-      await fetchRequest(manager, {
-        filters: [{ kinds: [PROFILE_KIND], authors }],
-      });
-      return;
-    }
+    if (manager.readRouting.mode === "direct") return fetchDirect(authors);
     const first = planFirstProfileRound(authors, { relaysFor, indexers });
     await fetchAll(first.requests);
     const missing = authors.filter(
@@ -185,24 +220,44 @@ export const createProfileRequests = (
     batchWindowMs: PROFILE_BATCH_MS,
     keyOf: (pubkey) => pubkey,
     fetch: fetchProfiles,
-    markFetched: (authors) => {
-      for (const author of authors) {
-        options.store.markReplaceableFetched(PROFILE_KIND, author);
-      }
-    },
+    markFetched,
+  });
+
+  const refreshProfiles = async (authors: string[]): Promise<void> => {
+    if (manager.readRouting.mode === "direct") return fetchDirect(authors);
+    await fetchAll(
+      planProfileRefresh(authors, {
+        relaysFor: (pubkey) =>
+          manager.relaysForAuthor(pubkey, REFRESH_AUTHOR_RELAYS),
+        indexers,
+      }),
+    );
+  };
+
+  // 取り直しを 1 回目と同じ束に入れると、束ねたほかの人まで広く聞くことになる。
+  const refreshBatch = createBatchedFetch<string>({
+    manager,
+    scheduler,
+    batchWindowMs: PROFILE_BATCH_MS,
+    keyOf: (pubkey) => pubkey,
+    fetch: refreshProfiles,
+    markFetched,
   });
 
   return {
     request(pubkey, requestOptions) {
       // 公開鍵でない値を著者に入れると、リレーは束ねたほかの人の分ごと断る。
       if (!HEX_64.test(pubkey)) return;
+      if (requestOptions?.refresh) {
+        if (!refreshBatch.isInflight(pubkey)) refreshBatch.enqueue(pubkey);
+        return;
+      }
       // 既に新鮮なら要求しない。`fetchedAt` が無い (未取得) なら isStale を呼ぶまでもなく要求する。
       const fetchedAt = options.store.replaceableFetchedAt(
         PROFILE_KIND,
         pubkey,
       );
       if (
-        !requestOptions?.refresh &&
         fetchedAt !== undefined &&
         !isStale(policyFor(PROFILE_KIND), fetchedAt, scheduler.now())
       ) {
@@ -212,13 +267,23 @@ export const createProfileRequests = (
       if (batch.isInflight(pubkey)) return;
       batch.enqueue(pubkey);
     },
-    subscribe: batch.subscribe,
+    subscribe(listener) {
+      const offBatch = batch.subscribe(listener);
+      const offRefresh = refreshBatch.subscribe(listener);
+      return () => {
+        offBatch();
+        offRefresh();
+      };
+    },
     get lastBatchSize() {
       return batch.lastBatchSize;
     },
     get maxBatchSize() {
       return batch.maxBatchSize;
     },
-    dispose: batch.dispose,
+    dispose() {
+      batch.dispose();
+      refreshBatch.dispose();
+    },
   };
 };

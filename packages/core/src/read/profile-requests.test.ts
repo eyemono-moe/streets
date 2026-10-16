@@ -41,7 +41,8 @@ const stubManager = (
   const fetchOnce = vi.fn<SubscriptionManager["fetchOnce"]>(
     () => new Promise<void>(() => {}), // 既定では解決しない (解決を要するテストでは上書きする)
   );
-  const relaysForAuthor = (pubkey: string) => writeRelays[pubkey];
+  const relaysForAuthor = (pubkey: string, count: number) =>
+    writeRelays[pubkey]?.slice(0, count);
   return {
     fetchOnce,
     relaysForAuthor,
@@ -570,6 +571,99 @@ describe("プロフィールの行き先", () => {
     requests.request(a);
     clock.advance(200);
     await flushPromises();
+
+    expect(callsOf(manager)).toEqual([
+      { relays: "default", filters: [{ kinds: [0], authors: [a] }] },
+    ]);
+  });
+
+  it("取り直しは、書き込みリレーを 2 本で止めずに聞き、インデクサにも聞く", () => {
+    // 捕まえる変異: 1 回目と同じ 2 本だけに聞き、新しい版が無いリレーの古い版で止まる
+    const a = pubkeyFor(1);
+    const writes = [WRITE_A, WRITE_B, "wss://write-c/"];
+    const manager = stubManager({ [a]: writes });
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+      indexers: [INDEXER],
+    });
+
+    requests.request(a, { refresh: true });
+    clock.advance(200);
+
+    expect(callsOf(manager)).toEqual([
+      ...writes.map((relay) => ({
+        relays: [relay],
+        filters: [{ kinds: [0], authors: [a] }],
+      })),
+      { relays: [INDEXER], filters: [{ kinds: [0, 10002], authors: [a] }] },
+    ]);
+  });
+
+  it("書き込みリレーが分からない人の取り直しは、既定のリレーとインデクサへ聞く", () => {
+    const a = pubkeyFor(1);
+    const manager = stubManager();
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+      indexers: [INDEXER],
+    });
+
+    requests.request(a, { refresh: true });
+    clock.advance(200);
+
+    expect(callsOf(manager)).toEqual([
+      { relays: "default", filters: [{ kinds: [0], authors: [a] }] },
+      { relays: [INDEXER], filters: [{ kinds: [0, 10002], authors: [a] }] },
+    ]);
+  });
+
+  it("取り直しと同じ窓で要求したほかの人は、広く聞かない", () => {
+    // 捕まえる変異: 取り直しを 1 回目と同じ束に入れ、タイムラインの人まで全部の書き込みリレーへ聞く
+    const refreshed = pubkeyFor(1);
+    const other = pubkeyFor(2);
+    const writes = [WRITE_A, WRITE_B, "wss://write-c/"];
+    const manager = stubManager({ [refreshed]: writes, [other]: writes });
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+      indexers: [INDEXER],
+    });
+
+    requests.request(refreshed, { refresh: true });
+    requests.request(other);
+    clock.advance(200);
+
+    const askedFor = (pubkey: string) =>
+      callsOf(manager)
+        .filter(({ filters }) => filters[0].authors?.includes(pubkey))
+        .map(({ relays }) => relays);
+    expect(askedFor(other)).toEqual([[WRITE_A], [WRITE_B]]);
+    expect(askedFor(refreshed)).toHaveLength(writes.length + 1);
+  });
+
+  it("繋いだリレーだけを読む設定では、取り直しも既定のリレーへだけ聞く", () => {
+    const a = pubkeyFor(1);
+    const manager = stubManager(
+      { [a]: [WRITE_A] },
+      { mode: "direct", relays: ["wss://mine/"] },
+    );
+    const clock = createFakeClock();
+    const requests = createProfileRequests({
+      store: new EventStore(),
+      manager,
+      scheduler: clock,
+      indexers: [INDEXER],
+    });
+
+    requests.request(a, { refresh: true });
+    clock.advance(200);
 
     expect(callsOf(manager)).toEqual([
       { relays: "default", filters: [{ kinds: [0], authors: [a] }] },
