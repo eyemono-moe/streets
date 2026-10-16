@@ -34,7 +34,7 @@ const columns: ColumnDef[] = [
   {
     id: "nostr",
     title: "Nostr",
-    source: { kind: "literal", filters: [{ "#t": ["nostr"] }] },
+    source: { kind: "search", query: "#nostr" },
   },
   { id: "notifications", title: "通知", source: { kind: "notifications" } },
   {
@@ -63,7 +63,7 @@ const many: ColumnDef[] = [
   ...["猫", "犬", "写真", "音楽", "旅行"].map((tag, index): ColumnDef => ({
     id: `tag-${index}`,
     title: tag,
-    source: { kind: "literal", filters: [{ "#t": [tag] }] },
+    source: { kind: "search", query: `#${tag}` },
   })),
 ];
 

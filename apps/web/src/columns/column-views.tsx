@@ -245,22 +245,14 @@ export const viewerReadRelays = (state: RelayListState): RelayUrl[] => {
 
 const COLUMN_VIEWS: { [K in ColumnKind]: ColumnView<ColumnSourceOf<K>> } = {
   literal: {
-    meta: (source) => {
-      const hashtag = source.filters.some((filter) => filter["#t"]?.length);
-      if (hashtag) {
-        return {
-          icon: "i-material-symbols:tag-rounded",
-          subtitle: "ハッシュタグ",
-        };
-      }
-      // リレーを指していても、住所（naddr）で開いたカラムはリレーの全体ではない。
-      return relayColumnSource(source)
+    // リレーを指していても、住所（naddr）で開いたカラムはリレーの全体ではない。
+    meta: (source) =>
+      relayColumnSource(source)
         ? { icon: "i-material-symbols:globe", subtitle: "指定したリレーの全体" }
         : {
             icon: "i-material-symbols:pin-drop-outline-rounded",
             subtitle: "指定した条件",
-          };
-    },
+          },
     Content: (props) => (
       <EventList source={() => literalSource(props.source)} />
     ),

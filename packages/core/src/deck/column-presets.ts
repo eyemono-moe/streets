@@ -8,7 +8,6 @@ export type ColumnPresetKind =
   | "followees-activity"
   | "notifications"
   | "user"
-  | "hashtag"
   | "bookmarks"
   | "search"
   | "channels";
@@ -200,17 +199,6 @@ export const buildColumn = (
       const pubkey = decodeUserInput(input);
       if (!pubkey) return undefined;
       return { ...buildUserColumn(pubkey), id };
-    }
-
-    case "hashtag": {
-      // 追加プリセットは従来どおり通常リレーへ直接問い合わせる。
-      const tag = input.trim().replace(/^#+/, "").toLowerCase();
-      if (tag.length === 0) return undefined;
-      return {
-        id,
-        title: `#${tag}`,
-        source: { kind: "literal", filters: [{ kinds: [1], "#t": [tag] }] },
-      };
     }
 
     case "search": {

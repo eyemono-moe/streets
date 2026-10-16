@@ -84,16 +84,6 @@ export const リスト: Story = {
   },
 };
 
-export const ハッシュタグ: Story = {
-  args: {
-    initial: {
-      id: "t",
-      title: "#nostr",
-      source: { kind: "literal", filters: [{ kinds: [1], "#t": ["nostr"] }] },
-    },
-  },
-};
-
 /** 検索カラムは、探したときと同じ形で条件を変えられる。 */
 export const 検索カラム: Story = {
   args: {

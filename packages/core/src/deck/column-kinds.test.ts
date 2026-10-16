@@ -45,10 +45,7 @@ describe("columnTitle", () => {
     expect(columnTitle(home)).toEqual({ text: "ホーム" });
   });
 
-  it("ハッシュタグ・検索・リレー全体は、条件から決める", () => {
-    expect(columnTitle(must(buildColumn("hashtag", "#Nostr")))).toEqual({
-      text: "#nostr",
-    });
+  it("検索・リレー全体は、条件から決める", () => {
     expect(columnTitle(must(buildColumn("search", "ねこ")))).toEqual({
       text: "ねこ",
     });

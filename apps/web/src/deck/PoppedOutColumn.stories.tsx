@@ -40,7 +40,7 @@ export const 長い題名: Story = {
     column: {
       id: "tag",
       title: "とても長いハッシュタグのカラムの題名がカラムの幅に入りきらない",
-      source: { kind: "literal", filters: [{ "#t": ["nostr"] }] },
+      source: { kind: "search", query: "#nostr" },
     },
   },
 };

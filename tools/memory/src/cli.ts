@@ -112,10 +112,10 @@ const deck: DeckSet = {
         column("user", users[1]),
         ...(values.columns === "10"
           ? [
-              column("hashtag", "nostr"),
-              column("hashtag", "bitcoin"),
-              column("hashtag", "art"),
-              column("hashtag", "photography"),
+              column("search", "#nostr"),
+              column("search", "#bitcoin"),
+              column("search", "#art"),
+              column("search", "#photography"),
             ]
           : []),
       ],

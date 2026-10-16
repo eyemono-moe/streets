@@ -357,6 +357,58 @@ describe("loadDeckSet / saveDeckSet", () => {
     ]);
     expect(loadDeckSet(saveDeckSet(literal))).toEqual(literal);
   });
+
+  it("旧ハッシュタグのカラムを、同じタグの検索カラムへ移す", () => {
+    // 捕まえる変異: 旧 literal をそのまま返し、ハッシュタグのカラムが種類として残り続ける。
+    expect(
+      loadDeckSet(
+        saveDeckSet(
+          setOf([
+            {
+              id: "legacy-tag",
+              title: "#nostr",
+              source: {
+                kind: "literal",
+                filters: [{ kinds: [1], "#t": ["nostr"] }],
+              },
+            },
+          ]),
+        ),
+      ),
+    ).toEqual(
+      setOf([
+        {
+          id: "legacy-tag",
+          title: "#nostr",
+          source: { kind: "search", query: "#nostr" },
+        },
+      ]),
+    );
+  });
+
+  it("リレーやほかの条件を持つ #t の literal は変換しない", () => {
+    // 捕まえる変異: #t があるだけで移し、指定したリレーや kind を黙って失う。
+    const literal = setOf([
+      {
+        id: "relay-tag",
+        title: "#nostr",
+        source: {
+          kind: "literal",
+          filters: [{ kinds: [1], "#t": ["nostr"] }],
+          relays: ["wss://relay.example/"],
+        },
+      },
+      {
+        id: "kinds-tag",
+        title: "#nostr",
+        source: {
+          kind: "literal",
+          filters: [{ kinds: [1, 30023], "#t": ["nostr"] }],
+        },
+      },
+    ]);
+    expect(loadDeckSet(saveDeckSet(literal))).toEqual(literal);
+  });
 });
 
 describe("defaultDeckSet", () => {
