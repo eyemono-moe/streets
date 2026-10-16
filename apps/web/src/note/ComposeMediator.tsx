@@ -23,6 +23,7 @@ import { createStore, reconcile, unwrap } from "solid-js/store";
 import { useEmojiLookup } from "../emoji/custom-emojis";
 import { prepareForUpload } from "../media/prepare";
 import { useUploader } from "../media/uploader";
+import type { SharedPost } from "../share/share-inbox";
 import { notifyError } from "../toast";
 import { Mediates, type UiEvent } from "../ui-events";
 import { uploadErrorMessage } from "../write-errors";
@@ -61,6 +62,8 @@ export const ComposeMediator: Component<{
   target?: ComposeTarget;
   /** 書き始めから開いておく下書き。 */
   initial?: ComposeDraft;
+  /** ほかのアプリから共有された、書き始めから入れておく本文とファイル。 */
+  shared?: SharedPost;
   children: (state: ComposeState) => JSX.Element;
 }> = (props) => {
   const [state, setState] = createStore<ComposeState>(
@@ -182,6 +185,12 @@ export const ComposeMediator: Component<{
       }
     }
   };
+
+  const shared = props.shared;
+  if (shared) {
+    apply({ type: "compose/input", content: shared.content });
+    attach(shared.files);
+  }
 
   const submit = async () => {
     await uploadPending();

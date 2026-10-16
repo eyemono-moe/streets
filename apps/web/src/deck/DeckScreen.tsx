@@ -124,6 +124,11 @@ import { MuteMediator } from "../settings/MuteMediator";
 import { ProfileMediator } from "../settings/ProfileMediator";
 import { RelayMediator } from "../settings/RelayMediator";
 import { SearchRelayMediator } from "../settings/SearchRelayMediator";
+import {
+  type SharedPost,
+  clearPendingShare,
+  pendingShare,
+} from "../share/share-inbox";
 import { StatusFormMediator } from "../status/StatusFormMediator";
 import { setSwipeMode, swipeMode } from "../swipe-mode-setting";
 import {
@@ -757,6 +762,28 @@ const DeckScreen: Component<{
     return false;
   };
 
+  // ほかのアプリから共有された中身。ログインを待つ間は外に置いたままにし、ログインして
+  // 作り直されたデッキが受け取る。投稿パネルへは、パネルを作るときに一度だけ渡す。
+  let sharedForPanel: SharedPost | undefined;
+  const takeShared = () => {
+    const shared = sharedForPanel;
+    sharedForPanel = undefined;
+    return shared;
+  };
+  createEffect(() => {
+    const shared = pendingShare();
+    if (!shared) return;
+    untrack(() => {
+      if (!account) {
+        showLogin("共有された内容の投稿");
+        return;
+      }
+      clearPendingShare();
+      sharedForPanel = shared;
+      applyUi({ type: "deck/open-panel", panel: "compose" });
+    });
+  });
+
   // デッキの段の Mediator。カラムの段が裁定しなかったイベントがここへ上がってくる。
   // 下書きの一覧から開いた返信・引用。パネルを閉じても残るよう、デッキが持つ。
   const [draftDialog, setDraftDialog] = createSignal<ComposeDraft>();
@@ -1072,6 +1099,7 @@ const DeckScreen: Component<{
             onSent={() => handle({ type: "deck/close-panel" })}
             onClose={() => handle({ type: "deck/close-panel" })}
             drafts
+            shared={takeShared()}
           >
             {(state) => <ComposePanel state={state} drafts={composeDrafts()} />}
           </ComposeMediator>
