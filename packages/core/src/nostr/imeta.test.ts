@@ -50,4 +50,19 @@ describe("inlineMediaMetadata", () => {
     });
     expect(result.get("https://example.com/b")?.dimensions).toBeUndefined();
   });
+
+  it("thumb は http(s) の URL だけを読む", () => {
+    const result = inlineMediaMetadata([
+      [
+        "imeta",
+        "url https://example.com/a.heic",
+        "thumb https://example.com/thumb/a.heic",
+      ],
+      ["imeta", "url https://example.com/b.heic", "thumb javascript:alert(1)"],
+    ]);
+    expect(result.get("https://example.com/a.heic")?.thumb).toBe(
+      "https://example.com/thumb/a.heic",
+    );
+    expect(result.get("https://example.com/b.heic")?.thumb).toBeUndefined();
+  });
 });

@@ -3,14 +3,8 @@ import { Dialog as ArkDialog } from "@ark-ui/solid/dialog";
 import { columnForEvent } from "@streets/core/deck/open-event";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { type NoteMedia, layoutNote } from "@streets/core/view/note-layout";
-import {
-  type Component,
-  For,
-  Show,
-  createEffect,
-  createMemo,
-  createSignal,
-} from "solid-js";
+import { type Component, For, Show, createEffect, createMemo } from "solid-js";
+import { createMediaAttempts } from "../media/media-attempts";
 import { useDispatch } from "../ui-events";
 import Button, { ButtonLink } from "../ui/Button";
 import { DialogPortal, DialogRoot } from "../ui/Dialog";
@@ -26,24 +20,8 @@ const ViewerSlide: Component<{
   /** 下に投稿の帯を重ねるので、そのぶん絵を上に寄せる。 */
   footer: boolean;
 }> = (props) => {
-  const [broken, setBroken] = createSignal(false);
-  const [kind, setKind] = createSignal(props.media.type);
-  const [triedOther, setTriedOther] = createSignal(false);
+  const attempts = createMediaAttempts(() => props.media);
   let video: HTMLVideoElement | undefined;
-  createEffect(() => {
-    const media = props.media;
-    setKind(media.type);
-    setTriedOther(false);
-    setBroken(false);
-  });
-  const tryOther = () => {
-    if (triedOther()) {
-      setBroken(true);
-      return;
-    }
-    setTriedOther(true);
-    setKind(kind() === "image" ? "video" : "image");
-  };
   // 送った先で前の動画の音が鳴り続けないようにする。
   createEffect(() => {
     if (!props.active) video?.pause();
@@ -62,37 +40,37 @@ const ViewerSlide: Component<{
       }}
     >
       <Show
-        when={!broken()}
+        when={attempts.current()}
+        keyed
         fallback={
           <p class="c-white text-body">
-            {kind() === "image" ? "画像" : "動画"}
+            {props.media.type === "image" ? "画像" : "動画"}
             を読み込めませんでした
           </p>
         }
       >
-        <Show
-          when={kind() === "image"}
-          fallback={
+        {(attempt) =>
+          attempt.type === "image" ? (
+            <img
+              src={attempt.url}
+              alt=""
+              class="max-h-full max-w-full select-none object-contain"
+              draggable={false}
+              onError={() => attempts.next(attempt)}
+            />
+          ) : (
             // oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。
             <video
               ref={video}
-              src={props.media.url}
+              src={attempt.url}
               controls
               playsinline
               preload="metadata"
               class="max-h-full max-w-full"
-              onError={tryOther}
+              onError={() => attempts.next(attempt)}
             />
-          }
-        >
-          <img
-            src={props.media.url}
-            alt=""
-            class="max-h-full max-w-full select-none object-contain"
-            draggable={false}
-            onError={tryOther}
-          />
-        </Show>
+          )
+        }
       </Show>
     </div>
   );

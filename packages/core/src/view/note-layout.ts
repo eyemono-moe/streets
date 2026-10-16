@@ -12,7 +12,11 @@ import {
   relayOf,
   tagOnlyQuoteTargets,
 } from "../nostr/event-refs";
-import { type MediaDimensions, inlineMediaMetadata } from "../nostr/imeta";
+import {
+  type InlineMediaMetadata,
+  type MediaDimensions,
+  inlineMediaMetadata,
+} from "../nostr/imeta";
 import { PICTURE_KIND, isMediaPostKind } from "../nostr/media-post";
 
 export type NoteMedia = {
@@ -20,7 +24,37 @@ export type NoteMedia = {
   url: string;
   dimensions?: MediaDimensions;
   blurhash?: string;
+  /** 種類を拡張子から推したのではなく、`imeta` の `m` や kind で書かれていた。 */
+  typeKnown?: true;
+  thumb?: string;
 };
+
+export type MediaAttempt = { type: "image" | "video"; url: string };
+
+/**
+ * 読めなかったときに次に試すものを、試す順に並べる。種類を推しただけなら同じ URL を
+ * もう一方の種類で読み直す。種類が書かれていれば読み直さない（Chromium の `<video>` は
+ * HEIC を開けてしまい、画像が 0 秒の動画になる）。
+ */
+export const mediaAttempts = (media: NoteMedia): MediaAttempt[] => {
+  const attempts: MediaAttempt[] = [{ type: media.type, url: media.url }];
+  if (!media.typeKnown) {
+    attempts.push({
+      type: media.type === "image" ? "video" : "image",
+      url: media.url,
+    });
+  }
+  if (media.thumb) attempts.push({ type: "image", url: media.thumb });
+  return attempts;
+};
+
+const mediaDetails = (
+  details: InlineMediaMetadata | undefined,
+): Pick<NoteMedia, "dimensions" | "blurhash" | "thumb"> => ({
+  ...(details?.dimensions ? { dimensions: details.dimensions } : {}),
+  ...(details?.blurhash ? { blurhash: details.blurhash } : {}),
+  ...(details?.thumb ? { thumb: details.thumb } : {}),
+});
 
 /**
  * 投稿を上から順に描く単位。画像・動画は `media` の位置で指す。拡大表示は投稿の画像・動画を
@@ -130,8 +164,8 @@ export const layoutNote = (
         media.push({
           type,
           url: token.url,
-          ...(details?.dimensions ? { dimensions: details.dimensions } : {}),
-          ...(details?.blurhash ? { blurhash: details.blurhash } : {}),
+          ...(mime ? { typeKnown: true } : {}),
+          ...mediaDetails(details),
         });
         continue;
       }
@@ -190,19 +224,19 @@ export const layoutNote = (
     for (const [url, details] of metadata) {
       if (media.some((item) => item.url === url)) continue;
       const mime = details.mime?.toLowerCase();
-      const type = mime?.startsWith("video/")
+      const declared = mime?.startsWith("video/")
         ? "video"
         : mime?.startsWith("image/")
           ? "image"
           : event.kind === PICTURE_KIND
             ? "image"
-            : "video";
+            : undefined;
       blocks.push({ type: "media", index: media.length });
       media.push({
-        type,
+        type: declared ?? "video",
         url,
-        ...(details.dimensions ? { dimensions: details.dimensions } : {}),
-        ...(details.blurhash ? { blurhash: details.blurhash } : {}),
+        ...(declared ? { typeKnown: true } : {}),
+        ...mediaDetails(details),
       });
     }
   }

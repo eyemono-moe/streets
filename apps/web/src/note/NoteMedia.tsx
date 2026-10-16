@@ -5,12 +5,12 @@ import {
   type Component,
   type JSX,
   Show,
-  createEffect,
   createSignal,
   onCleanup,
   onMount,
 } from "solid-js";
 import { createDisplayImage, createNearViewport } from "../media/display-image";
+import { createMediaAttempts } from "../media/media-attempts";
 import IconButton from "../ui/IconButton";
 import type { EventSize } from "./Event";
 
@@ -89,8 +89,10 @@ const MediaFrame: Component<{
 
 type MediaViewProps = {
   media: NoteMedia;
+  /** 読む URL。元が読めずに `thumb` を読むときは `media.url` と違う。 */
+  src: string;
   size: EventSize;
-  onBroken?: () => void;
+  onBroken: () => void;
   /**
    * 拡大表示を開く。画像はそれ自体を押したとき、動画は角の拡大のボタンを押したとき。
    * 無ければ、画像は URL を新しいタブで開き、動画には拡大のボタンを出さない。
@@ -99,7 +101,6 @@ type MediaViewProps = {
 };
 
 const MediaImage: Component<MediaViewProps> = (props) => {
-  const [broken, setBroken] = createSignal(false);
   const [loadedSrc, setLoadedSrc] = createSignal<string>();
   const [revealedSrc, setRevealedSrc] = createSignal<string>();
   const [actual, setActual] = createSignal<Dimensions>();
@@ -108,143 +109,130 @@ const MediaImage: Component<MediaViewProps> = (props) => {
   onCleanup(() => clearTimeout(revealTimer));
   // 表示の大きさに縮めてから読む。押して開いたときは、ビューアが元の画像を読む。
   const src = createDisplayImage(
-    () => props.media.url,
+    () => props.src,
     MEDIA_MAX_EDGE,
     createNearViewport(anchor),
   );
   const loaded = () => src() !== undefined && src() === loadedSrc();
   return (
-    <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
-      <a
-        ref={setAnchor}
-        href={props.media.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        class="block max-w-full"
-        aria-label="画像を開く"
-        onClick={(event) => {
-          // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
-          if (
-            !props.onOpen ||
-            event.button !== 0 ||
-            event.ctrlKey ||
-            event.metaKey ||
-            event.shiftKey ||
-            event.altKey
-          )
-            return;
-          event.preventDefault();
-          props.onOpen();
-        }}
+    <a
+      ref={setAnchor}
+      href={props.media.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="block max-w-full"
+      aria-label="画像を開く"
+      onClick={(event) => {
+        // 修飾キー付きのクリックは、ブラウザの「新しいタブで開く」に任せる。
+        if (
+          !props.onOpen ||
+          event.button !== 0 ||
+          event.ctrlKey ||
+          event.metaKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return;
+        event.preventDefault();
+        props.onOpen();
+      }}
+    >
+      <MediaFrame
+        media={props.media}
+        size={props.size}
+        loaded={loaded() && revealedSrc() === src()}
+        actual={actual()}
       >
-        <MediaFrame
-          media={props.media}
-          size={props.size}
-          loaded={loaded() && revealedSrc() === src()}
-          actual={actual()}
-        >
-          <Show when={src()}>
-            {(url) => (
-              <img
-                src={url()}
-                alt=""
-                decoding="async"
-                class="absolute inset-0 size-full object-contain transition-opacity duration-100"
-                classList={{ "opacity-0": !loaded() }}
-                onLoad={(event) => {
-                  // 縮めた画像でも縦横の比は元と同じ。
-                  const { naturalWidth: width, naturalHeight: height } =
-                    event.currentTarget;
-                  if (width > 0 && height > 0) setActual({ width, height });
-                  const url = event.currentTarget.getAttribute("src");
-                  setLoadedSrc(url ?? undefined);
-                  clearTimeout(revealTimer);
-                  // フェード中は Blurhash を下に残す。終わってから Canvas を外す。
-                  revealTimer = setTimeout(
-                    () => setRevealedSrc(url ?? undefined),
-                    140,
-                  );
-                }}
-                onError={() => {
-                  if (props.onBroken) props.onBroken();
-                  else setBroken(true);
-                }}
-              />
-            )}
-          </Show>
-        </MediaFrame>
-      </a>
-    </Show>
+        <Show when={src()}>
+          {(url) => (
+            <img
+              src={url()}
+              alt=""
+              decoding="async"
+              class="absolute inset-0 size-full object-contain transition-opacity duration-100"
+              classList={{ "opacity-0": !loaded() }}
+              onLoad={(event) => {
+                // 縮めた画像でも縦横の比は元と同じ。
+                const { naturalWidth: width, naturalHeight: height } =
+                  event.currentTarget;
+                if (width > 0 && height > 0) setActual({ width, height });
+                const url = event.currentTarget.getAttribute("src");
+                setLoadedSrc(url ?? undefined);
+                clearTimeout(revealTimer);
+                // フェード中は Blurhash を下に残す。終わってから Canvas を外す。
+                revealTimer = setTimeout(
+                  () => setRevealedSrc(url ?? undefined),
+                  140,
+                );
+              }}
+              onError={() => props.onBroken()}
+            />
+          )}
+        </Show>
+      </MediaFrame>
+    </a>
   );
 };
 
 const MediaVideo: Component<MediaViewProps> = (props) => {
   let video: HTMLVideoElement | undefined;
-  const [broken, setBroken] = createSignal(false);
   const [loaded, setLoaded] = createSignal(false);
   const [actual, setActual] = createSignal<Dimensions>();
   let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
   onCleanup(() => clearTimeout(fallbackTimer));
   const source = () =>
-    props.media.url.includes("#")
-      ? props.media.url
-      : `${props.media.url}#t=0.1`;
+    props.src.includes("#") ? props.src : `${props.src}#t=0.1`;
   return (
-    <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
-      <MediaFrame
-        media={props.media}
-        size={props.size}
-        loaded={loaded()}
-        actual={actual()}
-      >
-        {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
-        <video
-          ref={video}
-          src={source()}
-          controls
-          playsinline
-          preload="metadata"
-          class="absolute inset-0 size-full object-contain"
-          classList={{ "opacity-0": !loaded() }}
-          onLoadedMetadata={(event) => {
-            const { videoWidth: width, videoHeight: height } =
-              event.currentTarget;
-            if (width > 0 && height > 0) setActual({ width, height });
-            // フレームを取得できない動画でも操作を隠したままにしない。
-            fallbackTimer = setTimeout(() => setLoaded(true), 1500);
-          }}
-          onLoadedData={() => {
-            clearTimeout(fallbackTimer);
-            setLoaded(true);
-          }}
-          onError={() => {
-            if (props.onBroken) props.onBroken();
-            else setBroken(true);
-          }}
-        />
-        {/*
+    <MediaFrame
+      media={props.media}
+      size={props.size}
+      loaded={loaded()}
+      actual={actual()}
+    >
+      {/* oxlint-disable-next-line jsx-a11y/media-has-caption -- 外部の投稿に字幕が添えられていない場合も再生する。 */}
+      <video
+        ref={video}
+        src={source()}
+        controls
+        playsinline
+        preload="metadata"
+        class="absolute inset-0 size-full object-contain"
+        classList={{ "opacity-0": !loaded() }}
+        onLoadedMetadata={(event) => {
+          const { videoWidth: width, videoHeight: height } =
+            event.currentTarget;
+          if (width > 0 && height > 0) setActual({ width, height });
+          // フレームを取得できない動画でも操作を隠したままにしない。
+          fallbackTimer = setTimeout(() => setLoaded(true), 1500);
+        }}
+        onLoadedData={() => {
+          clearTimeout(fallbackTimer);
+          setLoaded(true);
+        }}
+        onError={() => props.onBroken()}
+      />
+      {/*
           ブラウザの再生バー（全画面のボタンを含む）は下の端に出るので、上の角に置く。
           押す場所で動きを分けないよう、動画そのものを押したときはその場で再生する。
         */}
-        <Show when={props.onOpen}>
-          {(open) => (
-            <IconButton
-              variant="overlay"
-              size="sm"
-              circle
-              icon="i-material-symbols:open-in-full-rounded"
-              label="拡大して見る"
-              class="absolute top-2 right-2"
-              onClick={() => {
-                // 拡大表示でも再生するので、音が重ならないよう止める。
-                video?.pause();
-                open()();
-              }}
-            />
-          )}
-        </Show>
-      </MediaFrame>
-    </Show>
+      <Show when={props.onOpen}>
+        {(open) => (
+          <IconButton
+            variant="overlay"
+            size="sm"
+            circle
+            icon="i-material-symbols:open-in-full-rounded"
+            label="拡大して見る"
+            class="absolute top-2 right-2"
+            onClick={() => {
+              // 拡大表示でも再生するので、音が重ならないよう止める。
+              video?.pause();
+              open()();
+            }}
+          />
+        )}
+      </Show>
+    </MediaFrame>
   );
 };
 
@@ -265,44 +253,35 @@ export const NoteAudio: Component<{ url: string }> = (props) => {
   );
 };
 
-const NoteMediaView: Component<MediaViewProps> = (props) => {
-  const [kind, setKind] = createSignal(props.media.type);
-  const [triedOther, setTriedOther] = createSignal(false);
-  const [broken, setBroken] = createSignal(false);
-  createEffect(() => {
-    const media = props.media;
-    setKind(media.type);
-    setTriedOther(false);
-    setBroken(false);
-  });
-  const tryOther = () => {
-    if (triedOther()) {
-      setBroken(true);
-      return;
-    }
-    setTriedOther(true);
-    setKind(kind() === "image" ? "video" : "image");
-  };
+const NoteMediaView: Component<Omit<MediaViewProps, "src" | "onBroken">> = (
+  props,
+) => {
+  const attempts = createMediaAttempts(() => props.media);
   return (
-    <Show when={!broken()} fallback={<MediaLink url={props.media.url} />}>
-      <Show
-        when={kind() === "image"}
-        fallback={
-          <MediaVideo
+    <Show
+      when={attempts.current()}
+      keyed
+      fallback={<MediaLink url={props.media.url} />}
+    >
+      {(attempt) =>
+        attempt.type === "image" ? (
+          <MediaImage
             media={props.media}
+            src={attempt.url}
             size={props.size}
             onOpen={props.onOpen}
-            onBroken={tryOther}
+            onBroken={() => attempts.next(attempt)}
           />
-        }
-      >
-        <MediaImage
-          media={props.media}
-          size={props.size}
-          onOpen={props.onOpen}
-          onBroken={tryOther}
-        />
-      </Show>
+        ) : (
+          <MediaVideo
+            media={props.media}
+            src={attempt.url}
+            size={props.size}
+            onOpen={props.onOpen}
+            onBroken={() => attempts.next(attempt)}
+          />
+        )
+      }
     </Show>
   );
 };

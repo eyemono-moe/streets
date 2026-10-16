@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../nostr/event";
 import { encodeBech32, encodeNaddr } from "../nostr/nip19";
-import { MAX_LINK_CARDS, type NoteLayout, layoutNote } from "./note-layout";
+import {
+  MAX_LINK_CARDS,
+  type NoteLayout,
+  layoutNote,
+  mediaAttempts,
+} from "./note-layout";
 
 const ID_A = "a".repeat(64);
 const ID_B = "b".repeat(64);
@@ -55,7 +60,7 @@ describe("layoutNote", () => {
     );
     expect(layout.media).toEqual([
       { type: "image", url: "https://example.com/a.png" },
-      { type: "video", url: "https://example.com/clip" },
+      { type: "video", url: "https://example.com/clip", typeKnown: true },
       { type: "video", url: "https://example.com/b.webm" },
     ]);
     expect(layout.text).toEqual([]);
@@ -112,7 +117,7 @@ describe("layoutNote", () => {
       { quotes: true },
     );
     expect(layout.media).toEqual([
-      { type: "image", url: "https://example.com/a.mp4" },
+      { type: "image", url: "https://example.com/a.mp4", typeKnown: true },
     ]);
     expect(layout.text).toEqual([
       { type: "url", url: "https://example.com/b.jpg" },
@@ -248,11 +253,13 @@ describe("layoutNote", () => {
       {
         type: "image",
         url: "https://example.com/a",
+        typeKnown: true,
         dimensions: { width: 800, height: 600 },
       },
       {
         type: "image",
         url: "https://example.com/b",
+        typeKnown: true,
         blurhash: "LKO2?U%2Tw=w",
       },
     ]);
@@ -272,6 +279,28 @@ describe("layoutNote", () => {
     expect(layout.media.map((item) => [item.type, item.url])).toEqual([
       ["video", "https://example.com/clip.mp4"],
       ["video", "https://example.com/clip"],
+    ]);
+  });
+
+  it("imeta の thumb を添える", () => {
+    const layout = layoutNote(
+      note("https://example.com/a.heic", [
+        [
+          "imeta",
+          "url https://example.com/a.heic",
+          "m image/heic",
+          "thumb https://example.com/thumb/a.heic",
+        ],
+      ]),
+      { quotes: true },
+    );
+    expect(layout.media).toEqual([
+      {
+        type: "image",
+        url: "https://example.com/a.heic",
+        typeKnown: true,
+        thumb: "https://example.com/thumb/a.heic",
+      },
     ]);
   });
 
@@ -339,5 +368,40 @@ describe("layoutNote", () => {
         "quote",
       ]);
     });
+  });
+});
+
+describe("mediaAttempts", () => {
+  it("種類を拡張子から推しただけなら、同じ URL をもう一方の種類で読み直す", () => {
+    expect(
+      mediaAttempts({ type: "image", url: "https://example.com/a.png" }),
+    ).toEqual([
+      { type: "image", url: "https://example.com/a.png" },
+      { type: "video", url: "https://example.com/a.png" },
+    ]);
+  });
+
+  it("種類が書かれた画像は動画として読み直さず、thumb を画像として読む", () => {
+    expect(
+      mediaAttempts({
+        type: "image",
+        url: "https://example.com/a.heic",
+        typeKnown: true,
+        thumb: "https://example.com/thumb/a.heic",
+      }),
+    ).toEqual([
+      { type: "image", url: "https://example.com/a.heic" },
+      { type: "image", url: "https://example.com/thumb/a.heic" },
+    ]);
+  });
+
+  it("種類が書かれていて thumb も無ければ、元の 1 つだけを試す", () => {
+    expect(
+      mediaAttempts({
+        type: "video",
+        url: "https://example.com/clip",
+        typeKnown: true,
+      }),
+    ).toEqual([{ type: "video", url: "https://example.com/clip" }]);
   });
 });
