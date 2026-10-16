@@ -1,28 +1,17 @@
-import { Popover } from "@ark-ui/solid/popover";
 import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { Style } from "@streets/core/emoji-maker/style";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
-import { type Component, type JSX, Show } from "solid-js";
+import type { Component, JSX } from "solid-js";
 import { useSending } from "../actions-mediator";
 import { useDispatch } from "../ui-events";
-import PopoverTrigger from "../ui/PopoverTrigger";
-import { Portal } from "../ui/Portal";
 import { useEmojiGroups } from "./custom-emojis";
 import type { PickerEmoji } from "./emoji-data";
 import { EmojiPicker, MakerFooter } from "./lazy-emoji-picker";
 import { lastStyle, rememberLastStyle } from "./maker/last-style";
 import { createMakerFlow } from "./maker/maker-flow";
+import PickerSurface, { type PickerTrigger } from "./PickerSurface";
 import { rememberEmoji } from "./recent-emoji";
-
-/**
- * 押せる要素をそのままトリガーにするための、Ark UI から渡ってくる props。
- * 戻り値の要素型は Ark UI 側が `any` で持つので、そこに合わせる。
- */
-export type PickerTrigger = (
-  userProps?: JSX.IntrinsicElements["button"],
-  // Ark UI の `asChild` の型に合わせる
-) => JSX.HTMLAttributes<any>;
 
 export const reactionInputOf = (emoji: PickerEmoji): ReactionInput =>
   emoji.kind === "unicode"
@@ -63,60 +52,47 @@ const ReactionPicker: Component<{
   };
   return (
     <>
-      {/* 閉じている間は中身を作らない（絵文字は 1900 件あり、投稿ごとに 2 か所ある）。 */}
-      <Popover.Root
-        lazyMount
-        unmountOnExit
-        positioning={{
-          placement: "bottom-start",
-          getAnchorElement: props.anchor && (() => props.anchor?.() ?? null),
-        }}
-        finalFocusEl={props.anchor && (() => props.anchor?.() ?? null)}
+      <PickerSurface
+        title="リアクションする"
+        trigger={props.trigger}
+        anchor={props.anchor}
+        finalFocusEl={props.anchor}
+        placement="bottom-start"
         open={props.open}
-        onOpenChange={(details) => props.onOpenChange?.(details.open)}
+        onOpenChange={props.onOpenChange}
         onExitComplete={maker.onPickerExitComplete}
       >
-        <Show when={props.trigger}>
-          {(trigger) => <PopoverTrigger asChild={trigger()} />}
-        </Show>
-        <Portal>
-          <Popover.Positioner>
-            <Popover.Content class="motion-pop outline-none">
-              <Popover.Context>
-                {(api) => (
-                  <EmojiPicker
-                    customGroups={customGroups()}
-                    onSelect={(emoji) => {
-                      rememberEmoji(emoji);
-                      dispatch({
-                        type: "note/react",
-                        target: props.target,
-                        input: reactionInputOf(emoji),
-                      });
-                      api().setOpen(false);
-                    }}
-                    footer={(query) => (
-                      <MakerFooter
-                        query={query()}
-                        sending={sending()}
-                        lastStyle={lastStyle()}
-                        onSend={(spec, style) => {
-                          sendMade(spec, style);
-                          api().setOpen(false);
-                        }}
-                        onAdjust={(text, candidate) => {
-                          maker.requestAdjust(text, candidate);
-                          api().setOpen(false);
-                        }}
-                      />
-                    )}
-                  />
-                )}
-              </Popover.Context>
-            </Popover.Content>
-          </Popover.Positioner>
-        </Portal>
-      </Popover.Root>
+        {(close, layout) => (
+          <EmojiPicker
+            layout={layout}
+            customGroups={customGroups()}
+            onSelect={(emoji) => {
+              rememberEmoji(emoji);
+              dispatch({
+                type: "note/react",
+                target: props.target,
+                input: reactionInputOf(emoji),
+              });
+              close();
+            }}
+            footer={(query) => (
+              <MakerFooter
+                query={query()}
+                sending={sending()}
+                lastStyle={lastStyle()}
+                onSend={(spec, style) => {
+                  sendMade(spec, style);
+                  close();
+                }}
+                onAdjust={(text, candidate) => {
+                  maker.requestAdjust(text, candidate);
+                  close();
+                }}
+              />
+            )}
+          />
+        )}
+      </PickerSurface>
       <maker.Dialog
         verb="send"
         sending={sending()}

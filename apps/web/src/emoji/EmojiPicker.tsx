@@ -26,16 +26,45 @@ import {
   type PickerGroup,
   loadUnicodeEmojis,
 } from "./emoji-data";
+import type { PickerLayout } from "./PickerSurface";
 import { emojiKey, recentEmojis } from "./recent-emoji";
 
 const COLUMNS = 8;
-const CELL = 32;
 const RECENT_GROUP_ID = "recent";
 const RESULT_GROUP_ID = "result";
+
+/**
+ * 出す形ごとの大きさ。ドロワーは画面の幅いっぱいに 8 列を並べ、指で押せる 44px の高さにする。
+ * 1 マスの高さは、詰める前に空けておく高さの計算にも使う。
+ */
+const SIZES = {
+  popup: {
+    root: "w-88 rounded-2 border border-control p-2 shadow-lg",
+    list: "h-64",
+    cellHeight: 32,
+    cell: "size-8 text-[20px]",
+    customEmoji: "size-6",
+    tab: "h-9",
+    tabIcon: "size-5",
+    tabEmoji: "size-5 text-[18px] leading-5",
+  },
+  sheet: {
+    root: "min-h-0 flex-1 px-2",
+    list: "min-h-0 flex-1 overscroll-contain",
+    cellHeight: 44,
+    cell: "h-11 w-full text-[28px]",
+    customEmoji: "size-8",
+    tab: "h-11",
+    tabIcon: "size-6",
+    tabEmoji: "size-6 text-[22px] leading-6",
+  },
+} satisfies Record<PickerLayout, unknown>;
+type Sizes = (typeof SIZES)[PickerLayout];
 
 /** 絵文字 1 つ。Unicode は文字のまま、カスタム絵文字は画像で出す。 */
 const Cell: Component<{
   emoji: PickerEmoji;
+  sizes: Sizes;
   onSelect: (emoji: PickerEmoji) => void;
 }> = (props) => {
   const label = () =>
@@ -47,7 +76,7 @@ const Cell: Component<{
       type="button"
       title={label()}
       aria-label={label()}
-      class="grid size-8 cursor-pointer place-items-center rounded-1.5 bg-transparent text-[20px] leading-none hover:bg-secondary"
+      class={`grid cursor-pointer place-items-center rounded-1.5 bg-transparent leading-none hover:bg-secondary active:bg-secondary ${props.sizes.cell}`}
       onClick={() => props.onSelect(props.emoji)}
     >
       <Show
@@ -66,7 +95,7 @@ const Cell: Component<{
             alt=""
             loading="lazy"
             decoding="async"
-            class="size-6 object-contain"
+            class={`object-contain ${props.sizes.customEmoji}`}
           />
         )}
       </Show>
@@ -75,7 +104,7 @@ const Cell: Component<{
 };
 
 /** タブの顔。アイコンが無ければ、先頭の絵文字を小さく出す。 */
-const TabFace: Component<{ group: PickerGroup }> = (props) => {
+const TabFace: Component<{ group: PickerGroup; sizes: Sizes }> = (props) => {
   const first = () => props.group.emojis[0];
   const custom = () => {
     const emoji = first();
@@ -88,7 +117,9 @@ const TabFace: Component<{ group: PickerGroup }> = (props) => {
   return (
     <Switch>
       <Match when={props.group.icon}>
-        {(icon) => <span class={`${icon()} size-5`} aria-hidden="true" />}
+        {(icon) => (
+          <span class={`${icon()} ${props.sizes.tabIcon}`} aria-hidden="true" />
+        )}
       </Match>
       <Match when={custom()}>
         {(emoji) => (
@@ -99,13 +130,13 @@ const TabFace: Component<{ group: PickerGroup }> = (props) => {
             alt=""
             loading="lazy"
             decoding="async"
-            class="size-5 object-contain"
+            class={`object-contain ${props.sizes.tabIcon}`}
           />
         )}
       </Match>
       <Match when={unicode()}>
         {(emoji) => (
-          <span class="text-[18px] leading-5" aria-hidden="true">
+          <span class={props.sizes.tabEmoji} aria-hidden="true">
             {emoji().char}
           </span>
         )}
@@ -136,6 +167,7 @@ const PickerList: Component<{
   groups: readonly PickerGroup[];
   /** 帯を出すか。探している間は、見出しが 1 つしか無いので出さない。 */
   tabs: boolean;
+  sizes: Sizes;
   onSelect: (emoji: PickerEmoji) => void;
 }> = (props) => {
   // 見出しの id は画面の中で 1 つでなければならない（目次が id で探すため）。
@@ -225,14 +257,14 @@ const PickerList: Component<{
                     aria-selected={active() === group.id}
                     title={group.title}
                     aria-label={group.title}
-                    class="flex h-9 shrink-0 cursor-pointer flex-col items-center justify-between gap-1 bg-transparent px-2 pt-1.5"
+                    class={`flex shrink-0 cursor-pointer flex-col items-center justify-between gap-1 bg-transparent px-2 pt-1.5 ${props.sizes.tab}`}
                     classList={{
                       "c-primary font-600": active() === group.id,
                       "c-secondary hover:c-primary": active() !== group.id,
                     }}
                     onClick={() => jumpTo(group.id)}
                   >
-                    <TabFace group={group} />
+                    <TabFace group={group} sizes={props.sizes} />
                     {/* 狭い画面のカラムの帯と同じ、下の線で今いる場所を出す。 */}
                     <span
                       class="h-0.5 w-full rounded-full"
@@ -255,7 +287,7 @@ const PickerList: Component<{
           </ScrollArea.Scrollbar>
         </ScrollArea.Root>
       </Show>
-      <div ref={scrollEl} class="h-64 overflow-y-auto">
+      <div ref={scrollEl} class={`overflow-y-auto ${props.sizes.list}`}>
         <For each={props.groups}>
           {(group, index) => (
             <section>
@@ -273,15 +305,19 @@ const PickerList: Component<{
                 class="grid grid-cols-8"
                 style={{
                   "content-visibility": "auto",
-                  "contain-intrinsic-size": `auto ${Math.ceil(group.emojis.length / COLUMNS) * CELL}px`,
+                  "contain-intrinsic-size": `auto ${Math.ceil(group.emojis.length / COLUMNS) * props.sizes.cellHeight}px`,
                   // 詰める前から同じ高さにして、詰めたときに下が動かないようにする。
-                  "min-height": `${Math.ceil(group.emojis.length / COLUMNS) * CELL}px`,
+                  "min-height": `${Math.ceil(group.emojis.length / COLUMNS) * props.sizes.cellHeight}px`,
                 }}
               >
                 <Show when={index() < filled()}>
                   <For each={group.emojis}>
                     {(emoji) => (
-                      <Cell emoji={emoji} onSelect={props.onSelect} />
+                      <Cell
+                        emoji={emoji}
+                        sizes={props.sizes}
+                        onSelect={props.onSelect}
+                      />
                     )}
                   </For>
                 </Show>
@@ -309,7 +345,10 @@ const EmojiPicker: Component<{
   onSelect: (emoji: PickerEmoji) => void;
   /** 下端に足すもの（打った言葉からカスタム絵文字を作る、など）。打った言葉を受け取る。 */
   footer?: (query: Accessor<string>) => JSX.Element;
+  /** 既定はポップアップの大きさ。 */
+  layout?: PickerLayout;
 }> = (props) => {
+  const sizes = () => SIZES[props.layout ?? "popup"];
   const [query, setQuery] = createSignal("");
   const [unicode] = createResource(loadUnicodeEmojis);
 
@@ -356,7 +395,7 @@ const EmojiPicker: Component<{
       .join("|");
 
   return (
-    <div class="flex w-88 flex-col gap-2 rounded-2 border border-control bg-primary p-2 shadow-lg">
+    <div class={`flex flex-col gap-2 bg-primary ${sizes().root}`}>
       <SearchInput
         class="w-full"
         label="絵文字を探す"
@@ -379,6 +418,7 @@ const EmojiPicker: Component<{
             <PickerList
               groups={shown()}
               tabs={query().trim() === ""}
+              sizes={sizes()}
               onSelect={props.onSelect}
             />
           )}

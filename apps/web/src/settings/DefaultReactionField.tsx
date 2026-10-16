@@ -1,16 +1,14 @@
-import { Popover } from "@ark-ui/solid/popover";
 import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import { type Component, Show } from "solid-js";
 import { useEmojiGroups } from "../emoji/custom-emojis";
 import EmojiPicker from "../emoji/EmojiPicker";
+import PickerSurface from "../emoji/PickerSurface";
 import { reactionInputOf } from "../emoji/ReactionPicker";
 import { rememberEmoji } from "../emoji/recent-emoji";
 import ReactionButtonMark from "../note/ReactionButtonMark";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import IconButton from "../ui/IconButton";
-import PopoverTrigger from "../ui/PopoverTrigger";
-import { Portal } from "../ui/Portal";
 
 const nameOf = (input: ReactionInput): string =>
   input.type === "like"
@@ -34,37 +32,27 @@ const DefaultReactionField: Component<{ value: ReactionInput }> = (props) => {
       >
         <ReactionButtonMark input={props.value} active />
       </span>
-      <Popover.Root
-        lazyMount
-        unmountOnExit
-        positioning={{ placement: "bottom-start" }}
+      <PickerSurface
+        title="いいねボタンの絵文字を選ぶ"
+        trigger={(trigger) => (
+          <Button {...trigger()} variant="secondary" size="sm">
+            絵文字を選ぶ
+          </Button>
+        )}
+        placement="bottom-start"
       >
-        <PopoverTrigger
-          asChild={(triggerProps) => (
-            <Button {...triggerProps()} variant="secondary" size="sm">
-              絵文字を選ぶ
-            </Button>
-          )}
-        />
-        <Portal>
-          <Popover.Positioner>
-            <Popover.Content class="motion-pop outline-none">
-              <Popover.Context>
-                {(api) => (
-                  <EmojiPicker
-                    customGroups={customGroups()}
-                    onSelect={(emoji) => {
-                      rememberEmoji(emoji);
-                      set(reactionInputOf(emoji));
-                      api().setOpen(false);
-                    }}
-                  />
-                )}
-              </Popover.Context>
-            </Popover.Content>
-          </Popover.Positioner>
-        </Portal>
-      </Popover.Root>
+        {(close, layout) => (
+          <EmojiPicker
+            layout={layout}
+            customGroups={customGroups()}
+            onSelect={(emoji) => {
+              rememberEmoji(emoji);
+              set(reactionInputOf(emoji));
+              close();
+            }}
+          />
+        )}
+      </PickerSurface>
       <Show when={props.value.type !== "like"}>
         <IconButton
           icon="i-material-symbols:close-rounded"

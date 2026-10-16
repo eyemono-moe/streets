@@ -153,6 +153,10 @@ export default defineConfig({
         // 高さへ戻ってから下がる。引き下げた位置から下へ抜ける。
         "drawer-down":
           "{from{transform:translate3d(0,var(--drawer-translate-y,0px),0)}to{transform:translateY(100%)}}",
+        // 開く動きも、止める高さ（snap point）で終える。to を transform:none にすると、
+        // 低い位置で止めるシートが上端まで上がってから下がる。
+        "drawer-up":
+          "{from{transform:translateY(100%)}to{transform:translate3d(0,var(--drawer-translate-y,0px),0)}}",
         // 閉じようとしたが閉じられないとき、止めている理由の場所を揺らして示す。
         // 押せば開くことを、止まったまま気づかせるための小さな揺れ。
         "nudge-up":
@@ -178,6 +182,7 @@ export default defineConfig({
         "sheet-up": "180ms",
         "sheet-down": "140ms",
         "drawer-down": "140ms",
+        "drawer-up": "180ms",
         // 開閉ではなく注意を引く動きなので、開閉の 100〜180ms より長く取る。
         shake: "320ms",
         "nudge-up": "1800ms",
@@ -199,6 +204,7 @@ export default defineConfig({
         "sheet-up": "cubic-bezier(0.16, 1, 0.3, 1)",
         "sheet-down": "ease-in both",
         "drawer-down": "ease-in both",
+        "drawer-up": "cubic-bezier(0.16, 1, 0.3, 1)",
         shake: "ease-out",
         "nudge-up": "ease-in-out",
         marquee: "linear",
@@ -292,7 +298,7 @@ export default defineConfig({
         "data-[state=open]:animate-sheet-up data-[state=closed]:animate-sheet-down",
       // Ark UI の Drawer の Content に当てる。閉じる動きを、スワイプで引き下げた位置から始める。
       "motion-drawer":
-        "data-[state=open]:animate-sheet-up data-[state=closed]:animate-drawer-down",
+        "data-[state=open]:animate-drawer-up data-[state=closed]:animate-drawer-down",
     },
   ],
   transformers: [transformerVariantGroup()],
