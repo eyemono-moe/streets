@@ -14,6 +14,26 @@ import {
 } from "../ui/VirtualList";
 import NewerNotice from "./NewerNotice";
 
+const TABBABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])';
+
+/**
+ * 見えている最初の行。上端が見えている行を選び、無ければ（1 行が画面より高い）
+ * 上端をまたいでいる行にする。
+ */
+const firstVisibleRow = (scroller: HTMLElement) => {
+  const view = scroller.getBoundingClientRect();
+  const rows = [...scroller.querySelectorAll<HTMLElement>("[data-virtual-row]")]
+    .filter((row) => row.parentElement?.closest("[data-virtual-row]") == null)
+    .map((row) => ({ row, rect: row.getBoundingClientRect() }))
+    .sort((a, b) => a.rect.top - b.rect.top);
+  return (
+    rows.find(
+      ({ rect }) => rect.top >= view.top - 1 && rect.top < view.bottom,
+    ) ?? rows.find(({ rect }) => rect.top < view.top && rect.bottom > view.top)
+  )?.row;
+};
+
 /** カラム本文の共通枠。警告はスクロール領域の外に置く。 */
 const ColumnBody: ParentComponent<{
   columnId: string;
@@ -46,6 +66,38 @@ const ColumnBody: ParentComponent<{
       authors: items.flatMap((item) => (item.author ? [item.author] : [])),
     };
   });
+  // Tab で進む先を、見えている最初の行にする。カラムから入るときは、そのままだと
+  // DOM の先頭（画面より上に先読みしてある行）へ進み、そこまでスクロールが戻る。
+  // 読み進めてフォーカスを画面の外に置き去りにしたときも、そこへ戻ってしまう。
+  const enterVisibleRow = (event: KeyboardEvent) => {
+    if (event.key !== "Tab" || event.ctrlKey) return;
+    if (event.altKey || event.metaKey) return;
+    if (!scroller || !(event.target instanceof HTMLElement)) return;
+    const view = scroller.getBoundingClientRect();
+    const inView = (element: Element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.bottom > view.top && rect.top < view.bottom;
+    };
+    if (event.target === scroller) {
+      // カラムから出ていく向きは止めない。
+      if (event.shiftKey) return;
+      const first = scroller.querySelector<HTMLElement>(TABBABLE);
+      // 一覧より上にあるもの（プロフィールなど）が見えていれば、そこから辿る。
+      if (
+        first &&
+        first.closest("[data-virtual-row]") === null &&
+        inView(first)
+      ) {
+        return;
+      }
+    } else if (inView(event.target)) {
+      return;
+    }
+    const row = firstVisibleRow(scroller);
+    if (!row) return;
+    event.preventDefault();
+    row.focus({ preventScroll: true, focusVisible: true });
+  };
   const scrollToTop = () => {
     for (const report of reports().values()) report.latest?.();
     scroller?.scrollTo({
@@ -69,6 +121,7 @@ const ColumnBody: ParentComponent<{
         )}
       </For>
       <div class="relative flex min-h-0 flex-1 flex-col">
+        {/* oxlint-disable-next-line jsx-a11y/no-static-element-interactions -- スクロール領域そのもので、押せる部品ではない。Tab の行き先を見えている行へ直すだけ */}
         <div
           ref={(element) => {
             scroller = element;
@@ -78,6 +131,7 @@ const ColumnBody: ParentComponent<{
           // キーで送るために入る口は、投稿に「押しても開かない場所」を作らずここに置く。
           // 投稿を押して開ける範囲を狭めると、広く押して開く操作が損なわれる。
           tabIndex={props.scrollsInternally === true ? undefined : 0}
+          onKeyDown={enterVisibleRow}
           class="peer min-h-0 flex-1 outline-none"
           classList={{
             "flex flex-col overflow-hidden": props.scrollsInternally === true,
