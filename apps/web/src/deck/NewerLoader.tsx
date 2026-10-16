@@ -1,14 +1,7 @@
 import type { NewerPaging } from "@streets/core/read/newer-page";
-import {
-  type Component,
-  Match,
-  Switch,
-  createEffect,
-  on,
-  onCleanup,
-  onMount,
-} from "solid-js";
+import { type Component, Match, Switch } from "solid-js";
 import Button from "../ui/Button";
+import { watchEdge } from "./edge-watch";
 
 /** 端のどれくらい手前で次を取りに行くか。`OlderLoader` と同じく 1 画面ぶんほど先。 */
 const AHEAD_PX = 800;
@@ -28,38 +21,15 @@ const NewerLoader: Component<{
 }> = (props) => {
   const noun = () => props.noun ?? "投稿";
   let sentinel: HTMLDivElement | undefined;
-  let observer: IntersectionObserver | undefined;
-
-  onMount(() => {
-    if (!sentinel) return;
-    observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) props.onReach();
-      },
-      {
-        root: sentinel.closest<HTMLElement>(".overflow-y-auto"),
-        rootMargin:
-          props.edge === "bottom"
-            ? `0px 0px ${AHEAD_PX}px 0px`
-            : `${AHEAD_PX}px 0px 0px 0px`,
-      },
-    );
-    observer.observe(sentinel);
-    onCleanup(() => observer?.disconnect());
+  watchEdge({
+    sentinel: () => sentinel,
+    margin: () =>
+      props.edge === "bottom"
+        ? `0px 0px ${AHEAD_PX}px 0px`
+        : `${AHEAD_PX}px 0px 0px 0px`,
+    idle: () => props.paging === "idle",
+    onReach: () => props.onReach(),
   });
-
-  // 取り足しても端がまだ近いときは交わりが変わらず通知が来ないので、見張り直す。
-  createEffect(
-    on(
-      () => props.paging,
-      (paging) => {
-        if (paging !== "idle" || !sentinel || !observer) return;
-        observer.unobserve(sentinel);
-        observer.observe(sentinel);
-      },
-      { defer: true },
-    ),
-  );
 
   return (
     <div
