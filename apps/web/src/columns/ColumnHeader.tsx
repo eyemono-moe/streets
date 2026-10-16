@@ -2,6 +2,7 @@ import type { ColumnDef } from "@streets/core/deck/deck";
 import { type Component, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { columnPartOpen } from "../column-part-memory";
+import ColumnDigit from "../deck/ColumnDigit";
 import ColumnIcon from "../deck/ColumnIcon";
 import ColumnTitle from "../deck/ColumnTitle";
 import { useDispatch } from "../ui-events";
@@ -109,6 +110,8 @@ export const ColumnHeader: Component<{
   grip?: boolean;
   temporary?: boolean;
   poppedOut?: boolean;
+  /** 数字キーで選べるカラムの番号。 */
+  digit?: number;
   onTitle: () => void;
 }> = (props) => {
   const meta = () => columnView(props.column.source).meta(props.column.source);
@@ -118,11 +121,18 @@ export const ColumnHeader: Component<{
       classList={{ "cursor-grab": props.grip === true }}
       data-column-grip={props.grip === true ? "" : undefined}
     >
-      <ColumnIcon
-        column={props.column}
-        class="c-secondary size-4.5 shrink-0"
-        avatarClass="size-5 shrink-0 rounded-1.5"
-      />
+      <span class="c-secondary relative grid shrink-0 place-items-center">
+        <ColumnIcon
+          column={props.column}
+          class="size-4.5"
+          avatarClass="size-5 rounded-1.5"
+        />
+        <Show when={props.digit}>
+          {(digit) => (
+            <ColumnDigit digit={digit()} class="-right-1.5 -bottom-1" />
+          )}
+        </Show>
+      </span>
       <button
         type="button"
         title="先頭へ戻る"

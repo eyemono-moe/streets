@@ -429,15 +429,55 @@ const DeckScreen: Component<{
       applyUi({ type: "deck/select-column", id });
       return;
     }
-    columnsEl
-      ?.querySelector(`[data-column-id="${CSS.escape(id)}"]`)
-      ?.scrollIntoView({
-        inline: "nearest",
-        block: "nearest",
-        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "auto"
-          : "smooth",
-      });
+    const column = columnsEl?.querySelector(
+      `[data-column-id="${CSS.escape(id)}"]`,
+    );
+    column?.scrollIntoView({
+      inline: "nearest",
+      block: "nearest",
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+    // 重ねた段を開いていれば、下のカラムは inert なので一番上の段へ当てる。
+    const scroller = [
+      ...(column?.querySelectorAll<HTMLElement>("[data-scroll-container]") ??
+        []),
+    ]
+      .filter((element) => element.closest("[inert]") === null)
+      .at(-1);
+    scroller?.focus({ preventScroll: true });
+  };
+
+  /** 数字キーで選べるカラムなら、その番号。並び順は数字キーと同じ `columns` で数える。 */
+  const columnDigit = (id: string) => {
+    if (!columnDigits()) return undefined;
+    const index = columns().findIndex((column) => column.id === id);
+    return index >= 0 && index < 9 ? index + 1 : undefined;
+  };
+
+  // キーで送っているカラムから、←/→ で隣のカラムへ移る。そのままだと横に並べた
+  // 帯ごと送られるだけで、フォーカスは元のカラムに残る。
+  const stepColumn = (event: KeyboardEvent) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+      return;
+    }
+    const target = event.target;
+    if (
+      !(target instanceof HTMLElement) ||
+      !target.hasAttribute("data-scroll-container")
+    ) {
+      return;
+    }
+    const id =
+      target.closest<HTMLElement>("[data-column-id]")?.dataset.columnId;
+    const ids = order.ids();
+    const index = id === undefined ? -1 : ids.indexOf(id);
+    if (index < 0) return;
+    event.preventDefault();
+    const next = ids[index + (event.key === "ArrowLeft" ? -1 : 1)];
+    if (next !== undefined) focusColumn(next);
   };
 
   // 広い画面で、カラムの見出しを掴んで並べ替える。
@@ -1164,6 +1204,7 @@ const DeckScreen: Component<{
               <DeckStrip
                 ref={columnsEl}
                 class="min-h-0 flex-1"
+                onKeyDown={stepColumn}
                 onPointerDown={(event) => {
                   const target = event.target;
                   if (!(target instanceof Element)) {
@@ -1223,6 +1264,7 @@ const DeckScreen: Component<{
                             ui.poppedOut === column.id ? pipWindow() : undefined
                           }
                           grip
+                          digit={columnDigit(column.id)}
                           {...shared}
                         />
                       </div>

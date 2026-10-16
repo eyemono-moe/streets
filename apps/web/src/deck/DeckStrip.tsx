@@ -10,6 +10,7 @@ const DeckStrip = (props: {
   ref?: HTMLDivElement | ((el: HTMLDivElement) => void);
   class?: string;
   onPointerDown?: (event: PointerEvent) => void;
+  onKeyDown?: (event: KeyboardEvent) => void;
   children: JSX.Element;
 }) => (
   <ScrollArea.Root class={`relative ${props.class ?? ""}`}>
@@ -19,6 +20,7 @@ const DeckStrip = (props: {
       ref={props.ref}
       class="scrollbar-none h-full bg-tertiary"
       onPointerDown={(event) => props.onPointerDown?.(event)}
+      onKeyDown={(event) => props.onKeyDown?.(event)}
     >
       <ScrollArea.Content class="relative flex h-full w-max min-w-full">
         {props.children}

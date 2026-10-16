@@ -8,6 +8,7 @@ import { tourTarget } from "../tour/tour-target";
 import { useDispatch } from "../ui-events";
 import IconButton from "../ui/IconButton";
 import AccountMenu from "./AccountMenu";
+import ColumnDigit from "./ColumnDigit";
 import ColumnIcon from "./ColumnIcon";
 import { useColumnTitle } from "./ColumnTitle";
 import ColumnTitle from "./ColumnTitle";
@@ -43,14 +44,7 @@ const ColumnButton: Component<{
         avatarClass="size-6 rounded-1.5"
       />
       <Show when={number()}>
-        {(n) => (
-          <span
-            class="absolute right-1 bottom-1 font-600 text-[10px] leading-none"
-            aria-hidden="true"
-          >
-            {n()}
-          </span>
-        )}
+        {(n) => <ColumnDigit digit={n()} class="right-1 bottom-1" />}
       </Show>
     </button>
   );

@@ -1,6 +1,7 @@
 import {
   type Virtualizer,
   createVirtualizer,
+  defaultRangeExtractor,
   elementScroll,
   observeElementOffset,
 } from "@tanstack/solid-virtual";
@@ -124,6 +125,7 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
   let root: HTMLDivElement | undefined;
   let followsStart = true;
   let firstKey: string | undefined;
+  let focusedKey: string | undefined;
   const container = useContext(ScrollContainerContext);
   const reportNewer = useContext(NewerItemsContext);
   /** 見ている位置より上に足され、まだ見えていないものの key。新しい順。 */
@@ -198,6 +200,17 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     // 末尾は一番古い投稿なので、張り付く理由が無い。
     scrollEndThreshold: -1,
     overscan: 5,
+    // フォーカスのある行は、画面から離れても捨てない。捨てるとフォーカスが body へ
+    // 落ち、次の Tab が先頭から始まる。
+    rangeExtractor: (range) => {
+      const indexes = defaultRangeExtractor(range);
+      if (focusedKey === undefined) return indexes;
+      const focused = props.items.findIndex(
+        (item) => props.itemKey(item) === focusedKey,
+      );
+      if (focused < 0 || indexes.includes(focused)) return indexes;
+      return [...indexes, focused].sort((a, b) => a - b);
+    },
   });
   if (props.reversed) {
     // 行の高さが変わったときの位置の補正もブラウザに任せる。TanStack も補正すると二重になる。
@@ -339,6 +352,19 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
     <div
       ref={root}
       class={`relative w-full ${props.class ?? ""}`}
+      onFocusIn={(event) => {
+        const row = [...(root?.children ?? [])].find(
+          (child): child is HTMLElement =>
+            child instanceof HTMLElement &&
+            child.contains(event.target as Node),
+        );
+        focusedKey = row?.dataset.key;
+      }}
+      onFocusOut={(event) => {
+        if (!root?.contains(event.relatedTarget as Node | null)) {
+          focusedKey = undefined;
+        }
+      }}
       style={{ height: `${virtualizer.getTotalSize()}px` }}
     >
       <For each={visible()}>
@@ -356,7 +382,12 @@ const VirtualList = <T,>(props: VirtualListProps<T>): JSX.Element => {
               ref={element}
               data-virtual-row
               data-index={placement()?.index}
-              class="absolute top-0 left-0 w-full"
+              data-key={props.itemKey(item)}
+              // 行も Tab の順番に入れる。ボタンから Shift+Tab で行へ戻れ、最後のボタンの
+              // 次が次の行になる。順番に入るのは DOM に置いた前後の行だけで、全件ではない。
+              // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- 行は一覧の中の 1 件として、キーで止まる先にする
+              tabIndex={0}
+              class="absolute top-0 left-0 w-full outline-none focus-visible:outline-2 focus-visible:outline-accent-5 focus-visible:outline-solid focus-visible:-outline-offset-2"
               style={{
                 transform: `translateY(${(placement()?.start ?? 0) - virtualizer.options.scrollMargin}px)`,
               }}

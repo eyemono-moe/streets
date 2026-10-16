@@ -40,6 +40,8 @@ export type ColumnProps = {
   bookmarks: () => readonly string[];
   searchRelays: () => readonly RelayUrl[];
   settingsOpen: boolean;
+  /** 数字キーで選べるカラムの番号。見出しのアイコンに添える。 */
+  digit?: number;
   /** 見出しを掴んで並べ替えられる。 */
   grip?: boolean;
   temporary?: boolean;
@@ -67,6 +69,7 @@ const Column: Component<ColumnProps> = (props) => {
         if (event.type === "stack/open") {
           measureUntilPaint("column.stack", "ui.column");
         }
+        const wasOpen = stack.layers.length > 0;
         setStack(
           reconcile(
             columnStackTransition(
@@ -85,6 +88,8 @@ const Column: Component<ColumnProps> = (props) => {
             { key: "key" },
           ),
         );
+        // 段が消えて下のカラムの inert が外れてから当てる。
+        if (wasOpen && stack.layers.length === 0) queueMicrotask(returnFocus);
         return true;
       default:
         return false;
@@ -99,14 +104,26 @@ const Column: Component<ColumnProps> = (props) => {
     }
   });
 
+  let section: HTMLElement | undefined;
   let scroller: HTMLDivElement | undefined;
-  const scrollToTop = () =>
+  const focusBody = () => scroller?.focus({ preventScroll: true });
+  const scrollToTop = () => {
+    focusBody();
     scroller?.scrollTo({
       top: 0,
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
         ? "auto"
         : "smooth",
     });
+  };
+  // 重ねた段の中にあったフォーカスは、段が消えると body へ落ちる。ほかのカラムや
+  // 投稿欄にあるフォーカスは奪わない。
+  const returnFocus = () => {
+    const doc = scroller?.ownerDocument;
+    const active = doc?.activeElement;
+    if (active && active !== doc.body && !section?.contains(active)) return;
+    focusBody();
+  };
   const onHeader = () =>
     opened() ? handle({ type: "stack/back" }) : scrollToTop();
   if (!props.stacked && props.registerHeader) {
@@ -156,6 +173,8 @@ const Column: Component<ColumnProps> = (props) => {
                 grip={props.grip && !poppedOut()}
                 temporary={props.temporary}
                 poppedOut={poppedOut() !== undefined}
+                // ピクチャーインピクチャーの窓では、数字キーは元のタブにしか届かない。
+                digit={poppedOut() ? undefined : props.digit}
                 onTitle={onHeader}
               />
             </div>
@@ -174,7 +193,10 @@ const Column: Component<ColumnProps> = (props) => {
   );
 
   const inner = () => (
-    <section class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary">
+    <section
+      ref={section}
+      class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-primary"
+    >
       {chrome()}
       <Show when={!props.stacked} fallback={body()}>
         <div class="relative min-h-0 flex-1">
