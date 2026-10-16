@@ -1,4 +1,3 @@
-import type { NewerPaging } from "@streets/core/read/newer-page";
 import type { Paging } from "@streets/core/read/source";
 import { type MediaTile, mediaTilesOf } from "@streets/core/view/media-grid";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
@@ -38,8 +37,6 @@ type Props = {
   tiles: readonly MediaTile[];
   settled: boolean;
   paging: Paging;
-  /** 持つ件数の上限で新しい側を捨てた後の、新しい方の取り直し。 */
-  newerPaging?: NewerPaging;
   width: number;
 };
 
@@ -53,7 +50,6 @@ const meta = {
           settled={props.settled}
           paging={props.paging}
           onLoadMore={() => {}}
-          newerPaging={props.newerPaging}
         />
       </div>
     </EventSceneProvider>
@@ -99,8 +95,3 @@ export const Gif拡張子の動画: Story = {
 };
 
 export const 狭いカラム: Story = { args: { width: 240 } };
-
-/** 遡って読む間に新しい側を捨てた。上へ戻ると取り直す。 */
-export const 新しい投稿を読み込み中: Story = {
-  args: { newerPaging: "loading" },
-};
