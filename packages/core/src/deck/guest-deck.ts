@@ -1,6 +1,10 @@
 import type { RelayUrl } from "../relay/relay-connection";
 import { columnNeedsAccount } from "./column-kinds";
-import { buildRelayColumn, buildUserColumn } from "./column-presets";
+import {
+  buildHashtagColumn,
+  buildRelayColumn,
+  buildUserColumn,
+} from "./column-presets";
 import {
   type ColumnDef,
   type DeckSet,
@@ -43,15 +47,7 @@ export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
         columns: [
           welcomeColumn(),
           ...(relayColumn ? [relayColumn] : []),
-          {
-            id: crypto.randomUUID(),
-            title: `#${GUEST_HASHTAG}`,
-            // 著者を指定しないので、既定のリレーへ問い合わせる（デッキで足すのと同じ）。
-            source: {
-              kind: "literal",
-              filters: [{ kinds: [1], "#t": [GUEST_HASHTAG] }],
-            },
-          },
+          buildHashtagColumn(GUEST_HASHTAG)!,
           { ...buildUserColumn(STREETS_PUBKEY), id: crypto.randomUUID() },
         ],
       },

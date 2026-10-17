@@ -11,7 +11,7 @@ describe("guestDeckSet", () => {
     expect(columns.map((column) => column.source.kind)).toEqual([
       "welcome",
       "literal",
-      "literal",
+      "search",
       "user",
     ]);
     expect(columns[3]?.source).toEqual({
@@ -22,19 +22,15 @@ describe("guestDeckSet", () => {
     expect(columns.some(columnNeedsAccount)).toBe(false);
   });
 
-  it("ハッシュタグのカラムはリレーを明示しない", () => {
-    // 捕まえる変異: `relays: []` を付ける（0 本の明示指定になり、何も流れない）
-    expect(columns[2]?.source).toEqual({
-      kind: "literal",
-      filters: [{ kinds: [1], "#t": ["foodstr"] }],
-    });
+  it("ハッシュタグは検索のカラムで開く", () => {
+    expect(columns[2]?.source).toEqual({ kind: "search", query: "#foodstr" });
   });
 
   it("リレーが 0 本ならリレーのカラムを置かない", () => {
     const kinds = guestDeckSet([]).decks[0]?.columns.map(
       (column) => column.source.kind,
     );
-    expect(kinds).toEqual(["welcome", "literal", "user"]);
+    expect(kinds).toEqual(["welcome", "search", "user"]);
   });
 
   it("保存して読み戻せる", () => {

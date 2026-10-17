@@ -16,7 +16,7 @@ export const hashtagTags = (content: string): string[][] =>
 
 /**
  * 新しいノート。`t` タグを付けるのは、付けないと本文に `#nostr` と書いても
- * ハッシュタグのカラムに出ないため（カラムは `#t` フィルタで集める）。
+ * ハッシュタグで探したときに出ないため（検索は `#t` フィルタで集める）。
  */
 export const buildNote = (content: string): EventDraft => ({
   kind: 1,

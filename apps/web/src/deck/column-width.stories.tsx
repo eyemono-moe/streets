@@ -29,7 +29,7 @@ const few: ColumnDef[] = [
   {
     id: "nostr",
     title: "Nostr",
-    source: { kind: "literal", filters: [{ "#t": ["nostr"] }] },
+    source: { kind: "search", query: "#nostr" },
   },
 ];
 

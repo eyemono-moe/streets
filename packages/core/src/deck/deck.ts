@@ -372,6 +372,34 @@ const migrateLegacyUserColumn = (column: ColumnDef): ColumnDef => {
   return { ...column, source: { kind: "user", pubkey } };
 };
 
+/** 旧ハッシュタグのカラム（`#t` 1 つだけの literal）を、同じ条件の検索カラムへ移す。 */
+const migrateLegacyHashtagColumn = (column: ColumnDef): ColumnDef => {
+  if (
+    column.source.kind !== "literal" ||
+    column.source.relays !== undefined ||
+    column.source.filters.length !== 1
+  ) {
+    return column;
+  }
+  const filter = column.source.filters[0];
+  const filterKeys = filter ? Object.keys(filter) : [];
+  const tag = filter?.["#t"]?.length === 1 ? filter["#t"][0] : undefined;
+  if (
+    !tag ||
+    filterKeys.length !== 2 ||
+    !filterKeys.includes("kinds") ||
+    filter.kinds?.length !== 1 ||
+    filter.kinds[0] !== 1
+  ) {
+    return column;
+  }
+  return {
+    ...column,
+    title: `#${tag}`,
+    source: { kind: "search", query: `#${tag}` },
+  };
+};
+
 /**
  * `raw` は外部入力 (手書き改変や旧バージョンの形もあり得る) なので、
  * `isNostrEvent` と同じ理由で検証し、壊れていれば `undefined` を返す。
@@ -393,7 +421,9 @@ export const loadDeckSet = (raw: string | null): DeckSet | undefined => {
     ...result.output,
     decks: result.output.decks.map((deck) => ({
       ...deck,
-      columns: deck.columns.map(migrateLegacyUserColumn),
+      columns: deck.columns.map((column) =>
+        migrateLegacyHashtagColumn(migrateLegacyUserColumn(column)),
+      ),
     })),
   };
 };

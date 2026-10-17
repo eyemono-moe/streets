@@ -24,7 +24,7 @@ const columns: ColumnDef[] = [
   {
     id: "nostr",
     title: "Nostr",
-    source: { kind: "literal", filters: [{ "#t": ["nostr"] }] },
+    source: { kind: "search", query: "#nostr" },
   },
   { id: "notifications", title: "通知", source: { kind: "notifications" } },
   {
