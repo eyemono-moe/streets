@@ -15,7 +15,13 @@ export const useEvent = (ref: Accessor<EventRef>): Accessor<EventLookup> => {
   createEffect(() => {
     const target = ref();
     if (target.form === "id") {
-      onCleanup(lookups.watchEvent(target.id, target.relay, setLookup));
+      onCleanup(
+        lookups.watchEvent(
+          target.id,
+          { relay: target.relay, author: target.pubkey },
+          setLookup,
+        ),
+      );
       return;
     }
     const address = parseEventAddress(target.address);

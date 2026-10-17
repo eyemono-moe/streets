@@ -35,17 +35,25 @@ describe("buildReaction", () => {
     ]);
   });
 
-  it("k タグが target.kind から導出される (kind 30023 で検証)", () => {
+  it("住所を持つ先には a タグも添え、k タグは target.kind から導出される", () => {
     // 捕まえる変異: k タグを硬コードの "1" に置き換える —— fixture の kind 既定値が 1 なので他は検出できず、この例外ケースで検証する
     const target = evt({
       id: "1".repeat(64),
       pubkey: "9".repeat(64),
       kind: 30023,
+      tags: [["d", "post"]],
     });
-    const draft = buildReaction(target, { type: "like" });
+    const draft = buildReaction(
+      target,
+      { type: "like" },
+      {
+        relayHint: "wss://a.example/",
+      },
+    );
     expect(draft.tags).toEqual([
-      ["e", "1".repeat(64), "", "9".repeat(64)],
-      ["p", "9".repeat(64), ""],
+      ["e", "1".repeat(64), "wss://a.example/", "9".repeat(64)],
+      ["a", `30023:${"9".repeat(64)}:post`, "wss://a.example/"],
+      ["p", "9".repeat(64), "wss://a.example/"],
       ["k", "30023"],
     ]);
   });

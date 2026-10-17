@@ -7,7 +7,7 @@ import {
   formatEventAddress,
   addressOfNaddr,
 } from "@streets/core/nostr/address";
-import type { EventRef } from "@streets/core/nostr/event-refs";
+import { type EventRef, idRefOfPointer } from "@streets/core/nostr/event-refs";
 import { kindLabel } from "@streets/core/nostr/kind-support";
 import type { Nip19Ref } from "@streets/core/nostr/nip19";
 import { type Component, Match, Switch } from "solid-js";
@@ -66,11 +66,7 @@ const QuoteChip: Component<{
         address: address ? formatEventAddress(address) : "",
       };
     }
-    return {
-      form: "id",
-      id: ref.id,
-      ...(ref.kind === "nevent" && ref.author ? { pubkey: ref.author } : {}),
-    };
+    return idRefOfPointer(ref) ?? { form: "id", id: "" };
   };
   const lookup = useEvent(target);
   // 参照が運んでいる作者と種類。取得を待たずに出せる。

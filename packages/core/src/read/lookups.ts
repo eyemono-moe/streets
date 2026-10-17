@@ -6,7 +6,7 @@ import { type Profile, parseProfile } from "../nostr/profile";
 import type { RelayUrl } from "../relay/relay-connection";
 import type { AddressRequests, RequestOptions } from "./address-requests";
 import type { EngagementRequests } from "./engagement-requests";
-import type { EventRequests } from "./event-requests";
+import type { EventHint, EventRequests } from "./event-requests";
 import type { EventStore } from "./event-store";
 import type { FollowListRequests } from "./follow-list-requests";
 import type { PollRequests } from "./poll-requests";
@@ -35,7 +35,7 @@ export type ReadLookups = {
    */
   watchEvent(
     id: string,
-    relayHint: RelayUrl | undefined,
+    hint: EventHint | undefined,
     onChange: (lookup: EventLookup) => void,
   ): () => void;
   /**
@@ -127,7 +127,7 @@ export const createReadLookups = ({
   polls,
   followLists,
 }: CreateReadLookupsOptions): ReadLookups => ({
-  watchEvent(id, relayHint, onChange) {
+  watchEvent(id, hint, onChange) {
     // 指す先が無い（タグが壊れている）ものは取りにいかない。空の id を要求しない。
     if (id === "") {
       onChange({ phase: "missing" });
@@ -141,7 +141,7 @@ export const createReadLookups = ({
     if (found()) return () => {};
 
     onChange({ phase: "loading" });
-    events.request(id, relayHint);
+    events.request(id, hint);
     const unsubscribe = events.subscribe(() => {
       if (found()) {
         unsubscribe();
