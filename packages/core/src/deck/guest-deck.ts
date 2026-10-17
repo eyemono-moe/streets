@@ -1,6 +1,7 @@
 import type { RelayUrl } from "../relay/relay-connection";
 import { columnNeedsAccount } from "./column-kinds";
 import {
+  buildColumn,
   buildHashtagColumn,
   buildRelayColumn,
   buildUserColumn,
@@ -36,7 +37,8 @@ export const welcomeColumn = (): ColumnDef => ({
 
 /**
  * ログインしていない人に最初に見せるデッキ。紹介とログインのカラムに続けて、
- * ログインせずに読めるカラムを種類を変えて並べ、組み合わせられることを見せる。
+ * ログインすると見られる通知を見本で 1 本置き、その後ろにログインせずに読める
+ * カラムを種類を変えて並べ、組み合わせられることを見せる。
  */
 export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
   const relayColumn = buildRelayColumn(relays);
@@ -48,6 +50,7 @@ export const guestDeckSet = (relays: readonly RelayUrl[]): DeckSet => {
         name: FIRST_DECK_NAME,
         columns: [
           welcomeColumn(),
+          buildColumn("notifications", "")!,
           ...(relayColumn ? [relayColumn] : []),
           buildHashtagColumn(GUEST_HASHTAG)!,
           { ...buildUserColumn(STREETS_PUBKEY), id: crypto.randomUUID() },

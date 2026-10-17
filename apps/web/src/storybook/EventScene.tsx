@@ -39,12 +39,10 @@ import { buildReaction } from "@streets/core/nostr/reaction";
 import { buildReplyTo } from "@streets/core/nostr/reply";
 import { buildRepost } from "@streets/core/nostr/repost";
 import type { AddressRequests } from "@streets/core/read/address-requests";
-import type { EngagementRequests } from "@streets/core/read/engagement-requests";
 import type { EventRequests } from "@streets/core/read/event-requests";
 import { EventStore } from "@streets/core/read/event-store";
 import { createReadLookups } from "@streets/core/read/lookups";
 import type { PollRequests } from "@streets/core/read/poll-requests";
-import type { ProfileRequests } from "@streets/core/read/profile-requests";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import type { RelayInfo } from "@streets/core/relay/relay-info";
 import { normalizeRelayUrl } from "@streets/core/relay/relay-url";
@@ -59,6 +57,7 @@ import {
 } from "solid-js";
 import { type EventActions, EventActionsProvider } from "../actions";
 import { ActionsMediator } from "../actions-mediator";
+import { inertRequests } from "../columns/sample/sample-read-layer";
 import { type LinkCard, linkCardQueryKey } from "../note/link-card";
 import { ReadLayerProvider } from "../read-layer";
 import { MuteContext } from "../settings/MuteMediator";
@@ -220,15 +219,6 @@ const storyActions = (
       }),
   };
 };
-
-const inertRequests = (): ProfileRequests & EngagementRequests => ({
-  request() {},
-  forget() {},
-  subscribe: () => () => {},
-  lastBatchSize: 0,
-  maxBatchSize: 0,
-  dispose() {},
-});
 
 const eventRequestsFor = (missing: ReadonlySet<string>): EventRequests => {
   const listeners = new Set<() => void>();

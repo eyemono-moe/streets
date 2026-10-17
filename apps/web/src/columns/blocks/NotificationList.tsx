@@ -27,13 +27,73 @@ import { createStore, reconcile } from "solid-js/store";
 import { useListsUnderWarning } from "../../content-warning-setting";
 import OlderLoader from "../../deck/OlderLoader";
 import ActionNotice from "../../note/ActionNotice";
-import Event, { BrokenEvent } from "../../note/Event";
+import Event, { BrokenEvent, type EventSize } from "../../note/Event";
 import MutedGate from "../../note/MutedGate";
 import VirtualList from "../../ui/VirtualList";
 import { useOwnZapKey } from "../../zap/own-zap-key";
 import ZapNotice from "../../zap/ZapNotice";
 import { createBlockSection, useColumnScope } from "../column-scope";
 import { NewerEdge, listWindow } from "../list-window";
+
+/** 通知の 1 行。まとめた反応・Zap・返信などの投稿を描き分ける。 */
+export const NotificationRowView: Component<{
+  row: NotificationRow;
+  size: EventSize;
+  expandMedia: boolean;
+  /** ミュートの対象の投稿を畳むか。 */
+  foldsMuted: boolean;
+}> = (props) => (
+  <Show
+    when={props.row.type === "group" && props.row}
+    fallback={
+      <Show when={props.row.type === "event" && props.row}>
+        {(single) => (
+          <Show
+            when={single().event.kind !== 9735}
+            fallback={
+              <ZapNotice
+                receipt={single().event}
+                size={props.size}
+                expandMedia={props.expandMedia}
+              />
+            }
+          >
+            <Show
+              when={actionTarget(single().event)}
+              fallback={
+                <MutedGate
+                  event={single().event}
+                  active={props.foldsMuted}
+                  size={props.size}
+                >
+                  <Event
+                    event={single().event}
+                    size={props.size}
+                    expandMedia={props.expandMedia}
+                  />
+                </MutedGate>
+              }
+            >
+              <ActionNotice
+                events={[single().event]}
+                size={props.size}
+                expandMedia={props.expandMedia}
+              />
+            </Show>
+          </Show>
+        )}
+      </Show>
+    }
+  >
+    {(group) => (
+      <ActionNotice
+        events={group().events}
+        size={props.size}
+        expandMedia={props.expandMedia}
+      />
+    )}
+  </Show>
+);
 
 /**
  * 自分宛のイベントを通知の行にして並べる。同じノートへの連続した
@@ -116,56 +176,12 @@ const NotificationList: Component<{
                   return <BrokenEvent />;
                 }}
               >
-                <Show
-                  when={row.type === "group" && row}
-                  fallback={
-                    <Show when={row.type === "event" && row}>
-                      {(single) => (
-                        <Show
-                          when={single().event.kind !== 9735}
-                          fallback={
-                            <ZapNotice
-                              receipt={single().event}
-                              size={size()}
-                              expandMedia={expandMedia()}
-                            />
-                          }
-                        >
-                          <Show
-                            when={actionTarget(single().event)}
-                            fallback={
-                              <MutedGate
-                                event={single().event}
-                                active={section.foldsMuted()}
-                                size={size()}
-                              >
-                                <Event
-                                  event={single().event}
-                                  size={size()}
-                                  expandMedia={expandMedia()}
-                                />
-                              </MutedGate>
-                            }
-                          >
-                            <ActionNotice
-                              events={[single().event]}
-                              size={size()}
-                              expandMedia={expandMedia()}
-                            />
-                          </Show>
-                        </Show>
-                      )}
-                    </Show>
-                  }
-                >
-                  {(group) => (
-                    <ActionNotice
-                      events={group().events}
-                      size={size()}
-                      expandMedia={expandMedia()}
-                    />
-                  )}
-                </Show>
+                <NotificationRowView
+                  row={row}
+                  size={size()}
+                  expandMedia={expandMedia()}
+                  foldsMuted={section.foldsMuted()}
+                />
               </ErrorBoundary>
             )}
           </VirtualList>
