@@ -1,6 +1,6 @@
 import type { NostrEvent } from "../nostr/event";
-import { repostTarget } from "../nostr/event-refs";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
+import { repostTarget } from "../nostr/repost";
 import { zapSender } from "../zap/zap-receipt";
 
 /** まとめられる操作。リアクションとリポストは別々にまとめる（混ぜると何をされたか読めない）。 */

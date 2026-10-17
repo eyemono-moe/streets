@@ -7,18 +7,14 @@ import {
   parseContent,
 } from "../nostr/content";
 import type { NostrEvent } from "../nostr/event";
-import {
-  type EventRef,
-  idRefOfPointer,
-  relayOf,
-  tagOnlyQuoteTargets,
-} from "../nostr/event-refs";
+import { type EventRef, idRefOfPointer, relayOf } from "../nostr/event-refs";
 import {
   type InlineMediaMetadata,
   type MediaDimensions,
   inlineMediaMetadata,
 } from "../nostr/imeta";
 import { PICTURE_KIND, isMediaPostKind } from "../nostr/media-post";
+import { tagOnlyQuoteTargets } from "../nostr/quote";
 
 export type NoteMedia = {
   type: "image" | "video";

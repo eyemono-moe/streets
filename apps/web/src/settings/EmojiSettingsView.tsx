@@ -1,7 +1,7 @@
 import { Collapsible } from "@ark-ui/solid/collapsible";
 import { PRESETS, styleOfPreset } from "@streets/core/emoji-maker/style";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import { encodeNaddr } from "@streets/core/nostr/nip19";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import {
   type CustomEmoji,
   EMOJI_SET_KIND,

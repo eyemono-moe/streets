@@ -1,6 +1,5 @@
 import type { RelayUrl } from "../relay/relay-connection";
-import { parseContent } from "./content";
-import { type NostrEvent, isNostrEvent } from "./event";
+import type { NostrEvent } from "./event";
 
 /** NIP-01 の id / pubkey は 32 バイトの小文字 hex 表現である。 */
 const HEX_64 = /^[0-9a-f]{64}$/;
@@ -13,7 +12,7 @@ export type EventRef =
   | { form: "id"; id: string; relay?: RelayUrl; pubkey?: string }
   | { form: "address"; address: string; relay?: RelayUrl };
 
-type IdRef = Extract<EventRef, { form: "id" }>;
+export type IdRef = Extract<EventRef, { form: "id" }>;
 
 /**
  * 空文字を落とす。NIP-10 はリレー URL を「may be empty string」と明記しており、
@@ -22,10 +21,10 @@ type IdRef = Extract<EventRef, { form: "id" }>;
 export const relayOf = (value: string | undefined): RelayUrl | undefined =>
   value && value.length > 0 ? (value as RelayUrl) : undefined;
 
-const pubkeyOf = (value: string | undefined): string | undefined =>
+export const pubkeyOf = (value: string | undefined): string | undefined =>
   value && HEX_64.test(value) ? value : undefined;
 
-const idRef = (
+export const idRef = (
   id: string,
   relay?: string,
   pubkey?: string,
@@ -57,179 +56,6 @@ export const idRefOfPointer = (
     ? idRef(ref.id)
     : idRef(ref.id, ref.relays[0], ref.author);
 
-/** NIP-22 のコメント。kind:1 以外への返信と、一部のクライアントでは kind:1 への返信にも使われる。 */
-export const COMMENT_KIND = 1111;
-
-/**
- * コメントが指す先。`kind` は `K`/`k` タグの値で、イベントなら数、外部の
- * 識別子（NIP-73）なら `web` や `#` などの文字列。
- */
-export type CommentTarget =
-  | (IdRef & { kind?: number })
-  | (Extract<EventRef, { form: "address" }> & { kind?: number })
-  | { form: "external"; value: string; hint?: string; kind?: string };
-
-export type CommentRefs = {
-  root: CommentTarget | undefined;
-  parent: CommentTarget | undefined;
-};
-
-const eventKindOf = (value: string | undefined): number | undefined =>
-  value && /^\d+$/.test(value) ? Number(value) : undefined;
-
-/**
- * NIP-22 の参照を 1 組（根なら `E`/`A`/`I`/`K`、親なら小文字）読む。
- * 記事のように `A` と `E` を両方持つ先は `A` を採る —— 書き直しても同じ先を指し続けるため。
- */
-const commentTarget = (
-  event: NostrEvent,
-  names: { e: string; a: string; i: string; k: string },
-): CommentTarget | undefined => {
-  const find = (name: string) => event.tags.find((tag) => tag[0] === name);
-  const kindValue = find(names.k)?.[1];
-  const kind = eventKindOf(kindValue);
-
-  const a = find(names.a);
-  if (a?.[1]?.includes(":")) {
-    const ref: CommentTarget = { form: "address", address: a[1] };
-    const relay = relayOf(a[2]);
-    if (relay) ref.relay = relay;
-    if (kind !== undefined) ref.kind = kind;
-    return ref;
-  }
-  const e = find(names.e);
-  // NIP-22 の `e` は `["e", id, relay, pubkey]`。NIP-10 と違い 4 番目は marker ではない。
-  const ref = e ? idRef(e[1] ?? "", e[2], e[3]) : undefined;
-  if (ref) return kind === undefined ? ref : { ...ref, kind };
-  const i = find(names.i);
-  if (i?.[1]) {
-    const external: CommentTarget = { form: "external", value: i[1] };
-    if (i[2]) external.hint = i[2];
-    if (kindValue) external.kind = kindValue;
-    return external;
-  }
-  return undefined;
-};
-
-/** コメント（kind:1111）の根と親。コメントでなければ `undefined`。 */
-export const commentRefs = (event: NostrEvent): CommentRefs | undefined =>
-  event.kind === COMMENT_KIND
-    ? {
-        root: commentTarget(event, { e: "E", a: "A", i: "I", k: "K" }),
-        parent: commentTarget(event, { e: "e", a: "a", i: "i", k: "k" }),
-      }
-    : undefined;
-
-/**
- * コメントの参照先が id ならその id。記事のように住所を持つ先は、`e` で版の id も
- * 添えられるが、指しているのは住所の方なので id としては返さない。
- */
-const commentIdOf = (target: CommentTarget | undefined): IdRef | undefined => {
-  if (target?.form !== "id") return undefined;
-  const { kind: _, ...ref } = target;
-  return ref;
-};
-
-/**
- * NIP-10 で位置形式の `e` タグを読む kind。kind:6（リポスト）や kind:7（リアクション）も
- * 印の無い `e` タグを持つので、位置で読むとそれらが返信になってしまう。
- * kind:42（NIP-28 の発言）は NIP-10 の書き方に従う。
- */
-const POSITIONAL_KINDS = new Set([1, 42]);
-
-/**
- * 本文で指している投稿の id と、`#[n]`（NIP-08 の古い言及）で指すタグの位置（`#n`）。
- * 位置形式の返信先を決めるときだけ使う。
- */
-const mentionedInContent = (event: NostrEvent): Set<string> => {
-  const mentioned = new Set<string>();
-  for (const match of event.content.matchAll(/#\[(\d+)\]/g)) {
-    mentioned.add(`#${match[1]}`);
-  }
-  if (!event.content.includes("nostr:")) return mentioned;
-  for (const token of parseContent(event.content, event.tags)) {
-    if (token.type !== "mention") continue;
-    if (token.ref.kind === "note" || token.ref.kind === "nevent") {
-      mentioned.add(token.ref.id);
-    }
-  }
-  return mentioned;
-};
-
-/**
- * 印（`root` / `reply`）の付いた `e` タグが 1 本も無いときだけ、印の無い `e` タグを
- * 位置で読む（NIP-10 の古い書き方。互換のために残すとされている）。先頭が根、
- * 末尾が返信先。印付きが 1 本でもあれば `undefined`（印だけで決める）。
- * `mention` の印が付いたものは返信ではないので数えない。
- */
-const positionalRefs = (event: NostrEvent): IdRef[] | undefined => {
-  if (!POSITIONAL_KINDS.has(event.kind)) return undefined;
-  const refs: IdRef[] = [];
-  let mentioned: Set<string> | undefined;
-  for (const [index, tag] of event.tags.entries()) {
-    if (tag[0] !== "e") continue;
-    const marker = tag[3];
-    if (marker === "root" || marker === "reply") return undefined;
-    if (marker === "mention") continue;
-    // 古い書き方では、本文で引用した投稿にも印の無い `e` タグを付けていた。
-    // 本文で指しているものは言及であって返信先ではない。
-    mentioned ??= mentionedInContent(event);
-    if (mentioned.has(tag[1] ?? "") || mentioned.has(`#${index}`)) continue;
-    // 4 番目と 5 番目を取り違えたもの（`["e", id, relay, pubkey, "root"]`）もあるので、
-    // 4 番目が pubkey ならそれを使う。
-    const ref = idRef(tag[1] ?? "", tag[2], pubkeyOf(marker) ? marker : tag[4]);
-    if (ref) refs.push(ref);
-  }
-  return refs;
-};
-
-/**
- * 返信先（親）の id を返す。`reply` の印があればそれ、無ければ `root`（root タグは
- * 1 本だけの決まり）。NIP-10 ではどちらの印も省けるので、印付きが 1 本も無ければ
- * 位置で読む（`positionalRefs`）。コメントなら小文字の `e`。親が記事などの住所や
- * 外部の識別子なら `undefined` になるので、返信かどうかは `isReply` で見る。
- */
-export const replyTarget = (event: NostrEvent): IdRef | undefined => {
-  if (event.kind === COMMENT_KIND)
-    return commentIdOf(commentRefs(event)?.parent);
-  const positional = positionalRefs(event);
-  if (positional) return positional.at(-1);
-  let root: IdRef | undefined;
-  for (const tag of event.tags) {
-    if (tag[0] !== "e") continue;
-    const marker = tag[3];
-    if (marker !== "reply" && marker !== "root") continue;
-    const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
-    if (!ref) continue;
-    if (marker === "reply") return ref;
-    root ??= ref;
-  }
-  return root;
-};
-
-/**
- * スレッドの根の id を返す。`root` の印のもの、印付きが無ければ位置で読んだ先頭。
- * `replyTarget` は `reply` 優先で深い返信では根を取れないため別経路が要る。
- * `root` の印が無く `reply` だけの返信では根が分からず `undefined`（呼ぶ側が親を
- * たどる）。`undefined` 時も自分の id は返さない。
- * コメントなら大文字の `E` —— 返信への返信になったコメントは、根を `E` でしか指さない。
- */
-export const threadRoot = (event: NostrEvent): IdRef | undefined => {
-  if (event.kind === COMMENT_KIND) return commentIdOf(commentRefs(event)?.root);
-  const positional = positionalRefs(event);
-  if (positional) return positional[0];
-  for (const tag of event.tags) {
-    if (tag[0] !== "e" || tag[3] !== "root") continue;
-    const ref = idRef(tag[1] ?? "", tag[2], tag[4]);
-    if (ref) return ref;
-  }
-  return undefined;
-};
-
-/** 何かへの返信か。コメントは必ず何かへの返信。 */
-export const isReply = (event: NostrEvent): boolean =>
-  event.kind === COMMENT_KIND || replyTarget(event) !== undefined;
-
 /**
  * `e` タグが運ぶリレーヒントを重複無しで返す（`#e` 購読は返信者が事前に分から
  * ず著者の write relay も引けないため）。marker は問わず引用専用タグも拾う。
@@ -243,109 +69,4 @@ export const eventRelayHints = (event: NostrEvent): RelayUrl[] => {
     if (hint) hints.add(hint);
   }
   return [...hints];
-};
-
-/**
- * 引用先を順に返す。`e` タグは拾わない —— NIP-18 が `q` タグを作った目的は
- * 「引用をスレッドの返信として現れさせない」ことなので、混ぜると逆流する。
- */
-export const quoteTargets = (event: NostrEvent): EventRef[] => {
-  const refs: EventRef[] = [];
-  for (const tag of event.tags) {
-    if (tag[0] !== "q") continue;
-    const value = tag[1] ?? "";
-    if (value.includes(":")) {
-      const ref: EventRef = { form: "address", address: value };
-      const r = relayOf(tag[2]);
-      if (r) ref.relay = r;
-      refs.push(ref);
-      continue;
-    }
-    const ref = idRef(value, tag[2], tag[3]);
-    if (ref) refs.push(ref);
-  }
-  return refs;
-};
-
-/**
- * `q` タグのうち本文に `nostr:` として現れないものを返す（本文側は
- * `NoteContent` の `eventRefs` が描画）。NIP-18 は本文言及の `q` タグ化を
- * MUST、NIP-27 は任意とし本文とタグが双方向にずれるため「タグにしか
- * 無いもの」を出し、id/address（naddr の 3 つ組と一致）とも重複は先勝ち。
- */
-export const tagOnlyQuoteTargets = (event: NostrEvent): EventRef[] => {
-  const mentionedIds = new Set<string>();
-  const mentionedAddresses = new Set<string>();
-  for (const token of parseContent(event.content, event.tags)) {
-    if (token.type !== "mention") continue;
-    const ref = token.ref;
-    if (ref.kind === "note" || ref.kind === "nevent") {
-      mentionedIds.add(ref.id);
-    } else if (ref.kind === "naddr") {
-      mentionedAddresses.add(
-        `${ref.eventKind}:${ref.pubkey}:${ref.identifier}`,
-      );
-    }
-  }
-
-  const seenIds = new Set<string>();
-  const seenAddresses = new Set<string>();
-  const refs: EventRef[] = [];
-  for (const ref of quoteTargets(event)) {
-    if (ref.form === "id") {
-      if (mentionedIds.has(ref.id) || seenIds.has(ref.id)) continue;
-      seenIds.add(ref.id);
-    } else {
-      if (
-        mentionedAddresses.has(ref.address) ||
-        seenAddresses.has(ref.address)
-      ) {
-        continue;
-      }
-      seenAddresses.add(ref.address);
-    }
-    refs.push(ref);
-  }
-  return refs;
-};
-
-/**
- * リポスト対象の `e` タグ。例外を投げない —— NIP-18 は kind:6 に `e` タグを
- * 要求するが守らないイベントも実在し、1 件の不正なイベントでカラム全体を壊さない。
- *
- * NIP-18 は印を定めないので、`e` タグは NIP-01 の `["e", id, relay, pubkey]` で
- * 読む。NIP-10 の印付きの形（`["e", id, relay, "", pubkey]`）で書くクライアントも
- * あるので 5 番目も見て、どちらにも無ければ NIP-18 が求める `p` タグから補う。
- */
-export const repostTarget = (event: NostrEvent): IdRef | undefined => {
-  for (const tag of event.tags) {
-    if (tag[0] !== "e") continue;
-    const author =
-      pubkeyOf(tag[3]) ??
-      pubkeyOf(tag[4]) ??
-      event.tags.find((p) => p[0] === "p" && pubkeyOf(p[1]))?.[1];
-    const ref = idRef(tag[1] ?? "", tag[2], author);
-    if (ref) return ref;
-  }
-  return undefined;
-};
-
-/**
- * リポストの `content` に埋め込まれた対象イベント（NIP-18）。信用できない
- * 値なので形だけ確認し、署名検証は呼び出し側の `EventStore.put` に委ねる
- * （`"rejected"` なら埋め込みを捨て `e` タグから引き直す）。
- */
-export const embeddedRepostEvent = (
-  event: NostrEvent,
-): NostrEvent | undefined => {
-  // 空文字を早期に弾く。消しても、空文字は JSON.parse が投げ try/catch が拾って
-  // undefined になるため観測できないが、「content が無い」意図を例外送出任せにせずコードで明示するために残す。
-  if (event.content.trim().length === 0) return undefined;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(event.content);
-  } catch {
-    return undefined;
-  }
-  return isNostrEvent(parsed) ? parsed : undefined;
 };

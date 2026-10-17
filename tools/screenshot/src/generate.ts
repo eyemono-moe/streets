@@ -17,24 +17,18 @@ import {
 } from "@streets/core/deck/deck";
 import { FOLLOW_SET_KIND } from "@streets/core/lists/follow-set";
 import type { BlobDescriptor } from "@streets/core/media/blossom";
-import {
-  buildChannelCreate,
-  buildChannelMessage,
-} from "@streets/core/nostr/build/channel";
 import { withContentWarning } from "@streets/core/nostr/build/content-warning";
 import type { EventDraft } from "@streets/core/nostr/build/draft";
 import { addFollow } from "@streets/core/nostr/build/follow";
 import { imetaTag, withMedia } from "@streets/core/nostr/build/media";
-import {
-  buildNote,
-  buildQuote,
-  buildReply,
-} from "@streets/core/nostr/build/note";
+import { buildNote } from "@streets/core/nostr/build/note";
 import { mergeProfile } from "@streets/core/nostr/build/profile";
-import { buildReaction } from "@streets/core/nostr/build/reaction";
 import { withReferences } from "@streets/core/nostr/build/references";
 import { setRelayList } from "@streets/core/nostr/build/relay-list";
-import { buildRepost } from "@streets/core/nostr/build/repost";
+import {
+  buildChannelCreate,
+  buildChannelMessage,
+} from "@streets/core/nostr/channel";
 import { PUBLIC_CHATS_KIND } from "@streets/core/nostr/channel";
 import { type NostrEvent, computeEventId } from "@streets/core/nostr/event";
 import {
@@ -42,6 +36,10 @@ import {
   encodeNaddr,
   encodeNevent,
 } from "@streets/core/nostr/nip19";
+import { buildQuote } from "@streets/core/nostr/quote";
+import { buildReaction } from "@streets/core/nostr/reaction";
+import { buildReply } from "@streets/core/nostr/reply";
+import { buildRepost } from "@streets/core/nostr/repost";
 import { setSearchRelays } from "@streets/core/settings/search-relay-list";
 import {
   conversationKey,

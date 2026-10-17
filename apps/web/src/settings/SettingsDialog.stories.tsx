@@ -1,6 +1,6 @@
 import type { DeckAppearance } from "@streets/core/deck/deck";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { RelayUrl } from "@streets/core/relay/relay-connection";
 import { decodeBlockedRelayList } from "@streets/core/settings/blocked-relay-list";
 import type { ColorScheme } from "@streets/core/settings/color-scheme";

@@ -1,4 +1,4 @@
-import { buildChannelMessage } from "@streets/core/nostr/build/channel";
+import { buildChannelMessage } from "@streets/core/nostr/channel";
 import type { NostrEvent } from "@streets/core/nostr/event";
 import { pinNote } from "@streets/core/nostr/pinned-notes";
 import {

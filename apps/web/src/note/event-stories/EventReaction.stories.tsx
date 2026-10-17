@@ -1,4 +1,4 @@
-import { buildReaction } from "@streets/core/nostr/build/reaction";
+import { buildReaction } from "@streets/core/nostr/reaction";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import emojiUrl from "../../storybook/emoji-fixture.svg";
 import {

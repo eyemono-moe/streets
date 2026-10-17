@@ -1,9 +1,9 @@
 import type { MuteEntry } from "@streets/core/moderation/mute-list";
+import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type ReactionInput,
   buildReaction,
-} from "@streets/core/nostr/build/reaction";
-import type { NostrEvent } from "@streets/core/nostr/event";
+} from "@streets/core/nostr/reaction";
 import { actionRowsByTarget } from "@streets/core/view/notification-rows";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../../storybook/avatar-fixture.svg";

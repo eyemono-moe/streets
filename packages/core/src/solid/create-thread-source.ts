@@ -1,11 +1,7 @@
 import { type Accessor, createMemo, untrack } from "solid-js";
-import {
-  COMMENT_KIND,
-  type EventRef,
-  commentRefs,
-  eventRelayHints,
-  threadRoot,
-} from "../nostr/event-refs";
+import { COMMENT_KIND, commentRefs } from "../nostr/comment";
+import { type EventRef, eventRelayHints } from "../nostr/event-refs";
+import { threadRoot } from "../nostr/reply";
 import type { EventStore } from "../read/event-store";
 import type { NostrSource } from "../read/source";
 import type { RelayUrl } from "../relay/relay-connection";

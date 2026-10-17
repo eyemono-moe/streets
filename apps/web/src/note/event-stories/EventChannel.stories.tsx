@@ -2,7 +2,7 @@ import {
   buildChannelCreate,
   buildChannelMessage,
   buildChannelMetadata,
-} from "@streets/core/nostr/build/channel";
+} from "@streets/core/nostr/channel";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import {
   EventStory,

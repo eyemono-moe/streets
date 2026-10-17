@@ -1,7 +1,7 @@
 import type { EmojiSpec } from "@streets/core/emoji-maker/spec";
 import type { Style } from "@streets/core/emoji-maker/style";
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
 import type { NostrEvent } from "@streets/core/nostr/event";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import type { Component, JSX } from "solid-js";
 import { useSending } from "../actions-mediator";
 import { useDispatch } from "../ui-events";

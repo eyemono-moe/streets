@@ -1,4 +1,4 @@
-import type { ReactionInput } from "@streets/core/nostr/build/reaction";
+import type { ReactionInput } from "@streets/core/nostr/reaction";
 import {
   DEFAULT_REACTION_STORAGE_KEY,
   loadDefaultReaction,

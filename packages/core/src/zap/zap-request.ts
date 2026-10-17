@@ -1,3 +1,4 @@
+import { addressOfEvent, formatEventAddress } from "../nostr/address";
 import type { EventDraft } from "../nostr/build/draft";
 import type { NostrEvent } from "../nostr/event";
 import type { RelayUrl } from "../relay/relay-connection";
@@ -35,10 +36,23 @@ export const zapReceiptRelays = (options: {
   );
 };
 
+/** Zap する投稿を指すタグ。人への Zap には付けない。 */
+const zapTargetTags = (target: ZapTarget): string[][] => {
+  if (target.type !== "event") return [];
+  const address = addressOfEvent(target.event);
+  return [
+    ["e", target.event.id],
+    // NIP-57: "`a` is an optional event coordinate that allows tipping addressable events
+    // such as NIP-23 long-form notes." 版の id だけだと、書き直した記事への Zap が別のものに見える。
+    ...(address ? [["a", formatEventAddress(address)]] : []),
+    ["k", String(target.event.kind)],
+  ];
+};
+
 /**
  * Zap の依頼（NIP-57 の kind:9734）。リレーには送らず、署名して LNURL の
  * callback へ渡す。受け取った側のサーバーは、これを受領（kind:9735）に入れて
- * `relays` へ流す。人への Zap は `e`・`k` を付けない。
+ * `relays` へ流す。
  */
 export const buildZapRequest = (options: {
   target: ZapTarget;
@@ -55,12 +69,7 @@ export const buildZapRequest = (options: {
     ["amount", String(options.amountMsat)],
     ["lnurl", options.endpoint.lnurl],
     ["p", zapRecipient(options.target)],
-    ...(options.target.type === "event"
-      ? [
-          ["e", options.target.event.id],
-          ["k", String(options.target.event.kind)],
-        ]
-      : []),
+    ...zapTargetTags(options.target),
   ],
 });
 

@@ -1,5 +1,5 @@
 import type { NostrEvent } from "../nostr/event";
-import { embeddedRepostEvent, repostTarget } from "../nostr/event-refs";
+import { embeddedRepostEvent, repostTarget } from "../nostr/repost";
 import type { EventStore } from "../read/event-store";
 import type { RelayUrl } from "../relay/relay-connection";
 

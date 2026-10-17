@@ -1,6 +1,7 @@
 import type { NostrEvent } from "../nostr/event";
-import { quoteTargets, repostTarget } from "../nostr/event-refs";
+import { quoteTargets } from "../nostr/quote";
 import { type ReactionContent, parseReaction } from "../nostr/reaction";
+import { repostTarget } from "../nostr/repost";
 
 export type ActivityReaction = {
   pubkey: string;

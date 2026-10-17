@@ -1,7 +1,6 @@
 import type { MuteTarget } from "../nostr/build/mute";
 import { CHANNEL_MESSAGE_KIND } from "../nostr/channel";
 import type { NostrEvent } from "../nostr/event";
-import { threadRoot } from "../nostr/event-refs";
 import { decodeNip19, decodeNpub } from "../nostr/nip19";
 import {
   type ItemVisibility,
@@ -9,6 +8,7 @@ import {
   decryptPrivateTags,
   rewritePrivateTags,
 } from "../nostr/private-tags";
+import { threadRoot } from "../nostr/reply";
 import type { Signer } from "../signer/signer";
 import type { Replacement } from "../write/writer";
 

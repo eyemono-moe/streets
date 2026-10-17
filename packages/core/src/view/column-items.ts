@@ -1,7 +1,9 @@
 import type { ColumnFacet } from "../deck/column-kinds";
 import type { ColumnShow } from "../deck/deck";
+import { COMMENT_KIND } from "../nostr/comment";
 import type { NostrEvent } from "../nostr/event";
-import { COMMENT_KIND, isReply, quoteTargets } from "../nostr/event-refs";
+import { quoteTargets } from "../nostr/quote";
+import { isReply } from "../nostr/reply";
 
 /**
  * カラム設定の「表示するもの」で流れを間引く。購読は変えない ——

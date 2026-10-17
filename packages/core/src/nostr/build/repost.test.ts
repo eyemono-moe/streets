@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { NostrEvent } from "../event";
-import { buildRepost } from "./repost";
+import { buildRepost } from "../repost";
 
 const evt = (fields: Partial<NostrEvent>): NostrEvent =>
   ({

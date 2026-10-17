@@ -1,5 +1,6 @@
+import { COMMENT_KIND } from "../nostr/comment";
 import type { NostrEvent } from "../nostr/event";
-import { COMMENT_KIND, replyTarget } from "../nostr/event-refs";
+import { replyTarget } from "../nostr/reply";
 
 /** これより深い返信は同じ段に並べる。狭いカラムで本文の幅が無くならないように。 */
 export const MAX_COMMENT_DEPTH = 3;

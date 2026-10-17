@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import type { ReactionInput } from "../nostr/build/reaction";
+import type { ReactionInput } from "../nostr/reaction";
 import type { ReactionContent } from "../nostr/reaction";
 
 /**

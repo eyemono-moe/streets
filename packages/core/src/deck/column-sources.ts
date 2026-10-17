@@ -6,7 +6,7 @@ import {
   CHANNEL_METADATA_KIND,
   CHANNEL_MUTE_USER_KIND,
 } from "../nostr/channel";
-import { COMMENT_KIND } from "../nostr/event-refs";
+import { COMMENT_KIND } from "../nostr/comment";
 import { LONG_FORM_KIND } from "../nostr/long-form";
 import {
   PICTURE_KIND,

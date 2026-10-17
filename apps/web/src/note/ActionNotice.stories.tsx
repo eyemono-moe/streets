@@ -1,8 +1,8 @@
+import type { NostrEvent } from "@streets/core/nostr/event";
 import {
   type ReactionInput,
   buildReaction,
-} from "@streets/core/nostr/build/reaction";
-import type { NostrEvent } from "@streets/core/nostr/event";
+} from "@streets/core/nostr/reaction";
 import type { Component } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import avatarUrl from "../storybook/avatar-fixture.svg";

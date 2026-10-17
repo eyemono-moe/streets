@@ -73,7 +73,7 @@
     "kinds": [1],
     "tags": ["e", "p"],
     "paths": [
-      "packages/core/src/nostr/event-refs.ts",
+      "packages/core/src/nostr/reply.ts",
       "packages/core/src/nostr/build/references.ts",
       "packages/core/src/view/thread-spine.ts"
     ],
@@ -98,8 +98,8 @@
     "kinds": [6, 16],
     "tags": ["e", "p", "k", "q"],
     "paths": [
-      "packages/core/src/nostr/build/repost.ts",
-      "packages/core/src/nostr/build/note.ts",
+      "packages/core/src/nostr/repost.ts",
+      "packages/core/src/nostr/quote.ts",
       "packages/core/src/nostr/build/references.ts",
       "packages/core/src/view/repost-target.ts",
       "packages/core/src/read/event-requests.ts",
@@ -135,8 +135,8 @@
     "kinds": [1111],
     "tags": ["E", "A", "I", "K", "P", "e", "a", "i", "k", "p"],
     "paths": [
-      "packages/core/src/nostr/event-refs.ts",
-      "packages/core/src/nostr/build/note.ts",
+      "packages/core/src/nostr/comment.ts",
+      "packages/core/src/nostr/reply.ts",
       "packages/core/src/view/comment-scope.ts",
       "packages/core/src/view/comment-tree.ts",
       "packages/core/src/solid/create-thread-source.ts",
@@ -179,7 +179,6 @@
     "tags": ["e", "a", "p", "k"],
     "paths": [
       "packages/core/src/nostr/reaction.ts",
-      "packages/core/src/nostr/build/reaction.ts",
       "apps/web/src/columns/blocks/ActionFeed.tsx"
     ],
     "gap": ""
@@ -204,7 +203,6 @@
     "tags": ["e", "p"],
     "paths": [
       "packages/core/src/nostr/channel.ts",
-      "packages/core/src/nostr/build/channel.ts",
       "packages/core/src/nostr/event-actions.ts",
       "apps/web/src/columns/blocks/ChannelChat.tsx"
     ],
@@ -341,6 +339,7 @@
     "kinds": [9734, 9735],
     "tags": [
       "e",
+      "a",
       "p",
       "k",
       "relays",
@@ -401,7 +400,7 @@
     "summary": "保護された投稿をリポストするときは、元の投稿を埋め込まない",
     "kinds": [],
     "tags": ["-"],
-    "paths": ["packages/core/src/nostr/build/repost.ts"],
+    "paths": ["packages/core/src/nostr/repost.ts"],
     "gap": "自分の投稿を保護する操作はない"
   },
   {
