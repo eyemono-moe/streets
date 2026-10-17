@@ -43,6 +43,8 @@ export type DeckUiState = {
   paletteOpen: boolean;
   /** 「Streets について」のダイアログを開いているか。 */
   aboutOpen: boolean;
+  /** 「Streets について」で開くページ。通常の入口では未指定。 */
+  aboutPage: string | undefined;
   /** ピクチャーインピクチャーに出しているカラム。ピクチャーインピクチャーは 1 枚だけ開ける。 */
   poppedOut: string | undefined;
   /** 狭い画面で、左から出るアプリ全体のメニューを開いているか。 */
@@ -60,7 +62,7 @@ export type DeckUiEvent =
   | { type: "deck/close-settings" }
   | { type: "deck/open-palette" }
   | { type: "deck/close-palette" }
-  | { type: "deck/open-about" }
+  | { type: "deck/open-about"; page?: string }
   | { type: "deck/close-about" }
   | { type: "deck/open-menu" }
   | { type: "deck/close-menu" }
@@ -96,6 +98,7 @@ export const emptyDeckUi = (): DeckUiState => ({
   settingsTarget: undefined,
   paletteOpen: false,
   aboutOpen: false,
+  aboutPage: undefined,
   poppedOut: undefined,
   menuOpen: false,
 });
@@ -187,13 +190,16 @@ const transition = (state: DeckUiState, event: DeckUiEvent): DeckUiState => {
       return {
         ...state,
         aboutOpen: true,
+        aboutPage: event.page,
         settingsOpen: false,
         settingsTarget: undefined,
         paletteOpen: false,
         panel: undefined,
       };
     case "deck/close-about":
-      return state.aboutOpen ? { ...state, aboutOpen: false } : state;
+      return state.aboutOpen
+        ? { ...state, aboutOpen: false, aboutPage: undefined }
+        : state;
     case "deck/select-column":
       // タブを選んだらパネルは閉じる。狭い画面ではパネルがカラムを覆っている。
       return { ...state, active: event.id, panel: undefined };

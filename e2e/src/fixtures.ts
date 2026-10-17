@@ -106,7 +106,7 @@ export const test = base.extend<
     await use(async (user = me) => {
       signerState.user = user;
       await page
-        .getByRole("button", { name: /Nostr のアカウントを持っている方/ })
+        .getByRole("button", { name: /アカウントを持っている方/ })
         .click();
       if (loginMethod === "nip07") {
         await page.getByRole("button", { name: /拡張機能でログイン/ }).click();

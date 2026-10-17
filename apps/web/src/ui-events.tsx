@@ -204,7 +204,7 @@ export type DeckEvent =
   | { type: "deck/close-settings" }
   | { type: "deck/open-palette" }
   | { type: "deck/close-palette" }
-  | { type: "deck/open-about" }
+  | { type: "deck/open-about"; page?: string }
   | { type: "deck/close-about" }
   /** 狭い画面で、左から出るアプリ全体のメニュー。 */
   | { type: "deck/open-menu" }

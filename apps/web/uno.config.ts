@@ -165,6 +165,13 @@ export default defineConfig({
         marquee: "{from{transform:none}to{transform:translateX(-50%)}}",
         // 聴いている曲の印の棒。棒ごとに始まりをずらして、波に見せる。
         "status-wave": "{0%,100%{transform:none}50%{transform:scaleY(0.4)}}",
+        // 紹介のカラムで、カラムを掴んで 1 つ右へ動かし、また戻す様子。掴んだカラム（carry）と、
+        // 場所を空けるカラム（make-way）を同じ長さで回す。動きを減らす設定では長さが 0ms になり、
+        // fill-mode を付けていないので、動かす前の並びのまま止まって見える。
+        "demo-carry":
+          "{0%,10%{transform:none}18%{transform:translateY(-4px) scale(1.04)}38%{transform:translate(calc(100% + 0.375rem),-4px) scale(1.04)}45%,60%{transform:translateX(calc(100% + 0.375rem))}68%{transform:translate(calc(100% + 0.375rem),-4px) scale(1.04)}88%{transform:translateY(-4px) scale(1.04)}95%,100%{transform:none}}",
+        "demo-make-way":
+          "{0%,22%{transform:none}38%,72%{transform:translateX(calc(-100% - 0.375rem))}88%,100%{transform:none}}",
         shake:
           "{0%,100%{transform:none}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}",
       },
@@ -188,6 +195,8 @@ export default defineConfig({
         "nudge-up": "1800ms",
         // marquee の長さは文の幅で決まるので、置く側が inline で当てる。
         "status-wave": "1200ms",
+        "demo-carry": "6s",
+        "demo-make-way": "6s",
       },
       timingFns: {
         "fade-in": "ease-out",
@@ -209,11 +218,15 @@ export default defineConfig({
         "nudge-up": "ease-in-out",
         marquee: "linear",
         "status-wave": "ease-in-out",
+        "demo-carry": "ease-in-out",
+        "demo-make-way": "ease-in-out",
       },
       counts: {
         "nudge-up": "infinite",
         marquee: "infinite",
         "status-wave": "infinite",
+        "demo-carry": "infinite",
+        "demo-make-way": "infinite",
       },
     },
   },

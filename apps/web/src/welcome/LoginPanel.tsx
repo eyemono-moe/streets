@@ -2,6 +2,7 @@ import { Collapsible } from "@ark-ui/solid/collapsible";
 import { type DeviceKind, deviceKind } from "@streets/core/view/device-kind";
 import {
   type Component,
+  type JSX,
   Match,
   Show,
   Switch,
@@ -14,7 +15,6 @@ import type { ConnectAttempt } from "../session";
 import { useDispatch } from "../ui-events";
 import Button from "../ui/Button";
 import ChoiceButton from "../ui/ChoiceButton";
-import Intro from "./Intro";
 import NewcomerGuide from "./NewcomerGuide";
 import RemoteSignerLogin from "./RemoteSignerLogin";
 
@@ -62,6 +62,8 @@ const LoginPanel: Component<{
   initialDevice?: DeviceKind;
   /** 入力欄の最初の値。ストーリーで貼り付けた後の見た目を出すため。 */
   initialBunkerUri?: string;
+  /** 始め方を選ぶ段にだけ、選択肢の下に置くもの（Streets の紹介）。 */
+  children?: JSX.Element;
 }> = (props) => {
   const dispatch = useDispatch();
   // スマートフォンで始め方を読み終えた人は、リモート署名器で繋ぐ。
@@ -85,49 +87,51 @@ const LoginPanel: Component<{
   return (
     <Switch>
       <Match when={step() === "choose"}>
-        <section
-          class="flex animate-fade-in flex-col gap-3"
-          aria-labelledby="choose-heading"
-        >
-          <Intro />
-          <h2 id="choose-heading" class="mt-3 font-600 text-body">
-            はじめる
-          </h2>
-          <ChoiceButton
-            icon="i-material-symbols:person-add-outline-rounded"
-            title="はじめての方"
-            description="Nostr のアカウントを作るところから案内します"
-            trailing="next"
-            onClick={() => setStep("new")}
-          />
-          <ChoiceButton
-            icon="i-material-symbols:login-rounded"
-            title="Nostr のアカウントを持っている方"
-            description="拡張機能かリモート署名器でログインします"
-            trailing="next"
-            onClick={() => setStep("existing")}
-          />
-          {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
-          <Show when={!isMultiColumn()}>
+        <div class="flex animate-fade-in flex-col">
+          <section
+            class="flex flex-col gap-3 px-4 pb-8"
+            aria-labelledby="choose-heading"
+          >
+            <h2 id="choose-heading" class="sr-only">
+              はじめる
+            </h2>
             <ChoiceButton
-              icon="i-material-symbols:visibility-outline-rounded"
-              title="ログインせずに見てみる"
-              description="いま流れている投稿を読みます"
+              icon="i-material-symbols:person-add-outline-rounded"
+              title="Nostrをはじめる"
+              description="アカウントの作成から案内します"
               trailing="next"
-              onClick={() => dispatch({ type: "deck/browse" })}
+              onClick={() => setStep("new")}
             />
-          </Show>
-        </section>
+            <ChoiceButton
+              icon="i-material-symbols:login-rounded"
+              title="アカウントを持っている方"
+              description="今のNostrアカウントでログインします"
+              trailing="next"
+              onClick={() => setStep("existing")}
+            />
+            {/* カラムを横に並べているなら、流れている投稿は隣にもう見えている。 */}
+            <Show when={!isMultiColumn()}>
+              <ChoiceButton
+                icon="i-material-symbols:visibility-outline-rounded"
+                title="ログインせずに読む"
+                description="投稿を見るだけならアカウントは不要です"
+                trailing="next"
+                onClick={() => dispatch({ type: "deck/browse" })}
+              />
+            </Show>
+          </section>
+          {props.children}
+        </div>
       </Match>
 
       <Match when={step() === "new"}>
         <section
-          class="flex animate-fade-in flex-col gap-3"
+          class="flex animate-fade-in flex-col gap-3 px-4 pb-4"
           aria-labelledby="new-heading"
         >
           <BackButton onClick={() => setStep("choose")} />
           <h2 id="new-heading" class="font-600 text-body">
-            はじめての方
+            Nostrをはじめる
           </h2>
           <NewcomerGuide
             initialDevice={
@@ -144,12 +148,12 @@ const LoginPanel: Component<{
 
       <Match when={step() === "existing"}>
         <section
-          class="flex animate-fade-in flex-col gap-3"
+          class="flex animate-fade-in flex-col gap-3 px-4 pb-4"
           aria-labelledby="existing-heading"
         >
           <BackButton onClick={() => setStep("choose")} />
           <h2 id="existing-heading" class="font-600 text-body">
-            Nostr のアカウントを持っている方
+            アカウントを持っている方
           </h2>
 
           <Show when={props.state.error}>

@@ -263,6 +263,17 @@ describe("Streets について", () => {
     expect(deckUiTransition(closed, { type: "deck/close-about" })).toBe(closed);
   });
 
+  it("ページを指定して開くと、そのページを覚え、閉じたら忘れる", () => {
+    const opened = deckUiTransition(emptyDeckUi(), {
+      type: "deck/open-about",
+      page: "nips",
+    });
+    expect(opened.aboutPage).toBe("nips");
+    expect(
+      deckUiTransition(opened, { type: "deck/close-about" }).aboutPage,
+    ).toBeUndefined();
+  });
+
   it("設定を開くと、Streets について は閉じる", () => {
     const state = deckUiTransition(
       { ...emptyDeckUi(), aboutOpen: true },
